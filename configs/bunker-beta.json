@@ -1,0 +1,17 @@
+{
+  "Settings": {
+    "ServerName": "Bunker Beta",
+    "Port": 8081,
+    "RequirePassword": true,
+    "ServerPassword": "beta_pass",
+    "AdminEmail": ""
+  },
+  "Channels": [
+    { "Id": "hdr_main",   "Name": "Main",          "Type": "Header" },
+    { "Id": "b_lobby_v",  "Name": "Lobby",         "Type": "Voice"  },
+    { "Id": "b_main_t",   "Name": "general",       "Type": "Text"   },
+    { "Id": "hdr_priv",   "Name": "Private",       "Type": "Header" },
+    { "Id": "b_priv_v",   "Name": "Officers",      "Type": "Voice"  },
+    { "Id": "b_priv_t",   "Name": "officers-chat", "Type": "Text"   }
+  ]
+}

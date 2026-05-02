@@ -487,3 +487,7 @@ $RECYCLE.BIN/
 ServerConfig.json
 general-chat.jsonl
 .vs/
+
+chat-*.jsonl
+server-data/
+.claude/

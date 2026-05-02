@@ -1,193 +1,1402 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Origin Voice Client</title>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { height: 100vh; font-family: 'Segoe UI', sans-serif; background: #202225; color: #dcddde; overflow: hidden; display: flex; }
 
-        body {
-            height: 100vh;
-            font-family: 'Segoe UI', sans-serif;
-            background: #202225;
-            color: #dcddde;
-            overflow: hidden;
-            display: flex;
-        }
+        /* ── Layout ── */
+        #server-bar { width: 72px; background: #1e1f22; display: flex; flex-direction: column; align-items: center; padding-top: 12px; }
+        #channel-bar { width: 240px; background: #2b2d31; display: flex; flex-direction: column; }
+        #chat-pane { flex: 1; background: #313338; display: flex; flex-direction: column; }
 
-        #Server-Bar {
-            width: 72px;
-            background: #1e1f22;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding-top: 12px;
-        }
+        /* ── Channel List ── */
+        .channel-section-label { font-size: 11px; font-weight: 700; color: #6d6f78; text-transform: uppercase; letter-spacing: 0.7px; padding: 16px 8px 4px 12px; user-select: none; }
+        .channel { padding: 4px 6px 4px 8px; margin: 1px 6px; border-radius: 4px; cursor: pointer; color: #949ba4; display: flex; align-items: center; gap: 6px; min-height: 32px; flex-wrap: wrap; }
+        .channel:hover { background: #35373c; color: #dcddde; }
+        .channel.active { background: #3f4147; color: #fff; }
+        .ch-icon { width: 18px; text-align: center; flex-shrink: 0; font-size: 14px; }
+        .ch-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+        .ch-leave { margin-left: auto; font-size: 11px; padding: 1px 5px; border-radius: 3px; color: #4f545c; cursor: pointer; flex-shrink: 0; }
+        .ch-leave:hover { color: #ed4245; background: rgba(237,66,69,0.12); }
+        .voice-user-list { flex-basis: 100%; margin-left: 24px; display: flex; flex-direction: column; gap: 3px; padding: 2px 0; }
+        .voice-user { font-size: 12px; color: #dbdee1; display: flex; align-items: center; gap: 6px; }
+        .voice-user::before { content: ''; width: 7px; height: 7px; background: #3ba55d; border-radius: 50%; flex-shrink: 0; }
+        .ch-empty-state { padding: 20px 12px; text-align: center; color: #4f545c; font-size: 12px; line-height: 1.6; }
 
-        #Channel-Bar {
-            width: 240px;
-            background: #2b2d31;
-            display: flex;
-            flex-direction: column;
-        }
+        /* ── Chat Header ── */
+        #chat-header { height: 48px; border-bottom: 1px solid #1e1f22; display: flex; align-items: center; padding: 0 20px; gap: 10px; flex-shrink: 0; }
+        #chat-channel-icon { color: #949ba4; font-size: 18px; font-weight: 700; }
+        #chat-channel-name { font-weight: 700; font-size: 15px; color: #fff; }
 
-        #Chat-Pane {
-            flex: 1;
-            background: #313338;
-            display: flex;
-            flex-direction: column;
-        }
+        /* ── Chat ── */
+        #chat-history { flex: 1; padding: 20px; overflow-y: auto; font-size: 14px; line-height: 1.5; }
+        #input-area { padding: 16px 20px; }
+        .input-box { width: 100%; background: #383a40; border: none; padding: 11px 14px; border-radius: 8px; color: #dcddde; outline: none; font-size: 14px; }
 
-        .channel {
-            padding: 8px 12px;
-            margin: 2px 8px;
-            border-radius: 4px;
-            cursor: pointer;
-            color: #949ba4;
-        }
+        /* ── User Footer ── */
+        #user-footer { height: 54px; background: #232428; padding: 0 8px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        .avatar { width: 32px; height: 32px; background: #5865f2; border-radius: 50%; flex-shrink: 0; }
+        #footer-info { flex: 1; min-width: 0; }
+        #ui-alias { font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #voice-mode-label { font-size: 11px; color: #3ba55d; }
 
-            .channel.active {
-                background: #3f4147;
-                color: #fff;
-            }
+        /* ── Mic indicator ── */
+        #mic-indicator { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; transition: background 0.08s, color 0.08s; cursor: default; }
+        #mic-indicator.inactive  { background: #383a40; color: #4f545c; }
+        #mic-indicator.ptt-ready { background: #383a40; color: #5865f2; }
+        #mic-indicator.active    { background: #3ba55d; color: #fff; box-shadow: 0 0 6px rgba(59,165,93,0.6); }
 
-        .voice-user-list {
-            margin-left: 24px;
-            margin-top: 4px;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
+        /* ── Settings button ── */
+        #btn-settings { width: 28px; height: 28px; border-radius: 50%; border: none; background: #383a40; color: #949ba4; cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        #btn-settings:hover { background: #3f4147; color: #dcddde; }
 
-        .voice-user {
-            font-size: 13px;
-            color: #dbdee1;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
+        /* ── Modal overlay ── */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.78); display: none; align-items: center; justify-content: center; z-index: 100; }
+        .modal-overlay.open { display: flex; }
 
-            .voice-user::before {
-                content: '';
-                width: 10px;
-                height: 10px;
-                background: #3ba55d;
-                border-radius: 50%;
-            }
+        /* ── Settings modal ── */
+        .settings-modal { background: #2b2d31; border-radius: 10px; width: 460px; max-height: 88vh; overflow-y: auto; box-shadow: 0 12px 40px rgba(0,0,0,0.6); }
+        .modal-header { padding: 20px 20px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #1e1f22; }
+        .modal-title { font-size: 16px; font-weight: 700; color: #fff; }
+        .modal-close-btn { width: 26px; height: 26px; border-radius: 50%; border: none; background: #383a40; color: #949ba4; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+        .modal-close-btn:hover { background: #ed4245; color: #fff; }
+        .modal-body { padding: 16px 20px 24px; display: flex; flex-direction: column; gap: 16px; }
 
-        #Chat-History {
-            flex: 1;
-            padding: 20px;
-            overflow-y: auto;
-            font-size: 14px;
-        }
+        /* ── Section labels ── */
+        .section-label { font-size: 11px; font-weight: 700; color: #949ba4; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+        hr.divider { border: none; border-top: 1px solid #1e1f22; }
 
-        #Input-Area {
-            padding: 20px;
-        }
+        /* ── Select dropdowns ── */
+        .settings-select { width: 100%; background: #1e1f22; color: #dcddde; border: 1px solid #3a3c42; border-radius: 5px; padding: 9px 30px 9px 12px; font-size: 13px; outline: none; cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='%23949ba4'%3E%3Cpath d='M0 0l5 6 5-6z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; }
+        .settings-select:focus { border-color: #5865f2; }
 
-        .input-box {
-            width: 100%;
-            background: #383a40;
-            border: none;
-            padding: 12px;
-            border-radius: 8px;
-            color: #dcddde;
-            outline: none;
-        }
+        /* ── Mode toggle ── */
+        .mode-toggle { display: flex; background: #1e1f22; border-radius: 6px; padding: 3px; gap: 2px; }
+        .mode-btn { flex: 1; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; color: #949ba4; text-align: center; transition: all 0.12s; user-select: none; }
+        .mode-btn:hover { color: #dcddde; }
+        .mode-btn.active { background: #5865f2; color: #fff; font-weight: 600; }
 
-        #User-Footer {
-            height: 52px;
-            background: #232428;
-            padding: 0 10px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
+        /* ── PTT key bind button ── */
+        .ptt-bind-row { display: flex; gap: 10px; align-items: center; }
+        .ptt-bind-btn { flex: 1; background: #1e1f22; border: 2px solid #3a3c42; border-radius: 6px; padding: 9px 14px; color: #dcddde; font-size: 14px; font-weight: 700; cursor: pointer; text-align: center; transition: border-color 0.12s; letter-spacing: 0.5px; }
+        .ptt-bind-btn:hover { border-color: #5865f2; }
+        .ptt-bind-btn.listening { border-color: #5865f2; color: #5865f2; animation: pulse-brd 0.9s ease infinite; }
+        @keyframes pulse-brd { 0%,100%{box-shadow:0 0 0 0 rgba(88,101,242,0.5)} 50%{box-shadow:0 0 0 5px rgba(88,101,242,0)} }
 
-        .avatar {
-            width: 32px;
-            height: 32px;
-            background: #5865f2;
-            border-radius: 50%;
-        }
+        /* ── VAD meter ── */
+        .vad-meter-track { height: 14px; background: #1e1f22; border-radius: 7px; position: relative; overflow: visible; }
+        .vad-level-fill { position: absolute; top: 0; left: 0; height: 100%; width: 0%; border-radius: 7px; background: #4f545c; transition: width 0.04s linear, background 0.1s; }
+        .vad-level-fill.above { background: #3ba55d; }
+        .vad-threshold-line { position: absolute; top: -3px; height: calc(100% + 6px); width: 3px; background: #fff; border-radius: 1.5px; pointer-events: none; transform: translateX(-50%); box-shadow: 0 0 4px rgba(255,255,255,0.5); }
+        .vad-axis { display: flex; justify-content: space-between; font-size: 10px; color: #4f545c; margin: 4px 0 8px; }
+
+        /* ── Sliders ── */
+        .slider-row { display: flex; align-items: center; gap: 10px; }
+        .range-slider { flex: 1; -webkit-appearance: none; height: 5px; background: #1e1f22; border-radius: 3px; outline: none; cursor: pointer; }
+        .range-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: #5865f2; border-radius: 50%; cursor: pointer; border: 2px solid #2b2d31; }
+        .range-slider:hover::-webkit-slider-thumb { background: #7289da; }
+        .slider-value { font-size: 12px; color: #949ba4; min-width: 40px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+        /* ── Footer mic meter ── */
+        #footer-meter-track { height: 3px; background: #1a1b1e; flex-shrink: 0; width: 100%; }
+        #footer-meter-fill { height: 100%; width: 0%; background: #4f545c; transition: width 0.04s linear; }
+        #footer-meter-fill.above { background: #3ba55d; }
+
+        /* ── Server Bar Icons ── */
+        #server-bar { position: relative; }
+        #server-icon-list { display: flex; flex-direction: column; align-items: center; width: 100%; padding-top: 8px; }
+        .server-icon-wrap { position: relative; width: 100%; display: flex; justify-content: center; align-items: center; margin-bottom: 8px; }
+        .server-pill { position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 4px; height: 0; background: #fff; border-radius: 0 4px 4px 0; transition: height 0.15s ease; pointer-events: none; }
+        .server-icon-wrap:hover .server-pill { height: 20px; }
+        .server-icon-wrap.active .server-pill { height: 40px; }
+        .server-icon { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; letter-spacing: 0.5px; color: rgba(0,0,0,0.70); cursor: pointer; transition: border-radius 0.15s; flex-shrink: 0; user-select: none; }
+        .server-icon:hover { border-radius: 16px; }
+        .server-icon-wrap.active .server-icon { border-radius: 16px; }
+        .server-bar-divider { width: 32px; height: 2px; background: #35373c; border-radius: 1px; margin: 2px 0 8px; }
+        .server-add-btn { width: 48px; height: 48px; border-radius: 50%; background: #313338; color: #3ba55d; font-size: 26px; font-weight: 300; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: border-radius 0.15s, background 0.15s; user-select: none; line-height: 1; }
+        .server-add-btn:hover { border-radius: 16px; background: #3ba55d; color: #fff; }
+        .server-icon-wrap.connected .server-icon { box-shadow: 0 0 0 2.5px #3ba55d, 0 0 0 5px #1e1f22; border-radius: 16px; }
+
+        /* ── Settings Tabs ── */
+        .modal-tabs { display: flex; background: #1e1f22; border-bottom: 1px solid #111214; flex-shrink: 0; }
+        .tab-btn { flex: 1; padding: 10px 8px; border: none; background: transparent; color: #949ba4; cursor: pointer; font-size: 12px; font-weight: 600; letter-spacing: 0.3px; transition: all 0.12s; border-bottom: 3px solid transparent; }
+        .tab-btn:hover { color: #dcddde; background: #25272b; }
+        .tab-btn.active { color: #fff; border-bottom: 3px solid #5865f2; background: #25272b; }
+
+        /* ── Alias list ── */
+        .alias-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 5px; background: #1e1f22; margin-bottom: 4px; cursor: pointer; user-select: none; }
+        .alias-item:hover { background: #25272b; }
+        .alias-item.selected { outline: 2px solid #5865f2; }
+        .alias-dot { width: 8px; height: 8px; border-radius: 50%; background: #4f545c; flex-shrink: 0; transition: background 0.1s; }
+        .alias-item.selected .alias-dot { background: #3ba55d; }
+        .alias-name { flex: 1; font-size: 13px; font-weight: 600; color: #dcddde; }
+        .alias-del-btn { border: none; background: transparent; color: #4f545c; cursor: pointer; font-size: 13px; padding: 2px 6px; border-radius: 3px; line-height: 1; }
+        .alias-del-btn:hover { background: #ed4245; color: #fff; }
+
+        /* ── Server list ── */
+        .server-item { background: #1e1f22; border-radius: 6px; padding: 10px 12px; margin-bottom: 6px; display: flex; align-items: center; gap: 10px; border: 1px solid transparent; transition: border-color 0.15s; }
+        .server-item.connected { border-color: #3ba55d; }
+        .server-info { flex: 1; min-width: 0; }
+        .server-item-name { font-size: 13px; font-weight: 700; color: #dcddde; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .server-item-addr { font-size: 11px; color: #4f545c; margin-top: 1px; }
+        .server-item-badge { font-size: 10px; color: #3ba55d; font-weight: 700; margin-top: 2px; letter-spacing: 0.5px; }
+        .server-actions { display: flex; gap: 4px; flex-shrink: 0; }
+        .srv-btn { border: none; border-radius: 4px; padding: 5px 10px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.1s; }
+        .srv-btn-connect { background: #5865f2; color: #fff; }
+        .srv-btn-connect:hover { background: #4752c4; }
+        .srv-btn-disconnect { background: #ed4245; color: #fff; }
+        .srv-btn-disconnect:hover { background: #c03537; }
+        .srv-btn-icon { background: #383a40; color: #dcddde; }
+        .srv-btn-icon:hover { background: #3f4147; }
+        .srv-btn-del { background: transparent; color: #4f545c; }
+        .srv-btn-del:hover { background: #ed4245; color: #fff; }
+
+        /* ── Add-server / invite forms ── */
+        .form-input { width: 100%; background: #1e1f22; border: 1px solid #3a3c42; border-radius: 5px; padding: 8px 12px; color: #dcddde; font-size: 13px; outline: none; box-sizing: border-box; }
+        .form-input:focus { border-color: #5865f2; }
+        .form-row-gap { display: flex; gap: 8px; }
+        .form-row-gap .form-input { margin: 0; }
+        .btn-primary { background: #5865f2; color: #fff; border: none; border-radius: 5px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+        .btn-primary:hover { background: #4752c4; }
+        .btn-secondary { background: #383a40; color: #dcddde; border: none; border-radius: 5px; padding: 8px 16px; font-size: 13px; cursor: pointer; }
+        .btn-secondary:hover { background: #3f4147; }
+        .invite-textarea { width: 100%; background: #1e1f22; border: 1px solid #3a3c42; border-radius: 5px; padding: 8px 12px; color: #dcddde; font-size: 11px; font-family: 'Cascadia Code','Consolas',monospace; resize: vertical; min-height: 56px; outline: none; box-sizing: border-box; }
+        .invite-textarea:focus { border-color: #5865f2; }
+        .empty-state { text-align: center; color: #4f545c; font-size: 13px; padding: 20px 0; }
+        .copied-toast { color: #3ba55d; font-size: 11px; font-weight: 600; }
+
+        /* ── Utilities ── */
+        .hidden { display: none !important; }
     </style>
 </head>
-<body onload="initMic()">
-    <div id="Server-Bar"><div style="width:48px; height:48px; background:#313338; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold;">S1</div></div>
-    <div id="Channel-Bar">
-        <div style="padding:16px; font-weight:bold; color:white; font-size:14px;">Origin Server</div>
-        <div style="flex:1;">
-            <div class="channel" id="btn-voice" onclick="joinVoice('c_gen_v')">🔊 General<div id="user-list-c_gen_v" class="voice-user-list"></div></div>
+<body>
+
+<div id="server-bar">
+    <div id="server-icon-list"></div>
+    <div class="server-bar-divider"></div>
+    <div class="server-add-btn" title="Add a server" onclick="openSettings();switchTab('servers')">+</div>
+</div>
+
+<div id="channel-bar">
+    <div id="footer-meter-track"><div id="footer-meter-fill"></div></div>
+    <div id="server-name-display" style="padding:16px;font-weight:700;color:#fff;font-size:14px;border-bottom:1px solid #1e1f22;flex-shrink:0;">Not connected</div>
+    <div id="channel-list" style="flex:1;overflow-y:auto;"></div>
+    <div id="user-footer">
+        <div class="avatar"></div>
+        <div id="footer-info">
+            <div id="ui-alias">...</div>
+            <div id="voice-mode-label">Voice Activity</div>
         </div>
-        <div id="User-Footer">
-            <div class="avatar"></div>
-            <div style="flex:1"><div id="ui-alias" style="font-weight:bold; font-size:13px;">...</div><div style="font-size:11px; color:#3ba55d;">Online</div></div>
-            <div id="mic-status">🎙️</div>
+        <div id="mic-indicator" class="inactive" title="Microphone">🎙️</div>
+        <button id="btn-settings" onclick="openSettings()" title="Audio Settings">⚙</button>
+    </div>
+</div>
+
+<div id="chat-pane">
+    <div id="chat-header">
+        <span id="chat-channel-icon">#</span>
+        <span id="chat-channel-name">—</span>
+    </div>
+    <div id="chat-history"></div>
+    <div id="input-area">
+        <input type="text" class="input-box" placeholder="Message #general-chat" onkeypress="sendChat(event)">
+    </div>
+</div>
+
+<!-- ── Settings Modal ── -->
+<div id="settings-overlay" class="modal-overlay" onclick="onOverlayClick(event)">
+    <div class="settings-modal">
+        <div class="modal-header">
+            <span class="modal-title">⚙ Settings</span>
+            <button class="modal-close-btn" onclick="closeSettings()">✕</button>
+        </div>
+        <div class="modal-tabs">
+            <button id="tab-btn-audio"    class="tab-btn active" onclick="switchTab('audio')">🎙 Audio</button>
+            <button id="tab-btn-identity" class="tab-btn"        onclick="switchTab('identity')">👤 Identity</button>
+            <button id="tab-btn-servers"  class="tab-btn"        onclick="switchTab('servers')">🖥 Servers</button>
+        </div>
+
+        <!-- ── Audio Tab ── -->
+        <div id="tab-audio" class="modal-body">
+            <div>
+                <div class="section-label">Input Device (Microphone)</div>
+                <select id="sel-input" class="settings-select" onchange="onInputDeviceChange(this.value)">
+                    <option value="">Default Input</option>
+                </select>
+            </div>
+            <div>
+                <div class="section-label">Output Device (Speakers / Headphones)</div>
+                <select id="sel-output" class="settings-select" onchange="onOutputDeviceChange(this.value)">
+                    <option value="">Default Output</option>
+                </select>
+            </div>
+            <hr class="divider">
+            <div>
+                <div class="section-label">Voice Mode</div>
+                <div class="mode-toggle">
+                    <div id="mode-vad" class="mode-btn active" onclick="setVoiceMode('vad')">🎙 Voice Activity</div>
+                    <div id="mode-ptt" class="mode-btn"        onclick="setVoiceMode('ptt')">🖱 Push to Talk</div>
+                </div>
+            </div>
+            <div id="ptt-section" class="hidden">
+                <div class="section-label">Push-to-Talk Key</div>
+                <div class="ptt-bind-row">
+                    <button id="ptt-bind-btn" class="ptt-bind-btn" onclick="startPttCapture()">Z</button>
+                    <span style="font-size:12px;color:#4f545c;">Click to rebind</span>
+                </div>
+            </div>
+            <div id="vad-section">
+                <div class="section-label">Activation Level — speak and adjust until the bar crosses the line</div>
+                <div class="vad-meter-track">
+                    <div id="vad-level-fill" class="vad-level-fill"></div>
+                    <div id="vad-threshold-line" class="vad-threshold-line" style="left:13%"></div>
+                </div>
+                <div class="vad-axis"><span>Quiet</span><span>Loud</span></div>
+                <div class="slider-row">
+                    <span style="font-size:12px;color:#4f545c;white-space:nowrap;">Less sensitive</span>
+                    <input type="range" id="vad-sens-slider" class="range-slider" min="0" max="100" value="40"
+                           oninput="onSensitivityChange(this.value)">
+                    <span style="font-size:12px;color:#4f545c;white-space:nowrap;">More sensitive</span>
+                </div>
+            </div>
+            <hr class="divider">
+            <div>
+                <div class="section-label">Input Gain (Microphone Volume)</div>
+                <div class="slider-row">
+                    <span style="font-size:12px;color:#4f545c;">0%</span>
+                    <input type="range" id="input-gain-slider" class="range-slider" min="0" max="200" value="100"
+                           oninput="onInputGainChange(this.value)">
+                    <span style="font-size:12px;color:#4f545c;">200%</span>
+                    <span id="input-gain-display" class="slider-value">100%</span>
+                </div>
+            </div>
+            <div>
+                <div class="section-label">Output Gain (Speaker / Headphone Volume)</div>
+                <div class="slider-row">
+                    <span style="font-size:12px;color:#4f545c;">0%</span>
+                    <input type="range" id="output-gain-slider" class="range-slider" min="0" max="200" value="100"
+                           oninput="onOutputGainChange(this.value)">
+                    <span style="font-size:12px;color:#4f545c;">200%</span>
+                    <span id="output-gain-display" class="slider-value">100%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Identity Tab ── -->
+        <div id="tab-identity" class="modal-body hidden">
+            <div>
+                <div class="section-label">Your Aliases — select one to use when connecting to a server</div>
+                <div id="alias-list-ui"></div>
+                <div class="form-row-gap" style="margin-top:10px;">
+                    <input type="text" id="alias-new-input" class="form-input" placeholder="New alias..." maxlength="32"
+                           onkeydown="if(event.key==='Enter')addAlias()">
+                    <button class="btn-primary" onclick="addAlias()">Add</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Servers Tab ── -->
+        <div id="tab-servers" class="modal-body hidden">
+            <div>
+                <div class="section-label">Saved Servers</div>
+                <div id="server-list-ui"></div>
+            </div>
+            <hr class="divider">
+            <div>
+                <div class="section-label">Add Server</div>
+                <input type="text"     id="srv-name-input" class="form-input" placeholder="Server name" style="margin-bottom:6px;">
+                <div class="form-row-gap" style="margin-bottom:6px;">
+                    <input type="text"   id="srv-host-input" class="form-input" placeholder="Address (IP or hostname)" style="flex:2;">
+                    <input type="number" id="srv-port-input" class="form-input" placeholder="Port" value="8080" style="flex:1;min-width:72px;">
+                </div>
+                <input type="password" id="srv-pass-input" class="form-input" placeholder="Password (leave blank if none)" style="margin-bottom:8px;">
+                <button class="btn-primary" onclick="addServerManually()">Add Server</button>
+            </div>
+            <hr class="divider">
+            <div>
+                <div class="section-label">Add from Invite Code</div>
+                <textarea id="invite-paste-input" class="invite-textarea" placeholder="Paste invite code here..."></textarea>
+                <button class="btn-primary" style="margin-top:6px;" onclick="addFromInvite()">Import Server</button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Dev Log Panel — F9 to toggle, Shift+F9 to clear -->
+<div id="devlog-panel" style="display:none;position:fixed;bottom:0;left:72px;right:0;height:210px;background:rgba(7,8,10,0.97);border-top:2px solid #5865f2;z-index:500;flex-direction:column;font-family:'Cascadia Code','Consolas',monospace;">
+    <div style="display:flex;align-items:center;gap:10px;padding:3px 10px;background:#1e1f22;border-bottom:1px solid #2b2d31;flex-shrink:0;user-select:none;">
+        <span style="color:#5865f2;font-size:11px;font-weight:700;letter-spacing:1px;">&#9658; DEV LOG</span>
+        <span style="color:#4f545c;font-size:10px;">F9 toggle &middot; Shift+F9 clear</span>
+        <div style="margin-left:auto;display:flex;gap:6px;">
+            <button onclick="DevLog.clear()" style="background:#3f4147;border:none;color:#949ba4;padding:2px 8px;border-radius:3px;cursor:pointer;font-size:11px;">Clear</button>
+            <button onclick="DevLog.toggle()" style="background:#3f4147;border:none;color:#949ba4;padding:2px 8px;border-radius:3px;cursor:pointer;font-size:11px;">&#10005;</button>
         </div>
     </div>
-    <div id="Chat-Pane">
-        <div id="Chat-History"></div>
-        <div id="Input-Area"><input type="text" class="input-box" placeholder="Message #general-chat" onkeypress="sendChat(event)"></div>
-    </div>
+    <div id="devlog-entries" style="flex:1;overflow-y:auto;padding:4px 10px;"></div>
+</div>
 
-    <script>
-        let myAlias = "", localStream = null, peers = {};
-        const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+<script>
+'use strict';
 
-        // Warm up the mic immediately on load
-        async function initMic() {
-            try {
-                localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                console.log("Mic Initialized.");
-            } catch (e) { console.error("Mic failed", e); }
-        }
+// ── Dev Logger (F9 to toggle panel, Shift+F9 to clear) ────────────────────────
+const DevLog = (() => {
+    const STYLE = {
+        AUDIO:   '#4fc3f7', VAD: '#81c784', DEVICE: '#ffb74d',
+        RTC:     '#ce93d8', BRIDGE: '#80deea', SETTINGS: '#fff176', ERR: '#ef9a9a',
+    };
+    const entries = [];
+    let visible = false;
 
-        function joinVoice(id) {
-            document.getElementById('btn-voice').classList.add('active');
-            window.chrome.webview.postMessage(JSON.stringify({ action: "JOIN_VOICE", channelId: id }));
-        }
+    function ts() { return new Date().toTimeString().slice(0, 8); }
 
-        async function setupPeer(target, makeOffer = false) {
-            if (peers[target]) return peers[target];
-            const pc = new RTCPeerConnection(rtcConfig);
-            peers[target] = pc;
-            localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-            pc.onicecandidate = e => { if (e.candidate) sendSignal(target, { type: 'ice', candidate: e.candidate }); };
-            pc.ontrack = e => {
-                let audio = document.createElement('audio');
-                audio.autoplay = true; audio.srcObject = e.streams[0]; document.body.appendChild(audio);
-            };
-            if (makeOffer) { const offer = await pc.createOffer(); await pc.setLocalDescription(offer); sendSignal(target, { type: 'offer', sdp: offer }); }
-            return pc;
-        }
+    function renderRow(e) {
+        const list = document.getElementById('devlog-entries');
+        if (!list) return;
+        const row = document.createElement('div');
+        row.style.cssText = `padding:1px 0;color:${STYLE[e.cat]||'#b0bec5'};font-size:11px;line-height:1.5;white-space:pre-wrap;word-break:break-all;`;
+        row.textContent = `[${e.ts}][${e.cat.padEnd(7)}] ${e.msg}`;
+        list.appendChild(row);
+        list.scrollTop = list.scrollHeight;
+    }
 
-        function sendSignal(target, payload) { window.chrome.webview.postMessage(JSON.stringify({ action: "WEBRTC_SIGNAL", target: target, sender: myAlias, payload: payload })); }
-        function sendChat(e) { if (e.key === 'Enter' && e.target.value) { window.chrome.webview.postMessage(JSON.stringify({ action: "SEND_CHAT", message: e.target.value })); e.target.value = ""; } }
-
-        window.chrome.webview.addEventListener('message', async (e) => {
-            const data = JSON.parse(e.data);
-            if (data.action === "INIT_CLIENT") { myAlias = data.alias; document.getElementById('ui-alias').innerText = myAlias; }
-            else if (data.action === "CHAT_RECEIVE") {
-                const h = document.getElementById('Chat-History');
-                h.innerHTML += `<div><strong>${data.author}</strong>: ${data.message}</div>`;
-                h.scrollTop = h.scrollHeight;
+    return {
+        log(cat, msg) {
+            const e = { ts: ts(), cat, msg: String(msg) };
+            entries.push(e);
+            if (entries.length > 500) entries.shift();
+            console.log(`%c[${e.ts}][${cat}] ${e.msg}`, `color:${STYLE[cat]||'#b0bec5'}`);
+            if (visible) renderRow(e);
+        },
+        toggle() {
+            visible = !visible;
+            const panel = document.getElementById('devlog-panel');
+            if (!panel) return;
+            panel.style.display = visible ? 'flex' : 'none';
+            if (visible) {
+                const list = document.getElementById('devlog-entries');
+                list.innerHTML = '';
+                entries.forEach(renderRow);
             }
-            else if (data.action === "USER_JOINED_VOICE") { await setupPeer(data.alias, true); }
-            else if (data.action === "VOICE_STATE_UPDATE") {
-                document.getElementById(`user-list-${data.channelId}`).innerHTML = data.users.map(u => `<div class="voice-user">${u}</div>`).join('');
-            }
-            else if (data.action === "WEBRTC_SIGNAL") {
-                const pc = await setupPeer(data.sender, false);
-                if (data.payload.type === 'offer') { await pc.setRemoteDescription(new RTCSessionDescription(data.payload.sdp)); const a = await pc.createAnswer(); await pc.setLocalDescription(a); sendSignal(data.sender, { type: 'answer', sdp: a }); }
-                else if (data.payload.type === 'answer') { await pc.setRemoteDescription(new RTCSessionDescription(data.payload.sdp)); }
-                else if (data.payload.type === 'ice') { await pc.addIceCandidate(new RTCIceCandidate(data.payload.candidate)); }
-            }
-        });
-    </script>
+        },
+        clear() {
+            entries.length = 0;
+            const list = document.getElementById('devlog-entries');
+            if (list) list.innerHTML = '';
+        }
+    };
+})();
+
+// ── Constants ──────────────────────────────────────────────────────────────────
+const METER_MAX  = 0.15;   // RMS ceiling for meter display
+const VAD_HOLD_MS = 400;   // ms to hold "speaking" after signal drops below threshold
+const rtcConfig  = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+// ── State ──────────────────────────────────────────────────────────────────────
+let myAlias        = '';
+let localStream    = null;   // raw getUserMedia stream
+let processedStream = null;  // AudioContext destination stream sent to peers
+let peers          = {};     // { alias: RTCPeerConnection }
+let remoteGainNodes = [];    // output gain nodes (one per remote peer)
+
+let audioCtx      = null;
+let inputGainNode = null;
+let micGatingNode = null;
+let analyserNode  = null;
+let outputCtx     = null;
+
+let speaking       = false;
+let vadHoldTimer   = null;
+let vadLoopActive  = false;
+let pttActive      = false;
+let isCapturingPtt = false;
+
+// ── Settings ───────────────────────────────────────────────────────────────────
+const settings = {
+    voiceMode:      'vad',
+    inputDeviceId:  '',
+    outputDeviceId: '',
+    inputGain:      1.0,
+    outputGain:     1.0,
+    vadSensitivity: 40,        // 0-100 slider
+    vadThreshold:   0.029,     // computed from sensitivity
+    pttKeyCode:     90,        // VK_Z
+    pttKeyLabel:    'Z',
+};
+
+function saveSettings() {
+    try { localStorage.setItem('origin_audio_settings', JSON.stringify(settings)); } catch {}
+}
+
+// ── Client Config (aliases + servers) ─────────────────────────────────────────
+const clientConfig = {
+    aliases: ['Player'],
+    activeAlias: 'Player',
+    servers: []
+};
+
+function saveClientConfig() {
+    try { localStorage.setItem('origin_client_config', JSON.stringify(clientConfig)); } catch {}
+}
+
+function loadClientConfig() {
+    try {
+        const raw = localStorage.getItem('origin_client_config');
+        if (raw) Object.assign(clientConfig, JSON.parse(raw));
+    } catch {}
+    if (!Array.isArray(clientConfig.aliases) || !clientConfig.aliases.length) clientConfig.aliases = ['Player'];
+    if (!clientConfig.aliases.includes(clientConfig.activeAlias)) clientConfig.activeAlias = clientConfig.aliases[0];
+    if (!Array.isArray(clientConfig.servers)) clientConfig.servers = [];
+    DevLog.log('SETTINGS', `Config | aliases:${clientConfig.aliases.length} servers:${clientConfig.servers.length} active:"${clientConfig.activeAlias}"`);
+}
+
+// ── Connection state ───────────────────────────────────────────────────────────
+let connectedServerId  = null;
+let pendingServerId    = null;
+let viewedServerId     = null;   // which server's channels are shown in the sidebar
+let serverChannels     = [];     // channels received from SERVER_INFO
+let activeTextChannelId = null;
+let channelMessages    = {};     // channelId → [{author, time, message}]
+let voiceChannelUsers  = {};     // channelId → [alias, ...]  — authoritative from server
+
+// ── Channel List Rendering ────────────────────────────────────────────────────
+function renderChannelList() {
+    const container = document.getElementById('channel-list');
+    if (!container) return;
+
+    // Viewing a server we're NOT connected to
+    if (viewedServerId && viewedServerId !== connectedServerId) {
+        const srv = clientConfig.servers.find(s => s.id === viewedServerId);
+        container.innerHTML = `
+        <div class="ch-empty-state">
+            <div style="color:#dcddde;font-size:14px;font-weight:700;margin-bottom:6px;">${escapeHtml(srv?.name || 'Server')}</div>
+            <div style="margin-bottom:14px;">${escapeHtml(srv?.host || '')}:${srv?.port || 8080}</div>
+            <button class="btn-primary" style="font-size:12px;padding:6px 18px;"
+                onclick="connectToServer('${viewedServerId}')">Connect</button>
+        </div>`;
+        return;
+    }
+
+    // Not connected to anything
+    if (!connectedServerId || !serverChannels.length) {
+        container.innerHTML = '<div class="ch-empty-state">Select a server from the left bar to connect.</div>';
+        return;
+    }
+
+    // Render channels in config order — Header type becomes a section label
+    let html = '';
+    for (const ch of serverChannels) {
+        if (ch.type === 'Header') {
+            html += `<div class="channel-section-label">${escapeHtml(ch.name)}</div>`;
+        } else if (ch.type === 'Voice') {
+            const inVoice = ch.id === currentChannelId;
+            const users   = voiceChannelUsers[ch.id] || [];
+            html += `
+            <div class="channel${inVoice ? ' active' : ''}" onclick="joinVoice('${ch.id}')">
+                <span class="ch-icon">🔊</span>
+                <span class="ch-name">${escapeHtml(ch.name)}</span>
+                ${inVoice ? `<span class="ch-leave" onclick="event.stopPropagation();leaveVoice('${ch.id}')" title="Leave voice">✖</span>` : ''}
+                <div class="voice-user-list">${users.map(u => `<div class="voice-user">${escapeHtml(u)}</div>`).join('')}</div>
+            </div>`;
+        } else if (ch.type === 'Text') {
+            const viewing = ch.id === activeTextChannelId;
+            html += `
+            <div class="channel${viewing ? ' active' : ''}" onclick="selectTextChannel('${ch.id}')">
+                <span class="ch-icon" style="font-weight:700;font-size:16px;">#</span>
+                <span class="ch-name">${escapeHtml(ch.name)}</span>
+            </div>`;
+        }
+    }
+
+    container.innerHTML = html;
+}
+
+function leaveVoice(channelId) {
+    if (!currentChannelId) return;
+    postToBridge({ action: 'LEAVE_VOICE', channelId });
+}
+
+function selectTextChannel(id) {
+    activeTextChannelId = id;
+    const ch = serverChannels.find(c => c.id === id);
+    if (ch) {
+        document.getElementById('chat-channel-name').textContent = ch.name;
+        document.querySelector('.input-box').placeholder = `Message #${ch.name}`;
+    }
+    const h = document.getElementById('chat-history');
+    h.innerHTML = '';
+    (channelMessages[id] || []).forEach(m => renderChatMessage(m.author, m.message));
+    renderChannelList();
+    DevLog.log('BRIDGE', `Text channel selected: "${ch?.name || id}" | ${(channelMessages[id]||[]).length} msg(s)`);
+}
+
+// ── Tab Switching ──────────────────────────────────────────────────────────────
+let activeTab = 'audio';
+function switchTab(tab) {
+    activeTab = tab;
+    ['audio', 'identity', 'servers'].forEach(t => {
+        document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== tab);
+        document.getElementById(`tab-btn-${t}`).classList.toggle('active', t === tab);
+    });
+    if (tab === 'identity') renderAliasList();
+    if (tab === 'servers')  renderServerList();
+}
+
+// ── Alias Management ──────────────────────────────────────────────────────────
+function renderAliasList() {
+    const list = document.getElementById('alias-list-ui');
+    if (!list) return;
+    if (!clientConfig.aliases.length) { list.innerHTML = '<div class="empty-state">No aliases yet.</div>'; return; }
+    list.innerHTML = clientConfig.aliases.map(a => `
+        <div class="alias-item${a === clientConfig.activeAlias ? ' selected' : ''}" onclick="selectAlias('${escapeHtml(a)}')">
+            <div class="alias-dot"></div>
+            <div class="alias-name">${escapeHtml(a)}</div>
+            ${clientConfig.aliases.length > 1
+                ? `<button class="alias-del-btn" title="Remove" onclick="event.stopPropagation();removeAlias('${escapeHtml(a)}')">✕</button>`
+                : ''}
+        </div>`).join('');
+}
+
+function selectAlias(alias) {
+    if (!clientConfig.aliases.includes(alias)) return;
+    clientConfig.activeAlias = alias;
+    saveClientConfig();
+    renderAliasList();
+    if (!connectedServerId) document.getElementById('ui-alias').textContent = alias;
+    DevLog.log('SETTINGS', `Active alias → "${alias}"`);
+}
+
+function addAlias() {
+    const input = document.getElementById('alias-new-input');
+    const alias = (input.value || '').trim();
+    if (!alias || clientConfig.aliases.includes(alias)) { input.focus(); return; }
+    clientConfig.aliases.push(alias);
+    clientConfig.activeAlias = alias;
+    saveClientConfig();
+    input.value = '';
+    renderAliasList();
+    if (!connectedServerId) document.getElementById('ui-alias').textContent = alias;
+    DevLog.log('SETTINGS', `Alias added: "${alias}"`);
+}
+
+function removeAlias(alias) {
+    clientConfig.aliases = clientConfig.aliases.filter(a => a !== alias);
+    if (!clientConfig.aliases.length) clientConfig.aliases = ['Player'];
+    if (clientConfig.activeAlias === alias) clientConfig.activeAlias = clientConfig.aliases[0];
+    saveClientConfig();
+    renderAliasList();
+    DevLog.log('SETTINGS', `Alias removed: "${alias}"`);
+}
+
+// ── Server Management ─────────────────────────────────────────────────────────
+function _serverId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+// Split "host:port" typed in the address field into { host, port }
+function _splitHostPort(raw, defaultPort) {
+    const s = raw.trim();
+    const m = s.match(/^(.+):(\d{1,5})$/);
+    if (m) { const p = parseInt(m[2], 10); if (p > 0 && p < 65536) return { host: m[1], port: p }; }
+    return { host: s, port: defaultPort };
+}
+
+function renderServerList() {
+    const list = document.getElementById('server-list-ui');
+    if (!list) return;
+    if (!clientConfig.servers.length) {
+        list.innerHTML = '<div class="empty-state">No servers yet. Add one below or paste an invite code.</div>';
+        return;
+    }
+    list.innerHTML = clientConfig.servers.map(s => {
+        const conn    = s.id === connectedServerId;
+        const editing = s.id === editingServerId;
+
+        if (editing) return `
+        <div class="server-item" style="flex-direction:column;align-items:stretch;gap:6px;">
+            <input id="edit-name-${s.id}" class="form-input" value="${escapeHtml(s.name)}" placeholder="Server name"
+                   onkeydown="if(event.key==='Enter')saveEditServer('${s.id}');if(event.key==='Escape')cancelEditServer();">
+            <div class="form-row-gap">
+                <input id="edit-host-${s.id}" class="form-input" value="${escapeHtml(s.host)}" placeholder="Address" style="flex:2;"
+                       onkeydown="if(event.key==='Escape')cancelEditServer();">
+                <input id="edit-port-${s.id}" class="form-input" type="number" value="${s.port}" placeholder="Port" style="flex:1;min-width:72px;"
+                       onkeydown="if(event.key==='Escape')cancelEditServer();">
+            </div>
+            <input id="edit-pass-${s.id}" class="form-input" type="password" value="${escapeHtml(s.password)}" placeholder="Password"
+                   onkeydown="if(event.key==='Enter')saveEditServer('${s.id}');if(event.key==='Escape')cancelEditServer();">
+            <div style="display:flex;gap:6px;">
+                <button class="btn-primary" onclick="saveEditServer('${s.id}')">Save</button>
+                <button class="btn-secondary" onclick="cancelEditServer()">Cancel</button>
+            </div>
+        </div>`;
+
+        return `<div class="server-item${conn ? ' connected' : ''}">
+            <div class="server-info">
+                <div class="server-item-name">${escapeHtml(s.name)}</div>
+                <div class="server-item-addr">${escapeHtml(s.host)}:${s.port}</div>
+                ${conn ? '<div class="server-item-badge">● CONNECTED</div>' : ''}
+            </div>
+            <div class="server-actions">
+                ${conn
+                    ? `<button class="srv-btn srv-btn-disconnect" onclick="disconnectFromServer()">Disconnect</button>`
+                    : `<button class="srv-btn srv-btn-connect" onclick="connectToServer('${s.id}')">Connect</button>`}
+                <button class="srv-btn srv-btn-icon" onclick="startEditServer('${s.id}')" title="Edit server">✏️</button>
+                <button class="srv-btn srv-btn-icon" id="inv-btn-${s.id}" onclick="copyInvite('${s.id}')" title="Copy invite code">📋</button>
+                <button class="srv-btn srv-btn-del" onclick="removeServer('${s.id}')" title="Remove server">🗑</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function addServerManually() {
+    const name = (document.getElementById('srv-name-input').value || '').trim();
+    const rawHost = (document.getElementById('srv-host-input').value || '').trim();
+    const rawPort = parseInt(document.getElementById('srv-port-input').value, 10) || 8080;
+    const pass = document.getElementById('srv-pass-input').value || '';
+    if (!name || !rawHost) { DevLog.log('ERR', 'Server name and address are required'); return; }
+    const { host, port } = _splitHostPort(rawHost, rawPort);
+    const server = { id: _serverId(), name, host, port, password: pass };
+    clientConfig.servers.push(server);
+    saveClientConfig();
+    document.getElementById('srv-name-input').value = '';
+    document.getElementById('srv-host-input').value = '';
+    document.getElementById('srv-port-input').value = '8080';
+    document.getElementById('srv-pass-input').value = '';
+    renderServerList();
+    renderServerBar();
+    DevLog.log('SETTINGS', `Server added: "${name}" @ ${host}:${port}`);
+}
+
+function removeServer(id) {
+    if (id === connectedServerId) { DevLog.log('ERR', 'Cannot remove a connected server — disconnect first'); return; }
+    const s = clientConfig.servers.find(x => x.id === id);
+    clientConfig.servers = clientConfig.servers.filter(x => x.id !== id);
+    saveClientConfig();
+    renderServerList();
+    renderServerBar();
+    if (s) DevLog.log('SETTINGS', `Server removed: "${s.name}"`);
+}
+
+function connectToServer(id) {
+    if (connectedServerId) { DevLog.log('ERR', 'Already connected — disconnect first'); return; }
+    const server = clientConfig.servers.find(s => s.id === id);
+    if (!server) return;
+    pendingServerId = id;
+    DevLog.log('BRIDGE', `Connecting to "${server.name}" as "${clientConfig.activeAlias}"`);
+    postToBridge({ action: 'CONNECT', host: server.host, port: server.port, password: server.password, alias: clientConfig.activeAlias });
+    closeSettings();
+}
+
+function disconnectFromServer() {
+    postToBridge({ action: 'DISCONNECT' });
+}
+
+function copyInvite(id) {
+    const server = clientConfig.servers.find(s => s.id === id);
+    if (!server) return;
+    const code = btoa(JSON.stringify({ n: server.name, h: server.host, p: server.port, pw: server.password }));
+    navigator.clipboard.writeText(code).then(() => {
+        const btn = document.getElementById(`inv-btn-${id}`);
+        if (btn) {
+            btn.textContent = '✓';
+            btn.classList.add('copied-toast');
+            setTimeout(() => { btn.textContent = '📋'; btn.classList.remove('copied-toast'); }, 1800);
+        }
+        DevLog.log('SETTINGS', `Invite copied for "${server.name}" | ${code.length} chars`);
+    }).catch(() => {
+        const ta = document.getElementById('invite-paste-input');
+        if (ta) { ta.value = code; switchTab('servers'); }
+    });
+}
+
+// ── Server Bar ────────────────────────────────────────────────────────────────
+function serverInitials(name) {
+    const words = name.trim().split(/\s+/).filter(Boolean);
+    if (!words.length) return '??';
+    if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+    return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+}
+
+function serverColor(id) {
+    // Deterministic hue from id so the color never changes between sessions
+    let h = 5381;
+    for (let i = 0; i < id.length; i++) h = ((h << 5) + h + id.charCodeAt(i)) >>> 0;
+    return `hsl(${h % 360}, 58%, 62%)`;
+}
+
+function renderServerBar() {
+    const list = document.getElementById('server-icon-list');
+    if (!list) return;
+    list.innerHTML = clientConfig.servers.map(s => {
+        const isViewed = s.id === viewedServerId;
+        const isConn   = s.id === connectedServerId;
+        return `
+        <div class="server-icon-wrap${isViewed ? ' active' : ''}${isConn ? ' connected' : ''}" title="${escapeHtml(s.name)}">
+            <div class="server-pill"></div>
+            <div class="server-icon" style="background:${serverColor(s.id)};"
+                 onclick="onServerIconClick('${s.id}')">${serverInitials(s.name)}</div>
+        </div>`;
+    }).join('');
+}
+
+function onServerIconClick(id) {
+    viewedServerId = id;
+    renderChannelList();
+    renderServerBar();
+}
+
+// ── Edit Server ───────────────────────────────────────────────────────────────
+let editingServerId = null;
+
+function startEditServer(id) {
+    editingServerId = id;
+    renderServerList();
+    // Focus first field after render
+    setTimeout(() => document.getElementById(`edit-name-${id}`)?.focus(), 0);
+}
+
+function cancelEditServer() {
+    editingServerId = null;
+    renderServerList();
+}
+
+function saveEditServer(id) {
+    const s = clientConfig.servers.find(x => x.id === id);
+    if (!s) return;
+    const name    = (document.getElementById(`edit-name-${id}`).value || '').trim();
+    const rawHost = (document.getElementById(`edit-host-${id}`).value || '').trim();
+    const rawPort = parseInt(document.getElementById(`edit-port-${id}`).value, 10) || 8080;
+    const pass    = document.getElementById(`edit-pass-${id}`).value || '';
+    if (!name || !rawHost) return;
+    const { host, port } = _splitHostPort(rawHost, rawPort);
+    s.name = name; s.host = host; s.port = port; s.password = pass;
+    saveClientConfig();
+    editingServerId = null;
+    renderServerList();
+    renderServerBar();
+    DevLog.log('SETTINGS', `Server updated: "${name}" @ ${host}:${port}`);
+}
+
+function addFromInvite() {
+    const raw = (document.getElementById('invite-paste-input').value || '').trim();
+    if (!raw) return;
+    try {
+        const data = JSON.parse(atob(raw));
+        if (!data.h) throw new Error('missing host');
+        const server = { id: _serverId(), name: data.n || 'Imported Server', host: data.h, port: data.p || 8080, password: data.pw || '' };
+        clientConfig.servers.push(server);
+        saveClientConfig();
+        document.getElementById('invite-paste-input').value = '';
+        renderServerList();
+        renderServerBar();
+        DevLog.log('SETTINGS', `Server imported: "${server.name}" @ ${server.host}:${server.port}`);
+    } catch(err) {
+        DevLog.log('ERR', `Invalid invite code: ${err.message}`);
+    }
+}
+
+function loadSettings() {
+    try {
+        const raw = localStorage.getItem('origin_audio_settings');
+        if (raw) {
+            Object.assign(settings, JSON.parse(raw));
+            DevLog.log('SETTINGS', `Loaded | mode:${settings.voiceMode} gain-in:${settings.inputGain} gain-out:${settings.outputGain} sens:${settings.vadSensitivity}`);
+        } else {
+            DevLog.log('SETTINGS', 'No saved settings — using defaults');
+        }
+    } catch (e) { DevLog.log('ERR', `loadSettings: ${e.message}`); }
+}
+
+// ── Sensitivity ↔ Threshold conversion ────────────────────────────────────────
+// s=0   → threshold 0.12  (must speak loud)
+// s=40  → threshold ~0.029 (comfortable default)
+// s=100 → threshold 0.003  (very sensitive)
+function sensitivityToThreshold(s) {
+    return 0.12 * Math.pow(0.003 / 0.12, s / 100);
+}
+
+// ── Audio Engine ───────────────────────────────────────────────────────────────
+async function initAudio() {
+    DevLog.log('AUDIO', `Init | device:"${settings.inputDeviceId||'default'}" gain:${settings.inputGain}`);
+    if (localStream) {
+        localStream.getTracks().forEach(t => t.stop());
+        DevLog.log('AUDIO', 'Previous stream stopped');
+    }
+
+    if (!audioCtx) {
+        audioCtx = new AudioContext();
+        DevLog.log('AUDIO', `AudioContext created | sampleRate:${audioCtx.sampleRate}Hz state:${audioCtx.state}`);
+    }
+    if (audioCtx.state !== 'running') {
+        DevLog.log('AUDIO', `AudioContext not running (state:${audioCtx.state}) — attempting resume`);
+        try {
+            await audioCtx.resume();
+            DevLog.log('AUDIO', `AudioContext after resume: state=${audioCtx.state}`);
+        } catch(e) {
+            DevLog.log('ERR', `AudioContext resume error: ${e.message}`);
+        }
+        if (audioCtx.state !== 'running')
+            DevLog.log('ERR', `AudioContext still ${audioCtx.state} — audio will be silent until a user gesture`);
+    }
+
+    const constraints = {
+        audio: settings.inputDeviceId
+            ? { deviceId: { exact: settings.inputDeviceId }, echoCancellation: true, noiseSuppression: true }
+            : { echoCancellation: true, noiseSuppression: true }
+    };
+    localStream = await navigator.mediaDevices.getUserMedia(constraints);
+    const track = localStream.getAudioTracks()[0];
+    DevLog.log('AUDIO', `getUserMedia OK | label:"${track.label}" readyState:${track.readyState}`);
+
+    const source  = audioCtx.createMediaStreamSource(localStream);
+    inputGainNode = audioCtx.createGain();
+    inputGainNode.gain.value = settings.inputGain;
+
+    micGatingNode = audioCtx.createGain();
+    micGatingNode.gain.value = 0;
+
+    analyserNode  = audioCtx.createAnalyser();
+    analyserNode.fftSize = 1024;
+    analyserNode.smoothingTimeConstant = 0.6;
+
+    const dest = audioCtx.createMediaStreamDestination();
+    // Analyser must be BEFORE the gate so it always sees raw mic input,
+    // regardless of whether VAD/PTT has opened the gate.
+    source.connect(inputGainNode);
+    inputGainNode.connect(analyserNode);
+    analyserNode.connect(micGatingNode);
+    micGatingNode.connect(dest);
+    processedStream = dest.stream;
+    DevLog.log('AUDIO', `Graph wired: src → gain(${settings.inputGain}) → analyser → gate(0) → dest`);
+
+    const newTrack = processedStream.getAudioTracks()[0];
+    const peerList = Object.keys(peers);
+    if (peerList.length) DevLog.log('AUDIO', `Hot-swapping track in ${peerList.length} peer(s): ${peerList.join(', ')}`);
+    for (const pc of Object.values(peers)) {
+        const sender = pc.getSenders().find(s => s.track?.kind === 'audio');
+        if (sender) await sender.replaceTrack(newTrack);
+    }
+
+    if (!vadLoopActive) {
+        vadLoopActive = true;
+        requestAnimationFrame(vadLoop);
+        DevLog.log('AUDIO', 'VAD loop started');
+    }
+}
+
+async function initOutputContext() {
+    if (!outputCtx) {
+        outputCtx = new AudioContext();
+        DevLog.log('AUDIO', `Output AudioContext created | sampleRate:${outputCtx.sampleRate}Hz`);
+    }
+    if (outputCtx.state === 'suspended') await outputCtx.resume();
+    if (settings.outputDeviceId && outputCtx.setSinkId) {
+        try {
+            await outputCtx.setSinkId(settings.outputDeviceId);
+            DevLog.log('AUDIO', `Output sinkId set: "${settings.outputDeviceId}"`);
+        } catch (e) {
+            DevLog.log('ERR', `setSinkId failed: ${e.message}`);
+        }
+    } else {
+        DevLog.log('AUDIO', 'Output sinkId: system default');
+    }
+}
+
+function setMicGate(open) {
+    if (!micGatingNode) return;
+    const now = audioCtx.currentTime;
+    micGatingNode.gain.cancelScheduledValues(now);
+    micGatingNode.gain.setTargetAtTime(open ? 1 : 0, now, open ? 0.005 : 0.02);
+    DevLog.log('VAD', `Gate ${open ? 'OPEN  ▶' : 'CLOSED ◼'} | mode:${settings.voiceMode}`);
+
+    const indicator = document.getElementById('mic-indicator');
+    if (open) {
+        indicator.className = 'active';
+    } else {
+        indicator.className = settings.voiceMode === 'ptt' ? 'ptt-ready' : 'inactive';
+    }
+}
+
+// ── VAD Loop ───────────────────────────────────────────────────────────────────
+const _vadData = new Float32Array(1024);
+let _vadFrames = 0;
+
+function vadLoop() {
+    if (!analyserNode) { vadLoopActive = false; DevLog.log('VAD', 'Loop stopped — analyser gone'); return; }
+
+    analyserNode.getFloatTimeDomainData(_vadData);
+    let sum = 0;
+    for (let i = 0; i < _vadData.length; i++) sum += _vadData[i] * _vadData[i];
+    const rms = Math.sqrt(sum / _vadData.length);
+
+    updateMeterFill(rms);
+
+    // Periodic stats every ~2 s (120 frames @ 60 fps)
+    if (++_vadFrames % 120 === 0) {
+        DevLog.log('VAD', `rms:${rms.toFixed(4)} thresh:${settings.vadThreshold.toFixed(4)} state:${speaking?'SPEAKING':'silent'} mode:${settings.voiceMode} ctx:${audioCtx?.state}`);
+    }
+
+    if (settings.voiceMode === 'vad') {
+        if (rms > settings.vadThreshold) {
+            if (!speaking) { speaking = true; setMicGate(true); }
+            clearTimeout(vadHoldTimer);
+            vadHoldTimer = setTimeout(() => { speaking = false; setMicGate(false); }, VAD_HOLD_MS);
+        }
+    }
+
+    requestAnimationFrame(vadLoop);
+}
+
+function updateMeterFill(rms) {
+    const pct = Math.min(100, (rms / METER_MAX) * 100).toFixed(1) + '%';
+    const above = rms > settings.vadThreshold;
+
+    const modalFill = document.getElementById('vad-level-fill');
+    if (modalFill) { modalFill.style.width = pct; modalFill.classList.toggle('above', above); }
+
+    const footerFill = document.getElementById('footer-meter-fill');
+    if (footerFill) { footerFill.style.width = pct; footerFill.classList.toggle('above', above); }
+}
+
+function updateThresholdLine() {
+    const line = document.getElementById('vad-threshold-line');
+    if (!line) return;
+    const pct = Math.min(97, (settings.vadThreshold / METER_MAX) * 100);
+    line.style.left = pct + '%';
+}
+
+// ── Device Enumeration ─────────────────────────────────────────────────────────
+async function populateDevices() {
+    let devices;
+    try { devices = await navigator.mediaDevices.enumerateDevices(); }
+    catch (e) { DevLog.log('ERR', `enumerateDevices failed: ${e.message}`); return; }
+
+    if (!devices.some(d => d.label)) {
+        DevLog.log('DEVICE', 'Labels missing — unlocking via temp getUserMedia');
+        try {
+            const tmp = await navigator.mediaDevices.getUserMedia({ audio: true });
+            tmp.getTracks().forEach(t => t.stop());
+            devices = await navigator.mediaDevices.enumerateDevices();
+            DevLog.log('DEVICE', 'Labels unlocked');
+        } catch (e) { DevLog.log('ERR', `Label unlock failed: ${e.message}`); }
+    }
+
+    const ins  = devices.filter(d => d.kind === 'audioinput');
+    const outs = devices.filter(d => d.kind === 'audiooutput');
+    DevLog.log('DEVICE', `Enumerated: ${ins.length} input(s), ${outs.length} output(s)`);
+    ins.forEach( (d,i) => DevLog.log('DEVICE', `  in[${i}]  "${d.label||'?'}" id:${d.deviceId.slice(0,8)}`));
+    outs.forEach((d,i) => DevLog.log('DEVICE', `  out[${i}] "${d.label||'?'}" id:${d.deviceId.slice(0,8)}`));
+
+    const inputSel  = document.getElementById('sel-input');
+    const outputSel = document.getElementById('sel-output');
+    inputSel.innerHTML  = '<option value="">Default Input</option>';
+    outputSel.innerHTML = '<option value="">Default Output</option>';
+
+    let inputIdx = 1, outputIdx = 1;
+    for (const d of devices) {
+        const opt = document.createElement('option');
+        opt.value = d.deviceId;
+        if (d.kind === 'audioinput') {
+            opt.textContent = d.label || `Microphone ${inputIdx++}`;
+            if (d.deviceId === settings.inputDeviceId) opt.selected = true;
+            inputSel.appendChild(opt);
+        } else if (d.kind === 'audiooutput') {
+            opt.textContent = d.label || `Speaker ${outputIdx++}`;
+            if (d.deviceId === settings.outputDeviceId) opt.selected = true;
+            outputSel.appendChild(opt);
+        }
+    }
+}
+
+// Re-populate automatically when the user plugs/unplugs a device
+navigator.mediaDevices.addEventListener('devicechange', () => {
+    if (document.getElementById('settings-overlay').classList.contains('open')) populateDevices();
+});
+
+// Autoplay policy safety net — resume AudioContext on any user gesture
+function _resumeAudioCtxOnGesture() {
+    if (audioCtx && audioCtx.state !== 'running') {
+        audioCtx.resume().then(() =>
+            DevLog.log('AUDIO', `AudioContext resumed via user gesture | state:${audioCtx.state}`)
+        ).catch(() => {});
+    }
+}
+document.addEventListener('click',   _resumeAudioCtxOnGesture);
+document.addEventListener('keydown', _resumeAudioCtxOnGesture);
+
+// ── Settings Event Handlers ────────────────────────────────────────────────────
+async function onInputDeviceChange(deviceId) {
+    DevLog.log('DEVICE', `Input device → "${deviceId||'default'}"`);
+    settings.inputDeviceId = deviceId;
+    saveSettings();
+    await initAudio();
+}
+
+async function onOutputDeviceChange(deviceId) {
+    DevLog.log('DEVICE', `Output device → "${deviceId||'default'}"`);
+    settings.outputDeviceId = deviceId;
+    saveSettings();
+    if (!outputCtx) { await initOutputContext(); return; }
+    if (outputCtx.setSinkId) {
+        try { await outputCtx.setSinkId(deviceId || ''); DevLog.log('DEVICE', 'sinkId updated'); }
+        catch (e) { DevLog.log('ERR', `setSinkId failed: ${e.message}`); }
+    }
+}
+
+function setVoiceMode(mode) {
+    settings.voiceMode = mode;
+    saveSettings();
+
+    document.getElementById('mode-vad').classList.toggle('active', mode === 'vad');
+    document.getElementById('mode-ptt').classList.toggle('active', mode === 'ptt');
+    document.getElementById('ptt-section').classList.toggle('hidden', mode !== 'ptt');
+    document.getElementById('vad-section').classList.toggle('hidden', mode !== 'vad');
+
+    const modeLabel = document.getElementById('voice-mode-label');
+    modeLabel.textContent = mode === 'vad' ? 'Voice Activity' : 'Push to Talk';
+
+    if (mode === 'vad') {
+        pttActive = false;
+        clearTimeout(vadHoldTimer);
+        speaking = false;
+        setMicGate(false);
+        document.getElementById('mic-indicator').className = 'inactive';
+    } else {
+        clearTimeout(vadHoldTimer);
+        speaking = false;
+        setMicGate(false);
+        document.getElementById('mic-indicator').className = 'ptt-ready';
+    }
+
+    postToBridge({ action: 'SET_VOICE_MODE', mode });
+}
+
+function onSensitivityChange(value) {
+    settings.vadSensitivity = parseInt(value, 10);
+    settings.vadThreshold   = sensitivityToThreshold(settings.vadSensitivity);
+    DevLog.log('SETTINGS', `Sensitivity → ${value} | threshold:${settings.vadThreshold.toFixed(4)}`);
+    updateThresholdLine();
+    saveSettings();
+}
+
+function onInputGainChange(value) {
+    const pct = parseInt(value, 10);
+    settings.inputGain = pct / 100;
+    document.getElementById('input-gain-display').textContent = pct + '%';
+    if (inputGainNode) inputGainNode.gain.value = settings.inputGain;
+    DevLog.log('SETTINGS', `Input gain → ${pct}%`);
+    saveSettings();
+}
+
+function onOutputGainChange(value) {
+    const pct = parseInt(value, 10);
+    settings.outputGain = pct / 100;
+    document.getElementById('output-gain-display').textContent = pct + '%';
+    remoteGainNodes.forEach(g => { g.gain.value = settings.outputGain; });
+    DevLog.log('SETTINGS', `Output gain → ${pct}% (${remoteGainNodes.length} remote node(s) updated)`);
+    saveSettings();
+}
+
+// ── PTT Key Capture ────────────────────────────────────────────────────────────
+function startPttCapture() {
+    isCapturingPtt = true;
+    const btn = document.getElementById('ptt-bind-btn');
+    btn.textContent = 'Press any key…';
+    btn.classList.add('listening');
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'F9') { e.shiftKey ? DevLog.clear() : DevLog.toggle(); return; }
+    if (!isCapturingPtt) return;
+    e.preventDefault();
+    isCapturingPtt = false;
+    const btn = document.getElementById('ptt-bind-btn');
+    btn.classList.remove('listening');
+
+    if (e.key === 'Escape') {
+        btn.textContent = settings.pttKeyLabel;
+        return;
+    }
+
+    settings.pttKeyCode  = e.keyCode;
+    settings.pttKeyLabel = e.key.length === 1 ? e.key.toUpperCase() : e.key;
+    btn.textContent      = settings.pttKeyLabel;
+    DevLog.log('SETTINGS', `PTT key bound → ${settings.pttKeyLabel} (keyCode:${settings.pttKeyCode} 0x${settings.pttKeyCode.toString(16).toUpperCase()})`);
+    saveSettings();
+    postToBridge({ action: 'SET_PTT_KEY', keyCode: settings.pttKeyCode });
+});
+
+// ── Settings Modal ─────────────────────────────────────────────────────────────
+function openSettings() {
+    applySettingsToUI();
+    if (activeTab === 'audio')    populateDevices();
+    if (activeTab === 'identity') renderAliasList();
+    if (activeTab === 'servers')  renderServerList();
+    // Always populate devices if on audio tab (lazy on other tabs)
+    if (activeTab !== 'audio')    populateDevices();
+    document.getElementById('settings-overlay').classList.add('open');
+}
+
+function closeSettings() {
+    if (isCapturingPtt) {
+        isCapturingPtt = false;
+        const btn = document.getElementById('ptt-bind-btn');
+        btn.textContent = settings.pttKeyLabel;
+        btn.classList.remove('listening');
+    }
+    document.getElementById('settings-overlay').classList.remove('open');
+}
+
+function onOverlayClick(e) {
+    if (e.target === document.getElementById('settings-overlay')) closeSettings();
+}
+
+function applySettingsToUI() {
+    document.getElementById('vad-sens-slider').value    = settings.vadSensitivity;
+    document.getElementById('input-gain-slider').value  = Math.round(settings.inputGain  * 100);
+    document.getElementById('input-gain-display').textContent  = Math.round(settings.inputGain  * 100) + '%';
+    document.getElementById('output-gain-slider').value = Math.round(settings.outputGain * 100);
+    document.getElementById('output-gain-display').textContent = Math.round(settings.outputGain * 100) + '%';
+    document.getElementById('ptt-bind-btn').textContent = settings.pttKeyLabel;
+
+    document.getElementById('mode-vad').classList.toggle('active', settings.voiceMode === 'vad');
+    document.getElementById('mode-ptt').classList.toggle('active', settings.voiceMode === 'ptt');
+    document.getElementById('ptt-section').classList.toggle('hidden', settings.voiceMode !== 'ptt');
+    document.getElementById('vad-section').classList.toggle('hidden', settings.voiceMode !== 'vad');
+
+    updateThresholdLine();
+}
+
+// ── Bridge helpers ─────────────────────────────────────────────────────────────
+function postToBridge(obj) {
+    const detail = obj.target    ? ` to:${obj.target}`
+                 : obj.channelId ? ` ch:${obj.channelId}`
+                 : obj.mode      ? ` mode:${obj.mode}`
+                 : obj.keyCode   ? ` key:${obj.keyCode}(0x${obj.keyCode.toString(16).toUpperCase()})`
+                 : '';
+    DevLog.log('BRIDGE', `→ C# | ${obj.action}${detail}`);
+    window.chrome.webview.postMessage(JSON.stringify(obj));
+}
+
+// ── WebRTC ─────────────────────────────────────────────────────────────────────
+async function setupPeer(target, makeOffer = false) {
+    if (peers[target]) { DevLog.log('RTC', `Peer ${target} already exists`); return peers[target]; }
+
+    DevLog.log('RTC', `Creating peer | target:${target} makeOffer:${makeOffer}`);
+    const pc = new RTCPeerConnection(rtcConfig);
+    peers[target] = pc;
+
+    pc.onconnectionstatechange    = () => DevLog.log('RTC', `${target} connection → ${pc.connectionState}`);
+    pc.oniceconnectionstatechange = () => DevLog.log('RTC', `${target} ICE        → ${pc.iceConnectionState}`);
+    pc.onsignalingstatechange     = () => DevLog.log('RTC', `${target} signaling  → ${pc.signalingState}`);
+
+    if (processedStream) {
+        processedStream.getTracks().forEach(t => pc.addTrack(t, processedStream));
+        DevLog.log('RTC', `Added ${processedStream.getTracks().length} local track(s)`);
+    } else {
+        DevLog.log('ERR', 'setupPeer: processedStream is null — audio will not be sent');
+    }
+
+    pc.onicecandidate = e => {
+        if (e.candidate) {
+            DevLog.log('RTC', `ICE candidate for ${target} | ${e.candidate.type} ${e.candidate.protocol}`);
+            postToBridge({ action: 'WEBRTC_SIGNAL', target, sender: myAlias, payload: { type: 'ice', candidate: e.candidate } });
+        }
+    };
+
+    pc.ontrack = async e => {
+        DevLog.log('RTC', `Remote track from ${target} | routing via outputGain(${settings.outputGain})`);
+        if (!outputCtx) await initOutputContext();
+        const stream = e.streams[0];
+
+        const anchor = new Audio();
+        anchor.srcObject = stream;
+        anchor.volume = 0;
+        anchor.play().catch(() => {});
+
+        const src  = outputCtx.createMediaStreamSource(stream);
+        const gain = outputCtx.createGain();
+        gain.gain.value = settings.outputGain;
+        src.connect(gain);
+        gain.connect(outputCtx.destination);
+        remoteGainNodes.push(gain);
+    };
+
+    if (makeOffer) {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        DevLog.log('RTC', `Offer sent to ${target} | sdpLen:${JSON.stringify(offer).length}`);
+        postToBridge({ action: 'WEBRTC_SIGNAL', target, sender: myAlias, payload: { type: 'offer', sdp: offer } });
+    }
+
+    return pc;
+}
+
+let currentChannelId = null;
+
+function joinVoice(id) {
+    if (currentChannelId === id) return;
+    postToBridge({ action: 'JOIN_VOICE', channelId: id });
+}
+
+function sendChat(e) {
+    if (e.key === 'Enter' && e.target.value) {
+        postToBridge({ action: 'SEND_CHAT', channelId: activeTextChannelId, message: e.target.value });
+        e.target.value = '';
+    }
+}
+
+function renderChatMessage(author, message) {
+    const h = document.getElementById('chat-history');
+    const div = document.createElement('div');
+    div.innerHTML = `<strong>${escapeHtml(author)}</strong>: ${escapeHtml(message)}`;
+    h.appendChild(div);
+    h.scrollTop = h.scrollHeight;
+}
+
+// ── C# Bridge Listener ─────────────────────────────────────────────────────────
+window.chrome.webview.addEventListener('message', async (e) => {
+    const data = JSON.parse(e.data);
+
+    if (data.action === 'INIT_CLIENT') {
+        DevLog.log('BRIDGE', `← C# | INIT_CLIENT alias:${data.alias}`);
+        myAlias = data.alias;
+        connectedServerId = pendingServerId;
+        viewedServerId    = connectedServerId;
+        pendingServerId   = null;
+        document.getElementById('ui-alias').textContent = myAlias;
+        const srv = clientConfig.servers.find(s => s.id === connectedServerId);
+        document.getElementById('server-name-display').textContent = srv ? srv.name : 'Connected';
+        renderServerBar();
+        postToBridge({ action: 'SET_VOICE_MODE', mode: settings.voiceMode });
+        postToBridge({ action: 'SET_PTT_KEY',    keyCode: settings.pttKeyCode });
+
+    } else if (data.action === 'PTT_STATE') {
+        DevLog.log('BRIDGE', `← C# | PTT_STATE isActive:${data.isActive}`);
+        pttActive = data.isActive;
+        if (settings.voiceMode === 'ptt') setMicGate(pttActive);
+
+    } else if (data.action === 'CHAT_RECEIVE') {
+        const chId = data.channelId || activeTextChannelId;
+        DevLog.log('BRIDGE', `← C# | CHAT_RECEIVE from:${data.author} ch:${chId||'?'}`);
+        if (chId) {
+            if (!channelMessages[chId]) channelMessages[chId] = [];
+            channelMessages[chId].push({ author: data.author, time: data.time, message: data.message });
+        }
+        if (!chId || chId === activeTextChannelId) renderChatMessage(data.author, data.message);
+
+    } else if (data.action === 'USER_JOINED_VOICE') {
+        DevLog.log('BRIDGE', `← C# | USER_JOINED_VOICE alias:${data.alias}`);
+        await setupPeer(data.alias, true);
+
+    } else if (data.action === 'SERVER_INFO') {
+        DevLog.log('BRIDGE', `← C# | SERVER_INFO name:"${data.name}" channels:${data.channels.length}`);
+        serverChannels = data.channels;
+        const firstText = serverChannels.find(c => c.type === 'Text');
+        if (firstText) selectTextChannel(firstText.id);
+        renderChannelList();
+
+    } else if (data.action === 'USER_LEFT_VOICE') {
+        DevLog.log('RTC', `← C# | USER_LEFT_VOICE alias:${data.alias}`);
+        if (peers[data.alias]) { peers[data.alias].close(); delete peers[data.alias]; }
+
+    } else if (data.action === 'VOICE_STATE_UPDATE') {
+        DevLog.log('BRIDGE', `← C# | VOICE_STATE_UPDATE ch:${data.channelId} users:[${data.users.join(',')}]`);
+        voiceChannelUsers[data.channelId] = data.users;
+        if (data.users.includes(myAlias)) {
+            currentChannelId = data.channelId;
+        } else if (currentChannelId === data.channelId) {
+            currentChannelId = null;
+        }
+        renderChannelList();
+
+    } else if (data.action === 'DISCONNECTED') {
+        DevLog.log('BRIDGE', '← C# | DISCONNECTED');
+        connectedServerId   = null;
+        viewedServerId      = null;
+        pendingServerId     = null;
+        currentChannelId    = null;
+        voiceChannelUsers   = {};
+        serverChannels      = [];
+        activeTextChannelId = null;
+        channelMessages     = {};
+        Object.values(peers).forEach(pc => pc.close());
+        peers = {};
+        speaking = false;
+        setMicGate(false);
+        document.getElementById('server-name-display').textContent = 'Not connected';
+        document.getElementById('ui-alias').textContent = clientConfig.activeAlias;
+        document.getElementById('chat-channel-name').textContent = '—';
+        document.getElementById('chat-history').innerHTML = '';
+        renderChannelList();
+        renderServerBar();
+
+    } else if (data.action === 'CONNECTION_FAILED') {
+        DevLog.log('ERR', `← C# | CONNECTION_FAILED: ${data.error}`);
+        pendingServerId = null;
+        const lbl = document.getElementById('voice-mode-label');
+        lbl.textContent = '⚠ Connection failed';
+        lbl.style.color = '#ef9a9a';
+        setTimeout(() => {
+            lbl.textContent = settings.voiceMode === 'vad' ? 'Voice Activity' : 'Push to Talk';
+            lbl.style.color = '';
+        }, 4000);
+
+    } else if (data.action === 'WEBRTC_SIGNAL') {
+        DevLog.log('BRIDGE', `← C# | WEBRTC_SIGNAL from:${data.sender} type:${data.payload.type}`);
+        const pc = await setupPeer(data.sender, false);
+        const p  = data.payload;
+        if (p.type === 'offer') {
+            await pc.setRemoteDescription(new RTCSessionDescription(p.sdp));
+            const ans = await pc.createAnswer();
+            await pc.setLocalDescription(ans);
+            DevLog.log('RTC', `Answer sent to ${data.sender} | sdpLen:${JSON.stringify(ans).length}`);
+            postToBridge({ action: 'WEBRTC_SIGNAL', target: data.sender, sender: myAlias, payload: { type: 'answer', sdp: ans } });
+        } else if (p.type === 'answer') {
+            await pc.setRemoteDescription(new RTCSessionDescription(p.sdp));
+            DevLog.log('RTC', `Remote answer applied from ${data.sender}`);
+        } else if (p.type === 'ice') {
+            await pc.addIceCandidate(new RTCIceCandidate(p.candidate));
+        }
+    }
+});
+
+function escapeHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+async function init() {
+    loadSettings();
+    loadClientConfig();
+    settings.vadThreshold = sensitivityToThreshold(settings.vadSensitivity);
+
+    myAlias = clientConfig.activeAlias;
+    document.getElementById('ui-alias').textContent = myAlias;
+    renderServerBar();
+    document.getElementById('voice-mode-label').textContent =
+        settings.voiceMode === 'vad' ? 'Voice Activity' : 'Push to Talk';
+    document.getElementById('mic-indicator').className =
+        settings.voiceMode === 'ptt' ? 'ptt-ready' : 'inactive';
+
+    try {
+        await initAudio();
+        await initOutputContext();
+        DevLog.log('AUDIO', 'Audio engine ready');
+    } catch (err) {
+        DevLog.log('ERR', `Audio init FAILED: ${err.message}`);
+        console.error('Audio init failed:', err);
+        const lbl = document.getElementById('voice-mode-label');
+        lbl.textContent = '⚠ Audio error';
+        lbl.style.color = '#ef9a9a';
+        document.getElementById('mic-indicator').title = `Audio error: ${err.message}`;
+    }
+}
+
+init();
+</script>
 </body>
 </html>

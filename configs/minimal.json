@@ -1,0 +1,13 @@
+{
+  "Settings": {
+    "ServerName": "My Server",
+    "Port": 8080,
+    "RequirePassword": false,
+    "ServerPassword": "",
+    "AdminEmail": ""
+  },
+  "Channels": [
+    { "Id": "c_voice", "Name": "General", "Type": "Voice" },
+    { "Id": "c_text",  "Name": "chat",    "Type": "Text"  }
+  ]
+}

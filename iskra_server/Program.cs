@@ -16,26 +16,41 @@ namespace Origin.Server.Core
 
     class Origin_Server_Core_Main
     {
+        private static void Log(string cat, string msg) =>
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}][{cat,-8}] {msg}");
+
         private static Origin_Server_Data_Config ActiveConfig;
-        private const string ConfigPath = "ServerConfig.json";
-        private const string ChatHistoryFile = "general-chat.jsonl";
+        private static string ActiveConfigPath;
+        private static string ChatFile(string channelId) => $"chat-{channelId}.jsonl";
         private static ConcurrentDictionary<string, WebSocket> ActiveClients = new ConcurrentDictionary<string, WebSocket>();
         private static ConcurrentDictionary<string, List<string>> ChannelOccupants = new ConcurrentDictionary<string, List<string>>();
 
         static async Task Main(string[] args)
         {
-            Console.Title = "Origin Voice Server - Core";
+            ActiveConfigPath = args.Length > 0 ? args[0] : "ServerConfig.json";
             LoadOrGenerateConfig();
+            Console.Title = $"Origin Server — {ActiveConfig.Settings.ServerName} :{ActiveConfig.Settings.Port}";
 
+            // Try binding to all interfaces first; fall back to localhost if not admin / no netsh rule
             HttpListener listener = new HttpListener();
-            listener.Prefixes.Add($"http://localhost:{ActiveConfig.Settings.Port}/");
-
+            listener.Prefixes.Add($"http://+:{ActiveConfig.Settings.Port}/");
             try
             {
                 listener.Start();
-                Console.WriteLine($"[SYSTEM] Origin Server booted natively on port {ActiveConfig.Settings.Port}");
-                Console.WriteLine($"[SYSTEM] Awaiting client connections...");
+                Log("SYSTEM", $"Origin Server booted on port {ActiveConfig.Settings.Port} (all interfaces)");
+            }
+            catch (HttpListenerException)
+            {
+                listener.Close();
+                listener = new HttpListener();
+                listener.Prefixes.Add($"http://localhost:{ActiveConfig.Settings.Port}/");
+                listener.Start();
+                Log("SYSTEM", $"Origin Server booted on port {ActiveConfig.Settings.Port} (localhost only — run as admin or register URL for LAN access)");
+            }
+            Log("SYSTEM", "Awaiting client connections...");
 
+            try
+            {
                 while (true)
                 {
                     HttpListenerContext context = await listener.GetContextAsync();
@@ -45,24 +60,24 @@ namespace Origin.Server.Core
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[FATAL] Server Error: {ex.Message}");
+                Log("FATAL", $"Server Error: {ex.Message}");
             }
         }
 
         private static void LoadOrGenerateConfig()
         {
-            if (File.Exists(ConfigPath))
+            if (File.Exists(ActiveConfigPath))
             {
-                ActiveConfig = JsonSerializer.Deserialize<Origin_Server_Data_Config>(File.ReadAllText(ConfigPath));
-                Console.WriteLine("[CONFIG] Loaded existing ServerConfig.json");
+                ActiveConfig = JsonSerializer.Deserialize<Origin_Server_Data_Config>(File.ReadAllText(ActiveConfigPath));
+                Log("CONFIG", $"Loaded {ActiveConfigPath} | port:{ActiveConfig.Settings.Port} channels:{ActiveConfig.Channels.Count}");
             }
             else
             {
                 ActiveConfig = new Origin_Server_Data_Config();
-                ActiveConfig.Channels.Add(new Channel { Id = "c_gen_v", Name = "General", Type = "Voice" });
-                ActiveConfig.Channels.Add(new Channel { Id = "c_gen_t", Name = "general-chat", Type = "Text" });
-                File.WriteAllText(ConfigPath, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true }));
-                Console.WriteLine("[CONFIG] Generated default ServerConfig.json");
+                ActiveConfig.Channels.Add(new Channel { Id = "c_gen_v", Name = "General",      Type = "Voice" });
+                ActiveConfig.Channels.Add(new Channel { Id = "c_gen_t", Name = "general-chat", Type = "Text"  });
+                File.WriteAllText(ActiveConfigPath, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true }));
+                Log("CONFIG", $"Generated default config → {ActiveConfigPath}");
             }
         }
 
@@ -73,100 +88,179 @@ namespace Origin.Server.Core
             string clientIp = context.Request.RemoteEndPoint?.ToString() ?? "Unknown";
             string currentAlias = "Unknown";
             string currentVoiceChannel = null;
-            byte[] receiveBuffer = new byte[16384];
+
+            // Chunk buffer + stream accumulator so large SDP messages (multi-frame) are read correctly
+            byte[] chunk = new byte[16384];
+            var msgStream = new MemoryStream(65536);
 
             try
             {
-                Console.WriteLine($"[NET] Incoming connection from {clientIp}...");
+                Log("NET", $"Incoming connection from {clientIp}");
 
-                // Auth Phase
-                WebSocketReceiveResult result = await socket.ReceiveAsync(new ArraySegment<byte>(receiveBuffer), CancellationToken.None);
-                using JsonDocument authDoc = JsonDocument.Parse(Encoding.UTF8.GetString(receiveBuffer, 0, result.Count));
+                // Auth Phase — read full message
+                msgStream.SetLength(0);
+                WebSocketReceiveResult authResult;
+                do
+                {
+                    authResult = await socket.ReceiveAsync(new ArraySegment<byte>(chunk), CancellationToken.None);
+                    msgStream.Write(chunk, 0, authResult.Count);
+                } while (!authResult.EndOfMessage);
+
+                using JsonDocument authDoc = JsonDocument.Parse(Encoding.UTF8.GetString(msgStream.GetBuffer(), 0, (int)msgStream.Length));
                 currentAlias = authDoc.RootElement.GetProperty("alias").GetString();
 
                 ActiveClients[currentAlias] = socket;
-                Console.WriteLine($"[BOUNCER] User '{currentAlias}' authenticated successfully.");
+                Log("AUTH", $"'{currentAlias}' authenticated | total clients:{ActiveClients.Count}");
 
-                // Send History
-                if (File.Exists(ChatHistoryFile))
+                // Send server info (channel list)
+                var serverInfo = JsonSerializer.Serialize(new {
+                    action   = "SERVER_INFO",
+                    name     = ActiveConfig.Settings.ServerName,
+                    channels = ActiveConfig.Channels.Select(c => new { id = c.Id, name = c.Name, type = c.Type })
+                });
+                await socket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(serverInfo)), WebSocketMessageType.Text, true, CancellationToken.None);
+                Log("DATA", $"Server info sent to '{currentAlias}' | channels:{ActiveConfig.Channels.Count}");
+
+                // Send History — per text channel
+                foreach (var ch in ActiveConfig.Channels.Where(c => c.Type == "Text"))
                 {
-                    Console.WriteLine($"[DATA] Pushing chat history to {currentAlias}...");
-                    foreach (var line in File.ReadLines(ChatHistoryFile).TakeLast(50))
+                    string histFile = ChatFile(ch.Id);
+                    if (!File.Exists(histFile)) continue;
+                    Log("DATA", $"Pushing history for '{ch.Name}' to '{currentAlias}'...");
+                    foreach (var line in File.ReadLines(histFile).TakeLast(50))
                         await socket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(line)), WebSocketMessageType.Text, true, CancellationToken.None);
                 }
 
                 while (socket.State == WebSocketState.Open)
                 {
-                    WebSocketReceiveResult msgResult = await socket.ReceiveAsync(new ArraySegment<byte>(receiveBuffer), CancellationToken.None);
+                    // Accumulate all frames of one logical message
+                    msgStream.SetLength(0);
+                    WebSocketReceiveResult msgResult;
+                    do
+                    {
+                        msgResult = await socket.ReceiveAsync(new ArraySegment<byte>(chunk), CancellationToken.None);
+                        msgStream.Write(chunk, 0, msgResult.Count);
+                    } while (!msgResult.EndOfMessage);
+
                     if (msgResult.MessageType == WebSocketMessageType.Close) break;
 
-                    string rawMessage = Encoding.UTF8.GetString(receiveBuffer, 0, msgResult.Count);
+                    byte[] msgBytes = msgStream.ToArray();
+                    string rawMessage = Encoding.UTF8.GetString(msgBytes);
                     using JsonDocument incoming = JsonDocument.Parse(rawMessage);
                     string action = incoming.RootElement.GetProperty("action").GetString();
 
                     if (action == "SEND_CHAT")
                     {
                         string text = incoming.RootElement.GetProperty("message").GetString();
-                        Console.WriteLine($"[CHAT] {currentAlias}: {text}");
+                        string channelId = incoming.RootElement.TryGetProperty("channelId", out JsonElement cidEl) ? cidEl.GetString() : null;
+                        if (string.IsNullOrEmpty(channelId))
+                            channelId = ActiveConfig.Channels.FirstOrDefault(c => c.Type == "Text")?.Id ?? "general";
+                        Log("CHAT", $"[{channelId}] {currentAlias}: {text}");
 
-                        var msg = new { action = "CHAT_RECEIVE", author = currentAlias, time = DateTime.Now.ToString("h:mm tt"), message = text };
+                        var msg = new { action = "CHAT_RECEIVE", channelId, author = currentAlias, time = DateTime.Now.ToString("h:mm tt"), message = text };
                         string json = JsonSerializer.Serialize(msg);
-                        await File.AppendAllTextAsync(ChatHistoryFile, json + Environment.NewLine);
+                        await File.AppendAllTextAsync(ChatFile(channelId), json + Environment.NewLine);
 
                         foreach (var client in ActiveClients.Values)
-                            if (client.State == WebSocketState.Open) await client.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(json)), WebSocketMessageType.Text, true, CancellationToken.None);
+                            if (client.State == WebSocketState.Open)
+                                await client.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(json)), WebSocketMessageType.Text, true, CancellationToken.None);
                     }
                     else if (action == "WEBRTC_SIGNAL")
                     {
                         string target = incoming.RootElement.GetProperty("target").GetString();
+                        string sigType = incoming.RootElement.GetProperty("payload").GetProperty("type").GetString();
                         if (ActiveClients.TryGetValue(target, out WebSocket tSock))
                         {
-                            await tSock.SendAsync(new ArraySegment<byte>(receiveBuffer, 0, msgResult.Count), WebSocketMessageType.Text, true, CancellationToken.None);
-                            // Log signal type for debugging handshakes
-                            using JsonDocument signalDoc = JsonDocument.Parse(rawMessage);
-                            string sigType = signalDoc.RootElement.GetProperty("payload").GetProperty("type").GetString();
-                            Console.WriteLine($"[SIGNAL] {currentAlias} -> {target} ({sigType})");
+                            await tSock.SendAsync(new ArraySegment<byte>(msgBytes), WebSocketMessageType.Text, true, CancellationToken.None);
+                            Log("SIGNAL", $"{currentAlias} → {target} ({sigType}) | {msgBytes.Length}B");
+                        }
+                        else
+                        {
+                            Log("SIGNAL", $"WARN: target '{target}' not found for signal from {currentAlias} ({sigType})");
                         }
                     }
                     else if (action == "JOIN_VOICE")
                     {
                         string channelId = incoming.RootElement.GetProperty("channelId").GetString();
-                        currentVoiceChannel = channelId;
 
+                        // If switching channels, cleanly leave the old one first
+                        if (currentVoiceChannel != null && currentVoiceChannel != channelId)
+                        {
+                            if (ChannelOccupants.TryGetValue(currentVoiceChannel, out var oldUsers))
+                            {
+                                oldUsers.Remove(currentAlias);
+                                var leaveUpdate = JsonSerializer.Serialize(new { action = "VOICE_STATE_UPDATE", channelId = currentVoiceChannel, users = oldUsers });
+                                foreach (var u in oldUsers)
+                                    if (ActiveClients.TryGetValue(u, out WebSocket oSock))
+                                        await oSock.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(leaveUpdate)), WebSocketMessageType.Text, true, CancellationToken.None);
+                            }
+                        }
+
+                        currentVoiceChannel = channelId;
                         if (!ChannelOccupants.ContainsKey(channelId)) ChannelOccupants[channelId] = new List<string>();
 
-                        Console.WriteLine($"[VOICE] {currentAlias} entered channel '{channelId}'");
+                        // Deduplicate — ignore if already present in this channel
+                        if (ChannelOccupants[channelId].Contains(currentAlias)) continue;
 
-                        // Trigger Mesh Calls
+                        Log("VOICE", $"'{currentAlias}' joining '{channelId}' | occupants before:{ChannelOccupants[channelId].Count}");
+
                         var joinNotice = JsonSerializer.Serialize(new { action = "USER_JOINED_VOICE", alias = currentAlias });
                         foreach (var user in ChannelOccupants[channelId])
-                            if (ActiveClients.TryGetValue(user, out WebSocket oSock)) await oSock.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(joinNotice)), WebSocketMessageType.Text, true, CancellationToken.None);
+                            if (ActiveClients.TryGetValue(user, out WebSocket oSock))
+                                await oSock.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(joinNotice)), WebSocketMessageType.Text, true, CancellationToken.None);
 
                         ChannelOccupants[channelId].Add(currentAlias);
 
-                        // Sync UI State
                         var stateUpdate = JsonSerializer.Serialize(new { action = "VOICE_STATE_UPDATE", channelId = channelId, users = ChannelOccupants[channelId] });
                         foreach (var user in ChannelOccupants[channelId])
-                            if (ActiveClients.TryGetValue(user, out WebSocket oSock)) await oSock.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(stateUpdate)), WebSocketMessageType.Text, true, CancellationToken.None);
+                            if (ActiveClients.TryGetValue(user, out WebSocket oSock))
+                                await oSock.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(stateUpdate)), WebSocketMessageType.Text, true, CancellationToken.None);
+                    }
+                    else if (action == "LEAVE_VOICE")
+                    {
+                        string channelId = incoming.RootElement.GetProperty("channelId").GetString();
+                        if (currentVoiceChannel == channelId && ChannelOccupants.TryGetValue(channelId, out var leaveList))
+                        {
+                            leaveList.Remove(currentAlias);
+                            currentVoiceChannel = null;
+                            Log("VOICE", $"'{currentAlias}' left '{channelId}' (voluntary) | remaining:{leaveList.Count}");
+
+                            var leftNotice  = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { action = "USER_LEFT_VOICE", alias = currentAlias }));
+                            var stateBytes  = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { action = "VOICE_STATE_UPDATE", channelId, users = leaveList }));
+                            foreach (var u in leaveList)
+                                if (ActiveClients.TryGetValue(u, out WebSocket oSock))
+                                {
+                                    await oSock.SendAsync(new ArraySegment<byte>(leftNotice),  WebSocketMessageType.Text, true, CancellationToken.None);
+                                    await oSock.SendAsync(new ArraySegment<byte>(stateBytes),  WebSocketMessageType.Text, true, CancellationToken.None);
+                                }
+                            // Echo updated state back to the leaving client (clears their user list for that channel)
+                            await socket.SendAsync(new ArraySegment<byte>(stateBytes), WebSocketMessageType.Text, true, CancellationToken.None);
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ERROR] Session for {currentAlias} faulted: {ex.Message}");
+                Log("ERROR", $"Session for '{currentAlias}' faulted: {ex.Message}");
             }
             finally
             {
                 ActiveClients.TryRemove(currentAlias, out _);
-                Console.WriteLine($"[NET] Connection closed for {currentAlias}.");
+                Log("NET", $"Connection closed for '{currentAlias}' | remaining clients:{ActiveClients.Count}");
 
                 if (currentVoiceChannel != null && ChannelOccupants.TryGetValue(currentVoiceChannel, out var users))
                 {
                     users.Remove(currentAlias);
-                    Console.WriteLine($"[VOICE] {currentAlias} left channel '{currentVoiceChannel}'");
+                    Log("VOICE", $"'{currentAlias}' left '{currentVoiceChannel}' | remaining:{users.Count}");
 
-                    var exitUpdate = JsonSerializer.Serialize(new { action = "VOICE_STATE_UPDATE", channelId = currentVoiceChannel, users = users });
-                    foreach (var user in users) if (ActiveClients.TryGetValue(user, out WebSocket oSock)) await oSock.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(exitUpdate)), WebSocketMessageType.Text, true, CancellationToken.None);
+                    var exitLeft  = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { action = "USER_LEFT_VOICE", alias = currentAlias }));
+                    var exitState = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { action = "VOICE_STATE_UPDATE", channelId = currentVoiceChannel, users }));
+                    foreach (var user in users)
+                        if (ActiveClients.TryGetValue(user, out WebSocket oSock))
+                        {
+                            await oSock.SendAsync(new ArraySegment<byte>(exitLeft),  WebSocketMessageType.Text, true, CancellationToken.None);
+                            await oSock.SendAsync(new ArraySegment<byte>(exitState), WebSocketMessageType.Text, true, CancellationToken.None);
+                        }
                 }
             }
         }
