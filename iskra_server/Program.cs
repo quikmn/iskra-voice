@@ -20,14 +20,16 @@ namespace Origin.Server.Core
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}][{cat,-8}] {msg}");
 
         private static Origin_Server_Data_Config ActiveConfig;
-        private static string ActiveConfigPath;
-        private static string ChatFile(string channelId) => $"chat-{channelId}.jsonl";
+        private static string ActiveWorldPath;
+        private static string ConfigFile     => Path.Combine(ActiveWorldPath, "server.json");
+        private static string ChatFile(string channelId) => Path.Combine(ActiveWorldPath, $"chat-{channelId}.jsonl");
         private static ConcurrentDictionary<string, WebSocket> ActiveClients = new ConcurrentDictionary<string, WebSocket>();
         private static ConcurrentDictionary<string, List<string>> ChannelOccupants = new ConcurrentDictionary<string, List<string>>();
 
         static async Task Main(string[] args)
         {
-            ActiveConfigPath = args.Length > 0 ? args[0] : "ServerConfig.json";
+            ActiveWorldPath = Path.GetFullPath(args.Length > 0 ? args[0] : ".");
+            Directory.CreateDirectory(ActiveWorldPath);
             LoadOrGenerateConfig();
             Console.Title = $"Origin Server — {ActiveConfig.Settings.ServerName} :{ActiveConfig.Settings.Port}";
 
@@ -66,18 +68,19 @@ namespace Origin.Server.Core
 
         private static void LoadOrGenerateConfig()
         {
-            if (File.Exists(ActiveConfigPath))
+            if (File.Exists(ConfigFile))
             {
-                ActiveConfig = JsonSerializer.Deserialize<Origin_Server_Data_Config>(File.ReadAllText(ActiveConfigPath));
-                Log("CONFIG", $"Loaded {ActiveConfigPath} | port:{ActiveConfig.Settings.Port} channels:{ActiveConfig.Channels.Count}");
+                ActiveConfig = JsonSerializer.Deserialize<Origin_Server_Data_Config>(File.ReadAllText(ConfigFile));
+                Log("CONFIG", $"World: {ActiveWorldPath}");
+                Log("CONFIG", $"port:{ActiveConfig.Settings.Port} | channels:{ActiveConfig.Channels.Count}");
             }
             else
             {
                 ActiveConfig = new Origin_Server_Data_Config();
                 ActiveConfig.Channels.Add(new Channel { Id = "c_gen_v", Name = "General",      Type = "Voice" });
                 ActiveConfig.Channels.Add(new Channel { Id = "c_gen_t", Name = "general-chat", Type = "Text"  });
-                File.WriteAllText(ActiveConfigPath, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true }));
-                Log("CONFIG", $"Generated default config → {ActiveConfigPath}");
+                File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true }));
+                Log("CONFIG", $"New world created → {ActiveWorldPath}");
             }
         }
 

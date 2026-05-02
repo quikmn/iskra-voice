@@ -1,29 +1,27 @@
 # launch-servers.ps1
-# Starts one Origin server process per config file listed below.
-# Each server uses its own working directory so chat logs stay separate.
-# Run from the repo root, or adjust $RepoRoot below.
+# Scans the servers\ directory and starts one Origin server process per world folder.
+# A world folder is any subdirectory that contains a server.json file.
+# Add a server: create a new folder under servers\ with a server.json inside it.
+# Remove a server: delete its folder (or rename server.json to disable it).
 
-$RepoRoot  = $PSScriptRoot
-$ServerExe = Join-Path $RepoRoot "iskra_server\bin\Release\net8.0\iskra_server.exe"
+$ServerExe  = Join-Path $PSScriptRoot "iskra_server\bin\Release\net8.0\iskra_server.exe"
+$ServersDir = Join-Path $PSScriptRoot "servers"
 
-$Servers = @(
-    @{ Config = "configs\bunker-alpha.json"; DataDir = "server-data\alpha" },
-    @{ Config = "configs\bunker-beta.json";  DataDir = "server-data\beta"  }
-)
-
-foreach ($s in $Servers) {
-    $configPath = Join-Path $RepoRoot $s.Config
-    $dataDir    = Join-Path $RepoRoot $s.DataDir
-
-    if (-not (Test-Path $dataDir)) { New-Item -ItemType Directory -Path $dataDir | Out-Null }
-
-    $title = (Get-Content $configPath | ConvertFrom-Json).Settings.ServerName
-    Write-Host "Starting: $title  (data: $dataDir)"
-
-    Start-Process -FilePath $ServerExe `
-                  -ArgumentList ('"' + $configPath + '"') `
-                  -WorkingDirectory $dataDir `
-                  -WindowStyle Normal
+if (-not (Test-Path $ServersDir)) {
+    Write-Host "No servers\ directory found. Create it and add world folders to get started."
+    exit 1
 }
 
-Write-Host "All servers launched."
+$worlds = Get-ChildItem $ServersDir -Directory | Where-Object { Test-Path "$($_.FullName)\server.json" }
+
+if ($worlds.Count -eq 0) {
+    Write-Host "No world folders found in servers\. Each world needs a server.json inside it."
+    exit 1
+}
+
+foreach ($world in $worlds) {
+    Write-Host "Starting: $($world.Name)"
+    Start-Process -FilePath $ServerExe -ArgumentList "`"$($world.FullName)`"" -WindowStyle Normal
+}
+
+Write-Host "$($worlds.Count) server(s) launched."
