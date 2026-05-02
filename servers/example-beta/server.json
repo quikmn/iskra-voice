@@ -5,8 +5,9 @@
     "RequirePassword": true,
     "ServerPassword": "beta_pass",
     "AdminEmail": "",
-    "TurnUrls": [],
-    "TurnSecret": ""
+    "TurnUrls": ["turn:turn01.ams.iskra.foo:3478", "turns:turn01.ams.iskra.foo:5349"],
+    "TurnUsername": "iskra",
+    "TurnCredential": ""
   },
   "Channels": [
     { "Id": "hdr_b_main", "Name": "Main",      "Type": "Header" },

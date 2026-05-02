@@ -5,7 +5,6 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.WebSockets;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -19,15 +18,6 @@ namespace Origin.Server.Core
     {
         private static void Log(string cat, string msg) =>
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}][{cat,-8}] {msg}");
-
-        private static (string username, string credential) GenerateTurnCreds(string secret, int ttlHours = 24)
-        {
-            long expiry   = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + (ttlHours * 3600);
-            string user   = $"{expiry}:iskra";
-            using var hmac = new HMACSHA1(Encoding.UTF8.GetBytes(secret));
-            string cred   = Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(user)));
-            return (user, cred);
-        }
 
         private static Origin_Server_Data_Config ActiveConfig;
         private static string ActiveWorldPath;
@@ -143,11 +133,16 @@ namespace Origin.Server.Core
                 {
                     new { urls = new[] { "stun:stun.l.google.com:19302" } }
                 };
-                if (ActiveConfig.Settings.TurnUrls?.Count > 0 && !string.IsNullOrEmpty(ActiveConfig.Settings.TurnSecret))
+                if (ActiveConfig.Settings.TurnUrls?.Count > 0
+                    && !string.IsNullOrEmpty(ActiveConfig.Settings.TurnUsername)
+                    && !string.IsNullOrEmpty(ActiveConfig.Settings.TurnCredential))
                 {
-                    var (turnUser, turnCred) = GenerateTurnCreds(ActiveConfig.Settings.TurnSecret);
-                    iceServers.Add(new { urls = ActiveConfig.Settings.TurnUrls.ToArray(), username = turnUser, credential = turnCred });
-                    Log("AUTH", $"TURN creds generated for '{currentAlias}' | expires:{turnUser.Split(':')[0]}");
+                    iceServers.Add(new {
+                        urls       = ActiveConfig.Settings.TurnUrls.ToArray(),
+                        username   = ActiveConfig.Settings.TurnUsername,
+                        credential = ActiveConfig.Settings.TurnCredential
+                    });
+                    Log("AUTH", $"TURN config sent to '{currentAlias}' | relay:{ActiveConfig.Settings.TurnUrls[0]}");
                 }
 
                 // Send server info (channel list + ICE config)
@@ -315,8 +310,9 @@ namespace Origin.Server.Data
         public bool   RequirePassword  { get; set; } = true;
         public string ServerPassword   { get; set; } = "bunker_pass_2026";
         public string AdminEmail    { get; set; } = "";
-        public List<string> TurnUrls   { get; set; } = new List<string>();
-        public string TurnSecret    { get; set; } = "";
+        public List<string> TurnUrls       { get; set; } = new List<string>();
+        public string TurnUsername      { get; set; } = "";
+        public string TurnCredential    { get; set; } = "";
     }
     public class Channel { public string Id { get; set; } public string Name { get; set; } public string Type { get; set; } }
 }
