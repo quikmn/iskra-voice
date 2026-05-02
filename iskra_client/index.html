@@ -170,6 +170,28 @@
 
         /* ── Utilities ── */
         .hidden { display: none !important; }
+
+        /* ── Mute / Deafen buttons ── */
+        .footer-icon-btn { width: 28px; height: 28px; border-radius: 50%; border: none; background: #383a40; color: #949ba4; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.1s, color 0.1s; }
+        .footer-icon-btn:hover { background: #3f4147; color: #dcddde; }
+        .footer-icon-btn.muted   { background: #ed4245; color: #fff; }
+        .footer-icon-btn.deafened { background: #ed4245; color: #fff; }
+
+        /* ── Speaking indicator ── */
+        .voice-user.speaking { color: #3ba55d; }
+        .voice-user.speaking::before { box-shadow: 0 0 5px rgba(59,165,93,0.8); animation: speaking-pulse 1s ease infinite; }
+        @keyframes speaking-pulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.4);opacity:0.7} }
+
+        /* ── Unread badge ── */
+        .ch-unread { margin-left: auto; background: #ed4245; color: #fff; font-size: 10px; font-weight: 700; border-radius: 8px; padding: 1px 5px; min-width: 16px; text-align: center; flex-shrink: 0; }
+
+        /* ── User context menu ── */
+        #user-ctx-menu { position: fixed; background: #111214; border: 1px solid #2a2c31; border-radius: 6px; padding: 6px 0; min-width: 180px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); z-index: 200; display: none; user-select: none; }
+        .ctx-menu-header { padding: 6px 12px 4px; font-size: 11px; font-weight: 700; color: #949ba4; text-transform: uppercase; letter-spacing: 0.8px; border-bottom: 1px solid #2a2c31; margin-bottom: 4px; }
+        .ctx-vol-row { padding: 6px 12px 8px; display: flex; flex-direction: column; gap: 4px; }
+        .ctx-vol-label { font-size: 11px; color: #949ba4; display: flex; justify-content: space-between; }
+        .ctx-vol-slider { width: 100%; -webkit-appearance: none; height: 4px; background: #3a3c42; border-radius: 2px; outline: none; cursor: pointer; }
+        .ctx-vol-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: #5865f2; border-radius: 50%; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -191,6 +213,8 @@
             <div id="voice-mode-label">Voice Activity</div>
         </div>
         <div id="mic-indicator" class="inactive" title="Microphone">🎙️</div>
+        <button id="btn-mute"   class="footer-icon-btn" onclick="toggleMute()"   title="Mute">🎙️</button>
+        <button id="btn-deafen" class="footer-icon-btn" onclick="toggleDeafen()" title="Deafen">🔊</button>
         <button id="btn-settings" onclick="openSettings()" title="Audio Settings">⚙</button>
     </div>
 </div>
@@ -339,6 +363,18 @@
     <div id="devlog-entries" style="flex:1;overflow-y:auto;padding:4px 10px;"></div>
 </div>
 
+<div id="user-ctx-menu">
+    <div class="ctx-menu-header" id="ctx-menu-alias"></div>
+    <div class="ctx-vol-row">
+        <div class="ctx-vol-label">
+            <span>Volume</span>
+            <span id="ctx-vol-display">100%</span>
+        </div>
+        <input class="ctx-vol-slider" type="range" min="0" max="200" value="100"
+               oninput="onCtxVolChange(this.value)" id="ctx-vol-slider">
+    </div>
+</div>
+
 <script>
 'use strict';
 
@@ -396,11 +432,15 @@ const VAD_HOLD_MS = 400;   // ms to hold "speaking" after signal drops below thr
 const rtcConfig  = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
 // ── State ──────────────────────────────────────────────────────────────────────
-let myAlias        = '';
-let localStream    = null;   // raw getUserMedia stream
-let processedStream = null;  // AudioContext destination stream sent to peers
-let peers          = {};     // { alias: RTCPeerConnection }
-let remoteGainNodes = [];    // output gain nodes (one per remote peer)
+let myAlias         = '';
+let localStream     = null;   // raw getUserMedia stream
+let processedStream = null;   // AudioContext destination stream sent to peers
+let peers           = {};     // alias → RTCPeerConnection
+let remoteGainNodes = {};     // alias → GainNode
+let peerAnalysers   = {};     // alias → AnalyserNode
+let userVolumes     = {};     // alias → per-user volume multiplier (default 1.0)
+let remoteSpeaking  = new Set();
+const _remoteVadBuf = new Float32Array(512);
 
 let audioCtx      = null;
 let inputGainNode = null;
@@ -413,6 +453,9 @@ let vadHoldTimer   = null;
 let vadLoopActive  = false;
 let pttActive      = false;
 let isCapturingPtt = false;
+let isMuted        = false;
+let isDeafened     = false;
+let unreadCounts   = {};     // channelId → unread message count
 
 // ── Settings ───────────────────────────────────────────────────────────────────
 const settings = {
@@ -499,14 +542,16 @@ function renderChannelList() {
                 <span class="ch-icon">🔊</span>
                 <span class="ch-name">${escapeHtml(ch.name)}</span>
                 ${inVoice ? `<span class="ch-leave" onclick="event.stopPropagation();leaveVoice('${ch.id}')" title="Leave voice">✖</span>` : ''}
-                <div class="voice-user-list">${users.map(u => `<div class="voice-user">${escapeHtml(u)}</div>`).join('')}</div>
+                <div class="voice-user-list">${users.map(u => `<div class="voice-user${remoteSpeaking.has(u) ? ' speaking' : ''}" data-alias="${escapeHtml(u)}"${u !== myAlias ? ` oncontextmenu="showUserCtxMenu(event,'${escapeHtml(u)}')"` : ''}>${escapeHtml(u)}</div>`).join('')}</div>
             </div>`;
         } else if (ch.type === 'Text') {
             const viewing = ch.id === activeTextChannelId;
+            const unread  = !viewing && unreadCounts[ch.id] ? unreadCounts[ch.id] : 0;
             html += `
             <div class="channel${viewing ? ' active' : ''}" onclick="selectTextChannel('${ch.id}')">
                 <span class="ch-icon" style="font-weight:700;font-size:16px;">#</span>
                 <span class="ch-name">${escapeHtml(ch.name)}</span>
+                ${unread > 0 ? `<span class="ch-unread">${unread > 99 ? '99+' : unread}</span>` : ''}
             </div>`;
         }
     }
@@ -521,6 +566,7 @@ function leaveVoice(channelId) {
 
 function selectTextChannel(id) {
     activeTextChannelId = id;
+    unreadCounts[id] = 0;
     const ch = serverChannels.find(c => c.id === id);
     if (ch) {
         document.getElementById('chat-channel-name').textContent = ch.name;
@@ -939,7 +985,7 @@ function vadLoop() {
         DevLog.log('VAD', `rms:${rms.toFixed(4)} thresh:${settings.vadThreshold.toFixed(4)} state:${speaking?'SPEAKING':'silent'} mode:${settings.voiceMode} ctx:${audioCtx?.state}`);
     }
 
-    if (settings.voiceMode === 'vad') {
+    if (settings.voiceMode === 'vad' && !isMuted) {
         if (rms > settings.vadThreshold) {
             if (!speaking) { speaking = true; setMicGate(true); }
             clearTimeout(vadHoldTimer);
@@ -947,6 +993,7 @@ function vadLoop() {
         }
     }
 
+    checkRemoteSpeaking();
     requestAnimationFrame(vadLoop);
 }
 
@@ -1095,8 +1142,12 @@ function onOutputGainChange(value) {
     const pct = parseInt(value, 10);
     settings.outputGain = pct / 100;
     document.getElementById('output-gain-display').textContent = pct + '%';
-    remoteGainNodes.forEach(g => { g.gain.value = settings.outputGain; });
-    DevLog.log('SETTINGS', `Output gain → ${pct}% (${remoteGainNodes.length} remote node(s) updated)`);
+    if (!isDeafened) {
+        Object.entries(remoteGainNodes).forEach(([alias, g]) => {
+            g.gain.value = settings.outputGain * (userVolumes[alias] || 1.0);
+        });
+    }
+    DevLog.log('SETTINGS', `Output gain → ${pct}% (${Object.keys(remoteGainNodes).length} remote node(s) updated)`);
     saveSettings();
 }
 
@@ -1217,12 +1268,17 @@ async function setupPeer(target, makeOffer = false) {
         anchor.volume = 0;
         anchor.play().catch(() => {});
 
-        const src  = outputCtx.createMediaStreamSource(stream);
+        const src      = outputCtx.createMediaStreamSource(stream);
+        const analyser = outputCtx.createAnalyser();
+        analyser.fftSize = 512;
+        analyser.smoothingTimeConstant = 0.3;
         const gain = outputCtx.createGain();
-        gain.gain.value = settings.outputGain;
-        src.connect(gain);
+        gain.gain.value = isDeafened ? 0 : settings.outputGain * (userVolumes[target] || 1.0);
+        src.connect(analyser);
+        analyser.connect(gain);
         gain.connect(outputCtx.destination);
-        remoteGainNodes.push(gain);
+        remoteGainNodes[target] = gain;
+        peerAnalysers[target]   = analyser;
     };
 
     if (makeOffer) {
@@ -1277,7 +1333,7 @@ window.chrome.webview.addEventListener('message', async (e) => {
     } else if (data.action === 'PTT_STATE') {
         DevLog.log('BRIDGE', `← C# | PTT_STATE isActive:${data.isActive}`);
         pttActive = data.isActive;
-        if (settings.voiceMode === 'ptt') setMicGate(pttActive);
+        if (settings.voiceMode === 'ptt') setMicGate(pttActive && !isMuted);
 
     } else if (data.action === 'CHAT_RECEIVE') {
         const chId = data.channelId || activeTextChannelId;
@@ -1285,6 +1341,10 @@ window.chrome.webview.addEventListener('message', async (e) => {
         if (chId) {
             if (!channelMessages[chId]) channelMessages[chId] = [];
             channelMessages[chId].push({ author: data.author, time: data.time, message: data.message });
+            if (chId !== activeTextChannelId) {
+                unreadCounts[chId] = (unreadCounts[chId] || 0) + 1;
+                renderChannelList();
+            }
         }
         if (!chId || chId === activeTextChannelId) renderChatMessage(data.author, data.message);
 
@@ -1302,6 +1362,9 @@ window.chrome.webview.addEventListener('message', async (e) => {
     } else if (data.action === 'USER_LEFT_VOICE') {
         DevLog.log('RTC', `← C# | USER_LEFT_VOICE alias:${data.alias}`);
         if (peers[data.alias]) { peers[data.alias].close(); delete peers[data.alias]; }
+        delete remoteGainNodes[data.alias];
+        delete peerAnalysers[data.alias];
+        remoteSpeaking.delete(data.alias);
 
     } else if (data.action === 'VOICE_STATE_UPDATE') {
         DevLog.log('BRIDGE', `← C# | VOICE_STATE_UPDATE ch:${data.channelId} users:[${data.users.join(',')}]`);
@@ -1324,7 +1387,12 @@ window.chrome.webview.addEventListener('message', async (e) => {
         activeTextChannelId = null;
         channelMessages     = {};
         Object.values(peers).forEach(pc => pc.close());
-        peers = {};
+        peers           = {};
+        remoteGainNodes = {};
+        peerAnalysers   = {};
+        remoteSpeaking  = new Set();
+        userVolumes     = {};
+        unreadCounts    = {};
         speaking = false;
         setMicGate(false);
         document.getElementById('server-name-display').textContent = 'Not connected';
@@ -1333,6 +1401,17 @@ window.chrome.webview.addEventListener('message', async (e) => {
         document.getElementById('chat-history').innerHTML = '';
         renderChannelList();
         renderServerBar();
+
+    } else if (data.action === 'AUTH_FAILED') {
+        DevLog.log('ERR', `← C# | AUTH_FAILED: ${data.reason}`);
+        pendingServerId = null;
+        const lbl2 = document.getElementById('voice-mode-label');
+        lbl2.textContent = '⚠ Wrong password';
+        lbl2.style.color = '#ef9a9a';
+        setTimeout(() => {
+            lbl2.textContent = settings.voiceMode === 'vad' ? 'Voice Activity' : 'Push to Talk';
+            lbl2.style.color = '';
+        }, 4000);
 
     } else if (data.action === 'CONNECTION_FAILED') {
         DevLog.log('ERR', `← C# | CONNECTION_FAILED: ${data.error}`);
@@ -1362,6 +1441,91 @@ window.chrome.webview.addEventListener('message', async (e) => {
             await pc.addIceCandidate(new RTCIceCandidate(p.candidate));
         }
     }
+});
+
+// ── Mute / Deafen ─────────────────────────────────────────────────────────────
+function toggleMute() {
+    isMuted = !isMuted;
+    if (isMuted) { speaking = false; setMicGate(false); clearTimeout(vadHoldTimer); }
+    renderMuteDeafenUI();
+    DevLog.log('AUDIO', `Mute → ${isMuted}`);
+}
+
+function toggleDeafen() {
+    isDeafened = !isDeafened;
+    if (isDeafened && !isMuted) { isMuted = true; speaking = false; setMicGate(false); clearTimeout(vadHoldTimer); }
+    const vol = isDeafened ? 0 : settings.outputGain;
+    Object.entries(remoteGainNodes).forEach(([alias, g]) => {
+        g.gain.value = isDeafened ? 0 : settings.outputGain * (userVolumes[alias] || 1.0);
+    });
+    renderMuteDeafenUI();
+    DevLog.log('AUDIO', `Deafen → ${isDeafened}`);
+}
+
+function renderMuteDeafenUI() {
+    const btnMute   = document.getElementById('btn-mute');
+    const btnDeafen = document.getElementById('btn-deafen');
+    if (!btnMute || !btnDeafen) return;
+    btnMute.classList.toggle('muted',    isMuted);
+    btnMute.textContent   = isMuted    ? '🔇' : '🎙️';
+    btnMute.title         = isMuted    ? 'Unmute' : 'Mute';
+    btnDeafen.classList.toggle('deafened', isDeafened);
+    btnDeafen.textContent = isDeafened ? '🔕' : '🔊';
+    btnDeafen.title       = isDeafened ? 'Undeafen' : 'Deafen';
+}
+
+// ── Speaking indicators ────────────────────────────────────────────────────────
+function checkRemoteSpeaking() {
+    if (!Object.keys(peerAnalysers).length) return;
+    let changed = false;
+    for (const [alias, analyser] of Object.entries(peerAnalysers)) {
+        analyser.getFloatTimeDomainData(_remoteVadBuf);
+        let s = 0;
+        for (let i = 0; i < _remoteVadBuf.length; i++) s += _remoteVadBuf[i] * _remoteVadBuf[i];
+        const rms = Math.sqrt(s / _remoteVadBuf.length);
+        const wasSpeaking = remoteSpeaking.has(alias);
+        if (rms > 0.01 && !wasSpeaking)  { remoteSpeaking.add(alias);    changed = true; }
+        if (rms <= 0.01 && wasSpeaking)  { remoteSpeaking.delete(alias); changed = true; }
+    }
+    if (changed) renderChannelList();
+}
+
+// ── Per-user context menu ─────────────────────────────────────────────────────
+let _ctxMenuAlias = null;
+
+function showUserCtxMenu(e, alias) {
+    e.preventDefault();
+    _ctxMenuAlias = alias;
+    document.getElementById('ctx-menu-alias').textContent = alias;
+    const vol = Math.round((userVolumes[alias] || 1.0) * 100);
+    document.getElementById('ctx-vol-slider').value        = vol;
+    document.getElementById('ctx-vol-display').textContent = vol + '%';
+    const menu = document.getElementById('user-ctx-menu');
+    menu.style.display = 'block';
+    const x = Math.min(e.clientX, window.innerWidth  - 190);
+    const y = Math.min(e.clientY, window.innerHeight - 90);
+    menu.style.left = x + 'px';
+    menu.style.top  = y + 'px';
+}
+
+function hideUserCtxMenu() {
+    document.getElementById('user-ctx-menu').style.display = 'none';
+    _ctxMenuAlias = null;
+}
+
+function onCtxVolChange(value) {
+    const pct = parseInt(value, 10);
+    document.getElementById('ctx-vol-display').textContent = pct + '%';
+    if (_ctxMenuAlias) {
+        userVolumes[_ctxMenuAlias] = pct / 100;
+        if (remoteGainNodes[_ctxMenuAlias] && !isDeafened)
+            remoteGainNodes[_ctxMenuAlias].gain.value = settings.outputGain * (pct / 100);
+    }
+}
+
+document.addEventListener('click', e => {
+    const menu = document.getElementById('user-ctx-menu');
+    if (menu && menu.style.display !== 'none' && !menu.contains(e.target)) hideUserCtxMenu();
 });
 
 function escapeHtml(str) {

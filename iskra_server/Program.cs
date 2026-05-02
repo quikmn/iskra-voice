@@ -112,6 +112,19 @@ namespace Origin.Server.Core
                 using JsonDocument authDoc = JsonDocument.Parse(Encoding.UTF8.GetString(msgStream.GetBuffer(), 0, (int)msgStream.Length));
                 currentAlias = authDoc.RootElement.GetProperty("alias").GetString();
 
+                if (ActiveConfig.Settings.RequirePassword)
+                {
+                    string pw = authDoc.RootElement.TryGetProperty("password", out JsonElement pwEl) ? pwEl.GetString() ?? "" : "";
+                    if (pw != ActiveConfig.Settings.ServerPassword)
+                    {
+                        Log("AUTH", $"'{currentAlias}' rejected — wrong password from {clientIp}");
+                        var deny = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { action = "AUTH_FAILED", reason = "Wrong password" }));
+                        await socket.SendAsync(new ArraySegment<byte>(deny), WebSocketMessageType.Text, true, CancellationToken.None);
+                        await socket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Wrong password", CancellationToken.None);
+                        return;
+                    }
+                }
+
                 ActiveClients[currentAlias] = socket;
                 Log("AUTH", $"'{currentAlias}' authenticated | total clients:{ActiveClients.Count}");
 
