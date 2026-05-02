@@ -4,7 +4,9 @@
     "Port": 8081,
     "RequirePassword": true,
     "ServerPassword": "beta_pass",
-    "AdminEmail": ""
+    "AdminEmail": "",
+    "TurnUrls": [],
+    "TurnSecret": ""
   },
   "Channels": [
     { "Id": "hdr_b_main", "Name": "Main",      "Type": "Header" },

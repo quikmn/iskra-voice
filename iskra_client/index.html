@@ -429,7 +429,7 @@ const DevLog = (() => {
 // ── Constants ──────────────────────────────────────────────────────────────────
 const METER_MAX  = 0.15;   // RMS ceiling for meter display
 const VAD_HOLD_MS = 400;   // ms to hold "speaking" after signal drops below threshold
-const rtcConfig  = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+let rtcConfig    = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
 // ── State ──────────────────────────────────────────────────────────────────────
 let myAlias         = '';
@@ -1353,7 +1353,11 @@ window.chrome.webview.addEventListener('message', async (e) => {
         await setupPeer(data.alias, true);
 
     } else if (data.action === 'SERVER_INFO') {
-        DevLog.log('BRIDGE', `← C# | SERVER_INFO name:"${data.name}" channels:${data.channels.length}`);
+        DevLog.log('BRIDGE', `← C# | SERVER_INFO name:"${data.name}" channels:${data.channels.length} iceServers:${data.iceServers?.length ?? 0}`);
+        if (data.iceServers && data.iceServers.length) {
+            rtcConfig = { iceServers: data.iceServers };
+            DevLog.log('RTC', `ICE config updated | ${data.iceServers.length} server(s) — ${data.iceServers.map(s => Array.isArray(s.urls) ? s.urls[0] : s.urls).join(', ')}`);
+        }
         serverChannels = data.channels;
         const firstText = serverChannels.find(c => c.type === 'Text');
         if (firstText) selectTextChannel(firstText.id);

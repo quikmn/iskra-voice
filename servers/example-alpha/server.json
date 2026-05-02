@@ -4,7 +4,9 @@
     "Port": 8080,
     "RequirePassword": true,
     "ServerPassword": "alpha_pass",
-    "AdminEmail": ""
+    "AdminEmail": "",
+    "TurnUrls": [],
+    "TurnSecret": ""
   },
   "Channels": [
     { "Id": "hdr_a_ops",  "Name": "Operations", "Type": "Header" },

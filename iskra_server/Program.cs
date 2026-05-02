@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.WebSockets;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -18,6 +19,15 @@ namespace Origin.Server.Core
     {
         private static void Log(string cat, string msg) =>
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}][{cat,-8}] {msg}");
+
+        private static (string username, string credential) GenerateTurnCreds(string secret, int ttlHours = 24)
+        {
+            long expiry   = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + (ttlHours * 3600);
+            string user   = $"{expiry}:iskra";
+            using var hmac = new HMACSHA1(Encoding.UTF8.GetBytes(secret));
+            string cred   = Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(user)));
+            return (user, cred);
+        }
 
         private static Origin_Server_Data_Config ActiveConfig;
         private static string ActiveWorldPath;
@@ -128,11 +138,24 @@ namespace Origin.Server.Core
                 ActiveClients[currentAlias] = socket;
                 Log("AUTH", $"'{currentAlias}' authenticated | total clients:{ActiveClients.Count}");
 
-                // Send server info (channel list)
+                // Build ICE server list — STUN always included, TURN added if configured
+                var iceServers = new List<object>
+                {
+                    new { urls = new[] { "stun:stun.l.google.com:19302" } }
+                };
+                if (ActiveConfig.Settings.TurnUrls?.Count > 0 && !string.IsNullOrEmpty(ActiveConfig.Settings.TurnSecret))
+                {
+                    var (turnUser, turnCred) = GenerateTurnCreds(ActiveConfig.Settings.TurnSecret);
+                    iceServers.Add(new { urls = ActiveConfig.Settings.TurnUrls.ToArray(), username = turnUser, credential = turnCred });
+                    Log("AUTH", $"TURN creds generated for '{currentAlias}' | expires:{turnUser.Split(':')[0]}");
+                }
+
+                // Send server info (channel list + ICE config)
                 var serverInfo = JsonSerializer.Serialize(new {
-                    action   = "SERVER_INFO",
-                    name     = ActiveConfig.Settings.ServerName,
-                    channels = ActiveConfig.Channels.Select(c => new { id = c.Id, name = c.Name, type = c.Type })
+                    action     = "SERVER_INFO",
+                    name       = ActiveConfig.Settings.ServerName,
+                    channels   = ActiveConfig.Channels.Select(c => new { id = c.Id, name = c.Name, type = c.Type }),
+                    iceServers
                 });
                 await socket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(serverInfo)), WebSocketMessageType.Text, true, CancellationToken.None);
                 Log("DATA", $"Server info sent to '{currentAlias}' | channels:{ActiveConfig.Channels.Count}");
@@ -286,6 +309,14 @@ namespace Origin.Server.Core
 namespace Origin.Server.Data
 {
     public class Origin_Server_Data_Config { public ServerSettings Settings { get; set; } = new ServerSettings(); public List<Channel> Channels { get; set; } = new List<Channel>(); }
-    public class ServerSettings { public string ServerName { get; set; } = "Origin Primary Node"; public int Port { get; set; } = 8080; public bool RequirePassword { get; set; } = true; public string ServerPassword { get; set; } = "bunker_pass_2026"; public string AdminEmail { get; set; } = "viklun@vlun.onmicrosoft.com"; }
+    public class ServerSettings {
+        public string ServerName    { get; set; } = "Origin Primary Node";
+        public int    Port          { get; set; } = 8080;
+        public bool   RequirePassword  { get; set; } = true;
+        public string ServerPassword   { get; set; } = "bunker_pass_2026";
+        public string AdminEmail    { get; set; } = "";
+        public List<string> TurnUrls   { get; set; } = new List<string>();
+        public string TurnSecret    { get; set; } = "";
+    }
     public class Channel { public string Id { get; set; } public string Name { get; set; } public string Type { get; set; } }
 }
