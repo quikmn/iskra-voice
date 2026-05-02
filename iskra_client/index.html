@@ -1,11 +1,193 @@
 ﻿<!DOCTYPE html>
-
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <title></title>
-</head>
-<body>
+    <meta charset="UTF-8">
+    <title>Origin Voice Client</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
+        body {
+            height: 100vh;
+            font-family: 'Segoe UI', sans-serif;
+            background: #202225;
+            color: #dcddde;
+            overflow: hidden;
+            display: flex;
+        }
+
+        #Server-Bar {
+            width: 72px;
+            background: #1e1f22;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 12px;
+        }
+
+        #Channel-Bar {
+            width: 240px;
+            background: #2b2d31;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #Chat-Pane {
+            flex: 1;
+            background: #313338;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .channel {
+            padding: 8px 12px;
+            margin: 2px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #949ba4;
+        }
+
+            .channel.active {
+                background: #3f4147;
+                color: #fff;
+            }
+
+        .voice-user-list {
+            margin-left: 24px;
+            margin-top: 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .voice-user {
+            font-size: 13px;
+            color: #dbdee1;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+            .voice-user::before {
+                content: '';
+                width: 10px;
+                height: 10px;
+                background: #3ba55d;
+                border-radius: 50%;
+            }
+
+        #Chat-History {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            font-size: 14px;
+        }
+
+        #Input-Area {
+            padding: 20px;
+        }
+
+        .input-box {
+            width: 100%;
+            background: #383a40;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            color: #dcddde;
+            outline: none;
+        }
+
+        #User-Footer {
+            height: 52px;
+            background: #232428;
+            padding: 0 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            background: #5865f2;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body onload="initMic()">
+    <div id="Server-Bar"><div style="width:48px; height:48px; background:#313338; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold;">S1</div></div>
+    <div id="Channel-Bar">
+        <div style="padding:16px; font-weight:bold; color:white; font-size:14px;">Origin Server</div>
+        <div style="flex:1;">
+            <div class="channel" id="btn-voice" onclick="joinVoice('c_gen_v')">🔊 General<div id="user-list-c_gen_v" class="voice-user-list"></div></div>
+        </div>
+        <div id="User-Footer">
+            <div class="avatar"></div>
+            <div style="flex:1"><div id="ui-alias" style="font-weight:bold; font-size:13px;">...</div><div style="font-size:11px; color:#3ba55d;">Online</div></div>
+            <div id="mic-status">🎙️</div>
+        </div>
+    </div>
+    <div id="Chat-Pane">
+        <div id="Chat-History"></div>
+        <div id="Input-Area"><input type="text" class="input-box" placeholder="Message #general-chat" onkeypress="sendChat(event)"></div>
+    </div>
+
+    <script>
+        let myAlias = "", localStream = null, peers = {};
+        const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+        // Warm up the mic immediately on load
+        async function initMic() {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                console.log("Mic Initialized.");
+            } catch (e) { console.error("Mic failed", e); }
+        }
+
+        function joinVoice(id) {
+            document.getElementById('btn-voice').classList.add('active');
+            window.chrome.webview.postMessage(JSON.stringify({ action: "JOIN_VOICE", channelId: id }));
+        }
+
+        async function setupPeer(target, makeOffer = false) {
+            if (peers[target]) return peers[target];
+            const pc = new RTCPeerConnection(rtcConfig);
+            peers[target] = pc;
+            localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+            pc.onicecandidate = e => { if (e.candidate) sendSignal(target, { type: 'ice', candidate: e.candidate }); };
+            pc.ontrack = e => {
+                let audio = document.createElement('audio');
+                audio.autoplay = true; audio.srcObject = e.streams[0]; document.body.appendChild(audio);
+            };
+            if (makeOffer) { const offer = await pc.createOffer(); await pc.setLocalDescription(offer); sendSignal(target, { type: 'offer', sdp: offer }); }
+            return pc;
+        }
+
+        function sendSignal(target, payload) { window.chrome.webview.postMessage(JSON.stringify({ action: "WEBRTC_SIGNAL", target: target, sender: myAlias, payload: payload })); }
+        function sendChat(e) { if (e.key === 'Enter' && e.target.value) { window.chrome.webview.postMessage(JSON.stringify({ action: "SEND_CHAT", message: e.target.value })); e.target.value = ""; } }
+
+        window.chrome.webview.addEventListener('message', async (e) => {
+            const data = JSON.parse(e.data);
+            if (data.action === "INIT_CLIENT") { myAlias = data.alias; document.getElementById('ui-alias').innerText = myAlias; }
+            else if (data.action === "CHAT_RECEIVE") {
+                const h = document.getElementById('Chat-History');
+                h.innerHTML += `<div><strong>${data.author}</strong>: ${data.message}</div>`;
+                h.scrollTop = h.scrollHeight;
+            }
+            else if (data.action === "USER_JOINED_VOICE") { await setupPeer(data.alias, true); }
+            else if (data.action === "VOICE_STATE_UPDATE") {
+                document.getElementById(`user-list-${data.channelId}`).innerHTML = data.users.map(u => `<div class="voice-user">${u}</div>`).join('');
+            }
+            else if (data.action === "WEBRTC_SIGNAL") {
+                const pc = await setupPeer(data.sender, false);
+                if (data.payload.type === 'offer') { await pc.setRemoteDescription(new RTCSessionDescription(data.payload.sdp)); const a = await pc.createAnswer(); await pc.setLocalDescription(a); sendSignal(data.sender, { type: 'answer', sdp: a }); }
+                else if (data.payload.type === 'answer') { await pc.setRemoteDescription(new RTCSessionDescription(data.payload.sdp)); }
+                else if (data.payload.type === 'ice') { await pc.addIceCandidate(new RTCIceCandidate(data.payload.candidate)); }
+            }
+        });
+    </script>
 </body>
 </html>

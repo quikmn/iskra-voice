@@ -5,11 +5,11 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "iskra_client", "iskra_client", "{3991B0C7-3282-44B2-8108-532B17F3D21F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "iskra_client", "iskra_client\iskra_client\iskra_client.csproj", "{8300DA8A-4B8C-4353-919A-6DA00E122A7D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "iskra_client", "iskra_client\iskra_client.csproj", "{8300DA8A-4B8C-4353-919A-6DA00E122A7D}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "iskra_server", "iskra_server", "{0D082BFF-D0AF-490B-BA66-769B16B5B8B3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "iskra_server", "iskra_server\iskra_server\iskra_server.csproj", "{726E4A37-3E2E-4E25-8DEE-1B2664DDA24A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "iskra_server", "iskra_server\iskra_server.csproj", "{726E4A37-3E2E-4E25-8DEE-1B2664DDA24A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
