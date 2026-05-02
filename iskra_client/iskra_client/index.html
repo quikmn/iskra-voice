@@ -1,0 +1,434 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Origin Voice Client</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #202225;
+            color: #dcddde;
+            overflow: hidden;
+        }
+
+        #Client-View-Main-Container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #Client-View-Server-Pane {
+            width: 72px;
+            background-color: #202225;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 12px;
+            gap: 10px;
+        }
+
+        .server-icon {
+            width: 48px;
+            height: 48px;
+            background-color: #36393f;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.2s;
+            font-weight: bold;
+        }
+
+            .server-icon:hover, .server-icon.active {
+                border-radius: 30%;
+                background-color: #5865F2;
+                color: white;
+            }
+
+        #Client-View-Channel-Pane {
+            width: 240px;
+            background-color: #2f3136;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #Client-View-Channel-List {
+            flex: 1;
+            padding: 15px 10px;
+            overflow-y: auto;
+        }
+
+        .category-header {
+            font-size: 12px;
+            font-weight: bold;
+            color: #8e9297;
+            margin: 10px 0 5px 5px;
+        }
+
+        .channel-item {
+            padding: 8px;
+            margin-bottom: 2px;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #8e9297;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+            .channel-item:hover {
+                background-color: #393c43;
+                color: #dcddde;
+            }
+
+            .channel-item.active {
+                background-color: #393c43;
+                color: white;
+                font-weight: 600;
+            }
+
+        .icon-hash::before {
+            content: "#";
+            font-size: 18px;
+            color: #8e9297;
+        }
+
+        .icon-voice::before {
+            content: "🔊";
+            font-size: 14px;
+        }
+
+        #Client-View-User-Profile {
+            height: 52px;
+            background-color: #292b2f;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 14px;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #3ba55d;
+            margin-right: 10px;
+        }
+
+        .user-details {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #Client-View-Chat-Pane {
+            flex: 1;
+            background-color: #36393f;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #Client-View-Chat-Header {
+            height: 48px;
+            border-bottom: 1px solid #202225;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+        }
+
+        #Client-View-Chat-History {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            display: flex;
+            gap: 16px;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #5865F2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .message-content {
+            flex: 1;
+        }
+
+        .message-header {
+            margin-bottom: 4px;
+        }
+
+        .message-author {
+            color: white;
+            font-weight: 500;
+            margin-right: 8px;
+        }
+
+        .message-time {
+            color: #72767d;
+            font-size: 12px;
+        }
+
+        .message-text {
+            color: #dcddde;
+            line-height: 1.4;
+            word-break: break-word;
+        }
+
+        #Client-View-Chat-InputArea {
+            padding: 0 20px 20px 20px;
+        }
+
+        .chat-input-wrapper {
+            background-color: #40444b;
+            border-radius: 8px;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+        }
+
+        .chat-input {
+            background: transparent;
+            border: none;
+            color: #dcddde;
+            font-size: 15px;
+            width: 100%;
+            outline: none;
+            font-family: inherit;
+        }
+
+            .chat-input::placeholder {
+                color: #72767d;
+            }
+
+        .system-msg {
+            color: #f1c40f;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="Client-View-Main-Container">
+        <div id="Client-View-Server-Pane">
+            <div class="server-icon">DM</div>
+            <div style="width: 32px; height: 2px; background-color: #36393f; border-radius: 1px;"></div>
+            <div class="server-icon active">S1</div>
+        </div>
+
+        <div id="Client-View-Channel-Pane">
+            <div id="Client-View-Channel-List">
+                <div class="category-header">VOICE CHANNELS</div>
+                <div class="channel-item"><span class="icon-voice"></span> General</div>
+                <div class="category-header" style="margin-top: 20px;">TEXT CHANNELS</div>
+                <div class="channel-item active"><span class="icon-hash"></span> general-chat</div>
+            </div>
+
+            <div id="Client-View-User-Profile">
+                <div class="status-indicator"></div>
+                <div class="user-details">
+                    <div id="ui-alias" style="font-weight: bold; color: white;">Connecting...</div>
+                    <div style="font-size: 11px; color: #b9bbbe;">Connected</div>
+                </div>
+                <div id="mic-icon" style="cursor: pointer; font-size: 18px; color: #b9bbbe;" onclick="toggleMicrophone()">🎤</div>
+            </div>
+        </div>
+
+        <div id="Client-View-Chat-Pane">
+            <div id="Client-View-Chat-Header"><span class="icon-hash" style="margin-right: 10px;"></span> general-chat</div>
+            <div id="Client-View-Chat-History"></div>
+            <div id="Client-View-Chat-InputArea">
+                <div class="chat-input-wrapper">
+                    <input type="text" class="chat-input" placeholder="Type /call [alias] to test voice..." autocomplete="off">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ENGINE: WebRTC and Bridge -->
+    <script>
+        let myAlias = "Unknown";
+        let localStream = null;
+        const peerConnections = {};
+
+        // Google's free STUN server to get through firewalls
+        const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+        // --- 1. UI Helpers ---
+        function appendSystemMessage(text) {
+            const history = document.getElementById('Client-View-Chat-History');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message system-msg';
+            msgDiv.innerHTML = `<div class="message-content"><div class="message-text">⚙️ ${text}</div></div>`;
+            history.appendChild(msgDiv);
+            history.scrollTop = history.scrollHeight;
+        }
+
+        function appendChatMessage(author, time, text) {
+            const history = document.getElementById('Client-View-Chat-History');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message';
+            const initial = author ? author.charAt(0).toUpperCase() : '?';
+            msgDiv.innerHTML = `
+                    <div class="message-avatar">${initial}</div>
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="message-author">${author}</span>
+                            <span class="message-time">${time}</span>
+                        </div>
+                        <div class="message-text">${text}</div>
+                    </div>`;
+            history.appendChild(msgDiv);
+            history.scrollTop = history.scrollHeight;
+        }
+
+        // --- 2. WebRTC Audio Core ---
+        async function toggleMicrophone() {
+            if (!localStream) {
+                try {
+                    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                    document.getElementById('mic-icon').style.color = '#3ba55d'; // Green
+                    appendSystemMessage("Microphone active.");
+                } catch (err) {
+                    appendSystemMessage("Mic Error: " + err.message);
+                }
+            } else {
+                localStream.getTracks().forEach(t => t.stop());
+                localStream = null;
+                document.getElementById('mic-icon').style.color = '#b9bbbe'; // Grey
+                appendSystemMessage("Microphone muted.");
+            }
+        }
+
+        function sendSignal(target, payload) {
+            const msg = { action: "WEBRTC_SIGNAL", target: target, sender: myAlias, payload: payload };
+            window.chrome.webview.postMessage(JSON.stringify(msg));
+        }
+
+        async function initiateCall(targetAlias) {
+            if (!localStream) await toggleMicrophone();
+            if (!localStream) return; // User denied mic
+
+            appendSystemMessage(`Ringing ${targetAlias}...`);
+            const pc = new RTCPeerConnection(rtcConfig);
+            peerConnections[targetAlias] = pc;
+
+            localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+            pc.ontrack = e => playRemoteAudio(targetAlias, e.streams[0]);
+            pc.onicecandidate = e => {
+                if (e.candidate) sendSignal(targetAlias, { type: 'ice-candidate', candidate: e.candidate });
+            };
+
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            sendSignal(targetAlias, { type: 'offer', sdp: pc.localDescription });
+        }
+
+        function playRemoteAudio(alias, stream) {
+            let audio = document.getElementById(`audio-${alias}`);
+            if (!audio) {
+                audio = document.createElement('audio');
+                audio.id = `audio-${alias}`;
+                audio.autoplay = true;
+                document.body.appendChild(audio);
+            }
+            audio.srcObject = stream;
+            appendSystemMessage(`Voice connected with ${alias}!`);
+        }
+
+        async function handleIncomingSignal(data) {
+            const sender = data.sender;
+            const payload = data.payload;
+            let pc = peerConnections[sender];
+
+            if (payload.type === 'offer') {
+                appendSystemMessage(`Incoming call from ${sender}...`);
+                if (!localStream) await toggleMicrophone();
+
+                pc = new RTCPeerConnection(rtcConfig);
+                peerConnections[sender] = pc;
+
+                localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+                pc.ontrack = e => playRemoteAudio(sender, e.streams[0]);
+                pc.onicecandidate = e => {
+                    if (e.candidate) sendSignal(sender, { type: 'ice-candidate', candidate: e.candidate });
+                };
+
+                await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                sendSignal(sender, { type: 'answer', sdp: pc.localDescription });
+
+            } else if (payload.type === 'answer' && pc) {
+                await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+            } else if (payload.type === 'ice-candidate' && pc) {
+                await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+            }
+        }
+
+        // --- 3. Input Handling ---
+        const chatInput = document.querySelector('.chat-input');
+        chatInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter' && this.value.trim() !== '') {
+                const text = this.value.trim();
+
+                // Secret Hacker Command to trigger a call
+                if (text.startsWith('/call ')) {
+                    const target = text.split(' ')[1];
+                    initiateCall(target);
+                } else {
+                    const payload = { action: "SEND_CHAT", channelId: "c_gen_t", message: text };
+                    window.chrome.webview.postMessage(JSON.stringify(payload));
+                }
+                this.value = '';
+            }
+        });
+
+        // --- 4. Bridge Receiver ---
+        if (window.chrome && window.chrome.webview) {
+            window.chrome.webview.addEventListener('message', function (event) {
+                const data = JSON.parse(event.data);
+
+                if (data.action === "INIT_CLIENT") {
+                    myAlias = data.alias;
+                    document.getElementById('ui-alias').innerText = myAlias;
+                    appendSystemMessage(`Assigned alias: ${myAlias}. Type /call [alias] to call someone.`);
+                }
+                else if (data.action === "CHAT_RECEIVE") {
+                    appendChatMessage(data.author, data.time, data.message);
+                }
+                else if (data.action === "WEBRTC_SIGNAL") {
+                    handleIncomingSignal(data);
+                }
+            });
+        }
+    </script>
+</body>
+</html>
