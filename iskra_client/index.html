@@ -6,6 +6,10 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { height: 100vh; font-family: 'Segoe UI', sans-serif; background: #202225; color: #dcddde; overflow: hidden; display: flex; }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
 
         /* ── Layout ── */
         #server-bar { width: 72px; background: #1e1f22; display: flex; flex-direction: column; align-items: center; padding-top: 12px; }
@@ -34,11 +38,12 @@
         /* .input-box and #input-area layout in Input area section below */
 
         /* ── User Footer ── */
-        #user-footer { background: #232428; padding: 8px 8px 8px 18px; display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; position: relative; }
+        #user-footer { background: #232428; padding: 10px 10px 10px 20px; display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; position: relative; border-radius: 8px; margin: 0 4px 4px; }
         .footer-row { display: flex; align-items: center; gap: 6px; }
         .avatar { width: 32px; height: 32px; background: #5865f2; border-radius: 50%; flex-shrink: 0; }
-        #footer-speaking-bar { position: absolute; left: 6px; top: 8px; bottom: 8px; width: 3px; border-radius: 2px; background: #4f545c; transition: background 0.12s; }
-        #footer-speaking-bar.speaking { background: #3ba55d; }
+        #footer-speaking-bar { position: absolute; left: 7px; top: 10px; bottom: 10px; width: 3px; border-radius: 2px; background: #3a3c42; overflow: hidden; }
+        #footer-speaking-fill { position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; border-radius: 2px; background: #3ba55d; transition: height 0.04s linear, background 0.1s; }
+        #footer-speaking-fill.muted { background: #ed4245; }
         #my-status-dot { border-color: #232428; }
         #footer-identity { display: flex; align-items: center; gap: 8px; min-width: 0; }
         #footer-user-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
@@ -475,7 +480,7 @@
                 <span style="font-size:10px;color:#4f545c;">mp3 · wav · ogg · webm</span>
             </div>
         </div>
-        <div id="footer-speaking-bar"></div>
+        <div id="footer-speaking-bar"><div id="footer-speaking-fill"></div></div>
         <div id="footer-identity">
             <div id="my-avatar-wrap" class="av-wrap" onclick="document.getElementById('avatar-file-input').click()" title="Click to change your avatar" style="cursor:pointer;">
                 <div id="my-avatar" class="avatar-circle sz-32"></div>
@@ -1804,11 +1809,12 @@ async function initOutputContext() {
 }
 
 function updateMicIndicator() {
-    const bar = document.getElementById('footer-speaking-bar');
-    if (!bar) return;
-    const transmitting = !inMutedChannel && !isMuted && !isDeafened &&
-                         (speaking || (settings.voiceMode === 'ptt' && pttActive));
-    bar.classList.toggle('speaking', transmitting);
+    const fill = document.getElementById('footer-speaking-fill');
+    if (!fill) return;
+    const muted = inMutedChannel || isMuted || isDeafened;
+    fill.classList.toggle('muted', muted);
+    if (muted) fill.style.height = '100%';
+    else if (!speaking && !(settings.voiceMode === 'ptt' && pttActive)) fill.style.height = '0%';
 }
 
 function setMicGate(open) {
@@ -1865,6 +1871,9 @@ function updateMeterFill(rms) {
 
     const modalFill = document.getElementById('vad-level-fill');
     if (modalFill) { modalFill.style.width = pct; modalFill.classList.toggle('above', above); }
+
+    const speakFill = document.getElementById('footer-speaking-fill');
+    if (speakFill && !speakFill.classList.contains('muted')) speakFill.style.height = pct;
 
 }
 
