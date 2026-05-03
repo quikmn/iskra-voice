@@ -415,8 +415,8 @@ Free to use, self-host, and modify for any noncommercial purpose. You may not se
 
 If Iskra saves you money on Discord Nitro or just makes your server life better, a coffee goes a long way.
 
-[☕ Ko-fi — ko-fi.com/YOUR_USERNAME](https://ko-fi.com/YOUR_USERNAME)
+[☕ Ko-fi — ko-fi.com/vlundgren](https://ko-fi.com/vlundgren)
 
-[💳 PayPal — paypal.me/YOUR_USERNAME](https://paypal.me/YOUR_USERNAME)
+[💳 PayPal](https://www.paypal.com/donate/?business=viktor.lundgren%40gmail.com)
 
 No pressure. The software is free either way.
