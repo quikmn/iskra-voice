@@ -493,6 +493,41 @@
         /* ── Custom emoji ── */
         .custom-emoji { width: 20px; height: 20px; vertical-align: middle; object-fit: contain; border-radius: 3px; display: inline-block; }
 
+        /* ── Reply bar ── */
+        #reply-bar { display:none; align-items:center; gap:8px; padding:5px 14px; background:var(--bg-hover); border-left:3px solid var(--accent); font-size:12px; color:var(--text-muted); flex-shrink:0; }
+        #reply-bar strong { color:var(--text-normal); }
+        #reply-bar-preview { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; opacity:0.75; }
+        #reply-bar .reply-cancel { cursor:pointer; padding:1px 6px; border-radius:3px; flex-shrink:0; }
+        #reply-bar .reply-cancel:hover { color:var(--danger); background:var(--danger-bg); }
+
+        /* ── Reply quote in messages ── */
+        .msg-reply-quote { display:flex; flex-direction:column; margin-bottom:4px; padding:3px 8px; border-left:2px solid var(--bg-active); border-radius:2px; cursor:pointer; max-width:560px; }
+        .msg-reply-author { font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:1px; }
+        .msg-reply-text { font-size:12px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+        .msg-reply-quote:hover { border-left-color:var(--accent); background:var(--msg-hover-bg); border-radius:3px; }
+
+        /* ── Edit history popup ── */
+        .edit-history-popup { position:fixed; background:var(--bg-float); border:1px solid var(--bg-border); border-radius:var(--r-md); padding:10px 14px; font-size:12px; color:var(--text-normal); z-index:400; max-width:380px; box-shadow:0 4px 20px rgba(0,0,0,0.4); }
+        .edit-history-popup h4 { margin:0 0 8px; font-size:10px; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.6px; }
+        .edit-history-entry { padding:5px 0; border-bottom:1px solid var(--bg-border); }
+        .edit-history-entry:last-child { border-bottom:none; padding-bottom:0; }
+        .edit-history-entry .eh-text { color:var(--text-normal); line-height:1.4; word-break:break-word; }
+        .edit-history-entry .eh-time { font-size:10px; color:var(--text-subtle); margin-top:2px; }
+        .msg-edited.has-history { cursor:pointer; }
+        .msg-edited.has-history:hover { color:var(--text-muted); }
+
+        /* ── Link preview card ── */
+        .link-preview-card { display:flex; gap:10px; margin-top:6px; padding:8px 10px; background:var(--bg-deep); border-left:3px solid var(--bg-active); border-radius:var(--r-md); max-width:440px; }
+        .link-preview-img { width:72px; height:72px; object-fit:cover; border-radius:var(--r-sm); flex-shrink:0; }
+        .link-preview-text { display:flex; flex-direction:column; gap:3px; min-width:0; }
+        .link-preview-site { font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; }
+        .link-preview-title { font-size:13px; font-weight:600; color:var(--accent); text-decoration:none; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+        .link-preview-title:hover { text-decoration:underline; }
+        .link-preview-desc { font-size:11px; color:var(--text-muted); line-height:1.4; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+
+        /* ── DM read receipt ── */
+        .dm-read-receipt { font-size:10px; color:var(--text-faint); padding:1px 8px 3px; display:flex; justify-content:flex-end; align-items:center; gap:4px; }
+
         /* ── DM Button (server bar) ── */
         #dm-toggle-btn { width: 48px; height: 48px; border-radius: 50%; background: var(--bg-chat); color: var(--text-muted); font-size: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: border-radius 0.15s, background 0.15s; user-select: none; position: relative; flex-shrink: 0; margin-bottom: 6px; }
         #dm-toggle-btn:hover { border-radius: 16px; background: var(--accent); color: var(--text-heading); }
@@ -668,6 +703,10 @@
     <div id="chat-history"></div>
     <div id="input-area">
         <div id="slowmode-bar"></div>
+        <div id="reply-bar">
+            ↩ Replying to <strong id="reply-bar-author"></strong>: <span id="reply-bar-preview"></span>
+            <span class="reply-cancel" onclick="cancelReply()">✕</span>
+        </div>
         <div class="input-row">
             <button class="attach-btn" onclick="document.getElementById('file-input').click()" title="Attach file (or paste / drag & drop)">📎</button>
             <input type="text" id="chat-input" class="input-box" placeholder="Message #general-chat" onkeypress="sendChat(event)">
@@ -1126,11 +1165,15 @@ let serverBotTokens = [];   // [token, ...]
 
 // ── DM state ──────────────────────────────────────────────────────────────────
 let inDmMode         = false;
-let activeDmWith     = null;   // alias of open DM conversation
-let dmConversations  = {};     // alias → { alias, lastMsg, lastTs, unread }
-let dmHistory        = {};     // alias → [ {id,from,to,time,ts,message} ]
+let activeDmWith     = null;
+let dmConversations  = {};
+let dmHistory        = {};
 let _searchDebounce  = null;
 let _inviteServerId  = null;
+
+// ── Reply / link preview state ─────────────────────────────────────────────────
+let _replyTo         = null;   // { id, author, text } or null
+const _previewCache  = new Map(); // url → data object or null (null = no preview)
 
 // ── Avatar helpers ─────────────────────────────────────────────────────────────
 
@@ -1576,8 +1619,10 @@ function selectTextChannel(id) {
     activeTextChannelId = id;
     unreadCounts[id]  = 0;
     mentionCounts[id] = 0;
+    cancelReply();
     const ch = serverChannels.find(c => c.id === id);
     const inputArea = document.getElementById('input-area');
+    document.getElementById('chat-channel-icon').textContent = '#';
     if (ch) {
         document.getElementById('chat-channel-name').textContent = ch.name;
         const isReadOnly = ch.readOnly && !['admin','owner'].includes(myRole);
@@ -1586,7 +1631,7 @@ function selectTextChannel(id) {
     }
     const h = document.getElementById('chat-history');
     h.innerHTML = '';
-    (channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}));
+    (channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}, m.replyToId, m.replySnippet, m.editHistory));
     renderChannelList();
     clearTimeout(_slowTimer);
     if (document.getElementById('chat-input')) document.getElementById('chat-input').disabled = false;
@@ -2429,14 +2474,30 @@ async function setupPeer(target, makeOffer = false) {
 let currentChannelId = null;
 
 function joinVoice(id) {
-    if (currentChannelId === id) return;
-    postToBridge({ action: 'JOIN_VOICE', channelId: id });
+    if (currentChannelId !== id) postToBridge({ action: 'JOIN_VOICE', channelId: id });
+    // Switch chat pane to voice channel text thread
+    if (activeTextChannelId === id) return;
+    activeTextChannelId = id;
+    unreadCounts[id] = 0;
+    cancelReply();
+    const ch = serverChannels.find(c => c.id === id);
+    const icon = ch?.muted ? '🔇' : '🔊';
+    document.getElementById('chat-channel-icon').textContent = icon;
+    document.getElementById('chat-channel-name').textContent = ch?.name || id;
+    document.querySelector('.input-box').placeholder = `Message in ${icon} ${ch?.name || id}`;
+    document.getElementById('input-area')?.classList.remove('readonly');
+    const h = document.getElementById('chat-history');
+    h.innerHTML = '';
+    (channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}, m.replyToId, m.replySnippet, m.editHistory));
+    renderChannelList();
+    clearTimeout(_slowTimer);
+    _slowBarShow(null, false);
+    document.getElementById('pin-panel')?.classList.remove('open');
 }
 
 function sendChat(e) {
     if (e.key !== 'Enter' || !e.target.value.trim()) return;
     const msg = e.target.value.trim();
-    // Route to DM if in DM mode
     if (inDmMode && activeDmWith) {
         postToBridge({ action: 'SEND_DM', to: activeDmWith, message: msg });
         e.target.value = '';
@@ -2447,7 +2508,9 @@ function sendChat(e) {
         const elapsed = (Date.now() - (lastSendTime[activeTextChannelId] || 0)) / 1000;
         if (elapsed < sm) { _slowCountdown(Math.ceil(sm - elapsed)); return; }
     }
-    postToBridge({ action: 'SEND_CHAT', channelId: activeTextChannelId, message: msg });
+    const payload = { action: 'SEND_CHAT', channelId: activeTextChannelId, message: msg };
+    if (_replyTo) { payload.replyToId = _replyTo.id; cancelReply(); }
+    postToBridge(payload);
     e.target.value = '';
     if (sm > 0) { lastSendTime[activeTextChannelId] = Date.now(); _slowCountdown(sm); }
 }
@@ -2508,7 +2571,15 @@ function renderMarkdown(raw) {
     s = s.replace(/`([^`\n]+)`/g,   '<code>$1</code>');
 
     // 5. Bare URLs not already wrapped by upload rule.
-    s = s.replace(/(?<![="'])https?:\/\/\S+/g, url => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`);
+    s = s.replace(/(?<![="'])https?:\/\/[^\s<>"]+/g, url => {
+        const clean = url.replace(/[.,;!?)'">\]]+$/, '');
+        const ext   = clean.split('?')[0].split('#')[0].split('.').pop().toLowerCase();
+        if (['jpg','jpeg','png','gif','webp'].includes(ext))
+            return `<a href="${clean}" target="_blank"><img class="msg-img" src="${clean}" alt="image" loading="lazy" onerror="this.style.display='none'"></a>`;
+        if (['mp4','webm'].includes(ext))
+            return `<video class="msg-img" src="${clean}" controls muted loop style="max-height:240px;border-radius:6px;display:block;margin-top:4px;"></video>`;
+        return `<a class="msg-url" href="${clean}" target="_blank" rel="noopener noreferrer">${clean}</a>`;
+    });
 
     // 6. @mentions.
     s = s.replace(/@([\w][\w\d._-]{0,31})/g, (_, name) => {
@@ -3050,14 +3121,27 @@ function copyInviteLink() {
     });
 }
 
-function renderChatMessage(msgId, author, time, message, edited, reactions) {
+function renderChatMessage(msgId, author, time, message, edited, reactions, replyToId, replySnippet, editHistory) {
     const h = document.getElementById('chat-history');
     const div = document.createElement('div');
     div.className = 'msg-row';
     if (msgId) div.dataset.msgId = msgId;
+    // Store reply metadata for startReply
+    div.dataset.replyAuthor = author || '';
+    div.dataset.replyText   = (message || '').slice(0, 80);
 
-    const bodyHtml = `<span class="msg-body">${renderMarkdown(message)}</span>`
-        + (edited ? '<span class="msg-edited">(edited)</span>' : '');
+    const replyQuoteHtml = (replyToId && replySnippet)
+        ? `<div class="msg-reply-quote" onclick="scrollToMsg('${replyToId}')">` +
+            `<div class="msg-reply-author">↩ ${escapeHtml(replySnippet.author || replySnippet.Author || '')}</div>` +
+            `<div class="msg-reply-text">${escapeHtml(replySnippet.text || replySnippet.Text || '')}</div>` +
+          `</div>`
+        : '';
+
+    const hasHistory = edited && editHistory && editHistory.length > 0;
+    const editedHtml = edited
+        ? `<span class="msg-edited${hasHistory ? ' has-history' : ''}"${hasHistory ? ` onclick="showEditHistory('${msgId}',this)" data-history="${escapeHtml(JSON.stringify(editHistory))}"` : ''}>(edited)</span>`
+        : '';
+    const bodyHtml = replyQuoteHtml + `<span class="msg-body">${renderMarkdown(message)}</span>` + editedHtml;
 
     const reactHtml = msgId ? renderReactions(msgId, reactions || {}) : '';
 
@@ -3067,6 +3151,7 @@ function renderChatMessage(msgId, author, time, message, edited, reactions) {
         const canDel = isOwn || ['admin','owner'].includes(myRole);
         const canPin = ['admin','owner'].includes(myRole);
         actions = `<span class="msg-actions">`;
+        actions += `<button class="msg-act-btn" title="Reply" onclick="startReply('${msgId}')">↩</button>`;
         actions += `<button class="msg-act-btn" title="React" onclick="showEmojiPicker(event,'${msgId}')">😊</button>`;
         if (isOwn) actions += `<button class="msg-act-btn" title="Edit" onclick="editMessage('${msgId}','${escapeHtml(author)}')">✏</button>`;
         if (canDel) actions += `<button class="msg-act-btn del" title="Delete" onclick="deleteMessage('${msgId}')">🗑</button>`;
@@ -3083,6 +3168,7 @@ function renderChatMessage(msgId, author, time, message, edited, reactions) {
         `</div>`;
     h.appendChild(div);
     h.scrollTop = h.scrollHeight;
+    if (div.querySelector('.msg-url')) requestAnimationFrame(() => enrichLinkPreviews(div));
 }
 
 // ── Message edit / delete ─────────────────────────────────────────────────────
@@ -3147,17 +3233,95 @@ function deleteMessage(msgId) {
     postToBridge({ action: 'DELETE_MESSAGE', channelId, messageId: msgId });
 }
 
-function updateMessageInDOM(msgId, newText) {
+function startReply(msgId) {
+    const row = document.querySelector(`[data-msg-id="${msgId}"]`);
+    if (!row) return;
+    _replyTo = { id: msgId, author: row.dataset.replyAuthor || '', text: row.dataset.replyText || '' };
+    document.getElementById('reply-bar-author').textContent = _replyTo.author;
+    document.getElementById('reply-bar-preview').textContent = _replyTo.text;
+    document.getElementById('reply-bar').style.display = 'flex';
+    document.getElementById('chat-input')?.focus();
+}
+
+function cancelReply() {
+    _replyTo = null;
+    document.getElementById('reply-bar').style.display = 'none';
+}
+
+function showEditHistory(msgId, el) {
+    const existing = document.getElementById('edit-history-popup');
+    if (existing) { existing.remove(); return; }
+    let history = [];
+    try { history = JSON.parse(el.dataset.history || '[]'); } catch { return; }
+    if (!history.length) return;
+    const rect = el.getBoundingClientRect();
+    const popup = document.createElement('div');
+    popup.id = 'edit-history-popup';
+    popup.className = 'edit-history-popup';
+    popup.style.top  = (rect.bottom + 4) + 'px';
+    popup.style.left = Math.max(8, rect.left - 180) + 'px';
+    popup.innerHTML = `<h4>Edit History</h4>`
+        + history.map((e, i) =>
+            `<div class="edit-history-entry">` +
+            `<div class="eh-text">${escapeHtml(e.OldText || e.oldText || '')}</div>` +
+            `<div class="eh-time">${i === 0 ? 'Original' : 'Before edit'} · ${escapeHtml(e.EditedAt || e.editedAt || '')}</div>` +
+            `</div>`
+        ).join('');
+    document.body.appendChild(popup);
+    setTimeout(() => document.addEventListener('click', function close() {
+        document.getElementById('edit-history-popup')?.remove();
+        document.removeEventListener('click', close);
+    }, { once: true }), 10);
+}
+
+async function enrichLinkPreviews(msgDiv) {
+    if (!serverUploadBase) return;
+    const links = msgDiv.querySelectorAll('a.msg-url:not([data-preview])');
+    for (const link of links) {
+        link.dataset.preview = '1';
+        const url = link.getAttribute('href');
+        if (!url || _previewCache.get(url) === null) continue;
+        try {
+            let data = _previewCache.get(url);
+            if (!data) {
+                const r = await fetch(`${serverUploadBase}/preview?url=${encodeURIComponent(url)}`);
+                if (!r.ok || r.status === 204) { _previewCache.set(url, null); continue; }
+                data = await r.json();
+                _previewCache.set(url, data);
+            }
+            if (!data || (!data.title && !data.image)) continue;
+            const card = document.createElement('div');
+            card.className = 'link-preview-card';
+            card.innerHTML =
+                (data.image ? `<img class="link-preview-img" src="${escapeHtml(data.image)}" onerror="this.parentElement.remove()" loading="lazy">` : '') +
+                `<div class="link-preview-text">` +
+                (data.siteName ? `<div class="link-preview-site">${escapeHtml(data.siteName)}</div>` : '') +
+                (data.title    ? `<a class="link-preview-title" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(data.title)}</a>` : '') +
+                (data.description ? `<div class="link-preview-desc">${escapeHtml(data.description)}</div>` : '') +
+                `</div>`;
+            link.closest('.msg-content')?.appendChild(card);
+        } catch {}
+    }
+}
+
+function updateMessageInDOM(msgId, newText, editHistory) {
     const row = document.querySelector(`[data-msg-id="${msgId}"]`);
     if (!row) return;
     const body = row.querySelector('.msg-body');
-    if (body) body.innerHTML = renderMarkdown(newText);
-    if (!row.querySelector('.msg-edited')) {
-        const mark = document.createElement('span');
+    if (body) { body.innerHTML = renderMarkdown(newText); row.dataset.replyText = newText.slice(0, 80); }
+    let mark = row.querySelector('.msg-edited');
+    if (!mark) {
+        mark = document.createElement('span');
         mark.className = 'msg-edited';
         mark.textContent = '(edited)';
         body?.after(mark);
     }
+    if (editHistory && editHistory.length > 0) {
+        mark.classList.add('has-history');
+        mark.dataset.history = JSON.stringify(editHistory);
+        mark.onclick = () => showEditHistory(msgId, mark);
+    }
+    if (body && body.querySelector('.msg-url')) requestAnimationFrame(() => enrichLinkPreviews(row));
 }
 
 function removeMessageFromDOM(msgId) {
@@ -3383,7 +3547,8 @@ window.chrome.webview.addEventListener('message', async (e) => {
         const isMention = myAlias && data.message && data.message.toLowerCase().includes(`@${myAlias.toLowerCase()}`);
         if (chId) {
             if (!channelMessages[chId]) channelMessages[chId] = [];
-            channelMessages[chId].push({ id: data.id, author: data.author, time: data.time, message: data.message });
+            channelMessages[chId].push({ id: data.id, author: data.author, time: data.time, message: data.message,
+                reactions: data.reactions || {}, replyToId: data.replyToId || null, replySnippet: data.replySnippet || null, editHistory: data.editHistory || [] });
             if (chId !== activeTextChannelId) {
                 unreadCounts[chId] = (unreadCounts[chId] || 0) + 1;
                 if (isMention) mentionCounts[chId] = (mentionCounts[chId] || 0) + 1;
@@ -3399,7 +3564,8 @@ window.chrome.webview.addEventListener('message', async (e) => {
                     body:  (data.message || '').slice(0, 120) });
             }
         }
-        if (!chId || chId === activeTextChannelId) renderChatMessage(data.id, data.author, data.time, data.message, false, data.reactions || {});
+        if (!chId || chId === activeTextChannelId)
+            renderChatMessage(data.id, data.author, data.time, data.message, false, data.reactions || {}, data.replyToId, data.replySnippet, data.editHistory || []);
 
     } else if (data.action === 'RATE_LIMITED') {
         _slowCountdown(data.retryAfter || 1);
@@ -3413,9 +3579,9 @@ window.chrome.webview.addEventListener('message', async (e) => {
         DevLog.log('BRIDGE', `← C# | MESSAGE_EDITED ch:${data.channelId} id:${data.messageId}`);
         if (channelMessages[data.channelId]) {
             const m = channelMessages[data.channelId].find(x => x.id === data.messageId);
-            if (m) { m.message = data.newText; m.edited = true; }
+            if (m) { m.message = data.newText; m.edited = true; m.editHistory = data.editHistory || m.editHistory || []; }
         }
-        if (data.channelId === activeTextChannelId) updateMessageInDOM(data.messageId, data.newText);
+        if (data.channelId === activeTextChannelId) updateMessageInDOM(data.messageId, data.newText, data.editHistory || []);
 
     } else if (data.action === 'MESSAGE_DELETED') {
         DevLog.log('BRIDGE', `← C# | MESSAGE_DELETED ch:${data.channelId} id:${data.messageId}`);
@@ -3702,6 +3868,8 @@ window.chrome.webview.addEventListener('message', async (e) => {
         dmHistory[peer].push({ id: data.id, from: data.from, to: data.to, time: data.time, ts: data.ts, message: data.message });
         if (inDmMode && activeDmWith === peer) {
             renderDmMessage({ id: data.id, from: data.from, time: data.time, message: data.message });
+            if (data.from !== myAlias && data.id)
+                postToBridge({ action: 'MARK_DM_READ', with: peer, lastId: data.id });
         } else {
             if (data.from !== myAlias) {
                 dmConversations[peer].unread = (dmConversations[peer].unread || 0) + 1;
@@ -3719,6 +3887,26 @@ window.chrome.webview.addEventListener('message', async (e) => {
             const h = document.getElementById('chat-history');
             h.innerHTML = '';
             dmHistory[data.with].forEach(m => renderDmMessage(m));
+            const msgs = dmHistory[data.with];
+            if (msgs.length > 0) {
+                const last = msgs[msgs.length - 1];
+                const lastId = last.id || last.Id;
+                if (lastId && last.from !== myAlias)
+                    postToBridge({ action: 'MARK_DM_READ', with: data.with, lastId });
+            }
+        }
+
+    } else if (data.action === 'DM_READ') {
+        DevLog.log('BRIDGE', `← C# | DM_READ from:${data.fromAlias} lastId:${data.lastId}`);
+        if (inDmMode && activeDmWith === data.fromAlias) {
+            document.querySelectorAll('.dm-read-receipt').forEach(el => el.remove());
+            const msgRow = document.querySelector(`[data-msg-id="${data.lastId}"]`);
+            if (msgRow) {
+                const receipt = document.createElement('div');
+                receipt.className = 'dm-read-receipt';
+                receipt.innerHTML = avatarHtml(data.fromAlias, 'sz-14', false, true) + ' Seen';
+                msgRow.after(receipt);
+            }
         }
 
     } else if (data.action === 'SEARCH_RESULTS') {

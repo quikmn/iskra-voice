@@ -53,6 +53,7 @@ namespace Origin.Server.Core
         // ── DM storage ───────────────────────────────────────────────────────────
         private static string DmDir => Path.Combine(ActiveWorldPath, "dms");
         private static readonly object DmLock = new();
+        private static ConcurrentDictionary<string, string> PreviewCache = new(); // url → json
         private static string DmFile(string a, string b)
         {
             string Clean(string s) => Regex.Replace(s.ToLowerInvariant(), @"[^a-z0-9]", "");
@@ -132,6 +133,8 @@ namespace Origin.Server.Core
                         HandleExport(context);
                     else if (path == "/audit")
                         HandleAudit(context);
+                    else if (path == "/preview")
+                        HandlePreview(context);
                     else
                         { context.Response.StatusCode = 404; context.Response.Close(); }
                 }
@@ -192,19 +195,22 @@ namespace Origin.Server.Core
 
         private static string MessageToJsonLine(string channelId, StoredMessage m) =>
             JsonSerializer.Serialize(new {
-                id        = m.Id,
-                action    = "CHAT_RECEIVE",
+                id          = m.Id,
+                action      = "CHAT_RECEIVE",
                 channelId,
-                author    = m.Author,
-                time      = m.Time,
-                ts        = m.Ts,
-                message   = m.Message,
-                reactions = m.Reactions
+                author      = m.Author,
+                time        = m.Time,
+                ts          = m.Ts,
+                message     = m.Message,
+                reactions   = m.Reactions,
+                replyToId   = m.ReplyToId,
+                replySnippet = m.ReplySnippet,
+                editHistory = m.Edits != null && m.Edits.Count > 0 ? (object)m.Edits : null
             });
 
         private static void LoadChannelHistory()
         {
-            foreach (var ch in ActiveConfig.Channels.Where(c => c.Type == "Text"))
+            foreach (var ch in ActiveConfig.Channels.Where(c => c.Type == "Text" || c.Type == "Voice"))
             {
                 var msgs = new List<StoredMessage>();
                 string file = ChatFile(ch.Id);
@@ -223,8 +229,15 @@ namespace Origin.Server.Core
                                 Time      = root.TryGetProperty("time",      out var tEl)   ? tEl.GetString()   : "",
                                 Ts        = root.TryGetProperty("ts",        out var tsEl)  ? tsEl.GetInt64()   : 0,
                                 Message   = root.TryGetProperty("message",   out var mEl)   ? mEl.GetString()   : "",
+                                ReplyToId = root.TryGetProperty("replyToId", out var riEl) && riEl.ValueKind == JsonValueKind.String ? riEl.GetString() : null,
+                                ReplySnippet = root.TryGetProperty("replySnippet", out var rsEl) && rsEl.ValueKind == JsonValueKind.Object
+                                    ? JsonSerializer.Deserialize<ReplySnippet>(rsEl.GetRawText())
+                                    : null,
                                 Reactions = root.TryGetProperty("reactions", out var rEl) && rEl.ValueKind == JsonValueKind.Object
                                     ? JsonSerializer.Deserialize<Dictionary<string, List<string>>>(rEl.GetRawText()) ?? new()
+                                    : new(),
+                                Edits     = root.TryGetProperty("editHistory", out var ehEl) && ehEl.ValueKind == JsonValueKind.Array
+                                    ? JsonSerializer.Deserialize<List<EditEntry>>(ehEl.GetRawText()) ?? new()
                                     : new()
                             });
                         }
@@ -251,7 +264,7 @@ namespace Origin.Server.Core
             if (days <= 0) return;
             long cutoffTs = DateTimeOffset.UtcNow.AddDays(-days).ToUnixTimeSeconds();
 
-            foreach (var ch in ActiveConfig.Channels.Where(c => c.Type == "Text"))
+            foreach (var ch in ActiveConfig.Channels.Where(c => c.Type == "Text" || c.Type == "Voice"))
             {
                 if (!ChannelHistory.TryGetValue(ch.Id, out var msgs)) continue;
                 int before = msgs.Count;
@@ -631,6 +644,68 @@ namespace Origin.Server.Core
             catch (Exception ex) { Log("ERR", $"HandleAudit: {ex.Message}"); try { ctx.Response.StatusCode = 500; ctx.Response.Close(); } catch { } }
         }
 
+        // ── Link preview ─────────────────────────────────────────────────────────
+
+        private static async void HandlePreview(HttpListenerContext ctx)
+        {
+            ctx.Response.AddHeader("Access-Control-Allow-Origin", "*");
+            ctx.Response.AddHeader("Cache-Control", "public, max-age=3600");
+            string url = ctx.Request.QueryString["url"] ?? "";
+            if (string.IsNullOrEmpty(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri)
+                || (uri.Scheme != "http" && uri.Scheme != "https"))
+            { ctx.Response.StatusCode = 400; ctx.Response.Close(); return; }
+
+            if (PreviewCache.TryGetValue(url, out string cached))
+            {
+                ctx.Response.StatusCode = 200; ctx.Response.ContentType = "application/json";
+                await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(cached));
+                ctx.Response.Close(); return;
+            }
+            try
+            {
+                using var req = new HttpRequestMessage(HttpMethod.Get, url);
+                req.Headers.UserAgent.ParseAdd("Mozilla/5.0 (compatible; Iskra/1.0)");
+                req.Headers.Accept.ParseAdd("text/html,*/*;q=0.9");
+                using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead);
+                if (!resp.IsSuccessStatusCode) { ctx.Response.StatusCode = 204; ctx.Response.Close(); return; }
+                var ct = resp.Content.Headers.ContentType?.MediaType ?? "";
+                if (!ct.StartsWith("text/html")) { ctx.Response.StatusCode = 204; ctx.Response.Close(); return; }
+                var htmlBytes = await resp.Content.ReadAsByteArrayAsync();
+                string html = Encoding.UTF8.GetString(htmlBytes, 0, Math.Min(htmlBytes.Length, 131072));
+
+                string GetMeta(string prop) {
+                    var m = Regex.Match(html,
+                        $@"<meta\s[^>]*(?:property|name)=[""']{Regex.Escape(prop)}[""'][^>]*content=[""']([^""'<]*)[""']|<meta\s[^>]*content=[""']([^""'<]*)[""'][^>]*(?:property|name)=[""']{Regex.Escape(prop)}[""']",
+                        RegexOptions.IgnoreCase | RegexOptions.Singleline);
+                    return m.Success ? (m.Groups[1].Value.Length > 0 ? m.Groups[1].Value : m.Groups[2].Value).Trim() : "";
+                }
+                string title = GetMeta("og:title");
+                if (string.IsNullOrEmpty(title)) {
+                    var tm = Regex.Match(html, @"<title[^>]*>([^<]+)</title>", RegexOptions.IgnoreCase);
+                    title = tm.Success ? System.Net.WebUtility.HtmlDecode(tm.Groups[1].Value.Trim()) : "";
+                }
+                string description = GetMeta("og:description");
+                if (string.IsNullOrEmpty(description)) description = GetMeta("description");
+                string image    = GetMeta("og:image");
+                string siteName = GetMeta("og:site_name");
+                if (string.IsNullOrEmpty(title) && string.IsNullOrEmpty(image)) { ctx.Response.StatusCode = 204; ctx.Response.Close(); return; }
+
+                title       = title.Length       > 120 ? title[..120]       : title;
+                description = description.Length > 250 ? description[..250] : description;
+                string json = JsonSerializer.Serialize(new { title, description, image, siteName, url });
+                PreviewCache.TryAdd(url, json);
+                ctx.Response.StatusCode = 200; ctx.Response.ContentType = "application/json";
+                await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(json));
+                ctx.Response.Close();
+                Log("PREVIEW", $"{url[..Math.Min(60,url.Length)]} → {title[..Math.Min(40,title.Length)]}");
+            }
+            catch (Exception ex)
+            {
+                Log("PREVIEW", $"Fail: {ex.Message}");
+                try { ctx.Response.StatusCode = 204; ctx.Response.Close(); } catch { }
+            }
+        }
+
         // ── Bot WebSocket handler ────────────────────────────────────────────────
 
         private static async void ProcessBotConnection(HttpListenerContext context)
@@ -890,7 +965,7 @@ namespace Origin.Server.Core
                 await Send(socket, new { action = "ROLE_GRANTED", role = userRole });
 
                 // ── Chat history ─────────────────────────────────────────────────
-                foreach (var ch in ActiveConfig.Channels.Where(c => c.Type == "Text"))
+                foreach (var ch in ActiveConfig.Channels.Where(c => c.Type == "Text" || c.Type == "Voice"))
                 {
                     if (!ChannelHistory.TryGetValue(ch.Id, out var msgs) || msgs.Count == 0) continue;
                     Log("DATA", $"Pushing '{ch.Name}' history ({Math.Min(msgs.Count, 50)} msgs) → '{currentAlias}'");
@@ -1046,13 +1121,25 @@ namespace Origin.Server.Core
                                 }
                                 _lastMsgTime[smKey] = DateTime.UtcNow;
                             }
+                            string replyToId = incoming.RootElement.TryGetProperty("replyToId", out var rtEl) && rtEl.ValueKind == JsonValueKind.String ? rtEl.GetString() : null;
+                            ReplySnippet replySnippet = null;
+                            if (!string.IsNullOrEmpty(replyToId))
+                                lock (HistoryLock)
+                                    if (ChannelHistory.TryGetValue(channelId, out var prevMsgs))
+                                    {
+                                        var parent = prevMsgs.FirstOrDefault(m => m.Id == replyToId);
+                                        if (parent != null)
+                                            replySnippet = new ReplySnippet { Author = parent.Author, Text = parent.Message.Length > 80 ? parent.Message[..80] + "…" : parent.Message };
+                                    }
                             string msgId = Guid.NewGuid().ToString("N")[..12];
                             var stored = new StoredMessage {
-                                Id      = msgId,
-                                Author  = currentAlias,
-                                Time    = DateTime.Now.ToString("h:mm tt"),
-                                Ts      = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-                                Message = text
+                                Id           = msgId,
+                                Author       = currentAlias,
+                                Time         = DateTime.Now.ToString("h:mm tt"),
+                                Ts           = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                                Message      = text,
+                                ReplyToId    = replyToId,
+                                ReplySnippet = replySnippet
                             };
                             lock (HistoryLock)
                             {
@@ -1091,11 +1178,18 @@ namespace Origin.Server.Core
                         }
                         else
                         {
-                            lock (HistoryLock) target.Message = newText;
+                            List<EditEntry> editHistory;
+                            lock (HistoryLock)
+                            {
+                                target.Edits ??= new List<EditEntry>();
+                                target.Edits.Add(new EditEntry { OldText = target.Message, EditedAt = DateTime.Now.ToString("h:mm tt") });
+                                target.Message = newText;
+                                editHistory = target.Edits.ToList();
+                            }
                             _ = Task.Run(() => RewriteChannelHistory(channelId));
                             Log("CHAT", $"[{channelId}] '{currentAlias}' edited {messageId}");
                             LogAudit("EDIT_MSG", currentAlias, messageId, $"ch:{channelId}");
-                            await Broadcast(new { action = "MESSAGE_EDITED", channelId, messageId, newText });
+                            await Broadcast(new { action = "MESSAGE_EDITED", channelId, messageId, newText, editHistory });
                         }
                     }
 
@@ -1451,6 +1545,16 @@ namespace Origin.Server.Core
                         await Send(socket, new { action = "DM_HISTORY", with = dmWith, messages = dmMsgs.TakeLast(100).Select(m => new { m.Id, m.From, m.To, m.Time, m.Ts, m.Message }) });
                     }
 
+                    // ── MARK_DM_READ ─────────────────────────────────────────────
+                    else if (action == "MARK_DM_READ")
+                    {
+                        string dmWith = incoming.RootElement.TryGetProperty("with",   out var mrEl) ? mrEl.GetString()?.Trim() ?? "" : "";
+                        string lastId = incoming.RootElement.TryGetProperty("lastId", out var liEl) ? liEl.GetString()?.Trim() ?? "" : "";
+                        if (!string.IsNullOrEmpty(dmWith) && !string.IsNullOrEmpty(lastId)
+                            && ActiveClients.TryGetValue(dmWith, out var readRecipSocket))
+                            try { await Send(readRecipSocket, new { action = "DM_READ", fromAlias = currentAlias, lastId }); } catch { }
+                    }
+
                     // ── DELETE_EMOJI ─────────────────────────────────────────────
                     else if (action == "DELETE_EMOJI")
                     {
@@ -1547,12 +1651,27 @@ namespace Origin.Server.Data
 
     public class StoredMessage
     {
-        public string Id        { get; set; }
-        public string Author    { get; set; }
-        public string Time      { get; set; }
-        public long   Ts        { get; set; }
-        public string Message   { get; set; }
+        public string Id           { get; set; }
+        public string Author       { get; set; }
+        public string Time         { get; set; }
+        public long   Ts           { get; set; }
+        public string Message      { get; set; }
+        public string ReplyToId    { get; set; }
+        public ReplySnippet ReplySnippet { get; set; }
         public Dictionary<string, List<string>> Reactions { get; set; } = new();
+        public List<EditEntry> Edits { get; set; } = new();
+    }
+
+    public class ReplySnippet
+    {
+        public string Author { get; set; }
+        public string Text   { get; set; }
+    }
+
+    public class EditEntry
+    {
+        public string OldText  { get; set; }
+        public string EditedAt { get; set; }
     }
 
     public class DmMessage
