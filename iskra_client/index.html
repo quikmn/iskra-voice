@@ -34,29 +34,19 @@
         /* .input-box and #input-area layout in Input area section below */
 
         /* ── User Footer ── */
-        #user-footer { background: #232428; padding: 7px 8px 6px; display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; position: relative; }
+        #user-footer { background: #232428; padding: 8px 8px 8px 18px; display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; position: relative; }
         .footer-row { display: flex; align-items: center; gap: 6px; }
         .avatar { width: 32px; height: 32px; background: #5865f2; border-radius: 50%; flex-shrink: 0; }
-        #footer-main-row { display: flex; align-items: center; gap: 6px; }
-        #footer-left { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-        #footer-right { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-        #footer-btn-row { display: flex; align-items: center; gap: 2px; }
-        #footer-badge-row { display: flex; align-items: center; gap: 5px; min-width: 0; }
-        #footer-left .status-dot { position: static; border: none; width: 10px; height: 10px; }
-        #footer-left .status-dot.offline,
-        #footer-left .status-dot.invisible { display: block; background: #4f545c; }
-        #footer-btn-row .footer-icon-btn,
-        #footer-btn-row #btn-settings { width: 26px; height: 26px; font-size: 13px; }
-        #ui-alias { font-weight: 700; font-size: 12px; color: #dcddde; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
-        #voice-mode-label { font-size: 10px; color: #3ba55d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+        #footer-speaking-bar { position: absolute; left: 6px; top: 8px; bottom: 8px; width: 3px; border-radius: 2px; background: #4f545c; transition: background 0.12s; }
+        #footer-speaking-bar.speaking { background: #3ba55d; }
+        #my-status-dot { border-color: #232428; }
+        #footer-identity { display: flex; align-items: center; gap: 8px; min-width: 0; }
+        #footer-user-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+        #ui-alias { font-weight: 700; font-size: 13px; color: #dcddde; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #voice-mode-label { font-size: 10px; color: #949ba4; }
         #voice-mode-label:empty { display: none; }
-
-        /* ── Status dot mic state glow ── */
-        #footer-left .status-dot { transition: box-shadow 0.1s; }
-        #footer-left .status-dot.mic-active    { box-shadow: 0 0 0 2.5px #3ba55d, 0 0 7px rgba(59,165,93,0.7); }
-        #footer-left .status-dot.mic-muted     { box-shadow: 0 0 0 2.5px #ed4245; }
-        #footer-left .status-dot.mic-ptt-ready { box-shadow: 0 0 0 2.5px #5865f2; }
-        #footer-left .status-dot.mic-inactive  { box-shadow: none; }
+        #footer-btn-row { display: flex; align-items: center; gap: 2px; justify-content: flex-end; }
+        #footer-btn-row .footer-icon-btn, #footer-btn-row #btn-settings { width: 26px; height: 26px; font-size: 13px; }
 
         /* ── Settings button ── */
         #btn-settings { border-radius: 50%; border: none; background: #383a40; color: #949ba4; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -108,11 +98,6 @@
         .range-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: #5865f2; border-radius: 50%; cursor: pointer; border: 2px solid #2b2d31; }
         .range-slider:hover::-webkit-slider-thumb { background: #7289da; }
         .slider-value { font-size: 12px; color: #949ba4; min-width: 40px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
-
-        /* ── Footer mic meter ── */
-        #footer-meter-track { width: 100%; height: 4px; background: #1a1b1e; border-radius: 2px; }
-        #footer-meter-fill { height: 100%; width: 0%; background: #4f545c; border-radius: 2px; transition: width 0.04s linear; }
-        #footer-meter-fill.above { background: #3ba55d; }
 
         /* ── Server Bar Icons ── */
         #server-bar { position: relative; }
@@ -490,29 +475,25 @@
                 <span style="font-size:10px;color:#4f545c;">mp3 · wav · ogg · webm</span>
             </div>
         </div>
-        <div id="footer-main-row">
-            <div id="footer-left">
-                <div id="my-avatar-wrap" class="av-wrap" onclick="document.getElementById('avatar-file-input').click()" title="Click to change your avatar" style="cursor:pointer;">
-                    <div id="my-avatar" class="avatar-circle sz-32"></div>
-                </div>
+        <div id="footer-speaking-bar"></div>
+        <div id="footer-identity">
+            <div id="my-avatar-wrap" class="av-wrap" onclick="document.getElementById('avatar-file-input').click()" title="Click to change your avatar" style="cursor:pointer;">
+                <div id="my-avatar" class="avatar-circle sz-32"></div>
                 <div id="my-status-dot" class="status-dot online"></div>
             </div>
-            <div id="footer-right">
-                <div id="footer-btn-row">
-                    <button id="btn-mute"       class="footer-icon-btn" onclick="toggleMute()"         title="Mute">🎙️</button>
-                    <button id="btn-deafen"     class="footer-icon-btn" onclick="toggleDeafen()"       title="Deafen">🔊</button>
-                    <button id="btn-soundboard" class="footer-icon-btn" onclick="toggleSoundboard()"   title="Soundboard">🎵</button>
-                    <button id="btn-video"      class="footer-icon-btn" onclick="toggleVideo()"        title="Start camera">📹</button>
-                    <button id="btn-share"      class="footer-icon-btn" onclick="toggleScreenShare()"  title="Share screen">🖥</button>
-                    <button id="btn-settings"   class="footer-icon-btn" onclick="openSettings()"       title="Audio Settings">⚙</button>
-                </div>
-                <div id="footer-meter-track"><div id="footer-meter-fill"></div></div>
+            <div id="footer-user-col">
+                <span id="ui-alias">...</span>
+                <span id="voice-mode-label"></span>
             </div>
-        </div>
-        <div id="footer-badge-row">
-            <span id="ui-alias">...</span>
-            <span id="voice-mode-label"></span>
             <span id="role-badge" onclick="showStatusPicker(event)" style="cursor:pointer;" title="Click to set status"></span>
+        </div>
+        <div id="footer-btn-row">
+            <button id="btn-mute"       class="footer-icon-btn" onclick="toggleMute()"         title="Mute">🎙️</button>
+            <button id="btn-deafen"     class="footer-icon-btn" onclick="toggleDeafen()"       title="Deafen">🔊</button>
+            <button id="btn-soundboard" class="footer-icon-btn" onclick="toggleSoundboard()"   title="Soundboard">🎵</button>
+            <button id="btn-video"      class="footer-icon-btn" onclick="toggleVideo()"        title="Start camera">📹</button>
+            <button id="btn-share"      class="footer-icon-btn" onclick="toggleScreenShare()"  title="Share screen">🖥</button>
+            <button id="btn-settings"   class="footer-icon-btn" onclick="openSettings()"       title="Audio Settings">⚙</button>
         </div>
     </div>
 </div>
@@ -917,7 +898,6 @@ let sharingChannelId    = null;   // voice channel we were in when sharing start
 let userStatuses    = {};     // alias → "online"/"away"/"dnd"/"offline"
 let userRoles       = {};     // alias → "guest"/"member"/"trusted"/"admin"/"owner"
 let myStatus        = 'online';
-let _micStateClass  = 'mic-inactive';
 let pinnedMessages  = {};     // channelId → [{id, author, time, message}]
 let soundboardClips = [];     // {id, name, url} persisted in localStorage
 let localVideoStream = null;  // webcam stream
@@ -1824,16 +1804,11 @@ async function initOutputContext() {
 }
 
 function updateMicIndicator() {
-    const dot = document.getElementById('my-status-dot');
-    if (!dot) return;
-    let micClass;
-    if (inMutedChannel)                                          micClass = 'mic-muted';
-    else if (isMuted || isDeafened)                              micClass = 'mic-muted';
-    else if (speaking || (settings.voiceMode === 'ptt' && pttActive)) micClass = 'mic-active';
-    else if (settings.voiceMode === 'ptt')                       micClass = 'mic-ptt-ready';
-    else                                                         micClass = 'mic-inactive';
-    _micStateClass = micClass;
-    dot.className = `status-dot ${myStatus} ${micClass}`;
+    const bar = document.getElementById('footer-speaking-bar');
+    if (!bar) return;
+    const transmitting = !inMutedChannel && !isMuted && !isDeafened &&
+                         (speaking || (settings.voiceMode === 'ptt' && pttActive));
+    bar.classList.toggle('speaking', transmitting);
 }
 
 function setMicGate(open) {
@@ -1891,8 +1866,6 @@ function updateMeterFill(rms) {
     const modalFill = document.getElementById('vad-level-fill');
     if (modalFill) { modalFill.style.width = pct; modalFill.classList.toggle('above', above); }
 
-    const footerFill = document.getElementById('footer-meter-fill');
-    if (footerFill) { footerFill.style.width = pct; footerFill.classList.toggle('above', above); }
 }
 
 function updateThresholdLine() {
@@ -2791,9 +2764,8 @@ window.chrome.webview.addEventListener('message', async (e) => {
         serverBotTokens = [];
         document.getElementById('tab-btn-admin')?.classList.remove('visible');
         myStatus = 'online';
-        _micStateClass = 'mic-inactive';
         const _sdot = document.getElementById('my-status-dot');
-        if (_sdot) _sdot.className = 'status-dot online mic-inactive';
+        if (_sdot) _sdot.className = 'status-dot online';
         const _rb = document.getElementById('role-badge');
         if (_rb) { _rb.className = ''; _rb.textContent = ''; }
         document.getElementById('input-area')?.classList.remove('readonly');
@@ -3351,7 +3323,7 @@ function _resetIdleTimer() {
 function setMyStatus(status, fromIdle = false) {
     myStatus = status;
     const dot = document.getElementById('my-status-dot');
-    if (dot) dot.className = `status-dot ${status} ${_micStateClass}`;
+    if (dot) dot.className = `status-dot ${status}`;
     if (connectedServerId) postToBridge({ action: 'SET_STATUS', status });
     if (!fromIdle) {
         clearTimeout(_idleTimer);
