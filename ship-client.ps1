@@ -3,11 +3,13 @@
 
 $ErrorActionPreference = 'Stop'
 
-$root      = $PSScriptRoot
-$project   = Join-Path $root 'iskra_client\iskra_client.csproj'
-$binDir    = Join-Path $root 'iskra_client\bin\Release\net8.0-windows'
-$indexSrc  = Join-Path $root 'iskra_client\index.html'
-$zipOut    = Join-Path $root 'Iskra-Client.zip'
+$root    = 'D:\Development_Projects\Iskra'
+$project = Join-Path $root 'iskra_client\iskra_client.csproj'
+$binDir  = Join-Path $root 'iskra_client\bin\Release\net8.0-windows'
+$indexSrc = Join-Path $root 'iskra_client\index.html'
+$zipOut  = Join-Path $root 'Iskra-Client.zip'
+
+Set-Location $root
 
 # ── 1. Build ──────────────────────────────────────────────────────────────────
 Write-Host "`nBuilding..." -ForegroundColor Cyan
@@ -18,7 +20,7 @@ $output | Select-String 'error |Build succeeded|Build FAILED|\d+ Error' | ForEac
     $line = $_.ToString()
     if     ($line -match 'error |FAILED') { Write-Host $line -ForegroundColor Red }
     elseif ($line -match 'succeeded')     { Write-Host $line -ForegroundColor Green }
-    else                                   { Write-Host $line }
+    else                                  { Write-Host $line }
 }
 
 if ($exitCode -ne 0) {
