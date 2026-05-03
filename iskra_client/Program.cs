@@ -169,7 +169,7 @@ namespace Origin.Client.Core
         }
 
         // ── Server connection ───────────────────────────────────────────────────
-        private async Task ConnectToServer(string host, int port, string password, string alias, string adminPassword = "")
+        private async Task ConnectToServer(string host, int port, string password, string alias, string adminPassword = "", string userPassword = "")
         {
             if (wsClient != null && wsClient.State == WebSocketState.Open)
             {
@@ -187,7 +187,7 @@ namespace Origin.Client.Core
                 CLog("WS", "Connected");
 
                 var machineGuid = GetMachineGuid();
-                var auth = new { password, alias, machineGuid, adminPassword };
+                var auth = new { password, alias, machineGuid, adminPassword, userPassword };
                 await wsClient.SendAsync(
                     new ArraySegment<byte>(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(auth))),
                     WebSocketMessageType.Text, true, CancellationToken.None);
@@ -285,8 +285,9 @@ namespace Origin.Client.Core
                     var password      = doc.RootElement.GetProperty("password").GetString();
                     var alias         = doc.RootElement.GetProperty("alias").GetString();
                     var adminPassword = doc.RootElement.TryGetProperty("adminPassword", out JsonElement apEl) ? apEl.GetString() ?? "" : "";
-                    CLog("BRIDGE", $"← JS (local) | CONNECT host:{host}:{port} alias:{alias} admin:{!string.IsNullOrEmpty(adminPassword)}");
-                    _ = Task.Run(() => ConnectToServer(host, port, password, alias, adminPassword));
+                    var userPassword  = doc.RootElement.TryGetProperty("userPassword",  out JsonElement upEl) ? upEl.GetString() ?? "" : "";
+                    CLog("BRIDGE", $"← JS (local) | CONNECT host:{host}:{port} alias:{alias} admin:{!string.IsNullOrEmpty(adminPassword)} userPw:{!string.IsNullOrEmpty(userPassword)}");
+                    _ = Task.Run(() => ConnectToServer(host, port, password, alias, adminPassword, userPassword));
                     return;
                 }
                 if (action == "DISCONNECT")

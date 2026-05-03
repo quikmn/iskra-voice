@@ -663,7 +663,7 @@
         </div>
         <div id="footer-speaking-bar"><div id="footer-speaking-fill"></div></div>
         <div id="footer-identity">
-            <div id="my-avatar-wrap" class="av-wrap" onclick="document.getElementById('avatar-file-input').click()" title="Click to change your avatar" style="cursor:pointer;">
+            <div id="my-avatar-wrap" class="av-wrap" onclick="openSettings();switchTab('identity')" title="Open settings" style="cursor:pointer;">
                 <div id="my-avatar" class="avatar-circle sz-32"></div>
                 <div id="my-status-dot" class="status-dot online"></div>
             </div>
@@ -904,6 +904,7 @@
                     <input type="number" id="srv-port-input" class="form-input" placeholder="Port" value="8080" style="flex:1;min-width:72px;">
                 </div>
                 <input type="password" id="srv-pass-input"  class="form-input" placeholder="Server password (leave blank if none)" style="margin-bottom:6px;">
+                <input type="password" id="srv-user-input" class="form-input" placeholder="Your password (only if this server uses registered accounts)" style="margin-bottom:6px;">
                 <input type="password" id="srv-admin-input" class="form-input" placeholder="Admin password (optional — only if you run this server)" style="margin-bottom:8px;">
                 <button class="btn-primary" onclick="addServerManually()">Add Server</button>
             </div>
@@ -1036,6 +1037,13 @@
 </div>
 
 <div id="reaction-tooltip"></div>
+
+<div id="srv-ctx-menu" style="position:fixed;display:none;background:var(--bg-surface);border:1px solid var(--bg-deep);border-radius:6px;padding:6px 0;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,0.6);z-index:200;user-select:none;">
+    <div class="ctx-menu-header" id="srv-ctx-name"></div>
+    <div class="ctx-action" onclick="srvCtxConfigure()">Configure Server</div>
+    <div class="ctx-action" id="srv-ctx-disconnect-item" onclick="srvCtxDisconnect()">Disconnect</div>
+    <div class="ctx-action" id="srv-ctx-icon-item" onclick="srvCtxChangeIcon()">Change Icon</div>
+</div>
 
 <div id="user-ctx-menu">
     <div class="ctx-menu-header" id="ctx-menu-alias"></div>
@@ -1190,7 +1198,7 @@ function avatarColor(alias) {
 }
 
 function avatarHtml(alias, szClass = 'sz-40', clickable = true, showStatus = false) {
-    const url      = userAvatars[alias];
+    const url      = normalizeUploadUrl(userAvatars[alias]) || clientConfig.localAvatars?.[alias];
     const initials = alias ? alias.slice(0, 2).toUpperCase() : '??';
     const clk      = clickable ? 'clickable' : '';
     const status   = showStatus ? (userStatuses[alias] || 'offline') : null;
@@ -1209,7 +1217,7 @@ function updateMyAvatar() {
     const el = document.getElementById('my-avatar');
     if (el) {
         const alias = myAlias || clientConfig.activeAlias;
-        const url   = userAvatars[alias];
+        const url   = normalizeUploadUrl(userAvatars[alias]) || clientConfig.localAvatars?.[alias];
         if (url) {
             el.style.background = '';
             el.innerHTML = `<img src="${escapeHtml(url)}" alt="${escapeHtml(alias)}" loading="lazy">`;
@@ -1406,7 +1414,22 @@ async function applyCrop() {
     const mode = _cropMode;
     closeCropModal();
     canvas.toBlob(async (blob) => {
-        if (!blob || !uploadBase) return;
+        if (!blob) return;
+        if (!uploadBase && mode !== 'server') {
+            // Not connected — save locally as base64
+            const reader = new FileReader();
+            reader.onload = ev => {
+                if (!clientConfig.localAvatars) clientConfig.localAvatars = {};
+                clientConfig.localAvatars[clientConfig.activeAlias] = ev.target.result;
+                saveClientConfig();
+                updateMyAvatar();
+                updateSettingsAvatarPreview();
+                DevLog.log('AVATAR', `Local avatar saved for ${clientConfig.activeAlias}`);
+            };
+            reader.readAsDataURL(blob);
+            return;
+        }
+        if (!uploadBase) return;
         try {
             const resp = await fetch(`${uploadBase}/upload?name=avatar.webp`, {
                 method: 'POST', headers: { 'Content-Type': 'image/webp' }, body: blob
@@ -1425,13 +1448,32 @@ async function applyCrop() {
     }, 'image/webp', 0.88);
 }
 
+async function _autoUploadLocalAvatar(alias) {
+    const dataUrl = clientConfig.localAvatars?.[alias];
+    if (!dataUrl || !serverUploadBase) return;
+    try {
+        const res  = await fetch(dataUrl);
+        const blob = await res.blob();
+        const resp = await fetch(`${serverUploadBase}/upload?name=avatar.webp`, {
+            method: 'POST', headers: { 'Content-Type': 'image/webp' }, body: blob
+        });
+        if (!resp.ok) return;
+        const { url } = await resp.json();
+        const fullUrl = `${serverUploadBase}${url}`;
+        postToBridge({ action: 'SET_AVATAR', url: fullUrl });
+        DevLog.log('AVATAR', `Auto-uploaded local avatar for ${alias} → ${fullUrl}`);
+    } catch (err) {
+        DevLog.log('ERR', `Auto-upload avatar: ${err.message}`);
+    }
+}
+
 function updateSettingsAvatarPreview() {
     const el  = document.getElementById('avatar-settings-preview');
     const lbl = document.getElementById('avatar-settings-alias');
     if (!el) return;
     const alias = myAlias || clientConfig.activeAlias || '';
     if (lbl) lbl.textContent = alias || '—';
-    const url = userAvatars[alias];
+    const url = normalizeUploadUrl(userAvatars[alias]) || clientConfig.localAvatars?.[alias];
     if (url) {
         el.style.background = '';
         el.innerHTML = `<img src="${escapeHtml(url)}" alt="${escapeHtml(alias)}" loading="lazy" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
@@ -1443,8 +1485,7 @@ function updateSettingsAvatarPreview() {
         el.innerHTML = '<span>?</span>';
     }
     const btn = document.getElementById('btn-change-avatar');
-    if (btn) btn.disabled = !serverUploadBase;
-    if (btn) btn.title = serverUploadBase ? '' : 'Connect to a server first';
+    if (btn) btn.disabled = false;
 }
 
 function updateSettingsServerSection() {
@@ -1663,18 +1704,31 @@ function switchTab(tab) {
 }
 
 // ── Alias Management ──────────────────────────────────────────────────────────
+let _pendingReconnect = null;
+
 function renderAliasList() {
     const list = document.getElementById('alias-list-ui');
     if (!list) return;
     if (!clientConfig.aliases.length) { list.innerHTML = '<div class="empty-state">No aliases yet.</div>'; return; }
-    list.innerHTML = clientConfig.aliases.map(a => `
-        <div class="alias-item${a === clientConfig.activeAlias ? ' selected' : ''}" onclick="selectAlias('${escapeHtml(a)}')">
+    const needsReconnect = connectedServerId && myAlias && clientConfig.activeAlias !== myAlias;
+    const banner = needsReconnect ? `
+        <div style="background:var(--bg-surface);border:1px solid var(--accent);border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <span style="color:var(--text-muted)">Connected as <strong style="color:var(--text-normal)">${escapeHtml(myAlias)}</strong></span>
+            <button class="btn-primary" style="font-size:11px;padding:3px 10px;" onclick="reconnectWithActiveAlias()">Reconnect as ${escapeHtml(clientConfig.activeAlias)}</button>
+        </div>` : '';
+    list.innerHTML = banner + clientConfig.aliases.map(a => {
+        const isActive  = a === clientConfig.activeAlias;
+        const isConn    = a === myAlias && !!connectedServerId;
+        const badge     = isConn ? `<span style="font-size:10px;color:var(--success);margin-left:4px;">● live</span>` : '';
+        return `
+        <div class="alias-item${isActive ? ' selected' : ''}" onclick="selectAlias('${escapeHtml(a)}')">
             <div class="alias-dot"></div>
-            <div class="alias-name">${escapeHtml(a)}</div>
+            <div class="alias-name">${escapeHtml(a)}${badge}</div>
             ${clientConfig.aliases.length > 1
                 ? `<button class="alias-del-btn" title="Remove" onclick="event.stopPropagation();removeAlias('${escapeHtml(a)}')">✕</button>`
                 : ''}
-        </div>`).join('');
+        </div>`;
+    }).join('');
 }
 
 function selectAlias(alias) {
@@ -1682,7 +1736,11 @@ function selectAlias(alias) {
     clientConfig.activeAlias = alias;
     saveClientConfig();
     renderAliasList();
-    if (!connectedServerId) document.getElementById('ui-alias').textContent = alias;
+    if (!connectedServerId) {
+        document.getElementById('ui-alias').textContent = alias;
+        updateMyAvatar();
+        updateSettingsAvatarPreview();
+    }
     DevLog.log('SETTINGS', `Active alias → "${alias}"`);
 }
 
@@ -1695,8 +1753,18 @@ function addAlias() {
     saveClientConfig();
     input.value = '';
     renderAliasList();
-    if (!connectedServerId) document.getElementById('ui-alias').textContent = alias;
+    if (!connectedServerId) {
+        document.getElementById('ui-alias').textContent = alias;
+        updateMyAvatar();
+        updateSettingsAvatarPreview();
+    }
     DevLog.log('SETTINGS', `Alias added: "${alias}"`);
+}
+
+function reconnectWithActiveAlias() {
+    if (!connectedServerId) return;
+    _pendingReconnect = connectedServerId;
+    postToBridge({ action: 'DISCONNECT' });
 }
 
 function removeAlias(alias) {
@@ -1744,6 +1812,8 @@ function renderServerList() {
             </div>
             <input id="edit-pass-${s.id}"  class="form-input" type="password" value="${escapeHtml(s.password)}" placeholder="Server password"
                    onkeydown="if(event.key==='Enter')saveEditServer('${s.id}');if(event.key==='Escape')cancelEditServer();" style="margin-bottom:4px;">
+            <input id="edit-user-${s.id}"  class="form-input" type="password" value="${escapeHtml(s.userPassword||'')}" placeholder="Your password (registered accounts only)"
+                   onkeydown="if(event.key==='Enter')saveEditServer('${s.id}');if(event.key==='Escape')cancelEditServer();" style="margin-bottom:4px;">
             <input id="edit-admin-${s.id}" class="form-input" type="password" value="${escapeHtml(s.adminPassword||'')}" placeholder="Admin password (optional)"
                    onkeydown="if(event.key==='Enter')saveEditServer('${s.id}');if(event.key==='Escape')cancelEditServer();">
             <div style="display:flex;gap:6px;margin-top:4px;">
@@ -1774,17 +1844,19 @@ function addServerManually() {
     const name = (document.getElementById('srv-name-input').value || '').trim();
     const rawHost = (document.getElementById('srv-host-input').value || '').trim();
     const rawPort = parseInt(document.getElementById('srv-port-input').value, 10) || 8080;
-    const pass = document.getElementById('srv-pass-input').value || '';
+    const pass      = document.getElementById('srv-pass-input').value || '';
+    const userPass  = document.getElementById('srv-user-input').value || '';
     const adminPass = document.getElementById('srv-admin-input').value || '';
     if (!name || !rawHost) { DevLog.log('ERR', 'Server name and address are required'); return; }
     const { host, port } = _splitHostPort(rawHost, rawPort);
-    const server = { id: _serverId(), name, host, port, password: pass, adminPassword: adminPass };
+    const server = { id: _serverId(), name, host, port, password: pass, userPassword: userPass, adminPassword: adminPass };
     clientConfig.servers.push(server);
     saveClientConfig();
     document.getElementById('srv-name-input').value  = '';
     document.getElementById('srv-host-input').value  = '';
     document.getElementById('srv-port-input').value  = '8080';
     document.getElementById('srv-pass-input').value  = '';
+    document.getElementById('srv-user-input').value  = '';
     document.getElementById('srv-admin-input').value = '';
     renderServerList();
     renderServerBar();
@@ -1807,7 +1879,7 @@ function connectToServer(id) {
     if (!server) return;
     pendingServerId = id;
     DevLog.log('BRIDGE', `Connecting to "${server.name}" as "${clientConfig.activeAlias}"`);
-    postToBridge({ action: 'CONNECT', host: server.host, port: server.port, password: server.password, alias: clientConfig.activeAlias, adminPassword: server.adminPassword || '' });
+    postToBridge({ action: 'CONNECT', host: server.host, port: server.port, password: server.password, userPassword: server.userPassword || '', alias: clientConfig.activeAlias, adminPassword: server.adminPassword || '' });
     closeSettings();
 }
 
@@ -1852,13 +1924,13 @@ function renderServerBar() {
             : serverInitials(s.name)
             + (canUpload ? `<span class="srv-upload-hint" title="Change server icon">📷</span>` : '');
         const iconStyle    = (isConn && serverIconUrl) ? '' : `background:${serverColor(s.id)};`;
-        const uploadAttr   = canUpload ? `oncontextmenu="event.preventDefault();document.getElementById('server-icon-file-input').click()"` : '';
         return `
         <div class="server-icon-wrap${isViewed ? ' active' : ''}${isConn ? ' connected' : ''}" title="${escapeHtml(s.name)}">
             <div class="server-pill"></div>
             <div class="server-icon" style="${iconStyle}"
-                 onclick="onServerIconClick('${s.id}')" ${uploadAttr}
-                 title="${escapeHtml(s.name)}${canUpload ? ' (right-click to change icon)' : ''}">${iconContent}</div>
+                 onclick="onServerIconClick('${s.id}')"
+                 oncontextmenu="showServerCtxMenu(event,'${s.id}')"
+                 title="${escapeHtml(s.name)}">${iconContent}</div>
         </div>`;
     }).join('');
 }
@@ -1868,6 +1940,41 @@ function onServerIconClick(id) {
     viewedServerId = id;
     renderChannelList();
     renderServerBar();
+}
+
+let _srvCtxId = null;
+function showServerCtxMenu(e, id) {
+    e.preventDefault();
+    e.stopPropagation();
+    _srvCtxId = id;
+    const s = clientConfig.servers.find(x => x.id === id);
+    if (!s) return;
+    document.getElementById('srv-ctx-name').textContent = s.name;
+    const isConn      = id === connectedServerId;
+    const canChangeIcon = isConn && ['admin','owner'].includes(myRole);
+    document.getElementById('srv-ctx-disconnect-item').style.display = isConn ? '' : 'none';
+    document.getElementById('srv-ctx-icon-item').style.display = canChangeIcon ? '' : 'none';
+    const menu = document.getElementById('srv-ctx-menu');
+    menu.style.display = 'block';
+    const x = Math.min(e.clientX, window.innerWidth  - 200);
+    const y = Math.min(e.clientY, window.innerHeight - (menu.offsetHeight || 120) - 8);
+    menu.style.left = x + 'px';
+    menu.style.top  = y + 'px';
+}
+function hideSrvCtxMenu() { document.getElementById('srv-ctx-menu').style.display = 'none'; }
+function srvCtxConfigure() {
+    hideSrvCtxMenu();
+    if (_srvCtxId) onServerIconClick(_srvCtxId);
+    openSettings();
+    switchTab('servers');
+}
+function srvCtxDisconnect() {
+    hideSrvCtxMenu();
+    if (_srvCtxId === connectedServerId) disconnectFromServer();
+}
+function srvCtxChangeIcon() {
+    hideSrvCtxMenu();
+    document.getElementById('server-icon-file-input').click();
 }
 
 // ── Edit Server ───────────────────────────────────────────────────────────────
@@ -1892,10 +1999,11 @@ function saveEditServer(id) {
     const rawHost   = (document.getElementById(`edit-host-${id}`).value || '').trim();
     const rawPort   = parseInt(document.getElementById(`edit-port-${id}`).value, 10) || 8080;
     const pass      = document.getElementById(`edit-pass-${id}`).value || '';
+    const userPass  = document.getElementById(`edit-user-${id}`)?.value || '';
     const adminPass = document.getElementById(`edit-admin-${id}`)?.value || '';
     if (!name || !rawHost) return;
     const { host, port } = _splitHostPort(rawHost, rawPort);
-    s.name = name; s.host = host; s.port = port; s.password = pass; s.adminPassword = adminPass;
+    s.name = name; s.host = host; s.port = port; s.password = pass; s.userPassword = userPass; s.adminPassword = adminPass;
     saveClientConfig();
     editingServerId = null;
     renderServerList();
@@ -2556,6 +2664,12 @@ function _slowCountdown(secs) {
 
 const _uploadUrlRe = /^https?:\/\/\S+\/uploads\/[a-f0-9]{16}\.[a-z0-9]+$/i;
 
+function normalizeUploadUrl(url) {
+    if (!serverUploadBase || !url) return url;
+    const m = url.match(/\/uploads\/[a-f0-9]{16}\.[a-z0-9]+$/i);
+    return m ? `${serverUploadBase}${m[0]}` : url;
+}
+
 // ── Markdown renderer ──────────────────────────────────────────────────────────
 function renderMarkdown(raw) {
     // 1. Extract fenced code blocks so they aren't processed by other rules.
@@ -2569,7 +2683,8 @@ function renderMarkdown(raw) {
     s = s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
     // 3. Upload URLs — images inline, other files as download link.
-    s = s.replace(_uploadUrlRe, url => {
+    s = s.replace(_uploadUrlRe, raw_url => {
+        const url = normalizeUploadUrl(raw_url);
         const ext = url.split('.').pop().toLowerCase();
         if (['jpg','jpeg','png','gif','webp'].includes(ext))
             return `<a href="${url}" target="_blank"><img class="msg-img" src="${url}" alt="image" loading="lazy" onerror="this.style.display='none'"></a>`;
@@ -3613,7 +3728,12 @@ window.chrome.webview.addEventListener('message', async (e) => {
             DevLog.log('RTC', `ICE config updated | ${data.iceServers.length} server(s) — ${data.iceServers.map(s => Array.isArray(s.urls) ? s.urls[0] : s.urls).join(', ')}`);
         }
         serverIconUrl = data.serverIcon || null;
-        if (data.userAvatars  && typeof data.userAvatars  === 'object') Object.assign(userAvatars,  data.userAvatars);
+        if (data.userAvatars  && typeof data.userAvatars  === 'object') {
+            Object.assign(userAvatars, data.userAvatars);
+            if (!userAvatars[myAlias] && clientConfig.localAvatars?.[myAlias] && serverUploadBase) {
+                _autoUploadLocalAvatar(myAlias);
+            }
+        }
         if (data.userStatuses && typeof data.userStatuses === 'object') Object.assign(userStatuses, data.userStatuses);
         if (data.userRoles    && typeof data.userRoles    === 'object') Object.assign(userRoles,    data.userRoles);
         if (data.emojis       && typeof data.emojis       === 'object') serverEmojis    = data.emojis;
@@ -3735,6 +3855,12 @@ window.chrome.webview.addEventListener('message', async (e) => {
         if (_membersBtn) _membersBtn.classList.remove('visible', 'active');
         const _membersPanel = document.getElementById('members-panel');
         if (_membersPanel) { _membersPanel.classList.remove('open'); _membersPanel.querySelector('#members-list').innerHTML = ''; }
+
+        if (_pendingReconnect) {
+            const targetId = _pendingReconnect;
+            _pendingReconnect = null;
+            setTimeout(() => connectToServer(targetId), 150);
+        }
 
     } else if (data.action === 'AUTH_FAILED') {
         DevLog.log('ERR', `← C# | AUTH_FAILED: ${data.reason}`);
@@ -4035,6 +4161,8 @@ function onCtxVolChange(value) {
 document.addEventListener('click', e => {
     const menu = document.getElementById('user-ctx-menu');
     if (menu && menu.style.display !== 'none' && !menu.contains(e.target)) hideUserCtxMenu();
+    const smenu = document.getElementById('srv-ctx-menu');
+    if (smenu && smenu.style.display !== 'none' && !smenu.contains(e.target)) hideSrvCtxMenu();
 });
 
 function escapeHtml(str) {

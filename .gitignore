@@ -491,3 +491,12 @@ general-chat.jsonl
 chat-*.jsonl
 server-data/
 .claude/
+
+# Live server world data (contains credentials, HWID fingerprints, user data)
+servers/quikmn-main/
+
+# Build artifacts
+*.zip
+
+# Misc
+launch-debat.txt

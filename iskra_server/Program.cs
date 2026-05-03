@@ -101,13 +101,14 @@ namespace Origin.Server.Core
                 listener.Start();
                 Log("SYSTEM", $"Origin Server booted on port {ActiveConfig.Settings.Port} (all interfaces)");
             }
-            catch (HttpListenerException)
+            catch (HttpListenerException ex)
             {
                 listener.Close();
-                listener = new HttpListener();
-                listener.Prefixes.Add($"http://localhost:{ActiveConfig.Settings.Port}/");
-                listener.Start();
-                Log("SYSTEM", $"Origin Server booted on port {ActiveConfig.Settings.Port} (localhost only — run as admin or register URL for LAN access)");
+                Log("SYSTEM", $"ERROR: Cannot bind to port {ActiveConfig.Settings.Port} — {ex.Message}");
+                Log("SYSTEM", $"Fix: run server as Administrator, or run once in admin terminal:");
+                Log("SYSTEM", $"  netsh http add urlacl url=http://+:{ActiveConfig.Settings.Port}/ user=Everyone");
+                Console.ReadKey();
+                return;
             }
 
             bool adminConfigured = !string.IsNullOrEmpty(ActiveConfig.Settings.AdminPassword);
@@ -195,17 +196,18 @@ namespace Origin.Server.Core
 
         private static string MessageToJsonLine(string channelId, StoredMessage m) =>
             JsonSerializer.Serialize(new {
-                id          = m.Id,
-                action      = "CHAT_RECEIVE",
+                id           = m.Id,
+                action       = "CHAT_RECEIVE",
                 channelId,
-                author      = m.Author,
-                time        = m.Time,
-                ts          = m.Ts,
-                message     = m.Message,
-                reactions   = m.Reactions,
-                replyToId   = m.ReplyToId,
+                author       = m.Author,
+                authorGuid   = m.AuthorGuid,
+                time         = m.Time,
+                ts           = m.Ts,
+                message      = m.Message,
+                reactions    = m.Reactions,
+                replyToId    = m.ReplyToId,
                 replySnippet = m.ReplySnippet,
-                editHistory = m.Edits != null && m.Edits.Count > 0 ? (object)m.Edits : null
+                editHistory  = m.Edits != null && m.Edits.Count > 0 ? (object)m.Edits : null
             });
 
         private static void LoadChannelHistory()
@@ -224,12 +226,13 @@ namespace Origin.Server.Core
                             var root = doc.RootElement;
                             if (!root.TryGetProperty("message", out _)) continue;
                             msgs.Add(new StoredMessage {
-                                Id        = root.TryGetProperty("id",        out var idEl)  ? idEl.GetString()  : null,
-                                Author    = root.TryGetProperty("author",    out var aEl)   ? aEl.GetString()   : "?",
-                                Time      = root.TryGetProperty("time",      out var tEl)   ? tEl.GetString()   : "",
-                                Ts        = root.TryGetProperty("ts",        out var tsEl)  ? tsEl.GetInt64()   : 0,
-                                Message   = root.TryGetProperty("message",   out var mEl)   ? mEl.GetString()   : "",
-                                ReplyToId = root.TryGetProperty("replyToId", out var riEl) && riEl.ValueKind == JsonValueKind.String ? riEl.GetString() : null,
+                                Id         = root.TryGetProperty("id",         out var idEl)  ? idEl.GetString()  : null,
+                                Author     = root.TryGetProperty("author",     out var aEl)   ? aEl.GetString()   : "?",
+                                AuthorGuid = root.TryGetProperty("authorGuid", out var agEl) && agEl.ValueKind == JsonValueKind.String ? agEl.GetString() : null,
+                                Time       = root.TryGetProperty("time",       out var tEl)   ? tEl.GetString()   : "",
+                                Ts         = root.TryGetProperty("ts",         out var tsEl)  ? tsEl.GetInt64()   : 0,
+                                Message    = root.TryGetProperty("message",    out var mEl)   ? mEl.GetString()   : "",
+                                ReplyToId  = root.TryGetProperty("replyToId",  out var riEl) && riEl.ValueKind == JsonValueKind.String ? riEl.GetString() : null,
                                 ReplySnippet = root.TryGetProperty("replySnippet", out var rsEl) && rsEl.ValueKind == JsonValueKind.Object
                                     ? JsonSerializer.Deserialize<ReplySnippet>(rsEl.GetRawText())
                                     : null,
@@ -865,6 +868,7 @@ namespace Origin.Server.Core
                 currentAlias = authDoc.RootElement.GetProperty("alias").GetString();
                 string machineGuid  = authDoc.RootElement.TryGetProperty("machineGuid",   out JsonElement mgEl) ? mgEl.GetString() ?? "" : "";
                 string adminPwSent  = authDoc.RootElement.TryGetProperty("adminPassword", out JsonElement apEl) ? apEl.GetString() ?? "" : "";
+                string userPassword = authDoc.RootElement.TryGetProperty("userPassword",  out JsonElement upEl) ? upEl.GetString() ?? "" : "";
 
                 if (ActiveConfig.Settings.RequirePassword)
                 {
@@ -874,6 +878,31 @@ namespace Origin.Server.Core
                         Log("AUTH", $"'{currentAlias}' rejected — wrong password from {clientIp}");
                         await Send(socket, new { action = "AUTH_FAILED", reason = "Wrong password" });
                         await socket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Wrong password", CancellationToken.None);
+                        return;
+                    }
+                }
+
+                // Per-user auth
+                string authMode = ActiveConfig.Settings.AuthMode ?? "open";
+                if (authMode != "open")
+                {
+                    var registered = ActiveConfig.Settings.RegisteredUsers ?? new();
+                    if (registered.TryGetValue(currentAlias, out string? storedHash))
+                    {
+                        if (!BCrypt.Net.BCrypt.Verify(userPassword, storedHash))
+                        {
+                            Log("AUTH", $"'{currentAlias}' rejected — wrong user password from {clientIp}");
+                            await Send(socket, new { action = "AUTH_FAILED", reason = $"Wrong password for alias '{currentAlias}'." });
+                            await socket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Auth failed", CancellationToken.None);
+                            return;
+                        }
+                        Log("AUTH", $"'{currentAlias}' user password verified");
+                    }
+                    else if (authMode == "verified-only")
+                    {
+                        Log("AUTH", $"'{currentAlias}' rejected — not registered, server is verified-only");
+                        await Send(socket, new { action = "AUTH_FAILED", reason = "This server only allows registered accounts. Ask the server owner to add you with /adduser." });
+                        await socket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Not registered", CancellationToken.None);
                         return;
                     }
                 }
@@ -1106,6 +1135,61 @@ namespace Origin.Server.Core
                                 }
                                 else await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Usage: /slowmode <seconds> [channelId]" });
                             }
+                            else if (cmd == "/adduser" && parts.Length >= 3 && userRole == "owner")
+                            {
+                                string tAlias = parts[1];
+                                string tPass  = string.Join(" ", parts[2..]);
+                                if (ActiveConfig.Settings.RegisteredUsers == null)
+                                    ActiveConfig.Settings.RegisteredUsers = new();
+                                ActiveConfig.Settings.RegisteredUsers[tAlias] = BCrypt.Net.BCrypt.HashPassword(tPass, workFactor: 12);
+                                File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true }));
+                                Log("ADMIN", $"'{currentAlias}' registered user '{tAlias}'");
+                                await Send(socket, new { action = "SYSTEM_MESSAGE", message = $"User '{tAlias}' registered. They must set their user password in the server connection settings." });
+                            }
+                            else if (cmd == "/removeuser" && parts.Length >= 2 && userRole == "owner")
+                            {
+                                string tAlias = parts[1];
+                                if (ActiveConfig.Settings.RegisteredUsers?.Remove(tAlias) == true)
+                                {
+                                    File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true }));
+                                    Log("ADMIN", $"'{currentAlias}' removed registered user '{tAlias}'");
+                                    await Send(socket, new { action = "SYSTEM_MESSAGE", message = $"User '{tAlias}' removed from registered users." });
+                                }
+                                else await Send(socket, new { action = "SYSTEM_MESSAGE", message = $"'{tAlias}' is not a registered user." });
+                            }
+                            else if (cmd == "/passwd" && parts.Length >= 3 && userRole == "owner")
+                            {
+                                string tAlias = parts[1];
+                                string tPass  = string.Join(" ", parts[2..]);
+                                if (ActiveConfig.Settings.RegisteredUsers?.ContainsKey(tAlias) == true)
+                                {
+                                    ActiveConfig.Settings.RegisteredUsers[tAlias] = BCrypt.Net.BCrypt.HashPassword(tPass, workFactor: 12);
+                                    File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true }));
+                                    Log("ADMIN", $"'{currentAlias}' changed password for '{tAlias}'");
+                                    await Send(socket, new { action = "SYSTEM_MESSAGE", message = $"Password updated for '{tAlias}'." });
+                                }
+                                else await Send(socket, new { action = "SYSTEM_MESSAGE", message = $"'{tAlias}' is not a registered user. Use /adduser first." });
+                            }
+                            else if (cmd == "/authmode" && parts.Length >= 2 && userRole == "owner")
+                            {
+                                string mode = parts[1].ToLowerInvariant();
+                                if (mode != "open" && mode != "registered+guests" && mode != "verified-only")
+                                    await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Valid modes: open, registered+guests, verified-only" });
+                                else
+                                {
+                                    ActiveConfig.Settings.AuthMode = mode;
+                                    File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true }));
+                                    Log("ADMIN", $"'{currentAlias}' set auth mode to '{mode}'");
+                                    await Send(socket, new { action = "SYSTEM_MESSAGE", message = $"Auth mode set to '{mode}'." });
+                                }
+                            }
+                            else if (cmd == "/listusers" && userRole == "owner")
+                            {
+                                var users = ActiveConfig.Settings.RegisteredUsers ?? new();
+                                string mode = ActiveConfig.Settings.AuthMode ?? "open";
+                                string list = users.Count == 0 ? "(none)" : string.Join(", ", users.Keys);
+                                await Send(socket, new { action = "SYSTEM_MESSAGE", message = $"Auth mode: {mode} | Registered users ({users.Count}): {list}" });
+                            }
                             else await Send(socket, new { action = "SYSTEM_MESSAGE", message = $"Unknown command: {cmd}" });
                         }
                         else
@@ -1135,6 +1219,7 @@ namespace Origin.Server.Core
                             var stored = new StoredMessage {
                                 Id           = msgId,
                                 Author       = currentAlias,
+                                AuthorGuid   = ClientGuids.TryGetValue(currentAlias, out var senderGuid) ? senderGuid : null,
                                 Time         = DateTime.Now.ToString("h:mm tt"),
                                 Ts           = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                                 Message      = text,
@@ -1172,7 +1257,13 @@ namespace Origin.Server.Core
                             if (ChannelHistory.TryGetValue(channelId, out var msgs))
                                 target = msgs.FirstOrDefault(m => m.Id == messageId);
 
-                        if (target == null || target.Author != currentAlias)
+                        string editorGuid = ClientGuids.TryGetValue(currentAlias, out var eg) ? eg : "";
+                        bool canEdit = target != null && (
+                            // GUID present on both sides: require GUID match (blocks alias squatters)
+                            (!string.IsNullOrEmpty(editorGuid) && editorGuid == target.AuthorGuid) ||
+                            // Old message with no GUID: fall back to alias match
+                            (string.IsNullOrEmpty(target.AuthorGuid) && target.Author == currentAlias));
+                        if (!canEdit)
                         {
                             await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Cannot edit that message." });
                         }
@@ -1204,8 +1295,11 @@ namespace Origin.Server.Core
                             if (ChannelHistory.TryGetValue(channelId, out var msgs))
                                 target = msgs.FirstOrDefault(m => m.Id == messageId);
 
-                        bool isElevated = RoleRank(userRole) >= RoleRank("admin");
-                        bool canDelete  = target != null && (target.Author == currentAlias || isElevated);
+                        bool isElevated  = RoleRank(userRole) >= RoleRank("admin");
+                        string delGuid   = ClientGuids.TryGetValue(currentAlias, out var dg) ? dg : "";
+                        bool guidOwns    = !string.IsNullOrEmpty(delGuid) && delGuid == target?.AuthorGuid;
+                        bool aliasOwns   = string.IsNullOrEmpty(target?.AuthorGuid) && target?.Author == currentAlias;
+                        bool canDelete   = target != null && (guidOwns || aliasOwns || isElevated);
                         if (!canDelete)
                         {
                             await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Cannot delete that message." });
@@ -1623,6 +1717,11 @@ namespace Origin.Server.Data
         public string TurnUsername         { get; set; } = "";
         public string TurnCredential       { get; set; } = "";
         public int    HistoryRetentionDays { get; set; } = 60;
+        // "open" = anyone connects freely
+        // "registered+guests" = registered aliases must provide correct password; others connect freely
+        // "verified-only" = only registered aliases can connect
+        public string AuthMode            { get; set; } = "open";
+        public Dictionary<string, string> RegisteredUsers { get; set; } = new(); // alias → bcrypt hash
         public int    MaxUploadMb          { get; set; } = 2500;
         public double MaxDiskGb           { get; set; } = 100.0;  // 0 = unlimited
         public string ServerIcon           { get; set; } = "";
@@ -1653,6 +1752,7 @@ namespace Origin.Server.Data
     {
         public string Id           { get; set; }
         public string Author       { get; set; }
+        public string AuthorGuid   { get; set; }  // HWID of sender — null on old messages
         public string Time         { get; set; }
         public long   Ts           { get; set; }
         public string Message      { get; set; }
