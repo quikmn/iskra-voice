@@ -1439,12 +1439,11 @@ async function applyCrop() {
                 method: 'POST', headers: { 'Content-Type': 'image/webp' }, body: blob
             });
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-            const { url } = await resp.json();
-            const fullUrl = `${uploadBase}${url}`;
+            const { url } = await resp.json(); // relative path e.g. /uploads/abc123.webp
             postToBridge(mode === 'server'
-                ? { action: 'SET_SERVER_ICON', url: fullUrl }
-                : { action: 'SET_AVATAR',      url: fullUrl });
-            DevLog.log('AVATAR', `Crop uploaded → ${fullUrl}`);
+                ? { action: 'SET_SERVER_ICON', url }
+                : { action: 'SET_AVATAR',      url });
+            DevLog.log('AVATAR', `Crop uploaded → ${url}`);
         } catch (err) {
             DevLog.log('ERR', `Crop upload: ${err.message}`);
             renderSystemMessage(`Upload failed: ${err.message}`);
@@ -1462,10 +1461,9 @@ async function _autoUploadLocalAvatar(alias) {
             method: 'POST', headers: { 'Content-Type': 'image/webp' }, body: blob
         });
         if (!resp.ok) return;
-        const { url } = await resp.json();
-        const fullUrl = `${serverUploadBase}${url}`;
-        postToBridge({ action: 'SET_AVATAR', url: fullUrl });
-        DevLog.log('AVATAR', `Auto-uploaded local avatar for ${alias} → ${fullUrl}`);
+        const { url } = await resp.json(); // relative path
+        postToBridge({ action: 'SET_AVATAR', url });
+        DevLog.log('AVATAR', `Auto-uploaded local avatar for ${alias} → ${url}`);
     } catch (err) {
         DevLog.log('ERR', `Auto-upload avatar: ${err.message}`);
     }
@@ -1545,8 +1543,8 @@ _soundNames.forEach(name => {
 function playSound(name) {
     const s = _sounds[name];
     if (!s) return;
-    const clone = s.cloneNode();  // allow overlapping playback
-    clone.volume = 0.24;
+    const clone = s.cloneNode();
+    clone.volume = 0.14;
     clone.play().catch(() => {});
 }
 
@@ -2666,12 +2664,16 @@ function _slowCountdown(secs) {
     tick();
 }
 
-const _uploadUrlRe = /^https?:\/\/\S+\/uploads\/[a-f0-9]{16}\.[a-z0-9]+$/i;
+// Matches /uploads/hexhash.ext whether standalone or prefixed with http://host:port
+const _uploadUrlRe = /(?:https?:\/\/[^\s<>"]+)?\/uploads\/[a-f0-9]+\.[a-z0-9]+/gi;
 
 function normalizeUploadUrl(url) {
-    if (!serverUploadBase || !url) return url;
-    const m = url.match(/\/uploads\/[a-f0-9]{16}\.[a-z0-9]+$/i);
-    return m ? `${serverUploadBase}${m[0]}` : url;
+    if (!url) return url;
+    // Already a relative upload path
+    if (url.startsWith('/uploads/')) return serverUploadBase ? `${serverUploadBase}${url}` : url;
+    // Full URL — extract path and rebase to known server
+    const m = url.match(/(\/uploads\/.+)/);
+    return (m && serverUploadBase) ? `${serverUploadBase}${m[1]}` : url;
 }
 
 // ── Markdown renderer ──────────────────────────────────────────────────────────
@@ -3667,8 +3669,8 @@ window.chrome.webview.addEventListener('message', async (e) => {
         document.getElementById('tab-btn-admin')?.classList.toggle('visible', isElevated);
         if (isElevated) DevLog.log('BRIDGE', `${data.role} role active — /kick /ban /unban /role unlocked`);
         if (activeTab === 'servers') updateSettingsServerSection();
-        // Re-render channels in case readOnly access changed
-        if (activeTextChannelId) selectTextChannel(activeTextChannelId);
+        // Re-render channels in case readOnly access changed (skip if in DM mode)
+        if (!inDmMode && activeTextChannelId) selectTextChannel(activeTextChannelId);
         renderChannelList();
         if (document.getElementById('members-panel')?.classList.contains('open')) renderMembersPanel();
 
@@ -4184,7 +4186,8 @@ const MAX_FILE_MB   = 2500;
 
 async function uploadAndSendFile(file) {
     if (!serverUploadBase) { DevLog.log('ERR', 'Not connected — cannot upload'); return; }
-    if (!activeTextChannelId) { DevLog.log('ERR', 'No text channel selected'); return; }
+    if (!inDmMode && !activeTextChannelId) { DevLog.log('ERR', 'No destination — select a channel or open a DM'); return; }
+    if (inDmMode && !activeDmWith) { DevLog.log('ERR', 'No DM open'); return; }
 
     const nameLower = file.name.toLowerCase();
     const ext = nameLower.includes('.') ? '.' + nameLower.split('.').pop() : '';
@@ -4210,10 +4213,13 @@ async function uploadAndSendFile(file) {
             const errBody = await resp.json().catch(() => ({}));
             throw new Error(errBody.error || `HTTP ${resp.status}`);
         }
-        const { url } = await resp.json();
-        const fullUrl = `${serverUploadBase}${url}`;
-        postToBridge({ action: 'SEND_CHAT', channelId: activeTextChannelId, message: fullUrl });
-        DevLog.log('BRIDGE', `Upload done → ${fullUrl}`);
+        const { url } = await resp.json(); // relative path e.g. /uploads/abc123.png
+        if (inDmMode && activeDmWith) {
+            postToBridge({ action: 'SEND_DM', to: activeDmWith, message: url });
+        } else {
+            postToBridge({ action: 'SEND_CHAT', channelId: activeTextChannelId, message: url });
+        }
+        DevLog.log('BRIDGE', `Upload done → ${url}`);
     } catch (err) {
         renderSystemMessage(`Upload failed: ${err.message}`);
         DevLog.log('ERR', `Upload: ${err.message}`);
@@ -4227,7 +4233,8 @@ async function onFileInputChange(e) {
 
 // Paste anywhere → upload if clipboard contains a file / image
 document.addEventListener('paste', async e => {
-    if (!connectedServerId || !activeTextChannelId) return;
+    if (!connectedServerId) return;
+    if (!inDmMode && !activeTextChannelId) return;
     const files = Array.from(e.clipboardData.files);
     if (!files.length) return;
     e.preventDefault();
@@ -4247,6 +4254,7 @@ document.addEventListener('paste', async e => {
             e.preventDefault();
             h.classList.remove('drag-over');
             if (!connectedServerId) return;
+            if (!inDmMode && !activeTextChannelId) return;
             for (const file of Array.from(e.dataTransfer.files)) await uploadAndSendFile(file);
         });
     });
@@ -4679,10 +4687,13 @@ async function playSoundboardClip(index) {
         const resp    = await fetch(clip.url);
         const arrBuf  = await resp.arrayBuffer();
         const audioBuf = await audioCtx.decodeAudioData(arrBuf);
-        const src = audioCtx.createBufferSource();
+        const src      = audioCtx.createBufferSource();
+        const gainNode = audioCtx.createGain();
         src.buffer = audioBuf;
-        if (destNode) src.connect(destNode);
-        src.connect(audioCtx.destination);
+        gainNode.gain.value = 0.2; // 80% reduction from full volume
+        src.connect(gainNode);
+        if (destNode) gainNode.connect(destNode);
+        gainNode.connect(audioCtx.destination);
         src.start();
         DevLog.log('SB', `Playing "${clip.name}" → voice + local output`);
     } catch (err) {

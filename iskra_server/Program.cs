@@ -19,8 +19,24 @@ namespace Origin.Server.Core
 
     class Origin_Server_Core_Main
     {
-        private static void Log(string cat, string msg) =>
-            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}][{cat,-8}] {msg}");
+        private static string _logFile;
+        private static readonly object LogLock = new();
+
+        private static void Log(string cat, string msg)
+        {
+            var line = $"[{DateTime.Now:HH:mm:ss.fff}][{cat,-8}] {msg}";
+            Console.WriteLine(line);
+            if (_logFile != null)
+                lock (LogLock) { try { File.AppendAllText(_logFile, line + Environment.NewLine); } catch { } }
+        }
+
+        private static string ToRelativeUploadPath(string url)
+        {
+            if (string.IsNullOrEmpty(url)) return url;
+            if (url.StartsWith("/uploads/")) return url;
+            var m = Regex.Match(url, @"(/uploads/.+)");
+            return m.Success ? m.Groups[1].Value : url;
+        }
 
         private static Origin_Server_Data_Config ActiveConfig;
         private static string ActiveWorldPath;
@@ -84,7 +100,11 @@ namespace Origin.Server.Core
         {
             ActiveWorldPath = Path.GetFullPath(args.Length > 0 ? args[0] : ".");
             Directory.CreateDirectory(ActiveWorldPath);
+            _logFile = Path.Combine(ActiveWorldPath, "server.log");
             LoadOrGenerateConfig();
+            // Normalize server icon to relative path (migrate legacy full URLs)
+            if (!string.IsNullOrEmpty(ActiveConfig.Settings.ServerIcon))
+                ActiveConfig.Settings.ServerIcon = ToRelativeUploadPath(ActiveConfig.Settings.ServerIcon);
             LoadFingerprints();
             LoadRoles();
             LoadAvatars();
@@ -463,6 +483,9 @@ namespace Origin.Server.Core
             if (File.Exists(AvatarFile))
             {
                 UserAvatars = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(AvatarFile)) ?? new();
+                // Normalize any legacy full URLs to relative paths
+                foreach (var key in UserAvatars.Keys.ToList())
+                    UserAvatars[key] = ToRelativeUploadPath(UserAvatars[key]);
                 Log("CONFIG", $"Avatars loaded: {UserAvatars.Count}");
             }
         }
@@ -1333,7 +1356,7 @@ namespace Origin.Server.Core
                     // ── SET_AVATAR ───────────────────────────────────────────────
                     else if (action == "SET_AVATAR")
                     {
-                        string url = incoming.RootElement.GetProperty("url").GetString() ?? "";
+                        string url = ToRelativeUploadPath(incoming.RootElement.GetProperty("url").GetString() ?? "");
                         if (!string.IsNullOrEmpty(url))
                         {
                             lock (AvatarLock) UserAvatars[currentAlias] = url;
@@ -1351,7 +1374,7 @@ namespace Origin.Server.Core
                             await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Only admins and the owner can change the server icon." });
                             continue;
                         }
-                        string url = incoming.RootElement.GetProperty("url").GetString() ?? "";
+                        string url = ToRelativeUploadPath(incoming.RootElement.GetProperty("url").GetString() ?? "");
                         if (!string.IsNullOrEmpty(url))
                         {
                             ActiveConfig.Settings.ServerIcon = url;

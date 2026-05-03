@@ -19,9 +19,6 @@ namespace Origin.Client.Core
         [DllImport("user32.dll")]
         private static extern short GetAsyncKeyState(int vKey);
 
-        [DllImport("kernel32.dll")]
-        private static extern bool AllocConsole();
-
         // ── DWM title bar theming ──────────────────────────────────────────────
         [DllImport("dwmapi.dll")]
         private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
@@ -47,8 +44,18 @@ namespace Origin.Client.Core
             catch { }
         }
 
-        private static void CLog(string cat, string msg) =>
-            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}][{cat,-8}] {msg}");
+        private static readonly string _logFile = Path.Combine(
+            Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) ?? ".", "client.log");
+        private static readonly object _logLock = new();
+
+        private static void CLog(string cat, string msg)
+        {
+            var line = $"[{DateTime.Now:HH:mm:ss.fff}][{cat,-8}] {msg}";
+            lock (_logLock)
+            {
+                try { File.AppendAllText(_logFile, line + Environment.NewLine); } catch { }
+            }
+        }
 
         private int    _pttVkCode    = 0x5A;  // default: 'Z'
         private bool   _isPttMode    = false;
@@ -109,7 +116,7 @@ namespace Origin.Client.Core
         {
             CLog("WEBVIEW", "Initializing WebView2 environment...");
             var opts = new CoreWebView2EnvironmentOptions();
-            opts.AdditionalBrowserArguments = "--autoplay-policy=no-user-gesture-required --allow-running-insecure-content";
+            opts.AdditionalBrowserArguments = "--autoplay-policy=no-user-gesture-required --allow-running-insecure-content --disable-features=MixedContentAutoupgrade,AutoupgradeMixedContent";
             var env = await CoreWebView2Environment.CreateAsync(
                 null, Path.Combine(Path.GetTempPath(), "Origin_WebView2_Data"), opts);
             await webView.EnsureCoreWebView2Async(env);
@@ -360,9 +367,6 @@ namespace Origin.Client.Core
         [STAThread]
         static void Main()
         {
-            AllocConsole();
-            Console.Title = "Origin Client — Dev Console";
-            Console.OutputEncoding = System.Text.Encoding.UTF8;
             Application.Run(new Origin_Client_Core_Main());
         }
     }
