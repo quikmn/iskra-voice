@@ -51,12 +51,12 @@
         #voice-mode-label { font-size: 10px; color: #3ba55d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
         #voice-mode-label:empty { display: none; }
 
-        /* ── Mic status ring ── */
-        #mic-indicator { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; border: 2.5px solid; transition: border-color 0.1s, box-shadow 0.1s; cursor: default; }
-        #mic-indicator.inactive  { border-color: #5865f2; opacity: 0.55; box-shadow: none; }
-        #mic-indicator.ptt-ready { border-color: #5865f2; opacity: 1;    box-shadow: none; }
-        #mic-indicator.active    { border-color: #3ba55d; opacity: 1;    box-shadow: 0 0 6px rgba(59,165,93,0.7); }
-        #mic-indicator.muted     { border-color: #ed4245; opacity: 1;    box-shadow: none; }
+        /* ── Status dot mic state glow ── */
+        #footer-left .status-dot { transition: box-shadow 0.1s; }
+        #footer-left .status-dot.mic-active    { box-shadow: 0 0 0 2.5px #3ba55d, 0 0 7px rgba(59,165,93,0.7); }
+        #footer-left .status-dot.mic-muted     { box-shadow: 0 0 0 2.5px #ed4245; }
+        #footer-left .status-dot.mic-ptt-ready { box-shadow: 0 0 0 2.5px #5865f2; }
+        #footer-left .status-dot.mic-inactive  { box-shadow: none; }
 
         /* ── Settings button ── */
         #btn-settings { border-radius: 50%; border: none; background: #383a40; color: #949ba4; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -499,7 +499,6 @@
             </div>
             <div id="footer-right">
                 <div id="footer-btn-row">
-                    <div id="mic-indicator" class="inactive" title="Mic status"></div>
                     <button id="btn-mute"       class="footer-icon-btn" onclick="toggleMute()"         title="Mute">🎙️</button>
                     <button id="btn-deafen"     class="footer-icon-btn" onclick="toggleDeafen()"       title="Deafen">🔊</button>
                     <button id="btn-soundboard" class="footer-icon-btn" onclick="toggleSoundboard()"   title="Soundboard">🎵</button>
@@ -918,6 +917,7 @@ let sharingChannelId    = null;   // voice channel we were in when sharing start
 let userStatuses    = {};     // alias → "online"/"away"/"dnd"/"offline"
 let userRoles       = {};     // alias → "guest"/"member"/"trusted"/"admin"/"owner"
 let myStatus        = 'online';
+let _micStateClass  = 'mic-inactive';
 let pinnedMessages  = {};     // channelId → [{id, author, time, message}]
 let soundboardClips = [];     // {id, name, url} persisted in localStorage
 let localVideoStream = null;  // webcam stream
@@ -1824,13 +1824,16 @@ async function initOutputContext() {
 }
 
 function updateMicIndicator() {
-    const el = document.getElementById('mic-indicator');
-    if (!el) return;
-    if (inMutedChannel)                                             { el.className = 'muted'; el.title = 'AFK / Muted channel'; return; }
-    if (isMuted || isDeafened)                                      { el.className = 'muted'; el.title = 'Muted'; return; }
-    if (speaking || (settings.voiceMode === 'ptt' && pttActive))    { el.className = 'active'; el.title = 'Transmitting'; return; }
-    el.className = settings.voiceMode === 'ptt' ? 'ptt-ready' : 'inactive';
-    el.title = 'Mic status';
+    const dot = document.getElementById('my-status-dot');
+    if (!dot) return;
+    let micClass;
+    if (inMutedChannel)                                          micClass = 'mic-muted';
+    else if (isMuted || isDeafened)                              micClass = 'mic-muted';
+    else if (speaking || (settings.voiceMode === 'ptt' && pttActive)) micClass = 'mic-active';
+    else if (settings.voiceMode === 'ptt')                       micClass = 'mic-ptt-ready';
+    else                                                         micClass = 'mic-inactive';
+    _micStateClass = micClass;
+    dot.className = `status-dot ${myStatus} ${micClass}`;
 }
 
 function setMicGate(open) {
@@ -2788,8 +2791,9 @@ window.chrome.webview.addEventListener('message', async (e) => {
         serverBotTokens = [];
         document.getElementById('tab-btn-admin')?.classList.remove('visible');
         myStatus = 'online';
+        _micStateClass = 'mic-inactive';
         const _sdot = document.getElementById('my-status-dot');
-        if (_sdot) _sdot.className = 'status-dot online';
+        if (_sdot) _sdot.className = 'status-dot online mic-inactive';
         const _rb = document.getElementById('role-badge');
         if (_rb) { _rb.className = ''; _rb.textContent = ''; }
         document.getElementById('input-area')?.classList.remove('readonly');
@@ -3347,7 +3351,7 @@ function _resetIdleTimer() {
 function setMyStatus(status, fromIdle = false) {
     myStatus = status;
     const dot = document.getElementById('my-status-dot');
-    if (dot) dot.className = `status-dot ${status}`;
+    if (dot) dot.className = `status-dot ${status} ${_micStateClass}`;
     if (connectedServerId) postToBridge({ action: 'SET_STATUS', status });
     if (!fromIdle) {
         clearTimeout(_idleTimer);
@@ -3683,7 +3687,7 @@ async function init() {
         const lbl = document.getElementById('voice-mode-label');
         lbl.textContent = '⚠ Audio error';
         lbl.style.color = '#ef9a9a';
-        document.getElementById('mic-indicator').title = `Audio error: ${err.message}`;
+        document.getElementById('my-status-dot').title = `Audio error: ${err.message}`;
     }
 }
 
