@@ -34,7 +34,7 @@
         /* .input-box and #input-area layout in Input area section below */
 
         /* ── User Footer ── */
-        #user-footer { min-height: 66px; height: auto; background: #232428; padding: 6px 8px 5px; display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
+        #user-footer { min-height: 66px; height: auto; background: #232428; padding: 6px 8px 5px; display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; position: relative; }
         .footer-row { display: flex; align-items: center; gap: 6px; }
         .avatar { width: 32px; height: 32px; background: #5865f2; border-radius: 50%; flex-shrink: 0; }
         #footer-info { flex: 1; min-width: 0; }
@@ -330,6 +330,68 @@
         #btn-share.sharing { background: #ed4245; color: #fff; }
         #btn-share.sharing:hover { background: #c03537; color: #fff; }
 
+        /* ── Status dots ── */
+        .av-wrap { position: relative; display: inline-flex; flex-shrink: 0; }
+        .status-dot { position: absolute; bottom: 0; right: 0; width: 9px; height: 9px; border-radius: 50%; border: 2px solid #2b2d31; box-sizing: content-box; pointer-events: none; }
+        .status-dot.online   { background: #3ba55d; }
+        .status-dot.away     { background: #faa61a; }
+        .status-dot.dnd      { background: #ed4245; }
+        .status-dot.offline, .status-dot.invisible { display: none; }
+        #my-avatar-wrap .status-dot { border-color: #232428; }
+
+        /* ── Message reactions ── */
+        .msg-reactions { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+        .reaction-pill { background: #383a40; border: 1px solid #4f545c; border-radius: 10px; padding: 2px 7px; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; color: #dcddde; transition: background 0.1s, border-color 0.1s; }
+        .reaction-pill:hover { background: #4f545c; border-color: #5865f2; }
+        .reaction-pill.mine { background: rgba(88,101,242,0.25); border-color: #5865f2; }
+        .reaction-count { font-size: 11px; color: #949ba4; }
+        .reaction-pill.mine .reaction-count { color: #c9cdfb; }
+
+        /* ── Emoji picker popup ── */
+        .emoji-picker-popup { position: fixed; z-index: 350; background: #111214; border: 1px solid #2a2c31; border-radius: 8px; padding: 6px; display: flex; flex-wrap: wrap; gap: 1px; width: 224px; box-shadow: 0 8px 24px rgba(0,0,0,0.7); }
+        .emoji-pick-btn { background: transparent; border: none; cursor: pointer; font-size: 20px; padding: 2px; border-radius: 4px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; line-height: 1; }
+        .emoji-pick-btn:hover { background: #3f4147; }
+
+        /* ── Pin bar ── */
+        #pin-indicator { margin-left: auto; background: transparent; border: none; color: #6d6f78; font-size: 12px; cursor: pointer; padding: 3px 8px; border-radius: 4px; display: none; align-items: center; gap: 4px; }
+        #pin-indicator:hover { background: #383a40; color: #dcddde; }
+        #pin-indicator.visible { display: inline-flex; }
+        #pin-panel { border-bottom: 1px solid #1e1f22; background: #2b2d31; flex-shrink: 0; display: none; max-height: 180px; overflow-y: auto; }
+        #pin-panel.open { display: block; }
+        .pin-entry { padding: 8px 20px; border-bottom: 1px solid rgba(255,255,255,0.04); display: flex; align-items: flex-start; gap: 10px; }
+        .pin-entry:last-child { border-bottom: none; }
+        .pin-entry-body { flex: 1; min-width: 0; }
+        .pin-entry-author { font-size: 11px; color: #6d6f78; margin-bottom: 1px; }
+        .pin-entry-msg { font-size: 13px; color: #dcddde; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .pin-unpin-btn { border: none; background: transparent; color: #4f545c; cursor: pointer; font-size: 11px; padding: 2px 6px; border-radius: 3px; flex-shrink: 0; }
+        .pin-unpin-btn:hover { background: #ed4245; color: #fff; }
+
+        /* ── Soundboard panel ── */
+        #soundboard-panel { position: absolute; bottom: 100%; left: 0; right: 0; background: #232428; border-top: 1px solid #1e1f22; max-height: 220px; overflow-y: auto; display: none; flex-direction: column; z-index: 50; box-shadow: 0 -4px 16px rgba(0,0,0,0.4); }
+        #soundboard-panel.open { display: flex; }
+        .sb-header { padding: 6px 12px 4px; font-size: 10px; font-weight: 700; color: #6d6f78; text-transform: uppercase; letter-spacing: 0.8px; }
+        .sb-clip-row { display: flex; align-items: center; gap: 8px; padding: 4px 12px; }
+        .sb-play-btn { background: #3ba55d; border: none; color: #fff; border-radius: 4px; padding: 3px 10px; font-size: 12px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+        .sb-play-btn:hover { background: #2d8a4e; }
+        .sb-clip-name { flex: 1; font-size: 13px; color: #dcddde; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sb-del-btn { border: none; background: transparent; color: #4f545c; cursor: pointer; font-size: 12px; padding: 2px 5px; border-radius: 3px; }
+        .sb-del-btn:hover { background: #ed4245; color: #fff; }
+        .sb-empty { padding: 12px; text-align: center; color: #4f545c; font-size: 12px; }
+        .sb-add-row { padding: 6px 12px; border-top: 1px solid #1e1f22; display: flex; gap: 6px; align-items: center; }
+
+        /* ── Video + soundboard buttons ── */
+        #btn-video { display: none; }
+        #btn-video.visible { display: flex; }
+        #btn-video.active { background: #ed4245; color: #fff; }
+        #btn-video.active:hover { background: #c03537; color: #fff; }
+        #btn-soundboard.active { background: #3ba55d; color: #fff; }
+
+        /* ── Status picker popup ── */
+        .status-picker-popup { position: fixed; z-index: 350; background: #111214; border: 1px solid #2a2c31; border-radius: 8px; padding: 4px 0; min-width: 160px; box-shadow: 0 8px 24px rgba(0,0,0,0.7); }
+        .status-opt { display: flex; align-items: center; gap: 8px; padding: 7px 14px; cursor: pointer; font-size: 13px; color: #dcddde; }
+        .status-opt:hover { background: #25272b; }
+        .status-opt-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
         /* ── Share overlay (fullscreen focus) ── */
         #share-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.92); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 10px; z-index: 300; }
         #share-overlay.open { display: flex; }
@@ -351,8 +413,20 @@
     <div id="server-name-display" style="padding:16px;font-weight:700;color:#fff;font-size:14px;border-bottom:1px solid #1e1f22;flex-shrink:0;">Not connected</div>
     <div id="channel-list" style="flex:1;overflow-y:auto;"></div>
     <div id="user-footer">
+        <div id="soundboard-panel">
+            <div class="sb-header">Soundboard</div>
+            <div id="sb-empty-label" class="sb-empty">No clips yet — add one below.</div>
+            <div id="sb-clip-list"></div>
+            <div class="sb-add-row">
+                <button class="btn-primary" style="font-size:11px;padding:4px 12px;" onclick="document.getElementById('soundboard-file-input').click()">+ Add Clip</button>
+                <span style="font-size:10px;color:#4f545c;">mp3 · wav · ogg · webm</span>
+            </div>
+        </div>
         <div class="footer-row">
-            <div id="my-avatar" class="avatar-circle sz-32 clickable" onclick="document.getElementById('avatar-file-input').click()" title="Click to change your avatar"></div>
+            <div id="my-avatar-wrap" class="av-wrap" onclick="document.getElementById('avatar-file-input').click()" title="Click to change your avatar" style="cursor:pointer;">
+                <div id="my-avatar" class="avatar-circle sz-32"></div>
+                <div id="my-status-dot" class="status-dot online"></div>
+            </div>
             <div id="footer-info">
                 <div id="footer-alias-row">
                     <span id="ui-alias">...</span>
@@ -361,13 +435,15 @@
                 <div id="voice-mode-label"></div>
             </div>
             <div id="mic-indicator" class="inactive" title="Mic status"></div>
-            <button id="btn-mute"   class="footer-icon-btn" onclick="toggleMute()"   title="Mute">🎙️</button>
-            <button id="btn-deafen" class="footer-icon-btn" onclick="toggleDeafen()" title="Deafen">🔊</button>
-            <button id="btn-share" class="footer-icon-btn" onclick="toggleScreenShare()" title="Share screen">🖥</button>
-            <button id="btn-settings" onclick="openSettings()" title="Audio Settings">⚙</button>
+            <button id="btn-mute"      class="footer-icon-btn" onclick="toggleMute()"         title="Mute">🎙️</button>
+            <button id="btn-deafen"    class="footer-icon-btn" onclick="toggleDeafen()"       title="Deafen">🔊</button>
+            <button id="btn-soundboard" class="footer-icon-btn" onclick="toggleSoundboard()"  title="Soundboard">🎵</button>
+            <button id="btn-video"     class="footer-icon-btn" onclick="toggleVideo()"        title="Start camera">📹</button>
+            <button id="btn-share"     class="footer-icon-btn" onclick="toggleScreenShare()"  title="Share screen">🖥</button>
+            <button id="btn-settings"  onclick="openSettings()"                               title="Audio Settings">⚙</button>
         </div>
         <div class="footer-row">
-            <span id="role-badge"></span>
+            <span id="role-badge" onclick="showStatusPicker(event)" style="cursor:pointer;" title="Click to set status"></span>
             <div id="footer-meter-track"><div id="footer-meter-fill"></div></div>
         </div>
     </div>
@@ -377,7 +453,9 @@
     <div id="chat-header">
         <span id="chat-channel-icon">#</span>
         <span id="chat-channel-name">—</span>
+        <button id="pin-indicator" onclick="togglePinPanel()" title="Pinned messages">📌 <span id="pin-count-badge">0</span> pinned</button>
     </div>
+    <div id="pin-panel"></div>
     <div id="screen-share-panel"></div>
     <div id="chat-history"></div>
     <div id="input-area">
@@ -391,6 +469,7 @@
                multiple onchange="onFileInputChange(event)">
         <input type="file" id="avatar-file-input" accept="image/*" style="display:none" onchange="onAvatarFileChange(event, false)">
         <input type="file" id="server-icon-file-input" accept="image/*" style="display:none" onchange="onAvatarFileChange(event, true)">
+        <input type="file" id="soundboard-file-input" accept=".mp3,.wav,.ogg,.webm" style="display:none" onchange="onSoundboardFileChange(event)">
     </div>
 </div>
 
@@ -708,6 +787,15 @@ let screenShareSenders  = {};     // alias → RTCRtpSender (video track sent to
 let remoteScreens       = {};     // alias → { tile, video }
 let sharingChannelId    = null;   // voice channel we were in when sharing started
 
+let userStatuses    = {};     // alias → "online"/"away"/"dnd"/"offline"
+let myStatus        = 'online';
+let pinnedMessages  = {};     // channelId → [{id, author, time, message}]
+let soundboardClips = [];     // {id, name, url} persisted in localStorage
+let localVideoStream = null;  // webcam stream
+let videoSenders    = {};     // alias → RTCRtpSender
+let destNode        = null;   // MediaStreamDestination — kept for soundboard injection
+let _idleTimer      = null;
+
 // ── Avatar helpers ─────────────────────────────────────────────────────────────
 
 function avatarColor(alias) {
@@ -716,16 +804,20 @@ function avatarColor(alias) {
     return `hsl(${h % 360}, 55%, 50%)`;
 }
 
-function avatarHtml(alias, szClass = 'sz-40', clickable = true) {
+function avatarHtml(alias, szClass = 'sz-40', clickable = true, showStatus = false) {
     const url      = userAvatars[alias];
     const initials = alias ? alias.slice(0, 2).toUpperCase() : '??';
     const clk      = clickable ? 'clickable' : '';
+    const status   = showStatus ? (userStatuses[alias] || 'offline') : null;
+    const dot      = status ? `<div class="status-dot ${status}"></div>` : '';
+    const wrap     = dot ? '<div class="av-wrap">' : '';
+    const wrapEnd  = dot ? '</div>' : '';
     if (url) {
         const action = `onclick="openImgOverlay('${url.replace(/'/g,"\\'")}','${escapeHtml(alias)}')"`;
-        return `<div class="avatar-circle ${szClass} ${clk}" ${action} title="${escapeHtml(alias)}"><img src="${escapeHtml(url)}" alt="${escapeHtml(alias)}" loading="lazy"></div>`;
+        return `${wrap}<div class="avatar-circle ${szClass} ${clk}" ${action} title="${escapeHtml(alias)}"><img src="${escapeHtml(url)}" alt="${escapeHtml(alias)}" loading="lazy"></div>${dot}${wrapEnd}`;
     }
     const bg = `style="background:${avatarColor(alias)}"`;
-    return `<div class="avatar-circle ${szClass} ${clk}" ${bg} title="${escapeHtml(alias)}">${initials}</div>`;
+    return `${wrap}<div class="avatar-circle ${szClass} ${clk}" ${bg} title="${escapeHtml(alias)}">${initials}</div>${dot}${wrapEnd}`;
 }
 
 function updateMyAvatar() {
@@ -1118,7 +1210,7 @@ function renderChannelList() {
                 <span class="ch-icon">${voiceIcon}</span>
                 <span class="ch-name">${escapeHtml(ch.name)}</span>
                 ${inVoice ? `<span class="ch-leave" onclick="event.stopPropagation();leaveVoice('${ch.id}')" title="Leave voice">✖</span>` : ''}
-                <div class="voice-user-list">${users.map(u => { const isSpeaking = remoteSpeaking.has(u) || (u === myAlias && speaking && !isMuted && !inMutedChannel); return `<div class="voice-user${isSpeaking ? ' speaking' : ''}" data-alias="${escapeHtml(u)}"${u !== myAlias ? ` oncontextmenu="showUserCtxMenu(event,'${escapeHtml(u)}')"` : ''}><span class="vu-avatar">${avatarHtml(u, 'sz-22', true)}</span>${escapeHtml(u)}</div>`; }).join('')}</div>
+                <div class="voice-user-list">${users.map(u => { const isSpeaking = remoteSpeaking.has(u) || (u === myAlias && speaking && !isMuted && !inMutedChannel); return `<div class="voice-user${isSpeaking ? ' speaking' : ''}" data-alias="${escapeHtml(u)}"${u !== myAlias ? ` oncontextmenu="showUserCtxMenu(event,'${escapeHtml(u)}')"` : ''}><span class="vu-avatar">${avatarHtml(u, 'sz-22', true, true)}</span>${escapeHtml(u)}</div>`; }).join('')}</div>
             </div>`;
         } else if (ch.type === 'Text') {
             const viewing    = ch.id === activeTextChannelId;
@@ -1158,12 +1250,14 @@ function selectTextChannel(id) {
     }
     const h = document.getElementById('chat-history');
     h.innerHTML = '';
-    (channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited));
+    (channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}));
     renderChannelList();
     clearTimeout(_slowTimer);
     if (document.getElementById('chat-input')) document.getElementById('chat-input').disabled = false;
     const sm = channelSlowMode[id] || 0;
     _slowBarShow(sm > 0 ? `🐌 Slow mode · ${sm}s cooldown` : null, false);
+    document.getElementById('pin-panel')?.classList.remove('open');
+    updatePinIndicator(id);
     DevLog.log('BRIDGE', `Text channel selected: "${ch?.name || id}" | ${(channelMessages[id]||[]).length} msg(s)${ch?.readOnly ? ' [readonly]' : ''}`);
 }
 
@@ -1510,8 +1604,6 @@ async function initAudio() {
     analyserNode.fftSize = 1024;
     analyserNode.smoothingTimeConstant = 0.6;
 
-    const dest = audioCtx.createMediaStreamDestination();
-
     // Disconnect old RNNoise node before rewiring
     if (rnnoiseNode) { try { rnnoiseNode.disconnect(); } catch {} rnnoiseNode = null; }
 
@@ -1560,8 +1652,9 @@ async function initAudio() {
         DevLog.log('AUDIO', `Graph: src → gain(${settings.inputGain}) → analyser → gate(0) → dest`);
     }
     analyserNode.connect(micGatingNode);
-    micGatingNode.connect(dest);
-    processedStream = dest.stream;
+    destNode = audioCtx.createMediaStreamDestination();
+    micGatingNode.connect(destNode);
+    processedStream = destNode.stream;
     DevLog.log('AUDIO', `processedStream ready | tracks:${processedStream.getTracks().length}`);
 
     const newTrack = processedStream.getAudioTracks()[0];
@@ -1940,6 +2033,15 @@ async function setupPeer(target, makeOffer = false) {
             DevLog.log('RTC', `Added local screen track to new peer ${target}`);
         }
     }
+    // If camera is on, add video track too
+    if (localVideoStream) {
+        const vt = localVideoStream.getVideoTracks()[0];
+        if (vt && vt.readyState === 'live') {
+            const sender = pc.addTrack(vt, localVideoStream);
+            videoSenders[target] = sender;
+            DevLog.log('RTC', `Added local camera track to new peer ${target}`);
+        }
+    }
 
     pc.onicecandidate = e => {
         if (e.candidate) {
@@ -2092,7 +2194,7 @@ function renderMarkdown(raw) {
     return s;
 }
 
-function renderChatMessage(msgId, author, time, message, edited) {
+function renderChatMessage(msgId, author, time, message, edited, reactions) {
     const h = document.getElementById('chat-history');
     const div = document.createElement('div');
     div.className = 'msg-row';
@@ -2101,16 +2203,19 @@ function renderChatMessage(msgId, author, time, message, edited) {
     const bodyHtml = `<span class="msg-body">${renderMarkdown(message)}</span>`
         + (edited ? '<span class="msg-edited">(edited)</span>' : '');
 
+    const reactHtml = msgId ? renderReactions(msgId, reactions || {}) : '';
+
     let actions = '';
     if (msgId) {
         const isOwn  = author === myAlias;
         const canDel = isOwn || ['admin','owner'].includes(myRole);
-        if (isOwn || canDel) {
-            actions = `<span class="msg-actions">`;
-            if (isOwn) actions += `<button class="msg-act-btn" title="Edit"   onclick="editMessage('${msgId}','${escapeHtml(author)}')">✏</button>`;
-            if (canDel) actions += `<button class="msg-act-btn del" title="Delete" onclick="deleteMessage('${msgId}')">🗑</button>`;
-            actions += `</span>`;
-        }
+        const canPin = ['admin','owner'].includes(myRole);
+        actions = `<span class="msg-actions">`;
+        actions += `<button class="msg-act-btn" title="React" onclick="showEmojiPicker(event,'${msgId}')">😊</button>`;
+        if (isOwn) actions += `<button class="msg-act-btn" title="Edit" onclick="editMessage('${msgId}','${escapeHtml(author)}')">✏</button>`;
+        if (canDel) actions += `<button class="msg-act-btn del" title="Delete" onclick="deleteMessage('${msgId}')">🗑</button>`;
+        if (canPin) actions += `<button class="msg-act-btn" title="Pin/Unpin" onclick="pinMessage('${msgId}')">📌</button>`;
+        actions += `</span>`;
     }
 
     div.innerHTML =
@@ -2118,7 +2223,7 @@ function renderChatMessage(msgId, author, time, message, edited) {
         `<div class="msg-content">` +
             `<div class="msg-header"><span class="msg-author">${escapeHtml(author)}</span>` +
             (time ? `<span class="msg-time">${escapeHtml(time)}</span>` : '') + `</div>` +
-            bodyHtml + actions +
+            bodyHtml + actions + reactHtml +
         `</div>`;
     h.appendChild(div);
     h.scrollTop = h.scrollHeight;
@@ -2206,8 +2311,11 @@ function removeMessageFromDOM(msgId) {
 // ── Screen Share ───────────────────────────────────────────────────────────────
 
 function updateShareButtonVisibility() {
+    const inVoice = currentChannelId !== null;
     const btn = document.getElementById('btn-share');
-    if (btn) btn.classList.toggle('visible', currentChannelId !== null);
+    if (btn) btn.classList.toggle('visible', inVoice);
+    const vbtn = document.getElementById('btn-video');
+    if (vbtn) vbtn.classList.toggle('visible', inVoice);
 }
 
 async function toggleScreenShare() {
@@ -2374,6 +2482,9 @@ window.chrome.webview.addEventListener('message', async (e) => {
         viewedServerId    = connectedServerId;
         pendingServerId   = null;
         myRole = 'guest';
+        myStatus = 'online';
+        userStatuses = {};
+        pinnedMessages = {};
         inMutedChannel = false;
         document.getElementById('admin-crown').classList.remove('visible');
         const _rb2 = document.getElementById('role-badge');
@@ -2430,7 +2541,7 @@ window.chrome.webview.addEventListener('message', async (e) => {
                     body:  (data.message || '').slice(0, 120) });
             }
         }
-        if (!chId || chId === activeTextChannelId) renderChatMessage(data.id, data.author, data.time, data.message, false);
+        if (!chId || chId === activeTextChannelId) renderChatMessage(data.id, data.author, data.time, data.message, false, data.reactions || {});
 
     } else if (data.action === 'RATE_LIMITED') {
         _slowCountdown(data.retryAfter || 1);
@@ -2466,8 +2577,8 @@ window.chrome.webview.addEventListener('message', async (e) => {
             DevLog.log('RTC', `ICE config updated | ${data.iceServers.length} server(s) — ${data.iceServers.map(s => Array.isArray(s.urls) ? s.urls[0] : s.urls).join(', ')}`);
         }
         serverIconUrl = data.serverIcon || null;
-        if (data.userAvatars && typeof data.userAvatars === 'object')
-            Object.assign(userAvatars, data.userAvatars);
+        if (data.userAvatars  && typeof data.userAvatars  === 'object') Object.assign(userAvatars,  data.userAvatars);
+        if (data.userStatuses && typeof data.userStatuses === 'object') Object.assign(userStatuses, data.userStatuses);
         serverChannels = data.channels;
         channelSlowMode = {};
         data.channels.forEach(c => { if (c.slowMode) channelSlowMode[c.id] = c.slowMode; });
@@ -2520,7 +2631,12 @@ window.chrome.webview.addEventListener('message', async (e) => {
         myRole = 'guest';
         inMutedChannel = false;
         userAvatars    = {};
+        userStatuses   = {};
+        pinnedMessages = {};
         serverIconUrl  = null;
+        myStatus = 'online';
+        const _sdot = document.getElementById('my-status-dot');
+        if (_sdot) _sdot.className = 'status-dot online';
         document.getElementById('admin-crown').classList.remove('visible');
         const _rb = document.getElementById('role-badge');
         if (_rb) { _rb.className = ''; _rb.textContent = ''; }
@@ -2546,6 +2662,7 @@ window.chrome.webview.addEventListener('message', async (e) => {
         speaking = false;
         setMicGate(false);
         if (displayStream) stopScreenShare();
+        if (localVideoStream) stopVideo();
         remoteScreens       = {};
         screenShareSenders  = {};
         const _sp = document.getElementById('screen-share-panel');
@@ -2619,6 +2736,39 @@ window.chrome.webview.addEventListener('message', async (e) => {
             lbl.textContent = settings.voiceMode === 'vad' ? 'Voice Activity' : 'Push to Talk';
             lbl.style.color = '';
         }, 6000);
+
+    } else if (data.action === 'STATUS_UPDATED') {
+        DevLog.log('BRIDGE', `← C# | STATUS_UPDATED alias:${data.alias} status:${data.status}`);
+        userStatuses[data.alias] = data.status;
+        renderChannelList();
+
+    } else if (data.action === 'REACTION_UPDATED') {
+        DevLog.log('BRIDGE', `← C# | REACTION_UPDATED msgId:${data.messageId} ch:${data.channelId}`);
+        const chMsgs = channelMessages[data.channelId];
+        if (chMsgs) {
+            const m = chMsgs.find(x => x.id === data.messageId);
+            if (m) m.reactions = data.reactions;
+        }
+        if (data.channelId === activeTextChannelId) updateReactionsInDOM(data.messageId, data.reactions);
+
+    } else if (data.action === 'PINS_UPDATED') {
+        DevLog.log('BRIDGE', `← C# | PINS_UPDATED ch:${data.channelId} count:${(data.pins||[]).length}`);
+        pinnedMessages[data.channelId] = data.pins || [];
+        if (data.channelId === activeTextChannelId) {
+            updatePinIndicator(data.channelId);
+            const pinPanel = document.getElementById('pin-panel');
+            if (pinPanel?.classList.contains('open')) renderPinPanel(data.channelId);
+        }
+
+    } else if (data.action === 'VIDEO_STARTED') {
+        DevLog.log('RTC', `← C# | VIDEO_STARTED from:${data.alias}`);
+        // Camera track arrives via pc.ontrack → handleRemoteVideoTrack
+
+    } else if (data.action === 'VIDEO_STOPPED') {
+        DevLog.log('RTC', `← C# | VIDEO_STOPPED from:${data.alias}`);
+        document.querySelector(`.video-tile[data-alias="${data.alias}"]`)?.remove();
+        const sp = document.getElementById('screen-share-panel');
+        if (sp && !sp.querySelector('.share-tile') && !sp.querySelector('.video-tile')) sp.classList.remove('active');
     }
 });
 
@@ -2786,6 +2936,319 @@ document.addEventListener('paste', async e => {
     });
 })();
 
+// ── User Status ────────────────────────────────────────────────────────────────
+const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+
+function _resetIdleTimer() {
+    if (!connectedServerId || myStatus === 'dnd' || myStatus === 'invisible') return;
+    clearTimeout(_idleTimer);
+    if (myStatus === 'away') setMyStatus('online', true);
+    _idleTimer = setTimeout(() => {
+        if (connectedServerId && myStatus === 'online') setMyStatus('away', true);
+    }, IDLE_TIMEOUT_MS);
+}
+
+function setMyStatus(status, fromIdle = false) {
+    myStatus = status;
+    const dot = document.getElementById('my-status-dot');
+    if (dot) dot.className = `status-dot ${status}`;
+    if (connectedServerId) postToBridge({ action: 'SET_STATUS', status });
+    if (!fromIdle) {
+        clearTimeout(_idleTimer);
+        if (status === 'online') {
+            _idleTimer = setTimeout(() => {
+                if (connectedServerId && myStatus === 'online') setMyStatus('away', true);
+            }, IDLE_TIMEOUT_MS);
+        }
+    }
+}
+
+function showStatusPicker(e) {
+    e.stopPropagation();
+    document.querySelectorAll('.status-picker-popup').forEach(el => el.remove());
+    const popup = document.createElement('div');
+    popup.className = 'status-picker-popup';
+    [
+        { key: 'online',    label: '🟢 Online' },
+        { key: 'away',      label: '🟡 Away' },
+        { key: 'dnd',       label: '🔴 Do Not Disturb' },
+        { key: 'invisible', label: '⚫ Invisible' },
+    ].forEach(s => {
+        const opt = document.createElement('div');
+        opt.className = 'status-opt';
+        opt.textContent = s.label;
+        opt.onclick = () => { setMyStatus(s.key); hideStatusPicker(); };
+        popup.appendChild(opt);
+    });
+    document.body.appendChild(popup);
+    const rect = e.currentTarget.getBoundingClientRect();
+    popup.style.left   = rect.left + 'px';
+    popup.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
+    setTimeout(() => document.addEventListener('click', hideStatusPicker, { once: true }), 0);
+}
+
+function hideStatusPicker() {
+    document.querySelectorAll('.status-picker-popup').forEach(el => el.remove());
+}
+
+// ── Emoji Reactions ────────────────────────────────────────────────────────────
+const EMOJI_PICKER_EMOJIS = ['👍','❤️','😂','😮','😢','😡','🔥','🎉','👀','✅','💯','🙏','🤣','😍','💀','🥲','👏','🫡','🤔','😭'];
+
+function showEmojiPicker(e, msgId) {
+    e.stopPropagation();
+    document.querySelectorAll('.emoji-picker-popup').forEach(el => el.remove());
+    const popup = document.createElement('div');
+    popup.className = 'emoji-picker-popup';
+    EMOJI_PICKER_EMOJIS.forEach(em => {
+        const btn = document.createElement('button');
+        btn.className = 'emoji-pick-btn';
+        btn.textContent = em;
+        btn.onclick = () => { sendReaction(msgId, em); hideEmojiPicker(); };
+        popup.appendChild(btn);
+    });
+    document.body.appendChild(popup);
+    const rect = e.currentTarget.getBoundingClientRect();
+    const popW = 220;
+    let left = rect.left;
+    if (left + popW > window.innerWidth) left = window.innerWidth - popW - 8;
+    popup.style.left = left + 'px';
+    popup.style.top  = (rect.bottom + 4) + 'px';
+    setTimeout(() => document.addEventListener('click', hideEmojiPicker, { once: true }), 0);
+}
+
+function hideEmojiPicker() {
+    document.querySelectorAll('.emoji-picker-popup').forEach(el => el.remove());
+}
+
+function sendReaction(msgId, emoji) {
+    if (!connectedServerId || !activeTextChannelId) return;
+    postToBridge({ action: 'ADD_REACTION', channelId: activeTextChannelId, messageId: msgId, emoji });
+}
+
+function renderReactions(msgId, reactions) {
+    let html = `<div class="msg-reactions" data-msg-id="${msgId}">`;
+    if (reactions) {
+        for (const [emoji, users] of Object.entries(reactions)) {
+            if (!users.length) continue;
+            const mine = myAlias && users.includes(myAlias);
+            html += `<button class="reaction-pill${mine ? ' mine' : ''}" onclick="sendReaction('${msgId}','${emoji.replace(/'/g,"\\'")}')" title="${escapeHtml(users.join(', '))}">${emoji} <span>${users.length}</span></button>`;
+        }
+    }
+    html += '</div>';
+    return html;
+}
+
+function updateReactionsInDOM(msgId, reactions) {
+    const el = document.querySelector(`.msg-reactions[data-msg-id="${msgId}"]`);
+    if (!el) return;
+    el.innerHTML = '';
+    if (!reactions) return;
+    for (const [emoji, users] of Object.entries(reactions)) {
+        if (!users.length) continue;
+        const mine = myAlias && users.includes(myAlias);
+        const btn = document.createElement('button');
+        btn.className = `reaction-pill${mine ? ' mine' : ''}`;
+        btn.title = users.join(', ');
+        btn.innerHTML = `${emoji} <span>${users.length}</span>`;
+        btn.onclick = () => sendReaction(msgId, emoji);
+        el.appendChild(btn);
+    }
+}
+
+// ── Pinned Messages ────────────────────────────────────────────────────────────
+function pinMessage(msgId) {
+    if (!connectedServerId || !activeTextChannelId) return;
+    postToBridge({ action: 'PIN_MESSAGE', channelId: activeTextChannelId, messageId: msgId });
+}
+
+function togglePinPanel() {
+    const panel = document.getElementById('pin-panel');
+    if (!panel) return;
+    const isOpen = panel.classList.toggle('open');
+    if (isOpen) renderPinPanel(activeTextChannelId);
+}
+
+function renderPinPanel(channelId) {
+    const panel = document.getElementById('pin-panel');
+    if (!panel) return;
+    const pins = pinnedMessages[channelId];
+    if (!pins || !pins.length) {
+        panel.innerHTML = '<div style="padding:10px 20px;color:#6d6f78;font-size:13px;">No pinned messages in this channel.</div>';
+        return;
+    }
+    panel.innerHTML = pins.map(m =>
+        `<div class="pin-entry">${avatarHtml(m.author, 'sz-32', true)}` +
+        `<div><div style="font-size:11px;color:#6d6f78;margin-bottom:2px;"><strong style="color:#dcddde;">${escapeHtml(m.author)}</strong> · ${escapeHtml(m.time||'')}</div>` +
+        `<div style="font-size:13px;color:#dcddde;">${renderMarkdown(m.message)}</div></div></div>`
+    ).join('');
+}
+
+function updatePinIndicator(channelId) {
+    const pins  = pinnedMessages[channelId] || [];
+    const btn   = document.getElementById('pin-indicator');
+    const badge = document.getElementById('pin-count-badge');
+    if (!btn) return;
+    btn.classList.toggle('visible', pins.length > 0);
+    if (badge) badge.textContent = pins.length;
+    if (!pins.length) document.getElementById('pin-panel')?.classList.remove('open');
+}
+
+// ── Soundboard ─────────────────────────────────────────────────────────────────
+function loadSoundboardClips() {
+    try { soundboardClips = JSON.parse(localStorage.getItem('iskra_soundboard') || '[]'); } catch { soundboardClips = []; }
+}
+
+function saveSoundboardClips() {
+    localStorage.setItem('iskra_soundboard', JSON.stringify(soundboardClips));
+}
+
+function toggleSoundboard() {
+    const panel = document.getElementById('soundboard-panel');
+    const btn   = document.getElementById('btn-soundboard');
+    if (!panel) return;
+    const isOpen = panel.classList.toggle('open');
+    btn?.classList.toggle('active', isOpen);
+    if (isOpen) renderSoundboard();
+}
+
+function renderSoundboard() {
+    const list     = document.getElementById('sb-clip-list');
+    const emptyLbl = document.getElementById('sb-empty-label');
+    if (!list) return;
+    list.innerHTML = '';
+    if (emptyLbl) emptyLbl.style.display = soundboardClips.length ? 'none' : 'block';
+    soundboardClips.forEach((clip, i) => {
+        const row = document.createElement('div');
+        row.className = 'sb-clip-row';
+        row.innerHTML =
+            `<button class="btn-primary" style="font-size:11px;padding:3px 10px;flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"` +
+            ` onclick="playSoundboardClip(${i})" title="${escapeHtml(clip.name)}">${escapeHtml(clip.name)}</button>` +
+            `<button class="msg-act-btn del" onclick="deleteSoundboardClip(${i})" title="Remove">🗑</button>`;
+        list.appendChild(row);
+    });
+}
+
+function deleteSoundboardClip(index) {
+    soundboardClips.splice(index, 1);
+    saveSoundboardClips();
+    renderSoundboard();
+}
+
+async function playSoundboardClip(index) {
+    const clip = soundboardClips[index];
+    if (!clip) return;
+    if (!audioCtx) { DevLog.log('ERR', 'audioCtx not ready'); return; }
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+    try {
+        const resp    = await fetch(clip.url);
+        const arrBuf  = await resp.arrayBuffer();
+        const audioBuf = await audioCtx.decodeAudioData(arrBuf);
+        const src = audioCtx.createBufferSource();
+        src.buffer = audioBuf;
+        if (destNode) src.connect(destNode);
+        src.connect(audioCtx.destination);
+        src.start();
+        DevLog.log('SB', `Playing "${clip.name}" → voice + local output`);
+    } catch (err) {
+        DevLog.log('ERR', `Soundboard play failed: ${err.message}`);
+    }
+}
+
+async function onSoundboardFileChange(e) {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!serverUploadBase) {
+        const reader = new FileReader();
+        reader.onload = ev => {
+            soundboardClips.push({ id: Date.now().toString(), name: file.name, url: ev.target.result });
+            saveSoundboardClips();
+            renderSoundboard();
+        };
+        reader.readAsDataURL(file);
+        return;
+    }
+    renderSystemMessage(`Uploading soundboard clip: ${file.name}…`);
+    try {
+        const resp = await fetch(`${serverUploadBase}/upload?name=${encodeURIComponent(file.name)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': file.type || 'application/octet-stream' },
+            body: file
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const { url } = await resp.json();
+        const fullUrl = `${serverUploadBase}${url}`;
+        soundboardClips.push({ id: Date.now().toString(), name: file.name, url: fullUrl });
+        saveSoundboardClips();
+        renderSoundboard();
+        DevLog.log('SB', `Clip "${file.name}" uploaded → ${fullUrl}`);
+    } catch (err) {
+        renderSystemMessage(`Soundboard upload failed: ${err.message}`);
+    }
+}
+
+// ── Video Calls ────────────────────────────────────────────────────────────────
+async function toggleVideo() {
+    if (localVideoStream) stopVideo(); else await startVideo();
+}
+
+async function startVideo() {
+    if (!currentChannelId) { DevLog.log('WARN', 'Not in a voice channel — cannot start video'); return; }
+    try {
+        localVideoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        const track = localVideoStream.getVideoTracks()[0];
+        for (const [alias, pc] of Object.entries(peers)) {
+            try { videoSenders[alias] = pc.addTrack(track, localVideoStream); } catch {}
+        }
+        addVideoTile('__local__', localVideoStream, true);
+        document.getElementById('btn-video')?.classList.add('active');
+        postToBridge({ action: 'VIDEO_STARTED' });
+        DevLog.log('RTC', `Local camera started | ${track.label}`);
+    } catch (err) {
+        DevLog.log('ERR', `startVideo failed: ${err.message}`);
+    }
+}
+
+function stopVideo() {
+    if (!localVideoStream) return;
+    localVideoStream.getTracks().forEach(t => t.stop());
+    localVideoStream = null;
+    for (const [alias, pc] of Object.entries(peers)) {
+        if (videoSenders[alias]) { try { pc.removeTrack(videoSenders[alias]); } catch {} }
+    }
+    videoSenders = {};
+    document.querySelector('.video-tile[data-alias="__local__"]')?.remove();
+    document.getElementById('btn-video')?.classList.remove('active');
+    const sp = document.getElementById('screen-share-panel');
+    if (sp && !sp.querySelector('.share-tile') && !sp.querySelector('.video-tile')) sp.classList.remove('active');
+    postToBridge({ action: 'VIDEO_STOPPED' });
+    DevLog.log('RTC', 'Local camera stopped');
+}
+
+function addVideoTile(alias, stream, isLocal = false) {
+    const panel = document.getElementById('screen-share-panel');
+    if (!panel) return;
+    document.querySelector(`.video-tile[data-alias="${alias}"]`)?.remove();
+    const tile = document.createElement('div');
+    tile.className = 'video-tile share-tile';
+    tile.dataset.alias = alias;
+    const label = isLocal ? (myAlias || 'You') + ' (camera)' : alias + ' (camera)';
+    const video = document.createElement('video');
+    video.autoplay = true;
+    video.playsInline = true;
+    if (isLocal) video.muted = true;
+    video.srcObject = stream;
+    video.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+    const lbl = document.createElement('div');
+    lbl.className = 'share-tile-label';
+    lbl.textContent = label;
+    tile.appendChild(video);
+    tile.appendChild(lbl);
+    tile.onclick = () => openShareOverlay(video, label);
+    panel.appendChild(tile);
+    panel.classList.add('active');
+}
+
 // ── Init ───────────────────────────────────────────────────────────────────────
 async function init() {
     loadSettings();
@@ -2809,6 +3272,10 @@ async function init() {
     }
     document.addEventListener('mousemove', _cropOnMouseMove);
     document.addEventListener('mouseup', _cropOnMouseUp);
+
+    loadSoundboardClips();
+    document.addEventListener('mousemove', _resetIdleTimer);
+    document.addEventListener('keydown',   _resetIdleTimer);
 
     try {
         await initAudio();

@@ -39,20 +39,24 @@ namespace Origin.Server.Core
         private static string BanFile         => Path.Combine(ActiveWorldPath, "bans.json");
         private static string UploadDir       => Path.Combine(ActiveWorldPath, "uploads");
         private static ConcurrentDictionary<string, DateTime> _lastMsgTime = new(); // "channelId:alias" → last send time
+        private static ConcurrentDictionary<string, string> UserStatuses  = new(); // alias → "online"/"away"/"dnd"/"invisible"
 
         // In-memory message store — channelId → ordered list of live messages
         private static ConcurrentDictionary<string, List<StoredMessage>> ChannelHistory = new();
         private static readonly object HistoryLock = new();
 
         private static readonly HashSet<string> AllowedUploadExts = new(StringComparer.OrdinalIgnoreCase)
-            { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".zip", ".7z" };
+            { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".zip", ".7z", ".mp3", ".wav", ".ogg", ".webm" };
         private static readonly HashSet<string> ImageExts = new(StringComparer.OrdinalIgnoreCase)
             { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+        private static readonly HashSet<string> AudioExts = new(StringComparer.OrdinalIgnoreCase)
+            { ".mp3", ".wav", ".ogg", ".webm" };
         private static readonly Dictionary<string, string> MimeTypes = new(StringComparer.OrdinalIgnoreCase)
         {
             { ".jpg",  "image/jpeg" }, { ".jpeg", "image/jpeg" }, { ".png",  "image/png"  },
             { ".gif",  "image/gif"  }, { ".webp", "image/webp" },
-            { ".zip",  "application/zip" }, { ".7z", "application/x-7z-compressed" }
+            { ".zip",  "application/zip" }, { ".7z", "application/x-7z-compressed" },
+            { ".mp3",  "audio/mpeg" },  { ".wav", "audio/wav" }, { ".ogg", "audio/ogg" }, { ".webm", "audio/webm" }
         };
 
         static async Task Main(string[] args)
@@ -166,7 +170,8 @@ namespace Origin.Server.Core
                 author    = m.Author,
                 time      = m.Time,
                 ts        = m.Ts,
-                message   = m.Message
+                message   = m.Message,
+                reactions = m.Reactions
             });
 
         private static void LoadChannelHistory()
@@ -185,11 +190,14 @@ namespace Origin.Server.Core
                             var root = doc.RootElement;
                             if (!root.TryGetProperty("message", out _)) continue;
                             msgs.Add(new StoredMessage {
-                                Id      = root.TryGetProperty("id",     out var idEl)  ? idEl.GetString()  : null,
-                                Author  = root.TryGetProperty("author", out var aEl)   ? aEl.GetString()   : "?",
-                                Time    = root.TryGetProperty("time",   out var tEl)   ? tEl.GetString()   : "",
-                                Ts      = root.TryGetProperty("ts",     out var tsEl)  ? tsEl.GetInt64()   : 0,
-                                Message = root.TryGetProperty("message",out var mEl)   ? mEl.GetString()   : "",
+                                Id        = root.TryGetProperty("id",        out var idEl)  ? idEl.GetString()  : null,
+                                Author    = root.TryGetProperty("author",    out var aEl)   ? aEl.GetString()   : "?",
+                                Time      = root.TryGetProperty("time",      out var tEl)   ? tEl.GetString()   : "",
+                                Ts        = root.TryGetProperty("ts",        out var tsEl)  ? tsEl.GetInt64()   : 0,
+                                Message   = root.TryGetProperty("message",   out var mEl)   ? mEl.GetString()   : "",
+                                Reactions = root.TryGetProperty("reactions", out var rEl) && rEl.ValueKind == JsonValueKind.Object
+                                    ? JsonSerializer.Deserialize<Dictionary<string, List<string>>>(rEl.GetRawText()) ?? new()
+                                    : new()
                             });
                         }
                         catch { }
@@ -311,7 +319,7 @@ namespace Origin.Server.Core
                     { ctx.Response.StatusCode = 404; ctx.Response.Close(); return; }
                 string ext = Path.GetExtension(filename).ToLowerInvariant();
                 ctx.Response.ContentType = MimeTypes.GetValueOrDefault(ext, "application/octet-stream");
-                bool isImage = ImageExts.Contains(ext);
+                bool isImage = ImageExts.Contains(ext) || AudioExts.Contains(ext);
                 ctx.Response.AddHeader("Content-Disposition", isImage ? "inline" : $"attachment; filename=\"{filename}\"");
                 ctx.Response.AddHeader("Cache-Control", "max-age=86400");
                 byte[] bytes = await File.ReadAllBytesAsync(filePath);
@@ -544,7 +552,9 @@ namespace Origin.Server.Core
                 }
 
                 ActiveClients[currentAlias] = socket;
+                UserStatuses[currentAlias] = "online";
                 Log("AUTH", $"'{currentAlias}' authenticated | role:{userRole} | total:{ActiveClients.Count}");
+                await Broadcast(new { action = "STATUS_UPDATED", alias = currentAlias, status = "online" });
 
                 // ── SERVER_INFO ──────────────────────────────────────────────────
                 var iceServers = new List<object> { new { urls = new[] { "stun:stun.l.google.com:19302" } } };
@@ -560,12 +570,15 @@ namespace Origin.Server.Core
                 }
                 Dictionary<string, string> avatarsCopy;
                 lock (AvatarLock) avatarsCopy = new(UserAvatars);
+                var statusesCopy = new Dictionary<string, string>();
+                foreach (var kv in UserStatuses) if (kv.Value != "invisible") statusesCopy[kv.Key] = kv.Value;
                 await Send(socket, new {
-                    action      = "SERVER_INFO",
-                    name        = ActiveConfig.Settings.ServerName,
-                    serverIcon  = ActiveConfig.Settings.ServerIcon ?? "",
-                    userAvatars = avatarsCopy,
-                    channels    = ActiveConfig.Channels
+                    action       = "SERVER_INFO",
+                    name         = ActiveConfig.Settings.ServerName,
+                    serverIcon   = ActiveConfig.Settings.ServerIcon ?? "",
+                    userAvatars  = avatarsCopy,
+                    userStatuses = statusesCopy,
+                    channels     = ActiveConfig.Channels
                         .Where(c => c.Type == "Header" || CanAccess(userRole, c.MinRole))
                         .Select(c => new { id = c.Id, name = c.Name, type = c.Type, readOnly = c.ReadOnly, muted = c.Muted, slowMode = c.SlowMode }),
                     iceServers
@@ -583,6 +596,21 @@ namespace Origin.Server.Core
                         var line = Encoding.UTF8.GetBytes(MessageToJsonLine(ch.Id, m));
                         await socket.SendAsync(new ArraySegment<byte>(line), WebSocketMessageType.Text, true, CancellationToken.None);
                     }
+                }
+
+                // ── Pinned messages ───────────────────────────────────────────────
+                foreach (var ch in ActiveConfig.Channels.Where(c => c.Type == "Text" && c.PinnedMessageIds?.Count > 0))
+                {
+                    var pinMsgs = new List<object>();
+                    lock (HistoryLock)
+                        if (ChannelHistory.TryGetValue(ch.Id, out var pMsgs))
+                            foreach (var pid in ch.PinnedMessageIds)
+                            {
+                                var pm = pMsgs.FirstOrDefault(x => x.Id == pid);
+                                if (pm != null) pinMsgs.Add(new { id = pm.Id, author = pm.Author, time = pm.Time, message = pm.Message });
+                            }
+                    if (pinMsgs.Count > 0)
+                        await Send(socket, new { action = "PINS_UPDATED", channelId = ch.Id, pins = pinMsgs });
                 }
 
                 // ── Message loop ─────────────────────────────────────────────────
@@ -879,6 +907,98 @@ namespace Origin.Server.Core
                             await socket.SendAsync(new ArraySegment<byte>(stateBytes), WebSocketMessageType.Text, true, CancellationToken.None);
                         }
                     }
+
+                    // ── SET_STATUS ───────────────────────────────────────────────
+                    else if (action == "SET_STATUS")
+                    {
+                        string status = incoming.RootElement.TryGetProperty("status", out JsonElement stEl) ? stEl.GetString() ?? "online" : "online";
+                        string[] validStatuses = { "online", "away", "dnd", "invisible" };
+                        if (validStatuses.Contains(status))
+                        {
+                            UserStatuses[currentAlias] = status;
+                            string broadcastStatus = status == "invisible" ? "offline" : status;
+                            await Broadcast(new { action = "STATUS_UPDATED", alias = currentAlias, status = broadcastStatus });
+                            Log("STATUS", $"'{currentAlias}' → {status}");
+                        }
+                    }
+
+                    // ── ADD_REACTION ─────────────────────────────────────────────
+                    else if (action == "ADD_REACTION")
+                    {
+                        string channelId = incoming.RootElement.GetProperty("channelId").GetString();
+                        string messageId = incoming.RootElement.GetProperty("messageId").GetString();
+                        string emoji     = incoming.RootElement.GetProperty("emoji").GetString();
+                        if (string.IsNullOrEmpty(emoji) || emoji.Length > 8) continue;
+
+                        var reactCh = ActiveConfig.Channels.FirstOrDefault(c => c.Id == channelId);
+                        if (reactCh == null || !CanAccess(userRole, reactCh.MinRole)) continue;
+
+                        StoredMessage reactTarget = null;
+                        lock (HistoryLock)
+                            if (ChannelHistory.TryGetValue(channelId, out var rMsgs))
+                                reactTarget = rMsgs.FirstOrDefault(m => m.Id == messageId);
+                        if (reactTarget == null) continue;
+
+                        Dictionary<string, List<string>> reactions;
+                        lock (HistoryLock)
+                        {
+                            if (reactTarget.Reactions == null) reactTarget.Reactions = new();
+                            if (!reactTarget.Reactions.ContainsKey(emoji)) reactTarget.Reactions[emoji] = new List<string>();
+                            if (reactTarget.Reactions[emoji].Contains(currentAlias))
+                            {
+                                reactTarget.Reactions[emoji].Remove(currentAlias);
+                                if (reactTarget.Reactions[emoji].Count == 0) reactTarget.Reactions.Remove(emoji);
+                            }
+                            else reactTarget.Reactions[emoji].Add(currentAlias);
+                            reactions = reactTarget.Reactions.ToDictionary(kv => kv.Key, kv => kv.Value.ToList());
+                        }
+                        _ = Task.Run(() => RewriteChannelHistory(channelId));
+                        await Broadcast(new { action = "REACTION_UPDATED", channelId, messageId, reactions });
+                        Log("REACT", $"[{channelId}] {currentAlias} reacted {emoji} on {messageId}");
+                    }
+
+                    // ── PIN_MESSAGE ──────────────────────────────────────────────
+                    else if (action == "PIN_MESSAGE")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin"))
+                        { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Only admins can pin messages." }); continue; }
+
+                        string channelId = incoming.RootElement.GetProperty("channelId").GetString();
+                        string messageId = incoming.RootElement.GetProperty("messageId").GetString();
+                        var pinCh = ActiveConfig.Channels.FirstOrDefault(c => c.Id == channelId);
+                        if (pinCh == null) continue;
+
+                        if (pinCh.PinnedMessageIds == null) pinCh.PinnedMessageIds = new List<string>();
+                        bool pinning = !pinCh.PinnedMessageIds.Contains(messageId);
+                        if (pinning) pinCh.PinnedMessageIds.Add(messageId);
+                        else pinCh.PinnedMessageIds.Remove(messageId);
+
+                        File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true }));
+
+                        var pinMsgs2 = new List<object>();
+                        lock (HistoryLock)
+                            if (ChannelHistory.TryGetValue(channelId, out var pMsgs2))
+                                foreach (var pid in pinCh.PinnedMessageIds)
+                                { var pm = pMsgs2.FirstOrDefault(x => x.Id == pid); if (pm != null) pinMsgs2.Add(new { id = pm.Id, author = pm.Author, time = pm.Time, message = pm.Message }); }
+
+                        await Broadcast(new { action = "PINS_UPDATED", channelId, pins = pinMsgs2 });
+                        await BroadcastSystemMessage($"{currentAlias} {(pinning ? "pinned" : "unpinned")} a message in #{pinCh.Name}.");
+                        Log("ADMIN", $"'{currentAlias}' {(pinning ? "pinned" : "unpinned")} {messageId} in #{pinCh.Name}");
+                    }
+
+                    // ── VIDEO_STARTED ────────────────────────────────────────────
+                    else if (action == "VIDEO_STARTED")
+                    {
+                        Log("VOICE", $"'{currentAlias}' started camera in '{currentVoiceChannel}'");
+                        await Broadcast(new { action = "VIDEO_STARTED", alias = currentAlias, channelId = currentVoiceChannel });
+                    }
+
+                    // ── VIDEO_STOPPED ────────────────────────────────────────────
+                    else if (action == "VIDEO_STOPPED")
+                    {
+                        Log("VOICE", $"'{currentAlias}' stopped camera");
+                        await Broadcast(new { action = "VIDEO_STOPPED", alias = currentAlias });
+                    }
                 }
             }
             catch (Exception ex) { Log("ERROR", $"Session for '{currentAlias}' faulted: {ex.Message}"); }
@@ -886,7 +1006,9 @@ namespace Origin.Server.Core
             {
                 ActiveClients.TryRemove(currentAlias, out _);
                 ClientGuids.TryRemove(currentAlias, out _);
+                UserStatuses.TryRemove(currentAlias, out _);
                 Log("NET", $"Connection closed for '{currentAlias}' | remaining:{ActiveClients.Count}");
+                try { await Broadcast(new { action = "STATUS_UPDATED", alias = currentAlias, status = "offline" }); } catch { }
 
                 if (currentVoiceChannel != null && ChannelOccupants.TryGetValue(currentVoiceChannel, out var users))
                 {
@@ -932,22 +1054,24 @@ namespace Origin.Server.Data
 
     public class Channel
     {
-        public string Id       { get; set; }
-        public string Name     { get; set; }
-        public string Type     { get; set; }
-        public string MinRole  { get; set; } = "guest";
-        public bool   ReadOnly { get; set; } = false;
-        public bool   Muted    { get; set; } = false;
-        public int    SlowMode { get; set; } = 0;
+        public string Id               { get; set; }
+        public string Name             { get; set; }
+        public string Type             { get; set; }
+        public string MinRole          { get; set; } = "guest";
+        public bool   ReadOnly         { get; set; } = false;
+        public bool   Muted            { get; set; } = false;
+        public int    SlowMode         { get; set; } = 0;
+        public List<string> PinnedMessageIds { get; set; } = new();
     }
 
     public class StoredMessage
     {
-        public string Id      { get; set; }
-        public string Author  { get; set; }
-        public string Time    { get; set; }
-        public long   Ts      { get; set; }
-        public string Message { get; set; }
+        public string Id        { get; set; }
+        public string Author    { get; set; }
+        public string Time      { get; set; }
+        public long   Ts        { get; set; }
+        public string Message   { get; set; }
+        public Dictionary<string, List<string>> Reactions { get; set; } = new();
     }
 
     public class FingerprintRecord
