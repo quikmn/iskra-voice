@@ -1501,7 +1501,7 @@ function playSound(name) {
     const s = _sounds[name];
     if (!s) return;
     const clone = s.cloneNode();  // allow overlapping playback
-    clone.volume = 0.6;
+    clone.volume = 0.24;
     clone.play().catch(() => {});
 }
 
