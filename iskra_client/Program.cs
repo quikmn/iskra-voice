@@ -29,6 +29,8 @@ namespace Origin.Client.Core
         private bool   _isPttMode    = false;
         private bool   _pttWasDown   = false;
         private System.Threading.Timer _pttPollTimer;
+        private NotifyIcon _trayIcon;
+        private bool _isQuitting = false;
 
         // ── WebSocket + UI ──────────────────────────────────────────────────────
         private WebView2 webView;
@@ -52,6 +54,24 @@ namespace Origin.Client.Core
             webView      = new WebView2();
             webView.Dock = DockStyle.Fill;
             this.Controls.Add(webView);
+
+            InitializeTray();
+        }
+
+        private void InitializeTray()
+        {
+            _trayIcon = new NotifyIcon
+            {
+                Icon    = SystemIcons.Application,
+                Text    = "Iskra",
+                Visible = true
+            };
+            var menu = new ContextMenuStrip();
+            menu.Items.Add("Open",  null, (s, e) => { Show(); WindowState = FormWindowState.Normal; Activate(); });
+            menu.Items.Add(new ToolStripSeparator());
+            menu.Items.Add("Quit",  null, (s, e) => { _isQuitting = true; Application.Exit(); });
+            _trayIcon.ContextMenuStrip = menu;
+            _trayIcon.DoubleClick += (s, e) => { Show(); WindowState = FormWindowState.Normal; Activate(); };
         }
 
         private async void InitializeWebView()
@@ -219,6 +239,19 @@ namespace Origin.Client.Core
                 using var doc = JsonDocument.Parse(json);
                 string action = doc.RootElement.GetProperty("action").GetString();
 
+                if (action == "NOTIFY")
+                {
+                    var title = doc.RootElement.TryGetProperty("title", out var tEl) ? tEl.GetString() ?? "" : "";
+                    var body  = doc.RootElement.TryGetProperty("body",  out var bEl) ? bEl.GetString()  ?? "" : "";
+                    try { this.Invoke((MethodInvoker)(() => _trayIcon?.ShowBalloonTip(4000, title, body, ToolTipIcon.None))); } catch { }
+                    return;
+                }
+                if (action == "QUIT")
+                {
+                    _isQuitting = true;
+                    try { this.Invoke((MethodInvoker)(() => Application.Exit())); } catch { }
+                    return;
+                }
                 if (action == "CONNECT")
                 {
                     var host          = doc.RootElement.GetProperty("host").GetString();
@@ -268,9 +301,20 @@ namespace Origin.Client.Core
             return base.ProcessCmdKey(ref msg, keyData);
         }
 
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            if (!_isQuitting)
+            {
+                e.Cancel = true;
+                Hide();
+            }
+            base.OnFormClosing(e);
+        }
+
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
             _pttPollTimer?.Dispose();
+            _trayIcon?.Dispose();
             base.OnFormClosed(e);
         }
 

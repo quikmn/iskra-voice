@@ -38,6 +38,7 @@ namespace Origin.Server.Core
         private static string FingerprintFile => Path.Combine(ActiveWorldPath, "fingerprints.json");
         private static string BanFile         => Path.Combine(ActiveWorldPath, "bans.json");
         private static string UploadDir       => Path.Combine(ActiveWorldPath, "uploads");
+        private static ConcurrentDictionary<string, DateTime> _lastMsgTime = new(); // "channelId:alias" → last send time
 
         // In-memory message store — channelId → ordered list of live messages
         private static ConcurrentDictionary<string, List<StoredMessage>> ChannelHistory = new();
@@ -566,7 +567,7 @@ namespace Origin.Server.Core
                     userAvatars = avatarsCopy,
                     channels    = ActiveConfig.Channels
                         .Where(c => c.Type == "Header" || CanAccess(userRole, c.MinRole))
-                        .Select(c => new { id = c.Id, name = c.Name, type = c.Type, readOnly = c.ReadOnly, muted = c.Muted }),
+                        .Select(c => new { id = c.Id, name = c.Name, type = c.Type, readOnly = c.ReadOnly, muted = c.Muted, slowMode = c.SlowMode }),
                     iceServers
                 });
 
@@ -654,10 +655,39 @@ namespace Origin.Server.Core
                                         await Send(tSock, new { action = "ROLE_GRANTED", role = newRole });
                                 }
                             }
+                            else if (cmd == "/slowmode" && parts.Length >= 2)
+                            {
+                                if (int.TryParse(parts[1], out int secs) && secs >= 0)
+                                {
+                                    string targetId = parts.Length >= 3 ? parts[2] : channelId;
+                                    var tCh = ActiveConfig.Channels.FirstOrDefault(c => c.Id == targetId);
+                                    if (tCh != null)
+                                    {
+                                        tCh.SlowMode = secs;
+                                        File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true }));
+                                        Log("ADMIN", $"'{currentAlias}' set slow mode on #{tCh.Name} to {secs}s");
+                                        await BroadcastSystemMessage($"#{tCh.Name} slow mode: {(secs == 0 ? "off" : $"{secs}s")}");
+                                        await Broadcast(new { action = "SLOW_MODE_UPDATED", channelId = targetId, seconds = secs });
+                                    }
+                                    else await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Channel not found." });
+                                }
+                                else await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Usage: /slowmode <seconds> [channelId]" });
+                            }
                             else await Send(socket, new { action = "SYSTEM_MESSAGE", message = $"Unknown command: {cmd}" });
                         }
                         else
                         {
+                            if (chatCh != null && chatCh.SlowMode > 0 && RoleRank(userRole) < RoleRank("admin"))
+                            {
+                                string smKey = $"{channelId}:{currentAlias}";
+                                if (_lastMsgTime.TryGetValue(smKey, out DateTime last) && (DateTime.UtcNow - last).TotalSeconds < chatCh.SlowMode)
+                                {
+                                    int retryAfter = (int)Math.Ceiling(chatCh.SlowMode - (DateTime.UtcNow - last).TotalSeconds);
+                                    await Send(socket, new { action = "RATE_LIMITED", retryAfter });
+                                    continue;
+                                }
+                                _lastMsgTime[smKey] = DateTime.UtcNow;
+                            }
                             string msgId = Guid.NewGuid().ToString("N")[..12];
                             var stored = new StoredMessage {
                                 Id      = msgId,
@@ -908,6 +938,7 @@ namespace Origin.Server.Data
         public string MinRole  { get; set; } = "guest";
         public bool   ReadOnly { get; set; } = false;
         public bool   Muted    { get; set; } = false;
+        public int    SlowMode { get; set; } = 0;
     }
 
     public class StoredMessage

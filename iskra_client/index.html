@@ -256,6 +256,11 @@
         .msg-file { color: #5865f2; text-decoration: none; font-size: 13px; display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; background: #2b2d31; border-radius: 5px; margin-top: 4px; border: 1px solid #3a3c42; }
         .msg-file:hover { background: #3f4147; border-color: #5865f2; }
 
+        /* ── Slow mode bar ── */
+        #slowmode-bar { font-size: 11px; color: #6d6f78; padding: 4px 12px 0; display: none; }
+        #slowmode-bar.active { display: block; }
+        #slowmode-bar.limited { color: #ed4245; }
+
         /* ── Input area ── */
         #input-area { padding: 0 20px 16px; }
         .input-row { display: flex; align-items: center; gap: 8px; background: #383a40; border-radius: 8px; padding: 4px 4px 4px 8px; }
@@ -376,6 +381,7 @@
     <div id="screen-share-panel"></div>
     <div id="chat-history"></div>
     <div id="input-area">
+        <div id="slowmode-bar"></div>
         <div class="input-row">
             <button class="attach-btn" onclick="document.getElementById('file-input').click()" title="Attach file (or paste / drag & drop)">📎</button>
             <input type="text" id="chat-input" class="input-box" placeholder="Message #general-chat" onkeypress="sendChat(event)">
@@ -1070,6 +1076,9 @@ let serverChannels     = [];     // channels received from SERVER_INFO
 let activeTextChannelId = null;
 let channelMessages    = {};     // channelId → [{author, time, message}]
 let voiceChannelUsers  = {};     // channelId → [alias, ...]  — authoritative from server
+let channelSlowMode   = {};     // channelId → seconds (0 = off)
+let lastSendTime      = {};     // channelId → Date.now() of last send
+let _slowTimer        = null;
 
 // ── Channel List Rendering ────────────────────────────────────────────────────
 function renderChannelList() {
@@ -1151,6 +1160,10 @@ function selectTextChannel(id) {
     h.innerHTML = '';
     (channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited));
     renderChannelList();
+    clearTimeout(_slowTimer);
+    if (document.getElementById('chat-input')) document.getElementById('chat-input').disabled = false;
+    const sm = channelSlowMode[id] || 0;
+    _slowBarShow(sm > 0 ? `🐌 Slow mode · ${sm}s cooldown` : null, false);
     DevLog.log('BRIDGE', `Text channel selected: "${ch?.name || id}" | ${(channelMessages[id]||[]).length} msg(s)${ch?.readOnly ? ' [readonly]' : ''}`);
 }
 
@@ -1995,10 +2008,42 @@ function joinVoice(id) {
 }
 
 function sendChat(e) {
-    if (e.key === 'Enter' && e.target.value) {
-        postToBridge({ action: 'SEND_CHAT', channelId: activeTextChannelId, message: e.target.value });
-        e.target.value = '';
+    if (e.key !== 'Enter' || !e.target.value.trim()) return;
+    const sm = channelSlowMode[activeTextChannelId] || 0;
+    if (sm > 0) {
+        const elapsed = (Date.now() - (lastSendTime[activeTextChannelId] || 0)) / 1000;
+        if (elapsed < sm) { _slowCountdown(Math.ceil(sm - elapsed)); return; }
     }
+    postToBridge({ action: 'SEND_CHAT', channelId: activeTextChannelId, message: e.target.value.trim() });
+    e.target.value = '';
+    if (sm > 0) { lastSendTime[activeTextChannelId] = Date.now(); _slowCountdown(sm); }
+}
+
+function _slowBarShow(msg, limited) {
+    const bar = document.getElementById('slowmode-bar');
+    if (!bar) return;
+    if (!msg) { bar.className = ''; bar.textContent = ''; return; }
+    bar.textContent = msg;
+    bar.className   = 'active' + (limited ? ' limited' : '');
+}
+
+function _slowCountdown(secs) {
+    clearTimeout(_slowTimer);
+    const input = document.getElementById('chat-input');
+    if (input) input.disabled = true;
+    let rem = Math.ceil(secs);
+    const tick = () => {
+        if (rem <= 0) {
+            if (input) { input.disabled = false; input.focus(); }
+            const sm = channelSlowMode[activeTextChannelId] || 0;
+            _slowBarShow(sm > 0 ? `🐌 Slow mode · ${sm}s cooldown` : null, false);
+            return;
+        }
+        _slowBarShow(`⏱ Slow down — wait ${rem}s`, true);
+        rem--;
+        _slowTimer = setTimeout(tick, 1000);
+    };
+    tick();
 }
 
 const _uploadUrlRe = /^https?:\/\/\S+\/uploads\/[a-f0-9]{16}\.[a-z0-9]+$/i;
@@ -2378,8 +2423,22 @@ window.chrome.webview.addEventListener('message', async (e) => {
             } else if (isMention) {
                 playSound('mention');
             }
+            if (data.author !== myAlias && !document.hasFocus()) {
+                const chName = serverChannels.find(c => c.id === chId)?.name || chId || '';
+                postToBridge({ action: 'NOTIFY',
+                    title: isMention ? `${data.author} mentioned you` : `#${chName}`,
+                    body:  (data.message || '').slice(0, 120) });
+            }
         }
         if (!chId || chId === activeTextChannelId) renderChatMessage(data.id, data.author, data.time, data.message, false);
+
+    } else if (data.action === 'RATE_LIMITED') {
+        _slowCountdown(data.retryAfter || 1);
+
+    } else if (data.action === 'SLOW_MODE_UPDATED') {
+        channelSlowMode[data.channelId] = data.seconds;
+        if (data.channelId === activeTextChannelId)
+            _slowBarShow(data.seconds > 0 ? `🐌 Slow mode · ${data.seconds}s cooldown` : null, false);
 
     } else if (data.action === 'MESSAGE_EDITED') {
         DevLog.log('BRIDGE', `← C# | MESSAGE_EDITED ch:${data.channelId} id:${data.messageId}`);
@@ -2410,6 +2469,8 @@ window.chrome.webview.addEventListener('message', async (e) => {
         if (data.userAvatars && typeof data.userAvatars === 'object')
             Object.assign(userAvatars, data.userAvatars);
         serverChannels = data.channels;
+        channelSlowMode = {};
+        data.channels.forEach(c => { if (c.slowMode) channelSlowMode[c.id] = c.slowMode; });
         const firstText = serverChannels.find(c => c.type === 'Text');
         if (firstText) selectTextChannel(firstText.id);
         updateMyAvatar();
