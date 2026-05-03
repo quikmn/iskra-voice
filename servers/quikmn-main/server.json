@@ -4,44 +4,264 @@
     "Port": 8080,
     "RequirePassword": true,
     "ServerPassword": "change_me",
+    "AdminPassword": "kuken420",
     "AdminEmail": "",
-    "AdminPassword": "",
-    "TurnUrls": ["turn:turn01.ams.iskra.foo:3478", "turns:turn01.ams.iskra.foo:5349"],
+    "TurnUrls": [
+      "turn:turn01.ams.iskra.foo:3478",
+      "turns:turn01.ams.iskra.foo:5349"
+    ],
     "TurnUsername": "iskra",
     "TurnCredential": "ee32a9bc-55f9-4393-adcc-f82c3381b15c",
     "HistoryRetentionDays": 60,
-    "MaxUploadMb": 25
+    "MaxUploadMb": 2500,
+    "ServerIcon": "http://localhost:8080/uploads/435c956467a2f9c6.webp",
+    "BotTokens": [],
+    "Webhooks": []
   },
   "Channels": [
-    { "Id": "hdr_info",    "Name": "Information",           "Type": "Header" },
-    { "Id": "t_announce",  "Name": "announcements",         "Type": "Text",  "ReadOnly": true  },
-    { "Id": "t_rules",     "Name": "rules",                 "Type": "Text",  "ReadOnly": true  },
-    { "Id": "t_changelog", "Name": "changelog",             "Type": "Text",  "ReadOnly": true  },
-
-    { "Id": "hdr_sep1",    "Name": "────────────────────",  "Type": "Header" },
-
-    { "Id": "hdr_general", "Name": "General",               "Type": "Header" },
-    { "Id": "v_lobby",     "Name": "Lobby",                 "Type": "Voice"  },
-    { "Id": "v_hangout",   "Name": "Hangout",               "Type": "Voice"  },
-    { "Id": "v_afk",       "Name": "AFK",                   "Type": "Voice",  "Muted": true     },
-    { "Id": "t_general",   "Name": "general",               "Type": "Text"   },
-    { "Id": "t_memes",     "Name": "memes",                 "Type": "Text"   },
-    { "Id": "t_media",     "Name": "media",                 "Type": "Text"   },
-
-    { "Id": "hdr_sep2",    "Name": "────────────────────",  "Type": "Header" },
-
-    { "Id": "hdr_gaming",  "Name": "Gaming",                "Type": "Header" },
-    { "Id": "v_squad1",    "Name": "Squad 1",               "Type": "Voice"  },
-    { "Id": "v_squad2",    "Name": "Squad 2",               "Type": "Voice"  },
-    { "Id": "v_squad3",    "Name": "Squad 3",               "Type": "Voice"  },
-    { "Id": "t_lfg",       "Name": "looking-for-group",     "Type": "Text"   },
-    { "Id": "t_gametalk",  "Name": "game-talk",             "Type": "Text"   },
-    { "Id": "t_clips",     "Name": "clips",                 "Type": "Text"   },
-
-    { "Id": "hdr_sep3",    "Name": "────────────────────",  "Type": "Header" },
-
-    { "Id": "hdr_priv",    "Name": "Private",               "Type": "Header" },
-    { "Id": "v_priv",      "Name": "Private VC",            "Type": "Voice",  "MinRole": "trusted" },
-    { "Id": "t_priv",      "Name": "private",               "Type": "Text",   "MinRole": "trusted" }
+    {
+      "Id": "hdr_info",
+      "Name": "Information",
+      "Type": "Header",
+      "MinRole": "guest",
+      "ReadOnly": false,
+      "Muted": false,
+      "SlowMode": 0,
+      "PinnedMessageIds": []
+    },
+    {
+      "Id": "t_announce",
+      "Name": "announcements",
+      "Type": "Text",
+      "MinRole": "guest",
+      "ReadOnly": true,
+      "Muted": false,
+      "SlowMode": 0,
+      "PinnedMessageIds": [
+        "81ad13ab9b9e"
+      ]
+    },
+    {
+      "Id": "t_rules",
+      "Name": "rules",
+      "Type": "Text",
+      "MinRole": "guest",
+      "ReadOnly": true,
+      "Muted": false,
+      "SlowMode": 0,
+      "PinnedMessageIds": [
+        "147b6ec684cc"
+      ]
+    },
+    {
+      "Id": "t_changelog",
+      "Name": "changelog",
+      "Type": "Text",
+      "MinRole": "guest",
+      "ReadOnly": true,
+      "Muted": false,
+      "SlowMode": 0,
+      "PinnedMessageIds": []
+    },
+    {
+      "Id": "hdr_sep1",
+      "Name": "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
+      "Type": "Header",
+      "MinRole": "guest",
+      "ReadOnly": false,
+      "Muted": false,
+      "SlowMode": 0,
+      "PinnedMessageIds": []
+    },
+    {
+      "Id": "hdr_general",
+      "Name": "General",
+      "Type": "Header",
+      "MinRole": "guest",
+      "ReadOnly": false,
+      "Muted": false,
+      "SlowMode": 0,
+      "PinnedMessageIds": []
+    },
+    {
+      "Id": "v_lobby",
+      "Name": "Lobby",
+      "Type": "Voice",
+      "MinRole": "guest",
+      "ReadOnly": false,
+      "Muted": false,
+      "SlowMode": 0,
+      "PinnedMessageIds": []
+    },
+    {
+      "Id": "v_hangout",
+      "Name": "Hangout",
+      "Type": "Voice",
+      "MinRole": "guest",
+      "ReadOnly": false,
+      "Muted": false,
+      "SlowMode": 0,
+      "PinnedMessageIds": []
+    },
+    {
+      "Id": "v_afk",
+      "Name": "AFK",
+      "Type": "Voice",
+      "MinRole": "guest",
+      "ReadOnly": false,
+      "Muted": true,
+      "SlowMode": 0,
+      "PinnedMessageIds": []
+    },
+    {
+      "Id": "t_general",
+      "Name": "general",
+      "Type": "Text",
+      "MinRole": "guest",
+      "ReadOnly": false,
+      "Muted": false,
+      "SlowMode": 0,
+      "PinnedMessageIds": []
+    },
+    {
+      "Id": "t_memes",
+      "Name": "memes",
+      "Type": "Text",
+      "MinRole": "guest",
+      "ReadOnly": false,
+      "Muted": false,
+      "SlowMode": 0,
+      "PinnedMessageIds": []
+    },
+    {
+      "Id": "t_media",
+      "Name": "media",
+      "Type": "Text",
+      "MinRole": "guest",
+      "ReadOnly": false,
+      "Muted": false,
+      "SlowMode": 0,
+      "PinnedMessageIds": []
+    },
+    {
+      "Id": "hdr_sep2",
+      "Name": "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
+      "Type": "Header",
+      "MinRole": "guest",
+      "ReadOnly": false,
+      "Muted": false,
+      "SlowMode": 0,
+      "PinnedMessageIds": []
+    },
+    {
+      "Id": "hdr_gaming",
+      "Name": "Gaming",
+      "Type": "Header",
+      "MinRole": "guest",
+      "ReadOnly": false,
+      "Muted": false,
+      "SlowMode": 0,
+      "PinnedMessageIds": []
+    },
+    {
+      "Id": "v_squad1",
+      "Name": "Squad 1",
+      "Type": "Voice",
+      "MinRole": "guest",
+      "ReadOnly": false,
+      "Muted": false,
+      "SlowMode": 0,
+      "PinnedMessageIds": []
+    },
+    {
+      "Id": "v_squad2",
+      "Name": "Squad 2",
+      "Type": "Voice",
+      "MinRole": "guest",
+      "ReadOnly": false,
+      "Muted": false,
+      "SlowMode": 0,
+      "PinnedMessageIds": []
+    },
+    {
+      "Id": "v_squad3",
+      "Name": "Squad 3",
+      "Type": "Voice",
+      "MinRole": "guest",
+      "ReadOnly": false,
+      "Muted": false,
+      "SlowMode": 0,
+      "PinnedMessageIds": []
+    },
+    {
+      "Id": "t_lfg",
+      "Name": "looking-for-group",
+      "Type": "Text",
+      "MinRole": "guest",
+      "ReadOnly": false,
+      "Muted": false,
+      "SlowMode": 0,
+      "PinnedMessageIds": []
+    },
+    {
+      "Id": "t_gametalk",
+      "Name": "game-talk",
+      "Type": "Text",
+      "MinRole": "guest",
+      "ReadOnly": false,
+      "Muted": false,
+      "SlowMode": 0,
+      "PinnedMessageIds": []
+    },
+    {
+      "Id": "t_clips",
+      "Name": "clips",
+      "Type": "Text",
+      "MinRole": "guest",
+      "ReadOnly": false,
+      "Muted": false,
+      "SlowMode": 0,
+      "PinnedMessageIds": []
+    },
+    {
+      "Id": "hdr_sep3",
+      "Name": "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
+      "Type": "Header",
+      "MinRole": "guest",
+      "ReadOnly": false,
+      "Muted": false,
+      "SlowMode": 0,
+      "PinnedMessageIds": []
+    },
+    {
+      "Id": "hdr_priv",
+      "Name": "Private",
+      "Type": "Header",
+      "MinRole": "guest",
+      "ReadOnly": false,
+      "Muted": false,
+      "SlowMode": 0,
+      "PinnedMessageIds": []
+    },
+    {
+      "Id": "v_priv",
+      "Name": "Private VC",
+      "Type": "Voice",
+      "MinRole": "trusted",
+      "ReadOnly": false,
+      "Muted": false,
+      "SlowMode": 0,
+      "PinnedMessageIds": []
+    },
+    {
+      "Id": "t_priv",
+      "Name": "private",
+      "Type": "Text",
+      "MinRole": "trusted",
+      "ReadOnly": false,
+      "Muted": false,
+      "SlowMode": 0,
+      "PinnedMessageIds": []
+    }
   ]
 }
