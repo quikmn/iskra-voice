@@ -305,9 +305,8 @@
         .msg-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 1px; }
         .msg-author { font-weight: 700; color: var(--text-heading); cursor: pointer; }
         .msg-author:hover { text-decoration: underline; }
-        .msg-time { color: var(--text-faint); font-size: 11px; font-variant-numeric: tabular-nums; }
+        .msg-time { color: var(--text-subtle); font-size: 11px; font-variant-numeric: tabular-nums; }
         .msg-body { color: var(--text-normal); word-break: break-word; }
-        .msg-actions { opacity: 0; pointer-events: none; transition: opacity 0.1s; display: inline-flex; gap: 2px; margin-left: 6px; }
         .msg-system { color: var(--warning); font-style: italic; font-size: 13px; padding: 3px 20px; }
         .msg-system::before { content: '— '; }
         .msg-img { max-width: 420px; max-height: 320px; border-radius: 6px; margin-top: 5px; display: block; cursor: pointer; border: 1px solid var(--bg-border); }
@@ -324,8 +323,9 @@
         #input-area { padding: 8px 16px 16px; border-top: 1px solid var(--bg-border); }
         .input-row { display: flex; align-items: center; gap: 8px; background: var(--bg-button); border-radius: 8px; padding: 4px 4px 4px 8px; }
         .input-box { flex: 1; background: transparent; border: none; padding: 7px 6px; color: var(--text-normal); outline: none; font-size: 14px; }
-        .attach-btn { width: 30px; height: 30px; border-radius: 6px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 17px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: color 0.1s; }
-        .attach-btn:hover { color: var(--text-normal); }
+        .input-box::placeholder { color: var(--text-subtle); opacity: 1; }
+        .attach-btn { width: 30px; height: 30px; border-radius: 6px; border: none; background: transparent; color: var(--text-normal); cursor: pointer; font-size: 17px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: color 0.1s; }
+        .attach-btn:hover { color: var(--text-heading); }
 
         /* ── Drop zone ── */
         #chat-history.drag-over { outline: 2px dashed var(--accent); outline-offset: -6px; background: var(--accent-subtle); }
@@ -2654,7 +2654,7 @@ const BUILT_IN_THEMES = [
         bgSidebar:'#2b2d31', bgSidebarHover:'#25272b', bgChat:'#313338',
         bgHover:'#35373c', bgButton:'#383a40', bgBorder:'#3a3c42', bgActive:'#3f4147',
         textHeading:'#ffffff', textNormal:'#dcddde', textMuted:'#949ba4',
-        textSubtle:'#6d6f78', textFaint:'#4f545c',
+        textSubtle:'#72767d', textFaint:'#6b7178',
         accent:'#5865f2', accentHover:'#4752c4', success:'#3ba55d', successHover:'#2d8a4e',
         danger:'#ed4245', dangerHover:'#c03537', warning:'#faa61a', link:'#00aff4',
         statusOnline:'#3ba55d', statusAway:'#faa61a', statusDnd:'#ed4245',
@@ -2669,9 +2669,9 @@ const BUILT_IN_THEMES = [
     colors: {
         bgSurface:'#191a21', bgDeep:'#21222c', bgBody:'#21222c', bgFloat:'#1e1f29',
         bgSidebar:'#282a36', bgSidebarHover:'#30324a', bgChat:'#353748',
-        bgHover:'#44475a', bgButton:'#44475a', bgBorder:'#3d3f58', bgActive:'#6272a4',
-        textHeading:'#f8f8f2', textNormal:'#e8e8de', textMuted:'#6272a4',
-        textSubtle:'#4e5577', textFaint:'#3d3f58',
+        bgHover:'#54576e', bgButton:'#44475a', bgBorder:'#3d3f58', bgActive:'#6272a4',
+        textHeading:'#f8f8f2', textNormal:'#e8e8de', textMuted:'#8090c0',
+        textSubtle:'#6b7aad', textFaint:'#505878',
         accent:'#bd93f9', accentHover:'#a67fd5', success:'#50fa7b', successHover:'#38d966',
         danger:'#ff5555', dangerHover:'#e03535', warning:'#ffb86c', link:'#8be9fd',
         statusOnline:'#50fa7b', statusAway:'#ffb86c', statusDnd:'#ff5555',
@@ -2704,8 +2704,8 @@ const BUILT_IN_THEMES = [
         bgSurface:'#242933', bgDeep:'#2e3440', bgBody:'#2e3440', bgFloat:'#2e3440',
         bgSidebar:'#3b4252', bgSidebarHover:'#404b5e', bgChat:'#4c566a',
         bgHover:'#566071', bgButton:'#5e6779', bgBorder:'#6b7a8f', bgActive:'#7d8fa8',
-        textHeading:'#eceff4', textNormal:'#d8dee9', textMuted:'#81a1c1',
-        textSubtle:'#616e88', textFaint:'#4c566a',
+        textHeading:'#eceff4', textNormal:'#d8dee9', textMuted:'#88aacc',
+        textSubtle:'#8899b0', textFaint:'#7089a0',
         accent:'#88c0d0', accentHover:'#7ab0c0', success:'#a3be8c', successHover:'#8ca876',
         danger:'#bf616a', dangerHover:'#a05059', warning:'#ebcb8b', link:'#8fbcbb',
         statusOnline:'#a3be8c', statusAway:'#ebcb8b', statusDnd:'#bf616a',
@@ -2722,7 +2722,7 @@ const BUILT_IN_THEMES = [
         bgSidebar:'#21252b', bgSidebarHover:'#272b33', bgChat:'#2f333d',
         bgHover:'#333840', bgButton:'#343a44', bgBorder:'#3e4452', bgActive:'#4b5263',
         textHeading:'#abb2bf', textNormal:'#abb2bf', textMuted:'#7f848e',
-        textSubtle:'#5c6370', textFaint:'#3e4452',
+        textSubtle:'#7a8090', textFaint:'#636b7a',
         accent:'#61afef', accentHover:'#4d9de0', success:'#98c379', successHover:'#82aa65',
         danger:'#e06c75', dangerHover:'#c45a62', warning:'#e5c07b', link:'#56b6c2',
         statusOnline:'#98c379', statusAway:'#e5c07b', statusDnd:'#e06c75',
@@ -2738,8 +2738,8 @@ const BUILT_IN_THEMES = [
         bgSurface:'#13141c', bgDeep:'#16161e', bgBody:'#1a1b26', bgFloat:'#16161e',
         bgSidebar:'#1f2335', bgSidebarHover:'#252a40', bgChat:'#2a2f48',
         bgHover:'#3d4466', bgButton:'#363b5e', bgBorder:'#3b4261', bgActive:'#464c74',
-        textHeading:'#c0caf5', textNormal:'#a9b1d6', textMuted:'#565f89',
-        textSubtle:'#414868', textFaint:'#2e3355',
+        textHeading:'#c0caf5', textNormal:'#a9b1d6', textMuted:'#8899c4',
+        textSubtle:'#7082b4', textFaint:'#5a6490',
         accent:'#7aa2f7', accentHover:'#5e86e0', success:'#9ece6a', successHover:'#84b552',
         danger:'#f7768e', dangerHover:'#e05a72', warning:'#e0af68', link:'#2ac3de',
         statusOnline:'#9ece6a', statusAway:'#e0af68', statusDnd:'#f7768e',
@@ -2754,9 +2754,9 @@ const BUILT_IN_THEMES = [
     colors: {
         bgSurface:'#001f27', bgDeep:'#002531', bgBody:'#002b36', bgFloat:'#003541',
         bgSidebar:'#002b36', bgSidebarHover:'#0a3a47', bgChat:'#073642',
-        bgHover:'#0d4255', bgButton:'#0d4255', bgBorder:'#195060', bgActive:'#226070',
-        textHeading:'#fdf6e3', textNormal:'#93a1a1', textMuted:'#657b83',
-        textSubtle:'#586e75', textFaint:'#3d5560',
+        bgHover:'#156070', bgButton:'#0d4255', bgBorder:'#195060', bgActive:'#226070',
+        textHeading:'#fdf6e3', textNormal:'#93a1a1', textMuted:'#7a9aa3',
+        textSubtle:'#657b83', textFaint:'#4e7085',
         accent:'#268bd2', accentHover:'#1e6fa6', success:'#859900', successHover:'#6b7d00',
         danger:'#dc322f', dangerHover:'#b22826', warning:'#cb4b16', link:'#2aa198',
         statusOnline:'#859900', statusAway:'#b58900', statusDnd:'#dc322f',
