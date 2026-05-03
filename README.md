@@ -7,7 +7,7 @@ Run your own server. Own your data. No accounts, no telemetry, no subscriptions.
 ---
 
 > **Like it? Buy me a coffee.**
-> [☕ Ko-fi](https://ko-fi.com/YOUR_USERNAME) · [💳 PayPal](https://www.paypal.com/donate/?business=viktor.lundgren%40gmail.com)
+> [☕ Ko-fi](https://ko-fi.com/vlundgren) · [💳 PayPal](https://www.paypal.com/donate/?business=viktor.lundgren%40gmail.com)
 
 ---
 
