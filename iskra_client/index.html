@@ -214,6 +214,28 @@
         #img-overlay-close { position: fixed; top: 16px; right: 20px; background: rgba(0,0,0,0.55); border: 1px solid #3a3c42; color: #dcddde; border-radius: 6px; padding: 6px 14px; font-size: 12px; cursor: pointer; z-index: 401; }
         #img-overlay-close:hover { background: #ed4245; border-color: #ed4245; color: #fff; }
 
+        /* ── Crop Modal ── */
+        .crop-modal { background: #2b2d31; border-radius: 10px; width: 420px; box-shadow: 0 12px 40px rgba(0,0,0,0.6); display: flex; flex-direction: column; overflow: hidden; }
+        .crop-stage { position: relative; width: 380px; height: 380px; background: #1a1b1e; overflow: hidden; cursor: grab; user-select: none; align-self: center; margin: 20px 0 0; border-radius: 0; }
+        .crop-stage.dragging { cursor: grabbing; }
+        #crop-img { position: absolute; pointer-events: none; user-select: none; display: block; top: 0; left: 0; }
+        .crop-circle-mask { position: absolute; inset: 0; background: radial-gradient(circle 170px at 50% 50%, transparent 170px, rgba(0,0,0,0.75) 170px); pointer-events: none; }
+        .crop-circle-border { position: absolute; width: 340px; height: 340px; left: 50%; top: 50%; transform: translate(-50%,-50%); border: 2px solid rgba(255,255,255,0.28); border-radius: 50%; pointer-events: none; }
+        .crop-footer { display: flex; align-items: center; gap: 14px; padding: 14px 20px 0; width: 100%; box-sizing: border-box; }
+        #crop-preview-canvas { width: 64px; height: 64px; border-radius: 50%; display: block; background: #1a1b1e; flex-shrink: 0; }
+        .crop-zoom-wrap { flex: 1; display: flex; align-items: center; gap: 8px; }
+        .crop-zoom-label { font-size: 12px; color: #6d6f78; flex-shrink: 0; }
+        .crop-actions { display: flex; gap: 8px; padding: 12px 20px 16px; width: 100%; justify-content: flex-end; box-sizing: border-box; }
+
+        /* ── Avatar card (settings) ── */
+        .avatar-circle.sz-64 { width: 64px; height: 64px; font-size: 22px; }
+        .avatar-card { display: flex; align-items: center; gap: 14px; padding: 12px; background: #1e1f22; border-radius: 8px; }
+        .avatar-card-info { flex: 1; min-width: 0; }
+        .avatar-card-name { font-size: 13px; color: #fff; font-weight: 600; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .avatar-card-sub { font-size: 11px; color: #6d6f78; margin-bottom: 8px; line-height: 1.5; }
+        #srv-icon-settings-preview { width: 56px; height: 56px; border-radius: 12px; font-size: 16px; font-weight: 800; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; letter-spacing: 0.5px; color: rgba(0,0,0,0.7); }
+        #srv-icon-settings-preview img { width: 100%; height: 100%; object-fit: cover; }
+
         /* ── Chat messages — Discord style ── */
         #chat-history { flex: 1; padding: 12px 0; overflow-y: auto; font-size: 14px; line-height: 1.5; }
         .msg-row { display: flex; gap: 12px; padding: 2px 20px; border-radius: 4px; position: relative; }
@@ -373,6 +395,32 @@
     <button id="img-overlay-close" onclick="event.stopPropagation();closeImgOverlay()">✕ Close</button>
 </div>
 
+<!-- ── Crop Modal ── -->
+<div id="crop-overlay" class="modal-overlay" style="z-index:200;" onclick="onCropOverlayClick(event)">
+    <div class="crop-modal">
+        <div class="modal-header">
+            <span class="modal-title" id="crop-modal-title">Edit Avatar</span>
+            <button class="modal-close-btn" onclick="closeCropModal()">✕</button>
+        </div>
+        <div class="crop-stage" id="crop-stage">
+            <img id="crop-img" src="" alt="" draggable="false">
+            <div class="crop-circle-mask"></div>
+            <div class="crop-circle-border"></div>
+        </div>
+        <div class="crop-footer">
+            <canvas id="crop-preview-canvas" width="64" height="64" title="Preview"></canvas>
+            <div class="crop-zoom-wrap">
+                <span class="crop-zoom-label">Zoom</span>
+                <input type="range" id="crop-zoom-slider" min="0" max="100" value="0" class="range-slider" oninput="onCropZoom(this.value)">
+            </div>
+        </div>
+        <div class="crop-actions">
+            <button class="btn-secondary" onclick="closeCropModal()">Cancel</button>
+            <button class="btn-primary" onclick="applyCrop()">Save</button>
+        </div>
+    </div>
+</div>
+
 <!-- ── Settings Modal ── -->
 <div id="settings-overlay" class="modal-overlay" onclick="onOverlayClick(event)">
     <div class="settings-modal">
@@ -464,6 +512,18 @@
         <!-- ── Identity Tab ── -->
         <div id="tab-identity" class="modal-body hidden">
             <div>
+                <div class="section-label">Your Avatar</div>
+                <div class="avatar-card">
+                    <div id="avatar-settings-preview" class="avatar-circle sz-64"></div>
+                    <div class="avatar-card-info">
+                        <div class="avatar-card-name" id="avatar-settings-alias">—</div>
+                        <div class="avatar-card-sub">Per-server avatar · only visible when connected to a server</div>
+                        <button class="btn-secondary" id="btn-change-avatar" onclick="document.getElementById('avatar-file-input').click()">Change Avatar</button>
+                    </div>
+                </div>
+            </div>
+            <hr class="divider">
+            <div>
                 <div class="section-label">Your Aliases — select one to use when connecting to a server</div>
                 <div id="alias-list-ui"></div>
                 <div class="form-row-gap" style="margin-top:10px;">
@@ -476,6 +536,18 @@
 
         <!-- ── Servers Tab ── -->
         <div id="tab-servers" class="modal-body hidden">
+            <div id="server-icon-section" class="hidden">
+                <div class="section-label">Server Appearance</div>
+                <div class="avatar-card">
+                    <div id="srv-icon-settings-preview"></div>
+                    <div class="avatar-card-info">
+                        <div class="avatar-card-name" id="server-name-in-settings">—</div>
+                        <div class="avatar-card-sub">Server icon · visible to all members</div>
+                        <button class="btn-secondary" onclick="document.getElementById('server-icon-file-input').click()">Change Server Icon</button>
+                    </div>
+                </div>
+            </div>
+            <div id="server-icon-section-divider" class="hidden"><hr class="divider"></div>
             <div>
                 <div class="section-label">Saved Servers</div>
                 <div id="server-list-ui"></div>
@@ -652,16 +724,18 @@ function avatarHtml(alias, szClass = 'sz-40', clickable = true) {
 
 function updateMyAvatar() {
     const el = document.getElementById('my-avatar');
-    if (!el) return;
-    const alias = myAlias || clientConfig.activeAlias;
-    const url   = userAvatars[alias];
-    if (url) {
-        el.style.background = '';
-        el.innerHTML = `<img src="${escapeHtml(url)}" alt="${escapeHtml(alias)}" loading="lazy">`;
-    } else {
-        el.style.background = avatarColor(alias);
-        el.innerHTML = `<span>${alias ? alias.slice(0, 2).toUpperCase() : '?'}</span>`;
+    if (el) {
+        const alias = myAlias || clientConfig.activeAlias;
+        const url   = userAvatars[alias];
+        if (url) {
+            el.style.background = '';
+            el.innerHTML = `<img src="${escapeHtml(url)}" alt="${escapeHtml(alias)}" loading="lazy">`;
+        } else {
+            el.style.background = avatarColor(alias);
+            el.innerHTML = `<span>${alias ? alias.slice(0, 2).toUpperCase() : '?'}</span>`;
+        }
     }
+    if (activeTab === 'identity') updateSettingsAvatarPreview();
 }
 
 async function resizeImageToBlob(file, maxPx = 256) {
@@ -683,28 +757,233 @@ async function resizeImageToBlob(file, maxPx = 256) {
     });
 }
 
-async function onAvatarFileChange(e, isServerIcon) {
+function onAvatarFileChange(e, isServerIcon) {
     const file = e.target.files[0];
     e.target.value = '';
-    if (!file || !serverUploadBase) return;
-    try {
-        DevLog.log('AVATAR', `Resizing ${isServerIcon ? 'server icon' : 'avatar'}: ${file.name}`);
-        const blob = await resizeImageToBlob(file, isServerIcon ? 128 : 256);
-        const resp = await fetch(`${serverUploadBase}/upload?name=avatar.webp`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'image/webp' },
-            body: blob
-        });
-        if (!resp.ok) throw new Error(`Upload HTTP ${resp.status}`);
-        const { url } = await resp.json();
-        const fullUrl = `${serverUploadBase}${url}`;
-        postToBridge(isServerIcon
-            ? { action: 'SET_SERVER_ICON', url: fullUrl }
-            : { action: 'SET_AVATAR',      url: fullUrl });
-        DevLog.log('AVATAR', `Uploaded → ${fullUrl}`);
-    } catch (err) {
-        DevLog.log('ERR', `Avatar upload: ${err.message}`);
-        renderSystemMessage(`Avatar upload failed: ${err.message}`);
+    if (!file) return;
+    if (!serverUploadBase) {
+        renderSystemMessage('Connect to a server before uploading an avatar.');
+        return;
+    }
+    openCropModal(file, isServerIcon ? 'server' : 'avatar');
+}
+
+// ── Crop Modal ────────────────────────────────────────────────────────────────
+const CROP_STAGE_SZ = 380;
+const CROP_R = 170;
+
+let _cropZoom = 1, _cropMinZoom = 1, _cropMaxZoom = 4;
+let _cropOffX = 0, _cropOffY = 0;
+let _cropNatW = 0, _cropNatH = 0;
+let _cropDragging = false;
+let _cropDragSX = 0, _cropDragSY = 0, _cropDragBX = 0, _cropDragBY = 0;
+let _cropMode = 'avatar';
+
+function openCropModal(file, mode) {
+    _cropMode = mode;
+    document.getElementById('crop-modal-title').textContent =
+        mode === 'server' ? 'Edit Server Icon' : 'Edit Your Avatar';
+    const img = document.getElementById('crop-img');
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+        URL.revokeObjectURL(url);
+        _cropNatW = img.naturalWidth;
+        _cropNatH = img.naturalHeight;
+        _cropMinZoom = Math.max((2*CROP_R)/_cropNatW, (2*CROP_R)/_cropNatH);
+        _cropMaxZoom = _cropMinZoom * 4;
+        _cropZoom = _cropMinZoom;
+        _cropOffX = 0; _cropOffY = 0;
+        document.getElementById('crop-zoom-slider').value = 0;
+        _cropApplyTransform();
+        _cropDrawPreview();
+    };
+    img.src = url;
+    document.getElementById('crop-overlay').classList.add('open');
+}
+
+function closeCropModal() {
+    document.getElementById('crop-overlay').classList.remove('open');
+    const img = document.getElementById('crop-img');
+    if (img) img.src = '';
+    _cropDragging = false;
+}
+
+function onCropOverlayClick(e) {
+    if (e.target === document.getElementById('crop-overlay')) closeCropModal();
+}
+
+function _cropClamp() {
+    const maxX = _cropNatW*_cropZoom/2 - CROP_R;
+    const maxY = _cropNatH*_cropZoom/2 - CROP_R;
+    _cropOffX = Math.max(-maxX, Math.min(maxX, _cropOffX));
+    _cropOffY = Math.max(-maxY, Math.min(maxY, _cropOffY));
+}
+
+function _cropApplyTransform() {
+    const img = document.getElementById('crop-img');
+    if (!img) return;
+    const w = _cropNatW * _cropZoom;
+    const h = _cropNatH * _cropZoom;
+    img.style.width  = w + 'px';
+    img.style.height = h + 'px';
+    img.style.left   = (CROP_STAGE_SZ/2 + _cropOffX - w/2) + 'px';
+    img.style.top    = (CROP_STAGE_SZ/2 + _cropOffY - h/2) + 'px';
+}
+
+function _cropDrawPreview() {
+    const canvas = document.getElementById('crop-preview-canvas');
+    if (!canvas || !_cropNatW) return;
+    const ctx = canvas.getContext('2d');
+    const S = 64;
+    ctx.clearRect(0, 0, S, S);
+    const img = document.getElementById('crop-img');
+    if (!img) return;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(S/2, S/2, S/2, 0, Math.PI*2);
+    ctx.clip();
+    const sx    = _cropNatW/2 - (CROP_R + _cropOffX)/_cropZoom;
+    const sy    = _cropNatH/2 - (CROP_R + _cropOffY)/_cropZoom;
+    const sSize = 2*CROP_R/_cropZoom;
+    ctx.drawImage(img, sx, sy, sSize, sSize, 0, 0, S, S);
+    ctx.restore();
+}
+
+function onCropZoom(sliderVal) {
+    const t = Number(sliderVal) / 100;
+    _cropZoom = _cropMinZoom * Math.pow(_cropMaxZoom/_cropMinZoom, t);
+    _cropClamp();
+    _cropApplyTransform();
+    _cropDrawPreview();
+}
+
+function _cropOnWheel(e) {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.08 : 0.93;
+    _cropZoom = Math.max(_cropMinZoom, Math.min(_cropMaxZoom, _cropZoom * factor));
+    const t = Math.log(_cropZoom/_cropMinZoom) / Math.log(_cropMaxZoom/_cropMinZoom);
+    document.getElementById('crop-zoom-slider').value = Math.round(t * 100);
+    _cropClamp();
+    _cropApplyTransform();
+    _cropDrawPreview();
+}
+
+function _cropOnMouseDown(e) {
+    if (e.button !== 0) return;
+    _cropDragging = true;
+    _cropDragSX = e.clientX; _cropDragSY = e.clientY;
+    _cropDragBX = _cropOffX; _cropDragBY = _cropOffY;
+    document.getElementById('crop-stage')?.classList.add('dragging');
+    e.preventDefault();
+}
+
+function _cropOnMouseMove(e) {
+    if (!_cropDragging) return;
+    _cropOffX = _cropDragBX + (e.clientX - _cropDragSX);
+    _cropOffY = _cropDragBY + (e.clientY - _cropDragSY);
+    _cropClamp();
+    _cropApplyTransform();
+    _cropDrawPreview();
+}
+
+function _cropOnMouseUp() {
+    if (!_cropDragging) return;
+    _cropDragging = false;
+    document.getElementById('crop-stage')?.classList.remove('dragging');
+}
+
+function _cropOnTouchStart(e) {
+    if (e.touches.length !== 1) return;
+    _cropDragging = true;
+    _cropDragSX = e.touches[0].clientX; _cropDragSY = e.touches[0].clientY;
+    _cropDragBX = _cropOffX; _cropDragBY = _cropOffY;
+    e.preventDefault();
+}
+
+function _cropOnTouchMove(e) {
+    if (!_cropDragging || e.touches.length !== 1) return;
+    _cropOffX = _cropDragBX + (e.touches[0].clientX - _cropDragSX);
+    _cropOffY = _cropDragBY + (e.touches[0].clientY - _cropDragSY);
+    _cropClamp();
+    _cropApplyTransform();
+    _cropDrawPreview();
+    e.preventDefault();
+}
+
+async function applyCrop() {
+    const img = document.getElementById('crop-img');
+    const OUTPUT = _cropMode === 'server' ? 128 : 256;
+    const sx    = _cropNatW/2 - (CROP_R + _cropOffX)/_cropZoom;
+    const sy    = _cropNatH/2 - (CROP_R + _cropOffY)/_cropZoom;
+    const sSize = 2*CROP_R/_cropZoom;
+    const canvas = document.createElement('canvas');
+    canvas.width = OUTPUT; canvas.height = OUTPUT;
+    canvas.getContext('2d').drawImage(img, sx, sy, sSize, sSize, 0, 0, OUTPUT, OUTPUT);
+    const uploadBase = serverUploadBase;
+    const mode = _cropMode;
+    closeCropModal();
+    canvas.toBlob(async (blob) => {
+        if (!blob || !uploadBase) return;
+        try {
+            const resp = await fetch(`${uploadBase}/upload?name=avatar.webp`, {
+                method: 'POST', headers: { 'Content-Type': 'image/webp' }, body: blob
+            });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const { url } = await resp.json();
+            const fullUrl = `${uploadBase}${url}`;
+            postToBridge(mode === 'server'
+                ? { action: 'SET_SERVER_ICON', url: fullUrl }
+                : { action: 'SET_AVATAR',      url: fullUrl });
+            DevLog.log('AVATAR', `Crop uploaded → ${fullUrl}`);
+        } catch (err) {
+            DevLog.log('ERR', `Crop upload: ${err.message}`);
+            renderSystemMessage(`Upload failed: ${err.message}`);
+        }
+    }, 'image/webp', 0.88);
+}
+
+function updateSettingsAvatarPreview() {
+    const el  = document.getElementById('avatar-settings-preview');
+    const lbl = document.getElementById('avatar-settings-alias');
+    if (!el) return;
+    const alias = myAlias || clientConfig.activeAlias || '';
+    if (lbl) lbl.textContent = alias || '—';
+    const url = userAvatars[alias];
+    if (url) {
+        el.style.background = '';
+        el.innerHTML = `<img src="${escapeHtml(url)}" alt="${escapeHtml(alias)}" loading="lazy" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+    } else if (alias) {
+        el.style.background = avatarColor(alias);
+        el.innerHTML = `<span>${alias.slice(0,2).toUpperCase()}</span>`;
+    } else {
+        el.style.background = '#383a40';
+        el.innerHTML = '<span>?</span>';
+    }
+    const btn = document.getElementById('btn-change-avatar');
+    if (btn) btn.disabled = !serverUploadBase;
+    if (btn) btn.title = serverUploadBase ? '' : 'Connect to a server first';
+}
+
+function updateSettingsServerSection() {
+    const section = document.getElementById('server-icon-section');
+    const divider = document.getElementById('server-icon-section-divider');
+    if (!section) return;
+    const canUpload = !!serverUploadBase && ['admin','owner'].includes(myRole);
+    section.classList.toggle('hidden', !canUpload);
+    if (divider) divider.classList.toggle('hidden', !canUpload);
+    if (!canUpload) return;
+    const preview = document.getElementById('srv-icon-settings-preview');
+    const nameEl  = document.getElementById('server-name-in-settings');
+    const srv = clientConfig.servers.find(s => s.id === connectedServerId);
+    if (nameEl) nameEl.textContent = srv ? srv.name : 'Unknown';
+    if (preview) {
+        if (serverIconUrl) {
+            preview.style.background = '';
+            preview.innerHTML = `<img src="${escapeHtml(serverIconUrl)}" alt="Server icon">`;
+        } else if (srv) {
+            preview.style.background = serverColor(srv.id);
+            preview.innerHTML = serverInitials(srv.name);
+        }
     }
 }
 
@@ -883,8 +1162,8 @@ function switchTab(tab) {
         document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== tab);
         document.getElementById(`tab-btn-${t}`).classList.toggle('active', t === tab);
     });
-    if (tab === 'identity') renderAliasList();
-    if (tab === 'servers')  renderServerList();
+    if (tab === 'identity') { renderAliasList(); updateSettingsAvatarPreview(); }
+    if (tab === 'servers')  { renderServerList(); updateSettingsServerSection(); }
 }
 
 // ── Alias Management ──────────────────────────────────────────────────────────
@@ -2067,6 +2346,7 @@ window.chrome.webview.addEventListener('message', async (e) => {
         badge.textContent = data.role;
         badge.className = `visible role-${data.role}`;
         if (isElevated) DevLog.log('BRIDGE', `${data.role} role active — /kick /ban /unban /role unlocked`);
+        if (activeTab === 'servers') updateSettingsServerSection();
         // Re-render channels in case readOnly access changed
         if (activeTextChannelId) selectTextChannel(activeTextChannelId);
         renderChannelList();
@@ -2139,6 +2419,7 @@ window.chrome.webview.addEventListener('message', async (e) => {
         DevLog.log('BRIDGE', `← C# | SERVER_ICON_UPDATED`);
         serverIconUrl = data.url;
         renderServerBar();
+        if (activeTab === 'servers') updateSettingsServerSection();
 
     } else if (data.action === 'USER_LEFT_VOICE') {
         DevLog.log('RTC', `← C# | USER_LEFT_VOICE alias:${data.alias}`);
@@ -2448,6 +2729,18 @@ async function init() {
     updateMyAvatar();
     renderServerBar();
     updateMicIndicator();
+
+    // Crop modal event listeners
+    const _cs = document.getElementById('crop-stage');
+    if (_cs) {
+        _cs.addEventListener('mousedown', _cropOnMouseDown);
+        _cs.addEventListener('wheel', _cropOnWheel, { passive: false });
+        _cs.addEventListener('touchstart', _cropOnTouchStart, { passive: false });
+        _cs.addEventListener('touchmove', _cropOnTouchMove, { passive: false });
+        _cs.addEventListener('touchend', () => { _cropDragging = false; });
+    }
+    document.addEventListener('mousemove', _cropOnMouseMove);
+    document.addEventListener('mouseup', _cropOnMouseUp);
 
     try {
         await initAudio();
