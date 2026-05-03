@@ -395,12 +395,17 @@
         .voice-user .status-dot { right: auto; left: -2px; bottom: -2px; width: 7px; height: 7px; }
 
         /* ── Message reactions ── */
-        .msg-reactions { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
-        .reaction-pill { background: var(--bg-button); border: 1px solid var(--text-faint); border-radius: 10px; padding: 2px 7px; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; color: var(--text-normal); transition: background 0.1s, border-color 0.1s; }
-        .reaction-pill:hover { background: var(--text-faint); border-color: var(--accent); }
-        .reaction-pill.mine { background: var(--mention-bg); border-color: var(--accent); }
+        .msg-reactions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 6px; }
+        .reaction-pill { background: var(--bg-deep); border: 1px solid var(--bg-border); border-radius: 10px; padding: 2px 8px; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; color: var(--text-normal); transition: background 0.1s, border-color 0.1s; position: relative; }
+        .reaction-pill:hover { background: var(--bg-hover); border-color: var(--accent); }
+        .reaction-pill.mine { background: var(--mention-bg); border-color: var(--accent); color: var(--text-heading); }
         .reaction-count { font-size: 11px; color: var(--text-muted); }
         .reaction-pill.mine .reaction-count { color: #c9cdfb; }
+        .reaction-add-btn { opacity: 0; transition: opacity 0.1s; background: var(--bg-deep); border: 1px dashed var(--bg-border); border-radius: 10px; padding: 2px 8px; font-size: 13px; cursor: pointer; color: var(--text-subtle); line-height: 1.4; }
+        .reaction-add-btn:hover { opacity: 1 !important; background: var(--bg-hover); border-color: var(--accent); color: var(--text-normal); }
+        .msg-row:hover .reaction-add-btn { opacity: 0.7; }
+        /* ── Reaction tooltip ── */
+        #reaction-tooltip { position: fixed; z-index: 500; background: var(--bg-deep); border: 1px solid var(--bg-border); border-radius: 6px; padding: 6px 10px; font-size: 12px; color: var(--text-normal); pointer-events: none; display: none; max-width: 220px; box-shadow: 0 4px 16px rgba(0,0,0,0.6); line-height: 1.6; }
 
         /* ── Emoji picker popup ── */
         .emoji-picker-popup { position: fixed; z-index: 350; background: var(--bg-surface); border: 1px solid var(--bg-deep); border-radius: 8px; padding: 6px; display: flex; flex-wrap: wrap; gap: 1px; width: 224px; box-shadow: 0 8px 24px rgba(0,0,0,0.7); }
@@ -1028,6 +1033,8 @@
     </div>
     <div id="devlog-entries" style="flex:1;overflow-y:auto;padding:4px 10px;"></div>
 </div>
+
+<div id="reaction-tooltip"></div>
 
 <div id="user-ctx-menu">
     <div class="ctx-menu-header" id="ctx-menu-alias"></div>
@@ -3141,8 +3148,6 @@ function renderChatMessage(msgId, author, time, message, edited, reactions, repl
         : '';
     const bodyHtml = replyQuoteHtml + `<span class="msg-body">${renderMarkdown(message)}</span>` + editedHtml;
 
-    const reactHtml = msgId ? renderReactions(msgId, reactions || {}) : '';
-
     let actions = '';
     if (msgId) {
         const isOwn  = author === myAlias;
@@ -3150,7 +3155,6 @@ function renderChatMessage(msgId, author, time, message, edited, reactions, repl
         const canPin = ['admin','owner'].includes(myRole);
         actions = `<span class="msg-actions">`;
         actions += `<button class="msg-act-btn" title="Reply" onclick="startReply('${msgId}')">↩</button>`;
-        actions += `<button class="msg-act-btn" title="React" onclick="showEmojiPicker(event,'${msgId}')">😊</button>`;
         if (isOwn) actions += `<button class="msg-act-btn" title="Edit" onclick="editMessage('${msgId}','${escapeHtml(author)}')">✏</button>`;
         if (canDel) actions += `<button class="msg-act-btn del" title="Delete" onclick="deleteMessage('${msgId}')">🗑</button>`;
         if (canPin) actions += `<button class="msg-act-btn" title="Pin/Unpin" onclick="pinMessage('${msgId}')">📌</button>`;
@@ -3162,8 +3166,9 @@ function renderChatMessage(msgId, author, time, message, edited, reactions, repl
         `<div class="msg-content">` +
             `<div class="msg-header"><span class="msg-author">${escapeHtml(author)}</span>` +
             (time ? `<span class="msg-time">${escapeHtml(time)}</span>` : '') + `</div>` +
-            bodyHtml + actions + reactHtml +
+            bodyHtml + actions +
         `</div>`;
+    if (msgId) div.querySelector('.msg-content').appendChild(renderReactions(msgId, reactions || {}));
     h.appendChild(div);
     h.scrollTop = h.scrollHeight;
     if (div.querySelector('.msg-url')) requestAnimationFrame(() => enrichLinkPreviews(div));
@@ -4381,34 +4386,63 @@ function sendReaction(msgId, emoji) {
     postToBridge({ action: 'ADD_REACTION', channelId: activeTextChannelId, messageId: msgId, emoji });
 }
 
+function makeReactionPill(msgId, emoji, users) {
+    const mine = myAlias && users.includes(myAlias);
+    const btn = document.createElement('button');
+    btn.className = `reaction-pill${mine ? ' mine' : ''}`;
+    btn.innerHTML = `${emoji} <span class="reaction-count">${users.length}</span>`;
+    btn.dataset.users = JSON.stringify(users);
+    btn.onclick = () => sendReaction(msgId, emoji);
+    btn.onmouseenter = e => showReactionTooltip(e, JSON.parse(btn.dataset.users || '[]'), emoji);
+    btn.onmouseleave = hideReactionTooltip;
+    return btn;
+}
+
+function makeReactionAddBtn(msgId) {
+    const btn = document.createElement('button');
+    btn.className = 'reaction-add-btn';
+    btn.title = 'Add reaction';
+    btn.textContent = '＋';
+    btn.onclick = e => showEmojiPicker(e, msgId);
+    return btn;
+}
+
 function renderReactions(msgId, reactions) {
-    let html = `<div class="msg-reactions" data-msg-id="${msgId}">`;
+    const wrap = document.createElement('div');
+    wrap.className = 'msg-reactions';
+    wrap.dataset.msgId = msgId;
     if (reactions) {
-        for (const [emoji, users] of Object.entries(reactions)) {
-            if (!users.length) continue;
-            const mine = myAlias && users.includes(myAlias);
-            html += `<button class="reaction-pill${mine ? ' mine' : ''}" onclick="sendReaction('${msgId}','${emoji.replace(/'/g,"\\'")}')" title="${escapeHtml(users.join(', '))}">${emoji} <span>${users.length}</span></button>`;
-        }
+        for (const [emoji, users] of Object.entries(reactions))
+            if (users.length) wrap.appendChild(makeReactionPill(msgId, emoji, users));
     }
-    html += '</div>';
-    return html;
+    wrap.appendChild(makeReactionAddBtn(msgId));
+    return wrap;
 }
 
 function updateReactionsInDOM(msgId, reactions) {
     const el = document.querySelector(`.msg-reactions[data-msg-id="${msgId}"]`);
     if (!el) return;
     el.innerHTML = '';
-    if (!reactions) return;
-    for (const [emoji, users] of Object.entries(reactions)) {
-        if (!users.length) continue;
-        const mine = myAlias && users.includes(myAlias);
-        const btn = document.createElement('button');
-        btn.className = `reaction-pill${mine ? ' mine' : ''}`;
-        btn.title = users.join(', ');
-        btn.innerHTML = `${emoji} <span>${users.length}</span>`;
-        btn.onclick = () => sendReaction(msgId, emoji);
-        el.appendChild(btn);
+    if (reactions) {
+        for (const [emoji, users] of Object.entries(reactions))
+            if (users.length) el.appendChild(makeReactionPill(msgId, emoji, users));
     }
+    el.appendChild(makeReactionAddBtn(msgId));
+}
+
+function showReactionTooltip(e, users, emoji) {
+    const tip = document.getElementById('reaction-tooltip');
+    if (!tip || !users.length) return;
+    tip.innerHTML = `<strong>${emoji}</strong><br>` + users.map(u => escapeHtml(u)).join('<br>');
+    tip.style.display = 'block';
+    const r = e.currentTarget.getBoundingClientRect();
+    tip.style.left = `${Math.max(4, r.left)}px`;
+    tip.style.top = `${r.top - tip.offsetHeight - 6}px`;
+}
+
+function hideReactionTooltip() {
+    const tip = document.getElementById('reaction-tooltip');
+    if (tip) tip.style.display = 'none';
 }
 
 // ── Pinned Messages ────────────────────────────────────────────────────────────
