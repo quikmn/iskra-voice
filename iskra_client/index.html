@@ -4411,11 +4411,11 @@ function renderReactions(msgId, reactions) {
     const wrap = document.createElement('div');
     wrap.className = 'msg-reactions';
     wrap.dataset.msgId = msgId;
+    wrap.appendChild(makeReactionAddBtn(msgId));
     if (reactions) {
         for (const [emoji, users] of Object.entries(reactions))
             if (users.length) wrap.appendChild(makeReactionPill(msgId, emoji, users));
     }
-    wrap.appendChild(makeReactionAddBtn(msgId));
     return wrap;
 }
 
@@ -4423,11 +4423,11 @@ function updateReactionsInDOM(msgId, reactions) {
     const el = document.querySelector(`.msg-reactions[data-msg-id="${msgId}"]`);
     if (!el) return;
     el.innerHTML = '';
+    el.appendChild(makeReactionAddBtn(msgId));
     if (reactions) {
         for (const [emoji, users] of Object.entries(reactions))
             if (users.length) el.appendChild(makeReactionPill(msgId, emoji, users));
     }
-    el.appendChild(makeReactionAddBtn(msgId));
 }
 
 function showReactionTooltip(e, users, emoji) {
