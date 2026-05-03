@@ -350,9 +350,13 @@
 
         /* ── Inline edit ── */
         .msg-edit-area { width: 100%; background: var(--bg-deep); border: 1px solid var(--accent); border-radius: 5px; color: var(--text-normal); font-size: 14px; padding: 6px 10px; resize: none; outline: none; font-family: inherit; margin-top: 3px; box-sizing: border-box; }
-        .msg-edit-btns { margin-top: 4px; display: flex; gap: 6px; font-size: 11px; color: var(--text-faint); }
-        .msg-edit-btns span { cursor: pointer; }
-        .msg-edit-btns span:hover { color: var(--text-normal); }
+        .msg-edit-btns { margin-top: 5px; display: flex; gap: 8px; font-size: 12px; align-items: center; }
+        .msg-edit-btns span { cursor: pointer; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
+        .msg-edit-btns .edit-save { background: var(--accent); color: #fff; }
+        .msg-edit-btns .edit-save:hover { background: var(--accent-hover); }
+        .msg-edit-btns .edit-cancel { background: var(--bg-button); color: var(--text-muted); }
+        .msg-edit-btns .edit-cancel:hover { color: var(--text-normal); background: var(--bg-active); }
+        .msg-edit-btns .edit-hint { color: var(--text-subtle); font-size: 11px; font-weight: 400; }
 
         /* ── Role badge in footer ── */
         #role-badge { font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; background: var(--bg-button); color: var(--text-subtle); display: none; }
@@ -1097,7 +1101,7 @@ const DevLog = (() => {
         log(cat, msg) {
             const e = { ts: ts(), cat, msg: String(msg) };
             entries.push(e);
-            if (entries.length > 500) entries.shift();
+            if (entries.length > 2000) entries.shift();
             console.log(`%c[${e.ts}][${cat}] ${e.msg}`, `color:${STYLE[cat]||'#b0bec5'}`);
             if (visible) renderRow(e);
         },
@@ -1252,8 +1256,8 @@ function onAvatarFileChange(e, isServerIcon) {
     const file = e.target.files[0];
     e.target.value = '';
     if (!file) return;
-    if (!serverUploadBase) {
-        renderSystemMessage('Connect to a server before uploading an avatar.');
+    if (isServerIcon && !serverUploadBase) {
+        renderSystemMessage('Connect to a server before changing the server icon.');
         return;
     }
     openCropModal(file, isServerIcon ? 'server' : 'avatar');
@@ -1503,7 +1507,7 @@ function updateSettingsServerSection() {
     if (preview) {
         if (serverIconUrl) {
             preview.style.background = '';
-            preview.innerHTML = `<img src="${escapeHtml(serverIconUrl)}" alt="Server icon">`;
+            preview.innerHTML = `<img src="${escapeHtml(normalizeUploadUrl(serverIconUrl) || serverIconUrl)}" alt="Server icon">`;
         } else if (srv) {
             preview.style.background = serverColor(srv.id);
             preview.innerHTML = serverInitials(srv.name);
@@ -1919,7 +1923,7 @@ function renderServerBar() {
         const isConn       = s.id === connectedServerId;
         const canUpload    = isConn && ['admin','owner'].includes(myRole);
         const iconContent  = (isConn && serverIconUrl)
-            ? `<img src="${escapeHtml(serverIconUrl)}" alt="${escapeHtml(s.name)}">`
+            ? `<img src="${escapeHtml(normalizeUploadUrl(serverIconUrl) || serverIconUrl)}" alt="${escapeHtml(s.name)}">`
             + (canUpload ? `<span class="srv-upload-hint" title="Change server icon">📷</span>` : '')
             : serverInitials(s.name)
             + (canUpload ? `<span class="srv-upload-hint" title="Change server icon">📷</span>` : '');
@@ -3038,6 +3042,9 @@ function openDmMode() {
         const el = document.getElementById('input-area');
         if (el) el.classList.add('readonly');
     }
+    const pinIndicator = document.getElementById('pin-indicator');
+    if (pinIndicator) pinIndicator.classList.remove('visible');
+    document.getElementById('pin-panel')?.classList.remove('open');
     renderDmList();
 }
 
@@ -3065,6 +3072,7 @@ function closeDmMode() {
     if (chatInput) chatInput.placeholder = activeTextChannelId
         ? `Message #${serverChannels.find(c => c.id === activeTextChannelId)?.name || ''}`
         : 'Message';
+    if (activeTextChannelId) updatePinIndicator(activeTextChannelId);
 }
 
 function openDm(alias) {
@@ -3280,7 +3288,7 @@ function renderChatMessage(msgId, author, time, message, edited, reactions, repl
         actions = `<span class="msg-actions">`;
         actions += `<button class="msg-act-btn" title="Reply" onclick="startReply('${msgId}')">↩</button>`;
         if (isOwn) actions += `<button class="msg-act-btn" title="Edit" onclick="editMessage('${msgId}','${escapeHtml(author)}')">✏</button>`;
-        if (canDel) actions += `<button class="msg-act-btn del" title="Delete" onclick="deleteMessage('${msgId}')">🗑</button>`;
+        if (canDel) actions += `<button class="msg-act-btn del" title="Delete (Shift+click to skip confirm)" onclick="deleteMessage(event,'${msgId}')">🗑</button>`;
         if (canPin) actions += `<button class="msg-act-btn" title="Pin/Unpin" onclick="pinMessage('${msgId}')">📌</button>`;
         actions += `</span>`;
     }
@@ -3323,7 +3331,7 @@ function editMessage(msgId, author) {
 
     const btns = document.createElement('div');
     btns.className = 'msg-edit-btns';
-    btns.innerHTML = `<span onclick="submitEdit('${msgId}')">Save (Enter)</span> · <span onclick="cancelEdit('${msgId}')">Cancel (Esc)</span>`;
+    btns.innerHTML = `<span class="edit-save" onclick="submitEdit('${msgId}')">Save</span><span class="edit-cancel" onclick="cancelEdit('${msgId}')">Cancel</span><span class="edit-hint">Enter to save · Esc to cancel</span>`;
 
     content.appendChild(ta);
     content.appendChild(btns);
@@ -3355,7 +3363,8 @@ function submitEdit(msgId) {
     cancelEdit(msgId);
 }
 
-function deleteMessage(msgId) {
+function deleteMessage(evt, msgId) {
+    if (!evt.shiftKey && !window.confirm('Delete this message?')) return;
     const channelId = activeTextChannelId;
     postToBridge({ action: 'DELETE_MESSAGE', channelId, messageId: msgId });
 }

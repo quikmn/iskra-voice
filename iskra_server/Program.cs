@@ -1391,6 +1391,10 @@ namespace Origin.Server.Core
                             if (ChannelOccupants.TryGetValue(currentVoiceChannel, out var oldUsers))
                             {
                                 oldUsers.Remove(currentAlias);
+                                var leftMsg = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { action = "USER_LEFT_VOICE", alias = currentAlias }));
+                                foreach (var u in oldUsers)
+                                    if (ActiveClients.TryGetValue(u, out WebSocket uSock))
+                                        try { await uSock.SendAsync(new ArraySegment<byte>(leftMsg), WebSocketMessageType.Text, true, CancellationToken.None); } catch { }
                                 await Broadcast(new { action = "VOICE_STATE_UPDATE", channelId = currentVoiceChannel, users = oldUsers });
                             }
                         }
@@ -1618,7 +1622,7 @@ namespace Origin.Server.Core
                         var dm = new DmMessage { Id = dmId, From = currentAlias, To = dmTo, Time = DateTime.Now.ToString("h:mm tt"), Ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), Message = dmText };
                         Directory.CreateDirectory(DmDir);
                         lock (DmLock) File.AppendAllText(DmFile(currentAlias, dmTo), JsonSerializer.Serialize(dm) + Environment.NewLine);
-                        var dmPayload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { action = "DM_RECEIVED", dm = new { dm.Id, dm.From, dm.To, dm.Time, dm.Ts, dm.Message } }));
+                        var dmPayload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { action = "DM_RECEIVED", id = dm.Id, from = dm.From, to = dm.To, time = dm.Time, ts = dm.Ts, message = dm.Message }));
                         try { await socket.SendAsync(new ArraySegment<byte>(dmPayload), WebSocketMessageType.Text, true, CancellationToken.None); } catch { }
                         if (ActiveClients.TryGetValue(dmTo, out var dmRecipSocket))
                             try { await dmRecipSocket.SendAsync(new ArraySegment<byte>(dmPayload), WebSocketMessageType.Text, true, CancellationToken.None); } catch { }

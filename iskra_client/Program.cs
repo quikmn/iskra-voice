@@ -109,7 +109,7 @@ namespace Origin.Client.Core
         {
             CLog("WEBVIEW", "Initializing WebView2 environment...");
             var opts = new CoreWebView2EnvironmentOptions();
-            opts.AdditionalBrowserArguments = "--autoplay-policy=no-user-gesture-required";
+            opts.AdditionalBrowserArguments = "--autoplay-policy=no-user-gesture-required --allow-running-insecure-content";
             var env = await CoreWebView2Environment.CreateAsync(
                 null, Path.Combine(Path.GetTempPath(), "Origin_WebView2_Data"), opts);
             await webView.EnsureCoreWebView2Async(env);
