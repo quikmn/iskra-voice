@@ -80,8 +80,8 @@
         /* ── Channel List ── */
         .channel-section-label { font-size: 11px; font-weight: 700; color: var(--text-subtle); text-transform: uppercase; letter-spacing: 0.7px; padding: 16px 8px 4px 12px; user-select: none; }
         .channel { padding: 4px 6px 4px 8px; margin: 1px 6px; border-radius: 4px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; gap: 6px; min-height: 32px; flex-wrap: wrap; }
-        .channel:hover { background: var(--bg-hover); color: var(--text-normal); }
-        .channel.active { background: var(--bg-active); color: var(--text-heading); }
+        .channel:hover { background: var(--bg-sidebar-hover); color: var(--text-normal); }
+        .channel.active { background: var(--bg-button); color: var(--text-heading); }
         .ch-icon { width: 18px; text-align: center; flex-shrink: 0; font-size: 14px; }
         .ch-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
         .ch-leave { margin-left: auto; font-size: 11px; padding: 1px 5px; border-radius: 3px; color: var(--text-faint); cursor: pointer; flex-shrink: 0; }
@@ -257,7 +257,7 @@
         .ctx-vol-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--accent); border-radius: 50%; cursor: pointer; }
 
         /* ── Avatar circles ── */
-        .avatar-circle { border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--text-heading); overflow: hidden; flex-shrink: 0; user-select: none; transition: opacity 0.12s; }
+        .avatar-circle { border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--text-heading); overflow: hidden; flex-shrink: 0; user-select: none; transition: opacity 0.12s; box-shadow: 0 0 0 2px rgba(0,0,0,0.45); }
         .avatar-circle img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; pointer-events: none; }
         .avatar-circle.clickable { cursor: pointer; }
         .avatar-circle.clickable:hover { opacity: 0.82; }
@@ -305,7 +305,7 @@
         .msg-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 1px; }
         .msg-author { font-weight: 700; color: var(--text-heading); cursor: pointer; }
         .msg-author:hover { text-decoration: underline; }
-        .msg-time { color: var(--text-subtle); font-size: 11px; font-variant-numeric: tabular-nums; }
+        .msg-time { color: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
         .msg-body { color: var(--text-normal); word-break: break-word; }
         .msg-system { color: var(--warning); font-style: italic; font-size: 13px; padding: 3px 20px; }
         .msg-system::before { content: '— '; }
@@ -321,7 +321,7 @@
 
         /* ── Input area ── */
         #input-area { padding: 8px 16px 16px; border-top: 1px solid var(--bg-border); }
-        .input-row { display: flex; align-items: center; gap: 8px; background: var(--bg-button); border-radius: 8px; padding: 4px 4px 4px 8px; }
+        .input-row { display: flex; align-items: center; gap: 8px; background: var(--bg-chat); border-radius: 8px; padding: 4px 4px 4px 8px; }
         .input-box { flex: 1; background: transparent; border: none; padding: 7px 6px; color: var(--text-normal); outline: none; font-size: 14px; }
         .input-box::placeholder { color: var(--text-subtle); opacity: 1; }
         .attach-btn { width: 30px; height: 30px; border-radius: 6px; border: none; background: transparent; color: var(--text-normal); cursor: pointer; font-size: 17px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: color 0.1s; }
@@ -541,7 +541,7 @@
         /* ── DM Panel ── */
         #dm-panel { display: none; flex-direction: column; flex: 1; overflow: hidden; }
         #dm-panel.open { display: flex; }
-        #dm-panel-header { padding: 14px 12px 8px; font-size: 12px; font-weight: 700; color: var(--text-heading); text-transform: uppercase; letter-spacing: 0.7px; flex-shrink: 0; border-bottom: 1px solid var(--bg-deep); }
+        #dm-panel-header { height: 48px; display: flex; align-items: center; padding: 0 16px; font-size: 12px; font-weight: 700; color: var(--text-heading); text-transform: uppercase; letter-spacing: 0.7px; flex-shrink: 0; border-bottom: 1px solid var(--bg-border); box-sizing: border-box; }
         #dm-list { flex: 1; overflow-y: auto; padding: 4px 0; }
         .dm-list-item { display: flex; align-items: center; gap: 10px; padding: 6px 8px; margin: 1px 6px; border-radius: 6px; cursor: pointer; }
         .dm-list-item:hover { background: var(--bg-hover); }
@@ -632,12 +632,13 @@
 <body>
 
 <div id="server-bar">
-    <div id="server-icon-list"></div>
-    <div class="server-bar-divider"></div>
-    <div style="position:relative;">
+    <div style="position:relative;margin-bottom:4px;">
         <div id="dm-toggle-btn" title="Direct Messages" onclick="toggleDmMode()">✉</div>
         <div id="dm-unread-badge"></div>
     </div>
+    <div class="server-bar-divider"></div>
+    <div id="server-icon-list"></div>
+    <div class="server-bar-divider" style="margin-top:4px;"></div>
     <div class="server-add-btn" title="Add a server" onclick="openSettings();switchTab('servers')">+</div>
 </div>
 
@@ -711,7 +712,7 @@
             <span class="reply-cancel" onclick="cancelReply()">✕</span>
         </div>
         <div class="input-row">
-            <button class="attach-btn" onclick="document.getElementById('file-input').click()" title="Attach file (or paste / drag & drop)">📎</button>
+            <button class="attach-btn" onclick="document.getElementById('file-input').click()" title="Attach file (or paste / drag & drop)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
             <input type="text" id="chat-input" class="input-box" placeholder="Message #general-chat" onkeypress="sendChat(event)">
         </div>
         <input type="file" id="file-input" style="display:none"
@@ -1836,7 +1837,12 @@ function serverColor(id) {
 function renderServerBar() {
     const list = document.getElementById('server-icon-list');
     if (!list) return;
-    list.innerHTML = clientConfig.servers.map(s => {
+    const sorted = [...clientConfig.servers].sort((a, b) => {
+        if (a.id === connectedServerId) return -1;
+        if (b.id === connectedServerId) return 1;
+        return 0;
+    });
+    list.innerHTML = sorted.map(s => {
         const isViewed     = s.id === viewedServerId;
         const isConn       = s.id === connectedServerId;
         const canUpload    = isConn && ['admin','owner'].includes(myRole);
@@ -1858,6 +1864,7 @@ function renderServerBar() {
 }
 
 function onServerIconClick(id) {
+    if (inDmMode) closeDmMode();
     viewedServerId = id;
     renderChannelList();
     renderServerBar();
@@ -2797,6 +2804,8 @@ function applyTheme(themeId, customData) {
         localStorage.setItem('iskra_skin_custom', JSON.stringify(customData));
     }
     if (activeTab === 'appearance') renderThemePicker();
+    const titleHex = theme.colors.bgSidebar || theme.colors.bgDeep || '#1e1e2e';
+    try { postToBridge({ action: 'SET_TITLE_COLOR', hex: titleHex }); } catch (_) {}
 }
 
 function loadStoredTheme() {

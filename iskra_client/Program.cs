@@ -22,6 +22,31 @@ namespace Origin.Client.Core
         [DllImport("kernel32.dll")]
         private static extern bool AllocConsole();
 
+        // ── DWM title bar theming ──────────────────────────────────────────────
+        [DllImport("dwmapi.dll")]
+        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+
+        private const int DWMWA_CAPTION_COLOR = 35;
+        private const int DWMWA_TEXT_COLOR    = 36;
+
+        private void SetTitleBarColor(string hex)
+        {
+            try
+            {
+                hex = hex.TrimStart('#');
+                if (hex.Length != 6) return;
+                int r = Convert.ToInt32(hex.Substring(0, 2), 16);
+                int g = Convert.ToInt32(hex.Substring(2, 2), 16);
+                int b = Convert.ToInt32(hex.Substring(4, 2), 16);
+                int colorRef = r | (g << 8) | (b << 16);
+                DwmSetWindowAttribute(this.Handle, DWMWA_CAPTION_COLOR, ref colorRef, sizeof(int));
+                double lum = 0.2126 * r / 255.0 + 0.7152 * g / 255.0 + 0.0722 * b / 255.0;
+                int textColor = lum < 0.5 ? 0x00FFFFFF : 0x00000000;
+                DwmSetWindowAttribute(this.Handle, DWMWA_TEXT_COLOR, ref textColor, sizeof(int));
+            }
+            catch { }
+        }
+
         private static void CLog(string cat, string msg) =>
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}][{cat,-8}] {msg}");
 
@@ -50,6 +75,7 @@ namespace Origin.Client.Core
             this.Height        = 800;
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor     = System.Drawing.Color.FromArgb(32, 34, 37);
+            this.Load         += (s, e) => SetTitleBarColor("#1e1e2e"); // Catppuccin default
 
             webView      = new WebView2();
             webView.Dock = DockStyle.Fill;
@@ -281,6 +307,13 @@ namespace Origin.Client.Core
                     _isPttMode  = mode == "ptt";
                     if (!_isPttMode) _pttWasDown = false;
                     CLog("BRIDGE", $"← JS (local) | SET_VOICE_MODE mode:{mode} | pttActive:{_isPttMode}");
+                    return;
+                }
+                if (action == "SET_TITLE_COLOR")
+                {
+                    var hex = doc.RootElement.TryGetProperty("hex", out var hexEl) ? hexEl.GetString() ?? "" : "";
+                    if (!string.IsNullOrEmpty(hex))
+                        try { this.Invoke((MethodInvoker)(() => SetTitleBarColor(hex))); } catch { }
                     return;
                 }
             }
