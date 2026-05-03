@@ -50,6 +50,17 @@ namespace Origin.Server.Core
         private static Dictionary<string, string> ServerEmojis = new(); // shortcode → url
         private static readonly object EmojiLock = new();
 
+        // ── DM storage ───────────────────────────────────────────────────────────
+        private static string DmDir => Path.Combine(ActiveWorldPath, "dms");
+        private static readonly object DmLock = new();
+        private static string DmFile(string a, string b)
+        {
+            string Clean(string s) => Regex.Replace(s.ToLowerInvariant(), @"[^a-z0-9]", "");
+            var arr = new[] { Clean(a), Clean(b) };
+            Array.Sort(arr);
+            return Path.Combine(DmDir, $"{arr[0]}_{arr[1]}.jsonl");
+        }
+
         // In-memory message store — channelId → ordered list of live messages
         private static ConcurrentDictionary<string, List<StoredMessage>> ChannelHistory = new();
         private static readonly object HistoryLock = new();
@@ -289,6 +300,19 @@ namespace Origin.Server.Core
                 await ctx.Request.InputStream.CopyToAsync(ms);
                 byte[] bytes = ms.ToArray();
                 if (bytes.Length > maxBytes) { ctx.Response.StatusCode = 413; ctx.Response.Close(); return; }
+
+                // Disk quota check
+                if (ActiveConfig.Settings.MaxDiskGb > 0)
+                {
+                    var di = new DirectoryInfo(UploadDir);
+                    long usedBytes = di.Exists ? di.GetFiles().Sum(f => f.Length) : 0;
+                    if (usedBytes + bytes.Length > (long)(ActiveConfig.Settings.MaxDiskGb * 1024 * 1024 * 1024))
+                    {
+                        ctx.Response.StatusCode = 507; ctx.Response.ContentType = "application/json";
+                        await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { error = "Server storage limit reached" })));
+                        ctx.Response.Close(); return;
+                    }
+                }
 
                 // Validate magic bytes for images — prevents disguised executables
                 if (ImageExts.Contains(ext))
@@ -892,6 +916,31 @@ namespace Origin.Server.Core
                         await Send(socket, new { action = "PINS_UPDATED", channelId = ch.Id, pins = pinMsgs });
                 }
 
+                // ── DM summary ───────────────────────────────────────────────
+                try
+                {
+                    if (Directory.Exists(DmDir))
+                    {
+                        var dmSummaries = new List<object>();
+                        foreach (var f in Directory.GetFiles(DmDir, "*.jsonl"))
+                        {
+                            string lastLine = File.ReadLines(f).LastOrDefault();
+                            if (lastLine == null) continue;
+                            var lastDm = JsonSerializer.Deserialize<DmMessage>(lastLine);
+                            if (lastDm == null) continue;
+                            bool involves = lastDm.From.Equals(currentAlias, StringComparison.OrdinalIgnoreCase)
+                                         || lastDm.To.Equals(currentAlias, StringComparison.OrdinalIgnoreCase);
+                            if (!involves) continue;
+                            string otherAlias = lastDm.From.Equals(currentAlias, StringComparison.OrdinalIgnoreCase)
+                                ? lastDm.To : lastDm.From;
+                            dmSummaries.Add(new { with = otherAlias, lastMessage = lastDm.Message, lastTs = lastDm.Ts, from = lastDm.From });
+                        }
+                        if (dmSummaries.Count > 0)
+                            await Send(socket, new { action = "DM_SUMMARY", conversations = dmSummaries });
+                    }
+                }
+                catch (Exception ex) { Log("DM", $"DM_SUMMARY error: {ex.Message}"); }
+
                 // ── Message loop ─────────────────────────────────────────────────
                 while (socket.State == WebSocketState.Open)
                 {
@@ -1350,6 +1399,58 @@ namespace Origin.Server.Core
                         await Send(socket, new { action = "WEBHOOKS_UPDATED", webhooks = ActiveConfig.Settings.Webhooks });
                     }
 
+                    // ── SEARCH_MESSAGES ──────────────────────────────────────────
+                    else if (action == "SEARCH_MESSAGES")
+                    {
+                        string srchChId = incoming.RootElement.GetProperty("channelId").GetString() ?? "";
+                        string srchQ    = incoming.RootElement.GetProperty("query").GetString()?.Trim().ToLowerInvariant() ?? "";
+                        if (string.IsNullOrEmpty(srchQ)) { await Send(socket, new { action = "SEARCH_RESULTS", channelId = srchChId, query = srchQ, results = Array.Empty<object>() }); continue; }
+                        var srchCh = ActiveConfig.Channels.FirstOrDefault(c => c.Id == srchChId);
+                        if (srchCh == null || !CanAccess(userRole, srchCh.MinRole)) continue;
+                        List<object> srchResults;
+                        lock (HistoryLock)
+                        {
+                            if (!ChannelHistory.TryGetValue(srchChId, out var srchMsgs)) srchResults = new();
+                            else srchResults = srchMsgs
+                                .Where(m => (m.Message?.ToLowerInvariant().Contains(srchQ) == true) || (m.Author?.ToLowerInvariant().Contains(srchQ) == true))
+                                .Select(m => (object)new { m.Id, m.Author, m.Time, m.Ts, m.Message })
+                                .ToList();
+                        }
+                        await Send(socket, new { action = "SEARCH_RESULTS", channelId = srchChId, query = srchQ, results = srchResults });
+                        Log("SEARCH", $"'{currentAlias}' searched [{srchChId}] '{srchQ}' → {srchResults.Count} hits");
+                    }
+
+                    // ── SEND_DM ──────────────────────────────────────────────────
+                    else if (action == "SEND_DM")
+                    {
+                        string dmTo   = incoming.RootElement.GetProperty("to").GetString()?.Trim() ?? "";
+                        string dmText = incoming.RootElement.GetProperty("message").GetString()?.Trim() ?? "";
+                        if (string.IsNullOrEmpty(dmTo) || string.IsNullOrEmpty(dmText) || dmTo == currentAlias) continue;
+                        string dmId = Guid.NewGuid().ToString("N")[..12];
+                        var dm = new DmMessage { Id = dmId, From = currentAlias, To = dmTo, Time = DateTime.Now.ToString("h:mm tt"), Ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), Message = dmText };
+                        Directory.CreateDirectory(DmDir);
+                        lock (DmLock) File.AppendAllText(DmFile(currentAlias, dmTo), JsonSerializer.Serialize(dm) + Environment.NewLine);
+                        var dmPayload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { action = "DM_RECEIVED", dm = new { dm.Id, dm.From, dm.To, dm.Time, dm.Ts, dm.Message } }));
+                        try { await socket.SendAsync(new ArraySegment<byte>(dmPayload), WebSocketMessageType.Text, true, CancellationToken.None); } catch { }
+                        if (ActiveClients.TryGetValue(dmTo, out var dmRecipSocket))
+                            try { await dmRecipSocket.SendAsync(new ArraySegment<byte>(dmPayload), WebSocketMessageType.Text, true, CancellationToken.None); } catch { }
+                        Log("DM", $"{currentAlias} → {dmTo}: {(dmText.Length > 40 ? dmText[..40] + "…" : dmText)}");
+                    }
+
+                    // ── GET_DM_HISTORY ───────────────────────────────────────────
+                    else if (action == "GET_DM_HISTORY")
+                    {
+                        string dmWith = incoming.RootElement.GetProperty("with").GetString()?.Trim() ?? "";
+                        if (string.IsNullOrEmpty(dmWith)) continue;
+                        var dmMsgs = new List<DmMessage>();
+                        string dmPath = DmFile(currentAlias, dmWith);
+                        lock (DmLock)
+                            if (File.Exists(dmPath))
+                                foreach (var line in File.ReadLines(dmPath))
+                                    try { var m = JsonSerializer.Deserialize<DmMessage>(line); if (m != null) dmMsgs.Add(m); } catch { }
+                        await Send(socket, new { action = "DM_HISTORY", with = dmWith, messages = dmMsgs.TakeLast(100).Select(m => new { m.Id, m.From, m.To, m.Time, m.Ts, m.Message }) });
+                    }
+
                     // ── DELETE_EMOJI ─────────────────────────────────────────────
                     else if (action == "DELETE_EMOJI")
                     {
@@ -1418,7 +1519,8 @@ namespace Origin.Server.Data
         public string TurnUsername         { get; set; } = "";
         public string TurnCredential       { get; set; } = "";
         public int    HistoryRetentionDays { get; set; } = 60;
-        public int    MaxUploadMb          { get; set; } = 25;
+        public int    MaxUploadMb          { get; set; } = 500;
+        public double MaxDiskGb           { get; set; } = 100.0;  // 0 = unlimited
         public string ServerIcon           { get; set; } = "";
         public List<string>       BotTokens { get; set; } = new();
         public List<WebhookEntry> Webhooks  { get; set; } = new();
@@ -1451,6 +1553,16 @@ namespace Origin.Server.Data
         public long   Ts        { get; set; }
         public string Message   { get; set; }
         public Dictionary<string, List<string>> Reactions { get; set; } = new();
+    }
+
+    public class DmMessage
+    {
+        public string Id      { get; set; }
+        public string From    { get; set; }
+        public string To      { get; set; }
+        public string Time    { get; set; }
+        public long   Ts      { get; set; }
+        public string Message { get; set; }
     }
 
     public class FingerprintRecord

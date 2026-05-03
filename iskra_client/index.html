@@ -14,7 +14,7 @@
         /* ── Layout ── */
         #server-bar { width: 72px; background: #1e1f22; display: flex; flex-direction: column; align-items: center; padding-top: 12px; }
         #channel-bar { width: 260px; background: #2b2d31; display: flex; flex-direction: column; }
-        #chat-pane { flex: 1; background: #313338; display: flex; flex-direction: column; }
+        #chat-pane { flex: 1; background: #313338; display: flex; flex-direction: column; position: relative; }
 
         /* ── Channel List ── */
         .channel-section-label { font-size: 11px; font-weight: 700; color: #6d6f78; text-transform: uppercase; letter-spacing: 0.7px; padding: 16px 8px 4px 12px; user-select: none; }
@@ -432,6 +432,62 @@
         /* ── Custom emoji ── */
         .custom-emoji { width: 20px; height: 20px; vertical-align: middle; object-fit: contain; border-radius: 3px; display: inline-block; }
 
+        /* ── DM Button (server bar) ── */
+        #dm-toggle-btn { width: 48px; height: 48px; border-radius: 50%; background: #313338; color: #949ba4; font-size: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: border-radius 0.15s, background 0.15s; user-select: none; position: relative; flex-shrink: 0; margin-bottom: 6px; }
+        #dm-toggle-btn:hover { border-radius: 16px; background: #5865f2; color: #fff; }
+        #dm-toggle-btn.active { border-radius: 16px; background: #5865f2; color: #fff; }
+        #dm-unread-badge { position: absolute; bottom: -2px; right: -2px; background: #ed4245; color: #fff; font-size: 9px; font-weight: 700; border-radius: 8px; padding: 1px 4px; min-width: 14px; text-align: center; pointer-events: none; display: none; border: 2px solid #1e1f22; }
+        #dm-unread-badge.visible { display: block; }
+
+        /* ── DM Panel ── */
+        #dm-panel { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+        #dm-panel.open { display: flex; }
+        #dm-panel-header { padding: 14px 12px 8px; font-size: 12px; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 0.7px; flex-shrink: 0; border-bottom: 1px solid #1e1f22; }
+        #dm-list { flex: 1; overflow-y: auto; padding: 4px 0; }
+        .dm-list-item { display: flex; align-items: center; gap: 10px; padding: 6px 8px; margin: 1px 6px; border-radius: 6px; cursor: pointer; }
+        .dm-list-item:hover { background: #35373c; }
+        .dm-list-item.active { background: #3f4147; }
+        .dm-list-info { flex: 1; min-width: 0; }
+        .dm-list-name { font-size: 13px; font-weight: 600; color: #dcddde; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .dm-list-preview { font-size: 11px; color: #6d6f78; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .dm-unread-pip { background: #ed4245; color: #fff; font-size: 9px; font-weight: 700; border-radius: 8px; padding: 1px 5px; min-width: 14px; text-align: center; flex-shrink: 0; }
+        #dm-empty-state { padding: 20px 12px; text-align: center; color: #4f545c; font-size: 12px; line-height: 1.7; }
+
+        /* ── Message Search overlay ── */
+        #search-bar { display: none; flex-shrink: 0; padding: 0 16px 10px; background: #313338; }
+        #search-bar.open { display: block; }
+        .search-input-row { display: flex; align-items: center; gap: 8px; background: #1e1f22; border-radius: 6px; padding: 4px 8px; border: 1px solid #3a3c42; }
+        #search-input { flex: 1; background: transparent; border: none; color: #dcddde; font-size: 13px; padding: 5px 4px; outline: none; }
+        #search-close-btn { background: transparent; border: none; color: #6d6f78; cursor: pointer; font-size: 16px; padding: 0 4px; line-height: 1; }
+        #search-close-btn:hover { color: #dcddde; }
+        #search-results-panel { display: none; position: absolute; top: 100%; left: 0; right: 0; background: #2b2d31; border-bottom: 1px solid #1e1f22; z-index: 50; max-height: 320px; overflow-y: auto; }
+        #search-results-panel.open { display: block; }
+        .search-result-item { padding: 8px 20px; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+        .search-result-item:hover { background: #35373c; }
+        .search-result-item:last-child { border-bottom: none; }
+        .sr-meta { font-size: 11px; color: #6d6f78; }
+        .sr-body { font-size: 13px; color: #dcddde; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .sr-body mark { background: rgba(250,166,26,0.35); color: #ffd166; border-radius: 2px; padding: 0 2px; }
+        #search-empty { padding: 14px 20px; font-size: 13px; color: #4f545c; display: none; }
+        #search-btn { background: transparent; border: none; color: #6d6f78; cursor: pointer; font-size: 16px; padding: 3px 6px; border-radius: 4px; line-height: 1; flex-shrink: 0; }
+        #search-btn:hover { color: #dcddde; background: #383a40; }
+
+        /* ── Invite Modal ── */
+        #invite-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.78); display: none; align-items: center; justify-content: center; z-index: 250; }
+        #invite-modal-overlay.open { display: flex; }
+        .invite-modal { background: #2b2d31; border-radius: 10px; width: 420px; box-shadow: 0 12px 40px rgba(0,0,0,0.6); overflow: hidden; }
+        .invite-modal-header { padding: 20px 20px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #1e1f22; }
+        .invite-modal-server { font-size: 15px; font-weight: 700; color: #fff; }
+        .invite-modal-sub { font-size: 11px; color: #6d6f78; margin-top: 2px; }
+        .invite-modal-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+        .invite-code-row { display: flex; gap: 8px; align-items: stretch; }
+        #invite-code-field { flex: 1; background: #1e1f22; border: 1px solid #3a3c42; border-radius: 5px; padding: 9px 12px; color: #dcddde; font-size: 11px; font-family: 'Cascadia Code','Consolas',monospace; outline: none; cursor: text; word-break: break-all; min-height: 40px; resize: none; }
+        #invite-code-field:focus { border-color: #5865f2; }
+        #invite-copy-btn { background: #5865f2; color: #fff; border: none; border-radius: 5px; padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background 0.1s; flex-shrink: 0; }
+        #invite-copy-btn:hover { background: #4752c4; }
+        #invite-copy-btn.copied { background: #3ba55d; }
+        .invite-modal-hint { font-size: 11px; color: #6d6f78; line-height: 1.5; }
+
         /* ── Admin panel ── */
         #tab-btn-admin { display: none; }
         #tab-btn-admin.visible { display: block; }
@@ -465,11 +521,21 @@
 <div id="server-bar">
     <div id="server-icon-list"></div>
     <div class="server-bar-divider"></div>
+    <div style="position:relative;">
+        <div id="dm-toggle-btn" title="Direct Messages" onclick="toggleDmMode()">✉</div>
+        <div id="dm-unread-badge"></div>
+    </div>
     <div class="server-add-btn" title="Add a server" onclick="openSettings();switchTab('servers')">+</div>
 </div>
 
 <div id="channel-bar">
     <div id="server-name-display" style="padding:16px;font-weight:700;color:#fff;font-size:14px;border-bottom:1px solid #1e1f22;flex-shrink:0;">Not connected</div>
+    <div id="dm-panel">
+        <div id="dm-panel-header">Direct Messages</div>
+        <div id="dm-list">
+            <div id="dm-empty-state">No conversations yet.<br>Right-click a user to start one.</div>
+        </div>
+    </div>
     <div id="channel-list" style="flex:1;overflow-y:auto;"></div>
     <div id="user-footer">
         <div id="soundboard-panel">
@@ -509,7 +575,18 @@
         <span id="chat-channel-icon">#</span>
         <span id="chat-channel-name">—</span>
         <button id="pin-indicator" onclick="togglePinPanel()" title="Pinned messages">📌 <span id="pin-count-badge">0</span> pinned</button>
+        <button id="search-btn" onclick="openSearch()" title="Search messages">🔍</button>
         <button id="btn-members" onclick="toggleMembersPanel()" title="Toggle member list">👥</button>
+    </div>
+    <div id="search-bar">
+        <div class="search-input-row">
+            <span style="color:#6d6f78;font-size:15px;padding:0 2px;">🔍</span>
+            <input type="text" id="search-input" placeholder="Search messages..." onkeydown="handleSearchKey(event)" oninput="debouncedSearch()">
+            <button id="search-close-btn" onclick="closeSearch()" title="Close search">✕</button>
+        </div>
+        <div id="search-results-panel">
+            <div id="search-empty">No results found.</div>
+        </div>
     </div>
     <div id="pin-panel"></div>
     <div id="screen-share-panel"></div>
@@ -766,6 +843,29 @@
     </div>
 </div>
 
+<!-- ── Invite Modal ── -->
+<div id="invite-modal-overlay" onclick="onInviteOverlayClick(event)">
+    <div class="invite-modal">
+        <div class="invite-modal-header">
+            <div>
+                <div class="invite-modal-server" id="invite-modal-server-name"></div>
+                <div class="invite-modal-sub" id="invite-modal-server-addr"></div>
+            </div>
+            <button class="modal-close-btn" onclick="closeInviteModal()">✕</button>
+        </div>
+        <div class="invite-modal-body">
+            <div>
+                <div class="section-label" style="margin-bottom:8px;">Invite Code</div>
+                <div class="invite-code-row">
+                    <textarea id="invite-code-field" rows="2" readonly onclick="this.select()"></textarea>
+                    <button id="invite-copy-btn" onclick="copyInviteLink()">Copy</button>
+                </div>
+            </div>
+            <div class="invite-modal-hint">Share this code with anyone you'd like to invite. They paste it into <strong>Settings → Servers → Add from Invite Code</strong>.</div>
+        </div>
+    </div>
+</div>
+
 <!-- ── Share overlay ── -->
 <div id="share-overlay" onclick="closeShareOverlay()">
     <button id="share-overlay-close" onclick="event.stopPropagation();closeShareOverlay()">✕ Close</button>
@@ -795,6 +895,10 @@
         </div>
         <input class="ctx-vol-slider" type="range" min="0" max="200" value="100"
                oninput="onCtxVolChange(this.value)" id="ctx-vol-slider">
+    </div>
+    <div id="ctx-dm-section">
+        <hr class="ctx-divider">
+        <div class="ctx-action" onclick="ctxOpenDm()">✉ Message</div>
     </div>
     <div id="ctx-admin-section" style="display:none;">
         <hr class="ctx-divider">
@@ -913,6 +1017,14 @@ let _idleTimer      = null;
 let serverEmojis    = {};   // shortcode → url (custom server emojis)
 let serverWebhooks  = [];   // [{name, url, channelId}]
 let serverBotTokens = [];   // [token, ...]
+
+// ── DM state ──────────────────────────────────────────────────────────────────
+let inDmMode         = false;
+let activeDmWith     = null;   // alias of open DM conversation
+let dmConversations  = {};     // alias → { alias, lastMsg, lastTs, unread }
+let dmHistory        = {};     // alias → [ {id,from,to,time,ts,message} ]
+let _searchDebounce  = null;
+let _inviteServerId  = null;
 
 // ── Avatar helpers ─────────────────────────────────────────────────────────────
 
@@ -1546,21 +1658,7 @@ function disconnectFromServer() {
 }
 
 function copyInvite(id) {
-    const server = clientConfig.servers.find(s => s.id === id);
-    if (!server) return;
-    const code = btoa(JSON.stringify({ n: server.name, h: server.host, p: server.port, pw: server.password }));
-    navigator.clipboard.writeText(code).then(() => {
-        const btn = document.getElementById(`inv-btn-${id}`);
-        if (btn) {
-            btn.textContent = '✓';
-            btn.classList.add('copied-toast');
-            setTimeout(() => { btn.textContent = '📋'; btn.classList.remove('copied-toast'); }, 1800);
-        }
-        DevLog.log('SETTINGS', `Invite copied for "${server.name}" | ${code.length} chars`);
-    }).catch(() => {
-        const ta = document.getElementById('invite-paste-input');
-        if (ta) { ta.value = code; switchTab('servers'); }
-    });
+    showInviteModal(id);
 }
 
 // ── Server Bar ────────────────────────────────────────────────────────────────
@@ -2230,12 +2328,19 @@ function joinVoice(id) {
 
 function sendChat(e) {
     if (e.key !== 'Enter' || !e.target.value.trim()) return;
+    const msg = e.target.value.trim();
+    // Route to DM if in DM mode
+    if (inDmMode && activeDmWith) {
+        postToBridge({ action: 'SEND_DM', to: activeDmWith, message: msg });
+        e.target.value = '';
+        return;
+    }
     const sm = channelSlowMode[activeTextChannelId] || 0;
     if (sm > 0) {
         const elapsed = (Date.now() - (lastSendTime[activeTextChannelId] || 0)) / 1000;
         if (elapsed < sm) { _slowCountdown(Math.ceil(sm - elapsed)); return; }
     }
-    postToBridge({ action: 'SEND_CHAT', channelId: activeTextChannelId, message: e.target.value.trim() });
+    postToBridge({ action: 'SEND_CHAT', channelId: activeTextChannelId, message: msg });
     e.target.value = '';
     if (sm > 0) { lastSendTime[activeTextChannelId] = Date.now(); _slowCountdown(sm); }
 }
@@ -2317,6 +2422,238 @@ function renderMarkdown(raw) {
     });
 
     return s;
+}
+
+// ── Direct Messages ───────────────────────────────────────────────────────────
+
+function toggleDmMode() {
+    if (inDmMode) closeDmMode(); else openDmMode();
+}
+
+function openDmMode() {
+    inDmMode = true;
+    document.getElementById('dm-toggle-btn').classList.add('active');
+    document.getElementById('dm-panel').classList.add('open');
+    document.getElementById('channel-list').style.display = 'none';
+    document.getElementById('server-name-display').style.display = 'none';
+    // Swap chat pane to DM mode appearance
+    document.getElementById('chat-channel-icon').textContent = '✉';
+    if (!activeDmWith) {
+        document.getElementById('chat-channel-name').textContent = 'Direct Messages';
+        document.getElementById('chat-history').innerHTML = '';
+        const el = document.getElementById('input-area');
+        if (el) el.classList.add('readonly');
+    }
+    renderDmList();
+}
+
+function closeDmMode() {
+    inDmMode = false;
+    activeDmWith = null;
+    document.getElementById('dm-toggle-btn').classList.remove('active');
+    document.getElementById('dm-panel').classList.remove('open');
+    document.getElementById('channel-list').style.display = '';
+    document.getElementById('server-name-display').style.display = '';
+    document.getElementById('chat-channel-icon').textContent = '#';
+    document.getElementById('chat-channel-name').textContent = activeTextChannelId
+        ? (serverChannels.find(c => c.id === activeTextChannelId)?.name || '—') : '—';
+    const el = document.getElementById('input-area');
+    if (el) el.classList.remove('readonly');
+    if (activeTextChannelId) {
+        const h = document.getElementById('chat-history');
+        h.innerHTML = '';
+        (channelMessages[activeTextChannelId] || []).forEach(m =>
+            renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}));
+    } else {
+        document.getElementById('chat-history').innerHTML = '';
+    }
+    const chatInput = document.getElementById('chat-input');
+    if (chatInput) chatInput.placeholder = activeTextChannelId
+        ? `Message #${serverChannels.find(c => c.id === activeTextChannelId)?.name || ''}`
+        : 'Message';
+}
+
+function openDm(alias) {
+    if (!connectedServerId) return;
+    activeDmWith = alias;
+    document.getElementById('chat-channel-icon').textContent = '✉';
+    document.getElementById('chat-channel-name').textContent = alias;
+    const chatInput = document.getElementById('chat-input');
+    if (chatInput) chatInput.placeholder = `Message @${alias}`;
+    const el = document.getElementById('input-area');
+    if (el) el.classList.remove('readonly');
+    // Clear unread
+    if (dmConversations[alias]) dmConversations[alias].unread = 0;
+    updateDmBadge();
+    renderDmList();
+    // Render cached history immediately, then request fresh from server
+    const h = document.getElementById('chat-history');
+    h.innerHTML = '';
+    (dmHistory[alias] || []).forEach(m => renderDmMessage(m));
+    postToBridge({ action: 'GET_DM_HISTORY', with: alias });
+}
+
+function renderDmList() {
+    const list = document.getElementById('dm-list');
+    const empty = document.getElementById('dm-empty-state');
+    if (!list) return;
+    const convs = Object.values(dmConversations).sort((a, b) => b.lastTs - a.lastTs);
+    if (!convs.length) {
+        if (empty) empty.style.display = 'block';
+        list.innerHTML = '';
+        list.appendChild(empty || document.createTextNode(''));
+        return;
+    }
+    if (empty) empty.style.display = 'none';
+    list.innerHTML = convs.map(c => {
+        const isActive = activeDmWith === c.alias;
+        const unreadHtml = c.unread ? `<span class="dm-unread-pip">${c.unread > 99 ? '99+' : c.unread}</span>` : '';
+        return `<div class="dm-list-item${isActive ? ' active' : ''}" onclick="openDm('${escapeHtml(c.alias)}')">`
+            + avatarHtml(c.alias, 'sz-32', false, true)
+            + `<div class="dm-list-info"><div class="dm-list-name">${escapeHtml(c.alias)}</div>`
+            + `<div class="dm-list-preview">${escapeHtml((c.lastMsg || '').slice(0, 48))}</div></div>`
+            + unreadHtml + `</div>`;
+    }).join('');
+}
+
+function renderDmMessage(m) {
+    renderChatMessage(m.id || null, m.from, m.time, m.message, false, {});
+}
+
+function updateDmBadge() {
+    const total = Object.values(dmConversations).reduce((s, c) => s + (c.unread || 0), 0);
+    const badge = document.getElementById('dm-unread-badge');
+    if (!badge) return;
+    if (total > 0) {
+        badge.textContent = total > 99 ? '99+' : total;
+        badge.classList.add('visible');
+    } else {
+        badge.classList.remove('visible');
+    }
+}
+
+function ctxOpenDm() {
+    const alias = _ctxMenuAlias;
+    hideUserCtxMenu();
+    if (!alias || alias === myAlias || !connectedServerId) return;
+    openDmMode();
+    openDm(alias);
+}
+
+// ── Message Search ─────────────────────────────────────────────────────────────
+
+function openSearch() {
+    if (!connectedServerId || !activeTextChannelId) return;
+    document.getElementById('search-bar').classList.add('open');
+    const inp = document.getElementById('search-input');
+    if (inp) { inp.value = ''; inp.focus(); }
+    document.getElementById('search-results-panel').classList.remove('open');
+}
+
+function closeSearch() {
+    document.getElementById('search-bar').classList.remove('open');
+    document.getElementById('search-results-panel').classList.remove('open');
+    clearTimeout(_searchDebounce);
+}
+
+function handleSearchKey(e) {
+    if (e.key === 'Escape') { closeSearch(); return; }
+}
+
+function debouncedSearch() {
+    clearTimeout(_searchDebounce);
+    const q = (document.getElementById('search-input').value || '').trim();
+    if (q.length < 2) {
+        document.getElementById('search-results-panel').classList.remove('open');
+        return;
+    }
+    _searchDebounce = setTimeout(() => searchMessages(q), 280);
+}
+
+function searchMessages(query) {
+    if (!connectedServerId || !activeTextChannelId) return;
+    postToBridge({ action: 'SEARCH_MESSAGES', channelId: activeTextChannelId, query });
+}
+
+function renderSearchResults(results, query) {
+    const panel = document.getElementById('search-results-panel');
+    const empty = document.getElementById('search-empty');
+    if (!panel) return;
+    panel.classList.add('open');
+    if (!results || !results.length) {
+        if (empty) empty.style.display = 'block';
+        panel.innerHTML = '';
+        panel.appendChild(empty);
+        return;
+    }
+    if (empty) empty.style.display = 'none';
+
+    const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const highlight = (text, q) => {
+        const re = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'gi');
+        return esc(text).replace(re, '<mark>$1</mark>');
+    };
+
+    panel.innerHTML = results.slice(0, 40).map(m =>
+        `<div class="search-result-item" onclick="scrollToMsg('${escapeHtml(m.id || '')}','${escapeHtml(m.channelId || activeTextChannelId)}')">`
+        + `<div class="sr-meta">${esc(m.author)} · ${esc(m.time || '')} · #${esc(serverChannels.find(c=>c.id===(m.channelId||activeTextChannelId))?.name||'?')}</div>`
+        + `<div class="sr-body">${highlight(m.message || '', query)}</div>`
+        + `</div>`
+    ).join('');
+}
+
+function scrollToMsg(msgId, channelId) {
+    closeSearch();
+    // Switch to the channel first if needed
+    if (channelId && channelId !== activeTextChannelId) {
+        selectTextChannel(channelId);
+    }
+    if (!msgId) return;
+    setTimeout(() => {
+        const el = document.querySelector(`[data-msg-id="${msgId}"]`);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.style.transition = 'background 0.2s';
+            el.style.background = 'rgba(250,166,26,0.18)';
+            setTimeout(() => { el.style.background = ''; }, 1800);
+        }
+    }, 80);
+}
+
+// ── Invite Modal ──────────────────────────────────────────────────────────────
+
+function showInviteModal(id) {
+    const server = clientConfig.servers.find(s => s.id === id);
+    if (!server) return;
+    _inviteServerId = id;
+    const code = btoa(JSON.stringify({ n: server.name, h: server.host, p: server.port, pw: server.password }));
+    document.getElementById('invite-modal-server-name').textContent = server.name;
+    document.getElementById('invite-modal-server-addr').textContent = `${server.host}:${server.port}`;
+    document.getElementById('invite-code-field').value = code;
+    document.getElementById('invite-copy-btn').textContent = 'Copy';
+    document.getElementById('invite-copy-btn').classList.remove('copied');
+    document.getElementById('invite-modal-overlay').classList.add('open');
+}
+
+function closeInviteModal() {
+    document.getElementById('invite-modal-overlay').classList.remove('open');
+    _inviteServerId = null;
+}
+
+function onInviteOverlayClick(e) {
+    if (e.target === document.getElementById('invite-modal-overlay')) closeInviteModal();
+}
+
+function copyInviteLink() {
+    const code = document.getElementById('invite-code-field').value;
+    const btn = document.getElementById('invite-copy-btn');
+    navigator.clipboard.writeText(code).then(() => {
+        btn.textContent = '✓ Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+    }).catch(() => {
+        document.getElementById('invite-code-field').select();
+    });
 }
 
 function renderChatMessage(msgId, author, time, message, edited, reactions) {
@@ -2811,6 +3148,15 @@ window.chrome.webview.addEventListener('message', async (e) => {
         document.getElementById('ui-alias').textContent = clientConfig.activeAlias;
         document.getElementById('chat-channel-name').textContent = '—';
         document.getElementById('chat-history').innerHTML = '';
+        // Reset DM state
+        inDmMode = false; activeDmWith = null; dmConversations = {}; dmHistory = {};
+        document.getElementById('dm-toggle-btn')?.classList.remove('active');
+        document.getElementById('dm-panel')?.classList.remove('open');
+        document.getElementById('channel-list').style.display = '';
+        document.getElementById('server-name-display').style.display = '';
+        document.getElementById('chat-channel-icon').textContent = '#';
+        updateDmBadge();
+        closeSearch();
         renderChannelList();
         renderServerBar();
         const _membersBtn = document.getElementById('btn-members');
@@ -2941,6 +3287,50 @@ window.chrome.webview.addEventListener('message', async (e) => {
         DevLog.log('BRIDGE', `← C# | BOT_TOKENS_UPDATED count:${(data.tokens||[]).length}`);
         if (Array.isArray(data.tokens)) serverBotTokens = data.tokens;
         if (activeTab === 'admin') renderAdminPanel();
+
+    } else if (data.action === 'DM_SUMMARY') {
+        DevLog.log('BRIDGE', `← C# | DM_SUMMARY conversations:${(data.conversations||[]).length}`);
+        dmConversations = {};
+        for (const c of (data.conversations || [])) {
+            if (!c.with || c.with === myAlias) continue;
+            dmConversations[c.with] = { alias: c.with, lastMsg: c.lastMsg || '', lastTs: c.lastTs || 0, unread: 0 };
+        }
+        updateDmBadge();
+        if (inDmMode) renderDmList();
+
+    } else if (data.action === 'DM_RECEIVED') {
+        DevLog.log('BRIDGE', `← C# | DM_RECEIVED from:${data.from} to:${data.to}`);
+        const peer = data.from === myAlias ? data.to : data.from;
+        if (!dmConversations[peer]) dmConversations[peer] = { alias: peer, lastMsg: '', lastTs: 0, unread: 0 };
+        dmConversations[peer].lastMsg = data.message || '';
+        dmConversations[peer].lastTs  = data.ts || Date.now();
+        if (!dmHistory[peer]) dmHistory[peer] = [];
+        dmHistory[peer].push({ id: data.id, from: data.from, to: data.to, time: data.time, ts: data.ts, message: data.message });
+        if (inDmMode && activeDmWith === peer) {
+            renderDmMessage({ id: data.id, from: data.from, time: data.time, message: data.message });
+        } else {
+            if (data.from !== myAlias) {
+                dmConversations[peer].unread = (dmConversations[peer].unread || 0) + 1;
+                playSound('message');
+                if (!document.hasFocus()) postToBridge({ action: 'NOTIFY', title: `DM from ${data.from}`, body: (data.message || '').slice(0, 120) });
+            }
+        }
+        updateDmBadge();
+        if (inDmMode) renderDmList();
+
+    } else if (data.action === 'DM_HISTORY') {
+        DevLog.log('BRIDGE', `← C# | DM_HISTORY with:${data.with} count:${(data.messages||[]).length}`);
+        dmHistory[data.with] = data.messages || [];
+        if (inDmMode && activeDmWith === data.with) {
+            const h = document.getElementById('chat-history');
+            h.innerHTML = '';
+            dmHistory[data.with].forEach(m => renderDmMessage(m));
+        }
+
+    } else if (data.action === 'SEARCH_RESULTS') {
+        DevLog.log('BRIDGE', `← C# | SEARCH_RESULTS count:${(data.results||[]).length} query:"${data.query}"`);
+        const inp = document.getElementById('search-input');
+        renderSearchResults(data.results || [], inp ? inp.value : data.query || '');
     }
 });
 
@@ -3004,11 +3394,15 @@ function showUserCtxMenu(e, alias) {
     document.getElementById('ctx-vol-slider').value        = vol;
     document.getElementById('ctx-vol-display').textContent = vol + '%';
 
+    // DM section — hide when right-clicking yourself
+    const dmSection = document.getElementById('ctx-dm-section');
+    if (dmSection) dmSection.style.display = (alias !== myAlias && connectedServerId) ? 'block' : 'none';
+
     // Admin section
     const isAdmin = ['admin','owner'].includes(myRole);
     const adminSection = document.getElementById('ctx-admin-section');
     if (adminSection) {
-        adminSection.style.display = isAdmin ? 'block' : 'none';
+        adminSection.style.display = (isAdmin && alias !== myAlias) ? 'block' : 'none';
         if (isAdmin) {
             const roleRow = document.getElementById('ctx-role-row');
             const grantable = myRole === 'owner'
@@ -3055,7 +3449,7 @@ function escapeHtml(str) {
 
 // ── File Upload ────────────────────────────────────────────────────────────────
 const ALLOWED_EXTS  = ['.jpg','.jpeg','.png','.gif','.webp','.zip','.7z'];
-const MAX_FILE_MB   = 25;
+const MAX_FILE_MB   = 500;
 
 async function uploadAndSendFile(file) {
     if (!serverUploadBase) { DevLog.log('ERR', 'Not connected — cannot upload'); return; }
