@@ -3449,7 +3449,7 @@ function escapeHtml(str) {
 
 // ── File Upload ────────────────────────────────────────────────────────────────
 const ALLOWED_EXTS  = ['.jpg','.jpeg','.png','.gif','.webp','.zip','.7z'];
-const MAX_FILE_MB   = 500;
+const MAX_FILE_MB   = 2500;
 
 async function uploadAndSendFile(file) {
     if (!serverUploadBase) { DevLog.log('ERR', 'Not connected — cannot upload'); return; }

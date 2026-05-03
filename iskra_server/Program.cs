@@ -1519,7 +1519,7 @@ namespace Origin.Server.Data
         public string TurnUsername         { get; set; } = "";
         public string TurnCredential       { get; set; } = "";
         public int    HistoryRetentionDays { get; set; } = 60;
-        public int    MaxUploadMb          { get; set; } = 500;
+        public int    MaxUploadMb          { get; set; } = 2500;
         public double MaxDiskGb           { get; set; } = 100.0;  // 0 = unlimited
         public string ServerIcon           { get; set; } = "";
         public List<string>       BotTokens { get; set; } = new();
