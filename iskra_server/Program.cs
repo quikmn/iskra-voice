@@ -2,11 +2,14 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -40,6 +43,12 @@ namespace Origin.Server.Core
         private static string UploadDir       => Path.Combine(ActiveWorldPath, "uploads");
         private static ConcurrentDictionary<string, DateTime> _lastMsgTime = new(); // "channelId:alias" → last send time
         private static ConcurrentDictionary<string, string> UserStatuses  = new(); // alias → "online"/"away"/"dnd"/"invisible"
+        private static ConcurrentDictionary<string, WebSocket> BotClients = new(); // botName → socket
+        private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(5) };
+        private static string AuditFile => Path.Combine(ActiveWorldPath, "audit.jsonl");
+        private static string EmojiFile => Path.Combine(ActiveWorldPath, "emojis.json");
+        private static Dictionary<string, string> ServerEmojis = new(); // shortcode → url
+        private static readonly object EmojiLock = new();
 
         // In-memory message store — channelId → ordered list of live messages
         private static ConcurrentDictionary<string, List<StoredMessage>> ChannelHistory = new();
@@ -69,6 +78,7 @@ namespace Origin.Server.Core
             LoadAvatars();
             LoadChannelHistory();   // must come before PurgeOldHistory
             PurgeOldHistory();
+            LoadEmojis();
             Directory.CreateDirectory(UploadDir);
             Console.Title = $"Origin Server — {ActiveConfig.Settings.ServerName} :{ActiveConfig.Settings.Port}";
 
@@ -99,13 +109,20 @@ namespace Origin.Server.Core
                     HttpListenerContext context = await listener.GetContextAsync();
                     string path = context.Request.Url?.AbsolutePath ?? "";
                     if (context.Request.IsWebSocketRequest)
-                        ProcessClientConnection(context);
+                    {
+                        if (path == "/bot") ProcessBotConnection(context);
+                        else                ProcessClientConnection(context);
+                    }
                     else if (path == "/upload")
                         HandleUpload(context);
                     else if (path.StartsWith("/uploads/"))
                         ServeUpload(context);
+                    else if (path == "/export")
+                        HandleExport(context);
+                    else if (path == "/audit")
+                        HandleAudit(context);
                     else
-                        { context.Response.StatusCode = 400; context.Response.Close(); }
+                        { context.Response.StatusCode = 404; context.Response.Close(); }
                 }
             }
             catch (Exception ex) { Log("FATAL", $"Server Error: {ex.Message}"); }
@@ -299,8 +316,25 @@ namespace Origin.Server.Core
                 string filePath = Path.Combine(UploadDir, hash + ext);
                 if (!File.Exists(filePath)) await File.WriteAllBytesAsync(filePath, bytes);
                 string url = $"/uploads/{hash}{ext}";
+
+                string emojiName = ctx.Request.QueryString["emojiname"] ?? "";
+                if (!string.IsNullOrEmpty(emojiName))
+                {
+                    emojiName = Regex.Replace(emojiName.ToLowerInvariant(), @"[^a-z0-9_]", "");
+                    if (!string.IsNullOrEmpty(emojiName))
+                    {
+                        string absoluteUrl = $"http://{ctx.Request.UserHostName}{url}";
+                        lock (EmojiLock) ServerEmojis[emojiName] = absoluteUrl;
+                        SaveEmojis();
+                        Dictionary<string, string> emojisBroadcast;
+                        lock (EmojiLock) emojisBroadcast = new(ServerEmojis);
+                        _ = Task.Run(async () => await Broadcast(new { action = "EMOJIS_UPDATED", emojis = emojisBroadcast }));
+                        Log("EMOJI", $":{emojiName}: → {absoluteUrl}");
+                    }
+                }
+
                 ctx.Response.StatusCode = 200; ctx.Response.ContentType = "application/json";
-                await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { url })));
+                await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { url, emojiName })));
                 ctx.Response.Close();
                 Log("UPLOAD", $"{bytes.Length / 1024.0:F1} KB → {hash}{ext}");
             }
@@ -419,12 +453,239 @@ namespace Origin.Server.Core
             var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload));
             foreach (var client in ActiveClients.Values)
                 try { await SendRaw(client, bytes); } catch { }
+            foreach (var bot in BotClients.Values)
+                try { await SendRaw(bot, bytes); } catch { }
         }
 
         private static async Task BroadcastSystemMessage(string message)
         {
             Log("SYSTEM", $"Broadcast: {message}");
             await Broadcast(new { action = "SYSTEM_MESSAGE", message });
+        }
+
+        // ── Audit log ────────────────────────────────────────────────────────────
+
+        private static void LogAudit(string action, string actor, string target = "", string detail = "")
+        {
+            try
+            {
+                var entry = JsonSerializer.Serialize(new {
+                    ts     = DateTime.UtcNow.ToString("o"),
+                    action, actor, target, detail
+                });
+                File.AppendAllText(AuditFile, entry + Environment.NewLine);
+            }
+            catch { }
+        }
+
+        // ── Emojis ───────────────────────────────────────────────────────────────
+
+        private static void LoadEmojis()
+        {
+            if (File.Exists(EmojiFile))
+            {
+                ServerEmojis = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(EmojiFile)) ?? new();
+                Log("CONFIG", $"Custom emojis loaded: {ServerEmojis.Count}");
+            }
+        }
+
+        private static void SaveEmojis()
+        {
+            lock (EmojiLock)
+                File.WriteAllText(EmojiFile, JsonSerializer.Serialize(ServerEmojis, new JsonSerializerOptions { WriteIndented = true }));
+        }
+
+        // ── Webhooks ─────────────────────────────────────────────────────────────
+
+        private static void FireWebhooks(string channelId, string channelName, string author, string message, string time)
+        {
+            var hooks = ActiveConfig.Settings.Webhooks
+                .Where(w => !string.IsNullOrEmpty(w.Url) && (string.IsNullOrEmpty(w.ChannelId) || w.ChannelId == channelId))
+                .ToList();
+            if (!hooks.Any()) return;
+            var payload = JsonSerializer.Serialize(new {
+                server = ActiveConfig.Settings.ServerName, channelId, channel = channelName, author, message, time
+            });
+            _ = Task.Run(async () => {
+                foreach (var hook in hooks)
+                    try
+                    {
+                        using var req = new HttpRequestMessage(HttpMethod.Post, hook.Url)
+                            { Content = new StringContent(payload, Encoding.UTF8, "application/json") };
+                        await _http.SendAsync(req);
+                        Log("WEBHOOK", $"→ {hook.Name} ({channelName}): {author}: {message[..Math.Min(40,message.Length)]}");
+                    }
+                    catch (Exception ex) { Log("WEBHOOK", $"Failed → {hook.Name}: {ex.Message}"); }
+            });
+        }
+
+        // ── Export ───────────────────────────────────────────────────────────────
+
+        private static async void HandleExport(HttpListenerContext ctx)
+        {
+            ctx.Response.AddHeader("Access-Control-Allow-Origin", "*");
+            try
+            {
+                string token = ctx.Request.QueryString["token"] ?? "";
+                if (string.IsNullOrEmpty(ActiveConfig.Settings.AdminPassword) || token != ActiveConfig.Settings.AdminPassword)
+                    { ctx.Response.StatusCode = 403; ctx.Response.Close(); return; }
+
+                using var ms = new MemoryStream();
+                using (var zip = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
+                {
+                    void AddFile(string srcPath, string entryName)
+                    {
+                        if (!File.Exists(srcPath)) return;
+                        var entry = zip.CreateEntry(entryName, CompressionLevel.Optimal);
+                        using var dst = entry.Open();
+                        using var src = File.OpenRead(srcPath);
+                        src.CopyTo(dst);
+                    }
+
+                    AddFile(ConfigFile,                             "server.json");
+                    AddFile(RoleFile,                               "roles.json");
+                    AddFile(BanFile,                                "bans.json");
+                    AddFile(AvatarFile,                             "avatars.json");
+                    AddFile(FingerprintFile,                        "fingerprints.json");
+                    AddFile(EmojiFile,                              "emojis.json");
+                    AddFile(AuditFile,                              "audit.jsonl");
+
+                    foreach (var ch in ActiveConfig.Channels.Where(c => c.Type == "Text"))
+                        AddFile(ChatFile(ch.Id), $"chat-{ch.Id}.jsonl");
+
+                    if (Directory.Exists(UploadDir))
+                        foreach (var f in Directory.GetFiles(UploadDir, "*", SearchOption.AllDirectories))
+                        {
+                            var rel = Path.GetRelativePath(ActiveWorldPath, f).Replace('\\', '/');
+                            var e2  = zip.CreateEntry($"uploads/{rel}", CompressionLevel.Fastest);
+                            using var dst2 = e2.Open();
+                            using var src2 = File.OpenRead(f);
+                            src2.CopyTo(dst2);
+                        }
+                }
+
+                byte[] zipBytes = ms.ToArray();
+                string fname    = $"iskra-backup-{DateTime.Now:yyyyMMdd-HHmm}.zip";
+                ctx.Response.StatusCode      = 200;
+                ctx.Response.ContentType     = "application/zip";
+                ctx.Response.ContentLength64 = zipBytes.Length;
+                ctx.Response.AddHeader("Content-Disposition", $"attachment; filename=\"{fname}\"");
+                await ctx.Response.OutputStream.WriteAsync(zipBytes);
+                ctx.Response.Close();
+                Log("EXPORT", $"Backup sent: {zipBytes.Length / 1024}KB");
+            }
+            catch (Exception ex) { Log("ERR", $"HandleExport: {ex.Message}"); try { ctx.Response.StatusCode = 500; ctx.Response.Close(); } catch { } }
+        }
+
+        // ── Audit endpoint ───────────────────────────────────────────────────────
+
+        private static async void HandleAudit(HttpListenerContext ctx)
+        {
+            ctx.Response.AddHeader("Access-Control-Allow-Origin", "*");
+            try
+            {
+                string token = ctx.Request.QueryString["token"] ?? "";
+                if (string.IsNullOrEmpty(ActiveConfig.Settings.AdminPassword) || token != ActiveConfig.Settings.AdminPassword)
+                    { ctx.Response.StatusCode = 403; ctx.Response.Close(); return; }
+
+                int limit = int.TryParse(ctx.Request.QueryString["limit"], out var l) ? Math.Min(l, 500) : 200;
+                var lines = File.Exists(AuditFile)
+                    ? (await File.ReadAllLinesAsync(AuditFile))
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .TakeLast(limit)
+                        .Select(s => JsonDocument.Parse(s).RootElement)
+                        .ToList()
+                    : new List<JsonElement>();
+
+                string json = JsonSerializer.Serialize(lines);
+                ctx.Response.StatusCode    = 200;
+                ctx.Response.ContentType   = "application/json";
+                ctx.Response.AddHeader("Cache-Control", "no-cache");
+                await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(json));
+                ctx.Response.Close();
+            }
+            catch (Exception ex) { Log("ERR", $"HandleAudit: {ex.Message}"); try { ctx.Response.StatusCode = 500; ctx.Response.Close(); } catch { } }
+        }
+
+        // ── Bot WebSocket handler ────────────────────────────────────────────────
+
+        private static async void ProcessBotConnection(HttpListenerContext context)
+        {
+            HttpListenerWebSocketContext wsCtx = await context.AcceptWebSocketAsync(null);
+            WebSocket socket = wsCtx.WebSocket;
+            string botName = "bot";
+            try
+            {
+                byte[] buf = new byte[4096];
+                var result = await socket.ReceiveAsync(new ArraySegment<byte>(buf), CancellationToken.None);
+                string authJson = Encoding.UTF8.GetString(buf, 0, result.Count);
+                using var authDoc = JsonDocument.Parse(authJson);
+                string token = authDoc.RootElement.TryGetProperty("token", out var tEl) ? tEl.GetString() ?? "" : "";
+                botName       = authDoc.RootElement.TryGetProperty("name",  out var nEl) ? nEl.GetString() ?? "bot" : "bot";
+
+                if (!ActiveConfig.Settings.BotTokens.Contains(token))
+                {
+                    await Send(socket, new { action = "BOT_AUTH_FAILED", reason = "Invalid token" });
+                    await socket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Invalid token", CancellationToken.None);
+                    Log("BOT", $"Auth failed for bot '{botName}'");
+                    return;
+                }
+
+                BotClients[botName] = socket;
+                await Send(socket, new { action = "BOT_AUTH_OK", name = botName, server = ActiveConfig.Settings.ServerName });
+                Log("BOT", $"'{botName}' connected");
+                LogAudit("BOT_CONNECT", botName);
+
+                var msgStream = new MemoryStream(16384);
+                while (socket.State == WebSocketState.Open)
+                {
+                    msgStream.SetLength(0);
+                    WebSocketReceiveResult recv;
+                    do
+                    {
+                        var chunk = new byte[4096];
+                        recv = await socket.ReceiveAsync(new ArraySegment<byte>(chunk), CancellationToken.None);
+                        msgStream.Write(chunk, 0, recv.Count);
+                    } while (!recv.EndOfMessage);
+
+                    if (recv.MessageType != WebSocketMessageType.Text) break;
+                    string msg = Encoding.UTF8.GetString(msgStream.GetBuffer(), 0, (int)msgStream.Length);
+                    try
+                    {
+                        using var doc = JsonDocument.Parse(msg);
+                        string act = doc.RootElement.GetProperty("action").GetString();
+                        if (act == "SEND_CHAT")
+                        {
+                            string channelId = doc.RootElement.GetProperty("channelId").GetString();
+                            string text      = doc.RootElement.GetProperty("message").GetString()?.Trim() ?? "";
+                            if (!string.IsNullOrEmpty(text) && ActiveConfig.Channels.Any(c => c.Id == channelId && c.Type == "Text"))
+                            {
+                                string msgId = Guid.NewGuid().ToString("N")[..12];
+                                var stored   = new StoredMessage { Id = msgId, Author = botName, Time = DateTime.Now.ToString("h:mm tt"), Ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), Message = text };
+                                lock (HistoryLock)
+                                {
+                                    if (!ChannelHistory.ContainsKey(channelId)) ChannelHistory[channelId] = new();
+                                    ChannelHistory[channelId].Add(stored);
+                                }
+                                string jsonLine = MessageToJsonLine(channelId, stored);
+                                await File.AppendAllTextAsync(ChatFile(channelId), jsonLine + Environment.NewLine);
+                                var lineBytes = Encoding.UTF8.GetBytes(jsonLine);
+                                foreach (var client in ActiveClients.Values)
+                                    try { await client.SendAsync(new ArraySegment<byte>(lineBytes), WebSocketMessageType.Text, true, CancellationToken.None); } catch { }
+                                Log("BOT", $"[{channelId}] {botName}: {text}");
+                            }
+                        }
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+            finally
+            {
+                BotClients.TryRemove(botName, out _);
+                Log("BOT", $"'{botName}' disconnected");
+                LogAudit("BOT_DISCONNECT", botName);
+            }
         }
 
         // ── Admin actions ────────────────────────────────────────────────────────
@@ -434,6 +695,7 @@ namespace Origin.Server.Core
             if (ActiveClients.TryGetValue(targetAlias, out WebSocket targetSock))
             {
                 Log("ADMIN", $"'{kickedBy}' kicked '{targetAlias}' — {reason}");
+                LogAudit("KICK", kickedBy, targetAlias, reason);
                 try { await Send(targetSock, new { action = "KICKED", reason }); } catch { }
                 try { await targetSock.CloseAsync(WebSocketCloseStatus.PolicyViolation, reason, CancellationToken.None); } catch { }
                 await BroadcastSystemMessage($"{targetAlias} was kicked by {kickedBy}.");
@@ -453,6 +715,7 @@ namespace Origin.Server.Core
                 banList.Add(new BanRecord { MachineGuid = guid, BannedAlias = targetAlias, BannedBy = bannedBy, BannedAt = DateTime.Now, Reason = reason });
                 File.WriteAllText(BanFile, JsonSerializer.Serialize(banList, new JsonSerializerOptions { WriteIndented = true }));
                 Log("ADMIN", $"'{targetAlias}' (guid:{guid}) banned by '{bannedBy}'");
+                LogAudit("BAN", bannedBy, targetAlias, reason);
             }
             else Log("ADMIN", $"Ban recorded for '{targetAlias}' — no GUID on file");
             await KickUser(targetAlias, bannedBy, $"Banned: {reason}");
@@ -468,6 +731,7 @@ namespace Origin.Server.Core
                 File.WriteAllText(BanFile, JsonSerializer.Serialize(banList, new JsonSerializerOptions { WriteIndented = true }));
             }
             Log("ADMIN", $"'{guid}' unbanned by '{unbannedBy}'");
+            LogAudit("UNBAN", unbannedBy, guid);
             await BroadcastSystemMessage($"A ban was lifted by {unbannedBy}.");
         }
 
@@ -554,6 +818,7 @@ namespace Origin.Server.Core
                 ActiveClients[currentAlias] = socket;
                 UserStatuses[currentAlias] = "online";
                 Log("AUTH", $"'{currentAlias}' authenticated | role:{userRole} | total:{ActiveClients.Count}");
+                LogAudit("JOIN", currentAlias, "", $"from {clientIp} role:{userRole}");
                 await Broadcast(new { action = "STATUS_UPDATED", alias = currentAlias, status = "online" });
 
                 // ── SERVER_INFO ──────────────────────────────────────────────────
@@ -577,6 +842,9 @@ namespace Origin.Server.Core
                     foreach (var alias in ActiveClients.Keys)
                         rolesCopy[alias] = UserRoles.TryGetValue(alias, out var r) ? r : "guest";
                 rolesCopy[currentAlias] = userRole; // ensures owner role is reflected correctly
+                Dictionary<string, string> emojisCopy;
+                lock (EmojiLock) emojisCopy = new(ServerEmojis);
+                bool isAdmin = RoleRank(userRole) >= RoleRank("admin");
                 await Send(socket, new {
                     action       = "SERVER_INFO",
                     name         = ActiveConfig.Settings.ServerName,
@@ -584,6 +852,11 @@ namespace Origin.Server.Core
                     userAvatars  = avatarsCopy,
                     userStatuses = statusesCopy,
                     userRoles    = rolesCopy,
+                    emojis       = emojisCopy,
+                    // admin-only fields
+                    webhooks     = isAdmin ? ActiveConfig.Settings.Webhooks : null,
+                    botTokens    = isAdmin ? ActiveConfig.Settings.BotTokens : null,
+                    uploadBase   = $"http://{context.Request.UserHostName}",
                     channels     = ActiveConfig.Channels
                         .Where(c => c.Type == "Header" || CanAccess(userRole, c.MinRole))
                         .Select(c => new { id = c.Id, name = c.Name, type = c.Type, readOnly = c.ReadOnly, muted = c.Muted, slowMode = c.SlowMode }),
@@ -684,6 +957,7 @@ namespace Origin.Server.Core
                                     lock (RoleLock) UserRoles[targetAlias] = newRole;
                                     _ = Task.Run(SaveRoles);
                                     Log("ADMIN", $"'{currentAlias}' set role of '{targetAlias}' to '{newRole}'");
+                                    LogAudit("ROLE", currentAlias, targetAlias, newRole);
                                     await BroadcastSystemMessage($"{targetAlias} has been given the {newRole} role.");
                                     if (ActiveClients.TryGetValue(targetAlias, out WebSocket tSock))
                                         await Send(tSock, new { action = "ROLE_GRANTED", role = newRole });
@@ -742,6 +1016,10 @@ namespace Origin.Server.Core
                             var lineBytes = Encoding.UTF8.GetBytes(jsonLine);
                             foreach (var client in ActiveClients.Values)
                                 try { await client.SendAsync(new ArraySegment<byte>(lineBytes), WebSocketMessageType.Text, true, CancellationToken.None); } catch { }
+                            foreach (var bot in BotClients.Values)
+                                try { await bot.SendAsync(new ArraySegment<byte>(lineBytes), WebSocketMessageType.Text, true, CancellationToken.None); } catch { }
+                            var chObj = ActiveConfig.Channels.FirstOrDefault(c => c.Id == channelId);
+                            FireWebhooks(channelId, chObj?.Name ?? channelId, currentAlias, text, stored.Time);
                         }
                     }
 
@@ -767,6 +1045,7 @@ namespace Origin.Server.Core
                             lock (HistoryLock) target.Message = newText;
                             _ = Task.Run(() => RewriteChannelHistory(channelId));
                             Log("CHAT", $"[{channelId}] '{currentAlias}' edited {messageId}");
+                            LogAudit("EDIT_MSG", currentAlias, messageId, $"ch:{channelId}");
                             await Broadcast(new { action = "MESSAGE_EDITED", channelId, messageId, newText });
                         }
                     }
@@ -795,6 +1074,7 @@ namespace Origin.Server.Core
                                     msgs.RemoveAll(m => m.Id == messageId);
                             _ = Task.Run(() => RewriteChannelHistory(channelId));
                             Log("CHAT", $"[{channelId}] message {messageId} deleted by '{currentAlias}'{(isElevated && target.Author != currentAlias ? $" ({userRole})" : "")}");
+                            LogAudit("DELETE_MSG", currentAlias, target.Author, $"ch:{channelId} id:{messageId}");
                             await Broadcast(new { action = "MESSAGE_DELETED", channelId, messageId });
                         }
                     }
@@ -990,6 +1270,7 @@ namespace Origin.Server.Core
 
                         await Broadcast(new { action = "PINS_UPDATED", channelId, pins = pinMsgs2 });
                         await BroadcastSystemMessage($"{currentAlias} {(pinning ? "pinned" : "unpinned")} a message in #{pinCh.Name}.");
+                        LogAudit("PIN", currentAlias, messageId, $"ch:{channelId} {(pinning ? "pinned" : "unpinned")}");
                         Log("ADMIN", $"'{currentAlias}' {(pinning ? "pinned" : "unpinned")} {messageId} in #{pinCh.Name}");
                     }
 
@@ -1006,6 +1287,87 @@ namespace Origin.Server.Core
                         Log("VOICE", $"'{currentAlias}' stopped camera");
                         await Broadcast(new { action = "VIDEO_STOPPED", alias = currentAlias });
                     }
+
+                    // ── GENERATE_BOT_TOKEN ───────────────────────────────────────
+                    else if (action == "GENERATE_BOT_TOKEN")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin"))
+                        { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Only admins can manage bot tokens." }); continue; }
+                        string newToken = Guid.NewGuid().ToString("N");
+                        ActiveConfig.Settings.BotTokens.Add(newToken);
+                        File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true }));
+                        Log("BOT", $"'{currentAlias}' generated bot token");
+                        LogAudit("BOT_TOKEN_CREATE", currentAlias, newToken[..8] + "…");
+                        await Send(socket, new { action = "BOT_TOKEN_CREATED", token = newToken, tokens = ActiveConfig.Settings.BotTokens });
+                    }
+
+                    // ── REVOKE_BOT_TOKEN ─────────────────────────────────────────
+                    else if (action == "REVOKE_BOT_TOKEN")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin"))
+                        { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Only admins can manage bot tokens." }); continue; }
+                        string tokenToRevoke = incoming.RootElement.GetProperty("token").GetString() ?? "";
+                        bool removed = ActiveConfig.Settings.BotTokens.Remove(tokenToRevoke);
+                        if (removed)
+                        {
+                            File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true }));
+                            Log("BOT", $"'{currentAlias}' revoked bot token {tokenToRevoke[..Math.Min(8, tokenToRevoke.Length)]}…");
+                            LogAudit("BOT_TOKEN_REVOKE", currentAlias, tokenToRevoke[..Math.Min(8, tokenToRevoke.Length)] + "…");
+                        }
+                        await Send(socket, new { action = "BOT_TOKENS_UPDATED", tokens = ActiveConfig.Settings.BotTokens });
+                    }
+
+                    // ── ADD_WEBHOOK ──────────────────────────────────────────────
+                    else if (action == "ADD_WEBHOOK")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin"))
+                        { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Only admins can manage webhooks." }); continue; }
+                        string whName = incoming.RootElement.TryGetProperty("name",      out var wnEl) ? wnEl.GetString() ?? "Webhook" : "Webhook";
+                        string whUrl  = incoming.RootElement.TryGetProperty("url",       out var wuEl) ? wuEl.GetString() ?? "" : "";
+                        string whCh   = incoming.RootElement.TryGetProperty("channelId", out var wcEl) ? wcEl.GetString() ?? "" : "";
+                        if (string.IsNullOrEmpty(whUrl)) { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Webhook URL is required." }); continue; }
+                        var hook = new WebhookEntry { Name = whName, Url = whUrl, ChannelId = whCh };
+                        ActiveConfig.Settings.Webhooks.Add(hook);
+                        File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true }));
+                        Log("WEBHOOK", $"'{currentAlias}' added webhook '{whName}' → {whUrl}");
+                        LogAudit("WEBHOOK_ADD", currentAlias, whName, whUrl);
+                        await Send(socket, new { action = "WEBHOOKS_UPDATED", webhooks = ActiveConfig.Settings.Webhooks });
+                    }
+
+                    // ── DELETE_WEBHOOK ───────────────────────────────────────────
+                    else if (action == "DELETE_WEBHOOK")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin"))
+                        { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Only admins can manage webhooks." }); continue; }
+                        string whUrl = incoming.RootElement.GetProperty("url").GetString() ?? "";
+                        int removed  = ActiveConfig.Settings.Webhooks.RemoveAll(w => w.Url == whUrl);
+                        if (removed > 0)
+                        {
+                            File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true }));
+                            Log("WEBHOOK", $"'{currentAlias}' removed webhook {whUrl}");
+                            LogAudit("WEBHOOK_DELETE", currentAlias, whUrl);
+                        }
+                        await Send(socket, new { action = "WEBHOOKS_UPDATED", webhooks = ActiveConfig.Settings.Webhooks });
+                    }
+
+                    // ── DELETE_EMOJI ─────────────────────────────────────────────
+                    else if (action == "DELETE_EMOJI")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin"))
+                        { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Only admins can manage custom emojis." }); continue; }
+                        string shortcode = incoming.RootElement.GetProperty("shortcode").GetString() ?? "";
+                        bool removed;
+                        lock (EmojiLock) removed = ServerEmojis.Remove(shortcode);
+                        if (removed)
+                        {
+                            SaveEmojis();
+                            Log("EMOJI", $"'{currentAlias}' deleted emoji :{shortcode}:");
+                            LogAudit("EMOJI_DELETE", currentAlias, shortcode);
+                            Dictionary<string, string> emojisBroadcast;
+                            lock (EmojiLock) emojisBroadcast = new(ServerEmojis);
+                            await Broadcast(new { action = "EMOJIS_UPDATED", emojis = emojisBroadcast });
+                        }
+                    }
                 }
             }
             catch (Exception ex) { Log("ERROR", $"Session for '{currentAlias}' faulted: {ex.Message}"); }
@@ -1014,6 +1376,7 @@ namespace Origin.Server.Core
                 ActiveClients.TryRemove(currentAlias, out _);
                 ClientGuids.TryRemove(currentAlias, out _);
                 UserStatuses.TryRemove(currentAlias, out _);
+                LogAudit("LEAVE", currentAlias);
                 Log("NET", $"Connection closed for '{currentAlias}' | remaining:{ActiveClients.Count}");
                 try { await Broadcast(new { action = "STATUS_UPDATED", alias = currentAlias, status = "offline" }); } catch { }
 
@@ -1057,6 +1420,15 @@ namespace Origin.Server.Data
         public int    HistoryRetentionDays { get; set; } = 60;
         public int    MaxUploadMb          { get; set; } = 25;
         public string ServerIcon           { get; set; } = "";
+        public List<string>       BotTokens { get; set; } = new();
+        public List<WebhookEntry> Webhooks  { get; set; } = new();
+    }
+
+    public class WebhookEntry
+    {
+        public string Name      { get; set; } = "";
+        public string Url       { get; set; } = "";
+        public string ChannelId { get; set; } = "";  // empty = all channels
     }
 
     public class Channel

@@ -432,6 +432,36 @@
         #share-overlay-label { color: #dcddde; font-size: 13px; font-weight: 600; }
         #share-overlay-close { position: fixed; top: 16px; right: 20px; background: rgba(0,0,0,0.6); border: 1px solid #3a3c42; color: #dcddde; border-radius: 6px; padding: 6px 14px; font-size: 12px; cursor: pointer; z-index: 301; }
         #share-overlay-close:hover { background: #ed4245; border-color: #ed4245; color: #fff; }
+
+        /* ── Custom emoji ── */
+        .custom-emoji { width: 20px; height: 20px; vertical-align: middle; object-fit: contain; border-radius: 3px; display: inline-block; }
+
+        /* ── Admin panel ── */
+        #tab-btn-admin { display: none; }
+        #tab-btn-admin.visible { display: block; }
+        .admin-section { margin-bottom: 4px; }
+        .admin-section-title { font-size: 11px; font-weight: 700; color: #949ba4; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+        .admin-token-row { background: #1e1f22; border-radius: 5px; padding: 7px 10px; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+        .admin-token-text { flex: 1; font-family: 'Cascadia Code','Consolas',monospace; font-size: 11px; color: #949ba4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .admin-item-row { background: #1e1f22; border-radius: 5px; padding: 7px 10px; margin-bottom: 4px; display: flex; align-items: flex-start; gap: 8px; }
+        .admin-item-info { flex: 1; min-width: 0; }
+        .admin-item-name { font-size: 13px; font-weight: 600; color: #dcddde; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .admin-item-sub  { font-size: 11px; color: #4f545c; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .btn-danger-sm { background: transparent; border: none; color: #4f545c; cursor: pointer; font-size: 11px; padding: 3px 7px; border-radius: 3px; flex-shrink: 0; }
+        .btn-danger-sm:hover { background: #ed4245; color: #fff; }
+        .btn-small { background: #383a40; border: none; color: #dcddde; cursor: pointer; font-size: 11px; padding: 4px 10px; border-radius: 4px; font-weight: 600; white-space: nowrap; }
+        .btn-small:hover { background: #4f545c; }
+        .btn-small.green { background: #3ba55d; color: #fff; }
+        .btn-small.green:hover { background: #2d8a4e; }
+        .emoji-admin-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+        .emoji-admin-item { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px; background: #1e1f22; border-radius: 5px; position: relative; cursor: default; }
+        .emoji-admin-item img { width: 32px; height: 32px; object-fit: contain; }
+        .emoji-admin-item span { font-size: 9px; color: #6d6f78; max-width: 50px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .emoji-admin-item .del-over { position: absolute; inset: 0; background: rgba(237,66,69,0.85); border-radius: 5px; display: none; align-items: center; justify-content: center; color: #fff; font-size: 16px; cursor: pointer; }
+        .emoji-admin-item:hover .del-over { display: flex; }
+        .admin-form-row { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+        .admin-form-row .form-input { flex: 1; }
+        input[type="file"].hidden-file { display: none; }
     </style>
 </head>
 <body>
@@ -556,6 +586,7 @@
             <button id="tab-btn-audio"    class="tab-btn active" onclick="switchTab('audio')">🎙 Audio</button>
             <button id="tab-btn-identity" class="tab-btn"        onclick="switchTab('identity')">👤 Identity</button>
             <button id="tab-btn-servers"  class="tab-btn"        onclick="switchTab('servers')">🖥 Servers</button>
+            <button id="tab-btn-admin"    class="tab-btn"        onclick="switchTab('admin')">🛡 Admin</button>
         </div>
 
         <!-- ── Audio Tab ── -->
@@ -693,6 +724,50 @@
                 <div class="section-label">Add from Invite Code</div>
                 <textarea id="invite-paste-input" class="invite-textarea" placeholder="Paste invite code here..."></textarea>
                 <button class="btn-primary" style="margin-top:6px;" onclick="addFromInvite()">Import Server</button>
+            </div>
+        </div>
+
+        <!-- ── Admin Tab ── -->
+        <div id="tab-admin" class="modal-body hidden">
+            <div class="admin-section">
+                <div class="admin-section-title">
+                    <span>Bot Tokens</span>
+                    <button class="btn-small green" onclick="adminGenerateToken()">+ Generate Token</button>
+                </div>
+                <div id="admin-bot-list"><div class="empty-state">No bot tokens.</div></div>
+            </div>
+            <hr class="divider">
+            <div class="admin-section">
+                <div class="admin-section-title"><span>Webhooks</span></div>
+                <div id="admin-webhook-list"><div class="empty-state">No webhooks configured.</div></div>
+                <div class="admin-form-row" style="flex-wrap:wrap;gap:6px;margin-top:8px;">
+                    <input type="text" id="wh-name-input"  class="form-input" placeholder="Name" style="flex:1;min-width:80px;">
+                    <input type="text" id="wh-url-input"   class="form-input" placeholder="POST URL (https://...)" style="flex:3;min-width:180px;">
+                    <input type="text" id="wh-ch-input"    class="form-input" placeholder="Channel ID (blank = all)" style="flex:2;min-width:120px;">
+                    <button class="btn-small" onclick="adminAddWebhook()">Add</button>
+                </div>
+            </div>
+            <hr class="divider">
+            <div class="admin-section">
+                <div class="admin-section-title">
+                    <span>Custom Emojis</span>
+                    <button class="btn-small green" onclick="document.getElementById('emoji-upload-input').click()">+ Upload Emoji</button>
+                </div>
+                <input type="file" id="emoji-upload-input" class="hidden-file" accept="image/*" onchange="adminUploadEmoji(event)">
+                <div id="admin-emoji-grid" class="emoji-admin-grid"></div>
+            </div>
+            <hr class="divider">
+            <div class="admin-section">
+                <div class="admin-section-title"><span>Audit Log</span></div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="btn-small" onclick="adminViewAudit()">View Audit Log</button>
+                </div>
+            </div>
+            <hr class="divider">
+            <div class="admin-section">
+                <div class="admin-section-title"><span>Server Backup</span></div>
+                <p style="font-size:12px;color:#6d6f78;margin-bottom:8px;">Downloads a full ZIP backup: all channels, history, roles, bans, avatars, emojis, uploads, and audit log.</p>
+                <button class="btn-small green" onclick="downloadBackup()">⬇ Download Backup</button>
             </div>
         </div>
 
@@ -843,6 +918,9 @@ let localVideoStream = null;  // webcam stream
 let videoSenders    = {};     // alias → RTCRtpSender
 let destNode        = null;   // MediaStreamDestination — kept for soundboard injection
 let _idleTimer      = null;
+let serverEmojis    = {};   // shortcode → url (custom server emojis)
+let serverWebhooks  = [];   // [{name, url, channelId}]
+let serverBotTokens = [];   // [token, ...]
 
 // ── Avatar helpers ─────────────────────────────────────────────────────────────
 
@@ -1313,12 +1391,13 @@ function selectTextChannel(id) {
 let activeTab = 'audio';
 function switchTab(tab) {
     activeTab = tab;
-    ['audio', 'identity', 'servers'].forEach(t => {
-        document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== tab);
-        document.getElementById(`tab-btn-${t}`).classList.toggle('active', t === tab);
+    ['audio', 'identity', 'servers', 'admin'].forEach(t => {
+        document.getElementById(`tab-${t}`)?.classList.toggle('hidden', t !== tab);
+        document.getElementById(`tab-btn-${t}`)?.classList.toggle('active', t === tab);
     });
     if (tab === 'identity') { renderAliasList(); updateSettingsAvatarPreview(); }
     if (tab === 'servers')  { renderServerList(); updateSettingsServerSection(); }
+    if (tab === 'admin')    renderAdminPanel();
 }
 
 // ── Alias Management ──────────────────────────────────────────────────────────
@@ -2233,6 +2312,12 @@ function renderMarkdown(raw) {
         return `<span class="mention${isMe ? ' me' : ''}">@${name}</span>`;
     });
 
+    // 6.5. Custom server emojis (:shortcode:).
+    s = s.replace(/:([a-z0-9_]+):/g, (match, code) => {
+        const url = serverEmojis[code];
+        return url ? `<img class="custom-emoji" src="${url.replace(/"/g,'&quot;')}" alt=":${code}:" title=":${code}:" loading="lazy">` : match;
+    });
+
     // 7. Restore code blocks (escape their content independently).
     s = s.replace(/\x02(\d+)\x03/g, (_, i) => {
         const code = blocks[parseInt(i)].replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -2558,6 +2643,7 @@ window.chrome.webview.addEventListener('message', async (e) => {
         const badge = document.getElementById('role-badge');
         badge.textContent = data.role;
         badge.className = `visible role-${data.role}`;
+        document.getElementById('tab-btn-admin')?.classList.toggle('visible', isElevated);
         if (isElevated) DevLog.log('BRIDGE', `${data.role} role active — /kick /ban /unban /role unlocked`);
         if (activeTab === 'servers') updateSettingsServerSection();
         // Re-render channels in case readOnly access changed
@@ -2631,6 +2717,9 @@ window.chrome.webview.addEventListener('message', async (e) => {
         if (data.userAvatars  && typeof data.userAvatars  === 'object') Object.assign(userAvatars,  data.userAvatars);
         if (data.userStatuses && typeof data.userStatuses === 'object') Object.assign(userStatuses, data.userStatuses);
         if (data.userRoles    && typeof data.userRoles    === 'object') Object.assign(userRoles,    data.userRoles);
+        if (data.emojis       && typeof data.emojis       === 'object') serverEmojis    = data.emojis;
+        if (Array.isArray(data.webhooks))  serverWebhooks  = data.webhooks;
+        if (Array.isArray(data.botTokens)) serverBotTokens = data.botTokens;
         serverChannels = data.channels;
         channelSlowMode = {};
         data.channels.forEach(c => { if (c.slowMode) channelSlowMode[c.id] = c.slowMode; });
@@ -2690,6 +2779,10 @@ window.chrome.webview.addEventListener('message', async (e) => {
         userRoles      = {};
         pinnedMessages = {};
         serverIconUrl  = null;
+        serverEmojis    = {};
+        serverWebhooks  = [];
+        serverBotTokens = [];
+        document.getElementById('tab-btn-admin')?.classList.remove('visible');
         myStatus = 'online';
         const _sdot = document.getElementById('my-status-dot');
         if (_sdot) _sdot.className = 'status-dot online';
@@ -2835,6 +2928,30 @@ window.chrome.webview.addEventListener('message', async (e) => {
         document.querySelector(`.video-tile[data-alias="${data.alias}"]`)?.remove();
         const sp = document.getElementById('screen-share-panel');
         if (sp && !sp.querySelector('.share-tile') && !sp.querySelector('.video-tile')) sp.classList.remove('active');
+
+    } else if (data.action === 'EMOJIS_UPDATED') {
+        DevLog.log('BRIDGE', `← C# | EMOJIS_UPDATED count:${Object.keys(data.emojis||{}).length}`);
+        if (data.emojis && typeof data.emojis === 'object') serverEmojis = data.emojis;
+        if (activeTab === 'admin') renderAdminPanel();
+
+    } else if (data.action === 'WEBHOOKS_UPDATED') {
+        DevLog.log('BRIDGE', `← C# | WEBHOOKS_UPDATED count:${(data.webhooks||[]).length}`);
+        if (Array.isArray(data.webhooks)) serverWebhooks = data.webhooks;
+        if (activeTab === 'admin') renderAdminPanel();
+
+    } else if (data.action === 'BOT_TOKEN_CREATED') {
+        DevLog.log('BRIDGE', `← C# | BOT_TOKEN_CREATED`);
+        if (Array.isArray(data.tokens)) serverBotTokens = data.tokens;
+        if (activeTab === 'admin') renderAdminPanel();
+        if (data.token) {
+            try { await navigator.clipboard.writeText(data.token); } catch { }
+            renderSystemMessage(`New bot token generated (copied to clipboard): ${data.token.slice(0,8)}…`);
+        }
+
+    } else if (data.action === 'BOT_TOKENS_UPDATED') {
+        DevLog.log('BRIDGE', `← C# | BOT_TOKENS_UPDATED count:${(data.tokens||[]).length}`);
+        if (Array.isArray(data.tokens)) serverBotTokens = data.tokens;
+        if (activeTab === 'admin') renderAdminPanel();
     }
 });
 
@@ -3098,6 +3215,118 @@ function ctxSetRole(role) {
     if (!_ctxMenuAlias || !chId) return;
     postToBridge({ action: 'SEND_CHAT', channelId: chId, message: `/role ${_ctxMenuAlias} ${role}` });
     hideUserCtxMenu();
+}
+
+// ── Admin Panel ────────────────────────────────────────────────────────────────
+
+function renderAdminPanel() {
+    renderBotsSection();
+    renderWebhooksSection();
+    renderEmojisSection();
+}
+
+function renderBotsSection() {
+    const list = document.getElementById('admin-bot-list');
+    if (!list) return;
+    if (!serverBotTokens.length) { list.innerHTML = '<div class="empty-state">No bot tokens.</div>'; return; }
+    list.innerHTML = serverBotTokens.map(tok => `
+        <div class="admin-token-row">
+            <span class="admin-token-text" title="${escapeHtml(tok)}">${tok.slice(0,8)}…${tok.slice(-4)}</span>
+            <button class="btn-danger-sm" onclick="adminRevokeToken('${escapeHtml(tok)}')" title="Revoke token">✕ Revoke</button>
+        </div>`).join('');
+}
+
+function renderWebhooksSection() {
+    const list = document.getElementById('admin-webhook-list');
+    if (!list) return;
+    if (!serverWebhooks.length) { list.innerHTML = '<div class="empty-state">No webhooks configured.</div>'; return; }
+    list.innerHTML = serverWebhooks.map(wh => `
+        <div class="admin-item-row">
+            <div class="admin-item-info">
+                <div class="admin-item-name">${escapeHtml(wh.name || 'Unnamed')}</div>
+                <div class="admin-item-sub">${escapeHtml(wh.url || '')}${wh.channelId ? ` · #${escapeHtml(wh.channelId)}` : ' · all channels'}</div>
+            </div>
+            <button class="btn-danger-sm" onclick="adminDeleteWebhook('${escapeHtml(wh.url||'')}')" title="Delete webhook">✕</button>
+        </div>`).join('');
+}
+
+function renderEmojisSection() {
+    const grid = document.getElementById('admin-emoji-grid');
+    if (!grid) return;
+    const entries = Object.entries(serverEmojis);
+    if (!entries.length) { grid.innerHTML = '<div class="empty-state" style="width:100%;">No custom emojis.</div>'; return; }
+    grid.innerHTML = entries.map(([code, url]) => `
+        <div class="emoji-admin-item" title=":${escapeHtml(code)}:">
+            <img src="${escapeHtml(url)}" alt=":${escapeHtml(code)}:" loading="lazy">
+            <span>:${escapeHtml(code)}:</span>
+            <div class="del-over" onclick="adminDeleteEmoji('${escapeHtml(code)}')">✕</div>
+        </div>`).join('');
+}
+
+function adminGenerateToken() {
+    postToBridge({ action: 'GENERATE_BOT_TOKEN' });
+}
+
+function adminRevokeToken(token) {
+    if (!confirm(`Revoke bot token ${token.slice(0,8)}…?`)) return;
+    postToBridge({ action: 'REVOKE_BOT_TOKEN', token });
+}
+
+function adminAddWebhook() {
+    const name = document.getElementById('wh-name-input')?.value.trim() || 'Webhook';
+    const url  = document.getElementById('wh-url-input')?.value.trim();
+    const ch   = document.getElementById('wh-ch-input')?.value.trim() || '';
+    if (!url) return;
+    postToBridge({ action: 'ADD_WEBHOOK', name, url, channelId: ch });
+    if (document.getElementById('wh-name-input')) document.getElementById('wh-name-input').value = '';
+    if (document.getElementById('wh-url-input'))  document.getElementById('wh-url-input').value  = '';
+    if (document.getElementById('wh-ch-input'))   document.getElementById('wh-ch-input').value   = '';
+}
+
+function adminDeleteWebhook(url) {
+    if (!confirm('Delete this webhook?')) return;
+    postToBridge({ action: 'DELETE_WEBHOOK', url });
+}
+
+function adminDeleteEmoji(shortcode) {
+    if (!confirm(`Delete emoji :${shortcode}:?`)) return;
+    postToBridge({ action: 'DELETE_EMOJI', shortcode });
+}
+
+async function adminUploadEmoji(event) {
+    const file = event.target.files?.[0];
+    if (!file || !serverUploadBase) return;
+    const code = prompt('Emoji shortcode (lowercase letters, numbers, underscore only):', file.name.replace(/\.[^.]+$/, '').replace(/[^a-z0-9_]/gi, '_').toLowerCase());
+    if (!code) { event.target.value = ''; return; }
+    const clean = code.toLowerCase().replace(/[^a-z0-9_]/g, '');
+    if (!clean) { event.target.value = ''; return; }
+    try {
+        const bytes = await resizeImageToBlob(file, 128);
+        const fd = new FormData();
+        const ext = file.name.split('.').pop().toLowerCase();
+        const url = `${serverUploadBase}/upload?name=emoji.${ext}&emojiname=${encodeURIComponent(clean)}`;
+        const resp = await fetch(url, { method: 'POST', body: bytes });
+        if (!resp.ok) { alert('Upload failed'); }
+    } catch (err) { alert(`Error: ${err.message}`); }
+    event.target.value = '';
+}
+
+function adminViewAudit() {
+    const srv = clientConfig?.servers?.find(s => s.id === connectedServerId);
+    if (!srv) return;
+    const url = `http://${srv.host}:${srv.port}/audit?token=${encodeURIComponent(srv.adminPassword || '')}`;
+    postToBridge({ action: 'NOTIFY', title: 'Audit Log', body: 'Opening audit log in browser is not supported in the embedded client. Use a browser to access: ' + url });
+    alert(`Audit log URL (open in a browser):\n${url}`);
+}
+
+function downloadBackup() {
+    const srv = clientConfig?.servers?.find(s => s.id === connectedServerId);
+    if (!srv) return;
+    const url = `http://${srv.host}:${srv.port}/export?token=${encodeURIComponent(srv.adminPassword || '')}`;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '';
+    a.click();
 }
 
 // ── User Status ────────────────────────────────────────────────────────────────
