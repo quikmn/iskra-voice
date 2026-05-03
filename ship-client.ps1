@@ -3,7 +3,7 @@
 
 $ErrorActionPreference = 'Stop'
 
-$root     = 'D:\Development_Projects\Iskra'
+$root     = $PSScriptRoot
 $project  = Join-Path $root 'iskra_client\iskra_client.csproj'
 $binDir   = Join-Path $root 'iskra_client\bin\Release\net8.0-windows'
 $indexSrc = Join-Path $root 'iskra_client\index.html'
