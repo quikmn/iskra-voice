@@ -809,10 +809,7 @@ namespace Origin.Server.Core
                             if (ChannelOccupants.TryGetValue(currentVoiceChannel, out var oldUsers))
                             {
                                 oldUsers.Remove(currentAlias);
-                                var leaveUpdate = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { action = "VOICE_STATE_UPDATE", channelId = currentVoiceChannel, users = oldUsers }));
-                                foreach (var u in oldUsers)
-                                    if (ActiveClients.TryGetValue(u, out WebSocket oSock))
-                                        await oSock.SendAsync(new ArraySegment<byte>(leaveUpdate), WebSocketMessageType.Text, true, CancellationToken.None);
+                                await Broadcast(new { action = "VOICE_STATE_UPDATE", channelId = currentVoiceChannel, users = oldUsers });
                             }
                         }
 
@@ -829,10 +826,7 @@ namespace Origin.Server.Core
 
                         ChannelOccupants[channelId].Add(currentAlias);
 
-                        var stateUpdate = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { action = "VOICE_STATE_UPDATE", channelId, users = ChannelOccupants[channelId] }));
-                        foreach (var user in ChannelOccupants[channelId])
-                            if (ActiveClients.TryGetValue(user, out WebSocket oSock))
-                                await oSock.SendAsync(new ArraySegment<byte>(stateUpdate), WebSocketMessageType.Text, true, CancellationToken.None);
+                        await Broadcast(new { action = "VOICE_STATE_UPDATE", channelId, users = ChannelOccupants[channelId] });
                     }
 
                     // ── LEAVE_VOICE ──────────────────────────────────────────────
