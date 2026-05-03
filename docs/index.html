@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iskra — Your server. Your rules.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0b0b14;
+    --surface:   #11111e;
+    --surface2:  #16162a;
+    --border:    rgba(120,100,255,0.15);
+    --accent:    #7c6fff;
+    --accent2:   #00cfff;
+    --glow:      rgba(124,111,255,0.35);
+    --glow2:     rgba(0,207,255,0.25);
+    --text:      #e2e2f0;
+    --muted:     #7878a0;
+    --green:     #4ade80;
+    --red:       #f87171;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Canvas background ── */
+  #spark-canvas {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.55;
+  }
+
+  /* ── Nav ── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 48px;
+    background: rgba(11,11,20,0.7);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 800;
+    font-size: 1.2rem;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  .nav-logo svg { width: 28px; height: 28px; }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 20px;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { color: var(--text); border-color: rgba(124,111,255,0.4); background: rgba(124,111,255,0.07); }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 0 24px var(--glow);
+  }
+  .btn-primary:hover { background: #9180ff; box-shadow: 0 0 36px var(--glow); transform: translateY(-1px); }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--accent2);
+    border: 1px solid rgba(0,207,255,0.3);
+  }
+  .btn-outline:hover { background: rgba(0,207,255,0.08); border-color: var(--accent2); }
+
+  /* ── Hero ── */
+  .hero {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 120px 24px 80px;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(124,111,255,0.3);
+    background: rgba(124,111,255,0.08);
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #a89fff;
+    margin-bottom: 32px;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .hero-badge .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 2s ease infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.8); }
+  }
+
+  .hero h1 {
+    font-size: clamp(3rem, 8vw, 6.5rem);
+    font-weight: 900;
+    line-height: 1.0;
+    letter-spacing: -0.04em;
+    margin-bottom: 12px;
+    animation: fadeUp 0.6s 0.1s ease both;
+  }
+
+  .hero h1 .word-iskra {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    position: relative;
+  }
+
+  .hero-sub {
+    font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+    font-weight: 400;
+    color: var(--muted);
+    margin-bottom: 48px;
+    max-width: 560px;
+    line-height: 1.5;
+    animation: fadeUp 0.6s 0.2s ease both;
+  }
+
+  .hero-sub strong { color: var(--text); font-weight: 600; }
+
+  .hero-cta {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    animation: fadeUp 0.6s 0.3s ease both;
+  }
+
+  .btn-hero {
+    padding: 14px 32px;
+    font-size: 1rem;
+    border-radius: 10px;
+  }
+
+  .hero-note {
+    margin-top: 20px;
+    font-size: 0.8rem;
+    color: var(--muted);
+    animation: fadeUp 0.6s 0.4s ease both;
+  }
+
+  .hero-note span { color: var(--green); }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Scroll indicator ── */
+  .scroll-hint {
+    position: absolute;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    animation: fadeUp 1s 0.8s ease both;
+  }
+
+  .scroll-line {
+    width: 1px;
+    height: 40px;
+    background: linear-gradient(to bottom, var(--accent), transparent);
+    animation: scrollLine 2s ease infinite;
+  }
+
+  @keyframes scrollLine {
+    0% { transform: scaleY(0); transform-origin: top; opacity: 1; }
+    50% { transform: scaleY(1); transform-origin: top; opacity: 1; }
+    51% { transform: scaleY(1); transform-origin: bottom; opacity: 1; }
+    100% { transform: scaleY(0); transform-origin: bottom; opacity: 0; }
+  }
+
+  /* ── Strip ── */
+  .strip {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    flex-wrap: wrap;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .strip-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 20px 40px;
+    border-right: 1px solid var(--border);
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--muted);
+    transition: color 0.2s;
+  }
+
+  .strip-item:last-child { border-right: none; }
+  .strip-item:hover { color: var(--text); }
+
+  .strip-item svg { color: var(--accent); flex-shrink: 0; }
+
+  /* ── Section ── */
+  section {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 100px 32px;
+  }
+
+  .section-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+
+  .section-title {
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    margin-bottom: 16px;
+  }
+
+  .section-desc {
+    font-size: 1.05rem;
+    color: var(--muted);
+    max-width: 560px;
+    line-height: 1.65;
+  }
+
+  /* ── Features ── */
+  .features-header {
+    margin-bottom: 56px;
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+  }
+
+  .feature-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  }
+
+  .feature-card:hover {
+    border-color: rgba(124,111,255,0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 40px rgba(124,111,255,0.1);
+  }
+
+  .feature-icon {
+    width: 42px; height: 42px;
+    border-radius: 10px;
+    background: rgba(124,111,255,0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+    color: var(--accent);
+  }
+
+  .feature-card h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    letter-spacing: -0.01em;
+  }
+
+  .feature-card p {
+    font-size: 0.875rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  /* ── Anti-Discord ── */
+  .compare-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 56px;
+  }
+
+  .compare-col {
+    border-radius: 16px;
+    padding: 32px;
+  }
+
+  .compare-col.them {
+    background: rgba(248,113,113,0.05);
+    border: 1px solid rgba(248,113,113,0.15);
+  }
+
+  .compare-col.us {
+    background: rgba(74,222,128,0.05);
+    border: 1px solid rgba(74,222,128,0.2);
+    box-shadow: 0 0 40px rgba(74,222,128,0.05);
+  }
+
+  .compare-col h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .compare-col.them h3 { color: var(--red); }
+  .compare-col.us   h3 { color: var(--green); }
+
+  .compare-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .compare-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 0.9rem;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+
+  .compare-list li svg { flex-shrink: 0; margin-top: 1px; }
+
+  /* ── Steps ── */
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+    margin-top: 56px;
+    position: relative;
+  }
+
+  .steps::before {
+    content: '';
+    position: absolute;
+    top: 24px;
+    left: calc(16.666% + 16px);
+    right: calc(16.666% + 16px);
+    height: 1px;
+    background: linear-gradient(to right, var(--accent), var(--accent2));
+    opacity: 0.3;
+  }
+
+  .step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 16px;
+  }
+
+  .step-num {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 1rem;
+    color: #fff;
+    box-shadow: 0 0 24px var(--glow);
+    position: relative;
+    z-index: 1;
+  }
+
+  .step h3 { font-size: 1rem; font-weight: 700; }
+  .step p  { font-size: 0.875rem; color: var(--muted); line-height: 1.6; }
+
+  /* ── Code block ── */
+  .code-block {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    color: #a8a8c8;
+    line-height: 1.7;
+    margin-top: 24px;
+    overflow-x: auto;
+  }
+
+  .code-block .comment { color: #4e4e6a; }
+  .code-block .key     { color: var(--accent2); }
+  .code-block .val     { color: #c3e88d; }
+  .code-block .str     { color: #f07178; }
+  .code-block .num     { color: #f78c6c; }
+  .code-block .bool    { color: #ffcb6b; }
+
+  /* ── Final CTA ── */
+  .cta-section {
+    position: relative;
+    z-index: 1;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 100px 32px;
+    text-align: center;
+    overflow: hidden;
+  }
+
+  .cta-section::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 600px; height: 300px;
+    background: radial-gradient(ellipse at center, rgba(124,111,255,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .cta-section h2 {
+    font-size: clamp(2rem, 4vw, 3.5rem);
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    margin-bottom: 16px;
+    position: relative;
+  }
+
+  .cta-section p {
+    font-size: 1.1rem;
+    color: var(--muted);
+    margin-bottom: 40px;
+    position: relative;
+  }
+
+  .cta-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    position: relative;
+  }
+
+  /* ── Footer ── */
+  footer {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 28px 48px;
+    border-top: 1px solid var(--border);
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+
+  footer a { color: var(--muted); text-decoration: none; transition: color 0.2s; }
+  footer a:hover { color: var(--text); }
+
+  .footer-links { display: flex; gap: 20px; }
+
+  /* ── Divider glow ── */
+  .glow-divider {
+    position: relative;
+    z-index: 1;
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--accent), var(--accent2), transparent);
+    opacity: 0.4;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    nav { padding: 16px 20px; }
+    .strip-item { padding: 16px 20px; font-size: 0.8rem; }
+    .compare-wrapper { grid-template-columns: 1fr; }
+    .steps { grid-template-columns: 1fr; }
+    .steps::before { display: none; }
+    footer { padding: 24px 20px; flex-direction: column; align-items: flex-start; }
+  }
+
+  /* ── Intersection observer animations ── */
+  .reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+</style>
+</head>
+<body>
+
+<canvas id="spark-canvas"></canvas>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="#">
+    <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M16 2L4 16h10l-2 10 14-16H16L18 2z" fill="url(#bolt)" stroke="none"/>
+      <defs>
+        <linearGradient id="bolt" x1="4" y1="2" x2="22" y2="26" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#7c6fff"/>
+          <stop offset="100%" stop-color="#00cfff"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    Iskra
+  </a>
+  <div class="nav-links">
+    <a class="btn btn-ghost" href="https://github.com/quikmn/iskra-voice" target="_blank">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+      GitHub
+    </a>
+    <a class="btn btn-primary" href="https://github.com/quikmn/iskra-voice/releases" target="_blank">
+      Download
+    </a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">
+    <span class="dot"></span>
+    Free &amp; open source · Self-hosted · Windows
+  </div>
+
+  <h1>
+    <span class="word-iskra">Iskra</span><br>
+    Voice &amp; text chat.<br>No strings attached.
+  </h1>
+
+  <p class="hero-sub">
+    Run your own server. <strong>Own your data.</strong><br>
+    No accounts, no cloud, no subscriptions. Just you and your people.
+  </p>
+
+  <div class="hero-cta">
+    <a class="btn btn-primary btn-hero" href="https://github.com/quikmn/iskra-voice/releases" target="_blank">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Download Client
+    </a>
+    <a class="btn btn-outline btn-hero" href="https://github.com/quikmn/iskra-voice" target="_blank">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+      View Source
+    </a>
+  </div>
+
+  <p class="hero-note">Windows 10/11 · Free forever · <span>PolyForm Noncommercial</span></p>
+
+  <div class="scroll-hint">
+    <div class="scroll-line"></div>
+  </div>
+</div>
+
+<!-- STRIP -->
+<div class="strip">
+  <div class="strip-item">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    No central server
+  </div>
+  <div class="strip-item">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    No accounts required
+  </div>
+  <div class="strip-item">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    WebRTC peer-to-peer voice
+  </div>
+  <div class="strip-item">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+    Open source
+  </div>
+  <div class="strip-item">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+    Plain-text storage
+  </div>
+</div>
+
+<div class="glow-divider"></div>
+
+<!-- FEATURES -->
+<section>
+  <div class="features-header reveal">
+    <div class="section-label">Features</div>
+    <h2 class="section-title">Everything you need.<br>Nothing you don't.</h2>
+    <p class="section-desc">Iskra ships with the full feature set of a modern chat platform — built for people who want to own what they run.</p>
+  </div>
+
+  <div class="features-grid">
+
+    <div class="feature-card reveal">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      </div>
+      <h3>Voice Channels</h3>
+      <p>Push-to-talk or voice activation. WebRTC peer-to-peer with TURN relay for friends behind strict NATs. Low latency, no middleman.</p>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      </div>
+      <h3>Text Channels</h3>
+      <p>Markdown rendering, image embeds, file uploads, reactions, edits, deletes, pinning, and slow mode. Stored as plain <code style="font-family:monospace;font-size:0.8em;color:var(--accent2)">.jsonl</code> files on disk.</p>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <h3>Roles &amp; Auth</h3>
+      <p>Five role tiers: guest, member, trusted, admin, owner. Three auth modes: open, registered+guests, or verified-only. HWID-based identity.</p>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      </div>
+      <h3>Direct Messages</h3>
+      <p>Private one-on-one conversations with read receipts. Works over the same connection as your server — no extra setup.</p>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+      </div>
+      <h3>7 Visual Themes</h3>
+      <p>Catppuccin, Nord, Tokyo Night, Gruvbox, Dracula, and more. Themes sync the Windows title bar color too, not just the web UI.</p>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      </div>
+      <h3>Soundboard &amp; Screen Share</h3>
+      <p>Play audio clips to your channel, share your screen, or stream your webcam. No extra software, no plugins.</p>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      </div>
+      <h3>Audit Log &amp; Backup</h3>
+      <p>Every admin action is logged. Download a full server backup (ZIP) from the client — history, roles, bans, avatars, uploads, all of it.</p>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      </div>
+      <h3>Webhooks &amp; Bots</h3>
+      <p>Post to any text channel via webhook. Build bots that connect as a regular client. No rate limits, no approval process.</p>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      </div>
+      <h3>System Tray &amp; Native Feel</h3>
+      <p>Minimizes to tray, shows balloon notifications, respects your theme. Feels like a native Windows app because it is one.</p>
+    </div>
+
+  </div>
+</section>
+
+<div class="glow-divider"></div>
+
+<!-- COMPARE -->
+<section>
+  <div class="reveal">
+    <div class="section-label">Why Iskra</div>
+    <h2 class="section-title">Done with Discord?<br>Same.</h2>
+    <p class="section-desc">Discord is a product. Iskra is a tool. The difference is who's in control.</p>
+  </div>
+
+  <div class="compare-wrapper">
+    <div class="compare-col them reveal">
+      <h3>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        Discord
+      </h3>
+      <ul class="compare-list">
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Your data lives on their servers</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Features locked behind Nitro</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Account required for every user</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Terms of service can change anytime</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Can be shut down, banned, or sold</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> No export, no backup, no control</li>
+      </ul>
+    </div>
+
+    <div class="compare-col us reveal">
+      <h3>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Iskra
+      </h3>
+      <ul class="compare-list">
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Your server, your machine, your rules</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> All features, always free</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> No account — just pick a name and connect</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Open source — audit it yourself</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Runs forever as long as you run it</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Full backup with one click</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<div class="glow-divider"></div>
+
+<!-- HOW IT WORKS -->
+<section>
+  <div class="reveal" style="text-align:center; margin-bottom: 0;">
+    <div class="section-label">Get started</div>
+    <h2 class="section-title">Up in three steps.</h2>
+    <p class="section-desc" style="margin: 0 auto;">No installer, no cloud setup, no account creation. Just unzip and run.</p>
+  </div>
+
+  <div class="steps">
+    <div class="step reveal">
+      <div class="step-num">1</div>
+      <h3>Run the server</h3>
+      <p>Extract <code style="font-family:monospace;font-size:0.85em;color:var(--accent2)">iskra_server.exe</code>, create a world folder with a <code style="font-family:monospace;font-size:0.85em;color:var(--accent2)">server.json</code>, and launch. It's online in seconds.</p>
+    </div>
+    <div class="step reveal">
+      <div class="step-num">2</div>
+      <h3>Share the address</h3>
+      <p>Forward one TCP port on your router. Give friends your IP. That's the entire setup — no domain, no SSL cert, no dashboard.</p>
+    </div>
+    <div class="step reveal">
+      <div class="step-num">3</div>
+      <h3>Connect &amp; talk</h3>
+      <p>Friends unzip the client, enter your address, pick a name, and they're in. Voice, text, files — everything works immediately.</p>
+    </div>
+  </div>
+
+  <div class="code-block reveal" style="margin-top: 48px;">
+    <span class="comment"># Minimal server.json — paste, edit ServerName, run.</span><br>
+    {<br>
+    &nbsp;&nbsp;<span class="key">"Settings"</span>: {<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"ServerName"</span>: <span class="str">"My Server"</span>,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"Port"</span>: <span class="num">8080</span>,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"RequirePassword"</span>: <span class="bool">false</span>,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"AdminPassword"</span>: <span class="str">"change-this"</span>,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"AuthMode"</span>: <span class="str">"open"</span><br>
+    &nbsp;&nbsp;},<br>
+    &nbsp;&nbsp;<span class="key">"Channels"</span>: [<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;{ <span class="key">"Id"</span>: <span class="str">"v_lobby"</span>, <span class="key">"Name"</span>: <span class="str">"Lobby"</span>,   <span class="key">"Type"</span>: <span class="str">"Voice"</span> },<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;{ <span class="key">"Id"</span>: <span class="str">"t_gen"</span>,   <span class="key">"Name"</span>: <span class="str">"general"</span>, <span class="key">"Type"</span>: <span class="str">"Text"</span>  }<br>
+    &nbsp;&nbsp;]<br>
+    }
+  </div>
+</section>
+
+<!-- CTA -->
+<div class="cta-section">
+  <h2 class="reveal">Your server.<br>Your rules.</h2>
+  <p class="reveal">Free forever. No cloud. No bullshit.</p>
+  <div class="cta-buttons reveal">
+    <a class="btn btn-primary btn-hero" href="https://github.com/quikmn/iskra-voice/releases" target="_blank">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Download Iskra
+    </a>
+    <a class="btn btn-ghost btn-hero" href="https://github.com/quikmn/iskra-voice" target="_blank">
+      Read the docs
+    </a>
+    <a class="btn btn-ghost btn-hero" href="https://ko-fi.com/vlundgren" target="_blank">
+      ☕ Buy me a coffee
+    </a>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <span>© 2026 Viktor Lundgren · <a href="https://github.com/quikmn/iskra-voice/blob/main/LICENSE" target="_blank">PolyForm Noncommercial 1.0.0</a></span>
+  <div class="footer-links">
+    <a href="https://github.com/quikmn/iskra-voice" target="_blank">GitHub</a>
+    <a href="https://github.com/quikmn/iskra-voice/releases" target="_blank">Releases</a>
+    <a href="https://ko-fi.com/vlundgren" target="_blank">Ko-fi</a>
+    <a href="https://www.paypal.com/donate/?business=viktor.lundgren%40gmail.com" target="_blank">PayPal</a>
+  </div>
+</footer>
+
+<script>
+// ── Electric spark canvas ──────────────────────────────────────────────────
+(function() {
+  const canvas = document.getElementById('spark-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, particles, bolts;
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+
+  // Floating particles
+  function makeParticle() {
+    return {
+      x: Math.random() * W,
+      y: Math.random() * H,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.3,
+      r: Math.random() * 1.5 + 0.3,
+      alpha: Math.random() * 0.5 + 0.1,
+      hue: Math.random() > 0.5 ? 250 : 195,
+    };
+  }
+
+  // Lightning bolt segment
+  function makeBolt() {
+    const x1 = Math.random() * W;
+    const y1 = Math.random() * H * 0.6;
+    const x2 = x1 + (Math.random() - 0.5) * 200;
+    const y2 = y1 + Math.random() * 200 + 80;
+    const segments = [];
+    const steps = 8 + Math.floor(Math.random() * 8);
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const ox = t < 1 ? (Math.random() - 0.5) * 40 * Math.sin(t * Math.PI) : 0;
+      segments.push({
+        x: x1 + (x2 - x1) * t + ox,
+        y: y1 + (y2 - y1) * t,
+      });
+    }
+    return {
+      segments,
+      alpha: 0.6 + Math.random() * 0.4,
+      life: 0,
+      maxLife: 8 + Math.random() * 12,
+      hue: Math.random() > 0.5 ? 250 : 195,
+      width: Math.random() * 1 + 0.4,
+    };
+  }
+
+  function init() {
+    resize();
+    particles = Array.from({ length: 120 }, makeParticle);
+    bolts = [];
+  }
+
+  let boltTimer = 0;
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Particles
+    for (const p of particles) {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${p.hue}, 100%, 75%, ${p.alpha})`;
+      ctx.fill();
+    }
+
+    // Connecting lines between nearby particles
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const d = Math.sqrt(dx*dx + dy*dy);
+        if (d < 90) {
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.strokeStyle = `hsla(250, 100%, 75%, ${0.06 * (1 - d/90)})`;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Lightning bolts
+    boltTimer++;
+    if (boltTimer > 40 && Math.random() < 0.04) {
+      bolts.push(makeBolt());
+      boltTimer = 0;
+    }
+
+    for (let i = bolts.length - 1; i >= 0; i--) {
+      const b = bolts[i];
+      b.life++;
+      const t = b.life / b.maxLife;
+      const alpha = b.alpha * (1 - t * t);
+      if (b.life >= b.maxLife) { bolts.splice(i, 1); continue; }
+
+      ctx.save();
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = `hsla(${b.hue}, 100%, 80%, ${alpha})`;
+      ctx.strokeStyle = `hsla(${b.hue}, 100%, 90%, ${alpha})`;
+      ctx.lineWidth = b.width;
+      ctx.beginPath();
+      ctx.moveTo(b.segments[0].x, b.segments[0].y);
+      for (let k = 1; k < b.segments.length; k++) {
+        ctx.lineTo(b.segments[k].x, b.segments[k].y);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', resize);
+  init();
+  draw();
+})();
+
+// ── Scroll reveal ──────────────────────────────────────────────────────────
+(function() {
+  const els = document.querySelectorAll('.reveal');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((e, i) => {
+      if (e.isIntersecting) {
+        setTimeout(() => e.target.classList.add('visible'), i * 60);
+        io.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.1 });
+  els.forEach(el => io.observe(el));
+})();
+</script>
+
+</body>
+</html>
