@@ -75,7 +75,7 @@
         /* ── Layout ── */
         #server-bar { width: 72px; background: var(--bg-deep); display: flex; flex-direction: column; align-items: center; padding-top: 12px; }
         #channel-bar { width: 260px; background: var(--bg-sidebar); display: flex; flex-direction: column; }
-        #chat-pane { flex: 1; background: var(--bg-chat); display: flex; flex-direction: column; position: relative; }
+        #chat-pane { flex: 1; background: var(--bg-deep); display: flex; flex-direction: column; position: relative; }
 
         /* ── Channel List ── */
         .channel-section-label { font-size: 11px; font-weight: 700; color: var(--text-subtle); text-transform: uppercase; letter-spacing: 0.7px; padding: 16px 8px 4px 12px; user-select: none; }
@@ -92,7 +92,7 @@
         .ch-empty-state { padding: 20px 12px; text-align: center; color: var(--text-faint); font-size: 12px; line-height: 1.6; }
 
         /* ── Chat Header ── */
-        #chat-header { height: 48px; border-bottom: 1px solid var(--bg-deep); display: flex; align-items: center; padding: 0 20px; gap: 10px; flex-shrink: 0; }
+        #chat-header { height: 48px; background: var(--bg-sidebar); border-bottom: 1px solid var(--bg-border); display: flex; align-items: center; padding: 0 20px; gap: 10px; flex-shrink: 0; }
         #chat-channel-icon { color: var(--text-muted); font-size: 18px; font-weight: 700; }
         #chat-channel-name { font-weight: 700; font-size: 15px; color: var(--text-heading); }
 
@@ -295,11 +295,11 @@
         #srv-icon-settings-preview { width: 56px; height: 56px; border-radius: 12px; font-size: 16px; font-weight: 800; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; letter-spacing: 0.5px; color: rgba(0,0,0,0.7); }
         #srv-icon-settings-preview img { width: 100%; height: 100%; object-fit: cover; }
 
-        /* ── Chat messages — Discord style ── */
-        #chat-history { flex: 1; padding: 12px 0; overflow-y: auto; font-size: 14px; line-height: 1.5; }
-        .msg-row { display: flex; gap: 12px; padding: 2px 20px; border-radius: 4px; position: relative; }
-        .msg-row:hover { background: var(--msg-hover-bg); }
-        .msg-row:hover .msg-actions { opacity: 1; pointer-events: auto; }
+        /* ── Chat messages — card style ── */
+        #chat-history { flex: 1; padding: 8px 0; overflow-y: auto; font-size: 14px; line-height: 1.5; }
+        .msg-row { display: flex; gap: 12px; padding: 8px 12px; border-radius: 10px; margin: 2px 8px; background: var(--bg-chat); position: relative; padding-right: 80px; }
+        .msg-row:hover { background: var(--bg-button); }
+        .msg-row:hover .msg-actions { display: flex; }
         .msg-avatar-col { flex-shrink: 0; width: 40px; padding-top: 2px; }
         .msg-content { flex: 1; min-width: 0; }
         .msg-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 1px; }
@@ -321,7 +321,7 @@
         #slowmode-bar.limited { color: var(--danger); }
 
         /* ── Input area ── */
-        #input-area { padding: 0 20px 16px; }
+        #input-area { padding: 8px 16px 16px; border-top: 1px solid var(--bg-border); }
         .input-row { display: flex; align-items: center; gap: 8px; background: var(--bg-button); border-radius: 8px; padding: 4px 4px 4px 8px; }
         .input-box { flex: 1; background: transparent; border: none; padding: 7px 6px; color: var(--text-normal); outline: none; font-size: 14px; }
         .attach-btn { width: 30px; height: 30px; border-radius: 6px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 17px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: color 0.1s; }
@@ -342,9 +342,7 @@
         .mention.me { background: var(--warning-bg); color: #ffd166; }
 
         /* ── Message hover actions ── */
-        .msg-row { position: relative; padding-right: 72px; }
-        .msg-actions { position: absolute; right: 4px; top: 0; display: none; gap: 2px; background: var(--bg-sidebar); border: 1px solid var(--bg-deep); border-radius: 5px; padding: 2px 4px; }
-        .msg-row:hover .msg-actions { display: flex; }
+        .msg-actions { position: absolute; right: 4px; top: 4px; display: none; gap: 2px; background: var(--bg-float); border: 1px solid var(--bg-border); border-radius: 5px; padding: 2px 4px; }
         .msg-act-btn { border: none; background: transparent; color: var(--text-muted); cursor: pointer; padding: 3px 6px; border-radius: 3px; font-size: 13px; line-height: 1; }
         .msg-act-btn:hover { background: var(--bg-active); color: var(--text-normal); }
         .msg-act-btn.del:hover { background: var(--danger); color: var(--text-heading); }
