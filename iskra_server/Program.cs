@@ -572,12 +572,18 @@ namespace Origin.Server.Core
                 lock (AvatarLock) avatarsCopy = new(UserAvatars);
                 var statusesCopy = new Dictionary<string, string>();
                 foreach (var kv in UserStatuses) if (kv.Value != "invisible") statusesCopy[kv.Key] = kv.Value;
+                var rolesCopy = new Dictionary<string, string>();
+                lock (RoleLock)
+                    foreach (var alias in ActiveClients.Keys)
+                        rolesCopy[alias] = UserRoles.TryGetValue(alias, out var r) ? r : "guest";
+                rolesCopy[currentAlias] = userRole; // ensures owner role is reflected correctly
                 await Send(socket, new {
                     action       = "SERVER_INFO",
                     name         = ActiveConfig.Settings.ServerName,
                     serverIcon   = ActiveConfig.Settings.ServerIcon ?? "",
                     userAvatars  = avatarsCopy,
                     userStatuses = statusesCopy,
+                    userRoles    = rolesCopy,
                     channels     = ActiveConfig.Channels
                         .Where(c => c.Type == "Header" || CanAccess(userRole, c.MinRole))
                         .Select(c => new { id = c.Id, name = c.Name, type = c.Type, readOnly = c.ReadOnly, muted = c.Muted, slowMode = c.SlowMode }),
@@ -681,6 +687,7 @@ namespace Origin.Server.Core
                                     await BroadcastSystemMessage($"{targetAlias} has been given the {newRole} role.");
                                     if (ActiveClients.TryGetValue(targetAlias, out WebSocket tSock))
                                         await Send(tSock, new { action = "ROLE_GRANTED", role = newRole });
+                                    await Broadcast(new { action = "USER_ROLE_UPDATED", alias = targetAlias, role = newRole });
                                 }
                             }
                             else if (cmd == "/slowmode" && parts.Length >= 2)

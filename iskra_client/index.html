@@ -392,6 +392,39 @@
         .status-opt:hover { background: #25272b; }
         .status-opt-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 
+        /* ── Members panel ── */
+        #members-panel { width: 240px; background: #2b2d31; flex-direction: column; flex-shrink: 0; border-left: 1px solid #1e1f22; display: none; }
+        #members-panel.open { display: flex; }
+        #members-panel-header { padding: 12px 16px 10px; font-size: 11px; font-weight: 700; color: #6d6f78; text-transform: uppercase; letter-spacing: 0.7px; flex-shrink: 0; border-bottom: 1px solid #1e1f22; }
+        #members-list { flex: 1; overflow-y: auto; padding: 8px 0; }
+        .member-group-label { font-size: 11px; font-weight: 700; color: #6d6f78; text-transform: uppercase; letter-spacing: 0.7px; padding: 10px 16px 4px; }
+        .member-entry { display: flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 4px; margin: 1px 8px; cursor: pointer; }
+        .member-entry:hover { background: #35373c; }
+        .member-entry-info { flex: 1; min-width: 0; }
+        .member-entry-name { font-size: 13px; font-weight: 600; color: #949ba4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .member-entry-vc { font-size: 10px; color: #6d6f78; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .member-role-pip { font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 2px; text-transform: uppercase; letter-spacing: 0.3px; flex-shrink: 0; }
+        .member-role-pip.r-trusted { background: #3b3a5c; color: #9b8dd4; }
+        .member-role-pip.r-admin   { background: #3a4a3a; color: #3ba55d; }
+        .member-role-pip.r-owner   { background: #4a3a2a; color: #f0a050; }
+
+        /* ── Members toggle button ── */
+        #btn-members { background: transparent; border: none; color: #6d6f78; cursor: pointer; font-size: 16px; padding: 3px 6px; border-radius: 4px; line-height: 1; display: none; margin-left: auto; flex-shrink: 0; }
+        #btn-members.visible { display: flex; align-items: center; }
+        #btn-members:hover { color: #dcddde; }
+        #btn-members.active { color: #dcddde; }
+
+        /* ── Admin context menu section ── */
+        .ctx-divider { border: none; border-top: 1px solid #2a2c31; margin: 3px 0; }
+        .ctx-section-label { padding: 4px 12px 2px; font-size: 10px; font-weight: 700; color: #6d6f78; text-transform: uppercase; letter-spacing: 0.5px; }
+        .ctx-action { padding: 7px 12px; cursor: pointer; font-size: 13px; color: #dcddde; }
+        .ctx-action:hover { background: #35373c; }
+        .ctx-action.danger { color: #ed4245; }
+        .ctx-action.danger:hover { background: rgba(237,66,69,0.12); }
+        .ctx-role-row { display: flex; gap: 4px; padding: 4px 12px 7px; flex-wrap: wrap; }
+        .ctx-role-btn { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 3px; border: 1px solid #3a3c42; background: transparent; color: #6d6f78; cursor: pointer; text-transform: uppercase; letter-spacing: 0.3px; }
+        .ctx-role-btn:hover { border-color: #5865f2; color: #dcddde; }
+
         /* ── Share overlay (fullscreen focus) ── */
         #share-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.92); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 10px; z-index: 300; }
         #share-overlay.open { display: flex; }
@@ -454,6 +487,7 @@
         <span id="chat-channel-icon">#</span>
         <span id="chat-channel-name">—</span>
         <button id="pin-indicator" onclick="togglePinPanel()" title="Pinned messages">📌 <span id="pin-count-badge">0</span> pinned</button>
+        <button id="btn-members" onclick="toggleMembersPanel()" title="Toggle member list">👥</button>
     </div>
     <div id="pin-panel"></div>
     <div id="screen-share-panel"></div>
@@ -471,6 +505,11 @@
         <input type="file" id="server-icon-file-input" accept="image/*" style="display:none" onchange="onAvatarFileChange(event, true)">
         <input type="file" id="soundboard-file-input" accept=".mp3,.wav,.ogg,.webm" style="display:none" onchange="onSoundboardFileChange(event)">
     </div>
+</div>
+
+<div id="members-panel">
+    <div id="members-panel-header">Members — <span id="members-count">0</span> online</div>
+    <div id="members-list"></div>
 </div>
 
 <!-- ── Image zoom overlay ── -->
@@ -690,6 +729,14 @@
         <input class="ctx-vol-slider" type="range" min="0" max="200" value="100"
                oninput="onCtxVolChange(this.value)" id="ctx-vol-slider">
     </div>
+    <div id="ctx-admin-section" style="display:none;">
+        <hr class="ctx-divider">
+        <div class="ctx-section-label">Set Role</div>
+        <div class="ctx-role-row" id="ctx-role-row"></div>
+        <hr class="ctx-divider">
+        <div class="ctx-action danger" onclick="ctxKick()">⚡ Kick</div>
+        <div class="ctx-action danger" onclick="ctxBan()">🔨 Ban</div>
+    </div>
 </div>
 
 <script>
@@ -788,6 +835,7 @@ let remoteScreens       = {};     // alias → { tile, video }
 let sharingChannelId    = null;   // voice channel we were in when sharing started
 
 let userStatuses    = {};     // alias → "online"/"away"/"dnd"/"offline"
+let userRoles       = {};     // alias → "guest"/"member"/"trusted"/"admin"/"owner"
 let myStatus        = 'online';
 let pinnedMessages  = {};     // channelId → [{id, author, time, message}]
 let soundboardClips = [];     // {id, name, url} persisted in localStorage
@@ -2484,6 +2532,7 @@ window.chrome.webview.addEventListener('message', async (e) => {
         myRole = 'guest';
         myStatus = 'online';
         userStatuses = {};
+        userRoles    = {};
         pinnedMessages = {};
         inMutedChannel = false;
         document.getElementById('admin-crown').classList.remove('visible');
@@ -2503,6 +2552,7 @@ window.chrome.webview.addEventListener('message', async (e) => {
     } else if (data.action === 'ROLE_GRANTED') {
         DevLog.log('BRIDGE', `← C# | ROLE_GRANTED role:${data.role}`);
         myRole = data.role;
+        userRoles[myAlias] = data.role;
         const isElevated = data.role === 'admin' || data.role === 'owner';
         document.getElementById('admin-crown').classList.toggle('visible', isElevated);
         const badge = document.getElementById('role-badge');
@@ -2513,6 +2563,7 @@ window.chrome.webview.addEventListener('message', async (e) => {
         // Re-render channels in case readOnly access changed
         if (activeTextChannelId) selectTextChannel(activeTextChannelId);
         renderChannelList();
+        if (document.getElementById('members-panel')?.classList.contains('open')) renderMembersPanel();
 
     } else if (data.action === 'PTT_STATE') {
         DevLog.log('BRIDGE', `← C# | PTT_STATE isActive:${data.isActive}`);
@@ -2579,6 +2630,7 @@ window.chrome.webview.addEventListener('message', async (e) => {
         serverIconUrl = data.serverIcon || null;
         if (data.userAvatars  && typeof data.userAvatars  === 'object') Object.assign(userAvatars,  data.userAvatars);
         if (data.userStatuses && typeof data.userStatuses === 'object') Object.assign(userStatuses, data.userStatuses);
+        if (data.userRoles    && typeof data.userRoles    === 'object') Object.assign(userRoles,    data.userRoles);
         serverChannels = data.channels;
         channelSlowMode = {};
         data.channels.forEach(c => { if (c.slowMode) channelSlowMode[c.id] = c.slowMode; });
@@ -2587,6 +2639,8 @@ window.chrome.webview.addEventListener('message', async (e) => {
         updateMyAvatar();
         renderServerBar();
         renderChannelList();
+        document.getElementById('btn-members')?.classList.add('visible');
+        if (document.getElementById('members-panel')?.classList.contains('open')) renderMembersPanel();
 
     } else if (data.action === 'AVATAR_UPDATED') {
         DevLog.log('BRIDGE', `← C# | AVATAR_UPDATED alias:${data.alias}`);
@@ -2624,6 +2678,7 @@ window.chrome.webview.addEventListener('message', async (e) => {
         updateMicIndicator();
         renderChannelList();
         updateShareButtonVisibility();
+        if (document.getElementById('members-panel')?.classList.contains('open')) renderMembersPanel();
 
     } else if (data.action === 'DISCONNECTED') {
         DevLog.log('BRIDGE', '← C# | DISCONNECTED');
@@ -2632,6 +2687,7 @@ window.chrome.webview.addEventListener('message', async (e) => {
         inMutedChannel = false;
         userAvatars    = {};
         userStatuses   = {};
+        userRoles      = {};
         pinnedMessages = {};
         serverIconUrl  = null;
         myStatus = 'online';
@@ -2675,6 +2731,10 @@ window.chrome.webview.addEventListener('message', async (e) => {
         document.getElementById('chat-history').innerHTML = '';
         renderChannelList();
         renderServerBar();
+        const _membersBtn = document.getElementById('btn-members');
+        if (_membersBtn) _membersBtn.classList.remove('visible', 'active');
+        const _membersPanel = document.getElementById('members-panel');
+        if (_membersPanel) { _membersPanel.classList.remove('open'); _membersPanel.querySelector('#members-list').innerHTML = ''; }
 
     } else if (data.action === 'AUTH_FAILED') {
         DevLog.log('ERR', `← C# | AUTH_FAILED: ${data.reason}`);
@@ -2741,6 +2801,12 @@ window.chrome.webview.addEventListener('message', async (e) => {
         DevLog.log('BRIDGE', `← C# | STATUS_UPDATED alias:${data.alias} status:${data.status}`);
         userStatuses[data.alias] = data.status;
         renderChannelList();
+        if (document.getElementById('members-panel')?.classList.contains('open')) renderMembersPanel();
+
+    } else if (data.action === 'USER_ROLE_UPDATED') {
+        DevLog.log('BRIDGE', `← C# | USER_ROLE_UPDATED alias:${data.alias} role:${data.role}`);
+        userRoles[data.alias] = data.role;
+        if (document.getElementById('members-panel')?.classList.contains('open')) renderMembersPanel();
 
     } else if (data.action === 'REACTION_UPDATED') {
         DevLog.log('BRIDGE', `← C# | REACTION_UPDATED msgId:${data.messageId} ch:${data.channelId}`);
@@ -2825,15 +2891,34 @@ let _ctxMenuAlias = null;
 
 function showUserCtxMenu(e, alias) {
     e.preventDefault();
+    e.stopPropagation();
     _ctxMenuAlias = alias;
     document.getElementById('ctx-menu-alias').textContent = alias;
     const vol = Math.round((userVolumes[alias] || 1.0) * 100);
     document.getElementById('ctx-vol-slider').value        = vol;
     document.getElementById('ctx-vol-display').textContent = vol + '%';
+
+    // Admin section
+    const isAdmin = ['admin','owner'].includes(myRole);
+    const adminSection = document.getElementById('ctx-admin-section');
+    if (adminSection) {
+        adminSection.style.display = isAdmin ? 'block' : 'none';
+        if (isAdmin) {
+            const roleRow = document.getElementById('ctx-role-row');
+            const grantable = myRole === 'owner'
+                ? ['guest','member','trusted','admin']
+                : ['guest','member','trusted'];
+            if (roleRow) roleRow.innerHTML = grantable.map(r =>
+                `<button class="ctx-role-btn" onclick="ctxSetRole('${r}')">${r}</button>`
+            ).join('');
+        }
+    }
+
     const menu = document.getElementById('user-ctx-menu');
     menu.style.display = 'block';
-    const x = Math.min(e.clientX, window.innerWidth  - 190);
-    const y = Math.min(e.clientY, window.innerHeight - 90);
+    const menuH = menu.offsetHeight || 180;
+    const x = Math.min(e.clientX, window.innerWidth  - 200);
+    const y = Math.min(e.clientY, window.innerHeight - menuH - 8);
     menu.style.left = x + 'px';
     menu.style.top  = y + 'px';
 }
@@ -2935,6 +3020,85 @@ document.addEventListener('paste', async e => {
         });
     });
 })();
+
+// ── Members Panel ─────────────────────────────────────────────────────────────
+function toggleMembersPanel() {
+    const panel = document.getElementById('members-panel');
+    const btn   = document.getElementById('btn-members');
+    if (!panel) return;
+    const isOpen = panel.classList.toggle('open');
+    btn?.classList.toggle('active', isOpen);
+    if (isOpen) renderMembersPanel();
+}
+
+function renderMembersPanel() {
+    const list    = document.getElementById('members-list');
+    const countEl = document.getElementById('members-count');
+    if (!list) return;
+
+    const groups = { online: [], away: [], dnd: [], offline: [] };
+    for (const [alias, status] of Object.entries(userStatuses)) {
+        const grp = ['online','away','dnd'].includes(status) ? status : 'offline';
+        groups[grp].push(alias);
+    }
+    // Add any connected users not yet in userStatuses (e.g. self before STATUS_UPDATED arrives)
+    if (myAlias && !userStatuses[myAlias]) groups.online.push(myAlias);
+
+    const aliasToVc = {};
+    for (const [chId, users] of Object.entries(voiceChannelUsers)) {
+        const ch = serverChannels.find(c => c.id === chId);
+        if (ch) users.forEach(u => { aliasToVc[u] = ch.name; });
+    }
+
+    const onlineCount = groups.online.length + groups.away.length + groups.dnd.length;
+    if (countEl) countEl.textContent = onlineCount;
+
+    const groupLabels = { online: 'Online', away: 'Away', dnd: 'Do Not Disturb', offline: 'Offline' };
+
+    list.innerHTML = Object.entries(groups)
+        .filter(([, arr]) => arr.length > 0)
+        .map(([grp, aliases]) => {
+            const entries = [...aliases].sort().map(alias => {
+                const role   = userRoles[alias] || 'guest';
+                const vcName = aliasToVc[alias];
+                const pip    = ['trusted','admin','owner'].includes(role)
+                    ? `<span class="member-role-pip r-${role}">${role}</span>` : '';
+                const vcHtml = vcName ? `<div class="member-entry-vc">🔊 ${escapeHtml(vcName)}</div>` : '';
+                const ctxAttr = alias !== myAlias
+                    ? `oncontextmenu="showUserCtxMenu(event,'${escapeHtml(alias)}')" onclick="showUserCtxMenu(event,'${escapeHtml(alias)}')"` : '';
+                return `<div class="member-entry" ${ctxAttr}>`
+                    + avatarHtml(alias, 'sz-32', false, true)
+                    + `<div class="member-entry-info"><div class="member-entry-name">${escapeHtml(alias)}</div>${vcHtml}</div>${pip}</div>`;
+            }).join('');
+            return `<div class="member-group-label">${groupLabels[grp]} — ${aliases.length}</div>${entries}`;
+        }).join('');
+}
+
+// ── Admin Context Menu ─────────────────────────────────────────────────────────
+function _adminCmdChannel() {
+    return activeTextChannelId || serverChannels.find(c => c.type === 'Text')?.id;
+}
+
+function ctxKick() {
+    const chId = _adminCmdChannel();
+    if (!_ctxMenuAlias || !chId) return;
+    postToBridge({ action: 'SEND_CHAT', channelId: chId, message: `/kick ${_ctxMenuAlias}` });
+    hideUserCtxMenu();
+}
+
+function ctxBan() {
+    const chId = _adminCmdChannel();
+    if (!_ctxMenuAlias || !chId) return;
+    postToBridge({ action: 'SEND_CHAT', channelId: chId, message: `/ban ${_ctxMenuAlias}` });
+    hideUserCtxMenu();
+}
+
+function ctxSetRole(role) {
+    const chId = _adminCmdChannel();
+    if (!_ctxMenuAlias || !chId) return;
+    postToBridge({ action: 'SEND_CHAT', channelId: chId, message: `/role ${_ctxMenuAlias} ${role}` });
+    hideUserCtxMenu();
+}
 
 // ── User Status ────────────────────────────────────────────────────────────────
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
