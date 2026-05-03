@@ -7,7 +7,7 @@
     "AdminEmail": "",
     "TurnUrls": ["turn:turn01.ams.iskra.foo:3478", "turns:turn01.ams.iskra.foo:5349"],
     "TurnUsername": "iskra",
-    "TurnCredential": ""
+    "TurnCredential": "ee32a9bc-55f9-4393-adcc-f82c3381b15c"
   },
   "Channels": [
     { "Id": "hdr_b_main", "Name": "Main",      "Type": "Header" },

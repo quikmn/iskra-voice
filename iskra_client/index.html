@@ -22,8 +22,8 @@
         .ch-leave { margin-left: auto; font-size: 11px; padding: 1px 5px; border-radius: 3px; color: #4f545c; cursor: pointer; flex-shrink: 0; }
         .ch-leave:hover { color: #ed4245; background: rgba(237,66,69,0.12); }
         .voice-user-list { flex-basis: 100%; margin-left: 24px; display: flex; flex-direction: column; gap: 3px; padding: 2px 0; }
-        .voice-user { font-size: 12px; color: #dbdee1; display: flex; align-items: center; gap: 6px; }
-        .voice-user::before { content: ''; width: 7px; height: 7px; background: #3ba55d; border-radius: 50%; flex-shrink: 0; }
+        .voice-user { font-size: 12px; color: #dbdee1; display: flex; align-items: center; gap: 6px; cursor: default; }
+        .voice-user .vu-avatar { flex-shrink: 0; }
         .ch-empty-state { padding: 20px 12px; text-align: center; color: #4f545c; font-size: 12px; line-height: 1.6; }
 
         /* ── Chat Header ── */
@@ -31,10 +31,7 @@
         #chat-channel-icon { color: #949ba4; font-size: 18px; font-weight: 700; }
         #chat-channel-name { font-weight: 700; font-size: 15px; color: #fff; }
 
-        /* ── Chat ── */
-        #chat-history { flex: 1; padding: 20px; overflow-y: auto; font-size: 14px; line-height: 1.5; }
-        #input-area { padding: 16px 20px; }
-        .input-box { width: 100%; background: #383a40; border: none; padding: 11px 14px; border-radius: 8px; color: #dcddde; outline: none; font-size: 14px; }
+        /* .input-box and #input-area layout in Input area section below */
 
         /* ── User Footer ── */
         #user-footer { height: 54px; background: #232428; padding: 0 8px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
@@ -43,11 +40,12 @@
         #ui-alias { font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         #voice-mode-label { font-size: 11px; color: #3ba55d; }
 
-        /* ── Mic indicator ── */
-        #mic-indicator { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; transition: background 0.08s, color 0.08s; cursor: default; }
-        #mic-indicator.inactive  { background: #383a40; color: #4f545c; }
-        #mic-indicator.ptt-ready { background: #383a40; color: #5865f2; }
-        #mic-indicator.active    { background: #3ba55d; color: #fff; box-shadow: 0 0 6px rgba(59,165,93,0.6); }
+        /* ── Mic status ring ── */
+        #mic-indicator { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; border: 2.5px solid; transition: border-color 0.1s, box-shadow 0.1s; cursor: default; }
+        #mic-indicator.inactive  { border-color: #5865f2; opacity: 0.55; box-shadow: none; }
+        #mic-indicator.ptt-ready { border-color: #5865f2; opacity: 1;    box-shadow: none; }
+        #mic-indicator.active    { border-color: #3ba55d; opacity: 1;    box-shadow: 0 0 6px rgba(59,165,93,0.7); }
+        #mic-indicator.muted     { border-color: #ed4245; opacity: 1;    box-shadow: none; }
 
         /* ── Settings button ── */
         #btn-settings { width: 28px; height: 28px; border-radius: 50%; border: none; background: #383a40; color: #949ba4; cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -112,9 +110,12 @@
         .server-pill { position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 4px; height: 0; background: #fff; border-radius: 0 4px 4px 0; transition: height 0.15s ease; pointer-events: none; }
         .server-icon-wrap:hover .server-pill { height: 20px; }
         .server-icon-wrap.active .server-pill { height: 40px; }
-        .server-icon { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; letter-spacing: 0.5px; color: rgba(0,0,0,0.70); cursor: pointer; transition: border-radius 0.15s; flex-shrink: 0; user-select: none; }
+        .server-icon { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; letter-spacing: 0.5px; color: rgba(0,0,0,0.70); cursor: pointer; transition: border-radius 0.15s; flex-shrink: 0; user-select: none; overflow: hidden; position: relative; }
         .server-icon:hover { border-radius: 16px; }
         .server-icon-wrap.active .server-icon { border-radius: 16px; }
+        .server-icon img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+        .server-icon .srv-upload-hint { position: absolute; inset: 0; background: rgba(0,0,0,0.55); display: none; align-items: center; justify-content: center; font-size: 18px; border-radius: inherit; }
+        .server-icon:hover .srv-upload-hint { display: flex; }
         .server-bar-divider { width: 32px; height: 2px; background: #35373c; border-radius: 1px; margin: 2px 0 8px; }
         .server-add-btn { width: 48px; height: 48px; border-radius: 50%; background: #313338; color: #3ba55d; font-size: 26px; font-weight: 300; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: border-radius 0.15s, background 0.15s; user-select: none; line-height: 1; }
         .server-add-btn:hover { border-radius: 16px; background: #3ba55d; color: #fff; }
@@ -192,6 +193,120 @@
         .ctx-vol-label { font-size: 11px; color: #949ba4; display: flex; justify-content: space-between; }
         .ctx-vol-slider { width: 100%; -webkit-appearance: none; height: 4px; background: #3a3c42; border-radius: 2px; outline: none; cursor: pointer; }
         .ctx-vol-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: #5865f2; border-radius: 50%; cursor: pointer; }
+
+        /* ── Avatar circles ── */
+        .avatar-circle { border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; overflow: hidden; flex-shrink: 0; user-select: none; transition: opacity 0.12s; }
+        .avatar-circle img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; pointer-events: none; }
+        .avatar-circle.clickable { cursor: pointer; }
+        .avatar-circle.clickable:hover { opacity: 0.82; }
+        .avatar-circle.sz-40 { width: 40px; height: 40px; font-size: 15px; }
+        .avatar-circle.sz-32 { width: 32px; height: 32px; font-size: 13px; }
+        .avatar-circle.sz-22 { width: 22px; height: 22px; font-size: 9px; }
+
+        /* ── Image zoom overlay ── */
+        #img-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.88); display: none; align-items: center; justify-content: center; z-index: 400; cursor: zoom-out; flex-direction: column; gap: 12px; }
+        #img-overlay.open { display: flex; }
+        #img-overlay-img { max-width: 88vw; max-height: 82vh; border-radius: 10px; object-fit: contain; box-shadow: 0 24px 64px rgba(0,0,0,0.8); cursor: default; }
+        #img-overlay-label { color: #949ba4; font-size: 13px; font-weight: 600; }
+        #img-overlay-close { position: fixed; top: 16px; right: 20px; background: rgba(0,0,0,0.55); border: 1px solid #3a3c42; color: #dcddde; border-radius: 6px; padding: 6px 14px; font-size: 12px; cursor: pointer; z-index: 401; }
+        #img-overlay-close:hover { background: #ed4245; border-color: #ed4245; color: #fff; }
+
+        /* ── Chat messages — Discord style ── */
+        #chat-history { flex: 1; padding: 12px 0; overflow-y: auto; font-size: 14px; line-height: 1.5; }
+        .msg-row { display: flex; gap: 12px; padding: 2px 20px; border-radius: 4px; position: relative; }
+        .msg-row:hover { background: rgba(0,0,0,0.07); }
+        .msg-row:hover .msg-actions { opacity: 1; pointer-events: auto; }
+        .msg-avatar-col { flex-shrink: 0; width: 40px; padding-top: 2px; }
+        .msg-content { flex: 1; min-width: 0; }
+        .msg-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 1px; }
+        .msg-author { font-weight: 700; color: #fff; cursor: pointer; }
+        .msg-author:hover { text-decoration: underline; }
+        .msg-time { color: #4f545c; font-size: 11px; font-variant-numeric: tabular-nums; }
+        .msg-body { color: #dcddde; word-break: break-word; }
+        .msg-actions { opacity: 0; pointer-events: none; transition: opacity 0.1s; display: inline-flex; gap: 2px; margin-left: 6px; }
+        .msg-system { color: #faa61a; font-style: italic; font-size: 13px; padding: 3px 20px; }
+        .msg-system::before { content: '— '; }
+        .msg-img { max-width: 420px; max-height: 320px; border-radius: 6px; margin-top: 5px; display: block; cursor: pointer; border: 1px solid #3a3c42; }
+        .msg-img:hover { border-color: #5865f2; }
+        .msg-file { color: #5865f2; text-decoration: none; font-size: 13px; display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; background: #2b2d31; border-radius: 5px; margin-top: 4px; border: 1px solid #3a3c42; }
+        .msg-file:hover { background: #3f4147; border-color: #5865f2; }
+
+        /* ── Input area ── */
+        #input-area { padding: 0 20px 16px; }
+        .input-row { display: flex; align-items: center; gap: 8px; background: #383a40; border-radius: 8px; padding: 4px 4px 4px 8px; }
+        .input-box { flex: 1; background: transparent; border: none; padding: 7px 6px; color: #dcddde; outline: none; font-size: 14px; }
+        .attach-btn { width: 30px; height: 30px; border-radius: 6px; border: none; background: transparent; color: #949ba4; cursor: pointer; font-size: 17px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: color 0.1s; }
+        .attach-btn:hover { color: #dcddde; }
+
+        /* ── Drop zone ── */
+        #chat-history.drag-over { outline: 2px dashed #5865f2; outline-offset: -6px; background: rgba(88,101,242,0.05); }
+
+        /* ── Markdown code ── */
+        .msg-body code { background: #1e1f22; border-radius: 3px; padding: 1px 5px; font-family: 'Cascadia Code','Consolas',monospace; font-size: 12.5px; color: #e3e5e8; }
+        .msg-body pre { background: #1e1f22; border-radius: 5px; padding: 10px 12px; margin: 6px 0 2px; overflow-x: auto; }
+        .msg-body pre code { background: none; padding: 0; font-size: 12px; }
+        .msg-body a { color: #00aff4; text-decoration: none; }
+        .msg-body a:hover { text-decoration: underline; }
+
+        /* ── @mentions ── */
+        .mention { background: rgba(88,101,242,0.25); color: #c9cdfb; border-radius: 3px; padding: 0 3px; font-weight: 600; }
+        .mention.me { background: rgba(250,166,26,0.28); color: #ffd166; }
+
+        /* ── Message hover actions ── */
+        .msg-row { position: relative; padding-right: 72px; }
+        .msg-actions { position: absolute; right: 4px; top: 0; display: none; gap: 2px; background: #2b2d31; border: 1px solid #1e1f22; border-radius: 5px; padding: 2px 4px; }
+        .msg-row:hover .msg-actions { display: flex; }
+        .msg-act-btn { border: none; background: transparent; color: #949ba4; cursor: pointer; padding: 3px 6px; border-radius: 3px; font-size: 13px; line-height: 1; }
+        .msg-act-btn:hover { background: #3f4147; color: #dcddde; }
+        .msg-act-btn.del:hover { background: #ed4245; color: #fff; }
+        .msg-edited { color: #4f545c; font-size: 10px; font-style: italic; margin-left: 4px; }
+
+        /* ── Inline edit ── */
+        .msg-edit-area { width: 100%; background: #1e1f22; border: 1px solid #5865f2; border-radius: 5px; color: #dcddde; font-size: 14px; padding: 6px 10px; resize: none; outline: none; font-family: inherit; margin-top: 3px; box-sizing: border-box; }
+        .msg-edit-btns { margin-top: 4px; display: flex; gap: 6px; font-size: 11px; color: #4f545c; }
+        .msg-edit-btns span { cursor: pointer; }
+        .msg-edit-btns span:hover { color: #dcddde; }
+
+        /* ── Admin crown + role badge in footer ── */
+        #admin-crown { font-size: 13px; display: none; }
+        #admin-crown.visible { display: inline; }
+        #role-badge { font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; background: #383a40; color: #6d6f78; display: none; }
+        #role-badge.visible { display: inline-block; }
+        #role-badge.role-member  { background: #3a3c42; color: #949ba4; }
+        #role-badge.role-trusted { background: #3b3a5c; color: #9b8dd4; }
+        #role-badge.role-admin   { background: #3a4a3a; color: #3ba55d; }
+        #role-badge.role-owner   { background: #4a3a2a; color: #f0a050; }
+        /* ── Read-only channel input state ── */
+        #input-area.readonly .input-row { opacity: 0.5; pointer-events: none; }
+        #input-area.readonly::after { content: 'This channel is read-only'; display: block; font-size: 11px; color: #6d6f78; text-align: center; margin-top: 4px; }
+
+        /* ── Mention unread badge ── */
+        .ch-unread.has-mention { background: #faa61a; }
+
+        /* ── Screen share panel ── */
+        #screen-share-panel { display: none; height: 236px; background: #111214; border-bottom: 1px solid #1e1f22; padding: 8px 10px; gap: 8px; overflow-x: auto; flex-shrink: 0; align-items: center; }
+        #screen-share-panel.active { display: flex; }
+        .share-tile { position: relative; height: 188px; flex: 0 0 auto; min-width: 256px; max-width: 380px; background: #0d0e10; border-radius: 8px; overflow: hidden; border: 2px solid #1e1f22; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; display: flex; align-items: center; justify-content: center; }
+        .share-tile:hover { border-color: #5865f2; box-shadow: 0 4px 16px rgba(88,101,242,0.2); }
+        .share-tile video { width: 100%; height: 100%; object-fit: contain; display: block; }
+        .share-tile-label { position: absolute; bottom: 0; left: 0; right: 0; padding: 20px 8px 5px; background: linear-gradient(transparent, rgba(0,0,0,0.8)); color: #fff; font-size: 11px; font-weight: 600; pointer-events: none; }
+        .share-tile-mine { border-color: #3ba55d; }
+        .share-tile-mine:hover { border-color: #3ba55d; box-shadow: 0 4px 16px rgba(59,165,93,0.25); }
+        .share-panel-hint { color: #4f545c; font-size: 11px; padding: 0 6px; white-space: nowrap; align-self: center; }
+
+        /* ── Share button ── */
+        #btn-share { display: none; }
+        #btn-share.visible { display: flex; }
+        #btn-share.sharing { background: #ed4245; color: #fff; }
+        #btn-share.sharing:hover { background: #c03537; color: #fff; }
+
+        /* ── Share overlay (fullscreen focus) ── */
+        #share-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.92); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 10px; z-index: 300; }
+        #share-overlay.open { display: flex; }
+        #share-overlay-video { max-width: 94vw; max-height: 88vh; border-radius: 8px; object-fit: contain; display: block; background: #000; }
+        #share-overlay-label { color: #dcddde; font-size: 13px; font-weight: 600; }
+        #share-overlay-close { position: fixed; top: 16px; right: 20px; background: rgba(0,0,0,0.6); border: 1px solid #3a3c42; color: #dcddde; border-radius: 6px; padding: 6px 14px; font-size: 12px; cursor: pointer; z-index: 301; }
+        #share-overlay-close:hover { background: #ed4245; border-color: #ed4245; color: #fff; }
     </style>
 </head>
 <body>
@@ -207,14 +322,17 @@
     <div id="server-name-display" style="padding:16px;font-weight:700;color:#fff;font-size:14px;border-bottom:1px solid #1e1f22;flex-shrink:0;">Not connected</div>
     <div id="channel-list" style="flex:1;overflow-y:auto;"></div>
     <div id="user-footer">
-        <div class="avatar"></div>
+        <div id="my-avatar" class="avatar-circle sz-32 clickable" onclick="document.getElementById('avatar-file-input').click()" title="Click to change your avatar"></div>
         <div id="footer-info">
             <div id="ui-alias">...</div>
             <div id="voice-mode-label">Voice Activity</div>
         </div>
-        <div id="mic-indicator" class="inactive" title="Microphone">🎙️</div>
+        <span id="admin-crown" title="Admin / Owner">👑</span>
+        <span id="role-badge"></span>
+        <div id="mic-indicator" class="inactive" title="Mic status"></div>
         <button id="btn-mute"   class="footer-icon-btn" onclick="toggleMute()"   title="Mute">🎙️</button>
         <button id="btn-deafen" class="footer-icon-btn" onclick="toggleDeafen()" title="Deafen">🔊</button>
+        <button id="btn-share" class="footer-icon-btn" onclick="toggleScreenShare()" title="Share screen">🖥</button>
         <button id="btn-settings" onclick="openSettings()" title="Audio Settings">⚙</button>
     </div>
 </div>
@@ -224,10 +342,26 @@
         <span id="chat-channel-icon">#</span>
         <span id="chat-channel-name">—</span>
     </div>
+    <div id="screen-share-panel"></div>
     <div id="chat-history"></div>
     <div id="input-area">
-        <input type="text" class="input-box" placeholder="Message #general-chat" onkeypress="sendChat(event)">
+        <div class="input-row">
+            <button class="attach-btn" onclick="document.getElementById('file-input').click()" title="Attach file (or paste / drag & drop)">📎</button>
+            <input type="text" id="chat-input" class="input-box" placeholder="Message #general-chat" onkeypress="sendChat(event)">
+        </div>
+        <input type="file" id="file-input" style="display:none"
+               accept=".jpg,.jpeg,.png,.gif,.webp,.zip,.7z"
+               multiple onchange="onFileInputChange(event)">
+        <input type="file" id="avatar-file-input" accept="image/*" style="display:none" onchange="onAvatarFileChange(event, false)">
+        <input type="file" id="server-icon-file-input" accept="image/*" style="display:none" onchange="onAvatarFileChange(event, true)">
     </div>
+</div>
+
+<!-- ── Image zoom overlay ── -->
+<div id="img-overlay" onclick="closeImgOverlay()">
+    <img id="img-overlay-img" src="" alt="" onclick="event.stopPropagation()">
+    <div id="img-overlay-label"></div>
+    <button id="img-overlay-close" onclick="event.stopPropagation();closeImgOverlay()">✕ Close</button>
 </div>
 
 <!-- ── Settings Modal ── -->
@@ -307,6 +441,15 @@
                     <span id="output-gain-display" class="slider-value">100%</span>
                 </div>
             </div>
+            <hr class="divider">
+            <div>
+                <div class="section-label">Noise Suppression (RNNoise)</div>
+                <div class="mode-toggle">
+                    <div id="ns-on"  class="mode-btn active" onclick="setNoiseSuppress(true)">On</div>
+                    <div id="ns-off" class="mode-btn"        onclick="setNoiseSuppress(false)">Off</div>
+                </div>
+                <div style="font-size:11px;color:#4f545c;margin-top:6px;">Neural network denoiser — removes background noise, keyboard clicks, fans. Adds ~10 ms latency.</div>
+            </div>
         </div>
 
         <!-- ── Identity Tab ── -->
@@ -336,7 +479,8 @@
                     <input type="text"   id="srv-host-input" class="form-input" placeholder="Address (IP or hostname)" style="flex:2;">
                     <input type="number" id="srv-port-input" class="form-input" placeholder="Port" value="8080" style="flex:1;min-width:72px;">
                 </div>
-                <input type="password" id="srv-pass-input" class="form-input" placeholder="Password (leave blank if none)" style="margin-bottom:8px;">
+                <input type="password" id="srv-pass-input"  class="form-input" placeholder="Server password (leave blank if none)" style="margin-bottom:6px;">
+                <input type="password" id="srv-admin-input" class="form-input" placeholder="Admin password (optional — only if you run this server)" style="margin-bottom:8px;">
                 <button class="btn-primary" onclick="addServerManually()">Add Server</button>
             </div>
             <hr class="divider">
@@ -348,6 +492,13 @@
         </div>
 
     </div>
+</div>
+
+<!-- ── Share overlay ── -->
+<div id="share-overlay" onclick="closeShareOverlay()">
+    <button id="share-overlay-close" onclick="event.stopPropagation();closeShareOverlay()">✕ Close</button>
+    <div id="share-overlay-label"></div>
+    <video id="share-overlay-video" autoplay playsinline muted></video>
 </div>
 
 <!-- Dev Log Panel — F9 to toggle, Shift+F9 to clear -->
@@ -433,6 +584,7 @@ let rtcConfig    = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
 // ── State ──────────────────────────────────────────────────────────────────────
 let myAlias         = '';
+let serverUploadBase = null;  // e.g. "http://192.168.1.5:8080"
 let localStream     = null;   // raw getUserMedia stream
 let processedStream = null;   // AudioContext destination stream sent to peers
 let peers           = {};     // alias → RTCPeerConnection
@@ -447,6 +599,9 @@ let inputGainNode = null;
 let micGatingNode = null;
 let analyserNode  = null;
 let outputCtx     = null;
+let rnnoiseNode   = null;       // AudioWorkletNode — null until first initAudio with noiseSuppress=true
+let _rnnoiseWasmBytes  = null;  // cached ArrayBuffer — only fetched once
+let _workletRegistered = false; // addModule called at most once per AudioContext
 
 let speaking       = false;
 let vadHoldTimer   = null;
@@ -456,6 +611,128 @@ let isCapturingPtt = false;
 let isMuted        = false;
 let isDeafened     = false;
 let unreadCounts   = {};     // channelId → unread message count
+let mentionCounts  = {};     // channelId → unread @mention count
+let myRole         = 'guest';
+let inMutedChannel = false;
+let userAvatars    = {};   // alias → url (per-server, reset on disconnect)
+let serverIconUrl  = null;
+let displayStream       = null;   // local getDisplayMedia stream
+let screenShareSenders  = {};     // alias → RTCRtpSender (video track sent to that peer)
+let remoteScreens       = {};     // alias → { tile, video }
+let sharingChannelId    = null;   // voice channel we were in when sharing started
+
+// ── Avatar helpers ─────────────────────────────────────────────────────────────
+
+function avatarColor(alias) {
+    let h = 5381;
+    for (let i = 0; i < alias.length; i++) h = ((h << 5) + h + alias.charCodeAt(i)) >>> 0;
+    return `hsl(${h % 360}, 55%, 50%)`;
+}
+
+function avatarHtml(alias, szClass = 'sz-40', clickable = true) {
+    const url      = userAvatars[alias];
+    const initials = alias ? alias.slice(0, 2).toUpperCase() : '??';
+    const clk      = clickable ? 'clickable' : '';
+    if (url) {
+        const action = `onclick="openImgOverlay('${url.replace(/'/g,"\\'")}','${escapeHtml(alias)}')"`;
+        return `<div class="avatar-circle ${szClass} ${clk}" ${action} title="${escapeHtml(alias)}"><img src="${escapeHtml(url)}" alt="${escapeHtml(alias)}" loading="lazy"></div>`;
+    }
+    const bg = `style="background:${avatarColor(alias)}"`;
+    return `<div class="avatar-circle ${szClass} ${clk}" ${bg} title="${escapeHtml(alias)}">${initials}</div>`;
+}
+
+function updateMyAvatar() {
+    const el = document.getElementById('my-avatar');
+    if (!el) return;
+    const alias = myAlias || clientConfig.activeAlias;
+    const url   = userAvatars[alias];
+    if (url) {
+        el.style.background = '';
+        el.innerHTML = `<img src="${escapeHtml(url)}" alt="${escapeHtml(alias)}" loading="lazy">`;
+    } else {
+        el.style.background = avatarColor(alias);
+        el.innerHTML = `<span>${alias ? alias.slice(0, 2).toUpperCase() : '?'}</span>`;
+    }
+}
+
+async function resizeImageToBlob(file, maxPx = 256) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const blobUrl = URL.createObjectURL(file);
+        img.onload = () => {
+            URL.revokeObjectURL(blobUrl);
+            const scale = Math.min(1, maxPx / img.width, maxPx / img.height);
+            const w = Math.round(img.width  * scale);
+            const h = Math.round(img.height * scale);
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('toBlob failed')), 'image/webp', 0.85);
+        };
+        img.onerror = () => { URL.revokeObjectURL(blobUrl); reject(new Error('Image load failed')); };
+        img.src = blobUrl;
+    });
+}
+
+async function onAvatarFileChange(e, isServerIcon) {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file || !serverUploadBase) return;
+    try {
+        DevLog.log('AVATAR', `Resizing ${isServerIcon ? 'server icon' : 'avatar'}: ${file.name}`);
+        const blob = await resizeImageToBlob(file, isServerIcon ? 128 : 256);
+        const resp = await fetch(`${serverUploadBase}/upload?name=avatar.webp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'image/webp' },
+            body: blob
+        });
+        if (!resp.ok) throw new Error(`Upload HTTP ${resp.status}`);
+        const { url } = await resp.json();
+        const fullUrl = `${serverUploadBase}${url}`;
+        postToBridge(isServerIcon
+            ? { action: 'SET_SERVER_ICON', url: fullUrl }
+            : { action: 'SET_AVATAR',      url: fullUrl });
+        DevLog.log('AVATAR', `Uploaded → ${fullUrl}`);
+    } catch (err) {
+        DevLog.log('ERR', `Avatar upload: ${err.message}`);
+        renderSystemMessage(`Avatar upload failed: ${err.message}`);
+    }
+}
+
+function openImgOverlay(url, label) {
+    const ov  = document.getElementById('img-overlay');
+    const img = document.getElementById('img-overlay-img');
+    const lbl = document.getElementById('img-overlay-label');
+    if (!ov || !img) return;
+    img.src = url;
+    if (lbl) lbl.textContent = label || '';
+    ov.classList.add('open');
+}
+
+function closeImgOverlay() {
+    const ov  = document.getElementById('img-overlay');
+    const img = document.getElementById('img-overlay-img');
+    if (ov)  ov.classList.remove('open');
+    if (img) img.src = '';
+}
+
+// ── Notification sounds ────────────────────────────────────────────────────────
+// Place MP3s in iskra_client/sounds/ — names must match exactly.
+const _soundNames = ['join', 'leave', 'message', 'mention', 'connect', 'disconnect'];
+const _sounds = {};
+_soundNames.forEach(name => {
+    const a = new Audio(`https://origin.app/sounds/${name}.wav`);
+    a.preload = 'auto';
+    _sounds[name] = a;
+});
+
+function playSound(name) {
+    const s = _sounds[name];
+    if (!s) return;
+    const clone = s.cloneNode();  // allow overlapping playback
+    clone.volume = 0.6;
+    clone.play().catch(() => {});
+}
 
 // ── Settings ───────────────────────────────────────────────────────────────────
 const settings = {
@@ -468,6 +745,7 @@ const settings = {
     vadThreshold:   0.029,     // computed from sensitivity
     pttKeyCode:     90,        // VK_Z
     pttKeyLabel:    'Z',
+    noiseSuppress:  true,
 };
 
 function saveSettings() {
@@ -535,23 +813,27 @@ function renderChannelList() {
         if (ch.type === 'Header') {
             html += `<div class="channel-section-label">${escapeHtml(ch.name)}</div>`;
         } else if (ch.type === 'Voice') {
-            const inVoice = ch.id === currentChannelId;
-            const users   = voiceChannelUsers[ch.id] || [];
+            const inVoice  = ch.id === currentChannelId;
+            const users    = voiceChannelUsers[ch.id] || [];
+            const voiceIcon = ch.muted ? '🔇' : '🔊';
             html += `
-            <div class="channel${inVoice ? ' active' : ''}" onclick="joinVoice('${ch.id}')">
-                <span class="ch-icon">🔊</span>
+            <div class="channel${inVoice ? ' active' : ''}" onclick="joinVoice('${ch.id}')" title="${ch.muted ? 'Muted — no audio in or out' : ''}">
+                <span class="ch-icon">${voiceIcon}</span>
                 <span class="ch-name">${escapeHtml(ch.name)}</span>
                 ${inVoice ? `<span class="ch-leave" onclick="event.stopPropagation();leaveVoice('${ch.id}')" title="Leave voice">✖</span>` : ''}
-                <div class="voice-user-list">${users.map(u => `<div class="voice-user${remoteSpeaking.has(u) ? ' speaking' : ''}" data-alias="${escapeHtml(u)}"${u !== myAlias ? ` oncontextmenu="showUserCtxMenu(event,'${escapeHtml(u)}')"` : ''}>${escapeHtml(u)}</div>`).join('')}</div>
+                <div class="voice-user-list">${users.map(u => `<div class="voice-user${remoteSpeaking.has(u) ? ' speaking' : ''}" data-alias="${escapeHtml(u)}"${u !== myAlias ? ` oncontextmenu="showUserCtxMenu(event,'${escapeHtml(u)}')"` : ''}><span class="vu-avatar">${avatarHtml(u, 'sz-22', true)}</span>${escapeHtml(u)}</div>`).join('')}</div>
             </div>`;
         } else if (ch.type === 'Text') {
-            const viewing = ch.id === activeTextChannelId;
-            const unread  = !viewing && unreadCounts[ch.id] ? unreadCounts[ch.id] : 0;
+            const viewing    = ch.id === activeTextChannelId;
+            const unread     = !viewing && unreadCounts[ch.id] ? unreadCounts[ch.id] : 0;
+            const hasMention = !viewing && !!mentionCounts[ch.id];
+            const textIcon   = ch.readOnly ? '📌' : '#';
+            const iconStyle  = ch.readOnly ? 'font-size:13px;' : 'font-weight:700;font-size:16px;';
             html += `
-            <div class="channel${viewing ? ' active' : ''}" onclick="selectTextChannel('${ch.id}')">
-                <span class="ch-icon" style="font-weight:700;font-size:16px;">#</span>
+            <div class="channel${viewing ? ' active' : ''}" onclick="selectTextChannel('${ch.id}')" title="${ch.readOnly ? 'Read-only' : ''}">
+                <span class="ch-icon" style="${iconStyle}">${textIcon}</span>
                 <span class="ch-name">${escapeHtml(ch.name)}</span>
-                ${unread > 0 ? `<span class="ch-unread">${unread > 99 ? '99+' : unread}</span>` : ''}
+                ${unread > 0 ? `<span class="ch-unread${hasMention ? ' has-mention' : ''}">${unread > 99 ? '99+' : unread}</span>` : ''}
             </div>`;
         }
     }
@@ -561,22 +843,27 @@ function renderChannelList() {
 
 function leaveVoice(channelId) {
     if (!currentChannelId) return;
+    if (displayStream) stopScreenShare();
     postToBridge({ action: 'LEAVE_VOICE', channelId });
 }
 
 function selectTextChannel(id) {
     activeTextChannelId = id;
-    unreadCounts[id] = 0;
+    unreadCounts[id]  = 0;
+    mentionCounts[id] = 0;
     const ch = serverChannels.find(c => c.id === id);
+    const inputArea = document.getElementById('input-area');
     if (ch) {
         document.getElementById('chat-channel-name').textContent = ch.name;
-        document.querySelector('.input-box').placeholder = `Message #${ch.name}`;
+        const isReadOnly = ch.readOnly && !['admin','owner'].includes(myRole);
+        document.querySelector('.input-box').placeholder = isReadOnly ? 'Read-only channel' : `Message #${ch.name}`;
+        if (inputArea) inputArea.classList.toggle('readonly', isReadOnly);
     }
     const h = document.getElementById('chat-history');
     h.innerHTML = '';
-    (channelMessages[id] || []).forEach(m => renderChatMessage(m.author, m.message));
+    (channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited));
     renderChannelList();
-    DevLog.log('BRIDGE', `Text channel selected: "${ch?.name || id}" | ${(channelMessages[id]||[]).length} msg(s)`);
+    DevLog.log('BRIDGE', `Text channel selected: "${ch?.name || id}" | ${(channelMessages[id]||[]).length} msg(s)${ch?.readOnly ? ' [readonly]' : ''}`);
 }
 
 // ── Tab Switching ──────────────────────────────────────────────────────────────
@@ -671,9 +958,11 @@ function renderServerList() {
                 <input id="edit-port-${s.id}" class="form-input" type="number" value="${s.port}" placeholder="Port" style="flex:1;min-width:72px;"
                        onkeydown="if(event.key==='Escape')cancelEditServer();">
             </div>
-            <input id="edit-pass-${s.id}" class="form-input" type="password" value="${escapeHtml(s.password)}" placeholder="Password"
+            <input id="edit-pass-${s.id}"  class="form-input" type="password" value="${escapeHtml(s.password)}" placeholder="Server password"
+                   onkeydown="if(event.key==='Enter')saveEditServer('${s.id}');if(event.key==='Escape')cancelEditServer();" style="margin-bottom:4px;">
+            <input id="edit-admin-${s.id}" class="form-input" type="password" value="${escapeHtml(s.adminPassword||'')}" placeholder="Admin password (optional)"
                    onkeydown="if(event.key==='Enter')saveEditServer('${s.id}');if(event.key==='Escape')cancelEditServer();">
-            <div style="display:flex;gap:6px;">
+            <div style="display:flex;gap:6px;margin-top:4px;">
                 <button class="btn-primary" onclick="saveEditServer('${s.id}')">Save</button>
                 <button class="btn-secondary" onclick="cancelEditServer()">Cancel</button>
             </div>
@@ -702,15 +991,17 @@ function addServerManually() {
     const rawHost = (document.getElementById('srv-host-input').value || '').trim();
     const rawPort = parseInt(document.getElementById('srv-port-input').value, 10) || 8080;
     const pass = document.getElementById('srv-pass-input').value || '';
+    const adminPass = document.getElementById('srv-admin-input').value || '';
     if (!name || !rawHost) { DevLog.log('ERR', 'Server name and address are required'); return; }
     const { host, port } = _splitHostPort(rawHost, rawPort);
-    const server = { id: _serverId(), name, host, port, password: pass };
+    const server = { id: _serverId(), name, host, port, password: pass, adminPassword: adminPass };
     clientConfig.servers.push(server);
     saveClientConfig();
-    document.getElementById('srv-name-input').value = '';
-    document.getElementById('srv-host-input').value = '';
-    document.getElementById('srv-port-input').value = '8080';
-    document.getElementById('srv-pass-input').value = '';
+    document.getElementById('srv-name-input').value  = '';
+    document.getElementById('srv-host-input').value  = '';
+    document.getElementById('srv-port-input').value  = '8080';
+    document.getElementById('srv-pass-input').value  = '';
+    document.getElementById('srv-admin-input').value = '';
     renderServerList();
     renderServerBar();
     DevLog.log('SETTINGS', `Server added: "${name}" @ ${host}:${port}`);
@@ -732,7 +1023,7 @@ function connectToServer(id) {
     if (!server) return;
     pendingServerId = id;
     DevLog.log('BRIDGE', `Connecting to "${server.name}" as "${clientConfig.activeAlias}"`);
-    postToBridge({ action: 'CONNECT', host: server.host, port: server.port, password: server.password, alias: clientConfig.activeAlias });
+    postToBridge({ action: 'CONNECT', host: server.host, port: server.port, password: server.password, alias: clientConfig.activeAlias, adminPassword: server.adminPassword || '' });
     closeSettings();
 }
 
@@ -777,13 +1068,22 @@ function renderServerBar() {
     const list = document.getElementById('server-icon-list');
     if (!list) return;
     list.innerHTML = clientConfig.servers.map(s => {
-        const isViewed = s.id === viewedServerId;
-        const isConn   = s.id === connectedServerId;
+        const isViewed     = s.id === viewedServerId;
+        const isConn       = s.id === connectedServerId;
+        const canUpload    = isConn && ['admin','owner'].includes(myRole);
+        const iconContent  = (isConn && serverIconUrl)
+            ? `<img src="${escapeHtml(serverIconUrl)}" alt="${escapeHtml(s.name)}">`
+            + (canUpload ? `<span class="srv-upload-hint" title="Change server icon">📷</span>` : '')
+            : serverInitials(s.name)
+            + (canUpload ? `<span class="srv-upload-hint" title="Change server icon">📷</span>` : '');
+        const iconStyle    = (isConn && serverIconUrl) ? '' : `background:${serverColor(s.id)};`;
+        const uploadAttr   = canUpload ? `oncontextmenu="event.preventDefault();document.getElementById('server-icon-file-input').click()"` : '';
         return `
         <div class="server-icon-wrap${isViewed ? ' active' : ''}${isConn ? ' connected' : ''}" title="${escapeHtml(s.name)}">
             <div class="server-pill"></div>
-            <div class="server-icon" style="background:${serverColor(s.id)};"
-                 onclick="onServerIconClick('${s.id}')">${serverInitials(s.name)}</div>
+            <div class="server-icon" style="${iconStyle}"
+                 onclick="onServerIconClick('${s.id}')" ${uploadAttr}
+                 title="${escapeHtml(s.name)}${canUpload ? ' (right-click to change icon)' : ''}">${iconContent}</div>
         </div>`;
     }).join('');
 }
@@ -812,13 +1112,14 @@ function cancelEditServer() {
 function saveEditServer(id) {
     const s = clientConfig.servers.find(x => x.id === id);
     if (!s) return;
-    const name    = (document.getElementById(`edit-name-${id}`).value || '').trim();
-    const rawHost = (document.getElementById(`edit-host-${id}`).value || '').trim();
-    const rawPort = parseInt(document.getElementById(`edit-port-${id}`).value, 10) || 8080;
-    const pass    = document.getElementById(`edit-pass-${id}`).value || '';
+    const name      = (document.getElementById(`edit-name-${id}`).value || '').trim();
+    const rawHost   = (document.getElementById(`edit-host-${id}`).value || '').trim();
+    const rawPort   = parseInt(document.getElementById(`edit-port-${id}`).value, 10) || 8080;
+    const pass      = document.getElementById(`edit-pass-${id}`).value || '';
+    const adminPass = document.getElementById(`edit-admin-${id}`)?.value || '';
     if (!name || !rawHost) return;
     const { host, port } = _splitHostPort(rawHost, rawPort);
-    s.name = name; s.host = host; s.port = port; s.password = pass;
+    s.name = name; s.host = host; s.port = port; s.password = pass; s.adminPassword = adminPass;
     saveClientConfig();
     editingServerId = null;
     renderServerList();
@@ -866,7 +1167,7 @@ function sensitivityToThreshold(s) {
 
 // ── Audio Engine ───────────────────────────────────────────────────────────────
 async function initAudio() {
-    DevLog.log('AUDIO', `Init | device:"${settings.inputDeviceId||'default'}" gain:${settings.inputGain}`);
+    DevLog.log('AUDIO', `Init | device:"${settings.inputDeviceId||'default'}" gain:${settings.inputGain} rnnoise:${settings.noiseSuppress}`);
     if (localStream) {
         localStream.getTracks().forEach(t => t.stop());
         DevLog.log('AUDIO', 'Previous stream stopped');
@@ -909,14 +1210,58 @@ async function initAudio() {
     analyserNode.smoothingTimeConstant = 0.6;
 
     const dest = audioCtx.createMediaStreamDestination();
-    // Analyser must be BEFORE the gate so it always sees raw mic input,
-    // regardless of whether VAD/PTT has opened the gate.
+
+    // Disconnect old RNNoise node before rewiring
+    if (rnnoiseNode) { try { rnnoiseNode.disconnect(); } catch {} rnnoiseNode = null; }
+
+    // Try to load and wire RNNoise when noise suppression is enabled
+    let rnLoaded = false;
+    if (settings.noiseSuppress) {
+        try {
+            if (!_rnnoiseWasmBytes) {
+                const resp = await fetch('https://origin.app/rnnoise.wasm');
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                _rnnoiseWasmBytes = await resp.arrayBuffer();
+                DevLog.log('AUDIO', `rnnoise.wasm fetched | ${_rnnoiseWasmBytes.byteLength} bytes`);
+            }
+            if (!_workletRegistered) {
+                await audioCtx.audioWorklet.addModule('https://origin.app/rnnoise-processor.js');
+                _workletRegistered = true;
+                DevLog.log('AUDIO', 'AudioWorklet module registered');
+            }
+            rnnoiseNode = new AudioWorkletNode(audioCtx, 'rnnoise-processor');
+            // postMessage without transfer list so _rnnoiseWasmBytes stays valid for future reinits
+            rnnoiseNode.port.postMessage({ type: 'init', wasmBytes: _rnnoiseWasmBytes });
+            await new Promise((res, rej) => {
+                const t = setTimeout(() => rej(new Error('RNNoise init timeout (3 s)')), 3000);
+                rnnoiseNode.port.onmessage = (ev) => {
+                    if (ev.data.type === 'ready') { clearTimeout(t); res(); }
+                    if (ev.data.type === 'error') { clearTimeout(t); rej(new Error(ev.data.message)); }
+                };
+            });
+            rnLoaded = true;
+            DevLog.log('AUDIO', 'RNNoise WASM ready');
+        } catch (err) {
+            DevLog.log('ERR', `RNNoise load failed: ${err.message} — falling back to raw mic`);
+            rnnoiseNode = null;
+        }
+    }
+
+    // Wire graph: analyser is always before the gate so VAD sees the real mic level.
+    // RNNoise sits between inputGain and analyser when loaded.
     source.connect(inputGainNode);
-    inputGainNode.connect(analyserNode);
+    if (rnLoaded && rnnoiseNode) {
+        inputGainNode.connect(rnnoiseNode);
+        rnnoiseNode.connect(analyserNode);
+        DevLog.log('AUDIO', `Graph: src → gain(${settings.inputGain}) → rnnoise → analyser → gate(0) → dest`);
+    } else {
+        inputGainNode.connect(analyserNode);
+        DevLog.log('AUDIO', `Graph: src → gain(${settings.inputGain}) → analyser → gate(0) → dest`);
+    }
     analyserNode.connect(micGatingNode);
     micGatingNode.connect(dest);
     processedStream = dest.stream;
-    DevLog.log('AUDIO', `Graph wired: src → gain(${settings.inputGain}) → analyser → gate(0) → dest`);
+    DevLog.log('AUDIO', `processedStream ready | tracks:${processedStream.getTracks().length}`);
 
     const newTrack = processedStream.getAudioTracks()[0];
     const peerList = Object.keys(peers);
@@ -951,19 +1296,24 @@ async function initOutputContext() {
     }
 }
 
+function updateMicIndicator() {
+    const el = document.getElementById('mic-indicator');
+    if (!el) return;
+    if (inMutedChannel)                                             { el.className = 'muted'; el.title = 'AFK / Muted channel'; return; }
+    if (isMuted || isDeafened)                                      { el.className = 'muted'; el.title = 'Muted'; return; }
+    if (speaking || (settings.voiceMode === 'ptt' && pttActive))    { el.className = 'active'; el.title = 'Transmitting'; return; }
+    el.className = settings.voiceMode === 'ptt' ? 'ptt-ready' : 'inactive';
+    el.title = 'Mic status';
+}
+
 function setMicGate(open) {
     if (!micGatingNode) return;
+    if (inMutedChannel && open) open = false;
     const now = audioCtx.currentTime;
     micGatingNode.gain.cancelScheduledValues(now);
     micGatingNode.gain.setTargetAtTime(open ? 1 : 0, now, open ? 0.005 : 0.02);
-    DevLog.log('VAD', `Gate ${open ? 'OPEN  ▶' : 'CLOSED ◼'} | mode:${settings.voiceMode}`);
-
-    const indicator = document.getElementById('mic-indicator');
-    if (open) {
-        indicator.className = 'active';
-    } else {
-        indicator.className = settings.voiceMode === 'ptt' ? 'ptt-ready' : 'inactive';
-    }
+    DevLog.log('VAD', `Gate ${open ? 'OPEN  ▶' : 'CLOSED ◼'} | mode:${settings.voiceMode}${inMutedChannel ? ' [muted-ch]' : ''}`);
+    updateMicIndicator();
 }
 
 // ── VAD Loop ───────────────────────────────────────────────────────────────────
@@ -1110,13 +1460,12 @@ function setVoiceMode(mode) {
         clearTimeout(vadHoldTimer);
         speaking = false;
         setMicGate(false);
-        document.getElementById('mic-indicator').className = 'inactive';
     } else {
         clearTimeout(vadHoldTimer);
         speaking = false;
         setMicGate(false);
-        document.getElementById('mic-indicator').className = 'ptt-ready';
     }
+    updateMicIndicator();
 
     postToBridge({ action: 'SET_VOICE_MODE', mode });
 }
@@ -1151,6 +1500,23 @@ function onOutputGainChange(value) {
     saveSettings();
 }
 
+function setNoiseSuppress(enabled) {
+    settings.noiseSuppress = enabled;
+    saveSettings();
+    document.getElementById('ns-on').classList.toggle('active',  enabled);
+    document.getElementById('ns-off').classList.toggle('active', !enabled);
+    if (rnnoiseNode) {
+        // If we're just disabling: tell the worklet to passthrough — no reinit needed.
+        // If enabling and node already exists, same — it'll process again.
+        rnnoiseNode.port.postMessage({ type: 'enable', value: enabled });
+    }
+    if (enabled && !rnnoiseNode) {
+        // Node doesn't exist yet — need a full reinit to load WASM and wire it in.
+        initAudio();
+    }
+    DevLog.log('AUDIO', `Noise suppression → ${enabled ? 'ON' : 'OFF'}`);
+}
+
 // ── PTT Key Capture ────────────────────────────────────────────────────────────
 function startPttCapture() {
     isCapturingPtt = true;
@@ -1161,6 +1527,7 @@ function startPttCapture() {
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'F9') { e.shiftKey ? DevLog.clear() : DevLog.toggle(); return; }
+    if (e.key === 'Escape') { closeImgOverlay(); return; }
     if (!isCapturingPtt) return;
     e.preventDefault();
     isCapturingPtt = false;
@@ -1218,6 +1585,10 @@ function applySettingsToUI() {
     document.getElementById('ptt-section').classList.toggle('hidden', settings.voiceMode !== 'ptt');
     document.getElementById('vad-section').classList.toggle('hidden', settings.voiceMode !== 'vad');
 
+    const nsOn = settings.noiseSuppress !== false;
+    document.getElementById('ns-on').classList.toggle('active',  nsOn);
+    document.getElementById('ns-off').classList.toggle('active', !nsOn);
+
     updateThresholdLine();
 }
 
@@ -1244,11 +1615,23 @@ async function setupPeer(target, makeOffer = false) {
     pc.oniceconnectionstatechange = () => DevLog.log('RTC', `${target} ICE        → ${pc.iceConnectionState}`);
     pc.onsignalingstatechange     = () => DevLog.log('RTC', `${target} signaling  → ${pc.signalingState}`);
 
+    let _setupDone = false;  // guards onnegotiationneeded until initial setup completes
+
     if (processedStream) {
         processedStream.getTracks().forEach(t => pc.addTrack(t, processedStream));
-        DevLog.log('RTC', `Added ${processedStream.getTracks().length} local track(s)`);
+        DevLog.log('RTC', `Added ${processedStream.getTracks().length} local audio track(s)`);
     } else {
         DevLog.log('ERR', 'setupPeer: processedStream is null — audio will not be sent');
+    }
+
+    // If currently sharing screen, add the video track to this new peer too
+    if (displayStream) {
+        const vt = displayStream.getVideoTracks()[0];
+        if (vt && vt.readyState === 'live') {
+            const sender = pc.addTrack(vt, displayStream);
+            screenShareSenders[target] = sender;
+            DevLog.log('RTC', `Added local screen track to new peer ${target}`);
+        }
     }
 
     pc.onicecandidate = e => {
@@ -1259,7 +1642,12 @@ async function setupPeer(target, makeOffer = false) {
     };
 
     pc.ontrack = async e => {
-        DevLog.log('RTC', `Remote track from ${target} | routing via outputGain(${settings.outputGain})`);
+        if (e.track.kind === 'video') {
+            DevLog.log('RTC', `Remote screen share track from ${target}`);
+            handleRemoteVideoTrack(target, e.track, e.streams[0] || new MediaStream([e.track]));
+            return;
+        }
+        DevLog.log('RTC', `Remote audio track from ${target} | routing via outputGain(${settings.outputGain})`);
         if (!outputCtx) await initOutputContext();
         const stream = e.streams[0];
 
@@ -1288,6 +1676,20 @@ async function setupPeer(target, makeOffer = false) {
         postToBridge({ action: 'WEBRTC_SIGNAL', target, sender: myAlias, payload: { type: 'offer', sdp: offer } });
     }
 
+    _setupDone = true;
+
+    pc.onnegotiationneeded = async () => {
+        try {
+            if (!_setupDone || pc.signalingState !== 'stable') return;
+            DevLog.log('RTC', `Renegotiating with ${target} (track change)`);
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            postToBridge({ action: 'WEBRTC_SIGNAL', target, sender: myAlias, payload: { type: 'offer', sdp: offer } });
+        } catch (err) {
+            DevLog.log('ERR', `onnegotiationneeded: ${err.message}`);
+        }
+    };
+
     return pc;
 }
 
@@ -1305,10 +1707,319 @@ function sendChat(e) {
     }
 }
 
-function renderChatMessage(author, message) {
+const _uploadUrlRe = /^https?:\/\/\S+\/uploads\/[a-f0-9]{16}\.[a-z0-9]+$/i;
+
+// ── Markdown renderer ──────────────────────────────────────────────────────────
+function renderMarkdown(raw) {
+    // 1. Extract fenced code blocks so they aren't processed by other rules.
+    const blocks = [];
+    let s = raw.replace(/```([\s\S]*?)```/g, (_, code) => {
+        blocks.push(code.trim());
+        return `\x02${blocks.length - 1}\x03`;
+    });
+
+    // 2. HTML-escape the remaining text (\x02 / \x03 are not HTML-special).
+    s = s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+    // 3. Upload URLs — images inline, other files as download link.
+    s = s.replace(_uploadUrlRe, url => {
+        const ext = url.split('.').pop().toLowerCase();
+        if (['jpg','jpeg','png','gif','webp'].includes(ext))
+            return `<a href="${url}" target="_blank"><img class="msg-img" src="${url}" alt="image" loading="lazy" onerror="this.style.display='none'"></a>`;
+        const fname = url.split('/').pop();
+        return `<a class="msg-file" href="${url}" target="_blank" download>📎 ${fname}</a>`;
+    });
+
+    // 4. Inline formatting (order: bold before italic to avoid *** conflicts).
+    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/\*(.+?)\*/g,     '<em>$1</em>');
+    s = s.replace(/`([^`\n]+)`/g,   '<code>$1</code>');
+
+    // 5. Bare URLs not already wrapped by upload rule.
+    s = s.replace(/(?<![="'])https?:\/\/\S+/g, url => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`);
+
+    // 6. @mentions.
+    s = s.replace(/@([\w][\w\d._-]{0,31})/g, (_, name) => {
+        const isMe = myAlias && name.toLowerCase() === myAlias.toLowerCase();
+        return `<span class="mention${isMe ? ' me' : ''}">@${name}</span>`;
+    });
+
+    // 7. Restore code blocks (escape their content independently).
+    s = s.replace(/\x02(\d+)\x03/g, (_, i) => {
+        const code = blocks[parseInt(i)].replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        return `<pre><code>${code}</code></pre>`;
+    });
+
+    return s;
+}
+
+function renderChatMessage(msgId, author, time, message, edited) {
     const h = document.getElementById('chat-history');
     const div = document.createElement('div');
-    div.innerHTML = `<strong>${escapeHtml(author)}</strong>: ${escapeHtml(message)}`;
+    div.className = 'msg-row';
+    if (msgId) div.dataset.msgId = msgId;
+
+    const bodyHtml = `<span class="msg-body">${renderMarkdown(message)}</span>`
+        + (edited ? '<span class="msg-edited">(edited)</span>' : '');
+
+    let actions = '';
+    if (msgId) {
+        const isOwn  = author === myAlias;
+        const canDel = isOwn || ['admin','owner'].includes(myRole);
+        if (isOwn || canDel) {
+            actions = `<span class="msg-actions">`;
+            if (isOwn) actions += `<button class="msg-act-btn" title="Edit"   onclick="editMessage('${msgId}','${escapeHtml(author)}')">✏</button>`;
+            if (canDel) actions += `<button class="msg-act-btn del" title="Delete" onclick="deleteMessage('${msgId}')">🗑</button>`;
+            actions += `</span>`;
+        }
+    }
+
+    div.innerHTML =
+        `<div class="msg-avatar-col">${avatarHtml(author, 'sz-40', true)}</div>` +
+        `<div class="msg-content">` +
+            `<div class="msg-header"><span class="msg-author">${escapeHtml(author)}</span>` +
+            (time ? `<span class="msg-time">${escapeHtml(time)}</span>` : '') + `</div>` +
+            bodyHtml + actions +
+        `</div>`;
+    h.appendChild(div);
+    h.scrollTop = h.scrollHeight;
+}
+
+// ── Message edit / delete ─────────────────────────────────────────────────────
+
+function editMessage(msgId, author) {
+    if (author !== myAlias) return;
+    const row = document.querySelector(`[data-msg-id="${msgId}"]`);
+    if (!row || row.dataset.editing) return;
+    row.dataset.editing = '1';
+    const content = row.querySelector('.msg-content') || row;
+    const body = content.querySelector('.msg-body');
+    const currentText = body.textContent;
+    body.style.display = 'none';
+    const editedMark = content.querySelector('.msg-edited');
+    if (editedMark) editedMark.style.display = 'none';
+
+    const ta = document.createElement('textarea');
+    ta.className = 'msg-edit-area';
+    ta.value = currentText;
+    ta.rows  = Math.max(1, Math.ceil(currentText.length / 60));
+    ta.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit(msgId); }
+        if (e.key === 'Escape') cancelEdit(msgId);
+    });
+
+    const btns = document.createElement('div');
+    btns.className = 'msg-edit-btns';
+    btns.innerHTML = `<span onclick="submitEdit('${msgId}')">Save (Enter)</span> · <span onclick="cancelEdit('${msgId}')">Cancel (Esc)</span>`;
+
+    content.appendChild(ta);
+    content.appendChild(btns);
+    ta.focus();
+    ta.selectionStart = ta.selectionEnd = ta.value.length;
+}
+
+function cancelEdit(msgId) {
+    const row = document.querySelector(`[data-msg-id="${msgId}"]`);
+    if (!row) return;
+    delete row.dataset.editing;
+    const content = row.querySelector('.msg-content') || row;
+    content.querySelector('.msg-body').style.display = '';
+    const editedMark = content.querySelector('.msg-edited');
+    if (editedMark) editedMark.style.display = '';
+    content.querySelector('.msg-edit-area')?.remove();
+    content.querySelector('.msg-edit-btns')?.remove();
+}
+
+function submitEdit(msgId) {
+    const row = document.querySelector(`[data-msg-id="${msgId}"]`);
+    if (!row) return;
+    const ta = row.querySelector('.msg-edit-area');
+    if (!ta) return;
+    const newText = ta.value.trim();
+    if (!newText) return;
+    const channelId = activeTextChannelId;
+    postToBridge({ action: 'EDIT_MESSAGE', channelId, messageId: msgId, newText });
+    cancelEdit(msgId);
+}
+
+function deleteMessage(msgId) {
+    const channelId = activeTextChannelId;
+    postToBridge({ action: 'DELETE_MESSAGE', channelId, messageId: msgId });
+}
+
+function updateMessageInDOM(msgId, newText) {
+    const row = document.querySelector(`[data-msg-id="${msgId}"]`);
+    if (!row) return;
+    const body = row.querySelector('.msg-body');
+    if (body) body.innerHTML = renderMarkdown(newText);
+    if (!row.querySelector('.msg-edited')) {
+        const mark = document.createElement('span');
+        mark.className = 'msg-edited';
+        mark.textContent = '(edited)';
+        body?.after(mark);
+    }
+}
+
+function removeMessageFromDOM(msgId) {
+    document.querySelector(`[data-msg-id="${msgId}"]`)?.remove();
+}
+
+// ── Screen Share ───────────────────────────────────────────────────────────────
+
+function updateShareButtonVisibility() {
+    const btn = document.getElementById('btn-share');
+    if (btn) btn.classList.toggle('visible', currentChannelId !== null);
+}
+
+async function toggleScreenShare() {
+    if (displayStream) stopScreenShare();
+    else await startScreenShare();
+}
+
+async function startScreenShare() {
+    if (!currentChannelId) return;
+    try {
+        displayStream = await navigator.mediaDevices.getDisplayMedia({
+            video: { frameRate: { ideal: 30, max: 30 } },
+            audio: false
+        });
+        sharingChannelId = currentChannelId;
+        const vt = displayStream.getVideoTracks()[0];
+        vt.onended = () => stopScreenShare();  // user clicked "Stop" in the OS dialog
+
+        // Add video track to every current peer connection — triggers renegotiation
+        for (const [alias, pc] of Object.entries(peers)) {
+            try {
+                const sender = pc.addTrack(vt, displayStream);
+                screenShareSenders[alias] = sender;
+            } catch (err) { DevLog.log('ERR', `addTrack(screen) to ${alias}: ${err.message}`); }
+        }
+
+        addLocalShareTile(displayStream);
+
+        const btn = document.getElementById('btn-share');
+        if (btn) { btn.classList.add('sharing'); btn.title = 'Stop sharing'; }
+
+        postToBridge({ action: 'SCREEN_SHARE_STARTED', channelId: currentChannelId });
+        DevLog.log('RTC', `Screen share started | ${Object.keys(peers).length} peer(s) notified`);
+    } catch (err) {
+        displayStream = null;
+        DevLog.log('ERR', `getDisplayMedia: ${err.message}`);
+    }
+}
+
+function stopScreenShare() {
+    if (!displayStream) return;
+    displayStream.getTracks().forEach(t => t.stop());
+    displayStream = null;
+
+    for (const [alias, sender] of Object.entries(screenShareSenders)) {
+        if (peers[alias]) try { peers[alias].removeTrack(sender); } catch {}
+    }
+    screenShareSenders = {};
+
+    removeShareTile(myAlias);
+    sharingChannelId = null;
+
+    const btn = document.getElementById('btn-share');
+    if (btn) { btn.classList.remove('sharing'); btn.title = 'Share screen'; }
+
+    postToBridge({ action: 'SCREEN_SHARE_STOPPED' });
+    DevLog.log('RTC', 'Screen share stopped');
+}
+
+function addLocalShareTile(stream) {
+    const panel = document.getElementById('screen-share-panel');
+    const existing = document.getElementById(`share-tile-${myAlias}`);
+    if (existing) existing.remove();
+
+    const tile = document.createElement('div');
+    tile.className = 'share-tile share-tile-mine';
+    tile.id = `share-tile-${myAlias}`;
+
+    const video = document.createElement('video');
+    video.autoplay = true;
+    video.playsInline = true;
+    video.muted = true;
+    video.srcObject = stream;
+
+    const label = document.createElement('div');
+    label.className = 'share-tile-label';
+    label.textContent = (myAlias || 'You') + ' — sharing';
+
+    tile.appendChild(video);
+    tile.appendChild(label);
+    tile.onclick = () => openShareOverlay(video, (myAlias || 'You') + ' (your screen)');
+
+    panel.appendChild(tile);
+    panel.classList.add('active');
+}
+
+function handleRemoteVideoTrack(alias, track, stream) {
+    const panel = document.getElementById('screen-share-panel');
+    const existing = document.getElementById(`share-tile-${alias}`);
+    if (existing) existing.remove();
+
+    const tile = document.createElement('div');
+    tile.className = 'share-tile';
+    tile.id = `share-tile-${alias}`;
+
+    const video = document.createElement('video');
+    video.autoplay = true;
+    video.playsInline = true;
+    video.muted = true;
+    video.srcObject = stream;
+
+    const label = document.createElement('div');
+    label.className = 'share-tile-label';
+    label.textContent = alias + ' — sharing';
+
+    tile.appendChild(video);
+    tile.appendChild(label);
+    tile.onclick = () => openShareOverlay(video, alias);
+
+    panel.appendChild(tile);
+    panel.classList.add('active');
+
+    remoteScreens[alias] = { tile, video };
+    track.onended = () => removeShareTile(alias);
+}
+
+function removeShareTile(alias) {
+    const tile = document.getElementById(`share-tile-${alias}`);
+    if (tile) tile.remove();
+    delete remoteScreens[alias];
+    const panel = document.getElementById('screen-share-panel');
+    if (panel && !panel.querySelector('.share-tile')) panel.classList.remove('active');
+    const overlay = document.getElementById('share-overlay');
+    if (overlay && overlay.dataset.overlayAlias === alias) closeShareOverlay();
+}
+
+function openShareOverlay(video, label) {
+    const overlay   = document.getElementById('share-overlay');
+    const ov        = document.getElementById('share-overlay-video');
+    const ol        = document.getElementById('share-overlay-label');
+    if (!overlay || !ov) return;
+    ov.srcObject = video.srcObject;
+    if (ol) ol.textContent = label;
+    overlay.dataset.overlayAlias = label;
+    overlay.classList.add('open');
+}
+
+function closeShareOverlay() {
+    const overlay = document.getElementById('share-overlay');
+    if (!overlay) return;
+    overlay.classList.remove('open');
+    overlay.dataset.overlayAlias = '';
+    const ov = document.getElementById('share-overlay-video');
+    if (ov) ov.srcObject = null;
+}
+
+function renderSystemMessage(message) {
+    const h = document.getElementById('chat-history');
+    const div = document.createElement('div');
+    div.className = 'msg-system';
+    div.textContent = message;
     h.appendChild(div);
     h.scrollTop = h.scrollHeight;
 }
@@ -1323,12 +2034,33 @@ window.chrome.webview.addEventListener('message', async (e) => {
         connectedServerId = pendingServerId;
         viewedServerId    = connectedServerId;
         pendingServerId   = null;
+        myRole = 'guest';
+        inMutedChannel = false;
+        document.getElementById('admin-crown').classList.remove('visible');
+        const _rb2 = document.getElementById('role-badge');
+        if (_rb2) { _rb2.className = ''; _rb2.textContent = ''; }
         document.getElementById('ui-alias').textContent = myAlias;
+        updateMyAvatar();
         const srv = clientConfig.servers.find(s => s.id === connectedServerId);
         document.getElementById('server-name-display').textContent = srv ? srv.name : 'Connected';
+        serverUploadBase = srv ? `http://${srv.host}:${srv.port}` : null;
         renderServerBar();
         postToBridge({ action: 'SET_VOICE_MODE', mode: settings.voiceMode });
         postToBridge({ action: 'SET_PTT_KEY',    keyCode: settings.pttKeyCode });
+        playSound('connect');
+
+    } else if (data.action === 'ROLE_GRANTED') {
+        DevLog.log('BRIDGE', `← C# | ROLE_GRANTED role:${data.role}`);
+        myRole = data.role;
+        const isElevated = data.role === 'admin' || data.role === 'owner';
+        document.getElementById('admin-crown').classList.toggle('visible', isElevated);
+        const badge = document.getElementById('role-badge');
+        badge.textContent = data.role;
+        badge.className = `visible role-${data.role}`;
+        if (isElevated) DevLog.log('BRIDGE', `${data.role} role active — /kick /ban /unban /role unlocked`);
+        // Re-render channels in case readOnly access changed
+        if (activeTextChannelId) selectTextChannel(activeTextChannelId);
+        renderChannelList();
 
     } else if (data.action === 'PTT_STATE') {
         DevLog.log('BRIDGE', `← C# | PTT_STATE isActive:${data.isActive}`);
@@ -1337,19 +2069,39 @@ window.chrome.webview.addEventListener('message', async (e) => {
 
     } else if (data.action === 'CHAT_RECEIVE') {
         const chId = data.channelId || activeTextChannelId;
-        DevLog.log('BRIDGE', `← C# | CHAT_RECEIVE from:${data.author} ch:${chId||'?'}`);
+        DevLog.log('BRIDGE', `← C# | CHAT_RECEIVE from:${data.author} ch:${chId||'?'} id:${data.id||'none'}`);
+        const isMention = myAlias && data.message && data.message.toLowerCase().includes(`@${myAlias.toLowerCase()}`);
         if (chId) {
             if (!channelMessages[chId]) channelMessages[chId] = [];
-            channelMessages[chId].push({ author: data.author, time: data.time, message: data.message });
+            channelMessages[chId].push({ id: data.id, author: data.author, time: data.time, message: data.message });
             if (chId !== activeTextChannelId) {
                 unreadCounts[chId] = (unreadCounts[chId] || 0) + 1;
+                if (isMention) mentionCounts[chId] = (mentionCounts[chId] || 0) + 1;
                 renderChannelList();
+                playSound(isMention ? 'mention' : 'message');
+            } else if (isMention) {
+                playSound('mention');
             }
         }
-        if (!chId || chId === activeTextChannelId) renderChatMessage(data.author, data.message);
+        if (!chId || chId === activeTextChannelId) renderChatMessage(data.id, data.author, data.time, data.message, false);
+
+    } else if (data.action === 'MESSAGE_EDITED') {
+        DevLog.log('BRIDGE', `← C# | MESSAGE_EDITED ch:${data.channelId} id:${data.messageId}`);
+        if (channelMessages[data.channelId]) {
+            const m = channelMessages[data.channelId].find(x => x.id === data.messageId);
+            if (m) { m.message = data.newText; m.edited = true; }
+        }
+        if (data.channelId === activeTextChannelId) updateMessageInDOM(data.messageId, data.newText);
+
+    } else if (data.action === 'MESSAGE_DELETED') {
+        DevLog.log('BRIDGE', `← C# | MESSAGE_DELETED ch:${data.channelId} id:${data.messageId}`);
+        if (channelMessages[data.channelId])
+            channelMessages[data.channelId] = channelMessages[data.channelId].filter(x => x.id !== data.messageId);
+        if (data.channelId === activeTextChannelId) removeMessageFromDOM(data.messageId);
 
     } else if (data.action === 'USER_JOINED_VOICE') {
         DevLog.log('BRIDGE', `← C# | USER_JOINED_VOICE alias:${data.alias}`);
+        if (data.alias !== myAlias) playSound('join');
         await setupPeer(data.alias, true);
 
     } else if (data.action === 'SERVER_INFO') {
@@ -1358,13 +2110,30 @@ window.chrome.webview.addEventListener('message', async (e) => {
             rtcConfig = { iceServers: data.iceServers };
             DevLog.log('RTC', `ICE config updated | ${data.iceServers.length} server(s) — ${data.iceServers.map(s => Array.isArray(s.urls) ? s.urls[0] : s.urls).join(', ')}`);
         }
+        serverIconUrl = data.serverIcon || null;
+        if (data.userAvatars && typeof data.userAvatars === 'object')
+            Object.assign(userAvatars, data.userAvatars);
         serverChannels = data.channels;
         const firstText = serverChannels.find(c => c.type === 'Text');
         if (firstText) selectTextChannel(firstText.id);
+        updateMyAvatar();
+        renderServerBar();
         renderChannelList();
+
+    } else if (data.action === 'AVATAR_UPDATED') {
+        DevLog.log('BRIDGE', `← C# | AVATAR_UPDATED alias:${data.alias}`);
+        userAvatars[data.alias] = data.url;
+        if (data.alias === myAlias) updateMyAvatar();
+        renderChannelList();  // refresh voice list avatars
+
+    } else if (data.action === 'SERVER_ICON_UPDATED') {
+        DevLog.log('BRIDGE', `← C# | SERVER_ICON_UPDATED`);
+        serverIconUrl = data.url;
+        renderServerBar();
 
     } else if (data.action === 'USER_LEFT_VOICE') {
         DevLog.log('RTC', `← C# | USER_LEFT_VOICE alias:${data.alias}`);
+        if (data.alias !== myAlias) playSound('leave');
         if (peers[data.alias]) { peers[data.alias].close(); delete peers[data.alias]; }
         delete remoteGainNodes[data.alias];
         delete peerAnalysers[data.alias];
@@ -1375,13 +2144,31 @@ window.chrome.webview.addEventListener('message', async (e) => {
         voiceChannelUsers[data.channelId] = data.users;
         if (data.users.includes(myAlias)) {
             currentChannelId = data.channelId;
+            const voiceCh = serverChannels.find(c => c.id === data.channelId);
+            inMutedChannel = !!voiceCh?.muted;
+            if (inMutedChannel) { speaking = false; setMicGate(false); clearTimeout(vadHoldTimer); }
         } else if (currentChannelId === data.channelId) {
             currentChannelId = null;
+            inMutedChannel = false;
+            if (displayStream && sharingChannelId === data.channelId) stopScreenShare();
         }
+        updateMicIndicator();
         renderChannelList();
+        updateShareButtonVisibility();
 
     } else if (data.action === 'DISCONNECTED') {
         DevLog.log('BRIDGE', '← C# | DISCONNECTED');
+        playSound('disconnect');
+        myRole = 'guest';
+        inMutedChannel = false;
+        userAvatars    = {};
+        serverIconUrl  = null;
+        document.getElementById('admin-crown').classList.remove('visible');
+        const _rb = document.getElementById('role-badge');
+        if (_rb) { _rb.className = ''; _rb.textContent = ''; }
+        document.getElementById('input-area')?.classList.remove('readonly');
+        updateMyAvatar();
+        serverUploadBase    = null;
         connectedServerId   = null;
         viewedServerId      = null;
         pendingServerId     = null;
@@ -1397,8 +2184,16 @@ window.chrome.webview.addEventListener('message', async (e) => {
         remoteSpeaking  = new Set();
         userVolumes     = {};
         unreadCounts    = {};
+        mentionCounts   = {};
         speaking = false;
         setMicGate(false);
+        if (displayStream) stopScreenShare();
+        remoteScreens       = {};
+        screenShareSenders  = {};
+        const _sp = document.getElementById('screen-share-panel');
+        if (_sp) { _sp.innerHTML = ''; _sp.classList.remove('active'); }
+        closeShareOverlay();
+        updateShareButtonVisibility();
         document.getElementById('server-name-display').textContent = 'Not connected';
         document.getElementById('ui-alias').textContent = clientConfig.activeAlias;
         document.getElementById('chat-channel-name').textContent = '—';
@@ -1444,6 +2239,28 @@ window.chrome.webview.addEventListener('message', async (e) => {
         } else if (p.type === 'ice') {
             await pc.addIceCandidate(new RTCIceCandidate(p.candidate));
         }
+
+    } else if (data.action === 'SCREEN_SHARE_STARTED') {
+        DevLog.log('RTC', `← C# | SCREEN_SHARE_STARTED from:${data.alias}`);
+        // Video tile appears automatically via pc.ontrack after WebRTC renegotiation
+
+    } else if (data.action === 'SCREEN_SHARE_STOPPED') {
+        DevLog.log('RTC', `← C# | SCREEN_SHARE_STOPPED from:${data.alias}`);
+        removeShareTile(data.alias);
+
+    } else if (data.action === 'SYSTEM_MESSAGE') {
+        DevLog.log('BRIDGE', `← C# | SYSTEM_MESSAGE: ${data.message}`);
+        renderSystemMessage(data.message);
+
+    } else if (data.action === 'KICKED') {
+        DevLog.log('ERR', `← C# | KICKED: ${data.reason}`);
+        const lbl = document.getElementById('voice-mode-label');
+        lbl.textContent = `⚠ ${data.reason || 'Kicked'}`;
+        lbl.style.color = '#ef9a9a';
+        setTimeout(() => {
+            lbl.textContent = settings.voiceMode === 'vad' ? 'Voice Activity' : 'Push to Talk';
+            lbl.style.color = '';
+        }, 6000);
     }
 });
 
@@ -1476,6 +2293,7 @@ function renderMuteDeafenUI() {
     btnDeafen.classList.toggle('deafened', isDeafened);
     btnDeafen.textContent = isDeafened ? '🔕' : '🔊';
     btnDeafen.title       = isDeafened ? 'Undeafen' : 'Deafen';
+    updateMicIndicator();
 }
 
 // ── Speaking indicators ────────────────────────────────────────────────────────
@@ -1536,6 +2354,80 @@ function escapeHtml(str) {
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// ── File Upload ────────────────────────────────────────────────────────────────
+const ALLOWED_EXTS  = ['.jpg','.jpeg','.png','.gif','.webp','.zip','.7z'];
+const MAX_FILE_MB   = 25;
+
+async function uploadAndSendFile(file) {
+    if (!serverUploadBase) { DevLog.log('ERR', 'Not connected — cannot upload'); return; }
+    if (!activeTextChannelId) { DevLog.log('ERR', 'No text channel selected'); return; }
+
+    const nameLower = file.name.toLowerCase();
+    const ext = nameLower.includes('.') ? '.' + nameLower.split('.').pop() : '';
+    if (!ALLOWED_EXTS.includes(ext)) {
+        renderSystemMessage(`Upload blocked: ${ext || 'unknown'} files are not allowed.`);
+        return;
+    }
+    if (file.size > MAX_FILE_MB * 1024 * 1024) {
+        renderSystemMessage(`Upload blocked: file must be under ${MAX_FILE_MB} MB.`);
+        return;
+    }
+
+    renderSystemMessage(`Uploading ${file.name} (${(file.size / 1024).toFixed(0)} KB)…`);
+    DevLog.log('BRIDGE', `Uploading ${file.name} | ${file.size}B`);
+
+    try {
+        const resp = await fetch(`${serverUploadBase}/upload?name=${encodeURIComponent(file.name)}`, {
+            method:  'POST',
+            headers: { 'Content-Type': file.type || 'application/octet-stream' },
+            body:    file
+        });
+        if (!resp.ok) {
+            const errBody = await resp.json().catch(() => ({}));
+            throw new Error(errBody.error || `HTTP ${resp.status}`);
+        }
+        const { url } = await resp.json();
+        const fullUrl = `${serverUploadBase}${url}`;
+        postToBridge({ action: 'SEND_CHAT', channelId: activeTextChannelId, message: fullUrl });
+        DevLog.log('BRIDGE', `Upload done → ${fullUrl}`);
+    } catch (err) {
+        renderSystemMessage(`Upload failed: ${err.message}`);
+        DevLog.log('ERR', `Upload: ${err.message}`);
+    }
+}
+
+async function onFileInputChange(e) {
+    for (const file of Array.from(e.target.files)) await uploadAndSendFile(file);
+    e.target.value = '';
+}
+
+// Paste anywhere → upload if clipboard contains a file / image
+document.addEventListener('paste', async e => {
+    if (!connectedServerId || !activeTextChannelId) return;
+    const files = Array.from(e.clipboardData.files);
+    if (!files.length) return;
+    e.preventDefault();
+    for (const file of files) await uploadAndSendFile(file);
+});
+
+// Drag & drop onto chat history
+(function () {
+    const hist = document.getElementById('chat-history');
+    // Note: hist may not exist yet at parse time, so wire at DOMContentLoaded
+    window.addEventListener('DOMContentLoaded', () => {
+        const h = document.getElementById('chat-history');
+        if (!h) return;
+        h.addEventListener('dragover',  e => { e.preventDefault(); h.classList.add('drag-over'); });
+        h.addEventListener('dragleave', e => { if (!h.contains(e.relatedTarget)) h.classList.remove('drag-over'); });
+        h.addEventListener('drop', async e => {
+            e.preventDefault();
+            h.classList.remove('drag-over');
+            if (!connectedServerId) return;
+            for (const file of Array.from(e.dataTransfer.files)) await uploadAndSendFile(file);
+        });
+    });
+})();
+
 // ── Init ───────────────────────────────────────────────────────────────────────
 async function init() {
     loadSettings();
@@ -1544,11 +2436,11 @@ async function init() {
 
     myAlias = clientConfig.activeAlias;
     document.getElementById('ui-alias').textContent = myAlias;
+    updateMyAvatar();
     renderServerBar();
     document.getElementById('voice-mode-label').textContent =
         settings.voiceMode === 'vad' ? 'Voice Activity' : 'Push to Talk';
-    document.getElementById('mic-indicator').className =
-        settings.voiceMode === 'ptt' ? 'ptt-ready' : 'inactive';
+    updateMicIndicator();
 
     try {
         await initAudio();
