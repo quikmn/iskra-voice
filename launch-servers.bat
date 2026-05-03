@@ -1,6 +1,6 @@
 @echo off
 :: launch-servers.bat
-:: Scans servers\ and starts one Origin server per world folder (any folder with server.json).
+:: Scans servers\ and starts one Iskra server per world folder (any folder with server.json).
 :: Add a server: create a folder under servers\ with a server.json inside.
 :: Remove a server: delete the folder or rename server.json.
 

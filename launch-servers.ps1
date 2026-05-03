@@ -1,5 +1,5 @@
 # launch-servers.ps1
-# Scans the servers\ directory and starts one Origin server process per world folder.
+# Scans the servers\ directory and starts one Iskra server process per world folder.
 # A world folder is any subdirectory that contains a server.json file.
 # Add a server: create a new folder under servers\ with a server.json inside it.
 # Remove a server: delete its folder (or rename server.json to disable it).
