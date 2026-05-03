@@ -75,7 +75,11 @@ namespace Origin.Client.Core
             this.Height        = 800;
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor     = System.Drawing.Color.FromArgb(32, 34, 37);
-            this.Load         += (s, e) => SetTitleBarColor("#1e1e2e"); // Catppuccin default
+            this.Load         += (s, e) => SetTitleBarColor("#1e1e2e");
+
+            string icoPath = Path.Combine(Application.StartupPath, "iskra.ico");
+            if (File.Exists(icoPath))
+                this.Icon = new System.Drawing.Icon(icoPath);
 
             webView      = new WebView2();
             webView.Dock = DockStyle.Fill;
@@ -86,9 +90,10 @@ namespace Origin.Client.Core
 
         private void InitializeTray()
         {
+            string icoPath2 = Path.Combine(Application.StartupPath, "iskra.ico");
             _trayIcon = new NotifyIcon
             {
-                Icon    = SystemIcons.Application,
+                Icon    = File.Exists(icoPath2) ? new System.Drawing.Icon(icoPath2) : SystemIcons.Application,
                 Text    = "Iskra",
                 Visible = true
             };
