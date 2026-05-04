@@ -78,7 +78,7 @@
         #chat-pane { flex: 1; background: var(--bg-deep); display: flex; flex-direction: column; position: relative; }
 
         /* ── Channel List ── */
-        .channel-section-label { font-size: 11px; font-weight: 700; color: var(--text-subtle); text-transform: uppercase; letter-spacing: 0.7px; padding: 16px 8px 4px 12px; user-select: none; }
+        .channel-section-label { font-size: 11px; font-weight: 700; color: var(--text-subtle); text-transform: uppercase; letter-spacing: 0.7px; padding: 16px 8px 4px 12px; user-select: none; cursor: pointer; display: flex; align-items: center; gap: 4px; }
         .channel { padding: 4px 6px 4px 8px; margin: 1px 6px; border-radius: 4px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; gap: 6px; min-height: 32px; flex-wrap: wrap; }
         .channel:hover { background: var(--bg-sidebar-hover); color: var(--text-normal); }
         .channel.active { background: var(--bg-button); color: var(--text-heading); }
@@ -341,6 +341,22 @@
         /* ── @mentions ── */
         .mention { background: var(--mention-bg); color: #c9cdfb; border-radius: 3px; padding: 0 3px; font-weight: 600; }
         .mention.me { background: var(--warning-bg); color: #ffd166; }
+
+        /* ── Markdown extras ── */
+        .spoiler { background: var(--text-faint); color: transparent; border-radius: 3px; padding: 0 3px; cursor: pointer; transition: color 0.15s, background 0.15s; user-select: none; }
+        .spoiler.revealed { background: var(--bg-active); color: var(--text-normal); user-select: text; }
+        .msg-body del { opacity: 0.6; }
+        .msg-body blockquote { border-left: 3px solid var(--bg-active); margin: 3px 0; padding: 1px 10px; color: var(--text-muted); display: block; }
+        .code-lang { font-size: 10px; color: var(--text-faint); display: block; margin-bottom: 4px; }
+
+        /* ── Category headers ── */
+        .channel-section-label::before { content: '▾'; font-size: 9px; flex-shrink: 0; transition: transform 0.15s; }
+        .channel-section-label.collapsed::before { transform: rotate(-90deg); }
+        .channel-section-label:hover { color: var(--text-normal); }
+
+        /* ── Muted server badge ── */
+        .server-icon { position: relative; }
+        .srv-mute-badge { position: absolute; bottom: -3px; right: -3px; font-size: 12px; line-height: 1; pointer-events: none; }
 
         /* ── Message hover actions ── */
         .msg-actions { position: absolute; right: 4px; top: 4px; display: none; gap: 2px; background: var(--bg-float); border: 1px solid var(--bg-border); border-radius: 5px; padding: 2px 4px; }
@@ -634,6 +650,11 @@
         .admin-item-sub  { font-size: 11px; color: var(--text-faint); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .btn-danger-sm { background: transparent; border: none; color: var(--text-faint); cursor: pointer; font-size: 11px; padding: 3px 7px; border-radius: 3px; flex-shrink: 0; }
         .btn-danger-sm:hover { background: var(--danger); color: var(--text-heading); }
+        .btn-sm { background: var(--bg-button); border: none; color: var(--text-normal); cursor: pointer; font-size: 11px; padding: 3px 8px; border-radius: 3px; }
+        .btn-sm:hover { background: var(--bg-active); }
+        .btn-icon-sm { background: transparent; border: none; color: var(--text-faint); cursor: pointer; font-size: 11px; padding: 2px 5px; border-radius: 3px; line-height: 1; }
+        .btn-icon-sm:hover:not(:disabled) { background: var(--bg-hover); color: var(--text-normal); }
+        .btn-icon-sm:disabled { opacity: 0.3; cursor: default; }
         .btn-small { background: var(--bg-button); border: none; color: var(--text-normal); cursor: pointer; font-size: 11px; padding: 4px 10px; border-radius: 4px; font-weight: 600; white-space: nowrap; }
         .btn-small:hover { background: var(--text-faint); }
         .btn-small.green { background: var(--success); color: var(--text-heading); }
@@ -958,7 +979,14 @@
             </div>
             <hr class="divider">
             <div class="admin-section">
-                <div class="admin-section-title"><span>Channel Permissions</span></div>
+                <div class="admin-section-title">
+                    <span>Channels</span>
+                    <span style="display:flex;gap:6px;" id="admin-ch-add-btns">
+                        <button class="btn-small" onclick="adminAddChannel('Text')"># Text</button>
+                        <button class="btn-small" onclick="adminAddChannel('Voice')">🔊 Voice</button>
+                        <button class="btn-small" onclick="adminAddChannel('Header')">📁 Category</button>
+                    </span>
+                </div>
                 <div id="admin-channels-list"></div>
             </div>
             <hr class="divider">
@@ -1111,6 +1139,14 @@
 
 <div id="srv-ctx-menu" style="position:fixed;display:none;background:var(--bg-surface);border:1px solid var(--bg-deep);border-radius:6px;padding:6px 0;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,0.6);z-index:200;user-select:none;">
     <div class="ctx-menu-header" id="srv-ctx-name"></div>
+    <div class="ctx-action" id="srv-ctx-read-item" onclick="srvCtxMarkAllRead()">✓ Mark all as read</div>
+    <hr class="ctx-divider" id="srv-ctx-mute-sep">
+    <div class="ctx-action" id="srv-ctx-mute-1h"    onclick="srvCtxMute(3600000)">🔔 Mute for 1h</div>
+    <div class="ctx-action" id="srv-ctx-mute-24h"   onclick="srvCtxMute(86400000)">🔔 Mute for 24h</div>
+    <div class="ctx-action" id="srv-ctx-mute-7d"    onclick="srvCtxMute(604800000)">🔔 Mute for 7d</div>
+    <div class="ctx-action" id="srv-ctx-mute-indef" onclick="srvCtxMute(0)">🔔 Mute indefinitely</div>
+    <div class="ctx-action" id="srv-ctx-unmute-item" onclick="srvCtxUnmute()">🔔 Unmute</div>
+    <hr class="ctx-divider">
     <div class="ctx-action" onclick="srvCtxConfigure()">Configure Server</div>
     <div class="ctx-action" id="srv-ctx-disconnect-item" onclick="srvCtxDisconnect()">Disconnect</div>
     <div class="ctx-action" id="srv-ctx-icon-item" onclick="srvCtxChangeIcon()">Change Icon</div>
@@ -1676,6 +1712,7 @@ let voiceChannelUsers  = {};     // channelId → [alias, ...]  — authoritativ
 let channelSlowMode   = {};     // channelId → seconds (0 = off)
 let lastSendTime      = {};     // channelId → Date.now() of last send
 let _slowTimer        = null;
+let _collapsedCats    = new Set();  // category channel IDs that are collapsed
 
 // ── Channel List Rendering ────────────────────────────────────────────────────
 function renderChannelList() {
@@ -1701,12 +1738,18 @@ function renderChannelList() {
         return;
     }
 
-    // Render channels in config order — Header type becomes a section label
+    // Render channels in config order — Header type becomes a collapsible section label
     let html = '';
+    let currentCatCollapsed = false;
     for (const ch of serverChannels) {
         if (ch.type === 'Header') {
-            html += `<div class="channel-section-label">${escapeHtml(ch.name)}</div>`;
-        } else if (ch.type === 'Voice') {
+            const collapsed = _collapsedCats.has(ch.id);
+            currentCatCollapsed = collapsed;
+            html += `<div class="channel-section-label${collapsed ? ' collapsed' : ''}" onclick="toggleCat('${ch.id}')">${escapeHtml(ch.name)}</div>`;
+            continue;
+        }
+        if (currentCatCollapsed) continue;
+        if (ch.type === 'Voice') {
             const inVoice  = ch.id === currentChannelId;
             const users    = voiceChannelUsers[ch.id] || [];
             const voiceIcon = ch.muted ? '🔇' : '🔊';
@@ -1747,6 +1790,7 @@ function selectTextChannel(id) {
     activeTextChannelId = id;
     unreadCounts[id]  = 0;
     mentionCounts[id] = 0;
+    if (connectedServerId) saveUnread(connectedServerId);
     cancelReply();
     const ch = serverChannels.find(c => c.id === id);
     const inputArea = document.getElementById('input-area');
@@ -1776,6 +1820,63 @@ function selectTextChannel(id) {
 }
 
 function roleRank(r) { return ({guest:0,member:1,trusted:2,admin:3,owner:4})[r] ?? 0; }
+
+// ── Category collapse ─────────────────────────────────────────────────────────
+function loadCollapsedCats(sid) {
+    try { return new Set(JSON.parse(localStorage.getItem(`iskra_cats_${sid}`) || '[]')); } catch { return new Set(); }
+}
+function saveCollapsedCats(sid, set) {
+    localStorage.setItem(`iskra_cats_${sid}`, JSON.stringify([...set]));
+}
+function toggleCat(catId) {
+    if (_collapsedCats.has(catId)) _collapsedCats.delete(catId);
+    else _collapsedCats.add(catId);
+    if (connectedServerId) saveCollapsedCats(connectedServerId, _collapsedCats);
+    renderChannelList();
+}
+
+// ── Persistent unread ─────────────────────────────────────────────────────────
+function loadUnread(sid) {
+    try {
+        const d = JSON.parse(localStorage.getItem(`iskra_unread_${sid}`) || '{}');
+        unreadCounts  = d.u || {};
+        mentionCounts = d.m || {};
+    } catch { unreadCounts = {}; mentionCounts = {}; }
+}
+function saveUnread(sid) {
+    localStorage.setItem(`iskra_unread_${sid}`, JSON.stringify({ u: unreadCounts, m: mentionCounts }));
+}
+
+// ── Server mute ───────────────────────────────────────────────────────────────
+function isServerMuted(id) {
+    const e = clientConfig.serverMutes?.[id];
+    if (!e) return false;
+    if (e.until === 0) return true;
+    return Date.now() < e.until;
+}
+function srvCtxMute(ms) {
+    hideSrvCtxMenu();
+    if (!_srvCtxId) return;
+    if (!clientConfig.serverMutes) clientConfig.serverMutes = {};
+    clientConfig.serverMutes[_srvCtxId] = { until: ms === 0 ? 0 : Date.now() + ms };
+    saveClientConfig();
+    renderServerBar();
+}
+function srvCtxUnmute() {
+    hideSrvCtxMenu();
+    if (!_srvCtxId) return;
+    if (clientConfig.serverMutes) delete clientConfig.serverMutes[_srvCtxId];
+    saveClientConfig();
+    renderServerBar();
+}
+function srvCtxMarkAllRead() {
+    hideSrvCtxMenu();
+    if (!_srvCtxId || _srvCtxId !== connectedServerId) return;
+    serverChannels.forEach(ch => { unreadCounts[ch.id] = 0; mentionCounts[ch.id] = 0; });
+    saveUnread(_srvCtxId);
+    renderChannelList();
+    renderServerBar();
+}
 
 // ── Tab Switching ──────────────────────────────────────────────────────────────
 let activeTab = 'audio';
@@ -2007,6 +2108,7 @@ function renderServerBar() {
         const isViewed     = s.id === viewedServerId;
         const isConn       = s.id === connectedServerId;
         const canUpload    = isConn && ['admin','owner'].includes(myRole);
+        const isMuted      = isServerMuted(s.id);
         const iconContent  = (isConn && serverIconUrl)
             ? `<img src="${escapeHtml(normalizeUploadUrl(serverIconUrl) || serverIconUrl)}" alt="${escapeHtml(s.name)}">`
             + (canUpload ? `<span class="srv-upload-hint" title="Change server icon">📷</span>` : '')
@@ -2019,7 +2121,7 @@ function renderServerBar() {
             <div class="server-icon" style="${iconStyle}"
                  onclick="onServerIconClick('${s.id}')"
                  oncontextmenu="showServerCtxMenu(event,'${s.id}')"
-                 title="${escapeHtml(s.name)}">${iconContent}</div>
+                 title="${escapeHtml(s.name)}">${iconContent}${isMuted ? `<span class="srv-mute-badge">🔇</span>` : ''}</div>
         </div>`;
     }).join('');
 }
@@ -2041,8 +2143,16 @@ function showServerCtxMenu(e, id) {
     document.getElementById('srv-ctx-name').textContent = s.name;
     const isConn      = id === connectedServerId;
     const canChangeIcon = isConn && ['admin','owner'].includes(myRole);
+    const muted = isServerMuted(id);
     document.getElementById('srv-ctx-disconnect-item').style.display = isConn ? '' : 'none';
     document.getElementById('srv-ctx-icon-item').style.display = canChangeIcon ? '' : 'none';
+    document.getElementById('srv-ctx-read-item').style.display    = isConn ? '' : 'none';
+    document.getElementById('srv-ctx-mute-sep').style.display     = '';
+    document.getElementById('srv-ctx-mute-1h').style.display      = muted ? 'none' : '';
+    document.getElementById('srv-ctx-mute-24h').style.display     = muted ? 'none' : '';
+    document.getElementById('srv-ctx-mute-7d').style.display      = muted ? 'none' : '';
+    document.getElementById('srv-ctx-mute-indef').style.display   = muted ? 'none' : '';
+    document.getElementById('srv-ctx-unmute-item').style.display  = muted ? '' : 'none';
     const menu = document.getElementById('srv-ctx-menu');
     menu.style.display = 'block';
     const x = Math.min(e.clientX, window.innerWidth  - 200);
@@ -2803,17 +2913,24 @@ function normalizeUploadUrl(url) {
 
 // ── Markdown renderer ──────────────────────────────────────────────────────────
 function renderMarkdown(raw) {
-    // 1. Extract fenced code blocks so they aren't processed by other rules.
+    // 1. Extract fenced code blocks (with optional language hint).
     const blocks = [];
-    let s = raw.replace(/```([\s\S]*?)```/g, (_, code) => {
-        blocks.push(code.trim());
+    let s = raw.replace(/```([a-zA-Z0-9]*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+        blocks.push({ lang: lang.trim(), code: code.trim() });
         return `\x02${blocks.length - 1}\x03`;
     });
 
-    // 2. HTML-escape the remaining text (\x02 / \x03 are not HTML-special).
+    // 2. Extract inline code so inner content isn't touched by other rules.
+    const inlines = [];
+    s = s.replace(/`([^`\n]+)`/g, (_, code) => {
+        inlines.push(code);
+        return `\x04${inlines.length - 1}\x05`;
+    });
+
+    // 3. HTML-escape remaining text.
     s = s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-    // 3. Upload URLs — images inline, other files as download link.
+    // 4. Upload URLs — images inline, other files as download link.
     s = s.replace(_uploadUrlRe, raw_url => {
         const url = normalizeUploadUrl(raw_url);
         const ext = url.split('.').pop().toLowerCase();
@@ -2823,12 +2940,18 @@ function renderMarkdown(raw) {
         return `<a class="msg-file" href="${url}" target="_blank" download>📎 ${fname}</a>`;
     });
 
-    // 4. Inline formatting (order: bold before italic to avoid *** conflicts).
+    // 5. Inline formatting — order matters (spoiler/bold before italic, etc.).
+    s = s.replace(/\|\|(.+?)\|\|/g, '<span class="spoiler" onclick="this.classList.toggle(\'revealed\')">$1</span>');
     s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    s = s.replace(/\*(.+?)\*/g,     '<em>$1</em>');
-    s = s.replace(/`([^`\n]+)`/g,   '<code>$1</code>');
+    s = s.replace(/__(.+?)__/g,     '<strong>$1</strong>');
+    s = s.replace(/\*([^*\n]+?)\*/g,'<em>$1</em>');
+    s = s.replace(/_([^_\n\s][^_\n]*?)_/g, '<em>$1</em>');
+    s = s.replace(/~~(.+?)~~/g,     '<del>$1</del>');
 
-    // 5. Bare URLs not already wrapped by upload rule.
+    // 5.5. Blockquotes (lines starting with >).
+    s = s.replace(/^&gt; ?(.*)/gm, '<blockquote>$1</blockquote>');
+
+    // 6. Bare URLs not already wrapped.
     s = s.replace(/(?<![="'])https?:\/\/[^\s<>"]+/g, url => {
         const clean = url.replace(/[.,;!?)'">\]]+$/, '');
         const ext   = clean.split('?')[0].split('#')[0].split('.').pop().toLowerCase();
@@ -2839,22 +2962,32 @@ function renderMarkdown(raw) {
         return `<a class="msg-url" href="${clean}" target="_blank" rel="noopener noreferrer">${clean}</a>`;
     });
 
-    // 6. @mentions.
+    // 7. @mentions.
     s = s.replace(/@([\w][\w\d._-]{0,31})/g, (_, name) => {
         const isMe = myAlias && name.toLowerCase() === myAlias.toLowerCase();
         return `<span class="mention${isMe ? ' me' : ''}">@${name}</span>`;
     });
 
-    // 6.5. Custom server emojis (:shortcode:).
+    // 8. Custom server emojis (:shortcode:).
     s = s.replace(/:([a-z0-9_]+):/g, (match, code) => {
         const url = serverEmojis[code];
         return url ? `<img class="custom-emoji" src="${url.replace(/"/g,'&quot;')}" alt=":${code}:" title=":${code}:" loading="lazy">` : match;
     });
 
-    // 7. Restore code blocks (escape their content independently).
+    // 9. Newlines → <br> (blockquote/pre elements handle their own spacing).
+    s = s.replace(/\n/g, '<br>');
+
+    // 10. Restore inline code.
+    s = s.replace(/\x04(\d+)\x05/g, (_, i) => {
+        const esc = inlines[parseInt(i)].replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        return `<code>${esc}</code>`;
+    });
+
+    // 11. Restore code blocks.
     s = s.replace(/\x02(\d+)\x03/g, (_, i) => {
-        const code = blocks[parseInt(i)].replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        return `<pre><code>${code}</code></pre>`;
+        const { lang, code } = blocks[parseInt(i)];
+        const esc = code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        return `<pre><code>${lang ? `<span class="code-lang">${escapeHtml(lang)}</span>` : ''}${esc}</code></pre>`;
     });
 
     return s;
@@ -3452,7 +3585,7 @@ function renderChatMessage(msgId, author, time, message, edited, reactions, repl
     const editedHtml = edited
         ? `<span class="msg-edited${hasHistory ? ' has-history' : ''}"${hasHistory ? ` onclick="showEditHistory('${msgId}',this)" data-history="${escapeHtml(JSON.stringify(editHistory))}"` : ''}>(edited)</span>`
         : '';
-    const bodyHtml = replyQuoteHtml + `<span class="msg-body">${renderMarkdown(message)}</span>` + editedHtml;
+    const bodyHtml = replyQuoteHtml + `<span class="msg-body" data-raw="${escapeHtml(message)}">${renderMarkdown(message)}</span>` + editedHtml;
 
     let actions = '';
     if (msgId) {
@@ -3489,7 +3622,7 @@ function editMessage(msgId, author) {
     row.dataset.editing = '1';
     const content = row.querySelector('.msg-content') || row;
     const body = content.querySelector('.msg-body');
-    const currentText = body.textContent;
+    const currentText = body.dataset.raw ?? body.textContent;
     body.style.display = 'none';
     const editedMark = content.querySelector('.msg-edited');
     if (editedMark) editedMark.style.display = 'none';
@@ -4010,15 +4143,17 @@ window.chrome.webview.addEventListener('message', async (e) => {
                 reactions: data.reactions || {}, replyToId: data.replyToId || null, replySnippet: data.replySnippet || null, editHistory: data.editHistory || [] };
             if (ciphertextBackup) stored._ciphertext = ciphertextBackup;
             channelMessages[chId].push(stored);
+            const srvMuted = isServerMuted(connectedServerId);
             if (chId !== activeTextChannelId) {
                 unreadCounts[chId] = (unreadCounts[chId] || 0) + 1;
                 if (isMention) mentionCounts[chId] = (mentionCounts[chId] || 0) + 1;
+                if (connectedServerId) saveUnread(connectedServerId);
                 renderChannelList();
-                playSound(isMention ? 'mention' : 'message');
+                if (!srvMuted) playSound(isMention ? 'mention' : 'message');
             } else if (isMention) {
-                playSound('mention');
+                if (!srvMuted) playSound('mention');
             }
-            if (data.author !== myAlias && !document.hasFocus()) {
+            if (!srvMuted && data.author !== myAlias && !document.hasFocus()) {
                 const chName = serverChannels.find(c => c.id === chId)?.name || chId || '';
                 const notifBody = ciphertextBackup ? '🔒 Encrypted message' : (msgText || '').slice(0, 120);
                 postToBridge({ action: 'NOTIFY',
@@ -4084,6 +4219,10 @@ window.chrome.webview.addEventListener('message', async (e) => {
         serverChannels = data.channels;
         channelSlowMode = {};
         data.channels.forEach(c => { if (c.slowMode) channelSlowMode[c.id] = c.slowMode; });
+        if (connectedServerId) {
+            _collapsedCats = loadCollapsedCats(connectedServerId);
+            loadUnread(connectedServerId);
+        }
         const firstText = serverChannels.find(c => c.type === 'Text');
         if (firstText) selectTextChannel(firstText.id);
         updateMyAvatar();
@@ -4097,6 +4236,13 @@ window.chrome.webview.addEventListener('message', async (e) => {
         userAvatars[data.alias] = data.url;
         if (data.alias === myAlias) updateMyAvatar();
         renderChannelList();  // refresh voice list avatars
+
+    } else if (data.action === 'CHANNELS_UPDATED') {
+        serverChannels = data.channels;
+        channelSlowMode = {};
+        data.channels.forEach(c => { if (c.slowMode) channelSlowMode[c.id] = c.slowMode; });
+        renderChannelList();
+        if (activeTab === 'admin') renderAdminChannels();
 
     } else if (data.action === 'SERVER_ICON_UPDATED') {
         DevLog.log('BRIDGE', `← C# | SERVER_ICON_UPDATED`);
@@ -4132,6 +4278,7 @@ window.chrome.webview.addEventListener('message', async (e) => {
 
     } else if (data.action === 'DISCONNECTED') {
         DevLog.log('BRIDGE', '← C# | DISCONNECTED');
+        if (connectedServerId) saveUnread(connectedServerId);
         playSound('disconnect');
         myRole = 'guest';
         inMutedChannel = false;
@@ -4168,6 +4315,7 @@ window.chrome.webview.addEventListener('message', async (e) => {
         userVolumes     = {};
         unreadCounts    = {};
         mentionCounts   = {};
+        _collapsedCats  = new Set();
         e2eChannelKeys   = {};
         serverPublicKeys = {};
         e2eChannelAccess = {};
@@ -4760,12 +4908,32 @@ function renderAdminMembers() {
 function renderAdminChannels() {
     const el = document.getElementById('admin-channels-list');
     if (!el) return;
-    const chs = serverChannels.filter(c => c.type !== 'Header');
-    if (!chs.length) { el.innerHTML = '<div class="empty-state">No channels.</div>'; return; }
+    const canManage = ['admin','owner'].includes(myRole);
+    // Show add-channel buttons only to admin+
+    const addBtns = document.getElementById('admin-ch-add-btns');
+    if (addBtns) addBtns.style.display = canManage ? '' : 'none';
+    if (!serverChannels.length) { el.innerHTML = '<div class="empty-state">No channels.</div>'; return; }
     const roles = ['guest','member','trusted','admin','owner'];
-    el.innerHTML = chs.map(ch => {
-        const isVoice = ch.type === 'Voice';
-        const icon = isVoice ? '🔊' : (ch.e2e ? '🔒' : '#');
+    el.innerHTML = serverChannels.map((ch, idx) => {
+        const isHeader = ch.type === 'Header';
+        const isVoice  = ch.type === 'Voice';
+        const icon     = isHeader ? '📁' : (isVoice ? '🔊' : (ch.e2e ? '🔒' : '#'));
+
+        const moveHtml = canManage ? `
+            <button class="btn-icon-sm" title="Move up"   onclick="adminMoveChannel('${ch.id}',-1)" ${idx===0?'disabled':''}>▲</button>
+            <button class="btn-icon-sm" title="Move down" onclick="adminMoveChannel('${ch.id}',1)"  ${idx===serverChannels.length-1?'disabled':''}>▼</button>` : '';
+        const renameHtml = canManage ? `<button class="btn-sm" onclick="adminRenameChannel('${ch.id}')">Rename</button>` : '';
+        const deleteHtml = canManage ? `<button class="btn-danger-sm" onclick="adminDeleteChannel('${ch.id}')">Delete</button>` : '';
+
+        if (isHeader) {
+            return `<div class="admin-perm-row" style="background:var(--bg-hover);border-radius:4px;">
+                <div class="admin-perm-top">
+                    <span class="admin-ch-label" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;">${icon} ${escapeHtml(ch.name)}</span>
+                    <span style="display:flex;gap:4px;margin-left:auto;">${moveHtml}${renameHtml}${deleteHtml}</span>
+                </div>
+            </div>`;
+        }
+
         const minOpts   = roles.map(r => `<option value="${r}"${(ch.minRole  ||'guest')===r?' selected':''}>${r}</option>`).join('');
         const writeOpts = roles.map(r => `<option value="${r}"${(ch.writeRole||'guest')===r?' selected':''}>${r}</option>`).join('');
         const e2eSection = !isVoice ? `
@@ -4781,9 +4949,40 @@ function renderAdminChannels() {
                 <span class="admin-ch-label">${icon} ${escapeHtml(ch.name)}</span>
                 <label>view <select class="role-sel" onchange="setChannelRoles('${ch.id}',this.value,null)">${minOpts}</select></label>
                 ${!isVoice ? `<label>post <select class="role-sel" onchange="setChannelRoles('${ch.id}',null,this.value)">${writeOpts}</select></label>` : ''}
+                <span style="display:flex;gap:4px;margin-left:auto;">${moveHtml}${renameHtml}${deleteHtml}</span>
             </div>${e2eSection}
         </div>`;
     }).join('');
+}
+
+function adminAddChannel(type) {
+    const defaultName = type === 'Header' ? 'New Category' : (type === 'Voice' ? 'New Voice' : 'new-channel');
+    const name = prompt(`Name for new ${type.toLowerCase()} channel:`, defaultName);
+    if (!name || !name.trim()) return;
+    postToBridge({ action: 'ADD_CHANNEL', name: name.trim(), type });
+}
+
+function adminDeleteChannel(channelId) {
+    const ch = serverChannels.find(c => c.id === channelId);
+    if (!ch) return;
+    if (!confirm(`Delete channel "${ch.name}"? This cannot be undone.`)) return;
+    postToBridge({ action: 'DELETE_CHANNEL', channelId });
+}
+
+function adminRenameChannel(channelId) {
+    const ch = serverChannels.find(c => c.id === channelId);
+    if (!ch) return;
+    const name = prompt('New name:', ch.name);
+    if (!name || !name.trim() || name.trim() === ch.name) return;
+    postToBridge({ action: 'RENAME_CHANNEL', channelId, name: name.trim() });
+}
+
+function adminMoveChannel(channelId, delta) {
+    const idx = serverChannels.findIndex(c => c.id === channelId);
+    if (idx < 0) return;
+    const newIdx = idx + delta;
+    if (newIdx < 0 || newIdx >= serverChannels.length) return;
+    postToBridge({ action: 'REORDER_CHANNEL', channelId, direction: delta < 0 ? 'up' : 'down' });
 }
 
 function setUserRole(alias, role) {
