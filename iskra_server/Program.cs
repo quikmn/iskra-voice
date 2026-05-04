@@ -1106,7 +1106,7 @@ namespace Origin.Server.Core
                             continue;
                         }
 
-                        if (text.StartsWith("/"))
+                        if (text.StartsWith("/") && text.Length > 1 && char.IsLetter(text[1]))
                         {
                             if (RoleRank(userRole) < RoleRank("admin"))
                             {

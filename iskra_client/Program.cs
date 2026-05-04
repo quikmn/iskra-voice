@@ -64,6 +64,10 @@ namespace Origin.Client.Core
         private NotifyIcon _trayIcon;
         private bool _isQuitting = false;
 
+        // ── Server connection tracking (for upload URL normalization in JS) ─────
+        private string _serverHost = null;
+        private int    _serverPort = 0;
+
         // ── WebSocket + UI ──────────────────────────────────────────────────────
         private WebView2 webView;
         private ClientWebSocket wsClient;
@@ -116,7 +120,7 @@ namespace Origin.Client.Core
         {
             CLog("WEBVIEW", "Initializing WebView2 environment...");
             var opts = new CoreWebView2EnvironmentOptions();
-            opts.AdditionalBrowserArguments = "--autoplay-policy=no-user-gesture-required --allow-running-insecure-content --disable-features=MixedContentAutoupgrade,AutoupgradeMixedContent";
+            opts.AdditionalBrowserArguments = "--autoplay-policy=no-user-gesture-required --allow-running-insecure-content";
             var env = await CoreWebView2Environment.CreateAsync(
                 null, Path.Combine(Path.GetTempPath(), "Origin_WebView2_Data"), opts);
             await webView.EnsureCoreWebView2Async(env);
@@ -143,6 +147,8 @@ namespace Origin.Client.Core
                 webView.CoreWebView2.Navigate("https://origin.app/index.html");
             }
             else webView.CoreWebView2.NavigateToString("<h1>index.html not found!</h1>");
+
+
 
             webView.CoreWebView2.WebMessageReceived += Origin_Client_Bridge_Listener;
 
@@ -253,6 +259,8 @@ namespace Origin.Client.Core
                 }
                 catch { break; }
             }
+            _serverHost = null;
+            _serverPort = 0;
             CLog("WS", "Receive loop exited — sending DISCONNECTED to JS");
             try
             {
@@ -298,13 +306,17 @@ namespace Origin.Client.Core
                     var alias         = doc.RootElement.GetProperty("alias").GetString();
                     var adminPassword = doc.RootElement.TryGetProperty("adminPassword", out JsonElement apEl) ? apEl.GetString() ?? "" : "";
                     var userPassword  = doc.RootElement.TryGetProperty("userPassword",  out JsonElement upEl) ? upEl.GetString() ?? "" : "";
-                    CLog("BRIDGE", $"← JS (local) | CONNECT host:{host}:{port} alias:{alias} admin:{!string.IsNullOrEmpty(adminPassword)} userPw:{!string.IsNullOrEmpty(userPassword)}");
+                    _serverHost = host;
+                    _serverPort = port;
+                    CLog("BRIDGE", $"← JS (local) | CONNECT host:{host}:{port} alias:{alias}");
                     _ = Task.Run(() => ConnectToServer(host, port, password, alias, adminPassword, userPassword));
                     return;
                 }
                 if (action == "DISCONNECT")
                 {
                     CLog("BRIDGE", "← JS (local) | DISCONNECT");
+                    _serverHost = null;
+                    _serverPort = 0;
                     wsClient?.Abort();
                     return;
                 }

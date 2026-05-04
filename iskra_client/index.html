@@ -1211,7 +1211,7 @@ function avatarHtml(alias, szClass = 'sz-40', clickable = true, showStatus = fal
     const wrapEnd  = dot ? '</div>' : '';
     if (url) {
         const action = `onclick="openImgOverlay('${url.replace(/'/g,"\\'")}','${escapeHtml(alias)}')"`;
-        return `${wrap}<div class="avatar-circle ${szClass} ${clk}" ${action} title="${escapeHtml(alias)}"><img src="${escapeHtml(url)}" alt="${escapeHtml(alias)}" loading="lazy"></div>${dot}${wrapEnd}`;
+        return `${wrap}<div class="avatar-circle ${szClass} ${clk}" ${action} title="${escapeHtml(alias)}"><img src="${escapeHtml(url)}" data-src="${escapeHtml(url)}" alt="${escapeHtml(alias)}" loading="lazy" onerror="rescueImg(this)"></div>${dot}${wrapEnd}`;
     }
     const bg = `style="background:${avatarColor(alias)}"`;
     return `${wrap}<div class="avatar-circle ${szClass} ${clk}" ${bg} title="${escapeHtml(alias)}">${initials}</div>${dot}${wrapEnd}`;
@@ -1224,7 +1224,7 @@ function updateMyAvatar() {
         const url   = normalizeUploadUrl(userAvatars[alias]) || clientConfig.localAvatars?.[alias];
         if (url) {
             el.style.background = '';
-            el.innerHTML = `<img src="${escapeHtml(url)}" alt="${escapeHtml(alias)}" loading="lazy">`;
+            el.innerHTML = `<img src="${escapeHtml(url)}" data-src="${escapeHtml(url)}" alt="${escapeHtml(alias)}" loading="lazy" onerror="rescueImg(this)">`;
         } else {
             el.style.background = avatarColor(alias);
             el.innerHTML = `<span>${alias ? alias.slice(0, 2).toUpperCase() : '?'}</span>`;
@@ -2667,6 +2667,25 @@ function _slowCountdown(secs) {
 // Matches /uploads/hexhash.ext whether standalone or prefixed with http://host:port
 const _uploadUrlRe = /(?:https?:\/\/[^\s<>"]+)?\/uploads\/[a-f0-9]+\.[a-z0-9]+/gi;
 
+// When an upload <img> fails (mixed-content block), fetch() it and swap in a blob URL.
+// fetch() is allowed by --allow-running-insecure-content; passive <img> loads are not.
+const _blobCache = {};
+async function rescueImg(img) {
+    if (img.dataset.rescued) return;
+    img.dataset.rescued = '1';
+    const src = img.dataset.src || img.src;
+    if (!src || !src.includes('/uploads/')) return;
+    try {
+        if (_blobCache[src]) { img.src = _blobCache[src]; return; }
+        const resp = await fetch(src);
+        if (!resp.ok) return;
+        const blob = await resp.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        _blobCache[src] = blobUrl;
+        img.src = blobUrl;
+    } catch {}
+}
+
 function normalizeUploadUrl(url) {
     if (!url) return url;
     // Already a relative upload path
@@ -2693,7 +2712,7 @@ function renderMarkdown(raw) {
         const url = normalizeUploadUrl(raw_url);
         const ext = url.split('.').pop().toLowerCase();
         if (['jpg','jpeg','png','gif','webp'].includes(ext))
-            return `<a href="${url}" target="_blank"><img class="msg-img" src="${url}" alt="image" loading="lazy" onerror="this.style.display='none'"></a>`;
+            return `<a href="${url}" target="_blank"><img class="msg-img" src="${url}" data-src="${url}" alt="image" loading="lazy" onerror="rescueImg(this)"></a>`;
         const fname = url.split('/').pop();
         return `<a class="msg-file" href="${url}" target="_blank" download>📎 ${fname}</a>`;
     });
@@ -4213,13 +4232,14 @@ async function uploadAndSendFile(file) {
             const errBody = await resp.json().catch(() => ({}));
             throw new Error(errBody.error || `HTTP ${resp.status}`);
         }
-        const { url } = await resp.json(); // relative path e.g. /uploads/abc123.png
+        const { url } = await resp.json();
+        const fullUrl = `${serverUploadBase}${url}`;
         if (inDmMode && activeDmWith) {
-            postToBridge({ action: 'SEND_DM', to: activeDmWith, message: url });
+            postToBridge({ action: 'SEND_DM', to: activeDmWith, message: fullUrl });
         } else {
-            postToBridge({ action: 'SEND_CHAT', channelId: activeTextChannelId, message: url });
+            postToBridge({ action: 'SEND_CHAT', channelId: activeTextChannelId, message: fullUrl });
         }
-        DevLog.log('BRIDGE', `Upload done → ${url}`);
+        DevLog.log('BRIDGE', `Upload done → ${fullUrl}`);
     } catch (err) {
         renderSystemMessage(`Upload failed: ${err.message}`);
         DevLog.log('ERR', `Upload: ${err.message}`);
