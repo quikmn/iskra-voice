@@ -1663,7 +1663,7 @@ namespace Origin.Server.Core
                             if (File.Exists(dmPath))
                                 foreach (var line in File.ReadLines(dmPath))
                                     try { var m = JsonSerializer.Deserialize<DmMessage>(line); if (m != null) dmMsgs.Add(m); } catch { }
-                        await Send(socket, new { action = "DM_HISTORY", with = dmWith, messages = dmMsgs.TakeLast(100).Select(m => new { m.Id, m.From, m.To, m.Time, m.Ts, m.Message }) });
+                        await Send(socket, new { action = "DM_HISTORY", with = dmWith, messages = dmMsgs.TakeLast(100).Select(m => new { id = m.Id, from = m.From, to = m.To, time = m.Time, ts = m.Ts, message = m.Message }) });
                     }
 
                     // ── MARK_DM_READ ─────────────────────────────────────────────
