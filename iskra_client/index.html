@@ -592,6 +592,18 @@
         #invite-copy-btn.copied { background: var(--success); }
         .invite-modal-hint { font-size: 11px; color: var(--text-subtle); line-height: 1.5; }
 
+        /* ── Join Invite Modal ── */
+        #join-invite-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.78); display: none; align-items: center; justify-content: center; z-index: 260; }
+        #join-invite-overlay.open { display: flex; }
+        .join-invite-modal { background: var(--bg-sidebar); border-radius: 10px; width: 380px; box-shadow: 0 12px 40px rgba(0,0,0,0.6); overflow: hidden; }
+        .join-invite-header { padding: 20px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid var(--bg-deep); }
+        .join-invite-icon-wrap { width: 48px; height: 48px; border-radius: 50%; background: var(--bg-deep); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+        .join-invite-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
+        .join-invite-name { font-size: 17px; font-weight: 700; color: var(--text-heading); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .join-invite-addr-line { font-size: 11px; color: var(--text-subtle); font-family: 'Cascadia Code','Consolas',monospace; margin-top: 2px; }
+        .join-invite-body { padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .join-invite-actions { display: flex; gap: 8px; margin-top: 4px; }
+
         /* ── Admin panel ── */
         #tab-btn-admin { display: none; }
         #tab-btn-admin.visible { display: block; }
@@ -933,7 +945,7 @@
             <hr class="divider">
             <div>
                 <div class="section-label">Add from Invite Code</div>
-                <textarea id="invite-paste-input" class="invite-textarea" placeholder="Paste invite code here..."></textarea>
+                <textarea id="invite-paste-input" class="invite-textarea" placeholder="Paste invite link or code here..."></textarea>
                 <button class="btn-primary" style="margin-top:6px;" onclick="addFromInvite()">Import Server</button>
             </div>
         </div>
@@ -1025,6 +1037,29 @@
     </div>
 </div>
 
+<!-- ── Join Invite Modal ── -->
+<div id="join-invite-overlay" onclick="onJoinInviteOverlayClick(event)">
+    <div class="join-invite-modal">
+        <div class="join-invite-header">
+            <div class="join-invite-icon-wrap">🖥</div>
+            <div style="flex:1;min-width:0">
+                <div class="join-invite-label">You've been invited to join</div>
+                <div class="join-invite-name" id="join-invite-server-name"></div>
+                <div class="join-invite-addr-line" id="join-invite-addr"></div>
+            </div>
+            <button class="modal-close-btn" onclick="closeJoinInviteModal()">✕</button>
+        </div>
+        <div class="join-invite-body">
+            <div class="section-label" style="margin-bottom:4px">Your alias on this server</div>
+            <input id="join-invite-alias" class="text-input" type="text" placeholder="Enter your name..." maxlength="32">
+            <div class="join-invite-actions">
+                <button class="btn-primary" style="flex:1" onclick="acceptJoinInvite()">Join Server</button>
+                <button class="btn-secondary" onclick="closeJoinInviteModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ── Invite Modal ── -->
 <div id="invite-modal-overlay" onclick="onInviteOverlayClick(event)">
     <div class="invite-modal">
@@ -1037,13 +1072,13 @@
         </div>
         <div class="invite-modal-body">
             <div>
-                <div class="section-label" style="margin-bottom:8px;">Invite Code</div>
+                <div class="section-label" style="margin-bottom:8px;">Invite Link</div>
                 <div class="invite-code-row">
                     <textarea id="invite-code-field" rows="2" readonly onclick="this.select()"></textarea>
                     <button id="invite-copy-btn" onclick="copyInviteLink()">Copy</button>
                 </div>
             </div>
-            <div class="invite-modal-hint">Share this code with anyone you'd like to invite. They paste it into <strong>Settings → Servers → Add from Invite Code</strong>.</div>
+            <div class="invite-modal-hint">Send this link to anyone you'd like to invite. Clicking it opens Iskra directly with a one-click join prompt.</div>
         </div>
     </div>
 </div>
@@ -1225,6 +1260,7 @@ let dmConversations  = {};
 let dmHistory        = {};
 let _searchDebounce  = null;
 let _inviteServerId  = null;
+let _pendingJoinData = null;
 
 // ── Reply / link preview state ─────────────────────────────────────────────────
 let _replyTo         = null;   // { id, author, text } or null
@@ -2060,8 +2096,9 @@ function saveEditServer(id) {
 }
 
 function addFromInvite() {
-    const raw = (document.getElementById('invite-paste-input').value || '').trim();
+    let raw = (document.getElementById('invite-paste-input').value || '').trim();
     if (!raw) return;
+    if (raw.startsWith('iskra://invite/')) raw = raw.slice('iskra://invite/'.length);
     try {
         const data = JSON.parse(atob(raw));
         if (!data.h) throw new Error('missing host');
@@ -3307,13 +3344,54 @@ function scrollToMsg(msgId, channelId) {
     }, 80);
 }
 
+// ── Join Invite Modal ─────────────────────────────────────────────────────────
+
+function showJoinInviteModal(data) {
+    _pendingJoinData = data;
+    document.getElementById('join-invite-server-name').textContent = data.n || 'Unknown Server';
+    document.getElementById('join-invite-addr').textContent = `${data.h}:${data.p || 8080}`;
+    const aliasInput = document.getElementById('join-invite-alias');
+    aliasInput.value = clientConfig.activeAlias || '';
+    document.getElementById('join-invite-overlay').classList.add('open');
+    setTimeout(() => aliasInput.focus(), 60);
+}
+
+function closeJoinInviteModal() {
+    document.getElementById('join-invite-overlay').classList.remove('open');
+    _pendingJoinData = null;
+}
+
+function onJoinInviteOverlayClick(e) {
+    if (e.target === document.getElementById('join-invite-overlay')) closeJoinInviteModal();
+}
+
+function acceptJoinInvite() {
+    const data = _pendingJoinData;
+    if (!data) return;
+    const alias = document.getElementById('join-invite-alias').value.trim();
+    if (!alias) { document.getElementById('join-invite-alias').focus(); return; }
+    clientConfig.activeAlias = alias;
+    document.getElementById('ui-alias').textContent = alias;
+    let server = clientConfig.servers.find(s => s.host === data.h && s.port === (data.p || 8080));
+    if (!server) {
+        server = { id: _serverId(), name: data.n || 'Imported Server', host: data.h, port: data.p || 8080, password: data.pw || '' };
+        clientConfig.servers.push(server);
+        renderServerBar();
+    }
+    saveClientConfig();
+    renderServerList();
+    closeJoinInviteModal();
+    connectToServer(server.id);
+}
+
 // ── Invite Modal ──────────────────────────────────────────────────────────────
 
 function showInviteModal(id) {
     const server = clientConfig.servers.find(s => s.id === id);
     if (!server) return;
     _inviteServerId = id;
-    const code = btoa(JSON.stringify({ n: server.name, h: server.host, p: server.port, pw: server.password }));
+    const payload = btoa(JSON.stringify({ n: server.name, h: server.host, p: server.port, pw: server.password }));
+    const code = `iskra://invite/${payload}`;
     document.getElementById('invite-modal-server-name').textContent = server.name;
     document.getElementById('invite-modal-server-addr').textContent = `${server.host}:${server.port}`;
     document.getElementById('invite-code-field').value = code;
@@ -4230,6 +4308,15 @@ window.chrome.webview.addEventListener('message', async (e) => {
         document.querySelector(`.video-tile[data-alias="${data.alias}"]`)?.remove();
         const sp = document.getElementById('screen-share-panel');
         if (sp && !sp.querySelector('.share-tile') && !sp.querySelector('.video-tile')) sp.classList.remove('active');
+
+    } else if (data.action === 'HANDLE_INVITE_LINK') {
+        DevLog.log('BRIDGE', `← C# | HANDLE_INVITE_LINK`);
+        const prefix = 'iskra://invite/';
+        if (!data.url?.startsWith(prefix)) return;
+        try {
+            const payload = JSON.parse(atob(data.url.slice(prefix.length)));
+            if (payload.h) showJoinInviteModal(payload);
+        } catch(err) { DevLog.log('ERR', `Invalid invite URL: ${err.message}`); }
 
     } else if (data.action === 'E2E_KEY_GRANTED') {
         DevLog.log('E2E', `← C# | E2E_KEY_GRANTED ch:${data.channelId}`);

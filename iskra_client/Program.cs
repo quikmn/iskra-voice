@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.IO.Pipes;
 using System.Net.WebSockets;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -63,6 +64,7 @@ namespace Origin.Client.Core
         private System.Threading.Timer _pttPollTimer;
         private NotifyIcon _trayIcon;
         private bool _isQuitting = false;
+        private string _pendingInviteUrl = null;
 
         // ── Server connection tracking (for upload URL normalization in JS) ─────
         private string _serverHost = null;
@@ -73,10 +75,66 @@ namespace Origin.Client.Core
         private ClientWebSocket wsClient;
         private string myAlias;
 
-        public Origin_Client_Core_Main()
+        public Origin_Client_Core_Main(string pendingInviteUrl = null)
         {
+            _pendingInviteUrl = pendingInviteUrl;
             InitializeWindow();
             InitializeWebView();
+            RegisterIskraProtocol();
+            _ = Task.Run(RunInvitePipeServer);
+        }
+
+        private void RegisterIskraProtocol()
+        {
+            try
+            {
+                string exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "";
+                if (string.IsNullOrEmpty(exePath)) return;
+                using var key    = Registry.CurrentUser.CreateSubKey(@"SOFTWARE\Classes\iskra");
+                key.SetValue("", "URL:Iskra");
+                key.SetValue("URL Protocol", "");
+                using var cmdKey = key.CreateSubKey(@"shell\open\command");
+                cmdKey.SetValue("", $"\"{exePath}\" \"%1\"");
+            }
+            catch { }
+        }
+
+        private async Task RunInvitePipeServer()
+        {
+            while (!_isQuitting)
+            {
+                try
+                {
+                    using var pipe = new NamedPipeServerStream("IskraClientInvite", PipeDirection.In, 1,
+                        PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+                    await pipe.WaitForConnectionAsync();
+                    using var reader = new StreamReader(pipe);
+                    string url = await reader.ReadLineAsync();
+                    if (!string.IsNullOrEmpty(url))
+                        HandleInviteUrl(url);
+                }
+                catch { }
+            }
+        }
+
+        private void HandleInviteUrl(string url)
+        {
+            if (string.IsNullOrEmpty(url)) return;
+            try
+            {
+                this.Invoke((MethodInvoker)(() =>
+                {
+                    Show();
+                    WindowState = FormWindowState.Normal;
+                    Activate();
+                    if (webView?.CoreWebView2 != null)
+                        webView.CoreWebView2.PostWebMessageAsString(
+                            JsonSerializer.Serialize(new { action = "HANDLE_INVITE_LINK", url }));
+                    else
+                        _pendingInviteUrl = url;
+                }));
+            }
+            catch { }
         }
 
         private void InitializeWindow()
@@ -148,7 +206,19 @@ namespace Origin.Client.Core
             }
             else webView.CoreWebView2.NavigateToString("<h1>index.html not found!</h1>");
 
-
+            webView.CoreWebView2.NavigationCompleted += (s, e) =>
+            {
+                if (_pendingInviteUrl == null) return;
+                var url = _pendingInviteUrl;
+                _pendingInviteUrl = null;
+                Task.Delay(400).ContinueWith(_ =>
+                {
+                    try { this.Invoke((MethodInvoker)(() =>
+                        webView.CoreWebView2.PostWebMessageAsString(
+                            JsonSerializer.Serialize(new { action = "HANDLE_INVITE_LINK", url })))); }
+                    catch { }
+                });
+            };
 
             webView.CoreWebView2.WebMessageReceived += Origin_Client_Bridge_Listener;
 
@@ -386,7 +456,30 @@ namespace Origin.Client.Core
         [STAThread]
         static void Main()
         {
-            Application.Run(new Origin_Client_Core_Main());
+            string[] cmdArgs = Environment.GetCommandLineArgs();
+            string inviteUrl  = cmdArgs.Length > 1 && cmdArgs[1].StartsWith("iskra://", StringComparison.OrdinalIgnoreCase)
+                ? cmdArgs[1] : null;
+
+            bool createdNew;
+            var mutex = new Mutex(true, "IskraClientSingleInstance", out createdNew);
+            if (!createdNew)
+            {
+                if (inviteUrl != null)
+                {
+                    try
+                    {
+                        using var pipe = new NamedPipeClientStream(".", "IskraClientInvite", PipeDirection.Out);
+                        pipe.Connect(2000);
+                        using var writer = new StreamWriter(pipe);
+                        writer.WriteLine(inviteUrl);
+                    }
+                    catch { }
+                }
+                GC.KeepAlive(mutex);
+                return;
+            }
+            GC.KeepAlive(mutex);
+            Application.Run(new Origin_Client_Core_Main(inviteUrl));
         }
     }
 }
