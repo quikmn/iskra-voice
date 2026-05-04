@@ -341,6 +341,13 @@ namespace Origin.Client.Core
                         try { this.Invoke((MethodInvoker)(() => SetTitleBarColor(hex))); } catch { }
                     return;
                 }
+                if (action == "LOG")
+                {
+                    var cat = doc.RootElement.TryGetProperty("cat", out var catEl) ? catEl.GetString() ?? "JS" : "JS";
+                    var logMsg = doc.RootElement.TryGetProperty("msg", out var msgEl) ? msgEl.GetString() ?? "" : "";
+                    CLog($"JS:{cat,-5}", logMsg);
+                    return;
+                }
             }
             catch { /* malformed JSON — fall through */ }
 

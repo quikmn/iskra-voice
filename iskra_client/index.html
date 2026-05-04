@@ -1104,6 +1104,8 @@ const DevLog = (() => {
             if (entries.length > 2000) entries.shift();
             console.log(`%c[${e.ts}][${cat}] ${e.msg}`, `color:${STYLE[cat]||'#b0bec5'}`);
             if (visible) renderRow(e);
+            if (cat !== 'VAD' && typeof window.chrome !== 'undefined' && window.chrome.webview)
+                window.chrome.webview.postMessage(JSON.stringify({ action: 'LOG', cat, msg: String(msg) }));
         },
         toggle() {
             visible = !visible;
