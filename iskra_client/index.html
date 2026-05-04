@@ -603,9 +603,19 @@
         .role-sel:disabled { opacity: 0.4; cursor: default; }
         .admin-member-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--bg-border); }
         .admin-member-name { flex: 1; font-size: 13px; color: var(--text-normal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .admin-perm-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--bg-border); }
+        .admin-perm-row { display: flex; flex-direction: column; gap: 6px; padding: 7px 0; border-bottom: 1px solid var(--bg-border); }
+        .admin-perm-top { display: flex; align-items: center; gap: 10px; }
         .admin-ch-label { flex: 1; font-size: 13px; color: var(--text-normal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .admin-perm-row label { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+        .e2e-toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0 2px; }
+        .e2e-toggle-label { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 5px; }
+        .e2e-badge { font-size: 10px; color: var(--success); background: rgba(80,200,120,0.12); border: 1px solid rgba(80,200,120,0.3); border-radius: 3px; padding: 1px 5px; }
+        .e2e-access-list { margin: 4px 0 2px; display: flex; flex-direction: column; gap: 2px; }
+        .e2e-access-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; padding: 2px 0; }
+        .e2e-has-key { color: var(--success); font-size: 11px; }
+        .e2e-no-key { color: var(--text-muted); font-size: 11px; }
+        .e2e-locked-msg { color: var(--text-muted); font-style: italic; }
+        .e2e-rotate-row { display: flex; gap: 6px; margin-top: 4px; }
         .admin-item-row { background: var(--bg-deep); border-radius: 5px; padding: 7px 10px; margin-bottom: 4px; display: flex; align-items: flex-start; gap: 8px; }
         .admin-item-info { flex: 1; min-width: 0; }
         .admin-item-name { font-size: 13px; font-weight: 600; color: var(--text-normal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1192,6 +1202,13 @@ let userStatuses    = {};     // alias → "online"/"away"/"dnd"/"offline"
 let userRoles       = {};     // alias → "guest"/"member"/"trusted"/"admin"/"owner"
 let myStatus        = 'online';
 let pinnedMessages  = {};     // channelId → [{id, author, time, message}]
+
+// ── E2E state ──────────────────────────────────────────────────────────────────
+let myEcdhPrivKey    = null;
+let myEcdhPubKey     = null;
+let e2eChannelKeys   = {};   // channelId → CryptoKey (AES-GCM 256)
+let serverPublicKeys = {};   // alias → base64 raw EC pubkey (admin only)
+let e2eChannelAccess = {};   // channelId → [alias, ...] who has a stored wrapped key
 let soundboardClips = [];     // {id, name, url} persisted in localStorage
 let localVideoStream = null;  // webcam stream
 let videoSenders    = {};     // alias → RTCRtpSender
@@ -1665,8 +1682,8 @@ function renderChannelList() {
             const unread     = !viewing && unreadCounts[ch.id] ? unreadCounts[ch.id] : 0;
             const hasMention = !viewing && !!mentionCounts[ch.id];
             const canWrite   = ch.readOnly ? ['admin','owner'].includes(myRole) : roleRank(myRole) >= roleRank(ch.writeRole || 'guest');
-            const textIcon   = ch.readOnly ? '📌' : '#';
-            const iconStyle  = ch.readOnly ? 'font-size:13px;' : 'font-weight:700;font-size:16px;';
+            const textIcon   = ch.readOnly ? '📌' : (ch.e2e ? '🔒' : '#');
+            const iconStyle  = ch.readOnly ? 'font-size:13px;' : (ch.e2e ? 'font-size:13px;' : 'font-weight:700;font-size:16px;');
             const titleAttr  = ch.readOnly ? 'Read-only' : (!canWrite ? `Requires ${ch.writeRole} role to post` : '');
             html += `
             <div class="channel${viewing ? ' active' : ''}" onclick="selectTextChannel('${ch.id}')" title="${titleAttr}" style="${!canWrite && !ch.readOnly ? 'opacity:0.65;' : ''}">
@@ -1693,7 +1710,7 @@ function selectTextChannel(id) {
     cancelReply();
     const ch = serverChannels.find(c => c.id === id);
     const inputArea = document.getElementById('input-area');
-    document.getElementById('chat-channel-icon').textContent = '#';
+    document.getElementById('chat-channel-icon').textContent = ch?.e2e ? '🔒' : '#';
     if (ch) {
         document.getElementById('chat-channel-name').textContent = ch.name;
         const isReadOnly = ch.readOnly
@@ -2647,7 +2664,7 @@ function joinVoice(id) {
     document.getElementById('pin-panel')?.classList.remove('open');
 }
 
-function sendChat(e) {
+async function sendChat(e) {
     if (e.key !== 'Enter' || !e.target.value.trim()) return;
     const msg = e.target.value.trim();
     if (inDmMode && activeDmWith) {
@@ -2660,7 +2677,24 @@ function sendChat(e) {
         const elapsed = (Date.now() - (lastSendTime[activeTextChannelId] || 0)) / 1000;
         if (elapsed < sm) { _slowCountdown(Math.ceil(sm - elapsed)); return; }
     }
-    const payload = { action: 'SEND_CHAT', channelId: activeTextChannelId, message: msg };
+    const ch = serverChannels.find(c => c.id === activeTextChannelId);
+    let outMsg = msg;
+    if (ch?.e2e) {
+        if (!e2eChannelKeys[activeTextChannelId]) {
+            const h = document.getElementById('chat-history');
+            if (h) {
+                const div = document.createElement('div');
+                div.className = 'system-msg';
+                div.textContent = '🔒 You don\'t have this channel\'s key yet — ask an admin to grant you access.';
+                h.appendChild(div);
+                h.scrollTop = h.scrollHeight;
+            }
+            e.target.value = '';
+            return;
+        }
+        outMsg = await e2eEncrypt(e2eChannelKeys[activeTextChannelId], msg);
+    }
+    const payload = { action: 'SEND_CHAT', channelId: activeTextChannelId, message: outMsg };
     if (_replyTo) { payload.replyToId = _replyTo.id; cancelReply(); }
     postToBridge(payload);
     e.target.value = '';
@@ -3402,7 +3436,7 @@ function cancelEdit(msgId) {
     content.querySelector('.msg-edit-btns')?.remove();
 }
 
-function submitEdit(msgId) {
+async function submitEdit(msgId) {
     const row = document.querySelector(`[data-msg-id="${msgId}"]`);
     if (!row) return;
     const ta = row.querySelector('.msg-edit-area');
@@ -3410,7 +3444,11 @@ function submitEdit(msgId) {
     const newText = ta.value.trim();
     if (!newText) return;
     const channelId = activeTextChannelId;
-    postToBridge({ action: 'EDIT_MESSAGE', channelId, messageId: msgId, newText });
+    const ch = serverChannels.find(c => c.id === channelId);
+    let outText = newText;
+    if (ch?.e2e && e2eChannelKeys[channelId])
+        outText = await e2eEncrypt(e2eChannelKeys[channelId], newText);
+    postToBridge({ action: 'EDIT_MESSAGE', channelId, messageId: msgId, newText: outText });
     cancelEdit(msgId);
 }
 
@@ -3678,6 +3716,134 @@ function renderSystemMessage(message) {
     h.scrollTop = h.scrollHeight;
 }
 
+// ── E2E crypto helpers ─────────────────────────────────────────────────────────
+function _b64ToBytes(b64) { return Uint8Array.from(atob(b64), c => c.charCodeAt(0)); }
+function _bytesToB64(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))); }
+
+async function ensureEcdhKeyPair() {
+    try {
+        const privStr = localStorage.getItem('iskra_ecdh_priv');
+        const pubStr  = localStorage.getItem('iskra_ecdh_pub');
+        if (privStr && pubStr) {
+            myEcdhPrivKey = await crypto.subtle.importKey('jwk', JSON.parse(privStr), { name:'ECDH', namedCurve:'P-256' }, true, ['deriveKey','deriveBits']);
+            myEcdhPubKey  = await crypto.subtle.importKey('jwk', JSON.parse(pubStr),  { name:'ECDH', namedCurve:'P-256' }, true, []);
+        } else {
+            const kp = await crypto.subtle.generateKey({ name:'ECDH', namedCurve:'P-256' }, true, ['deriveKey','deriveBits']);
+            myEcdhPrivKey = kp.privateKey;
+            myEcdhPubKey  = kp.publicKey;
+            localStorage.setItem('iskra_ecdh_priv', JSON.stringify(await crypto.subtle.exportKey('jwk', myEcdhPrivKey)));
+            localStorage.setItem('iskra_ecdh_pub',  JSON.stringify(await crypto.subtle.exportKey('jwk', myEcdhPubKey)));
+            DevLog.log('E2E', 'New ECDH P-256 keypair generated');
+        }
+    } catch(err) { DevLog.log('E2E', `Key init error: ${err.message}`); }
+}
+
+async function e2eWrapForRecipient(channelKey, recipientB64Pub) {
+    const ephemKP  = await crypto.subtle.generateKey({ name:'ECDH', namedCurve:'P-256' }, true, ['deriveKey']);
+    const recipPub = await crypto.subtle.importKey('raw', _b64ToBytes(recipientB64Pub), { name:'ECDH', namedCurve:'P-256' }, false, []);
+    const wrapKey  = await crypto.subtle.deriveKey({ name:'ECDH', public: recipPub }, ephemKP.privateKey, { name:'AES-GCM', length:256 }, false, ['wrapKey']);
+    const iv       = crypto.getRandomValues(new Uint8Array(12));
+    const wrapped  = await crypto.subtle.wrapKey('raw', channelKey, wrapKey, { name:'AES-GCM', iv });
+    const ephemPub = await crypto.subtle.exportKey('raw', ephemKP.publicKey);
+    return { ephemPub: _bytesToB64(ephemPub), iv: _bytesToB64(iv), wrapped: _bytesToB64(wrapped) };
+}
+
+async function e2eUnwrapKey(ephemPubB64, ivB64, wrappedB64) {
+    const ephemPub = await crypto.subtle.importKey('raw', _b64ToBytes(ephemPubB64), { name:'ECDH', namedCurve:'P-256' }, false, []);
+    const wrapKey  = await crypto.subtle.deriveKey({ name:'ECDH', public: ephemPub }, myEcdhPrivKey, { name:'AES-GCM', length:256 }, false, ['unwrapKey']);
+    return crypto.subtle.unwrapKey('raw', _b64ToBytes(wrappedB64), wrapKey, { name:'AES-GCM', iv: _b64ToBytes(ivB64) }, { name:'AES-GCM' }, false, ['encrypt','decrypt']);
+}
+
+async function e2eEncrypt(channelKey, plaintext) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, channelKey, new TextEncoder().encode(plaintext));
+    return JSON.stringify({ ct: _bytesToB64(ct), iv: _bytesToB64(iv) });
+}
+
+async function e2eDecrypt(channelKey, ciphertextJson) {
+    try {
+        const { ct, iv } = JSON.parse(ciphertextJson);
+        const plain = await crypto.subtle.decrypt({ name:'AES-GCM', iv: _b64ToBytes(iv) }, channelKey, _b64ToBytes(ct));
+        return new TextDecoder().decode(plain);
+    } catch { return null; }
+}
+
+function isE2eCiphertext(msg) {
+    if (!msg || msg[0] !== '{') return false;
+    try { const o = JSON.parse(msg); return typeof o.ct === 'string' && typeof o.iv === 'string'; } catch { return false; }
+}
+
+async function decryptChannelMessages(channelId) {
+    const key = e2eChannelKeys[channelId];
+    if (!key) return;
+    for (const m of (channelMessages[channelId] || [])) {
+        if (m._ciphertext) {
+            const plain = await e2eDecrypt(key, m._ciphertext);
+            if (plain !== null) { m.message = plain; delete m._ciphertext; }
+        }
+    }
+}
+
+async function enableChannelE2E(channelId) {
+    if (!myEcdhPrivKey) { alert('E2E key not ready — reconnect and try again.'); return; }
+    const channelKey = await crypto.subtle.generateKey({ name:'AES-GCM', length:256 }, true, ['encrypt','decrypt']);
+    e2eChannelKeys[channelId] = channelKey;
+    const wrappedKeys = {};
+    for (const [alias, pubB64] of Object.entries(serverPublicKeys)) {
+        try { wrappedKeys[alias] = await e2eWrapForRecipient(channelKey, pubB64); } catch(err) { DevLog.log('E2E', `Wrap failed for ${alias}: ${err.message}`); }
+    }
+    postToBridge({ action:'ENABLE_CHANNEL_E2E', channelId, wrappedKeys });
+    DevLog.log('E2E', `ENABLE_CHANNEL_E2E ch:${channelId} | keys wrapped for ${Object.keys(wrappedKeys).length} member(s)`);
+}
+
+function disableChannelE2E(channelId) {
+    if (!confirm('Disable E2E for this channel? Messages sent after this point will be unencrypted. Existing ciphertext in history will remain unreadable to anyone without the key.')) return;
+    postToBridge({ action:'DISABLE_CHANNEL_E2E', channelId });
+}
+
+async function grantE2EAccess(channelId, alias) {
+    const channelKey = e2eChannelKeys[channelId];
+    if (!channelKey) { alert("You don't have this channel's key loaded. Reconnect to refresh it."); return; }
+    const pubB64 = serverPublicKeys[alias];
+    if (!pubB64) { alert(`${alias} hasn't registered an E2E public key yet — they need to connect first.`); return; }
+    try {
+        const wrapped = await e2eWrapForRecipient(channelKey, pubB64);
+        postToBridge({ action:'GRANT_E2E_ACCESS', channelId, alias, ...wrapped });
+        DevLog.log('E2E', `GRANT_E2E_ACCESS ch:${channelId} → ${alias}`);
+    } catch(err) { alert(`Failed to wrap key for ${alias}: ${err.message}`); }
+}
+
+async function rotateE2EKey(channelId) {
+    if (!confirm('Rotate the channel key? Users not in the new key set will lose access to future messages.')) return;
+    const channelKey = await crypto.subtle.generateKey({ name:'AES-GCM', length:256 }, true, ['encrypt','decrypt']);
+    e2eChannelKeys[channelId] = channelKey;
+    const wrappedKeys = {};
+    for (const alias of (e2eChannelAccess[channelId] || [])) {
+        const pubB64 = serverPublicKeys[alias];
+        if (pubB64) try { wrappedKeys[alias] = await e2eWrapForRecipient(channelKey, pubB64); } catch {}
+    }
+    postToBridge({ action:'ROTATE_E2E_KEY', channelId, wrappedKeys });
+    DevLog.log('E2E', `ROTATE_E2E_KEY ch:${channelId} | ${Object.keys(wrappedKeys).length} key(s)`);
+}
+
+function renderE2EAccessList(channelId) {
+    const allAliases = [...new Set([...Object.keys(serverPublicKeys), ...(e2eChannelAccess[channelId] || [])])].sort();
+    if (!allAliases.length) return '<div style="font-size:11px;color:var(--text-muted);padding:2px 0">No members with registered keys yet.</div>';
+    const myHasKey = !!e2eChannelKeys[channelId];
+    const rows = allAliases.map(alias => {
+        const hasKey    = (e2eChannelAccess[channelId] || []).includes(alias);
+        const hasPubKey = !!serverPublicKeys[alias];
+        const canGrant  = !hasKey && hasPubKey && myHasKey;
+        const statusHtml = hasKey
+            ? '<span class="e2e-has-key">✓ has key</span>'
+            : `<span class="e2e-no-key">${hasPubKey ? 'no key' : 'no pubkey'}</span>`;
+        const grantBtn = canGrant ? `<button class="btn-sm" style="padding:1px 7px;font-size:11px" onclick="grantE2EAccess('${escapeHtml(channelId)}','${escapeHtml(alias)}')">Grant</button>` : '';
+        return `<div class="e2e-access-row"><span>${escapeHtml(alias)}</span><span class="e2e-access-status" style="display:flex;align-items:center;gap:6px">${statusHtml}${grantBtn}</span></div>`;
+    }).join('');
+    const rotateBtn = `<div class="e2e-rotate-row"><button class="btn-sm" style="font-size:11px" onclick="rotateE2EKey('${escapeHtml(channelId)}')">🔄 Rotate Key</button></div>`;
+    return `<div class="e2e-access-list">${rows}${rotateBtn}</div>`;
+}
+
 // ── C# Bridge Listener ─────────────────────────────────────────────────────────
 window.chrome.webview.addEventListener('message', async (e) => {
     const data = JSON.parse(e.data);
@@ -3706,6 +3872,14 @@ window.chrome.webview.addEventListener('message', async (e) => {
         postToBridge({ action: 'SET_VOICE_MODE', mode: settings.voiceMode });
         postToBridge({ action: 'SET_PTT_KEY',    keyCode: settings.pttKeyCode });
         playSound('connect');
+        e2eChannelKeys   = {};
+        serverPublicKeys = {};
+        e2eChannelAccess = {};
+        await ensureEcdhKeyPair();
+        if (myEcdhPubKey) {
+            const rawPub = await crypto.subtle.exportKey('raw', myEcdhPubKey);
+            postToBridge({ action:'REGISTER_PUBLIC_KEY', publicKey: _bytesToB64(rawPub) });
+        }
 
     } else if (data.action === 'ROLE_GRANTED') {
         DevLog.log('BRIDGE', `← C# | ROLE_GRANTED role:${data.role}`);
@@ -3731,11 +3905,22 @@ window.chrome.webview.addEventListener('message', async (e) => {
     } else if (data.action === 'CHAT_RECEIVE') {
         const chId = data.channelId || activeTextChannelId;
         DevLog.log('BRIDGE', `← C# | CHAT_RECEIVE from:${data.author} ch:${chId||'?'} id:${data.id||'none'}`);
-        const isMention = myAlias && data.message && data.message.toLowerCase().includes(`@${myAlias.toLowerCase()}`);
+        // Decrypt E2E messages before storing/rendering
+        let msgText = data.message;
+        let ciphertextBackup = null;
+        if (isE2eCiphertext(msgText)) {
+            ciphertextBackup = msgText;
+            msgText = e2eChannelKeys[chId]
+                ? (await e2eDecrypt(e2eChannelKeys[chId], msgText) ?? '[🔒 Decrypt error]')
+                : '[🔒 Encrypted — waiting for key]';
+        }
+        const isMention = myAlias && msgText && msgText.toLowerCase().includes(`@${myAlias.toLowerCase()}`);
         if (chId) {
             if (!channelMessages[chId]) channelMessages[chId] = [];
-            channelMessages[chId].push({ id: data.id, author: data.author, time: data.time, message: data.message,
-                reactions: data.reactions || {}, replyToId: data.replyToId || null, replySnippet: data.replySnippet || null, editHistory: data.editHistory || [] });
+            const stored = { id: data.id, author: data.author, time: data.time, message: msgText,
+                reactions: data.reactions || {}, replyToId: data.replyToId || null, replySnippet: data.replySnippet || null, editHistory: data.editHistory || [] };
+            if (ciphertextBackup) stored._ciphertext = ciphertextBackup;
+            channelMessages[chId].push(stored);
             if (chId !== activeTextChannelId) {
                 unreadCounts[chId] = (unreadCounts[chId] || 0) + 1;
                 if (isMention) mentionCounts[chId] = (mentionCounts[chId] || 0) + 1;
@@ -3746,13 +3931,14 @@ window.chrome.webview.addEventListener('message', async (e) => {
             }
             if (data.author !== myAlias && !document.hasFocus()) {
                 const chName = serverChannels.find(c => c.id === chId)?.name || chId || '';
+                const notifBody = ciphertextBackup ? '🔒 Encrypted message' : (msgText || '').slice(0, 120);
                 postToBridge({ action: 'NOTIFY',
                     title: isMention ? `${data.author} mentioned you` : `#${chName}`,
-                    body:  (data.message || '').slice(0, 120) });
+                    body:  notifBody });
             }
         }
         if (!chId || chId === activeTextChannelId)
-            renderChatMessage(data.id, data.author, data.time, data.message, false, data.reactions || {}, data.replyToId, data.replySnippet, data.editHistory || []);
+            renderChatMessage(data.id, data.author, data.time, msgText, false, data.reactions || {}, data.replyToId, data.replySnippet, data.editHistory || []);
 
     } else if (data.action === 'RATE_LIMITED') {
         _slowCountdown(data.retryAfter || 1);
@@ -3764,11 +3950,16 @@ window.chrome.webview.addEventListener('message', async (e) => {
 
     } else if (data.action === 'MESSAGE_EDITED') {
         DevLog.log('BRIDGE', `← C# | MESSAGE_EDITED ch:${data.channelId} id:${data.messageId}`);
+        let editText = data.newText;
+        if (isE2eCiphertext(editText))
+            editText = e2eChannelKeys[data.channelId]
+                ? (await e2eDecrypt(e2eChannelKeys[data.channelId], editText) ?? '[🔒 Decrypt error]')
+                : '[🔒 Encrypted]';
         if (channelMessages[data.channelId]) {
             const m = channelMessages[data.channelId].find(x => x.id === data.messageId);
-            if (m) { m.message = data.newText; m.edited = true; m.editHistory = data.editHistory || m.editHistory || []; }
+            if (m) { m.message = editText; m.edited = true; m.editHistory = data.editHistory || m.editHistory || []; }
         }
-        if (data.channelId === activeTextChannelId) updateMessageInDOM(data.messageId, data.newText, data.editHistory || []);
+        if (data.channelId === activeTextChannelId) updateMessageInDOM(data.messageId, editText, data.editHistory || []);
 
     } else if (data.action === 'MESSAGE_DELETED') {
         DevLog.log('BRIDGE', `← C# | MESSAGE_DELETED ch:${data.channelId} id:${data.messageId}`);
@@ -3799,6 +3990,8 @@ window.chrome.webview.addEventListener('message', async (e) => {
         if (data.emojis       && typeof data.emojis       === 'object') serverEmojis    = data.emojis;
         if (Array.isArray(data.webhooks))  serverWebhooks  = data.webhooks;
         if (Array.isArray(data.botTokens)) serverBotTokens = data.botTokens;
+        if (data.publicKeys && typeof data.publicKeys === 'object') Object.assign(serverPublicKeys, data.publicKeys);
+        if (data.e2eAccess  && typeof data.e2eAccess  === 'object') Object.assign(e2eChannelAccess, data.e2eAccess);
         serverChannels = data.channels;
         channelSlowMode = {};
         data.channels.forEach(c => { if (c.slowMode) channelSlowMode[c.id] = c.slowMode; });
@@ -3886,6 +4079,9 @@ window.chrome.webview.addEventListener('message', async (e) => {
         userVolumes     = {};
         unreadCounts    = {};
         mentionCounts   = {};
+        e2eChannelKeys   = {};
+        serverPublicKeys = {};
+        e2eChannelAccess = {};
         speaking = false;
         setMicGate(false);
         if (displayStream) stopScreenShare();
@@ -3996,9 +4192,13 @@ window.chrome.webview.addEventListener('message', async (e) => {
         if (!document.getElementById('tab-admin')?.classList.contains('hidden')) renderAdminMembers();
 
     } else if (data.action === 'CHANNEL_UPDATED') {
-        DevLog.log('BRIDGE', `← C# | CHANNEL_UPDATED id:${data.channelId} minRole:${data.minRole} writeRole:${data.writeRole}`);
+        DevLog.log('BRIDGE', `← C# | CHANNEL_UPDATED id:${data.channelId}`);
         const updCh = serverChannels.find(c => c.id === data.channelId);
-        if (updCh) { updCh.minRole = data.minRole; updCh.writeRole = data.writeRole; }
+        if (updCh) {
+            if (data.minRole   != null) updCh.minRole   = data.minRole;
+            if (data.writeRole != null) updCh.writeRole = data.writeRole;
+            if (data.e2e       != null) updCh.e2e       = data.e2e;
+        }
         renderChannelList();
         if (activeTextChannelId === data.channelId) selectTextChannel(data.channelId);
         if (!document.getElementById('tab-admin')?.classList.contains('hidden')) renderAdminChannels();
@@ -4030,6 +4230,35 @@ window.chrome.webview.addEventListener('message', async (e) => {
         document.querySelector(`.video-tile[data-alias="${data.alias}"]`)?.remove();
         const sp = document.getElementById('screen-share-panel');
         if (sp && !sp.querySelector('.share-tile') && !sp.querySelector('.video-tile')) sp.classList.remove('active');
+
+    } else if (data.action === 'E2E_KEY_GRANTED') {
+        DevLog.log('E2E', `← C# | E2E_KEY_GRANTED ch:${data.channelId}`);
+        try {
+            const key = await e2eUnwrapKey(data.ephemPub, data.iv, data.wrapped);
+            e2eChannelKeys[data.channelId] = key;
+            DevLog.log('E2E', `Key unwrapped for ch:${data.channelId}`);
+            await decryptChannelMessages(data.channelId);
+            if (activeTextChannelId === data.channelId) selectTextChannel(data.channelId);
+        } catch(err) { DevLog.log('E2E', `Key unwrap failed ch:${data.channelId}: ${err.message}`); }
+
+    } else if (data.action === 'E2E_KEY_REVOKED') {
+        DevLog.log('E2E', `← C# | E2E_KEY_REVOKED ch:${data.channelId}`);
+        delete e2eChannelKeys[data.channelId];
+        if (activeTextChannelId === data.channelId) selectTextChannel(data.channelId);
+
+    } else if (data.action === 'E2E_ACCESS_UPDATED') {
+        DevLog.log('E2E', `← C# | E2E_ACCESS_UPDATED ch:${data.channelId} alias:${data.alias}`);
+        if (!e2eChannelAccess[data.channelId]) e2eChannelAccess[data.channelId] = [];
+        if (data.hasAccess && !e2eChannelAccess[data.channelId].includes(data.alias))
+            e2eChannelAccess[data.channelId].push(data.alias);
+        if (!data.hasAccess)
+            e2eChannelAccess[data.channelId] = e2eChannelAccess[data.channelId].filter(a => a !== data.alias);
+        if (activeTab === 'admin') renderAdminChannels();
+
+    } else if (data.action === 'E2E_PUBKEY_UPDATED') {
+        DevLog.log('E2E', `← C# | E2E_PUBKEY_UPDATED alias:${data.alias}`);
+        // Admin receives notification that a member registered/updated their pubkey — refresh admin panel
+        if (activeTab === 'admin') renderAdminChannels();
 
     } else if (data.action === 'EMOJIS_UPDATED') {
         DevLog.log('BRIDGE', `← C# | EMOJIS_UPDATED count:${Object.keys(data.emojis||{}).length}`);
@@ -4438,13 +4667,23 @@ function renderAdminChannels() {
     const roles = ['guest','member','trusted','admin','owner'];
     el.innerHTML = chs.map(ch => {
         const isVoice = ch.type === 'Voice';
-        const icon = isVoice ? '🔊' : '#';
-        const minOpts  = roles.map(r => `<option value="${r}"${(ch.minRole||'guest')===r?' selected':''}>${r}</option>`).join('');
+        const icon = isVoice ? '🔊' : (ch.e2e ? '🔒' : '#');
+        const minOpts   = roles.map(r => `<option value="${r}"${(ch.minRole  ||'guest')===r?' selected':''}>${r}</option>`).join('');
         const writeOpts = roles.map(r => `<option value="${r}"${(ch.writeRole||'guest')===r?' selected':''}>${r}</option>`).join('');
+        const e2eSection = !isVoice ? `
+            <div class="e2e-toggle-row">
+                <span class="e2e-toggle-label">🔒 E2E Encryption${ch.e2e ? ' <span class="e2e-badge">enabled</span>' : ''}</span>
+                ${ch.e2e
+                    ? `<button class="btn-danger-sm" onclick="disableChannelE2E('${ch.id}')">Disable</button>`
+                    : `<button class="btn-sm" onclick="enableChannelE2E('${ch.id}')">Enable</button>`}
+            </div>
+            ${ch.e2e ? renderE2EAccessList(ch.id) : ''}` : '';
         return `<div class="admin-perm-row">
-            <span class="admin-ch-label">${icon} ${escapeHtml(ch.name)}</span>
-            <label>view <select class="role-sel" onchange="setChannelRoles('${ch.id}',this.value,null)">${minOpts}</select></label>
-            ${!isVoice ? `<label>post <select class="role-sel" onchange="setChannelRoles('${ch.id}',null,this.value)">${writeOpts}</select></label>` : ''}
+            <div class="admin-perm-top">
+                <span class="admin-ch-label">${icon} ${escapeHtml(ch.name)}</span>
+                <label>view <select class="role-sel" onchange="setChannelRoles('${ch.id}',this.value,null)">${minOpts}</select></label>
+                ${!isVoice ? `<label>post <select class="role-sel" onchange="setChannelRoles('${ch.id}',null,this.value)">${writeOpts}</select></label>` : ''}
+            </div>${e2eSection}
         </div>`;
     }).join('');
 }

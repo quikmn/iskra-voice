@@ -66,6 +66,14 @@ namespace Origin.Server.Core
         private static Dictionary<string, string> ServerEmojis = new(); // shortcode → url
         private static readonly object EmojiLock = new();
 
+        // ── E2E encryption ───────────────────────────────────────────────────────
+        private static Dictionary<string, Dictionary<string, E2EWrappedKey>> E2EKeys = new(); // channelId → alias → wrapped key
+        private static readonly object E2ELock   = new();
+        private static string E2EFile     => Path.Combine(ActiveWorldPath, "e2e.json");
+        private static Dictionary<string, string> PublicKeys = new(); // alias → base64 raw EC pubkey
+        private static readonly object PubKeyLock = new();
+        private static string PubKeyFile   => Path.Combine(ActiveWorldPath, "public_keys.json");
+
         // ── DM storage ───────────────────────────────────────────────────────────
         private static string DmDir => Path.Combine(ActiveWorldPath, "dms");
         private static readonly object DmLock = new();
@@ -111,6 +119,8 @@ namespace Origin.Server.Core
             LoadChannelHistory();   // must come before PurgeOldHistory
             PurgeOldHistory();
             LoadEmojis();
+            LoadPublicKeys();
+            LoadE2EKeys();
             Directory.CreateDirectory(UploadDir);
             Console.Title = $"Origin Server — {ActiveConfig.Settings.ServerName} :{ActiveConfig.Settings.Port}";
 
@@ -558,6 +568,26 @@ namespace Origin.Server.Core
                 File.WriteAllText(EmojiFile, JsonSerializer.Serialize(ServerEmojis, new JsonSerializerOptions { WriteIndented = true }));
         }
 
+        private static void LoadPublicKeys()
+        {
+            if (File.Exists(PubKeyFile))
+            {
+                lock (PubKeyLock)
+                    PublicKeys = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(PubKeyFile)) ?? new();
+                Log("CONFIG", $"E2E public keys loaded: {PublicKeys.Count}");
+            }
+        }
+
+        private static void LoadE2EKeys()
+        {
+            if (File.Exists(E2EFile))
+            {
+                lock (E2ELock)
+                    E2EKeys = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, E2EWrappedKey>>>(File.ReadAllText(E2EFile)) ?? new();
+                Log("CONFIG", $"E2E channel keys loaded: {E2EKeys.Count} channel(s)");
+            }
+        }
+
         // ── Webhooks ─────────────────────────────────────────────────────────────
 
         private static void FireWebhooks(string channelId, string channelName, string author, string message, string time)
@@ -996,6 +1026,13 @@ namespace Origin.Server.Core
                 Dictionary<string, string> emojisCopy;
                 lock (EmojiLock) emojisCopy = new(ServerEmojis);
                 bool isAdmin = RoleRank(userRole) >= RoleRank("admin");
+                Dictionary<string, string> pubKeysCopy = null;
+                Dictionary<string, List<string>> e2eAccessCopy = null;
+                if (isAdmin)
+                {
+                    lock (PubKeyLock) pubKeysCopy = new(PublicKeys);
+                    lock (E2ELock)    e2eAccessCopy = E2EKeys.ToDictionary(kv => kv.Key, kv => kv.Value.Keys.ToList());
+                }
                 await Send(socket, new {
                     action       = "SERVER_INFO",
                     name         = ActiveConfig.Settings.ServerName,
@@ -1007,14 +1044,25 @@ namespace Origin.Server.Core
                     // admin-only fields
                     webhooks     = isAdmin ? ActiveConfig.Settings.Webhooks : null,
                     botTokens    = isAdmin ? ActiveConfig.Settings.BotTokens : null,
+                    publicKeys   = pubKeysCopy,
+                    e2eAccess    = e2eAccessCopy,
                     uploadBase   = $"http://{context.Request.UserHostName}",
                     channels     = ActiveConfig.Channels
                         .Where(c => c.Type == "Header" || CanAccess(userRole, c.MinRole))
-                        .Select(c => new { id = c.Id, name = c.Name, type = c.Type, readOnly = c.ReadOnly, muted = c.Muted, slowMode = c.SlowMode, minRole = c.MinRole, writeRole = c.WriteRole }),
+                        .Select(c => new { id = c.Id, name = c.Name, type = c.Type, readOnly = c.ReadOnly, muted = c.Muted, slowMode = c.SlowMode, minRole = c.MinRole, writeRole = c.WriteRole, e2e = c.E2E }),
                     iceServers
                 });
 
                 await Send(socket, new { action = "ROLE_GRANTED", role = userRole });
+
+                // ── E2E keys for this user ────────────────────────────────────────
+                var e2eGrants = new List<(string channelId, string ephemPub, string iv, string wrapped)>();
+                lock (E2ELock)
+                    foreach (var eCh in ActiveConfig.Channels.Where(c => c.E2E && E2EKeys.ContainsKey(c.Id)))
+                        if (E2EKeys[eCh.Id].TryGetValue(currentAlias, out var ek))
+                            e2eGrants.Add((eCh.Id, ek.EphemPub, ek.Iv, ek.Wrapped));
+                foreach (var g in e2eGrants)
+                    await Send(socket, new { action = "E2E_KEY_GRANTED", channelId = g.channelId, ephemPub = g.ephemPub, iv = g.iv, wrapped = g.wrapped });
 
                 // ── Chat history ─────────────────────────────────────────────────
                 foreach (var ch in ActiveConfig.Channels.Where(c => c.Type == "Text" || c.Type == "Voice"))
@@ -1235,7 +1283,7 @@ namespace Origin.Server.Core
                             }
                             string replyToId = incoming.RootElement.TryGetProperty("replyToId", out var rtEl) && rtEl.ValueKind == JsonValueKind.String ? rtEl.GetString() : null;
                             ReplySnippet replySnippet = null;
-                            if (!string.IsNullOrEmpty(replyToId))
+                            if (!string.IsNullOrEmpty(replyToId) && chatCh?.E2E != true)
                                 lock (HistoryLock)
                                     if (ChannelHistory.TryGetValue(channelId, out var prevMsgs))
                                     {
@@ -1261,14 +1309,15 @@ namespace Origin.Server.Core
                             }
                             string jsonLine = MessageToJsonLine(channelId, stored);
                             await File.AppendAllTextAsync(ChatFile(channelId), jsonLine + Environment.NewLine);
-                            Log("CHAT", $"[{channelId}] {currentAlias}: {text}");
+                            Log("CHAT", $"[{channelId}] {currentAlias}: {(chatCh?.E2E == true ? "[encrypted]" : text)}");
                             var lineBytes = Encoding.UTF8.GetBytes(jsonLine);
                             foreach (var client in ActiveClients.Values)
                                 try { await client.SendAsync(new ArraySegment<byte>(lineBytes), WebSocketMessageType.Text, true, CancellationToken.None); } catch { }
                             foreach (var bot in BotClients.Values)
                                 try { await bot.SendAsync(new ArraySegment<byte>(lineBytes), WebSocketMessageType.Text, true, CancellationToken.None); } catch { }
                             var chObj = ActiveConfig.Channels.FirstOrDefault(c => c.Id == channelId);
-                            FireWebhooks(channelId, chObj?.Name ?? channelId, currentAlias, text, stored.Time);
+                            if (chatCh?.E2E != true)
+                                FireWebhooks(channelId, chObj?.Name ?? channelId, currentAlias, text, stored.Time);
                         }
                     }
 
@@ -1702,6 +1751,111 @@ namespace Origin.Server.Core
                         }
                     }
 
+                    // ── REGISTER_PUBLIC_KEY ───────────────────────────────────────
+                    else if (action == "REGISTER_PUBLIC_KEY")
+                    {
+                        if (!incoming.RootElement.TryGetProperty("publicKey", out var pkEl) || pkEl.ValueKind != JsonValueKind.String) continue;
+                        string pubKeyB64 = pkEl.GetString() ?? "";
+                        if (string.IsNullOrEmpty(pubKeyB64)) continue;
+                        lock (PubKeyLock)
+                        {
+                            PublicKeys[currentAlias] = pubKeyB64;
+                            File.WriteAllText(PubKeyFile, JsonSerializer.Serialize(PublicKeys));
+                        }
+                        Log("E2E", $"Public key registered: '{currentAlias}'");
+                        if (RoleRank(userRole) >= RoleRank("admin"))
+                            await Broadcast(new { action = "E2E_PUBKEY_UPDATED", alias = currentAlias });
+                    }
+
+                    // ── ENABLE_CHANNEL_E2E ────────────────────────────────────────
+                    else if (action == "ENABLE_CHANNEL_E2E")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin")) continue;
+                        string e2eChId = incoming.RootElement.TryGetProperty("channelId", out var e2eChEl) ? e2eChEl.GetString()?.Trim() ?? "" : "";
+                        var e2eCh = ActiveConfig.Channels.FirstOrDefault(c => c.Id == e2eChId && c.Type == "Text");
+                        if (e2eCh == null) continue;
+                        e2eCh.E2E = true;
+                        var wkDict = new Dictionary<string, E2EWrappedKey>();
+                        if (incoming.RootElement.TryGetProperty("wrappedKeys", out var wkEl))
+                            foreach (var prop in wkEl.EnumerateObject())
+                            {
+                                var wk = JsonSerializer.Deserialize<E2EWrappedKey>(prop.Value.GetRawText());
+                                if (wk != null) wkDict[prop.Name] = wk;
+                            }
+                        lock (E2ELock) { E2EKeys[e2eChId] = wkDict; File.WriteAllText(E2EFile, JsonSerializer.Serialize(E2EKeys)); }
+                        _ = Task.Run(() => File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true })));
+                        LogAudit("E2E_ENABLE", currentAlias, e2eChId, $"keys:{wkDict.Count}");
+                        Log("E2E", $"'{currentAlias}' enabled E2E on #{e2eCh.Name} | {wkDict.Count} key(s) distributed");
+                        await Broadcast(new { action = "CHANNEL_UPDATED", channelId = e2eChId, e2e = true });
+                        foreach (var kv in wkDict)
+                            if (ActiveClients.TryGetValue(kv.Key, out var kSock))
+                                await Send(kSock, new { action = "E2E_KEY_GRANTED", channelId = e2eChId, ephemPub = kv.Value.EphemPub, iv = kv.Value.Iv, wrapped = kv.Value.Wrapped });
+                    }
+
+                    // ── DISABLE_CHANNEL_E2E ───────────────────────────────────────
+                    else if (action == "DISABLE_CHANNEL_E2E")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin")) continue;
+                        string e2eChId2 = incoming.RootElement.TryGetProperty("channelId", out var e2eCh2El) ? e2eCh2El.GetString()?.Trim() ?? "" : "";
+                        var e2eCh2 = ActiveConfig.Channels.FirstOrDefault(c => c.Id == e2eChId2);
+                        if (e2eCh2 == null) continue;
+                        e2eCh2.E2E = false;
+                        lock (E2ELock) { E2EKeys.Remove(e2eChId2); File.WriteAllText(E2EFile, JsonSerializer.Serialize(E2EKeys)); }
+                        _ = Task.Run(() => File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true })));
+                        LogAudit("E2E_DISABLE", currentAlias, e2eChId2, "");
+                        Log("E2E", $"'{currentAlias}' disabled E2E on #{e2eCh2.Name}");
+                        await Broadcast(new { action = "CHANNEL_UPDATED", channelId = e2eChId2, e2e = false });
+                        await Broadcast(new { action = "E2E_KEY_REVOKED", channelId = e2eChId2 });
+                    }
+
+                    // ── GRANT_E2E_ACCESS ──────────────────────────────────────────
+                    else if (action == "GRANT_E2E_ACCESS")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin")) continue;
+                        string grantChId  = incoming.RootElement.TryGetProperty("channelId", out var gChEl)    ? gChEl.GetString()?.Trim()    ?? "" : "";
+                        string grantAlias = incoming.RootElement.TryGetProperty("alias",     out var gAliasEl) ? gAliasEl.GetString()?.Trim() ?? "" : "";
+                        if (string.IsNullOrEmpty(grantChId) || string.IsNullOrEmpty(grantAlias)) continue;
+                        var grantKey = new E2EWrappedKey {
+                            EphemPub = incoming.RootElement.TryGetProperty("ephemPub", out var epEl) ? epEl.GetString() ?? "" : "",
+                            Iv       = incoming.RootElement.TryGetProperty("iv",       out var ivEl) ? ivEl.GetString() ?? "" : "",
+                            Wrapped  = incoming.RootElement.TryGetProperty("wrapped",  out var wEl)  ? wEl.GetString()  ?? "" : ""
+                        };
+                        lock (E2ELock)
+                        {
+                            if (!E2EKeys.ContainsKey(grantChId)) E2EKeys[grantChId] = new();
+                            E2EKeys[grantChId][grantAlias] = grantKey;
+                            File.WriteAllText(E2EFile, JsonSerializer.Serialize(E2EKeys));
+                        }
+                        LogAudit("E2E_GRANT", currentAlias, grantAlias, grantChId);
+                        Log("E2E", $"'{currentAlias}' granted E2E ch:{grantChId} → '{grantAlias}'");
+                        if (ActiveClients.TryGetValue(grantAlias, out var gSock))
+                            await Send(gSock, new { action = "E2E_KEY_GRANTED", channelId = grantChId, ephemPub = grantKey.EphemPub, iv = grantKey.Iv, wrapped = grantKey.Wrapped });
+                        await Broadcast(new { action = "E2E_ACCESS_UPDATED", channelId = grantChId, alias = grantAlias, hasAccess = true });
+                    }
+
+                    // ── ROTATE_E2E_KEY ────────────────────────────────────────────
+                    else if (action == "ROTATE_E2E_KEY")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin")) continue;
+                        string rotChId = incoming.RootElement.TryGetProperty("channelId", out var rotChEl) ? rotChEl.GetString()?.Trim() ?? "" : "";
+                        var rotCh = ActiveConfig.Channels.FirstOrDefault(c => c.Id == rotChId && c.E2E);
+                        if (rotCh == null) continue;
+                        var newWkDict = new Dictionary<string, E2EWrappedKey>();
+                        if (incoming.RootElement.TryGetProperty("wrappedKeys", out var rotWkEl))
+                            foreach (var prop in rotWkEl.EnumerateObject())
+                            {
+                                var wk = JsonSerializer.Deserialize<E2EWrappedKey>(prop.Value.GetRawText());
+                                if (wk != null) newWkDict[prop.Name] = wk;
+                            }
+                        lock (E2ELock) { E2EKeys[rotChId] = newWkDict; File.WriteAllText(E2EFile, JsonSerializer.Serialize(E2EKeys)); }
+                        LogAudit("E2E_ROTATE", currentAlias, rotChId, $"keys:{newWkDict.Count}");
+                        Log("E2E", $"'{currentAlias}' rotated E2E key on #{rotCh.Name} | {newWkDict.Count} key(s)");
+                        await Broadcast(new { action = "E2E_KEY_REVOKED", channelId = rotChId });
+                        foreach (var kv in newWkDict)
+                            if (ActiveClients.TryGetValue(kv.Key, out var kSock2))
+                                await Send(kSock2, new { action = "E2E_KEY_GRANTED", channelId = rotChId, ephemPub = kv.Value.EphemPub, iv = kv.Value.Iv, wrapped = kv.Value.Wrapped });
+                    }
+
                     // ── SET_USER_ROLE ─────────────────────────────────────────────
                     else if (action == "SET_USER_ROLE")
                     {
@@ -1811,6 +1965,7 @@ namespace Origin.Server.Data
         public string Type             { get; set; }
         public string MinRole          { get; set; } = "guest";
         public string WriteRole        { get; set; } = "guest";
+        public bool   E2E              { get; set; } = false;
         public bool   ReadOnly         { get; set; } = false;
         public bool   Muted            { get; set; } = false;
         public int    SlowMode         { get; set; } = 0;
@@ -1859,6 +2014,13 @@ namespace Origin.Server.Data
         public List<string> Aliases      { get; set; } = new();
         public List<string> IpAddresses  { get; set; } = new();
         public DateTime     LastSeen     { get; set; }
+    }
+
+    public class E2EWrappedKey
+    {
+        public string EphemPub { get; set; }
+        public string Iv       { get; set; }
+        public string Wrapped  { get; set; }
     }
 
     public class BanRecord
