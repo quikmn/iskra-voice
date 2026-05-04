@@ -1078,7 +1078,7 @@
                     <button id="invite-copy-btn" onclick="copyInviteLink()">Copy</button>
                 </div>
             </div>
-            <div class="invite-modal-hint">Send this link to anyone you'd like to invite. Clicking it opens Iskra directly with a one-click join prompt.</div>
+            <div class="invite-modal-hint" id="invite-modal-hint">Send this link to anyone you'd like to invite. Clicking it opens Iskra directly with a one-click join prompt.</div>
         </div>
     </div>
 </div>
@@ -1259,8 +1259,9 @@ let activeDmWith     = null;
 let dmConversations  = {};
 let dmHistory        = {};
 let _searchDebounce  = null;
-let _inviteServerId  = null;
-let _pendingJoinData = null;
+let _inviteServerId       = null;
+let _pendingInviteServerId = null;
+let _pendingJoinData       = null;
 
 // ── Reply / link preview state ─────────────────────────────────────────────────
 let _replyTo         = null;   // { id, author, text } or null
@@ -1906,6 +1907,7 @@ function renderServerList() {
             </div>
         </div>`;
 
+        const canInvite = !conn || roleRank(myRole) >= roleRank('member');
         return `<div class="server-item${conn ? ' connected' : ''}">
             <div class="server-info">
                 <div class="server-item-name">${escapeHtml(s.name)}</div>
@@ -1917,7 +1919,7 @@ function renderServerList() {
                     ? `<button class="srv-btn srv-btn-disconnect" onclick="disconnectFromServer()">Disconnect</button>`
                     : `<button class="srv-btn srv-btn-connect" onclick="connectToServer('${s.id}')">Connect</button>`}
                 <button class="srv-btn srv-btn-icon" onclick="startEditServer('${s.id}')" title="Edit server">✏️</button>
-                <button class="srv-btn srv-btn-icon" id="inv-btn-${s.id}" onclick="copyInvite('${s.id}')" title="Copy invite code">📋</button>
+                ${canInvite ? `<button class="srv-btn srv-btn-icon" id="inv-btn-${s.id}" onclick="copyInvite('${s.id}')" title="Copy invite link">📋</button>` : ''}
                 <button class="srv-btn srv-btn-del" onclick="removeServer('${s.id}')" title="Remove server">🗑</button>
             </div>
         </div>`;
@@ -1963,7 +1965,7 @@ function connectToServer(id) {
     if (!server) return;
     pendingServerId = id;
     DevLog.log('BRIDGE', `Connecting to "${server.name}" as "${clientConfig.activeAlias}"`);
-    postToBridge({ action: 'CONNECT', host: server.host, port: server.port, password: server.password, userPassword: server.userPassword || '', alias: clientConfig.activeAlias, adminPassword: server.adminPassword || '' });
+    postToBridge({ action: 'CONNECT', host: server.host, port: server.port, password: server.password || '', userPassword: server.userPassword || '', alias: clientConfig.activeAlias, adminPassword: server.adminPassword || '', inviteToken: server.inviteToken || '' });
     closeSettings();
 }
 
@@ -1972,7 +1974,12 @@ function disconnectFromServer() {
 }
 
 function copyInvite(id) {
-    showInviteModal(id);
+    if (id === connectedServerId) {
+        _pendingInviteServerId = id;
+        postToBridge({ action: 'REQUEST_INVITE_TOKEN' });
+    } else {
+        showInviteModal(id);
+    }
 }
 
 // ── Server Bar ────────────────────────────────────────────────────────────────
@@ -3374,9 +3381,16 @@ function acceptJoinInvite() {
     document.getElementById('ui-alias').textContent = alias;
     let server = clientConfig.servers.find(s => s.host === data.h && s.port === (data.p || 8080));
     if (!server) {
-        server = { id: _serverId(), name: data.n || 'Imported Server', host: data.h, port: data.p || 8080, password: data.pw || '' };
+        server = {
+            id: _serverId(), name: data.n || 'Imported Server',
+            host: data.h, port: data.p || 8080,
+            password: data.tok ? '' : (data.pw || ''),
+            inviteToken: data.tok || ''
+        };
         clientConfig.servers.push(server);
         renderServerBar();
+    } else if (data.tok && !server.inviteToken) {
+        server.inviteToken = data.tok;
     }
     saveClientConfig();
     renderServerList();
@@ -3397,6 +3411,10 @@ function showInviteModal(id) {
     document.getElementById('invite-code-field').value = code;
     document.getElementById('invite-copy-btn').textContent = 'Copy';
     document.getElementById('invite-copy-btn').classList.remove('copied');
+    document.getElementById('invite-modal-hint').textContent =
+        server.password
+            ? 'This link includes the server password. Connect to the server first to generate a secure token-based invite instead.'
+            : 'Send this link to anyone you\'d like to invite. Clicking it opens Iskra with a one-click join prompt.';
     document.getElementById('invite-modal-overlay').classList.add('open');
 }
 
@@ -4200,7 +4218,7 @@ window.chrome.webview.addEventListener('message', async (e) => {
         DevLog.log('ERR', `← C# | AUTH_FAILED: ${data.reason}`);
         pendingServerId = null;
         const lbl2 = document.getElementById('voice-mode-label');
-        lbl2.textContent = '⚠ Wrong password';
+        lbl2.textContent = data.reason && data.reason.length <= 40 ? `⚠ ${data.reason}` : '⚠ Auth failed';
         lbl2.style.color = '#ef9a9a';
         setTimeout(() => {
             lbl2.textContent = settings.voiceMode === 'vad' ? 'Voice Activity' : 'Push to Talk';
@@ -4317,6 +4335,23 @@ window.chrome.webview.addEventListener('message', async (e) => {
             const payload = JSON.parse(atob(data.url.slice(prefix.length)));
             if (payload.h) showJoinInviteModal(payload);
         } catch(err) { DevLog.log('ERR', `Invalid invite URL: ${err.message}`); }
+
+    } else if (data.action === 'INVITE_TOKEN_READY') {
+        DevLog.log('BRIDGE', `← C# | INVITE_TOKEN_READY`);
+        const server = clientConfig.servers.find(s => s.id === _pendingInviteServerId);
+        _pendingInviteServerId = null;
+        if (server && data.token) {
+            const payload = btoa(JSON.stringify({ n: server.name, h: server.host, p: server.port, tok: data.token }));
+            const code = `iskra://invite/${payload}`;
+            _inviteServerId = server.id;
+            document.getElementById('invite-modal-server-name').textContent = server.name;
+            document.getElementById('invite-modal-server-addr').textContent = `${server.host}:${server.port}`;
+            document.getElementById('invite-code-field').value = code;
+            document.getElementById('invite-copy-btn').textContent = 'Copy';
+            document.getElementById('invite-copy-btn').classList.remove('copied');
+            document.getElementById('invite-modal-hint').textContent = 'Secure invite — no password in the link. Valid for 30 days, renewed on each use.';
+            document.getElementById('invite-modal-overlay').classList.add('open');
+        }
 
     } else if (data.action === 'E2E_KEY_GRANTED') {
         DevLog.log('E2E', `← C# | E2E_KEY_GRANTED ch:${data.channelId}`);

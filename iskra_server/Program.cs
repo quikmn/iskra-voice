@@ -74,6 +74,11 @@ namespace Origin.Server.Core
         private static readonly object PubKeyLock = new();
         private static string PubKeyFile   => Path.Combine(ActiveWorldPath, "public_keys.json");
 
+        // ── Invite tokens ────────────────────────────────────────────────────────
+        private static Dictionary<string, InviteToken> InviteTokens = new(); // token → InviteToken
+        private static readonly object InviteTokenLock = new();
+        private static string InviteTokenFile => Path.Combine(ActiveWorldPath, "invite_tokens.json");
+
         // ── DM storage ───────────────────────────────────────────────────────────
         private static string DmDir => Path.Combine(ActiveWorldPath, "dms");
         private static readonly object DmLock = new();
@@ -121,6 +126,7 @@ namespace Origin.Server.Core
             LoadEmojis();
             LoadPublicKeys();
             LoadE2EKeys();
+            LoadInviteTokens();
             Directory.CreateDirectory(UploadDir);
             Console.Title = $"Origin Server — {ActiveConfig.Settings.ServerName} :{ActiveConfig.Settings.Port}";
 
@@ -588,6 +594,25 @@ namespace Origin.Server.Core
             }
         }
 
+        private static void LoadInviteTokens()
+        {
+            if (!File.Exists(InviteTokenFile)) return;
+            lock (InviteTokenLock)
+            {
+                InviteTokens = JsonSerializer.Deserialize<Dictionary<string, InviteToken>>(File.ReadAllText(InviteTokenFile)) ?? new();
+                var cutoff = DateTime.UtcNow;
+                foreach (var k in InviteTokens.Keys.Where(k => InviteTokens[k].ExpiresAt < cutoff).ToList())
+                    InviteTokens.Remove(k);
+                Log("CONFIG", $"Invite tokens loaded: {InviteTokens.Count} active");
+            }
+        }
+
+        private static void SaveInviteTokens()
+        {
+            lock (InviteTokenLock)
+                File.WriteAllText(InviteTokenFile, JsonSerializer.Serialize(InviteTokens));
+        }
+
         // ── Webhooks ─────────────────────────────────────────────────────────────
 
         private static void FireWebhooks(string channelId, string channelName, string author, string message, string time)
@@ -923,7 +948,33 @@ namespace Origin.Server.Core
                 string adminPwSent  = authDoc.RootElement.TryGetProperty("adminPassword", out JsonElement apEl) ? apEl.GetString() ?? "" : "";
                 string userPassword = authDoc.RootElement.TryGetProperty("userPassword",  out JsonElement upEl) ? upEl.GetString() ?? "" : "";
 
-                if (ActiveConfig.Settings.RequirePassword)
+                string inviteTokenSent = authDoc.RootElement.TryGetProperty("inviteToken", out var itEl) ? itEl.GetString() ?? "" : "";
+                if (!string.IsNullOrEmpty(inviteTokenSent))
+                {
+                    bool tokenValid = false;
+                    lock (InviteTokenLock)
+                    {
+                        if (InviteTokens.TryGetValue(inviteTokenSent, out var tok) && tok.ExpiresAt > DateTime.UtcNow)
+                        {
+                            tok.UseCount++;
+                            tok.ExpiresAt = DateTime.UtcNow.AddDays(30); // auto-renew on each use
+                            tokenValid = true;
+                        }
+                    }
+                    if (tokenValid)
+                    {
+                        Log("AUTH", $"'{currentAlias}' authenticated via invite token from {clientIp}");
+                        _ = Task.Run(SaveInviteTokens);
+                    }
+                    else
+                    {
+                        Log("AUTH", $"'{currentAlias}' rejected — invalid/expired invite token from {clientIp}");
+                        await Send(socket, new { action = "AUTH_FAILED", reason = "Invalid or expired invite link." });
+                        await socket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Invalid token", CancellationToken.None);
+                        return;
+                    }
+                }
+                else if (ActiveConfig.Settings.RequirePassword)
                 {
                     string pw = authDoc.RootElement.TryGetProperty("password", out JsonElement pwEl) ? pwEl.GetString() ?? "" : "";
                     if (pw != ActiveConfig.Settings.ServerPassword)
@@ -1856,6 +1907,22 @@ namespace Origin.Server.Core
                                 await Send(kSock2, new { action = "E2E_KEY_GRANTED", channelId = rotChId, ephemPub = kv.Value.EphemPub, iv = kv.Value.Iv, wrapped = kv.Value.Wrapped });
                     }
 
+                    // ── REQUEST_INVITE_TOKEN ──────────────────────────────────────
+                    else if (action == "REQUEST_INVITE_TOKEN")
+                    {
+                        if (RoleRank(userRole) < RoleRank("member"))
+                        { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Only members can generate invite links." }); continue; }
+                        var tokenBytes = new byte[32];
+                        System.Security.Cryptography.RandomNumberGenerator.Fill(tokenBytes);
+                        string newToken = Convert.ToBase64String(tokenBytes).Replace('+', '-').Replace('/', '_').TrimEnd('=');
+                        var inv = new InviteToken { Token = newToken, ExpiresAt = DateTime.UtcNow.AddDays(30), CreatedBy = currentAlias, UseCount = 0 };
+                        lock (InviteTokenLock) { InviteTokens[newToken] = inv; }
+                        _ = Task.Run(SaveInviteTokens);
+                        LogAudit("INVITE_TOKEN", currentAlias, "", "generated");
+                        Log("AUTH", $"'{currentAlias}' generated invite token (expires:{inv.ExpiresAt:yyyy-MM-dd})");
+                        await Send(socket, new { action = "INVITE_TOKEN_READY", token = newToken });
+                    }
+
                     // ── SET_USER_ROLE ─────────────────────────────────────────────
                     else if (action == "SET_USER_ROLE")
                     {
@@ -2021,6 +2088,14 @@ namespace Origin.Server.Data
         public string EphemPub { get; set; }
         public string Iv       { get; set; }
         public string Wrapped  { get; set; }
+    }
+
+    public class InviteToken
+    {
+        public string   Token     { get; set; }
+        public DateTime ExpiresAt { get; set; }
+        public string   CreatedBy { get; set; }
+        public int      UseCount  { get; set; }
     }
 
     public class BanRecord
