@@ -599,6 +599,13 @@
         .admin-section-title { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
         .admin-token-row { background: var(--bg-deep); border-radius: 5px; padding: 7px 10px; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
         .admin-token-text { flex: 1; font-family: 'Cascadia Code','Consolas',monospace; font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .role-sel { background: var(--bg-deep); border: 1px solid var(--bg-border); color: var(--text-normal); border-radius: 4px; padding: 3px 6px; font-size: 12px; cursor: pointer; }
+        .role-sel:disabled { opacity: 0.4; cursor: default; }
+        .admin-member-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--bg-border); }
+        .admin-member-name { flex: 1; font-size: 13px; color: var(--text-normal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .admin-perm-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--bg-border); }
+        .admin-ch-label { flex: 1; font-size: 13px; color: var(--text-normal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .admin-perm-row label { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted); white-space: nowrap; }
         .admin-item-row { background: var(--bg-deep); border-radius: 5px; padding: 7px 10px; margin-bottom: 4px; display: flex; align-items: flex-start; gap: 8px; }
         .admin-item-info { flex: 1; min-width: 0; }
         .admin-item-name { font-size: 13px; font-weight: 600; color: var(--text-normal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -923,6 +930,16 @@
 
         <!-- ── Admin Tab ── -->
         <div id="tab-admin" class="modal-body hidden">
+            <div class="admin-section">
+                <div class="admin-section-title"><span>Members &amp; Roles</span></div>
+                <div id="admin-members-list"></div>
+            </div>
+            <hr class="divider">
+            <div class="admin-section">
+                <div class="admin-section-title"><span>Channel Permissions</span></div>
+                <div id="admin-channels-list"></div>
+            </div>
+            <hr class="divider">
             <div class="admin-section">
                 <div class="admin-section-title">
                     <span>Bot Tokens</span>
@@ -1647,10 +1664,12 @@ function renderChannelList() {
             const viewing    = ch.id === activeTextChannelId;
             const unread     = !viewing && unreadCounts[ch.id] ? unreadCounts[ch.id] : 0;
             const hasMention = !viewing && !!mentionCounts[ch.id];
+            const canWrite   = ch.readOnly ? ['admin','owner'].includes(myRole) : roleRank(myRole) >= roleRank(ch.writeRole || 'guest');
             const textIcon   = ch.readOnly ? '📌' : '#';
             const iconStyle  = ch.readOnly ? 'font-size:13px;' : 'font-weight:700;font-size:16px;';
+            const titleAttr  = ch.readOnly ? 'Read-only' : (!canWrite ? `Requires ${ch.writeRole} role to post` : '');
             html += `
-            <div class="channel${viewing ? ' active' : ''}" onclick="selectTextChannel('${ch.id}')" title="${ch.readOnly ? 'Read-only' : ''}">
+            <div class="channel${viewing ? ' active' : ''}" onclick="selectTextChannel('${ch.id}')" title="${titleAttr}" style="${!canWrite && !ch.readOnly ? 'opacity:0.65;' : ''}">
                 <span class="ch-icon" style="${iconStyle}">${textIcon}</span>
                 <span class="ch-name">${escapeHtml(ch.name)}</span>
                 ${unread > 0 ? `<span class="ch-unread${hasMention ? ' has-mention' : ''}">${unread > 99 ? '99+' : unread}</span>` : ''}
@@ -1677,8 +1696,13 @@ function selectTextChannel(id) {
     document.getElementById('chat-channel-icon').textContent = '#';
     if (ch) {
         document.getElementById('chat-channel-name').textContent = ch.name;
-        const isReadOnly = ch.readOnly && !['admin','owner'].includes(myRole);
-        document.querySelector('.input-box').placeholder = isReadOnly ? 'Read-only channel' : `Message #${ch.name}`;
+        const isReadOnly = ch.readOnly
+            ? roleRank(myRole) < roleRank('admin')
+            : roleRank(myRole) < roleRank(ch.writeRole || 'guest');
+        const placeholder = isReadOnly
+            ? (ch.readOnly ? 'Read-only channel' : `Requires ${ch.writeRole} role to post`)
+            : `Message #${ch.name}`;
+        document.querySelector('.input-box').placeholder = placeholder;
         if (inputArea) inputArea.classList.toggle('readonly', isReadOnly);
     }
     const h = document.getElementById('chat-history');
@@ -1693,6 +1717,8 @@ function selectTextChannel(id) {
     updatePinIndicator(id);
     DevLog.log('BRIDGE', `Text channel selected: "${ch?.name || id}" | ${(channelMessages[id]||[]).length} msg(s)${ch?.readOnly ? ' [readonly]' : ''}`);
 }
+
+function roleRank(r) { return ({guest:0,member:1,trusted:2,admin:3,owner:4})[r] ?? 0; }
 
 // ── Tab Switching ──────────────────────────────────────────────────────────────
 let activeTab = 'audio';
@@ -3967,6 +3993,15 @@ window.chrome.webview.addEventListener('message', async (e) => {
         DevLog.log('BRIDGE', `← C# | USER_ROLE_UPDATED alias:${data.alias} role:${data.role}`);
         userRoles[data.alias] = data.role;
         if (document.getElementById('members-panel')?.classList.contains('open')) renderMembersPanel();
+        if (!document.getElementById('tab-admin')?.classList.contains('hidden')) renderAdminMembers();
+
+    } else if (data.action === 'CHANNEL_UPDATED') {
+        DevLog.log('BRIDGE', `← C# | CHANNEL_UPDATED id:${data.channelId} minRole:${data.minRole} writeRole:${data.writeRole}`);
+        const updCh = serverChannels.find(c => c.id === data.channelId);
+        if (updCh) { updCh.minRole = data.minRole; updCh.writeRole = data.writeRole; }
+        renderChannelList();
+        if (activeTextChannelId === data.channelId) selectTextChannel(data.channelId);
+        if (!document.getElementById('tab-admin')?.classList.contains('hidden')) renderAdminChannels();
 
     } else if (data.action === 'REACTION_UPDATED') {
         DevLog.log('BRIDGE', `← C# | REACTION_UPDATED msgId:${data.messageId} ch:${data.channelId}`);
@@ -4370,9 +4405,63 @@ function ctxSetRole(role) {
 // ── Admin Panel ────────────────────────────────────────────────────────────────
 
 function renderAdminPanel() {
+    renderAdminMembers();
+    renderAdminChannels();
     renderBotsSection();
     renderWebhooksSection();
     renderEmojisSection();
+}
+
+function renderAdminMembers() {
+    const el = document.getElementById('admin-members-list');
+    if (!el) return;
+    const allAliases = [...new Set([...Object.keys(userRoles), ...Object.keys(userAvatars)])].sort();
+    if (!allAliases.length) { el.innerHTML = '<div class="empty-state">No members yet.</div>'; return; }
+    const grantable = myRole === 'owner' ? ['guest','member','trusted','admin'] : ['guest','member','trusted'];
+    el.innerHTML = allAliases.map(alias => {
+        const role = userRoles[alias] || 'guest';
+        const isSelf = alias === myAlias;
+        const opts = grantable.map(r => `<option value="${r}"${role===r?' selected':''}>${r}</option>`).join('');
+        return `<div class="admin-member-row">
+            ${avatarHtml(alias,'sz-28',false,true)}
+            <span class="admin-member-name">${escapeHtml(alias)}</span>
+            <select class="role-sel" onchange="setUserRole('${escapeHtml(alias)}',this.value)"${isSelf?' disabled':''}>${opts}</select>
+        </div>`;
+    }).join('');
+}
+
+function renderAdminChannels() {
+    const el = document.getElementById('admin-channels-list');
+    if (!el) return;
+    const chs = serverChannels.filter(c => c.type !== 'Header');
+    if (!chs.length) { el.innerHTML = '<div class="empty-state">No channels.</div>'; return; }
+    const roles = ['guest','member','trusted','admin','owner'];
+    el.innerHTML = chs.map(ch => {
+        const isVoice = ch.type === 'Voice';
+        const icon = isVoice ? '🔊' : '#';
+        const minOpts  = roles.map(r => `<option value="${r}"${(ch.minRole||'guest')===r?' selected':''}>${r}</option>`).join('');
+        const writeOpts = roles.map(r => `<option value="${r}"${(ch.writeRole||'guest')===r?' selected':''}>${r}</option>`).join('');
+        return `<div class="admin-perm-row">
+            <span class="admin-ch-label">${icon} ${escapeHtml(ch.name)}</span>
+            <label>view <select class="role-sel" onchange="setChannelRoles('${ch.id}',this.value,null)">${minOpts}</select></label>
+            ${!isVoice ? `<label>post <select class="role-sel" onchange="setChannelRoles('${ch.id}',null,this.value)">${writeOpts}</select></label>` : ''}
+        </div>`;
+    }).join('');
+}
+
+function setUserRole(alias, role) {
+    postToBridge({ action: 'SET_USER_ROLE', alias, role });
+}
+
+function setChannelRoles(channelId, minRole, writeRole) {
+    const ch = serverChannels.find(c => c.id === channelId);
+    if (!ch) return;
+    postToBridge({
+        action: 'SET_CHANNEL_ROLES',
+        channelId,
+        minRole:    minRole    ?? ch.minRole   ?? 'guest',
+        writeRole:  writeRole  ?? ch.writeRole ?? 'guest'
+    });
 }
 
 function renderBotsSection() {

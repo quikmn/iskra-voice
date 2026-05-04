@@ -1010,7 +1010,7 @@ namespace Origin.Server.Core
                     uploadBase   = $"http://{context.Request.UserHostName}",
                     channels     = ActiveConfig.Channels
                         .Where(c => c.Type == "Header" || CanAccess(userRole, c.MinRole))
-                        .Select(c => new { id = c.Id, name = c.Name, type = c.Type, readOnly = c.ReadOnly, muted = c.Muted, slowMode = c.SlowMode }),
+                        .Select(c => new { id = c.Id, name = c.Name, type = c.Type, readOnly = c.ReadOnly, muted = c.Muted, slowMode = c.SlowMode, minRole = c.MinRole, writeRole = c.WriteRole }),
                     iceServers
                 });
 
@@ -1103,6 +1103,11 @@ namespace Origin.Server.Core
                         if (chatCh != null && chatCh.ReadOnly && RoleRank(userRole) < RoleRank("admin"))
                         {
                             await Send(socket, new { action = "SYSTEM_MESSAGE", message = "That channel is read-only." });
+                            continue;
+                        }
+                        if (chatCh != null && RoleRank(userRole) < RoleRank(chatCh.WriteRole) && RoleRank(userRole) < RoleRank("admin"))
+                        {
+                            await Send(socket, new { action = "SYSTEM_MESSAGE", message = $"You need the '{chatCh.WriteRole}' role to post here." });
                             continue;
                         }
 
@@ -1342,6 +1347,8 @@ namespace Origin.Server.Core
                     // ── SCREEN_SHARE_STARTED ─────────────────────────────────────
                     else if (action == "SCREEN_SHARE_STARTED")
                     {
+                        var ssCh = ActiveConfig.Channels.FirstOrDefault(c => c.Id == currentVoiceChannel);
+                        if (ssCh != null && !CanAccess(userRole, ssCh.MinRole)) continue;
                         Log("VOICE", $"'{currentAlias}' started screen share in '{currentVoiceChannel}'");
                         await Broadcast(new { action = "SCREEN_SHARE_STARTED", alias = currentAlias, channelId = currentVoiceChannel });
                     }
@@ -1694,6 +1701,40 @@ namespace Origin.Server.Core
                             await Broadcast(new { action = "EMOJIS_UPDATED", emojis = emojisBroadcast });
                         }
                     }
+
+                    // ── SET_USER_ROLE ─────────────────────────────────────────────
+                    else if (action == "SET_USER_ROLE")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin"))
+                        { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Only admins can change roles." }); continue; }
+                        string targetAlias2 = incoming.RootElement.TryGetProperty("alias",  out var ta2El) ? ta2El.GetString()?.Trim() ?? "" : "";
+                        string newRole2     = incoming.RootElement.TryGetProperty("role",   out var nr2El) ? nr2El.GetString()?.Trim().ToLowerInvariant() ?? "" : "";
+                        string[] grantable2 = userRole == "owner"
+                            ? new[] { "guest", "member", "trusted", "admin" }
+                            : new[] { "guest", "member", "trusted" };
+                        if (string.IsNullOrEmpty(targetAlias2) || !grantable2.Contains(newRole2)) continue;
+                        lock (RoleLock) UserRoles[targetAlias2] = newRole2;
+                        _ = Task.Run(SaveRoles);
+                        LogAudit("ROLE", currentAlias, targetAlias2, newRole2);
+                        if (ActiveClients.TryGetValue(targetAlias2, out WebSocket tSock2))
+                            await Send(tSock2, new { action = "ROLE_GRANTED", role = newRole2 });
+                        await Broadcast(new { action = "USER_ROLE_UPDATED", alias = targetAlias2, role = newRole2 });
+                    }
+
+                    // ── SET_CHANNEL_ROLES ─────────────────────────────────────────
+                    else if (action == "SET_CHANNEL_ROLES")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin"))
+                        { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Only admins can change channel permissions." }); continue; }
+                        string chId2 = incoming.RootElement.TryGetProperty("channelId", out var ch2El) ? ch2El.GetString()?.Trim() ?? "" : "";
+                        var tChan = ActiveConfig.Channels.FirstOrDefault(c => c.Id == chId2);
+                        if (tChan == null) continue;
+                        if (incoming.RootElement.TryGetProperty("minRole",   out var mrEl2) && mrEl2.ValueKind   == JsonValueKind.String) tChan.MinRole   = mrEl2.GetString() ?? "guest";
+                        if (incoming.RootElement.TryGetProperty("writeRole", out var wrEl2) && wrEl2.ValueKind == JsonValueKind.String) tChan.WriteRole = wrEl2.GetString() ?? "guest";
+                        _ = Task.Run(() => File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true })));
+                        LogAudit("CHANNEL_ROLES", currentAlias, chId2, $"minRole:{tChan.MinRole} writeRole:{tChan.WriteRole}");
+                        await Broadcast(new { action = "CHANNEL_UPDATED", channelId = chId2, minRole = tChan.MinRole, writeRole = tChan.WriteRole });
+                    }
                 }
             }
             catch (Exception ex) { Log("ERROR", $"Session for '{currentAlias}' faulted: {ex.Message}"); }
@@ -1769,6 +1810,7 @@ namespace Origin.Server.Data
         public string Name             { get; set; }
         public string Type             { get; set; }
         public string MinRole          { get; set; } = "guest";
+        public string WriteRole        { get; set; } = "guest";
         public bool   ReadOnly         { get; set; } = false;
         public bool   Muted            { get; set; } = false;
         public int    SlowMode         { get; set; } = 0;
