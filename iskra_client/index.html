@@ -2599,6 +2599,7 @@ let currentChannelId = null;
 
 function joinVoice(id) {
     if (currentChannelId !== id) postToBridge({ action: 'JOIN_VOICE', channelId: id });
+    if (inDmMode) { activeTextChannelId = id; return; }
     // Switch chat pane to voice channel text thread
     if (activeTextChannelId === id) return;
     activeTextChannelId = id;
