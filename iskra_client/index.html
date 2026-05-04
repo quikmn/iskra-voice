@@ -1051,7 +1051,11 @@
         </div>
         <div class="join-invite-body">
             <div class="section-label" style="margin-bottom:4px">Your alias on this server</div>
-            <input id="join-invite-alias" class="text-input" type="text" placeholder="Enter your name..." maxlength="32">
+            <input id="join-invite-alias" class="text-input" type="text" placeholder="Enter your name..." maxlength="32"
+                   onkeydown="if(event.key==='Enter')acceptJoinInvite()">
+            <div class="section-label" style="margin-bottom:4px;margin-top:12px">Server password <span style="color:var(--text-subtle);font-weight:400">(if required)</span></div>
+            <input id="join-invite-password" class="text-input" type="password" placeholder="Leave empty if none"
+                   onkeydown="if(event.key==='Enter')acceptJoinInvite()">
             <div class="join-invite-actions">
                 <button class="btn-primary" style="flex:1" onclick="acceptJoinInvite()">Join Server</button>
                 <button class="btn-secondary" onclick="closeJoinInviteModal()">Cancel</button>
@@ -1259,9 +1263,8 @@ let activeDmWith     = null;
 let dmConversations  = {};
 let dmHistory        = {};
 let _searchDebounce  = null;
-let _inviteServerId       = null;
-let _pendingInviteServerId = null;
-let _pendingJoinData       = null;
+let _inviteServerId  = null;
+let _pendingJoinData = null;
 
 // ── Reply / link preview state ─────────────────────────────────────────────────
 let _replyTo         = null;   // { id, author, text } or null
@@ -1965,7 +1968,7 @@ function connectToServer(id) {
     if (!server) return;
     pendingServerId = id;
     DevLog.log('BRIDGE', `Connecting to "${server.name}" as "${clientConfig.activeAlias}"`);
-    postToBridge({ action: 'CONNECT', host: server.host, port: server.port, password: server.password || '', userPassword: server.userPassword || '', alias: clientConfig.activeAlias, adminPassword: server.adminPassword || '', inviteToken: server.inviteToken || '' });
+    postToBridge({ action: 'CONNECT', host: server.host, port: server.port, password: server.password || '', userPassword: server.userPassword || '', alias: clientConfig.activeAlias, adminPassword: server.adminPassword || '' });
     closeSettings();
 }
 
@@ -1974,12 +1977,7 @@ function disconnectFromServer() {
 }
 
 function copyInvite(id) {
-    if (id === connectedServerId) {
-        _pendingInviteServerId = id;
-        postToBridge({ action: 'REQUEST_INVITE_TOKEN' });
-    } else {
-        showInviteModal(id);
-    }
+    showInviteModal(id);
 }
 
 // ── Server Bar ────────────────────────────────────────────────────────────────
@@ -2109,7 +2107,7 @@ function addFromInvite() {
     try {
         const data = JSON.parse(atob(raw));
         if (!data.h) throw new Error('missing host');
-        const server = { id: _serverId(), name: data.n || 'Imported Server', host: data.h, port: data.p || 8080, password: data.pw || '' };
+        const server = { id: _serverId(), name: data.n || 'Imported Server', host: data.h, port: data.p || 8080, password: '' };
         clientConfig.servers.push(server);
         saveClientConfig();
         document.getElementById('invite-paste-input').value = '';
@@ -3359,6 +3357,8 @@ function showJoinInviteModal(data) {
     document.getElementById('join-invite-addr').textContent = `${data.h}:${data.p || 8080}`;
     const aliasInput = document.getElementById('join-invite-alias');
     aliasInput.value = clientConfig.activeAlias || '';
+    const pwInput = document.getElementById('join-invite-password');
+    if (pwInput) pwInput.value = '';
     document.getElementById('join-invite-overlay').classList.add('open');
     setTimeout(() => aliasInput.focus(), 60);
 }
@@ -3379,18 +3379,14 @@ function acceptJoinInvite() {
     if (!alias) { document.getElementById('join-invite-alias').focus(); return; }
     clientConfig.activeAlias = alias;
     document.getElementById('ui-alias').textContent = alias;
+    const joinPassword = (document.getElementById('join-invite-password')?.value || '').trim();
     let server = clientConfig.servers.find(s => s.host === data.h && s.port === (data.p || 8080));
     if (!server) {
-        server = {
-            id: _serverId(), name: data.n || 'Imported Server',
-            host: data.h, port: data.p || 8080,
-            password: data.tok ? '' : (data.pw || ''),
-            inviteToken: data.tok || ''
-        };
+        server = { id: _serverId(), name: data.n || 'Imported Server', host: data.h, port: data.p || 8080, password: joinPassword };
         clientConfig.servers.push(server);
         renderServerBar();
-    } else if (data.tok && !server.inviteToken) {
-        server.inviteToken = data.tok;
+    } else if (joinPassword && !server.password) {
+        server.password = joinPassword;
     }
     saveClientConfig();
     renderServerList();
@@ -3404,17 +3400,14 @@ function showInviteModal(id) {
     const server = clientConfig.servers.find(s => s.id === id);
     if (!server) return;
     _inviteServerId = id;
-    const payload = btoa(JSON.stringify({ n: server.name, h: server.host, p: server.port, pw: server.password }));
+    const payload = btoa(JSON.stringify({ n: server.name, h: server.host, p: server.port }));
     const code = `iskra://invite/${payload}`;
     document.getElementById('invite-modal-server-name').textContent = server.name;
     document.getElementById('invite-modal-server-addr').textContent = `${server.host}:${server.port}`;
     document.getElementById('invite-code-field').value = code;
     document.getElementById('invite-copy-btn').textContent = 'Copy';
     document.getElementById('invite-copy-btn').classList.remove('copied');
-    document.getElementById('invite-modal-hint').textContent =
-        server.password
-            ? 'This link includes the server password. Connect to the server first to generate a secure token-based invite instead.'
-            : 'Send this link to anyone you\'d like to invite. Clicking it opens Iskra with a one-click join prompt.';
+    document.getElementById('invite-modal-hint').textContent = 'No password in this link — share the server password separately (verbally, message, etc).';
     document.getElementById('invite-modal-overlay').classList.add('open');
 }
 
@@ -4335,23 +4328,6 @@ window.chrome.webview.addEventListener('message', async (e) => {
             const payload = JSON.parse(atob(data.url.slice(prefix.length)));
             if (payload.h) showJoinInviteModal(payload);
         } catch(err) { DevLog.log('ERR', `Invalid invite URL: ${err.message}`); }
-
-    } else if (data.action === 'INVITE_TOKEN_READY') {
-        DevLog.log('BRIDGE', `← C# | INVITE_TOKEN_READY`);
-        const server = clientConfig.servers.find(s => s.id === _pendingInviteServerId);
-        _pendingInviteServerId = null;
-        if (server && data.token) {
-            const payload = btoa(JSON.stringify({ n: server.name, h: server.host, p: server.port, tok: data.token }));
-            const code = `iskra://invite/${payload}`;
-            _inviteServerId = server.id;
-            document.getElementById('invite-modal-server-name').textContent = server.name;
-            document.getElementById('invite-modal-server-addr').textContent = `${server.host}:${server.port}`;
-            document.getElementById('invite-code-field').value = code;
-            document.getElementById('invite-copy-btn').textContent = 'Copy';
-            document.getElementById('invite-copy-btn').classList.remove('copied');
-            document.getElementById('invite-modal-hint').textContent = 'Secure invite — no password in the link. Valid for 30 days, renewed on each use.';
-            document.getElementById('invite-modal-overlay').classList.add('open');
-        }
 
     } else if (data.action === 'E2E_KEY_GRANTED') {
         DevLog.log('E2E', `← C# | E2E_KEY_GRANTED ch:${data.channelId}`);

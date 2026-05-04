@@ -257,7 +257,7 @@ namespace Origin.Client.Core
         }
 
         // ── Server connection ───────────────────────────────────────────────────
-        private async Task ConnectToServer(string host, int port, string password, string alias, string adminPassword = "", string userPassword = "", string inviteToken = "")
+        private async Task ConnectToServer(string host, int port, string password, string alias, string adminPassword = "", string userPassword = "")
         {
             if (wsClient != null && wsClient.State == WebSocketState.Open)
             {
@@ -275,11 +275,11 @@ namespace Origin.Client.Core
                 CLog("WS", "Connected");
 
                 var machineGuid = GetMachineGuid();
-                var auth = new { password, alias, machineGuid, adminPassword, userPassword, inviteToken };
+                var auth = new { password, alias, machineGuid, adminPassword, userPassword };
                 await wsClient.SendAsync(
                     new ArraySegment<byte>(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(auth))),
                     WebSocketMessageType.Text, true, CancellationToken.None);
-                CLog("WS", $"Auth sent | alias:{alias} admin:{!string.IsNullOrEmpty(adminPassword)} token:{!string.IsNullOrEmpty(inviteToken)} guid:{(machineGuid.Length > 8 ? machineGuid[..8] + "…" : machineGuid)}");
+                CLog("WS", $"Auth sent | alias:{alias} admin:{!string.IsNullOrEmpty(adminPassword)} guid:{(machineGuid.Length > 8 ? machineGuid[..8] + "…" : machineGuid)}");
 
                 this.Invoke((MethodInvoker)(() =>
                 {
@@ -374,13 +374,12 @@ namespace Origin.Client.Core
                     var port          = doc.RootElement.GetProperty("port").GetInt32();
                     var password      = doc.RootElement.GetProperty("password").GetString();
                     var alias         = doc.RootElement.GetProperty("alias").GetString();
-                    var adminPassword = doc.RootElement.TryGetProperty("adminPassword",  out JsonElement apEl) ? apEl.GetString() ?? "" : "";
-                    var userPassword  = doc.RootElement.TryGetProperty("userPassword",   out JsonElement upEl) ? upEl.GetString() ?? "" : "";
-                    var inviteToken   = doc.RootElement.TryGetProperty("inviteToken",    out JsonElement itEl) ? itEl.GetString() ?? "" : "";
+                    var adminPassword = doc.RootElement.TryGetProperty("adminPassword", out JsonElement apEl) ? apEl.GetString() ?? "" : "";
+                    var userPassword  = doc.RootElement.TryGetProperty("userPassword",  out JsonElement upEl) ? upEl.GetString() ?? "" : "";
                     _serverHost = host;
                     _serverPort = port;
                     CLog("BRIDGE", $"← JS (local) | CONNECT host:{host}:{port} alias:{alias}");
-                    _ = Task.Run(() => ConnectToServer(host, port, password, alias, adminPassword, userPassword, inviteToken));
+                    _ = Task.Run(() => ConnectToServer(host, port, password, alias, adminPassword, userPassword));
                     return;
                 }
                 if (action == "DISCONNECT")
