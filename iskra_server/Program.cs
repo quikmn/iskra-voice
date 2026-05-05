@@ -2007,6 +2007,24 @@ namespace Origin.Server.Core
                         await Broadcast(new { action = "ROLE_COLORS_UPDATED", roleColors = ActiveConfig.Settings.RoleColors });
                     }
 
+                    // ── GET_AUDIT_LOG ─────────────────────────────────────────
+                    else if (action == "GET_AUDIT_LOG")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin")) continue;
+                        int auditLimit = incoming.RootElement.TryGetProperty("limit", out var alEl) ? Math.Min(alEl.GetInt32(), 500) : 100;
+                        List<JsonElement> auditEntries;
+                        try {
+                            auditEntries = File.Exists(AuditFile)
+                                ? (await File.ReadAllLinesAsync(AuditFile))
+                                    .Where(s => !string.IsNullOrWhiteSpace(s))
+                                    .TakeLast(auditLimit)
+                                    .Select(s => JsonDocument.Parse(s).RootElement)
+                                    .ToList()
+                                : new List<JsonElement>();
+                        } catch { auditEntries = new List<JsonElement>(); }
+                        await Send(socket, new { action = "AUDIT_LOG_DATA", entries = auditEntries });
+                    }
+
                     // ── ADD_EVENT ─────────────────────────────────────────────
                     else if (action == "ADD_EVENT")
                     {

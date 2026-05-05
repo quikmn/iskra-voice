@@ -571,6 +571,44 @@
         #ev-add-form { padding: 12px 20px; border-top: 1px solid var(--bg-border); display: none; flex-direction: column; gap: 6px; }
         #ev-add-form.visible { display: flex; }
 
+        /* ── Profile card ── */
+        #profile-card { position: fixed; z-index: 600; background: var(--bg-surface); border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.75); width: 280px; overflow: hidden; border: 1px solid var(--bg-border); }
+        #profile-card.hidden { display: none; }
+        .pc-banner { height: 56px; background: var(--bg-deep); flex-shrink: 0; }
+        .pc-avatar-row { padding: 0 14px; margin-top: -30px; display: flex; align-items: flex-end; margin-bottom: 6px; }
+        .pc-name { padding: 0 14px 2px; font-size: 16px; font-weight: 700; color: var(--text-heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: default; }
+        .pc-role-row { padding: 0 14px 6px; display: flex; align-items: center; gap: 6px; min-height: 18px; }
+        .pc-status { padding: 0 14px 4px; font-size: 12px; color: var(--text-faint); }
+        .pc-status-text { padding: 0 14px 6px; font-size: 12px; color: var(--text-normal); font-style: italic; }
+        .pc-vc { padding: 0 14px 8px; font-size: 12px; color: var(--text-faint); }
+        .pc-actions { padding: 8px 14px 12px; border-top: 1px solid var(--bg-border); display: flex; gap: 6px; flex-wrap: wrap; }
+        .msg-author { cursor: pointer; }
+        .msg-author:hover { text-decoration: underline; }
+
+        /* ── Channel context menu (notify prefs) ── */
+        #ch-ctx-menu { position: fixed; z-index: 500; background: var(--bg-surface); border: 1px solid var(--bg-border); border-radius: 6px; padding: 4px 0; min-width: 190px; box-shadow: 0 4px 24px rgba(0,0,0,0.5); display: none; }
+        .ch-ctx-item { padding: 6px 14px; font-size: 13px; cursor: pointer; color: var(--text-normal); display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+        .ch-ctx-item:hover { background: var(--bg-sidebar-hover); color: var(--text-heading); }
+        .ch-ctx-item.active { color: var(--accent); }
+        .ch-notify-icon { font-size: 11px; opacity: 0.55; margin-left: 2px; }
+
+        /* ── Forward modal ── */
+        #forward-modal { position: fixed; inset: 0; z-index: 700; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); }
+        #forward-modal.hidden { display: none; }
+        #forward-inner { background: var(--bg-surface); border-radius: 10px; padding: 22px; width: 400px; box-shadow: 0 24px 64px rgba(0,0,0,0.8); }
+        #forward-inner h3 { font-size: 14px; font-weight: 700; color: var(--text-heading); margin-bottom: 10px; }
+        .forward-quote { background: var(--bg-deep); border-left: 3px solid var(--accent); padding: 7px 10px; border-radius: 4px; font-size: 12px; color: var(--text-faint); margin-bottom: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #forward-comment { resize: none; height: 58px; }
+
+        /* ── Emoji insert picker section label ── */
+        .ep-section-label { font-size: 10px; font-weight: 700; color: var(--text-faint); padding: 4px 6px; letter-spacing: 0.4px; text-transform: uppercase; width: 100%; box-sizing: border-box; }
+
+        /* ── Audit log inline ── */
+        #audit-log-list { max-height: 280px; overflow-y: auto; font-size: 11px; font-family: monospace; padding: 4px 0; }
+        .audit-row { padding: 3px 0; border-bottom: 1px solid var(--bg-border); display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; }
+        .audit-action { font-weight: 700; flex-shrink: 0; }
+        .audit-time { margin-left: auto; color: var(--text-faint); font-size: 10px; flex-shrink: 0; }
+
         /* ── Members toggle button ── */
         #btn-members { background: transparent; border: none; color: var(--text-subtle); cursor: pointer; font-size: 16px; padding: 3px 6px; border-radius: 4px; line-height: 1; display: none; margin-left: auto; flex-shrink: 0; }
         #btn-members.visible { display: flex; align-items: center; }
@@ -867,6 +905,7 @@
         <div class="input-row">
             <button class="attach-btn" onclick="document.getElementById('file-input').click()" title="Attach file (or paste / drag & drop)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
             <input type="text" id="chat-input" class="input-box" placeholder="Message #general-chat" onkeypress="sendChat(event)" oninput="onChatInput()">
+            <button class="attach-btn" onclick="toggleEmojiInsertPicker(event)" title="Emoji">😊</button>
         </div>
         <input type="file" id="file-input" style="display:none"
                accept=".jpg,.jpeg,.png,.gif,.webp,.zip,.7z"
@@ -1122,10 +1161,11 @@
             </div>
             <hr class="divider">
             <div class="admin-section">
-                <div class="admin-section-title"><span>Audit Log</span></div>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                    <button class="btn-small" onclick="adminViewAudit()">View Audit Log</button>
+                <div class="admin-section-title">
+                    <span>Audit Log</span>
+                    <button class="btn-small" onclick="loadAuditLog()">Refresh</button>
                 </div>
+                <div id="audit-log-list"><span style="color:var(--text-faint);font-size:12px;">Click Refresh to load.</span></div>
             </div>
             <hr class="divider">
             <div class="admin-section">
@@ -1240,6 +1280,36 @@
 
 <div id="reaction-tooltip"></div>
 <div id="img-lightbox" class="hidden" onclick="closeLightbox()"><img id="img-lightbox-img" src="" alt=""></div>
+
+<div id="profile-card" class="hidden">
+    <div class="pc-banner" id="pc-banner"></div>
+    <div class="pc-avatar-row"><div id="pc-avatar"></div></div>
+    <div id="pc-name" class="pc-name"></div>
+    <div id="pc-role-row" class="pc-role-row"></div>
+    <div id="pc-status" class="pc-status"></div>
+    <div id="pc-status-text" class="pc-status-text" style="display:none;"></div>
+    <div id="pc-vc" class="pc-vc" style="display:none;"></div>
+    <div id="pc-actions" class="pc-actions"></div>
+</div>
+
+<div id="ch-ctx-menu">
+    <div class="ch-ctx-item" id="ch-notify-all"      onclick="setChNotify('all')">🔔 All messages</div>
+    <div class="ch-ctx-item" id="ch-notify-mentions"  onclick="setChNotify('mentions')">🔕 Mentions only</div>
+    <div class="ch-ctx-item" id="ch-notify-muted"     onclick="setChNotify('muted')">🔇 Muted</div>
+</div>
+
+<div id="forward-modal" class="hidden" onclick="if(event.target===this)closeForwardModal()">
+    <div id="forward-inner">
+        <h3>↪ Forward Message</h3>
+        <div id="forward-quote" class="forward-quote"></div>
+        <select id="forward-target" class="form-input" style="width:100%;margin-bottom:8px;"></select>
+        <textarea id="forward-comment" class="form-input forward-comment" placeholder="Add a comment (optional)"></textarea>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+            <button class="btn-primary" onclick="submitForward()">Forward</button>
+            <button class="btn-secondary" onclick="closeForwardModal()">Cancel</button>
+        </div>
+    </div>
+</div>
 
 <div id="bookmarks-panel" class="hidden">
     <div id="bm-backdrop" onclick="closeBookmarks()"></div>
@@ -1843,7 +1913,8 @@ const clientConfig = {
     activeAlias: 'Player',
     servers: [],
     bookmarks: [],
-    serverNicknames: {}
+    serverNicknames: {},
+    channelNotifyPrefs: {}
 };
 
 function saveClientConfig() {
@@ -1859,7 +1930,8 @@ function loadClientConfig() {
     if (!clientConfig.aliases.includes(clientConfig.activeAlias)) clientConfig.activeAlias = clientConfig.aliases[0];
     if (!Array.isArray(clientConfig.servers)) clientConfig.servers = [];
     if (!Array.isArray(clientConfig.bookmarks)) clientConfig.bookmarks = [];
-    if (!clientConfig.serverNicknames || typeof clientConfig.serverNicknames !== 'object') clientConfig.serverNicknames = {};
+    if (!clientConfig.serverNicknames    || typeof clientConfig.serverNicknames    !== 'object') clientConfig.serverNicknames    = {};
+    if (!clientConfig.channelNotifyPrefs || typeof clientConfig.channelNotifyPrefs !== 'object') clientConfig.channelNotifyPrefs = {};
     DevLog.log('SETTINGS', `Config | aliases:${clientConfig.aliases.length} servers:${clientConfig.servers.length} active:"${clientConfig.activeAlias}"`);
 }
 
@@ -1884,6 +1956,8 @@ let _qsItems          = [];         // quick switcher item list
 let _qsActiveIdx      = -1;
 let serverEvents      = [];         // scheduled events from server
 let _dismissedEvIds   = new Set();  // event IDs dismissed this session
+let _forwardMsgId     = null;       // msgId being forwarded
+let _chCtxMenuId      = null;       // channelId for channel context menu
 
 // ── Channel List Rendering ────────────────────────────────────────────────────
 function renderChannelList() {
@@ -1929,7 +2003,7 @@ function renderChannelList() {
                 <span class="ch-icon">${voiceIcon}</span>
                 <span class="ch-name">${escapeHtml(ch.name)}</span>
                 ${inVoice ? `<span class="ch-leave" onclick="event.stopPropagation();leaveVoice('${ch.id}')" title="Leave voice">✖</span>` : ''}
-                <div class="voice-user-list">${users.map(u => { const isSpeaking = remoteSpeaking.has(u) || (u === myAlias && speaking && !isMuted && !inMutedChannel); return `<div class="voice-user${isSpeaking ? ' speaking' : ''}" data-alias="${escapeHtml(u)}"${u !== myAlias ? ` oncontextmenu="showUserCtxMenu(event,'${escapeHtml(u)}')"` : ''}><span class="vu-avatar">${avatarHtml(u, 'sz-22', true, true)}</span>${escapeHtml(u)}</div>`; }).join('')}</div>
+                <div class="voice-user-list">${users.map(u => { const isSpeaking = remoteSpeaking.has(u) || (u === myAlias && speaking && !isMuted && !inMutedChannel); return `<div class="voice-user${isSpeaking ? ' speaking' : ''}" data-alias="${escapeHtml(u)}" onclick="showProfileCard(event,'${escapeHtml(u)}')"${u !== myAlias ? ` oncontextmenu="showUserCtxMenu(event,'${escapeHtml(u)}')"` : ''}><span class="vu-avatar">${avatarHtml(u, 'sz-22', true, true)}</span>${escapeHtml(u)}</div>`; }).join('')}</div>
             </div>`;
         } else if (ch.type === 'Text') {
             const viewing    = ch.id === activeTextChannelId;
@@ -1939,10 +2013,12 @@ function renderChannelList() {
             const textIcon   = ch.readOnly ? '📌' : (ch.e2e ? '🔒' : '#');
             const iconStyle  = ch.readOnly ? 'font-size:13px;' : (ch.e2e ? 'font-size:13px;' : 'font-weight:700;font-size:16px;');
             const titleAttr  = ch.readOnly ? 'Read-only' : (!canWrite ? `Requires ${ch.writeRole} role to post` : '');
+            const notifyPref = getChannelNotifyPref(ch.id);
+            const notifyIcon = notifyPref === 'muted' ? '<span class="ch-notify-icon">🔇</span>' : (notifyPref === 'mentions' ? '<span class="ch-notify-icon">🔕</span>' : '');
             html += `
-            <div class="channel${viewing ? ' active' : ''}" onclick="selectTextChannel('${ch.id}')" title="${titleAttr}" style="${!canWrite && !ch.readOnly ? 'opacity:0.65;' : ''}">
+            <div class="channel${viewing ? ' active' : ''}" onclick="selectTextChannel('${ch.id}')" oncontextmenu="showChCtxMenu(event,'${ch.id}')" title="${titleAttr}" style="${!canWrite && !ch.readOnly ? 'opacity:0.65;' : ''}">
                 <span class="ch-icon" style="${iconStyle}">${textIcon}</span>
-                <span class="ch-name">${escapeHtml(ch.name)}</span>
+                <span class="ch-name">${escapeHtml(ch.name)}</span>${notifyIcon}
                 ${unread > 0 ? `<span class="ch-unread${hasMention ? ' has-mention' : ''}">${unread > 99 ? '99+' : unread}</span>` : ''}
             </div>`;
         }
@@ -2129,6 +2205,263 @@ function openShortcuts() {
 }
 function closeShortcuts() {
     document.getElementById('shortcuts-overlay')?.classList.add('hidden');
+}
+
+// ── User profile cards ────────────────────────────────────────────────────────
+function showProfileCard(event, alias) {
+    event.preventDefault();
+    event.stopPropagation();
+    const card = document.getElementById('profile-card');
+    if (!card) return;
+    hideUserCtxMenu();
+
+    // Avatar
+    document.getElementById('pc-avatar').innerHTML = avatarHtml(alias, 'sz-64', false, false);
+
+    // Banner color using avatar color
+    document.getElementById('pc-banner').style.background = avatarColor(alias);
+
+    // Name
+    const nameEl = document.getElementById('pc-name');
+    nameEl.textContent = alias;
+    nameEl.style.cssText = getRoleColor(alias) || '';
+
+    // Role
+    const role = userRoles[alias] || 'guest';
+    const roleRow = document.getElementById('pc-role-row');
+    roleRow.innerHTML = ['trusted','admin','owner'].includes(role)
+        ? `<span class="member-role-pip r-${role}">${role}</span>` : '';
+
+    // Status
+    const status = alias === myAlias ? myStatus : (userStatuses[alias] || 'offline');
+    const statusLabels = { online: '🟢 Online', away: '🟡 Away', dnd: '🔴 Do Not Disturb', offline: '⚫ Offline' };
+    document.getElementById('pc-status').textContent = statusLabels[status] || statusLabels.offline;
+
+    // Status text
+    const stTxt = alias === myAlias ? myStatusText : (userStatusTexts[alias] || '');
+    const stEl = document.getElementById('pc-status-text');
+    stEl.textContent = stTxt;
+    stEl.style.display = stTxt ? '' : 'none';
+
+    // Voice channel
+    let vcName = '';
+    for (const [chId, users] of Object.entries(voiceChannelUsers)) {
+        if (users.includes(alias)) { const ch = serverChannels.find(c => c.id === chId); if (ch) vcName = ch.name; break; }
+    }
+    const vcEl = document.getElementById('pc-vc');
+    vcEl.style.display = vcName ? '' : 'none';
+    vcEl.textContent = vcName ? `🔊 In ${vcName}` : '';
+
+    // Action buttons
+    const actEl = document.getElementById('pc-actions');
+    actEl.innerHTML = '';
+    actEl.style.display = 'none';
+    const btns = [];
+    if (alias !== myAlias && connectedServerId) {
+        btns.push(['💬 Message', () => { hideProfileCard(); openDm(alias); }]);
+    }
+    if (['admin','owner'].includes(myRole) && alias !== myAlias) {
+        btns.push(['⚙ Actions', (e) => { hideProfileCard(); showUserCtxMenu(e, alias); }]);
+    }
+    if (btns.length) {
+        actEl.style.display = '';
+        btns.forEach(([label, fn]) => {
+            const btn = document.createElement('button');
+            btn.className = 'btn-secondary';
+            btn.style.cssText = 'font-size:11px;padding:4px 12px;';
+            btn.textContent = label;
+            btn.onclick = fn;
+            actEl.appendChild(btn);
+        });
+    }
+
+    // Position
+    card.classList.remove('hidden');
+    const cW = 280, cH = card.offsetHeight || 330;
+    let x = event.clientX + 10, y = event.clientY - 20;
+    if (x + cW > window.innerWidth  - 8) x = event.clientX - cW - 10;
+    if (y + cH > window.innerHeight - 8) y = window.innerHeight - cH - 8;
+    card.style.left = Math.max(8, x) + 'px';
+    card.style.top  = Math.max(8, y) + 'px';
+
+    setTimeout(() => document.addEventListener('click', hideProfileCard, { once: true }), 0);
+}
+
+function hideProfileCard() {
+    document.getElementById('profile-card')?.classList.add('hidden');
+}
+
+// ── Per-channel notification prefs ────────────────────────────────────────────
+function getChannelNotifyPref(chId) {
+    return clientConfig.channelNotifyPrefs[chId] || 'all';
+}
+
+function setChNotify(pref) {
+    if (!_chCtxMenuId) return;
+    if (pref === 'all') delete clientConfig.channelNotifyPrefs[_chCtxMenuId];
+    else clientConfig.channelNotifyPrefs[_chCtxMenuId] = pref;
+    saveClientConfig();
+    hideChCtxMenu();
+    renderChannelList();
+}
+
+function showChCtxMenu(event, chId) {
+    event.preventDefault();
+    event.stopPropagation();
+    _chCtxMenuId = chId;
+    const pref = getChannelNotifyPref(chId);
+    document.getElementById('ch-notify-all').classList.toggle('active', pref === 'all');
+    document.getElementById('ch-notify-mentions').classList.toggle('active', pref === 'mentions');
+    document.getElementById('ch-notify-muted').classList.toggle('active', pref === 'muted');
+    const menu = document.getElementById('ch-ctx-menu');
+    menu.style.display = 'block';
+    const menuH = menu.offsetHeight || 100;
+    const x = Math.min(event.clientX, window.innerWidth  - 200);
+    const y = Math.min(event.clientY, window.innerHeight - menuH - 8);
+    menu.style.left = x + 'px';
+    menu.style.top  = y + 'px';
+    setTimeout(() => document.addEventListener('click', hideChCtxMenu, { once: true }), 0);
+}
+
+function hideChCtxMenu() {
+    document.getElementById('ch-ctx-menu').style.display = 'none';
+    _chCtxMenuId = null;
+}
+
+// ── Emoji insert picker ───────────────────────────────────────────────────────
+function toggleEmojiInsertPicker(event) {
+    event.stopPropagation();
+    const existing = document.getElementById('emoji-insert-popup');
+    if (existing) { existing.remove(); return; }
+
+    const popup = document.createElement('div');
+    popup.id = 'emoji-insert-popup';
+    popup.className = 'emoji-picker-popup';
+    popup.style.cssText = 'width:252px;max-height:300px;overflow-y:auto;';
+
+    const customEntries = Object.entries(serverEmojis);
+    if (customEntries.length) {
+        const lbl = document.createElement('div');
+        lbl.className = 'ep-section-label';
+        lbl.textContent = 'Server Emoji';
+        popup.appendChild(lbl);
+        customEntries.forEach(([code, url]) => {
+            const btn = document.createElement('button');
+            btn.className = 'emoji-pick-btn';
+            btn.title = `:${code}:`;
+            btn.innerHTML = `<img src="${escapeHtml(url)}" alt=":${code}:" style="width:22px;height:22px;object-fit:contain;">`;
+            btn.onclick = () => { insertEmojiIntoInput(`:${code}:`); closeEmojiInsertPicker(); };
+            popup.appendChild(btn);
+        });
+        const sep = document.createElement('hr');
+        sep.style.cssText = 'border:none;border-top:1px solid var(--bg-border);margin:4px 2px;';
+        popup.appendChild(sep);
+        const lbl2 = document.createElement('div');
+        lbl2.className = 'ep-section-label';
+        lbl2.textContent = 'Emoji';
+        popup.appendChild(lbl2);
+    }
+
+    EMOJI_PICKER_EMOJIS.forEach(em => {
+        const btn = document.createElement('button');
+        btn.className = 'emoji-pick-btn';
+        btn.textContent = em;
+        btn.onclick = () => { insertEmojiIntoInput(em); closeEmojiInsertPicker(); };
+        popup.appendChild(btn);
+    });
+
+    document.body.appendChild(popup);
+    const rect = event.currentTarget.getBoundingClientRect();
+    popup.style.left = Math.max(4, Math.min(rect.left, window.innerWidth - 258)) + 'px';
+    requestAnimationFrame(() => {
+        popup.style.top = (rect.top - popup.offsetHeight - 6) + 'px';
+    });
+    setTimeout(() => document.addEventListener('click', closeEmojiInsertPicker, { once: true }), 0);
+}
+
+function closeEmojiInsertPicker() {
+    document.getElementById('emoji-insert-popup')?.remove();
+}
+
+function insertEmojiIntoInput(text) {
+    const input = document.getElementById('chat-input');
+    if (!input) return;
+    const s = input.selectionStart, e = input.selectionEnd;
+    input.value = input.value.slice(0, s) + text + input.value.slice(e);
+    input.selectionStart = input.selectionEnd = s + text.length;
+    input.focus();
+}
+
+// ── Message forwarding ────────────────────────────────────────────────────────
+function showForwardModal(msgId) {
+    const row = document.querySelector(`[data-msg-id="${msgId}"]`);
+    if (!row) return;
+    _forwardMsgId = msgId;
+    const author  = row.dataset.replyAuthor || '';
+    const preview = (row.querySelector('.msg-body')?.dataset.raw || '').slice(0, 120);
+    document.getElementById('forward-quote').textContent = `${author}: ${preview}`;
+
+    const sel = document.getElementById('forward-target');
+    sel.innerHTML = '';
+    serverChannels.filter(c => c.type === 'Text').forEach(c => {
+        const opt = new Option(`# ${c.name}`, `ch:${c.id}`);
+        if (c.id === activeTextChannelId) opt.selected = true;
+        sel.appendChild(opt);
+    });
+    Object.keys(dmConversations || {}).forEach(alias => {
+        sel.appendChild(new Option(`@ ${alias}`, `dm:${alias}`));
+    });
+
+    document.getElementById('forward-comment').value = '';
+    document.getElementById('forward-modal').classList.remove('hidden');
+}
+
+function closeForwardModal() {
+    document.getElementById('forward-modal').classList.add('hidden');
+    _forwardMsgId = null;
+}
+
+function submitForward() {
+    const [type, id] = (document.getElementById('forward-target').value || '').split(':');
+    if (!type || !id) return;
+    const row  = _forwardMsgId && document.querySelector(`[data-msg-id="${_forwardMsgId}"]`);
+    const orig = row?.querySelector('.msg-body')?.dataset.raw || '';
+    const auth = row?.dataset.replyAuthor || '';
+    const comment = document.getElementById('forward-comment').value.trim();
+    const fwdText = (comment ? comment + '\n' : '') + `> ↪ **${auth}**: ${orig.slice(0, 500)}`;
+    if (type === 'ch') postToBridge({ action: 'SEND_CHAT', channelId: id, message: fwdText });
+    else if (type === 'dm') postToBridge({ action: 'SEND_DM', to: id, message: fwdText });
+    closeForwardModal();
+}
+
+// ── Audit log ─────────────────────────────────────────────────────────────────
+function loadAuditLog() {
+    const el = document.getElementById('audit-log-list');
+    if (el) el.innerHTML = '<span style="color:var(--text-faint);font-size:12px;">Loading…</span>';
+    postToBridge({ action: 'GET_AUDIT_LOG', limit: 150 });
+}
+
+function renderAuditLog(entries) {
+    const el = document.getElementById('audit-log-list');
+    if (!el) return;
+    if (!entries || !entries.length) { el.innerHTML = '<div style="color:var(--text-faint);font-size:12px;padding:4px 0;">No audit entries yet.</div>'; return; }
+    const colors = { KICK:'#ed4245', BAN:'#ed4245', UNBAN:'#3ba55d', ROLE:'#5865f2', EDIT:'#faa81a', DELETE:'#ed4245', JOIN:'#3ba55d', LEAVE:'#6d6f78', BOT_CONNECT:'#3ba55d', BOT_DISCONNECT:'#ed4245' };
+    el.innerHTML = [...entries].reverse().map(e => {
+        const action = e.action ?? e.Action ?? '';
+        const actor  = e.actor  ?? e.Actor  ?? '';
+        const target = e.target ?? e.Target ?? '';
+        const detail = e.detail ?? e.Detail ?? '';
+        const ts     = e.ts     ?? e.Ts     ?? '';
+        const time   = ts ? new Date(ts).toLocaleString([], {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+        const col    = colors[action] || 'var(--text-faint)';
+        return `<div class="audit-row">
+            <span class="audit-action" style="color:${col};">${escapeHtml(action)}</span>
+            ${actor  ? `<span style="color:var(--text-subtle);">${escapeHtml(actor)}</span>` : ''}
+            ${target ? `<span style="color:var(--text-normal);">→ ${escapeHtml(target)}</span>` : ''}
+            ${detail ? `<span style="color:var(--text-faint);">(${escapeHtml(detail)})</span>` : ''}
+            <span class="audit-time">${escapeHtml(time)}</span>
+        </div>`;
+    }).join('');
 }
 
 // ── Bookmarks ─────────────────────────────────────────────────────────────────
@@ -3093,7 +3426,7 @@ function startPttCapture() {
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'F9') { e.shiftKey ? DevLog.clear() : DevLog.toggle(); return; }
-    if (e.key === 'Escape') { closeImgOverlay(); closeQuickSwitcher(); closeShortcuts(); closeLightbox(); closeBookmarks(); closeEventsPanel(); return; }
+    if (e.key === 'Escape') { closeImgOverlay(); closeQuickSwitcher(); closeShortcuts(); closeLightbox(); closeBookmarks(); closeEventsPanel(); hideProfileCard(); closeForwardModal(); hideChCtxMenu(); closeEmojiInsertPicker(); return; }
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); openQuickSwitcher(); return; }
     if ((e.ctrlKey || e.metaKey) && e.key === '/') { e.preventDefault(); openShortcuts(); return; }
     if (!isCapturingPtt) return;
@@ -4075,6 +4408,7 @@ function renderChatMessage(msgId, author, time, message, edited, reactions, repl
         const bkd = isBookmarked(msgId);
         actions = `<span class="msg-actions">`;
         actions += `<button class="msg-act-btn msg-act-bookmark${bkd ? ' bookmarked' : ''}" title="${bkd ? 'Remove bookmark' : 'Bookmark'}" onclick="toggleBookmark('${msgId}')">${bkd ? '★' : '☆'}</button>`;
+        actions += `<button class="msg-act-btn" title="Forward" onclick="showForwardModal('${msgId}')">↪</button>`;
         actions += `<button class="msg-act-btn" title="Reply" onclick="startReply('${msgId}')">↩</button>`;
         if (isOwn) actions += `<button class="msg-act-btn" title="Edit" onclick="editMessage('${msgId}','${escapeHtml(author)}')">✏</button>`;
         if (canDel) actions += `<button class="msg-act-btn del" title="Delete (Shift+click to skip confirm)" onclick="deleteMessage(event,'${msgId}')">🗑</button>`;
@@ -4085,7 +4419,7 @@ function renderChatMessage(msgId, author, time, message, edited, reactions, repl
     div.innerHTML =
         `<div class="msg-avatar-col">${avatarHtml(author, 'sz-40', true)}</div>` +
         `<div class="msg-content">` +
-            `<div class="msg-header"><span class="msg-author" style="${getRoleColor(author)}">${escapeHtml(author)}</span>` +
+            `<div class="msg-header"><span class="msg-author" style="${getRoleColor(author)}" onclick="showProfileCard(event,'${escapeHtml(author)}')">${escapeHtml(author)}</span>` +
             (time ? `<span class="msg-time">${escapeHtml(time)}</span>` : '') + `</div>` +
             bodyHtml + actions +
         `</div>`;
@@ -4628,18 +4962,23 @@ window.chrome.webview.addEventListener('message', async (e) => {
                 reactions: data.reactions || {}, replyToId: data.replyToId || null, replySnippet: data.replySnippet || null, editHistory: data.editHistory || [] };
             if (ciphertextBackup) stored._ciphertext = ciphertextBackup;
             channelMessages[chId].push(stored);
-            const srvMuted = isServerMuted(connectedServerId);
+            const srvMuted   = isServerMuted(connectedServerId);
             const bypassMute = isMassNotify; // @everyone/@here cuts through server mute
+            const chNotify   = getChannelNotifyPref(chId);
+            // 'muted': suppress everything; 'mentions': only count/sound for mentions
+            const chSilenced = chNotify === 'muted' || (chNotify === 'mentions' && !isMention);
             if (chId !== activeTextChannelId) {
-                unreadCounts[chId] = (unreadCounts[chId] || 0) + 1;
-                if (isMention) mentionCounts[chId] = (mentionCounts[chId] || 0) + 1;
-                if (connectedServerId) saveUnread(connectedServerId);
-                renderChannelList();
-                if (!srvMuted || bypassMute) playSound(isMention ? 'mention' : 'message');
+                if (!chSilenced) {
+                    unreadCounts[chId] = (unreadCounts[chId] || 0) + 1;
+                    if (isMention) mentionCounts[chId] = (mentionCounts[chId] || 0) + 1;
+                    if (connectedServerId) saveUnread(connectedServerId);
+                    renderChannelList();
+                }
+                if (!chSilenced && (!srvMuted || bypassMute)) playSound(isMention ? 'mention' : 'message');
             } else if (isMention) {
-                if (!srvMuted || bypassMute) playSound('mention');
+                if (!chSilenced && (!srvMuted || bypassMute)) playSound('mention');
             }
-            if ((!srvMuted || bypassMute) && data.author !== myAlias && !document.hasFocus()) {
+            if (!chSilenced && (!srvMuted || bypassMute) && data.author !== myAlias && !document.hasFocus()) {
                 const chName = serverChannels.find(c => c.id === chId)?.name || chId || '';
                 const notifBody = ciphertextBackup ? '🔒 Encrypted message' : (msgText || '').slice(0, 120);
                 postToBridge({ action: 'NOTIFY',
@@ -4932,6 +5271,9 @@ window.chrome.webview.addEventListener('message', async (e) => {
     } else if (data.action === 'ROLE_COLORS_UPDATED') {
         roleColors = data.roleColors || {};
         if (document.getElementById('members-panel')?.classList.contains('open')) renderMembersPanel();
+
+    } else if (data.action === 'AUDIT_LOG_DATA') {
+        renderAuditLog(data.entries);
 
     } else if (data.action === 'EVENTS_UPDATED') {
         serverEvents = data.events || [];
@@ -5375,8 +5717,7 @@ function renderMembersPanel() {
                 const pip    = ['trusted','admin','owner'].includes(role)
                     ? `<span class="member-role-pip r-${role}">${role}</span>` : '';
                 const vcHtml = vcName ? `<div class="member-entry-vc">🔊 ${escapeHtml(vcName)}</div>` : '';
-                const ctxAttr = alias !== myAlias
-                    ? `oncontextmenu="showUserCtxMenu(event,'${escapeHtml(alias)}')" onclick="showUserCtxMenu(event,'${escapeHtml(alias)}')"` : '';
+                const ctxAttr = `onclick="showProfileCard(event,'${escapeHtml(alias)}')"${alias !== myAlias ? ` oncontextmenu="showUserCtxMenu(event,'${escapeHtml(alias)}')"` : ''}`;
                 return `<div class="member-entry" ${ctxAttr}>`
                     + avatarHtml(alias, 'sz-32', false, true)
                     + `<div class="member-entry-info"><div class="member-entry-name" style="${getRoleColor(alias)}">${escapeHtml(alias)}</div>${userStatusTexts[alias] ? `<div class="member-entry-status-text">${escapeHtml(userStatusTexts[alias])}</div>` : vcHtml}</div>${pip}</div>`;
@@ -5420,6 +5761,7 @@ function renderAdminPanel() {
     renderBotsSection();
     renderWebhooksSection();
     renderEmojisSection();
+    loadAuditLog();
 }
 
 function renderAdminRoleColors() {
