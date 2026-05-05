@@ -526,6 +526,51 @@
         .member-role-pip.r-admin   { background: #3a4a3a; color: var(--success); }
         .member-role-pip.r-owner   { background: #4a3a2a; color: #f0a050; }
 
+        /* ── Sidebar header buttons (events, bookmarks) ── */
+        #server-name-display { justify-content: space-between; }
+        #server-name-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sidebar-hdr-btns { display: flex; gap: 2px; flex-shrink: 0; }
+        .sidebar-hdr-btn { background: transparent; border: none; color: var(--text-faint); cursor: pointer; font-size: 14px; padding: 3px 5px; border-radius: 4px; line-height: 1; }
+        .sidebar-hdr-btn:hover { color: var(--text-normal); background: var(--bg-active); }
+
+        /* ── Event banner ── */
+        #event-banner { background: #5865f2; color: #fff; font-size: 12px; padding: 7px 14px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        #event-banner.hidden { display: none; }
+        #event-banner-text { flex: 1; }
+        #event-banner-dismiss { background: transparent; border: none; color: #fff; cursor: pointer; opacity: 0.7; padding: 0 4px; font-size: 14px; line-height: 1; }
+        #event-banner-dismiss:hover { opacity: 1; }
+
+        /* ── Bookmarks panel ── */
+        #bookmarks-panel { position: fixed; inset: 0; z-index: 700; display: flex; align-items: flex-start; justify-content: center; padding-top: 10vh; }
+        #bookmarks-panel.hidden { display: none; }
+        #bm-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.6); }
+        #bm-inner { position: relative; width: 560px; max-height: 70vh; background: var(--bg-surface); border-radius: 10px; box-shadow: 0 24px 64px rgba(0,0,0,0.8); display: flex; flex-direction: column; overflow: hidden; }
+        #bm-header { padding: 16px 20px 10px; font-size: 15px; font-weight: 700; color: var(--text-heading); border-bottom: 1px solid var(--bg-border); flex-shrink: 0; }
+        #bm-list { overflow-y: auto; flex: 1; }
+        .bm-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 20px; cursor: pointer; border-bottom: 1px solid var(--bg-border); }
+        .bm-item:hover { background: var(--bg-sidebar-hover); }
+        .bm-item:hover .bm-remove { display: inline; }
+        .bm-meta { font-size: 11px; color: var(--text-faint); margin-bottom: 2px; }
+        .bm-text { font-size: 13px; color: var(--text-normal); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 430px; }
+        .bm-remove { display: none; margin-left: auto; background: transparent; border: none; color: var(--text-faint); cursor: pointer; font-size: 13px; padding: 0 4px; flex-shrink: 0; }
+        .bm-empty { padding: 28px; color: var(--text-faint); text-align: center; font-size: 13px; }
+        .msg-act-bookmark.bookmarked { color: #f0a500; }
+
+        /* ── Events panel ── */
+        #events-panel { position: fixed; inset: 0; z-index: 700; display: flex; align-items: flex-start; justify-content: center; padding-top: 10vh; }
+        #events-panel.hidden { display: none; }
+        #ev-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.6); }
+        #ev-inner { position: relative; width: 480px; max-height: 75vh; background: var(--bg-surface); border-radius: 10px; box-shadow: 0 24px 64px rgba(0,0,0,0.8); display: flex; flex-direction: column; overflow: hidden; }
+        #ev-hdr { padding: 14px 20px 10px; font-size: 15px; font-weight: 700; color: var(--text-heading); border-bottom: 1px solid var(--bg-border); flex-shrink: 0; display: flex; align-items: center; }
+        #ev-list { overflow-y: auto; flex: 1; padding: 4px 0; }
+        .ev-item { padding: 12px 20px; border-bottom: 1px solid var(--bg-border); }
+        .ev-item-title { font-size: 14px; font-weight: 700; color: var(--text-heading); margin-bottom: 2px; }
+        .ev-item-time { font-size: 11px; color: var(--text-faint); margin-bottom: 4px; }
+        .ev-item-desc { font-size: 12px; color: var(--text-normal); }
+        .ev-empty { padding: 28px; color: var(--text-faint); text-align: center; font-size: 13px; }
+        #ev-add-form { padding: 12px 20px; border-top: 1px solid var(--bg-border); display: none; flex-direction: column; gap: 6px; }
+        #ev-add-form.visible { display: flex; }
+
         /* ── Members toggle button ── */
         #btn-members { background: transparent; border: none; color: var(--text-subtle); cursor: pointer; font-size: 16px; padding: 3px 6px; border-radius: 4px; line-height: 1; display: none; margin-left: auto; flex-shrink: 0; }
         #btn-members.visible { display: flex; align-items: center; }
@@ -735,7 +780,13 @@
 </div>
 
 <div id="channel-bar">
-    <div id="server-name-display" style="height:48px;display:flex;align-items:center;padding:0 16px;font-weight:700;color:var(--text-heading);font-size:14px;border-bottom:1px solid var(--bg-deep);flex-shrink:0;box-sizing:border-box;">Not connected</div>
+    <div id="server-name-display" style="height:48px;display:flex;align-items:center;padding:0 16px;font-weight:700;color:var(--text-heading);font-size:14px;border-bottom:1px solid var(--bg-deep);flex-shrink:0;box-sizing:border-box;gap:6px;">
+        <span id="server-name-label">Not connected</span>
+        <div id="sidebar-hdr-btns" class="sidebar-hdr-btns" style="display:none;">
+            <button class="sidebar-hdr-btn" onclick="openEventsPanel()" title="Server events">📅</button>
+            <button class="sidebar-hdr-btn" onclick="openBookmarks()" title="Starred messages">⭐</button>
+        </div>
+    </div>
     <div id="dm-panel">
         <div id="dm-panel-header">Direct Messages</div>
         <div id="dm-list">
@@ -800,6 +851,11 @@
     </div>
     <div id="pin-panel"></div>
     <div id="screen-share-panel"></div>
+    <div id="event-banner" class="hidden">
+        <span>📅</span>
+        <span id="event-banner-text"></span>
+        <button id="event-banner-dismiss" onclick="dismissEventBanner()">✕</button>
+    </div>
     <div id="chat-history"></div>
     <div id="typing-indicator"></div>
     <div id="input-area">
@@ -1184,6 +1240,35 @@
 
 <div id="reaction-tooltip"></div>
 <div id="img-lightbox" class="hidden" onclick="closeLightbox()"><img id="img-lightbox-img" src="" alt=""></div>
+
+<div id="bookmarks-panel" class="hidden">
+    <div id="bm-backdrop" onclick="closeBookmarks()"></div>
+    <div id="bm-inner">
+        <div id="bm-header">⭐ Starred Messages</div>
+        <div id="bm-list"></div>
+    </div>
+</div>
+
+<div id="events-panel" class="hidden">
+    <div id="ev-backdrop" onclick="closeEventsPanel()"></div>
+    <div id="ev-inner">
+        <div id="ev-hdr">
+            <span style="flex:1;">📅 Server Events</span>
+            <span id="ev-add-btn-wrap"></span>
+            <button class="sidebar-hdr-btn" onclick="closeEventsPanel()" title="Close" style="margin-left:4px;">✕</button>
+        </div>
+        <div id="ev-list"></div>
+        <div id="ev-add-form">
+            <input id="ev-title-input" class="form-input" placeholder="Event title">
+            <input id="ev-desc-input" class="form-input" placeholder="Description (optional)">
+            <input id="ev-time-input" class="form-input" type="datetime-local">
+            <div style="display:flex;gap:6px;">
+                <button class="btn-primary" onclick="adminAddEvent()">Add Event</button>
+                <button class="btn-secondary" onclick="document.getElementById('ev-add-form').classList.remove('visible')">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <div id="quick-switcher" class="hidden">
     <div id="qs-backdrop" onclick="closeQuickSwitcher()"></div>
@@ -1756,7 +1841,9 @@ function saveSettings() {
 const clientConfig = {
     aliases: ['Player'],
     activeAlias: 'Player',
-    servers: []
+    servers: [],
+    bookmarks: [],
+    serverNicknames: {}
 };
 
 function saveClientConfig() {
@@ -1771,6 +1858,8 @@ function loadClientConfig() {
     if (!Array.isArray(clientConfig.aliases) || !clientConfig.aliases.length) clientConfig.aliases = ['Player'];
     if (!clientConfig.aliases.includes(clientConfig.activeAlias)) clientConfig.activeAlias = clientConfig.aliases[0];
     if (!Array.isArray(clientConfig.servers)) clientConfig.servers = [];
+    if (!Array.isArray(clientConfig.bookmarks)) clientConfig.bookmarks = [];
+    if (!clientConfig.serverNicknames || typeof clientConfig.serverNicknames !== 'object') clientConfig.serverNicknames = {};
     DevLog.log('SETTINGS', `Config | aliases:${clientConfig.aliases.length} servers:${clientConfig.servers.length} active:"${clientConfig.activeAlias}"`);
 }
 
@@ -1793,6 +1882,8 @@ let userStatusTexts   = {};         // alias → custom status text
 let myStatusText      = '';         // own custom status text
 let _qsItems          = [];         // quick switcher item list
 let _qsActiveIdx      = -1;
+let serverEvents      = [];         // scheduled events from server
+let _dismissedEvIds   = new Set();  // event IDs dismissed this session
 
 // ── Channel List Rendering ────────────────────────────────────────────────────
 function renderChannelList() {
@@ -2040,6 +2131,174 @@ function closeShortcuts() {
     document.getElementById('shortcuts-overlay')?.classList.add('hidden');
 }
 
+// ── Bookmarks ─────────────────────────────────────────────────────────────────
+function isBookmarked(key) {
+    return clientConfig.bookmarks.some(b => b.key === key);
+}
+
+function toggleBookmark(msgId) {
+    const row    = document.querySelector(`[data-msg-id="${msgId}"]`);
+    const body   = row?.querySelector('.msg-body');
+    const author = row?.dataset.replyAuthor || '';
+    const time   = row?.querySelector('.msg-time')?.textContent || '';
+    const text   = body?.dataset.raw || body?.textContent || '';
+    const idx    = clientConfig.bookmarks.findIndex(b => b.key === msgId);
+    if (idx >= 0) {
+        clientConfig.bookmarks.splice(idx, 1);
+    } else {
+        clientConfig.bookmarks.push({ sid: connectedServerId, cid: activeTextChannelId, key: msgId, author, time, text: text.slice(0, 200) });
+    }
+    saveClientConfig();
+    if (row) {
+        const btn = row.querySelector('.msg-act-bookmark');
+        if (btn) {
+            const bkd = isBookmarked(msgId);
+            btn.textContent = bkd ? '★' : '☆';
+            btn.classList.toggle('bookmarked', bkd);
+            btn.title = bkd ? 'Remove bookmark' : 'Bookmark';
+        }
+    }
+}
+
+function openBookmarks() {
+    renderBookmarksPanel();
+    document.getElementById('bookmarks-panel').classList.remove('hidden');
+}
+
+function closeBookmarks() {
+    document.getElementById('bookmarks-panel').classList.add('hidden');
+}
+
+function renderBookmarksPanel() {
+    const list = document.getElementById('bm-list');
+    if (!list) return;
+    if (!clientConfig.bookmarks.length) {
+        list.innerHTML = '<div class="bm-empty">No starred messages yet.<br>Click ☆ on any message to save it.</div>';
+        return;
+    }
+    list.innerHTML = [...clientConfig.bookmarks].reverse().map(b => {
+        const srv = clientConfig.servers.find(s => s.id === b.sid);
+        const srvName = srv ? srv.name : 'Unknown server';
+        const ch = b.sid === connectedServerId ? serverChannels.find(c => c.id === b.cid) : null;
+        const chName = ch ? ch.name : b.cid;
+        return `<div class="bm-item" onclick="bmNavigate('${escapeHtml(b.sid)}','${escapeHtml(b.cid)}','${escapeHtml(b.key)}')">
+            <div style="flex:1;min-width:0;">
+                <div class="bm-meta">${escapeHtml(srvName)} › #${escapeHtml(chName)} · ${escapeHtml(b.author)} · ${escapeHtml(b.time)}</div>
+                <div class="bm-text">${escapeHtml(b.text)}</div>
+            </div>
+            <button class="bm-remove" title="Remove bookmark" onclick="event.stopPropagation();removeBookmark('${escapeHtml(b.key)}')">✕</button>
+        </div>`;
+    }).join('');
+}
+
+function bmNavigate(sid, cid, key) {
+    closeBookmarks();
+    if (sid !== connectedServerId) { DevLog.log('INFO', 'Connect to that server first to navigate to the bookmarked message'); return; }
+    selectTextChannel(cid);
+    setTimeout(() => scrollToMsg(key), 300);
+}
+
+function removeBookmark(key) {
+    const idx = clientConfig.bookmarks.findIndex(b => b.key === key);
+    if (idx >= 0) clientConfig.bookmarks.splice(idx, 1);
+    saveClientConfig();
+    renderBookmarksPanel();
+    const btn = document.querySelector(`[data-msg-id="${key}"] .msg-act-bookmark`);
+    if (btn) { btn.textContent = '☆'; btn.classList.remove('bookmarked'); btn.title = 'Bookmark'; }
+}
+
+// ── Events panel ──────────────────────────────────────────────────────────────
+function openEventsPanel() {
+    renderEventsPanel();
+    document.getElementById('events-panel').classList.remove('hidden');
+}
+
+function closeEventsPanel() {
+    document.getElementById('events-panel').classList.add('hidden');
+}
+
+function renderEventsPanel() {
+    const list = document.getElementById('ev-list');
+    if (!list) return;
+    const isAdmin = ['admin','owner'].includes(myRole);
+    const addBtnWrap = document.getElementById('ev-add-btn-wrap');
+    if (addBtnWrap) addBtnWrap.innerHTML = isAdmin
+        ? `<button class="sidebar-hdr-btn" onclick="document.getElementById('ev-add-form').classList.toggle('visible')" title="Add event" style="font-size:16px;">＋</button>`
+        : '';
+    if (!serverEvents.length) {
+        list.innerHTML = '<div class="ev-empty">No events scheduled.</div>';
+        return;
+    }
+    const now = Date.now();
+    list.innerHTML = serverEvents.map(ev => {
+        const t = new Date(ev.scheduledAt).getTime();
+        const diff = t - now;
+        let countdownStr;
+        if (diff > 0) {
+            const mins = Math.round(diff / 60000);
+            if (mins < 60) countdownStr = `in ${mins}m`;
+            else if (mins < 1440) countdownStr = `in ${Math.floor(mins/60)}h ${mins%60}m`;
+            else countdownStr = `in ${Math.floor(mins/1440)}d`;
+        } else {
+            const mins = Math.round(-diff / 60000);
+            countdownStr = mins < 120 ? `started ${mins}m ago` : new Date(ev.scheduledAt).toLocaleDateString();
+        }
+        const dateStr = `${new Date(ev.scheduledAt).toLocaleDateString()} ${new Date(ev.scheduledAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} · ${countdownStr}`;
+        const delBtn = isAdmin ? `<button class="msg-act-btn del" style="float:right;margin-top:-2px;" onclick="adminDeleteEvent('${escapeHtml(ev.id)}')" title="Delete event">🗑</button>` : '';
+        return `<div class="ev-item">
+            ${delBtn}
+            <div class="ev-item-title">${escapeHtml(ev.title)}</div>
+            <div class="ev-item-time">${dateStr}</div>
+            ${ev.description ? `<div class="ev-item-desc">${escapeHtml(ev.description)}</div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+function adminAddEvent() {
+    const title = (document.getElementById('ev-title-input').value || '').trim();
+    const desc  = (document.getElementById('ev-desc-input').value || '').trim();
+    const time  = (document.getElementById('ev-time-input').value || '').trim();
+    if (!title || !time) return;
+    postToBridge({ action: 'ADD_EVENT', title, description: desc, scheduledAt: new Date(time).toISOString() });
+    document.getElementById('ev-title-input').value = '';
+    document.getElementById('ev-desc-input').value  = '';
+    document.getElementById('ev-time-input').value  = '';
+    document.getElementById('ev-add-form').classList.remove('visible');
+}
+
+function adminDeleteEvent(id) {
+    postToBridge({ action: 'DELETE_EVENT', id });
+}
+
+function _checkEventBanners() {
+    const banner = document.getElementById('event-banner');
+    if (!banner) return;
+    if (!serverEvents.length || !connectedServerId) { banner.classList.add('hidden'); return; }
+    const now = Date.now();
+    const upcoming = serverEvents.find(ev => {
+        if (_dismissedEvIds.has(ev.id)) return false;
+        const t = new Date(ev.scheduledAt).getTime();
+        const diff = t - now;
+        return diff >= -7200000 && diff <= 900000;
+    });
+    if (!upcoming) { banner.classList.add('hidden'); return; }
+    const diff = new Date(upcoming.scheduledAt).getTime() - now;
+    const bannerText = diff > 0
+        ? `"${upcoming.title}" starts in ${Math.ceil(diff / 60000)}m`
+        : `"${upcoming.title}" is happening now!`;
+    document.getElementById('event-banner-text').textContent = bannerText;
+    banner.dataset.evId = upcoming.id;
+    banner.classList.remove('hidden');
+}
+
+function dismissEventBanner() {
+    const banner = document.getElementById('event-banner');
+    if (banner?.dataset.evId) _dismissedEvIds.add(banner.dataset.evId);
+    banner?.classList.add('hidden');
+}
+
+setInterval(_checkEventBanners, 30000);
+
 // ── Channel topic ─────────────────────────────────────────────────────────────
 function editChannelTopic() {
     if (!['admin','owner'].includes(myRole)) return;
@@ -2217,6 +2476,8 @@ function renderServerList() {
                    onkeydown="if(event.key==='Enter')saveEditServer('${s.id}');if(event.key==='Escape')cancelEditServer();" style="margin-bottom:4px;">
             <input id="edit-admin-${s.id}" class="form-input" type="password" value="${escapeHtml(s.adminPassword||'')}" placeholder="Admin password (optional)"
                    onkeydown="if(event.key==='Enter')saveEditServer('${s.id}');if(event.key==='Escape')cancelEditServer();">
+            <input id="edit-nick-${s.id}" class="form-input" value="${escapeHtml(clientConfig.serverNicknames[s.id]||'')}" placeholder="Your nickname on this server (optional)"
+                   onkeydown="if(event.key==='Enter')saveEditServer('${s.id}');if(event.key==='Escape')cancelEditServer();">
             <div style="display:flex;gap:6px;margin-top:4px;">
                 <button class="btn-primary" onclick="saveEditServer('${s.id}')">Save</button>
                 <button class="btn-secondary" onclick="cancelEditServer()">Cancel</button>
@@ -2227,7 +2488,7 @@ function renderServerList() {
         return `<div class="server-item${conn ? ' connected' : ''}">
             <div class="server-info">
                 <div class="server-item-name">${escapeHtml(s.name)}</div>
-                <div class="server-item-addr">${escapeHtml(s.host)}:${s.port}</div>
+                <div class="server-item-addr">${escapeHtml(s.host)}:${s.port}${clientConfig.serverNicknames[s.id] ? ` · ${escapeHtml(clientConfig.serverNicknames[s.id])}` : ''}</div>
                 ${conn ? '<div class="server-item-badge">● CONNECTED</div>' : ''}
             </div>
             <div class="server-actions">
@@ -2280,8 +2541,9 @@ function connectToServer(id) {
     const server = clientConfig.servers.find(s => s.id === id);
     if (!server) return;
     pendingServerId = id;
-    DevLog.log('BRIDGE', `Connecting to "${server.name}" as "${clientConfig.activeAlias}"`);
-    postToBridge({ action: 'CONNECT', host: server.host, port: server.port, password: server.password || '', userPassword: server.userPassword || '', alias: clientConfig.activeAlias, adminPassword: server.adminPassword || '' });
+    const alias = clientConfig.serverNicknames[id] || clientConfig.activeAlias;
+    DevLog.log('BRIDGE', `Connecting to "${server.name}" as "${alias}"`);
+    postToBridge({ action: 'CONNECT', host: server.host, port: server.port, password: server.password || '', userPassword: server.userPassword || '', alias, adminPassword: server.adminPassword || '' });
     closeSettings();
 }
 
@@ -2414,6 +2676,9 @@ function saveEditServer(id) {
     const adminPass = document.getElementById(`edit-admin-${id}`)?.value || '';
     if (!name || !rawHost) return;
     const { host, port } = _splitHostPort(rawHost, rawPort);
+    const nick = (document.getElementById(`edit-nick-${id}`)?.value || '').trim();
+    if (nick) clientConfig.serverNicknames[id] = nick;
+    else delete clientConfig.serverNicknames[id];
     s.name = name; s.host = host; s.port = port; s.password = pass; s.userPassword = userPass; s.adminPassword = adminPass;
     saveClientConfig();
     editingServerId = null;
@@ -2828,7 +3093,7 @@ function startPttCapture() {
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'F9') { e.shiftKey ? DevLog.clear() : DevLog.toggle(); return; }
-    if (e.key === 'Escape') { closeImgOverlay(); closeQuickSwitcher(); closeShortcuts(); closeLightbox(); return; }
+    if (e.key === 'Escape') { closeImgOverlay(); closeQuickSwitcher(); closeShortcuts(); closeLightbox(); closeBookmarks(); closeEventsPanel(); return; }
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); openQuickSwitcher(); return; }
     if ((e.ctrlKey || e.metaKey) && e.key === '/') { e.preventDefault(); openShortcuts(); return; }
     if (!isCapturingPtt) return;
@@ -3807,7 +4072,9 @@ function renderChatMessage(msgId, author, time, message, edited, reactions, repl
         const isOwn  = author === myAlias;
         const canDel = isOwn || ['admin','owner'].includes(myRole);
         const canPin = ['admin','owner'].includes(myRole);
+        const bkd = isBookmarked(msgId);
         actions = `<span class="msg-actions">`;
+        actions += `<button class="msg-act-btn msg-act-bookmark${bkd ? ' bookmarked' : ''}" title="${bkd ? 'Remove bookmark' : 'Bookmark'}" onclick="toggleBookmark('${msgId}')">${bkd ? '★' : '☆'}</button>`;
         actions += `<button class="msg-act-btn" title="Reply" onclick="startReply('${msgId}')">↩</button>`;
         if (isOwn) actions += `<button class="msg-act-btn" title="Edit" onclick="editMessage('${msgId}','${escapeHtml(author)}')">✏</button>`;
         if (canDel) actions += `<button class="msg-act-btn del" title="Delete (Shift+click to skip confirm)" onclick="deleteMessage(event,'${msgId}')">🗑</button>`;
@@ -4303,7 +4570,8 @@ window.chrome.webview.addEventListener('message', async (e) => {
         document.getElementById('voice-mode-label').textContent = '';
         updateMyAvatar();
         const srv = clientConfig.servers.find(s => s.id === connectedServerId);
-        document.getElementById('server-name-display').textContent = srv ? srv.name : 'Connected';
+        document.getElementById('server-name-label').textContent = srv ? srv.name : 'Connected';
+        document.getElementById('sidebar-hdr-btns').style.display = '';
         serverUploadBase = srv ? `http://${srv.host}:${srv.port}` : null;
         renderServerBar();
         postToBridge({ action: 'SET_VOICE_MODE', mode: settings.voiceMode });
@@ -4441,6 +4709,7 @@ window.chrome.webview.addEventListener('message', async (e) => {
         if (data.userStatusTexts  && typeof data.userStatusTexts  === 'object') Object.assign(userStatusTexts, data.userStatusTexts);
         if (data.userRoles        && typeof data.userRoles        === 'object') Object.assign(userRoles,       data.userRoles);
         if (data.roleColors       && typeof data.roleColors       === 'object') roleColors = data.roleColors;
+        if (Array.isArray(data.events)) { serverEvents = data.events; _checkEventBanners(); }
         if (data.emojis       && typeof data.emojis       === 'object') serverEmojis    = data.emojis;
         if (Array.isArray(data.webhooks))  serverWebhooks  = data.webhooks;
         if (Array.isArray(data.botTokens)) serverBotTokens = data.botTokens;
@@ -4548,7 +4817,10 @@ window.chrome.webview.addEventListener('message', async (e) => {
         _collapsedCats  = new Set();
         roleColors      = {};
         userStatusTexts = {};
+        serverEvents    = [];
+        _dismissedEvIds = new Set();
         _clearTyping();
+        document.getElementById('event-banner')?.classList.add('hidden');
         e2eChannelKeys   = {};
         serverPublicKeys = {};
         e2eChannelAccess = {};
@@ -4562,7 +4834,8 @@ window.chrome.webview.addEventListener('message', async (e) => {
         if (_sp) { _sp.innerHTML = ''; _sp.classList.remove('active'); }
         closeShareOverlay();
         updateShareButtonVisibility();
-        document.getElementById('server-name-display').textContent = 'Not connected';
+        document.getElementById('server-name-label').textContent = 'Not connected';
+        document.getElementById('sidebar-hdr-btns').style.display = 'none';
         document.getElementById('ui-alias').textContent = clientConfig.activeAlias;
         document.getElementById('chat-channel-name').textContent = '—';
         document.getElementById('chat-history').innerHTML = '';
@@ -4659,6 +4932,11 @@ window.chrome.webview.addEventListener('message', async (e) => {
     } else if (data.action === 'ROLE_COLORS_UPDATED') {
         roleColors = data.roleColors || {};
         if (document.getElementById('members-panel')?.classList.contains('open')) renderMembersPanel();
+
+    } else if (data.action === 'EVENTS_UPDATED') {
+        serverEvents = data.events || [];
+        if (!document.getElementById('events-panel').classList.contains('hidden')) renderEventsPanel();
+        _checkEventBanners();
 
     } else if (data.action === 'USER_ROLE_UPDATED') {
         DevLog.log('BRIDGE', `← C# | USER_ROLE_UPDATED alias:${data.alias} role:${data.role}`);

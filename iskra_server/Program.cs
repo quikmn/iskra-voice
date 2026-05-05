@@ -1070,6 +1070,9 @@ namespace Origin.Server.Core
                     channels         = ActiveConfig.Channels
                         .Where(c => c.Type == "Header" || CanAccess(userRole, c.MinRole))
                         .Select(c => new { id = c.Id, name = c.Name, type = c.Type, topic = c.Topic ?? "", readOnly = c.ReadOnly, muted = c.Muted, slowMode = c.SlowMode, minRole = c.MinRole, writeRole = c.WriteRole, e2e = c.E2E }),
+                    events           = ActiveConfig.Settings.Events
+                        .OrderBy(e => e.ScheduledAt)
+                        .Select(e => new { e.Id, e.Title, e.Description, scheduledAt = e.ScheduledAt.ToString("o"), e.ChannelId }),
                     iceServers
                 });
 
@@ -2004,6 +2007,35 @@ namespace Origin.Server.Core
                         await Broadcast(new { action = "ROLE_COLORS_UPDATED", roleColors = ActiveConfig.Settings.RoleColors });
                     }
 
+                    // ── ADD_EVENT ─────────────────────────────────────────────
+                    else if (action == "ADD_EVENT")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin"))
+                        { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Admins and above can manage events." }); continue; }
+                        string evTitle = incoming.RootElement.TryGetProperty("title",       out var evTEl) ? evTEl.GetString()?.Trim() ?? "" : "";
+                        string evDesc  = incoming.RootElement.TryGetProperty("description", out var evDEl) ? evDEl.GetString()?.Trim() ?? "" : "";
+                        string evTime  = incoming.RootElement.TryGetProperty("scheduledAt", out var evSEl) ? evSEl.GetString()?.Trim() ?? "" : "";
+                        string? evCh   = incoming.RootElement.TryGetProperty("channelId",  out var evChEl) ? evChEl.GetString()?.Trim() : null;
+                        if (string.IsNullOrEmpty(evTitle) || !DateTime.TryParse(evTime, null, System.Globalization.DateTimeStyles.RoundtripKind, out DateTime parsedEvTime)) continue;
+                        var newEv = new ScheduledEvent { Title = evTitle, Description = evDesc, ScheduledAt = parsedEvTime.ToUniversalTime(), ChannelId = string.IsNullOrEmpty(evCh) ? null : evCh };
+                        ActiveConfig.Settings.Events.Add(newEv);
+                        _ = Task.Run(() => File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true })));
+                        var evList = ActiveConfig.Settings.Events.OrderBy(e => e.ScheduledAt).Select(e => new { id = e.Id, title = e.Title, description = e.Description, scheduledAt = e.ScheduledAt.ToString("o"), channelId = e.ChannelId });
+                        await Broadcast(new { action = "EVENTS_UPDATED", events = evList });
+                    }
+
+                    // ── DELETE_EVENT ──────────────────────────────────────────
+                    else if (action == "DELETE_EVENT")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin"))
+                        { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Admins and above can manage events." }); continue; }
+                        string evId = incoming.RootElement.TryGetProperty("id", out var evIdEl) ? evIdEl.GetString()?.Trim() ?? "" : "";
+                        ActiveConfig.Settings.Events.RemoveAll(e => e.Id == evId);
+                        _ = Task.Run(() => File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true })));
+                        var evList = ActiveConfig.Settings.Events.OrderBy(e => e.ScheduledAt).Select(e => new { id = e.Id, title = e.Title, description = e.Description, scheduledAt = e.ScheduledAt.ToString("o"), channelId = e.ChannelId });
+                        await Broadcast(new { action = "EVENTS_UPDATED", events = evList });
+                    }
+
                     // ── TYPING ───────────────────────────────────────────────
                     else if (action == "TYPING")
                     {
@@ -2077,8 +2109,9 @@ namespace Origin.Server.Data
         public int    MaxUploadMb          { get; set; } = 2500;
         public double MaxDiskGb           { get; set; } = 100.0;  // 0 = unlimited
         public string ServerIcon           { get; set; } = "";
-        public List<string>       BotTokens { get; set; } = new();
-        public List<WebhookEntry> Webhooks  { get; set; } = new();
+        public List<string>          BotTokens { get; set; } = new();
+        public List<WebhookEntry>    Webhooks  { get; set; } = new();
+        public List<ScheduledEvent>  Events    { get; set; } = new();
     }
 
     public class WebhookEntry
@@ -2086,6 +2119,15 @@ namespace Origin.Server.Data
         public string Name      { get; set; } = "";
         public string Url       { get; set; } = "";
         public string ChannelId { get; set; } = "";  // empty = all channels
+    }
+
+    public class ScheduledEvent
+    {
+        public string    Id          { get; set; } = Guid.NewGuid().ToString()[..8];
+        public string    Title       { get; set; } = "";
+        public string    Description { get; set; } = "";
+        public DateTime  ScheduledAt { get; set; }
+        public string?   ChannelId   { get; set; }
     }
 
     public class Channel
