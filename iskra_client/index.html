@@ -517,6 +517,32 @@
         /* ── Timeout badge ── */
         .timeout-badge { font-size: 10px; color: var(--warning); background: rgba(250,189,47,0.12); border-radius: 3px; padding: 1px 4px; margin-left: 4px; }
 
+        /* ── Ephemeral messages ── */
+        .msg-ephemeral { opacity: 0.75; border-left: 2px solid var(--warning); padding-left: 6px; }
+        .msg-ephemeral-timer { font-size: 10px; color: var(--warning); margin-left: 6px; }
+
+        /* ── Voice status ── */
+        .voice-status-text { font-size: 11px; color: var(--accent); margin: 2px 0 2px 24px; line-height: 1.3; }
+        .voice-status-input-wrap { padding: 3px 6px 3px 24px; }
+        .voice-status-input { width: 100%; background: var(--bg-deep); border: 1px solid var(--bg-border); border-radius: 4px; padding: 2px 6px; font-size: 11px; color: var(--text-normal); outline: none; box-sizing: border-box; }
+        .voice-status-input:focus { border-color: var(--accent); }
+
+        /* ── Private notes on profile card ── */
+        .pc-notes-section { padding: 8px 14px 12px; border-top: 1px solid var(--bg-border); margin-top: 4px; }
+        .pc-notes-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+        .pc-notes-input { width: 100%; background: var(--bg-deep); border: 1px solid var(--bg-border); border-radius: 5px; padding: 6px 8px; font-size: 12px; color: var(--text-normal); resize: vertical; min-height: 52px; font-family: inherit; outline: none; box-sizing: border-box; }
+        .pc-notes-input:focus { border-color: var(--accent); }
+
+        /* ── GIF picker ── */
+        #gif-picker { position: fixed; z-index: 400; background: var(--bg-surface); border: 1px solid var(--bg-border); border-radius: 8px; padding: 8px; width: 320px; box-shadow: 0 8px 24px rgba(0,0,0,0.7); display: none; flex-direction: column; gap: 6px; }
+        #gif-picker.open { display: flex; }
+        .gif-search { width: 100%; background: var(--bg-deep); border: 1px solid var(--bg-border); border-radius: 5px; padding: 5px 8px; color: var(--text-normal); font-size: 13px; outline: none; box-sizing: border-box; }
+        .gif-search:focus { border-color: var(--accent); }
+        .gif-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; max-height: 240px; overflow-y: auto; }
+        .gif-item { width: 100%; border-radius: 4px; cursor: pointer; object-fit: cover; aspect-ratio: 16/9; }
+        .gif-item:hover { outline: 2px solid var(--accent); }
+        .gif-attr { font-size: 10px; color: var(--text-faint); text-align: right; }
+
         /* ── Members panel ── */
         #members-panel { width: 240px; background: var(--bg-sidebar); flex-direction: column; flex-shrink: 0; border-left: 1px solid var(--bg-deep); display: none; }
         #members-panel.open { display: flex; }
@@ -967,6 +993,7 @@
         <div class="input-row">
             <button class="attach-btn" onclick="document.getElementById('file-input').click()" title="Attach file (or paste / drag & drop)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
             <button class="attach-btn" onclick="toggleFormatPicker(event)" title="Formatting (Ctrl+Shift+F)">✏</button>
+            <button class="attach-btn" id="btn-gif" onclick="toggleGifPicker(event)" title="Insert GIF">GIF</button>
             <textarea id="chat-input" class="input-box" placeholder="Message #general-chat" rows="1" onkeydown="sendChat(event)" oninput="onChatInput()" onblur="setTimeout(hideMentionPopup,150)"></textarea>
             <button class="attach-btn" onclick="toggleEmojiInsertPicker(event)" title="Emoji">😊</button>
         </div>
@@ -1244,6 +1271,11 @@
                 <div id="audit-log-list"><span style="color:var(--text-faint);font-size:12px;">Click Refresh to load.</span></div>
             </div>
             <hr class="divider">
+            <div class="admin-section" id="admin-starboard-section">
+                <div class="admin-section-title"><span>Starboard</span></div>
+                <div id="admin-starboard-body"></div>
+            </div>
+            <hr class="divider">
             <div class="admin-section">
                 <div class="admin-section-title"><span>Server Backup</span></div>
                 <p style="font-size:12px;color:#6d6f78;margin-bottom:8px;">Downloads a full ZIP backup: all channels, history, roles, bans, avatars, emojis, uploads, and audit log.</p>
@@ -1366,12 +1398,24 @@
     <div id="pc-status-text" class="pc-status-text" style="display:none;"></div>
     <div id="pc-vc" class="pc-vc" style="display:none;"></div>
     <div id="pc-actions" class="pc-actions"></div>
+    <div class="pc-notes-section">
+        <div class="pc-notes-label">Private note</div>
+        <textarea class="pc-notes-input" id="pc-notes-input" placeholder="Only visible to you…" rows="3"
+            oninput="saveUserNote(this.dataset.alias, this.value)"
+            data-alias=""></textarea>
+    </div>
 </div>
 
 <div id="ch-ctx-menu">
     <div class="ch-ctx-item" id="ch-notify-all"      onclick="setChNotify('all')">🔔 All messages</div>
     <div class="ch-ctx-item" id="ch-notify-mentions"  onclick="setChNotify('mentions')">🔕 Mentions only</div>
     <div class="ch-ctx-item" id="ch-notify-muted"     onclick="setChNotify('muted')">🔇 Muted</div>
+</div>
+
+<div id="gif-picker">
+    <input class="gif-search" id="gif-search-input" placeholder="Search GIFs…" oninput="_gifSearchDebounce(this.value)">
+    <div class="gif-grid" id="gif-grid"></div>
+    <div class="gif-attr">Powered by Tenor</div>
 </div>
 
 <div id="forward-modal" class="hidden" onclick="if(event.target===this)closeForwardModal()">
@@ -1618,6 +1662,11 @@ let dmHistory        = {};
 let _searchDebounce  = null;
 let _inviteServerId  = null;
 let _pendingJoinData = null;
+
+// ── Voice status / starboard / ephemeral / notes ───────────────────────────────
+let voiceStatuses    = {};     // channelId → status text (set by users in channel)
+let starboardConfig  = { enabled: false, channelId: '', emoji: '⭐', threshold: 3 };
+let _privateNotes    = JSON.parse(localStorage.getItem('iskra_notes') || '{}'); // alias → text
 
 // ── Reply / link preview state ─────────────────────────────────────────────────
 let _replyTo         = null;   // { id, author, text } or null
@@ -2087,11 +2136,21 @@ function renderChannelList() {
             const inVoice  = ch.id === currentChannelId;
             const users    = voiceChannelUsers[ch.id] || [];
             const voiceIcon = ch.muted ? '🔇' : '🔊';
+            const vsText   = voiceStatuses[ch.id] ? `<div class="voice-status-text">${escapeHtml(voiceStatuses[ch.id])}</div>` : '';
+            const setStatusHtml = inVoice
+                ? `<div class="voice-status-input-wrap" onclick="event.stopPropagation()">
+                    <input class="voice-status-input" id="vs-input-${ch.id}" placeholder="Set activity…" maxlength="60"
+                        value="${escapeHtml(voiceStatuses[ch.id] || '')}"
+                        onkeydown="if(event.key==='Enter'){sendVoiceStatus('${ch.id}',this.value);this.blur()}"
+                        onblur="sendVoiceStatus('${ch.id}',this.value)">
+                   </div>` : '';
             html += `
             <div class="channel${inVoice ? ' active' : ''}" onclick="joinVoice('${ch.id}')" title="${ch.muted ? 'Muted — no audio in or out' : ''}">
                 <span class="ch-icon">${voiceIcon}</span>
                 <span class="ch-name">${escapeHtml(ch.name)}</span>
                 ${inVoice ? `<span class="ch-leave" onclick="event.stopPropagation();leaveVoice('${ch.id}')" title="Leave voice">✖</span>` : ''}
+                ${vsText}
+                ${setStatusHtml}
                 <div class="voice-user-list">${users.map(u => { const isSpeaking = remoteSpeaking.has(u) || (u === myAlias && speaking && !isMuted && !inMutedChannel); return `<div class="voice-user${isSpeaking ? ' speaking' : ''}" data-alias="${escapeHtml(u)}" onclick="showProfileCard(event,'${escapeHtml(u)}')"${u !== myAlias ? ` oncontextmenu="showUserCtxMenu(event,'${escapeHtml(u)}')"` : ''}><span class="vu-avatar">${avatarHtml(u, 'sz-22', true, true)}</span>${escapeHtml(u)}</div>`; }).join('')}</div>
             </div>`;
         } else if (ch.type === 'Text') {
@@ -2120,6 +2179,10 @@ function leaveVoice(channelId) {
     if (!currentChannelId) return;
     if (displayStream) stopScreenShare();
     postToBridge({ action: 'LEAVE_VOICE', channelId });
+}
+
+function sendVoiceStatus(channelId, text) {
+    postToBridge({ action: 'SET_VOICE_STATUS', channelId, status: (text || '').trim() });
 }
 
 function selectTextChannel(id) {
@@ -2341,6 +2404,13 @@ function showProfileCard(event, alias) {
     vcEl.style.display = vcName ? '' : 'none';
     vcEl.textContent = vcName ? `🔊 In ${vcName}` : '';
 
+    // Private notes
+    const notesInput = document.getElementById('pc-notes-input');
+    if (notesInput) {
+        notesInput.dataset.alias = alias;
+        notesInput.value = _privateNotes[alias] || '';
+    }
+
     // Action buttons
     const actEl = document.getElementById('pc-actions');
     actEl.innerHTML = '';
@@ -2378,6 +2448,13 @@ function showProfileCard(event, alias) {
 
 function hideProfileCard() {
     document.getElementById('profile-card')?.classList.add('hidden');
+}
+
+function saveUserNote(alias, text) {
+    if (!alias) return;
+    if (text.trim()) _privateNotes[alias] = text;
+    else delete _privateNotes[alias];
+    localStorage.setItem('iskra_notes', JSON.stringify(_privateNotes));
 }
 
 // ── Per-channel notification prefs ────────────────────────────────────────────
@@ -2578,6 +2655,81 @@ function toggleEmojiInsertPicker(event) {
 
 function closeEmojiInsertPicker() {
     document.getElementById('emoji-insert-popup')?.remove();
+}
+
+// ── GIF picker ────────────────────────────────────────────────────────────────
+const TENOR_KEY = 'AIzaSyB-cXS5HSFOU2U5DhCGbcq8lJ2I_K8FJDE'; // Tenor v2 public demo key
+let _gifSearchTimer = null;
+let _gifPickerOpen  = false;
+
+function toggleGifPicker(event) {
+    event.stopPropagation();
+    const picker = document.getElementById('gif-picker');
+    if (!picker) return;
+    _gifPickerOpen = !picker.classList.contains('open');
+    if (_gifPickerOpen) {
+        const rect = event.currentTarget.getBoundingClientRect();
+        picker.style.left = Math.max(4, Math.min(rect.left, window.innerWidth - 328)) + 'px';
+        picker.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
+        picker.style.top = '';
+        picker.classList.add('open');
+        document.getElementById('gif-search-input').value = '';
+        searchGifs('');
+        setTimeout(() => document.addEventListener('click', _gifOutsideClick, { once: true }), 0);
+    } else {
+        picker.classList.remove('open');
+    }
+}
+
+function _gifOutsideClick(e) {
+    const picker = document.getElementById('gif-picker');
+    if (picker && !picker.contains(e.target)) picker.classList.remove('open');
+    else if (picker?.classList.contains('open')) setTimeout(() => document.addEventListener('click', _gifOutsideClick, { once: true }), 0);
+}
+
+function _gifSearchDebounce(q) {
+    clearTimeout(_gifSearchTimer);
+    _gifSearchTimer = setTimeout(() => searchGifs(q), 350);
+}
+
+async function searchGifs(query) {
+    const grid = document.getElementById('gif-grid');
+    if (!grid) return;
+    grid.innerHTML = '<span style="color:var(--text-muted);font-size:12px;padding:4px;">Loading…</span>';
+    try {
+        const q = encodeURIComponent(query || 'trending');
+        const endpoint = query
+            ? `https://tenor.googleapis.com/v2/search?q=${q}&limit=16&media_filter=gif&key=${TENOR_KEY}`
+            : `https://tenor.googleapis.com/v2/featured?limit=16&media_filter=gif&key=${TENOR_KEY}`;
+        const res  = await fetch(endpoint);
+        const json = await res.json();
+        grid.innerHTML = '';
+        (json.results || []).forEach(item => {
+            const url = item?.media_formats?.tinygif?.url || item?.media_formats?.gif?.url;
+            if (!url) return;
+            const img = document.createElement('img');
+            img.className = 'gif-item';
+            img.src = url;
+            img.alt = item.title || 'GIF';
+            img.loading = 'lazy';
+            img.onclick = () => sendGif(url);
+            grid.appendChild(img);
+        });
+        if (!grid.children.length) grid.innerHTML = '<span style="color:var(--text-muted);font-size:12px;padding:4px;">No results</span>';
+    } catch (err) {
+        grid.innerHTML = '<span style="color:var(--text-muted);font-size:12px;padding:4px;">Failed to load GIFs</span>';
+    }
+}
+
+function sendGif(url) {
+    document.getElementById('gif-picker')?.classList.remove('open');
+    if (!activeTextChannelId && !inDmMode) return;
+    const msg = url;
+    if (inDmMode && activeDmWith) {
+        postToBridge({ action: 'SEND_DM', to: activeDmWith, message: msg });
+    } else {
+        postToBridge({ action: 'SEND_CHAT', channelId: activeTextChannelId, message: msg });
+    }
 }
 
 function insertEmojiIntoInput(text) {
@@ -5371,7 +5523,25 @@ window.chrome.webview.addEventListener('message', async (e) => {
         const isMention = isMassNotify ||
             (myAlias && msgText && msgText.toLowerCase().includes(`@${myAlias.toLowerCase()}`)) ||
             (myRole && data.mentionedRoles && data.mentionedRoles.includes(myRole));
-        if (chId) {
+        if (data.ephemeral) {
+            // Ephemeral: no history, no unread — only render in the active channel
+            if (chId === activeTextChannelId) {
+                renderChatMessage(data.id, data.author, data.time, msgText, false, {}, null, null, [], null, 0, null);
+                const el = document.getElementById(`msg-${data.id}`);
+                if (el) {
+                    el.classList.add('msg-ephemeral');
+                    let secs = data.ephemeralSeconds || 60;
+                    const timer = el.querySelector('.msg-ephemeral-timer') || (() => {
+                        const t = document.createElement('span');
+                        t.className = 'msg-ephemeral-timer';
+                        el.querySelector('.msg-meta')?.appendChild(t);
+                        return t;
+                    })();
+                    const tick = () => { if (timer.isConnected) { timer.textContent = ` ⏳${secs}s`; if (--secs >= 0) setTimeout(tick, 1000); } };
+                    tick();
+                }
+            }
+        } else if (chId) {
             if (!channelMessages[chId]) channelMessages[chId] = [];
             const stored = { id: data.id, author: data.author, time: data.time, message: msgText,
                 reactions: data.reactions || {}, replyToId: data.replyToId || null, replySnippet: data.replySnippet || null, editHistory: data.editHistory || [],
@@ -5401,9 +5571,9 @@ window.chrome.webview.addEventListener('message', async (e) => {
                     title: isMention ? `${data.author} mentioned you` : `#${chName}`,
                     body:  notifBody });
             }
+            if (!chId || chId === activeTextChannelId)
+                renderChatMessage(data.id, data.author, data.time, msgText, false, data.reactions || {}, data.replyToId, data.replySnippet, data.editHistory || [], data.threadId, data.threadCount, data.poll);
         }
-        if (!chId || chId === activeTextChannelId)
-            renderChatMessage(data.id, data.author, data.time, msgText, false, data.reactions || {}, data.replyToId, data.replySnippet, data.editHistory || [], data.threadId, data.threadCount, data.poll);
 
     } else if (data.action === 'RATE_LIMITED') {
         _slowCountdown(data.retryAfter || 1);
@@ -5470,6 +5640,8 @@ window.chrome.webview.addEventListener('message', async (e) => {
         if (Array.isArray(data.botTokens)) serverBotTokens = data.botTokens;
         if (data.publicKeys && typeof data.publicKeys === 'object') Object.assign(serverPublicKeys, data.publicKeys);
         if (data.e2eAccess  && typeof data.e2eAccess  === 'object') Object.assign(e2eChannelAccess, data.e2eAccess);
+        if (data.voiceStatuses && typeof data.voiceStatuses === 'object') voiceStatuses = data.voiceStatuses;
+        if (data.starboard && typeof data.starboard === 'object') starboardConfig = { ...starboardConfig, ...data.starboard };
         serverChannels = data.channels;
         channelSlowMode = {};
         data.channels.forEach(c => { if (c.slowMode) channelSlowMode[c.id] = c.slowMode; });
@@ -6010,6 +6182,17 @@ window.chrome.webview.addEventListener('message', async (e) => {
                 h.scrollTop = h.scrollHeight;
             }
         }
+
+    } else if (data.action === 'VOICE_STATUS_UPDATED') {
+        DevLog.log('BRIDGE', `← C# | VOICE_STATUS_UPDATED ch:${data.channelId} status:"${data.status}"`);
+        if (data.status) voiceStatuses[data.channelId] = data.status;
+        else delete voiceStatuses[data.channelId];
+        renderChannelList();
+
+    } else if (data.action === 'STARBOARD_SETTINGS_UPDATED') {
+        DevLog.log('BRIDGE', `← C# | STARBOARD_SETTINGS_UPDATED`);
+        if (data.starboard) starboardConfig = { ...starboardConfig, ...data.starboard };
+        if (activeTab === 'admin') renderStarboardSettings();
     }
 });
 
@@ -6410,7 +6593,50 @@ function renderAdminPanel() {
     renderBotsSection();
     renderWebhooksSection();
     renderEmojisSection();
+    renderStarboardSettings();
     loadAuditLog();
+}
+
+function renderStarboardSettings() {
+    const el = document.getElementById('admin-starboard-body');
+    if (!el) return;
+    const textChannels = serverChannels.filter(c => c.type === 'Text');
+    const channelOptions = textChannels.map(c =>
+        `<option value="${escapeHtml(c.id)}" ${starboardConfig.channelId === c.id ? 'selected' : ''}>#${escapeHtml(c.name)}</option>`
+    ).join('');
+    el.innerHTML = `
+        <div class="admin-form-row" style="flex-wrap:wrap;gap:10px;align-items:center;">
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
+                <input type="checkbox" id="sb-enabled" ${starboardConfig.enabled ? 'checked' : ''}>
+                Enable Starboard
+            </label>
+            <span style="font-size:11px;color:var(--text-faint);">React with the starboard emoji to pin great messages to a channel</span>
+        </div>
+        <div class="admin-form-row" style="flex-wrap:wrap;gap:6px;margin-top:8px;">
+            <span style="font-size:12px;color:var(--text-muted);width:80px;">Channel</span>
+            <select id="sb-channel" class="form-input" style="flex:1;min-width:140px;">
+                <option value="">— none —</option>${channelOptions}
+            </select>
+        </div>
+        <div class="admin-form-row" style="flex-wrap:wrap;gap:6px;margin-top:6px;">
+            <span style="font-size:12px;color:var(--text-muted);width:80px;">Emoji</span>
+            <input type="text" id="sb-emoji" class="form-input" value="${escapeHtml(starboardConfig.emoji)}" style="width:60px;">
+            <span style="font-size:12px;color:var(--text-muted);">Threshold</span>
+            <input type="number" id="sb-threshold" class="form-input" value="${starboardConfig.threshold}" min="1" max="100" style="width:60px;">
+        </div>
+        <div style="margin-top:10px;">
+            <button class="btn-small green" onclick="saveStarboardSettings()">Save Starboard Settings</button>
+        </div>`;
+}
+
+function saveStarboardSettings() {
+    postToBridge({
+        action:    'UPDATE_STARBOARD_SETTINGS',
+        enabled:   document.getElementById('sb-enabled')?.checked   ?? false,
+        channelId: document.getElementById('sb-channel')?.value     ?? '',
+        emoji:     document.getElementById('sb-emoji')?.value.trim() || '⭐',
+        threshold: parseInt(document.getElementById('sb-threshold')?.value) || 3
+    });
 }
 
 function renderAdminRoleColors() {

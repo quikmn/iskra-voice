@@ -1,7 +1,7 @@
 # Iskra — Feature Inventory
 
 > Living document. Update this file whenever a feature is added, fixed, or changed.
-> Last updated: 2026-05-06
+> Last updated: 2026-05-07
 
 ---
 
@@ -88,6 +88,7 @@
 | Inline image display | ✅ | Lazy-loaded; click to zoom |
 | Avatar upload + crop | ✅ | Circular crop modal; zoom/pan |
 | Server icon upload | ✅ | Same crop flow |
+| GIF picker | ✅ | 🎬 button in chat input; Tenor search; trending on open |
 
 ### Roles & Permissions
 
@@ -105,6 +106,7 @@
 | Feature | Status | Notes |
 |---------|--------|-------|
 | `/help` / `/commands` | ✅ | Shows role-appropriate command list; available to all roles |
+| `/shh [secs] <message>` | ✅ | Ephemeral message — visible to all but auto-deleted after N seconds (default 60) |
 | `/kick <alias> [reason]` | ✅ | Immediate disconnect; system message broadcast |
 | `/ban <alias> [reason]` | ✅ | GUID-based permanent ban; persisted to `bans.json` |
 | `/unban <guid>` | ✅ | Removes ban entry |
@@ -116,6 +118,7 @@
 | `/passwd <alias> <pass>` | ✅ | Owner only; updates password hash |
 | `/authmode <mode>` | ✅ | Owner only; open / registered+guests / verified-only |
 | `/listusers` | ✅ | Owner only; lists registered users and current auth mode |
+| Starboard | ✅ | Reaction threshold auto-posts to a designated channel; admin configures emoji/threshold/channel |
 | Audit log | ✅ | JSONL file; viewable in admin panel; last 150 entries |
 | Server backup | ✅ | Downloads ZIP of all world data from admin panel |
 
@@ -124,7 +127,7 @@
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Text channels | ✅ | With history, topics, slow mode, notify prefs |
-| Voice channels | ✅ | With inline user list |
+| Voice channels | ✅ | With inline user list; live activity status set by users in channel |
 | Channel categories (headers) | ✅ | Collapsible section labels |
 | Channel topics | ✅ | Editable by admin+; shown in chat header |
 | Per-channel notification override | ✅ | All / Mentions only / Muted; icon in sidebar |
@@ -148,7 +151,8 @@
 | Servers settings | ✅ | Connection management |
 | Appearance settings (themes) | ✅ | 7 built-in themes + custom JSON import/export |
 | Custom status text | ✅ | Set via status dot; shown in profile card and members list |
-| Admin settings panel | ✅ | Members, roles, channels, bot tokens, webhooks, emoji, audit, backup |
+| Private notes on users | ✅ | Per-user note textarea in profile card; stored in localStorage only |
+| Admin settings panel | ✅ | Members, roles, channels, bot tokens, webhooks, emoji, starboard, audit, backup |
 
 ### Keyboard Shortcuts
 
@@ -182,10 +186,8 @@
 
 | Feature | Notes |
 |---------|-------|
-| Full thread branching | ✅ — now implemented |
 | Announcement channel type | Read-only for non-admins |
 | Forum/board channel type | Post-style threads |
-| Role @mentions | ✅ — now implemented |
 | Server templates | Clone channel/role layout |
 | Stage channels | One speaker, many listeners |
 | Inbound webhook (GitHub/CI → channel) | Post from external HTTP |

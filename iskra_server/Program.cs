@@ -60,6 +60,8 @@ namespace Origin.Server.Core
         private static ConcurrentDictionary<string, DateTime>   _lastMsgTime  = new(); // "channelId:alias" → last send time
         private static ConcurrentDictionary<string, DateTime>   _timedOut     = new(); // alias → timeout expiry (UTC)
         private static ConcurrentDictionary<string, ThreadMeta> _threadMetas  = new(); // threadId → meta
+        private static ConcurrentDictionary<string, string>     _voiceStatuses   = new(); // channelId → status text (session-only)
+        private static ConcurrentDictionary<string, bool>       _starboardPosted = new(); // messageId → true (de-dup)
         private static string ThreadsFile => Path.Combine(ActiveWorldPath, "threads.json");
         private static ConcurrentDictionary<string, string> UserStatuses     = new(); // alias → "online"/"away"/"dnd"/"invisible"
         private static ConcurrentDictionary<string, string> UserStatusTexts = new(); // alias → custom status text
@@ -1125,6 +1127,8 @@ namespace Origin.Server.Core
                     events           = ActiveConfig.Settings.Events
                         .OrderBy(e => e.ScheduledAt)
                         .Select(e => new { e.Id, e.Title, e.Description, scheduledAt = e.ScheduledAt.ToString("o"), e.ChannelId }),
+                    voiceStatuses    = _voiceStatuses,
+                    starboard        = new { enabled = ActiveConfig.Settings.StarboardEnabled, channelId = ActiveConfig.Settings.StarboardChannelId, emoji = ActiveConfig.Settings.StarboardEmoji, threshold = ActiveConfig.Settings.StarboardThreshold },
                     iceServers
                 });
 
@@ -1253,6 +1257,7 @@ namespace Origin.Server.Core
                             {
                                 var helpLines = new List<string> { "━━ Available commands ━━" };
                                 helpLines.Add("/help — show this list");
+                                helpLines.Add("/shh [seconds] <message> — send an ephemeral message that disappears (default 60s)");
                                 if (RoleRank(userRole) >= RoleRank("admin"))
                                 {
                                     helpLines.Add("/kick <alias> [reason] — kick a user");
@@ -1424,6 +1429,20 @@ namespace Origin.Server.Core
                                     Log("CHAT", $"[{channelId}] {currentAlias} created poll: {poll.Question}");
                                 }
                                 continue;
+                            }
+                            else if (cmd == "/shh")
+                            {
+                                int shhSecs = 60;
+                                string shhText;
+                                if (parts.Length >= 3 && int.TryParse(parts[1], out int parsedShhSecs) && parsedShhSecs > 0 && parsedShhSecs <= 3600)
+                                { shhSecs = parsedShhSecs; shhText = string.Join(" ", parts[2..]); }
+                                else if (parts.Length >= 2) { shhText = string.Join(" ", parts[1..]); }
+                                else { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Usage: /shh [seconds] <message>" }); continue; }
+                                if (string.IsNullOrWhiteSpace(shhText)) { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Usage: /shh [seconds] <message>" }); continue; }
+                                string shhId = Guid.NewGuid().ToString("N")[..12];
+                                await Broadcast(new { action = "CHAT_RECEIVE", id = shhId, channelId, author = currentAlias, time = DateTime.Now.ToString("h:mm tt"), ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), message = shhText.Trim(), ephemeral = true, ephemeralSeconds = shhSecs });
+                                _ = Task.Delay(shhSecs * 1000).ContinueWith(_ => Broadcast(new { action = "MESSAGE_DELETED", channelId, messageId = shhId }));
+                                Log("CHAT", $"[{channelId}] {currentAlias} sent ephemeral ({shhSecs}s)");
                             }
                             else await Send(socket, new { action = "SYSTEM_MESSAGE", message = $"Unknown command: {cmd}" });
                         }
@@ -1666,6 +1685,7 @@ namespace Origin.Server.Core
                         if (currentVoiceChannel == channelId && ChannelOccupants.TryGetValue(channelId, out var leaveList))
                         {
                             leaveList.Remove(currentAlias);
+                            if (leaveList.Count == 0) _voiceStatuses.TryRemove(channelId, out _);
                             currentVoiceChannel = null;
                             Log("VOICE", $"'{currentAlias}' left '{channelId}' (voluntary) | remaining:{leaveList.Count}");
                             var leftNotice  = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { action = "USER_LEFT_VOICE", alias = currentAlias }));
@@ -1730,6 +1750,36 @@ namespace Origin.Server.Core
                         _ = Task.Run(() => RewriteChannelHistory(channelId));
                         await Broadcast(new { action = "REACTION_UPDATED", channelId, messageId, reactions });
                         Log("REACT", $"[{channelId}] {currentAlias} reacted {emoji} on {messageId}");
+
+                        // Starboard
+                        if (ActiveConfig.Settings.StarboardEnabled && !string.IsNullOrEmpty(ActiveConfig.Settings.StarboardChannelId) && channelId != ActiveConfig.Settings.StarboardChannelId)
+                        {
+                            string starEmoji = ActiveConfig.Settings.StarboardEmoji;
+                            if (reactions.TryGetValue(starEmoji, out var starReactors) && starReactors.Count >= ActiveConfig.Settings.StarboardThreshold && !_starboardPosted.ContainsKey(messageId))
+                            {
+                                _starboardPosted[messageId] = true;
+                                StoredMessage starMsg = null;
+                                lock (HistoryLock)
+                                    if (ChannelHistory.TryGetValue(channelId, out var starMsgs))
+                                        starMsg = starMsgs.FirstOrDefault(m => m.Id == messageId);
+                                if (starMsg != null)
+                                {
+                                    var starCh = ActiveConfig.Channels.FirstOrDefault(c => c.Id == ActiveConfig.Settings.StarboardChannelId);
+                                    if (starCh != null)
+                                    {
+                                        string sbText = $"{starEmoji} **{starMsg.Author}** in #{channelId}: {starMsg.Message}";
+                                        string sbId   = Guid.NewGuid().ToString("N")[..12];
+                                        var sbStored  = new StoredMessage { Id = sbId, Author = "Starboard", Time = DateTime.Now.ToString("h:mm tt"), Ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), Message = sbText };
+                                        string sbChId = ActiveConfig.Settings.StarboardChannelId;
+                                        lock (HistoryLock) { if (!ChannelHistory.ContainsKey(sbChId)) ChannelHistory[sbChId] = new(); ChannelHistory[sbChId].Add(sbStored); }
+                                        string sbLine = MessageToJsonLine(sbChId, sbStored);
+                                        await File.AppendAllTextAsync(ChatFile(sbChId), sbLine + Environment.NewLine);
+                                        await Broadcast(new { action = "CHAT_RECEIVE", id = sbId, channelId = sbChId, author = "Starboard", time = sbStored.Time, ts = sbStored.Ts, message = sbText });
+                                        Log("STAR", $"Starred {messageId} by {starMsg.Author} → #{starCh.Name}");
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     // ── PIN_MESSAGE ──────────────────────────────────────────────
@@ -2362,6 +2412,33 @@ namespace Origin.Server.Core
                         await Broadcast(new { action = "EVENTS_UPDATED", events = evList });
                     }
 
+                    // ── SET_VOICE_STATUS ─────────────────────────────────────
+                    else if (action == "SET_VOICE_STATUS")
+                    {
+                        string vsChId  = incoming.RootElement.TryGetProperty("channelId", out var vsChEl) ? vsChEl.GetString()?.Trim() : null;
+                        string vsText  = incoming.RootElement.TryGetProperty("status",    out var vsEl)   ? (vsEl.GetString() ?? "").Trim() : "";
+                        if (string.IsNullOrEmpty(vsChId) || vsChId != currentVoiceChannel) continue;
+                        vsText = vsText[..Math.Min(60, vsText.Length)];
+                        if (string.IsNullOrEmpty(vsText)) _voiceStatuses.TryRemove(vsChId, out _);
+                        else _voiceStatuses[vsChId] = vsText;
+                        await Broadcast(new { action = "VOICE_STATUS_UPDATED", channelId = vsChId, status = vsText });
+                    }
+
+                    // ── UPDATE_STARBOARD_SETTINGS ─────────────────────────────
+                    else if (action == "UPDATE_STARBOARD_SETTINGS")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin"))
+                        { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Only admins can update starboard settings." }); continue; }
+                        if (incoming.RootElement.TryGetProperty("enabled",   out var sbEnEl)) ActiveConfig.Settings.StarboardEnabled = sbEnEl.GetBoolean();
+                        if (incoming.RootElement.TryGetProperty("channelId", out var sbChEl)) ActiveConfig.Settings.StarboardChannelId = sbChEl.GetString()?.Trim() ?? "";
+                        if (incoming.RootElement.TryGetProperty("emoji",     out var sbEmEl)) { var e = sbEmEl.GetString()?.Trim() ?? "⭐"; ActiveConfig.Settings.StarboardEmoji = string.IsNullOrEmpty(e) ? "⭐" : e[..Math.Min(8, e.Length)]; }
+                        if (incoming.RootElement.TryGetProperty("threshold", out var sbThEl) && sbThEl.TryGetInt32(out int sbTh) && sbTh >= 1 && sbTh <= 100) ActiveConfig.Settings.StarboardThreshold = sbTh;
+                        _ = Task.Run(() => File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true })));
+                        var sbSettings = new { enabled = ActiveConfig.Settings.StarboardEnabled, channelId = ActiveConfig.Settings.StarboardChannelId, emoji = ActiveConfig.Settings.StarboardEmoji, threshold = ActiveConfig.Settings.StarboardThreshold };
+                        await Broadcast(new { action = "STARBOARD_SETTINGS_UPDATED", starboard = sbSettings });
+                        LogAudit("STARBOARD_SETTINGS", currentAlias, "", $"enabled:{ActiveConfig.Settings.StarboardEnabled}");
+                    }
+
                     // ── TYPING ───────────────────────────────────────────────
                     else if (action == "TYPING")
                     {
@@ -2391,6 +2468,7 @@ namespace Origin.Server.Core
                 if (currentVoiceChannel != null && ChannelOccupants.TryGetValue(currentVoiceChannel, out var users))
                 {
                     users.Remove(currentAlias);
+                    if (users.Count == 0) _voiceStatuses.TryRemove(currentVoiceChannel, out _);
                     Log("VOICE", $"'{currentAlias}' left '{currentVoiceChannel}' on disconnect | remaining:{users.Count}");
                     var exitLeft  = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { action = "USER_LEFT_VOICE", alias = currentAlias }));
                     var exitState = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { action = "VOICE_STATE_UPDATE", channelId = currentVoiceChannel, users }));
@@ -2435,6 +2513,10 @@ namespace Origin.Server.Data
         public int    MaxUploadMb          { get; set; } = 2500;
         public double MaxDiskGb           { get; set; } = 100.0;  // 0 = unlimited
         public string ServerIcon           { get; set; } = "";
+        public bool   StarboardEnabled     { get; set; } = false;
+        public string StarboardChannelId   { get; set; } = "";
+        public string StarboardEmoji       { get; set; } = "⭐";
+        public int    StarboardThreshold   { get; set; } = 3;
         public List<string>          BotTokens { get; set; } = new();
         public List<WebhookEntry>    Webhooks  { get; set; } = new();
         public List<ScheduledEvent>  Events    { get; set; } = new();
