@@ -480,6 +480,43 @@
         .status-opt:hover { background: var(--bg-sidebar-hover); }
         .status-opt-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 
+        /* ── Thread panel ── */
+        #thread-panel { width: 360px; background: var(--bg-sidebar); flex-direction: column; flex-shrink: 0; border-left: 1px solid var(--bg-deep); display: none; }
+        #thread-panel.open { display: flex; }
+        #thread-panel-header { display: flex; align-items: center; padding: 12px 16px 10px; font-size: 13px; font-weight: 700; color: var(--text-heading); border-bottom: 1px solid var(--bg-deep); flex-shrink: 0; gap: 8px; }
+        #thread-panel-title { flex: 1; }
+        .thread-close-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; padding: 0 4px; line-height: 1; }
+        .thread-close-btn:hover { color: var(--text-normal); }
+        #thread-parent-preview { padding: 8px 12px; background: var(--bg-deep); border-bottom: 1px solid var(--bg-border); font-size: 12px; color: var(--text-muted); flex-shrink: 0; border-left: 3px solid var(--accent); margin: 8px 8px 0; border-radius: 4px; line-height: 1.4; }
+        #thread-history { flex: 1; overflow-y: auto; padding: 4px 0; }
+        .thread-input-row { padding: 8px; border-top: 1px solid var(--bg-deep); flex-shrink: 0; }
+        .thread-indicator { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted); cursor: pointer; margin-top: 4px; padding: 2px 6px; border-radius: 3px; background: var(--bg-deep); }
+        .thread-indicator:hover { color: var(--accent); background: var(--bg-active); }
+        .thread-msg { padding: 6px 12px; display: flex; flex-direction: column; gap: 2px; }
+        .thread-msg:hover { background: var(--msg-hover-bg); }
+        .thread-msg-author { font-size: 12px; font-weight: 700; color: var(--text-heading); }
+        .thread-msg-time { font-size: 10px; color: var(--text-faint); }
+        .thread-msg-body { font-size: 13px; color: var(--text-normal); line-height: 1.45; margin-top: 1px; }
+        .poll-option.voted .poll-bar-fill { opacity: 0.7; }
+
+        /* ── Poll ── */
+        .poll-block { background: var(--bg-deep); border-radius: 8px; padding: 12px 14px; margin: 4px 0; max-width: 380px; }
+        .poll-question { font-weight: 700; color: var(--text-heading); font-size: 13px; margin-bottom: 10px; }
+        .poll-option { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; cursor: pointer; }
+        .poll-option:last-child { margin-bottom: 0; }
+        .poll-bar-wrap { flex: 1; background: var(--bg-border); border-radius: 3px; height: 20px; position: relative; overflow: hidden; }
+        .poll-bar-fill { height: 100%; border-radius: 3px; background: var(--accent); opacity: 0.35; transition: width 0.3s; }
+        .poll-bar-fill.my-vote { opacity: 0.7; }
+        .poll-bar-label { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--text-heading); }
+        .poll-bar-pct { font-size: 11px; color: var(--text-muted); width: 36px; text-align: right; flex-shrink: 0; }
+        .poll-total { font-size: 11px; color: var(--text-faint); margin-top: 6px; }
+
+        /* ── Role mention highlight ── */
+        .mention-role { color: #e0af68; background: rgba(224,175,104,0.12); border-radius: 3px; padding: 0 2px; font-weight: 600; cursor: default; }
+
+        /* ── Timeout badge ── */
+        .timeout-badge { font-size: 10px; color: var(--warning); background: rgba(250,189,47,0.12); border-radius: 3px; padding: 1px 4px; margin-left: 4px; }
+
         /* ── Members panel ── */
         #members-panel { width: 240px; background: var(--bg-sidebar); flex-direction: column; flex-shrink: 0; border-left: 1px solid var(--bg-deep); display: none; }
         #members-panel.open { display: flex; }
@@ -903,6 +940,9 @@
         <div class="search-input-row">
             <span style="color:#6d6f78;font-size:15px;padding:0 2px;">🔍</span>
             <input type="text" id="search-input" placeholder="Search messages..." onkeydown="handleSearchKey(event)" oninput="debouncedSearch()">
+            <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-muted);cursor:pointer;white-space:nowrap;padding:0 4px;" title="Search all channels">
+                <input type="checkbox" id="search-all-ch" onchange="debouncedSearch()" style="cursor:pointer;">All
+            </label>
             <button id="search-close-btn" onclick="closeSearch()" title="Close search">✕</button>
         </div>
         <div id="search-results-panel">
@@ -942,6 +982,19 @@
 <div id="members-panel">
     <div id="members-panel-header">Members — <span id="members-count">0</span> online</div>
     <div id="members-list"></div>
+</div>
+
+<div id="thread-panel">
+    <div id="thread-panel-header">
+        <span id="thread-panel-title">Thread</span>
+        <button class="thread-close-btn" onclick="closeThread()" title="Close thread">✕</button>
+    </div>
+    <div id="thread-parent-preview"></div>
+    <div id="thread-history"></div>
+    <div class="thread-input-row">
+        <textarea id="thread-input" class="input-box" placeholder="Reply in thread…" rows="1"
+                  onkeydown="sendThreadMessage(event)" oninput="onThreadInput()"></textarea>
+    </div>
 </div>
 
 <!-- ── Image zoom overlay ── -->
@@ -1422,6 +1475,10 @@
         <div class="ctx-section-label">Set Role</div>
         <div class="ctx-role-row" id="ctx-role-row"></div>
         <hr class="ctx-divider">
+        <div class="ctx-action" onclick="ctxTimeout(5)">⏱ Timeout 5m</div>
+        <div class="ctx-action" onclick="ctxTimeout(60)">⏱ Timeout 1h</div>
+        <div class="ctx-action" onclick="ctxUntimeout()">✅ Remove Timeout</div>
+        <hr class="ctx-divider">
         <div class="ctx-action danger" onclick="ctxKick()">⚡ Kick</div>
         <div class="ctx-action danger" onclick="ctxBan()">🔨 Ban</div>
     </div>
@@ -1519,10 +1576,19 @@ let myRole         = 'guest';
 let inMutedChannel = false;
 let userAvatars    = {};   // alias → url (per-server, reset on disconnect)
 let serverIconUrl  = null;
-let displayStream       = null;   // local getDisplayMedia stream
-let screenShareSenders  = {};     // alias → RTCRtpSender (video track sent to that peer)
-let remoteScreens       = {};     // alias → { tile, video }
-let sharingChannelId    = null;   // voice channel we were in when sharing started
+let displayStream           = null;   // local getDisplayMedia stream
+let screenShareSenders      = {};     // alias → RTCRtpSender (video track)
+let screenShareAudioSenders = {};     // alias → RTCRtpSender (audio track from display)
+let remoteScreens           = {};     // alias → { tile, video }
+let sharingChannelId        = null;
+// Threads
+let activeThreadId     = null;
+let threadMsgMap       = {};     // messageId → threadId
+let threadCounts       = {};     // messageId → count
+// Timeouts
+let timedOutUsers      = {};     // alias → expiry timestamp (unix ms)
+// Polls — live vote data keyed by msgId
+let pollVotes          = {};     // msgId → {alias → optionIndex}
 
 let userStatuses    = {};     // alias → "online"/"away"/"dnd"/"offline"
 let userRoles       = {};     // alias → "guest"/"member"/"trusted"/"admin"/"owner"
@@ -2079,7 +2145,7 @@ function selectTextChannel(id) {
     }
     const h = document.getElementById('chat-history');
     h.innerHTML = '';
-    (channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}, m.replyToId, m.replySnippet, m.editHistory));
+    (channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}, m.replyToId, m.replySnippet, m.editHistory, m.threadId, m.threadCount, m.poll));
     renderChannelList();
     clearTimeout(_slowTimer);
     if (document.getElementById('chat-input')) document.getElementById('chat-input').disabled = false;
@@ -2781,6 +2847,8 @@ function _updateChannelTopic(channelId) {
 }
 
 // ── @mention autocomplete ─────────────────────────────────────────────────────
+const _ROLE_NAMES     = ['guest','member','trusted','admin','owner'];
+const _ROLE_NAMES_SET = new Set(_ROLE_NAMES);
 let _mentionPopup   = null;
 let _mentionSuggIdx = 0;
 let _mentionSuggs   = [];
@@ -2804,7 +2872,11 @@ function _buildMentionPopup(ta) {
     _mentionSuggs.forEach((alias, i) => {
         const item = document.createElement('div');
         item.className = 'mention-item' + (i === _mentionSuggIdx ? ' selected' : '');
-        item.innerHTML = avatarHtml(alias, 'sz-22', false, false) + `<span class="mention-item-alias">${escapeHtml(alias)}</span>`;
+        if (_ROLE_NAMES_SET.has(alias)) {
+            item.innerHTML = `<span style="width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;color:#e0af68;font-weight:700;">@</span><span class="mention-item-alias" style="color:#e0af68;">${escapeHtml(alias)}</span><span style="margin-left:auto;font-size:10px;color:var(--text-faint);">role</span>`;
+        } else {
+            item.innerHTML = avatarHtml(alias, 'sz-22', false, false) + `<span class="mention-item-alias">${escapeHtml(alias)}</span>`;
+        }
         item.addEventListener('mousedown', e => { e.preventDefault(); _selectMention(ta, alias); });
         _mentionPopup.appendChild(item);
     });
@@ -2860,9 +2932,12 @@ function onChatInput() {
         if (atMatch && connectedServerId) {
             const partial = atMatch[1].toLowerCase();
             _mentionAtStart = cursor - atMatch[0].length;
-            _mentionSuggs = Object.keys(userStatuses)
-                .filter(a => a !== myAlias && (!partial || a.toLowerCase().startsWith(partial)))
-                .sort().slice(0, 8);
+            _mentionSuggs = [
+                ..._ROLE_NAMES.filter(r => !partial || r.startsWith(partial)),
+                ...Object.keys(userStatuses)
+                    .filter(a => a !== myAlias && (!partial || a.toLowerCase().startsWith(partial)))
+                    .sort()
+            ].slice(0, 8);
             _buildMentionPopup(ta);
         } else {
             hideMentionPopup();
@@ -3745,14 +3820,15 @@ async function setupPeer(target, makeOffer = false) {
         DevLog.log('ERR', 'setupPeer: processedStream is null — audio will not be sent');
     }
 
-    // If currently sharing screen, add the video track to this new peer too
+    // If currently sharing screen, add video (+ audio if present) to this new peer too
     if (displayStream) {
         const vt = displayStream.getVideoTracks()[0];
         if (vt && vt.readyState === 'live') {
-            const sender = pc.addTrack(vt, displayStream);
-            screenShareSenders[target] = sender;
+            screenShareSenders[target] = pc.addTrack(vt, displayStream);
             DevLog.log('RTC', `Added local screen track to new peer ${target}`);
         }
+        const at = displayStream.getAudioTracks()[0];
+        if (at && at.readyState === 'live') screenShareAudioSenders[target] = pc.addTrack(at, displayStream);
     }
     // If camera is on, add video track too
     if (localVideoStream) {
@@ -3841,7 +3917,7 @@ function joinVoice(id) {
     document.getElementById('input-area')?.classList.remove('readonly');
     const h = document.getElementById('chat-history');
     h.innerHTML = '';
-    (channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}, m.replyToId, m.replySnippet, m.editHistory));
+    (channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}, m.replyToId, m.replySnippet, m.editHistory, m.threadId, m.threadCount, m.poll));
     renderChannelList();
     clearTimeout(_slowTimer);
     _slowBarShow(null, false);
@@ -4048,10 +4124,13 @@ function renderMarkdown(raw) {
         return `<a class="msg-url" href="${clean}" target="_blank" rel="noopener noreferrer">${clean}</a>`;
     });
 
-    // 7. @mentions (@everyone/@here get their own colour; personal mentions highlight the reader).
+    // 7. @mentions (@everyone/@here get their own colour; role mentions get amber; personal mentions highlight the reader).
     s = s.replace(/@([\w][\w\d._-]{0,31})/g, (_, name) => {
-        if (name === 'everyone' || name === 'here') return `<span class="mention everyone">@${name}</span>`;
-        const isMe = myAlias && name.toLowerCase() === myAlias.toLowerCase();
+        const lname = name.toLowerCase();
+        if (lname === 'everyone' || lname === 'here') return `<span class="mention everyone">@${name}</span>`;
+        if (lname === 'guest' || lname === 'member' || lname === 'trusted' || lname === 'admin' || lname === 'owner')
+            return `<span class="mention-role">@${name}</span>`;
+        const isMe = myAlias && lname === myAlias.toLowerCase();
         return `<span class="mention${isMe ? ' me' : ''}">@${name}</span>`;
     });
 
@@ -4490,7 +4569,7 @@ function ctxOpenDm() {
 // ── Message Search ─────────────────────────────────────────────────────────────
 
 function openSearch() {
-    if (!connectedServerId || !activeTextChannelId) return;
+    if (!connectedServerId) return;
     document.getElementById('search-bar').classList.add('open');
     const inp = document.getElementById('search-input');
     if (inp) { inp.value = ''; inp.focus(); }
@@ -4518,8 +4597,10 @@ function debouncedSearch() {
 }
 
 function searchMessages(query) {
-    if (!connectedServerId || !activeTextChannelId) return;
-    postToBridge({ action: 'SEARCH_MESSAGES', channelId: activeTextChannelId, query });
+    if (!connectedServerId) return;
+    const allCh = document.getElementById('search-all-ch')?.checked;
+    const channelId = allCh ? '' : (activeTextChannelId || '');
+    postToBridge({ action: 'SEARCH_MESSAGES', channelId, query });
 }
 
 function renderSearchResults(results, query) {
@@ -4650,12 +4731,11 @@ function copyInviteLink() {
     });
 }
 
-function renderChatMessage(msgId, author, time, message, edited, reactions, replyToId, replySnippet, editHistory) {
+function renderChatMessage(msgId, author, time, message, edited, reactions, replyToId, replySnippet, editHistory, threadId, threadCount, poll) {
     const h = document.getElementById('chat-history');
     const div = document.createElement('div');
     div.className = 'msg-row';
     if (msgId) div.dataset.msgId = msgId;
-    // Store reply metadata for startReply
     div.dataset.replyAuthor = author || '';
     div.dataset.replyText   = (message || '').slice(0, 80);
 
@@ -4682,10 +4762,23 @@ function renderChatMessage(msgId, author, time, message, edited, reactions, repl
         actions += `<button class="msg-act-btn msg-act-bookmark${bkd ? ' bookmarked' : ''}" title="${bkd ? 'Remove bookmark' : 'Bookmark'}" onclick="toggleBookmark('${msgId}')">${bkd ? '★' : '☆'}</button>`;
         actions += `<button class="msg-act-btn" title="Forward" onclick="showForwardModal('${msgId}')">↪</button>`;
         actions += `<button class="msg-act-btn" title="Reply" onclick="startReply('${msgId}')">↩</button>`;
+        if (!inDmMode) actions += `<button class="msg-act-btn" title="Start thread" onclick="startOrOpenThread('${msgId}')">💬</button>`;
         if (isOwn) actions += `<button class="msg-act-btn" title="Edit" onclick="editMessage('${msgId}','${escapeHtml(author)}')">✏</button>`;
         if (canDel) actions += `<button class="msg-act-btn del" title="Delete (Shift+click to skip confirm)" onclick="deleteMessage(event,'${msgId}')">🗑</button>`;
         if (canPin) actions += `<button class="msg-act-btn" title="Pin/Unpin" onclick="pinMessage('${msgId}')">📌</button>`;
         actions += `</span>`;
+    }
+
+    // Poll block
+    const pollHtml = poll ? renderPoll(msgId, poll) : '';
+
+    // Thread indicator
+    let threadHtml = '';
+    if (msgId && threadId) {
+        const cnt = threadCount || 0;
+        threadMsgMap[msgId] = threadId;
+        threadCounts[msgId] = cnt;
+        threadHtml = `<div class="thread-indicator" data-parent-id="${msgId}" onclick="openThread('${escapeHtml(threadId)}','${msgId}')">💬 ${cnt} repl${cnt===1?'y':'ies'}</div>`;
     }
 
     div.innerHTML =
@@ -4693,12 +4786,47 @@ function renderChatMessage(msgId, author, time, message, edited, reactions, repl
         `<div class="msg-content">` +
             `<div class="msg-header"><span class="msg-author" style="${getRoleColor(author)}" onclick="showProfileCard(event,'${escapeHtml(author)}')">${escapeHtml(author)}</span>` +
             (time ? `<span class="msg-time">${escapeHtml(time)}</span>` : '') + `</div>` +
-            bodyHtml + actions +
+            bodyHtml + actions + pollHtml + threadHtml +
         `</div>`;
     if (msgId) div.querySelector('.msg-content').appendChild(renderReactions(msgId, reactions || {}));
     h.appendChild(div);
     h.scrollTop = h.scrollHeight;
     if (div.querySelector('.msg-url')) requestAnimationFrame(() => enrichLinkPreviews(div));
+}
+
+// ── Poll rendering ────────────────────────────────────────────────────────────
+function renderPoll(msgId, poll) {
+    if (!poll || !poll.question) return '';
+    const votes = poll.votes || {};
+    const voters = Object.keys(votes);
+    const totalVoters = voters.length;
+    const myVote = votes[myAlias];
+    const optCounts = {};
+    (poll.options || []).forEach((_, i) => { optCounts[i] = 0; });
+    voters.forEach(alias => { const v = votes[alias]; if (optCounts[v] !== undefined) optCounts[v]++; });
+
+    const optsHtml = (poll.options || []).map((opt, i) => {
+        const cnt  = optCounts[i] || 0;
+        const pct  = totalVoters ? Math.round(cnt / totalVoters * 100) : 0;
+        const mine = myVote !== undefined && myVote == i;
+        return `<div class="poll-option${mine ? ' voted' : ''}" onclick="votePoll('${msgId}',${i})">` +
+            `<div class="poll-bar-wrap">` +
+                `<div class="poll-bar-fill" style="width:${pct}%"></div>` +
+                `<div class="poll-bar-label">${escapeHtml(opt)}</div>` +
+            `</div>` +
+            `<div class="poll-bar-pct">${pct}%</div>` +
+            `</div>`;
+    }).join('');
+
+    return `<div class="poll-block" data-poll-id="${msgId}">` +
+        `<div class="poll-question">${escapeHtml(poll.question)}</div>` +
+        optsHtml +
+        `<div class="poll-total">${totalVoters} vote${totalVoters === 1 ? '' : 's'}</div></div>`;
+}
+
+function votePoll(msgId, optionIndex) {
+    if (!connectedServerId || !activeTextChannelId) return;
+    postToBridge({ action: 'POLL_VOTE', channelId: activeTextChannelId, messageId: msgId, option: String(optionIndex) });
 }
 
 // ── Message edit / delete ─────────────────────────────────────────────────────
@@ -4890,17 +5018,17 @@ async function startScreenShare() {
     try {
         displayStream = await navigator.mediaDevices.getDisplayMedia({
             video: { frameRate: { ideal: 30, max: 30 } },
-            audio: false
+            audio: true
         });
         sharingChannelId = currentChannelId;
         const vt = displayStream.getVideoTracks()[0];
-        vt.onended = () => stopScreenShare();  // user clicked "Stop" in the OS dialog
+        const at = displayStream.getAudioTracks()[0] ?? null;
+        vt.onended = () => stopScreenShare();
 
-        // Add video track to every current peer connection — triggers renegotiation
         for (const [alias, pc] of Object.entries(peers)) {
             try {
-                const sender = pc.addTrack(vt, displayStream);
-                screenShareSenders[alias] = sender;
+                screenShareSenders[alias] = pc.addTrack(vt, displayStream);
+                if (at) screenShareAudioSenders[alias] = pc.addTrack(at, displayStream);
             } catch (err) { DevLog.log('ERR', `addTrack(screen) to ${alias}: ${err.message}`); }
         }
 
@@ -4925,7 +5053,10 @@ function stopScreenShare() {
     for (const [alias, sender] of Object.entries(screenShareSenders)) {
         if (peers[alias]) try { peers[alias].removeTrack(sender); } catch {}
     }
-    screenShareSenders = {};
+    for (const [alias, sender] of Object.entries(screenShareAudioSenders)) {
+        if (peers[alias]) try { peers[alias].removeTrack(sender); } catch {}
+    }
+    screenShareSenders = {}; screenShareAudioSenders = {};
 
     removeShareTile(myAlias);
     sharingChannelId = null;
@@ -5234,11 +5365,14 @@ window.chrome.webview.addEventListener('message', async (e) => {
                 : '[🔒 Encrypted — waiting for key]';
         }
         const isMassNotify = msgText && (msgText.includes('@everyone') || msgText.includes('@here'));
-        const isMention = isMassNotify || (myAlias && msgText && msgText.toLowerCase().includes(`@${myAlias.toLowerCase()}`));
+        const isMention = isMassNotify ||
+            (myAlias && msgText && msgText.toLowerCase().includes(`@${myAlias.toLowerCase()}`)) ||
+            (myRole && data.mentionedRoles && data.mentionedRoles.includes(myRole));
         if (chId) {
             if (!channelMessages[chId]) channelMessages[chId] = [];
             const stored = { id: data.id, author: data.author, time: data.time, message: msgText,
-                reactions: data.reactions || {}, replyToId: data.replyToId || null, replySnippet: data.replySnippet || null, editHistory: data.editHistory || [] };
+                reactions: data.reactions || {}, replyToId: data.replyToId || null, replySnippet: data.replySnippet || null, editHistory: data.editHistory || [],
+                threadId: data.threadId || null, threadCount: data.threadCount || 0, poll: data.poll || null };
             if (ciphertextBackup) stored._ciphertext = ciphertextBackup;
             channelMessages[chId].push(stored);
             const srvMuted   = isServerMuted(connectedServerId);
@@ -5266,7 +5400,7 @@ window.chrome.webview.addEventListener('message', async (e) => {
             }
         }
         if (!chId || chId === activeTextChannelId)
-            renderChatMessage(data.id, data.author, data.time, msgText, false, data.reactions || {}, data.replyToId, data.replySnippet, data.editHistory || []);
+            renderChatMessage(data.id, data.author, data.time, msgText, false, data.reactions || {}, data.replyToId, data.replySnippet, data.editHistory || [], data.threadId, data.threadCount, data.poll);
 
     } else if (data.action === 'RATE_LIMITED') {
         _slowCountdown(data.retryAfter || 1);
@@ -5761,6 +5895,118 @@ window.chrome.webview.addEventListener('message', async (e) => {
         DevLog.log('BRIDGE', `← C# | SEARCH_RESULTS count:${(data.results||[]).length} query:"${data.query}"`);
         const inp = document.getElementById('search-input');
         renderSearchResults(data.results || [], inp ? inp.value : data.query || '');
+
+    } else if (data.action === 'USER_TIMED_OUT') {
+        DevLog.log('BRIDGE', `← C# | USER_TIMED_OUT alias:${data.alias} expiresAt:${data.expiresAt}`);
+        timedOutUsers[data.alias] = data.expiresAt;
+        if (data.alias === myAlias) {
+            const secsLeft = Math.max(0, Math.round((data.expiresAt - Date.now()) / 1000));
+            renderSystemMessage(`You have been timed out for ${Math.round(secsLeft / 60)} minute(s).${data.reason ? ' Reason: ' + data.reason : ''}`);
+            const inp = document.getElementById('chat-input');
+            if (inp) { inp.disabled = true; inp.placeholder = 'You are timed out…'; }
+        }
+        if (document.getElementById('members-panel')?.classList.contains('open')) renderMembersPanel();
+
+    } else if (data.action === 'USER_UNTIMEOUT') {
+        DevLog.log('BRIDGE', `← C# | USER_UNTIMEOUT alias:${data.alias}`);
+        delete timedOutUsers[data.alias];
+        if (data.alias === myAlias) {
+            renderSystemMessage('Your timeout has been removed.');
+            const inp = document.getElementById('chat-input');
+            const chName = serverChannels.find(c => c.id === activeTextChannelId)?.name || activeTextChannelId || '';
+            if (inp) { inp.disabled = false; inp.placeholder = chName ? `Message #${chName}` : 'Message…'; }
+        }
+        if (document.getElementById('members-panel')?.classList.contains('open')) renderMembersPanel();
+
+    } else if (data.action === 'POLL_UPDATED') {
+        DevLog.log('BRIDGE', `← C# | POLL_UPDATED msgId:${data.messageId} ch:${data.channelId}`);
+        const chMsgs = channelMessages[data.channelId];
+        if (chMsgs) {
+            const m = chMsgs.find(x => x.id === data.messageId);
+            if (m && m.poll) m.poll = { ...m.poll, votes: data.votes || {} };
+        }
+        if (data.channelId === activeTextChannelId) {
+            const pollEl = document.querySelector(`.poll-block[data-poll-id="${data.messageId}"]`);
+            if (pollEl) {
+                const chMsgs2 = channelMessages[data.channelId];
+                const m2 = chMsgs2?.find(x => x.id === data.messageId);
+                if (m2?.poll) pollEl.outerHTML = renderPoll(data.messageId, m2.poll);
+            }
+        }
+
+    } else if (data.action === 'THREAD_CREATED') {
+        DevLog.log('BRIDGE', `← C# | THREAD_CREATED threadId:${data.threadId} parent:${data.messageId}`);
+        const parentMsgId = data.messageId;
+        if (parentMsgId) {
+            threadMsgMap[parentMsgId] = data.threadId;
+            threadCounts[parentMsgId] = 0;
+            // Update stored message
+            const chMsgs = channelMessages[data.channelId];
+            if (chMsgs) { const pm = chMsgs.find(x => x.id === parentMsgId); if (pm) { pm.threadId = data.threadId; pm.threadCount = 0; } }
+            // Add indicator to DOM
+            const row = document.querySelector(`[data-msg-id="${parentMsgId}"]`);
+            if (row) {
+                const content = row.querySelector('.msg-content');
+                if (content && !content.querySelector('.thread-indicator')) {
+                    const ind = document.createElement('div');
+                    ind.className = 'thread-indicator';
+                    ind.dataset.parentId = parentMsgId;
+                    ind.textContent = '💬 0 replies';
+                    ind.addEventListener('click', () => openThread(data.threadId, parentMsgId));
+                    content.appendChild(ind);
+                }
+            }
+        }
+
+    } else if (data.action === 'OPEN_THREAD') {
+        DevLog.log('BRIDGE', `← C# | OPEN_THREAD threadId:${data.threadId}`);
+        // Server sends this when trying to create a thread that already exists
+        const parentId = Object.keys(threadMsgMap).find(k => threadMsgMap[k] === data.threadId);
+        openThread(data.threadId, parentId);
+
+    } else if (data.action === 'THREAD_MESSAGE') {
+        DevLog.log('BRIDGE', `← C# | THREAD_MESSAGE threadId:${data.threadId} from:${data.author}`);
+        if (activeThreadId === data.threadId) {
+            const h = document.getElementById('thread-history');
+            if (h) {
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'thread-msg';
+                msgDiv.innerHTML =
+                    `<span class="thread-msg-author" style="${getRoleColor(data.author)}">${escapeHtml(data.author)}</span>` +
+                    `<span class="thread-msg-time">${escapeHtml(data.time || '')}</span>` +
+                    `<div class="thread-msg-body">${renderMarkdown(data.message)}</div>`;
+                h.appendChild(msgDiv);
+                h.scrollTop = h.scrollHeight;
+            }
+        }
+
+    } else if (data.action === 'THREAD_COUNT_UPDATED') {
+        DevLog.log('BRIDGE', `← C# | THREAD_COUNT_UPDATED parent:${data.messageId} count:${data.count}`);
+        const parentMsgId = data.messageId;
+        threadCounts[parentMsgId] = data.count;
+        const chMsgs = channelMessages[data.channelId];
+        if (chMsgs) { const pm = chMsgs.find(x => x.id === parentMsgId); if (pm) pm.threadCount = data.count; }
+        const ind = document.querySelector(`.thread-indicator[data-parent-id="${parentMsgId}"]`);
+        if (ind) { const c = data.count; ind.textContent = `💬 ${c} repl${c===1?'y':'ies'}`; }
+
+    } else if (data.action === 'THREAD_HISTORY') {
+        DevLog.log('BRIDGE', `← C# | THREAD_HISTORY threadId:${data.threadId} count:${(data.messages||[]).length}`);
+        if (data.threadId === activeThreadId) {
+            const h = document.getElementById('thread-history');
+            if (h) {
+                h.innerHTML = '';
+                (data.messages || []).forEach(m => {
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = 'thread-msg';
+                    msgDiv.innerHTML =
+                        `<span class="thread-msg-author" style="${getRoleColor(m.author)}">${escapeHtml(m.author)}</span>` +
+                        `<span class="thread-msg-time">${escapeHtml(m.time || '')}</span>` +
+                        `<div class="thread-msg-body">${renderMarkdown(m.message)}</div>`;
+                    h.appendChild(msgDiv);
+                });
+                h.scrollTop = h.scrollHeight;
+            }
+        }
     }
 });
 
@@ -6026,9 +6272,11 @@ function renderMembersPanel() {
                     ? `<span class="member-role-pip r-${role}">${role}</span>` : '';
                 const vcHtml = vcName ? `<div class="member-entry-vc">🔊 ${escapeHtml(vcName)}</div>` : '';
                 const ctxAttr = `onclick="showProfileCard(event,'${escapeHtml(alias)}')"${alias !== myAlias ? ` oncontextmenu="showUserCtxMenu(event,'${escapeHtml(alias)}')"` : ''}`;
+                const toExp = timedOutUsers[alias];
+                const toBadge = toExp ? `<span class="timeout-badge" title="Timed out until ${new Date(toExp).toLocaleTimeString()}">⏱</span>` : '';
                 return `<div class="member-entry" ${ctxAttr}>`
                     + avatarHtml(alias, 'sz-32', false, true)
-                    + `<div class="member-entry-info"><div class="member-entry-name" style="${getRoleColor(alias)}">${escapeHtml(alias)}</div>${userStatusTexts[alias] ? `<div class="member-entry-status-text">${escapeHtml(userStatusTexts[alias])}</div>` : vcHtml}</div>${pip}</div>`;
+                    + `<div class="member-entry-info"><div class="member-entry-name" style="${getRoleColor(alias)}">${escapeHtml(alias)}${toBadge}</div>${userStatusTexts[alias] ? `<div class="member-entry-status-text">${escapeHtml(userStatusTexts[alias])}</div>` : vcHtml}</div>${pip}</div>`;
             }).join('');
             return `<div class="member-group-label">${groupLabels[grp]} — ${aliases.length}</div>${entries}`;
         }).join('');
@@ -6058,6 +6306,78 @@ function ctxSetRole(role) {
     if (!_ctxMenuAlias || !chId) return;
     postToBridge({ action: 'SEND_CHAT', channelId: chId, message: `/role ${_ctxMenuAlias} ${role}` });
     hideUserCtxMenu();
+}
+
+function ctxTimeout(minutes) {
+    const chId = _adminCmdChannel();
+    if (!_ctxMenuAlias || !chId) return;
+    postToBridge({ action: 'SEND_CHAT', channelId: chId, message: `/timeout ${_ctxMenuAlias} ${minutes}` });
+    hideUserCtxMenu();
+}
+
+function ctxUntimeout() {
+    const chId = _adminCmdChannel();
+    if (!_ctxMenuAlias || !chId) return;
+    postToBridge({ action: 'SEND_CHAT', channelId: chId, message: `/untimeout ${_ctxMenuAlias}` });
+    hideUserCtxMenu();
+}
+
+// ── Thread panel ──────────────────────────────────────────────────────────────
+function startOrOpenThread(msgId) {
+    if (!connectedServerId || !activeTextChannelId) return;
+    const existingId = threadMsgMap[msgId];
+    if (existingId) {
+        openThread(existingId, msgId);
+    } else {
+        postToBridge({ action: 'CREATE_THREAD', channelId: activeTextChannelId, messageId: msgId });
+    }
+}
+
+function openThread(threadId, parentMsgId) {
+    activeThreadId = threadId;
+    const panel = document.getElementById('thread-panel');
+    if (!panel) return;
+    panel.classList.add('open');
+    document.getElementById('thread-panel-title').textContent = 'Thread';
+
+    const preview = document.getElementById('thread-parent-preview');
+    if (preview && parentMsgId) {
+        const parentRow = document.querySelector(`[data-msg-id="${parentMsgId}"]`);
+        if (parentRow) {
+            const authorEl = parentRow.querySelector('.msg-author');
+            const bodyEl   = parentRow.querySelector('.msg-body');
+            preview.innerHTML = `<div style="padding:8px 16px 8px;border-bottom:1px solid var(--bg-deep);font-size:12px;color:var(--text-muted);">` +
+                `<span style="font-weight:600;color:var(--text-heading);">${escapeHtml(authorEl?.textContent || '')}</span> ` +
+                `${escapeHtml((bodyEl?.textContent || '').slice(0, 120))}</div>`;
+        }
+    }
+    if (preview && !parentMsgId) preview.innerHTML = '';
+
+    document.getElementById('thread-history').innerHTML = '';
+    postToBridge({ action: 'GET_THREAD_HISTORY', threadId });
+}
+
+function closeThread() {
+    activeThreadId = null;
+    document.getElementById('thread-panel')?.classList.remove('open');
+    document.getElementById('thread-history').innerHTML = '';
+    document.getElementById('thread-parent-preview').innerHTML = '';
+}
+
+function sendThreadMessage(e) {
+    if (e.key !== 'Enter' || e.shiftKey) return;
+    const ta = document.getElementById('thread-input');
+    const msg = ta?.value.trim();
+    if (!msg || !activeThreadId || !connectedServerId) return;
+    e.preventDefault();
+    postToBridge({ action: 'SEND_THREAD_MESSAGE', threadId: activeThreadId, message: msg });
+    ta.value = '';
+    ta.style.height = 'auto';
+}
+
+function onThreadInput() {
+    const ta = document.getElementById('thread-input');
+    if (ta) { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 100) + 'px'; }
 }
 
 // ── Admin Panel ────────────────────────────────────────────────────────────────

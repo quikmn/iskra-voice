@@ -57,7 +57,10 @@ namespace Origin.Server.Core
         private static string FingerprintFile => Path.Combine(ActiveWorldPath, "fingerprints.json");
         private static string BanFile         => Path.Combine(ActiveWorldPath, "bans.json");
         private static string UploadDir       => Path.Combine(ActiveWorldPath, "uploads");
-        private static ConcurrentDictionary<string, DateTime> _lastMsgTime = new(); // "channelId:alias" → last send time
+        private static ConcurrentDictionary<string, DateTime>   _lastMsgTime  = new(); // "channelId:alias" → last send time
+        private static ConcurrentDictionary<string, DateTime>   _timedOut     = new(); // alias → timeout expiry (UTC)
+        private static ConcurrentDictionary<string, ThreadMeta> _threadMetas  = new(); // threadId → meta
+        private static string ThreadsFile => Path.Combine(ActiveWorldPath, "threads.json");
         private static ConcurrentDictionary<string, string> UserStatuses     = new(); // alias → "online"/"away"/"dnd"/"invisible"
         private static ConcurrentDictionary<string, string> UserStatusTexts = new(); // alias → custom status text
         private static ConcurrentDictionary<string, WebSocket> BotClients = new(); // botName → socket
@@ -121,6 +124,7 @@ namespace Origin.Server.Core
             LoadChannelHistory();   // must come before PurgeOldHistory
             PurgeOldHistory();
             LoadEmojis();
+            LoadThreadMetas();
             LoadPublicKeys();
             LoadE2EKeys();
             Directory.CreateDirectory(UploadDir);
@@ -226,20 +230,24 @@ namespace Origin.Server.Core
 
         // ── Channel history (in-memory + JSONL persistence) ─────────────────────
 
-        private static string MessageToJsonLine(string channelId, StoredMessage m) =>
+        private static string MessageToJsonLine(string channelId, StoredMessage m, IEnumerable<string> mentionedRoles = null) =>
             JsonSerializer.Serialize(new {
-                id           = m.Id,
-                action       = "CHAT_RECEIVE",
+                id             = m.Id,
+                action         = "CHAT_RECEIVE",
                 channelId,
-                author       = m.Author,
-                authorGuid   = m.AuthorGuid,
-                time         = m.Time,
-                ts           = m.Ts,
-                message      = m.Message,
-                reactions    = m.Reactions,
-                replyToId    = m.ReplyToId,
-                replySnippet = m.ReplySnippet,
-                editHistory  = m.Edits != null && m.Edits.Count > 0 ? (object)m.Edits : null
+                author         = m.Author,
+                authorGuid     = m.AuthorGuid,
+                time           = m.Time,
+                ts             = m.Ts,
+                message        = m.Message,
+                reactions      = m.Reactions,
+                replyToId      = m.ReplyToId,
+                replySnippet   = m.ReplySnippet,
+                editHistory    = m.Edits != null && m.Edits.Count > 0 ? (object)m.Edits : null,
+                threadId       = m.ThreadId,
+                threadCount    = m.ThreadCount > 0 ? (int?)m.ThreadCount : null,
+                poll           = m.Poll,
+                mentionedRoles = mentionedRoles
             });
 
         private static void LoadChannelHistory()
@@ -282,6 +290,21 @@ namespace Origin.Server.Core
                 ChannelHistory[ch.Id] = msgs;
                 if (msgs.Count > 0) Log("HIST", $"'{ch.Name}': {msgs.Count} message(s) loaded");
             }
+        }
+
+        private static void LoadThreadMetas()
+        {
+            if (!File.Exists(ThreadsFile)) return;
+            try
+            {
+                var list = JsonSerializer.Deserialize<List<ThreadMeta>>(File.ReadAllText(ThreadsFile));
+                foreach (var t in list ?? new()) _threadMetas[t.Id] = t;
+                Log("THREAD", $"Loaded {_threadMetas.Count} thread meta(s)");
+            } catch { }
+        }
+        private static void SaveThreadMetas()
+        {
+            File.WriteAllText(ThreadsFile, JsonSerializer.Serialize(_threadMetas.Values.ToList(), new JsonSerializerOptions { WriteIndented = true }));
         }
 
         private static void RewriteChannelHistory(string channelId)
@@ -1182,6 +1205,15 @@ namespace Origin.Server.Core
                             continue;
                         }
 
+                        // ── Timeout check ────────────────────────────────────────
+                        if (_timedOut.TryGetValue(currentAlias, out DateTime toExpiry) && DateTime.UtcNow < toExpiry)
+                        {
+                            int secsLeft = (int)Math.Ceiling((toExpiry - DateTime.UtcNow).TotalSeconds);
+                            await Send(socket, new { action = "SYSTEM_MESSAGE", message = $"You are timed out. ({secsLeft}s remaining)" });
+                            continue;
+                        }
+                        else _timedOut.TryRemove(currentAlias, out _);
+
                         if (text.StartsWith("/") && text.Length > 1 && char.IsLetter(text[1]))
                         {
                             var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -1317,6 +1349,53 @@ namespace Origin.Server.Core
                                 string list = users.Count == 0 ? "(none)" : string.Join(", ", users.Keys);
                                 await Send(socket, new { action = "SYSTEM_MESSAGE", message = $"Auth mode: {mode} | Registered users ({users.Count}): {list}" });
                             }
+                            else if (cmd == "/timeout" && parts.Length >= 3)
+                            {
+                                string toAlias = parts[1];
+                                if (!int.TryParse(parts[2], out int toMins) || toMins <= 0)
+                                    await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Usage: /timeout <alias> <minutes> [reason]" });
+                                else
+                                {
+                                    _timedOut[toAlias] = DateTime.UtcNow.AddMinutes(toMins);
+                                    string toReason = parts.Length >= 4 ? string.Join(" ", parts[3..]) : "Timed out by admin";
+                                    Log("ADMIN", $"'{currentAlias}' timed out '{toAlias}' for {toMins}m");
+                                    LogAudit("TIMEOUT", currentAlias, toAlias, $"{toMins}m: {toReason}");
+                                    await Broadcast(new { action = "USER_TIMED_OUT", alias = toAlias, expiresAt = new DateTimeOffset(_timedOut[toAlias]).ToUnixTimeMilliseconds(), reason = toReason });
+                                    await BroadcastSystemMessage($"{toAlias} has been timed out for {toMins} minute{(toMins == 1 ? "" : "s")}.");
+                                }
+                            }
+                            else if (cmd == "/untimeout" && parts.Length >= 2)
+                            {
+                                string toAlias = parts[1];
+                                _timedOut.TryRemove(toAlias, out _);
+                                Log("ADMIN", $"'{currentAlias}' removed timeout for '{toAlias}'");
+                                await Broadcast(new { action = "USER_UNTIMEOUT", alias = toAlias });
+                                await BroadcastSystemMessage($"{toAlias}'s timeout has been removed.");
+                            }
+                            else if (cmd == "/poll")
+                            {
+                                var pollParts = Regex.Matches(text, @"""([^""]+)""").Select(m => m.Groups[1].Value).ToList();
+                                if (pollParts.Count < 3)
+                                    await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Usage: /poll \"Question?\" \"Option A\" \"Option B\" ..." });
+                                else
+                                {
+                                    var poll = new PollData { Question = pollParts[0], Options = pollParts.Skip(1).ToList() };
+                                    string pollMsgId = Guid.NewGuid().ToString("N")[..12];
+                                    var pollStored = new StoredMessage {
+                                        Id = pollMsgId, Author = currentAlias,
+                                        AuthorGuid = ClientGuids.TryGetValue(currentAlias, out var pg) ? pg : null,
+                                        Time = DateTime.Now.ToString("h:mm tt"), Ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                                        Message = poll.Question, Poll = poll
+                                    };
+                                    lock (HistoryLock) { if (!ChannelHistory.ContainsKey(channelId)) ChannelHistory[channelId] = new(); ChannelHistory[channelId].Add(pollStored); }
+                                    string pollLine = MessageToJsonLine(channelId, pollStored);
+                                    await File.AppendAllTextAsync(ChatFile(channelId), pollLine + Environment.NewLine);
+                                    var pollBytes = Encoding.UTF8.GetBytes(pollLine);
+                                    foreach (var c in ActiveClients.Values) try { await c.SendAsync(new ArraySegment<byte>(pollBytes), WebSocketMessageType.Text, true, CancellationToken.None); } catch { }
+                                    Log("CHAT", $"[{channelId}] {currentAlias} created poll: {poll.Question}");
+                                }
+                                continue;
+                            }
                             else await Send(socket, new { action = "SYSTEM_MESSAGE", message = $"Unknown command: {cmd}" });
                         }
                         else
@@ -1358,7 +1437,13 @@ namespace Origin.Server.Core
                                 if (!ChannelHistory.ContainsKey(channelId)) ChannelHistory[channelId] = new();
                                 ChannelHistory[channelId].Add(stored);
                             }
-                            string jsonLine = MessageToJsonLine(channelId, stored);
+                            // Detect role @mentions
+                            var mentionedRoles = new List<string>();
+                            string[] validRoles = { "guest", "member", "trusted", "admin", "owner" };
+                            foreach (var r in validRoles)
+                                if (text.Contains($"@{r}", StringComparison.OrdinalIgnoreCase)) mentionedRoles.Add(r);
+
+                            string jsonLine = MessageToJsonLine(channelId, stored, mentionedRoles.Count > 0 ? mentionedRoles : null);
                             await File.AppendAllTextAsync(ChatFile(channelId), jsonLine + Environment.NewLine);
                             Log("CHAT", $"[{channelId}] {currentAlias}: {(chatCh?.E2E == true ? "[encrypted]" : text)}");
                             var lineBytes = Encoding.UTF8.GetBytes(jsonLine);
@@ -1727,22 +1812,24 @@ namespace Origin.Server.Core
                     // ── SEARCH_MESSAGES ──────────────────────────────────────────
                     else if (action == "SEARCH_MESSAGES")
                     {
-                        string srchChId = incoming.RootElement.GetProperty("channelId").GetString() ?? "";
+                        string srchChId = incoming.RootElement.TryGetProperty("channelId", out var sciEl) ? sciEl.GetString() ?? "" : "";
                         string srchQ    = incoming.RootElement.GetProperty("query").GetString()?.Trim().ToLowerInvariant() ?? "";
                         if (string.IsNullOrEmpty(srchQ)) { await Send(socket, new { action = "SEARCH_RESULTS", channelId = srchChId, query = srchQ, results = Array.Empty<object>() }); continue; }
-                        var srchCh = ActiveConfig.Channels.FirstOrDefault(c => c.Id == srchChId);
-                        if (srchCh == null || !CanAccess(userRole, srchCh.MinRole)) continue;
-                        List<object> srchResults;
+                        bool allChannels = string.IsNullOrEmpty(srchChId);
+                        var srchChannels = allChannels
+                            ? ActiveConfig.Channels.Where(c => (c.Type == "Text") && CanAccess(userRole, c.MinRole)).ToList()
+                            : ActiveConfig.Channels.Where(c => c.Id == srchChId && CanAccess(userRole, c.MinRole)).ToList();
+                        if (!srchChannels.Any()) continue;
+                        var srchResults = new List<object>();
                         lock (HistoryLock)
-                        {
-                            if (!ChannelHistory.TryGetValue(srchChId, out var srchMsgs)) srchResults = new();
-                            else srchResults = srchMsgs
-                                .Where(m => (m.Message?.ToLowerInvariant().Contains(srchQ) == true) || (m.Author?.ToLowerInvariant().Contains(srchQ) == true))
-                                .Select(m => (object)new { id = m.Id, author = m.Author, time = m.Time, ts = m.Ts, message = m.Message })
-                                .ToList();
-                        }
+                            foreach (var sc in srchChannels)
+                                if (ChannelHistory.TryGetValue(sc.Id, out var srchMsgs))
+                                    srchResults.AddRange(srchMsgs
+                                        .Where(m => (m.Message?.ToLowerInvariant().Contains(srchQ) == true) || (m.Author?.ToLowerInvariant().Contains(srchQ) == true))
+                                        .Select(m => (object)new { id = m.Id, author = m.Author, time = m.Time, ts = m.Ts, message = m.Message, channelId = sc.Id }));
+                        srchResults = srchResults.OrderByDescending(r => ((dynamic)r).ts).Take(80).ToList();
                         await Send(socket, new { action = "SEARCH_RESULTS", channelId = srchChId, query = srchQ, results = srchResults });
-                        Log("SEARCH", $"'{currentAlias}' searched [{srchChId}] '{srchQ}' → {srchResults.Count} hits");
+                        Log("SEARCH", $"'{currentAlias}' searched [{(allChannels ? "all" : srchChId)}] '{srchQ}' → {srchResults.Count} hits");
                     }
 
                     // ── SEND_DM ──────────────────────────────────────────────────
@@ -1848,6 +1935,106 @@ namespace Origin.Server.Core
                             Log("DM", $"'{currentAlias}' deleted DM {messageId}");
                         }
                         else await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Cannot delete that message." });
+                    }
+
+                    // ── POLL_VOTE ─────────────────────────────────────────────────
+                    else if (action == "POLL_VOTE")
+                    {
+                        string pvChId = incoming.RootElement.TryGetProperty("channelId", out var pvCEl) ? pvCEl.GetString() : null;
+                        string pvMsgId = incoming.RootElement.TryGetProperty("messageId", out var pvMEl) ? pvMEl.GetString() : null;
+                        string pvOpt   = incoming.RootElement.TryGetProperty("option", out var pvOEl) ? pvOEl.GetString() : null;
+                        if (string.IsNullOrEmpty(pvChId) || string.IsNullOrEmpty(pvMsgId) || pvOpt == null) continue;
+                        StoredMessage pvMsg = null;
+                        lock (HistoryLock) if (ChannelHistory.TryGetValue(pvChId, out var pvMsgs)) pvMsg = pvMsgs.FirstOrDefault(m => m.Id == pvMsgId);
+                        if (pvMsg?.Poll == null) continue;
+                        lock (HistoryLock)
+                        {
+                            if (pvMsg.Poll.Votes.TryGetValue(currentAlias, out var existing) && existing == pvOpt)
+                                pvMsg.Poll.Votes.Remove(currentAlias); // toggle off
+                            else
+                                pvMsg.Poll.Votes[currentAlias] = pvOpt;
+                        }
+                        _ = Task.Run(() => RewriteChannelHistory(pvChId));
+                        await Broadcast(new { action = "POLL_UPDATED", channelId = pvChId, messageId = pvMsgId, votes = pvMsg.Poll.Votes });
+                    }
+
+                    // ── CREATE_THREAD ─────────────────────────────────────────────
+                    else if (action == "CREATE_THREAD")
+                    {
+                        string ctChId  = incoming.RootElement.TryGetProperty("channelId",  out var ctCEl) ? ctCEl.GetString() : null;
+                        string ctMsgId = incoming.RootElement.TryGetProperty("messageId",  out var ctMEl) ? ctMEl.GetString() : null;
+                        string ctFirst = incoming.RootElement.TryGetProperty("firstMessage", out var ctFEl) ? ctFEl.GetString()?.Trim() : null;
+                        if (string.IsNullOrEmpty(ctChId) || string.IsNullOrEmpty(ctMsgId)) continue;
+                        StoredMessage ctParent = null;
+                        lock (HistoryLock) if (ChannelHistory.TryGetValue(ctChId, out var ctMsgs)) ctParent = ctMsgs.FirstOrDefault(m => m.Id == ctMsgId);
+                        if (ctParent == null) continue;
+                        if (!string.IsNullOrEmpty(ctParent.ThreadId))
+                        { await Send(socket, new { action = "OPEN_THREAD", threadId = ctParent.ThreadId }); continue; }
+                        var tm = new ThreadMeta { ParentChannelId = ctChId, ParentMessageId = ctMsgId, CreatedBy = currentAlias, CreatedAt = DateTime.Now.ToString("h:mm tt") };
+                        lock (HistoryLock) { ctParent.ThreadId = tm.Id; ChannelHistory[$"thread-{tm.Id}"] = new(); }
+                        _threadMetas[tm.Id] = tm;
+                        _ = Task.Run(() => { RewriteChannelHistory(ctChId); SaveThreadMetas(); });
+                        await Broadcast(new { action = "THREAD_CREATED", channelId = ctChId, messageId = ctMsgId, threadId = tm.Id });
+                        if (!string.IsNullOrEmpty(ctFirst))
+                        {
+                            var tfm = new StoredMessage { Id = Guid.NewGuid().ToString("N")[..12], Author = currentAlias, AuthorGuid = ClientGuids.TryGetValue(currentAlias, out var ctg) ? ctg : null, Time = DateTime.Now.ToString("h:mm tt"), Ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), Message = ctFirst };
+                            lock (HistoryLock) ChannelHistory[$"thread-{tm.Id}"].Add(tfm);
+                            string tfLine = MessageToJsonLine($"thread-{tm.Id}", tfm);
+                            await File.AppendAllTextAsync(ChatFile($"thread-{tm.Id}"), tfLine + Environment.NewLine);
+                            tm.MessageCount++;
+                            await Broadcast(new { action = "THREAD_MESSAGE", threadId = tm.Id, id = tfm.Id, author = tfm.Author, time = tfm.Time, ts = tfm.Ts, message = tfm.Message });
+                        }
+                        LogAudit("CREATE_THREAD", currentAlias, ctMsgId, ctChId);
+                    }
+
+                    // ── SEND_THREAD_MESSAGE ───────────────────────────────────────
+                    else if (action == "SEND_THREAD_MESSAGE")
+                    {
+                        string stmId   = incoming.RootElement.TryGetProperty("threadId", out var stmTEl) ? stmTEl.GetString() : null;
+                        string stmText = incoming.RootElement.TryGetProperty("message",  out var stmMEl) ? stmMEl.GetString()?.Trim() : null;
+                        if (string.IsNullOrEmpty(stmId) || string.IsNullOrEmpty(stmText)) continue;
+                        if (!_threadMetas.TryGetValue(stmId, out var stmMeta)) continue;
+                        var stm = new StoredMessage { Id = Guid.NewGuid().ToString("N")[..12], Author = currentAlias, AuthorGuid = ClientGuids.TryGetValue(currentAlias, out var stmg) ? stmg : null, Time = DateTime.Now.ToString("h:mm tt"), Ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), Message = stmText };
+                        lock (HistoryLock) { if (!ChannelHistory.ContainsKey($"thread-{stmId}")) ChannelHistory[$"thread-{stmId}"] = new(); ChannelHistory[$"thread-{stmId}"].Add(stm); }
+                        string stmLine = MessageToJsonLine($"thread-{stmId}", stm);
+                        await File.AppendAllTextAsync(ChatFile($"thread-{stmId}"), stmLine + Environment.NewLine);
+                        stmMeta.MessageCount++;
+                        _ = Task.Run(SaveThreadMetas);
+                        // Update parent message thread count
+                        lock (HistoryLock)
+                            if (ChannelHistory.TryGetValue(stmMeta.ParentChannelId, out var parentMsgs))
+                            {
+                                var parentMsg = parentMsgs.FirstOrDefault(m => m.Id == stmMeta.ParentMessageId);
+                                if (parentMsg != null) parentMsg.ThreadCount = stmMeta.MessageCount;
+                            }
+                        _ = Task.Run(() => RewriteChannelHistory(stmMeta.ParentChannelId));
+                        await Broadcast(new { action = "THREAD_MESSAGE", threadId = stmId, id = stm.Id, author = stm.Author, time = stm.Time, ts = stm.Ts, message = stm.Message });
+                        await Broadcast(new { action = "THREAD_COUNT_UPDATED", channelId = stmMeta.ParentChannelId, messageId = stmMeta.ParentMessageId, threadId = stmId, count = stmMeta.MessageCount });
+                        Log("THREAD", $"[{stmId}] {currentAlias}: {stmText}");
+                    }
+
+                    // ── GET_THREAD_HISTORY ────────────────────────────────────────
+                    else if (action == "GET_THREAD_HISTORY")
+                    {
+                        string gthId = incoming.RootElement.TryGetProperty("threadId", out var gthEl) ? gthEl.GetString() : null;
+                        if (string.IsNullOrEmpty(gthId) || !_threadMetas.ContainsKey(gthId)) continue;
+                        List<StoredMessage> gthMsgs;
+                        lock (HistoryLock)
+                        {
+                            if (!ChannelHistory.TryGetValue($"thread-{gthId}", out var existing))
+                            {
+                                // Lazy-load from file
+                                var loaded = new List<StoredMessage>();
+                                string gthFile = ChatFile($"thread-{gthId}");
+                                if (File.Exists(gthFile))
+                                    foreach (var line in File.ReadLines(gthFile))
+                                        try { var d = JsonDocument.Parse(line).RootElement; loaded.Add(new StoredMessage { Id = d.GetProperty("id").GetString(), Author = d.GetProperty("author").GetString(), Time = d.GetProperty("time").GetString(), Ts = d.GetProperty("ts").GetInt64(), Message = d.GetProperty("message").GetString() }); } catch { }
+                                ChannelHistory[$"thread-{gthId}"] = loaded;
+                                gthMsgs = loaded;
+                            }
+                            else gthMsgs = existing;
+                        }
+                        await Send(socket, new { action = "THREAD_HISTORY", threadId = gthId, messages = gthMsgs.Select(m => new { id = m.Id, author = m.Author, time = m.Time, ts = m.Ts, message = m.Message }) });
                     }
 
                     // ── DELETE_EMOJI ─────────────────────────────────────────────
@@ -2259,7 +2446,7 @@ namespace Origin.Server.Data
     {
         public string Id           { get; set; }
         public string Author       { get; set; }
-        public string AuthorGuid   { get; set; }  // HWID of sender — null on old messages
+        public string AuthorGuid   { get; set; }
         public string Time         { get; set; }
         public long   Ts           { get; set; }
         public string Message      { get; set; }
@@ -2267,6 +2454,26 @@ namespace Origin.Server.Data
         public ReplySnippet ReplySnippet { get; set; }
         public Dictionary<string, List<string>> Reactions { get; set; } = new();
         public List<EditEntry> Edits { get; set; } = new();
+        public string   ThreadId    { get; set; }
+        public int      ThreadCount { get; set; }
+        public PollData Poll        { get; set; }
+    }
+
+    public class PollData
+    {
+        public string       Question { get; set; }
+        public List<string> Options  { get; set; } = new();
+        public Dictionary<string, string> Votes { get; set; } = new(); // alias → option index (string)
+    }
+
+    public class ThreadMeta
+    {
+        public string Id              { get; set; } = Guid.NewGuid().ToString("N")[..12];
+        public string ParentChannelId { get; set; }
+        public string ParentMessageId { get; set; }
+        public string CreatedBy       { get; set; }
+        public string CreatedAt       { get; set; }
+        public int    MessageCount    { get; set; }
     }
 
     public class ReplySnippet

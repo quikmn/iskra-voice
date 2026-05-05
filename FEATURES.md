@@ -1,7 +1,7 @@
 # Iskra — Feature Inventory
 
 > Living document. Update this file whenever a feature is added, fixed, or changed.
-> Last updated: 2026-05-05
+> Last updated: 2026-05-06
 
 ---
 
@@ -32,17 +32,19 @@
 | Message pin/unpin | ✅ | Admin+; pin count badge in header; dedicated pin panel |
 | Emoji reactions | ✅ | Standard + custom server emoji; hover shows who reacted |
 | Reply with quote | ✅ | Inline quote block; click to scroll to original |
-| Full thread branching | ❌ | Not implemented (replies are linear) |
+| Full thread branching | ✅ | Side-panel threads off any message; persistent; count shown on parent |
 | Message forward | ✅ | Modal picks destination channel/DM, optional comment |
 | Bookmarks / starred messages | ✅ | Per-message ☆ button; panel shows all bookmarks by server |
 | Link previews (Open Graph) | ✅ | Title + description + image; cached server-side |
 | Typing indicators | ✅ | "X is typing…" with 3s debounce |
 | System messages | ✅ | Amber italic; multi-line (pre-wrap) for /help output |
-| @mention highlighting (received) | ✅ | Personal mentions highlighted; @everyone/@here distinct colour |
-| @mention autocomplete (while typing) | ✅ | Popup with online users; ↑↓ navigate; Enter/Tab to insert |
+| @mention highlighting (received) | ✅ | Personal mentions highlighted; @everyone/@here distinct colour; role mentions amber |
+| @mention autocomplete (while typing) | ✅ | Popup with online users + role names; ↑↓ navigate; Enter/Tab to insert |
+| Role @mentions (`@member`, `@admin` etc.) | ✅ | Highlights all members with that role; shown amber in chat |
+| Poll command | ✅ | `/poll "Question" "Option A" "Option B"` — click to vote; live bar chart; toggle vote |
 | Message search | ✅ | Ctrl+F; searches current channel; debounced; click result to scroll |
 | Slow mode | ✅ | `/slowmode <secs>` per channel; admin bypass; countdown bar shown |
-| Reply threads (Discord-style) | ❌ | Not implemented |
+| Reply threads (Discord-style) | ✅ | 💬 button on message; side panel with full history; count indicator on parent |
 
 ### Direct Messages
 
@@ -75,7 +77,7 @@
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Screen sharing | ✅ | P2P WebRTC; fullscreen overlay view |
+| Screen sharing | ✅ | P2P WebRTC; fullscreen overlay view; includes system audio track |
 | Video (webcam) in voice | ✅ | Toggle button; 30 FPS target; shows in share panel |
 
 ### Files & Media
@@ -107,6 +109,8 @@
 | `/ban <alias> [reason]` | ✅ | GUID-based permanent ban; persisted to `bans.json` |
 | `/unban <guid>` | ✅ | Removes ban entry |
 | `/slowmode <secs> [channelId]` | ✅ | 0 = off; countdown bar shown to users |
+| `/timeout <alias> <mins> [reason]` | ✅ | Timed-out users cannot send messages; badge shown in member list |
+| `/untimeout <alias>` | ✅ | Removes active timeout |
 | `/adduser <alias> <pass>` | ✅ | Owner only; registers a user account |
 | `/removeuser <alias>` | ✅ | Owner only |
 | `/passwd <alias> <pass>` | ✅ | Owner only; updates password hash |
@@ -178,10 +182,10 @@
 
 | Feature | Notes |
 |---------|-------|
-| Full thread branching | Sub-conversations off a message |
+| Full thread branching | ✅ — now implemented |
 | Announcement channel type | Read-only for non-admins |
 | Forum/board channel type | Post-style threads |
-| Role @mentions | `@Admin` notifies all members with that role |
+| Role @mentions | ✅ — now implemented |
 | Server templates | Clone channel/role layout |
 | Stage channels | One speaker, many listeners |
 | Inbound webhook (GitHub/CI → channel) | Post from external HTTP |
