@@ -887,6 +887,50 @@
         .theme-card-name { font-size: 12px; font-weight: 700; color: var(--text-normal); }
         .theme-card-desc { font-size: 10px; color: var(--text-faint); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .theme-card-badge { font-size: 9px; font-weight: 700; color: var(--success); margin-top: 2px; letter-spacing: 0.4px; }
+
+        /* ── Iskra ID / Friends / Relay ───────────────────────────────────────── */
+        #friends-toggle-btn { width:48px;height:48px;border-radius:50%;background:var(--bg-chat);color:var(--text-muted);font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:border-radius 0.15s,background 0.15s;user-select:none; }
+        #friends-toggle-btn:hover { border-radius:16px;background:var(--accent);color:var(--text-heading); }
+        #friends-toggle-btn.active { border-radius:16px;background:var(--accent);color:var(--text-heading); }
+        #friends-panel { display:none;flex-direction:column;overflow:hidden;flex:1;min-height:0; }
+        #friends-panel.open { display:flex; }
+        #friends-panel-header { height:48px;display:flex;align-items:center;padding:0 12px;font-weight:700;color:var(--text-heading);font-size:14px;border-bottom:1px solid var(--bg-deep);flex-shrink:0;gap:8px;box-sizing:border-box; }
+        #friends-search { flex:1;background:var(--bg-deep);border:1px solid var(--bg-border);border-radius:4px;padding:4px 8px;color:var(--text-normal);font-size:12px;outline:none; }
+        #friends-search:focus { border-color:var(--accent); }
+        #friends-list { flex:1;overflow-y:auto;padding:4px 0; }
+        .friends-section-label { font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;padding:10px 12px 4px; }
+        .friend-item { display:flex;align-items:center;gap:8px;padding:5px 12px;border-radius:4px;margin:1px 4px; }
+        .friend-item:hover { background:var(--bg-sidebar-hover); }
+        .friend-item.active { background:var(--bg-button); }
+        .friend-name { flex:1;font-size:13px;font-weight:600;color:var(--text-normal);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+        .friend-btn { font-size:11px;padding:2px 8px;border:none;border-radius:3px;cursor:pointer;flex-shrink:0; }
+        .friend-btn.msg { background:var(--accent);color:var(--text-heading); }
+        .friend-btn.msg:hover { background:var(--accent-hover); }
+        .friend-btn.accept { background:var(--success);color:var(--text-heading); }
+        .friend-btn.reject,.friend-btn.remove { background:transparent;color:var(--text-faint); }
+        .friend-btn.reject:hover,.friend-btn.remove:hover { background:var(--danger);color:var(--text-heading); }
+        #friends-add-row { padding:8px 12px;border-top:1px solid var(--bg-deep);display:flex;gap:6px;flex-shrink:0; }
+        #friends-add-input { flex:1;background:var(--bg-deep);border:1px solid var(--bg-border);border-radius:4px;padding:5px 8px;color:var(--text-normal);font-size:12px;outline:none; }
+        #friends-add-input:focus { border-color:var(--accent); }
+        .relay-badge { font-size:10px;background:var(--accent);color:var(--text-heading);padding:1px 5px;border-radius:3px;font-weight:700;letter-spacing:0.3px;margin-left:4px; }
+        .relay-dm-msg { padding:3px 0 3px 4px;border-left:2px solid var(--bg-border);margin-left:2px; }
+        .relay-dm-msg.mine { border-left-color:var(--accent); }
+        .iskraid-card { background:var(--bg-deep);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px; }
+        .iskraid-status-row { display:flex;align-items:center;gap:12px; }
+        .iskraid-globe { font-size:28px; }
+        .iskraid-info { flex:1;min-width:0; }
+        .iskraid-alias { font-size:15px;font-weight:700;color:var(--text-heading); }
+        .iskraid-sub { font-size:11px;color:var(--text-muted);margin-top:2px; }
+        .iskraid-warn { color:var(--warning);font-size:10px;font-weight:700;margin-top:2px; }
+        .iskraid-verified-badge { display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:var(--success);background:rgba(87,242,135,0.1);border:1px solid rgba(87,242,135,0.25);border-radius:4px;padding:1px 7px;margin-top:3px; }
+        .iskraid-form { display:flex;flex-direction:column;gap:8px; }
+        .iskraid-toggle { display:flex;background:var(--bg-deep);border-radius:6px;padding:3px;gap:2px;margin-bottom:2px; }
+        .iskraid-toggle-btn { flex:1;padding:6px;border-radius:4px;cursor:pointer;font-size:12px;color:var(--text-muted);text-align:center;font-weight:600;user-select:none; }
+        .iskraid-toggle-btn.active { background:var(--accent);color:var(--text-heading); }
+        .iskraid-feedback { font-size:12px;padding:6px 10px;border-radius:4px;display:none;margin-top:2px; }
+        .iskraid-feedback.show { display:block; }
+        .iskraid-feedback.error { background:var(--danger-bg);color:var(--danger); }
+        .iskraid-feedback.success { background:rgba(87,242,135,0.1);color:var(--success); }
     </style>
 </head>
 <body>
@@ -895,6 +939,9 @@
     <div style="position:relative;margin-bottom:4px;">
         <div id="dm-toggle-btn" title="Direct Messages" onclick="toggleDmMode()">✉</div>
         <div id="dm-unread-badge"></div>
+    </div>
+    <div style="margin-bottom:4px;">
+        <div id="friends-toggle-btn" title="Friends &amp; Global Relay" onclick="toggleFriendsPanel()">👥</div>
     </div>
     <div class="server-bar-divider"></div>
     <div id="server-icon-list"></div>
@@ -914,6 +961,17 @@
         <div id="dm-panel-header">Direct Messages</div>
         <div id="dm-list">
             <div id="dm-empty-state">No conversations yet.<br>Right-click a user to start one.</div>
+        </div>
+    </div>
+    <div id="friends-panel">
+        <div id="friends-panel-header">
+            <span>Friends</span>
+            <input id="friends-search" placeholder="Filter..." oninput="renderFriendsPanel()" />
+        </div>
+        <div id="friends-list"><div class="empty-state" style="padding:20px 12px;">Log in to Iskra ID<br>to see friends here.</div></div>
+        <div id="friends-add-row">
+            <input id="friends-add-input" placeholder="Add by alias..." onkeydown="if(event.key==='Enter')sendFriendRequest()" />
+            <button class="btn-primary" style="font-size:11px;padding:4px 12px;" onclick="sendFriendRequest()">Add</button>
         </div>
     </div>
     <div id="channel-list" style="flex:1;overflow-y:auto;"></div>
@@ -1070,6 +1128,7 @@
             <button id="tab-btn-servers"    class="tab-btn"        onclick="switchTab('servers')">🖥 Servers</button>
             <button id="tab-btn-appearance" class="tab-btn"        onclick="switchTab('appearance')">🎨 Skins</button>
             <button id="tab-btn-admin"      class="tab-btn"        onclick="switchTab('admin')">🛡 Admin</button>
+            <button id="tab-btn-iskraid"    class="tab-btn"        onclick="switchTab('iskraid')">🪪 ID</button>
         </div>
 
         <!-- ── Audio Tab ── -->
@@ -1313,6 +1372,94 @@
             </div>
         </div>
 
+        <!-- ── Iskra ID Tab ── -->
+        <div id="tab-iskraid" class="modal-body hidden">
+            <!-- logged-in view -->
+            <div id="iskraid-logged-in" class="hidden">
+                <div class="iskraid-card">
+                    <div class="iskraid-status-row">
+                        <div class="iskraid-globe">🪪</div>
+                        <div class="iskraid-info">
+                            <div class="iskraid-alias" id="iskraid-alias-label"></div>
+                            <div class="iskraid-sub" id="iskraid-email-label"></div>
+                            <div class="iskraid-warn hidden" id="iskraid-unverified">⚠ Email not verified — check your inbox</div>
+                            <div class="iskraid-verified-badge hidden" id="iskraid-verified-badge">✓ Verified</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                        <button class="btn-secondary" style="flex:1;" id="iskraid-resend-btn" onclick="iskraidResendVerify()">Resend verify email</button>
+                        <button class="btn-secondary" style="flex:1;" onclick="iskraidLogout()">Log out</button>
+                    </div>
+                </div>
+                <hr class="divider">
+                <div id="iskraid-e2e-section">
+                    <!-- rendered by renderIskraidTab() -->
+                </div>
+                <hr class="divider">
+                <div>
+                    <div class="section-label">Change Alias <span style="font-size:10px;font-weight:400;color:var(--text-faint);">— once every 30 days</span></div>
+                    <div style="display:flex;gap:8px;margin-top:6px;">
+                        <input id="iskraid-new-alias" class="form-input" placeholder="New alias..." style="flex:1;" onkeydown="if(event.key==='Enter')iskraidChangeAlias()" />
+                        <button class="btn-primary" onclick="iskraidChangeAlias()">Change</button>
+                    </div>
+                    <div id="iskraid-alias-feedback" class="iskraid-feedback"></div>
+                </div>
+                <hr class="divider">
+                <div>
+                    <div class="section-label">Friends &amp; Global DMs</div>
+                    <p style="font-size:12px;color:var(--text-muted);line-height:1.5;">Click 👥 in the server bar to open your friends list and send relay messages.</p>
+                </div>
+                <hr class="divider">
+                <div>
+                    <div class="section-label">Profile Page</div>
+                    <p style="font-size:12px;color:var(--text-muted);line-height:1.5;margin-bottom:8px;">
+                        Link a public profile page. Hosted on <strong style="color:var(--text-normal)">GitHub Pages, Neocities, Cloudflare Pages,</strong> or <strong style="color:var(--text-normal)">Netlify</strong> — full HTML/CSS, your way.
+                    </p>
+                    <div style="display:flex;gap:8px;">
+                        <input id="iskraid-profile-url" class="form-input" placeholder="https://you.neocities.org" style="flex:1;" onkeydown="if(event.key==='Enter')saveProfileUrl()" />
+                        <button class="btn-primary" onclick="saveProfileUrl()">Save</button>
+                    </div>
+                    <div id="iskraid-profile-feedback" class="iskraid-feedback"></div>
+                </div>
+            </div>
+            <!-- logged-out view -->
+            <div id="iskraid-logged-out">
+                <p style="font-size:12px;color:var(--text-muted);line-height:1.6;margin-bottom:12px;">
+                    Your <strong style="color:var(--text-normal)">Iskra ID</strong> is a global identity — add friends and message them across any server, or with no server at all.
+                </p>
+                <div class="iskraid-toggle">
+                    <div id="iskraid-tab-login"    class="iskraid-toggle-btn active" onclick="switchIskraidForm('login')">Log in</div>
+                    <div id="iskraid-tab-register" class="iskraid-toggle-btn"        onclick="switchIskraidForm('register')">Register</div>
+                </div>
+                <div class="iskraid-form">
+                    <input id="iskraid-alias-input"    class="form-input" placeholder="Alias" autocomplete="username" />
+                    <input id="iskraid-email-input"    class="form-input hidden" placeholder="Email" type="email" autocomplete="email" />
+                    <input id="iskraid-password-input" class="form-input" placeholder="Password" type="password" autocomplete="current-password"
+                           onkeydown="if(event.key==='Enter')iskraidSubmit()" />
+                    <div id="iskraid-feedback" class="iskraid-feedback"></div>
+                    <button class="btn-primary" onclick="iskraidSubmit()" id="iskraid-submit-btn">Log in</button>
+                    <div style="text-align:center;font-size:11px;color:var(--text-subtle);">
+                        <a href="#" onclick="iskraidRecovery();return false;" style="color:var(--link);">Forgot password?</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ── Profile Page Modal ── -->
+<div id="profile-page-overlay" class="hidden" onclick="closeProfilePage()" style="position:fixed;inset:0;z-index:900;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;">
+    <div id="profile-page-modal" onclick="event.stopPropagation()" style="background:var(--bg-surface);border-radius:12px;border:1px solid var(--bg-border);box-shadow:0 16px 64px rgba(0,0,0,0.85);width:min(900px,92vw);height:82vh;display:flex;flex-direction:column;overflow:hidden;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--bg-border);flex-shrink:0;">
+            <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:15px;">🌐</span>
+                <span id="profile-page-title" style="font-weight:700;font-size:14px;color:var(--text-heading);"></span>
+                <span style="font-size:11px;color:var(--text-faint);">profile page</span>
+            </div>
+            <button class="modal-close-btn" onclick="closeProfilePage()">✕</button>
+        </div>
+        <div id="profile-page-content" style="flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;"></div>
     </div>
 </div>
 
@@ -1662,6 +1809,28 @@ let dmHistory        = {};
 let _searchDebounce  = null;
 let _inviteServerId  = null;
 let _pendingJoinData = null;
+
+// ── Iskra ID / Relay state ────────────────────────────────────────────────────
+const RELAY_URL        = 'https://id.iskra.foo';
+let relayToken         = localStorage.getItem('iskra_relay_token') || null;
+let relayUserId        = localStorage.getItem('iskra_relay_userId') || null;
+let relayAlias         = localStorage.getItem('iskra_relay_alias') || null;
+let relayEmailVerified = localStorage.getItem('iskra_relay_verified') === '1';
+let relayEmail         = localStorage.getItem('iskra_relay_email') || null;
+let _relayFriends      = [];     // [{userId, alias}]
+let _relayRequests     = { incoming: [], outgoing: [] };
+let _relayConvos       = {};     // alias → [{id, senderAlias, text, ts, mine}]
+let _activeRelayDm     = null;   // alias of open relay conversation
+let _myPrivKey         = null;   // ECDH CryptoKey — in memory only, never persisted
+let _myPubKeyB64       = null;   // base64 SPKI public key
+let _peerPubKeyB64     = {};     // alias → base64 pubkey
+let _sharedKeys        = {};     // alias → AES-GCM CryptoKey (derived, cached)
+let _e2eUnlocked       = false;  // true once private key is loaded into memory
+let _relayPollTimer    = null;
+let _verifyPollTimer   = null;
+let _iskraidFormMode   = 'login';
+let _inFriendsMode     = false;
+let relayProfileUrl    = null;
 
 // ── Voice status / starboard / ephemeral / notes ───────────────────────────────
 let voiceStatuses    = {};     // channelId → status text (set by users in channel)
@@ -2422,6 +2591,7 @@ function showProfileCard(event, alias) {
     if (['admin','owner'].includes(myRole) && alias !== myAlias) {
         btns.push(['⚙ Actions', (e) => { hideProfileCard(); showUserCtxMenu(e, alias); }]);
     }
+    btns.push(['🌐 Profile', () => { hideProfileCard(); openProfilePage(alias); }]);
     if (btns.length) {
         actEl.style.display = '';
         btns.forEach(([label, fn]) => {
@@ -3132,7 +3302,7 @@ function closeLightbox() {
 let activeTab = 'audio';
 function switchTab(tab) {
     activeTab = tab;
-    ['audio', 'identity', 'servers', 'appearance', 'admin'].forEach(t => {
+    ['audio', 'identity', 'servers', 'appearance', 'admin', 'iskraid'].forEach(t => {
         document.getElementById(`tab-${t}`)?.classList.toggle('hidden', t !== tab);
         document.getElementById(`tab-btn-${t}`)?.classList.toggle('active', t === tab);
     });
@@ -3140,6 +3310,8 @@ function switchTab(tab) {
     if (tab === 'servers')    { renderServerList(); updateSettingsServerSection(); }
     if (tab === 'admin')      renderAdminPanel();
     if (tab === 'appearance') renderThemePicker();
+    if (tab !== 'iskraid') stopVerifyPoll();
+    if (tab === 'iskraid') { renderIskraidTab(); refreshRelayMe(); if (relayToken && !relayEmailVerified) startVerifyPoll(); }
 }
 
 // ── Alias Management ──────────────────────────────────────────────────────────
@@ -7283,6 +7455,706 @@ async function init() {
 }
 
 init();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ISKRA E2E CRYPTO — ECDH P-256 + AES-GCM + PBKDF2 key wrapping
+// Zero-knowledge: server never sees plaintext or private key
+// ═══════════════════════════════════════════════════════════════════════════
+
+const _subtle = crypto.subtle;
+
+function _b64enc(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))); }
+function _b64dec(s)   { return Uint8Array.from(atob(s), c => c.charCodeAt(0)); }
+
+async function e2eGenerateKeypair() {
+    return _subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveKey']);
+}
+
+async function e2eExportPubKey(key) {
+    return _b64enc(await _subtle.exportKey('spki', key));
+}
+
+async function e2eImportPubKey(b64) {
+    return _subtle.importKey('spki', _b64dec(b64), { name: 'ECDH', namedCurve: 'P-256' }, true, []);
+}
+
+async function e2eDeriveWrappingKey(password, email) {
+    const pwKey = await _subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
+    return _subtle.deriveKey(
+        { name: 'PBKDF2', salt: new TextEncoder().encode(email.toLowerCase()), iterations: 600000, hash: 'SHA-256' },
+        pwKey, { name: 'AES-GCM', length: 256 }, false, ['wrapKey', 'unwrapKey']
+    );
+}
+
+async function e2eWrapPrivKey(privKey, wrappingKey) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await _subtle.wrapKey('pkcs8', privKey, wrappingKey, { name: 'AES-GCM', iv });
+    return JSON.stringify({ iv: _b64enc(iv), ct: _b64enc(ct) });
+}
+
+async function e2eUnwrapPrivKey(keyBackupJson, wrappingKey) {
+    const { iv, ct } = JSON.parse(keyBackupJson);
+    return _subtle.unwrapKey(
+        'pkcs8', _b64dec(ct), wrappingKey, { name: 'AES-GCM', iv: _b64dec(iv) },
+        { name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveKey']
+    );
+}
+
+async function e2eGetSharedKey(alias, theirPubB64) {
+    if (_sharedKeys[alias]) return _sharedKeys[alias];
+    if (!_myPrivKey || !theirPubB64) return null;
+    const theirKey = await e2eImportPubKey(theirPubB64);
+    const k = await _subtle.deriveKey(
+        { name: 'ECDH', public: theirKey }, _myPrivKey,
+        { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+    );
+    _sharedKeys[alias] = k;
+    return k;
+}
+
+async function e2eEncrypt(plaintext, alias) {
+    const pubB64 = _peerPubKeyB64[alias];
+    if (!pubB64 || !_myPrivKey) return null; // caller falls back to plaintext
+    const key = await e2eGetSharedKey(alias, pubB64);
+    const iv  = crypto.getRandomValues(new Uint8Array(12));
+    const ct  = await _subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(plaintext));
+    return JSON.stringify({ v: 1, iv: _b64enc(iv), ct: _b64enc(ct) });
+}
+
+async function e2eDecrypt(ciphertextJson, senderAlias) {
+    let obj;
+    try { obj = JSON.parse(ciphertextJson); } catch { return ciphertextJson; }
+    if (!obj.v) return ciphertextJson; // plaintext legacy
+    if (!_myPrivKey) return null;      // locked — caller shows placeholder
+
+    let pubB64 = _peerPubKeyB64[senderAlias];
+    if (!pubB64) {
+        const { ok, data } = await relayFetch(`/api/user/${encodeURIComponent(senderAlias)}`);
+        if (ok && data.pubkey) { pubB64 = data.pubkey; _peerPubKeyB64[senderAlias] = pubB64; }
+    }
+    if (!pubB64) return '[🔐 no sender key]';
+
+    try {
+        const key   = await e2eGetSharedKey(senderAlias, pubB64);
+        const plain = await _subtle.decrypt({ name: 'AES-GCM', iv: _b64dec(obj.iv) }, key, _b64dec(obj.ct));
+        return new TextDecoder().decode(plain);
+    } catch { return '[🔐 decryption failed]'; }
+}
+
+function e2eClearKeys() {
+    _myPrivKey = null; _myPubKeyB64 = null;
+    _peerPubKeyB64 = {}; _sharedKeys = {}; _e2eUnlocked = false;
+}
+
+async function e2eLoadKeys(password, email) {
+    const kb = await relayFetch('/api/me/key-backup');
+    if (!kb.ok || !kb.data.keyBackup) return false;
+    try {
+        const wrappingKey = await e2eDeriveWrappingKey(password, email);
+        _myPrivKey   = await e2eUnwrapPrivKey(kb.data.keyBackup, wrappingKey);
+        _e2eUnlocked = true;
+        DevLog.log('RELAY', '🔐 E2E keys unlocked');
+        return true;
+    } catch (err) {
+        DevLog.log('ERR', `E2E key unlock failed: ${err.message}`);
+        return false;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ISKRA ID — relay auth, friends, global DMs
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function relayFetch(path, opts = {}) {
+    try {
+        const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+        if (relayToken) headers['Authorization'] = `Bearer ${relayToken}`;
+        const res = await fetch(RELAY_URL + path, { ...opts, headers });
+        const data = await res.json().catch(() => ({}));
+        return { ok: res.ok, status: res.status, data };
+    } catch (err) {
+        DevLog.log('ERR', `Relay ${path}: ${err.message}`);
+        return { ok: false, status: 0, data: { error: err.message } };
+    }
+}
+
+function relayPersist() {
+    if (relayToken) {
+        localStorage.setItem('iskra_relay_token',    relayToken);
+        localStorage.setItem('iskra_relay_userId',   relayUserId || '');
+        localStorage.setItem('iskra_relay_alias',    relayAlias  || '');
+        localStorage.setItem('iskra_relay_verified', relayEmailVerified ? '1' : '0');
+        localStorage.setItem('iskra_relay_email',    relayEmail  || '');
+    } else {
+        ['iskra_relay_token','iskra_relay_userId','iskra_relay_alias','iskra_relay_verified','iskra_relay_email']
+            .forEach(k => localStorage.removeItem(k));
+    }
+}
+
+// ── Iskra ID settings tab ──────────────────────────────────────────────────
+
+function renderIskraidTab() {
+    const li = document.getElementById('iskraid-logged-in');
+    const lo = document.getElementById('iskraid-logged-out');
+    if (!li || !lo) return;
+    if (relayToken) {
+        li.classList.remove('hidden');
+        lo.classList.add('hidden');
+        document.getElementById('iskraid-alias-label').textContent = relayAlias || '';
+        document.getElementById('iskraid-email-label').textContent = relayEmail || '';
+        document.getElementById('iskraid-unverified')?.classList.toggle('hidden', relayEmailVerified);
+        document.getElementById('iskraid-verified-badge')?.classList.toggle('hidden', !relayEmailVerified);
+        document.getElementById('iskraid-resend-btn')?.classList.toggle('hidden', relayEmailVerified);
+
+        const e2eSection = document.getElementById('iskraid-e2e-section');
+        if (e2eSection) {
+            if (_e2eUnlocked) {
+                e2eSection.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(87,242,135,0.08);border-radius:6px;border:1px solid rgba(87,242,135,0.2);">
+                    <span style="font-size:18px;">🔐</span>
+                    <div><div style="font-size:12px;font-weight:700;color:var(--success);">E2E Encryption Active</div>
+                    <div style="font-size:11px;color:var(--text-muted);">Messages are encrypted on your device. The server never sees plaintext.</div></div>
+                </div>`;
+            } else {
+                e2eSection.innerHTML = `<div>
+                    <div class="section-label">🔐 Unlock End-to-End Encryption</div>
+                    <p style="font-size:12px;color:var(--text-muted);line-height:1.5;margin-bottom:8px;">Enter your password to load your private key into memory and decrypt messages. The key is never sent to the server.</p>
+                    <div style="display:flex;gap:8px;">
+                        <input id="iskraid-unlock-pw" class="form-input" type="password" placeholder="Your Iskra ID password" style="flex:1;" onkeydown="if(event.key==='Enter')iskraidUnlockE2E()" />
+                        <button class="btn-primary" onclick="iskraidUnlockE2E()">Unlock</button>
+                    </div>
+                    <div id="iskraid-unlock-feedback" class="iskraid-feedback"></div>
+                </div>`;
+            }
+        }
+    } else {
+        li.classList.add('hidden');
+        lo.classList.remove('hidden');
+        switchIskraidForm(_iskraidFormMode);
+    }
+}
+
+async function refreshRelayMe() {
+    if (!relayToken) return;
+    const r = await relayFetch('/api/me');
+    if (!r.ok) return;
+    relayEmailVerified = r.data.emailVerified;
+    relayAlias = r.data.alias;
+    relayEmail = r.data.email;
+    if (r.data.pubkey) _myPubKeyB64 = r.data.pubkey;
+    relayProfileUrl = r.data.profileUrl || null;
+    relayPersist();
+    renderIskraidTab();
+    // Pre-populate profile URL input if visible
+    const inp = document.getElementById('iskraid-profile-url');
+    if (inp && relayProfileUrl && !inp.value) inp.value = relayProfileUrl;
+}
+
+function startVerifyPoll() {
+    if (_verifyPollTimer || relayEmailVerified) return;
+    _verifyPollTimer = setInterval(async () => {
+        await refreshRelayMe();
+        if (relayEmailVerified) stopVerifyPoll();
+    }, 5000);
+}
+function stopVerifyPoll() {
+    clearInterval(_verifyPollTimer);
+    _verifyPollTimer = null;
+}
+
+function switchIskraidForm(mode) {
+    _iskraidFormMode = mode;
+    document.getElementById('iskraid-tab-login')?.classList.toggle('active', mode === 'login');
+    document.getElementById('iskraid-tab-register')?.classList.toggle('active', mode === 'register');
+    document.getElementById('iskraid-email-input')?.classList.toggle('hidden', mode === 'login');
+    const btn = document.getElementById('iskraid-submit-btn');
+    if (btn) btn.textContent = mode === 'login' ? 'Log in' : 'Create account';
+    iskraidFeedback('', '');
+}
+
+function iskraidFeedback(msg, type) {
+    const el = document.getElementById('iskraid-feedback');
+    if (!el) return;
+    el.textContent = msg;
+    el.className = 'iskraid-feedback' + (msg ? ' show ' + type : '');
+}
+
+async function iskraidSubmit() {
+    const alias = document.getElementById('iskraid-alias-input')?.value.trim();
+    const pw    = document.getElementById('iskraid-password-input')?.value;
+    const email = document.getElementById('iskraid-email-input')?.value.trim();
+
+    if (!alias || !pw) { iskraidFeedback('Alias and password required.', 'error'); return; }
+
+    if (_iskraidFormMode === 'register') {
+        if (!email) { iskraidFeedback('Email required for registration.', 'error'); return; }
+
+        iskraidFeedback('Generating encryption keys… (this takes a moment)', '');
+        const kp       = await e2eGenerateKeypair();
+        const pubKey   = await e2eExportPubKey(kp.publicKey);
+        const wrapKey  = await e2eDeriveWrappingKey(pw, email);
+        const keyBackup = await e2eWrapPrivKey(kp.privateKey, wrapKey);
+
+        iskraidFeedback('Creating account…', '');
+        const { ok, data } = await relayFetch('/api/register', {
+            method: 'POST', body: JSON.stringify({ alias, email, password: pw, pubkey: pubKey, keyBackup })
+        });
+        if (!ok) { iskraidFeedback(data.error || 'Registration failed.', 'error'); return; }
+        switchIskraidForm('login');
+        iskraidFeedback('Account created! Verify your email, then log in here.', 'success');
+
+    } else {
+        iskraidFeedback('Logging in…', '');
+        const { ok, data } = await relayFetch('/api/login', {
+            method: 'POST', body: JSON.stringify({ alias, password: pw })
+        });
+        if (!ok) { iskraidFeedback(data.error || 'Login failed.', 'error'); return; }
+        relayToken         = data.token;
+        relayUserId        = data.userId;
+        relayAlias         = data.alias;
+        relayEmailVerified = data.emailVerified;
+        relayEmail         = null;
+        relayPersist();
+
+        iskraidFeedback('Unlocking encryption keys… (this takes a moment)', '');
+        const me = await relayFetch('/api/me');
+        if (me.ok) { relayEmail = me.data.email; _myPubKeyB64 = me.data.pubkey; relayPersist(); }
+
+        if (relayEmail) await e2eLoadKeys(pw, relayEmail);
+
+        iskraidFeedback('', '');
+        renderIskraidTab();
+        await relayLoadFriends();
+        startRelayPoll();
+    }
+}
+
+async function openProfilePage(alias) {
+    const overlay = document.getElementById('profile-page-overlay');
+    const title   = document.getElementById('profile-page-title');
+    const content = document.getElementById('profile-page-content');
+    if (!overlay) return;
+
+    title.textContent = alias;
+    content.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">Loading…</div>';
+    overlay.classList.remove('hidden');
+
+    const { ok, data } = await relayFetch(`/api/profile/${encodeURIComponent(alias)}`);
+    if (!ok) {
+        content.innerHTML = `<div style="text-align:center;padding:32px;color:var(--text-muted);">
+            <div style="font-size:40px;margin-bottom:12px;">🌐</div>
+            <div style="font-weight:600;font-size:14px;margin-bottom:6px;color:var(--text-normal);">${alias} hasn't set up a profile page yet.</div>
+            <div style="font-size:12px;color:var(--text-faint);">They can link one in Settings → ID</div>
+        </div>`;
+        return;
+    }
+
+    // Seven layers of sandbox:
+    // 1. Domain whitelist enforced server-side at save time
+    // 2. Domain whitelist re-validated server-side at serve time
+    // 3. Redirect destination re-validated server-side
+    // 4. Script tags stripped server-side
+    // 5. on* handlers stripped server-side
+    // 6. CSP injected server-side (script-src 'none')
+    // 7. iframe sandbox="" — browser enforces zero script execution
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('sandbox', '');          // all restrictions, allow nothing
+    iframe.setAttribute('referrerpolicy', 'no-referrer');
+    iframe.setAttribute('loading', 'lazy');
+    iframe.style.cssText = 'width:100%;height:100%;border:none;display:block;';
+    iframe.srcdoc = data.html;
+    content.innerHTML = '';
+    content.appendChild(iframe);
+}
+
+function closeProfilePage() {
+    document.getElementById('profile-page-overlay')?.classList.add('hidden');
+    const c = document.getElementById('profile-page-content');
+    if (c) c.innerHTML = '';
+}
+
+async function saveProfileUrl() {
+    const input = document.getElementById('iskraid-profile-url');
+    const url = input?.value.trim() || '';
+    const setFb = (msg, type) => {
+        const el = document.getElementById('iskraid-profile-feedback');
+        if (el) { el.textContent = msg; el.className = 'iskraid-feedback' + (msg ? ' show ' + type : ''); }
+    };
+    setFb('Saving…', '');
+    const { ok, data } = await relayFetch('/api/me/profile-url', { method: 'PUT', body: JSON.stringify({ url }) });
+    if (!ok) { setFb(data.error || 'Failed.', 'error'); return; }
+    relayProfileUrl = data.profileUrl || null;
+    setFb(relayProfileUrl ? 'Profile URL saved!' : 'Profile URL cleared.', 'success');
+}
+
+async function iskraidLogout() {
+    if (relayToken) await relayFetch('/api/logout', { method: 'POST' });
+    relayToken = relayUserId = relayAlias = relayEmail = null;
+    relayEmailVerified = false;
+    _relayFriends = []; _relayRequests = { incoming: [], outgoing: [] };
+    e2eClearKeys();
+    stopRelayPoll();
+    relayPersist();
+    renderIskraidTab();
+    renderFriendsPanel();
+}
+
+async function iskraidUnlockE2E() {
+    const pw = document.getElementById('iskraid-unlock-pw')?.value;
+    const fb = document.getElementById('iskraid-unlock-feedback');
+    const setFb = (msg, type) => { if (fb) { fb.textContent = msg; fb.className = 'iskraid-feedback' + (msg ? ' show ' + type : ''); } };
+    if (!pw) return;
+    if (!relayEmail) { setFb('Could not load account info. Try logging out and back in.', 'error'); return; }
+    setFb('Deriving key… (this takes a moment)', '');
+    const ok = await e2eLoadKeys(pw, relayEmail);
+    if (!ok) { setFb('Wrong password or no keys found.', 'error'); return; }
+    renderIskraidTab();
+}
+
+async function iskraidChangeAlias() {
+    const input = document.getElementById('iskraid-new-alias');
+    const fb    = document.getElementById('iskraid-alias-feedback');
+    const newAlias = input?.value.trim();
+    if (!newAlias) return;
+    const setFb = (msg, type) => { if (fb) { fb.textContent = msg; fb.className = 'iskraid-feedback' + (msg ? ' show ' + type : ''); } };
+    setFb('Updating…', '');
+    const { ok, data } = await relayFetch('/api/me/alias', { method: 'PUT', body: JSON.stringify({ alias: newAlias }) });
+    if (!ok) { setFb(data.error || 'Failed.', 'error'); return; }
+    relayAlias = data.alias;
+    relayPersist();
+    if (input) input.value = '';
+    setFb(`Alias changed to ${data.alias}!`, 'success');
+    renderIskraidTab();
+}
+
+async function iskraidResendVerify() {
+    if (!relayEmail) return;
+    const { ok } = await relayFetch('/api/resend-verify', { method: 'POST', body: JSON.stringify({ email: relayEmail }) });
+    iskraidFeedback(ok ? 'Verification email sent!' : 'Failed — try again shortly.', ok ? 'success' : 'error');
+}
+
+async function iskraidRecovery() {
+    const alias = document.getElementById('iskraid-alias-input')?.value.trim();
+    const email = prompt('Enter your registered email to receive a password reset link:');
+    if (!email) return;
+    await relayFetch('/api/recover', { method: 'POST', body: JSON.stringify({ email }) });
+    iskraidFeedback('If that email is registered, a reset link has been sent.', 'success');
+}
+
+// ── Friends panel ──────────────────────────────────────────────────────────
+
+function toggleFriendsPanel() {
+    _inFriendsMode = !_inFriendsMode;
+    const btn   = document.getElementById('friends-toggle-btn');
+    const panel = document.getElementById('friends-panel');
+    const dmPanel = document.getElementById('dm-panel');
+    const chList  = document.getElementById('channel-list');
+    btn?.classList.toggle('active', _inFriendsMode);
+    panel?.classList.toggle('open', _inFriendsMode);
+    if (_inFriendsMode) {
+        dmPanel?.classList.remove('open');
+        chList?.style.setProperty('display', 'none');
+        document.getElementById('dm-toggle-btn')?.classList.remove('active');
+        if (relayToken) relayLoadFriends().then(renderFriendsPanel);
+        else renderFriendsPanel();
+    } else {
+        chList?.style.removeProperty('display');
+    }
+}
+
+async function relayLoadFriends() {
+    if (!relayToken) return;
+    const [fr, rq] = await Promise.all([
+        relayFetch('/api/friends'),
+        relayFetch('/api/friend/requests'),
+    ]);
+    if (fr.ok) {
+        _relayFriends = fr.data.friends || [];
+        _relayFriends.forEach(f => { if (f.pubkey) _peerPubKeyB64[f.alias] = f.pubkey; });
+    }
+    if (rq.ok) _relayRequests = rq.data;
+}
+
+function renderFriendsPanel() {
+    const list = document.getElementById('friends-list');
+    if (!list) return;
+    if (!relayToken) {
+        list.innerHTML = '<div class="empty-state" style="padding:20px 12px;">Log in via Settings → 🪪 ID<br>to use friends &amp; global DMs.</div>';
+        return;
+    }
+    const q = (document.getElementById('friends-search')?.value || '').toLowerCase();
+    let html = '';
+
+    const incoming = _relayRequests.incoming || [];
+    if (incoming.length) {
+        html += `<div class="friends-section-label">Pending — ${incoming.length}</div>`;
+        incoming.forEach(r => {
+            if (q && !r.alias.toLowerCase().includes(q)) return;
+            html += `<div class="friend-item">
+                ${avatarHtml(r.alias, 'sz-22', false)}
+                <span class="friend-name">${escapeHtml(r.alias)}</span>
+                <button class="friend-btn accept" onclick="relayAcceptFriend('${escapeHtml(r.requestId)}')">✓</button>
+                <button class="friend-btn reject" onclick="relayRejectFriend('${escapeHtml(r.requestId)}')">✕</button>
+            </div>`;
+        });
+    }
+
+    const friends = _relayFriends.filter(f => !q || f.alias.toLowerCase().includes(q));
+    if (friends.length) {
+        html += `<div class="friends-section-label">Friends — ${friends.length}</div>`;
+        friends.forEach(f => {
+            const isActive = _activeRelayDm === f.alias;
+            html += `<div class="friend-item${isActive ? ' active' : ''}">
+                ${avatarHtml(f.alias, 'sz-22', false)}
+                <span class="friend-name">${escapeHtml(f.alias)}</span>
+                <button class="friend-btn msg" onclick="openRelayDm('${escapeHtml(f.alias)}')">💬</button>
+                <button class="friend-btn remove" onclick="relayRemoveFriend('${escapeHtml(f.alias)}')" title="Remove friend">✕</button>
+            </div>`;
+        });
+    }
+
+    const outgoing = (_relayRequests.outgoing || []).filter(r => !q || r.alias.toLowerCase().includes(q));
+    if (outgoing.length) {
+        html += `<div class="friends-section-label">Sent requests</div>`;
+        outgoing.forEach(r => {
+            html += `<div class="friend-item">
+                ${avatarHtml(r.alias, 'sz-22', false)}
+                <span class="friend-name" style="color:var(--text-muted)">${escapeHtml(r.alias)}</span>
+                <span style="font-size:10px;color:var(--text-faint);">pending</span>
+            </div>`;
+        });
+    }
+
+    if (!html) html = '<div class="empty-state" style="padding:20px 12px;">No friends yet.<br>Add one below!</div>';
+    list.innerHTML = html;
+}
+
+async function sendFriendRequest() {
+    const input = document.getElementById('friends-add-input');
+    const alias = input?.value.trim();
+    if (!alias) return;
+    if (!relayToken) { alert('Log in to Iskra ID first (Settings → 🪪 ID)'); return; }
+    const { ok, data } = await relayFetch('/api/friend/request', {
+        method: 'POST', body: JSON.stringify({ alias })
+    });
+    if (ok) { if (input) input.value = ''; await relayLoadFriends(); renderFriendsPanel(); }
+    else alert(data.error || 'Could not send friend request.');
+}
+
+async function relayAcceptFriend(requestId) {
+    const { ok } = await relayFetch('/api/friend/accept', { method: 'POST', body: JSON.stringify({ requestId }) });
+    if (ok) { await relayLoadFriends(); renderFriendsPanel(); }
+}
+
+async function relayRejectFriend(requestId) {
+    const { ok } = await relayFetch('/api/friend/reject', { method: 'POST', body: JSON.stringify({ requestId }) });
+    if (ok) { await relayLoadFriends(); renderFriendsPanel(); }
+}
+
+async function relayRemoveFriend(alias) {
+    if (!confirm(`Remove ${alias} from friends?`)) return;
+    await relayFetch('/api/friend/remove', { method: 'POST', body: JSON.stringify({ alias }) });
+    if (_activeRelayDm === alias) closeRelayDm();
+    await relayLoadFriends();
+    renderFriendsPanel();
+}
+
+// ── Relay DMs ──────────────────────────────────────────────────────────────
+
+function _relayConvoKey(alias) { return `iskra_relay_convo_${alias}`; }
+
+function relayLoadConvo(alias) {
+    if (!_relayConvos[alias]) {
+        try { _relayConvos[alias] = JSON.parse(localStorage.getItem(_relayConvoKey(alias)) || '[]'); }
+        catch { _relayConvos[alias] = []; }
+    }
+    return _relayConvos[alias];
+}
+
+function relaySaveConvo(alias) {
+    localStorage.setItem(_relayConvoKey(alias), JSON.stringify((_relayConvos[alias] || []).slice(-200)));
+}
+
+function openRelayDm(alias) {
+    if (!relayToken) return;
+    _activeRelayDm = alias;
+    renderFriendsPanel();
+
+    // Switch chat pane to relay DM mode
+    const header = document.getElementById('chat-header');
+    if (header) {
+        header.innerHTML = `
+            <span id="chat-channel-icon" style="color:var(--accent)">💬</span>
+            <span id="chat-channel-name">${escapeHtml(alias)}</span>
+            <span class="relay-badge">Global DM</span>
+            <div style="flex:1"></div>
+            <button class="modal-close-btn" onclick="closeRelayDm()" title="Close relay DM">✕</button>`;
+    }
+
+    const msgs = document.getElementById('chat-messages');
+    if (msgs) msgs.innerHTML = '';
+    relayRenderConvo(alias);
+
+    // Enable input
+    const inp = document.getElementById('chat-input');
+    if (inp) {
+        inp.placeholder = `Message ${alias} via Iskra Relay…`;
+        inp.disabled = false;
+        inp.focus();
+    }
+    document.getElementById('send-btn')?.removeAttribute('disabled');
+
+    // Override send to go to relay
+    window._relayDmActive = true;
+}
+
+function closeRelayDm() {
+    _activeRelayDm = null;
+    window._relayDmActive = false;
+    renderFriendsPanel();
+    // Restore normal header
+    const header = document.getElementById('chat-header');
+    if (header && activeTextChannelId) {
+        const ch = serverChannels.find(c => c.id === activeTextChannelId);
+        if (ch) header.innerHTML = `
+            <span id="chat-channel-icon" style="color:var(--text-muted)">#</span>
+            <span id="chat-channel-name">${escapeHtml(ch.name)}</span>`;
+    }
+    const inp = document.getElementById('chat-input');
+    if (inp) inp.placeholder = 'Message…';
+}
+
+function relayRenderConvo(alias) {
+    const msgs = document.getElementById('chat-messages');
+    if (!msgs) return;
+    const convo = relayLoadConvo(alias);
+    if (!convo.length) {
+        msgs.innerHTML = `<div class="ch-empty-state">No messages yet. Say hi to ${escapeHtml(alias)}!</div>`;
+        return;
+    }
+    msgs.innerHTML = convo.map(m => {
+        const mine = m.senderAlias === relayAlias;
+        const tsStr = new Date(m.ts * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return `<div class="chat-msg relay-dm-msg${mine ? ' mine' : ''}" id="relay-msg-${m.id}">
+            <div class="msg-header">
+                ${avatarHtml(m.senderAlias, 'sz-32', false)}
+                <span class="msg-author" style="${mine ? 'color:var(--accent)' : ''}">${escapeHtml(m.senderAlias)}</span>
+                <span class="msg-time">${tsStr}</span>
+            </div>
+            <div class="msg-body">${renderMarkdown(escapeHtml(m.text))}</div>
+        </div>`;
+    }).join('');
+    msgs.scrollTop = msgs.scrollHeight;
+}
+
+async function sendRelayMessage(text) {
+    if (!relayToken || !_activeRelayDm || !text.trim()) return;
+    const alias = _activeRelayDm;
+
+    // Fetch their pubkey if we don't have it yet
+    if (!_peerPubKeyB64[alias]) {
+        const { ok, data } = await relayFetch(`/api/user/${encodeURIComponent(alias)}`);
+        if (ok && data.pubkey) _peerPubKeyB64[alias] = data.pubkey;
+    }
+
+    const encrypted  = await e2eEncrypt(text.trim(), alias);
+    const ciphertext = encrypted || text.trim(); // fallback plaintext if no key yet
+    const isE2E      = !!encrypted;
+
+    const { ok, data } = await relayFetch('/api/message', {
+        method: 'POST', body: JSON.stringify({ recipientAlias: alias, ciphertext })
+    });
+    if (!ok) { DevLog.log('ERR', `Relay send failed: ${data.error}`); return; }
+
+    const msg = { id: data.messageId, senderAlias: relayAlias, text: text.trim(), ts: Math.floor(Date.now() / 1000), e2e: isE2E };
+    const convo = relayLoadConvo(alias);
+    convo.push(msg);
+    relaySaveConvo(alias);
+    relayRenderConvo(alias);
+}
+
+async function relayPollInbox() {
+    if (!relayToken) return;
+    const { ok, data } = await relayFetch('/api/inbox');
+    if (!ok) return;
+    const msgs = data.messages || [];
+    if (!msgs.length) return;
+
+    const ackIds = [];
+    let needsRender = false;
+
+    for (const m of msgs) {
+        ackIds.push(m.id);
+        const alias = m.senderAlias;
+        const convo = relayLoadConvo(alias);
+        if (convo.some(x => x.id === m.id)) continue;
+
+        const plaintext = await e2eDecrypt(m.ciphertext, alias);
+        const text = plaintext ?? '[🔐 encrypted — unlock E2E to read]';
+        const e2e  = plaintext !== m.ciphertext;
+
+        convo.push({ id: m.id, senderAlias: alias, text, ts: m.createdAt, e2e });
+        relaySaveConvo(alias);
+
+        if (_activeRelayDm === alias) needsRender = true;
+        else {
+            DevLog.log('RELAY', `New DM from ${alias}${e2e ? ' 🔐' : ''}`);
+            if (!document.hasFocus())
+                new Notification(`Iskra — ${alias}`, { body: text.slice(0, 80) });
+        }
+    }
+
+    if (needsRender) relayRenderConvo(_activeRelayDm);
+
+    if (ackIds.length)
+        relayFetch('/api/inbox/ack', { method: 'POST', body: JSON.stringify({ ids: ackIds }) });
+}
+
+function startRelayPoll() {
+    stopRelayPoll();
+    relayPollInbox();
+    _relayPollTimer = setInterval(relayPollInbox, 30000);
+}
+
+function stopRelayPoll() {
+    if (_relayPollTimer) { clearInterval(_relayPollTimer); _relayPollTimer = null; }
+}
+
+// ── Boot: restore session if token saved ──────────────────────────────────
+(async function relayBoot() {
+    if (!relayToken) return;
+    const { ok, data } = await relayFetch('/api/me');
+    if (!ok) { relayToken = null; relayPersist(); return; }
+    relayUserId = data.userId;
+    relayAlias  = data.alias;
+    relayEmail  = data.email;
+    relayEmailVerified = data.emailVerified;
+    relayPersist();
+    await relayLoadFriends();
+    startRelayPoll();
+    DevLog.log('RELAY', `Signed in as ${relayAlias}`);
+})();
+
+// ── Hook into chat send to intercept relay DMs ─────────────────────────────
+const _origSendMessage = typeof sendMessage === 'function' ? sendMessage : null;
+// Monkey-patch the send button / Enter handler
+document.addEventListener('DOMContentLoaded', () => {}, { once: true });
+
+// Patch sendMessage at call time by wrapping the input keydown
+{
+    const _origSend = window.sendMessage;
+    window.sendMessage = function() {
+        if (window._relayDmActive && _activeRelayDm) {
+            const inp = document.getElementById('chat-input');
+            const txt = inp?.value?.trim();
+            if (!txt) return;
+            inp.value = '';
+            inp.style.height = '';
+            sendRelayMessage(txt);
+            return;
+        }
+        if (_origSend) _origSend.apply(this, arguments);
+    };
+}
 </script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 # Iskra — Feature Inventory
 
 > Living document. Update this file whenever a feature is added, fixed, or changed.
-> Last updated: 2026-05-07
+> Last updated: 2026-05-06
 
 ---
 
@@ -11,6 +11,7 @@
 - **Client wrapper**: C# WPF/WebView2 app (`iskra_client/Program.cs`) — bridge between OS and JS
 - **Frontend**: Single-file vanilla JS/HTML/CSS (`iskra_client/index.html`)
 - **World model**: `servers/<name>/` folder per instance — `server.json`, `chat-{chId}.jsonl`, `dms/`, `fingerprints.json`, `bans.json`, `audit.jsonl`, `uploads/`
+- **Iskra Relay**: ASP.NET Core minimal API (`iskra_relay/`) — deployed at `https://id.iskra.foo` on DigitalOcean AMS3; SQLite, Resend email, bcrypt passwords, hex session tokens
 
 ---
 
@@ -182,6 +183,25 @@
 | Link preview caching | ✅ | OG tags fetched server-side; cached |
 | Profile cards | ✅ | Click any username/avatar; shows role, status, actions |
 
+### Iskra ID & Global Relay (`id.iskra.foo`)
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Global identity registration | ✅ | Alias + email + password; alias globally unique (first-come-first-served) |
+| Email verification | ✅ | Resend API via `noreply@iskra.foo`; resend button in ID tab |
+| Login / logout | ✅ | Bearer token stored in `localStorage`; session restored on boot |
+| Password recovery | ✅ | Email reset link; 1-hour expiry; all sessions invalidated on reset |
+| Alias change | ✅ | Once per 30 days; days-remaining shown on rejection |
+| Friends — send / accept / reject / remove | ✅ | By alias; pending requests shown in friends panel |
+| Global relay DMs | ✅ | Store-and-forward via relay; 30-day TTL; inbox polled every 30s |
+| Relay DM history | ✅ | Stored in `localStorage` per conversation (last 200 messages) |
+| Friends panel | ✅ | 👥 button in server bar; filter, add, message, remove |
+| Iskra ID settings tab | ✅ | 🪪 ID tab in Settings; shows alias, email, verification status |
+| CORS | ✅ | `AllowAnyOrigin` — required for WebView2 fetch |
+| E2E encryption for relay DMs | ✅ | ECDH P-256 + AES-GCM 256; private key PBKDF2-wrapped, stored as key_backup; relay is zero-knowledge |
+| Relay DM notifications | ✅ | Desktop notification when app not focused and new relay message arrives |
+| Profile pages | ✅ | Link GitHub Pages / Neocities / Cloudflare Pages / Netlify; relay proxies + sanitizes; rendered in sandboxed iframe |
+
 ### Planned / Not Yet Implemented
 
 | Feature | Notes |
@@ -192,3 +212,6 @@
 | Stage channels | One speaker, many listeners |
 | Inbound webhook (GitHub/CI → channel) | Post from external HTTP |
 | Mobile client | Not started |
+| Profile pages | GitHub Pages, Neocities, Cloudflare Pages, Netlify — sandboxed iframe + server-side sanitization |
+| Relay DM read receipts | Cross-device seen status |
+| Relay avatar sync | Global avatar stored on relay, shown across all servers |

@@ -494,6 +494,11 @@ server-data/
 
 # Live server world data (contains credentials, HWID fingerprints, user data)
 servers/quikmn-main/
+servers/newcleantest/
+
+# Relay secrets and local DB (never commit these)
+relay.json
+*.db
 
 # Build artifacts
 *.zip
