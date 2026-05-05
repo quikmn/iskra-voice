@@ -537,6 +537,21 @@ namespace Origin.Server.Core
             await Broadcast(new { action = "SYSTEM_MESSAGE", message });
         }
 
+        private static async Task BroadcastChannelUpdate()
+        {
+            _ = Task.Run(() => File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true })));
+            foreach (var kv in ActiveClients.ToList())
+            {
+                string alias = kv.Key;
+                string role;
+                lock (RoleLock) role = UserRoles.TryGetValue(alias, out var r) ? r : "guest";
+                var visibleChs = ActiveConfig.Channels
+                    .Where(c => c.Type == "Header" || CanAccess(role, c.MinRole))
+                    .Select(c => new { id = c.Id, name = c.Name, type = c.Type, readOnly = c.ReadOnly, muted = c.Muted, slowMode = c.SlowMode, minRole = c.MinRole, writeRole = c.WriteRole, e2e = c.E2E });
+                try { await Send(kv.Value, new { action = "CHANNELS_UPDATED", channels = visibleChs }); } catch { }
+            }
+        }
+
         // ── Audit log ────────────────────────────────────────────────────────────
 
         private static void LogAudit(string action, string actor, string target = "", string detail = "")
@@ -1889,6 +1904,82 @@ namespace Origin.Server.Core
                         _ = Task.Run(() => File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true })));
                         LogAudit("CHANNEL_ROLES", currentAlias, chId2, $"minRole:{tChan.MinRole} writeRole:{tChan.WriteRole}");
                         await Broadcast(new { action = "CHANNEL_UPDATED", channelId = chId2, minRole = tChan.MinRole, writeRole = tChan.WriteRole });
+                    }
+
+                    // ── ADD_CHANNEL ───────────────────────────────────────────────
+                    else if (action == "ADD_CHANNEL")
+                    {
+                        if (RoleRank(userRole) < RoleRank("owner"))
+                        { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Only the owner can add channels." }); continue; }
+                        string newType = incoming.RootElement.TryGetProperty("type", out var ntEl) ? ntEl.GetString()?.Trim() ?? "Text" : "Text";
+                        string newName = incoming.RootElement.TryGetProperty("name", out var nnEl) ? nnEl.GetString()?.Trim() ?? "new-channel" : "new-channel";
+                        if (!new[] { "Text", "Voice", "Header" }.Contains(newType)) newType = "Text";
+                        var newCh = new Channel { Id = Guid.NewGuid().ToString("N")[..8], Name = string.IsNullOrEmpty(newName) ? "new-channel" : newName, Type = newType };
+                        ActiveConfig.Channels.Add(newCh);
+                        await BroadcastChannelUpdate();
+                        LogAudit("ADD_CHANNEL", currentAlias, newCh.Id, $"{newType}:{newCh.Name}");
+                        Log("CONFIG", $"'{currentAlias}' added channel #{newCh.Name} (type:{newType})");
+                    }
+
+                    // ── DELETE_CHANNEL ────────────────────────────────────────────
+                    else if (action == "DELETE_CHANNEL")
+                    {
+                        if (RoleRank(userRole) < RoleRank("owner"))
+                        { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Only the owner can delete channels." }); continue; }
+                        string delId = incoming.RootElement.TryGetProperty("channelId", out var delEl) ? delEl.GetString()?.Trim() ?? "" : "";
+                        var delCh = ActiveConfig.Channels.FirstOrDefault(c => c.Id == delId);
+                        if (delCh == null) continue;
+                        ActiveConfig.Channels.Remove(delCh);
+                        await BroadcastChannelUpdate();
+                        LogAudit("DELETE_CHANNEL", currentAlias, delId, delCh.Name);
+                        Log("CONFIG", $"'{currentAlias}' deleted channel #{delCh.Name}");
+                    }
+
+                    // ── RENAME_CHANNEL ────────────────────────────────────────────
+                    else if (action == "RENAME_CHANNEL")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin"))
+                        { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Only admins can rename channels." }); continue; }
+                        string renId = incoming.RootElement.TryGetProperty("channelId", out var renEl) ? renEl.GetString()?.Trim() ?? "" : "";
+                        string renName = incoming.RootElement.TryGetProperty("name", out var rnnEl) ? rnnEl.GetString()?.Trim() ?? "" : "";
+                        if (string.IsNullOrEmpty(renName)) continue;
+                        var renCh = ActiveConfig.Channels.FirstOrDefault(c => c.Id == renId);
+                        if (renCh == null) continue;
+                        renCh.Name = renName;
+                        await BroadcastChannelUpdate();
+                        LogAudit("RENAME_CHANNEL", currentAlias, renId, renName);
+                    }
+
+                    // ── REORDER_CHANNEL ───────────────────────────────────────────
+                    else if (action == "REORDER_CHANNEL")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin"))
+                        { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Only admins can reorder channels." }); continue; }
+                        string reordId   = incoming.RootElement.TryGetProperty("channelId", out var reordEl) ? reordEl.GetString()?.Trim() ?? "" : "";
+                        string direction = incoming.RootElement.TryGetProperty("direction", out var dirEl) ? dirEl.GetString() ?? "up" : "up";
+                        int idx = ActiveConfig.Channels.FindIndex(c => c.Id == reordId);
+                        if (idx < 0) continue;
+                        int newIdx = direction == "down" ? idx + 1 : idx - 1;
+                        if (newIdx < 0 || newIdx >= ActiveConfig.Channels.Count) continue;
+                        var moved = ActiveConfig.Channels[idx];
+                        ActiveConfig.Channels.RemoveAt(idx);
+                        ActiveConfig.Channels.Insert(newIdx, moved);
+                        await BroadcastChannelUpdate();
+                        LogAudit("REORDER_CHANNEL", currentAlias, reordId, direction);
+                    }
+
+                    // ── TYPING ───────────────────────────────────────────────
+                    else if (action == "TYPING")
+                    {
+                        string typingCh = incoming.RootElement.TryGetProperty("channelId", out var tyCh) ? tyCh.GetString()?.Trim() : null;
+                        if (string.IsNullOrEmpty(typingCh)) continue;
+                        var tyChObj = ActiveConfig.Channels.FirstOrDefault(c => c.Id == typingCh);
+                        if (tyChObj == null || !CanAccess(userRole, tyChObj.MinRole)) continue;
+                        var typingBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(
+                            new { action = "TYPING_INDICATOR", channelId = typingCh, alias = currentAlias }));
+                        foreach (var kv in ActiveClients.ToList())
+                            if (kv.Key != currentAlias)
+                                try { await SendRaw(kv.Value, typingBytes); } catch { }
                     }
                 }
             }
