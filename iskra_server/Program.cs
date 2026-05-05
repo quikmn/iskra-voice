@@ -1184,13 +1184,41 @@ namespace Origin.Server.Core
 
                         if (text.StartsWith("/") && text.Length > 1 && char.IsLetter(text[1]))
                         {
+                            var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                            string cmd = parts[0].ToLowerInvariant();
+
+                            // Universal commands (available to all roles)
+                            if (cmd == "/help" || cmd == "/commands")
+                            {
+                                var helpLines = new List<string> { "━━ Available commands ━━" };
+                                helpLines.Add("/help — show this list");
+                                if (RoleRank(userRole) >= RoleRank("admin"))
+                                {
+                                    helpLines.Add("/kick <alias> [reason] — kick a user");
+                                    helpLines.Add("/ban <alias> [reason] — ban a user");
+                                    helpLines.Add("/unban <guid> — remove a ban by GUID");
+                                    helpLines.Add("/role <alias> <role> — set a user's role (guest/member/trusted" + (userRole == "owner" ? "/admin" : "") + ")");
+                                    helpLines.Add("/slowmode <seconds> [channelId] — set channel cooldown (0 = off)");
+                                }
+                                if (userRole == "owner")
+                                {
+                                    helpLines.Add("/adduser <alias> <password> — register a user account");
+                                    helpLines.Add("/removeuser <alias> — delete a registered user");
+                                    helpLines.Add("/passwd <alias> <password> — change a user's password");
+                                    helpLines.Add("/authmode <mode> — open | registered+guests | verified-only");
+                                    helpLines.Add("/listusers — list all registered users");
+                                }
+                                if (RoleRank(userRole) < RoleRank("admin"))
+                                    helpLines.Add("(No admin commands available for your role)");
+                                await Send(socket, new { action = "SYSTEM_MESSAGE", message = string.Join("\n", helpLines) });
+                                continue;
+                            }
+
                             if (RoleRank(userRole) < RoleRank("admin"))
                             {
                                 await Send(socket, new { action = "SYSTEM_MESSAGE", message = "You don't have permission to use admin commands." });
                                 continue;
                             }
-                            var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                            string cmd = parts[0].ToLowerInvariant();
                             Log("ADMIN", $"'{currentAlias}' cmd: {text}");
                             if      (cmd == "/kick"  && parts.Length >= 2) await KickUser(parts[1], currentAlias, parts.Length >= 3 ? string.Join(" ", parts[2..]) : "Kicked by admin");
                             else if (cmd == "/ban"   && parts.Length >= 2) await BanUser(parts[1], currentAlias, parts.Length >= 3 ? string.Join(" ", parts[2..]) : "Banned by admin");
@@ -1710,7 +1738,7 @@ namespace Origin.Server.Core
                             if (!ChannelHistory.TryGetValue(srchChId, out var srchMsgs)) srchResults = new();
                             else srchResults = srchMsgs
                                 .Where(m => (m.Message?.ToLowerInvariant().Contains(srchQ) == true) || (m.Author?.ToLowerInvariant().Contains(srchQ) == true))
-                                .Select(m => (object)new { m.Id, m.Author, m.Time, m.Ts, m.Message })
+                                .Select(m => (object)new { id = m.Id, author = m.Author, time = m.Time, ts = m.Ts, message = m.Message })
                                 .ToList();
                         }
                         await Send(socket, new { action = "SEARCH_RESULTS", channelId = srchChId, query = srchQ, results = srchResults });

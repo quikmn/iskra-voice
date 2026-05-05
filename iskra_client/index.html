@@ -308,7 +308,7 @@
         .msg-author:hover { text-decoration: underline; }
         .msg-time { color: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
         .msg-body { color: var(--text-normal); word-break: break-word; }
-        .msg-system { color: var(--warning); font-style: italic; font-size: 13px; padding: 3px 20px; }
+        .msg-system { color: var(--warning); font-style: italic; font-size: 13px; padding: 3px 20px; white-space: pre-wrap; }
         .msg-system::before { content: '— '; }
         .msg-img { max-width: 420px; max-height: 320px; border-radius: 6px; margin-top: 5px; display: block; cursor: zoom-in; border: 1px solid var(--bg-border); }
         .msg-img:hover { border-color: var(--accent); }
@@ -608,6 +608,12 @@
         .fmt-item-label { flex: 1; }
         .fmt-item-hint { font-size: 11px; color: var(--text-faint); font-family: monospace; flex-shrink: 0; }
         .fmt-sep { height: 1px; background: var(--bg-border); margin: 3px 0; }
+
+        /* ── @mention autocomplete popup ── */
+        .mention-popup { position: fixed; z-index: 410; background: var(--bg-surface); border: 1px solid var(--bg-border); border-radius: 8px; padding: 4px 0; min-width: 200px; max-width: 280px; box-shadow: 0 -4px 20px rgba(0,0,0,0.5); }
+        .mention-item { display: flex; align-items: center; gap: 8px; padding: 6px 10px; cursor: pointer; font-size: 13px; color: var(--text-normal); }
+        .mention-item:hover, .mention-item.selected { background: var(--bg-sidebar-hover); color: var(--text-heading); }
+        .mention-item-alias { flex: 1; font-weight: 500; }
 
         /* ── Syntax highlighting ── */
         .hl-kw { color: #7aa2f7; }
@@ -921,7 +927,7 @@
         <div class="input-row">
             <button class="attach-btn" onclick="document.getElementById('file-input').click()" title="Attach file (or paste / drag & drop)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
             <button class="attach-btn" onclick="toggleFormatPicker(event)" title="Formatting (Ctrl+Shift+F)">✏</button>
-            <textarea id="chat-input" class="input-box" placeholder="Message #general-chat" rows="1" onkeydown="sendChat(event)" oninput="onChatInput()"></textarea>
+            <textarea id="chat-input" class="input-box" placeholder="Message #general-chat" rows="1" onkeydown="sendChat(event)" oninput="onChatInput()" onblur="setTimeout(hideMentionPopup,150)"></textarea>
             <button class="attach-btn" onclick="toggleEmojiInsertPicker(event)" title="Emoji">😊</button>
         </div>
         <input type="file" id="file-input" style="display:none"
@@ -2774,11 +2780,95 @@ function _updateChannelTopic(channelId) {
     if (editBtn) editBtn.style.display = ['admin','owner'].includes(myRole) && ch?.type === 'Text' ? '' : 'none';
 }
 
+// ── @mention autocomplete ─────────────────────────────────────────────────────
+let _mentionPopup   = null;
+let _mentionSuggIdx = 0;
+let _mentionSuggs   = [];
+let _mentionAtStart = 0;
+
+function hideMentionPopup() {
+    if (_mentionPopup) { _mentionPopup.remove(); _mentionPopup = null; }
+    _mentionSuggIdx = 0;
+    _mentionSuggs   = [];
+}
+
+function _buildMentionPopup(ta) {
+    if (!_mentionSuggs.length) { hideMentionPopup(); return; }
+    if (!_mentionPopup) {
+        const popup = document.createElement('div');
+        popup.className = 'mention-popup';
+        document.body.appendChild(popup);
+        _mentionPopup = popup;
+    }
+    _mentionPopup.innerHTML = '';
+    _mentionSuggs.forEach((alias, i) => {
+        const item = document.createElement('div');
+        item.className = 'mention-item' + (i === _mentionSuggIdx ? ' selected' : '');
+        item.innerHTML = avatarHtml(alias, 'sz-22', false, false) + `<span class="mention-item-alias">${escapeHtml(alias)}</span>`;
+        item.addEventListener('mousedown', e => { e.preventDefault(); _selectMention(ta, alias); });
+        _mentionPopup.appendChild(item);
+    });
+    const r = ta.getBoundingClientRect();
+    const ph = _mentionPopup.offsetHeight || (_mentionSuggs.length * 34 + 8);
+    _mentionPopup.style.bottom = (window.innerHeight - r.top + 4) + 'px';
+    _mentionPopup.style.left   = r.left + 'px';
+}
+
+function _selectMention(ta, alias) {
+    const val = ta.value;
+    const cursor = ta.selectionStart;
+    ta.value = val.slice(0, _mentionAtStart) + '@' + alias + ' ' + val.slice(cursor);
+    ta.selectionStart = ta.selectionEnd = _mentionAtStart + alias.length + 2;
+    hideMentionPopup();
+    ta.focus();
+}
+
+function _mentionKey(e) {
+    if (!_mentionPopup || !_mentionSuggs.length) return false;
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        _mentionSuggIdx = (_mentionSuggIdx + 1) % _mentionSuggs.length;
+        _buildMentionPopup(e.target);
+        return true;
+    }
+    if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        _mentionSuggIdx = (_mentionSuggIdx - 1 + _mentionSuggs.length) % _mentionSuggs.length;
+        _buildMentionPopup(e.target);
+        return true;
+    }
+    if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        _selectMention(e.target, _mentionSuggs[_mentionSuggIdx]);
+        return true;
+    }
+    if (e.key === 'Escape') { hideMentionPopup(); return true; }
+    return false;
+}
+
 // ── Typing indicator ─────────────────────────────────────────────────────────
 function onChatInput() {
     // Auto-resize textarea
     const ta = document.getElementById('chat-input');
     if (ta) { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 150) + 'px'; }
+
+    // @mention autocomplete
+    if (ta) {
+        const cursor = ta.selectionStart;
+        const textBefore = ta.value.slice(0, cursor);
+        const atMatch = textBefore.match(/@([a-zA-Z0-9_\-.]*)$/);
+        if (atMatch && connectedServerId) {
+            const partial = atMatch[1].toLowerCase();
+            _mentionAtStart = cursor - atMatch[0].length;
+            _mentionSuggs = Object.keys(userStatuses)
+                .filter(a => a !== myAlias && (!partial || a.toLowerCase().startsWith(partial)))
+                .sort().slice(0, 8);
+            _buildMentionPopup(ta);
+        } else {
+            hideMentionPopup();
+        }
+    }
+
     // Typing indicator
     if (!connectedServerId || !activeTextChannelId) return;
     const now = Date.now();
@@ -3759,7 +3849,9 @@ function joinVoice(id) {
 }
 
 async function sendChat(e) {
+    if (_mentionKey(e)) return;
     if (e.key !== 'Enter' || e.shiftKey || !e.target.value.trim()) return;
+    hideMentionPopup();
     e.preventDefault();
     const msg = e.target.value.trim();
     const _resetInput = () => { e.target.value = ''; e.target.style.height = 'auto'; };
@@ -4936,7 +5028,7 @@ function renderSystemMessage(message) {
     const h = document.getElementById('chat-history');
     const div = document.createElement('div');
     div.className = 'msg-system';
-    div.textContent = message;
+    div.textContent = message;   // textContent + pre-wrap handles \n correctly
     h.appendChild(div);
     h.scrollTop = h.scrollHeight;
 }
