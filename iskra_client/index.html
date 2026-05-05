@@ -2658,7 +2658,7 @@ function closeEmojiInsertPicker() {
 }
 
 // ── GIF picker ────────────────────────────────────────────────────────────────
-const TENOR_KEY = 'AIzaSyB-cXS5HSFOU2U5DhCGbcq8lJ2I_K8FJDE'; // Tenor v2 public demo key
+const TENOR_KEY = 'LIVDSRZULELA'; // Tenor v1 public demo key
 let _gifSearchTimer = null;
 let _gifPickerOpen  = false;
 
@@ -2697,15 +2697,15 @@ async function searchGifs(query) {
     if (!grid) return;
     grid.innerHTML = '<span style="color:var(--text-muted);font-size:12px;padding:4px;">Loading…</span>';
     try {
-        const q = encodeURIComponent(query || 'trending');
+        const q = encodeURIComponent(query || '');
         const endpoint = query
-            ? `https://tenor.googleapis.com/v2/search?q=${q}&limit=16&media_filter=gif&key=${TENOR_KEY}`
-            : `https://tenor.googleapis.com/v2/featured?limit=16&media_filter=gif&key=${TENOR_KEY}`;
+            ? `https://g.tenor.com/v1/search?q=${q}&key=${TENOR_KEY}&limit=16&media_filter=basic`
+            : `https://g.tenor.com/v1/trending?key=${TENOR_KEY}&limit=16&media_filter=basic`;
         const res  = await fetch(endpoint);
         const json = await res.json();
         grid.innerHTML = '';
         (json.results || []).forEach(item => {
-            const url = item?.media_formats?.tinygif?.url || item?.media_formats?.gif?.url;
+            const url = item?.media?.[0]?.tinygif?.url || item?.media?.[0]?.gif?.url;
             if (!url) return;
             const img = document.createElement('img');
             img.className = 'gif-item';
@@ -5531,13 +5531,10 @@ window.chrome.webview.addEventListener('message', async (e) => {
                 if (el) {
                     el.classList.add('msg-ephemeral');
                     let secs = data.ephemeralSeconds || 60;
-                    const timer = el.querySelector('.msg-ephemeral-timer') || (() => {
-                        const t = document.createElement('span');
-                        t.className = 'msg-ephemeral-timer';
-                        el.querySelector('.msg-meta')?.appendChild(t);
-                        return t;
-                    })();
-                    const tick = () => { if (timer.isConnected) { timer.textContent = ` ⏳${secs}s`; if (--secs >= 0) setTimeout(tick, 1000); } };
+                    const t = document.createElement('span');
+                    t.className = 'msg-ephemeral-timer';
+                    el.querySelector('.msg-header')?.appendChild(t);
+                    const tick = () => { if (t.isConnected) { t.textContent = ` ⏳ ${secs}s`; if (secs-- > 0) setTimeout(tick, 1000); } };
                     tick();
                 }
             }
