@@ -444,6 +444,34 @@
         #pin-indicator.visible { display: inline-flex; }
         #pin-panel { border-bottom: 1px solid var(--bg-deep); background: var(--bg-sidebar); flex-shrink: 0; display: none; max-height: 180px; overflow-y: auto; }
         #pin-panel.open { display: block; }
+        #media-gallery-btn { background: transparent; border: none; color: var(--text-subtle); font-size: 15px; cursor: pointer; padding: 3px 7px; border-radius: 4px; }
+        #media-gallery-btn:hover, #media-gallery-btn.active { background: var(--bg-button); color: var(--text-normal); }
+        #media-gallery-panel { border-bottom: 1px solid var(--bg-deep); background: var(--bg-sidebar); flex-shrink: 0; display: none; max-height: 220px; overflow-y: auto; padding: 8px 12px; }
+        #media-gallery-panel.open { display: block; }
+        .media-gallery-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+        .media-gallery-grid a { display: block; width: 72px; height: 72px; border-radius: 6px; overflow: hidden; border: 1px solid var(--bg-border); flex-shrink: 0; }
+        .media-gallery-grid img, .media-gallery-grid video { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .media-gallery-grid a:hover { border-color: var(--accent); }
+        .media-gallery-empty { color: var(--text-muted); font-size: 13px; padding: 4px 0; }
+        @keyframes msg-jump-flash { 0%,100%{background:transparent} 30%{background:var(--accent-subtle)} }
+        .msg-jump-flash { animation: msg-jump-flash 1.2s ease; }
+        /* ── DM Voice Call ── */
+        #dm-call-bar { display:none; align-items:center; gap:10px; padding:6px 16px; background:rgba(87,181,88,0.1); border-bottom:1px solid rgba(87,181,88,0.3); font-size:13px; color:var(--success); flex-shrink:0; }
+        #dm-call-bar.active { display:flex; }
+        .dm-call-action { border:none; border-radius:4px; padding:3px 10px; cursor:pointer; font-size:13px; font-weight:600; }
+        .dm-call-mute { background:var(--bg-button); color:var(--text-normal); }
+        .dm-call-mute.muted { background:rgba(237,66,69,0.2); color:var(--danger); }
+        .dm-call-end { background:var(--danger); color:#fff; }
+        .dm-call-timer { font-variant-numeric:tabular-nums; min-width:40px; }
+        #dm-call-btn { background:transparent; border:none; color:var(--text-subtle); font-size:15px; cursor:pointer; padding:3px 7px; border-radius:4px; }
+        #dm-call-btn:hover { background:var(--bg-button); color:var(--success); }
+        #dm-call-incoming { display:none; position:fixed; top:80px; left:50%; transform:translateX(-50%); z-index:9999; background:var(--bg-sidebar); border:1px solid var(--bg-border); border-radius:12px; padding:20px 28px; box-shadow:0 8px 32px rgba(0,0,0,0.5); text-align:center; min-width:260px; }
+        #dm-call-incoming.visible { display:block; }
+        #dm-call-incoming .call-who { font-size:18px; font-weight:700; color:var(--text-heading); margin-bottom:4px; }
+        #dm-call-incoming .call-subtitle { font-size:12px; color:var(--text-muted); margin-bottom:16px; }
+        #dm-call-incoming .call-actions { display:flex; gap:12px; justify-content:center; }
+        #dm-call-incoming .call-accept { background:var(--success); color:#fff; border:none; border-radius:6px; padding:8px 20px; font-size:15px; cursor:pointer; font-weight:600; }
+        #dm-call-incoming .call-decline { background:var(--danger); color:#fff; border:none; border-radius:6px; padding:8px 20px; font-size:15px; cursor:pointer; font-weight:600; }
         .pin-entry { padding: 8px 20px; border-bottom: 1px solid rgba(255,255,255,0.04); display: flex; align-items: flex-start; gap: 10px; }
         .pin-entry:last-child { border-bottom: none; }
         .pin-entry-body { flex: 1; min-width: 0; }
@@ -479,6 +507,10 @@
         .status-opt { display: flex; align-items: center; gap: 8px; padding: 7px 14px; cursor: pointer; font-size: 13px; color: var(--text-normal); }
         .status-opt:hover { background: var(--bg-sidebar-hover); }
         .status-opt-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .status-presets { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 12px 6px; border-bottom: 1px solid var(--bg-border); }
+        .status-preset-chip { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: var(--bg-button); color: var(--text-muted); cursor: pointer; border: 1px solid var(--bg-border); white-space: nowrap; }
+        .status-preset-chip:hover { background: var(--bg-active); color: var(--text-normal); }
+        .status-preset-chip.add-preset { color: var(--accent); border-color: var(--accent-subtle); }
 
         /* ── Thread panel ── */
         #thread-panel { width: 360px; background: var(--bg-sidebar); flex-direction: column; flex-shrink: 0; border-left: 1px solid var(--bg-deep); display: none; }
@@ -1017,6 +1049,8 @@
         </div>
         <button id="chat-topic-edit-btn" onclick="editChannelTopic()" title="Set channel topic">✏</button>
         <button id="pin-indicator" onclick="togglePinPanel()" title="Pinned messages">📌 <span id="pin-count-badge">0</span> pinned</button>
+        <button id="media-gallery-btn" onclick="toggleMediaGallery()" title="Media gallery">🖼</button>
+        <button id="dm-call-btn" onclick="startDmCall(activeDmWith)" title="Voice call" style="display:none">📞</button>
         <button id="search-btn" onclick="openSearch()" title="Search messages">🔍</button>
         <button id="btn-members" onclick="toggleMembersPanel()" title="Toggle member list">👥</button>
     </div>
@@ -1034,6 +1068,8 @@
         </div>
     </div>
     <div id="pin-panel"></div>
+    <div id="media-gallery-panel"></div>
+    <div id="dm-call-bar"></div>
     <div id="screen-share-panel"></div>
     <div id="event-banner" class="hidden">
         <span>📅</span>
@@ -1406,16 +1442,34 @@
                 </div>
                 <hr class="divider">
                 <div>
+                    <div class="section-label">Global Avatar <span style="font-size:10px;font-weight:400;color:var(--text-faint);">— shown across all servers to Iskra ID users</span></div>
+                    <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
+                        <div style="width:52px;height:52px;border-radius:50%;overflow:hidden;border:2px solid var(--bg-border);flex-shrink:0;background:var(--bg-deep);display:flex;align-items:center;justify-content:center;">
+                            <img id="iskraid-relay-avatar-img" class="hidden" style="width:100%;height:100%;object-fit:cover;" alt="">
+                            <span id="iskraid-relay-avatar-none" style="font-size:22px;">🪪</span>
+                        </div>
+                        <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
+                            <button class="btn-secondary" style="font-size:12px;" onclick="syncRelayAvatar()">⬆ Sync current avatar to Iskra ID</button>
+                            <button class="btn-secondary" style="font-size:12px;" onclick="clearRelayAvatar()">✕ Remove global avatar</button>
+                        </div>
+                    </div>
+                    <div id="iskraid-avatar-feedback" class="iskraid-feedback"></div>
+                </div>
+                <hr class="divider">
+                <div>
                     <div class="section-label">Friends &amp; Global DMs</div>
                     <p style="font-size:12px;color:var(--text-muted);line-height:1.5;">Click 👥 in the server bar to open your friends list and send relay messages.</p>
                 </div>
                 <hr class="divider">
                 <div>
-                    <div class="section-label">Profile Page</div>
-                    <p style="font-size:12px;color:var(--text-muted);line-height:1.5;margin-bottom:8px;">
-                        Link a public profile page. Hosted on <strong style="color:var(--text-normal)">GitHub Pages, Neocities, Cloudflare Pages,</strong> or <strong style="color:var(--text-normal)">Netlify</strong> — full HTML/CSS, your way.
-                    </p>
-                    <div style="display:flex;gap:8px;">
+                    <div class="section-label">Profile Page <span style="font-size:10px;font-weight:400;color:var(--text-faint);">— github.io · neocities.org · pages.dev · netlify.app</span></div>
+                    <div id="iskraid-profile-current" class="hidden" style="display:flex;align-items:center;gap:6px;margin-top:8px;margin-bottom:6px;padding:7px 10px;background:var(--bg-deep);border-radius:6px;border:1px solid var(--bg-border);">
+                        <span style="font-size:13px;flex-shrink:0;">🌐</span>
+                        <span id="iskraid-profile-url-display" style="font-size:11px;color:var(--link);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+                        <button class="btn-secondary" style="font-size:11px;padding:3px 10px;flex-shrink:0;" onclick="openProfilePage(relayAlias)">👁 View</button>
+                        <button class="btn-secondary" style="font-size:11px;padding:3px 10px;flex-shrink:0;" onclick="openInBrowser(relayProfileUrl)">🔗 Open</button>
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:8px;">
                         <input id="iskraid-profile-url" class="form-input" placeholder="https://you.neocities.org" style="flex:1;" onkeydown="if(event.key==='Enter')saveProfileUrl()" />
                         <button class="btn-primary" onclick="saveProfileUrl()">Save</button>
                     </div>
@@ -1450,14 +1504,18 @@
 
 <!-- ── Profile Page Modal ── -->
 <div id="profile-page-overlay" class="hidden" onclick="closeProfilePage()" style="position:fixed;inset:0;z-index:900;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;">
-    <div id="profile-page-modal" onclick="event.stopPropagation()" style="background:var(--bg-surface);border-radius:12px;border:1px solid var(--bg-border);box-shadow:0 16px 64px rgba(0,0,0,0.85);width:min(900px,92vw);height:82vh;display:flex;flex-direction:column;overflow:hidden;">
+    <div id="profile-page-modal" onclick="event.stopPropagation()" style="background:var(--bg-surface);border-radius:12px;border:1px solid var(--bg-border);box-shadow:0 16px 64px rgba(0,0,0,0.85);width:min(1180px,96vw);height:85vh;display:flex;flex-direction:column;overflow:hidden;">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--bg-border);flex-shrink:0;">
             <div style="display:flex;align-items:center;gap:8px;">
                 <span style="font-size:15px;">🌐</span>
                 <span id="profile-page-title" style="font-weight:700;font-size:14px;color:var(--text-heading);"></span>
                 <span style="font-size:11px;color:var(--text-faint);">profile page</span>
             </div>
-            <button class="modal-close-btn" onclick="closeProfilePage()">✕</button>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <button id="profile-mute-btn" onclick="toggleProfileMute()" title="Toggle mute" style="background:rgba(237,66,69,0.15);border:1px solid rgba(237,66,69,0.4);color:#ed4245;border-radius:6px;padding:3px 9px;font-size:13px;cursor:pointer;line-height:1.6;transition:all .15s;flex-shrink:0;">🔇</button>
+                <input type="range" id="profile-vol-slider" min="0" max="100" value="50" oninput="setProfileVolume(this.value)" style="width:72px;accent-color:var(--accent);cursor:pointer;opacity:0.35;" title="Volume">
+                <button class="modal-close-btn" onclick="closeProfilePage()">✕</button>
+            </div>
         </div>
         <div id="profile-page-content" style="flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;"></div>
     </div>
@@ -1763,6 +1821,7 @@ let isMuted        = false;
 let isDeafened     = false;
 let unreadCounts   = {};     // channelId → unread message count
 let mentionCounts  = {};     // channelId → unread @mention count
+let lastSeenTs     = {};     // channelId → unix ts of last viewed message
 let myRole         = 'guest';
 let inMutedChannel = false;
 let userAvatars    = {};   // alias → url (per-server, reset on disconnect)
@@ -1831,6 +1890,19 @@ let _verifyPollTimer   = null;
 let _iskraidFormMode   = 'login';
 let _inFriendsMode     = false;
 let relayProfileUrl    = null;
+let relayAvatarDataUrl = null;   // data URL of avatar synced to Iskra ID
+let _relayReceipts     = {};     // messageId → { recipientAlias, readAt }
+
+// ── DM voice call state ────────────────────────────────────────────────────────
+let _dmCallPeer   = null;
+let _dmCallWith   = null;
+let _dmCallState  = 'idle';   // 'idle' | 'ringing_out' | 'ringing_in' | 'active'
+let _dmCallGain   = null;
+let _dmCallOffer  = null;
+let _dmIceBuf     = [];
+let _dmCallTimer  = null;
+let _dmCallSecs   = 0;
+let _dmCallMuted  = false;
 
 // ── Voice status / starboard / ephemeral / notes ───────────────────────────────
 let voiceStatuses    = {};     // channelId → status text (set by users in channel)
@@ -2358,6 +2430,7 @@ function selectTextChannel(id) {
     activeTextChannelId = id;
     unreadCounts[id]  = 0;
     mentionCounts[id] = 0;
+    lastSeenTs[id] = Math.floor(Date.now() / 1000);
     if (connectedServerId) saveUnread(connectedServerId);
     _clearTyping();
     cancelReply();
@@ -2411,10 +2484,11 @@ function loadUnread(sid) {
         const d = JSON.parse(localStorage.getItem(`iskra_unread_${sid}`) || '{}');
         unreadCounts  = d.u || {};
         mentionCounts = d.m || {};
-    } catch { unreadCounts = {}; mentionCounts = {}; }
+        lastSeenTs    = d.t || {};
+    } catch { unreadCounts = {}; mentionCounts = {}; lastSeenTs = {}; }
 }
 function saveUnread(sid) {
-    localStorage.setItem(`iskra_unread_${sid}`, JSON.stringify({ u: unreadCounts, m: mentionCounts }));
+    localStorage.setItem(`iskra_unread_${sid}`, JSON.stringify({ u: unreadCounts, m: mentionCounts, t: lastSeenTs }));
 }
 
 // ── Server mute ───────────────────────────────────────────────────────────────
@@ -4799,6 +4873,7 @@ function openDmMode() {
 function closeDmMode() {
     inDmMode = false;
     activeDmWith = null;
+    document.getElementById('dm-call-btn').style.display = 'none';
     document.getElementById('dm-toggle-btn').classList.remove('active');
     document.getElementById('dm-panel').classList.remove('open');
     document.getElementById('channel-list').style.display = '';
@@ -4828,6 +4903,7 @@ function openDm(alias) {
     activeDmWith = alias;
     document.getElementById('chat-channel-icon').textContent = '✉';
     document.getElementById('chat-channel-name').textContent = alias;
+    document.getElementById('dm-call-btn').style.display = '';
     const chatInput = document.getElementById('chat-input');
     if (chatInput) chatInput.placeholder = `Message @${alias}`;
     const el = document.getElementById('input-area');
@@ -5084,6 +5160,7 @@ function renderChatMessage(msgId, author, time, message, edited, reactions, repl
         const bkd = isBookmarked(msgId);
         actions = `<span class="msg-actions">`;
         actions += `<button class="msg-act-btn msg-act-bookmark${bkd ? ' bookmarked' : ''}" title="${bkd ? 'Remove bookmark' : 'Bookmark'}" onclick="toggleBookmark('${msgId}')">${bkd ? '★' : '☆'}</button>`;
+        actions += `<button class="msg-act-btn" title="Copy link / Jump to message" onclick="copyMsgLink('${msgId}')">🔗</button>`;
         actions += `<button class="msg-act-btn" title="Forward" onclick="showForwardModal('${msgId}')">↪</button>`;
         actions += `<button class="msg-act-btn" title="Reply" onclick="startReply('${msgId}')">↩</button>`;
         if (!inDmMode) actions += `<button class="msg-act-btn" title="Start thread" onclick="startOrOpenThread('${msgId}')">💬</button>`;
@@ -5722,18 +5799,20 @@ window.chrome.webview.addEventListener('message', async (e) => {
             const chNotify   = getChannelNotifyPref(chId);
             // 'muted': suppress everything; 'mentions': only count/sound for mentions
             const chSilenced = chNotify === 'muted' || (chNotify === 'mentions' && !isMention);
+            // Only treat as new if it arrived after we last viewed this channel (filters history replay)
+            const isNew = !data.ts || data.ts > (lastSeenTs[chId] || 0);
             if (chId !== activeTextChannelId) {
-                if (!chSilenced) {
+                if (!chSilenced && isNew) {
                     unreadCounts[chId] = (unreadCounts[chId] || 0) + 1;
                     if (isMention) mentionCounts[chId] = (mentionCounts[chId] || 0) + 1;
                     if (connectedServerId) saveUnread(connectedServerId);
                     renderChannelList();
                 }
-                if (!chSilenced && (!srvMuted || bypassMute)) playSound(isMention ? 'mention' : 'message');
+                if (!chSilenced && isNew && (!srvMuted || bypassMute)) playSound(isMention ? 'mention' : 'message');
             } else if (isMention) {
                 if (!chSilenced && (!srvMuted || bypassMute)) playSound('mention');
             }
-            if (!chSilenced && (!srvMuted || bypassMute) && data.author !== myAlias && !document.hasFocus()) {
+            if (!chSilenced && isNew && (!srvMuted || bypassMute) && data.author !== myAlias && !document.hasFocus()) {
                 const chName = serverChannels.find(c => c.id === chId)?.name || chId || '';
                 const notifBody = ciphertextBackup ? '🔒 Encrypted message' : (msgText || '').slice(0, 120);
                 postToBridge({ action: 'NOTIFY',
@@ -6234,6 +6313,9 @@ window.chrome.webview.addEventListener('message', async (e) => {
                 msgRow.after(receipt);
             }
         }
+
+    } else if (data.action === 'DM_CALL_SIGNAL') {
+        handleDmCallSignal(data.from, data.payload);
 
     } else if (data.action === 'SEARCH_RESULTS') {
         DevLog.log('BRIDGE', `← C# | SEARCH_RESULTS count:${(data.results||[]).length} query:"${data.query}"`);
@@ -7052,6 +7134,8 @@ function downloadBackup() {
 
 // ── User Status ────────────────────────────────────────────────────────────────
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+let _statusPresets = JSON.parse(localStorage.getItem('iskra_status_presets') || '["In a meeting","Focusing","Gaming 🎮","Coding","BRB","Lunch 🍕"]');
+function _saveStatusPresets() { localStorage.setItem('iskra_status_presets', JSON.stringify(_statusPresets)); }
 
 function _resetIdleTimer() {
     if (!connectedServerId || myStatus === 'dnd' || myStatus === 'invisible') return;
@@ -7096,6 +7180,34 @@ function showStatusPicker(e) {
         if (ev.key === 'Enter') { setMyStatus(myStatus, false, inp.value.trim()); hideStatusPicker(); }
     });
     popup.appendChild(inp);
+
+    // Status text presets
+    const presetsRow = document.createElement('div');
+    presetsRow.className = 'status-presets';
+    _statusPresets.forEach((p, i) => {
+        const chip = document.createElement('span');
+        chip.className = 'status-preset-chip';
+        chip.title = 'Click to use · Right-click to remove';
+        chip.textContent = p;
+        chip.onclick = ev => { ev.stopPropagation(); inp.value = p; setMyStatus(myStatus, false, p); hideStatusPicker(); };
+        chip.oncontextmenu = ev => {
+            ev.preventDefault(); ev.stopPropagation();
+            _statusPresets.splice(i, 1); _saveStatusPresets();
+            chip.remove();
+        };
+        presetsRow.appendChild(chip);
+    });
+    const addChip = document.createElement('span');
+    addChip.className = 'status-preset-chip add-preset';
+    addChip.textContent = '+ Save';
+    addChip.title = 'Save current text as a preset';
+    addChip.onclick = ev => {
+        ev.stopPropagation();
+        const txt = inp.value.trim();
+        if (txt && !_statusPresets.includes(txt)) { _statusPresets.push(txt); _saveStatusPresets(); hideStatusPicker(); showStatusPicker(e); }
+    };
+    presetsRow.appendChild(addChip);
+    popup.appendChild(presetsRow);
 
     [
         { key: 'online',    label: '🟢 Online' },
@@ -7223,8 +7335,72 @@ function pinMessage(msgId) {
 function togglePinPanel() {
     const panel = document.getElementById('pin-panel');
     if (!panel) return;
+    document.getElementById('media-gallery-panel')?.classList.remove('open');
+    document.getElementById('media-gallery-btn')?.classList.remove('active');
     const isOpen = panel.classList.toggle('open');
     if (isOpen) renderPinPanel(activeTextChannelId);
+}
+
+// ── Media gallery ─────────────────────────────────────────────────────────────
+function toggleMediaGallery() {
+    const panel = document.getElementById('media-gallery-panel');
+    const btn   = document.getElementById('media-gallery-btn');
+    if (!panel) return;
+    document.getElementById('pin-panel')?.classList.remove('open');
+    const isOpen = panel.classList.toggle('open');
+    btn?.classList.toggle('active', isOpen);
+    if (isOpen) renderMediaGallery();
+}
+
+function renderMediaGallery() {
+    const panel = document.getElementById('media-gallery-panel');
+    if (!panel) return;
+    const msgs = channelMessages[activeTextChannelId] || [];
+    const imgExts = new Set(['jpg','jpeg','png','gif','webp']);
+    const vidExts = new Set(['mp4','webm']);
+    const items = [];
+    const seen  = new Set();
+    msgs.forEach(m => {
+        const matches = (m.message || '').matchAll(/(?:https?:\/\/[^\s<>"]+)?\/uploads\/[a-f0-9]+\.([a-z0-9]+)/gi);
+        for (const match of matches) {
+            const raw = match[0];
+            const ext = match[1].toLowerCase();
+            const url = normalizeUploadUrl(raw);
+            if (seen.has(url)) continue;
+            seen.add(url);
+            if (imgExts.has(ext))
+                items.push(`<a href="${url}" target="_blank"><img src="${url}" loading="lazy" onerror="this.closest('a').remove()" title="${url.split('/').pop()}"></a>`);
+            else if (vidExts.has(ext))
+                items.push(`<a href="${url}" target="_blank"><video src="${url}" muted preload="metadata" title="${url.split('/').pop()}"></video></a>`);
+        }
+    });
+    if (!items.length) {
+        panel.innerHTML = '<div class="media-gallery-empty">No media shared in this channel yet.</div>';
+    } else {
+        panel.innerHTML = `<div class="media-gallery-grid">${items.join('')}</div>`;
+    }
+}
+
+// ── Jump to message ───────────────────────────────────────────────────────────
+function scrollToMessage(msgId) {
+    const el = document.querySelector(`[data-msg-id="${CSS.escape(msgId)}"]`);
+    if (!el) return false;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.remove('msg-jump-flash');
+    void el.offsetWidth;
+    el.classList.add('msg-jump-flash');
+    return true;
+}
+
+function copyMsgLink(msgId) {
+    const chId = activeTextChannelId;
+    const sid  = connectedServerId;
+    const ref  = `${sid}/${chId}/${msgId}`;
+    navigator.clipboard.writeText(ref).catch(() => {});
+    scrollToMessage(msgId);
+    // Brief visual feedback on the button
+    const btn = document.querySelector(`[data-msg-id="${CSS.escape(msgId)}"] .msg-act-btn[title*="link"]`);
+    if (btn) { const orig = btn.textContent; btn.textContent = '✓'; setTimeout(() => btn.textContent = orig, 1000); }
 }
 
 function renderPinPanel(channelId) {
@@ -7562,6 +7738,209 @@ async function e2eLoadKeys(password, email) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// ── DM Voice Calls ────────────────────────────────────────────────────────────
+
+async function startDmCall(alias) {
+    if (!alias || !connectedServerId) return;
+    if (_dmCallState !== 'idle') return;
+    _dmCallWith  = alias;
+    _dmCallState = 'ringing_out';
+    _updateDmCallBar();
+
+    try {
+        if (!processedStream) await initAudio();
+    } catch (e) {
+        DevLog.log('CALL', `Mic init failed: ${e.message}`);
+        _dmCallState = 'idle'; _dmCallWith = null; _updateDmCallBar(); return;
+    }
+
+    const pc = new RTCPeerConnection(rtcConfig);
+    _dmCallPeer = pc;
+    _dmCallSetupPeerHandlers(pc, alias);
+
+    if (processedStream) processedStream.getTracks().forEach(t => pc.addTrack(t, processedStream));
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    postToBridge({ action: 'DM_CALL_SIGNAL', to: alias, from: myAlias, payload: { type: 'calling' } });
+    postToBridge({ action: 'DM_CALL_SIGNAL', to: alias, from: myAlias, payload: { type: 'offer', sdp: offer } });
+}
+
+function _dmCallSetupPeerHandlers(pc, alias) {
+    pc.onicecandidate = e => {
+        if (e.candidate)
+            postToBridge({ action: 'DM_CALL_SIGNAL', to: alias, from: myAlias, payload: { type: 'ice', candidate: e.candidate } });
+    };
+    pc.ontrack = async e => {
+        if (e.track.kind !== 'audio') return;
+        if (!outputCtx) await initOutputContext();
+        const stream = e.streams[0] || new MediaStream([e.track]);
+        const anchor = new Audio(); anchor.srcObject = stream; anchor.volume = 0; anchor.play().catch(() => {});
+        const src  = outputCtx.createMediaStreamSource(stream);
+        const gain = outputCtx.createGain();
+        gain.gain.value = settings.outputGain;
+        src.connect(gain); gain.connect(outputCtx.destination);
+        _dmCallGain = gain;
+    };
+    pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed')
+            endDmCall(false);
+    };
+}
+
+async function acceptDmCall() {
+    if (_dmCallState !== 'ringing_in' || !_dmCallOffer || !_dmCallWith) return;
+    const alias = _dmCallWith;
+
+    try {
+        if (!processedStream) await initAudio();
+    } catch (e) {
+        DevLog.log('CALL', `Mic init failed: ${e.message}`);
+        endDmCall(true); return;
+    }
+
+    _dmCallState = 'active';
+    document.getElementById('dm-call-incoming').classList.remove('visible');
+
+    const pc = new RTCPeerConnection(rtcConfig);
+    _dmCallPeer = pc;
+    _dmCallSetupPeerHandlers(pc, alias);
+
+    if (processedStream) processedStream.getTracks().forEach(t => pc.addTrack(t, processedStream));
+
+    await pc.setRemoteDescription(new RTCSessionDescription(_dmCallOffer));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    postToBridge({ action: 'DM_CALL_SIGNAL', to: alias, from: myAlias, payload: { type: 'answer', sdp: answer } });
+
+    for (const c of _dmIceBuf) try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch {}
+    _dmIceBuf = [];
+    _dmCallOffer = null;
+    _startDmCallTimer();
+    _updateDmCallBar();
+}
+
+function declineDmCall() {
+    if (_dmCallWith)
+        postToBridge({ action: 'DM_CALL_SIGNAL', to: _dmCallWith, from: myAlias, payload: { type: 'decline' } });
+    document.getElementById('dm-call-incoming').classList.remove('visible');
+    _dmCallState = 'idle'; _dmCallWith = null; _dmCallOffer = null; _dmIceBuf = [];
+    _updateDmCallBar();
+}
+
+function endDmCall(notifyPeer = true) {
+    if (notifyPeer && _dmCallWith)
+        postToBridge({ action: 'DM_CALL_SIGNAL', to: _dmCallWith, from: myAlias, payload: { type: 'hangup' } });
+    if (_dmCallPeer) { try { _dmCallPeer.close(); } catch {} _dmCallPeer = null; }
+    if (_dmCallGain) { try { _dmCallGain.disconnect(); } catch {} _dmCallGain = null; }
+    clearInterval(_dmCallTimer); _dmCallTimer = null; _dmCallSecs = 0;
+    const who = _dmCallWith;
+    _dmCallState = 'idle'; _dmCallWith = null; _dmCallOffer = null; _dmIceBuf = []; _dmCallMuted = false;
+    document.getElementById('dm-call-incoming').classList.remove('visible');
+    _updateDmCallBar();
+    if (who) {
+        const h = document.getElementById('chat-history');
+        if (h) { const d = document.createElement('div'); d.className = 'system-msg'; d.textContent = '📵 Call ended'; h.appendChild(d); h.scrollTop = h.scrollHeight; }
+    }
+}
+
+function toggleDmCallMute() {
+    _dmCallMuted = !_dmCallMuted;
+    if (processedStream) processedStream.getAudioTracks().forEach(t => { t.enabled = !_dmCallMuted; });
+    _updateDmCallBar();
+}
+
+function _startDmCallTimer() {
+    _dmCallSecs  = 0;
+    _dmCallTimer = setInterval(() => { _dmCallSecs++; _updateDmCallBar(); }, 1000);
+}
+
+function _fmtCallDur(s) {
+    const m = Math.floor(s / 60), sec = s % 60;
+    return `${m}:${sec.toString().padStart(2, '0')}`;
+}
+
+function _updateDmCallBar() {
+    const bar = document.getElementById('dm-call-bar');
+    if (!bar) return;
+    if (_dmCallState === 'idle') { bar.className = ''; bar.innerHTML = ''; return; }
+    bar.className = 'active';
+    let label = '';
+    if      (_dmCallState === 'ringing_out') label = `📞 Calling ${escapeHtml(_dmCallWith)}…`;
+    else if (_dmCallState === 'ringing_in')  label = `📞 Incoming call from ${escapeHtml(_dmCallWith)}`;
+    else                                     label = `🔊 In call with ${escapeHtml(_dmCallWith)}`;
+    const dur     = _dmCallState === 'active' ? `<span class="dm-call-timer">${_fmtCallDur(_dmCallSecs)}</span>` : '';
+    const muteLbl = _dmCallMuted ? '🔇' : '🎤';
+    const muteCls = _dmCallMuted ? 'dm-call-action dm-call-mute muted' : 'dm-call-action dm-call-mute';
+    const muteBtn = _dmCallState === 'active' ? `<button class="${muteCls}" onclick="toggleDmCallMute()">${muteLbl}</button>` : '';
+    const endBtn  = `<button class="dm-call-action dm-call-end" onclick="endDmCall(true)">End</button>`;
+    bar.innerHTML = `<span style="flex:1">${label}</span>${dur}${muteBtn}${endBtn}`;
+}
+
+async function handleDmCallSignal(from, payload) {
+    const type = payload?.type;
+    DevLog.log('CALL', `DM call signal from:${from} type:${type}`);
+
+    if (type === 'calling') {
+        if (_dmCallState !== 'idle') {
+            postToBridge({ action: 'DM_CALL_SIGNAL', to: from, from: myAlias, payload: { type: 'decline' } });
+            return;
+        }
+        _dmCallState = 'ringing_in';
+        _dmCallWith  = from;
+        _dmIceBuf    = [];
+        const ov = document.getElementById('dm-call-incoming');
+        ov.innerHTML = `
+            <div class="call-who">📞 ${escapeHtml(from)}</div>
+            <div class="call-subtitle">Incoming voice call</div>
+            <div class="call-actions">
+                <button class="call-accept" onclick="acceptDmCall()">Accept</button>
+                <button class="call-decline" onclick="declineDmCall()">Decline</button>
+            </div>`;
+        ov.classList.add('visible');
+        _updateDmCallBar();
+        if (Notification.permission === 'granted' && !document.hasFocus())
+            new Notification(`📞 ${from} is calling…`, { body: 'Incoming voice call via Iskra' });
+        return;
+    }
+
+    if (type === 'offer') {
+        _dmCallOffer = payload.sdp;
+        return;
+    }
+
+    if (type === 'answer') {
+        if (_dmCallPeer && _dmCallPeer.signalingState !== 'stable') {
+            await _dmCallPeer.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+            for (const c of _dmIceBuf) try { await _dmCallPeer.addIceCandidate(new RTCIceCandidate(c)); } catch {}
+            _dmIceBuf = [];
+            _dmCallState = 'active';
+            _startDmCallTimer();
+            _updateDmCallBar();
+        }
+        return;
+    }
+
+    if (type === 'ice') {
+        if (_dmCallPeer && _dmCallPeer.remoteDescription)
+            try { await _dmCallPeer.addIceCandidate(new RTCIceCandidate(payload.candidate)); } catch {}
+        else
+            _dmIceBuf.push(payload.candidate);
+        return;
+    }
+
+    if (type === 'decline') {
+        if (_dmCallPeer) { try { _dmCallPeer.close(); } catch {} _dmCallPeer = null; }
+        _dmCallState = 'idle'; _dmCallWith = null;
+        _updateDmCallBar();
+        const h = document.getElementById('chat-history');
+        if (h) { const d = document.createElement('div'); d.className = 'system-msg'; d.textContent = `📵 ${escapeHtml(from)} declined the call`; h.appendChild(d); h.scrollTop = h.scrollHeight; }
+        return;
+    }
+
+    if (type === 'hangup') endDmCall(false);
+}
+
 // ISKRA ID — relay auth, friends, global DMs
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -7606,6 +7985,29 @@ function renderIskraidTab() {
         document.getElementById('iskraid-verified-badge')?.classList.toggle('hidden', !relayEmailVerified);
         document.getElementById('iskraid-resend-btn')?.classList.toggle('hidden', relayEmailVerified);
 
+        const profileCurrent = document.getElementById('iskraid-profile-current');
+        if (profileCurrent) {
+            profileCurrent.classList.toggle('hidden', !relayProfileUrl);
+            const disp = document.getElementById('iskraid-profile-url-display');
+            if (disp) disp.textContent = relayProfileUrl || '';
+        }
+        const profileInput = document.getElementById('iskraid-profile-url');
+        if (profileInput) profileInput.value = relayProfileUrl || '';
+
+        // Relay avatar preview
+        const avImg = document.getElementById('iskraid-relay-avatar-img');
+        const avNone = document.getElementById('iskraid-relay-avatar-none');
+        if (avImg && avNone) {
+            if (relayAvatarDataUrl) {
+                avImg.src = relayAvatarDataUrl;
+                avImg.classList.remove('hidden');
+                avNone.classList.add('hidden');
+            } else {
+                avImg.classList.add('hidden');
+                avNone.classList.remove('hidden');
+            }
+        }
+
         const e2eSection = document.getElementById('iskraid-e2e-section');
         if (e2eSection) {
             if (_e2eUnlocked) {
@@ -7641,12 +8043,10 @@ async function refreshRelayMe() {
     relayAlias = r.data.alias;
     relayEmail = r.data.email;
     if (r.data.pubkey) _myPubKeyB64 = r.data.pubkey;
-    relayProfileUrl = r.data.profileUrl || null;
+    relayProfileUrl   = r.data.profileUrl   || null;
+    relayAvatarDataUrl = r.data.relayAvatar || null;
     relayPersist();
     renderIskraidTab();
-    // Pre-populate profile URL input if visible
-    const inp = document.getElementById('iskraid-profile-url');
-    if (inp && relayProfileUrl && !inp.value) inp.value = relayProfileUrl;
 }
 
 function startVerifyPoll() {
@@ -7728,11 +8128,57 @@ async function iskraidSubmit() {
     }
 }
 
+let profileMuted = true;
+let profileVolume = 0.5;
+
+function updateProfileMuteUI() {
+    const btn    = document.getElementById('profile-mute-btn');
+    const slider = document.getElementById('profile-vol-slider');
+    if (btn) {
+        btn.textContent = profileMuted ? '🔇' : '🔊';
+        if (profileMuted) {
+            btn.style.background = 'rgba(237,66,69,0.15)';
+            btn.style.borderColor = 'rgba(237,66,69,0.4)';
+            btn.style.color = '#ed4245';
+        } else {
+            btn.style.background = 'rgba(87,242,135,0.08)';
+            btn.style.borderColor = 'rgba(87,242,135,0.3)';
+            btn.style.color = 'var(--success)';
+        }
+    }
+    if (slider) slider.style.opacity = profileMuted ? '0.35' : '1';
+}
+
+function toggleProfileMute() {
+    profileMuted = !profileMuted;
+    updateProfileMuteUI();
+    sendProfileVolume();
+}
+
+function setProfileVolume(val) {
+    profileVolume = parseInt(val) / 100;
+    if (profileVolume > 0 && profileMuted)  { profileMuted = false; updateProfileMuteUI(); }
+    if (profileVolume === 0 && !profileMuted) { profileMuted = true;  updateProfileMuteUI(); }
+    sendProfileVolume();
+}
+
+function sendProfileVolume() {
+    const iframe = document.querySelector('#profile-page-content iframe');
+    if (iframe?.contentWindow)
+        iframe.contentWindow.postMessage({ action: 'iskraVolume', muted: profileMuted, volume: profileVolume }, '*');
+}
+
 async function openProfilePage(alias) {
     const overlay = document.getElementById('profile-page-overlay');
     const title   = document.getElementById('profile-page-title');
     const content = document.getElementById('profile-page-content');
     if (!overlay) return;
+
+    // Reset media controls to muted
+    profileMuted = true; profileVolume = 0.5;
+    const volSlider = document.getElementById('profile-vol-slider');
+    if (volSlider) volSlider.value = 50;
+    updateProfileMuteUI();
 
     title.textContent = alias;
     content.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">Loading…</div>';
@@ -7757,11 +8203,13 @@ async function openProfilePage(alias) {
     // 6. CSP injected server-side (script-src 'none')
     // 7. iframe sandbox="" — browser enforces zero script execution
     const iframe = document.createElement('iframe');
-    iframe.setAttribute('sandbox', '');          // all restrictions, allow nothing
+    iframe.setAttribute('sandbox', 'allow-scripts allow-popups'); // scripts needed for YT/Spotify; user scripts still killed by injected CSP
+    iframe.setAttribute('allow', 'autoplay; fullscreen');
     iframe.setAttribute('referrerpolicy', 'no-referrer');
     iframe.setAttribute('loading', 'lazy');
     iframe.style.cssText = 'width:100%;height:100%;border:none;display:block;';
     iframe.srcdoc = data.html;
+    iframe.addEventListener('load', sendProfileVolume);
     content.innerHTML = '';
     content.appendChild(iframe);
 }
@@ -7784,6 +8232,41 @@ async function saveProfileUrl() {
     if (!ok) { setFb(data.error || 'Failed.', 'error'); return; }
     relayProfileUrl = data.profileUrl || null;
     setFb(relayProfileUrl ? 'Profile URL saved!' : 'Profile URL cleared.', 'success');
+    renderIskraidTab();
+}
+
+function openInBrowser(url) {
+    if (!url) return;
+    window.chrome?.webview?.postMessage(JSON.stringify({ action: 'OPEN_URL', url }));
+}
+
+async function syncRelayAvatar() {
+    const setFb = (msg, type) => {
+        const el = document.getElementById('iskraid-avatar-feedback');
+        if (el) { el.textContent = msg; el.className = 'iskraid-feedback' + (msg ? ' show ' + type : ''); }
+    };
+    // Grab current local avatar for my alias (base64 data URL stored in clientConfig)
+    const localAvatar = clientConfig.localAvatars?.[relayAlias];
+    if (!localAvatar) { setFb('No local avatar set — upload one in the Identity tab first.', 'error'); return; }
+    if (localAvatar.length > 131072) { setFb('Avatar too large (max 128 KB).', 'error'); return; }
+    setFb('Syncing…', '');
+    const { ok, data } = await relayFetch('/api/me/avatar', { method: 'PUT', body: JSON.stringify({ dataUrl: localAvatar }) });
+    if (!ok) { setFb(data.error || 'Failed.', 'error'); return; }
+    relayAvatarDataUrl = localAvatar;
+    setFb('Avatar synced to Iskra ID!', 'success');
+    renderIskraidTab();
+}
+
+async function clearRelayAvatar() {
+    const setFb = (msg, type) => {
+        const el = document.getElementById('iskraid-avatar-feedback');
+        if (el) { el.textContent = msg; el.className = 'iskraid-feedback' + (msg ? ' show ' + type : ''); }
+    };
+    const { ok } = await relayFetch('/api/me/avatar', { method: 'PUT', body: JSON.stringify({ dataUrl: null }) });
+    if (!ok) { setFb('Failed to remove avatar.', 'error'); return; }
+    relayAvatarDataUrl = null;
+    setFb('Global avatar removed.', 'success');
+    renderIskraidTab();
 }
 
 async function iskraidLogout() {
@@ -8031,9 +8514,17 @@ function relayRenderConvo(alias) {
         msgs.innerHTML = `<div class="ch-empty-state">No messages yet. Say hi to ${escapeHtml(alias)}!</div>`;
         return;
     }
+    // Find last sent message that has a read receipt
+    let lastSeenMsgId = null;
+    for (let i = convo.length - 1; i >= 0; i--) {
+        const m = convo[i];
+        if (m.senderAlias === relayAlias && _relayReceipts[m.id]) { lastSeenMsgId = m.id; break; }
+    }
     msgs.innerHTML = convo.map(m => {
         const mine = m.senderAlias === relayAlias;
         const tsStr = new Date(m.ts * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const receipt = mine && m.id === lastSeenMsgId ? _relayReceipts[m.id] : null;
+        const seenStr = receipt ? new Date(receipt.readAt * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
         return `<div class="chat-msg relay-dm-msg${mine ? ' mine' : ''}" id="relay-msg-${m.id}">
             <div class="msg-header">
                 ${avatarHtml(m.senderAlias, 'sz-32', false)}
@@ -8041,6 +8532,7 @@ function relayRenderConvo(alias) {
                 <span class="msg-time">${tsStr}</span>
             </div>
             <div class="msg-body">${renderMarkdown(escapeHtml(m.text))}</div>
+            ${seenStr ? `<div style="font-size:10px;color:var(--success);text-align:right;margin-top:2px;">✓ Seen ${seenStr}</div>` : ''}
         </div>`;
     }).join('');
     msgs.scrollTop = msgs.scrollHeight;
@@ -8074,6 +8566,23 @@ async function sendRelayMessage(text) {
 
 async function relayPollInbox() {
     if (!relayToken) return;
+
+    // Poll read receipts for messages we sent
+    const { ok: rok, data: rdata } = await relayFetch('/api/receipts');
+    if (rok && rdata.receipts?.length) {
+        const ackIds = [];
+        let changed = false;
+        for (const rec of rdata.receipts) {
+            if (!_relayReceipts[rec.messageId]) {
+                _relayReceipts[rec.messageId] = { recipientAlias: rec.recipientAlias, readAt: rec.readAt };
+                changed = true;
+            }
+            ackIds.push(rec.id);
+        }
+        if (ackIds.length) await relayFetch('/api/receipts/ack', { method: 'POST', body: JSON.stringify({ ids: ackIds }) });
+        if (changed && _activeRelayDm) relayRenderConvo(_activeRelayDm);
+    }
+
     const { ok, data } = await relayFetch('/api/inbox');
     if (!ok) return;
     const msgs = data.messages || [];
@@ -8156,5 +8665,6 @@ document.addEventListener('DOMContentLoaded', () => {}, { once: true });
     };
 }
 </script>
+<div id="dm-call-incoming"></div>
 </body>
 </html>

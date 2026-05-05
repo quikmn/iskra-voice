@@ -98,6 +98,39 @@ try {
     mc2.ExecuteNonQuery();
 } catch { /* column already exists */ }
 
+// Migration: add relay_avatar if not present
+try {
+    using var mc3 = db.CreateCommand();
+    mc3.CommandText = "ALTER TABLE users ADD COLUMN relay_avatar TEXT";
+    mc3.ExecuteNonQuery();
+} catch { }
+
+// Migration: public server directory
+try {
+    using var mc4 = db.CreateCommand();
+    mc4.CommandText = @"CREATE TABLE IF NOT EXISTS public_servers (
+        address      TEXT PRIMARY KEY,
+        name         TEXT NOT NULL,
+        description  TEXT DEFAULT '',
+        player_count INTEGER DEFAULT 0,
+        announced_at INTEGER NOT NULL
+    )";
+    mc4.ExecuteNonQuery();
+} catch { }
+
+// Migration: relay DM read receipts
+try {
+    using var mc5 = db.CreateCommand();
+    mc5.CommandText = @"CREATE TABLE IF NOT EXISTS receipts (
+        id               TEXT PRIMARY KEY,
+        sender_id        TEXT NOT NULL,
+        recipient_alias  TEXT NOT NULL,
+        message_id       TEXT NOT NULL,
+        read_at          INTEGER NOT NULL
+    )";
+    mc5.ExecuteNonQuery();
+} catch { }
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 string NewId()  => Guid.NewGuid().ToString("N");
@@ -184,14 +217,30 @@ string SanitizeProfileHtml(string html, string baseUrl)
     // Block @import in style blocks
     html = Regex.Replace(html, @"(@import\b)", "/* $1 */", RegexOptions.IgnoreCase);
 
-    // Inject strict CSP + base tag for relative URL resolution
-    var safeBase = baseUrl.Replace("\"", "%22").Replace("<", "%3C").Replace(">", "%3E");
-    var inject = $"<meta http-equiv=\"Content-Security-Policy\" content=\"default-src https: 'unsafe-inline'; script-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';\">" +
-                 $"<base href=\"{safeBase}\">";
+    // Patch YouTube embeds: start muted + enable postMessage volume API
+    html = Regex.Replace(html,
+        @"(src=[""'])(https://(?:www\.)?youtube(?:-nocookie)?\.com/embed/[^""'?]*)(\?[^""']*)?([""'])",
+        m => {
+            var a = m.Groups[1].Value; var url = m.Groups[2].Value;
+            var qs = m.Groups[3].Value; var q = m.Groups[4].Value;
+            var combined = string.IsNullOrEmpty(qs) ? "?" : qs + "&";
+            if (!combined.Contains("mute=1"))       combined += "mute=1&";
+            if (!combined.Contains("enablejsapi=1")) combined += "enablejsapi=1&";
+            return a + url + combined.TrimEnd('&') + q;
+        }, RegexOptions.IgnoreCase);
 
-    // Insert after <head> if present, otherwise prepend
+    // Inject CSP (nonce-gated so only our controller script runs) + base tag + media controller
+    var nonce    = Convert.ToHexString(RandomNumberGenerator.GetBytes(8)).ToLower();
+    var safeBase = baseUrl.Replace("\"", "%22").Replace("<", "%3C").Replace(">", "%3E");
+    // Controller: start muted, sync native audio/video and YouTube iframes on postMessage from parent
+    var ctrlScript = @"(function(){var _m=true,_v=0.5;function an(){document.querySelectorAll('audio,video').forEach(function(e){e.muted=_m;e.volume=_v;});}function ay(){document.querySelectorAll('iframe').forEach(function(f){if(!/youtube/.test(f.src))return;try{f.contentWindow.postMessage(JSON.stringify({event:'command',func:_m?'mute':'unMute',args:''}),'*');}catch(e){}});}function ap(){an();ay();}document.addEventListener('DOMContentLoaded',ap);new MutationObserver(ap).observe(document,{childList:true,subtree:true});window.addEventListener('message',function(e){if(e.data&&e.data.action==='iskraVolume'){_m=e.data.muted;_v=e.data.volume;ap();}});})();";
+    var inject = $"<meta http-equiv=\"Content-Security-Policy\" content=\"default-src https: 'unsafe-inline'; script-src 'nonce-{nonce}'; object-src 'none'; base-uri 'none'; form-action 'none';\">" +
+                 $"<base href=\"{safeBase}\">" +
+                 $"<script nonce=\"{nonce}\">{ctrlScript}</script>";
+
+    // Insert after <head> if present, otherwise prepend (use evaluator to avoid $ in inject string being misread as backreference)
     if (Regex.IsMatch(html, @"<head\b", RegexOptions.IgnoreCase))
-        html = Regex.Replace(html, @"(<head\b[^>]*>)", $"$1{inject}", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
+        html = Regex.Replace(html, @"(<head\b[^>]*>)", m => m.Value + inject, RegexOptions.IgnoreCase);
     else
         html = inject + html;
 
@@ -470,14 +519,17 @@ app.MapGet("/api/me", (HttpContext ctx) =>
     var userId = AuthUser(ctx);
     if (userId is null) return ErrUnauth();
 
-    using var cmd = Cmd("SELECT id, alias, email, email_verified, pubkey, created_at, profile_url FROM users WHERE id=$u", ("$u", userId));
+    using var cmd = Cmd("SELECT id, alias, email, email_verified, pubkey, created_at, profile_url, relay_avatar FROM users WHERE id=$u", ("$u", userId));
     using var r = cmd.ExecuteReader();
     if (!r.Read()) return ErrUnauth();
+    var alias = r.GetString(1);
     return Ok(new
     {
-        userId = r.GetString(0), alias = r.GetString(1), email = r.GetString(2),
+        userId = r.GetString(0), alias, email = r.GetString(2),
         emailVerified = r.GetInt64(3) == 1, pubkey = r.IsDBNull(4) ? null : r.GetString(4),
-        createdAt = r.GetInt64(5), profileUrl = r.IsDBNull(6) ? null : r.GetString(6)
+        createdAt = r.GetInt64(5), profileUrl = r.IsDBNull(6) ? null : r.GetString(6),
+        relayAvatar = r.IsDBNull(7) ? null : r.GetString(7),
+        avatarUrl = r.IsDBNull(7) ? null : $"/api/avatar/{Uri.EscapeDataString(alias)}"
     });
 });
 
@@ -535,18 +587,22 @@ app.MapPut("/api/me/alias", async (HttpContext ctx) =>
 
 app.MapGet("/api/user/{alias}", (string alias) =>
 {
-    using var cmd = Cmd("SELECT id, alias, pubkey, created_at, profile_url FROM users WHERE alias=$a AND email_verified=1", ("$a", alias));
+    using var cmd = Cmd("SELECT id, alias, pubkey, created_at, profile_url, relay_avatar FROM users WHERE alias=$a AND email_verified=1", ("$a", alias));
     using var r = cmd.ExecuteReader();
     if (!r.Read()) return ErrNotFound("user not found");
-    return Ok(new { userId = r.GetString(0), alias = r.GetString(1), pubkey = r.IsDBNull(2) ? null : r.GetString(2), createdAt = r.GetInt64(3), hasProfile = !r.IsDBNull(4) });
+    var a = r.GetString(1);
+    return Ok(new { userId = r.GetString(0), alias = a, pubkey = r.IsDBNull(2) ? null : r.GetString(2), createdAt = r.GetInt64(3), hasProfile = !r.IsDBNull(4),
+        avatarUrl = r.IsDBNull(5) ? null : $"/api/avatar/{Uri.EscapeDataString(a)}" });
 });
 
 app.MapGet("/api/user/id/{userId}", (string userId) =>
 {
-    using var cmd = Cmd("SELECT id, alias, pubkey, created_at, profile_url FROM users WHERE id=$u AND email_verified=1", ("$u", userId));
+    using var cmd = Cmd("SELECT id, alias, pubkey, created_at, profile_url, relay_avatar FROM users WHERE id=$u AND email_verified=1", ("$u", userId));
     using var r = cmd.ExecuteReader();
     if (!r.Read()) return ErrNotFound("user not found");
-    return Ok(new { userId = r.GetString(0), alias = r.GetString(1), pubkey = r.IsDBNull(2) ? null : r.GetString(2), createdAt = r.GetInt64(3), hasProfile = !r.IsDBNull(4) });
+    var a = r.GetString(1);
+    return Ok(new { userId = r.GetString(0), alias = a, pubkey = r.IsDBNull(2) ? null : r.GetString(2), createdAt = r.GetInt64(3), hasProfile = !r.IsDBNull(4),
+        avatarUrl = r.IsDBNull(5) ? null : $"/api/avatar/{Uri.EscapeDataString(a)}" });
 });
 
 app.MapGet("/api/search", (HttpContext ctx) =>
@@ -613,9 +669,17 @@ app.MapPost("/api/inbox/ack", async (HttpContext ctx) =>
     var body = await ctx.Request.ReadFromJsonAsync<AckRequest>();
     if (body?.Ids is null || body.Ids.Length == 0) return ErrBad("ids required");
 
+    var myAlias = Scalar("SELECT alias FROM users WHERE id=$u", ("$u", userId)) ?? "";
     foreach (var id in body.Ids)
+    {
+        // Create a read receipt for the sender before deleting
+        var senderId = Scalar("SELECT sender_id FROM messages WHERE id=$id AND recipient_id=$u", ("$id", id), ("$u", userId));
+        if (senderId != null)
+            Cmd("INSERT OR IGNORE INTO receipts(id,sender_id,recipient_alias,message_id,read_at) VALUES($rid,$s,$ra,$mid,$t)",
+                ("$rid", NewId()), ("$s", senderId), ("$ra", myAlias), ("$mid", id), ("$t", Now()))
+                .ExecuteNonQuery();
         Cmd("DELETE FROM messages WHERE id=$id AND recipient_id=$u", ("$id", id), ("$u", userId)).ExecuteNonQuery();
-
+    }
     return Ok();
 });
 
@@ -799,6 +863,146 @@ app.MapGet("/api/profile/{alias}", async (string alias) =>
     }
 });
 
+// ── Relay avatar ──────────────────────────────────────────────────────────────
+
+app.MapPut("/api/me/avatar", async (HttpContext ctx) =>
+{
+    var userId = AuthUser(ctx);
+    if (userId is null) return ErrUnauth();
+    var body = await ctx.Request.ReadFromJsonAsync<RelayAvatarRequest>();
+    if (body is null || string.IsNullOrWhiteSpace(body.DataUrl))
+    {
+        Cmd("UPDATE users SET relay_avatar=NULL WHERE id=$u", ("$u", userId)).ExecuteNonQuery();
+        return Ok(new { relayAvatar = (string?)null });
+    }
+    if (!body.DataUrl.StartsWith("data:image/") || body.DataUrl.Length > 131072)
+        return ErrBad("must be a data: image URL under 128 KB");
+    Cmd("UPDATE users SET relay_avatar=$a WHERE id=$u", ("$a", body.DataUrl), ("$u", userId)).ExecuteNonQuery();
+    return Ok(new { relayAvatar = body.DataUrl });
+});
+
+app.MapGet("/api/avatar/{alias}", (string alias) =>
+{
+    var dataUrl = Scalar("SELECT relay_avatar FROM users WHERE alias=$a AND email_verified=1", ("$a", alias));
+    if (string.IsNullOrEmpty(dataUrl)) return Results.NotFound();
+    var comma = dataUrl.IndexOf(',');
+    if (comma < 0) return Results.NotFound();
+    var mime = dataUrl[5..dataUrl.IndexOf(';')]; // data:image/webp;base64,...  →  image/webp
+    try { return Results.Bytes(Convert.FromBase64String(dataUrl[(comma + 1)..]), mime); }
+    catch { return Results.NotFound(); }
+});
+
+// ── Read receipts ─────────────────────────────────────────────────────────────
+
+app.MapGet("/api/receipts", (HttpContext ctx) =>
+{
+    var userId = AuthUser(ctx);
+    if (userId is null) return ErrUnauth();
+    var recs = new List<object>();
+    using var cmd = Cmd("SELECT id, recipient_alias, message_id, read_at FROM receipts WHERE sender_id=$u ORDER BY read_at ASC", ("$u", userId));
+    using var r = cmd.ExecuteReader();
+    while (r.Read())
+        recs.Add(new { id = r.GetString(0), recipientAlias = r.GetString(1), messageId = r.GetString(2), readAt = r.GetInt64(3) });
+    return Ok(new { receipts = recs });
+});
+
+app.MapPost("/api/receipts/ack", async (HttpContext ctx) =>
+{
+    var userId = AuthUser(ctx);
+    if (userId is null) return ErrUnauth();
+    var body = await ctx.Request.ReadFromJsonAsync<AckRequest>();
+    if (body?.Ids is null) return ErrBad("ids required");
+    foreach (var id in body.Ids)
+        Cmd("DELETE FROM receipts WHERE id=$id AND sender_id=$u", ("$id", id), ("$u", userId)).ExecuteNonQuery();
+    return Ok();
+});
+
+// ── Public server directory ───────────────────────────────────────────────────
+
+app.MapPost("/api/servers/announce", async (HttpContext ctx) =>
+{
+    var body = await ctx.Request.ReadFromJsonAsync<ServerAnnounceRequest>();
+    if (body is null || string.IsNullOrWhiteSpace(body.Address) || string.IsNullOrWhiteSpace(body.Name))
+        return ErrBad("address and name required");
+    var addr = body.Address.Trim();
+    if (addr.Length > 200 || addr.Contains(' ')) return ErrBad("invalid address");
+    // Soft rate-limit: min 60s between announces per address
+    var last = Scalar("SELECT announced_at FROM public_servers WHERE address=$a", ("$a", addr));
+    if (last != null && long.TryParse(last, out long la) && Now() - la < 60) return Ok();
+    var name = body.Name.Trim()[..Math.Min(80, body.Name.Trim().Length)];
+    var desc = (body.Description ?? "").Trim();
+    if (desc.Length > 200) desc = desc[..200];
+    Cmd("INSERT OR REPLACE INTO public_servers(address,name,description,player_count,announced_at) VALUES($a,$n,$d,$pc,$t)",
+        ("$a", addr), ("$n", name), ("$d", desc), ("$pc", body.PlayerCount), ("$t", Now()))
+        .ExecuteNonQuery();
+    return Ok();
+});
+
+app.MapGet("/api/servers", () =>
+{
+    var cutoff = Now() - 600;
+    var servers = new List<object>();
+    using var cmd = Cmd("SELECT address,name,description,player_count,announced_at FROM public_servers WHERE announced_at>$c ORDER BY player_count DESC,name ASC", ("$c", cutoff));
+    using var r = cmd.ExecuteReader();
+    while (r.Read())
+        servers.Add(new { address = r.GetString(0), name = r.GetString(1), description = r.IsDBNull(2) ? "" : r.GetString(2), playerCount = r.GetInt64(3), lastSeen = r.GetInt64(4) });
+    return Ok(new { servers });
+});
+
+app.MapGet("/findservers", () =>
+{
+    var cutoff = Now() - 600;
+    var cards = new System.Text.StringBuilder();
+    using var cmd = Cmd("SELECT address,name,description,player_count FROM public_servers WHERE announced_at>$c ORDER BY player_count DESC,name ASC", ("$c", cutoff));
+    using var r = cmd.ExecuteReader();
+    bool any = false;
+    while (r.Read())
+    {
+        any = true;
+        var addr = System.Net.WebUtility.HtmlEncode(r.GetString(0));
+        var name = System.Net.WebUtility.HtmlEncode(r.GetString(1));
+        var desc = System.Net.WebUtility.HtmlEncode(r.IsDBNull(2) ? "" : r.GetString(2));
+        var pc   = r.GetInt64(3);
+        cards.Append($@"<div class=srv>
+  <div class=srv-name>{name}</div>
+  {(desc.Length > 0 ? $"<div class=srv-desc>{desc}</div>" : "")}
+  <div class=srv-meta>
+    <span class=srv-addr>📡 {addr}</span>
+    {(pc > 0 ? $"<span class=srv-online>🟢 {pc} online</span>" : "")}
+  </div>
+  <button onclick=""copy('{addr}')"">Copy address</button>
+</div>");
+    }
+    if (!any) cards.Append("<div class=empty>No servers online right now. Run your own!</div>");
+
+    return Results.Content($@"<!DOCTYPE html><html lang=en><head><meta charset=utf-8>
+<meta name=viewport content=""width=device-width,initial-scale=1"">
+<title>Find Iskra Servers</title>
+<style>
+*{{box-sizing:border-box;margin:0;padding:0}}
+body{{background:#0d0d14;color:#ddddf0;font-family:system-ui,sans-serif;padding:32px 16px}}
+.wrap{{max-width:700px;margin:0 auto}}
+h1{{font-size:28px;font-weight:800;margin-bottom:6px;background:linear-gradient(90deg,#7c6af7,#e040fb);-webkit-background-clip:text;-webkit-text-fill-color:transparent}}
+.sub{{color:#6d6f82;font-size:13px;margin-bottom:28px}}a{{color:#7c6af7}}
+.srv{{background:#16162a;border:1px solid #2a2a44;border-radius:12px;padding:18px 20px;margin-bottom:12px;transition:border-color .15s}}
+.srv:hover{{border-color:#7c6af7}}
+.srv-name{{font-weight:700;font-size:17px;margin-bottom:4px}}
+.srv-desc{{color:#8888a8;font-size:13px;margin-bottom:10px}}
+.srv-meta{{display:flex;gap:18px;font-size:12px;color:#5a5a7a;margin-bottom:12px;align-items:center}}
+.srv-online{{color:#57f287;font-weight:600}}
+.srv button{{background:#7c6af7;border:none;color:#fff;border-radius:6px;padding:5px 14px;font-size:12px;cursor:pointer;font-weight:600;transition:background .1s}}
+.srv button:hover{{background:#6c5ae7}}
+.empty{{color:#5a5a7a;text-align:center;padding:48px;font-size:14px}}
+</style></head>
+<body><div class=wrap>
+<h1>Find Servers</h1>
+<p class=sub>Public Iskra servers — updated live. <a href=https://github.com/vlundgren/iskra>Get Iskra</a></p>
+{cards}
+</div>
+<script>function copy(a){{navigator.clipboard.writeText(a).then(()=>{{event.target.textContent='Copied!';setTimeout(()=>event.target.textContent='Copy address',1500)}});}}</script>
+</body></html>", "text/html");
+});
+
 app.Run();
 
 // ─── Request models ───────────────────────────────────────────────────────────
@@ -831,3 +1035,9 @@ record AckRequest         ([property: JsonPropertyName("ids")]           string[
 record AliasRequest       ([property: JsonPropertyName("alias")]         string? Alias);
 record RequestIdRequest   ([property: JsonPropertyName("requestId")]     string? RequestId);
 record ProfileUrlRequest  ([property: JsonPropertyName("url")]            string? Url);
+record RelayAvatarRequest ([property: JsonPropertyName("dataUrl")]         string? DataUrl);
+record ServerAnnounceRequest(
+    [property: JsonPropertyName("address")]     string? Address,
+    [property: JsonPropertyName("name")]        string? Name,
+    [property: JsonPropertyName("description")] string? Description = null,
+    [property: JsonPropertyName("playerCount")] int     PlayerCount  = 0);

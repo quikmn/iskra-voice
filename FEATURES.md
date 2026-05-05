@@ -1,7 +1,7 @@
 # Iskra — Feature Inventory
 
 > Living document. Update this file whenever a feature is added, fixed, or changed.
-> Last updated: 2026-05-06
+> Last updated: 2026-05-05
 
 ---
 
@@ -58,6 +58,7 @@
 | DM read receipts | ✅ | Avatar + "Seen" shown on last read message for recipient |
 | DM unread badges | ✅ | Per-conversation + total badge on DM toggle button |
 | DM notifications | ✅ | Desktop notification when not focused |
+| 1:1 DM voice calls | ✅ | 📞 button in DM header; WebRTC via server relay; accept/decline overlay; mute + timer bar; hangup |
 
 ### Voice & Audio
 
@@ -152,6 +153,7 @@
 | Servers settings | ✅ | Connection management |
 | Appearance settings (themes) | ✅ | 7 built-in themes + custom JSON import/export |
 | Custom status text | ✅ | Set via status dot; shown in profile card and members list |
+| Status text presets | ✅ | Chip strip in status picker; click to apply, right-click to remove, + Save to add |
 | Private notes on users | ✅ | Per-user note textarea in profile card; stored in localStorage only |
 | Admin settings panel | ✅ | Members, roles, channels, bot tokens, webhooks, emoji, starboard, audit, backup |
 
@@ -202,6 +204,19 @@
 | Relay DM notifications | ✅ | Desktop notification when app not focused and new relay message arrives |
 | Profile pages | ✅ | Link GitHub Pages / Neocities / Cloudflare Pages / Netlify; relay proxies + sanitizes; rendered in sandboxed iframe |
 
+### Iskra ID & Relay — Recent Additions
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Relay DM read receipts | ✅ | Receipts table; sender sees "✓ Seen [time]" under last delivered message |
+| Relay avatar sync | ✅ | PUT/GET `/api/me/avatar`; data URL base64 up to 128 KB; shown across servers |
+| Profile page media | ✅ | YouTube muted by default; relay injects mute param + controller script; user can unmute via 🔇/🎤 button + volume slider |
+| Server discovery | ✅ | `GET /findservers` HTML page; servers opt in via `PublicListing` in server.json; auto-ping every 4 min |
+| Persistent unread state | ✅ | `lastSeenTs` per channel persisted in localStorage; accurate across reconnects |
+| Media gallery view | ✅ | 🖼 in chat header; 72×72 image/video thumbnails for current channel |
+| Jump-to-message links | ✅ | 🔗 on each message; copies `serverId/channelId/msgId`; smooth scroll + flash animation |
+| Animated GIF avatars | ✅ | Avatars uploaded as GIF render animated |
+
 ### Planned / Not Yet Implemented
 
 | Feature | Notes |
@@ -212,6 +227,3 @@
 | Stage channels | One speaker, many listeners |
 | Inbound webhook (GitHub/CI → channel) | Post from external HTTP |
 | Mobile client | Not started |
-| Profile pages | GitHub Pages, Neocities, Cloudflare Pages, Netlify — sandboxed iframe + server-side sanitization |
-| Relay DM read receipts | Cross-device seen status |
-| Relay avatar sync | Global avatar stored on relay, shown across all servers |

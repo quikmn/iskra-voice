@@ -418,6 +418,13 @@ namespace Origin.Client.Core
                     CLog($"JS:{cat,-5}", logMsg);
                     return;
                 }
+                if (action == "OPEN_URL")
+                {
+                    var url = doc.RootElement.TryGetProperty("url", out var urlEl) ? urlEl.GetString() ?? "" : "";
+                    if (!string.IsNullOrEmpty(url) && (url.StartsWith("https://") || url.StartsWith("http://")))
+                        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
+                    return;
+                }
             }
             catch { /* malformed JSON — fall through */ }
 

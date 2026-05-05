@@ -153,6 +153,33 @@ namespace Origin.Server.Core
             Log("SYSTEM", adminConfigured ? "Owner password configured." : "WARNING: No AdminPassword set — owner commands disabled. Set AdminPassword in server.json.");
             Log("SYSTEM", "Awaiting client connections...");
 
+            // Public directory announce (if enabled in server.json)
+            var listing = ActiveConfig.Settings.PublicListing;
+            if (listing?.Enabled == true && !string.IsNullOrWhiteSpace(listing.Address))
+            {
+                Log("SYSTEM", $"Public listing enabled — announcing to id.iskra.foo as \"{listing.Address}\"");
+                _ = Task.Run(async () =>
+                {
+                    while (true)
+                    {
+                        try
+                        {
+                            var playerCount = ActiveClients.Count;
+                            var payload = JsonSerializer.Serialize(new {
+                                address     = listing.Address,
+                                name        = ActiveConfig.Settings.ServerName,
+                                description = listing.Description,
+                                playerCount
+                            });
+                            using var resp = await _http.PostAsync("https://id.iskra.foo/api/servers/announce",
+                                new StringContent(payload, Encoding.UTF8, "application/json"));
+                        }
+                        catch { /* relay unreachable — silent retry */ }
+                        await Task.Delay(TimeSpan.FromMinutes(4));
+                    }
+                });
+            }
+
             try
             {
                 while (true)
@@ -1952,6 +1979,14 @@ namespace Origin.Server.Core
                             try { await Send(readRecipSocket, new { action = "DM_READ", fromAlias = currentAlias, lastId }); } catch { }
                     }
 
+                    // ── DM_CALL_SIGNAL ───────────────────────────────────────────
+                    else if (action == "DM_CALL_SIGNAL")
+                    {
+                        string callTo = incoming.RootElement.TryGetProperty("to", out var ctsEl) ? ctsEl.GetString()?.Trim() ?? "" : "";
+                        if (!string.IsNullOrEmpty(callTo) && ActiveClients.TryGetValue(callTo, out WebSocket callSock))
+                            try { await callSock.SendAsync(new ArraySegment<byte>(msgBytes), WebSocketMessageType.Text, true, CancellationToken.None); } catch { }
+                    }
+
                     // ── EDIT_DM ──────────────────────────────────────────────────
                     else if (action == "EDIT_DM")
                     {
@@ -2520,6 +2555,14 @@ namespace Origin.Server.Data
         public List<string>          BotTokens { get; set; } = new();
         public List<WebhookEntry>    Webhooks  { get; set; } = new();
         public List<ScheduledEvent>  Events    { get; set; } = new();
+        public PublicListingConfig?  PublicListing { get; set; } = null;
+    }
+
+    public class PublicListingConfig
+    {
+        public bool   Enabled     { get; set; } = false;
+        public string Address     { get; set; } = "";   // e.g. "myserver.example.com:8080"
+        public string Description { get; set; } = "";
     }
 
     public class WebhookEntry
