@@ -5155,11 +5155,14 @@ function closeShareOverlay() {
     if (ov) ov.srcObject = null;
 }
 
-function renderSystemMessage(message) {
+function renderSystemMessage(message, progressId) {
     const h = document.getElementById('chat-history');
     const div = document.createElement('div');
     div.className = 'msg-system';
-    div.textContent = message;   // textContent + pre-wrap handles \n correctly
+    const span = document.createElement('span');
+    span.textContent = message;
+    if (progressId) span.dataset.progressId = progressId;
+    div.appendChild(span);
     h.appendChild(div);
     h.scrollTop = h.scrollHeight;
 }
@@ -6149,20 +6152,36 @@ async function uploadAndSendFile(file) {
         return;
     }
 
-    renderSystemMessage(`Uploading ${file.name} (${(file.size / 1024).toFixed(0)} KB)…`);
-    DevLog.log('BRIDGE', `Uploading ${file.name} | ${file.size}B`);
+    const sizeLabel = file.size >= 1048576 ? `${(file.size / 1048576).toFixed(1)} MB` : `${(file.size / 1024).toFixed(0)} KB`;
+    const progressMsgId = `upload-progress-${Date.now()}`;
+    renderSystemMessage(`Uploading ${file.name} (${sizeLabel})… 0%`, progressMsgId);
+    DevLog.log('BRIDGE', `Uploading ${file.name} | ${sizeLabel}`);
 
     try {
-        const resp = await fetch(`${serverUploadBase}/upload?name=${encodeURIComponent(file.name)}`, {
-            method:  'POST',
-            headers: { 'Content-Type': file.type || 'application/octet-stream' },
-            body:    file
+        const url = await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', `${serverUploadBase}/upload?name=${encodeURIComponent(file.name)}`);
+            xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+            xhr.upload.onprogress = e => {
+                if (!e.lengthComputable) return;
+                const pct = Math.round(e.loaded / e.total * 100);
+                const el = document.querySelector(`[data-progress-id="${progressMsgId}"]`);
+                if (el) el.textContent = `Uploading ${file.name} (${sizeLabel})… ${pct}%`;
+            };
+            xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try { resolve(JSON.parse(xhr.responseText).url); }
+                    catch { reject(new Error('Invalid server response')); }
+                } else {
+                    try { reject(new Error(JSON.parse(xhr.responseText).error || `HTTP ${xhr.status}`)); }
+                    catch { reject(new Error(`HTTP ${xhr.status}`)); }
+                }
+            };
+            xhr.onerror = () => reject(new Error('Network error'));
+            xhr.send(file);
         });
-        if (!resp.ok) {
-            const errBody = await resp.json().catch(() => ({}));
-            throw new Error(errBody.error || `HTTP ${resp.status}`);
-        }
-        const { url } = await resp.json();
+        const el = document.querySelector(`[data-progress-id="${progressMsgId}"]`);
+        if (el) el.closest('.msg-system')?.remove();
         const fullUrl = `${serverUploadBase}${url}`;
         if (inDmMode && activeDmWith) {
             postToBridge({ action: 'SEND_DM', to: activeDmWith, message: fullUrl });
@@ -6171,7 +6190,9 @@ async function uploadAndSendFile(file) {
         }
         DevLog.log('BRIDGE', `Upload done → ${fullUrl}`);
     } catch (err) {
-        renderSystemMessage(`Upload failed: ${err.message}`);
+        const el = document.querySelector(`[data-progress-id="${progressMsgId}"]`);
+        if (el) el.textContent = `Upload failed: ${err.message}`;
+        else renderSystemMessage(`Upload failed: ${err.message}`);
         DevLog.log('ERR', `Upload: ${err.message}`);
     }
 }

@@ -355,6 +355,7 @@ namespace Origin.Server.Core
             if (ctx.Request.HttpMethod == "OPTIONS")
                 { ctx.Response.AddHeader("Access-Control-Allow-Methods", "POST, OPTIONS"); ctx.Response.StatusCode = 204; ctx.Response.Close(); return; }
             if (ctx.Request.HttpMethod != "POST") { ctx.Response.StatusCode = 405; ctx.Response.Close(); return; }
+            string tempPath = null;
             try
             {
                 string name = ctx.Request.QueryString["name"] ?? "file";
@@ -367,49 +368,76 @@ namespace Origin.Server.Core
                 }
                 long maxBytes = (long)ActiveConfig.Settings.MaxUploadMb * 1024 * 1024;
                 if (ctx.Request.ContentLength64 > maxBytes) { ctx.Response.StatusCode = 413; ctx.Response.Close(); return; }
-                using var ms = new MemoryStream();
-                await ctx.Request.InputStream.CopyToAsync(ms);
-                byte[] bytes = ms.ToArray();
-                if (bytes.Length > maxBytes) { ctx.Response.StatusCode = 413; ctx.Response.Close(); return; }
 
-                // Disk quota check
-                if (ActiveConfig.Settings.MaxDiskGb > 0)
+                // Stream directly to a temp file, computing hash and collecting magic header bytes as we go
+                Directory.CreateDirectory(UploadDir);
+                tempPath = Path.Combine(UploadDir, $"_tmp_{Guid.NewGuid():N}");
+                string hash;
+                long fileSize;
+                byte[] headerBytes;
+                using (var sha = System.Security.Cryptography.SHA256.Create())
+                using (var fs  = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None, 65536, useAsync: true))
                 {
-                    var di = new DirectoryInfo(UploadDir);
-                    long usedBytes = di.Exists ? di.GetFiles().Sum(f => f.Length) : 0;
-                    if (usedBytes + bytes.Length > (long)(ActiveConfig.Settings.MaxDiskGb * 1024 * 1024 * 1024))
+                    var buf       = new byte[65536];
+                    var hdrBuf    = new byte[12];
+                    int hdrLen    = 0;
+                    long written  = 0;
+                    int n;
+                    while ((n = await ctx.Request.InputStream.ReadAsync(buf, 0, buf.Length)) > 0)
                     {
-                        ctx.Response.StatusCode = 507; ctx.Response.ContentType = "application/json";
-                        await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { error = "Server storage limit reached" })));
-                        ctx.Response.Close(); return;
+                        written += n;
+                        if (written > maxBytes)
+                        {
+                            fs.Close(); File.Delete(tempPath); tempPath = null;
+                            ctx.Response.StatusCode = 413; ctx.Response.Close(); return;
+                        }
+                        sha.TransformBlock(buf, 0, n, null, 0);
+                        await fs.WriteAsync(buf.AsMemory(0, n));
+                        if (hdrLen < 12) { int take = Math.Min(n, 12 - hdrLen); Buffer.BlockCopy(buf, 0, hdrBuf, hdrLen, take); hdrLen += take; }
                     }
+                    sha.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+                    hash = Convert.ToHexString(sha.Hash!)[..16].ToLowerInvariant();
+                    fileSize = written;
+                    headerBytes = hdrBuf[..hdrLen];
                 }
 
-                // Validate magic bytes for images — prevents disguised executables
+                // Magic byte validation for images
                 if (ImageExts.Contains(ext))
                 {
                     bool validMagic = ext switch {
-                        ".jpg" or ".jpeg" => bytes.Length >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF,
-                        ".png"  => bytes.Length >= 8 && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47,
-                        ".gif"  => bytes.Length >= 6 && bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46,
-                        ".webp" => bytes.Length >= 12 && bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46
-                                    && bytes[8] == 0x57 && bytes[9] == 0x45 && bytes[10] == 0x42 && bytes[11] == 0x50,
+                        ".jpg" or ".jpeg" => headerBytes.Length >= 3 && headerBytes[0] == 0xFF && headerBytes[1] == 0xD8 && headerBytes[2] == 0xFF,
+                        ".png"  => headerBytes.Length >= 8 && headerBytes[0] == 0x89 && headerBytes[1] == 0x50 && headerBytes[2] == 0x4E && headerBytes[3] == 0x47,
+                        ".gif"  => headerBytes.Length >= 6 && headerBytes[0] == 0x47 && headerBytes[1] == 0x49 && headerBytes[2] == 0x46,
+                        ".webp" => headerBytes.Length >= 12 && headerBytes[0] == 0x52 && headerBytes[1] == 0x49 && headerBytes[2] == 0x46 && headerBytes[3] == 0x46
+                                    && headerBytes[8] == 0x57 && headerBytes[9] == 0x45 && headerBytes[10] == 0x42 && headerBytes[11] == 0x50,
                         _ => true
                     };
                     if (!validMagic)
                     {
+                        File.Delete(tempPath); tempPath = null;
                         ctx.Response.StatusCode = 400; ctx.Response.ContentType = "application/json";
                         await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { error = "Invalid image data" })));
                         ctx.Response.Close(); return;
                     }
                 }
 
-                string hash;
-                using (var sha = System.Security.Cryptography.SHA256.Create())
-                    hash = Convert.ToHexString(sha.ComputeHash(bytes))[..16].ToLowerInvariant();
-                Directory.CreateDirectory(UploadDir);
-                string filePath = Path.Combine(UploadDir, hash + ext);
-                if (!File.Exists(filePath)) await File.WriteAllBytesAsync(filePath, bytes);
+                // Disk quota check (exclude temp files from used-bytes count)
+                if (ActiveConfig.Settings.MaxDiskGb > 0)
+                {
+                    var di = new DirectoryInfo(UploadDir);
+                    long usedBytes = di.Exists ? di.GetFiles().Where(f => !f.Name.StartsWith("_tmp_")).Sum(f => f.Length) : 0;
+                    if (usedBytes + fileSize > (long)(ActiveConfig.Settings.MaxDiskGb * 1024 * 1024 * 1024))
+                    {
+                        File.Delete(tempPath); tempPath = null;
+                        ctx.Response.StatusCode = 507; ctx.Response.ContentType = "application/json";
+                        await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { error = "Server storage limit reached" })));
+                        ctx.Response.Close(); return;
+                    }
+                }
+
+                string finalPath = Path.Combine(UploadDir, hash + ext);
+                if (File.Exists(finalPath)) { File.Delete(tempPath); tempPath = null; }
+                else                        { File.Move(tempPath, finalPath); tempPath = null; }
                 string url = $"/uploads/{hash}{ext}";
 
                 string emojiName = ctx.Request.QueryString["emojiname"] ?? "";
@@ -431,9 +459,10 @@ namespace Origin.Server.Core
                 ctx.Response.StatusCode = 200; ctx.Response.ContentType = "application/json";
                 await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { url, emojiName })));
                 ctx.Response.Close();
-                Log("UPLOAD", $"{bytes.Length / 1024.0:F1} KB → {hash}{ext}");
+                Log("UPLOAD", $"{fileSize / 1048576.0:F1} MB → {hash}{ext}");
             }
             catch (Exception ex) { Log("ERR", $"HandleUpload: {ex.Message}"); try { ctx.Response.StatusCode = 500; ctx.Response.Close(); } catch { } }
+            finally { if (tempPath != null && File.Exists(tempPath)) try { File.Delete(tempPath); } catch { } }
         }
 
         private static async void ServeUpload(HttpListenerContext ctx)
@@ -448,12 +477,12 @@ namespace Origin.Server.Core
                     { ctx.Response.StatusCode = 404; ctx.Response.Close(); return; }
                 string ext = Path.GetExtension(filename).ToLowerInvariant();
                 ctx.Response.ContentType = MimeTypes.GetValueOrDefault(ext, "application/octet-stream");
-                bool isImage = ImageExts.Contains(ext) || AudioExts.Contains(ext);
-                ctx.Response.AddHeader("Content-Disposition", isImage ? "inline" : $"attachment; filename=\"{filename}\"");
+                bool isMedia = ImageExts.Contains(ext) || AudioExts.Contains(ext);
+                ctx.Response.AddHeader("Content-Disposition", isMedia ? "inline" : $"attachment; filename=\"{filename}\"");
                 ctx.Response.AddHeader("Cache-Control", "max-age=86400");
-                byte[] bytes = await File.ReadAllBytesAsync(filePath);
-                ctx.Response.ContentLength64 = bytes.Length;
-                await ctx.Response.OutputStream.WriteAsync(bytes);
+                ctx.Response.ContentLength64 = new FileInfo(filePath).Length;
+                using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, useAsync: true);
+                await fs.CopyToAsync(ctx.Response.OutputStream);
                 ctx.Response.Close();
             }
             catch (Exception ex) { Log("ERR", $"ServeUpload: {ex.Message}"); try { ctx.Response.StatusCode = 500; ctx.Response.Close(); } catch { } }
