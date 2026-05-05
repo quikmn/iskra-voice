@@ -58,7 +58,8 @@ namespace Origin.Server.Core
         private static string BanFile         => Path.Combine(ActiveWorldPath, "bans.json");
         private static string UploadDir       => Path.Combine(ActiveWorldPath, "uploads");
         private static ConcurrentDictionary<string, DateTime> _lastMsgTime = new(); // "channelId:alias" → last send time
-        private static ConcurrentDictionary<string, string> UserStatuses  = new(); // alias → "online"/"away"/"dnd"/"invisible"
+        private static ConcurrentDictionary<string, string> UserStatuses     = new(); // alias → "online"/"away"/"dnd"/"invisible"
+        private static ConcurrentDictionary<string, string> UserStatusTexts = new(); // alias → custom status text
         private static ConcurrentDictionary<string, WebSocket> BotClients = new(); // botName → socket
         private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(5) };
         private static string AuditFile => Path.Combine(ActiveWorldPath, "audit.jsonl");
@@ -547,7 +548,7 @@ namespace Origin.Server.Core
                 lock (RoleLock) role = UserRoles.TryGetValue(alias, out var r) ? r : "guest";
                 var visibleChs = ActiveConfig.Channels
                     .Where(c => c.Type == "Header" || CanAccess(role, c.MinRole))
-                    .Select(c => new { id = c.Id, name = c.Name, type = c.Type, readOnly = c.ReadOnly, muted = c.Muted, slowMode = c.SlowMode, minRole = c.MinRole, writeRole = c.WriteRole, e2e = c.E2E });
+                    .Select(c => new { id = c.Id, name = c.Name, type = c.Type, topic = c.Topic ?? "", readOnly = c.ReadOnly, muted = c.Muted, slowMode = c.SlowMode, minRole = c.MinRole, writeRole = c.WriteRole, e2e = c.E2E });
                 try { await Send(kv.Value, new { action = "CHANNELS_UPDATED", channels = visibleChs }); } catch { }
             }
         }
@@ -1049,23 +1050,26 @@ namespace Origin.Server.Core
                     lock (PubKeyLock) pubKeysCopy = new(PublicKeys);
                     lock (E2ELock)    e2eAccessCopy = E2EKeys.ToDictionary(kv => kv.Key, kv => kv.Value.Keys.ToList());
                 }
+                var statusTextsCopy = new Dictionary<string, string>(UserStatusTexts);
                 await Send(socket, new {
-                    action       = "SERVER_INFO",
-                    name         = ActiveConfig.Settings.ServerName,
-                    serverIcon   = ActiveConfig.Settings.ServerIcon ?? "",
-                    userAvatars  = avatarsCopy,
-                    userStatuses = statusesCopy,
-                    userRoles    = rolesCopy,
-                    emojis       = emojisCopy,
+                    action           = "SERVER_INFO",
+                    name             = ActiveConfig.Settings.ServerName,
+                    serverIcon       = ActiveConfig.Settings.ServerIcon ?? "",
+                    userAvatars      = avatarsCopy,
+                    userStatuses     = statusesCopy,
+                    userStatusTexts  = statusTextsCopy,
+                    userRoles        = rolesCopy,
+                    roleColors       = ActiveConfig.Settings.RoleColors,
+                    emojis           = emojisCopy,
                     // admin-only fields
-                    webhooks     = isAdmin ? ActiveConfig.Settings.Webhooks : null,
-                    botTokens    = isAdmin ? ActiveConfig.Settings.BotTokens : null,
-                    publicKeys   = pubKeysCopy,
-                    e2eAccess    = e2eAccessCopy,
-                    uploadBase   = $"http://{context.Request.UserHostName}",
-                    channels     = ActiveConfig.Channels
+                    webhooks         = isAdmin ? ActiveConfig.Settings.Webhooks : null,
+                    botTokens        = isAdmin ? ActiveConfig.Settings.BotTokens : null,
+                    publicKeys       = pubKeysCopy,
+                    e2eAccess        = e2eAccessCopy,
+                    uploadBase       = $"http://{context.Request.UserHostName}",
+                    channels         = ActiveConfig.Channels
                         .Where(c => c.Type == "Header" || CanAccess(userRole, c.MinRole))
-                        .Select(c => new { id = c.Id, name = c.Name, type = c.Type, readOnly = c.ReadOnly, muted = c.Muted, slowMode = c.SlowMode, minRole = c.MinRole, writeRole = c.WriteRole, e2e = c.E2E }),
+                        .Select(c => new { id = c.Id, name = c.Name, type = c.Type, topic = c.Topic ?? "", readOnly = c.ReadOnly, muted = c.Muted, slowMode = c.SlowMode, minRole = c.MinRole, writeRole = c.WriteRole, e2e = c.E2E }),
                     iceServers
                 });
 
@@ -1536,11 +1540,14 @@ namespace Origin.Server.Core
                     {
                         string status = incoming.RootElement.TryGetProperty("status", out JsonElement stEl) ? stEl.GetString() ?? "online" : "online";
                         string[] validStatuses = { "online", "away", "dnd", "invisible" };
+                        if (incoming.RootElement.TryGetProperty("statusText", out var stTxtEl))
+                            UserStatusTexts[currentAlias] = (stTxtEl.GetString() ?? "").Trim()[..Math.Min(80, (stTxtEl.GetString() ?? "").Length)];
                         if (validStatuses.Contains(status))
                         {
                             UserStatuses[currentAlias] = status;
                             string broadcastStatus = status == "invisible" ? "offline" : status;
-                            await Broadcast(new { action = "STATUS_UPDATED", alias = currentAlias, status = broadcastStatus });
+                            UserStatusTexts.TryGetValue(currentAlias, out var stTxt);
+                            await Broadcast(new { action = "STATUS_UPDATED", alias = currentAlias, status = broadcastStatus, statusText = stTxt ?? "" });
                             Log("STATUS", $"'{currentAlias}' → {status}");
                         }
                     }
@@ -1968,6 +1975,35 @@ namespace Origin.Server.Core
                         LogAudit("REORDER_CHANNEL", currentAlias, reordId, direction);
                     }
 
+                    // ── SET_CHANNEL_TOPIC ─────────────────────────────────────
+                    else if (action == "SET_CHANNEL_TOPIC")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin"))
+                        { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Only admins can set channel topics." }); continue; }
+                        string topicChId = incoming.RootElement.TryGetProperty("channelId", out var tcEl) ? tcEl.GetString()?.Trim() ?? "" : "";
+                        string topic     = incoming.RootElement.TryGetProperty("topic",     out var tpEl) ? tpEl.GetString()?.Trim() ?? "" : "";
+                        var topicCh = ActiveConfig.Channels.FirstOrDefault(c => c.Id == topicChId);
+                        if (topicCh == null) continue;
+                        topicCh.Topic = topic;
+                        await BroadcastChannelUpdate();
+                        LogAudit("SET_TOPIC", currentAlias, topicChId, topic);
+                    }
+
+                    // ── SET_ROLE_COLOR ────────────────────────────────────────
+                    else if (action == "SET_ROLE_COLOR")
+                    {
+                        if (userRole != "owner")
+                        { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Only the owner can set role colors." }); continue; }
+                        string colorRole  = incoming.RootElement.TryGetProperty("role",  out var crEl) ? crEl.GetString()?.Trim() ?? "" : "";
+                        string colorValue = incoming.RootElement.TryGetProperty("color", out var cvEl) ? cvEl.GetString()?.Trim() ?? "" : "";
+                        string[] colorableRoles = { "guest", "member", "trusted", "admin" };
+                        if (!colorableRoles.Contains(colorRole)) continue;
+                        if (string.IsNullOrEmpty(colorValue)) ActiveConfig.Settings.RoleColors.Remove(colorRole);
+                        else ActiveConfig.Settings.RoleColors[colorRole] = colorValue;
+                        _ = Task.Run(() => File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true })));
+                        await Broadcast(new { action = "ROLE_COLORS_UPDATED", roleColors = ActiveConfig.Settings.RoleColors });
+                    }
+
                     // ── TYPING ───────────────────────────────────────────────
                     else if (action == "TYPING")
                     {
@@ -1989,6 +2025,7 @@ namespace Origin.Server.Core
                 ActiveClients.TryRemove(currentAlias, out _);
                 ClientGuids.TryRemove(currentAlias, out _);
                 UserStatuses.TryRemove(currentAlias, out _);
+                UserStatusTexts.TryRemove(currentAlias, out _);
                 LogAudit("LEAVE", currentAlias);
                 Log("NET", $"Connection closed for '{currentAlias}' | remaining:{ActiveClients.Count}");
                 try { await Broadcast(new { action = "STATUS_UPDATED", alias = currentAlias, status = "offline" }); } catch { }
@@ -2022,6 +2059,7 @@ namespace Origin.Server.Data
     public class ServerSettings
     {
         public string ServerName           { get; set; } = "My Iskra Server";
+        public Dictionary<string, string> RoleColors { get; set; } = new();
         public int    Port                 { get; set; } = 8080;
         public bool   RequirePassword      { get; set; } = false;
         public string ServerPassword       { get; set; } = "";
@@ -2055,6 +2093,7 @@ namespace Origin.Server.Data
         public string Id               { get; set; }
         public string Name             { get; set; }
         public string Type             { get; set; }
+        public string Topic            { get; set; } = "";
         public string MinRole          { get; set; } = "guest";
         public string WriteRole        { get; set; } = "guest";
         public bool   E2E              { get; set; } = false;

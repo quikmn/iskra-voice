@@ -473,7 +473,9 @@
         #btn-soundboard.active { background: var(--success); color: var(--text-heading); }
 
         /* ── Status picker popup ── */
-        .status-picker-popup { position: fixed; z-index: 350; background: var(--bg-surface); border: 1px solid var(--bg-deep); border-radius: 8px; padding: 4px 0; min-width: 160px; box-shadow: 0 8px 24px rgba(0,0,0,0.7); }
+        .status-picker-popup { position: fixed; z-index: 350; background: var(--bg-surface); border: 1px solid var(--bg-deep); border-radius: 8px; padding: 4px 0; min-width: 200px; box-shadow: 0 8px 24px rgba(0,0,0,0.7); }
+        .status-text-input { width: calc(100% - 24px); margin: 6px 12px 2px; padding: 5px 8px; background: var(--bg-deep); border: 1px solid var(--bg-border); border-radius: 4px; color: var(--text-normal); font-size: 12px; outline: none; }
+        .status-text-input::placeholder { color: var(--text-faint); }
         .status-opt { display: flex; align-items: center; gap: 8px; padding: 7px 14px; cursor: pointer; font-size: 13px; color: var(--text-normal); }
         .status-opt:hover { background: var(--bg-sidebar-hover); }
         .status-opt-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
@@ -489,6 +491,36 @@
         .member-entry-info { flex: 1; min-width: 0; }
         .member-entry-name { font-size: 13px; font-weight: 600; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .member-entry-vc { font-size: 10px; color: var(--text-subtle); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .member-entry-status-text { font-size: 10px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: italic; }
+        /* ── Channel topic ── */
+        #chat-channel-topic { font-size: 11px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 400px; cursor: default; }
+        #chat-channel-topic:not(:empty)::before { content: '·'; margin-right: 5px; }
+        #chat-topic-edit-btn { font-size: 13px; background: transparent; border: none; color: var(--text-faint); cursor: pointer; padding: 0 4px; display: none; }
+        #chat-topic-edit-btn:hover { color: var(--text-normal); }
+        #chat-header:hover #chat-topic-edit-btn { display: inline; }
+        /* ── Quick switcher ── */
+        #quick-switcher { position: fixed; inset: 0; z-index: 700; display: flex; align-items: flex-start; justify-content: center; padding-top: 15vh; }
+        #quick-switcher.hidden { display: none; }
+        #qs-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.6); }
+        #qs-panel { position: relative; width: 520px; background: var(--bg-surface); border-radius: 10px; box-shadow: 0 24px 64px rgba(0,0,0,0.8); overflow: hidden; }
+        #qs-input { width: 100%; padding: 16px 20px; font-size: 16px; background: transparent; border: none; color: var(--text-heading); outline: none; border-bottom: 1px solid var(--bg-border); }
+        #qs-results { max-height: 380px; overflow-y: auto; padding: 4px 0; }
+        .qs-item { display: flex; align-items: center; gap: 10px; padding: 9px 20px; cursor: pointer; color: var(--text-normal); font-size: 14px; }
+        .qs-item:hover, .qs-item.qs-active { background: var(--bg-sidebar-hover); color: var(--text-heading); }
+        .qs-item-icon { width: 22px; text-align: center; color: var(--text-muted); flex-shrink: 0; font-size: 15px; }
+        .qs-item-name { flex: 1; }
+        .qs-item-sub { font-size: 11px; color: var(--text-faint); }
+        .qs-hint { padding: 8px 20px 10px; font-size: 11px; color: var(--text-faint); border-top: 1px solid var(--bg-border); display: flex; gap: 14px; }
+        .qs-hint kbd { background: var(--bg-deep); border-radius: 3px; padding: 1px 5px; font-size: 10px; }
+        /* ── Shortcuts overlay ── */
+        #shortcuts-overlay { position: fixed; inset: 0; z-index: 700; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); }
+        #shortcuts-overlay.hidden { display: none; }
+        #shortcuts-panel { background: var(--bg-surface); border-radius: 10px; padding: 24px 28px; width: 480px; max-height: 80vh; overflow-y: auto; box-shadow: 0 24px 64px rgba(0,0,0,0.8); }
+        #shortcuts-panel h3 { font-size: 15px; font-weight: 700; color: var(--text-heading); margin-bottom: 16px; }
+        .shortcut-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--bg-border); font-size: 13px; }
+        .shortcut-row:last-child { border-bottom: none; }
+        .shortcut-keys { display: flex; gap: 4px; }
+        .shortcut-keys kbd { background: var(--bg-deep); border-radius: 3px; padding: 2px 7px; font-size: 11px; color: var(--text-normal); }
         .member-role-pip { font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 2px; text-transform: uppercase; letter-spacing: 0.3px; flex-shrink: 0; }
         .member-role-pip.r-trusted { background: #3b3a5c; color: #9b8dd4; }
         .member-role-pip.r-admin   { background: #3a4a3a; color: var(--success); }
@@ -747,7 +779,11 @@
 <div id="chat-pane">
     <div id="chat-header">
         <span id="chat-channel-icon">#</span>
-        <span id="chat-channel-name">—</span>
+        <div style="display:flex;flex-direction:column;justify-content:center;flex:1;min-width:0;overflow:hidden;">
+            <span id="chat-channel-name">—</span>
+            <span id="chat-channel-topic"></span>
+        </div>
+        <button id="chat-topic-edit-btn" onclick="editChannelTopic()" title="Set channel topic">✏</button>
         <button id="pin-indicator" onclick="togglePinPanel()" title="Pinned messages">📌 <span id="pin-count-badge">0</span> pinned</button>
         <button id="search-btn" onclick="openSearch()" title="Search messages">🔍</button>
         <button id="btn-members" onclick="toggleMembersPanel()" title="Toggle member list">👥</button>
@@ -984,6 +1020,11 @@
                 <div id="admin-members-list"></div>
             </div>
             <hr class="divider">
+            <div class="admin-section" id="admin-role-colors-section" style="display:none;">
+                <div class="admin-section-title"><span>Role Colors</span></div>
+                <div id="admin-role-colors-list"></div>
+            </div>
+            <hr class="divider" id="admin-role-colors-divider" style="display:none;">
             <div class="admin-section">
                 <div class="admin-section-title">
                     <span>Channels</span>
@@ -1143,6 +1184,31 @@
 
 <div id="reaction-tooltip"></div>
 <div id="img-lightbox" class="hidden" onclick="closeLightbox()"><img id="img-lightbox-img" src="" alt=""></div>
+
+<div id="quick-switcher" class="hidden">
+    <div id="qs-backdrop" onclick="closeQuickSwitcher()"></div>
+    <div id="qs-panel">
+        <input id="qs-input" type="text" placeholder="Jump to a channel or DM..." autocomplete="off" oninput="onQsInput()" onkeydown="onQsKey(event)">
+        <div id="qs-results"></div>
+        <div class="qs-hint"><span><kbd>↑↓</kbd> navigate</span><span><kbd>Enter</kbd> jump</span><span><kbd>Esc</kbd> close</span></div>
+    </div>
+</div>
+
+<div id="shortcuts-overlay" class="hidden" onclick="if(event.target===this)closeShortcuts()">
+    <div id="shortcuts-panel">
+        <h3>⌨ Keyboard Shortcuts</h3>
+        <div class="shortcut-row"><span>Quick switcher</span><span class="shortcut-keys"><kbd>Ctrl</kbd><kbd>K</kbd></span></div>
+        <div class="shortcut-row"><span>Search messages</span><span class="shortcut-keys"><kbd>Ctrl</kbd><kbd>F</kbd></span></div>
+        <div class="shortcut-row"><span>This overlay</span><span class="shortcut-keys"><kbd>Ctrl</kbd><kbd>/</kbd></span></div>
+        <div class="shortcut-row"><span>Close / cancel</span><span class="shortcut-keys"><kbd>Esc</kbd></span></div>
+        <div class="shortcut-row"><span>Toggle dev log</span><span class="shortcut-keys"><kbd>F9</kbd></span></div>
+        <div class="shortcut-row"><span>Clear dev log</span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>F9</kbd></span></div>
+        <div class="shortcut-row"><span>Send message</span><span class="shortcut-keys"><kbd>Enter</kbd></span></div>
+        <div class="shortcut-row"><span>New line in message</span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>Enter</kbd></span></div>
+        <div class="shortcut-row"><span>Edit last message</span><span class="shortcut-keys"><kbd>↑</kbd> <span style="font-size:11px;color:var(--text-faint)">(empty input)</span></span></div>
+        <div class="shortcut-row"><span>Push to talk</span><span class="shortcut-keys"><kbd id="sc-ptt-key">–</kbd></span></div>
+    </div>
+</div>
 
 <div id="srv-ctx-menu" style="position:fixed;display:none;background:var(--bg-surface);border:1px solid var(--bg-deep);border-radius:6px;padding:6px 0;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,0.6);z-index:200;user-select:none;">
     <div class="ctx-menu-header" id="srv-ctx-name"></div>
@@ -1722,6 +1788,11 @@ let _slowTimer        = null;
 let _collapsedCats    = new Set();  // category channel IDs that are collapsed
 let _typingTimers     = {};         // alias → timeout ID
 let _lastTypingSent   = 0;          // ms timestamp of last TYPING sent to server
+let roleColors        = {};         // role → hex color string
+let userStatusTexts   = {};         // alias → custom status text
+let myStatusText      = '';         // own custom status text
+let _qsItems          = [];         // quick switcher item list
+let _qsActiveIdx      = -1;
 
 // ── Channel List Rendering ────────────────────────────────────────────────────
 function renderChannelList() {
@@ -1826,6 +1897,7 @@ function selectTextChannel(id) {
     _slowBarShow(sm > 0 ? `🐌 Slow mode · ${sm}s cooldown` : null, false);
     document.getElementById('pin-panel')?.classList.remove('open');
     updatePinIndicator(id);
+    _updateChannelTopic(id);
     DevLog.log('BRIDGE', `Text channel selected: "${ch?.name || id}" | ${(channelMessages[id]||[]).length} msg(s)${ch?.readOnly ? ' [readonly]' : ''}`);
 }
 
@@ -1886,6 +1958,103 @@ function srvCtxMarkAllRead() {
     saveUnread(_srvCtxId);
     renderChannelList();
     renderServerBar();
+}
+
+// ── Role colors ──────────────────────────────────────────────────────────────
+function getRoleColor(alias) {
+    const role = userRoles[alias];
+    const color = role && roleColors[role];
+    return color ? `color:${color}` : '';
+}
+
+// ── Quick switcher ────────────────────────────────────────────────────────────
+function openQuickSwitcher() {
+    if (!connectedServerId) return;
+    document.getElementById('quick-switcher').classList.remove('hidden');
+    const inp = document.getElementById('qs-input');
+    inp.value = '';
+    _qsActiveIdx = 0;
+    onQsInput();
+    requestAnimationFrame(() => inp.focus());
+}
+function closeQuickSwitcher() {
+    document.getElementById('quick-switcher').classList.add('hidden');
+}
+function onQsInput() {
+    const q = (document.getElementById('qs-input').value || '').toLowerCase().trim();
+    _qsItems = [];
+    for (const ch of serverChannels) {
+        if (ch.type === 'Header') continue;
+        if (q && !ch.name.toLowerCase().includes(q)) continue;
+        _qsItems.push({ icon: ch.type === 'Voice' ? '🔊' : (ch.e2e ? '🔒' : '#'), name: ch.name, sub: 'Channel', chId: ch.id, chType: ch.type });
+    }
+    for (const alias of Object.keys(dmConversations)) {
+        if (q && !alias.toLowerCase().includes(q)) continue;
+        _qsItems.push({ icon: '✉', name: alias, sub: 'Direct Message', dmAlias: alias });
+    }
+    _qsActiveIdx = _qsItems.length ? 0 : -1;
+    _renderQsResults();
+}
+function _renderQsResults() {
+    const results = document.getElementById('qs-results');
+    if (!results) return;
+    if (!_qsItems.length) {
+        results.innerHTML = `<div style="padding:14px 20px;color:var(--text-faint);font-size:13px;">No results</div>`;
+        return;
+    }
+    results.innerHTML = _qsItems.map((it, i) =>
+        `<div class="qs-item${i === _qsActiveIdx ? ' qs-active' : ''}" onmousedown="qsSelect(${i})">` +
+        `<span class="qs-item-icon">${it.icon}</span>` +
+        `<span class="qs-item-name">${escapeHtml(it.name)}</span>` +
+        `<span class="qs-item-sub">${it.sub}</span></div>`
+    ).join('');
+    // scroll active item into view
+    const active = results.querySelector('.qs-active');
+    if (active) active.scrollIntoView({ block: 'nearest' });
+}
+function qsSelect(idx) {
+    const it = _qsItems[idx];
+    if (!it) return;
+    closeQuickSwitcher();
+    if (it.dmAlias)           { if (!inDmMode) openDmMode(); openDm(it.dmAlias); }
+    else if (it.chType === 'Text')  selectTextChannel(it.chId);
+    else if (it.chType === 'Voice') joinVoice(it.chId);
+}
+function onQsKey(e) {
+    if (e.key === 'Escape')     { closeQuickSwitcher(); return; }
+    if (e.key === 'ArrowDown')  { e.preventDefault(); _qsActiveIdx = Math.min(_qsActiveIdx + 1, _qsItems.length - 1); _renderQsResults(); return; }
+    if (e.key === 'ArrowUp')    { e.preventDefault(); _qsActiveIdx = Math.max(_qsActiveIdx - 1, 0); _renderQsResults(); return; }
+    if (e.key === 'Enter')      { e.preventDefault(); qsSelect(_qsActiveIdx); }
+}
+
+// ── Shortcuts overlay ─────────────────────────────────────────────────────────
+function openShortcuts() {
+    const el = document.getElementById('shortcuts-overlay');
+    if (el) {
+        el.classList.remove('hidden');
+        const pttKbd = document.getElementById('sc-ptt-key');
+        if (pttKbd) pttKbd.textContent = settings.pttKeyLabel || '–';
+    }
+}
+function closeShortcuts() {
+    document.getElementById('shortcuts-overlay')?.classList.add('hidden');
+}
+
+// ── Channel topic ─────────────────────────────────────────────────────────────
+function editChannelTopic() {
+    if (!['admin','owner'].includes(myRole)) return;
+    const ch = serverChannels.find(c => c.id === activeTextChannelId);
+    if (!ch) return;
+    const topic = prompt('Channel topic (leave empty to clear):', ch.topic || '');
+    if (topic === null) return;
+    postToBridge({ action: 'SET_CHANNEL_TOPIC', channelId: ch.id, topic: topic.trim() });
+}
+function _updateChannelTopic(channelId) {
+    const ch = serverChannels.find(c => c.id === channelId);
+    const topicEl = document.getElementById('chat-channel-topic');
+    const editBtn = document.getElementById('chat-topic-edit-btn');
+    if (topicEl) topicEl.textContent = ch?.topic || '';
+    if (editBtn) editBtn.style.display = ['admin','owner'].includes(myRole) && ch?.type === 'Text' ? '' : 'none';
 }
 
 // ── Typing indicator ─────────────────────────────────────────────────────────
@@ -2659,7 +2828,9 @@ function startPttCapture() {
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'F9') { e.shiftKey ? DevLog.clear() : DevLog.toggle(); return; }
-    if (e.key === 'Escape') { closeImgOverlay(); return; }
+    if (e.key === 'Escape') { closeImgOverlay(); closeQuickSwitcher(); closeShortcuts(); closeLightbox(); return; }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); openQuickSwitcher(); return; }
+    if ((e.ctrlKey || e.metaKey) && e.key === '/') { e.preventDefault(); openShortcuts(); return; }
     if (!isCapturingPtt) return;
     e.preventDefault();
     isCapturingPtt = false;
@@ -3647,7 +3818,7 @@ function renderChatMessage(msgId, author, time, message, edited, reactions, repl
     div.innerHTML =
         `<div class="msg-avatar-col">${avatarHtml(author, 'sz-40', true)}</div>` +
         `<div class="msg-content">` +
-            `<div class="msg-header"><span class="msg-author">${escapeHtml(author)}</span>` +
+            `<div class="msg-header"><span class="msg-author" style="${getRoleColor(author)}">${escapeHtml(author)}</span>` +
             (time ? `<span class="msg-time">${escapeHtml(time)}</span>` : '') + `</div>` +
             bodyHtml + actions +
         `</div>`;
@@ -4162,6 +4333,7 @@ window.chrome.webview.addEventListener('message', async (e) => {
         if (!inDmMode && activeTextChannelId) selectTextChannel(activeTextChannelId);
         renderChannelList();
         if (document.getElementById('members-panel')?.classList.contains('open')) renderMembersPanel();
+        if (activeTab === 'admin') renderAdminPanel();
 
     } else if (data.action === 'PTT_STATE') {
         DevLog.log('BRIDGE', `← C# | PTT_STATE isActive:${data.isActive}`);
@@ -4265,8 +4437,10 @@ window.chrome.webview.addEventListener('message', async (e) => {
                 _autoUploadLocalAvatar(myAlias);
             }
         }
-        if (data.userStatuses && typeof data.userStatuses === 'object') Object.assign(userStatuses, data.userStatuses);
-        if (data.userRoles    && typeof data.userRoles    === 'object') Object.assign(userRoles,    data.userRoles);
+        if (data.userStatuses     && typeof data.userStatuses     === 'object') Object.assign(userStatuses,    data.userStatuses);
+        if (data.userStatusTexts  && typeof data.userStatusTexts  === 'object') Object.assign(userStatusTexts, data.userStatusTexts);
+        if (data.userRoles        && typeof data.userRoles        === 'object') Object.assign(userRoles,       data.userRoles);
+        if (data.roleColors       && typeof data.roleColors       === 'object') roleColors = data.roleColors;
         if (data.emojis       && typeof data.emojis       === 'object') serverEmojis    = data.emojis;
         if (Array.isArray(data.webhooks))  serverWebhooks  = data.webhooks;
         if (Array.isArray(data.botTokens)) serverBotTokens = data.botTokens;
@@ -4372,6 +4546,8 @@ window.chrome.webview.addEventListener('message', async (e) => {
         unreadCounts    = {};
         mentionCounts   = {};
         _collapsedCats  = new Set();
+        roleColors      = {};
+        userStatusTexts = {};
         _clearTyping();
         e2eChannelKeys   = {};
         serverPublicKeys = {};
@@ -4476,7 +4652,12 @@ window.chrome.webview.addEventListener('message', async (e) => {
     } else if (data.action === 'STATUS_UPDATED') {
         DevLog.log('BRIDGE', `← C# | STATUS_UPDATED alias:${data.alias} status:${data.status}`);
         userStatuses[data.alias] = data.status;
+        if (data.statusText !== undefined) userStatusTexts[data.alias] = data.statusText;
         renderChannelList();
+        if (document.getElementById('members-panel')?.classList.contains('open')) renderMembersPanel();
+
+    } else if (data.action === 'ROLE_COLORS_UPDATED') {
+        roleColors = data.roleColors || {};
         if (document.getElementById('members-panel')?.classList.contains('open')) renderMembersPanel();
 
     } else if (data.action === 'USER_ROLE_UPDATED') {
@@ -4920,7 +5101,7 @@ function renderMembersPanel() {
                     ? `oncontextmenu="showUserCtxMenu(event,'${escapeHtml(alias)}')" onclick="showUserCtxMenu(event,'${escapeHtml(alias)}')"` : '';
                 return `<div class="member-entry" ${ctxAttr}>`
                     + avatarHtml(alias, 'sz-32', false, true)
-                    + `<div class="member-entry-info"><div class="member-entry-name">${escapeHtml(alias)}</div>${vcHtml}</div>${pip}</div>`;
+                    + `<div class="member-entry-info"><div class="member-entry-name" style="${getRoleColor(alias)}">${escapeHtml(alias)}</div>${userStatusTexts[alias] ? `<div class="member-entry-status-text">${escapeHtml(userStatusTexts[alias])}</div>` : vcHtml}</div>${pip}</div>`;
             }).join('');
             return `<div class="member-group-label">${groupLabels[grp]} — ${aliases.length}</div>${entries}`;
         }).join('');
@@ -4956,10 +5137,36 @@ function ctxSetRole(role) {
 
 function renderAdminPanel() {
     renderAdminMembers();
+    renderAdminRoleColors();
     renderAdminChannels();
     renderBotsSection();
     renderWebhooksSection();
     renderEmojisSection();
+}
+
+function renderAdminRoleColors() {
+    const section = document.getElementById('admin-role-colors-section');
+    const divider = document.getElementById('admin-role-colors-divider');
+    const el = document.getElementById('admin-role-colors-list');
+    if (!el) return;
+    const isOwner = myRole === 'owner';
+    if (section) section.style.display = isOwner ? '' : 'none';
+    if (divider) divider.style.display = isOwner ? '' : 'none';
+    if (!isOwner) return;
+    const roles = ['guest','member','trusted','admin'];
+    el.innerHTML = roles.map(r => {
+        const color = roleColors[r] || '';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:4px 0;">
+            <span style="width:70px;font-size:12px;color:var(--text-muted);text-transform:capitalize;">${r}</span>
+            <input type="color" value="${color || '#ffffff'}" style="width:36px;height:24px;border:none;background:none;cursor:pointer;padding:0;"
+                   onchange="setRoleColor('${r}',this.value)" title="Pick color for ${r}">
+            <span style="font-size:11px;color:var(--text-faint);font-family:monospace;">${color || 'default'}</span>
+            ${color ? `<button class="btn-danger-sm" onclick="setRoleColor('${r}','')">✕</button>` : ''}
+        </div>`;
+    }).join('');
+}
+function setRoleColor(role, color) {
+    postToBridge({ action: 'SET_ROLE_COLOR', role, color });
 }
 
 function renderAdminMembers() {
@@ -5191,11 +5398,12 @@ function _resetIdleTimer() {
     }, IDLE_TIMEOUT_MS);
 }
 
-function setMyStatus(status, fromIdle = false) {
+function setMyStatus(status, fromIdle = false, text = null) {
     myStatus = status;
+    if (text !== null) myStatusText = text;
     const dot = document.getElementById('my-status-dot');
     if (dot) dot.className = `status-dot ${status}`;
-    if (connectedServerId) postToBridge({ action: 'SET_STATUS', status });
+    if (connectedServerId) postToBridge({ action: 'SET_STATUS', status, statusText: myStatusText });
     if (!fromIdle) {
         clearTimeout(_idleTimer);
         if (status === 'online') {
@@ -5211,6 +5419,20 @@ function showStatusPicker(e) {
     document.querySelectorAll('.status-picker-popup').forEach(el => el.remove());
     const popup = document.createElement('div');
     popup.className = 'status-picker-popup';
+
+    // Custom status text input
+    const inp = document.createElement('input');
+    inp.className = 'status-text-input';
+    inp.type = 'text';
+    inp.maxLength = 80;
+    inp.placeholder = 'What\'s on your mind?';
+    inp.value = myStatusText;
+    inp.addEventListener('keydown', ev => {
+        ev.stopPropagation();
+        if (ev.key === 'Enter') { setMyStatus(myStatus, false, inp.value.trim()); hideStatusPicker(); }
+    });
+    popup.appendChild(inp);
+
     [
         { key: 'online',    label: '🟢 Online' },
         { key: 'away',      label: '🟡 Away' },
@@ -5220,13 +5442,14 @@ function showStatusPicker(e) {
         const opt = document.createElement('div');
         opt.className = 'status-opt';
         opt.textContent = s.label;
-        opt.onclick = () => { setMyStatus(s.key); hideStatusPicker(); };
+        opt.onclick = () => { setMyStatus(s.key, false, inp.value.trim()); hideStatusPicker(); };
         popup.appendChild(opt);
     });
     document.body.appendChild(popup);
     const rect = e.currentTarget.getBoundingClientRect();
     popup.style.left   = rect.left + 'px';
     popup.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
+    requestAnimationFrame(() => inp.focus());
     setTimeout(() => document.addEventListener('click', hideStatusPicker, { once: true }), 0);
 }
 
