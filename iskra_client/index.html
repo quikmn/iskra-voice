@@ -327,7 +327,7 @@
         /* ── Input area ── */
         #input-area { padding: 8px 16px 16px; border-top: 1px solid var(--bg-border); }
         .input-row { display: flex; align-items: center; gap: 8px; background: var(--bg-chat); border-radius: 8px; padding: 4px 4px 4px 8px; }
-        .input-box { flex: 1; background: transparent; border: none; padding: 7px 6px; color: var(--text-normal); outline: none; font-size: 14px; }
+        .input-box { flex: 1; background: transparent; border: none; padding: 7px 6px; color: var(--text-normal); outline: none; font-size: 14px; resize: none; min-height: 28px; max-height: 150px; overflow-y: auto; line-height: 1.45; font-family: inherit; }
         .input-box::placeholder { color: var(--text-subtle); opacity: 1; }
         .attach-btn { width: 30px; height: 30px; border-radius: 6px; border: none; background: transparent; color: var(--text-normal); cursor: pointer; font-size: 17px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: color 0.1s; }
         .attach-btn:hover { color: var(--text-heading); }
@@ -599,6 +599,15 @@
         #forward-inner h3 { font-size: 14px; font-weight: 700; color: var(--text-heading); margin-bottom: 10px; }
         .forward-quote { background: var(--bg-deep); border-left: 3px solid var(--accent); padding: 7px 10px; border-radius: 4px; font-size: 12px; color: var(--text-faint); margin-bottom: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         #forward-comment { resize: none; height: 58px; }
+
+        /* ── Format picker popup ── */
+        #format-picker-popup { position: fixed; z-index: 400; background: var(--bg-surface); border: 1px solid var(--bg-border); border-radius: 8px; padding: 4px 0; min-width: 220px; box-shadow: 0 -4px 24px rgba(0,0,0,0.6); }
+        .fmt-item { display: flex; align-items: center; gap: 10px; padding: 7px 14px; cursor: pointer; font-size: 13px; color: var(--text-normal); }
+        .fmt-item:hover { background: var(--bg-sidebar-hover); color: var(--text-heading); }
+        .fmt-item-icon { font-size: 13px; font-weight: 700; color: var(--accent); width: 28px; text-align: center; flex-shrink: 0; font-family: monospace; }
+        .fmt-item-label { flex: 1; }
+        .fmt-item-hint { font-size: 11px; color: var(--text-faint); font-family: monospace; flex-shrink: 0; }
+        .fmt-sep { height: 1px; background: var(--bg-border); margin: 3px 0; }
 
         /* ── Emoji insert picker section label ── */
         .ep-section-label { font-size: 10px; font-weight: 700; color: var(--text-faint); padding: 4px 6px; letter-spacing: 0.4px; text-transform: uppercase; width: 100%; box-sizing: border-box; }
@@ -904,7 +913,8 @@
         </div>
         <div class="input-row">
             <button class="attach-btn" onclick="document.getElementById('file-input').click()" title="Attach file (or paste / drag & drop)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
-            <input type="text" id="chat-input" class="input-box" placeholder="Message #general-chat" onkeypress="sendChat(event)" oninput="onChatInput()">
+            <button class="attach-btn" onclick="toggleFormatPicker(event)" title="Formatting (Ctrl+Shift+F)">✏</button>
+            <textarea id="chat-input" class="input-box" placeholder="Message #general-chat" rows="1" onkeydown="sendChat(event)" oninput="onChatInput()"></textarea>
             <button class="attach-btn" onclick="toggleEmojiInsertPicker(event)" title="Emoji">😊</button>
         </div>
         <input type="file" id="file-input" style="display:none"
@@ -2328,6 +2338,114 @@ function hideChCtxMenu() {
     _chCtxMenuId = null;
 }
 
+// ── Format picker popup ───────────────────────────────────────────────────────
+const FMT_ITEMS = [
+    { label: 'Bold',          icon: 'B',    hint: '**text**',            type: 'bold' },
+    { label: 'Italic',        icon: 'I',    hint: '*text*',              type: 'italic' },
+    { label: 'Strikethrough', icon: 'S̶',    hint: '~~text~~',            type: 'strike' },
+    { label: 'Spoiler',       icon: '||',   hint: '||text||',            type: 'spoiler' },
+    { sep: true },
+    { label: 'Inline code',   icon: '`',    hint: '`code`',              type: 'inlinecode' },
+    { label: 'Code block',    icon: '```',  hint: '```lang\\n...\\n```', type: 'codeblock' },
+    { sep: true },
+    { label: 'Block quote',   icon: '>',    hint: '> text',              type: 'blockquote' },
+    { label: 'Mention',       icon: '@',    hint: '@alias',              type: 'mention' },
+];
+
+function toggleFormatPicker(event) {
+    if (event) event.stopPropagation();
+    const existing = document.getElementById('format-picker-popup');
+    if (existing) { existing.remove(); return; }
+
+    const popup = document.createElement('div');
+    popup.id = 'format-picker-popup';
+
+    FMT_ITEMS.forEach(item => {
+        if (item.sep) { const s = document.createElement('div'); s.className = 'fmt-sep'; popup.appendChild(s); return; }
+        const row = document.createElement('div');
+        row.className = 'fmt-item';
+        row.innerHTML = `<span class="fmt-item-icon">${item.icon}</span><span class="fmt-item-label">${item.label}</span><span class="fmt-item-hint">${item.hint}</span>`;
+        row.addEventListener('mousedown', e => { e.preventDefault(); insertFormat(item.type); popup.remove(); });
+        popup.appendChild(row);
+    });
+
+    document.body.appendChild(popup);
+
+    // Position above the format button, anchored to bottom of button
+    const btn = event?.currentTarget;
+    if (btn) {
+        const r = btn.getBoundingClientRect();
+        const ph = popup.offsetHeight || 280;
+        let top = r.top - ph - 6;
+        let left = r.left;
+        if (top < 8) top = r.bottom + 6;
+        if (left + 220 > window.innerWidth - 8) left = window.innerWidth - 228;
+        popup.style.top  = top  + 'px';
+        popup.style.left = left + 'px';
+    } else {
+        // Keyboard shortcut: position near the chat input
+        const ta = document.getElementById('chat-input');
+        if (ta) {
+            const r = ta.getBoundingClientRect();
+            popup.style.bottom = (window.innerHeight - r.top + 6) + 'px';
+            popup.style.left   = r.left + 'px';
+            popup.style.top    = '';
+        }
+    }
+
+    setTimeout(() => document.addEventListener('click', () => popup.remove(), { once: true }), 0);
+}
+
+function insertFormat(type) {
+    const ta = document.getElementById('chat-input');
+    if (!ta) return;
+    ta.focus();
+
+    const start = ta.selectionStart;
+    const end   = ta.selectionEnd;
+    const sel   = ta.value.slice(start, end);
+
+    let before = '', after = '', placeholder = '', selectFrom, selectLen;
+
+    switch (type) {
+        case 'bold':
+            before = '**'; after = '**'; placeholder = sel || 'bold text';
+            break;
+        case 'italic':
+            before = '*'; after = '*'; placeholder = sel || 'italic text';
+            break;
+        case 'strike':
+            before = '~~'; after = '~~'; placeholder = sel || 'strikethrough text';
+            break;
+        case 'spoiler':
+            before = '||'; after = '||'; placeholder = sel || 'spoiler text';
+            break;
+        case 'inlinecode':
+            before = '`'; after = '`'; placeholder = sel || 'code here';
+            break;
+        case 'codeblock':
+            before = '```\n'; after = '\n```'; placeholder = sel || '// your code here\n// line 2\n// line 3';
+            break;
+        case 'blockquote':
+            before = '> '; after = ''; placeholder = sel || 'quoted text';
+            break;
+        case 'mention':
+            before = '@'; after = ''; placeholder = sel || 'alias';
+            break;
+        default: return;
+    }
+
+    const insert = before + placeholder + after;
+    ta.setRangeText(insert, start, end, 'end');
+
+    selectFrom = start + before.length;
+    selectLen  = placeholder.length;
+    ta.setSelectionRange(selectFrom, selectFrom + selectLen);
+
+    // Trigger auto-resize
+    ta.dispatchEvent(new Event('input'));
+}
+
 // ── Emoji insert picker ───────────────────────────────────────────────────────
 function toggleEmojiInsertPicker(event) {
     event.stopPropagation();
@@ -2651,6 +2769,10 @@ function _updateChannelTopic(channelId) {
 
 // ── Typing indicator ─────────────────────────────────────────────────────────
 function onChatInput() {
+    // Auto-resize textarea
+    const ta = document.getElementById('chat-input');
+    if (ta) { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 150) + 'px'; }
+    // Typing indicator
     if (!connectedServerId || !activeTextChannelId) return;
     const now = Date.now();
     if (now - _lastTypingSent < 3000) return;
@@ -3429,6 +3551,7 @@ document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') { closeImgOverlay(); closeQuickSwitcher(); closeShortcuts(); closeLightbox(); closeBookmarks(); closeEventsPanel(); hideProfileCard(); closeForwardModal(); hideChCtxMenu(); closeEmojiInsertPicker(); return; }
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); openQuickSwitcher(); return; }
     if ((e.ctrlKey || e.metaKey) && e.key === '/') { e.preventDefault(); openShortcuts(); return; }
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'F') { e.preventDefault(); toggleFormatPicker(); return; }
     if (!isCapturingPtt) return;
     e.preventDefault();
     isCapturingPtt = false;
@@ -3629,11 +3752,13 @@ function joinVoice(id) {
 }
 
 async function sendChat(e) {
-    if (e.key !== 'Enter' || !e.target.value.trim()) return;
+    if (e.key !== 'Enter' || e.shiftKey || !e.target.value.trim()) return;
+    e.preventDefault();
     const msg = e.target.value.trim();
+    const _resetInput = () => { e.target.value = ''; e.target.style.height = 'auto'; };
     if (inDmMode && activeDmWith) {
         postToBridge({ action: 'SEND_DM', to: activeDmWith, message: msg });
-        e.target.value = '';
+        _resetInput();
         return;
     }
     const sm = channelSlowMode[activeTextChannelId] || 0;
@@ -3653,7 +3778,7 @@ async function sendChat(e) {
                 h.appendChild(div);
                 h.scrollTop = h.scrollHeight;
             }
-            e.target.value = '';
+            _resetInput();
             return;
         }
         outMsg = await e2eEncrypt(e2eChannelKeys[activeTextChannelId], msg);
@@ -3661,7 +3786,7 @@ async function sendChat(e) {
     const payload = { action: 'SEND_CHAT', channelId: activeTextChannelId, message: outMsg };
     if (_replyTo) { payload.replyToId = _replyTo.id; cancelReply(); }
     postToBridge(payload);
-    e.target.value = '';
+    _resetInput();
     if (sm > 0) { lastSendTime[activeTextChannelId] = Date.now(); _slowCountdown(sm); }
 }
 
