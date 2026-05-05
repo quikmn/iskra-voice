@@ -1745,7 +1745,7 @@ namespace Origin.Server.Core
                             if (File.Exists(dmPath))
                                 foreach (var line in File.ReadLines(dmPath))
                                     try { var m = JsonSerializer.Deserialize<DmMessage>(line); if (m != null) dmMsgs.Add(m); } catch { }
-                        await Send(socket, new { action = "DM_HISTORY", with = dmWith, messages = dmMsgs.TakeLast(100).Select(m => new { id = m.Id, from = m.From, to = m.To, time = m.Time, ts = m.Ts, message = m.Message }) });
+                        await Send(socket, new { action = "DM_HISTORY", with = dmWith, messages = dmMsgs.TakeLast(100).Select(m => new { id = m.Id, from = m.From, to = m.To, time = m.Time, ts = m.Ts, message = m.Message, edited = m.Edited }) });
                     }
 
                     // ── MARK_DM_READ ─────────────────────────────────────────────
@@ -1756,6 +1756,70 @@ namespace Origin.Server.Core
                         if (!string.IsNullOrEmpty(dmWith) && !string.IsNullOrEmpty(lastId)
                             && ActiveClients.TryGetValue(dmWith, out var readRecipSocket))
                             try { await Send(readRecipSocket, new { action = "DM_READ", fromAlias = currentAlias, lastId }); } catch { }
+                    }
+
+                    // ── EDIT_DM ──────────────────────────────────────────────────
+                    else if (action == "EDIT_DM")
+                    {
+                        string dmWith    = incoming.RootElement.TryGetProperty("with",      out var edEl) ? edEl.GetString()?.Trim() ?? "" : "";
+                        string messageId = incoming.RootElement.TryGetProperty("messageId", out var emiEl) ? emiEl.GetString()?.Trim() ?? "" : "";
+                        string newText   = incoming.RootElement.TryGetProperty("newText",   out var entEl) ? entEl.GetString()?.Trim() ?? "" : "";
+                        if (string.IsNullOrEmpty(dmWith) || string.IsNullOrEmpty(messageId) || string.IsNullOrEmpty(newText)) continue;
+                        string dmPath = DmFile(currentAlias, dmWith);
+                        bool edited = false;
+                        lock (DmLock)
+                        {
+                            if (File.Exists(dmPath))
+                            {
+                                var lines = File.ReadAllLines(dmPath).ToList();
+                                for (int li = 0; li < lines.Count; li++)
+                                    try
+                                    {
+                                        var dm = JsonSerializer.Deserialize<DmMessage>(lines[li]);
+                                        if (dm?.Id == messageId && dm.From == currentAlias)
+                                        { dm.Message = newText; dm.Edited = true; lines[li] = JsonSerializer.Serialize(dm); edited = true; break; }
+                                    } catch { }
+                                if (edited) File.WriteAllLines(dmPath, lines);
+                            }
+                        }
+                        if (edited)
+                        {
+                            var editPayload = new { action = "DM_EDITED", with = dmWith, messageId, newText };
+                            await Send(socket, editPayload);
+                            if (ActiveClients.TryGetValue(dmWith, out var epSock))
+                                await Send(epSock, new { action = "DM_EDITED", with = currentAlias, messageId, newText });
+                            Log("DM", $"'{currentAlias}' edited DM {messageId}");
+                        }
+                        else await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Cannot edit that message." });
+                    }
+
+                    // ── DELETE_DM ─────────────────────────────────────────────────
+                    else if (action == "DELETE_DM")
+                    {
+                        string dmWith    = incoming.RootElement.TryGetProperty("with",      out var ddEl) ? ddEl.GetString()?.Trim() ?? "" : "";
+                        string messageId = incoming.RootElement.TryGetProperty("messageId", out var dmiEl) ? dmiEl.GetString()?.Trim() ?? "" : "";
+                        if (string.IsNullOrEmpty(dmWith) || string.IsNullOrEmpty(messageId)) continue;
+                        string dmPath = DmFile(currentAlias, dmWith);
+                        bool deleted = false;
+                        lock (DmLock)
+                        {
+                            if (File.Exists(dmPath))
+                            {
+                                var lines = File.ReadAllLines(dmPath).ToList();
+                                int before = lines.Count;
+                                lines.RemoveAll(line => { try { var dm = JsonSerializer.Deserialize<DmMessage>(line); return dm?.Id == messageId && dm.From == currentAlias; } catch { return false; } });
+                                if (lines.Count < before) { File.WriteAllLines(dmPath, lines); deleted = true; }
+                            }
+                        }
+                        if (deleted)
+                        {
+                            var delPayload = new { action = "DM_DELETED", with = dmWith, messageId };
+                            await Send(socket, delPayload);
+                            if (ActiveClients.TryGetValue(dmWith, out var dpSock))
+                                await Send(dpSock, new { action = "DM_DELETED", with = currentAlias, messageId });
+                            Log("DM", $"'{currentAlias}' deleted DM {messageId}");
+                        }
+                        else await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Cannot delete that message." });
                     }
 
                     // ── DELETE_EMOJI ─────────────────────────────────────────────
@@ -2197,6 +2261,7 @@ namespace Origin.Server.Data
         public string Time    { get; set; }
         public long   Ts      { get; set; }
         public string Message { get; set; }
+        public bool   Edited  { get; set; }
     }
 
     public class FingerprintRecord

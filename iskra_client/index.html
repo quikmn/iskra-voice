@@ -609,6 +609,13 @@
         .fmt-item-hint { font-size: 11px; color: var(--text-faint); font-family: monospace; flex-shrink: 0; }
         .fmt-sep { height: 1px; background: var(--bg-border); margin: 3px 0; }
 
+        /* ── Syntax highlighting ── */
+        .hl-kw { color: #7aa2f7; }
+        .hl-st { color: #9ece6a; }
+        .hl-cm { color: var(--text-faint); font-style: italic; }
+        .hl-nm { color: #e0af68; }
+        .hl-fn { color: #7dcfff; }
+
         /* ── Emoji insert picker section label ── */
         .ep-section-label { font-size: 10px; font-weight: 700; color: var(--text-faint); padding: 4px 6px; letter-spacing: 0.4px; text-transform: uppercase; width: 100%; box-sizing: border-box; }
 
@@ -3848,6 +3855,56 @@ function normalizeUploadUrl(url) {
     return (m && serverUploadBase) ? `${serverUploadBase}${m[1]}` : url;
 }
 
+// ── Syntax highlighter ────────────────────────────────────────────────────────
+const _HL_KW = new Set(['if','else','elif','for','while','do','switch','case','break',
+    'continue','return','function','func','class','def','const','let','var','new','this',
+    'self','null','nil','undefined','true','false','void','typeof','instanceof','in','of',
+    'import','export','default','from','async','await','try','catch','finally','throw',
+    'raise','delete','yield','static','extends','super','public','private','protected',
+    'abstract','interface','enum','namespace','type','readonly','override','sealed',
+    'using','struct','record','get','set','pass','lambda','with','as','assert','global',
+    'nonlocal','del','except','not','and','or','is','chan','go','defer','select','range',
+    'package','map','make','len','append','require','module','then','end','fn','match',
+    'where','when','impl','trait','pub','mod','use','let','mut','ref','move','dyn']);
+
+const _HL_PATTERNS = [
+    [/^\/\/[^\n]*/,           'hl-cm'],
+    [/^#(?![\[{])[^\n]*/,    'hl-cm'],
+    [/^\/\*[\s\S]*?\*\//,    'hl-cm'],
+    [/^"(?:\\.|[^"\\])*"/,   'hl-st'],
+    [/^'(?:\\.|[^'\\])*'/,   'hl-st'],
+    [/^`(?:\\.|[^`\\])*`/,   'hl-st'],
+    [/^\d+\.?\d*/,           'hl-nm'],
+    [/^[a-zA-Z_$][\w$]*/,   null],
+    [/^[\s\S]/,              null],
+];
+
+function highlightCode(code) {
+    let out = '', i = 0;
+    while (i < code.length) {
+        for (const [re, cls] of _HL_PATTERNS) {
+            const m = code.slice(i).match(re);
+            if (!m) continue;
+            const raw = m[0];
+            const esc = raw.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            if (cls) {
+                out += `<span class="${cls}">${esc}</span>`;
+            } else if (/^[a-zA-Z_$]/.test(raw)) {
+                // check if next non-space char is '(' — function call
+                const after = code.slice(i + raw.length).trimStart();
+                if (after[0] === '(') out += `<span class="hl-fn">${esc}</span>`;
+                else if (_HL_KW.has(raw)) out += `<span class="hl-kw">${esc}</span>`;
+                else out += esc;
+            } else {
+                out += esc;
+            }
+            i += raw.length;
+            break;
+        }
+    }
+    return out;
+}
+
 // ── Markdown renderer ──────────────────────────────────────────────────────────
 function renderMarkdown(raw) {
     // 1. Extract fenced code blocks (with optional language hint).
@@ -3924,8 +3981,7 @@ function renderMarkdown(raw) {
     // 11. Restore code blocks.
     s = s.replace(/\x02(\d+)\x03/g, (_, i) => {
         const { lang, code } = blocks[parseInt(i)];
-        const esc = code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        return `<pre><code>${lang ? `<span class="code-lang">${escapeHtml(lang)}</span>` : ''}${esc}</code></pre>`;
+        return `<pre><code>${lang ? `<span class="code-lang">${escapeHtml(lang)}</span>` : ''}${highlightCode(code)}</code></pre>`;
     });
 
     return s;
@@ -4317,7 +4373,7 @@ function renderDmList() {
 }
 
 function renderDmMessage(m) {
-    renderChatMessage(m.id || null, m.from, m.time, m.message, false, {});
+    renderChatMessage(m.id || null, m.from, m.time, m.message, !!m.edited, {});
 }
 
 function updateDmBadge() {
@@ -4606,19 +4662,26 @@ async function submitEdit(msgId) {
     if (!ta) return;
     const newText = ta.value.trim();
     if (!newText) return;
-    const channelId = activeTextChannelId;
-    const ch = serverChannels.find(c => c.id === channelId);
-    let outText = newText;
-    if (ch?.e2e && e2eChannelKeys[channelId])
-        outText = await e2eEncrypt(e2eChannelKeys[channelId], newText);
-    postToBridge({ action: 'EDIT_MESSAGE', channelId, messageId: msgId, newText: outText });
+    if (inDmMode && activeDmWith) {
+        postToBridge({ action: 'EDIT_DM', with: activeDmWith, messageId: msgId, newText });
+    } else {
+        const channelId = activeTextChannelId;
+        const ch = serverChannels.find(c => c.id === channelId);
+        let outText = newText;
+        if (ch?.e2e && e2eChannelKeys[channelId])
+            outText = await e2eEncrypt(e2eChannelKeys[channelId], newText);
+        postToBridge({ action: 'EDIT_MESSAGE', channelId, messageId: msgId, newText: outText });
+    }
     cancelEdit(msgId);
 }
 
 function deleteMessage(evt, msgId) {
     if (!evt.shiftKey && !window.confirm('Delete this message?')) return;
-    const channelId = activeTextChannelId;
-    postToBridge({ action: 'DELETE_MESSAGE', channelId, messageId: msgId });
+    if (inDmMode && activeDmWith) {
+        postToBridge({ action: 'DELETE_DM', with: activeDmWith, messageId: msgId });
+    } else {
+        postToBridge({ action: 'DELETE_MESSAGE', channelId: activeTextChannelId, messageId: msgId });
+    }
 }
 
 function startReply(msgId) {
@@ -5560,6 +5623,35 @@ window.chrome.webview.addEventListener('message', async (e) => {
                     postToBridge({ action: 'MARK_DM_READ', with: data.with, lastId });
             }
         }
+
+    } else if (data.action === 'DM_EDITED') {
+        const peer = data.with;
+        if (dmHistory[peer]) {
+            const msg = dmHistory[peer].find(m => m.id === data.messageId);
+            if (msg) { msg.message = data.newText; msg.edited = true; }
+        }
+        if (inDmMode && activeDmWith === peer) {
+            const row = document.querySelector(`[data-msg-id="${data.messageId}"]`);
+            if (row) {
+                const body = row.querySelector('.msg-body');
+                if (body) { body.dataset.raw = data.newText; body.innerHTML = renderMarkdown(data.newText); }
+                if (!row.querySelector('.msg-edited')) {
+                    const em = document.createElement('span');
+                    em.className = 'msg-edited';
+                    em.textContent = '(edited)';
+                    body?.after(em);
+                }
+            }
+        }
+
+    } else if (data.action === 'DM_DELETED') {
+        const peer = data.with;
+        if (dmHistory[peer]) {
+            const idx = dmHistory[peer].findIndex(m => m.id === data.messageId);
+            if (idx !== -1) dmHistory[peer].splice(idx, 1);
+        }
+        if (inDmMode && activeDmWith === peer)
+            document.querySelector(`[data-msg-id="${data.messageId}"]`)?.remove();
 
     } else if (data.action === 'DM_READ') {
         DevLog.log('BRIDGE', `← C# | DM_READ from:${data.fromAlias} lastId:${data.lastId}`);
