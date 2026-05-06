@@ -521,6 +521,80 @@
     position: relative;
   }
 
+  /* ── Commit ticker ── */
+  .commit-ticker-wrap {
+    position: relative;
+    z-index: 1;
+    overflow: hidden;
+    background: rgba(255,255,255,0.025);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    height: 38px;
+    display: flex;
+    align-items: center;
+  }
+  .commit-ticker-wrap::after {
+    content: '';
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 80px;
+    background: linear-gradient(90deg, transparent, #0b0d14);
+    z-index: 3;
+    pointer-events: none;
+  }
+  .commit-ticker-label {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 28px 0 20px;
+    background: linear-gradient(90deg, #0b0d14 72%, transparent);
+    z-index: 3;
+    pointer-events: none;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #22c55e;
+    white-space: nowrap;
+  }
+  .ticker-live-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #22c55e;
+    flex-shrink: 0;
+    animation: live-pulse 2s ease-in-out infinite;
+  }
+  @keyframes live-pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34,197,94,0.5); }
+    50%       { opacity: 0.7; box-shadow: 0 0 0 5px rgba(34,197,94,0); }
+  }
+  .commit-ticker-track {
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    animation: ticker-scroll var(--ticker-dur, 80s) linear infinite;
+    padding-left: 130px;
+  }
+  .commit-ticker-track:hover { animation-play-state: paused; }
+  @keyframes ticker-scroll {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  .commit-entry {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 28px;
+    font-size: 12.5px;
+    border-right: 1px solid rgba(255,255,255,0.07);
+    cursor: default;
+  }
+  .commit-bolt { color: var(--accent); font-size: 10px; opacity: 0.8; flex-shrink: 0; }
+  .commit-msg  { color: var(--text); max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
+  .commit-time { color: var(--muted); font-size: 11px; opacity: 0.65; flex-shrink: 0; }
+
   /* ── Footer ── */
   footer {
     position: relative;
@@ -854,6 +928,17 @@
   </div>
 </div>
 
+<!-- COMMIT TICKER -->
+<div class="commit-ticker-wrap">
+  <div class="commit-ticker-label">
+    <span class="ticker-live-dot"></span>
+    Live commits
+  </div>
+  <div class="commit-ticker-track" id="commit-ticker-track">
+    <span class="commit-entry"><span class="commit-bolt">⚡</span><span class="commit-msg">Loading…</span></span>
+  </div>
+</div>
+
 <!-- FOOTER -->
 <footer>
   <span>© 2026 Viktor Lundgren · <a href="https://github.com/quikmn/iskra-voice/blob/main/LICENSE" target="_blank">PolyForm Noncommercial 1.0.0</a></span>
@@ -989,6 +1074,43 @@
   window.addEventListener('resize', resize);
   init();
   draw();
+})();
+
+// ── Commit ticker ─────────────────────────────────────────────────────────
+(function() {
+  function timeAgo(iso) {
+    const s = (Date.now() - new Date(iso)) / 1000;
+    if (s < 60)      return 'just now';
+    if (s < 3600)    return Math.floor(s / 60)    + 'm ago';
+    if (s < 86400)   return Math.floor(s / 3600)  + 'h ago';
+    if (s < 2592000) return Math.floor(s / 86400) + 'd ago';
+    return Math.floor(s / 2592000) + 'mo ago';
+  }
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  async function load() {
+    try {
+      const r = await fetch('https://api.github.com/repos/quikmn/iskra-voice/commits?per_page=25');
+      if (!r.ok) return;
+      const commits = await r.json();
+      const track = document.getElementById('commit-ticker-track');
+      if (!track || !Array.isArray(commits) || !commits.length) return;
+      const entries = commits.map(c => {
+        const msg  = esc(c.commit.message.split('\n')[0].slice(0, 80));
+        const when = timeAgo(c.commit.author.date);
+        return `<span class="commit-entry"><span class="commit-bolt">⚡</span><span class="commit-msg">${msg}</span><span class="commit-time">${when}</span></span>`;
+      }).join('');
+      track.innerHTML = entries + entries; // duplicate for seamless loop
+      // Speed: ~55px/s feels natural for reading while scrolling
+      const oneWidth = track.scrollWidth / 2;
+      const dur = Math.round(oneWidth / 55);
+      track.style.setProperty('--ticker-dur', dur + 's');
+      track.closest('.commit-ticker-wrap').style.setProperty('--ticker-dur', dur + 's');
+    } catch(e) {}
+  }
+  load();
+  setInterval(load, 5 * 60 * 1000); // refresh every 5 min
 })();
 
 // ── Scroll reveal ──────────────────────────────────────────────────────────
