@@ -2371,6 +2371,23 @@ namespace Origin.Server.Core
                         LogAudit("REORDER_CHANNEL", currentAlias, reordId, direction);
                     }
 
+                    // ── MOVE_CHANNEL_TO_INDEX ─────────────────────────────────
+                    else if (action == "MOVE_CHANNEL_TO_INDEX")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin"))
+                        { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Only admins can reorder channels." }); continue; }
+                        string moveId  = incoming.RootElement.TryGetProperty("channelId",   out var mvEl)  ? mvEl.GetString()?.Trim() ?? "" : "";
+                        int    tgtIdx  = incoming.RootElement.TryGetProperty("targetIndex", out var tgEl)  ? tgEl.GetInt32()                : -1;
+                        int    curIdx  = ActiveConfig.Channels.FindIndex(c => c.Id == moveId);
+                        if (curIdx < 0 || tgtIdx < 0) continue;
+                        var movedCh = ActiveConfig.Channels[curIdx];
+                        ActiveConfig.Channels.RemoveAt(curIdx);
+                        tgtIdx = Math.Clamp(tgtIdx, 0, ActiveConfig.Channels.Count);
+                        ActiveConfig.Channels.Insert(tgtIdx, movedCh);
+                        await BroadcastChannelUpdate();
+                        LogAudit("MOVE_CHANNEL", currentAlias, moveId, tgtIdx.ToString());
+                    }
+
                     // ── SET_CHANNEL_TOPIC ─────────────────────────────────────
                     else if (action == "SET_CHANNEL_TOPIC")
                     {
