@@ -1153,7 +1153,7 @@ namespace Origin.Server.Core
                         .Select(c => new { id = c.Id, name = c.Name, type = c.Type, topic = c.Topic ?? "", readOnly = c.ReadOnly, muted = c.Muted, slowMode = c.SlowMode, minRole = c.MinRole, writeRole = c.WriteRole, e2e = c.E2E }),
                     events           = ActiveConfig.Settings.Events
                         .OrderBy(e => e.ScheduledAt)
-                        .Select(e => new { e.Id, e.Title, e.Description, scheduledAt = e.ScheduledAt.ToString("o"), e.ChannelId }),
+                        .Select(e => new { id = e.Id, title = e.Title, description = e.Description, scheduledAt = e.ScheduledAt.ToString("o"), channelId = e.ChannelId }),
                     voiceStatuses    = _voiceStatuses,
                     starboard        = new { enabled = ActiveConfig.Settings.StarboardEnabled, channelId = ActiveConfig.Settings.StarboardChannelId, emoji = ActiveConfig.Settings.StarboardEmoji, threshold = ActiveConfig.Settings.StarboardThreshold },
                     iceServers
