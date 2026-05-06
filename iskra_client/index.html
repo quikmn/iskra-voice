@@ -4198,7 +4198,8 @@ function applySettingsToUI() {
 
 // ── Bridge helpers ─────────────────────────────────────────────────────────────
 function connectWebSocket(host, port, alias, password, userPassword, adminPassword) {
-    ws = new WebSocket(`ws://${host}:${port}`);
+    const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(`${wsProto}//${host}:${port}`);
     ws.onopen = () => {
         wsReady = true;
         ws.send(JSON.stringify({ action: 'AUTH', alias, password, userPassword, adminPassword }));
