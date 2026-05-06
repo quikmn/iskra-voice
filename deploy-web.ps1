@@ -6,9 +6,13 @@ $ErrorActionPreference = 'Stop'
 $root   = $PSScriptRoot
 $webDir = Join-Path $root 'iskra_client_web'
 
-# Sync latest index.html from the single source of truth
-Write-Host "Syncing index.html from iskra_client..." -ForegroundColor Cyan
+# Sync latest assets from the single source of truth
+Write-Host "Syncing assets from iskra_client..." -ForegroundColor Cyan
 Copy-Item (Join-Path $root 'iskra_client\index.html') (Join-Path $webDir 'index.html') -Force
+$soundsSrc = Join-Path $root 'iskra_client\sounds'
+$soundsDst = Join-Path $webDir 'sounds'
+if (-not (Test-Path $soundsDst)) { New-Item -ItemType Directory -Path $soundsDst | Out-Null }
+Copy-Item (Join-Path $soundsSrc '*') $soundsDst -Force
 
 Write-Host "Deploying to Cloudflare Pages..." -ForegroundColor Cyan
 npx wrangler pages deploy $webDir --project-name iskra-webclient --branch main

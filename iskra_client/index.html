@@ -2264,7 +2264,8 @@ function closeImgOverlay() {
 const _soundNames = ['join', 'leave', 'message', 'mention', 'connect', 'disconnect'];
 const _sounds = {};
 _soundNames.forEach(name => {
-    const a = new Audio(`https://origin.app/sounds/${name}.mp3`);
+    const src = IS_WEB ? `sounds/${name}.mp3` : `https://origin.app/sounds/${name}.mp3`;
+    const a = new Audio(src);
     a.preload = 'auto';
     _sounds[name] = a;
 });
