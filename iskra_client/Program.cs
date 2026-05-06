@@ -137,6 +137,17 @@ namespace Origin.Client.Core
             catch { }
         }
 
+        private void PostResumeAudio()
+        {
+            try
+            {
+                if (webView?.CoreWebView2 == null) return;
+                webView.CoreWebView2.PostWebMessageAsString(
+                    JsonSerializer.Serialize(new { action = "RESUME_AUDIO" }));
+            }
+            catch { }
+        }
+
         private void InitializeWindow()
         {
             this.Text          = "Origin Voice Client";
@@ -145,6 +156,9 @@ namespace Origin.Client.Core
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor     = System.Drawing.Color.FromArgb(32, 34, 37);
             this.Load         += (s, e) => SetTitleBarColor("#1e1e2e");
+            this.LocationChanged += (s, e) => PostResumeAudio();
+            this.SizeChanged     += (s, e) => PostResumeAudio();
+            this.Activated       += (s, e) => PostResumeAudio();
 
             string icoPath = Path.Combine(Application.StartupPath, "iskra.ico");
             if (File.Exists(icoPath))

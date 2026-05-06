@@ -6235,6 +6235,10 @@ async function handleBridgeMessage(data) {
         updateShareButtonVisibility();
         if (document.getElementById('members-panel')?.classList.contains('open')) renderMembersPanel();
 
+    } else if (data.action === 'RESUME_AUDIO') {
+        if (audioCtx?.state === 'suspended') audioCtx.resume().catch(() => {});
+        if (outputCtx?.state === 'suspended') outputCtx.resume().catch(() => {});
+
     } else if (data.action === 'DISCONNECTED') {
         DevLog.log('BRIDGE', '← C# | DISCONNECTED');
         if (connectedServerId) saveUnread(connectedServerId);

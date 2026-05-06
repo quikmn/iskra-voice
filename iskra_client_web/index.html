@@ -135,6 +135,7 @@
         .modal-close-btn { width: 26px; height: 26px; border-radius: 50%; border: none; background: var(--bg-button); color: var(--text-muted); cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; }
         .modal-close-btn:hover { background: var(--danger); color: var(--text-heading); }
         .modal-body { padding: 16px 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+        .tab-desc { font-size: 12px; color: var(--text-muted); background: var(--bg-deep); border: 1px solid var(--bg-border); border-radius: 6px; padding: 8px 12px; line-height: 1.5; margin-bottom: -4px; }
 
         /* ── Section labels ── */
         .section-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
@@ -393,6 +394,12 @@
         #role-badge.role-trusted { background: #3b3a5c; color: #9b8dd4; }
         #role-badge.role-admin   { background: #3a4a3a; color: var(--success); }
         #role-badge.role-owner   { background: #4a3a2a; color: #f0a050; }
+        #iskraid-badge { display: none; align-items: center; gap: 3px; font-size: 10px; letter-spacing: 0.2px; padding: 2px 5px; border-radius: 3px; background: linear-gradient(135deg, rgba(37,99,235,0.25), rgba(125,211,252,0.1)); border: 1px solid rgba(125,211,252,0.25); color: #7dd3fc; width: fit-content; }
+        #iskraid-badge.visible { display: inline-flex; }
+        #iskraid-badge .ibadge-iskra { font-weight: 400; }
+        #iskraid-badge .ibadge-id    { font-weight: 800; }
+        #local-badge { display: none; font-size: 10px; font-weight: 600; letter-spacing: 0.3px; padding: 2px 6px; border-radius: 3px; background: rgba(236,72,153,0.15); border: 1px solid rgba(236,72,153,0.3); color: #f472b6; width: fit-content; }
+        #local-badge.visible { display: inline-block; }
         /* ── Read-only channel input state ── */
         #input-area.readonly .input-row { opacity: 0.5; pointer-events: none; }
         #input-area.readonly::after { content: 'This channel is read-only'; display: block; font-size: 11px; color: var(--text-subtle); text-align: center; margin-top: 4px; }
@@ -440,9 +447,38 @@
         #reaction-tooltip { position: fixed; z-index: 500; background: var(--bg-deep); border: 1px solid var(--bg-border); border-radius: 6px; padding: 6px 10px; font-size: 12px; color: var(--text-normal); pointer-events: none; display: none; max-width: 220px; box-shadow: 0 4px 16px rgba(0,0,0,0.6); line-height: 1.6; }
 
         /* ── Emoji picker popup ── */
-        .emoji-picker-popup { position: fixed; z-index: 350; background: var(--bg-surface); border: 1px solid var(--bg-deep); border-radius: 8px; padding: 6px; display: flex; flex-wrap: wrap; gap: 1px; width: 224px; box-shadow: 0 8px 24px rgba(0,0,0,0.7); }
+        .emoji-picker-popup { position: fixed; z-index: 350; background: var(--bg-surface); border: 1px solid var(--bg-border); border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.7); display: flex; flex-direction: column; width: 300px; overflow: hidden; }
+        .emoji-picker-search { padding: 8px; border-bottom: 1px solid var(--bg-border); }
+        .emoji-picker-search input { width: 100%; box-sizing: border-box; background: var(--bg-deep); border: 1px solid var(--bg-border); border-radius: 6px; padding: 5px 8px; font-size: 13px; color: var(--text-normal); outline: none; }
+        .emoji-picker-search input::placeholder { color: var(--text-muted); }
+        .emoji-picker-cats { display: flex; border-bottom: 1px solid var(--bg-border); overflow-x: auto; scrollbar-width: none; }
+        .emoji-picker-cats::-webkit-scrollbar { display: none; }
+        .emoji-cat-btn { background: none; border: none; border-bottom: 2px solid transparent; padding: 5px 8px; cursor: pointer; font-size: 16px; color: var(--text-muted); flex-shrink: 0; transition: color 0.1s; }
+        .emoji-cat-btn:hover { color: var(--text-normal); }
+        .emoji-cat-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .emoji-picker-grid { display: flex; flex-wrap: wrap; gap: 1px; padding: 6px; overflow-y: auto; max-height: 220px; }
+        .emoji-picker-empty { padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px; }
         .emoji-pick-btn { background: transparent; border: none; cursor: pointer; font-size: 20px; padding: 2px; border-radius: 4px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; line-height: 1; }
         .emoji-pick-btn:hover { background: var(--bg-active); }
+        /* ── Channel list header + create btn ── */
+        .ch-list-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 8px 4px 14px; }
+        .ch-list-title { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+        .ch-add-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 20px; line-height: 1; padding: 0 4px; border-radius: 4px; display: flex; align-items: center; }
+        .ch-add-btn:hover { color: var(--text-normal); background: var(--bg-sidebar-hover); }
+        /* ── Channel drag & drop ── */
+        [data-chid].dragging { opacity: 0.35; }
+        [data-chid].drag-target { outline: 2px solid var(--accent); outline-offset: -2px; background: var(--bg-active); border-radius: 4px; }
+        /* ── Channel context menu extras ── */
+        .ch-ctx-sep { height: 1px; background: var(--bg-border); margin: 4px 0; }
+        .ch-ctx-item.danger { color: var(--danger); }
+        .ch-ctx-item.danger:hover { background: rgba(237,66,69,0.12); color: #ff7070; }
+        /* ── Channel edit overlay ── */
+        #ch-edit-overlay { display: none; position: fixed; z-index: 600; background: var(--bg-surface); border: 1px solid var(--bg-border); border-radius: 8px; padding: 14px 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.6); min-width: 240px; max-width: 320px; }
+        #ch-edit-label { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+        /* ── Create channel popup ── */
+        .create-ch-popup { position: fixed; z-index: 500; background: var(--bg-surface); border: 1px solid var(--bg-border); border-radius: 8px; padding: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); min-width: 210px; }
+        .create-ch-type-row { display: flex; gap: 4px; margin-top: 8px; }
+        .create-ch-type-row button { flex: 1; font-size: 11px; padding: 5px 2px; }
 
         /* ── Pin bar ── */
         #pin-indicator { margin-left: auto; background: transparent; border: none; color: var(--text-subtle); font-size: 12px; cursor: pointer; padding: 3px 8px; border-radius: 4px; display: none; align-items: center; gap: 4px; }
@@ -1031,6 +1067,14 @@
             </div>
             <div id="footer-user-col">
                 <span id="ui-alias">...</span>
+                <span id="iskraid-badge" onclick="openSettings();switchTab('iskraid')" style="cursor:pointer;" title="Logged in with IskraID">
+                    <svg width="7" height="11" viewBox="0 0 7 11" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
+                        <defs><linearGradient id="ibg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7dd3fc"/><stop offset="1" stop-color="#2563eb"/></linearGradient></defs>
+                        <polygon points="4.34,0 2.66,0 1.4,5.5 2.94,5.5 1.54,11 4.06,11 5.46,5.5 4.06,5.5" fill="url(#ibg)"/>
+                    </svg>
+                    <span class="ibadge-iskra">Iskra</span><span class="ibadge-id">ID</span>
+                </span>
+                <span id="local-badge" onclick="openSettings();switchTab('iskraid')" style="cursor:pointer;" title="Not logged in with IskraID">Local</span>
                 <span id="voice-mode-label"></span>
             </div>
             <span id="role-badge" onclick="showStatusPicker(event)" style="cursor:pointer;" title="Click to set status"></span>
@@ -1170,11 +1214,12 @@
             <button id="tab-btn-servers"    class="tab-btn"        onclick="switchTab('servers')">🖥 Servers</button>
             <button id="tab-btn-appearance" class="tab-btn"        onclick="switchTab('appearance')">🎨 Skins</button>
             <button id="tab-btn-admin"      class="tab-btn"        onclick="switchTab('admin')">🛡 Admin</button>
-            <button id="tab-btn-iskraid"    class="tab-btn"        onclick="switchTab('iskraid')">🪪 ID</button>
+            <button id="tab-btn-iskraid"    class="tab-btn"        onclick="switchTab('iskraid')"><svg width="8" height="12" viewBox="0 0 7 11" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;vertical-align:middle;margin-right:4px;"><defs><linearGradient id="itbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7dd3fc"/><stop offset="1" stop-color="#2563eb"/></linearGradient></defs><polygon points="4.34,0 2.66,0 1.4,5.5 2.94,5.5 1.54,11 4.06,11 5.46,5.5 4.06,5.5" fill="url(#itbg)"/></svg>IskraID</button>
         </div>
 
         <!-- ── Audio Tab ── -->
         <div id="tab-audio" class="modal-body">
+            <p class="tab-desc">Configure your microphone, output device, and voice settings. Changes apply immediately.</p>
             <div>
                 <div class="section-label">Input Device (Microphone)</div>
                 <select id="sel-input" class="settings-select" onchange="onInputDeviceChange(this.value)">
@@ -1250,6 +1295,7 @@
 
         <!-- ── Identity Tab ── -->
         <div id="tab-identity" class="modal-body hidden">
+            <p class="tab-desc">Set your local display name and avatar. Servers see this by default — or your IskraID alias if logged in. To use a different name on a specific server, set a nickname in the Servers tab.</p>
             <div>
                 <div class="section-label">Your Avatar</div>
                 <div class="avatar-card">
@@ -1275,6 +1321,7 @@
 
         <!-- ── Servers Tab ── -->
         <div id="tab-servers" class="modal-body hidden">
+            <p class="tab-desc">Add and manage Iskra servers. Connect by hostname or IP. You can set a per-server nickname that overrides your local alias on that server.</p>
             <div id="server-icon-section" class="hidden">
                 <div class="section-label">Server Appearance</div>
                 <div class="avatar-card">
@@ -1386,6 +1433,7 @@
 
         <!-- ── Appearance Tab ── -->
         <div id="tab-appearance" class="modal-body hidden">
+            <p class="tab-desc">Pick a color theme for the client. Themes change colors and accents across the entire UI.</p>
             <div>
                 <div class="section-label" style="margin-bottom:10px;">Choose a Skin</div>
                 <div id="theme-grid"></div>
@@ -1416,11 +1464,13 @@
 
         <!-- ── Iskra ID Tab ── -->
         <div id="tab-iskraid" class="modal-body hidden">
+            <p class="tab-desc">Your <strong style="color:var(--text-normal)">IskraID</strong> is a global identity — add friends and message them across any server, or with no server at all. Your IskraID alias is used automatically when connecting to servers.</p>
             <!-- logged-in view -->
             <div id="iskraid-logged-in" class="hidden">
                 <div class="iskraid-card">
+                    <div style="font-size:10px;font-weight:700;letter-spacing:0.12em;color:var(--accent);text-transform:uppercase;margin-bottom:8px;">IskraID</div>
                     <div class="iskraid-status-row">
-                        <div class="iskraid-globe">🪪</div>
+                        <div class="iskraid-globe"><svg width="18" height="28" viewBox="0 0 7 11" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="icg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7dd3fc"/><stop offset="1" stop-color="#2563eb"/></linearGradient><filter id="icglow"><feGaussianBlur stdDeviation="0.4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><polygon points="4.34,0 2.66,0 1.4,5.5 2.94,5.5 1.54,11 4.06,11 5.46,5.5 4.06,5.5" fill="url(#icg)" filter="url(#icglow)"/></svg></div>
                         <div class="iskraid-info">
                             <div class="iskraid-alias" id="iskraid-alias-label"></div>
                             <div class="iskraid-sub" id="iskraid-email-label"></div>
@@ -1452,11 +1502,12 @@
                     <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
                         <div style="width:52px;height:52px;border-radius:50%;overflow:hidden;border:2px solid var(--bg-border);flex-shrink:0;background:var(--bg-deep);display:flex;align-items:center;justify-content:center;">
                             <img id="iskraid-relay-avatar-img" class="hidden" style="width:100%;height:100%;object-fit:cover;" alt="">
-                            <span id="iskraid-relay-avatar-none" style="font-size:22px;">🪪</span>
+                            <span id="iskraid-relay-avatar-none"><svg width="22" height="34" viewBox="0 0 7 11" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="iavg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7dd3fc"/><stop offset="1" stop-color="#2563eb"/></linearGradient></defs><polygon points="4.34,0 2.66,0 1.4,5.5 2.94,5.5 1.54,11 4.06,11 5.46,5.5 4.06,5.5" fill="url(#iavg)"/></svg></span>
                         </div>
                         <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
-                            <button class="btn-secondary" style="font-size:12px;" onclick="syncRelayAvatar()">⬆ Sync current avatar to Iskra ID</button>
-                            <button class="btn-secondary" style="font-size:12px;" onclick="clearRelayAvatar()">✕ Remove global avatar</button>
+                            <button class="btn-secondary" style="font-size:12px;" onclick="document.getElementById('iskraid-avatar-file').click()">📷 Upload avatar</button>
+                            <input id="iskraid-avatar-file" type="file" accept="image/*" style="display:none" onchange="uploadRelayAvatar(this)">
+                            <button class="btn-secondary" style="font-size:12px;" onclick="clearRelayAvatar()">✕ Remove avatar</button>
                         </div>
                     </div>
                     <div id="iskraid-avatar-feedback" class="iskraid-feedback"></div>
@@ -1484,9 +1535,6 @@
             </div>
             <!-- logged-out view -->
             <div id="iskraid-logged-out">
-                <p style="font-size:12px;color:var(--text-muted);line-height:1.6;margin-bottom:12px;">
-                    Your <strong style="color:var(--text-normal)">Iskra ID</strong> is a global identity — add friends and message them across any server, or with no server at all.
-                </p>
                 <div class="iskraid-toggle">
                     <div id="iskraid-tab-login"    class="iskraid-toggle-btn active" onclick="switchIskraidForm('login')">Log in</div>
                     <div id="iskraid-tab-register" class="iskraid-toggle-btn"        onclick="switchIskraidForm('register')">Register</div>
@@ -1618,9 +1666,30 @@
 </div>
 
 <div id="ch-ctx-menu">
-    <div class="ch-ctx-item" id="ch-notify-all"      onclick="setChNotify('all')">🔔 All messages</div>
-    <div class="ch-ctx-item" id="ch-notify-mentions"  onclick="setChNotify('mentions')">🔕 Mentions only</div>
-    <div class="ch-ctx-item" id="ch-notify-muted"     onclick="setChNotify('muted')">🔇 Muted</div>
+    <div id="ch-ctx-admin-section" class="hidden">
+        <div class="ch-ctx-item" onclick="chCtxRename()">✏️ Rename</div>
+        <div class="ch-ctx-item" id="ch-ctx-topic-item" onclick="chCtxTopic()">💬 Set topic</div>
+        <div class="ch-ctx-item" id="ch-ctx-e2e-item" onclick="chCtxToggleE2E()">🔒 Enable E2E</div>
+        <div class="ch-ctx-item" onclick="chCtxMoveUp()">↑ Move up</div>
+        <div class="ch-ctx-item" onclick="chCtxMoveDown()">↓ Move down</div>
+        <div class="ch-ctx-item danger" onclick="chCtxDelete()">🗑️ Delete</div>
+        <div class="ch-ctx-sep"></div>
+    </div>
+    <div id="ch-ctx-notify-section">
+        <div class="ch-ctx-item" id="ch-notify-all"      onclick="setChNotify('all')">🔔 All messages</div>
+        <div class="ch-ctx-item" id="ch-notify-mentions"  onclick="setChNotify('mentions')">🔕 Mentions only</div>
+        <div class="ch-ctx-item" id="ch-notify-muted"     onclick="setChNotify('muted')">🔇 Muted</div>
+    </div>
+</div>
+
+<div id="ch-edit-overlay">
+    <div id="ch-edit-label"></div>
+    <input id="ch-edit-input" class="form-input" style="margin-bottom:10px;width:100%;box-sizing:border-box;"
+        onkeydown="if(event.key==='Enter')submitChEdit();if(event.key==='Escape')hideChEditOverlay();" />
+    <div style="display:flex;gap:6px;justify-content:flex-end;">
+        <button class="btn-secondary" style="font-size:12px;" onclick="hideChEditOverlay()">Cancel</button>
+        <button class="btn-primary"   style="font-size:12px;" onclick="submitChEdit()">Save</button>
+    </div>
 </div>
 
 <div id="gif-picker">
@@ -2373,13 +2442,18 @@ function renderChannelList() {
     }
 
     // Render channels in config order — Header type becomes a collapsible section label
+    const isAdmin = ['admin','owner'].includes(myRole);
+    const drag    = isAdmin ? ' draggable="true"' : '';
     let html = '';
+    if (isAdmin) {
+        html += `<div class="ch-list-header"><span class="ch-list-title">Channels</span><button class="ch-add-btn" onclick="showCreateChannelMenu(event)" title="Create channel">+</button></div>`;
+    }
     let currentCatCollapsed = false;
     for (const ch of serverChannels) {
         if (ch.type === 'Header') {
             const collapsed = _collapsedCats.has(ch.id);
             currentCatCollapsed = collapsed;
-            html += `<div class="channel-section-label${collapsed ? ' collapsed' : ''}" onclick="toggleCat('${ch.id}')">${escapeHtml(ch.name)}</div>`;
+            html += `<div class="channel-section-label${collapsed ? ' collapsed' : ''}" data-chid="${ch.id}"${drag} onclick="toggleCat('${ch.id}')" oncontextmenu="showChCtxMenu(event,'${ch.id}')">${escapeHtml(ch.name)}</div>`;
             continue;
         }
         if (currentCatCollapsed) continue;
@@ -2396,7 +2470,7 @@ function renderChannelList() {
                         onblur="sendVoiceStatus('${ch.id}',this.value)">
                    </div>` : '';
             html += `
-            <div class="channel${inVoice ? ' active' : ''}" onclick="joinVoice('${ch.id}')" title="${ch.muted ? 'Muted — no audio in or out' : ''}">
+            <div class="channel${inVoice ? ' active' : ''}" data-chid="${ch.id}"${drag} onclick="joinVoice('${ch.id}')" oncontextmenu="showChCtxMenu(event,'${ch.id}')" title="${ch.muted ? 'Muted — no audio in or out' : ''}">
                 <span class="ch-icon">${voiceIcon}</span>
                 <span class="ch-name">${escapeHtml(ch.name)}</span>
                 ${inVoice ? `<span class="ch-leave" onclick="event.stopPropagation();leaveVoice('${ch.id}')" title="Leave voice">✖</span>` : ''}
@@ -2415,7 +2489,7 @@ function renderChannelList() {
             const notifyPref = getChannelNotifyPref(ch.id);
             const notifyIcon = notifyPref === 'muted' ? '<span class="ch-notify-icon">🔇</span>' : (notifyPref === 'mentions' ? '<span class="ch-notify-icon">🔕</span>' : '');
             html += `
-            <div class="channel${viewing ? ' active' : ''}" onclick="selectTextChannel('${ch.id}')" oncontextmenu="showChCtxMenu(event,'${ch.id}')" title="${titleAttr}" style="${!canWrite && !ch.readOnly ? 'opacity:0.65;' : ''}">
+            <div class="channel${viewing ? ' active' : ''}" data-chid="${ch.id}"${drag} onclick="selectTextChannel('${ch.id}')" oncontextmenu="showChCtxMenu(event,'${ch.id}')" title="${titleAttr}" style="${!canWrite && !ch.readOnly ? 'opacity:0.65;' : ''}">
                 <span class="ch-icon" style="${iconStyle}">${textIcon}</span>
                 <span class="ch-name">${escapeHtml(ch.name)}</span>${notifyIcon}
                 ${unread > 0 ? `<span class="ch-unread${hasMention ? ' has-mention' : ''}">${unread > 99 ? '99+' : unread}</span>` : ''}
@@ -2729,18 +2803,133 @@ function showChCtxMenu(event, chId) {
     event.preventDefault();
     event.stopPropagation();
     _chCtxMenuId = chId;
-    const pref = getChannelNotifyPref(chId);
-    document.getElementById('ch-notify-all').classList.toggle('active', pref === 'all');
-    document.getElementById('ch-notify-mentions').classList.toggle('active', pref === 'mentions');
-    document.getElementById('ch-notify-muted').classList.toggle('active', pref === 'muted');
+    const ch = serverChannels.find(c => c.id === chId);
+    const isAdmin  = ['admin','owner'].includes(myRole);
+    const isText   = ch?.type === 'Text';
+    // Admin section
+    const adminSec = document.getElementById('ch-ctx-admin-section');
+    adminSec?.classList.toggle('hidden', !isAdmin);
+    document.getElementById('ch-ctx-topic-item')?.classList.toggle('hidden', !isText);
+    const e2eItem = document.getElementById('ch-ctx-e2e-item');
+    if (e2eItem) {
+        e2eItem.classList.toggle('hidden', !isText);
+        if (isText) e2eItem.textContent = ch?.e2e ? '🔓 Disable E2E' : '🔒 Enable E2E';
+    }
+    // Notify section — only for text channels
+    document.getElementById('ch-ctx-notify-section')?.classList.toggle('hidden', !isText);
+    if (isText) {
+        const pref = getChannelNotifyPref(chId);
+        document.getElementById('ch-notify-all')?.classList.toggle('active', !pref || pref === 'all');
+        document.getElementById('ch-notify-mentions')?.classList.toggle('active', pref === 'mentions');
+        document.getElementById('ch-notify-muted')?.classList.toggle('active', pref === 'muted');
+    }
     const menu = document.getElementById('ch-ctx-menu');
     menu.style.display = 'block';
-    const menuH = menu.offsetHeight || 100;
-    const x = Math.min(event.clientX, window.innerWidth  - 200);
+    const menuH = menu.offsetHeight || 120;
+    const x = Math.min(event.clientX, window.innerWidth  - 210);
     const y = Math.min(event.clientY, window.innerHeight - menuH - 8);
     menu.style.left = x + 'px';
     menu.style.top  = y + 'px';
     setTimeout(() => document.addEventListener('click', hideChCtxMenu, { once: true }), 0);
+}
+
+// ── Channel ctx menu actions ────────────────────────────────────────────────────
+function chCtxRename() {
+    const ch = serverChannels.find(c => c.id === _chCtxMenuId);
+    if (!ch) return;
+    hideChCtxMenu();
+    showChEditOverlay('Rename channel', ch.name, val => {
+        if (val && val !== ch.name) postToBridge({ action: 'RENAME_CHANNEL', channelId: ch.id, name: val });
+    });
+}
+function chCtxTopic() {
+    const ch = serverChannels.find(c => c.id === _chCtxMenuId);
+    if (!ch) return;
+    hideChCtxMenu();
+    showChEditOverlay('Set topic', ch.topic || '', val => {
+        postToBridge({ action: 'SET_CHANNEL_TOPIC', channelId: ch.id, topic: val });
+    });
+}
+function chCtxToggleE2E() {
+    const ch = serverChannels.find(c => c.id === _chCtxMenuId);
+    if (!ch) return;
+    hideChCtxMenu();
+    if (ch.e2e) disableChannelE2E(ch.id);
+    else enableChannelE2E(ch.id);
+}
+function chCtxMoveUp()   { adminMoveChannel(_chCtxMenuId, -1); hideChCtxMenu(); }
+function chCtxMoveDown() { adminMoveChannel(_chCtxMenuId,  1); hideChCtxMenu(); }
+function chCtxDelete() {
+    const ch = serverChannels.find(c => c.id === _chCtxMenuId);
+    if (!ch) return;
+    hideChCtxMenu();
+    if (!confirm(`Delete "${ch.name}"? This cannot be undone.`)) return;
+    postToBridge({ action: 'DELETE_CHANNEL', channelId: ch.id });
+}
+
+// ── Channel edit overlay ────────────────────────────────────────────────────────
+let _chEditCb = null;
+function showChEditOverlay(label, value, callback) {
+    _chEditCb = callback;
+    const overlay = document.getElementById('ch-edit-overlay');
+    document.getElementById('ch-edit-label').textContent = label;
+    const input = document.getElementById('ch-edit-input');
+    input.value = value;
+    // Position near center of screen
+    overlay.style.left = (window.innerWidth  / 2 - 140) + 'px';
+    overlay.style.top  = (window.innerHeight / 2 - 80)  + 'px';
+    overlay.style.display = 'block';
+    requestAnimationFrame(() => { input.focus(); input.select(); });
+}
+function hideChEditOverlay() {
+    document.getElementById('ch-edit-overlay').style.display = 'none';
+    _chEditCb = null;
+}
+function submitChEdit() {
+    const val = document.getElementById('ch-edit-input').value.trim();
+    if (_chEditCb) _chEditCb(val);
+    hideChEditOverlay();
+}
+
+// ── Create channel popup ────────────────────────────────────────────────────────
+function showCreateChannelMenu(e) {
+    e.stopPropagation();
+    document.querySelectorAll('.emoji-picker-popup, .create-ch-popup').forEach(el => el.remove());
+    const popup = document.createElement('div');
+    popup.className = 'create-ch-popup';
+    const label = document.createElement('div');
+    label.style.cssText = 'font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;';
+    label.textContent = 'Create Channel';
+    popup.appendChild(label);
+    const input = document.createElement('input');
+    input.className = 'form-input';
+    input.placeholder = 'channel-name';
+    input.style.cssText = 'width:100%;box-sizing:border-box;';
+    popup.appendChild(input);
+    const row = document.createElement('div');
+    row.className = 'create-ch-type-row';
+    [['# Text','Text'],['🔊 Voice','Voice'],['📁 Category','Header']].forEach(([label, type]) => {
+        const btn = document.createElement('button');
+        btn.className = 'btn-secondary';
+        btn.style.cssText = 'flex:1;font-size:11px;padding:5px 2px;';
+        btn.textContent = label;
+        btn.onclick = () => {
+            const name = input.value.trim() || (type === 'Header' ? 'New Category' : type === 'Voice' ? 'new-voice' : 'new-channel');
+            postToBridge({ action: 'ADD_CHANNEL', name, type });
+            popup.remove();
+        };
+        row.appendChild(btn);
+    });
+    popup.appendChild(row);
+    document.body.appendChild(popup);
+    const rect = e.currentTarget.getBoundingClientRect();
+    let left = rect.left;
+    if (left + 220 > window.innerWidth) left = window.innerWidth - 226;
+    popup.style.left = left + 'px';
+    popup.style.top  = (rect.bottom + 4) + 'px';
+    input.focus();
+    input.onkeydown = ev => { if (ev.key === 'Escape') popup.remove(); };
+    setTimeout(() => document.addEventListener('click', () => popup.remove(), { once: true }), 0);
 }
 
 function hideChCtxMenu() {
@@ -3576,7 +3765,7 @@ function connectToServer(id) {
     const server = clientConfig.servers.find(s => s.id === id);
     if (!server) return;
     pendingServerId = id;
-    const alias = clientConfig.serverNicknames[id] || clientConfig.activeAlias;
+    const alias = clientConfig.serverNicknames[id] || (relayToken && relayAlias ? relayAlias : clientConfig.activeAlias);
     DevLog.log('BRIDGE', `Connecting to "${server.name}" as "${alias}"`);
     postToBridge({ action: 'CONNECT', host: server.host, port: server.port, password: server.password || '', userPassword: server.userPassword || '', alias, adminPassword: server.adminPassword || '' });
     closeSettings();
@@ -5814,7 +6003,9 @@ async function handleBridgeMessage(data) {
         const srv = clientConfig.servers.find(s => s.id === connectedServerId);
         document.getElementById('server-name-label').textContent = srv ? srv.name : 'Connected';
         document.getElementById('sidebar-hdr-btns').style.display = '';
-        serverUploadBase = srv ? `http://${srv.host}:${srv.port}` : null;
+        const _uProto = (IS_WEB && location.protocol === 'https:') ? 'https' : 'http';
+        const _uPort  = (IS_WEB && (srv.port === 443 || srv.port === 80)) ? '' : `:${srv.port}`;
+        serverUploadBase = srv ? `${_uProto}://${srv.host}${_uPort}` : null;
         renderServerBar();
         postToBridge({ action: 'SET_VOICE_MODE', mode: settings.voiceMode });
         postToBridge({ action: 'SET_PTT_KEY',    keyCode: settings.pttKeyCode });
@@ -6044,6 +6235,10 @@ async function handleBridgeMessage(data) {
         updateShareButtonVisibility();
         if (document.getElementById('members-panel')?.classList.contains('open')) renderMembersPanel();
 
+    } else if (data.action === 'RESUME_AUDIO') {
+        if (audioCtx?.state === 'suspended') audioCtx.resume().catch(() => {});
+        if (outputCtx?.state === 'suspended') outputCtx.resume().catch(() => {});
+
     } else if (data.action === 'DISCONNECTED') {
         DevLog.log('BRIDGE', '← C# | DISCONNECTED');
         if (connectedServerId) saveUnread(connectedServerId);
@@ -6192,6 +6387,11 @@ async function handleBridgeMessage(data) {
         }, 6000);
 
     } else if (data.action === 'STATUS_UPDATED') {
+        // In web mode the server sends STATUS_UPDATED instead of INIT_CLIENT on auth success
+        if (IS_WEB && pendingServerId && !connectedServerId && data.status === 'online') {
+            await handleBridgeMessage({ action: 'INIT_CLIENT', alias: data.alias });
+            return;
+        }
         DevLog.log('BRIDGE', `← C# | STATUS_UPDATED alias:${data.alias} status:${data.status}`);
         userStatuses[data.alias] = data.status;
         if (data.statusText !== undefined) userStatusTexts[data.alias] = data.statusText;
@@ -7334,28 +7534,165 @@ function hideStatusPicker() {
 }
 
 // ── Emoji Reactions ────────────────────────────────────────────────────────────
-const EMOJI_PICKER_EMOJIS = ['👍','❤️','😂','😮','😢','😡','🔥','🎉','👀','✅','💯','🙏','🤣','😍','💀','🥲','👏','🫡','🤔','😭'];
+const EMOJI_DB = {
+  cats:[{icon:'😊',name:'Smileys'},{icon:'🖐️',name:'People'},{icon:'🐶',name:'Animals'},{icon:'🍕',name:'Food'},{icon:'⚽',name:'Activity'},{icon:'🏙️',name:'Travel'},{icon:'💡',name:'Objects'},{icon:'🔣',name:'Symbols'}],
+  data:[
+['😀','grinning happy smile',0],['😃','big smile grin',0],['😄','grin laugh',0],['😁','beaming grin',0],['😆','laughing squinting',0],['😅','sweat smile nervous',0],['🤣','rolling laughing floor',0],['😂','joy tears laugh cry',0],
+['🙂','slightly smile',0],['🙃','upside down',0],['😉','wink',0],['😊','smile blush',0],['😇','halo innocent angel',0],['🥰','hearts love adore',0],['😍','heart eyes love',0],['🤩','star struck amazed wow',0],
+['😘','kiss blown',0],['😗','kiss',0],['😚','kiss closed',0],['🥲','smiling tear happy cry',0],['😋','yum delicious',0],['😛','tongue out',0],['😜','wink tongue',0],['🤪','zany wild crazy',0],
+['🤑','money mouth rich',0],['🤗','hugging',0],['🤭','hand over mouth giggle',0],['🤫','shush quiet secret',0],['🤔','thinking hmm',0],['🤐','zipper mouth silent',0],['🤨','raised eyebrow suspicious',0],
+['😐','neutral',0],['😑','expressionless',0],['😶','no mouth',0],['😏','smirk',0],['😒','unamused unimpressed',0],['🙄','eye roll',0],['😬','grimace',0],['🤥','lying',0],
+['😌','relieved',0],['😔','pensive sad',0],['😪','sleepy tired',0],['🤤','drooling',0],['😴','sleeping zzz',0],['😷','mask sick ill',0],['🤒','sick thermometer',0],['🤕','bandage hurt',0],
+['🤢','nauseated sick',0],['🤮','vomiting sick',0],['🤧','sneezing',0],['🥵','hot overheated',0],['🥶','cold freezing',0],['🥴','woozy drunk dizzy',0],['😵','dizzy spiral',0],['🤯','mind blown',0],
+['🤠','cowboy hat',0],['🥳','party celebrate',0],['😎','sunglasses cool',0],['🤓','nerd glasses',0],['🧐','monocle',0],['😕','confused',0],['😟','worried',0],['🙁','frown sad',0],
+['😮','open mouth surprised',0],['😲','astonished shocked',0],['😳','flushed embarrassed',0],['🥺','pleading puppy eyes',0],['😦','frowning open',0],['😨','fearful scared',0],['😰','anxious nervous',0],
+['😢','cry tear sad',0],['😭','sob crying loud',0],['😱','scream fear horror',0],['😩','weary',0],['😫','tired weary',0],['🥱','yawn bored tired',0],['😤','triumph steam',0],['😡','angry rage red',0],
+['😠','mad angry',0],['🤬','cursing swearing angry',0],['😈','devil smile evil',0],['👿','devil angry',0],['💀','skull death',0],['☠️','skull crossbones danger',0],['💩','poop',0],['🤡','clown',0],
+['👻','ghost boo',0],['👽','alien ufo',0],['🤖','robot',0],['😺','cat grinning',0],['😸','cat joy laugh',0],['😹','cat tears',0],['😻','cat heart eyes',0],['😼','cat smirk',0],
+['🙈','see no evil',0],['🙉','hear no evil',0],['🙊','speak no evil',0],
+['💋','kiss mark lips',0],['❤️','red heart love',0],['🧡','orange heart',0],['💛','yellow heart',0],['💚','green heart',0],['💙','blue heart',0],['💜','purple heart',0],['🖤','black heart',0],
+['🤍','white heart',0],['🤎','brown heart',0],['💔','broken heart sad',0],['💖','sparkling heart',0],['💗','growing heart',0],['💕','two hearts',0],['💞','revolving hearts',0],['💘','heart arrow love',0],
+['💯','hundred percent perfect',0],['💢','anger symbol',0],['💥','explosion boom',0],['💫','dizzy sparkle',0],['💦','sweat drops water',0],['💨','dash wind air',0],['💬','speech bubble chat',0],['💭','thought bubble',0],['💤','zzz sleep',0],
+['👋','wave hello hi',1],['🤚','raised back hand',1],['🖐️','hand five fingers',1],['✋','raised hand stop',1],['🖖','vulcan spock',1],['👌','ok perfect',1],['🤌','pinched fingers',1],
+['✌️','peace victory',1],['🤞','crossed fingers luck',1],['🤟','love you hand',1],['🤘','rock horns metal',1],['🤙','call me hang loose',1],['👈','point left',1],['👉','point right',1],['👆','point up',1],
+['🖕','middle finger',1],['👇','point down',1],['☝️','index up',1],['👍','thumbs up like yes',1],['👎','thumbs down dislike no',1],['✊','raised fist power',1],['👊','punch fist',1],
+['🤛','left fist bump',1],['🤜','right fist bump',1],['👏','clap applause bravo',1],['🙌','raise hands celebrate',1],['👐','open hands',1],['🤝','handshake deal',1],['🙏','pray thanks please',1],
+['✍️','writing hand',1],['💪','muscle strong flex',1],['👀','eyes look see',1],['👅','tongue taste',1],['👄','mouth lips',1],
+['👶','baby infant',1],['👦','boy kid',1],['👧','girl kid',1],['🧑','person adult',1],['👨','man',1],['👩','woman',1],['👴','old man grandfather',1],['👵','old woman grandmother',1],
+['🙅','no gesture stop',1],['🙆','ok gesture',1],['💁','sassy information',1],['🙋','raising hand',1],['🙇','bow sorry apologize',1],['🤦','facepalm ugh',1],['🤷','shrug dunno whatever',1],
+['👮','police cop officer',1],['👷','construction worker',1],['🕵️','detective spy',1],['🧙','wizard mage',1],['🧚','fairy',1],['🧛','vampire',1],['🧟','zombie',1],['🎅','santa christmas',1],
+['👸','princess',1],['🤴','prince',1],['🤵','suit tuxedo formal',1],['👰','bride wedding',1],['🦸','superhero',1],['🦹','supervillain',1],
+['👫','couple man woman',1],['👬','men holding hands',1],['👭','women holding hands',1],['🗣️','speaking talking',1],['👤','bust silhouette person',1],
+['🐶','dog puppy',2],['🐱','cat meow kitten',2],['🐭','mouse rat',2],['🐹','hamster',2],['🐰','rabbit bunny',2],['🦊','fox',2],['🐻','bear',2],['🐼','panda',2],
+['🐨','koala',2],['🐯','tiger',2],['🦁','lion roar',2],['🐮','cow moo',2],['🐷','pig oink',2],['🐸','frog',2],['🐵','monkey',2],['🐔','chicken hen',2],
+['🐧','penguin',2],['🐦','bird',2],['🦆','duck',2],['🦅','eagle',2],['🦉','owl wise',2],['🦇','bat',2],['🐺','wolf',2],['🐴','horse pony',2],['🦄','unicorn magic',2],
+['🐝','bee honey',2],['🦋','butterfly',2],['🐌','snail slow',2],['🐞','ladybug beetle',2],['🐜','ant',2],['🐢','turtle slow',2],['🐍','snake',2],['🐙','octopus',2],
+['🐟','fish',2],['🐬','dolphin',2],['🐳','whale',2],['🦈','shark',2],['🦀','crab',2],['🐊','crocodile',2],['🐘','elephant',2],['🦒','giraffe',2],
+['🦓','zebra',2],['🦘','kangaroo',2],['🐪','camel desert',2],['🦥','sloth lazy',2],['🦦','otter',2],['🦔','hedgehog',2],['🦚','peacock',2],['🦜','parrot',2],['🕊️','dove peace',2],
+['🌱','seedling sprout',2],['🌲','pine tree',2],['🌳','tree',2],['🌴','palm tropical',2],['🌵','cactus',2],['🌾','wheat grain',2],['🍄','mushroom',2],['🌿','herb leaf',2],
+['☘️','shamrock clover luck',2],['🍀','four leaf clover lucky',2],['🍁','maple leaf',2],['🍂','autumn leaf fall',2],['🍃','leaves green',2],
+['🌺','hibiscus flower',2],['🌸','cherry blossom pink',2],['🌼','blossom flower',2],['🌻','sunflower',2],['🌹','rose red',2],['🥀','wilted rose dead',2],['🌷','tulip',2],
+['🌍','earth globe',2],['🌙','crescent moon night',2],['🌕','full moon',2],['⭐','star',2],['🌟','glowing star',2],['☀️','sun sunny bright',2],['⛅','partly cloudy',2],
+['🌧️','rain cloud',2],['⛈️','thunderstorm lightning',2],['🌨️','snow cloud',2],['🌈','rainbow',2],['⛄','snowman snow',2],['❄️','snowflake cold winter',2],
+['🔥','fire hot flame',2],['⚡','lightning bolt zap electricity',2],['💧','water drop',2],['🌊','wave ocean sea',2],['🌪️','tornado storm',2],
+['🍎','apple red fruit',3],['🍊','orange citrus',3],['🍋','lemon sour',3],['🍇','grapes purple',3],['🍓','strawberry',3],['🍒','cherries',3],['🍑','peach',3],['🥭','mango tropical',3],
+['🍍','pineapple tropical',3],['🥥','coconut',3],['🥝','kiwi fruit',3],['🍅','tomato',3],['🥑','avocado',3],['🍆','eggplant',3],['🥕','carrot',3],['🌽','corn maize',3],
+['🌶️','hot pepper spicy chili',3],['🥦','broccoli',3],['🧄','garlic',3],['🧅','onion',3],['🥚','egg',3],['🍳','cooking frying pan',3],['🥞','pancakes',3],['🧇','waffle',3],
+['🥓','bacon',3],['🥩','steak meat',3],['🍗','chicken leg',3],['🌭','hot dog sausage',3],['🍔','burger hamburger',3],['🍟','fries chips',3],['🍕','pizza',3],['🌮','taco',3],
+['🥪','sandwich',3],['🍱','bento japanese',3],['🍣','sushi japanese',3],['🍜','noodles ramen',3],['🍝','pasta spaghetti',3],['🍛','curry rice',3],['🍚','rice bowl',3],
+['🍦','ice cream soft',3],['🍩','donut doughnut',3],['🍪','cookie biscuit',3],['🎂','birthday cake',3],['🍰','cake slice',3],['🧁','cupcake',3],['🍫','chocolate',3],['🍬','candy sweet',3],
+['🍭','lollipop candy',3],['🍯','honey pot',3],['☕','coffee hot',3],['🫖','teapot tea',3],['🍵','tea green',3],['🥤','cup straw soda',3],['🧋','bubble tea boba',3],
+['🍺','beer mug',3],['🍻','cheers beers toast',3],['🥂','champagne toast celebrate',3],['🍷','wine glass',3],['🍸','cocktail martini',3],['🍹','tropical drink',3],['🥛','milk glass',3],['🧊','ice cube cold',3],['🍾','champagne bottle celebrate',3],
+['⚽','soccer football',4],['🏀','basketball',4],['🏈','american football',4],['⚾','baseball',4],['🎾','tennis',4],['🏐','volleyball',4],['🏉','rugby',4],['🎱','billiards pool',4],
+['🏓','ping pong table tennis',4],['🏸','badminton',4],['🥊','boxing glove fight',4],['🎿','skis skiing',4],['🏂','snowboarder',4],['🤿','diving snorkel',4],
+['🏋️','weightlifting gym strong',4],['🤸','cartwheel gymnastics',4],['🧘','meditation yoga calm',4],['🏄','surfing wave',4],['🚴','cycling riding',4],['🏃','running jogging',4],['🚶','walking',4],
+['💃','dancing woman',4],['🕺','dancing man',4],['🎯','target bullseye dart',4],['🎮','video game controller gaming',4],['🕹️','joystick arcade',4],['🎲','dice game random',4],
+['🧩','puzzle jigsaw',4],['♟️','chess strategy',4],['🎭','theatre drama',4],['🎨','art palette paint',4],['🎤','microphone sing karaoke',4],['🎧','headphones music listen',4],
+['🎵','music note',4],['🎶','music notes songs',4],['🥁','drums beat',4],['🎸','guitar music',4],['🎹','piano keyboard',4],['🎺','trumpet',4],['🎻','violin',4],
+['🏆','trophy winner champion',4],['🥇','gold medal first',4],['🥈','silver medal second',4],['🥉','bronze medal third',4],
+['🚗','car automobile drive',5],['🚕','taxi cab',5],['🏎️','racing car fast',5],['🚌','bus transport',5],['🚑','ambulance emergency',5],['🚒','fire engine',5],
+['🚲','bicycle bike',5],['🛵','scooter moped',5],['🏍️','motorcycle',5],['✈️','airplane fly travel',5],['🚀','rocket space launch',5],['🛸','ufo alien',5],
+['🚢','ship cruise boat',5],['⛵','sailboat sea',5],['🚁','helicopter',5],
+['🏠','house home',5],['🏢','office building work',5],['🏥','hospital medical',5],['🏦','bank money',5],['🏨','hotel stay',5],['🏫','school education',5],['🏰','castle europe',5],
+['🗼','tokyo tower',5],['🗽','statue liberty usa',5],['🗺️','world map',5],['🧭','compass direction',5],['⛰️','mountain peak',5],['🌋','volcano eruption',5],
+['🏖️','beach sand sun',5],['🏝️','island tropical',5],['🏕️','camping tent outdoor',5],['🌃','night stars city',5],['🌆','city dusk',5],['🌉','bridge night',5],
+['💻','laptop computer',6],['📱','phone smartphone mobile',6],['⌨️','keyboard type',6],['🖥️','desktop computer monitor',6],['📷','camera photo',6],['📸','camera flash selfie',6],
+['📺','tv television',6],['🔍','magnifying glass search',6],['⏰','alarm clock wake',6],['⌚','watch time',6],['⌛','hourglass time',6],['🔋','battery charge',6],['🔌','electric plug power',6],
+['💡','light bulb idea',6],['🔦','flashlight torch',6],['🕯️','candle light',6],['💸','money wings',6],['💵','dollar bill',6],['💰','money bag rich',6],['💳','credit card pay',6],['🪙','coin money',6],
+['📚','books study read',6],['📖','book open read',6],['📝','memo notepad write',6],['✏️','pencil write',6],['📌','pushpin mark',6],['📎','paperclip attach',6],['✂️','scissors cut',6],
+['🔒','lock locked secure',6],['🔓','unlock open',6],['🔑','key access',6],['🔨','hammer build tool',6],['🔧','wrench tool fix',6],['⚙️','gear settings config',6],
+['🧲','magnet attract',6],['🧰','toolbox tools',6],['🔬','microscope science',6],['🔭','telescope space',6],['🧪','test tube experiment',6],
+['💉','syringe injection',6],['💊','pill medicine',6],['🩺','stethoscope doctor',6],['🚪','door entrance exit',6],['🛏️','bed sleep',6],['🛋️','couch sofa relax',6],
+['🚽','toilet bathroom wc',6],['🚿','shower wash',6],['🧹','broom sweep clean',6],['🧼','soap wash',6],['🛒','shopping cart',6],
+['🎁','gift present box',6],['🎊','confetti celebrate',6],['🎉','party popper celebrate',6],['🎈','balloon party',6],['🎀','ribbon bow',6],
+['🎃','halloween pumpkin',6],['🎄','christmas tree holiday',6],['🎆','fireworks celebration',6],['✨','sparkles magic shine',6],
+['❤️','heart love red',7],['🧡','orange heart',7],['💛','yellow heart',7],['💚','green heart',7],['💙','blue heart',7],['💜','purple heart',7],['🖤','black heart',7],
+['✅','check mark done yes',7],['❌','cross mark no wrong x',7],['⭕','circle ok',7],['❓','question mark help',7],['❗','exclamation important',7],
+['⚠️','warning caution alert',7],['🚫','prohibited forbidden no',7],['🔔','bell notification alert',7],['🔕','no bell muted silent',7],
+['🔊','loud speaker volume',7],['🔇','muted speaker no sound',7],['📣','megaphone announce',7],['📢','loudspeaker announce',7],
+['♻️','recycle environment',7],['🆘','sos emergency help',7],['💎','diamond gem precious',7],['🏳️','white flag',7],['🚩','red flag warning',7],
+['⬆️','up arrow',7],['⬇️','down arrow',7],['⬅️','left arrow',7],['➡️','right arrow',7],['↩️','reply return back',7],
+['🔃','refresh reload arrows',7],['🔄','counterclockwise arrows',7],['▶️','play button',7],['⏸️','pause button',7],['⏹️','stop button',7],
+['🔀','shuffle random',7],['🔁','repeat loop',7],['🌐','globe internet web',7],['📶','signal wifi',7],
+['🛡️','shield protect',7],['⚖️','balance scale justice',7],['🏅','sports medal award',7],
+  ]
+};
 
 function showEmojiPicker(e, msgId) {
     e.stopPropagation();
-    document.querySelectorAll('.emoji-picker-popup').forEach(el => el.remove());
+    document.querySelectorAll('.emoji-picker-popup, .create-ch-popup').forEach(el => el.remove());
+    let activeCat = 0;
     const popup = document.createElement('div');
     popup.className = 'emoji-picker-popup';
-    EMOJI_PICKER_EMOJIS.forEach(em => {
+    // Search
+    const searchWrap = document.createElement('div');
+    searchWrap.className = 'emoji-picker-search';
+    const searchInput = document.createElement('input');
+    searchInput.placeholder = 'Search emoji…';
+    searchInput.spellcheck = false;
+    searchWrap.appendChild(searchInput);
+    popup.appendChild(searchWrap);
+    // Category tabs
+    const catsWrap = document.createElement('div');
+    catsWrap.className = 'emoji-picker-cats';
+    EMOJI_DB.cats.forEach((cat, i) => {
         const btn = document.createElement('button');
-        btn.className = 'emoji-pick-btn';
-        btn.textContent = em;
-        btn.onclick = () => { sendReaction(msgId, em); hideEmojiPicker(); };
-        popup.appendChild(btn);
+        btn.className = 'emoji-cat-btn' + (i === 0 ? ' active' : '');
+        btn.textContent = cat.icon;
+        btn.title = cat.name;
+        btn.onclick = () => {
+            activeCat = i;
+            catsWrap.querySelectorAll('.emoji-cat-btn').forEach((b, j) => b.classList.toggle('active', j === i));
+            searchInput.value = '';
+            catsWrap.style.display = '';
+            renderGrid('');
+        };
+        catsWrap.appendChild(btn);
     });
+    popup.appendChild(catsWrap);
+    // Grid
+    const grid = document.createElement('div');
+    grid.className = 'emoji-picker-grid';
+    popup.appendChild(grid);
+    function renderGrid(filter) {
+        grid.innerHTML = '';
+        const q = (filter || '').toLowerCase().trim();
+        const items = q
+            ? EMOJI_DB.data.filter(d => d[1].includes(q))
+            : EMOJI_DB.data.filter(d => d[2] === activeCat);
+        if (!items.length) {
+            const em = document.createElement('div');
+            em.className = 'emoji-picker-empty';
+            em.textContent = 'No emoji found';
+            grid.appendChild(em);
+            return;
+        }
+        items.forEach(([em]) => {
+            const btn = document.createElement('button');
+            btn.className = 'emoji-pick-btn';
+            btn.textContent = em;
+            btn.onclick = () => { sendReaction(msgId, em); popup.remove(); };
+            grid.appendChild(btn);
+        });
+    }
+    searchInput.oninput = () => {
+        const q = searchInput.value.trim();
+        catsWrap.style.display = q ? 'none' : '';
+        renderGrid(q);
+    };
+    renderGrid('');
     document.body.appendChild(popup);
+    // Position
     const rect = e.currentTarget.getBoundingClientRect();
-    const popW = 220;
+    const popW = 300, popH = 310;
     let left = rect.left;
     if (left + popW > window.innerWidth) left = window.innerWidth - popW - 8;
+    let top = rect.bottom + 4;
+    if (top + popH > window.innerHeight) top = rect.top - popH - 4;
     popup.style.left = left + 'px';
-    popup.style.top  = (rect.bottom + 4) + 'px';
-    setTimeout(() => document.addEventListener('click', hideEmojiPicker, { once: true }), 0);
+    popup.style.top  = top  + 'px';
+    searchInput.focus();
+    setTimeout(() => document.addEventListener('click', () => popup.remove(), { once: true }), 0);
 }
 
 function hideEmojiPicker() {
@@ -8091,6 +8428,8 @@ function renderIskraidTab() {
     const li = document.getElementById('iskraid-logged-in');
     const lo = document.getElementById('iskraid-logged-out');
     if (!li || !lo) return;
+    document.getElementById('iskraid-badge')?.classList.toggle('visible', !!relayToken);
+    document.getElementById('local-badge')?.classList.toggle('visible', !relayToken);
     if (relayToken) {
         li.classList.remove('hidden');
         lo.classList.add('hidden');
@@ -8353,6 +8692,42 @@ async function saveProfileUrl() {
 function openInBrowser(url) {
     if (!url) return;
     window.chrome?.webview?.postMessage(JSON.stringify({ action: 'OPEN_URL', url }));
+}
+
+async function uploadRelayAvatar(input) {
+    const setFb = (msg, type) => {
+        const el = document.getElementById('iskraid-avatar-feedback');
+        if (el) { el.textContent = msg; el.className = 'iskraid-feedback' + (msg ? ' show ' + type : ''); }
+    };
+    const file = input.files[0];
+    if (!file) return;
+    input.value = '';
+    setFb('Processing…', '');
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = async () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128; canvas.height = 128;
+            canvas.getContext('2d').drawImage(img, 0, 0, 128, 128);
+            const resized = canvas.toDataURL('image/jpeg', 0.85);
+            if (!clientConfig.localAvatars) clientConfig.localAvatars = {};
+            clientConfig.localAvatars[relayAlias] = resized;
+            saveClientConfig();
+            userAvatars[relayAlias] = resized;
+            updateMyAvatar();
+            renderServerBar();
+            setFb('Syncing to Iskra ID…', '');
+            const { ok, data } = await relayFetch('/api/me/avatar', { method: 'PUT', body: JSON.stringify({ dataUrl: resized }) });
+            if (!ok) { setFb(data?.error || 'Saved locally — sync failed.', 'error'); return; }
+            relayAvatarDataUrl = resized;
+            relayPersist();
+            setFb('Avatar updated!', 'success');
+            renderIskraidTab();
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
 }
 
 async function syncRelayAvatar() {
@@ -8769,7 +9144,50 @@ function stopRelayPoll() {
 // ── Hook into chat send to intercept relay DMs ─────────────────────────────
 const _origSendMessage = typeof sendMessage === 'function' ? sendMessage : null;
 // Monkey-patch the send button / Enter handler
-document.addEventListener('DOMContentLoaded', () => {}, { once: true });
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('iskraid-badge')?.classList.toggle('visible', !!relayToken);
+    document.getElementById('local-badge')?.classList.toggle('visible', !relayToken);
+    initChannelListDragDrop();
+}, { once: true });
+
+function initChannelListDragDrop() {
+    const container = document.getElementById('channel-list');
+    if (!container) return;
+    let _dragId = null;
+    container.addEventListener('dragstart', e => {
+        if (!['admin','owner'].includes(myRole)) return;
+        const el = e.target.closest('[data-chid]');
+        if (!el) return;
+        _dragId = el.dataset.chid;
+        e.dataTransfer.effectAllowed = 'move';
+        setTimeout(() => el.classList.add('dragging'), 0);
+    });
+    container.addEventListener('dragend', () => {
+        container.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
+        container.querySelectorAll('.drag-target').forEach(el => el.classList.remove('drag-target'));
+        _dragId = null;
+    });
+    container.addEventListener('dragover', e => {
+        if (!_dragId) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        const el = e.target.closest('[data-chid]');
+        container.querySelectorAll('.drag-target').forEach(el => el.classList.remove('drag-target'));
+        if (el && el.dataset.chid !== _dragId) el.classList.add('drag-target');
+    });
+    container.addEventListener('dragleave', e => {
+        if (!container.contains(e.relatedTarget))
+            container.querySelectorAll('.drag-target').forEach(el => el.classList.remove('drag-target'));
+    });
+    container.addEventListener('drop', e => {
+        e.preventDefault();
+        const el = e.target.closest('[data-chid]');
+        if (!el || !_dragId || el.dataset.chid === _dragId) return;
+        const targetIdx = serverChannels.findIndex(c => c.id === el.dataset.chid);
+        postToBridge({ action: 'MOVE_CHANNEL_TO_INDEX', channelId: _dragId, targetIndex: targetIdx });
+        _dragId = null;
+    });
+}
 
 // Patch sendMessage at call time by wrapping the input keydown
 {
