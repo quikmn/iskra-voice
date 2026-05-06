@@ -3627,6 +3627,7 @@ function renderServerBar() {
 
 function onServerIconClick(id) {
     if (inDmMode) closeDmMode();
+    closeFriendsPanel();
     viewedServerId = id;
     renderChannelList();
     renderServerBar();
@@ -4902,6 +4903,7 @@ function toggleDmMode() {
 }
 
 function openDmMode() {
+    closeFriendsPanel();
     inDmMode = true;
     document.getElementById('dm-toggle-btn').classList.add('active');
     document.getElementById('dm-panel').classList.add('open');
@@ -8375,6 +8377,14 @@ async function iskraidRecovery() {
 }
 
 // ── Friends panel ──────────────────────────────────────────────────────────
+
+function closeFriendsPanel() {
+    if (!_inFriendsMode) return;
+    _inFriendsMode = false;
+    document.getElementById('friends-toggle-btn')?.classList.remove('active');
+    document.getElementById('friends-panel')?.classList.remove('open');
+    document.getElementById('channel-list')?.style.removeProperty('display');
+}
 
 function toggleFriendsPanel() {
     _inFriendsMode = !_inFriendsMode;
