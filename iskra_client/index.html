@@ -393,6 +393,10 @@
         #role-badge.role-trusted { background: #3b3a5c; color: #9b8dd4; }
         #role-badge.role-admin   { background: #3a4a3a; color: var(--success); }
         #role-badge.role-owner   { background: #4a3a2a; color: #f0a050; }
+        #iskraid-badge { display: none; align-items: center; gap: 3px; font-size: 10px; letter-spacing: 0.2px; padding: 2px 5px; border-radius: 3px; background: linear-gradient(135deg, rgba(37,99,235,0.25), rgba(125,211,252,0.1)); border: 1px solid rgba(125,211,252,0.25); color: #7dd3fc; }
+        #iskraid-badge.visible { display: inline-flex; }
+        #iskraid-badge .ibadge-iskra { font-weight: 400; }
+        #iskraid-badge .ibadge-id    { font-weight: 800; }
         /* ── Read-only channel input state ── */
         #input-area.readonly .input-row { opacity: 0.5; pointer-events: none; }
         #input-area.readonly::after { content: 'This channel is read-only'; display: block; font-size: 11px; color: var(--text-subtle); text-align: center; margin-top: 4px; }
@@ -1033,6 +1037,13 @@
                 <span id="ui-alias">...</span>
                 <span id="voice-mode-label"></span>
             </div>
+            <span id="iskraid-badge" onclick="openSettings();switchTab('iskraid')" style="cursor:pointer;" title="Logged in with IskraID">
+                <svg width="7" height="11" viewBox="0 0 7 11" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
+                    <defs><linearGradient id="ibg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7dd3fc"/><stop offset="1" stop-color="#2563eb"/></linearGradient></defs>
+                    <polygon points="4.34,0 2.66,0 1.4,5.5 2.94,5.5 1.54,11 4.06,11 5.46,5.5 4.06,5.5" fill="url(#ibg)"/>
+                </svg>
+                <span class="ibadge-iskra">Iskra</span><span class="ibadge-id">ID</span>
+            </span>
             <span id="role-badge" onclick="showStatusPicker(event)" style="cursor:pointer;" title="Click to set status"></span>
         </div>
         <div id="footer-btn-row">
@@ -8100,6 +8111,7 @@ function renderIskraidTab() {
     const li = document.getElementById('iskraid-logged-in');
     const lo = document.getElementById('iskraid-logged-out');
     if (!li || !lo) return;
+    document.getElementById('iskraid-badge')?.classList.toggle('visible', !!relayToken);
     if (relayToken) {
         li.classList.remove('hidden');
         lo.classList.add('hidden');
