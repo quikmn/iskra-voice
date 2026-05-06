@@ -5814,7 +5814,9 @@ async function handleBridgeMessage(data) {
         const srv = clientConfig.servers.find(s => s.id === connectedServerId);
         document.getElementById('server-name-label').textContent = srv ? srv.name : 'Connected';
         document.getElementById('sidebar-hdr-btns').style.display = '';
-        serverUploadBase = srv ? `http://${srv.host}:${srv.port}` : null;
+        const _uProto = (IS_WEB && location.protocol === 'https:') ? 'https' : 'http';
+        const _uPort  = (IS_WEB && (srv.port === 443 || srv.port === 80)) ? '' : `:${srv.port}`;
+        serverUploadBase = srv ? `${_uProto}://${srv.host}${_uPort}` : null;
         renderServerBar();
         postToBridge({ action: 'SET_VOICE_MODE', mode: settings.voiceMode });
         postToBridge({ action: 'SET_PTT_KEY',    keyCode: settings.pttKeyCode });
@@ -6192,6 +6194,11 @@ async function handleBridgeMessage(data) {
         }, 6000);
 
     } else if (data.action === 'STATUS_UPDATED') {
+        // In web mode the server sends STATUS_UPDATED instead of INIT_CLIENT on auth success
+        if (IS_WEB && pendingServerId && !connectedServerId && data.status === 'online') {
+            await handleBridgeMessage({ action: 'INIT_CLIENT', alias: data.alias });
+            return;
+        }
         DevLog.log('BRIDGE', `← C# | STATUS_UPDATED alias:${data.alias} status:${data.status}`);
         userStatuses[data.alias] = data.status;
         if (data.statusText !== undefined) userStatusTexts[data.alias] = data.statusText;
