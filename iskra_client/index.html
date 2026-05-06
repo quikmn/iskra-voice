@@ -1455,8 +1455,9 @@
                             <span id="iskraid-relay-avatar-none" style="font-size:22px;">🪪</span>
                         </div>
                         <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
-                            <button class="btn-secondary" style="font-size:12px;" onclick="syncRelayAvatar()">⬆ Sync current avatar to Iskra ID</button>
-                            <button class="btn-secondary" style="font-size:12px;" onclick="clearRelayAvatar()">✕ Remove global avatar</button>
+                            <button class="btn-secondary" style="font-size:12px;" onclick="document.getElementById('iskraid-avatar-file').click()">📷 Upload avatar</button>
+                            <input id="iskraid-avatar-file" type="file" accept="image/*" style="display:none" onchange="uploadRelayAvatar(this)">
+                            <button class="btn-secondary" style="font-size:12px;" onclick="clearRelayAvatar()">✕ Remove avatar</button>
                         </div>
                     </div>
                     <div id="iskraid-avatar-feedback" class="iskraid-feedback"></div>
@@ -3576,7 +3577,7 @@ function connectToServer(id) {
     const server = clientConfig.servers.find(s => s.id === id);
     if (!server) return;
     pendingServerId = id;
-    const alias = clientConfig.serverNicknames[id] || clientConfig.activeAlias;
+    const alias = clientConfig.serverNicknames[id] || (relayToken && relayAlias ? relayAlias : clientConfig.activeAlias);
     DevLog.log('BRIDGE', `Connecting to "${server.name}" as "${alias}"`);
     postToBridge({ action: 'CONNECT', host: server.host, port: server.port, password: server.password || '', userPassword: server.userPassword || '', alias, adminPassword: server.adminPassword || '' });
     closeSettings();
@@ -8360,6 +8361,42 @@ async function saveProfileUrl() {
 function openInBrowser(url) {
     if (!url) return;
     window.chrome?.webview?.postMessage(JSON.stringify({ action: 'OPEN_URL', url }));
+}
+
+async function uploadRelayAvatar(input) {
+    const setFb = (msg, type) => {
+        const el = document.getElementById('iskraid-avatar-feedback');
+        if (el) { el.textContent = msg; el.className = 'iskraid-feedback' + (msg ? ' show ' + type : ''); }
+    };
+    const file = input.files[0];
+    if (!file) return;
+    input.value = '';
+    setFb('Processing…', '');
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = async () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128; canvas.height = 128;
+            canvas.getContext('2d').drawImage(img, 0, 0, 128, 128);
+            const resized = canvas.toDataURL('image/jpeg', 0.85);
+            if (!clientConfig.localAvatars) clientConfig.localAvatars = {};
+            clientConfig.localAvatars[relayAlias] = resized;
+            saveClientConfig();
+            userAvatars[relayAlias] = resized;
+            updateMyAvatar();
+            renderServerBar();
+            setFb('Syncing to Iskra ID…', '');
+            const { ok, data } = await relayFetch('/api/me/avatar', { method: 'PUT', body: JSON.stringify({ dataUrl: resized }) });
+            if (!ok) { setFb(data?.error || 'Saved locally — sync failed.', 'error'); return; }
+            relayAvatarDataUrl = resized;
+            relayPersist();
+            setFb('Avatar updated!', 'success');
+            renderIskraidTab();
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
 }
 
 async function syncRelayAvatar() {
