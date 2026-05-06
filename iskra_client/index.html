@@ -1669,6 +1669,7 @@
     <div id="ch-ctx-admin-section" class="hidden">
         <div class="ch-ctx-item" onclick="chCtxRename()">✏️ Rename</div>
         <div class="ch-ctx-item" id="ch-ctx-topic-item" onclick="chCtxTopic()">💬 Set topic</div>
+        <div class="ch-ctx-item" id="ch-ctx-e2e-item" onclick="chCtxToggleE2E()">🔒 Enable E2E</div>
         <div class="ch-ctx-item" onclick="chCtxMoveUp()">↑ Move up</div>
         <div class="ch-ctx-item" onclick="chCtxMoveDown()">↓ Move down</div>
         <div class="ch-ctx-item danger" onclick="chCtxDelete()">🗑️ Delete</div>
@@ -2809,6 +2810,11 @@ function showChCtxMenu(event, chId) {
     const adminSec = document.getElementById('ch-ctx-admin-section');
     adminSec?.classList.toggle('hidden', !isAdmin);
     document.getElementById('ch-ctx-topic-item')?.classList.toggle('hidden', !isText);
+    const e2eItem = document.getElementById('ch-ctx-e2e-item');
+    if (e2eItem) {
+        e2eItem.classList.toggle('hidden', !isText);
+        if (isText) e2eItem.textContent = ch?.e2e ? '🔓 Disable E2E' : '🔒 Enable E2E';
+    }
     // Notify section — only for text channels
     document.getElementById('ch-ctx-notify-section')?.classList.toggle('hidden', !isText);
     if (isText) {
@@ -2843,6 +2849,13 @@ function chCtxTopic() {
     showChEditOverlay('Set topic', ch.topic || '', val => {
         postToBridge({ action: 'SET_CHANNEL_TOPIC', channelId: ch.id, topic: val });
     });
+}
+function chCtxToggleE2E() {
+    const ch = serverChannels.find(c => c.id === _chCtxMenuId);
+    if (!ch) return;
+    hideChCtxMenu();
+    if (ch.e2e) disableChannelE2E(ch.id);
+    else enableChannelE2E(ch.id);
 }
 function chCtxMoveUp()   { adminMoveChannel(_chCtxMenuId, -1); hideChCtxMenu(); }
 function chCtxMoveDown() { adminMoveChannel(_chCtxMenuId,  1); hideChCtxMenu(); }
