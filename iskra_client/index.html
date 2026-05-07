@@ -97,6 +97,12 @@
         .voice-user .vu-avatar { flex-shrink: 0; }
         .ch-empty-state { padding: 20px 12px; text-align: center; color: var(--text-faint); font-size: 12px; line-height: 1.6; }
 
+        /* ── Update bar ── */
+        #update-bar { display:none; align-items:center; gap:10px; padding:6px 16px; background:var(--bg-sidebar); border-bottom:1px solid var(--bg-border); font-size:12px; color:var(--text-normal); flex-shrink:0; }
+        #update-bar strong { color:var(--accent); }
+        #update-progress-wrap { flex:1; max-width:220px; height:4px; background:var(--bg-border); border-radius:2px; overflow:hidden; }
+        #update-progress-fill { height:100%; background:var(--accent); border-radius:2px; transition:width 0.25s; width:0%; }
+
         /* ── Chat Header ── */
         #chat-header { height: 48px; background: var(--bg-sidebar); border-bottom: 1px solid var(--bg-border); display: flex; align-items: center; padding: 0 20px; gap: 10px; flex-shrink: 0; }
         #chat-channel-icon { color: var(--text-muted); font-size: 18px; font-weight: 700; }
@@ -129,13 +135,25 @@
         .modal-overlay.open { display: flex; }
 
         /* ── Settings modal ── */
-        .settings-modal { background: var(--bg-sidebar); border-radius: 10px; width: 460px; max-height: 88vh; overflow-y: auto; box-shadow: 0 12px 40px rgba(0,0,0,0.6); }
+        #settings-overlay { align-items: flex-start; padding-top: 5vh; }
+        .settings-wrapper { display: flex; gap: 10px; align-items: flex-start; max-height: 88vh; }
+        .settings-modal { background: var(--bg-sidebar); border-radius: 10px; width: 560px; max-height: 88vh; overflow-y: auto; box-shadow: 0 12px 40px rgba(0,0,0,0.6); flex-shrink: 0; }
         .modal-header { padding: 20px 20px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--bg-deep); }
         .modal-title { font-size: 16px; font-weight: 700; color: var(--text-heading); }
         .modal-close-btn { width: 26px; height: 26px; border-radius: 50%; border: none; background: var(--bg-button); color: var(--text-muted); cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; }
         .modal-close-btn:hover { background: var(--danger); color: var(--text-heading); }
         .modal-body { padding: 16px 20px 24px; display: flex; flex-direction: column; gap: 16px; }
-        .tab-desc { font-size: 12px; color: var(--text-muted); background: var(--bg-deep); border: 1px solid var(--bg-border); border-radius: 6px; padding: 8px 12px; line-height: 1.5; margin-bottom: -4px; }
+        /* ── Help panel ── */
+        .settings-help { background: var(--bg-sidebar); border-radius: 10px; width: 190px; max-height: 88vh; overflow-y: auto; box-shadow: 0 12px 40px rgba(0,0,0,0.6); flex-shrink: 0; padding: 16px 14px 20px; scrollbar-width: thin; scrollbar-color: var(--bg-border) transparent; }
+        .settings-help::-webkit-scrollbar { width: 3px; }
+        .settings-help::-webkit-scrollbar-track { background: transparent; }
+        .settings-help::-webkit-scrollbar-thumb { background: var(--bg-border); border-radius: 2px; }
+        .help-tab-label { font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; }
+        .help-block { margin-bottom: 16px; }
+        .help-block-title { font-size: 11px; font-weight: 700; color: var(--text-heading); margin-bottom: 4px; }
+        .help-block-body { font-size: 11px; color: var(--text-subtle); line-height: 1.6; }
+        .help-block-body ul { margin: 4px 0 0 0; padding-left: 14px; }
+        .help-block-body li { margin-bottom: 2px; }
 
         /* ── Section labels ── */
         .section-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
@@ -184,7 +202,7 @@
         .server-icon-wrap.active .server-icon { border-radius: 16px; }
         .server-icon img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
         .server-icon .srv-upload-hint { position: absolute; inset: 0; background: rgba(0,0,0,0.55); display: none; align-items: center; justify-content: center; font-size: 18px; border-radius: inherit; }
-        .server-icon:hover .srv-upload-hint { display: flex; }
+        .server-icon:hover .srv-upload-hint { display: none; }
         .server-bar-divider { width: 32px; height: 2px; background: var(--bg-hover); border-radius: 1px; margin: 2px 0 8px; }
         .server-add-btn { width: 48px; height: 48px; border-radius: 50%; background: var(--bg-chat); color: var(--success); font-size: 26px; font-weight: 300; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: border-radius 0.15s, background 0.15s; user-select: none; line-height: 1; }
         .server-add-btn:hover { border-radius: 16px; background: var(--success); color: var(--text-heading); }
@@ -192,9 +210,12 @@
 
         /* ── Settings Tabs ── */
         .modal-tabs { display: flex; background: var(--bg-deep); border-bottom: 1px solid var(--bg-surface); flex-shrink: 0; }
-        .tab-btn { flex: 1; padding: 10px 8px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 12px; font-weight: 600; letter-spacing: 0.3px; transition: all 0.12s; border-bottom: 3px solid transparent; }
+        .tab-btn { flex: 1; padding: 9px 4px 7px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 9px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; transition: color 0.12s, background 0.12s; border-bottom: 2px solid transparent; display: flex; flex-direction: column; align-items: center; gap: 4px; line-height: 1; }
+        .tab-btn svg { flex-shrink: 0; opacity: 0.7; transition: opacity 0.12s; }
         .tab-btn:hover { color: var(--text-normal); background: var(--bg-sidebar-hover); }
-        .tab-btn.active { color: var(--text-heading); border-bottom: 3px solid var(--accent); background: var(--bg-sidebar-hover); }
+        .tab-btn:hover svg { opacity: 1; }
+        .tab-btn.active { color: var(--accent); border-bottom: 2px solid var(--accent); background: var(--bg-sidebar-hover); }
+        .tab-btn.active svg { opacity: 1; }
 
         /* ── Alias list ── */
         .alias-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 5px; background: var(--bg-deep); margin-bottom: 4px; cursor: pointer; user-select: none; }
@@ -344,7 +365,7 @@
 
         /* ── Markdown code ── */
         .msg-body code { background: var(--bg-deep); border-radius: 3px; padding: 1px 5px; font-family: 'Cascadia Code','Consolas',monospace; font-size: 12.5px; color: #e3e5e8; }
-        .msg-body pre { background: var(--bg-deep); border-radius: 5px; padding: 10px 12px; margin: 6px 0 2px; overflow-x: auto; max-width: 640px; white-space: pre; }
+        .msg-body pre { background: var(--bg-deep); border-radius: 5px; padding: 10px 18px 12px; margin: 6px 0 2px; overflow-x: auto; max-width: 640px; white-space: pre; scrollbar-width: thin; scrollbar-color: var(--bg-border) transparent; }
         .msg-body pre code { background: none; padding: 0; font-size: 12px; }
         .msg-body a { color: var(--link); text-decoration: none; }
         .msg-body a:hover { text-decoration: underline; }
@@ -378,7 +399,7 @@
         .msg-edited { color: var(--text-faint); font-size: 10px; font-style: italic; margin-left: 4px; }
 
         /* ── Inline edit ── */
-        .msg-edit-area { width: 100%; background: var(--bg-deep); border: 1px solid var(--accent); border-radius: 5px; color: var(--text-normal); font-size: 14px; padding: 6px 10px; resize: none; outline: none; font-family: inherit; margin-top: 3px; box-sizing: border-box; }
+        .msg-edit-area { width: 100%; background: var(--bg-deep); border: 1px solid var(--accent); border-radius: 5px; color: var(--text-normal); font-size: 14px; padding: 6px 10px; resize: vertical; min-height: 64px; outline: none; font-family: inherit; margin-top: 3px; box-sizing: border-box; }
         .msg-edit-btns { margin-top: 5px; display: flex; gap: 8px; font-size: 12px; align-items: center; }
         .msg-edit-btns span { cursor: pointer; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
         .msg-edit-btns .edit-save { background: var(--accent); color: #fff; }
@@ -418,6 +439,22 @@
         .share-tile-mine:hover { border-color: var(--success); box-shadow: 0 4px 16px var(--success-glow); }
         .share-panel-hint { color: var(--text-faint); font-size: 11px; padding: 0 6px; white-space: nowrap; align-self: center; }
 
+        /* ── Watch party panel ── */
+        #watch-panel { display: none; flex-shrink: 0; flex-direction: column; background: var(--bg-surface); border-bottom: 1px solid var(--bg-deep); }
+        #watch-panel.active { display: flex; }
+        #watch-player-wrap { position: relative; width: 100%; background: #000; }
+        #watch-player-wrap iframe { display: block; width: 100%; border: none; }
+        #watch-bar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--bg-surface); }
+        #watch-bar-title { font-size: 12px; font-weight: 600; color: var(--text-heading); flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        #watch-bar-host { font-size: 11px; color: var(--text-muted); }
+        #watch-bar-controls { display: flex; gap: 6px; margin-left: auto; }
+        .watch-btn { padding: 3px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; }
+        .watch-btn-stop { background: var(--danger); color: #fff; }
+        .watch-btn-stop:hover { background: var(--danger-hover); }
+        .link-preview-watch-btn { margin-top: 5px; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; border: none; background: var(--accent); color: #fff; width: fit-content; }
+        .link-preview-watch-btn:hover { opacity: 0.85; }
+        .link-preview-watch-btn:disabled { opacity: 0.5; cursor: default; }
+
         /* ── Share button ── */
         #btn-share { display: none; }
         #btn-share.visible { display: flex; }
@@ -437,7 +474,7 @@
         .msg-reactions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 6px; }
         .reaction-pill { background: var(--bg-deep); border: 1px solid var(--bg-border); border-radius: 10px; padding: 2px 8px; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; color: var(--text-normal); transition: background 0.1s, border-color 0.1s; position: relative; }
         .reaction-pill:hover { background: var(--bg-hover); border-color: var(--accent); }
-        .reaction-pill.mine { background: var(--mention-bg); border-color: var(--accent); color: var(--text-heading); }
+        .reaction-pill.mine { background: var(--bg-deep); border-color: var(--accent); color: var(--text-heading); }
         .reaction-count { font-size: 11px; color: var(--text-muted); }
         .reaction-pill.mine .reaction-count { color: #c9cdfb; }
         .reaction-add-btn { opacity: 0; transition: opacity 0.1s; background: var(--bg-deep); border: 1px dashed var(--bg-border); border-radius: 10px; padding: 2px 8px; font-size: 13px; cursor: pointer; color: var(--text-subtle); line-height: 1.4; }
@@ -597,7 +634,9 @@
 
         /* ── Voice status ── */
         .voice-status-text { font-size: 11px; color: var(--accent); margin: 2px 0 2px 24px; line-height: 1.3; }
-        .voice-status-input-wrap { padding: 3px 6px 3px 24px; }
+        .voice-status-input-wrap { padding: 1px 6px 2px 24px; }
+        .vs-set-link { font-size: 11px; color: var(--accent); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; opacity: 0.7; }
+        .vs-set-link:hover { opacity: 1; text-decoration: underline; }
         .voice-status-input { width: 100%; background: var(--bg-deep); border: 1px solid var(--bg-border); border-radius: 4px; padding: 2px 6px; font-size: 11px; color: var(--text-normal); outline: none; box-sizing: border-box; }
         .voice-status-input:focus { border-color: var(--accent); }
 
@@ -947,6 +986,13 @@
         .admin-form-row { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
         .admin-form-row .form-input { flex: 1; }
         input[type="file"].hidden-file { display: none; }
+        .api-doc-block { background: var(--bg-deep); border: 1px solid var(--bg-border); border-radius: 5px; padding: 8px 10px; font-family: 'Cascadia Code','Consolas',monospace; font-size: 11px; color: var(--text-muted); white-space: pre; overflow-x: auto; margin: 6px 0 10px; line-height: 1.55; }
+        .admin-sub-label { font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.6px; margin: 14px 0 5px; display: flex; align-items: center; justify-content: space-between; }
+        .admin-sub-label:first-child { margin-top: 0; }
+        .inbound-hook-url { font-family: 'Cascadia Code','Consolas',monospace; font-size: 10px; color: var(--text-faint); margin-top: 3px; display: flex; align-items: center; gap: 5px; overflow: hidden; }
+        .inbound-hook-url span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .copy-inline-btn { background: none; border: none; cursor: pointer; color: var(--text-faint); font-size: 10px; padding: 1px 5px; border-radius: 3px; flex-shrink: 0; }
+        .copy-inline-btn:hover { background: var(--bg-active); color: var(--text-normal); }
 
         /* ── Skin / Theme Picker ── */
         #theme-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
@@ -1121,10 +1167,28 @@
     <div id="media-gallery-panel"></div>
     <div id="dm-call-bar"></div>
     <div id="screen-share-panel"></div>
+    <div id="watch-panel">
+        <div id="watch-player-wrap"><div id="yt-player"></div></div>
+        <div id="watch-bar">
+            <span id="watch-bar-title"></span>
+            <span id="watch-bar-host"></span>
+            <div id="watch-bar-controls">
+                <button class="watch-btn watch-btn-stop" id="watch-stop-btn" onclick="stopWatchParty()" style="display:none">Stop</button>
+            </div>
+        </div>
+    </div>
     <div id="event-banner" class="hidden">
         <span>📅</span>
         <span id="event-banner-text"></span>
         <button id="event-banner-dismiss" onclick="dismissEventBanner()">✕</button>
+    </div>
+    <div id="update-bar">
+        <span id="update-bar-text"></span>
+        <div id="update-progress-wrap" style="display:none"><div id="update-progress-fill"></div></div>
+        <span id="update-bar-pct" style="font-size:11px;color:var(--text-muted);min-width:34px;display:none"></span>
+        <span style="flex:1"></span>
+        <button id="update-install-btn" class="btn-primary" style="font-size:11px;padding:2px 12px;" onclick="startInstallUpdate()">Update now</button>
+        <button id="update-dismiss-btn" class="btn-secondary" style="font-size:11px;padding:2px 8px;margin-left:4px;" onclick="dismissUpdate()">Later</button>
     </div>
     <div id="chat-history"></div>
     <div id="typing-indicator"></div>
@@ -1203,23 +1267,23 @@
 
 <!-- ── Settings Modal ── -->
 <div id="settings-overlay" class="modal-overlay" onclick="onOverlayClick(event)">
+    <div class="settings-wrapper">
     <div class="settings-modal">
         <div class="modal-header">
             <span class="modal-title">⚙ Settings</span>
             <button class="modal-close-btn" onclick="closeSettings()">✕</button>
         </div>
         <div class="modal-tabs">
-            <button id="tab-btn-audio"      class="tab-btn active" onclick="switchTab('audio')">🎙 Audio</button>
-            <button id="tab-btn-identity"   class="tab-btn"        onclick="switchTab('identity')">👤 Identity</button>
-            <button id="tab-btn-servers"    class="tab-btn"        onclick="switchTab('servers')">🖥 Servers</button>
-            <button id="tab-btn-appearance" class="tab-btn"        onclick="switchTab('appearance')">🎨 Skins</button>
-            <button id="tab-btn-admin"      class="tab-btn"        onclick="switchTab('admin')">🛡 Admin</button>
-            <button id="tab-btn-iskraid"    class="tab-btn"        onclick="switchTab('iskraid')"><svg width="8" height="12" viewBox="0 0 7 11" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;vertical-align:middle;margin-right:4px;"><defs><linearGradient id="itbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7dd3fc"/><stop offset="1" stop-color="#2563eb"/></linearGradient></defs><polygon points="4.34,0 2.66,0 1.4,5.5 2.94,5.5 1.54,11 4.06,11 5.46,5.5 4.06,5.5" fill="url(#itbg)"/></svg>IskraID</button>
+            <button id="tab-btn-audio"      class="tab-btn active" onclick="switchTab('audio')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>Audio</button>
+            <button id="tab-btn-identity"   class="tab-btn"        onclick="switchTab('identity')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Identity</button>
+            <button id="tab-btn-servers"    class="tab-btn"        onclick="switchTab('servers')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="6" cy="18" r="1" fill="currentColor" stroke="none"/></svg>Servers</button>
+            <button id="tab-btn-appearance" class="tab-btn"        onclick="switchTab('appearance')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>Skins</button>
+            <button id="tab-btn-admin"      class="tab-btn"        onclick="switchTab('admin')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Admin</button>
+            <button id="tab-btn-iskraid"    class="tab-btn"        onclick="switchTab('iskraid')"><svg width="9" height="14" viewBox="0 0 7 11" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="itbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7dd3fc"/><stop offset="1" stop-color="#2563eb"/></linearGradient></defs><polygon points="4.34,0 2.66,0 1.4,5.5 2.94,5.5 1.54,11 4.06,11 5.46,5.5 4.06,5.5" fill="url(#itbg)"/></svg>IskraID</button>
         </div>
 
         <!-- ── Audio Tab ── -->
         <div id="tab-audio" class="modal-body">
-            <p class="tab-desc">Configure your microphone, output device, and voice settings. Changes apply immediately.</p>
             <div>
                 <div class="section-label">Input Device (Microphone)</div>
                 <select id="sel-input" class="settings-select" onchange="onInputDeviceChange(this.value)">
@@ -1295,7 +1359,6 @@
 
         <!-- ── Identity Tab ── -->
         <div id="tab-identity" class="modal-body hidden">
-            <p class="tab-desc">Set your local display name and avatar. Servers see this by default — or your IskraID alias if logged in. To use a different name on a specific server, set a nickname in the Servers tab.</p>
             <div>
                 <div class="section-label">Your Avatar</div>
                 <div class="avatar-card">
@@ -1321,7 +1384,6 @@
 
         <!-- ── Servers Tab ── -->
         <div id="tab-servers" class="modal-body hidden">
-            <p class="tab-desc">Add and manage Iskra servers. Connect by hostname or IP. You can set a per-server nickname that overrides your local alias on that server.</p>
             <div id="server-icon-section" class="hidden">
                 <div class="section-label">Server Appearance</div>
                 <div class="avatar-card">
@@ -1383,23 +1445,12 @@
                 <div id="admin-channels-list"></div>
             </div>
             <hr class="divider">
-            <div class="admin-section">
-                <div class="admin-section-title">
-                    <span>Bot Tokens</span>
-                    <button class="btn-small green" onclick="adminGenerateToken()">+ Generate Token</button>
-                </div>
-                <div id="admin-bot-list"><div class="empty-state">No bot tokens.</div></div>
+            <div class="admin-section" id="admin-bot-section">
+                <div id="admin-bot-content"></div>
             </div>
             <hr class="divider">
-            <div class="admin-section">
-                <div class="admin-section-title"><span>Webhooks</span></div>
-                <div id="admin-webhook-list"><div class="empty-state">No webhooks configured.</div></div>
-                <div class="admin-form-row" style="flex-wrap:wrap;gap:6px;margin-top:8px;">
-                    <input type="text" id="wh-name-input"  class="form-input" placeholder="Name" style="flex:1;min-width:80px;">
-                    <input type="text" id="wh-url-input"   class="form-input" placeholder="POST URL (https://...)" style="flex:3;min-width:180px;">
-                    <input type="text" id="wh-ch-input"    class="form-input" placeholder="Channel ID (blank = all)" style="flex:2;min-width:120px;">
-                    <button class="btn-small" onclick="adminAddWebhook()">Add</button>
-                </div>
+            <div class="admin-section" id="admin-webhooks-section">
+                <div id="admin-webhooks-content"></div>
             </div>
             <hr class="divider">
             <div class="admin-section">
@@ -1433,7 +1484,6 @@
 
         <!-- ── Appearance Tab ── -->
         <div id="tab-appearance" class="modal-body hidden">
-            <p class="tab-desc">Pick a color theme for the client. Themes change colors and accents across the entire UI.</p>
             <div>
                 <div class="section-label" style="margin-bottom:10px;">Choose a Skin</div>
                 <div id="theme-grid"></div>
@@ -1460,11 +1510,19 @@
                 <div id="ai-prompt-box" style="background:var(--bg-deep);border:1px solid var(--bg-border);border-radius:var(--r-md);padding:10px 12px;font-size:11px;font-family:'Cascadia Code','Consolas',monospace;color:var(--text-muted);line-height:1.7;white-space:pre-wrap;cursor:pointer;" onclick="copyAiPrompt()" title="Click to copy"></div>
                 <div style="font-size:10px;color:var(--text-subtle);margin-top:4px;">Click to copy · Then paste the result back into the Custom Skin field above.</div>
             </div>
+            <hr class="divider">
+            <div>
+                <div class="section-label">Updates</div>
+                <div class="mode-toggle" style="max-width:180px;margin-top:6px;">
+                    <div id="autoupdate-on"  class="mode-btn active" onclick="setAutoUpdate(true)">Auto</div>
+                    <div id="autoupdate-off" class="mode-btn"        onclick="setAutoUpdate(false)">Off</div>
+                </div>
+                <div style="font-size:11px;color:var(--text-subtle);margin-top:6px;line-height:1.6;">Check for new releases on startup and install with one click.</div>
+            </div>
         </div>
 
         <!-- ── Iskra ID Tab ── -->
         <div id="tab-iskraid" class="modal-body hidden">
-            <p class="tab-desc">Your <strong style="color:var(--text-normal)">IskraID</strong> is a global identity — add friends and message them across any server, or with no server at all. Your IskraID alias is used automatically when connecting to servers.</p>
             <!-- logged-in view -->
             <div id="iskraid-logged-in" class="hidden">
                 <div class="iskraid-card">
@@ -1554,6 +1612,14 @@
         </div>
 
     </div>
+
+    <!-- ── Settings Help Panel ── -->
+    <div class="settings-help" id="settings-help-panel">
+        <div class="help-tab-label" id="settings-help-label">Audio</div>
+        <div id="settings-help-body"></div>
+    </div>
+
+    </div><!-- end settings-wrapper -->
 </div>
 
 <!-- ── Profile Page Modal ── -->
@@ -1935,8 +2001,9 @@ let videoSenders    = {};     // alias → RTCRtpSender
 let destNode        = null;   // MediaStreamDestination — kept for soundboard injection
 let _idleTimer      = null;
 let serverEmojis    = {};   // shortcode → url (custom server emojis)
-let serverWebhooks  = [];   // [{name, url, channelId}]
-let serverBotTokens = [];   // [token, ...]
+let serverWebhooks   = [];   // [{name, url, channelId}]
+let serverBotTokens  = [];   // [token, ...]
+let serverInboundHooks = []; // [{name, token, channelId}]
 
 // ── DM state ──────────────────────────────────────────────────────────────────
 let inDmMode         = false;
@@ -2303,7 +2370,8 @@ function updateSettingsServerSection() {
     if (preview) {
         if (serverIconUrl) {
             preview.style.background = '';
-            preview.innerHTML = `<img src="${escapeHtml(normalizeUploadUrl(serverIconUrl) || serverIconUrl)}" alt="Server icon">`;
+            const _iconSrc = escapeHtml(normalizeUploadUrl(serverIconUrl) || serverIconUrl);
+            preview.innerHTML = `<img src="${_iconSrc}" data-src="${_iconSrc}" alt="Server icon" onerror="rescueImg(this)">`;
         } else if (srv) {
             preview.style.background = serverColor(srv.id);
             preview.innerHTML = serverInitials(srv.name);
@@ -2359,6 +2427,7 @@ const settings = {
     pttKeyCode:     90,        // VK_Z
     pttKeyLabel:    'Z',
     noiseSuppress:  true,
+    autoUpdate:     true,
 };
 
 function saveSettings() {
@@ -2461,13 +2530,15 @@ function renderChannelList() {
             const inVoice  = ch.id === currentChannelId;
             const users    = voiceChannelUsers[ch.id] || [];
             const voiceIcon = ch.muted ? '🔇' : '🔊';
-            const vsText   = voiceStatuses[ch.id] ? `<div class="voice-status-text">${escapeHtml(voiceStatuses[ch.id])}</div>` : '';
+            const activityVal = voiceStatuses[ch.id] || '';
+            const vsText   = (!inVoice && activityVal) ? `<div class="voice-status-text">${escapeHtml(activityVal)}</div>` : '';
             const setStatusHtml = inVoice
-                ? `<div class="voice-status-input-wrap" onclick="event.stopPropagation()">
+                ? `<div class="voice-status-input-wrap" id="vs-wrap-${ch.id}" onclick="event.stopPropagation()">
+                    <span class="vs-set-link" id="vs-link-${ch.id}" onclick="openActivityInput('${ch.id}')">${activityVal ? escapeHtml(activityVal) : 'set activity'}</span>
                     <input class="voice-status-input" id="vs-input-${ch.id}" placeholder="Set activity…" maxlength="60"
-                        value="${escapeHtml(voiceStatuses[ch.id] || '')}"
-                        onkeydown="if(event.key==='Enter'){sendVoiceStatus('${ch.id}',this.value);this.blur()}"
-                        onblur="sendVoiceStatus('${ch.id}',this.value)">
+                        value="${escapeHtml(activityVal)}" style="display:none"
+                        onkeydown="if(event.key==='Enter'){this.blur();}"
+                        onblur="closeActivityInput('${ch.id}')">
                    </div>` : '';
             html += `
             <div class="channel${inVoice ? ' active' : ''}" data-chid="${ch.id}"${drag} onclick="joinVoice('${ch.id}')" oncontextmenu="showChCtxMenu(event,'${ch.id}')" title="${ch.muted ? 'Muted — no audio in or out' : ''}">
@@ -2508,6 +2579,28 @@ function leaveVoice(channelId) {
 
 function sendVoiceStatus(channelId, text) {
     postToBridge({ action: 'SET_VOICE_STATUS', channelId, status: (text || '').trim() });
+}
+
+function openActivityInput(chId) {
+    const link  = document.getElementById(`vs-link-${chId}`);
+    const input = document.getElementById(`vs-input-${chId}`);
+    if (!link || !input) return;
+    link.style.display  = 'none';
+    input.style.display = '';
+    input.focus();
+    input.select();
+}
+
+function closeActivityInput(chId) {
+    const link  = document.getElementById(`vs-link-${chId}`);
+    const input = document.getElementById(`vs-input-${chId}`);
+    if (!input) return;
+    sendVoiceStatus(chId, input.value);
+    input.style.display = 'none';
+    if (link) {
+        link.textContent    = input.value.trim() || 'set activity';
+        link.style.display  = '';
+    }
 }
 
 function selectTextChannel(id) {
@@ -2951,10 +3044,14 @@ const FMT_ITEMS = [
     { label: 'Mention',       icon: '@',    hint: '@alias',              type: 'mention' },
 ];
 
-function toggleFormatPicker(event) {
+let _fmtTarget = null;
+
+function toggleFormatPicker(event, targetEl) {
     if (event) event.stopPropagation();
     const existing = document.getElementById('format-picker-popup');
     if (existing) { existing.remove(); return; }
+
+    _fmtTarget = targetEl || null;
 
     const popup = document.createElement('div');
     popup.id = 'format-picker-popup';
@@ -2992,11 +3089,14 @@ function toggleFormatPicker(event) {
         }
     }
 
-    setTimeout(() => document.addEventListener('click', () => popup.remove(), { once: true }), 0);
+    function _fmtDocMd(ev) {
+        if (!popup.contains(ev.target)) { popup.remove(); document.removeEventListener('mousedown', _fmtDocMd); }
+    }
+    setTimeout(() => document.addEventListener('mousedown', _fmtDocMd), 0);
 }
 
 function insertFormat(type) {
-    const ta = document.getElementById('chat-input');
+    const ta = _fmtTarget || document.getElementById('chat-input');
     if (!ta) return;
     ta.focus();
 
@@ -3573,12 +3673,70 @@ function closeLightbox() {
 
 // ── Tab Switching ──────────────────────────────────────────────────────────────
 let activeTab = 'audio';
+
+const _helpContent = {
+    audio: { label: 'Audio', blocks: [
+        { t: 'Input Device', b: 'Your microphone. The level meter below the selector shows your live input. If it never moves, check your OS mic permissions.' },
+        { t: 'Output Device', b: 'Where you hear other users. Defaults to your system output device.' },
+        { t: 'Voice Activity (VAD)', b: 'Iskra automatically opens your mic when it detects sound above the threshold. Use the sensitivity slider to tune it — higher means less sensitive, so only louder sounds open the mic.' },
+        { t: 'Push to Talk (PTT)', b: 'Your mic only transmits while you hold a key. Best for noisy environments. Click the Bind button and press any key to set it.' },
+        { t: 'Input Gain', b: 'Boosts your microphone volume before it\'s sent. If others say you\'re too quiet, raise this. If you\'re clipping or distorting, lower it.' },
+        { t: 'Output Gain', b: 'Adjusts the overall volume of everyone you hear. You can also right-click a specific user in a voice channel to adjust their volume individually.' },
+    ]},
+    identity: { label: 'Identity', blocks: [
+        { t: 'Local Aliases', b: 'These are names you create locally on your device. They\'re not verified — anyone on any server could use the same name. Think of them as nicknames.' },
+        { t: 'Active Alias', b: 'The alias marked as active is what servers see when you connect — unless you\'re logged into IskraID (which takes priority) or you\'ve set a per-server nickname in the Servers tab.' },
+        { t: 'IskraID vs Local', b: 'Local aliases are convenient but anonymous. IskraID is your verified, globally unique identity. When logged in, IskraID is always used over your local alias.' },
+        { t: 'Avatar', b: 'Avatars are per-server — they\'re uploaded to and stored on the server you\'re connected to. Changing your avatar on one server has no effect on others.' },
+        { t: 'Per-server Nickname', b: 'In the Servers tab you can set a nickname for a specific server. It overrides both your local alias and your IskraID alias, and is stored only on your device.' },
+    ]},
+    servers: { label: 'Servers', blocks: [
+        { t: 'Connecting', b: 'Enter the server\'s IP or hostname and port (default 8080). The server password is set by the owner — ask them for it.' },
+        { t: 'Saved Servers', b: 'All servers you add are saved locally. Passwords and connection details are stored only on your device, never uploaded anywhere.' },
+        { t: 'Per-server Nickname', b: 'Override your alias on a specific server without changing your global identity. Only stored locally and only visible on that server.' },
+        { t: 'Server Icon', b: 'Admins and owners can upload a custom icon for the server. It\'s visible to everyone connected and stored on the server.' },
+        { t: 'Invite Codes', b: 'The 📋 button generates a shareable invite link with the server address encoded. Share the password separately — it\'s never included in the link.' },
+    ]},
+    appearance: { label: 'Skins', blocks: [
+        { t: 'Color Themes', b: 'Built-in themes change accent colors, background tones, and overall feel across the entire UI. Changes apply instantly.' },
+        { t: 'Custom Skin', b: 'Paste a CSS variable block to fully customize every color. You can use the AI prompt to generate one — paste the output into the Custom Skin field.' },
+        { t: 'Persistence', b: 'Your selected theme is saved locally and restored automatically on restart.' },
+    ]},
+    admin: { label: 'Admin', blocks: [
+        { t: 'Roles', b: 'Five levels from lowest to highest: Guest → Member → Trusted → Admin → Owner. Roles control what channels users can see and what actions they can take.' },
+        { t: 'Assigning Roles', b: 'Admins can assign Guest, Member, and Trusted. Only the Owner (authenticated with the admin password at login) can assign the Admin role.' },
+        { t: 'Channel Permissions', b: 'Each channel has a MinRole (who can see it) and a WriteRole (who can post). Set these in the channel list here to create private or read-only channels.' },
+        { t: 'Kick & Ban', b: 'Use /kick or /ban in chat to remove users. Bans are tied to machine GUIDs, not aliases — so a user can\'t just reconnect with a different name.' },
+        { t: 'Audit Log', b: 'Every significant action is logged — connections, role changes, kicks, bans, file uploads. Visible to admins and owners only.' },
+        { t: 'Webhooks & Bots', b: 'Webhooks let external services post messages to channels. Bot tokens allow programmatic access via the WebSocket API.' },
+    ]},
+    iskraid: { label: 'IskraID', blocks: [
+        { t: 'What is IskraID?', b: 'Your verified global identity. Unlike local aliases (which anyone can use), your IskraID is unique and tied to your email. It works across every Iskra server.' },
+        { t: 'Logging In', b: 'Once logged in here, servers automatically see your IskraID alias. You don\'t need to do anything extra — it replaces your local alias silently.' },
+        { t: 'Direct Messages', b: 'IskraID unlocks DMs with any other IskraID user — even if you\'re not on the same server, or on no server at all.' },
+        { t: 'End-to-End Encryption', b: 'All DMs between IskraID users are E2E encrypted. Messages are encrypted on your device and can only be read by the recipient. The relay never sees the content.' },
+        { t: 'E2E on Channels', b: 'Server owners can also enable E2E on specific channels. Only users who have shared their IskraID public key with the server can read E2E-enabled channels.' },
+        { t: 'Friends', b: 'Add friends by their IskraID alias. You can message them any time, regardless of what server either of you is on.' },
+        { t: 'IskraID Avatar', b: 'Separate from your per-server avatar. Associated with your global identity and shown in DMs and the friends list.' },
+    ]},
+};
+
+function updateHelpPanel(tab) {
+    const data = _helpContent[tab];
+    if (!data) return;
+    document.getElementById('settings-help-label').textContent = data.label;
+    document.getElementById('settings-help-body').innerHTML = data.blocks.map(b =>
+        `<div class="help-block"><div class="help-block-title">${b.t}</div><div class="help-block-body">${b.b}</div></div>`
+    ).join('');
+}
+
 function switchTab(tab) {
     activeTab = tab;
     ['audio', 'identity', 'servers', 'appearance', 'admin', 'iskraid'].forEach(t => {
         document.getElementById(`tab-${t}`)?.classList.toggle('hidden', t !== tab);
         document.getElementById(`tab-btn-${t}`)?.classList.toggle('active', t === tab);
     });
+    updateHelpPanel(tab);
     if (tab === 'identity')   { renderAliasList(); updateSettingsAvatarPreview(); }
     if (tab === 'servers')    { renderServerList(); updateSettingsServerSection(); }
     if (tab === 'admin')      renderAdminPanel();
@@ -3808,7 +3966,7 @@ function renderServerBar() {
         const canUpload    = isConn && ['admin','owner'].includes(myRole);
         const isMuted      = isServerMuted(s.id);
         const iconContent  = (isConn && serverIconUrl)
-            ? `<img src="${escapeHtml(normalizeUploadUrl(serverIconUrl) || serverIconUrl)}" alt="${escapeHtml(s.name)}">`
+            ? `<img src="${escapeHtml(normalizeUploadUrl(serverIconUrl) || serverIconUrl)}" data-src="${escapeHtml(normalizeUploadUrl(serverIconUrl) || serverIconUrl)}" alt="${escapeHtml(s.name)}" onerror="rescueImg(this)">`
             + (canUpload ? `<span class="srv-upload-hint" title="Change server icon">📷</span>` : '')
             : serverInitials(s.name)
             + (canUpload ? `<span class="srv-upload-hint" title="Change server icon">📷</span>` : '');
@@ -4318,8 +4476,9 @@ function startPttCapture() {
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'F9') { e.shiftKey ? DevLog.clear() : DevLog.toggle(); return; }
-    if (e.key === 'Escape') { closeImgOverlay(); closeQuickSwitcher(); closeShortcuts(); closeLightbox(); closeBookmarks(); closeEventsPanel(); hideProfileCard(); closeForwardModal(); hideChCtxMenu(); closeEmojiInsertPicker(); return; }
+    if (e.key === 'Escape') { closeImgOverlay(); closeQuickSwitcher(); closeShortcuts(); closeLightbox(); closeBookmarks(); closeEventsPanel(); hideProfileCard(); closeForwardModal(); hideChCtxMenu(); closeEmojiInsertPicker(); closeSearch(); return; }
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); openQuickSwitcher(); return; }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'f') { e.preventDefault(); openSearch(); return; }
     if ((e.ctrlKey || e.metaKey) && e.key === '/') { e.preventDefault(); openShortcuts(); return; }
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'F') { e.preventDefault(); toggleFormatPicker(); return; }
     if (!isCapturingPtt) return;
@@ -4347,8 +4506,8 @@ function openSettings() {
     if (activeTab === 'audio')    populateDevices();
     if (activeTab === 'identity') renderAliasList();
     if (activeTab === 'servers')  renderServerList();
-    // Always populate devices if on audio tab (lazy on other tabs)
     if (activeTab !== 'audio')    populateDevices();
+    updateHelpPanel(activeTab);
     document.getElementById('settings-overlay').classList.add('open');
 }
 
@@ -4382,6 +4541,10 @@ function applySettingsToUI() {
     const nsOn = settings.noiseSuppress !== false;
     document.getElementById('ns-on').classList.toggle('active',  nsOn);
     document.getElementById('ns-off').classList.toggle('active', !nsOn);
+
+    const auOn = settings.autoUpdate !== false;
+    document.getElementById('autoupdate-on')?.classList.toggle('active',  auOn);
+    document.getElementById('autoupdate-off')?.classList.toggle('active', !auOn);
 
     updateThresholdLine();
 }
@@ -4586,6 +4749,12 @@ async function sendChat(e) {
             return;
         }
         outMsg = await e2eEncrypt(e2eChannelKeys[activeTextChannelId], msg);
+    }
+    if (msg.startsWith('/watch ')) {
+        const watchArg = msg.slice(7).trim();
+        if (watchArg) startWatchParty(watchArg);
+        _resetInput();
+        return;
     }
     const payload = { action: 'SEND_CHAT', channelId: activeTextChannelId, message: outMsg };
     if (_replyTo) { payload.replyToId = _replyTo.id; cancelReply(); }
@@ -5315,20 +5484,22 @@ function renderSearchResults(results, query) {
 
 function scrollToMsg(msgId, channelId) {
     closeSearch();
-    // Switch to the channel first if needed
-    if (channelId && channelId !== activeTextChannelId) {
-        selectTextChannel(channelId);
-    }
+    const switched = channelId && channelId !== activeTextChannelId;
+    if (switched) selectTextChannel(channelId);
     if (!msgId) return;
-    setTimeout(() => {
+    const delay = switched ? 700 : 80;
+    const tryScroll = (attempts) => {
         const el = document.querySelector(`[data-msg-id="${msgId}"]`);
         if (el) {
             el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            el.style.transition = 'background 0.2s';
-            el.style.background = 'rgba(250,166,26,0.18)';
-            setTimeout(() => { el.style.background = ''; }, 1800);
+            el.style.transition = 'background 0.3s';
+            el.style.background = 'rgba(250,166,26,0.22)';
+            setTimeout(() => { el.style.background = ''; }, 2000);
+        } else if (attempts > 0) {
+            setTimeout(() => tryScroll(attempts - 1), 300);
         }
-    }, 80);
+    };
+    setTimeout(() => tryScroll(4), delay);
 }
 
 // ── Join Invite Modal ─────────────────────────────────────────────────────────
@@ -5532,17 +5703,30 @@ function editMessage(msgId, author) {
     const ta = document.createElement('textarea');
     ta.className = 'msg-edit-area';
     ta.value = currentText;
-    ta.rows  = Math.max(1, Math.ceil(currentText.length / 60));
+    ta.rows  = Math.max(3, Math.ceil(currentText.length / 60));
     ta.addEventListener('keydown', e => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit(msgId); }
         if (e.key === 'Escape') cancelEdit(msgId);
     });
 
+    const fmtBtn = document.createElement('button');
+    fmtBtn.className = 'attach-btn';
+    fmtBtn.title = 'Formatting';
+    fmtBtn.textContent = '✏';
+    fmtBtn.style.cssText = 'width:32px;height:32px;font-size:18px;flex-shrink:0;margin-top:1px;';
+    fmtBtn.addEventListener('mousedown', e => { e.preventDefault(); toggleFormatPicker(e, ta); });
+
+    const editRow = document.createElement('div');
+    editRow.className = 'msg-edit-row';
+    editRow.style.cssText = 'display:flex;align-items:flex-start;gap:6px;';
+    editRow.appendChild(fmtBtn);
+    editRow.appendChild(ta);
+
     const btns = document.createElement('div');
     btns.className = 'msg-edit-btns';
     btns.innerHTML = `<span class="edit-save" onclick="submitEdit('${msgId}')">Save</span><span class="edit-cancel" onclick="cancelEdit('${msgId}')">Cancel</span><span class="edit-hint">Enter to save · Esc to cancel</span>`;
 
-    content.appendChild(ta);
+    content.appendChild(editRow);
     content.appendChild(btns);
     ta.focus();
     ta.selectionStart = ta.selectionEnd = ta.value.length;
@@ -5556,6 +5740,7 @@ function cancelEdit(msgId) {
     content.querySelector('.msg-body').style.display = '';
     const editedMark = content.querySelector('.msg-edited');
     if (editedMark) editedMark.style.display = '';
+    content.querySelector('.msg-edit-row')?.remove();
     content.querySelector('.msg-edit-area')?.remove();
     content.querySelector('.msg-edit-btns')?.remove();
 }
@@ -5648,12 +5833,15 @@ async function enrichLinkPreviews(msgDiv) {
             if (!data || (!data.title && !data.image)) continue;
             const card = document.createElement('div');
             card.className = 'link-preview-card';
+            const isYt = data.siteName === 'YouTube';
+            const watchUrl = escapeHtml(url);
             card.innerHTML =
                 (data.image ? `<img class="link-preview-img" src="${escapeHtml(data.image)}" onerror="this.parentElement.remove()" loading="lazy">` : '') +
                 `<div class="link-preview-text">` +
                 (data.siteName ? `<div class="link-preview-site">${escapeHtml(data.siteName)}</div>` : '') +
                 (data.title    ? `<a class="link-preview-title" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(data.title)}</a>` : '') +
                 (data.description ? `<div class="link-preview-desc">${escapeHtml(data.description)}</div>` : '') +
+                (isYt ? `<button class="link-preview-watch-btn" onclick="startWatchParty('${watchUrl}')">▶ Watch Together</button>` : '') +
                 `</div>`;
             link.closest('.msg-content')?.appendChild(card);
         } catch {}
@@ -5752,6 +5940,147 @@ function stopScreenShare() {
 
     postToBridge({ action: 'SCREEN_SHARE_STOPPED' });
     DevLog.log('RTC', 'Screen share stopped');
+}
+
+// ── Watch Party ────────────────────────────────────────────────────────────────
+
+let _ytPlayer       = null;  // YT.Player instance
+let _ytReady        = false; // IFrame API loaded
+let _watchChannelId = null;  // voice channel hosting current session
+let _watchHostAlias = null;  // alias of the host
+let _watchTickTimer = null;  // setInterval for host ticks
+let _watchIgnoreStateChange = false; // prevent feedback loop
+
+function _ensureYtApi() {
+    if (window.YT && window.YT.Player) { _ytReady = true; return; }
+    if (document.getElementById('yt-api-script')) return;
+    const s = document.createElement('script');
+    s.id = 'yt-api-script';
+    s.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(s);
+}
+window.onYouTubeIframeAPIReady = () => { _ytReady = true; };
+
+function startWatchParty(url) {
+    if (!currentChannelId) { showToast('Join a voice channel first.'); return; }
+    _ensureYtApi();
+    postToBridge({ action: 'START_WATCH', url });
+    DevLog.log('WATCH', `Requested START_WATCH: ${url}`);
+}
+
+function stopWatchParty() {
+    if (!_watchChannelId) return;
+    postToBridge({ action: 'STOP_WATCH' });
+    _clearWatchPanel();
+}
+
+function _clearWatchPanel() {
+    if (_watchTickTimer) { clearInterval(_watchTickTimer); _watchTickTimer = null; }
+    if (_ytPlayer) { try { _ytPlayer.destroy(); } catch {} _ytPlayer = null; }
+    _watchChannelId = null;
+    _watchHostAlias = null;
+    const panel = document.getElementById('watch-panel');
+    if (panel) { panel.classList.remove('active'); panel.querySelector('#yt-player').innerHTML = ''; }
+    document.getElementById('watch-stop-btn').style.display = 'none';
+}
+
+function _buildYtPlayer(videoId, startSec, autoplay) {
+    const wrap = document.getElementById('watch-player-wrap');
+    if (!wrap) return;
+    const h = Math.round(wrap.offsetWidth * 9 / 16);
+    wrap.style.height = h + 'px';
+    document.getElementById('yt-player').innerHTML = '';
+
+    const tryBuild = () => {
+        if (!window.YT || !window.YT.Player) { setTimeout(tryBuild, 200); return; }
+        _ytPlayer = new YT.Player('yt-player', {
+            width: '100%', height: h,
+            videoId,
+            playerVars: { autoplay: autoplay ? 1 : 0, controls: _watchHostAlias === myAlias ? 1 : 0,
+                          start: Math.floor(startSec), rel: 0, fs: 0 },
+            events: {
+                onReady: e => {
+                    if (autoplay) e.target.playVideo();
+                },
+                onStateChange: e => {
+                    if (_watchHostAlias !== myAlias) return;
+                    if (_watchIgnoreStateChange) return;
+                    const pos = e.target.getCurrentTime();
+                    const playing = e.data === YT.PlayerState.PLAYING;
+                    const paused  = e.data === YT.PlayerState.PAUSED;
+                    if (playing || paused)
+                        postToBridge({ action: 'WATCH_CONTROL', playing, position: pos });
+                }
+            }
+        });
+    };
+    tryBuild();
+}
+
+function handleWatchState(data) {
+    _watchChannelId = data.channelId;
+    _watchHostAlias = data.hostAlias;
+    const isHost    = data.hostAlias === myAlias;
+    const elapsed   = (Date.now() - data.ts) / 1000;
+    const seekTo    = data.position + elapsed;
+
+    document.getElementById('watch-bar-title').textContent = data.videoId || data.url;
+    document.getElementById('watch-bar-host').textContent  = isHost ? '(you are hosting)' : `hosted by ${data.hostAlias}`;
+    document.getElementById('watch-stop-btn').style.display = isHost ? '' : 'none';
+
+    const panel = document.getElementById('watch-panel');
+    panel.classList.add('active');
+
+    _ensureYtApi();
+
+    if (_ytPlayer && _ytPlayer.getVideoData) {
+        const cur = _ytPlayer.getVideoData()?.video_id;
+        if (cur === data.videoId) {
+            _watchIgnoreStateChange = true;
+            _ytPlayer.seekTo(seekTo, true);
+            if (data.playing) _ytPlayer.playVideo(); else _ytPlayer.pauseVideo();
+            setTimeout(() => { _watchIgnoreStateChange = false; }, 500);
+            if (isHost && !_watchTickTimer) _startHostTick();
+            return;
+        }
+        try { _ytPlayer.destroy(); } catch {} _ytPlayer = null;
+    }
+
+    _buildYtPlayer(data.videoId, seekTo, data.playing);
+    if (isHost) _startHostTick();
+}
+
+function handleWatchTick(data) {
+    if (!_ytPlayer || _watchHostAlias === myAlias) return;
+    const elapsed = (Date.now() - data.ts) / 1000;
+    const target  = data.position + elapsed;
+    try {
+        const cur = _ytPlayer.getCurrentTime();
+        const drift = Math.abs(cur - target);
+        if (drift > 2.5) {
+            _watchIgnoreStateChange = true;
+            _ytPlayer.seekTo(target, true);
+            setTimeout(() => { _watchIgnoreStateChange = false; }, 500);
+        }
+        if (data.playing && _ytPlayer.getPlayerState() !== YT.PlayerState.PLAYING) _ytPlayer.playVideo();
+        if (!data.playing && _ytPlayer.getPlayerState() === YT.PlayerState.PLAYING) _ytPlayer.pauseVideo();
+    } catch {}
+}
+
+function handleWatchStopped() {
+    DevLog.log('WATCH', 'Watch party stopped');
+    _clearWatchPanel();
+}
+
+function _startHostTick() {
+    if (_watchTickTimer) clearInterval(_watchTickTimer);
+    _watchTickTimer = setInterval(() => {
+        if (!_ytPlayer) return;
+        try {
+            const pos = _ytPlayer.getCurrentTime();
+            postToBridge({ action: 'WATCH_TICK', position: pos });
+        } catch {}
+    }, 5000);
 }
 
 function addLocalShareTile(stream) {
@@ -6169,8 +6498,9 @@ async function handleBridgeMessage(data) {
         if (data.roleColors       && typeof data.roleColors       === 'object') roleColors = data.roleColors;
         if (Array.isArray(data.events)) { serverEvents = data.events; _checkEventBanners(); }
         if (data.emojis       && typeof data.emojis       === 'object') serverEmojis    = data.emojis;
-        if (Array.isArray(data.webhooks))  serverWebhooks  = data.webhooks;
-        if (Array.isArray(data.botTokens)) serverBotTokens = data.botTokens;
+        if (Array.isArray(data.webhooks))     serverWebhooks    = data.webhooks;
+        if (Array.isArray(data.botTokens))    serverBotTokens   = data.botTokens;
+        if (Array.isArray(data.inboundHooks)) serverInboundHooks = data.inboundHooks;
         if (data.publicKeys && typeof data.publicKeys === 'object') Object.assign(serverPublicKeys, data.publicKeys);
         if (data.e2eAccess  && typeof data.e2eAccess  === 'object') Object.assign(e2eChannelAccess, data.e2eAccess);
         if (data.voiceStatuses && typeof data.voiceStatuses === 'object') voiceStatuses = data.voiceStatuses;
@@ -6251,8 +6581,9 @@ async function handleBridgeMessage(data) {
         pinnedMessages = {};
         serverIconUrl  = null;
         serverEmojis    = {};
-        serverWebhooks  = [];
-        serverBotTokens = [];
+        serverWebhooks    = [];
+        serverBotTokens   = [];
+        serverInboundHooks = [];
         document.getElementById('tab-btn-admin')?.classList.remove('visible');
         myStatus = 'online';
         const _sdot = document.getElementById('my-status-dot');
@@ -6292,6 +6623,7 @@ async function handleBridgeMessage(data) {
         setMicGate(false);
         if (displayStream) stopScreenShare();
         if (localVideoStream) stopVideo();
+        _clearWatchPanel();
         remoteScreens       = {};
         screenShareSenders  = {};
         const _sp = document.getElementById('screen-share-panel');
@@ -6371,6 +6703,17 @@ async function handleBridgeMessage(data) {
     } else if (data.action === 'SCREEN_SHARE_STOPPED') {
         DevLog.log('RTC', `← C# | SCREEN_SHARE_STOPPED from:${data.alias}`);
         removeShareTile(data.alias);
+
+    } else if (data.action === 'WATCH_STATE') {
+        DevLog.log('WATCH', `← WATCH_STATE ch:${data.channelId} host:${data.hostAlias} vid:${data.videoId} pos:${data.position?.toFixed(1)} playing:${data.playing}`);
+        handleWatchState(data);
+
+    } else if (data.action === 'WATCH_TICK') {
+        handleWatchTick(data);
+
+    } else if (data.action === 'WATCH_STOPPED') {
+        DevLog.log('WATCH', `← WATCH_STOPPED ch:${data.channelId}`);
+        handleWatchStopped();
 
     } else if (data.action === 'SYSTEM_MESSAGE') {
         DevLog.log('BRIDGE', `← C# | SYSTEM_MESSAGE: ${data.message}`);
@@ -6502,6 +6845,11 @@ async function handleBridgeMessage(data) {
     } else if (data.action === 'WEBHOOKS_UPDATED') {
         DevLog.log('BRIDGE', `← C# | WEBHOOKS_UPDATED count:${(data.webhooks||[]).length}`);
         if (Array.isArray(data.webhooks)) serverWebhooks = data.webhooks;
+        if (activeTab === 'admin') renderAdminPanel();
+
+    } else if (data.action === 'INBOUND_HOOKS_UPDATED') {
+        DevLog.log('BRIDGE', `← C# | INBOUND_HOOKS_UPDATED count:${(data.inboundHooks||[]).length}`);
+        if (Array.isArray(data.inboundHooks)) serverInboundHooks = data.inboundHooks;
         if (activeTab === 'admin') renderAdminPanel();
 
     } else if (data.action === 'BOT_TOKEN_CREATED') {
@@ -6738,6 +7086,34 @@ async function handleBridgeMessage(data) {
         DevLog.log('BRIDGE', `← C# | STARBOARD_SETTINGS_UPDATED`);
         if (data.starboard) starboardConfig = { ...starboardConfig, ...data.starboard };
         if (activeTab === 'admin') renderStarboardSettings();
+
+    } else if (data.action === 'UPDATE_PROGRESS') {
+        const fill = document.getElementById('update-progress-fill');
+        const pct  = document.getElementById('update-bar-pct');
+        const text = document.getElementById('update-bar-text');
+        if (data.phase === 'downloading') {
+            if (fill) fill.style.width = data.pct + '%';
+            if (pct)  pct.textContent  = data.pct + '%';
+        } else if (data.phase === 'extracting') {
+            if (text) text.textContent = 'Extracting…';
+            if (fill) fill.style.width = '100%';
+            if (pct)  pct.textContent  = '';
+        } else if (data.phase === 'restarting') {
+            if (text) text.textContent = 'Restarting…';
+            if (pct)  pct.textContent  = '';
+        }
+
+    } else if (data.action === 'UPDATE_ERROR') {
+        const text       = document.getElementById('update-bar-text');
+        const installBtn = document.getElementById('update-install-btn');
+        const dismissBtn = document.getElementById('update-dismiss-btn');
+        const progressW  = document.getElementById('update-progress-wrap');
+        const pct        = document.getElementById('update-bar-pct');
+        if (text)       text.innerHTML = `<span style="color:var(--danger)">Update failed: ${escapeHtml(data.message)}</span>`;
+        if (installBtn) installBtn.style.display = '';
+        if (dismissBtn) dismissBtn.style.display = '';
+        if (progressW)  progressW.style.display  = 'none';
+        if (pct)        pct.style.display         = 'none';
     }
 }
 
@@ -7226,7 +7602,7 @@ function renderAdminMembers() {
         const isSelf = alias === myAlias;
         const opts = grantable.map(r => `<option value="${r}"${role===r?' selected':''}>${r}</option>`).join('');
         return `<div class="admin-member-row">
-            ${avatarHtml(alias,'sz-28',false,true)}
+            ${avatarHtml(alias,'sz-32',false,true)}
             <span class="admin-member-name">${escapeHtml(alias)}</span>
             <select class="role-sel" onchange="setUserRole('${escapeHtml(alias)}',this.value)"${isSelf?' disabled':''}>${opts}</select>
         </div>`;
@@ -7329,28 +7705,108 @@ function setChannelRoles(channelId, minRole, writeRole) {
 }
 
 function renderBotsSection() {
-    const list = document.getElementById('admin-bot-list');
-    if (!list) return;
-    if (!serverBotTokens.length) { list.innerHTML = '<div class="empty-state">No bot tokens.</div>'; return; }
-    list.innerHTML = serverBotTokens.map(tok => `
-        <div class="admin-token-row">
-            <span class="admin-token-text" title="${escapeHtml(tok)}">${tok.slice(0,8)}…${tok.slice(-4)}</span>
-            <button class="btn-danger-sm" onclick="adminRevokeToken('${escapeHtml(tok)}')" title="Revoke token">✕ Revoke</button>
-        </div>`).join('');
+    const el = document.getElementById('admin-bot-content');
+    if (!el) return;
+    const wsBase  = serverUploadBase ? serverUploadBase.replace(/^http/, 'ws') : 'ws://&lt;server&gt;:&lt;port&gt;';
+    const connUrl = `${wsBase}/bot`;
+    const tokensHtml = serverBotTokens.length
+        ? serverBotTokens.map(tok => `
+            <div class="admin-token-row">
+                <span class="admin-token-text" title="${escapeHtml(tok)}">${tok.slice(0,8)}…${tok.slice(-4)}</span>
+                <button class="copy-inline-btn" onclick="navigator.clipboard.writeText('${escapeHtml(tok)}')" title="Copy token">📋 Copy</button>
+                <button class="btn-danger-sm" onclick="adminRevokeToken('${escapeHtml(tok)}')">✕ Revoke</button>
+            </div>`).join('')
+        : '<div class="empty-state">No bot tokens yet.</div>';
+    el.innerHTML = `
+        <div class="admin-section-title">
+            <span>Bot API</span>
+            <button class="btn-small green" onclick="adminGenerateToken()">+ Generate Token</button>
+        </div>
+        <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;">Bots connect via WebSocket and can read all events and post messages to any channel.</p>
+        <div class="admin-sub-label">1 — Connect</div>
+        <div class="api-doc-block">WebSocket: ${escapeHtml(connUrl)}</div>
+        <div class="admin-sub-label">2 — Authenticate (first message after connect)</div>
+        <div class="api-doc-block">{ "action": "auth", "token": "&lt;TOKEN&gt;", "name": "MyBot" }</div>
+        <div class="admin-sub-label">3 — Send a message</div>
+        <div class="api-doc-block">{ "action": "SEND_CHAT", "channelId": "&lt;CHANNEL_ID&gt;", "message": "Hello!" }</div>
+        <div class="admin-sub-label">4 — Receive events</div>
+        <p style="font-size:11px;color:var(--text-faint);margin:0 0 10px;">After auth, bots receive every server broadcast in real time: <code>NEW_MESSAGE</code>, <code>VOICE_STATE_UPDATE</code>, <code>STATUS_UPDATED</code>, <code>REACTION_UPDATED</code>, and more. Parse the <code>action</code> field to filter events.</p>
+        <div class="admin-sub-label" style="margin-top:14px;"><span>Tokens</span></div>
+        ${tokensHtml}`;
 }
 
 function renderWebhooksSection() {
-    const list = document.getElementById('admin-webhook-list');
-    if (!list) return;
-    if (!serverWebhooks.length) { list.innerHTML = '<div class="empty-state">No webhooks configured.</div>'; return; }
-    list.innerHTML = serverWebhooks.map(wh => `
-        <div class="admin-item-row">
-            <div class="admin-item-info">
-                <div class="admin-item-name">${escapeHtml(wh.name || 'Unnamed')}</div>
-                <div class="admin-item-sub">${escapeHtml(wh.url || '')}${wh.channelId ? ` · #${escapeHtml(wh.channelId)}` : ' · all channels'}</div>
-            </div>
-            <button class="btn-danger-sm" onclick="adminDeleteWebhook('${escapeHtml(wh.url||'')}')" title="Delete webhook">✕</button>
-        </div>`).join('');
+    const el = document.getElementById('admin-webhooks-content');
+    if (!el) return;
+    const httpBase = serverUploadBase || 'http://&lt;server&gt;:&lt;port&gt;';
+    const textChannels = serverChannels.filter(c => c.type === 'Text');
+    const chOptions = '<option value="">— all channels —</option>' +
+        textChannels.map(c => `<option value="${escapeHtml(c.id)}">#${escapeHtml(c.name)}</option>`).join('');
+
+    const outboundList = serverWebhooks.length
+        ? serverWebhooks.map(wh => `
+            <div class="admin-item-row">
+                <div class="admin-item-info">
+                    <div class="admin-item-name">${escapeHtml(wh.name || 'Unnamed')}</div>
+                    <div class="admin-item-sub">${escapeHtml(wh.url || '')}${wh.channelId ? ` · #${escapeHtml(textChannels.find(c=>c.id===wh.channelId)?.name||wh.channelId)}` : ' · all channels'}</div>
+                </div>
+                <button class="btn-danger-sm" onclick="adminDeleteWebhook('${escapeHtml(wh.url||'')}')">✕</button>
+            </div>`).join('')
+        : '<div class="empty-state">No outbound webhooks.</div>';
+
+    const inboundList = serverInboundHooks.length
+        ? serverInboundHooks.map(ih => {
+            const chName = textChannels.find(c => c.id === ih.channelId)?.name || ih.channelId;
+            const fullUrl = `${httpBase}/inbound/${ih.token}`;
+            return `
+            <div class="admin-item-row">
+                <div class="admin-item-info">
+                    <div class="admin-item-name">${escapeHtml(ih.name || 'Unnamed')} → #${escapeHtml(chName)}</div>
+                    <div class="inbound-hook-url">
+                        <span>${escapeHtml(fullUrl)}</span>
+                        <button class="copy-inline-btn" onclick="navigator.clipboard.writeText('${escapeHtml(fullUrl)}')" title="Copy URL">📋</button>
+                    </div>
+                </div>
+                <button class="btn-danger-sm" onclick="adminDeleteInboundHook('${escapeHtml(ih.token)}')">✕</button>
+            </div>`;}).join('')
+        : '<div class="empty-state">No inbound webhooks.</div>';
+
+    el.innerHTML = `
+        <div class="admin-section-title"><span>Webhooks</span></div>
+
+        <div class="admin-sub-label">Outbound — Iskra → your endpoint</div>
+        <p style="font-size:11px;color:var(--text-faint);margin:0 0 6px;">Fired on every new message. Iskra sends a <code>POST</code> request with this JSON body:</p>
+        <div class="api-doc-block">{
+  "server":    "My Server",
+  "channelId": "general",
+  "channel":   "general",
+  "author":    "alice",
+  "message":   "Hello!",
+  "time":      "3:14 PM"
+}</div>
+        ${outboundList}
+        <div class="admin-form-row" style="flex-wrap:wrap;gap:6px;margin-top:8px;">
+            <input type="text" id="wh-name-input" class="form-input" placeholder="Name" style="flex:1;min-width:80px;">
+            <input type="text" id="wh-url-input"  class="form-input" placeholder="POST URL (https://...)" style="flex:3;min-width:180px;">
+            <input type="text" id="wh-ch-input"   class="form-input" placeholder="Channel ID (blank = all)" style="flex:2;min-width:120px;">
+            <button class="btn-small" onclick="adminAddWebhook()">Add</button>
+        </div>
+
+        <hr class="divider" style="margin:16px 0 14px;">
+
+        <div class="admin-sub-label">Inbound — your service → Iskra</div>
+        <p style="font-size:11px;color:var(--text-faint);margin:0 0 6px;">Each inbound hook gets a secret URL. Send a <code>POST</code> to it and the message appears in the configured channel. Works with GitHub, CI runners, cron jobs, anything that can send HTTP.</p>
+        <div class="api-doc-block">POST ${escapeHtml(httpBase)}/inbound/&lt;token&gt;
+Content-Type: application/json
+
+{ "content": "Build passed ✓ (3 tests)", "username": "CI" }</div>
+        <p style="font-size:11px;color:var(--text-faint);margin:-4px 0 8px;"><code>username</code> is optional — defaults to the hook name. <code>text</code> is accepted as an alias for <code>content</code>.</p>
+        ${inboundList}
+        <div class="admin-form-row" style="gap:6px;margin-top:8px;flex-wrap:wrap;">
+            <input type="text" id="ih-name-input" class="form-input" placeholder="Name (e.g. GitHub)" style="flex:1;min-width:80px;">
+            <select id="ih-ch-input" class="form-input" style="flex:2;min-width:120px;">${chOptions}</select>
+            <button class="btn-small" onclick="adminAddInboundHook()">Add</button>
+        </div>`;
 }
 
 function renderEmojisSection() {
@@ -7389,6 +7845,19 @@ function adminAddWebhook() {
 function adminDeleteWebhook(url) {
     if (!confirm('Delete this webhook?')) return;
     postToBridge({ action: 'DELETE_WEBHOOK', url });
+}
+
+function adminAddInboundHook() {
+    const name = document.getElementById('ih-name-input')?.value.trim() || 'Webhook';
+    const ch   = document.getElementById('ih-ch-input')?.value.trim() || '';
+    if (!ch) { alert('Select a channel.'); return; }
+    postToBridge({ action: 'ADD_INBOUND_WEBHOOK', name, channelId: ch });
+    if (document.getElementById('ih-name-input')) document.getElementById('ih-name-input').value = '';
+}
+
+function adminDeleteInboundHook(token) {
+    if (!confirm('Delete this inbound webhook? The secret URL will stop working immediately.')) return;
+    postToBridge({ action: 'DELETE_INBOUND_WEBHOOK', token });
 }
 
 function adminDeleteEmoji(shortcode) {
@@ -7692,7 +8161,10 @@ function showEmojiPicker(e, msgId) {
     popup.style.left = left + 'px';
     popup.style.top  = top  + 'px';
     searchInput.focus();
-    setTimeout(() => document.addEventListener('click', () => popup.remove(), { once: true }), 0);
+    function _emojiDocClick(ev) {
+        if (!popup.contains(ev.target)) { popup.remove(); document.removeEventListener('click', _emojiDocClick); }
+    }
+    setTimeout(() => document.addEventListener('click', _emojiDocClick), 0);
 }
 
 function hideEmojiPicker() {
@@ -9141,6 +9613,74 @@ function stopRelayPoll() {
     DevLog.log('RELAY', `Signed in as ${relayAlias}`);
 })();
 
+// ── Auto-update ────────────────────────────────────────────────────────────────
+const GH_REPO = 'quikmn/iskra-voice';
+let _pendingUpdateUrl = null;
+
+async function checkForUpdate() {
+    if (IS_WEB) return;
+    try {
+        const verResp = await fetch('https://origin.app/version.txt');
+        if (!verResp.ok) return;
+        const currentVer = (await verResp.text()).trim();
+        if (!currentVer || currentVer === 'dev') return;
+
+        const ghResp = await fetch(`https://api.github.com/repos/${GH_REPO}/releases/latest`,
+            { headers: { Accept: 'application/vnd.github.v3+json' } });
+        if (!ghResp.ok) return;
+        const rel = await ghResp.json();
+        const latestVer = rel.tag_name;
+        if (!latestVer || latestVer === currentVer) return;
+
+        const asset = rel.assets?.find(a => a.name === 'Iskra-Client.zip');
+        if (!asset) return;
+
+        _pendingUpdateUrl = asset.browser_download_url;
+        const bar        = document.getElementById('update-bar');
+        const text       = document.getElementById('update-bar-text');
+        const installBtn = document.getElementById('update-install-btn');
+        const dismissBtn = document.getElementById('update-dismiss-btn');
+        const progressW  = document.getElementById('update-progress-wrap');
+        const pct        = document.getElementById('update-bar-pct');
+        if (!bar) return;
+        text.innerHTML       = `<strong>${escapeHtml(latestVer)}</strong> is available`;
+        installBtn.style.display = '';
+        dismissBtn.style.display = '';
+        progressW.style.display  = 'none';
+        pct.style.display        = 'none';
+        bar.style.display        = 'flex';
+    } catch {}
+}
+
+function dismissUpdate() {
+    const bar = document.getElementById('update-bar');
+    if (bar) bar.style.display = 'none';
+}
+
+function startInstallUpdate() {
+    if (!_pendingUpdateUrl) return;
+    const text       = document.getElementById('update-bar-text');
+    const installBtn = document.getElementById('update-install-btn');
+    const dismissBtn = document.getElementById('update-dismiss-btn');
+    const progressW  = document.getElementById('update-progress-wrap');
+    const fill       = document.getElementById('update-progress-fill');
+    const pct        = document.getElementById('update-bar-pct');
+    installBtn.style.display = 'none';
+    dismissBtn.style.display = 'none';
+    if (text)      text.textContent      = 'Downloading…';
+    if (progressW) progressW.style.display = '';
+    if (fill)      fill.style.width      = '0%';
+    if (pct)       { pct.style.display = ''; pct.textContent = '0%'; }
+    postToBridge({ action: 'INSTALL_UPDATE', url: _pendingUpdateUrl });
+}
+
+function setAutoUpdate(on) {
+    settings.autoUpdate = on;
+    saveSettings();
+    document.getElementById('autoupdate-on')?.classList.toggle('active',  on);
+    document.getElementById('autoupdate-off')?.classList.toggle('active', !on);
+}
+
 // ── Hook into chat send to intercept relay DMs ─────────────────────────────
 const _origSendMessage = typeof sendMessage === 'function' ? sendMessage : null;
 // Monkey-patch the send button / Enter handler
@@ -9148,6 +9688,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('iskraid-badge')?.classList.toggle('visible', !!relayToken);
     document.getElementById('local-badge')?.classList.toggle('visible', !relayToken);
     initChannelListDragDrop();
+    if (!IS_WEB && settings.autoUpdate !== false) setTimeout(checkForUpdate, 4000);
 }, { once: true });
 
 function initChannelListDragDrop() {

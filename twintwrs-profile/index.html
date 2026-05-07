@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TwinTwrs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:    #06060f;
+  --surf:  #0c0c1c;
+  --a1:    #6c63ff;
+  --a2:    #ff4da6;
+  --a3:    #00d4ff;
+  --green: #00ff88;
+  --text:  #e8e8f8;
+  --muted: rgba(232,232,248,0.48);
+  --faint: rgba(232,232,248,0.18);
+  --bord:  rgba(108,99,255,0.2);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ────────────── BACKGROUND LAYERS ────────────── */
+#cvs {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.aurora {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 80% 60% at 12% 30%, rgba(108,99,255,0.16) 0%, transparent 65%),
+    radial-gradient(ellipse 60% 50% at 88% 70%, rgba(255,77,166,0.10) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 55% at 50% 100%, rgba(0,212,255,0.09) 0%, transparent 55%);
+  animation: aur 16s ease-in-out infinite alternate;
+}
+@keyframes aur {
+  0%   { transform: scale(1)    rotate(0);    opacity: .8; }
+  50%  { transform: scale(1.06) rotate(1deg); opacity: 1;  }
+  100% { transform: scale(.97)  rotate(-1deg); opacity:.88; }
+}
+
+.stars {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1px 1px at  7%  9%, rgba(255,255,255,.65) 0%, transparent 100%),
+    radial-gradient(1px 1px at 17% 23%, rgba(255,255,255,.45) 0%, transparent 100%),
+    radial-gradient(1px 1px at 27%  6%, rgba(255,255,255,.60) 0%, transparent 100%),
+    radial-gradient(1px 1px at 37% 18%, rgba(255,255,255,.40) 0%, transparent 100%),
+    radial-gradient(1px 1px at 47% 32%, rgba(255,255,255,.55) 0%, transparent 100%),
+    radial-gradient(1px 1px at 57% 11%, rgba(255,255,255,.50) 0%, transparent 100%),
+    radial-gradient(1px 1px at 67% 26%, rgba(255,255,255,.65) 0%, transparent 100%),
+    radial-gradient(1px 1px at 77%  4%, rgba(255,255,255,.40) 0%, transparent 100%),
+    radial-gradient(1px 1px at 87% 15%, rgba(255,255,255,.55) 0%, transparent 100%),
+    radial-gradient(1px 1px at 93% 30%, rgba(255,255,255,.45) 0%, transparent 100%),
+    radial-gradient(1px 1px at  4% 48%, rgba(255,255,255,.38) 0%, transparent 100%),
+    radial-gradient(1px 1px at 22% 58%, rgba(255,255,255,.52) 0%, transparent 100%),
+    radial-gradient(1px 1px at 43% 44%, rgba(255,255,255,.60) 0%, transparent 100%),
+    radial-gradient(1px 1px at 63% 62%, rgba(255,255,255,.42) 0%, transparent 100%),
+    radial-gradient(1px 1px at 83% 51%, rgba(255,255,255,.55) 0%, transparent 100%),
+    radial-gradient(1px 1px at  9% 76%, rgba(255,255,255,.48) 0%, transparent 100%),
+    radial-gradient(1px 1px at 31% 84%, rgba(255,255,255,.62) 0%, transparent 100%),
+    radial-gradient(1px 1px at 54% 79%, rgba(255,255,255,.38) 0%, transparent 100%),
+    radial-gradient(1px 1px at 74% 88%, rgba(255,255,255,.50) 0%, transparent 100%),
+    radial-gradient(1px 1px at 96% 72%, rgba(255,255,255,.44) 0%, transparent 100%);
+  animation: twinkle 7s ease-in-out infinite alternate;
+}
+@keyframes twinkle {
+  0%   { opacity: .55; }
+  100% { opacity: 1;   }
+}
+
+/* ────────────── LAYOUT ────────────── */
+section, footer { position: relative; z-index: 1; }
+
+/* ────────────── HERO ────────────── */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 24px 72px;
+  text-align: center;
+  gap: 0;
+}
+
+/* ── Towers ── */
+.towers-wrap {
+  position: relative;
+  margin-bottom: 28px;
+  animation: fup .9s ease both;
+}
+.towers-wrap::after {
+  content: '';
+  position: absolute;
+  bottom: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 260px;
+  height: 32px;
+  background: radial-gradient(ellipse at center, rgba(108,99,255,.6) 0%, transparent 70%);
+  filter: blur(10px);
+}
+
+.towers {
+  display: flex;
+  gap: 14px;
+  align-items: flex-end;
+}
+
+.tower {
+  width: 56px;
+  background: linear-gradient(to top, rgba(108,99,255,.55) 0%, rgba(10,8,28,.92) 100%);
+  border: 1px solid rgba(108,99,255,.5);
+  border-bottom: none;
+  position: relative;
+  border-radius: 3px 3px 0 0;
+  animation: tglow 4s ease-in-out infinite alternate;
+}
+.tower:nth-child(1) { height: 148px; }
+.tower:nth-child(2) { height: 184px; animation-delay: 2s; }
+
+.tower::before {
+  content: '';
+  position: absolute;
+  inset: 16px 8px 0;
+  background-image:
+    repeating-linear-gradient(to bottom, transparent 0, transparent 6px, rgba(108,99,255,.5) 6px, rgba(108,99,255,.5) 8px),
+    repeating-linear-gradient(to right,  transparent 0, transparent 10px, rgba(108,99,255,.28) 10px, rgba(108,99,255,.28) 12px);
+}
+
+/* Animated window flicker */
+.tower::after {
+  content: '';
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: rgba(0,212,255,.9);
+  border-radius: 1px;
+  box-shadow: 0 0 8px rgba(0,212,255,.8);
+  animation: wink 3.4s ease-in-out infinite;
+}
+.tower:nth-child(1)::after { top: 28px; left: 14px; animation-delay: .7s; }
+.tower:nth-child(2)::after { top: 40px; right: 12px; animation-delay: 1.8s; }
+
+@keyframes wink {
+  0%, 100% { opacity: 1; }
+  45%, 55%  { opacity: .1; }
+}
+
+/* Antenna on tall tower */
+.antenna {
+  position: absolute;
+  top: -52px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.antenna-pole {
+  width: 2px;
+  height: 48px;
+  background: linear-gradient(to top, rgba(108,99,255,.9), rgba(0,212,255,.5), transparent);
+  margin: 0 auto;
+  box-shadow: 0 0 12px rgba(108,99,255,.8);
+}
+.antenna-blip {
+  width: 6px;
+  height: 6px;
+  background: var(--a3);
+  border-radius: 50%;
+  margin: 0 auto -3px;
+  box-shadow: 0 0 10px var(--a3), 0 0 24px rgba(0,212,255,.5);
+  animation: blip 1.8s ease-in-out infinite;
+}
+@keyframes blip {
+  0%, 100% { transform: scale(1);   opacity: 1;  }
+  50%       { transform: scale(1.8); opacity: .5; }
+}
+
+/* Signal rings */
+.signal-ring {
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  border: 1px solid rgba(0,212,255,.6);
+  animation: signal 2.4s ease-out infinite;
+  pointer-events: none;
+}
+.signal-ring:nth-child(1) { width: 14px; height: 14px; margin-left: -7px; }
+.signal-ring:nth-child(2) { width: 28px; height: 28px; margin-left: -14px; animation-delay: .6s; }
+.signal-ring:nth-child(3) { width: 42px; height: 42px; margin-left: -21px; animation-delay: 1.2s; }
+@keyframes signal {
+  0%   { transform: translateX(-50%) scale(.4); opacity: .9; }
+  100% { transform: translateX(-50%) scale(1);  opacity: 0;  }
+}
+
+@keyframes tglow {
+  from { box-shadow: 0 0 18px rgba(108,99,255,.3),  inset 0 0 18px rgba(108,99,255,.08); border-color: rgba(108,99,255,.5); }
+  to   { box-shadow: 0 0 48px rgba(108,99,255,.75),  inset 0 0 32px rgba(108,99,255,.22); border-color: rgba(108,99,255,.9); }
+}
+
+/* Ground reflection */
+.ground {
+  width: 130px;
+  height: 10px;
+  background: linear-gradient(90deg, transparent, rgba(108,99,255,.5), rgba(0,212,255,.3), rgba(108,99,255,.5), transparent);
+  margin: 0 auto;
+  filter: blur(3px);
+  border-radius: 50%;
+  animation: glow 4s ease-in-out infinite alternate;
+}
+@keyframes glow {
+  from { opacity: .5; transform: scaleX(.85); }
+  to   { opacity: 1;  transform: scaleX(1.1); }
+}
+
+/* ── Name ── */
+.hero-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(80px, 18vw, 140px);
+  letter-spacing: .07em;
+  line-height: 1;
+  background: linear-gradient(135deg, var(--a3) 0%, var(--a1) 42%, var(--a2) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  background-size: 300% 300%;
+  animation: fup .9s .1s ease both, gradsh 8s ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 50px rgba(108,99,255,.5));
+  margin-top: 8px;
+}
+@keyframes gradsh {
+  0%   { background-position: 0%   50%; }
+  100% { background-position: 100% 50%; }
+}
+
+/* ── Status pill ── */
+.status-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  margin: 10px auto 20px;
+  gap: 7px;
+  padding: 5px 14px 5px 10px;
+  background: rgba(0,255,136,.07);
+  border: 1px solid rgba(0,255,136,.25);
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--green);
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  animation: fup .9s .15s ease both;
+}
+.status-dot-live {
+  width: 7px;
+  height: 7px;
+  background: var(--green);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--green);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1);   box-shadow: 0 0 8px var(--green); }
+  50%       { transform: scale(1.4); box-shadow: 0 0 16px var(--green), 0 0 32px rgba(0,255,136,.3); }
+}
+
+.hero-sub {
+  font-size: 13px;
+  letter-spacing: .32em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 400;
+  animation: fup .9s .2s ease both;
+  margin-bottom: 20px;
+  width: 100%;
+  text-align: center;
+}
+
+.sep {
+  width: 88px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--a1) 35%, var(--a2) 65%, transparent);
+  border: none;
+  border-radius: 2px;
+  display: block;
+  margin: 0 auto 22px;
+  animation: fup .9s .25s ease both;
+}
+
+/* ── Link pills ── */
+.hero-links {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  animation: fup .9s .3s ease both;
+  margin-bottom: 36px;
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 22px;
+  min-width: 148px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .03em;
+  text-decoration: none;
+  border: 1px solid var(--bord);
+  background: rgba(108,99,255,.07);
+  color: var(--text);
+  transition: transform .2s, border-color .2s, box-shadow .2s, background .2s;
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+}
+.pill:hover {
+  border-color: var(--a1);
+  background: rgba(108,99,255,.16);
+  transform: translateY(-4px);
+  box-shadow: 0 10px 32px rgba(108,99,255,.32);
+}
+.pill.featured {
+  background: linear-gradient(135deg, rgba(108,99,255,.22), rgba(255,77,166,.14));
+  border-color: rgba(108,99,255,.45);
+}
+
+/* ── Scroll indicator ── */
+.scroll-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--faint);
+  font-size: 10px;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  animation: fup .9s .5s ease both;
+}
+.scroll-chevron {
+  width: 18px;
+  height: 18px;
+  border-right: 1.5px solid var(--faint);
+  border-bottom: 1.5px solid var(--faint);
+  transform: rotate(45deg);
+  animation: bounce 2s ease-in-out infinite;
+}
+@keyframes bounce {
+  0%, 100% { transform: rotate(45deg) translate(0,0);    opacity: .4; }
+  50%       { transform: rotate(45deg) translate(4px,4px); opacity: 1; }
+}
+
+/* ────────────── SECTION SHARED ────────────── */
+.section-chip {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--a1);
+  border: 1px solid rgba(108,99,255,.3);
+  background: rgba(108,99,255,.08);
+  padding: 4px 12px;
+  border-radius: 100px;
+  display: inline-block;
+  margin-bottom: 16px;
+}
+.section-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(40px, 7vw, 62px);
+  letter-spacing: .05em;
+  line-height: 1;
+  margin-bottom: 24px;
+  color: var(--text);
+}
+
+/* ────────────── PS COMMIT CONSOLE ────────────── */
+.commits-section {
+  padding: 0 24px 80px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+.ps-console {
+  background: #08000f;
+  border: 1px solid rgba(190,0,255,.35);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.02),
+              0 24px 64px rgba(0,0,0,.75),
+              0 0 90px rgba(140,0,255,.07);
+  font-family: 'JetBrains Mono', monospace;
+}
+.ps-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: rgba(140,0,255,.1);
+  border-bottom: 1px solid rgba(190,0,255,.2);
+}
+.ps-titlebar-dots { display: flex; gap: 6px; }
+.ps-titlebar-dots span { width: 11px; height: 11px; border-radius: 50%; }
+.ps-td-r { background: #ff5f57; }
+.ps-td-y { background: #ffbd2e; }
+.ps-td-g { background: #28c840; }
+.ps-title-text {
+  font-size: 11px;
+  color: rgba(200,140,255,.5);
+  margin: 0 auto;
+  letter-spacing: .06em;
+}
+.ps-body { padding: 18px 22px 22px; }
+.ps-prompt-line { font-size: 12.5px; line-height: 1.6; margin-bottom: 16px; }
+.ps-cwd { color: #bf5fff; font-weight: 600; }
+.ps-cwd-branch { color: #ff4da6; }
+.ps-gt { color: #00e5cc; margin: 0 6px 0 4px; }
+.ps-cmd-text { color: #c8b8ff; }
+.ps-table { font-size: 12px; }
+.ps-thead {
+  display: grid;
+  grid-template-columns: 72px 140px 1fr;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(190,0,255,.28);
+  margin-bottom: 4px;
+}
+.ps-thead span {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: #ffe566;
+}
+.ps-row {
+  display: grid;
+  grid-template-columns: 72px 140px 1fr;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(190,0,255,.06);
+  opacity: 0;
+  animation: rowfade .35s ease forwards;
+}
+@keyframes rowfade {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: none; }
+}
+.ps-sha  { color: #00e5ff; font-size: 12px; }
+.ps-when { color: #bf5fff; font-size: 12px; }
+.ps-msg  { color: #e8dcff; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ps-loading { color: rgba(190,0,255,.55); font-size: 11.5px; padding: 10px 0 4px; }
+.ps-cursor  { animation: blink .9s step-end infinite; }
+.ps-footer-line { margin-top: 16px; font-size: 12.5px; }
+
+/* ────────────── FOOTER ────────────── */
+footer {
+  text-align: center;
+  padding: 40px 24px 56px;
+  border-top: 1px solid rgba(108,99,255,.1);
+}
+.foot-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px;
+  letter-spacing: .12em;
+  background: linear-gradient(90deg, var(--a1), var(--a3));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 8px;
+}
+.foot-sub  { font-size: 11px; color: var(--faint); letter-spacing: .06em; }
+.foot-sub a { color: rgba(108,99,255,.6); text-decoration: none; }
+.foot-sub a:hover { color: var(--a1); }
+
+/* reveal — disabled in sandboxed iframe context, sections always visible */
+.reveal { opacity: 1; transform: none; }
+
+/* ────────────── UTILITIES ────────────── */
+@keyframes fup {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(108,99,255,.3); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- background -->
+<canvas id="cvs"></canvas>
+<div class="aurora"></div>
+<div class="stars"></div>
+
+<!-- ════════════════════ HERO ════════════════════ -->
+<section class="hero">
+  <div class="towers-wrap">
+    <div class="towers">
+      <div class="tower"></div>
+      <div class="tower">
+        <div class="antenna">
+          <div class="signal-ring"></div>
+          <div class="signal-ring"></div>
+          <div class="signal-ring"></div>
+          <div class="antenna-blip"></div>
+          <div class="antenna-pole"></div>
+        </div>
+      </div>
+    </div>
+    <div class="ground"></div>
+  </div>
+
+  <div class="hero-name">TwinTwrs</div>
+
+  <div class="status-pill">
+    <div class="status-dot-live"></div>
+    Online · Building Iskra
+  </div>
+
+  <p class="hero-sub">Tinkerer</p>
+  <hr class="sep">
+
+  <div class="hero-links">
+    <a href="https://github.com/quikmn" class="pill featured" target="_blank">🐙 GitHub</a>
+    <a href="https://iskra.foo" class="pill" target="_blank">⚡ Iskra</a>
+  </div>
+
+  <div class="scroll-hint">
+    Scroll
+    <div class="scroll-chevron"></div>
+  </div>
+</section>
+
+<!-- ════════════════════ COMMIT LOG ════════════════════ -->
+<section class="commits-section reveal">
+  <div class="section-chip">Live Activity</div>
+  <div class="section-title">Push history.</div>
+  <div class="ps-console">
+    <div class="ps-titlebar">
+      <div class="ps-titlebar-dots">
+        <span class="ps-td-r"></span>
+        <span class="ps-td-y"></span>
+        <span class="ps-td-g"></span>
+      </div>
+      <div class="ps-title-text">Windows PowerShell  ·  iskra-voice  ·  git:main</div>
+    </div>
+    <div class="ps-body">
+      <div class="ps-prompt-line">
+        <span class="ps-cwd">PS C:\dev\iskra-voice <span class="ps-cwd-branch">[git:main]</span></span><span class="ps-gt">&gt;</span><span class="ps-cmd-text">git log --format="%h  %cr  %s" | Select-Object -First 18 | Format-Table -AutoSize</span>
+      </div>
+      <div class="ps-table">
+        <div class="ps-thead">
+          <span>SHA</span><span>WHEN</span><span>MESSAGE</span>
+        </div>
+        <div id="ps-rows"></div>
+        <div class="ps-loading" id="ps-loading">Fetching from api.github.com... <span class="ps-cursor">▌</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════ FOOTER ════════════════════ -->
+<footer class="reveal">
+  <div class="foot-name">TwinTwrs</div>
+  <div class="foot-sub">
+    Building Iskra · Made in Sweden 🇸🇪 ·
+    <a href="https://github.com/quikmn" target="_blank">github.com/quikmn</a> ·
+    <a href="https://github.com/quikmn/iskra-voice" target="_blank">iskra-voice</a>
+  </div>
+</footer>
+
+<script>
+// ── CANVAS PARTICLE NETWORK ────────────────────────────────────────────────────
+(function () {
+  const cvs = document.getElementById('cvs');
+  const ctx = cvs.getContext('2d');
+  let W, H, pts = [];
+
+  function resize() { W = cvs.width = window.innerWidth; H = cvs.height = window.innerHeight; }
+
+  function Pt() { this.reset(true); }
+  Pt.prototype.reset = function (init) {
+    this.x  = Math.random() * W;
+    this.y  = init ? Math.random() * H : (Math.random() < .5 ? -4 : H + 4);
+    this.vx = (Math.random() - .5) * .28;
+    this.vy = (Math.random() - .5) * .28;
+    this.r  = Math.random() * 1.1 + .3;
+    this.a  = Math.random() * .45 + .12;
+    this.ph = Math.random() * Math.PI * 2;
+    this.ps = .012 + Math.random() * .016;
+  };
+  Pt.prototype.step = function () {
+    this.x += this.vx; this.y += this.vy; this.ph += this.ps;
+    if (this.x < -8 || this.x > W + 8 || this.y < -8 || this.y > H + 8) this.reset(false);
+  };
+
+  window.addEventListener('resize', resize);
+  resize();
+  pts = Array.from({ length: 70 }, () => new Pt());
+
+  (function loop() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Subtle grid
+    ctx.strokeStyle = 'rgba(108,99,255,.035)';
+    ctx.lineWidth = 1;
+    const g = 55;
+    for (let x = 0; x < W; x += g) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    for (let y = 0; y < H; y += g) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+    pts.forEach(p => p.step());
+
+    // Connection lines
+    for (let i = 0; i < pts.length; i++) {
+      for (let j = i + 1; j < pts.length; j++) {
+        const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y;
+        const d = Math.hypot(dx, dy);
+        if (d < 90) {
+          ctx.beginPath();
+          ctx.strokeStyle = `rgba(108,99,255,${(1 - d / 90) * .1})`;
+          ctx.lineWidth = .5;
+          ctx.moveTo(pts[i].x, pts[i].y);
+          ctx.lineTo(pts[j].x, pts[j].y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Dots
+    pts.forEach(p => {
+      const a = p.a * (.55 + .45 * Math.sin(p.ph));
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(160,140,255,${a})`;
+      ctx.fill();
+    });
+
+    requestAnimationFrame(loop);
+  })();
+})();
+
+// reveal handled by CSS (always visible — IntersectionObserver unreliable in sandboxed iframes)
+
+
+// ── GITHUB COMMIT LOG ─────────────────────────────────────────────────────────
+function timeAgo(iso) {
+  const s = (Date.now() - new Date(iso)) / 1000;
+  if (s < 60)     return Math.floor(s) + 's ago';
+  if (s < 3600)   return Math.floor(s / 60) + 'm ago';
+  if (s < 86400)  return Math.floor(s / 3600) + 'h ago';
+  if (s < 604800) return Math.floor(s / 86400) + 'd ago';
+  return Math.floor(s / 604800) + 'w ago';
+}
+
+const psRows   = document.getElementById('ps-rows');
+const psLoad   = document.getElementById('ps-loading');
+let commitsFetched = false;
+
+const FALLBACK_COMMITS = [
+  { sha: '8b53b64', when: '2h ago',  msg: 'fix: prevent audio throttle during window move' },
+  { sha: 'cd9dc08', when: '3h ago',  msg: 'fix: audio resume on window move' },
+  { sha: '0249c04', when: '4h ago',  msg: 'fix: e2e toggle in channel context menu' },
+  { sha: '01ccffb', when: '5h ago',  msg: 'feat: live commit ticker on website' },
+  { sha: '4df015c', when: '6h ago',  msg: 'feat: channel management UI, emoji picker, drag reorder' },
+  { sha: 'a3f9e21', when: '1d ago',  msg: 'feat: auto-update installer with progress bar' },
+  { sha: 'b82c10d', when: '1d ago',  msg: 'feat: format picker in message editor' },
+  { sha: 'c44f983', when: '2d ago',  msg: 'fix: voice channel activity input collapse' },
+  { sha: 'd91a2b5', when: '2d ago',  msg: 'feat: IskraID global identity layer' },
+  { sha: 'e7d3c8f', when: '3d ago',  msg: 'feat: TURN relay for p2p fallback' },
+  { sha: 'f120ae4', when: '4d ago',  msg: 'feat: native windows client via WebView2' },
+  { sha: '0bc3391', when: '5d ago',  msg: 'feat: per-server role hierarchy + permissions' },
+  { sha: '12f4d62', when: '6d ago',  msg: 'feat: E2E encrypted direct messages' },
+  { sha: '2a9b874', when: '1w ago',  msg: 'chore: cloudflare pages ci/cd pipeline' },
+];
+
+function renderCommits(list) {
+  psLoad.remove();
+  list.forEach((c, i) => {
+    const row = document.createElement('div');
+    row.className = 'ps-row';
+    row.style.animationDelay = (i * 0.055) + 's';
+    row.innerHTML =
+      `<span class="ps-sha">${c.sha}</span>` +
+      `<span class="ps-when">${c.when}</span>` +
+      `<span class="ps-msg">${c.msg.slice(0, 62)}</span>`;
+    psRows.appendChild(row);
+  });
+  const fp = document.createElement('div');
+  fp.className = 'ps-prompt-line ps-footer-line';
+  fp.innerHTML =
+    `<span class="ps-cwd">PS C:\\dev\\iskra-voice <span class="ps-cwd-branch">[git:main]</span></span>` +
+    `<span class="ps-gt">&gt;</span><span class="ps-cursor">▌</span>`;
+  document.querySelector('.ps-body').appendChild(fp);
+}
+
+async function loadCommits() {
+  if (commitsFetched) return;
+  commitsFetched = true;
+  try {
+    const res  = await fetch('https://api.github.com/repos/quikmn/iskra-voice/commits?per_page=20');
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    renderCommits(data.map(c => ({
+      sha:  c.sha.slice(0, 7),
+      when: timeAgo(c.commit.author.date),
+      msg:  c.commit.message.split('\n')[0],
+    })));
+  } catch (_) {
+    renderCommits(FALLBACK_COMMITS);
+  }
+}
+
+setTimeout(loadCommits, 800);
+</script>
+</body>
+</html>

@@ -11,6 +11,17 @@ $zipOut   = Join-Path $root 'Iskra-Client.zip'
 
 Set-Location $root
 
+# 0. Kill running client so the exe isn't locked
+$exeName = 'iskra_client'
+try {
+    $procs = Get-Process -Name $exeName -ErrorAction SilentlyContinue
+    if ($procs) {
+        $procs | Stop-Process -Force
+        Write-Host "Killed $($procs.Count) running instance(s) of $exeName" -ForegroundColor Yellow
+        Start-Sleep -Milliseconds 600
+    }
+} catch { Write-Host "Could not kill $exeName : $_" -ForegroundColor Yellow }
+
 # 1. Build
 Write-Host "Building..." -ForegroundColor Cyan
 $output   = dotnet build $project -c Release --nologo 2>&1
@@ -32,9 +43,11 @@ if ($exitCode -ne 0) {
     exit 1
 }
 
-# 2. Copy index.html
+# 2. Copy index.html + version.txt
 Write-Host "Copying index.html..." -ForegroundColor Cyan
 Copy-Item $indexSrc (Join-Path $binDir 'index.html') -Force
+$versionSrc = Join-Path $root 'iskra_client\version.txt'
+if (Test-Path $versionSrc) { Copy-Item $versionSrc (Join-Path $binDir 'version.txt') -Force }
 
 # 3. Zip (skip .pdb and .xml)
 Write-Host "Zipping..." -ForegroundColor Cyan
@@ -54,3 +67,12 @@ $zip.Dispose()
 
 $sizeMB = [math]::Round((Get-Item $zipOut).Length / 1MB, 1)
 Write-Host "Done! $zipOut ($sizeMB MB)" -ForegroundColor Green
+
+# Relaunch client
+try {
+    $clientExe = Join-Path $binDir "$exeName.exe"
+    if (Test-Path $clientExe) {
+        Start-Process $clientExe
+        Write-Host "Relaunched $exeName" -ForegroundColor Green
+    }
+} catch { Write-Host "Could not relaunch client: $_" -ForegroundColor Yellow }

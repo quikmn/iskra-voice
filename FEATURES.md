@@ -1,7 +1,7 @@
 # Iskra — Feature Inventory
 
 > Living document. Update this file whenever a feature is added, fixed, or changed.
-> Last updated: 2026-05-05
+> Last updated: 2026-05-08
 
 ---
 
@@ -36,7 +36,7 @@
 | Full thread branching | ✅ | Side-panel threads off any message; persistent; count shown on parent |
 | Message forward | ✅ | Modal picks destination channel/DM, optional comment |
 | Bookmarks / starred messages | ✅ | Per-message ☆ button; panel shows all bookmarks by server |
-| Link previews (Open Graph) | ✅ | Title + description + image; cached server-side |
+| Link previews (Open Graph) | ✅ | Title + description + image; cached server-side; YouTube via oEmbed |
 | Typing indicators | ✅ | "X is typing…" with 3s debounce |
 | System messages | ✅ | Amber italic; multi-line (pre-wrap) for /help output |
 | @mention highlighting (received) | ✅ | Personal mentions highlighted; @everyone/@here distinct colour; role mentions amber |
@@ -81,6 +81,7 @@
 |---------|--------|-------|
 | Screen sharing | ✅ | P2P WebRTC; fullscreen overlay view; includes system audio track |
 | Video (webcam) in voice | ✅ | Toggle button; 30 FPS target; shows in share panel |
+| Synchronized watch party | ✅ | YouTube IFrame API; host controls playback; viewers sync via WATCH_TICK every 5s with drift correction; `/watch <url>` or "▶ Watch Together" on preview cards |
 
 ### Files & Media
 
@@ -178,7 +179,9 @@
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Outbound webhooks | ✅ | HTTP POST to URL on new message; admin manages |
+| Inbound webhooks (GitHub/CI → channel) | ❌ | Not yet implemented |
 | Inbound bot API | ✅ | Named bot tokens; bots connect via WebSocket |
+| Auto-update | ✅ | Checks GitHub releases API on startup; download progress bar; self-replaces via PS script; opt-in toggle in settings |
 | DevLog panel | ✅ | F9; colour-coded by category (BRIDGE, VOICE, RTC, etc.) |
 | E2E encryption (channels + DMs) | ✅ | AES-GCM 256; EC pubkey wrapping; per-member access |
 | TURN server support | ✅ | Configured in `server.json`; sent to clients in ICE config |
@@ -225,5 +228,6 @@
 | Forum/board channel type | Post-style threads |
 | Server templates | Clone channel/role layout |
 | Stage channels | One speaker, many listeners |
-| Inbound webhook (GitHub/CI → channel) | Post from external HTTP |
-| Mobile client | Not started |
+| Inbound webhook (GitHub/CI → channel) | HTTP POST from GitHub, CI, etc. into a channel |
+| Mobile PWA | Push notifications, offline shell |
+| Spotify now-playing status | Show current track as custom status |

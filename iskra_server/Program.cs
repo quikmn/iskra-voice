@@ -62,6 +62,7 @@ namespace Origin.Server.Core
         private static ConcurrentDictionary<string, ThreadMeta> _threadMetas  = new(); // threadId → meta
         private static ConcurrentDictionary<string, string>     _voiceStatuses   = new(); // channelId → status text (session-only)
         private static ConcurrentDictionary<string, bool>       _starboardPosted = new(); // messageId → true (de-dup)
+        private static ConcurrentDictionary<string, WatchSession> _watchSessions   = new(); // voiceChannelId → session
         private static string ThreadsFile => Path.Combine(ActiveWorldPath, "threads.json");
         private static ConcurrentDictionary<string, string> UserStatuses     = new(); // alias → "online"/"away"/"dnd"/"invisible"
         private static ConcurrentDictionary<string, string> UserStatusTexts = new(); // alias → custom status text
@@ -201,6 +202,8 @@ namespace Origin.Server.Core
                         HandleAudit(context);
                     else if (path == "/preview")
                         HandlePreview(context);
+                    else if (path.StartsWith("/inbound/"))
+                        await HandleInboundWebhook(context, path[9..]);
                     else
                         { context.Response.StatusCode = 404; context.Response.Close(); }
                 }
@@ -710,6 +713,58 @@ namespace Origin.Server.Core
             });
         }
 
+        // ── Inbound webhooks ─────────────────────────────────────────────────────
+
+        private static async Task HandleInboundWebhook(HttpListenerContext ctx, string token)
+        {
+            ctx.Response.AddHeader("Access-Control-Allow-Origin", "*");
+            if (ctx.Request.HttpMethod == "OPTIONS") { ctx.Response.StatusCode = 204; ctx.Response.Close(); return; }
+            if (ctx.Request.HttpMethod != "POST")    { ctx.Response.StatusCode = 405; ctx.Response.Close(); return; }
+
+            var entry = ActiveConfig.Settings.InboundHooks.FirstOrDefault(h => h.Token == token);
+            if (entry == null) { ctx.Response.StatusCode = 404; ctx.Response.Close(); return; }
+            if (!ActiveConfig.Channels.Any(c => c.Id == entry.ChannelId && c.Type == "Text"))
+                { ctx.Response.StatusCode = 422; ctx.Response.Close(); return; }
+
+            string body = "";
+            try { using var sr = new StreamReader(ctx.Request.InputStream); body = await sr.ReadToEndAsync(); } catch { }
+
+            string content  = body;
+            string username = entry.Name;
+            try
+            {
+                using var doc = JsonDocument.Parse(body);
+                if (doc.RootElement.TryGetProperty("content",  out var cEl)) content  = cEl.GetString() ?? body;
+                if (doc.RootElement.TryGetProperty("username", out var uEl)) username = uEl.GetString() ?? username;
+                if (doc.RootElement.TryGetProperty("text",     out var tEl) && string.IsNullOrEmpty(content)) content = tEl.GetString() ?? body;
+            }
+            catch { }
+
+            content = content.Trim();
+            if (string.IsNullOrEmpty(content)) { ctx.Response.StatusCode = 400; ctx.Response.Close(); return; }
+            content = content[..Math.Min(2000, content.Length)];
+
+            string msgId = Guid.NewGuid().ToString("N")[..12];
+            var stored   = new StoredMessage { Id = msgId, Author = username, Time = DateTime.Now.ToString("h:mm tt"), Ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), Message = content };
+            lock (HistoryLock)
+            {
+                if (!ChannelHistory.ContainsKey(entry.ChannelId)) ChannelHistory[entry.ChannelId] = new();
+                ChannelHistory[entry.ChannelId].Add(stored);
+            }
+            string jsonLine = MessageToJsonLine(entry.ChannelId, stored);
+            await File.AppendAllTextAsync(ChatFile(entry.ChannelId), jsonLine + Environment.NewLine);
+            var lineBytes = Encoding.UTF8.GetBytes(jsonLine);
+            foreach (var client in ActiveClients.Values)
+                try { await client.SendAsync(new ArraySegment<byte>(lineBytes), WebSocketMessageType.Text, true, CancellationToken.None); } catch { }
+
+            Log("INBOUND", $"[{entry.ChannelId}] {username}: {content[..Math.Min(60, content.Length)]}");
+
+            ctx.Response.StatusCode  = 200;
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes("{\"ok\":true}"));
+            ctx.Response.Close();
+        }
+
         // ── Export ───────────────────────────────────────────────────────────────
 
         private static async void HandleExport(HttpListenerContext ctx)
@@ -817,6 +872,32 @@ namespace Origin.Server.Core
             }
             try
             {
+                // YouTube oEmbed — avoids bot-blocking on direct HTML fetch
+                if (uri.Host.EndsWith("youtube.com") || uri.Host.EndsWith("youtu.be"))
+                {
+                    string oeUrl = $"https://www.youtube.com/oembed?url={Uri.EscapeDataString(url)}&format=json";
+                    using var oeReq = new HttpRequestMessage(HttpMethod.Get, oeUrl);
+                    oeReq.Headers.UserAgent.ParseAdd("Mozilla/5.0 (compatible; Iskra/1.0)");
+                    using var oeResp = await _http.SendAsync(oeReq);
+                    if (oeResp.IsSuccessStatusCode)
+                    {
+                        using var oeDoc = JsonDocument.Parse(await oeResp.Content.ReadAsStringAsync());
+                        string yt  = oeDoc.RootElement.TryGetProperty("title",         out var t)  ? t.GetString()  ?? "" : "";
+                        string ytT = oeDoc.RootElement.TryGetProperty("thumbnail_url",  out var th) ? th.GetString() ?? "" : "";
+                        string ytA = oeDoc.RootElement.TryGetProperty("author_name",    out var a)  ? a.GetString()  ?? "" : "";
+                        if (!string.IsNullOrEmpty(yt))
+                        {
+                            string ytJson = JsonSerializer.Serialize(new { title = yt, description = ytA, image = ytT, siteName = "YouTube", url });
+                            PreviewCache.TryAdd(url, ytJson);
+                            ctx.Response.StatusCode = 200; ctx.Response.ContentType = "application/json";
+                            await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(ytJson));
+                            ctx.Response.Close();
+                            Log("PREVIEW", $"YouTube: {yt[..Math.Min(40, yt.Length)]}");
+                            return;
+                        }
+                    }
+                }
+
                 using var req = new HttpRequestMessage(HttpMethod.Get, url);
                 req.Headers.UserAgent.ParseAdd("Mozilla/5.0 (compatible; Iskra/1.0)");
                 req.Headers.Accept.ParseAdd("text/html,*/*;q=0.9");
@@ -1143,8 +1224,9 @@ namespace Origin.Server.Core
                     roleColors       = ActiveConfig.Settings.RoleColors,
                     emojis           = emojisCopy,
                     // admin-only fields
-                    webhooks         = isAdmin ? ActiveConfig.Settings.Webhooks : null,
-                    botTokens        = isAdmin ? ActiveConfig.Settings.BotTokens : null,
+                    webhooks         = isAdmin ? ActiveConfig.Settings.Webhooks     : null,
+                    botTokens        = isAdmin ? ActiveConfig.Settings.BotTokens    : null,
+                    inboundHooks     = isAdmin ? ActiveConfig.Settings.InboundHooks : null,
                     publicKeys       = pubKeysCopy,
                     e2eAccess        = e2eAccessCopy,
                     uploadBase       = $"http://{context.Request.UserHostName}",
@@ -1620,6 +1702,89 @@ namespace Origin.Server.Core
                         await Broadcast(new { action = "SCREEN_SHARE_STOPPED", alias = currentAlias });
                     }
 
+                    // ── START_WATCH ───────────────────────────────────────────────
+                    else if (action == "START_WATCH")
+                    {
+                        if (currentVoiceChannel == null) continue;
+                        string watchUrl = incoming.RootElement.TryGetProperty("url", out var wuEl) ? wuEl.GetString()?.Trim() : null;
+                        if (string.IsNullOrEmpty(watchUrl)) continue;
+                        var vidMatch = Regex.Match(watchUrl, @"(?:v=|youtu\.be/)([A-Za-z0-9_\-]{11})");
+                        string videoId = vidMatch.Success ? vidMatch.Groups[1].Value : "";
+                        var session = new WatchSession(watchUrl, videoId, false, 0, currentAlias, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+                        _watchSessions[currentVoiceChannel] = session;
+                        Log("WATCH", $"'{currentAlias}' started watch party in '{currentVoiceChannel}': {videoId}");
+                        if (ChannelOccupants.TryGetValue(currentVoiceChannel, out var wStartUsers))
+                        {
+                            var wStartMsg = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new {
+                                action = "WATCH_STATE", channelId = currentVoiceChannel,
+                                url = session.Url, videoId = session.VideoId,
+                                playing = session.Playing, position = session.Position,
+                                hostAlias = session.HostAlias, ts = session.Ts
+                            }));
+                            foreach (var u in wStartUsers)
+                                if (ActiveClients.TryGetValue(u, out WebSocket wSock))
+                                    try { await wSock.SendAsync(new ArraySegment<byte>(wStartMsg), WebSocketMessageType.Text, true, CancellationToken.None); } catch { }
+                        }
+                    }
+
+                    // ── WATCH_CONTROL ─────────────────────────────────────────────
+                    else if (action == "WATCH_CONTROL")
+                    {
+                        if (currentVoiceChannel == null || !_watchSessions.TryGetValue(currentVoiceChannel, out var wCtrlSession)) continue;
+                        if (wCtrlSession.HostAlias != currentAlias) continue;
+                        bool wPlaying  = incoming.RootElement.TryGetProperty("playing",  out var wpEl)   && wpEl.GetBoolean();
+                        double wPos    = incoming.RootElement.TryGetProperty("position", out var wposEl)  ? wposEl.GetDouble() : wCtrlSession.Position;
+                        long wTs       = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                        _watchSessions[currentVoiceChannel] = wCtrlSession with { Playing = wPlaying, Position = wPos, Ts = wTs };
+                        if (ChannelOccupants.TryGetValue(currentVoiceChannel, out var wCtrlUsers))
+                        {
+                            var wCtrlMsg = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new {
+                                action = "WATCH_STATE", channelId = currentVoiceChannel,
+                                url = wCtrlSession.Url, videoId = wCtrlSession.VideoId,
+                                playing = wPlaying, position = wPos, hostAlias = wCtrlSession.HostAlias, ts = wTs
+                            }));
+                            foreach (var u in wCtrlUsers)
+                                if (u != currentAlias && ActiveClients.TryGetValue(u, out WebSocket wSock))
+                                    try { await wSock.SendAsync(new ArraySegment<byte>(wCtrlMsg), WebSocketMessageType.Text, true, CancellationToken.None); } catch { }
+                        }
+                    }
+
+                    // ── WATCH_TICK ────────────────────────────────────────────────
+                    else if (action == "WATCH_TICK")
+                    {
+                        if (currentVoiceChannel == null || !_watchSessions.TryGetValue(currentVoiceChannel, out var wTickSession)) continue;
+                        if (wTickSession.HostAlias != currentAlias) continue;
+                        double tPos = incoming.RootElement.TryGetProperty("position", out var tposEl) ? tposEl.GetDouble() : wTickSession.Position;
+                        long tTs    = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                        _watchSessions[currentVoiceChannel] = wTickSession with { Position = tPos, Ts = tTs };
+                        if (ChannelOccupants.TryGetValue(currentVoiceChannel, out var wTickUsers))
+                        {
+                            var wTickMsg = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new {
+                                action = "WATCH_TICK", channelId = currentVoiceChannel,
+                                position = tPos, playing = wTickSession.Playing, ts = tTs
+                            }));
+                            foreach (var u in wTickUsers)
+                                if (u != currentAlias && ActiveClients.TryGetValue(u, out WebSocket wSock))
+                                    try { await wSock.SendAsync(new ArraySegment<byte>(wTickMsg), WebSocketMessageType.Text, true, CancellationToken.None); } catch { }
+                        }
+                    }
+
+                    // ── STOP_WATCH ────────────────────────────────────────────────
+                    else if (action == "STOP_WATCH")
+                    {
+                        if (currentVoiceChannel == null || !_watchSessions.TryGetValue(currentVoiceChannel, out var wStopSession)) continue;
+                        if (wStopSession.HostAlias != currentAlias) continue;
+                        _watchSessions.TryRemove(currentVoiceChannel, out _);
+                        Log("WATCH", $"'{currentAlias}' stopped watch party in '{currentVoiceChannel}'");
+                        if (ChannelOccupants.TryGetValue(currentVoiceChannel, out var wStopUsers))
+                        {
+                            var wStopMsg = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { action = "WATCH_STOPPED", channelId = currentVoiceChannel }));
+                            foreach (var u in wStopUsers)
+                                if (ActiveClients.TryGetValue(u, out WebSocket wSock))
+                                    try { await wSock.SendAsync(new ArraySegment<byte>(wStopMsg), WebSocketMessageType.Text, true, CancellationToken.None); } catch { }
+                        }
+                    }
+
                     // ── SET_AVATAR ───────────────────────────────────────────────
                     else if (action == "SET_AVATAR")
                     {
@@ -1703,6 +1868,18 @@ namespace Origin.Server.Core
                         ChannelOccupants[channelId].Add(currentAlias);
 
                         await Broadcast(new { action = "VOICE_STATE_UPDATE", channelId, users = ChannelOccupants[channelId] });
+
+                        // Send active watch session state to the joining user
+                        if (_watchSessions.TryGetValue(channelId, out var joinWs) && ActiveClients.TryGetValue(currentAlias, out WebSocket jwSock))
+                        {
+                            var joinWsMsg = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new {
+                                action = "WATCH_STATE", channelId,
+                                url = joinWs.Url, videoId = joinWs.VideoId,
+                                playing = joinWs.Playing, position = joinWs.Position,
+                                hostAlias = joinWs.HostAlias, ts = joinWs.Ts
+                            }));
+                            try { await jwSock.SendAsync(new ArraySegment<byte>(joinWsMsg), WebSocketMessageType.Text, true, CancellationToken.None); } catch { }
+                        }
                     }
 
                     // ── LEAVE_VOICE ──────────────────────────────────────────────
@@ -1717,6 +1894,16 @@ namespace Origin.Server.Core
                             Log("VOICE", $"'{currentAlias}' left '{channelId}' (voluntary) | remaining:{leaveList.Count}");
                             var leftNotice  = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { action = "USER_LEFT_VOICE", alias = currentAlias }));
                             var stateBytes  = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { action = "VOICE_STATE_UPDATE", channelId, users = leaveList }));
+                            // Stop watch session if host left
+                            if (_watchSessions.TryGetValue(channelId, out var leaveWs) && leaveWs.HostAlias == currentAlias)
+                            {
+                                _watchSessions.TryRemove(channelId, out _);
+                                var wStopBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { action = "WATCH_STOPPED", channelId }));
+                                foreach (var u in leaveList)
+                                    if (ActiveClients.TryGetValue(u, out WebSocket wSock))
+                                        try { await wSock.SendAsync(new ArraySegment<byte>(wStopBytes), WebSocketMessageType.Text, true, CancellationToken.None); } catch { }
+                            }
+
                             foreach (var u in leaveList)
                                 if (ActiveClients.TryGetValue(u, out WebSocket oSock))
                                 {
@@ -1915,26 +2102,104 @@ namespace Origin.Server.Core
                         await Send(socket, new { action = "WEBHOOKS_UPDATED", webhooks = ActiveConfig.Settings.Webhooks });
                     }
 
+                    // ── ADD_INBOUND_WEBHOOK ──────────────────────────────────────
+                    else if (action == "ADD_INBOUND_WEBHOOK")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin"))
+                        { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Only admins can manage webhooks." }); continue; }
+                        string ihName = incoming.RootElement.TryGetProperty("name",      out var ihnEl) ? ihnEl.GetString()?.Trim() ?? "Webhook" : "Webhook";
+                        string ihCh   = incoming.RootElement.TryGetProperty("channelId", out var ihcEl) ? ihcEl.GetString()?.Trim() ?? "" : "";
+                        if (string.IsNullOrEmpty(ihCh)) { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Channel ID is required for inbound webhook." }); continue; }
+                        if (!ActiveConfig.Channels.Any(c => c.Id == ihCh && c.Type == "Text")) { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Channel not found." }); continue; }
+                        var ihEntry = new InboundWebhookEntry { Name = ihName, Token = Guid.NewGuid().ToString("N"), ChannelId = ihCh };
+                        ActiveConfig.Settings.InboundHooks.Add(ihEntry);
+                        File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true }));
+                        Log("INBOUND", $"'{currentAlias}' added inbound webhook '{ihName}' → #{ihCh}");
+                        LogAudit("INBOUND_WEBHOOK_ADD", currentAlias, ihName);
+                        await Send(socket, new { action = "INBOUND_HOOKS_UPDATED", inboundHooks = ActiveConfig.Settings.InboundHooks });
+                    }
+
+                    // ── DELETE_INBOUND_WEBHOOK ───────────────────────────────────
+                    else if (action == "DELETE_INBOUND_WEBHOOK")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin"))
+                        { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Only admins can manage webhooks." }); continue; }
+                        string ihToken = incoming.RootElement.GetProperty("token").GetString() ?? "";
+                        int ihRemoved  = ActiveConfig.Settings.InboundHooks.RemoveAll(h => h.Token == ihToken);
+                        if (ihRemoved > 0)
+                        {
+                            File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true }));
+                            Log("INBOUND", $"'{currentAlias}' removed inbound webhook (token: {ihToken[..Math.Min(8, ihToken.Length)]}…)");
+                            LogAudit("INBOUND_WEBHOOK_DELETE", currentAlias, ihToken[..Math.Min(8, ihToken.Length)] + "…");
+                        }
+                        await Send(socket, new { action = "INBOUND_HOOKS_UPDATED", inboundHooks = ActiveConfig.Settings.InboundHooks });
+                    }
+
                     // ── SEARCH_MESSAGES ──────────────────────────────────────────
                     else if (action == "SEARCH_MESSAGES")
                     {
-                        string srchChId = incoming.RootElement.TryGetProperty("channelId", out var sciEl) ? sciEl.GetString() ?? "" : "";
-                        string srchQ    = incoming.RootElement.GetProperty("query").GetString()?.Trim().ToLowerInvariant() ?? "";
-                        if (string.IsNullOrEmpty(srchQ)) { await Send(socket, new { action = "SEARCH_RESULTS", channelId = srchChId, query = srchQ, results = Array.Empty<object>() }); continue; }
+                        string srchChId = incoming.RootElement.TryGetProperty("channelId", out var sciEl) ? sciEl.GetString()?.Trim() ?? "" : "";
+                        string srchQ    = incoming.RootElement.TryGetProperty("query", out var sqEl) ? sqEl.GetString()?.Trim() ?? "" : "";
+                        if (srchQ.Length < 2) { await Send(socket, new { action = "SEARCH_RESULTS", query = srchQ, results = Array.Empty<object>() }); continue; }
+                        string srchQLow  = srchQ.ToLowerInvariant();
                         bool allChannels = string.IsNullOrEmpty(srchChId);
+                        // Never search E2E channels — their stored content is encrypted ciphertext
                         var srchChannels = allChannels
-                            ? ActiveConfig.Channels.Where(c => (c.Type == "Text") && CanAccess(userRole, c.MinRole)).ToList()
-                            : ActiveConfig.Channels.Where(c => c.Id == srchChId && CanAccess(userRole, c.MinRole)).ToList();
-                        if (!srchChannels.Any()) continue;
-                        var srchResults = new List<object>();
+                            ? ActiveConfig.Channels.Where(c => c.Type == "Text" && !c.E2E && CanAccess(userRole, c.MinRole)).ToList()
+                            : ActiveConfig.Channels.Where(c => c.Id == srchChId && !c.E2E && CanAccess(userRole, c.MinRole)).ToList();
+                        if (!srchChannels.Any()) { await Send(socket, new { action = "SEARCH_RESULTS", query = srchQ, results = Array.Empty<object>() }); continue; }
+
+                        // History is fully preloaded into memory at startup (LoadChannelHistory).
+                        // New messages are added to ChannelHistory as they arrive — so in-memory is always complete.
+                        // Fall back to JSONL scan only for channels not yet in memory (e.g. created after boot with no messages yet).
+                        var srchHits = new List<(long ts, string id, string author, string time, string message, string chId)>();
                         lock (HistoryLock)
+                        {
                             foreach (var sc in srchChannels)
-                                if (ChannelHistory.TryGetValue(sc.Id, out var srchMsgs))
-                                    srchResults.AddRange(srchMsgs
-                                        .Where(m => (m.Message?.ToLowerInvariant().Contains(srchQ) == true) || (m.Author?.ToLowerInvariant().Contains(srchQ) == true))
-                                        .Select(m => (object)new { id = m.Id, author = m.Author, time = m.Time, ts = m.Ts, message = m.Message, channelId = sc.Id }));
-                        srchResults = srchResults.OrderByDescending(r => ((dynamic)r).ts).Take(80).ToList();
-                        await Send(socket, new { action = "SEARCH_RESULTS", channelId = srchChId, query = srchQ, results = srchResults });
+                            {
+                                if (ChannelHistory.TryGetValue(sc.Id, out var cached))
+                                {
+                                    foreach (var m in cached)
+                                    {
+                                        if ((m.Message?.ToLowerInvariant().Contains(srchQLow) == true) ||
+                                            (m.Author?.ToLowerInvariant().Contains(srchQLow)  == true))
+                                            srchHits.Add((m.Ts, m.Id ?? "", m.Author ?? "", m.Time ?? "", m.Message ?? "", sc.Id));
+                                    }
+                                }
+                                else
+                                {
+                                    // JSONL fallback for channels with no in-memory history
+                                    string chatPath = ChatFile(sc.Id);
+                                    if (!File.Exists(chatPath)) continue;
+                                    try
+                                    {
+                                        foreach (var rawLine in File.ReadLines(chatPath))
+                                        {
+                                            if (rawLine.Length < 4 || !rawLine.ToLowerInvariant().Contains(srchQLow)) continue;
+                                            try
+                                            {
+                                                using var ld = JsonDocument.Parse(rawLine);
+                                                var lr = ld.RootElement;
+                                                string lMsg    = lr.TryGetProperty("message", out var lmEl) ? lmEl.GetString() ?? "" : "";
+                                                string lAuthor = lr.TryGetProperty("author",  out var laEl) ? laEl.GetString() ?? "" : "";
+                                                if (!lMsg.ToLowerInvariant().Contains(srchQLow) && !lAuthor.ToLowerInvariant().Contains(srchQLow)) continue;
+                                                string lId   = lr.TryGetProperty("id",   out var liEl) ? liEl.GetString() ?? "" : "";
+                                                string lTime = lr.TryGetProperty("time", out var ltEl) ? ltEl.GetString() ?? "" : "";
+                                                long   lTs   = lr.TryGetProperty("ts",   out var ltsEl) && ltsEl.ValueKind == JsonValueKind.Number ? ltsEl.GetInt64() : 0;
+                                                srchHits.Add((lTs, lId, lAuthor, lTime, lMsg, sc.Id));
+                                            }
+                                            catch { }
+                                        }
+                                    }
+                                    catch { }
+                                }
+                            }
+                        }
+                        var srchResults = srchHits
+                            .OrderByDescending(h => h.ts).Take(80)
+                            .Select(h => (object)new { id = h.id, author = h.author, time = h.time, ts = h.ts, message = h.message, channelId = h.chId })
+                            .ToList();
+                        await Send(socket, new { action = "SEARCH_RESULTS", query = srchQ, results = srchResults });
                         Log("SEARCH", $"'{currentAlias}' searched [{(allChannels ? "all" : srchChId)}] '{srchQ}' → {srchResults.Count} hits");
                     }
 
@@ -2522,6 +2787,17 @@ namespace Origin.Server.Core
                     users.Remove(currentAlias);
                     if (users.Count == 0) _voiceStatuses.TryRemove(currentVoiceChannel, out _);
                     Log("VOICE", $"'{currentAlias}' left '{currentVoiceChannel}' on disconnect | remaining:{users.Count}");
+
+                    // Stop watch session if host disconnected
+                    if (_watchSessions.TryGetValue(currentVoiceChannel, out var dcWs) && dcWs.HostAlias == currentAlias)
+                    {
+                        _watchSessions.TryRemove(currentVoiceChannel, out _);
+                        var dcWsStop = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { action = "WATCH_STOPPED", channelId = currentVoiceChannel }));
+                        foreach (var user in users)
+                            if (ActiveClients.TryGetValue(user, out WebSocket wSock))
+                                try { await wSock.SendAsync(new ArraySegment<byte>(dcWsStop), WebSocketMessageType.Text, true, CancellationToken.None); } catch { }
+                    }
+
                     var exitLeft  = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { action = "USER_LEFT_VOICE", alias = currentAlias }));
                     var exitState = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { action = "VOICE_STATE_UPDATE", channelId = currentVoiceChannel, users }));
                     foreach (var user in users)
@@ -2569,8 +2845,9 @@ namespace Origin.Server.Data
         public string StarboardChannelId   { get; set; } = "";
         public string StarboardEmoji       { get; set; } = "⭐";
         public int    StarboardThreshold   { get; set; } = 3;
-        public List<string>          BotTokens { get; set; } = new();
-        public List<WebhookEntry>    Webhooks  { get; set; } = new();
+        public List<string>              BotTokens    { get; set; } = new();
+        public List<WebhookEntry>        Webhooks     { get; set; } = new();
+        public List<InboundWebhookEntry> InboundHooks { get; set; } = new();
         public List<ScheduledEvent>  Events    { get; set; } = new();
         public PublicListingConfig?  PublicListing { get; set; } = null;
     }
@@ -2676,6 +2953,15 @@ namespace Origin.Server.Data
         public List<string> Aliases      { get; set; } = new();
         public List<string> IpAddresses  { get; set; } = new();
         public DateTime     LastSeen     { get; set; }
+    }
+
+    public record WatchSession(string Url, string VideoId, bool Playing, double Position, string HostAlias, long Ts);
+
+    public class InboundWebhookEntry
+    {
+        public string Name      { get; set; } = "";
+        public string Token     { get; set; } = Guid.NewGuid().ToString("N");
+        public string ChannelId { get; set; } = "";
     }
 
     public class E2EWrappedKey

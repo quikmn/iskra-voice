@@ -1,16 +1,26 @@
 # Build and ship all clients from a single command.
 # Usage:
-#   .\ship-all.ps1           — ship native client + web client
-#   .\ship-all.ps1 -WebOnly  — web client only (no GitHub release)
-#   .\ship-all.ps1 -NativeOnly — native + server GitHub release only
+#   .\ship-all.ps1 -Version v1.2   — full ship: build + deploy live + GitHub release
+#   .\ship-all.ps1                 — build + deploy live, no GitHub release
+#   .\ship-all.ps1 -WebOnly        — web client only
+#   .\ship-all.ps1 -NativeOnly     — native + server only (no web deploy)
+#   .\ship-all.ps1 -SkipDeploy     — skip live server deploy
 
 param(
+    [string]$Version,
     [switch]$WebOnly,
-    [switch]$NativeOnly
+    [switch]$NativeOnly,
+    [switch]$SkipDeploy
 )
 
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
+
+if ($Version) {
+    $verFile = Join-Path $root 'iskra_client\version.txt'
+    Set-Content $verFile -Value $Version -NoNewline -Encoding UTF8
+    Write-Host "Version set to $Version" -ForegroundColor Cyan
+}
 
 if (-not $WebOnly) {
     Write-Host "==> Building native client..." -ForegroundColor Cyan
@@ -42,10 +52,28 @@ if (-not $NativeOnly) {
     if ($LASTEXITCODE -ne 0) { Write-Host "Web deploy failed." -ForegroundColor Red; exit 1 }
 }
 
+if (-not $WebOnly -and -not $SkipDeploy) {
+    Write-Host "==> Deploying to live server..." -ForegroundColor Cyan
+    & (Join-Path $root 'update-server.ps1')
+    if ($LASTEXITCODE -ne 0) { Write-Host "Live server deploy failed." -ForegroundColor Red; exit 1 }
+}
+
+if ($Version -and -not $WebOnly) {
+    Write-Host "==> Creating GitHub release $Version..." -ForegroundColor Cyan
+
+    git tag $Version
+    git push origin $Version
+
+    $clientZip = Join-Path $root 'Iskra-Client.zip'
+    $serverZip  = Join-Path $root 'Iskra-Server.zip'
+
+    gh release create $Version $clientZip $serverZip `
+        --title "Iskra $Version" `
+        --generate-notes `
+        --latest
+
+    Write-Host "Release live: https://github.com/quikmn/iskra-voice/releases/tag/$Version" -ForegroundColor Green
+}
+
 Write-Host ""
 Write-Host "All done." -ForegroundColor Green
-if (-not $WebOnly) {
-    Write-Host "  Native client: Iskra-Client.zip" -ForegroundColor Gray
-    Write-Host "  Server:        Iskra-Server.zip" -ForegroundColor Gray
-    Write-Host "  Upload both to GitHub: gh release upload <tag> Iskra-Client.zip Iskra-Server.zip" -ForegroundColor Gray
-}

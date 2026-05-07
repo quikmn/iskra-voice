@@ -1,6 +1,8 @@
 using System;
 using System.IO;
+using System.IO.Compression;
 using System.IO.Pipes;
+using System.Net.Http;
 using System.Net.WebSockets;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -57,6 +59,8 @@ namespace Origin.Client.Core
                 try { File.AppendAllText(_logFile, line + Environment.NewLine); } catch { }
             }
         }
+
+        private static readonly HttpClient _http = new HttpClient();
 
         private int    _pttVkCode    = 0x5A;  // default: 'Z'
         private bool   _isPttMode    = false;
@@ -358,6 +362,84 @@ namespace Origin.Client.Core
             catch { }
         }
 
+        private void PostToJs(object obj)
+        {
+            try
+            {
+                string json = JsonSerializer.Serialize(obj);
+                this.Invoke((MethodInvoker)(() =>
+                    webView?.CoreWebView2?.PostWebMessageAsString(json)));
+            }
+            catch { }
+        }
+
+        private async Task DoInstallUpdate(string downloadUrl)
+        {
+            string tempDir     = Path.Combine(Path.GetTempPath(), "IskraUpdate_" + Guid.NewGuid().ToString("N")[..8]);
+            string zipPath     = Path.Combine(tempDir, "Iskra-Client.zip");
+            string extractPath = Path.Combine(tempDir, "extracted");
+            try
+            {
+                Directory.CreateDirectory(tempDir);
+
+                _http.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "IskraClient-Updater/1.0");
+                using var response = await _http.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead);
+                response.EnsureSuccessStatusCode();
+                long? total = response.Content.Headers.ContentLength;
+
+                await using var fs     = new FileStream(zipPath, FileMode.Create, FileAccess.Write, FileShare.None, 65536, true);
+                await using var stream = await response.Content.ReadAsStreamAsync();
+                byte[] buf = new byte[65536];
+                long downloaded = 0; int lastPct = -1, read;
+                while ((read = await stream.ReadAsync(buf)) > 0)
+                {
+                    await fs.WriteAsync(buf.AsMemory(0, read));
+                    downloaded += read;
+                    if (total > 0)
+                    {
+                        int pct = (int)(downloaded * 100 / total.Value);
+                        if (pct != lastPct) { lastPct = pct; PostToJs(new { action = "UPDATE_PROGRESS", phase = "downloading", pct }); }
+                    }
+                }
+
+                PostToJs(new { action = "UPDATE_PROGRESS", phase = "extracting", pct = 0 });
+                Directory.CreateDirectory(extractPath);
+                ZipFile.ExtractToDirectory(zipPath, extractPath, overwriteFiles: true);
+                File.Delete(zipPath);
+
+                PostToJs(new { action = "UPDATE_PROGRESS", phase = "restarting", pct = 100 });
+
+                string installDir = Application.StartupPath;
+                string exeName    = Path.GetFileName(System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "iskra_client.exe");
+                int    pid        = System.Diagnostics.Process.GetCurrentProcess().Id;
+                string scriptPath = Path.Combine(tempDir, "iskra_update.ps1");
+                string src = extractPath.Replace("'", "''");
+                string dst = installDir.Replace("'",  "''");
+
+                File.WriteAllText(scriptPath, $@"$src='{src}';$dst='{dst}';$exe='{exeName}'
+while(Get-Process -Id {pid} -EA 0){{Start-Sleep -ms 200}}
+Start-Sleep -ms 600
+Get-ChildItem $src -Recurse -File|%{{$rel=$_.FullName.Substring($src.Length+1);$t=Join-Path $dst $rel;$d=Split-Path $t -Parent;if(!(Test-Path $d)){{New-Item -Type Directory $d -Force|Out-Null}};Copy-Item $_.FullName $t -Force}}
+Start-Process (Join-Path $dst $exe)
+", Encoding.UTF8);
+
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName  = "powershell.exe",
+                    Arguments = $"-ExecutionPolicy Bypass -WindowStyle Hidden -File \"{scriptPath}\"",
+                    UseShellExecute = true
+                });
+
+                await Task.Delay(800);
+                this.Invoke((MethodInvoker)(() => { _isQuitting = true; Application.Exit(); }));
+            }
+            catch (Exception ex)
+            {
+                PostToJs(new { action = "UPDATE_ERROR", message = ex.Message });
+                try { Directory.Delete(tempDir, recursive: true); } catch { }
+            }
+        }
+
         // ── Bridge listener (JS → C#) ───────────────────────────────────────────
         private async void Origin_Client_Bridge_Listener(object sender, CoreWebView2WebMessageReceivedEventArgs e)
         {
@@ -437,6 +519,13 @@ namespace Origin.Client.Core
                     var url = doc.RootElement.TryGetProperty("url", out var urlEl) ? urlEl.GetString() ?? "" : "";
                     if (!string.IsNullOrEmpty(url) && (url.StartsWith("https://") || url.StartsWith("http://")))
                         try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
+                    return;
+                }
+                if (action == "INSTALL_UPDATE")
+                {
+                    var dlUrl = doc.RootElement.TryGetProperty("url", out var dlEl) ? dlEl.GetString() ?? "" : "";
+                    if (!string.IsNullOrEmpty(dlUrl))
+                        _ = Task.Run(() => DoInstallUpdate(dlUrl));
                     return;
                 }
             }
