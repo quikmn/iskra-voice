@@ -365,8 +365,8 @@
 
         /* ── Markdown code ── */
         .msg-body code { background: var(--bg-deep); border-radius: 3px; padding: 1px 5px; font-family: 'Cascadia Code','Consolas',monospace; font-size: 12.5px; color: #e3e5e8; }
-        .msg-body pre { background: var(--bg-deep); border-radius: 5px; padding: 10px 18px 12px; margin: 6px 0 2px; overflow-x: auto; max-width: 640px; white-space: pre; scrollbar-width: thin; scrollbar-color: var(--bg-border) transparent; }
-        .msg-body pre code { background: none; padding: 0; font-size: 12px; }
+        .msg-body pre { background: var(--bg-deep); border-radius: 5px; padding: 10px 0 12px; margin: 6px 0 2px; overflow-x: auto; max-width: 640px; white-space: pre; scrollbar-width: thin; scrollbar-color: var(--bg-border) transparent; }
+        .msg-body pre code { display: inline-block; background: none; padding: 0 18px; font-size: 12px; }
         .msg-body a { color: var(--link); text-decoration: none; }
         .msg-body a:hover { text-decoration: underline; }
 
@@ -417,8 +417,9 @@
         #role-badge.role-owner   { background: #4a3a2a; color: #f0a050; }
         #iskraid-badge { display: none; align-items: center; gap: 3px; font-size: 10px; letter-spacing: 0.2px; padding: 2px 5px; border-radius: 3px; background: linear-gradient(135deg, rgba(37,99,235,0.25), rgba(125,211,252,0.1)); border: 1px solid rgba(125,211,252,0.25); color: #7dd3fc; width: fit-content; }
         #iskraid-badge.visible { display: inline-flex; }
-        #iskraid-badge .ibadge-iskra { font-weight: 400; }
-        #iskraid-badge .ibadge-id    { font-weight: 800; }
+        #iskraid-badge .ibadge-text { font-weight: 400; letter-spacing: 0; }
+        #iskraid-badge .ibadge-text b { font-weight: 800; }
+        #tab-btn-iskraid { text-transform: none; letter-spacing: 0; }
         #local-badge { display: none; font-size: 10px; font-weight: 600; letter-spacing: 0.3px; padding: 2px 6px; border-radius: 3px; background: rgba(236,72,153,0.15); border: 1px solid rgba(236,72,153,0.3); color: #f472b6; width: fit-content; }
         #local-badge.visible { display: inline-block; }
         /* ── Read-only channel input state ── */
@@ -979,8 +980,8 @@
         .btn-icon-sm:disabled { opacity: 0.3; cursor: default; }
         .btn-small { background: var(--bg-button); border: none; color: var(--text-normal); cursor: pointer; font-size: 11px; padding: 4px 10px; border-radius: 4px; font-weight: 600; white-space: nowrap; }
         .btn-small:hover { background: var(--text-faint); }
-        .btn-small.green { background: var(--success); color: var(--text-heading); }
-        .btn-small.green:hover { background: var(--success-hover); }
+        .btn-small.green { background: var(--accent); color: #fff; }
+        .btn-small.green:hover { background: var(--accent-hover); }
         .emoji-admin-grid { display: flex; flex-wrap: wrap; gap: 8px; }
         .emoji-admin-item { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px; background: var(--bg-deep); border-radius: 5px; position: relative; cursor: default; }
         .emoji-admin-item img { width: 32px; height: 32px; object-fit: contain; }
@@ -1176,11 +1177,11 @@
             <div id="footer-user-col">
                 <span id="ui-alias">...</span>
                 <span id="iskraid-badge" onclick="openSettings();switchTab('iskraid')" style="cursor:pointer;" title="Logged in with IskraID">
-                    <svg width="7" height="11" viewBox="0 0 7 11" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
-                        <defs><linearGradient id="ibg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7dd3fc"/><stop offset="1" stop-color="#2563eb"/></linearGradient></defs>
-                        <polygon points="4.34,0 2.66,0 1.4,5.5 2.94,5.5 1.54,11 4.06,11 5.46,5.5 4.06,5.5" fill="url(#ibg)"/>
+                    <svg width="9" height="9" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
+                        <defs><linearGradient id="ibg" x1="4" y1="2" x2="22" y2="26" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#7c6fff"/><stop offset="100%" stop-color="#00cfff"/></linearGradient></defs>
+                        <path d="M16 2L4 16h10l-2 10 14-16H16L18 2z" fill="url(#ibg)" stroke="none"/>
                     </svg>
-                    <span class="ibadge-iskra">Iskra</span><span class="ibadge-id">ID</span>
+                    <span class="ibadge-text">Iskra<b>ID</b></span>
                 </span>
                 <span id="local-badge" onclick="openSettings();switchTab('iskraid')" style="cursor:pointer;" title="Not logged in with IskraID">Local</span>
                 <span id="voice-mode-label"></span>
@@ -1344,7 +1345,7 @@
             <button id="tab-btn-admin"      class="tab-btn"        onclick="switchTab('admin')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Admin</button>
             <button id="tab-btn-webhooks"   class="tab-btn"        onclick="switchTab('webhooks')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Hooks</button>
             <button id="tab-btn-botapi"     class="tab-btn"        onclick="switchTab('botapi')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1" fill="currentColor" stroke="none"/></svg>Bot API</button>
-            <button id="tab-btn-iskraid"    class="tab-btn"        onclick="switchTab('iskraid')"><svg width="9" height="14" viewBox="0 0 7 11" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="itbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7dd3fc"/><stop offset="1" stop-color="#2563eb"/></linearGradient></defs><polygon points="4.34,0 2.66,0 1.4,5.5 2.94,5.5 1.54,11 4.06,11 5.46,5.5 4.06,5.5" fill="url(#itbg)"/></svg>IskraID</button>
+            <button id="tab-btn-iskraid"    class="tab-btn"        onclick="switchTab('iskraid')"><svg width="15" height="15" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="itbg" x1="4" y1="2" x2="22" y2="26" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#7c6fff"/><stop offset="100%" stop-color="#00cfff"/></linearGradient></defs><path d="M16 2L4 16h10l-2 10 14-16H16L18 2z" fill="url(#itbg)" stroke="none"/></svg>IskraID</button>
         </div>
 
         <!-- ── Audio Tab ── -->
@@ -1594,7 +1595,13 @@
                     <div id="autoupdate-on"  class="mode-btn active" onclick="setAutoUpdate(true)">Auto</div>
                     <div id="autoupdate-off" class="mode-btn"        onclick="setAutoUpdate(false)">Off</div>
                 </div>
-                <div style="font-size:11px;color:var(--text-subtle);margin-top:6px;line-height:1.6;">Check for new releases on startup and install with one click.</div>
+                <div style="font-size:11px;color:var(--text-subtle);margin-top:6px;line-height:1.6;">Checks every 30 minutes. <span id="check-update-btn" style="color:var(--accent);cursor:pointer;text-decoration:underline;" onclick="checkForUpdate()">Check now</span></div>
+                <div class="section-label" style="margin-top:14px;">Update channel</div>
+                <div class="mode-toggle" style="max-width:180px;margin-top:6px;">
+                    <div id="channel-stable" class="mode-btn active" onclick="setUpdateChannel('stable')">Stable</div>
+                    <div id="channel-canary" class="mode-btn"        onclick="setUpdateChannel('canary')">Canary</div>
+                </div>
+                <div style="font-size:11px;color:var(--text-subtle);margin-top:6px;line-height:1.6;">Canary gets pre-release builds first. May be unstable.</div>
             </div>
         </div>
 
@@ -2012,6 +2019,7 @@ let rtcConfig    = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 // ── State ──────────────────────────────────────────────────────────────────────
 let myAlias         = '';
 let serverUploadBase = null;  // e.g. "http://192.168.1.5:8080"
+let _localProxyPort  = 0;    // native client only — set by LOCAL_PROXY_PORT bridge message
 let localStream     = null;   // raw getUserMedia stream
 let processedStream = null;   // AudioContext destination stream sent to peers
 let peers           = {};     // alias → RTCPeerConnection
@@ -2112,7 +2120,7 @@ let _verifyPollTimer   = null;
 let _iskraidFormMode   = 'login';
 let _inFriendsMode     = false;
 let relayProfileUrl    = null;
-let relayAvatarDataUrl = null;   // data URL of avatar synced to Iskra ID
+let relayAvatarDataUrl = localStorage.getItem('iskra_relay_avatar') || null;
 let _relayReceipts     = {};     // messageId → { recipientAlias, readAt }
 
 // ── DM voice call state ────────────────────────────────────────────────────────
@@ -2162,8 +2170,11 @@ function avatarHtml(alias, szClass = 'sz-40', clickable = true, showStatus = fal
 function updateMyAvatar() {
     const el = document.getElementById('my-avatar');
     if (el) {
-        const alias = myAlias || clientConfig.activeAlias;
-        const url   = normalizeUploadUrl(userAvatars[alias]) || clientConfig.localAvatars?.[alias];
+        const useRelay = relayToken && relayAlias && !connectedServerId;
+        const alias = useRelay ? relayAlias : (myAlias || clientConfig.activeAlias);
+        const url   = useRelay
+            ? relayAvatarDataUrl
+            : (normalizeUploadUrl(userAvatars[alias]) || clientConfig.localAvatars?.[alias]);
         if (url) {
             el.style.background = '';
             el.innerHTML = `<img src="${escapeHtml(url)}" data-src="${escapeHtml(url)}" alt="${escapeHtml(alias)}" loading="lazy" onerror="rescueImg(this)">`;
@@ -2505,6 +2516,7 @@ const settings = {
     pttKeyLabel:    'Z',
     noiseSuppress:  true,
     autoUpdate:     true,
+    updateChannel:  'stable',
 };
 
 function saveSettings() {
@@ -4047,12 +4059,15 @@ function renderServerBar() {
         const isConn       = s.id === connectedServerId;
         const canUpload    = isConn && ['admin','owner'].includes(myRole);
         const isMuted      = isServerMuted(s.id);
-        const iconContent  = (isConn && serverIconUrl)
-            ? `<img src="${escapeHtml(normalizeUploadUrl(serverIconUrl) || serverIconUrl)}" data-src="${escapeHtml(normalizeUploadUrl(serverIconUrl) || serverIconUrl)}" alt="${escapeHtml(s.name)}" onerror="rescueImg(this)">`
+        const displayIcon  = (isConn && serverIconUrl)
+            ? (normalizeUploadUrl(serverIconUrl) || serverIconUrl)
+            : (s.cachedIconDataUrl || null);
+        const iconContent  = displayIcon
+            ? `<img src="${escapeHtml(displayIcon)}" data-src="${escapeHtml(displayIcon)}" alt="${escapeHtml(s.name)}" onerror="rescueImg(this)">`
             + (canUpload ? `<span class="srv-upload-hint" title="Change server icon">📷</span>` : '')
             : serverInitials(s.name)
             + (canUpload ? `<span class="srv-upload-hint" title="Change server icon">📷</span>` : '');
-        const iconStyle    = (isConn && serverIconUrl) ? '' : `background:${serverColor(s.id)};`;
+        const iconStyle    = displayIcon ? '' : `background:${serverColor(s.id)};`;
         return `
         <div class="server-icon-wrap${isViewed ? ' active' : ''}${isConn ? ' connected' : ''}" title="${escapeHtml(s.name)}">
             <div class="server-pill"></div>
@@ -4637,6 +4652,10 @@ function applySettingsToUI() {
     const auOn = settings.autoUpdate !== false;
     document.getElementById('autoupdate-on')?.classList.toggle('active',  auOn);
     document.getElementById('autoupdate-off')?.classList.toggle('active', !auOn);
+
+    const isCanary = settings.updateChannel === 'canary';
+    document.getElementById('channel-stable')?.classList.toggle('active', !isCanary);
+    document.getElementById('channel-canary')?.classList.toggle('active',  isCanary);
 
     updateThresholdLine();
 }
@@ -6425,9 +6444,13 @@ async function handleBridgeMessage(data) {
         const srv = clientConfig.servers.find(s => s.id === connectedServerId);
         document.getElementById('server-name-label').textContent = srv ? srv.name : 'Connected';
         document.getElementById('sidebar-hdr-btns').style.display = '';
-        const _uProto = (IS_WEB && location.protocol === 'https:') ? 'https' : 'http';
-        const _uPort  = (IS_WEB && (srv.port === 443 || srv.port === 80)) ? '' : `:${srv.port}`;
-        serverUploadBase = srv ? `${_uProto}://${srv.host}${_uPort}` : null;
+        if (!IS_WEB && _localProxyPort > 0) {
+            serverUploadBase = `http://localhost:${_localProxyPort}`;
+        } else {
+            const _uProto = location.protocol === 'https:' ? 'https' : 'http';
+            const _uPort  = (srv.port === 443 || srv.port === 80) ? '' : `:${srv.port}`;
+            serverUploadBase = srv ? `${_uProto}://${srv.host}${_uPort}` : null;
+        }
         renderServerBar();
         postToBridge({ action: 'SET_VOICE_MODE', mode: settings.voiceMode });
         postToBridge({ action: 'SET_PTT_KEY',    keyCode: settings.pttKeyCode });
@@ -6581,6 +6604,22 @@ async function handleBridgeMessage(data) {
             DevLog.log('RTC', `ICE config updated | ${data.iceServers.length} server(s) — ${data.iceServers.map(s => Array.isArray(s.urls) ? s.urls[0] : s.urls).join(', ')}`);
         }
         serverIconUrl = data.serverIcon || null;
+        // Cache server icon as data URL so it shows even when not connected
+        (async () => {
+            const srv = clientConfig.servers.find(x => x.id === connectedServerId);
+            if (!srv) return;
+            if (!serverIconUrl) { srv.cachedIconDataUrl = null; saveClientConfig(); return; }
+            const fullUrl = normalizeUploadUrl(serverIconUrl) || serverIconUrl;
+            if (!fullUrl || srv.cachedIconDataUrl) return; // already cached
+            try {
+                const res = await fetch(fullUrl);
+                if (!res.ok) return;
+                const blob = await res.blob();
+                const reader = new FileReader();
+                reader.onload = () => { srv.cachedIconDataUrl = reader.result; saveClientConfig(); renderServerBar(); };
+                reader.readAsDataURL(blob);
+            } catch {}
+        })();
         if (data.userAvatars  && typeof data.userAvatars  === 'object') {
             Object.assign(userAvatars, data.userAvatars);
             if (!userAvatars[myAlias] && clientConfig.localAvatars?.[myAlias] && serverUploadBase) {
@@ -6631,6 +6670,9 @@ async function handleBridgeMessage(data) {
     } else if (data.action === 'SERVER_ICON_UPDATED') {
         DevLog.log('BRIDGE', `← C# | SERVER_ICON_UPDATED`);
         serverIconUrl = data.url;
+        // Invalidate cached icon so it re-fetches on next SERVER_INFO
+        const _iconSrv = clientConfig.servers.find(x => x.id === connectedServerId);
+        if (_iconSrv) { _iconSrv.cachedIconDataUrl = null; saveClientConfig(); }
         renderServerBar();
         if (activeTab === 'servers') updateSettingsServerSection();
 
@@ -6690,6 +6732,7 @@ async function handleBridgeMessage(data) {
         document.getElementById('input-area')?.classList.remove('readonly');
         updateMyAvatar();
         serverUploadBase    = null;
+        _localProxyPort     = 0;
         connectedServerId   = null;
         viewedServerId      = null;
         pendingServerId     = null;
@@ -6729,7 +6772,7 @@ async function handleBridgeMessage(data) {
         updateShareButtonVisibility();
         document.getElementById('server-name-label').textContent = 'Not connected';
         document.getElementById('sidebar-hdr-btns').style.display = 'none';
-        document.getElementById('ui-alias').textContent = clientConfig.activeAlias;
+        document.getElementById('ui-alias').textContent = (relayToken && relayAlias) ? relayAlias : clientConfig.activeAlias;
         document.getElementById('chat-channel-name').textContent = '—';
         document.getElementById('chat-history').innerHTML = '';
         // Reset DM state
@@ -6764,6 +6807,10 @@ async function handleBridgeMessage(data) {
             lbl2.textContent = settings.voiceMode === 'vad' ? 'Voice Activity' : 'Push to Talk';
             lbl2.style.color = '';
         }, 4000);
+
+    } else if (data.action === 'LOCAL_PROXY_PORT') {
+        _localProxyPort = data.port || 0;
+        DevLog.log('BRIDGE', `← C# | LOCAL_PROXY_PORT ${_localProxyPort}`);
 
     } else if (data.action === 'CONNECTION_FAILED') {
         DevLog.log('ERR', `← C# | CONNECTION_FAILED: ${data.error}`);
@@ -7184,6 +7231,13 @@ async function handleBridgeMessage(data) {
         if (data.starboard) starboardConfig = { ...starboardConfig, ...data.starboard };
         if (activeTab === 'admin') renderStarboardSettings();
 
+    } else if (data.action === 'APP_VERSION') {
+        _currentVersion = data.version || null;
+        if (settings.autoUpdate !== false) {
+            checkForUpdate();
+            setInterval(checkForUpdate, 30 * 60 * 1000);
+        }
+
     } else if (data.action === 'UPDATE_PROGRESS') {
         const fill = document.getElementById('update-progress-fill');
         const pct  = document.getElementById('update-bar-pct');
@@ -7389,13 +7443,12 @@ async function uploadAndSendFile(file) {
         });
         const el = document.querySelector(`[data-progress-id="${progressMsgId}"]`);
         if (el) el.closest('.msg-system')?.remove();
-        const fullUrl = `${serverUploadBase}${url}`;
         if (inDmMode && activeDmWith) {
-            postToBridge({ action: 'SEND_DM', to: activeDmWith, message: fullUrl });
+            postToBridge({ action: 'SEND_DM', to: activeDmWith, message: url });
         } else {
-            postToBridge({ action: 'SEND_CHAT', channelId: activeTextChannelId, message: fullUrl });
+            postToBridge({ action: 'SEND_CHAT', channelId: activeTextChannelId, message: url });
         }
-        DevLog.log('BRIDGE', `Upload done → ${fullUrl}`);
+        DevLog.log('BRIDGE', `Upload done → ${url}`);
     } catch (err) {
         const el = document.querySelector(`[data-progress-id="${progressMsgId}"]`);
         if (el) el.textContent = `Upload failed: ${err.message}`;
@@ -8479,7 +8532,7 @@ async function playSoundboardClip(index) {
     if (!audioCtx) { DevLog.log('ERR', 'audioCtx not ready'); return; }
     if (audioCtx.state === 'suspended') await audioCtx.resume();
     try {
-        const resp    = await fetch(clip.url);
+        const resp    = await fetch(normalizeUploadUrl(clip.url) || clip.url);
         const arrBuf  = await resp.arrayBuffer();
         const audioBuf = await audioCtx.decodeAudioData(arrBuf);
         const src      = audioCtx.createBufferSource();
@@ -8519,8 +8572,7 @@ async function onSoundboardFileChange(e) {
         });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const { url } = await resp.json();
-        const fullUrl = `${serverUploadBase}${url}`;
-        soundboardClips.push({ id: Date.now().toString(), name: file.name, url: fullUrl });
+        soundboardClips.push({ id: Date.now().toString(), name: file.name, url: url });
         saveSoundboardClips();
         renderSoundboard();
         DevLog.log('SB', `Clip "${file.name}" uploaded → ${fullUrl}`);
@@ -8638,9 +8690,10 @@ async function init() {
         }
     }
 
-    myAlias = clientConfig.activeAlias;
+    myAlias = (relayToken && relayAlias) ? relayAlias : clientConfig.activeAlias;
     document.getElementById('ui-alias').textContent = myAlias;
     updateMyAvatar();
+    if (relayToken) refreshRelayMe();
     renderServerBar();
     updateMicIndicator();
 
@@ -8768,16 +8821,17 @@ function e2eClearKeys() {
 
 async function e2eLoadKeys(password, email) {
     const kb = await relayFetch('/api/me/key-backup');
-    if (!kb.ok || !kb.data.keyBackup) return false;
+    if (!kb.ok) return 'fetch_error';
+    if (!kb.data.keyBackup) return 'no_keys';
     try {
         const wrappingKey = await e2eDeriveWrappingKey(password, email);
         _myPrivKey   = await e2eUnwrapPrivKey(kb.data.keyBackup, wrappingKey);
         _e2eUnlocked = true;
         DevLog.log('RELAY', '🔐 E2E keys unlocked');
-        return true;
+        return 'ok';
     } catch (err) {
         DevLog.log('ERR', `E2E key unlock failed: ${err.message}`);
-        return false;
+        return 'wrong_password';
     }
 }
 
@@ -9008,8 +9062,10 @@ function relayPersist() {
         localStorage.setItem('iskra_relay_alias',    relayAlias  || '');
         localStorage.setItem('iskra_relay_verified', relayEmailVerified ? '1' : '0');
         localStorage.setItem('iskra_relay_email',    relayEmail  || '');
+        if (relayAvatarDataUrl) localStorage.setItem('iskra_relay_avatar', relayAvatarDataUrl);
+        else localStorage.removeItem('iskra_relay_avatar');
     } else {
-        ['iskra_relay_token','iskra_relay_userId','iskra_relay_alias','iskra_relay_verified','iskra_relay_email']
+        ['iskra_relay_token','iskra_relay_userId','iskra_relay_alias','iskra_relay_verified','iskra_relay_email','iskra_relay_avatar']
             .forEach(k => localStorage.removeItem(k));
     }
 }
@@ -9071,6 +9127,7 @@ function renderIskraidTab() {
                         <button class="btn-primary" onclick="iskraidUnlockE2E()">Unlock</button>
                     </div>
                     <div id="iskraid-unlock-feedback" class="iskraid-feedback"></div>
+                    <button id="iskraid-setup-e2e-btn" class="btn-secondary hidden" style="margin-top:8px;font-size:12px;" onclick="iskraidSetupE2E()">Set up E2E encryption</button>
                 </div>`;
             }
         }
@@ -9093,6 +9150,7 @@ async function refreshRelayMe() {
     relayAvatarDataUrl = r.data.relayAvatar || null;
     relayPersist();
     renderIskraidTab();
+    updateMyAvatar();
     fetchServersFromRelay();
 }
 
@@ -9193,7 +9251,10 @@ async function iskraidSubmit() {
         const me = await relayFetch('/api/me');
         if (me.ok) { relayEmail = me.data.email; _myPubKeyB64 = me.data.pubkey; relayPersist(); }
 
-        if (relayEmail) await e2eLoadKeys(pw, relayEmail);
+        if (relayEmail) {
+            const r = await e2eLoadKeys(pw, relayEmail);
+            if (r === 'no_keys') DevLog.log('RELAY', 'No E2E key backup on server — user needs to set up E2E');
+        }
 
         iskraidFeedback('', '');
         renderIskraidTab();
@@ -9398,9 +9459,72 @@ async function iskraidUnlockE2E() {
     if (!pw) return;
     if (!relayEmail) { setFb('Could not load account info. Try logging out and back in.', 'error'); return; }
     setFb('Deriving key… (this takes a moment)', '');
-    const ok = await e2eLoadKeys(pw, relayEmail);
-    if (!ok) { setFb('Wrong password or no keys found.', 'error'); return; }
-    renderIskraidTab();
+    const result = await e2eLoadKeys(pw, relayEmail);
+    if (result === 'ok') { renderIskraidTab(); return; }
+    if (result === 'no_keys') {
+        setFb('No E2E keys found for this account. Click "Set up E2E" to generate and upload new keys.', 'error');
+        document.getElementById('iskraid-setup-e2e-btn')?.classList.remove('hidden');
+        return;
+    }
+    if (result === 'wrong_password') { setFb('Wrong password — try again.', 'error'); return; }
+    setFb('Could not reach the relay server. Check your connection.', 'error');
+}
+
+async function iskraidSetupE2E() {
+    const fb = document.getElementById('iskraid-unlock-feedback');
+    const setFb = (msg, type) => { if (fb) { fb.textContent = msg; fb.className = 'iskraid-feedback' + (msg ? ' show ' + type : ''); } };
+    const pw = document.getElementById('iskraid-unlock-pw')?.value;
+    if (!pw) { setFb('Enter your password first to protect the new keys.', 'error'); return; }
+    if (!relayEmail) { setFb('Could not load account info. Try logging out and back in.', 'error'); return; }
+    setFb('Generating keys… (this takes a moment)', '');
+
+    try {
+        // Generate new RSA keypair
+        const keypair = await crypto.subtle.generateKey(
+            { name: 'RSA-OAEP', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+            true, ['encrypt', 'decrypt']
+        );
+
+        // Export public key as base64
+        const pubRaw = await crypto.subtle.exportKey('spki', keypair.publicKey);
+        const pubB64 = btoa(String.fromCharCode(...new Uint8Array(pubRaw)));
+
+        // Export private key, wrap it with password-derived key
+        const privRaw = await crypto.subtle.exportKey('pkcs8', keypair.privateKey);
+        const salt = crypto.getRandomValues(new Uint8Array(16));
+        const iv   = crypto.getRandomValues(new Uint8Array(12));
+        const enc  = new TextEncoder();
+        const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveKey']);
+        const wrapKey = await crypto.subtle.deriveKey(
+            { name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' },
+            keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt']
+        );
+        const encPriv = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, wrapKey, privRaw);
+
+        const toB64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+        const keyBackup = {
+            salt: toB64(salt), iv: toB64(iv),
+            encryptedPrivateKey: toB64(encPriv), publicKey: pubB64
+        };
+
+        // Upload to server
+        const { ok, data } = await relayFetch('/api/me/keys', {
+            method: 'PUT',
+            body: JSON.stringify(keyBackup)
+        });
+        if (!ok) { setFb(data?.error || 'Failed to save keys. Try again.', 'error'); return; }
+
+        // Load keys into memory
+        const result = await e2eLoadKeys(pw, relayEmail);
+        if (result === 'ok') {
+            renderIskraidTab();
+        } else {
+            setFb('Keys saved but could not load — try unlocking now.', 'error');
+        }
+    } catch (err) {
+        console.error('E2E setup error:', err);
+        setFb('Key generation failed. Try again.', 'error');
+    }
 }
 
 async function iskraidChangeAlias() {
@@ -9591,7 +9715,7 @@ function openRelayDm(alias) {
             <button class="modal-close-btn" onclick="closeRelayDm()" title="Close relay DM">✕</button>`;
     }
 
-    const msgs = document.getElementById('chat-messages');
+    const msgs = document.getElementById('chat-history');
     if (msgs) msgs.innerHTML = '';
     relayRenderConvo(alias);
 
@@ -9625,7 +9749,7 @@ function closeRelayDm() {
 }
 
 function relayRenderConvo(alias) {
-    const msgs = document.getElementById('chat-messages');
+    const msgs = document.getElementById('chat-history');
     if (!msgs) return;
     const convo = relayLoadConvo(alias);
     if (!convo.length) {
@@ -9764,19 +9888,23 @@ function stopRelayPoll() {
 // ── Auto-update ────────────────────────────────────────────────────────────────
 const GH_REPO = 'quikmn/iskra-voice';
 let _pendingUpdateUrl = null;
+let _currentVersion   = null;   // set by APP_VERSION bridge message from C#
 
 async function checkForUpdate() {
     if (IS_WEB) return;
     try {
-        const verResp = await fetch('https://origin.app/version.txt');
-        if (!verResp.ok) return;
-        const currentVer = (await verResp.text()).trim();
+        const currentVer = _currentVersion;
         if (!currentVer || currentVer === 'dev') return;
 
-        const ghResp = await fetch(`https://api.github.com/repos/${GH_REPO}/releases/latest`,
-            { headers: { Accept: 'application/vnd.github.v3+json' } });
+        const isCanary = settings.updateChannel === 'canary';
+        const ghUrl = isCanary
+            ? `https://api.github.com/repos/${GH_REPO}/releases`
+            : `https://api.github.com/repos/${GH_REPO}/releases/latest`;
+        const ghResp = await fetch(ghUrl, { headers: { Accept: 'application/vnd.github.v3+json' } });
         if (!ghResp.ok) return;
-        const rel = await ghResp.json();
+        const raw = await ghResp.json();
+        const rel = isCanary ? raw[0] : raw;
+        if (!rel) return;
         const latestVer = rel.tag_name;
         if (!latestVer || latestVer === currentVer) return;
 
@@ -9822,6 +9950,13 @@ function startInstallUpdate() {
     postToBridge({ action: 'INSTALL_UPDATE', url: _pendingUpdateUrl });
 }
 
+function setUpdateChannel(ch) {
+    settings.updateChannel = ch;
+    saveSettings();
+    document.getElementById('channel-stable')?.classList.toggle('active', ch !== 'canary');
+    document.getElementById('channel-canary')?.classList.toggle('active', ch === 'canary');
+}
+
 function setAutoUpdate(on) {
     settings.autoUpdate = on;
     saveSettings();
@@ -9836,7 +9971,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('iskraid-badge')?.classList.toggle('visible', !!relayToken);
     document.getElementById('local-badge')?.classList.toggle('visible', !relayToken);
     initChannelListDragDrop();
-    if (!IS_WEB && settings.autoUpdate !== false) setTimeout(checkForUpdate, 4000);
+    // Update check triggered by APP_VERSION bridge message (every 30 min thereafter)
 }, { once: true });
 
 function initChannelListDragDrop() {
