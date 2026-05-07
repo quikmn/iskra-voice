@@ -1,7 +1,7 @@
 # Iskra — Feature Inventory
 
 > Living document. Update this file whenever a feature is added, fixed, or changed.
-> Last updated: 2026-05-07
+> Last updated: 2026-05-07 (v1.2)
 
 ---
 
@@ -219,6 +219,18 @@
 | Media gallery view | ✅ | 🖼 in chat header; 72×72 image/video thumbnails for current channel |
 | Jump-to-message links | ✅ | 🔗 on each message; copies `serverId/channelId/msgId`; smooth scroll + flash animation |
 | Animated GIF avatars | ✅ | Avatars uploaded as GIF render animated |
+| Server list sync | ✅ | IskraID stores your server list; synced across browsers/devices on login; merge-only (never overwrites local) |
+| account.iskra.foo | ✅ | Full account management portal at `https://account.iskra.foo`; login/register, alias change, password change, profile URL, avatar, token handoff to app |
+| Password change via account portal | ✅ | `PUT /api/me/password`; verifies current password, invalidates other sessions |
+| Token handoff | ✅ | "Open Iskra" on account page opens `app.iskra.foo` pre-logged-in via `?rtoken=&ralias=` URL params |
+
+### Mobile & Web Client
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Mobile-responsive layout | ✅ | Sidebar slides in from hamburger menu; full-width chat pane; safe-area padding; 100dvh |
+| Modal z-index fix on mobile | ✅ | All modals render above sidebar overlay on mobile |
+| Web client TLS note | ✅ | In-app note in Servers tab explaining wss:// requirement; port inference (443/8443 → wss://) |
 
 ### Planned / Not Yet Implemented
 
@@ -228,5 +240,6 @@
 | Forum/board channel type | Post-style threads |
 | Server templates | Clone channel/role layout |
 | Stage channels | One speaker, many listeners |
-| Mobile PWA | Push notifications, offline shell |
+| Mobile PWA (installable) | Push notifications, offline shell, app manifest |
 | Spotify now-playing status | Show current track as custom status |
+| Profile card editing | Edit profile card fields directly in-client (same as profile page) |

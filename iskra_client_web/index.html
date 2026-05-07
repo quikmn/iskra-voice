@@ -1081,6 +1081,9 @@
             /* Chat pane always full width */
             #chat-pane { width: 100%; }
 
+            /* Modals must sit above the mobile sidebar (z-index 400) */
+            .modal-overlay { z-index: 500 !important; }
+
             /* Members panel hidden on mobile */
             #members-panel { display: none !important; }
 
@@ -4590,6 +4593,7 @@ function closeMobSidebar() {
 }
 
 function openSettings() {
+    closeMobSidebar();
     applySettingsToUI();
     if (activeTab === 'audio')    populateDevices();
     if (activeTab === 'identity') renderAliasList();
@@ -8606,6 +8610,31 @@ async function init() {
                 const payload = JSON.parse(atob(_inviteParam));
                 if (payload.h) setTimeout(() => showJoinInviteModal(payload), 500);
             } catch(e) {}
+        }
+        // Token handoff from account.iskra.foo
+        const _rtoken = new URLSearchParams(location.search).get('rtoken');
+        const _ralias = new URLSearchParams(location.search).get('ralias');
+        if (_rtoken) {
+            relayToken = _rtoken;
+            if (_ralias) relayAlias = _ralias;
+            relayPersist();
+            history.replaceState({}, '', location.pathname);
+            setTimeout(async () => {
+                const { ok, data } = await relayFetch('/api/me');
+                if (ok) {
+                    relayUserId = data.userId;
+                    relayAlias  = data.alias;
+                    relayEmail  = data.email;
+                    relayEmailVerified = data.emailVerified;
+                    relayPersist();
+                    await relayLoadFriends();
+                    startRelayPoll();
+                    DevLog.log('RELAY', `Auto-signed in as ${relayAlias} via account handoff`);
+                } else {
+                    relayToken = null;
+                    relayPersist();
+                }
+            }, 100);
         }
     }
 

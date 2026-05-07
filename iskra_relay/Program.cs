@@ -1010,6 +1010,33 @@ h1{{font-size:28px;font-weight:800;margin-bottom:6px;background:linear-gradient(
 </body></html>", "text/html");
 });
 
+// ── Password change ───────────────────────────────────────────────────────────
+
+app.MapPut("/api/me/password", async (HttpContext ctx) =>
+{
+    var userId = AuthUser(ctx);
+    if (userId is null) return ErrUnauth();
+    var body = await ctx.Request.ReadFromJsonAsync<JsonElement>();
+    if (!body.TryGetProperty("currentPassword", out var curEl) ||
+        !body.TryGetProperty("newPassword",     out var newEl))
+        return ErrBad("currentPassword and newPassword required");
+
+    var cur = curEl.GetString() ?? "";
+    var nw  = newEl.GetString() ?? "";
+    if (nw.Length < 8) return ErrBad("password must be at least 8 characters");
+
+    var hash = Scalar("SELECT password_hash FROM users WHERE id=$u", ("$u", userId));
+    if (hash is null || !BCrypt.Net.BCrypt.Verify(cur, hash)) return Err(401, "Current password is incorrect");
+
+    var newHash = BCrypt.Net.BCrypt.HashPassword(nw);
+    Cmd("UPDATE users SET password_hash=$h WHERE id=$u", ("$h", newHash), ("$u", userId)).ExecuteNonQuery();
+    // Invalidate all OTHER sessions so other devices re-authenticate
+    var tok = ctx.Request.Headers["Authorization"].ToString().Replace("Bearer ", "").Trim();
+    Cmd("DELETE FROM sessions WHERE user_id=$u AND token != $t", ("$u", userId), ("$t", tok)).ExecuteNonQuery();
+
+    return Ok();
+});
+
 // ── Server list sync ──────────────────────────────────────────────────────────
 
 app.MapGet("/api/me/servers", (HttpContext ctx) =>
