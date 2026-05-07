@@ -1055,9 +1055,64 @@
         .iskraid-feedback.show { display:block; }
         .iskraid-feedback.error { background:var(--danger-bg);color:var(--danger); }
         .iskraid-feedback.success { background:rgba(87,242,135,0.1);color:var(--success); }
+
+        /* ── Mobile layout ──────────────────────────────────────────── */
+        #mob-sidebar-btn { display: none; align-items: center; justify-content: center; width: 36px; height: 36px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 20px; flex-shrink: 0; padding: 0; margin-right: 4px; }
+        #mob-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 399; }
+
+        @media (max-width: 600px) {
+            #mob-sidebar-btn { display: flex; }
+            #mob-backdrop.open { display: block; }
+
+            /* Sidebars become fixed overlays, hidden off-left by default */
+            #server-bar {
+                position: fixed; top: 0; bottom: 0; left: 0; z-index: 400;
+                width: 60px; transform: translateX(-100%);
+                transition: transform 0.22s ease; padding-top: env(safe-area-inset-top, 8px);
+            }
+            #channel-bar {
+                position: fixed; top: 0; bottom: 0; left: 60px; z-index: 400;
+                width: calc(100vw - 60px); transform: translateX(calc(-60px - 100%));
+                transition: transform 0.22s ease;
+            }
+            .mob-sidebar-open #server-bar,
+            .mob-sidebar-open #channel-bar { transform: translateX(0); }
+
+            /* Chat pane always full width */
+            #chat-pane { width: 100%; }
+
+            /* Members panel hidden on mobile */
+            #members-panel { display: none !important; }
+
+            /* Thread panel full-screen overlay */
+            #thread-panel {
+                position: fixed; inset: 0; z-index: 350; width: 100% !important;
+                padding-bottom: env(safe-area-inset-bottom, 0px);
+            }
+
+            /* Input area safe area + no iOS font zoom */
+            #input-area { padding-bottom: env(safe-area-inset-bottom, 0px); }
+            #chat-input, #thread-input { font-size: 16px; }
+
+            /* Bigger tap targets for footer buttons */
+            .footer-icon-btn { width: 44px; height: 44px; font-size: 18px; }
+            #footer-btn-row { gap: 0; justify-content: space-around; }
+
+            /* Taller chat header for easier tapping */
+            #chat-header { min-height: 52px; padding: 0 8px; gap: 6px; }
+            #chat-header button { font-size: 16px; }
+
+            /* Full-height body, no overflow issues */
+            body { overflow: hidden; height: 100dvh; }
+
+            /* Modal full-screen on mobile */
+            .modal-container { width: 100vw !important; height: 100dvh !important; max-width: 100vw !important; border-radius: 0 !important; }
+        }
     </style>
 </head>
 <body>
+
+<div id="mob-backdrop" onclick="closeMobSidebar()"></div>
 
 <div id="server-bar">
     <div style="position:relative;margin-bottom:4px;">
@@ -1142,6 +1197,7 @@
 
 <div id="chat-pane">
     <div id="chat-header">
+        <button id="mob-sidebar-btn" onclick="toggleMobSidebar()" title="Menu">☰</button>
         <span id="chat-channel-icon">#</span>
         <div style="display:flex;flex-direction:column;justify-content:center;flex:1;min-width:0;overflow:hidden;">
             <span id="chat-channel-name">—</span>
@@ -2645,6 +2701,7 @@ function selectTextChannel(id) {
     updatePinIndicator(id);
     _updateChannelTopic(id);
     DevLog.log('BRIDGE', `Text channel selected: "${ch?.name || id}" | ${(channelMessages[id]||[]).length} msg(s)${ch?.readOnly ? ' [readonly]' : ''}`);
+    closeMobSidebar();
 }
 
 function roleRank(r) { return ({guest:0,member:1,trusted:2,admin:3,owner:4})[r] ?? 0; }
@@ -4511,6 +4568,15 @@ document.addEventListener('keydown', function(e) {
 });
 
 // ── Settings Modal ─────────────────────────────────────────────────────────────
+function toggleMobSidebar() {
+    document.body.classList.toggle('mob-sidebar-open');
+    document.getElementById('mob-backdrop')?.classList.toggle('open', document.body.classList.contains('mob-sidebar-open'));
+}
+function closeMobSidebar() {
+    document.body.classList.remove('mob-sidebar-open');
+    document.getElementById('mob-backdrop')?.classList.remove('open');
+}
+
 function openSettings() {
     applySettingsToUI();
     if (activeTab === 'audio')    populateDevices();
@@ -5379,6 +5445,7 @@ function openDm(alias) {
     h.innerHTML = '';
     (dmHistory[alias] || []).forEach(m => renderDmMessage(m));
     postToBridge({ action: 'GET_DM_HISTORY', with: alias });
+    closeMobSidebar();
 }
 
 function renderDmList() {
