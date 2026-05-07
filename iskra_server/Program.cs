@@ -1237,6 +1237,7 @@ namespace Origin.Server.Core
                         .OrderBy(e => e.ScheduledAt)
                         .Select(e => new { id = e.Id, title = e.Title, description = e.Description, scheduledAt = e.ScheduledAt.ToString("o"), channelId = e.ChannelId }),
                     voiceStatuses    = _voiceStatuses,
+                    voiceOccupants   = ChannelOccupants.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()),
                     starboard        = new { enabled = ActiveConfig.Settings.StarboardEnabled, channelId = ActiveConfig.Settings.StarboardChannelId, emoji = ActiveConfig.Settings.StarboardEmoji, threshold = ActiveConfig.Settings.StarboardThreshold },
                     iceServers
                 });

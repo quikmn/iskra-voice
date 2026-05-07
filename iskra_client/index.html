@@ -6641,7 +6641,8 @@ async function handleBridgeMessage(data) {
         if (Array.isArray(data.inboundHooks)) serverInboundHooks = data.inboundHooks;
         if (data.publicKeys && typeof data.publicKeys === 'object') Object.assign(serverPublicKeys, data.publicKeys);
         if (data.e2eAccess  && typeof data.e2eAccess  === 'object') Object.assign(e2eChannelAccess, data.e2eAccess);
-        if (data.voiceStatuses && typeof data.voiceStatuses === 'object') voiceStatuses = data.voiceStatuses;
+        if (data.voiceStatuses  && typeof data.voiceStatuses  === 'object') voiceStatuses = data.voiceStatuses;
+        if (data.voiceOccupants && typeof data.voiceOccupants === 'object') Object.assign(voiceChannelUsers, data.voiceOccupants);
         if (data.starboard && typeof data.starboard === 'object') starboardConfig = { ...starboardConfig, ...data.starboard };
         serverChannels = data.channels;
         channelSlowMode = {};
