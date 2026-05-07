@@ -9483,44 +9483,20 @@ async function iskraidSetupE2E() {
     setFb('Generating keys… (this takes a moment)', '');
 
     try {
-        // Generate new RSA keypair
-        const keypair = await crypto.subtle.generateKey(
-            { name: 'RSA-OAEP', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
-            true, ['encrypt', 'decrypt']
-        );
+        const kp        = await e2eGenerateKeypair();
+        const pubKey    = await e2eExportPubKey(kp.publicKey);
+        const wrapKey   = await e2eDeriveWrappingKey(pw, relayEmail);
+        const keyBackup = await e2eWrapPrivKey(kp.privateKey, wrapKey);
 
-        // Export public key as base64
-        const pubRaw = await crypto.subtle.exportKey('spki', keypair.publicKey);
-        const pubB64 = btoa(String.fromCharCode(...new Uint8Array(pubRaw)));
-
-        // Export private key, wrap it with password-derived key
-        const privRaw = await crypto.subtle.exportKey('pkcs8', keypair.privateKey);
-        const salt = crypto.getRandomValues(new Uint8Array(16));
-        const iv   = crypto.getRandomValues(new Uint8Array(12));
-        const enc  = new TextEncoder();
-        const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveKey']);
-        const wrapKey = await crypto.subtle.deriveKey(
-            { name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' },
-            keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt']
-        );
-        const encPriv = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, wrapKey, privRaw);
-
-        const toB64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
-        const keyBackup = {
-            salt: toB64(salt), iv: toB64(iv),
-            encryptedPrivateKey: toB64(encPriv), publicKey: pubB64
-        };
-
-        // Upload to server
         const { ok, data } = await relayFetch('/api/me/keys', {
             method: 'PUT',
-            body: JSON.stringify(keyBackup)
+            body: JSON.stringify({ pubkey: pubKey, keyBackup })
         });
         if (!ok) { setFb(data?.error || 'Failed to save keys. Try again.', 'error'); return; }
 
-        // Load keys into memory
         const result = await e2eLoadKeys(pw, relayEmail);
         if (result === 'ok') {
+            _myPubKeyB64 = pubKey;
             renderIskraidTab();
         } else {
             setFb('Keys saved but could not load — try unlocking now.', 'error');
