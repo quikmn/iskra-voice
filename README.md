@@ -150,12 +150,75 @@ New-NetFirewallRule -DisplayName "Iskra Server 8080" -Direction Inbound -Protoco
 
 ## Quick start — connecting as a client
 
+### Native client (Windows)
+
 1. Unzip `Iskra-Client.zip` anywhere
 2. Run `iskra_client.exe`
 3. Open Settings (⚙ bottom-left) → **Servers** tab → fill in the address and port
 4. Click Connect
 
 The client minimizes to the system tray when you close the window. Right-click the tray icon to quit.
+
+### Web client (any browser, any device)
+
+Go to **[app.iskra.foo](https://app.iskra.foo)** — no download, no install. Works on Android, iOS, desktop.
+
+> **Connecting to a self-hosted server from the web client requires TLS.**
+>
+> Browsers block unencrypted WebSocket connections (`ws://`) from HTTPS pages — it's a browser security rule, not something Iskra can work around. The native client has no such restriction and works fine with just an IP and port.
+>
+> To use the web client with your own server you need a domain name pointed at your server and a TLS certificate in front of it. The setup is a one-time thing and takes about 5 minutes.
+
+#### Setting up TLS for your server (Ubuntu/Debian VPS)
+
+**1. Point a domain at your server IP** — add an A record in your DNS provider (grey cloud / DNS-only, not proxied).
+
+**2. Install nginx and certbot on the server:**
+
+```bash
+apt install nginx certbot python3-certbot-nginx
+certbot --nginx -d yoursubdomain.yourdomain.com --non-interactive --agree-tos -m you@email.com
+```
+
+**3. Write the nginx config:**
+
+```bash
+cat > /etc/nginx/sites-available/iskra << 'EOF'
+server {
+    listen 443 ssl;
+    server_name yoursubdomain.yourdomain.com;
+
+    ssl_certificate     /etc/letsencrypt/live/yoursubdomain.yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yoursubdomain.yourdomain.com/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+}
+
+server {
+    listen 80;
+    server_name yoursubdomain.yourdomain.com;
+    return 301 https://$host$request_uri;
+}
+EOF
+
+ln -sf /etc/nginx/sites-available/iskra /etc/nginx/sites-enabled/iskra
+ufw allow 80/tcp && ufw allow 443/tcp
+nginx -t && systemctl reload nginx
+```
+
+**4. Open ports 80 and 443** in your firewall/VPS control panel if not already open.
+
+**5. Connect** — in the web client (or native client), add the server using your domain name and port **443**. No `ws://` prefix needed, the client handles it.
+
+The Let's Encrypt certificate auto-renews via a scheduled task certbot installs. Nothing else to maintain.
 
 ---
 
