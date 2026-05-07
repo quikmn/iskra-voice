@@ -941,6 +941,10 @@
         /* ── Admin panel ── */
         #tab-btn-admin { display: none; }
         #tab-btn-admin.visible { display: block; }
+        #tab-btn-webhooks { display: none; }
+        #tab-btn-webhooks.visible { display: block; }
+        #tab-btn-botapi { display: none; }
+        #tab-btn-botapi.visible { display: block; }
         .admin-section { margin-bottom: 4px; }
         .admin-section-title { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
         .admin-token-row { background: var(--bg-deep); border-radius: 5px; padding: 7px 10px; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
@@ -1279,6 +1283,8 @@
             <button id="tab-btn-servers"    class="tab-btn"        onclick="switchTab('servers')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="6" cy="18" r="1" fill="currentColor" stroke="none"/></svg>Servers</button>
             <button id="tab-btn-appearance" class="tab-btn"        onclick="switchTab('appearance')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>Skins</button>
             <button id="tab-btn-admin"      class="tab-btn"        onclick="switchTab('admin')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Admin</button>
+            <button id="tab-btn-webhooks"   class="tab-btn"        onclick="switchTab('webhooks')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Hooks</button>
+            <button id="tab-btn-botapi"     class="tab-btn"        onclick="switchTab('botapi')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1" fill="currentColor" stroke="none"/></svg>Bot API</button>
             <button id="tab-btn-iskraid"    class="tab-btn"        onclick="switchTab('iskraid')"><svg width="9" height="14" viewBox="0 0 7 11" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="itbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7dd3fc"/><stop offset="1" stop-color="#2563eb"/></linearGradient></defs><polygon points="4.34,0 2.66,0 1.4,5.5 2.94,5.5 1.54,11 4.06,11 5.46,5.5 4.06,5.5" fill="url(#itbg)"/></svg>IskraID</button>
         </div>
 
@@ -1445,14 +1451,6 @@
                 <div id="admin-channels-list"></div>
             </div>
             <hr class="divider">
-            <div class="admin-section" id="admin-bot-section">
-                <div id="admin-bot-content"></div>
-            </div>
-            <hr class="divider">
-            <div class="admin-section" id="admin-webhooks-section">
-                <div id="admin-webhooks-content"></div>
-            </div>
-            <hr class="divider">
             <div class="admin-section">
                 <div class="admin-section-title">
                     <span>Custom Emojis</span>
@@ -1480,6 +1478,16 @@
                 <p style="font-size:12px;color:#6d6f78;margin-bottom:8px;">Downloads a full ZIP backup: all channels, history, roles, bans, avatars, emojis, uploads, and audit log.</p>
                 <button class="btn-small green" onclick="downloadBackup()">⬇ Download Backup</button>
             </div>
+        </div>
+
+        <!-- ── Webhooks Tab ── -->
+        <div id="tab-webhooks" class="modal-body hidden">
+            <div id="admin-webhooks-content"></div>
+        </div>
+
+        <!-- ── Bot API Tab ── -->
+        <div id="tab-botapi" class="modal-body hidden">
+            <div id="admin-bot-content"></div>
         </div>
 
         <!-- ── Appearance Tab ── -->
@@ -3732,7 +3740,7 @@ function updateHelpPanel(tab) {
 
 function switchTab(tab) {
     activeTab = tab;
-    ['audio', 'identity', 'servers', 'appearance', 'admin', 'iskraid'].forEach(t => {
+    ['audio', 'identity', 'servers', 'appearance', 'admin', 'webhooks', 'botapi', 'iskraid'].forEach(t => {
         document.getElementById(`tab-${t}`)?.classList.toggle('hidden', t !== tab);
         document.getElementById(`tab-btn-${t}`)?.classList.toggle('active', t === tab);
     });
@@ -3740,6 +3748,8 @@ function switchTab(tab) {
     if (tab === 'identity')   { renderAliasList(); updateSettingsAvatarPreview(); }
     if (tab === 'servers')    { renderServerList(); updateSettingsServerSection(); }
     if (tab === 'admin')      renderAdminPanel();
+    if (tab === 'webhooks')   renderWebhooksSection();
+    if (tab === 'botapi')     renderBotsSection();
     if (tab === 'appearance') renderThemePicker();
     if (tab !== 'iskraid') stopVerifyPoll();
     if (tab === 'iskraid') { renderIskraidTab(); refreshRelayMe(); if (relayToken && !relayEmailVerified) startVerifyPoll(); }
@@ -6357,6 +6367,8 @@ async function handleBridgeMessage(data) {
         badge.textContent = data.role;
         badge.className = `visible role-${data.role}`;
         document.getElementById('tab-btn-admin')?.classList.toggle('visible', isElevated);
+        document.getElementById('tab-btn-webhooks')?.classList.toggle('visible', isElevated);
+        document.getElementById('tab-btn-botapi')?.classList.toggle('visible', isElevated);
         if (isElevated) DevLog.log('BRIDGE', `${data.role} role active — /kick /ban /unban /role unlocked`);
         if (activeTab === 'servers') updateSettingsServerSection();
         // Re-render channels in case readOnly access changed (skip if in DM mode)
@@ -6585,6 +6597,8 @@ async function handleBridgeMessage(data) {
         serverBotTokens   = [];
         serverInboundHooks = [];
         document.getElementById('tab-btn-admin')?.classList.remove('visible');
+        document.getElementById('tab-btn-webhooks')?.classList.remove('visible');
+        document.getElementById('tab-btn-botapi')?.classList.remove('visible');
         myStatus = 'online';
         const _sdot = document.getElementById('my-status-dot');
         if (_sdot) _sdot.className = 'status-dot online';
@@ -7517,8 +7531,6 @@ function renderAdminPanel() {
     renderAdminMembers();
     renderAdminRoleColors();
     renderAdminChannels();
-    renderBotsSection();
-    renderWebhooksSection();
     renderEmojisSection();
     renderStarboardSettings();
     loadAuditLog();

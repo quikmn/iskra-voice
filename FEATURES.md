@@ -1,7 +1,7 @@
 # Iskra — Feature Inventory
 
 > Living document. Update this file whenever a feature is added, fixed, or changed.
-> Last updated: 2026-05-08
+> Last updated: 2026-05-07
 
 ---
 
@@ -178,9 +178,9 @@
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Outbound webhooks | ✅ | HTTP POST to URL on new message; admin manages |
-| Inbound webhooks (GitHub/CI → channel) | ❌ | Not yet implemented |
-| Inbound bot API | ✅ | Named bot tokens; bots connect via WebSocket |
+| Outbound webhooks | ✅ | HTTP POST to URL on new message; own tab in Settings (admin-only) with payload docs |
+| Inbound webhooks (GitHub/CI → channel) | ✅ | `POST /inbound/{token}`; token scoped to a channel; own tab in Settings with usage docs |
+| Inbound bot API | ✅ | Named bot tokens; bots connect via WebSocket; own tab in Settings with protocol docs |
 | Auto-update | ✅ | Checks GitHub releases API on startup; download progress bar; self-replaces via PS script; opt-in toggle in settings |
 | DevLog panel | ✅ | F9; colour-coded by category (BRIDGE, VOICE, RTC, etc.) |
 | E2E encryption (channels + DMs) | ✅ | AES-GCM 256; EC pubkey wrapping; per-member access |
@@ -228,6 +228,5 @@
 | Forum/board channel type | Post-style threads |
 | Server templates | Clone channel/role layout |
 | Stage channels | One speaker, many listeners |
-| Inbound webhook (GitHub/CI → channel) | HTTP POST from GitHub, CI, etc. into a channel |
 | Mobile PWA | Push notifications, offline shell |
 | Spotify now-playing status | Show current track as custom status |
