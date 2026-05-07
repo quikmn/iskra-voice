@@ -7242,6 +7242,9 @@ async function handleBridgeMessage(data) {
             setInterval(checkForUpdate, 30 * 60 * 1000);
         }
 
+    } else if (data.action === 'CHECK_UPDATE_MANUAL') {
+        checkForUpdate(true);
+
     } else if (data.action === 'UPDATE_PROGRESS') {
         const fill = document.getElementById('update-progress-fill');
         const pct  = document.getElementById('update-bar-pct');

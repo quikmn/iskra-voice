@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.IO.Compression;
 using System.IO.Pipes;
+using System.Net;
 using System.Net.Http;
 using System.Net.WebSockets;
 using System.Runtime.InteropServices;
@@ -69,6 +70,7 @@ namespace Origin.Client.Core
         private NotifyIcon _trayIcon;
         private bool _isQuitting = false;
         private string _pendingInviteUrl = null;
+        private string _appVersion = "dev";
 
         // ── Server connection tracking (for upload URL normalization in JS) ─────
         private string _serverHost = null;
@@ -154,7 +156,10 @@ namespace Origin.Client.Core
 
         private void InitializeWindow()
         {
-            this.Text          = "Origin Voice Client";
+            string verFile = Path.Combine(Application.StartupPath, "version.txt");
+            if (File.Exists(verFile)) _appVersion = File.ReadAllText(verFile).Trim();
+
+            this.Text          = $"Iskra {_appVersion}";
             this.Width         = 1200;
             this.Height        = 800;
             this.StartPosition = FormStartPosition.CenterScreen;
@@ -181,11 +186,24 @@ namespace Origin.Client.Core
             _trayIcon = new NotifyIcon
             {
                 Icon    = File.Exists(icoPath2) ? new System.Drawing.Icon(icoPath2) : SystemIcons.Application,
-                Text    = "Iskra",
+                Text    = $"Iskra {_appVersion}",
                 Visible = true
             };
             var menu = new ContextMenuStrip();
-            menu.Items.Add("Open",  null, (s, e) => { Show(); WindowState = FormWindowState.Normal; Activate(); });
+            menu.Items.Add("Open Iskra", null, (s, e) => { Show(); WindowState = FormWindowState.Normal; Activate(); });
+            menu.Items.Add(new ToolStripSeparator());
+            menu.Items.Add("Check for updates", null, (s, e) =>
+            {
+                Show(); WindowState = FormWindowState.Normal; Activate();
+                try { webView?.CoreWebView2?.PostWebMessageAsString(
+                    JsonSerializer.Serialize(new { action = "CHECK_UPDATE_MANUAL" })); } catch { }
+            });
+            menu.Items.Add("About Iskra", null, (s, e) =>
+            {
+                MessageBox.Show(
+                    $"Iskra Voice Client\nVersion: {_appVersion}\n\ngithub.com/quikmn/iskra-voice",
+                    "About Iskra", MessageBoxButtons.OK, MessageBoxIcon.None);
+            });
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("Quit",  null, (s, e) => { _isQuitting = true; Application.Exit(); });
             _trayIcon.ContextMenuStrip = menu;
@@ -196,7 +214,7 @@ namespace Origin.Client.Core
         {
             CLog("WEBVIEW", "Initializing WebView2 environment...");
             var opts = new CoreWebView2EnvironmentOptions();
-            opts.AdditionalBrowserArguments = "--autoplay-policy=no-user-gesture-required --allow-running-insecure-content --disable-renderer-backgrounding --disable-background-timer-throttling --disable-backgrounding-occluded-windows";
+            opts.AdditionalBrowserArguments = "--autoplay-policy=no-user-gesture-required --allow-running-insecure-content --disable-features=MixedContentAutoupgrade --disable-renderer-backgrounding --disable-background-timer-throttling --disable-backgrounding-occluded-windows";
             var env = await CoreWebView2Environment.CreateAsync(
                 null, Path.Combine(Path.GetTempPath(), "Origin_WebView2_Data"), opts);
             await webView.EnsureCoreWebView2Async(env);
@@ -226,6 +244,14 @@ namespace Origin.Client.Core
 
             webView.CoreWebView2.NavigationCompleted += (s, e) =>
             {
+                Task.Delay(500).ContinueWith(_ =>
+                {
+                    try { this.Invoke((MethodInvoker)(() =>
+                        webView.CoreWebView2.PostWebMessageAsString(
+                            JsonSerializer.Serialize(new { action = "APP_VERSION", version = _appVersion })))); }
+                    catch { }
+                });
+
                 if (_pendingInviteUrl == null) return;
                 var url = _pendingInviteUrl;
                 _pendingInviteUrl = null;
@@ -243,6 +269,111 @@ namespace Origin.Client.Core
             _pttPollTimer = new System.Threading.Timer(PollPttState, null, 10, 10);
             CLog("PTT", $"Poll started at 10ms | default key: {(char)_pttVkCode} (0x{_pttVkCode:X2})");
             CLog("INFO", "F12 = DevTools | F9 in app = JS log panel | Use Settings → Servers to connect");
+        }
+
+        // ── Localhost HTTP proxy (avoids WebView2 mixed-content blocks for http:// servers) ──
+        private HttpListener? _localProxy;
+        private int           _localProxyPort   = 0;
+        private string        _localProxyTarget = "";
+
+        private static int GetFreePort()
+        {
+            using var l = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+            l.Start();
+            int p = ((System.Net.IPEndPoint)l.LocalEndpoint).Port;
+            l.Stop();
+            return p;
+        }
+
+        private void StartLocalProxy(string targetBase)
+        {
+            try { _localProxy?.Close(); } catch { }
+            _localProxyTarget = targetBase;
+            _localProxyPort   = GetFreePort();
+            _localProxy       = new HttpListener();
+            _localProxy.Prefixes.Add($"http://localhost:{_localProxyPort}/");
+            _localProxy.Start();
+            CLog("PROXY", $"localhost:{_localProxyPort} → {targetBase}");
+            _ = Task.Run(RunLocalProxy);
+        }
+
+        private void StopLocalProxy()
+        {
+            try { _localProxy?.Close(); } catch { }
+            _localProxy       = null;
+            _localProxyPort   = 0;
+            _localProxyTarget = "";
+        }
+
+        private async Task RunLocalProxy()
+        {
+            while (_localProxy?.IsListening == true)
+            {
+                try
+                {
+                    var ctx = await _localProxy.GetContextAsync();
+                    _ = Task.Run(() => HandleLocalProxyRequest(ctx));
+                }
+                catch { break; }
+            }
+        }
+
+        // Headers managed by HttpClient — never forward these
+        private static readonly HashSet<string> _skipHeaders = new(StringComparer.OrdinalIgnoreCase)
+            { "Host", "Content-Length", "Transfer-Encoding", "Connection", "Keep-Alive",
+              "TE", "Trailer", "Upgrade", "Content-Type" };
+
+        private async Task HandleLocalProxyRequest(HttpListenerContext ctx)
+        {
+            try
+            {
+                // Handle CORS preflight directly — don't forward to server
+                if (ctx.Request.HttpMethod == "OPTIONS")
+                {
+                    ctx.Response.StatusCode = 204;
+                    ctx.Response.AddHeader("Access-Control-Allow-Origin",  "*");
+                    ctx.Response.AddHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+                    ctx.Response.AddHeader("Access-Control-Allow-Headers", "*");
+                    ctx.Response.AddHeader("Access-Control-Max-Age",       "86400");
+                    ctx.Response.Close();
+                    return;
+                }
+
+                string path = ctx.Request.Url?.PathAndQuery ?? "/";
+                using var req = new HttpRequestMessage(new HttpMethod(ctx.Request.HttpMethod), _localProxyTarget + path);
+
+                // Forward safe headers only (skip hop-by-hop and content-managed headers)
+                foreach (string key in ctx.Request.Headers.AllKeys ?? [])
+                {
+                    if (_skipHeaders.Contains(key)) continue;
+                    string val = ctx.Request.Headers[key] ?? "";
+                    req.Headers.TryAddWithoutValidation(key, val);
+                }
+
+                if (ctx.Request.HasEntityBody)
+                {
+                    var ms = new MemoryStream();
+                    await ctx.Request.InputStream.CopyToAsync(ms);
+                    ms.Position = 0;
+                    req.Content = new StreamContent(ms);
+                    if (ctx.Request.ContentType is string ctype)
+                        req.Content.Headers.TryAddWithoutValidation("Content-Type", ctype);
+                }
+
+                using var resp = await _http.SendAsync(req);
+                byte[] body = await resp.Content.ReadAsByteArrayAsync();
+
+                ctx.Response.StatusCode = (int)resp.StatusCode;
+                ctx.Response.AddHeader("Access-Control-Allow-Origin",  "*");
+                ctx.Response.AddHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+                ctx.Response.AddHeader("Access-Control-Allow-Headers", "*");
+                if (resp.Content.Headers.ContentType?.ToString() is string ct)
+                    ctx.Response.ContentType = ct;
+                ctx.Response.ContentLength64 = body.Length;
+                await ctx.Response.OutputStream.WriteAsync(body);
+            }
+            catch { try { ctx.Response.StatusCode = 502; } catch { } }
+            finally { try { ctx.Response.Close(); } catch { } }
         }
 
         // ── PTT polling (threadpool thread) ────────────────────────────────────
@@ -301,7 +432,7 @@ namespace Origin.Client.Core
 
                 this.Invoke((MethodInvoker)(() =>
                 {
-                    this.Text = $"Origin Voice Client - {alias}";
+                    this.Text = $"Iskra {_appVersion}";
                     webView.CoreWebView2.PostWebMessageAsString(
                         JsonSerializer.Serialize(new { action = "INIT_CLIENT", alias }));
                 }));
@@ -349,12 +480,13 @@ namespace Origin.Client.Core
             }
             _serverHost = null;
             _serverPort = 0;
+            StopLocalProxy();
             CLog("WS", "Receive loop exited — sending DISCONNECTED to JS");
             try
             {
                 this.Invoke((MethodInvoker)(() =>
                 {
-                    this.Text = "Origin Voice Client";
+                    this.Text = $"Iskra {_appVersion}";
                     webView.CoreWebView2.PostWebMessageAsString(
                         JsonSerializer.Serialize(new { action = "DISCONNECTED" }));
                 }));
@@ -375,68 +507,24 @@ namespace Origin.Client.Core
 
         private async Task DoInstallUpdate(string downloadUrl)
         {
-            string tempDir     = Path.Combine(Path.GetTempPath(), "IskraUpdate_" + Guid.NewGuid().ToString("N")[..8]);
-            string zipPath     = Path.Combine(tempDir, "Iskra-Client.zip");
-            string extractPath = Path.Combine(tempDir, "extracted");
             try
             {
-                Directory.CreateDirectory(tempDir);
-
-                _http.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "IskraClient-Updater/1.0");
-                using var response = await _http.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead);
-                response.EnsureSuccessStatusCode();
-                long? total = response.Content.Headers.ContentLength;
-
-                await using var fs     = new FileStream(zipPath, FileMode.Create, FileAccess.Write, FileShare.None, 65536, true);
-                await using var stream = await response.Content.ReadAsStreamAsync();
-                byte[] buf = new byte[65536];
-                long downloaded = 0; int lastPct = -1, read;
-                while ((read = await stream.ReadAsync(buf)) > 0)
-                {
-                    await fs.WriteAsync(buf.AsMemory(0, read));
-                    downloaded += read;
-                    if (total > 0)
-                    {
-                        int pct = (int)(downloaded * 100 / total.Value);
-                        if (pct != lastPct) { lastPct = pct; PostToJs(new { action = "UPDATE_PROGRESS", phase = "downloading", pct }); }
-                    }
-                }
-
-                PostToJs(new { action = "UPDATE_PROGRESS", phase = "extracting", pct = 0 });
-                Directory.CreateDirectory(extractPath);
-                ZipFile.ExtractToDirectory(zipPath, extractPath, overwriteFiles: true);
-                File.Delete(zipPath);
-
                 PostToJs(new { action = "UPDATE_PROGRESS", phase = "restarting", pct = 100 });
+                await Task.Delay(400);
 
-                string installDir = Application.StartupPath;
-                string exeName    = Path.GetFileName(System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "iskra_client.exe");
-                int    pid        = System.Diagnostics.Process.GetCurrentProcess().Id;
-                string scriptPath = Path.Combine(tempDir, "iskra_update.ps1");
-                string src = extractPath.Replace("'", "''");
-                string dst = installDir.Replace("'",  "''");
+                // Hand off to iskra_launcher.exe which owns our process and can replace files while we're dead
+                using var pipe = new NamedPipeClientStream(".", "IskraLauncherUpdate", PipeDirection.Out);
+                await pipe.ConnectAsync(2000);
+                using var writer = new StreamWriter(pipe, Encoding.UTF8, leaveOpen: false);
+                await writer.WriteAsync(JsonSerializer.Serialize(new { url = downloadUrl }));
+                await writer.FlushAsync();
 
-                File.WriteAllText(scriptPath, $@"$src='{src}';$dst='{dst}';$exe='{exeName}'
-while(Get-Process -Id {pid} -EA 0){{Start-Sleep -ms 200}}
-Start-Sleep -ms 600
-Get-ChildItem $src -Recurse -File|%{{$rel=$_.FullName.Substring($src.Length+1);$t=Join-Path $dst $rel;$d=Split-Path $t -Parent;if(!(Test-Path $d)){{New-Item -Type Directory $d -Force|Out-Null}};Copy-Item $_.FullName $t -Force}}
-Start-Process (Join-Path $dst $exe)
-", Encoding.UTF8);
-
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName  = "powershell.exe",
-                    Arguments = $"-ExecutionPolicy Bypass -WindowStyle Hidden -File \"{scriptPath}\"",
-                    UseShellExecute = true
-                });
-
-                await Task.Delay(800);
+                await Task.Delay(200);
                 this.Invoke((MethodInvoker)(() => { _isQuitting = true; Application.Exit(); }));
             }
             catch (Exception ex)
             {
-                PostToJs(new { action = "UPDATE_ERROR", message = ex.Message });
-                try { Directory.Delete(tempDir, recursive: true); } catch { }
+                PostToJs(new { action = "UPDATE_ERROR", message = $"Launcher not reachable — please launch Iskra via iskra_launcher.exe ({ex.Message})" });
             }
         }
 
@@ -474,6 +562,8 @@ Start-Process (Join-Path $dst $exe)
                     var userPassword  = doc.RootElement.TryGetProperty("userPassword",  out JsonElement upEl) ? upEl.GetString() ?? "" : "";
                     _serverHost = host;
                     _serverPort = port;
+                    StartLocalProxy($"http://{host}:{port}");
+                    PostToJs(new { action = "LOCAL_PROXY_PORT", port = _localProxyPort });
                     CLog("BRIDGE", $"← JS (local) | CONNECT host:{host}:{port} alias:{alias}");
                     _ = Task.Run(() => ConnectToServer(host, port, password, alias, adminPassword, userPassword));
                     return;
@@ -483,6 +573,7 @@ Start-Process (Join-Path $dst $exe)
                     CLog("BRIDGE", "← JS (local) | DISCONNECT");
                     _serverHost = null;
                     _serverPort = 0;
+                    StopLocalProxy();
                     wsClient?.Abort();
                     return;
                 }
