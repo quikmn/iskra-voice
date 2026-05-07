@@ -1595,7 +1595,11 @@
                     <div id="autoupdate-on"  class="mode-btn active" onclick="setAutoUpdate(true)">Auto</div>
                     <div id="autoupdate-off" class="mode-btn"        onclick="setAutoUpdate(false)">Off</div>
                 </div>
-                <div style="font-size:11px;color:var(--text-subtle);margin-top:6px;line-height:1.6;">Checks every 30 minutes. <span id="check-update-btn" style="color:var(--accent);cursor:pointer;text-decoration:underline;" onclick="checkForUpdate()">Check now</span></div>
+                <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
+                    <button class="btn-secondary" style="font-size:12px;padding:3px 14px;" onclick="checkForUpdate(true)">Check for updates</button>
+                    <span id="update-check-status" style="font-size:11px;color:var(--text-muted);"></span>
+                </div>
+                <div style="font-size:11px;color:var(--text-subtle);margin-top:4px;">Checks automatically every 30 minutes.</div>
                 <div class="section-label" style="margin-top:14px;">Update channel</div>
                 <div class="mode-toggle" style="max-width:180px;margin-top:6px;">
                     <div id="channel-stable" class="mode-btn active" onclick="setUpdateChannel('stable')">Stable</div>
@@ -9890,27 +9894,40 @@ const GH_REPO = 'quikmn/iskra-voice';
 let _pendingUpdateUrl = null;
 let _currentVersion   = null;   // set by APP_VERSION bridge message from C#
 
-async function checkForUpdate() {
+async function checkForUpdate(manual = false) {
     if (IS_WEB) return;
+    const statusEl = document.getElementById('update-check-status');
+    const setStatus = (msg) => { if (statusEl) statusEl.textContent = msg; };
+    if (manual) setStatus('Checking…');
     try {
         const currentVer = _currentVersion;
-        if (!currentVer || currentVer === 'dev') return;
+        if (!currentVer || currentVer === 'dev') {
+            if (manual) setStatus('Version unknown — try restarting.');
+            return;
+        }
 
         const isCanary = settings.updateChannel === 'canary';
         const ghUrl = isCanary
             ? `https://api.github.com/repos/${GH_REPO}/releases`
             : `https://api.github.com/repos/${GH_REPO}/releases/latest`;
         const ghResp = await fetch(ghUrl, { headers: { Accept: 'application/vnd.github.v3+json' } });
-        if (!ghResp.ok) return;
+        if (!ghResp.ok) {
+            if (manual) setStatus('Could not reach update server.');
+            return;
+        }
         const raw = await ghResp.json();
         const rel = isCanary ? raw[0] : raw;
-        if (!rel) return;
+        if (!rel) { if (manual) setStatus('No releases found.'); return; }
         const latestVer = rel.tag_name;
-        if (!latestVer || latestVer === currentVer) return;
+        if (!latestVer || latestVer === currentVer) {
+            if (manual) setStatus(`You're up to date (${currentVer}).`);
+            return;
+        }
 
         const asset = rel.assets?.find(a => a.name === 'Iskra-Client.zip');
-        if (!asset) return;
+        if (!asset) { if (manual) setStatus(`${latestVer} found but no download available yet.`); return; }
 
+        if (manual) setStatus('');
         _pendingUpdateUrl = asset.browser_download_url;
         const bar        = document.getElementById('update-bar');
         const text       = document.getElementById('update-bar-text');
@@ -9925,7 +9942,9 @@ async function checkForUpdate() {
         progressW.style.display  = 'none';
         pct.style.display        = 'none';
         bar.style.display        = 'flex';
-    } catch {}
+    } catch (err) {
+        if (manual) setStatus('Check failed — check your connection.');
+    }
 }
 
 function dismissUpdate() {
