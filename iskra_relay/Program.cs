@@ -105,6 +105,13 @@ try {
     mc3.ExecuteNonQuery();
 } catch { }
 
+// Migration: add servers_json if not present
+try {
+    using var mc6 = db.CreateCommand();
+    mc6.CommandText = "ALTER TABLE users ADD COLUMN servers_json TEXT";
+    mc6.ExecuteNonQuery();
+} catch { }
+
 // Migration: public server directory
 try {
     using var mc4 = db.CreateCommand();
@@ -1001,6 +1008,28 @@ h1{{font-size:28px;font-weight:800;margin-bottom:6px;background:linear-gradient(
 </div>
 <script>function copy(a){{navigator.clipboard.writeText(a).then(()=>{{event.target.textContent='Copied!';setTimeout(()=>event.target.textContent='Copy address',1500)}});}}</script>
 </body></html>", "text/html");
+});
+
+// ── Server list sync ──────────────────────────────────────────────────────────
+
+app.MapGet("/api/me/servers", (HttpContext ctx) =>
+{
+    var userId = AuthUser(ctx);
+    if (userId is null) return ErrUnauth();
+    var json = Scalar("SELECT servers_json FROM users WHERE id=$u", ("$u", userId));
+    return Ok(new { servers = json });
+});
+
+app.MapPut("/api/me/servers", async (HttpContext ctx) =>
+{
+    var userId = AuthUser(ctx);
+    if (userId is null) return ErrUnauth();
+    var body = await ctx.Request.ReadFromJsonAsync<JsonElement>();
+    if (!body.TryGetProperty("servers", out var sv)) return ErrBad("servers required");
+    var json = sv.GetRawText();
+    if (json.Length > 65536) return ErrBad("payload too large");
+    Cmd("UPDATE users SET servers_json=$j WHERE id=$u", ("$j", json), ("$u", userId)).ExecuteNonQuery();
+    return Ok();
 });
 
 app.Run();

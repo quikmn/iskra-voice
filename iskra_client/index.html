@@ -940,11 +940,11 @@
 
         /* ── Admin panel ── */
         #tab-btn-admin { display: none; }
-        #tab-btn-admin.visible { display: block; }
+        #tab-btn-admin.visible { display: flex; }
         #tab-btn-webhooks { display: none; }
-        #tab-btn-webhooks.visible { display: block; }
+        #tab-btn-webhooks.visible { display: flex; }
         #tab-btn-botapi { display: none; }
-        #tab-btn-botapi.visible { display: block; }
+        #tab-btn-botapi.visible { display: flex; }
         .admin-section { margin-bottom: 4px; }
         .admin-section-title { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
         .admin-token-row { background: var(--bg-deep); border-radius: 5px; padding: 7px 10px; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
@@ -1489,6 +1489,8 @@
 
         <!-- ── Admin Tab ── -->
         <div id="tab-admin" class="modal-body hidden">
+            <p style="font-size:12px;color:var(--text-muted);line-height:1.6;margin-bottom:4px;">Manage members, roles, channels, emoji, starboard, audit log and backups for the connected server. Admin password required.</p>
+            <hr class="divider">
             <div class="admin-section">
                 <div class="admin-section-title"><span>Members &amp; Roles</span></div>
                 <div id="admin-members-list"></div>
@@ -1542,11 +1544,15 @@
 
         <!-- ── Webhooks Tab ── -->
         <div id="tab-webhooks" class="modal-body hidden">
+            <p style="font-size:12px;color:var(--text-muted);line-height:1.6;margin-bottom:4px;"><strong style="color:var(--text-normal);">Inbound webhooks</strong> let external services (GitHub, CI pipelines, anything that can send HTTP) post messages into a channel. <strong style="color:var(--text-normal);">Outbound webhooks</strong> fire a HTTP POST to a URL of your choice whenever a message is sent — useful for logging, bots, or notifications.</p>
+            <hr class="divider">
             <div id="admin-webhooks-content"></div>
         </div>
 
         <!-- ── Bot API Tab ── -->
         <div id="tab-botapi" class="modal-body hidden">
+            <p style="font-size:12px;color:var(--text-muted);line-height:1.6;margin-bottom:4px;">Connect automated bots to your server over WebSocket. Each bot gets a named token — it connects like a regular client, authenticates with the token, and can read and send messages programmatically. Perfect for moderation bots, game integrations, or anything custom.</p>
+            <hr class="divider">
             <div id="admin-bot-content"></div>
         </div>
 
@@ -3968,6 +3974,7 @@ function addServerManually() {
     const server = { id: _serverId(), name, host, port, password: pass, userPassword: userPass, adminPassword: adminPass };
     clientConfig.servers.push(server);
     saveClientConfig();
+    syncServersToRelay();
     document.getElementById('srv-name-input').value  = '';
     document.getElementById('srv-host-input').value  = '';
     document.getElementById('srv-port-input').value  = '8080';
@@ -3984,6 +3991,7 @@ function removeServer(id) {
     const s = clientConfig.servers.find(x => x.id === id);
     clientConfig.servers = clientConfig.servers.filter(x => x.id !== id);
     saveClientConfig();
+    syncServersToRelay();
     renderServerList();
     renderServerBar();
     if (s) DevLog.log('SETTINGS', `Server removed: "${s.name}"`);
@@ -4631,7 +4639,7 @@ function applySettingsToUI() {
 
 // ── Bridge helpers ─────────────────────────────────────────────────────────────
 function connectWebSocket(host, port, alias, password, userPassword, adminPassword) {
-    const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsProto = (location.protocol === 'https:' || port === 443 || port === 8443) ? 'wss:' : 'ws:';
     ws = new WebSocket(`${wsProto}//${host}:${port}`);
     ws.onopen = () => {
         wsReady = true;
@@ -9056,6 +9064,34 @@ async function refreshRelayMe() {
     relayAvatarDataUrl = r.data.relayAvatar || null;
     relayPersist();
     renderIskraidTab();
+    fetchServersFromRelay();
+}
+
+async function syncServersToRelay() {
+    if (!relayToken) return;
+    const payload = clientConfig.servers.map(s => ({
+        id: s.id, name: s.name, host: s.host, port: s.port, password: s.password || ''
+    }));
+    await relayFetch('/api/me/servers', { method: 'PUT', body: JSON.stringify({ servers: payload }) });
+}
+
+async function fetchServersFromRelay() {
+    if (!relayToken) return;
+    const r = await relayFetch('/api/me/servers');
+    if (!r.ok || !r.data.servers) return;
+    let remote;
+    try { remote = typeof r.data.servers === 'string' ? JSON.parse(r.data.servers) : r.data.servers; }
+    catch { return; }
+    if (!Array.isArray(remote) || remote.length === 0) return;
+    let changed = false;
+    for (const rs of remote) {
+        if (!rs.host || !rs.name) continue;
+        if (!clientConfig.servers.find(s => s.host === rs.host && s.port === rs.port)) {
+            clientConfig.servers.push({ id: rs.id || _serverId(), name: rs.name, host: rs.host, port: rs.port, password: rs.password || '', userPassword: '', adminPassword: '' });
+            changed = true;
+        }
+    }
+    if (changed) { saveClientConfig(); renderServerList(); renderServerBar(); DevLog.log('SETTINGS', `Synced ${remote.length} server(s) from IskraID`); }
 }
 
 function startVerifyPoll() {
