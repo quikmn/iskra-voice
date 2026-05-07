@@ -9260,7 +9260,25 @@ async function iskraidSubmit() {
 
         if (relayEmail) {
             const r = await e2eLoadKeys(pw, relayEmail);
-            if (r === 'no_keys') DevLog.log('RELAY', 'No E2E key backup on server — user needs to set up E2E');
+            if (r === 'no_keys') {
+                // No keys on server — generate and upload now using login password
+                iskraidFeedback('Setting up encryption keys…', '');
+                try {
+                    const kp        = await e2eGenerateKeypair();
+                    const pubKey    = await e2eExportPubKey(kp.publicKey);
+                    const wrapKey   = await e2eDeriveWrappingKey(pw, relayEmail);
+                    const keyBackup = await e2eWrapPrivKey(kp.privateKey, wrapKey);
+                    const { ok: kOk } = await relayFetch('/api/me/keys', {
+                        method: 'PUT',
+                        body: JSON.stringify({ pubkey: pubKey, keyBackup })
+                    });
+                    if (kOk) {
+                        await e2eLoadKeys(pw, relayEmail);
+                        _myPubKeyB64 = pubKey;
+                        relayPersist();
+                    }
+                } catch { /* non-fatal */ }
+            }
         }
 
         iskraidFeedback('', '');
