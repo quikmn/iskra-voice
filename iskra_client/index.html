@@ -5274,7 +5274,9 @@ function addServerManually() {
     const adminPass = document.getElementById('srv-admin-input').value || '';
     if (!name || !rawHost) { DevLog.log('ERR', 'Server name and address are required'); return; }
     const { host, port } = _splitHostPort(rawHost, rawPort);
-    const server = { id: _serverId(), name, host, port, password: pass, userPassword: userPass, adminPassword: adminPass };
+    // webPort is the nginx/WSS port used by web and Android clients (always 443 unless overridden)
+    const webPort = IS_WEB ? port : 443;
+    const server = { id: _serverId(), name, host, port, webPort, password: pass, userPassword: userPass, adminPassword: adminPass };
     clientConfig.servers.push(server);
     saveClientConfig();
     syncServersToRelay();
@@ -5527,7 +5529,8 @@ function addFromInvite() {
         if (!data.h) throw new Error('missing host');
         // On web, always connect on port 443 (WSS via nginx); native uses the encoded port
         const port = IS_WEB ? 443 : (data.p || 8080);
-        const server = { id: _serverId(), name: data.n || 'Imported Server', host: data.h, port, password: '' };
+        const webPort = data.wp || 443;
+        const server = { id: _serverId(), name: data.n || 'Imported Server', host: data.h, port, webPort, password: '' };
         clientConfig.servers.push(server);
         saveClientConfig();
         connectToServer(server.id);
@@ -7499,9 +7502,10 @@ function acceptJoinInvite() {
     document.getElementById('ui-alias').textContent = alias;
     const joinPassword = (document.getElementById('join-invite-password')?.value || '').trim();
     const joinPort = IS_WEB ? 443 : (data.p || 8080);
+    const joinWebPort = data.wp || 443;
     let server = clientConfig.servers.find(s => s.host === data.h && s.port === joinPort);
     if (!server) {
-        server = { id: _serverId(), name: data.n || 'Imported Server', host: data.h, port: joinPort, password: joinPassword };
+        server = { id: _serverId(), name: data.n || 'Imported Server', host: data.h, port: joinPort, webPort: joinWebPort, password: joinPassword };
         clientConfig.servers.push(server);
         renderServerBar();
     } else if (joinPassword && !server.password) {
@@ -7521,13 +7525,14 @@ function showInviteModal(id) {
     _inviteServerId = id;
 
     // Web/mobile link always encodes port 443 (nginx WSS proxy)
-    const webPayload = btoa(JSON.stringify({ n: server.name, h: server.host, p: 443 }));
+    const wp = server.webPort || 443;
+    const webPayload = btoa(JSON.stringify({ n: server.name, h: server.host, p: wp, wp }));
     document.getElementById('invite-web-field').value = `https://app.iskra.foo/?s=${webPayload}`;
 
     // Desktop link uses the server's direct port; hidden on web
     const desktopSection = document.getElementById('invite-desktop-section');
     if (!IS_WEB) {
-        const nativePayload = btoa(JSON.stringify({ n: server.name, h: server.host, p: server.port }));
+        const nativePayload = btoa(JSON.stringify({ n: server.name, h: server.host, p: server.port, wp }));
         document.getElementById('invite-desktop-field').value = `iskra://invite/${nativePayload}`;
         desktopSection.style.display = '';
     } else {
@@ -11859,7 +11864,10 @@ async function refreshRelayMe() {
 async function syncServersToRelay() {
     if (!relayToken) return;
     const payload = clientConfig.servers.map(s => ({
-        id: s.id, name: s.name, host: s.host, port: s.port, password: s.password || ''
+        id: s.id, name: s.name, host: s.host,
+        port: s.port,
+        webPort: s.webPort || 443,
+        password: s.password || ''
     }));
     await relayFetch('/api/me/servers', { method: 'PUT', body: JSON.stringify({ servers: payload }) });
 }
@@ -11875,8 +11883,16 @@ async function fetchServersFromRelay() {
     let changed = false;
     for (const rs of remote) {
         if (!rs.host || !rs.name) continue;
-        if (!clientConfig.servers.find(s => s.host === rs.host && s.port === rs.port)) {
-            clientConfig.servers.push({ id: rs.id || _serverId(), name: rs.name, host: rs.host, port: rs.port, password: rs.password || '', userPassword: '', adminPassword: '' });
+        // On web/Android, always connect via the web port (nginx WSS on 443)
+        // On native desktop, use the raw native port and let C# pick ws:// vs wss://
+        const connectPort = IS_WEB ? (rs.webPort || 443) : (rs.port || 8080);
+        const webPort = rs.webPort || 443;
+        if (!clientConfig.servers.find(s => s.host === rs.host && s.port === connectPort)) {
+            clientConfig.servers.push({
+                id: rs.id || _serverId(), name: rs.name, host: rs.host,
+                port: connectPort, webPort,
+                password: rs.password || '', userPassword: '', adminPassword: ''
+            });
             changed = true;
         }
     }

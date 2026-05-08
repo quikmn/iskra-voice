@@ -72,14 +72,13 @@ namespace Origin.Client.Core
         private string _pendingInviteUrl = null;
         private string _appVersion = "dev";
 
-        // ── Server connection tracking (for upload URL normalization in JS) ─────
+        // ── Server connection tracking ──────────────────────────────────────────
         private string _serverHost = null;
         private int    _serverPort = 0;
+        private readonly Dictionary<string, ClientWebSocket> _serverConnections = new();
 
-        // ── WebSocket + UI ──────────────────────────────────────────────────────
+        // ── WebView ─────────────────────────────────────────────────────────────
         private WebView2 webView;
-        private ClientWebSocket wsClient;
-        private string myAlias;
 
         public Origin_Client_Core_Main(string pendingInviteUrl = null)
         {
@@ -405,59 +404,50 @@ namespace Origin.Client.Core
             catch { return ""; }
         }
 
-        // ── Server connection ───────────────────────────────────────────────────
-        private async Task ConnectToServer(string host, int port, string password, string alias, string adminPassword = "", string userPassword = "")
+        // ── Server connection (per-server, multi-server capable) ───────────────
+        private async Task ConnectToServer(string serverId, string host, int port, string password, string alias, string adminPassword = "", string userPassword = "")
         {
-            if (wsClient != null && wsClient.State == WebSocketState.Open)
+            string tag = serverId.Length > 8 ? serverId[..8] : serverId;
+            if (_serverConnections.TryGetValue(serverId, out var existing))
             {
-                CLog("WS", "Already connected — ignoring CONNECT request");
-                return;
+                if (existing.State == WebSocketState.Open) { CLog("WS", $"[{tag}] Already connected"); return; }
+                try { existing.Abort(); } catch { }
+                _serverConnections.Remove(serverId);
             }
 
-            wsClient = new ClientWebSocket();
-            myAlias  = alias;
+            var ws = new ClientWebSocket();
+            _serverConnections[serverId] = ws;
             try
             {
-                var uri = new Uri($"ws://{host}:{port}/");
-                CLog("WS", $"Connecting to {uri} as '{alias}'...");
-                await wsClient.ConnectAsync(uri, CancellationToken.None);
-                CLog("WS", "Connected");
+                var scheme = port == 443 || port == 8443 ? "wss" : "ws";
+                var uri = new Uri($"{scheme}://{host}:{port}/");
+                CLog("WS", $"[{tag}] Connecting to {uri} as '{alias}'...");
+                await ws.ConnectAsync(uri, CancellationToken.None);
+                CLog("WS", $"[{tag}] Connected");
 
                 var machineGuid = GetMachineGuid();
                 var auth = new { password, alias, machineGuid, adminPassword, userPassword };
-                await wsClient.SendAsync(
+                await ws.SendAsync(
                     new ArraySegment<byte>(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(auth))),
                     WebSocketMessageType.Text, true, CancellationToken.None);
-                CLog("WS", $"Auth sent | alias:{alias} admin:{!string.IsNullOrEmpty(adminPassword)} guid:{(machineGuid.Length > 8 ? machineGuid[..8] + "…" : machineGuid)}");
+                CLog("WS", $"[{tag}] Auth sent | alias:{alias} guid:{(machineGuid.Length > 8 ? machineGuid[..8] + "…" : machineGuid)}");
 
-                this.Invoke((MethodInvoker)(() =>
-                {
-                    this.Text = $"Iskra {_appVersion}";
-                    webView.CoreWebView2.PostWebMessageAsString(
-                        JsonSerializer.Serialize(new { action = "INIT_CLIENT", alias }));
-                }));
-                CLog("BRIDGE", $"→ JS | INIT_CLIENT alias:{alias}");
-
-                _ = Task.Run(ListenForServerMessages);
+                _ = Task.Run(() => ListenForServerMessages(serverId, ws));
             }
             catch (Exception ex)
             {
-                CLog("ERR", $"Connection failed: {ex.Message}");
-                try
-                {
-                    this.Invoke((MethodInvoker)(() =>
-                        webView.CoreWebView2.PostWebMessageAsString(
-                            JsonSerializer.Serialize(new { action = "CONNECTION_FAILED", error = ex.Message }))));
-                }
-                catch { }
+                _serverConnections.Remove(serverId);
+                CLog("ERR", $"[{tag}] Connection failed: {ex.Message}");
+                PostToJsForServer(serverId, new { action = "DISCONNECTED" });
             }
         }
 
-        private async Task ListenForServerMessages()
+        private async Task ListenForServerMessages(string serverId, ClientWebSocket ws)
         {
+            string tag       = serverId.Length > 8 ? serverId[..8] : serverId;
             byte[] buf       = new byte[16384];
             var    msgStream = new MemoryStream(65536);
-            while (wsClient != null && wsClient.State == WebSocketState.Open)
+            while (ws.State == WebSocketState.Open)
             {
                 try
                 {
@@ -465,33 +455,22 @@ namespace Origin.Client.Core
                     WebSocketReceiveResult result;
                     do
                     {
-                        result = await wsClient.ReceiveAsync(new ArraySegment<byte>(buf), CancellationToken.None);
+                        result = await ws.ReceiveAsync(new ArraySegment<byte>(buf), CancellationToken.None);
                         msgStream.Write(buf, 0, result.Count);
                     } while (!result.EndOfMessage);
 
                     if (result.MessageType == WebSocketMessageType.Text)
                     {
                         string msg = Encoding.UTF8.GetString(msgStream.GetBuffer(), 0, (int)msgStream.Length);
-                        this.Invoke((MethodInvoker)(() =>
-                            webView.CoreWebView2.PostWebMessageAsString(msg)));
+                        PostToJsForServer(serverId, msg);
                     }
                 }
                 catch { break; }
             }
-            _serverHost = null;
-            _serverPort = 0;
-            StopLocalProxy();
-            CLog("WS", "Receive loop exited — sending DISCONNECTED to JS");
-            try
-            {
-                this.Invoke((MethodInvoker)(() =>
-                {
-                    this.Text = $"Iskra {_appVersion}";
-                    webView.CoreWebView2.PostWebMessageAsString(
-                        JsonSerializer.Serialize(new { action = "DISCONNECTED" }));
-                }));
-            }
-            catch { }
+            _serverConnections.Remove(serverId);
+            if (_serverHost != null) { _serverHost = null; _serverPort = 0; StopLocalProxy(); }
+            CLog("WS", $"[{tag}] Receive loop exited — sending DISCONNECTED to JS");
+            PostToJsForServer(serverId, new { action = "DISCONNECTED" });
         }
 
         private void PostToJs(object obj)
@@ -504,6 +483,31 @@ namespace Origin.Client.Core
             }
             catch { }
         }
+
+        // Injects __serverId into a JSON payload and posts to JS bridge
+        private void PostToJsForServer(string serverId, string json)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                using var ms  = new MemoryStream();
+                using (var w  = new Utf8JsonWriter(ms))
+                {
+                    w.WriteStartObject();
+                    w.WriteString("__serverId", serverId);
+                    foreach (var prop in doc.RootElement.EnumerateObject())
+                        prop.WriteTo(w);
+                    w.WriteEndObject();
+                }
+                string wrapped = Encoding.UTF8.GetString(ms.ToArray());
+                this.Invoke((MethodInvoker)(() =>
+                    webView?.CoreWebView2?.PostWebMessageAsString(wrapped)));
+            }
+            catch { }
+        }
+
+        private void PostToJsForServer(string serverId, object obj) =>
+            PostToJsForServer(serverId, JsonSerializer.Serialize(obj));
 
         private async Task DoInstallUpdate(string downloadUrl)
         {
@@ -552,29 +556,34 @@ namespace Origin.Client.Core
                     try { this.Invoke((MethodInvoker)(() => Application.Exit())); } catch { }
                     return;
                 }
-                if (action == "CONNECT")
+                if (action == "CONNECT_SERVER")
                 {
+                    var sid           = doc.RootElement.GetProperty("serverId").GetString();
                     var host          = doc.RootElement.GetProperty("host").GetString();
                     var port          = doc.RootElement.GetProperty("port").GetInt32();
-                    var password      = doc.RootElement.GetProperty("password").GetString();
                     var alias         = doc.RootElement.GetProperty("alias").GetString();
+                    var password      = doc.RootElement.TryGetProperty("password",      out JsonElement pwEl) ? pwEl.GetString() ?? "" : "";
                     var adminPassword = doc.RootElement.TryGetProperty("adminPassword", out JsonElement apEl) ? apEl.GetString() ?? "" : "";
                     var userPassword  = doc.RootElement.TryGetProperty("userPassword",  out JsonElement upEl) ? upEl.GetString() ?? "" : "";
                     _serverHost = host;
                     _serverPort = port;
                     StartLocalProxy($"http://{host}:{port}");
-                    PostToJs(new { action = "LOCAL_PROXY_PORT", port = _localProxyPort });
-                    CLog("BRIDGE", $"← JS (local) | CONNECT host:{host}:{port} alias:{alias}");
-                    _ = Task.Run(() => ConnectToServer(host, port, password, alias, adminPassword, userPassword));
+                    PostToJsForServer(sid, new { action = "LOCAL_PROXY_PORT", port = _localProxyPort });
+                    CLog("BRIDGE", $"← JS | CONNECT_SERVER host:{host}:{port} alias:{alias} sid:{sid[..Math.Min(8,sid.Length)]}");
+                    _ = Task.Run(() => ConnectToServer(sid, host, port, password, alias, adminPassword, userPassword));
                     return;
                 }
-                if (action == "DISCONNECT")
+                if (action == "DISCONNECT_SERVER")
                 {
-                    CLog("BRIDGE", "← JS (local) | DISCONNECT");
-                    _serverHost = null;
-                    _serverPort = 0;
+                    var sid2 = doc.RootElement.GetProperty("serverId").GetString();
+                    if (_serverConnections.TryGetValue(sid2, out var wsToClose))
+                    {
+                        _serverConnections.Remove(sid2);
+                        try { wsToClose.Abort(); } catch { }
+                    }
                     StopLocalProxy();
-                    wsClient?.Abort();
+                    _serverHost = null; _serverPort = 0;
+                    CLog("BRIDGE", $"← JS | DISCONNECT_SERVER sid:{sid2[..Math.Min(8,sid2.Length)]}");
                     return;
                 }
                 if (action == "START_PROXY")
@@ -625,6 +634,45 @@ namespace Origin.Client.Core
                     CLog($"JS:{cat,-5}", logMsg);
                     return;
                 }
+                if (action == "STORE_DM_KEY")
+                {
+                    var dkAlias  = doc.RootElement.TryGetProperty("alias",    out var dkaEl) ? dkaEl.GetString() ?? "" : "";
+                    var dkSid    = doc.RootElement.TryGetProperty("serverId", out var dksEl) ? dksEl.GetString() ?? "" : "";
+                    var dkBlob   = doc.RootElement.TryGetProperty("blob",     out var dkbEl) ? dkbEl.GetString() ?? "" : "";
+                    if (!string.IsNullOrEmpty(dkAlias) && !string.IsNullOrEmpty(dkBlob))
+                    {
+                        var keyDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Iskra", "DmKeys");
+                        Directory.CreateDirectory(keyDir);
+                        var safeName = string.Concat($"{dkAlias}_{dkSid}".Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c)) + ".ikkey";
+                        File.WriteAllText(Path.Combine(keyDir, safeName), dkBlob);
+                        CLog("BRIDGE", $"← JS | STORE_DM_KEY alias:{dkAlias}");
+                    }
+                    return;
+                }
+                if (action == "LOAD_DM_KEY")
+                {
+                    var dkAlias2 = doc.RootElement.TryGetProperty("alias",    out var dka2El) ? dka2El.GetString() ?? "" : "";
+                    var dkSid2   = doc.RootElement.TryGetProperty("serverId", out var dks2El) ? dks2El.GetString() ?? "" : "";
+                    var keyDir2  = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Iskra", "DmKeys");
+                    var safeName2 = string.Concat($"{dkAlias2}_{dkSid2}".Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c)) + ".ikkey";
+                    var keyPath2  = Path.Combine(keyDir2, safeName2);
+                    var blob2    = File.Exists(keyPath2) ? File.ReadAllText(keyPath2) : null;
+                    var resp2    = System.Text.Json.JsonSerializer.Serialize(new { action = "DM_KEY_LOADED", alias = dkAlias2, serverId = dkSid2, blob = blob2 });
+                    try { this.Invoke((MethodInvoker)(() => webView?.CoreWebView2?.PostWebMessageAsString(resp2))); } catch { }
+                    CLog("BRIDGE", $"← JS | LOAD_DM_KEY alias:{dkAlias2} found:{blob2 != null}");
+                    return;
+                }
+                if (action == "DELETE_DM_KEY")
+                {
+                    var dkAlias3 = doc.RootElement.TryGetProperty("alias",    out var dka3El) ? dka3El.GetString() ?? "" : "";
+                    var dkSid3   = doc.RootElement.TryGetProperty("serverId", out var dks3El) ? dks3El.GetString() ?? "" : "";
+                    var keyDir3  = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Iskra", "DmKeys");
+                    var safeName3 = string.Concat($"{dkAlias3}_{dkSid3}".Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c)) + ".ikkey";
+                    var keyPath3  = Path.Combine(keyDir3, safeName3);
+                    if (File.Exists(keyPath3)) File.Delete(keyPath3);
+                    CLog("BRIDGE", $"← JS | DELETE_DM_KEY alias:{dkAlias3}");
+                    return;
+                }
                 if (action == "OPEN_URL")
                 {
                     var url = doc.RootElement.TryGetProperty("url", out var urlEl) ? urlEl.GetString() ?? "" : "";
@@ -642,13 +690,31 @@ namespace Origin.Client.Core
             }
             catch { /* malformed JSON — fall through */ }
 
-            if (wsClient != null && wsClient.State == WebSocketState.Open)
+            // Route JS→server messages: JS embeds __serverId to identify target server
+            try
             {
-                CLog("BRIDGE", $"← JS → srv | {(json.Length > 80 ? json[..80] + "…" : json)}");
-                await wsClient.SendAsync(
-                    new ArraySegment<byte>(Encoding.UTF8.GetBytes(json)),
-                    WebSocketMessageType.Text, true, CancellationToken.None);
+                using var routeDoc = JsonDocument.Parse(json);
+                if (routeDoc.RootElement.TryGetProperty("__serverId", out var sidProp))
+                {
+                    string targetSid = sidProp.GetString();
+                    if (targetSid != null && _serverConnections.TryGetValue(targetSid, out var targetWs) && targetWs.State == WebSocketState.Open)
+                    {
+                        // Strip __serverId before forwarding to server
+                        using var ms = new MemoryStream();
+                        using (var jw = new Utf8JsonWriter(ms))
+                        {
+                            jw.WriteStartObject();
+                            foreach (var prop in routeDoc.RootElement.EnumerateObject())
+                                if (prop.Name != "__serverId") prop.WriteTo(jw);
+                            jw.WriteEndObject();
+                        }
+                        byte[] cleanBytes = ms.ToArray();
+                        CLog("BRIDGE", $"← JS → srv[{targetSid[..Math.Min(8,targetSid.Length)]}] | {(json.Length > 80 ? json[..80] + "…" : json)}");
+                        await targetWs.SendAsync(new ArraySegment<byte>(cleanBytes), WebSocketMessageType.Text, true, CancellationToken.None);
+                    }
+                }
             }
+            catch { }
         }
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
