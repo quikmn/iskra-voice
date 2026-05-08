@@ -7080,8 +7080,8 @@ async function handleBridgeMessage(data, serverId) {
         }, 6000);
 
     } else if (data.action === 'STATUS_UPDATED') {
-        // In web mode the server sends STATUS_UPDATED instead of INIT_CLIENT on auth success
-        if (IS_WEB && !connectedServerIds.has(serverId) && data.status === 'online') {
+        // Server sends STATUS_UPDATED on auth success; use it to trigger INIT_CLIENT for JS-managed connections
+        if (!connectedServerIds.has(serverId) && data.status === 'online') {
             await handleBridgeMessage({ action: 'INIT_CLIENT', alias: data.alias }, serverId);
             return;
         }
