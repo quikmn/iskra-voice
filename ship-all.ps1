@@ -2,15 +2,17 @@
 # Usage:
 #   .\ship-all.ps1 -Version v1.2   — full ship: build + deploy live + GitHub release
 #   .\ship-all.ps1                 — build + deploy live, no GitHub release
-#   .\ship-all.ps1 -WebOnly        — web client only
-#   .\ship-all.ps1 -NativeOnly     — native + server only (no web deploy)
+#   .\ship-all.ps1 -WebOnly        — web client only (no native, no Android)
+#   .\ship-all.ps1 -NativeOnly     — native + server + Android, no web deploy
 #   .\ship-all.ps1 -SkipDeploy     — skip live server deploy
+#   .\ship-all.ps1 -SkipAndroid    — skip Android APK build
 
 param(
     [string]$Version,
     [switch]$WebOnly,
     [switch]$NativeOnly,
-    [switch]$SkipDeploy
+    [switch]$SkipDeploy,
+    [switch]$SkipAndroid
 )
 
 $ErrorActionPreference = 'Stop'
@@ -52,6 +54,12 @@ if (-not $NativeOnly) {
     if ($LASTEXITCODE -ne 0) { Write-Host "Web deploy failed." -ForegroundColor Red; exit 1 }
 }
 
+if (-not $WebOnly -and -not $SkipAndroid) {
+    Write-Host "==> Building Android APK..." -ForegroundColor Cyan
+    & (Join-Path $root 'ship-android.ps1')
+    if ($LASTEXITCODE -ne 0) { Write-Host "Android build failed." -ForegroundColor Red; exit 1 }
+}
+
 if (-not $WebOnly -and -not $SkipDeploy) {
     Write-Host "==> Deploying to live server..." -ForegroundColor Cyan
     & (Join-Path $root 'update-server.ps1')
@@ -64,10 +72,14 @@ if ($Version -and -not $WebOnly) {
     git tag $Version
     git push origin $Version
 
-    $clientZip = Join-Path $root 'Iskra-Client.zip'
+    $clientZip  = Join-Path $root 'Iskra-Client.zip'
     $serverZip  = Join-Path $root 'Iskra-Server.zip'
+    $androidApk = Join-Path $root 'Iskra-Android.apk'
 
-    gh release create $Version $clientZip $serverZip `
+    $assets = @($clientZip, $serverZip)
+    if (-not $SkipAndroid -and (Test-Path $androidApk)) { $assets += $androidApk }
+
+    gh release create $Version @assets `
         --title "Iskra $Version" `
         --generate-notes `
         --latest
