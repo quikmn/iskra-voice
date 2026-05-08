@@ -577,6 +577,26 @@ namespace Origin.Client.Core
                     wsClient?.Abort();
                     return;
                 }
+                if (action == "START_PROXY")
+                {
+                    var proxyHost = doc.RootElement.GetProperty("host").GetString();
+                    var proxyPort = doc.RootElement.GetProperty("port").GetInt32();
+                    var sid       = doc.RootElement.GetProperty("serverId").GetString();
+                    _serverHost = proxyHost;
+                    _serverPort = proxyPort;
+                    StartLocalProxy($"http://{proxyHost}:{proxyPort}");
+                    PostToJs(new { action = "LOCAL_PROXY_PORT", serverId = sid, port = _localProxyPort });
+                    CLog("BRIDGE", $"← JS (local) | START_PROXY host:{proxyHost}:{proxyPort} → proxyPort:{_localProxyPort}");
+                    return;
+                }
+                if (action == "STOP_PROXY")
+                {
+                    _serverHost = null;
+                    _serverPort = 0;
+                    StopLocalProxy();
+                    CLog("BRIDGE", "← JS (local) | STOP_PROXY");
+                    return;
+                }
                 if (action == "SET_PTT_KEY")
                 {
                     _pttVkCode = doc.RootElement.GetProperty("keyCode").GetInt32();
