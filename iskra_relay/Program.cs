@@ -112,6 +112,20 @@ try {
     mc6.ExecuteNonQuery();
 } catch { }
 
+// Migration: add expires_at to sessions
+try {
+    using var mcs = db.CreateCommand();
+    mcs.CommandText = "ALTER TABLE sessions ADD COLUMN expires_at INTEGER NOT NULL DEFAULT 0";
+    mcs.ExecuteNonQuery();
+} catch { }
+// Stamp existing sessions with a 30-day expiry so they eventually expire
+{
+    using var mcs2 = db.CreateCommand();
+    mcs2.CommandText = "UPDATE sessions SET expires_at=$e WHERE expires_at=0";
+    mcs2.Parameters.AddWithValue("$e", DateTimeOffset.UtcNow.ToUnixTimeSeconds() + 30 * 86400L);
+    mcs2.ExecuteNonQuery();
+}
+
 // Migration: public server directory
 try {
     using var mc4 = db.CreateCommand();
@@ -173,8 +187,15 @@ string? AuthUser(HttpContext ctx)
     var auth = ctx.Request.Headers.Authorization.ToString();
     if (!auth.StartsWith("Bearer ")) return null;
     var tok = auth[7..].Trim();
-    return Scalar("SELECT user_id FROM sessions WHERE token=$t", ("$t", tok));
+    return Scalar("SELECT user_id FROM sessions WHERE token=$t AND expires_at>$now",
+        ("$t", tok), ("$now", Now()));
 }
+
+// ── Login lockout (in-memory; resets on relay restart) ───────────────────────
+var _loginAttempts = new Dictionary<string, (int count, long lockedUntil)>(StringComparer.OrdinalIgnoreCase);
+var _loginLock = new object();
+const int LoginMaxAttempts = 5;
+const long LoginLockoutSecs = 900; // 15 min
 
 async Task SendEmail(string to, string subject, string html)
 {
@@ -399,20 +420,42 @@ app.MapPost("/api/login", async (HttpContext ctx) =>
     if (body is null || string.IsNullOrWhiteSpace(body.Alias) || string.IsNullOrWhiteSpace(body.Password))
         return ErrBad("alias and password required");
 
+    var aliasKey = body.Alias.Trim().ToLowerInvariant();
+
+    // Lockout check
+    lock (_loginLock) {
+        if (_loginAttempts.TryGetValue(aliasKey, out var st) && st.lockedUntil > Now())
+            return Err(429, "Too many failed attempts — try again in 15 minutes");
+    }
+
     using var cmd = Cmd("SELECT id, password_hash, email_verified, pubkey FROM users WHERE alias=$a", ("$a", body.Alias.Trim()));
     using var r = cmd.ExecuteReader();
-    if (!r.Read()) return Err(401, "Invalid credentials");
+    if (!r.Read()) {
+        // Count miss as failed attempt to prevent alias enumeration timing attack
+        lock (_loginLock) { _loginAttempts[aliasKey] = (_loginAttempts.TryGetValue(aliasKey, out var s) ? s.count + 1 : 1, Now() + LoginLockoutSecs); }
+        return Err(401, "Invalid credentials");
+    }
     var userId   = r.GetString(0);
     var hash     = r.GetString(1);
     var verified = r.GetInt64(2) == 1;
     var pubkey   = r.IsDBNull(3) ? null : r.GetString(3);
     r.Close();
 
-    if (!BCrypt.Net.BCrypt.Verify(body.Password, hash)) return Err(401, "Invalid credentials");
+    if (!BCrypt.Net.BCrypt.Verify(body.Password, hash)) {
+        lock (_loginLock) {
+            _loginAttempts.TryGetValue(aliasKey, out var s);
+            var newCount = s.count + 1;
+            _loginAttempts[aliasKey] = (newCount, newCount >= LoginMaxAttempts ? Now() + LoginLockoutSecs : s.lockedUntil);
+        }
+        return Err(401, "Invalid credentials");
+    }
 
+    // Success — clear lockout, issue session with 30-day expiry
+    lock (_loginLock) { _loginAttempts.Remove(aliasKey); }
     var tok = NewToken();
-    Cmd("INSERT INTO sessions(token,user_id,created_at) VALUES($t,$u,$ts)",
-        ("$t", tok), ("$u", userId), ("$ts", Now()))
+    var expiresAt = Now() + 30 * 86400L;
+    Cmd("INSERT INTO sessions(token,user_id,created_at,expires_at) VALUES($t,$u,$ts,$ex)",
+        ("$t", tok), ("$u", userId), ("$ts", Now()), ("$ex", expiresAt))
         .ExecuteNonQuery();
 
     return Ok(new { token = tok, userId, alias = body.Alias.Trim(), emailVerified = verified, pubkey });

@@ -16,8 +16,8 @@ dotnet publish -c Release -r linux-x64 --self-contained false -o ./publish
 cd ..
 
 echo "==> Copying build to server..."
-ssh "$REMOTE" "mkdir -p $APP_DIR/app"
-rsync -avz --delete iskra_relay/publish/ "$REMOTE:$APP_DIR/app/"
+ssh "$REMOTE" "mkdir -p $APP_DIR/app && rm -rf $APP_DIR/app/*"
+scp -r iskra_relay/publish/. "$REMOTE:$APP_DIR/app/"
 
 echo "==> Provisioning server..."
 ssh "$REMOTE" bash << 'ENDSSH'
@@ -114,15 +114,13 @@ systemctl status $SVC --no-pager -l
 ENDSSH2
 
 # ── SSL ───────────────────────────────────────────────────────────────────────
-echo ""
-echo "==> Requesting SSL certificate for $DOMAIN..."
-echo "    (Make sure the A record id.iskra.foo → 159.65.197.109 is live first)"
-read -p "  Proceed with certbot? [y/N] " DO_CERT
-if [[ "$DO_CERT" =~ ^[Yy]$ ]]; then
+# Only attempt certbot if --ssl flag is passed: bash deploy-relay.sh --ssl
+if [[ "$1" == "--ssl" ]]; then
+    echo "==> Requesting SSL certificate for $DOMAIN..."
     ssh "$REMOTE" "certbot --nginx -d $DOMAIN --non-interactive --agree-tos -m viktor.lundgren@gmail.com"
     echo "--> SSL configured"
 else
-    echo "--> Skipping certbot — run manually: certbot --nginx -d $DOMAIN"
+    echo "==> Skipping certbot (pass --ssl to request/renew certificate)"
 fi
 
 echo ""

@@ -65,6 +65,9 @@ namespace Origin.Server.Core
         private static ConcurrentDictionary<string, WatchSession> _watchSessions   = new(); // voiceChannelId → session
         private static string ThreadsFile => Path.Combine(ActiveWorldPath, "threads.json");
         private static ConcurrentDictionary<string, string> UserStatuses     = new(); // alias → "online"/"away"/"dnd"/"invisible"
+        private static Dictionary<string, List<string>>   PinnedReads      = new(); // messageId → [alias,...]
+        private static readonly object PinnedReadsLock = new();
+        private static string PinnedReadsFile => Path.Combine(ActiveWorldPath, "pinned-reads.json");
         private static ConcurrentDictionary<string, string> UserStatusTexts = new(); // alias → custom status text
         private static ConcurrentDictionary<string, WebSocket> BotClients = new(); // botName → socket
         private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(5) };
@@ -546,6 +549,8 @@ namespace Origin.Server.Core
                 BannedGuids = new HashSet<string>(bans.Select(b => b.MachineGuid).Where(g => g != null));
                 Log("CONFIG", $"Bans loaded: {BannedGuids.Count}");
             }
+            if (File.Exists(PinnedReadsFile))
+                try { PinnedReads = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(File.ReadAllText(PinnedReadsFile)) ?? new(); } catch { }
         }
 
         private static void SaveFingerprints()
@@ -1590,6 +1595,33 @@ namespace Origin.Server.Core
                                 }
                                 _lastMsgTime[smKey] = DateTime.UtcNow;
                             }
+                            // ── Auto-moderation ──────────────────────────────────
+                            var _am = ActiveConfig.Settings.AutoMod;
+                            if (_am?.Enabled == true && RoleRank(userRole) < RoleRank("admin"))
+                            {
+                                if (_am.WordFilterEnabled && _am.WordFilter?.Count > 0)
+                                {
+                                    var textLow = text.ToLowerInvariant();
+                                    var hit = _am.WordFilter.FirstOrDefault(w => !string.IsNullOrEmpty(w) && textLow.Contains(w.ToLowerInvariant()));
+                                    if (hit != null)
+                                    {
+                                        if (_am.WordFilterAction == "replace")
+                                            text = Regex.Replace(text, Regex.Escape(hit), _am.WordFilterReplacement ?? "***", RegexOptions.IgnoreCase);
+                                        else { await Send(socket, new { action = "AUTOMOD_BLOCKED", reason = "Your message was blocked by auto-moderation." }); continue; }
+                                    }
+                                }
+                                if (_am.LinkFilterEnabled)
+                                {
+                                    var urlM = Regex.Match(text, @"https?://(?:www\.)?([^/\s]+)");
+                                    if (urlM.Success)
+                                    {
+                                        var domain = urlM.Groups[1].Value.ToLowerInvariant();
+                                        var allowed = _am.AllowedDomains ?? new List<string>();
+                                        if (allowed.Count > 0 && !allowed.Any(d => domain == d || domain.EndsWith("." + d)))
+                                        { await Send(socket, new { action = "AUTOMOD_BLOCKED", reason = "Links to that domain are not allowed here." }); continue; }
+                                    }
+                                }
+                            }
                             string replyToId = incoming.RootElement.TryGetProperty("replyToId", out var rtEl) && rtEl.ValueKind == JsonValueKind.String ? rtEl.GetString() : null;
                             ReplySnippet replySnippet = null;
                             if (!string.IsNullOrEmpty(replyToId) && chatCh?.E2E != true)
@@ -2322,6 +2354,98 @@ namespace Origin.Server.Core
                         Log("SEARCH", $"'{currentAlias}' searched [{(allChannels ? "all" : srchChId)}] q:'{srchQ}' or:[{string.Join("|",srchOrTerms)}] phrase:'{srchPhrase}' from:'{srchFrom}' after:{srchAfter} before:{srchBefore} → {srchResults.Count} hits");
                     }
 
+                    // ── GET_CHANNEL_FILES ─────────────────────────────────────────
+                    else if (action == "GET_CHANNEL_FILES")
+                    {
+                        string fileChId = incoming.RootElement.TryGetProperty("channelId", out var fcEl) ? fcEl.GetString() ?? "" : "";
+                        var uploadRe2 = new Regex(@"/uploads/[^\s""<>]+");
+                        var fileResults = new List<object>();
+                        var fileChans = string.IsNullOrEmpty(fileChId)
+                            ? ActiveConfig.Channels.Where(c => c.Type == "Text" && CanAccess(userRole, c.MinRole)).ToList()
+                            : ActiveConfig.Channels.Where(c => c.Id == fileChId && CanAccess(userRole, c.MinRole)).ToList();
+                        foreach (var fc in fileChans)
+                            lock (HistoryLock)
+                                if (ChannelHistory.TryGetValue(fc.Id, out var fcMsgs))
+                                    foreach (var fm in fcMsgs)
+                                    { var mu = uploadRe2.Match(fm.Message ?? ""); if (mu.Success) fileResults.Add(new { id = fm.Id, author = fm.Author, time = fm.Time, ts = fm.Ts, url = mu.Value, channelId = fc.Id, channelName = fc.Name }); }
+                        await Send(socket, new { action = "CHANNEL_FILES_RESULT", files = fileResults.OrderByDescending(x => ((dynamic)x).ts).Take(300) });
+                    }
+
+                    // ── GET_ANALYTICS ─────────────────────────────────────────────
+                    else if (action == "GET_ANALYTICS")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin")) { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Admin only." }); continue; }
+                        var nowUtc = DateTimeOffset.UtcNow;
+                        var dayKeys = Enumerable.Range(0, 7).Select(i => nowUtc.AddDays(-i).Date.ToString("yyyy-MM-dd")).ToList();
+                        var mByDay = dayKeys.ToDictionary(d => d, _ => 0);
+                        var mByCh  = new Dictionary<string, int>();
+                        var mByMbr = new Dictionary<string, int>();
+                        foreach (var ac2 in ActiveConfig.Channels.Where(c => c.Type == "Text"))
+                            lock (HistoryLock)
+                                if (ChannelHistory.TryGetValue(ac2.Id, out var acMsgs))
+                                    foreach (var am2 in acMsgs)
+                                    {
+                                        var day2 = DateTimeOffset.FromUnixTimeSeconds(am2.Ts).Date.ToString("yyyy-MM-dd");
+                                        if (mByDay.ContainsKey(day2)) mByDay[day2]++;
+                                        mByCh.TryGetValue(ac2.Name, out var cc); mByCh[ac2.Name] = cc + 1;
+                                        mByMbr.TryGetValue(am2.Author ?? "", out var mc); mByMbr[am2.Author ?? ""] = mc + 1;
+                                    }
+                        await Send(socket, new { action = "ANALYTICS_RESULT",
+                            msgsByDay     = mByDay.OrderBy(kv => kv.Key).Select(kv => new { day = kv.Key, count = kv.Value }),
+                            msgsByChannel = mByCh.OrderByDescending(kv => kv.Value).Select(kv => new { channel = kv.Key, count = kv.Value }),
+                            topMembers    = mByMbr.OrderByDescending(kv => kv.Value).Take(8).Select(kv => new { alias = kv.Key, count = kv.Value })
+                        });
+                    }
+
+                    // ── MARK_PINNED_READ ──────────────────────────────────────────
+                    else if (action == "MARK_PINNED_READ")
+                    {
+                        string prMsgId = incoming.RootElement.TryGetProperty("messageId", out var prEl) ? prEl.GetString() ?? "" : "";
+                        if (!string.IsNullOrEmpty(prMsgId))
+                            lock (PinnedReadsLock)
+                            {
+                                if (!PinnedReads.ContainsKey(prMsgId)) PinnedReads[prMsgId] = new List<string>();
+                                if (!PinnedReads[prMsgId].Contains(currentAlias)) { PinnedReads[prMsgId].Add(currentAlias); try { File.WriteAllText(PinnedReadsFile, JsonSerializer.Serialize(PinnedReads)); } catch { } }
+                            }
+                    }
+
+                    // ── GET_PINNED_READS ──────────────────────────────────────────
+                    else if (action == "GET_PINNED_READS")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin")) continue;
+                        string gprId = incoming.RootElement.TryGetProperty("messageId", out var gprEl) ? gprEl.GetString() ?? "" : "";
+                        List<string> rds; lock (PinnedReadsLock) { PinnedReads.TryGetValue(gprId, out rds); rds ??= new(); }
+                        await Send(socket, new { action = "PINNED_READS_RESULT", messageId = gprId, readers = rds, total = ActiveClients.Count });
+                    }
+
+                    // ── ANNOTATE_STROKE ───────────────────────────────────────────
+                    else if (action == "ANNOTATE_STROKE" || action == "ANNOTATE_CLEAR")
+                    {
+                        if (currentVoiceChannel == null) continue;
+                        var annoBytes = Encoding.UTF8.GetBytes(rawMessage);
+                        if (ChannelOccupants.TryGetValue(currentVoiceChannel, out var annoUsers))
+                            foreach (var u in annoUsers)
+                                if (u != currentAlias && ActiveClients.TryGetValue(u, out WebSocket aSock))
+                                    try { await aSock.SendAsync(new ArraySegment<byte>(annoBytes), WebSocketMessageType.Text, true, CancellationToken.None); } catch { }
+                    }
+
+                    // ── CONFIGURE_AUTOMOD ─────────────────────────────────────────
+                    else if (action == "CONFIGURE_AUTOMOD")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin")) { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Admin only." }); continue; }
+                        try {
+                            var amCfg = JsonSerializer.Deserialize<AutoModConfig>(incoming.RootElement.GetProperty("config").GetRawText(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                            if (amCfg != null) { ActiveConfig.Settings.AutoMod = amCfg; File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true })); await Send(socket, new { action = "AUTOMOD_CONFIG_SAVED", config = amCfg }); LogAudit("AUTOMOD", currentAlias, "", $"enabled:{amCfg.Enabled}"); }
+                        } catch (Exception ex) { Log("ERR", $"CONFIGURE_AUTOMOD: {ex.Message}"); }
+                    }
+
+                    // ── GET_AUTOMOD_CONFIG ────────────────────────────────────────
+                    else if (action == "GET_AUTOMOD_CONFIG")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin")) continue;
+                        await Send(socket, new { action = "AUTOMOD_CONFIG", config = ActiveConfig.Settings.AutoMod ?? new AutoModConfig() });
+                    }
+
                     // ── SEND_DM ──────────────────────────────────────────────────
                     else if (action == "SEND_DM")
                     {
@@ -3003,6 +3127,18 @@ namespace Origin.Server.Data
         public List<ScheduledEvent>  Events    { get; set; } = new();
         public PublicListingConfig?  PublicListing { get; set; } = null;
         public string?  PrivacyStatement { get; set; } = null;
+        public AutoModConfig AutoMod { get; set; } = new();
+    }
+
+    public class AutoModConfig
+    {
+        public bool Enabled { get; set; } = false;
+        public bool WordFilterEnabled { get; set; } = false;
+        public List<string> WordFilter { get; set; } = new();
+        public string WordFilterAction { get; set; } = "block";
+        public string WordFilterReplacement { get; set; } = "***";
+        public bool LinkFilterEnabled { get; set; } = false;
+        public List<string> AllowedDomains { get; set; } = new();
     }
 
     public class PublicListingConfig

@@ -219,7 +219,11 @@ namespace Origin.Client.Core
             await webView.EnsureCoreWebView2Async(env);
             CLog("WEBVIEW", $"WebView2 ready | version: {webView.CoreWebView2.Environment.BrowserVersionString}");
 
+#if DEBUG
             webView.CoreWebView2.Settings.AreDevToolsEnabled = true;
+#else
+            webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
+#endif
 
             webView.CoreWebView2.PermissionRequested += (s, e) =>
             {

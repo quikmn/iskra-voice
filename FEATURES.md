@@ -1,164 +1,296 @@
 # Iskra — Feature Inventory
 
-> Living document. Update this file whenever a feature is added, fixed, or changed.
-> Last updated: 2026-05-07 (v1.2)
+> Living document. Update whenever a feature is added, fixed, or changed.  
+> Last updated: 2026-05-09 · v1.1.9.8
 
 ---
 
 ## Architecture
 
-- **Server**: C# WebSocket server (`iskra_server/Program.cs`), port 8080 by default
-- **Client wrapper**: C# WPF/WebView2 app (`iskra_client/Program.cs`) — bridge between OS and JS
-- **Frontend**: Single-file vanilla JS/HTML/CSS (`iskra_client/index.html`)
-- **World model**: `servers/<name>/` folder per instance — `server.json`, `chat-{chId}.jsonl`, `dms/`, `fingerprints.json`, `bans.json`, `audit.jsonl`, `uploads/`
-- **Iskra Relay**: ASP.NET Core minimal API (`iskra_relay/`) — deployed at `https://id.iskra.foo` on DigitalOcean AMS3; SQLite, Resend email, bcrypt passwords, hex session tokens
+| Component | Description |
+|-----------|-------------|
+| **Server** | C# WebSocket server (`iskra_server/Program.cs`), port 8080 by default |
+| **Client wrapper** | C# WPF/WebView2 app (`iskra_client/Program.cs`) — bridges OS and JS frontend |
+| **Frontend** | Single-file vanilla JS/HTML/CSS (`iskra_client/index.html`, ~10k lines) |
+| **World model** | `servers/<name>/` per instance — `server.json`, `chat-{chId}.jsonl`, `dms/`, `fingerprints.json`, `bans.json`, `audit.jsonl`, `uploads/` |
+| **Iskra Relay** | ASP.NET Core minimal API (`iskra_relay/`) at `id.iskra.foo` — SQLite, Resend email, bcrypt, hex session tokens |
 
 ---
 
-## Feature Status
+# PART 1 — WHAT WE HAVE
 
-### Messaging
+## Messaging
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Text channels with history | ✅ | Last 50 lines loaded on connect; scroll back in session |
-| Markdown rendering | ✅ | Bold, italic, strike, spoiler, inline code, code block, blockquote, @mention, custom emoji |
-| Syntax highlighting in code blocks | ✅ | Language-agnostic tokenizer (keywords, strings, comments, numbers, fn calls) |
-| Syntax highlighting in inline code | ✅ | Same tokenizer |
-| Code block horizontal scroll | ✅ | `max-width: 640px`, scrollable |
-| Multi-line chat input (textarea) | ✅ | Auto-resize up to 150px; Shift+Enter for newline |
-| Formatting toolbar | ✅ | ✏ button or Ctrl+Shift+F; inserts template with placeholder selected |
-| Message edit | ✅ | Inline textarea, Enter to save, Esc to cancel; edit history tracked |
-| Message delete | ✅ | Shift+click to skip confirm; admins can delete any message |
-| Message pin/unpin | ✅ | Admin+; pin count badge in header; dedicated pin panel |
-| Emoji reactions | ✅ | Standard + custom server emoji; hover shows who reacted |
-| Reply with quote | ✅ | Inline quote block; click to scroll to original |
-| Full thread branching | ✅ | Side-panel threads off any message; persistent; count shown on parent |
-| Message forward | ✅ | Modal picks destination channel/DM, optional comment |
-| Bookmarks / starred messages | ✅ | Per-message ☆ button; panel shows all bookmarks by server |
-| Link previews (Open Graph) | ✅ | Title + description + image; cached server-side; YouTube via oEmbed |
-| Typing indicators | ✅ | "X is typing…" with 3s debounce |
-| System messages | ✅ | Amber italic; multi-line (pre-wrap) for /help output |
-| @mention highlighting (received) | ✅ | Personal mentions highlighted; @everyone/@here distinct colour; role mentions amber |
-| @mention autocomplete (while typing) | ✅ | Popup with online users + role names; ↑↓ navigate; Enter/Tab to insert |
-| Role @mentions (`@member`, `@admin` etc.) | ✅ | Highlights all members with that role; shown amber in chat |
-| Poll command | ✅ | `/poll "Question" "Option A" "Option B"` — click to vote; live bar chart; toggle vote |
-| Message search | ✅ | Ctrl+F; searches current channel; debounced; click result to scroll |
-| Slow mode | ✅ | `/slowmode <secs>` per channel; admin bypass; countdown bar shown |
-| Reply threads (Discord-style) | ✅ | 💬 button on message; side panel with full history; count indicator on parent |
+| Feature | Notes |
+|---------|-------|
+| Text channels with history | Last 50 lines on connect; scrollback in session; JSONL storage |
+| Markdown rendering | Bold, italic, strikethrough, spoiler, inline code, code blocks, blockquotes, @mentions, custom emoji |
+| Syntax highlighting | Language-agnostic tokenizer in code blocks and inline code |
+| Multi-line chat input | Auto-resize to 150px; Shift+Enter for newline |
+| Formatting toolbar | ✏ button or Ctrl+Shift+F; inserts template with placeholder |
+| Message edit | Inline textarea; Enter save, Esc cancel; edit history tracked |
+| Message delete | Shift+click to skip confirm; admins delete any message |
+| Message pin/unpin | Admin+; pin count badge in header; dedicated pin panel |
+| Emoji reactions | Standard + custom server emoji; hover shows who reacted |
+| Reply with quote | Inline quote block; click scrolls to original |
+| Full threads | Side-panel threads off any message; persistent; count shown on parent |
+| Message forward | Modal picks destination channel/DM with optional comment |
+| Bookmarks / starred messages | ☆ per message; panel shows all bookmarks aggregated by server |
+| Jump-to-message links | 🔗 on each message; copies serverId/channelId/msgId; scroll + flash |
+| Link previews (Open Graph) | Title + description + image; cached server-side; YouTube via oEmbed |
+| Typing indicators | "X is typing…" 3s debounce |
+| System messages | Amber italic; multi-line pre-wrap for /help output |
+| @mention autocomplete | Popup with online users + role names; ↑↓ navigate; Enter/Tab insert |
+| Role @mentions | `@member`, `@admin` etc.; highlights all role members; shown amber |
+| Poll command | `/poll "Q" "A" "B"` — click to vote; live bar chart; toggle vote |
+| Message search | Ctrl+F; searches current channel; debounced; click result scrolls |
+| Slow mode | `/slowmode <secs>` per channel; admin bypass; countdown bar |
+| Ephemeral messages | `/shh [secs] <msg>` — visible to all, auto-deleted after N seconds |
+| Starboard | Reaction threshold auto-posts to designated channel; admin configures |
+| Message scheduling | Client-side timer sends message at chosen datetime; requires client open at send time |
+| Mark all as read | Right-click server → Mark all as read; clears all channel unread counts |
+| Media gallery | 🖼 in chat header; 72×72 thumbnails for all images/videos in channel |
 
-### Direct Messages
+## Direct Messages
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| DM conversations | ✅ | Right-click user or click in members list |
-| DM history | ✅ | Loaded on open; last 100 messages |
-| DM edit | ✅ | Same inline edit UI as channel messages |
-| DM delete | ✅ | Removes from both parties |
-| DM read receipts | ✅ | Avatar + "Seen" shown on last read message for recipient |
-| DM unread badges | ✅ | Per-conversation + total badge on DM toggle button |
-| DM notifications | ✅ | Desktop notification when not focused |
-| 1:1 DM voice calls | ✅ | 📞 button in DM header; WebRTC via server relay; accept/decline overlay; mute + timer bar; hangup |
+| Feature | Notes |
+|---------|-------|
+| DM conversations | Right-click user or click members list |
+| DM history | Last 100 messages loaded on open |
+| DM edit / delete | Inline edit; delete removes from both parties |
+| DM read receipts | Avatar + "Seen" on last read message |
+| DM unread badges | Per-conversation + total badge on toggle button |
+| DM notifications | Desktop notification when not focused |
+| 1:1 DM voice calls | 📞 in DM header; WebRTC relay; accept/decline overlay; mute + timer |
+| Pinned DMs | Right-click → Pin DM; pinned section shown above All Messages |
+| Contact nicknames | Right-click → Set Nickname; displayed in DM list and chat |
+| DM folders | Right-click → Add to Folder; colour-coded collapsible groups; rename/delete |
 
-### Voice & Audio
+## Voice & Audio
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Voice channels | ✅ | Join/leave; user list shown in sidebar with speaking pulse |
-| Push-to-Talk (PTT) | ✅ | Configurable key (default Z); global poll at 10ms via C# bridge |
-| Voice Activity Detection (VAD) | ✅ | Toggle; sensitivity slider; 400ms hold time |
-| Mute / Deafen | ✅ | Footer buttons; status dot reflects state |
-| Per-user volume | ✅ | Right-click voice user; 0–200% slider |
-| Input / output gain sliders | ✅ | In Audio settings |
-| Mic meter | ✅ | Live level bar in footer |
-| VAD sensitivity meter | ✅ | Live bar in Audio settings modal |
-| Noise suppression (RNNoise) | ✅ | WASM module; toggle in Audio settings |
-| Soundboard | ✅ | Add/play .mp3/.wav/.ogg clips; plays into voice channel |
+| Feature | Notes |
+|---------|-------|
+| Voice channels | Join/leave; user list in sidebar with speaking pulse |
+| Voice Activity Detection | Toggle; sensitivity slider; 400ms hold time; live bar in Audio settings |
+| Mute / Deafen | Footer buttons; status dot reflects state |
+| Push-to-Talk | Configurable key (default Z); global hook at 10ms via C# bridge |
+| Per-user volume | Right-click voice user; 0–200% slider |
+| Input / output gain | Sliders in Audio settings |
+| Mic meter | Live level bar in footer |
+| Noise suppression | RNNoise WASM module; toggle in Audio settings |
+| Soundboard | Add/play .mp3/.wav/.ogg clips into voice channel |
+| Session recording | Footer button; records local mic + all remote peers; includes active video/screenshare track; downloads .webm on stop |
 
-### Video & Screen Share
+## Video & Screen Share
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Screen sharing | ✅ | P2P WebRTC; fullscreen overlay view; includes system audio track |
-| Video (webcam) in voice | ✅ | Toggle button; 30 FPS target; shows in share panel |
-| Synchronized watch party | ✅ | YouTube IFrame API; host controls playback; viewers sync via WATCH_TICK every 5s with drift correction; `/watch <url>` or "▶ Watch Together" on preview cards |
+| Feature | Notes |
+|---------|-------|
+| Screen sharing | P2P WebRTC; fullscreen overlay view; includes system audio |
+| Webcam video in voice | Toggle button; 30 FPS target; shown in share panel |
+| Screen annotation | ✏ button in share panel controls; draw strokes overlaid on screen; strokes broadcast to voice channel peers via ANNOTATE_STROKE; Clear button |
+| Watch party | YouTube IFrame API; host controls playback; viewers sync via WATCH_TICK every 5s with drift correction; `/watch <url>` or "▶ Watch Together" on preview cards |
 
-### Files & Media
+## Files & Media
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| File uploads | ✅ | Click attach, drag/drop, or paste; blocked extension list; configurable size limit |
-| Inline image display | ✅ | Lazy-loaded; click to zoom |
-| Avatar upload + crop | ✅ | Circular crop modal; zoom/pan |
-| Server icon upload | ✅ | Same crop flow |
-| GIF picker | ✅ | 🎬 button in chat input; Tenor search; trending on open |
+| Feature | Notes |
+|---------|-------|
+| File uploads | Click attach, drag/drop, or paste; blocked extension list; configurable size limit; streaming to disk |
+| Upload validation | Magic byte validation (JPEG/PNG/GIF/WEBP); extension whitelist; server-side size + disk quota check |
+| File deduplication | SHA-256 hash-based; duplicate uploads reuse existing file on disk |
+| Inline image display | Lazy-loaded; click to zoom |
+| Inline video | In-channel video playback with controls |
+| Inline audio player | .mp3/.ogg/.webm rendered as `<audio controls>` in chat |
+| Voice messages | 🎙 in chat toolbar; record via MediaRecorder; waveform visualizer; sent as audio file |
+| Channel files panel | 📎 button in chat toolbar; shows all attachments in channel as a grid |
+| Avatar upload + crop | Circular crop modal; zoom/pan; animated GIFs supported |
+| Server icon upload | Same crop flow |
+| GIF picker | 🎬 in chat input; Tenor search; trending on open |
 
-### Roles & Permissions
+## Roles & Permissions
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Role hierarchy | ✅ | guest < member < trusted < admin < owner |
-| Role colors | ✅ | Configured per role in server settings; shown on names in chat |
-| Role badges | ✅ | Shown in members panel and footer |
-| Per-channel MinRole (read) | ✅ | Server-enforced |
-| Per-channel WriteRole (post) | ✅ | Server-enforced |
-| Role grant/revoke command | ✅ | `/role <alias> <role>` — admin can grant up to trusted, owner up to admin |
+| Feature | Notes |
+|---------|-------|
+| Role hierarchy | guest < member < trusted < admin < owner |
+| Role colors | Configured per role; shown on names in chat |
+| Role badges | Shown in members panel and footer |
+| Per-channel MinRole (read) | Server-enforced |
+| Per-channel WriteRole (post) | Server-enforced |
+| Role grant/revoke | `/role <alias> <role>` — admin grants up to trusted, owner up to admin |
 
-### Admin & Moderation
+## Admin & Moderation
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| `/help` / `/commands` | ✅ | Shows role-appropriate command list; available to all roles |
-| `/shh [secs] <message>` | ✅ | Ephemeral message — visible to all but auto-deleted after N seconds (default 60) |
-| `/kick <alias> [reason]` | ✅ | Immediate disconnect; system message broadcast |
-| `/ban <alias> [reason]` | ✅ | GUID-based permanent ban; persisted to `bans.json` |
-| `/unban <guid>` | ✅ | Removes ban entry |
-| `/slowmode <secs> [channelId]` | ✅ | 0 = off; countdown bar shown to users |
-| `/timeout <alias> <mins> [reason]` | ✅ | Timed-out users cannot send messages; badge shown in member list |
-| `/untimeout <alias>` | ✅ | Removes active timeout |
-| `/adduser <alias> <pass>` | ✅ | Owner only; registers a user account |
-| `/removeuser <alias>` | ✅ | Owner only |
-| `/passwd <alias> <pass>` | ✅ | Owner only; updates password hash |
-| `/authmode <mode>` | ✅ | Owner only; open / registered+guests / verified-only |
-| `/listusers` | ✅ | Owner only; lists registered users and current auth mode |
-| Starboard | ✅ | Reaction threshold auto-posts to a designated channel; admin configures emoji/threshold/channel |
-| Audit log | ✅ | JSONL file; viewable in admin panel; last 150 entries |
-| Server backup | ✅ | Downloads ZIP of all world data from admin panel |
+| Command / Feature | Notes |
+|-------------------|-------|
+| `/help` / `/commands` | Role-appropriate command list |
+| `/kick <alias> [reason]` | Immediate disconnect; system message broadcast |
+| `/ban <alias> [reason]` | GUID-based permanent ban; persisted to `bans.json` |
+| `/unban <guid>` | Removes ban entry |
+| `/timeout <alias> <mins>` | Timed-out users cannot send; badge shown in member list |
+| `/untimeout <alias>` | Removes timeout |
+| `/slowmode <secs>` | Per channel; 0 = off; countdown bar shown |
+| `/shh [secs] <msg>` | Ephemeral message |
+| `/adduser <alias> <pass>` | Owner only; registers account |
+| `/removeuser <alias>` | Owner only |
+| `/passwd <alias> <pass>` | Owner only; updates password hash |
+| `/authmode <mode>` | Owner only; open / registered+guests / verified-only |
+| `/listusers` | Owner only; lists registered users and auth mode |
+| Members panel | View, manage roles, kick, ban |
+| Roles panel | Create, edit, delete; configure colors |
+| Channels panel | Create, edit, delete; drag to reorder; set MinRole/WriteRole |
+| Starboard config | Emoji, threshold, channel selection |
+| Bot tokens | Generate, revoke |
+| Webhooks | Inbound (GitHub/CI → channel) + outbound (new message → URL) |
+| Custom emoji management | Upload, name, delete |
+| Audit log | JSONL; viewable in admin panel; last 150 entries |
+| Server analytics | 30-day message bar chart + top channels + top members; admin-only; on-demand via GET_ANALYTICS |
+| Announcement read tracking | Admins enter message ID → see who confirmed reading (via MARK_PINNED_READ); auto-sent when pin panel opened |
+| Auto-moderation | Word filter (block or replace), link domain allowlist; ALL rules OFF by default; admin-configurable; AUTOMOD_BLOCKED error shown to user |
+| Regex search toggle | `.*` button in search bar; toggles regex mode on existing results; client-side filter |
+| Server backup | Downloads ZIP of all world data |
 
-### Channels & Server Structure
+## Channels & Server Structure
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Text channels | ✅ | With history, topics, slow mode, notify prefs |
-| Voice channels | ✅ | With inline user list; live activity status set by users in channel |
-| Channel categories (headers) | ✅ | Collapsible section labels |
-| Channel topics | ✅ | Editable by admin+; shown in chat header |
-| Per-channel notification override | ✅ | All / Mentions only / Muted; icon in sidebar |
-| Announcement channel type | ❌ | Not implemented |
-| Forum/thread channel type | ❌ | Not implemented |
+| Feature | Notes |
+|---------|-------|
+| Text channels | History, topics, slow mode, notify prefs |
+| Voice channels | Inline user list; live activity status |
+| Channel categories | Collapsible section labels |
+| Channel topics | Editable by admin+; shown in chat header |
+| Per-channel notification override | All / Mentions only / Muted |
+| History retention | Configurable `HistoryRetentionDays` in server.json (default 30 days); old messages purged at startup |
 
-### Server Discovery & Invites
+## Multi-Server
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| `iskra://` protocol invite links | ✅ | One-click join; base64-encoded, time-limited |
-| Server list (add/edit/remove) | ✅ | In Settings → Servers |
-| Per-server nickname | ✅ | Optional display name override per server |
+| Feature | Notes |
+|---------|-------|
+| Simultaneous connections | All saved servers connect on launch; silent auto-reconnect with exponential backoff |
+| Per-server state isolation | `serverStates{}` map — independent channels, messages, roles, voice, E2E keys |
+| Instant server switching | Click icon → instant UI switch; no reconnect; unread badges accumulate |
+| Voice across servers | Stay voiced on server A while browsing server B |
+| Unread badges per server | Unread + mention counts independent of viewed server |
 
-### Settings & Personalisation
+## Server Discovery & Invites
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Audio settings (device, gain, VAD) | ✅ | Mic/speaker device select; input/output gain |
-| Identity settings (aliases, avatar) | ✅ | Add/remove/select alias; upload avatar |
-| Servers settings | ✅ | Connection management |
-| Appearance settings (themes) | ✅ | 7 built-in themes + custom JSON import/export |
-| Custom status text | ✅ | Set via status dot; shown in profile card and members list |
-| Status text presets | ✅ | Chip strip in status picker; click to apply, right-click to remove, + Save to add |
-| Private notes on users | ✅ | Per-user note textarea in profile card; stored in localStorage only |
-| Admin settings panel | ✅ | Members, roles, channels, bot tokens, webhooks, emoji, starboard, audit, backup |
+| Feature | Notes |
+|---------|-------|
+| `iskra://` protocol invite links | One-click join; base64-encoded, time-limited; fills connection form automatically |
+| Server list | Add/edit/remove in Settings → Servers; ● Online / ○ Offline status |
+| Per-server nickname | Optional display name override per server |
+| Favourite servers | ⭐ button or right-click menu; sorted to top of server list |
+| Per-server sound overrides | Right-click server → Server Sounds; upload per-sound override for join/leave/message/mention etc. |
+| Per-server avatar override | Right-click server → Server Avatar; sets a local avatar only visible on that server |
+| Server discovery page | `GET /findservers`; servers opt in via `PublicListing` in server.json; auto-ping every 4 min |
+| Server list sync | IskraID stores your server list; synced across devices on login; merge-only |
 
-### Keyboard Shortcuts
+## IskraID & Global Identity
+
+| Feature | Notes |
+|---------|-------|
+| Global identity registration | Alias + email + password; globally unique alias |
+| Email verification | Via `noreply@iskra.foo` (Resend API); resend button in ID tab |
+| Login / logout | Bearer token in localStorage; session restored on boot |
+| Password recovery | Email reset link; 1-hour expiry; all sessions invalidated |
+| Alias change | Once per 30 days; days-remaining shown on rejection |
+| Friends system | Send/accept/reject/remove by alias; pending requests in relay panel and ID tab |
+| Global relay DMs | Store-and-forward via relay; 30-day TTL; polled every 3s |
+| Relay DM history | localStorage per conversation; last 200 messages |
+| Relay DM encryption | ECDH P-256 + AES-GCM 256; zero-knowledge relay; private key PBKDF2-wrapped (600k iter) |
+| Relay DM read receipts | "✓ Seen [time]" under last delivered message |
+| Relay DM notifications | Desktop notification when not focused |
+| Relay panel | 💬 in server bar; sorted by last message; unread badge + per-conv count |
+| Relay avatar sync | Global avatar shown across all servers to IskraID users |
+| Encryption banner | Green "🔐 End-to-end encrypted" or amber "⚠ Not encrypted" in DM header |
+| E2E key setup / unlock | Auto-generate on login; PBKDF2 derivation; rate-limited (5 attempts, 60s lockout) |
+| HMAC record integrity | SHA-256 MAC on relay DM records; verified on unlock; tampered records dropped |
+| TOFU pubkey pins | Trusted contacts pinned in localStorage |
+| Profile pages | Link Neocities / GitHub Pages / Cloudflare Pages / Netlify; proxied + sandboxed iframe |
+| account.iskra.foo | Full account portal; register, login, alias, password, avatar, profile URL, token handoff |
+| Token handoff | "Open Iskra" on account page pre-logs in app via URL params |
+
+## Channel E2E Encryption
+
+| Feature | Notes |
+|---------|-------|
+| Per-channel E2E toggle | Admin-only; via channel context menu |
+| AES-GCM 256 symmetric encryption | Key exchanged via ECDH P-256 pubkey wrapping |
+| Per-member access | Grant / rotate / revoke key access |
+| `/enable-channel-e2e` / `/disable-channel-e2e` | Admin commands |
+| `/grant-e2e-access <member>` / `/rotate-e2e-key` | Admin commands |
+
+## Settings & Personalisation
+
+| Feature | Notes |
+|---------|-------|
+| Audio settings | Mic/speaker device select; input/output gain; VAD; noise suppression; soundboard |
+| Zero telemetry badge | Shown in channel sidebar on connect; confirms no data leaves the device |
+| Identity settings | Aliases, avatar, per-server nickname, IskraID login, friends, profile URL, E2E unlock |
+| Server settings | Connection management; add/edit/remove servers |
+| Appearance (skins) | 7 built-in themes; custom JSON import/export; live preview |
+| Chat density | Compact / Comfortable / Cozy — CSS density modes; toggle in Appearance settings |
+| Custom notification sounds | Upload per-sound override (join/leave/message/mention/etc.) globally or per server |
+| Keyword notifications | Comma-separated keywords in Audio settings; match → mention-level ping; not triggered on own messages |
+| DND schedule | Enable in Audio settings; suppress desktop notifications between configured hours (e.g. 23:00–08:00); sounds and unread still work |
+| Custom status text | Set via status dot; shown in profile card and member list |
+| Status presets | Chip strip; click apply, right-click remove, + Save to add |
+| Private notes on users | Per-user note textarea in profile card; localStorage only |
+| Admin panel | Members, roles, channels, bot tokens, webhooks, emoji, starboard, audit, backup, analytics, auto-mod, read tracking |
+
+## Profile Cards
+
+| Feature | Notes |
+|---------|-------|
+| Hover card | Click any name/avatar; shows avatar, role badge, online status, voice channel, "Profile" button |
+| Full profile page | Custom-hosted static page rendered in sandboxed iframe; YouTube support; scroll sections |
+| Private note field | Visible only to you; stored locally |
+| Per-user volume | Set from profile card |
+
+## Security
+
+| Feature | Notes |
+|---------|-------|
+| E2E encryption — DMs | ECDH P-256 + AES-GCM 256; PBKDF2 600k iter; relay is zero-knowledge |
+| E2E encryption — channels | Same algorithm; admin-controlled per channel |
+| HMAC-SHA256 record integrity | Relay DM records have MAC; verified on unlock |
+| Rate-limited E2E unlock | 5 attempts, 60s lockout (client-side) |
+| TOFU pubkey pinning | Peer public keys pinned on first contact |
+| GUID-based ban system | Persisted; cannot be bypassed by reconnecting |
+| Auth modes | open / registered+guests / verified-only (per server) |
+| TURN server support | Configured in `server.json`; sent to clients in ICE config |
+| DevTools disabled in release | `AreDevToolsEnabled` gated on `#if DEBUG` in client wrapper |
+
+### Known Security Gaps
+
+| Gap | Severity | Notes |
+|-----|----------|-------|
+| E2E unlock lockout is client-only | Medium | 5-attempt / 60s lockout enforced in JS only; bypass possible via devtools |
+| No 2FA on IskraID | Medium | Password-only auth; planned in backlog |
+| Static ECDH per peer (no forward secrecy) | Medium | All past DMs exposed if device compromised; planned Double Ratchet upgrade |
+
+**Fixed (pending relay deploy):** login lockout (5 attempts → 15-min ban, in-memory), session token expiry (30-day `expires_at` column, checked on every auth).
+
+## Developer & Integrations
+
+| Feature | Notes |
+|---------|-------|
+| Inbound webhooks | `POST /inbound/{token}`; token scoped to channel; GitHub/CI → channel |
+| Outbound webhooks | HTTP POST on new message; admin-configurable; documented in Settings |
+| Bot API | Named bot tokens; bots connect via WebSocket; protocol docs in Settings |
+| Auto-update | Checks GitHub releases on startup; download progress bar; self-replaces |
+| DevLog panel | F9; colour-coded by category (BRIDGE, VOICE, RTC, VAD, etc.) |
+| Link preview caching | OG tags fetched server-side and cached |
+
+## Native Client (Windows)
+
+| Feature | Notes |
+|---------|-------|
+| Windows app | C# WPF/WebView2 wrapper |
+| System tray | Minimize/restore; right-click menu |
+| Desktop notifications | Via C# bridge |
+| Global PTT key hook | 10ms poll rate; configurable |
+| Title bar color | Reflects online/offline/voice status |
+| Auto-update | Self-replaces via PowerShell on download |
+
+## Keyboard Shortcuts
 
 | Shortcut | Action |
 |----------|--------|
@@ -169,77 +301,79 @@
 | F9 | Toggle DevLog panel |
 | Shift+F9 | Clear DevLog |
 | Enter | Send message |
-| Shift+Enter | New line in message |
-| ↑ (in empty input) | Edit last own message |
+| Shift+Enter | New line |
+| ↑ (empty input) | Edit last own message |
 | Esc | Close modals / popups |
-| PTT key (default Z) | Push-to-talk (configurable) |
+| PTT key (default Z) | Push-to-talk |
 
-### Developer & Integration Features
+---
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Outbound webhooks | ✅ | HTTP POST to URL on new message; own tab in Settings (admin-only) with payload docs |
-| Inbound webhooks (GitHub/CI → channel) | ✅ | `POST /inbound/{token}`; token scoped to a channel; own tab in Settings with usage docs |
-| Inbound bot API | ✅ | Named bot tokens; bots connect via WebSocket; own tab in Settings with protocol docs |
-| Auto-update | ✅ | Checks GitHub releases API on startup; download progress bar; self-replaces via PS script; opt-in toggle in settings |
-| DevLog panel | ✅ | F9; colour-coded by category (BRIDGE, VOICE, RTC, etc.) |
-| E2E encryption (channels + DMs) | ✅ | AES-GCM 256; EC pubkey wrapping; per-member access |
-| TURN server support | ✅ | Configured in `server.json`; sent to clients in ICE config |
-| Link preview caching | ✅ | OG tags fetched server-side; cached |
-| Profile cards | ✅ | Click any username/avatar; shows role, status, actions |
+# PART 2 — WHAT WE PLAN
 
-### Iskra ID & Global Relay (`id.iskra.foo`)
+## Active Backlog
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Global identity registration | ✅ | Alias + email + password; alias globally unique (first-come-first-served) |
-| Email verification | ✅ | Resend API via `noreply@iskra.foo`; resend button in ID tab |
-| Login / logout | ✅ | Bearer token stored in `localStorage`; session restored on boot |
-| Password recovery | ✅ | Email reset link; 1-hour expiry; all sessions invalidated on reset |
-| Alias change | ✅ | Once per 30 days; days-remaining shown on rejection |
-| Friends — send / accept / reject / remove | ✅ | By alias; pending requests shown in friends panel |
-| Global relay DMs | ✅ | Store-and-forward via relay; 30-day TTL; inbox polled every 30s |
-| Relay DM history | ✅ | Stored in `localStorage` per conversation (last 200 messages) |
-| Friends panel | ✅ | 👥 button in server bar; filter, add, message, remove |
-| Iskra ID settings tab | ✅ | 🪪 ID tab in Settings; shows alias, email, verification status |
-| CORS | ✅ | `AllowAnyOrigin` — required for WebView2 fetch |
-| E2E encryption for relay DMs | ✅ | ECDH P-256 + AES-GCM 256; private key PBKDF2-wrapped, stored as key_backup; relay is zero-knowledge |
-| Relay DM notifications | ✅ | Desktop notification when app not focused and new relay message arrives |
-| Profile pages | ✅ | Link GitHub Pages / Neocities / Cloudflare Pages / Netlify; relay proxies + sanitizes; rendered in sandboxed iframe |
+| Feature | Why |
+|---------|-----|
+| Settings right-side description panel | Identity system (local alias / IskraID / server nickname) is non-obvious. Fixed-width panel beside settings content with per-tab explanations. |
+| Donation supporter rewards | Ko-fi webhook → relay marks IskraID as supporter. Badge on hover card. Gift TBD (avatar glow, name color, animated status dot). Don't build until gift is decided. |
 
-### Iskra ID & Relay — Recent Additions
+## Platform Expansion
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Relay DM read receipts | ✅ | Receipts table; sender sees "✓ Seen [time]" under last delivered message |
-| Relay avatar sync | ✅ | PUT/GET `/api/me/avatar`; data URL base64 up to 128 KB; shown across servers |
-| Profile page media | ✅ | YouTube muted by default; relay injects mute param + controller script; user can unmute via 🔇/🎤 button + volume slider |
-| Server discovery | ✅ | `GET /findservers` HTML page; servers opt in via `PublicListing` in server.json; auto-ping every 4 min |
-| Persistent unread state | ✅ | `lastSeenTs` per channel persisted in localStorage; accurate across reconnects |
-| Media gallery view | ✅ | 🖼 in chat header; 72×72 image/video thumbnails for current channel |
-| Jump-to-message links | ✅ | 🔗 on each message; copies `serverId/channelId/msgId`; smooth scroll + flash animation |
-| Animated GIF avatars | ✅ | Avatars uploaded as GIF render animated |
-| Server list sync | ✅ | IskraID stores your server list; synced across browsers/devices on login; merge-only (never overwrites local) |
-| account.iskra.foo | ✅ | Full account management portal at `https://account.iskra.foo`; login/register, alias change, password change, profile URL, avatar, token handoff to app |
-| Password change via account portal | ✅ | `PUT /api/me/password`; verifies current password, invalidates other sessions |
-| Token handoff | ✅ | "Open Iskra" on account page opens `app.iskra.foo` pre-logged-in via `?rtoken=&ralias=` URL params |
+| Feature | Why |
+|---------|-----|
+| Mobile PWA (installable) | App manifest + service worker + icons; iOS "Add to Home Screen" hint; Android auto-install banner; Lighthouse PWA audit |
+| Capacitor native wrapper (Android/iOS) | Single web codebase wrapped in Capacitor; APK/AAB for Play Store; Xcode archive for App Store |
+| Push notifications (mobile) | `@capacitor/push-notifications`; server-side FCM/APNs relay endpoint; deferred until after Capacitor wrapper ships |
 
-### Mobile & Web Client
-
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Mobile-responsive layout | ✅ | Sidebar slides in from hamburger menu; full-width chat pane; safe-area padding; 100dvh |
-| Modal z-index fix on mobile | ✅ | All modals render above sidebar overlay on mobile |
-| Web client TLS note | ✅ | In-app note in Servers tab explaining wss:// requirement; port inference (443/8443 → wss://) |
-
-### Planned / Not Yet Implemented
+## Channel Types
 
 | Feature | Notes |
 |---------|-------|
-| Announcement channel type | Read-only for non-admins |
-| Forum/board channel type | Post-style threads |
-| Server templates | Clone channel/role layout |
-| Stage channels | One speaker, many listeners |
-| Mobile PWA (installable) | Push notifications, offline shell, app manifest |
+| Announcement channel | Read-only for non-admins |
+| Forum / board channel | Post-style threads, not message threads |
+| Stage channel | One speaker, many listeners |
+
+## Other Planned
+
+| Feature | Notes |
+|---------|-------|
+| Server templates | Clone channel/role layout when creating a new server |
 | Spotify now-playing status | Show current track as custom status |
-| Profile card editing | Edit profile card fields directly in-client (same as profile page) |
+| Forward secrecy (Double Ratchet) | **High priority before 2k users.** Current relay E2E uses static ECDH shared key per peer — a compromised device exposes all past messages. Requires Double Ratchet (Signal-style), server-side prekey infrastructure, full DM protocol redesign. |
+
+---
+
+# PART 3 — SUGGESTIONS
+
+Things not yet discussed but worth considering for making Iskra genuinely competitive.
+
+## High Impact
+
+| Idea | Why |
+|------|-----|
+| **Cross-channel message search** | Current search is per-channel. Being able to search across all channels in a server (or across all servers) is something people rely on heavily after a few weeks of real use. |
+| **2FA for IskraID accounts** | TOTP (e.g. Google Authenticator) is table stakes for any identity system. Especially relevant given relay DMs are E2E — losing your account = losing your contacts. |
+| **DM group conversations** | 3+ person DMs. WhatsApp/iMessage staple. Relay already handles pairwise; group routing is the extension. |
+| **Login lockout on relay** | ✅ Done — 5-attempt → 15-min in-memory lockout; pending relay deploy |
+| **Session token expiry** | ✅ Done — 30-day `expires_at` on all sessions; pending relay deploy |
+
+## Medium Impact
+
+| Idea | Why |
+|------|-----|
+| **Drag-to-reorder servers in sidebar** | 5+ servers and order starts to matter. Already have drag-to-reorder for channels. |
+| **Server member count + online count** | Show "12 online / 47 members" in the server header. Social proof, feels more alive. |
+| **Invite link expiry + single-use mode** | Currently links are time-limited but not use-limited. One-use links are good for adding someone without opening the server to everyone who finds the link. |
+| **Offline mode (cached channel viewing)** | Read cached messages when disconnected. Service worker already handles app shell; extending it to message cache is the next step. |
+| **Per-channel pinned message count in sidebar** | Small badge showing pinned count. Power-user signal that a channel has important anchored info. |
+| **Audit log rotation** | Audit log is JSONL with no cleanup; grows unbounded. Add `AuditRetentionDays` to server config. |
+
+## Low Effort, High Polish
+
+| Idea | Why |
+|------|-----|
+| **Unread jump button** | "↓ X unread messages" pill that appears when you're scrolled up. Discord staple. |
+| **Channel last-active timestamp** | Show "last message 2h ago" in the channel list for channels you haven't visited. Reduces FOMO anxiety. |
+| **Keyboard shortcut: jump to unread** | Alt+↓ to jump to oldest unread message across any channel. |
+| **Voice channel user cap** | Optional max-user limit per voice channel set by admin. Good for managed events. |
+| **Server transfer (change owner)** | Currently only owner can promote to admin. Need a way to fully hand off a server. |
