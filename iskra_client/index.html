@@ -271,6 +271,13 @@
         .footer-icon-btn.recording { background: var(--danger); color: var(--text-heading); animation: rec-blink 1.4s ease infinite; }
         @keyframes rec-blink { 0%,100%{opacity:1} 50%{opacity:0.55} }
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+        .audio-player { display:flex; align-items:center; gap:8px; background:var(--bg-active); border-radius:20px; padding:5px 10px 5px 6px; max-width:300px; margin:3px 0; }
+        .audio-player audio { display:none; }
+        .ap-btn { width:26px; height:26px; border-radius:50%; background:var(--accent); border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:filter 0.1s; }
+        .ap-btn:hover { filter:brightness(1.18); }
+        .ap-seek { flex:1; -webkit-appearance:none; appearance:none; height:3px; border-radius:2px; background:var(--bg-hover); cursor:pointer; outline:none; min-width:0; }
+        .ap-seek::-webkit-slider-thumb { -webkit-appearance:none; width:11px; height:11px; border-radius:50%; background:var(--accent); cursor:pointer; box-shadow:0 0 0 2px var(--bg-active); }
+        .ap-time { font-size:10px; color:var(--text-faint); white-space:nowrap; font-variant-numeric:tabular-nums; min-width:64px; text-align:right; }
         .files-panel { position:absolute; bottom:100%; right:0; width:min(480px,90vw); max-height:400px; background:var(--bg-secondary); border:1px solid var(--bg-hover); border-radius:8px; box-shadow:0 8px 32px #0006; overflow:hidden; display:flex; flex-direction:column; z-index:200; }
         .files-panel-hdr { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--bg-hover); font-size:13px; font-weight:600; }
         .files-panel-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px; padding:10px; overflow-y:auto; flex:1; }
@@ -3513,6 +3520,17 @@ function playSound(name) {
     clone.volume = 0.14;
     clone.play().catch(() => {});
 }
+
+// ── Custom audio player ───────────────────────────────────────────────────────
+let _apN = 0;
+function _apFmt(s) { s = Math.floor(s || 0); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; }
+function _apToggle(n) { const a = document.getElementById('ap'+n); if (a) { if (a.paused) a.play(); else a.pause(); } }
+function _apPlay(n)  { const b = document.getElementById('ap'+n+'-btn'); if (b) b.innerHTML = '<svg viewBox="0 0 8 10" width="8" height="10" fill="white"><rect x="0" y="0" width="2.5" height="10"/><rect x="5" y="0" width="2.5" height="10"/></svg>'; }
+function _apPause(n) { const b = document.getElementById('ap'+n+'-btn'); if (b) b.innerHTML = '<svg viewBox="0 0 8 10" width="8" height="10" fill="white"><polygon points="0,0 8,5 0,10"/></svg>'; }
+function _apMeta(n)  { const a = document.getElementById('ap'+n), t = document.getElementById('ap'+n+'-time'); if (a && t) t.textContent = '0:00 / ' + _apFmt(a.duration); }
+function _apTick(n)  { const a = document.getElementById('ap'+n), t = document.getElementById('ap'+n+'-time'), s = document.getElementById('ap'+n+'-seek'); if (!a) return; if (t) t.textContent = _apFmt(a.currentTime) + ' / ' + _apFmt(a.duration); if (s && isFinite(a.duration)) s.value = a.currentTime / a.duration * 100; }
+function _apEnd(n)   { const a = document.getElementById('ap'+n), s = document.getElementById('ap'+n+'-seek'), t = document.getElementById('ap'+n+'-time'); if (a) a.currentTime = 0; if (s) s.value = 0; if (t && a) t.textContent = '0:00 / ' + _apFmt(a.duration); _apPause(n); }
+function _apSeek(n, v) { const a = document.getElementById('ap'+n); if (a && isFinite(a.duration)) a.currentTime = v / 100 * a.duration; }
 
 function isDndActive() {
     const dnd = clientConfig.dndSchedule;
@@ -6808,8 +6826,10 @@ function renderMarkdown(raw) {
         const ext = url.split('.').pop().toLowerCase();
         if (['jpg','jpeg','png','gif','webp'].includes(ext))
             return `<img class="msg-img" src="${url}" data-src="${url}" alt="image" loading="lazy" onerror="rescueImg(this)" onclick="openLightbox(this.src)">`;
-        if (['mp3','ogg','webm','wav','m4a'].includes(ext))
-            return `<audio controls style="max-width:320px;height:36px;border-radius:6px;display:block;margin:2px 0;" src="${url}" preload="metadata"></audio>`;
+        if (['mp3','ogg','webm','wav','m4a'].includes(ext)) {
+            const n = _apN++;
+            return `<div class="audio-player"><audio id="ap${n}" src="${url}" preload="metadata" onloadedmetadata="_apMeta(${n})" ontimeupdate="_apTick(${n})" onended="_apEnd(${n})" onplay="_apPlay(${n})" onpause="_apPause(${n})"></audio><button class="ap-btn" id="ap${n}-btn" onclick="_apToggle(${n})" title="Play"><svg viewBox="0 0 8 10" width="8" height="10" fill="white"><polygon points="0,0 8,5 0,10"/></svg></button><input class="ap-seek" id="ap${n}-seek" type="range" min="0" max="100" value="0" step="0.1" oninput="_apSeek(${n},+this.value)"><span class="ap-time" id="ap${n}-time">0:00</span></div>`;
+        }
         const fname = url.split('/').pop();
         return `<a class="msg-file" href="${url}" target="_blank" download>📎 ${fname}</a>`;
     });
