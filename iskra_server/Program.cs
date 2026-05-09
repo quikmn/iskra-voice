@@ -77,9 +77,12 @@ namespace Origin.Server.Core
         private static Dictionary<string, Dictionary<string, E2EWrappedKey>> E2EKeys = new(); // channelId → alias → wrapped key
         private static readonly object E2ELock   = new();
         private static string E2EFile     => Path.Combine(ActiveWorldPath, "e2e.json");
-        private static Dictionary<string, string> PublicKeys = new(); // alias → base64 raw EC pubkey
-        private static readonly object PubKeyLock = new();
+        private static Dictionary<string, string> PublicKeys    = new(); // alias → base64 SPKI EC pubkey (channel E2E)
+        private static Dictionary<string, string> DmPublicKeys = new(); // alias → base64 SPKI EC pubkey (DM encryption)
+        private static readonly object PubKeyLock   = new();
+        private static readonly object DmPubKeyLock = new();
         private static string PubKeyFile   => Path.Combine(ActiveWorldPath, "public_keys.json");
+        private static string DmPubKeyFile => Path.Combine(ActiveWorldPath, "dm_public_keys.json");
 
 
         // ── DM storage ───────────────────────────────────────────────────────────
@@ -257,6 +260,14 @@ namespace Origin.Server.Core
 
                 File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true }));
                 Log("CONFIG", $"New world created → {ActiveWorldPath}");
+            }
+
+            // Auto-generate stable server ID if missing (new field, migrates existing servers)
+            if (string.IsNullOrEmpty(ActiveConfig.Settings.ServerId))
+            {
+                ActiveConfig.Settings.ServerId = Guid.NewGuid().ToString("N");
+                File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true }));
+                Log("CONFIG", $"Generated new ServerId: {ActiveConfig.Settings.ServerId}");
             }
         }
 
@@ -676,6 +687,12 @@ namespace Origin.Server.Core
                 lock (PubKeyLock)
                     PublicKeys = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(PubKeyFile)) ?? new();
                 Log("CONFIG", $"E2E public keys loaded: {PublicKeys.Count}");
+            }
+            if (File.Exists(DmPubKeyFile))
+            {
+                lock (DmPubKeyLock)
+                    DmPublicKeys = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(DmPubKeyFile)) ?? new();
+                Log("CONFIG", $"DM public keys loaded: {DmPublicKeys.Count}");
             }
         }
 
@@ -1215,6 +1232,7 @@ namespace Origin.Server.Core
                 var statusTextsCopy = new Dictionary<string, string>(UserStatusTexts);
                 await Send(socket, new {
                     action           = "SERVER_INFO",
+                    serverId         = ActiveConfig.Settings.ServerId,
                     name             = ActiveConfig.Settings.ServerName,
                     serverIcon       = ActiveConfig.Settings.ServerIcon ?? "",
                     userAvatars      = avatarsCopy,
@@ -1228,6 +1246,7 @@ namespace Origin.Server.Core
                     botTokens        = isAdmin ? ActiveConfig.Settings.BotTokens    : null,
                     inboundHooks     = isAdmin ? ActiveConfig.Settings.InboundHooks : null,
                     publicKeys       = pubKeysCopy,
+                    dmPublicKeys     = DmPublicKeys,
                     e2eAccess        = e2eAccessCopy,
                     uploadBase       = $"http://{context.Request.UserHostName}",
                     channels         = ActiveConfig.Channels
@@ -1239,6 +1258,7 @@ namespace Origin.Server.Core
                     voiceStatuses    = _voiceStatuses,
                     voiceOccupants   = ChannelOccupants.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()),
                     starboard        = new { enabled = ActiveConfig.Settings.StarboardEnabled, channelId = ActiveConfig.Settings.StarboardChannelId, emoji = ActiveConfig.Settings.StarboardEmoji, threshold = ActiveConfig.Settings.StarboardThreshold },
+                    privacyStatement = ActiveConfig.Settings.PrivacyStatement ?? "",
                     iceServers
                 });
 
@@ -1685,6 +1705,81 @@ namespace Origin.Server.Core
                             LogAudit("DELETE_MSG", currentAlias, target.Author, $"ch:{channelId} id:{messageId}");
                             await Broadcast(new { action = "MESSAGE_DELETED", channelId, messageId });
                         }
+                    }
+
+                    // ── BULK_DELETE_MESSAGES ─────────────────────────────────────
+                    else if (action == "BULK_DELETE_MESSAGES")
+                    {
+                        string bulkChId = incoming.RootElement.TryGetProperty("channelId", out var bciEl) ? bciEl.GetString()?.Trim() ?? "" : "";
+                        var msgIds = new List<string>();
+                        if (incoming.RootElement.TryGetProperty("messageIds", out var bmidsEl) && bmidsEl.ValueKind == JsonValueKind.Array)
+                            foreach (var el in bmidsEl.EnumerateArray())
+                                if (el.GetString() is string mid && !string.IsNullOrEmpty(mid)) msgIds.Add(mid);
+                        if (string.IsNullOrEmpty(bulkChId) || msgIds.Count == 0) continue;
+                        bool isElevatedBulk = RoleRank(userRole) >= RoleRank("admin");
+                        string bulkGuid = ClientGuids.TryGetValue(currentAlias, out var bgd) ? bgd : "";
+                        var deleted = new List<string>();
+                        lock (HistoryLock)
+                        {
+                            if (ChannelHistory.TryGetValue(bulkChId, out var bmsgs))
+                            {
+                                foreach (var mid in msgIds)
+                                {
+                                    var tgt = bmsgs.FirstOrDefault(m => m.Id == mid);
+                                    if (tgt == null) continue;
+                                    bool guidOwns2  = !string.IsNullOrEmpty(bulkGuid) && bulkGuid == tgt.AuthorGuid;
+                                    bool aliasOwns2 = string.IsNullOrEmpty(tgt.AuthorGuid) && tgt.Author == currentAlias;
+                                    if (guidOwns2 || aliasOwns2 || isElevatedBulk) deleted.Add(mid);
+                                }
+                                bmsgs.RemoveAll(m => deleted.Contains(m.Id));
+                            }
+                        }
+                        if (deleted.Count > 0)
+                        {
+                            _ = Task.Run(() => RewriteChannelHistory(bulkChId));
+                            Log("CHAT", $"[{bulkChId}] bulk-deleted {deleted.Count} messages by '{currentAlias}'");
+                            LogAudit("BULK_DELETE", currentAlias, "", $"ch:{bulkChId} count:{deleted.Count}");
+                            await Broadcast(new { action = "MESSAGES_BULK_DELETED", channelId = bulkChId, messageIds = deleted });
+                        }
+                    }
+
+                    // ── SEARCH_DMS ────────────────────────────────────────────────
+                    else if (action == "SEARCH_DMS")
+                    {
+                        string dmQ    = incoming.RootElement.TryGetProperty("query", out var dqEl) ? dqEl.GetString()?.Trim() ?? "" : "";
+                        string dmFrom = incoming.RootElement.TryGetProperty("from",  out var dfEl) ? dfEl.GetString()?.Trim() ?? "" : "";
+                        string dmReqId = incoming.RootElement.TryGetProperty("reqId", out var drEl) ? drEl.GetString() ?? "" : "";
+                        var dmResults = new List<object>();
+                        try
+                        {
+                            if (Directory.Exists(DmDir))
+                            {
+                                foreach (var f in Directory.GetFiles(DmDir, "*.jsonl"))
+                                {
+                                    string fname = Path.GetFileNameWithoutExtension(f);
+                                    string clean(string s) => Regex.Replace(s.ToLowerInvariant(), @"[^a-z0-9]", "");
+                                    string myClean = clean(currentAlias);
+                                    if (!fname.Contains(myClean)) continue;
+                                    List<DmMessage> msgs = new();
+                                    lock (DmLock)
+                                        foreach (var line in File.ReadLines(f))
+                                            try { var m = JsonSerializer.Deserialize<DmMessage>(line); if (m != null) msgs.Add(m); } catch { }
+                                    // determine the other participant
+                                    string[] parts = fname.Split('_');
+                                    string otherClean = parts.FirstOrDefault(p => p != myClean) ?? "";
+                                    string otherAlias = msgs.Select(m => m.From == currentAlias ? m.To : m.From).FirstOrDefault(a => !string.IsNullOrEmpty(a)) ?? otherClean;
+                                    foreach (var m in msgs)
+                                    {
+                                        if (!string.IsNullOrEmpty(dmFrom) && !m.From.Equals(dmFrom, StringComparison.OrdinalIgnoreCase)) continue;
+                                        if (!string.IsNullOrEmpty(dmQ) && !m.Message.Contains(dmQ, StringComparison.OrdinalIgnoreCase)) continue;
+                                        dmResults.Add(new { id = m.Id, author = m.From, with = otherAlias, time = m.Time, ts = m.Ts, message = m.Message });
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception ex) { Log("ERR", $"SEARCH_DMS: {ex.Message}"); }
+                        dmResults = dmResults.OrderByDescending(r => { var d=(dynamic)r; return d.ts; }).Take(80).ToList();
+                        await Send(socket, new { action = "DM_SEARCH_RESULTS", reqId = dmReqId, results = dmResults });
                     }
 
                     // ── SCREEN_SHARE_STARTED ─────────────────────────────────────
@@ -2139,16 +2234,37 @@ namespace Origin.Server.Core
                     // ── SEARCH_MESSAGES ──────────────────────────────────────────
                     else if (action == "SEARCH_MESSAGES")
                     {
-                        string srchChId = incoming.RootElement.TryGetProperty("channelId", out var sciEl) ? sciEl.GetString()?.Trim() ?? "" : "";
-                        string srchQ    = incoming.RootElement.TryGetProperty("query", out var sqEl) ? sqEl.GetString()?.Trim() ?? "" : "";
-                        if (srchQ.Length < 2) { await Send(socket, new { action = "SEARCH_RESULTS", query = srchQ, results = Array.Empty<object>() }); continue; }
-                        string srchQLow  = srchQ.ToLowerInvariant();
+                        string srchChId  = incoming.RootElement.TryGetProperty("channelId", out var sciEl) ? sciEl.GetString()?.Trim() ?? "" : "";
+                        string srchQ     = incoming.RootElement.TryGetProperty("query",     out var sqEl)  ? sqEl.GetString()?.Trim()  ?? "" : "";
+                        string srchFrom  = incoming.RootElement.TryGetProperty("from",      out var sfEl)  ? sfEl.GetString()?.Trim()  ?? "" : "";
+                        string srchPhrase= incoming.RootElement.TryGetProperty("phrase",    out var spEl)  ? spEl.GetString()?.Trim()  ?? "" : "";
+                        string srchReqId = incoming.RootElement.TryGetProperty("reqId",     out var srEl)  ? srEl.GetString()          ?? "" : "";
+                        long   srchAfter = incoming.RootElement.TryGetProperty("after",     out var saEl)  && saEl.ValueKind == JsonValueKind.Number ? saEl.GetInt64() : 0;
+                        long   srchBefore= incoming.RootElement.TryGetProperty("before",    out var sbEl)  && sbEl.ValueKind == JsonValueKind.Number ? sbEl.GetInt64() : 0;
+                        var    srchOrTerms = new List<string>();
+                        if (incoming.RootElement.TryGetProperty("orTerms", out var sotEl) && sotEl.ValueKind == JsonValueKind.Array)
+                            foreach (var el in sotEl.EnumerateArray()) { var s = el.GetString()?.Trim() ?? ""; if (s.Length > 0) srchOrTerms.Add(s.ToLowerInvariant()); }
+                        bool hasQuery = srchQ.Length >= 2 || !string.IsNullOrEmpty(srchFrom) || !string.IsNullOrEmpty(srchPhrase) || srchOrTerms.Count > 0 || srchAfter > 0 || srchBefore > 0;
+                        if (!hasQuery) { await Send(socket, new { action = "SEARCH_RESULTS", query = srchQ, reqId = srchReqId, results = Array.Empty<object>() }); continue; }
+                        string srchQLow    = srchQ.ToLowerInvariant();
+                        string srchFromLow = srchFrom.ToLowerInvariant();
+                        string srchPhrLow  = srchPhrase.ToLowerInvariant();
                         bool allChannels = string.IsNullOrEmpty(srchChId);
                         // Never search E2E channels — their stored content is encrypted ciphertext
                         var srchChannels = allChannels
                             ? ActiveConfig.Channels.Where(c => c.Type == "Text" && !c.E2E && CanAccess(userRole, c.MinRole)).ToList()
                             : ActiveConfig.Channels.Where(c => c.Id == srchChId && !c.E2E && CanAccess(userRole, c.MinRole)).ToList();
-                        if (!srchChannels.Any()) { await Send(socket, new { action = "SEARCH_RESULTS", query = srchQ, results = Array.Empty<object>() }); continue; }
+                        if (!srchChannels.Any()) { await Send(socket, new { action = "SEARCH_RESULTS", query = srchQ, reqId = srchReqId, results = Array.Empty<object>() }); continue; }
+
+                        bool MsgMatches(string msgLow, string authorLow, long ts)
+                        {
+                            if (!string.IsNullOrEmpty(srchFromLow) && authorLow != srchFromLow) return false;
+                            if (srchAfter  > 0 && ts < srchAfter)  return false;
+                            if (srchBefore > 0 && ts > srchBefore) return false;
+                            if (!string.IsNullOrEmpty(srchPhrLow) && !msgLow.Contains(srchPhrLow)) return false;
+                            if (srchOrTerms.Count > 0) return srchOrTerms.Any(t => msgLow.Contains(t));
+                            return string.IsNullOrEmpty(srchQLow) || msgLow.Contains(srchQLow);
+                        }
 
                         // History is fully preloaded into memory at startup (LoadChannelHistory).
                         // New messages are added to ChannelHistory as they arrive — so in-memory is always complete.
@@ -2162,8 +2278,7 @@ namespace Origin.Server.Core
                                 {
                                     foreach (var m in cached)
                                     {
-                                        if ((m.Message?.ToLowerInvariant().Contains(srchQLow) == true) ||
-                                            (m.Author?.ToLowerInvariant().Contains(srchQLow)  == true))
+                                        if (MsgMatches(m.Message?.ToLowerInvariant() ?? "", m.Author?.ToLowerInvariant() ?? "", m.Ts))
                                             srchHits.Add((m.Ts, m.Id ?? "", m.Author ?? "", m.Time ?? "", m.Message ?? "", sc.Id));
                                     }
                                 }
@@ -2176,18 +2291,20 @@ namespace Origin.Server.Core
                                     {
                                         foreach (var rawLine in File.ReadLines(chatPath))
                                         {
-                                            if (rawLine.Length < 4 || !rawLine.ToLowerInvariant().Contains(srchQLow)) continue;
+                                            if (rawLine.Length < 4) continue;
+                                            if (srchOrTerms.Count > 0) { if (!srchOrTerms.Any(t => rawLine.ToLowerInvariant().Contains(t))) continue; }
+                                            else if (!string.IsNullOrEmpty(srchQLow) && !rawLine.ToLowerInvariant().Contains(srchQLow)) continue;
                                             try
                                             {
                                                 using var ld = JsonDocument.Parse(rawLine);
                                                 var lr = ld.RootElement;
                                                 string lMsg    = lr.TryGetProperty("message", out var lmEl) ? lmEl.GetString() ?? "" : "";
                                                 string lAuthor = lr.TryGetProperty("author",  out var laEl) ? laEl.GetString() ?? "" : "";
-                                                if (!lMsg.ToLowerInvariant().Contains(srchQLow) && !lAuthor.ToLowerInvariant().Contains(srchQLow)) continue;
-                                                string lId   = lr.TryGetProperty("id",   out var liEl) ? liEl.GetString() ?? "" : "";
-                                                string lTime = lr.TryGetProperty("time", out var ltEl) ? ltEl.GetString() ?? "" : "";
-                                                long   lTs   = lr.TryGetProperty("ts",   out var ltsEl) && ltsEl.ValueKind == JsonValueKind.Number ? ltsEl.GetInt64() : 0;
-                                                srchHits.Add((lTs, lId, lAuthor, lTime, lMsg, sc.Id));
+                                                string lId     = lr.TryGetProperty("id",      out var liEl) ? liEl.GetString() ?? "" : "";
+                                                string lTime   = lr.TryGetProperty("time",    out var ltEl) ? ltEl.GetString() ?? "" : "";
+                                                long   lTs     = lr.TryGetProperty("ts",      out var ltsEl) && ltsEl.ValueKind == JsonValueKind.Number ? ltsEl.GetInt64() : 0;
+                                                if (MsgMatches(lMsg.ToLowerInvariant(), lAuthor.ToLowerInvariant(), lTs))
+                                                    srchHits.Add((lTs, lId, lAuthor, lTime, lMsg, sc.Id));
                                             }
                                             catch { }
                                         }
@@ -2200,25 +2317,30 @@ namespace Origin.Server.Core
                             .OrderByDescending(h => h.ts).Take(80)
                             .Select(h => (object)new { id = h.id, author = h.author, time = h.time, ts = h.ts, message = h.message, channelId = h.chId })
                             .ToList();
-                        await Send(socket, new { action = "SEARCH_RESULTS", query = srchQ, results = srchResults });
-                        Log("SEARCH", $"'{currentAlias}' searched [{(allChannels ? "all" : srchChId)}] '{srchQ}' → {srchResults.Count} hits");
+                        await Send(socket, new { action = "SEARCH_RESULTS", query = srchQ, reqId = srchReqId, results = srchResults });
+                        Log("SEARCH", $"'{currentAlias}' searched [{(allChannels ? "all" : srchChId)}] q:'{srchQ}' or:[{string.Join("|",srchOrTerms)}] phrase:'{srchPhrase}' from:'{srchFrom}' after:{srchAfter} before:{srchBefore} → {srchResults.Count} hits");
                     }
 
                     // ── SEND_DM ──────────────────────────────────────────────────
                     else if (action == "SEND_DM")
                     {
-                        string dmTo   = incoming.RootElement.GetProperty("to").GetString()?.Trim() ?? "";
-                        string dmText = incoming.RootElement.GetProperty("message").GetString()?.Trim() ?? "";
-                        if (string.IsNullOrEmpty(dmTo) || string.IsNullOrEmpty(dmText) || dmTo == currentAlias) continue;
+                        string dmTo = incoming.RootElement.TryGetProperty("to", out var dmToEl) ? dmToEl.GetString()?.Trim() ?? "" : "";
+                        bool dmEnc  = incoming.RootElement.TryGetProperty("encrypted", out var dmEncEl) && dmEncEl.GetBoolean();
+                        string dmText    = !dmEnc && incoming.RootElement.TryGetProperty("message",    out var dmMsgEl)  ? dmMsgEl.GetString()?.Trim()  ?? "" : "";
+                        string? dmIv     =  dmEnc && incoming.RootElement.TryGetProperty("iv",         out var dmIvEl)   ? dmIvEl.GetString()           : null;
+                        string? dmCipher =  dmEnc && incoming.RootElement.TryGetProperty("ciphertext", out var dmCiphEl) ? dmCiphEl.GetString()         : null;
+                        if (string.IsNullOrEmpty(dmTo) || dmTo == currentAlias) continue;
+                        if (!dmEnc && string.IsNullOrEmpty(dmText)) continue;
+                        if (dmEnc && (string.IsNullOrEmpty(dmIv) || string.IsNullOrEmpty(dmCipher))) continue;
                         string dmId = Guid.NewGuid().ToString("N")[..12];
-                        var dm = new DmMessage { Id = dmId, From = currentAlias, To = dmTo, Time = DateTime.Now.ToString("h:mm tt"), Ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), Message = dmText };
+                        var dm = new DmMessage { Id = dmId, From = currentAlias, To = dmTo, Time = DateTime.Now.ToString("h:mm tt"), Ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), Message = dmText, Encrypted = dmEnc, Iv = dmIv, Ciphertext = dmCipher };
                         Directory.CreateDirectory(DmDir);
                         lock (DmLock) File.AppendAllText(DmFile(currentAlias, dmTo), JsonSerializer.Serialize(dm) + Environment.NewLine);
-                        var dmPayload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { action = "DM_RECEIVED", id = dm.Id, from = dm.From, to = dm.To, time = dm.Time, ts = dm.Ts, message = dm.Message }));
+                        var dmPayload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { action = "DM_RECEIVED", id = dm.Id, from = dm.From, to = dm.To, time = dm.Time, ts = dm.Ts, message = dm.Message, encrypted = dm.Encrypted, iv = dm.Iv, ciphertext = dm.Ciphertext }));
                         try { await socket.SendAsync(new ArraySegment<byte>(dmPayload), WebSocketMessageType.Text, true, CancellationToken.None); } catch { }
                         if (ActiveClients.TryGetValue(dmTo, out var dmRecipSocket))
                             try { await dmRecipSocket.SendAsync(new ArraySegment<byte>(dmPayload), WebSocketMessageType.Text, true, CancellationToken.None); } catch { }
-                        Log("DM", $"{currentAlias} → {dmTo}: {(dmText.Length > 40 ? dmText[..40] + "…" : dmText)}");
+                        Log("DM", $"{currentAlias} → {dmTo}: {(dmEnc ? "[encrypted]" : (dmText.Length > 40 ? dmText[..40] + "…" : dmText))}");
                     }
 
                     // ── GET_DM_HISTORY ───────────────────────────────────────────
@@ -2232,7 +2354,7 @@ namespace Origin.Server.Core
                             if (File.Exists(dmPath))
                                 foreach (var line in File.ReadLines(dmPath))
                                     try { var m = JsonSerializer.Deserialize<DmMessage>(line); if (m != null) dmMsgs.Add(m); } catch { }
-                        await Send(socket, new { action = "DM_HISTORY", with = dmWith, messages = dmMsgs.TakeLast(100).Select(m => new { id = m.Id, from = m.From, to = m.To, time = m.Time, ts = m.Ts, message = m.Message, edited = m.Edited }) });
+                        await Send(socket, new { action = "DM_HISTORY", with = dmWith, messages = dmMsgs.TakeLast(100).Select(m => new { id = m.Id, from = m.From, to = m.To, time = m.Time, ts = m.Ts, message = m.Message, edited = m.Edited, encrypted = m.Encrypted, iv = m.Iv, ciphertext = m.Ciphertext }) });
                     }
 
                     // ── MARK_DM_READ ─────────────────────────────────────────────
@@ -2452,6 +2574,21 @@ namespace Origin.Server.Core
                             await Broadcast(new { action = "E2E_PUBKEY_UPDATED", alias = currentAlias });
                     }
 
+                    // ── REGISTER_DM_PUBKEY ───────────────────────────────────────
+                    else if (action == "REGISTER_DM_PUBKEY")
+                    {
+                        if (!incoming.RootElement.TryGetProperty("publicKey", out var dmPkEl) || dmPkEl.ValueKind != JsonValueKind.String) continue;
+                        string dmPubKeyB64 = dmPkEl.GetString() ?? "";
+                        if (string.IsNullOrEmpty(dmPubKeyB64)) continue;
+                        lock (DmPubKeyLock)
+                        {
+                            DmPublicKeys[currentAlias] = dmPubKeyB64;
+                            _ = Task.Run(() => File.WriteAllText(DmPubKeyFile, JsonSerializer.Serialize(DmPublicKeys)));
+                        }
+                        Log("DM-E2E", $"DM public key registered: '{currentAlias}'");
+                        await Broadcast(new { action = "DM_PUBKEY_UPDATED", alias = currentAlias, publicKey = dmPubKeyB64 });
+                    }
+
                     // ── ENABLE_CHANNEL_E2E ────────────────────────────────────────
                     else if (action == "ENABLE_CHANNEL_E2E")
                     {
@@ -2583,7 +2720,7 @@ namespace Origin.Server.Core
                         string newType = incoming.RootElement.TryGetProperty("type", out var ntEl) ? ntEl.GetString()?.Trim() ?? "Text" : "Text";
                         string newName = incoming.RootElement.TryGetProperty("name", out var nnEl) ? nnEl.GetString()?.Trim() ?? "new-channel" : "new-channel";
                         if (!new[] { "Text", "Voice", "Header" }.Contains(newType)) newType = "Text";
-                        var newCh = new Channel { Id = Guid.NewGuid().ToString("N")[..8], Name = string.IsNullOrEmpty(newName) ? "new-channel" : newName, Type = newType };
+                        var newCh = new Channel { Id = Guid.NewGuid().ToString("N"), Name = string.IsNullOrEmpty(newName) ? "new-channel" : newName, Type = newType };
                         ActiveConfig.Channels.Add(newCh);
                         await BroadcastChannelUpdate();
                         LogAudit("ADD_CHANNEL", currentAlias, newCh.Id, $"{newType}:{newCh.Name}");
@@ -2757,6 +2894,18 @@ namespace Origin.Server.Core
                         LogAudit("STARBOARD_SETTINGS", currentAlias, "", $"enabled:{ActiveConfig.Settings.StarboardEnabled}");
                     }
 
+                    // ── UPDATE_PRIVACY_STATEMENT ──────────────────────────────
+                    else if (action == "UPDATE_PRIVACY_STATEMENT")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin"))
+                        { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Only admins can update the privacy statement." }); continue; }
+                        if (incoming.RootElement.TryGetProperty("statement", out var psEl))
+                            ActiveConfig.Settings.PrivacyStatement = psEl.GetString()?.Trim() ?? null;
+                        _ = Task.Run(() => File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true })));
+                        await Broadcast(new { action = "PRIVACY_STATEMENT_UPDATED", statement = ActiveConfig.Settings.PrivacyStatement ?? "" });
+                        LogAudit("PRIVACY_STATEMENT", currentAlias, "", "updated");
+                    }
+
                     // ── TYPING ───────────────────────────────────────────────
                     else if (action == "TYPING")
                     {
@@ -2824,6 +2973,7 @@ namespace Origin.Server.Data
     public class ServerSettings
     {
         public string ServerName           { get; set; } = "My Iskra Server";
+        public string ServerId             { get; set; } = ""; // stable GUID, auto-generated on first boot
         public Dictionary<string, string> RoleColors { get; set; } = new();
         public int    Port                 { get; set; } = 8080;
         public bool   RequirePassword      { get; set; } = false;
@@ -2851,6 +3001,7 @@ namespace Origin.Server.Data
         public List<InboundWebhookEntry> InboundHooks { get; set; } = new();
         public List<ScheduledEvent>  Events    { get; set; } = new();
         public PublicListingConfig?  PublicListing { get; set; } = null;
+        public string?  PrivacyStatement { get; set; } = null;
     }
 
     public class PublicListingConfig
@@ -2939,13 +3090,16 @@ namespace Origin.Server.Data
 
     public class DmMessage
     {
-        public string Id      { get; set; }
-        public string From    { get; set; }
-        public string To      { get; set; }
-        public string Time    { get; set; }
-        public long   Ts      { get; set; }
-        public string Message { get; set; }
-        public bool   Edited  { get; set; }
+        public string  Id         { get; set; }
+        public string  From       { get; set; }
+        public string  To         { get; set; }
+        public string  Time       { get; set; }
+        public long    Ts         { get; set; }
+        public string  Message    { get; set; }
+        public bool    Edited     { get; set; }
+        public bool    Encrypted  { get; set; }
+        public string? Iv         { get; set; }
+        public string? Ciphertext { get; set; }
     }
 
     public class FingerprintRecord
