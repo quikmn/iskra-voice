@@ -8636,14 +8636,34 @@ async function handleBridgeMessage(data, serverId) {
                 syncServersToRelay();
             }
             // Remove duplicate entries (same canonical ID, different host:port record)
+            // On native: prefer the non-443 entry (direct port, e.g. 8080) — needed for local HTTP proxy
+            // On web: prefer the 443 entry (nginx WSS)
+            const thisSrv = clientConfig.servers.find(s => s.id === serverId);
             const dupes = clientConfig.servers.filter(s => s.id !== serverId && s.canonicalId === data.serverId);
             if (dupes.length > 0) {
-                for (const dupe of dupes) {
-                    disconnectFromServer(dupe.id);
-                    delete serverStates[dupe.id];
-                    connectedServerIds.delete(dupe.id);
+                // Check if the current connection used the wrong port for this platform
+                const wrongPort = !IS_WEB && thisSrv?.port === 443 && dupes.some(d => d.port !== 443);
+                if (wrongPort) {
+                    // Current entry is 443 on native — the dupe with the direct port is the right one
+                    // Disconnect current, mark it as dupe, keep the direct-port entry
+                    const goodEntry = dupes.find(d => d.port !== 443);
+                    disconnectFromServer(serverId);
+                    delete serverStates[serverId];
+                    connectedServerIds.delete(serverId);
+                    clientConfig.servers = clientConfig.servers.filter(s => s.id !== serverId);
+                    // Disconnect and remove remaining wrong dupes (other 443 entries)
+                    const remainingDupes = dupes.filter(d => d.id !== goodEntry?.id);
+                    for (const d of remainingDupes) { disconnectFromServer(d.id); delete serverStates[d.id]; connectedServerIds.delete(d.id); }
+                    clientConfig.servers = clientConfig.servers.filter(s => !remainingDupes.find(d => d.id === s.id));
+                } else {
+                    // Current entry is correct — remove the dupes
+                    for (const dupe of dupes) {
+                        disconnectFromServer(dupe.id);
+                        delete serverStates[dupe.id];
+                        connectedServerIds.delete(dupe.id);
+                    }
+                    clientConfig.servers = clientConfig.servers.filter(s => !dupes.find(d => d.id === s.id));
                 }
-                clientConfig.servers = clientConfig.servers.filter(s => !dupes.find(d => d.id === s.id));
                 saveClientConfig();
                 syncServersToRelay();
                 renderServerBar();

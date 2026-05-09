@@ -567,7 +567,9 @@ namespace Origin.Client.Core
                     var userPassword  = doc.RootElement.TryGetProperty("userPassword",  out JsonElement upEl) ? upEl.GetString() ?? "" : "";
                     _serverHost = host;
                     _serverPort = port;
-                    StartLocalProxy($"http://{host}:{port}");
+                    // HTTP proxy must target the server's direct port, not nginx's TLS port
+                    var httpProxyPort = (port == 443 || port == 8443) ? 8080 : port;
+                    StartLocalProxy($"http://{host}:{httpProxyPort}");
                     PostToJsForServer(sid, new { action = "LOCAL_PROXY_PORT", port = _localProxyPort });
                     CLog("BRIDGE", $"← JS | CONNECT_SERVER host:{host}:{port} alias:{alias} sid:{sid[..Math.Min(8,sid.Length)]}");
                     _ = Task.Run(() => ConnectToServer(sid, host, port, password, alias, adminPassword, userPassword));
