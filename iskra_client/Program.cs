@@ -270,10 +270,12 @@ namespace Origin.Client.Core
             CLog("INFO", "F12 = DevTools | F9 in app = JS log panel | Use Settings → Servers to connect");
         }
 
-        // ── Localhost HTTP proxy (avoids WebView2 mixed-content blocks for http:// servers) ──
-        private HttpListener? _localProxy;
-        private int           _localProxyPort   = 0;
-        private string        _localProxyTarget = "";
+        // ── Per-server localhost HTTP proxies (avoids WebView2 mixed-content blocks) ──
+        // Each server connection gets its own listener on its own random port so multiple
+        // servers (e.g. host:8080, host:8181, host:9999) can coexist without clobbering each other.
+        private readonly Dictionary<string, HttpListener> _serverProxies      = new();
+        private readonly Dictionary<string, int>          _serverProxyPorts   = new();
+        private readonly Dictionary<string, string>       _serverProxyTargets = new();
 
         private static int GetFreePort()
         {
@@ -284,34 +286,40 @@ namespace Origin.Client.Core
             return p;
         }
 
-        private void StartLocalProxy(string targetBase)
+        private void StartServerProxy(string serverId, string targetBase)
         {
-            try { _localProxy?.Close(); } catch { }
-            _localProxyTarget = targetBase;
-            _localProxyPort   = GetFreePort();
-            _localProxy       = new HttpListener();
-            _localProxy.Prefixes.Add($"http://localhost:{_localProxyPort}/");
-            _localProxy.Start();
-            CLog("PROXY", $"localhost:{_localProxyPort} → {targetBase}");
-            _ = Task.Run(RunLocalProxy);
+            StopServerProxy(serverId);
+            int proxyPort = GetFreePort();
+            var listener  = new HttpListener();
+            listener.Prefixes.Add($"http://localhost:{proxyPort}/");
+            listener.Start();
+            _serverProxies[serverId]      = listener;
+            _serverProxyPorts[serverId]   = proxyPort;
+            _serverProxyTargets[serverId] = targetBase;
+            string tag = serverId.Length > 8 ? serverId[..8] : serverId;
+            CLog("PROXY", $"[{tag}] localhost:{proxyPort} → {targetBase}");
+            _ = Task.Run(() => RunServerProxy(serverId, listener));
         }
 
-        private void StopLocalProxy()
+        private void StopServerProxy(string serverId)
         {
-            try { _localProxy?.Close(); } catch { }
-            _localProxy       = null;
-            _localProxyPort   = 0;
-            _localProxyTarget = "";
+            if (_serverProxies.TryGetValue(serverId, out var listener))
+            {
+                try { listener.Close(); } catch { }
+                _serverProxies.Remove(serverId);
+                _serverProxyPorts.Remove(serverId);
+                _serverProxyTargets.Remove(serverId);
+            }
         }
 
-        private async Task RunLocalProxy()
+        private async Task RunServerProxy(string serverId, HttpListener listener)
         {
-            while (_localProxy?.IsListening == true)
+            while (listener.IsListening)
             {
                 try
                 {
-                    var ctx = await _localProxy.GetContextAsync();
-                    _ = Task.Run(() => HandleLocalProxyRequest(ctx));
+                    var ctx = await listener.GetContextAsync();
+                    _ = Task.Run(() => HandleServerProxyRequest(serverId, ctx));
                 }
                 catch { break; }
             }
@@ -322,11 +330,10 @@ namespace Origin.Client.Core
             { "Host", "Content-Length", "Transfer-Encoding", "Connection", "Keep-Alive",
               "TE", "Trailer", "Upgrade", "Content-Type" };
 
-        private async Task HandleLocalProxyRequest(HttpListenerContext ctx)
+        private async Task HandleServerProxyRequest(string serverId, HttpListenerContext ctx)
         {
             try
             {
-                // Handle CORS preflight directly — don't forward to server
                 if (ctx.Request.HttpMethod == "OPTIONS")
                 {
                     ctx.Response.StatusCode = 204;
@@ -338,10 +345,16 @@ namespace Origin.Client.Core
                     return;
                 }
 
-                string path = ctx.Request.Url?.PathAndQuery ?? "/";
-                using var req = new HttpRequestMessage(new HttpMethod(ctx.Request.HttpMethod), _localProxyTarget + path);
+                if (!_serverProxyTargets.TryGetValue(serverId, out var target) || string.IsNullOrEmpty(target))
+                {
+                    ctx.Response.StatusCode = 503;
+                    ctx.Response.Close();
+                    return;
+                }
 
-                // Forward safe headers only (skip hop-by-hop and content-managed headers)
+                string path = ctx.Request.Url?.PathAndQuery ?? "/";
+                using var req = new HttpRequestMessage(new HttpMethod(ctx.Request.HttpMethod), target + path);
+
                 foreach (string key in ctx.Request.Headers.AllKeys ?? [])
                 {
                     if (_skipHeaders.Contains(key)) continue;
@@ -468,7 +481,8 @@ namespace Origin.Client.Core
                 catch { break; }
             }
             _serverConnections.Remove(serverId);
-            if (_serverHost != null) { _serverHost = null; _serverPort = 0; StopLocalProxy(); }
+            StopServerProxy(serverId);
+            if (_serverHost != null) { _serverHost = null; _serverPort = 0; }
             CLog("WS", $"[{tag}] Receive loop exited — sending DISCONNECTED to JS");
             PostToJsForServer(serverId, new { action = "DISCONNECTED" });
         }
@@ -561,17 +575,17 @@ namespace Origin.Client.Core
                     var sid           = doc.RootElement.GetProperty("serverId").GetString();
                     var host          = doc.RootElement.GetProperty("host").GetString();
                     var port          = doc.RootElement.GetProperty("port").GetInt32();
+                    // nativePort: the server's direct HTTP/WS port (may differ from 'port' when connecting via nginx on 443)
+                    var nativePort    = doc.RootElement.TryGetProperty("nativePort", out JsonElement npEl) ? npEl.GetInt32() : port;
                     var alias         = doc.RootElement.GetProperty("alias").GetString();
                     var password      = doc.RootElement.TryGetProperty("password",      out JsonElement pwEl) ? pwEl.GetString() ?? "" : "";
                     var adminPassword = doc.RootElement.TryGetProperty("adminPassword", out JsonElement apEl) ? apEl.GetString() ?? "" : "";
                     var userPassword  = doc.RootElement.TryGetProperty("userPassword",  out JsonElement upEl) ? upEl.GetString() ?? "" : "";
                     _serverHost = host;
                     _serverPort = port;
-                    // HTTP proxy must target the server's direct port, not nginx's TLS port
-                    var httpProxyPort = (port == 443 || port == 8443) ? 8080 : port;
-                    StartLocalProxy($"http://{host}:{httpProxyPort}");
-                    PostToJsForServer(sid, new { action = "LOCAL_PROXY_PORT", port = _localProxyPort });
-                    CLog("BRIDGE", $"← JS | CONNECT_SERVER host:{host}:{port} alias:{alias} sid:{sid[..Math.Min(8,sid.Length)]}");
+                    StartServerProxy(sid, $"http://{host}:{nativePort}");
+                    PostToJsForServer(sid, new { action = "LOCAL_PROXY_PORT", port = _serverProxyPorts[sid] });
+                    CLog("BRIDGE", $"← JS | CONNECT_SERVER host:{host}:{port}(http:{nativePort}) alias:{alias} sid:{sid[..Math.Min(8,sid.Length)]}");
                     _ = Task.Run(() => ConnectToServer(sid, host, port, password, alias, adminPassword, userPassword));
                     return;
                 }
@@ -583,7 +597,7 @@ namespace Origin.Client.Core
                         _serverConnections.Remove(sid2);
                         try { wsToClose.Abort(); } catch { }
                     }
-                    StopLocalProxy();
+                    StopServerProxy(sid2);
                     _serverHost = null; _serverPort = 0;
                     CLog("BRIDGE", $"← JS | DISCONNECT_SERVER sid:{sid2[..Math.Min(8,sid2.Length)]}");
                     return;
@@ -595,16 +609,29 @@ namespace Origin.Client.Core
                     var sid       = doc.RootElement.GetProperty("serverId").GetString();
                     _serverHost = proxyHost;
                     _serverPort = proxyPort;
-                    StartLocalProxy($"http://{proxyHost}:{proxyPort}");
-                    PostToJs(new { action = "LOCAL_PROXY_PORT", serverId = sid, port = _localProxyPort });
-                    CLog("BRIDGE", $"← JS (local) | START_PROXY host:{proxyHost}:{proxyPort} → proxyPort:{_localProxyPort}");
+                    StartServerProxy(sid, $"http://{proxyHost}:{proxyPort}");
+                    PostToJs(new { action = "LOCAL_PROXY_PORT", serverId = sid, port = _serverProxyPorts[sid] });
+                    CLog("BRIDGE", $"← JS (local) | START_PROXY host:{proxyHost}:{proxyPort} sid:{sid[..Math.Min(8,sid.Length)]}");
+                    return;
+                }
+                if (action == "UPDATE_PROXY_TARGET")
+                {
+                    var proxyServerId = doc.RootElement.TryGetProperty("serverId", out JsonElement psEl) ? psEl.GetString() : null;
+                    var proxyHost     = doc.RootElement.GetProperty("host").GetString();
+                    var proxyPort     = doc.RootElement.GetProperty("port").GetInt32();
+                    string newTarget  = $"http://{proxyHost}:{proxyPort}";
+                    if (proxyServerId != null && _serverProxyTargets.ContainsKey(proxyServerId))
+                        _serverProxyTargets[proxyServerId] = newTarget;
+                    string ptag = proxyServerId != null && proxyServerId.Length > 8 ? proxyServerId[..8] : proxyServerId ?? "?";
+                    CLog("PROXY", $"[{ptag}] Target → {newTarget}");
                     return;
                 }
                 if (action == "STOP_PROXY")
                 {
+                    var spSid = doc.RootElement.TryGetProperty("serverId", out JsonElement spEl) ? spEl.GetString() : null;
+                    if (spSid != null) StopServerProxy(spSid);
                     _serverHost = null;
                     _serverPort = 0;
-                    StopLocalProxy();
                     CLog("BRIDGE", "← JS (local) | STOP_PROXY");
                     return;
                 }

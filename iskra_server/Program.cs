@@ -1233,6 +1233,7 @@ namespace Origin.Server.Core
                 await Send(socket, new {
                     action           = "SERVER_INFO",
                     serverId         = ActiveConfig.Settings.ServerId,
+                    serverPort       = ActiveConfig.Settings.Port,
                     name             = ActiveConfig.Settings.ServerName,
                     serverIcon       = ActiveConfig.Settings.ServerIcon ?? "",
                     userAvatars      = avatarsCopy,

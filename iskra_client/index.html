@@ -5315,8 +5315,9 @@ function connectToServer(id) {
     if (!server) return;
     serverStates[id] = createServerState();
     const alias = clientConfig.serverNicknames[id] || (relayToken && relayAlias ? relayAlias : clientConfig.activeAlias);
-    DevLog.log('BRIDGE', `Connecting to "${server.name}" as "${alias}"`);
-    _connectWs(id, server.host, server.port, alias, server.password || '', server.userPassword || '', server.adminPassword || '');
+    const nativePort = server.nativePort || server.port;
+    DevLog.log('BRIDGE', `Connecting to "${server.name}" as "${alias}" (http:${nativePort})`);
+    _connectWs(id, server.host, server.port, nativePort, alias, server.password || '', server.userPassword || '', server.adminPassword || '');
 }
 
 function disconnectFromServer(id) {
@@ -5530,7 +5531,8 @@ function addFromInvite() {
         // On web, always connect on port 443 (WSS via nginx); native uses the encoded port
         const port = IS_WEB ? 443 : (data.p || 8080);
         const webPort = data.wp || 443;
-        const server = { id: _serverId(), name: data.n || 'Imported Server', host: data.h, port, webPort, password: '' };
+        const nativePort = IS_WEB ? null : (data.np || data.p || null);
+        const server = { id: _serverId(), name: data.n || 'Imported Server', host: data.h, port, webPort, nativePort, password: '' };
         clientConfig.servers.push(server);
         saveClientConfig();
         connectToServer(server.id);
@@ -6062,11 +6064,12 @@ document.addEventListener('visibilitychange', () => {
 // ── Bridge helpers ─────────────────────────────────────────────────────────────
 // JS owns all WebSocket connections (both web and native paths).
 // C# bridge is for audio/OS-only messages: SET_VOICE_MODE, SET_PTT_KEY, SET_TITLE_COLOR, LOG.
-function _connectWs(serverId, host, port, alias, password, userPassword, adminPassword) {
+function _connectWs(serverId, host, port, nativePort, alias, password, userPassword, adminPassword) {
     if (!IS_WEB) {
-        // Native: route through C# to avoid browser mixed-content restrictions on ws://
+        // Native: route through C# bridge. nativePort = server's direct HTTP port (may differ from
+        // port when the server is behind nginx on 443). C# uses nativePort as the local proxy target.
         window.chrome.webview.postMessage(JSON.stringify({
-            action: 'CONNECT_SERVER', serverId, host, port, alias, password, userPassword, adminPassword
+            action: 'CONNECT_SERVER', serverId, host, port, nativePort, alias, password, userPassword, adminPassword
         }));
         return;
     }
@@ -6104,7 +6107,8 @@ function _scheduleReconnect(serverId) {
         const server = clientConfig.servers.find(s => s.id === serverId);
         if (!server) return;
         const alias = clientConfig.serverNicknames[serverId] || (relayToken && relayAlias ? relayAlias : clientConfig.activeAlias);
-        _connectWs(serverId, server.host, server.port, alias, server.password || '', server.userPassword || '', server.adminPassword || '');
+        const nativePort = server.nativePort || server.port;
+        _connectWs(serverId, server.host, server.port, nativePort, alias, server.password || '', server.userPassword || '', server.adminPassword || '');
     }, ss._reconnectDelay);
     ss._reconnectDelay = Math.min(ss._reconnectDelay * 2, 30000);
 }
@@ -7503,9 +7507,10 @@ function acceptJoinInvite() {
     const joinPassword = (document.getElementById('join-invite-password')?.value || '').trim();
     const joinPort = IS_WEB ? 443 : (data.p || 8080);
     const joinWebPort = data.wp || 443;
+    const joinNativePort = IS_WEB ? null : (data.np || data.p || null);
     let server = clientConfig.servers.find(s => s.host === data.h && s.port === joinPort);
     if (!server) {
-        server = { id: _serverId(), name: data.n || 'Imported Server', host: data.h, port: joinPort, webPort: joinWebPort, password: joinPassword };
+        server = { id: _serverId(), name: data.n || 'Imported Server', host: data.h, port: joinPort, webPort: joinWebPort, nativePort: joinNativePort, password: joinPassword };
         clientConfig.servers.push(server);
         renderServerBar();
     } else if (joinPassword && !server.password) {
@@ -7524,15 +7529,17 @@ function showInviteModal(id) {
     if (!server) return;
     _inviteServerId = id;
 
-    // Web/mobile link always encodes port 443 (nginx WSS proxy)
+    // Web/mobile link: always port 443 (nginx WSS). np not needed — web never uses the local proxy.
     const wp = server.webPort || 443;
     const webPayload = btoa(JSON.stringify({ n: server.name, h: server.host, p: wp, wp }));
     document.getElementById('invite-web-field').value = `https://app.iskra.foo/?s=${webPayload}`;
 
-    // Desktop link uses the server's direct port; hidden on web
+    // Desktop link: use nativePort (the server's real direct HTTP/WS port) so the recipient's
+    // proxy starts correct immediately. np = nativePort carried explicitly for the recipient.
     const desktopSection = document.getElementById('invite-desktop-section');
     if (!IS_WEB) {
-        const nativePayload = btoa(JSON.stringify({ n: server.name, h: server.host, p: server.port, wp }));
+        const np = server.nativePort || server.port;
+        const nativePayload = btoa(JSON.stringify({ n: server.name, h: server.host, p: np, wp, np }));
         document.getElementById('invite-desktop-field').value = `iskra://invite/${nativePayload}`;
         desktopSection.style.display = '';
     } else {
@@ -8636,9 +8643,6 @@ async function handleBridgeMessage(data, serverId) {
                 syncServersToRelay();
             }
             // Remove duplicate entries (same canonical ID, different host:port record)
-            // On native: prefer the non-443 entry (direct port, e.g. 8080) — needed for local HTTP proxy
-            // On web: prefer the 443 entry (nginx WSS)
-            const thisSrv = clientConfig.servers.find(s => s.id === serverId);
             const dupes = clientConfig.servers.filter(s => s.id !== serverId && s.canonicalId === data.serverId);
             if (dupes.length > 0) {
                 // Check if the current connection used the wrong port for this platform
@@ -8669,6 +8673,19 @@ async function handleBridgeMessage(data, serverId) {
                 renderServerBar();
                 renderServerList();
                 DevLog.log('SETTINGS', `Merged ${dupes.length} duplicate server entry(s) for "${data.name}"`);
+            }
+        }
+
+        // Learn and persist the server's real direct HTTP port so future connections start with the correct proxy target.
+        // Also send UPDATE_PROXY_TARGET now in case the current proxy was started with the wrong port.
+        if (!IS_WEB && data.serverPort) {
+            const _pSrv = clientConfig.servers.find(s => s.id === serverId);
+            if (_pSrv) {
+                postToBridge({ action: 'UPDATE_PROXY_TARGET', serverId, host: _pSrv.host, port: data.serverPort });
+                if (_pSrv.nativePort !== data.serverPort) {
+                    _pSrv.nativePort = data.serverPort;
+                    saveClientConfig();
+                }
             }
         }
 
@@ -11914,6 +11931,7 @@ async function syncServersToRelay() {
         id: s.id, name: s.name, host: s.host,
         port: s.port,
         webPort: s.webPort || 443,
+        nativePort: s.nativePort || null,
         canonicalId: s.canonicalId || null,
         password: s.password || ''
     }));
@@ -11939,6 +11957,7 @@ async function fetchServersFromRelay() {
             clientConfig.servers.push({
                 id: rs.id || _serverId(), name: rs.name, host: rs.host,
                 port: connectPort, webPort,
+                nativePort: rs.nativePort || null,
                 canonicalId: rs.canonicalId || null,
                 password: rs.password || '', userPassword: '', adminPassword: ''
             });
