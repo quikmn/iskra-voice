@@ -13655,14 +13655,15 @@ function _stopVoiceRec() {
 
 async function sendVoiceMessage() {
     if (!_voiceRec) return;
+    const mimeType = _voiceRec.mimeType || 'audio/webm';
     _voiceRec.onstop = async () => {
         document.getElementById('voice-rec-bar').style.display = 'none';
         document.getElementById('btn-voice-rec').style.color = '';
-        const blob = new Blob(_voiceChunks, { type: _voiceRec?.mimeType || 'audio/webm' });
-        const ext = blob.type.includes('ogg') ? 'ogg' : 'webm';
+        const blob = new Blob(_voiceChunks, { type: mimeType });
+        const ext = mimeType.includes('ogg') ? 'ogg' : 'webm';
         const file = new File([blob], `voice-${Date.now()}.${ext}`, { type: blob.type });
-        const serverId = getCurrentServerId?.() || '';
-        const ss = getState(serverId);
+        const serverId = viewedServerId || '';
+        const ss = serverStates[viewedServerId];
         const chId = ss?.activeTextChannelId
             || ss?.serverChannels?.find(c => c.type === 'Text')?.id;
         if (!serverId || !chId) {
@@ -13679,8 +13680,8 @@ async function sendVoiceMessage() {
 let _filesPanelEl = null;
 
 function openFilesPanel() {
-    const serverId = getCurrentServerId?.();
-    const ss = getState(serverId);
+    const serverId = viewedServerId;
+    const ss = serverStates[viewedServerId];
     if (!serverId || !ss?.activeTextChannelId) return;
     if (_filesPanelEl) { _filesPanelEl.remove(); _filesPanelEl = null; return; }
     _filesPanelEl = document.createElement('div');
@@ -13708,7 +13709,7 @@ function _renderFilesPanel(files) {
 
 // ── Server Analytics ──────────────────────────────────────────────────────────
 function loadAnalytics() {
-    const serverId = getCurrentServerId?.();
+    const serverId = viewedServerId;
     if (!serverId) return;
     document.getElementById('admin-analytics-body').innerHTML = '<span style="color:var(--text-faint);font-size:12px;">Calculating…</span>';
     postToServer(serverId, { action: 'GET_ANALYTICS', days: 30 });
@@ -13731,7 +13732,7 @@ function _renderAnalyticsPanel(data) {
 
 // ── Pinned Read Tracking ──────────────────────────────────────────────────────
 function adminCheckPinnedReads() {
-    const serverId = getCurrentServerId?.();
+    const serverId = viewedServerId;
     const msgId = document.getElementById('pinned-read-id-input')?.value?.trim();
     if (!serverId || !msgId) return;
     postToServer(serverId, { action: 'GET_PINNED_READS', messageId: msgId });
@@ -13748,7 +13749,7 @@ function _applyPinnedReadsResult(reads) {
 }
 
 function markPinnedRead(msgId) {
-    const serverId = getCurrentServerId?.();
+    const serverId = viewedServerId;
     if (!serverId || !msgId) return;
     postToServer(serverId, { action: 'MARK_PINNED_READ', messageId: msgId });
 }
@@ -13807,7 +13808,7 @@ function _annotEnd() {
 }
 
 function _broadcastAnnotStroke(phase, nx, ny) {
-    const serverId = getCurrentServerId?.();
+    const serverId = viewedServerId;
     if (!serverId) return;
     postToServer(serverId, { action: 'ANNOTATE_STROKE', phase, nx, ny, color: _annotColor, size: _annotSize });
 }
@@ -13815,7 +13816,7 @@ function _broadcastAnnotStroke(phase, nx, ny) {
 function clearAnnotationCanvas(broadcast = false) {
     if (_annotCtx && _annotCanvas) _annotCtx.clearRect(0, 0, _annotCanvas.width, _annotCanvas.height);
     if (broadcast) {
-        const serverId = getCurrentServerId?.();
+        const serverId = viewedServerId;
         if (serverId) postToServer(serverId, { action: 'ANNOTATE_CLEAR' });
     }
 }
@@ -13837,7 +13838,7 @@ function _clearAnnotationCanvas() {
 
 // ── Auto-Moderation Admin Panel ───────────────────────────────────────────────
 function loadAutomodConfig() {
-    const serverId = getCurrentServerId?.();
+    const serverId = viewedServerId;
     if (!serverId) return;
     postToServer(serverId, { action: 'GET_AUTOMOD_CONFIG' });
 }
@@ -13845,7 +13846,7 @@ function loadAutomodConfig() {
 function _renderAutomodPanel() {
     const el = document.getElementById('admin-automod-body');
     if (!el) return;
-    const cfg = getState(getCurrentServerId?.())._automodConfig || {};
+    const cfg = serverStates[viewedServerId]?._automodConfig || {};
     el.innerHTML = `
     <div class="automod-panel">
         <div class="automod-row">
@@ -13880,7 +13881,7 @@ function _renderAutomodPanel() {
 
 function automodSave(explicit = false) {
     if (!explicit) return;
-    const serverId = getCurrentServerId?.();
+    const serverId = viewedServerId;
     if (!serverId) return;
     const enabled = document.getElementById('am-enabled')?.checked || false;
     const wordEnabled = document.getElementById('am-word-enabled')?.checked || false;

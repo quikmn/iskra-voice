@@ -114,14 +114,11 @@ systemctl status $SVC --no-pager -l
 ENDSSH2
 
 # ── SSL ───────────────────────────────────────────────────────────────────────
-# Only attempt certbot if --ssl flag is passed: bash deploy-relay.sh --ssl
-if [[ "$1" == "--ssl" ]]; then
-    echo "==> Requesting SSL certificate for $DOMAIN..."
-    ssh "$REMOTE" "certbot --nginx -d $DOMAIN --non-interactive --agree-tos -m viktor.lundgren@gmail.com"
-    echo "--> SSL configured"
-else
-    echo "==> Skipping certbot (pass --ssl to request/renew certificate)"
-fi
+# Always re-apply certbot after deploy so the nginx config includes the SSL block
+# (the deploy step overwrites nginx config with a plain port-80 version)
+echo "==> Applying SSL certificate for $DOMAIN..."
+ssh "$REMOTE" "certbot --nginx -d $DOMAIN --non-interactive --agree-tos -m viktor.lundgren@gmail.com 2>&1 | tail -5"
+echo "--> SSL configured"
 
 echo ""
 echo "==> Done! Relay should be live at https://$DOMAIN/health"
