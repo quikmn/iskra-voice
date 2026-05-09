@@ -1383,7 +1383,7 @@ namespace Origin.Server.Core
                         }
                         else _timedOut.TryRemove(currentAlias, out _);
 
-                        if (text.StartsWith("/") && text.Length > 1 && char.IsLetter(text[1]))
+                        if (text.StartsWith("/") && text.Length > 1 && char.IsLetter(text[1]) && !text.StartsWith("/uploads/"))
                         {
                             var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                             string cmd = parts[0].ToLowerInvariant();

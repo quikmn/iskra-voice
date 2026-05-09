@@ -1624,7 +1624,7 @@
             <textarea id="chat-input" class="input-box" placeholder="Message #general-chat" rows="1" onkeydown="sendChat(event)" oninput="onChatInput()" onblur="setTimeout(hideMentionPopup,150)"></textarea>
             <button class="attach-btn" id="btn-schedule" onclick="openScheduleOverlay()" title="Schedule message">⏰</button>
             <button class="attach-btn" id="btn-voice-rec" onclick="toggleVoiceRecording()" title="Voice message">🎙</button>
-            <button class="attach-btn" id="btn-files-tab" onclick="openFilesPanel()" title="Files in this channel">📎</button>
+            <button class="attach-btn" id="btn-files-tab" onclick="openFilesPanel()" title="Files in this channel"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/></svg></button>
         </div>
         <div id="voice-rec-bar" style="display:none;align-items:center;gap:8px;padding:4px 10px;background:var(--bg-deep);border-top:1px solid var(--bg-hover);">
             <span id="voice-rec-dot" style="width:8px;height:8px;border-radius:50%;background:#e74c3c;animation:blink 1s infinite;"></span>
@@ -10244,7 +10244,7 @@ function escapeHtml(str) {
 }
 
 // ── File Upload ────────────────────────────────────────────────────────────────
-const ALLOWED_EXTS  = ['.jpg','.jpeg','.png','.gif','.webp','.zip','.7z'];
+const ALLOWED_EXTS  = ['.jpg','.jpeg','.png','.gif','.webp','.zip','.7z','.mp3','.wav','.ogg','.webm'];
 const MAX_FILE_MB   = 2500;
 
 async function uploadAndSendFile(file) {
@@ -13662,9 +13662,15 @@ async function sendVoiceMessage() {
         const ext = blob.type.includes('ogg') ? 'ogg' : 'webm';
         const file = new File([blob], `voice-${Date.now()}.${ext}`, { type: blob.type });
         const serverId = getCurrentServerId?.() || '';
-        const chId = getState(serverId)?.activeTextChannelId;
-        if (!serverId || !chId) return;
-        await uploadAndSendFile(file, serverId, chId);
+        const ss = getState(serverId);
+        const chId = ss?.activeTextChannelId
+            || ss?.serverChannels?.find(c => c.type === 'Text')?.id;
+        if (!serverId || !chId) {
+            showToast('Select a text channel first to send a voice message.', 'error');
+            return;
+        }
+        if (!ss.activeTextChannelId) ss.activeTextChannelId = chId;
+        await uploadAndSendFile(file);
     };
     _stopVoiceRec();
 }
