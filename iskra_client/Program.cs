@@ -525,16 +525,48 @@ namespace Origin.Client.Core
 
         private async Task DoInstallUpdate(string downloadUrl)
         {
+            string? tempZip = null;
             try
             {
+                // Download here in the client so JS can see real progress before we exit.
+                string tempDir = Path.Combine(Path.GetTempPath(), "IskraUpdate_" + Guid.NewGuid().ToString("N")[..8]);
+                Directory.CreateDirectory(tempDir);
+                tempZip = Path.Combine(tempDir, "Iskra-Client.zip");
+
+                var req = new HttpRequestMessage(HttpMethod.Get, downloadUrl);
+                req.Headers.TryAddWithoutValidation("User-Agent", "IskraClient/1.0");
+                using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead);
+                resp.EnsureSuccessStatusCode();
+
+                long total = resp.Content.Headers.ContentLength ?? 0;
+                long done  = 0;
+                byte[] buf = new byte[65536];
+
+                await using (var fs = new FileStream(tempZip, FileMode.Create, FileAccess.Write, FileShare.None, 65536, true))
+                await using (var stream = await resp.Content.ReadAsStreamAsync())
+                {
+                    int read;
+                    int lastPct = -1;
+                    while ((read = await stream.ReadAsync(buf)) > 0)
+                    {
+                        await fs.WriteAsync(buf.AsMemory(0, read));
+                        done += read;
+                        if (total > 0)
+                        {
+                            int pct = (int)(done * 100L / total);
+                            if (pct != lastPct) { PostToJs(new { action = "UPDATE_PROGRESS", phase = "downloading", pct }); lastPct = pct; }
+                        }
+                    }
+                }
+
                 PostToJs(new { action = "UPDATE_PROGRESS", phase = "restarting", pct = 100 });
                 await Task.Delay(400);
 
-                // Hand off to iskra_launcher.exe which owns our process and can replace files while we're dead
+                // Hand the pre-downloaded zip path to the launcher — it just needs to extract + swap files.
                 using var pipe = new NamedPipeClientStream(".", "IskraLauncherUpdate", PipeDirection.Out);
-                await pipe.ConnectAsync(2000);
+                await pipe.ConnectAsync(3000);
                 using var writer = new StreamWriter(pipe, Encoding.UTF8, leaveOpen: false);
-                await writer.WriteAsync(JsonSerializer.Serialize(new { url = downloadUrl }));
+                await writer.WriteAsync(JsonSerializer.Serialize(new { url = downloadUrl, localZip = tempZip }));
                 await writer.FlushAsync();
 
                 await Task.Delay(200);
@@ -542,7 +574,8 @@ namespace Origin.Client.Core
             }
             catch (Exception ex)
             {
-                PostToJs(new { action = "UPDATE_ERROR", message = $"Launcher not reachable — please launch Iskra via iskra_launcher.exe ({ex.Message})" });
+                if (tempZip != null) try { File.Delete(tempZip); Directory.Delete(Path.GetDirectoryName(tempZip)!); } catch { }
+                PostToJs(new { action = "UPDATE_ERROR", message = ex.Message });
             }
         }
 

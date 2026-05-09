@@ -8429,6 +8429,36 @@ async function handleBridgeMessage(data, serverId) {
         if (pct)  pct.textContent  = `${data.percent}%`;
         return;
     }
+    if (data.action === 'UPDATE_PROGRESS') {
+        const fill = document.getElementById('update-progress-fill');
+        const pct  = document.getElementById('update-bar-pct');
+        const text = document.getElementById('update-bar-text');
+        if (data.phase === 'downloading') {
+            if (fill) fill.style.width = data.pct + '%';
+            if (pct)  pct.textContent  = data.pct + '%';
+        } else if (data.phase === 'extracting') {
+            if (text) text.textContent = 'Extracting…';
+            if (fill) fill.style.width = '100%';
+            if (pct)  pct.textContent  = '';
+        } else if (data.phase === 'restarting') {
+            if (text) text.textContent = 'Restarting…';
+            if (pct)  pct.textContent  = '';
+        }
+        return;
+    }
+    if (data.action === 'UPDATE_ERROR') {
+        const text       = document.getElementById('update-bar-text');
+        const installBtn = document.getElementById('update-install-btn');
+        const dismissBtn = document.getElementById('update-dismiss-btn');
+        const progressW  = document.getElementById('update-progress-wrap');
+        const pct        = document.getElementById('update-bar-pct');
+        if (text)       text.innerHTML = `<span style="color:var(--danger)">Update failed: ${escapeHtml(data.message)}</span>`;
+        if (installBtn) installBtn.style.display = '';
+        if (dismissBtn) dismissBtn.style.display = '';
+        if (progressW)  progressW.style.display  = 'none';
+        if (pct)        pct.style.display         = 'none';
+        return;
+    }
     const ss = serverStates[serverId];
     if (!ss) return;
     const isViewed = serverId === viewedServerId;
@@ -9328,33 +9358,6 @@ async function handleBridgeMessage(data, serverId) {
     } else if (data.action === 'CHECK_UPDATE_MANUAL') {
         checkForUpdate(true);
 
-    } else if (data.action === 'UPDATE_PROGRESS') {
-        const fill = document.getElementById('update-progress-fill');
-        const pct  = document.getElementById('update-bar-pct');
-        const text = document.getElementById('update-bar-text');
-        if (data.phase === 'downloading') {
-            if (fill) fill.style.width = data.pct + '%';
-            if (pct)  pct.textContent  = data.pct + '%';
-        } else if (data.phase === 'extracting') {
-            if (text) text.textContent = 'Extracting…';
-            if (fill) fill.style.width = '100%';
-            if (pct)  pct.textContent  = '';
-        } else if (data.phase === 'restarting') {
-            if (text) text.textContent = 'Restarting…';
-            if (pct)  pct.textContent  = '';
-        }
-
-    } else if (data.action === 'UPDATE_ERROR') {
-        const text       = document.getElementById('update-bar-text');
-        const installBtn = document.getElementById('update-install-btn');
-        const dismissBtn = document.getElementById('update-dismiss-btn');
-        const progressW  = document.getElementById('update-progress-wrap');
-        const pct        = document.getElementById('update-bar-pct');
-        if (text)       text.innerHTML = `<span style="color:var(--danger)">Update failed: ${escapeHtml(data.message)}</span>`;
-        if (installBtn) installBtn.style.display = '';
-        if (dismissBtn) dismissBtn.style.display = '';
-        if (progressW)  progressW.style.display  = 'none';
-        if (pct)        pct.style.display         = 'none';
     }
 }
 
