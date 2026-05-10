@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Iskra Account</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -25,11 +28,22 @@
 }
 
 body {
-    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
     line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    flex-direction: column;
+}
+
+#spark-canvas {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.45;
 }
 
 /* ── Top bar ── */
@@ -39,8 +53,9 @@ body {
     justify-content: space-between;
     padding: 0 32px;
     height: 56px;
-    border-bottom: 1px solid var(--border);
-    background: var(--card);
+    border-bottom: 1px solid rgba(120,100,255,0.15);
+    background: rgba(11,11,20,0.75);
+    backdrop-filter: blur(16px);
     position: sticky;
     top: 0;
     z-index: 100;
@@ -49,8 +64,9 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
-    font-weight: 700;
-    font-size: 18px;
+    font-weight: 800;
+    font-size: 1.15rem;
+    letter-spacing: -0.02em;
     color: var(--text);
     text-decoration: none;
 }
@@ -83,11 +99,13 @@ body {
 
 /* ── Auth gate ── */
 #auth-gate {
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: calc(100vh - 56px);
     padding: 40px 16px;
+    position: relative;
+    z-index: 1;
 }
 #auth-card {
     background: var(--card);
@@ -152,18 +170,21 @@ body {
 /* ── Dashboard ── */
 #dashboard {
     display: none;
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 36px 24px 80px;
-    gap: 28px;
+    flex: 1;
+    width: 100%;
+    max-width: 1280px;
+    padding: 36px 40px 60px 48px;
+    gap: 32px;
     align-items: flex-start;
+    position: relative;
+    z-index: 1;
 }
 #dashboard.visible {
     display: grid;
-    grid-template-columns: 280px 1fr;
+    grid-template-columns: 300px 1fr;
 }
 @media (max-width: 720px) {
-    #dashboard.visible { grid-template-columns: 1fr; }
+    #dashboard.visible { grid-template-columns: 1fr; padding: 24px 16px 48px; }
 }
 
 /* ── Profile card ── */
@@ -176,19 +197,19 @@ body {
     top: 76px;
 }
 #profile-banner {
-    height: 72px;
+    height: 84px;
     background: linear-gradient(135deg, #4c1d95, #1e1b4b, #0b0b14);
 }
-#profile-body { padding: 0 20px 20px; }
+#profile-body { padding: 0 24px 24px; }
 #avatar-wrap {
     position: relative;
-    margin-top: -36px;
-    margin-bottom: 12px;
-    width: 72px;
+    margin-top: -44px;
+    margin-bottom: 14px;
+    width: 88px;
 }
 #avatar-img {
-    width: 72px;
-    height: 72px;
+    width: 88px;
+    height: 88px;
     border-radius: 50%;
     border: 4px solid var(--card);
     background: var(--surface);
@@ -196,42 +217,45 @@ body {
     display: block;
 }
 #avatar-initials {
-    width: 72px;
-    height: 72px;
+    width: 88px;
+    height: 88px;
     border-radius: 50%;
     border: 4px solid var(--card);
     background: var(--accent);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 26px;
+    font-size: 30px;
     font-weight: 700;
     color: #fff;
 }
 #avatar-upload-btn {
     position: absolute;
-    bottom: 2px;
-    right: -2px;
-    width: 24px;
-    height: 24px;
+    top: 4px;
+    left: 0px;
+    width: 26px;
+    height: 26px;
     border-radius: 50%;
-    background: var(--surface);
-    border: 2px solid var(--card);
+    background: rgba(11,11,20,0.82);
+    border: 2px solid rgba(255,255,255,0.15);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     font-size: 11px;
-    transition: background 0.15s;
+    opacity: 0;
+    transition: opacity 0.18s, background 0.15s;
 }
-#avatar-upload-btn:hover { background: var(--accent); }
+#avatar-wrap:hover #avatar-upload-btn { opacity: 1; }
+#avatar-upload-btn:hover { background: var(--accent); border-color: transparent; }
 #avatar-file-input { display: none; }
 
 #profile-alias {
-    font-size: 18px;
-    font-weight: 700;
+    font-size: 20px;
+    font-weight: 800;
     color: var(--text);
     line-height: 1.2;
+    letter-spacing: -0.02em;
 }
 #profile-iskraid-badge {
     display: inline-flex;
@@ -320,17 +344,104 @@ body {
 .inline-form input:focus { border-color: var(--accent); }
 
 #logout-btn { color: var(--muted); }
+
+/* ── Dashboard tabs ── */
+#dash-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0;
+}
+.dash-tab-btn {
+    padding: 8px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+}
+.dash-tab-btn:hover { color: var(--text); }
+.dash-tab-btn.active { color: var(--text); border-bottom-color: var(--accent); }
+
+#tab-pane-account { display: none; flex-direction: column; gap: 20px; }
+#tab-pane-account.active { display: flex; }
+#tab-pane-profile { display: none; }
+#tab-pane-profile.active { display: block; }
+
+#profile-frame-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    overflow: hidden;
+    height: calc(100vh - 180px);
+    min-height: 480px;
+    position: relative;
+}
+#profile-frame-wrap iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+}
+#profile-no-url {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 320px;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 14px;
+    text-align: center;
+    padding: 40px;
+}
+#profile-no-url a { color: var(--accent); cursor: pointer; text-decoration: none; }
+#profile-no-url a:hover { text-decoration: underline; }
+
+/* ── Footer ── */
+#site-footer {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 24px 48px;
+    border-top: 1px solid rgba(120,100,255,0.15);
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-top: auto;
+}
+#site-footer a { color: var(--muted); text-decoration: none; transition: color 0.2s; }
+#site-footer a:hover { color: var(--text); }
+.footer-links { display: flex; gap: 20px; }
+@media (max-width: 600px) {
+    #site-footer { padding: 24px 20px; flex-direction: column; align-items: flex-start; }
+}
 </style>
 </head>
 <body>
 
+<canvas id="spark-canvas"></canvas>
+
 <div id="topbar">
     <a id="topbar-logo" href="https://iskra.foo">
-        <svg width="22" height="22" viewBox="0 0 7 11" fill="none">
-            <defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a78bfa"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs>
-            <polygon points="4.34,0 2.66,0 1.4,5.5 2.94,5.5 1.54,11 4.06,11 5.46,5.5 4.06,5.5" fill="url(#lg)"/>
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16 2L4 16h10l-2 10 14-16H16L18 2z" fill="url(#hero-bolt)"/>
+            <defs>
+                <linearGradient id="hero-bolt" x1="4" y1="2" x2="22" y2="26" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stop-color="#7c6fff"/>
+                    <stop offset="100%" stop-color="#00cfff"/>
+                </linearGradient>
+            </defs>
         </svg>
-        Iskra Account
+        Iskra
     </a>
     <div id="topbar-actions">
         <button class="btn btn-secondary btn-sm" id="logout-btn" onclick="logout()" style="display:none">Sign out</button>
@@ -435,6 +546,15 @@ body {
     <!-- Main content (right) -->
     <div id="main-content">
 
+        <!-- Tabs -->
+        <div id="dash-tabs">
+            <button class="dash-tab-btn active" onclick="switchDashTab('account')">Account</button>
+            <button class="dash-tab-btn" onclick="switchDashTab('profile')">My Profile</button>
+        </div>
+
+        <!-- Account tab -->
+        <div id="tab-pane-account" class="active">
+
         <!-- Account -->
         <div class="section-card">
             <h3>Account</h3>
@@ -506,8 +626,31 @@ body {
             <button class="btn btn-danger btn-sm" onclick="logout()">Sign out</button>
         </div>
 
+        </div><!-- /tab-pane-account -->
+
+        <!-- Profile tab -->
+        <div id="tab-pane-profile">
+            <div id="profile-frame-wrap">
+                <div id="profile-no-url">
+                    <span style="font-size:32px">🌐</span>
+                    <div style="font-weight:600;color:var(--text)">No profile page linked</div>
+                    <div>Go to the <a onclick="switchDashTab('account')">Account tab</a> → Profile Page to add your Neocities, GitHub Pages, or Cloudflare Pages URL.</div>
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
+
+<footer id="site-footer">
+    <span>© 2026 Viktor Lundgren · <a href="https://github.com/quikmn/iskra-voice/blob/main/LICENSE" target="_blank">PolyForm Noncommercial 1.0.0</a></span>
+    <div class="footer-links">
+        <a href="https://iskra.foo" target="_blank">iskra.foo</a>
+        <a href="https://github.com/quikmn/iskra-voice" target="_blank">GitHub</a>
+        <a href="https://github.com/quikmn/iskra-voice/releases" target="_blank">Releases</a>
+        <a href="https://ko-fi.com/vlundgren" target="_blank">Ko-fi</a>
+    </div>
+</footer>
 
 <script>
 const RELAY = 'https://id.iskra.foo';
@@ -764,7 +907,168 @@ function openIskra() {
     window.open(url.toString(), '_blank');
 }
 
+function switchDashTab(tab) {
+    document.querySelectorAll('.dash-tab-btn').forEach((b, i) => {
+        b.classList.toggle('active', (i === 0 && tab === 'account') || (i === 1 && tab === 'profile'));
+    });
+    document.getElementById('tab-pane-account').classList.toggle('active', tab === 'account');
+    document.getElementById('tab-pane-profile').classList.toggle('active', tab === 'profile');
+    if (tab === 'profile') loadProfileTab();
+}
+
+async function loadProfileTab() {
+    const wrap = document.getElementById('profile-frame-wrap');
+    const alias = me?.alias;
+    const profileUrl = me?.profileUrl;
+
+    if (!profileUrl) {
+        wrap.innerHTML = `<div id="profile-no-url">
+            <span style="font-size:32px">🌐</span>
+            <div style="font-weight:600;color:var(--text)">No profile page linked</div>
+            <div>Go to the <a onclick="switchDashTab('account')">Account tab</a> → Profile Page to add your Neocities, GitHub Pages, or Cloudflare Pages URL.</div>
+        </div>`;
+        return;
+    }
+
+    wrap.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:14px;">Loading profile…</div>`;
+
+    try {
+        const r = await fetch(`${RELAY}/api/profile/${encodeURIComponent(alias)}`, {
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
+        if (!r.ok) throw new Error('fetch failed');
+        const data = await r.json();
+        if (!data.html) throw new Error('no html');
+        const iframe = document.createElement('iframe');
+        iframe.setAttribute('sandbox', 'allow-scripts allow-popups');
+        iframe.setAttribute('allow', 'autoplay; fullscreen');
+        iframe.setAttribute('referrerpolicy', 'no-referrer');
+        iframe.style.cssText = 'width:100%;height:100%;border:none;display:block;';
+        iframe.srcdoc = data.html;
+        wrap.innerHTML = '';
+        wrap.appendChild(iframe);
+    } catch {
+        wrap.innerHTML = `<div id="profile-no-url"><span style="font-size:32px">⚠</span><div>Could not load profile page.</div></div>`;
+    }
+}
+
 init();
+</script>
+
+<script>
+// ── Electric spark canvas (same as hero page) ─────────────────────────────
+(function() {
+  const canvas = document.getElementById('spark-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, particles, bolts;
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+
+  function makeParticle() {
+    return {
+      x: Math.random() * W,
+      y: Math.random() * H,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.3,
+      r: Math.random() * 1.5 + 0.3,
+      alpha: Math.random() * 0.5 + 0.1,
+      hue: Math.random() > 0.5 ? 250 : 195,
+    };
+  }
+
+  function makeBolt() {
+    const x1 = Math.random() * W;
+    const y1 = Math.random() * H * 0.6;
+    const x2 = x1 + (Math.random() - 0.5) * 200;
+    const y2 = y1 + Math.random() * 200 + 80;
+    const segments = [];
+    const steps = 8 + Math.floor(Math.random() * 8);
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const ox = t < 1 ? (Math.random() - 0.5) * 40 * Math.sin(t * Math.PI) : 0;
+      segments.push({ x: x1 + (x2 - x1) * t + ox, y: y1 + (y2 - y1) * t });
+    }
+    return {
+      segments,
+      alpha: 0.6 + Math.random() * 0.4,
+      life: 0,
+      maxLife: 8 + Math.random() * 12,
+      hue: Math.random() > 0.5 ? 250 : 195,
+      width: Math.random() * 1 + 0.4,
+    };
+  }
+
+  function init() {
+    resize();
+    particles = Array.from({ length: 120 }, makeParticle);
+    bolts = [];
+  }
+
+  let boltTimer = 0;
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    for (const p of particles) {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${p.hue}, 100%, 75%, ${p.alpha})`;
+      ctx.fill();
+    }
+
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const d = Math.sqrt(dx*dx + dy*dy);
+        if (d < 90) {
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.strokeStyle = `hsla(250, 100%, 75%, ${0.06 * (1 - d/90)})`;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      }
+    }
+
+    boltTimer++;
+    if (boltTimer > 40 && Math.random() < 0.04) {
+      bolts.push(makeBolt());
+      boltTimer = 0;
+    }
+
+    for (let i = bolts.length - 1; i >= 0; i--) {
+      const b = bolts[i];
+      b.life++;
+      const t = b.life / b.maxLife;
+      const alpha = b.alpha * (1 - t * t);
+      if (b.life >= b.maxLife) { bolts.splice(i, 1); continue; }
+      ctx.save();
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = `hsla(${b.hue}, 100%, 80%, ${alpha})`;
+      ctx.strokeStyle = `hsla(${b.hue}, 100%, 90%, ${alpha})`;
+      ctx.lineWidth = b.width;
+      ctx.beginPath();
+      ctx.moveTo(b.segments[0].x, b.segments[0].y);
+      for (let k = 1; k < b.segments.length; k++) ctx.lineTo(b.segments[k].x, b.segments[k].y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', resize);
+  init();
+  draw();
+})();
 </script>
 </body>
 </html>

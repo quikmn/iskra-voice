@@ -526,9 +526,40 @@ namespace Origin.Server.Core
                 bool isMedia = ImageExts.Contains(ext) || AudioExts.Contains(ext);
                 ctx.Response.AddHeader("Content-Disposition", isMedia ? "inline" : $"attachment; filename=\"{filename}\"");
                 ctx.Response.AddHeader("Cache-Control", "max-age=86400");
-                ctx.Response.ContentLength64 = new FileInfo(filePath).Length;
-                using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, useAsync: true);
-                await fs.CopyToAsync(ctx.Response.OutputStream);
+
+                long fileSize = new FileInfo(filePath).Length;
+                string rangeHeader = ctx.Request.Headers["Range"];
+                if (!string.IsNullOrEmpty(rangeHeader) && rangeHeader.StartsWith("bytes="))
+                {
+                    var range = rangeHeader[6..].Split('-');
+                    long start = range[0].Length > 0 ? long.Parse(range[0]) : Math.Max(0, fileSize - (range[1].Length > 0 ? long.Parse(range[1]) : 0));
+                    long end   = (range.Length > 1 && range[1].Length > 0) ? long.Parse(range[1]) : fileSize - 1;
+                    if (start < 0) start = 0;
+                    if (end >= fileSize) end = fileSize - 1;
+                    long length = end - start + 1;
+                    ctx.Response.StatusCode = 206;
+                    ctx.Response.AddHeader("Accept-Ranges", "bytes");
+                    ctx.Response.AddHeader("Content-Range", $"bytes {start}-{end}/{fileSize}");
+                    ctx.Response.ContentLength64 = length;
+                    using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, useAsync: true);
+                    fs.Seek(start, SeekOrigin.Begin);
+                    var buf = new byte[65536];
+                    long remaining = length;
+                    while (remaining > 0)
+                    {
+                        int read = await fs.ReadAsync(buf, 0, (int)Math.Min(buf.Length, remaining));
+                        if (read == 0) break;
+                        await ctx.Response.OutputStream.WriteAsync(buf.AsMemory(0, read));
+                        remaining -= read;
+                    }
+                }
+                else
+                {
+                    ctx.Response.AddHeader("Accept-Ranges", "bytes");
+                    ctx.Response.ContentLength64 = fileSize;
+                    using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, useAsync: true);
+                    await fs.CopyToAsync(ctx.Response.OutputStream);
+                }
                 ctx.Response.Close();
             }
             catch (Exception ex) { Log("ERR", $"ServeUpload: {ex.Message}"); try { ctx.Response.StatusCode = 500; ctx.Response.Close(); } catch { } }

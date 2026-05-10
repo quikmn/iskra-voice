@@ -683,6 +683,10 @@
         /* ── Channel edit overlay ── */
         #ch-edit-overlay { display: none; position: fixed; z-index: 600; background: var(--bg-surface); border: 1px solid var(--bg-border); border-radius: 8px; padding: 14px 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.6); min-width: 240px; max-width: 320px; }
         #app-confirm, #app-alert { display: none; position: fixed; z-index: 700; left: 50%; top: 50%; transform: translate(-50%,-50%); background: var(--bg-surface); border: 1px solid var(--bg-border); border-radius: 8px; padding: 18px 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.7); min-width: 270px; max-width: 400px; font-size: 13px; color: var(--text-normal); line-height: 1.55; }
+        #app-toast { position: fixed; z-index: 800; bottom: 72px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--bg-surface); border: 1px solid var(--bg-border); border-radius: 8px; padding: 10px 18px; font-size: 13px; color: var(--text-normal); box-shadow: 0 4px 20px rgba(0,0,0,0.5); pointer-events: none; opacity: 0; transition: opacity 0.2s, transform 0.2s; white-space: nowrap; max-width: 340px; overflow: hidden; text-overflow: ellipsis; }
+        #app-toast.toast-visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+        #app-toast.toast-success { border-color: var(--success); color: var(--success); }
+        #app-toast.toast-error   { border-color: var(--danger);  color: #ef9a9a; }
         #app-confirm-msg, #app-alert-msg { white-space: pre-wrap; word-break: break-word; }
         .btn-danger { background: var(--danger); color: #fff; border: none; border-radius: 5px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
         .btn-danger:hover { background: #c0392b; }
@@ -2374,6 +2378,8 @@
     </div>
 </div>
 
+<div id="app-toast"></div>
+
 <div id="privacy-modal" onclick="if(event.target===this)hidePrivacyModal()">
     <div id="privacy-inner">
         <div id="prv-server-stmt" style="display:none;background:var(--bg-deep);border-radius:7px;padding:12px 14px;margin-bottom:16px;border-left:3px solid var(--accent);"></div>
@@ -3523,12 +3529,36 @@ function playSound(name) {
 
 // ── Custom audio player ───────────────────────────────────────────────────────
 function _apFmt(s) { s = Math.floor(s || 0); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; }
-function _apToggle(btn) { const a = btn.closest('.audio-player')?.querySelector('audio'); if (a) { if (a.paused) a.play().catch(()=>{}); else a.pause(); } }
+async function _apRescue(audio) {
+    const src = audio.src;
+    if (!src || src.startsWith('blob:') || !src.includes('/uploads/')) return;
+    try {
+        if (_blobCache[src]) { audio.src = _blobCache[src]; audio.load(); return; }
+        const resp = await fetch(src);
+        if (!resp.ok) return;
+        const blob = await resp.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        _blobCache[src] = blobUrl;
+        audio.src = blobUrl;
+        audio.load();
+    } catch {}
+}
+async function _apToggle(btn) {
+    const a = btn.closest('.audio-player')?.querySelector('audio');
+    if (!a) return;
+    if (a.src && a.src.includes('/uploads/') && !a.src.startsWith('blob:')) {
+        await _apRescue(a);
+        if (a.readyState < 2)
+            await new Promise(r => { a.addEventListener('loadeddata', r, {once:true}); a.addEventListener('error', r, {once:true}); setTimeout(r, 5000); });
+    }
+    if (a.paused) a.play().catch(()=>{}); else a.pause();
+}
 function _apPlay(a)  { const b = a.closest('.audio-player')?.querySelector('.ap-btn'); if (b) b.innerHTML = '<svg viewBox="0 0 8 10" width="8" height="10" fill="white"><rect x="0" y="0" width="2.5" height="10"/><rect x="5" y="0" width="2.5" height="10"/></svg>'; }
 function _apPause(a) { const b = a.closest('.audio-player')?.querySelector('.ap-btn'); if (b) b.innerHTML = '<svg viewBox="0 0 8 10" width="8" height="10" fill="white"><polygon points="0,0 8,5 0,10"/></svg>'; }
-function _apMeta(a)  { const t = a.closest('.audio-player')?.querySelector('.ap-time'); if (t) t.textContent = '0:00 / ' + _apFmt(a.duration); }
-function _apTick(a)  { const p = a.closest('.audio-player'); if (!p) return; const t = p.querySelector('.ap-time'), s = p.querySelector('.ap-seek'); if (t) t.textContent = _apFmt(a.currentTime) + ' / ' + _apFmt(a.duration); if (s && isFinite(a.duration)) s.value = a.currentTime / a.duration * 100; }
-function _apEnd(a)   { a.currentTime = 0; _apPause(a); const p = a.closest('.audio-player'); if (!p) return; const s = p.querySelector('.ap-seek'), t = p.querySelector('.ap-time'); if (s) s.value = 0; if (t) t.textContent = '0:00 / ' + _apFmt(a.duration); }
+function _apDur(a)   { return isFinite(a.duration) ? _apFmt(a.duration) : '?:??'; }
+function _apMeta(a)  { const t = a.closest('.audio-player')?.querySelector('.ap-time'); if (t) t.textContent = '0:00 / ' + _apDur(a); }
+function _apTick(a)  { const p = a.closest('.audio-player'); if (!p) return; const t = p.querySelector('.ap-time'), s = p.querySelector('.ap-seek'); if (t) t.textContent = _apFmt(a.currentTime) + ' / ' + _apDur(a); if (s && isFinite(a.duration)) s.value = a.currentTime / a.duration * 100; }
+function _apEnd(a)   { a.currentTime = 0; _apPause(a); const p = a.closest('.audio-player'); if (!p) return; const s = p.querySelector('.ap-seek'), t = p.querySelector('.ap-time'); if (s) s.value = 0; if (t) t.textContent = '0:00 / ' + _apDur(a); }
 function _apSeek(inp){ const a = inp.closest('.audio-player')?.querySelector('audio'); if (a && isFinite(a.duration)) a.currentTime = inp.value / 100 * a.duration; }
 
 function isDndActive() {
@@ -4374,6 +4404,15 @@ function showAlert(msg) {
 }
 function hideAlert() {
     document.getElementById('app-alert').style.display = 'none';
+}
+let _toastTimer = null;
+function showToast(msg, type = 'info') {
+    const el = document.getElementById('app-toast');
+    if (!el) return;
+    clearTimeout(_toastTimer);
+    el.textContent = msg;
+    el.className = 'toast-visible' + (type === 'success' ? ' toast-success' : type === 'error' ? ' toast-error' : '');
+    _toastTimer = setTimeout(() => { el.className = ''; }, 3000);
 }
 
 function showPrivacyModal() {
@@ -6449,8 +6488,12 @@ function _connectWs(serverId, host, port, nativePort, alias, password, userPassw
     };
     ss.ws.onerror   = () => {
         if (IS_WEB && location.protocol === 'https:' && !host.match(/^(localhost|127\.|192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/) ) {
-            const lbl = document.getElementById('voice-mode-label');
-            if (lbl) { lbl.textContent = '⚠ Connection failed — your server needs WSS (SSL) to connect from the web app'; lbl.style.color = '#ef9a9a'; setTimeout(() => { lbl.textContent = ''; lbl.style.color = ''; }, 8000); }
+            const now = Date.now();
+            if (!ss._wssWarnedAt || now - ss._wssWarnedAt > 30000) {
+                ss._wssWarnedAt = now;
+                const lbl = document.getElementById('voice-mode-label');
+                if (lbl) { lbl.textContent = '⚠ Server needs WSS (SSL) for web'; lbl.style.color = '#ef9a9a'; setTimeout(() => { if (lbl.textContent.includes('WSS')) { lbl.textContent = ''; lbl.style.color = ''; } }, 8000); }
+            }
         }
         ss.ws?.close();
     };
@@ -6561,7 +6604,7 @@ async function setupPeer(target, makeOffer = false, peerServerId = null) {
         }
         DevLog.log('RTC', `Remote audio track from ${target} | routing via outputGain(${settings.outputGain})`);
         if (!outputCtx) await initOutputContext();
-        const stream = e.streams[0];
+        const stream = e.streams[0] || new MediaStream([e.track]);
         ss.remoteStreams[target] = stream;
 
         const anchor = new Audio();
@@ -6606,9 +6649,10 @@ async function setupPeer(target, makeOffer = false, peerServerId = null) {
     return pc;
 }
 
-function joinVoice(id) {
+async function joinVoice(id) {
     const ss = serverStates[viewedServerId];
     if (!ss) return;
+    if (!processedStream) { try { await initAudio(); } catch {} }
     if (ss.currentChannelId !== id) { postToServer(viewedServerId, { action: 'JOIN_VOICE', channelId: id }); _acquireWakeLock(); }
     if (inDmMode) { ss.activeTextChannelId = id; return; }
     // Switch chat pane to voice channel text thread
@@ -6826,7 +6870,7 @@ function renderMarkdown(raw) {
         if (['jpg','jpeg','png','gif','webp'].includes(ext))
             return `<img class="msg-img" src="${url}" data-src="${url}" alt="image" loading="lazy" onerror="rescueImg(this)" onclick="openLightbox(this.src)">`;
         if (['mp3','ogg','webm','wav','m4a'].includes(ext)) {
-            return `<div class="audio-player"><audio src="${url}" preload="metadata" onloadedmetadata="_apMeta(this)" ontimeupdate="_apTick(this)" onended="_apEnd(this)" onplay="_apPlay(this)" onpause="_apPause(this)"></audio><button class="ap-btn" onclick="_apToggle(this)" title="Play"><svg viewBox="0 0 8 10" width="8" height="10" fill="white"><polygon points="0,0 8,5 0,10"/></svg></button><input class="ap-seek" type="range" min="0" max="100" value="0" step="0.1" oninput="_apSeek(this)"><span class="ap-time">0:00</span></div>`;
+            return `<div class="audio-player"><audio src="${url}" preload="none" onloadedmetadata="_apMeta(this)" ontimeupdate="_apTick(this)" onended="_apEnd(this)" onplay="_apPlay(this)" onpause="_apPause(this)" onerror="_apRescue(this)"></audio><button class="ap-btn" onclick="_apToggle(this)" title="Play"><svg viewBox="0 0 8 10" width="8" height="10" fill="white"><polygon points="0,0 8,5 0,10"/></svg></button><input class="ap-seek" type="range" min="0" max="100" value="0" step="0.1" oninput="_apSeek(this)"><span class="ap-time">0:00</span></div>`;
         }
         const fname = url.split('/').pop();
         return `<a class="msg-file" href="${url}" target="_blank" download>📎 ${fname}</a>`;
@@ -9448,17 +9492,28 @@ async function handleBridgeMessage(data, serverId) {
         DevLog.log('BRIDGE', `← C# | WEBRTC_SIGNAL from:${data.sender} type:${data.payload.type}`);
         const pc = await setupPeer(data.sender, false, serverId);
         const p  = data.payload;
+        if (!ss._iceBuffer) ss._iceBuffer = {};
         if (p.type === 'offer') {
             await pc.setRemoteDescription(new RTCSessionDescription(p.sdp));
             const ans = await pc.createAnswer();
             await pc.setLocalDescription(ans);
             DevLog.log('RTC', `Answer sent to ${data.sender} | sdpLen:${JSON.stringify(ans).length}`);
             postToServer(serverId, { action: 'WEBRTC_SIGNAL', target: data.sender, sender: ss.myAlias, payload: { type: 'answer', sdp: ans } });
+            for (const c of ss._iceBuffer[data.sender] || []) try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch {}
+            delete ss._iceBuffer[data.sender];
         } else if (p.type === 'answer') {
             await pc.setRemoteDescription(new RTCSessionDescription(p.sdp));
             DevLog.log('RTC', `Remote answer applied from ${data.sender}`);
+            for (const c of ss._iceBuffer[data.sender] || []) try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch {}
+            delete ss._iceBuffer[data.sender];
         } else if (p.type === 'ice') {
-            await pc.addIceCandidate(new RTCIceCandidate(p.candidate));
+            if (pc.remoteDescription)
+                try { await pc.addIceCandidate(new RTCIceCandidate(p.candidate)); } catch {}
+            else {
+                if (!ss._iceBuffer[data.sender]) ss._iceBuffer[data.sender] = [];
+                ss._iceBuffer[data.sender].push(p.candidate);
+                DevLog.log('RTC', `ICE buffered for ${data.sender} (no remote desc yet)`);
+            }
         }
 
     } else if (data.action === 'SCREEN_SHARE_STARTED') {
@@ -10378,6 +10433,29 @@ document.addEventListener('paste', async e => {
                 if (e.target.tagName === 'IMG' && e.target.classList.contains('msg-img')) openLightbox(e.target.src);
             });
         }
+        // File download rescue: fetch via JS then blob-URL download (handles both
+        // native mixed-content http://localhost and cross-origin download attribute ignored by browsers)
+        document.addEventListener('click', async e => {
+            const a = e.target.closest('a.msg-file');
+            if (!a) return;
+            const href = a.href;
+            if (!href || href.startsWith('blob:') || href.startsWith('data:')) return;
+            if (!href.includes('/uploads/')) return;
+            e.preventDefault();
+            try {
+                const resp = await fetch(href);
+                if (!resp.ok) { window.open(href, '_blank'); return; }
+                const blob = await resp.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                const tmp = document.createElement('a');
+                tmp.href = blobUrl;
+                tmp.download = a.dataset.filename || href.split('/').pop();
+                document.body.appendChild(tmp);
+                tmp.click();
+                document.body.removeChild(tmp);
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+            } catch { window.open(href, '_blank'); }
+        });
     });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
 })();

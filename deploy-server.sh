@@ -14,9 +14,11 @@ WORLD="${WORLD:-quikmn-main}"
 PUBLISH_DIR="$(dirname "$0")/iskra_server/publish-linux"
 
 # ── parse args ────────────────────────────────────────────────────────────────
+YES=0
 while [[ $# -gt 0 ]]; do
     case $1 in
         --world) WORLD="$2"; shift 2 ;;
+        --yes|-y) YES=1; shift ;;
         *) echo "Unknown arg: $1"; exit 1 ;;
     esac
 done
@@ -32,9 +34,12 @@ fi
 if grep -q '"ServerPassword": "change_me"' "$WORLD_DIR/server.json"; then
     echo ""
     echo "WARNING: server.json still has ServerPassword = \"change_me\""
-    echo "  Edit servers/$WORLD/server.json and set a real password first."
-    read -p "  Continue anyway? [y/N] " CONT
-    [[ "$CONT" =~ ^[Yy]$ ]] || exit 1
+    if [[ $YES -eq 1 ]]; then
+        echo "  --yes passed, continuing anyway."
+    else
+        read -p "  Continue anyway? [y/N] " CONT
+        [[ "$CONT" =~ ^[Yy]$ ]] || exit 1
+    fi
 fi
 
 # ── build: self-contained linux-x64 binary ────────────────────────────────────
@@ -70,7 +75,13 @@ ENDSSH
 # ── upload binary ─────────────────────────────────────────────────────────────
 echo ""
 echo "==> Uploading server binary..."
-rsync -az --delete "$PUBLISH_DIR/" "$REMOTE:$APP_DIR/app/"
+if command -v rsync &>/dev/null; then
+    rsync -az --delete "$PUBLISH_DIR/" "$REMOTE:$APP_DIR/app/"
+else
+    echo "--> rsync not found, using scp"
+    ssh "$REMOTE" "rm -rf $APP_DIR/app && mkdir -p $APP_DIR/app"
+    scp -r "$PUBLISH_DIR/." "$REMOTE:$APP_DIR/app/"
+fi
 ssh "$REMOTE" "chmod +x $APP_DIR/app/iskra_server"
 
 # ── upload world folder ───────────────────────────────────────────────────────
@@ -78,11 +89,16 @@ echo ""
 echo "==> Uploading world: $WORLD"
 ssh "$REMOTE" "mkdir -p $APP_DIR/servers/$WORLD"
 # sync world but preserve remote data files (fingerprints, bans, chat logs)
-rsync -az \
-    --exclude 'fingerprints.json' \
-    --exclude 'bans.json' \
-    --exclude 'audit.jsonl' \
-    "$WORLD_DIR/" "$REMOTE:$APP_DIR/servers/$WORLD/"
+if command -v rsync &>/dev/null; then
+    rsync -az \
+        --exclude 'fingerprints.json' \
+        --exclude 'bans.json' \
+        --exclude 'audit.jsonl' \
+        "$WORLD_DIR/" "$REMOTE:$APP_DIR/servers/$WORLD/"
+else
+    # scp fallback: upload server.json only (preserve remote data files)
+    scp "$WORLD_DIR/server.json" "$REMOTE:$APP_DIR/servers/$WORLD/server.json"
+fi
 
 echo "--> World uploaded (fingerprints/bans/audit preserved if they existed)"
 
