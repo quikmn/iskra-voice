@@ -42,6 +42,7 @@ namespace Origin.Server.Core
         private static string ActiveWorldPath;
         private static string ConfigFile     => Path.Combine(ActiveWorldPath, "server.json");
         private static string ChatFile(string channelId) => Path.Combine(ActiveWorldPath, $"chat-{channelId}.jsonl");
+        private static string NotesFile(string channelId) => Path.Combine(ActiveWorldPath, $"notes-{channelId}.txt");
         private static ConcurrentDictionary<string, WebSocket>    ActiveClients    = new();
         private static ConcurrentDictionary<string, List<string>> ChannelOccupants = new();
         private static ConcurrentDictionary<string, string>       ClientGuids      = new(); // alias → machineGuid
@@ -2316,7 +2317,7 @@ namespace Origin.Server.Core
                         bool allChannels = string.IsNullOrEmpty(srchChId);
                         // Never search E2E channels — their stored content is encrypted ciphertext
                         var srchChannels = allChannels
-                            ? ActiveConfig.Channels.Where(c => c.Type == "Text" && !c.E2E && CanAccess(userRole, c.MinRole)).ToList()
+                            ? ActiveConfig.Channels.Where(c => (c.Type == "Text" || c.Type == "Voice") && !c.E2E && CanAccess(userRole, c.MinRole)).ToList()
                             : ActiveConfig.Channels.Where(c => c.Id == srchChId && !c.E2E && CanAccess(userRole, c.MinRole)).ToList();
                         if (!srchChannels.Any()) { await Send(socket, new { action = "SEARCH_RESULTS", query = srchQ, reqId = srchReqId, results = Array.Empty<object>() }); continue; }
 
@@ -3063,6 +3064,33 @@ namespace Origin.Server.Core
                     }
 
                     // ── TYPING ───────────────────────────────────────────────
+                    // ── GET_NOTES ─────────────────────────────────────────────
+                    else if (action == "GET_NOTES")
+                    {
+                        string notesCh = incoming.RootElement.TryGetProperty("channelId", out var gnCh) ? gnCh.GetString()?.Trim() : null;
+                        if (string.IsNullOrEmpty(notesCh)) continue;
+                        var notesChObj = ActiveConfig.Channels.FirstOrDefault(c => c.Id == notesCh);
+                        if (notesChObj == null || !CanAccess(userRole, notesChObj.MinRole)) continue;
+                        var nf = NotesFile(notesCh);
+                        var notes = File.Exists(nf) ? File.ReadAllText(nf) : "";
+                        var notesPayload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(
+                            new { action = "CHANNEL_NOTES", channelId = notesCh, notes }));
+                        try { await SendRaw(socket, notesPayload); } catch { }
+                    }
+                    // ── UPDATE_NOTES ──────────────────────────────────────────
+                    else if (action == "UPDATE_NOTES")
+                    {
+                        string notesCh = incoming.RootElement.TryGetProperty("channelId", out var unCh) ? unCh.GetString()?.Trim() : null;
+                        string notesContent = incoming.RootElement.TryGetProperty("notes", out var unTxt) ? unTxt.GetString() ?? "" : "";
+                        if (string.IsNullOrEmpty(notesCh)) continue;
+                        var notesChObj = ActiveConfig.Channels.FirstOrDefault(c => c.Id == notesCh);
+                        if (notesChObj == null || !CanAccess(userRole, notesChObj.MinRole)) continue;
+                        File.WriteAllText(NotesFile(notesCh), notesContent);
+                        var notesPayload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(
+                            new { action = "CHANNEL_NOTES", channelId = notesCh, notes = notesContent }));
+                        foreach (var kv in ActiveClients.ToList())
+                            try { await SendRaw(kv.Value, notesPayload); } catch { }
+                    }
                     else if (action == "TYPING")
                     {
                         string typingCh = incoming.RootElement.TryGetProperty("channelId", out var tyCh) ? tyCh.GetString()?.Trim() : null;

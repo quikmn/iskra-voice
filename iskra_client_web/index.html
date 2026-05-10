@@ -849,6 +849,38 @@
         /* ── Members panel ── */
         #members-panel { width: 240px; background: var(--bg-sidebar); flex-direction: column; flex-shrink: 0; border-left: 1px solid var(--bg-deep); display: none; }
         #members-panel.open { display: flex; }
+        /* ── Notes panel ── */
+        #notes-panel { width: 360px; background: var(--bg-sidebar); flex-direction: column; flex-shrink: 0; border-left: 1px solid var(--bg-deep); display: none; }
+        #notes-panel.open { display: flex; }
+        #notes-panel-header { padding: 10px 12px 8px; font-size: 11px; font-weight: 700; color: var(--text-subtle); text-transform: uppercase; letter-spacing: 0.7px; flex-shrink: 0; border-bottom: 1px solid var(--bg-deep); display: flex; align-items: center; gap: 6px; }
+        #notes-panel-header span { flex: 1; }
+        #notes-mode-bar { display: flex; gap: 2px; padding: 6px 8px 0; flex-shrink: 0; }
+        .notes-mode-btn { padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; background: transparent; border: 1px solid transparent; color: var(--text-faint); }
+        .notes-mode-btn.active { background: var(--bg-active); border-color: var(--bg-border); color: var(--text-normal); }
+        #notes-fmt-bar { display: flex; gap: 2px; padding: 4px 8px; flex-shrink: 0; border-bottom: 1px solid var(--bg-deep); }
+        .notes-fmt-btn { padding: 3px 7px; border-radius: 4px; font-size: 12px; cursor: pointer; background: transparent; border: 1px solid transparent; color: var(--text-subtle); font-family: inherit; }
+        .notes-fmt-btn:hover { background: var(--bg-hover); color: var(--text-normal); }
+        #notes-textarea { flex: 1; resize: none; background: transparent; border: none; outline: none; color: var(--text-normal); font-size: 12.5px; line-height: 1.6; padding: 12px; font-family: inherit; }
+        #notes-preview { flex: 1; overflow-y: auto; padding: 12px; font-size: 12.5px; line-height: 1.65; color: var(--text-normal); display: none; }
+        #notes-preview strong { color: var(--text-heading); }
+        #notes-preview h1, #notes-preview h2, #notes-preview h3 { color: var(--text-heading); margin: 0.6em 0 0.3em; }
+        #notes-preview pre { background: var(--bg-deep); border-radius: 5px; padding: 8px 10px; overflow-x: auto; margin: 6px 0; font-size: 11.5px; }
+        #notes-preview code { background: var(--bg-deep); border-radius: 3px; padding: 1px 4px; font-size: 11.5px; }
+        #notes-preview blockquote { border-left: 3px solid var(--accent); margin: 4px 0; padding-left: 10px; color: var(--text-subtle); }
+        #notes-preview ul, #notes-preview ol { padding-left: 18px; margin: 4px 0; }
+        #notes-save-status { font-size: 10px; color: var(--text-faint); padding: 4px 12px 8px; flex-shrink: 0; }
+        /* ── Reminder modal ── */
+        #reminder-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9100; }
+        #reminder-modal.hidden { display: none; }
+        #reminder-inner { background: var(--bg-base); border: 1px solid var(--bg-border); border-radius: 10px; padding: 20px; width: 300px; max-width: 90vw; }
+        #reminder-inner h3 { margin: 0 0 14px; font-size: 14px; color: var(--text-heading); }
+        .reminder-opts { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+        .reminder-opt { padding: 9px 12px; border-radius: 6px; background: var(--bg-active); border: 1px solid var(--bg-border); cursor: pointer; font-size: 13px; color: var(--text-normal); display: flex; align-items: center; gap: 8px; transition: background 0.1s; }
+        .reminder-opt:hover { background: var(--bg-hover); }
+        .reminder-opt-icon { font-size: 15px; }
+        #reminder-custom-row { display: flex; gap: 8px; align-items: center; }
+        #reminder-custom-input { flex: 1; background: var(--bg-deep); border: 1px solid var(--bg-border); border-radius: 5px; padding: 5px 8px; color: var(--text-normal); font-size: 12px; }
+        #reminder-custom-unit { background: var(--bg-deep); border: 1px solid var(--bg-border); border-radius: 5px; padding: 5px 8px; color: var(--text-normal); font-size: 12px; }
         #members-panel-header { padding: 12px 16px 10px; font-size: 11px; font-weight: 700; color: var(--text-subtle); text-transform: uppercase; letter-spacing: 0.7px; flex-shrink: 0; border-bottom: 1px solid var(--bg-deep); }
         #members-list { flex: 1; overflow-y: auto; padding: 8px 0; }
         .member-group-label { font-size: 11px; font-weight: 700; color: var(--text-subtle); text-transform: uppercase; letter-spacing: 0.7px; padding: 10px 16px 4px; }
@@ -1438,6 +1470,7 @@
         <div id="sidebar-hdr-btns" class="sidebar-hdr-btns" style="display:none;">
             <button class="sidebar-hdr-btn" onclick="openEventsPanel()" title="Server events">📅</button>
             <button class="sidebar-hdr-btn" onclick="openBookmarks()" title="Starred messages">⭐</button>
+            <button class="sidebar-hdr-btn" id="notes-btn" onclick="toggleNotesPanel()" title="Channel notes">📝</button>
         </div>
     </div>
     <div id="telemetry-strip" style="display:none;">
@@ -1660,6 +1693,31 @@
     <div id="members-list"></div>
 </div>
 
+<div id="notes-panel">
+    <div id="notes-panel-header">
+        <span>📝 Channel Notes</span>
+        <button class="sidebar-hdr-btn" onclick="toggleNotesPanel()" title="Close">✕</button>
+    </div>
+    <div id="notes-mode-bar">
+        <button class="notes-mode-btn active" id="notes-mode-edit" onclick="_notesSetMode('edit')">Edit</button>
+        <button class="notes-mode-btn" id="notes-mode-preview" onclick="_notesSetMode('preview')">Preview</button>
+    </div>
+    <div id="notes-fmt-bar">
+        <button class="notes-fmt-btn" title="Bold (Ctrl+B)" onclick="_notesFmt('bold')"><strong>B</strong></button>
+        <button class="notes-fmt-btn" title="Italic (Ctrl+I)" onclick="_notesFmt('italic')"><em>I</em></button>
+        <button class="notes-fmt-btn" title="Strikethrough" onclick="_notesFmt('strike')"><del>S</del></button>
+        <button class="notes-fmt-btn" title="Inline code" onclick="_notesFmt('code')" style="font-family:monospace;">` `</button>
+        <button class="notes-fmt-btn" title="Blockquote" onclick="_notesFmt('quote')">❝</button>
+        <button class="notes-fmt-btn" title="Bullet list" onclick="_notesFmt('bullet')">• ─</button>
+        <button class="notes-fmt-btn" title="Numbered list" onclick="_notesFmt('number')">1. ─</button>
+        <button class="notes-fmt-btn" title="Code block" onclick="_notesFmt('codeblock')" style="font-family:monospace;">```</button>
+        <button class="notes-fmt-btn" title="Horizontal rule" onclick="_notesFmt('hr')">─ ─</button>
+    </div>
+    <textarea id="notes-textarea" placeholder="Shared notes for this channel — visible to all members…&#10;Supports **bold**, *italic*, `code`, > blockquote, - lists, ```code blocks```" oninput="_notesSaveDebounced()" onkeydown="_notesKeydown(event)"></textarea>
+    <div id="notes-preview"></div>
+    <div id="notes-save-status"></div>
+</div>
+
 <div id="thread-panel">
     <div id="thread-panel-header">
         <span id="thread-panel-title">Thread</span>
@@ -1825,6 +1883,19 @@
                     <span style="font-size:12px;color:var(--text-faint);">to</span>
                     <input type="time" id="dnd-tab-end"   value="08:00" onchange="_saveDndTab()" style="background:var(--bg-active);border:1px solid var(--bg-hover);border-radius:4px;padding:3px 6px;color:var(--text-normal);font-size:12px;">
                 </div>
+            </div>
+            <hr class="divider">
+            <div>
+                <div class="section-label">Auto-Away Timeout</div>
+                <p style="font-size:11px;color:var(--text-faint);margin:0 0 8px;">Switch to away status after this much idle time.</p>
+                <select id="auto-away-select" class="settings-select" onchange="onAutoAwayChange(this.value)" style="width:auto;">
+                    <option value="2">2 minutes</option>
+                    <option value="5">5 minutes</option>
+                    <option value="10">10 minutes</option>
+                    <option value="15">15 minutes</option>
+                    <option value="30">30 minutes</option>
+                    <option value="0">Never</option>
+                </select>
             </div>
         </div>
 
@@ -2489,6 +2560,30 @@
     <input class="gif-search" id="gif-search-input" placeholder="Search GIFs…" oninput="_gifSearchDebounce(this.value)">
     <div class="gif-grid" id="gif-grid"></div>
     <div class="gif-attr">Powered by Tenor</div>
+</div>
+
+<div id="reminder-modal" class="hidden" onclick="if(event.target===this)closeReminderModal()">
+    <div id="reminder-inner">
+        <h3>🔔 Remind me about this message</h3>
+        <div class="reminder-opts">
+            <div class="reminder-opt" onclick="setReminder(30*60*1000,'in 30 minutes')"><span class="reminder-opt-icon">⏰</span>In 30 minutes</div>
+            <div class="reminder-opt" onclick="setReminder(60*60*1000,'in 1 hour')"><span class="reminder-opt-icon">⏰</span>In 1 hour</div>
+            <div class="reminder-opt" onclick="setReminder(3*60*60*1000,'in 3 hours')"><span class="reminder-opt-icon">⏰</span>In 3 hours</div>
+            <div class="reminder-opt" onclick="setReminder(_msUntilTomorrow(),'tomorrow morning')"><span class="reminder-opt-icon">🌅</span>Tomorrow morning</div>
+        </div>
+        <div id="reminder-custom-row">
+            <input type="number" id="reminder-custom-input" min="1" max="999" value="1" placeholder="Amount">
+            <select id="reminder-custom-unit">
+                <option value="60000">minutes</option>
+                <option value="3600000" selected>hours</option>
+                <option value="86400000">days</option>
+            </select>
+            <button class="btn-primary" onclick="setReminderCustom()">Set</button>
+        </div>
+        <div style="margin-top:12px;text-align:right;">
+            <button class="btn-secondary" onclick="closeReminderModal()">Cancel</button>
+        </div>
+    </div>
 </div>
 
 <div id="forward-modal" class="hidden" onclick="if(event.target===this)closeForwardModal()">
@@ -3504,7 +3599,7 @@ function closeImgOverlay() {
 const _soundNames = ['join', 'leave', 'message', 'mention', 'connect', 'disconnect'];
 const _sounds = {};
 _soundNames.forEach(name => {
-    const src = IS_WEB ? `sounds/${name}.mp3` : `https://origin.app/sounds/${name}.mp3`;
+    const src = `sounds/${name}.mp3`;
     const a = new Audio(src);
     a.preload = 'auto';
     _sounds[name] = a;
@@ -3529,6 +3624,35 @@ function playSound(name) {
 
 // ── Custom audio player ───────────────────────────────────────────────────────
 function _apFmt(s) { s = Math.floor(s || 0); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; }
+
+function _initAudioPlayerDelegation() {
+    // Capture-phase delegation so no intermediate handler can swallow the click.
+    document.addEventListener('click', e => {
+        const btn = e.target.closest('[data-ap="play"]');
+        if (btn) { e.stopPropagation(); _apToggle(btn); return; }
+    }, true);
+    document.addEventListener('input', e => {
+        if (e.target.dataset.ap === 'seek') _apSeek(e.target);
+    }, true);
+    // Wire audio element events via MutationObserver so dynamically added players get handlers.
+    const observer = new MutationObserver(muts => {
+        muts.forEach(m => m.addedNodes.forEach(n => {
+            if (n.nodeType !== 1) return;
+            n.querySelectorAll('audio[data-ap="audio"]').forEach(_apWire);
+            if (n.matches?.('audio[data-ap="audio"]')) _apWire(n);
+        }));
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+}
+
+function _apWire(audio) {
+    audio.addEventListener('loadedmetadata', () => _apMeta(audio));
+    audio.addEventListener('timeupdate',     () => _apTick(audio));
+    audio.addEventListener('ended',          () => _apEnd(audio));
+    audio.addEventListener('play',           () => _apPlay(audio));
+    audio.addEventListener('pause',          () => _apPause(audio));
+    audio.addEventListener('error',          () => _apRescue(audio));
+}
 async function _apRescue(audio) {
     const src = audio.src;
     if (!src || src.startsWith('blob:') || !src.includes('/uploads/')) return;
@@ -3549,9 +3673,13 @@ async function _apToggle(btn) {
     if (a.src && a.src.includes('/uploads/') && !a.src.startsWith('blob:')) {
         await _apRescue(a);
         if (a.readyState < 2)
-            await new Promise(r => { a.addEventListener('loadeddata', r, {once:true}); a.addEventListener('error', r, {once:true}); setTimeout(r, 5000); });
+            await new Promise(r => {
+                a.addEventListener('loadeddata', r, {once:true});
+                a.addEventListener('error', r, {once:true});
+                setTimeout(r, 5000);
+            });
     }
-    if (a.paused) a.play().catch(()=>{}); else a.pause();
+    if (a.paused) a.play().catch(() => {}); else a.pause();
 }
 function _apPlay(a)  { const b = a.closest('.audio-player')?.querySelector('.ap-btn'); if (b) b.innerHTML = '<svg viewBox="0 0 8 10" width="8" height="10" fill="white"><rect x="0" y="0" width="2.5" height="10"/><rect x="5" y="0" width="2.5" height="10"/></svg>'; }
 function _apPause(a) { const b = a.closest('.audio-player')?.querySelector('.ap-btn'); if (b) b.innerHTML = '<svg viewBox="0 0 8 10" width="8" height="10" fill="white"><polygon points="0,0 8,5 0,10"/></svg>'; }
@@ -3586,6 +3714,7 @@ const settings = {
     noiseSuppress:  true,
     autoUpdate:     true,
     updateChannel:  'stable',
+    autoAwayMins:   5,
 };
 
 function saveSettings() {
@@ -3802,6 +3931,7 @@ function selectTextChannel(id) {
     document.getElementById('pin-panel')?.classList.remove('open');
     updatePinIndicator(id);
     _updateChannelTopic(id);
+    _notesOnChannelSwitch(id, viewedServerId);
     DevLog.log('BRIDGE', `Text channel selected: "${ch?.name || id}" | ${(ss.channelMessages[id]||[]).length} msg(s)${ch?.readOnly ? ' [readonly]' : ''}`);
     closeMobSidebar();
 }
@@ -6012,13 +6142,13 @@ async function initAudio() {
     if (settings.noiseSuppress) {
         try {
             if (!_rnnoiseWasmBytes) {
-                const resp = await fetch('https://origin.app/rnnoise.wasm');
+                const resp = await fetch('rnnoise.wasm');
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
                 _rnnoiseWasmBytes = await resp.arrayBuffer();
                 DevLog.log('AUDIO', `rnnoise.wasm fetched | ${_rnnoiseWasmBytes.byteLength} bytes`);
             }
             if (!_workletRegistered) {
-                await audioCtx.audioWorklet.addModule('https://origin.app/rnnoise-processor.js');
+                await audioCtx.audioWorklet.addModule('rnnoise-processor.js');
                 _workletRegistered = true;
                 DevLog.log('AUDIO', 'AudioWorklet module registered');
             }
@@ -6415,6 +6545,9 @@ function applySettingsToUI() {
     const isCanary = settings.updateChannel === 'canary';
     document.getElementById('channel-stable')?.classList.toggle('active', !isCanary);
     document.getElementById('channel-canary')?.classList.toggle('active',  isCanary);
+
+    const aaSel = document.getElementById('auto-away-select');
+    if (aaSel) aaSel.value = String(settings.autoAwayMins ?? 5);
 
     updateThresholdLine();
 }
@@ -6870,7 +7003,7 @@ function renderMarkdown(raw) {
         if (['jpg','jpeg','png','gif','webp'].includes(ext))
             return `<img class="msg-img" src="${url}" data-src="${url}" alt="image" loading="lazy" onerror="rescueImg(this)" onclick="openLightbox(this.src)">`;
         if (['mp3','ogg','webm','wav','m4a'].includes(ext)) {
-            return `<div class="audio-player"><audio src="${url}" preload="none" onloadedmetadata="_apMeta(this)" ontimeupdate="_apTick(this)" onended="_apEnd(this)" onplay="_apPlay(this)" onpause="_apPause(this)" onerror="_apRescue(this)"></audio><button class="ap-btn" onclick="_apToggle(this)" title="Play"><svg viewBox="0 0 8 10" width="8" height="10" fill="white"><polygon points="0,0 8,5 0,10"/></svg></button><input class="ap-seek" type="range" min="0" max="100" value="0" step="0.1" oninput="_apSeek(this)"><span class="ap-time">0:00</span></div>`;
+            return `<div class="audio-player"><audio src="${url}" preload="none" data-ap="audio"></audio><button class="ap-btn" data-ap="play" title="Play"><svg viewBox="0 0 8 10" width="8" height="10" fill="white"><polygon points="0,0 8,5 0,10"/></svg></button><input class="ap-seek" type="range" min="0" max="100" value="0" step="0.1" data-ap="seek"><span class="ap-time">0:00</span></div>`;
         }
         const fname = url.split('/').pop();
         return `<a class="msg-file" href="${url}" target="_blank" download>📎 ${fname}</a>`;
@@ -8050,6 +8183,7 @@ function renderChatMessage(msgId, author, time, message, edited, reactions, repl
         actions += `<button class="msg-act-btn" title="Forward" onclick="showForwardModal('${msgId}')">↪</button>`;
         actions += `<button class="msg-act-btn" title="Reply" onclick="startReply('${msgId}')">↩</button>`;
         if (!inDmMode) actions += `<button class="msg-act-btn" title="Start thread" onclick="startOrOpenThread('${msgId}')">💬</button>`;
+        actions += `<button class="msg-act-btn" title="Remind me" onclick="openReminderModal('${msgId}')">🔔</button>`;
         if (isOwn) actions += `<button class="msg-act-btn" title="Edit" onclick="editMessage('${msgId}','${escapeHtml(author)}')">✏</button>`;
         if (canDel) actions += `<button class="msg-act-btn del" title="Delete (Shift+click to skip confirm)" onclick="deleteMessage(event,'${msgId}')">🗑</button>`;
         if (canPin) actions += `<button class="msg-act-btn" title="Pin/Unpin" onclick="pinMessage('${msgId}')">📌</button>`;
@@ -9944,6 +10078,18 @@ async function handleBridgeMessage(data, serverId) {
     } else if (data.action === 'CHECK_UPDATE_MANUAL') {
         checkForUpdate(true);
 
+    } else if (data.action === 'CHANNEL_NOTES') {
+        if (isViewed && data.channelId === ss?.activeTextChannelId) {
+            const ta = document.getElementById('notes-textarea');
+            if (ta && document.activeElement !== ta) {
+                ta.value = data.notes ?? '';
+                document.getElementById('notes-save-status').textContent = '';
+                if (_notesMode === 'preview') {
+                    document.getElementById('notes-preview').innerHTML = renderMarkdown(ta.value || '*Nothing yet.*');
+                }
+            }
+        }
+
     }
 }
 
@@ -11045,19 +11191,25 @@ function downloadBackup() {
 }
 
 // ── User Status ────────────────────────────────────────────────────────────────
-const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
 let _statusPresets = JSON.parse(localStorage.getItem('iskra_status_presets') || '["In a meeting","Focusing","Gaming 🎮","Coding","BRB","Lunch 🍕"]');
 function _saveStatusPresets() { localStorage.setItem('iskra_status_presets', JSON.stringify(_statusPresets)); }
+
+function _autoAwayMs() {
+    const mins = settings.autoAwayMins ?? 5;
+    return mins > 0 ? mins * 60 * 1000 : 0;
+}
 
 function _resetIdleTimer() {
     const ss = serverStates[viewedServerId];
     if (!ss || ss.myStatus === 'dnd' || ss.myStatus === 'invisible') return;
     clearTimeout(_idleTimer);
     if (ss.myStatus === 'away') setMyStatus('online', true);
+    const ms = _autoAwayMs();
+    if (!ms) return;
     _idleTimer = setTimeout(() => {
         const _ss = serverStates[viewedServerId];
         if (_ss?.myStatus === 'online') setMyStatus('away', true);
-    }, IDLE_TIMEOUT_MS);
+    }, ms);
 }
 
 function setMyStatus(status, fromIdle = false, text = null) {
@@ -11073,10 +11225,11 @@ function setMyStatus(status, fromIdle = false, text = null) {
     }
     if (!fromIdle) {
         clearTimeout(_idleTimer);
-        if (status === 'online') {
+        const ms = _autoAwayMs();
+        if (status === 'online' && ms) {
             _idleTimer = setTimeout(() => {
                 if (connectedServerIds.size > 0) setMyStatus('away', true);
-            }, IDLE_TIMEOUT_MS);
+            }, ms);
         }
     }
 }
@@ -13619,6 +13772,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('iskraid-badge')?.classList.toggle('visible', !!relayToken);
     document.getElementById('local-badge')?.classList.toggle('visible', !relayToken);
     initChannelListDragDrop();
+    _initAudioPlayerDelegation();
     // Auto-connect all saved servers on launch (clientConfig already loaded by init())
     if (clientConfig.servers.length) {
         const first = clientConfig.servers[0];
@@ -14103,6 +14257,244 @@ function applySearchFilter() {
         el.style.display = match ? '' : 'none';
     });
 }
+
+// ── Auto-Away Setting ──────────────────────────────────────────────────────────
+function onAutoAwayChange(val) {
+    settings.autoAwayMins = parseInt(val, 10);
+    saveSettings();
+    clearTimeout(_idleTimer);
+    const ms = _autoAwayMs();
+    if (ms) _idleTimer = setTimeout(() => {
+        if (connectedServerIds.size > 0) setMyStatus('away', true);
+    }, ms);
+}
+
+// ── Channel Notes ──────────────────────────────────────────────────────────────
+let _notesDebounceTimer = null;
+let _notesOpenChannelId = null;
+
+function toggleNotesPanel() {
+    const panel = document.getElementById('notes-panel');
+    if (!panel) return;
+    const ss = serverStates[viewedServerId];
+    if (panel.classList.contains('open')) {
+        panel.classList.remove('open');
+    } else {
+        panel.classList.add('open');
+        _notesSetMode('edit');
+        _loadNotesForChannel(ss?.activeTextChannelId, viewedServerId);
+    }
+}
+
+function _loadNotesForChannel(chId, sId) {
+    if (!chId || !sId) return;
+    document.getElementById('notes-textarea').value = '';
+    document.getElementById('notes-save-status').textContent = 'Loading…';
+    postToServer(sId, { action: 'GET_NOTES', channelId: chId });
+}
+
+function _notesSaveDebounced() {
+    document.getElementById('notes-save-status').textContent = 'Unsaved…';
+    clearTimeout(_notesDebounceTimer);
+    _notesDebounceTimer = setTimeout(() => {
+        const ta = document.getElementById('notes-textarea');
+        const chId = serverStates[viewedServerId]?.activeTextChannelId;
+        if (!chId || !viewedServerId || !ta) return;
+        postToServer(viewedServerId, { action: 'UPDATE_NOTES', channelId: chId, notes: ta.value });
+        document.getElementById('notes-save-status').textContent = 'Saved';
+        setTimeout(() => { document.getElementById('notes-save-status').textContent = ''; }, 2000);
+    }, 800);
+}
+
+// Reload notes when switching channels while panel is open
+function _notesOnChannelSwitch(chId, sId) {
+    const panel = document.getElementById('notes-panel');
+    if (!panel?.classList.contains('open')) return;
+    _loadNotesForChannel(chId, sId);
+}
+
+let _notesMode = 'edit';
+
+function _notesSetMode(mode) {
+    _notesMode = mode;
+    const ta      = document.getElementById('notes-textarea');
+    const preview = document.getElementById('notes-preview');
+    const fmtBar  = document.getElementById('notes-fmt-bar');
+    document.getElementById('notes-mode-edit').classList.toggle('active', mode === 'edit');
+    document.getElementById('notes-mode-preview').classList.toggle('active', mode === 'preview');
+    if (mode === 'preview') {
+        preview.innerHTML = renderMarkdown(ta.value || '*Nothing yet.*');
+        ta.style.display = 'none';
+        preview.style.display = '';
+        fmtBar.style.display = 'none';
+    } else {
+        preview.style.display = 'none';
+        ta.style.display = '';
+        fmtBar.style.display = '';
+        ta.focus();
+    }
+}
+
+function _notesFmt(type) {
+    const ta = document.getElementById('notes-textarea');
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end   = ta.selectionEnd;
+    const sel   = ta.value.slice(start, end);
+    let before = '', after = '', replacement = '';
+
+    switch (type) {
+        case 'bold':      before = '**'; after = '**'; replacement = sel || 'bold text'; break;
+        case 'italic':    before = '*';  after = '*';  replacement = sel || 'italic text'; break;
+        case 'strike':    before = '~~'; after = '~~'; replacement = sel || 'text'; break;
+        case 'code':      before = '`';  after = '`';  replacement = sel || 'code'; break;
+        case 'quote': {
+            const lines = (sel || 'quote').split('\n').map(l => '> ' + l).join('\n');
+            ta.setRangeText(lines, start, end, 'select');
+            ta.focus(); _notesSaveDebounced(); return;
+        }
+        case 'bullet': {
+            const lines = (sel || 'item').split('\n').map(l => '- ' + l).join('\n');
+            ta.setRangeText(lines, start, end, 'select');
+            ta.focus(); _notesSaveDebounced(); return;
+        }
+        case 'number': {
+            const lines = (sel || 'item').split('\n').map((l, i) => `${i + 1}. ` + l).join('\n');
+            ta.setRangeText(lines, start, end, 'select');
+            ta.focus(); _notesSaveDebounced(); return;
+        }
+        case 'codeblock': {
+            const inner = sel || 'code here';
+            ta.setRangeText('```\n' + inner + '\n```', start, end, 'select');
+            ta.focus(); _notesSaveDebounced(); return;
+        }
+        case 'hr': {
+            const hr = (start > 0 && ta.value[start - 1] !== '\n' ? '\n' : '') + '---\n';
+            ta.setRangeText(hr, start, end, 'end');
+            ta.focus(); _notesSaveDebounced(); return;
+        }
+    }
+
+    const insert = before + replacement + after;
+    ta.setRangeText(insert, start, end, 'end');
+    if (!sel) {
+        const cursor = start + before.length + replacement.length;
+        ta.setSelectionRange(start + before.length, cursor);
+    }
+    ta.focus();
+    _notesSaveDebounced();
+}
+
+function _notesKeydown(e) {
+    if (e.key === 'Tab') {
+        e.preventDefault();
+        const ta = e.target;
+        const s = ta.selectionStart;
+        ta.setRangeText('  ', s, s, 'end');
+        _notesSaveDebounced();
+        return;
+    }
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
+        if (e.key === 'b') { e.preventDefault(); _notesFmt('bold'); }
+        if (e.key === 'i') { e.preventDefault(); _notesFmt('italic'); }
+        if (e.key === '`') { e.preventDefault(); _notesFmt('code'); }
+    }
+}
+
+// ── Message Reminders ──────────────────────────────────────────────────────────
+let _reminders = JSON.parse(localStorage.getItem('iskra_reminders') || '[]');
+let _reminderTargetMsgId = null;
+
+function _saveReminders() {
+    localStorage.setItem('iskra_reminders', JSON.stringify(_reminders));
+}
+
+function _msUntilTomorrow() {
+    const now = new Date();
+    const tom = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 8, 0, 0, 0);
+    return tom - now;
+}
+
+function openReminderModal(msgId) {
+    _reminderTargetMsgId = msgId;
+    document.getElementById('reminder-modal').classList.remove('hidden');
+}
+
+function closeReminderModal() {
+    _reminderTargetMsgId = null;
+    document.getElementById('reminder-modal').classList.add('hidden');
+}
+
+function setReminder(delayMs, label) {
+    if (!_reminderTargetMsgId) return;
+    const el = document.querySelector(`[data-msg-id="${_reminderTargetMsgId}"]`);
+    const preview = el?.querySelector('.msg-body')?.textContent?.slice(0, 80) || '(message)';
+    const _chId = serverStates[viewedServerId]?.activeTextChannelId ?? null;
+    _reminders.push({
+        msgId:     _reminderTargetMsgId,
+        channelId: _chId,
+        serverId:  viewedServerId,
+        preview,
+        label,
+        fireAt:    Date.now() + delayMs
+    });
+    _saveReminders();
+    closeReminderModal();
+    showToast(`Reminder set: ${label}`, 'success');
+}
+
+function setReminderCustom() {
+    const amount = parseInt(document.getElementById('reminder-custom-input').value, 10) || 1;
+    const unit   = parseInt(document.getElementById('reminder-custom-unit').value, 10);
+    const ms     = amount * unit;
+    const unitLabel = { 60000: 'minute', 3600000: 'hour', 86400000: 'day' }[unit] || 'minute';
+    const label  = `in ${amount} ${unitLabel}${amount !== 1 ? 's' : ''}`;
+    setReminder(ms, label);
+}
+
+function _checkReminders() {
+    const now = Date.now();
+    const fired = _reminders.filter(r => r.fireAt <= now);
+    if (!fired.length) return;
+    _reminders = _reminders.filter(r => r.fireAt > now);
+    _saveReminders();
+    fired.forEach(r => {
+        if (Notification.permission === 'granted') {
+            const n = new Notification('Iskra Reminder', { body: r.preview });
+            n.onclick = () => { window.focus(); jumpToMessage(r.msgId, r.channelId, r.serverId); };
+        }
+        const popup = document.createElement('div');
+        popup.style.cssText = 'position:fixed;bottom:70px;right:16px;z-index:9200;background:var(--bg-secondary);border:1px solid var(--bg-border);border-radius:8px;padding:12px 14px;max-width:300px;box-shadow:0 4px 16px rgba(0,0,0,0.4);cursor:pointer;font-size:12.5px;line-height:1.5;';
+        popup.innerHTML = `<div style="font-weight:700;color:var(--text-heading);margin-bottom:4px;">🔔 Reminder</div><div style="color:var(--text-normal);">${escapeHtml(r.preview.slice(0, 100))}</div><div style="font-size:10px;color:var(--text-faint);margin-top:6px;">Click to jump to message · <span style="color:var(--accent);">✕ dismiss</span></div>`;
+        popup.onclick = (e) => {
+            if (e.target.textContent?.includes('✕')) { popup.remove(); return; }
+            jumpToMessage(r.msgId, r.channelId, r.serverId);
+            popup.remove();
+        };
+        document.body.appendChild(popup);
+        setTimeout(() => popup.remove(), 12000);
+    });
+}
+
+function jumpToMessage(msgId, channelId, serverId) {
+    if (serverId && channelId) {
+        if (viewedServerId !== serverId) setViewedServer(serverId);
+        const ss = serverStates[serverId];
+        if (ss && ss.activeTextChannelId !== channelId) selectTextChannel(channelId);
+    }
+    setTimeout(() => {
+        const el = document.querySelector(`[data-msg-id="${msgId}"]`);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.remove('msg-jump-flash');
+            void el.offsetWidth;
+            el.classList.add('msg-jump-flash');
+            setTimeout(() => el.classList.remove('msg-jump-flash'), 1500);
+        }
+    }, 350);
+}
+
+setInterval(_checkReminders, 30000);
 </script>
 <div id="dm-call-incoming"></div>
 <div id="dm-call-video-overlay">

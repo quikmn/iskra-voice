@@ -1,7 +1,7 @@
 # Iskra — Feature Inventory
 
 > Living document. Update whenever a feature is added, fixed, or changed.  
-> Last updated: 2026-05-10 · v1.1.11.3
+> Last updated: 2026-05-10 · v1.1.12
 
 ---
 
@@ -48,6 +48,7 @@
 | Ephemeral messages | `/shh [secs] <msg>` — visible to all, auto-deleted after N seconds |
 | Starboard | Reaction threshold auto-posts to designated channel; admin configures |
 | Message scheduling | Client-side timer sends message at chosen datetime; requires client open at send time |
+| Message reminders | 🔔 on any message; pick 30 min / 1 h / 3 h / tomorrow / custom; fires desktop notification + popup with jump link; localStorage persistence |
 | Mark all as read | Right-click server → Mark all as read; clears all channel unread counts |
 | Media gallery | 🖼 in chat header; 72×72 thumbnails for all images/videos in channel |
 
@@ -158,6 +159,7 @@
 | Channel topics | Editable by admin+; shown in chat header |
 | Per-channel notification override | All / Mentions only / Muted |
 | History retention | Configurable `HistoryRetentionDays` in server.json (default 30 days); old messages purged at startup |
+| Shared channel notes | 📝 button in server sidebar; server-persisted per-channel textarea; synced live to all connected members; debounced auto-save |
 
 ## Multi-Server
 
@@ -230,6 +232,7 @@
 | Custom notification sounds | Upload per-sound override (join/leave/message/mention/etc.) globally or per server |
 | Keyword notifications | Comma-separated keywords in Audio settings; match → mention-level ping; not triggered on own messages |
 | DND schedule | Enable in Audio settings; suppress desktop notifications between configured hours (e.g. 23:00–08:00); sounds and unread still work |
+| Auto-away timeout | Configurable in Audio settings (2/5/10/15/30 min or Never); replaces hardcoded 5-min constant |
 | Custom status text | Set via status dot; shown in profile card and member list |
 | Status presets | Chip strip; click apply, right-click remove, + Save to add |
 | Private notes on users | Per-user note textarea in profile card; localStorage only |
