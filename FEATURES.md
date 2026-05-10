@@ -1,7 +1,7 @@
 # Iskra — Feature Inventory
 
 > Living document. Update whenever a feature is added, fixed, or changed.  
-> Last updated: 2026-05-10 · v1.1.12
+> Last updated: 2026-05-10 · v1.1.12 (notes markdown, search voice fix)
 
 ---
 
@@ -147,6 +147,7 @@
 | Announcement read tracking | Admins enter message ID → see who confirmed reading (via MARK_PINNED_READ); auto-sent when pin panel opened |
 | Auto-moderation | Word filter (block or replace), link domain allowlist; ALL rules OFF by default; admin-configurable; AUTOMOD_BLOCKED error shown to user |
 | Regex search toggle | `.*` button in search bar; toggles regex mode on existing results; client-side filter |
+| Voice channel search | All-channels search now includes voice channel text history (was incorrectly excluded) |
 | Server backup | Downloads ZIP of all world data |
 
 ## Channels & Server Structure
@@ -159,7 +160,7 @@
 | Channel topics | Editable by admin+; shown in chat header |
 | Per-channel notification override | All / Mentions only / Muted |
 | History retention | Configurable `HistoryRetentionDays` in server.json (default 30 days); old messages purged at startup |
-| Shared channel notes | 📝 button in server sidebar; server-persisted per-channel textarea; synced live to all connected members; debounced auto-save |
+| Shared channel notes | 📝 button in server sidebar; server-persisted per-channel textarea; synced live to all connected members; debounced auto-save; Edit/Preview toggle with full markdown rendering; formatting toolbar (bold, italic, strike, code, blockquote, lists, code block, hr); Ctrl+B/I/` shortcuts; Tab indent |
 
 ## Multi-Server
 
