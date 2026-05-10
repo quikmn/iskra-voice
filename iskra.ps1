@@ -87,6 +87,8 @@ function Build-Web {
     $soundsDst = Join-Path $webDir 'sounds'
     if (-not (Test-Path $soundsDst)) { New-Item -ItemType Directory -Path $soundsDst | Out-Null }
     Copy-Item (Join-Path $root 'iskra_client\sounds\*') $soundsDst -Force
+    Copy-Item (Join-Path $root 'iskra_client\rnnoise.wasm') (Join-Path $webDir 'rnnoise.wasm') -Force
+    Copy-Item (Join-Path $root 'iskra_client\rnnoise-processor.js') (Join-Path $webDir 'rnnoise-processor.js') -Force
     Ok "Web assets synced"
 }
 

@@ -219,6 +219,18 @@ namespace Origin.Client.Core
             await webView.EnsureCoreWebView2Async(env);
             CLog("WEBVIEW", $"WebView2 ready | version: {webView.CoreWebView2.Environment.BrowserVersionString}");
 
+            // Evict any stale service worker from previous builds before the page loads.
+            // Runs at document-creation time (before SW fetch interception); reloads once if any SW was found.
+            await webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(@"
+                if (navigator.serviceWorker) {
+                    navigator.serviceWorker.getRegistrations().then(regs => {
+                        if (regs.length > 0) {
+                            Promise.all(regs.map(r => r.unregister())).then(() => location.reload());
+                        }
+                    });
+                }
+            ");
+
 #if DEBUG
             webView.CoreWebView2.Settings.AreDevToolsEnabled = true;
 #else

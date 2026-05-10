@@ -1,4 +1,4 @@
-const CACHE = 'iskra-v2';
+const CACHE = 'iskra-v3';
 const SHELL = ['/index.html', '/manifest.json'];
 
 self.addEventListener('install', e => e.waitUntil(
