@@ -134,6 +134,27 @@ function Ship-Server {
     Pop-Location
     if ($ec -ne 0) { Die "Server deploy failed" }
     Ok "Server deployed and restarted"
+
+    # Package server zip for distribution
+    $pub     = Join-Path $root 'iskra_server\publish-linux'
+    $zipPath = Join-Path $root 'Iskra-Server.zip'
+    if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+    Compress-Archive -Path "$pub\*" -DestinationPath $zipPath
+    $sizeMB = [math]::Round((Get-Item $zipPath).Length / 1MB, 1)
+    Ok "Server zipped → Iskra-Server.zip ($sizeMB MB)"
+
+    if ($Publish) {
+        $tag = (Get-Content (Join-Path $root 'iskra_client\version.txt') -Raw -ErrorAction SilentlyContinue)?.Trim()
+        if (-not $tag) { Warn "version.txt missing — skipping server zip upload"; return }
+        $existing = & gh release view $tag 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $zipPath --clobber
+        } else {
+            Info "Release $tag not yet created — server zip will be uploaded by client/android step"
+            # Store path for later upload if needed
+        }
+        if ($LASTEXITCODE -eq 0) { Ok "Server zip published → $tag" }
+    }
 }
 
 function Ship-Relay {
@@ -162,18 +183,26 @@ function Ship-Android {
         $tag = (Get-Content (Join-Path $root 'iskra_client\version.txt') -Raw -ErrorAction SilentlyContinue)?.Trim()
         if (-not $tag) { Die "iskra_client\version.txt missing or empty — cannot publish" }
 
+        $serverZip = Join-Path $root 'Iskra-Server.zip'
+        $clientZip = Join-Path $root 'Iskra-Client.zip'
+
         $existing = & gh release view $tag 2>&1
         if ($LASTEXITCODE -eq 0) {
-            Info "Release $tag exists — uploading/replacing APK..."
+            Info "Release $tag exists — uploading/replacing assets..."
             gh release upload $tag $apkPath --clobber
+            if (Test-Path $clientZip) { gh release upload $tag $clientZip --clobber }
+            if (Test-Path $serverZip) { gh release upload $tag $serverZip --clobber }
         } else {
             Info "Creating release $tag..."
-            $ghArgs = @('release','create',$tag,$apkPath,'--title',"Iskra $tag",'--generate-notes','--latest')
+            $assets = @($apkPath)
+            if (Test-Path $clientZip) { $assets += $clientZip }
+            if (Test-Path $serverZip) { $assets += $serverZip }
+            $ghArgs = @('release','create',$tag) + $assets + @('--title',"Iskra $tag",'--generate-notes','--latest')
             if ($Canary) { $ghArgs += '--prerelease' }
             & gh @ghArgs
         }
-        if ($LASTEXITCODE -ne 0) { Die "GitHub APK upload failed" }
-        Ok "Android APK published → github.com/quikmn/iskra-voice/releases/tag/$tag"
+        if ($LASTEXITCODE -ne 0) { Die "GitHub release upload failed" }
+        Ok "Published → github.com/quikmn/iskra-voice/releases/tag/$tag"
     } else {
         Ok "Android APK built locally (add -Publish to push to GitHub release)"
     }

@@ -10,7 +10,7 @@ REMOTE_IP="146.190.226.221"
 REMOTE="root@$REMOTE_IP"
 APP_DIR="/opt/iskra-server"
 SVC="iskra-server"
-WORLD="${WORLD:-quikmn-main}"
+WORLD="${WORLD:-newcleantest}"
 PUBLISH_DIR="$(dirname "$0")/iskra_server/publish-linux"
 
 # ── parse args ────────────────────────────────────────────────────────────────
