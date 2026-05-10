@@ -1,7 +1,7 @@
 # Iskra — Feature Inventory
 
 > Living document. Update whenever a feature is added, fixed, or changed.  
-> Last updated: 2026-05-09 · v1.1.9.8
+> Last updated: 2026-05-10 · v1.1.11.3
 
 ---
 
@@ -77,7 +77,7 @@
 | Per-user volume | Right-click voice user; 0–200% slider |
 | Input / output gain | Sliders in Audio settings |
 | Mic meter | Live level bar in footer |
-| Noise suppression | RNNoise WASM module; toggle in Audio settings |
+| Noise suppression | RNNoise WASM module; bundled and working on both native and web; toggle in Audio settings |
 | Soundboard | Add/play .mp3/.wav/.ogg clips into voice channel |
 | Session recording | Footer button; records local mic + all remote peers; includes active video/screenshare track; downloads .webm on stop |
 
@@ -99,8 +99,8 @@
 | File deduplication | SHA-256 hash-based; duplicate uploads reuse existing file on disk |
 | Inline image display | Lazy-loaded; click to zoom |
 | Inline video | In-channel video playback with controls |
-| Inline audio player | .mp3/.ogg/.webm rendered as `<audio controls>` in chat |
-| Voice messages | 🎙 in chat toolbar; record via MediaRecorder; waveform visualizer; sent as audio file |
+| Inline audio player | .mp3/.ogg/.webm rendered as custom audio player in chat; blob-fetched on play for reliable WebView2 + browser playback |
+| Voice messages | 🎙 in chat toolbar; record via MediaRecorder; waveform visualizer; sent as .webm audio file; playback via inline audio player |
 | Channel files panel | 📎 button in chat toolbar; shows all attachments in channel as a grid |
 | Avatar upload + crop | Circular crop modal; zoom/pan; animated GIFs supported |
 | Server icon upload | Same crop flow |
