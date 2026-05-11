@@ -9182,6 +9182,7 @@ function _restoreDraft(serverId, channelId) {
 
 // ── Unread jump pill ────────────────────────────────────────────────────────────
 let _unreadBelow = 0;
+let _jumpLocked  = false;
 
 function initUnreadJump() {
     const h = document.getElementById('chat-history');
@@ -9191,13 +9192,14 @@ function initUnreadJump() {
         const atBottom = h.scrollTop >= h.scrollHeight - h.clientHeight - 80;
         const pill = document.getElementById('unread-jump-pill');
         if (!pill) return;
-        if (atBottom) { _unreadBelow = 0; pill.classList.remove('visible'); }
-        else if (_unreadBelow > 0) pill.classList.add('visible');
+        if (atBottom) { _unreadBelow = 0; _jumpLocked = false; pill.classList.remove('visible'); }
+        else if (_unreadBelow > 0 && !_jumpLocked) pill.classList.add('visible');
     });
 }
 
 function _notifyUnreadBelow(count) {
     _unreadBelow = count;
+    if (_jumpLocked) return;
     const h = document.getElementById('chat-history');
     const pill = document.getElementById('unread-jump-pill');
     if (!pill || !h) return;
@@ -9211,9 +9213,13 @@ function _notifyUnreadBelow(count) {
 
 function scrollToLatest() {
     const h = document.getElementById('chat-history');
-    if (h) { h.scrollTop = h.scrollHeight; }
     _unreadBelow = 0;
+    _jumpLocked  = true;
     document.getElementById('unread-jump-pill')?.classList.remove('visible');
+    if (h) requestAnimationFrame(() => {
+        h.scrollTop = h.scrollHeight;
+        setTimeout(() => { _jumpLocked = false; }, 600);
+    });
 }
 
 // ── Channel online count ────────────────────────────────────────────────────────
