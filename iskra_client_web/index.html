@@ -2524,7 +2524,17 @@
             </div>
             <div>
                 <div class="section-label">Body</div>
-                <textarea id="new-post-body" class="settings-input" placeholder="Write your post… (markdown supported)" rows="6"></textarea>
+                <div class="ftv-composer-toolbar" style="border-radius:4px 4px 0 0;border:1px solid var(--bg-border);border-bottom:none;margin-bottom:0;">
+                    <button class="ftv-tb-btn" style="font-weight:700" title="Bold" onclick="_npmFmt('bold')">B</button>
+                    <button class="ftv-tb-btn" style="font-style:italic" title="Italic" onclick="_npmFmt('italic')">I</button>
+                    <button class="ftv-tb-btn" style="text-decoration:line-through" title="Strikethrough" onclick="_npmFmt('strike')">S</button>
+                    <button class="ftv-tb-btn" style="font-family:monospace;font-size:11px" title="Inline code" onclick="_npmFmt('inlinecode')">`·`</button>
+                    <button class="ftv-tb-btn" title="Block quote" onclick="_npmFmt('blockquote')">&gt;</button>
+                    <button class="ftv-tb-btn" style="font-family:monospace;font-size:10px" title="Code block" onclick="_npmFmt('codeblock')">{·}</button>
+                    <button class="ftv-tb-btn" title="More formatting…" onclick="_npmFmt('more',event)">✏ More</button>
+                    <button class="ftv-tb-btn" title="Emoji" onclick="_npmFmt('emoji',event)">😀</button>
+                </div>
+                <textarea id="new-post-body" class="settings-input" placeholder="Write your post… (markdown supported)" rows="6" style="border-radius:0 0 4px 4px;" onfocus="_fmtTarget=this"></textarea>
             </div>
             <div>
                 <div class="section-label">Tags <span style="font-weight:400;color:var(--text-faint);">(comma-separated, optional)</span></div>
@@ -8870,8 +8880,13 @@ async function enrichLinkPreviews(msgDiv) {
 function updateMessageInDOM(msgId, newText, editHistory) {
     const row = document.querySelector(`[data-msg-id="${msgId}"]`);
     if (!row) return;
-    const body = row.querySelector('.msg-body');
-    if (body) { body.innerHTML = renderMarkdown(newText); row.dataset.replyText = newText.slice(0, 80); }
+    const isForumPost = row.classList.contains('ftv-post');
+    const body = isForumPost ? row.querySelector('.ftv-post-content') : row.querySelector('.msg-body');
+    if (body) {
+        body.innerHTML = renderMarkdown(newText);
+        body.dataset.raw = newText;
+        if (!isForumPost) row.dataset.replyText = newText.slice(0, 80);
+    }
     let mark = row.querySelector('.msg-edited');
     if (!mark) {
         mark = document.createElement('span');
@@ -9451,6 +9466,16 @@ function openNewPostModal() {
 
 function closeNewPostModal() {
     document.getElementById('new-post-overlay')?.classList.remove('open');
+}
+
+function _npmFmt(type, evt) {
+    const ta = document.getElementById('new-post-body');
+    if (!ta) return;
+    _fmtTarget = ta;
+    if (type === 'more') toggleFormatPicker(evt, ta);
+    else if (type === 'emoji') toggleEmojiInsertPicker(evt);
+    else insertFormat(type);
+    ta.focus();
 }
 
 function submitNewPost() {
@@ -11283,7 +11308,12 @@ async function handleBridgeMessage(data, serverId) {
             const parentId = Object.keys(ss.threadMsgMap).find(k => ss.threadMsgMap[k] === data.threadId);
             const ch = ss.channels?.find(c => c.id === ss.activeTextChannelId);
             if (ch?.type === 'Forum' && parentId) {
-                openForumThreadView(parentId, ss.activeTextChannelId);
+                if (ss._forumThreadMsgId === parentId) {
+                    // Already in this thread view — don't rebuild, just ensure activeThreadId is set
+                    if (!ss.activeThreadId) { ss.activeThreadId = data.threadId; activeThreadId = data.threadId; }
+                } else {
+                    openForumThreadView(parentId, ss.activeTextChannelId);
+                }
             } else {
                 openThread(data.threadId, parentId);
             }
