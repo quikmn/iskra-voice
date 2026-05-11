@@ -1,9 +1,6 @@
 # Iskra
 
-**Maintainer & Owner:** Viktor Lundgren · viktor.lundgren@gmail.com · [github.com/quikmn](https://github.com/quikmn)
-*Copyright (c) 2024 Viktor Lundgren. All rights reserved.*
-
----
+*[PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0) · Copyright (c) 2024 Viktor Lundgren*
 
 A self-hosted voice, text, and identity platform for people who are done with Discord.
 
