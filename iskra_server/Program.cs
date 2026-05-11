@@ -98,6 +98,11 @@ namespace Origin.Server.Core
         private static ConcurrentDictionary<string, SteamData> _userSteamProfiles = new();
         private static string SteamFile => Path.Combine(ActiveWorldPath, "steam.json");
 
+        // ── Dota 2 profiles ──────────────────────────────────────────────────────
+        private static ConcurrentDictionary<string, DotaData> _userDotaProfiles = new();
+        private static string DotaFile => Path.Combine(ActiveWorldPath, "dota.json");
+        private static Dictionary<int, string> _heroNames = new();
+
         // ── XP / Leveling ────────────────────────────────────────────────────────
         private static Dictionary<string, UserXp> UserXpData = new();
         private static readonly object XpLock = new();
@@ -155,6 +160,7 @@ namespace Origin.Server.Core
             LoadE2EKeys();
             LoadXp();
             LoadSteam();
+            LoadDota();
             LoadBios();
             Directory.CreateDirectory(UploadDir);
             Console.Title = $"Origin Server — {ActiveConfig.Settings.ServerName} :{ActiveConfig.Settings.Port}";
@@ -721,6 +727,115 @@ namespace Origin.Server.Core
             File.WriteAllText(SteamFile, JsonSerializer.Serialize(
                 _userSteamProfiles.ToDictionary(kv => kv.Key, kv => kv.Value),
                 new JsonSerializerOptions { WriteIndented = true }));
+        }
+
+        // ── Dota 2 helpers ───────────────────────────────────────────────────────
+
+        private static void LoadDota()
+        {
+            if (File.Exists(DotaFile))
+            {
+                _userDotaProfiles = new ConcurrentDictionary<string, DotaData>(
+                    JsonSerializer.Deserialize<Dictionary<string, DotaData>>(File.ReadAllText(DotaFile)) ?? new());
+                Log("DOTA", $"Dota profiles loaded: {_userDotaProfiles.Count}");
+            }
+        }
+
+        private static void SaveDota() =>
+            File.WriteAllText(DotaFile, JsonSerializer.Serialize(
+                _userDotaProfiles.ToDictionary(kv => kv.Key, kv => kv.Value),
+                new JsonSerializerOptions { WriteIndented = true }));
+
+        private static string NormalizeDotaAccountId(string input)
+        {
+            input = input.Trim().TrimEnd('/');
+            var m = Regex.Match(input, @"opendota\.com/players/(\d+)");
+            if (m.Success) return m.Groups[1].Value;
+            // Steam ID64 → Dota account ID
+            var sm = Regex.Match(input, @"steamcommunity\.com/profiles/(\d+)");
+            if (sm.Success && long.TryParse(sm.Groups[1].Value, out long sid64))
+                return (sid64 - 76561197960265728L).ToString();
+            if (long.TryParse(input, out long num))
+                return num > 76561197960265728L ? (num - 76561197960265728L).ToString() : input;
+            return input;
+        }
+
+        private static (string medal, int stars) DecodeRankTier(int rankTier)
+        {
+            if (rankTier == 0) return ("Unranked", 0);
+            string[] medals = { "", "Herald", "Guardian", "Crusader", "Archon", "Legend", "Ancient", "Divine", "Immortal" };
+            int med = rankTier / 10, stars = rankTier % 10;
+            return (med >= 1 && med < medals.Length ? medals[med] : "Unknown", stars);
+        }
+
+        private static async Task<(DotaData data, string error)> FetchDotaProfile(string input)
+        {
+            try
+            {
+                var accountId = NormalizeDotaAccountId(input);
+                if (!long.TryParse(accountId, out _)) return (null, "Invalid account ID");
+
+                var playerTask = _http.GetStringAsync($"https://api.opendota.com/api/players/{accountId}");
+                var wlTask     = _http.GetStringAsync($"https://api.opendota.com/api/players/{accountId}/wl");
+                var heroesTask = _http.GetStringAsync($"https://api.opendota.com/api/players/{accountId}/heroes?limit=20");
+
+                if (_heroNames.Count == 0)
+                {
+                    var heroJson = await _http.GetStringAsync("https://api.opendota.com/api/heroes");
+                    using var heroDoc = JsonDocument.Parse(heroJson);
+                    foreach (var h in heroDoc.RootElement.EnumerateArray())
+                        if (h.TryGetProperty("id", out var hid) && h.TryGetProperty("localized_name", out var hname))
+                            _heroNames[hid.GetInt32()] = hname.GetString() ?? "";
+                }
+
+                await Task.WhenAll(playerTask, wlTask, heroesTask);
+
+                using var playerDoc = JsonDocument.Parse(playerTask.Result);
+                using var wlDoc     = JsonDocument.Parse(wlTask.Result);
+                using var heroesDoc = JsonDocument.Parse(heroesTask.Result);
+
+                var root = playerDoc.RootElement;
+                if (!root.TryGetProperty("profile", out var profileEl))
+                    return (null, "Profile not found or private. Make sure your OpenDota profile is set to public.");
+
+                var personaname = profileEl.TryGetProperty("personaname", out var pn) ? pn.GetString() : "Unknown";
+                var avatarFull  = profileEl.TryGetProperty("avatarfull",  out var av) ? av.GetString() : null;
+                var profileUrl  = profileEl.TryGetProperty("profileurl",  out var pu) ? pu.GetString() : null;
+
+                var rankTier = root.TryGetProperty("rank_tier", out var rt) && rt.ValueKind != JsonValueKind.Null ? rt.GetInt32() : 0;
+                var (medal, stars) = DecodeRankTier(rankTier);
+                var leaderboardRank = root.TryGetProperty("leaderboard_rank", out var lr) && lr.ValueKind != JsonValueKind.Null ? lr.GetInt32() : 0;
+
+                var wins   = wlDoc.RootElement.TryGetProperty("win",  out var w) ? w.GetInt32() : 0;
+                var losses = wlDoc.RootElement.TryGetProperty("lose", out var l) ? l.GetInt32() : 0;
+
+                var topHeroes = new List<DotaHeroStat>();
+                foreach (var h in heroesDoc.RootElement.EnumerateArray().Take(3))
+                {
+                    var heroId   = h.TryGetProperty("hero_id", out var hid) ? hid.GetInt32() : 0;
+                    var games    = h.TryGetProperty("games",   out var g)   ? g.GetInt32() : 0;
+                    var heroWins = h.TryGetProperty("win",     out var hw)  ? hw.GetInt32() : 0;
+                    if (games == 0) continue;
+                    _heroNames.TryGetValue(heroId, out var heroName);
+                    topHeroes.Add(new DotaHeroStat { HeroName = heroName ?? $"#{heroId}", Games = games, Wins = heroWins });
+                }
+
+                return (new DotaData
+                {
+                    AccountId       = accountId,
+                    PersonaName     = personaname,
+                    AvatarUrl       = avatarFull,
+                    ProfileUrl      = profileUrl,
+                    Medal           = medal,
+                    Stars           = stars,
+                    LeaderboardRank = leaderboardRank,
+                    Wins            = wins,
+                    Losses          = losses,
+                    TopHeroes       = topHeroes,
+                    FetchedAt       = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                }, null);
+            }
+            catch (Exception ex) { return (null, ex.Message); }
         }
 
         private static string NormalizeSteamXmlUrl(string input)
@@ -1476,6 +1591,7 @@ namespace Origin.Server.Core
                     memberLevels     = UserXpData.ToDictionary(kv => kv.Key, kv => new { xp = kv.Value.Xp, level = kv.Value.Level }),
                     memberRioChars      = _userRioChars.ToDictionary(kv => kv.Key, kv => new { name = kv.Value.Name, realm = kv.Value.Realm, region = kv.Value.Region }),
                     memberSteamProfiles = _userSteamProfiles.ToDictionary(kv => kv.Key, kv => (object)kv.Value),
+                    memberDotaProfiles  = _userDotaProfiles.ToDictionary(kv => kv.Key, kv => (object)kv.Value),
                     memberBios          = UserBios.ToDictionary(kv => kv.Key, kv => kv.Value),
                     iceServers
                 });
@@ -3369,6 +3485,34 @@ namespace Origin.Server.Core
                         }
                     }
 
+                    // ── SET_DOTA_PROFILE ──────────────────────────────────────────
+                    else if (action == "SET_DOTA_PROFILE")
+                    {
+                        string dotaInput = incoming.RootElement.TryGetProperty("profile", out var dpEl) ? dpEl.GetString()?.Trim() : null;
+                        if (string.IsNullOrEmpty(dotaInput))
+                        {
+                            _userDotaProfiles.TryRemove(currentAlias, out _);
+                            SaveDota();
+                            await Broadcast(new { action = "DOTA_PROFILE_UPDATED", alias = currentAlias, profile = (object)null });
+                        }
+                        else
+                        {
+                            await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Fetching Dota 2 profile…" });
+                            var (dotaData, err) = await FetchDotaProfile(dotaInput);
+                            if (dotaData != null)
+                            {
+                                _userDotaProfiles[currentAlias] = dotaData;
+                                SaveDota();
+                                Log("DOTA", $"'{currentAlias}' linked Dota: {dotaData.PersonaName} ({dotaData.Medal} {dotaData.Stars})");
+                                await Broadcast(new { action = "DOTA_PROFILE_UPDATED", alias = currentAlias, profile = dotaData });
+                            }
+                            else
+                            {
+                                await Send(socket, new { action = "SYSTEM_MESSAGE", message = $"Dota 2 fetch failed: {err ?? "unknown error"}. Make sure your OpenDota profile is public." });
+                            }
+                        }
+                    }
+
                     // ── SET_XP_CONFIG ─────────────────────────────────────────────
                     else if (action == "SET_XP_CONFIG")
                     {
@@ -3643,6 +3787,28 @@ namespace Origin.Server.Data
         public string TopGame      { get; set; }
         public string TopGameHours { get; set; }
         public long   FetchedAt    { get; set; }
+    }
+
+    public class DotaData
+    {
+        public string AccountId       { get; set; }
+        public string PersonaName     { get; set; }
+        public string AvatarUrl       { get; set; }
+        public string ProfileUrl      { get; set; }
+        public string Medal           { get; set; }
+        public int    Stars           { get; set; }
+        public int    LeaderboardRank { get; set; }
+        public int    Wins            { get; set; }
+        public int    Losses          { get; set; }
+        public List<DotaHeroStat> TopHeroes { get; set; } = new();
+        public long   FetchedAt       { get; set; }
+    }
+
+    public class DotaHeroStat
+    {
+        public string HeroName { get; set; }
+        public int    Games    { get; set; }
+        public int    Wins     { get; set; }
     }
 
     public class XpConfig

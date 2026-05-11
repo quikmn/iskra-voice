@@ -1049,6 +1049,15 @@
         .steam-badge-name { font-size:12px;font-weight:700;color:var(--text-normal);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
         .steam-game { font-size:11px;color:#4c9fd4;font-weight:600; }
         .steam-top-game { font-size:11px;color:var(--text-faint); }
+        #pc-dota-row { padding: 4px 14px 8px; }
+        .dota-badge { display:flex;flex-direction:column;gap:5px;background:var(--bg-deep);border-radius:6px;padding:8px 10px;text-decoration:none;color:inherit; }
+        .dota-badge:hover { background:var(--bg-hover); }
+        .dota-badge-top { display:flex;align-items:center;gap:8px; }
+        .dota-badge-avatar { width:32px;height:32px;border-radius:4px;flex-shrink:0;object-fit:cover; }
+        .dota-badge-name { font-size:12px;font-weight:700;color:var(--text-normal); }
+        .dota-medal { font-size:11px;font-weight:600; }
+        .dota-wl { font-size:11px;color:var(--text-faint); }
+        .dota-heroes { font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
         .pc-actions { padding: 8px 14px 12px; border-top: 1px solid var(--bg-border); display: flex; gap: 6px; flex-wrap: wrap; }
         .msg-author { cursor: pointer; }
         .msg-author:hover { text-decoration: underline; }
@@ -2076,6 +2085,18 @@
                 </div>
                 <div id="steam-preview" style="margin-top:10px;"></div>
             </div>
+
+            <hr class="divider">
+            <div>
+                <div class="section-label">Dota 2</div>
+                <p style="font-size:11.5px;color:var(--text-subtle);line-height:1.6;margin-bottom:10px;">Paste your OpenDota profile URL or Steam ID64 to show your rank and top heroes on your profile card.</p>
+                <input type="text" id="dota-profile-input" class="form-input" placeholder="https://www.opendota.com/players/123456789" style="width:100%;box-sizing:border-box;">
+                <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
+                    <button class="btn-primary" onclick="saveDotaProfile()">Save &amp; Fetch</button>
+                    <button class="btn-small" onclick="clearDotaProfile()">Clear</button>
+                </div>
+                <div id="dota-preview" style="margin-top:10px;"></div>
+            </div>
         </div>
 
         <!-- ── Servers Tab ── -->
@@ -2590,6 +2611,7 @@
     <div id="pc-xp-row" class="pc-xp-row" style="display:none;"></div>
     <div id="pc-rio-row" class="pc-rio-row" style="display:none;"></div>
     <div id="pc-steam-row" style="display:none;"></div>
+    <div id="pc-dota-row" style="display:none;"></div>
     <div id="pc-status" class="pc-status"></div>
     <div id="pc-status-text" class="pc-status-text" style="display:none;"></div>
     <div id="pc-vc" class="pc-vc" style="display:none;"></div>
@@ -3055,6 +3077,7 @@ function createServerState() {
         memberLevels: {}, xpEnabled: true,
         memberRioChars: {}, memberRioCache: {},
         memberSteamProfiles: {},
+        memberDotaProfiles: {},
         memberBios: {},
         // Server metadata
         serverIconUrl: null, serverEmojis: {}, roleColors: {}, serverPrivacyStatement: '',
@@ -3957,6 +3980,7 @@ const clientConfig = {
     rioRegion: 'eu',
     rioCache: null,
     steamProfile: '',
+    dotaProfile: '',
     bio: ''
 };
 
@@ -4577,6 +4601,18 @@ function showProfileCard(event, alias) {
             steamRow.innerHTML = _steamCardHtml(steam);
         } else {
             steamRow.style.display = 'none';
+        }
+    }
+
+    // Dota 2
+    const dotaRow = document.getElementById('pc-dota-row');
+    if (dotaRow) {
+        const dota = ss?.memberDotaProfiles?.[alias];
+        if (dota) {
+            dotaRow.style.display = '';
+            dotaRow.innerHTML = _dotaCardHtml(dota);
+        } else {
+            dotaRow.style.display = 'none';
         }
     }
 
@@ -5925,7 +5961,7 @@ function switchTab(tab) {
         document.getElementById(`tab-btn-${t}`)?.classList.toggle('active', t === tab);
     });
     updateHelpPanel(tab);
-    if (tab === 'identity')   { renderAliasList(); updateSettingsAvatarPreview(); _updateDmKeyStatusUI(); _populateRioTab(); _populateSteamTab(); _populateBioTab(); }
+    if (tab === 'identity')   { renderAliasList(); updateSettingsAvatarPreview(); _updateDmKeyStatusUI(); _populateRioTab(); _populateSteamTab(); _populateDotaTab(); _populateBioTab(); }
     if (tab === 'servers')    { renderServerList(); updateSettingsServerSection(); }
     if (tab === 'admin')      { renderAdminPanel(); setTimeout(loadAutomodConfig, 300); }
     if (tab === 'webhooks')   renderWebhooksSection();
@@ -9694,6 +9730,83 @@ function _populateSteamTab() {
     pr.innerHTML = steam ? _steamCardHtml(steam) : '';
 }
 
+// ── Dota 2 integration ─────────────────────────────────────────────────────────
+
+const _dotaMedalColors = {
+    Herald: '#a0a0a0', Guardian: '#2ecc71', Crusader: '#1abc9c',
+    Archon: '#3498db', Legend: '#9b59b6', Ancient: '#e91e8c',
+    Divine: '#00cfff', Immortal: '#f0a500', Unranked: '#555'
+};
+
+function _dotaCardHtml(d) {
+    if (!d) return '';
+    const medal   = d.Medal || d.medal || 'Unranked';
+    const stars   = d.Stars ?? d.stars ?? 0;
+    const wins    = d.Wins  ?? d.wins  ?? 0;
+    const losses  = d.Losses ?? d.losses ?? 0;
+    const total   = wins + losses;
+    const wr      = total > 0 ? Math.round(wins / total * 100) : 0;
+    const rank    = d.LeaderboardRank || d.leaderboardRank || 0;
+    const name    = d.PersonaName || d.personaName || 'Dota 2';
+    const avatar  = d.AvatarUrl   || d.avatarUrl;
+    const url     = d.ProfileUrl  || d.profileUrl || '#';
+    const heroes  = d.TopHeroes   || d.topHeroes  || [];
+    const color   = _dotaMedalColors[medal] || '#aaa';
+    const starsStr = medal !== 'Immortal' && stars > 0 ? ' ' + '★'.repeat(stars) : '';
+    const rankStr  = rank > 0 ? ` #${rank}` : '';
+    const medalStr = medal === 'Unranked' ? 'Unranked' : `${medal}${starsStr}${rankStr}`;
+    const wlStr    = total > 0 ? `${wins}W · ${losses}L · ${wr}%` : '';
+    const heroStr  = heroes.map(h => {
+        const n = h.HeroName || h.heroName || '?';
+        const g = h.Games ?? h.games ?? 0;
+        const w = h.Wins  ?? h.wins  ?? 0;
+        const r = g > 0 ? Math.round(w / g * 100) : 0;
+        return `${escapeHtml(n)} (${r}%)`;
+    }).join(' · ');
+    return `<div class="integration-card-wrap">` +
+        `<a href="${escapeHtml(url)}" target="_blank" class="dota-badge" style="padding-bottom:20px;">` +
+            `<div class="dota-badge-top">` +
+                (avatar ? `<img class="dota-badge-avatar" src="${escapeHtml(avatar)}" alt="">` : '') +
+                `<div>` +
+                    `<div class="dota-badge-name">${escapeHtml(name)}</div>` +
+                    `<div class="dota-medal" style="color:${color};">${escapeHtml(medalStr)}</div>` +
+                `</div>` +
+            `</div>` +
+            (wlStr   ? `<div class="dota-wl">${escapeHtml(wlStr)}</div>` : '') +
+            (heroStr ? `<div class="dota-heroes">Top: ${heroStr}</div>` : '') +
+        `</a>` +
+        `<span class="integration-badge">Dota 2</span>` +
+    `</div>`;
+}
+
+function saveDotaProfile() {
+    const input = document.getElementById('dota-profile-input')?.value?.trim() || '';
+    if (!input) { clearDotaProfile(); return; }
+    clientConfig.dotaProfile = input;
+    saveClientConfig();
+    const pr = document.getElementById('dota-preview');
+    if (pr) pr.innerHTML = `<span style="font-size:11px;color:var(--text-faint);">Fetching…</span>`;
+    for (const sid of connectedServerIds) postToServer(sid, { action: 'SET_DOTA_PROFILE', profile: input });
+}
+
+function clearDotaProfile() {
+    clientConfig.dotaProfile = '';
+    saveClientConfig();
+    const inp = document.getElementById('dota-profile-input'); if (inp) inp.value = '';
+    const pr  = document.getElementById('dota-preview');       if (pr)  pr.innerHTML = '';
+    for (const sid of connectedServerIds) postToServer(sid, { action: 'SET_DOTA_PROFILE', profile: '' });
+}
+
+function _populateDotaTab() {
+    const inp = document.getElementById('dota-profile-input'); if (inp) inp.value = clientConfig.dotaProfile || '';
+    const pr  = document.getElementById('dota-preview');
+    if (!pr) return;
+    const ss = serverStates[viewedServerId];
+    const myAlias = ss?.myAlias;
+    const dota = myAlias ? ss?.memberDotaProfiles?.[myAlias] : null;
+    pr.innerHTML = dota ? _dotaCardHtml(dota) : '';
+}
+
 async function _handleRioCommand(msg, ss) {
     const parts = msg.trim().split(/\s+/);
     let name, realm, region;
@@ -10230,6 +10343,8 @@ async function handleBridgeMessage(data, serverId) {
             postToServer(serverId, { action: 'SET_RIO_CHAR', name: clientConfig.rioName, realm: clientConfig.rioRealm, region: clientConfig.rioRegion || 'eu' });
         if (clientConfig.steamProfile)
             postToServer(serverId, { action: 'SET_STEAM_PROFILE', profile: clientConfig.steamProfile });
+        if (clientConfig.dotaProfile)
+            postToServer(serverId, { action: 'SET_DOTA_PROFILE', profile: clientConfig.dotaProfile });
         if (clientConfig.bio)
             postToServer(serverId, { action: 'SET_BIO', bio: clientConfig.bio });
         if (isViewed) {
@@ -10500,6 +10615,7 @@ async function handleBridgeMessage(data, serverId) {
         if (data.memberLevels && typeof data.memberLevels === 'object') ss.memberLevels = data.memberLevels;
         if (data.memberRioChars && typeof data.memberRioChars === 'object') ss.memberRioChars = data.memberRioChars;
         if (data.memberSteamProfiles && typeof data.memberSteamProfiles === 'object') ss.memberSteamProfiles = data.memberSteamProfiles;
+        if (data.memberDotaProfiles  && typeof data.memberDotaProfiles  === 'object') ss.memberDotaProfiles  = data.memberDotaProfiles;
         if (data.memberBios && typeof data.memberBios === 'object') ss.memberBios = data.memberBios;
         ss.serverChannels = data.channels;
         ss.channelSlowMode = {};
@@ -11008,6 +11124,11 @@ async function handleBridgeMessage(data, serverId) {
         if (data.profile) ss.memberSteamProfiles[data.alias] = data.profile;
         else delete ss.memberSteamProfiles[data.alias];
         if (isViewed && data.alias === ss.myAlias) _populateSteamTab();
+
+    } else if (data.action === 'DOTA_PROFILE_UPDATED') {
+        if (data.profile) ss.memberDotaProfiles[data.alias] = data.profile;
+        else delete ss.memberDotaProfiles[data.alias];
+        if (isViewed && data.alias === ss.myAlias) _populateDotaTab();
 
     } else if (data.action === 'BIO_UPDATED') {
         if (data.bio) ss.memberBios[data.alias] = data.bio;
