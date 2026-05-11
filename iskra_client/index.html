@@ -9228,9 +9228,10 @@ function _initServerDrag() {
 }
 
 // ── Voice-to-text dictation ──────────────────────────────────────────────────
-let _transcribing   = false;
-let _speechRecog    = null;
-let _dictateBase    = '';  // confirmed text before current interim
+let _transcribing      = false;
+let _speechRecog       = null;
+let _dictateBase       = '';  // text in box before dictation started
+let _dictateConfirmed  = '';  // finalized speech across all sessions
 
 function toggleTranscription() {
     if (_transcribing) _stopTranscription();
@@ -9243,43 +9244,51 @@ function _startTranscription() {
     const input = document.getElementById('chat-input');
     if (!input) return;
 
-    _dictateBase = input.value;
-    _transcribing = true;
+    _dictateBase      = input.value;
+    _dictateConfirmed = '';
+    _transcribing     = true;
     document.getElementById('btn-transcribe')?.classList.add('on');
 
-    _speechRecog = new SR();
-    _speechRecog.continuous    = true;
-    _speechRecog.interimResults = true;
-    _speechRecog.lang = navigator.language || 'en-US';
+    const startSession = () => {
+        _speechRecog = new SR();
+        _speechRecog.continuous     = true;
+        _speechRecog.interimResults = true;
+        _speechRecog.lang = navigator.language || 'en-US';
 
-    _speechRecog.onresult = (e) => {
-        const inp = document.getElementById('chat-input');
-        if (!inp) return;
-        let interim = '', confirmed = '';
-        for (let i = 0; i < e.results.length; i++) {
-            const t = e.results[i][0].transcript;
-            if (e.results[i].isFinal) confirmed += t;
-            else interim += t;
-        }
-        if (confirmed) {
-            _dictateBase = (_dictateBase + (confirmed.endsWith(' ') ? confirmed : confirmed + ' ')).trimStart();
-            inp.value = _dictateBase;
-        } else {
-            inp.value = (_dictateBase + interim).trimStart();
-        }
-        inp.dispatchEvent(new Event('input'));
-        autoResizeTextarea(inp);
+        _speechRecog.onresult = (e) => {
+            const inp = document.getElementById('chat-input');
+            if (!inp) return;
+            // Only process results that are new this event
+            for (let i = e.resultIndex; i < e.results.length; i++) {
+                if (e.results[i].isFinal) {
+                    const t = e.results[i][0].transcript;
+                    _dictateConfirmed += t.endsWith(' ') ? t : t + ' ';
+                }
+            }
+            // Show the latest interim result if any
+            let interim = '';
+            for (let i = 0; i < e.results.length; i++) {
+                if (!e.results[i].isFinal) interim += e.results[i][0].transcript;
+            }
+            inp.value = (_dictateBase + _dictateConfirmed + interim).trimStart();
+            inp.dispatchEvent(new Event('input'));
+            autoResizeTextarea(inp);
+        };
+
+        // On restart, _dictateConfirmed carries over; new session results start at 0
+        _speechRecog.onend  = () => { if (_transcribing) startSession(); };
+        _speechRecog.onerror = (e) => { if (e.error !== 'no-speech') _stopTranscription(); };
+        _speechRecog.start();
     };
 
-    _speechRecog.onend = () => { if (_transcribing) _speechRecog.start(); };
-    _speechRecog.onerror = (e) => { if (e.error !== 'no-speech') _stopTranscription(); };
-    _speechRecog.start();
+    startSession();
     input.focus();
 }
 
 function _stopTranscription() {
-    _transcribing = false;
-    _dictateBase  = '';
+    _transcribing     = false;
+    _dictateConfirmed = '';
+    _dictateBase      = '';
     document.getElementById('btn-transcribe')?.classList.remove('on');
     try { _speechRecog?.stop(); } catch {}
     _speechRecog = null;
