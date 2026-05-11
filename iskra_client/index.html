@@ -4249,6 +4249,8 @@ function closeActivityInput(chId) {
 function selectTextChannel(id) {
     const ss = serverStates[viewedServerId];
     if (!ss) return;
+    const ch = ss.serverChannels.find(c => c.id === id);
+    if (!ch || (ch.type !== 'Text' && ch.type !== 'Forum')) return;
     if (ss.activeTextChannelId && ss.activeTextChannelId !== id) {
         _saveDraft(viewedServerId, ss.activeTextChannelId);
     }
@@ -4259,7 +4261,6 @@ function selectTextChannel(id) {
     saveUnread(viewedServerId);
     _clearTyping();
     cancelReply();
-    const ch = ss.serverChannels.find(c => c.id === id);
     const inputArea = document.getElementById('input-area');
     document.getElementById('chat-channel-icon').textContent = ch?.e2e ? '🔒' : '#';
     if (ch) {
@@ -5697,7 +5698,9 @@ function bmNavigate(sid, cid, key) {
     closeBookmarks();
     if (!connectedServerIds.has(sid)) { DevLog.log('INFO', 'That server is not connected — cannot navigate to bookmarked message'); return; }
     if (sid !== viewedServerId) setViewedServer(sid);
-    selectTextChannel(cid);
+    const _bch = serverStates[sid]?.serverChannels.find(c => c.id === cid);
+    if (_bch?.type === 'Voice') joinVoice(cid);
+    else selectTextChannel(cid);
     setTimeout(() => scrollToMsg(key), 300);
 }
 
@@ -6366,8 +6369,12 @@ function onServerIconClick(id) {
     closeRelayPanel();
     setViewedServer(id);
     const ss = serverStates[id];
-    if (ss && connectedServerIds.has(id) && ss.activeTextChannelId) {
-        selectTextChannel(ss.activeTextChannelId);
+    if (ss && connectedServerIds.has(id)) {
+        const _och = ss.serverChannels.find(c => c.id === ss.activeTextChannelId);
+        const _tgt = (_och && (_och.type === 'Text' || _och.type === 'Forum'))
+            ? _och.id
+            : ss.serverChannels.find(c => c.type === 'Text')?.id;
+        if (_tgt) selectTextChannel(_tgt);
     }
 }
 
@@ -7238,22 +7245,28 @@ async function setupPeer(target, makeOffer = false, peerServerId = null) {
 async function joinVoice(id) {
     const ss = serverStates[viewedServerId];
     if (!ss) return;
+    const ch = ss.serverChannels.find(c => c.id === id);
+    if (!ch || ch.type !== 'Voice') return;
     if (!processedStream) { try { await initAudio(); } catch {} }
     if (ss.currentChannelId !== id) { postToServer(viewedServerId, { action: 'JOIN_VOICE', channelId: id }); _acquireWakeLock(); }
-    if (inDmMode) { ss.activeTextChannelId = id; return; }
+    if (inDmMode) return;
     // Switch chat pane to voice channel text thread
     if (ss.activeTextChannelId === id) return;
     ss.activeTextChannelId = id;
     ss.unreadCounts[id] = 0;
     cancelReply();
-    const ch = ss.serverChannels.find(c => c.id === id);
-    const icon = ch?.muted ? '🔇' : '🔊';
+    _setForumMode(false);
+    ss._forumThreadMsgId = null; ss.activeThreadId = null;
+    activeThreadId = null;
+    const icon = ch.muted ? '🔇' : '🔊';
     document.getElementById('chat-channel-icon').textContent = icon;
-    document.getElementById('chat-channel-name').textContent = ch?.name || id;
-    document.querySelector('.input-box').placeholder = `Message in ${icon} ${ch?.name || id}`;
+    document.getElementById('chat-channel-name').textContent = ch.name || id;
+    document.querySelector('.input-box').placeholder = `Message in ${icon} ${ch.name || id}`;
     document.getElementById('input-area')?.classList.remove('readonly');
     const h = document.getElementById('chat-history');
     h.innerHTML = '';
+    h.classList.remove('forum-thread-mode');
+    h.classList.remove('forum-mode');
     window._loadingChannelHistory = true;
     (ss.channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}, m.replyToId, m.replySnippet, m.editHistory, m.threadId, m.threadCount, m.poll, m.forumTitle || null, m.forumTags || null, m.ts || null));
     window._loadingChannelHistory = false;
@@ -8017,34 +8030,19 @@ function closeDmMode() {
     inDmMode = false;
     activeDmWith = null;
     document.getElementById('dm-call-btn').style.display = 'none';
-    updateRelayE2EBanner(null); // hide banner when leaving server DM mode
+    updateRelayE2EBanner(null);
     document.getElementById('dm-toggle-btn').classList.remove('active');
     document.getElementById('dm-panel').classList.remove('open');
     document.getElementById('channel-list').style.display = '';
     document.getElementById('server-name-display').style.display = '';
     const _dss = serverStates[viewedServerId];
     const _dChId = _dss?.activeTextChannelId;
-    document.getElementById('chat-channel-icon').textContent = '#';
-    document.getElementById('chat-channel-name').textContent = _dChId
-        ? (_dss?.serverChannels.find(c => c.id === _dChId)?.name || '—') : '—';
-    const el = document.getElementById('input-area');
-    if (el) el.classList.remove('readonly');
-    if (_dChId) {
-        const h = document.getElementById('chat-history');
-        h.innerHTML = '';
-        window._loadingChannelHistory = true;
-        (_dss?.channelMessages[_dChId] || []).forEach(m =>
-            renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}, m.replyToId, m.replySnippet, m.editHistory, m.threadId, m.threadCount, m.poll, m.forumTitle || null, m.forumTags || null, m.ts || null));
-        window._loadingChannelHistory = false;
-        requestAnimationFrame(() => requestAnimationFrame(() => { const _ch = document.getElementById('chat-history'); if (_ch) _ch.scrollTop = _ch.scrollHeight; }));
-    } else {
-        document.getElementById('chat-history').innerHTML = '';
-    }
-    const chatInput = document.getElementById('chat-input');
-    if (chatInput) chatInput.placeholder = _dChId
-        ? `Message #${_dss?.serverChannels.find(c => c.id === _dChId)?.name || ''}`
-        : 'Message';
-    if (_dChId) updatePinIndicator(_dChId);
+    const _dCh = _dss?.serverChannels.find(c => c.id === _dChId);
+    const _target = (_dCh && (_dCh.type === 'Text' || _dCh.type === 'Forum'))
+        ? _dChId
+        : _dss?.serverChannels.find(c => c.type === 'Text')?.id;
+    if (_target) selectTextChannel(_target);
+    else document.getElementById('chat-history').innerHTML = '';
 }
 
 function openDm(alias) {
@@ -8502,7 +8500,10 @@ function deleteRecentSearch(q) {
 
 function scrollToMsg(msgId, channelId) {
     const switched = channelId && channelId !== serverStates[viewedServerId]?.activeTextChannelId;
-    if (switched) selectTextChannel(channelId);
+    if (switched) {
+        const _sch = serverStates[viewedServerId]?.serverChannels.find(c => c.id === channelId);
+        if (_sch?.type === 'Voice') joinVoice(channelId); else selectTextChannel(channelId);
+    }
     if (!msgId) return;
     const tryScroll = n => {
         const el = document.querySelector(`[data-msg-id="${msgId}"]`);
@@ -10533,8 +10534,9 @@ async function handleBridgeMessage(data, serverId) {
         if (settings.voiceMode === 'ptt') setMicGate(pttActive && !isMuted);
 
     } else if (data.action === 'CHAT_RECEIVE') {
-        const chId = data.channelId || ss.activeTextChannelId;
-        DevLog.log('BRIDGE', `← C# | CHAT_RECEIVE from:${data.author} ch:${chId||'?'} id:${data.id||'none'}`);
+        const chId = data.channelId;
+        if (!chId) return;
+        DevLog.log('BRIDGE', `← C# | CHAT_RECEIVE from:${data.author} ch:${chId} id:${data.id||'none'}`);
         let msgText = data.message;
         let ciphertextBackup = null;
         if (isE2eCiphertext(msgText)) {
@@ -10788,8 +10790,11 @@ async function handleBridgeMessage(data, serverId) {
         ss._collapsedCats = loadCollapsedCats(serverId);
         loadUnread(serverId);
         if (isViewed) {
-            const firstText = ss.serverChannels.find(c => c.type === 'Text');
-            if (firstText) selectTextChannel(firstText.id);
+            const _prevCh = ss.serverChannels.find(c => c.id === ss.activeTextChannelId);
+            const _initCh = (_prevCh && (_prevCh.type === 'Text' || _prevCh.type === 'Forum'))
+                ? _prevCh
+                : ss.serverChannels.find(c => c.type === 'Text');
+            if (_initCh) selectTextChannel(_initCh.id);
             updateMyAvatar();
             renderChannelList();
             document.getElementById('btn-members')?.classList.add('visible');
