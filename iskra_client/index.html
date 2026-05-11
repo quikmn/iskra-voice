@@ -4282,7 +4282,10 @@ function selectTextChannel(id) {
     h.innerHTML = '';
     h.classList.remove('forum-thread-mode');
     h.classList.toggle('forum-mode', isForum);
+    window._loadingChannelHistory = true;
     (ss.channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}, m.replyToId, m.replySnippet, m.editHistory, m.threadId, m.threadCount, m.poll, m.forumTitle || null, m.forumTags || null, m.ts || null));
+    window._loadingChannelHistory = false;
+    requestAnimationFrame(() => { const _ch = document.getElementById('chat-history'); if (_ch) _ch.scrollTop = _ch.scrollHeight; });
     renderChannelList();
     clearTimeout(ss._slowTimer);
     if (document.getElementById('chat-input')) document.getElementById('chat-input').disabled = false;
@@ -7251,7 +7254,10 @@ async function joinVoice(id) {
     document.getElementById('input-area')?.classList.remove('readonly');
     const h = document.getElementById('chat-history');
     h.innerHTML = '';
+    window._loadingChannelHistory = true;
     (ss.channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}, m.replyToId, m.replySnippet, m.editHistory, m.threadId, m.threadCount, m.poll, m.forumTitle || null, m.forumTags || null, m.ts || null));
+    window._loadingChannelHistory = false;
+    requestAnimationFrame(() => { const _ch = document.getElementById('chat-history'); if (_ch) _ch.scrollTop = _ch.scrollHeight; });
     renderChannelList();
     clearTimeout(ss._slowTimer);
     _slowBarShow(null, false);
@@ -8026,8 +8032,11 @@ function closeDmMode() {
     if (_dChId) {
         const h = document.getElementById('chat-history');
         h.innerHTML = '';
+        window._loadingChannelHistory = true;
         (_dss?.channelMessages[_dChId] || []).forEach(m =>
-            renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}));
+            renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}, m.replyToId, m.replySnippet, m.editHistory, m.threadId, m.threadCount, m.poll, m.forumTitle || null, m.forumTags || null, m.ts || null));
+        window._loadingChannelHistory = false;
+        requestAnimationFrame(() => { const _ch = document.getElementById('chat-history'); if (_ch) _ch.scrollTop = _ch.scrollHeight; });
     } else {
         document.getElementById('chat-history').innerHTML = '';
     }
@@ -9336,6 +9345,7 @@ function initUnreadJump() {
 
 function _notifyUnreadBelow(count) {
     _unreadBelow = count;
+    if (window._loadingChannelHistory) return;
     if (_jumpLocked) return;
     const h = document.getElementById('chat-history');
     const pill = document.getElementById('unread-jump-pill');
