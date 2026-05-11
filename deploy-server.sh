@@ -2,7 +2,6 @@
 # Deploy iskra_server to a Linux Ubuntu host.
 # Usage: bash deploy-server.sh [--world <folder-name>]
 # Requires: ssh key auth to root@REMOTE_IP
-#           rsync installed locally (git bash / wsl / linux)
 
 set -e
 
@@ -62,7 +61,7 @@ echo "==> Provisioning $REMOTE..."
 ssh "$REMOTE" bash << 'ENDSSH'
 set -e
 apt-get update -qq
-apt-get install -y ufw rsync
+apt-get install -y ufw
 
 # open port 8080
 ufw allow 8080/tcp
@@ -75,13 +74,8 @@ ENDSSH
 # ── upload binary ─────────────────────────────────────────────────────────────
 echo ""
 echo "==> Uploading server binary..."
-if command -v rsync &>/dev/null; then
-    rsync -az --delete "$PUBLISH_DIR/" "$REMOTE:$APP_DIR/app/"
-else
-    echo "--> rsync not found, using scp"
-    ssh "$REMOTE" "rm -rf $APP_DIR/app && mkdir -p $APP_DIR/app"
-    scp -r "$PUBLISH_DIR/." "$REMOTE:$APP_DIR/app/"
-fi
+ssh "$REMOTE" "rm -rf $APP_DIR/app && mkdir -p $APP_DIR/app"
+scp -r "$PUBLISH_DIR/." "$REMOTE:$APP_DIR/app/"
 ssh "$REMOTE" "chmod +x $APP_DIR/app/iskra_server"
 
 # ── upload world folder ───────────────────────────────────────────────────────
@@ -89,16 +83,8 @@ echo ""
 echo "==> Uploading world: $WORLD"
 ssh "$REMOTE" "mkdir -p $APP_DIR/servers/$WORLD"
 # sync world but preserve remote data files (fingerprints, bans, chat logs)
-if command -v rsync &>/dev/null; then
-    rsync -az \
-        --exclude 'fingerprints.json' \
-        --exclude 'bans.json' \
-        --exclude 'audit.jsonl' \
-        "$WORLD_DIR/" "$REMOTE:$APP_DIR/servers/$WORLD/"
-else
-    # scp fallback: upload server.json only (preserve remote data files)
-    scp "$WORLD_DIR/server.json" "$REMOTE:$APP_DIR/servers/$WORLD/server.json"
-fi
+# upload server.json only — preserves remote fingerprints/bans/audit
+scp "$WORLD_DIR/server.json" "$REMOTE:$APP_DIR/servers/$WORLD/server.json"
 
 echo "--> World uploaded (fingerprints/bans/audit preserved if they existed)"
 

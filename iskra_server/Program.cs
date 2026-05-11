@@ -12,6 +12,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace Origin.Server.Core
 {
@@ -55,6 +56,8 @@ namespace Origin.Server.Core
         private static Dictionary<string, string>                  UserAvatars      = new(); // alias → url
         private static readonly object AvatarLock = new();
         private static string AvatarFile => Path.Combine(ActiveWorldPath, "avatars.json");
+        private static ConcurrentDictionary<string, string>        UserBios         = new(); // alias → bio text
+        private static string BioFile => Path.Combine(ActiveWorldPath, "bios.json");
         private static string FingerprintFile => Path.Combine(ActiveWorldPath, "fingerprints.json");
         private static string BanFile         => Path.Combine(ActiveWorldPath, "bans.json");
         private static string UploadDir       => Path.Combine(ActiveWorldPath, "uploads");
@@ -88,6 +91,19 @@ namespace Origin.Server.Core
         private static string PubKeyFile   => Path.Combine(ActiveWorldPath, "public_keys.json");
         private static string DmPubKeyFile => Path.Combine(ActiveWorldPath, "dm_public_keys.json");
 
+        // ── Raider.io character links ────────────────────────────────────────────
+        private static ConcurrentDictionary<string, RioCharData> _userRioChars = new();
+
+        // ── Steam profiles ───────────────────────────────────────────────────────
+        private static ConcurrentDictionary<string, SteamData> _userSteamProfiles = new();
+        private static string SteamFile => Path.Combine(ActiveWorldPath, "steam.json");
+
+        // ── XP / Leveling ────────────────────────────────────────────────────────
+        private static Dictionary<string, UserXp> UserXpData = new();
+        private static readonly object XpLock = new();
+        private static string XpFile => Path.Combine(ActiveWorldPath, "xp.json");
+        private static ConcurrentDictionary<string, DateTime> _xpCooldowns = new();
+        private static readonly Random _xpRng = new();
 
         // ── DM storage ───────────────────────────────────────────────────────────
         private static string DmDir => Path.Combine(ActiveWorldPath, "dms");
@@ -137,6 +153,9 @@ namespace Origin.Server.Core
             LoadThreadMetas();
             LoadPublicKeys();
             LoadE2EKeys();
+            LoadXp();
+            LoadSteam();
+            LoadBios();
             Directory.CreateDirectory(UploadDir);
             Console.Title = $"Origin Server — {ActiveConfig.Settings.ServerName} :{ActiveConfig.Settings.Port}";
 
@@ -160,6 +179,16 @@ namespace Origin.Server.Core
             bool adminConfigured = !string.IsNullOrEmpty(ActiveConfig.Settings.AdminPassword);
             Log("SYSTEM", adminConfigured ? "Owner password configured." : "WARNING: No AdminPassword set — owner commands disabled. Set AdminPassword in server.json.");
             Log("SYSTEM", "Awaiting client connections...");
+
+            // ── Voice XP tick (every 60s) ──────────────────────────────────────
+            _ = Task.Run(async () => {
+                while (true) {
+                    await Task.Delay(60_000);
+                    if (!ActiveConfig.Settings.Xp.Enabled) continue;
+                    var voiceUsers = ChannelOccupants.Values.SelectMany(l => l).Distinct().ToList();
+                    foreach (var u in voiceUsers) _ = AwardXp(u, 2);
+                }
+            });
 
             // Public directory announce (if enabled in server.json)
             var listing = ActiveConfig.Settings.PublicListing;
@@ -294,12 +323,14 @@ namespace Origin.Server.Core
                 threadId       = m.ThreadId,
                 threadCount    = m.ThreadCount > 0 ? (int?)m.ThreadCount : null,
                 poll           = m.Poll,
+                forumTitle     = m.ForumTitle,
+                forumTags      = m.ForumTags,
                 mentionedRoles = mentionedRoles
             });
 
         private static void LoadChannelHistory()
         {
-            foreach (var ch in ActiveConfig.Channels.Where(c => c.Type == "Text" || c.Type == "Voice"))
+            foreach (var ch in ActiveConfig.Channels.Where(c => c.Type == "Text" || c.Type == "Voice" || c.Type == "Forum"))
             {
                 var msgs = new List<StoredMessage>();
                 string file = ChatFile(ch.Id);
@@ -328,7 +359,11 @@ namespace Origin.Server.Core
                                     : new(),
                                 Edits     = root.TryGetProperty("editHistory", out var ehEl) && ehEl.ValueKind == JsonValueKind.Array
                                     ? JsonSerializer.Deserialize<List<EditEntry>>(ehEl.GetRawText()) ?? new()
-                                    : new()
+                                    : new(),
+                                ForumTitle = root.TryGetProperty("forumTitle", out var fttEl) && fttEl.ValueKind == JsonValueKind.String ? fttEl.GetString() : null,
+                                ForumTags  = root.TryGetProperty("forumTags",  out var ftgEl) && ftgEl.ValueKind == JsonValueKind.Array
+                                    ? ftgEl.EnumerateArray().Select(t => t.GetString()).Where(t => t != null).ToList()
+                                    : null
                             });
                         }
                         catch { }
@@ -369,7 +404,7 @@ namespace Origin.Server.Core
             if (days <= 0) return;
             long cutoffTs = DateTimeOffset.UtcNow.AddDays(-days).ToUnixTimeSeconds();
 
-            foreach (var ch in ActiveConfig.Channels.Where(c => c.Type == "Text" || c.Type == "Voice"))
+            foreach (var ch in ActiveConfig.Channels.Where(c => c.Type == "Text" || c.Type == "Voice" || c.Type == "Forum"))
             {
                 if (!ChannelHistory.TryGetValue(ch.Id, out var msgs)) continue;
                 int before = msgs.Count;
@@ -638,6 +673,146 @@ namespace Origin.Server.Core
         {
             lock (AvatarLock)
                 File.WriteAllText(AvatarFile, JsonSerializer.Serialize(UserAvatars, new JsonSerializerOptions { WriteIndented = true }));
+        }
+
+        private static void LoadBios()
+        {
+            if (File.Exists(BioFile))
+                UserBios = new ConcurrentDictionary<string, string>(
+                    JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(BioFile)) ?? new());
+        }
+
+        private static void SaveBios() =>
+            File.WriteAllText(BioFile, JsonSerializer.Serialize(UserBios.ToDictionary(kv => kv.Key, kv => kv.Value), new JsonSerializerOptions { WriteIndented = true }));
+
+        // ── XP helpers ───────────────────────────────────────────────────────────
+
+        private static int LevelFromXp(long xp) => (int)Math.Floor(Math.Sqrt(xp / 50.0));
+
+        private static void LoadXp()
+        {
+            if (File.Exists(XpFile))
+            {
+                UserXpData = JsonSerializer.Deserialize<Dictionary<string, UserXp>>(File.ReadAllText(XpFile)) ?? new();
+                Log("XP", $"XP data loaded: {UserXpData.Count} users");
+            }
+        }
+
+        private static void SaveXp()
+        {
+            lock (XpLock)
+                File.WriteAllText(XpFile, JsonSerializer.Serialize(UserXpData, new JsonSerializerOptions { WriteIndented = true }));
+        }
+
+        // ── Steam helpers ─────────────────────────────────────────────────────────
+
+        private static void LoadSteam()
+        {
+            if (File.Exists(SteamFile))
+            {
+                _userSteamProfiles = new ConcurrentDictionary<string, SteamData>(
+                    JsonSerializer.Deserialize<Dictionary<string, SteamData>>(File.ReadAllText(SteamFile)) ?? new());
+                Log("STEAM", $"Steam profiles loaded: {_userSteamProfiles.Count}");
+            }
+        }
+
+        private static void SaveSteam()
+        {
+            File.WriteAllText(SteamFile, JsonSerializer.Serialize(
+                _userSteamProfiles.ToDictionary(kv => kv.Key, kv => kv.Value),
+                new JsonSerializerOptions { WriteIndented = true }));
+        }
+
+        private static string NormalizeSteamXmlUrl(string input)
+        {
+            input = input.Trim().TrimEnd('/');
+            if (input.StartsWith("https://steamcommunity.com/profiles/"))
+                return input + "?xml=1";
+            if (input.StartsWith("https://steamcommunity.com/id/"))
+                return input + "?xml=1";
+            if (input.StartsWith("steamcommunity.com/"))
+                return "https://" + input + "?xml=1";
+            if (input.All(char.IsDigit) && input.Length >= 15)
+                return $"https://steamcommunity.com/profiles/{input}?xml=1";
+            return $"https://steamcommunity.com/id/{input}?xml=1";
+        }
+
+        private static async Task<(SteamData data, string error)> FetchSteamProfile(string input)
+        {
+            try
+            {
+                var xmlUrl = NormalizeSteamXmlUrl(input);
+                using var req = new HttpRequestMessage(HttpMethod.Get, xmlUrl);
+                req.Headers.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36");
+                using var resp = await _http.SendAsync(req);
+                if (!resp.IsSuccessStatusCode) return (null, $"HTTP {(int)resp.StatusCode}");
+                var content = await resp.Content.ReadAsStringAsync();
+                var xml = XDocument.Parse(content);
+                var profile = xml.Root;
+                if (profile == null) return (null, "Invalid XML");
+                var visibility = profile.Element("visibilityState")?.Value;
+                if (visibility != "3") return (null, "Profile is private");
+                var onlineState = profile.Element("onlineState")?.Value ?? "offline";
+                var stateMsg    = WebUtility.HtmlDecode(profile.Element("stateMessage")?.Value ?? "");
+                string currentGame = null;
+                if (onlineState == "in-game")
+                {
+                    var m = Regex.Match(stateMsg, @"(?:In-Game\s*[:\-]?\s*)(.+)", RegexOptions.IgnoreCase);
+                    currentGame = m.Success ? m.Groups[1].Value.Trim() : stateMsg.Trim();
+                }
+                var topGame = profile.Element("mostPlayedGames")?.Element("mostPlayedGame");
+                var customUrl = profile.Element("customURL")?.Value;
+                var id64      = profile.Element("steamID64")?.Value;
+                var profileUrl = !string.IsNullOrEmpty(customUrl)
+                    ? $"https://steamcommunity.com/id/{customUrl}"
+                    : !string.IsNullOrEmpty(id64) ? $"https://steamcommunity.com/profiles/{id64}" : null;
+                return (new SteamData
+                {
+                    SteamId64    = id64,
+                    DisplayName  = WebUtility.HtmlDecode(profile.Element("steamID")?.Value ?? ""),
+                    AvatarUrl    = profile.Element("avatarFull")?.Value,
+                    ProfileUrl   = profileUrl,
+                    OnlineState  = onlineState,
+                    CurrentGame  = currentGame,
+                    MemberSince  = profile.Element("memberSince")?.Value,
+                    Location     = profile.Element("location")?.Value,
+                    TopGame      = topGame?.Element("gameName")?.Value,
+                    TopGameHours = topGame?.Element("hoursOnRecord")?.Value,
+                    FetchedAt    = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                }, null);
+            }
+            catch (Exception ex) { return (null, ex.Message); }
+        }
+
+        private static async Task AwardXp(string alias, int amount)
+        {
+            if (!ActiveConfig.Settings.Xp.Enabled) return;
+            int oldLevel, newLevel;
+            long newXp;
+            lock (XpLock)
+            {
+                if (!UserXpData.TryGetValue(alias, out var e)) e = new UserXp();
+                e.Xp    += amount;
+                newXp    = e.Xp;
+                oldLevel = e.Level;
+                newLevel = LevelFromXp(e.Xp);
+                e.Level  = newLevel;
+                UserXpData[alias] = e;
+            }
+            _ = Task.Run(SaveXp);
+            await Broadcast(new { action = "XP_UPDATED", alias, xp = newXp, level = newLevel });
+            if (newLevel > oldLevel)
+            {
+                Log("XP", $"'{alias}' leveled up → {newLevel} (xp={newXp})");
+                await Broadcast(new { action = "XP_LEVELUP", alias, level = newLevel, xp = newXp });
+                var rewards = ActiveConfig.Settings.Xp.RoleRewards?.Where(r => r.Level == newLevel).ToList() ?? new();
+                foreach (var rw in rewards)
+                {
+                    lock (RoleLock) UserRoles[alias] = rw.Role;
+                    _ = Task.Run(SaveRoles);
+                    await Broadcast(new { action = "USER_ROLE_UPDATED", alias, role = rw.Role });
+                }
+            }
         }
 
         // ── Broadcast helpers ────────────────────────────────────────────────────
@@ -1297,6 +1472,11 @@ namespace Origin.Server.Core
                     voiceOccupants   = ChannelOccupants.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()),
                     starboard        = new { enabled = ActiveConfig.Settings.StarboardEnabled, channelId = ActiveConfig.Settings.StarboardChannelId, emoji = ActiveConfig.Settings.StarboardEmoji, threshold = ActiveConfig.Settings.StarboardThreshold },
                     privacyStatement = ActiveConfig.Settings.PrivacyStatement ?? "",
+                    xpEnabled        = ActiveConfig.Settings.Xp.Enabled,
+                    memberLevels     = UserXpData.ToDictionary(kv => kv.Key, kv => new { xp = kv.Value.Xp, level = kv.Value.Level }),
+                    memberRioChars      = _userRioChars.ToDictionary(kv => kv.Key, kv => new { name = kv.Value.Name, realm = kv.Value.Realm, region = kv.Value.Region }),
+                    memberSteamProfiles = _userSteamProfiles.ToDictionary(kv => kv.Key, kv => (object)kv.Value),
+                    memberBios          = UserBios.ToDictionary(kv => kv.Key, kv => kv.Value),
                     iceServers
                 });
 
@@ -1312,7 +1492,7 @@ namespace Origin.Server.Core
                     await Send(socket, new { action = "E2E_KEY_GRANTED", channelId = g.channelId, ephemPub = g.ephemPub, iv = g.iv, wrapped = g.wrapped });
 
                 // ── Chat history ─────────────────────────────────────────────────
-                foreach (var ch in ActiveConfig.Channels.Where(c => c.Type == "Text" || c.Type == "Voice"))
+                foreach (var ch in ActiveConfig.Channels.Where(c => c.Type == "Text" || c.Type == "Voice" || c.Type == "Forum"))
                 {
                     if (!ChannelHistory.TryGetValue(ch.Id, out var msgs) || msgs.Count == 0) continue;
                     Log("DATA", $"Pushing '{ch.Name}' history ({Math.Min(msgs.Count, 50)} msgs) → '{currentAlias}'");
@@ -1444,7 +1624,41 @@ namespace Origin.Server.Core
                                 }
                                 if (RoleRank(userRole) < RoleRank("admin"))
                                     helpLines.Add("(No admin commands available for your role)");
+                                if (ActiveConfig.Settings.Xp.Enabled) { helpLines.Add("/rank [alias] — show level and XP"); helpLines.Add("/leaderboard — top 10 by XP"); }
                                 await Send(socket, new { action = "SYSTEM_MESSAGE", message = string.Join("\n", helpLines) });
+                                continue;
+                            }
+                            if (cmd == "/rank")
+                            {
+                                string rankTarget = parts.Length >= 2 ? parts[1] : currentAlias;
+                                UserXp rankEntry; lock (XpLock) UserXpData.TryGetValue(rankTarget, out rankEntry);
+                                if (!ActiveConfig.Settings.Xp.Enabled)
+                                    await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Leveling is disabled on this server." });
+                                else if (rankEntry == null)
+                                    await Send(socket, new { action = "SYSTEM_MESSAGE", message = $"{rankTarget} has no XP yet." });
+                                else
+                                {
+                                    long nextXp = (long)Math.Ceiling(Math.Pow(rankEntry.Level + 1, 2) * 50);
+                                    await Send(socket, new { action = "SYSTEM_MESSAGE", message = $"⭐ {rankTarget} | Level {rankEntry.Level} | {rankEntry.Xp} XP | Next level at {nextXp} XP" });
+                                }
+                                continue;
+                            }
+                            if (cmd == "/leaderboard")
+                            {
+                                if (!ActiveConfig.Settings.Xp.Enabled)
+                                    await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Leveling is disabled on this server." });
+                                else
+                                {
+                                    List<(string a, long x, int l)> lb;
+                                    lock (XpLock) lb = UserXpData.OrderByDescending(kv => kv.Value.Xp).Take(10).Select(kv => (kv.Key, kv.Value.Xp, kv.Value.Level)).ToList();
+                                    if (lb.Count == 0) await Send(socket, new { action = "SYSTEM_MESSAGE", message = "No XP data yet." });
+                                    else
+                                    {
+                                        var lines = new List<string> { "━━ XP Leaderboard ━━" };
+                                        for (int i = 0; i < lb.Count; i++) lines.Add($"#{i+1} {lb[i].a} — Level {lb[i].l} ({lb[i].x} XP)");
+                                        await Send(socket, new { action = "SYSTEM_MESSAGE", message = string.Join("\n", lines) });
+                                    }
+                                }
                                 continue;
                             }
 
@@ -1664,6 +1878,10 @@ namespace Origin.Server.Core
                                         if (parent != null)
                                             replySnippet = new ReplySnippet { Author = parent.Author, Text = parent.Message.Length > 80 ? parent.Message[..80] + "…" : parent.Message };
                                     }
+                            string forumTitle = incoming.RootElement.TryGetProperty("forumTitle", out var fttEl) && fttEl.ValueKind == JsonValueKind.String ? fttEl.GetString()?.Trim() : null;
+                            List<string> forumTags = new();
+                            if (incoming.RootElement.TryGetProperty("forumTags", out var ftagsEl) && ftagsEl.ValueKind == JsonValueKind.Array)
+                                forumTags = ftagsEl.EnumerateArray().Select(t => t.GetString()?.Trim()).Where(t => !string.IsNullOrEmpty(t)).ToList();
                             string msgId = Guid.NewGuid().ToString("N")[..12];
                             var stored = new StoredMessage {
                                 Id           = msgId,
@@ -1673,7 +1891,9 @@ namespace Origin.Server.Core
                                 Ts           = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                                 Message      = text,
                                 ReplyToId    = replyToId,
-                                ReplySnippet = replySnippet
+                                ReplySnippet = replySnippet,
+                                ForumTitle   = string.IsNullOrEmpty(forumTitle) ? null : forumTitle,
+                                ForumTags    = forumTags.Count > 0 ? forumTags : null
                             };
                             lock (HistoryLock)
                             {
@@ -1697,6 +1917,12 @@ namespace Origin.Server.Core
                             var chObj = ActiveConfig.Channels.FirstOrDefault(c => c.Id == channelId);
                             if (chatCh?.E2E != true)
                                 FireWebhooks(channelId, chObj?.Name ?? channelId, currentAlias, text, stored.Time);
+                            // ── XP award ─────────────────────────────────────────
+                            if (ActiveConfig.Settings.Xp.Enabled)
+                            {
+                                bool ok = !_xpCooldowns.TryGetValue(currentAlias, out DateTime lastXp) || (DateTime.UtcNow - lastXp).TotalSeconds >= 60;
+                                if (ok) { _xpCooldowns[currentAlias] = DateTime.UtcNow; _ = AwardXp(currentAlias, _xpRng.Next(15, 26)); }
+                            }
                         }
                     }
 
@@ -2876,7 +3102,7 @@ namespace Origin.Server.Core
                         { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Only the owner can add channels." }); continue; }
                         string newType = incoming.RootElement.TryGetProperty("type", out var ntEl) ? ntEl.GetString()?.Trim() ?? "Text" : "Text";
                         string newName = incoming.RootElement.TryGetProperty("name", out var nnEl) ? nnEl.GetString()?.Trim() ?? "new-channel" : "new-channel";
-                        if (!new[] { "Text", "Voice", "Header" }.Contains(newType)) newType = "Text";
+                        if (!new[] { "Text", "Voice", "Header", "Forum" }.Contains(newType)) newType = "Text";
                         var newCh = new Channel { Id = Guid.NewGuid().ToString("N"), Name = string.IsNullOrEmpty(newName) ? "new-channel" : newName, Type = newType };
                         ActiveConfig.Channels.Add(newCh);
                         await BroadcastChannelUpdate();
@@ -3091,6 +3317,68 @@ namespace Origin.Server.Core
                         foreach (var kv in ActiveClients.ToList())
                             try { await SendRaw(kv.Value, notesPayload); } catch { }
                     }
+                    // ── SET_RIO_CHAR ──────────────────────────────────────────────
+                    else if (action == "SET_RIO_CHAR")
+                    {
+                        string rioName   = incoming.RootElement.TryGetProperty("name",   out var rnEl)   ? rnEl.GetString()?.Trim() : null;
+                        string rioRealm  = incoming.RootElement.TryGetProperty("realm",  out var rrEl)   ? rrEl.GetString()?.Trim() : null;
+                        string rioRegion = incoming.RootElement.TryGetProperty("region", out var rregEl) ? rregEl.GetString()?.Trim().ToLower() : "eu";
+                        if (string.IsNullOrEmpty(rioName) || string.IsNullOrEmpty(rioRealm))
+                            _userRioChars.TryRemove(currentAlias, out _);
+                        else
+                            _userRioChars[currentAlias] = new RioCharData { Name = rioName, Realm = rioRealm, Region = rioRegion };
+                        await Broadcast(new { action = "RIO_CHAR_UPDATED", alias = currentAlias, name = rioName, realm = rioRealm, region = rioRegion });
+                    }
+
+                    // ── SET_BIO ───────────────────────────────────────────────────
+                    else if (action == "SET_BIO")
+                    {
+                        string bio = incoming.RootElement.TryGetProperty("bio", out var bioEl) ? (bioEl.GetString() ?? "").Trim() : "";
+                        bio = bio.Length > 120 ? bio[..120] : bio;
+                        if (string.IsNullOrEmpty(bio)) UserBios.TryRemove(currentAlias, out _);
+                        else UserBios[currentAlias] = bio;
+                        _ = Task.Run(SaveBios);
+                        await Broadcast(new { action = "BIO_UPDATED", alias = currentAlias, bio });
+                    }
+
+                    // ── SET_STEAM_PROFILE ─────────────────────────────────────────
+                    else if (action == "SET_STEAM_PROFILE")
+                    {
+                        string steamInput = incoming.RootElement.TryGetProperty("profile", out var spEl) ? spEl.GetString()?.Trim() : null;
+                        if (string.IsNullOrEmpty(steamInput))
+                        {
+                            _userSteamProfiles.TryRemove(currentAlias, out _);
+                            SaveSteam();
+                            await Broadcast(new { action = "STEAM_PROFILE_UPDATED", alias = currentAlias, profile = (object)null });
+                        }
+                        else
+                        {
+                            await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Fetching Steam profile…" });
+                            var (steamData, err) = await FetchSteamProfile(steamInput);
+                            if (steamData != null)
+                            {
+                                _userSteamProfiles[currentAlias] = steamData;
+                                SaveSteam();
+                                Log("STEAM", $"'{currentAlias}' linked Steam: {steamData.DisplayName} ({steamData.SteamId64})");
+                                await Broadcast(new { action = "STEAM_PROFILE_UPDATED", alias = currentAlias, profile = steamData });
+                            }
+                            else
+                            {
+                                await Send(socket, new { action = "SYSTEM_MESSAGE", message = $"Steam fetch failed: {err ?? "unknown error"}. Make sure your profile is public." });
+                            }
+                        }
+                    }
+
+                    // ── SET_XP_CONFIG ─────────────────────────────────────────────
+                    else if (action == "SET_XP_CONFIG")
+                    {
+                        if (RoleRank(userRole) < RoleRank("admin")) { await Send(socket, new { action = "SYSTEM_MESSAGE", message = "Admin only." }); continue; }
+                        if (incoming.RootElement.TryGetProperty("enabled", out var xpEnEl)) ActiveConfig.Settings.Xp.Enabled = xpEnEl.GetBoolean();
+                        _ = Task.Run(() => File.WriteAllText(ConfigFile, JsonSerializer.Serialize(ActiveConfig, new JsonSerializerOptions { WriteIndented = true })));
+                        Log("ADMIN", $"'{currentAlias}' SET_XP_CONFIG enabled={ActiveConfig.Settings.Xp.Enabled}");
+                        await Broadcast(new { action = "XP_CONFIG_UPDATED", enabled = ActiveConfig.Settings.Xp.Enabled });
+                    }
+
                     else if (action == "TYPING")
                     {
                         string typingCh = incoming.RootElement.TryGetProperty("channelId", out var tyCh) ? tyCh.GetString()?.Trim() : null;
@@ -3187,6 +3475,7 @@ namespace Origin.Server.Data
         public PublicListingConfig?  PublicListing { get; set; } = null;
         public string?  PrivacyStatement { get; set; } = null;
         public AutoModConfig AutoMod { get; set; } = new();
+        public XpConfig Xp { get; set; } = new();
     }
 
     public class AutoModConfig
@@ -3253,6 +3542,8 @@ namespace Origin.Server.Data
         public string   ThreadId    { get; set; }
         public int      ThreadCount { get; set; }
         public PollData Poll        { get; set; }
+        public string         ForumTitle { get; set; }
+        public List<string>   ForumTags  { get; set; }
     }
 
     public class PollData
@@ -3330,5 +3621,45 @@ namespace Origin.Server.Data
         public string   BannedBy     { get; set; }
         public DateTime BannedAt     { get; set; }
         public string   Reason       { get; set; }
+    }
+
+    public class RioCharData
+    {
+        public string Name   { get; set; }
+        public string Realm  { get; set; }
+        public string Region { get; set; }
+    }
+
+    public class SteamData
+    {
+        public string SteamId64    { get; set; }
+        public string DisplayName  { get; set; }
+        public string AvatarUrl    { get; set; }
+        public string ProfileUrl   { get; set; }
+        public string OnlineState  { get; set; }
+        public string CurrentGame  { get; set; }
+        public string MemberSince  { get; set; }
+        public string Location     { get; set; }
+        public string TopGame      { get; set; }
+        public string TopGameHours { get; set; }
+        public long   FetchedAt    { get; set; }
+    }
+
+    public class XpConfig
+    {
+        public bool Enabled { get; set; } = true;
+        public List<XpRoleReward> RoleRewards { get; set; } = new();
+    }
+
+    public class XpRoleReward
+    {
+        public int    Level { get; set; }
+        public string Role  { get; set; }
+    }
+
+    public class UserXp
+    {
+        public long Xp    { get; set; }
+        public int  Level { get; set; }
     }
 }

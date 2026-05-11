@@ -111,10 +111,10 @@
         /* .input-box and #input-area layout in Input area section below */
 
         /* ── User Footer ── */
-        #user-footer { background: var(--bg-float); padding: 10px 10px 10px 20px; display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; position: relative; border-radius: 8px; margin: 0 4px 4px; }
+        #user-footer { background: var(--bg-float); padding: 8px 8px 8px 12px; display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; position: relative; border-radius: 8px; margin: 0 4px 4px; }
         .footer-row { display: flex; align-items: center; gap: 6px; }
         .avatar { width: 32px; height: 32px; background: var(--accent); border-radius: 50%; flex-shrink: 0; }
-        #footer-speaking-bar { position: absolute; left: 7px; top: 10px; bottom: 10px; width: 3px; border-radius: 2px; background: var(--bg-border); overflow: hidden; }
+        #footer-speaking-bar { position: absolute; left: 4px; top: 8px; bottom: 8px; width: 3px; border-radius: 2px; background: var(--bg-border); overflow: hidden; }
         #footer-speaking-fill { position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; border-radius: 2px; background: var(--success); transition: height 0.04s linear, background 0.1s; }
         #footer-speaking-fill.muted { background: var(--danger); }
         #my-status-dot { border-color: var(--bg-float); right: auto; left: -2px; bottom: -2px; width: 7px; height: 7px; }
@@ -123,8 +123,8 @@
         #ui-alias { font-weight: 700; font-size: 13px; color: var(--text-normal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         #voice-mode-label { font-size: 10px; color: var(--text-muted); }
         #voice-mode-label:empty { display: none; }
-        #footer-btn-row { display: flex; align-items: center; gap: 2px; justify-content: flex-end; }
-        #footer-btn-row .footer-icon-btn, #footer-btn-row #btn-settings { width: 26px; height: 26px; font-size: 13px; }
+        #footer-btn-row { display: flex; align-items: center; gap: 2px; width: 100%; }
+        #footer-btn-row .footer-icon-btn, #footer-btn-row #btn-settings { flex: 1; min-width: 0; height: 26px; font-size: 13px; }
 
         /* ── Settings button ── */
         #btn-settings { border-radius: 50%; border: none; background: var(--bg-button); color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -160,6 +160,8 @@
         hr.divider { border: none; border-top: 1px solid var(--bg-deep); }
 
         /* ── Select dropdowns ── */
+        .settings-input { width: 100%; background: var(--bg-deep); color: var(--text-normal); border: 1px solid var(--bg-border); border-radius: 5px; padding: 9px 12px; font-size: 13px; outline: none; box-sizing: border-box; }
+        .settings-input:focus { border-color: var(--accent); }
         .settings-select { width: 100%; background: var(--bg-deep); color: var(--text-normal); border: 1px solid var(--bg-border); border-radius: 5px; padding: 9px 30px 9px 12px; font-size: 13px; outline: none; cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='%23949ba4'%3E%3Cpath d='M0 0l5 6 5-6z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; }
         .settings-select:focus { border-color: var(--accent); }
 
@@ -294,6 +296,37 @@
         .automod-row { display:flex; align-items:center; gap:10px; font-size:13px; }
         .automod-textarea { width:100%; min-height:64px; font-size:12px; font-family:monospace; background:var(--bg-active); border:1px solid var(--bg-hover); border-radius:6px; color:var(--text-normal); padding:6px 8px; resize:vertical; }
         .dnd-indicator { font-size:10px; color:#e74c3c; padding:1px 6px; border-radius:3px; background:rgba(231,76,60,0.15); margin-left:4px; }
+        /* ── Forum channels ── */
+        #chat-history.forum-mode { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; padding: 16px; align-content: start; overflow-y: auto; }
+        .forum-post-card { background: var(--bg-surface); border: 1px solid var(--bg-border); border-radius: 8px; padding: 14px 16px 12px; cursor: pointer; transition: border-color 0.15s, background 0.15s; display: flex; flex-direction: column; gap: 7px; }
+        .forum-post-card:hover { border-color: var(--accent); background: var(--bg-hover); }
+        .forum-post-title { font-size: 14px; font-weight: 700; color: var(--text-heading); line-height: 1.3; }
+        .forum-post-excerpt { font-size: 12px; color: var(--text-muted); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        .forum-post-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+        .forum-tag { font-size: 10px; font-weight: 600; color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); border-radius: 3px; padding: 1px 6px; }
+        .forum-post-meta { font-size: 11px; color: var(--text-faint); display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+        .forum-post-meta .fpm-replies { color: var(--text-subtle); }
+        #forum-compose-bar { padding: 8px 16px 16px; border-top: 1px solid var(--bg-border); display: none; }
+        #forum-compose-bar.visible { display: block; }
+        .forum-new-post-btn { width: 100%; padding: 10px; background: var(--accent); color: #fff; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+        .forum-new-post-btn:hover { background: var(--accent-hover); }
+        #new-post-overlay { display: none; align-items: center; justify-content: center; }
+        #new-post-overlay.open { display: flex; }
+        #new-post-modal { background: var(--bg-sidebar); border-radius: 10px; width: 540px; max-width: 94vw; max-height: 88vh; overflow-y: auto; box-shadow: 0 12px 40px rgba(0,0,0,0.6); padding: 0; }
+        .npm-header { padding: 18px 20px 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--bg-deep); }
+        .npm-title { font-size: 15px; font-weight: 700; color: var(--text-heading); }
+        .npm-body { padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 14px; }
+        #new-post-modal textarea { min-height: 120px; resize: vertical; }
+        #ai-summary-card { background: var(--bg-surface); border-bottom: 1px solid var(--bg-border); padding: 10px 16px 10px; flex-shrink: 0; display: none; }
+        #ai-summary-card.visible { display: block; }
+        .ai-sum-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+        .ai-sum-title { font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.8px; }
+        .ai-sum-close { background: none; border: none; color: var(--text-faint); font-size: 14px; cursor: pointer; padding: 0; line-height: 1; }
+        .ai-sum-close:hover { color: var(--text-normal); }
+        .ai-sum-body { font-size: 13px; color: var(--text-normal); line-height: 1.6; white-space: pre-wrap; }
+        .ai-sum-footer { font-size: 10px; color: var(--text-faint); margin-top: 6px; }
+        #btn-ai-catchup { font-size: 13px; opacity: 0.7; }
+        #btn-ai-catchup:hover { opacity: 1; }
         #telemetry-strip { padding: 3px 16px 5px; font-size: 10px; color: var(--text-faint); display: flex; align-items: center; gap: 5px; border-bottom: 1px solid var(--bg-deep); flex-shrink: 0; }
         #telemetry-strip .tm-readmore { background: none; border: none; padding: 0; font-size: 10px; color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
         #telemetry-strip .tm-readmore:hover { opacity: 0.8; }
@@ -617,6 +650,24 @@
         .link-preview-watch-btn:hover { opacity: 0.85; }
         .link-preview-watch-btn:disabled { opacity: 0.5; cursor: default; }
 
+        /* ── Unread jump pill ── */
+        #unread-jump-pill { display:none; justify-content:center; padding:4px 0 2px; }
+        #unread-jump-pill.visible { display:flex; }
+        #unread-jump-pill .ujp-inner { background:var(--accent); color:#fff; font-size:12px; font-weight:600; padding:4px 18px; border-radius:20px; cursor:pointer; box-shadow:0 2px 10px rgba(0,0,0,0.35); user-select:none; }
+        #unread-jump-pill .ujp-inner:hover { opacity:0.85; }
+
+        /* ── Transcription strip ── */
+        #transcription-strip { display:none; padding:5px 16px 4px; background:rgba(0,0,0,0.25); font-size:12px; color:var(--text-muted); max-height:60px; overflow-y:auto; line-height:1.55; border-top:1px solid var(--bg-hover); font-style:italic; }
+        #transcription-strip.active { display:block; }
+        #btn-transcribe.on { background:var(--accent); color:#fff; }
+
+        /* ── Channel online count ── */
+        #channel-online-count { font-size:11px; color:var(--text-faint); margin-left:6px; flex-shrink:0; white-space:nowrap; align-self:center; }
+
+        /* ── Server drag-to-reorder ── */
+        .server-icon-wrap.dragging { opacity:0.35; }
+        .server-icon-wrap.drag-over .server-icon { box-shadow:0 0 0 2px var(--accent); border-radius:16px; }
+
         /* ── Share button ── */
         #btn-share { display: none; }
         #btn-share.visible { display: flex; }
@@ -835,6 +886,9 @@
         .pc-notes-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
         .pc-notes-input { width: 100%; background: var(--bg-deep); border: 1px solid var(--bg-border); border-radius: 5px; padding: 6px 8px; font-size: 12px; color: var(--text-normal); resize: vertical; min-height: 52px; font-family: inherit; outline: none; box-sizing: border-box; }
         .pc-notes-input:focus { border-color: var(--accent); }
+        .pc-bio { padding: 0 14px 8px; font-size: 12px; color: var(--text-subtle); font-style: italic; line-height: 1.4; }
+        .integration-card-wrap { position: relative; }
+        .integration-badge { position:absolute;bottom:5px;right:8px;font-size:9px;font-weight:700;color:var(--text-faint);background:var(--bg-border);border-radius:4px;padding:1px 5px;letter-spacing:0.4px;text-transform:uppercase;pointer-events:none; }
 
         /* ── GIF picker ── */
         #gif-picker { position: fixed; z-index: 400; background: var(--bg-surface); border: 1px solid var(--bg-border); border-radius: 8px; padding: 8px; width: 320px; box-shadow: 0 8px 24px rgba(0,0,0,0.7); display: none; flex-direction: column; gap: 6px; }
@@ -854,14 +908,14 @@
         #notes-panel.open { display: flex; }
         #notes-panel-header { padding: 10px 12px 8px; font-size: 11px; font-weight: 700; color: var(--text-subtle); text-transform: uppercase; letter-spacing: 0.7px; flex-shrink: 0; border-bottom: 1px solid var(--bg-deep); display: flex; align-items: center; gap: 6px; }
         #notes-panel-header span { flex: 1; }
-        #notes-mode-bar { display: flex; gap: 2px; padding: 6px 8px 0; flex-shrink: 0; }
-        .notes-mode-btn { padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; background: transparent; border: 1px solid transparent; color: var(--text-faint); }
-        .notes-mode-btn.active { background: var(--bg-active); border-color: var(--bg-border); color: var(--text-normal); }
+        #notes-edit-btn { padding: 3px 9px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; background: transparent; border: 1px solid var(--bg-border); color: var(--text-faint); text-transform: none; letter-spacing: 0; }
+        #notes-edit-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
         #notes-fmt-bar { display: flex; gap: 2px; padding: 4px 8px; flex-shrink: 0; border-bottom: 1px solid var(--bg-deep); }
         .notes-fmt-btn { padding: 3px 7px; border-radius: 4px; font-size: 12px; cursor: pointer; background: transparent; border: 1px solid transparent; color: var(--text-subtle); font-family: inherit; }
         .notes-fmt-btn:hover { background: var(--bg-hover); color: var(--text-normal); }
         #notes-textarea { flex: 1; resize: none; background: transparent; border: none; outline: none; color: var(--text-normal); font-size: 12.5px; line-height: 1.6; padding: 12px; font-family: inherit; }
-        #notes-preview { flex: 1; overflow-y: auto; padding: 12px; font-size: 12.5px; line-height: 1.65; color: var(--text-normal); display: none; }
+        #notes-preview { flex: 1; overflow-y: auto; padding: 12px; font-size: 12.5px; line-height: 1.65; color: var(--text-normal); }
+        #notes-preview.empty::before { content: 'No notes yet — click Edit to add some.'; color: var(--text-faint); font-style: italic; font-size: 12px; }
         #notes-preview strong { color: var(--text-heading); }
         #notes-preview h1, #notes-preview h2, #notes-preview h3 { color: var(--text-heading); margin: 0.6em 0 0.3em; }
         #notes-preview pre { background: var(--bg-deep); border-radius: 5px; padding: 8px 10px; overflow-x: auto; margin: 6px 0; font-size: 11.5px; }
@@ -890,6 +944,9 @@
         .member-entry-name { font-size: 13px; font-weight: 600; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .member-entry-vc { font-size: 10px; color: var(--text-subtle); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .member-entry-status-text { font-size: 10px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: italic; }
+        .xp-level-badge { display:inline-flex;align-items:center;justify-content:center;background:var(--accent);color:#fff;font-size:8px;font-weight:700;border-radius:8px;padding:1px 4px;min-width:16px;line-height:14px;margin-left:4px;vertical-align:middle; }
+        .xp-levelup-toast { position:fixed;bottom:88px;left:50%;transform:translateX(-50%);background:var(--bg-surface);border:2px solid var(--accent);border-radius:12px;padding:10px 22px;font-size:14px;font-weight:600;color:var(--text-heading);z-index:9000;pointer-events:none;opacity:0;transition:opacity 0.3s;white-space:nowrap; }
+        .xp-levelup-toast.show { opacity:1; }
         /* ── Channel topic ── */
         #chat-channel-topic { font-size: 11px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 400px; cursor: default; }
         #chat-channel-topic:not(:empty)::before { content: '·'; margin-right: 5px; }
@@ -979,6 +1036,22 @@
         .pc-status { padding: 0 14px 4px; font-size: 12px; color: var(--text-faint); }
         .pc-status-text { padding: 0 14px 6px; font-size: 12px; color: var(--text-normal); font-style: italic; }
         .pc-vc { padding: 0 14px 8px; font-size: 12px; color: var(--text-faint); }
+        .pc-xp-row { padding: 0 14px 6px; font-size: 11px; color: var(--accent); font-weight: 600; }
+        .pc-rio-row { padding: 4px 14px 8px; }
+        .rio-badge { display:flex;align-items:center;gap:8px;background:var(--bg-deep);border-radius:6px;padding:7px 10px;cursor:pointer;text-decoration:none; }
+        .rio-badge:hover { background:var(--bg-hover); }
+        .rio-badge-avatar { width:28px;height:28px;border-radius:4px;flex-shrink:0;object-fit:cover; }
+        .rio-badge-name { font-size:12px;font-weight:700;color:var(--text-normal); }
+        .rio-badge-sub { font-size:11px;color:var(--text-faint);margin-top:1px; }
+        .rio-score-val { font-weight:800; }
+        #pc-steam-row { padding: 4px 14px 8px; }
+        .steam-badge { display:flex;align-items:center;gap:8px;background:var(--bg-deep);border-radius:6px;padding:7px 10px;cursor:pointer;text-decoration:none; }
+        .steam-badge:hover { background:var(--bg-hover); }
+        .steam-badge-avatar { width:36px;height:36px;border-radius:4px;flex-shrink:0;object-fit:cover; }
+        .steam-badge-info { display:flex;flex-direction:column;gap:2px;min-width:0; }
+        .steam-badge-name { font-size:12px;font-weight:700;color:var(--text-normal);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+        .steam-game { font-size:11px;color:#4c9fd4;font-weight:600; }
+        .steam-top-game { font-size:11px;color:var(--text-faint); }
         .pc-actions { padding: 8px 14px 12px; border-top: 1px solid var(--bg-border); display: flex; gap: 6px; flex-wrap: wrap; }
         .msg-author { cursor: pointer; }
         .msg-author:hover { text-decoration: underline; }
@@ -1405,8 +1478,8 @@
             #chat-input, #thread-input { font-size: 16px; }
 
             /* Bigger tap targets for footer buttons */
-            .footer-icon-btn { width: 44px; height: 44px; font-size: 18px; }
-            #footer-btn-row { gap: 0; justify-content: space-around; }
+            .footer-icon-btn { height: 44px; font-size: 18px; }
+            #footer-btn-row { gap: 0; }
 
             /* Taller chat header for easier tapping */
             #chat-header { min-height: 52px; padding: 0 8px; gap: 6px; }
@@ -1513,7 +1586,7 @@
                 <div id="my-status-dot" class="status-dot online"></div>
             </div>
             <div id="footer-user-col">
-                <span id="ui-alias">...</span>
+                <span id="ui-alias" onclick="_selfCard(event)" style="cursor:pointer;" title="View your profile card">...</span>
                 <span id="iskraid-badge" onclick="openSettings();switchTab('iskraid')" style="cursor:pointer;" title="Logged in with IskraID">
                     <svg width="9" height="9" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
                         <defs><linearGradient id="ibg" x1="4" y1="2" x2="22" y2="26" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#7c6fff"/><stop offset="100%" stop-color="#00cfff"/></linearGradient></defs>
@@ -1533,6 +1606,7 @@
             <button id="btn-video"      class="footer-icon-btn" onclick="toggleVideo()"        title="Start camera"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M251.77,73a8,8,0,0,0-8.21.39L208,97.05V72a16,16,0,0,0-16-16H32A16,16,0,0,0,16,72V184a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V159l35.56,23.71A8,8,0,0,0,248,184a8,8,0,0,0,8-8V80A8,8,0,0,0,251.77,73ZM192,184H32V72H192V184Zm48-22.95-32-21.33V116.28L240,95Z"/></svg></button>
             <button id="btn-share"      class="footer-icon-btn" onclick="toggleScreenShare()"  title="Share screen"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,40H48A24,24,0,0,0,24,64V176a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V64A24,24,0,0,0,208,40Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V64a8,8,0,0,1,8-8H208a8,8,0,0,1,8,8Zm-48,48a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,224Z"/></svg></button>
             <button id="btn-watch"      class="footer-icon-btn" onclick="toggleWatchParty()"    title="Watch Together"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M164,120a36,36,0,1,1-36-36A36,36,0,0,1,164,120Zm68-72V216a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V48A16,16,0,0,1,40,32H216A16,16,0,0,1,232,48Zm-16,0H40V216H216ZM188,120a60,60,0,1,0-60,60A60.07,60.07,0,0,0,188,120Z"/></svg></button>
+            <button id="btn-transcribe"  class="footer-icon-btn" onclick="toggleTranscription()" title="Live captions" style="font-size:11px;font-weight:700;letter-spacing:-0.5px;">CC</button>
             <button id="btn-rec"        class="footer-icon-btn" onclick="toggleRecording()"      title="Record session"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><circle cx="128" cy="128" r="48"/><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Z"/></svg></button>
             <button id="btn-settings"   class="footer-icon-btn" onclick="openSettings()"       title="Audio Settings"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,80a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Zm88-29.84q.06-2.16,0-4.32l14.92-18.64a8,8,0,0,0,1.48-7.06,107.21,107.21,0,0,0-10.88-26.25,8,8,0,0,0-6-3.93l-23.72-2.64q-1.48-1.56-3-3L186,40.54a8,8,0,0,0-3.94-6,107.71,107.71,0,0,0-26.25-10.87,8,8,0,0,0-7.06,1.49L130.16,40Q128,40,125.84,40L107.2,25.11a8,8,0,0,0-7.06-1.48A107.6,107.6,0,0,0,73.89,34.51a8,8,0,0,0-3.93,6L67.32,64.27q-1.56,1.49-3,3L40.54,70a8,8,0,0,0-6,3.94,107.71,107.71,0,0,0-10.87,26.25,8,8,0,0,0,1.49,7.06L40,125.84Q40,128,40,130.16L25.11,148.8a8,8,0,0,0-1.48,7.06,107.21,107.21,0,0,0,10.88,26.25,8,8,0,0,0,6,3.93l23.72,2.64q1.49,1.56,3,3L70,215.46a8,8,0,0,0,3.94,6,107.71,107.71,0,0,0,26.25,10.87,8,8,0,0,0,7.06-1.49L125.84,216q2.16.06,4.32,0l18.64,14.92a8,8,0,0,0,7.06,1.48,107.21,107.21,0,0,0,26.25-10.88,8,8,0,0,0,3.93-6l2.64-23.72q1.56-1.48,3-3L215.46,186a8,8,0,0,0,6-3.94,107.71,107.71,0,0,0,10.87-26.25,8,8,0,0,0-1.49-7.06Zm-16.1-6.5a73.93,73.93,0,0,1,0,8.68,8,8,0,0,0,1.74,5.48l14.19,17.73a91.57,91.57,0,0,1-6.23,15L187,173.11a8,8,0,0,0-5.1,2.64,74.11,74.11,0,0,1-6.14,6.14,8,8,0,0,0-2.64,5.1l-2.51,22.58a91.32,91.32,0,0,1-15,6.23l-17.74-14.19a8,8,0,0,0-5-1.75h-.48a73.93,73.93,0,0,1-8.68,0,8,8,0,0,0-5.48,1.74L100.45,215.8a91.57,91.57,0,0,1-15-6.23L82.89,187a8,8,0,0,0-2.64-5.1,74.11,74.11,0,0,1-6.14-6.14,8,8,0,0,0-5.1-2.64L46.43,170.6a91.32,91.32,0,0,1-6.23-15l14.19-17.74a8,8,0,0,0,1.74-5.48,73.93,73.93,0,0,1,0-8.68,8,8,0,0,0-1.74-5.48L40.2,100.45a91.57,91.57,0,0,1,6.23-15L69,82.89a8,8,0,0,0,5.1-2.64,74.11,74.11,0,0,1,6.14-6.14A8,8,0,0,0,82.89,69L85.4,46.43a91.32,91.32,0,0,1,15-6.23l17.74,14.19a8,8,0,0,0,5.48,1.74,73.93,73.93,0,0,1,8.68,0,8,8,0,0,0,5.48-1.74L155.55,40.2a91.57,91.57,0,0,1,15,6.23L173.11,69a8,8,0,0,0,2.64,5.1,74.11,74.11,0,0,1,6.14,6.14,8,8,0,0,0,5.1,2.64l22.58,2.51a91.32,91.32,0,0,1,6.23,15l-14.19,17.74A8,8,0,0,0,199.87,123.66Z"/></svg></button>
         </div>
@@ -1548,11 +1622,22 @@
             <span id="chat-channel-topic"></span>
         </div>
         <button id="chat-topic-edit-btn" onclick="editChannelTopic()" title="Set channel topic">✏</button>
+        <span id="channel-online-count"></span>
         <button id="pin-indicator" onclick="togglePinPanel()" title="Pinned messages">📌 <span id="pin-count-badge">0</span> pinned</button>
         <button id="media-gallery-btn" onclick="toggleMediaGallery()" title="Media gallery">🖼</button>
+        <button id="btn-export-channel" onclick="exportChannel()" title="Export channel messages">⬇</button>
+        <button id="btn-ai-catchup" onclick="runAiCatchup()" title="AI catch-up summary">✦</button>
         <button id="dm-call-btn" onclick="startDmCall(activeDmWith)" title="Voice call" style="display:none">📞</button>
         <button id="search-btn" onclick="openSearch()" title="Search messages">🔍</button>
         <button id="btn-members" onclick="toggleMembersPanel()" title="Toggle member list">👥</button>
+    </div>
+    <div id="ai-summary-card">
+        <div class="ai-sum-header">
+            <span class="ai-sum-title">✦ AI Catch-up</span>
+            <button class="ai-sum-close" onclick="dismissAiSummary()">✕</button>
+        </div>
+        <div class="ai-sum-body" id="ai-sum-body"></div>
+        <div class="ai-sum-footer" id="ai-sum-footer"></div>
     </div>
     <div id="search-modal" onclick="if(event.target===this||event.target.id==='search-backdrop')closeSearch()">
         <div id="search-backdrop"></div>
@@ -1654,7 +1739,12 @@
         <button class="btn-secondary" style="font-size:12px;padding:3px 14px;" onclick="exitBulkSelect()">Cancel</button>
         <button class="btn-danger"    style="font-size:12px;padding:3px 14px;" onclick="deleteBulkSelected()">Delete Selected</button>
     </div>
+    <div id="unread-jump-pill"><div class="ujp-inner" onclick="scrollToLatest()">↓ <span id="unread-jump-label">new messages</span></div></div>
+    <div id="transcription-strip"></div>
     <div id="typing-indicator"></div>
+    <div id="forum-compose-bar">
+        <button class="forum-new-post-btn" onclick="openNewPostModal()">+ New Post</button>
+    </div>
     <div id="input-area">
         <div id="slowmode-bar"></div>
         <div id="reply-bar">
@@ -1696,25 +1786,22 @@
 <div id="notes-panel">
     <div id="notes-panel-header">
         <span>📝 Channel Notes</span>
+        <button class="notes-mode-btn" id="notes-edit-btn" onclick="_notesToggleEdit()" title="Edit notes">✏ Edit</button>
         <button class="sidebar-hdr-btn" onclick="toggleNotesPanel()" title="Close">✕</button>
     </div>
-    <div id="notes-mode-bar">
-        <button class="notes-mode-btn active" id="notes-mode-edit" onclick="_notesSetMode('edit')">Edit</button>
-        <button class="notes-mode-btn" id="notes-mode-preview" onclick="_notesSetMode('preview')">Preview</button>
+    <div id="notes-fmt-bar" style="display:none;">
+        <button class="notes-fmt-btn" title="Bold (Ctrl+B)" onclick="_notesFmt('bold')" style="font-weight:700;">B</button>
+        <button class="notes-fmt-btn" title="Italic (Ctrl+I)" onclick="_notesFmt('italic')" style="font-style:italic;font-weight:600;">I</button>
+        <button class="notes-fmt-btn" title="Strikethrough" onclick="_notesFmt('strike')" style="text-decoration:line-through;">S</button>
+        <button class="notes-fmt-btn" title="Inline code (Ctrl+`)" onclick="_notesFmt('code')" style="font-family:monospace;letter-spacing:-1px;">`·`</button>
+        <button class="notes-fmt-btn" title="Blockquote" onclick="_notesFmt('quote')" style="font-size:14px;line-height:1;">&gt;</button>
+        <button class="notes-fmt-btn" title="Bullet list" onclick="_notesFmt('bullet')">•</button>
+        <button class="notes-fmt-btn" title="Numbered list" onclick="_notesFmt('number')">1.</button>
+        <button class="notes-fmt-btn" title="Code block" onclick="_notesFmt('codeblock')" style="font-family:monospace;font-size:10px;">{···}</button>
+        <button class="notes-fmt-btn" title="Horizontal rule" onclick="_notesFmt('hr')" style="letter-spacing:-1px;">───</button>
     </div>
-    <div id="notes-fmt-bar">
-        <button class="notes-fmt-btn" title="Bold (Ctrl+B)" onclick="_notesFmt('bold')"><strong>B</strong></button>
-        <button class="notes-fmt-btn" title="Italic (Ctrl+I)" onclick="_notesFmt('italic')"><em>I</em></button>
-        <button class="notes-fmt-btn" title="Strikethrough" onclick="_notesFmt('strike')"><del>S</del></button>
-        <button class="notes-fmt-btn" title="Inline code" onclick="_notesFmt('code')" style="font-family:monospace;">` `</button>
-        <button class="notes-fmt-btn" title="Blockquote" onclick="_notesFmt('quote')">❝</button>
-        <button class="notes-fmt-btn" title="Bullet list" onclick="_notesFmt('bullet')">• ─</button>
-        <button class="notes-fmt-btn" title="Numbered list" onclick="_notesFmt('number')">1. ─</button>
-        <button class="notes-fmt-btn" title="Code block" onclick="_notesFmt('codeblock')" style="font-family:monospace;">```</button>
-        <button class="notes-fmt-btn" title="Horizontal rule" onclick="_notesFmt('hr')">─ ─</button>
-    </div>
-    <textarea id="notes-textarea" placeholder="Shared notes for this channel — visible to all members…&#10;Supports **bold**, *italic*, `code`, > blockquote, - lists, ```code blocks```" oninput="_notesSaveDebounced()" onkeydown="_notesKeydown(event)"></textarea>
-    <div id="notes-preview"></div>
+    <textarea id="notes-textarea" style="display:none;" placeholder="Write notes here… Supports **bold**, *italic*, `code`, > quotes, - lists" oninput="_notesSaveDebounced()" onkeydown="_notesKeydown(event)"></textarea>
+    <div id="notes-preview" style="display:block;"></div>
     <div id="notes-save-status"></div>
 </div>
 
@@ -1781,6 +1868,7 @@
             <button id="tab-btn-webhooks"   class="tab-btn"        onclick="switchTab('webhooks')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Hooks</button>
             <button id="tab-btn-botapi"     class="tab-btn"        onclick="switchTab('botapi')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1" fill="currentColor" stroke="none"/></svg>Bot API</button>
             <button id="tab-btn-iskraid"    class="tab-btn"        onclick="switchTab('iskraid')"><svg width="15" height="15" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="itbg" x1="4" y1="2" x2="22" y2="26" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#7c6fff"/><stop offset="100%" stop-color="#00cfff"/></linearGradient></defs><path d="M16 2L4 16h10l-2 10 14-16H16L18 2z" fill="url(#itbg)" stroke="none"/></svg>IskraID</button>
+            <button id="tab-btn-ai"         class="tab-btn"        onclick="switchTab('ai')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>AI</button>
         </div>
 
         <!-- ── Audio Tab ── -->
@@ -1949,6 +2037,49 @@
                     <button class="btn-small" onclick="dmKeyExportFile()">Download backup</button>
                 </div>
             </div>
+            <hr class="divider">
+            <div>
+                <div class="section-label">Profile Quote</div>
+                <p style="font-size:11.5px;color:var(--text-subtle);line-height:1.6;margin-bottom:8px;">A short line shown on your profile card. 120 characters max.</p>
+                <input type="text" id="bio-input" class="form-input" placeholder="e.g. Touch grass advocate" maxlength="120" style="width:100%;box-sizing:border-box;" onkeydown="if(event.key==='Enter')saveBio()">
+                <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
+                    <button class="btn-primary" onclick="saveBio()">Save</button>
+                    <button class="btn-small" onclick="clearBio()">Clear</button>
+                </div>
+            </div>
+
+            <hr class="divider">
+            <div>
+                <div class="section-label">Raider.io — World of Warcraft</div>
+                <p style="font-size:11.5px;color:var(--text-subtle);line-height:1.6;margin-bottom:10px;">Link your WoW character to show your M+ score on your profile card and when you use <code style="background:var(--bg-deep);padding:1px 4px;border-radius:3px;font-size:11px;">/rio</code> in chat.</p>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    <input type="text" id="rio-name-input" class="form-input" placeholder="Character name" style="flex:2;min-width:100px;">
+                    <input type="text" id="rio-realm-input" class="form-input" placeholder="Realm" style="flex:2;min-width:100px;">
+                    <select id="rio-region-select" class="form-input" style="flex:1;min-width:64px;">
+                        <option value="eu">EU</option>
+                        <option value="us">US</option>
+                        <option value="tw">TW</option>
+                        <option value="kr">KR</option>
+                    </select>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
+                    <button class="btn-primary" onclick="saveRioChar()">Save &amp; Fetch</button>
+                    <button class="btn-small" onclick="clearRioChar()">Clear</button>
+                </div>
+                <div id="rio-preview" style="margin-top:10px;"></div>
+            </div>
+
+            <hr class="divider">
+            <div>
+                <div class="section-label">Steam</div>
+                <p style="font-size:11.5px;color:var(--text-subtle);line-height:1.6;margin-bottom:10px;">Paste your Steam profile URL or vanity name to show your Steam info on your profile card.</p>
+                <input type="text" id="steam-profile-input" class="form-input" placeholder="https://steamcommunity.com/id/yourname" style="width:100%;box-sizing:border-box;">
+                <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
+                    <button class="btn-primary" onclick="saveSteamProfile()">Save &amp; Fetch</button>
+                    <button class="btn-small" onclick="clearSteamProfile()">Clear</button>
+                </div>
+                <div id="steam-preview" style="margin-top:10px;"></div>
+            </div>
         </div>
 
         <!-- ── Servers Tab ── -->
@@ -2053,6 +2184,11 @@
             <div class="admin-section">
                 <div class="admin-section-title"><span>Auto-Moderation</span></div>
                 <div id="admin-automod-body"><span style="color:var(--text-faint);font-size:12px;">Loading…</span></div>
+            </div>
+            <hr class="divider">
+            <div class="admin-section">
+                <div class="admin-section-title"><span>Leveling / XP</span></div>
+                <div id="admin-xp-body"><span style="color:var(--text-faint);font-size:12px;">Loading…</span></div>
             </div>
             <hr class="divider">
             <div class="admin-section">
@@ -2260,6 +2396,44 @@
             </div>
         </div>
 
+        <!-- ── AI Tab ── -->
+        <div id="tab-ai" class="modal-body hidden">
+            <div>
+                <div class="section-label">AI Provider</div>
+                <select id="ai-provider-select" class="settings-select" onchange="clientConfig.aiProvider=this.value;saveClientConfig();_renderAiTab();">
+                    <option value="groq">Groq (free tier — recommended)</option>
+                    <option value="anthropic">Anthropic (Claude)</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="ollama">Ollama (local)</option>
+                    <option value="custom">Custom (OpenAI-compatible)</option>
+                </select>
+                <p id="ai-provider-hint" style="font-size:11px;color:var(--text-faint);margin:6px 0 0;"></p>
+            </div>
+            <div id="ai-base-url-row">
+                <div class="section-label">Base URL</div>
+                <input type="text" id="ai-base-url-input" class="settings-input" placeholder="http://localhost:11434/v1" style="font-family:monospace;font-size:12px;" oninput="clientConfig.aiBaseUrl=this.value;saveClientConfig();">
+                <p style="font-size:11px;color:var(--text-faint);margin:5px 0 0;">Ollama default: <code>http://localhost:11434/v1</code> · LM Studio: <code>http://localhost:1234/v1</code></p>
+            </div>
+            <div>
+                <div class="section-label">API Key <span id="ai-key-optional" style="font-weight:400;color:var(--text-faint);"></span></div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <input type="password" id="ai-key-input" class="settings-input" placeholder="Paste your API key here" style="flex:1;font-family:monospace;font-size:12px;" oninput="clientConfig.aiApiKey=this.value;saveClientConfig();">
+                    <button class="btn-small green" onclick="_testAiKey()">Test</button>
+                </div>
+                <p id="ai-key-status" style="font-size:11px;margin:5px 0 0;"></p>
+            </div>
+            <div>
+                <div class="section-label">Model <span id="ai-model-hint-inline" style="font-weight:400;color:var(--text-faint);"></span></div>
+                <input type="text" id="ai-model-input" class="settings-input" placeholder="e.g. llama3.2" style="font-family:monospace;font-size:12px;" oninput="clientConfig.aiModel=this.value;saveClientConfig();">
+                <p id="ai-model-defaults" style="font-size:11px;color:var(--text-faint);margin:5px 0 0;"></p>
+            </div>
+            <hr class="divider">
+            <div>
+                <div class="section-label">How it works</div>
+                <p style="font-size:12px;color:var(--text-muted);line-height:1.7;margin:0;">Click the <strong>✦</strong> button in any channel header to get an AI summary of recent messages. Messages are sent directly from your browser to the AI provider — nothing goes through Iskra servers. Your API key never leaves your device.</p>
+            </div>
+        </div>
+
     </div>
 
     <!-- ── Settings Help Panel ── -->
@@ -2269,6 +2443,34 @@
     </div>
 
     </div><!-- end settings-wrapper -->
+</div>
+
+<!-- ── New Forum Post Modal ── -->
+<div id="new-post-overlay" class="modal-overlay" onclick="if(event.target===this)closeNewPostModal()">
+    <div id="new-post-modal">
+        <div class="npm-header">
+            <span class="npm-title">📋 New Post</span>
+            <button class="modal-close-btn" onclick="closeNewPostModal()">✕</button>
+        </div>
+        <div class="npm-body">
+            <div>
+                <div class="section-label">Title</div>
+                <input id="new-post-title" class="settings-input" placeholder="What's this post about?" maxlength="200">
+            </div>
+            <div>
+                <div class="section-label">Body</div>
+                <textarea id="new-post-body" class="settings-input" placeholder="Write your post… (markdown supported)" rows="6"></textarea>
+            </div>
+            <div>
+                <div class="section-label">Tags <span style="font-weight:400;color:var(--text-faint);">(comma-separated, optional)</span></div>
+                <input id="new-post-tags" class="settings-input" placeholder="e.g. question, help, showcase">
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button class="btn-secondary" onclick="closeNewPostModal()">Cancel</button>
+                <button class="btn-primary" onclick="submitNewPost()">Post</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- ── Profile Page Modal ── -->
@@ -2388,6 +2590,10 @@
     <div class="pc-avatar-row"><div id="pc-avatar"></div></div>
     <div id="pc-name" class="pc-name"></div>
     <div id="pc-role-row" class="pc-role-row"></div>
+    <div id="pc-bio" class="pc-bio" style="display:none;"></div>
+    <div id="pc-xp-row" class="pc-xp-row" style="display:none;"></div>
+    <div id="pc-rio-row" class="pc-rio-row" style="display:none;"></div>
+    <div id="pc-steam-row" style="display:none;"></div>
     <div id="pc-status" class="pc-status"></div>
     <div id="pc-status-text" class="pc-status-text" style="display:none;"></div>
     <div id="pc-vc" class="pc-vc" style="display:none;"></div>
@@ -2850,6 +3056,10 @@ function createServerState() {
         userAvatars: {}, userStatuses: {}, userRoles: {},
         userStatusTexts: {}, myStatus: 'online', myStatusText: '',
         timedOutUsers: {}, pollVotes: {},
+        memberLevels: {}, xpEnabled: true,
+        memberRioChars: {}, memberRioCache: {},
+        memberSteamProfiles: {},
+        memberBios: {},
         // Server metadata
         serverIconUrl: null, serverEmojis: {}, roleColors: {}, serverPrivacyStatement: '',
         serverWebhooks: [], serverBotTokens: [], serverInboundHooks: [],
@@ -3741,7 +3951,17 @@ const clientConfig = {
     serverAvatarOverrides: {},
     dmFolders: [],
     keywordNotifs: [],
-    dndSchedule: { enabled: false, start: '23:00', end: '08:00' }
+    dndSchedule: { enabled: false, start: '23:00', end: '08:00' },
+    aiProvider: 'groq',
+    aiApiKey: '',
+    aiModel: '',
+    aiBaseUrl: '',
+    rioName: '',
+    rioRealm: '',
+    rioRegion: 'eu',
+    rioCache: null,
+    steamProfile: '',
+    bio: ''
 };
 
 function saveClientConfig() {
@@ -3856,6 +4076,18 @@ function renderChannelList() {
                 <span class="ch-name">${escapeHtml(ch.name)}</span>${notifyIcon}
                 ${unread > 0 ? `<span class="ch-unread${hasMention ? ' has-mention' : ''}">${unread > 99 ? '99+' : unread}</span>` : ''}
             </div>`;
+        } else if (ch.type === 'Forum') {
+            const viewing    = ch.id === ss.activeTextChannelId;
+            const unread     = !viewing && ss.unreadCounts[ch.id] ? ss.unreadCounts[ch.id] : 0;
+            const hasMention = !viewing && !!ss.mentionCounts[ch.id];
+            const notifyPref = getChannelNotifyPref(ch.id);
+            const notifyIcon = notifyPref === 'muted' ? '<span class="ch-notify-icon">🔇</span>' : (notifyPref === 'mentions' ? '<span class="ch-notify-icon">🔕</span>' : '');
+            html += `
+            <div class="channel${viewing ? ' active' : ''}" data-chid="${ch.id}"${drag} onclick="selectTextChannel('${ch.id}')" oncontextmenu="showChCtxMenu(event,'${ch.id}')">
+                <span class="ch-icon" style="font-size:13px;">📋</span>
+                <span class="ch-name">${escapeHtml(ch.name)}</span>${notifyIcon}
+                ${unread > 0 ? `<span class="ch-unread${hasMention ? ' has-mention' : ''}">${unread > 99 ? '99+' : unread}</span>` : ''}
+            </div>`;
         }
     }
 
@@ -3899,6 +4131,9 @@ function closeActivityInput(chId) {
 function selectTextChannel(id) {
     const ss = serverStates[viewedServerId];
     if (!ss) return;
+    if (ss.activeTextChannelId && ss.activeTextChannelId !== id) {
+        _saveDraft(viewedServerId, ss.activeTextChannelId);
+    }
     ss.activeTextChannelId = id;
     ss.unreadCounts[id]  = 0;
     ss.mentionCounts[id] = 0;
@@ -3920,9 +4155,13 @@ function selectTextChannel(id) {
         document.querySelector('.input-box').placeholder = placeholder;
         if (inputArea) inputArea.classList.toggle('readonly', isReadOnly);
     }
+    const isForum = ch?.type === 'Forum';
+    _setForumMode(isForum);
+    if (isForum) document.getElementById('chat-channel-icon').textContent = '📋';
     const h = document.getElementById('chat-history');
     h.innerHTML = '';
-    (ss.channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}, m.replyToId, m.replySnippet, m.editHistory, m.threadId, m.threadCount, m.poll));
+    h.classList.toggle('forum-mode', isForum);
+    (ss.channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}, m.replyToId, m.replySnippet, m.editHistory, m.threadId, m.threadCount, m.poll, m.forumTitle || null, m.forumTags || null));
     renderChannelList();
     clearTimeout(ss._slowTimer);
     if (document.getElementById('chat-input')) document.getElementById('chat-input').disabled = false;
@@ -3932,6 +4171,11 @@ function selectTextChannel(id) {
     updatePinIndicator(id);
     _updateChannelTopic(id);
     _notesOnChannelSwitch(id, viewedServerId);
+    _restoreDraft(viewedServerId, id);
+    _unreadBelow = 0;
+    document.getElementById('unread-jump-pill')?.classList.remove('visible');
+    updateChannelOnlineCount();
+    initUnreadJump();
     DevLog.log('BRIDGE', `Text channel selected: "${ch?.name || id}" | ${(ss.channelMessages[id]||[]).length} msg(s)${ch?.readOnly ? ' [readonly]' : ''}`);
     closeMobSidebar();
 }
@@ -4209,7 +4453,7 @@ function onQsInput() {
     for (const ch of (ss?.serverChannels || [])) {
         if (ch.type === 'Header') continue;
         if (q && !ch.name.toLowerCase().includes(q)) continue;
-        _qsItems.push({ icon: ch.type === 'Voice' ? '🔊' : (ch.e2e ? '🔒' : '#'), name: ch.name, sub: 'Channel', chId: ch.id, chType: ch.type });
+        _qsItems.push({ icon: ch.type === 'Voice' ? '🔊' : ch.type === 'Forum' ? '📋' : (ch.e2e ? '🔒' : '#'), name: ch.name, sub: 'Channel', chId: ch.id, chType: ch.type });
     }
     for (const alias of Object.keys(dmConversations)) {
         if (q && !alias.toLowerCase().includes(q)) continue;
@@ -4284,10 +4528,61 @@ function showProfileCard(event, alias) {
 
     // Role
     const ss = serverStates[viewedServerId];
-    const role = ss?.userRoles[alias] || 'guest';
+    const role = ss?.userRoles?.[alias] || 'guest';
     const roleRow = document.getElementById('pc-role-row');
     roleRow.innerHTML = ['trusted','admin','owner'].includes(role)
         ? `<span class="member-role-pip r-${role}">${role}</span>` : '';
+
+    // Bio / quote
+    const bioEl = document.getElementById('pc-bio');
+    if (bioEl) {
+        const bio = ss?.memberBios?.[alias] || '';
+        bioEl.textContent = bio ? `"${bio}"` : '';
+        bioEl.style.display = bio ? '' : 'none';
+    }
+
+    // XP / Level
+    const xpRow = document.getElementById('pc-xp-row');
+    const xpEntry = ss?.memberLevels?.[alias];
+    if (xpRow) {
+        if (ss?.xpEnabled && xpEntry != null) {
+            const nextLvXp = Math.ceil(Math.pow(xpEntry.level + 1, 2) * 50);
+            xpRow.textContent = `⭐ Level ${xpEntry.level} · ${xpEntry.xp} / ${nextLvXp} XP`;
+            xpRow.style.display = '';
+        } else {
+            xpRow.style.display = 'none';
+        }
+    }
+
+    // Raider.io
+    const rioRow = document.getElementById('pc-rio-row');
+    if (rioRow) {
+        const rioChar = ss?.memberRioChars?.[alias];
+        if (rioChar) {
+            rioRow.style.display = '';
+            const cached = ss.memberRioCache?.[alias];
+            if (cached) {
+                rioRow.innerHTML = _rioCardHtml(cached);
+            } else {
+                rioRow.innerHTML = `<div style="font-size:11px;color:var(--text-faint);padding:0 0 4px;">Loading M+ score…</div>`;
+                _fetchRioForCard(alias, rioChar, viewedServerId);
+            }
+        } else {
+            rioRow.style.display = 'none';
+        }
+    }
+
+    // Steam
+    const steamRow = document.getElementById('pc-steam-row');
+    if (steamRow) {
+        const steam = ss?.memberSteamProfiles?.[alias];
+        if (steam) {
+            steamRow.style.display = '';
+            steamRow.innerHTML = _steamCardHtml(steam);
+        } else {
+            steamRow.style.display = 'none';
+        }
+    }
 
     // Status
     const myAlias = ss?.myAlias || '';
@@ -4310,9 +4605,12 @@ function showProfileCard(event, alias) {
     vcEl.style.display = vcName ? '' : 'none';
     vcEl.textContent = vcName ? `🔊 In ${vcName}` : '';
 
-    // Private notes
+    // Private notes — hidden for own card
+    const notesSection = document.querySelector('.pc-notes-section');
     const notesInput = document.getElementById('pc-notes-input');
-    if (notesInput) {
+    const isSelf = alias === myAlias;
+    if (notesSection) notesSection.style.display = isSelf ? 'none' : '';
+    if (notesInput && !isSelf) {
         notesInput.dataset.alias = alias;
         notesInput.value = _privateNotes[alias] || '';
     }
@@ -4355,6 +4653,12 @@ function showProfileCard(event, alias) {
 
 function hideProfileCard() {
     document.getElementById('profile-card')?.classList.add('hidden');
+}
+
+function _selfCard(e) {
+    const ss = serverStates[viewedServerId];
+    const alias = ss?.myAlias || clientConfig.activeAlias;
+    if (alias) showProfileCard(e, alias);
 }
 
 function saveUserNote(alias, text) {
@@ -4823,7 +5127,7 @@ function showCreateChannelMenu(e) {
     popup.appendChild(input);
     const row = document.createElement('div');
     row.className = 'create-ch-type-row';
-    [['# Text','Text'],['🔊 Voice','Voice'],['📁 Category','Header']].forEach(([label, type]) => {
+    [['# Text','Text'],['🔊 Voice','Voice'],['📋 Forum','Forum'],['📁 Category','Header']].forEach(([label, type]) => {
         const btn = document.createElement('button');
         btn.className = 'btn-secondary';
         btn.style.cssText = 'flex:1;font-size:11px;padding:5px 2px;';
@@ -5598,6 +5902,15 @@ const _helpContent = {
         { t: 'Friends', b: 'Add friends by their IskraID alias. You can message them any time, regardless of what server either of you is on.' },
         { t: 'IskraID Avatar', b: 'Separate from your per-server avatar. Associated with your global identity and shown in DMs and the friends list.' },
     ]},
+    ai: { label: 'AI Summary', blocks: [
+        { t: 'What it does', b: 'The ✦ button in any channel header summarises the last 150 messages using an AI model of your choice. Great for catching up after being away.' },
+        { t: 'Privacy', b: 'Messages go directly from your browser to the AI provider (Groq, Anthropic, or OpenAI). Nothing passes through Iskra servers. Your API key is stored only in your browser.' },
+        { t: 'Free with Groq', b: 'Groq offers a generous free tier with fast inference. Sign up at console.groq.com, create an API key, and paste it here. No credit card required.' },
+        { t: 'Other providers', b: 'Anthropic (Claude Haiku) and OpenAI (GPT-4o mini) are both supported. Costs ~$0.01–0.02 per summary depending on message volume.' },
+        { t: 'Custom model', b: 'Leave the model field blank to use the sensible default for your provider. Override it if you have access to a specific model you prefer.' },
+        { t: 'Ollama / local LLMs', b: 'Select "Ollama (local)" to use a model running on your machine. No API key needed. Make sure Ollama is running (`ollama serve`) and you\'ve pulled a model (`ollama pull llama3.2`). Only works in the native app — the web client cannot reach localhost.' },
+        { t: 'Custom server', b: 'Any OpenAI-compatible API (LM Studio, vLLM, Tabby, etc.) works with the "Custom" option. Set the base URL to your server\'s /v1 endpoint and specify the model name.' },
+    ]},
 };
 
 function updateHelpPanel(tab) {
@@ -5611,12 +5924,12 @@ function updateHelpPanel(tab) {
 
 function switchTab(tab) {
     activeTab = tab;
-    ['audio', 'identity', 'servers', 'appearance', 'admin', 'webhooks', 'botapi', 'iskraid'].forEach(t => {
+    ['audio', 'identity', 'servers', 'appearance', 'admin', 'webhooks', 'botapi', 'iskraid', 'ai'].forEach(t => {
         document.getElementById(`tab-${t}`)?.classList.toggle('hidden', t !== tab);
         document.getElementById(`tab-btn-${t}`)?.classList.toggle('active', t === tab);
     });
     updateHelpPanel(tab);
-    if (tab === 'identity')   { renderAliasList(); updateSettingsAvatarPreview(); _updateDmKeyStatusUI(); }
+    if (tab === 'identity')   { renderAliasList(); updateSettingsAvatarPreview(); _updateDmKeyStatusUI(); _populateRioTab(); _populateSteamTab(); _populateBioTab(); }
     if (tab === 'servers')    { renderServerList(); updateSettingsServerSection(); }
     if (tab === 'admin')      { renderAdminPanel(); setTimeout(loadAutomodConfig, 300); }
     if (tab === 'webhooks')   renderWebhooksSection();
@@ -5625,6 +5938,7 @@ function switchTab(tab) {
     if (tab === 'audio')      { renderCustomSoundsList(); _populateAudioNotifTab(); }
     if (tab !== 'iskraid') stopVerifyPoll();
     if (tab === 'iskraid') { renderIskraidTab(); refreshRelayMe(); if (relayToken) relayLoadFriends().then(renderIskraidTab); if (relayToken && !relayEmailVerified) startVerifyPoll(); }
+    if (tab === 'ai') _renderAiTab();
 }
 
 // ── Alias Management ──────────────────────────────────────────────────────────
@@ -5899,7 +6213,7 @@ function renderServerBar() {
             ? `<span class="srv-unread-badge${totalMentions > 0 ? ' has-mention' : ''}">${totalMentions > 0 ? (totalMentions > 99 ? '99+' : totalMentions) : (totalUnread > 99 ? '99+' : totalUnread)}</span>`
             : '';
         return `
-        <div class="server-icon-wrap${isViewed ? ' active' : ''}${isConn ? ' connected' : ''}" title="${escapeHtml(s.name)}">
+        <div class="server-icon-wrap${isViewed ? ' active' : ''}${isConn ? ' connected' : ''}" title="${escapeHtml(s.name)}" data-srv-idx="${clientConfig.servers.indexOf(s)}">
             <div class="server-pill"></div>
             <div class="server-icon" style="${iconStyle}"
                  onclick="onServerIconClick('${s.id}')"
@@ -5907,6 +6221,8 @@ function renderServerBar() {
                  title="${escapeHtml(s.name)}">${iconContent}${isMuted ? `<span class="srv-mute-badge">🔇</span>` : ''}${badgeHtml}</div>
         </div>`;
     }).join('');
+    list.querySelectorAll('.server-icon-wrap').forEach((el, i) => { el.dataset.srvIdx = i; });
+    _initServerDrag();
 }
 
 function onServerIconClick(id) {
@@ -6801,7 +7117,7 @@ async function joinVoice(id) {
     document.getElementById('input-area')?.classList.remove('readonly');
     const h = document.getElementById('chat-history');
     h.innerHTML = '';
-    (ss.channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}, m.replyToId, m.replySnippet, m.editHistory, m.threadId, m.threadCount, m.poll));
+    (ss.channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}, m.replyToId, m.replySnippet, m.editHistory, m.threadId, m.threadCount, m.poll, m.forumTitle || null, m.forumTags || null));
     renderChannelList();
     clearTimeout(ss._slowTimer);
     _slowBarShow(null, false);
@@ -6855,6 +7171,11 @@ async function sendChat(e) {
     if (msg.startsWith('/watch ')) {
         const watchArg = msg.slice(7).trim();
         if (watchArg) startWatchParty(watchArg);
+        _resetInput();
+        return;
+    }
+    if (msg.toLowerCase().startsWith('/rio')) {
+        _handleRioCommand(msg, ss);
         _resetInput();
         return;
     }
@@ -8148,8 +8469,27 @@ function copyInviteLink(fieldId, btn) {
     });
 }
 
-function renderChatMessage(msgId, author, time, message, edited, reactions, replyToId, replySnippet, editHistory, threadId, threadCount, poll) {
+function renderChatMessage(msgId, author, time, message, edited, reactions, replyToId, replySnippet, editHistory, threadId, threadCount, poll, forumTitle, forumTags) {
     const h = document.getElementById('chat-history');
+
+    if (forumTitle) {
+        const card = document.createElement('div');
+        card.className = 'forum-post-card';
+        if (msgId) card.dataset.msgId = msgId;
+        const tagsHtml = (forumTags && forumTags.length)
+            ? `<div class="forum-post-tags">${forumTags.map(t => `<span class="forum-tag">${escapeHtml(t)}</span>`).join('')}</div>` : '';
+        const excerpt = (message || '').replace(/[#*`>~_\[\]]/g, '').slice(0, 160);
+        const replies = threadCount > 0 ? `<span class="fpm-replies">💬 ${threadCount} repl${threadCount === 1 ? 'y' : 'ies'}</span>` : '';
+        card.innerHTML = `
+            <div class="forum-post-title">${escapeHtml(forumTitle)}</div>
+            ${tagsHtml}
+            ${excerpt ? `<div class="forum-post-excerpt">${escapeHtml(excerpt)}${message.length > 160 ? '…' : ''}</div>` : ''}
+            <div class="forum-post-meta"><span>${escapeHtml(author)}</span><span>·</span><span>${escapeHtml(time)}</span>${replies ? `<span>·</span>${replies}` : ''}</div>`;
+        card.onclick = () => startOrOpenThread(msgId);
+        h.appendChild(card);
+        return;
+    }
+
     const div = document.createElement('div');
     div.className = 'msg-row';
     if (msgId) div.dataset.msgId = msgId;
@@ -8211,7 +8551,9 @@ function renderChatMessage(msgId, author, time, message, edited, reactions, repl
         `</div>`;
     if (msgId) div.querySelector('.msg-content').appendChild(renderReactions(msgId, reactions || {}));
     h.appendChild(div);
-    h.scrollTop = h.scrollHeight;
+    const _atBottom = h.scrollTop >= h.scrollHeight - h.clientHeight - 80;
+    if (_atBottom) h.scrollTop = h.scrollHeight;
+    else _notifyUnreadBelow(_unreadBelow + 1);
     if (div.querySelector('.msg-url')) requestAnimationFrame(() => enrichLinkPreviews(div));
 }
 
@@ -8520,10 +8862,22 @@ function stopScreenShare() {
 
 // ── Watch Party ────────────────────────────────────────────────────────────────
 
-let _watchPopup     = null;
+let _watchPlayer    = null;   // YT.Player living inside the screenshare panel tile
+let _watchIsHost    = false;
+let _watchTickTimer = null;
 let _watchChannelId = null;
 let _watchHostAlias = null;
+let _watchPending   = null;   // queued params while YT API script is still loading
 
+// YouTube IFrame API callback — fires once the API script finishes loading
+window.onYouTubeIframeAPIReady = function () {
+    if (_watchPending) {
+        const p = _watchPending; _watchPending = null;
+        _doCreateWatchPlayer(p.videoId, p.startSec, p.autoplay, p.isHost);
+    }
+};
+
+// Popup HTML — used only when the user clicks ⤢ to pop the tile out to a big window
 const _WATCH_POPUP_HTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Watch Party — Iskra</title>
 <style>*{margin:0;padding:0;box-sizing:border-box;}body{background:#000;display:flex;flex-direction:column;height:100vh;font-family:system-ui,-apple-system,sans-serif;overflow:hidden;}#pw{flex:1;background:#000;min-height:0;}#bar{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#111118;border-top:1px solid #1e1e2e;flex-shrink:0;}#bt{font-size:12px;font-weight:600;color:#e1e1ff;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}#bh{font-size:11px;color:#6a6aa0;white-space:nowrap;}.bb{padding:2px 10px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;border:none;flex-shrink:0;}.bl{background:#2c2c54;color:#fff;}.bl:hover{background:#5865f2;}.bs{background:#ed4245;color:#fff;}.bs:hover{background:#c03537;}</style>
 </head><body>
@@ -8531,77 +8885,154 @@ const _WATCH_POPUP_HTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><tit
 <div id="bar"><span id="bt">Watch Party</span><span id="bh"></span><button class="bb bl" id="btn-l" style="display:none" onclick="doLeave()">Leave</button><button class="bb bs" id="btn-s" style="display:none" onclick="doStop()">Stop Party</button></div>
 <script src="https://www.youtube.com/iframe_api"><\/script>
 <script>
-var player,isHost=false,ignoreState=false,tickTimer=null,pending=null;
+var player,isHost=false,viewOnly=false,pending=null;
 window.onYouTubeIframeAPIReady=function(){if(pending)build(pending.v,pending.s,pending.a);};
 window.addEventListener('message',function(e){
   if(e.source!==window.opener)return;
   var d=e.data;
   if(d.action==='WATCH_LOAD'){
-    isHost=d.isHost;
+    isHost=d.isHost;viewOnly=d.viewOnly||false;
     document.getElementById('bt').textContent=d.videoId;
     document.getElementById('bh').textContent=d.isHost?'(you are hosting)':'hosted by '+d.hostAlias;
-    document.getElementById('btn-l').style.display=d.isHost?'none':'';
-    document.getElementById('btn-s').style.display=d.isHost?'':'none';
+    document.getElementById('btn-l').style.display=(!d.isHost&&!d.viewOnly)?'':'none';
+    document.getElementById('btn-s').style.display=(d.isHost&&!d.viewOnly)?'':'none';
     if(player&&player.getVideoData&&player.getVideoData().video_id===d.videoId){
-      ignoreState=true;player.seekTo(d.startSec,true);
-      if(d.autoplay)player.playVideo();else player.pauseVideo();
-      setTimeout(function(){ignoreState=false;},500);
-      if(d.isHost)startTick();return;
+      player.seekTo(d.startSec,true);
+      if(d.autoplay)player.playVideo();else player.pauseVideo();return;
     }
     try{if(player)player.destroy();}catch(x){}player=null;
     if(window.YT&&window.YT.Player)build(d.videoId,d.startSec,d.autoplay);else pending={v:d.videoId,s:d.startSec,a:d.autoplay};
-  }else if(d.action==='WATCH_TICK_DATA'){
-    if(!player||isHost)return;
-    var elapsed=(Date.now()-d.ts)/1000,target=d.position+elapsed;
-    try{
-      var cur=player.getCurrentTime(),drift=Math.abs(cur-target);
-      if(drift>2.5){ignoreState=true;player.seekTo(target,true);setTimeout(function(){ignoreState=false;},500);}
-      if(d.playing&&player.getPlayerState()!==1)player.playVideo();
-      if(!d.playing&&player.getPlayerState()===1)player.pauseVideo();
-    }catch(x){}
-  }else if(d.action==='WATCH_STOP_CMD'){cleanup();window.close();}
+  }
 });
 function build(videoId,startSec,autoplay){
   pending=null;
   var wrap=document.getElementById('pw'),h=Math.round(wrap.offsetWidth*9/16);
   document.getElementById('ytp').innerHTML='';
   player=new YT.Player('ytp',{width:'100%',height:h,videoId:videoId,
-    playerVars:{autoplay:autoplay?1:0,controls:isHost?1:0,start:Math.floor(startSec),rel:0,fs:1},
-    events:{
-      onReady:function(e){if(autoplay)e.target.playVideo();if(isHost)startTick();},
-      onStateChange:function(e){
-        if(!isHost||ignoreState)return;
-        var pl=e.data===1,pa=e.data===2;
-        if(pl||pa)try{window.opener.postMessage({action:'HOST_CONTROL',playing:pl,position:e.target.getCurrentTime()},'*');}catch(x){}
-      }
-    }
+    playerVars:{autoplay:autoplay?1:0,controls:1,start:Math.floor(startSec),rel:0,fs:1},
+    events:{onReady:function(e){if(autoplay)e.target.playVideo();}}
   });
 }
-function startTick(){
-  if(tickTimer)clearInterval(tickTimer);
-  tickTimer=setInterval(function(){try{if(player)window.opener.postMessage({action:'HOST_TICK',position:player.getCurrentTime()},'*');}catch(x){}},5000);
-}
-function cleanup(){if(tickTimer){clearInterval(tickTimer);tickTimer=null;}}
-function doLeave(){try{window.opener.postMessage({action:'WATCH_LEAVE'},'*');}catch(x){}cleanup();window.close();}
-function doStop(){try{window.opener.postMessage({action:'WATCH_STOP'},'*');}catch(x){}cleanup();window.close();}
-window.addEventListener('beforeunload',function(){cleanup();try{window.opener.postMessage({action:'WATCH_POPUP_CLOSED'},'*');}catch(x){};});
+function doLeave(){if(!viewOnly)try{window.opener.postMessage({action:'WATCH_LEAVE'},'*');}catch(x){}window.close();}
+function doStop(){if(!viewOnly)try{window.opener.postMessage({action:'WATCH_STOP'},'*');}catch(x){}window.close();}
 <\/script></body></html>`;
 
-function _setupWatchPopupListener() {
-    window.addEventListener('message', e => {
-        if (!_watchPopup || e.source !== _watchPopup) return;
-        const d = e.data;
-        if (d.action === 'HOST_CONTROL') {
-            postToServer(voiceServerId, { action: 'WATCH_CONTROL', playing: d.playing, position: d.position });
-        } else if (d.action === 'HOST_TICK') {
-            postToServer(voiceServerId, { action: 'WATCH_TICK', position: d.position });
-        } else if (d.action === 'WATCH_LEAVE') {
-            leaveWatchParty();
-        } else if (d.action === 'WATCH_STOP') {
-            stopWatchParty();
-        } else if (d.action === 'WATCH_POPUP_CLOSED') {
-            if (_watchChannelId) _clearWatchPanel();
+function _ensureYtApi() {
+    if (typeof YT !== 'undefined' && YT.Player) return true;
+    if (!document.getElementById('yt-api-script')) {
+        const s = document.createElement('script');
+        s.id = 'yt-api-script';
+        s.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(s);
+    }
+    return false;
+}
+
+function addWatchTile(videoId, startSec, autoplay, isHost, hostAlias) {
+    document.getElementById('share-tile-watch')?.remove();
+    const panel = document.getElementById('screen-share-panel');
+
+    const tile = document.createElement('div');
+    tile.className = 'share-tile';
+    tile.id = 'share-tile-watch';
+
+    const ytWrap = document.createElement('div');
+    ytWrap.id = 'watch-tile-ytp';
+    ytWrap.style.cssText = 'width:100%;height:100%;background:#000;';
+
+    const label = document.createElement('div');
+    label.className = 'share-tile-label';
+    label.textContent = `📺 ${isHost ? 'Watch Party (hosting)' : `Watch Party · ${hostAlias}`}`;
+
+    const popoutBtn = document.createElement('button');
+    popoutBtn.className = 'share-tile-popout';
+    popoutBtn.title = 'Pop out';
+    popoutBtn.textContent = '⤢';
+    popoutBtn.onclick = (e) => { e.stopPropagation(); _popoutWatchTile(); };
+
+    const stopBtn = document.createElement('button');
+    stopBtn.className = 'share-tile-popout';
+    stopBtn.style.cssText = 'right:auto;left:6px;';
+    stopBtn.title = isHost ? 'Stop Watch Party' : 'Leave Watch Party';
+    stopBtn.textContent = isHost ? '■' : '✕';
+    stopBtn.onclick = (e) => { e.stopPropagation(); if (isHost) stopWatchParty(); else leaveWatchParty(); };
+
+    tile.appendChild(ytWrap);
+    tile.appendChild(label);
+    tile.appendChild(popoutBtn);
+    tile.appendChild(stopBtn);
+    panel.appendChild(tile);
+    panel.classList.add('active');
+    _updateTileCount();
+
+    _watchIsHost = isHost;
+    _doCreateWatchPlayer(videoId, startSec, autoplay, isHost);
+}
+
+function _doCreateWatchPlayer(videoId, startSec, autoplay, isHost) {
+    if (!document.getElementById('watch-tile-ytp')) return;
+    if (_watchPlayer) { try { _watchPlayer.destroy(); } catch {} _watchPlayer = null; }
+
+    if (!_ensureYtApi()) {
+        _watchPending = { videoId, startSec, autoplay, isHost };
+        return;
+    }
+
+    document.getElementById('watch-tile-ytp').innerHTML = '<div id="watch-ytp-inner"></div>';
+
+    _watchPlayer = new YT.Player('watch-ytp-inner', {
+        width: '100%',
+        height: '100%',
+        videoId,
+        playerVars: { autoplay: autoplay ? 1 : 0, controls: isHost ? 1 : 0, start: Math.floor(startSec), rel: 0 },
+        events: {
+            onReady: (e) => {
+                if (autoplay) e.target.playVideo();
+                if (isHost) _watchStartTick();
+            },
+            onStateChange: (e) => {
+                if (!isHost) return;
+                const playing = e.data === 1, paused = e.data === 2;
+                if (playing || paused) {
+                    postToServer(voiceServerId, { action: 'WATCH_CONTROL', playing, position: e.target.getCurrentTime() });
+                }
+            }
         }
+    });
+}
+
+function _watchStartTick() {
+    if (_watchTickTimer) clearInterval(_watchTickTimer);
+    _watchTickTimer = setInterval(() => {
+        if (!_watchPlayer) return;
+        try { postToServer(voiceServerId, { action: 'WATCH_TICK', position: _watchPlayer.getCurrentTime() }); } catch {}
+    }, 5000);
+}
+
+function _popoutWatchTile() {
+    if (!_watchPlayer) return;
+    try {
+        const videoId = _watchPlayer.getVideoData?.()?.video_id;
+        if (!videoId) return;
+        const startSec = _watchPlayer.getCurrentTime?.() || 0;
+        const playing  = _watchPlayer.getPlayerState?.() === 1;
+        const w = window.open('', '_blank', 'width=960,height=560,resizable=yes');
+        if (!w) return;
+        w.document.write(_WATCH_POPUP_HTML);
+        w.document.close();
+        setTimeout(() => {
+            try { w.postMessage({ action: 'WATCH_LOAD', videoId, startSec, autoplay: playing, isHost: false, viewOnly: true, hostAlias: _watchHostAlias || '' }, '*'); } catch {}
+        }, 500);
+    } catch {}
+}
+
+function _setupWatchPopupListener() {
+    // Host control now goes directly through _watchPlayer.onStateChange → postToServer.
+    // Only handle WATCH_LEAVE / WATCH_STOP from any non-viewOnly popup still open.
+    window.addEventListener('message', e => {
+        const d = e.data;
+        if (d.action === 'WATCH_LEAVE') leaveWatchParty();
+        else if (d.action === 'WATCH_STOP') stopWatchParty();
     });
 }
 
@@ -8651,12 +9082,10 @@ function leaveWatchParty() {
 function _clearWatchPanel() {
     _watchChannelId = null;
     _watchHostAlias = null;
-    const popup = _watchPopup;
-    _watchPopup = null;
-    if (popup && !popup.closed) {
-        try { popup.postMessage({ action: 'WATCH_STOP_CMD' }, '*'); } catch {}
-        setTimeout(() => { try { if (!popup.closed) popup.close(); } catch {} }, 300);
-    }
+    _watchIsHost    = false;
+    if (_watchTickTimer) { clearInterval(_watchTickTimer); _watchTickTimer = null; }
+    if (_watchPlayer)    { try { _watchPlayer.destroy(); } catch {} _watchPlayer = null; }
+    removeShareTile('watch');
     document.getElementById('btn-watch')?.classList.remove('watching');
 }
 
@@ -8668,29 +9097,623 @@ function handleWatchState(data) {
     const startSec = data.position + elapsed;
     document.getElementById('btn-watch')?.classList.add('watching');
 
-    const msg = { action: 'WATCH_LOAD', videoId: data.videoId, startSec, autoplay: data.playing, isHost, hostAlias: data.hostAlias };
-
-    if (_watchPopup && !_watchPopup.closed) {
-        try { _watchPopup.postMessage(msg, '*'); } catch {}
+    if (document.getElementById('share-tile-watch') && _watchPlayer) {
+        try {
+            const curId = _watchPlayer.getVideoData?.()?.video_id;
+            if (curId === data.videoId) {
+                _watchPlayer.seekTo(startSec, true);
+                if (data.playing) _watchPlayer.playVideo(); else _watchPlayer.pauseVideo();
+            } else {
+                _doCreateWatchPlayer(data.videoId, startSec, data.playing, isHost);
+            }
+        } catch { _doCreateWatchPlayer(data.videoId, startSec, data.playing, isHost); }
         return;
     }
 
-    _watchPopup = window.open('', '_blank', 'width=900,height=560,resizable=yes');
-    if (!_watchPopup) return;
-    _watchPopup.document.write(_WATCH_POPUP_HTML);
-    _watchPopup.document.close();
-    setTimeout(() => { try { _watchPopup?.postMessage(msg, '*'); } catch {} }, 500);
+    addWatchTile(data.videoId, startSec, data.playing, isHost, data.hostAlias);
 }
 
 function handleWatchTick(data) {
-    if (_watchPopup && !_watchPopup.closed) {
-        try { _watchPopup.postMessage({ action: 'WATCH_TICK_DATA', position: data.position, playing: data.playing, ts: data.ts }, '*'); } catch {}
-    }
+    if (!_watchPlayer || _watchIsHost) return;
+    try {
+        const elapsed = (Date.now() - data.ts) / 1000;
+        const target  = data.position + elapsed;
+        const cur     = _watchPlayer.getCurrentTime();
+        if (Math.abs(cur - target) > 2.5) _watchPlayer.seekTo(target, true);
+        if (data.playing  && _watchPlayer.getPlayerState() !== 1) _watchPlayer.playVideo();
+        if (!data.playing && _watchPlayer.getPlayerState() === 1) _watchPlayer.pauseVideo();
+    } catch {}
 }
 
 function handleWatchStopped() {
     DevLog.log('WATCH', 'Watch party stopped');
     _clearWatchPanel();
+}
+
+// ── Message drafts ─────────────────────────────────────────────────────────────
+const _drafts = {};
+
+function _saveDraft(serverId, channelId) {
+    const val = document.getElementById('chat-input')?.value || '';
+    if (!_drafts[serverId]) _drafts[serverId] = {};
+    _drafts[serverId][channelId] = val;
+}
+
+function _restoreDraft(serverId, channelId) {
+    const input = document.getElementById('chat-input');
+    if (!input) return;
+    const draft = _drafts[serverId]?.[channelId] || '';
+    input.value = draft;
+    input.style.height = 'auto';
+    if (draft) input.style.height = Math.min(input.scrollHeight, 150) + 'px';
+}
+
+// ── Unread jump pill ────────────────────────────────────────────────────────────
+let _unreadBelow = 0;
+
+function initUnreadJump() {
+    const h = document.getElementById('chat-history');
+    if (!h || h._jumpListenerSet) return;
+    h._jumpListenerSet = true;
+    h.addEventListener('scroll', () => {
+        const atBottom = h.scrollTop >= h.scrollHeight - h.clientHeight - 80;
+        const pill = document.getElementById('unread-jump-pill');
+        if (!pill) return;
+        if (atBottom) { _unreadBelow = 0; pill.classList.remove('visible'); }
+        else if (_unreadBelow > 0) pill.classList.add('visible');
+    });
+}
+
+function _notifyUnreadBelow(count) {
+    _unreadBelow = count;
+    const h = document.getElementById('chat-history');
+    const pill = document.getElementById('unread-jump-pill');
+    if (!pill || !h) return;
+    const atBottom = h.scrollTop >= h.scrollHeight - h.clientHeight - 80;
+    if (!atBottom && count > 0) {
+        document.getElementById('unread-jump-label').textContent =
+            count === 1 ? '1 new message' : `${count} new messages`;
+        pill.classList.add('visible');
+    }
+}
+
+function scrollToLatest() {
+    const h = document.getElementById('chat-history');
+    if (h) { h.scrollTop = h.scrollHeight; }
+    _unreadBelow = 0;
+    document.getElementById('unread-jump-pill')?.classList.remove('visible');
+}
+
+// ── Channel online count ────────────────────────────────────────────────────────
+function updateChannelOnlineCount() {
+    const el = document.getElementById('channel-online-count');
+    if (!el) return;
+    const ss = serverStates[viewedServerId];
+    if (!ss || !viewedServerId) { el.textContent = ''; return; }
+    const statuses = Object.values(ss.userStatuses);
+    const online = statuses.filter(s => s !== 'offline').length;
+    const total  = Object.keys(ss.userStatuses).length;
+    el.textContent = total > 0 ? `${online} online` : '';
+}
+
+// ── Server drag-to-reorder ──────────────────────────────────────────────────────
+function _initServerDrag() {
+    const list = document.getElementById('server-icon-list');
+    if (!list) return;
+    let dragSrcIdx = null;
+    list.querySelectorAll('.server-icon-wrap').forEach((el) => {
+        el.draggable = true;
+        el.addEventListener('dragstart', e => {
+            dragSrcIdx = parseInt(el.dataset.srvIdx);
+            e.dataTransfer.effectAllowed = 'move';
+            setTimeout(() => el.classList.add('dragging'), 0);
+        });
+        el.addEventListener('dragend', () => {
+            el.classList.remove('dragging');
+            list.querySelectorAll('.server-icon-wrap').forEach(e => e.classList.remove('drag-over'));
+        });
+        el.addEventListener('dragover', e => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            list.querySelectorAll('.server-icon-wrap').forEach(e => e.classList.remove('drag-over'));
+            if (parseInt(el.dataset.srvIdx) !== dragSrcIdx) el.classList.add('drag-over');
+        });
+        el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+        el.addEventListener('drop', e => {
+            e.preventDefault();
+            const tgtIdx = parseInt(el.dataset.srvIdx);
+            if (dragSrcIdx === null || dragSrcIdx === tgtIdx) return;
+            const moved = clientConfig.servers.splice(dragSrcIdx, 1)[0];
+            clientConfig.servers.splice(tgtIdx, 0, moved);
+            saveClientConfig();
+            renderServerBar();
+        });
+    });
+}
+
+// ── Voice live transcription ────────────────────────────────────────────────────
+let _transcribing = false;
+let _speechRecog  = null;
+
+function toggleTranscription() {
+    if (_transcribing) {
+        _stopTranscription();
+    } else {
+        if (!serverStates[voiceServerId]?.currentChannelId) {
+            showToast('Join a voice channel first.');
+            return;
+        }
+        _startTranscription();
+    }
+}
+
+function _startTranscription() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { showToast('Live captions not supported in this browser.'); return; }
+    _transcribing = true;
+    document.getElementById('btn-transcribe')?.classList.add('on');
+    document.getElementById('transcription-strip')?.classList.add('active');
+
+    _speechRecog = new SR();
+    _speechRecog.continuous   = true;
+    _speechRecog.interimResults = true;
+    _speechRecog.lang = navigator.language || 'en-US';
+
+    _speechRecog.onresult = (e) => {
+        const strip = document.getElementById('transcription-strip');
+        if (!strip) return;
+        let interim = '', final = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+            const t = e.results[i][0].transcript;
+            if (e.results[i].isFinal) final += t;
+            else interim += t;
+        }
+        if (final) {
+            const line = document.createElement('div');
+            line.textContent = final.trim();
+            strip.appendChild(line);
+            if (strip.children.length > 20) strip.removeChild(strip.firstChild);
+            strip.scrollTop = strip.scrollHeight;
+        }
+        let interimEl = strip.querySelector('.caption-interim');
+        if (!interimEl) { interimEl = document.createElement('div'); interimEl.className = 'caption-interim'; interimEl.style.color = 'var(--text-faint)'; strip.appendChild(interimEl); }
+        interimEl.textContent = interim;
+    };
+
+    _speechRecog.onend = () => { if (_transcribing) _speechRecog.start(); };
+    _speechRecog.onerror = (e) => { if (e.error !== 'no-speech') _stopTranscription(); };
+    _speechRecog.start();
+}
+
+function _stopTranscription() {
+    _transcribing = false;
+    document.getElementById('btn-transcribe')?.classList.remove('on');
+    document.getElementById('transcription-strip')?.classList.remove('active');
+    try { _speechRecog?.stop(); } catch {}
+    _speechRecog = null;
+}
+
+// ── Message export ──────────────────────────────────────────────────────────────
+function exportChannel() {
+    const ss = serverStates[viewedServerId];
+    if (!ss) return;
+    const chId = ss.activeTextChannelId;
+    const msgs = ss.channelMessages[chId];
+    if (!msgs?.length) { showToast('No messages to export.'); return; }
+    const ch = ss.serverChannels.find(c => c.id === chId);
+    const chName = ch?.name || chId;
+    const serverName = clientConfig.servers.find(s => s.id === viewedServerId)?.name || viewedServerId;
+    const header = `# #${chName} — ${serverName}\n# Exported: ${new Date().toISOString().slice(0,10)}\n# ${msgs.length} messages\n\n`;
+    const body = msgs.map(m => `[${m.time || ''}] ${m.author}: ${m.message}`).join('\n');
+    const blob = new Blob([header + body], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${chName}-${new Date().toISOString().slice(0,10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
+// ── Forum Channels ────────────────────────────────────────────────────────────
+
+function _setForumMode(on) {
+    const inputArea  = document.getElementById('input-area');
+    const forumBar   = document.getElementById('forum-compose-bar');
+    if (inputArea) inputArea.style.display = on ? 'none' : '';
+    if (forumBar)  forumBar.classList.toggle('visible', on);
+}
+
+function openNewPostModal() {
+    const overlay = document.getElementById('new-post-overlay');
+    if (!overlay) return;
+    document.getElementById('new-post-title').value = '';
+    document.getElementById('new-post-body').value  = '';
+    document.getElementById('new-post-tags').value  = '';
+    overlay.classList.add('open');
+    setTimeout(() => document.getElementById('new-post-title').focus(), 50);
+}
+
+function closeNewPostModal() {
+    document.getElementById('new-post-overlay')?.classList.remove('open');
+}
+
+function submitNewPost() {
+    const title = document.getElementById('new-post-title')?.value?.trim();
+    const body  = document.getElementById('new-post-body')?.value?.trim();
+    if (!title) { document.getElementById('new-post-title').focus(); return; }
+    const tagsRaw = document.getElementById('new-post-tags')?.value?.trim();
+    const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
+    const ss = serverStates[viewedServerId];
+    if (!ss) return;
+    postToServer(viewedServerId, {
+        action: 'SEND_CHAT',
+        channelId: ss.activeTextChannelId,
+        message: body || '(no body)',
+        forumTitle: title,
+        forumTags: tags.length ? tags : undefined
+    });
+    closeNewPostModal();
+}
+
+// ── AI Catch-up Summary ───────────────────────────────────────────────────────
+
+function _renderAiTab() {
+    const provider = clientConfig.aiProvider || 'groq';
+    const sel = document.getElementById('ai-provider-select');
+    const key = document.getElementById('ai-key-input');
+    const mdl = document.getElementById('ai-model-input');
+    const url = document.getElementById('ai-base-url-input');
+    if (sel) sel.value = provider;
+    if (key) key.value = clientConfig.aiApiKey || '';
+    if (mdl) mdl.value = clientConfig.aiModel || '';
+    if (url) url.value = clientConfig.aiBaseUrl || '';
+    document.getElementById('ai-key-status')?.textContent && (document.getElementById('ai-key-status').textContent = '');
+
+    const isLocal = provider === 'ollama' || provider === 'custom';
+    document.getElementById('ai-base-url-row').style.display = isLocal ? '' : 'none';
+
+    const hints = {
+        groq:     'Groq offers a generous free tier. Get a key at console.groq.com → API Keys → Create.',
+        anthropic:'Sign in at console.anthropic.com to get an API key.',
+        openai:   'Sign in at platform.openai.com to get an API key.',
+        ollama:   'No API key needed — Ollama runs locally and ignores it. Leave blank or type anything. Note: web client cannot reach localhost; use the native app.',
+        custom:   'Any OpenAI-compatible server. Leave the key blank if your server doesn\'t require one.',
+    };
+    document.getElementById('ai-provider-hint').textContent = hints[provider] || '';
+
+    const keyOptional = (provider === 'ollama' || provider === 'custom') ? '(optional)' : '';
+    document.getElementById('ai-key-optional').textContent = keyOptional;
+    if (key) key.placeholder = isLocal ? 'Leave blank or type anything' : 'Paste your API key here';
+
+    const modelHints = {
+        groq:     '(optional — leave blank for default)',
+        anthropic:'(optional — leave blank for default)',
+        openai:   '(optional — leave blank for default)',
+        ollama:   '(required — e.g. llama3.2, mistral, phi3)',
+        custom:   '(required — depends on your server)',
+    };
+    document.getElementById('ai-model-hint-inline').textContent = modelHints[provider] || '';
+    if (mdl) mdl.placeholder = isLocal ? 'e.g. llama3.2' : 'e.g. llama-3.3-70b-versatile';
+
+    const defaults = {
+        groq:     'Default: llama-3.3-70b-versatile',
+        anthropic:'Default: claude-haiku-4-5-20251001',
+        openai:   'Default: gpt-4o-mini',
+        ollama:   'Whatever model you have pulled — run `ollama list` to see.',
+        custom:   '',
+    };
+    document.getElementById('ai-model-defaults').textContent = defaults[provider] || '';
+}
+
+async function _testAiKey() {
+    const status = document.getElementById('ai-key-status');
+    status.style.color = 'var(--text-faint)';
+    status.textContent = 'Testing…';
+    try {
+        const result = await _callAiApi('Say "OK" and nothing else.');
+        if (result) {
+            status.style.color = 'var(--success)';
+            status.textContent = '✓ Connected — ' + result.trim().slice(0, 60);
+        } else {
+            status.style.color = 'var(--danger)';
+            status.textContent = '✗ No response from API. Check your key and provider.';
+        }
+    } catch (e) {
+        status.style.color = 'var(--danger)';
+        status.textContent = '✗ ' + (e.message || 'Request failed');
+    }
+}
+
+async function _callAiApi(userPrompt) {
+    const key      = clientConfig.aiApiKey?.trim();
+    const provider = clientConfig.aiProvider || 'groq';
+    const model    = clientConfig.aiModel?.trim();
+    const customUrl = clientConfig.aiBaseUrl?.trim();
+
+    if (provider === 'anthropic') {
+        const r = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': key,
+                'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true',
+            },
+            body: JSON.stringify({
+                model: model || 'claude-haiku-4-5-20251001',
+                max_tokens: 600,
+                messages: [{ role: 'user', content: userPrompt }]
+            })
+        });
+        const d = await r.json();
+        if (d.error) throw new Error(d.error.message);
+        return d.content?.[0]?.text || '';
+    } else {
+        const defaultUrls = {
+            groq:   'https://api.groq.com/openai/v1',
+            openai: 'https://api.openai.com/v1',
+            ollama: 'http://localhost:11434/v1',
+            custom: '',
+        };
+        const defaultModels = {
+            groq:   'llama-3.3-70b-versatile',
+            openai: 'gpt-4o-mini',
+            ollama: '',
+            custom: '',
+        };
+        const baseUrl  = customUrl || defaultUrls[provider] || defaultUrls.groq;
+        const useModel = model || defaultModels[provider];
+        if (!baseUrl) throw new Error('No API base URL configured. Set one in Settings → AI.');
+        if (!useModel) throw new Error('No model specified. Enter a model name in Settings → AI.');
+        const authKey = key || 'ollama';
+        const r = await fetch(`${baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authKey}`,
+            },
+            body: JSON.stringify({
+                model: useModel,
+                max_tokens: 600,
+                messages: [{ role: 'user', content: userPrompt }]
+            })
+        });
+        const d = await r.json();
+        if (d.error) throw new Error(d.error.message);
+        return d.choices?.[0]?.message?.content || '';
+    }
+}
+
+async function runAiCatchup() {
+    const key = clientConfig.aiApiKey?.trim();
+    if (!key) {
+        openSettings();
+        switchTab('ai');
+        return;
+    }
+
+    const card = document.getElementById('ai-summary-card');
+    const body = document.getElementById('ai-sum-body');
+    const footer = document.getElementById('ai-sum-footer');
+
+    body.textContent = 'Summarising…';
+    footer.textContent = '';
+    card.classList.add('visible');
+
+    const rows = [...document.querySelectorAll('#chat-history .msg-row')].slice(-150);
+    if (rows.length < 3) {
+        body.textContent = 'Not enough messages to summarise.';
+        return;
+    }
+
+    const lines = rows.map(r => {
+        const alias = r.querySelector('.msg-alias')?.textContent?.trim() || '?';
+        const msgBody = r.querySelector('.msg-body');
+        const text = (msgBody?.dataset?.raw || msgBody?.textContent || '').trim();
+        return text ? `${alias}: ${text}` : null;
+    }).filter(Boolean);
+
+    const prompt = `These are recent messages from a chat channel. Summarise what was discussed in 4–6 concise bullet points. Focus on decisions, topics, questions asked, and anything someone who was away would want to know. Be specific, not generic.\n\n${lines.join('\n')}`;
+
+    try {
+        const summary = await _callAiApi(prompt);
+        body.textContent = summary || 'No summary returned.';
+        const providerLabel = { groq: 'Groq', anthropic: 'Anthropic', openai: 'OpenAI', ollama: 'Ollama', custom: 'Custom' }[clientConfig.aiProvider] || clientConfig.aiProvider;
+        const defaultModels = { groq: 'llama-3.3-70b-versatile', anthropic: 'claude-haiku-4-5-20251001', openai: 'gpt-4o-mini' };
+        const modelLabel = clientConfig.aiModel?.trim() || defaultModels[clientConfig.aiProvider] || '?';
+        footer.textContent = `Powered by ${providerLabel} · ${modelLabel} · ${lines.length} messages`;
+    } catch (e) {
+        body.textContent = '✗ ' + (e.message || 'Request failed. Check your API key in Settings → AI.');
+    }
+}
+
+function dismissAiSummary() {
+    document.getElementById('ai-summary-card')?.classList.remove('visible');
+}
+
+// ── Raider.io integration ─────────────────────────────────────────────────────
+
+function _rioCardHtml(rio) {
+    if (!rio) return '';
+    const scoreHtml = rio.score > 0
+        ? `<span class="rio-score-val" style="color:${escapeHtml(rio.scoreColor)};">⚔ ${rio.score}</span><span style="color:var(--text-faint);margin-left:5px;">${rio.ilvl > 0 ? `${rio.ilvl} ilvl · ` : ''}${escapeHtml(rio.spec)} ${escapeHtml(rio.class)}</span>`
+        : `<span style="color:var(--text-faint);">${escapeHtml(rio.spec)} ${escapeHtml(rio.class)} · ${rio.ilvl > 0 ? `${rio.ilvl} ilvl` : 'No M+ data'}</span>`;
+    return `<div class="integration-card-wrap">` +
+        `<a class="rio-badge" href="${escapeHtml(rio.profileUrl)}" target="_blank" rel="noopener" title="View on Raider.io" style="padding-bottom:20px;">` +
+            (rio.thumbnail ? `<img class="rio-badge-avatar" src="${escapeHtml(rio.thumbnail)}" alt="">` : '') +
+            `<div>` +
+                `<div class="rio-badge-name">${escapeHtml(rio.name)} <span style="font-weight:400;color:var(--text-faint);font-size:10px;">${escapeHtml(rio.realm)} ${(rio.region||'').toUpperCase()}</span></div>` +
+                `<div class="rio-badge-sub">${scoreHtml}</div>` +
+            `</div>` +
+        `</a>` +
+        `<span class="integration-badge">Raider.io</span>` +
+    `</div>`;
+}
+
+async function _fetchRioApi(name, realm, region) {
+    const url = `https://raider.io/api/v1/characters/profile?region=${encodeURIComponent(region)}&realm=${encodeURIComponent(realm)}&name=${encodeURIComponent(name)}&fields=mythic_plus_scores_by_season:current,gear,class,active_spec_name,thumbnail_url,profile_url`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const d = await resp.json();
+    const season = d.mythic_plus_scores_by_season?.[0];
+    return {
+        name: d.name, realm: d.realm, region: d.region,
+        class: d.class, spec: d.active_spec_name,
+        ilvl: d.gear?.item_level_equipped || 0,
+        score: Math.round(season?.scores?.all || 0),
+        scoreColor: season?.segments?.all?.color || '#888',
+        thumbnail: d.thumbnail_url, profileUrl: d.profile_url,
+        fetchedAt: Date.now()
+    };
+}
+
+async function _fetchRioForCard(alias, rioChar, serverId) {
+    try {
+        const data = await _fetchRioApi(rioChar.name, rioChar.realm, rioChar.region);
+        const ss = serverStates[serverId];
+        if (ss) ss.memberRioCache[alias] = data;
+        // Update card if still showing
+        const rioRow = document.getElementById('pc-rio-row');
+        if (rioRow && rioRow.style.display !== 'none') rioRow.innerHTML = _rioCardHtml(data);
+    } catch { /* silently fail */ }
+}
+
+async function saveRioChar() {
+    const name   = document.getElementById('rio-name-input')?.value?.trim() || '';
+    const realm  = document.getElementById('rio-realm-input')?.value?.trim() || '';
+    const region = document.getElementById('rio-region-select')?.value || 'eu';
+    clientConfig.rioName = name; clientConfig.rioRealm = realm; clientConfig.rioRegion = region;
+    clientConfig.rioCache = null;
+    saveClientConfig();
+    const preview = document.getElementById('rio-preview');
+    if (!name || !realm) { if (preview) preview.innerHTML = ''; return; }
+    if (preview) preview.innerHTML = `<div style="font-size:12px;color:var(--text-faint);">Fetching…</div>`;
+    try {
+        const data = await _fetchRioApi(name, realm, region);
+        clientConfig.rioCache = data; saveClientConfig();
+        if (preview) preview.innerHTML = _rioCardHtml(data);
+        for (const sid of connectedServerIds)
+            postToServer(sid, { action: 'SET_RIO_CHAR', name, realm, region });
+    } catch {
+        if (preview) preview.innerHTML = `<span style="color:var(--danger);font-size:12px;">Character not found — check name, realm and region.</span>`;
+    }
+}
+
+function clearRioChar() {
+    clientConfig.rioName = ''; clientConfig.rioRealm = ''; clientConfig.rioRegion = 'eu'; clientConfig.rioCache = null;
+    saveClientConfig();
+    const ni = document.getElementById('rio-name-input'); if (ni) ni.value = '';
+    const ri = document.getElementById('rio-realm-input'); if (ri) ri.value = '';
+    const rs = document.getElementById('rio-region-select'); if (rs) rs.value = 'eu';
+    const pr = document.getElementById('rio-preview'); if (pr) pr.innerHTML = '';
+    for (const sid of connectedServerIds) postToServer(sid, { action: 'SET_RIO_CHAR', name: '', realm: '', region: 'eu' });
+}
+
+function _populateRioTab() {
+    const ni = document.getElementById('rio-name-input'); if (ni) ni.value = clientConfig.rioName || '';
+    const ri = document.getElementById('rio-realm-input'); if (ri) ri.value = clientConfig.rioRealm || '';
+    const rs = document.getElementById('rio-region-select'); if (rs) rs.value = clientConfig.rioRegion || 'eu';
+    const pr = document.getElementById('rio-preview');
+    if (pr) pr.innerHTML = clientConfig.rioCache ? _rioCardHtml(clientConfig.rioCache) : '';
+}
+
+// ── Bio / quote ───────────────────────────────────────────────────────────────
+
+function saveBio() {
+    const bio = (document.getElementById('bio-input')?.value || '').trim().slice(0, 120);
+    clientConfig.bio = bio;
+    saveClientConfig();
+    for (const sid of connectedServerIds) postToServer(sid, { action: 'SET_BIO', bio });
+}
+
+function clearBio() {
+    clientConfig.bio = '';
+    saveClientConfig();
+    const inp = document.getElementById('bio-input'); if (inp) inp.value = '';
+    for (const sid of connectedServerIds) postToServer(sid, { action: 'SET_BIO', bio: '' });
+}
+
+function _populateBioTab() {
+    const inp = document.getElementById('bio-input'); if (inp) inp.value = clientConfig.bio || '';
+}
+
+// ── Steam integration ──────────────────────────────────────────────────────────
+
+function _steamCardHtml(s) {
+    if (!s) return '';
+    const onlineState = s.OnlineState || s.onlineState || '';
+    const stateIcon = onlineState === 'in-game' ? '🎮' : onlineState === 'online' ? '🟢' : '⚫';
+    const currentGame  = s.CurrentGame  || s.currentGame;
+    const topGame      = s.TopGame      || s.topGame;
+    const topGameHours = s.TopGameHours || s.topGameHours;
+    const location     = s.Location     || s.location;
+    const avatarUrl    = s.AvatarUrl    || s.avatarUrl;
+    const profileUrl   = s.ProfileUrl   || s.profileUrl || '#';
+    const displayName  = s.DisplayName  || s.displayName || s.SteamId64 || s.steamId64 || '?';
+    const gameHtml = currentGame
+        ? `<div class="steam-game">🎮 ${escapeHtml(currentGame)}</div>`
+        : topGame ? `<div class="steam-top-game">Top game: ${escapeHtml(topGame)}${topGameHours ? ` · ${escapeHtml(topGameHours)}h` : ''}</div>` : '';
+    const locationHtml = location ? `<span style="color:var(--text-faint);font-size:10px;"> · ${escapeHtml(location)}</span>` : '';
+    return `<div class="integration-card-wrap">` +
+        `<a href="${escapeHtml(profileUrl)}" target="_blank" class="steam-badge" title="View Steam profile" style="padding-bottom:20px;">` +
+            (avatarUrl ? `<img class="steam-badge-avatar" src="${escapeHtml(avatarUrl)}" alt="">` : '') +
+            `<div class="steam-badge-info">` +
+                `<div class="steam-badge-name">${stateIcon} ${escapeHtml(displayName)}${locationHtml}</div>` +
+                gameHtml +
+            `</div>` +
+        `</a>` +
+        `<span class="integration-badge">Steam</span>` +
+    `</div>`;
+}
+
+function saveSteamProfile() {
+    const input = document.getElementById('steam-profile-input')?.value?.trim() || '';
+    if (!input) { clearSteamProfile(); return; }
+    clientConfig.steamProfile = input;
+    saveClientConfig();
+    const pr = document.getElementById('steam-preview');
+    if (pr) pr.innerHTML = `<span style="font-size:11px;color:var(--text-faint);">Fetching… (server will update your card shortly)</span>`;
+    for (const sid of connectedServerIds) postToServer(sid, { action: 'SET_STEAM_PROFILE', profile: input });
+}
+
+function clearSteamProfile() {
+    clientConfig.steamProfile = '';
+    saveClientConfig();
+    const inp = document.getElementById('steam-profile-input'); if (inp) inp.value = '';
+    const pr  = document.getElementById('steam-preview');       if (pr)  pr.innerHTML = '';
+    for (const sid of connectedServerIds) postToServer(sid, { action: 'SET_STEAM_PROFILE', profile: '' });
+}
+
+function _populateSteamTab() {
+    const inp = document.getElementById('steam-profile-input'); if (inp) inp.value = clientConfig.steamProfile || '';
+    const pr  = document.getElementById('steam-preview');
+    if (!pr) return;
+    const ss = serverStates[viewedServerId];
+    const myAlias = ss?.myAlias;
+    const steam = myAlias ? ss?.memberSteamProfiles?.[myAlias] : null;
+    pr.innerHTML = steam ? _steamCardHtml(steam) : '';
+}
+
+async function _handleRioCommand(msg, ss) {
+    const parts = msg.trim().split(/\s+/);
+    let name, realm, region;
+    if (parts.length >= 3) {
+        // /rio <name> <realm> [region]
+        name = parts[1]; realm = parts[2]; region = parts[3] || 'eu';
+    } else if (clientConfig.rioName && clientConfig.rioRealm) {
+        name = clientConfig.rioName; realm = clientConfig.rioRealm; region = clientConfig.rioRegion || 'eu';
+    } else {
+        renderSystemMessage('No character linked. Set one in Settings → Identity.');
+        return;
+    }
+    renderSystemMessage(`Fetching ${name}-${realm} (${region.toUpperCase()})…`);
+    try {
+        const data = await _fetchRioApi(name, realm, region);
+        const scoreStr = data.score > 0 ? `M+ ${data.score}` : 'No M+ data';
+        const out = `⚔ ${data.name} | ${data.spec} ${data.class} | ${scoreStr} | ${data.ilvl > 0 ? `${data.ilvl} ilvl | ` : ''}${data.realm} ${(data.region||'').toUpperCase()} — ${data.profileUrl}`;
+        postToServer(viewedServerId, { action: 'SEND_CHAT', channelId: ss.activeTextChannelId, message: out });
+    } catch {
+        renderSystemMessage('Could not find that character on Raider.io.');
+    }
 }
 
 let _galleryForced = null; // null = auto, true = forced gallery, false = forced strip
@@ -9202,6 +10225,12 @@ async function handleBridgeMessage(data, serverId) {
         ss.myRole = data.role;
         ss.userRoles[ss.myAlias] = data.role;
         if (ss.myAlias) _dmCheckKeyOnConnect(ss.myAlias, serverId);
+        if (clientConfig.rioName && clientConfig.rioRealm)
+            postToServer(serverId, { action: 'SET_RIO_CHAR', name: clientConfig.rioName, realm: clientConfig.rioRealm, region: clientConfig.rioRegion || 'eu' });
+        if (clientConfig.steamProfile)
+            postToServer(serverId, { action: 'SET_STEAM_PROFILE', profile: clientConfig.steamProfile });
+        if (clientConfig.bio)
+            postToServer(serverId, { action: 'SET_BIO', bio: clientConfig.bio });
         if (isViewed) {
             const isElevated = data.role === 'admin' || data.role === 'owner';
             const badge = document.getElementById('role-badge');
@@ -9258,7 +10287,8 @@ async function handleBridgeMessage(data, serverId) {
             if (!ss.channelMessages[chId]) ss.channelMessages[chId] = [];
             const stored = { id: data.id, author: data.author, time: data.time, message: msgText,
                 reactions: data.reactions || {}, replyToId: data.replyToId || null, replySnippet: data.replySnippet || null, editHistory: data.editHistory || [],
-                threadId: data.threadId || null, threadCount: data.threadCount || 0, poll: data.poll || null };
+                threadId: data.threadId || null, threadCount: data.threadCount || 0, poll: data.poll || null,
+                forumTitle: data.forumTitle || null, forumTags: data.forumTags || null };
             if (ciphertextBackup) stored._ciphertext = ciphertextBackup;
             ss.channelMessages[chId].push(stored);
             const srvMuted   = isServerMuted(serverId);
@@ -9289,7 +10319,7 @@ async function handleBridgeMessage(data, serverId) {
                 postToBridge({ action: 'NOTIFY', title: notifTitle, body: notifBody });
             }
             if (isViewed && chId === ss.activeTextChannelId && !window._relayDmActive)
-                renderChatMessage(data.id, data.author, data.time, msgText, false, data.reactions || {}, data.replyToId, data.replySnippet, data.editHistory || [], data.threadId, data.threadCount, data.poll);
+                renderChatMessage(data.id, data.author, data.time, msgText, false, data.reactions || {}, data.replyToId, data.replySnippet, data.editHistory || [], data.threadId, data.threadCount, data.poll, data.forumTitle || null, data.forumTags || null);
         }
 
     } else if (data.action === 'AUTOMOD_BLOCKED') {
@@ -9449,7 +10479,7 @@ async function handleBridgeMessage(data, serverId) {
                 _autoUploadLocalAvatar(ss.myAlias);
             }
         }
-        if (data.userStatuses     && typeof data.userStatuses     === 'object') Object.assign(ss.userStatuses,    data.userStatuses);
+        if (data.userStatuses     && typeof data.userStatuses     === 'object') { Object.assign(ss.userStatuses,    data.userStatuses); if (isViewed) updateChannelOnlineCount(); }
         if (data.userStatusTexts  && typeof data.userStatusTexts  === 'object') Object.assign(ss.userStatusTexts, data.userStatusTexts);
         if (data.userRoles        && typeof data.userRoles        === 'object') Object.assign(ss.userRoles,       data.userRoles);
         if (data.roleColors       && typeof data.roleColors       === 'object') ss.roleColors = data.roleColors;
@@ -9465,6 +10495,11 @@ async function handleBridgeMessage(data, serverId) {
         if (data.starboard && typeof data.starboard === 'object') ss.starboardConfig = { ...ss.starboardConfig, ...data.starboard };
         if (typeof data.privacyStatement === 'string') ss.serverPrivacyStatement = data.privacyStatement;
         if (data.dmPublicKeys && typeof data.dmPublicKeys === 'object') Object.assign(ss.dmPublicKeys, data.dmPublicKeys);
+        if (typeof data.xpEnabled === 'boolean') ss.xpEnabled = data.xpEnabled;
+        if (data.memberLevels && typeof data.memberLevels === 'object') ss.memberLevels = data.memberLevels;
+        if (data.memberRioChars && typeof data.memberRioChars === 'object') ss.memberRioChars = data.memberRioChars;
+        if (data.memberSteamProfiles && typeof data.memberSteamProfiles === 'object') ss.memberSteamProfiles = data.memberSteamProfiles;
+        if (data.memberBios && typeof data.memberBios === 'object') ss.memberBios = data.memberBios;
         ss.serverChannels = data.channels;
         ss.channelSlowMode = {};
         data.channels.forEach(c => { if (c.slowMode) ss.channelSlowMode[c.id] = c.slowMode; });
@@ -9531,6 +10566,10 @@ async function handleBridgeMessage(data, serverId) {
                 voiceServerId = null; voiceChannelId = null;
             }
             if (ss.displayStream && ss.sharingChannelId === data.channelId) stopScreenShare();
+            if (_watchChannelId === data.channelId) {
+                if (_watchIsHost) stopWatchParty(); else _clearWatchPanel();
+            }
+            if (_transcribing) _stopTranscription();
         }
         if (isViewed) {
             updateMicIndicator();
@@ -9959,6 +10998,36 @@ async function handleBridgeMessage(data, serverId) {
             if (document.getElementById('members-panel')?.classList.contains('open')) renderMembersPanel();
         }
 
+    } else if (data.action === 'RIO_CHAR_UPDATED') {
+        if (data.name && data.realm) ss.memberRioChars[data.alias] = { name: data.name, realm: data.realm, region: data.region || 'eu' };
+        else delete ss.memberRioChars[data.alias];
+        delete ss.memberRioCache[data.alias];
+
+    } else if (data.action === 'STEAM_PROFILE_UPDATED') {
+        if (data.profile) ss.memberSteamProfiles[data.alias] = data.profile;
+        else delete ss.memberSteamProfiles[data.alias];
+        if (isViewed && data.alias === ss.myAlias) _populateSteamTab();
+
+    } else if (data.action === 'BIO_UPDATED') {
+        if (data.bio) ss.memberBios[data.alias] = data.bio;
+        else delete ss.memberBios[data.alias];
+
+    } else if (data.action === 'XP_UPDATED') {
+        ss.memberLevels[data.alias] = { xp: data.xp, level: data.level };
+        if (isViewed && document.getElementById('members-panel')?.classList.contains('open')) renderMembersPanel();
+
+    } else if (data.action === 'XP_LEVELUP') {
+        ss.memberLevels[data.alias] = { xp: data.xp, level: data.level };
+        if (isViewed) {
+            if (document.getElementById('members-panel')?.classList.contains('open')) renderMembersPanel();
+            if (data.alias === ss.myAlias) _showXpLevelUpToast(data.level);
+            else renderSystemMessage(`🎉 ${data.alias} reached level ${data.level}!`);
+        }
+
+    } else if (data.action === 'XP_CONFIG_UPDATED') {
+        ss.xpEnabled = data.enabled;
+        if (isViewed && !document.getElementById('tab-admin')?.classList.contains('hidden')) renderAdminXp();
+
     } else if (data.action === 'POLL_UPDATED') {
         DevLog.log('BRIDGE', `← C# | POLL_UPDATED msgId:${data.messageId} ch:${data.channelId}`);
         const chMsgs = ss.channelMessages[data.channelId];
@@ -10081,12 +11150,10 @@ async function handleBridgeMessage(data, serverId) {
     } else if (data.action === 'CHANNEL_NOTES') {
         if (isViewed && data.channelId === ss?.activeTextChannelId) {
             const ta = document.getElementById('notes-textarea');
-            if (ta && document.activeElement !== ta) {
+            if (ta) {
                 ta.value = data.notes ?? '';
                 document.getElementById('notes-save-status').textContent = '';
-                if (_notesMode === 'preview') {
-                    document.getElementById('notes-preview').innerHTML = renderMarkdown(ta.value || '*Nothing yet.*');
-                }
+                if (!_notesEditing) _notesShowView();
             }
         }
 
@@ -10654,9 +11721,11 @@ function renderMembersPanel() {
                 const ctxAttr = `onclick="showProfileCard(event,'${escapeHtml(alias)}')"${alias !== ss.myAlias ? ` oncontextmenu="showUserCtxMenu(event,'${escapeHtml(alias)}')"` : ''}`;
                 const toExp = ss.timedOutUsers[alias];
                 const toBadge = toExp ? `<span class="timeout-badge" title="Timed out until ${new Date(toExp).toLocaleTimeString()}">⏱</span>` : '';
+                const lvlData = ss.xpEnabled ? ss.memberLevels[alias] : null;
+                const lvlBadge = lvlData ? `<span class="xp-level-badge" title="${lvlData.xp} XP">Lv${lvlData.level}</span>` : '';
                 return `<div class="member-entry" ${ctxAttr}>`
                     + avatarHtml(alias, 'sz-32', false, true)
-                    + `<div class="member-entry-info"><div class="member-entry-name" style="${getRoleColor(alias)}">${escapeHtml(alias)}${toBadge}</div>${ss.userStatusTexts[alias] ? `<div class="member-entry-status-text">${escapeHtml(ss.userStatusTexts[alias])}</div>` : vcHtml}</div>${pip}</div>`;
+                    + `<div class="member-entry-info"><div class="member-entry-name" style="${getRoleColor(alias)}">${escapeHtml(alias)}${toBadge}${lvlBadge}</div>${ss.userStatusTexts[alias] ? `<div class="member-entry-status-text">${escapeHtml(ss.userStatusTexts[alias])}</div>` : vcHtml}</div>${pip}</div>`;
             }).join('');
             return `<div class="member-group-label">${groupLabels[grp]} — ${aliases.length}</div>${entries}`;
         }).join('');
@@ -10775,10 +11844,41 @@ function renderAdminPanel() {
     renderAdminChannels();
     renderEmojisSection();
     renderStarboardSettings();
+    renderAdminXp();
     loadAuditLog();
     const ss = serverStates[viewedServerId];
     const inp = document.getElementById('privacy-stmt-input');
     if (inp) inp.value = ss?.serverPrivacyStatement || '';
+}
+
+function renderAdminXp() {
+    const el = document.getElementById('admin-xp-body');
+    if (!el) return;
+    const ss = serverStates[viewedServerId];
+    if (!ss) return;
+    el.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--text-normal);cursor:pointer;">
+                <input type="checkbox" id="xp-enabled-chk" ${ss.xpEnabled ? 'checked' : ''} onchange="toggleXpEnabled(this.checked)">
+                Enable leveling system
+            </label>
+        </div>
+        <p style="font-size:11px;color:var(--text-faint);line-height:1.55;margin:0;">+15–25 XP per message (60 s cooldown) · +2 XP per minute in voice channels · Use /rank and /leaderboard in any channel.</p>`;
+}
+
+function toggleXpEnabled(enabled) {
+    const ss = serverStates[viewedServerId];
+    if (!ss) return;
+    ss.wsSend({ action: 'SET_XP_CONFIG', enabled });
+}
+
+function _showXpLevelUpToast(level) {
+    const t = document.createElement('div');
+    t.className = 'xp-levelup-toast';
+    t.textContent = `🎉 Level up! You reached level ${level}`;
+    document.body.appendChild(t);
+    requestAnimationFrame(() => t.classList.add('show'));
+    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 350); }, 3500);
 }
 
 function adminSavePrivacyStatement() {
@@ -13773,6 +14873,20 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('local-badge')?.classList.toggle('visible', !relayToken);
     initChannelListDragDrop();
     _initAudioPlayerDelegation();
+
+    // Hover on any chat author name → show profile card
+    const _ch = document.getElementById('chat-history');
+    if (_ch) {
+        _ch.addEventListener('mouseover', e => {
+            const el = e.target.closest('.msg-author');
+            if (!el) return;
+            const alias = el.textContent.trim();
+            if (!alias) return;
+            if (document.getElementById('profile-card')?.classList.contains('hidden') === false) return;
+            showProfileCard(e, alias);
+        });
+    }
+
     // Auto-connect all saved servers on launch (clientConfig already loaded by init())
     if (clientConfig.servers.length) {
         const first = clientConfig.servers[0];
@@ -14273,31 +15387,85 @@ function onAutoAwayChange(val) {
 let _notesDebounceTimer = null;
 let _notesOpenChannelId = null;
 
+let _notesEditing = false;
+
 function toggleNotesPanel() {
     const panel = document.getElementById('notes-panel');
     if (!panel) return;
     const ss = serverStates[viewedServerId];
     if (panel.classList.contains('open')) {
+        if (_notesEditing) _notesExitEdit(true);
         panel.classList.remove('open');
     } else {
         panel.classList.add('open');
-        _notesSetMode('edit');
+        _notesEditing = false;
+        _notesShowView();
         _loadNotesForChannel(ss?.activeTextChannelId, viewedServerId);
     }
 }
 
 function _loadNotesForChannel(chId, sId) {
     if (!chId || !sId) return;
-    document.getElementById('notes-textarea').value = '';
+    const preview = document.getElementById('notes-preview');
+    if (preview) { preview.innerHTML = ''; preview.className = ''; }
     document.getElementById('notes-save-status').textContent = 'Loading…';
     postToServer(sId, { action: 'GET_NOTES', channelId: chId });
+}
+
+function _notesShowView() {
+    const ta      = document.getElementById('notes-textarea');
+    const preview = document.getElementById('notes-preview');
+    const fmtBar  = document.getElementById('notes-fmt-bar');
+    const btn     = document.getElementById('notes-edit-btn');
+    ta.style.display      = 'none';
+    fmtBar.style.display  = 'none';
+    preview.style.display = 'block';
+    btn.textContent = '✏ Edit';
+    btn.classList.remove('active');
+    const content = ta.value.trim();
+    preview.innerHTML = content ? renderMarkdown(ta.value) : '';
+    preview.className = content ? '' : 'empty';
+}
+
+function _notesToggleEdit() {
+    if (_notesEditing) {
+        _notesExitEdit(true);
+    } else {
+        _notesEditing = true;
+        const ta      = document.getElementById('notes-textarea');
+        const preview = document.getElementById('notes-preview');
+        const fmtBar  = document.getElementById('notes-fmt-bar');
+        const btn     = document.getElementById('notes-edit-btn');
+        preview.style.display = 'none';
+        ta.style.display      = 'block';
+        fmtBar.style.display  = 'flex';
+        btn.textContent = '✓ Done';
+        btn.classList.add('active');
+        ta.focus();
+        ta.setSelectionRange(ta.value.length, ta.value.length);
+    }
+}
+
+function _notesExitEdit(saveNow) {
+    _notesEditing = false;
+    if (saveNow) {
+        clearTimeout(_notesDebounceTimer);
+        const ta   = document.getElementById('notes-textarea');
+        const chId = serverStates[viewedServerId]?.activeTextChannelId;
+        if (chId && viewedServerId && ta) {
+            postToServer(viewedServerId, { action: 'UPDATE_NOTES', channelId: chId, notes: ta.value });
+            document.getElementById('notes-save-status').textContent = 'Saved';
+            setTimeout(() => { document.getElementById('notes-save-status').textContent = ''; }, 2000);
+        }
+    }
+    _notesShowView();
 }
 
 function _notesSaveDebounced() {
     document.getElementById('notes-save-status').textContent = 'Unsaved…';
     clearTimeout(_notesDebounceTimer);
     _notesDebounceTimer = setTimeout(() => {
-        const ta = document.getElementById('notes-textarea');
+        const ta   = document.getElementById('notes-textarea');
         const chId = serverStates[viewedServerId]?.activeTextChannelId;
         if (!chId || !viewedServerId || !ta) return;
         postToServer(viewedServerId, { action: 'UPDATE_NOTES', channelId: chId, notes: ta.value });
@@ -14310,29 +15478,8 @@ function _notesSaveDebounced() {
 function _notesOnChannelSwitch(chId, sId) {
     const panel = document.getElementById('notes-panel');
     if (!panel?.classList.contains('open')) return;
+    if (_notesEditing) _notesExitEdit(true);
     _loadNotesForChannel(chId, sId);
-}
-
-let _notesMode = 'edit';
-
-function _notesSetMode(mode) {
-    _notesMode = mode;
-    const ta      = document.getElementById('notes-textarea');
-    const preview = document.getElementById('notes-preview');
-    const fmtBar  = document.getElementById('notes-fmt-bar');
-    document.getElementById('notes-mode-edit').classList.toggle('active', mode === 'edit');
-    document.getElementById('notes-mode-preview').classList.toggle('active', mode === 'preview');
-    if (mode === 'preview') {
-        preview.innerHTML = renderMarkdown(ta.value || '*Nothing yet.*');
-        ta.style.display = 'none';
-        preview.style.display = '';
-        fmtBar.style.display = 'none';
-    } else {
-        preview.style.display = 'none';
-        ta.style.display = '';
-        fmtBar.style.display = '';
-        ta.focus();
-    }
 }
 
 function _notesFmt(type) {

@@ -1,7 +1,7 @@
 # Iskra — Feature Inventory
 
 > Living document. Update whenever a feature is added, fixed, or changed.  
-> Last updated: 2026-05-10 · v1.1.12 (notes markdown, search voice fix)
+> Last updated: 2026-05-11 · v1.1.14.0
 
 ---
 
@@ -28,7 +28,7 @@
 | Syntax highlighting | Language-agnostic tokenizer in code blocks and inline code |
 | Multi-line chat input | Auto-resize to 150px; Shift+Enter for newline |
 | Formatting toolbar | ✏ button or Ctrl+Shift+F; inserts template with placeholder |
-| Message edit | Inline textarea; Enter save, Esc cancel; edit history tracked |
+| Message edit | Inline textarea; Enter save, Esc cancel; edit history tracked; formatting toolbar (same as compose) available in edit mode |
 | Message delete | Shift+click to skip confirm; admins delete any message |
 | Message pin/unpin | Admin+; pin count badge in header; dedicated pin panel |
 | Emoji reactions | Standard + custom server emoji; hover shows who reacted |
@@ -43,7 +43,9 @@
 | @mention autocomplete | Popup with online users + role names; ↑↓ navigate; Enter/Tab insert |
 | Role @mentions | `@member`, `@admin` etc.; highlights all role members; shown amber |
 | Poll command | `/poll "Q" "A" "B"` — click to vote; live bar chart; toggle vote |
-| Message search | Ctrl+F; searches current channel; debounced; click result scrolls |
+| Message search | Ctrl+F; default searches current channel; checkboxes expand to all-server or DMs; click result scrolls and flashes |
+| Search filters | `from:alias`, `"exact phrase"`, `has:image/link/file/code/reaction`, `mentions:alias`, `after:`/`before:YYYY-MM-DD`, `OR` operator; sort newest/oldest |
+| Search regex mode | `.*` toggle switches to client-side regex filter on live results |
 | Slow mode | `/slowmode <secs>` per channel; admin bypass; countdown bar |
 | Ephemeral messages | `/shh [secs] <msg>` — visible to all, auto-deleted after N seconds |
 | Starboard | Reaction threshold auto-posts to designated channel; admin configures |
@@ -51,6 +53,9 @@
 | Message reminders | 🔔 on any message; pick 30 min / 1 h / 3 h / tomorrow / custom; fires desktop notification + popup with jump link; localStorage persistence |
 | Mark all as read | Right-click server → Mark all as read; clears all channel unread counts |
 | Media gallery | 🖼 in chat header; 72×72 thumbnails for all images/videos in channel |
+| Unread jump pill | "↓ N unread" pill appears when scrolled up; click scrolls to latest and clears count; auto-hides when at bottom |
+| Message drafts | Compose box content saved per-channel in memory; restored automatically on channel switch |
+| Message export | Download all visible channel messages as a .txt file; button in chat header |
 
 ## Direct Messages
 
@@ -81,6 +86,7 @@
 | Noise suppression | RNNoise WASM module; bundled and working on both native and web; toggle in Audio settings |
 | Soundboard | Add/play .mp3/.wav/.ogg clips into voice channel |
 | Session recording | Footer button; records local mic + all remote peers; includes active video/screenshare track; downloads .webm on stop |
+| Live transcription | 🗣 footer button; Web Speech API; continuous real-time captions shown in dismissible strip at bottom of voice panel; Chrome/Edge/WebView2 only |
 
 ## Video & Screen Share
 
@@ -156,6 +162,7 @@
 |---------|-------|
 | Text channels | History, topics, slow mode, notify prefs |
 | Voice channels | Inline user list; live activity status |
+| Forum channels | Post-card grid layout; each post has title + body + optional tags; clicking a post opens thread panel for replies; "New Post" modal; 📋 icon in sidebar; admin creates via + button |
 | Channel categories | Collapsible section labels |
 | Channel topics | Editable by admin+; shown in chat header |
 | Per-channel notification override | All / Mentions only / Muted |
@@ -171,6 +178,8 @@
 | Instant server switching | Click icon → instant UI switch; no reconnect; unread badges accumulate |
 | Voice across servers | Stay voiced on server A while browsing server B |
 | Unread badges per server | Unread + mention counts independent of viewed server |
+| Drag-to-reorder servers | Drag server icons in the sidebar to reorder; persisted to clientConfig |
+| Online count in header | Chat header shows "N online" for the current channel; updates on voice join/leave |
 
 ## Server Discovery & Invites
 
@@ -237,16 +246,40 @@
 | Custom status text | Set via status dot; shown in profile card and member list |
 | Status presets | Chip strip; click apply, right-click remove, + Save to add |
 | Private notes on users | Per-user note textarea in profile card; localStorage only |
-| Admin panel | Members, roles, channels, bot tokens, webhooks, emoji, starboard, audit, backup, analytics, auto-mod, read tracking |
+| Settings description panel | Fixed-width right column beside every settings tab; explains each tab's fields and the identity priority system; minimal scrollbar; hidden on mobile |
+| AI catch-up summary | ✦ button in channel header; summarises last 150 messages using Groq/Anthropic/OpenAI; user supplies their own API key (stored in clientConfig, never leaves device); Groq free tier works; dismissible card result |
+| Raider.io integration | Settings → Identity → link WoW character (name/realm/region); M+ score badge with raider.io colour on profile cards; `/rio` posts your score to chat; `/rio <name> <realm> <region>` looks up any character; scores shared server-wide via WebSocket; "Raider.io" tag badge on profile card integration block |
+| Steam integration | Settings → Identity → paste Steam profile URL, vanity name, or 64-bit Steam ID (trailing slash and all URL formats handled); server fetches Steam public XML, parses display name, avatar, online state, current game, top played game + hours, member since, location; result stored in `steam.json`, broadcast to all clients, shown on profile card with "Steam" tag badge; re-sent on every server reconnect; profile must be public |
+| Profile quote / bio | Settings → Identity → "Profile Quote" field (120 chars max); stored server-side in `bios.json`, broadcast live; shown in italics on profile card below role badge; persists across reconnects |
+| Admin panel | Members, roles, channels, bot tokens, webhooks, emoji, starboard, audit, backup, analytics, auto-mod, read tracking, leveling/XP toggle |
 
 ## Profile Cards
 
 | Feature | Notes |
 |---------|-------|
-| Hover card | Click any name/avatar; shows avatar, role badge, online status, voice channel, "Profile" button |
+| Hover card | Click or hover any name/avatar in chat to open; click own name in footer to open self-card; shows avatar, banner, role badge, bio/quote, XP level, Raider.io M+ block, Steam block, online status, voice channel, action buttons |
+| Self profile card | Clicking your own name in the footer or chat opens your own profile card; no "Message" button shown; private note hidden (notes are for other people) |
+| Hover-to-open in chat | `mouseover` delegation on chat history — hovering any author name opens their profile card without a click |
+| Integration blocks on card | Raider.io and Steam each render as a badge block with avatar/icon, stats, and a small tag pill ("Raider.io" / "Steam") in the bottom-right corner |
 | Full profile page | Custom-hosted static page rendered in sandboxed iframe; YouTube support; scroll sections |
-| Private note field | Visible only to you; stored locally |
+| Private note field | Visible only when viewing someone else's card; hidden on self-view; stored locally |
 | Per-user volume | Set from profile card |
+
+## Leveling / XP
+
+| Feature | Notes |
+|---------|-------|
+| XP on messages | +15–25 XP per qualifying message; 60 s cooldown per user so spam-farming doesn't work |
+| XP in voice | +2 XP per minute spent in any voice channel — Iskra-exclusive differentiator |
+| Level formula | `level = floor(sqrt(xp / 50))` — Level 1 at 50 XP, Level 10 at 5000 XP |
+| Level badge in member list | Small accent-coloured "Lv N" chip next to every username in the member panel |
+| Level in profile card | "⭐ Level N · X / Y XP" progress line under the role badge |
+| Level-up toast | "🎉 Level up! You reached level N" overlay for the local user; system message for others |
+| /rank command | `/rank [alias]` — shows level, total XP, and XP threshold for next level |
+| /leaderboard command | `/leaderboard` — top 10 users by XP |
+| Admin toggle | Enable/disable in Admin → Leveling / XP; default is enabled |
+| Role rewards | `server.json` XP.RoleRewards: `[{ level: N, role: "member" }]` auto-grants role on level-up |
+| Persistence | `xp.json` in world directory; survives restarts |
 
 ## Security
 
@@ -318,8 +351,9 @@
 
 | Feature | Why |
 |---------|-----|
-| Settings right-side description panel | Identity system (local alias / IskraID / server nickname) is non-obvious. Fixed-width panel beside settings content with per-tab explanations. |
 | Donation supporter rewards | Ko-fi webhook → relay marks IskraID as supporter. Badge on hover card. Gift TBD (avatar glow, name color, animated status dot). Don't build until gift is decided. |
+| Pinned message categories | Pins are a flat chronological list. Named groups ("resources", "rules", "links") would be a concrete improvement over Discord. |
+| Footer bar polish | #user-footer gets crowded when role badge + alias + buttons all show. Plan: replace text badge with coloured dot + tooltip; add min-width:0 to info div; tighten gap 8px→4px. Currently acceptable — low priority. |
 
 ## Platform Expansion
 
@@ -334,7 +368,6 @@
 | Feature | Notes |
 |---------|-------|
 | Announcement channel | Read-only for non-admins |
-| Forum / board channel | Post-style threads, not message threads |
 | Stage channel | One speaker, many listeners |
 
 ## Other Planned
@@ -355,29 +388,26 @@ Things not yet discussed but worth considering for making Iskra genuinely compet
 
 | Idea | Why |
 |------|-----|
-| **Cross-channel message search** | Current search is per-channel. Being able to search across all channels in a server (or across all servers) is something people rely on heavily after a few weeks of real use. |
 | **2FA for IskraID accounts** | TOTP (e.g. Google Authenticator) is table stakes for any identity system. Especially relevant given relay DMs are E2E — losing your account = losing your contacts. |
 | **DM group conversations** | 3+ person DMs. WhatsApp/iMessage staple. Relay already handles pairwise; group routing is the extension. |
-| **Login lockout on relay** | ✅ Done — 5-attempt → 15-min in-memory lockout; pending relay deploy |
-| **Session token expiry** | ✅ Done — 30-day `expires_at` on all sessions; pending relay deploy |
+| **Custom keybinding system** | All shortcuts are hardcoded. A keybinding config panel (stored in clientConfig) would let power users remap PTT, search, jump-to-unread, etc. Discord has very limited rebinding; Iskra can go further. |
 
 ## Medium Impact
 
 | Idea | Why |
 |------|-----|
-| **Drag-to-reorder servers in sidebar** | 5+ servers and order starts to matter. Already have drag-to-reorder for channels. |
-| **Server member count + online count** | Show "12 online / 47 members" in the server header. Social proof, feels more alive. |
 | **Invite link expiry + single-use mode** | Currently links are time-limited but not use-limited. One-use links are good for adding someone without opening the server to everyone who finds the link. |
 | **Offline mode (cached channel viewing)** | Read cached messages when disconnected. Service worker already handles app shell; extending it to message cache is the next step. |
 | **Per-channel pinned message count in sidebar** | Small badge showing pinned count. Power-user signal that a channel has important anchored info. |
 | **Audit log rotation** | Audit log is JSONL with no cleanup; grows unbounded. Add `AuditRetentionDays` to server config. |
+| **Read receipts on channel messages (opt-in)** | DM read receipts already exist. Opt-in mutual read receipts on server channels — both parties enable the flag in settings. Discord refused this; Iskra can do it correctly. |
 
 ## Low Effort, High Polish
 
 | Idea | Why |
 |------|-----|
-| **Unread jump button** | "↓ X unread messages" pill that appears when you're scrolled up. Discord staple. |
 | **Channel last-active timestamp** | Show "last message 2h ago" in the channel list for channels you haven't visited. Reduces FOMO anxiety. |
 | **Keyboard shortcut: jump to unread** | Alt+↓ to jump to oldest unread message across any channel. |
 | **Voice channel user cap** | Optional max-user limit per voice channel set by admin. Good for managed events. |
 | **Server transfer (change owner)** | Currently only owner can promote to admin. Need a way to fully hand off a server. |
+| **Subtle glow on active elements** | OLED dark mode suggestion from design audit: `text-shadow: 0 0 10px` on active channel / server indicators with purple accent. Costs nothing, adds depth. |
