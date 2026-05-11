@@ -1,5 +1,10 @@
 # Iskra
 
+**Maintainer & Owner:** Viktor Lundgren · viktor.lundgren@gmail.com · [github.com/quikmn](https://github.com/quikmn)
+*Copyright (c) 2024 Viktor Lundgren. All rights reserved.*
+
+---
+
 A self-hosted voice, text, and identity platform for people who are done with Discord.
 
 Run your own server. Own your data. No accounts required, no telemetry, no subscriptions. And if you want a global identity that works across every server — and even without one — that's built in too.
