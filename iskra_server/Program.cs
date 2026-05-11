@@ -366,6 +366,8 @@ namespace Origin.Server.Core
                                 Edits     = root.TryGetProperty("editHistory", out var ehEl) && ehEl.ValueKind == JsonValueKind.Array
                                     ? JsonSerializer.Deserialize<List<EditEntry>>(ehEl.GetRawText()) ?? new()
                                     : new(),
+                                ThreadId   = root.TryGetProperty("threadId",  out var thEl) && thEl.ValueKind == JsonValueKind.String ? thEl.GetString() : null,
+                                ThreadCount = root.TryGetProperty("threadCount", out var tcEl) && tcEl.ValueKind == JsonValueKind.Number ? tcEl.GetInt32() : 0,
                                 ForumTitle = root.TryGetProperty("forumTitle", out var fttEl) && fttEl.ValueKind == JsonValueKind.String ? fttEl.GetString() : null,
                                 ForumTags  = root.TryGetProperty("forumTags",  out var ftgEl) && ftgEl.ValueKind == JsonValueKind.Array
                                     ? ftgEl.EnumerateArray().Select(t => t.GetString()).Where(t => t != null).ToList()

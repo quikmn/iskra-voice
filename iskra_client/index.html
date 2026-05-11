@@ -8508,6 +8508,12 @@ function renderChatMessage(msgId, author, time, message, edited, reactions, repl
         const card = document.createElement('div');
         card.className = 'forum-post-card';
         if (msgId) card.dataset.msgId = msgId;
+        const _fss = serverStates[viewedServerId];
+        // Store channel ID on card so click always uses the right channel
+        const _fchId = _fss?.activeTextChannelId;
+        if (_fchId) card.dataset.channelId = _fchId;
+        // Populate threadMsgMap — forum cards return early and miss the normal population below
+        if (msgId && threadId && _fss) { _fss.threadMsgMap[msgId] = threadId; _fss.threadCounts[msgId] = threadCount || 0; }
         const tagsHtml = (forumTags && forumTags.length)
             ? `<div class="forum-post-tags">${forumTags.map(t => `<span class="forum-tag">${escapeHtml(t)}</span>`).join('')}</div>` : '';
         const excerpt = (message || '').replace(/[#*`>~_\[\]]/g, '').slice(0, 160);
@@ -8517,7 +8523,7 @@ function renderChatMessage(msgId, author, time, message, edited, reactions, repl
             ${tagsHtml}
             ${excerpt ? `<div class="forum-post-excerpt">${escapeHtml(excerpt)}${message.length > 160 ? '…' : ''}</div>` : ''}
             <div class="forum-post-meta"><span>${escapeHtml(author)}</span><span>·</span><span>${escapeHtml(time)}</span>${replies ? `<span>·</span>${replies}` : ''}</div>`;
-        card.onclick = () => startOrOpenThread(msgId);
+        card.onclick = () => startOrOpenThread(msgId, card.dataset.channelId);
         h.appendChild(card);
         return;
     }
@@ -11902,14 +11908,18 @@ function ctxUntimeout() {
 }
 
 // ── Thread panel ──────────────────────────────────────────────────────────────
-function startOrOpenThread(msgId) {
+function startOrOpenThread(msgId, forumChannelId) {
+    DevLog.log('FORUM', `→ startOrOpenThread msgId:${msgId} fchId:${forumChannelId}`);
     const ss = serverStates[viewedServerId];
-    if (!ss || !ss.activeTextChannelId) return;
+    if (!ss) { DevLog.log('FORUM', '→ no ss, abort'); return; }
+    const channelId = forumChannelId || ss.activeTextChannelId;
+    if (!channelId) { DevLog.log('FORUM', '→ no channelId, abort'); return; }
     const existingId = ss.threadMsgMap[msgId];
+    DevLog.log('FORUM', `→ existingId:${existingId} channelId:${channelId}`);
     if (existingId) {
         openThread(existingId, msgId);
     } else {
-        postToServer(viewedServerId, { action: 'CREATE_THREAD', channelId: ss.activeTextChannelId, messageId: msgId });
+        postToServer(viewedServerId, { action: 'CREATE_THREAD', channelId, messageId: msgId });
     }
 }
 
