@@ -162,7 +162,7 @@
 |---------|-------|
 | Text channels | History, topics, slow mode, notify prefs |
 | Voice channels | Inline user list; live activity status |
-| Forum channels | Post-card grid layout; each post has title + body + optional tags; clicking a post opens thread panel for replies; "New Post" modal; 📋 icon in sidebar; admin creates via + button |
+| Forum channels | Classic table layout (Topic / Replies / Last Post columns); each post has title + body + optional tags; clicking a row opens an inline thread view with back button; replies in-line below the OP; "New Post" modal; 📋 icon in sidebar; admin creates via + button |
 | Channel categories | Collapsible section labels |
 | Channel topics | Editable by admin+; shown in chat header |
 | Per-channel notification override | All / Mentions only / Muted |

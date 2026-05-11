@@ -297,15 +297,52 @@
         .automod-textarea { width:100%; min-height:64px; font-size:12px; font-family:monospace; background:var(--bg-active); border:1px solid var(--bg-hover); border-radius:6px; color:var(--text-normal); padding:6px 8px; resize:vertical; }
         .dnd-indicator { font-size:10px; color:#e74c3c; padding:1px 6px; border-radius:3px; background:rgba(231,76,60,0.15); margin-left:4px; }
         /* ── Forum channels ── */
-        #chat-history.forum-mode { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; padding: 16px; align-content: start; overflow-y: auto; }
-        .forum-post-card { background: var(--bg-surface); border: 1px solid var(--bg-border); border-radius: 8px; padding: 14px 16px 12px; cursor: pointer; transition: border-color 0.15s, background 0.15s; display: flex; flex-direction: column; gap: 7px; }
-        .forum-post-card:hover { border-color: var(--accent); background: var(--bg-hover); }
-        .forum-post-title { font-size: 14px; font-weight: 700; color: var(--text-heading); line-height: 1.3; }
-        .forum-post-excerpt { font-size: 12px; color: var(--text-muted); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-        .forum-post-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+        #chat-history.forum-mode { display: block; padding: 0; overflow-y: auto; }
+        #chat-history.forum-thread-mode { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+        .forum-list-header { display: grid; grid-template-columns: 1fr 70px 150px; padding: 6px 14px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-subtle); border-bottom: 2px solid var(--bg-border); background: var(--bg-deep); position: sticky; top: 0; z-index: 2; user-select: none; }
+        .forum-list-row { display: grid; grid-template-columns: 1fr 70px 150px; padding: 10px 14px; border-bottom: 1px solid var(--bg-deep); cursor: pointer; transition: background 0.1s; align-items: start; }
+        .forum-list-row:hover { background: var(--bg-hover); }
+        .forum-list-row:hover .forum-list-title { color: var(--accent); text-decoration: underline; }
+        .forum-list-main {}
+        .forum-list-title { font-size: 14px; font-weight: 600; color: var(--accent); line-height: 1.3; }
+        .forum-list-excerpt { font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+        .forum-list-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 5px; }
+        .forum-list-author { font-size: 11px; color: var(--text-faint); margin-top: 4px; }
+        .forum-list-replies { font-size: 14px; font-weight: 600; color: var(--text-muted); display: flex; align-items: center; justify-content: center; }
+        .forum-list-lastpost { font-size: 11px; color: var(--text-muted); display: flex; flex-direction: column; gap: 2px; padding-left: 8px; justify-content: center; }
+        .forum-list-lastpost .flp-time { color: var(--text-subtle); }
+        .forum-list-lastpost .flp-author { font-weight: 500; }
         .forum-tag { font-size: 10px; font-weight: 600; color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); border-radius: 3px; padding: 1px 6px; }
-        .forum-post-meta { font-size: 11px; color: var(--text-faint); display: flex; align-items: center; gap: 8px; margin-top: 2px; }
-        .forum-post-meta .fpm-replies { color: var(--text-subtle); }
+        /* Forum inline thread view */
+        .forum-thread-view { display: flex; flex-direction: column; flex: 1; overflow: hidden; height: 100%; }
+        .ftv-nav { padding: 8px 14px; border-bottom: 1px solid var(--bg-border); flex-shrink: 0; display: flex; align-items: center; gap: 10px; background: var(--bg-deep); }
+        .ftv-back-btn { background: none; border: 1px solid var(--bg-border); border-radius: 4px; color: var(--text-muted); cursor: pointer; font-size: 12px; padding: 3px 10px; flex-shrink: 0; }
+        .ftv-back-btn:hover { background: var(--bg-hover); color: var(--text-normal); }
+        .ftv-nav-title { font-size: 13px; font-weight: 600; color: var(--text-heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .ftv-op { padding: 14px 16px 12px; border-bottom: 2px solid var(--bg-border); background: var(--bg-surface); flex-shrink: 0; max-height: 40vh; overflow-y: auto; }
+        .ftv-op-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+        .ftv-op-author { font-size: 12px; font-weight: 600; }
+        .ftv-op-time { font-size: 11px; color: var(--text-muted); }
+        .ftv-op-body { font-size: 14px; color: var(--text-normal); line-height: 1.65; word-wrap: break-word; }
+        .ftv-op-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+        .ftv-op-actions { display: flex; gap: 6px; margin-top: 10px; }
+        .ftv-op-btn { font-size: 11px; padding: 2px 10px; border-radius: 3px; border: 1px solid var(--bg-border); background: none; color: var(--text-muted); cursor: pointer; transition: all 0.1s; }
+        .ftv-op-btn:hover { background: var(--bg-hover); color: var(--text-normal); }
+        .ftv-op-btn.del:hover { background: rgba(231,76,60,0.12); color: var(--danger); border-color: var(--danger); }
+        .ftv-replies-section { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .ftv-replies-header { padding: 8px 16px 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-subtle); flex-shrink: 0; border-bottom: 1px solid var(--bg-deep); }
+        .ftv-replies { flex: 1; overflow-y: auto; }
+        .ftv-reply { padding: 10px 16px; border-bottom: 1px solid var(--bg-deep); }
+        .ftv-reply-header { display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px; }
+        .ftv-reply-author { font-size: 12px; font-weight: 600; }
+        .ftv-reply-time { font-size: 11px; color: var(--text-muted); }
+        .ftv-reply-body { font-size: 13px; color: var(--text-normal); line-height: 1.55; word-wrap: break-word; }
+        .ftv-no-replies { padding: 24px 16px; color: var(--text-muted); font-size: 13px; text-align: center; }
+        .ftv-input { padding: 10px 14px 12px; border-top: 1px solid var(--bg-border); flex-shrink: 0; display: flex; gap: 8px; align-items: flex-end; background: var(--bg-deep); }
+        .ftv-input textarea { flex: 1; background: var(--bg-input, var(--bg-surface)); border: 1px solid var(--bg-border); border-radius: 4px; color: var(--text-normal); font-size: 13px; padding: 7px 10px; resize: none; min-height: 36px; max-height: 120px; font-family: inherit; overflow-y: auto; }
+        .ftv-input textarea:focus { outline: none; border-color: var(--accent); }
+        .ftv-input-btn { padding: 7px 18px; background: var(--accent); color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.1s; flex-shrink: 0; height: 36px; }
+        .ftv-input-btn:hover { background: var(--accent-hover); }
         #forum-compose-bar { padding: 8px 16px 16px; border-top: 1px solid var(--bg-border); display: none; }
         #forum-compose-bar.visible { display: block; }
         .forum-new-post-btn { width: 100%; padding: 10px; background: var(--accent); color: #fff; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
@@ -3085,7 +3122,7 @@ function createServerState() {
         dmPublicKeys: {},
         serverEvents: [], _dismissedEvIds: new Set(),
         // Messages / threads / pins
-        pinnedMessages: {}, threadMsgMap: {}, threadCounts: {}, activeThreadId: null,
+        pinnedMessages: {}, threadMsgMap: {}, threadCounts: {}, activeThreadId: null, _forumThreadMsgId: null,
         // Per-server UI state
         starboardConfig: { enabled: false, channelId: '', emoji: '⭐', threshold: 3 },
         voiceStatuses: {}, _slowTimer: null, _collapsedCats: new Set(),
@@ -4178,8 +4215,10 @@ function selectTextChannel(id) {
     const isForum = ch?.type === 'Forum';
     _setForumMode(isForum);
     if (isForum) document.getElementById('chat-channel-icon').textContent = '📋';
+    if (ss) ss._forumThreadMsgId = null;
     const h = document.getElementById('chat-history');
     h.innerHTML = '';
+    h.classList.remove('forum-thread-mode');
     h.classList.toggle('forum-mode', isForum);
     (ss.channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}, m.replyToId, m.replySnippet, m.editHistory, m.threadId, m.threadCount, m.poll, m.forumTitle || null, m.forumTags || null));
     renderChannelList();
@@ -8505,26 +8544,37 @@ function renderChatMessage(msgId, author, time, message, edited, reactions, repl
     const h = document.getElementById('chat-history');
 
     if (forumTitle) {
-        const card = document.createElement('div');
-        card.className = 'forum-post-card';
-        if (msgId) card.dataset.msgId = msgId;
+        // Add list header if not yet present
+        if (!h.querySelector('.forum-list-header')) {
+            const hdr = document.createElement('div');
+            hdr.className = 'forum-list-header';
+            hdr.innerHTML = '<span>Topic</span><span style="text-align:center">Replies</span><span>Last Post</span>';
+            h.appendChild(hdr);
+        }
+        const row = document.createElement('div');
+        row.className = 'forum-list-row';
+        if (msgId) row.dataset.msgId = msgId;
         const _fss = serverStates[viewedServerId];
-        // Store channel ID on card so click always uses the right channel
         const _fchId = _fss?.activeTextChannelId;
-        if (_fchId) card.dataset.channelId = _fchId;
-        // Populate threadMsgMap — forum cards return early and miss the normal population below
+        if (_fchId) row.dataset.channelId = _fchId;
         if (msgId && threadId && _fss) { _fss.threadMsgMap[msgId] = threadId; _fss.threadCounts[msgId] = threadCount || 0; }
         const tagsHtml = (forumTags && forumTags.length)
-            ? `<div class="forum-post-tags">${forumTags.map(t => `<span class="forum-tag">${escapeHtml(t)}</span>`).join('')}</div>` : '';
-        const excerpt = (message || '').replace(/[#*`>~_\[\]]/g, '').slice(0, 160);
-        const replies = threadCount > 0 ? `<span class="fpm-replies">💬 ${threadCount} repl${threadCount === 1 ? 'y' : 'ies'}</span>` : '';
-        card.innerHTML = `
-            <div class="forum-post-title">${escapeHtml(forumTitle)}</div>
-            ${tagsHtml}
-            ${excerpt ? `<div class="forum-post-excerpt">${escapeHtml(excerpt)}${message.length > 160 ? '…' : ''}</div>` : ''}
-            <div class="forum-post-meta"><span>${escapeHtml(author)}</span><span>·</span><span>${escapeHtml(time)}</span>${replies ? `<span>·</span>${replies}` : ''}</div>`;
-        card.onclick = () => startOrOpenThread(msgId, card.dataset.channelId);
-        h.appendChild(card);
+            ? `<div class="forum-list-tags">${forumTags.map(t => `<span class="forum-tag">${escapeHtml(t)}</span>`).join('')}</div>` : '';
+        const excerpt = (message || '').replace(/[#*`>~_\[\]]/g, '').slice(0, 120);
+        const cnt = threadCount || 0;
+        row.innerHTML = `
+            <div class="forum-list-main">
+                <div class="forum-list-title">${escapeHtml(forumTitle)}</div>
+                ${excerpt ? `<div class="forum-list-excerpt">${escapeHtml(excerpt)}${(message||'').length > 120 ? '…' : ''}</div>` : ''}
+                ${tagsHtml}
+                <div class="forum-list-author">by <strong>${escapeHtml(author)}</strong> · ${escapeHtml(time)}</div>
+            </div>
+            <div class="forum-list-replies">${cnt > 0 ? cnt : '—'}</div>
+            <div class="forum-list-lastpost">
+                ${cnt > 0 ? `<span class="flp-time">${escapeHtml(time)}</span><span class="flp-author">${escapeHtml(author)}</span>` : '<span class="flp-time">No replies</span>'}
+            </div>`;
+        row.onclick = () => openForumThreadView(msgId, row.dataset.channelId);
+        h.appendChild(row);
         return;
     }
 
@@ -11187,19 +11237,25 @@ async function handleBridgeMessage(data, serverId) {
             const chMsgs = ss.channelMessages[data.channelId];
             if (chMsgs) { const pm = chMsgs.find(x => x.id === parentMsgId); if (pm) { pm.threadId = data.threadId; pm.threadCount = 0; } }
             if (isViewed) {
-                const row = document.querySelector(`[data-msg-id="${parentMsgId}"]`);
-                if (row) {
-                    const content = row.querySelector('.msg-content');
-                    if (content && !content.querySelector('.thread-indicator')) {
-                        const ind = document.createElement('div');
-                        ind.className = 'thread-indicator';
-                        ind.dataset.parentId = parentMsgId;
-                        ind.textContent = '💬 0 replies';
-                        ind.addEventListener('click', () => openThread(data.threadId, parentMsgId));
-                        content.appendChild(ind);
+                if (ss._forumThreadMsgId === parentMsgId) {
+                    ss.activeThreadId = data.threadId;
+                    activeThreadId = data.threadId;
+                    postToServer(viewedServerId, { action: 'GET_THREAD_HISTORY', threadId: data.threadId });
+                } else {
+                    const row = document.querySelector(`[data-msg-id="${parentMsgId}"]`);
+                    if (row) {
+                        const content = row.querySelector('.msg-content');
+                        if (content && !content.querySelector('.thread-indicator')) {
+                            const ind = document.createElement('div');
+                            ind.className = 'thread-indicator';
+                            ind.dataset.parentId = parentMsgId;
+                            ind.textContent = '💬 0 replies';
+                            ind.addEventListener('click', () => openThread(data.threadId, parentMsgId));
+                            content.appendChild(ind);
+                        }
                     }
+                    openThread(data.threadId, parentMsgId);
                 }
-                openThread(data.threadId, parentMsgId);
             }
         }
 
@@ -11207,22 +11263,32 @@ async function handleBridgeMessage(data, serverId) {
         DevLog.log('BRIDGE', `← C# | OPEN_THREAD threadId:${data.threadId}`);
         if (isViewed) {
             const parentId = Object.keys(ss.threadMsgMap).find(k => ss.threadMsgMap[k] === data.threadId);
-            openThread(data.threadId, parentId);
+            const ch = ss.channels?.find(c => c.id === ss.activeTextChannelId);
+            if (ch?.type === 'Forum' && parentId) {
+                openForumThreadView(parentId, ss.activeTextChannelId);
+            } else {
+                openThread(data.threadId, parentId);
+            }
         }
 
     } else if (data.action === 'THREAD_MESSAGE') {
         DevLog.log('BRIDGE', `← C# | THREAD_MESSAGE threadId:${data.threadId} from:${data.author}`);
         if (isViewed && ss.activeThreadId === data.threadId) {
-            const h = document.getElementById('thread-history');
-            if (h) {
-                const msgDiv = document.createElement('div');
-                msgDiv.className = 'thread-msg';
-                msgDiv.innerHTML =
-                    `<span class="thread-msg-author" style="${getRoleColor(data.author)}" oncontextmenu="showUserCtxMenu(event,'${escapeHtml(data.author)}')">${escapeHtml(data.author)}</span>` +
-                    `<span class="thread-msg-time">${escapeHtml(data.time || '')}</span>` +
-                    `<div class="thread-msg-body">${renderMarkdown(data.message)}</div>`;
-                h.appendChild(msgDiv);
-                h.scrollTop = h.scrollHeight;
+            const ftv = document.getElementById('ftv-replies');
+            if (ftv) {
+                _appendForumReply(data);
+            } else {
+                const h = document.getElementById('thread-history');
+                if (h) {
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = 'thread-msg';
+                    msgDiv.innerHTML =
+                        `<span class="thread-msg-author" style="${getRoleColor(data.author)}" oncontextmenu="showUserCtxMenu(event,'${escapeHtml(data.author)}')">${escapeHtml(data.author)}</span>` +
+                        `<span class="thread-msg-time">${escapeHtml(data.time || '')}</span>` +
+                        `<div class="thread-msg-body">${renderMarkdown(data.message)}</div>`;
+                    h.appendChild(msgDiv);
+                    h.scrollTop = h.scrollHeight;
+                }
             }
         }
 
@@ -11233,6 +11299,8 @@ async function handleBridgeMessage(data, serverId) {
         const chMsgs = ss.channelMessages[data.channelId];
         if (chMsgs) { const pm = chMsgs.find(x => x.id === parentMsgId); if (pm) pm.threadCount = data.count; }
         if (isViewed) {
+            const ftvReplies = document.querySelector(`.forum-list-row[data-msg-id="${parentMsgId}"] .forum-list-replies`);
+            if (ftvReplies) { ftvReplies.textContent = data.count > 0 ? data.count : '—'; }
             const ind = document.querySelector(`.thread-indicator[data-parent-id="${parentMsgId}"]`);
             if (ind) { const c = data.count; ind.textContent = `💬 ${c} repl${c===1?'y':'ies'}`; }
         }
@@ -11240,19 +11308,33 @@ async function handleBridgeMessage(data, serverId) {
     } else if (data.action === 'THREAD_HISTORY') {
         DevLog.log('BRIDGE', `← C# | THREAD_HISTORY threadId:${data.threadId} count:${(data.messages||[]).length}`);
         if (isViewed && data.threadId === ss.activeThreadId) {
-            const h = document.getElementById('thread-history');
-            if (h) {
-                h.innerHTML = '';
-                (data.messages || []).forEach(m => {
-                    const msgDiv = document.createElement('div');
-                    msgDiv.className = 'thread-msg';
-                    msgDiv.innerHTML =
-                        `<span class="thread-msg-author" style="${getRoleColor(m.author)}" oncontextmenu="showUserCtxMenu(event,'${escapeHtml(m.author)}')">${escapeHtml(m.author)}</span>` +
-                        `<span class="thread-msg-time">${escapeHtml(m.time || '')}</span>` +
-                        `<div class="thread-msg-body">${renderMarkdown(m.message)}</div>`;
-                    h.appendChild(msgDiv);
-                });
-                h.scrollTop = h.scrollHeight;
+            const ftv = document.getElementById('ftv-replies');
+            if (ftv) {
+                ftv.innerHTML = '';
+                const msgs = data.messages || [];
+                if (msgs.length === 0) {
+                    ftv.innerHTML = '<div class="ftv-no-replies">No replies yet. Be the first!</div>';
+                } else {
+                    msgs.forEach(m => _appendForumReply(m));
+                }
+                const countEl = document.getElementById('ftv-reply-count');
+                if (countEl) { const n = msgs.length; countEl.textContent = `${n} ${n === 1 ? 'Reply' : 'Replies'}`; }
+                ftv.scrollTop = ftv.scrollHeight;
+            } else {
+                const h = document.getElementById('thread-history');
+                if (h) {
+                    h.innerHTML = '';
+                    (data.messages || []).forEach(m => {
+                        const msgDiv = document.createElement('div');
+                        msgDiv.className = 'thread-msg';
+                        msgDiv.innerHTML =
+                            `<span class="thread-msg-author" style="${getRoleColor(m.author)}" oncontextmenu="showUserCtxMenu(event,'${escapeHtml(m.author)}')">${escapeHtml(m.author)}</span>` +
+                            `<span class="thread-msg-time">${escapeHtml(m.time || '')}</span>` +
+                            `<div class="thread-msg-body">${renderMarkdown(m.message)}</div>`;
+                        h.appendChild(msgDiv);
+                    });
+                    h.scrollTop = h.scrollHeight;
+                }
             }
         }
 
@@ -11909,17 +11991,130 @@ function ctxUntimeout() {
 
 // ── Thread panel ──────────────────────────────────────────────────────────────
 function startOrOpenThread(msgId, forumChannelId) {
-    DevLog.log('FORUM', `→ startOrOpenThread msgId:${msgId} fchId:${forumChannelId}`);
     const ss = serverStates[viewedServerId];
-    if (!ss) { DevLog.log('FORUM', '→ no ss, abort'); return; }
+    if (!ss) return;
     const channelId = forumChannelId || ss.activeTextChannelId;
-    if (!channelId) { DevLog.log('FORUM', '→ no channelId, abort'); return; }
+    if (!channelId) return;
     const existingId = ss.threadMsgMap[msgId];
-    DevLog.log('FORUM', `→ existingId:${existingId} channelId:${channelId}`);
     if (existingId) {
         openThread(existingId, msgId);
     } else {
         postToServer(viewedServerId, { action: 'CREATE_THREAD', channelId, messageId: msgId });
+    }
+}
+
+// ── Forum inline thread view ──────────────────────────────────────────────────
+function openForumThreadView(msgId, channelId) {
+    const ss = serverStates[viewedServerId];
+    if (!ss) return;
+    const chId = channelId || ss.activeTextChannelId;
+    const msgs = ss.channelMessages[chId] || [];
+    const post = msgs.find(m => m.id === msgId);
+    if (!post) return;
+
+    ss._forumThreadMsgId = msgId;
+    document.getElementById('forum-compose-bar')?.classList.remove('visible');
+
+    const h = document.getElementById('chat-history');
+    h.classList.remove('forum-mode');
+    h.classList.add('forum-thread-mode');
+    h.innerHTML = '';
+
+    const isOwn = post.author === ss.myAlias;
+    const isElevated = ['admin', 'owner'].includes(ss.myRole);
+    const tagsHtml = (post.forumTags && post.forumTags.length)
+        ? post.forumTags.map(t => `<span class="forum-tag">${escapeHtml(t)}</span>`).join('') : '';
+    const canDelete = isOwn || isElevated;
+    const canEdit   = isOwn;
+
+    const view = document.createElement('div');
+    view.className = 'forum-thread-view';
+    view.innerHTML = `
+        <div class="ftv-nav">
+            <button class="ftv-back-btn" onclick="closeForumThread()">← Forum</button>
+            <span class="ftv-nav-title">${escapeHtml(post.forumTitle || '')}</span>
+        </div>
+        <div class="ftv-op">
+            <div class="ftv-op-header">
+                <span class="ftv-op-author" style="${getRoleColor(post.author)}">${escapeHtml(post.author)}</span>
+                <span class="ftv-op-time">${escapeHtml(post.time || '')}</span>
+                ${tagsHtml ? `<span style="display:flex;gap:4px;flex-wrap:wrap;">${tagsHtml}</span>` : ''}
+            </div>
+            <div class="ftv-op-body">${renderMarkdown(post.message || '')}</div>
+            ${(canEdit || canDelete) ? `<div class="ftv-op-actions">
+                ${canEdit ? `<button class="ftv-op-btn" onclick="editMessage('${msgId}','${escapeHtml(post.author)}')">Edit</button>` : ''}
+                ${canDelete ? `<button class="ftv-op-btn del" onclick="_deleteForumPost(event,'${msgId}')">Delete post</button>` : ''}
+            </div>` : ''}
+        </div>
+        <div class="ftv-replies-section">
+            <div class="ftv-replies-header" id="ftv-reply-count">Replies</div>
+            <div class="ftv-replies" id="ftv-replies"><div class="ftv-no-replies">Loading…</div></div>
+        </div>
+        <div class="ftv-input">
+            <textarea id="ftv-reply-input" placeholder="Write a reply…" rows="1"
+                      onkeydown="sendForumReply(event)"
+                      oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"></textarea>
+            <button class="ftv-input-btn" onclick="sendForumReplyBtn()">Reply</button>
+        </div>`;
+    h.appendChild(view);
+
+    const existingThreadId = ss.threadMsgMap[msgId];
+    if (existingThreadId) {
+        ss.activeThreadId = existingThreadId;
+        activeThreadId = existingThreadId;
+        postToServer(viewedServerId, { action: 'GET_THREAD_HISTORY', threadId: existingThreadId });
+    } else {
+        postToServer(viewedServerId, { action: 'CREATE_THREAD', channelId: chId, messageId: msgId });
+    }
+}
+
+function closeForumThread() {
+    const ss = serverStates[viewedServerId];
+    if (ss) { ss._forumThreadMsgId = null; ss.activeThreadId = null; }
+    activeThreadId = null;
+    if (ss?.activeTextChannelId) selectTextChannel(ss.activeTextChannelId);
+}
+
+function sendForumReply(e) {
+    if (e.key !== 'Enter' || e.shiftKey) return;
+    e.preventDefault();
+    sendForumReplyBtn();
+}
+
+function sendForumReplyBtn() {
+    const ta = document.getElementById('ftv-reply-input');
+    const msg = ta?.value.trim();
+    const ss = serverStates[viewedServerId];
+    if (!msg || !ss?.activeThreadId) return;
+    postToServer(viewedServerId, { action: 'SEND_THREAD_MESSAGE', threadId: ss.activeThreadId, message: msg });
+    ta.value = '';
+    ta.style.height = 'auto';
+}
+
+function _deleteForumPost(e, msgId) {
+    deleteMessage(e, msgId);
+    closeForumThread();
+}
+
+function _appendForumReply(data) {
+    const ftv = document.getElementById('ftv-replies');
+    if (!ftv) return;
+    const noReplies = ftv.querySelector('.ftv-no-replies');
+    if (noReplies) noReplies.remove();
+    const div = document.createElement('div');
+    div.className = 'ftv-reply';
+    div.innerHTML =
+        `<div class="ftv-reply-header">
+            <span class="ftv-reply-author" style="${getRoleColor(data.author)}">${escapeHtml(data.author)}</span>
+            <span class="ftv-reply-time">${escapeHtml(data.time || '')}</span>
+        </div>
+        <div class="ftv-reply-body">${renderMarkdown(data.message)}</div>`;
+    ftv.appendChild(div);
+    ftv.scrollTop = ftv.scrollHeight;
+    const countEl = document.getElementById('ftv-reply-count');
+    if (countEl) {
+        const n = ftv.querySelectorAll('.ftv-reply').length;
+        countEl.textContent = `${n} ${n === 1 ? 'Reply' : 'Replies'}`;
     }
 }
 
