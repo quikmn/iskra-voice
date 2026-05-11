@@ -1,7 +1,7 @@
 # Iskra — Feature Inventory
 
 > Living document. Update whenever a feature is added, fixed, or changed.  
-> Last updated: 2026-05-11 · v1.1.14.0
+> Last updated: 2026-05-11 · v1.1.15.6
 
 ---
 
@@ -162,7 +162,8 @@
 |---------|-------|
 | Text channels | History, topics, slow mode, notify prefs |
 | Voice channels | Inline user list; live activity status |
-| Forum channels | Classic table layout (Topic / Replies / Last Post columns); each post has title + body + optional tags; clicking a row opens an inline thread view with back button; replies in-line below the OP; "New Post" modal; 📋 icon in sidebar; admin creates via + button |
+| Forum channels | Classic table layout (Topic / Replies / Last Post columns); each post has title + body + optional tags; clicking a row opens an inline thread view with back button; replies in-line below the OP; "New Post" modal; 📋 icon in sidebar; admin creates via + button; phpBB-style rounded post cards with accent OP border; tags shown below OP content (not in nav bar) |
+| Date/time format | User-configurable in Appearance settings: 12h (3:07 PM), 24h (15:07), Date+12h (yyyy-MM-dd h:mm AM/PM), Date+24h (yyyy-MM-dd HH:mm); applies globally to all messages, forum posts, thread replies |
 | Channel categories | Collapsible section labels |
 | Channel topics | Editable by admin+; shown in chat header |
 | Per-channel notification override | All / Mentions only / Muted |

@@ -321,10 +321,11 @@
         .ftv-nav-title { font-size: 13px; font-weight: 700; color: var(--text-heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .ftv-nav-count { font-size: 11px; color: var(--text-faint); margin-left: auto; flex-shrink: 0; background: var(--bg-border); border-radius: 10px; padding: 1px 9px; }
         /* ── phpBB posts ── */
-        .ftv-replies { flex: 1; overflow-y: auto; }
+        .ftv-replies { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
         .ftv-no-replies { padding: 36px 16px; color: var(--text-faint); font-size: 13px; text-align: center; letter-spacing: 0.02em; }
-        .ftv-post { display: flex; border-bottom: 1px solid var(--bg-border); }
+        .ftv-post { display: flex; border: 1px solid var(--bg-border); border-radius: 8px; overflow: hidden; }
         #ftv-op { border-left: 3px solid var(--accent); }
+        .ftv-post-op-tags { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 14px 12px; }
         .ftv-user-panel { width: 120px; flex-shrink: 0; padding: 14px 8px 12px; border-right: 1px solid var(--bg-border); display: flex; flex-direction: column; align-items: center; text-align: center; gap: 5px; background: color-mix(in srgb, var(--bg-deep) 90%, transparent); }
         .ftv-up-name { font-size: 12px; font-weight: 700; line-height: 1.3; word-break: break-word; margin-top: 5px; }
         .ftv-up-role { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; padding: 2px 7px; border-radius: 10px; margin-top: 1px; }
@@ -2327,6 +2328,17 @@
             </div>
             <hr class="divider">
             <div>
+                <div class="section-label" style="margin-bottom:8px;">Date &amp; Time Format</div>
+                <p style="font-size:11px;color:var(--text-subtle);margin-bottom:10px;line-height:1.5;">How timestamps appear on all messages, posts, and replies.</p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;" id="time-format-row">
+                    <button class="density-card" style="flex:unset;padding:8px 14px;" data-fmt="hm12" onclick="applyTimeFormat('hm12')"><span style="font-size:12px;">3:07 PM</span><div class="density-card-label" style="margin-top:4px;">12h</div></button>
+                    <button class="density-card" style="flex:unset;padding:8px 14px;" data-fmt="hm24" onclick="applyTimeFormat('hm24')"><span style="font-size:12px;">15:07</span><div class="density-card-label" style="margin-top:4px;">24h</div></button>
+                    <button class="density-card" style="flex:unset;padding:8px 14px;" data-fmt="full12" onclick="applyTimeFormat('full12')"><span style="font-size:12px;">2026-05-11 3:07 PM</span><div class="density-card-label" style="margin-top:4px;">Date + 12h</div></button>
+                    <button class="density-card" style="flex:unset;padding:8px 14px;" data-fmt="full24" onclick="applyTimeFormat('full24')"><span style="font-size:12px;">2026-05-11 15:07</span><div class="density-card-label" style="margin-top:4px;">Date + 24h</div></button>
+                </div>
+            </div>
+            <hr class="divider">
+            <div>
                 <div class="section-label" style="margin-bottom:10px;">Choose a Skin</div>
                 <div id="theme-grid"></div>
             </div>
@@ -4042,7 +4054,8 @@ const clientConfig = {
     rioCache: null,
     steamProfile: '',
     dotaProfile: '',
-    bio: ''
+    bio: '',
+    timeFormat: 'full24'
 };
 
 function saveClientConfig() {
@@ -4074,7 +4087,31 @@ function loadClientConfig() {
     if (!Array.isArray(clientConfig.keywordNotifs))                                                    clientConfig.keywordNotifs         = [];
     if (!clientConfig.dndSchedule || typeof clientConfig.dndSchedule !== 'object')                    clientConfig.dndSchedule          = { enabled: false, start: '23:00', end: '08:00' };
     applyDensity(clientConfig.density);
+    if (!clientConfig.timeFormat) clientConfig.timeFormat = 'full24';
     DevLog.log('SETTINGS', `Config | aliases:${clientConfig.aliases.length} servers:${clientConfig.servers.length} active:"${clientConfig.activeAlias}"`);
+}
+
+function fmtTime(ts, fallback) {
+    const fmt = clientConfig.timeFormat || 'full24';
+    if (!ts) return fallback || '';
+    const d = new Date(ts * 1000);
+    const y = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, '0');
+    const dy = String(d.getDate()).padStart(2, '0');
+    const h24 = String(d.getHours()).padStart(2, '0');
+    const mn = String(d.getMinutes()).padStart(2, '0');
+    if (fmt === 'hm12') {
+        const h = d.getHours() % 12 || 12;
+        const ap = d.getHours() < 12 ? 'AM' : 'PM';
+        return `${h}:${mn} ${ap}`;
+    }
+    if (fmt === 'hm24') return `${h24}:${mn}`;
+    if (fmt === 'full12') {
+        const h = d.getHours() % 12 || 12;
+        const ap = d.getHours() < 12 ? 'AM' : 'PM';
+        return `${y}-${mo}-${dy} ${h}:${mn} ${ap}`;
+    }
+    return `${y}-${mo}-${dy} ${h24}:${mn}`;
 }
 
 // ── Quick switcher (global UI state) ──────────────────────────────────────────
@@ -4239,12 +4276,13 @@ function selectTextChannel(id) {
     const isForum = ch?.type === 'Forum';
     _setForumMode(isForum);
     if (isForum) document.getElementById('chat-channel-icon').textContent = '📋';
-    if (ss) ss._forumThreadMsgId = null;
+    if (ss) { ss._forumThreadMsgId = null; ss.activeThreadId = null; }
+    activeThreadId = null;
     const h = document.getElementById('chat-history');
     h.innerHTML = '';
     h.classList.remove('forum-thread-mode');
     h.classList.toggle('forum-mode', isForum);
-    (ss.channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}, m.replyToId, m.replySnippet, m.editHistory, m.threadId, m.threadCount, m.poll, m.forumTitle || null, m.forumTags || null));
+    (ss.channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}, m.replyToId, m.replySnippet, m.editHistory, m.threadId, m.threadCount, m.poll, m.forumTitle || null, m.forumTags || null, m.ts || null));
     renderChannelList();
     clearTimeout(ss._slowTimer);
     if (document.getElementById('chat-input')) document.getElementById('chat-input').disabled = false;
@@ -6961,6 +6999,7 @@ function applySettingsToUI() {
     if (aaSel) aaSel.value = String(settings.autoAwayMins ?? 5);
 
     updateThresholdLine();
+    document.querySelectorAll('#time-format-row [data-fmt]').forEach(c => c.classList.toggle('active', c.dataset.fmt === (clientConfig.timeFormat || 'full24')));
 }
 
 // ── Web-only capabilities ──────────────────────────────────────────────────────
@@ -7212,7 +7251,7 @@ async function joinVoice(id) {
     document.getElementById('input-area')?.classList.remove('readonly');
     const h = document.getElementById('chat-history');
     h.innerHTML = '';
-    (ss.channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}, m.replyToId, m.replySnippet, m.editHistory, m.threadId, m.threadCount, m.poll, m.forumTitle || null, m.forumTags || null));
+    (ss.channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}, m.replyToId, m.replySnippet, m.editHistory, m.threadId, m.threadCount, m.poll, m.forumTitle || null, m.forumTags || null, m.ts || null));
     renderChannelList();
     clearTimeout(ss._slowTimer);
     _slowBarShow(null, false);
@@ -7764,7 +7803,13 @@ function applyDensity(mode) {
     if (mode !== 'comfortable') document.documentElement.classList.add('density-' + mode);
     clientConfig.density = mode;
     saveClientConfig();
-    document.querySelectorAll('.density-card').forEach(c => c.classList.toggle('active', c.dataset.density === mode));
+    document.querySelectorAll('.density-card[data-density]').forEach(c => c.classList.toggle('active', c.dataset.density === mode));
+}
+
+function applyTimeFormat(fmt) {
+    clientConfig.timeFormat = fmt;
+    saveClientConfig();
+    document.querySelectorAll('#time-format-row [data-fmt]').forEach(c => c.classList.toggle('active', c.dataset.fmt === fmt));
 }
 
 // ── Per-member Color Override ─────────────────────────────────────────────────
@@ -8564,7 +8609,7 @@ function copyInviteLink(fieldId, btn) {
     });
 }
 
-function renderChatMessage(msgId, author, time, message, edited, reactions, replyToId, replySnippet, editHistory, threadId, threadCount, poll, forumTitle, forumTags) {
+function renderChatMessage(msgId, author, time, message, edited, reactions, replyToId, replySnippet, editHistory, threadId, threadCount, poll, forumTitle, forumTags, ts) {
     const h = document.getElementById('chat-history');
 
     if (forumTitle) {
@@ -8591,11 +8636,11 @@ function renderChatMessage(msgId, author, time, message, edited, reactions, repl
                 <div class="forum-list-title">${escapeHtml(forumTitle)}</div>
                 ${excerpt ? `<div class="forum-list-excerpt">${escapeHtml(excerpt)}${(message||'').length > 120 ? '…' : ''}</div>` : ''}
                 ${tagsHtml}
-                <div class="forum-list-author">by <strong>${escapeHtml(author)}</strong> · ${escapeHtml(time)}</div>
+                <div class="forum-list-author">by <strong>${escapeHtml(author)}</strong> · ${escapeHtml(fmtTime(ts, time))}</div>
             </div>
             <div class="forum-list-replies">${cnt > 0 ? cnt : '—'}</div>
             <div class="forum-list-lastpost">
-                ${cnt > 0 ? `<span class="flp-time">${escapeHtml(time)}</span><span class="flp-author">${escapeHtml(author)}</span>` : '<span class="flp-time">No replies</span>'}
+                ${cnt > 0 ? `<span class="flp-time">${escapeHtml(fmtTime(ts, time))}</span><span class="flp-author">${escapeHtml(author)}</span>` : '<span class="flp-time">No replies</span>'}
             </div>`;
         row.addEventListener('click', () => openForumThreadView(msgId, row.dataset.channelId));
         if (msgId) row.addEventListener('contextmenu', e => showMsgCtxMenu(e, msgId, author));
@@ -8659,7 +8704,7 @@ function renderChatMessage(msgId, author, time, message, edited, reactions, repl
         `<div class="msg-avatar-col">${avatarHtml(author, 'sz-40', true)}</div>` +
         `<div class="msg-content">` +
             `<div class="msg-header"><span class="msg-author" style="${getRoleColor(author)}" onclick="showProfileCard(event,'${escapeHtml(author)}')" oncontextmenu="showUserCtxMenu(event,'${escapeHtml(author)}')">${escapeHtml(author)}</span>` +
-            (time ? `<span class="msg-time">${escapeHtml(time)}</span>` : '') + `</div>` +
+            (time ? `<span class="msg-time">${escapeHtml(fmtTime(ts, time))}</span>` : '') + `</div>` +
             bodyHtml + actions + pollHtml + threadHtml +
         `</div>`;
     if (msgId) div.querySelector('.msg-content').appendChild(renderReactions(msgId, reactions || {}));
@@ -10509,7 +10554,7 @@ async function handleBridgeMessage(data, serverId) {
             }
         } else if (chId) {
             if (!ss.channelMessages[chId]) ss.channelMessages[chId] = [];
-            const stored = { id: data.id, author: data.author, time: data.time, message: msgText,
+            const stored = { id: data.id, author: data.author, time: data.time, ts: data.ts || null, message: msgText,
                 reactions: data.reactions || {}, replyToId: data.replyToId || null, replySnippet: data.replySnippet || null, editHistory: data.editHistory || [],
                 threadId: data.threadId || null, threadCount: data.threadCount || 0, poll: data.poll || null,
                 forumTitle: data.forumTitle || null, forumTags: data.forumTags || null };
@@ -10543,7 +10588,7 @@ async function handleBridgeMessage(data, serverId) {
                 postToBridge({ action: 'NOTIFY', title: notifTitle, body: notifBody });
             }
             if (isViewed && chId === ss.activeTextChannelId && !window._relayDmActive)
-                renderChatMessage(data.id, data.author, data.time, msgText, false, data.reactions || {}, data.replyToId, data.replySnippet, data.editHistory || [], data.threadId, data.threadCount, data.poll, data.forumTitle || null, data.forumTags || null);
+                renderChatMessage(data.id, data.author, data.time, msgText, false, data.reactions || {}, data.replyToId, data.replySnippet, data.editHistory || [], data.threadId, data.threadCount, data.poll, data.forumTitle || null, data.forumTags || null, data.ts || null);
         }
 
     } else if (data.action === 'AUTOMOD_BLOCKED') {
@@ -11335,7 +11380,7 @@ async function handleBridgeMessage(data, serverId) {
                     msgDiv.className = 'thread-msg';
                     msgDiv.innerHTML =
                         `<span class="thread-msg-author" style="${getRoleColor(data.author)}" oncontextmenu="showUserCtxMenu(event,'${escapeHtml(data.author)}')">${escapeHtml(data.author)}</span>` +
-                        `<span class="thread-msg-time">${escapeHtml(data.time || '')}</span>` +
+                        `<span class="thread-msg-time">${escapeHtml(fmtTime(data.ts, data.time))}</span>` +
                         `<div class="thread-msg-body">${renderMarkdown(data.message)}</div>`;
                     h.appendChild(msgDiv);
                     h.scrollTop = h.scrollHeight;
@@ -11358,7 +11403,7 @@ async function handleBridgeMessage(data, serverId) {
 
     } else if (data.action === 'THREAD_HISTORY') {
         DevLog.log('BRIDGE', `← C# | THREAD_HISTORY threadId:${data.threadId} count:${(data.messages||[]).length}`);
-        if (isViewed && data.threadId === ss.activeThreadId) {
+        if (isViewed && String(data.threadId) === String(ss.activeThreadId)) {
             const ftv = document.getElementById('ftv-replies');
             if (ftv) {
                 // Remove everything except the OP post (#ftv-op) and insert replies
@@ -11384,7 +11429,7 @@ async function handleBridgeMessage(data, serverId) {
                         msgDiv.className = 'thread-msg';
                         msgDiv.innerHTML =
                             `<span class="thread-msg-author" style="${getRoleColor(m.author)}" oncontextmenu="showUserCtxMenu(event,'${escapeHtml(m.author)}')">${escapeHtml(m.author)}</span>` +
-                            `<span class="thread-msg-time">${escapeHtml(m.time || '')}</span>` +
+                            `<span class="thread-msg-time">${escapeHtml(fmtTime(m.ts, m.time))}</span>` +
                             `<div class="thread-msg-body">${renderMarkdown(m.message)}</div>`;
                         h.appendChild(msgDiv);
                     });
@@ -12085,7 +12130,7 @@ function openForumThreadView(msgId, channelId) {
     // Nav bar
     const nav = document.createElement('div');
     nav.className = 'ftv-nav';
-    nav.innerHTML = `<span class="ftv-nav-title">${escapeHtml(post.forumTitle || '')}${tagsHtml ? '&ensp;' + tagsHtml : ''}</span><span class="ftv-nav-count" id="ftv-nav-count"></span>`;
+    nav.innerHTML = `<span class="ftv-nav-title">${escapeHtml(post.forumTitle || '')}</span><span class="ftv-nav-count" id="ftv-nav-count"></span>`;
     const backBtn = document.createElement('button');
     backBtn.className = 'ftv-back-btn';
     backBtn.textContent = '← Forum';
@@ -12097,7 +12142,7 @@ function openForumThreadView(msgId, channelId) {
     const repliesDiv = document.createElement('div');
     repliesDiv.className = 'ftv-replies';
     repliesDiv.id = 'ftv-replies';
-    const opEl = _buildFtvPost({ id: post.id, author: post.author, time: post.time, message: post.message }, 1);
+    const opEl = _buildFtvPost({ id: post.id, author: post.author, time: post.time, ts: post.ts, message: post.message, forumTags: post.forumTags }, 1);
     opEl.id = 'ftv-op';
     repliesDiv.appendChild(opEl);
     const loadingEl = document.createElement('div');
@@ -12182,11 +12227,18 @@ function _buildFtvPost(data, postNum) {
         <div class="ftv-post-right">
             <div class="ftv-post-hdr">
                 <span class="ftv-post-num">#${postNum}</span>
-                <span class="ftv-post-time">${escapeHtml(data.time || '')}</span>
+                <span class="ftv-post-time">${escapeHtml(fmtTime(data.ts, data.time))}</span>
                 <div class="ftv-post-hdr-btns"></div>
             </div>
             <div class="ftv-post-content" data-raw="${escapeHtml(data.message || '')}">${renderMarkdown(data.message || '')}</div>
         </div>`;
+
+    if (postNum === 1 && data.forumTags && data.forumTags.length) {
+        const tagsDiv = document.createElement('div');
+        tagsDiv.className = 'ftv-post-op-tags';
+        tagsDiv.innerHTML = data.forumTags.map(t => `<span class="forum-tag">${escapeHtml(t)}</span>`).join('');
+        post.querySelector('.ftv-post-content').after(tagsDiv);
+    }
 
     const btnRow = post.querySelector('.ftv-post-hdr-btns');
 
