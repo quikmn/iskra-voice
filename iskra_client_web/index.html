@@ -608,11 +608,11 @@
         #chat-history.drag-over { outline: 2px dashed var(--accent); outline-offset: -6px; background: var(--accent-subtle); }
 
         /* ── Markdown code ── */
-        .msg-body code { background: var(--bg-deep); border-radius: 3px; padding: 1px 5px; font-family: 'Cascadia Code','Consolas',monospace; font-size: 12.5px; color: #e3e5e8; }
-        .msg-body pre { background: var(--bg-deep); border-radius: 5px; padding: 10px 0 12px; margin: 6px 0 2px; overflow-x: auto; max-width: 640px; white-space: pre; scrollbar-width: thin; scrollbar-color: var(--bg-border) transparent; }
-        .msg-body pre code { display: inline-block; background: none; padding: 0 18px; font-size: 12px; }
-        .msg-body a { color: var(--link); text-decoration: none; }
-        .msg-body a:hover { text-decoration: underline; }
+        .msg-body code, .ftv-post-content code { background: var(--bg-deep); border-radius: 3px; padding: 1px 5px; font-family: 'Cascadia Code','Consolas',monospace; font-size: 12.5px; color: #e3e5e8; }
+        .msg-body pre, .ftv-post-content pre { background: var(--bg-deep); border-radius: 5px; padding: 10px 0 12px; margin: 6px 0 2px; overflow-x: auto; max-width: 640px; white-space: pre; scrollbar-width: thin; scrollbar-color: var(--bg-border) transparent; }
+        .msg-body pre code, .ftv-post-content pre code { display: inline-block; background: none; padding: 0 18px; font-size: 12px; }
+        .msg-body a, .ftv-post-content a { color: var(--link); text-decoration: none; }
+        .msg-body a:hover, .ftv-post-content a:hover { text-decoration: underline; }
 
         /* ── @mentions ── */
         .mention { background: var(--mention-bg); color: #c9cdfb; border-radius: 3px; padding: 0 3px; font-weight: 600; }
@@ -622,8 +622,8 @@
         /* ── Markdown extras ── */
         .spoiler { background: var(--text-faint); color: transparent; border-radius: 3px; padding: 0 3px; cursor: pointer; transition: color 0.15s, background 0.15s; user-select: none; }
         .spoiler.revealed { background: var(--bg-active); color: var(--text-normal); user-select: text; }
-        .msg-body del { opacity: 0.6; }
-        .msg-body blockquote { border-left: 3px solid var(--bg-active); margin: 3px 0; padding: 1px 10px; color: var(--text-muted); display: block; }
+        .msg-body del, .ftv-post-content del { opacity: 0.6; }
+        .msg-body blockquote, .ftv-post-content blockquote { border-left: 3px solid var(--bg-active); margin: 3px 0; padding: 1px 10px; color: var(--text-muted); display: block; }
         .code-lang { font-size: 10px; color: var(--text-faint); display: block; margin-bottom: 4px; }
 
         /* ── Category headers ── */
@@ -8700,10 +8700,13 @@ function editMessage(msgId, author) {
     const row = document.querySelector(`[data-msg-id="${msgId}"]`);
     if (!row || row.dataset.editing) return;
     row.dataset.editing = '1';
-    const content = row.querySelector('.msg-content') || row;
-    const body = content.querySelector('.msg-body');
+    const isForumPost = row.classList.contains('ftv-post');
+    const content = isForumPost ? row.querySelector('.ftv-post-right') : (row.querySelector('.msg-content') || row);
+    const body = isForumPost ? row.querySelector('.ftv-post-content') : content.querySelector('.msg-body');
+    if (!body) return;
     const currentText = body.dataset.raw ?? body.textContent;
     body.style.display = 'none';
+    if (isForumPost) row.querySelector('.ftv-post-hdr-btns')?.querySelectorAll('button').forEach(b => b.style.visibility = 'hidden');
     const editedMark = content.querySelector('.msg-edited');
     if (editedMark) editedMark.style.display = 'none';
 
@@ -8743,8 +8746,11 @@ function cancelEdit(msgId) {
     const row = document.querySelector(`[data-msg-id="${msgId}"]`);
     if (!row) return;
     delete row.dataset.editing;
-    const content = row.querySelector('.msg-content') || row;
-    content.querySelector('.msg-body').style.display = '';
+    const isForumPost = row.classList.contains('ftv-post');
+    const content = isForumPost ? row.querySelector('.ftv-post-right') : (row.querySelector('.msg-content') || row);
+    const body = isForumPost ? row.querySelector('.ftv-post-content') : content.querySelector('.msg-body');
+    if (body) body.style.display = '';
+    if (isForumPost) row.querySelector('.ftv-post-hdr-btns')?.querySelectorAll('button').forEach(b => b.style.visibility = '');
     const editedMark = content.querySelector('.msg-edited');
     if (editedMark) editedMark.style.display = '';
     content.querySelector('.msg-edit-row')?.remove();
@@ -12135,7 +12141,7 @@ function _buildFtvPost(data, postNum) {
 
     post.innerHTML = `
         <div class="ftv-user-panel">
-            ${avatarHtml(data.author, 'sz-48', false)}
+            ${avatarHtml(data.author, 'sz-32', false)}
             <div class="ftv-up-name" style="${getRoleColor(data.author)}">${escapeHtml(data.author)}</div>
             <div class="ftv-up-role role-${role}">${role}</div>
             ${bio ? `<div class="ftv-up-bio">"${escapeHtml(bio)}"</div>` : ''}
@@ -12146,7 +12152,7 @@ function _buildFtvPost(data, postNum) {
                 <span class="ftv-post-time">${escapeHtml(data.time || '')}</span>
                 <div class="ftv-post-hdr-btns"></div>
             </div>
-            <div class="ftv-post-content">${renderMarkdown(data.message || '')}</div>
+            <div class="ftv-post-content" data-raw="${escapeHtml(data.message || '')}">${renderMarkdown(data.message || '')}</div>
         </div>`;
 
     const btnRow = post.querySelector('.ftv-post-hdr-btns');
@@ -12157,7 +12163,7 @@ function _buildFtvPost(data, postNum) {
     qBtn.addEventListener('click', () => _ftvQuote(data.author, data.message || ''));
     btnRow.appendChild(qBtn);
 
-    if (isOwn && data.id) {
+    if (isOwn && data.id && postNum === 1) {
         const eBtn = document.createElement('button');
         eBtn.className = 'ftv-act-btn';
         eBtn.textContent = 'Edit';
