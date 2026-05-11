@@ -4285,7 +4285,7 @@ function selectTextChannel(id) {
     window._loadingChannelHistory = true;
     (ss.channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}, m.replyToId, m.replySnippet, m.editHistory, m.threadId, m.threadCount, m.poll, m.forumTitle || null, m.forumTags || null, m.ts || null));
     window._loadingChannelHistory = false;
-    requestAnimationFrame(() => { const _ch = document.getElementById('chat-history'); if (_ch) _ch.scrollTop = _ch.scrollHeight; });
+    requestAnimationFrame(() => requestAnimationFrame(() => { const _ch = document.getElementById('chat-history'); if (_ch) _ch.scrollTop = _ch.scrollHeight; }));
     renderChannelList();
     clearTimeout(ss._slowTimer);
     if (document.getElementById('chat-input')) document.getElementById('chat-input').disabled = false;
@@ -7257,7 +7257,7 @@ async function joinVoice(id) {
     window._loadingChannelHistory = true;
     (ss.channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}, m.replyToId, m.replySnippet, m.editHistory, m.threadId, m.threadCount, m.poll, m.forumTitle || null, m.forumTags || null, m.ts || null));
     window._loadingChannelHistory = false;
-    requestAnimationFrame(() => { const _ch = document.getElementById('chat-history'); if (_ch) _ch.scrollTop = _ch.scrollHeight; });
+    requestAnimationFrame(() => requestAnimationFrame(() => { const _ch = document.getElementById('chat-history'); if (_ch) _ch.scrollTop = _ch.scrollHeight; }));
     renderChannelList();
     clearTimeout(ss._slowTimer);
     _slowBarShow(null, false);
@@ -8036,7 +8036,7 @@ function closeDmMode() {
         (_dss?.channelMessages[_dChId] || []).forEach(m =>
             renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}, m.replyToId, m.replySnippet, m.editHistory, m.threadId, m.threadCount, m.poll, m.forumTitle || null, m.forumTags || null, m.ts || null));
         window._loadingChannelHistory = false;
-        requestAnimationFrame(() => { const _ch = document.getElementById('chat-history'); if (_ch) _ch.scrollTop = _ch.scrollHeight; });
+        requestAnimationFrame(() => requestAnimationFrame(() => { const _ch = document.getElementById('chat-history'); if (_ch) _ch.scrollTop = _ch.scrollHeight; }));
     } else {
         document.getElementById('chat-history').innerHTML = '';
     }
@@ -10466,6 +10466,7 @@ async function handleBridgeMessage(data, serverId) {
         ss.e2eChannelKeys   = {};
         ss.serverPublicKeys = {};
         ss.e2eChannelAccess = {};
+        ss.channelMessages  = {};
         if (isViewed) {
             const _rb2 = document.getElementById('role-badge');
             if (_rb2) { _rb2.className = ''; _rb2.textContent = ''; }
@@ -10569,7 +10570,8 @@ async function handleBridgeMessage(data, serverId) {
                 threadId: data.threadId || null, threadCount: data.threadCount || 0, poll: data.poll || null,
                 forumTitle: data.forumTitle || null, forumTags: data.forumTags || null };
             if (ciphertextBackup) stored._ciphertext = ciphertextBackup;
-            ss.channelMessages[chId].push(stored);
+            if (!data.id || !ss.channelMessages[chId].some(x => x.id === data.id))
+                ss.channelMessages[chId].push(stored);
             const srvMuted   = isServerMuted(serverId);
             const bypassMute = isMassNotify;
             const chNotify   = getChannelNotifyPref(chId);
