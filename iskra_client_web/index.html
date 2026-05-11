@@ -315,34 +315,45 @@
         .forum-tag { font-size: 10px; font-weight: 600; color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); border-radius: 3px; padding: 1px 6px; }
         /* Forum inline thread view */
         .forum-thread-view { display: flex; flex-direction: column; flex: 1; overflow: hidden; height: 100%; }
-        .ftv-nav { padding: 8px 14px; border-bottom: 1px solid var(--bg-border); flex-shrink: 0; display: flex; align-items: center; gap: 10px; background: var(--bg-deep); }
+        .ftv-nav { padding: 7px 12px; border-bottom: 1px solid var(--bg-border); flex-shrink: 0; display: flex; align-items: center; gap: 8px; background: var(--bg-deep); }
         .ftv-back-btn { background: none; border: 1px solid var(--bg-border); border-radius: 4px; color: var(--text-muted); cursor: pointer; font-size: 12px; padding: 3px 10px; flex-shrink: 0; }
         .ftv-back-btn:hover { background: var(--bg-hover); color: var(--text-normal); }
         .ftv-nav-title { font-size: 13px; font-weight: 600; color: var(--text-heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .ftv-op { padding: 14px 16px 12px; border-bottom: 2px solid var(--bg-border); background: var(--bg-surface); flex-shrink: 0; max-height: 40vh; overflow-y: auto; }
-        .ftv-op-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
-        .ftv-op-author { font-size: 12px; font-weight: 600; }
-        .ftv-op-time { font-size: 11px; color: var(--text-muted); }
-        .ftv-op-body { font-size: 14px; color: var(--text-normal); line-height: 1.65; word-wrap: break-word; }
-        .ftv-op-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
-        .ftv-op-actions { display: flex; gap: 6px; margin-top: 10px; }
-        .ftv-op-btn { font-size: 11px; padding: 2px 10px; border-radius: 3px; border: 1px solid var(--bg-border); background: none; color: var(--text-muted); cursor: pointer; transition: all 0.1s; }
-        .ftv-op-btn:hover { background: var(--bg-hover); color: var(--text-normal); }
-        .ftv-op-btn.del:hover { background: rgba(231,76,60,0.12); color: var(--danger); border-color: var(--danger); }
-        .ftv-replies-section { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-        .ftv-replies-header { padding: 8px 16px 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-subtle); flex-shrink: 0; border-bottom: 1px solid var(--bg-deep); }
+        .ftv-nav-count { font-size: 11px; color: var(--text-muted); margin-left: auto; flex-shrink: 0; }
+        /* phpBB-style post layout */
         .ftv-replies { flex: 1; overflow-y: auto; }
-        .ftv-reply { padding: 10px 16px; border-bottom: 1px solid var(--bg-deep); }
-        .ftv-reply-header { display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px; }
-        .ftv-reply-author { font-size: 12px; font-weight: 600; }
-        .ftv-reply-time { font-size: 11px; color: var(--text-muted); }
-        .ftv-reply-body { font-size: 13px; color: var(--text-normal); line-height: 1.55; word-wrap: break-word; }
-        .ftv-no-replies { padding: 24px 16px; color: var(--text-muted); font-size: 13px; text-align: center; }
-        .ftv-input { padding: 10px 14px 12px; border-top: 1px solid var(--bg-border); flex-shrink: 0; display: flex; gap: 8px; align-items: flex-end; background: var(--bg-deep); }
-        .ftv-input textarea { flex: 1; background: var(--bg-input, var(--bg-surface)); border: 1px solid var(--bg-border); border-radius: 4px; color: var(--text-normal); font-size: 13px; padding: 7px 10px; resize: none; min-height: 36px; max-height: 120px; font-family: inherit; overflow-y: auto; }
-        .ftv-input textarea:focus { outline: none; border-color: var(--accent); }
-        .ftv-input-btn { padding: 7px 18px; background: var(--accent); color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.1s; flex-shrink: 0; height: 36px; }
-        .ftv-input-btn:hover { background: var(--accent-hover); }
+        .ftv-no-replies { padding: 28px 16px; color: var(--text-muted); font-size: 13px; text-align: center; }
+        .ftv-post { display: flex; border-bottom: 1px solid var(--bg-border); }
+        .ftv-user-panel { width: 130px; flex-shrink: 0; padding: 12px 8px 10px; border-right: 1px solid var(--bg-border); display: flex; flex-direction: column; align-items: center; text-align: center; gap: 5px; background: color-mix(in srgb, var(--bg-deep) 85%, transparent); }
+        .ftv-up-name { font-size: 12px; font-weight: 700; line-height: 1.3; word-break: break-word; margin-top: 4px; }
+        .ftv-up-role { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 1px 6px; border-radius: 3px; }
+        .ftv-up-role.role-guest   { background: var(--bg-border); color: var(--text-faint); }
+        .ftv-up-role.role-member  { background: var(--bg-border); color: var(--text-muted); }
+        .ftv-up-role.role-trusted { background: #3b3a5c; color: #9b8dd4; }
+        .ftv-up-role.role-admin   { background: #3a4a3a; color: var(--success); }
+        .ftv-up-role.role-owner   { background: #4a3a2a; color: #f0a050; }
+        .ftv-up-bio { font-size: 10px; color: var(--text-subtle); font-style: italic; line-height: 1.4; margin-top: auto; border-top: 1px solid var(--bg-deep); padding-top: 6px; width: 100%; }
+        .ftv-post-right { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+        .ftv-post-hdr { display: flex; align-items: center; padding: 4px 10px; background: color-mix(in srgb, var(--bg-deep) 55%, transparent); border-bottom: 1px solid var(--bg-deep); gap: 7px; }
+        .ftv-post-num { font-size: 11px; font-weight: 700; color: var(--accent); flex-shrink: 0; }
+        .ftv-post-time { font-size: 11px; color: var(--text-muted); }
+        .ftv-post-tags { display: flex; flex-wrap: wrap; gap: 3px; }
+        .ftv-post-hdr-btns { display: flex; gap: 3px; margin-left: auto; }
+        .ftv-act-btn { font-size: 11px; padding: 1px 7px; border-radius: 3px; border: 1px solid var(--bg-border); background: none; color: var(--text-muted); cursor: pointer; transition: all 0.1s; }
+        .ftv-act-btn:hover { background: var(--bg-hover); color: var(--text-normal); }
+        .ftv-act-btn.del:hover { background: rgba(231,76,60,0.12); color: var(--danger); border-color: var(--danger); }
+        .ftv-post-content { padding: 10px 12px 10px; font-size: 14px; line-height: 1.65; word-wrap: break-word; }
+        /* Composer */
+        .ftv-composer { border-top: 2px solid var(--bg-border); background: var(--bg-deep); flex-shrink: 0; }
+        .ftv-composer-toolbar { display: flex; gap: 2px; padding: 5px 10px 3px; border-bottom: 1px solid var(--bg-deep); flex-wrap: wrap; align-items: center; }
+        .ftv-tb-btn { padding: 2px 7px; border-radius: 4px; font-size: 12px; cursor: pointer; background: transparent; border: 1px solid transparent; color: var(--text-subtle); font-family: inherit; transition: all 0.1s; }
+        .ftv-tb-btn:hover { background: var(--bg-hover); color: var(--text-normal); }
+        .ftv-tb-btn.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ftv-composer-row { display: flex; gap: 8px; align-items: flex-end; padding: 8px 10px 10px; }
+        .ftv-composer-row textarea { flex: 1; background: var(--bg-input, var(--bg-surface)); border: 1px solid var(--bg-border); border-radius: 4px; color: var(--text-normal); font-size: 13px; padding: 7px 10px; resize: none; min-height: 36px; max-height: 160px; font-family: inherit; overflow-y: auto; }
+        .ftv-composer-row textarea:focus { outline: none; border-color: var(--accent); }
+        .ftv-send-btn { padding: 7px 18px; background: var(--accent); color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.1s; flex-shrink: 0; height: 36px; }
+        .ftv-send-btn:hover { background: var(--accent-hover); }
         #forum-compose-bar { padding: 8px 16px 16px; border-top: 1px solid var(--bg-border); display: none; }
         #forum-compose-bar.visible { display: block; }
         .forum-new-post-btn { width: 100%; padding: 10px; background: var(--accent); color: #fff; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
@@ -8573,7 +8584,8 @@ function renderChatMessage(msgId, author, time, message, edited, reactions, repl
             <div class="forum-list-lastpost">
                 ${cnt > 0 ? `<span class="flp-time">${escapeHtml(time)}</span><span class="flp-author">${escapeHtml(author)}</span>` : '<span class="flp-time">No replies</span>'}
             </div>`;
-        row.onclick = () => openForumThreadView(msgId, row.dataset.channelId);
+        row.addEventListener('click', () => openForumThreadView(msgId, row.dataset.channelId));
+        if (msgId) row.addEventListener('contextmenu', e => showMsgCtxMenu(e, msgId, author));
         h.appendChild(row);
         return;
     }
@@ -11310,15 +11322,19 @@ async function handleBridgeMessage(data, serverId) {
         if (isViewed && data.threadId === ss.activeThreadId) {
             const ftv = document.getElementById('ftv-replies');
             if (ftv) {
-                ftv.innerHTML = '';
+                // Remove everything except the OP post (#ftv-op) and insert replies
+                Array.from(ftv.children).forEach(el => { if (el.id !== 'ftv-op') el.remove(); });
                 const msgs = data.messages || [];
                 if (msgs.length === 0) {
-                    ftv.innerHTML = '<div class="ftv-no-replies">No replies yet. Be the first!</div>';
+                    const noRep = document.createElement('div');
+                    noRep.className = 'ftv-no-replies';
+                    noRep.textContent = 'No replies yet. Be the first!';
+                    ftv.appendChild(noRep);
                 } else {
-                    msgs.forEach(m => _appendForumReply(m));
+                    msgs.forEach((m, i) => ftv.appendChild(_buildFtvPost(m, i + 2)));
                 }
-                const countEl = document.getElementById('ftv-reply-count');
-                if (countEl) { const n = msgs.length; countEl.textContent = `${n} ${n === 1 ? 'Reply' : 'Replies'}`; }
+                const countEl = document.getElementById('ftv-nav-count');
+                if (countEl) { const n = msgs.length; countEl.textContent = n > 0 ? `${n} ${n === 1 ? 'reply' : 'replies'}` : ''; }
                 ftv.scrollTop = ftv.scrollHeight;
             } else {
                 const h = document.getElementById('thread-history');
@@ -12013,6 +12029,7 @@ function openForumThreadView(msgId, channelId) {
     if (!post) return;
 
     ss._forumThreadMsgId = msgId;
+    _stopFtvTranscription();
     document.getElementById('forum-compose-bar')?.classList.remove('visible');
 
     const h = document.getElementById('chat-history');
@@ -12020,43 +12037,80 @@ function openForumThreadView(msgId, channelId) {
     h.classList.add('forum-thread-mode');
     h.innerHTML = '';
 
-    const isOwn = post.author === ss.myAlias;
-    const isElevated = ['admin', 'owner'].includes(ss.myRole);
     const tagsHtml = (post.forumTags && post.forumTags.length)
         ? post.forumTags.map(t => `<span class="forum-tag">${escapeHtml(t)}</span>`).join('') : '';
-    const canDelete = isOwn || isElevated;
-    const canEdit   = isOwn;
 
     const view = document.createElement('div');
     view.className = 'forum-thread-view';
-    view.innerHTML = `
-        <div class="ftv-nav">
-            <button class="ftv-back-btn" onclick="closeForumThread()">← Forum</button>
-            <span class="ftv-nav-title">${escapeHtml(post.forumTitle || '')}</span>
+
+    // Nav bar
+    const nav = document.createElement('div');
+    nav.className = 'ftv-nav';
+    nav.innerHTML = `<span class="ftv-nav-title">${escapeHtml(post.forumTitle || '')}${tagsHtml ? '&ensp;' + tagsHtml : ''}</span><span class="ftv-nav-count" id="ftv-nav-count"></span>`;
+    const backBtn = document.createElement('button');
+    backBtn.className = 'ftv-back-btn';
+    backBtn.textContent = '← Forum';
+    backBtn.addEventListener('click', closeForumThread);
+    nav.insertBefore(backBtn, nav.firstChild);
+    view.appendChild(nav);
+
+    // Replies container — OP is post #1 inside it
+    const repliesDiv = document.createElement('div');
+    repliesDiv.className = 'ftv-replies';
+    repliesDiv.id = 'ftv-replies';
+    const opEl = _buildFtvPost({ id: post.id, author: post.author, time: post.time, message: post.message }, 1);
+    opEl.id = 'ftv-op';
+    repliesDiv.appendChild(opEl);
+    const loadingEl = document.createElement('div');
+    loadingEl.className = 'ftv-no-replies';
+    loadingEl.id = 'ftv-loading';
+    loadingEl.textContent = 'Loading replies…';
+    repliesDiv.appendChild(loadingEl);
+    view.appendChild(repliesDiv);
+
+    // Composer with full toolbar
+    const composer = document.createElement('div');
+    composer.className = 'ftv-composer';
+    composer.innerHTML = `
+        <div class="ftv-composer-toolbar">
+            <button class="ftv-tb-btn" style="font-weight:700" title="Bold">B</button>
+            <button class="ftv-tb-btn" style="font-style:italic" title="Italic">I</button>
+            <button class="ftv-tb-btn" style="text-decoration:line-through" title="Strikethrough">S</button>
+            <button class="ftv-tb-btn" style="font-family:monospace;font-size:11px" title="Inline code">\`·\`</button>
+            <button class="ftv-tb-btn" title="Block quote">&gt;</button>
+            <button class="ftv-tb-btn" style="font-family:monospace;font-size:10px" title="Code block">{·}</button>
+            <button class="ftv-tb-btn" title="More formatting…">✏ More</button>
+            <button class="ftv-tb-btn" title="Emoji 😀">😀</button>
+            <button class="ftv-tb-btn" id="ftv-stt-btn" title="Speech to text">STT</button>
         </div>
-        <div class="ftv-op">
-            <div class="ftv-op-header">
-                <span class="ftv-op-author" style="${getRoleColor(post.author)}">${escapeHtml(post.author)}</span>
-                <span class="ftv-op-time">${escapeHtml(post.time || '')}</span>
-                ${tagsHtml ? `<span style="display:flex;gap:4px;flex-wrap:wrap;">${tagsHtml}</span>` : ''}
-            </div>
-            <div class="ftv-op-body">${renderMarkdown(post.message || '')}</div>
-            ${(canEdit || canDelete) ? `<div class="ftv-op-actions">
-                ${canEdit ? `<button class="ftv-op-btn" onclick="editMessage('${msgId}','${escapeHtml(post.author)}')">Edit</button>` : ''}
-                ${canDelete ? `<button class="ftv-op-btn del" onclick="_deleteForumPost(event,'${msgId}')">Delete post</button>` : ''}
-            </div>` : ''}
-        </div>
-        <div class="ftv-replies-section">
-            <div class="ftv-replies-header" id="ftv-reply-count">Replies</div>
-            <div class="ftv-replies" id="ftv-replies"><div class="ftv-no-replies">Loading…</div></div>
-        </div>
-        <div class="ftv-input">
-            <textarea id="ftv-reply-input" placeholder="Write a reply…" rows="1"
-                      onkeydown="sendForumReply(event)"
-                      oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"></textarea>
-            <button class="ftv-input-btn" onclick="sendForumReplyBtn()">Reply</button>
+        <div class="ftv-composer-row">
+            <textarea id="ftv-reply-input" placeholder="Write a reply…" rows="1"></textarea>
+            <button class="ftv-send-btn" id="ftv-send-btn">Reply</button>
         </div>`;
+    view.appendChild(composer);
     h.appendChild(view);
+
+    // Wire toolbar buttons after DOM is ready
+    const ta = composer.querySelector('#ftv-reply-input');
+    ta.addEventListener('focus',   () => { _fmtTarget = ta; });
+    ta.addEventListener('keydown', sendForumReply);
+    ta.addEventListener('input',   () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 160) + 'px'; _fmtTarget = ta; });
+
+    const tbBtns = composer.querySelectorAll('.ftv-tb-btn');
+    const fmtMap = ['bold','italic','strike','inlinecode','blockquote','codeblock'];
+    tbBtns.forEach((btn, i) => {
+        if (i < fmtMap.length) {
+            btn.addEventListener('click', () => { _fmtTarget = ta; insertFormat(fmtMap[i]); ta.focus(); });
+        } else if (btn.title.startsWith('More')) {
+            btn.addEventListener('click', e => { _fmtTarget = ta; toggleFormatPicker(e, ta); });
+        } else if (btn.title.startsWith('Emoji')) {
+            btn.addEventListener('click', e => { _fmtTarget = ta; toggleEmojiInsertPicker(e); });
+        } else if (btn.id === 'ftv-stt-btn') {
+            btn.addEventListener('click', toggleFtvTranscription);
+        }
+    });
+
+    composer.querySelector('#ftv-send-btn').addEventListener('click', sendForumReplyBtn);
 
     const existingThreadId = ss.threadMsgMap[msgId];
     if (existingThreadId) {
@@ -12068,8 +12122,65 @@ function openForumThreadView(msgId, channelId) {
     }
 }
 
+function _buildFtvPost(data, postNum) {
+    const ss = serverStates[viewedServerId];
+    const isOwn = data.author === ss?.myAlias;
+    const isElevated = ['admin','owner'].includes(ss?.myRole);
+    const role = ss?.userRoles?.[data.author] || (isOwn ? ss?.myRole : 'guest') || 'guest';
+    const bio = ss?.memberBios?.[data.author] || '';
+
+    const post = document.createElement('div');
+    post.className = 'ftv-post';
+    if (data.id) post.dataset.msgId = data.id;
+
+    post.innerHTML = `
+        <div class="ftv-user-panel">
+            ${avatarHtml(data.author, 'sz-48', false)}
+            <div class="ftv-up-name" style="${getRoleColor(data.author)}">${escapeHtml(data.author)}</div>
+            <div class="ftv-up-role role-${role}">${role}</div>
+            ${bio ? `<div class="ftv-up-bio">"${escapeHtml(bio)}"</div>` : ''}
+        </div>
+        <div class="ftv-post-right">
+            <div class="ftv-post-hdr">
+                <span class="ftv-post-num">#${postNum}</span>
+                <span class="ftv-post-time">${escapeHtml(data.time || '')}</span>
+                <div class="ftv-post-hdr-btns"></div>
+            </div>
+            <div class="ftv-post-content">${renderMarkdown(data.message || '')}</div>
+        </div>`;
+
+    const btnRow = post.querySelector('.ftv-post-hdr-btns');
+
+    const qBtn = document.createElement('button');
+    qBtn.className = 'ftv-act-btn';
+    qBtn.textContent = 'Quote';
+    qBtn.addEventListener('click', () => _ftvQuote(data.author, data.message || ''));
+    btnRow.appendChild(qBtn);
+
+    if (isOwn && data.id) {
+        const eBtn = document.createElement('button');
+        eBtn.className = 'ftv-act-btn';
+        eBtn.textContent = 'Edit';
+        eBtn.addEventListener('click', () => editMessage(data.id, data.author));
+        btnRow.appendChild(eBtn);
+    }
+    if ((isOwn || isElevated) && data.id) {
+        const dBtn = document.createElement('button');
+        dBtn.className = 'ftv-act-btn del';
+        dBtn.textContent = 'Delete';
+        dBtn.addEventListener('click', e => {
+            if (postNum === 1) _deleteForumPost(e, data.id);
+            else deleteMessage(e, data.id);
+        });
+        btnRow.appendChild(dBtn);
+    }
+
+    return post;
+}
+
 function closeForumThread() {
     const ss = serverStates[viewedServerId];
+    _stopFtvTranscription();
     if (ss) { ss._forumThreadMsgId = null; ss.activeThreadId = null; }
     activeThreadId = null;
     if (ss?.activeTextChannelId) selectTextChannel(ss.activeTextChannelId);
@@ -12085,6 +12196,7 @@ function sendForumReplyBtn() {
     const ta = document.getElementById('ftv-reply-input');
     const msg = ta?.value.trim();
     const ss = serverStates[viewedServerId];
+    DevLog.log('FORUM', `→ sendForumReplyBtn msg:"${msg?.slice(0,30)}" threadId:${ss?.activeThreadId}`);
     if (!msg || !ss?.activeThreadId) return;
     postToServer(viewedServerId, { action: 'SEND_THREAD_MESSAGE', threadId: ss.activeThreadId, message: msg });
     ta.value = '';
@@ -12096,26 +12208,79 @@ function _deleteForumPost(e, msgId) {
     closeForumThread();
 }
 
+function _ftvQuote(author, message) {
+    const ta = document.getElementById('ftv-reply-input');
+    if (!ta) return;
+    const lines = (message || '').split('\n').map(l => '> ' + l).join('\n');
+    const insert = `> **${escapeHtml(author)}:**\n${lines}\n\n`;
+    const pos = ta.selectionStart ?? ta.value.length;
+    ta.setRangeText(insert, pos, pos, 'end');
+    _fmtTarget = ta;
+    ta.focus();
+    ta.dispatchEvent(new Event('input'));
+}
+
 function _appendForumReply(data) {
     const ftv = document.getElementById('ftv-replies');
     if (!ftv) return;
-    const noReplies = ftv.querySelector('.ftv-no-replies');
-    if (noReplies) noReplies.remove();
-    const div = document.createElement('div');
-    div.className = 'ftv-reply';
-    div.innerHTML =
-        `<div class="ftv-reply-header">
-            <span class="ftv-reply-author" style="${getRoleColor(data.author)}">${escapeHtml(data.author)}</span>
-            <span class="ftv-reply-time">${escapeHtml(data.time || '')}</span>
-        </div>
-        <div class="ftv-reply-body">${renderMarkdown(data.message)}</div>`;
-    ftv.appendChild(div);
+    ftv.querySelector('.ftv-no-replies')?.remove();
+    const postNum = ftv.querySelectorAll('.ftv-post').length + 1;
+    ftv.appendChild(_buildFtvPost(data, postNum));
     ftv.scrollTop = ftv.scrollHeight;
-    const countEl = document.getElementById('ftv-reply-count');
-    if (countEl) {
-        const n = ftv.querySelectorAll('.ftv-reply').length;
-        countEl.textContent = `${n} ${n === 1 ? 'Reply' : 'Replies'}`;
-    }
+    const countEl = document.getElementById('ftv-nav-count');
+    if (countEl) { const n = postNum - 1; countEl.textContent = `${n} ${n === 1 ? 'reply' : 'replies'}`; }
+}
+
+// ── Forum STT ──────────────────────────────────────────────────────────────────
+let _ftvTranscribing = false, _ftvSpeechRecog = null, _ftvDictateBase = '', _ftvDictateConfirmed = '';
+
+function toggleFtvTranscription() {
+    if (_ftvTranscribing) _stopFtvTranscription();
+    else _startFtvTranscription();
+}
+
+function _startFtvTranscription() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { showToast('Voice input not supported.'); return; }
+    const input = document.getElementById('ftv-reply-input');
+    if (!input) return;
+    _ftvDictateBase = input.value;
+    _ftvDictateConfirmed = '';
+    _ftvTranscribing = true;
+    document.getElementById('ftv-stt-btn')?.classList.add('on');
+    const startSession = () => {
+        _ftvSpeechRecog = new SR();
+        _ftvSpeechRecog.continuous = true;
+        _ftvSpeechRecog.interimResults = true;
+        _ftvSpeechRecog.lang = navigator.language || 'en-US';
+        _ftvSpeechRecog.onresult = e => {
+            const inp = document.getElementById('ftv-reply-input');
+            if (!inp) return;
+            for (let i = e.resultIndex; i < e.results.length; i++) {
+                if (e.results[i].isFinal) _ftvDictateConfirmed += e.results[i][0].transcript + ' ';
+            }
+            let interim = '';
+            for (let i = 0; i < e.results.length; i++) {
+                if (!e.results[i].isFinal) interim += e.results[i][0].transcript;
+            }
+            inp.value = (_ftvDictateBase + _ftvDictateConfirmed + interim).trimStart();
+            inp.dispatchEvent(new Event('input'));
+        };
+        _ftvSpeechRecog.onend = () => { if (_ftvTranscribing) startSession(); };
+        _ftvSpeechRecog.onerror = e => { if (e.error !== 'no-speech') _stopFtvTranscription(); };
+        _ftvSpeechRecog.start();
+    };
+    startSession();
+    input.focus();
+}
+
+function _stopFtvTranscription() {
+    _ftvTranscribing = false;
+    _ftvDictateConfirmed = '';
+    _ftvDictateBase = '';
+    document.getElementById('ftv-stt-btn')?.classList.remove('on');
+    try { _ftvSpeechRecog?.stop(); } catch {}
+    _ftvSpeechRecog = null;
 }
 
 function openThread(threadId, parentMsgId) {
