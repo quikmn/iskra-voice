@@ -3126,6 +3126,7 @@ const connectedServerIds = new Set();      // servers with live, authenticated c
 let viewedServerId      = null;            // which server's UI is currently on screen
 let voiceServerId       = null;            // which server the user is voiced on (null = not in voice)
 let voiceChannelId      = null;            // active voice channel ID
+let activeThreadId      = null;            // currently open forum thread ID (mirrors ss.activeThreadId for viewed server)
 // Channel ECDH key workspace — the same key material is copied into each server's ss on connect
 let _channelEcdhPriv    = null;
 let _channelEcdhPub     = null;
@@ -4247,10 +4248,10 @@ function closeActivityInput(chId) {
 }
 
 function selectTextChannel(id) {
+    DevLog.log('ERR', `[STX] ENTER id=${id} viewed=${viewedServerId}`);
+    try {
     const ss = serverStates[viewedServerId];
-    if (!ss) return;
-    const ch = ss.serverChannels.find(c => c.id === id);
-    if (!ch || (ch.type !== 'Text' && ch.type !== 'Forum')) return;
+    if (!ss) { DevLog.log('ERR', '[STX] NO SS — returning'); return; }
     if (ss.activeTextChannelId && ss.activeTextChannelId !== id) {
         _saveDraft(viewedServerId, ss.activeTextChannelId);
     }
@@ -4261,8 +4262,10 @@ function selectTextChannel(id) {
     saveUnread(viewedServerId);
     _clearTyping();
     cancelReply();
+    const ch = ss.serverChannels.find(c => c.id === id);
     const inputArea = document.getElementById('input-area');
     document.getElementById('chat-channel-icon').textContent = ch?.e2e ? '🔒' : '#';
+    DevLog.log('ERR', `[STX] A ch=${ch?.name||'null'} ib=${!!document.querySelector('.input-box')}`);
     if (ch) {
         document.getElementById('chat-channel-name').textContent = ch.name;
         const isReadOnly = ch.readOnly
@@ -4274,18 +4277,23 @@ function selectTextChannel(id) {
         document.querySelector('.input-box').placeholder = placeholder;
         if (inputArea) inputArea.classList.toggle('readonly', isReadOnly);
     }
+    DevLog.log('ERR', `[STX] B isForum=${ch?.type==='Forum'}`);
     const isForum = ch?.type === 'Forum';
     _setForumMode(isForum);
     if (isForum) document.getElementById('chat-channel-icon').textContent = '📋';
-    if (ss) { ss._forumThreadMsgId = null; ss.activeThreadId = null; }
+    ss._forumThreadMsgId = null; ss.activeThreadId = null;
     activeThreadId = null;
     const h = document.getElementById('chat-history');
+    DevLog.log('ERR', `[STX] C h=${!!h} chMsgs=${Object.keys(ss.channelMessages).length}`);
+    const _diagMap = Object.entries(ss.channelMessages).map(([k,v])=>`${k.slice(-8)}:${v.length}`).join(' ');
+    DevLog.log('DIAG', `SELECT id:${id.slice(-8)} "${ch?.name||'?'}" | target_msgs:${(ss.channelMessages[id]||[]).length} | all:[${_diagMap||'empty'}]`);
     h.innerHTML = '';
     h.classList.remove('forum-thread-mode');
     h.classList.toggle('forum-mode', isForum);
     window._loadingChannelHistory = true;
     (ss.channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}, m.replyToId, m.replySnippet, m.editHistory, m.threadId, m.threadCount, m.poll, m.forumTitle || null, m.forumTags || null, m.ts || null));
     window._loadingChannelHistory = false;
+    DevLog.log('ERR', `[STX] DONE rendered=${h.children.length} msgs`);
     requestAnimationFrame(() => requestAnimationFrame(() => { const _ch = document.getElementById('chat-history'); if (_ch) _ch.scrollTop = _ch.scrollHeight; }));
     renderChannelList();
     clearTimeout(ss._slowTimer);
@@ -4303,6 +4311,7 @@ function selectTextChannel(id) {
     initUnreadJump();
     DevLog.log('BRIDGE', `Text channel selected: "${ch?.name || id}" | ${(ss.channelMessages[id]||[]).length} msg(s)${ch?.readOnly ? ' [readonly]' : ''}`);
     closeMobSidebar();
+    } catch(e) { DevLog.log('ERR', `[STX] CRASH: ${e.message} | ${(e.stack||'').split('\n')[1]||''}`); }
 }
 
 function roleRank(r) { return ({guest:0,member:1,trusted:2,admin:3,owner:4})[r] ?? 0; }
@@ -7245,11 +7254,9 @@ async function setupPeer(target, makeOffer = false, peerServerId = null) {
 async function joinVoice(id) {
     const ss = serverStates[viewedServerId];
     if (!ss) return;
-    const ch = ss.serverChannels.find(c => c.id === id);
-    if (!ch || ch.type !== 'Voice') return;
     if (!processedStream) { try { await initAudio(); } catch {} }
     if (ss.currentChannelId !== id) { postToServer(viewedServerId, { action: 'JOIN_VOICE', channelId: id }); _acquireWakeLock(); }
-    if (inDmMode) return;
+    if (inDmMode) { ss.activeTextChannelId = id; return; }
     // Switch chat pane to voice channel text thread
     if (ss.activeTextChannelId === id) return;
     ss.activeTextChannelId = id;
@@ -7258,10 +7265,11 @@ async function joinVoice(id) {
     _setForumMode(false);
     ss._forumThreadMsgId = null; ss.activeThreadId = null;
     activeThreadId = null;
-    const icon = ch.muted ? '🔇' : '🔊';
+    const ch = ss.serverChannels.find(c => c.id === id);
+    const icon = ch?.muted ? '🔇' : '🔊';
     document.getElementById('chat-channel-icon').textContent = icon;
-    document.getElementById('chat-channel-name').textContent = ch.name || id;
-    document.querySelector('.input-box').placeholder = `Message in ${icon} ${ch.name || id}`;
+    document.getElementById('chat-channel-name').textContent = ch?.name || id;
+    document.querySelector('.input-box').placeholder = `Message in ${icon} ${ch?.name || id}`;
     document.getElementById('input-area')?.classList.remove('readonly');
     const h = document.getElementById('chat-history');
     h.innerHTML = '';
@@ -10468,6 +10476,7 @@ async function handleBridgeMessage(data, serverId) {
         ss.serverPublicKeys = {};
         ss.e2eChannelAccess = {};
         ss.channelMessages  = {};
+        ss.activeTextChannelId = null;
         if (isViewed) {
             const _rb2 = document.getElementById('role-badge');
             if (_rb2) { _rb2.className = ''; _rb2.textContent = ''; }
@@ -10789,11 +10798,13 @@ async function handleBridgeMessage(data, serverId) {
         data.channels.forEach(c => { if (c.slowMode) ss.channelSlowMode[c.id] = c.slowMode; });
         ss._collapsedCats = loadCollapsedCats(serverId);
         loadUnread(serverId);
+        DevLog.log('ERR', `[SI] isViewed=${isViewed} chCount=${ss.serverChannels.length} types=${ss.serverChannels.map(c=>c.type).join(',').slice(0,80)}`);
         if (isViewed) {
             const _prevCh = ss.serverChannels.find(c => c.id === ss.activeTextChannelId);
             const _initCh = (_prevCh && (_prevCh.type === 'Text' || _prevCh.type === 'Forum'))
                 ? _prevCh
                 : ss.serverChannels.find(c => c.type === 'Text');
+            DevLog.log('ERR', `[SI] prevCh=${_prevCh?.id||'null'} initCh=${_initCh?.id||'null'} activeTextCh=${ss.activeTextChannelId}`);
             if (_initCh) selectTextChannel(_initCh.id);
             updateMyAvatar();
             renderChannelList();
