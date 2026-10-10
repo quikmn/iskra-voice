@@ -55,6 +55,7 @@ public static class PollFeature
 
         var multi = body.OptionalBool("multi") ?? false;
         var duration = body.OptionalLong("durationMs", MinDurationMs, MaxDurationMs);
+        ModerationFeature.CheckSlowmode(s, me, channel);
         var (message, _) = s.World.Store.AddPoll(channel.Id, me.AccountKey, question, options, multi, s.Now + duration, s.Now);
 
         var view = MessageViews.Public(s.World.Store, message);

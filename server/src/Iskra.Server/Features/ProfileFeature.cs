@@ -66,6 +66,7 @@ public static partial class ProfileFeature
             accent = p.Accent,
             page = page ? $"/pages/{p.PageId}" : null,
             pageHash = page ? p.PageSha256 : null,
+            timedOutUntil = store.GetTimeout(m.AccountKey)?.Until,
         };
     }
 
@@ -178,6 +179,7 @@ public static partial class ProfileFeature
                 throw RequestException.Forbidden("You can only remove pages of members ranked below you.");
         }
         if (!s.World.Store.RemovePage(key)) throw RequestException.NotFound("Profile page");
+        if (key != me.AccountKey) Audit.Record(s, "profile.page.remove", key);
         BroadcastMember(s, key);
         return null;
     }
@@ -188,6 +190,7 @@ public static partial class ProfileFeature
         var enabled = body.OptionalBool("enabled") ?? throw RequestException.BadRequest("'enabled' is required.");
         if (enabled == PagesEnabled(s.World.Store)) return null;
         s.World.Store.SetProfileOption("pages", enabled ? "on" : "off");
+        Audit.Record(s, "server.pages", details: new { enabled });
         s.Hub.Broadcast(Frames.Event("profile.pages", new { enabled }));
         // Pages appear or disappear from members (they're kept, so turning pages back on restores them).
         foreach (var key in s.World.Store.AccountsWithPages()) BroadcastMember(s, key);

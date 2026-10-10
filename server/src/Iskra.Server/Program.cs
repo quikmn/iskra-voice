@@ -26,6 +26,7 @@ builder.Services.AddHostedService<UploadSweeper>();
 builder.Services.AddSingleton<LinkPreviews>();
 builder.Services.AddSingleton<WebhookIngress>();
 builder.Services.AddHostedService<PollCloser>();
+builder.Services.AddHostedService<ModerationSweeper>();
 builder.Services.AddPush(world);
 builder.Services.AddSingleton<LinkRelay>();
 builder.Services.Configure<LinkSettings>(builder.Configuration.GetSection("Link"));

@@ -12,6 +12,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted)
 - **People and integrations:** [Profiles](#profiles) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints)
+- **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation)
 
 ---
 
@@ -711,3 +712,54 @@ Everything else a server answers over HTTP(S), on the same port as `/ws`:
 | `/livekit` | LiveKit signaling, proxied ([Voice](#voice)) |
 | `POST /internal/livekit-webhook` | LiveKit's signed webhooks, loopback only |
 | `GET /.well-known/acme-challenge/<token>`, `GET /.well-known/iskra-probe/<token>` | Let's Encrypt and the reachability probe ([Internet hosting](#internet-hosting)) |
+
+## Safety and moderation
+
+### Blocking
+
+Each account keeps its own block list. Clients keep it on the device and hand it to every server the account is on, so the list follows the account across devices and servers; each server enforces the copy it holds. Entries are last-writer-wins per person, and unblocks are kept as entries, so an unblock made on one device also reaches the others.
+
+```jsonc
+BlockEntry { "accountKey": "<b64u 32>", "blocked": true, "at": 1760000000000 }   // at: when this device made the change
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `block.list` | | `{ blocks: [BlockEntry] }` (oldest change first) | yourself |
+| `block.sync` | `entries: [BlockEntry]` (≤ 500) | `{ blocks: [BlockEntry] }` (the merged list) | yourself |
+
+- Merge: per `accountKey` the entry with the larger `at` wins; on a tie a block beats an unblock. `at` may be at most 10 minutes in the future. You can't block yourself. At most 500 entries per account; the oldest unblocks are dropped first, and more than 500 blocks is `bad_request`.
+- Event `blocks` `{ blocks }` goes to the account's other sessions on this server after a change.
+- If either person has blocked the other, `dm.send` and `call.start` between them answer `forbidden` ("You can't message/call this person"), without saying who blocked whom. Blocking someone ends any call with them on this server. Nothing is sent to the blocked person, and the list is never shown to anyone else.
+- Messages in shared channels are still delivered; clients collapse messages from people you blocked ("Blocked message — Show").
+
+### Timeouts
+
+| type | body | result | who |
+|---|---|---|---|
+| `member.timeout` | `accountKey, durationMs` (60 000, 300 000, 3 600 000, 86 400 000 or 604 800 000), `reason?` (≤ 200 chars) | `{ member }` | admin+, target ranked below you (as `member.kick`) |
+| `member.timeout.remove` | `accountKey` | `{ member }` | same; `not_found` if they aren't timed out |
+| `member.timeout.status` | | `{ timeout: { until, reason } \| null }` | yourself |
+
+- `Member` gains `timedOutUntil` (ms, or null). Setting a new timeout replaces the old one. The server ends timeouts when they run out (within about a second) and sends `member.updated`; enforcement always compares with the current time.
+- While timed out, these requests answer `forbidden`: `chat.send`, `chat.edit`, `chat.react`, `chat.typing`, `chat.pin`, `upload.begin`, `thread.create`, `thread.update`, `poll.create`, `poll.vote`, `poll.end`, `voice.join`, `sound.play`, `call.start`, `call.accept`. Calling someone who is timed out is `forbidden` too. A new timeout takes the member out of voice and ends their calls on this server; LiveKit joins from a timed-out member are removed. Reading, DMs and profile changes keep working.
+
+### Slowmode
+
+`Channel` gains `slowmode` (seconds; 0 = off). `channel.create` and `channel.update` take `slowmode?`: one of 0, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 21600.
+
+- Each member can send one message (`chat.send` or `poll.create`) per interval in that channel; sooner is `rate_limited` ("You can send again in 12 s"). Admins and the owner are exempt. Threads have no slowmode of their own. The server keeps the send times in memory, so a restart forgets them.
+
+### Audit log
+
+| type | body | result | who |
+|---|---|---|---|
+| `audit.list` | `action?` (≤ 40 chars), `person?` (accountKey: actor or target), `before?` (entry id), `limit?` (1–100, default 50) | `{ entries: [AuditEntry], hasMore }` (newest first) | admin+ |
+
+```jsonc
+AuditEntry { "id": 7, "at": 1760000000000, "action": "member.timeout", "actor": "<accountKey>", "actorName": "Viktor",
+             "target": "<accountKey>" | null, "targetName": "Sam" | null, "reason": "spam" | null, "details": { ... } | null }
+```
+
+- Names are recorded with the entry, so it stays readable after people leave. Entries older than 90 days are deleted.
+- Actions and their `details`: `member.kick`, `member.ban`, `member.unban`, `member.role` `{ from, to }`, `member.timeout` `{ durationMs, until }`, `member.timeout.remove`, `channel.create` `{ channelId, name, kind, readRole, writeRole, slowmode }`, `channel.update` `{ channelId, name, changes: { name?, readRole?, writeRole?, slowmode?: { from, to } } }`, `channel.delete` `{ channelId, name, kind }`, `message.delete` (by someone other than the author; the target is the author) `{ channelId, channelName, messageId, author }`, `thread.delete` (by someone other than its creator), `message.pin` / `message.unpin` `{ channelId, channelName, messageId }`, `webhook.create` / `webhook.update` / `webhook.regenerate` / `webhook.delete` `{ id, name, channelId }`, `bot.invite` `{ role, expiresAt }`, `emoji.create` / `emoji.rename` / `emoji.delete`, `sound.create` / `sound.update` / `sound.delete`, `invite.create` `{ role, maxUses, expiresAt }`, `invite.revoke` `{ role, uses }`, `profile.page.remove` (someone else's), `server.pages` `{ enabled }`, `server.internet` `{ enabled }`. Invite codes and message text are never recorded.

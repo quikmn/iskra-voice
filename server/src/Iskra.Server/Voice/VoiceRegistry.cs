@@ -107,6 +107,18 @@ public sealed class VoiceRegistry
         }
     }
 
+    /// <summary>After a timeout: out of every voice channel and call on this server.</summary>
+    public void RemoveEverywhere(string accountKey)
+    {
+        Calls.EndWhere(c => c.Involves(accountKey));
+        foreach (var (channelId, room) in _rooms)
+        {
+            if (!room.TryRemove(accountKey, out _)) continue;
+            _ = backend.RemoveParticipantAsync(RoomName(channelId), accountKey);
+            Publish(channelId);
+        }
+    }
+
     private void Publish(long channelId)
     {
         var channel = world.Store.GetChannel(channelId);
@@ -133,7 +145,8 @@ public sealed class VoiceRegistry
                 // A token only works for members who could read the channel when it was issued; re-check anyway.
                 var member = world.Store.GetMember(identity);
                 var channel = world.Store.GetChannel(channelId);
-                if (member is null || channel is null || !Permissions.CanRead(member, channel))
+                if (member is null || channel is null || !Permissions.CanRead(member, channel)
+                    || Features.ModerationFeature.IsTimedOut(world.Store, identity, now))
                 {
                     _ = backend.RemoveParticipantAsync(room!, identity);
                     return;

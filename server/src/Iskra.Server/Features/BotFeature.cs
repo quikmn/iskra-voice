@@ -37,6 +37,7 @@ public static class BotFeature
 
         var invite = s.World.Store.CreateInvite(InviteFeature.NewCode(), me.AccountKey, role, s.Now, s.Now + lifetimeMs, maxUses: 1);
         s.World.Store.MarkBotInvite(invite.Code);
+        Audit.Record(s, "bot.invite", details: new { role, expiresAt = invite.ExpiresAt });
         return new { invite = InviteFeature.PublicInvite(invite) };
     }
 }

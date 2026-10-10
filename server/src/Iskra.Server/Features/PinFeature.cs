@@ -35,6 +35,8 @@ public static class PinFeature
         }
         if (changed)
         {
+            Audit.Record(s, on ? "message.pin" : "message.unpin", s.World.Store.GetMember(message.AuthorKey)?.AccountKey,
+                details: new { channelId = channel.Id, channelName = channel.Name, messageId = message.Id });
             s.Hub.BroadcastToReaders(channel, Frames.Event("chat.pinned",
                 new { id = message.Id, channelId = channel.Id, on, by = me.AccountKey, at = s.Now }));
         }

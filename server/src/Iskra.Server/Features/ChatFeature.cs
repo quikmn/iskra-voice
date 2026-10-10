@@ -61,6 +61,7 @@ public static class ChatFeature
         long? replyTo = body.OptionalLong("replyTo", min: 1);
         if (replyTo is { } replyId && s.World.Store.GetMessage(replyId)?.ChannelId != channel.Id)
             throw RequestException.BadRequest("You can only reply to messages in the same channel.");
+        ModerationFeature.CheckSlowmode(s, me, channel);
 
         var message = s.World.Store.AddMessage(channel.Id, me.AccountKey, text, s.Now, attachments, replyTo);
         var publicMessage = View(s, message);
@@ -90,6 +91,9 @@ public static class ChatFeature
         var channel = ReadableChannel(s, me, message.ChannelId);
         var author = s.World.Store.GetMember(message.AuthorKey);
         if (!Permissions.CanDeleteMessage(me, message, author)) throw RequestException.Forbidden();
+        if (message.AuthorKey != me.AccountKey)
+            Audit.Record(s, "message.delete", author?.AccountKey,
+                details: new { channelId = channel.Id, channelName = channel.Name, messageId = message.Id, author = message.AuthorKey });
 
         s.World.Store.DeleteMessage(message.Id);
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.deleted", new { id = message.Id, channelId = channel.Id }));
