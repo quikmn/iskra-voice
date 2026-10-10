@@ -24,6 +24,23 @@ public sealed record WorldSettings
     public VoiceSettings Voice { get; init; } = new();
 
     public HttpsSettings Https { get; init; } = new();
+
+    public InternetSettings Internet { get; init; } = new();
+}
+
+/// <summary>Opening the server to the internet: router port mapping, an automatic address and HTTPS.</summary>
+public sealed record InternetSettings
+{
+    public bool Enabled { get; init; }
+
+    /// <summary>Your own domain pointing at this network. Default: an address under <see cref="DnsSuffix"/>.</summary>
+    public string? Domain { get; init; }
+
+    /// <summary>Wildcard DNS that maps "1-2-3-4.sslip.io" to 1.2.3.4 (used when there's no <see cref="Domain"/>).</summary>
+    public string DnsSuffix { get; init; } = "sslip.io";
+
+    /// <summary>Ask the router to open the ports (UPnP / NAT-PMP). Off if you forward them by hand.</summary>
+    public bool PortMapping { get; init; } = true;
 }
 
 /// <summary>HTTPS: off, automatic Let's Encrypt certificates ("acme"), or your own certificate files ("files").</summary>
@@ -71,8 +88,13 @@ public sealed class World : IDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
+    private readonly Lock _settingsLock = new();
+
     public string Path { get; }
-    public WorldSettings Settings { get; }
+    public WorldSettings Settings { get; private set; }
+
+    /// <summary>How friends on the internet reach this server right now (set by internet hosting), or null.</summary>
+    public string? InternetUrl { get; set; }
     public Key ServerKey { get; }
     public byte[] ServerPublicKey { get; }
     public Store Store { get; }
@@ -121,6 +143,21 @@ public sealed class World : IDisposable
 
         var store = Store.Open(System.IO.Path.Combine(path, "iskra.db"));
         return new World(path, settings, Ed25519.KeyFromSeed(seed), store);
+    }
+
+    /// <summary>Changes settings at runtime: rewrites server.json (keeping keys we don't know) and the live copy.</summary>
+    public void UpdateSettings(Func<WorldSettings, WorldSettings> change)
+    {
+        lock (_settingsLock)
+        {
+            var next = change(Settings);
+            var file = System.IO.Path.Combine(Path, "server.json");
+            var json = File.Exists(file) ? System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(file)) as System.Text.Json.Nodes.JsonObject : null;
+            json ??= [];
+            foreach (var (key, value) in JsonSerializer.SerializeToNode(next, JsonOptions)!.AsObject()) json[key] = value?.DeepClone();
+            AtomicFile.WriteAllText(file, json.ToJsonString(JsonOptions));
+            Settings = next;
+        }
     }
 
     public void Dispose()

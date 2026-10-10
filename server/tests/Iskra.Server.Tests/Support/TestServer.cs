@@ -25,6 +25,9 @@ public sealed class IskraServer : WebApplicationFactory<Program>
 
     public World World => Services.GetRequiredService<World>();
 
+    /// <summary>Stands in for the router (internet hosting); null keeps the real one, which only runs when hosting is on.</summary>
+    public Iskra.Server.Hosting.IPortMapper? PortMapper { get; init; }
+
     /// <summary>Stands in for LiveKit: always available, records removals.</summary>
     public FakeVoiceBackend Voice { get; } = new();
 
@@ -34,7 +37,11 @@ public sealed class IskraServer : WebApplicationFactory<Program>
         builder.UseSetting("Session:AuthTimeoutMs", AuthTimeoutMs.ToString());
         builder.UseSetting("Session:CloseGraceMs", "200");
         builder.UseSetting("Previews:AllowLoopbackForTests", AllowLoopbackPreviews.ToString());
-        builder.ConfigureTestServices(services => services.AddSingleton<IVoiceBackend>(Voice));
+        builder.ConfigureTestServices(services =>
+        {
+            services.AddSingleton<IVoiceBackend>(Voice);
+            if (PortMapper is not null) services.AddSingleton(PortMapper);
+        });
     }
 
     public async Task<TestClient> ConnectAsync()

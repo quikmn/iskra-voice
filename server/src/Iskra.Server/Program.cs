@@ -45,6 +45,11 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.Configure<SessionLimits>(builder.Configuration.GetSection("Session"));
 builder.Services.AddSingleton<Certificates>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<Certificates>());
+builder.Services.AddSingleton<IPortMapper>(sp => builder.Configuration["Internet:TestRouter"] is { Length: > 0 } fake
+    ? new TestRouter(fake)
+    : ActivatorUtilities.CreateInstance<PortMapper>(sp));
+builder.Services.AddSingleton<InternetHost>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<InternetHost>());
 
 var https = world.Settings.Https;
 if (https.Enabled)
@@ -67,7 +72,13 @@ if (https.Enabled)
 }
 else
 {
-    builder.WebHost.UseUrls($"http://0.0.0.0:{world.Settings.Port}");
+    // One port on every interface, speaking HTTP and (for internet hosting) HTTPS.
+    builder.WebHost.ConfigureKestrel(kestrel =>
+    {
+        var certificates = kestrel.ApplicationServices.GetRequiredService<Certificates>();
+        certificates.LoadExisting();
+        kestrel.ListenAnyIP(world.Settings.Port, listen => listen.Use(DualProtocol.Middleware(() => certificates.Context)));
+    });
 }
 
 var app = builder.Build();
@@ -96,6 +107,28 @@ if (https.Enabled)
         await next();
     });
 }
+else
+{
+    // Internet hosting with a certificate: plain HTTP from the internet goes to HTTPS. LAN and localhost stay as they are.
+    app.Use(async (context, next) =>
+    {
+        if (!context.Request.IsHttps && world.InternetUrl is { } publicUrl && publicUrl.StartsWith("https://", StringComparison.Ordinal)
+            && context.Connection.RemoteIpAddress is { } remote && !Networks.IsNonPublic(remote)
+            && !context.Request.Path.StartsWithSegments("/.well-known"))
+        {
+            context.Response.Redirect($"{publicUrl}{context.Request.Path}{context.Request.QueryString}");
+            return;
+        }
+        await next();
+    });
+}
+
+// Let's Encrypt's HTTP-01 check (internet hosting: outside port 80 leads here).
+app.MapGet("/.well-known/acme-challenge/{token}", (string token, Certificates certificates) =>
+    certificates.Challenge(token) is { } answer ? Results.Text(answer) : Results.NotFound());
+// Internet hosting asks itself through the router to see whether the ports lead here.
+app.MapGet("/.well-known/iskra-probe/{token}", (string token, InternetHost internet) =>
+    token == internet.ProbeToken ? Results.Text(token) : Results.NotFound());
 
 app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(20) });
 
@@ -151,7 +184,10 @@ app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice
         return;
     }
     using var socket = await context.WebSockets.AcceptWebSocketAsync();
-    await new Session(socket, w, hub, voice, uploads, previews, router, limits.Value, log, time).RunAsync(context.RequestAborted);
+    await new Session(socket, w, hub, voice, uploads, previews, router, limits.Value, log, time)
+    {
+        Origin = $"{context.Request.Scheme}://{context.Request.Host}",
+    }.RunAsync(context.RequestAborted);
 });
 
 // Voice signaling (LiveKit's WebSocket and HTTP) on the same port as everything else.

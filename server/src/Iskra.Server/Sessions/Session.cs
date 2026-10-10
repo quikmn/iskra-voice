@@ -50,6 +50,9 @@ public sealed class Session
     private List<string>? _early = [];
     private volatile bool _closing;
 
+    /// <summary>The scheme and host this client connected through (e.g. https://1-2-3-4.sslip.io), when known.</summary>
+    public string? Origin { get; init; }
+
     /// <summary>The authenticated account, or null before the handshake completes.</summary>
     public string? AccountKey { get; private set; }
 
@@ -143,7 +146,7 @@ public sealed class Session
         SendNow(Frames.Event("welcome", new
         {
             you = _hub.PublicMember(member),
-            server = new { name = _world.Settings.Name, key = Ed25519.ToB64u(_world.ServerPublicKey), appUrl = _world.Settings.AppUrl },
+            server = new { name = _world.Settings.Name, key = Ed25519.ToB64u(_world.ServerPublicKey), appUrl = _world.Settings.AppUrl, publicUrl = _world.InternetUrl },
             channels = _hub.VisibleChannels(member),
             members = _world.Store.AllMembers().Select(_hub.PublicMember),
             voice = _voice.Snapshot(member),
