@@ -99,16 +99,13 @@ public sealed partial class PushService
     public void ChatMessage(Channel channel, Message message)
     {
         var store = _world.Store;
-        var author = store.GetMember(message.AuthorKey);
-        if (author is null) return;
-
         var kinds = new Dictionary<string, string>(StringComparer.Ordinal);
         if (message.ReplyTo is { } replyId && store.GetMessage(replyId) is { } original) kinds[original.AuthorKey] = "reply";
         if (Everyone().IsMatch(message.Text))
             foreach (var member in store.AllMembers()) kinds[member.AccountKey] = "mention";
         foreach (Match m in MentionToken().Matches(message.Text)) kinds[m.Groups[1].Value] = "mention";
-        kinds.Remove(author.AccountKey);
-        if (kinds.Count == 0) return;
+        kinds.Remove(message.AuthorKey);
+        if (kinds.Count == 0 || store.GetMember(message.AuthorKey) is not { } author) return;
 
         var text = MentionToken().Replace(message.Text, m => "@" + (store.GetMember(m.Groups[1].Value)?.Name ?? "unknown"));
         var body = text.Length == 0 ? "Sent an attachment" : Excerpt(text, 140);
