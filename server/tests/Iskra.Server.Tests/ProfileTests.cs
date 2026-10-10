@@ -45,7 +45,7 @@ public class ProfileTests
         Assert.Equal("she/her", seen.GetProperty("pronouns").GetString());
 
         Assert.Equal("bad_request", (await alice.RequestAsync("profile.update", new { bio = new string('a', 191) })).ErrorCode());
-        Assert.Equal("bad_request", (await alice.RequestAsync("profile.update", new { bio = "hi‮there" })).ErrorCode());
+        Assert.Equal("bad_request", (await alice.RequestAsync("profile.update", new { bio = "hi\u202Ethere" })).ErrorCode());
         Assert.Equal("bad_request", (await alice.RequestAsync("profile.update", new { accent = "red; background: url(x)" })).ErrorCode());
         Assert.Equal("bad_request", (await alice.RequestAsync("profile.update", new { pronouns = new string('x', 41) })).ErrorCode());
 

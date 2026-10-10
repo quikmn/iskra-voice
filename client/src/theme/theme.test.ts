@@ -58,7 +58,7 @@ describe('theme validation', () => {
   it('needs a short, visible name', () => {
     expect(validateTheme({ meta: {}, colors: {} }).ok).toBe(false)
     expect(validateTheme({ meta: { name: 'x'.repeat(41) }, colors: {} }).ok).toBe(false)
-    expect(validateTheme({ meta: { name: 'evil‮eman' }, colors: {} }).ok).toBe(false)
+    expect(validateTheme({ meta: { name: 'evil\u202Eeman' }, colors: {} }).ok).toBe(false)
     expect(validateTheme({ meta: { name: 'Fine', scheme: 'sepia' }, colors: {} }).ok).toBe(false)
   })
 

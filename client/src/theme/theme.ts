@@ -101,8 +101,12 @@ export function safeColor(value: unknown): string | null {
 const isPlainObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v) && Object.getPrototypeOf(v) === Object.prototype
 
+// Control and bidi/zero-width characters are exactly what this rejects.
+// oxlint-disable-next-line no-control-regex
+const INVISIBLE = /[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/
+
 const cleanText = (v: unknown, max: number): string | null =>
-  typeof v === 'string' && v.trim().length > 0 && v.length <= max && !/[\u0000-\u001f\u007f​-‏‪-‮⁦-⁩]/.test(v) ? v.trim() : null
+  typeof v === 'string' && v.trim().length > 0 && v.length <= max && !INVISIBLE.test(v) ? v.trim() : null
 
 export type ThemeResult = { ok: true; theme: ThemeFile } | { ok: false; errors: string[] }
 

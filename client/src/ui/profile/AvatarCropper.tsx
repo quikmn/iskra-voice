@@ -7,24 +7,26 @@ const VIEW = 240
 
 export function AvatarCropper({ file, onCancel, onDone }: { file: File; onCancel: () => void; onDone: (image: Blob) => void }) {
   const [image, setImage] = useState<HTMLImageElement | null>(null)
-  const [url] = useState(() => URL.createObjectURL(file))
+  const [url, setUrl] = useState<string | null>(null)
   const [zoom, setZoom] = useState(1)
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const drag = useRef<{ x: number; y: number; from: { x: number; y: number } } | null>(null)
 
-  useEffect(() => () => URL.revokeObjectURL(url), [url])
   useEffect(() => {
+    const objectUrl = URL.createObjectURL(file)
     const img = new Image()
     img.onload = () => {
+      setUrl(objectUrl)
       setImage(img)
       const s = Math.max(VIEW / img.naturalWidth, VIEW / img.naturalHeight)
       setOffset({ x: (VIEW - img.naturalWidth * s) / 2, y: (VIEW - img.naturalHeight * s) / 2 })
     }
     img.onerror = () => setError("That file doesn't look like a picture.")
-    img.src = url
-  }, [url])
+    img.src = objectUrl
+    return () => URL.revokeObjectURL(objectUrl)
+  }, [file])
 
   const scale = image ? Math.max(VIEW / image.naturalWidth, VIEW / image.naturalHeight) * zoom : 1
   const clamp = (x: number, y: number) =>
@@ -100,7 +102,7 @@ export function AvatarCropper({ file, onCancel, onDone }: { file: File; onCancel
             onPointerUp={() => (drag.current = null)}
             onPointerCancel={() => (drag.current = null)}
           >
-            {image && (
+            {image && url && (
               <img
                 src={url}
                 alt=""

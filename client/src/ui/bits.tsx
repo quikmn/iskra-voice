@@ -7,7 +7,7 @@ import { Close } from './icons'
 type AppSnapshot = ReturnType<typeof useApp.getState>
 
 /** An account's profile picture: from the active server if it knows them, else from any server. */
-export function avatarUrlIn(state: AppSnapshot, accountKey: string): string | null {
+function avatarUrlIn(state: AppSnapshot, accountKey: string): string | null {
   const active = state.activeServer ? state.servers[state.activeServer] : undefined
   for (const server of active ? [active, ...Object.values(state.servers)] : Object.values(state.servers)) {
     const avatar = server.members[accountKey]?.avatar

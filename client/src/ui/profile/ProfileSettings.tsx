@@ -1,6 +1,6 @@
 // Settings → Profile: picture, name, pronouns, bio, accent colour and your profile page.
 // Saved on this device and sent to every server you're on.
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { b64u } from '../../core/crypto'
 import { fingerprint } from '../../core/connection'
 import { MAX_BIO, MAX_PRONOUNS } from '../../core/profile'
@@ -25,11 +25,7 @@ export function ProfileSection() {
   const fileInput = useRef<HTMLInputElement>(null)
   const accountKey = identity ? b64u(identity.account.publicKey) : ''
 
-  const avatarUrl = useMemo(
-    () => (profile?.avatar ? URL.createObjectURL(new Blob([profile.avatar.bytes], { type: profile.avatar.type })) : null),
-    [profile?.avatar],
-  )
-  useEffect(() => () => { if (avatarUrl) URL.revokeObjectURL(avatarUrl) }, [avatarUrl])
+  const avatarUrl = useObjectUrl(profile?.avatar)
 
   const trimmed = name.trim()
   const changes = {
@@ -155,4 +151,19 @@ export function ServerPagesOption({ server }: { server: ServerState }) {
       {error && <p className="error-text">{error}</p>}
     </>
   )
+}
+
+/** A blob: URL for the stored avatar, revoked when it changes or the component goes away. */
+function useObjectUrl(avatar: { bytes: ArrayBuffer; type: string } | null | undefined): string | null {
+  const [url, setUrl] = useState<{ for: object; url: string } | null>(null)
+  useEffect(() => {
+    if (!avatar) return
+    const objectUrl = URL.createObjectURL(new Blob([avatar.bytes], { type: avatar.type }))
+    const frame = requestAnimationFrame(() => setUrl({ for: avatar, url: objectUrl }))
+    return () => {
+      cancelAnimationFrame(frame)
+      URL.revokeObjectURL(objectUrl)
+    }
+  }, [avatar])
+  return avatar && url?.for === avatar ? url.url : null
 }

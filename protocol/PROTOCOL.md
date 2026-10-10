@@ -94,7 +94,7 @@ If a check fails, the server sends `error` and closes:
 ## Objects
 
 ```jsonc
-Member  { "accountKey": "<b64u>", "name": "Viktor", "role": "member", "online": true }
+Member  { "accountKey": "<b64u>", "name": "Viktor", "role": "member", "online": true, ...profile fields (see Profiles) }
 Channel { "id": 1, "name": "general", "kind": "text" | "voice", "position": 0, "readRole": "member", "writeRole": "member" }
 Message { "id": 42, "channelId": 1, "author": "<accountKey>", "text": "hi", "createdAt": 1760000000000, "editedAt": null }
 Invite  { "code": "<b64u 16>", "role": "member", "createdBy": "<accountKey>", "createdAt": 0, "expiresAt": 0, "maxUses": null, "uses": 0 }
@@ -118,7 +118,7 @@ Channels you can't read are reported as `not_found`, never `forbidden`, so their
 | `channel.create` | `name, kind? (text\|voice), readRole?, writeRole?` | `{ channel }` | admin+ |
 | `channel.update` | `id, name?, readRole?, writeRole?` | `{ channel }` | admin+ |
 | `channel.delete` | `id` | | admin+ |
-| `profile.update` | `name` | `{ member }` | anyone |
+| `profile.update` | `name` (and the fields in "Profiles" below) | `{ member }` | anyone |
 | `member.setRole` | `accountKey, role` | `{ member }` | admin+, target ranked below you, role below yours |
 | `member.kick` | `accountKey` | | same as above |
 | `member.ban` | `accountKey, reason?` | | same as above |
@@ -241,3 +241,52 @@ Device certificates are stored when a device authenticates, so the server can pu
 | `link.preview` | `url` (http/https, no credentials) | `{ preview: { url, siteName, title, description } \| null }` |
 
 The server fetches the page (so viewers' IPs aren't sent to every site): ≤ 512 KB of HTML, 6 s, ≤ 3 redirects, cached for an hour. It only connects to public addresses: each connection's IP is checked after DNS resolution, so private ranges, loopback, link-local/cloud metadata and redirects into them are refused. No images are fetched or shown. Runs off the read loop; rate-limited to 1/s (burst 10).
+
+## Profiles
+
+A profile lives on the user's device and is sent to every server they're on, so one edit updates them all. Every `Member` gains:
+
+```jsonc
+{ "avatar": "/files/<id>/avatar.webp" | null, "avatarHash": "<sha256 hex>" | null,
+  "bio": "≤ 190 chars" | null, "pronouns": "≤ 40 chars" | null, "accent": "#rrggbb" | null,
+  "page": "/pages/<id>" | null, "pageHash": "<sha256 hex>" | null }
+```
+
+- `auth.profile` may also carry `bio`, `pronouns` and `accent` (same rules as below). Invalid ones are ignored, never fatal.
+- The hashes let a client see whether a server's copy of its avatar or page is current, and upload only when it isn't.
+- `welcome.server.profilePages` says whether this server allows pages.
+
+| type | body | result | who |
+|---|---|---|---|
+| `profile.update` | any of `name`, `bio` (≤ 190, newlines allowed), `pronouns` (≤ 40), `accent` (`#rrggbb`), `avatar` (id of your own upload: PNG, JPEG, WebP or GIF, ≤ 1 MB, ≤ 4096 px). `""` clears a field. | `{ member }` | anyone |
+| `profile.page.set` | `file` (id of your own upload: UTF-8 HTML, ≤ 512 KB) | `{ member }` | anyone, if pages are on (`forbidden` otherwise) |
+| `profile.page.remove` | `accountKey?` (default: yourself) | | yourself, or an admin who outranks the owner |
+| `profile.pages.configure` | `enabled` | | admin+ |
+
+Text rules are the same as names: trimmed, NFC, no control or invisible formatting characters. Each change is broadcast as `member.updated`. Event `profile.pages { enabled }` goes to everyone when an admin switches pages on or off; while off, every member's `page` is `null` and pages answer 404 (they're kept, so switching back on restores them). Publishing gives the page a new id.
+
+### Profile pages: the safety model
+
+A page is one HTML file the member wrote. Viewers only load it when they click "Open profile page". It must not be able to touch the viewer's account, the app, or the network.
+
+**Served** at `GET /pages/<id>` (unguessable id, `no-store`) with:
+
+```
+Content-Security-Policy: sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline';
+  img-src data: blob: <this server>/files/; font-src data:; media-src 'none'; connect-src 'none'; form-action 'none';
+  frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none'; base-uri 'none';
+  frame-ancestors 'self' https://app.iskra.foo app://iskra http://localhost:* http://127.0.0.1:* <AppUrl>
+Permissions-Policy: camera=(), microphone=(), geolocation=(), autoplay=(), display-capture=(), fullscreen=(), payment=(), usb=(), …
+X-Content-Type-Options: nosniff · Referrer-Policy: no-referrer · X-DNS-Prefetch-Control: off · Cache-Control: no-store
+```
+
+- **Opaque origin** (`sandbox` without `allow-same-origin`): no cookies, storage or IndexedDB, and no access to the app or the server's origin. No `allow-popups`, `allow-top-navigation`, `allow-forms` or `allow-modals`.
+- **No network**: no fetch, XHR, WebSocket, EventSource, beacons, workers, frames, forms or external images, fonts or media. Images may be `data:`/`blob:` or files uploaded to the same server.
+- **WebRTC** isn't covered by CSP in today's browsers, so the server inserts a small script before the page (right after its doctype) that removes `RTCPeerConnection` and friends. This is best effort.
+- **No sound or devices**: autoplay, camera, microphone and the rest are denied by Permissions-Policy and by the frame's `allow` attribute.
+
+**Shown** by the client in a modal, labelled with the author's name, as `<iframe sandbox="allow-scripts" referrerpolicy="no-referrer">` inside a script-free `srcdoc` wrapper whose own policy is `frame-src <exactly this page's URL>`. Since a parent's `frame-src` governs every navigation of its child frames, the page can't navigate itself (and the viewer's IP) to another site; it can't navigate the wrapper (sandboxed navigation flag) or the app (no top navigation).
+
+**Editor preview** runs the draft in the same sandbox: `page-preview.html` (a static file in the app with its own no-network policy) is loaded in `<iframe sandbox="allow-scripts">` and puts the draft, received by `postMessage` from its parent only, in a second `sandbox="allow-scripts"` frame.
+
+Known limits: the page's author learns nothing about viewers, but a page can still load images from its own server's `/files/`, so that server sees when it's viewed. Admins can remove any page of a member ranked below them, or turn pages off.
