@@ -1,5 +1,5 @@
 // The only bridge between the web app and the desktop shell. Small on purpose:
-// the page can ask for push-to-talk and answer the screen picker, nothing else.
+// push-to-talk, the screen picker, hosting, and update notices, nothing else.
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 
 export interface ScreenSource {
@@ -13,11 +13,23 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
   platform: process.platform,
 
   setPushToTalkKey: (keycode: number | null): Promise<void> => ipcRenderer.invoke('iskra:set-ptt', keycode),
-  capturePushToTalkKey: (): Promise<{ code: number; name: string }> => ipcRenderer.invoke('iskra:capture-ptt-key'),
+  capturePushToTalkKey: (): Promise<{ code: number; name: string } | null> => ipcRenderer.invoke('iskra:capture-ptt-key'),
   onPushToTalk: (callback: (down: boolean) => void): (() => void) => {
     const listener = (_e: IpcRendererEvent, down: boolean) => callback(down)
     ipcRenderer.on('iskra:ptt', listener)
     return () => ipcRenderer.off('iskra:ptt', listener)
+  },
+  pushToTalkStatus: (): Promise<string> => ipcRenderer.invoke('iskra:ptt-status'),
+  openSystemSettings: (pane: string): Promise<void> => ipcRenderer.invoke('iskra:open-settings', pane),
+
+  updates: {
+    status: (): Promise<unknown> => ipcRenderer.invoke('iskra:update-status'),
+    onStatus: (callback: (status: unknown) => void): (() => void) => {
+      const listener = (_e: IpcRendererEvent, status: unknown) => callback(status)
+      ipcRenderer.on('iskra:update', listener)
+      return () => ipcRenderer.off('iskra:update', listener)
+    },
+    restart: (): Promise<boolean> => ipcRenderer.invoke('iskra:update-restart'),
   },
 
   onPickScreen: (callback: (sources: ScreenSource[]) => void): (() => void) => {

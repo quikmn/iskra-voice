@@ -67,7 +67,7 @@ describe('bot SDK ↔ server', () => {
     await ready()
     world = mkdtempSync(join(tmpdir(), 'iskra-bots-'))
     const port = await freePort()
-    writeFileSync(join(world, 'server.json'), JSON.stringify({ Name: 'Bots', Port: port, Voice: { Enabled: false } }))
+    writeFileSync(join(world, 'server.json'), JSON.stringify({ Name: 'Bots', Port: port, LocalOnly: true, Voice: { Enabled: false } }))
     const proc = spawn('dotnet', [SERVER_DLL, world], { stdio: 'ignore' })
     url = `http://localhost:${port}`
     stop = () => new Promise((done) => {

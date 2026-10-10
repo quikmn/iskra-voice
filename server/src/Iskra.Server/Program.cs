@@ -66,8 +66,13 @@ if (https.Enabled)
         var certificates = kestrel.ApplicationServices.GetRequiredService<Certificates>();
         certificates.LoadExisting();
         kestrel.ListenLocalhost(world.Settings.Port); // internal: LiveKit webhooks and local tools
-        kestrel.ListenAnyIP(https.HttpPort);          // Let's Encrypt challenges, everything else redirects
-        kestrel.ListenAnyIP(https.Port, listen => listen.UseHttps(new Microsoft.AspNetCore.Server.Kestrel.Https.TlsHandshakeCallbackOptions
+        void Listen(int port, Action<Microsoft.AspNetCore.Server.Kestrel.Core.ListenOptions>? configure = null)
+        {
+            if (world.Settings.LocalOnly) kestrel.ListenLocalhost(port, configure ?? (_ => { }));
+            else kestrel.ListenAnyIP(port, configure ?? (_ => { }));
+        }
+        Listen(https.HttpPort);          // Let's Encrypt challenges, everything else redirects
+        Listen(https.Port, listen => listen.UseHttps(new Microsoft.AspNetCore.Server.Kestrel.Https.TlsHandshakeCallbackOptions
         {
             // Asked on every handshake, so a renewed certificate is used right away.
             OnConnection = _ => ValueTask.FromResult(new System.Net.Security.SslServerAuthenticationOptions
@@ -93,6 +98,7 @@ else
 var app = builder.Build();
 app.Lifetime.ApplicationStopped.Register(world.Dispose);
 ChildProcesses.StopWhenParentExits(app.Lifetime, app.Logger);
+ChildProcesses.StopWhenStdinCloses(app.Lifetime, app.Logger);
 
 if (https.Enabled)
 {

@@ -126,6 +126,7 @@ public class HttpsTests : IDisposable
         {
             Name = "Secure",
             Port = port,
+            LocalOnly = true,
             Voice = new { Enabled = false },
             Https = new { Mode = "acme", Domain = "localhost", HttpPort = httpPort, Port = httpsPort, AcmeDirectory = directory },
         }));
@@ -167,6 +168,7 @@ public class HttpsTests : IDisposable
         {
             Name = "Open",
             Port = port,
+            LocalOnly = true,
             Voice = new { Enabled = false },
             Https = new { AcmeDirectory = directory },
             Internet = new { Enabled = true, Domain = "localhost" },

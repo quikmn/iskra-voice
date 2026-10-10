@@ -49,7 +49,7 @@ async function waitFor<T>(check: () => T | undefined | null | false, what: strin
 
 async function startServer(world: string, port: number): Promise<RunningServer> {
   if (!existsSync(join(world, 'server.json')))
-    writeFileSync(join(world, 'server.json'), JSON.stringify({ Name: 'Interop', Port: port }))
+    writeFileSync(join(world, 'server.json'), JSON.stringify({ Name: 'Interop', Port: port, LocalOnly: true }))
   const proc: ChildProcess = spawn('dotnet', [SERVER_DLL, world], { stdio: 'ignore' })
   const url = `http://localhost:${port}`
   const deadline = Date.now() + 30_000

@@ -17,6 +17,7 @@ export class PushToTalk {
   private key: number | null = null
   private down = false
   private started = false
+  private listening = false
   private capture: ((code: number) => void) | null = null
   private readonly onChange: (down: boolean) => void
 
@@ -24,18 +25,27 @@ export class PushToTalk {
     this.onChange = onChange
   }
 
-  start(): void {
-    if (this.started) return
-    uIOhook.on('keydown', (e: UiohookKeyboardEvent) => this.press(e.keycode))
-    uIOhook.on('keyup', (e: UiohookKeyboardEvent) => this.release(e.keycode))
-    uIOhook.on('mousedown', (e: UiohookMouseEvent) => this.press(MOUSE + Number(e.button)))
-    uIOhook.on('mouseup', (e: UiohookMouseEvent) => this.release(MOUSE + Number(e.button)))
+  /** Starts listening (once); false if the OS refused (e.g. no Accessibility permission on macOS). */
+  start(): boolean {
+    if (this.started) return true
+    if (!this.listening) {
+      this.listening = true
+      uIOhook.on('keydown', (e: UiohookKeyboardEvent) => this.press(e.keycode))
+      uIOhook.on('keyup', (e: UiohookKeyboardEvent) => this.release(e.keycode))
+      uIOhook.on('mousedown', (e: UiohookMouseEvent) => this.press(MOUSE + Number(e.button)))
+      uIOhook.on('mouseup', (e: UiohookMouseEvent) => this.release(MOUSE + Number(e.button)))
+    }
     try {
       uIOhook.start()
       this.started = true
     } catch (error) {
       console.error('Push-to-talk unavailable:', error)
     }
+    return this.started
+  }
+
+  get running(): boolean {
+    return this.started
   }
 
   stop(): void {
@@ -51,8 +61,9 @@ export class PushToTalk {
     }
   }
 
-  /** Resolves with the next key or mouse button pressed (for the "press a key" settings field). */
-  captureNextKey(): Promise<{ code: number; name: string }> {
+  /** Resolves with the next key or mouse button pressed (for the "press a key" settings field); null if keys can't be seen. */
+  captureNextKey(): Promise<{ code: number; name: string } | null> {
+    if (!this.started) return Promise.resolve(null)
     return new Promise((resolve) => {
       this.capture = (code) => resolve({ code, name: keyName(code) })
     })

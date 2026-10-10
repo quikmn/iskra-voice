@@ -32,7 +32,7 @@ test('the desktop app runs the web app on app:// and can join a server', async (
 
     // The preload bridge is there, and only that.
     const bridge = await page.evaluate(() => Object.keys((window as unknown as { iskraDesktop: object }).iskraDesktop).sort())
-    expect(bridge).toEqual(['callAlert', 'capturePushToTalkKey', 'host', 'onPickScreen', 'onPushToTalk', 'pickScreen', 'platform', 'setPushToTalkKey'])
+    expect(bridge).toEqual(['callAlert', 'capturePushToTalkKey', 'host', 'onPickScreen', 'onPushToTalk', 'openSystemSettings', 'pickScreen', 'platform', 'pushToTalkStatus', 'setPushToTalkKey', 'updates'])
     expect(await page.evaluate(() => typeof (window as unknown as { require?: unknown }).require)).toBe('undefined')
 
     // Calls: LiveKit's end-to-end encryption worker loads from app:// under the app's CSP, and frames can be transformed.
@@ -60,6 +60,21 @@ test('the desktop app runs the web app on app:// and can join a server', async (
     await expect(page.locator('.copy-row input')).toHaveValue(/^http:\/\/localhost:\d+\/#\/join\//)
     await page.keyboard.press('Escape')
 
+    // The shell's update notices show as a toast: restart when downloaded, a download link otherwise.
+    const send = (status: object) =>
+      app.evaluate(({ BrowserWindow }, s) => BrowserWindow.getAllWindows()[0].webContents.send('iskra:update', s), status)
+    await send({ state: 'ready', version: '9.9.9' })
+    const toast = page.getByRole('status').filter({ hasText: 'Update ready' })
+    await expect(toast).toContainText('Iskra 9.9.9 is downloaded')
+    await expect(toast.getByRole('button', { name: 'Restart' })).toBeVisible()
+    await page.screenshot({ path: join(SHOTS, 'desktop-update.png'), animations: 'disabled' })
+    await toast.getByRole('button', { name: 'Later' }).click()
+    await expect(toast).toBeHidden()
+    await send({ state: 'available', version: '9.9.10', url: 'https://github.com/quikmn/iskra-voice/releases/tag/v9.9.10' })
+    await expect(page.getByRole('link', { name: 'Download' })).toHaveAttribute('href', /releases\/tag\/v9\.9\.10$/)
+    await send({ state: 'available', version: '9.9.11', url: 'https://example.com/x.exe' }) // not a release page: ignored
+    await expect(page.getByText('New version available')).toBeHidden()
+
     // Push-to-talk settings are available.
     await page.getByRole('button', { name: 'Settings' }).click()
     await page.getByRole('radio', { name: 'Push to talk' }).click()
@@ -79,7 +94,7 @@ test('creating a server from the desktop app makes you its owner', async () => {
     executablePath: join(DESKTOP, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron'),
     args: [DESKTOP, `--user-data-dir=${userData}`],
     cwd: DESKTOP,
-    env: { ...env, ISKRA_HOST_ROOT: hostRoot },
+    env: { ...env, ISKRA_HOST_ROOT: hostRoot, ISKRA_LOCAL_ONLY: "1" },
   })
   try {
     const page = await app.firstWindow()
@@ -99,7 +114,10 @@ test('creating a server from the desktop app makes you its owner', async () => {
     await app.close()
     rmSync(userData, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
     const log = join(hostRoot, 'living-room', 'server.log')
-    if (existsSync(log)) console.log(`--- hosted server.log ---\n${readFileSync(log, 'utf8').slice(-3000)}`)
+    const logText = existsSync(log) ? readFileSync(log, 'utf8') : ''
+    console.log(`--- hosted server.log ---\n${logText.slice(-3000)}`)
     rmSync(hostRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 })
+    // Quitting the app stops the server cleanly (so it can remove router port mappings), not with a kill.
+    expect(logText).toContain('asked it to stop; shutting down')
   }
 })

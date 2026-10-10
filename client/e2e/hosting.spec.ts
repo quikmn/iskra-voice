@@ -23,6 +23,7 @@ async function startServer(name: string, router: string): Promise<Hosted> {
     Name: name,
     Port: port,
     AppUrl: `http://localhost:${APP_PORT}`,
+    LocalOnly: true,
     Voice: { Enabled: true, LiveKitPath: join(world, 'no-livekit'), RtcTcpPort: 7881, RtcUdpPort: 7882 },
     // Never the real Let's Encrypt from tests.
     Https: { AcmeDirectory: 'http://127.0.0.1:9/directory' },

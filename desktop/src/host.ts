@@ -1,4 +1,4 @@
-// Hosting from the desktop app: each server is a world folder under Documents/Iskra/Servers,
+// Hosting from the desktop app: each server is a world folder (Documents/Iskra/Servers; Application Support on macOS),
 // run with the bundled iskra-server (and LiveKit for voice) while the app is open.
 import { app } from 'electron'
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
@@ -6,6 +6,7 @@ import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, 
 import { connect, createServer } from 'node:net'
 import { networkInterfaces } from 'node:os'
 import path from 'node:path'
+import { defaultHostRoot, exeName } from './platform'
 
 export interface HostedServer {
   id: string
@@ -21,7 +22,7 @@ export interface HostedServer {
   ownerInvite: string | null
 }
 
-const exe = (name: string) => (process.platform === 'win32' ? `${name}.exe` : name)
+const exe = (name: string) => exeName(name, process.platform)
 
 function serverBinary(): string | null {
   const candidates = [
@@ -78,15 +79,39 @@ function slug(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'server'
 }
 
-/** Stops a server and everything it started (LiveKit). */
-function killTree(child: ChildProcess): void {
-  if (child.exitCode !== null || child.pid === undefined) return
-  if (process.platform === 'win32') spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true })
-  else child.kill('SIGTERM')
+const POSIX = process.platform !== 'win32'
+
+/** Force-stops a server and everything it started (LiveKit): taskkill /T on Windows, the process group elsewhere. */
+function forceKill(child: ChildProcess): void {
+  if (!POSIX) {
+    spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true })
+    return
+  }
+  try {
+    process.kill(-child.pid!, 'SIGKILL') // POSIX servers lead their own group
+  } catch {
+    child.kill('SIGKILL')
+  }
+}
+
+/** How long a server gets to shut down cleanly (unmap router ports, stop LiveKit) before it's killed. */
+export const GRACEFUL_STOP_MS = 5000
+
+/**
+ * Stops a server: closing its stdin asks it to shut down cleanly (ISKRA_STOP_ON_STDIN_CLOSE), and if it's
+ * still around after a few seconds it's killed. Resolves once it's gone.
+ */
+function stopServer(child: ChildProcess): Promise<void> {
+  if (child.exitCode !== null || child.signalCode !== null || child.pid === undefined) return Promise.resolve()
+  const exited = new Promise<void>((resolve) => child.once('exit', () => resolve()))
+  child.stdin?.end()
+  const timer = setTimeout(() => forceKill(child), GRACEFUL_STOP_MS)
+  return exited.finally(() => clearTimeout(timer))
 }
 
 export class Host {
-  private readonly root = process.env.ISKRA_HOST_ROOT || path.join(app.getPath('documents'), 'Iskra', 'Servers')
+  private readonly root =
+    process.env.ISKRA_HOST_ROOT || defaultHostRoot(process.platform, { documents: app.getPath('documents'), userData: app.getPath('userData') })
   private readonly processes = new Map<string, ChildProcess>()
 
   available(): boolean {
@@ -133,8 +158,11 @@ export class Host {
         {
           Name: clean,
           Port: port,
-          PublicUrl: `http://${lanAddress()}:${port}`,
           AppUrl: appUrl,
+          // Tests: localhost only, so Windows never asks about the firewall.
+          ...(process.env.ISKRA_LOCAL_ONLY === '1'
+            ? { LocalOnly: true, PublicUrl: `http://localhost:${port}` }
+            : { PublicUrl: `http://${lanAddress()}:${port}` }),
           Voice: { Enabled: true, Port: voicePort, RtcTcpPort: voicePort + 1, RtcUdpPort: voicePort + 2 },
         },
         null,
@@ -156,21 +184,36 @@ export class Host {
     const log = openSync(path.join(folder, 'server.log'), 'a')
     const child = spawn(binary, [folder], {
       cwd: folder,
-      stdio: ['ignore', log, log],
+      // stdin stays open while we want the server running; closing it stops the server cleanly.
+      stdio: ['pipe', log, log],
       windowsHide: true,
+      // Elsewhere, its own process group so stopping it also stops LiveKit (Windows uses a job object).
+      detached: POSIX,
       // ISKRA_PARENT_PID: the server shuts itself down if the app goes away, even after a crash.
-      env: { ...process.env, ISKRA_PARENT_PID: String(process.pid), ...(livekit ? { ISKRA_LIVEKIT: livekit } : {}) },
+      env: {
+        ...process.env,
+        ISKRA_PARENT_PID: String(process.pid),
+        ISKRA_STOP_ON_STDIN_CLOSE: '1',
+        ...(livekit ? { ISKRA_LIVEKIT: livekit } : {}),
+      },
     })
+    child.stdin?.on('error', () => undefined) // the server may already be gone
     this.processes.set(id, child)
-    child.once('exit', () => {
-      this.processes.delete(id)
+    let failure: Error | null = null
+    const ended = (error: Error) => {
+      if (failure) return
+      failure = error
+      if (this.processes.get(id) === child) this.processes.delete(id)
       closeSync(log)
-    })
+    }
+    child.once('exit', () => ended(new Error('The server stopped right after starting. Is its port in use?')))
+    // e.g. the binary can't be executed (missing, or blocked by the OS).
+    child.once('error', (error) => ended(new Error(`The server couldn't start: ${error.message}`)))
 
     // Ready when it answers HTTP (and has written its owner invite on first run).
     const { port } = this.describe(id)
     for (let i = 0; i < 150; i++) {
-      if (child.exitCode !== null) throw new Error('The server stopped right after starting. Is its port in use?')
+      if (failure) throw failure
       try {
         if ((await fetch(`http://127.0.0.1:${port}/`)).ok) break
       } catch {
@@ -191,16 +234,23 @@ export class Host {
     }
   }
 
-  stop(id: string): HostedServer {
+  async stop(id: string): Promise<HostedServer> {
     const child = this.processes.get(id)
-    if (child) killTree(child)
     this.processes.delete(id)
+    if (child) await stopServer(child)
     return this.describe(id)
   }
 
-  stopAll(): void {
-    for (const child of this.processes.values()) killTree(child)
+  running(): boolean {
+    return this.processes.size > 0
+  }
+
+  /** Stops every server; resolves when they've exited (a few seconds at most). */
+  stopAll(): Promise<void> {
+    const children = [...this.processes.values()]
     this.processes.clear()
+    const done = Promise.all(children.map(stopServer)).then(() => undefined)
+    return Promise.race([done, new Promise<void>((resolve) => setTimeout(resolve, GRACEFUL_STOP_MS + 2000).unref())])
   }
 
   async startAll(): Promise<void> {

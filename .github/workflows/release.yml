@@ -1,0 +1,136 @@
+name: Release
+
+# Builds the Linux and macOS desktop apps (and server bundles) for a tag and attaches them to its GitHub release.
+# Windows builds stay local because they're signed with a hardware-token certificate.
+# If the release doesn't exist yet it's created as a draft prerelease; an existing release keeps its state.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build, e.g. v2.0.0-alpha.3'
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            desktop/package-lock.json
+      - name: Check the tag matches the app version
+        run: test "v$(node -p "require('./desktop/package.json').version")" = "$TAG"
+      - run: sudo apt-get update && sudo apt-get install -y rpm
+      - run: bash scripts/get-livekit.sh linux-x64
+      - run: npm ci
+        working-directory: client
+      - run: npm ci
+        working-directory: desktop
+      - run: npm test
+        working-directory: desktop
+      - run: npm run dist:linux
+        working-directory: desktop
+      - name: Server bundle
+        run: |
+          v="${TAG#v}"
+          tar -czf "desktop/release/iskra-server-$v-linux-x64.tar.gz" -C desktop/build/server-linux-x64 .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          if-no-files-found: error
+          path: |
+            desktop/release/*.AppImage
+            desktop/release/*.deb
+            desktop/release/*.rpm
+            desktop/release/latest-linux.yml
+            desktop/release/iskra-server-*.tar.gz
+
+  mac:
+    runs-on: macos-latest # Apple silicon; builds both architectures
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            desktop/package-lock.json
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: false
+      - name: Check the tag matches the app version
+        run: test "v$(node -p "require('./desktop/package.json').version")" = "$TAG"
+      # LiveKit has no official macOS builds: build the pinned release from source.
+      - run: bash scripts/get-livekit.sh osx-arm64 && bash scripts/get-livekit.sh osx-x64
+      - run: npm ci
+        working-directory: client
+      - run: npm ci
+        working-directory: desktop
+      - run: npm test
+        working-directory: desktop
+      # No Apple Developer ID yet: ad-hoc signed (mac.identity "-"), not notarized.
+      - run: npm run dist:mac
+        working-directory: desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Server bundles
+        run: |
+          v="${TAG#v}"
+          for arch in arm64 x64; do
+            tar -czf "desktop/release/iskra-server-$v-osx-$arch.tar.gz" -C "desktop/build/server-mac-$arch" .
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac
+          if-no-files-found: error
+          path: |
+            desktop/release/*.dmg
+            desktop/release/*.zip
+            desktop/release/*.blockmap
+            desktop/release/latest-mac.yml
+            desktop/release/iskra-server-*.tar.gz
+
+  publish:
+    needs: [linux, mac]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          ls -l assets
+          if ! gh release view "$TAG" > /dev/null 2>&1; then
+            gh release create "$TAG" --draft --prerelease --verify-tag --title "Iskra ${TAG#v}" --notes "Linux and macOS builds are attached; Windows builds follow."
+          fi
+          gh release upload "$TAG" assets/* --clobber

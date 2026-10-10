@@ -17,11 +17,26 @@ export interface HostedServer {
   ownerInvite: string | null
 }
 
+/**
+ * ready: works everywhere. needs-permission: macOS Accessibility is off.
+ * limited: Wayland, where only keys pressed in X11 apps reach us. unavailable: the key hook couldn't start.
+ */
+export type PushToTalkStatus = 'ready' | 'needs-permission' | 'limited' | 'unavailable'
+
 export interface DesktopBridge {
   platform: string
   setPushToTalkKey(keycode: number | null): Promise<void>
-  capturePushToTalkKey(): Promise<{ code: number; name: string }>
+  /** null when keys can't be seen (see pushToTalkStatus). */
+  capturePushToTalkKey(): Promise<{ code: number; name: string } | null>
   onPushToTalk(callback: (down: boolean) => void): () => void
+  pushToTalkStatus(): Promise<PushToTalkStatus>
+  /** macOS: opens a Privacy & Security page in System Settings. */
+  openSystemSettings(pane: 'accessibility' | 'screen' | 'microphone' | 'camera'): Promise<void>
+  updates: {
+    status(): Promise<unknown>
+    onStatus(callback: (status: unknown) => void): () => void
+    restart(): Promise<boolean>
+  }
   onPickScreen(callback: (sources: ScreenSource[]) => void): () => void
   pickScreen(id: string | null): void
   /** An incoming call: flash the taskbar and bring the window up (without stealing focus). */

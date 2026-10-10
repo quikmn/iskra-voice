@@ -6,11 +6,16 @@
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc -p .",
+    "test": "tsc -p . && node --test dist/platform.test.js",
     "start": "npm run build && electron .",
     "dev": "npm run build && cross-env ISKRA_DEV_URL=http://localhost:5173 electron .",
-    "dist": "npm --prefix ../client run build && node scripts/prepare-server.mjs && npm run build && electron-builder --win portable nsis"
+    "dist": "npm --prefix ../client run build && node scripts/prepare-server.mjs win-x64 && npm run build && electron-builder --win portable nsis --publish never",
+    "dist:unsigned": "npm --prefix ../client run build && cross-env ISKRA_UNSIGNED=1 node scripts/prepare-server.mjs win-x64 && npm run build && electron-builder --win portable nsis --publish never -c.win.signtoolOptions.sign=./scripts/no-sign.cjs",
+    "dist:linux": "npm --prefix ../client run build && node scripts/prepare-server.mjs linux-x64 && npm run build && electron-builder --linux AppImage deb rpm --x64 --publish never",
+    "dist:mac": "npm --prefix ../client run build && node scripts/prepare-server.mjs osx-arm64 osx-x64 && npm run build && electron-builder --mac dmg zip --arm64 --x64 --publish never"
   },
   "dependencies": {
+    "electron-updater": "6.8.9",
     "uiohook-napi": "1.5.5"
   },
   "devDependencies": {
@@ -28,6 +33,7 @@
     },
     "files": [
       "dist/**",
+      "!dist/**/*.test.js",
       "assets/**",
       "package.json"
     ],
@@ -37,7 +43,7 @@
         "to": "client"
       },
       {
-        "from": "build/server",
+        "from": "build/server-${os}-${arch}",
         "to": "server"
       }
     ],
@@ -59,19 +65,88 @@
     "nsis": {
       "oneClick": true,
       "perMachine": false,
-      "deleteAppDataOnUninstall": false
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "Iskra-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "Iskra-Portable-${version}.${ext}"
     },
     "linux": {
       "target": [
-        "AppImage"
+        "AppImage",
+        "deb",
+        "rpm"
       ],
-      "category": "Network"
+      "icon": "assets/icon.png",
+      "category": "Network",
+      "executableName": "iskra",
+      "synopsis": "Voice and text chat for friends, on servers you own",
+      "maintainer": "Viktor Lundgren <quikmn@users.noreply.github.com>",
+      "vendor": "Iskra",
+      "desktop": {
+        "entry": {
+          "StartupWMClass": "Iskra",
+          "Keywords": "voice;chat;"
+        }
+      },
+      "artifactName": "Iskra-${version}-${arch}.${ext}"
     },
     "mac": {
       "target": [
-        "dmg"
+        "dmg",
+        "zip"
       ],
-      "category": "public.app-category.social-networking"
+      "icon": "assets/icon.png",
+      "category": "public.app-category.social-networking",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "entitlements": "assets/entitlements.mac.plist",
+      "entitlementsInherit": "assets/entitlements.mac.plist",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Iskra uses your microphone when you talk in voice channels.",
+        "NSCameraUsageDescription": "Iskra uses your camera when you turn on video in a voice channel."
+      },
+      "artifactName": "Iskra-${version}-mac-${arch}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "quikmn",
+        "repo": "iskra-voice",
+        "releaseType": "prerelease"
+      }
+    ],
+    "deb": {
+      "depends": [
+        "libgtk-3-0",
+        "libnotify4",
+        "libnss3",
+        "libxss1",
+        "libxtst6",
+        "xdg-utils",
+        "libatspi2.0-0",
+        "libuuid1",
+        "libsecret-1-0",
+        "libxt6",
+        "libxrandr2"
+      ]
+    },
+    "rpm": {
+      "depends": [
+        "gtk3",
+        "libnotify",
+        "nss",
+        "libXScrnSaver",
+        "(libXtst or libXtst6)",
+        "xdg-utils",
+        "at-spi2-core",
+        "(libuuid or libuuid1)",
+        "libXt",
+        "libXrandr"
+      ]
+    },
+    "dmg": {
+      "artifactName": "Iskra-${version}-mac-${arch}.${ext}"
     }
   }
 }

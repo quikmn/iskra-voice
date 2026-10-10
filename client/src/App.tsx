@@ -13,6 +13,7 @@ import { Spinner } from './ui/bits'
 import { JoinPrompt } from './ui/dialogs/JoinDialog'
 import { Onboarding } from './ui/Onboarding'
 import { Shell } from './ui/Shell'
+import { UpdateToast } from './ui/UpdateToast'
 
 /** Picks up "#/join/..." invite links and "#/link/..." device links, then clears them from the address bar. */
 function readInviteFromHash(): void {
@@ -69,6 +70,7 @@ export function App() {
       <AlreadySignedInNotice />
       {pendingInvite && <JoinPrompt invite={pendingInvite} />}
       <ScreenPicker />
+      <UpdateToast />
     </>
   )
 }
