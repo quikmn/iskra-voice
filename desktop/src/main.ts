@@ -14,6 +14,8 @@ import { PushToTalk } from './ptt'
 import { applyOpenAtLogin, loadDesktopSettings, saveDesktopSettings, startedHidden } from './settings'
 import { Updates, type UpdateStatus } from './updates'
 
+/** Chromium's media::AudioDeviceDescription::kLoopbackWithoutChromeId: system audio minus this app's own. */
+const LOOPBACK_WITHOUT_ISKRA = 'loopbackWithoutChrome'
 const DEV_URL = process.env.ISKRA_DEV_URL // e.g. http://localhost:5173 while developing
 const APP_ORIGIN = 'app://iskra'
 const ASSETS = path.join(__dirname, '..', 'assets')
@@ -171,8 +173,10 @@ function setUpSession(): void {
     const picked = sources.find((s) => s.id === pickedId)
     if (!picked) return callback({})
     // "loopback" shares system audio on Windows; elsewhere it's ignored.
-    // "Share audio": everything the computer plays ("loopback"), on Windows only; elsewhere it's ignored.
-    callback(process.platform === 'win32' && request.audioRequested ? { video: picked, audio: 'loopback' } : { video: picked })
+    // "Share audio" (Windows): everything the computer plays except Iskra itself, so friends never hear their own
+    // voices back. Electron passes this Chromium loopback device id straight through (its docs only list
+    // 'loopback'); the page also asks for restrictOwnAudio. Both measured in e2e/desktop-audio.spec.ts.
+    callback(process.platform === 'win32' && request.audioRequested ? { video: picked, audio: LOOPBACK_WITHOUT_ISKRA as string as 'loopback' } : { video: picked })
   })
 }
 

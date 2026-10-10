@@ -1,5 +1,5 @@
 // Screen share quality, sound and content hint: remembered on this device, turned into LiveKit options here.
-import { VideoPreset, type ScreenShareCaptureOptions, type TrackPublishOptions } from 'livekit-client'
+import { VideoPreset, type AudioCaptureOptions, type ScreenShareCaptureOptions, type TrackPublishOptions } from 'livekit-client'
 import { create } from 'zustand'
 
 export type ShareQuality = '720p30' | '1080p30' | '1080p60' | 'source'
@@ -43,7 +43,8 @@ export function screenShareOptions(s: ScreenShareSettings): { capture: ScreenSha
   const preset = PRESETS[s.quality]
   return {
     capture: {
-      audio: s.audio ? { echoCancellation: false, noiseSuppression: false, autoGainControl: false } : false,
+      // restrictOwnAudio: system audio without Iskra's own playback (the call), so nobody hears themselves back.
+      audio: s.audio ? ({ echoCancellation: false, noiseSuppression: false, autoGainControl: false, restrictOwnAudio: true } as AudioCaptureOptions) : false,
       systemAudio: s.audio ? 'include' : 'exclude',
       // Don't play the shared tab's sound twice for you.
       suppressLocalAudioPlayback: s.audio,

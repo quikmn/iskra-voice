@@ -19,7 +19,7 @@ describe('screen share options', () => {
 
   it('asks for sound only when wanted, unprocessed', () => {
     expect(screenShareOptions({ ...DEFAULT_SHARE, audio: false }).capture).toMatchObject({ audio: false, systemAudio: 'exclude' })
-    expect(screenShareOptions(DEFAULT_SHARE).capture).toMatchObject({ audio: { noiseSuppression: false, echoCancellation: false }, systemAudio: 'include' })
+    expect(screenShareOptions(DEFAULT_SHARE).capture).toMatchObject({ audio: { noiseSuppression: false, echoCancellation: false, restrictOwnAudio: true }, systemAudio: 'include' })
   })
 
   it('motion keeps the frame rate, detail keeps the resolution', () => {

@@ -12,10 +12,10 @@ import './desktop.css'
 function audioSupport(): { ok: boolean; note: string } {
   if (desktop) {
     return desktop.platform === 'win32'
-      ? { ok: true, note: 'Shares the sound your computer plays.' }
+      ? { ok: true, note: "Shares the sound your computer plays, except the call itself." }
       : { ok: false, note: "Sharing sound from the app isn't available on macOS and Linux yet. In Chrome or Edge you can share a tab's sound." }
   }
-  return { ok: true, note: 'Your browser asks which sound to share: a tab, or on Windows your whole computer.' }
+  return { ok: true, note: "Your browser asks which sound to share: a tab, or on Windows your whole computer (without this call, in up-to-date Chrome and Edge)." }
 }
 
 export function ScreenShareMenu({ anchor, onClose }: { anchor: HTMLElement; onClose: () => void }) {
