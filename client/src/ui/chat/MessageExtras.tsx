@@ -6,6 +6,9 @@ import { connectionFor, fileUrl, toggleReaction, type ServerState } from '../../
 import { Modal } from '../bits'
 import { EmojiGlyph, EmojiPicker } from '../expressions/EmojiPicker'
 import { SmilePlus } from '../expressions/icons'
+import { useEscapeLayer } from '../layers'
+import { FileIcon } from '../icons'
+import { plainText } from '../markdown'
 
 const MAX_W = 420
 const MAX_H = 320
@@ -44,7 +47,7 @@ export function Attachments({ server, files }: { server: ServerState; files: Fil
         }
         return (
           <a key={file.id} className="attachment-file" href={url} download={file.name} target="_blank" rel="noopener noreferrer">
-            <span className="file-icon" aria-hidden>📄</span>
+            <span className="file-icon" aria-hidden><FileIcon size={22} /></span>
             <span className="file-name">{file.name}</span>
             <span className="muted">{formatSize(file.size)}</span>
           </a>
@@ -65,10 +68,11 @@ export function Attachments({ server, files }: { server: ServerState; files: Fil
 export function ReplyLine({ server, reply, onJump }: { server: ServerState; reply: ReplyPreview; onJump: (id: number) => void }) {
   if (reply.deleted) return <div className="reply-line muted">↪ Original message was deleted</div>
   const name = server.members[reply.author]?.name ?? 'Someone'
+  const text = plainText(reply.text, { nameOf: (k) => server.members[k]?.name ?? null }).replace(/\s+/g, ' ')
   return (
     <button className="reply-line" onClick={() => onJump(reply.id)}>
       <span className="reply-author">↪ {name}</span>
-      <span className="reply-text">{reply.text || (reply.hasAttachments ? 'Attachment' : '')}</span>
+      <span className="reply-text">{text || (reply.hasAttachments ? 'Attachment' : '')}</span>
     </button>
   )
 }
@@ -101,6 +105,7 @@ export function Reactions({ server, message }: { server: ServerState; message: M
 export function ReactionPicker({ server, message, onClose }: { server: ServerState; message: Message; onClose: () => void }) {
   // The full picker anchors to the message's action bar, which stays while this one is replaced.
   const [full, setFull] = useState<HTMLElement | null>(null)
+  useEscapeLayer(onClose, !full)
   if (full) {
     return <EmojiPicker serverKey={server.key} anchor={full} onClose={onClose} onPick={(emoji) => toggleReaction(server.key, message, emoji)} />
   }

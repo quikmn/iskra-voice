@@ -14,16 +14,16 @@ button.author:hover { text-decoration: underline; }
 .member-pronouns { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Card: a popover next to what was clicked, or a bottom sheet on phones. */
-.profile-card-backdrop { position: fixed; inset: 0; z-index: 45; }
+.profile-card-backdrop { position: fixed; inset: 0; z-index: var(--z-card); }
 .profile-card {
   position: fixed; background: var(--float); border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.4);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5); overflow: hidden; outline: none; animation: pop 0.12s ease-out;
+  box-shadow: var(--shadow-pop); overflow: hidden; outline: none; animation: pop 0.14s var(--ease);
   max-height: calc(100dvh - 16px); overflow-y: auto;
 }
-.profile-card-backdrop.sheet { background: rgba(0, 0, 0, 0.5); display: flex; align-items: flex-end; justify-content: center; animation: fade 0.12s ease-out; }
+.profile-card-backdrop.sheet { background: var(--scrim); display: flex; align-items: flex-end; justify-content: center; animation: fade 0.12s ease-out; }
 .profile-card-backdrop.sheet .profile-card {
   position: relative; width: min(520px, 100%); border-radius: calc(var(--radius) * 1.6) calc(var(--radius) * 1.6) 0 0;
-  padding-bottom: env(safe-area-inset-bottom); animation: sheet-up 0.18s ease-out; max-height: 85dvh;
+  padding-bottom: env(safe-area-inset-bottom); animation: sheet-up 0.2s var(--ease); max-height: 85dvh;
 }
 @keyframes sheet-up { from { transform: translateY(40px); opacity: 0; } }
 .profile-banner { height: 64px; position: relative; }

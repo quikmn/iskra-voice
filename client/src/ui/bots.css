@@ -1,7 +1,7 @@
 /* ── Bots and webhooks ──────────────────────────────────────────────── */
 .bot-badge {
   display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; line-height: 1;
-  padding: 3px 5px 2px; border-radius: 4px; background: var(--accent); color: #fff; vertical-align: 2px; flex: none;
+  padding: 3px 5px 2px; border-radius: 4px; background: var(--accent); color: var(--on-accent); vertical-align: 2px; flex: none;
 }
 .message-meta .bot-badge { align-self: center; }
 .member .bot-badge { margin-left: -4px; }
@@ -44,4 +44,4 @@
 .integrations pre { margin: 6px 0 0; padding: 10px; border-radius: 8px; background: var(--bg); font-family: var(--mono); font-size: 12px; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
 .bot-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
 .bot-row .member-name { flex: 1; min-width: 0; }
-.invite-button.integrations-button { background: transparent; border-style: dashed; color: var(--text-2); font-weight: 500; }
+.integrations > .segmented { max-width: 360px; }

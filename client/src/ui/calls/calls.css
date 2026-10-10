@@ -1,6 +1,6 @@
 /* ── DM calls ───────────────────────────────────────────────────────── */
 .call-panel {
-  display: flex; flex-direction: column; flex: none; background: #07070d; border-bottom: 1px solid var(--border);
+  display: flex; flex-direction: column; flex: none; background: var(--stage); border-bottom: 1px solid var(--border);
   max-height: 46vh;
 }
 .call-panel.has-video { height: 46vh; }
@@ -34,12 +34,13 @@
 .call-button.accept:hover { background: #15803d; }
 
 .incoming-call {
-  position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px;
-  background: rgba(4, 4, 10, 0.72); backdrop-filter: blur(6px);
+  position: fixed; inset: 0; z-index: var(--z-call); display: grid; place-items: center; padding: 16px;
+  background: color-mix(in srgb, var(--stage) 80%, transparent); backdrop-filter: blur(8px); animation: fade 0.18s ease-out;
 }
 .incoming-card {
   width: min(340px, 100%); display: grid; justify-items: center; gap: 6px; padding: 28px 24px 22px; text-align: center;
-  background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+  background: var(--surface); border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.8); box-shadow: var(--shadow-modal);
+  animation: pop 0.2s var(--ease);
 }
 .incoming-card h2 { margin: 10px 0 0; font-size: 22px; overflow-wrap: anywhere; }
 .incoming-card p { margin: 0 0 6px; }

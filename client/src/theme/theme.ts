@@ -231,6 +231,8 @@ export function applyTheme(theme: ThemeFile | null, root: HTMLElement = document
   for (const { name } of VARIABLES) root.style.removeProperty(name)
   for (const name of OTHER_VARIABLES) root.style.removeProperty(name)
   root.style.removeProperty('color-scheme')
+  // Lets the stylesheet adjust what can't be a theme colour (name colours, shadows) for light themes.
+  root.dataset.scheme = theme?.meta.scheme ?? 'dark'
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme?.colors.bgDeep ?? '#0b0b14')
   if (!theme) return
   for (const [name, value] of Object.entries(themeVariables(theme))) root.style.setProperty(name, value)

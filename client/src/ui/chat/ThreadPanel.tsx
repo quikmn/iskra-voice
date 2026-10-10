@@ -12,6 +12,7 @@ import { Attachments } from './MessageExtras'
 import { PinList, Popover } from './HeaderTools'
 import { ArrowLeft, PinIcon, ThreadIcon } from './extraIcons'
 import { openProfileCard } from '../../state/profile'
+import { useEscapeLayer } from '../layers'
 
 export function ThreadPanel({ server, threadId }: { server: ServerState; threadId: number }) {
   const thread = useThreads((s) => s.threads[server.key]?.[threadId])
@@ -23,6 +24,7 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
   const [error, setError] = useState<string | null>(null)
   const online = server.status.state === 'online'
   const messages = server.messages[threadId]
+  useEscapeLayer(closeThread)
 
   // The thread and the message it started from.
   useEffect(() => {
@@ -109,7 +111,10 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
             onChange={(e) => setRenaming(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') void saveName()
-              else if (e.key === 'Escape') setRenaming(null)
+              else if (e.key === 'Escape') {
+                e.preventDefault()
+                setRenaming(null)
+              }
             }}
             onBlur={() => void saveName()}
           />
@@ -160,7 +165,7 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
           />
           <TypingLine server={server} channelId={threadId} />
           {canWrite && thread ? (
-            <Composer server={server} channelId={threadId} channelName={thread.name} thread placeholder={`Reply in ${thread.name}`} />
+            <Composer server={server} channelId={threadId} channelName={thread.name} thread placeholder={`Reply in ${short(thread.name)}`} />
           ) : (
             <div className="composer read-only">{thread ? "You can't reply in this thread." : <Spinner />}</div>
           )}
@@ -169,6 +174,8 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
     </section>
   )
 }
+
+const short = (name: string) => (name.length > 28 ? `${name.slice(0, 27).trimEnd()}…` : name)
 
 /** The message the thread started from, at the top of the thread. */
 function ThreadStart({ server, root, createdBy }: { server: ServerState; root: Message | null | undefined; createdBy?: string }) {
@@ -190,9 +197,9 @@ function ThreadStart({ server, root, createdBy }: { server: ServerState; root: M
         <div className="message-body">
           <div className="message-meta">
             {server.members[root.author] ? (
-              <button className="author" style={{ color: `hsl(${hueFor(root.author)} 70% 72%)` }} onClick={(e) => openProfileCard(server.key, root.author, e.currentTarget)}>{name}</button>
+              <button className="author" style={{ color: `hsl(${hueFor(root.author)} 70% var(--name-l))` }} onClick={(e) => openProfileCard(server.key, root.author, e.currentTarget)}>{name}</button>
             ) : (
-              <span className="author" style={{ color: `hsl(${hueFor(root.author)} 70% 72%)` }}>{name}</span>
+              <span className="author" style={{ color: `hsl(${hueFor(root.author)} 70% var(--name-l))` }}>{name}</span>
             )}
             <time title={fullTime(root.createdAt)}>{messageTime(root.createdAt)}</time>
           </div>

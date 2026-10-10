@@ -10,7 +10,7 @@ import { renderMarkdown } from './markdown'
 import { fingerprint } from '../core/connection'
 import { fullTime, hueFor, messageTime } from './format'
 import { Lock, Menu, Send, Settings, Users } from './icons'
-import { SettingsDialog } from './dialogs/SettingsDialog'
+import { SettingsDialog } from './settings/SettingsDialog'
 import type { Panel } from './Shell'
 import { CallButtons, CallLogLine, CallPanel } from './calls/Calls'
 import { asLog } from '../state/callMachine'
@@ -62,7 +62,7 @@ export function HomeSidebar({ onNavigate }: { onNavigate: () => void }) {
           <span className="channel-name">Friends</span>
         </button>
         <div className="channel-group"><span>Conversations</span></div>
-        {peers.length === 0 && <p className="sidebar-hint">Messages you send or get show up here.</p>}
+        {peers.length === 0 && <p className="sidebar-hint">Your direct messages show up here. Start one from anyone's profile.</p>}
         {peers.map(([peer, conversation]) => (
           <button
             key={peer}
@@ -93,6 +93,7 @@ function FriendsView({ onToggle }: { onToggle: (panel: Panel) => void }) {
   const friends = useDms((s) => s.friends)
   useApp((s) => s.servers)
   const list = Object.values(friends).sort((a, b) => Number(isOnline(b.accountKey)) - Number(isOnline(a.accountKey)) || nameOf(a.accountKey).localeCompare(nameOf(b.accountKey)))
+  const online = list.filter((f) => isOnline(f.accountKey)).length
 
   return (
     <div className="chat">
@@ -105,28 +106,45 @@ function FriendsView({ onToggle }: { onToggle: (panel: Panel) => void }) {
       <div className="friends">
         {list.length === 0 ? (
           <div className="empty-state">
+            <span className="empty-icon"><Users size={32} /></span>
             <h1>No friends yet</h1>
             <p>Open someone's profile in a server's member list and choose “Add friend”. Friends show up here wherever you meet them.</p>
           </div>
         ) : (
-          list.map((friend) => {
-            const reachable = sharedServers(friend.accountKey).length > 0
-            return (
-              <div key={friend.accountKey} className="friend-row">
-                <Avatar name={nameOf(friend.accountKey)} accountKey={friend.accountKey} size={40} online={isOnline(friend.accountKey)} />
-                <div className="friend-text">
-                  <strong>{nameOf(friend.accountKey)}</strong>
-                  <span className="muted">{isOnline(friend.accountKey) ? 'Online' : 'Offline'}</span>
-                </div>
-                <button className="button" disabled={!reachable} title={reachable ? undefined : "You don't share an online server right now"} onClick={() => openConversation(friend.accountKey)}>
-                  Message
-                </button>
-                <button className="button danger-outline" onClick={() => void removeFriend(friend.accountKey)}>Remove</button>
-              </div>
-            )
-          })
+          <>
+            <h3 className="section-title">{online} of {list.length} online</h3>
+            {list.map((friend) => <FriendRow key={friend.accountKey} accountKey={friend.accountKey} />)}
+          </>
         )}
       </div>
+    </div>
+  )
+}
+
+function FriendRow({ accountKey }: { accountKey: string }) {
+  const [confirm, setConfirm] = useState(false)
+  const reachable = sharedServers(accountKey).length > 0
+  const name = nameOf(accountKey)
+  return (
+    <div className="friend-row">
+      <Avatar name={name} accountKey={accountKey} size={40} online={isOnline(accountKey)} />
+      <div className="friend-text">
+        <strong>{name}</strong>
+        <span className="muted">{isOnline(accountKey) ? 'Online' : 'Offline'}</span>
+      </div>
+      {confirm ? (
+        <>
+          <button className="button small danger" onClick={() => void removeFriend(accountKey)}>Remove {name}</button>
+          <button className="button small" onClick={() => setConfirm(false)}>Keep</button>
+        </>
+      ) : (
+        <>
+          <button className="button small" disabled={!reachable} title={reachable ? undefined : "You don't share an online server right now"} onClick={() => openConversation(accountKey)}>
+            Message
+          </button>
+          <button className="button small ghost" onClick={() => setConfirm(true)} aria-label={`Remove ${name} from friends`}>Remove</button>
+        </>
+      )}
     </div>
   )
 }
@@ -177,7 +195,7 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
         <div className="channel-start">
           <Avatar name={nameOf(peer)} accountKey={peer} size={64} />
           <h2>{nameOf(peer)}</h2>
-          <p>This is the start of your conversation. Messages are end-to-end encrypted: servers only pass them along.</p>
+          <p>This is the start of your conversation with {nameOf(peer)}. Messages are end-to-end encrypted: servers only pass them along.</p>
         </div>
         {messages.map((dm, i) => {
           const prev = messages[i - 1]
@@ -225,7 +243,7 @@ function DmRow({ dm, grouped, peer, mine }: { dm: Dm; grouped: boolean; peer: st
       <div className="message-body">
         {!grouped && (
           <div className="message-meta">
-            <span className="author" style={{ color: `hsl(${hueFor(dm.from)} 70% 72%)` }}>{name}</span>
+            <span className="author" style={{ color: `hsl(${hueFor(dm.from)} 70% var(--name-l))` }}>{name}</span>
             <time title={fullTime(dm.sentAt)}>{messageTime(dm.sentAt)}</time>
           </div>
         )}
