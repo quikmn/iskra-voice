@@ -14,6 +14,7 @@ import { HomeMain, HomeSidebar } from './Home'
 import { RecoveryNudge } from './dialogs/RecoveryKey'
 import { Menu } from './icons'
 import { IncomingCall } from './calls/Calls'
+import { SoundToasts } from './expressions/Soundboard'
 
 export type Panel = 'none' | 'nav' | 'members'
 
@@ -52,6 +53,7 @@ export function Shell() {
         </aside>
       )}
 
+      <SoundToasts />
       {panel !== 'none' && <div className="scrim" onClick={() => setPanel('none')} />}
       <IncomingCall />
       {joining && <JoinDialog onClose={() => setJoining(false)} onCreate={() => { setJoining(false); setCreating(true) }} />}

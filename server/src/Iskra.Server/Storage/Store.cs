@@ -166,6 +166,44 @@ public sealed partial class Store : IDisposable
     private static readonly (string Name, string Sql)[] FeatureMigrations =
     [
         ("bots-1", BotsMigration),
+        ("polls-1", """
+            CREATE TABLE polls (
+                message_id  INTEGER PRIMARY KEY REFERENCES messages(id) ON DELETE CASCADE,
+                question    TEXT NOT NULL,
+                options     TEXT NOT NULL,
+                multi       INTEGER NOT NULL,
+                expires_at  INTEGER,
+                closed_at   INTEGER
+            );
+            CREATE INDEX polls_open ON polls(expires_at) WHERE closed_at IS NULL AND expires_at IS NOT NULL;
+            CREATE TABLE poll_votes (
+                message_id  INTEGER NOT NULL REFERENCES polls(message_id) ON DELETE CASCADE,
+                account_key TEXT NOT NULL,
+                option      INTEGER NOT NULL,
+                created_at  INTEGER NOT NULL,
+                PRIMARY KEY (message_id, account_key, option)
+            );
+            """),
+        ("emoji-1", """
+            CREATE TABLE emojis (
+                id          TEXT PRIMARY KEY,
+                name        TEXT NOT NULL UNIQUE,
+                file_id     TEXT NOT NULL,
+                created_by  TEXT NOT NULL,
+                created_at  INTEGER NOT NULL
+            );
+            """),
+        ("sounds-1", """
+            CREATE TABLE sounds (
+                id          TEXT PRIMARY KEY,
+                name        TEXT NOT NULL,
+                emoji       TEXT,
+                file_id     TEXT NOT NULL,
+                duration_ms INTEGER NOT NULL,
+                created_by  TEXT NOT NULL,
+                created_at  INTEGER NOT NULL
+            );
+            """),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

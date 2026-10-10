@@ -28,6 +28,9 @@ public sealed class Router
         CallFeature.Register(this);
         BotFeature.Register(this);
         WebhookFeature.Register(this);
+        PollFeature.Register(this);
+        EmojiFeature.Register(this);
+        SoundboardFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

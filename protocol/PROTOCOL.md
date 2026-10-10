@@ -230,7 +230,7 @@ Device certificates are stored when a device authenticates, so the server can pu
 | `chat.react` | `id, emoji` (≤ 16 chars, no spaces), `on?` (default true) | | channel readers; ≤ 20 different emoji per message |
 
 - Upload: `PUT <server>/upload/<ticket>` with the raw bytes (single use, 10 minutes, must not exceed the announced size) → `{ file }`.
-- File: `{ id, name, size, type, width?, height?, url: "/files/<id>/<name>" }`. `type` comes from the file's first bytes, never the name: PNG, JPEG, GIF, WebP, MP4, WebM, Ogg and MP3 are served inline, anything else as a download. Every file response has `nosniff` and a sandboxing CSP. Identical content is stored once (`uploads/ab/<sha256>`).
+- File: `{ id, name, size, type, width?, height?, url: "/files/<id>/<name>" }`. `type` comes from the file's first bytes, never the name: PNG, JPEG, GIF, WebP, MP4, WebM, Ogg, MP3 and WAV are served inline, anything else as a download. Every file response has `nosniff` and a sandboxing CSP. Identical content is stored once (`uploads/ab/<sha256>`).
 - Message gains `attachments: [File]`, `replyTo: { id, author, text, hasAttachments } | { id, deleted: true } | null` and `reactions: [{ emoji, accounts: [accountKey] }]`.
 - Event `chat.reactions` `{ id, channelId, reactions }` to channel readers.
 
@@ -328,3 +328,50 @@ The message is a normal `chat.message` to channel readers, with `author: "webhoo
 ```
 
 `webhook` is `null` on every other message. Nobody can edit a webhook's message; admins can delete it.
+## Polls, custom emoji and the soundboard
+
+### Polls
+
+A poll is a message whose `text` is the question, plus a `poll` field. Polls aren't anonymous: results list who voted.
+
+| type | body | result | who |
+|---|---|---|---|
+| `poll.create` | `channelId, question` (1–300 chars), `options` (2–10 answers, 1–55 chars each, no duplicates ignoring case), `multi?` (default false), `durationMs?` (1 min – 14 days; omitted = no end) | `{ message }` | channel writers |
+| `poll.vote` | `id` (the message), `options: [index...]` (replaces your vote; `[]` removes it; one index unless `multi`) | | channel readers, while the poll is open |
+| `poll.end` | `id` | | the author, or an admin who outranks the author |
+
+- Message gains `poll: { question, options: [{ text, votes: [accountKey] }], multi, expiresAt, closedAt } | null`.
+- Votes are per account (all your devices share one vote). A poll is closed once `closedAt` is set or `expiresAt` has passed; the server refuses votes after that and sets `closedAt = expiresAt` within about a second of expiry.
+- Poll messages can't be edited; deleting the message deletes the poll.
+- Event `poll.updated` `{ id, channelId, poll }` to channel readers after every vote and when the poll closes.
+- Rate limits: `poll.create` 1 per 5 s (burst 5), `poll.vote` 2/s (burst 10).
+
+### Custom emoji
+
+Server emoji are written in message text and reactions as `<:name:id>` (`name`: 2–32 of `a–z 0–9 _`; `id`: 12 base64url chars). Clients turn a typed `:name:` into that form before sending and render it as the image; an id the server no longer has is shown as `:name:`.
+
+| type | body | result | who |
+|---|---|---|---|
+| `emoji.list` | | `{ emojis: [Emoji] }` | anyone |
+| `emoji.create` | `name, fileId` (your own upload: PNG, GIF or WebP by content, ≤ 256 KB, ≤ 128×128) | `{ emoji }` | admin+ |
+| `emoji.rename` | `id, name` | `{ emoji }` | admin+ |
+| `emoji.delete` | `id` | | admin+ |
+
+- `Emoji { id, name, url: "/files/<fileId>/<name>", animated, createdBy }`. Names are unique; up to 200 per server.
+- `chat.react` also accepts `<:name:id>` for an emoji on this server (stored under its current name).
+- Event `emoji.updated` `{ emojis }` to everyone after any change.
+
+### Soundboard
+
+| type | body | result | who |
+|---|---|---|---|
+| `sound.list` | | `{ sounds: [Sound] }` | anyone |
+| `sound.create` | `name` (1–32 chars), `emoji?` (≤ 16 chars, no spaces), `fileId` (your own upload: MP3, Ogg or WAV by content, ≤ 512 KB, ≤ 5 s) | `{ sound }` | trusted+ |
+| `sound.update` | `id, name, emoji?` | `{ sound }` | whoever added it, or admin+ |
+| `sound.delete` | `id` | | whoever added it, or admin+ |
+| `sound.play` | `id` | | someone in a voice channel who can speak there |
+
+- `Sound { id, name, emoji, url, durationMs, createdBy }`. Up to 100 per server. The server measures the length from the file itself (WAV header, Ogg granule position, MP3 frames), with 0.15 s of slack for encoder padding.
+- `sound.play`: being in voice comes from LiveKit's webhooks only (see Voice); you need the channel's write role. Rate limit 1 every 2 s (burst 3).
+- Event `sound.played` `{ channelId, accountKey, sound }` only to the people in that voice channel. Each client plays it locally, with its own soundboard volume and mute setting.
+- Event `sounds.updated` `{ sounds }` to everyone after any change.

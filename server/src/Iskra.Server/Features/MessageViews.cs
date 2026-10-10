@@ -28,6 +28,7 @@ public static class MessageViews
             replyTo = reply,
             reactions = Reactions(store, m.Id),
             webhook = WebhookFeature.MessageView(store, m),
+            poll = PollFeature.View(store, m.Id),
         };
     }
 

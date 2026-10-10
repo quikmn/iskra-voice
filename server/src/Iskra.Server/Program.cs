@@ -23,6 +23,7 @@ builder.Services.AddSingleton<VoiceRegistry>();
 builder.Services.AddSingleton<Uploads>();
 builder.Services.AddSingleton<LinkPreviews>();
 builder.Services.AddSingleton<WebhookIngress>();
+builder.Services.AddHostedService<PollCloser>();
 builder.Services.AddReverseProxy().LoadFromMemory(
 [
     new Yarp.ReverseProxy.Configuration.RouteConfig

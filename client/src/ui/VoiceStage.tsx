@@ -8,6 +8,7 @@ import {
   Camera, CameraOff, Expand, Headphones, HeadphonesOff, Menu, Mic, MicOff, PhoneOff, ScreenShare, ScreenShareOff, Users, Volume,
 } from './icons'
 import type { Panel } from './Shell'
+import { SoundboardButton } from './expressions/Soundboard'
 
 /** The call screen: video tiles (screen shares first) and everyone's avatar, with call controls. */
 export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle: (panel: Panel) => void }) {
@@ -133,6 +134,7 @@ export function CallControls({ onLeave }: { onLeave?: () => void }) {
           {screen ? <ScreenShareOff /> : <ScreenShare />}
         </button>
       )}
+      <SoundboardButton variant="call" />
       <button className="call-button hang-up" onClick={() => (onLeave ? onLeave() : void leaveVoice())} aria-label={onLeave ? 'Hang up' : 'Leave call'} title={onLeave ? 'Hang up' : 'Leave call'}>
         <PhoneOff />
       </button>
