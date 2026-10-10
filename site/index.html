@@ -1357,7 +1357,6 @@
   </a>
   <div class="nav-links">
     <a class="btn btn-ghost nav-hide-sm" href="#features">What we're building</a>
-    <a class="btn btn-ghost nav-hide-sm" href="#v1">About v1</a>
     <a class="btn btn-primary" href="https://github.com/quikmn/iskra-voice" target="_blank" rel="noopener">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
       Follow on GitHub
@@ -1379,22 +1378,17 @@
 
   <p class="hero-sub">
     Chat with your friends on a server you run. <strong>Own your data.</strong><br>
-    No email, no password, no subscriptions. We're rebuilding it from the core to get there.
+    No email, no password, no subscriptions. Iskra 2 is being rebuilt to be more secure, faster and easier than ever.
   </p>
 
-  <div class="rebuild-notice">
-    <strong>Iskra 2 is being rebuilt from the ground up.</strong>
-    Iskra v1 is retired: its hosted services are offline and a security review found serious problems we'd rather fix properly than patch. Iskra 2 isn't released yet, and we're not promising dates. Everything below is what we're building, not something you can download today.
-    <a href="https://github.com/quikmn/iskra-voice" target="_blank" rel="noopener">Follow along on GitHub →</a>
-  </div>
 
   <div class="hero-cta">
     <a class="btn btn-primary btn-hero" href="https://github.com/quikmn/iskra-voice" target="_blank" rel="noopener">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
       Follow the rebuild on GitHub
     </a>
-    <a class="btn btn-outline btn-hero" href="#v1">
-      What happened to v1?
+    <a class="btn btn-outline btn-hero" href="#features">
+      What we're building
     </a>
   </div>
 
@@ -1594,7 +1588,7 @@
       </div>
 
       <p style="font-size:0.85rem;color:var(--muted);line-height:1.65">
-        Iskra v1 advertised a "zero-knowledge relay". A security review showed that claim didn't hold, so Iskra 2 drops the central relay completely. DMs are delivered through servers you and your friends already use, and those servers only ever store encrypted messages. They can still see who talks to whom and when, and we'll say so in the app.
+        There's no central relay. DMs are delivered through servers you and your friends already use, and those servers only ever store encrypted messages. They can still see who talks to whom and when, and we'll say so in the app.
       </p>
     </div>
 
@@ -2107,44 +2101,6 @@
 
 <div class="glow-divider"></div>
 
-<!-- ABOUT V1 -->
-<section id="v1">
-  <div class="features-header reveal">
-    <div class="section-label">About Iskra v1</div>
-    <h2 class="section-title">v1 is retired.</h2>
-    <p class="section-desc">Iskra v1 was a fun first run, and lots of people liked it. But it isn't supported any more, and we'd rather say so plainly than leave it up looking like it works.</p>
-  </div>
-
-  <div class="features-grid">
-    <div class="feature-card reveal">
-      <div class="feature-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
-      </div>
-      <h3>Its services are offline</h3>
-      <p>Iskra ID and account registration, the relay for cross-server DMs and friends, the web client, the public TURN server and the public server list are all gone. Only this website is still up.</p>
-    </div>
-
-    <div class="feature-card reveal">
-      <div class="feature-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-      </div>
-      <h3>It has known security problems</h3>
-      <p>A security review found serious issues, including a way for a malicious username to run code on other people's Windows PCs, and a way to pose as a server admin. Its "zero-knowledge relay" and end-to-end encryption claims didn't hold up. Please stop running the v1 client and server.</p>
-    </div>
-
-    <div class="feature-card reveal accent2-card">
-      <div class="feature-icon cyan">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-      </div>
-      <h3>What carries over</h3>
-      <p>The ideas and the feel. v1 is the reference for what Iskra 2 should do, but the code is being rebuilt from the core, with every problem from the review turned into a test that has to pass.</p>
-    </div>
-  </div>
-
-  <p class="later-note reveal">Looking for the old server instructions? The <a href="/detailedguide.html" style="color:var(--accent2);text-decoration:none">v1 setup guide (legacy)</a> is still here for reference. It describes software that is no longer supported, and the hosted services it mentions are offline.</p>
-</section>
-
-<div class="glow-divider"></div>
 
 <!-- CTA -->
 <div class="cta-section">
@@ -2154,9 +2110,6 @@
     <a class="btn btn-primary btn-hero" href="https://github.com/quikmn/iskra-voice" target="_blank" rel="noopener">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
       Follow the rebuild on GitHub
-    </a>
-    <a class="btn btn-ghost btn-hero" href="#v1">
-      About v1
     </a>
     <a class="btn btn-ghost btn-hero" href="https://ko-fi.com/vlundgren" target="_blank" rel="noopener">
       ☕ Buy me a coffee
