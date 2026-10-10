@@ -51,6 +51,8 @@ export interface DmContent {
   text: string
   /** A call invite or call log entry (see state/calls.ts, which checks it). `text` is the fallback for other apps. */
   call?: Record<string, unknown>
+  /** Group DMs only: a rename and the like (see state/groups.ts, which checks it). */
+  group?: Record<string, unknown>
 }
 
 export interface EncryptOptions {
@@ -76,7 +78,7 @@ const toX25519Public = (deviceKey: string) => sodium.crypto_sign_ed25519_pk_to_c
 const toX25519Secret = (identity: Identity) => sodium.crypto_sign_ed25519_sk_to_curve25519(identity.device.secretKey)
 
 /** Only certificates actually signed by the account they claim, and not revoked. */
-function validDevices(certs: DeviceCert[], accountKey: string, revoked: Set<string>): DeviceCert[] {
+export function validDevices(certs: DeviceCert[], accountKey: string, revoked: Set<string>): DeviceCert[] {
   const seen = new Set<string>()
   return certs.filter((c) => {
     if (c.accountKey !== accountKey || seen.has(c.deviceKey) || revoked.has(c.deviceKey) || !verifyDeviceCert(c)) return false
@@ -95,31 +97,51 @@ export function encryptDm(
   options: EncryptOptions = {},
 ): DmEnvelope {
   const from = b64u(identity.account.publicKey)
-  const revoked = new Set(options.revokedDevices ?? [])
-  revoked.delete(identity.cert.deviceKey) // this device is sending, so it isn't revoked as far as we know
+  const revoked = revokedFor(identity, options)
   const recipients = validDevices(recipientDevices, to, revoked)
   if (recipients.length === 0) throw new DmError("This person hasn't got any devices we can encrypt to yet.")
-  if (content.text.length === 0 || content.text.length > MAX_TEXT) throw new DmError(`Messages must be 1–${MAX_TEXT} characters.`)
+  checkText(content)
 
   // Always include this device, so the sender can read their own history later.
   const mine = validDevices([identity.cert, ...ownDevices], from, revoked)
   const targets = [...recipients, ...mine.filter((d) => !recipients.some((r) => r.deviceKey === d.deviceKey))]
 
   const v = options.prekeys ? 2 : 1
-  const prekeys = usablePrekeys(options.prekeys, now)
+  const header: DmHeader = { from, to, sentAt: now, id: b64u(randomBytes(12)) }
+  return { v, header, sender: identity.cert, ...sealContent(identity, associatedData(v, header), targets, content, now, v === 2 ? options.prekeys : undefined) }
+}
+
+/** Device keys that get no slot: the known revocations, but never the sending device itself. */
+export function revokedFor(identity: Identity, options: EncryptOptions): Set<string> {
+  const revoked = new Set(options.revokedDevices ?? [])
+  revoked.delete(identity.cert.deviceKey) // this device is sending, so it isn't revoked as far as we know
+  return revoked
+}
+
+export function checkText(content: DmContent): void {
+  if (content.text.length === 0 || content.text.length > MAX_TEXT) throw new DmError(`Messages must be 1–${MAX_TEXT} characters.`)
+}
+
+/**
+ * Encrypts `content` once and wraps its key for each target device: to its signed prekey when `prekeys` is given
+ * and it has a usable one (forward secret), else to its device key. Shared by DMs and group DMs.
+ */
+export function sealContent(
+  identity: Identity, aad: Uint8Array, targets: DeviceCert[], content: unknown, now: number, signedPrekeys: SignedPrekey[] | undefined,
+): Pick<DmEnvelope, 'nonce' | 'ct' | 'keys'> {
+  const prekeys = usablePrekeys(signedPrekeys, now)
   const ownPrekey = currentPrekey(identity.prekeys)
   const prekeyFor = (deviceKey: string): Uint8Array | undefined => {
-    if (v !== 2) return undefined
+    if (!signedPrekeys) return undefined
     if (deviceKey === identity.cert.deviceKey && ownPrekey) return ownPrekey.publicKey
     const signed = prekeys.get(deviceKey)
     return signed ? fromB64u(signed.key) : undefined
   }
 
-  const header: DmHeader = { from, to, sentAt: now, id: b64u(randomBytes(12)) }
   const messageKey = sodium.crypto_aead_xchacha20poly1305_ietf_keygen()
   const nonce = randomBytes(sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES)
   const plaintext = new TextEncoder().encode(JSON.stringify(content))
-  const ct = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(plaintext, associatedData(v, header), null, nonce, messageKey)
+  const ct = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(plaintext, aad, null, nonce, messageKey)
 
   const mySecret = toX25519Secret(identity)
   const keys = targets.map((device): DmStaticSlot | DmPrekeySlot => {
@@ -136,8 +158,7 @@ export function encryptDm(
   })
   sodium.memzero(messageKey)
   sodium.memzero(mySecret)
-
-  return { v, header, sender: identity.cert, nonce: b64u(nonce), ct: b64u(ct), keys }
+  return { nonce: b64u(nonce), ct: b64u(ct), keys }
 }
 
 /** Unwraps the message key from this device's slot. */
@@ -178,26 +199,32 @@ export function decryptDm(identity: Identity, envelope: DmEnvelope, from: string
   if (from !== me && to !== me) throw new DmError("This message isn't for you.")
   if (sender.accountKey !== header.from || !verifyDeviceCert(sender)) throw new DmError("The sender's device couldn't be verified.")
 
+  return { ...openContent(identity, envelope, associatedData(envelope.v, header)), header }
+}
+
+/** Finds this device's slot, unwraps the message key and decrypts. The sender certificate must already be checked. */
+export function openContent(identity: Identity, envelope: Pick<DmEnvelope, 'v' | 'sender' | 'nonce' | 'ct' | 'keys'>, aad: Uint8Array): DmContent {
   const myDevice = b64u(identity.device.publicKey)
   const slot = envelope.keys.find((k) => k?.device === myDevice)
   if (!slot) throw new DmError("This message wasn't encrypted for this device.")
   // v1 envelopes only ever have static slots.
   if (envelope.v === 1 && 'seal' in slot) throw new DmError('Unsupported message format.')
 
-  const messageKey = openSlot(identity, slot, sender)
+  const messageKey = openSlot(identity, slot, envelope.sender)
   let plaintext: Uint8Array
   try {
-    plaintext = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(null, fromB64u(envelope.ct), associatedData(envelope.v, header), fromB64u(envelope.nonce), messageKey)
+    plaintext = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(null, fromB64u(envelope.ct), aad, fromB64u(envelope.nonce), messageKey)
   } catch {
     throw new DmError('This message was tampered with.')
   } finally {
     sodium.memzero(messageKey)
   }
 
-  const content = JSON.parse(new TextDecoder().decode(plaintext)) as Partial<DmContent>
+  const content = JSON.parse(new TextDecoder().decode(plaintext)) as Partial<DmContent> & { group?: unknown }
   if (typeof content.text !== 'string' || content.text.length > MAX_TEXT) throw new DmError('Unsupported message content.')
   const call = content.call && typeof content.call === 'object' && !Array.isArray(content.call) ? { call: content.call } : {}
-  return { text: content.text, header, ...call }
+  const group = content.group && typeof content.group === 'object' && !Array.isArray(content.group) ? { group: content.group as Record<string, unknown> } : {}
+  return { text: content.text, ...call, ...group }
 }
 
 /**

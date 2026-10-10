@@ -257,6 +257,7 @@ public sealed partial class Store : IDisposable
             );
             """),
         ("security-1", SecurityMigration),
+        ("groups-1", GroupsMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

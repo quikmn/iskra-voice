@@ -20,6 +20,7 @@ builder.Services.AddSingleton<LiveKitHost>();
 builder.Services.AddSingleton<IVoiceBackend>(sp => sp.GetRequiredService<LiveKitHost>());
 builder.Services.AddHostedService(sp => sp.GetRequiredService<LiveKitHost>());
 builder.Services.AddSingleton<CallRegistry>();
+builder.Services.AddSingleton<GroupCallRegistry>();
 builder.Services.AddSingleton<VoiceRegistry>();
 builder.Services.AddSingleton<Uploads>();
 builder.Services.AddHostedService<UploadSweeper>();
