@@ -6,6 +6,7 @@ import { Modal } from '../bits'
 import { VoiceSettingsSection } from './VoiceSettings'
 import { RecoveryKeySection } from './RecoveryKey'
 import { NotificationSettingsSection } from './NotificationSettings'
+import { ServerExpressionsSections, SoundboardSettingsSection } from '../expressions/ExpressionSettings'
 
 export function SettingsDialog({ server, onClose }: { server?: ServerState | null; onClose: () => void }) {
   const profile = useApp((s) => s.profile)
@@ -45,7 +46,11 @@ export function SettingsDialog({ server, onClose }: { server?: ServerState | nul
 
       <VoiceSettingsSection />
 
+      <SoundboardSettingsSection />
+
       <NotificationSettingsSection />
+
+      {server && <ServerExpressionsSections server={server} />}
 
       {server && <section className="settings-section">
         <h3>This server</h3>

@@ -27,7 +27,7 @@ public sealed class Uploads(World world, TimeProvider time, ILogger<Uploads> log
         return token;
     }
 
-    private string PathFor(string sha256) => Path.Combine(world.Path, "uploads", sha256[..2], sha256);
+    public string PathFor(string sha256) => Path.Combine(world.Path, "uploads", sha256[..2], sha256);
 
     public async Task HandleUploadAsync(HttpContext context, string token)
     {
@@ -136,5 +136,7 @@ public sealed class Uploads(World world, TimeProvider time, ILogger<Uploads> log
     }
 
     public static object Public(StoredFile f) =>
-        new { id = f.Id, name = f.Name, size = f.Size, type = f.Type, width = f.Width, height = f.Height, url = $"/files/{f.Id}/{Uri.EscapeDataString(f.Name)}" };
+        new { id = f.Id, name = f.Name, size = f.Size, type = f.Type, width = f.Width, height = f.Height, url = UrlOf(f) };
+
+    public static string UrlOf(StoredFile f) => $"/files/{f.Id}/{Uri.EscapeDataString(f.Name)}";
 }

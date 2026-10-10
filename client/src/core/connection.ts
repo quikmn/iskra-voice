@@ -20,6 +20,8 @@ export interface ConnectionOptions {
   name: () => string
   /** Only needed until the first successful join. */
   invite?: string
+  /** Bot accounts say so on every connect (see "Bots and webhooks" in PROTOCOL.md). */
+  bot?: boolean
   onStatus: (status: ConnectionStatus) => void
   onWelcome: (welcome: Welcome) => void
   onEvent: <K extends keyof Events>(type: K, body: Events[K]) => void
@@ -177,7 +179,8 @@ export class Connection {
       this.reject('auth_failed', 'The server sent an invalid handshake.')
       return
     }
-    const body: Record<string, unknown> = { cert: identity.cert, sig, profile: { name: this.options.name() } }
+    const profile = this.options.bot ? { name: this.options.name(), bot: true } : { name: this.options.name() }
+    const body: Record<string, unknown> = { cert: identity.cert, sig, profile }
     if (this.invite) body.invite = this.invite
     this.socket?.send(JSON.stringify({ type: 'auth', id: 'auth', body }))
   }

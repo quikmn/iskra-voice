@@ -45,6 +45,8 @@ public static class MemberFeature
         var role = body.String("role", 16);
         if (!Roles.IsValid(role)) throw RequestException.BadRequest($"'role' must be one of: {string.Join(", ", Roles.All)}.");
         if (!Permissions.CanGrant(me, role)) throw RequestException.Forbidden("You can only give roles below your own.");
+        if (s.World.Store.IsBot(target.AccountKey) && Roles.Rank(role) > Roles.Rank(BotFeature.MaxRole))
+            throw RequestException.BadRequest("Bots can be guest, member or trusted.");
 
         s.World.Store.SetMemberRole(target.AccountKey, role);
         var member = s.Hub.PublicMember(target with { Role = role });

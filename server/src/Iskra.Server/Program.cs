@@ -1,6 +1,7 @@
 using Iskra.Server.Features;
 using Iskra.Server.Files;
 using Iskra.Server.Hosting;
+using Iskra.Server.Push;
 using Iskra.Server.Sessions;
 using Iskra.Server.Storage;
 using Iskra.Server.Voice;
@@ -18,9 +19,13 @@ builder.Services.AddSingleton<Router>();
 builder.Services.AddSingleton<LiveKitHost>();
 builder.Services.AddSingleton<IVoiceBackend>(sp => sp.GetRequiredService<LiveKitHost>());
 builder.Services.AddHostedService(sp => sp.GetRequiredService<LiveKitHost>());
+builder.Services.AddSingleton<CallRegistry>();
 builder.Services.AddSingleton<VoiceRegistry>();
 builder.Services.AddSingleton<Uploads>();
 builder.Services.AddSingleton<LinkPreviews>();
+builder.Services.AddSingleton<WebhookIngress>();
+builder.Services.AddHostedService<PollCloser>();
+builder.Services.AddPush(world);
 builder.Services.AddReverseProxy().LoadFromMemory(
 [
     new Yarp.ReverseProxy.Configuration.RouteConfig
@@ -142,8 +147,11 @@ app.MapMethods("/upload/{token}", ["OPTIONS"], (HttpContext context) =>
 });
 app.MapGet("/files/{id}/{**name}", (HttpContext context, string id, Uploads uploads) => uploads.Serve(context, id));
 
+// Incoming webhooks: POST /hooks/{id}/{secret}.
+WebhookIngress.Map(app);
+
 app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice, Uploads uploads, LinkPreviews previews, Router router,
-    IOptions<SessionLimits> limits, ILogger<Session> log, TimeProvider time) =>
+    IOptions<SessionLimits> limits, ILogger<Session> log, TimeProvider time, PushService push) =>
 {
     if (!context.WebSockets.IsWebSocketRequest)
     {
@@ -151,7 +159,7 @@ app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice
         return;
     }
     using var socket = await context.WebSockets.AcceptWebSocketAsync();
-    await new Session(socket, w, hub, voice, uploads, previews, router, limits.Value, log, time).RunAsync(context.RequestAborted);
+    await new Session(socket, w, hub, voice, uploads, previews, router, limits.Value, log, time) { Push = push }.RunAsync(context.RequestAborted);
 });
 
 // Voice signaling (LiveKit's WebSocket and HTTP) on the same port as everything else.

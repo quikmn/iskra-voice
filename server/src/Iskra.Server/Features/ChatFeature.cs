@@ -66,6 +66,7 @@ public static class ChatFeature
         var publicMessage = View(s, message);
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.message", new { message = publicMessage }));
         ThreadFeature.Touched(s, channel);
+        s.Push.ChatMessage(channel, message);
         return new { message = publicMessage };
     }
 
@@ -74,6 +75,7 @@ public static class ChatFeature
         var message = s.World.Store.GetMessage(body.Long("id")) ?? throw RequestException.NotFound("Message");
         var channel = ReadableChannel(s, me, message.ChannelId);
         if (message.AuthorKey != me.AccountKey) throw RequestException.Forbidden("You can only edit your own messages.");
+        if (s.World.Store.GetPoll(message.Id) is not null) throw RequestException.BadRequest("Polls can't be edited.");
 
         var text = MessageText(body);
         s.World.Store.EditMessage(message.Id, text, s.Now);
@@ -114,9 +116,8 @@ public static class ChatFeature
     {
         var message = s.World.Store.GetMessage(body.Long("id")) ?? throw RequestException.NotFound("Message");
         var channel = ReadableChannel(s, me, message.ChannelId);
-        var emoji = Text.Normalize(body.String("emoji", 64), 16, allowNewlines: false)
+        var emoji = EmojiFeature.Reaction(s.World.Store, body.String("emoji", 64))
             ?? throw RequestException.BadRequest("That isn't a valid reaction.");
-        if (emoji.Any(char.IsWhiteSpace)) throw RequestException.BadRequest("That isn't a valid reaction.");
         var on = body.OptionalBool("on") ?? true;
 
         var reactions = s.World.Store.Reactions(message.Id);

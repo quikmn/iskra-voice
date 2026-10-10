@@ -28,6 +28,13 @@ public sealed class Router
         PinFeature.Register(this);
         SearchFeature.Register(this);
         ThreadFeature.Register(this);
+        CallFeature.Register(this);
+        BotFeature.Register(this);
+        WebhookFeature.Register(this);
+        PollFeature.Register(this);
+        EmojiFeature.Register(this);
+        SoundboardFeature.Register(this);
+        PushFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

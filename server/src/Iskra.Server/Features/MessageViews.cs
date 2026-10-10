@@ -29,6 +29,8 @@ public static class MessageViews
             reactions = Reactions(store, m.Id),
             pinned = store.IsPinned(m.Id),
             thread = ThreadFeature.Summary(store, m.Id),
+            webhook = WebhookFeature.MessageView(store, m),
+            poll = PollFeature.View(store, m.Id),
         };
     }
 

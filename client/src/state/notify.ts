@@ -11,15 +11,17 @@ import type { Events, WireDm } from '../core/protocol'
 interface NotifySettings {
   desktop: boolean
   sounds: boolean
+  /** Push notifications on this device while Iskra is closed (state/push.ts). */
+  push: boolean
 }
 
 const KEY = 'iskra.notify'
 
 function load(): NotifySettings {
   try {
-    return { desktop: true, sounds: true, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }
+    return { desktop: true, sounds: true, push: false, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }
   } catch {
-    return { desktop: true, sounds: true }
+    return { desktop: true, sounds: true, push: false }
   }
 }
 
@@ -70,7 +72,11 @@ export function playTone(kind: 'message' | 'join' | 'leave'): void {
   }
 }
 
-function show(title: string, body: string, onClick: () => void): void {
+/** Servers that push to this device: while the page is in the background, their pushes do the notifying. */
+export const pushActive = new Set<string>()
+
+function show(serverKey: string, title: string, body: string, onClick: () => void): void {
+  if (pushActive.has(serverKey) && !document.hasFocus()) return
   playTone('message')
   if (!useNotify.getState().desktop || !notificationsSupported() || Notification.permission !== 'granted') return
   const notification = new Notification(title, { body: body.slice(0, 200), silent: true })
@@ -99,8 +105,8 @@ onServerEvent((serverKey, type, body) => {
     if (message.author === myKey || !mentions(message.text, myKey)) return
     const viewing = document.hasFocus() && state.activeServer === serverKey && activeChannelId(state) === message.channelId
     if (viewing || isViewingThread(serverKey, message.channelId)) return
-    const author = server.members[message.author]?.name ?? 'Someone'
-    show(`${author} in ${conversationLabel(server, message.channelId)}`, plainText(message.text, { nameOf: (k) => server.members[k]?.name ?? null }), () => {
+    const author = message.webhook?.name ?? server.members[message.author]?.name ?? 'Someone'
+    show(serverKey, `${author} in ${conversationLabel(server, message.channelId)}`, plainText(message.text, { nameOf: (k) => server.members[k]?.name ?? null }), () => {
       void jumpToMessage(serverKey, message.channelId, message.id)
     })
   }
@@ -133,7 +139,7 @@ onServerEvent((serverKey, type, body) => {
       if (viewing) return
       // The text is end-to-end encrypted; read it from the decrypted conversation.
       const latest = useDms.getState().conversations[message.from]?.messages.at(-1)
-      show(nameOf(message.from), latest?.error ? 'New message' : (latest?.text ?? 'New message'), () => openConversation(message.from))
+      show(serverKey, nameOf(message.from), latest?.error ? 'New message' : (latest?.text ?? 'New message'), () => openConversation(message.from))
     })
   }
 })
