@@ -20,9 +20,10 @@ public sealed class VoiceRegistry
     private readonly IVoiceBackend backend;
     private readonly ILogger<VoiceRegistry> log;
 
-    public VoiceRegistry(World world, Hub hub, IVoiceBackend backend, CallRegistry calls, ILogger<VoiceRegistry> log, TimeProvider time)
+    public VoiceRegistry(World world, Hub hub, IVoiceBackend backend, CallRegistry calls, GroupCallRegistry groupCalls, ILogger<VoiceRegistry> log, TimeProvider time)
     {
         Calls = calls;
+        GroupCalls = groupCalls;
         this.world = world;
         this.hub = hub;
         this.backend = backend;
@@ -48,6 +49,9 @@ public sealed class VoiceRegistry
 
     /// <summary>DM calls (rooms named call-…), next to the voice channels.</summary>
     public CallRegistry Calls { get; }
+
+    /// <summary>Group DM calls (rooms named gcall-…).</summary>
+    public GroupCallRegistry GroupCalls { get; }
 
     public static string RoomName(long channelId) => $"voice-{channelId}";
 
@@ -103,6 +107,7 @@ public sealed class VoiceRegistry
     public void EnforceAccess()
     {
         Calls.EnforceAccess();
+        GroupCalls.EnforceAccess();
         foreach (var (channelId, room) in _rooms)
         {
             var channel = world.Store.GetChannel(channelId);
@@ -148,6 +153,11 @@ public sealed class VoiceRegistry
         if (CallRegistry.IsCallRoom(room))
         {
             Calls.HandleWebhook(type, room!, identity);
+            return;
+        }
+        if (GroupCallRegistry.IsRoom(room))
+        {
+            GroupCalls.HandleWebhook(type, room!, identity);
             return;
         }
         if (ChannelOf(room) is not { } channelId) return;

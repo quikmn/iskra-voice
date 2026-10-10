@@ -1,6 +1,6 @@
 // Voice and video: one LiveKit room at a time. The server hands out the token; LiveKit carries the media.
 import {
-  ConnectionState, ExternalE2EEKeyProvider, LocalAudioTrack, Room, RoomEvent, ScreenSharePresets, Track, VideoPresets,
+  ConnectionState, createKeyMaterialFromBuffer, ExternalE2EEKeyProvider, LocalAudioTrack, Room, RoomEvent, ScreenSharePresets, Track, VideoPresets,
   type LocalTrackPublication, type Participant, type RemoteParticipant, type RemoteTrack, type RoomOptions,
 } from 'livekit-client'
 import { create } from 'zustand'
@@ -17,6 +17,8 @@ export interface VoiceSession {
   canSpeak: boolean
   /** Set for a DM call (channelId is then 0). */
   call?: { id: string; peer: string }
+  /** Set for a group DM call (channelId is then 0). `key` is the group's key in groups.ts. */
+  group?: { key: string; callId: string }
   /** Our media is end-to-end encrypted (DM calls). */
   encrypted?: boolean
 }
@@ -101,6 +103,14 @@ export const canShareScreen = () => typeof navigator !== 'undefined' && !!naviga
 
 let room: Room | null = null
 let e2eeWorker: Worker | null = null
+
+/** A shared-key provider that also takes keys at a given index, so a group call can switch keys without a gap. */
+class CallKeyProvider extends ExternalE2EEKeyProvider {
+  async setIndexedKey(key: Uint8Array, index: number): Promise<void> {
+    this.onSetEncryptionKey(await createKeyMaterialFromBuffer(key.slice().buffer), undefined, index)
+  }
+}
+let keyProvider: CallKeyProvider | null = null
 let mutedBeforeDeafen = false
 /** A stage speaker's mic is published the first time they open it (not the moment they're brought up). */
 let micDeferred = false
@@ -211,7 +221,7 @@ function voiceTone(kind: 'mute' | 'unmute' | 'deafen' | 'undeafen'): void {
 
 function reportFlags(): void {
   const { session, muted, deafened } = useVoice.getState()
-  if (!session || session.call) return
+  if (!session || session.call || session.group) return
   connectionFor(session.serverKey)?.request('voice.state', { muted, deafened }).catch(() => undefined)
 }
 
@@ -268,26 +278,49 @@ export async function joinCall(
   )
 }
 
+/**
+ * Joins a group call's room. `key` may still be missing (it was sent before you joined the group): the person who has
+ * been in the call longest sends a new one, and {@link setCallKey} puts it in place.
+ */
+export async function joinGroupCall(
+  serverKey: string, group: { key: string; callId: string }, target: { url: string; token: string }, key: { key: Uint8Array; index: number } | null,
+  camera: boolean,
+): Promise<boolean> {
+  await leaveVoice()
+  return connect(
+    { serverKey, channelId: 0, state: 'connecting', canSpeak: true, group, encrypted: false },
+    async () => ({ ...target, canSpeak: true }),
+    { groupKey: key ?? 'later', camera },
+  )
+}
+
+/** A new media key for the group call you're in. Senders switch to it; frames under older keys still decrypt. */
+export async function setCallKey(key: Uint8Array, index: number): Promise<void> {
+  await keyProvider?.setIndexedKey(key, index)
+}
+
 async function connect(
   session: VoiceSession,
   target: () => Promise<{ url: string; token: string; canSpeak: boolean }>,
-  options: { e2eeKey?: Uint8Array; camera?: boolean } = {},
+  options: { e2eeKey?: Uint8Array; groupKey?: { key: Uint8Array; index: number } | 'later'; camera?: boolean } = {},
 ): Promise<boolean> {
   useVoice.setState({
-    session, error: null, speaking: {}, tiles: [], stageOpen: !session.call, camera: false, screen: false,
+    session, error: null, speaking: {}, tiles: [], stageOpen: !session.call && !session.group, camera: false, screen: false,
   })
 
   try {
     const { url, token, canSpeak } = await target()
     let encryption: RoomOptions['encryption']
     let worker: Worker | null = null
-    if (options.e2eeKey) {
+    let provider: CallKeyProvider | null = null
+    if (options.e2eeKey || options.groupKey) {
       const { default: E2EEWorker } = await import('livekit-client/e2ee-worker?worker')
-      const keyProvider = new ExternalE2EEKeyProvider()
+      provider = new CallKeyProvider()
       // A random 32-byte key: LiveKit derives the frame key from it with HKDF.
-      await keyProvider.setKey(options.e2eeKey.slice().buffer)
+      if (options.e2eeKey) await provider.setKey(options.e2eeKey.slice().buffer)
+      else if (options.groupKey !== 'later' && options.groupKey) await provider.setIndexedKey(options.groupKey.key, options.groupKey.index)
       worker = new E2EEWorker()
-      encryption = { keyProvider, worker }
+      encryption = { keyProvider: provider, worker }
     }
     if (useVoice.getState().session !== session) {
       worker?.terminate() // hung up meanwhile
@@ -296,6 +329,7 @@ async function connect(
     e2eeWorker = worker
     const audio = useAudio.getState()
     boosting = canBoost()
+    keyProvider = provider
     const next = new Room({
       adaptiveStream: true,
       dynacast: true,
@@ -462,6 +496,7 @@ async function cleanup(): Promise<void> {
   micDeferred = false
   processor = null // LiveKit destroys it with the track
   capturedWithBrowserNs = null
+  keyProvider = null
   for (const element of audioElements.values()) element.remove()
   audioElements.clear()
   useVoice.setState({

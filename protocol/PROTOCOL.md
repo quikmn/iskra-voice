@@ -9,7 +9,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Servers and channels:** [Requests and events](#requests-and-events) · [Invite links](#invite-links) · [Organizing a server](#organizing-a-server)
 - **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji)
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties)
-- **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted)
+- **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted)
 - **People and integrations:** [Profiles](#profiles) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Presence and voice messages](#presence-and-voice-messages)
 - **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints)
@@ -110,8 +110,9 @@ After the handshake, every request gets a `result` (body as listed, `{}` if none
 | `rate_limited` | Too fast or over a quota (see [Limits](#limits)), or too many open device links |
 | `unknown_type` | No such request type. The session stays open. |
 | `internal` | A bug on the server. The session stays open. |
-| `voice_unavailable` | `voice.join`, `call.start`, `call.accept`, `stage.start`, `stage.invite`: LiveKit isn't running (or can't be reached) on this server |
-| `busy` | `call.start`: the person is already in another call on this server |
+| `voice_unavailable` | `voice.join`, `call.start`, `call.accept`, `stage.start`, `stage.invite`, `gcall.*`: LiveKit isn't running (or can't be reached) on this server |
+| `busy` | `call.start`: the person is already in another call on this server; `gcall.start`: the group already has a call |
+| `conflict` | `group.change`, `group.send`, `gcall.start`, `gcall.key`: the group changed in the meantime ([Group DMs](#group-dms-and-group-calls-end-to-end-encrypted)) |
 
 Close codes:
 
@@ -371,7 +372,7 @@ The server stores and relays opaque envelopes between members. It knows who talk
 Event `dm.message` `{ message: { id, from, to, envelope, createdAt } }` goes to every connected device of both people.
 Device certificates are stored when a device authenticates, so the server can publish them but not forge them.
 
-Clients send envelope v2 ([forward secrecy](#forward-secrecy-envelope-v2)); v1 envelopes are still accepted and decrypted. Not yet supported: DMs between people who share no server, and group DMs.
+Clients send envelope v2 ([forward secrecy](#forward-secrecy-envelope-v2)); v1 envelopes are still accepted and decrypted. Not yet supported: DMs between people who share no server. Group DMs have [their own section](#group-dms-and-group-calls-end-to-end-encrypted).
 
 ### Envelope v1
 
@@ -890,6 +891,8 @@ BlockEntry { "accountKey": "<b64u 32>", "blocked": true, "at": 1760000000000 }  
 - Event `blocks` `{ blocks }` goes to the account's other sessions on this server after a change.
 - If either person has blocked the other, `dm.send` and `call.start` between them answer `forbidden` ("You can't message/call this person"), without saying who blocked whom. Blocking someone ends any call with them on this server. Nothing is sent to the blocked person, and the list is never shown to anyone else.
 - Messages in shared channels are still delivered; clients collapse messages from people you blocked ("Blocked message — Show"). They never cause a [push](#push-notifications-web-push) between the two people (mentions, replies or "all messages"), and apps don't notify or play sounds for them.
+- Groups: blocking doesn't remove anyone from a [group](#group-dms-and-group-calls-end-to-end-encrypted) or stop its messages, but group messages between the two are never pushed, and a group call started by one of them doesn't ring the other (`gcall.ring` and its push are skipped; they can still join it from the group).
+- Do not disturb ([presence](#presence-and-custom-status)) silences group pushes like every other push; [notification levels](#organizing-a-server) apply to channels only, so groups behave like DMs.
 
 ### Timeouts
 
@@ -1011,3 +1014,102 @@ WatchParty { "id": "<b64u 12>", "channelId": 3,
 |---|---|---|
 | `watch.state` | `{ channelId, party: WatchParty \| null, serverTime }` | readers of the channel, after any change |
 | `watch.chat` | `{ channelId, accountKey, text, at }` | people in the room who can read the channel |
+
+## Group DMs and group calls (end-to-end encrypted)
+
+A group DM is 3–10 members of one server. Messages and calls are end-to-end encrypted like [DMs](#direct-messages-end-to-end-encrypted) and [calls](#calls-voice-and-video-in-dms-end-to-end-encrypted). The server stores the encrypted messages, routes them to the group's members, and knows who is in which group and when they write; it never sees what is said, nor the group's name.
+
+### The membership chain
+
+Membership is a list of **changes**, each signed by the member who made it. Clients verify every change themselves, so a server can't add anyone to a group: it would need a member's signature.
+
+```jsonc
+GroupChange { "payload": "<b64u of UTF-8 JSON, ≤ 4096 chars>", "sig": "<b64u 64>" }
+// payload:
+{ "v": 1, "group": "<b64u 16 random bytes>", "version": 2, "prev": "<head of version 1>", "by": "<accountKey>",
+  "action": "create" | "add" | "remove" | "leave", "targets": ["<accountKey>"...], "members": ["<accountKey>"...], "at": 1760000000000 }
+```
+
+- `sig = Ed25519.sign(accountSecret of by, "iskra/group-change/v1" || 0x00 || payload bytes)`. The exact payload bytes travel and are stored as they were signed, so nobody has to re-serialize JSON to check a signature.
+- `head = b64u(SHA-256(payload bytes))`. Each change names the previous one's head in `prev` (`""` for the first), so the chain can't be reordered, spliced or rewritten.
+- `members` is the full member list after the change, in join order, and must be exactly what the action produces:
+  - `create`: version 1, `members = [by, ...targets]`, 3–10 different people.
+  - `add`: anyone in the group; `members = old members + targets` (1 or more people not already in it, ≤ 10 in total).
+  - `remove`: only the **owner**, who is the first in the member list (the creator, until they leave; then the longest-standing member); one target, not themselves.
+  - `leave`: anyone in the group, for themselves only.
+- `at` is the author's clock; the server refuses changes more than 10 minutes off. Everyone named in `create`/`add` must be a member of this server and not a bot.
+- The server applies changes one at a time: `version` must be the current version + 1 and `prev` the current head, else `conflict`. A group nobody is left in is deleted.
+
+### Requests and events
+
+| type | body | result | who |
+|---|---|---|---|
+| `group.create` | `change` (a `create` change by you) | `{ group }` | members (not bots: `forbidden`); ≤ 100 groups per account here |
+| `group.change` | `change` (`add`, `remove` or `leave`, by you) | `{ group }` | members of the group, by the rules above; `conflict` if it changed meanwhile |
+| `group.list` | | `{ groups: [{ group, lastId, lastAt }] }` (≤ 200, most recently active first) | yourself |
+| `group.get` | `groupId, since?` (a version; default 0) | `{ group, changes: [GroupChange + version] }` (the changes after `since`, oldest first) | members of the group |
+| `group.send` | `groupId, version, envelope` (JSON object, ≤ 56 KB) | `{ message }` | members of the group (not bots); `version` must be the current one (`conflict`) |
+| `group.history` | `groupId, before?, limit? (1–100)` | `{ messages (oldest first), hasMore }` | members of the group |
+
+`Group { id, version, head, members, createdAt }`. `GroupMessage { id, group, from, version, envelope, createdAt }`. A group you aren't in (any more) is `not_found`, admins included. `group.create` and `group.change` share a per-account limit of 10 a minute; `group.send` has the `dm.send` limits (2/s, burst 10).
+
+| event | body | sent to |
+|---|---|---|
+| `group.changed` | `{ group, change }` | everyone in the group before or after the change (so someone removed hears it) |
+| `group.message` | `{ message }` | every session of every member |
+
+### Group envelope
+
+A group message is the [envelope v2](#forward-secrecy-envelope-v2) with a group header:
+
+```jsonc
+{ "v": 2, "kind": "group",
+  "header": { "from": "<accountKey>", "group": "<group id>", "version": 3, "head": "<head of version 3>", "sentAt": 1760000000000, "id": "<b64u 12>" },
+  "sender": DeviceCert, "nonce": "<b64u 24>", "ct": "<b64u>", "keys": [ /* as in v2 */ ] }
+```
+
+- Associated data: `JSON.stringify(["iskra/group-dm/v1", from, group, version, head, sentAt, id])`. The group id and the exact chain head the sender encrypted for are authenticated, so a message can't be moved to another group or passed off as sent to a different member list.
+- Senders encrypt to every valid, unrevoked device of every member **of the chain they verified** (plus their own devices), forward secret through signed prekeys as in v2. They never take a member list from the server. Members whose devices can't be fetched (e.g. kicked from the server) get no slot.
+- Receivers check: the header's group, sender and version equal the server's routing fields; the version's head is the one in their verified chain (a newer version means: fetch the chain first); the sender was a member at that version; the sender certificate is valid and belongs to `from`. Anything else is shown as "couldn't be read".
+- Content is `{ "text": "…" }`, or with `"group": { "kind": "rename", "name": "≤ 64 chars", "silent"?: true }` to name the group (`""` clears it; the newest rename wins; `silent` is the same name re-sent for people just added, not shown as a line). Call lines: `"call": { "kind": "group-start", "id", "video" }`.
+- New members only read messages sent after they joined: older envelopes have no slot for them.
+
+### Group calls
+
+One call per group at a time, in a LiveKit room the server only issues tickets for to the group's current members.
+
+| type | body | result | who |
+|---|---|---|---|
+| `gcall.start` | `groupId, callId` (16 random bytes, b64u), `version` (current), `video?`, `envelope` (group envelope carrying the key, ≤ 56 KB) | `{ call, ticket: { url, token, room } }` | members of the group (not bots); `busy` if the group already has a call, `voice_unavailable` without LiveKit, `conflict` on an old version; the `call.start` per-account limits |
+| `gcall.join` | `callId` | `{ ring: { call, envelope }, ticket }` (the newest key envelope) | members of the group |
+| `gcall.decline` | `callId` | | members of the group (stops the ringing on your other devices) |
+| `gcall.leave` | `callId` | | members of the group (also removes you from the room) |
+| `gcall.key` | `callId, version` (current), `envelope` (≤ 56 KB) | | members of the group who are in the call (`forbidden` otherwise) |
+| `gcall.list` | | `{ calls: [{ call, envelope, ringing }] }` (calls in your groups) | yourself |
+
+`GroupCall { id, group, from, video, createdAt, participants: [accountKey] (in the order they joined, from LiveKit's webhooks), keyVersion }`.
+
+| event | body | sent to |
+|---|---|---|
+| `gcall.ring` | `{ call, envelope }` | every session of the other members (plus a push of kind `call` with `group`) |
+| `gcall.state` | `{ call }` | the group's members, whenever who's in the call (or the group) changes |
+| `gcall.key` | `{ call, envelope }` | the group's members |
+| `gcall.ring.stopped` | `{ callId }` | your other sessions once you joined or declined, and everyone still ringing when the ringing times out |
+| `gcall.ended` | `{ callId, group }` | the group's members |
+
+- Room: `gcall-` + the first 16 bytes (hex) of `SHA-256("iskra/group-call-room/v1" 0x00 groupId 0x00 callId)`. Anyone LiveKit reports in it who isn't a current member of the group (and of the server) is removed; so is anyone the group loses while the call goes on.
+- Ringing lasts 45 s. A call ends when nobody is in the room and nobody is still being rung (or when LiveKit goes down).
+- **Media key:** the starter makes a random 32-byte key and sends it in a group envelope whose content is `{ "text": "…", "call": { "kind": "group-key", "id": callId, "key": "<b64u 32>", "index": 0–15, "video": bool } }`. The server keeps only the newest key envelope, in memory, for people who join later. Clients accept a key only from someone in the group now, for this call, and only if it is newer than the one they have (a higher group version, or the same version sent later), so an old key can't be replayed. Keys go to LiveKit's end-to-end encryption at `index` (16 slots), so frames under the previous key still decrypt during a switch.
+- **Rekeying:** when the group changes during a call, `keyVersion` falls behind the group's version. The participant who has been in the room longest and is still in the group then sends a new key (next index) encrypted for the new member list with `gcall.key`. Someone removed is dropped from the room at once, and the new key keeps them out of the media even if they still received packets. Someone added joins without a key and gets the new one the same way.
+
+### Push
+
+Group messages push `{ kind: "group", group, title: "New message from X", body: "In a group. Open Iskra to read it." }`, never content or the group's name (the server doesn't know it). Group calls push `{ kind: "call", group, title: "X started a group call" }`, at most once per group and member per 15 s. A click opens `/#/open/<serverKey>/g/<groupId>`.
+
+### Limitations
+
+- The server sees who is in which group, when people write, and how big messages are. It can't read them, add members, or move messages between groups.
+- It can withhold or delay changes: a device that hasn't heard about a removal keeps encrypting to the old list until it does. The server refuses messages for an old version, so this needs a misbehaving server, and only shows the removed person what they would have seen before the removal.
+- Clients pin the chain they verified and refuse a chain that contradicts it, but two devices that never compare notes could be shown different (correctly signed) forks if two members changed the group at the same moment and the server accepted both. There's no group-wide safety number; compare each member's DM safety number to be sure of their keys.
+- People who leave the call but stay in the group keep the call key (they could rejoin anyway); keys change only when the group does.
+- Group history isn't carried by device linking yet; a new device reads messages from when it was linked.

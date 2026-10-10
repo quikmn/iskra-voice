@@ -254,7 +254,7 @@ export interface ProfileUpdate {
 
 export type ErrorCode =
   | 'bad_request' | 'forbidden' | 'not_found' | 'rate_limited' | 'unknown_type' | 'internal'
-  | 'auth_failed' | 'invite_required' | 'banned' | 'voice_unavailable' | 'busy' | 'device_revoked'
+  | 'auth_failed' | 'invite_required' | 'banned' | 'voice_unavailable' | 'busy' | 'device_revoked' | 'conflict'
 
 export class RequestError extends Error {
   readonly code: ErrorCode | 'disconnected' | 'timeout'
@@ -810,4 +810,77 @@ export interface Requests {
   'watch.stop': [{ channelId: number; partyId: string }, Record<string, never>]
   'watch.chat': [{ channelId: number; text: string }, Record<string, never>]
   'watch.clock': [Record<string, never>, { now: number }]
+}
+
+// ── group DMs and group calls ──
+type GroupEnvelope = import('./group').GroupEnvelope
+type GroupChange = import('./group').GroupChange
+
+export interface WireGroup {
+  id: string
+  version: number
+  head: string
+  /** In join order; the first is the owner. Clients trust their verified chain, not this. */
+  members: string[]
+  createdAt: number
+}
+
+export interface WireGroupMessage {
+  id: number
+  group: string
+  from: string
+  version: number
+  envelope: GroupEnvelope
+  createdAt: number
+}
+
+export interface WireGroupCall {
+  id: string
+  group: string
+  from: string
+  video: boolean
+  createdAt: number
+  /** Who LiveKit says is in the room, in the order they joined. */
+  participants: string[]
+  /** The group version the current key envelope was encrypted for. */
+  keyVersion: number
+}
+
+/** A group call with its newest key envelope (carries the media key). */
+export interface GroupCallRing {
+  call: WireGroupCall
+  envelope: GroupEnvelope
+  /** gcall.list only: it's still ringing for you. */
+  ringing?: boolean
+}
+
+export interface CallTicket {
+  url: string
+  token: string
+  room: string
+}
+
+export interface Events {
+  'group.changed': { group: WireGroup; change: GroupChange & { version: number } }
+  'group.message': { message: WireGroupMessage }
+  'gcall.ring': GroupCallRing
+  'gcall.state': { call: WireGroupCall }
+  'gcall.key': GroupCallRing
+  'gcall.ended': { callId: string; group: string }
+  'gcall.ring.stopped': { callId: string }
+}
+
+export interface Requests {
+  'group.create': [{ change: GroupChange }, { group: WireGroup }]
+  'group.change': [{ change: GroupChange }, { group: WireGroup }]
+  'group.list': [Record<string, never>, { groups: { group: WireGroup; lastId: number | null; lastAt: number | null }[] }]
+  'group.get': [{ groupId: string; since?: number }, { group: WireGroup; changes: (GroupChange & { version: number })[] }]
+  'group.send': [{ groupId: string; version: number; envelope: GroupEnvelope }, { message: WireGroupMessage }]
+  'group.history': [{ groupId: string; before?: number; limit?: number }, { messages: WireGroupMessage[]; hasMore: boolean }]
+  'gcall.start': [{ groupId: string; callId: string; version: number; video: boolean; envelope: GroupEnvelope }, { call: WireGroupCall; ticket: CallTicket }]
+  'gcall.join': [{ callId: string }, { ring: GroupCallRing; ticket: CallTicket }]
+  'gcall.decline': [{ callId: string }, Record<string, never>]
+  'gcall.leave': [{ callId: string }, Record<string, never>]
+  'gcall.key': [{ callId: string; version: number; envelope: GroupEnvelope }, Record<string, never>]
+  'gcall.list': [Record<string, never>, { calls: GroupCallRing[] }]
 }

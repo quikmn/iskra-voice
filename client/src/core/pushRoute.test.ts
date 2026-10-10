@@ -9,6 +9,7 @@ describe('push routes', () => {
     expect(parseOpenRoute(`/open/${S}/c/12`)).toEqual({ server: S, kind: 'channel', channelId: 12 })
     expect(parseOpenRoute(`#/open/${S}/dm/${P}`)).toEqual({ server: S, kind: 'dm', peer: P })
     expect(parseOpenRoute(`/open/${S}`)).toEqual({ server: S, kind: 'server' })
+    expect(parseOpenRoute(`/open/${S}/g/${'g'.repeat(22)}`)).toEqual({ server: S, kind: 'group', group: 'g'.repeat(22) })
   })
 
   it('rejects anything else', () => {
@@ -20,6 +21,7 @@ describe('push routes', () => {
       `/open/${S}/c/99999999999999999`,
       `/open/${S}/dm/../../x`,
       `/open/${S}/x/1`,
+      `/open/${S}/g/short`,
       `https://evil.example/open/${S}`,
       `/join/${S}`,
     ]) {

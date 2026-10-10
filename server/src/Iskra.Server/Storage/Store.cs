@@ -267,6 +267,7 @@ public sealed partial class Store : IDisposable
         ("voice-messages-1", VoiceMessagesMigration),
         ("moderation-1", ModerationMigration),
         ("organize-1", OrganizeMigration),
+        ("groups-1", GroupsMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

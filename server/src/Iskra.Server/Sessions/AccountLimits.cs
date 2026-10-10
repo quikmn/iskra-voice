@@ -16,6 +16,7 @@ public sealed class AccountLimits(TimeProvider time)
         ["call.start.callee"] = (3, 3 / 60.0),     // …and 3 a minute to the same person
         ["thread.create"] = (5, 5 / 60.0),
         ["event.create"] = (5, 5 / 600.0),         // 5 at once, then one every 2 minutes
+        ["group.change"] = (10, 10 / 60.0),       // creating groups and changing who is in them
         ["link.http"] = (60, 2),                   // device-link HTTP requests, per client address
     };
 

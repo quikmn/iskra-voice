@@ -46,6 +46,8 @@ public sealed class Router
         ModerationFeature.Register(this);
         OrganizeFeature.Register(this);
         WatchFeature.Register(this);
+        GroupFeature.Register(this);
+        GroupCallFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

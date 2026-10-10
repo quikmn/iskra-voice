@@ -4,6 +4,7 @@
 // (/service-worker.js is a different file: it removes a worker an earlier web client installed.)
 
 const KEY = /^[A-Za-z0-9_-]{43}$/
+const GROUP = /^[A-Za-z0-9_-]{22}$/
 const APP_ROOT = new URL('./', self.location.href) // this file sits next to index.html
 const ICON = new URL('icons/icon-192.png', APP_ROOT).href
 const BADGE = new URL('icons/badge-96.png', APP_ROOT).href
@@ -19,6 +20,7 @@ function scopeServer() {
 /** Where a click on this push should take you, as an app route ("/open/..."). */
 function routeFor(data) {
   const base = `/open/${data.server}`
+  if (typeof data.group === 'string' && GROUP.test(data.group)) return `${base}/g/${data.group}`
   if (data.kind === 'dm' && typeof data.peer === 'string' && KEY.test(data.peer)) return `${base}/dm/${data.peer}`
   if (Number.isSafeInteger(data.channelId) && data.channelId > 0) return `${base}/c/${data.channelId}`
   if (typeof data.peer === 'string' && KEY.test(data.peer)) return `${base}/dm/${data.peer}`

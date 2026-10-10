@@ -107,7 +107,7 @@ export function showNotification(serverKey: string, title: string, body: string,
   show(serverKey, title, body, onClick)
 }
 
-function show(serverKey: string, title: string, body: string, onClick: () => void): void {
+export function show(serverKey: string, title: string, body: string, onClick: () => void): void {
   if (pushActive.has(serverKey) && !document.hasFocus()) return
   if (isDoNotDisturb()) return // do not disturb: no sounds or notifications (unread badges still count)
   playTone('message')
@@ -187,16 +187,21 @@ export function startTitleBadge(): () => void {
     const servers = Object.values(useApp.getState().servers)
     const mentionCount = servers.reduce((n, s) => n + serverBadges(s).pings, 0)
     const dmCount = Object.values(useDms.getState().conversations).reduce((n, c) => n + c.unread, 0)
-    const total = mentionCount + dmCount
+    const { useGroups } = await import('./groups')
+    const groupCount = Object.values(useGroups.getState().groups).reduce((n, g) => n + g.unread, 0)
+    const total = mentionCount + dmCount + groupCount
     document.title = total > 0 ? `(${total}) Iskra` : 'Iskra'
   }
   const unsubscribe = useApp.subscribe(() => void update())
   const unsubscribeOrganize = useOrganize.subscribe(() => void update())
   let unsubscribeDms = () => {}
+  let unsubscribeGroups = () => {}
   void import('./dms').then(({ useDms }) => (unsubscribeDms = useDms.subscribe(() => void update())))
+  void import('./groups').then(({ useGroups }) => (unsubscribeGroups = useGroups.subscribe(() => void update())))
   return () => {
     unsubscribe()
     unsubscribeOrganize()
     unsubscribeDms()
+    unsubscribeGroups()
   }
 }

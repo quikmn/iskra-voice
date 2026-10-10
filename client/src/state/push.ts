@@ -166,6 +166,10 @@ onWelcomeHook((key) => {
 
 export function openTarget(target: OpenTarget): void {
   if (!useApp.getState().servers[target.server]) return
+  if (target.kind === 'group') {
+    void import('./groups').then(({ groupKey, openGroup }) => openGroup(groupKey(target.server, target.group)))
+    return
+  }
   if (target.kind === 'dm') {
     void import('./dms').then(({ openConversation }) => openConversation(target.peer))
     return

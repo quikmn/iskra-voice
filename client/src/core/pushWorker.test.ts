@@ -61,6 +61,17 @@ describe('push service worker', () => {
     expect(w.shown[1].options.requireInteraction).toBe(true)
   })
 
+  it('routes group messages and group calls to the group', async () => {
+    const w = worker()
+    const group = 'g'.repeat(21) + '_'
+    await w.push({ ...mention, kind: 'group', title: 'New message from Alice', tag: `g:${group}`, channelId: null, group })
+    await w.push({ ...mention, kind: 'call', title: 'Alice started a group call', channelId: null, group })
+    await w.push({ ...mention, kind: 'group', channelId: null, group: '../../evil' })
+    expect(w.shown[0].options.data).toEqual({ route: `/open/${SERVER}/g/${group}` })
+    expect(w.shown[1].options.requireInteraction).toBe(true)
+    expect(w.shown[2].options.data).toEqual({ route: `/open/${SERVER}` })
+  })
+
   it('falls back to a generic notification for anything unexpected', async () => {
     const w = worker()
     await w.push({ ...mention, server: 'X'.repeat(43) }) // another server's payload in this registration
