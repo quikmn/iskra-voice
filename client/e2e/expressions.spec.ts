@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
-import { createInviteLink, hasLiveKit, joinVia, send, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, hasLiveKit, joinVia, longPress, openSettings, send, SHOTS, startServer, type TestServer } from './helpers'
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -22,10 +22,6 @@ function wav(ms: number): Buffer {
   return b
 }
 
-async function openSettings(page: Page) {
-  await page.locator('.me-bar').getByRole('button', { name: 'Settings' }).click()
-  await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible()
-}
 
 test('polls, server emoji, reactions and the soundboard', async ({ browser }) => {
   test.setTimeout(150_000)
@@ -66,7 +62,7 @@ test('polls, server emoji, reactions and the soundboard', async ({ browser }) =>
   await friend.screenshot({ path: join(SHOTS, 'poll-mobile.png') })
 
   // ── A server emoji ──
-  await openSettings(host)
+  await openSettings(host, 'Emoji')
   await host.locator('input[aria-label="Emoji image"]').setInputFiles({ name: 'Blob Wave.png', mimeType: 'image/png', buffer: PNG })
   await expect(host.getByLabel('Emoji name')).toHaveValue('blob_wave')
   await host.getByLabel('Emoji name').fill('blob')
@@ -90,11 +86,14 @@ test('polls, server emoji, reactions and the soundboard', async ({ browser }) =>
   await send(host, ':blob: :fire:')
   await expect(friend.locator('.message-text .jumbo').last()).toContainText('🔥')
 
-  // The friend reacts with the server emoji from the full picker (a bottom sheet on a phone).
+  // The friend reacts with the server emoji from the full picker (a bottom sheet on a phone),
+  // reached by pressing and holding the message.
   const message = friend.locator('.message', { hasText: 'hello' }).first()
-  await message.locator('.message-body').click()
-  await message.getByRole('button', { name: 'Add reaction' }).click()
-  await friend.getByRole('menuitem', { name: 'More emoji' }).click()
+  await longPress(friend, message.locator('.message-body'))
+  const actions = friend.getByRole('dialog', { name: 'Message actions' })
+  await expect(actions.getByRole('menuitem', { name: 'Reply' })).toBeVisible()
+  await friend.screenshot({ path: join(SHOTS, 'message-actions-mobile.png') })
+  await actions.getByRole('button', { name: 'More emoji' }).click()
   const picker = friend.getByRole('dialog', { name: 'Emoji picker' })
   await expect(friend.locator('.emoji-picker-layer.sheet')).toBeVisible()
   await friend.screenshot({ path: join(SHOTS, 'emoji-picker-mobile.png') })
@@ -128,7 +127,7 @@ test('polls, server emoji, reactions and the soundboard', async ({ browser }) =>
   }
 
   // A trusted member (here the owner) adds a sound.
-  await openSettings(host)
+  await openSettings(host, 'Soundboard')
   await host.locator('input[aria-label="Sound file"]').setInputFiles({ name: 'airhorn.wav', mimeType: 'audio/wav', buffer: wav(800) })
   await host.getByLabel('Sound emoji').fill('📯')
   await host.getByRole('button', { name: 'Add', exact: true }).click()
@@ -159,7 +158,7 @@ test('polls, server emoji, reactions and the soundboard', async ({ browser }) =>
 
   // Muting the soundboard in settings: you still see who played, but nothing plays.
   await friend.keyboard.press('Escape')
-  await openSettings(host)
+  await openSettings(host, 'Voice & audio')
   await host.getByLabel(/Mute the soundboard/).check()
   await host.keyboard.press('Escape')
   await host.locator('.voice-controls').getByRole('button', { name: 'Soundboard' }).click()

@@ -2,11 +2,12 @@
 // the "X pinned a message" note, and the bar shown while looking at older messages.
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { roleRank, type Message } from '../../core/protocol'
+import type { Message } from '../../core/protocol'
 import type { PendingMessage, ServerState } from '../../state/store'
-import { canPin, setPinned, type PinNote } from '../../state/pins'
+import { setPinned, type PinNote } from '../../state/pins'
 import { relativeTime } from './pinThreadHelpers'
-import { createThread, isThreadId, openThread } from '../../state/threads'
+import { pinThreadAbilities } from './abilities'
+import { createThread, openThread } from '../../state/threads'
 import { jumpToMessage } from '../../state/jump'
 import { Modal } from '../bits'
 import { fullTime, messageTime } from '../format'
@@ -22,10 +23,7 @@ export function MessageMenuExtras({ server, message }: { server: ServerState; me
   const [naming, setNaming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   if (message.tempId) return null
-  const inThread = isThreadId(server, message.channelId)
-  const channel = server.channels.find((c) => c.id === message.channelId)
-  const canWrite = !!server.me && !!channel && roleRank(server.me.role) >= roleRank(channel.writeRole)
-  const pinnable = canPin(server, message.channelId)
+  const { pinnable, threadable } = pinThreadAbilities(server, message)
   return (
     <>
       {pinnable && (
@@ -43,7 +41,7 @@ export function MessageMenuExtras({ server, message }: { server: ServerState; me
           {message.pinned ? <PinOffIcon size={15} /> : <PinIcon size={15} />}
         </button>
       )}
-      {!inThread && canWrite && !message.thread && (
+      {threadable && (
         <button onClick={() => setNaming(true)} title="Start a thread" aria-label="Start a thread"><ThreadIcon size={15} /></button>
       )}
       {error && <span className="action-error" role="alert">{error}</span>}
@@ -52,7 +50,7 @@ export function MessageMenuExtras({ server, message }: { server: ServerState; me
   )
 }
 
-function NewThreadDialog({ server, message, onClose }: { server: ServerState; message: Message; onClose: () => void }) {
+export function NewThreadDialog({ server, message, onClose }: { server: ServerState; message: Message; onClose: () => void }) {
   const suggested = plainText(message.text, { nameOf: (k) => server.members[k]?.name ?? null }).replace(/\s+/g, ' ').trim().slice(0, 40)
   const [name, setName] = useState(suggested || 'New thread')
   const [busy, setBusy] = useState(false)

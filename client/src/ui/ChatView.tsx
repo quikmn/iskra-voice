@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { roleRank, type FileInfo, type Member } from '../core/protocol'
 import {
-  activeChannelId, connectionFor, discardFailed, loadHistory, notifyTyping, retryFailed, sendMessage, uploadFile, useApp,
+  activeChannelId, connectionFor, discardFailed, loadHistory, notifyTyping, retryAll, retryFailed, sendMessage, uploadFile, useApp,
   type PendingMessage, type ServerState,
 } from '../state/store'
 import { Attachments, LinkPreviewCard, Reactions, ReactionPicker, ReplyLine } from './chat/MessageExtras'
@@ -13,8 +13,10 @@ import { openProfileCard } from '../state/profile'
 import { decodeMentions, encodeMentions, renderMarkdown } from './markdown'
 import { fullTime, hueFor, messageTime } from './format'
 import type { Panel } from './Shell'
-import { Close, Hash, Menu, Paperclip, Pencil, Reply, Send, Smile, Trash, Users } from './icons'
+import { Close, FileIcon, Hash, Menu, Paperclip, Pencil, Reply, Send, Smile, Trash, Users, WifiOff } from './icons'
 import { HeaderTools } from './chat/HeaderTools'
+import { MessageActionSheet } from './chat/MessageActionSheet'
+import { useLongPress } from './chat/useLongPress'
 import { JumpToPresent, MessageMenuExtras, PinnedMark, PinNoteRow, ThreadSummary } from './chat/PinThreadBits'
 import { withPinNotes } from './chat/pinThreadHelpers'
 import { jumpToMessage, jumpToPresent, loadNewer, useJumpTarget } from '../state/jump'
@@ -75,11 +77,7 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
         </button>
       </header>
 
-      {server.status.state === 'rejected' && (
-        <div className="banner error">
-          {server.status.message}
-        </div>
-      )}
+      <ConnectionBanner server={server} />
 
       {channel ? (
         <>
@@ -92,8 +90,32 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
           )}
         </>
       ) : (
-        <div className="empty-state">{server.status.state === 'online' ? <p>No channels yet.</p> : <Spinner />}</div>
+        <div className="empty-state">
+          {server.status.state === 'online' ? (
+            <>
+              <span className="empty-icon"><Hash size={32} /></span>
+              <h1>No channels here yet</h1>
+              <p>{roleRank(server.me?.role ?? 'guest') >= roleRank('admin') ? 'Create one with the + next to Text channels.' : 'An admin can add some. Check back soon.'}</p>
+            </>
+          ) : <Spinner />}
+        </div>
       )}
+    </div>
+  )
+}
+
+/** Plain words for a server that's away: reconnecting (with a "Try now"), or turned us away. */
+function ConnectionBanner({ server }: { server: ServerState }) {
+  const { status } = server
+  if (status.state === 'rejected') {
+    return <div className="banner error" role="alert"><span>{status.message}</span></div>
+  }
+  if (status.state !== 'offline') return null
+  return (
+    <div className="banner warn" role="status">
+      <WifiOff size={16} />
+      <span>Can't reach {server.name} right now. Iskra keeps trying in the background.</span>
+      <button className="button small" onClick={retryAll}>Try now</button>
     </div>
   )
 }
@@ -165,8 +187,9 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
     <div className="messages" ref={scroller} onScroll={onScroll}>
       {!hasMore && (header ?? (
         <div className="channel-start">
-          <h2>Welcome to the start of the channel.</h2>
-          <p>This is where it all begins. Say hi! 👋</p>
+          <span className="channel-start-icon" aria-hidden><Hash size={32} /></span>
+          <p className="channel-start-title">Welcome to #{server.channels.find((c) => c.id === channelId)?.name ?? 'this channel'}</p>
+          <p>This is the start of the channel. Say hi! 👋</p>
         </div>
       ))}
       {withPinNotes(rendered, notes).map(({ message, grouped, note }) => note ? (
@@ -211,6 +234,9 @@ function MessageRow({
     (mine || (roleRank(me.role) >= roleRank('admin') && (!author || roleRank(me.role) > roleRank(author.role))))
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [picking, setPicking] = useState(false)
+  const [sheet, setSheet] = useState(false)
+  const canEdit = mine && !!message.text && !message.poll
+  const longPress = useLongPress(() => setSheet(true), !message.tempId && !editing)
   const [error, setError] = useState<string | null>(null)
   const emojiLookup = useEmojiLookup(server.key)
 
@@ -228,7 +254,11 @@ function MessageRow({
   }
 
   return (
-    <div id={message.tempId ? undefined : `msg-${message.id}`} className={`message ${grouped && !message.replyTo ? 'grouped' : ''} ${message.pending ?? ''}`}>
+    <div
+      id={message.tempId ? undefined : `msg-${message.id}`}
+      className={`message ${grouped && !message.replyTo ? 'grouped' : ''} ${message.pending ?? ''} ${sheet ? 'pressed' : ''}`}
+      {...longPress}
+    >
       <div className="message-gutter">
         {grouped ? (
           <time className="hover-time" title={fullTime(message.createdAt)}>{messageTime(message.createdAt).replace(/^.* /, '')}</time>
@@ -245,9 +275,9 @@ function MessageRow({
         {(!grouped || message.replyTo) && (
           <div className="message-meta">
             {canOpenProfile ? (
-              <button className="author" style={{ color: `hsl(${hueFor(message.author)} 70% 72%)` }} onClick={(e) => openProfileCard(server.key, message.author, e.currentTarget)}>{name}</button>
+              <button className="author" style={{ color: `hsl(${hueFor(message.author)} 70% var(--name-l))` }} onClick={(e) => openProfileCard(server.key, message.author, e.currentTarget)}>{name}</button>
             ) : (
-              <span className="author" style={{ color: `hsl(${hueFor(message.author)} 70% 72%)` }}>{name}</span>
+              <span className="author" style={{ color: `hsl(${hueFor(message.author)} 70% var(--name-l))` }}>{name}</span>
             )}
             {shown.bot && <BotBadge />}
             <time title={fullTime(message.createdAt)}>{messageTime(message.createdAt)}</time>
@@ -293,12 +323,15 @@ function MessageRow({
               <button onClick={() => setPicking((p) => !p)} title="Add reaction" aria-label="Add reaction"><Smile size={15} /></button>
               <button onClick={() => setReply(server.key, message.channelId, message)} title="Reply" aria-label="Reply"><Reply size={15} /></button>
               <MessageMenuExtras server={server} message={message} />
-              {mine && message.text && !message.poll && <button onClick={() => onEdit(true)} title="Edit" aria-label="Edit"><Pencil size={15} /></button>}
+              {canEdit && <button onClick={() => onEdit(true)} title="Edit" aria-label="Edit"><Pencil size={15} /></button>}
               {canDelete && <button onClick={() => setConfirmDelete(true)} title="Delete" aria-label="Delete"><Trash size={15} /></button>}
             </>
           )}
           {picking && <ReactionPicker server={server} message={message} onClose={() => setPicking(false)} />}
         </div>
+      )}
+      {sheet && (
+        <MessageActionSheet server={server} message={message} canEdit={canEdit} canDelete={canDelete} onEdit={() => onEdit(true)} onClose={() => setSheet(false)} />
       )}
     </div>
   )
@@ -331,7 +364,10 @@ function EditBox({ server, message, onDone }: { server: ServerState; message: Pe
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault()
             void save()
-          } else if (e.key === 'Escape') onDone()
+          } else if (e.key === 'Escape') {
+            e.preventDefault()
+            onDone()
+          }
         }}
       />
       <div className="edit-hint">
@@ -445,7 +481,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
         <div className="pending-uploads">
           {uploads.map((u) => (
             <div key={u.localId} className={`pending-upload ${u.error ? 'failed' : ''}`} title={u.error ?? u.file.name}>
-              {u.preview ? <img src={u.preview} alt="" /> : <span className="file-icon" aria-hidden>📄</span>}
+              {u.preview ? <img src={u.preview} alt="" /> : <span className="file-icon" aria-hidden><FileIcon size={20} /></span>}
               <span className="file-name">{u.file.name}</span>
               <span className="muted">{u.error ? 'Failed' : u.result ? formatSize(u.file.size) : `${Math.round(u.progress * 100)}%`}</span>
               {!u.result && !u.error && <span className="upload-progress" style={{ width: `${u.progress * 100}%` }} />}
@@ -524,6 +560,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
             e.preventDefault()
             window.dispatchEvent(new Event(thread ? 'iskra:edit-last-thread' : 'iskra:edit-last'))
           } else if (e.key === 'Escape' && replyTo) {
+            e.preventDefault()
             setReply(server.key, channelId, null)
           }
         }}

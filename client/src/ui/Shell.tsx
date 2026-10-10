@@ -16,6 +16,8 @@ import { Menu } from './icons'
 import { IncomingCall } from './calls/Calls'
 import { SoundToasts } from './expressions/Soundboard'
 import { ProfileLayer } from './profile/ProfileLayer'
+import { QuickSwitcher } from './QuickSwitcher'
+import { useEscapeLayer } from './layers'
 
 export type Panel = 'none' | 'nav' | 'members'
 
@@ -27,6 +29,8 @@ export function Shell() {
   const [creating, setCreating] = useState(false)
   const stage = useVoice((s) => s.stageOpen && s.session?.serverKey === server?.key && !s.session?.call)
   const hasServers = useApp((s) => s.order.length > 0)
+  // Escape closes an open drawer (phones and narrow windows).
+  useEscapeLayer(() => setPanel('none'), panel !== 'none')
 
   return (
     <div className={`shell panel-${panel} ${server ? '' : 'no-members'}`}>
@@ -58,6 +62,7 @@ export function Shell() {
       {panel !== 'none' && <div className="scrim" onClick={() => setPanel('none')} />}
       <IncomingCall />
       <ProfileLayer />
+      <QuickSwitcher />
       {joining && <JoinDialog onClose={() => setJoining(false)} onCreate={() => { setJoining(false); setCreating(true) }} />}
       {creating && (desktop ? <CreateServerDialog onClose={() => setCreating(false)} /> : <StartServerDialog onClose={() => setCreating(false)} />)}
     </div>
@@ -70,6 +75,9 @@ function EmptyState({ onJoin, onCreate, onMenu }: { onJoin: () => void; onCreate
       <button className="icon-button mobile-only menu-button" onClick={onMenu} aria-label="Open menu">
         <Menu />
       </button>
+      <span className="empty-icon" aria-hidden>
+        <svg width="34" height="34" viewBox="0 0 24 24" aria-hidden><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" fill="currentColor" /></svg>
+      </span>
       <h1>No servers yet</h1>
       {desktop ? (
         <>
