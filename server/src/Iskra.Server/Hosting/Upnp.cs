@@ -37,6 +37,9 @@ public sealed class Upnp : INatRouter
     /// <summary>This computer's address on the router's network (where mapped ports point).</summary>
     public IPAddress LocalAddress { get; }
 
+    /// <summary>Whether it answered from the default gateway's address (any LAN device can answer a UPnP search).</summary>
+    public bool AtGateway { get; init; }
+
     public Upnp(HttpClient http, Uri controlUrl, string serviceType, IPAddress localAddress)
     {
         _http = http;
@@ -50,7 +53,7 @@ public sealed class Upnp : INatRouter
     public static async Task<INatRouter?> DiscoverAsync(HttpClient http, TimeSpan wait, ILogger log, CancellationToken cancel)
     {
         var searches = Networks.Interfaces().Where(i => Networks.IsLan(i.Local))
-            .Select(i => DiscoverOnAsync(http, i.Local, wait, log, cancel)).ToList();
+            .Select(i => DiscoverOnAsync(http, i.Local, i.Gateway, wait, log, cancel)).ToList();
         while (searches.Count > 0)
         {
             var done = await Task.WhenAny(searches);
@@ -60,7 +63,13 @@ public sealed class Upnp : INatRouter
         return null;
     }
 
-    private static async Task<INatRouter?> DiscoverOnAsync(HttpClient http, IPAddress local, TimeSpan wait, ILogger log, CancellationToken cancel)
+    /// <summary>
+    /// Searches one network. The default gateway is the router we want: its answer is used as soon as it comes.
+    /// Other devices that answer (a second router, or anything on the LAN pretending to be one) are only tried
+    /// after the search window, if the gateway didn't answer.
+    /// </summary>
+    private static async Task<INatRouter?> DiscoverOnAsync(HttpClient http, IPAddress local, IPAddress gateway, TimeSpan wait, ILogger log,
+        CancellationToken cancel)
     {
         using var udp = new UdpClient(new IPEndPoint(local, 0));
         var multicast = new IPEndPoint(IPAddress.Parse("239.255.255.250"), 1900);
@@ -74,6 +83,7 @@ public sealed class Upnp : INatRouter
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancel);
         timeout.CancelAfter(wait);
         var tried = new HashSet<string>();
+        var others = new List<Uri>();
         while (true)
         {
             UdpReceiveResult reply;
@@ -83,7 +93,7 @@ public sealed class Upnp : INatRouter
             }
             catch (OperationCanceledException) when (!cancel.IsCancellationRequested)
             {
-                return null;
+                break;
             }
             catch (SocketException)
             {
@@ -94,17 +104,33 @@ public sealed class Upnp : INatRouter
             if (location is null || !IPAddress.TryParse(location.Host, out var host) || !host.Equals(reply.RemoteEndPoint.Address)
                 || !Networks.IsLan(host) || !tried.Add(location.AbsoluteUri))
                 continue;
+            if (!host.Equals(gateway))
+            {
+                others.Add(location);
+                continue;
+            }
+            if (await TryAsync(location, atGateway: true) is { } router) return router;
+        }
+        foreach (var location in others)
+            if (await TryAsync(location, atGateway: false) is { } router) return router;
+        return null;
+
+        async Task<Upnp?> TryAsync(Uri location, bool atGateway)
+        {
             try
             {
-                if (await FromDescriptionAsync(http, location, local, cancel) is { } router) return router;
+                return await FromDescriptionAsync(http, location, local, cancel) is { } found ? found.WithGateway(atGateway) : null;
             }
             catch (Exception ex) when (ex is HttpRequestException or XmlException or PortMappingException or TaskCanceledException or InvalidOperationException)
             {
                 if (cancel.IsCancellationRequested) throw;
                 log.LogDebug(ex, "UPnP device at {Location} isn't usable", location);
+                return null;
             }
         }
     }
+
+    private Upnp WithGateway(bool atGateway) => new(_http, ControlUrl, ServiceType, LocalAddress) { AtGateway = atGateway };
 
     internal static Uri? ParseLocation(string response)
     {

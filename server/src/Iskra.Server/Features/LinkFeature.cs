@@ -49,15 +49,23 @@ public sealed class LinkRelay
     private readonly Dictionary<string, Entry> _entries = new(StringComparer.Ordinal);
     private readonly Lock _gate = new();
     private readonly TimeProvider _time;
+    private readonly AccountLimits _perAddress;
 
     public LinkSettings Settings { get; }
 
     public LinkRelay(World world, TimeProvider time, IOptions<LinkSettings> settings)
     {
         _time = time;
+        _perAddress = new AccountLimits(time);
         Settings = settings.Value;
         ByWorld.AddOrUpdate(world, this);
     }
+
+    /// <summary>The HTTP side has no account: limit it per client address.</summary>
+    private bool Allowed(HttpContext context) =>
+        _perAddress.TryTake(context.Connection.RemoteIpAddress?.ToString() ?? "unknown", "link.http");
+
+    private static IResult TooMany() => Results.StatusCode(StatusCodes.Status429TooManyRequests);
 
     /// <summary>The relay for a world (WebSocket handlers are static and reach it through the session's world).</summary>
     public static LinkRelay Of(World world) =>
@@ -180,16 +188,28 @@ public sealed class LinkRelay
         }
     }
 
+    /// <summary>Checks token, key and state: null if a payload may be delivered, else the answer. Runs before the body is read.</summary>
+    private IResult? CheckDelivery(string token, string? putKey)
+    {
+        var entry = Find(token);
+        if (entry is null) return Results.NotFound();
+        if (putKey is null || !CryptographicOperations.FixedTimeEquals(System.Text.Encoding.UTF8.GetBytes(putKey), System.Text.Encoding.UTF8.GetBytes(entry.PutKey)))
+            return Results.StatusCode(StatusCodes.Status403Forbidden);
+        return entry.State != State.Answered ? Results.Conflict() : null;
+    }
+
+    public IResult? CanDeliver(string token, string? putKey)
+    {
+        lock (_gate) return CheckDelivery(token, putKey);
+    }
+
     /// <summary>The existing device uploads the encrypted payload (too big for a WebSocket frame).</summary>
     public IResult Deliver(string token, string? putKey, byte[] payload)
     {
         lock (_gate)
         {
-            var entry = Find(token);
-            if (entry is null) return Results.NotFound();
-            if (putKey is null || !CryptographicOperations.FixedTimeEquals(System.Text.Encoding.UTF8.GetBytes(putKey), System.Text.Encoding.UTF8.GetBytes(entry.PutKey)))
-                return Results.StatusCode(StatusCodes.Status403Forbidden);
-            if (entry.State != State.Answered) return Results.Conflict();
+            if (CheckDelivery(token, putKey) is { } refused) return refused;
+            var entry = _entries[token];
             entry.Payload = payload;
             entry.State = State.Done;
             return Results.Ok(new { });
@@ -207,24 +227,28 @@ public sealed class LinkRelay
         context.Response.Headers.CacheControl = "no-store";
     }
 
-    /// <summary>Reads at most <paramref name="max"/> bytes; null if the body is bigger.</summary>
+    /// <summary>Reads at most <paramref name="max"/> bytes; null if the body is bigger. Memory grows with what actually arrives.</summary>
     private static async Task<byte[]?> ReadBodyAsync(HttpContext context, int max)
     {
         if (context.Request.ContentLength > max) return null;
         if (context.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } limit)
             limit.MaxRequestBodySize = max;
-        var buffer = new byte[max + 1];
-        var length = 0;
+        using var output = new MemoryStream();
+        var chunk = new byte[Math.Min(max + 1, 16 * 1024)];
         try
         {
             int read;
-            while (length < buffer.Length && (read = await context.Request.Body.ReadAsync(buffer.AsMemory(length))) > 0) length += read;
+            while ((read = await context.Request.Body.ReadAsync(chunk)) > 0)
+            {
+                if (output.Length + read > max) return null;
+                output.Write(chunk, 0, read);
+            }
         }
         catch (BadHttpRequestException)
         {
             return null;
         }
-        return length > max ? null : buffer[..length];
+        return output.ToArray();
     }
 
     public static void MapEndpoints(WebApplication app)
@@ -239,6 +263,7 @@ public sealed class LinkRelay
         app.MapPost("/link/{token}", async (HttpContext context, string token, LinkRelay relay) =>
         {
             AllowCors(context);
+            if (!relay.Allowed(context)) return TooMany();
             var body = await ReadBodyAsync(context, relay.Settings.MaxRequestBytes);
             if (body is null) return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
             try
@@ -254,11 +279,14 @@ public sealed class LinkRelay
         app.MapGet("/link/{token}", (HttpContext context, string token, string? key, LinkRelay relay) =>
         {
             AllowCors(context);
-            return relay.Poll(token, key);
+            return relay.Allowed(context) ? relay.Poll(token, key) : TooMany();
         });
         app.MapPut("/link/{token}", async (HttpContext context, string token, string? key, LinkRelay relay) =>
         {
             AllowCors(context);
+            if (!relay.Allowed(context)) return TooMany();
+            // Token, key and state first: nobody gets to make the server read a megabyte without the put key.
+            if (relay.CanDeliver(token, key) is { } refused) return refused;
             var body = await ReadBodyAsync(context, relay.Settings.MaxPayloadBytes);
             if (body is null) return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
             if (body.Length == 0) return Results.BadRequest();

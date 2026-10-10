@@ -8,8 +8,11 @@ namespace Iskra.Server.Sessions;
 /// The set of connected, authenticated sessions. Broadcasts look up each recipient's *current* role
 /// so permission changes apply immediately.
 /// </summary>
-public sealed class Hub(World world)
+public sealed class Hub(World world, TimeProvider time)
 {
+    /// <summary>Rate limits shared by all of an account's sessions.</summary>
+    public AccountLimits Limits { get; } = new(time);
+
     private readonly ConcurrentDictionary<Session, byte> _sessions = new();
 
     public IEnumerable<Session> Sessions => _sessions.Keys;

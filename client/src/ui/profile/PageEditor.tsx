@@ -69,7 +69,7 @@ export function PageEditor({ onClose }: { onClose: () => void }) {
     >
       <p className="muted page-note">
         One HTML file with inline CSS, JavaScript and data: images, up to {MAX_PAGE_BYTES / 1024} KB. It runs in a sandbox:
-        no network, no forms, no pop-ups, and no access to anyone's account.
+        no network, no forms, no pop-ups, and no access to anyone's account. Viewers see it without scripts unless they turn them on.
         {closedOn.length > 0 && ` Pages are turned off on ${closedOn.join(', ')}.`}
       </p>
       <div className="page-editor">

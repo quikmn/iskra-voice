@@ -206,8 +206,8 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
             UseShellExecute = false,
             CreateNoWindow = true,
         };
-        info.ArgumentList.Add("--config-body");
-        info.ArgumentList.Add(ConfigYaml(iskraPort));
+        // The config holds the API secret: pass it in the environment (private to us), not on the command line (visible to every user).
+        info.Environment["LIVEKIT_CONFIG"] = ConfigYaml(iskraPort);
 
         using var process = Process.Start(info) ?? throw new InvalidOperationException("Could not start livekit-server.");
         Hosting.ChildProcesses.Bind(process); // dies with us, even if we're killed

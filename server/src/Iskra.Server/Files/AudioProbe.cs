@@ -56,14 +56,32 @@ public static class AudioProbe
         else return null;
         if (rate == 0) return null;
 
-        for (var i = data.Length - 27; i >= 0; i--)
+        // Walk every page from the start: one logical stream, pages back to back up to the end of the file, granule
+        // positions never going backwards. Then the last granule really is the length (nothing longer hides
+        // behind a short final page, in a second stream or in trailing bytes).
+        var serial = BinaryPrimitives.ReadUInt32LittleEndian(data[14..]);
+        long last = -1;
+        var at = 0;
+        while (at < data.Length)
         {
-            if (data[i] != (byte)'O' || !data[i..].StartsWith("OggS"u8)) continue;
-            var granule = BinaryPrimitives.ReadInt64LittleEndian(data[(i + 6)..]);
-            if (granule < 0) continue;
-            return (int)Math.Max(0, (granule - skip) * 1000 / rate);
+            if (at + 27 > data.Length || !data[at..].StartsWith("OggS"u8) || data[at + 4] != 0) return null;
+            if (BinaryPrimitives.ReadUInt32LittleEndian(data[(at + 14)..]) != serial) return null;
+            var count = data[at + 26];
+            if (at + 27 + count > data.Length) return null;
+            var size = 27 + count;
+            foreach (var lacing in data.Slice(at + 27, count)) size += lacing;
+            if (at + size > data.Length) return null;
+            var granule = BinaryPrimitives.ReadInt64LittleEndian(data[(at + 6)..]);
+            if (granule != -1)
+            {
+                if (granule < 0 || granule < last) return null;
+                last = granule;
+            }
+            at += size;
         }
-        return null;
+        if (last < 0) return null;
+        var ms = Math.Max(0, last - skip) / (double)rate * 1000;
+        return (int)Math.Min(ms, int.MaxValue);
     }
 
     private static readonly int[] Mp3BitratesV1L3 = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320];

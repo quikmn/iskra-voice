@@ -26,6 +26,26 @@ public class BotTests
     }
 
     [Fact]
+    public async Task Bots_cannot_call_or_send_direct_messages()
+    {
+        using var server = new IskraServer();
+        using var admin = await server.JoinAsync("Admin", "admin");
+        var (client, identity, welcome) = await Connect(server, await BotInvite(admin), bot: true);
+        using var _ = client;
+        using var __ = identity;
+        Assert.Equal("welcome", welcome.Type());
+        var botKey = identity.AccountKey;
+        var callId = Iskra.Server.Crypto.Ed25519.ToB64u(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
+        var envelope = new { v = 1, ct = "opaque" };
+
+        Assert.Equal("forbidden", (await client.RequestAsync("call.start", new { accountKey = admin.Key, callId, envelope })).ErrorCode());
+        Assert.Equal("forbidden", (await client.RequestAsync("call.accept", new { callId })).ErrorCode());
+        Assert.Equal("forbidden", (await client.RequestAsync("dm.send", new { accountKey = admin.Key, envelope })).ErrorCode());
+        // Nor can a bot be called: it couldn't read the media key.
+        Assert.Equal("bad_request", (await admin.RequestAsync("call.start", new { accountKey = botKey, callId, envelope })).ErrorCode());
+    }
+
+    [Fact]
     public async Task Only_admins_make_bot_invites_and_bots_stay_below_admin()
     {
         using var server = new IskraServer();

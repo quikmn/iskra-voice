@@ -219,7 +219,7 @@ function SoundRow({ server, sound }: { server: ServerState; sound: Sound }) {
 
   return (
     <li className="expression-row">
-      <button className="icon-button" aria-label={`Preview ${sound.name}`} title="Preview (only you hear it)" disabled={!url} onClick={() => url && playUrl(url)}>
+      <button className="icon-button" aria-label={`Preview ${sound.name}`} title="Preview (only you hear it)" disabled={!url} onClick={() => url && playUrl(url, undefined, sound.durationMs)}>
         <Play size={16} />
       </button>
       {canManage ? (

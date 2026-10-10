@@ -134,7 +134,10 @@ public static class ChatFeature
         var size = body.OptionalLong("size", min: 1) ?? throw RequestException.BadRequest("'size' is required.");
         if (size > s.Uploads.MaxBytes)
             throw RequestException.BadRequest($"Files can be up to {s.Uploads.MaxBytes / 1024 / 1024} MB on this server.");
-        var token = s.Uploads.Issue(me.AccountKey, body.OptionalString("name", 512) ?? "file", size);
+        if (!s.Hub.Limits.TryTake(me.AccountKey, "upload.begin")) throw new RequestException("rate_limited", "Slow down a little.");
+        var token = s.Uploads.Issue(me.AccountKey, me.Role, body.OptionalString("name", 512) ?? "file", size)
+            ?? throw new RequestException("rate_limited",
+                $"You've reached today's upload limit on this server ({s.Uploads.DailyQuota(me.Role)!.Value / 1024 / 1024} MB a day). Try again later.");
         return new { url = $"/upload/{token}", maxBytes = s.Uploads.MaxBytes };
     }
 

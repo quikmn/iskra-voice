@@ -2,7 +2,7 @@
 // and the full member dialog they lead to. Rendered once by the Shell.
 import { useLayoutEffect, useRef, useState } from 'react'
 import { fingerprint } from '../../core/connection'
-import { pageUrl, wrapperDocument } from '../../core/profile'
+import { pageScriptsAllowed, pageUrl, setPageScripts, wrapperDocument } from '../../core/profile'
 import { roleRank, type Member } from '../../core/protocol'
 import { addFriend, openConversation, removeFriend, useDms } from '../../state/dms'
 import {
@@ -135,20 +135,50 @@ function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; me
   )
 }
 
-/** A member's page, in a sandbox inside a wrapper that pins where it can go. */
+/**
+ * A member's page, in a sandbox inside a wrapper that pins where it can go. Scripts stay off unless the
+ * viewer turns them on for this version of the page.
+ */
 export function PageViewer({ server, member }: { server: ServerState; member: Member }) {
   const url = pageUrl(server.url, member.page)
   const me = server.me
   const canRemove = !!me && me.accountKey !== member.accountKey && roleRank(me.role) >= roleRank('admin') && roleRank(me.role) > roleRank(member.role)
   const [error, setError] = useState<string | null>(null)
+  const isSelf = me?.accountKey === member.accountKey
+  const [scripts, setScripts] = useState(() => isSelf || pageScriptsAllowed(member.pageHash))
+  const choose = (on: boolean) => {
+    if (member.pageHash) setPageScripts(member.pageHash, on)
+    setScripts(on)
+  }
 
   return (
     <Modal title={`${member.name}'s page`} onClose={closeProfilePage} wide>
       <p className="page-note muted">
-        Made by {member.name}. It runs in a sandbox: it can't see your account, your messages or anything on this device, and it can't reach the internet.
+        Made by {member.name}. It runs in a sandbox: it can't see your account, your messages or anything on this device.
       </p>
+      {url && !isSelf && (
+        <div className="page-scripts">
+          {scripts ? (
+            <>
+              <span>Scripts are on. The author could learn your IP address.</span>
+              <button className="button small" onClick={() => choose(false)}>Turn off</button>
+            </>
+          ) : (
+            <>
+              <span>Run this page's scripts? The author could learn your IP address.</span>
+              <button className="button small" onClick={() => choose(true)}>Run scripts</button>
+            </>
+          )}
+        </div>
+      )}
       {url ? (
-        <iframe className="page-frame" title={`${member.name}'s profile page`} srcDoc={wrapperDocument(url)} referrerPolicy="no-referrer" />
+        <iframe
+          key={scripts ? 'scripts' : 'static'}
+          className="page-frame"
+          title={`${member.name}'s profile page`}
+          srcDoc={wrapperDocument(url, scripts)}
+          referrerPolicy="no-referrer"
+        />
       ) : (
         <p className="muted">This page isn't available.</p>
       )}

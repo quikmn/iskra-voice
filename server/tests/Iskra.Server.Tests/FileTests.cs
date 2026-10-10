@@ -72,6 +72,26 @@ public class FileTests
     }
 
     [Fact]
+    public async Task A_jpeg_size_is_found_past_large_metadata()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        // Two 64 KB APP1 segments (like a big EXIF block and a colour profile), then the frame header.
+        var jpeg = new List<byte> { 0xFF, 0xD8 };
+        for (var i = 0; i < 2; i++)
+        {
+            jpeg.AddRange([0xFF, 0xE1, 0xFF, 0xFF]);
+            jpeg.AddRange(new byte[0xFFFF - 2]);
+        }
+        jpeg.AddRange([0xFF, 0xC0, 0x00, 0x11, 0x08, 0x02, 0x58, 0x03, 0x20, 0x03, 1, 0x22, 0, 2, 0x11, 1, 3, 0x11, 1]);
+        jpeg.AddRange([0xFF, 0xD9]);
+        var file = await Upload(server, alice, jpeg.ToArray(), "big-exif.jpg");
+        Assert.Equal("image/jpeg", file.GetProperty("type").GetString());
+        Assert.Equal(800, file.GetProperty("width").GetInt32());
+        Assert.Equal(600, file.GetProperty("height").GetInt32());
+    }
+
+    [Fact]
     public async Task Identical_files_are_stored_once()
     {
         using var server = new IskraServer();

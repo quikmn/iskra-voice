@@ -200,7 +200,7 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
         {messages.map((dm, i) => {
           const prev = messages[i - 1]
           const grouped = !!prev && prev.from === dm.from && dm.sentAt - prev.sentAt < GROUP_WINDOW_MS && !prev.pending && !prev.error
-          return <DmRow key={dm.id} dm={dm} grouped={grouped} peer={peer} mine={dm.from === myKey} />
+          return <DmRow key={`${dm.from}:${dm.id}`} dm={dm} grouped={grouped} peer={peer} mine={dm.from === myKey} />
         })}
       </div>
 

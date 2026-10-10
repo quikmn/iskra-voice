@@ -183,4 +183,20 @@ public class PortMappingTests
         using (var probe = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0))) port = ((IPEndPoint)probe.Client.LocalEndPoint!).Port;
         Assert.Null(await NatPmp.DiscoverAsync([IPAddress.Loopback], TestContext.Current.CancellationToken, port));
     }
+
+    [Fact]
+    public void The_default_gateway_is_preferred_over_other_responders()
+    {
+        var http = new HttpClient();
+        var url = new Uri("http://192.168.1.1/ctl");
+        var gatewayUpnp = new Upnp(http, url, "urn:schemas-upnp-org:service:WANIPConnection:1", IPAddress.Parse("192.168.1.20")) { AtGateway = true };
+        var otherUpnp = new Upnp(http, new Uri("http://192.168.1.66/ctl"), "urn:schemas-upnp-org:service:WANIPConnection:1", IPAddress.Parse("192.168.1.20"));
+        var pmp = new NatPmp(new IPEndPoint(IPAddress.Parse("192.168.1.1"), 5351));
+
+        Assert.Same(gatewayUpnp, PortMapper.Choose(gatewayUpnp, pmp));
+        Assert.Same(pmp, PortMapper.Choose(otherUpnp, pmp));      // NAT-PMP only ever talks to the gateway
+        Assert.Same(otherUpnp, PortMapper.Choose(otherUpnp, null)); // nothing at the gateway: the other one is all there is
+        Assert.Same(pmp, PortMapper.Choose(null, pmp));
+        Assert.Null(PortMapper.Choose(null, null));
+    }
 }

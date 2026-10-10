@@ -37,11 +37,19 @@ public static class CallFeature
         return id;
     }
 
+    /// <summary>Bots can't decrypt the media key (it travels in a DM envelope), so they can't take part in calls.</summary>
+    private static void NotABot(Session s, Member me)
+    {
+        if (s.World.Store.IsBot(me.AccountKey)) throw RequestException.Forbidden("Bots can't make or answer calls.");
+    }
+
     private static object Start(Session s, Member me, Body body)
     {
+        NotABot(s, me);
         var peerKey = body.String("accountKey", 64);
         if (peerKey == me.AccountKey) throw RequestException.BadRequest("You can't call yourself.");
         var peer = s.World.Store.GetMember(peerKey) ?? throw RequestException.NotFound("Member");
+        if (s.World.Store.IsBot(peer.AccountKey)) throw RequestException.BadRequest("Bots can't take calls.");
         var id = CallId(body);
         var video = body.OptionalBool("video") ?? false;
         var envelope = body.Element("envelope");
@@ -49,6 +57,9 @@ public static class CallFeature
         var raw = envelope.GetRawText();
         if (raw.Length > DmFeature.MaxEnvelopeBytes) throw RequestException.BadRequest("'envelope' is too large.");
         if (!s.Voice.Backend.Available) throw new RequestException("voice_unavailable", "Calls aren't available on this server right now.");
+        // Per account, so more connections don't mean more ringing: 10 calls a minute, 3 to the same person.
+        if (!s.Hub.Limits.TryTake(me.AccountKey, "call.start.callee", peer.AccountKey) || !s.Hub.Limits.TryTake(me.AccountKey, "call.start"))
+            throw new RequestException("rate_limited", "Too many calls in a short time. Try again in a minute.");
 
         var call = s.Voice.Calls.Start(me.AccountKey, peer.AccountKey, id, video, raw);
         s.Push.IncomingCall(me, peer.AccountKey);
@@ -57,6 +68,7 @@ public static class CallFeature
 
     private static object Accept(Session s, Member me, Body body)
     {
+        NotABot(s, me);
         if (!s.Voice.Backend.Available) throw new RequestException("voice_unavailable", "Calls aren't available on this server right now.");
         var call = s.Voice.Calls.Accept(CallId(body), me.AccountKey, s);
         return Media(s, me, call);

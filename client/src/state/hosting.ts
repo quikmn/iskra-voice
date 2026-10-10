@@ -176,7 +176,9 @@ export function hostSummary(s: HostStatus): { tone: 'ok' | 'warn' | 'busy' | 'of
   if (!s.enabled) return { tone: 'off', text: 'Only people on your network can join.' }
   if (s.cgnat) return { tone: 'warn', text: "Your internet connection can't host a server directly." }
   if (s.publicUrl?.startsWith('https://')) return { tone: 'ok', text: 'Open to the internet. Invite links work in any browser.' }
-  if (s.publicUrl) return { tone: 'warn', text: 'Open to the desktop app only: browsers need HTTPS.' }
-  if (s.router.state === 'searching' || s.https.state === 'requesting') return { tone: 'busy', text: 'Setting things up…' }
+  if (s.publicUrl) return { tone: 'warn', text: 'Using a plain HTTP address set in server.json: messages and logins cross the internet unencrypted.' }
+  if (s.router.state === 'searching') return { tone: 'busy', text: 'Setting things up…' }
+  if (s.address && (s.https.state === 'requesting' || s.https.state === 'waiting')) return { tone: 'busy', text: 'Waiting for HTTPS…' }
+  if (s.address && s.https.state !== 'valid') return { tone: 'warn', text: "Waiting for HTTPS. Invite links stay local until it works. See what's missing below." }
   return { tone: 'warn', text: "Not reachable from the internet yet. See what's missing below." }
 }

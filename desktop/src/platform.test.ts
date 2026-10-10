@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { compareVersions, defaultHostRoot, exeName, isWayland, newerRelease, serverRid, skipScreenPicker, updateMode } from './platform'
+import { compareVersions, defaultHostRoot, exeName, isAppPage, isWayland, newerRelease, serverRid, skipScreenPicker, updateMode } from './platform'
 
 test('server binaries and runtime ids per platform', () => {
   assert.equal(exeName('iskra-server', 'win32'), 'iskra-server.exe')
@@ -57,4 +57,18 @@ test('newer release ignores drafts, odd tags and older versions', () => {
   assert.deepEqual(newerRelease(releases, '2.0.0-alpha.2'), { version: '2.0.0-alpha.3', url: releases[1].html_url })
   assert.equal(newerRelease(releases, '2.0.0-alpha.3'), null)
   assert.equal(newerRelease([{ ...r('v9.0.0'), html_url: 'https://evil.example/x' }], '2.0.0'), null)
+})
+
+test('only the app itself counts as the app page', () => {
+  assert.equal(isAppPage('app://iskra/index.html', 'app://iskra'), true)
+  assert.equal(isAppPage('app://iskra/', 'app://iskra'), true)
+  assert.equal(isAppPage('app://iskra.evil/index.html', 'app://iskra'), false)
+  assert.equal(isAppPage('app://other/index.html', 'app://iskra'), false)
+  assert.equal(isAppPage('app://x@iskra/', 'app://iskra'), false)
+  assert.equal(isAppPage('https://iskra/', 'app://iskra'), false)
+  assert.equal(isAppPage('not a url', 'app://iskra'), false)
+  assert.equal(isAppPage('http://localhost:5173/#/x', 'app://iskra', 'http://localhost:5173'), true)
+  assert.equal(isAppPage('http://localhost:51730/', 'app://iskra', 'http://localhost:5173'), false)
+  assert.equal(isAppPage('http://localhost:5173.evil.com/', 'app://iskra', 'http://localhost:5173'), false)
+  assert.equal(isAppPage('http://localhost:5173/', 'app://iskra'), false)
 })

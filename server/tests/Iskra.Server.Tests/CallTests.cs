@@ -220,6 +220,28 @@ public class CallTests
     }
 
     [Fact]
+    public async Task Calls_are_rate_limited_per_account_and_callee()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        using var bob = await server.JoinAsync("Bob");
+        using var carol = await server.JoinAsync("Carol");
+
+        for (var i = 0; i < 3; i++)
+        {
+            var id = NewId();
+            Assert.Equal("result", (await Start(alice, bob, id)).Type());
+            await alice.RequestAsync("call.end", new { callId = id });
+        }
+        Assert.Equal("rate_limited", (await Start(alice, bob, NewId())).ErrorCode());
+        // A second connection doesn't reset it, and someone else can still be called.
+        using var again = await server.ConnectAsync();
+        await again.LoginAsync(alice.Identity, "Alice");
+        Assert.Equal("rate_limited", (await again.RequestAsync("call.start", new { accountKey = bob.Key, callId = NewId(), envelope = Envelope() })).ErrorCode());
+        Assert.Equal("result", (await Start(alice, carol, NewId())).Type());
+    }
+
+    [Fact]
     public async Task Removing_a_member_ends_their_calls()
     {
         using var server = new IskraServer();

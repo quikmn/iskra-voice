@@ -1,6 +1,7 @@
-import { beforeAll, describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { ready } from './crypto'
-import { authProfile, MAX_PAGE_BYTES, pageUrl, previewDocument, profileForLink, profileFromLink, sha256Hex, wrapperDocument } from './profile'
+import serverPages from '../../../server/src/Iskra.Server/Features/ProfilePages.cs?raw'
+import { authProfile, MAX_PAGE_BYTES, PAGE_PRELUDE, pageScriptsAllowed, pageUrl, previewDocument, profileForLink, profileFromLink, setPageScripts, sha256Hex, wrapperDocument } from './profile'
 
 beforeAll(ready)
 
@@ -27,6 +28,34 @@ describe('profiles', () => {
     expect(wrapperDocument('http://localhost:1/pages/abc')).toContain("frame-src http://localhost:1/pages/abc;")
     expect(wrapperDocument(null)).toContain("frame-src 'none';")
     expect(wrapperDocument('x" onload="alert(1)')).not.toContain('" onload')
+  })
+
+  it('shows pages without scripts unless the viewer turns them on', () => {
+    const off = wrapperDocument('http://localhost:1/pages/abc')
+    expect(off).toContain('src="http://localhost:1/pages/abc" sandbox=""')
+    expect(off).not.toContain('allow-scripts')
+    const on = wrapperDocument('http://localhost:1/pages/abc', true)
+    expect(on).toContain('src="http://localhost:1/pages/abc?scripts=1" sandbox="allow-scripts"')
+    expect(on).toContain('frame-src http://localhost:1/pages/abc;')
+  })
+
+  it('remembers the scripts choice per page version', () => {
+    const data = new Map<string, string>()
+    vi.stubGlobal('localStorage', { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => data.set(k, v) })
+    expect(pageScriptsAllowed('h1')).toBe(false)
+    setPageScripts('h1', true)
+    expect(pageScriptsAllowed('h1')).toBe(true)
+    expect(pageScriptsAllowed('h2')).toBe(false)
+    expect(pageScriptsAllowed(null)).toBe(false)
+    setPageScripts('h1', false)
+    expect(pageScriptsAllowed('h1')).toBe(false)
+    data.set('iskra.pageScripts', '{bad json')
+    expect(pageScriptsAllowed('h1')).toBe(false)
+    vi.unstubAllGlobals()
+  })
+
+  it('uses the same prelude as the server', () => {
+    expect(/Prelude = """(.*?)""";/.exec(serverPages)?.[1]).toBe(PAGE_PRELUDE)
   })
 
   it('puts the preview policy before the page, after its doctype', () => {

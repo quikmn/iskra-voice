@@ -105,6 +105,7 @@ export function LinkDeviceDialog({ onClose }: { onClose: () => void }) {
   const [serverKey, setServerKey] = useState(servers[0]?.key ?? '')
   const [history, setHistory] = useState(true)
   const [copied, setCopied] = useState(false)
+  const [typed, setTyped] = useState('')
 
   useEffect(() => () => void cancelLinkOffer(), [])
 
@@ -157,15 +158,26 @@ export function LinkDeviceDialog({ onClose }: { onClose: () => void }) {
       )}
 
       {state.phase === 'confirm' && (
-        <div className="link-offer">
-          <p>{state.info ? <><strong>{state.info}</strong> wants to link.</> : 'A device wants to link.'} Does it show this number?</p>
-          <div className="confirm-code" data-testid="link-confirm">{state.confirm}</div>
-          <p className="muted">Only continue if the numbers match. Then the new device gets your account.</p>
+        <form className="link-offer" onSubmit={(e) => { e.preventDefault(); void confirmLinkOffer(typed) }}>
+          <p>{state.info ? <><strong>{state.info}</strong> wants to link.</> : 'A device wants to link.'} Type the number it shows:</p>
+          <input
+            className="confirm-code"
+            style={{ display: 'block', width: '100%', boxSizing: 'border-box' }}
+            aria-label="Number on the new device"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={7}
+            placeholder="000 000"
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            autoFocus
+          />
+          <p className="muted">Only your own new device shows this number. Then it gets your account.</p>
           <div className="copy-row">
-            <button className="button primary" onClick={() => void confirmLinkOffer()}>Yes, link it</button>
-            <button className="button" onClick={close}>No, cancel</button>
+            <button type="submit" className="button primary" disabled={typed.replace(/\D/g, '').length !== 6}>Link it</button>
+            <button type="button" className="button" onClick={close}>Cancel</button>
           </div>
-        </div>
+        </form>
       )}
 
       {state.phase === 'sending' && <p className="muted"><Spinner /> Sending your account…</p>}

@@ -92,7 +92,7 @@ public static class WebhookFeature
         if (fileId.Length == 0) return null;
         var file = s.World.Store.GetFile(fileId);
         if (file is null || file.Uploader != me.AccountKey) throw RequestException.BadRequest("Unknown avatar file.");
-        if (!file.Type.StartsWith("image/", StringComparison.Ordinal)) throw RequestException.BadRequest("The avatar must be an image.");
+        ProfileFeature.CheckAvatarImage(file);
         return file.Id;
     }
 

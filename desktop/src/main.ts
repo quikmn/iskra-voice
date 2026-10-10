@@ -5,7 +5,7 @@ import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, Menu, nativeImage
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Host } from './host'
-import { isWayland, MAC_SETTINGS, skipScreenPicker, type SettingsPane } from './platform'
+import { isAppPage, isWayland, MAC_SETTINGS, skipScreenPicker, type SettingsPane } from './platform'
 import { PushToTalk } from './ptt'
 import { Updates, type UpdateStatus } from './updates'
 
@@ -44,9 +44,7 @@ function showWindow(): void {
   window.focus()
 }
 
-function isAppUrl(url: string): boolean {
-  return url.startsWith(APP_ORIGIN + '/') || (!!DEV_URL && url.startsWith(DEV_URL))
-}
+const isAppUrl = (url: string) => isAppPage(url, APP_ORIGIN, DEV_URL)
 
 function createWindow(): void {
   window = new BrowserWindow({

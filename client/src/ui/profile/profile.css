@@ -53,6 +53,7 @@ button.author:hover { text-decoration: underline; }
   display: block; width: 100%; height: min(70dvh, 720px); border: 1px solid var(--border); border-radius: var(--radius); background: #fff;
 }
 .page-admin { margin-top: 12px; }
+.page-scripts { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; margin: 0 0 12px; font-size: 13px; }
 .page-editor { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; height: min(62dvh, 640px); }
 .page-source { display: flex; flex-direction: column; min-height: 0; gap: 6px; }
 .page-source textarea { flex: 1; min-height: 0; resize: none; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; white-space: pre; tab-size: 2; }

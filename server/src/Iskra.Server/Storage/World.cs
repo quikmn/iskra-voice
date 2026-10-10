@@ -24,11 +24,21 @@ public sealed record WorldSettings
     /// <summary>Largest file a member may upload. Generous by default: no Nitro here.</summary>
     public int MaxUploadMb { get; init; } = 100;
 
+    /// <summary>How much each account may upload per day (admins and the owner aren't limited).</summary>
+    public UploadQuotaSettings UploadQuota { get; init; } = new();
+
     public VoiceSettings Voice { get; init; } = new();
 
     public HttpsSettings Https { get; init; } = new();
 
     public InternetSettings Internet { get; init; } = new();
+}
+
+/// <summary>Daily upload allowance per account, in MB over any 24 hours. 0 means no limit.</summary>
+public sealed record UploadQuotaSettings
+{
+    public int MemberMbPerDay { get; init; } = 2048;
+    public int GuestMbPerDay { get; init; } = 200;
 }
 
 /// <summary>Opening the server to the internet: router port mapping, an automatic address and HTTPS.</summary>
@@ -115,8 +125,9 @@ public sealed class World : IDisposable
     public static World OpenOrCreate(string path)
     {
         path = System.IO.Path.GetFullPath(path);
-        Directory.CreateDirectory(path);
-        Directory.CreateDirectory(System.IO.Path.Combine(path, "uploads"));
+        AtomicFile.CreatePrivateDirectory(path);
+        AtomicFile.CreatePrivateDirectory(System.IO.Path.Combine(path, "uploads"));
+        AtomicFile.TightenSecrets(path);
 
         var settingsPath = System.IO.Path.Combine(path, "server.json");
         WorldSettings settings;
@@ -172,11 +183,42 @@ public sealed class World : IDisposable
 
 internal static class AtomicFile
 {
-    /// <summary>Write to a temp file, then rename over the target, so a crash never leaves a half-written file.</summary>
+    private const UnixFileMode OwnerOnlyFile = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+    private const UnixFileMode OwnerOnlyDirectory = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
+
+    /// <summary>Files in a world folder that hold keys or a one-time owner link (relative to the world).</summary>
+    public static readonly string[] SecretFiles =
+        ["server.key", "vapid.json", "livekit.key", "owner-invite.txt", Path.Combine("certs", "acme-account.pem"), Path.Combine("certs", "key.pem")];
+
+    /// <summary>Write to a temp file, then rename over the target, so a crash never leaves a half-written file.
+    /// On Linux and macOS the file is readable by its owner only (0600), from the moment it exists.</summary>
     public static void WriteAllText(string path, string contents)
     {
         var temp = path + ".tmp";
-        File.WriteAllText(temp, contents);
+        File.Delete(temp); // left over from a crash
+        var options = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write };
+        if (!OperatingSystem.IsWindows()) options.UnixCreateMode = OwnerOnlyFile;
+        using (var stream = new FileStream(temp, options))
+        using (var writer = new StreamWriter(stream, new System.Text.UTF8Encoding(false)))
+            writer.Write(contents);
         File.Move(temp, path, overwrite: true);
+    }
+
+    /// <summary>Creates a directory only its owner can enter (0700 on Linux and macOS). Existing directories are left alone.</summary>
+    public static void CreatePrivateDirectory(string path)
+    {
+        if (OperatingSystem.IsWindows()) Directory.CreateDirectory(path);
+        else Directory.CreateDirectory(path, OwnerOnlyDirectory);
+    }
+
+    /// <summary>Older worlds may hold secrets written world-readable: make them owner-only (0600).</summary>
+    public static void TightenSecrets(string worldPath)
+    {
+        if (OperatingSystem.IsWindows()) return;
+        foreach (var name in SecretFiles)
+        {
+            var file = Path.Combine(worldPath, name);
+            if (File.Exists(file) && (File.GetUnixFileMode(file) & ~OwnerOnlyFile) != 0) File.SetUnixFileMode(file, OwnerOnlyFile);
+        }
     }
 }

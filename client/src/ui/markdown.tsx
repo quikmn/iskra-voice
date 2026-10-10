@@ -2,6 +2,7 @@
 // Supported: ```code blocks```, `code`, **bold**, *italic* / _italic_, ~~strike~~, ||spoiler||,
 // > quotes, links, mentions written as <@accountKey> (shown as @name) and server emoji written as <:name:id>.
 import { Fragment, type ReactNode } from 'react'
+import { roleRank, type Role } from '../core/protocol'
 import { Spoiler } from './bits'
 import { CUSTOM_EMOJI_SOURCE, isEmojiOnly } from './expressions/emoji'
 
@@ -171,7 +172,18 @@ export function decodeMentions(text: string, nameOf: (accountKey: string) => str
   return text.replace(/<@([A-Za-z0-9_-]{43})>/g, (_, key: string) => `@${nameOf(key) ?? 'unknown'}`)
 }
 
-/** Does this message mention the viewer (directly or with @everyone)? */
-export function mentions(text: string, me: string): boolean {
-  return text.includes(`<@${me}>`) || /(^|\s)@everyone\b/.test(text)
+/**
+ * Does this message mention the viewer: directly, or with @everyone/@here when its author may ping
+ * groups (see canPingGroups)? Otherwise the text still shows, it just doesn't notify.
+ */
+export function mentions(text: string, me: string, groupPings = true): boolean {
+  return text.includes(`<@${me}>`) || (groupPings && /(^|\s)@(everyone|here)\b/.test(text))
+}
+
+/**
+ * The server's rule: only trusted and above ping @everyone/@here. Webhook posts may too: the server
+ * already defuses those unless an admin allowed it for that webhook.
+ */
+export function canPingGroups(authorRole: Role | undefined, webhook: boolean): boolean {
+  return webhook || (authorRole !== undefined && roleRank(authorRole) >= roleRank('trusted'))
 }

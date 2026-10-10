@@ -141,4 +141,16 @@ public class ThreadTests
         Assert.Null(server.World.Store.GetChannel(id));
         Assert.Null(server.World.Store.GetThread(id));
     }
+
+    [Fact]
+    public async Task Starting_threads_is_rate_limited_per_account()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        var codes = new List<string?>();
+        for (var i = 0; i < 6; i++)
+            codes.Add((await alice.RequestAsync("thread.create", new { messageId = Post(server, alice.Key, $"root {i}"), name = $"t{i}" })).ErrorCode());
+        Assert.Equal([null, null, null, null, null], codes.Take(5));
+        Assert.Equal("rate_limited", codes[5]);
+    }
 }

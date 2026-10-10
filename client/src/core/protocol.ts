@@ -322,7 +322,7 @@ export interface Events {
 export interface Requests {
   'chat.pin': [{ id: number; on: boolean }, Record<string, never>]
   'pin.list': [{ channelId: number }, { pins: Pin[] }]
-  search: [SearchRequest, { results: SearchResult[]; total: number; hasMore: boolean; threads: Thread[] }]
+  search: [SearchRequest, { results: SearchResult[]; total: number; totalCapped?: boolean; hasMore: boolean; threads: Thread[] }]
   'thread.create': [{ messageId: number; name: string }, { thread: Thread }]
   'thread.get': [{ id: number }, { thread: Thread; root: Message | null }]
   'thread.list': [{ channelId: number; limit?: number }, { threads: Thread[] }]

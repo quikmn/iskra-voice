@@ -90,3 +90,27 @@ export const MAC_SETTINGS = {
   camera: 'x-apple.systempreferences:com.apple.preference.security?Privacy_Camera',
 } as const
 export type SettingsPane = keyof typeof MAC_SETTINGS
+
+/**
+ * Is this URL the app's own page? Exactly the app's scheme and host (app://iskra), or exactly the dev
+ * server's origin: never a look-alike such as app://iskra.evil, http://localhost:51730 or http://localhost:5173.evil.
+ */
+export function isAppPage(url: string, appOrigin: string, devUrl?: string): boolean {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return false
+  }
+  if (parsed.username || parsed.password) return false
+  const app = new URL(appOrigin)
+  // Node gives custom schemes an opaque ("null") origin, so compare scheme and host for app://.
+  if (parsed.protocol === app.protocol && parsed.host === app.host) return true
+  if (!devUrl) return false
+  try {
+    const dev = new URL(devUrl).origin
+    return dev !== 'null' && parsed.origin === dev
+  } catch {
+    return false
+  }
+}

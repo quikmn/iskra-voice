@@ -58,7 +58,7 @@ public static class SearchFeature
             readable.IntersectWith(scope);
         }
 
-        var (hits, total) = s.World.Store.Search(new SearchQuery(terms, readable, author, has.Contains("file"), has.Contains("link"),
+        var (hits, counted) = s.World.Store.Search(new SearchQuery(terms, readable, author, has.Contains("file"), has.Contains("link"),
             before, after, cursor, limit));
         var threads = hits.Select(h => h.Message.ChannelId).Distinct()
             .Select(s.World.Store.GetThread).OfType<ThreadInfo>().Select(ThreadFeature.View);
@@ -69,7 +69,8 @@ public static class SearchFeature
                 message = MessageViews.Public(s.World.Store, h.Message),
                 matches = h.Matches.Select(m => new[] { m.Start, m.Length }),
             }),
-            total,
+            total = Math.Min(counted, Store.MaxCountedTotal),
+            totalCapped = counted > Store.MaxCountedTotal, // "1000+"
             hasMore = hits.Count == limit,
             threads,
         };

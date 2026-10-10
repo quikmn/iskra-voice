@@ -384,8 +384,10 @@ public sealed class InternetHost : BackgroundService
             var port = web?.External ?? (s.Https.Enabled ? s.Https.Port : 443);
             return $"https://{domain}{(port == 443 ? "" : $":{port}")}";
         }
-        // No certificate (yet): the desktop app can still connect over plain HTTP; browsers can't.
-        return web is { State: "open" } && v.Ip is { } ip && !v.Cgnat && !s.Https.Enabled ? $"http://{ip}:{web.External}" : null;
+        // No certificate (yet): nothing is advertised. Plain HTTP across the internet would expose every message and
+        // session to anyone on the path. Only an address the owner set by hand (server.json PublicUrl) is used; the
+        // panel warns when that is plain HTTP.
+        return s.PublicUrl is { Length: > 0 } forced ? forced.TrimEnd('/') : null;
     }
 
     private HttpsStatus Https(WorldSettings s, View v, string? domain)
