@@ -29,6 +29,21 @@ public sealed class WebhookIngress(World world, Hub hub, TimeProvider time, ILog
     private readonly ConcurrentDictionary<string, TokenBucket> _hooks = new();
     private readonly ConcurrentDictionary<IPAddress, TokenBucket> _failures = new();
 
+    /// <summary>
+    /// Where plain HTTP would be redirected to HTTPS, webhooks from other machines are refused instead: their URL holds
+    /// the secret, which has then already crossed the network unencrypted. A redirect would hide that; a 403 shows it.
+    /// </summary>
+    public static bool RefuseOverPlainHttp(HttpContext context) =>
+        !context.Request.IsHttps && context.Request.Path.StartsWithSegments("/hooks")
+        && context.Connection.RemoteIpAddress is { } ip && !System.Net.IPAddress.IsLoopback(ip);
+
+    public static Task WriteUseHttpsAsync(HttpContext context)
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        context.Response.ContentType = "text/plain; charset=utf-8";
+        return context.Response.WriteAsync("Use https:// for this webhook. The secret in its URL was sent unencrypted: regenerate it in Iskra.");
+    }
+
     public static void Map(WebApplication app)
     {
         app.MapPost("/hooks/{id}/{secret}", (HttpContext c, string id, string secret, WebhookIngress hooks) => hooks.PostAsync(c, id, secret, github: false));

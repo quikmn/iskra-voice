@@ -315,4 +315,29 @@ public class WebhookTests
         Assert.Equal(JsonValueKind.Null, cleared.GetProperty("avatar").ValueKind);
         Assert.Equal("Renamed", cleared.GetProperty("name").GetString());
     }
+
+    [Fact]
+    public async Task Webhooks_over_plain_http_from_elsewhere_are_refused_not_redirected()
+    {
+        static Microsoft.AspNetCore.Http.DefaultHttpContext Request(string path, string ip, bool https = false)
+        {
+            var context = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+            context.Request.Path = path;
+            context.Request.IsHttps = https;
+            context.Connection.RemoteIpAddress = System.Net.IPAddress.Parse(ip);
+            context.Response.Body = new MemoryStream();
+            return context;
+        }
+        Assert.True(Iskra.Server.Features.WebhookIngress.RefuseOverPlainHttp(Request("/hooks/abc/secret", "203.0.113.9")));
+        Assert.True(Iskra.Server.Features.WebhookIngress.RefuseOverPlainHttp(Request("/hooks/abc/secret/github", "192.168.1.20")));
+        Assert.False(Iskra.Server.Features.WebhookIngress.RefuseOverPlainHttp(Request("/hooks/abc/secret", "127.0.0.1")));
+        Assert.False(Iskra.Server.Features.WebhookIngress.RefuseOverPlainHttp(Request("/hooks/abc/secret", "203.0.113.9", https: true)));
+        Assert.False(Iskra.Server.Features.WebhookIngress.RefuseOverPlainHttp(Request("/files/x", "203.0.113.9")));
+
+        var refused = Request("/hooks/abc/secret", "203.0.113.9");
+        await Iskra.Server.Features.WebhookIngress.WriteUseHttpsAsync(refused);
+        Assert.Equal(403, refused.Response.StatusCode);
+        refused.Response.Body.Position = 0;
+        Assert.Contains("https", new StreamReader(refused.Response.Body).ReadToEnd());
+    }
 }

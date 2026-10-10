@@ -116,7 +116,8 @@ if (https.Enabled)
                 await context.Response.WriteAsync(answer);
                 return;
             }
-            context.Response.Redirect($"{https.DefaultUrl}{context.Request.Path}{context.Request.QueryString}");
+            if (WebhookIngress.RefuseOverPlainHttp(context)) await WebhookIngress.WriteUseHttpsAsync(context);
+            else context.Response.Redirect($"{https.DefaultUrl}{context.Request.Path}{context.Request.QueryString}");
             return;
         }
         if (context.Request.IsHttps) context.Response.Headers.StrictTransportSecurity = "max-age=31536000";
@@ -132,8 +133,8 @@ else
             && context.Connection.RemoteIpAddress is { } remote && !Networks.IsNonPublic(remote)
             && !context.Request.Path.StartsWithSegments("/.well-known"))
         {
-            // 307 keeps the method and body, so webhooks POSTed to the plain address still arrive.
-            context.Response.Redirect($"{publicUrl}{context.Request.Path}{context.Request.QueryString}", permanent: false, preserveMethod: true);
+            if (WebhookIngress.RefuseOverPlainHttp(context)) await WebhookIngress.WriteUseHttpsAsync(context);
+            else context.Response.Redirect($"{publicUrl}{context.Request.Path}{context.Request.QueryString}", permanent: false, preserveMethod: true);
             return;
         }
         await next();
