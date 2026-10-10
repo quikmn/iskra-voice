@@ -261,6 +261,7 @@ public sealed partial class Store : IDisposable
             """),
         ("security-1", SecurityMigration),
         ("organize-1", OrganizeMigration),
+        ("organize-2", Organize2Migration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

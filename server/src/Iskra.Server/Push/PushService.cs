@@ -106,18 +106,19 @@ public sealed partial class PushService
     /// A new channel message: mentioned people (or a group, for @everyone/@here), the author of the message it replies
     /// to, and anyone whose notification level for the channel is "all messages". Each person's settings decide.
     /// </summary>
-    public void ChatMessage(Channel channel, Message message)
+    public void ChatMessage(Channel channel, Message message, bool pings = true)
     {
         var store = _world.Store;
         if (store.GetMember(message.AuthorKey) is not { } author) return;
         var kinds = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var key in store.AccountsWithLevel(Features.NotifyFeature.All)) kinds[key] = "message";
-        if (message.ReplyTo is { } replyId && store.GetMessage(replyId) is { } original) kinds[original.AuthorKey] = "reply";
+        if (pings && message.ReplyTo is { } replyId && store.GetMessage(replyId) is { } original) kinds[original.AuthorKey] = "reply";
         var groups = GroupMention().Matches(message.Text).Select(m => m.Groups[2].Value).ToHashSet();
-        if (groups.Count > 0 && CanPingGroups(author))
+        if (pings && groups.Count > 0 && CanPingGroups(author))
             foreach (var member in store.AllMembers())
                 if (groups.Contains("everyone") || _hub.IsOnline(member.AccountKey)) kinds[member.AccountKey] = "mention";
-        foreach (Match m in MentionToken().Matches(message.Text)) kinds[m.Groups[1].Value] = "mention";
+        if (pings)
+            foreach (Match m in MentionToken().Matches(message.Text)) kinds[m.Groups[1].Value] = "mention";
         kinds.Remove(message.AuthorKey);
         if (kinds.Count == 0) return;
 
