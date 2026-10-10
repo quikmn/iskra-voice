@@ -169,3 +169,36 @@ Voice runs on a LiveKit server that `iskra-server` starts next to itself (config
 | event | body | sent to |
 |---|---|---|
 | `voice.state` | `{ channelId, participants: [{ accountKey, muted, deafened }] }` | readers of that voice channel |
+
+## Direct messages (end-to-end encrypted)
+
+The server stores and relays opaque envelopes between members. It knows who talks to whom and when, never what is said.
+
+| type | body | result | who |
+|---|---|---|---|
+| `dm.devices` | `accountKey` | `{ devices: [DeviceCert...] }` (up to 20, most recently seen first) | anyone; the target must be a member (or yourself) |
+| `dm.send` | `accountKey, envelope` (JSON object, ≤ 32 KB) | `{ message }` | members, to members or yourself |
+| `dm.history` | `accountKey, before?, limit? (1–100)` | `{ messages (oldest first), hasMore }` | only your own conversations |
+| `dm.conversations` | | `{ conversations: [{ accountKey, lastId, lastAt }] }` | yourself |
+
+Event `dm.message` `{ message: { id, from, to, envelope, createdAt } }` goes to every connected device of both people.
+Device certificates are stored when a device authenticates, so the server can publish them but not forge them.
+
+### Envelope v1 (built and checked only by clients)
+
+```jsonc
+{
+  "v": 1,
+  "header": { "from": "<accountKey>", "to": "<accountKey>", "sentAt": 1760000000000, "id": "<b64u 12>" },
+  "sender": DeviceCert,                     // the sending device, signed by header.from
+  "nonce": "<b64u 24>", "ct": "<b64u>",     // XChaCha20-Poly1305 of {"text": ...}
+  "keys": [{ "device": "<deviceKey>", "nonce": "<b64u 24>", "box": "<b64u>" }]
+}
+```
+
+- Associated data: `JSON.stringify(["iskra/dm/v1", from, to, sentAt, id])`, so the header can't be altered or moved to another conversation.
+- The 32-byte message key is wrapped per device with `crypto_box` (X25519 + XSalsa20-Poly1305) from the sender device's key to each recipient device's key. X25519 keys come from the Ed25519 device keys (`crypto_sign_ed25519_*_to_curve25519`), so the account-signed device certificates vouch for them.
+- Recipients: every valid device of the recipient, plus the sender's own devices (including the sending one) so history stays readable.
+- Receivers check: header from/to equal the server's routing fields; the sender certificate is valid and belongs to `header.from`; there is a slot for this device. Anything else is shown as "couldn't be read", never as text. No devices means no message; there is no plaintext fallback.
+- Safety number: `crypto_generichash(60, sort(accountA, accountB))` shown as 12 groups of 5 digits.
+- Not yet: forward secrecy (a ratchet or MLS) and DMs between people who share no server.

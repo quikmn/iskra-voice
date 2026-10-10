@@ -7,6 +7,7 @@ import { MemberList } from './MemberList'
 import { ServerRail } from './ServerRail'
 import { useVoice } from '../state/voice'
 import { VoiceStage } from './VoiceStage'
+import { HomeMain, HomeSidebar } from './Home'
 import { Menu } from './icons'
 
 export type Panel = 'none' | 'nav' | 'members'
@@ -17,12 +18,13 @@ export function Shell() {
   const [panel, setPanel] = useState<Panel>('none')
   const [joining, setJoining] = useState(false)
   const stage = useVoice((s) => s.stageOpen && s.session?.serverKey === server?.key)
+  const hasServers = useApp((s) => s.order.length > 0)
 
   return (
-    <div className={`shell panel-${panel}`}>
+    <div className={`shell panel-${panel} ${server ? '' : 'no-members'}`}>
       <div className="nav-column">
         <ServerRail onJoin={() => setJoining(true)} onNavigate={() => setPanel('none')} />
-        {server && <ChannelSidebar server={server} onNavigate={() => setPanel('none')} />}
+        {server ? <ChannelSidebar server={server} onNavigate={() => setPanel('none')} /> : <HomeSidebar onNavigate={() => setPanel('none')} />}
       </div>
 
       <main className="main-column">
@@ -30,6 +32,8 @@ export function Shell() {
           <VoiceStage server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
         ) : server ? (
           <ChatView server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
+        ) : hasServers ? (
+          <HomeMain onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
         ) : (
           <EmptyState onJoin={() => setJoining(true)} onMenu={() => setPanel('nav')} />
         )}

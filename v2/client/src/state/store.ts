@@ -55,6 +55,19 @@ export const useApp = create<AppState>(() => ({
 }))
 
 const connections = new Map<string, Connection>()
+
+type ServerEventListener = (serverKey: string, type: keyof Events, body: unknown) => void
+const eventListeners = new Set<ServerEventListener>()
+const welcomeListeners = new Set<(serverKey: string) => void>()
+
+/** Other state modules (DMs, …) subscribe to server events here instead of importing each other. */
+export function onServerEvent(listener: ServerEventListener): void {
+  eventListeners.add(listener)
+}
+
+export function onWelcomeHook(listener: (serverKey: string) => void): void {
+  welcomeListeners.add(listener)
+}
 const TYPING_MS = 6_000
 
 // ── Small helpers ───────────────────────────────────────────────────────────
@@ -215,6 +228,7 @@ function onWelcome(key: string, welcome: Welcome): void {
   }
   const channel = activeChannelId(useApp.getState())
   if (channel !== null && useApp.getState().activeServer === key) void loadHistory(key, channel)
+  for (const listener of welcomeListeners) listener(key)
 }
 
 async function catchUp(key: string, channelId: number, after: number): Promise<void> {
@@ -236,6 +250,7 @@ async function catchUp(key: string, channelId: number, after: number): Promise<v
 }
 
 function onEvent<K extends keyof Events>(key: string, type: K, body: Events[K]): void {
+  for (const listener of eventListeners) listener(key, type, body)
   switch (type) {
     case 'chat.message': {
       const { message } = body as Events['chat.message']

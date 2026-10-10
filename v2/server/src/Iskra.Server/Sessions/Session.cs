@@ -288,6 +288,7 @@ public sealed class Session
         if (existing is not null)
         {
             if (existing.Name != name) _world.Store.SetMemberName(existing.AccountKey, name);
+            _world.Store.SaveDevice(cert, Now);
             return (existing with { Name = name }, AuthFailure.Invalid);
         }
 
@@ -295,6 +296,7 @@ public sealed class Session
         if (role is null) return (null, AuthFailure.InviteRequired);
 
         var member = _world.Store.AddMember(cert.AccountKey, name, role, Now);
+        _world.Store.SaveDevice(cert, Now);
         if (role == Roles.Owner) OwnerSetup.OwnerJoined(_world);
         _hub.Broadcast(Frames.Event("member.joined", new { member = _hub.PublicMember(member) }));
         return (member, AuthFailure.Invalid);

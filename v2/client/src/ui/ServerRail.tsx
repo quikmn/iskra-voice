@@ -1,4 +1,5 @@
 import { selectServer, useApp } from '../state/store'
+import { openFriends, useDms } from '../state/dms'
 import { initials } from './format'
 import { Plus } from './icons'
 
@@ -7,8 +8,23 @@ export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavig
   const servers = useApp((s) => s.servers)
   const active = useApp((s) => s.activeServer)
 
+  const dmUnread = useDms((s) => Object.values(s.conversations).reduce((n, c) => n + c.unread, 0))
+
   return (
     <nav className="server-rail" aria-label="Servers">
+      <button
+        className={`server-icon home ${active === null ? 'active' : ''}`}
+        title="Direct messages"
+        aria-label="Direct messages"
+        onClick={() => {
+          openFriends()
+          onNavigate()
+        }}
+      >
+        <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" fill="currentColor" /></svg>
+        {dmUnread > 0 && active !== null && <span className="badge">{dmUnread > 99 ? '99+' : dmUnread}</span>}
+      </button>
+      <div className="rail-divider" />
       {order.map((key) => {
         const server = servers[key]
         if (!server) return null

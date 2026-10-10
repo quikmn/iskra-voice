@@ -14,6 +14,7 @@ public sealed class RateLimiter(TimeProvider time)
     private static readonly Dictionary<string, (double Burst, double PerSecond)> Limits = new()
     {
         ["chat.send"] = (10, 2),
+        ["dm.send"] = (10, 2),
         ["chat.typing"] = (3, 0.5),
         ["*"] = (40, 10),
     };

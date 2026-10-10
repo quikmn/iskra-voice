@@ -97,7 +97,18 @@ public sealed record User(TestIdentity Identity, TestClient Client, JsonElement 
 /// <summary>A client identity built with the C# crypto, independent of the TS client.</summary>
 public sealed class TestIdentity : IDisposable
 {
-    public Key Account { get; } = Ed25519.KeyFromSeed(Ed25519.NewSeed());
+    private readonly bool _ownsAccount = true;
+
+    public TestIdentity() => Account = Ed25519.KeyFromSeed(Ed25519.NewSeed());
+
+    /// <summary>Another device of an existing account.</summary>
+    public TestIdentity(Key account)
+    {
+        Account = account;
+        _ownsAccount = false;
+    }
+
+    public Key Account { get; }
     public Key Device { get; } = Ed25519.KeyFromSeed(Ed25519.NewSeed());
     public long Created { get; } = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
@@ -136,7 +147,7 @@ public sealed class TestIdentity : IDisposable
 
     public void Dispose()
     {
-        Account.Dispose();
+        if (_ownsAccount) Account.Dispose();
         Device.Dispose();
     }
 }

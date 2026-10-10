@@ -3,6 +3,7 @@ import { fingerprint } from '../../core/connection'
 import { ROLES, roleRank, type Member, type Role } from '../../core/protocol'
 import { connectionFor, type ServerState } from '../../state/store'
 import { setVolume, useVoice } from '../../state/voice'
+import { addFriend, openConversation, removeFriend, useDms } from '../../state/dms'
 import { Avatar, Modal } from '../bits'
 
 export function MemberDialog({ server, member, onClose }: { server: ServerState; member: Member; onClose: () => void }) {
@@ -23,6 +24,7 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
   }
 
   const connection = connectionFor(server.key)
+  const isFriend = useDms((s) => !!s.friends[member.accountKey])
   const voiceSession = useVoice((s) => s.session)
   const volume = useVoice((s) => s.volumes[member.accountKey] ?? 1)
   const inMyVoice = !isSelf && voiceSession?.serverKey === server.key &&
@@ -38,6 +40,17 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
           <div className="muted">ID <code>{fingerprint(member.accountKey)}</code></div>
         </div>
       </div>
+
+      {!isSelf && (
+        <div className="copy-row member-actions">
+          <button className="button primary" onClick={() => { openConversation(member.accountKey); onClose() }}>Message</button>
+          {isFriend ? (
+            <button className="button" onClick={() => void removeFriend(member.accountKey)}>Remove friend</button>
+          ) : (
+            <button className="button" onClick={() => void addFriend(member.accountKey)}>Add friend</button>
+          )}
+        </div>
+      )}
 
       {inMyVoice && (
         <section className="settings-section">

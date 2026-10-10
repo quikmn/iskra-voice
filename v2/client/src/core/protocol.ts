@@ -71,6 +71,15 @@ export interface Events {
   'member.removed': { accountKey: string }
   kicked: { reason: string }
   'voice.state': VoiceChannelState
+  'dm.message': { message: WireDm }
+}
+
+export interface WireDm {
+  id: number
+  from: string
+  to: string
+  envelope: import('./dm').DmEnvelope
+  createdAt: number
 }
 
 /** Client → server requests: [body, result]. */
@@ -93,6 +102,10 @@ export interface Requests {
   'invite.revoke': [{ code: string }, Record<string, never>]
   'voice.join': [{ channelId: number }, { url: string; token: string; room: string; canSpeak: boolean }]
   'voice.state': [{ muted: boolean; deafened: boolean }, Record<string, never>]
+  'dm.devices': [{ accountKey: string }, { devices: import('./identity').DeviceCert[] }]
+  'dm.send': [{ accountKey: string; envelope: import('./dm').DmEnvelope }, { message: WireDm }]
+  'dm.history': [{ accountKey: string; before?: number; limit?: number }, { messages: WireDm[]; hasMore: boolean }]
+  'dm.conversations': [Record<string, never>, { conversations: { accountKey: string; lastId: number; lastAt: number }[] }]
 }
 
 export type ErrorCode =

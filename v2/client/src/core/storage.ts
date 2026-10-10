@@ -86,6 +86,18 @@ export async function loadServers(): Promise<SavedServer[]> {
 
 export const saveServers = (servers: SavedServer[]) => set('servers', servers)
 
+export interface StoredFriend {
+  accountKey: string
+  name: string
+  addedAt: number
+}
+
+export async function loadFriends(): Promise<StoredFriend[]> {
+  return (await get<StoredFriend[]>('friends')) ?? []
+}
+
+export const saveFriends = (friends: StoredFriend[]) => set('friends', friends)
+
 /** Ask the browser not to evict our data (matters most on iOS Safari). */
 export async function requestPersistence(): Promise<boolean> {
   try {

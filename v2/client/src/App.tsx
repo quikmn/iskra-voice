@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { parseInvite } from './core/invite'
 import { boot, retryAll, useApp } from './state/store'
+import { loadFriends } from './state/dms'
 import { Spinner } from './ui/bits'
 import { JoinPrompt } from './ui/dialogs/JoinDialog'
 import { Onboarding } from './ui/Onboarding'
@@ -24,7 +25,7 @@ export function App() {
     readInviteFromHash()
     if (!booted) {
       booted = true
-      void boot()
+      void boot().then(loadFriends)
     }
     window.addEventListener('hashchange', readInviteFromHash)
     window.addEventListener('online', retryAll)

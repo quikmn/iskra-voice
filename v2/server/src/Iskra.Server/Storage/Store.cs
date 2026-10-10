@@ -7,6 +7,7 @@ public sealed record Channel(long Id, string Name, string Kind, int Position, st
 public sealed record Message(long Id, long ChannelId, string AuthorKey, string Text, long CreatedAt, long? EditedAt);
 public sealed record Invite(string Code, string CreatedBy, long CreatedAt, long? ExpiresAt, int? MaxUses, int Uses, string Role, bool Revoked);
 public sealed record Ban(string AccountKey, string Reason, string BannedBy, long BannedAt);
+public sealed record DirectMessage(long Id, string From, string To, string Envelope, long CreatedAt);
 
 /// <summary>
 /// SQLite storage for a world (iskra.db). One connection, and every statement runs under one lock,
@@ -14,7 +15,7 @@ public sealed record Ban(string AccountKey, string Reason, string BannedBy, long
 /// </summary>
 public sealed partial class Store : IDisposable
 {
-    private const int SchemaVersion = 1;
+    private const int SchemaVersion = 2;
 
     private readonly SqliteConnection _db;
     private readonly Lock _gate = new();
@@ -84,6 +85,30 @@ public sealed partial class Store : IDisposable
                 INSERT INTO channels (name, kind, position, read_role, write_role, created_at)
                 VALUES ('general', 'text', 0, 'member', 'member', 0);
                 PRAGMA user_version = 1;
+                """);
+        }
+
+        if (version < 2)
+        {
+            Exec("""
+                CREATE TABLE devices (
+                    device_key  TEXT PRIMARY KEY,
+                    account_key TEXT NOT NULL,
+                    created     INTEGER NOT NULL,
+                    sig         TEXT NOT NULL,
+                    last_seen   INTEGER NOT NULL
+                );
+                CREATE INDEX devices_by_account ON devices(account_key);
+                CREATE TABLE dms (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    from_key    TEXT NOT NULL,
+                    to_key      TEXT NOT NULL,
+                    envelope    TEXT NOT NULL,
+                    created_at  INTEGER NOT NULL
+                );
+                CREATE INDEX dms_by_pair ON dms(from_key, to_key, id);
+                CREATE INDEX dms_by_recipient ON dms(to_key, id);
+                PRAGMA user_version = 2;
                 """);
         }
     }
