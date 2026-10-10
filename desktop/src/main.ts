@@ -1,11 +1,11 @@
 // Iskra desktop: a thin, locked-down shell around the same web app.
 // It adds what browsers can't do: push-to-talk while a game has focus, a screen/window picker,
 // the tray, and a stable app:// origin for local storage.
-import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, Menu, nativeImage, net, protocol, session, shell, systemPreferences, Tray } from 'electron'
+import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, Menu, nativeImage, net, protocol, safeStorage, session, shell, systemPreferences, Tray } from 'electron'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Host } from './host'
-import { isAppPage, isWayland, MAC_SETTINGS, skipScreenPicker, type SettingsPane } from './platform'
+import { isAppPage, isWayland, keychainKind, MAC_SETTINGS, skipScreenPicker, type SettingsPane } from './platform'
 import { PushToTalk } from './ptt'
 import { Updates, type UpdateStatus } from './updates'
 
@@ -243,6 +243,25 @@ ipcMain.handle('iskra:call-alert', (event, on: unknown) => {
     if (!window.isFocused()) window.flashFrame(true)
   } else {
     window.flashFrame(false)
+  }
+})
+
+// The OS keychain protects the key that encrypts Iskra's stored keys (see client/src/core/vault.ts).
+// Only the app page may use it, and only for small blobs.
+const keychain = () =>
+  keychainKind(process.platform, safeStorage.isEncryptionAvailable(), process.platform === 'linux' ? safeStorage.getSelectedStorageBackend() : null, process.env)
+const smallB64 = (value: unknown): value is string => typeof value === 'string' && value.length <= 4096 && /^[A-Za-z0-9_-]*$/.test(value)
+ipcMain.handle('iskra:keychain-status', (event) => (fromApp(event) ? keychain() : 'unavailable'))
+ipcMain.handle('iskra:keychain-encrypt', (event, data: unknown) => {
+  if (!fromApp(event) || !smallB64(data) || keychain() !== 'keyring') return null
+  return safeStorage.encryptString(data).toString('base64url')
+})
+ipcMain.handle('iskra:keychain-decrypt', (event, data: unknown) => {
+  if (!fromApp(event) || !smallB64(data) || keychain() !== 'keyring') return null
+  try {
+    return safeStorage.decryptString(Buffer.from(data, 'base64url'))
+  } catch {
+    return null
   }
 })
 

@@ -41,6 +41,12 @@ export interface DesktopBridge {
   pickScreen(id: string | null): void
   /** An incoming call: flash the taskbar and bring the window up (without stealing focus). */
   callAlert?(on: boolean): Promise<void>
+  /** The OS keychain (Electron safeStorage). basic: Linux without a keyring, which protects nothing. */
+  keychain?: {
+    status(): Promise<'keyring' | 'basic' | 'unavailable'>
+    encrypt(data: string): Promise<string | null>
+    decrypt(data: string): Promise<string | null>
+  }
   host: {
     available(): Promise<boolean>
     list(): Promise<HostedServer[]>

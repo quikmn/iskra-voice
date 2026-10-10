@@ -14,6 +14,8 @@ import { JoinPrompt } from './ui/dialogs/JoinDialog'
 import { Onboarding } from './ui/Onboarding'
 import { Shell } from './ui/Shell'
 import { UpdateToast } from './ui/UpdateToast'
+import { LockScreen, NewKeyDialog, RetiredScreen } from './ui/keys/KeyScreens'
+import { useKeys } from './state/keys'
 
 /** Picks up "#/join/..." invite links and "#/link/..." device links, then clears them from the address bar. */
 function readInviteFromHash(): void {
@@ -34,6 +36,7 @@ export function App() {
   const phase = useApp((s) => s.phase)
   const pendingInvite = useApp((s) => s.pendingInvite)
   const revoked = useDevices((s) => s.thisDeviceRevoked)
+  const retired = useKeys((s) => !!s.retired)
 
   useEffect(() => {
     readInviteFromHash()
@@ -62,12 +65,15 @@ export function App() {
       </div>
     )
   }
+  if (phase === 'locked') return <LockScreen />
   if (phase === 'onboarding') return <Onboarding />
   if (revoked) return <RevokedScreen />
+  if (retired) return <RetiredScreen />
   return (
     <>
       <Shell />
       <AlreadySignedInNotice />
+      <NewKeyDialog />
       {pendingInvite && <JoinPrompt invite={pendingInvite} />}
       <ScreenPicker />
       <UpdateToast />

@@ -18,6 +18,7 @@ import { SoundToasts } from './expressions/Soundboard'
 import { ProfileLayer } from './profile/ProfileLayer'
 import { QuickSwitcher } from './QuickSwitcher'
 import { useEscapeLayer } from './layers'
+import { DisputeNotices } from './keys/KeyScreens'
 
 export type Panel = 'none' | 'nav' | 'members'
 
@@ -41,6 +42,7 @@ export function Shell() {
 
       <main className="main-column">
         <RecoveryNudge />
+        <DisputeNotices />
         {server && stage ? (
           <VoiceStage server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
         ) : server ? (

@@ -2,7 +2,7 @@
 import { roleRank, type Role } from '../../core/protocol'
 
 export type SectionId =
-  | 'profile' | 'appearance' | 'devices' | 'recovery' | 'notifications' | 'voice'
+  | 'profile' | 'appearance' | 'devices' | 'recovery' | 'security' | 'notifications' | 'voice'
   | 'overview' | 'emoji' | 'sounds' | 'integrations' | 'pages' | 'internet'
 
 export interface SectionInfo {
@@ -16,6 +16,7 @@ const ACCOUNT: SectionInfo[] = [
   { id: 'appearance', label: 'Appearance', group: 'account' },
   { id: 'devices', label: 'Devices', group: 'account' },
   { id: 'recovery', label: 'Recovery key', group: 'account' },
+  { id: 'security', label: 'App lock', group: 'account' },
   { id: 'notifications', label: 'Notifications', group: 'account' },
   { id: 'voice', label: 'Voice & audio', group: 'account' },
 ]

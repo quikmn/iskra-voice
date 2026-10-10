@@ -13,6 +13,7 @@ import { InternetSection } from '../dialogs/InternetSettings'
 import { EmojiSection, SoundboardSettingsSection, SoundsSection } from '../expressions/ExpressionSettings'
 import { DevicesSection } from '../dialogs/DevicesSection'
 import { IntegrationsSection } from '../dialogs/Integrations'
+import { AppLockSection, RotateKeySection } from '../keys/KeySettings'
 import { ChevronRight } from '../icons'
 import { settingsSections, type SectionId } from './sections'
 import './settings.css'
@@ -90,7 +91,8 @@ function Section({ id, server, onClose }: { id: SectionId; server: ServerState |
     case 'profile': return <ProfileSection />
     case 'appearance': return <AppearanceSection />
     case 'devices': return <DevicesSection />
-    case 'recovery': return <RecoveryKeySection />
+    case 'recovery': return <><RecoveryKeySection /><RotateKeySection /></>
+    case 'security': return <AppLockSection />
     case 'notifications': return <NotificationSettingsSection />
     case 'voice': return <><VoiceSettingsSection /><SoundboardSettingsSection /></>
   }

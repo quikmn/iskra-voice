@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { compareVersions, defaultHostRoot, exeName, isAppPage, isWayland, newerRelease, serverRid, skipScreenPicker, updateMode } from './platform'
+import { compareVersions, defaultHostRoot, exeName, isAppPage, isWayland, keychainKind, newerRelease, serverRid, skipScreenPicker, updateMode } from './platform'
 
 test('server binaries and runtime ids per platform', () => {
   assert.equal(exeName('iskra-server', 'win32'), 'iskra-server.exe')
@@ -71,4 +71,14 @@ test('only the app itself counts as the app page', () => {
   assert.equal(isAppPage('http://localhost:51730/', 'app://iskra', 'http://localhost:5173'), false)
   assert.equal(isAppPage('http://localhost:5173.evil.com/', 'app://iskra', 'http://localhost:5173'), false)
   assert.equal(isAppPage('http://localhost:5173/', 'app://iskra'), false)
+})
+
+test('which keychain protects the stored keys', () => {
+  assert.equal(keychainKind('win32', true, null, {}), 'keyring')
+  assert.equal(keychainKind('darwin', true, null, {}), 'keyring')
+  assert.equal(keychainKind('linux', true, 'gnome_libsecret', {}), 'keyring')
+  assert.equal(keychainKind('linux', true, 'kwallet5', {}), 'keyring')
+  assert.equal(keychainKind('linux', true, 'basic_text', {}), 'basic')
+  assert.equal(keychainKind('linux', false, 'unknown', {}), 'unavailable')
+  assert.equal(keychainKind('win32', true, null, { ISKRA_NO_KEYCHAIN: '1' }), 'unavailable')
 })

@@ -114,3 +114,15 @@ export function isAppPage(url: string, appOrigin: string, devUrl?: string): bool
     return false
   }
 }
+
+/**
+ * Whether the OS keychain can protect Iskra's keys (Electron safeStorage).
+ * keyring: DPAPI, Keychain, libsecret or kwallet. basic: Linux without a keyring, where safeStorage falls back to a
+ * fixed password, which is no protection; the app then uses its browser wrap and says so. unavailable: nothing.
+ */
+export function keychainKind(platform: NodeJS.Platform, available: boolean, linuxBackend: string | null, env: Env): 'keyring' | 'basic' | 'unavailable' {
+  if (env.ISKRA_NO_KEYCHAIN) return 'unavailable'
+  if (!available) return 'unavailable'
+  if (platform === 'linux' && (linuxBackend === 'basic_text' || linuxBackend === 'unknown' || !linuxBackend)) return 'basic'
+  return 'keyring'
+}
