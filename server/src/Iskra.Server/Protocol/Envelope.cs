@@ -44,12 +44,15 @@ public static class Frames
     public static string Result(string? id, object body) =>
         new JsonObject { ["type"] = "result", ["id"] = id, ["body"] = JsonSerializer.SerializeToNode(body, Json.Options) }.ToJsonString();
 
-    public static string Error(string? id, string code, string message)
+    public static string Error(string? id, string code, string message, object? extra = null)
     {
+        var body = extra is null ? new JsonObject() : JsonSerializer.SerializeToNode(extra, Json.Options)!.AsObject();
+        body["code"] = code;
+        body["message"] = message;
         var frame = new JsonObject
         {
             ["type"] = "error",
-            ["body"] = new JsonObject { ["code"] = code, ["message"] = message },
+            ["body"] = body,
         };
         if (id is not null) frame["id"] = id;
         return frame.ToJsonString();
@@ -66,5 +69,7 @@ public static class CloseCodes
     public const int BadRequests = 4400;
     public const int AuthFailed = 4401;
     public const int Forbidden = 4403;
+    /// <summary>The account moved to a new key (preceded by an account.rotated event).</summary>
+    public const int Rotated = 4409;
     public const int TooLarge = 4413;
 }

@@ -20,6 +20,8 @@ public readonly struct Body(JsonElement element)
             ? value
             : null;
 
+    public bool Has(string name) => Field(name) is not null;
+
     public string String(string name, int maxLength) =>
         OptionalString(name, maxLength) ?? throw RequestException.BadRequest($"'{name}' is required.");
 

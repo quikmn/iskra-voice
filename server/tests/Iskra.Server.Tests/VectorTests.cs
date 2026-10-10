@@ -56,4 +56,21 @@ public class VectorTests
         Assert.False(Identity.VerifyDeviceCert(cert with { DeviceKey = cert.AccountKey }));
         Assert.False(Identity.VerifyDeviceCert(cert with { Sig = "not base64!" }));
     }
+
+    [Fact]
+    public void Rotation_signatures_match_and_verify()
+    {
+        var r = JsonDocument.Parse(File.ReadAllText(Repo.ProtocolFile("vectors.json"))).RootElement.GetProperty("rotation");
+        var rotation = Iskra.Server.Features.KeyFeature.ParseRotation(r.GetProperty("rotation"));
+        Assert.True(Ed25519.TryFromB64u(r.GetProperty("newSeed").GetString(), out var newSeed));
+        using var account = Ed25519.KeyFromSeed(Bytes("accountSeed"));
+        using var next = Ed25519.KeyFromSeed(newSeed);
+        Assert.Equal(rotation.NewKey, Ed25519.ToB64u(Ed25519.PublicKeyOf(next)));
+        var payload = Ed25519.Payload(Iskra.Server.Features.KeyFeature.RotateContext, Bytes("accountKey"), Ed25519.PublicKeyOf(next), Ed25519.U64BigEndian(rotation.RotatedAt));
+        Assert.Equal(rotation.OldSig, Ed25519.ToB64u(Ed25519.Sign(account, payload)));
+        Assert.Equal(rotation.NewSig, Ed25519.ToB64u(Ed25519.Sign(next, payload)));
+        Assert.True(Iskra.Server.Features.KeyFeature.VerifyRotation(rotation));
+        Assert.False(Iskra.Server.Features.KeyFeature.VerifyRotation(rotation with { RotatedAt = rotation.RotatedAt + 1 }));
+        Assert.False(Iskra.Server.Features.KeyFeature.VerifyRotation(rotation with { NewSig = rotation.OldSig }));
+    }
 }

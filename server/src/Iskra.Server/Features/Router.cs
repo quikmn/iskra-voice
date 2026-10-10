@@ -39,6 +39,7 @@ public sealed class Router
         PushFeature.Register(this);
         HostFeature.Register(this, internet);
         ProfileFeature.Register(this);
+        KeyFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);
@@ -62,6 +63,7 @@ public sealed class Router
         {
             var result = handler(session, me, new Body(request.Body));
             session.Send(Frames.Result(request.Id, result ?? new { }));
+            session.RunAfterReply();
         }
         catch (RequestException ex)
         {
