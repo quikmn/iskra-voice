@@ -21,6 +21,7 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<LiveKitHost>());
 builder.Services.AddSingleton<VoiceRegistry>();
 builder.Services.AddSingleton<Uploads>();
 builder.Services.AddSingleton<LinkPreviews>();
+builder.Services.AddHostedService<PollCloser>();
 builder.Services.AddReverseProxy().LoadFromMemory(
 [
     new Yarp.ReverseProxy.Configuration.RouteConfig
