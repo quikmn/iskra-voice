@@ -127,7 +127,19 @@ export function InternetSection({ server }: { server: ServerState }) {
         </div>
       )}
 
-      {status.enabled && status.publicUrl && (
+      {status.enabled && status.publicUrl?.startsWith('http://') && (
+        <div className="internet-callout" role="alert">
+          <strong>This address has no HTTPS</strong>
+          <p>
+            <code>{status.publicUrl}</code> is set as PublicUrl in server.json. Over plain HTTP, anyone along the way can read
+            messages and take over logins. Remove it and let Iskra get a certificate, or put the server behind HTTPS.
+          </p>
+        </div>
+      )}
+      {status.enabled && !status.publicUrl && status.address && status.https.state !== 'valid' && (
+        <p className="internet-address muted">Waiting for HTTPS. Until then, invite links use your local address.</p>
+      )}
+      {status.enabled && status.publicUrl?.startsWith('https://') && (
         <p className="internet-address">
           Friends join at <code>{status.publicUrl}</code>. New invite links use it.
           {status.autoAddress && <span className="muted"> If your internet address changes, the address changes too; send new invites then.</span>}

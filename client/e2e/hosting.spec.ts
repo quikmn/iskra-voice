@@ -65,7 +65,7 @@ async function openSettings(page: Page) {
 
 const step = (page: Page, id: string) => page.locator(`.checklist [data-step="${id}"]`)
 
-test('owner opens the server to the internet; a router without port 80 gets honest fallbacks', async ({ browser }) => {
+test('owner opens the server to the internet; without port 80 nothing plain HTTP is advertised', async ({ browser }) => {
   const server = await startServer('Open House', '203.0.113.7,refuse-low')
   servers.push(server)
   const owner = await (await browser.newContext()).newPage()
@@ -92,24 +92,24 @@ test('owner opens the server to the internet; a router without port 80 gets hone
   await expect(step(owner, 'https')).toHaveAttribute('data-state', 'problem')
   await expect(step(owner, 'https')).toContainText('port 80')
   await expect(step(owner, 'reachable')).toContainText('Not confirmed from outside')
-  await expect(owner.getByText('Open to the desktop app only')).toBeVisible()
+  await expect(owner.locator('.internet-summary')).toHaveText(/^Waiting for HTTPS/)
 
   // Exact port to forward by hand.
   const forwards = owner.getByTestId('manual-forwards')
   await expect(forwards.locator('tbody tr')).toHaveCount(1)
   await expect(forwards.locator('tbody tr')).toContainText('80')
   await expect(forwards.locator('tbody tr')).toContainText(String(server.port))
-  await expect(owner.locator('.internet-address')).toContainText(`http://203.0.113.7:${server.port}`)
+  await expect(owner.locator('.internet-address')).toContainText('Waiting for HTTPS')
   await owner.locator('.internet').scrollIntoViewIfNeeded()
   await owner.screenshot({ path: join(SHOTS, 'hosting-settings.png') })
   await owner.keyboard.press('Escape')
 
-  // New invite links carry the public address, for owner and members alike.
+  // Without HTTPS, new invite links keep the address people connected to: no plain HTTP public address.
   for (const page of [owner, friend]) {
     if (page === friend) await page.keyboard.press('Escape')
     const link = await createInviteLink(page)
     const serverUrl = Buffer.from(link.split('/join/')[1].split('.')[0], 'base64url').toString()
-    expect(serverUrl).toBe(`http://203.0.113.7:${server.port}`)
+    expect(serverUrl).not.toContain('203.0.113.7')
   }
 
   // Closing it again.

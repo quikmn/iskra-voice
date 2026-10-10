@@ -65,12 +65,20 @@ describe('internet hosting checklist', () => {
       ports: [port('acme', 80, 'failed', "The router doesn't allow opening this port."), { ...port('web', 47070, 'open') },
         port('voice-tcp', 7881, 'open'), port('voice-udp', 7882, 'open')],
       https: { state: 'needs_port_80', domain: '203-0-113-7.sslip.io', expiresAt: null, error: null },
-      publicUrl: 'http://203.0.113.7:47070', reachable: 'unknown',
+      publicUrl: null, reachable: 'unknown',
     })
     expect(states(s)).toMatchObject({ ports: 'problem', https: 'problem', reachable: 'todo' })
-    expect(hostSummary(s).text).toMatch(/desktop app only/)
+    expect(hostSummary(s).text).toMatch(/^Waiting for HTTPS/)
     expect(manualForwards(s)).toEqual([{ external: 80, internal: 47070, protocol: 'TCP', purpose: 'certificate check' }])
     expect(hostChecklist(s).find((x) => x.id === 'reachable')!.detail).toMatch(/Not confirmed/)
+  })
+
+  it('waits for HTTPS, and warns about a plain HTTP address forced in server.json', () => {
+    const waiting = status({ publicUrl: null, reachable: 'unknown', https: { state: 'requesting', domain: '203-0-113-7.sslip.io', expiresAt: null, error: null } })
+    expect(hostSummary(waiting)).toEqual({ tone: 'busy', text: 'Waiting for HTTPS…' })
+    const forced = status({ publicUrl: 'http://203.0.113.7:47070', https: { state: 'needs_port_80', domain: '203-0-113-7.sslip.io', expiresAt: null, error: null } })
+    expect(hostSummary(forced).tone).toBe('warn')
+    expect(hostSummary(forced).text).toMatch(/plain HTTP/)
   })
 
   it('says off when off', () => {

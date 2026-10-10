@@ -175,7 +175,7 @@ public class InternetTests : IDisposable
     }
 
     [Fact]
-    public async Task Without_port_80_it_falls_back_to_plain_http_on_the_servers_port()
+    public async Task Without_a_certificate_no_plain_http_address_is_advertised()
     {
         _router.RefuseLowPorts = true;
         using var owner = await _server.JoinAsync("Owner", "owner");
@@ -183,19 +183,21 @@ public class InternetTests : IDisposable
         Assert.Equal(JsonValueKind.Null, member.Welcome.GetProperty("body").GetProperty("server").GetProperty("publicUrl").ValueKind);
 
         await owner.RequestAsync("host.internet.set", new { enabled = true });
-        var status = await StatusUntil(owner, s => s.GetProperty("publicUrl").ValueKind == JsonValueKind.String, "a public URL");
+        var status = await StatusUntil(owner, s => s.GetProperty("https").GetProperty("state").GetString() == "needs_port_80", "needs port 80");
         Assert.Equal("failed", PortNamed(status, "acme").GetProperty("state").GetString());
         Assert.Contains("doesn't allow", PortNamed(status, "acme").GetProperty("error").GetString());
         Assert.Equal("open", PortNamed(status, "web").GetProperty("state").GetString());
         Assert.Equal(47999, PortNamed(status, "web").GetProperty("external").GetInt32());
-        Assert.Equal("needs_port_80", status.GetProperty("https").GetProperty("state").GetString());
-        Assert.Equal("http://203.0.113.7:47999", status.GetProperty("publicUrl").GetString());
-
-        // Everyone learns the address invite links should use.
-        var address = await member.EventAsync("server.address");
-        Assert.Equal("http://203.0.113.7:47999", Body(address).GetProperty("publicUrl").GetString());
+        Assert.Equal(JsonValueKind.Null, status.GetProperty("publicUrl").ValueKind);
+        await member.NoEventAsync("server.address");
         using var later = await _server.JoinAsync("Later");
-        Assert.Equal("http://203.0.113.7:47999", later.Welcome.GetProperty("body").GetProperty("server").GetProperty("publicUrl").GetString());
+        Assert.Equal(JsonValueKind.Null, later.Welcome.GetProperty("body").GetProperty("server").GetProperty("publicUrl").ValueKind);
+
+        // Only an address the owner set by hand is used (the panel warns that it's plain HTTP).
+        _server.World.UpdateSettings(s => s with { PublicUrl = "http://203.0.113.7:47999/" });
+        status = Body(await owner.RequestAsync("host.internet.set", new { enabled = true })).GetProperty("status");
+        Assert.Equal("http://203.0.113.7:47999", status.GetProperty("publicUrl").GetString());
+        Assert.Equal("http://203.0.113.7:47999", Body(await member.EventAsync("server.address")).GetProperty("publicUrl").GetString());
     }
 
     [Fact]
