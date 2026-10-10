@@ -52,7 +52,7 @@ export interface VoiceChannelState {
 
 export interface Welcome {
   you: Member
-  server: { name: string; key: string }
+  server: { name: string; key: string; appUrl: string }
   channels: Channel[]
   members: Member[]
   voice: VoiceChannelState[]

@@ -4,6 +4,7 @@ import {
   type LocalTrackPublication, type Participant, type RemoteParticipant, type RemoteTrack,
 } from 'livekit-client'
 import { create } from 'zustand'
+import { desktop } from '../platform/desktop'
 import { connectionFor } from './store'
 
 export interface VoiceSession {
@@ -21,6 +22,15 @@ export interface Tile {
   isLocal: boolean
 }
 
+/** How your mic opens: always (voice activity) or only while a key is held. */
+export interface VoiceSettings {
+  mode: 'voice' | 'ptt'
+  /** Web: a KeyboardEvent.code. */
+  webKey: { code: string; label: string } | null
+  /** Desktop: a global key or mouse button. */
+  desktopKey: { code: number; label: string } | null
+}
+
 interface VoiceState {
   session: VoiceSession | null
   muted: boolean
@@ -35,9 +45,21 @@ interface VoiceState {
   /** Per-person volume, 0–2 (1 = normal). Remembered on this device. */
   volumes: Record<string, number>
   error: string | null
+  settings: VoiceSettings
+  /** The push-to-talk key is held right now. */
+  pttDown: boolean
 }
 
 const VOLUME_KEY = 'iskra.volumes'
+const SETTINGS_KEY = 'iskra.voice'
+
+function loadSettings(): VoiceSettings {
+  try {
+    return { mode: 'voice', webKey: null, desktopKey: null, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') }
+  } catch {
+    return { mode: 'voice', webKey: null, desktopKey: null }
+  }
+}
 
 function loadVolumes(): Record<string, number> {
   try {
@@ -58,6 +80,8 @@ export const useVoice = create<VoiceState>(() => ({
   speaking: {},
   volumes: loadVolumes(),
   error: null,
+  settings: loadSettings(),
+  pttDown: false,
 }))
 
 export const canShareScreen = () => typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia
@@ -188,7 +212,9 @@ export async function joinVoice(serverKey: string, channelId: number): Promise<v
 
     if (canSpeak) {
       try {
-        await next.localParticipant.setMicrophoneEnabled(!useVoice.getState().muted)
+        // Publish the mic once; muting and push-to-talk just pause it (instant, no new permission prompts).
+        await next.localParticipant.setMicrophoneEnabled(true)
+        await applyMic()
       } catch {
         useVoice.setState({ muted: true, error: "Couldn't use your microphone. Check your browser's permissions." })
       }
@@ -227,13 +253,7 @@ export async function toggleMute(): Promise<void> {
     room?.remoteParticipants.forEach(applyVolume)
   }
   useVoice.setState({ muted: nextMuted })
-  if (room && session?.canSpeak) {
-    try {
-      await room.localParticipant.setMicrophoneEnabled(!nextMuted)
-    } catch {
-      useVoice.setState({ muted: true, error: "Couldn't use your microphone. Check your browser's permissions." })
-    }
-  }
+  if (room && session?.canSpeak) await applyMic()
   reportFlags()
 }
 
@@ -245,7 +265,7 @@ export async function toggleDeafen(): Promise<void> {
   const nextMuted = next ? true : mutedBeforeDeafen
   useVoice.setState({ deafened: next, muted: nextMuted })
   room?.remoteParticipants.forEach(applyVolume)
-  if (room && session?.canSpeak) await room.localParticipant.setMicrophoneEnabled(!nextMuted).catch(() => undefined)
+  if (room && session?.canSpeak) await applyMic()
   reportFlags()
 }
 
@@ -286,6 +306,62 @@ export function setVolume(accountKey: string, volume: number): void {
   }
   const participant = room?.remoteParticipants.get(accountKey)
   if (participant) applyVolume(participant)
+}
+
+/** Opens or pauses the published mic: not muted, and (in push-to-talk mode) the key is held. */
+async function applyMic(): Promise<void> {
+  const { muted, settings, pttDown, session } = useVoice.getState()
+  const publication = room?.localParticipant.getTrackPublication(Track.Source.Microphone)
+  if (!publication?.track || !session?.canSpeak) return
+  const open = !muted && (settings.mode === 'voice' || pttDown)
+  if (open && publication.isMuted) await publication.unmute()
+  else if (!open && !publication.isMuted) await publication.mute()
+}
+
+export function setPushToTalkDown(down: boolean): void {
+  if (useVoice.getState().pttDown === down) return
+  useVoice.setState({ pttDown: down })
+  if (useVoice.getState().settings.mode === 'ptt') void applyMic()
+}
+
+export function updateVoiceSettings(patch: Partial<VoiceSettings>): void {
+  const settings = { ...useVoice.getState().settings, ...patch }
+  useVoice.setState({ settings, pttDown: false })
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
+  } catch {
+    /* private mode */
+  }
+  void desktop?.setPushToTalkKey(settings.mode === 'ptt' ? (settings.desktopKey?.code ?? null) : null)
+  void applyMic()
+}
+
+/** Wires the push-to-talk key: global on desktop, in-page on the web. */
+export function startPushToTalk(): () => void {
+  if (desktop) {
+    const { settings } = useVoice.getState()
+    void desktop.setPushToTalkKey(settings.mode === 'ptt' ? (settings.desktopKey?.code ?? null) : null)
+    return desktop.onPushToTalk(setPushToTalkDown)
+  }
+  const isTyping = (target: EventTarget | null) =>
+    target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+  const handler = (down: boolean) => (event: KeyboardEvent) => {
+    const { settings } = useVoice.getState()
+    if (settings.mode !== 'ptt' || event.code !== settings.webKey?.code || event.repeat) return
+    if (down && isTyping(event.target)) return
+    setPushToTalkDown(down)
+  }
+  const onDown = handler(true)
+  const onUp = handler(false)
+  const onBlur = () => setPushToTalkDown(false)
+  window.addEventListener('keydown', onDown)
+  window.addEventListener('keyup', onUp)
+  window.addEventListener('blur', onBlur)
+  return () => {
+    window.removeEventListener('keydown', onDown)
+    window.removeEventListener('keyup', onUp)
+    window.removeEventListener('blur', onBlur)
+  }
 }
 
 export function clearVoiceError(): void {

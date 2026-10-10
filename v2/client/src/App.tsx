@@ -2,6 +2,8 @@ import { useEffect } from 'react'
 import { parseInvite } from './core/invite'
 import { boot, retryAll, useApp } from './state/store'
 import { loadFriends } from './state/dms'
+import { startPushToTalk } from './state/voice'
+import { ScreenPicker } from './ui/ScreenPicker'
 import { Spinner } from './ui/bits'
 import { JoinPrompt } from './ui/dialogs/JoinDialog'
 import { Onboarding } from './ui/Onboarding'
@@ -29,7 +31,9 @@ export function App() {
     }
     window.addEventListener('hashchange', readInviteFromHash)
     window.addEventListener('online', retryAll)
+    const stopPtt = startPushToTalk()
     return () => {
+      stopPtt()
       window.removeEventListener('hashchange', readInviteFromHash)
       window.removeEventListener('online', retryAll)
     }
@@ -47,6 +51,7 @@ export function App() {
     <>
       <Shell />
       {pendingInvite && <JoinPrompt invite={pendingInvite} />}
+      <ScreenPicker />
     </>
   )
 }

@@ -1,0 +1,65 @@
+{
+  "name": "iskra-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Iskra desktop app",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p .",
+    "start": "npm run build && electron .",
+    "dev": "npm run build && cross-env ISKRA_DEV_URL=http://localhost:5173 electron .",
+    "dist": "npm --prefix ../client run build && npm run build && electron-builder --win portable nsis"
+  },
+  "dependencies": {
+    "uiohook-napi": "1.5.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "cross-env": "^7.0.3",
+    "electron": "44.4.5",
+    "electron-builder": "^26.15.3",
+    "typescript": "~6.0.2"
+  },
+  "build": {
+    "appId": "foo.iskra.desktop",
+    "productName": "Iskra",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "assets/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../client/dist",
+        "to": "client"
+      }
+    ],
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "deleteAppDataOnUninstall": false
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Network"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.social-networking"
+    }
+  }
+}

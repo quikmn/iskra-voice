@@ -29,6 +29,8 @@ export interface ServerState {
   /** Who is in each voice channel (from the server, which hears it from LiveKit). */
   voice: Record<number, VoiceParticipant[]>
   voiceAvailable: boolean
+  /** The web app address this server's invite links should open. */
+  appUrl: string | null
 }
 
 interface AppState {
@@ -183,7 +185,7 @@ function connectServer(url: string, key: string, name: string, invite?: string):
       ...state.servers,
       [key]: state.servers[key] ?? {
         key, url, name, status: { state: 'connecting' }, me: null, channels: [], members: {},
-        messages: {}, hasMore: {}, typing: {}, unread: {}, voice: {}, voiceAvailable: false,
+        messages: {}, hasMore: {}, typing: {}, unread: {}, voice: {}, voiceAvailable: false, appUrl: null,
       },
     },
   }))
@@ -216,6 +218,7 @@ function onWelcome(key: string, welcome: Welcome): void {
     members: Object.fromEntries(welcome.members.map((m) => [m.accountKey, m])),
     voice: Object.fromEntries(welcome.voice.map((v) => [v.channelId, v.participants])),
     voiceAvailable: welcome.voiceAvailable,
+    appUrl: welcome.server.appUrl ?? null,
   }))
   void persistServers()
 

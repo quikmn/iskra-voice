@@ -132,7 +132,7 @@ public sealed class Session
         Send(Frames.Event("welcome", new
         {
             you = _hub.PublicMember(member),
-            server = new { name = _world.Settings.Name, key = Ed25519.ToB64u(_world.ServerPublicKey) },
+            server = new { name = _world.Settings.Name, key = Ed25519.ToB64u(_world.ServerPublicKey), appUrl = _world.Settings.AppUrl },
             channels = _hub.VisibleChannels(member),
             members = _world.Store.AllMembers().Select(_hub.PublicMember),
             voice = _voice.Snapshot(member),

@@ -35,7 +35,7 @@ export function InviteDialog({ server, onClose }: { server: ServerState; onClose
     }
   }, [server.key, lifetime, singleUse, optionsKey, invites])
 
-  const link = invite ? buildInviteLink(appUrl(), { serverUrl: server.url, serverKey: server.key, code: invite.code }) : ''
+  const link = invite ? buildInviteLink(appUrl(server.appUrl), { serverUrl: server.url, serverKey: server.key, code: invite.code }) : ''
 
   async function copy() {
     await navigator.clipboard.writeText(link)

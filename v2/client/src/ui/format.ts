@@ -33,5 +33,12 @@ export function hostOf(url: string): string {
   }
 }
 
-/** The web app's own address; invite links open it. */
-export const appUrl = () => window.location.origin + window.location.pathname
+/**
+ * The web app address invite links open: the server's configured one, else this page if it's a web page.
+ * (In the desktop app this page is app://, which nobody else could open.)
+ */
+export function appUrl(serverAppUrl?: string | null): string {
+  if (serverAppUrl) return serverAppUrl
+  const here = window.location.origin + window.location.pathname
+  return here.startsWith('http') ? here : 'https://app.iskra.foo/'
+}

@@ -3,6 +3,7 @@ import { b64u } from '../../core/crypto'
 import { fingerprint } from '../../core/connection'
 import { leaveServer, renameMe, useApp, type ServerState } from '../../state/store'
 import { Modal } from '../bits'
+import { VoiceSettingsSection } from './VoiceSettings'
 
 export function SettingsDialog({ server, onClose }: { server: ServerState; onClose: () => void }) {
   const profile = useApp((s) => s.profile)
@@ -37,6 +38,8 @@ export function SettingsDialog({ server, onClose }: { server: ServerState; onClo
           </p>
         )}
       </section>
+
+      <VoiceSettingsSection />
 
       <section className="settings-section">
         <h3>This server</h3>
