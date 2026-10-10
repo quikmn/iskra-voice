@@ -2,7 +2,7 @@
 // Run with `npm run test:e2e` (builds the server first).
 import { defineConfig, devices } from '@playwright/test'
 
-export const APP_PORT = 5199
+export const APP_PORT = Number(process.env.ISKRA_E2E_PORT) || 5199
 
 export default defineConfig({
   testDir: 'e2e',
