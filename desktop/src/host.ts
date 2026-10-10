@@ -226,6 +226,10 @@ export class Host {
     return this.describe(id)
   }
 
+  running(): boolean {
+    return this.processes.size > 0
+  }
+
   /** Stops every server; resolves when they've exited (a few seconds at most). */
   stopAll(): Promise<void> {
     const children = [...this.processes.values()]

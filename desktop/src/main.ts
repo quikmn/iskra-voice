@@ -263,17 +263,17 @@ let serversStopped: Promise<void> | null = null
 app.on('before-quit', () => {
   quitting = true
   ptt.stop()
-  serversStopped ??= host.stopAll()
+  if (host.running()) serversStopped ??= host.stopAll()
 })
 
 // Give hosted servers a moment to shut down cleanly (they also stop by themselves once the app is gone).
 let readyToQuit = false
 app.on('will-quit', (event) => {
-  if (readyToQuit) return
+  if (readyToQuit || !serversStopped) return
   event.preventDefault()
-  void (serversStopped ?? host.stopAll()).finally(() => {
+  void serversStopped.finally(() => {
     readyToQuit = true
-    app.quit()
+    setImmediate(() => app.quit())
   })
 })
 
