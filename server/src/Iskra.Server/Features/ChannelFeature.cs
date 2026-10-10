@@ -48,7 +48,7 @@ public static class ChannelFeature
         foreach (var session in s.Hub.Sessions)
         {
             var member = session.CurrentMember();
-            if (member is not null) session.Send(Frames.Event("channels", new { channels = s.Hub.VisibleChannels(member) }));
+            if (member is not null) session.Send(s.Hub.ChannelsEvent(member));
         }
     }
 
@@ -66,8 +66,14 @@ public static class ChannelFeature
         CheckRoles(readRole, writeRole);
 
         var slowmode = ModerationFeature.SlowmodeField(body) ?? 0;
+        var categoryId = OrganizeFeature.OptionalCategory(s, body);
         var channel = s.World.Store.CreateChannel(ChannelName(body.String("name", 256)), kind, readRole, writeRole, s.Now);
         if (slowmode > 0) s.World.Store.SetSlowmode(channel.Id, slowmode);
+        if (categoryId is not null)
+        {
+            s.World.Store.SetChannelCategory(channel.Id, categoryId);
+            channel = channel with { CategoryId = categoryId };
+        }
         Audit.Record(s, "channel.create", details: new { channelId = channel.Id, name = channel.Name, kind, readRole, writeRole, slowmode });
         BroadcastChannels(s);
         return new { channel = Hub.PublicChannel(channel, slowmode) };

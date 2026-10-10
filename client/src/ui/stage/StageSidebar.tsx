@@ -27,7 +27,7 @@ export function StageSidebar({ server, onNavigate, onCreate }: { server: ServerS
   )
 }
 
-function StageEntry({ server, channelId, name, onNavigate }: { server: ServerState; channelId: number; name: string; onNavigate: () => void }) {
+export function StageEntry({ server, channelId, name, onNavigate }: { server: ServerState; channelId: number; name: string; onNavigate: () => void }) {
   const state = useStages(stageFor(server.key, channelId))
   const session = useVoice((s) => s.session)
   const here = session?.serverKey === server.key && session.channelId === channelId && !session.call

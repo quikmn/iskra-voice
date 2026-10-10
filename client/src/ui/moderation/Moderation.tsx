@@ -1,11 +1,11 @@
 // Safety in the chat: collapsed messages from people you blocked, the timed-out composer, the slowmode
 // countdown, timeout and block controls for a member, and channel settings (slowmode) for admins.
 import { useState, type ReactNode } from 'react'
-import { ROLES, roleRank, type Channel, type Member, type Role } from '../../core/protocol'
+import { roleRank, type Channel, type Member } from '../../core/protocol'
 import { removeTimeout, setBlocked, timeoutMember, useIsBlocked, useMyTimeouts } from '../../state/moderation'
-import { countdown, slowmodeLabel, SLOWMODE_STEPS, timeoutActive, TIMEOUT_OPTIONS, untilText } from '../../state/moderationRules'
-import { connectionFor, type ServerState } from '../../state/store'
-import { Modal } from '../bits'
+import { countdown, slowmodeLabel, timeoutActive, TIMEOUT_OPTIONS, untilText } from '../../state/moderationRules'
+import type { ServerState } from '../../state/store'
+import { ChannelSettingsDialog } from '../organize/Dialogs'
 import { Settings } from '../icons'
 import { useNow } from './hooks'
 import './moderation.css'
@@ -172,79 +172,5 @@ export function ChannelSettingsButton({ server, channel }: { server: ServerState
       </button>
       {open && <ChannelSettingsDialog server={server} channel={channel} onClose={() => setOpen(false)} />}
     </>
-  )
-}
-
-function ChannelSettingsDialog({ server, channel, onClose }: { server: ServerState; channel: Channel; onClose: () => void }) {
-  const [name, setName] = useState(channel.name)
-  const [readRole, setReadRole] = useState<Role>(channel.readRole)
-  const [writeRole, setWriteRole] = useState<Role>(channel.writeRole)
-  const [slowmode, setSlowmodeValue] = useState(channel.slowmode ?? 0)
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-
-  async function save() {
-    setBusy(true)
-    try {
-      const connection = connectionFor(server.key)
-      if (!connection) throw new Error('Not connected.')
-      await connection.request('channel.update', {
-        id: channel.id, name: name.trim() || channel.name, readRole, writeRole,
-        slowmode: channel.kind === 'text' ? slowmode : undefined,
-      })
-      onClose()
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <Modal
-      title={`#${channel.name} settings`}
-      onClose={onClose}
-      footer={
-        <>
-          <button className="button" onClick={onClose}>Cancel</button>
-          <button className="button primary" disabled={busy} onClick={() => void save()}>{busy ? 'Saving…' : 'Save'}</button>
-        </>
-      }
-    >
-      <label className="field">
-        <span>Name</span>
-        <input value={name} maxLength={32} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void save()} />
-      </label>
-      <div className="channel-roles">
-        <label className="field">
-          <span>Who can read</span>
-          <select value={readRole} onChange={(e) => {
-            const role = e.target.value as Role
-            setReadRole(role)
-            if (roleRank(writeRole) < roleRank(role)) setWriteRole(role)
-          }}>
-            {ROLES.map((r) => <option key={r} value={r}>{r} and up</option>)}
-          </select>
-        </label>
-        <label className="field">
-          <span>Who can write</span>
-          <select value={writeRole} onChange={(e) => setWriteRole(e.target.value as Role)}>
-            {ROLES.filter((r) => roleRank(r) >= roleRank(readRole)).map((r) => <option key={r} value={r}>{r} and up</option>)}
-          </select>
-        </label>
-      </div>
-      {channel.kind === 'text' && (
-        <label className="field">
-          <span>Slowmode · {slowmode ? `one message every ${slowmodeLabel(slowmode)}` : 'off'}</span>
-          <input
-            type="range" min={0} max={SLOWMODE_STEPS.length - 1} step={1} aria-label="Slowmode"
-            value={SLOWMODE_STEPS.indexOf(slowmode as (typeof SLOWMODE_STEPS)[number])}
-            onChange={(e) => setSlowmodeValue(SLOWMODE_STEPS[Number(e.target.value)])}
-          />
-          <small className="muted">Members can send one message per interval here. Admins aren't limited.</small>
-        </label>
-      )}
-      {error && <p className="error-text">{error}</p>}
-    </Modal>
   )
 }

@@ -3,7 +3,10 @@ using Microsoft.Data.Sqlite;
 namespace Iskra.Server.Storage;
 
 public sealed record Member(string AccountKey, string Name, string Role, long JoinedAt);
-public sealed record Channel(long Id, string Name, string Kind, int Position, string ReadRole, string WriteRole);
+public sealed record Channel(long Id, string Name, string Kind, int Position, string ReadRole, string WriteRole)
+{
+    public long? CategoryId { get; init; }
+}
 public sealed record Message(long Id, long ChannelId, string AuthorKey, string Text, long CreatedAt, long? EditedAt,
     string[] Attachments, long? ReplyTo);
 public sealed record StoredFile(string Id, string Sha256, string Name, long Size, string Type, int? Width, int? Height, string Uploader, long CreatedAt);
@@ -263,6 +266,7 @@ public sealed partial class Store : IDisposable
         ("presence-1", PresenceMigration),
         ("voice-messages-1", VoiceMessagesMigration),
         ("moderation-1", ModerationMigration),
+        ("organize-1", OrganizeMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

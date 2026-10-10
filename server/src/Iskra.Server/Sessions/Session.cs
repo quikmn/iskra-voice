@@ -165,6 +165,8 @@ public sealed class Session
                 profilePages = ProfileFeature.PagesEnabled(_world.Store) },
             presence = PresenceFeature.Mine(_world.Store, member.AccountKey, Now),
             channels = _hub.VisibleChannels(member),
+            categories = _hub.VisibleCategories(member),
+            notify = NotifyFeature.Settings(_world.Store, member.AccountKey, Now),
             members = _world.Store.AllMembers().Select(_hub.PublicMember),
             voice = _voice.Snapshot(member),
             voiceAvailable = _voice.Backend.Available,

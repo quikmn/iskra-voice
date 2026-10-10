@@ -67,7 +67,7 @@ public sealed class Hub(World world, TimeProvider time)
         Features.ProfileFeature.Public(world.Store, m, Features.PresenceFeature.Of(world.Store, this, m.AccountKey, time.GetUtcNow().ToUnixTimeMilliseconds()));
 
     public static object PublicChannel(Channel c, int slowmode = 0) =>
-        new { id = c.Id, name = c.Name, kind = c.Kind, position = c.Position, readRole = c.ReadRole, writeRole = c.WriteRole, slowmode };
+        new { id = c.Id, name = c.Name, kind = c.Kind, position = c.Position, readRole = c.ReadRole, writeRole = c.WriteRole, slowmode, categoryId = c.CategoryId };
 
     /// <summary>The channels this member can see, in order.</summary>
     public List<object> VisibleChannels(Member member)
@@ -77,11 +77,18 @@ public sealed class Hub(World world, TimeProvider time)
             .Select(c => PublicChannel(c, slowmodes.GetValueOrDefault(c.Id))).ToList();
     }
 
+    /// <summary>The categories this member can see (see <see cref="Features.OrganizeFeature.VisibleCategories"/>).</summary>
+    public List<object> VisibleCategories(Member member) => Features.OrganizeFeature.VisibleCategories(world.Store, member);
+
+    /// <summary>The "channels" event for this member: their channels and categories.</summary>
+    public string ChannelsEvent(Member member) =>
+        Frames.Event("channels", new { channels = VisibleChannels(member), categories = VisibleCategories(member) });
+
     /// <summary>After a role change: tell that member which channels they can see now.</summary>
     public void RefreshChannels(string accountKey)
     {
         var member = world.Store.GetMember(accountKey);
         if (member is null) return;
-        SendToAccount(accountKey, Frames.Event("channels", new { channels = VisibleChannels(member) }));
+        SendToAccount(accountKey, ChannelsEvent(member));
     }
 }

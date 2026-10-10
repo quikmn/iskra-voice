@@ -11,6 +11,7 @@ import { useMemberPresence } from '../../state/presence'
 import { STATUS_LABELS } from '../../state/presenceRules'
 import { BlockButton, ClockIcon, TimeoutControls } from '../moderation/Moderation'
 import { timeoutActive, untilText } from '../../state/moderationRules'
+import { NicknameField } from '../organize/ServerSettings'
 
 export function MemberDialog({ server, member, onClose }: { server: ServerState; member: Member; onClose: () => void }) {
   const me = server.me
@@ -43,6 +44,7 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
         <Avatar name={member.name} accountKey={member.accountKey} size={64} status={presence.status} />
         <div>
           <strong className="member-card-name">{member.name}</strong> {member.bot && <BotBadge />}
+          {member.nick && member.profileName && <div className="muted">{member.profileName}</div>}
           <div className="muted">{[member.pronouns, member.role, STATUS_LABELS[presence.status].toLowerCase()].filter(Boolean).join(' · ')}</div>
           <div className="muted">ID <code>{fingerprint(member.accountKey)}</code></div>
           {timeoutActive(member) && (
@@ -72,6 +74,8 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
           </label>
         </section>
       )}
+
+      <NicknameField server={server} member={member} />
 
       {canModerate && connection && (
         <section className="settings-section">

@@ -6,7 +6,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 ## Contents
 
 - **Basics:** [Encoding](#encoding) · [Identity](#identity) · [Connection](#connection) (handshake, errors and close codes, limits) · [Objects](#objects)
-- **Servers and channels:** [Requests and events](#requests-and-events) · [Invite links](#invite-links)
+- **Servers and channels:** [Requests and events](#requests-and-events) · [Invite links](#invite-links) · [Organizing a server](#organizing-a-server)
 - **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji)
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted)
@@ -884,7 +884,7 @@ BlockEntry { "accountKey": "<b64u 32>", "blocked": true, "at": 1760000000000 }  
 - Merge: per `accountKey` the entry with the larger `at` wins; on a tie a block beats an unblock. `at` may be at most 10 minutes in the future. You can't block yourself. At most 500 entries per account; the oldest unblocks are dropped first, and more than 500 blocks is `bad_request`.
 - Event `blocks` `{ blocks }` goes to the account's other sessions on this server after a change.
 - If either person has blocked the other, `dm.send` and `call.start` between them answer `forbidden` ("You can't message/call this person"), without saying who blocked whom. Blocking someone ends any call with them on this server. Nothing is sent to the blocked person, and the list is never shown to anyone else.
-- Messages in shared channels are still delivered; clients collapse messages from people you blocked ("Blocked message — Show").
+- Messages in shared channels are still delivered; clients collapse messages from people you blocked ("Blocked message — Show"). They never cause a [push](#push-notifications-web-push) between the two people (mentions, replies or "all messages"), and apps don't notify or play sounds for them.
 
 ### Timeouts
 
@@ -916,3 +916,54 @@ AuditEntry { "id": 7, "at": 1760000000000, "action": "member.timeout", "actor": 
 
 - Names are recorded with the entry, so it stays readable after people leave. Entries older than 90 days are deleted.
 - Actions and their `details`: `member.kick`, `member.ban`, `member.unban`, `member.role` `{ from, to }`, `member.timeout` `{ durationMs, until }`, `member.timeout.remove`, `channel.create` `{ channelId, name, kind, readRole, writeRole, slowmode }`, `channel.update` `{ channelId, name, changes: { name?, readRole?, writeRole?, slowmode?: { from, to } } }`, `channel.delete` `{ channelId, name, kind }`, `message.delete` (by someone other than the author; the target is the author) `{ channelId, channelName, messageId, author }`, `thread.delete` (by someone other than its creator), `message.pin` / `message.unpin` `{ channelId, channelName, messageId }`, `webhook.create` / `webhook.update` / `webhook.regenerate` / `webhook.delete` `{ id, name, channelId }`, `bot.invite` `{ role, expiresAt }`, `emoji.create` / `emoji.rename` / `emoji.delete`, `sound.create` / `sound.update` / `sound.delete`, `invite.create` `{ role, maxUses, expiresAt }`, `invite.revoke` `{ role, uses }`, `profile.page.remove` (someone else's), `server.pages` `{ enabled }`, `server.internet` `{ enabled }`. Invite codes and message text are never recorded.
+
+## Organizing a server
+
+### Categories and channel order
+
+Admins group channels into categories and arrange them. Channels without a category are listed first.
+
+```jsonc
+Category { "id": 3, "name": "Games", "position": 0 }
+// Channel gains: "categoryId": 3 | null
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `category.create` | `name` (1–32 chars, no control or invisible characters; case kept) | `{ category }` | admin+; ≤ 50 categories |
+| `category.update` | `id, name` | `{ category }` | admin+ |
+| `category.delete` | `id` | | admin+; its channels become uncategorized |
+| `category.move` | `id, before?` (a category id; absent = to the end) | | admin+ |
+| `channel.move` | `id, categoryId?` (absent or null = uncategorized), `before?` (a channel in that category; absent = its end) | | admin+; both channels must be ones you can read (`not_found` otherwise); not threads |
+| `channel.create` | adds `categoryId?` | | |
+
+- `position` is the order: categories by their `position`, channels by theirs (unique across the server; moves renumber them).
+- **Nothing leaks:** `welcome.categories` and the `channels` event's `categories` hold, for admins, every category; for everyone else only categories containing at least one channel they can read, renumbered from 0 so hidden ones leave no gaps.
+- The `channels` event gains `categories: [Category]` and is sent to everyone after any category or order change.
+
+### Nicknames
+
+| type | body | result | who |
+|---|---|---|---|
+| `member.nick` | `nick` (same rules as names: 1–32 chars, trimmed, NFC, no control or invisible characters; `""` resets), `accountKey?` (default: yourself) | `{ member }` | anyone for themselves; admins for members ranked below them |
+
+- `Member.name` is the name to show on this server (the nickname when set). Members gain `nick` (string or null) and `profileName` (their own profile name).
+- Broadcast as `member.updated`. Push notifications use nicknames too. A nickname is removed when the member leaves.
+
+### Notification levels and mutes
+
+Each account keeps, per server and per channel, a **level** (`all` messages, only `mentions`, `none`) and an optional **mute**. They're stored on the server, so every device and Web Push follow them.
+
+```jsonc
+NotifySetting { "channelId": 1 | null /* null = whole server */, "level": "all" | "mentions" | "none" | null /* null = inherit */,
+                "mutedUntil": 1760000000000 | -1 /* until turned back on */ | null }
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `notify.set` | `channelId?` (a channel you can read, not a thread; absent = the server), `level?` (`all` \| `mentions` \| `none` \| `default`), `muteMinutes?` (0 = unmute, −1 = until turned back on, 1–43200) | `{ setting }` | anyone |
+
+- `welcome.notify` lists your settings (expired mutes read as not muted). Event `notify.updated { setting }` goes to all of your sessions.
+- **The effective level** for a channel: the channel's level, else the server's, else `mentions`. A thread follows its channel. While the channel or the server is muted, `all` counts as `mentions`.
+- **Push:** `all` pushes every message (`kind: "message"`), `mentions` pushes mentions and replies, `none` pushes nothing from that channel. DMs and calls aren't affected.
+- **Clients:** muted channels are dimmed and show no unread marker; mention badges stay unless the level is `none`.

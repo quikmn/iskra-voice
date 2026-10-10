@@ -1,6 +1,7 @@
 import { selectServer, useApp } from '../state/store'
 import { openFriends, useDms } from '../state/dms'
 import { initials } from './format'
+import { serverBadges, useOrganize } from '../state/organize'
 import { Plus } from './icons'
 
 export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavigate: () => void }) {
@@ -8,6 +9,8 @@ export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavig
   const servers = useApp((s) => s.servers)
   const active = useApp((s) => s.activeServer)
 
+  useOrganize((s) => s.notify) // badges follow notification settings
+  useOrganize((s) => s.clock)
   const dmUnread = useDms((s) => Object.values(s.conversations).reduce((n, c) => n + c.unread, 0))
 
   return (
@@ -28,8 +31,7 @@ export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavig
       {order.map((key) => {
         const server = servers[key]
         if (!server) return null
-        const unread = Object.values(server.unread).reduce((a, b) => a + b, 0)
-        const pings = Object.values(server.mentions).reduce((a, b) => a + b, 0)
+        const { unread, pings } = serverBadges(server)
         const offline = server.status.state !== 'online'
         return (
           <button
