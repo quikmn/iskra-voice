@@ -50,8 +50,10 @@ export function parseSearch(input: string, ctx: { channels: Channel[]; members: 
       }
       case 'from': {
         const name = value.replace(/^@/, '').toLowerCase()
-        const exact = ctx.members.filter((m) => m.name.toLowerCase() === name)
-        const prefix = ctx.members.filter((m) => m.name.toLowerCase().startsWith(name))
+        // Nicknames and profile names both work.
+        const names = (m: (typeof ctx.members)[number]) => [m.name, m.profileName ?? m.name].map((n) => n.toLowerCase())
+        const exact = ctx.members.filter((m) => names(m).includes(name))
+        const prefix = ctx.members.filter((m) => names(m).some((n) => n.startsWith(name)))
         const found = exact.length === 1 ? exact[0] : prefix.length === 1 ? prefix[0] : null
         if (found) request.author = found.accountKey
         else errors.push(exact.length + prefix.length > 1 ? `More than one person matches "${value}".` : `Nobody called "${value}".`)

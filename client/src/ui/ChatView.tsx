@@ -441,7 +441,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
   const [pick, setPick] = useState(0)
   const query = /(?:^|\s)@([^\s@]{0,32})$/u.exec(text.slice(0, caret))?.[1]
   const suggestions = query === undefined ? [] : Object.values(server.members)
-    .filter((m) => m.name.toLowerCase().startsWith(query.toLowerCase()) && m.accountKey !== server.me?.accountKey)
+    .filter((m) => [m.name, m.profileName ?? m.name].some((n) => n.toLowerCase().startsWith(query.toLowerCase())) && m.accountKey !== server.me?.accountKey)
     .sort((a, b) => Number(b.online) - Number(a.online) || a.name.localeCompare(b.name))
     .slice(0, 6)
   const emojiSuggest = useEmojiSuggest(server.key, text, caret, (next) => {

@@ -1,0 +1,165 @@
+// Organizing a server: channel categories (and who's collapsed what, remembered on this device), notification
+// levels and mutes (kept by the server for your account, so every device and push follow them), and nicknames.
+import { create } from 'zustand'
+import type { Category, Events, Member, NotifyLevel, NotifySetting } from '../core/protocol'
+import { connectionFor, onServerEvent, onWelcomeHook, type ServerState } from './store'
+import { knownThread } from './threads'
+import { channelBadges, effectiveNotify, nextMuteEnd, notifyKey, type EffectiveNotify, type NotifyMap } from './organizeLogic'
+
+interface OrganizeState {
+  categories: Record<string, Category[]>
+  notify: Record<string, NotifyMap>
+  /** serverKey → collapsed category ids (this device only). */
+  collapsed: Record<string, number[]>
+  /** Bumped when a timed mute runs out, so badges and labels refresh. */
+  clock: number
+}
+
+const COLLAPSED_KEY = 'iskra.collapsed'
+
+function loadCollapsed(): Record<string, number[]> {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? '{}') as unknown
+    if (!parsed || typeof parsed !== 'object') return {}
+    return Object.fromEntries(Object.entries(parsed).map(([k, v]) => [k, Array.isArray(v) ? v.filter(Number.isSafeInteger) : []]))
+  } catch {
+    return {}
+  }
+}
+
+export const useOrganize = create<OrganizeState>(() => ({ categories: {}, notify: {}, collapsed: loadCollapsed(), clock: Date.now() }))
+
+const toMap = (list: NotifySetting[]): NotifyMap => Object.fromEntries(list.map((s) => [notifyKey(s.channelId), s]))
+
+let timer: ReturnType<typeof setTimeout> | null = null
+
+/** Wakes up when the next timed mute ends. */
+function scheduleMuteEnd(): void {
+  if (timer) clearTimeout(timer)
+  timer = null
+  const now = Date.now()
+  const next = nextMuteEnd(Object.values(useOrganize.getState().notify), now)
+  if (next === null) return
+  timer = setTimeout(() => {
+    useOrganize.setState({ clock: Date.now() })
+    scheduleMuteEnd()
+  }, Math.min(next - now + 50, 2 ** 31 - 1))
+}
+
+function saveSetting(key: string, setting: NotifySetting): void {
+  useOrganize.setState((s) => ({ notify: { ...s.notify, [key]: { ...s.notify[key], [notifyKey(setting.channelId)]: setting } }, clock: Date.now() }))
+  scheduleMuteEnd()
+}
+
+onWelcomeHook((key, welcome) => {
+  useOrganize.setState((s) => ({
+    categories: { ...s.categories, [key]: welcome.categories ?? [] },
+    notify: { ...s.notify, [key]: toMap(welcome.notify ?? []) },
+    clock: Date.now(),
+  }))
+  scheduleMuteEnd()
+})
+
+onServerEvent((key, type, body) => {
+  if (type === 'channels') {
+    const { categories } = body as Events['channels']
+    if (categories) useOrganize.setState((s) => ({ categories: { ...s.categories, [key]: categories } }))
+  }
+  if (type === 'notify.updated') saveSetting(key, (body as Events['notify.updated']).setting)
+})
+
+// ── Reading ─────────────────────────────────────────────────────────────────
+
+/** Threads follow their channel's settings. */
+export function settingsChannel(serverKey: string, channelId: number): number {
+  return knownThread(serverKey, channelId)?.channelId ?? channelId
+}
+
+export function notifyFor(serverKey: string, channelId: number | null): EffectiveNotify {
+  const map = useOrganize.getState().notify[serverKey]
+  return effectiveNotify(map, channelId === null ? null : settingsChannel(serverKey, channelId), Date.now())
+}
+
+/** Re-renders when settings change or a mute runs out. */
+export function useNotifyFor(serverKey: string, channelId: number | null): EffectiveNotify {
+  useOrganize((s) => s.notify[serverKey])
+  useOrganize((s) => s.clock)
+  return notifyFor(serverKey, channelId)
+}
+
+export function useCategories(serverKey: string): Category[] {
+  return useOrganize((s) => s.categories[serverKey]) ?? NONE
+}
+const NONE: Category[] = []
+
+/** The server icon's badge and dot: mentions where the level isn't "Nothing", unread only where nothing is muted. */
+export function serverBadges(server: ServerState): { pings: number; unread: number } {
+  let pings = 0
+  let unread = 0
+  const ids = new Set([...Object.keys(server.unread), ...Object.keys(server.mentions)].map(Number))
+  for (const id of ids) {
+    const shown = channelBadges(server.unread[id] ?? 0, server.mentions[id] ?? 0, notifyFor(server.key, id))
+    pings += shown.pings
+    if (shown.unread) unread += server.unread[id] ?? 0
+  }
+  return { pings, unread }
+}
+
+// ── Collapsing (this device) ────────────────────────────────────────────────
+
+export function toggleCollapsed(serverKey: string, categoryId: number): void {
+  useOrganize.setState((s) => {
+    const mine = s.collapsed[serverKey] ?? []
+    const next = mine.includes(categoryId) ? mine.filter((id) => id !== categoryId) : [...mine, categoryId]
+    return { collapsed: { ...s.collapsed, [serverKey]: next } }
+  })
+  try {
+    localStorage.setItem(COLLAPSED_KEY, JSON.stringify(useOrganize.getState().collapsed))
+  } catch {
+    /* private mode */
+  }
+}
+
+// ── Requests ────────────────────────────────────────────────────────────────
+
+function connection(serverKey: string) {
+  const c = connectionFor(serverKey)
+  if (!c) throw new Error('Not connected.')
+  return c
+}
+
+export async function setNotifyLevel(serverKey: string, channelId: number | null, level: NotifyLevel | 'default'): Promise<void> {
+  const { setting } = await connection(serverKey).request('notify.set', { channelId, level })
+  saveSetting(serverKey, setting)
+}
+
+/** minutes: 0 unmutes, -1 mutes until turned back on. */
+export async function muteFor(serverKey: string, channelId: number | null, minutes: number): Promise<void> {
+  const { setting } = await connection(serverKey).request('notify.set', { channelId, muteMinutes: minutes })
+  saveSetting(serverKey, setting)
+}
+
+export async function createCategory(serverKey: string, name: string): Promise<Category> {
+  return (await connection(serverKey).request('category.create', { name })).category
+}
+
+export async function renameCategory(serverKey: string, id: number, name: string): Promise<void> {
+  await connection(serverKey).request('category.update', { id, name })
+}
+
+export async function deleteCategory(serverKey: string, id: number): Promise<void> {
+  await connection(serverKey).request('category.delete', { id })
+}
+
+export async function moveCategory(serverKey: string, id: number, before: number | null): Promise<void> {
+  await connection(serverKey).request('category.move', { id, before })
+}
+
+export async function moveChannel(serverKey: string, id: number, categoryId: number | null, before: number | null): Promise<void> {
+  await connection(serverKey).request('channel.move', { id, categoryId, before })
+}
+
+/** Your own nickname (no accountKey) or someone else's (admins). "" resets it. */
+export async function setNickname(serverKey: string, nick: string, accountKey?: string): Promise<Member> {
+  return (await connection(serverKey).request('member.nick', { accountKey, nick })).member
+}

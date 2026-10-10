@@ -7,6 +7,7 @@ import { addFriend, openConversation, removeFriend, useDms } from '../../state/d
 import { Avatar, Modal } from '../bits'
 import { removeMemberPage } from '../../state/profile'
 import { BotBadge } from '../chat/BotBits'
+import { NicknameField } from '../organize/ServerSettings'
 
 export function MemberDialog({ server, member, onClose }: { server: ServerState; member: Member; onClose: () => void }) {
   const me = server.me
@@ -38,6 +39,7 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
         <Avatar name={member.name} accountKey={member.accountKey} size={64} online={member.online} />
         <div>
           <strong className="member-card-name">{member.name}</strong> {member.bot && <BotBadge />}
+          {member.nick && member.profileName && <div className="muted">{member.profileName}</div>}
           <div className="muted">{[member.pronouns, member.role, member.online ? 'online' : 'offline'].filter(Boolean).join(' · ')}</div>
           <div className="muted">ID <code>{fingerprint(member.accountKey)}</code></div>
         </div>
@@ -63,6 +65,8 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
           </label>
         </section>
       )}
+
+      <NicknameField server={server} member={member} />
 
       {canModerate && connection && (
         <section className="settings-section">

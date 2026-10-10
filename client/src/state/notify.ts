@@ -1,5 +1,5 @@
 // Desktop notifications, the unread count in the window title, and small sounds.
-// Notifications fire for mentions and DMs when you aren't already looking at them.
+// Notifications fire for mentions (every message at "All messages") and DMs when you aren't already looking at them.
 import { create } from 'zustand'
 import { canPingGroups, mentions, plainText } from '../ui/markdown'
 import { activeChannelId, onServerEvent, useApp } from './store'
@@ -7,6 +7,8 @@ import { conversationLabel, isViewingThread } from './threads'
 import { jumpToMessage } from './jump'
 import { b64u } from '../core/crypto'
 import type { Events, WireDm } from '../core/protocol'
+import { notifyFor, serverBadges, useOrganize } from './organize'
+import { shouldNotify } from './organizeLogic'
 
 interface NotifySettings {
   desktop: boolean
@@ -103,7 +105,8 @@ onServerEvent((serverKey, type, body) => {
     const { message } = body as Events['chat.message']
     const myKey = me()
     const groupPings = canPingGroups(server.members[message.author]?.role, !!message.webhook)
-    if (message.author === myKey || !mentions(message.text, myKey, groupPings)) return
+    // Your notification level for the channel decides (all messages, only mentions, nothing; mutes quiet "all").
+    if (message.author === myKey || !shouldNotify(notifyFor(serverKey, message.channelId), mentions(message.text, myKey, groupPings))) return
     const viewing = document.hasFocus() && state.activeServer === serverKey && activeChannelId(state) === message.channelId
     if (viewing || isViewingThread(serverKey, message.channelId)) return
     const author = message.webhook?.name ?? server.members[message.author]?.name ?? 'Someone'
@@ -150,16 +153,18 @@ export function startTitleBadge(): () => void {
   const update = async () => {
     const { useDms } = await import('./dms')
     const servers = Object.values(useApp.getState().servers)
-    const mentionCount = servers.reduce((n, s) => n + Object.values(s.mentions).reduce((a, b) => a + b, 0), 0)
+    const mentionCount = servers.reduce((n, s) => n + serverBadges(s).pings, 0)
     const dmCount = Object.values(useDms.getState().conversations).reduce((n, c) => n + c.unread, 0)
     const total = mentionCount + dmCount
     document.title = total > 0 ? `(${total}) Iskra` : 'Iskra'
   }
   const unsubscribe = useApp.subscribe(() => void update())
+  const unsubscribeOrganize = useOrganize.subscribe(() => void update())
   let unsubscribeDms = () => {}
   void import('./dms').then(({ useDms }) => (unsubscribeDms = useDms.subscribe(() => void update())))
   return () => {
     unsubscribe()
+    unsubscribeOrganize()
     unsubscribeDms()
   }
 }

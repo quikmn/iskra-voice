@@ -14,6 +14,7 @@ import { EmojiSection, SoundboardSettingsSection, SoundsSection } from '../expre
 import { DevicesSection } from '../dialogs/DevicesSection'
 import { IntegrationsSection } from '../dialogs/Integrations'
 import { ChevronRight } from '../icons'
+import { NicknameField } from '../organize/ServerSettings'
 import { settingsSections, type SectionId } from './sections'
 import './settings.css'
 
@@ -91,7 +92,7 @@ function Section({ id, server, onClose }: { id: SectionId; server: ServerState |
     case 'appearance': return <AppearanceSection />
     case 'devices': return <DevicesSection />
     case 'recovery': return <RecoveryKeySection />
-    case 'notifications': return <NotificationSettingsSection />
+    case 'notifications': return <NotificationSettingsSection server={server} />
     case 'voice': return <><VoiceSettingsSection /><SoundboardSettingsSection /></>
   }
   if (!server) return null
@@ -116,6 +117,7 @@ function OverviewSection({ server, onClose }: { server: ServerState; onClose: ()
         <div><dt>Address</dt><dd><code>{server.url}</code></dd></div>
         <div><dt>Server ID</dt><dd><code>{fingerprint(server.key)}</code></dd></div>
       </dl>
+      {server.me && <NicknameField server={server} member={server.me} />}
       <div className="settings-danger">
         <div>
           <strong>Remove from my list</strong>

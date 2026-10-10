@@ -68,7 +68,7 @@ export function nameOf(accountKey: string): string {
   const { servers } = useApp.getState()
   for (const server of Object.values(servers)) {
     const member = server.members[accountKey]
-    if (member) return member.name
+    if (member) return member.profileName ?? member.name // DMs aren't on a server: their own name, not a nickname
   }
   return useDms.getState().friends[accountKey]?.name ?? 'Someone'
 }

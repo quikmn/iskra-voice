@@ -2,9 +2,12 @@ import { useState } from 'react'
 import { ROLES, type Role } from '../../core/protocol'
 import { connectionFor, selectChannel, type ServerState } from '../../state/store'
 import { Modal } from '../bits'
+import { useCategories } from '../../state/organize'
 import { Hash, Volume } from '../icons'
 
-export function CreateChannelDialog({ server, onClose }: { server: ServerState; onClose: () => void }) {
+export function CreateChannelDialog({ server, categoryId: initialCategory = null, onClose }: { server: ServerState; categoryId?: number | null; onClose: () => void }) {
+  const categories = useCategories(server.key)
+  const [categoryId, setCategoryId] = useState<number | null>(initialCategory)
   const [name, setName] = useState('')
   const [kind, setKind] = useState<'text' | 'voice'>('text')
   const [readRole, setReadRole] = useState<Role>('member')
@@ -19,6 +22,7 @@ export function CreateChannelDialog({ server, onClose }: { server: ServerState; 
     try {
       const { channel } = await connectionFor(server.key)!.request('channel.create', {
         name: slug, kind, readRole, writeRole: ROLES.indexOf(writeRole) < ROLES.indexOf(readRole) ? readRole : writeRole,
+        categoryId: categoryId ?? undefined,
       })
       if (channel.kind === 'text') selectChannel(server.key, channel.id)
       onClose()
@@ -52,6 +56,15 @@ export function CreateChannelDialog({ server, onClose }: { server: ServerState; 
         <RolePicker label="Who can see it" value={readRole} onChange={setReadRole} />
         <RolePicker label={kind === 'voice' ? 'Who can speak' : 'Who can post'} value={writeRole} onChange={setWriteRole} min={readRole} />
       </div>
+      {categories.length > 0 && (
+        <label className="field inline">
+          <span>Category</span>
+          <select value={categoryId ?? ''} onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}>
+            <option value="">No category</option>
+            {[...categories].sort((a, b) => a.position - b.position).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </label>
+      )}
       {error && <p className="error-text">{error}</p>}
     </Modal>
   )

@@ -711,3 +711,54 @@ Everything else a server answers over HTTP(S), on the same port as `/ws`:
 | `/livekit` | LiveKit signaling, proxied ([Voice](#voice)) |
 | `POST /internal/livekit-webhook` | LiveKit's signed webhooks, loopback only |
 | `GET /.well-known/acme-challenge/<token>`, `GET /.well-known/iskra-probe/<token>` | Let's Encrypt and the reachability probe ([Internet hosting](#internet-hosting)) |
+
+## Organizing a server
+
+### Categories and channel order
+
+Admins group channels into categories and arrange them. Channels without a category are listed first.
+
+```jsonc
+Category { "id": 3, "name": "Games", "position": 0 }
+// Channel gains: "categoryId": 3 | null
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `category.create` | `name` (1–32 chars, no control or invisible characters; case kept) | `{ category }` | admin+; ≤ 50 categories |
+| `category.update` | `id, name` | `{ category }` | admin+ |
+| `category.delete` | `id` | | admin+; its channels become uncategorized |
+| `category.move` | `id, before?` (a category id; absent = to the end) | | admin+ |
+| `channel.move` | `id, categoryId?` (absent or null = uncategorized), `before?` (a channel in that category; absent = its end) | | admin+; both channels must be ones you can read (`not_found` otherwise); not threads |
+| `channel.create` | adds `categoryId?` | | |
+
+- `position` is the order: categories by their `position`, channels by theirs (unique across the server; moves renumber them).
+- **Nothing leaks:** `welcome.categories` and the `channels` event's `categories` hold, for admins, every category; for everyone else only categories containing at least one channel they can read, renumbered from 0 so hidden ones leave no gaps.
+- The `channels` event gains `categories: [Category]` and is sent to everyone after any category or order change.
+
+### Nicknames
+
+| type | body | result | who |
+|---|---|---|---|
+| `member.nick` | `nick` (same rules as names: 1–32 chars, trimmed, NFC, no control or invisible characters; `""` resets), `accountKey?` (default: yourself) | `{ member }` | anyone for themselves; admins for members ranked below them |
+
+- `Member.name` is the name to show on this server (the nickname when set). Members gain `nick` (string or null) and `profileName` (their own profile name).
+- Broadcast as `member.updated`. Push notifications use nicknames too. A nickname is removed when the member leaves.
+
+### Notification levels and mutes
+
+Each account keeps, per server and per channel, a **level** (`all` messages, only `mentions`, `none`) and an optional **mute**. They're stored on the server, so every device and Web Push follow them.
+
+```jsonc
+NotifySetting { "channelId": 1 | null /* null = whole server */, "level": "all" | "mentions" | "none" | null /* null = inherit */,
+                "mutedUntil": 1760000000000 | -1 /* until turned back on */ | null }
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `notify.set` | `channelId?` (a channel you can read, not a thread; absent = the server), `level?` (`all` \| `mentions` \| `none` \| `default`), `muteMinutes?` (0 = unmute, −1 = until turned back on, 1–43200) | `{ setting }` | anyone |
+
+- `welcome.notify` lists your settings (expired mutes read as not muted). Event `notify.updated { setting }` goes to all of your sessions.
+- **The effective level** for a channel: the channel's level, else the server's, else `mentions`. A thread follows its channel. While the channel or the server is muted, `all` counts as `mentions`.
+- **Push:** `all` pushes every message (`kind: "message"`), `mentions` pushes mentions and replies, `none` pushes nothing from that channel. DMs and calls aren't affected.
+- **Clients:** muted channels are dimmed and show no unread marker; mention badges stay unless the level is `none`.

@@ -96,7 +96,7 @@ export interface Events {
   'chat.deleted': { id: number; channelId: number }
   'chat.reactions': { id: number; channelId: number; reactions: Reaction[] }
   'chat.typing': { channelId: number; accountKey: string }
-  channels: { channels: Channel[] }
+  channels: { channels: Channel[]; categories?: Category[] }
   'member.joined': { member: Member }
   'member.updated': { member: Member }
   'member.removed': { accountKey: string }
@@ -132,7 +132,7 @@ export interface Requests {
   'chat.delete': [{ id: number }, Record<string, never>]
   'chat.history': [{ channelId: number; before?: number; after?: number; around?: number; limit?: number }, { messages: Message[]; hasMore: boolean; hasNewer?: boolean }]
   'chat.typing': [{ channelId: number }, Record<string, never>]
-  'channel.create': [{ name: string; kind?: 'text' | 'voice'; readRole?: Role; writeRole?: Role }, { channel: Channel }]
+  'channel.create': [{ name: string; kind?: 'text' | 'voice'; readRole?: Role; writeRole?: Role; categoryId?: number }, { channel: Channel }]
   'channel.update': [{ id: number; name?: string; readRole?: Role; writeRole?: Role }, { channel: Channel }]
   'channel.delete': [{ id: number }, Record<string, never>]
   'profile.update': [ProfileUpdate, { member: Member }]
@@ -483,4 +483,52 @@ export interface Events {
 export interface Requests {
   'host.status': [Record<string, never>, { status: HostStatus }]
   'host.internet.set': [{ enabled: boolean }, { status: HostStatus }]
+}
+
+// ── organize: categories, channel order, nicknames, notification levels ──
+
+export interface Category {
+  id: number
+  name: string
+  position: number
+}
+
+export interface Channel {
+  /** The category it sits in; null or missing = uncategorized (shown at the top). */
+  categoryId?: number | null
+}
+
+export interface Member {
+  /** This server's nickname for them, if any (`name` already shows it). */
+  nick?: string | null
+  /** Their own profile name. */
+  profileName?: string
+}
+
+export type NotifyLevel = 'all' | 'mentions' | 'none'
+
+/** Your choice for the whole server (channelId null) or one channel. mutedUntil: ms, -1 = until turned back on. */
+export interface NotifySetting {
+  channelId: number | null
+  level: NotifyLevel | null
+  mutedUntil: number | null
+}
+
+export interface Welcome {
+  categories?: Category[]
+  notify?: NotifySetting[]
+}
+
+export interface Events {
+  'notify.updated': { setting: NotifySetting }
+}
+
+export interface Requests {
+  'category.create': [{ name: string }, { category: Category }]
+  'category.update': [{ id: number; name: string }, { category: Category }]
+  'category.delete': [{ id: number }, Record<string, never>]
+  'category.move': [{ id: number; before?: number | null }, Record<string, never>]
+  'channel.move': [{ id: number; categoryId?: number | null; before?: number | null }, Record<string, never>]
+  'member.nick': [{ accountKey?: string; nick: string }, { member: Member }]
+  'notify.set': [{ channelId?: number | null; level?: NotifyLevel | 'default'; muteMinutes?: number }, { setting: NotifySetting }]
 }
