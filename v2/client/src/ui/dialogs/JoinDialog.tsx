@@ -6,7 +6,7 @@ import { Modal } from '../bits'
 import { hostOf } from '../format'
 
 /** Paste an invite link. */
-export function JoinDialog({ onClose }: { onClose: () => void }) {
+export function JoinDialog({ onClose, onCreate }: { onClose: () => void; onCreate?: () => void }) {
   const [text, setText] = useState('')
   const invite = parseInvite(text)
   const showError = text.trim().length > 0 && !invite
@@ -39,6 +39,11 @@ export function JoinDialog({ onClose }: { onClose: () => void }) {
       </label>
       {showError && <p className="error-text">That doesn't look like an Iskra invite link.</p>}
       {invite && <InviteSummary invite={invite} />}
+      {onCreate && (
+        <p className="muted">
+          Or <button className="link" onClick={onCreate}>create your own server</button> on this computer.
+        </p>
+      )}
     </Modal>
   )
 }

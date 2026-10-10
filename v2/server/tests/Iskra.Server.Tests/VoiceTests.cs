@@ -85,7 +85,11 @@ public class VoiceTests
         Assert.Equal("bad_request", (await member.RequestAsync("voice.join", new { channelId = server.General })).ErrorCode());
 
         server.Voice.Available = false;
+        Assert.False((await member.EventAsync("voice.available")).Body().GetProperty("available").GetBoolean());
         Assert.Equal("voice_unavailable", (await member.RequestAsync("voice.join", new { channelId = lounge })).ErrorCode());
+
+        server.Voice.Available = true; // e.g. LiveKit finished starting after people connected
+        Assert.True((await member.EventAsync("voice.available")).Body().GetProperty("available").GetBoolean());
     }
 
     [Fact]

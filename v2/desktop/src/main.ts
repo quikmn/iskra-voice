@@ -4,6 +4,7 @@
 import { app, BrowserWindow, desktopCapturer, ipcMain, Menu, nativeImage, net, protocol, session, shell, Tray } from 'electron'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { Host } from './host'
 import { PushToTalk } from './ptt'
 
 const DEV_URL = process.env.ISKRA_DEV_URL // e.g. http://localhost:5173 while developing
@@ -19,6 +20,7 @@ let window: BrowserWindow | null = null
 let tray: Tray | null = null
 let quitting = false
 const ptt = new PushToTalk((down) => window?.webContents.send('iskra:ptt', down))
+const host = new Host()
 
 if (!app.requestSingleInstanceLock()) app.quit()
 
@@ -138,16 +140,28 @@ ipcMain.handle('iskra:set-ptt', (event, keycode: unknown) => {
 })
 ipcMain.handle('iskra:capture-ptt-key', (event) => (fromApp(event) ? ptt.captureNextKey() : null))
 
+// Hosting servers from the app.
+ipcMain.handle('iskra:host-available', (event) => fromApp(event) && host.available())
+ipcMain.handle('iskra:host-list', (event) => (fromApp(event) ? host.list() : []))
+ipcMain.handle('iskra:host-create', (event, name: unknown, appUrl: unknown) => {
+  if (!fromApp(event) || typeof name !== 'string' || typeof appUrl !== 'string' || !/^https?:\/\//.test(appUrl)) return null
+  return host.create(name, appUrl)
+})
+ipcMain.handle('iskra:host-start', (event, id: unknown) => (fromApp(event) && typeof id === 'string' ? host.start(id) : null))
+ipcMain.handle('iskra:host-stop', (event, id: unknown) => (fromApp(event) && typeof id === 'string' ? host.stop(id) : null))
+
 app.whenReady().then(() => {
   setUpSession()
   createWindow()
   createTray()
   ptt.start()
+  void host.startAll()
 })
 
 app.on('before-quit', () => {
   quitting = true
   ptt.stop()
+  host.stopAll()
 })
 
 app.on('window-all-closed', () => {

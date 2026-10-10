@@ -6,6 +6,17 @@ export interface ScreenSource {
   isScreen: boolean
 }
 
+export interface HostedServer {
+  id: string
+  name: string
+  folder: string
+  port: number
+  running: boolean
+  lanUrl: string
+  localUrl: string
+  ownerInvite: string | null
+}
+
 export interface DesktopBridge {
   platform: string
   setPushToTalkKey(keycode: number | null): Promise<void>
@@ -13,6 +24,13 @@ export interface DesktopBridge {
   onPushToTalk(callback: (down: boolean) => void): () => void
   onPickScreen(callback: (sources: ScreenSource[]) => void): () => void
   pickScreen(id: string | null): void
+  host: {
+    available(): Promise<boolean>
+    list(): Promise<HostedServer[]>
+    create(name: string, appUrl: string): Promise<HostedServer | null>
+    start(id: string): Promise<HostedServer | null>
+    stop(id: string): Promise<HostedServer | null>
+  }
 }
 
 export const desktop: DesktopBridge | undefined = (globalThis as { iskraDesktop?: DesktopBridge }).iskraDesktop

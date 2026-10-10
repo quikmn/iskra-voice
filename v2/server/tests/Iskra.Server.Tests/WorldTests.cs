@@ -15,7 +15,7 @@ public class WorldTests : IDisposable
         Assert.True(File.Exists(Path.Combine(_path, "server.key")));
         Assert.True(File.Exists(Path.Combine(_path, "iskra.db")));
         Assert.True(Directory.Exists(Path.Combine(_path, "uploads")));
-        Assert.Equal(7070, world.Settings.Port);
+        Assert.Equal(47070, world.Settings.Port);
     }
 
     [Fact]

@@ -12,9 +12,26 @@ public sealed record VoiceMember(string AccountKey, bool Muted, bool Deafened, l
 /// Who is in which voice channel. Joins and leaves come only from LiveKit's signed webhooks
 /// (never from what a client claims); mute/deafen flags are cosmetic and client-reported.
 /// </summary>
-public sealed class VoiceRegistry(World world, Hub hub, IVoiceBackend backend, ILogger<VoiceRegistry> log)
+public sealed class VoiceRegistry
 {
     private readonly ConcurrentDictionary<long, ConcurrentDictionary<string, VoiceMember>> _rooms = new();
+    private readonly World world;
+    private readonly Hub hub;
+    private readonly IVoiceBackend backend;
+    private readonly ILogger<VoiceRegistry> log;
+
+    public VoiceRegistry(World world, Hub hub, IVoiceBackend backend, ILogger<VoiceRegistry> log)
+    {
+        this.world = world;
+        this.hub = hub;
+        this.backend = backend;
+        this.log = log;
+        backend.AvailabilityChanged += available =>
+        {
+            if (!available) _rooms.Clear(); // LiveKit restarted: everyone was dropped
+            hub.Broadcast(Frames.Event("voice.available", new { available }));
+        };
+    }
 
     public IVoiceBackend Backend => backend;
 

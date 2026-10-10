@@ -312,6 +312,11 @@ function onEvent<K extends keyof Events>(key: string, type: K, body: Events[K]):
       patchServer(key, (s) => ({ voice: { ...s.voice, [channelId]: participants } }))
       return
     }
+    case 'voice.available': {
+      const { available } = body as Events['voice.available']
+      patchServer(key, () => ({ voiceAvailable: available }))
+      return
+    }
     case 'member.removed': {
       const { accountKey } = body as Events['member.removed']
       patchServer(key, (s) => {

@@ -170,6 +170,7 @@ Voice runs on a LiveKit server that `iskra-server` starts next to itself (config
 | event | body | sent to |
 |---|---|---|
 | `voice.state` | `{ channelId, participants: [{ accountKey, muted, deafened }] }` | readers of that voice channel |
+| `voice.available` | `{ available }` | everyone, when LiveKit comes up or goes down |
 
 ## Direct messages (end-to-end encrypted)
 

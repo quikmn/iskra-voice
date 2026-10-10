@@ -67,7 +67,19 @@ public sealed class IskraServer : WebApplicationFactory<Program>
 
 public sealed class FakeVoiceBackend : IVoiceBackend
 {
-    public bool Available { get; set; } = true;
+    private bool _available = true;
+
+    public bool Available
+    {
+        get => _available;
+        set
+        {
+            _available = value;
+            AvailabilityChanged?.Invoke(value);
+        }
+    }
+
+    public event Action<bool>? AvailabilityChanged;
     public string ClientUrl => "ws://voice.test:7880";
     public string ApiKey => "testkey";
     public string ApiSecret => "test-secret-that-is-long-enough-for-hs256";

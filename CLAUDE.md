@@ -19,12 +19,13 @@ The design and the v1 audit are in `design/`. That folder is local only and is *
   - `Sessions/`: one connection per session. One reader and one writer, with outbound messages going through a channel. Never send on a socket from anywhere else.
   - `Storage/`: a world is a folder (`server.json`, `server.key`, `iskra.db`, `uploads/`). SQLite, with all writes behind one lock; files are written atomically.
   - `Crypto/`: Ed25519 via NSec (libsodium).
+  - `Hosting/`: automatic HTTPS (`Certificates`, Let's Encrypt via Certes 3.0.4), child-process lifetime (`ChildProcesses`).
   - `Voice/`: `LiveKitHost` starts and supervises livekit-server (pinned v1.13.7; get it with `v2/scripts/get-livekit.ps1`/`.sh` into `v2/.tools`). `VoiceRegistry` tracks who's in voice from LiveKit's signed webhooks only.
 - `v2/client/`: TypeScript, React, Vite, zustand.
   - `src/core/`: protocol types, crypto (libsodium-wrappers-sumo), identity, invite links, `Connection` (handshake, requests, reconnect with backoff), IndexedDB storage.
   - `src/state/store.ts`: app state and every server action. Components never talk to the socket directly.
   - `src/ui/`: React components. User text is rendered by React only.
-- `v2/desktop/`: Electron 44 shell (`src/main.ts`, `preload.ts`, `ptt.ts`). Serves the built client on `app://iskra/`, sandboxed renderer, IPC only from the app page, global push-to-talk via uiohook-napi, screen/window picker, tray. `npm run dist` builds `release/Iskra Setup x.y.z.exe` + portable exe (unsigned). Electron's binary download may need `node node_modules/electron/install.js` after `npm install`.
+- `v2/desktop/`: Electron 44 shell (`src/main.ts`, `preload.ts`, `ptt.ts`, `host.ts`). "Create a server" runs the bundled iskra-server + LiveKit on world folders in Documents\Iskra\Servers (`ISKRA_HOST_ROOT` overrides, tests use it); servers stop with the app (parent-PID watch + tree kill; LiveKit is bound to a Windows job object). Serves the built client on `app://iskra/`, sandboxed renderer, IPC only from the app page, global push-to-talk via uiohook-napi, screen/window picker, tray. `npm run dist` publishes a self-contained server into `build/server`, then builds `release/Iskra Setup x.y.z.exe` + portable exe (unsigned, ~150 MB). Electron's binary download may need `node node_modules/electron/install.js` after `npm install`.
 - `v2/dev.ps1`: starts the server on `v2/.dev/<world>` plus the Vite dev server. On a new world the server prints a one-time owner invite link (also in `owner-invite.txt`): open it to become the owner.
 
 ## Commands
@@ -49,3 +50,4 @@ CI (`.github/workflows/v2.yml`) runs both on Windows and Linux.
 - Don't put user content into HTML strings in the client; let React render it. Never use `dangerouslySetInnerHTML` on user content.
 - Never commit secrets, world folders, `design/`, or deploy scripts that contain keys.
 - Testing is local only. There is no hosted infrastructure right now.
+- Default server port is 47070 (7070 clashes with AnyDesk). Test tools live in `v2/.tools` (`scripts/get-livekit.*`, `scripts/get-pebble.ps1`).

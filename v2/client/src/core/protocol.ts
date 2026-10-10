@@ -72,6 +72,7 @@ export interface Events {
   kicked: { reason: string }
   'voice.state': VoiceChannelState
   'dm.message': { message: WireDm }
+  'voice.available': { available: boolean }
 }
 
 export interface WireDm {

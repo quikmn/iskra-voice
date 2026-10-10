@@ -7,7 +7,7 @@ namespace Iskra.Server.Storage;
 public sealed record WorldSettings
 {
     public string Name { get; init; } = "My Iskra server";
-    public int Port { get; init; } = 7070;
+    public int Port { get; init; } = 47070; // 7070 clashes with AnyDesk, common on gaming PCs
 
     /// <summary>How clients reach this server. Defaults to http://localhost:{Port}.</summary>
     public string? PublicUrl { get; init; }

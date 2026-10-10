@@ -12,6 +12,8 @@ namespace Iskra.Server.Voice;
 public interface IVoiceBackend
 {
     bool Available { get; }
+    /// <summary>Raised when voice comes up or goes down (LiveKit starts a moment after the server).</summary>
+    event Action<bool>? AvailabilityChanged;
     string ClientUrl { get; }
     string ApiKey { get; }
     string ApiSecret { get; }
@@ -29,7 +31,20 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(5) };
     private Process? _process;
 
-    public bool Available { get; private set; }
+    private bool _available;
+
+    public bool Available
+    {
+        get => _available;
+        private set
+        {
+            if (_available == value) return;
+            _available = value;
+            AvailabilityChanged?.Invoke(value);
+        }
+    }
+
+    public event Action<bool>? AvailabilityChanged;
     public string ClientUrl { get; }
     public string ApiKey { get; }
     public string ApiSecret { get; }
@@ -166,6 +181,7 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
         info.ArgumentList.Add(ConfigYaml(iskraPort));
 
         using var process = Process.Start(info) ?? throw new InvalidOperationException("Could not start livekit-server.");
+        Hosting.ChildProcesses.Bind(process); // dies with us, even if we're killed
         _process = process;
         process.OutputDataReceived += (_, e) => { if (e.Data is not null) _log.LogDebug("livekit: {Line}", e.Data); };
         process.ErrorDataReceived += (_, e) => { if (e.Data is not null) _log.LogInformation("livekit: {Line}", e.Data); };

@@ -26,4 +26,12 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
     return () => ipcRenderer.off('iskra:pick-screen', listener)
   },
   pickScreen: (id: string | null): void => ipcRenderer.send('iskra:screen-picked', typeof id === 'string' ? id : null),
+
+  host: {
+    available: (): Promise<boolean> => ipcRenderer.invoke('iskra:host-available'),
+    list: (): Promise<unknown[]> => ipcRenderer.invoke('iskra:host-list'),
+    create: (name: string, appUrl: string): Promise<unknown> => ipcRenderer.invoke('iskra:host-create', name, appUrl),
+    start: (id: string): Promise<unknown> => ipcRenderer.invoke('iskra:host-start', id),
+    stop: (id: string): Promise<unknown> => ipcRenderer.invoke('iskra:host-stop', id),
+  },
 })
