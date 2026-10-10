@@ -1,0 +1,88 @@
+/* ── Stage channels ─────────────────────────────────────────────────── */
+.live-pill {
+  display: inline-flex; align-items: center; gap: 5px; flex: none; padding: 1px 7px; border-radius: 99px;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+  background: color-mix(in srgb, var(--red) 18%, transparent); color: var(--red);
+}
+.live-pill::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: live-pulse 1.6s ease-in-out infinite; }
+@keyframes live-pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .live-pill::before { animation: none; } }
+
+/* Sidebar */
+.stage-entry-info { display: grid; gap: 3px; padding: 0 8px 6px 34px; font-size: 12px; min-width: 0; }
+.stage-entry-topic { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stage-entry-meta { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+.stage-entry-speakers { display: inline-flex; }
+.stage-entry-speakers .avatar + .avatar { margin-left: -5px; box-shadow: 0 0 0 2px var(--sidebar); }
+
+/* Stage view */
+.stage-channel .chat-header .live-pill { margin-left: 2px; }
+.stage-scroll { gap: 18px; }
+.stage-topic { text-align: center; padding: 6px 12px 0; }
+.stage-topic h2 { margin: 0; font-size: 22px; line-height: 1.25; color: var(--text-strong); overflow-wrap: anywhere; }
+.stage-topic p { margin: 6px 0 0; font-size: 13px; }
+.stage-hint-pill {
+  display: inline-block; margin-top: 10px !important; padding: 5px 12px; border-radius: 99px;
+  background: var(--accent-subtle); color: var(--text-2); font-size: 13px;
+}
+.stage-speakers { display: flex; flex-direction: column; gap: 12px; }
+.stage-speakers .stage-grid { grid-template-columns: repeat(auto-fit, minmax(200px, 260px)); justify-content: center; }
+.stage-speakers .video-tile.big { min-height: 240px; max-height: 60vh; }
+
+.stage-requests, .stage-audience { border-top: 1px solid var(--border); padding-top: 14px; }
+.stage-requests h3, .stage-audience h3 {
+  margin: 0 0 10px; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted);
+  display: flex; align-items: center; gap: 8px;
+}
+.stage-requests .count, .stage-audience .count {
+  font-size: 11px; padding: 0 7px; border-radius: 99px; background: var(--surface-2); color: var(--text-2); letter-spacing: 0;
+}
+.stage-requests ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.stage-requests li {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius); background: var(--surface);
+}
+.stage-requests .member-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.stage-requests .button { display: inline-flex; align-items: center; gap: 5px; }
+
+.stage-audience ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px 6px; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); }
+.stage-listener {
+  position: relative; display: grid; justify-items: center; gap: 6px; width: 100%; padding: 6px 2px; border: 0; background: none;
+  border-radius: var(--radius); color: var(--text-2);
+}
+.stage-listener:hover { background: var(--surface); }
+.listener-name { font-size: 12px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hand-badge {
+  position: absolute; top: 2px; left: calc(50% + 12px); display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--amber); color: #1a1300; box-shadow: 0 0 0 2px var(--stage);
+}
+.stage-error { text-align: center; }
+
+.stage-lobby { margin: auto; display: grid; justify-items: center; gap: 8px; text-align: center; max-width: 420px; padding: 24px 8px; }
+.stage-lobby h2 { margin: 6px 0 0; font-size: 20px; color: var(--text-strong); }
+.stage-lobby p { margin: 0; }
+.stage-lobby-icon {
+  display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%;
+  background: var(--accent-subtle); color: var(--accent);
+}
+.stage-start { display: flex; align-items: flex-end; gap: 8px; width: 100%; margin-top: 12px; text-align: left; }
+.stage-start .field { flex: 1; margin: 0; }
+
+.stage-sheet-head { display: flex; align-items: center; gap: 12px; padding: 4px 4px 12px; }
+.stage-sheet-head div { display: grid; line-height: 1.3; min-width: 0; }
+.stage-sheet-head strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stage-sheet-head .muted { font-size: 13px; }
+
+.stage-moderators { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 50vh; overflow-y: auto; }
+.stage-moderators label { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: var(--radius); cursor: pointer; }
+.stage-moderators label:hover { background: var(--surface-2); }
+.stage-moderators .member-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stage-moderators .role { font-size: 12px; text-transform: capitalize; }
+
+@media (max-width: 760px) {
+  .stage-topic h2 { font-size: 19px; }
+  .stage-speakers .stage-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stage-speakers .video-tile.big { min-height: 180px; }
+  .stage-end { padding: 5px 10px; }
+  .stage-start { flex-direction: column; align-items: stretch; }
+  .stage-audience ul { grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); }
+}

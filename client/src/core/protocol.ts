@@ -14,7 +14,7 @@ export interface Member extends PublicProfile {
 export interface Channel {
   id: number
   name: string
-  kind: 'text' | 'voice'
+  kind: 'text' | 'voice' | 'stage'
   position: number
   readRole: Role
   writeRole: Role
@@ -132,7 +132,7 @@ export interface Requests {
   'chat.delete': [{ id: number }, Record<string, never>]
   'chat.history': [{ channelId: number; before?: number; after?: number; around?: number; limit?: number }, { messages: Message[]; hasMore: boolean; hasNewer?: boolean }]
   'chat.typing': [{ channelId: number }, Record<string, never>]
-  'channel.create': [{ name: string; kind?: 'text' | 'voice'; readRole?: Role; writeRole?: Role }, { channel: Channel }]
+  'channel.create': [{ name: string; kind?: 'text' | 'voice' | 'stage'; readRole?: Role; writeRole?: Role }, { channel: Channel }]
   'channel.update': [{ id: number; name?: string; readRole?: Role; writeRole?: Role }, { channel: Channel }]
   'channel.delete': [{ id: number }, Record<string, never>]
   'profile.update': [ProfileUpdate, { member: Member }]
@@ -483,4 +483,50 @@ export interface Events {
 export interface Requests {
   'host.status': [Record<string, never>, { status: HostStatus }]
   'host.internet.set': [{ enabled: boolean }, { status: HostStatus }]
+}
+
+// ── stage channels ──
+
+export interface StageHand {
+  accountKey: string
+  raisedAt: number
+}
+
+export interface StageState {
+  channelId: number
+  live: boolean
+  topic: string | null
+  startedAt: number | null
+  startedBy: string | null
+  /** Who may publish right now (granted by the server through LiveKit). */
+  speakers: string[]
+  /** Raised hands, oldest first. */
+  hands: StageHand[]
+  /** Moderators an admin picked for this stage (admins always moderate). */
+  moderators: string[]
+}
+
+export const MAX_STAGE_TOPIC = 120
+
+export interface Welcome {
+  stages?: StageState[]
+}
+
+export interface Events {
+  'stage.state': StageState
+}
+
+type StageTarget = { channelId: number; accountKey: string }
+
+export interface Requests {
+  'stage.start': [{ channelId: number; topic: string }, StageState]
+  'stage.update': [{ channelId: number; topic: string }, Record<string, never>]
+  'stage.end': [{ channelId: number }, Record<string, never>]
+  'stage.hand': [{ channelId: number; raised: boolean }, Record<string, never>]
+  'stage.invite': [StageTarget, Record<string, never>]
+  'stage.decline': [StageTarget, Record<string, never>]
+  'stage.audience': [{ channelId: number; accountKey?: string }, Record<string, never>]
+  'stage.mute': [StageTarget, Record<string, never>]
+  'stage.remove': [StageTarget, Record<string, never>]
+  'stage.moderator': [StageTarget & { on: boolean }, Record<string, never>]
 }

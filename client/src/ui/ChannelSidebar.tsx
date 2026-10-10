@@ -6,6 +6,7 @@ import { threadMentions, useThreads } from '../state/threads'
 import { Avatar } from './bits'
 import { openProfileCard } from '../state/profile'
 import { VoiceBar } from './VoiceBar'
+import { StageSidebar } from './stage/StageSidebar'
 import { CreateChannelDialog } from './dialogs/CreateChannelDialog'
 import { InviteDialog } from './dialogs/InviteDialog'
 import { SettingsDialog } from './settings/SettingsDialog'
@@ -119,6 +120,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
             </div>
           )
         })}
+        <StageSidebar server={server} onNavigate={onNavigate} onCreate={() => setDialog('channel')} />
       </div>
 
       <VoiceBar />
