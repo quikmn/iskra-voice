@@ -1,7 +1,7 @@
 {
   "name": "iskra-desktop",
   "private": true,
-  "version": "2.0.0-alpha.2",
+  "version": "2.0.0-alpha.3",
   "description": "Iskra: voice and text chat for friends, on servers you own",
   "main": "dist/main.js",
   "scripts": {

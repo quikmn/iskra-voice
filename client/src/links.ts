@@ -1,5 +1,5 @@
 // Public links shown in the app. Update the version when a new release ships.
-export const RELEASE_VERSION = '2.0.0-alpha.2'
+export const RELEASE_VERSION = '2.0.0-alpha.3'
 const download = (file: string) => `https://github.com/quikmn/iskra-voice/releases/download/v${RELEASE_VERSION}/${file}`
 
 export const LINKS = {
