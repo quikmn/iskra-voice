@@ -1,3 +1,4 @@
+using Iskra.Server;
 using Iskra.Server.Features;
 using Iskra.Server.Files;
 using Iskra.Server.Hosting;
@@ -8,9 +9,10 @@ using Iskra.Server.Voice;
 using Microsoft.Extensions.Options;
 
 // Usage: iskra-server <world-folder>   (the folder is created with defaults if it doesn't exist)
-var builder = WebApplication.CreateBuilder(args);
+var (worldArg, configArgs) = CommandLine.Split(args);
+var builder = WebApplication.CreateBuilder(configArgs);
 
-var worldPath = builder.Configuration["World"] ?? args.FirstOrDefault(a => !a.StartsWith('-')) ?? "world";
+var worldPath = builder.Configuration["World"] ?? worldArg ?? "world";
 var world = World.OpenOrCreate(worldPath);
 
 builder.Services.AddSingleton(world);
