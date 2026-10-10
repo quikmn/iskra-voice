@@ -56,6 +56,7 @@ public static class DmFeature
         var frame = Frames.Event("dm.message", new { message = PublicDm(message) });
         s.Hub.SendToAccount(peer.AccountKey, frame);
         if (peer.AccountKey != me.AccountKey) s.Hub.SendToAccount(me.AccountKey, frame); // your other devices
+        s.Push.DirectMessage(me, peer);
         return new { message = PublicDm(message) };
     }
 

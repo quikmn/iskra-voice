@@ -141,6 +141,8 @@ export interface StoredDm {
   to: string
   text: string
   sentAt: number
+  /** Call log entries (see state/calls.ts). */
+  call?: Record<string, unknown>
 }
 
 /** Decrypted DMs per conversation. Servers keep only envelopes, and old prekeys get deleted, so this is the history. */

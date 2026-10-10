@@ -42,12 +42,13 @@ public sealed partial class Store
     public int CountRevocations(string accountKey) =>
         Convert.ToInt32(Scalar("SELECT COUNT(*) FROM device_revocations WHERE account_key = $acc;", ("$acc", accountKey)));
 
-    /// <summary>Stores a (verified) revocation and forgets the device's prekey. Idempotent.</summary>
+    /// <summary>Stores a (verified) revocation and forgets the device's prekey and push subscription. Idempotent.</summary>
     public void AddRevocation(DeviceRevocation r) =>
         Exec("""
             INSERT INTO device_revocations (account_key, device_key, revoked_at, sig) VALUES ($acc, $dev, $at, $sig)
             ON CONFLICT(account_key, device_key) DO NOTHING;
             DELETE FROM prekeys WHERE device_key = $dev AND device_key IN (SELECT device_key FROM devices WHERE account_key = $acc);
+            DELETE FROM push_subscriptions WHERE device_key = $dev AND account_key = $acc;
             """, ("$acc", r.AccountKey), ("$dev", r.DeviceKey), ("$at", r.RevokedAt), ("$sig", r.Sig));
 
     public List<DeviceRevocation> Revocations(string accountKey) =>

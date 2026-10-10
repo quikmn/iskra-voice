@@ -23,7 +23,12 @@ public static class FileSniffer
                 ? new("image/gif", true, BinaryPrimitives.ReadUInt16LittleEndian(head[6..]), BinaryPrimitives.ReadUInt16LittleEndian(head[8..]))
                 : new("image/gif", true);
         if (head.Length >= 12 && head.StartsWith("RIFF"u8) && head[8..12].SequenceEqual("WEBP"u8))
-            return new("image/webp", true, null, null);
+        {
+            var (w, h) = WebpSize(head);
+            return new("image/webp", true, w, h);
+        }
+        if (head.Length >= 12 && head.StartsWith("RIFF"u8) && head[8..12].SequenceEqual("WAVE"u8))
+            return new("audio/wav", true);
         if (head.StartsWith(Jpeg))
         {
             var (w, h) = JpegSize(head);
@@ -53,6 +58,23 @@ public static class FileSniffer
             if (isFrame)
                 return (BinaryPrimitives.ReadUInt16BigEndian(data[(i + 7)..]), BinaryPrimitives.ReadUInt16BigEndian(data[(i + 5)..]));
             i += 2 + length;
+        }
+        return (null, null);
+    }
+
+    /// <summary>The canvas size from the first WebP chunk (VP8X, lossy VP8 or lossless VP8L).</summary>
+    private static (int?, int?) WebpSize(ReadOnlySpan<byte> data)
+    {
+        if (data.Length < 30) return (null, null);
+        var chunk = data[12..16];
+        if (chunk.SequenceEqual("VP8X"u8))
+            return (1 + (data[24] | data[25] << 8 | data[26] << 16), 1 + (data[27] | data[28] << 8 | data[29] << 16));
+        if (chunk.SequenceEqual("VP8 "u8) && data[23] == 0x9D && data[24] == 0x01 && data[25] == 0x2A)
+            return (BinaryPrimitives.ReadUInt16LittleEndian(data[26..]) & 0x3FFF, BinaryPrimitives.ReadUInt16LittleEndian(data[28..]) & 0x3FFF);
+        if (chunk.SequenceEqual("VP8L"u8) && data[20] == 0x2F)
+        {
+            var bits = BinaryPrimitives.ReadUInt32LittleEndian(data[21..]);
+            return ((int)(bits & 0x3FFF) + 1, (int)((bits >> 14) & 0x3FFF) + 1);
         }
         return (null, null);
     }

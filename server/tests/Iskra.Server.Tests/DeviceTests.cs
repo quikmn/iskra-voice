@@ -153,6 +153,28 @@ public class DeviceTests
     }
 
     [Fact]
+    public async Task Revoking_a_device_removes_its_push_subscription()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        var (phone, phoneClient) = await SecondDeviceAsync(server, alice);
+        using var _ = phone;
+        using var __ = phoneClient;
+        using var key = System.Security.Cryptography.ECDsa.Create(System.Security.Cryptography.ECCurve.NamedCurves.nistP256);
+        var q = key.ExportParameters(false).Q;
+        var subscription = new
+        {
+            endpoint = "https://fcm.googleapis.com/fcm/send/phone",
+            keys = new { p256dh = Ed25519.ToB64u([0x04, .. q.X!, .. q.Y!]), auth = Ed25519.ToB64u(new byte[16]) },
+        };
+        Assert.Equal("result", (await phoneClient.RequestAsync("push.subscribe", subscription)).Type());
+        Assert.NotNull(server.World.Store.PushSubscriptionFor(DeviceKeyOf(phone)));
+
+        await alice.RequestAsync("device.revoke", Revocation(alice.Identity.Account, DeviceKeyOf(phone), Now));
+        Assert.Null(server.World.Store.PushSubscriptionFor(DeviceKeyOf(phone)));
+    }
+
+    [Fact]
     public async Task Devices_describe_themselves_and_only_their_account_renames_them()
     {
         using var server = new IskraServer();

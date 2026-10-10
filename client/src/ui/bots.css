@@ -1,0 +1,47 @@
+/* ── Bots and webhooks ──────────────────────────────────────────────── */
+.bot-badge {
+  display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; line-height: 1;
+  padding: 3px 5px 2px; border-radius: 4px; background: var(--accent); color: #fff; vertical-align: 2px; flex: none;
+}
+.message-meta .bot-badge { align-self: center; }
+.member .bot-badge { margin-left: -4px; }
+.avatar-image { object-fit: cover; background: var(--surface-2); }
+
+.embeds { display: grid; gap: 6px; margin-top: 4px; }
+.embed {
+  max-width: 520px; padding: 10px 14px 12px; border-left: 4px solid var(--surface-3); border-radius: 6px; background: var(--surface-2);
+  display: grid; gap: 6px; min-width: 0; overflow-wrap: anywhere;
+}
+.embed-author { font-size: 13px; font-weight: 600; color: var(--text-2); }
+.embed-author a { color: inherit; }
+.embed-title { font-weight: 700; }
+.embed-title a { color: var(--accent-2); text-decoration: none; }
+.embed-title a:hover { text-decoration: underline; }
+.embed-description { font-size: 14px; color: var(--text-2); white-space: pre-wrap; }
+.embed-fields { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.embed-field { flex: 1 1 100%; min-width: 0; font-size: 14px; }
+.embed-field.inline { flex: 1 1 140px; }
+.embed-field-name { font-weight: 600; font-size: 13px; margin-bottom: 2px; }
+.embed-field-value { color: var(--text-2); white-space: pre-wrap; }
+.embed-footer { font-size: 12px; color: var(--muted); }
+
+/* Integrations dialog */
+.integrations .segmented { margin-bottom: 14px; }
+.hook-list { display: grid; gap: 8px; margin: 0 0 12px; padding: 0; list-style: none; }
+.hook {
+  display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: center;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg);
+}
+.hook .avatar, .hook .avatar-image { grid-row: span 2; }
+.hook-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hook-meta { font-size: 12px; color: var(--muted); }
+.hook-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.hook-actions .button { padding: 6px 10px; font-size: 13px; }
+.secret-box { display: grid; gap: 8px; padding: 12px; border-radius: 10px; border: 1px dashed rgba(251, 191, 36, 0.45); background: var(--bg); margin-bottom: 12px; }
+.secret-box p { margin: 0; font-size: 13px; color: var(--amber); }
+.integrations .field { margin-bottom: 10px; }
+.integrations .checkbox { margin: 4px 0 12px; }
+.integrations pre { margin: 6px 0 0; padding: 10px; border-radius: 8px; background: var(--bg); font-family: var(--mono); font-size: 12px; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.bot-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.bot-row .member-name { flex: 1; min-width: 0; }
+.invite-button.integrations-button { background: transparent; border-style: dashed; color: var(--text-2); font-weight: 500; }

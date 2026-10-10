@@ -2,22 +2,25 @@ import { useState } from 'react'
 import { roleRank } from '../core/protocol'
 import { activeChannelId, selectChannel, useApp, type ServerState } from '../state/store'
 import { joinVoice, setStageOpen, useVoice } from '../state/voice'
+import { threadMentions, useThreads } from '../state/threads'
 import { Avatar } from './bits'
 import { VoiceBar } from './VoiceBar'
 import { CreateChannelDialog } from './dialogs/CreateChannelDialog'
 import { InviteDialog } from './dialogs/InviteDialog'
 import { SettingsDialog } from './dialogs/SettingsDialog'
+import { IntegrationsDialog } from './dialogs/IntegrationsDialog'
 import { Hash, HeadphonesOff, Lock, MicOff, Plus, Settings, UserPlus, Volume } from './icons'
 
 export function ChannelSidebar({ server, onNavigate }: { server: ServerState; onNavigate: () => void }) {
   const activeId = useApp(activeChannelId)
-  const [dialog, setDialog] = useState<'invite' | 'channel' | 'settings' | null>(null)
+  const [dialog, setDialog] = useState<'invite' | 'channel' | 'settings' | 'integrations' | null>(null)
   const isAdmin = server.me ? roleRank(server.me.role) >= roleRank('admin') : false
   const canInvite = server.me ? roleRank(server.me.role) >= roleRank('member') : false
   const textChannels = server.channels.filter((c) => c.kind === 'text')
   const voiceChannels = server.channels.filter((c) => c.kind === 'voice')
   const voiceSession = useVoice((s) => s.session)
   const speaking = useVoice((s) => s.speaking)
+  useThreads((s) => s.threads[server.key]) // thread mentions count on their channel
 
   return (
     <div className="channel-sidebar">
@@ -32,6 +35,11 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
             <UserPlus size={16} /> Invite friends
           </button>
         )}
+        {isAdmin && (
+          <button className="invite-button integrations-button" onClick={() => setDialog('integrations')}>
+            Bots &amp; webhooks
+          </button>
+        )}
         <div className="channel-group">
           <span>Text channels</span>
           {isAdmin && (
@@ -42,7 +50,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
         </div>
         {textChannels.map((channel) => {
           const unread = server.unread[channel.id] ?? 0
-          const pings = server.mentions[channel.id] ?? 0
+          const pings = (server.mentions[channel.id] ?? 0) + threadMentions(server, channel.id)
           return (
             <button
               key={channel.id}
@@ -113,6 +121,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
       {dialog === 'invite' && <InviteDialog server={server} onClose={() => setDialog(null)} />}
       {dialog === 'channel' && <CreateChannelDialog server={server} onClose={() => setDialog(null)} />}
       {dialog === 'settings' && <SettingsDialog server={server} onClose={() => setDialog(null)} />}
+      {dialog === 'integrations' && <IntegrationsDialog server={server} onClose={() => setDialog(null)} />}
     </div>
   )
 }

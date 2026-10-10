@@ -18,6 +18,17 @@ function secondDevice(id: Identity): Identity {
 }
 
 describe('direct message encryption', () => {
+  it('carries a call payload next to the fallback text', () => {
+    const alice = createIdentity()
+    const bob = createIdentity()
+    const call = { kind: 'invite', id: 'abc', key: 'k', video: true }
+    const env = encryptDm(alice, key(bob), [bob.cert], [], { text: 'Incoming video call', call })
+    const opened = decryptDm(bob, env, key(alice), key(bob))
+    expect(opened.text).toBe('Incoming video call')
+    expect(opened.call).toEqual(call)
+    expect(decryptDm(bob, encryptDm(alice, key(bob), [bob.cert], [], { text: 'plain' }), key(alice), key(bob)).call).toBeUndefined()
+  })
+
   it('the recipient can read it', () => {
     const alice = createIdentity()
     const bob = createIdentity()

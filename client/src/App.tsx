@@ -7,6 +7,7 @@ import { usePendingLink } from './state/link'
 import { AlreadySignedInNotice, RevokedScreen } from './ui/DeviceNotices'
 import { startPushToTalk } from './state/voice'
 import { startTitleBadge } from './state/notify'
+import { startPush } from './state/push'
 import { ScreenPicker } from './ui/ScreenPicker'
 import { Spinner } from './ui/bits'
 import { JoinPrompt } from './ui/dialogs/JoinDialog'
@@ -43,9 +44,11 @@ export function App() {
     window.addEventListener('online', retryAll)
     const stopPtt = startPushToTalk()
     const stopTitle = startTitleBadge()
+    const stopPush = startPush()
     return () => {
       stopPtt()
       stopTitle()
+      stopPush()
       window.removeEventListener('hashchange', readInviteFromHash)
       window.removeEventListener('online', retryAll)
     }

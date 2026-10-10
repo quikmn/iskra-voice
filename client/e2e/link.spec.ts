@@ -37,7 +37,7 @@ test('link a phone with the text code, read DMs on both devices, then remove it'
     await image.decode()
     const canvas = Object.assign(document.createElement('canvas'), { width: 400, height: 400 })
     canvas.getContext('2d')!.drawImage(image, 0, 0, 400, 400)
-    const { qrDetector } = await import('/src/ui/QrScanner.tsx' as string)
+    const { qrDetector } = await import('/src/ui/qrDetector.ts' as string)
     const detector = await qrDetector(false)
     return (await detector.detect(canvas))[0]?.rawValue
   })

@@ -5,7 +5,8 @@
 import { create } from 'zustand'
 import { b64u } from '../core/crypto'
 import { revokedSet } from '../core/devices'
-import { decryptDm, DmError, encryptDm } from '../core/dm'
+import { decryptDm, DmError, encryptDm, type DmContent, type DmEnvelope } from '../core/dm'
+import type { DeviceCert } from '../core/identity'
 import type { DeviceBundle, WireDm } from '../core/protocol'
 import * as storage from '../core/storage'
 import { ensurePrekeys, ownRevokedDevices } from './devices'
@@ -21,6 +22,8 @@ export interface Dm {
   pending?: 'sending' | 'failed'
   /** Set when a message couldn't be decrypted (shown as a notice, never as text). */
   error?: string
+  /** A call log entry (see calls.ts); shown instead of the text. */
+  call?: Record<string, unknown>
 }
 
 export interface Conversation {
@@ -94,8 +97,8 @@ function upsert(list: Dm[], dm: Dm): Dm[] {
 function open(wire: WireDm): Dm {
   const identity = useApp.getState().identity!
   try {
-    const { text, header } = decryptDm(identity, wire.envelope, wire.from, wire.to)
-    return { id: header.id, from: wire.from, to: wire.to, text, sentAt: header.sentAt }
+    const { text, header, call } = decryptDm(identity, wire.envelope, wire.from, wire.to)
+    return { id: header.id, from: wire.from, to: wire.to, text, sentAt: header.sentAt, call }
   } catch (e) {
     // The header id (unauthenticated here) only lets a readable local copy of the same message win.
     const headerId = wire.envelope?.header?.id
@@ -115,7 +118,7 @@ let saveTimer: ReturnType<typeof setTimeout> | null = null
 let saving: Promise<void> = Promise.resolve()
 let historyLoaded = false
 
-const storable = (m: Dm): storage.StoredDm => ({ id: m.id, from: m.from, to: m.to, text: m.text, sentAt: m.sentAt })
+const storable = (m: Dm): storage.StoredDm => ({ id: m.id, from: m.from, to: m.to, text: m.text, sentAt: m.sentAt, ...(m.call ? { call: m.call } : {}) })
 
 function persist(peer: string): void {
   if (!historyLoaded) return
@@ -248,7 +251,7 @@ export function openFriends(): void {
 const deviceCache = new Map<string, { at: number; bundle: DeviceBundle }>()
 
 /** Someone's device certificates, prekeys and revocations, as one server knows them (cached briefly). */
-async function bundleOf(serverKey: string, accountKey: string): Promise<DeviceBundle> {
+export async function bundleOf(serverKey: string, accountKey: string): Promise<DeviceBundle> {
   const cacheKey = `${serverKey}:${accountKey}`
   const cached = deviceCache.get(cacheKey)
   if (cached && Date.now() - cached.at < 5 * 60_000) return cached.bundle
@@ -257,26 +260,44 @@ async function bundleOf(serverKey: string, accountKey: string): Promise<DeviceBu
   return bundle
 }
 
-export async function sendDm(peer: string, text: string): Promise<void> {
+/** Certificates of someone's devices (revoked ones left out), for callers that only need those. */
+export async function devicesOf(serverKey: string, accountKey: string): Promise<DeviceCert[]> {
+  const bundle = await bundleOf(serverKey, accountKey)
+  const revoked = revokedSet(accountKey, bundle.revoked)
+  return bundle.devices.filter((d) => !revoked.has(d.deviceKey))
+}
+
+/**
+ * Encrypts for everyone who should read it (their devices and ours), forward secret where the devices
+ * have prekeys, never for revoked devices. Used for DMs and call invites.
+ */
+export async function encryptFor(serverKey: string, peer: string, content: DmContent): Promise<DmEnvelope> {
+  const identity = useApp.getState().identity
+  if (!identity) throw new DmError('No account on this device.')
+  const mine = me()
+  const [theirs, ours, ownRevoked] = await Promise.all([bundleOf(serverKey, peer), bundleOf(serverKey, mine), ownRevokedDevices(), ensurePrekeys()])
+  const revokedDevices = [...revokedSet(peer, theirs.revoked), ...revokedSet(mine, ours.revoked), ...ownRevoked]
+  return encryptDm(identity, peer, theirs.devices, peer === mine ? [] : ours.devices, content, Date.now(), {
+    prekeys: [...(theirs.prekeys ?? []), ...(ours.prekeys ?? [])],
+    revokedDevices,
+  })
+}
+
+export async function sendDm(peer: string, text: string, extra: Pick<DmContent, 'call'> = {}): Promise<void> {
   const identity = useApp.getState().identity
   const mine = me()
   const route = sharedServers(peer)[0]
   const tempId = `pending-${Date.now()}-${Math.random()}`
-  const pending: Dm = { id: tempId, from: mine, to: peer, text, sentAt: Date.now(), pending: 'sending' }
+  const pending: Dm = { id: tempId, from: mine, to: peer, text, sentAt: Date.now(), pending: 'sending', ...extra }
   patchConversation(peer, (c) => ({ messages: upsert(c.messages, pending) }))
 
   try {
     if (!identity || !route) throw new DmError("You don't share an online server with this person right now.")
-    const [theirs, ours, ownRevoked] = await Promise.all([bundleOf(route, peer), bundleOf(route, mine), ownRevokedDevices(), ensurePrekeys()])
-    const revokedDevices = [...revokedSet(peer, theirs.revoked), ...revokedSet(mine, ours.revoked), ...ownRevoked]
-    const envelope = encryptDm(identity, peer, theirs.devices, peer === mine ? [] : ours.devices, { text }, Date.now(), {
-      prekeys: [...(theirs.prekeys ?? []), ...(ours.prekeys ?? [])],
-      revokedDevices,
-    })
+    const envelope = await encryptFor(route, peer, { text, ...extra })
     await connectionFor(route)!.request('dm.send', { accountKey: peer, envelope })
     // The dm.message event (also sent to us) adds the real message; drop the placeholder.
     patchConversation(peer, (c) => ({
-      messages: upsert(c.messages.filter((m) => m.id !== tempId), { id: envelope.header.id, from: mine, to: peer, text, sentAt: envelope.header.sentAt }),
+      messages: upsert(c.messages.filter((m) => m.id !== tempId), { id: envelope.header.id, from: mine, to: peer, text, sentAt: envelope.header.sentAt, ...extra }),
     }))
   } catch (e) {
     patchConversation(peer, (c) => ({

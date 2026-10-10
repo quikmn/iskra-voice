@@ -5,6 +5,7 @@ import { connectionFor, type ServerState } from '../../state/store'
 import { setVolume, useVoice } from '../../state/voice'
 import { addFriend, openConversation, removeFriend, useDms } from '../../state/dms'
 import { Avatar, Modal } from '../bits'
+import { BotBadge } from '../chat/BotBits'
 
 export function MemberDialog({ server, member, onClose }: { server: ServerState; member: Member; onClose: () => void }) {
   const me = server.me
@@ -35,7 +36,7 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
       <div className="member-card">
         <Avatar name={member.name} accountKey={member.accountKey} size={64} online={member.online} />
         <div>
-          <strong className="member-card-name">{member.name}</strong>
+          <strong className="member-card-name">{member.name}</strong> {member.bot && <BotBadge />}
           <div className="muted">{member.role} · {member.online ? 'online' : 'offline'}</div>
           <div className="muted">ID <code>{fingerprint(member.accountKey)}</code></div>
         </div>

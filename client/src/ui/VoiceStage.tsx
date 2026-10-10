@@ -8,6 +8,7 @@ import {
   Camera, CameraOff, Expand, Headphones, HeadphonesOff, Menu, Mic, MicOff, PhoneOff, ScreenShare, ScreenShareOff, Users, Volume,
 } from './icons'
 import type { Panel } from './Shell'
+import { SoundboardButton } from './expressions/Soundboard'
 
 /** The call screen: video tiles (screen shares first) and everyone's avatar, with call controls. */
 export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle: (panel: Panel) => void }) {
@@ -39,10 +40,10 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
       </header>
 
       <div className={`stage-body ${focused ? 'has-focus' : ''}`}>
-        {focused && <VideoTile tile={focused} server={server} big speaking={!!speaking[focused.accountKey]} />}
+        {focused && <VideoTile tile={focused} name={nameIn(server, focused.accountKey)} big speaking={!!speaking[focused.accountKey]} />}
         <div className="stage-grid">
           {others.map((tile) => (
-            <VideoTile key={tile.id} tile={tile} server={server} speaking={!!speaking[tile.accountKey]} onClick={() => setFocusId(tile.id)} />
+            <VideoTile key={tile.id} tile={tile} name={nameIn(server, tile.accountKey)} speaking={!!speaking[tile.accountKey]} onClick={() => setFocusId(tile.id)} />
           ))}
           {audioOnly.map((p) => {
             const name = server.members[p.accountKey]?.name ?? 'Someone'
@@ -65,10 +66,11 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
   )
 }
 
-function VideoTile({ tile, server, big, speaking, onClick }: { tile: Tile; server: ServerState; big?: boolean; speaking: boolean; onClick?: () => void }) {
+const nameIn = (server: ServerState, accountKey: string) => server.members[accountKey]?.name ?? 'Someone'
+
+export function VideoTile({ tile, name, big, speaking, onClick }: { tile: Tile; name: string; big?: boolean; speaking: boolean; onClick?: () => void }) {
   const ref = useRef<HTMLVideoElement>(null)
   const wrapper = useRef<HTMLDivElement>(null)
-  const name = server.members[tile.accountKey]?.name ?? 'Someone'
 
   useEffect(() => {
     const element = ref.current
@@ -107,7 +109,8 @@ function VideoTile({ tile, server, big, speaking, onClick }: { tile: Tile; serve
   )
 }
 
-function CallControls() {
+/** Mute, deafen, camera, screen share and hang up. DM calls pass their own hang-up. */
+export function CallControls({ onLeave }: { onLeave?: () => void }) {
   const session = useVoice((s) => s.session)!
   const { muted, deafened, camera, screen } = useVoice()
   const speak = session.canSpeak
@@ -131,7 +134,8 @@ function CallControls() {
           {screen ? <ScreenShareOff /> : <ScreenShare />}
         </button>
       )}
-      <button className="call-button hang-up" onClick={() => void leaveVoice()} aria-label="Leave call" title="Leave call">
+      <SoundboardButton variant="call" />
+      <button className="call-button hang-up" onClick={() => (onLeave ? onLeave() : void leaveVoice())} aria-label={onLeave ? 'Hang up' : 'Leave call'} title={onLeave ? 'Hang up' : 'Leave call'}>
         <PhoneOff />
       </button>
     </div>
