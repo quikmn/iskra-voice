@@ -63,7 +63,7 @@ function RotateKeyDialog({ onClose }: { onClose: () => void }) {
           {others.map((d) => (
             <label key={d.deviceKey} className="checkbox">
               <input type="checkbox" checked={keep[d.deviceKey] ?? true} onChange={(e) => setKeep({ ...keep, [d.deviceKey]: e.target.checked })} />
-              <span>{d.name}<span className="muted small-text"> · {d.platform ?? 'device'}</span></span>
+              <span>{d.name}{d.platform && d.platform !== d.name && <span className="muted small-text"> · {d.platform}</span>}</span>
             </label>
           ))}
           <p className="muted small-text">Untick any device you don't trust (lost, or possibly copied): it won't get the new key.</p>
@@ -77,7 +77,7 @@ function RotateKeyDialog({ onClose }: { onClose: () => void }) {
       )}
       <label className="checkbox field">
         <input type="checkbox" checked={understood} onChange={(e) => setUnderstood(e.target.checked)} />
-        <span>I understand my old recovery key will stop working, and I'll save the new one.</span>
+        I understand my old recovery key will stop working, and I'll save the new one.
       </label>
       {error && <p className="error-text" role="alert">{error}</p>}
       <div className="copy-row">
