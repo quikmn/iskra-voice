@@ -241,3 +241,50 @@ Device certificates are stored when a device authenticates, so the server can pu
 | `link.preview` | `url` (http/https, no credentials) | `{ preview: { url, siteName, title, description } \| null }` |
 
 The server fetches the page (so viewers' IPs aren't sent to every site): ≤ 512 KB of HTML, 6 s, ≤ 3 redirects, cached for an hour. It only connects to public addresses: each connection's IP is checked after DNS resolution, so private ranges, loopback, link-local/cloud metadata and redirects into them are refused. No images are fetched or shown. Runs off the read loop; rate-limited to 1/s (burst 10).
+
+## Internet hosting
+
+"Open to the internet" lets the owner make a home server reachable from anywhere with one switch. The server asks the router to forward its ports (UPnP IGD, or NAT-PMP), gets a public address (`Internet.Domain`, or `<ip-with-dashes>.sslip.io` by default), and an HTTPS certificate for it from Let's Encrypt.
+
+| type | body | result | who |
+|---|---|---|---|
+| `host.status` | | `{ status: HostStatus }` | admin+ |
+| `host.internet.set` | `enabled` (boolean) | `{ status: HostStatus }` | owner. Setting `true` while already on checks everything again right away. |
+
+```jsonc
+HostStatus {
+  "enabled": true,
+  "lanUrl": "http://192.168.1.20:47070",          // null with your own HTTPS setup
+  "router": { "state": "off" | "searching" | "found" | "not_found" | "disabled", "kind": "UPnP" | "NAT-PMP" | null },
+  "publicIp": "203.0.113.7",                       // the router's internet-side address, or null
+  "cgnat": false,                                  // that address is private/shared (100.64.0.0/10 etc.): ports can't help
+  "ports": [{ "name": "acme" | "web" | "voice-tcp" | "voice-udp", "protocol": "tcp" | "udp",
+              "internal": 47070, "external": 80, "state": "open" | "failed" | "manual" | "skipped", "error": null }],
+  "address": "203-0-113-7.sslip.io", "autoAddress": true,
+  "https": { "state": "off" | "waiting" | "needs_port_80" | "requesting" | "valid" | "failed", "domain": "...", "expiresAt": 0, "error": null },
+  "reachable": "verified" | "router" | "unknown",  // verified: Let's Encrypt reached us from the internet; router: our own probe came back through the router
+  "publicUrl": "https://203-0-113-7.sslip.io",     // null until something works
+  "checkedAt": 1760000000000
+}
+```
+
+| event | body | sent to |
+|---|---|---|
+| `host.status` | `{ status }` | admins, whenever the status changes |
+| `server.address` | `{ publicUrl }` | everyone, when the public address changes (invite links use it) |
+
+- `welcome.server` gains `publicUrl` (string or null). Clients build invite links with `publicUrl` when it's set, else the URL they connected to.
+- Ports: outside TCP 80 (Let's Encrypt's HTTP-01 check) and 443 both lead to the server's one port, which speaks plain HTTP and HTTPS (TLS is detected from the first byte). If the router refuses 443, the server's own port is used outside too. Voice maps LiveKit's RTC TCP and UDP ports straight through. Leases are 1 hour, renewed at half-life and re-checked every 5 minutes (router restarts, new IPs); mappings are removed on shutdown.
+- Without port 80 there's no certificate: `publicUrl` is then `http://<ip>:<port>`, which the desktop app can use but browsers can't.
+- With a certificate, plain HTTP from public addresses is redirected to `publicUrl` (except `/.well-known/`); LAN and localhost are served as before. Clients that connected over HTTPS get `wss://<that host>/livekit` from `voice.join`.
+- LiveKit advertises the public IP (`node_ip`) and keeps the LAN one (`advertise_internal_ip`), restarting when it changes.
+- `GET /.well-known/acme-challenge/<token>` answers Let's Encrypt; `GET /.well-known/iskra-probe/<token>` answers only the server's own random token (for the through-the-router check).
+
+```jsonc
+"Internet": {
+  "Enabled": false,
+  "Domain": null,           // your own domain pointing here (stable links); default <ip>.sslip.io
+  "DnsSuffix": "sslip.io",
+  "PortMapping": true       // false if you forward the ports by hand
+}
+```
