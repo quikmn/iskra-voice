@@ -30,7 +30,7 @@ On first start the server prints an owner link; open it to become the owner of y
 
 Anything you start for development or tests should listen on localhost only, so Windows never asks about the firewall:
 
-- Servers: `"LocalOnly": true` in the world's `server.json` (the server and its LiveKit then bind to 127.0.0.1). The test helpers already do this. `dev.ps1` doesn't add it yet, so add it to `.dev/<world>/server.json` yourself.
+- Servers: `"LocalOnly": true` in the world's `server.json` (the server and its LiveKit then bind to 127.0.0.1). The test helpers and new `dev.ps1` worlds already do this.
 - The desktop app's **Create a server**: set `ISKRA_LOCAL_ONLY=1` first.
 - Don't copy `iskra-server`, `livekit-server` or Electron to new paths: each new path asks again.
 - If prompts show up anyway, `scripts/dev-firewall.ps1` (elevated) adds inbound *block* rules for every dev and test binary in the repo and its worktrees. Tests only use localhost, which the firewall doesn't filter. Safe to re-run.

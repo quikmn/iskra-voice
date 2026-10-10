@@ -1,5 +1,5 @@
 # Starts the Iskra dev stack: server (on a local test world) + web client with hot reload.
-# Usage: .\dev.ps1            -> world in v2\.dev\world
+# Usage: .\dev.ps1            -> world in .dev\world (localhost only)
 #        .\dev.ps1 -World gaming
 param([string]$World = 'world')
 
@@ -9,7 +9,7 @@ $worldPath = Join-Path $root ".dev\$World"
 # Dev worlds open invite links in the local dev client, not the public web app.
 if (-not (Test-Path (Join-Path $worldPath 'server.json'))) {
     New-Item -ItemType Directory -Force $worldPath | Out-Null
-    '{ "Name": "Dev", "AppUrl": "http://localhost:5173" }' | Set-Content (Join-Path $worldPath 'server.json')
+    '{ "Name": "Dev", "AppUrl": "http://localhost:5173", "LocalOnly": true }' | Set-Content (Join-Path $worldPath 'server.json')
 }
 
 $livekit = Join-Path $root '.tools\livekit-server.exe'
