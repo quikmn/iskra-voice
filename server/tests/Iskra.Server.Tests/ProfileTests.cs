@@ -98,6 +98,9 @@ public class ProfileTests
         Assert.Equal("bad_request", (await bob.RequestAsync("profile.update", new { avatar = image })).ErrorCode());
         var text = await Upload(server, bob, Encoding.UTF8.GetBytes("<svg onload=alert(1)>"), "x.png");
         Assert.Equal("bad_request", (await bob.RequestAsync("profile.update", new { avatar = text })).ErrorCode());
+        // An image whose size can't be read (here a JPEG with no frame header) isn't accepted either.
+        var sizeless = await Upload(server, bob, [0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x04, 0x00, 0x00, 0xFF, 0xD9], "x.jpg");
+        Assert.Equal("bad_request", (await bob.RequestAsync("profile.update", new { avatar = sizeless })).ErrorCode());
         Assert.Equal("bad_request", (await bob.RequestAsync("profile.update", new { avatar = "nope" })).ErrorCode());
 
         member = (await alice.RequestAsync("profile.update", new { avatar = "" })).Body().GetProperty("member");

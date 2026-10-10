@@ -128,6 +128,12 @@ public sealed partial class Uploads(World world, TimeProvider time, ILogger<Uplo
             var hash = Convert.ToHexStringLower(sha.GetHashAndReset());
             var target = PathFor(hash);
             var kind = FileSniffer.Sniff(head.AsSpan(0, headLength));
+            if (kind.Type == "image/jpeg" && kind.Width is null)
+            {
+                await using var whole = File.OpenRead(temp);
+                var (width, height) = FileSniffer.JpegSize(whole);
+                kind = kind with { Width = width, Height = height };
+            }
             var file = new StoredFile(Ed25519.ToB64u(RandomNumberGenerator.GetBytes(16)), hash, ticket.Name, size, kind.Type,
                 kind.Width, kind.Height, ticket.Uploader, time.GetUtcNow().ToUnixTimeMilliseconds());
             lock (_diskLock)

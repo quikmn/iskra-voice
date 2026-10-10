@@ -62,6 +62,31 @@ public static class FileSniffer
         return (null, null);
     }
 
+    /// <summary>
+    /// The same walk over a whole file, for JPEGs whose start-of-frame lies past the bytes <see cref="Sniff"/> saw
+    /// (big EXIF or colour profiles come first). Seeks over segments; stops at the image data.
+    /// </summary>
+    public static (int?, int?) JpegSize(Stream stream)
+    {
+        Span<byte> buffer = stackalloc byte[9];
+        stream.Position = 2;
+        for (var segments = 0; segments < 1000; segments++)
+        {
+            if (stream.ReadAtLeast(buffer[..4], 4, throwOnEndOfStream: false) < 4 || buffer[0] != 0xFF) return (null, null);
+            var marker = buffer[1];
+            if (marker is 0xD9 or 0xDA) return (null, null); // end of image, or start of scan: no frame header before it
+            var length = BinaryPrimitives.ReadUInt16BigEndian(buffer[2..]);
+            if (length < 2) return (null, null);
+            if (marker is >= 0xC0 and <= 0xCF and not 0xC4 and not 0xC8 and not 0xCC)
+            {
+                if (stream.ReadAtLeast(buffer[..5], 5, throwOnEndOfStream: false) < 5) return (null, null);
+                return (BinaryPrimitives.ReadUInt16BigEndian(buffer[3..]), BinaryPrimitives.ReadUInt16BigEndian(buffer[1..]));
+            }
+            stream.Seek(length - 2, SeekOrigin.Current);
+        }
+        return (null, null);
+    }
+
     /// <summary>The canvas size from the first WebP chunk (VP8X, lossy VP8 or lossless VP8L).</summary>
     private static (int?, int?) WebpSize(ReadOnlySpan<byte> data)
     {

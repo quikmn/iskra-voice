@@ -295,7 +295,7 @@ An incoming webhook is a secret URL that posts into one text channel. Requests o
 | type | body | result |
 |---|---|---|
 | `webhook.list` | `channelId?` | `{ webhooks: [Webhook] }` |
-| `webhook.create` | `channelId` (a text channel), `name` (1–32), `avatar?` (file id: an image you uploaded), `mentions?` (default false) | `{ webhook, secret, path }` |
+| `webhook.create` | `channelId` (a text channel), `name` (1–32), `avatar?` (file id: an image you uploaded, same rules as a profile avatar), `mentions?` (default false) | `{ webhook, secret, path }` |
 | `webhook.update` | `id`, `name?`, `avatar?` (`""` removes it), `mentions?`, `channelId?` | `{ webhook }` |
 | `webhook.regenerate` | `id` | `{ webhook, secret, path }`; the old URL stops working |
 | `webhook.delete` | `id` | |
@@ -376,7 +376,7 @@ Server emoji are written in message text and reactions as `<:name:id>` (`name`: 
 | `sound.delete` | `id` | | whoever added it, or admin+ |
 | `sound.play` | `id` | | someone in a voice channel who can speak there |
 
-- `Sound { id, name, emoji, url, durationMs, createdBy }`. Up to 100 per server. The server measures the length from the file itself (WAV header, Ogg granule position, MP3 frames), with 0.15 s of slack for encoder padding.
+- `Sound { id, name, emoji, url, durationMs, createdBy }`. Up to 100 per server. The server measures the length from the file itself (WAV header, MP3 frames, Ogg granule positions: every page is walked, one stream, back to back to the end of the file, granules never going backwards), with 0.15 s of slack for encoder padding. Clients stop playback at `durationMs` (at most 5 s) whatever the file holds.
 - `sound.play`: being in voice comes from LiveKit's webhooks only (see Voice); you need the channel's write role. Rate limit 1 every 2 s (burst 3).
 - Event `sound.played` `{ channelId, accountKey, sound }` only to the people in that voice channel. Each client plays it locally, with its own soundboard volume and mute setting.
 - Event `sounds.updated` `{ sounds }` to everyone after any change.
@@ -586,7 +586,7 @@ A profile lives on the user's device and is sent to every server they're on, so 
 
 | type | body | result | who |
 |---|---|---|---|
-| `profile.update` | any of `name`, `bio` (≤ 190, newlines allowed), `pronouns` (≤ 40), `accent` (`#rrggbb`), `avatar` (id of your own upload: PNG, JPEG, WebP or GIF, ≤ 1 MB, ≤ 4096 px). `""` clears a field. | `{ member }` | anyone |
+| `profile.update` | any of `name`, `bio` (≤ 190, newlines allowed), `pronouns` (≤ 40), `accent` (`#rrggbb`), `avatar` (id of your own upload: PNG, JPEG, WebP or GIF, ≤ 1 MB, ≤ 4096 px, with a size the server could read). `""` clears a field. | `{ member }` | anyone |
 | `profile.page.set` | `file` (id of your own upload: UTF-8 HTML, ≤ 512 KB) | `{ member }` | anyone, if pages are on (`forbidden` otherwise) |
 | `profile.page.remove` | `accountKey?` (default: yourself) | | yourself, or an admin who outranks the owner |
 | `profile.pages.configure` | `enabled` | | admin+ |

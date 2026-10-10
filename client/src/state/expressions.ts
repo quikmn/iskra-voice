@@ -95,15 +95,26 @@ function onSoundPlayed(serverKey: string, { channelId, accountKey, sound }: Even
   const { settings } = useExpressions.getState()
   const url = serverFileUrl(serverKey, sound.url)
   if (settings.muted || voice.deafened || !url || settings.volume <= 0) return
-  playUrl(url, settings.volume)
+  playUrl(url, settings.volume, sound.durationMs)
 }
 
-/** Plays a sound locally (a received soundboard sound, or a preview). */
-export function playUrl(url: string, volume = useExpressions.getState().settings.volume): void {
+/** Soundboard sounds are at most this long; playback stops there whatever the file holds. */
+export const MAX_SOUND_MS = 5000
+
+/** When to stop a sound: its measured length (never more than the limit), plus a little slack for decoding. */
+export const stopAfterMs = (durationMs: number | undefined) =>
+  Math.min(Number.isFinite(durationMs) && durationMs! > 0 ? durationMs! : MAX_SOUND_MS, MAX_SOUND_MS) + 250
+
+/** Plays a sound locally (a received soundboard sound, or a preview), cut off at its measured length. */
+export function playUrl(url: string, volume = useExpressions.getState().settings.volume, durationMs?: number): void {
   try {
     const audio = new Audio(url)
     audio.volume = Math.min(1, Math.max(0, volume))
     void audio.play().catch(() => undefined)
+    setTimeout(() => {
+      audio.pause()
+      audio.removeAttribute('src')
+    }, stopAfterMs(durationMs))
   } catch {
     /* no audio support */
   }

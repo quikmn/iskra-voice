@@ -23,6 +23,15 @@ public static partial class ProfileFeature
 
     private static readonly string[] AvatarTypes = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 
+    /// <summary>Avatars (members' and webhooks'): a supported image of known size, at most 1 MB and 4096 px a side.</summary>
+    public static void CheckAvatarImage(StoredFile file)
+    {
+        if (!AvatarTypes.Contains(file.Type)) throw RequestException.BadRequest("Avatars must be PNG, JPEG, WebP or GIF images.");
+        if (file.Size > MaxAvatarBytes) throw RequestException.BadRequest($"Avatars can be up to {MaxAvatarBytes / 1024} KB.");
+        if (file.Width is not { } w || file.Height is not { } h || w < 1 || h < 1) throw RequestException.BadRequest("Couldn't read that image's size.");
+        if (w > MaxAvatarSide || h > MaxAvatarSide) throw RequestException.BadRequest("That image is too large.");
+    }
+
     [GeneratedRegex("^#[0-9a-fA-F]{6}$")]
     private static partial Regex AccentPattern();
 
@@ -118,9 +127,7 @@ public static partial class ProfileFeature
         {
             var file = s.World.Store.GetFile(avatar);
             if (file is null || file.Uploader != me.AccountKey) throw RequestException.BadRequest("Unknown avatar file.");
-            if (!AvatarTypes.Contains(file.Type)) throw RequestException.BadRequest("Avatars must be PNG, JPEG, WebP or GIF images.");
-            if (file.Size > MaxAvatarBytes) throw RequestException.BadRequest($"Avatars can be up to {MaxAvatarBytes / 1024} KB.");
-            if (file.Width > MaxAvatarSide || file.Height > MaxAvatarSide) throw RequestException.BadRequest("That image is too large.");
+            CheckAvatarImage(file);
         }
 
         if (name is not null) s.World.Store.SetMemberName(me.AccountKey, name);

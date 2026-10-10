@@ -46,24 +46,45 @@ public class SoundboardTests
     }
 
     /// <summary>An Ogg Opus stream: an OpusHead page, then a last page whose granule position says how long it is.</summary>
-    private static byte[] OggOpus(long samples48k)
+    private static byte[] OggOpus(long samples48k) => OggOpusPages((samples48k + 312, 0));
+
+    private static byte[] OggPage(long granule, byte[] payload, uint serial = 0)
     {
-        static byte[] Page(long granule, byte[] payload)
-        {
-            var page = new byte[28 + payload.Length];
-            Encoding.ASCII.GetBytes("OggS").CopyTo(page, 0);
-            BinaryPrimitives.WriteInt64LittleEndian(page.AsSpan(6), granule);
-            page[26] = 1;
-            page[27] = (byte)payload.Length;
-            payload.CopyTo(page, 28);
-            return page;
-        }
+        var page = new byte[28 + payload.Length];
+        Encoding.ASCII.GetBytes("OggS").CopyTo(page, 0);
+        BinaryPrimitives.WriteInt64LittleEndian(page.AsSpan(6), granule);
+        BinaryPrimitives.WriteUInt32LittleEndian(page.AsSpan(14), serial);
+        page[26] = 1;
+        page[27] = (byte)payload.Length;
+        payload.CopyTo(page, 28);
+        return page;
+    }
+
+    /// <summary>The OpusHead page, then audio pages with these granule positions and stream serials.</summary>
+    private static byte[] OggOpusPages(params (long Granule, uint Serial)[] pages)
+    {
         var head = new byte[19];
         Encoding.ASCII.GetBytes("OpusHead").CopyTo(head, 0);
         head[8] = 1; head[9] = 2;
         BinaryPrimitives.WriteUInt16LittleEndian(head.AsSpan(10), 312);
         BinaryPrimitives.WriteUInt32LittleEndian(head.AsSpan(12), 48000);
-        return [.. Page(0, head), .. Page(samples48k + 312, new byte[100])];
+        return [.. OggPage(0, head), .. pages.SelectMany(p => OggPage(p.Granule, new byte[100], p.Serial))];
+    }
+
+    [Fact]
+    public void Ogg_lengths_are_checked_across_every_page()
+    {
+        const long second = 48_000;
+        Assert.Equal(2000, AudioProbe.DurationMs(OggOpusPages((second + 312, 0), (2 * second + 312, 0), (-1, 0)), "audio/ogg"));
+        // A long stream that ends on a page claiming to be short.
+        Assert.Null(AudioProbe.DurationMs(OggOpusPages((60 * second, 0), (second, 0)), "audio/ogg"));
+        // A second stream hidden next to a short one.
+        Assert.Null(AudioProbe.DurationMs(OggOpusPages((second, 0), (60 * second, 7)), "audio/ogg"));
+        // Bytes after the last page, or a page cut short.
+        Assert.Null(AudioProbe.DurationMs([.. OggOpus(second), .. new byte[500]], "audio/ogg"));
+        Assert.Null(AudioProbe.DurationMs(OggOpus(second)[..^10], "audio/ogg"));
+        // Absurd granules don't overflow.
+        Assert.Equal(int.MaxValue, AudioProbe.DurationMs(OggOpusPages((long.MaxValue, 0)), "audio/ogg"));
     }
 
     [Fact]
