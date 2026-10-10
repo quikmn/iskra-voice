@@ -7,6 +7,7 @@ import { useApp } from '../../state/store'
 import { parseCustomEmoji, searchEmoji, type EmojiResult } from './emoji'
 import { EMOJI_CATEGORIES } from './emojiData'
 import { usePopoverPosition } from './popover'
+import { useEscapeLayer } from '../layers'
 import './expressions.css'
 
 const RECENT_KEY = 'iskra.emoji.recent'
@@ -70,6 +71,7 @@ export function EmojiPicker({
   const scroller = useRef<HTMLDivElement>(null)
   const { style, sheet } = usePopoverPosition(anchor, panel)
   const [recent] = useState(loadRecent)
+  useEscapeLayer(onClose)
 
   const customItems: Item[] = emojis.map((e) => ({ value: token(e), label: `:${e.name}:`, custom: e }))
   const recentItems: Item[] = recent
@@ -113,12 +115,6 @@ export function EmojiPicker({
         style={style}
         role="dialog"
         aria-label="Emoji picker"
-        onKeyDown={(e) => {
-          if (e.key === 'Escape') {
-            e.stopPropagation()
-            onClose()
-          }
-        }}
       >
         <input
           className="emoji-search"

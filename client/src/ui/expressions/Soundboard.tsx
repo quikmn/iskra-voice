@@ -6,6 +6,7 @@ import { useApp } from '../../state/store'
 import { useVoice } from '../../state/voice'
 import { SoundboardIcon } from './icons'
 import { usePopoverPosition } from './popover'
+import { useEscapeLayer } from '../layers'
 
 export function SoundboardButton({ variant }: { variant: 'bar' | 'call' }) {
   const session = useVoice((s) => s.session)
@@ -36,6 +37,7 @@ function SoundboardPanel({ serverKey, anchor, onClose }: { serverKey: string; an
   const [cooling, setCooling] = useState<string | null>(null)
   const panel = useRef<HTMLDivElement>(null)
   const { style, sheet } = usePopoverPosition(anchor, panel)
+  useEscapeLayer(onClose)
   const q = query.trim().toLowerCase()
   const shown = q ? sounds.filter((s) => s.name.toLowerCase().includes(q) || s.emoji?.includes(q)) : sounds
 
@@ -59,7 +61,6 @@ function SoundboardPanel({ serverKey, anchor, onClose }: { serverKey: string; an
         style={style}
         role="dialog"
         aria-label="Soundboard"
-        onKeyDown={(e) => e.key === 'Escape' && onClose()}
       >
         <header className="soundboard-header">
           <strong>Soundboard</strong>

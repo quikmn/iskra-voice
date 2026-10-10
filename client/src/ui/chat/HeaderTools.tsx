@@ -11,6 +11,7 @@ import { fullTime, messageTime } from '../format'
 import { renderMarkdown } from '../markdown'
 import { relativeTime } from './pinThreadHelpers'
 import { PinIcon, SearchIcon, ThreadIcon } from './extraIcons'
+import { useEscapeLayer } from '../layers'
 import './chat-extras.css'
 
 const INACTIVE_MS = 7 * 24 * 3600 * 1000
@@ -40,7 +41,8 @@ export function HeaderTools({ server, channel }: { server: ServerState; channel:
           onChange={(e) => setSearchText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') void runSearch(server.key)
-            else if (e.key === 'Escape') {
+            else if (e.key === 'Escape' && (text || useSearch.getState().key)) {
+              e.preventDefault()
               setSearchText('')
               closeSearch()
             }
@@ -66,17 +68,15 @@ export function HeaderTools({ server, channel }: { server: ServerState; channel:
 
 export function Popover({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
+  useEscapeLayer(onClose)
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     const onDown = (e: MouseEvent) => {
       const target = e.target as Element
       // Clicks on the toggle buttons are handled by them.
       if (!ref.current?.contains(target) && !target.closest?.('.header-tools > .icon-button')) onClose()
     }
-    window.addEventListener('keydown', onKey)
     window.addEventListener('mousedown', onDown)
     return () => {
-      window.removeEventListener('keydown', onKey)
       window.removeEventListener('mousedown', onDown)
     }
   }, [onClose])

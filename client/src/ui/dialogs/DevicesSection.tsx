@@ -30,7 +30,7 @@ function DeviceRow({ device }: { device: DeviceView }) {
         {editing ? (
           <div className="copy-row">
             <input aria-label="Device name" value={name} maxLength={32} autoFocus onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') void save(); if (e.key === 'Escape') setEditing(false) }} />
+              onKeyDown={(e) => { if (e.key === 'Enter') void save(); if (e.key === 'Escape') { e.preventDefault(); setEditing(false) } }} />
             <button className="button small primary" disabled={!trimmed || busy} onClick={() => void save()}>Save</button>
           </div>
         ) : (

@@ -9,6 +9,7 @@ import { fullTime, hueFor, messageTime } from '../format'
 import { Close } from '../icons'
 import { highlightSegments, readableMentions } from './searchQuery'
 import { ArrowLeft, SearchIcon } from './extraIcons'
+import { useEscapeLayer } from '../layers'
 
 const HINTS: [string, string][] = [
   ['from:', 'a person'],
@@ -23,6 +24,7 @@ const isPhone = () => window.matchMedia('(max-width: 760px)').matches
 
 export function SearchPanel({ server }: { server: ServerState }) {
   const { text, searched, results, total, hasMore, loading, error } = useSearch()
+  useEscapeLayer(closeSearch)
 
   function addFilter(filter: string) {
     const next = `${text.trim()} ${filter}`.trimStart()
@@ -106,7 +108,7 @@ function ResultCard({ server, result }: { server: ServerState; result: SearchRes
           <Avatar name={name} accountKey={message.author} size={28} />
           <span className="result-body">
             <span className="message-meta">
-              <span className="author" style={{ color: `hsl(${hueFor(message.author)} 70% 72%)` }}>{name}</span>
+              <span className="author" style={{ color: `hsl(${hueFor(message.author)} 70% var(--name-l))` }}>{name}</span>
               <time title={fullTime(message.createdAt)}>{messageTime(message.createdAt)}</time>
             </span>
             <span className="result-text">

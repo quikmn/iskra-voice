@@ -1,8 +1,10 @@
 // Small shared UI pieces.
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useApp } from '../state/store'
 import { hueFor, initials } from './format'
-import { Close } from './icons'
+import { ChevronLeft, Close } from './icons'
+import { useEscapeLayer, useFocusTrap } from './layers'
 
 type AppSnapshot = ReturnType<typeof useApp.getState>
 
@@ -48,27 +50,41 @@ export function MessageText({ text }: { text: string }) {
   return <>{parts}</>
 }
 
-export function Modal({ title, onClose, children, footer, wide }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
+export function Modal({ title, heading, onBack, onClose, children, footer, wide, className }: {
+  /** The dialog's name (and its heading, unless `heading` is given). */
+  title: string
+  heading?: ReactNode
+  /** Shows a back arrow before the heading (phone list → detail flows). */
+  onBack?: () => void
+  onClose: () => void
+  children: ReactNode
+  footer?: ReactNode
+  wide?: boolean
+  className?: string
+}) {
   const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    window.addEventListener('keydown', onKey)
-    ref.current?.querySelector<HTMLElement>('input, textarea, button')?.focus()
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-  return (
+  useEscapeLayer(onClose)
+  useFocusTrap(ref)
+  // In a portal, so a dialog opened from inside another (Link a device in Settings) isn't styled or clipped by it.
+  return createPortal(
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className={`modal ${wide ? 'wide' : ''}`} role="dialog" aria-modal="true" aria-label={title} ref={ref}>
+      <div className={`modal ${wide ? 'wide' : ''} ${className ?? ''}`} role="dialog" aria-modal="true" aria-label={title} ref={ref} tabIndex={-1}>
         <header className="modal-header">
-          <h2>{title}</h2>
-          <button className="icon-button" onClick={onClose} aria-label="Close">
+          {onBack && (
+            <button className="icon-button modal-back" onClick={onBack} aria-label="Back">
+              <ChevronLeft />
+            </button>
+          )}
+          <h2>{heading ?? title}</h2>
+          <button className="icon-button modal-close" onClick={onClose} aria-label="Close">
             <Close />
           </button>
         </header>
         <div className="modal-body">{children}</div>
         {footer && <footer className="modal-footer">{footer}</footer>}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
