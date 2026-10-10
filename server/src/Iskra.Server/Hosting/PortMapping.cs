@@ -36,7 +36,10 @@ public interface IPortMapper
     Task<INatRouter?> FindRouterAsync(CancellationToken cancel);
 }
 
-/// <summary>Looks for a UPnP router and a NAT-PMP gateway at the same time; UPnP wins when both answer.</summary>
+/// <summary>
+/// Looks for a UPnP router and a NAT-PMP gateway at the same time. The default gateway wins: UPnP from the gateway,
+/// else NAT-PMP (which only ever talks to the gateway), else UPnP from another device on the network.
+/// </summary>
 public sealed class PortMapper(ILogger<PortMapper> log) : IPortMapper
 {
     private static readonly TimeSpan SearchTime = TimeSpan.FromSeconds(3);
@@ -53,7 +56,9 @@ public sealed class PortMapper(ILogger<PortMapper> log) : IPortMapper
         var pmp = NatPmp.DiscoverAsync(Networks.Gateways(), cancel);
         try
         {
-            return await upnp ?? await pmp;
+            var found = await upnp;
+            // The gateway's own UPnP answer needs no wait for NAT-PMP.
+            return found is Upnp { AtGateway: true } ? found : Choose(found, await pmp);
         }
         catch (Exception ex) when (ex is SocketException or HttpRequestException or IOException)
         {
@@ -61,6 +66,10 @@ public sealed class PortMapper(ILogger<PortMapper> log) : IPortMapper
             return null;
         }
     }
+
+    /// <summary>Which router to use when both protocols answered (see the class summary).</summary>
+    public static INatRouter? Choose(INatRouter? upnp, INatRouter? pmp) =>
+        upnp is Upnp { AtGateway: true } ? upnp : pmp ?? upnp;
 }
 
 public static class Networks

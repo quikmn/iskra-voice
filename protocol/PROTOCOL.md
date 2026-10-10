@@ -526,7 +526,7 @@ Payload: `{ v: 1, seed, name, recoverySaved, servers: [{ url, serverKey, name }]
 
 ## Internet hosting
 
-"Open to the internet" lets the owner make a home server reachable from anywhere with one switch. The server asks the router to forward its ports (UPnP IGD, or NAT-PMP), gets a public address (`Internet.Domain`, or `<ip-with-dashes>.sslip.io` by default), and an HTTPS certificate for it from Let's Encrypt.
+"Open to the internet" lets the owner make a home server reachable from anywhere with one switch. The server asks the router to forward its ports (UPnP IGD, or NAT-PMP; the default gateway is preferred: its UPnP answer, else NAT-PMP, and only then a UPnP answer from another device on the network), gets a public address (`Internet.Domain`, or `<ip-with-dashes>.sslip.io` by default), and an HTTPS certificate for it from Let's Encrypt.
 
 | type | body | result | who |
 |---|---|---|---|
