@@ -1,5 +1,5 @@
-import { useApp } from '../state/store'
-import { clearVoiceError, leaveVoice, toggleDeafen, toggleMute, useVoice } from '../state/voice'
+import { selectServer, useApp } from '../state/store'
+import { clearVoiceError, leaveVoice, setStageOpen, toggleDeafen, toggleMute, useVoice } from '../state/voice'
 import { Close, Headphones, HeadphonesOff, Mic, MicOff, PhoneOff } from './icons'
 
 /** Shown above your name while you're in voice (or when joining failed). */
@@ -25,9 +25,16 @@ export function VoiceBar() {
     <div className="voice-bar">
       <div className="voice-status">
         <strong className={session.state}>{status}</strong>
-        <span>
+        <button
+          className="link-like"
+          title="Open the call"
+          onClick={() => {
+            selectServer(session.serverKey)
+            setStageOpen(true)
+          }}
+        >
           {channel?.name ?? 'voice'} · {server?.name}
-        </span>
+        </button>
         {!session.canSpeak && session.state === 'connected' && <span className="muted">Listening only</span>}
         {error && <span className="error-text">{error}</span>}
       </div>

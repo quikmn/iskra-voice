@@ -5,6 +5,8 @@ import { ChatView } from './ChatView'
 import { JoinDialog } from './dialogs/JoinDialog'
 import { MemberList } from './MemberList'
 import { ServerRail } from './ServerRail'
+import { useVoice } from '../state/voice'
+import { VoiceStage } from './VoiceStage'
 import { Menu } from './icons'
 
 export type Panel = 'none' | 'nav' | 'members'
@@ -14,6 +16,7 @@ export function Shell() {
   const server = useApp(activeServerState)
   const [panel, setPanel] = useState<Panel>('none')
   const [joining, setJoining] = useState(false)
+  const stage = useVoice((s) => s.stageOpen && s.session?.serverKey === server?.key)
 
   return (
     <div className={`shell panel-${panel}`}>
@@ -23,7 +26,9 @@ export function Shell() {
       </div>
 
       <main className="main-column">
-        {server ? (
+        {server && stage ? (
+          <VoiceStage server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
+        ) : server ? (
           <ChatView server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
         ) : (
           <EmptyState onJoin={() => setJoining(true)} onMenu={() => setPanel('nav')} />

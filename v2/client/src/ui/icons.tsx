@@ -144,3 +144,47 @@ export const UserPlus = (p: P) => (
     <line x1="22" x2="16" y1="11" y2="11" />
   </Svg>
 )
+
+export const Camera = (p: P) => (
+  <Svg {...p}>
+    <path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5" />
+    <rect x="2" y="6" width="14" height="12" rx="2" />
+  </Svg>
+)
+
+export const CameraOff = (p: P) => (
+  <Svg {...p}>
+    <path d="M10.66 6H14a2 2 0 0 1 2 2v2.5l5.248-3.062A.5.5 0 0 1 22 7.87v8.196" />
+    <path d="M16 16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2" />
+    <path d="m2 2 20 20" />
+  </Svg>
+)
+
+export const ScreenShare = (p: P) => (
+  <Svg {...p}>
+    <path d="m9 10 3-3 3 3" />
+    <path d="M12 13V7" />
+    <rect width="20" height="14" x="2" y="3" rx="2" />
+    <path d="M12 17v4" />
+    <path d="M8 21h8" />
+  </Svg>
+)
+
+export const ScreenShareOff = (p: P) => (
+  <Svg {...p}>
+    <path d="m14.5 12.5-5-5" />
+    <path d="m9.5 12.5 5-5" />
+    <rect width="20" height="14" x="2" y="3" rx="2" />
+    <path d="M12 17v4" />
+    <path d="M8 21h8" />
+  </Svg>
+)
+
+export const Expand = (p: P) => (
+  <Svg {...p}>
+    <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+    <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
+    <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+    <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+  </Svg>
+)

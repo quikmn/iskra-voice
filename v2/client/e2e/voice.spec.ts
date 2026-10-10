@@ -44,10 +44,31 @@ test('friends talk in a voice channel', async ({ browser }) => {
     .poll(() => friend.evaluate(() => [...document.querySelectorAll('audio')].some((a) => !a.paused && a.currentTime > 0)), { timeout: 15_000 })
     .toBe(true)
 
+  // Joining opens the call screen with everyone on it.
+  await expect(friend.locator('.stage')).toBeVisible()
+  await expect(friend.locator('.person-tile')).toHaveCount(2)
+
+  // Camera: the friend sees the host's video playing.
+  await host.locator('.call-controls').getByRole('button', { name: 'Turn camera on' }).click()
+  const hostVideo = friend.locator('.video-tile.camera video')
+  await expect(hostVideo).toHaveCount(1)
+  await expect.poll(() => hostVideo.evaluate((v: HTMLVideoElement) => v.videoWidth), { timeout: 15_000 }).toBeGreaterThan(0)
+  await expect(friend.locator('.person-tile')).toHaveCount(1) // the host moved from avatar to video
+
+  // Screen share shows up big for the friend.
+  await host.locator('.call-controls').getByRole('button', { name: 'Share your screen' }).click()
+  const screen = friend.locator('.video-tile.screen.big video')
+  await expect(screen).toHaveCount(1, { timeout: 15_000 })
+  await expect.poll(() => screen.evaluate((v: HTMLVideoElement) => v.videoWidth), { timeout: 15_000 }).toBeGreaterThan(0)
+  await friend.screenshot({ path: join(SHOTS, 'call-screen-share.png') })
+  await host.locator('.call-controls').getByRole('button', { name: 'Stop sharing' }).click()
+  await expect(friend.locator('.video-tile.screen')).toHaveCount(0)
+
   // Muting shows up for others.
-  await host.getByRole('button', { name: 'Mute', exact: true }).click()
+  await host.locator('.call-controls').getByRole('button', { name: 'Mute', exact: true }).click()
   await expect(lounge(friend).locator('li', { hasText: 'Host' }).getByTitle('Muted')).toBeVisible()
 
+  await host.locator('.channel', { hasText: 'general' }).click()
   await host.screenshot({ path: join(SHOTS, 'voice-host.png') })
 
   // Leaving removes you for everyone.

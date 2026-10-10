@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { roleRank } from '../core/protocol'
 import { activeChannelId, selectChannel, useApp, type ServerState } from '../state/store'
-import { joinVoice, useVoice } from '../state/voice'
+import { joinVoice, setStageOpen, useVoice } from '../state/voice'
 import { Avatar } from './bits'
 import { VoiceBar } from './VoiceBar'
 import { CreateChannelDialog } from './dialogs/CreateChannelDialog'
@@ -48,6 +48,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
               className={`channel ${channel.id === activeId ? 'active' : ''} ${unread ? 'unread' : ''}`}
               onClick={() => {
                 selectChannel(server.key, channel.id)
+                setStageOpen(false)
                 onNavigate()
               }}
             >
@@ -77,7 +78,10 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
                 className={`channel ${here ? 'active' : ''}`}
                 disabled={!server.voiceAvailable}
                 title={server.voiceAvailable ? `Join ${channel.name}` : 'Voice is unavailable on this server'}
-                onClick={() => void joinVoice(server.key, channel.id)}
+                onClick={() => {
+                  void joinVoice(server.key, channel.id)
+                  onNavigate()
+                }}
               >
                 <span className="hash"><Volume size={16} /></span>
                 <span className="channel-name">{channel.name}</span>
