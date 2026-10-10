@@ -29,8 +29,8 @@ asset=""
 case "$rid" in
   linux-x64)   asset="livekit_${version}_linux_amd64.tar.gz"; sum=6634aeeb2fb1366b6723708ae4320b9d5408106a4c63457c5e845ae3979c90e2 ;;
   linux-arm64) asset="livekit_${version}_linux_arm64.tar.gz"; sum=5d167fdf52cf43c0c72972f25325364479f41f854bfef651056eab2504da5de9 ;;
-  osx-arm64)   goarch=arm64 ;;
-  osx-x64)     goarch=amd64 ;;
+  osx-arm64)   goarch=arm64; carch=arm64 ;;
+  osx-x64)     goarch=amd64; carch=x86_64 ;;
   *) echo "Unsupported platform: $rid (on Windows use scripts/get-livekit.ps1)" >&2; exit 1 ;;
 esac
 
@@ -45,7 +45,7 @@ else
   trap 'rm -rf "$src"' EXIT
   git clone --quiet --depth 1 --branch "v$version" https://github.com/livekit/livekit "$src" 2>/dev/null
   [ "$(git -C "$src" rev-parse HEAD)" = "$commit" ] || { echo "v$version isn't the expected commit" >&2; exit 1; }
-  (cd "$src" && CGO_ENABLED=1 GOOS=darwin GOARCH="$goarch" go build -trimpath -ldflags "-s -w" -o "$out/livekit-server" ./cmd/server)
+  (cd "$src" && CGO_ENABLED=1 CC="clang -arch $carch" GOOS=darwin GOARCH="$goarch" go build -trimpath -ldflags "-s -w" -o "$out/livekit-server" ./cmd/server)
 fi
 chmod +x "$out/livekit-server"
 echo "livekit-server $version ($rid) is in $out"

@@ -1,6 +1,6 @@
 /* ── Desktop update toast ──────────────────────────────────────────── */
 .update-toast {
-  position: fixed; right: 16px; bottom: 16px; z-index: 60;
+  position: fixed; right: 16px; bottom: 84px; z-index: 60; /* clear of the message box */
   display: flex; align-items: center; gap: 12px;
   width: min(420px, calc(100vw - 32px));
   padding: 12px 10px 12px 12px;

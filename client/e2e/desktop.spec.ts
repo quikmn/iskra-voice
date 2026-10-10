@@ -47,6 +47,21 @@ test('the desktop app runs the web app on app:// and can join a server', async (
     await expect(page.locator('.copy-row input')).toHaveValue(/^http:\/\/localhost:\d+\/#\/join\//)
     await page.keyboard.press('Escape')
 
+    // The shell's update notices show as a toast: restart when downloaded, a download link otherwise.
+    const send = (status: object) =>
+      app.evaluate(({ BrowserWindow }, s) => BrowserWindow.getAllWindows()[0].webContents.send('iskra:update', s), status)
+    await send({ state: 'ready', version: '9.9.9' })
+    const toast = page.getByRole('status').filter({ hasText: 'Update ready' })
+    await expect(toast).toContainText('Iskra 9.9.9 is downloaded')
+    await expect(toast.getByRole('button', { name: 'Restart' })).toBeVisible()
+    await page.screenshot({ path: join(SHOTS, 'desktop-update.png'), animations: 'disabled' })
+    await toast.getByRole('button', { name: 'Later' }).click()
+    await expect(toast).toBeHidden()
+    await send({ state: 'available', version: '9.9.10', url: 'https://github.com/quikmn/iskra-voice/releases/tag/v9.9.10' })
+    await expect(page.getByRole('link', { name: 'Download' })).toHaveAttribute('href', /releases\/tag\/v9\.9\.10$/)
+    await send({ state: 'available', version: '9.9.11', url: 'https://example.com/x.exe' }) // not a release page: ignored
+    await expect(page.getByText('New version available')).toBeHidden()
+
     // Push-to-talk settings are available.
     await page.getByRole('button', { name: 'Settings' }).click()
     await page.getByRole('radio', { name: 'Push to talk' }).click()
