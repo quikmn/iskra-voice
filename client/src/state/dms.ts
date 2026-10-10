@@ -1,11 +1,15 @@
 // Direct messages and friends. A conversation is with a person (account key), not a server:
 // any server you both belong to can carry it, and histories from all of them are merged.
+// Decrypted messages are also kept on this device: with forward secrecy, old envelopes on the
+// servers stop being readable once their prekey is deleted, so the local copy is the history.
 import { create } from 'zustand'
 import { b64u } from '../core/crypto'
-import { decryptDm, DmError, encryptDm, type DmContent } from '../core/dm'
+import { revokedSet } from '../core/devices'
+import { decryptDm, DmError, encryptDm, type DmContent, type DmEnvelope } from '../core/dm'
 import type { DeviceCert } from '../core/identity'
-import type { WireDm } from '../core/protocol'
+import type { DeviceBundle, WireDm } from '../core/protocol'
 import * as storage from '../core/storage'
+import { ensurePrekeys, ownRevokedDevices } from './devices'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 
 export interface Dm {
@@ -73,13 +77,19 @@ export function isOnline(accountKey: string): boolean {
 }
 
 function patchConversation(peer: string, patch: (c: Conversation) => Partial<Conversation>): void {
+  let changed = false
   useDms.setState((state) => {
     const current = state.conversations[peer] ?? { messages: [], loaded: false, unread: 0 }
-    return { conversations: { ...state.conversations, [peer]: { ...current, ...patch(current) } } }
+    const next = { ...current, ...patch(current) }
+    changed = next.messages !== current.messages
+    return { conversations: { ...state.conversations, [peer]: next } }
   })
+  if (changed) persist(peer)
 }
 
 function upsert(list: Dm[], dm: Dm): Dm[] {
+  // A copy we could read always wins over one we can't (e.g. an old envelope whose prekey is gone).
+  if (dm.error && !dm.pending && list.some((m) => m.id === dm.id && !m.error)) return list
   const without = list.filter((m) => m.id !== dm.id)
   return [...without, dm].sort((a, b) => a.sentAt - b.sentAt || a.id.localeCompare(b.id))
 }
@@ -90,15 +100,93 @@ function open(wire: WireDm): Dm {
     const { text, header, call } = decryptDm(identity, wire.envelope, wire.from, wire.to)
     return { id: header.id, from: wire.from, to: wire.to, text, sentAt: header.sentAt, call }
   } catch (e) {
+    // The header id (unauthenticated here) only lets a readable local copy of the same message win.
+    const headerId = wire.envelope?.header?.id
     return {
-      id: `server-${wire.id}-${wire.createdAt}`, from: wire.from, to: wire.to, text: '', sentAt: wire.createdAt,
+      id: typeof headerId === 'string' && headerId.length <= 32 ? headerId : `server-${wire.id}-${wire.createdAt}`,
+      from: wire.from, to: wire.to, text: '', sentAt: wire.createdAt,
       error: e instanceof DmError ? e.message : "This message couldn't be read.",
     }
   }
 }
 
+// ── The local copy of decrypted history ─────────────────────────────────────
+
+const MAX_LOCAL_PER_CONVERSATION = 5000
+const dirty = new Set<string>()
+let saveTimer: ReturnType<typeof setTimeout> | null = null
+let saving: Promise<void> = Promise.resolve()
+let historyLoaded = false
+
+const storable = (m: Dm): storage.StoredDm => ({ id: m.id, from: m.from, to: m.to, text: m.text, sentAt: m.sentAt, ...(m.call ? { call: m.call } : {}) })
+
+function persist(peer: string): void {
+  if (!historyLoaded) return
+  dirty.add(peer)
+  saveTimer ??= setTimeout(() => {
+    saveTimer = null
+    const peers = [...dirty]
+    dirty.clear()
+    saving = saving.then(async () => {
+      for (const p of peers) {
+        const messages = (useDms.getState().conversations[p]?.messages ?? []).filter((m) => !m.pending && !m.error)
+        await storage.saveDmConversation(p, messages.slice(-MAX_LOCAL_PER_CONVERSATION).map(storable)).catch(() => undefined)
+      }
+    })
+  }, 300)
+}
+
+/** Loads the decrypted history kept on this device. Runs once the app has an identity. */
+let historyLoading: Promise<void> | null = null
+
+export function loadLocalHistory(): Promise<void> {
+  historyLoading ??= (async () => {
+    const stored = await storage.loadDmHistory().catch(() => ({}) as Record<string, storage.StoredDm[]>)
+    for (const [peer, messages] of Object.entries(stored)) {
+      patchConversation(peer, (c) => ({ messages: messages.reduce<Dm[]>(upsert, c.messages) }))
+    }
+    historyLoaded = true
+    // Save whatever arrived while we were loading.
+    for (const [peer, c] of Object.entries(useDms.getState().conversations)) {
+      if (c.messages.filter((m) => !m.pending && !m.error).length > (stored[peer]?.length ?? 0)) persist(peer)
+    }
+  })()
+  return historyLoading
+}
+
+/** Adds history copied from another device (device linking). */
+export async function importHistory(history: Record<string, storage.StoredDm[]>): Promise<void> {
+  for (const [peer, messages] of Object.entries(history)) {
+    if (!Array.isArray(messages)) continue
+    const clean = messages.filter((m) => typeof m?.id === 'string' && typeof m.text === 'string' && typeof m.sentAt === 'number'
+      && typeof m.from === 'string' && typeof m.to === 'string')
+    await storage.saveDmConversation(peer, clean.map(storable))
+  }
+}
+
+/** Recent history for a device link: newest messages, at most this many per conversation and bytes in total. */
+export function exportHistory(perConversation = 200, maxBytes = 600_000): Record<string, storage.StoredDm[]> {
+  const out: Record<string, storage.StoredDm[]> = {}
+  let size = 0
+  const conversations = Object.entries(useDms.getState().conversations)
+    .sort(([, a], [, b]) => (b.messages.at(-1)?.sentAt ?? 0) - (a.messages.at(-1)?.sentAt ?? 0))
+  for (const [peer, c] of conversations) {
+    const kept: storage.StoredDm[] = []
+    for (const m of c.messages.filter((m) => !m.pending && !m.error).slice(-perConversation).reverse()) {
+      const item = storable(m)
+      size += JSON.stringify(item).length
+      if (size > maxBytes) break
+      kept.unshift(item)
+    }
+    if (kept.length) out[peer] = kept
+    if (size > maxBytes) break
+  }
+  return out
+}
+
 /** Every dm.message event from any server. */
-function onDmEvent(wire: WireDm): void {
+async function onDmEvent(wire: WireDm): Promise<void> {
+  await ensurePrekeys()
   const mine = me()
   const peer = wire.from === mine ? wire.to : wire.from
   const dm = open(wire)
@@ -117,6 +205,10 @@ export async function loadConversations(): Promise<void> {
       try {
         const { conversations } = await connectionFor(serverKey)!.request('dm.conversations', {})
         for (const c of conversations) patchConversation(c.accountKey, () => ({}))
+        // Read (and keep) what arrived while we were away, before its prekey can expire.
+        await loadLocalHistory()
+        const stale = conversations.filter((c) => c.lastAt > (useDms.getState().conversations[c.accountKey]?.messages.at(-1)?.sentAt ?? 0))
+        for (const c of stale.slice(0, 20)) await loadHistory(c.accountKey)
       } catch {
         /* that server is busy or gone; others still work */
       }
@@ -125,6 +217,7 @@ export async function loadConversations(): Promise<void> {
 }
 
 export async function loadHistory(peer: string): Promise<void> {
+  await ensurePrekeys()
   const results = await Promise.all(
     sharedServers(peer).map(async (serverKey) => {
       try {
@@ -155,15 +248,39 @@ export function openFriends(): void {
   useDms.setState({ open: { kind: 'friends' } })
 }
 
-const deviceCache = new Map<string, { at: number; devices: DeviceCert[] }>()
+const deviceCache = new Map<string, { at: number; bundle: DeviceBundle }>()
 
-export async function devicesOf(serverKey: string, accountKey: string): Promise<DeviceCert[]> {
+/** Someone's device certificates, prekeys and revocations, as one server knows them (cached briefly). */
+export async function bundleOf(serverKey: string, accountKey: string): Promise<DeviceBundle> {
   const cacheKey = `${serverKey}:${accountKey}`
   const cached = deviceCache.get(cacheKey)
-  if (cached && Date.now() - cached.at < 5 * 60_000) return cached.devices
-  const { devices } = await connectionFor(serverKey)!.request('dm.devices', { accountKey })
-  deviceCache.set(cacheKey, { at: Date.now(), devices })
-  return devices
+  if (cached && Date.now() - cached.at < 5 * 60_000) return cached.bundle
+  const bundle = await connectionFor(serverKey)!.request('dm.devices', { accountKey })
+  deviceCache.set(cacheKey, { at: Date.now(), bundle })
+  return bundle
+}
+
+/** Certificates of someone's devices (revoked ones left out), for callers that only need those. */
+export async function devicesOf(serverKey: string, accountKey: string): Promise<DeviceCert[]> {
+  const bundle = await bundleOf(serverKey, accountKey)
+  const revoked = revokedSet(accountKey, bundle.revoked)
+  return bundle.devices.filter((d) => !revoked.has(d.deviceKey))
+}
+
+/**
+ * Encrypts for everyone who should read it (their devices and ours), forward secret where the devices
+ * have prekeys, never for revoked devices. Used for DMs and call invites.
+ */
+export async function encryptFor(serverKey: string, peer: string, content: DmContent): Promise<DmEnvelope> {
+  const identity = useApp.getState().identity
+  if (!identity) throw new DmError('No account on this device.')
+  const mine = me()
+  const [theirs, ours, ownRevoked] = await Promise.all([bundleOf(serverKey, peer), bundleOf(serverKey, mine), ownRevokedDevices(), ensurePrekeys()])
+  const revokedDevices = [...revokedSet(peer, theirs.revoked), ...revokedSet(mine, ours.revoked), ...ownRevoked]
+  return encryptDm(identity, peer, theirs.devices, peer === mine ? [] : ours.devices, content, Date.now(), {
+    prekeys: [...(theirs.prekeys ?? []), ...(ours.prekeys ?? [])],
+    revokedDevices,
+  })
 }
 
 export async function sendDm(peer: string, text: string, extra: Pick<DmContent, 'call'> = {}): Promise<void> {
@@ -176,8 +293,7 @@ export async function sendDm(peer: string, text: string, extra: Pick<DmContent, 
 
   try {
     if (!identity || !route) throw new DmError("You don't share an online server with this person right now.")
-    const [theirs, ours] = await Promise.all([devicesOf(route, peer), devicesOf(route, mine)])
-    const envelope = encryptDm(identity, peer, theirs, ours, { text, ...extra })
+    const envelope = await encryptFor(route, peer, { text, ...extra })
     await connectionFor(route)!.request('dm.send', { accountKey: peer, envelope })
     // The dm.message event (also sent to us) adds the real message; drop the placeholder.
     patchConversation(peer, (c) => ({
@@ -195,9 +311,15 @@ export function discardDm(peer: string, id: string): void {
 }
 
 onServerEvent((_server, type, body) => {
-  if (type === 'dm.message') onDmEvent((body as { message: WireDm }).message)
+  if (type === 'dm.message') void onDmEvent((body as { message: WireDm }).message)
+  // Someone's device list changed: fetch fresh bundles next time.
+  if (type === 'device.revoked') deviceCache.clear()
 })
 onWelcomeHook(() => void loadConversations())
+// Local history loads once there's an identity (right after boot, or after onboarding/linking).
+useApp.subscribe((state) => {
+  if (state.phase === 'ready' && !historyLoaded) void loadLocalHistory()
+})
 
 // ── Friends (kept on this device) ──────────────────────────────────────────
 

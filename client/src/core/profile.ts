@@ -122,3 +122,56 @@ export const STARTER_PAGE = `<!doctype html>
 </body>
 </html>
 `
+
+// ── Device linking: the profile travels with the account ──
+
+const AVATAR_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
+const MAX_AVATAR_BYTES = 1024 * 1024
+
+/** The profile details a newly linked device receives (inside the sealed link payload). */
+export interface LinkedProfile {
+  bio?: string
+  pronouns?: string
+  accent?: string
+  avatar?: { data: string; type: string } | null
+  page?: { html: string } | null
+}
+
+export function profileForLink(profile: Profile | null | undefined): LinkedProfile {
+  const out: LinkedProfile = authProfile(profile)
+  if (profile?.avatar !== undefined) {
+    out.avatar = profile.avatar && { data: sodium.to_base64(new Uint8Array(profile.avatar.bytes), sodium.base64_variants.URLSAFE_NO_PADDING), type: profile.avatar.type }
+  }
+  if (profile?.page !== undefined) out.page = profile.page && { html: profile.page.html }
+  return out
+}
+
+/** Checks what another device sent; anything malformed is dropped, and hashes are recomputed here. */
+export function profileFromLink(raw: unknown): Partial<Profile> {
+  if (typeof raw !== 'object' || raw === null) return {}
+  const r = raw as Record<string, unknown>
+  const out: Partial<Profile> = {}
+  if (typeof r.bio === 'string' && r.bio.length <= MAX_BIO) out.bio = r.bio
+  if (typeof r.pronouns === 'string' && r.pronouns.length <= MAX_PRONOUNS) out.pronouns = r.pronouns
+  if (typeof r.accent === 'string' && (r.accent === '' || ACCENT_PATTERN.test(r.accent))) out.accent = r.accent
+  if (r.avatar === null) out.avatar = null
+  else if (typeof r.avatar === 'object') {
+    const a = r.avatar as Record<string, unknown>
+    try {
+      const bytes = typeof a.data === 'string' ? sodium.from_base64(a.data, sodium.base64_variants.URLSAFE_NO_PADDING) : null
+      if (bytes && bytes.length > 0 && bytes.length <= MAX_AVATAR_BYTES && typeof a.type === 'string' && AVATAR_TYPES.includes(a.type)) {
+        out.avatar = { bytes: bytes.slice().buffer, type: a.type, hash: sha256Hex(bytes) }
+      }
+    } catch {
+      /* not base64: dropped */
+    }
+  }
+  if (r.page === null) out.page = null
+  else if (typeof r.page === 'object') {
+    const html = (r.page as Record<string, unknown>).html
+    if (typeof html === 'string' && html.length > 0 && utf8Length(html) <= MAX_PAGE_BYTES) {
+      out.page = { html, hash: sha256Hex(new TextEncoder().encode(html)) }
+    }
+  }
+  return out
+}

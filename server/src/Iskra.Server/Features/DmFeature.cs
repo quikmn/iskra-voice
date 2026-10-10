@@ -31,7 +31,7 @@ public static class DmFeature
     public static object PublicDm(DirectMessage m) =>
         new { id = m.Id, from = m.From, to = m.To, envelope = JsonDocument.Parse(m.Envelope).RootElement.Clone(), createdAt = m.CreatedAt };
 
-    /// <summary>The signed device certificates for a member, so the sender can encrypt to each device.</summary>
+    /// <summary>The signed device certificates (and prekeys, revocations) for a member, so the sender can encrypt to each device.</summary>
     private static object Devices(Session s, Member me, Body body)
     {
         var peer = Peer(s, me, body);
@@ -39,6 +39,8 @@ public static class DmFeature
         {
             devices = s.World.Store.Devices(peer.AccountKey)
                 .Select(d => new { accountKey = d.AccountKey, deviceKey = d.DeviceKey, created = d.Created, sig = d.Sig }),
+            prekeys = s.World.Store.Prekeys(peer.AccountKey).Select(DeviceFeature.PublicPrekey),
+            revoked = s.World.Store.Revocations(peer.AccountKey).Select(DeviceFeature.PublicRevocation),
         };
     }
 

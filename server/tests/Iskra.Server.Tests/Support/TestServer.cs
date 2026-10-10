@@ -23,6 +23,8 @@ public sealed class IskraServer : WebApplicationFactory<Program>
     public int AuthTimeoutMs { get; init; } = 5_000;
     public bool AllowLoopbackPreviews { get; init; }
     public int RingTimeoutMs { get; init; } = 45_000;
+    /// <summary>Extra configuration, e.g. ["Link:TtlMs"] = "300".</summary>
+    public Dictionary<string, string> Settings { get; init; } = [];
 
     public World World => Services.GetRequiredService<World>();
 
@@ -45,6 +47,7 @@ public sealed class IskraServer : WebApplicationFactory<Program>
             services.AddSingleton<IVoiceBackend>(Voice);
             services.AddSingleton<Iskra.Server.Push.IPushSender>(Push);
         });
+        foreach (var (key, value) in Settings) builder.UseSetting(key, value);
     }
 
     public async Task<TestClient> ConnectAsync()

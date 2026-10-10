@@ -104,6 +104,8 @@ export interface Events {
   'voice.state': VoiceChannelState
   'dm.message': { message: WireDm }
   'voice.available': { available: boolean }
+  'device.revoked': { deviceKey: string }
+  'link.request': LinkRequest
   'call.ring': CallRing
   'call.accepted': { callId: string }
   'call.ended': { callId: string; reason: CallEndReason }
@@ -145,10 +147,18 @@ export interface Requests {
   'invite.revoke': [{ code: string }, Record<string, never>]
   'voice.join': [{ channelId: number }, { url: string; token: string; room: string; canSpeak: boolean }]
   'voice.state': [{ muted: boolean; deafened: boolean }, Record<string, never>]
-  'dm.devices': [{ accountKey: string }, { devices: import('./identity').DeviceCert[] }]
+  'dm.devices': [{ accountKey: string }, DeviceBundle]
   'dm.send': [{ accountKey: string; envelope: import('./dm').DmEnvelope }, { message: WireDm }]
   'dm.history': [{ accountKey: string; before?: number; limit?: number }, { messages: WireDm[]; hasMore: boolean }]
   'dm.conversations': [Record<string, never>, { conversations: { accountKey: string; lastId: number; lastAt: number }[] }]
+  'device.list': [Record<string, never>, { devices: DeviceInfo[]; revoked: Revocation[] }]
+  'device.describe': [{ name?: string; platform?: string }, Record<string, never>]
+  'device.rename': [{ deviceKey: string; name: string }, Record<string, never>]
+  'device.revoke': [Revocation, Record<string, never>]
+  'prekey.publish': [{ key: string; created: number; sig: string }, Record<string, never>]
+  'link.create': [Record<string, never>, { token: string; putKey: string; expiresAt: number }]
+  'link.respond': [{ token: string; epk: string; mac: string }, Record<string, never>]
+  'link.cancel': [{ token: string }, Record<string, never>]
   'push.status': [Record<string, never>, { publicKey: string; endpoint: string | null }]
   'push.subscribe': [PushSubscriptionBody, Record<string, never>]
   'push.unsubscribe': [Record<string, never>, Record<string, never>]
@@ -191,6 +201,34 @@ export interface PushSubscriptionBody {
   keys: { p256dh: string; auth: string }
 }
 
+// ── identity: devices, revocations, prekeys, device linking ──
+type Revocation = import('./devices').Revocation
+
+/** What `dm.devices` returns: everything a sender needs to encrypt to someone's devices. */
+export interface DeviceBundle {
+  devices: import('./identity').DeviceCert[]
+  /** Added with forward secrecy; older servers leave these out. */
+  prekeys?: import('./devices').SignedPrekey[]
+  revoked?: Revocation[]
+}
+
+export interface DeviceInfo {
+  deviceKey: string
+  created: number
+  name: string | null
+  platform: string | null
+  lastSeen: number
+  /** The device asking. */
+  current: boolean
+}
+
+export interface LinkRequest {
+  token: string
+  epk: string
+  mac: string
+  info: string | null
+}
+
 // ── profiles ──
 
 /** Profile fields on every Member. URLs are relative to the server. Older servers leave them out. */
@@ -216,7 +254,7 @@ export interface ProfileUpdate {
 
 export type ErrorCode =
   | 'bad_request' | 'forbidden' | 'not_found' | 'rate_limited' | 'unknown_type' | 'internal'
-  | 'auth_failed' | 'invite_required' | 'banned' | 'voice_unavailable' | 'busy'
+  | 'auth_failed' | 'invite_required' | 'banned' | 'voice_unavailable' | 'busy' | 'device_revoked'
 
 export class RequestError extends Error {
   readonly code: ErrorCode | 'disconnected' | 'timeout'

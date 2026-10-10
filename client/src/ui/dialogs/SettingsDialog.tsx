@@ -8,6 +8,7 @@ import { NotificationSettingsSection } from './NotificationSettings'
 import { ProfileSection, ServerPagesOption } from '../profile/ProfileSettings'
 import { AppearanceSection } from '../profile/AppearanceSettings'
 import { ServerExpressionsSections, SoundboardSettingsSection } from '../expressions/ExpressionSettings'
+import { DevicesSection } from './DevicesSection'
 
 export function SettingsDialog({ server, onClose }: { server?: ServerState | null; onClose: () => void }) {
   const [confirmLeave, setConfirmLeave] = useState(false)
@@ -17,6 +18,8 @@ export function SettingsDialog({ server, onClose }: { server?: ServerState | nul
       <ProfileSection />
 
       <AppearanceSection />
+
+      <DevicesSection />
 
       <RecoveryKeySection />
 

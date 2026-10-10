@@ -23,6 +23,7 @@ public sealed class RateLimiter(TimeProvider time)
         ["poll.create"] = (5, 0.2),
         ["poll.vote"] = (10, 2),
         ["sound.play"] = (3, 0.5),
+        ["link.create"] = (3, 0.1),
         ["*"] = (40, 10),
     };
 

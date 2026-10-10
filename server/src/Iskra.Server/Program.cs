@@ -26,6 +26,8 @@ builder.Services.AddSingleton<LinkPreviews>();
 builder.Services.AddSingleton<WebhookIngress>();
 builder.Services.AddHostedService<PollCloser>();
 builder.Services.AddPush(world);
+builder.Services.AddSingleton<LinkRelay>();
+builder.Services.Configure<LinkSettings>(builder.Configuration.GetSection("Link"));
 builder.Services.AddReverseProxy().LoadFromMemory(
 [
     new Yarp.ReverseProxy.Configuration.RouteConfig
@@ -150,6 +152,8 @@ app.MapGet("/pages/{id}", (HttpContext context, string id, World w) => ProfilePa
 
 // Incoming webhooks: POST /hooks/{id}/{secret}.
 WebhookIngress.Map(app);
+// Device linking: a short-lived relay for a new device that has no account yet.
+LinkRelay.MapEndpoints(app);
 
 app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice, Uploads uploads, LinkPreviews previews, Router router,
     IOptions<SessionLimits> limits, ILogger<Session> log, TimeProvider time, PushService push) =>

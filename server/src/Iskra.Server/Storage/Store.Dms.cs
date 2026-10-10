@@ -12,9 +12,13 @@ public sealed partial class Store
             ON CONFLICT(device_key) DO UPDATE SET last_seen = excluded.last_seen;
             """, ("$dev", cert.DeviceKey), ("$acc", cert.AccountKey), ("$created", cert.Created), ("$sig", cert.Sig), ("$now", now));
 
-    /// <summary>Certificates for an account's devices, most recently seen first.</summary>
+    /// <summary>Certificates for an account's devices (revoked ones excluded), most recently seen first.</summary>
     public List<DeviceCert> Devices(string accountKey) =>
-        Query("SELECT account_key, device_key, created, sig FROM devices WHERE account_key = $acc ORDER BY last_seen DESC LIMIT 20;",
+        Query("""
+            SELECT account_key, device_key, created, sig FROM devices
+            WHERE account_key = $acc AND device_key NOT IN (SELECT device_key FROM device_revocations WHERE account_key = $acc)
+            ORDER BY last_seen DESC LIMIT 20;
+            """,
             r => new DeviceCert(r.GetString(0), r.GetString(1), r.GetInt64(2), r.GetString(3)), ("$acc", accountKey));
 
     // ── Direct messages: opaque encrypted envelopes ─────────────────────────

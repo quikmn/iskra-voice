@@ -1,6 +1,7 @@
-// Local persistence in IndexedDB: the identity keys and the list of servers.
-// Keys never leave this device (device linking and recovery come later, see the design doc).
+// Local persistence in IndexedDB: the identity keys, the list of servers, prekeys and DM history.
+// Keys only leave this device inside an end-to-end encrypted device link (see core/link.ts).
 import { b64u, fromB64u } from './crypto'
+import type { PrekeyPair, Revocation } from './devices'
 import type { DeviceCert, Identity } from './identity'
 
 const DB_NAME = 'iskra'
@@ -114,4 +115,62 @@ export async function requestPersistence(): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+// ── Devices: prekeys, revocations, decrypted DM history ─────────────────────
+
+interface StoredPrekey {
+  publicKey: string
+  secretKey: string
+  created: number
+  retiredAt?: number
+}
+
+export async function loadPrekeys(): Promise<PrekeyPair[]> {
+  const stored = (await get<StoredPrekey[]>('prekeys')) ?? []
+  return stored.map((p) => ({ publicKey: fromB64u(p.publicKey), secretKey: fromB64u(p.secretKey), created: p.created, retiredAt: p.retiredAt }))
+}
+
+export const savePrekeys = (prekeys: PrekeyPair[]) =>
+  set('prekeys', prekeys.map((p): StoredPrekey => ({ publicKey: b64u(p.publicKey), secretKey: b64u(p.secretKey), created: p.created, retiredAt: p.retiredAt })))
+
+/** Revocations this account made (from any of its devices), re-sent to servers that missed them. */
+export async function loadRevocations(): Promise<Revocation[]> {
+  return (await get<Revocation[]>('revocations')) ?? []
+}
+
+export const saveRevocations = (revocations: Revocation[]) => set('revocations', revocations)
+
+/** A decrypted direct message as kept on this device. */
+export interface StoredDm {
+  id: string
+  from: string
+  to: string
+  text: string
+  sentAt: number
+  /** Call log entries (see state/calls.ts). */
+  call?: Record<string, unknown>
+}
+
+/** Decrypted DMs per conversation. Servers keep only envelopes, and old prekeys get deleted, so this is the history. */
+export async function loadDmHistory(): Promise<Record<string, StoredDm[]>> {
+  const peers = (await get<string[]>('dm-peers')) ?? []
+  const entries = await Promise.all(peers.map(async (peer) => [peer, (await get<StoredDm[]>(`dm:${peer}`)) ?? []] as const))
+  return Object.fromEntries(entries)
+}
+
+export async function saveDmConversation(peer: string, messages: StoredDm[]): Promise<void> {
+  const peers = (await get<string[]>('dm-peers')) ?? []
+  if (!peers.includes(peer)) await set('dm-peers', [...peers, peer])
+  await set(`dm:${peer}`, messages)
+}
+
+/** Forgets everything on this device (after it was removed from its account). */
+export function wipeAll(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(DB_NAME)
+    request.onsuccess = () => resolve()
+    request.onerror = () => reject(request.error)
+    request.onblocked = () => resolve()
+  })
 }

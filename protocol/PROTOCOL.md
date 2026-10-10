@@ -71,6 +71,7 @@ If a check fails, the server sends `error` and closes:
 | `auth_failed` | 4401 | Bad certificate, signature or name, or timeout (same message whatever the reason) |
 | `invite_required` | 4401 | Valid identity, not a member, no usable invite |
 | `banned` | 4403 | The account is banned |
+| `device_revoked` | 4401 | Valid identity, but the account revoked this device (see "Devices") |
 
 ### Limits
 
@@ -178,7 +179,7 @@ The server stores and relays opaque envelopes between members. It knows who talk
 
 | type | body | result | who |
 |---|---|---|---|
-| `dm.devices` | `accountKey` | `{ devices: [DeviceCert...] }` (up to 20, most recently seen first) | anyone; the target must be a member (or yourself) |
+| `dm.devices` | `accountKey` | `{ devices: [DeviceCert...], prekeys: [SignedPrekey...], revoked: [Revocation...] }` (up to 20 devices, most recently seen first; revoked devices left out) | anyone; the target must be a member (or yourself) |
 | `dm.send` | `accountKey, envelope` (JSON object, ≤ 32 KB) | `{ message }` | members, to members or yourself |
 | `dm.history` | `accountKey, before?, limit? (1–100)` | `{ messages (oldest first), hasMore }` | only your own conversations |
 | `dm.conversations` | | `{ conversations: [{ accountKey, lastId, lastAt }] }` | yourself |
@@ -203,7 +204,8 @@ Device certificates are stored when a device authenticates, so the server can pu
 - Recipients: every valid device of the recipient, plus the sender's own devices (including the sending one) so history stays readable.
 - Receivers check: header from/to equal the server's routing fields; the sender certificate is valid and belongs to `header.from`; there is a slot for this device. Anything else is shown as "couldn't be read", never as text. No devices means no message; there is no plaintext fallback.
 - Safety number: `crypto_generichash(60, sort(accountA, accountB))` shown as 12 groups of 5 digits.
-- Not yet: forward secrecy (a ratchet or MLS) and DMs between people who share no server.
+- Envelope v2 (below, "Forward secrecy") is what clients send now; v1 envelopes are still accepted and decrypted.
+- Not yet: DMs between people who share no server.
 
 ## Hosting (server.json)
 
@@ -440,6 +442,81 @@ Thread { "id": 9, "channelId": 1, "rootId": 42, "name": "Game night", "createdBy
 - Event `thread.updated` `{ thread }` to readers when a thread is created or renamed, or a message in it is posted or deleted.
 - Event `thread.deleted` `{ id, channelId, rootId }` to readers.
 
+## Devices, forward secrecy and device linking
+
+### Devices
+
+| type | body | result | who |
+|---|---|---|---|
+| `device.list` | | `{ devices: [{ deviceKey, created, name, platform, lastSeen, current }], revoked: [Revocation...] }` | yourself (your account's devices on this server, revoked ones left out) |
+| `device.describe` | `name?, platform?` (1–32 chars each, no control characters) | | the connected device, about itself. `platform` always updates; `name` only if none is set yet |
+| `device.rename` | `deviceKey, name` (1–32 chars) | | any device of the same account; `not_found` if this server never saw that device |
+| `device.revoke` | `Revocation` | | the account itself (the signature is checked against your account key) |
+| `prekey.publish` | `key, created, sig` (a `SignedPrekey` for the connected device) | | the connected device |
+
+```jsonc
+Revocation   { "deviceKey": "<b64u 32>", "revokedAt": 1760000000000, "sig": "<b64u 64>" }
+SignedPrekey { "deviceKey": "<b64u 32>", "key": "<b64u 32, X25519>", "created": 1760000000000, "sig": "<b64u 64>" }
+```
+- Revocation: `sig = Ed25519.sign(accountSecret, "iskra/device-revoke/v1" || 0x00 || deviceKey(32) || u64be(revokedAt))`. `revokedAt` may be at most 10 minutes in the future. A revocation only ever applies to devices of the account that signed it. At most 100 per account; idempotent.
+- Once a server has a revocation: the device's auth fails with `device_revoked`; its open sessions get `device.revoked` and are kicked (4403); it disappears from `dm.devices` and `device.list`; its prekey is dropped. The revocation can arrive before the device ever connects there.
+- Every session of the account gets `device.revoked { deviceKey }`. Clients keep the revocations they know (their own, and verified ones from any server) and hand missing ones to each server on connect, so a revocation reaches every server the account is on.
+- Prekey: `sig = Ed25519.sign(deviceSecret, "iskra/prekey/v1" || 0x00 || key(32) || u64be(created))`, signed by the **device** key, so the account-signed certificate vouches for it. The server keeps the newest per device and refuses keys older than 60 days or more than 10 minutes in the future.
+
+| event | body | sent to |
+|---|---|---|
+| `device.revoked` | `{ deviceKey }` | every session of the account (the revoked device's own sessions, then kicked) |
+
+### Forward secrecy (DM envelope v2)
+
+Each device has an X25519 **prekey** (`crypto_box_keypair`), rotated every 7 days and published to every server it connects to. A replaced prekey's secret is kept for 30 days (for messages still on their way), then deleted.
+
+```jsonc
+{
+  "v": 2,
+  "header": { ... }, "sender": DeviceCert, "nonce": "<b64u 24>", "ct": "<b64u>",   // as in v1
+  "keys": [
+    { "device": "<deviceKey>", "prekey": "<b64u 32>", "seal": "<b64u>" },          // forward secret
+    { "device": "<deviceKey>", "nonce": "<b64u 24>", "box": "<b64u>" }              // device without a usable prekey (as v1)
+  ]
+}
+```
+- Associated data: `JSON.stringify(["iskra/dm/v2", from, to, sentAt, id])`.
+- `seal = crypto_box_seal(innerNonce(24) || crypto_box(messageKey, innerNonce, prekey, senderDeviceX25519Secret), prekey)`. The inner `crypto_box` authenticates the sending device (only it, or the recipient, could have made it, as in v1); the outer sealed box uses a fresh ephemeral key per message. Opening needs the prekey's secret, so once that is deleted the slot can't be opened again, even by someone who later steals both devices' long-term keys and has every envelope the server stored.
+- Senders use the newest prekey per device whose signature checks out against that device's certificate and that is at most 60 days old; anything else falls back to a static slot. Revoked devices (verified revocations from `dm.devices`, plus the sender's own) get no slot.
+- Receivers find their slot, then the prekey secret by `prekey`. Clients keep decrypted messages locally; that local copy, not the server's envelopes, is the long-term history.
+- Why not a double ratchet: a conversation runs over any shared server, on several devices per person, often offline for days and with history merged from several servers. Per-device-pair ratchet state would have to survive all of that; signed prekeys give forward secrecy (within the rotation + grace window) without shared state that can break. There's no post-compromise security: a stolen device keeps reading new messages until it's revoked.
+- Safety numbers are unchanged (they cover account keys).
+
+### Device linking
+
+Moves an account to a new device without the recovery key. The existing device (signed in) talks to one of its servers over its WebSocket; the new device (no account yet) uses a small HTTP relay on the same server.
+
+The **link code**: `<server url without "https://">/<base32(token(10) || secret(16))>` (Crockford base32, groups of 4), e.g. `chat.example.com/QHN8-BTHD-…`. The QR code holds `<appUrl>/#/link/<urlencoded code>`, so a phone camera opens the web app straight into linking; the part after `#` never reaches a server. The server sees the token, never the secret.
+
+| type | body | result | who |
+|---|---|---|---|
+| `link.create` | | `{ token, putKey, expiresAt }` | members; ≤ 3 open links per account (`rate_limited`), rate limit 3 burst / 1 per 10 s |
+| `link.respond` | `token, epk, mac` (32 bytes each) | | the account that created the link, after a `link.request` |
+| `link.cancel` | `token` | | the account that created the link |
+
+| HTTP (CORS open, no auth) | body | answer |
+|---|---|---|
+| `POST /link/<token>` | `{ epk, mac, info? }` (≤ 1 KB; `info` ≤ 64 chars, a device description) | `{ key, expiresAt }` (the read key). 404 unknown/expired, 409 already used, 413 too big |
+| `GET /link/<token>?key=<read key>` | | `{ state: "waiting" }`, `{ state: "answered", epk, mac }` or `{ state: "done", payload }` (b64u, handed out once, then the link is gone). 403 wrong key, 429 after 600 polls |
+| `PUT /link/<token>?key=<putKey>` | the sealed payload (≤ 1 MB) | only once answered. 403 wrong key, 409 wrong state, 413 too big |
+
+Event `link.request { token, epk, mac, info }` goes to the session that created the link. Links live 5 minutes and are kept in memory only (≤ 100 per server).
+
+The handshake (libsodium):
+1. `master = crypto_generichash(32, token || secret, key = "iskra/link/v1")`; `crypto_kdf_derive_from_key` with context `isklink1`: id 1 = new device's MAC key, 2 = existing device's MAC key, 3 = confirmation key.
+2. New device: ephemeral `crypto_box_keypair` `N`; posts `epk = N.pk`, `mac = crypto_auth(N.pk, k1)`.
+3. Existing device checks the MAC (a wrong one ends the link: nothing is sent), makes `E`, answers `epk = E.pk`, `mac = crypto_auth(E.pk, k2)`. The new device checks that MAC.
+4. Both show `crypto_generichash(8, E.pk || N.pk, key = k3)` as 6 digits (first 4 bytes, big-endian, mod 10⁶). The person confirms on the existing device that both match.
+5. Only then: `payload = nonce(24) || crypto_box(JSON, nonce, N.pk, E.sk)`, uploaded with `PUT`.
+
+Payload: `{ v: 1, seed, name, recoverySaved, servers: [{ url, serverKey, name }], friends, history? }` — the 32-byte account seed (the new device makes its own device key and certificate from it), profile, server list, friends and optionally recent decrypted DM history (≤ 200 messages per conversation, ≤ ~600 KB). A server without the secret can't produce a valid MAC, so it can't put its own key in the middle; the confirmation code also catches someone who saw the code racing the real device.
+
 ## Profiles
 
 A profile lives on the user's device and is sent to every server they're on, so one edit updates them all. Every `Member` gains:
@@ -488,3 +565,5 @@ X-Content-Type-Options: nosniff · Referrer-Policy: no-referrer · X-DNS-Prefetc
 **Editor preview** runs the draft in the same sandbox: `page-preview.html` (a static file in the app with its own no-network policy) is loaded in `<iframe sandbox="allow-scripts">` and puts the draft, received by `postMessage` from its parent only, in a second `sandbox="allow-scripts"` frame.
 
 Known limits: the page's author learns nothing about viewers, but a page can still load images from its own server's `/files/`, so that server sees when it's viewed. Admins can remove any page of a member ranked below them, or turn pages off.
+
+Device linking carries the profile too: the sealed link payload gains `profile: { bio?, pronouns?, accent?, avatar?: { data: b64u, type } | null, page?: { html } | null }`. The new device checks every field against the limits above and recomputes the hashes itself. If the payload would pass ~900 KB (a big page plus DM history), the page is left out; servers keep it.

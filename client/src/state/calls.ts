@@ -3,11 +3,11 @@
 // so the server (and LiveKit) only ever see encrypted media.
 import { create } from 'zustand'
 import { b64u, fromB64u, randomBytes } from '../core/crypto'
-import { decryptDm, encryptDm } from '../core/dm'
+import { decryptDm } from '../core/dm'
 import { RequestError, type CallRing, type Events } from '../core/protocol'
 import { desktop } from '../platform/desktop'
 import { callLog, callLogText, checkInvite, isBusy, reduce, type CallEvent, type CallInfo, type EndReason } from './callMachine'
-import { devicesOf, nameOf, openConversation, sendDm, sharedServers } from './dms'
+import { encryptFor, nameOf, openConversation, sendDm, sharedServers } from './dms'
 import { useNotify } from './notify'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 import { joinCall, leaveVoice, useVoice } from './voice'
@@ -79,8 +79,7 @@ export async function startCall(peer: string, video: boolean): Promise<void> {
 
   const key = randomBytes(32)
   try {
-    const [theirs, ours] = await Promise.all([devicesOf(serverKey, peer), devicesOf(serverKey, me())])
-    const envelope = encryptDm(identity, peer, theirs, ours, {
+    const envelope = await encryptFor(serverKey, peer, {
       text: video ? 'Incoming video call' : 'Incoming voice call',
       call: { kind: 'invite', id, key: b64u(key), video },
     })

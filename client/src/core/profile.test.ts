@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { ready } from './crypto'
-import { authProfile, pageUrl, previewDocument, sha256Hex, wrapperDocument } from './profile'
+import { authProfile, MAX_PAGE_BYTES, pageUrl, previewDocument, profileForLink, profileFromLink, sha256Hex, wrapperDocument } from './profile'
 
 beforeAll(ready)
 
@@ -36,5 +36,26 @@ describe('profiles', () => {
     expect(doc).toContain('RTCPeerConnection')
     expect(doc.endsWith('<p>hi</p>')).toBe(true)
     expect(previewDocument('<p>x</p>', null).startsWith('<meta http-equiv="Content-Security-Policy"')).toBe(true)
+  })
+})
+
+describe('profiles over device linking', () => {
+  it('round-trips and recomputes hashes', () => {
+    const bytes = new Uint8Array([1, 2, 3])
+    const sent = profileForLink({ name: 'A', bio: 'hi', accent: '#123456', avatar: { bytes: bytes.buffer, type: 'image/png', hash: 'x' }, page: { html: '<p>x</p>', hash: 'y' } })
+    const got = profileFromLink(JSON.parse(JSON.stringify(sent)))
+    expect(got.bio).toBe('hi')
+    expect(got.accent).toBe('#123456')
+    expect(new Uint8Array(got.avatar!.bytes)).toEqual(bytes)
+    expect(got.avatar!.hash).toBe(sha256Hex(bytes))
+    expect(got.page).toEqual({ html: '<p>x</p>', hash: sha256Hex(new TextEncoder().encode('<p>x</p>')) })
+    expect(profileFromLink({}).avatar).toBeUndefined()
+  })
+
+  it('drops anything malformed', () => {
+    const got = profileFromLink({ bio: 'x'.repeat(191), accent: 'red', avatar: { data: 'AQID', type: 'text/html' }, page: { html: 'x'.repeat(MAX_PAGE_BYTES + 1) } })
+    expect(got).toEqual({})
+    expect(profileFromLink('nope')).toEqual({})
+    expect(profileFromLink({ avatar: null, page: null })).toEqual({ avatar: null, page: null })
   })
 })
