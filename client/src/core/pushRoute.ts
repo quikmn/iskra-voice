@@ -5,19 +5,21 @@ export type OpenTarget =
   | { server: string; kind: 'server' }
   | { server: string; kind: 'channel'; channelId: number }
   | { server: string; kind: 'dm'; peer: string }
+  | { server: string; kind: 'group'; group: string }
 
 const KEY = '[A-Za-z0-9_-]{43}'
-const ROUTE = new RegExp(`^#?/open/(${KEY})(?:/c/([1-9][0-9]{0,15})|/dm/(${KEY}))?/?$`)
+const ROUTE = new RegExp(`^#?/open/(${KEY})(?:/c/([1-9][0-9]{0,15})|/dm/(${KEY})|/g/([A-Za-z0-9_-]{22}))?/?$`)
 
 export function parseOpenRoute(route: string): OpenTarget | null {
   const match = ROUTE.exec(route)
   if (!match) return null
-  const [, server, channel, peer] = match
+  const [, server, channel, peer, group] = match
   if (channel) {
     const channelId = Number(channel)
     return Number.isSafeInteger(channelId) ? { server, kind: 'channel', channelId } : null
   }
   if (peer) return { server, kind: 'dm', peer }
+  if (group) return { server, kind: 'group', group }
   return { server, kind: 'server' }
 }
 

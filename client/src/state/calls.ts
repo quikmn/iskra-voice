@@ -220,7 +220,8 @@ function tone(frequencies: number[], start: number, length: number, volume: numb
   }
 }
 
-function startRinging(kind: 'in' | 'out'): void {
+/** Also used by group calls (groupCalls.ts). */
+export function startRinging(kind: 'in' | 'out'): void {
   stopRinging()
   const play = () => {
     try {
@@ -241,7 +242,7 @@ function startRinging(kind: 'in' | 'out'): void {
   ringTimer = setInterval(play, kind === 'in' ? 2500 : 4000)
 }
 
-function stopRinging(): void {
+export function stopRinging(): void {
   if (ringTimer) clearInterval(ringTimer)
   ringTimer = null
 }

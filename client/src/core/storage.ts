@@ -165,6 +165,36 @@ export async function saveDmConversation(peer: string, messages: StoredDm[]): Pr
   await set(`dm:${peer}`, messages)
 }
 
+// ── group DMs ──
+
+/** A group DM as kept on this device: its verified chain (re-checked on load), name and decrypted messages. */
+export interface StoredGroup {
+  serverKey: string
+  id: string
+  chain: { payload: string; sig: string }[]
+  name: string | null
+  nameAt: number
+  messages: (StoredDm & { group?: Record<string, unknown> })[]
+}
+
+export async function loadGroups(): Promise<StoredGroup[]> {
+  const keys = (await get<string[]>('group-keys')) ?? []
+  const groups = await Promise.all(keys.map((key) => get<StoredGroup>(`group:${key}`)))
+  return groups.filter((g): g is StoredGroup => !!g)
+}
+
+export async function saveGroup(key: string, group: StoredGroup): Promise<void> {
+  const keys = (await get<string[]>('group-keys')) ?? []
+  if (!keys.includes(key)) await set('group-keys', [...keys, key])
+  await set(`group:${key}`, group)
+}
+
+export async function deleteGroup(key: string): Promise<void> {
+  const keys = (await get<string[]>('group-keys')) ?? []
+  await set('group-keys', keys.filter((k) => k !== key))
+  await set(`group:${key}`, undefined)
+}
+
 /** Forgets everything on this device (after it was removed from its account). */
 export function wipeAll(): Promise<void> {
   return new Promise((resolve, reject) => {

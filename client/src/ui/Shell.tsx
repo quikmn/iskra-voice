@@ -14,6 +14,7 @@ import { HomeMain, HomeSidebar } from './Home'
 import { RecoveryNudge } from './dialogs/RecoveryKey'
 import { Menu } from './icons'
 import { IncomingCall } from './calls/Calls'
+import { IncomingGroupCall } from './groups/GroupCall'
 import { SoundToasts } from './expressions/Soundboard'
 import { ProfileLayer } from './profile/ProfileLayer'
 import { QuickSwitcher } from './QuickSwitcher'
@@ -27,7 +28,7 @@ export function Shell() {
   const [panel, setPanel] = useState<Panel>('none')
   const [joining, setJoining] = useState(false)
   const [creating, setCreating] = useState(false)
-  const stage = useVoice((s) => s.stageOpen && s.session?.serverKey === server?.key && !s.session?.call)
+  const stage = useVoice((s) => s.stageOpen && s.session?.serverKey === server?.key && !s.session?.call && !s.session?.group)
   const hasServers = useApp((s) => s.order.length > 0)
   // Escape closes an open drawer (phones and narrow windows).
   useEscapeLayer(() => setPanel('none'), panel !== 'none')
@@ -61,6 +62,7 @@ export function Shell() {
       <SoundToasts />
       {panel !== 'none' && <div className="scrim" onClick={() => setPanel('none')} />}
       <IncomingCall />
+      <IncomingGroupCall />
       <ProfileLayer />
       <QuickSwitcher />
       {joining && <JoinDialog onClose={() => setJoining(false)} onCreate={() => { setJoining(false); setCreating(true) }} />}

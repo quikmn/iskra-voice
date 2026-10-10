@@ -15,6 +15,7 @@ import type { Panel } from './Shell'
 import { CallButtons, CallLogLine, CallPanel } from './calls/Calls'
 import { asLog } from '../state/callMachine'
 import { VoiceBar } from './VoiceBar'
+import { GroupChat, GroupRows } from './groups/Groups'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -61,6 +62,7 @@ export function HomeSidebar({ onNavigate }: { onNavigate: () => void }) {
           <span className="hash"><Users size={16} /></span>
           <span className="channel-name">Friends</span>
         </button>
+        <GroupRows onNavigate={onNavigate} />
         <div className="channel-group"><span>Conversations</span></div>
         {peers.length === 0 && <p className="sidebar-hint">Your direct messages show up here. Start one from anyone's profile.</p>}
         {peers.map(([peer, conversation]) => (
@@ -86,6 +88,7 @@ export function HomeSidebar({ onNavigate }: { onNavigate: () => void }) {
 
 export function HomeMain({ onToggle }: { onToggle: (panel: Panel) => void }) {
   const open = useDms((s) => s.open)
+  if (open.kind === 'group') return <GroupChat key={open.key} groupKey={open.key} onToggle={onToggle} />
   return open.kind === 'dm' ? <DmView peer={open.peer} onToggle={onToggle} /> : <FriendsView onToggle={onToggle} />
 }
 

@@ -75,7 +75,7 @@ export function playTone(kind: 'message' | 'join' | 'leave'): void {
 /** Servers that push to this device: while the page is in the background, their pushes do the notifying. */
 export const pushActive = new Set<string>()
 
-function show(serverKey: string, title: string, body: string, onClick: () => void): void {
+export function show(serverKey: string, title: string, body: string, onClick: () => void): void {
   if (pushActive.has(serverKey) && !document.hasFocus()) return
   playTone('message')
   if (!useNotify.getState().desktop || !notificationsSupported() || Notification.permission !== 'granted') return
@@ -152,14 +152,19 @@ export function startTitleBadge(): () => void {
     const servers = Object.values(useApp.getState().servers)
     const mentionCount = servers.reduce((n, s) => n + Object.values(s.mentions).reduce((a, b) => a + b, 0), 0)
     const dmCount = Object.values(useDms.getState().conversations).reduce((n, c) => n + c.unread, 0)
-    const total = mentionCount + dmCount
+    const { useGroups } = await import('./groups')
+    const groupCount = Object.values(useGroups.getState().groups).reduce((n, g) => n + g.unread, 0)
+    const total = mentionCount + dmCount + groupCount
     document.title = total > 0 ? `(${total}) Iskra` : 'Iskra'
   }
   const unsubscribe = useApp.subscribe(() => void update())
   let unsubscribeDms = () => {}
+  let unsubscribeGroups = () => {}
   void import('./dms').then(({ useDms }) => (unsubscribeDms = useDms.subscribe(() => void update())))
+  void import('./groups').then(({ useGroups }) => (unsubscribeGroups = useGroups.subscribe(() => void update())))
   return () => {
     unsubscribe()
     unsubscribeDms()
+    unsubscribeGroups()
   }
 }

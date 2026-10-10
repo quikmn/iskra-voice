@@ -1,6 +1,8 @@
 import { selectServer, useApp } from '../state/store'
 import { hangUp, useCalls } from '../state/calls'
 import { nameOf, openConversation } from '../state/dms'
+import { leaveGroupCall } from '../state/groupCalls'
+import { openGroup, titleOf, useGroups } from '../state/groups'
 import { clearVoiceError, leaveVoice, setStageOpen, toggleDeafen, toggleMute, useVoice } from '../state/voice'
 import { Close, Headphones, HeadphonesOff, Mic, MicOff, PhoneOff } from './icons'
 import { SoundboardButton } from './expressions/Soundboard'
@@ -14,6 +16,7 @@ export function VoiceBar() {
   const server = useApp((s) => (session ? s.servers[session.serverKey] : null))
   const channel = server?.channels.find((c) => c.id === session?.channelId)
   const call = useCalls((s) => s.call)
+  const group = useGroups((s) => (session?.group ? s.groups[session.group.key] : undefined))
 
   if (!session) {
     return error ? (
@@ -24,7 +27,9 @@ export function VoiceBar() {
     ) : null
   }
 
-  const status = session.call
+  const status = session.group
+    ? (session.state === 'reconnecting' ? 'Reconnecting…' : 'In a group call')
+    : session.call
     ? (call?.phase === 'outgoing' ? 'Calling…' : session.state === 'reconnecting' ? 'Reconnecting…' : 'In a call')
     : session.state === 'connected' ? 'Voice connected' : session.state === 'reconnecting' ? 'Reconnecting…' : 'Connecting…'
   const peer = session.call?.peer
@@ -36,12 +41,14 @@ export function VoiceBar() {
           className="link-like"
           title="Open the call"
           onClick={() => {
+            if (session.group) return openGroup(session.group.key)
             if (peer) return openConversation(peer)
             selectServer(session.serverKey)
             setStageOpen(true)
           }}
         >
-          {peer ? `${nameOf(peer)} · end-to-end encrypted` : `${channel?.name ?? 'voice'} · ${server?.name}`}
+          {session.group ? `${group ? titleOf(group) : 'Group'} · end-to-end encrypted`
+            : peer ? `${nameOf(peer)} · end-to-end encrypted` : `${channel?.name ?? 'voice'} · ${server?.name}`}
         </button>
         {!session.canSpeak && session.state === 'connected' && <span className="muted">Listening only</span>}
         {error && <span className="error-text">{error}</span>}
@@ -58,9 +65,9 @@ export function VoiceBar() {
         <SoundboardButton variant="bar" />
         <button
           className="icon-button hang-up"
-          onClick={() => void (peer ? hangUp() : leaveVoice())}
-          aria-label={peer ? 'Hang up' : 'Leave voice'}
-          title={peer ? 'Hang up' : 'Leave voice'}
+          onClick={() => void (session.group ? leaveGroupCall() : peer ? hangUp() : leaveVoice())}
+          aria-label={peer || session.group ? 'Hang up' : 'Leave voice'}
+          title={peer || session.group ? 'Hang up' : 'Leave voice'}
         >
           <PhoneOff />
         </button>

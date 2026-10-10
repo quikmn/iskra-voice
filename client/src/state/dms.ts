@@ -42,8 +42,8 @@ export interface Friend {
 interface DmState {
   conversations: Record<string, Conversation>
   friends: Record<string, Friend>
-  /** What the home screen shows: the friends list or a conversation. */
-  open: { kind: 'friends' } | { kind: 'dm'; peer: string }
+  /** What the home screen shows: the friends list, a conversation or a group DM (key: "<serverKey>/<groupId>", see groups.ts). */
+  open: { kind: 'friends' } | { kind: 'dm'; peer: string } | { kind: 'group'; key: string }
 }
 
 export const useDms = create<DmState>(() => ({
