@@ -185,6 +185,11 @@ public class HttpsTests : IDisposable
         using var plain = await client.GetAsync($"http://localhost:{port}/");
         Assert.Equal(HttpStatusCode.OK, plain.StatusCode);
         Assert.Contains("\"Open\"", await plain.Content.ReadAsStringAsync());
+        // The other HTTP routes (webhooks, device-link relay) answer over HTTPS on the same port as well.
+        using var hook = await client.PostAsync($"https://localhost:{port}/hooks/nope/nope", new StringContent("{}"));
+        Assert.InRange((int)hook.StatusCode, 400, 499);
+        using var link = await client.GetAsync($"https://localhost:{port}/link/nope");
+        Assert.InRange((int)link.StatusCode, 400, 499);
         Assert.True(File.Exists(Path.Combine(world, "certs", "fullchain.pem")));
     }
 

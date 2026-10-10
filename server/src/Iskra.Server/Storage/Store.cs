@@ -219,6 +219,23 @@ public sealed partial class Store : IDisposable
         ("pins-1", PinsMigration),
         ("search-1", SearchMigration),
         ("threads-1", ThreadsMigration),
+        ("identity-1", """
+            ALTER TABLE devices ADD COLUMN name TEXT;
+            ALTER TABLE devices ADD COLUMN platform TEXT;
+            CREATE TABLE device_revocations (
+                account_key TEXT NOT NULL,
+                device_key  TEXT NOT NULL,
+                revoked_at  INTEGER NOT NULL,
+                sig         TEXT NOT NULL,
+                PRIMARY KEY (account_key, device_key)
+            );
+            CREATE TABLE prekeys (
+                device_key  TEXT PRIMARY KEY,
+                prekey      TEXT NOT NULL,
+                created     INTEGER NOT NULL,
+                sig         TEXT NOT NULL
+            );
+            """),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

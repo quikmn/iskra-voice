@@ -13,7 +13,7 @@ function checksum(seed: Uint8Array): Uint8Array {
   return sodium.crypto_generichash(3, seed, new TextEncoder().encode('iskra/recovery/v1'))
 }
 
-function toBase32(bytes: Uint8Array): string {
+export function toBase32(bytes: Uint8Array): string {
   let bits = 0
   let value = 0
   let out = ''
@@ -29,7 +29,7 @@ function toBase32(bytes: Uint8Array): string {
   return out
 }
 
-function fromBase32(text: string): Uint8Array | null {
+export function fromBase32(text: string): Uint8Array | null {
   let bits = 0
   let value = 0
   const out: number[] = []

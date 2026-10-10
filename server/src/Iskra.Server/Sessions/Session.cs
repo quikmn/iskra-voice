@@ -140,6 +140,7 @@ public sealed class Session
             {
                 AuthFailure.Banned => ("banned", "You are banned from this server.", CloseCodes.Forbidden),
                 AuthFailure.InviteRequired => ("invite_required", "You need a valid invite to join this server.", CloseCodes.AuthFailed),
+                AuthFailure.DeviceRevoked => ("device_revoked", "This device was removed from its account.", CloseCodes.AuthFailed),
                 _ => ("auth_failed", "Authentication failed.", CloseCodes.AuthFailed),
             };
             SendNow(Frames.Error(envelope?.Id, code, message));
@@ -269,7 +270,7 @@ public sealed class Session
 
     // ── Auth ─────────────────────────────────────────────────────────────────
 
-    private enum AuthFailure { Invalid, Banned, InviteRequired }
+    private enum AuthFailure { Invalid, Banned, InviteRequired, DeviceRevoked }
 
     private (Member?, AuthFailure) Authenticate(Envelope envelope, byte[] nonce, out string? deviceKey)
     {
@@ -313,6 +314,7 @@ public sealed class Session
         if (!Identity.VerifyAuth(cert, _world.ServerPublicKey, nonce, signature)) return (null, AuthFailure.Invalid);
 
         // Identity is proven from here on.
+        if (_world.Store.IsDeviceRevoked(cert.AccountKey, cert.DeviceKey)) return (null, AuthFailure.DeviceRevoked);
         deviceKey = cert.DeviceKey;
         if (_world.Store.IsBanned(cert.AccountKey)) return (null, AuthFailure.Banned);
 

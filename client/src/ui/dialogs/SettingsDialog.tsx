@@ -9,6 +9,7 @@ import { NotificationSettingsSection } from './NotificationSettings'
 import { InternetSection } from './InternetSettings'
 import { roleRank } from '../../core/protocol'
 import { ServerExpressionsSections, SoundboardSettingsSection } from '../expressions/ExpressionSettings'
+import { DevicesSection } from './DevicesSection'
 
 export function SettingsDialog({ server, onClose }: { server?: ServerState | null; onClose: () => void }) {
   const profile = useApp((s) => s.profile)
@@ -43,6 +44,8 @@ export function SettingsDialog({ server, onClose }: { server?: ServerState | nul
           </p>
         )}
       </section>
+
+      <DevicesSection />
 
       <RecoveryKeySection />
 

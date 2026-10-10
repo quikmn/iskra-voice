@@ -1,5 +1,9 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { b64u, generateSigningKeyPair, ready } from './crypto'
+import sodium from 'libsodium-wrappers-sumo'
+import { b64u, fromB64u, generateSigningKeyPair, ready } from './crypto'
+import {
+  generatePrekey, PREKEY_GRACE_MS, PREKEY_MAX_AGE_MS, PREKEY_ROTATE_MS, rotatePrekeys, signPrekey, type SignedPrekey,
+} from './devices'
 import { decryptDm, encryptDm, safetyNumber, type DmEnvelope } from './dm'
 import { certifyDevice, createIdentity, type Identity } from './identity'
 
@@ -105,5 +109,106 @@ describe('direct message encryption', () => {
     expect(safetyNumber(a, b)).toBe(safetyNumber(b, a))
     expect(safetyNumber(a, b)).not.toBe(safetyNumber(a, c))
     expect(safetyNumber(a, b)).toMatch(/^(\d{5} ){11}\d{5}$/)
+  })
+})
+
+describe('forward-secret envelopes (v2)', () => {
+  /** A device with a fresh prekey, as it would publish it. */
+  function withPrekey(id: Identity, now = Date.now()): { id: Identity; signed: SignedPrekey } {
+    const pair = generatePrekey(now)
+    const withKeys = { ...id, prekeys: [pair] }
+    return { id: withKeys, signed: signPrekey(withKeys, pair) }
+  }
+
+  it('wraps to prekeys, and both sides read it', () => {
+    const alice = withPrekey(createIdentity())
+    const bob = withPrekey(createIdentity())
+    const env = encryptDm(alice.id, key(bob.id), [bob.id.cert], [], { text: 'hello v2' }, Date.now(), { prekeys: [bob.signed] })
+    expect(env.v).toBe(2)
+    expect(env.keys.every((k) => 'seal' in k)).toBe(true) // Bob's device and Alice's own
+    expect(decryptDm(bob.id, env, key(alice.id), key(bob.id)).text).toBe('hello v2')
+    expect(decryptDm(alice.id, env, key(alice.id), key(bob.id)).text).toBe('hello v2')
+  })
+
+  it('once the prekey is deleted, even the long-term keys cannot read captured messages', () => {
+    const alice = withPrekey(createIdentity())
+    const bob = withPrekey(createIdentity())
+    const env = encryptDm(alice.id, key(bob.id), [bob.id.cert], [], { text: 'gone later' }, Date.now(), { prekeys: [bob.signed] })
+
+    // Bob's prekey rotates and the old secret is deleted after the grace period.
+    const later = Date.now() + PREKEY_ROTATE_MS + PREKEY_GRACE_MS + 60_000
+    const rotated = rotatePrekeys(rotatePrekeys(bob.id.prekeys!, Date.now() + PREKEY_ROTATE_MS).prekeys, later).prekeys
+    const bobLater = { ...bob.id, prekeys: rotated }
+    expect(() => decryptDm(bobLater, env, key(alice.id), key(bob.id))).toThrow(/deleted/)
+
+    // An attacker holding both devices' long-term secrets can't open the slot either:
+    // the static key alone opens neither the seal nor the inner box.
+    const slot = env.keys.find((k) => k.device === bob.id.cert.deviceKey) as { seal: string }
+    const bobStatic = sodium.crypto_sign_ed25519_sk_to_curve25519(bob.id.device.secretKey)
+    const bobStaticPublic = sodium.crypto_sign_ed25519_pk_to_curve25519(bob.id.device.publicKey)
+    expect(() => sodium.crypto_box_seal_open(fromB64u(slot.seal), bobStaticPublic, bobStatic)).toThrow()
+    const aliceStatic = sodium.crypto_sign_ed25519_sk_to_curve25519(alice.id.device.secretKey)
+    expect(() => sodium.crypto_box_seal_open(fromB64u(slot.seal), bobStaticPublic, aliceStatic)).toThrow()
+  })
+
+  it('still reads messages wrapped to a retired prekey during the grace period', () => {
+    const alice = withPrekey(createIdentity())
+    const bob = withPrekey(createIdentity())
+    const env = encryptDm(alice.id, key(bob.id), [bob.id.cert], [], { text: 'in flight' }, Date.now(), { prekeys: [bob.signed] })
+    const rotated = rotatePrekeys(bob.id.prekeys!, Date.now() + PREKEY_ROTATE_MS).prekeys
+    expect(rotated).toHaveLength(2)
+    expect(decryptDm({ ...bob.id, prekeys: rotated }, env, key(alice.id), key(bob.id)).text).toBe('in flight')
+  })
+
+  it('falls back to the device key for devices without a usable prekey, and ignores forged prekeys', () => {
+    const alice = withPrekey(createIdentity())
+    const bob = createIdentity()
+    const mallory = withPrekey(createIdentity())
+    // Mallory's prekey relabelled as Bob's: the signature doesn't match Bob's device key.
+    const forged = { ...mallory.signed, deviceKey: bob.cert.deviceKey }
+    const env = encryptDm(alice.id, key(bob), [bob.cert], [], { text: 'static' }, Date.now(), { prekeys: [forged] })
+    const slot = env.keys.find((k) => k.device === bob.cert.deviceKey)!
+    expect('box' in slot).toBe(true)
+    expect(decryptDm(bob, env, key(alice.id), key(bob)).text).toBe('static')
+  })
+
+  it('ignores stale prekeys', () => {
+    const alice = withPrekey(createIdentity())
+    const old = Date.now() - PREKEY_MAX_AGE_MS - 1000
+    const bob = withPrekey(createIdentity(), old)
+    const env = encryptDm(alice.id, key(bob.id), [bob.id.cert], [], { text: 'x' }, Date.now(), { prekeys: [bob.signed] })
+    expect('box' in env.keys.find((k) => k.device === bob.id.cert.deviceKey)!).toBe(true)
+  })
+
+  it('gives revoked devices no slot', () => {
+    const alice = withPrekey(createIdentity())
+    const bob = createIdentity()
+    const bobPhone = secondDevice(bob)
+    const env = encryptDm(alice.id, key(bob), [bob.cert, bobPhone.cert], [], { text: 'x' }, Date.now(), {
+      prekeys: [], revokedDevices: [bobPhone.cert.deviceKey],
+    })
+    expect(env.keys.map((k) => k.device)).not.toContain(bobPhone.cert.deviceKey)
+    expect(() => decryptDm(bobPhone, env, key(alice.id), key(bob))).toThrow(/wasn't encrypted for this device/)
+  })
+
+  it('detects tampering and refuses a prekey slot inside a v1 envelope', () => {
+    const alice = withPrekey(createIdentity())
+    const bob = withPrekey(createIdentity())
+    const env = encryptDm(alice.id, key(bob.id), [bob.id.cert], [], { text: 'x' }, Date.now(), { prekeys: [bob.signed] })
+    expect(() => decryptDm(bob.id, { ...env, header: { ...env.header, sentAt: env.header.sentAt + 1 } }, key(alice.id), key(bob.id))).toThrow(/tampered/)
+    expect(() => decryptDm(bob.id, { ...env, v: 1 }, key(alice.id), key(bob.id))).toThrow(/format/)
+    // A slot sealed by someone else (not Alice's device) doesn't open: the inner box authenticates the sender.
+    const mallory = withPrekey(createIdentity())
+    const forged = encryptDm(mallory.id, key(bob.id), [bob.id.cert], [], { text: 'x' }, Date.now(), { prekeys: [bob.signed] })
+    const swapped = { ...forged, sender: alice.id.cert, header: { ...forged.header, from: key(alice.id) } }
+    expect(() => decryptDm(bob.id, swapped, key(alice.id), key(bob.id))).toThrow()
+  })
+
+  it('v1 envelopes still decrypt, and encryptDm without prekeys still makes v1', () => {
+    const alice = createIdentity()
+    const bob = withPrekey(createIdentity())
+    const env = encryptDm(alice, key(bob.id), [bob.id.cert], [], { text: 'old style' })
+    expect(env.v).toBe(1)
+    expect(decryptDm(bob.id, env, key(alice), key(bob.id)).text).toBe('old style')
   })
 })
