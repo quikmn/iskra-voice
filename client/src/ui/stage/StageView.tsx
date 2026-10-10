@@ -14,6 +14,7 @@ import { useEscapeLayer, useFocusTrap } from '../layers'
 import type { Panel } from '../Shell'
 import { CallControls, VideoTile } from '../VoiceStage'
 import { CheckIcon, HandIcon, ShieldIcon, StageIcon, StepDownIcon, UserMinusIcon } from './stageIcons'
+import { WatchButton, WatchPartyPanel } from '../watch/WatchParty'
 import './stage.css'
 
 const nameIn = (server: ServerState, accountKey: string) => server.members[accountKey]?.name ?? 'Someone'
@@ -120,6 +121,8 @@ export function StageView({ server, onToggle }: { server: ServerState; onToggle:
               {amSpeaker && session.canSpeak && muted && <p className="stage-hint-pill">You're on stage. Unmute when you're ready to talk.</p>}
             </section>
 
+            {channel && <WatchPartyPanel server={server} channel={channel} stage={state} />}
+
             <section className="stage-speakers" aria-label="Speakers">
               {focused && <VideoTile tile={focused} name={nameIn(server, focused.accountKey)} big speaking={!!speaking[focused.accountKey]} />}
               <div className="stage-grid">
@@ -176,7 +179,7 @@ export function StageView({ server, onToggle }: { server: ServerState; onToggle:
         {error && <p className="error-text stage-error" role="alert">{error}</p>}
       </div>
 
-      <CallControls extra={stageButton} />
+      <CallControls extra={<>{stageButton}{live && channel && <WatchButton server={server} channel={channel} stage={state} />}</>} />
 
       {person && channel && (
         <PersonSheet server={server} channel={channel} state={state} accountKey={person} onError={setError} onClose={() => setPerson(null)} />

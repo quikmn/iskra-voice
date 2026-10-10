@@ -530,3 +530,49 @@ export interface Requests {
   'stage.remove': [StageTarget, Record<string, never>]
   'stage.moderator': [StageTarget & { on: boolean }, Record<string, never>]
 }
+
+// ── watch parties ──
+
+export interface WatchSource {
+  kind: 'url' | 'file' | 'youtube'
+  /** https media URL, or for files the server-relative /files/… path. */
+  url: string | null
+  fileId: string | null
+  videoId: string | null
+  title: string | null
+}
+
+/** `position` (seconds) is where playback was at server time `updatedAt`; while playing it moves on at `rate`. */
+export interface WatchParty {
+  id: string
+  channelId: number
+  source: WatchSource
+  host: string
+  anyoneControls: boolean
+  playing: boolean
+  position: number
+  rate: number
+  updatedAt: number
+  startedAt: number
+  updatedBy: string
+}
+
+export type WatchSourceInput = { kind: 'url'; url: string } | { kind: 'file'; fileId: string } | { kind: 'youtube'; videoId: string }
+
+export interface Welcome {
+  watch?: WatchParty[]
+}
+
+export interface Events {
+  'watch.state': { channelId: number; party: WatchParty | null; serverTime: number }
+  'watch.chat': { channelId: number; accountKey: string; text: string; at: number }
+}
+
+export interface Requests {
+  'watch.start': [{ channelId: number; source: WatchSourceInput; title?: string }, { party: WatchParty }]
+  'watch.control': [{ channelId: number; partyId: string; playing?: boolean; position?: number; rate?: number }, { party: WatchParty }]
+  'watch.settings': [{ channelId: number; partyId: string; anyoneControls: boolean }, Record<string, never>]
+  'watch.stop': [{ channelId: number; partyId: string }, Record<string, never>]
+  'watch.chat': [{ channelId: number; text: string }, Record<string, never>]
+  'watch.clock': [Record<string, never>, { now: number }]
+}

@@ -20,7 +20,7 @@ public sealed class VoiceRegistry
     private readonly IVoiceBackend backend;
     private readonly ILogger<VoiceRegistry> log;
 
-    public VoiceRegistry(World world, Hub hub, IVoiceBackend backend, CallRegistry calls, ILogger<VoiceRegistry> log)
+    public VoiceRegistry(World world, Hub hub, IVoiceBackend backend, CallRegistry calls, ILogger<VoiceRegistry> log, TimeProvider time)
     {
         Calls = calls;
         this.world = world;
@@ -28,10 +28,12 @@ public sealed class VoiceRegistry
         this.backend = backend;
         this.log = log;
         Stages = new StageRegistry(world, hub, backend, this);
+        Watch = new WatchRegistry(world, hub, this, time);
         backend.AvailabilityChanged += available =>
         {
             if (!available) _rooms.Clear(); // LiveKit restarted: everyone was dropped
             if (!available) Stages.SyncAll(); // ...and every stage ended
+            if (!available) Watch.SyncAll(); // ...and every watch party
             hub.Broadcast(Frames.Event("voice.available", new { available }));
         };
     }
@@ -40,6 +42,9 @@ public sealed class VoiceRegistry
 
     /// <summary>Stage channels: voice rooms where only invited speakers may publish.</summary>
     public StageRegistry Stages { get; }
+
+    /// <summary>Watch parties: a shared play/pause/position clock per voice channel.</summary>
+    public WatchRegistry Watch { get; }
 
     /// <summary>DM calls (rooms named call-…), next to the voice channels.</summary>
     public CallRegistry Calls { get; }
@@ -111,6 +116,7 @@ public sealed class VoiceRegistry
             }
         }
         Stages.SyncAll();
+        Watch.SyncAll();
     }
 
     private void Publish(long channelId)
@@ -118,6 +124,7 @@ public sealed class VoiceRegistry
         var channel = world.Store.GetChannel(channelId);
         if (channel is not null) hub.BroadcastToReaders(channel, Frames.Event("voice.state", PublicState(channelId)));
         Stages.Sync(channelId);
+        Watch.Sync(channelId);
     }
 
     /// <summary>Handles a verified LiveKit webhook body.</summary>

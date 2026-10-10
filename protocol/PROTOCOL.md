@@ -8,7 +8,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Basics:** [Encoding](#encoding) · [Identity](#identity) · [Connection](#connection) (handshake, errors and close codes, limits) · [Objects](#objects)
 - **Servers and channels:** [Requests and events](#requests-and-events) · [Invite links](#invite-links)
 - **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji)
-- **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels)
+- **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted)
 - **People and integrations:** [Profiles](#profiles) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints)
@@ -81,7 +81,8 @@ The connection is one WebSocket per server at `wss://<host>/ws`. It uses text fr
        "members": [Member...],
        "voice": [VoiceState...],   // non-empty voice channels you can read (see Voice)
        "voiceAvailable": true,
-       "stages": [StageState...] } }   // stage channels you can read (see Stage channels)
+       "stages": [StageState...],      // stage channels you can read (see Stage channels)
+       "watch": [WatchParty...] } }    // watch parties in channels you can read (see Watch parties)
    ```
 
 Events from other sessions that happen before `welcome` is sent are queued and delivered right after it, in order.
@@ -142,6 +143,10 @@ Rate limits are token buckets per connection. Every request takes from the gener
 | `poll.create` | 1 every 5 s | 5 |
 | `sound.play` | 1 every 2 s | 3 |
 | `stage.hand` | 1 every 2 s | 5 |
+| `watch.start` | 1 every 2 s | 8 |
+| `watch.control` | 4/s | 10 |
+| `watch.chat` | 1/s | 5 |
+| `watch.clock` | 2/s | 10 |
 | `link.create` | 1 every 10 s | 3 |
 
 Some limits are per account, shared by all of its sessions, so opening more connections doesn't buy more:
@@ -757,3 +762,42 @@ StageState { "channelId": 7, "live": true,
 | event | body | sent to |
 |---|---|---|
 | `stage.state` | `StageState` | readers of the stage, after any change |
+
+## Watch parties
+
+Everyone in a voice channel (or stage) watches the same video in step. The server keeps only a shared clock (play, pause, position, speed) and checks who may change it; each client plays the video itself, straight from its source. Supported sources: an `https://` link to a media file, a file uploaded to this server, or a YouTube video (played with YouTube's official IFrame Player API on `youtube-nocookie.com`; nothing is downloaded or scraped). For anything else, share your screen with audio.
+
+| type | body | result | who |
+|---|---|---|---|
+| `watch.start` | `channelId, source, title?` (≤ 200 chars) | `{ party }` | someone in the room (LiveKit's webhooks) who may host: in a voice channel its writers, on a stage its speakers and moderators. Replaces a running party only for its host or a moderator (else `bad_request`) |
+| `watch.control` | `channelId, partyId, playing? (bool), position? (seconds, 0–172800), rate? (0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75 or 2)` | `{ party }` | in the room and allowed to host, and the party's host, or anyone when `anyoneControls`, or a moderator. A missing `position` carries on from the shared clock |
+| `watch.settings` | `channelId, partyId, anyoneControls` (bool) | | the host or a moderator |
+| `watch.stop` | `channelId, partyId` | | the host or a moderator |
+| `watch.chat` | `channelId, text` (1–500 chars, one line) | | in the room, while a party is on. Not stored |
+| `watch.clock` | | `{ now }` (server time, ms) | anyone (for clock sync) |
+
+`source` is one of:
+- `{ kind: "url", url }`: `https://` only, absolute, a host, no credentials, no whitespace, ≤ 2048 chars.
+- `{ kind: "file", fileId }`: a file uploaded to this server whose sniffed type is video or audio. The party's `source.url` is its `/files/…` path.
+- `{ kind: "youtube", videoId }`: 11 characters of `A–Z a–z 0–9 _ -`.
+
+Moderators here are admins in voice channels and stage moderators on stages. A `partyId` that isn't the current party's is `not_found`, so a late control can't change a new party.
+
+```jsonc
+WatchParty { "id": "<b64u 12>", "channelId": 3,
+             "source": { "kind": "url" | "file" | "youtube", "url": "https://…" | "/files/…" | null,
+                         "fileId": "…" | null, "videoId": "…" | null, "title": "Movie night" | null },
+             "host": "<accountKey>", "anyoneControls": false,
+             "playing": true, "position": 61.5, "rate": 1,   // at server time updatedAt playback was at position (seconds)
+             "updatedAt": 1760000000000, "startedAt": 1760000000000, "updatedBy": "<accountKey>" }
+```
+
+- **Where playback is now**: `position + (serverNow − updatedAt) / 1000 × rate` while playing, else `position`. Clients estimate the server clock with `watch.clock` (several round trips; the shortest one's midpoint wins) and correct drift: under 0.15 s is left alone, up to 1 s they play 5 % faster or slower, beyond that they jump (YouTube only jumps, from 1.5 s). A late joiner gets the party in `welcome` and starts at the right spot.
+- A party starts paused at 0. When its host leaves the room (or may no longer host), it passes to whoever has been in the room longest and may host; when the room empties, or nobody there may host, it ends.
+- In-memory only, like voice state.
+- The web app's Content-Security-Policy allows exactly one third-party script origin for this, `https://www.youtube.com` (the IFrame API loader and the widget code it loads), and frames from `https://www.youtube-nocookie.com`. The embed iframe sends `strict-origin-when-cross-origin` referrers (YouTube requires one) although the app otherwise sends none.
+
+| event | body | sent to |
+|---|---|---|
+| `watch.state` | `{ channelId, party: WatchParty \| null, serverTime }` | readers of the channel, after any change |
+| `watch.chat` | `{ channelId, accountKey, text, at }` | people in the room who can read the channel |

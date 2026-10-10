@@ -164,6 +164,7 @@ public sealed class Session
             voice = _voice.Snapshot(member),
             voiceAvailable = _voice.Backend.Available,
             stages = _voice.Stages.Snapshot(member),
+            watch = _voice.Watch.Snapshot(member),
         }));
         lock (_earlyGate)
         {

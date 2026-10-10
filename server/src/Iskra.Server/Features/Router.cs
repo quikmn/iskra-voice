@@ -40,6 +40,7 @@ public sealed class Router
         HostFeature.Register(this, internet);
         ProfileFeature.Register(this);
         StageFeature.Register(this);
+        WatchFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);
