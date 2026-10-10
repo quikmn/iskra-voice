@@ -1,4 +1,5 @@
 using Iskra.Server.Features;
+using Iskra.Server.Hosting;
 using Iskra.Server.Sessions;
 using Iskra.Server.Storage;
 using Iskra.Server.Voice;
@@ -39,10 +40,58 @@ builder.Services.AddReverseProxy().LoadFromMemory(
 ]);
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.Configure<SessionLimits>(builder.Configuration.GetSection("Session"));
-builder.WebHost.UseUrls($"http://0.0.0.0:{world.Settings.Port}"); // TLS arrives with hosting (M6)
+builder.Services.AddSingleton<Certificates>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<Certificates>());
+
+var https = world.Settings.Https;
+if (https.Enabled)
+{
+    builder.WebHost.ConfigureKestrel(kestrel =>
+    {
+        var certificates = kestrel.ApplicationServices.GetRequiredService<Certificates>();
+        certificates.LoadExisting();
+        kestrel.ListenLocalhost(world.Settings.Port); // internal: LiveKit webhooks and local tools
+        kestrel.ListenAnyIP(https.HttpPort);          // Let's Encrypt challenges, everything else redirects
+        kestrel.ListenAnyIP(https.Port, listen => listen.UseHttps(new Microsoft.AspNetCore.Server.Kestrel.Https.TlsHandshakeCallbackOptions
+        {
+            // Asked on every handshake, so a renewed certificate is used right away.
+            OnConnection = _ => ValueTask.FromResult(new System.Net.Security.SslServerAuthenticationOptions
+            {
+                ServerCertificateContext = certificates.Context,
+            }),
+        }));
+    });
+}
+else
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{world.Settings.Port}");
+}
 
 var app = builder.Build();
 app.Lifetime.ApplicationStopped.Register(world.Dispose);
+
+if (https.Enabled)
+{
+    var certificates = app.Services.GetRequiredService<Certificates>();
+    app.Use(async (context, next) =>
+    {
+        if (context.Connection.LocalPort == https.HttpPort)
+        {
+            // Plain HTTP: only Let's Encrypt's challenge is answered; everything else goes to HTTPS.
+            if (context.Request.Path.StartsWithSegments("/.well-known/acme-challenge", out var rest)
+                && certificates.Challenge(rest.Value?.Trim('/') ?? "") is { } answer)
+            {
+                context.Response.ContentType = "text/plain";
+                await context.Response.WriteAsync(answer);
+                return;
+            }
+            context.Response.Redirect($"{https.DefaultUrl}{context.Request.Path}{context.Request.QueryString}");
+            return;
+        }
+        if (context.Request.IsHttps) context.Response.Headers.StrictTransportSecurity = "max-age=31536000";
+        await next();
+    });
+}
 
 app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(20) });
 
@@ -90,7 +139,7 @@ app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice
 // Voice signaling (LiveKit's WebSocket and HTTP) on the same port as everything else.
 app.MapReverseProxy();
 
-app.Logger.LogInformation("World '{Name}' at {Path}, listening on port {Port}", world.Settings.Name, world.Path, world.Settings.Port);
+app.Logger.LogInformation("World '{Name}' at {Path}, reachable at {Url}", world.Settings.Name, world.Path, world.Settings.EffectivePublicUrl);
 if (OwnerSetup.EnsureOwnerInvite(world, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()) is { } ownerLink)
 {
     app.Logger.LogWarning("This server has no owner yet. Open this link to become the owner (single use, also saved in {File}):\n\n    {Link}\n",

@@ -203,3 +203,19 @@ Device certificates are stored when a device authenticates, so the server can pu
 - Receivers check: header from/to equal the server's routing fields; the sender certificate is valid and belongs to `header.from`; there is a slot for this device. Anything else is shown as "couldn't be read", never as text. No devices means no message; there is no plaintext fallback.
 - Safety number: `crypto_generichash(60, sort(accountA, accountB))` shown as 12 groups of 5 digits.
 - Not yet: forward secrecy (a ratchet or MLS) and DMs between people who share no server.
+
+## Hosting (server.json)
+
+```jsonc
+"Https": {
+  "Mode": "acme",              // "off" (default) | "acme" (Let's Encrypt) | "files" (your own PEM files)
+  "Domain": "chat.example.com",
+  "Email": "you@example.com",  // optional, for expiry notices
+  "Port": 443, "HttpPort": 80, // HttpPort answers the ACME challenge and redirects to HTTPS
+  "CertFile": null, "KeyFile": null
+}
+```
+
+- With HTTPS on, `PublicUrl` defaults to `https://<Domain>` and voice becomes `wss://<Domain>/livekit`.
+- Certificates live in `certs/` in the world folder (`fullchain.pem`, `key.pem`, `acme-account.pem`) and renew 30 days before expiry, without a restart.
+- The plain `Port` then listens on localhost only (LiveKit webhooks, local tools).

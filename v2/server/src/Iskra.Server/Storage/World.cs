@@ -16,9 +16,32 @@ public sealed record WorldSettings
     public string AppUrl { get; init; } = "http://localhost:5173";
 
     [System.Text.Json.Serialization.JsonIgnore]
-    public string EffectivePublicUrl => (PublicUrl ?? $"http://localhost:{Port}").TrimEnd('/');
+    public string EffectivePublicUrl => (PublicUrl ?? (Https.Enabled ? Https.DefaultUrl : $"http://localhost:{Port}")).TrimEnd('/');
 
     public VoiceSettings Voice { get; init; } = new();
+
+    public HttpsSettings Https { get; init; } = new();
+}
+
+/// <summary>HTTPS: off, automatic Let's Encrypt certificates ("acme"), or your own certificate files ("files").</summary>
+public sealed record HttpsSettings
+{
+    public string Mode { get; init; } = "off";
+    public string? Domain { get; init; }
+    /// <summary>Let's Encrypt sends expiry warnings here (optional).</summary>
+    public string? Email { get; init; }
+    public string? CertFile { get; init; }
+    public string? KeyFile { get; init; }
+    public int Port { get; init; } = 443;
+    /// <summary>Plain HTTP port: answers Let's Encrypt's challenge and redirects everything else to HTTPS.</summary>
+    public int HttpPort { get; init; } = 80;
+    public string AcmeDirectory { get; init; } = "https://acme-v02.api.letsencrypt.org/directory";
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool Enabled => Mode is "acme" or "files";
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string DefaultUrl => $"https://{Domain}{(Port == 443 ? "" : $":{Port}")}";
 }
 
 /// <summary>Voice runs on a LiveKit server that iskra-server starts and supervises.</summary>
