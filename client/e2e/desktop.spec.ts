@@ -1,5 +1,5 @@
 // The real Electron app: app:// origin, the preload bridge, and joining a server from the desktop shell.
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -32,8 +32,21 @@ test('the desktop app runs the web app on app:// and can join a server', async (
 
     // The preload bridge is there, and only that.
     const bridge = await page.evaluate(() => Object.keys((window as unknown as { iskraDesktop: object }).iskraDesktop).sort())
-    expect(bridge).toEqual(['capturePushToTalkKey', 'host', 'onPickScreen', 'onPushToTalk', 'pickScreen', 'platform', 'setPushToTalkKey'])
+    expect(bridge).toEqual(['callAlert', 'capturePushToTalkKey', 'host', 'onPickScreen', 'onPushToTalk', 'pickScreen', 'platform', 'setPushToTalkKey'])
     expect(await page.evaluate(() => typeof (window as unknown as { require?: unknown }).require)).toBe('undefined')
+
+    // Calls: LiveKit's end-to-end encryption worker loads from app:// under the app's CSP, and frames can be transformed.
+    const worker = readdirSync(resolve(HERE, '../dist/assets')).find((f) => /^livekit-client\.e2ee\.worker-.*\.js$/.test(f) &&
+      readFileSync(resolve(HERE, '../dist/assets', f)).length > 10_000)
+    expect(worker).toBeTruthy()
+    const ack = await page.evaluate((url) => new Promise<string>((done) => {
+      const w = new Worker(url)
+      w.onmessage = (e: MessageEvent<{ kind: string }>) => done(e.data.kind)
+      w.onerror = () => done('error')
+      w.postMessage({ kind: 'init', data: { keyProviderOptions: { sharedKey: true, ratchetSalt: 'iskra', ratchetWindowSize: 0, failureTolerance: -1, keyringSize: 16 }, loglevel: 'warn' } })
+    }), `/assets/${worker}`)
+    expect(ack).toBe('initAck')
+    expect(await page.evaluate(() => 'RTCRtpScriptTransform' in window || 'createEncodedStreams' in RTCRtpSender.prototype)).toBe(true)
 
     await page.getByLabel('Your name').fill('Desk')
     await page.getByRole('button', { name: 'Continue' }).click()

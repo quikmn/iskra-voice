@@ -29,6 +29,8 @@ export interface DmEnvelope {
 
 export interface DmContent {
   text: string
+  /** A call invite or call log entry (see state/calls.ts, which checks it). `text` is the fallback for other apps. */
+  call?: Record<string, unknown>
 }
 
 export class DmError extends Error {}
@@ -127,7 +129,8 @@ export function decryptDm(identity: Identity, envelope: DmEnvelope, from: string
 
   const content = JSON.parse(new TextDecoder().decode(plaintext)) as Partial<DmContent>
   if (typeof content.text !== 'string' || content.text.length > MAX_TEXT) throw new DmError('Unsupported message content.')
-  return { text: content.text, header }
+  const call = content.call && typeof content.call === 'object' && !Array.isArray(content.call) ? { call: content.call } : {}
+  return { text: content.text, header, ...call }
 }
 
 /**

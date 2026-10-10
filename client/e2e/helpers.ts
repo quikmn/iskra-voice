@@ -31,7 +31,7 @@ export interface TestServer {
 }
 
 /** A real iskra-server on a fresh world; with voice if the LiveKit binary is in .tools. */
-export async function startServer(name: string, voice = false): Promise<TestServer> {
+export async function startServer(name: string, voice = false, env: Record<string, string> = {}): Promise<TestServer> {
   const world = mkdtempSync(join(tmpdir(), 'iskra-e2e-'))
   const port = await freePort()
   const voicePort = await freePort()
@@ -46,7 +46,7 @@ export async function startServer(name: string, voice = false): Promise<TestServ
       Voice: { Enabled: voice, Port: voicePort, RtcTcpPort: rtcTcp, RtcUdpPort: rtcUdp, LiveKitPath: voice ? LIVEKIT : null },
     }),
   )
-  const proc: ChildProcess = spawn('dotnet', [SERVER_DLL, world], { stdio: 'ignore' })
+  const proc: ChildProcess = spawn('dotnet', [SERVER_DLL, world], { stdio: 'ignore', env: { ...process.env, ...env } })
   const url = `http://localhost:${port}`
   for (let i = 0; ; i++) {
     try {

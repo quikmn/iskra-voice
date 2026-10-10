@@ -104,6 +104,10 @@ export interface Events {
   'voice.state': VoiceChannelState
   'dm.message': { message: WireDm }
   'voice.available': { available: boolean }
+  'call.ring': CallRing
+  'call.accepted': { callId: string }
+  'call.ended': { callId: string; reason: CallEndReason }
+  'call.state': { callId: string; participants: string[] }
 }
 
 export interface WireDm {
@@ -145,6 +149,36 @@ export interface Requests {
   'push.subscribe': [PushSubscriptionBody, Record<string, never>]
   'push.unsubscribe': [Record<string, never>, Record<string, never>]
   'push.focus': [{ focused: boolean }, Record<string, never>]
+  'call.start': [{ accountKey: string; callId: string; video: boolean; envelope: import('./dm').DmEnvelope }, CallMedia]
+  'call.accept': [{ callId: string }, CallMedia]
+  'call.decline': [{ callId: string; reason?: 'declined' | 'busy' }, Record<string, never>]
+  'call.end': [{ callId: string }, Record<string, never>]
+  'call.pending': [Record<string, never>, { calls: CallRing[] }]
+}
+
+// ── calls ──
+export interface WireCall {
+  id: string
+  from: string
+  to: string
+  video: boolean
+  state: 'ringing' | 'active'
+  createdAt: number
+}
+
+export type CallEndReason = 'ended' | 'cancelled' | 'declined' | 'busy' | 'no_answer'
+
+/** The callee's ring: the call plus the caller's encrypted invite (which carries the media key). */
+export interface CallRing {
+  call: WireCall
+  envelope: import('./dm').DmEnvelope
+}
+
+export interface CallMedia {
+  call: WireCall
+  url: string
+  token: string
+  room: string
 }
 
 // ── push ──
@@ -155,7 +189,7 @@ export interface PushSubscriptionBody {
 
 export type ErrorCode =
   | 'bad_request' | 'forbidden' | 'not_found' | 'rate_limited' | 'unknown_type' | 'internal'
-  | 'auth_failed' | 'invite_required' | 'banned' | 'voice_unavailable'
+  | 'auth_failed' | 'invite_required' | 'banned' | 'voice_unavailable' | 'busy'
 
 export class RequestError extends Error {
   readonly code: ErrorCode | 'disconnected' | 'timeout'
@@ -171,3 +205,119 @@ export const CloseCodes = {
   Forbidden: 4403,
   TooLarge: 4413,
 } as const
+
+// ── bots and webhooks ──
+// Declaration merging adds fields to the types above. See "Bots and webhooks" in PROTOCOL.md.
+
+export interface Member {
+  /** A bot account (set by the server when it joined with a bot invite). */
+  bot?: boolean
+}
+
+export interface Message {
+  /** Set when a webhook posted this message (author is then "webhook:<id>"). */
+  webhook?: WebhookPost | null
+}
+
+/** A Discord-style embed, text only. */
+export interface Embed {
+  title?: string
+  description?: string
+  url?: string
+  color?: number
+  timestamp?: number
+  author?: { name: string; url?: string }
+  footer?: { text: string }
+  fields?: { name: string; value: string; inline: boolean }[]
+}
+
+export interface WebhookPost {
+  id: string
+  name: string
+  avatar: FileInfo | null
+  embeds: Embed[]
+}
+
+export interface Webhook {
+  id: string
+  channelId: number
+  name: string
+  avatar: FileInfo | null
+  mentions: boolean
+  createdBy: string
+  createdAt: number
+  lastUsedAt: number | null
+}
+
+export interface Requests {
+  'bot.invite': [{ role?: Role; expiresInMs?: number }, { invite: Invite }]
+  'webhook.list': [{ channelId?: number }, { webhooks: Webhook[] }]
+  'webhook.create': [{ channelId: number; name: string; avatar?: string; mentions?: boolean }, { webhook: Webhook; secret: string; path: string }]
+  'webhook.update': [{ id: string; name?: string; avatar?: string; mentions?: boolean; channelId?: number }, { webhook: Webhook }]
+  'webhook.regenerate': [{ id: string }, { webhook: Webhook; secret: string; path: string }]
+  'webhook.delete': [{ id: string }, Record<string, never>]
+}
+
+// ── polls, custom emoji, soundboard ──
+// (Declaration merging adds the new fields, events and requests to the interfaces above.)
+
+export interface PollOption {
+  text: string
+  /** accountKeys, in the order they voted. */
+  votes: string[]
+}
+
+export interface Poll {
+  question: string
+  options: PollOption[]
+  multi: boolean
+  expiresAt: number | null
+  closedAt: number | null
+}
+
+export interface Message {
+  /** Present on poll messages (the message text is the question). */
+  poll?: Poll | null
+}
+
+/** A server emoji. Written in messages and reactions as <:name:id>. */
+export interface CustomEmoji {
+  id: string
+  name: string
+  /** Relative to the server's URL. */
+  url: string | null
+  animated: boolean
+  createdBy: string
+}
+
+export interface Sound {
+  id: string
+  name: string
+  emoji: string | null
+  /** Relative to the server's URL. */
+  url: string | null
+  durationMs: number
+  createdBy: string
+}
+
+export interface Events {
+  'poll.updated': { id: number; channelId: number; poll: Poll }
+  'emoji.updated': { emojis: CustomEmoji[] }
+  'sounds.updated': { sounds: Sound[] }
+  'sound.played': { channelId: number; accountKey: string; sound: Sound }
+}
+
+export interface Requests {
+  'poll.create': [{ channelId: number; question: string; options: string[]; multi?: boolean; durationMs?: number }, { message: Message }]
+  'poll.vote': [{ id: number; options: number[] }, Record<string, never>]
+  'poll.end': [{ id: number }, Record<string, never>]
+  'emoji.list': [Record<string, never>, { emojis: CustomEmoji[] }]
+  'emoji.create': [{ name: string; fileId: string }, { emoji: CustomEmoji }]
+  'emoji.rename': [{ id: string; name: string }, { emoji: CustomEmoji }]
+  'emoji.delete': [{ id: string }, Record<string, never>]
+  'sound.list': [Record<string, never>, { sounds: Sound[] }]
+  'sound.create': [{ name: string; emoji?: string | null; fileId: string }, { sound: Sound }]
+  'sound.update': [{ id: string; name: string; emoji?: string | null }, { sound: Sound }]
+  'sound.delete': [{ id: string }, Record<string, never>]
+  'sound.play': [{ id: string }, Record<string, never>]
+}

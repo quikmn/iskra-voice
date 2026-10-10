@@ -1,18 +1,22 @@
 // Chat formatting, Discord-style, rendered straight to React elements (never to an HTML string).
 // Supported: ```code blocks```, `code`, **bold**, *italic* / _italic_, ~~strike~~, ||spoiler||,
-// > quotes, links, and mentions written as <@accountKey> (shown as @name).
+// > quotes, links, mentions written as <@accountKey> (shown as @name) and server emoji written as <:name:id>.
 import { Fragment, type ReactNode } from 'react'
 import { Spoiler } from './bits'
+import { CUSTOM_EMOJI_SOURCE, isEmojiOnly } from './expressions/emoji'
 
 export interface MarkdownContext {
   /** Display name for a mentioned account, or null if unknown. */
   nameOf: (accountKey: string) => string | null
   /** The viewer's account, so mentions of them stand out. */
   me?: string
+  /** Image URL of a server emoji by id, or null if it isn't (or is no longer) on the server. */
+  emoji?: (id: string) => string | null
 }
 
 const URL_PATTERN = /https?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]]/y
 const MENTION_PATTERN = /<@([A-Za-z0-9_-]{43})>/y
+const EMOJI_PATTERN = new RegExp(CUSTOM_EMOJI_SOURCE, 'y')
 
 /** Inline rules in priority order: the first one that matches at a position wins. */
 const INLINE: { open: string; close: string; render: (children: ReactNode, key: number) => ReactNode; raw?: boolean; wordEdges?: boolean }[] = [
@@ -59,6 +63,20 @@ function inline(text: string, ctx: MarkdownContext, depth = 0): ReactNode[] {
         <span key={key++} className={`mention ${mention[1] === ctx.me ? 'me' : ''}`}>@{name ?? 'unknown'}</span>,
       )
       i += mention[0].length
+      continue
+    }
+
+    EMOJI_PATTERN.lastIndex = i
+    const emoji = EMOJI_PATTERN.exec(text)
+    if (emoji) {
+      flush()
+      const url = ctx.emoji?.(emoji[2])
+      out.push(
+        url
+          ? <img key={key++} className="custom-emoji" src={url} alt={`:${emoji[1]}:`} title={`:${emoji[1]}:`} draggable={false} />
+          : <span key={key++} className="custom-emoji-missing">:{emoji[1]}:</span>,
+      )
+      i += emoji[0].length
       continue
     }
 
@@ -127,12 +145,14 @@ export function renderMarkdown(text: string, ctx: MarkdownContext): ReactNode {
     })
     flushQuote(`q${index}-end`)
   })
-  return <>{blocks}</>
+  return isEmojiOnly(text) ? <span className="jumbo">{blocks}</span> : <>{blocks}</>
 }
 
 /** Plain text of a message for previews and notifications (mentions become @names, markers stay). */
 export function plainText(text: string, ctx: MarkdownContext): string {
-  return text.replace(/<@([A-Za-z0-9_-]{43})>/g, (_, key: string) => `@${ctx.nameOf(key) ?? 'unknown'}`)
+  return text
+    .replace(/<@([A-Za-z0-9_-]{43})>/g, (_, key: string) => `@${ctx.nameOf(key) ?? 'unknown'}`)
+    .replace(new RegExp(CUSTOM_EMOJI_SOURCE, 'g'), (_, name: string) => `:${name}:`)
 }
 
 /** Turns "@Name" into mention tokens for members with that exact name (longest names first). */

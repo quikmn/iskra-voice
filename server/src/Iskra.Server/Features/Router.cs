@@ -25,6 +25,12 @@ public sealed class Router
         VoiceFeature.Register(this);
         DmFeature.Register(this);
         PreviewFeature.Register(this);
+        CallFeature.Register(this);
+        BotFeature.Register(this);
+        WebhookFeature.Register(this);
+        PollFeature.Register(this);
+        EmojiFeature.Register(this);
+        SoundboardFeature.Register(this);
         PushFeature.Register(this);
     }
 

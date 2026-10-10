@@ -20,8 +20,9 @@ public sealed class VoiceRegistry
     private readonly IVoiceBackend backend;
     private readonly ILogger<VoiceRegistry> log;
 
-    public VoiceRegistry(World world, Hub hub, IVoiceBackend backend, ILogger<VoiceRegistry> log)
+    public VoiceRegistry(World world, Hub hub, IVoiceBackend backend, CallRegistry calls, ILogger<VoiceRegistry> log)
     {
+        Calls = calls;
         this.world = world;
         this.hub = hub;
         this.backend = backend;
@@ -34,6 +35,9 @@ public sealed class VoiceRegistry
     }
 
     public IVoiceBackend Backend => backend;
+
+    /// <summary>DM calls (rooms named call-…), next to the voice channels.</summary>
+    public CallRegistry Calls { get; }
 
     public static string RoomName(long channelId) => $"voice-{channelId}";
 
@@ -88,6 +92,7 @@ public sealed class VoiceRegistry
     /// <summary>After a kick, ban, role change or channel change: drop anyone from rooms they can no longer read.</summary>
     public void EnforceAccess()
     {
+        Calls.EnforceAccess();
         foreach (var (channelId, room) in _rooms)
         {
             var channel = world.Store.GetChannel(channelId);
@@ -114,8 +119,13 @@ public sealed class VoiceRegistry
     {
         var type = evt.TryGetProperty("event", out var e) ? e.GetString() : null;
         var room = evt.TryGetProperty("room", out var r) && r.TryGetProperty("name", out var n) ? n.GetString() : null;
-        if (ChannelOf(room) is not { } channelId) return;
         var identity = evt.TryGetProperty("participant", out var p) && p.TryGetProperty("identity", out var i) ? i.GetString() : null;
+        if (CallRegistry.IsCallRoom(room))
+        {
+            Calls.HandleWebhook(type, room!, identity);
+            return;
+        }
+        if (ChannelOf(room) is not { } channelId) return;
 
         switch (type)
         {

@@ -104,7 +104,7 @@ onServerEvent((serverKey, type, body) => {
     const viewing = document.hasFocus() && state.activeServer === serverKey && activeChannelId(state) === message.channelId
     if (viewing) return
     const channel = server.channels.find((c) => c.id === message.channelId)
-    const author = server.members[message.author]?.name ?? 'Someone'
+    const author = message.webhook?.name ?? server.members[message.author]?.name ?? 'Someone'
     show(serverKey, `${author} in #${channel?.name ?? 'chat'}`, plainText(message.text, { nameOf: (k) => server.members[k]?.name ?? null }), () => {
       void import('./store').then(({ selectServer, selectChannel }) => {
         selectServer(serverKey)

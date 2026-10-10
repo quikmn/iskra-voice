@@ -24,6 +24,8 @@ export interface DesktopBridge {
   onPushToTalk(callback: (down: boolean) => void): () => void
   onPickScreen(callback: (sources: ScreenSource[]) => void): () => void
   pickScreen(id: string | null): void
+  /** An incoming call: flash the taskbar and bring the window up (without stealing focus). */
+  callAlert?(on: boolean): Promise<void>
   host: {
     available(): Promise<boolean>
     list(): Promise<HostedServer[]>
