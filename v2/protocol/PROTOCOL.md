@@ -233,3 +233,11 @@ Device certificates are stored when a device authenticates, so the server can pu
 - File: `{ id, name, size, type, width?, height?, url: "/files/<id>/<name>" }`. `type` comes from the file's first bytes, never the name: PNG, JPEG, GIF, WebP, MP4, WebM, Ogg and MP3 are served inline, anything else as a download. Every file response has `nosniff` and a sandboxing CSP. Identical content is stored once (`uploads/ab/<sha256>`).
 - Message gains `attachments: [File]`, `replyTo: { id, author, text, hasAttachments } | { id, deleted: true } | null` and `reactions: [{ emoji, accounts: [accountKey] }]`.
 - Event `chat.reactions` `{ id, channelId, reactions }` to channel readers.
+
+## Link previews
+
+| type | body | result |
+|---|---|---|
+| `link.preview` | `url` (http/https, no credentials) | `{ preview: { url, siteName, title, description } \| null }` |
+
+The server fetches the page (so viewers' IPs aren't sent to every site): ≤ 512 KB of HTML, 6 s, ≤ 3 redirects, cached for an hour. It only connects to public addresses: each connection's IP is checked after DNS resolution, so private ranges, loopback, link-local/cloud metadata and redirects into them are refused. No images are fetched or shown. Runs off the read loop; rate-limited to 1/s (burst 10).

@@ -20,6 +20,7 @@ builder.Services.AddSingleton<IVoiceBackend>(sp => sp.GetRequiredService<LiveKit
 builder.Services.AddHostedService(sp => sp.GetRequiredService<LiveKitHost>());
 builder.Services.AddSingleton<VoiceRegistry>();
 builder.Services.AddSingleton<Uploads>();
+builder.Services.AddSingleton<LinkPreviews>();
 builder.Services.AddReverseProxy().LoadFromMemory(
 [
     new Yarp.ReverseProxy.Configuration.RouteConfig
@@ -141,8 +142,8 @@ app.MapMethods("/upload/{token}", ["OPTIONS"], (HttpContext context) =>
 });
 app.MapGet("/files/{id}/{**name}", (HttpContext context, string id, Uploads uploads) => uploads.Serve(context, id));
 
-app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice, Uploads uploads, Router router, IOptions<SessionLimits> limits,
-    ILogger<Session> log, TimeProvider time) =>
+app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice, Uploads uploads, LinkPreviews previews, Router router,
+    IOptions<SessionLimits> limits, ILogger<Session> log, TimeProvider time) =>
 {
     if (!context.WebSockets.IsWebSocketRequest)
     {
@@ -150,7 +151,7 @@ app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice
         return;
     }
     using var socket = await context.WebSockets.AcceptWebSocketAsync();
-    await new Session(socket, w, hub, voice, uploads, router, limits.Value, log, time).RunAsync(context.RequestAborted);
+    await new Session(socket, w, hub, voice, uploads, previews, router, limits.Value, log, time).RunAsync(context.RequestAborted);
 });
 
 // Voice signaling (LiveKit's WebSocket and HTTP) on the same port as everything else.

@@ -17,3 +17,9 @@ export function formatSize(bytes: number): string {
 }
 
 export const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '🎉', '👀', '✅', '❌', '💯', '🙏', '😎', '🤔', '👋', 'GG']
+
+/** The first link in a message, outside code. */
+export function firstLink(text: string): string | null {
+  const withoutCode = text.replace(/```[\s\S]*?```/g, '').replace(/`[^`]*`/g, '')
+  return /https?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]]/.exec(withoutCode)?.[0] ?? null
+}

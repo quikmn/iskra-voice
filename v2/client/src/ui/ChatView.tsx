@@ -4,8 +4,8 @@ import {
   activeChannelId, connectionFor, discardFailed, loadHistory, notifyTyping, retryFailed, sendMessage, uploadFile, useApp,
   type PendingMessage, type ServerState,
 } from '../state/store'
-import { Attachments, Reactions, ReactionPicker, ReplyLine } from './chat/MessageExtras'
-import { formatSize, replyKey, setReply, useReply } from './chat/helpers'
+import { Attachments, LinkPreviewCard, Reactions, ReactionPicker, ReplyLine } from './chat/MessageExtras'
+import { firstLink, formatSize, replyKey, setReply, useReply } from './chat/helpers'
 import { Avatar, Spinner } from './bits'
 import { decodeMentions, encodeMentions, renderMarkdown } from './markdown'
 import { fullTime, hueFor, messageTime } from './format'
@@ -225,6 +225,7 @@ function MessageRow({
           )
         )}
         <Attachments server={server} files={message.attachments} />
+        {!message.tempId && firstLink(message.text) && <LinkPreviewCard server={server} url={firstLink(message.text)!} />}
         <Reactions server={server} message={message} />
         {message.pending === 'failed' && (
           <div className="message-failed">

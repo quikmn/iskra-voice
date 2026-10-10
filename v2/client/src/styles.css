@@ -435,6 +435,16 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 }
 .mention-popup button.active, .mention-popup button:hover { background: var(--surface-3); }
 
+/* ── Link previews ────────────────────────────────────────────────── */
+.link-preview {
+  margin-top: 6px; max-width: 440px; padding: 10px 12px; border-left: 4px solid var(--accent); border-radius: 6px; background: var(--surface-2);
+  display: grid; gap: 4px;
+}
+.link-site { font-size: 12px; color: var(--muted); }
+.link-title { font-weight: 600; color: var(--accent-2); text-decoration: none; }
+.link-title:hover { text-decoration: underline; }
+.link-description { font-size: 13px; color: var(--text-2); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
 /* ── Members ────────────────────────────────────────────────────────── */
 .member-list { padding: 14px 8px; }
 .member-list h3 { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); margin: 12px 8px 6px; }

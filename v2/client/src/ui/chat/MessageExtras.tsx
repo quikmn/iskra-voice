@@ -1,8 +1,8 @@
 // Everything around a message's text: attachments, the message it replies to, reactions.
-import { useState } from 'react'
-import type { FileInfo, Message, ReplyPreview } from '../../core/protocol'
+import { useEffect, useState } from 'react'
+import type { FileInfo, LinkPreview, Message, ReplyPreview } from '../../core/protocol'
 import { formatSize, QUICK_REACTIONS } from './helpers'
-import { fileUrl, toggleReaction, type ServerState } from '../../state/store'
+import { connectionFor, fileUrl, toggleReaction, type ServerState } from '../../state/store'
 import { Modal } from '../bits'
 
 const MAX_W = 420
@@ -111,6 +111,36 @@ export function ReactionPicker({ server, message, onClose }: { server: ServerSta
           {emoji}
         </button>
       ))}
+    </div>
+  )
+}
+
+const previewCache = new Map<string, Promise<LinkPreview | null>>()
+
+export function LinkPreviewCard({ server, url }: { server: ServerState; url: string }) {
+  const [preview, setPreview] = useState<LinkPreview | null>(null)
+  useEffect(() => {
+    const key = `${server.key}:${url}`
+    let promise = previewCache.get(key)
+    if (!promise) {
+      promise = connectionFor(server.key)?.request('link.preview', { url }).then((r) => r.preview).catch(() => null) ?? Promise.resolve(null)
+      previewCache.set(key, promise)
+    }
+    let alive = true
+    void promise.then((p) => alive && setPreview(p))
+    return () => {
+      alive = false
+    }
+  }, [server.key, url])
+
+  if (!preview || (!preview.title && !preview.description)) return null
+  return (
+    <div className="link-preview">
+      {preview.siteName && <div className="link-site">{preview.siteName}</div>}
+      {preview.title && (
+        <a className="link-title" href={url} target="_blank" rel="noopener noreferrer">{preview.title}</a>
+      )}
+      {preview.description && <div className="link-description">{preview.description}</div>}
     </div>
   )
 }

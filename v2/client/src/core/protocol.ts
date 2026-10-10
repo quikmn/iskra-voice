@@ -35,6 +35,13 @@ export type ReplyPreview =
   | { id: number; author: string; text: string; hasAttachments: boolean; deleted?: undefined }
   | { id: number; deleted: true }
 
+export interface LinkPreview {
+  url: string
+  siteName: string | null
+  title: string | null
+  description: string | null
+}
+
 export interface Reaction {
   emoji: string
   accounts: string[]
@@ -113,6 +120,7 @@ export interface Requests {
   'chat.send': [{ channelId: number; text: string; attachments?: string[]; replyTo?: number }, { message: Message }]
   'chat.react': [{ id: number; emoji: string; on: boolean }, Record<string, never>]
   'upload.begin': [{ name: string; size: number }, { url: string; maxBytes: number }]
+  'link.preview': [{ url: string }, { preview: LinkPreview | null }]
   'chat.edit': [{ id: number; text: string }, { message: Message }]
   'chat.delete': [{ id: number }, Record<string, never>]
   'chat.history': [{ channelId: number; before?: number; after?: number; limit?: number }, { messages: Message[]; hasMore: boolean }]

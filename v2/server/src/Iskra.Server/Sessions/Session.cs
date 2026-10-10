@@ -35,6 +35,7 @@ public sealed class Session
     private readonly Hub _hub;
     private readonly VoiceRegistry _voice;
     private readonly Uploads _uploads;
+    private readonly LinkPreviews _previews;
     private readonly Router _router;
     private readonly SessionLimits _limits;
     private readonly ILogger _log;
@@ -56,12 +57,15 @@ public sealed class Session
     public Hub Hub => _hub;
     public VoiceRegistry Voice => _voice;
     public Uploads Uploads => _uploads;
+    public LinkPreviews Previews => _previews;
     public TimeProvider Time => _time;
     public long Now => _time.GetUtcNow().ToUnixTimeMilliseconds();
 
-    public Session(WebSocket ws, World world, Hub hub, VoiceRegistry voice, Uploads uploads, Router router, SessionLimits limits, ILogger log, TimeProvider time)
+    public Session(WebSocket ws, World world, Hub hub, VoiceRegistry voice, Uploads uploads, LinkPreviews previews, Router router,
+        SessionLimits limits, ILogger log, TimeProvider time)
     {
         _uploads = uploads;
+        _previews = previews;
         _ws = ws;
         _world = world;
         _hub = hub;
