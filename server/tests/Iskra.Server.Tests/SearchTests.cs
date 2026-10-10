@@ -207,4 +207,31 @@ public class SearchTests
         Assert.Equal([(0, 5), (10, 3)], Store.MatchRanges("\u0001hello\u0002 big \u0001cat\u0002"));
         Assert.Empty(Store.MatchRanges("no markers"));
     }
+
+    [Fact]
+    public async Task Totals_stop_counting_at_a_thousand()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        for (var i = 0; i < Store.MaxCountedTotal + 5; i++) Post(server, alice.Key, $"plan number {i}");
+        var result = await Search(alice, new { query = "plan", limit = 5 });
+        Assert.Equal(Store.MaxCountedTotal, result.GetProperty("total").GetInt32());
+        Assert.True(result.GetProperty("totalCapped").GetBoolean());
+        Assert.Equal(5, Texts(result).Count);
+
+        var few = await Search(alice, new { query = "number 7" });
+        Assert.False(few.GetProperty("totalCapped").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Many_readable_channels_are_searched_in_one_go()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        // More channels than SQLite would take as separate parameters in older builds (999).
+        for (var i = 0; i < 1200; i++) server.World.Store.CreateChannel($"c{i}", "text", "member", "member", i + 10);
+        var last = server.World.Store.AllChannels().Last().Id;
+        Post(server, alice.Key, "needle in the last channel", last);
+        Assert.Equal(["needle in the last channel"], Texts(await Search(alice, new { query = "needle" })));
+    }
 }

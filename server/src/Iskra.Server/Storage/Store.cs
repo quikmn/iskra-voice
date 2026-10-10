@@ -302,5 +302,9 @@ public sealed partial class Store : IDisposable
     private static long? NullableLong(SqliteDataReader r, int i) => r.IsDBNull(i) ? null : r.GetInt64(i);
     private static int? NullableInt(SqliteDataReader r, int i) => r.IsDBNull(i) ? null : r.GetInt32(i);
 
-    public void Dispose() => _db.Dispose();
+    public void Dispose()
+    {
+        lock (_readerGate) _reader?.Dispose();
+        _db.Dispose();
+    }
 }

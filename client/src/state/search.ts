@@ -13,12 +13,17 @@ interface SearchState {
   searched: string
   results: SearchResult[]
   total: number
+  /** More matched than the server counts (total is then the cap). */
+  totalCapped: boolean
   hasMore: boolean
   loading: boolean
   error: string | null
 }
 
-const initial = { text: '', searched: '', results: [], total: 0, hasMore: false, loading: false, error: null }
+const initial = { text: '', searched: '', results: [], total: 0, totalCapped: false, hasMore: false, loading: false, error: null }
+
+/** "1 result", "12 results", "1000+ results". */
+export const resultCount = (total: number, capped: boolean) => `${total}${capped ? '+' : ''} ${total === 1 && !capped ? 'result' : 'results'}`
 
 export const useSearch = create<SearchState>(() => ({ key: null, ...initial }))
 
@@ -61,6 +66,7 @@ export async function runSearch(key: string, more = false): Promise<void> {
     useSearch.setState((s) => ({
       results: more ? [...s.results, ...reply.results] : reply.results,
       total: reply.total,
+      totalCapped: !!reply.totalCapped,
       hasMore: reply.hasMore,
       loading: false,
     }))

@@ -1,7 +1,7 @@
 // Search results beside the chat (full screen on phones). Matches are highlighted with React elements.
 import type { SearchResult } from '../../core/protocol'
 import type { ServerState } from '../../state/store'
-import { closeSearch, runSearch, setSearchText, useSearch } from '../../state/search'
+import { closeSearch, resultCount, runSearch, setSearchText, useSearch } from '../../state/search'
 import { conversationLabel } from '../../state/threads'
 import { jumpToMessage } from '../../state/jump'
 import { Avatar, Spinner } from '../bits'
@@ -22,7 +22,7 @@ const HINTS: [string, string][] = [
 const isPhone = () => window.matchMedia('(max-width: 760px)').matches
 
 export function SearchPanel({ server }: { server: ServerState }) {
-  const { text, searched, results, total, hasMore, loading, error } = useSearch()
+  const { text, searched, results, total, totalCapped, hasMore, loading, error } = useSearch()
 
   function addFilter(filter: string) {
     const next = `${text.trim()} ${filter}`.trimStart()
@@ -48,7 +48,7 @@ export function SearchPanel({ server }: { server: ServerState }) {
           />
         </label>
         <div className="panel-title desktop-title">
-          <h2>{searched ? (loading && results.length === 0 ? 'Searching…' : `${total} ${total === 1 ? 'result' : 'results'}`) : 'Search'}</h2>
+          <h2>{searched ? (loading && results.length === 0 ? 'Searching…' : resultCount(total, totalCapped)) : 'Search'}</h2>
         </div>
         <span className="spacer" />
         <button className="icon-button panel-close" onClick={closeSearch} aria-label="Close search" title="Close"><Close /></button>
@@ -74,7 +74,7 @@ export function SearchPanel({ server }: { server: ServerState }) {
             <p className="muted">Try fewer words, or check the filters.</p>
           </div>
         )}
-        {results.length > 0 && <p className="search-note muted mobile-count">{total} {total === 1 ? 'result' : 'results'}</p>}
+        {results.length > 0 && <p className="search-note muted mobile-count">{resultCount(total, totalCapped)}</p>}
         <ul className="result-list">
           {results.map((result) => <ResultCard key={result.message.id} server={server} result={result} />)}
         </ul>

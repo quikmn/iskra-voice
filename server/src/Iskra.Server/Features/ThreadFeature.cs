@@ -75,6 +75,7 @@ public static class ThreadFeature
         if (s.World.Store.ThreadForRoot(root.Id) is not null) throw RequestException.BadRequest("That message already has a thread.");
         if (s.World.Store.ThreadCount(channel.Id) >= MaxThreadsPerChannel)
             throw RequestException.BadRequest("This channel has too many threads. Delete some old ones first.");
+        if (!s.Hub.Limits.TryTake(me.AccountKey, "thread.create")) throw new RequestException("rate_limited", "Too many new threads. Try again in a minute.");
 
         var thread = s.World.Store.CreateThread(channel, root.Id, name, me.AccountKey, s.Now);
         Broadcast(s, thread);

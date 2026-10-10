@@ -420,12 +420,13 @@ Each server sends Web Push messages to its members' devices that aren't looking 
 
 | type | body | result | who |
 |---|---|---|---|
-| `search` | `query?` (≤ 200 chars, ≤ 10 words), `channelId?`, `author?` (accountKey), `has?: ["file" \| "link"]`, `before?`, `after?` (ms, on `createdAt`), `cursor?` (message id), `limit?` (1–50, default 25) | `{ results: [{ message, matches: [[start, length]...] }], total, hasMore, threads: [Thread] }` | anyone |
+| `search` | `query?` (≤ 200 chars, ≤ 10 words), `channelId?`, `author?` (accountKey), `has?: ["file" \| "link"]`, `before?`, `after?` (ms, on `createdAt`), `cursor?` (message id), `limit?` (1–50, default 25) | `{ results: [{ message, matches: [[start, length]...] }], total, totalCapped, hasMore, threads: [Thread] }` | anyone |
 
 - Searches only channels and threads the requester can read at that moment; `channelId` (which includes its threads) must be one of them, else `not_found`.
 - Each word is matched as a word prefix, case- and accent-insensitive (SQLite FTS5, `unicode61 remove_diacritics 2`); search operators in the query are treated as plain text. At least one of `query`, `author`, `has`, `before`, `after` is required.
 - Results are newest first. `matches` are UTF-16 offsets into `message.text`, so clients highlight without parsing HTML. `cursor` = the last result's id for the next page. `threads` describes any threads the results come from.
-- Rate limit: 2/s (burst 10).
+- `total` counts matches up to 1000; `totalCapped: true` means there are more (show "1000+").
+- Rate limit: 2/s (burst 10). Searches run on a separate read-only database connection, so they never hold up writes.
 
 ### Threads
 
@@ -437,7 +438,7 @@ Thread { "id": 9, "channelId": 1, "rootId": 42, "name": "Game night", "createdBy
 
 | type | body | result | who |
 |---|---|---|---|
-| `thread.create` | `messageId, name` (1–100 chars) | `{ thread }` | writers of the message's channel; one thread per message; not inside threads; ≤ 1000 per channel |
+| `thread.create` | `messageId, name` (1–100 chars) | `{ thread }` | writers of the message's channel; one thread per message; not inside threads; ≤ 1000 per channel; 5 a minute per account (`rate_limited`) |
 | `thread.get` | `id` | `{ thread, root: Message \| null }` | readers |
 | `thread.list` | `channelId, limit? (1–100)` | `{ threads }` (most recently active first) | readers |
 | `thread.update` | `id, name` | `{ thread }` | whoever started it, or an admin who outranks them |

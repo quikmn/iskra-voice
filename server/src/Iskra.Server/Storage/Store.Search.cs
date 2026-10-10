@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.Data.Sqlite;
 
 namespace Iskra.Server.Storage;
 
@@ -35,19 +36,45 @@ public sealed partial class Store
     private const char MatchStart = '\u0001';
     private const char MatchEnd = '\u0002';
 
-    /// <summary>Newest first. Also returns how many messages match in total.</summary>
+    /// <summary>Totals are counted up to this many; beyond it a search reports "1000+".</summary>
+    public const int MaxCountedTotal = 1000;
+
+    // Searches run on their own read-only connection: in WAL mode it reads the last committed state without
+    // waiting for the writer, so a slow search never holds up everyone else's messages.
+    private SqliteConnection? _reader;
+    private readonly Lock _readerGate = new();
+
+    private SqliteConnection Reader()
+    {
+        if (_reader is not null) return _reader;
+        var reader = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = _db.DataSource, Mode = SqliteOpenMode.ReadOnly, Pooling = false,
+        }.ToString());
+        reader.Open();
+        return _reader = reader;
+    }
+
+    private List<T> ReadQuery<T>(string sql, Func<SqliteDataReader, T> map, (string Name, object? Value)[] args)
+    {
+        using var cmd = Reader().CreateCommand();
+        cmd.CommandText = sql;
+        foreach (var (name, value) in args) cmd.Parameters.AddWithValue(name, value ?? DBNull.Value);
+        using var reader = cmd.ExecuteReader();
+        var rows = new List<T>();
+        while (reader.Read()) rows.Add(map(reader));
+        return rows;
+    }
+
+    /// <summary>Newest first. Also returns how many messages match in total, counted up to <see cref="MaxCountedTotal"/> + 1.</summary>
     public (List<SearchHit> Hits, int Total) Search(SearchQuery q)
     {
         if (q.ChannelIds.Count == 0) return ([], 0);
 
-        var args = new List<(string, object?)>();
+        // The readable channels go in as one JSON array, however many there are.
+        var args = new List<(string, object?)> { ("$channels", System.Text.Json.JsonSerializer.Serialize(q.ChannelIds)) };
         var where = new StringBuilder();
-        var channels = string.Join(", ", q.ChannelIds.Select((id, i) =>
-        {
-            args.Add(($"$c{i}", id));
-            return $"$c{i}";
-        }));
-        where.Append($"m.channel_id IN ({channels})");
+        where.Append("m.channel_id IN (SELECT value FROM json_each($channels))");
         if (q.Author is not null)
         {
             where.Append(" AND m.author_key = $author");
@@ -92,10 +119,11 @@ public sealed partial class Store
         }
         args.Add(("$limit", q.Limit));
 
-        lock (_gate)
+        lock (_readerGate)
         {
-            var total = Convert.ToInt32(Scalar($"SELECT COUNT(*) FROM {from} WHERE {where};", countArgs));
-            var hits = Query($"SELECT {PrefixedMessageColumns}, {highlight} FROM {from} WHERE {where}{cursorClause} ORDER BY m.id DESC LIMIT $limit;",
+            var total = ReadQuery($"SELECT COUNT(*) FROM (SELECT 1 FROM {from} WHERE {where} LIMIT {MaxCountedTotal + 1});",
+                r => r.GetInt32(0), countArgs).Single();
+            var hits = ReadQuery($"SELECT {PrefixedMessageColumns}, {highlight} FROM {from} WHERE {where}{cursorClause} ORDER BY m.id DESC LIMIT $limit;",
                 r => new SearchHit(ReadMessage(r), r.IsDBNull(8) ? [] : MatchRanges(r.GetString(8))), args.ToArray());
             return (hits, total);
         }
