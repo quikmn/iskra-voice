@@ -2,8 +2,12 @@ import { useEffect } from 'react'
 import { parseInvite } from './core/invite'
 import { boot, retryAll, useApp } from './state/store'
 import { loadFriends } from './state/dms'
+import { useDevices } from './state/devices'
+import { usePendingLink } from './state/link'
+import { AlreadySignedInNotice, RevokedScreen } from './ui/DeviceNotices'
 import { startPushToTalk } from './state/voice'
 import { startTitleBadge } from './state/notify'
+import { startPush } from './state/push'
 import { ScreenPicker } from './ui/ScreenPicker'
 import { Spinner } from './ui/bits'
 import { JoinPrompt } from './ui/dialogs/JoinDialog'
@@ -11,8 +15,13 @@ import { Onboarding } from './ui/Onboarding'
 import { Shell } from './ui/Shell'
 import { UpdateToast } from './ui/UpdateToast'
 
-/** Picks up "#/join/..." invite links, then clears them from the address bar. */
+/** Picks up "#/join/..." invite links and "#/link/..." device links, then clears them from the address bar. */
 function readInviteFromHash(): void {
+  if (window.location.hash.startsWith('#/link/')) {
+    usePendingLink.setState({ code: window.location.hash })
+    history.replaceState(null, '', window.location.pathname + window.location.search)
+    return
+  }
   if (!window.location.hash.startsWith('#/join/')) return
   const invite = parseInvite(window.location.hash)
   history.replaceState(null, '', window.location.pathname + window.location.search)
@@ -24,6 +33,7 @@ let booted = false
 export function App() {
   const phase = useApp((s) => s.phase)
   const pendingInvite = useApp((s) => s.pendingInvite)
+  const revoked = useDevices((s) => s.thisDeviceRevoked)
 
   useEffect(() => {
     readInviteFromHash()
@@ -35,9 +45,11 @@ export function App() {
     window.addEventListener('online', retryAll)
     const stopPtt = startPushToTalk()
     const stopTitle = startTitleBadge()
+    const stopPush = startPush()
     return () => {
       stopPtt()
       stopTitle()
+      stopPush()
       window.removeEventListener('hashchange', readInviteFromHash)
       window.removeEventListener('online', retryAll)
     }
@@ -51,9 +63,11 @@ export function App() {
     )
   }
   if (phase === 'onboarding') return <Onboarding />
+  if (revoked) return <RevokedScreen />
   return (
     <>
       <Shell />
+      <AlreadySignedInNotice />
       {pendingInvite && <JoinPrompt invite={pendingInvite} />}
       <ScreenPicker />
       <UpdateToast />

@@ -35,6 +35,10 @@ export interface ServerState {
   voiceAvailable: boolean
   /** The web app address this server's invite links should open. */
   appUrl: string | null
+  /** How friends on the internet reach this server (internet hosting), if it's open. */
+  publicUrl: string | null
+  /** Channels showing an older stretch of history after a jump; new messages wait until you return to the present. */
+  detached?: Record<number, boolean>
 }
 
 interface AppState {
@@ -78,7 +82,7 @@ const TYPING_MS = 6_000
 
 // ── Small helpers ───────────────────────────────────────────────────────────
 
-function patchServer(key: string, patch: (s: ServerState) => Partial<ServerState>): void {
+export function patchServer(key: string, patch: (s: ServerState) => Partial<ServerState>): void {
   useApp.setState((state) => {
     const server = state.servers[key]
     if (!server) return state
@@ -86,7 +90,7 @@ function patchServer(key: string, patch: (s: ServerState) => Partial<ServerState
   })
 }
 
-function upsertMessage(list: PendingMessage[] | undefined, message: PendingMessage): PendingMessage[] {
+export function upsertMessage(list: PendingMessage[] | undefined, message: PendingMessage): PendingMessage[] {
   const messages = list ?? []
   const index = messages.findIndex((m) => m.id === message.id && !m.tempId)
   if (index >= 0) return messages.map((m, i) => (i === index ? message : m))
@@ -207,7 +211,7 @@ function connectServer(url: string, key: string, name: string, invite?: string):
       ...state.servers,
       [key]: state.servers[key] ?? {
         key, url, name, status: { state: 'connecting' }, me: null, channels: [], members: {},
-        messages: {}, hasMore: {}, typing: {}, unread: {}, mentions: {}, voice: {}, voiceAvailable: false, appUrl: null,
+        messages: {}, hasMore: {}, typing: {}, unread: {}, mentions: {}, voice: {}, voiceAvailable: false, appUrl: null, publicUrl: null,
       },
     },
   }))
@@ -241,6 +245,7 @@ function onWelcome(key: string, welcome: Welcome): void {
     voice: Object.fromEntries(welcome.voice.map((v) => [v.channelId, v.participants])),
     voiceAvailable: welcome.voiceAvailable,
     appUrl: welcome.server.appUrl ?? null,
+    publicUrl: welcome.server.publicUrl ?? null,
   }))
   void persistServers()
 
@@ -285,7 +290,7 @@ function onEvent<K extends keyof Events>(key: string, type: K, body: Events[K]):
         const typing = { ...s.typing[message.channelId] }
         delete typing[message.author]
         return {
-          messages: s.messages[message.channelId]
+          messages: s.messages[message.channelId] && !s.detached?.[message.channelId]
             ? { ...s.messages, [message.channelId]: upsertMessage(s.messages[message.channelId], message) }
             : s.messages, // not loaded yet: history will fetch it
           typing: { ...s.typing, [message.channelId]: typing },
@@ -392,7 +397,8 @@ export async function loadHistory(key: string, channelId: number, older = false)
   try {
     const before = older ? existing?.find((m) => !m.tempId)?.id : undefined
     const { messages, hasMore } = await connection.request('chat.history', { channelId, before, limit: 50 })
-    patchServer(key, (s) => ({
+    // After a jump to older messages, the latest page would leave a gap: skip it.
+    patchServer(key, (s) => (!older && s.detached?.[channelId] ? {} : {
       messages: { ...s.messages, [channelId]: messages.reduce(upsertMessage, s.messages[channelId] ?? []) },
       hasMore: { ...s.hasMore, [channelId]: hasMore },
     }))

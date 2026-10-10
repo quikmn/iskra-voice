@@ -1,0 +1,77 @@
+/* ── Open to the internet ───────────────────────────────────────────── */
+.internet-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.internet-head strong { display: block; }
+.internet-summary { margin: 2px 0 0; font-size: 14px; color: var(--text-2); }
+.internet-summary.ok { color: var(--green); }
+.internet-summary.warn { color: var(--amber); }
+
+.switch {
+  flex: none;
+  position: relative;
+  width: 46px;
+  height: 26px;
+  border-radius: 13px;
+  border: 1px solid var(--border);
+  background: var(--surface-3);
+  padding: 0;
+  transition: background 0.15s;
+}
+.switch span {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--text-2);
+  transition: transform 0.15s, background 0.15s;
+}
+.switch.on { background: var(--accent-strong); }
+.switch.on span { transform: translateX(20px); background: #fff; }
+.switch:disabled { opacity: 0.55; cursor: default; }
+.switch:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+
+.checklist { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 10px; }
+.checklist .step { display: flex; gap: 10px; align-items: flex-start; }
+.checklist .step > div { min-width: 0; }
+.step-label { display: block; font-weight: 500; }
+.step.todo .step-label { color: var(--muted); }
+.step-detail { display: block; font-size: 13px; color: var(--text-2); overflow-wrap: anywhere; }
+.step-icon {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  border: 1.5px solid var(--surface-3);
+  color: var(--muted);
+}
+.step-icon.done { background: rgba(74, 222, 128, 0.15); border-color: var(--green); color: var(--green); }
+.step-icon.problem { background: rgba(251, 191, 36, 0.14); border-color: var(--amber); color: var(--amber); }
+.step-icon.working { border-color: var(--accent); }
+.step-icon.working > * { transform: scale(0.7); }
+
+.internet-callout {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.internet-callout.warn { border-color: rgba(251, 191, 36, 0.4); }
+.internet-callout p { margin: 6px 0; font-size: 14px; color: var(--text-2); }
+.forward-table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 6px 0; }
+.forward-table th { text-align: left; font-weight: 500; color: var(--muted); font-size: 12px; padding: 4px 6px; }
+.forward-table td { padding: 4px 6px; border-top: 1px solid var(--border); font-family: var(--mono); font-size: 13px; }
+.forward-table td:last-child { font-family: var(--font); color: var(--text-2); }
+
+.internet-address { margin: 14px 0 0; font-size: 14px; overflow-wrap: anywhere; }
+.internet-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 14px; font-size: 13px; }
+.internet-actions code { overflow-wrap: anywhere; }
+
+@media (max-width: 760px) {
+  .forward-table th, .forward-table td { padding: 4px 3px; }
+}

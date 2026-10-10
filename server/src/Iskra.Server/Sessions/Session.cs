@@ -50,8 +50,16 @@ public sealed class Session
     private List<string>? _early = [];
     private volatile bool _closing;
 
+    /// <summary>The scheme and host this client connected through (e.g. https://1-2-3-4.sslip.io), when known.</summary>
+    public string? Origin { get; init; }
+
     /// <summary>The authenticated account, or null before the handshake completes.</summary>
     public string? AccountKey { get; private set; }
+
+    /// <summary>The device key from the handshake's certificate (one browser or app install).</summary>
+    public string? DeviceKey { get; private set; }
+
+    public required Push.PushService Push { get; init; }
 
     public World World => _world;
     public Hub Hub => _hub;
@@ -124,13 +132,15 @@ public sealed class Session
         if (!HandleControlFrame(first)) return;
 
         var envelope = first.Kind == FrameKind.Text ? Envelope.TryParse(first.Data) : null;
-        var (member, failure) = envelope is null ? (null, AuthFailure.Invalid) : Authenticate(envelope, nonce);
+        string? deviceKey = null;
+        var (member, failure) = envelope is null ? (null, AuthFailure.Invalid) : Authenticate(envelope, nonce, out deviceKey);
         if (member is null)
         {
             var (code, message, close) = failure switch
             {
                 AuthFailure.Banned => ("banned", "You are banned from this server.", CloseCodes.Forbidden),
                 AuthFailure.InviteRequired => ("invite_required", "You need a valid invite to join this server.", CloseCodes.AuthFailed),
+                AuthFailure.DeviceRevoked => ("device_revoked", "This device was removed from its account.", CloseCodes.AuthFailed),
                 _ => ("auth_failed", "Authentication failed.", CloseCodes.AuthFailed),
             };
             SendNow(Frames.Error(envelope?.Id, code, message));
@@ -139,11 +149,12 @@ public sealed class Session
         }
 
         AccountKey = member.AccountKey;
+        DeviceKey = deviceKey;
         var cameOnline = _hub.Add(this);
         SendNow(Frames.Event("welcome", new
         {
             you = _hub.PublicMember(member),
-            server = new { name = _world.Settings.Name, key = Ed25519.ToB64u(_world.ServerPublicKey), appUrl = _world.Settings.AppUrl },
+            server = new { name = _world.Settings.Name, key = Ed25519.ToB64u(_world.ServerPublicKey), appUrl = _world.Settings.AppUrl, publicUrl = _world.InternetUrl },
             channels = _hub.VisibleChannels(member),
             members = _world.Store.AllMembers().Select(_hub.PublicMember),
             voice = _voice.Snapshot(member),
@@ -259,10 +270,11 @@ public sealed class Session
 
     // ── Auth ─────────────────────────────────────────────────────────────────
 
-    private enum AuthFailure { Invalid, Banned, InviteRequired }
+    private enum AuthFailure { Invalid, Banned, InviteRequired, DeviceRevoked }
 
-    private (Member?, AuthFailure) Authenticate(Envelope envelope, byte[] nonce)
+    private (Member?, AuthFailure) Authenticate(Envelope envelope, byte[] nonce, out string? deviceKey)
     {
+        deviceKey = null;
         if (envelope.Type != "auth" || envelope.Body.ValueKind != JsonValueKind.Object) return (null, AuthFailure.Invalid);
         var body = envelope.Body;
 
@@ -280,13 +292,17 @@ public sealed class Session
         if (cert is null) return (null, AuthFailure.Invalid);
 
         string? signature = null, name = null, invite = null;
+        var isBot = false;
         try
         {
             var fields = new Body(body);
             signature = fields.OptionalString("sig", 128);
             invite = fields.OptionalString("invite", 64);
             if (body.TryGetProperty("profile", out var profile))
+            {
                 name = Names.Normalize(new Body(profile).OptionalString("name", 256));
+                isBot = new Body(profile).OptionalBool("bot") ?? false;
+            }
         }
         catch (RequestException)
         {
@@ -298,6 +314,8 @@ public sealed class Session
         if (!Identity.VerifyAuth(cert, _world.ServerPublicKey, nonce, signature)) return (null, AuthFailure.Invalid);
 
         // Identity is proven from here on.
+        if (_world.Store.IsDeviceRevoked(cert.AccountKey, cert.DeviceKey)) return (null, AuthFailure.DeviceRevoked);
+        deviceKey = cert.DeviceKey;
         if (_world.Store.IsBanned(cert.AccountKey)) return (null, AuthFailure.Banned);
 
         var existing = _world.Store.GetMember(cert.AccountKey);
@@ -308,9 +326,10 @@ public sealed class Session
             return (existing with { Name = name }, AuthFailure.Invalid);
         }
 
-        var role = invite is null ? null : _world.Store.TryUseInvite(invite, Now);
+        var role = invite is null || !BotFeature.InviteFits(_world.Store, invite, isBot) ? null : _world.Store.TryUseInvite(invite, Now);
         if (role is null) return (null, AuthFailure.InviteRequired);
 
+        if (isBot) BotFeature.Joined(_world.Store, cert.AccountKey, invite!, Now);
         var member = _world.Store.AddMember(cert.AccountKey, name, role, Now);
         _world.Store.SaveDevice(cert, Now);
         if (role == Roles.Owner) OwnerSetup.OwnerJoined(_world);

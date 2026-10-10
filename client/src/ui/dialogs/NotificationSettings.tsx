@@ -1,3 +1,4 @@
+import { PushSettings } from './PushSettings'
 import { enableDesktopNotifications, notificationsSupported, playTone, updateNotify, useNotify } from '../../state/notify'
 
 export function NotificationSettingsSection() {
@@ -16,6 +17,7 @@ export function NotificationSettingsSection() {
         Desktop notifications for mentions and direct messages
       </label>
       {blocked && <p className="muted">Notifications are blocked in your browser settings for this site.</p>}
+      <PushSettings />
       <label className="checkbox">
         <input
           type="checkbox"

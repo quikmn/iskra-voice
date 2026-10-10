@@ -29,7 +29,9 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
     private readonly World _world;
     private readonly ILogger<LiveKitHost> _log;
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(5) };
+    private readonly Hosting.InternetHost? _internet;
     private Process? _process;
+    private volatile bool _restarting;
 
     private bool _available;
 
@@ -52,10 +54,12 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
     private VoiceSettings Settings => _world.Settings.Voice;
     private string ApiUrl => $"http://127.0.0.1:{Settings.Port}";
 
-    public LiveKitHost(World world, ILogger<LiveKitHost> log)
+    public LiveKitHost(World world, ILogger<LiveKitHost> log, Hosting.InternetHost? internet = null)
     {
         _world = world;
         _log = log;
+        _internet = internet;
+        if (internet is not null) internet.VoiceIpChanged += Restart;
         (ApiKey, ApiSecret) = LoadOrCreateKeys(world.Path);
         ClientUrl = Settings.ClientUrl?.TrimEnd('/') ?? DefaultClientUrl(world.Settings.EffectivePublicUrl);
     }
@@ -109,12 +113,30 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
         return candidates.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c) && File.Exists(c));
     }
 
+    /// <summary>Internet hosting knows the public IP from the router: advertise it, and keep the LAN address for friends at home.</summary>
+    internal static string RtcAddressYaml(System.Net.IPAddress? publicIp, string publicUrl) => publicIp is not null
+        ? $"use_external_ip: false\n  node_ip: {publicIp}\n  advertise_internal_ip: true"
+        : $"use_external_ip: {(IsLocalOnly(publicUrl) ? "false" : "true")}";
+
+    /// <summary>The public IP changed (or hosting was switched): restart LiveKit with the new address.</summary>
+    private void Restart()
+    {
+        try
+        {
+            if (_process is not { HasExited: false } process) return;
+            _log.LogInformation("Restarting voice for the new public address");
+            _restarting = true;
+            process.Kill(entireProcessTree: true);
+        }
+        catch (InvalidOperationException) { }
+    }
+
     private string ConfigYaml(int iskraPort) => $"""
         port: {Settings.Port}
         rtc:
           tcp_port: {Settings.RtcTcpPort}
           udp_port: {Settings.RtcUdpPort}
-          use_external_ip: {(IsLocalOnly(_world.Settings.EffectivePublicUrl) ? "false" : "true")}
+          {RtcAddressYaml(_internet?.VoiceIp, _world.Settings.EffectivePublicUrl)}
         keys:
           {ApiKey}: {ApiSecret}
         webhook:
@@ -159,6 +181,12 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
             }
             Available = false;
             if (stopping.IsCancellationRequested) break;
+            if (_restarting)
+            {
+                _restarting = false;
+                failures = 0;
+                continue;
+            }
 
             failures = DateTime.UtcNow - started > TimeSpan.FromMinutes(1) ? 1 : failures + 1;
             var delay = TimeSpan.FromSeconds(Math.Min(60, Math.Pow(2, failures)));
@@ -231,6 +259,7 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
 
     public override void Dispose()
     {
+        if (_internet is not null) _internet.VoiceIpChanged -= Restart;
         try
         {
             if (_process is { HasExited: false }) _process.Kill(entireProcessTree: true);

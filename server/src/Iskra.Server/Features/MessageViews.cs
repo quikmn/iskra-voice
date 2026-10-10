@@ -27,6 +27,10 @@ public static class MessageViews
             attachments = m.Attachments.Select(store.GetFile).OfType<StoredFile>().Select(Uploads.Public),
             replyTo = reply,
             reactions = Reactions(store, m.Id),
+            pinned = store.IsPinned(m.Id),
+            thread = ThreadFeature.Summary(store, m.Id),
+            webhook = WebhookFeature.MessageView(store, m),
+            poll = PollFeature.View(store, m.Id),
         };
     }
 

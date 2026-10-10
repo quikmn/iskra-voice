@@ -12,11 +12,14 @@ public sealed partial class Store
         new(r.GetInt64(0), r.GetInt64(1), r.GetString(2), r.GetString(3), r.GetInt64(4), NullableLong(r, 5),
             r.IsDBNull(6) ? [] : System.Text.Json.JsonSerializer.Deserialize<string[]>(r.GetString(6)) ?? [], NullableLong(r, 7));
 
+    /// <summary>Text and voice channels (threads live under their channel and aren't listed).</summary>
     public List<Channel> AllChannels() =>
-        Query($"SELECT {ChannelColumns} FROM channels ORDER BY position, id;", ReadChannel);
+        Query($"SELECT {ChannelColumns} FROM channels WHERE parent_id IS NULL ORDER BY position, id;", ReadChannel);
 
+    /// <summary>A channel or a thread. Threads always carry their parent channel's roles.</summary>
     public Channel? GetChannel(long id) =>
-        Query($"SELECT {ChannelColumns} FROM channels WHERE id = $id;", ReadChannel, ("$id", id)).FirstOrDefault();
+        Query($"SELECT {ThreadAwareColumns} FROM channels c LEFT JOIN channels p ON p.id = c.parent_id WHERE c.id = $id;",
+            ReadChannel, ("$id", id)).FirstOrDefault();
 
     public Channel CreateChannel(string name, string kind, string readRole, string writeRole, long now)
     {

@@ -236,6 +236,17 @@ ipcMain.handle('iskra:open-settings', (event, pane: unknown) => {
 ipcMain.handle('iskra:update-status', (event) => (fromApp(event) ? updates.current() : { state: 'none' }))
 ipcMain.handle('iskra:update-restart', (event) => fromApp(event) && updates.restart(() => (quitting = true)))
 
+// An incoming call: flash the taskbar and show the window if it's hidden in the tray, without stealing focus.
+ipcMain.handle('iskra:call-alert', (event, on: unknown) => {
+  if (!fromApp(event) || !window) return
+  if (on === true) {
+    if (!window.isVisible() || window.isMinimized()) window.showInactive()
+    if (!window.isFocused()) window.flashFrame(true)
+  } else {
+    window.flashFrame(false)
+  }
+})
+
 // Hosting servers from the app.
 ipcMain.handle('iskra:host-available', (event) => fromApp(event) && host.available())
 ipcMain.handle('iskra:host-list', (event) => (fromApp(event) ? host.list() : []))
@@ -245,6 +256,9 @@ ipcMain.handle('iskra:host-create', (event, name: unknown, appUrl: unknown) => {
 })
 ipcMain.handle('iskra:host-start', (event, id: unknown) => (fromApp(event) && typeof id === 'string' ? host.start(id) : null))
 ipcMain.handle('iskra:host-stop', (event, id: unknown) => (fromApp(event) && typeof id === 'string' ? host.stop(id) : null))
+
+// Windows shows notifications (incoming calls, messages) under this id.
+if (process.platform === 'win32') app.setAppUserModelId('foo.iskra.desktop')
 
 app.whenReady().then(() => {
   setUpSession()

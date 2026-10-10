@@ -31,7 +31,7 @@ public static class InviteFeature
         var canInvite = Roles.Rank(role) <= Roles.Rank(Roles.Member)
             ? Roles.Rank(me.Role) >= Roles.Rank(Roles.Member)
             : Permissions.CanGrant(me, role);
-        if (!canInvite) throw RequestException.Forbidden("You can't create invites for that role.");
+        if (!canInvite || s.World.Store.IsBot(me.AccountKey)) throw RequestException.Forbidden("You can't create invites for that role.");
 
         var maxUses = (int?)body.OptionalLong("maxUses", min: 1, max: 1000);
         var lifetimeMs = body.OptionalLong("expiresInMs", min: 60_000, max: (long)MaxLifetime.TotalMilliseconds)

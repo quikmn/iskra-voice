@@ -42,7 +42,7 @@ public static class ChatFeature
     private static object Send(Session s, Member me, Body body)
     {
         var channel = ReadableChannel(s, me, body.Long("channelId"));
-        if (channel.Kind != "text") throw RequestException.BadRequest("You can't send messages to that channel.");
+        if (channel.Kind is not ("text" or "thread")) throw RequestException.BadRequest("You can't send messages to that channel.");
         if (!Permissions.CanWrite(me, channel)) throw RequestException.Forbidden("You can't send messages in this channel.");
 
         // Files must be ones you uploaded yourself.
@@ -65,6 +65,8 @@ public static class ChatFeature
         var message = s.World.Store.AddMessage(channel.Id, me.AccountKey, text, s.Now, attachments, replyTo);
         var publicMessage = View(s, message);
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.message", new { message = publicMessage }));
+        ThreadFeature.Touched(s, channel);
+        s.Push.ChatMessage(channel, message);
         return new { message = publicMessage };
     }
 
@@ -73,6 +75,7 @@ public static class ChatFeature
         var message = s.World.Store.GetMessage(body.Long("id")) ?? throw RequestException.NotFound("Message");
         var channel = ReadableChannel(s, me, message.ChannelId);
         if (message.AuthorKey != me.AccountKey) throw RequestException.Forbidden("You can only edit your own messages.");
+        if (s.World.Store.GetPoll(message.Id) is not null) throw RequestException.BadRequest("Polls can't be edited.");
 
         var text = MessageText(body);
         s.World.Store.EditMessage(message.Id, text, s.Now);
@@ -90,6 +93,7 @@ public static class ChatFeature
 
         s.World.Store.DeleteMessage(message.Id);
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.deleted", new { id = message.Id, channelId = channel.Id }));
+        ThreadFeature.Touched(s, channel);
         return null;
     }
 
@@ -98,8 +102,11 @@ public static class ChatFeature
         var channel = ReadableChannel(s, me, body.Long("channelId"));
         var before = body.OptionalLong("before", min: 0);
         var after = body.OptionalLong("after", min: 0);
-        if (before is not null && after is not null) throw RequestException.BadRequest("Use 'before' or 'after', not both.");
+        var around = body.OptionalLong("around", min: 1);
+        if (new[] { before, after, around }.Count(x => x is not null) > 1)
+            throw RequestException.BadRequest("Use one of 'before', 'after' or 'around'.");
         var limit = (int)(body.OptionalLong("limit", min: 1, max: MaxHistory) ?? 50);
+        if (around is not null) return SearchFeature.Around(s, channel, around.Value, limit);
 
         var messages = s.World.Store.History(channel.Id, before, after, limit);
         return new { messages = messages.Select(m => View(s, m)), hasMore = messages.Count == limit };
@@ -109,9 +116,8 @@ public static class ChatFeature
     {
         var message = s.World.Store.GetMessage(body.Long("id")) ?? throw RequestException.NotFound("Message");
         var channel = ReadableChannel(s, me, message.ChannelId);
-        var emoji = Text.Normalize(body.String("emoji", 64), 16, allowNewlines: false)
+        var emoji = EmojiFeature.Reaction(s.World.Store, body.String("emoji", 64))
             ?? throw RequestException.BadRequest("That isn't a valid reaction.");
-        if (emoji.Any(char.IsWhiteSpace)) throw RequestException.BadRequest("That isn't a valid reaction.");
         var on = body.OptionalBool("on") ?? true;
 
         var reactions = s.World.Store.Reactions(message.Id);

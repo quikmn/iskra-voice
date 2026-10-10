@@ -28,7 +28,7 @@ function download(key: string, name: string) {
     '',
     `Account: ${name}`,
     'Anyone with this key can use your account. Keep it somewhere safe (a password manager is ideal).',
-    'To restore: open Iskra on any device, choose "I already have an account", and paste the key.',
+    'To restore: open Iskra on any device, choose "I already have Iskra", then "Use my recovery key", and paste the key.',
     ...serverLines(),
   ].join('\r\n')
   const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }))

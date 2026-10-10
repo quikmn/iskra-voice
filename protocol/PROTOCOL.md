@@ -71,6 +71,7 @@ If a check fails, the server sends `error` and closes:
 | `auth_failed` | 4401 | Bad certificate, signature or name, or timeout (same message whatever the reason) |
 | `invite_required` | 4401 | Valid identity, not a member, no usable invite |
 | `banned` | 4403 | The account is banned |
+| `device_revoked` | 4401 | Valid identity, but the account revoked this device (see "Devices") |
 
 ### Limits
 
@@ -178,7 +179,7 @@ The server stores and relays opaque envelopes between members. It knows who talk
 
 | type | body | result | who |
 |---|---|---|---|
-| `dm.devices` | `accountKey` | `{ devices: [DeviceCert...] }` (up to 20, most recently seen first) | anyone; the target must be a member (or yourself) |
+| `dm.devices` | `accountKey` | `{ devices: [DeviceCert...], prekeys: [SignedPrekey...], revoked: [Revocation...] }` (up to 20 devices, most recently seen first; revoked devices left out) | anyone; the target must be a member (or yourself) |
 | `dm.send` | `accountKey, envelope` (JSON object, ≤ 32 KB) | `{ message }` | members, to members or yourself |
 | `dm.history` | `accountKey, before?, limit? (1–100)` | `{ messages (oldest first), hasMore }` | only your own conversations |
 | `dm.conversations` | | `{ conversations: [{ accountKey, lastId, lastAt }] }` | yourself |
@@ -203,7 +204,8 @@ Device certificates are stored when a device authenticates, so the server can pu
 - Recipients: every valid device of the recipient, plus the sender's own devices (including the sending one) so history stays readable.
 - Receivers check: header from/to equal the server's routing fields; the sender certificate is valid and belongs to `header.from`; there is a slot for this device. Anything else is shown as "couldn't be read", never as text. No devices means no message; there is no plaintext fallback.
 - Safety number: `crypto_generichash(60, sort(accountA, accountB))` shown as 12 groups of 5 digits.
-- Not yet: forward secrecy (a ratchet or MLS) and DMs between people who share no server.
+- Envelope v2 (below, "Forward secrecy") is what clients send now; v1 envelopes are still accepted and decrypted.
+- Not yet: DMs between people who share no server.
 
 ## Hosting (server.json)
 
@@ -230,7 +232,7 @@ Device certificates are stored when a device authenticates, so the server can pu
 | `chat.react` | `id, emoji` (≤ 16 chars, no spaces), `on?` (default true) | | channel readers; ≤ 20 different emoji per message |
 
 - Upload: `PUT <server>/upload/<ticket>` with the raw bytes (single use, 10 minutes, must not exceed the announced size) → `{ file }`.
-- File: `{ id, name, size, type, width?, height?, url: "/files/<id>/<name>" }`. `type` comes from the file's first bytes, never the name: PNG, JPEG, GIF, WebP, MP4, WebM, Ogg and MP3 are served inline, anything else as a download. Every file response has `nosniff` and a sandboxing CSP. Identical content is stored once (`uploads/ab/<sha256>`).
+- File: `{ id, name, size, type, width?, height?, url: "/files/<id>/<name>" }`. `type` comes from the file's first bytes, never the name: PNG, JPEG, GIF, WebP, MP4, WebM, Ogg, MP3 and WAV are served inline, anything else as a download. Every file response has `nosniff` and a sandboxing CSP. Identical content is stored once (`uploads/ab/<sha256>`).
 - Message gains `attachments: [File]`, `replyTo: { id, author, text, hasAttachments } | { id, deleted: true } | null` and `reactions: [{ emoji, accounts: [accountKey] }]`.
 - Event `chat.reactions` `{ id, channelId, reactions }` to channel readers.
 
@@ -241,3 +243,323 @@ Device certificates are stored when a device authenticates, so the server can pu
 | `link.preview` | `url` (http/https, no credentials) | `{ preview: { url, siteName, title, description } \| null }` |
 
 The server fetches the page (so viewers' IPs aren't sent to every site): ≤ 512 KB of HTML, 6 s, ≤ 3 redirects, cached for an hour. It only connects to public addresses: each connection's IP is checked after DNS resolution, so private ranges, loopback, link-local/cloud metadata and redirects into them are refused. No images are fetched or shown. Runs off the read loop; rate-limited to 1/s (burst 10).
+
+## Calls (voice and video in DMs, end-to-end encrypted)
+
+A call between two members runs on a server they both belong to, through its LiveKit. The server rings, connects and hangs up; it never has the media key.
+
+| type | body | result | who |
+|---|---|---|---|
+| `call.start` | `accountKey, callId` (16 random bytes, b64u, single use), `video?` (bool), `envelope` (DM envelope, ≤ 32 KB) | `{ call, url, token, room }` | members, to another member; error `busy` if they're in another call here, `voice_unavailable` without LiveKit |
+| `call.accept` | `callId` | `{ call, url, token, room }` | the callee, while it rings |
+| `call.decline` | `callId, reason? ("declined" \| "busy")` | | the callee, while it rings |
+| `call.end` | `callId` | | either person (the caller cancels a ringing call this way) |
+| `call.pending` | | `{ calls: [{ call, envelope }] }` (calls ringing for you) | yourself |
+
+`Call { id, from, to, video, state: "ringing" | "active", createdAt }`. A call someone isn't part of is `not_found` for them, admins included.
+
+| event | body | sent to |
+|---|---|---|
+| `call.ring` | `{ call, envelope }` | every session of the callee |
+| `call.accepted` | `{ callId }` | the caller's sessions and the callee's other sessions (they stop ringing) |
+| `call.ended` | `{ callId, reason: "ended" \| "cancelled" \| "declined" \| "busy" \| "no_answer" }` | both people's sessions |
+| `call.state` | `{ callId, participants: [accountKey] }` (who is in the room, from LiveKit's webhooks) | both people's sessions |
+
+- The LiveKit room is `call-` + the first 16 bytes (hex) of `SHA-256("iskra/call-room/v1" 0x00 accountA 0x00 accountB 0x00 callId)` (accounts sorted). Tokens for it are only issued to those two accounts; anyone else LiveKit reports in a call room (or anyone in a room that is no longer a call) is removed.
+- Ringing times out after 45 s (`no_answer`). Starting a call ends any call the caller was still in. A party leaving the room ends an answered call (`ended`); the caller leaving a ringing call cancels it. Kicks, bans and LiveKit going down end calls too.
+- **Media key:** the caller makes a random 32-byte key per call and sends it in `envelope`, an ordinary DM envelope (see above) whose content is `{ "text": "…", "call": { "kind": "invite", "id": callId, "key": "<b64u 32>", "video": bool } }`. The server relays it in `call.ring` and doesn't store it. The callee checks that the envelope is from the caller, to them, for this `callId`, and recent. Both sides give the key to LiveKit's end-to-end encryption (`ExternalE2EEKeyProvider`, HKDF from the raw key; frames are AES-GCM encrypted in a worker), so the SFU only forwards ciphertext.
+- **Call log:** when a call ends, the caller's app sends a normal DM whose content is `{ "text": "<fallback>", "call": { "kind": "log", "id", "video", "outcome": "missed" | "declined" | "ended", "duration"? (ms) } }`. Apps that don't know calls show the fallback text.
+## Bots and webhooks
+
+### Bot accounts
+
+A bot is an ordinary identity (account key, device certificate, signed handshake) that says so in `auth`:
+`profile: { name, bot: true }`.
+
+| type | body | result | who |
+|---|---|---|---|
+| `bot.invite` | `role?` (`guest`/`member`/`trusted`, default member), `expiresInMs?` (1 min – 30 days, default 7 days) | `{ invite }` (single use) | admin+ |
+
+- A bot can only join with a bot invite, and a bot invite only works for a client that says `bot: true`. Anything else gets `invite_required` (and the invite isn't used up).
+- The flag is stored by the server and can't be changed afterwards: `Member` gains `bot` (boolean) everywhere members appear.
+- Bots can't join voice (`voice.join` → `forbidden`), create invites, or have a role above `trusted` (`member.setRole` → `bad_request`). They have the same rate limits as everyone else.
+- Commands are a message convention, not a protocol feature: a message starting with `/name args` (or `/name@BotName args` to pick one bot) is a command. See `docs/bots.md`.
+
+### Webhooks
+
+An incoming webhook is a secret URL that posts into one text channel. Requests over the WebSocket, all admin+ and only for channels the admin can read (others are `not_found`):
+
+| type | body | result |
+|---|---|---|
+| `webhook.list` | `channelId?` | `{ webhooks: [Webhook] }` |
+| `webhook.create` | `channelId` (a text channel), `name` (1–32), `avatar?` (file id: an image you uploaded), `mentions?` (default false) | `{ webhook, secret, path }` |
+| `webhook.update` | `id`, `name?`, `avatar?` (`""` removes it), `mentions?`, `channelId?` | `{ webhook }` |
+| `webhook.regenerate` | `id` | `{ webhook, secret, path }`; the old URL stops working |
+| `webhook.delete` | `id` | |
+
+```jsonc
+Webhook { "id": "<b64u 16>", "channelId": 1, "name": "GitHub", "avatar": File | null, "mentions": false,
+          "createdBy": "<accountKey>", "createdAt": 0, "lastUsedAt": 0 | null }
+```
+
+- `secret` is 32 random bytes (base64url). It is returned only by `create` and `regenerate`; the server stores its SHA-256 and compares in constant time. `path` is `/hooks/<id>/<secret>` on the server's address.
+- At most 15 webhooks per channel. Deleting the channel deletes its webhooks.
+
+**Posting**: `POST <server>/hooks/<id>/<secret>` with a Discord-style JSON body (also `application/x-www-form-urlencoded` or `multipart/form-data` with `payload_json`, or plain `content`/`username` fields; files are ignored):
+
+| field | rules |
+|---|---|
+| `content` | same rules as `chat.send` text (≤ 4000 characters, no invisible control characters). May be empty when there are embeds. |
+| `username` | overrides the name for this message (cut to 32 characters, same rules as names) |
+| `embeds` | ≤ 10, ≤ 6000 characters in total. Kept: `title` (256), `description` (4096), `url` (http/https), `color`, `timestamp` (ISO 8601, stored as ms), `author.name` (256) and `author.url`, `footer.text` (2048), `fields` (≤ 25: `name` 256, `value` 1024, `inline`). Images, thumbnails and icons are dropped. |
+| `allowed_mentions` | `{ parse: ["users", "everyone"], users: [accountKey...] }`; can only narrow what the webhook may do |
+| `avatar_url`, `tts`, `thread_id`, ... | accepted and ignored (third-party images would reveal viewers' IP addresses) |
+
+- Zero-width spaces (U+200B, U+2060, U+FEFF), which Discord tools use as blank filler, are removed before validation.
+- Mentions: unless an admin turned on `mentions` for the webhook, `<@accountKey>` becomes plain `@Name` and `@everyone`/`@here` get a zero-width joiner, so nobody is pinged.
+- Body ≤ 64 KB (`413`). Rate limit per webhook: 5 at once, then one every 2 s (`429` with `Retry-After` and `{ message, retry_after, global: false }`). Wrong ids or secrets count against the caller's address (20 at once, then 1/s).
+- Answers: `204` (posted), `200` with a Discord-style message for `?wait=true`, `400 { message, code }` for invalid payloads, `404` for an unknown webhook or wrong secret (indistinguishable). `GET` on the URL returns `{ type: 1, id, name, channel_id }`.
+- `POST <server>/hooks/<id>/<secret>/github` accepts GitHub's own webhook format (JSON, or form with `payload`) and posts a short embed for `ping`, `push`, `issues`, `pull_request`, `issue_comment`, `release` and `star`; other actions are answered `204` without a message. Body ≤ 1 MB.
+
+The message is a normal `chat.message` to channel readers, with `author: "webhook:<id>"` (never an account key) and:
+
+```jsonc
+"webhook": { "id": "<webhook id>", "name": "GitHub", "avatar": File | null,
+             "embeds": [{ "title"?, "description"?, "url"?, "color"?, "timestamp"?, "author"?: { "name", "url"? },
+                          "footer"?: { "text" }, "fields"?: [{ "name", "value", "inline" }] }] }
+```
+
+`webhook` is `null` on every other message. Nobody can edit a webhook's message; admins can delete it.
+## Polls, custom emoji and the soundboard
+
+### Polls
+
+A poll is a message whose `text` is the question, plus a `poll` field. Polls aren't anonymous: results list who voted.
+
+| type | body | result | who |
+|---|---|---|---|
+| `poll.create` | `channelId, question` (1–300 chars), `options` (2–10 answers, 1–55 chars each, no duplicates ignoring case), `multi?` (default false), `durationMs?` (1 min – 14 days; omitted = no end) | `{ message }` | channel writers |
+| `poll.vote` | `id` (the message), `options: [index...]` (replaces your vote; `[]` removes it; one index unless `multi`) | | channel readers, while the poll is open |
+| `poll.end` | `id` | | the author, or an admin who outranks the author |
+
+- Message gains `poll: { question, options: [{ text, votes: [accountKey] }], multi, expiresAt, closedAt } | null`.
+- Votes are per account (all your devices share one vote). A poll is closed once `closedAt` is set or `expiresAt` has passed; the server refuses votes after that and sets `closedAt = expiresAt` within about a second of expiry.
+- Poll messages can't be edited; deleting the message deletes the poll.
+- Event `poll.updated` `{ id, channelId, poll }` to channel readers after every vote and when the poll closes.
+- Rate limits: `poll.create` 1 per 5 s (burst 5), `poll.vote` 2/s (burst 10).
+
+### Custom emoji
+
+Server emoji are written in message text and reactions as `<:name:id>` (`name`: 2–32 of `a–z 0–9 _`; `id`: 12 base64url chars). Clients turn a typed `:name:` into that form before sending and render it as the image; an id the server no longer has is shown as `:name:`.
+
+| type | body | result | who |
+|---|---|---|---|
+| `emoji.list` | | `{ emojis: [Emoji] }` | anyone |
+| `emoji.create` | `name, fileId` (your own upload: PNG, GIF or WebP by content, ≤ 256 KB, ≤ 128×128) | `{ emoji }` | admin+ |
+| `emoji.rename` | `id, name` | `{ emoji }` | admin+ |
+| `emoji.delete` | `id` | | admin+ |
+
+- `Emoji { id, name, url: "/files/<fileId>/<name>", animated, createdBy }`. Names are unique; up to 200 per server.
+- `chat.react` also accepts `<:name:id>` for an emoji on this server (stored under its current name).
+- Event `emoji.updated` `{ emojis }` to everyone after any change.
+
+### Soundboard
+
+| type | body | result | who |
+|---|---|---|---|
+| `sound.list` | | `{ sounds: [Sound] }` | anyone |
+| `sound.create` | `name` (1–32 chars), `emoji?` (≤ 16 chars, no spaces), `fileId` (your own upload: MP3, Ogg or WAV by content, ≤ 512 KB, ≤ 5 s) | `{ sound }` | trusted+ |
+| `sound.update` | `id, name, emoji?` | `{ sound }` | whoever added it, or admin+ |
+| `sound.delete` | `id` | | whoever added it, or admin+ |
+| `sound.play` | `id` | | someone in a voice channel who can speak there |
+
+- `Sound { id, name, emoji, url, durationMs, createdBy }`. Up to 100 per server. The server measures the length from the file itself (WAV header, Ogg granule position, MP3 frames), with 0.15 s of slack for encoder padding.
+- `sound.play`: being in voice comes from LiveKit's webhooks only (see Voice); you need the channel's write role. Rate limit 1 every 2 s (burst 3).
+- Event `sound.played` `{ channelId, accountKey, sound }` only to the people in that voice channel. Each client plays it locally, with its own soundboard volume and mute setting.
+- Event `sounds.updated` `{ sounds }` to everyone after any change.
+
+## Push notifications (Web Push)
+
+Each server sends Web Push messages to its members' devices that aren't looking at Iskra: for @mentions (including `@everyone`), replies to your messages, DMs and (hook for the calls feature) incoming calls. The server keeps a VAPID key pair (P-256) in `vapid.json` in the world folder; payloads are encrypted per RFC 8291 (`aes128gcm`) and signed per RFC 8292 with [Lib.Net.Http.WebPush](https://github.com/tpeczek/Lib.Net.Http.WebPush).
+
+| type | body | result | who |
+|---|---|---|---|
+| `push.status` | | `{ publicKey, endpoint }` (VAPID key, b64u 65 bytes; this device's endpoint or null) | anyone |
+| `push.subscribe` | `endpoint` (≤ 1024 chars), `keys: { p256dh, auth }` (b64u, 65 and 16 bytes) | | anyone; replaces this device's subscription |
+| `push.unsubscribe` | | | anyone (this device) |
+| `push.focus` | `focused` (boolean) | | anyone: is someone looking at Iskra on this device right now |
+
+- Subscriptions belong to the authenticated **device** (the key in the handshake's certificate). An endpoint belongs to one device; an account keeps at most 10 subscriptions (the least recently refreshed go first).
+- The endpoint is user-supplied, so it must be `https://` on the default port, without credentials, at a known push service: `fcm.googleapis.com`, `android.googleapis.com`, `push.services.mozilla.com`, `notify.windows.com`, `push.apple.com` (or a subdomain). Deliveries also only connect to public addresses (the link preview guard). The push service answering 404 or 410 deletes the subscription.
+- No pushes to a device whose session reported `focused: true` (a new session starts unfocused), to the author, to people who can't read the channel, or to non-members. Per device and conversation the first push goes out at once; more within 15 s become one follow-up push with a `count`.
+- Payload (JSON, after decryption): `{ v: 1, kind: "mention"|"reply"|"dm"|"call", server, serverName, title, body, tag, channelId?, messageId?, peer?, count, at }`. Mentions and replies carry a ≤ 140-character excerpt; **DMs never carry content**: "New message from X". The `Topic` header is derived from `tag`, so a push service replaces undelivered pushes about the same conversation.
+- Web client: one service worker registration of `/push-sw.js` per server (scope `/push/<serverKey>/`), since every server has its own VAPID key and a registration holds one subscription. A notification click focuses the app (message `{ type: "iskra.open", route }`) or opens `/#/open/<serverKey>/c/<channelId>` / `/#/open/<serverKey>/dm/<accountKey>`. The desktop app uses native notifications and doesn't subscribe.
+
+## Pins, search and threads
+
+### Pins
+
+| type | body | result | who |
+|---|---|---|---|
+| `chat.pin` | `id, on?` (default true) | | trusted+ who can write in the message's channel; ≤ 50 pins per channel or thread |
+| `pin.list` | `channelId` | `{ pins: [{ message, pinnedBy, pinnedAt }] }` (most recently pinned first) | channel readers |
+
+- Message gains `pinned: boolean`. Deleting a message unpins it.
+- Event `chat.pinned` `{ id, channelId, on, by, at }` to channel readers (clients show "X pinned a message"; nothing is stored as a message).
+
+### Jumping to a message
+
+`chat.history` also takes `around: messageId` (instead of `before`/`after`): up to `limit` messages around it (it included), oldest first, with `hasMore` (older ones exist) and `hasNewer`. `not_found` if the message isn't in that channel. Used for search results, pins, reply quotes and notifications.
+
+### Search
+
+| type | body | result | who |
+|---|---|---|---|
+| `search` | `query?` (≤ 200 chars, ≤ 10 words), `channelId?`, `author?` (accountKey), `has?: ["file" \| "link"]`, `before?`, `after?` (ms, on `createdAt`), `cursor?` (message id), `limit?` (1–50, default 25) | `{ results: [{ message, matches: [[start, length]...] }], total, hasMore, threads: [Thread] }` | anyone |
+
+- Searches only channels and threads the requester can read at that moment; `channelId` (which includes its threads) must be one of them, else `not_found`.
+- Each word is matched as a word prefix, case- and accent-insensitive (SQLite FTS5, `unicode61 remove_diacritics 2`); search operators in the query are treated as plain text. At least one of `query`, `author`, `has`, `before`, `after` is required.
+- Results are newest first. `matches` are UTF-16 offsets into `message.text`, so clients highlight without parsing HTML. `cursor` = the last result's id for the next page. `threads` describes any threads the results come from.
+- Rate limit: 2/s (burst 10).
+
+### Threads
+
+A thread is a side conversation started from a message in a text channel. It has its own id, used as the `channelId` for `chat.send`, `chat.history`, `chat.typing`, `chat.pin` and in message events, so replies, reactions, files, mentions and edits work the same way. Who can read and write a thread always follows its parent channel, including later changes. Threads aren't listed in `channels`, and `channel.update`/`channel.delete` don't apply to them. Deleting the parent channel deletes its threads.
+
+```jsonc
+Thread { "id": 9, "channelId": 1, "rootId": 42, "name": "Game night", "createdBy": "<accountKey>", "createdAt": 0, "messageCount": 3, "lastMessageAt": 0 | null }
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `thread.create` | `messageId, name` (1–100 chars) | `{ thread }` | writers of the message's channel; one thread per message; not inside threads; ≤ 1000 per channel |
+| `thread.get` | `id` | `{ thread, root: Message \| null }` | readers |
+| `thread.list` | `channelId, limit? (1–100)` | `{ threads }` (most recently active first) | readers |
+| `thread.update` | `id, name` | `{ thread }` | whoever started it, or an admin who outranks them |
+| `thread.delete` | `id` | | same as above (deletes its messages too) |
+
+- Message gains `thread: Thread | null` (the thread started from it).
+- Event `thread.updated` `{ thread }` to readers when a thread is created or renamed, or a message in it is posted or deleted.
+- Event `thread.deleted` `{ id, channelId, rootId }` to readers.
+
+## Devices, forward secrecy and device linking
+
+### Devices
+
+| type | body | result | who |
+|---|---|---|---|
+| `device.list` | | `{ devices: [{ deviceKey, created, name, platform, lastSeen, current }], revoked: [Revocation...] }` | yourself (your account's devices on this server, revoked ones left out) |
+| `device.describe` | `name?, platform?` (1–32 chars each, no control characters) | | the connected device, about itself. `platform` always updates; `name` only if none is set yet |
+| `device.rename` | `deviceKey, name` (1–32 chars) | | any device of the same account; `not_found` if this server never saw that device |
+| `device.revoke` | `Revocation` | | the account itself (the signature is checked against your account key) |
+| `prekey.publish` | `key, created, sig` (a `SignedPrekey` for the connected device) | | the connected device |
+
+```jsonc
+Revocation   { "deviceKey": "<b64u 32>", "revokedAt": 1760000000000, "sig": "<b64u 64>" }
+SignedPrekey { "deviceKey": "<b64u 32>", "key": "<b64u 32, X25519>", "created": 1760000000000, "sig": "<b64u 64>" }
+```
+- Revocation: `sig = Ed25519.sign(accountSecret, "iskra/device-revoke/v1" || 0x00 || deviceKey(32) || u64be(revokedAt))`. `revokedAt` may be at most 10 minutes in the future. A revocation only ever applies to devices of the account that signed it. At most 100 per account; idempotent.
+- Once a server has a revocation: the device's auth fails with `device_revoked`; its open sessions get `device.revoked` and are kicked (4403); it disappears from `dm.devices` and `device.list`; its prekey is dropped. The revocation can arrive before the device ever connects there.
+- Every session of the account gets `device.revoked { deviceKey }`. Clients keep the revocations they know (their own, and verified ones from any server) and hand missing ones to each server on connect, so a revocation reaches every server the account is on.
+- Prekey: `sig = Ed25519.sign(deviceSecret, "iskra/prekey/v1" || 0x00 || key(32) || u64be(created))`, signed by the **device** key, so the account-signed certificate vouches for it. The server keeps the newest per device and refuses keys older than 60 days or more than 10 minutes in the future.
+
+| event | body | sent to |
+|---|---|---|
+| `device.revoked` | `{ deviceKey }` | every session of the account (the revoked device's own sessions, then kicked) |
+
+### Forward secrecy (DM envelope v2)
+
+Each device has an X25519 **prekey** (`crypto_box_keypair`), rotated every 7 days and published to every server it connects to. A replaced prekey's secret is kept for 30 days (for messages still on their way), then deleted.
+
+```jsonc
+{
+  "v": 2,
+  "header": { ... }, "sender": DeviceCert, "nonce": "<b64u 24>", "ct": "<b64u>",   // as in v1
+  "keys": [
+    { "device": "<deviceKey>", "prekey": "<b64u 32>", "seal": "<b64u>" },          // forward secret
+    { "device": "<deviceKey>", "nonce": "<b64u 24>", "box": "<b64u>" }              // device without a usable prekey (as v1)
+  ]
+}
+```
+- Associated data: `JSON.stringify(["iskra/dm/v2", from, to, sentAt, id])`.
+- `seal = crypto_box_seal(innerNonce(24) || crypto_box(messageKey, innerNonce, prekey, senderDeviceX25519Secret), prekey)`. The inner `crypto_box` authenticates the sending device (only it, or the recipient, could have made it, as in v1); the outer sealed box uses a fresh ephemeral key per message. Opening needs the prekey's secret, so once that is deleted the slot can't be opened again, even by someone who later steals both devices' long-term keys and has every envelope the server stored.
+- Senders use the newest prekey per device whose signature checks out against that device's certificate and that is at most 60 days old; anything else falls back to a static slot. Revoked devices (verified revocations from `dm.devices`, plus the sender's own) get no slot.
+- Receivers find their slot, then the prekey secret by `prekey`. Clients keep decrypted messages locally; that local copy, not the server's envelopes, is the long-term history.
+- Why not a double ratchet: a conversation runs over any shared server, on several devices per person, often offline for days and with history merged from several servers. Per-device-pair ratchet state would have to survive all of that; signed prekeys give forward secrecy (within the rotation + grace window) without shared state that can break. There's no post-compromise security: a stolen device keeps reading new messages until it's revoked.
+- Safety numbers are unchanged (they cover account keys).
+
+### Device linking
+
+Moves an account to a new device without the recovery key. The existing device (signed in) talks to one of its servers over its WebSocket; the new device (no account yet) uses a small HTTP relay on the same server.
+
+The **link code**: `<server url without "https://">/<base32(token(10) || secret(16))>` (Crockford base32, groups of 4), e.g. `chat.example.com/QHN8-BTHD-…`. The QR code holds `<appUrl>/#/link/<urlencoded code>`, so a phone camera opens the web app straight into linking; the part after `#` never reaches a server. The server sees the token, never the secret.
+
+| type | body | result | who |
+|---|---|---|---|
+| `link.create` | | `{ token, putKey, expiresAt }` | members; ≤ 3 open links per account (`rate_limited`), rate limit 3 burst / 1 per 10 s |
+| `link.respond` | `token, epk, mac` (32 bytes each) | | the account that created the link, after a `link.request` |
+| `link.cancel` | `token` | | the account that created the link |
+
+| HTTP (CORS open, no auth) | body | answer |
+|---|---|---|
+| `POST /link/<token>` | `{ epk, mac, info? }` (≤ 1 KB; `info` ≤ 64 chars, a device description) | `{ key, expiresAt }` (the read key). 404 unknown/expired, 409 already used, 413 too big |
+| `GET /link/<token>?key=<read key>` | | `{ state: "waiting" }`, `{ state: "answered", epk, mac }` or `{ state: "done", payload }` (b64u, handed out once, then the link is gone). 403 wrong key, 429 after 600 polls |
+| `PUT /link/<token>?key=<putKey>` | the sealed payload (≤ 1 MB) | only once answered. 403 wrong key, 409 wrong state, 413 too big |
+
+Event `link.request { token, epk, mac, info }` goes to the session that created the link. Links live 5 minutes and are kept in memory only (≤ 100 per server).
+
+The handshake (libsodium):
+1. `master = crypto_generichash(32, token || secret, key = "iskra/link/v1")`; `crypto_kdf_derive_from_key` with context `isklink1`: id 1 = new device's MAC key, 2 = existing device's MAC key, 3 = confirmation key.
+2. New device: ephemeral `crypto_box_keypair` `N`; posts `epk = N.pk`, `mac = crypto_auth(N.pk, k1)`.
+3. Existing device checks the MAC (a wrong one ends the link: nothing is sent), makes `E`, answers `epk = E.pk`, `mac = crypto_auth(E.pk, k2)`. The new device checks that MAC.
+4. Both show `crypto_generichash(8, E.pk || N.pk, key = k3)` as 6 digits (first 4 bytes, big-endian, mod 10⁶). The person confirms on the existing device that both match.
+5. Only then: `payload = nonce(24) || crypto_box(JSON, nonce, N.pk, E.sk)`, uploaded with `PUT`.
+
+Payload: `{ v: 1, seed, name, recoverySaved, servers: [{ url, serverKey, name }], friends, history? }` — the 32-byte account seed (the new device makes its own device key and certificate from it), profile, server list, friends and optionally recent decrypted DM history (≤ 200 messages per conversation, ≤ ~600 KB). A server without the secret can't produce a valid MAC, so it can't put its own key in the middle; the confirmation code also catches someone who saw the code racing the real device.
+
+## Internet hosting
+
+"Open to the internet" lets the owner make a home server reachable from anywhere with one switch. The server asks the router to forward its ports (UPnP IGD, or NAT-PMP), gets a public address (`Internet.Domain`, or `<ip-with-dashes>.sslip.io` by default), and an HTTPS certificate for it from Let's Encrypt.
+
+| type | body | result | who |
+|---|---|---|---|
+| `host.status` | | `{ status: HostStatus }` | admin+ |
+| `host.internet.set` | `enabled` (boolean) | `{ status: HostStatus }` | owner. Setting `true` while already on checks everything again right away. |
+
+```jsonc
+HostStatus {
+  "enabled": true,
+  "lanUrl": "http://192.168.1.20:47070",          // null with your own HTTPS setup
+  "router": { "state": "off" | "searching" | "found" | "not_found" | "disabled", "kind": "UPnP" | "NAT-PMP" | null },
+  "publicIp": "203.0.113.7",                       // the router's internet-side address, or null
+  "cgnat": false,                                  // that address is private/shared (100.64.0.0/10 etc.): ports can't help
+  "ports": [{ "name": "acme" | "web" | "voice-tcp" | "voice-udp", "protocol": "tcp" | "udp",
+              "internal": 47070, "external": 80, "state": "open" | "failed" | "manual" | "skipped", "error": null }],
+  "address": "203-0-113-7.sslip.io", "autoAddress": true,
+  "https": { "state": "off" | "waiting" | "needs_port_80" | "requesting" | "valid" | "failed", "domain": "...", "expiresAt": 0, "error": null },
+  "reachable": "verified" | "router" | "unknown",  // verified: Let's Encrypt reached us from the internet; router: our own probe came back through the router
+  "publicUrl": "https://203-0-113-7.sslip.io",     // null until something works
+  "checkedAt": 1760000000000
+}
+```
+
+| event | body | sent to |
+|---|---|---|
+| `host.status` | `{ status }` | admins, whenever the status changes |
+| `server.address` | `{ publicUrl }` | everyone, when the public address changes (invite links use it) |
+
+- `welcome.server` gains `publicUrl` (string or null). Clients build invite links with `publicUrl` when it's set, else the URL they connected to.
+- Ports: outside TCP 80 (Let's Encrypt's HTTP-01 check) and 443 both lead to the server's one port, which speaks plain HTTP and HTTPS (TLS is detected from the first byte). If the router refuses 443, the server's own port is used outside too. Voice maps LiveKit's RTC TCP and UDP ports straight through. Leases are 1 hour, renewed at half-life and re-checked every 5 minutes (router restarts, new IPs); mappings are removed on shutdown.
+- Without port 80 there's no certificate: `publicUrl` is then `http://<ip>:<port>`, which the desktop app can use but browsers can't.
+- With a certificate, plain HTTP from public addresses is redirected to `publicUrl` (except `/.well-known/`); LAN and localhost are served as before. Clients that connected over HTTPS get `wss://<that host>/livekit` from `voice.join`.
+- LiveKit advertises the public IP (`node_ip`) and keeps the LAN one (`advertise_internal_ip`), restarting when it changes.
+- `GET /.well-known/acme-challenge/<token>` answers Let's Encrypt; `GET /.well-known/iskra-probe/<token>` answers only the server's own random token (for the through-the-router check).
+
+```jsonc
+"Internet": {
+  "Enabled": false,
+  "Domain": null,           // your own domain pointing here (stable links); default <ip>.sslip.io
+  "DnsSuffix": "sslip.io",
+  "PortMapping": true       // false if you forward the ports by hand
+}
+```
