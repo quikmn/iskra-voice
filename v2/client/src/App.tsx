@@ -1,122 +1,51 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useEffect } from 'react'
+import { parseInvite } from './core/invite'
+import { boot, retryAll, useApp } from './state/store'
+import { Spinner } from './ui/bits'
+import { JoinPrompt } from './ui/dialogs/JoinDialog'
+import { Onboarding } from './ui/Onboarding'
+import { Shell } from './ui/Shell'
 
-function App() {
-  const [count, setCount] = useState(0)
+/** Picks up "#/join/..." invite links, then clears them from the address bar. */
+function readInviteFromHash(): void {
+  if (!window.location.hash.startsWith('#/join/')) return
+  const invite = parseInvite(window.location.hash)
+  history.replaceState(null, '', window.location.pathname + window.location.search)
+  if (invite) useApp.setState({ pendingInvite: invite })
+}
 
+let booted = false
+
+export function App() {
+  const phase = useApp((s) => s.phase)
+  const pendingInvite = useApp((s) => s.pendingInvite)
+
+  useEffect(() => {
+    readInviteFromHash()
+    if (!booted) {
+      booted = true
+      void boot()
+    }
+    window.addEventListener('hashchange', readInviteFromHash)
+    window.addEventListener('online', retryAll)
+    return () => {
+      window.removeEventListener('hashchange', readInviteFromHash)
+      window.removeEventListener('online', retryAll)
+    }
+  }, [])
+
+  if (phase === 'loading') {
+    return (
+      <div className="onboarding">
+        <Spinner />
+      </div>
+    )
+  }
+  if (phase === 'onboarding') return <Onboarding />
   return (
     <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
+      <Shell />
+      {pendingInvite && <JoinPrompt invite={pendingInvite} />}
     </>
   )
 }
-
-export default App

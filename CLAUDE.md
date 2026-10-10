@@ -19,8 +19,11 @@ The design and the v1 audit are in `design/`. That folder is local only and is *
   - `Sessions/`: one connection per session. One reader and one writer, with outbound messages going through a channel. Never send on a socket from anywhere else.
   - `Storage/`: a world is a folder (`server.json`, `server.key`, `iskra.db`, `uploads/`). SQLite, with all writes behind one lock; files are written atomically.
   - `Crypto/`: Ed25519 via NSec (libsodium).
-- `v2/client/`: TypeScript, React, Vite. The crypto is libsodium-wrappers-sumo, in `src/core/crypto.ts`.
-- `v2/dev.ps1`: starts the server on `v2/.dev/<world>` plus the Vite dev server.
+- `v2/client/`: TypeScript, React, Vite, zustand.
+  - `src/core/`: protocol types, crypto (libsodium-wrappers-sumo), identity, invite links, `Connection` (handshake, requests, reconnect with backoff), IndexedDB storage.
+  - `src/state/store.ts`: app state and every server action. Components never talk to the socket directly.
+  - `src/ui/`: React components. User text is rendered by React only.
+- `v2/dev.ps1`: starts the server on `v2/.dev/<world>` plus the Vite dev server. On a new world the server prints a one-time owner invite link (also in `owner-invite.txt`): open it to become the owner.
 
 ## Commands
 
@@ -28,6 +31,8 @@ The design and the v1 audit are in `design/`. That folder is local only and is *
 cd v2/server; dotnet test          # server tests (real server + WebSocket clients)
 cd v2/client; npm test             # client tests (vitest)
 cd v2/client; npm run build        # type-check + build
+cd v2/client; npm run test:interop # TS client against the real .NET server
+cd v2/client; npm run test:e2e     # Playwright: two browsers, real app + real server (screenshots in e2e/screenshots)
 .\v2\dev.ps1                       # run everything locally
 ```
 
