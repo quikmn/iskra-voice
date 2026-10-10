@@ -8,13 +8,18 @@ import { openProfileCard } from '../state/profile'
 import { VoiceBar } from './VoiceBar'
 import { CreateChannelDialog } from './dialogs/CreateChannelDialog'
 import { InviteDialog } from './dialogs/InviteDialog'
-import { SettingsDialog } from './dialogs/SettingsDialog'
-import { IntegrationsDialog } from './dialogs/IntegrationsDialog'
-import { Hash, HeadphonesOff, Lock, MicOff, Plus, Settings, UserPlus, Volume } from './icons'
+import { SettingsDialog } from './settings/SettingsDialog'
+import { ChevronDown, Hash, HeadphonesOff, Lock, MicOff, Plus, Settings, UserPlus, Volume } from './icons'
+import type { SectionId } from './settings/sections'
 
 export function ChannelSidebar({ server, onNavigate }: { server: ServerState; onNavigate: () => void }) {
   const activeId = useApp(activeChannelId)
-  const [dialog, setDialog] = useState<'invite' | 'channel' | 'settings' | 'integrations' | null>(null)
+  const [dialog, setDialog] = useState<'invite' | 'channel' | 'settings' | null>(null)
+  const [section, setSection] = useState<SectionId | undefined>(undefined)
+  const openSettings = (at?: SectionId) => {
+    setSection(at)
+    setDialog('settings')
+  }
   const isAdmin = server.me ? roleRank(server.me.role) >= roleRank('admin') : false
   const canInvite = server.me ? roleRank(server.me.role) >= roleRank('member') : false
   const textChannels = server.channels.filter((c) => c.kind === 'text')
@@ -26,19 +31,17 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
   return (
     <div className="channel-sidebar">
       <header className="sidebar-header">
-        <h2 title={server.name}>{server.name}</h2>
-        <ConnectionPill server={server} />
+        <button className="server-header-button" onClick={() => openSettings('overview')} aria-label={`${server.name}: server options`} title="Server options">
+          <span className="server-name">{server.name}</span>
+          <ConnectionPill server={server} />
+          <ChevronDown size={16} />
+        </button>
       </header>
 
       <div className="channel-list">
         {canInvite && (
           <button className="invite-button" onClick={() => setDialog('invite')}>
             <UserPlus size={16} /> Invite friends
-          </button>
-        )}
-        {isAdmin && (
-          <button className="invite-button integrations-button" onClick={() => setDialog('integrations')}>
-            Bots &amp; webhooks
           </button>
         )}
         <div className="channel-group">
@@ -119,12 +122,11 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
       </div>
 
       <VoiceBar />
-      <MeBar server={server} onSettings={() => setDialog('settings')} />
+      <MeBar server={server} onSettings={() => openSettings()} />
 
       {dialog === 'invite' && <InviteDialog server={server} onClose={() => setDialog(null)} />}
       {dialog === 'channel' && <CreateChannelDialog server={server} onClose={() => setDialog(null)} />}
-      {dialog === 'settings' && <SettingsDialog server={server} onClose={() => setDialog(null)} />}
-      {dialog === 'integrations' && <IntegrationsDialog server={server} onClose={() => setDialog(null)} />}
+      {dialog === 'settings' && <SettingsDialog server={server} section={section} onClose={() => setDialog(null)} />}
     </div>
   )
 }

@@ -60,6 +60,7 @@ async function openSettings(page: Page) {
   const drawer = page.getByRole('button', { name: 'Open channels' })
   if (await drawer.isVisible()) await drawer.click()
   await page.getByRole('button', { name: 'Settings' }).click()
+  await page.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Open to the internet' }).click()
   await expect(page.getByRole('heading', { name: 'Open to the internet' })).toBeVisible()
 }
 
@@ -77,6 +78,7 @@ test('owner opens the server to the internet; a router without port 80 gets hone
   await friend.getByRole('button', { name: 'Settings' }).click()
   await expect(friend.getByRole('heading', { name: 'Profile' })).toBeVisible()
   await expect(friend.getByRole('heading', { name: 'Open to the internet' })).toHaveCount(0)
+  await expect(friend.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Open to the internet' })).toHaveCount(0)
 
   await openSettings(owner)
   const toggle = owner.getByRole('switch', { name: 'Open to the internet' })

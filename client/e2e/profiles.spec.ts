@@ -27,9 +27,11 @@ const PAGE = (exfil: string) => `<!doctype html>
 </script>
 </body></html>`
 
-async function openSettings(page: Page) {
+async function openSettings(page: Page, section?: string) {
   await page.locator('.me-bar').getByRole('button', { name: 'Settings' }).click()
-  await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible()
+  const dialog = page.getByRole('dialog', { name: 'Settings' })
+  await expect(dialog).toBeVisible()
+  if (section) await dialog.getByRole('button', { name: section, exact: true }).click()
 }
 
 test('profiles: avatar, bio, profile card, sandboxed page and themes', async ({ browser }) => {
@@ -107,7 +109,7 @@ test('profiles: avatar, bio, profile card, sandboxed page and themes', async ({ 
   await friend.keyboard.press('Escape')
 
   // Themes: switch, survive a reload, reject a malicious one.
-  await openSettings(host)
+  await openSettings(host, 'Appearance')
   await host.getByRole('radio', { name: 'Nord' }).click()
   const accent = () => host.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim())
   await expect.poll(accent).toBe('#88c0d0')
@@ -115,7 +117,7 @@ test('profiles: avatar, bio, profile card, sandboxed page and themes', async ({ 
   await host.reload()
   await expect(host.getByRole('heading', { name: 'general' })).toBeVisible()
   expect(await accent()).toBe('#88c0d0')
-  await openSettings(host)
+  await openSettings(host, 'Appearance')
   await host.getByRole('button', { name: 'Write your own' }).click()
   await host.getByLabel('Theme JSON').fill('{"meta":{"name":"Evil"},"colors":{"accent":"red; background:url(https://example.com/x)"}}')
   await host.getByRole('button', { name: 'Apply' }).click()

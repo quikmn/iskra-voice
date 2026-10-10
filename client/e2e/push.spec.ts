@@ -77,6 +77,7 @@ test('turning on push registers a worker per server, subscribes, and reports foc
   const serverKey = frames.received.find((f) => f.type === 'hello')!.body!.serverKey as string
 
   await page.getByRole('button', { name: 'Settings' }).click()
+  await page.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Notifications' }).click()
   await page.getByLabel('Push notifications on this device').check()
   await expect(page.getByText('On for 1 server')).toBeVisible()
   await page.screenshot({ path: join(SHOTS, 'push-settings.png') })
@@ -132,6 +133,7 @@ test('turning on push registers a worker per server, subscribes, and reports foc
 
   // Turning it off unsubscribes on the server and removes the worker.
   await page.getByRole('button', { name: 'Settings' }).click()
+  await page.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Notifications' }).click()
   await page.getByLabel('Push notifications on this device').uncheck()
   await expect.poll(() => frames.sent.some((f) => f.type === 'push.unsubscribe')).toBe(true)
   await expect.poll(() => page.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).length)).toBe(0)
@@ -156,6 +158,7 @@ test('on iPhone, Safari explains Add to Home Screen first', async ({ browser }) 
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('button', { name: 'Open menu' }).click()
   await page.getByRole('button', { name: 'Settings' }).click()
+  await page.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Notifications' }).click()
   await expect(page.getByText('add Iskra to your Home Screen first')).toBeVisible()
   await expect(page.getByLabel('Push notifications on this device')).toHaveCount(0)
   await page.screenshot({ path: join(SHOTS, 'push-ios-hint.png'), animations: 'disabled' })

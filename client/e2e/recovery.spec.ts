@@ -16,6 +16,7 @@ test('a recovery key brings your account back on a fresh device, owner role incl
   // The nudge asks for the key to be saved; copy it from settings.
   await expect(first.locator('.nudge')).toBeVisible()
   await first.getByRole('button', { name: 'Settings' }).click()
+  await first.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Recovery key', exact: true }).click()
   await first.getByRole('button', { name: 'Show recovery key' }).click()
   const recoveryKey = (await first.locator('.recovery-key').innerText()).trim()
   expect(recoveryKey).toMatch(/^ISKRA-/)

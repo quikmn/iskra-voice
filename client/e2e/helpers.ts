@@ -4,7 +4,7 @@ import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { expect, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 import { APP_PORT } from '../playwright.config'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -106,4 +106,21 @@ export async function createInviteLink(page: Page): Promise<string> {
   const link = await linkInput.inputValue()
   await page.keyboard.press('Escape')
   return link
+}
+
+/** Opens Settings from the bar under the channel list, then a section by its name in the sidebar (or list, on phones). */
+export async function openSettings(page: Page, section?: string) {
+  await page.locator('.me-bar').getByRole('button', { name: 'Settings' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Settings' })
+  await expect(dialog).toBeVisible()
+  if (section) await dialog.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: section, exact: true }).click()
+}
+
+/** Press and hold with a finger (pointer events), as on a phone. */
+export async function longPress(page: Page, target: Locator) {
+  const box = (await target.boundingBox())!
+  const at = { pointerType: 'touch', isPrimary: true, button: 0, clientX: box.x + Math.min(40, box.width / 2), clientY: box.y + Math.min(12, box.height / 2) }
+  await target.dispatchEvent('pointerdown', at)
+  await page.waitForTimeout(600)
+  await target.dispatchEvent('pointerup', at)
 }

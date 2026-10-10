@@ -1,6 +1,6 @@
 // Profile cards (a popover on wide screens, a bottom sheet on phones), the profile page viewer,
 // and the full member dialog they lead to. Rendered once by the Shell.
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { fingerprint } from '../../core/connection'
 import { pageUrl, wrapperDocument } from '../../core/profile'
 import { roleRank, type Member } from '../../core/protocol'
@@ -10,8 +10,9 @@ import {
 } from '../../state/profile'
 import { useApp, type ServerState } from '../../state/store'
 import { Avatar, Modal } from '../bits'
+import { useEscapeLayer, useFocusTrap } from '../layers'
 import { MemberDialog } from '../dialogs/MemberDialog'
-import { SettingsDialog } from '../dialogs/SettingsDialog'
+import { SettingsDialog } from '../settings/SettingsDialog'
 import { hueFor } from '../format'
 import { Close } from '../icons'
 import { renderMarkdown } from '../markdown'
@@ -45,7 +46,7 @@ export function ProfileLayer() {
       )}
       {viewer && viewerServer && viewerMember && <PageViewer server={viewerServer} member={viewerMember} />}
       {details && detailsServer && detailsMember && <MemberDialog server={detailsServer} member={detailsMember} onClose={closeMemberDetails} />}
-      {editing && <SettingsDialog server={cardServer} onClose={() => setEditing(false)} />}
+      {editing && <SettingsDialog server={cardServer} section="profile" onClose={() => setEditing(false)} />}
     </>
   )
 }
@@ -72,12 +73,8 @@ function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; me
     setPosition({ left, top })
   }, [rect, sheet, member])
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeProfileCard()
-    window.addEventListener('keydown', onKey)
-    ref.current?.focus()
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  useEscapeLayer(closeProfileCard)
+  useFocusTrap(ref)
 
   const banner = member.accent ?? `hsl(${hueFor(member.accountKey)} 45% 32%)`
   return (

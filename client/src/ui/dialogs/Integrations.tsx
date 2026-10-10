@@ -1,28 +1,28 @@
-// Admins: incoming webhooks (secret URLs that post into a channel) and bot invites.
+// Settings → Bots & webhooks (admins): incoming webhooks (secret URLs that post into a channel) and bot invites.
 import { useCallback, useEffect, useState } from 'react'
 import { buildInviteLink } from '../../core/invite'
 import { roleRank, type Role, type Webhook } from '../../core/protocol'
 import { connectionFor, uploadFile, type ServerState } from '../../state/store'
 import { inviteServerUrl } from '../../state/hosting'
-import { Avatar, Modal, Spinner } from '../bits'
+import { Avatar, Spinner } from '../bits'
 import { AuthorAvatar, BotBadge } from '../chat/BotBits'
 import { appUrl, messageTime } from '../format'
 import '../bots.css'
 
 type Tab = 'webhooks' | 'bots'
 
-export function IntegrationsDialog({ server, onClose }: { server: ServerState; onClose: () => void }) {
+/** Settings → Bots & webhooks (admins). */
+export function IntegrationsSection({ server }: { server: ServerState }) {
   const [tab, setTab] = useState<Tab>('webhooks')
   return (
-    <Modal title="Bots & webhooks" onClose={onClose}>
-      <div className="integrations">
-        <div className="segmented" role="tablist" aria-label="Bots and webhooks">
-          <button role="tab" aria-selected={tab === 'webhooks'} className={tab === 'webhooks' ? 'on' : ''} onClick={() => setTab('webhooks')}>Webhooks</button>
-          <button role="tab" aria-selected={tab === 'bots'} className={tab === 'bots' ? 'on' : ''} onClick={() => setTab('bots')}>Bots</button>
-        </div>
-        {tab === 'webhooks' ? <Webhooks server={server} /> : <Bots server={server} />}
+    <section className="settings-section integrations">
+      <h3>Bots &amp; webhooks</h3>
+      <div className="segmented" role="tablist" aria-label="Bots and webhooks">
+        <button role="tab" aria-selected={tab === 'webhooks'} className={tab === 'webhooks' ? 'on' : ''} onClick={() => setTab('webhooks')}>Webhooks</button>
+        <button role="tab" aria-selected={tab === 'bots'} className={tab === 'bots' ? 'on' : ''} onClick={() => setTab('bots')}>Bots</button>
       </div>
-    </Modal>
+      {tab === 'webhooks' ? <Webhooks server={server} /> : <Bots server={server} />}
+    </section>
   )
 }
 

@@ -43,7 +43,7 @@ export function ServerExpressionsSections({ server }: { server: ServerState }) {
   )
 }
 
-function EmojiSection({ server }: { server: ServerState }) {
+export function EmojiSection({ server }: { server: ServerState }) {
   const emojis = useServerEmojis(server.key)
   const input = useRef<HTMLInputElement>(null)
   const [pending, setPending] = useState<{ file: File; preview: string; name: string } | null>(null)
@@ -143,7 +143,7 @@ function EmojiRow({ server, emoji }: { server: ServerState; emoji: CustomEmoji }
   )
 }
 
-function SoundsSection({ server }: { server: ServerState }) {
+export function SoundsSection({ server }: { server: ServerState }) {
   const sounds = useServerSounds(server.key)
   const input = useRef<HTMLInputElement>(null)
   const [pending, setPending] = useState<{ file: File; name: string; emoji: string } | null>(null)

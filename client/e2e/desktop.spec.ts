@@ -77,6 +77,7 @@ test('the desktop app runs the web app on app:// and can join a server', async (
 
     // Push-to-talk settings are available.
     await page.getByRole('button', { name: 'Settings' }).click()
+    await page.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Voice & audio' }).click()
     await page.getByRole('radio', { name: 'Push to talk' }).click()
     await expect(page.getByText('Works everywhere, even while a game has focus')).toBeVisible()
     await page.screenshot({ path: join(SHOTS, 'desktop-settings.png') })
@@ -105,7 +106,7 @@ test('creating a server from the desktop app makes you its owner', async () => {
     await page.getByRole('button', { name: 'Create', exact: true }).click()
 
     await expect(page.getByRole('heading', { name: 'general' })).toBeVisible({ timeout: 30_000 })
-    await expect(page.locator('.sidebar-header h2')).toHaveText('Living Room')
+    await expect(page.locator('.sidebar-header .server-name')).toHaveText('Living Room')
     await expect(page.locator('.me-text')).toContainText('owner')
     expect(existsSync(join(hostRoot, 'living-room', 'server.json'))).toBe(true)
     expect(existsSync(join(hostRoot, 'living-room', 'owner-invite.txt'))).toBe(false) // used up

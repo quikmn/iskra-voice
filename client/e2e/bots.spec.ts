@@ -24,7 +24,9 @@ test('a webhook posts a card, and a bot answers a /command', async ({ browser })
   await joinVia(host, server.ownerLink(), 'Host')
 
   // An admin makes a webhook for #general and copies its secret URL.
-  await host.getByRole('button', { name: 'Bots & webhooks' }).click()
+  // Server options → Bots & webhooks.
+  await host.getByRole('button', { name: /server options/ }).click()
+  await host.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Bots & webhooks' }).click()
   await host.getByLabel('Name').fill('Deploys')
   await host.getByRole('button', { name: 'Create webhook' }).click()
   const urlBox = host.getByLabel('Webhook URL')

@@ -22,6 +22,7 @@ test('link a phone with the text code, read DMs on both devices, then remove it'
 
   // The existing device shows a link code.
   await host.getByRole('button', { name: 'Settings' }).click()
+  await host.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Devices', exact: true }).click()
   await host.getByRole('button', { name: 'Link a device' }).click()
   await host.getByRole('button', { name: 'Show code' }).click()
   const codeBox = host.getByTestId('link-code')
@@ -92,6 +93,7 @@ test('link a phone with the text code, read DMs on both devices, then remove it'
 
   // The host sees both devices and removes the phone.
   await host.getByRole('button', { name: 'Settings' }).click()
+  await host.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Devices', exact: true }).click()
   const rows = host.locator('.device-row')
   await expect(rows).toHaveCount(2)
   await expect(rows.filter({ hasText: 'This device' })).toHaveCount(1)

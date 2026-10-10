@@ -27,7 +27,7 @@
   transition: transform 0.15s, background 0.15s;
 }
 .switch.on { background: var(--accent-strong); }
-.switch.on span { transform: translateX(20px); background: #fff; }
+.switch.on span { transform: translateX(20px); background: var(--on-accent); }
 .switch:disabled { opacity: 0.55; cursor: default; }
 .switch:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
 
@@ -49,8 +49,8 @@
   border: 1.5px solid var(--surface-3);
   color: var(--muted);
 }
-.step-icon.done { background: rgba(74, 222, 128, 0.15); border-color: var(--green); color: var(--green); }
-.step-icon.problem { background: rgba(251, 191, 36, 0.14); border-color: var(--amber); color: var(--amber); }
+.step-icon.done { background: color-mix(in srgb, var(--green) 15%, transparent); border-color: var(--green); color: var(--green); }
+.step-icon.problem { background: color-mix(in srgb, var(--amber) 14%, transparent); border-color: var(--amber); color: var(--amber); }
 .step-icon.working { border-color: var(--accent); }
 .step-icon.working > * { transform: scale(0.7); }
 
@@ -61,7 +61,7 @@
   background: var(--surface-2);
   border: 1px solid var(--border);
 }
-.internet-callout.warn { border-color: rgba(251, 191, 36, 0.4); }
+.internet-callout.warn { border-color: color-mix(in srgb, var(--amber) 40%, transparent); }
 .internet-callout p { margin: 6px 0; font-size: 14px; color: var(--text-2); }
 .forward-table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 6px 0; }
 .forward-table th { text-align: left; font-weight: 500; color: var(--muted); font-size: 12px; padding: 4px 6px; }
