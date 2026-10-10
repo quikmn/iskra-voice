@@ -10,7 +10,7 @@ A self-hosted voice and text app for friend groups: like Discord, but free, easy
 | `site/` | The iskra.foo website (Cloudflare, deployed with wrangler). Keep it in sync with what v2 actually does. |
 | everything else | Iskra v1. Frozen and unsupported, kept for reference until v2 replaces it. Don't add features to it. |
 
-The design and the v1 audit are in `design/`. That folder is local only and is **excluded from git** through `.git/info/exclude`, because the repo is public and the audit describes exploitable v1 bugs. Read `design/ISKRA_2_DESIGN.md` before making architectural changes.
+Private design notes live in `design/` (local only, excluded from git through `.git/info/exclude`). If it exists, read `design/ISKRA_2_DESIGN.md` before making architectural changes; `v2/protocol/PROTOCOL.md` is the public reference.
 
 ## v2 layout
 
