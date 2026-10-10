@@ -306,6 +306,20 @@ public class PushTests
         Assert.Equal(30, server.Push.SentTo(endpoint)[0].TtlSeconds);
     }
 
+    [Fact]
+    public async Task Starting_a_call_pushes_to_the_callee()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        using var bob = await server.JoinAsync("Bob");
+        var endpoint = await SubscribeAsync(bob);
+        var callId = Ed25519.ToB64u(RandomNumberGenerator.GetBytes(16));
+        Assert.Equal("result", (await alice.RequestAsync("call.start",
+            new { accountKey = bob.Key, callId, video = false, envelope = new { v = 1, ct = "opaque" } })).Type());
+        var pushes = await server.Push.WaitForAsync(endpoint, 1);
+        Assert.Equal("Alice is calling", pushes[0].GetProperty("title").GetString());
+    }
+
     /// <summary>The real sender, against a local stand-in for a push service: encrypted body, VAPID auth, 410 handling.</summary>
     [Fact]
     public async Task The_web_push_sender_encrypts_signs_and_reports_gone()

@@ -51,6 +51,7 @@ public static class CallFeature
         if (!s.Voice.Backend.Available) throw new RequestException("voice_unavailable", "Calls aren't available on this server right now.");
 
         var call = s.Voice.Calls.Start(me.AccountKey, peer.AccountKey, id, video, raw);
+        s.Push.IncomingCall(me, peer.AccountKey);
         return Media(s, me, call);
     }
 
