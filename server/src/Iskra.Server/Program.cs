@@ -84,7 +84,9 @@ else
     {
         var certificates = kestrel.ApplicationServices.GetRequiredService<Certificates>();
         certificates.LoadExisting();
-        kestrel.ListenAnyIP(world.Settings.Port, listen => listen.Use(DualProtocol.Middleware(() => certificates.Context)));
+        void Dual(Microsoft.AspNetCore.Server.Kestrel.Core.ListenOptions listen) => listen.Use(DualProtocol.Middleware(() => certificates.Context));
+        if (world.Settings.LocalOnly) kestrel.ListenLocalhost(world.Settings.Port, Dual);
+        else kestrel.ListenAnyIP(world.Settings.Port, Dual);
     });
 }
 

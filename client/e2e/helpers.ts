@@ -43,6 +43,7 @@ export async function startServer(name: string, voice = false, env: Record<strin
       Name: name,
       Port: port,
       AppUrl: `http://localhost:${APP_PORT}`,
+      LocalOnly: true,
       Voice: { Enabled: voice, Port: voicePort, RtcTcpPort: rtcTcp, RtcUdpPort: rtcUdp, LiveKitPath: voice ? LIVEKIT : null },
     }),
   )

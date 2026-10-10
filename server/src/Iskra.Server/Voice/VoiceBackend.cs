@@ -133,6 +133,7 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
 
     private string ConfigYaml(int iskraPort) => $"""
         port: {Settings.Port}
+        {(_world.Settings.LocalOnly ? "bind_addresses: [127.0.0.1]" : "")}
         rtc:
           tcp_port: {Settings.RtcTcpPort}
           udp_port: {Settings.RtcUdpPort}

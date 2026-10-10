@@ -12,6 +12,9 @@ public sealed record WorldSettings
     /// <summary>How clients reach this server. Defaults to http://localhost:{Port}.</summary>
     public string? PublicUrl { get; init; }
 
+    /// <summary>Listen on localhost only (tests and local tools): nothing on the network can connect, and Windows never asks about the firewall.</summary>
+    public bool LocalOnly { get; init; }
+
     /// <summary>The web app that invite links open.</summary>
     public string AppUrl { get; init; } = "https://app.iskra.foo";
 
