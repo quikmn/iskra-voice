@@ -539,7 +539,7 @@ export interface Events {
 }
 
 export interface Requests {
-  'backup.create': [{ passphrase: string }, { url: string; name: string; size: number; expiresAt: number }]
+  'backup.create': [{ sealedPassphrase: string }, { url: string; name: string; size: number; expiresAt: number }]
   'backup.status': [Record<string, never>, BackupStatus]
   'backup.settings': [{ enabled?: boolean; keep?: number; includeUploads?: boolean }, BackupStatus]
   'server.move': [{ url: string }, { notice: MoveNotice }]

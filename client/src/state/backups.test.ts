@@ -1,7 +1,13 @@
-import { describe, expect, it } from 'vitest'
+import sodium from 'libsodium-wrappers-sumo'
+import { beforeAll, describe, expect, it } from 'vitest'
+import { b64u, fromB64u, generateSigningKeyPair, ready, signedPayload } from '../core/crypto'
 import type { ImportJob } from '../core/protocol'
 import { authorOf } from '../ui/chat/bots'
-import { formatBytes, importFraction, passphraseStrength } from './backups'
+import { formatBytes, importFraction, PASSPHRASE_CONTEXT, passphraseStrength, sealPassphrase } from './backups'
+
+beforeAll(async () => {
+  await ready()
+})
 
 const job = (patch: Partial<ImportJob>): ImportJob => ({
   phase: 'importing', channels: 2, channelsDone: 0, messages: 200, messagesDone: 50, files: 0, missingFiles: 0, skipped: 0,
@@ -15,6 +21,19 @@ describe('backups and imports', () => {
     expect(passphraseStrength('abcdefgh')).toBe('weak')
     expect(passphraseStrength('abcdefgh1234')).toBe('ok')
     expect(passphraseStrength('correct horse battery staple')).toBe('strong')
+  })
+
+  it('seals the passphrase so only that server can read it', () => {
+    const server = generateSigningKeyPair()
+    const sealed = fromB64u(sealPassphrase(b64u(server.publicKey), 'correct horse'))
+    const pk = sodium.crypto_sign_ed25519_pk_to_curve25519(server.publicKey)
+    const sk = sodium.crypto_sign_ed25519_sk_to_curve25519(server.secretKey)
+    const opened = sodium.crypto_box_seal_open(sealed, pk, sk)
+    expect(opened).toEqual(signedPayload(PASSPHRASE_CONTEXT, server.publicKey, new TextEncoder().encode('correct horse')))
+    expect(new TextDecoder().decode(sealed)).not.toContain('correct horse')
+    // Another key can't open it.
+    const other = generateSigningKeyPair()
+    expect(() => sodium.crypto_box_seal_open(sealed, sodium.crypto_sign_ed25519_pk_to_curve25519(other.publicKey), sodium.crypto_sign_ed25519_sk_to_curve25519(other.secretKey))).toThrow()
   })
 
   it('formats sizes', () => {

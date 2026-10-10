@@ -1,5 +1,6 @@
 // Backups, moving a server and Discord imports (owner tools in Settings → This server).
 import { create } from 'zustand'
+import { b64u, fromB64u, sealToServer } from '../core/crypto'
 import type { Events, ImportJob } from '../core/protocol'
 import { desktop } from '../platform/desktop'
 import { connectionFor, onServerEvent, useApp } from './store'
@@ -47,11 +48,19 @@ export function passphraseStrength(passphrase: string): 'too-short' | 'weak' | '
   return 'weak'
 }
 
+export const PASSPHRASE_CONTEXT = 'iskra/backup-passphrase/v1'
+
+export function sealPassphrase(serverKey: string, passphrase: string): string {
+  return b64u(sealToServer(fromB64u(serverKey), PASSPHRASE_CONTEXT, new TextEncoder().encode(passphrase)))
+}
+
 /** Makes an encrypted backup on the server and returns where to download it (an absolute URL). */
 export async function createBackup(serverKey: string, passphrase: string): Promise<{ url: string; name: string; size: number }> {
   useBackups.setState((s) => ({ progress: { ...s.progress, [serverKey]: { done: 0, total: 0 } } }))
   try {
-    const result = await connection(serverKey).request('backup.create', { passphrase }, 30 * 60_000)
+    // Sealed to the server key we verified in the handshake: the passphrase never crosses the network in the clear.
+    const sealedPassphrase = sealPassphrase(serverKey, passphrase)
+    const result = await connection(serverKey).request('backup.create', { sealedPassphrase }, 30 * 60_000)
     const base = useApp.getState().servers[serverKey]?.url ?? ''
     return { url: base + result.url, name: result.name, size: result.size }
   } finally {

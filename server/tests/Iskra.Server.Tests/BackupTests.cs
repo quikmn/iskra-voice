@@ -19,6 +19,11 @@ public class BackupTests
         return output.ToArray();
     }
 
+    /// <summary>What the client sends: the passphrase sealed to the server key.</summary>
+    private static string Sealed(IskraServer server, string passphrase, string context = Features.BackupFeature.PassphraseContext) =>
+        Ed25519.ToB64u(Sodium.SealToEd25519(
+            Ed25519.Payload(context, server.World.ServerPublicKey, System.Text.Encoding.UTF8.GetBytes(passphrase)), server.World.ServerPublicKey));
+
     private static byte[] Decrypt(byte[] file, string passphrase)
     {
         var (_, plain) = BackupFile.Decrypt(new MemoryStream(file), passphrase);
@@ -78,10 +83,19 @@ public class BackupTests
         using (var put = await server.CreateClient().PutAsync(ticket.GetProperty("url").GetString(), new ByteArrayContent([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])))
             Assert.True(put.IsSuccessStatusCode);
 
-        Assert.Equal("forbidden", (await admin.RequestAsync("backup.create", new { passphrase = "long enough passphrase" })).ErrorCode());
-        Assert.Equal("bad_request", (await owner.RequestAsync("backup.create", new { passphrase = "short" })).ErrorCode());
+        Assert.Equal("forbidden", (await admin.RequestAsync("backup.create", new { sealedPassphrase = Sealed(server, "long enough passphrase") })).ErrorCode());
+        Assert.Equal("bad_request", (await owner.RequestAsync("backup.create", new { sealedPassphrase = Sealed(server, "short") })).ErrorCode());
+        // Never in the clear, never for another purpose or another server, never tampered with.
+        Assert.Equal("bad_request", (await owner.RequestAsync("backup.create", new { passphrase = "long enough passphrase" })).ErrorCode());
+        Assert.Equal("bad_request", (await owner.RequestAsync("backup.create", new { sealedPassphrase = Sealed(server, "long enough passphrase", "iskra/other/v1") })).ErrorCode());
+        var otherKey = Ed25519.PublicKeyOf(Ed25519.KeyFromSeed(Ed25519.NewSeed()));
+        var forOther = Ed25519.ToB64u(Sodium.SealToEd25519(Ed25519.Payload(Features.BackupFeature.PassphraseContext, otherKey, "long enough passphrase"u8.ToArray()), otherKey));
+        Assert.Equal("bad_request", (await owner.RequestAsync("backup.create", new { sealedPassphrase = forOther })).ErrorCode());
+        var tampered = Ed25519.TryFromB64u(Sealed(server, "long enough passphrase"), out var box) ? box : [];
+        tampered[^1] ^= 1;
+        Assert.Equal("bad_request", (await owner.RequestAsync("backup.create", new { sealedPassphrase = Ed25519.ToB64u(tampered) })).ErrorCode());
 
-        var made = await owner.RequestAsync("backup.create", new { passphrase = "long enough passphrase" });
+        var made = await owner.RequestAsync("backup.create", new { sealedPassphrase = Sealed(server, "long enough passphrase") });
         Assert.Equal("result", made.Type());
         var url = made.Body().GetProperty("url").GetString()!;
         Assert.EndsWith(".iskrabackup", made.Body().GetProperty("name").GetString());

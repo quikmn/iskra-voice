@@ -18,6 +18,37 @@ public static class BackupFeature
     public static void MapEndpoints(WebApplication app) =>
         app.MapGet("/backup/{token}", (HttpContext context, string token, BackupService backups) => backups.Serve(context, token));
 
+    public const string PassphraseContext = "iskra/backup-passphrase/v1";
+    private const int MaxSealedLength = 4096;
+
+    /// <summary>
+    /// The passphrase never crosses the network in the clear: the client seals it to the server key
+    /// (crypto_box_seal to its X25519 form) as context || 0x00 || serverKey(32) || utf8(passphrase).
+    /// </summary>
+    public static string? OpenPassphrase(World world, string sealedB64u)
+    {
+        if (!Crypto.Ed25519.TryFromB64u(sealedB64u, out var sealedBox)) return null;
+        var seed = world.ServerKey.Export(NSec.Cryptography.KeyBlobFormat.RawPrivateKey);
+        try
+        {
+            var plain = Crypto.Sodium.OpenSealedWithEd25519(sealedBox, seed, world.ServerPublicKey);
+            if (plain is null) return null;
+            var prefix = Crypto.Ed25519.Payload(PassphraseContext, world.ServerPublicKey);
+            if (!plain.AsSpan().StartsWith(prefix)) return null;
+            try
+            {
+                var text = new System.Text.UTF8Encoding(false, throwOnInvalidBytes: true).GetString(plain, prefix.Length, plain.Length - prefix.Length);
+                return text.Length is > 0 and <= BackupFile.MaxPassphrase ? text : null;
+            }
+            catch (ArgumentException) { return null; }
+            finally { System.Security.Cryptography.CryptographicOperations.ZeroMemory(plain); }
+        }
+        finally
+        {
+            System.Security.Cryptography.CryptographicOperations.ZeroMemory(seed);
+        }
+    }
+
     private static void RequireOwner(Member me)
     {
         if (me.Role != Roles.Owner) throw RequestException.Forbidden("Only the owner can back up this server.");
@@ -26,7 +57,10 @@ public static class BackupFeature
     private static async Task<object?> Create(BackupService backups, Session s, Member me, Body body)
     {
         RequireOwner(me);
-        var passphrase = body.String("passphrase", BackupFile.MaxPassphrase);
+        if (body.OptionalString("passphrase", BackupFile.MaxPassphrase) is not null)
+            throw RequestException.BadRequest("Send the passphrase sealed to the server key ('sealedPassphrase'), never in the clear.");
+        var passphrase = OpenPassphrase(s.World, body.String("sealedPassphrase", MaxSealedLength))
+            ?? throw RequestException.BadRequest("The passphrase couldn't be read. Reconnect and try again.");
         if (passphrase.Trim().Length < BackupFile.MinPassphrase)
             throw RequestException.BadRequest($"Use a passphrase of at least {BackupFile.MinPassphrase} characters.");
 
