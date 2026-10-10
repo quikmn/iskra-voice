@@ -762,3 +762,26 @@ NotifySetting { "channelId": 1 | null /* null = whole server */, "level": "all" 
 - **The effective level** for a channel: the channel's level, else the server's, else `mentions`. A thread follows its channel. While the channel or the server is muted, `all` counts as `mentions`.
 - **Push:** `all` pushes every message (`kind: "message"`), `mentions` pushes mentions and replies, `none` pushes nothing from that channel. DMs and calls aren't affected.
 - **Clients:** muted channels are dimmed and show no unread marker; mention badges stay unless the level is `none`.
+
+### Forwarding
+
+| type | body | result | who |
+|---|---|---|---|
+| `chat.forward` | `id` (a message in a channel or thread you can read; not a poll), `channelId` (a text channel or thread on this server you can write in) | `{ message }` | readers of the source who can write in the target; rate limit as `chat.send` |
+
+- The copy is a new message by you with the source's text and attachments. Message gains `forwarded: { channelId, channelName, messageId, createdAt } | null`. A forward of a forward points at the original.
+- **No leaks:** `channelId`, `channelName` and `messageId` are only filled in when the source channel still exists and its read role is no higher than that of the channel the copy is in (so everyone who sees the copy could read the source). Otherwise they're `null` and clients show just "Forwarded". This is worked out each time the message is shown, so it follows later role changes.
+- Forwards don't ping again: mentions and replies in the copy don't push or count as mentions (people at "All messages" are still notified).
+- **Into a DM** the client sends an ordinary end-to-end encrypted DM. Its content gains `forward: { from, files: [{ name, url, size, type }] }`: `from` is `"#channel on Server"` only when the recipient can read that channel on that server, else `null`; files are links to the source server (`http(s)` only), opened on click, never loaded on their own. Receivers check every field and drop a malformed `forward`.
+
+### Synced preferences
+
+Small per-account settings that follow you across devices (today: `rail`, the server rail's order and folders).
+
+| type | body | result | who |
+|---|---|---|---|
+| `prefs.get` | `name` (`[a-z][a-z0-9-]{0,31}`) | `{ data \| null, updatedAt \| null }` | anyone (their own) |
+| `prefs.set` | `name`, `data` (base64url, ≥ 40 bytes, ≤ 16 KB), `updatedAt` (ms) | | anyone; ≤ 16 names per account; 1/s, burst 10. An older `updatedAt` than the stored one is ignored |
+
+- Event `prefs.updated { name, updatedAt }` to the account's other sessions.
+- `data` is opaque to the server: clients seal it with XChaCha20-Poly1305 under `crypto_kdf_derive_from_key(32, 1, "iskrapre", accountSeed)`, with `"iskra/prefs/v1" || 0x00 || name` as associated data, as `nonce(24) || ciphertext`. So a server can't see which other servers you're on. Clients write to every connected server and keep the newest copy. Removed with the membership.

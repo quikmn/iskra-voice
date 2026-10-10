@@ -51,6 +51,32 @@ export interface DmContent {
   text: string
   /** A call invite or call log entry (see state/calls.ts, which checks it). `text` is the fallback for other apps. */
   call?: Record<string, unknown>
+  /** A forwarded message: where from (null: not shown) and its files, as links. */
+  forward?: DmForward
+}
+
+export interface DmForward {
+  from: string | null
+  files: { name: string; url: string; size: number; type: string }[]
+}
+
+/** Checks a forward from someone else's device: plain strings, http(s) links only, bounded sizes. Null if unusable. */
+export function cleanForward(raw: unknown): DmForward | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const { from, files } = raw as Record<string, unknown>
+  if (from !== null && (typeof from !== 'string' || from.length > 120)) return null
+  if (!Array.isArray(files) || files.length > 10) return null
+  const clean: DmForward['files'] = []
+  for (const f of files) {
+    if (!f || typeof f !== 'object') return null
+    const { name, url, size, type } = f as Record<string, unknown>
+    if (typeof name !== 'string' || name.length === 0 || name.length > 200) return null
+    if (typeof url !== 'string' || url.length > 2000 || !/^https?:\/\/[^\s]+$/i.test(url)) return null
+    if (typeof size !== 'number' || !Number.isSafeInteger(size) || size < 0) return null
+    if (typeof type !== 'string' || type.length > 100) return null
+    clean.push({ name, url, size, type })
+  }
+  return { from: from as string | null, files: clean }
 }
 
 export interface EncryptOptions {
@@ -197,7 +223,8 @@ export function decryptDm(identity: Identity, envelope: DmEnvelope, from: string
   const content = JSON.parse(new TextDecoder().decode(plaintext)) as Partial<DmContent>
   if (typeof content.text !== 'string' || content.text.length > MAX_TEXT) throw new DmError('Unsupported message content.')
   const call = content.call && typeof content.call === 'object' && !Array.isArray(content.call) ? { call: content.call } : {}
-  return { text: content.text, header, ...call }
+  const forward = content.forward === undefined ? null : cleanForward(content.forward)
+  return { text: content.text, header, ...call, ...(forward ? { forward } : {}) }
 }
 
 /**

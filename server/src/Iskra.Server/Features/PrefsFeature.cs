@@ -1,5 +1,4 @@
 using System.Text.RegularExpressions;
-using Iskra.Server.Crypto;
 using Iskra.Server.Protocol;
 using Iskra.Server.Sessions;
 using Iskra.Server.Storage;
@@ -30,6 +29,19 @@ public static partial class PrefsFeature
         return NamePattern().IsMatch(name) ? name : throw RequestException.BadRequest("'name' must be lowercase letters, digits and dashes.");
     }
 
+    /// <summary>base64url of at least a nonce and a tag (40 bytes).</summary>
+    private static bool IsCiphertext(string data)
+    {
+        try
+        {
+            return System.Buffers.Text.Base64Url.DecodeFromChars(data).Length >= 40;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+    }
+
     private static object Get(Session s, Member me, Body body)
     {
         var pref = s.World.Store.GetPref(me.AccountKey, Name(body));
@@ -40,7 +52,7 @@ public static partial class PrefsFeature
     {
         var name = Name(body);
         var data = body.String("data", MaxDataLength);
-        if (!Ed25519.TryFromB64u(data, out var bytes) || bytes.Length < 40) throw RequestException.BadRequest("'data' must be base64url ciphertext.");
+        if (!IsCiphertext(data)) throw RequestException.BadRequest("'data' must be base64url ciphertext.");
         var updatedAt = body.OptionalLong("updatedAt", 0, 1L << 53) ?? throw RequestException.BadRequest("'updatedAt' is required.");
         var store = s.World.Store;
         var existing = store.GetPref(me.AccountKey, name);

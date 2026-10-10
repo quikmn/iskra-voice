@@ -1,0 +1,76 @@
+// The server rail's order and folders. Kept on this device and synced, encrypted, through every server you're on
+// (prefs.get/prefs.set under "rail"): the newest copy wins.
+import { create } from 'zustand'
+import { b64u } from '../core/crypto'
+import { openPrefs, prefsKey, sealPrefs } from '../core/prefs'
+import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
+import { emptyLayout, parseLayout, type RailItem, type RailLayout } from './railLogic'
+
+const STORAGE_KEY = 'iskra.rail'
+const PREF = 'rail'
+
+function load(): RailLayout {
+  try {
+    return parseLayout(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null')) ?? emptyLayout()
+  } catch {
+    return emptyLayout()
+  }
+}
+
+export const useRail = create<{ layout: RailLayout }>(() => ({ layout: load() }))
+
+function keyNow(): Uint8Array | null {
+  const identity = useApp.getState().identity
+  return identity ? prefsKey(identity.account.secretKey) : null
+}
+
+function keep(layout: RailLayout): void {
+  useRail.setState({ layout })
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(layout))
+  } catch {
+    /* private mode */
+  }
+}
+
+async function pushTo(serverKey: string, layout: RailLayout): Promise<void> {
+  const key = keyNow()
+  const connection = connectionFor(serverKey)
+  if (!key || !connection?.isOnline || layout.updatedAt === 0) return
+  await connection.request('prefs.set', { name: PREF, data: sealPrefs(key, PREF, JSON.stringify(layout)), updatedAt: layout.updatedAt }).catch(() => undefined)
+}
+
+/** Changes the layout here and on every connected server. */
+export function setRail(items: RailItem[]): void {
+  const layout = { items, updatedAt: Math.max(Date.now(), useRail.getState().layout.updatedAt + 1) }
+  keep(layout)
+  for (const serverKey of useApp.getState().order) void pushTo(serverKey, layout)
+}
+
+/** Reads the server's copy; takes it if newer, or sends ours if that is. */
+async function syncWith(serverKey: string): Promise<void> {
+  const connection = connectionFor(serverKey)
+  const key = keyNow()
+  if (!connection || !key) return
+  try {
+    const { data, updatedAt } = await connection.request('prefs.get', { name: PREF })
+    const local = useRail.getState().layout
+    if (data && updatedAt !== null && updatedAt > local.updatedAt) {
+      const opened = openPrefs(key, PREF, data)
+      const remote = opened === null ? null : parseLayout(JSON.parse(opened))
+      if (remote) keep(remote)
+    } else if ((updatedAt ?? 0) < local.updatedAt) {
+      await pushTo(serverKey, local)
+    }
+  } catch {
+    /* an older server without prefs, or offline: the local copy still works */
+  }
+}
+
+onWelcomeHook((serverKey) => void syncWith(serverKey))
+onServerEvent((serverKey, type, body) => {
+  if (type === 'prefs.updated' && (body as { name: string }).name === PREF) void syncWith(serverKey)
+})
+
+/** A new folder id. */
+export const newFolderId = () => `f-${b64u(crypto.getRandomValues(new Uint8Array(9)))}`

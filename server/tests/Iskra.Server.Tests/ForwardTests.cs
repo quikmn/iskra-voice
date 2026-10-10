@@ -148,7 +148,7 @@ public class ForwardTests
         var empty = (await alice.RequestAsync("prefs.get", new { name = "rail" })).Body();
         Assert.Equal(JsonValueKind.Null, empty.GetProperty("data").ValueKind);
 
-        var data = Blob();
+        var data = Blob(8000); // a big rail
         Assert.Equal("result", (await alice.RequestAsync("prefs.set", new { name = "rail", data, updatedAt = 1000 })).Type());
         Assert.Equal(1000, (await phone.EventAsync("prefs.updated")).Body().GetProperty("updatedAt").GetInt64());
         await alice.NoEventAsync("prefs.updated");

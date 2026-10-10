@@ -11,6 +11,7 @@ import { fingerprint } from '../core/connection'
 import { clockTime, fullTime, hueFor, messageTime } from './format'
 import { Lock, Menu, Send, Settings, Users } from './icons'
 import { SettingsDialog } from './settings/SettingsDialog'
+import { ForwardedFiles, ForwardedLine } from './organize/ForwardDialog'
 import type { Panel } from './Shell'
 import { CallButtons, CallLogLine, CallPanel } from './calls/Calls'
 import { asLog } from '../state/callMachine'
@@ -252,7 +253,11 @@ function DmRow({ dm, grouped, peer, mine }: { dm: Dm; grouped: boolean; peer: st
         ) : dm.error && !dm.pending ? (
           <div className="message-notice"><Lock size={13} /> {dm.error}</div>
         ) : (
-          <div className="message-text">{renderMarkdown(dm.text, { nameOf: (k) => nameOf(k) })}</div>
+          <>
+            {dm.forward && <ForwardedLine label={dm.forward.from} />}
+            <div className="message-text">{renderMarkdown(dm.text, { nameOf: (k) => nameOf(k) })}</div>
+            {dm.forward && dm.forward.files.length > 0 && <ForwardedFiles files={dm.forward.files} />}
+          </>
         )}
         {dm.pending === 'failed' && mine && (
           <div className="message-failed">

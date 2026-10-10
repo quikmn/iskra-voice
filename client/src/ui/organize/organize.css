@@ -81,3 +81,64 @@
 .org-nick-row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
 .org-nick-row .field { flex: 1; min-width: 160px; margin: 0; }
 .profile-realname { margin-top: -4px; font-size: 13px; color: var(--muted); }
+
+/* Server rail: drag targets and folders. */
+.server-icon.dragging { opacity: 0.4; }
+.server-icon.drop-before { box-shadow: 0 -6px 0 -3px var(--accent); }
+.server-icon.drop-after { box-shadow: 0 6px 0 -3px var(--accent); }
+.server-icon.drop-combine { outline: 2px solid var(--accent); outline-offset: 3px; }
+.rail-folder { display: flex; flex-direction: column; align-items: center; gap: 8px; flex: none; border-radius: calc(var(--radius) * 1.6); }
+.rail-folder.open { background: color-mix(in srgb, var(--folder) 18%, transparent); padding-bottom: 8px; }
+.folder-icon { color: var(--folder); background: color-mix(in srgb, var(--folder) 25%, var(--surface-2)); }
+.rail-folder.open .folder-icon { background: transparent; }
+.folder-icon:hover { background: color-mix(in srgb, var(--folder) 40%, var(--surface-2)); color: var(--text); }
+.folder-grid { display: grid; grid-template-columns: repeat(2, 16px); gap: 3px; justify-content: center; align-content: center; width: 100%; height: 100%; }
+.folder-grid > span {
+  width: 16px; height: 16px; border-radius: 5px; background: var(--surface-3); color: var(--text-2); font-size: 9px; font-weight: 700;
+  display: grid; place-items: center;
+}
+.folder-colors { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.folder-colors button { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+.folder-colors button.on { border-color: var(--text); box-shadow: 0 0 0 2px var(--bg) inset; }
+
+/* Forwarding. */
+.forwarded-line { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); margin: 2px 0; }
+.forwarded-line .link { font-size: 12px; }
+.forwarded-files { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 2px; font-size: 14px; }
+.forward-preview {
+  margin: 0 0 12px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--surface-2); border-radius: 6px;
+  color: var(--text-2); overflow-wrap: anywhere;
+}
+.forward-targets { display: grid; gap: 2px; max-height: min(50dvh, 360px); overflow-y: auto; margin-top: 8px; }
+.forward-target { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: calc(var(--radius) * 0.6); }
+.forward-target:hover { background: var(--hover); }
+.forward-icon { display: inline-grid; place-items: center; width: 24px; color: var(--muted); }
+.forward-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.forward-kind { font-size: 12px; }
+
+/* Unread: the divider and the bar above the messages. */
+.unread-divider { display: flex; align-items: center; gap: 8px; margin: 10px 16px 6px; color: var(--red); font-size: 12px; font-weight: 700; }
+.unread-divider::before { content: ''; flex: 1; height: 1px; background: var(--red); }
+.unread-divider span { order: 2; }
+.unread-divider::after { content: ''; order: 1; width: 0; }
+.unread-bar-wrap { position: sticky; top: 0; height: 0; z-index: 3; margin-top: -16px; }
+.unread-bar {
+  position: absolute; top: 0; left: 16px; right: 16px; display: flex; align-items: stretch; border-radius: 0 0 8px 8px;
+  background: var(--accent); color: var(--on-accent); font-size: 13px; font-weight: 600; box-shadow: var(--shadow-pop); overflow: hidden;
+}
+.unread-bar button { border: 0; background: transparent; color: inherit; font: inherit; padding: 6px 12px; cursor: pointer; }
+.unread-bar-jump { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.unread-bar-read { border-left: 1px solid color-mix(in srgb, var(--on-accent) 30%, transparent) !important; white-space: nowrap; }
+.unread-bar button:hover { background: color-mix(in srgb, #000 12%, transparent); }
+
+/* Keyboard shortcuts. */
+.shortcut-groups { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.shortcut-groups h3 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.shortcut-list { display: grid; gap: 8px; margin: 0; }
+.shortcut-list > div { display: grid; grid-template-columns: minmax(96px, auto) 1fr; gap: 12px; align-items: baseline; }
+.shortcut-list dt { display: flex; gap: 4px; flex-wrap: wrap; }
+.shortcut-list dd { margin: 0; color: var(--text-2); font-size: 14px; }
+kbd {
+  display: inline-block; min-width: 22px; padding: 2px 6px; border-radius: 5px; border: 1px solid var(--border); border-bottom-width: 2px;
+  background: var(--surface-2); font: 600 12px/1.4 inherit; text-align: center; color: var(--text);
+}

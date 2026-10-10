@@ -532,3 +532,25 @@ export interface Requests {
   'member.nick': [{ accountKey?: string; nick: string }, { member: Member }]
   'notify.set': [{ channelId?: number | null; level?: NotifyLevel | 'default'; muteMinutes?: number }, { setting: NotifySetting }]
 }
+
+/** "Forwarded from #channel". The source is null when not everyone here could read it. */
+export interface ForwardInfo {
+  channelId: number | null
+  channelName: string | null
+  messageId: number | null
+  createdAt: number
+}
+
+export interface Message {
+  forwarded?: ForwardInfo | null
+}
+
+export interface Events {
+  'prefs.updated': { name: string; updatedAt: number }
+}
+
+export interface Requests {
+  'chat.forward': [{ id: number; channelId: number }, { message: Message }]
+  'prefs.get': [{ name: string }, { data: string | null; updatedAt: number | null }]
+  'prefs.set': [{ name: string; data: string; updatedAt: number }, Record<string, never>]
+}

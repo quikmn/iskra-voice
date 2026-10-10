@@ -5,7 +5,7 @@
 import { create } from 'zustand'
 import { b64u } from '../core/crypto'
 import { revokedSet } from '../core/devices'
-import { decryptDm, DmError, encryptDm, type DmContent, type DmEnvelope } from '../core/dm'
+import { decryptDm, DmError, encryptDm, type DmContent, type DmEnvelope, type DmForward } from '../core/dm'
 import type { DeviceCert } from '../core/identity'
 import type { DeviceBundle, WireDm } from '../core/protocol'
 import * as storage from '../core/storage'
@@ -25,6 +25,8 @@ export interface Dm {
   error?: string
   /** A call log entry (see calls.ts); shown instead of the text. */
   call?: Record<string, unknown>
+  /** A forwarded message (see state/forward.ts). */
+  forward?: DmForward
 }
 
 export interface Conversation {
@@ -93,8 +95,8 @@ const upsert = (list: Dm[], dm: Dm): Dm[] => mergeDm(list, dm)
 function open(wire: WireDm): Dm {
   const identity = useApp.getState().identity!
   try {
-    const { text, header, call } = decryptDm(identity, wire.envelope, wire.from, wire.to)
-    return { id: header.id, from: wire.from, to: wire.to, text, sentAt: orderTime(header.sentAt, wire.createdAt), call }
+    const { text, header, call, forward } = decryptDm(identity, wire.envelope, wire.from, wire.to)
+    return { id: header.id, from: wire.from, to: wire.to, text, sentAt: orderTime(header.sentAt, wire.createdAt), call, ...(forward ? { forward } : {}) }
   } catch (e) {
     // The header id (unauthenticated here) only lets a readable local copy of the same message win.
     const headerId = wire.envelope?.header?.id
@@ -114,7 +116,7 @@ let saveTimer: ReturnType<typeof setTimeout> | null = null
 let saving: Promise<void> = Promise.resolve()
 let historyLoaded = false
 
-const storable = (m: Dm): storage.StoredDm => ({ id: m.id, from: m.from, to: m.to, text: m.text, sentAt: m.sentAt, ...(m.call ? { call: m.call } : {}) })
+const storable = (m: Dm): storage.StoredDm => ({ id: m.id, from: m.from, to: m.to, text: m.text, sentAt: m.sentAt, ...(m.call ? { call: m.call } : {}), ...(m.forward ? { forward: m.forward } : {}) })
 
 function persist(peer: string): void {
   if (!historyLoaded) return
@@ -279,7 +281,7 @@ export async function encryptFor(serverKey: string, peer: string, content: DmCon
   })
 }
 
-export async function sendDm(peer: string, text: string, extra: Pick<DmContent, 'call'> = {}): Promise<void> {
+export async function sendDm(peer: string, text: string, extra: Pick<DmContent, 'call' | 'forward'> = {}): Promise<void> {
   const identity = useApp.getState().identity
   const mine = me()
   const route = sharedServers(peer)[0]
