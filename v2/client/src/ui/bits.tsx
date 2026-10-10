@@ -1,6 +1,7 @@
 // Small shared UI pieces.
 import { useEffect, useRef, type ReactNode } from 'react'
 import { hueFor, initials } from './format'
+import { Close } from './icons'
 
 export function Avatar({ name, accountKey, size = 36, online }: { name: string; accountKey: string; size?: number; online?: boolean }) {
   const hue = hueFor(accountKey)
@@ -44,7 +45,7 @@ export function Modal({ title, onClose, children, footer }: { title: string; onC
         <header className="modal-header">
           <h2>{title}</h2>
           <button className="icon-button" onClick={onClose} aria-label="Close">
-            ✕
+            <Close />
           </button>
         </header>
         <div className="modal-body">{children}</div>

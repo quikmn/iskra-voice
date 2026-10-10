@@ -17,6 +17,24 @@ public sealed record WorldSettings
 
     [System.Text.Json.Serialization.JsonIgnore]
     public string EffectivePublicUrl => (PublicUrl ?? $"http://localhost:{Port}").TrimEnd('/');
+
+    public VoiceSettings Voice { get; init; } = new();
+}
+
+/// <summary>Voice runs on a LiveKit server that iskra-server starts and supervises.</summary>
+public sealed record VoiceSettings
+{
+    public bool Enabled { get; init; } = true;
+
+    /// <summary>Path to livekit-server. Default: next to iskra-server, then $ISKRA_LIVEKIT, then PATH.</summary>
+    public string? LiveKitPath { get; init; }
+
+    public int Port { get; init; } = 7880;
+    public int RtcTcpPort { get; init; } = 7881;
+    public int RtcUdpPort { get; init; } = 7882;
+
+    /// <summary>The ws(s):// URL clients use for voice. Default: the server's host on <see cref="Port"/>.</summary>
+    public string? ClientUrl { get; init; }
 }
 
 /// <summary>

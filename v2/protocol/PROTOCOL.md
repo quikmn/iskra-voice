@@ -150,3 +150,22 @@ Writing in a channel requires being able to read it (`writeRole` ≥ `readRole`)
 `<appUrl>/#/join/<b64u(serverUrl)>.<serverKey>.<code>`. The client connects to `serverUrl`, checks that `hello.serverKey` equals the key in the link, and only then sends `auth` with the code.
 
 A new world has no owner. On startup the server writes a single-use owner invite link to `owner-invite.txt` in the world folder (and logs it); the file is deleted once the owner joins.
+
+## Voice
+
+Voice runs on a LiveKit server that `iskra-server` starts next to itself (config generated from `server.json` → `Voice`, keys in `livekit.key` in the world folder). Iskra never carries audio; it only decides who may join.
+
+| type | body | result | who |
+|---|---|---|---|
+| `voice.join` | `channelId` (a `voice` channel) | `{ url, token, room, canSpeak }` | channel readers; `canSpeak` = channel writers |
+| `voice.state` | `muted, deafened` (booleans) | | anyone in voice (cosmetic flags shown to others) |
+
+- `token` is a LiveKit JWT for exactly one room (`voice-<channelId>`) with `canPublish = canSpeak`. The client connects to `url` with it.
+- **Who is in voice comes only from LiveKit's signed webhooks** (`POST /livekit/webhook`, loopback only, HS256 JWT whose `sha256` claim matches the body), never from clients. Anyone LiveKit reports who isn't allowed in the room is removed from it.
+- Kicks, bans, demotions and channel permission changes remove people from rooms they can no longer read.
+- `welcome` also carries `voice: [VoiceState...]` (non-empty voice channels you can read) and `voiceAvailable`.
+- Error `voice_unavailable`: LiveKit isn't running on this server.
+
+| event | body | sent to |
+|---|---|---|
+| `voice.state` | `{ channelId, participants: [{ accountKey, muted, deafened }] }` | readers of that voice channel |

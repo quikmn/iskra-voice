@@ -7,6 +7,10 @@ $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 $worldPath = Join-Path $root ".dev\$World"
 
+$livekit = Join-Path $root '.tools\livekit-server.exe'
+if (-not (Test-Path $livekit)) { & (Join-Path $root 'scripts\get-livekit.ps1') }
+$env:ISKRA_LIVEKIT = $livekit
+
 Write-Host "Server: world at $worldPath" -ForegroundColor Cyan
 $server = Start-Process dotnet -ArgumentList @('watch', '--project', "$root\server\src\Iskra.Server", 'run', '--', $worldPath) -PassThru -NoNewWindow
 

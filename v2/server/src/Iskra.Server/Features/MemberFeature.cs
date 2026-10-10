@@ -50,6 +50,7 @@ public static class MemberFeature
         var member = s.Hub.PublicMember(target with { Role = role });
         s.Hub.Broadcast(Frames.Event("member.updated", new { member }));
         s.Hub.RefreshChannels(target.AccountKey);
+        s.Voice.EnforceAccess();
         return new { member };
     }
 
@@ -58,6 +59,7 @@ public static class MemberFeature
         s.World.Store.RemoveMember(target.AccountKey);
         s.Hub.Disconnect(target.AccountKey, closeCode, reason);
         s.Hub.Broadcast(Frames.Event("member.removed", new { accountKey = target.AccountKey }));
+        s.Voice.EnforceAccess();
     }
 
     private static object? Kick(Session s, Member me, Body body)

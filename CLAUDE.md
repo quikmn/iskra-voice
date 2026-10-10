@@ -19,6 +19,7 @@ The design and the v1 audit are in `design/`. That folder is local only and is *
   - `Sessions/`: one connection per session. One reader and one writer, with outbound messages going through a channel. Never send on a socket from anywhere else.
   - `Storage/`: a world is a folder (`server.json`, `server.key`, `iskra.db`, `uploads/`). SQLite, with all writes behind one lock; files are written atomically.
   - `Crypto/`: Ed25519 via NSec (libsodium).
+  - `Voice/`: `LiveKitHost` starts and supervises livekit-server (pinned v1.13.7; get it with `v2/scripts/get-livekit.ps1`/`.sh` into `v2/.tools`). `VoiceRegistry` tracks who's in voice from LiveKit's signed webhooks only.
 - `v2/client/`: TypeScript, React, Vite, zustand.
   - `src/core/`: protocol types, crypto (libsodium-wrappers-sumo), identity, invite links, `Connection` (handshake, requests, reconnect with backoff), IndexedDB storage.
   - `src/state/store.ts`: app state and every server action. Components never talk to the socket directly.

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { fingerprint } from '../../core/connection'
 import { ROLES, roleRank, type Member, type Role } from '../../core/protocol'
 import { connectionFor, type ServerState } from '../../state/store'
+import { setVolume, useVoice } from '../../state/voice'
 import { Avatar, Modal } from '../bits'
 
 export function MemberDialog({ server, member, onClose }: { server: ServerState; member: Member; onClose: () => void }) {
@@ -22,6 +23,10 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
   }
 
   const connection = connectionFor(server.key)
+  const voiceSession = useVoice((s) => s.session)
+  const volume = useVoice((s) => s.volumes[member.accountKey] ?? 1)
+  const inMyVoice = !isSelf && voiceSession?.serverKey === server.key &&
+    (server.voice[voiceSession.channelId] ?? []).some((p) => p.accountKey === member.accountKey)
 
   return (
     <Modal title={member.name} onClose={onClose}>
@@ -33,6 +38,16 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
           <div className="muted">ID <code>{fingerprint(member.accountKey)}</code></div>
         </div>
       </div>
+
+      {inMyVoice && (
+        <section className="settings-section">
+          <h3>Voice</h3>
+          <label className="field">
+            <span>Volume · {Math.round(volume * 100)}%</span>
+            <input type="range" min={0} max={2} step={0.05} value={volume} onChange={(e) => setVolume(member.accountKey, Number(e.target.value))} />
+          </label>
+        </section>
+      )}
 
       {canModerate && connection && (
         <section className="settings-section">

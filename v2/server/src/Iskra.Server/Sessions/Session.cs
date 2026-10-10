@@ -9,6 +9,7 @@ using Iskra.Server.Crypto;
 using Iskra.Server.Features;
 using Iskra.Server.Protocol;
 using Iskra.Server.Storage;
+using Iskra.Server.Voice;
 
 namespace Iskra.Server.Sessions;
 
@@ -31,6 +32,7 @@ public sealed class Session
     private readonly WebSocket _ws;
     private readonly World _world;
     private readonly Hub _hub;
+    private readonly VoiceRegistry _voice;
     private readonly Router _router;
     private readonly SessionLimits _limits;
     private readonly ILogger _log;
@@ -47,14 +49,16 @@ public sealed class Session
 
     public World World => _world;
     public Hub Hub => _hub;
+    public VoiceRegistry Voice => _voice;
     public TimeProvider Time => _time;
     public long Now => _time.GetUtcNow().ToUnixTimeMilliseconds();
 
-    public Session(WebSocket ws, World world, Hub hub, Router router, SessionLimits limits, ILogger log, TimeProvider time)
+    public Session(WebSocket ws, World world, Hub hub, VoiceRegistry voice, Router router, SessionLimits limits, ILogger log, TimeProvider time)
     {
         _ws = ws;
         _world = world;
         _hub = hub;
+        _voice = voice;
         _router = router;
         _limits = limits;
         _log = log;
@@ -131,6 +135,8 @@ public sealed class Session
             server = new { name = _world.Settings.Name, key = Ed25519.ToB64u(_world.ServerPublicKey) },
             channels = _hub.VisibleChannels(member),
             members = _world.Store.AllMembers().Select(_hub.PublicMember),
+            voice = _voice.Snapshot(member),
+            voiceAvailable = _voice.Backend.Available,
         }));
         if (cameOnline)
         {

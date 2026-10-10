@@ -32,6 +32,17 @@ public readonly struct Body(JsonElement element)
         return text;
     }
 
+    public bool? OptionalBool(string name)
+    {
+        if (Field(name) is not { } value) return null;
+        return value.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            _ => throw RequestException.BadRequest($"'{name}' must be true or false."),
+        };
+    }
+
     public long Long(string name) =>
         OptionalLong(name) ?? throw RequestException.BadRequest($"'{name}' is required.");
 

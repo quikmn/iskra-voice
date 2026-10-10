@@ -4,7 +4,7 @@ import { Connection, type ConnectionStatus } from '../core/connection'
 import { ready } from '../core/crypto'
 import { createIdentity, type Identity } from '../core/identity'
 import type { InviteLink } from '../core/invite'
-import type { Channel, Events, Member, Message, Welcome } from '../core/protocol'
+import type { Channel, Events, Member, Message, VoiceParticipant, Welcome } from '../core/protocol'
 import * as storage from '../core/storage'
 
 export interface PendingMessage extends Message {
@@ -26,6 +26,9 @@ export interface ServerState {
   /** accountKey → when the "typing" hint expires, per channel. */
   typing: Record<number, Record<string, number>>
   unread: Record<number, number>
+  /** Who is in each voice channel (from the server, which hears it from LiveKit). */
+  voice: Record<number, VoiceParticipant[]>
+  voiceAvailable: boolean
 }
 
 interface AppState {
@@ -167,7 +170,7 @@ function connectServer(url: string, key: string, name: string, invite?: string):
       ...state.servers,
       [key]: state.servers[key] ?? {
         key, url, name, status: { state: 'connecting' }, me: null, channels: [], members: {},
-        messages: {}, hasMore: {}, typing: {}, unread: {},
+        messages: {}, hasMore: {}, typing: {}, unread: {}, voice: {}, voiceAvailable: false,
       },
     },
   }))
@@ -198,6 +201,8 @@ function onWelcome(key: string, welcome: Welcome): void {
     me: welcome.you,
     channels: welcome.channels,
     members: Object.fromEntries(welcome.members.map((m) => [m.accountKey, m])),
+    voice: Object.fromEntries(welcome.voice.map((v) => [v.channelId, v.participants])),
+    voiceAvailable: welcome.voiceAvailable,
   }))
   void persistServers()
 
@@ -282,6 +287,11 @@ function onEvent<K extends keyof Events>(key: string, type: K, body: Events[K]):
         members: { ...s.members, [member.accountKey]: member },
         me: s.me?.accountKey === member.accountKey ? member : s.me,
       }))
+      return
+    }
+    case 'voice.state': {
+      const { channelId, participants } = body as Events['voice.state']
+      patchServer(key, (s) => ({ voice: { ...s.voice, [channelId]: participants } }))
       return
     }
     case 'member.removed': {

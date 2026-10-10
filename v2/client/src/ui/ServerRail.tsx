@@ -1,5 +1,6 @@
 import { selectServer, useApp } from '../state/store'
 import { initials } from './format'
+import { Plus } from './icons'
 
 export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavigate: () => void }) {
   const order = useApp((s) => s.order)
@@ -29,7 +30,7 @@ export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavig
         )
       })}
       <button className="server-icon add" title="Join a server" onClick={onJoin} aria-label="Join a server">
-        +
+        <Plus size={22} />
       </button>
     </nav>
   )

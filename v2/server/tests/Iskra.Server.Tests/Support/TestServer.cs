@@ -7,7 +7,9 @@ using Channel = System.Threading.Channels.Channel;
 using Iskra.Server.Crypto;
 using Iskra.Server.Features;
 using Iskra.Server.Storage;
+using Iskra.Server.Voice;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Key = NSec.Cryptography.Key;
@@ -22,11 +24,15 @@ public sealed class IskraServer : WebApplicationFactory<Program>
 
     public World World => Services.GetRequiredService<World>();
 
+    /// <summary>Stands in for LiveKit: always available, records removals.</summary>
+    public FakeVoiceBackend Voice { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("World", WorldPath);
         builder.UseSetting("Session:AuthTimeoutMs", AuthTimeoutMs.ToString());
         builder.UseSetting("Session:CloseGraceMs", "200");
+        builder.ConfigureTestServices(services => services.AddSingleton<IVoiceBackend>(Voice));
     }
 
     public async Task<TestClient> ConnectAsync()
@@ -56,6 +62,21 @@ public sealed class IskraServer : WebApplicationFactory<Program>
     {
         base.Dispose(disposing);
         try { Directory.Delete(WorldPath, recursive: true); } catch (IOException) { }
+    }
+}
+
+public sealed class FakeVoiceBackend : IVoiceBackend
+{
+    public bool Available { get; set; } = true;
+    public string ClientUrl => "ws://voice.test:7880";
+    public string ApiKey => "testkey";
+    public string ApiSecret => "test-secret-that-is-long-enough-for-hs256";
+    public List<(string Room, string Identity)> Removed { get; } = [];
+
+    public Task RemoveParticipantAsync(string room, string identity)
+    {
+        lock (Removed) Removed.Add((room, identity));
+        return Task.CompletedTask;
     }
 }
 

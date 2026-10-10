@@ -81,6 +81,7 @@ public static class ChannelFeature
 
         s.World.Store.UpdateChannel(updated);
         BroadcastChannels(s);
+        s.Voice.EnforceAccess();
         return new { channel = Hub.PublicChannel(updated) };
     }
 
@@ -90,6 +91,7 @@ public static class ChannelFeature
         var channel = s.World.Store.GetChannel(body.Long("id")) ?? throw RequestException.NotFound("Channel");
         s.World.Store.DeleteChannel(channel.Id);
         BroadcastChannels(s);
+        s.Voice.EnforceAccess();
         return null;
     }
 }

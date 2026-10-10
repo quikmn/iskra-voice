@@ -7,6 +7,7 @@ import {
 import { Avatar, MessageText, Spinner } from './bits'
 import { fullTime, hueFor, messageTime } from './format'
 import type { Panel } from './Shell'
+import { Hash, Menu, Pencil, Send, Trash, Users } from './icons'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -23,11 +24,11 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
     <div className="chat">
       <header className="chat-header">
         <button className="icon-button mobile-only" onClick={() => onToggle('nav')} aria-label="Open channels">
-          ☰
+          <Menu />
         </button>
         {channel ? (
           <h1>
-            <span className="hash">#</span>
+            <span className="hash"><Hash size={20} /></span>
             {channel.name}
           </h1>
         ) : (
@@ -35,7 +36,7 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
         )}
         <span className="spacer" />
         <button className="icon-button members-toggle" onClick={() => onToggle('members')} aria-label="Members" title="Members">
-          👥
+          <Users />
         </button>
       </header>
 
@@ -212,8 +213,8 @@ function MessageRow({
             </>
           ) : (
             <>
-              {mine && <button onClick={() => onEdit(true)} title="Edit">✎</button>}
-              {canDelete && <button onClick={() => setConfirmDelete(true)} title="Delete">🗑</button>}
+              {mine && <button onClick={() => onEdit(true)} title="Edit" aria-label="Edit"><Pencil size={15} /></button>}
+              {canDelete && <button onClick={() => setConfirmDelete(true)} title="Delete" aria-label="Delete"><Trash size={15} /></button>}
             </>
           )}
         </div>
@@ -293,7 +294,7 @@ function Composer({ server, channelId, channelName }: { server: ServerState; cha
         }}
       />
       <button className="send-button" onClick={submit} disabled={!text.trim() || !online} aria-label="Send">
-        ➤
+        <Send />
       </button>
     </div>
   )

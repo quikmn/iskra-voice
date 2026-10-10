@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { roleRank } from '../core/protocol'
 import { activeChannelId, selectChannel, useApp, type ServerState } from '../state/store'
+import { joinVoice, useVoice } from '../state/voice'
 import { Avatar } from './bits'
+import { VoiceBar } from './VoiceBar'
 import { CreateChannelDialog } from './dialogs/CreateChannelDialog'
 import { InviteDialog } from './dialogs/InviteDialog'
 import { SettingsDialog } from './dialogs/SettingsDialog'
+import { Hash, HeadphonesOff, Lock, MicOff, Plus, Settings, UserPlus, Volume } from './icons'
 
 export function ChannelSidebar({ server, onNavigate }: { server: ServerState; onNavigate: () => void }) {
   const activeId = useApp(activeChannelId)
@@ -12,6 +15,9 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
   const isAdmin = server.me ? roleRank(server.me.role) >= roleRank('admin') : false
   const canInvite = server.me ? roleRank(server.me.role) >= roleRank('member') : false
   const textChannels = server.channels.filter((c) => c.kind === 'text')
+  const voiceChannels = server.channels.filter((c) => c.kind === 'voice')
+  const voiceSession = useVoice((s) => s.session)
+  const speaking = useVoice((s) => s.speaking)
 
   return (
     <div className="channel-sidebar">
@@ -23,14 +29,14 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
       <div className="channel-list">
         {canInvite && (
           <button className="invite-button" onClick={() => setDialog('invite')}>
-            + Invite friends
+            <UserPlus size={16} /> Invite friends
           </button>
         )}
         <div className="channel-group">
           <span>Text channels</span>
           {isAdmin && (
             <button className="icon-button small" onClick={() => setDialog('channel')} aria-label="Create channel" title="Create channel">
-              +
+              <Plus size={14} />
             </button>
           )}
         </div>
@@ -45,15 +51,58 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
                 onNavigate()
               }}
             >
-              <span className="hash">#</span>
+              <span className="hash"><Hash size={16} /></span>
               <span className="channel-name">{channel.name}</span>
-              {channel.readRole !== 'member' && channel.readRole !== 'guest' && <span className="lock" title={`${channel.readRole}+ only`}>🔒</span>}
+              {channel.readRole !== 'member' && channel.readRole !== 'guest' && <span className="lock" title={`${channel.readRole}+ only`}><Lock size={12} /></span>}
               {unread > 0 && channel.id !== activeId && <span className="badge">{unread}</span>}
             </button>
           )
         })}
+        {(voiceChannels.length > 0 || isAdmin) && (
+          <div className="channel-group">
+            <span>Voice channels</span>
+            {isAdmin && (
+              <button className="icon-button small" onClick={() => setDialog('channel')} aria-label="Create voice channel" title="Create channel">
+                <Plus size={14} />
+              </button>
+            )}
+          </div>
+        )}
+        {voiceChannels.map((channel) => {
+          const participants = server.voice[channel.id] ?? []
+          const here = voiceSession?.serverKey === server.key && voiceSession.channelId === channel.id
+          return (
+            <div key={channel.id} className="voice-channel">
+              <button
+                className={`channel ${here ? 'active' : ''}`}
+                disabled={!server.voiceAvailable}
+                title={server.voiceAvailable ? `Join ${channel.name}` : 'Voice is unavailable on this server'}
+                onClick={() => void joinVoice(server.key, channel.id)}
+              >
+                <span className="hash"><Volume size={16} /></span>
+                <span className="channel-name">{channel.name}</span>
+                {here && voiceSession.state !== 'connected' && <span className="pill">…</span>}
+              </button>
+              {participants.length > 0 && (
+                <ul className="voice-participants">
+                  {participants.map((p) => {
+                    const member = server.members[p.accountKey]
+                    return (
+                      <li key={p.accountKey} className={here && speaking[p.accountKey] ? 'speaking' : ''}>
+                        <Avatar name={member?.name ?? '?'} accountKey={p.accountKey} size={22} />
+                        <span className="member-name">{member?.name ?? 'Someone'}</span>
+                        {p.deafened ? <span className="voice-flag" title="Deafened"><HeadphonesOff size={14} /></span> : p.muted ? <span className="voice-flag" title="Muted"><MicOff size={14} /></span> : null}
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
+          )
+        })}
       </div>
 
+      <VoiceBar />
       <MeBar server={server} onSettings={() => setDialog('settings')} />
 
       {dialog === 'invite' && <InviteDialog server={server} onClose={() => setDialog(null)} />}
@@ -85,7 +134,7 @@ function MeBar({ server, onSettings }: { server: ServerState; onSettings: () => 
         <span>{me?.role ?? 'not joined'}</span>
       </div>
       <button className="icon-button" onClick={onSettings} aria-label="Settings" title="Settings">
-        ⚙
+        <Settings />
       </button>
     </div>
   )

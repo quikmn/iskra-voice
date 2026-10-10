@@ -39,11 +39,24 @@ export interface Invite {
   uses: number
 }
 
+export interface VoiceParticipant {
+  accountKey: string
+  muted: boolean
+  deafened: boolean
+}
+
+export interface VoiceChannelState {
+  channelId: number
+  participants: VoiceParticipant[]
+}
+
 export interface Welcome {
   you: Member
   server: { name: string; key: string }
   channels: Channel[]
   members: Member[]
+  voice: VoiceChannelState[]
+  voiceAvailable: boolean
 }
 
 /** Server → client events, keyed by type. */
@@ -57,6 +70,7 @@ export interface Events {
   'member.updated': { member: Member }
   'member.removed': { accountKey: string }
   kicked: { reason: string }
+  'voice.state': VoiceChannelState
 }
 
 /** Client → server requests: [body, result]. */
@@ -77,11 +91,13 @@ export interface Requests {
   'invite.create': [{ role?: Role; maxUses?: number; expiresInMs?: number }, { invite: Invite }]
   'invite.list': [Record<string, never>, { invites: Invite[] }]
   'invite.revoke': [{ code: string }, Record<string, never>]
+  'voice.join': [{ channelId: number }, { url: string; token: string; room: string; canSpeak: boolean }]
+  'voice.state': [{ muted: boolean; deafened: boolean }, Record<string, never>]
 }
 
 export type ErrorCode =
   | 'bad_request' | 'forbidden' | 'not_found' | 'rate_limited' | 'unknown_type' | 'internal'
-  | 'auth_failed' | 'invite_required' | 'banned'
+  | 'auth_failed' | 'invite_required' | 'banned' | 'voice_unavailable'
 
 export class RequestError extends Error {
   readonly code: ErrorCode | 'disconnected' | 'timeout'

@@ -20,6 +20,7 @@ public sealed class Router
         ChannelFeature.Register(this);
         MemberFeature.Register(this);
         InviteFeature.Register(this);
+        VoiceFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

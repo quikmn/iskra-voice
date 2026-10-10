@@ -10,7 +10,16 @@ export default defineConfig({
   fullyParallel: false,
   reporter: [['list']],
   use: { baseURL: `http://localhost:${APP_PORT}`, trace: 'retain-on-failure' },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    {
+      name: 'chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        permissions: ['microphone', 'camera', 'clipboard-read', 'clipboard-write'],
+        launchOptions: { args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required'] },
+      },
+    },
+  ],
   webServer: {
     command: `npx vite --port ${APP_PORT} --strictPort`,
     url: `http://localhost:${APP_PORT}`,

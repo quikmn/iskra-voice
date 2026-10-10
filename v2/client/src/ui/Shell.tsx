@@ -5,6 +5,7 @@ import { ChatView } from './ChatView'
 import { JoinDialog } from './dialogs/JoinDialog'
 import { MemberList } from './MemberList'
 import { ServerRail } from './ServerRail'
+import { Menu } from './icons'
 
 export type Panel = 'none' | 'nav' | 'members'
 
@@ -45,7 +46,7 @@ function EmptyState({ onJoin, onMenu }: { onJoin: () => void; onMenu: () => void
   return (
     <div className="empty-state">
       <button className="icon-button mobile-only menu-button" onClick={onMenu} aria-label="Open menu">
-        ☰
+        <Menu />
       </button>
       <h1>No servers yet</h1>
       <p>Ask a friend for an invite link, or start your own server and open the link it prints.</p>
