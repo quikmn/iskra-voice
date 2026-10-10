@@ -11,6 +11,13 @@ import { decodeMentions, encodeMentions, renderMarkdown } from './markdown'
 import { fullTime, hueFor, messageTime } from './format'
 import type { Panel } from './Shell'
 import { Close, Hash, Menu, Paperclip, Pencil, Reply, Send, Smile, Trash, Users } from './icons'
+import { decodeEmoji, encodeEmoji, insertAt } from './expressions/emoji'
+import { EmojiPicker } from './expressions/EmojiPicker'
+import { useEmojiLookup } from './expressions/useEmojiLookup'
+import { useEmojiSuggest } from './expressions/EmojiSuggest'
+import { PollCard, PollDialog } from './expressions/Polls'
+import { PollIcon } from './expressions/icons'
+import { useServerEmojis } from '../state/expressions'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -179,6 +186,7 @@ function MessageRow({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [picking, setPicking] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const emojiLookup = useEmojiLookup(server.key)
 
   function jumpTo(id: number) {
     const target = document.getElementById(`msg-${id}`)
@@ -217,13 +225,14 @@ function MessageRow({
         {editing ? (
           <EditBox server={server} message={message} onDone={() => onEdit(false)} />
         ) : (
-          (message.text || message.editedAt) && (
+          (message.text || message.editedAt) && !message.poll && (
             <div className="message-text">
-              {renderMarkdown(message.text, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey })}
+              {renderMarkdown(message.text, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey, emoji: emojiLookup })}
               {message.editedAt && <span className="edited" title={fullTime(message.editedAt)}> (edited)</span>}
             </div>
           )
         )}
+        {message.poll && <PollCard server={server} message={message} />}
         <Attachments server={server} files={message.attachments} />
         {!message.tempId && firstLink(message.text) && <LinkPreviewCard server={server} url={firstLink(message.text)!} />}
         <Reactions server={server} message={message} />
@@ -249,7 +258,7 @@ function MessageRow({
             <>
               <button onClick={() => setPicking((p) => !p)} title="Add reaction" aria-label="Add reaction"><Smile size={15} /></button>
               <button onClick={() => setReply(server.key, message.channelId, message)} title="Reply" aria-label="Reply"><Reply size={15} /></button>
-              {mine && message.text && <button onClick={() => onEdit(true)} title="Edit" aria-label="Edit"><Pencil size={15} /></button>}
+              {mine && message.text && !message.poll && <button onClick={() => onEdit(true)} title="Edit" aria-label="Edit"><Pencil size={15} /></button>}
               {canDelete && <button onClick={() => setConfirmDelete(true)} title="Delete" aria-label="Delete"><Trash size={15} /></button>}
             </>
           )}
@@ -261,7 +270,8 @@ function MessageRow({
 }
 
 function EditBox({ server, message, onDone }: { server: ServerState; message: PendingMessage; onDone: () => void }) {
-  const original = decodeMentions(message.text, (k) => server.members[k]?.name ?? null)
+  const original = decodeEmoji(decodeMentions(message.text, (k) => server.members[k]?.name ?? null))
+  const emojis = useServerEmojis(server.key)
   const [text, setText] = useState(original)
   const [error, setError] = useState<string | null>(null)
 
@@ -269,7 +279,7 @@ function EditBox({ server, message, onDone }: { server: ServerState; message: Pe
     const trimmed = text.trim()
     if (!trimmed || trimmed === original) return onDone()
     try {
-      await connectionFor(server.key)?.request('chat.edit', { id: message.id, text: encodeMentions(trimmed, Object.values(server.members)) })
+      await connectionFor(server.key)?.request('chat.edit', { id: message.id, text: encodeEmoji(encodeMentions(trimmed, Object.values(server.members)), emojis) })
       onDone()
     } catch (e) {
       setError((e as Error).message)
@@ -310,6 +320,9 @@ function Composer({ server, channelId, channelName }: { server: ServerState; cha
   const [drafts, setDrafts] = useState<Record<number, string>>({})
   const [uploads, setUploads] = useState<PendingUpload[]>([])
   const fileInput = useRef<HTMLInputElement>(null)
+  const [picker, setPicker] = useState<HTMLElement | null>(null)
+  const [pollOpen, setPollOpen] = useState(false)
+  const emojis = useServerEmojis(server.key)
   const replyTo = useReply((s) => s.replyTo[replyKey(server.key, channelId)] ?? null)
   const text = drafts[channelId] ?? ''
   const online = server.status.state === 'online'
@@ -353,6 +366,10 @@ function Composer({ server, channelId, channelName }: { server: ServerState; cha
     .filter((m) => m.name.toLowerCase().startsWith(query.toLowerCase()) && m.accountKey !== server.me?.accountKey)
     .sort((a, b) => Number(b.online) - Number(a.online) || a.name.localeCompare(b.name))
     .slice(0, 6)
+  const emojiSuggest = useEmojiSuggest(server.key, text, caret, (next) => {
+    setText(next.text)
+    setCaret(next.caret)
+  })
 
   function insertMention(name: string) {
     const before = text.slice(0, caret).replace(/@([^\s@]{0,32})$/u, `@${name} `)
@@ -363,7 +380,7 @@ function Composer({ server, channelId, channelName }: { server: ServerState; cha
 
   function submit() {
     if (!canSend) return
-    const trimmed = encodeMentions(text.trim(), Object.values(server.members))
+    const trimmed = encodeEmoji(encodeMentions(text.trim(), Object.values(server.members)), emojis)
     setText('')
     for (const u of uploads) if (u.preview) URL.revokeObjectURL(u.preview)
     setUploads([])
@@ -396,6 +413,9 @@ function Composer({ server, channelId, channelName }: { server: ServerState; cha
       <button className="icon-button attach-button" onClick={() => fileInput.current?.click()} aria-label="Attach files" title="Attach files" disabled={!online}>
         <Paperclip />
       </button>
+      <button className="icon-button attach-button" onClick={() => setPollOpen(true)} aria-label="Create a poll" title="Create a poll" disabled={!online}>
+        <PollIcon />
+      </button>
       <input
         ref={fileInput}
         type="file"
@@ -406,6 +426,7 @@ function Composer({ server, channelId, channelName }: { server: ServerState; cha
           e.target.value = ''
         }}
       />
+      {emojiSuggest.popup}
       {suggestions.length > 0 && (
         <div className="mention-popup" role="listbox" aria-label="Mention someone">
           {suggestions.map((m, i) => (
@@ -444,6 +465,7 @@ function Composer({ server, channelId, channelName }: { server: ServerState; cha
           }
         }}
         onKeyDown={(e) => {
+          if (emojiSuggest.onKeyDown(e)) return
           if (suggestions.length > 0 && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
             e.preventDefault()
             setPick((p) => (p + (e.key === 'ArrowDown' ? 1 : suggestions.length - 1)) % suggestions.length)
@@ -461,10 +483,27 @@ function Composer({ server, channelId, channelName }: { server: ServerState; cha
           }
         }}
       />
+      <button className="icon-button attach-button" onClick={(e) => setPicker(picker ? null : e.currentTarget)} aria-label="Emoji" title="Emoji">
+        <Smile />
+      </button>
       <button className="send-button" onClick={submit} disabled={!canSend} aria-label="Send">
         <Send />
       </button>
     </div>
+      {picker && (
+        <EmojiPicker
+          serverKey={server.key}
+          anchor={picker}
+          keepOpen
+          onClose={() => setPicker(null)}
+          onPick={(value) => {
+            const next = insertAt(text, caret, decodeEmoji(value))
+            setText(next.text)
+            setCaret(next.caret)
+          }}
+        />
+      )}
+      {pollOpen && <PollDialog server={server} channelId={channelId} onClose={() => setPollOpen(false)} />}
     </div>
   )
 }

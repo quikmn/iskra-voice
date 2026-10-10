@@ -13,6 +13,7 @@ import { VoiceStage } from './VoiceStage'
 import { HomeMain, HomeSidebar } from './Home'
 import { RecoveryNudge } from './dialogs/RecoveryKey'
 import { Menu } from './icons'
+import { SoundToasts } from './expressions/Soundboard'
 
 export type Panel = 'none' | 'nav' | 'members'
 
@@ -51,6 +52,7 @@ export function Shell() {
         </aside>
       )}
 
+      <SoundToasts />
       {panel !== 'none' && <div className="scrim" onClick={() => setPanel('none')} />}
       {joining && <JoinDialog onClose={() => setJoining(false)} onCreate={() => { setJoining(false); setCreating(true) }} />}
       {creating && (desktop ? <CreateServerDialog onClose={() => setCreating(false)} /> : <StartServerDialog onClose={() => setCreating(false)} />)}

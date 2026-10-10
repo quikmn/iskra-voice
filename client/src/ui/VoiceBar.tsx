@@ -1,6 +1,7 @@
 import { selectServer, useApp } from '../state/store'
 import { clearVoiceError, leaveVoice, setStageOpen, toggleDeafen, toggleMute, useVoice } from '../state/voice'
 import { Close, Headphones, HeadphonesOff, Mic, MicOff, PhoneOff } from './icons'
+import { SoundboardButton } from './expressions/Soundboard'
 
 /** Shown above your name while you're in voice (or when joining failed). */
 export function VoiceBar() {
@@ -47,6 +48,7 @@ export function VoiceBar() {
         <button className={`icon-button ${deafened ? 'off' : ''}`} onClick={() => void toggleDeafen()} aria-pressed={deafened} aria-label={deafened ? 'Undeafen' : 'Deafen'} title={deafened ? 'Undeafen' : 'Deafen'}>
           {deafened ? <HeadphonesOff /> : <Headphones />}
         </button>
+        <SoundboardButton variant="bar" />
         <button className="icon-button hang-up" onClick={() => void leaveVoice()} aria-label="Leave voice" title="Leave voice">
           <PhoneOff />
         </button>

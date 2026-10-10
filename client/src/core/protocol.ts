@@ -161,3 +161,67 @@ export const CloseCodes = {
   Forbidden: 4403,
   TooLarge: 4413,
 } as const
+
+// ── polls, custom emoji, soundboard ──
+// (Declaration merging adds the new fields, events and requests to the interfaces above.)
+
+export interface PollOption {
+  text: string
+  /** accountKeys, in the order they voted. */
+  votes: string[]
+}
+
+export interface Poll {
+  question: string
+  options: PollOption[]
+  multi: boolean
+  expiresAt: number | null
+  closedAt: number | null
+}
+
+export interface Message {
+  /** Present on poll messages (the message text is the question). */
+  poll?: Poll | null
+}
+
+/** A server emoji. Written in messages and reactions as <:name:id>. */
+export interface CustomEmoji {
+  id: string
+  name: string
+  /** Relative to the server's URL. */
+  url: string | null
+  animated: boolean
+  createdBy: string
+}
+
+export interface Sound {
+  id: string
+  name: string
+  emoji: string | null
+  /** Relative to the server's URL. */
+  url: string | null
+  durationMs: number
+  createdBy: string
+}
+
+export interface Events {
+  'poll.updated': { id: number; channelId: number; poll: Poll }
+  'emoji.updated': { emojis: CustomEmoji[] }
+  'sounds.updated': { sounds: Sound[] }
+  'sound.played': { channelId: number; accountKey: string; sound: Sound }
+}
+
+export interface Requests {
+  'poll.create': [{ channelId: number; question: string; options: string[]; multi?: boolean; durationMs?: number }, { message: Message }]
+  'poll.vote': [{ id: number; options: number[] }, Record<string, never>]
+  'poll.end': [{ id: number }, Record<string, never>]
+  'emoji.list': [Record<string, never>, { emojis: CustomEmoji[] }]
+  'emoji.create': [{ name: string; fileId: string }, { emoji: CustomEmoji }]
+  'emoji.rename': [{ id: string; name: string }, { emoji: CustomEmoji }]
+  'emoji.delete': [{ id: string }, Record<string, never>]
+  'sound.list': [Record<string, never>, { sounds: Sound[] }]
+  'sound.create': [{ name: string; emoji?: string | null; fileId: string }, { sound: Sound }]
+  'sound.update': [{ id: string; name: string; emoji?: string | null }, { sound: Sound }]
+  'sound.delete': [{ id: string }, Record<string, never>]
+  'sound.play': [{ id: string }, Record<string, never>]
+}
