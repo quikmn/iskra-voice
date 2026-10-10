@@ -91,6 +91,7 @@ else
 var app = builder.Build();
 app.Lifetime.ApplicationStopped.Register(world.Dispose);
 ChildProcesses.StopWhenParentExits(app.Lifetime, app.Logger);
+ChildProcesses.StopWhenStdinCloses(app.Lifetime, app.Logger);
 
 if (https.Enabled)
 {

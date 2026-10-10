@@ -114,7 +114,10 @@ test('creating a server from the desktop app makes you its owner', async () => {
     await app.close()
     rmSync(userData, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
     const log = join(hostRoot, 'living-room', 'server.log')
-    if (existsSync(log)) console.log(`--- hosted server.log ---\n${readFileSync(log, 'utf8').slice(-3000)}`)
+    const logText = existsSync(log) ? readFileSync(log, 'utf8') : ''
+    console.log(`--- hosted server.log ---\n${logText.slice(-3000)}`)
     rmSync(hostRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 })
+    // Quitting the app stops the server cleanly (so it can remove router port mappings), not with a kill.
+    expect(logText).toContain('asked it to stop; shutting down')
   }
 })

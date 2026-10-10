@@ -62,6 +62,42 @@ public static class ChildProcesses
         });
     }
 
+    /// <summary>
+    /// When started by the desktop app (ISKRA_STOP_ON_STDIN_CLOSE=1): the app holds our stdin open and closes it to stop us,
+    /// so we shut down cleanly (removing router port mappings and stopping LiveKit) instead of being killed. Works the same on
+    /// every OS, and also fires if the app crashes, since the OS closes the pipe.
+    /// </summary>
+    public static void StopWhenStdinCloses(IHostApplicationLifetime lifetime, ILogger log)
+    {
+        if (Environment.GetEnvironmentVariable("ISKRA_STOP_ON_STDIN_CLOSE") != "1") return;
+        StopWhenClosed(Console.OpenStandardInput(), lifetime, log);
+    }
+
+    /// <summary>Stops the app once <paramref name="input"/> ends (or breaks). Returns the watching thread.</summary>
+    public static Thread StopWhenClosed(Stream input, IHostApplicationLifetime lifetime, ILogger log)
+    {
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                using (input)
+                {
+                    var buffer = new byte[256];
+                    while (input.Read(buffer, 0, buffer.Length) > 0) { } // nothing is ever sent; we only wait for the end
+                }
+            }
+            catch (IOException)
+            {
+                // a broken pipe means the same thing
+            }
+            if (lifetime.ApplicationStopping.IsCancellationRequested) return;
+            log.LogInformation("The app that started this server asked it to stop; shutting down.");
+            lifetime.StopApplication();
+        }) { IsBackground = true, Name = "stdin watch" };
+        thread.Start();
+        return thread;
+    }
+
     private const int JobObjectExtendedLimitInformation = 9;
     private const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000;
 
