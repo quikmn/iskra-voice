@@ -82,7 +82,7 @@ export interface VoiceChannelState {
 
 export interface Welcome {
   you: Member
-  server: { name: string; key: string; appUrl: string }
+  server: { name: string; key: string; appUrl: string; publicUrl?: string | null }
   channels: Channel[]
   members: Member[]
   voice: VoiceChannelState[]
@@ -161,3 +161,42 @@ export const CloseCodes = {
   Forbidden: 4403,
   TooLarge: 4413,
 } as const
+
+// ── hosting ──
+
+export type PortState = 'open' | 'failed' | 'pending' | 'manual' | 'skipped'
+
+export interface HostPort {
+  name: 'acme' | 'web' | 'voice-tcp' | 'voice-udp'
+  protocol: 'tcp' | 'udp'
+  internal: number
+  external: number
+  state: PortState
+  error: string | null
+}
+
+/** "Open to the internet" as the server sees it (host.status). */
+export interface HostStatus {
+  enabled: boolean
+  lanUrl: string | null
+  router: { state: 'off' | 'searching' | 'found' | 'not_found' | 'disabled'; kind: string | null }
+  publicIp: string | null
+  cgnat: boolean
+  ports: HostPort[]
+  address: string | null
+  autoAddress: boolean
+  https: { state: 'off' | 'waiting' | 'needs_port_80' | 'requesting' | 'valid' | 'failed'; domain: string | null; expiresAt: number | null; error: string | null }
+  reachable: 'verified' | 'router' | 'unknown'
+  publicUrl: string | null
+  checkedAt: number | null
+}
+
+export interface Events {
+  'host.status': { status: HostStatus }
+  'server.address': { publicUrl: string | null }
+}
+
+export interface Requests {
+  'host.status': [Record<string, never>, { status: HostStatus }]
+  'host.internet.set': [{ enabled: boolean }, { status: HostStatus }]
+}

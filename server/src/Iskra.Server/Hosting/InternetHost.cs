@@ -366,9 +366,10 @@ public sealed class InternetHost : BackgroundService
         var domain = Domain(s, v);
         if (s.Https.Mode == "off")
         {
-            // Let's Encrypt checks port 80: only ask when it's open (or the owner forwards ports by hand).
+            // Let's Encrypt checks port 80. Even when the router refused it, the owner may forward it by hand:
+            // keep trying (backed off, and right away on "check again").
             var acme = v.Port("acme");
-            var canValidate = acme is { State: "open" or "manual" };
+            var canValidate = acme is { State: "open" or "manual" or "failed" };
             _certificates.Want(domain is not null && canValidate ? domain : null);
         }
         Publish();
@@ -393,7 +394,8 @@ public sealed class InternetHost : BackgroundService
         var cert = _certificates.Status;
         if (s.Https.Mode == "files") return new("valid", s.Https.Domain ?? cert.Domain, cert.ExpiresAt, null);
         if (domain is null) return new("waiting", null, null, null);
-        if (s.Https.Mode == "off" && v.Port("acme") is { State: "failed" or "skipped" }) return new("needs_port_80", domain, null, null);
+        if (cert.Domain == domain && cert.State == "valid") return new("valid", domain, cert.ExpiresAt, null);
+        if (s.Https.Mode == "off" && v.Port("acme") is { State: "failed" or "skipped" }) return new("needs_port_80", domain, null, cert.Domain == domain ? cert.Error : null);
         if (cert.Domain != domain) return new("waiting", domain, null, null);
         return cert.State switch
         {
