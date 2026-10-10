@@ -8,6 +8,8 @@ import { jumpToMessage } from './jump'
 import { b64u } from '../core/crypto'
 import type { Events, WireDm } from '../core/protocol'
 import { useAudio } from './audio'
+import { desktop } from '../platform/desktop'
+import { overlayIcon } from '../platform/badge'
 
 interface NotifySettings {
   desktop: boolean
@@ -100,6 +102,7 @@ export const pushActive = new Set<string>()
 function show(serverKey: string, title: string, body: string, onClick: () => void): void {
   if (pushActive.has(serverKey) && !document.hasFocus()) return
   playTone('message')
+  if (!document.hasFocus()) void desktop?.attention?.().catch(() => undefined)
   if (!useNotify.getState().desktop || !notificationsSupported() || Notification.permission !== 'granted') return
   const notification = new Notification(title, { body: body.slice(0, 200), silent: true })
   notification.onclick = () => {
@@ -167,6 +170,8 @@ onServerEvent((serverKey, type, body) => {
   }
 })
 
+let lastBadge = -1
+
 /** Keeps "(3) Iskra" in the title for unread mentions and DMs. */
 export function startTitleBadge(): () => void {
   const update = async () => {
@@ -176,6 +181,11 @@ export function startTitleBadge(): () => void {
     const dmCount = Object.values(useDms.getState().conversations).reduce((n, c) => n + c.unread, 0)
     const total = mentionCount + dmCount
     document.title = total > 0 ? `(${total}) Iskra` : 'Iskra'
+    // The desktop app also shows it on the taskbar / dock.
+    if (desktop?.setBadge && total !== lastBadge) {
+      lastBadge = total
+      void desktop.setBadge(total, overlayIcon(total)).catch(() => undefined)
+    }
   }
   const unsubscribe = useApp.subscribe(() => void update())
   let unsubscribeDms = () => {}

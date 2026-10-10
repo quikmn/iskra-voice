@@ -54,6 +54,11 @@ export function buildInviteLink(appUrl: string, invite: InviteLink): string {
   return `${appUrl.replace(/\/+$/, '')}/#/join/${encodeB64u(invite.serverUrl)}.${invite.serverKey}.${invite.code}`
 }
 
+/** The same invite as an iskra:// link, which opens the desktop app (it accepts nothing but invites). */
+export function appInviteLink(invite: InviteLink): string {
+  return `iskra://join/${encodeB64u(invite.serverUrl)}.${invite.serverKey}.${invite.code}`
+}
+
 /** ws(s)://host/ws for an http(s) server URL. */
 export function socketUrl(serverUrl: string): string {
   return serverUrl.replace(/^http/, 'ws') + '/ws'

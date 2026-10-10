@@ -2,7 +2,7 @@
 import { roleRank, type Role } from '../../core/protocol'
 
 export type SectionId =
-  | 'profile' | 'appearance' | 'devices' | 'recovery' | 'notifications' | 'voice'
+  | 'profile' | 'appearance' | 'devices' | 'recovery' | 'notifications' | 'voice' | 'desktop'
   | 'overview' | 'emoji' | 'sounds' | 'integrations' | 'pages' | 'internet'
 
 export interface SectionInfo {
@@ -18,6 +18,7 @@ const ACCOUNT: SectionInfo[] = [
   { id: 'recovery', label: 'Recovery key', group: 'account' },
   { id: 'notifications', label: 'Notifications', group: 'account' },
   { id: 'voice', label: 'Voice & audio', group: 'account' },
+  { id: 'desktop', label: 'Desktop app', group: 'account' },
 ]
 
 /** Server sections and the lowest role that may open each. */
@@ -30,8 +31,9 @@ const SERVER: (SectionInfo & { min: Role })[] = [
   { id: 'internet', label: 'Open to the internet', group: 'server', min: 'admin' },
 ]
 
-/** The sections to show: account always; server ones only with a joined server, by role. */
-export function settingsSections(role: Role | null | undefined): SectionInfo[] {
-  if (!role) return ACCOUNT
-  return [...ACCOUNT, ...SERVER.filter((s) => roleRank(role) >= roleRank(s.min)).map(({ id, label, group }) => ({ id, label, group }))]
+/** The sections to show: account always (Desktop app only in the app); server ones only with a joined server, by role. */
+export function settingsSections(role: Role | null | undefined, desktopApp = false): SectionInfo[] {
+  const account = desktopApp ? ACCOUNT : ACCOUNT.filter((s) => s.id !== 'desktop')
+  if (!role) return account
+  return [...account, ...SERVER.filter((s) => roleRank(role) >= roleRank(s.min)).map(({ id, label, group }) => ({ id, label, group }))]
 }

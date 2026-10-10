@@ -6,8 +6,12 @@ import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Host } from './host'
-import { aboutDetail, isAppPage, isWayland, MAC_SETTINGS, skipScreenPicker, trayMenu, type SettingsPane, type TrayAction } from './platform'
+import {
+  aboutDetail, badgeText, DEEP_LINK_SCHEME, deepLinkFromArgv, isAppPage, isWayland, MAC_SETTINGS, parseDeepLink, parseDesktopSettings,
+  skipScreenPicker, trayMenu, type DesktopSettings, type SettingsPane, type TrayAction,
+} from './platform'
 import { PushToTalk } from './ptt'
+import { applyOpenAtLogin, loadDesktopSettings, saveDesktopSettings, startedHidden } from './settings'
 import { Updates, type UpdateStatus } from './updates'
 
 const DEV_URL = process.env.ISKRA_DEV_URL // e.g. http://localhost:5173 while developing
@@ -22,6 +26,10 @@ const CLIENT_DIR = app.isPackaged ? path.join(process.resourcesPath, 'client') :
 
 // Screen sharing on Wayland goes through PipeWire and the system's own picker.
 if (process.platform === 'linux') app.commandLine.appendSwitch('enable-features', 'WebRTCPipeWireCapturer')
+
+// Desktop settings: hardware acceleration has to be turned off before the app is ready.
+let settings: DesktopSettings = loadDesktopSettings()
+if (!settings.hardwareAcceleration) app.disableHardwareAcceleration()
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
@@ -39,7 +47,32 @@ const updates = new Updates((status: UpdateStatus) => {
 
 if (!app.requestSingleInstanceLock()) app.quit()
 
-app.on('second-instance', () => showWindow())
+// ── iskra:// invite links ────────────────────────────────────────────────
+// Only an invite token ever gets through (parseDeepLink); the page then shows its usual "You're invited" prompt.
+let pendingDeepLink: string | null = deepLinkFromArgv(process.argv)
+
+function openDeepLink(token: string | null): void {
+  if (!token) return
+  showWindow()
+  if (window && !window.webContents.isLoading()) window.webContents.send('iskra:deep-link', token)
+  else pendingDeepLink = token
+}
+
+// Installed builds register the scheme (the installers do too); development builds never touch the system.
+if (app.isPackaged) app.setAsDefaultProtocolClient(DEEP_LINK_SCHEME)
+
+// Windows and Linux: a second launch (e.g. clicking a link) hands its command line to us, then quits.
+app.on('second-instance', (_event, argv) => {
+  showWindow()
+  openDeepLink(deepLinkFromArgv(argv))
+})
+// macOS delivers links as events, possibly before the window exists.
+app.on('open-url', (event, url) => {
+  event.preventDefault()
+  const token = parseDeepLink(url)
+  if (window) openDeepLink(token)
+  else if (token) pendingDeepLink = token
+})
 
 function showWindow(): void {
   if (!window) return
@@ -71,7 +104,9 @@ function createWindow(): void {
     },
   })
 
-  window.once('ready-to-show', () => window?.show())
+  // Started with the computer: stay in the tray until opened.
+  if (!startedHidden()) window.once('ready-to-show', () => window?.show())
+  window.on('focus', () => window?.flashFrame(false))
   void window.loadURL(DEV_URL ?? `${APP_ORIGIN}/index.html`)
 
   // Links open in the real browser; the app window never navigates away from the app.
@@ -83,9 +118,9 @@ function createWindow(): void {
     if (!isAppUrl(url)) event.preventDefault()
   })
 
-  // Closing hides to the tray, like Discord; quit from the tray menu.
+  // Closing hides to the tray, like Discord (unless turned off); quit from the tray menu.
   window.on('close', (event) => {
-    if (!quitting) {
+    if (!quitting && settings.closeToTray) {
       event.preventDefault()
       window?.hide()
     }
@@ -121,7 +156,7 @@ function setUpSession(): void {
     !!contents && isAppUrl(contents.getURL()) && isAppUrl(requestingOrigin + '/') && allowed.has(permission))
 
   // Screen sharing: let the user pick a screen or window in our own picker.
-  appSession.setDisplayMediaRequestHandler(async (_request, callback) => {
+  appSession.setDisplayMediaRequestHandler(async (request, callback) => {
     const sources = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 320, height: 180 } })
     if (MAC && systemPreferences.getMediaAccessStatus('screen') !== 'granted') {
       void explainScreenPermission()
@@ -136,7 +171,8 @@ function setUpSession(): void {
     const picked = sources.find((s) => s.id === pickedId)
     if (!picked) return callback({})
     // "loopback" shares system audio on Windows; elsewhere it's ignored.
-    callback(process.platform === 'win32' ? { video: picked, audio: 'loopback' } : { video: picked })
+    // "Share audio": everything the computer plays ("loopback"), on Windows only; elsewhere it's ignored.
+    callback(process.platform === 'win32' && request.audioRequested ? { video: picked, audio: 'loopback' } : { video: picked })
   })
 }
 
@@ -307,6 +343,52 @@ ipcMain.handle('iskra:open-settings', (event, pane: unknown) => {
   if (!fromApp(event) || !MAC || typeof pane !== 'string' || !Object.hasOwn(MAC_SETTINGS, pane)) return
   if (pane === 'accessibility') systemPreferences.isTrustedAccessibilityClient(true) // puts Iskra in the list
   void shell.openExternal(MAC_SETTINGS[pane as SettingsPane])
+})
+
+// Desktop settings.
+ipcMain.handle('iskra:desktop-settings', (event) => (fromApp(event) ? settings : null))
+ipcMain.handle('iskra:set-desktop-settings', (event, patch: unknown) => {
+  if (!fromApp(event) || !patch || typeof patch !== 'object') return settings
+  const next = parseDesktopSettings({ ...settings, ...patch })
+  if (next.openAtLogin !== settings.openAtLogin) applyOpenAtLogin(next.openAtLogin)
+  settings = next
+  try {
+    saveDesktopSettings(settings)
+  } catch (error) {
+    console.error('Saving settings:', error)
+  }
+  return settings
+})
+ipcMain.handle('iskra:relaunch', (event) => {
+  if (!fromApp(event)) return
+  quitting = true
+  app.relaunch()
+  app.quit()
+})
+
+// iskra:// links that arrived before the page was ready.
+ipcMain.handle('iskra:take-deep-link', (event) => {
+  if (!fromApp(event)) return null
+  const token = pendingDeepLink
+  pendingDeepLink = null
+  return token
+})
+
+// Unread mentions and DMs on the taskbar / dock. Windows draws the count as an overlay icon the page renders.
+ipcMain.handle('iskra:badge', (event, count: unknown, overlay: unknown) => {
+  if (!fromApp(event) || !window || typeof count !== 'number' || !Number.isFinite(count)) return
+  const n = Math.max(0, Math.min(9999, Math.floor(count)))
+  if (MAC) app.dock?.setBadge(badgeText(n))
+  else if (process.platform === 'linux') app.setBadgeCount(n) // Unity launchers and docks that support it
+  else if (process.platform === 'win32') {
+    const png = typeof overlay === 'string' && overlay.length < 20_000 && overlay.startsWith('data:image/png;base64,') ? nativeImage.createFromDataURL(overlay) : null
+    window.setOverlayIcon(n > 0 && png && !png.isEmpty() ? png : null, n > 0 ? `${n} unread` : '')
+  }
+})
+// A mention or DM while Iskra isn't focused: flash the taskbar (bounce the dock on macOS) until it is.
+ipcMain.handle('iskra:attention', (event) => {
+  if (!fromApp(event) || !window || window.isFocused()) return
+  window.flashFrame(true)
 })
 
 // Updates.

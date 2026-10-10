@@ -6,6 +6,8 @@ import { leaveServer, type ServerState } from '../../state/store'
 import { Modal } from '../bits'
 import { VoiceSettingsSection } from '../dialogs/VoiceSettings'
 import { InputSettingsSection, OutputSettingsSection, ProcessingSettingsSection } from '../dialogs/AudioSettings'
+import { DesktopSettingsSection } from '../dialogs/DesktopSettings'
+import { desktop } from '../../platform/desktop'
 import { RecoveryKeySection } from '../dialogs/RecoveryKey'
 import { NotificationSettingsSection } from '../dialogs/NotificationSettings'
 import { ProfileSection, ServerPagesOption } from '../profile/ProfileSettings'
@@ -34,7 +36,7 @@ function usePhone(): boolean {
 
 export function SettingsDialog({ server, onClose, section: initial }: { server?: ServerState | null; onClose: () => void; section?: SectionId }) {
   const phone = usePhone()
-  const sections = settingsSections(server?.me?.role)
+  const sections = settingsSections(server?.me?.role, !!desktop)
   const [picked, setPicked] = useState<SectionId | null>(initial ?? (isPhone() ? null : 'profile'))
   // A section can vanish (role changed); wide screens always show one.
   const current = sections.find((s) => s.id === picked) ?? (phone ? null : sections[0])
@@ -94,6 +96,7 @@ function Section({ id, server, onClose }: { id: SectionId; server: ServerState |
     case 'recovery': return <RecoveryKeySection />
     case 'notifications': return <NotificationSettingsSection />
     case 'voice': return <><InputSettingsSection /><VoiceSettingsSection /><ProcessingSettingsSection /><OutputSettingsSection /><SoundboardSettingsSection /></>
+    case 'desktop': return <DesktopSettingsSection />
   }
   if (!server) return null
   switch (id) {

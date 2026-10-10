@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { spawn } from 'node:child_process'
 import { _electron as electron, expect, test } from '@playwright/test'
 import { SHOTS, startServer, type TestServer } from './helpers'
 
@@ -34,7 +35,10 @@ test('the desktop app runs the web app on app:// and can join a server', async (
 
     // The preload bridge is there, and only that.
     const bridge = await page.evaluate(() => Object.keys((window as unknown as { iskraDesktop: object }).iskraDesktop).sort())
-    expect(bridge).toEqual(['callAlert', 'capturePushToTalkKey', 'host', 'onPickScreen', 'onPushToTalk', 'openSystemSettings', 'pickScreen', 'platform', 'pushToTalkStatus', 'setPushToTalkKey', 'updates'])
+    expect(bridge).toEqual([
+      'attention', 'callAlert', 'capturePushToTalkKey', 'host', 'onDeepLink', 'onPickScreen', 'onPushToTalk', 'openSystemSettings', 'pickScreen',
+      'platform', 'pushToTalkStatus', 'setBadge', 'setPushToTalkKey', 'settings', 'takeDeepLink', 'updates',
+    ])
     expect(await page.evaluate(() => typeof (window as unknown as { require?: unknown }).require)).toBe('undefined')
 
     // Calls: LiveKit's end-to-end encryption worker loads from app:// under the app's CSP, and frames can be transformed.
@@ -152,5 +156,62 @@ test('creating a server from the desktop app makes you its owner', async () => {
     rmSync(hostRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 })
     // Quitting the app stops the server cleanly (so it can remove router port mappings), not with a kill.
     expect(logText).toContain('asked it to stop; shutting down')
+  }
+})
+
+test('Desktop app settings, the unread badge, and iskra:// invite links', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'iskra-desktop-'))
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'NODE_OPTIONS')) as Record<string, string>
+  const electronExe = join(DESKTOP, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron')
+  const linkServer = await startServer('Desktop Links')
+  const token = linkServer.ownerLink().split('/join/')[1]
+  // Started by clicking an invite link: the app opens on that invite.
+  const app = await electron.launch({ executablePath: electronExe, args: [DESKTOP, `--user-data-dir=${userData}`, `iskra://join/${token}`], cwd: DESKTOP, env })
+  try {
+    const page = await app.firstWindow()
+    await expect(page.getByText("You've been invited")).toBeVisible()
+    await page.getByLabel('Your name').fill('Linked')
+    await page.getByRole('button', { name: 'Join' }).click()
+    await expect(page.getByRole('heading', { name: 'general' })).toBeVisible()
+    await expect(page.getByText('Open in the app')).toHaveCount(0) // that's only for browsers
+
+    // A second launch with a link (another click) goes to the running app; only invites get through.
+    const second = (link: string) => new Promise<void>((done) => {
+      spawn(electronExe, [DESKTOP, `--user-data-dir=${userData}`, link], { cwd: DESKTOP, env, stdio: 'ignore' }).once('exit', () => done())
+    })
+    await second(`iskra://link/${token}`)
+    await page.waitForTimeout(500)
+    await expect(page.getByRole('dialog', { name: "You're invited" })).toHaveCount(0)
+    await second(`iskra://join/${token}`)
+    await expect(page.getByRole('dialog', { name: "You're invited" })).toBeVisible()
+    await page.getByRole('button', { name: 'Not now' }).click()
+
+    // The unread count reaches the taskbar (Windows: an overlay icon drawn by the page).
+    const badge = await page.evaluate(async () => {
+      const d = (window as unknown as { iskraDesktop: { setBadge(n: number, o: string | null): Promise<void> } }).iskraDesktop
+      await d.setBadge(3, null)
+      await d.setBadge(0, null)
+      return 'ok'
+    })
+    expect(badge).toBe('ok')
+
+    // Settings → Desktop app: off/on switches, kept by the app itself.
+    await page.locator('.me-bar').getByRole('button', { name: 'Settings' }).click()
+    const settings = page.getByRole('dialog', { name: 'Settings' })
+    await settings.getByRole('button', { name: 'Desktop app', exact: true }).click()
+    await expect(settings.getByLabel(/Start Iskra with your computer/)).not.toBeChecked()
+    await expect(settings.getByLabel(/Close button minimises to the tray/)).toBeChecked()
+    await settings.getByLabel(/Close button minimises to the tray/).uncheck()
+    await settings.getByLabel(/Hardware acceleration/).uncheck()
+    await expect(settings.getByRole('button', { name: 'Restart now' })).toBeVisible()
+    await page.screenshot({ path: join(SHOTS, 'desktop-settings-app.png') })
+    await expect.poll(() => existsSync(join(userData, 'desktop.json')) && JSON.parse(readFileSync(join(userData, 'desktop.json'), 'utf8')))
+      .toEqual({ openAtLogin: false, closeToTray: false, hardwareAcceleration: false })
+    await settings.getByLabel(/Hardware acceleration/).check()
+    await expect(settings.getByRole('button', { name: 'Restart now' })).toHaveCount(0)
+  } finally {
+    await app.close()
+    await linkServer.stop()
+    rmSync(userData, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
   }
 })

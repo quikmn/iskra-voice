@@ -28,6 +28,14 @@
   "build": {
     "appId": "foo.iskra.desktop",
     "productName": "Iskra",
+    "protocols": [
+      {
+        "name": "Iskra invite",
+        "schemes": [
+          "iskra"
+        ]
+      }
+    ],
     "directories": {
       "output": "release"
     },

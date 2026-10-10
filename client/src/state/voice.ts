@@ -9,6 +9,7 @@ import { connectionFor } from './store'
 import { canBoost, captureOptions, effectiveVolume, onAudioSettings, useAudio, type AudioSettings } from './audio'
 import { MicProcessor, strongWorks } from './micPipeline'
 import { playTone } from './notify'
+import { screenShareOptions, useScreenShareSettings } from './screenShare'
 
 export interface VoiceSession {
   serverKey: string
@@ -489,8 +490,9 @@ export async function toggleScreenShare(): Promise<void> {
   if (!room || !useVoice.getState().session?.canSpeak) return
   const next = !useVoice.getState().screen
   try {
-    // contentHint "motion" keeps games smooth; "detail" would favour sharp text.
-    await room.localParticipant.setScreenShareEnabled(next, { audio: true, contentHint: 'motion', selfBrowserSurface: 'exclude' })
+    // Quality, sound and motion-vs-detail come from the share menu (state/screenShare.ts).
+    const { capture, publish } = screenShareOptions(useScreenShareSettings.getState())
+    await room.localParticipant.setScreenShareEnabled(next, capture, publish)
     useVoice.setState({ screen: next })
   } catch (e) {
     // Cancelling the browser's picker isn't an error worth showing.

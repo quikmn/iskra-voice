@@ -40,6 +40,20 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
   pickScreen: (id: string | null): void => ipcRenderer.send('iskra:screen-picked', typeof id === 'string' ? id : null),
   callAlert: (on: boolean): Promise<void> => ipcRenderer.invoke('iskra:call-alert', on === true),
 
+  settings: {
+    get: (): Promise<unknown> => ipcRenderer.invoke('iskra:desktop-settings'),
+    set: (patch: unknown): Promise<unknown> => ipcRenderer.invoke('iskra:set-desktop-settings', patch),
+    relaunch: (): Promise<void> => ipcRenderer.invoke('iskra:relaunch'),
+  },
+  setBadge: (count: number, overlay: string | null): Promise<void> => ipcRenderer.invoke('iskra:badge', count, overlay),
+  attention: (): Promise<void> => ipcRenderer.invoke('iskra:attention'),
+  takeDeepLink: (): Promise<string | null> => ipcRenderer.invoke('iskra:take-deep-link'),
+  onDeepLink: (callback: (token: string) => void): (() => void) => {
+    const listener = (_e: IpcRendererEvent, token: string) => callback(token)
+    ipcRenderer.on('iskra:deep-link', listener)
+    return () => ipcRenderer.off('iskra:deep-link', listener)
+  },
+
   host: {
     available: (): Promise<boolean> => ipcRenderer.invoke('iskra:host-available'),
     list: (): Promise<unknown[]> => ipcRenderer.invoke('iskra:host-list'),

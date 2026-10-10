@@ -8,6 +8,7 @@ import { AlreadySignedInNotice, RevokedScreen } from './ui/DeviceNotices'
 import { startPushToTalk } from './state/voice'
 import { startTitleBadge } from './state/notify'
 import { startPush } from './state/push'
+import { startDesktopLinks } from './state/desktopShell'
 import { ScreenPicker } from './ui/ScreenPicker'
 import { Spinner } from './ui/bits'
 import { JoinPrompt } from './ui/dialogs/JoinDialog'
@@ -46,7 +47,9 @@ export function App() {
     const stopPtt = startPushToTalk()
     const stopTitle = startTitleBadge()
     const stopPush = startPush()
+    const stopLinks = startDesktopLinks()
     return () => {
+      stopLinks()
       stopPtt()
       stopTitle()
       stopPush()

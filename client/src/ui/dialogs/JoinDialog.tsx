@@ -3,6 +3,7 @@ import { fingerprint } from '../../core/connection'
 import { parseInvite, type InviteLink } from '../../core/invite'
 import { acceptInvite, useApp } from '../../state/store'
 import { Modal } from '../bits'
+import { OpenInApp } from '../OpenInApp'
 import { hostOf } from '../format'
 
 /** Paste an invite link. */
@@ -78,6 +79,7 @@ function InviteSummary({ invite }: { invite: InviteLink }) {
         <span className="label">Server ID</span>
         <code>{fingerprint(invite.serverKey)}</code>
       </div>
+      <OpenInApp invite={invite} />
       {invite.serverUrl.startsWith('http://') && !/^http:\/\/(localhost|127\.|192\.168\.|10\.)/.test(invite.serverUrl) && (
         <p className="warning-text">This server doesn't use HTTPS, so your connection to it isn't encrypted.</p>
       )}
