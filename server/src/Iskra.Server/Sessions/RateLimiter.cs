@@ -26,6 +26,8 @@ public sealed class RateLimiter(TimeProvider time)
         ["stage.hand"] = (5, 0.5),
         ["link.create"] = (3, 0.1),
         ["event.interest"] = (5, 1),
+        ["presence.set"] = (10, 1),
+        ["presence.idle"] = (10, 0.5),
         ["device.revoke.new"] = (10, 10 / 3600.0), // new revocations: 10 an hour, so a thief can't use up the 100 at once
         ["*"] = (40, 10),
     };

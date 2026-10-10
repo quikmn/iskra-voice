@@ -765,3 +765,10 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 .chat-header:has(+ .call-panel) .e2e-badge { display: none; }
 input.confirm-code { display: block; width: 100%; }
 input.confirm-code::placeholder { color: var(--faint); }
+
+/* ── Presence and custom status ─────────────────────────────────────── */
+.presence.idle { background: var(--amber); }
+.presence.idle::after { content: ''; position: absolute; width: 62%; height: 62%; left: -8%; top: -8%; border-radius: 50%; background: var(--sidebar); }
+.presence.dnd { background: var(--red); }
+.presence.dnd::after { content: ''; position: absolute; left: 22%; right: 22%; top: 50%; height: 2px; margin-top: -1px; border-radius: 1px; background: var(--sidebar); }
+.presence.invisible { background: var(--sidebar); box-shadow: inset 0 0 0 2px var(--faint); }

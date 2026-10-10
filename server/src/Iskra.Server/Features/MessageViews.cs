@@ -31,6 +31,7 @@ public static class MessageViews
             thread = ThreadFeature.Summary(store, m.Id),
             webhook = WebhookFeature.MessageView(store, m),
             poll = PollFeature.View(store, m.Id),
+            voice = VoiceMessageFeature.View(store, m.Id),
         };
     }
 

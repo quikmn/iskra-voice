@@ -15,6 +15,7 @@ import type { Panel } from './Shell'
 import { CallButtons, CallLogLine, CallPanel } from './calls/Calls'
 import { asLog } from '../state/callMachine'
 import { VoiceBar } from './VoiceBar'
+import { AccountAvatar, AccountStatusText, MeStatusButton } from './presence/Presence'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -25,11 +26,7 @@ function HomeMeBar() {
   if (!profile || !identity) return null
   return (
     <div className="me-bar">
-      <Avatar name={profile.name} accountKey={b64u(identity.account.publicKey)} size={32} />
-      <div className="me-text">
-        <strong>{profile.name}</strong>
-        <span>you</span>
-      </div>
+      <MeStatusButton name={profile.name} accountKey={b64u(identity.account.publicKey)} sub="you" />
       <button className="icon-button" onClick={() => setOpen(true)} aria-label="Settings" title="Settings">
         <Settings />
       </button>
@@ -72,8 +69,11 @@ export function HomeSidebar({ onNavigate }: { onNavigate: () => void }) {
               onNavigate()
             }}
           >
-            <Avatar name={nameOf(peer)} accountKey={peer} size={28} online={isOnline(peer)} />
-            <span className="channel-name">{nameOf(peer)}</span>
+            <AccountAvatar name={nameOf(peer)} accountKey={peer} size={28} />
+            <span className="dm-row-text">
+              <span className="channel-name">{nameOf(peer)}</span>
+              <AccountStatusText accountKey={peer} className="dm-status" />
+            </span>
             {conversation.unread > 0 && <span className="badge">{conversation.unread}</span>}
           </button>
         ))}
@@ -127,10 +127,10 @@ function FriendRow({ accountKey }: { accountKey: string }) {
   const name = nameOf(accountKey)
   return (
     <div className="friend-row">
-      <Avatar name={name} accountKey={accountKey} size={40} online={isOnline(accountKey)} />
+      <AccountAvatar name={name} accountKey={accountKey} size={40} />
       <div className="friend-text">
         <strong>{name}</strong>
-        <span className="muted">{isOnline(accountKey) ? 'Online' : 'Offline'}</span>
+        <AccountStatusText accountKey={accountKey} fallback className="muted" />
       </div>
       {confirm ? (
         <>
@@ -182,8 +182,9 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
         <button className="icon-button mobile-only" onClick={() => onToggle('nav')} aria-label="Open menu">
           <Menu />
         </button>
-        <Avatar name={nameOf(peer)} accountKey={peer} size={28} online={isOnline(peer)} />
+        <AccountAvatar name={nameOf(peer)} accountKey={peer} size={28} />
         <h1>{nameOf(peer)}</h1>
+        <AccountStatusText accountKey={peer} className="muted dm-header-status" />
         <span className="e2e-badge" title="Only you and they can read these messages"><Lock size={13} /> End-to-end encrypted</span>
         <span className="spacer" />
         <CallButtons peer={peer} />

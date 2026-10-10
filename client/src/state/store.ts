@@ -7,7 +7,7 @@ import { restoreIdentity } from '../core/recovery'
 import { authProfile } from '../core/profile'
 import { canPingGroups, mentions } from '../ui/markdown'
 import type { InviteLink } from '../core/invite'
-import type { Channel, Events, FileInfo, Member, Message, VoiceParticipant, Welcome } from '../core/protocol'
+import type { Channel, Events, FileInfo, Member, Message, VoiceInfo, VoiceParticipant, Welcome } from '../core/protocol'
 import * as storage from '../core/storage'
 
 export interface PendingMessage extends Message {
@@ -80,6 +80,12 @@ export function onWelcomeHook(listener: (serverKey: string, welcome: Welcome) =>
   welcomeListeners.add(listener)
 }
 const TYPING_MS = 6_000
+
+let authPresence: () => unknown = () => undefined
+/** state/presence.ts hands its current choice to every connect. */
+export function setAuthPresence(provider: () => unknown): void {
+  authPresence = provider
+}
 
 // ── Small helpers ───────────────────────────────────────────────────────────
 
@@ -224,6 +230,7 @@ function connectServer(url: string, key: string, name: string, invite?: string):
     identity,
     name: () => useApp.getState().profile?.name ?? 'Someone',
     profile: () => authProfile(useApp.getState().profile),
+    presence: () => authPresence(),
     onStatus: (status) => patchServer(key, () => ({ status })),
     onWelcome: (welcome) => onWelcome(key, welcome),
     onEvent: (type, body) => onEvent(key, type, body),
@@ -417,6 +424,7 @@ let tempCounter = 0
 export interface SendOptions {
   attachments?: FileInfo[]
   replyTo?: Message | null
+  voice?: VoiceInfo
 }
 
 export async function sendMessage(key: string, channelId: number, text: string, options: SendOptions = {}): Promise<void> {
@@ -428,14 +436,14 @@ export async function sendMessage(key: string, channelId: number, text: string, 
   const reply = options.replyTo
   const temp: PendingMessage = {
     id: Number.MAX_SAFE_INTEGER, channelId, author: server.me.accountKey, text, createdAt: Date.now(), editedAt: null,
-    attachments, reactions: [],
+    attachments, reactions: [], voice: options.voice ?? null,
     replyTo: reply ? { id: reply.id, author: reply.author, text: reply.text, hasAttachments: reply.attachments.length > 0 } : null,
     pending: 'sending', tempId,
   }
   patchServer(key, (s) => ({ messages: { ...s.messages, [channelId]: [...(s.messages[channelId] ?? []), temp] } }))
   try {
     const { message } = await connection.request('chat.send', {
-      channelId, text, attachments: attachments.map((a) => a.id), replyTo: reply?.id,
+      channelId, text, attachments: attachments.map((a) => a.id), replyTo: reply?.id, voice: options.voice,
     })
     patchServer(key, (s) => ({
       messages: { ...s.messages, [channelId]: upsertMessage((s.messages[channelId] ?? []).filter((m) => m.tempId !== tempId), message) },
@@ -457,7 +465,7 @@ export function discardFailed(key: string, channelId: number, tempId: string): v
 export async function retryFailed(key: string, channelId: number, message: PendingMessage): Promise<void> {
   if (!message.tempId) return
   discardFailed(key, channelId, message.tempId)
-  await sendMessage(key, channelId, message.text, { attachments: message.attachments })
+  await sendMessage(key, channelId, message.text, { attachments: message.attachments, voice: message.voice ?? undefined })
 }
 
 /** Uploads a file to a server, reporting progress (0–1). Resolves with the stored file. */

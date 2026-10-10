@@ -24,7 +24,7 @@ export function NotificationSettingsSection() {
           checked={sounds}
           onChange={(e) => {
             updateNotify({ sounds: e.target.checked })
-            if (e.target.checked) playTone('message')
+            if (e.target.checked) playTone('message', true)
           }}
         />
         Sounds

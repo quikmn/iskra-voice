@@ -5,6 +5,9 @@ import { useApp } from '../state/store'
 import { hueFor, initials } from './format'
 import { ChevronLeft, Close } from './icons'
 import { useEscapeLayer, useFocusTrap } from './layers'
+import type { ShownStatus } from '../state/presenceRules'
+
+const PRESENCE_CLASS: Record<ShownStatus, string> = { online: 'on', idle: 'idle', dnd: 'dnd', invisible: 'invisible', offline: 'off' }
 
 type AppSnapshot = ReturnType<typeof useApp.getState>
 
@@ -18,8 +21,11 @@ function avatarUrlIn(state: AppSnapshot, accountKey: string): string | null {
   return null
 }
 
-/** Initials on a colour, or the member's picture. `src` overrides the lookup (null: initials only). */
-export function Avatar({ name, accountKey, size = 36, online, src }: { name: string; accountKey: string; size?: number; online?: boolean; src?: string | null }) {
+/** Initials on a colour, or the member's picture. `src` overrides the lookup (null: initials only). `status` beats `online`. */
+export function Avatar({ name, accountKey, size = 36, online, status, src }: {
+  name: string; accountKey: string; size?: number; online?: boolean; status?: ShownStatus; src?: string | null
+}) {
+  const shown = status ?? (online === undefined ? undefined : online ? 'online' : 'offline')
   const hue = hueFor(accountKey)
   const found = useApp((s) => (src === undefined ? avatarUrlIn(s, accountKey) : src))
   const [broken, setBroken] = useState<string | null>(null)
@@ -27,7 +33,7 @@ export function Avatar({ name, accountKey, size = 36, online, src }: { name: str
   return (
     <span className="avatar" style={{ width: size, height: size, fontSize: size * 0.38, background: `hsl(${hue} 45% 32%)` }} aria-hidden>
       {image ? <img className="avatar-image" src={image} alt="" draggable={false} onError={() => setBroken(image)} /> : initials(name)}
-      {online !== undefined && <span className={`presence ${online ? 'on' : 'off'}`} />}
+      {shown && <span className={`presence ${PRESENCE_CLASS[shown]}`} />}
     </span>
   )
 }
