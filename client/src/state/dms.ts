@@ -9,6 +9,7 @@ import { decryptDm, DmError, encryptDm, type DmContent, type DmEnvelope } from '
 import type { DeviceCert } from '../core/identity'
 import type { DeviceBundle, WireDm } from '../core/protocol'
 import * as storage from '../core/storage'
+import { mergeDm, orderTime } from './dmMerge'
 import { ensurePrekeys, ownRevokedDevices } from './devices'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 
@@ -87,18 +88,13 @@ function patchConversation(peer: string, patch: (c: Conversation) => Partial<Con
   if (changed) persist(peer)
 }
 
-function upsert(list: Dm[], dm: Dm): Dm[] {
-  // A copy we could read always wins over one we can't (e.g. an old envelope whose prekey is gone).
-  if (dm.error && !dm.pending && list.some((m) => m.id === dm.id && !m.error)) return list
-  const without = list.filter((m) => m.id !== dm.id)
-  return [...without, dm].sort((a, b) => a.sentAt - b.sentAt || a.id.localeCompare(b.id))
-}
+const upsert = (list: Dm[], dm: Dm): Dm[] => mergeDm(list, dm)
 
 function open(wire: WireDm): Dm {
   const identity = useApp.getState().identity!
   try {
     const { text, header, call } = decryptDm(identity, wire.envelope, wire.from, wire.to)
-    return { id: header.id, from: wire.from, to: wire.to, text, sentAt: header.sentAt, call }
+    return { id: header.id, from: wire.from, to: wire.to, text, sentAt: orderTime(header.sentAt, wire.createdAt), call }
   } catch (e) {
     // The header id (unauthenticated here) only lets a readable local copy of the same message win.
     const headerId = wire.envelope?.header?.id
@@ -307,7 +303,7 @@ export async function sendDm(peer: string, text: string, extra: Pick<DmContent, 
 }
 
 export function discardDm(peer: string, id: string): void {
-  patchConversation(peer, (c) => ({ messages: c.messages.filter((m) => m.id !== id) }))
+  patchConversation(peer, (c) => ({ messages: c.messages.filter((m) => !(m.id === id && m.pending)) }))
 }
 
 onServerEvent((_server, type, body) => {
