@@ -14,7 +14,7 @@ There's no email and no password. On first launch the app creates a key pair on 
 
 - **Linking a device** (Settings → Devices → Link a device) moves your account to a phone or another computer without typing the recovery key. The code holds a one-time secret that never reaches the server; both devices prove they know it, then both screens show the same six-digit number before anything is sent. Your account is encrypted from one device straight to the other (libsodium `crypto_box`), so the server that relays it can't read it or slip in a device of its own. Codes expire after five minutes and work once.
 - **Removing a device** (Settings → Devices) signs a revocation with your account key and hands it to every server you're on. Servers then refuse that device, sign it out, and stop listing it, and senders stop encrypting messages for it.
-- Every linked device holds your account key (that's what lets it link and remove devices too). Removing a device stops it from connecting and from getting new messages. If you think a device was copied while it was unlocked, treat it like a leaked recovery key: whoever copied it could set up a new device as you.
+- Every linked device keeps your account key in the app's storage, unencrypted (that's what lets it link and remove devices too). **Removing a device stops that device's own key**: it can't connect or get new messages. It does **not** stop someone who copied the device's storage: with the account key they can certify a new device as you. Treat a copied device like a leaked recovery key. Servers let one connection remove at most 10 devices an hour, so a thief can't use up the account's 100 removals at once.
 
 ## Who can read what
 
@@ -49,6 +49,10 @@ Server channels trust the server, because a server is run by you or your friend;
 ## The desktop app
 
 The Windows app is the same web app in a locked-down shell: sandboxed, no Node.js in the page, links open in your browser, and the page can only ask the app for push-to-talk, the screen picker and hosting. Every Windows executable we ship is code-signed (Open Source Developer Viktor Lundgren, issued by Certum) and timestamped, so you can check it came from us and wasn't changed.
+
+## Known limitations
+
+- **No account key rotation yet.** A leaked recovery key, or a device whose storage was copied, can't be shut out for good: removing devices only stops device keys, and the account key itself can't be replaced yet. Today the only fix is a new account. Planned: rotating the account key (old key signs over to a new one, servers and contacts follow) and keeping the key encrypted on the device.
 
 ## Found a problem?
 

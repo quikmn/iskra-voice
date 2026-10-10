@@ -86,6 +86,9 @@ public sealed class Session
     }
 
     /// <summary>The member record as it is right now (roles can change mid-session).</summary>
+    /// <summary>A per-session limit checked by a handler itself (see <see cref="RateLimiter.TryTakeOnly"/>). Read loop only.</summary>
+    public bool TryTakeLimit(string key) => _rateLimiter.TryTakeOnly(key);
+
     public Member? CurrentMember() => AccountKey is null ? null : _world.Store.GetMember(AccountKey);
 
     public async Task RunAsync(CancellationToken aborted)

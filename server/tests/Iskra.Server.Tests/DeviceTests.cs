@@ -109,6 +109,21 @@ public class DeviceTests
     }
 
     [Fact]
+    public async Task One_session_can_only_remove_a_few_devices_an_hour()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        string NewDevice() => Ed25519.ToB64u(Ed25519.PublicKeyOf(Ed25519.KeyFromSeed(Ed25519.NewSeed())));
+
+        var first = NewDevice();
+        for (var i = 0; i < 10; i++)
+            Assert.Null((await alice.RequestAsync("device.revoke", Revocation(alice.Identity.Account, i == 0 ? first : NewDevice(), Now))).ErrorCode());
+        Assert.Equal("rate_limited", (await alice.RequestAsync("device.revoke", Revocation(alice.Identity.Account, NewDevice(), Now))).ErrorCode());
+        // Handing over one the server already has (as clients do on connect) still works.
+        Assert.Null((await alice.RequestAsync("device.revoke", Revocation(alice.Identity.Account, first, Now))).ErrorCode());
+    }
+
+    [Fact]
     public async Task Prekeys_are_signed_by_the_device_and_published_with_its_certificate()
     {
         using var server = new IskraServer();
