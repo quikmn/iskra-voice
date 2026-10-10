@@ -26,6 +26,8 @@ public sealed class Router
         DmFeature.Register(this);
         PreviewFeature.Register(this);
         CallFeature.Register(this);
+        BotFeature.Register(this);
+        WebhookFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

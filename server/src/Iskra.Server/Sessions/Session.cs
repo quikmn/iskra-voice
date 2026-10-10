@@ -280,13 +280,17 @@ public sealed class Session
         if (cert is null) return (null, AuthFailure.Invalid);
 
         string? signature = null, name = null, invite = null;
+        var isBot = false;
         try
         {
             var fields = new Body(body);
             signature = fields.OptionalString("sig", 128);
             invite = fields.OptionalString("invite", 64);
             if (body.TryGetProperty("profile", out var profile))
+            {
                 name = Names.Normalize(new Body(profile).OptionalString("name", 256));
+                isBot = new Body(profile).OptionalBool("bot") ?? false;
+            }
         }
         catch (RequestException)
         {
@@ -308,9 +312,10 @@ public sealed class Session
             return (existing with { Name = name }, AuthFailure.Invalid);
         }
 
-        var role = invite is null ? null : _world.Store.TryUseInvite(invite, Now);
+        var role = invite is null || !BotFeature.InviteFits(_world.Store, invite, isBot) ? null : _world.Store.TryUseInvite(invite, Now);
         if (role is null) return (null, AuthFailure.InviteRequired);
 
+        if (isBot) BotFeature.Joined(_world.Store, cert.AccountKey, invite!, Now);
         var member = _world.Store.AddMember(cert.AccountKey, name, role, Now);
         _world.Store.SaveDevice(cert, Now);
         if (role == Roles.Owner) OwnerSetup.OwnerJoined(_world);

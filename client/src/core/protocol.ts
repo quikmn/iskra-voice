@@ -195,3 +195,55 @@ export const CloseCodes = {
   Forbidden: 4403,
   TooLarge: 4413,
 } as const
+
+// ── bots and webhooks ──
+// Declaration merging adds fields to the types above. See "Bots and webhooks" in PROTOCOL.md.
+
+export interface Member {
+  /** A bot account (set by the server when it joined with a bot invite). */
+  bot?: boolean
+}
+
+export interface Message {
+  /** Set when a webhook posted this message (author is then "webhook:<id>"). */
+  webhook?: WebhookPost | null
+}
+
+/** A Discord-style embed, text only. */
+export interface Embed {
+  title?: string
+  description?: string
+  url?: string
+  color?: number
+  timestamp?: number
+  author?: { name: string; url?: string }
+  footer?: { text: string }
+  fields?: { name: string; value: string; inline: boolean }[]
+}
+
+export interface WebhookPost {
+  id: string
+  name: string
+  avatar: FileInfo | null
+  embeds: Embed[]
+}
+
+export interface Webhook {
+  id: string
+  channelId: number
+  name: string
+  avatar: FileInfo | null
+  mentions: boolean
+  createdBy: string
+  createdAt: number
+  lastUsedAt: number | null
+}
+
+export interface Requests {
+  'bot.invite': [{ role?: Role; expiresInMs?: number }, { invite: Invite }]
+  'webhook.list': [{ channelId?: number }, { webhooks: Webhook[] }]
+  'webhook.create': [{ channelId: number; name: string; avatar?: string; mentions?: boolean }, { webhook: Webhook; secret: string; path: string }]
+  'webhook.update': [{ id: string; name?: string; avatar?: string; mentions?: boolean; channelId?: number }, { webhook: Webhook }]
+  'webhook.regenerate': [{ id: string }, { webhook: Webhook; secret: string; path: string }]
+  'webhook.delete': [{ id: string }, Record<string, never>]
+}

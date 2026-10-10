@@ -27,6 +27,7 @@ public static class MessageViews
             attachments = m.Attachments.Select(store.GetFile).OfType<StoredFile>().Select(Uploads.Public),
             replyTo = reply,
             reactions = Reactions(store, m.Id),
+            webhook = WebhookFeature.MessageView(store, m),
         };
     }
 
