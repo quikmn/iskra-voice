@@ -165,6 +165,9 @@ public sealed partial class Store : IDisposable
     /// <summary>Named schema steps, applied once each, in order. Add new ones at the end.</summary>
     private static readonly (string Name, string Sql)[] FeatureMigrations =
     [
+        ("pins-1", PinsMigration),
+        ("search-1", SearchMigration),
+        ("threads-1", ThreadsMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

@@ -42,7 +42,7 @@ public static class ChatFeature
     private static object Send(Session s, Member me, Body body)
     {
         var channel = ReadableChannel(s, me, body.Long("channelId"));
-        if (channel.Kind != "text") throw RequestException.BadRequest("You can't send messages to that channel.");
+        if (channel.Kind is not ("text" or "thread")) throw RequestException.BadRequest("You can't send messages to that channel.");
         if (!Permissions.CanWrite(me, channel)) throw RequestException.Forbidden("You can't send messages in this channel.");
 
         // Files must be ones you uploaded yourself.
@@ -65,6 +65,7 @@ public static class ChatFeature
         var message = s.World.Store.AddMessage(channel.Id, me.AccountKey, text, s.Now, attachments, replyTo);
         var publicMessage = View(s, message);
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.message", new { message = publicMessage }));
+        ThreadFeature.Touched(s, channel);
         return new { message = publicMessage };
     }
 
@@ -90,6 +91,7 @@ public static class ChatFeature
 
         s.World.Store.DeleteMessage(message.Id);
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.deleted", new { id = message.Id, channelId = channel.Id }));
+        ThreadFeature.Touched(s, channel);
         return null;
     }
 
@@ -98,8 +100,11 @@ public static class ChatFeature
         var channel = ReadableChannel(s, me, body.Long("channelId"));
         var before = body.OptionalLong("before", min: 0);
         var after = body.OptionalLong("after", min: 0);
-        if (before is not null && after is not null) throw RequestException.BadRequest("Use 'before' or 'after', not both.");
+        var around = body.OptionalLong("around", min: 1);
+        if (new[] { before, after, around }.Count(x => x is not null) > 1)
+            throw RequestException.BadRequest("Use one of 'before', 'after' or 'around'.");
         var limit = (int)(body.OptionalLong("limit", min: 1, max: MaxHistory) ?? 50);
+        if (around is not null) return SearchFeature.Around(s, channel, around.Value, limit);
 
         var messages = s.World.Store.History(channel.Id, before, after, limit);
         return new { messages = messages.Select(m => View(s, m)), hasMore = messages.Count == limit };

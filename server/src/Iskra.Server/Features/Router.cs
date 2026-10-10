@@ -25,6 +25,9 @@ public sealed class Router
         VoiceFeature.Register(this);
         DmFeature.Register(this);
         PreviewFeature.Register(this);
+        PinFeature.Register(this);
+        SearchFeature.Register(this);
+        ThreadFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);
