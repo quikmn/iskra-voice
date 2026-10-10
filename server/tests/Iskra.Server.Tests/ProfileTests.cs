@@ -147,6 +147,28 @@ public class ProfileTests
     }
 
     [Fact]
+    public async Task Page_policy_follows_the_address_the_viewer_used()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        var url = (await Publish(server, alice, Page)).Body().GetProperty("member").GetProperty("page").GetString();
+
+        // E.g. the public HTTPS address from internet hosting.
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Host = "203-0-113-7.sslip.io:47070";
+        using var response = await server.CreateClient().SendAsync(request);
+        var csp = response.Headers.GetValues("Content-Security-Policy").Single();
+        Assert.Contains("img-src data: blob: http://203-0-113-7.sslip.io:47070/files/;", csp);
+
+        // A forged Host header can't smuggle anything into the policy.
+        using var forged = new HttpRequestMessage(HttpMethod.Get, url);
+        forged.Headers.TryAddWithoutValidation("Host", "evil.example; script-src *");
+        using var bad = await server.CreateClient().SendAsync(forged);
+        if (bad.StatusCode == HttpStatusCode.OK)
+            Assert.DoesNotContain("evil", bad.Headers.GetValues("Content-Security-Policy").Single());
+    }
+
+    [Fact]
     public async Task Page_size_and_encoding_limits()
     {
         using var server = new IskraServer();

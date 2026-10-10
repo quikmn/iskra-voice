@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { buildInviteLink } from '../../core/invite'
 import type { Invite } from '../../core/protocol'
 import { connectionFor, type ServerState } from '../../state/store'
+import { inviteServerUrl } from '../../state/hosting'
 import { Modal, Spinner } from '../bits'
 import { appUrl } from '../format'
 
@@ -35,7 +36,7 @@ export function InviteDialog({ server, onClose }: { server: ServerState; onClose
     }
   }, [server.key, lifetime, singleUse, optionsKey, invites])
 
-  const link = invite ? buildInviteLink(appUrl(server.appUrl), { serverUrl: server.url, serverKey: server.key, code: invite.code }) : ''
+  const link = invite ? buildInviteLink(appUrl(server.appUrl), { serverUrl: inviteServerUrl(server), serverKey: server.key, code: invite.code }) : ''
 
   async function copy() {
     await navigator.clipboard.writeText(link)

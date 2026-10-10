@@ -51,8 +51,8 @@ public class HttpsTests : IDisposable
         return process;
     }
 
-    [Fact]
-    public async Task Gets_a_certificate_and_serves_https_with_a_redirect()
+    /// <summary>Starts Pebble validating HTTP-01 on <paramref name="httpPort"/>; returns its ACME directory URL.</summary>
+    private string StartPebble(int httpPort)
     {
         var pebble = Pebble();
         Assert.SkipWhen(pebble is null, "Pebble isn't installed in .tools");
@@ -71,7 +71,7 @@ public class HttpsTests : IDisposable
             File.WriteAllText(Path.Combine(_dir, "pebble-key.pem"), rsa.ExportPkcs8PrivateKeyPem());
         }
 
-        int acmePort = FreePort(), managementPort = FreePort(), httpPort = FreePort(), httpsPort = FreePort(), port = FreePort(), tlsAlpn = FreePort();
+        int acmePort = FreePort(), managementPort = FreePort(), tlsAlpn = FreePort();
         File.WriteAllText(Path.Combine(_dir, "pebble.json"), JsonSerializer.Serialize(new
         {
             pebble = new
@@ -88,27 +88,19 @@ public class HttpsTests : IDisposable
         }));
         Start(pebble!, $"-config \"{Path.Combine(_dir, "pebble.json")}\"",
             new() { ["PEBBLE_VA_NOSLEEP"] = "1", ["PEBBLE_WFE_NONCEREJECT"] = "0" });
+        return $"https://127.0.0.1:{acmePort}/dir";
+    }
 
-        var world = Path.Combine(_dir, "world");
-        Directory.CreateDirectory(world);
-        File.WriteAllText(Path.Combine(world, "server.json"), JsonSerializer.Serialize(new
-        {
-            Name = "Secure",
-            Port = port,
-            Voice = new { Enabled = false },
-            Https = new { Mode = "acme", Domain = "localhost", HttpPort = httpPort, Port = httpsPort, AcmeDirectory = $"https://127.0.0.1:{acmePort}/dir" },
-        }));
-        var dll = Path.Combine(AppContext.BaseDirectory, "iskra-server.dll");
-        Start("dotnet", $"\"{dll}\" \"{world}\" --Https:AcceptAnyAcmeCertificate=true");
-
-        // Wait for the certificate Pebble issued (not just any certificate).
+    /// <summary>Waits until <paramref name="port"/> serves a certificate issued by Pebble.</summary>
+    private async Task<X509Certificate2> PebbleCertificateOn(int port)
+    {
         X509Certificate2? served = null;
         for (var i = 0; i < 300 && served is null; i++)
         {
             try
             {
                 using var tcp = new TcpClient();
-                await tcp.ConnectAsync(IPAddress.Loopback, httpsPort);
+                await tcp.ConnectAsync(IPAddress.Loopback, port);
                 using var ssl = new SslStream(tcp.GetStream(), false, (_, _, _, _) => true);
                 await ssl.AuthenticateAsClientAsync("localhost");
                 var cert = new X509Certificate2(ssl.RemoteCertificate!);
@@ -119,7 +111,30 @@ public class HttpsTests : IDisposable
         }
         if (served is null) File.WriteAllLines(Path.Combine(Path.GetTempPath(), "iskra-https-last.log"), _log);
         Assert.True(served is not null, "No Pebble certificate was served; see iskra-https-last.log in the temp folder.");
-        Assert.Contains("localhost", served!.GetNameInfo(X509NameType.DnsName, false));
+        return served!;
+    }
+
+    [Fact]
+    public async Task Gets_a_certificate_and_serves_https_with_a_redirect()
+    {
+        int httpPort = FreePort(), httpsPort = FreePort(), port = FreePort();
+        var directory = StartPebble(httpPort);
+
+        var world = Path.Combine(_dir, "world");
+        Directory.CreateDirectory(world);
+        File.WriteAllText(Path.Combine(world, "server.json"), JsonSerializer.Serialize(new
+        {
+            Name = "Secure",
+            Port = port,
+            Voice = new { Enabled = false },
+            Https = new { Mode = "acme", Domain = "localhost", HttpPort = httpPort, Port = httpsPort, AcmeDirectory = directory },
+        }));
+        var dll = Path.Combine(AppContext.BaseDirectory, "iskra-server.dll");
+        Start("dotnet", $"\"{dll}\" \"{world}\" --Https:AcceptAnyAcmeCertificate=true");
+
+        // Wait for the certificate Pebble issued (not just any certificate).
+        var served = await PebbleCertificateOn(httpsPort);
+        Assert.Contains("localhost", served.GetNameInfo(X509NameType.DnsName, false));
         Assert.True(File.Exists(Path.Combine(world, "certs", "fullchain.pem")));
         Assert.True(File.Exists(Path.Combine(world, "certs", "key.pem")));
 
@@ -134,6 +149,48 @@ public class HttpsTests : IDisposable
         using var redirect = await client.GetAsync($"http://localhost:{httpPort}/some/page?x=1");
         Assert.Equal(HttpStatusCode.Redirect, redirect.StatusCode);
         Assert.Equal($"https://localhost:{httpsPort}/some/page?x=1", redirect.Headers.Location!.ToString());
+    }
+
+    /// <summary>
+    /// Internet hosting without any HTTPS settings: the router (a stand-in) opens the ports, the server gets a
+    /// certificate for its address, and its one port then speaks both HTTPS and plain HTTP.
+    /// </summary>
+    [Fact]
+    public async Task Internet_hosting_gets_a_certificate_and_serves_it_on_the_same_port()
+    {
+        var port = FreePort();
+        var directory = StartPebble(port); // Pebble's "port 80" check lands on the server's one port
+
+        var world = Path.Combine(_dir, "world");
+        Directory.CreateDirectory(world);
+        File.WriteAllText(Path.Combine(world, "server.json"), JsonSerializer.Serialize(new
+        {
+            Name = "Open",
+            Port = port,
+            Voice = new { Enabled = false },
+            Https = new { AcmeDirectory = directory },
+            Internet = new { Enabled = true, Domain = "localhost" },
+        }));
+        var dll = Path.Combine(AppContext.BaseDirectory, "iskra-server.dll");
+        Start("dotnet", $"\"{dll}\" \"{world}\" --Https:AcceptAnyAcmeCertificate=true --Internet:TestRouter=203.0.113.7");
+
+        var served = await PebbleCertificateOn(port);
+        Assert.Contains("localhost", served.GetNameInfo(X509NameType.DnsName, false));
+
+        using var handler = new HttpClientHandler { ServerCertificateCustomValidationCallback = (_, _, _, _) => true, AllowAutoRedirect = false };
+        using var client = new HttpClient(handler);
+        // HTTPS and plain HTTP on one port; local clients aren't redirected.
+        using var secure = await client.GetAsync($"https://localhost:{port}/");
+        Assert.Equal(HttpStatusCode.OK, secure.StatusCode);
+        using var plain = await client.GetAsync($"http://localhost:{port}/");
+        Assert.Equal(HttpStatusCode.OK, plain.StatusCode);
+        Assert.Contains("\"Open\"", await plain.Content.ReadAsStringAsync());
+        // The other HTTP routes (webhooks, device-link relay) answer over HTTPS on the same port as well.
+        using var hook = await client.PostAsync($"https://localhost:{port}/hooks/nope/nope", new StringContent("{}"));
+        Assert.InRange((int)hook.StatusCode, 400, 499);
+        using var link = await client.GetAsync($"https://localhost:{port}/link/nope");
+        Assert.InRange((int)link.StatusCode, 400, 499);
+        Assert.True(File.Exists(Path.Combine(world, "certs", "fullchain.pem")));
     }
 
     public void Dispose()

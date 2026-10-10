@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { buildInviteLink } from '../../core/invite'
 import { roleRank, type Role, type Webhook } from '../../core/protocol'
 import { connectionFor, uploadFile, type ServerState } from '../../state/store'
+import { inviteServerUrl } from '../../state/hosting'
 import { Avatar, Modal, Spinner } from '../bits'
 import { AuthorAvatar, BotBadge } from '../chat/BotBits'
 import { appUrl, messageTime } from '../format'
@@ -113,7 +114,7 @@ function Webhooks({ server }: { server: ServerState }) {
                     title="Makes a new URL; the old one stops working"
                     onClick={() => void run(async () => {
                       const r = await connection!.request('webhook.regenerate', { id: hook.id })
-                      setSecretUrl(server.url + r.path)
+                      setSecretUrl(inviteServerUrl(server) + r.path)
                     })}
                   >
                     New URL
@@ -133,7 +134,7 @@ function Webhooks({ server }: { server: ServerState }) {
             submitLabel="Create webhook"
             onSubmit={(values) => run(async () => {
               const r = await connection!.request('webhook.create', values)
-              setSecretUrl(server.url + r.path)
+              setSecretUrl(inviteServerUrl(server) + r.path)
             })}
           />
         </section>

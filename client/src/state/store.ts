@@ -36,6 +36,8 @@ export interface ServerState {
   voiceAvailable: boolean
   /** The web app address this server's invite links should open. */
   appUrl: string | null
+  /** How friends on the internet reach this server (internet hosting), if it's open. */
+  publicUrl: string | null
   /** Channels showing an older stretch of history after a jump; new messages wait until you return to the present. */
   detached?: Record<number, boolean>
 }
@@ -210,7 +212,7 @@ function connectServer(url: string, key: string, name: string, invite?: string):
       ...state.servers,
       [key]: state.servers[key] ?? {
         key, url, name, status: { state: 'connecting' }, me: null, channels: [], members: {},
-        messages: {}, hasMore: {}, typing: {}, unread: {}, mentions: {}, voice: {}, voiceAvailable: false, appUrl: null,
+        messages: {}, hasMore: {}, typing: {}, unread: {}, mentions: {}, voice: {}, voiceAvailable: false, appUrl: null, publicUrl: null,
       },
     },
   }))
@@ -245,6 +247,7 @@ function onWelcome(key: string, welcome: Welcome): void {
     voice: Object.fromEntries(welcome.voice.map((v) => [v.channelId, v.participants])),
     voiceAvailable: welcome.voiceAvailable,
     appUrl: welcome.server.appUrl ?? null,
+    publicUrl: welcome.server.publicUrl ?? null,
   }))
   void persistServers()
 

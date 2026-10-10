@@ -28,7 +28,11 @@ public static class VoiceFeature
         var room = VoiceRegistry.RoomName(channel.Id);
         var token = LiveKitTokens.ForRoom(backend.ApiKey, backend.ApiSecret, me.AccountKey, me.Name, room,
             canPublish: Permissions.CanWrite(me, channel), s.Time.GetUtcNow());
-        return new { url = backend.ClientUrl, token, room, canSpeak = Permissions.CanWrite(me, channel) };
+        // Over HTTPS (internet hosting) voice goes through the same address the client used.
+        var url = s.Origin is { } origin && origin.StartsWith("https://", StringComparison.Ordinal) && s.World.Settings.Voice.ClientUrl is null
+            ? LiveKitHost.DefaultClientUrl(origin)
+            : backend.ClientUrl;
+        return new { url, token, room, canSpeak = Permissions.CanWrite(me, channel) };
     }
 
     private static object? State(Session s, Member me, Body body)

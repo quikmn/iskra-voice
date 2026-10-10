@@ -7,6 +7,8 @@ import { RecoveryKeySection } from './RecoveryKey'
 import { NotificationSettingsSection } from './NotificationSettings'
 import { ProfileSection, ServerPagesOption } from '../profile/ProfileSettings'
 import { AppearanceSection } from '../profile/AppearanceSettings'
+import { InternetSection } from './InternetSettings'
+import { roleRank } from '../../core/protocol'
 import { ServerExpressionsSections, SoundboardSettingsSection } from '../expressions/ExpressionSettings'
 import { DevicesSection } from './DevicesSection'
 
@@ -29,6 +31,7 @@ export function SettingsDialog({ server, onClose }: { server?: ServerState | nul
 
       <NotificationSettingsSection />
 
+      {server?.me && roleRank(server.me.role) >= roleRank('admin') && <InternetSection server={server} />}
       {server && <ServerExpressionsSections server={server} />}
 
       {server && <section className="settings-section">
