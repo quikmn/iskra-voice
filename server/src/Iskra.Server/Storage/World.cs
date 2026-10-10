@@ -24,11 +24,21 @@ public sealed record WorldSettings
     /// <summary>Largest file a member may upload. Generous by default: no Nitro here.</summary>
     public int MaxUploadMb { get; init; } = 100;
 
+    /// <summary>How much each account may upload per day (admins and the owner aren't limited).</summary>
+    public UploadQuotaSettings UploadQuota { get; init; } = new();
+
     public VoiceSettings Voice { get; init; } = new();
 
     public HttpsSettings Https { get; init; } = new();
 
     public InternetSettings Internet { get; init; } = new();
+}
+
+/// <summary>Daily upload allowance per account, in MB over any 24 hours. 0 means no limit.</summary>
+public sealed record UploadQuotaSettings
+{
+    public int MemberMbPerDay { get; init; } = 2048;
+    public int GuestMbPerDay { get; init; } = 200;
 }
 
 /// <summary>Opening the server to the internet: router port mapping, an automatic address and HTTPS.</summary>

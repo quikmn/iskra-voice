@@ -232,6 +232,8 @@ Device certificates are stored when a device authenticates, so the server can pu
 | `chat.react` | `id, emoji` (≤ 16 chars, no spaces), `on?` (default true) | | channel readers; ≤ 20 different emoji per message |
 
 - Upload: `PUT <server>/upload/<ticket>` with the raw bytes (single use, 10 minutes, must not exceed the announced size) → `{ file }`.
+- Limits per account (all its sessions together): `upload.begin` 20 burst / 1 per s, and a daily quota over any 24 hours of uploaded plus announced-but-unfinished bytes: `UploadQuota.MemberMbPerDay` (members and trusted, default 2048) and `UploadQuota.GuestMbPerDay` (default 200) in server.json, 0 for no limit; admins and the owner have none. Over the quota, `upload.begin` answers `rate_limited`.
+- Uploads nothing refers to after 24 hours (no message attachment, avatar, emoji, sound, webhook or webhook post avatar, nor a `/files/<id>` link in a profile page) are deleted by an hourly sweep.
 - File: `{ id, name, size, type, width?, height?, url: "/files/<id>/<name>" }`. `type` comes from the file's first bytes, never the name: PNG, JPEG, GIF, WebP, MP4, WebM, Ogg, MP3 and WAV are served inline, anything else as a download. Every file response has `nosniff` and a sandboxing CSP. Identical content is stored once (`uploads/ab/<sha256>`).
 - Message gains `attachments: [File]`, `replyTo: { id, author, text, hasAttachments } | { id, deleted: true } | null` and `reactions: [{ emoji, accounts: [accountKey] }]`.
 - Event `chat.reactions` `{ id, channelId, reactions }` to channel readers.

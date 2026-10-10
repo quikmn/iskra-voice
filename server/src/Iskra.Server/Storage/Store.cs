@@ -256,6 +256,7 @@ public sealed partial class Store : IDisposable
                 value       TEXT NOT NULL
             );
             """),
+        ("security-1", SecurityMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

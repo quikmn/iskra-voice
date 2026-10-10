@@ -22,6 +22,7 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<LiveKitHost>());
 builder.Services.AddSingleton<CallRegistry>();
 builder.Services.AddSingleton<VoiceRegistry>();
 builder.Services.AddSingleton<Uploads>();
+builder.Services.AddHostedService<UploadSweeper>();
 builder.Services.AddSingleton<LinkPreviews>();
 builder.Services.AddSingleton<WebhookIngress>();
 builder.Services.AddHostedService<PollCloser>();

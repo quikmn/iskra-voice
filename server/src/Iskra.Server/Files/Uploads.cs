@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using Iskra.Server.Crypto;
+using Iskra.Server.Sessions;
 using Iskra.Server.Storage;
 
 namespace Iskra.Server.Files;
@@ -10,21 +11,50 @@ namespace Iskra.Server.Files;
 /// the bytes are then PUT to /upload/{ticket}. Files are stored once per content (uploads/ab/abcdef…)
 /// and served from unguessable ids with headers that never let a file run as part of the site.
 /// </summary>
-public sealed class Uploads(World world, TimeProvider time, ILogger<Uploads> log)
+public sealed partial class Uploads(World world, TimeProvider time, ILogger<Uploads> log)
 {
-    private sealed record Ticket(string Uploader, string Name, long MaxBytes, DateTimeOffset Expires);
+    private sealed record Ticket(string Uploader, string Name, long MaxBytes, DateTimeOffset Expires)
+    {
+        public int Claimed;
+    }
 
+    private static readonly TimeSpan QuotaWindow = TimeSpan.FromHours(24);
+
+    /// <summary>Tickets stay here until their upload ends, so they count against the quota while in flight.</summary>
     private readonly ConcurrentDictionary<string, Ticket> _tickets = new();
+    private readonly Lock _quotaLock = new();
+    /// <summary>Held while a file appears on or leaves the disk, so a sweep never deletes content a new upload just reused.</summary>
+    private readonly Lock _diskLock = new();
 
     public long MaxBytes => (long)world.Settings.MaxUploadMb * 1024 * 1024;
 
-    public string Issue(string uploader, string name, long size)
+    /// <summary>Bytes per 24 hours for this role, or null for no limit (admins, the owner, or 0 in server.json).</summary>
+    public long? DailyQuota(string role)
     {
-        foreach (var (key, ticket) in _tickets)
-            if (ticket.Expires < time.GetUtcNow()) _tickets.TryRemove(key, out _);
-        var token = Ed25519.ToB64u(RandomNumberGenerator.GetBytes(24));
-        _tickets[token] = new Ticket(uploader, FileSniffer.CleanName(name), size, time.GetUtcNow().AddMinutes(10));
-        return token;
+        if (Roles.Rank(role) >= Roles.Rank(Roles.Admin)) return null;
+        var quota = world.Settings.UploadQuota;
+        var mb = role == Roles.Guest ? quota.GuestMbPerDay : quota.MemberMbPerDay;
+        return mb > 0 ? mb * 1024L * 1024 : null;
+    }
+
+    /// <summary>Hands out a ticket for <paramref name="size"/> bytes, or null if that would pass the uploader's daily quota.</summary>
+    public string? Issue(string uploader, string role, string name, long size)
+    {
+        var now = time.GetUtcNow();
+        lock (_quotaLock)
+        {
+            foreach (var (key, old) in _tickets)
+                if (old.Expires < now && old.Claimed == 0) _tickets.TryRemove(key, out _);
+            if (DailyQuota(role) is { } quota)
+            {
+                var used = world.Store.UploadedBytesSince(uploader, (now - QuotaWindow).ToUnixTimeMilliseconds())
+                    + _tickets.Values.Where(t => t.Uploader == uploader).Sum(t => t.MaxBytes);
+                if (used + size > quota) return null;
+            }
+            var token = Ed25519.ToB64u(RandomNumberGenerator.GetBytes(24));
+            _tickets[token] = new Ticket(uploader, FileSniffer.CleanName(name), size, now.AddMinutes(10));
+            return token;
+        }
     }
 
     public string PathFor(string sha256) => Path.Combine(world.Path, "uploads", sha256[..2], sha256);
@@ -32,7 +62,24 @@ public sealed class Uploads(World world, TimeProvider time, ILogger<Uploads> log
     public async Task HandleUploadAsync(HttpContext context, string token)
     {
         AllowCors(context);
-        if (!_tickets.TryRemove(token, out var ticket) || ticket.Expires < time.GetUtcNow())
+        if (!_tickets.TryGetValue(token, out var ticket) || Interlocked.Exchange(ref ticket.Claimed, 1) != 0)
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return;
+        }
+        try
+        {
+            await ReceiveAsync(context, ticket);
+        }
+        finally
+        {
+            _tickets.TryRemove(token, out _);
+        }
+    }
+
+    private async Task ReceiveAsync(HttpContext context, Ticket ticket)
+    {
+        if (ticket.Expires < time.GetUtcNow())
         {
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             return;
@@ -80,14 +127,16 @@ public sealed class Uploads(World world, TimeProvider time, ILogger<Uploads> log
 
             var hash = Convert.ToHexStringLower(sha.GetHashAndReset());
             var target = PathFor(hash);
-            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            if (File.Exists(target)) File.Delete(temp); // same content uploaded before: keep one copy
-            else File.Move(temp, target);
-
             var kind = FileSniffer.Sniff(head.AsSpan(0, headLength));
             var file = new StoredFile(Ed25519.ToB64u(RandomNumberGenerator.GetBytes(16)), hash, ticket.Name, size, kind.Type,
                 kind.Width, kind.Height, ticket.Uploader, time.GetUtcNow().ToUnixTimeMilliseconds());
-            world.Store.AddFile(file);
+            lock (_diskLock)
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                if (File.Exists(target)) File.Delete(temp); // same content uploaded before: keep one copy
+                else File.Move(temp, target);
+                world.Store.AddFile(file);
+            }
             await context.Response.WriteAsJsonAsync(new { file = Public(file) });
         }
         catch (Exception ex) when (ex is IOException or OperationCanceledException)
