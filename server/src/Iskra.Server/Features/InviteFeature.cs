@@ -38,6 +38,7 @@ public static class InviteFeature
             ?? (long)DefaultLifetime.TotalMilliseconds;
 
         var invite = s.World.Store.CreateInvite(NewCode(), me.AccountKey, role, s.Now, s.Now + lifetimeMs, maxUses);
+        Audit.Record(s, "invite.create", details: new { role, maxUses, expiresAt = invite.ExpiresAt });
         return new { invite = PublicInvite(invite) };
     }
 
@@ -54,6 +55,7 @@ public static class InviteFeature
         var invite = s.World.Store.GetInvite(body.String("code", 64)) ?? throw RequestException.NotFound("Invite");
         if (invite.CreatedBy != me.AccountKey && !Permissions.IsAdmin(me)) throw RequestException.Forbidden();
         s.World.Store.RevokeInvite(invite.Code);
+        Audit.Record(s, "invite.revoke", invite.CreatedBy, details: new { role = invite.Role, uses = invite.Uses });
         return null;
     }
 }

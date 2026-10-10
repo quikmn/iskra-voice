@@ -43,6 +43,7 @@ public sealed class Router
         EventFeature.Register(this);
         StageFeature.Register(this);
         PresenceFeature.Register(this);
+        ModerationFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);
@@ -52,6 +53,11 @@ public sealed class Router
 
     public void Handle(Session session, Member me, Envelope request)
     {
+        if (ModerationFeature.Gate(session, me, request.Type) is { } refused)
+        {
+            session.Send(Frames.Error(request.Id, refused.Code, refused.Message));
+            return;
+        }
         if (_asyncHandlers.TryGetValue(request.Type, out var asyncHandler))
         {
             _ = RunAsync(session, me, request, asyncHandler);

@@ -125,6 +125,7 @@ public static class WebhookFeature
         var hook = new Webhook(Ed25519.ToB64u(RandomNumberGenerator.GetBytes(16)), channel.Id, name, avatar, hash,
             body.OptionalBool("mentions") ?? false, me.AccountKey, s.Now, null);
         s.World.Store.AddWebhook(hook);
+        Audit.Record(s, "webhook.create", details: new { id = hook.Id, name = hook.Name, channelId = hook.ChannelId });
         return new { webhook = View(s.World.Store, hook), secret, path = PathFor(hook, secret) };
     }
 
@@ -143,6 +144,7 @@ public static class WebhookFeature
             hook = hook with { ChannelId = channel.Id };
         }
         s.World.Store.UpdateWebhook(hook);
+        Audit.Record(s, "webhook.update", details: new { id = hook.Id, name = hook.Name, channelId = hook.ChannelId, mentions = hook.Mentions });
         return new { webhook = View(s.World.Store, hook) };
     }
 
@@ -153,13 +155,16 @@ public static class WebhookFeature
         var (secret, hash) = NewSecret();
         var hook = Find(s, me, body) with { SecretHash = hash };
         s.World.Store.UpdateWebhook(hook);
+        Audit.Record(s, "webhook.regenerate", details: new { id = hook.Id, name = hook.Name, channelId = hook.ChannelId });
         return new { webhook = View(s.World.Store, hook), secret, path = PathFor(hook, secret) };
     }
 
     private static object? Delete(Session s, Member me, Body body)
     {
         RequireAdmin(me);
-        s.World.Store.DeleteWebhook(Find(s, me, body).Id);
+        var hook = Find(s, me, body);
+        s.World.Store.DeleteWebhook(hook.Id);
+        Audit.Record(s, "webhook.delete", details: new { id = hook.Id, name = hook.Name, channelId = hook.ChannelId });
         return null;
     }
 }

@@ -79,6 +79,7 @@ public static class SoundboardFeature
         var sound = new Sound(Ed25519.ToB64u(RandomNumberGenerator.GetBytes(9)), name, emoji, file.Id, Math.Min(duration.Value, MaxDurationMs),
             me.AccountKey, s.Now);
         store.AddSound(sound);
+        Audit.Record(s, "sound.create", details: new { id = sound.Id, name });
         Changed(s);
         return new { sound = Public(sound, file) };
     }
@@ -90,6 +91,7 @@ public static class SoundboardFeature
         if (!CanManage(me, sound)) throw RequestException.Forbidden("Only the person who added this sound or an admin can change it.");
         var updated = sound with { Name = Name(body), Emoji = Emoji(body) };
         store.UpdateSound(sound.Id, updated.Name, updated.Emoji);
+        Audit.Record(s, "sound.update", sound.CreatedBy, details: new { id = sound.Id, from = sound.Name, to = updated.Name });
         Changed(s);
         return new { sound = Public(updated, store.GetFile(sound.FileId)) };
     }
@@ -99,6 +101,7 @@ public static class SoundboardFeature
         var sound = s.World.Store.GetSound(body.String("id", 64)) ?? throw RequestException.NotFound("Sound");
         if (!CanManage(me, sound)) throw RequestException.Forbidden("Only the person who added this sound or an admin can delete it.");
         s.World.Store.DeleteSound(sound.Id);
+        Audit.Record(s, "sound.delete", sound.CreatedBy, details: new { id = sound.Id, name = sound.Name });
         Changed(s);
         return null;
     }

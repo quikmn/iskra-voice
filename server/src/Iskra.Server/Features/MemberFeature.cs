@@ -18,7 +18,7 @@ public static class MemberFeature
     }
 
     /// <summary>Loads the target and checks the actor is an admin who outranks them.</summary>
-    private static Member Target(Session s, Member me, Body body)
+    internal static Member Target(Session s, Member me, Body body)
     {
         if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden();
         var key = body.String("accountKey", 64);
@@ -38,6 +38,7 @@ public static class MemberFeature
             throw RequestException.BadRequest("Bots can be guest, member or trusted.");
 
         s.World.Store.SetMemberRole(target.AccountKey, role);
+        if (role != target.Role) Audit.Record(s, "member.role", target.AccountKey, details: new { from = target.Role, to = role });
         var member = s.Hub.PublicMember(target with { Role = role });
         s.Hub.Broadcast(Frames.Event("member.updated", new { member }));
         s.Hub.RefreshChannels(target.AccountKey);
@@ -56,6 +57,7 @@ public static class MemberFeature
     private static object? Kick(Session s, Member me, Body body)
     {
         var target = Target(s, me, body);
+        Audit.Record(s, "member.kick", target.AccountKey);
         Remove(s, target, "You were removed from this server.", CloseCodes.Forbidden);
         return null;
     }
@@ -65,6 +67,7 @@ public static class MemberFeature
         var target = Target(s, me, body);
         var reason = body.OptionalString("reason", MaxReasonLength) ?? "";
         s.World.Store.AddBan(target.AccountKey, reason, me.AccountKey, s.Now);
+        Audit.Record(s, "member.ban", target.AccountKey, reason);
         Remove(s, target, "You were banned from this server.", CloseCodes.Forbidden);
         return null;
     }
@@ -72,7 +75,9 @@ public static class MemberFeature
     private static object? Unban(Session s, Member me, Body body)
     {
         if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden();
-        if (!s.World.Store.RemoveBan(body.String("accountKey", 64))) throw RequestException.NotFound("Ban");
+        var key = body.String("accountKey", 64);
+        if (!s.World.Store.RemoveBan(key)) throw RequestException.NotFound("Ban");
+        Audit.Record(s, "member.unban", key);
         return null;
     }
 

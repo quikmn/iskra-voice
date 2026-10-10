@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { settingsSections } from './sections'
 
 const ids = (role: Parameters<typeof settingsSections>[0]) => settingsSections(role).map((s) => s.id)
-const account = ['profile', 'appearance', 'devices', 'recovery', 'notifications', 'voice']
+const account = ['profile', 'appearance', 'devices', 'recovery', 'notifications', 'voice', 'blocked']
 
 describe('settings sections', () => {
   it('shows only your account without a server', () => {
@@ -13,7 +13,7 @@ describe('settings sections', () => {
     expect(ids('guest')).toEqual([...account, 'overview'])
     expect(ids('member')).toEqual([...account, 'overview'])
     expect(ids('trusted')).toEqual([...account, 'overview', 'sounds'])
-    expect(ids('admin')).toEqual([...account, 'overview', 'emoji', 'sounds', 'integrations', 'pages', 'internet'])
+    expect(ids('admin')).toEqual([...account, 'overview', 'emoji', 'sounds', 'integrations', 'pages', 'internet', 'audit'])
     expect(ids('owner')).toEqual(ids('admin'))
   })
 

@@ -229,6 +229,7 @@ public static class ForumFeature
 
         if (store.ThreadCount(forum.Id) >= ThreadFeature.MaxThreadsPerChannel)
             throw RequestException.BadRequest("This forum has too many posts. Delete some old ones first.");
+        ModerationFeature.CheckSlowmode(s, me, forum);
         if (!s.Hub.Limits.TryTake(me.AccountKey, "thread.create")) throw new RequestException("rate_limited", "Too many new posts. Try again in a minute.");
 
         var thread = store.CreateForumPost(forum, me.AccountKey, title, text, attachments, tags, s.Now);

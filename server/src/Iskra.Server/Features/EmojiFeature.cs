@@ -89,6 +89,7 @@ public static partial class EmojiFeature
 
         var emoji = new CustomEmoji(Ed25519.ToB64u(RandomNumberGenerator.GetBytes(9)), name, file.Id, me.AccountKey, s.Now);
         store.AddEmoji(emoji);
+        Audit.Record(s, "emoji.create", details: new { id = emoji.Id, name });
         Changed(s);
         return new { emoji = Public(emoji, file) };
     }
@@ -100,6 +101,7 @@ public static partial class EmojiFeature
         var emoji = store.GetEmoji(body.String("id", 64)) ?? throw RequestException.NotFound("Emoji");
         var name = Name(body, store, emoji.Id);
         store.RenameEmoji(emoji.Id, name);
+        Audit.Record(s, "emoji.rename", details: new { id = emoji.Id, from = emoji.Name, to = name });
         Changed(s);
         return new { emoji = Public(emoji with { Name = name }, store.GetFile(emoji.FileId)) };
     }
@@ -109,6 +111,7 @@ public static partial class EmojiFeature
         RequireAdmin(me);
         var emoji = s.World.Store.GetEmoji(body.String("id", 64)) ?? throw RequestException.NotFound("Emoji");
         s.World.Store.DeleteEmoji(emoji.Id);
+        Audit.Record(s, "emoji.delete", details: new { id = emoji.Id, name = emoji.Name });
         Changed(s);
         return null;
     }

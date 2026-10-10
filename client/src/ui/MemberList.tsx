@@ -7,6 +7,7 @@ import { openProfileCard } from '../state/profile'
 import { useMemberPresence } from '../state/presence'
 import { STATUS_LABELS } from '../state/presenceRules'
 import { CustomStatusLine } from './presence/Presence'
+import { TimeoutBadge } from './moderation/Moderation'
 
 const ROLE_TITLES: Record<Role, string> = { owner: 'Owner', admin: 'Admins', trusted: 'Trusted', member: 'Members', guest: 'Guests' }
 
@@ -51,6 +52,7 @@ function MemberRow({ member, onClick }: { member: Member; onClick: (e: MouseEven
         {custom ? <CustomStatusLine custom={custom} className="member-status" />
           : member.pronouns && <span className="member-pronouns">{member.pronouns}</span>}
       </span>
+      <TimeoutBadge member={member} />
       {member.bot && <BotBadge />}
     </button>
   )

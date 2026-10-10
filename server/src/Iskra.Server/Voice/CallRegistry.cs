@@ -185,6 +185,18 @@ public sealed class CallRegistry
         foreach (var call in gone) Ended(call, "ended");
     }
 
+    /// <summary>Ends the calls that match (a block, a timeout).</summary>
+    public void EndWhere(Func<Call, bool> match)
+    {
+        List<Call> gone;
+        lock (_gate)
+        {
+            gone = _calls.Values.Where(match).ToList();
+            foreach (var call in gone) Remove(call);
+        }
+        foreach (var call in gone) Ended(call, "ended");
+    }
+
     private void EndAll(string reason)
     {
         List<Call> all;

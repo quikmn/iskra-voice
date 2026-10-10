@@ -1,0 +1,57 @@
+/* ── Safety and moderation ─────────────────────────────────────────── */
+
+/* Collapsed messages from people you blocked. */
+.message.blocked-message { padding-top: 2px; padding-bottom: 2px; font-size: 13px; font-style: italic; }
+.message.blocked-message .link { font-style: normal; }
+
+/* Timed out: the composer bar, the member list clock, the member dialog. */
+.timed-out-bar, .blocked-bar { display: flex; align-items: center; gap: 10px; line-height: 1.4; }
+.timed-out-bar { color: var(--text-2); background: var(--warning-bg); border-color: color-mix(in srgb, var(--amber) 35%, transparent); }
+.timed-out-bar svg { color: var(--amber); flex: none; }
+.timed-out-bar em { color: var(--text); font-style: normal; font-weight: 500; }
+.blocked-bar { justify-content: space-between; flex-wrap: wrap; }
+.timeout-badge { display: inline-flex; color: var(--amber); margin-left: auto; flex: none; }
+.member .timeout-badge + .bot-badge { margin-left: 4px; }
+.timeout-controls { display: grid; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.timeout-controls p { margin: 0; font-size: 14px; }
+.timeout-status { display: inline-flex; align-items: center; gap: 6px; color: var(--amber); font-weight: 500; }
+.timeout-form { display: flex; gap: 8px; flex-wrap: wrap; }
+.timeout-form select { flex: none; }
+.timeout-form input { flex: 1; min-width: 140px; }
+.member-timeout-line { display: inline-flex; align-items: center; gap: 5px; color: var(--amber); }
+
+.block-confirm { display: grid; gap: 8px; width: 100%; padding: 10px 12px; border-radius: var(--radius); background: var(--danger-bg); font-size: 14px; }
+
+/* Slowmode next to the send button. */
+.slowmode-chip {
+  display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 3px 7px; border-radius: 999px;
+  font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted); background: var(--surface-3);
+}
+.slowmode-chip.waiting { color: var(--amber); background: var(--warning-bg); }
+
+/* Channel settings. */
+.channel-roles { display: flex; gap: 12px; flex-wrap: wrap; }
+.channel-roles .field { flex: 1; min-width: 140px; }
+.field small { font-size: 12px; }
+
+/* Settings: blocked people and the audit log. */
+.empty-note { color: var(--muted); font-size: 14px; padding: 14px 16px; border: 1px dashed var(--border); border-radius: var(--radius); }
+.blocked-list, .audit-list { list-style: none; margin: 12px 0 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.blocked-list li, .audit-entry { display: flex; align-items: center; gap: 12px; padding: 10px 14px; }
+.blocked-list li + li, .audit-entry + .audit-entry { border-top: 1px solid var(--border); }
+.blocked-name { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.blocked-name .muted { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.audit-filters { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-top: 12px; }
+.audit-filters .field { flex: 1; min-width: 160px; margin-bottom: 0; }
+.audit-filters select { width: 100%; min-width: 0; }
+.audit-entry { align-items: flex-start; }
+.audit-entry > div { min-width: 0; display: grid; gap: 2px; }
+.audit-text { overflow-wrap: anywhere; }
+.audit-reason { font-size: 13px; color: var(--text-2); }
+.audit-entry time { font-size: 12px; }
+.audit-list + .button { margin-top: 12px; }
+
+@media (max-width: 760px) {
+  .audit-filters .field { flex-basis: 100%; min-width: 0; }
+  .timeout-form select, .timeout-form .button { flex: 1; }
+}

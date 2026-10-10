@@ -13,6 +13,9 @@ public sealed class Hub(World world, TimeProvider time)
     /// <summary>Rate limits shared by all of an account's sessions.</summary>
     public AccountLimits Limits { get; } = new(time);
 
+    /// <summary>Who sent what when, for channel slowmode.</summary>
+    public Features.SlowmodeTracker Slowmode { get; } = new();
+
     private readonly ConcurrentDictionary<Session, byte> _sessions = new();
 
     public IEnumerable<Session> Sessions => _sessions.Keys;
@@ -63,12 +66,16 @@ public sealed class Hub(World world, TimeProvider time)
     public object PublicMember(Member m) =>
         Features.ProfileFeature.Public(world.Store, m, Features.PresenceFeature.Of(world.Store, this, m.AccountKey, time.GetUtcNow().ToUnixTimeMilliseconds()));
 
-    public static object PublicChannel(Channel c) =>
-        new { id = c.Id, name = c.Name, kind = c.Kind, position = c.Position, readRole = c.ReadRole, writeRole = c.WriteRole };
+    public static object PublicChannel(Channel c, int slowmode = 0) =>
+        new { id = c.Id, name = c.Name, kind = c.Kind, position = c.Position, readRole = c.ReadRole, writeRole = c.WriteRole, slowmode };
 
     /// <summary>The channels this member can see, in order.</summary>
-    public List<object> VisibleChannels(Member member) =>
-        world.Store.AllChannels().Where(c => Permissions.CanRead(member, c)).Select(PublicChannel).ToList();
+    public List<object> VisibleChannels(Member member)
+    {
+        var slowmodes = world.Store.AllSlowmodes();
+        return world.Store.AllChannels().Where(c => Permissions.CanRead(member, c))
+            .Select(c => PublicChannel(c, slowmodes.GetValueOrDefault(c.Id))).ToList();
+    }
 
     /// <summary>After a role change: tell that member which channels they can see now.</summary>
     public void RefreshChannels(string accountKey)

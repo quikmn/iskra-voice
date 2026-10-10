@@ -49,6 +49,7 @@ public static class DmFeature
         // DMs are end-to-end encrypted between people's devices; a bot can't read them, so it doesn't send them either.
         if (s.World.Store.IsBot(me.AccountKey)) throw RequestException.Forbidden("Bots can't send direct messages.");
         var peer = Peer(s, me, body);
+        ModerationFeature.CheckNotBlocked(s, me, peer, "message");
         var envelope = body.Element("envelope");
         if (envelope.ValueKind != JsonValueKind.Object) throw RequestException.BadRequest("'envelope' must be an object.");
         var raw = envelope.GetRawText();

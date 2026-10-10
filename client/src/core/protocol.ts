@@ -133,7 +133,7 @@ export interface Requests {
   'chat.history': [{ channelId: number; before?: number; after?: number; around?: number; limit?: number }, { messages: Message[]; hasMore: boolean; hasNewer?: boolean }]
   'chat.typing': [{ channelId: number }, Record<string, never>]
   'channel.create': [{ name: string; kind?: 'text' | 'voice' | 'forum' | 'stage'; readRole?: Role; writeRole?: Role }, { channel: Channel }]
-  'channel.update': [{ id: number; name?: string; readRole?: Role; writeRole?: Role }, { channel: Channel }]
+  'channel.update': [{ id: number; name?: string; readRole?: Role; writeRole?: Role; slowmode?: number }, { channel: Channel }]
   'channel.delete': [{ id: number }, Record<string, never>]
   'profile.update': [ProfileUpdate, { member: Member }]
   'profile.page.set': [{ file: string }, { member: Member }]
@@ -672,4 +672,48 @@ export interface Events {
 export interface Requests {
   'presence.set': [Presence, { presence: Presence }]
   'presence.idle': [{ idle: boolean }, Record<string, never>]
+}
+
+// ── safety and moderation ──
+
+/** One change to your block list; per person the newest `at` wins (unblocks are kept as entries). */
+export interface BlockEntry {
+  accountKey: string
+  blocked: boolean
+  at: number
+}
+
+export interface Member {
+  /** When a running timeout ends (ms), or null. */
+  timedOutUntil?: number | null
+}
+
+export interface Channel {
+  /** Seconds between messages per member; 0 = off. */
+  slowmode?: number
+}
+
+export interface AuditEntry {
+  id: number
+  at: number
+  action: string
+  actor: string
+  actorName: string
+  target: string | null
+  targetName: string | null
+  reason: string | null
+  details: Record<string, unknown> | null
+}
+
+export interface Events {
+  blocks: { blocks: BlockEntry[] }
+}
+
+export interface Requests {
+  'block.list': [Record<string, never>, { blocks: BlockEntry[] }]
+  'block.sync': [{ entries: BlockEntry[] }, { blocks: BlockEntry[] }]
+  'member.timeout': [{ accountKey: string; durationMs: number; reason?: string }, { member: Member }]
+  'member.timeout.remove': [{ accountKey: string }, { member: Member }]
+  'member.timeout.status': [Record<string, never>, { timeout: { until: number; reason: string | null } | null }]
+  'audit.list': [{ action?: string; person?: string; before?: number; limit?: number }, { entries: AuditEntry[]; hasMore: boolean }]
 }

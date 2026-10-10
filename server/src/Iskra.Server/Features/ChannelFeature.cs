@@ -65,9 +65,12 @@ public static class ChannelFeature
         var writeRole = Role(body, "writeRole", readRole);
         CheckRoles(readRole, writeRole);
 
+        var slowmode = ModerationFeature.SlowmodeField(body) ?? 0;
         var channel = s.World.Store.CreateChannel(ChannelName(body.String("name", 256)), kind, readRole, writeRole, s.Now);
+        if (slowmode > 0) s.World.Store.SetSlowmode(channel.Id, slowmode);
+        Audit.Record(s, "channel.create", details: new { channelId = channel.Id, name = channel.Name, kind, readRole, writeRole, slowmode });
         BroadcastChannels(s);
-        return new { channel = Hub.PublicChannel(channel) };
+        return new { channel = Hub.PublicChannel(channel, slowmode) };
     }
 
     private static object Update(Session s, Member me, Body body)
@@ -82,17 +85,27 @@ public static class ChannelFeature
             WriteRole = Role(body, "writeRole", channel.WriteRole),
         };
         CheckRoles(updated.ReadRole, updated.WriteRole);
+        var oldSlowmode = s.World.Store.Slowmode(channel.Id);
+        var slowmode = ModerationFeature.SlowmodeField(body) ?? oldSlowmode;
 
         s.World.Store.UpdateChannel(updated);
+        if (slowmode != oldSlowmode) s.World.Store.SetSlowmode(channel.Id, slowmode);
+        var changes = new Dictionary<string, object>();
+        if (updated.Name != channel.Name) changes["name"] = new { from = channel.Name, to = updated.Name };
+        if (updated.ReadRole != channel.ReadRole) changes["readRole"] = new { from = channel.ReadRole, to = updated.ReadRole };
+        if (updated.WriteRole != channel.WriteRole) changes["writeRole"] = new { from = channel.WriteRole, to = updated.WriteRole };
+        if (slowmode != oldSlowmode) changes["slowmode"] = new { from = oldSlowmode, to = slowmode };
+        if (changes.Count > 0) Audit.Record(s, "channel.update", details: new { channelId = channel.Id, name = updated.Name, changes });
         BroadcastChannels(s);
         s.Voice.EnforceAccess();
-        return new { channel = Hub.PublicChannel(updated) };
+        return new { channel = Hub.PublicChannel(updated, slowmode) };
     }
 
     private static object? Delete(Session s, Member me, Body body)
     {
         RequireAdmin(me);
         var channel = ManagedChannel(s, body);
+        Audit.Record(s, "channel.delete", details: new { channelId = channel.Id, name = channel.Name, kind = channel.Kind });
         s.World.Store.DeleteChannel(channel.Id);
         BroadcastChannels(s);
         s.Voice.EnforceAccess();

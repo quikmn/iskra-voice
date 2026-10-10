@@ -119,6 +119,9 @@ public static class ThreadFeature
         var (thread, _) = ReadableThread(s, me, body.Long("id"));
         RequireManager(s, me, thread);
         var parent = s.World.Store.GetChannel(thread.ParentId);
+        if (thread.CreatedBy != me.AccountKey)
+            Audit.Record(s, "thread.delete", thread.CreatedBy,
+                details: new { channelId = thread.ParentId, channelName = parent?.Name, threadId = thread.Id, name = thread.Name });
         s.World.Store.DeleteChannel(thread.Id);
         if (parent is not null)
         {
