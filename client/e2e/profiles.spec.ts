@@ -68,7 +68,8 @@ test('profiles: avatar, bio, profile card, sandboxed page and themes', async ({ 
   await host.getByRole('button', { name: 'Publish' }).click()
   await expect(host.getByText('Published', { exact: true })).toBeVisible()
   await host.screenshot({ path: join(SHOTS, 'profile-page-editor.png') })
-  await host.keyboard.press('Escape')
+  await host.keyboard.press('Escape') // the page editor
+  await host.keyboard.press('Escape') // settings
 
   // The friend sees the card: picture, pronouns, bio.
   const requests: string[] = []

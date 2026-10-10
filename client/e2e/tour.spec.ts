@@ -81,7 +81,7 @@ async function settings(page: Page, section?: string) {
 }
 
 let server: TestServer
-let offline: TestServer
+let offline: TestServer | null
 let botDir: string
 let bot: Bot | null = null
 test.beforeAll(async () => {
@@ -91,6 +91,7 @@ test.beforeAll(async () => {
   botDir = mkdtempSync(join(tmpdir(), 'iskra-tour-bot-'))
 })
 test.afterAll(async () => {
+  test.setTimeout(180_000)
   bot?.stop()
   await server?.stop()
   await offline?.stop()
@@ -501,11 +502,12 @@ test('screenshot tour', async ({ browser }) => {
   // ── Offline and rejected ──
   await part('offline', async () => {
     const page = await (await context(browser)).newPage()
-    await joinVia(page, offline.ownerLink(), 'Owner')
+    await joinVia(page, offline!.ownerLink(), 'Owner')
     await send(page, 'see you all later')
     const other = await (await context(browser, PHONE)).newPage()
     await joinVia(other, await createInviteLink(page), 'Guest')
-    await offline.stop()
+    await offline!.stop()
+    offline = null
     await expect(page.locator('.pill')).toBeVisible({ timeout: 15_000 })
     await shot(page, '80-offline-desktop')
     await shot(other, '80-offline-phone')

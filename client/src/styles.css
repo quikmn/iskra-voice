@@ -763,3 +763,5 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 .copy-row input.color-input { flex: none; }
 /* In a call, the call panel says how it's encrypted; the header badge would repeat it. */
 .chat-header:has(+ .call-panel) .e2e-badge { display: none; }
+input.confirm-code { display: block; width: 100%; }
+input.confirm-code::placeholder { color: var(--faint); }

@@ -139,8 +139,8 @@ function PagesSection({ server }: { server: ServerState }) {
     <section className="settings-section">
       <h3>Profile pages</h3>
       <p className="muted">
-        Members can make a small web page that opens from their profile card. Pages run in a locked sandbox: they can't see accounts,
-        messages or the internet. Admins can remove any page.
+        Members can make a small web page that opens from their profile card. Pages run in a sandbox: they can't see anyone's account or
+        messages, and their scripts only run when the viewer allows it. Admins can remove any page.
       </p>
       <ServerPagesOption server={server} />
     </section>

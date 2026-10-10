@@ -66,6 +66,10 @@ test('link a phone with the text code, read DMs on both devices, then remove it'
 
   // The phone is now Host, on the same server, without an invite.
   await expect(phone.getByRole('heading', { name: 'general' })).toBeVisible()
+  // Escape closes the linking dialog first, then Settings.
+  await host.keyboard.press('Escape')
+  await expect(host.getByRole('dialog', { name: 'Link a device' })).toHaveCount(0)
+  await expect(host.getByRole('dialog', { name: 'Settings' })).toBeVisible()
   await host.keyboard.press('Escape')
 
   // A DM to Host reaches both devices, each with its own keys.

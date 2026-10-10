@@ -162,7 +162,6 @@ export function LinkDeviceDialog({ onClose }: { onClose: () => void }) {
           <p>{state.info ? <><strong>{state.info}</strong> wants to link.</> : 'A device wants to link.'} Type the number it shows:</p>
           <input
             className="confirm-code"
-            style={{ display: 'block', width: '100%', boxSizing: 'border-box' }}
             aria-label="Number on the new device"
             inputMode="numeric"
             autoComplete="one-time-code"
