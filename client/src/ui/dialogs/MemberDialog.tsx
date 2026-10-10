@@ -7,6 +7,8 @@ import { addFriend, openConversation, removeFriend, useDms } from '../../state/d
 import { Avatar, Modal } from '../bits'
 import { removeMemberPage } from '../../state/profile'
 import { BotBadge } from '../chat/BotBits'
+import { useMemberPresence } from '../../state/presence'
+import { STATUS_LABELS } from '../../state/presenceRules'
 
 export function MemberDialog({ server, member, onClose }: { server: ServerState; member: Member; onClose: () => void }) {
   const me = server.me
@@ -15,6 +17,7 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
   const grantable = me ? ROLES.filter((r) => roleRank(r) < roleRank(me.role)) : []
   const [confirm, setConfirm] = useState<'kick' | 'ban' | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const presence = useMemberPresence(member)
 
   async function run(action: () => Promise<unknown>) {
     try {
@@ -35,10 +38,10 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
   return (
     <Modal title={member.name} onClose={onClose}>
       <div className="member-card">
-        <Avatar name={member.name} accountKey={member.accountKey} size={64} online={member.online} />
+        <Avatar name={member.name} accountKey={member.accountKey} size={64} status={presence.status} />
         <div>
           <strong className="member-card-name">{member.name}</strong> {member.bot && <BotBadge />}
-          <div className="muted">{[member.pronouns, member.role, member.online ? 'online' : 'offline'].filter(Boolean).join(' · ')}</div>
+          <div className="muted">{[member.pronouns, member.role, STATUS_LABELS[presence.status].toLowerCase()].filter(Boolean).join(' · ')}</div>
           <div className="muted">ID <code>{fingerprint(member.accountKey)}</code></div>
         </div>
       </div>

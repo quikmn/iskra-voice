@@ -7,6 +7,7 @@ import { conversationLabel, isViewingThread } from './threads'
 import { jumpToMessage } from './jump'
 import { b64u } from '../core/crypto'
 import type { Events, WireDm } from '../core/protocol'
+import { isDoNotDisturb } from './presence'
 
 interface NotifySettings {
   desktop: boolean
@@ -49,8 +50,8 @@ export async function enableDesktopNotifications(): Promise<boolean> {
 
 let audio: AudioContext | null = null
 
-export function playTone(kind: 'message' | 'join' | 'leave'): void {
-  if (!useNotify.getState().sounds) return
+export function playTone(kind: 'message' | 'join' | 'leave', test = false): void {
+  if (!useNotify.getState().sounds || (isDoNotDisturb() && !test)) return
   try {
     audio ??= new AudioContext()
     const notes = kind === 'message' ? [880, 1320] : kind === 'join' ? [523, 784] : [784, 523]
@@ -77,6 +78,7 @@ export const pushActive = new Set<string>()
 
 function show(serverKey: string, title: string, body: string, onClick: () => void): void {
   if (pushActive.has(serverKey) && !document.hasFocus()) return
+  if (isDoNotDisturb()) return // do not disturb: no sounds or notifications (unread badges still count)
   playTone('message')
   if (!useNotify.getState().desktop || !notificationsSupported() || Notification.permission !== 'granted') return
   const notification = new Notification(title, { body: body.slice(0, 200), silent: true })

@@ -16,6 +16,9 @@ import { SettingsDialog } from '../settings/SettingsDialog'
 import { hueFor } from '../format'
 import { Close } from '../icons'
 import { renderMarkdown } from '../markdown'
+import { useMemberPresence } from '../../state/presence'
+import { STATUS_LABELS } from '../../state/presenceRules'
+import { CustomStatusLine } from '../presence/Presence'
 import './profile.css'
 
 export function ProfileLayer() {
@@ -63,6 +66,7 @@ function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; me
   const isSelf = me?.accountKey === member.accountKey
   const page = pagesOn ? pageUrl(server.url, member.page) : null
   const isFriend = useDms((s) => !!s.friends[member.accountKey])
+  const presence = useMemberPresence(member)
 
   useLayoutEffect(() => {
     if (sheet || !rect || !ref.current) return
@@ -94,7 +98,7 @@ function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; me
         </div>
         <div className="profile-head">
           <span className="profile-avatar-ring" style={{ background: 'var(--float)' }}>
-            <Avatar name={member.name} accountKey={member.accountKey} size={80} online={member.online} />
+            <Avatar name={member.name} accountKey={member.accountKey} size={80} status={presence.status} />
           </span>
         </div>
         <div className="profile-body">
@@ -102,7 +106,9 @@ function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; me
           <div className="profile-sub">
             {member.pronouns && <span>{member.pronouns}</span>}
             <span className={`role-chip role-${member.role}`}>{member.role}</span>
+            <span className="profile-status-label"><span className={`status-dot presence-${presence.status}`} aria-hidden />{STATUS_LABELS[presence.status]}</span>
           </div>
+          {presence.custom && <div className="profile-status"><CustomStatusLine custom={presence.custom} /></div>}
           {member.bio && (
             <div className="profile-bio">
               {renderMarkdown(member.bio, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey })}

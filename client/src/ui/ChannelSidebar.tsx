@@ -6,6 +6,7 @@ import { threadMentions, useThreads } from '../state/threads'
 import { Avatar } from './bits'
 import { openProfileCard } from '../state/profile'
 import { VoiceBar } from './VoiceBar'
+import { MeStatusButton } from './presence/Presence'
 import { CreateChannelDialog } from './dialogs/CreateChannelDialog'
 import { InviteDialog } from './dialogs/InviteDialog'
 import { SettingsDialog } from './settings/SettingsDialog'
@@ -147,11 +148,14 @@ function MeBar({ server, onSettings }: { server: ServerState; onSettings: () => 
   const name = me?.name ?? profile?.name ?? ''
   return (
     <div className="me-bar">
-      {me && <Avatar name={name} accountKey={me.accountKey} size={32} online={server.status.state === 'online'} />}
-      <div className="me-text">
-        <strong>{name}</strong>
-        <span>{me?.role ?? 'not joined'}</span>
-      </div>
+      {me ? (
+        <MeStatusButton name={name} accountKey={me.accountKey} sub={me.role} />
+      ) : (
+        <div className="me-text">
+          <strong>{name}</strong>
+          <span>not joined</span>
+        </div>
+      )}
       <button className="icon-button" onClick={onSettings} aria-label="Settings" title="Settings">
         <Settings />
       </button>

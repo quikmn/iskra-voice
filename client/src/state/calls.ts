@@ -9,6 +9,7 @@ import { desktop } from '../platform/desktop'
 import { callLog, callLogText, checkInvite, isBusy, reduce, type CallEvent, type CallInfo, type EndReason } from './callMachine'
 import { encryptFor, nameOf, openConversation, sendDm, sharedServers } from './dms'
 import { useNotify } from './notify'
+import { isDoNotDisturb } from './presence'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 import { joinCall, leaveVoice, useVoice } from './voice'
 
@@ -250,10 +251,12 @@ useCalls.subscribe((state, prev) => {
   const phase = state.call?.phase
   if (phase === prev.call?.phase && state.call?.id === prev.call?.id) return
   if (phase === 'incoming') {
-    startRinging('in')
-    void desktop?.callAlert?.(true)
+    // Do not disturb: the call still shows, silently.
+    const quiet = isDoNotDisturb()
+    if (!quiet) startRinging('in')
+    if (!quiet) void desktop?.callAlert?.(true)
     const call = state.call!
-    if (!document.hasFocus() && useNotify.getState().desktop && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    if (!quiet && !document.hasFocus() && useNotify.getState().desktop && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       notification = new Notification(`${nameOf(call.peer)} is calling`, {
         body: call.video ? 'Video call · end-to-end encrypted' : 'Voice call · end-to-end encrypted',
         tag: 'iskra-call',

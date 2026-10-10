@@ -124,7 +124,7 @@ export interface WireDm {
 /** Client → server requests: [body, result]. */
 export interface Requests {
   ping: [Record<string, never>, Record<string, never>]
-  'chat.send': [{ channelId: number; text: string; attachments?: string[]; replyTo?: number }, { message: Message }]
+  'chat.send': [{ channelId: number; text: string; attachments?: string[]; replyTo?: number; voice?: VoiceInfo }, { message: Message }]
   'chat.react': [{ id: number; emoji: string; on: boolean }, Record<string, never>]
   'upload.begin': [{ name: string; size: number }, { url: string; maxBytes: number }]
   'link.preview': [{ url: string }, { preview: LinkPreview | null }]
@@ -483,4 +483,57 @@ export interface Events {
 export interface Requests {
   'host.status': [Record<string, never>, { status: HostStatus }]
   'host.internet.set': [{ enabled: boolean }, { status: HostStatus }]
+}
+
+// ── presence and voice messages ──
+
+/** What others see. Invisible members show as "offline". */
+export type PresenceStatus = 'online' | 'idle' | 'dnd' | 'offline'
+/** What you can choose. */
+export type ChosenStatus = 'online' | 'idle' | 'dnd' | 'invisible'
+
+export interface CustomStatus {
+  emoji: string | null
+  text: string | null
+  /** null: until cleared. */
+  expiresAt: number | null
+}
+
+export interface Presence {
+  status: ChosenStatus
+  custom: CustomStatus | null
+  /** When it was chosen (this device's clock); the newest choice wins everywhere. */
+  updatedAt: number
+}
+
+export interface Member {
+  /** Older servers leave these out (then `online` is all there is). */
+  status?: PresenceStatus
+  customStatus?: CustomStatus | null
+}
+
+export interface Welcome {
+  /** Your own presence as this server keeps it (null if never set). */
+  presence?: Presence | null
+}
+
+export interface VoiceInfo {
+  /** Milliseconds. */
+  duration: number
+  /** b64u, one byte (0–255) per bar. */
+  waveform: string
+}
+
+export interface Message {
+  /** Voice messages: the recording is attachments[0]. */
+  voice?: VoiceInfo | null
+}
+
+export interface Events {
+  'presence.self': { presence: Presence }
+}
+
+export interface Requests {
+  'presence.set': [Presence, { presence: Presence }]
+  'presence.idle': [{ idle: boolean }, Record<string, never>]
 }

@@ -28,6 +28,8 @@ import { useEmojiSuggest } from './expressions/EmojiSuggest'
 import { PollCard, PollDialog } from './expressions/Polls'
 import { PollIcon } from './expressions/icons'
 import { useServerEmojis } from '../state/expressions'
+import { VoiceMessage, VoiceRecordButton } from './chat/voice/VoiceMessages'
+import { voiceRecordingSupported, type Recording } from './chat/voice/recorder'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -295,7 +297,7 @@ function MessageRow({
           )
         )}
         {message.poll && <PollCard server={server} message={message} />}
-        <Attachments server={server} files={message.attachments} />
+        {message.voice ? <VoiceMessage server={server} message={message} /> : <Attachments server={server} files={message.attachments} />}
         {message.webhook && <Embeds server={server} embeds={message.webhook.embeds} />}
         {!message.tempId && firstLink(message.text) && <LinkPreviewCard server={server} url={firstLink(message.text)!} />}
         <Reactions server={server} message={message} />
@@ -456,6 +458,13 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
     setPick(0)
   }
 
+  async function sendVoice(recording: Recording) {
+    const file = await uploadFile(server.key, recording.file, () => {})
+    setReply(server.key, channelId, null)
+    if (server.detached?.[channelId]) await jumpToPresent(server.key, channelId)
+    await sendMessage(server.key, channelId, '', { attachments: [file], replyTo, voice: { duration: recording.duration, waveform: recording.waveform } })
+  }
+
   function submit() {
     if (!canSend) return
     const trimmed = encodeEmoji(encodeMentions(text.trim(), Object.values(server.members)), emojis)
@@ -568,6 +577,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
       <button className="icon-button attach-button" onClick={(e) => setPicker(picker ? null : e.currentTarget)} aria-label="Emoji" title="Emoji">
         <Smile />
       </button>
+      {!text.trim() && uploads.length === 0 && voiceRecordingSupported() && <VoiceRecordButton onSend={sendVoice} disabled={!online} />}
       <button className="send-button" onClick={submit} disabled={!canSend} aria-label="Send">
         <Send />
       </button>
