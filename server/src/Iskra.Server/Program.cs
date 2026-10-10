@@ -192,6 +192,7 @@ app.MapMethods("/upload/{token}", ["OPTIONS"], (HttpContext context) =>
     return Results.NoContent();
 });
 app.MapGet("/files/{id}/{**name}", (HttpContext context, string id, Uploads uploads) => uploads.Serve(context, id));
+app.MapGet("/dmfiles/{id}", (HttpContext context, string id, Uploads uploads, World w) => DmFileFeature.Serve(context, w, uploads, id));
 app.MapGet("/pages/{id}", (HttpContext context, string id, World w) => ProfilePages.Serve(context, w, id));
 
 // Incoming webhooks: POST /hooks/{id}/{secret}.

@@ -7,7 +7,7 @@ import { conversationLabel, isViewingThread } from './threads'
 import { jumpToMessage } from './jump'
 import { b64u } from '../core/crypto'
 import type { Events, WireDm } from '../core/protocol'
-import { isDoNotDisturb } from './presence'
+import { isDoNotDisturb, isInvisible } from './presence'
 
 interface NotifySettings {
   desktop: boolean
@@ -105,7 +105,7 @@ onServerEvent((serverKey, type, body) => {
     const { message } = body as Events['chat.message']
     const myKey = me()
     const groupPings = canPingGroups(server.members[message.author]?.role, !!message.webhook)
-    if (message.author === myKey || !mentions(message.text, myKey, groupPings)) return
+    if (message.author === myKey || !mentions(message.text, myKey, groupPings, !isInvisible())) return
     const viewing = document.hasFocus() && state.activeServer === serverKey && activeChannelId(state) === message.channelId
     if (viewing || isViewingThread(serverKey, message.channelId)) return
     const author = message.webhook?.name ?? server.members[message.author]?.name ?? 'Someone'

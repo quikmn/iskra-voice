@@ -6,6 +6,7 @@ import { create } from 'zustand'
 import { b64u } from '../core/crypto'
 import { revokedSet } from '../core/devices'
 import { decryptDm, DmError, encryptDm, type DmContent, type DmEnvelope } from '../core/dm'
+import { checkFiles, type DmFile } from '../core/dmFiles'
 import type { DeviceCert } from '../core/identity'
 import type { DeviceBundle, WireDm } from '../core/protocol'
 import * as storage from '../core/storage'
@@ -25,6 +26,8 @@ export interface Dm {
   error?: string
   /** A call log entry (see calls.ts); shown instead of the text. */
   call?: Record<string, unknown>
+  /** End-to-end encrypted attachments. */
+  files?: DmFile[]
 }
 
 export interface Conversation {
@@ -93,8 +96,8 @@ const upsert = (list: Dm[], dm: Dm): Dm[] => mergeDm(list, dm)
 function open(wire: WireDm): Dm {
   const identity = useApp.getState().identity!
   try {
-    const { text, header, call } = decryptDm(identity, wire.envelope, wire.from, wire.to)
-    return { id: header.id, from: wire.from, to: wire.to, text, sentAt: orderTime(header.sentAt, wire.createdAt), call }
+    const { text, header, call, files } = decryptDm(identity, wire.envelope, wire.from, wire.to)
+    return { id: header.id, from: wire.from, to: wire.to, text, sentAt: orderTime(header.sentAt, wire.createdAt), call, ...(files ? { files } : {}) }
   } catch (e) {
     // The header id (unauthenticated here) only lets a readable local copy of the same message win.
     const headerId = wire.envelope?.header?.id
@@ -114,7 +117,19 @@ let saveTimer: ReturnType<typeof setTimeout> | null = null
 let saving: Promise<void> = Promise.resolve()
 let historyLoaded = false
 
-const storable = (m: Dm): storage.StoredDm => ({ id: m.id, from: m.from, to: m.to, text: m.text, sentAt: m.sentAt, ...(m.call ? { call: m.call } : {}) })
+const storable = (m: Dm): storage.StoredDm => ({
+  id: m.id, from: m.from, to: m.to, text: m.text, sentAt: m.sentAt, ...(m.call ? { call: m.call } : {}), ...(m.files?.length ? { files: m.files } : {}),
+})
+
+/** Attachments from storage or another device, checked like freshly decrypted ones (dropped if malformed). */
+function storedFiles(raw: unknown): DmFile[] | undefined {
+  try {
+    const files = checkFiles(raw)
+    return files.length ? files : undefined
+  } catch {
+    return undefined
+  }
+}
 
 function persist(peer: string): void {
   if (!historyLoaded) return
@@ -139,7 +154,8 @@ export function loadLocalHistory(): Promise<void> {
   historyLoading ??= (async () => {
     const stored = await storage.loadDmHistory().catch(() => ({}) as Record<string, storage.StoredDm[]>)
     for (const [peer, messages] of Object.entries(stored)) {
-      patchConversation(peer, (c) => ({ messages: messages.reduce<Dm[]>(upsert, c.messages) }))
+      const checked = messages.map((m): Dm => { const { files, ...rest } = m; const ok = storedFiles(files); return ok ? { ...rest, files: ok } : rest })
+      patchConversation(peer, (c) => ({ messages: checked.reduce<Dm[]>(upsert, c.messages) }))
     }
     historyLoaded = true
     // Save whatever arrived while we were loading.
@@ -156,7 +172,7 @@ export async function importHistory(history: Record<string, storage.StoredDm[]>)
     if (!Array.isArray(messages)) continue
     const clean = messages.filter((m) => typeof m?.id === 'string' && typeof m.text === 'string' && typeof m.sentAt === 'number'
       && typeof m.from === 'string' && typeof m.to === 'string')
-    await storage.saveDmConversation(peer, clean.map(storable))
+    await storage.saveDmConversation(peer, clean.map((m) => storable({ ...m, files: storedFiles(m.files) })))
   }
 }
 
@@ -279,10 +295,12 @@ export async function encryptFor(serverKey: string, peer: string, content: DmCon
   })
 }
 
-export async function sendDm(peer: string, text: string, extra: Pick<DmContent, 'call'> = {}): Promise<void> {
+export async function sendDm(peer: string, text: string, extra: Pick<DmContent, 'call' | 'files'> = {}): Promise<void> {
   const identity = useApp.getState().identity
   const mine = me()
-  const route = sharedServers(peer)[0]
+  // Attachments live on one server: the message goes through that one, so the server can link them to it.
+  const shared = sharedServers(peer)
+  const route = extra.files?.length ? shared.find((s) => s === extra.files![0].server) : shared[0]
   const tempId = `pending-${Date.now()}-${Math.random()}`
   const pending: Dm = { id: tempId, from: mine, to: peer, text, sentAt: Date.now(), pending: 'sending', ...extra }
   patchConversation(peer, (c) => ({ messages: upsert(c.messages, pending) }))
@@ -290,7 +308,7 @@ export async function sendDm(peer: string, text: string, extra: Pick<DmContent, 
   try {
     if (!identity || !route) throw new DmError("You don't share an online server with this person right now.")
     const envelope = await encryptFor(route, peer, { text, ...extra })
-    await connectionFor(route)!.request('dm.send', { accountKey: peer, envelope })
+    await connectionFor(route)!.request('dm.send', { accountKey: peer, envelope, ...(extra.files?.length ? { files: extra.files.map((f) => f.id) } : {}) })
     // The dm.message event (also sent to us) adds the real message; drop the placeholder.
     patchConversation(peer, (c) => ({
       messages: upsert(c.messages.filter((m) => m.id !== tempId), { id: envelope.header.id, from: mine, to: peer, text, sentAt: envelope.header.sentAt, ...extra }),

@@ -739,6 +739,7 @@ Presence { "status": "online" | "idle" | "dnd" | "invisible",
 - **Newest wins:** the server keeps one `Presence` per account and only replaces it with one whose `updatedAt` is the same or newer, so a device that was offline can't undo a newer choice. `updatedAt` may be at most 10 minutes in the future. When it changes, `presence.self { presence }` goes to the account's other sessions; apps adopt a newer one and pass it on to their other servers.
 - `emoji`: ≤ 16 characters, no spaces, not a server emoji (custom statuses travel between servers). `text`: ≤ 128 characters, one line, the same rules as names. At least one of them, or `custom` counts as `null`. `expiresAt` ≤ 31 days ahead, `null` = until cleared. Expired custom statuses aren't shown (clients also hide them when `expiresAt` passes).
 - What others see: no sessions or `invisible` → `offline` (no custom status); `dnd` or a chosen `idle` as is; otherwise `idle` when every session has reported `presence.idle { idle: true }`, else `online`.
+- Invisible members aren't given away elsewhere either: their `chat.typing` is accepted but not passed on, and `@here` (members online now) neither pushes them nor counts as a mention in their own app. Voice is the exception: a voice channel shows who is in it ([Voice](#voice)), invisible or not.
 - **Do not disturb:** the server sends no [Web Push](#push-notifications-web-push) at all to an account whose status is `dnd`, connected or not (it's kept while offline). Apps also stay quiet: no sounds or notifications.
 - Rate limits: `presence.set` 1/s (burst 10), `presence.idle` 1 every 2 s (burst 10).
 
@@ -752,4 +753,27 @@ A voice message is a channel message with one recorded audio file and no text:
 
 - The file must be Ogg, WebM or MP4 (what `MediaRecorder` makes: Ogg/WebM Opus, Safari's MP4/AAC) and at most 10 MB. For Ogg the server measures the length itself (and refuses recordings over 5 minutes); WebM and MP4 recordings carry no reliable length, so theirs is only bounded. The waveform is computed by the recording app.
 - `Message` gains `voice: { duration, waveform } | null`; the audio is `attachments[0]`. Voice messages can't be edited.
-- Voice messages are for channels only. DMs don't carry files yet, so there is no end-to-end encrypted variant.
+- In DMs, a voice message is an [encrypted DM attachment](#encrypted-dm-attachments) with `voice` set (the server never sees the length or waveform).
+
+### Encrypted DM attachments
+
+Pictures, videos, files and voice messages in DMs are end-to-end encrypted like the text. The server stores ciphertext it can't read, under the upload quota, and hands it out only to the people in the conversation.
+
+| type | body | result | who |
+|---|---|---|---|
+| `dm.upload.begin` | `accountKey` (the other person, or yourself), `size` (ciphertext bytes, ≤ `MaxUploadMb`) | `{ url: "/upload/<ticket>", maxBytes }` | members (not bots); counts against the [upload limits](#limits) like `upload.begin` |
+| `dm.send` | adds `files?: [fileId...]` (≤ 10): your own DM uploads for this person, each sent once | | |
+| `dm.file.url` | `id` | `{ url: "/dmfiles/<id>?exp=…&sig=…", size }` (valid 10 minutes) | the accounts in the file's access list; anyone else gets `not_found` |
+
+- The upload is `PUT <server>/upload/<ticket>` as usual. DM uploads are never sniffed (type `application/octet-stream`), never served from `/files/`, and readable only by their **access list**: the uploader and the `accountKey` given to `dm.upload.begin` (a list, so group DMs can use the same table later). `GET /dmfiles/<id>` needs the signed link from `dm.file.url` (HMAC-SHA-256 over `"iskra/dm-file-link/v1"`, the id and the expiry, with a key the server makes at startup) and answers the bytes as an opaque `attachment` (`nosniff`, a sandboxing CSP). Uploads no DM refers to are swept after 24 hours like other uploads.
+- **Encryption** (client): a random 32-byte key per file; libsodium `crypto_secretstream_xchacha20poly1305` over 64 KiB chunks, additional data `"iskra/dm-file/v1"` on every chunk, the last one tagged `FINAL`. Ciphertext = 24-byte header ‖ chunks (each 17 bytes longer than its plaintext). `hash` = BLAKE2b-256 (`crypto_generichash(32)`) of the ciphertext.
+- The DM content (inside the encrypted envelope) gains `files: [DmFile]`, and `text` may then be empty:
+  ```jsonc
+  DmFile { "server": "<serverKey holding it>", "id": "<fileId>", "key": "<b64u 32>", "hash": "<b64u 32>",
+           "name": "≤ 200 chars", "type": "sender's MIME type (a hint)", "size": 12345 /* plaintext bytes */,
+           "voice"?: { "duration": 1-300000, "waveform": "<b64u ≤ 128 bytes>" } }
+  ```
+  The message goes through the server that holds its files.
+- **Receiving:** the app checks every field (a malformed list makes the message unreadable), downloads, checks the length and `hash`, decrypts every chunk (failing on any change, truncation or extra bytes), then decides how to show the file from its **decrypted bytes** with the same rules as channel uploads (PNG, JPEG, GIF, WebP, MP4, WebM, Ogg, MP3, WAV inline, from a `blob:` URL); anything else, whatever its claimed type, is only offered as a download under its cleaned name.
+- Rate limits: `dm.upload.begin` 2/s (burst 10, plus the per-account `upload.begin` limit), `dm.file.url` 10/s (burst 40).
+- What the server learns: who sent how many files to whom, when, and their sizes (padded only by the 17 bytes per chunk). Not their names, types, contents or whether one is a voice message.

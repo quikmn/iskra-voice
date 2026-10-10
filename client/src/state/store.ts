@@ -82,6 +82,11 @@ export function onWelcomeHook(listener: (serverKey: string, welcome: Welcome) =>
 const TYPING_MS = 6_000
 
 let authPresence: () => unknown = () => undefined
+let invisible: () => boolean = () => false
+/** state/presence.ts says whether you're invisible: no typing hints then, and @here isn't for you. */
+export function setInvisibleCheck(check: () => boolean): void {
+  invisible = check
+}
 /** state/presence.ts hands its current choice to every connect. */
 export function setAuthPresence(provider: () => unknown): void {
   authPresence = provider
@@ -307,7 +312,7 @@ function onEvent<K extends keyof Events>(key: string, type: K, body: Events[K]):
             ? s.unread
             : { ...s.unread, [message.channelId]: (s.unread[message.channelId] ?? 0) + 1 },
           mentions: message.author === s.me?.accountKey || viewing || !s.me
-            || !mentions(message.text, s.me.accountKey, canPingGroups(s.members[message.author]?.role, !!message.webhook))
+            || !mentions(message.text, s.me.accountKey, canPingGroups(s.members[message.author]?.role, !!message.webhook), !invisible())
             ? s.mentions
             : { ...s.mentions, [message.channelId]: (s.mentions[message.channelId] ?? 0) + 1 },
         }
@@ -500,7 +505,7 @@ export const fileUrl = (key: string, file: FileInfo) => (useApp.getState().serve
 
 let lastTyping = 0
 export function notifyTyping(key: string, channelId: number): void {
-  if (Date.now() - lastTyping < 3_000) return
+  if (Date.now() - lastTyping < 3_000 || invisible()) return
   lastTyping = Date.now()
   connections.get(key)?.request('chat.typing', { channelId }).catch(() => undefined)
 }

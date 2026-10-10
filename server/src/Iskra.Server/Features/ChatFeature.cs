@@ -148,6 +148,7 @@ public static class ChatFeature
     {
         var channel = ReadableChannel(s, me, body.Long("channelId"));
         if (!Permissions.CanWrite(me, channel)) throw RequestException.Forbidden();
+        if (PresenceFeature.Invisible(s.World.Store, me.AccountKey)) return null; // typing would give an invisible member away
 
         var frame = Frames.Event("chat.typing", new { channelId = channel.Id, accountKey = me.AccountKey });
         foreach (var other in s.Hub.Sessions.Where(o => o.AccountKey != me.AccountKey))

@@ -13,7 +13,8 @@ namespace Iskra.Server.Files;
 /// </summary>
 public sealed partial class Uploads(World world, TimeProvider time, ILogger<Uploads> log)
 {
-    private sealed record Ticket(string Uploader, string Name, long MaxBytes, DateTimeOffset Expires)
+    /// <summary><paramref name="DmAccess"/>: an end-to-end encrypted DM attachment, readable only by these accounts.</summary>
+    private sealed record Ticket(string Uploader, string Name, long MaxBytes, DateTimeOffset Expires, string[]? DmAccess = null)
     {
         public int Claimed;
     }
@@ -38,7 +39,7 @@ public sealed partial class Uploads(World world, TimeProvider time, ILogger<Uplo
     }
 
     /// <summary>Hands out a ticket for <paramref name="size"/> bytes, or null if that would pass the uploader's daily quota.</summary>
-    public string? Issue(string uploader, string role, string name, long size)
+    public string? Issue(string uploader, string role, string name, long size, string[]? dmAccess = null)
     {
         var now = time.GetUtcNow();
         lock (_quotaLock)
@@ -52,7 +53,7 @@ public sealed partial class Uploads(World world, TimeProvider time, ILogger<Uplo
                 if (used + size > quota) return null;
             }
             var token = Ed25519.ToB64u(RandomNumberGenerator.GetBytes(24));
-            _tickets[token] = new Ticket(uploader, FileSniffer.CleanName(name), size, now.AddMinutes(10));
+            _tickets[token] = new Ticket(uploader, FileSniffer.CleanName(name), size, now.AddMinutes(10), dmAccess);
             return token;
         }
     }
@@ -127,7 +128,8 @@ public sealed partial class Uploads(World world, TimeProvider time, ILogger<Uplo
 
             var hash = Convert.ToHexStringLower(sha.GetHashAndReset());
             var target = PathFor(hash);
-            var kind = FileSniffer.Sniff(head.AsSpan(0, headLength));
+            // DM attachments are ciphertext: never sniffed, never shown inline.
+            var kind = ticket.DmAccess is not null ? new FileSniffer.Kind("application/octet-stream", false) : FileSniffer.Sniff(head.AsSpan(0, headLength));
             if (kind.Type == "image/jpeg" && kind.Width is null)
             {
                 await using var whole = File.OpenRead(temp);
@@ -142,6 +144,7 @@ public sealed partial class Uploads(World world, TimeProvider time, ILogger<Uplo
                 if (File.Exists(target)) File.Delete(temp); // same content uploaded before: keep one copy
                 else File.Move(temp, target);
                 world.Store.AddFile(file);
+                if (ticket.DmAccess is not null) world.Store.AddDmFile(file.Id, ticket.Uploader, ticket.DmAccess);
             }
             await context.Response.WriteAsJsonAsync(new { file = Public(file) });
         }
@@ -161,6 +164,7 @@ public sealed partial class Uploads(World world, TimeProvider time, ILogger<Uplo
         AllowCors(context);
         var file = world.Store.GetFile(id);
         if (file is null || !File.Exists(PathFor(file.Sha256))) return Results.NotFound();
+        if (world.Store.GetDmFile(id) is not null) return Results.NotFound(); // only via /dmfiles, for the people in the DM
 
         var kind = FileSniffer.Sniff(ReadHead(PathFor(file.Sha256)));
         var headers = context.Response.Headers;

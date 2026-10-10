@@ -40,6 +40,7 @@ public sealed class Router
         HostFeature.Register(this, internet);
         ProfileFeature.Register(this);
         PresenceFeature.Register(this);
+        DmFileFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

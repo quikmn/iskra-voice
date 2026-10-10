@@ -1,0 +1,6 @@
+/* ── Encrypted DM attachments ───────────────────────────────────────── */
+.attachment-file.dm-file { align-items: center; }
+.attachment-file.dm-file .file-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attachment-file.dm-file .button { text-decoration: none; }
+.dm-file-error { flex-basis: 100%; font-size: 13px; }
+.chat.dragging .messages { outline: 2px dashed var(--accent); outline-offset: -8px; }

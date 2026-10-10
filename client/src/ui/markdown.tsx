@@ -176,8 +176,9 @@ export function decodeMentions(text: string, nameOf: (accountKey: string) => str
  * Does this message mention the viewer: directly, or with @everyone/@here when its author may ping
  * groups (see canPingGroups)? Otherwise the text still shows, it just doesn't notify.
  */
-export function mentions(text: string, me: string, groupPings = true): boolean {
-  return text.includes(`<@${me}>`) || (groupPings && /(^|\s)@(everyone|here)\b/.test(text))
+/** `here`: whether @here counts for you (not while you're invisible: you aren't "here" for anyone). */
+export function mentions(text: string, me: string, groupPings = true, here = true): boolean {
+  return text.includes(`<@${me}>`) || (groupPings && (here ? /(^|\s)@(everyone|here)\b/ : /(^|\s)@everyone\b/).test(text))
 }
 
 /**

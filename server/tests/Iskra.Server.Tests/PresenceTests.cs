@@ -250,4 +250,47 @@ public class PresenceTests
         await alice.RequestAsync("chat.send", new { channelId = server.General, text = $"again <@{bob.Key}>" });
         Assert.Single(await server.Push.WaitForAsync(endpoint));
     }
+    [Fact]
+    public async Task Invisible_members_are_not_seen_typing()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        using var bob = await server.JoinAsync("Bob");
+        await bob.RequestAsync("presence.set", Presence("invisible"));
+        Assert.Equal("result", (await bob.RequestAsync("chat.typing", new { channelId = server.General })).Type());
+        await alice.NoEventAsync("chat.typing");
+
+        await Task.Delay(2100); // the typing rate limit
+        await bob.RequestAsync("presence.set", Presence("online"));
+        await bob.RequestAsync("chat.typing", new { channelId = server.General });
+        Assert.Equal(bob.Key, (await alice.EventAsync("chat.typing")).Body().GetProperty("accountKey").GetString());
+    }
+
+    [Fact]
+    public async Task Here_does_not_ping_invisible_members()
+    {
+        using var server = new IskraServer();
+        using var admin = await server.JoinAsync("Admin", "admin");
+        using var bob = await server.JoinAsync("Bob");
+        using var carol = await server.JoinAsync("Carol");
+        async Task<string> Subscribe(User user)
+        {
+            using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+            var q = key.ExportParameters(false).Q;
+            var endpoint = $"https://fcm.googleapis.com/fcm/send/{Guid.NewGuid():N}";
+            await user.RequestAsync("push.subscribe", new
+            {
+                endpoint,
+                keys = new { p256dh = Ed25519.ToB64u([4, .. q.X!, .. q.Y!]), auth = Ed25519.ToB64u(RandomNumberGenerator.GetBytes(16)) },
+            });
+            return endpoint;
+        }
+        var bobEndpoint = await Subscribe(bob);
+        var carolEndpoint = await Subscribe(carol);
+        await carol.RequestAsync("presence.set", Presence("invisible"));
+
+        await admin.RequestAsync("chat.send", new { channelId = server.General, text = "@here standup" });
+        Assert.Single(await server.Push.WaitForAsync(bobEndpoint));
+        await server.Push.NoneAsync(carolEndpoint);
+    }
 }

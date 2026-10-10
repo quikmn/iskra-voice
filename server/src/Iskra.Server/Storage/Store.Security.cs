@@ -32,7 +32,8 @@ public sealed partial class Store
                 UNION SELECT file_id FROM emojis
                 UNION SELECT file_id FROM sounds
                 UNION SELECT avatar FROM webhooks WHERE avatar IS NOT NULL
-                UNION SELECT avatar FROM webhook_messages WHERE avatar IS NOT NULL)
+                UNION SELECT avatar FROM webhook_messages WHERE avatar IS NOT NULL
+                UNION SELECT file_id FROM dm_files WHERE message_id IS NOT NULL)
             RETURNING sha256;
             """, r => r.GetString(0), ("$cutoff", cutoff), ("$keep", System.Text.Json.JsonSerializer.Serialize(keep)));
 

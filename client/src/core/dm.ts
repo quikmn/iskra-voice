@@ -12,6 +12,7 @@
 //   - v1, and v2 for a device without a usable prekey: crypto_box from the sender's device key to the
 //     recipient's device key.
 // - No device keys means no message. There is no plaintext fallback.
+import { checkFiles, type DmFile } from './dmFiles'
 import sodium from 'libsodium-wrappers-sumo'
 import { b64u, fromB64u, randomBytes } from './crypto'
 import { currentPrekey, usablePrekeys, type SignedPrekey } from './devices'
@@ -51,6 +52,8 @@ export interface DmContent {
   text: string
   /** A call invite or call log entry (see state/calls.ts, which checks it). `text` is the fallback for other apps. */
   call?: Record<string, unknown>
+  /** End-to-end encrypted attachments (core/dmFiles.ts); `text` may then be empty. */
+  files?: DmFile[]
 }
 
 export interface EncryptOptions {
@@ -99,7 +102,8 @@ export function encryptDm(
   revoked.delete(identity.cert.deviceKey) // this device is sending, so it isn't revoked as far as we know
   const recipients = validDevices(recipientDevices, to, revoked)
   if (recipients.length === 0) throw new DmError("This person hasn't got any devices we can encrypt to yet.")
-  if (content.text.length === 0 || content.text.length > MAX_TEXT) throw new DmError(`Messages must be 1–${MAX_TEXT} characters.`)
+  const hasFiles = (content.files?.length ?? 0) > 0
+  if ((content.text.length === 0 && !hasFiles) || content.text.length > MAX_TEXT) throw new DmError(`Messages must be 1–${MAX_TEXT} characters.`)
 
   // Always include this device, so the sender can read their own history later.
   const mine = validDevices([identity.cert, ...ownDevices], from, revoked)
@@ -197,7 +201,8 @@ export function decryptDm(identity: Identity, envelope: DmEnvelope, from: string
   const content = JSON.parse(new TextDecoder().decode(plaintext)) as Partial<DmContent>
   if (typeof content.text !== 'string' || content.text.length > MAX_TEXT) throw new DmError('Unsupported message content.')
   const call = content.call && typeof content.call === 'object' && !Array.isArray(content.call) ? { call: content.call } : {}
-  return { text: content.text, header, ...call }
+  const files = checkFiles(content.files)
+  return { text: content.text, header, ...call, ...(files.length ? { files } : {}) }
 }
 
 /**

@@ -48,6 +48,9 @@ describe('markdown', () => {
     expect(mentions('@everyone game time', alice)).toBe(true)
     expect(mentions('no one', alice)).toBe(false)
     expect(mentions('@here quick question', alice)).toBe(true)
+    // While you're invisible, @here isn't for you (@everyone still is).
+    expect(mentions('@here quick question', alice, true, false)).toBe(false)
+    expect(mentions('@everyone game time', alice, true, false)).toBe(true)
     // Group pings only count from trusted and above (or an allowed webhook), like on the server.
     expect(mentions('@everyone game time', alice, false)).toBe(false)
     expect(mentions(`@everyone and <@${alice}>`, alice, false)).toBe(true)
