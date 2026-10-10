@@ -241,3 +241,29 @@ Device certificates are stored when a device authenticates, so the server can pu
 | `link.preview` | `url` (http/https, no credentials) | `{ preview: { url, siteName, title, description } \| null }` |
 
 The server fetches the page (so viewers' IPs aren't sent to every site): ≤ 512 KB of HTML, 6 s, ≤ 3 redirects, cached for an hour. It only connects to public addresses: each connection's IP is checked after DNS resolution, so private ranges, loopback, link-local/cloud metadata and redirects into them are refused. No images are fetched or shown. Runs off the read loop; rate-limited to 1/s (burst 10).
+
+## Calls (voice and video in DMs, end-to-end encrypted)
+
+A call between two members runs on a server they both belong to, through its LiveKit. The server rings, connects and hangs up; it never has the media key.
+
+| type | body | result | who |
+|---|---|---|---|
+| `call.start` | `accountKey, callId` (16 random bytes, b64u, single use), `video?` (bool), `envelope` (DM envelope, ≤ 32 KB) | `{ call, url, token, room }` | members, to another member; error `busy` if they're in another call here, `voice_unavailable` without LiveKit |
+| `call.accept` | `callId` | `{ call, url, token, room }` | the callee, while it rings |
+| `call.decline` | `callId, reason? ("declined" \| "busy")` | | the callee, while it rings |
+| `call.end` | `callId` | | either person (the caller cancels a ringing call this way) |
+| `call.pending` | | `{ calls: [{ call, envelope }] }` (calls ringing for you) | yourself |
+
+`Call { id, from, to, video, state: "ringing" | "active", createdAt }`. A call someone isn't part of is `not_found` for them, admins included.
+
+| event | body | sent to |
+|---|---|---|
+| `call.ring` | `{ call, envelope }` | every session of the callee |
+| `call.accepted` | `{ callId }` | the caller's sessions and the callee's other sessions (they stop ringing) |
+| `call.ended` | `{ callId, reason: "ended" \| "cancelled" \| "declined" \| "busy" \| "no_answer" }` | both people's sessions |
+| `call.state` | `{ callId, participants: [accountKey] }` (who is in the room, from LiveKit's webhooks) | both people's sessions |
+
+- The LiveKit room is `call-` + the first 16 bytes (hex) of `SHA-256("iskra/call-room/v1" 0x00 accountA 0x00 accountB 0x00 callId)` (accounts sorted). Tokens for it are only issued to those two accounts; anyone else LiveKit reports in a call room (or anyone in a room that is no longer a call) is removed.
+- Ringing times out after 45 s (`no_answer`). Starting a call ends any call the caller was still in. A party leaving the room ends an answered call (`ended`); the caller leaving a ringing call cancels it. Kicks, bans and LiveKit going down end calls too.
+- **Media key:** the caller makes a random 32-byte key per call and sends it in `envelope`, an ordinary DM envelope (see above) whose content is `{ "text": "…", "call": { "kind": "invite", "id": callId, "key": "<b64u 32>", "video": bool } }`. The server relays it in `call.ring` and doesn't store it. The callee checks that the envelope is from the caller, to them, for this `callId`, and recent. Both sides give the key to LiveKit's end-to-end encryption (`ExternalE2EEKeyProvider`, HKDF from the raw key; frames are AES-GCM encrypted in a worker), so the SFU only forwards ciphertext.
+- **Call log:** when a call ends, the caller's app sends a normal DM whose content is `{ "text": "<fallback>", "call": { "kind": "log", "id", "video", "outcome": "missed" | "declined" | "ended", "duration"? (ms) } }`. Apps that don't know calls show the fallback text.

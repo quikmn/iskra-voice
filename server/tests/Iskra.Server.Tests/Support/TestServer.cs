@@ -22,6 +22,7 @@ public sealed class IskraServer : WebApplicationFactory<Program>
     public string WorldPath { get; } = Path.Combine(Path.GetTempPath(), "iskra-test-" + Guid.NewGuid().ToString("N"));
     public int AuthTimeoutMs { get; init; } = 5_000;
     public bool AllowLoopbackPreviews { get; init; }
+    public int RingTimeoutMs { get; init; } = 45_000;
 
     public World World => Services.GetRequiredService<World>();
 
@@ -34,6 +35,7 @@ public sealed class IskraServer : WebApplicationFactory<Program>
         builder.UseSetting("Session:AuthTimeoutMs", AuthTimeoutMs.ToString());
         builder.UseSetting("Session:CloseGraceMs", "200");
         builder.UseSetting("Previews:AllowLoopbackForTests", AllowLoopbackPreviews.ToString());
+        builder.UseSetting("Calls:RingTimeoutMs", RingTimeoutMs.ToString());
         builder.ConfigureTestServices(services => services.AddSingleton<IVoiceBackend>(Voice));
     }
 
