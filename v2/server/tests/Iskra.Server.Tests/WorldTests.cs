@@ -29,7 +29,7 @@ public class WorldTests : IDisposable
     [Fact]
     public void Members_survive_a_restart()
     {
-        using (var world = World.OpenOrCreate(_path)) world.Store.UpsertMember("key1", "Alice", "owner", 1);
+        using (var world = World.OpenOrCreate(_path)) world.Store.AddMember("key1", "Alice", "owner", 1);
         using (var world = World.OpenOrCreate(_path))
         {
             var member = world.Store.GetMember("key1");

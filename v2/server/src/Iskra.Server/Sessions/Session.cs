@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
 using Iskra.Server.Crypto;
+using Iskra.Server.Features;
 using Iskra.Server.Protocol;
 using Iskra.Server.Storage;
 
@@ -22,31 +23,47 @@ public sealed class SessionLimits
 
 /// <summary>
 /// One client connection. The read loop is the only reader and the write loop is the only writer,
-/// so the socket is never used concurrently (a v1 bug). Everything outbound goes through <see cref="_outbox"/>.
+/// so the socket is never used concurrently. Everything outbound goes through <see cref="_outbox"/>,
+/// which any thread may write to via <see cref="Send"/>.
 /// </summary>
 public sealed class Session
 {
     private readonly WebSocket _ws;
     private readonly World _world;
-    private readonly SessionLimits _options;
+    private readonly Hub _hub;
+    private readonly Router _router;
+    private readonly SessionLimits _limits;
     private readonly ILogger _log;
     private readonly TimeProvider _time;
-    private readonly Channel<Outbound> _outbox =
-        Channel.CreateUnbounded<Outbound>(new UnboundedChannelOptions { SingleReader = true });
+    private readonly RateLimiter _rateLimiter;
+    private readonly System.Threading.Channels.Channel<Outbound> _outbox =
+        System.Threading.Channels.Channel.CreateUnbounded<Outbound>(new UnboundedChannelOptions { SingleReader = true });
 
     private Task<Frame>? _pendingReceive;
-    private bool _closing;
+    private volatile bool _closing;
 
-    public Member? Member { get; private set; }
+    /// <summary>The authenticated account, or null before the handshake completes.</summary>
+    public string? AccountKey { get; private set; }
 
-    public Session(WebSocket ws, World world, SessionLimits options, ILogger log, TimeProvider time)
+    public World World => _world;
+    public Hub Hub => _hub;
+    public TimeProvider Time => _time;
+    public long Now => _time.GetUtcNow().ToUnixTimeMilliseconds();
+
+    public Session(WebSocket ws, World world, Hub hub, Router router, SessionLimits limits, ILogger log, TimeProvider time)
     {
         _ws = ws;
         _world = world;
-        _options = options;
+        _hub = hub;
+        _router = router;
+        _limits = limits;
         _log = log;
         _time = time;
+        _rateLimiter = new RateLimiter(time);
     }
+
+    /// <summary>The member record as it is right now (roles can change mid-session).</summary>
+    public Member? CurrentMember() => AccountKey is null ? null : _world.Store.GetMember(AccountKey);
 
     public async Task RunAsync(CancellationToken aborted)
     {
@@ -64,6 +81,11 @@ public sealed class Session
         }
         finally
         {
+            if (AccountKey is not null && _hub.Remove(this))
+            {
+                var member = _world.Store.GetMember(AccountKey);
+                if (member is not null) _hub.Broadcast(Frames.Event("member.updated", new { member = _hub.PublicMember(member) }));
+            }
             _outbox.Writer.TryComplete();
             await writer;
             await AwaitCloseAckAsync();
@@ -83,42 +105,70 @@ public sealed class Session
             name = _world.Settings.Name,
         }));
 
-        var first = await NextFrameAsync(_options.MaxPreAuthFrameBytes, TimeSpan.FromMilliseconds(_options.AuthTimeoutMs));
+        var first = await NextFrameAsync(_limits.MaxPreAuthFrameBytes, TimeSpan.FromMilliseconds(_limits.AuthTimeoutMs));
         if (!HandleControlFrame(first)) return;
 
         var envelope = first.Kind == FrameKind.Text ? Envelope.TryParse(first.Data) : null;
-        Member = envelope is null ? null : Authenticate(envelope, nonce);
-        if (Member is null)
+        var (member, failure) = envelope is null ? (null, AuthFailure.Invalid) : Authenticate(envelope, nonce);
+        if (member is null)
         {
-            Send(Frames.Error(envelope?.Id, "auth_failed", "Authentication failed."));
-            Close(CloseCodes.AuthFailed, "Authentication failed");
+            var (code, message, close) = failure switch
+            {
+                AuthFailure.Banned => ("banned", "You are banned from this server.", CloseCodes.Forbidden),
+                AuthFailure.InviteRequired => ("invite_required", "You need a valid invite to join this server.", CloseCodes.AuthFailed),
+                _ => ("auth_failed", "Authentication failed.", CloseCodes.AuthFailed),
+            };
+            Send(Frames.Error(envelope?.Id, code, message));
+            Close(close, message);
             return;
         }
 
+        AccountKey = member.AccountKey;
+        var cameOnline = _hub.Add(this);
         Send(Frames.Event("welcome", new
         {
-            you = new { accountKey = Member.AccountKey, name = Member.Name, role = Member.Role },
-            server = new { name = _world.Settings.Name },
+            you = _hub.PublicMember(member),
+            server = new { name = _world.Settings.Name, key = Ed25519.ToB64u(_world.ServerPublicKey) },
+            channels = _hub.VisibleChannels(member),
+            members = _world.Store.AllMembers().Select(_hub.PublicMember),
         }));
-        _log.LogInformation("{Name} ({Key}) connected", Member.Name, Member.AccountKey[..8]);
+        if (cameOnline)
+        {
+            var update = Frames.Event("member.updated", new { member = _hub.PublicMember(member) });
+            foreach (var other in _hub.Sessions.Where(s => s != this)) other.Send(update);
+        }
+        _log.LogInformation("{Name} ({Key}) connected", member.Name, member.AccountKey[..8]);
 
         var badFrames = 0;
         while (!_closing)
         {
-            var frame = await NextFrameAsync(_options.MaxFrameBytes, timeout: null);
+            var frame = await NextFrameAsync(_limits.MaxFrameBytes, timeout: null);
             if (!HandleControlFrame(frame)) return;
 
             var request = frame.Kind == FrameKind.Text ? Envelope.TryParse(frame.Data) : null;
             if (request is null)
             {
                 Send(Frames.Error(null, "bad_request", "Malformed frame."));
-                if (++badFrames >= _options.MaxConsecutiveBadFrames)
+                if (++badFrames >= _limits.MaxConsecutiveBadFrames)
                     Close(CloseCodes.BadRequests, "Too many bad requests");
                 continue;
             }
-
             badFrames = 0;
-            Dispatch(request);
+
+            if (!_rateLimiter.TryTake(request.Type))
+            {
+                Send(Frames.Error(request.Id, "rate_limited", "Slow down a little."));
+                continue;
+            }
+
+            var current = CurrentMember();
+            if (current is null)
+            {
+                // Removed (kicked or banned) while connected.
+                Close(CloseCodes.Forbidden, "You are no longer a member of this server.");
+                return;
+            }
+            _router.Handle(this, current, request);
         }
     }
 
@@ -138,19 +188,6 @@ public sealed class Session
                 return false;
             default:
                 return true;
-        }
-    }
-
-    private void Dispatch(Envelope request)
-    {
-        switch (request.Type)
-        {
-            case "ping":
-                Send(Frames.Result(request.Id, new { }));
-                break;
-            default:
-                Send(Frames.Error(request.Id, "unknown_type", $"Unknown type '{Truncate(request.Type, 64)}'."));
-                break;
         }
     }
 
@@ -200,12 +237,15 @@ public sealed class Session
 
     // ── Auth ─────────────────────────────────────────────────────────────────
 
-    private Member? Authenticate(Envelope envelope, byte[] nonce)
+    private enum AuthFailure { Invalid, Banned, InviteRequired }
+
+    private (Member?, AuthFailure) Authenticate(Envelope envelope, byte[] nonce)
     {
-        if (envelope.Type != "auth" || envelope.Body.ValueKind != JsonValueKind.Object) return null;
+        if (envelope.Type != "auth" || envelope.Body.ValueKind != JsonValueKind.Object) return (null, AuthFailure.Invalid);
         var body = envelope.Body;
 
-        if (!body.TryGetProperty("cert", out var certElement) || certElement.ValueKind != JsonValueKind.Object) return null;
+        if (!body.TryGetProperty("cert", out var certElement) || certElement.ValueKind != JsonValueKind.Object)
+            return (null, AuthFailure.Invalid);
         DeviceCert? cert;
         try
         {
@@ -213,39 +253,67 @@ public sealed class Session
         }
         catch (JsonException)
         {
-            return null;
+            return (null, AuthFailure.Invalid);
         }
-        if (cert is null) return null;
+        if (cert is null) return (null, AuthFailure.Invalid);
 
-        var signature = body.TryGetProperty("sig", out var sigElement) && sigElement.ValueKind == JsonValueKind.String
-            ? sigElement.GetString()
-            : null;
-
-        string? name = null;
-        if (body.TryGetProperty("profile", out var profile) && profile.ValueKind == JsonValueKind.Object &&
-            profile.TryGetProperty("name", out var nameElement) && nameElement.ValueKind == JsonValueKind.String)
+        string? signature = null, name = null, invite = null;
+        try
         {
-            name = Names.Normalize(nameElement.GetString());
+            var fields = new Body(body);
+            signature = fields.OptionalString("sig", 128);
+            invite = fields.OptionalString("invite", 64);
+            if (body.TryGetProperty("profile", out var profile))
+                name = Names.Normalize(new Body(profile).OptionalString("name", 256));
         }
-        if (name is null) return null;
+        catch (RequestException)
+        {
+            return (null, AuthFailure.Invalid);
+        }
+        if (name is null) return (null, AuthFailure.Invalid);
 
-        if (!Identity.VerifyDeviceCert(cert)) return null;
-        if (!Identity.VerifyAuth(cert, _world.ServerPublicKey, nonce, signature)) return null;
+        if (!Identity.VerifyDeviceCert(cert)) return (null, AuthFailure.Invalid);
+        if (!Identity.VerifyAuth(cert, _world.ServerPublicKey, nonce, signature)) return (null, AuthFailure.Invalid);
 
-        // M0: anyone with a valid identity can join; the first member becomes owner.
-        // M1 replaces this with invite-based joining.
-        var role = _world.Store.CountMembers() == 0 ? Roles.Owner : Roles.Member;
-        return _world.Store.UpsertMember(cert.AccountKey, name, role, _time.GetUtcNow().ToUnixTimeMilliseconds());
+        // Identity is proven from here on.
+        if (_world.Store.IsBanned(cert.AccountKey)) return (null, AuthFailure.Banned);
+
+        var existing = _world.Store.GetMember(cert.AccountKey);
+        if (existing is not null)
+        {
+            if (existing.Name != name) _world.Store.SetMemberName(existing.AccountKey, name);
+            return (existing with { Name = name }, AuthFailure.Invalid);
+        }
+
+        var role = invite is null ? null : _world.Store.TryUseInvite(invite, Now);
+        if (role is null) return (null, AuthFailure.InviteRequired);
+
+        var member = _world.Store.AddMember(cert.AccountKey, name, role, Now);
+        if (role == Roles.Owner) OwnerSetup.OwnerJoined(_world);
+        _hub.Broadcast(Frames.Event("member.joined", new { member = _hub.PublicMember(member) }));
+        return (member, AuthFailure.Invalid);
     }
 
     // ── Writing ──────────────────────────────────────────────────────────────
 
-    private void Send(string json) => _outbox.Writer.TryWrite(new Outbound(json, null, null));
+    /// <summary>Queues a frame. Safe from any thread; dropped silently once the session is closing.</summary>
+    public void Send(string json)
+    {
+        if (!_closing) _outbox.Writer.TryWrite(new Outbound(json, null, null));
+    }
+
+    /// <summary>Closes the session from outside (kick, ban, removal).</summary>
+    public void Kick(int code, string reason)
+    {
+        Send(Frames.Event("kicked", new { reason }));
+        Close(code, reason);
+    }
 
     private void Close(int code, string reason) => Close((WebSocketCloseStatus)code, reason);
 
     private void Close(WebSocketCloseStatus status, string reason)
     {
+        if (_closing) return;
         _closing = true;
         _outbox.Writer.TryWrite(new Outbound(null, status, reason));
         _outbox.Writer.TryComplete();
@@ -272,11 +340,9 @@ public sealed class Session
     private async Task AwaitCloseAckAsync()
     {
         if (_ws.State != WebSocketState.CloseSent) return;
-        _pendingReceive ??= ReceiveFrameAsync(_options.MaxFrameBytes);
-        await Task.WhenAny(_pendingReceive, Task.Delay(TimeSpan.FromMilliseconds(_options.CloseGraceMs), _time));
+        _pendingReceive ??= ReceiveFrameAsync(_limits.MaxFrameBytes);
+        await Task.WhenAny(_pendingReceive, Task.Delay(TimeSpan.FromMilliseconds(_limits.CloseGraceMs), _time));
     }
-
-    private static string Truncate(string text, int max) => text.Length <= max ? text : text[..max];
 
     private sealed record Outbound(string? Json, WebSocketCloseStatus? CloseStatus, string? CloseReason);
 
@@ -290,33 +356,31 @@ public sealed class Session
     }
 }
 
-public static class Roles
-{
-    public const string Guest = "guest";
-    public const string Member = "member";
-    public const string Trusted = "trusted";
-    public const string Admin = "admin";
-    public const string Owner = "owner";
-}
-
 public static class Names
 {
     public const int MaxLength = 32;
 
     /// <summary>Trims and validates a display name. Rejects control and invisible formatting characters (e.g. RTL overrides).</summary>
-    public static string? Normalize(string? name)
+    public static string? Normalize(string? name) => Text.Normalize(name, MaxLength, allowNewlines: false);
+}
+
+public static class Text
+{
+    /// <summary>Trims, NFC-normalizes and validates user text. Returns null if empty, too long or containing invisible control characters.</summary>
+    public static string? Normalize(string? text, int maxLength, bool allowNewlines)
     {
-        if (name is null) return null;
-        name = name.Trim().Normalize(NormalizationForm.FormC);
-        if (name.Length is 0 or > MaxLength) return null;
-        foreach (var c in name)
+        if (text is null) return null;
+        text = text.Replace("\r\n", "\n").Trim().Normalize(NormalizationForm.FormC);
+        if (text.Length == 0 || text.Length > maxLength) return null;
+        foreach (var c in text)
         {
-            if (c == '‍') continue; // zero-width joiner: needed for emoji sequences
+            if (c == '‍') continue;                     // zero-width joiner: needed for emoji sequences
+            if (allowNewlines && (c == '\n' || c == '\t')) continue;
             var category = char.GetUnicodeCategory(c);
             if (category is UnicodeCategory.Control or UnicodeCategory.Format
                 or UnicodeCategory.LineSeparator or UnicodeCategory.ParagraphSeparator)
                 return null;
         }
-        return name;
+        return text;
     }
 }

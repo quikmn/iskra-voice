@@ -8,6 +8,15 @@ public sealed record WorldSettings
 {
     public string Name { get; init; } = "My Iskra server";
     public int Port { get; init; } = 7070;
+
+    /// <summary>How clients reach this server. Defaults to http://localhost:{Port}.</summary>
+    public string? PublicUrl { get; init; }
+
+    /// <summary>The web app that invite links open.</summary>
+    public string AppUrl { get; init; } = "http://localhost:5173";
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string EffectivePublicUrl => (PublicUrl ?? $"http://localhost:{Port}").TrimEnd('/');
 }
 
 /// <summary>

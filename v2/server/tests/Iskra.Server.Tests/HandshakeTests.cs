@@ -22,13 +22,13 @@ public class HandshakeTests
     }
 
     [Fact]
-    public async Task Valid_identity_is_welcomed_and_first_member_becomes_owner()
+    public async Task Joining_with_an_invite_gives_its_role()
     {
         using var server = new IskraServer();
         using var alice = new TestIdentity();
         using var client = await server.ConnectAsync();
 
-        var welcome = await client.LoginAsync(alice, "Alice");
+        var welcome = await client.LoginAsync(alice, "Alice", server.Invite("owner"));
 
         Assert.Equal("welcome", welcome.GetProperty("type").GetString());
         var you = welcome.GetProperty("body").GetProperty("you");
@@ -44,9 +44,9 @@ public class HandshakeTests
         using var alice = new TestIdentity();
         using var bob = new TestIdentity();
 
-        using (var c = await server.ConnectAsync()) await c.LoginAsync(alice, "Alice");
+        using (var c = await server.ConnectAsync()) await c.LoginAsync(alice, "Alice", server.Invite("owner"));
         using (var c = await server.ConnectAsync())
-            Assert.Equal("member", (await c.LoginAsync(bob, "Bob")).GetProperty("body").GetProperty("you").GetProperty("role").GetString());
+            Assert.Equal("member", (await c.LoginAsync(bob, "Bob", server.Invite())).GetProperty("body").GetProperty("you").GetProperty("role").GetString());
 
         using var again = await server.ConnectAsync();
         var you = (await again.LoginAsync(alice, "Alice 2")).GetProperty("body").GetProperty("you");
@@ -66,7 +66,7 @@ public class HandshakeTests
         var hello = await client.ReceiveAsync();
         var forgedCert = attacker.Cert();
         forgedCert["accountKey"] = victim.AccountKey;
-        await client.SendAsync(attacker.AuthFrame(hello, cert: forgedCert));
+        await client.SendAsync(attacker.AuthFrame(hello, cert: forgedCert, invite: server.Invite()));
 
         await AssertAuthFailed(client);
     }
@@ -80,7 +80,7 @@ public class HandshakeTests
         using var client = await server.ConnectAsync();
 
         var hello = await client.ReceiveAsync();
-        await client.SendAsync(alice.AuthFrame(hello, sig: (key, nonce) => alice.AuthSig(key, nonce, mallory.Device)));
+        await client.SendAsync(alice.AuthFrame(hello, sig: (key, nonce) => alice.AuthSig(key, nonce, mallory.Device), invite: server.Invite()));
 
         await AssertAuthFailed(client);
     }
@@ -98,7 +98,7 @@ public class HandshakeTests
         await b.ReceiveAsync();
 
         // Replay the auth frame meant for server A against server B.
-        await b.SendAsync(alice.AuthFrame(helloA));
+        await b.SendAsync(alice.AuthFrame(helloA, invite: serverB.Invite()));
 
         await AssertAuthFailed(b);
     }
@@ -117,7 +117,7 @@ public class HandshakeTests
         using var client = await server.ConnectAsync();
 
         var hello = await client.ReceiveAsync();
-        await client.SendAsync(alice.AuthFrame(hello, name));
+        await client.SendAsync(alice.AuthFrame(hello, name, invite: server.Invite()));
 
         await AssertAuthFailed(client);
     }
@@ -128,7 +128,7 @@ public class HandshakeTests
         using var server = new IskraServer();
         using var alice = new TestIdentity();
         using var client = await server.ConnectAsync();
-        var welcome = await client.LoginAsync(alice, "fam 👨‍👩‍👧");
+        var welcome = await client.LoginAsync(alice, "fam 👨‍👩‍👧", server.Invite());
         Assert.Equal("welcome", welcome.GetProperty("type").GetString());
     }
 
@@ -183,7 +183,7 @@ public class SessionTests
         using var server = new IskraServer();
         using var alice = new TestIdentity();
         using var client = await server.ConnectAsync();
-        await client.LoginAsync(alice);
+        await client.LoginAsync(alice, invite: server.Invite());
 
         await client.SendAsync(new JsonObject { ["type"] = "does.not.exist", ["id"] = "r1" });
         var error = await client.ReceiveAsync();
@@ -202,7 +202,7 @@ public class SessionTests
         using var server = new IskraServer();
         using var alice = new TestIdentity();
         using var client = await server.ConnectAsync();
-        await client.LoginAsync(alice);
+        await client.LoginAsync(alice, invite: server.Invite());
 
         for (var i = 0; i < 10; i++)
         {
@@ -218,7 +218,7 @@ public class SessionTests
         using var server = new IskraServer();
         using var alice = new TestIdentity();
         using var client = await server.ConnectAsync();
-        await client.LoginAsync(alice);
+        await client.LoginAsync(alice, invite: server.Invite());
 
         await client.SendRawAsync(new string('x', 65 * 1024));
         Assert.Equal(CloseCodes.TooLarge, await client.ReceiveCloseAsync());

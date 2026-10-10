@@ -45,7 +45,7 @@ The connection is one WebSocket per server at `wss://<host>/ws`. It uses text fr
    ```
 2. **Client sends `auth`** within 5 seconds:
    ```jsonc
-   { "type": "auth", "body": { "cert": DeviceCert, "sig": "<b64u 64>", "profile": { "name": "Viktor" } } }
+   { "type": "auth", "body": { "cert": DeviceCert, "sig": "<b64u 64>", "profile": { "name": "Viktor" }, "invite": "<code, only when joining>" } }
    ```
    `sig = Ed25519.sign(deviceSecret, "iskra/auth/v1" || 0x00 || serverKey(32) || nonce(32))`
 
@@ -55,13 +55,22 @@ The connection is one WebSocket per server at `wss://<host>/ws`. It uses text fr
    - the auth signature
    - the profile name (1–32 characters, no control characters)
    - that the account isn't banned
-   - membership (from M1 onward: an invite is required for accounts that aren't members yet)
+   - membership: accounts that aren't members yet need a valid `invite`, which also sets their role
 4. **Server sends `welcome`:**
    ```jsonc
-   { "type": "welcome", "body": { "you": { "accountKey": "...", "name": "Viktor", "role": "member" }, "server": { "name": "Gaming" } } }
+   { "type": "welcome", "body": {
+       "you": Member, "server": { "name": "Gaming", "key": "<b64u>" },
+       "channels": [Channel...],   // only the ones you can read
+       "members": [Member...] } }
    ```
 
-If any check fails, the server sends `error` (`code: "auth_failed"`, with the same message whatever the reason) and closes with WebSocket close code 4401.
+If a check fails, the server sends `error` and closes:
+
+| code | close | when |
+|---|---|---|
+| `auth_failed` | 4401 | Bad certificate, signature or name, or timeout (same message whatever the reason) |
+| `invite_required` | 4401 | Valid identity, not a member, no usable invite |
+| `banned` | 4403 | The account is banned |
 
 ### Limits
 
@@ -81,3 +90,63 @@ If any check fails, the server sends `error` (`code: "auth_failed"`, with the sa
 | 4401 | Auth failed or timed out |
 | 4403 | Banned or kicked |
 | 4413 | Frame too large |
+
+## Objects
+
+```jsonc
+Member  { "accountKey": "<b64u>", "name": "Viktor", "role": "member", "online": true }
+Channel { "id": 1, "name": "general", "kind": "text" | "voice", "position": 0, "readRole": "member", "writeRole": "member" }
+Message { "id": 42, "channelId": 1, "author": "<accountKey>", "text": "hi", "createdAt": 1760000000000, "editedAt": null }
+Invite  { "code": "<b64u 16>", "role": "member", "createdBy": "<accountKey>", "createdAt": 0, "expiresAt": 0, "maxUses": null, "uses": 0 }
+```
+
+Roles, lowest to highest: `guest < member < trusted < admin < owner`.
+
+## Requests
+
+Every request gets a `result` (body as listed, `{}` if none) or an `error` with one of these codes: `bad_request`, `forbidden`, `not_found`, `rate_limited`, `unknown_type`, `internal`.
+Channels you can't read are reported as `not_found`, never `forbidden`, so their existence doesn't leak.
+
+| type | body | result | who |
+|---|---|---|---|
+| `ping` | | | anyone |
+| `chat.send` | `channelId, text` (1–4000 chars, newlines allowed) | `{ message }` | channel writers |
+| `chat.edit` | `id, text` | `{ message }` | the author |
+| `chat.delete` | `id` | | the author, or an admin who outranks the author |
+| `chat.history` | `channelId, before? \| after?, limit? (1–100, default 50)` | `{ messages (oldest first), hasMore }` | channel readers |
+| `chat.typing` | `channelId` | | channel writers |
+| `channel.create` | `name, kind? (text\|voice), readRole?, writeRole?` | `{ channel }` | admin+ |
+| `channel.update` | `id, name?, readRole?, writeRole?` | `{ channel }` | admin+ |
+| `channel.delete` | `id` | | admin+ |
+| `profile.update` | `name` | `{ member }` | anyone |
+| `member.setRole` | `accountKey, role` | `{ member }` | admin+, target ranked below you, role below yours |
+| `member.kick` | `accountKey` | | same as above |
+| `member.ban` | `accountKey, reason?` | | same as above |
+| `member.unban` | `accountKey` | | admin+ |
+| `member.bans` | | `{ bans }` | admin+ |
+| `invite.create` | `role? (default member), maxUses? (1–1000), expiresInMs? (1 min – 30 days, default 7 days)` | `{ invite }` | member+ for guest/member invites; higher roles need the right to grant them |
+| `invite.list` | | `{ invites }` | admins see all, others their own |
+| `invite.revoke` | `code` | | the creator or admin+ |
+
+Rate limits per connection: 10 requests/s sustained (burst 40), `chat.send` 2/s (burst 10), `chat.typing` 1 every 2 s (burst 3).
+Writing in a channel requires being able to read it (`writeRole` ≥ `readRole`).
+
+## Events
+
+| type | body | sent to |
+|---|---|---|
+| `chat.message` | `{ message }` | channel readers |
+| `chat.edited` | `{ message }` | channel readers |
+| `chat.deleted` | `{ id, channelId }` | channel readers |
+| `chat.typing` | `{ channelId, accountKey }` | channel readers except the typist |
+| `channels` | `{ channels }` | a member whose visible channels changed (role change, channel created/updated/deleted) |
+| `member.joined` | `{ member }` | everyone |
+| `member.updated` | `{ member }` | everyone (name, role or online status changed) |
+| `member.removed` | `{ accountKey }` | everyone (kicked or banned) |
+| `kicked` | `{ reason }` | the removed member, right before the socket closes with 4403 |
+
+## Invite links
+
+`<appUrl>/#/join/<b64u(serverUrl)>.<serverKey>.<code>`. The client connects to `serverUrl`, checks that `hello.serverKey` equals the key in the link, and only then sends `auth` with the code.
+
+A new world has no owner. On startup the server writes a single-use owner invite link to `owner-invite.txt` in the world folder (and logs it); the file is deleted once the owner joins.

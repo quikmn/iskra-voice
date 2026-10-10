@@ -3,12 +3,16 @@ using Microsoft.Data.Sqlite;
 namespace Iskra.Server.Storage;
 
 public sealed record Member(string AccountKey, string Name, string Role, long JoinedAt);
+public sealed record Channel(long Id, string Name, string Kind, int Position, string ReadRole, string WriteRole);
+public sealed record Message(long Id, long ChannelId, string AuthorKey, string Text, long CreatedAt, long? EditedAt);
+public sealed record Invite(string Code, string CreatedBy, long CreatedAt, long? ExpiresAt, int? MaxUses, int Uses, string Role, bool Revoked);
+public sealed record Ban(string AccountKey, string Reason, string BannedBy, long BannedAt);
 
 /// <summary>
-/// SQLite storage for a world (iskra.db). All writes go through one lock so there is a single writer;
-/// WAL mode keeps reads from blocking.
+/// SQLite storage for a world (iskra.db). One connection, and every statement runs under one lock,
+/// so there is exactly one writer. WAL mode keeps the file consistent if the process dies mid-write.
 /// </summary>
-public sealed class Store : IDisposable
+public sealed partial class Store : IDisposable
 {
     private const int SchemaVersion = 1;
 
@@ -43,67 +47,89 @@ public sealed class Store : IDisposable
                     role        TEXT NOT NULL,
                     joined_at   INTEGER NOT NULL
                 );
+                CREATE TABLE channels (
+                    id          INTEGER PRIMARY KEY,
+                    name        TEXT NOT NULL,
+                    kind        TEXT NOT NULL,
+                    position    INTEGER NOT NULL,
+                    read_role   TEXT NOT NULL,
+                    write_role  TEXT NOT NULL,
+                    created_at  INTEGER NOT NULL
+                );
+                CREATE TABLE messages (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    channel_id  INTEGER NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+                    author_key  TEXT NOT NULL,
+                    text        TEXT NOT NULL,
+                    created_at  INTEGER NOT NULL,
+                    edited_at   INTEGER
+                );
+                CREATE INDEX messages_by_channel ON messages(channel_id, id);
+                CREATE TABLE invites (
+                    code        TEXT PRIMARY KEY,
+                    created_by  TEXT NOT NULL,
+                    created_at  INTEGER NOT NULL,
+                    expires_at  INTEGER,
+                    max_uses    INTEGER,
+                    uses        INTEGER NOT NULL DEFAULT 0,
+                    role        TEXT NOT NULL,
+                    revoked     INTEGER NOT NULL DEFAULT 0
+                );
+                CREATE TABLE bans (
+                    account_key TEXT PRIMARY KEY,
+                    reason      TEXT NOT NULL,
+                    banned_by   TEXT NOT NULL,
+                    banned_at   INTEGER NOT NULL
+                );
+                INSERT INTO channels (name, kind, position, read_role, write_role, created_at)
+                VALUES ('general', 'text', 0, 'member', 'member', 0);
                 PRAGMA user_version = 1;
                 """);
         }
     }
 
-    /// <summary>Adds the member on first sight; afterwards keeps their role and updates their display name.</summary>
-    public Member UpsertMember(string accountKey, string name, string defaultRole, long now)
+    // ── Plumbing ─────────────────────────────────────────────────────────────
+
+    private void Exec(string sql, params (string Name, object? Value)[] args)
     {
         lock (_gate)
         {
-            using var cmd = _db.CreateCommand();
-            cmd.CommandText = """
-                INSERT INTO members (account_key, name, role, joined_at) VALUES ($key, $name, $role, $now)
-                ON CONFLICT(account_key) DO UPDATE SET name = excluded.name
-                RETURNING account_key, name, role, joined_at;
-                """;
-            cmd.Parameters.AddWithValue("$key", accountKey);
-            cmd.Parameters.AddWithValue("$name", name);
-            cmd.Parameters.AddWithValue("$role", defaultRole);
-            cmd.Parameters.AddWithValue("$now", now);
-            using var reader = cmd.ExecuteReader();
-            reader.Read();
-            return new Member(reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetInt64(3));
-        }
-    }
-
-    public int CountMembers() => Convert.ToInt32(Scalar("SELECT COUNT(*) FROM members;"));
-
-    public Member? GetMember(string accountKey)
-    {
-        lock (_gate)
-        {
-            using var cmd = _db.CreateCommand();
-            cmd.CommandText = "SELECT account_key, name, role, joined_at FROM members WHERE account_key = $key;";
-            cmd.Parameters.AddWithValue("$key", accountKey);
-            using var reader = cmd.ExecuteReader();
-            return reader.Read()
-                ? new Member(reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetInt64(3))
-                : null;
-        }
-    }
-
-    private void Exec(string sql)
-    {
-        lock (_gate)
-        {
-            using var cmd = _db.CreateCommand();
-            cmd.CommandText = sql;
+            using var cmd = Command(sql, args);
             cmd.ExecuteNonQuery();
         }
     }
 
-    private object? Scalar(string sql)
+    private object? Scalar(string sql, params (string Name, object? Value)[] args)
     {
         lock (_gate)
         {
-            using var cmd = _db.CreateCommand();
-            cmd.CommandText = sql;
+            using var cmd = Command(sql, args);
             return cmd.ExecuteScalar();
         }
     }
+
+    private List<T> Query<T>(string sql, Func<SqliteDataReader, T> map, params (string Name, object? Value)[] args)
+    {
+        lock (_gate)
+        {
+            using var cmd = Command(sql, args);
+            using var reader = cmd.ExecuteReader();
+            var rows = new List<T>();
+            while (reader.Read()) rows.Add(map(reader));
+            return rows;
+        }
+    }
+
+    private SqliteCommand Command(string sql, (string Name, object? Value)[] args)
+    {
+        var cmd = _db.CreateCommand();
+        cmd.CommandText = sql;
+        foreach (var (name, value) in args) cmd.Parameters.AddWithValue(name, value ?? DBNull.Value);
+        return cmd;
+    }
+
+    private static long? NullableLong(SqliteDataReader r, int i) => r.IsDBNull(i) ? null : r.GetInt64(i);
+    private static int? NullableInt(SqliteDataReader r, int i) => r.IsDBNull(i) ? null : r.GetInt32(i);
 
     public void Dispose() => _db.Dispose();
 }
