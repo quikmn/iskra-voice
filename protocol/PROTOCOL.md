@@ -230,7 +230,7 @@ Device certificates are stored when a device authenticates, so the server can pu
 | `chat.react` | `id, emoji` (≤ 16 chars, no spaces), `on?` (default true) | | channel readers; ≤ 20 different emoji per message |
 
 - Upload: `PUT <server>/upload/<ticket>` with the raw bytes (single use, 10 minutes, must not exceed the announced size) → `{ file }`.
-- File: `{ id, name, size, type, width?, height?, url: "/files/<id>/<name>" }`. `type` comes from the file's first bytes, never the name: PNG, JPEG, GIF, WebP, MP4, WebM, Ogg and MP3 are served inline, anything else as a download. Every file response has `nosniff` and a sandboxing CSP. Identical content is stored once (`uploads/ab/<sha256>`).
+- File: `{ id, name, size, type, width?, height?, url: "/files/<id>/<name>" }`. `type` comes from the file's first bytes, never the name: PNG, JPEG, GIF, WebP, MP4, WebM, Ogg, MP3 and WAV are served inline, anything else as a download. Every file response has `nosniff` and a sandboxing CSP. Identical content is stored once (`uploads/ab/<sha256>`).
 - Message gains `attachments: [File]`, `replyTo: { id, author, text, hasAttachments } | { id, deleted: true } | null` and `reactions: [{ emoji, accounts: [accountKey] }]`.
 - Event `chat.reactions` `{ id, channelId, reactions }` to channel readers.
 
@@ -241,6 +241,204 @@ Device certificates are stored when a device authenticates, so the server can pu
 | `link.preview` | `url` (http/https, no credentials) | `{ preview: { url, siteName, title, description } \| null }` |
 
 The server fetches the page (so viewers' IPs aren't sent to every site): ≤ 512 KB of HTML, 6 s, ≤ 3 redirects, cached for an hour. It only connects to public addresses: each connection's IP is checked after DNS resolution, so private ranges, loopback, link-local/cloud metadata and redirects into them are refused. No images are fetched or shown. Runs off the read loop; rate-limited to 1/s (burst 10).
+
+## Calls (voice and video in DMs, end-to-end encrypted)
+
+A call between two members runs on a server they both belong to, through its LiveKit. The server rings, connects and hangs up; it never has the media key.
+
+| type | body | result | who |
+|---|---|---|---|
+| `call.start` | `accountKey, callId` (16 random bytes, b64u, single use), `video?` (bool), `envelope` (DM envelope, ≤ 32 KB) | `{ call, url, token, room }` | members, to another member; error `busy` if they're in another call here, `voice_unavailable` without LiveKit |
+| `call.accept` | `callId` | `{ call, url, token, room }` | the callee, while it rings |
+| `call.decline` | `callId, reason? ("declined" \| "busy")` | | the callee, while it rings |
+| `call.end` | `callId` | | either person (the caller cancels a ringing call this way) |
+| `call.pending` | | `{ calls: [{ call, envelope }] }` (calls ringing for you) | yourself |
+
+`Call { id, from, to, video, state: "ringing" | "active", createdAt }`. A call someone isn't part of is `not_found` for them, admins included.
+
+| event | body | sent to |
+|---|---|---|
+| `call.ring` | `{ call, envelope }` | every session of the callee |
+| `call.accepted` | `{ callId }` | the caller's sessions and the callee's other sessions (they stop ringing) |
+| `call.ended` | `{ callId, reason: "ended" \| "cancelled" \| "declined" \| "busy" \| "no_answer" }` | both people's sessions |
+| `call.state` | `{ callId, participants: [accountKey] }` (who is in the room, from LiveKit's webhooks) | both people's sessions |
+
+- The LiveKit room is `call-` + the first 16 bytes (hex) of `SHA-256("iskra/call-room/v1" 0x00 accountA 0x00 accountB 0x00 callId)` (accounts sorted). Tokens for it are only issued to those two accounts; anyone else LiveKit reports in a call room (or anyone in a room that is no longer a call) is removed.
+- Ringing times out after 45 s (`no_answer`). Starting a call ends any call the caller was still in. A party leaving the room ends an answered call (`ended`); the caller leaving a ringing call cancels it. Kicks, bans and LiveKit going down end calls too.
+- **Media key:** the caller makes a random 32-byte key per call and sends it in `envelope`, an ordinary DM envelope (see above) whose content is `{ "text": "…", "call": { "kind": "invite", "id": callId, "key": "<b64u 32>", "video": bool } }`. The server relays it in `call.ring` and doesn't store it. The callee checks that the envelope is from the caller, to them, for this `callId`, and recent. Both sides give the key to LiveKit's end-to-end encryption (`ExternalE2EEKeyProvider`, HKDF from the raw key; frames are AES-GCM encrypted in a worker), so the SFU only forwards ciphertext.
+- **Call log:** when a call ends, the caller's app sends a normal DM whose content is `{ "text": "<fallback>", "call": { "kind": "log", "id", "video", "outcome": "missed" | "declined" | "ended", "duration"? (ms) } }`. Apps that don't know calls show the fallback text.
+## Bots and webhooks
+
+### Bot accounts
+
+A bot is an ordinary identity (account key, device certificate, signed handshake) that says so in `auth`:
+`profile: { name, bot: true }`.
+
+| type | body | result | who |
+|---|---|---|---|
+| `bot.invite` | `role?` (`guest`/`member`/`trusted`, default member), `expiresInMs?` (1 min – 30 days, default 7 days) | `{ invite }` (single use) | admin+ |
+
+- A bot can only join with a bot invite, and a bot invite only works for a client that says `bot: true`. Anything else gets `invite_required` (and the invite isn't used up).
+- The flag is stored by the server and can't be changed afterwards: `Member` gains `bot` (boolean) everywhere members appear.
+- Bots can't join voice (`voice.join` → `forbidden`), create invites, or have a role above `trusted` (`member.setRole` → `bad_request`). They have the same rate limits as everyone else.
+- Commands are a message convention, not a protocol feature: a message starting with `/name args` (or `/name@BotName args` to pick one bot) is a command. See `docs/bots.md`.
+
+### Webhooks
+
+An incoming webhook is a secret URL that posts into one text channel. Requests over the WebSocket, all admin+ and only for channels the admin can read (others are `not_found`):
+
+| type | body | result |
+|---|---|---|
+| `webhook.list` | `channelId?` | `{ webhooks: [Webhook] }` |
+| `webhook.create` | `channelId` (a text channel), `name` (1–32), `avatar?` (file id: an image you uploaded), `mentions?` (default false) | `{ webhook, secret, path }` |
+| `webhook.update` | `id`, `name?`, `avatar?` (`""` removes it), `mentions?`, `channelId?` | `{ webhook }` |
+| `webhook.regenerate` | `id` | `{ webhook, secret, path }`; the old URL stops working |
+| `webhook.delete` | `id` | |
+
+```jsonc
+Webhook { "id": "<b64u 16>", "channelId": 1, "name": "GitHub", "avatar": File | null, "mentions": false,
+          "createdBy": "<accountKey>", "createdAt": 0, "lastUsedAt": 0 | null }
+```
+
+- `secret` is 32 random bytes (base64url). It is returned only by `create` and `regenerate`; the server stores its SHA-256 and compares in constant time. `path` is `/hooks/<id>/<secret>` on the server's address.
+- At most 15 webhooks per channel. Deleting the channel deletes its webhooks.
+
+**Posting**: `POST <server>/hooks/<id>/<secret>` with a Discord-style JSON body (also `application/x-www-form-urlencoded` or `multipart/form-data` with `payload_json`, or plain `content`/`username` fields; files are ignored):
+
+| field | rules |
+|---|---|
+| `content` | same rules as `chat.send` text (≤ 4000 characters, no invisible control characters). May be empty when there are embeds. |
+| `username` | overrides the name for this message (cut to 32 characters, same rules as names) |
+| `embeds` | ≤ 10, ≤ 6000 characters in total. Kept: `title` (256), `description` (4096), `url` (http/https), `color`, `timestamp` (ISO 8601, stored as ms), `author.name` (256) and `author.url`, `footer.text` (2048), `fields` (≤ 25: `name` 256, `value` 1024, `inline`). Images, thumbnails and icons are dropped. |
+| `allowed_mentions` | `{ parse: ["users", "everyone"], users: [accountKey...] }`; can only narrow what the webhook may do |
+| `avatar_url`, `tts`, `thread_id`, ... | accepted and ignored (third-party images would reveal viewers' IP addresses) |
+
+- Zero-width spaces (U+200B, U+2060, U+FEFF), which Discord tools use as blank filler, are removed before validation.
+- Mentions: unless an admin turned on `mentions` for the webhook, `<@accountKey>` becomes plain `@Name` and `@everyone`/`@here` get a zero-width joiner, so nobody is pinged.
+- Body ≤ 64 KB (`413`). Rate limit per webhook: 5 at once, then one every 2 s (`429` with `Retry-After` and `{ message, retry_after, global: false }`). Wrong ids or secrets count against the caller's address (20 at once, then 1/s).
+- Answers: `204` (posted), `200` with a Discord-style message for `?wait=true`, `400 { message, code }` for invalid payloads, `404` for an unknown webhook or wrong secret (indistinguishable). `GET` on the URL returns `{ type: 1, id, name, channel_id }`.
+- `POST <server>/hooks/<id>/<secret>/github` accepts GitHub's own webhook format (JSON, or form with `payload`) and posts a short embed for `ping`, `push`, `issues`, `pull_request`, `issue_comment`, `release` and `star`; other actions are answered `204` without a message. Body ≤ 1 MB.
+
+The message is a normal `chat.message` to channel readers, with `author: "webhook:<id>"` (never an account key) and:
+
+```jsonc
+"webhook": { "id": "<webhook id>", "name": "GitHub", "avatar": File | null,
+             "embeds": [{ "title"?, "description"?, "url"?, "color"?, "timestamp"?, "author"?: { "name", "url"? },
+                          "footer"?: { "text" }, "fields"?: [{ "name", "value", "inline" }] }] }
+```
+
+`webhook` is `null` on every other message. Nobody can edit a webhook's message; admins can delete it.
+## Polls, custom emoji and the soundboard
+
+### Polls
+
+A poll is a message whose `text` is the question, plus a `poll` field. Polls aren't anonymous: results list who voted.
+
+| type | body | result | who |
+|---|---|---|---|
+| `poll.create` | `channelId, question` (1–300 chars), `options` (2–10 answers, 1–55 chars each, no duplicates ignoring case), `multi?` (default false), `durationMs?` (1 min – 14 days; omitted = no end) | `{ message }` | channel writers |
+| `poll.vote` | `id` (the message), `options: [index...]` (replaces your vote; `[]` removes it; one index unless `multi`) | | channel readers, while the poll is open |
+| `poll.end` | `id` | | the author, or an admin who outranks the author |
+
+- Message gains `poll: { question, options: [{ text, votes: [accountKey] }], multi, expiresAt, closedAt } | null`.
+- Votes are per account (all your devices share one vote). A poll is closed once `closedAt` is set or `expiresAt` has passed; the server refuses votes after that and sets `closedAt = expiresAt` within about a second of expiry.
+- Poll messages can't be edited; deleting the message deletes the poll.
+- Event `poll.updated` `{ id, channelId, poll }` to channel readers after every vote and when the poll closes.
+- Rate limits: `poll.create` 1 per 5 s (burst 5), `poll.vote` 2/s (burst 10).
+
+### Custom emoji
+
+Server emoji are written in message text and reactions as `<:name:id>` (`name`: 2–32 of `a–z 0–9 _`; `id`: 12 base64url chars). Clients turn a typed `:name:` into that form before sending and render it as the image; an id the server no longer has is shown as `:name:`.
+
+| type | body | result | who |
+|---|---|---|---|
+| `emoji.list` | | `{ emojis: [Emoji] }` | anyone |
+| `emoji.create` | `name, fileId` (your own upload: PNG, GIF or WebP by content, ≤ 256 KB, ≤ 128×128) | `{ emoji }` | admin+ |
+| `emoji.rename` | `id, name` | `{ emoji }` | admin+ |
+| `emoji.delete` | `id` | | admin+ |
+
+- `Emoji { id, name, url: "/files/<fileId>/<name>", animated, createdBy }`. Names are unique; up to 200 per server.
+- `chat.react` also accepts `<:name:id>` for an emoji on this server (stored under its current name).
+- Event `emoji.updated` `{ emojis }` to everyone after any change.
+
+### Soundboard
+
+| type | body | result | who |
+|---|---|---|---|
+| `sound.list` | | `{ sounds: [Sound] }` | anyone |
+| `sound.create` | `name` (1–32 chars), `emoji?` (≤ 16 chars, no spaces), `fileId` (your own upload: MP3, Ogg or WAV by content, ≤ 512 KB, ≤ 5 s) | `{ sound }` | trusted+ |
+| `sound.update` | `id, name, emoji?` | `{ sound }` | whoever added it, or admin+ |
+| `sound.delete` | `id` | | whoever added it, or admin+ |
+| `sound.play` | `id` | | someone in a voice channel who can speak there |
+
+- `Sound { id, name, emoji, url, durationMs, createdBy }`. Up to 100 per server. The server measures the length from the file itself (WAV header, Ogg granule position, MP3 frames), with 0.15 s of slack for encoder padding.
+- `sound.play`: being in voice comes from LiveKit's webhooks only (see Voice); you need the channel's write role. Rate limit 1 every 2 s (burst 3).
+- Event `sound.played` `{ channelId, accountKey, sound }` only to the people in that voice channel. Each client plays it locally, with its own soundboard volume and mute setting.
+- Event `sounds.updated` `{ sounds }` to everyone after any change.
+
+## Push notifications (Web Push)
+
+Each server sends Web Push messages to its members' devices that aren't looking at Iskra: for @mentions (including `@everyone`), replies to your messages, DMs and (hook for the calls feature) incoming calls. The server keeps a VAPID key pair (P-256) in `vapid.json` in the world folder; payloads are encrypted per RFC 8291 (`aes128gcm`) and signed per RFC 8292 with [Lib.Net.Http.WebPush](https://github.com/tpeczek/Lib.Net.Http.WebPush).
+
+| type | body | result | who |
+|---|---|---|---|
+| `push.status` | | `{ publicKey, endpoint }` (VAPID key, b64u 65 bytes; this device's endpoint or null) | anyone |
+| `push.subscribe` | `endpoint` (≤ 1024 chars), `keys: { p256dh, auth }` (b64u, 65 and 16 bytes) | | anyone; replaces this device's subscription |
+| `push.unsubscribe` | | | anyone (this device) |
+| `push.focus` | `focused` (boolean) | | anyone: is someone looking at Iskra on this device right now |
+
+- Subscriptions belong to the authenticated **device** (the key in the handshake's certificate). An endpoint belongs to one device; an account keeps at most 10 subscriptions (the least recently refreshed go first).
+- The endpoint is user-supplied, so it must be `https://` on the default port, without credentials, at a known push service: `fcm.googleapis.com`, `android.googleapis.com`, `push.services.mozilla.com`, `notify.windows.com`, `push.apple.com` (or a subdomain). Deliveries also only connect to public addresses (the link preview guard). The push service answering 404 or 410 deletes the subscription.
+- No pushes to a device whose session reported `focused: true` (a new session starts unfocused), to the author, to people who can't read the channel, or to non-members. Per device and conversation the first push goes out at once; more within 15 s become one follow-up push with a `count`.
+- Payload (JSON, after decryption): `{ v: 1, kind: "mention"|"reply"|"dm"|"call", server, serverName, title, body, tag, channelId?, messageId?, peer?, count, at }`. Mentions and replies carry a ≤ 140-character excerpt; **DMs never carry content**: "New message from X". The `Topic` header is derived from `tag`, so a push service replaces undelivered pushes about the same conversation.
+- Web client: one service worker registration of `/push-sw.js` per server (scope `/push/<serverKey>/`), since every server has its own VAPID key and a registration holds one subscription. A notification click focuses the app (message `{ type: "iskra.open", route }`) or opens `/#/open/<serverKey>/c/<channelId>` / `/#/open/<serverKey>/dm/<accountKey>`. The desktop app uses native notifications and doesn't subscribe.
+
+## Pins, search and threads
+
+### Pins
+
+| type | body | result | who |
+|---|---|---|---|
+| `chat.pin` | `id, on?` (default true) | | trusted+ who can write in the message's channel; ≤ 50 pins per channel or thread |
+| `pin.list` | `channelId` | `{ pins: [{ message, pinnedBy, pinnedAt }] }` (most recently pinned first) | channel readers |
+
+- Message gains `pinned: boolean`. Deleting a message unpins it.
+- Event `chat.pinned` `{ id, channelId, on, by, at }` to channel readers (clients show "X pinned a message"; nothing is stored as a message).
+
+### Jumping to a message
+
+`chat.history` also takes `around: messageId` (instead of `before`/`after`): up to `limit` messages around it (it included), oldest first, with `hasMore` (older ones exist) and `hasNewer`. `not_found` if the message isn't in that channel. Used for search results, pins, reply quotes and notifications.
+
+### Search
+
+| type | body | result | who |
+|---|---|---|---|
+| `search` | `query?` (≤ 200 chars, ≤ 10 words), `channelId?`, `author?` (accountKey), `has?: ["file" \| "link"]`, `before?`, `after?` (ms, on `createdAt`), `cursor?` (message id), `limit?` (1–50, default 25) | `{ results: [{ message, matches: [[start, length]...] }], total, hasMore, threads: [Thread] }` | anyone |
+
+- Searches only channels and threads the requester can read at that moment; `channelId` (which includes its threads) must be one of them, else `not_found`.
+- Each word is matched as a word prefix, case- and accent-insensitive (SQLite FTS5, `unicode61 remove_diacritics 2`); search operators in the query are treated as plain text. At least one of `query`, `author`, `has`, `before`, `after` is required.
+- Results are newest first. `matches` are UTF-16 offsets into `message.text`, so clients highlight without parsing HTML. `cursor` = the last result's id for the next page. `threads` describes any threads the results come from.
+- Rate limit: 2/s (burst 10).
+
+### Threads
+
+A thread is a side conversation started from a message in a text channel. It has its own id, used as the `channelId` for `chat.send`, `chat.history`, `chat.typing`, `chat.pin` and in message events, so replies, reactions, files, mentions and edits work the same way. Who can read and write a thread always follows its parent channel, including later changes. Threads aren't listed in `channels`, and `channel.update`/`channel.delete` don't apply to them. Deleting the parent channel deletes its threads.
+
+```jsonc
+Thread { "id": 9, "channelId": 1, "rootId": 42, "name": "Game night", "createdBy": "<accountKey>", "createdAt": 0, "messageCount": 3, "lastMessageAt": 0 | null }
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `thread.create` | `messageId, name` (1–100 chars) | `{ thread }` | writers of the message's channel; one thread per message; not inside threads; ≤ 1000 per channel |
+| `thread.get` | `id` | `{ thread, root: Message \| null }` | readers |
+| `thread.list` | `channelId, limit? (1–100)` | `{ threads }` (most recently active first) | readers |
+| `thread.update` | `id, name` | `{ thread }` | whoever started it, or an admin who outranks them |
+| `thread.delete` | `id` | | same as above (deletes its messages too) |
+
+- Message gains `thread: Thread | null` (the thread started from it).
+- Event `thread.updated` `{ thread }` to readers when a thread is created or renamed, or a message in it is posted or deleted.
+- Event `thread.deleted` `{ id, channelId, rootId }` to readers.
 
 ## Internet hosting
 

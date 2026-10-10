@@ -52,6 +52,10 @@ public static class ChannelFeature
         }
     }
 
+    /// <summary>Threads are managed with thread.update/thread.delete, not as channels.</summary>
+    private static Channel ManagedChannel(Session s, Body body) =>
+        s.World.Store.GetChannel(body.Long("id")) is { Kind: not "thread" } channel ? channel : throw RequestException.NotFound("Channel");
+
     private static object Create(Session s, Member me, Body body)
     {
         RequireAdmin(me);
@@ -69,7 +73,7 @@ public static class ChannelFeature
     private static object Update(Session s, Member me, Body body)
     {
         RequireAdmin(me);
-        var channel = s.World.Store.GetChannel(body.Long("id")) ?? throw RequestException.NotFound("Channel");
+        var channel = ManagedChannel(s, body);
         var name = body.OptionalString("name", 256) is { } raw ? ChannelName(raw) : channel.Name;
         var updated = channel with
         {
@@ -88,7 +92,7 @@ public static class ChannelFeature
     private static object? Delete(Session s, Member me, Body body)
     {
         RequireAdmin(me);
-        var channel = s.World.Store.GetChannel(body.Long("id")) ?? throw RequestException.NotFound("Channel");
+        var channel = ManagedChannel(s, body);
         s.World.Store.DeleteChannel(channel.Id);
         BroadcastChannels(s);
         s.Voice.EnforceAccess();

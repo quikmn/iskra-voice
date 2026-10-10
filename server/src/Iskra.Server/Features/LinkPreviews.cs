@@ -33,28 +33,32 @@ public sealed partial class LinkPreviews : IDisposable
             MaxAutomaticRedirections = 3,
             ConnectTimeout = TimeSpan.FromSeconds(4),
             UseCookies = false,
-            ConnectCallback = async (context, cancel) =>
-            {
-                var addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, cancel);
-                var allowed = addresses.FirstOrDefault(a => IsPublic(a) || (allowLoopback && IPAddress.IsLoopback(a)))
-                    ?? throw new HttpRequestException("That address isn't public.");
-                var socket = new Socket(allowed.AddressFamily, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
-                try
-                {
-                    await socket.ConnectAsync(allowed, context.DnsEndPoint.Port, cancel);
-                    return new NetworkStream(socket, ownsSocket: true);
-                }
-                catch
-                {
-                    socket.Dispose();
-                    throw;
-                }
-            },
+            ConnectCallback = PublicOnlyConnect(allowLoopback),
         };
         _http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(6) };
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; IskraLinkPreview/2.0)");
         _http.DefaultRequestHeaders.Accept.ParseAdd("text/html");
     }
+
+    /// <summary>A connect callback that only reaches public addresses, checked after DNS on every connection. Reused by Web Push.</summary>
+    public static Func<SocketsHttpConnectionContext, CancellationToken, ValueTask<Stream>> PublicOnlyConnect(bool allowLoopback) =>
+        async (context, cancel) =>
+        {
+            var addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, cancel);
+            var allowed = addresses.FirstOrDefault(a => IsPublic(a) || (allowLoopback && IPAddress.IsLoopback(a)))
+                ?? throw new HttpRequestException("That address isn't public.");
+            var socket = new Socket(allowed.AddressFamily, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+            try
+            {
+                await socket.ConnectAsync(allowed, context.DnsEndPoint.Port, cancel);
+                return new NetworkStream(socket, ownsSocket: true);
+            }
+            catch
+            {
+                socket.Dispose();
+                throw;
+            }
+        };
 
     /// <summary>Only globally routable addresses: no loopback, private, link-local, CGNAT, multicast or metadata ranges.</summary>
     public static bool IsPublic(IPAddress address)

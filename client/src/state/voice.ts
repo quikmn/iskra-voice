@@ -1,7 +1,7 @@
 // Voice and video: one LiveKit room at a time. The server hands out the token; LiveKit carries the media.
 import {
-  ConnectionState, Room, RoomEvent, ScreenSharePresets, Track, VideoPresets,
-  type LocalTrackPublication, type Participant, type RemoteParticipant, type RemoteTrack,
+  ConnectionState, ExternalE2EEKeyProvider, Room, RoomEvent, ScreenSharePresets, Track, VideoPresets,
+  type LocalTrackPublication, type Participant, type RemoteParticipant, type RemoteTrack, type RoomOptions,
 } from 'livekit-client'
 import { create } from 'zustand'
 import { desktop } from '../platform/desktop'
@@ -12,6 +12,10 @@ export interface VoiceSession {
   channelId: number
   state: 'connecting' | 'connected' | 'reconnecting'
   canSpeak: boolean
+  /** Set for a DM call (channelId is then 0). */
+  call?: { id: string; peer: string }
+  /** Our media is end-to-end encrypted (DM calls). */
+  encrypted?: boolean
 }
 
 /** One video on the call screen: someone's camera or screen share. */
@@ -87,6 +91,7 @@ export const useVoice = create<VoiceState>(() => ({
 export const canShareScreen = () => typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia
 
 let room: Room | null = null
+let e2eeWorker: Worker | null = null
 let mutedBeforeDeafen = false
 const audioElements = new Map<string, HTMLMediaElement>()
 let audioContainer: HTMLDivElement | null = null
@@ -108,7 +113,7 @@ function applyVolume(participant: RemoteParticipant): void {
 
 function reportFlags(): void {
   const { session, muted, deafened } = useVoice.getState()
-  if (!session) return
+  if (!session || session.call) return
   connectionFor(session.serverKey)?.request('voice.state', { muted, deafened }).catch(() => undefined)
 }
 
@@ -139,7 +144,7 @@ export function videoTrackFor(tile: Tile): Track | undefined {
 
 export async function joinVoice(serverKey: string, channelId: number): Promise<void> {
   const current = useVoice.getState().session
-  if (current?.serverKey === serverKey && current.channelId === channelId) {
+  if (current?.serverKey === serverKey && current.channelId === channelId && !current.call) {
     useVoice.setState({ stageOpen: true })
     return
   }
@@ -147,19 +152,57 @@ export async function joinVoice(serverKey: string, channelId: number): Promise<v
 
   const connection = connectionFor(serverKey)
   if (!connection) return
+  await connect({ serverKey, channelId, state: 'connecting', canSpeak: false }, () => connection.request('voice.join', { channelId }))
+}
+
+/**
+ * Joins a DM call's room (the token comes from call.start / call.accept). Media is end-to-end encrypted with
+ * `key`: LiveKit's E2EE encrypts every frame in a worker, so the server only forwards ciphertext.
+ */
+export async function joinCall(
+  serverKey: string, call: { id: string; peer: string }, target: { url: string; token: string }, key: Uint8Array, camera: boolean,
+): Promise<boolean> {
+  await leaveVoice() // one room at a time: a voice channel or a call
+  return connect(
+    { serverKey, channelId: 0, state: 'connecting', canSpeak: true, call, encrypted: false },
+    async () => ({ ...target, canSpeak: true }),
+    { e2eeKey: key, camera },
+  )
+}
+
+async function connect(
+  session: VoiceSession,
+  target: () => Promise<{ url: string; token: string; canSpeak: boolean }>,
+  options: { e2eeKey?: Uint8Array; camera?: boolean } = {},
+): Promise<boolean> {
   useVoice.setState({
-    session: { serverKey, channelId, state: 'connecting', canSpeak: false },
-    error: null, speaking: {}, tiles: [], stageOpen: true, camera: false, screen: false,
+    session, error: null, speaking: {}, tiles: [], stageOpen: !session.call, camera: false, screen: false,
   })
 
   try {
-    const { url, token, canSpeak } = await connection.request('voice.join', { channelId })
+    const { url, token, canSpeak } = await target()
+    let encryption: RoomOptions['encryption']
+    let worker: Worker | null = null
+    if (options.e2eeKey) {
+      const { default: E2EEWorker } = await import('livekit-client/e2ee-worker?worker')
+      const keyProvider = new ExternalE2EEKeyProvider()
+      // A random 32-byte key: LiveKit derives the frame key from it with HKDF.
+      await keyProvider.setKey(options.e2eeKey.slice().buffer)
+      worker = new E2EEWorker()
+      encryption = { keyProvider, worker }
+    }
+    if (useVoice.getState().session !== session) {
+      worker?.terminate() // hung up meanwhile
+      return false
+    }
+    e2eeWorker = worker
     const next = new Room({
       adaptiveStream: true,
       dynacast: true,
       audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       videoCaptureDefaults: { resolution: VideoPresets.h720.resolution },
       publishDefaults: { simulcast: true, screenShareEncoding: ScreenSharePresets.h1080fps30.encoding },
+      encryption,
     })
     room = next
 
@@ -194,6 +237,13 @@ export async function joinVoice(serverKey: string, channelId: number): Promise<v
       .on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
         useVoice.setState({ speaking: Object.fromEntries(speakers.map((p) => [p.identity, true as const])) })
       })
+      .on(RoomEvent.ParticipantEncryptionStatusChanged, (enabled: boolean, participant?: Participant) => {
+        if (room === next && participant === next.localParticipant)
+          useVoice.setState((s) => ({ session: s.session && { ...s.session, encrypted: enabled } }))
+      })
+      .on(RoomEvent.EncryptionError, () => {
+        if (room === next) useVoice.setState({ error: "Part of the call couldn't be decrypted." })
+      })
       .on(RoomEvent.ConnectionStateChanged, (state: ConnectionState) => {
         if (room !== next) return
         const mapped = state === ConnectionState.Connected ? 'connected' : state === ConnectionState.Reconnecting ? 'reconnecting' : null
@@ -203,10 +253,11 @@ export async function joinVoice(serverKey: string, channelId: number): Promise<v
         if (room === next) void cleanup()
       })
 
+    if (encryption) await next.setE2EEEnabled(true)
     await next.connect(url, token)
     if (room !== next) {
       await next.disconnect()
-      return
+      return false
     }
     useVoice.setState((s) => ({ session: s.session && { ...s.session, state: 'connected', canSpeak } }))
 
@@ -218,22 +269,28 @@ export async function joinVoice(serverKey: string, channelId: number): Promise<v
       } catch {
         useVoice.setState({ muted: true, error: "Couldn't use your microphone. Check your browser's permissions." })
       }
+      if (options.camera) await toggleCamera()
     }
     refreshTiles()
     reportFlags()
+    return true
   } catch (e) {
-    await cleanup()
+    if (useVoice.getState().session === session) await cleanup()
     useVoice.setState({ error: (e as Error).message || 'Could not join voice.' })
+    return false
   }
 }
 
 async function cleanup(): Promise<void> {
   const old = room
+  const worker = e2eeWorker
   room = null
+  e2eeWorker = null
   for (const element of audioElements.values()) element.remove()
   audioElements.clear()
   useVoice.setState({ session: null, speaking: {}, tiles: [], stageOpen: false, camera: false, screen: false })
   if (old && old.state !== ConnectionState.Disconnected) await old.disconnect()
+  worker?.terminate()
 }
 
 export async function leaveVoice(): Promise<void> {
