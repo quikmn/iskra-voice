@@ -89,7 +89,7 @@ export function DevicesSection() {
 }
 
 function Countdown({ until }: { until: number }) {
-  const [now, setNow] = useState(Date.now())
+  const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(timer)

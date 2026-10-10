@@ -28,6 +28,20 @@ test('link a phone with the text code, read DMs on both devices, then remove it'
   await expect(codeBox).toBeVisible()
   await expect(host.getByRole('img', { name: 'Device link QR code' })).toBeVisible()
   const code = (await codeBox.innerText()).trim()
+
+  // The bundled QR reader (used where the browser has no BarcodeDetector, like Safari) reads our QR code.
+  const scanned = await host.evaluate(async () => {
+    const svg = document.querySelector('.qr-code')!
+    const image = new Image()
+    image.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(svg))
+    await image.decode()
+    const canvas = Object.assign(document.createElement('canvas'), { width: 400, height: 400 })
+    canvas.getContext('2d')!.drawImage(image, 0, 0, 400, 400)
+    const { qrDetector } = await import('/src/ui/QrScanner.tsx' as string)
+    const detector = await qrDetector(false)
+    return (await detector.detect(canvas))[0]?.rawValue
+  })
+  expect(decodeURIComponent(scanned.split('#/link/')[1])).toBe(code)
   await host.screenshot({ path: join(SHOTS, 'link-code.png') })
 
   // A fresh phone-sized browser types it in.

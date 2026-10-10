@@ -210,3 +210,7 @@ useApp.subscribe((state) => {
   if (Object.values(state.servers).some((s) => s.status.state === 'rejected' && s.status.code === 'device_revoked'))
     useDevices.setState({ thisDeviceRevoked: true })
 })
+// Load prekeys as soon as there's an identity, so DMs that arrive first can be read.
+useApp.subscribe((state, previous) => {
+  if (state.identity && state.identity !== previous.identity) void ensurePrekeys()
+})

@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState } from 'react'
 
 interface Detector {
-  detect(source: HTMLVideoElement): Promise<{ rawValue: string }[]>
+  detect(source: HTMLVideoElement | HTMLCanvasElement): Promise<{ rawValue: string }[]>
 }
 
-async function qrDetector(): Promise<Detector> {
-  const Native = (globalThis as { BarcodeDetector?: { new (o: { formats: string[] }): Detector; getSupportedFormats(): Promise<string[]> } }).BarcodeDetector
+export async function qrDetector(preferNative = true): Promise<Detector> {
+  const Native = preferNative && (globalThis as { BarcodeDetector?: { new (o: { formats: string[] }): Detector; getSupportedFormats(): Promise<string[]> } }).BarcodeDetector
   if (Native) {
     try {
       if ((await Native.getSupportedFormats()).includes('qr_code')) return new Native({ formats: ['qr_code'] })
@@ -28,7 +28,9 @@ export function QrScanner({ onResult }: { onResult: (text: string) => void }) {
   const video = useRef<HTMLVideoElement>(null)
   const [problem, setProblem] = useState<string | null>(null)
   const done = useRef(onResult)
-  done.current = onResult
+  useEffect(() => {
+    done.current = onResult
+  }, [onResult])
 
   useEffect(() => {
     let stream: MediaStream | null = null
