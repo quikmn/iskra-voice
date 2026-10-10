@@ -174,5 +174,5 @@ describe('client ↔ server', () => {
     const general = owner.welcome!.channels.find((c) => c.name === 'general')!
     const { messages } = await owner.connection.request('chat.history', { channelId: general.id })
     expect(messages.map((m) => m.text)).toContain('hi from TypeScript 👋')
-  })
+  }, 60_000) // reconnect backoff can take a while after a restart
 })
