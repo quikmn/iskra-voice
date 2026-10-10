@@ -140,7 +140,32 @@ public sealed partial class Store : IDisposable
                 PRAGMA user_version = 3;
                 """);
         }
+
+        // After v3, each feature adds a named migration to FeatureMigrations (append only, never edit a shipped one).
+        // Named steps let features land independently without fighting over version numbers.
+        Exec("CREATE TABLE IF NOT EXISTS migrations (name TEXT PRIMARY KEY, applied_at INTEGER NOT NULL);");
+        foreach (var (name, sql) in FeatureMigrations)
+        {
+            if (Scalar("SELECT 1 FROM migrations WHERE name = $n;", ("$n", name)) is not null) continue;
+            lock (_gate)
+            {
+                using var tx = _db.BeginTransaction();
+                using (var cmd = Command(sql, [])) { cmd.Transaction = tx; cmd.ExecuteNonQuery(); }
+                using (var mark = Command("INSERT INTO migrations (name, applied_at) VALUES ($n, $t);",
+                           [("$n", name), ("$t", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())]))
+                {
+                    mark.Transaction = tx;
+                    mark.ExecuteNonQuery();
+                }
+                tx.Commit();
+            }
+        }
     }
+
+    /// <summary>Named schema steps, applied once each, in order. Add new ones at the end.</summary>
+    private static readonly (string Name, string Sql)[] FeatureMigrations =
+    [
+    ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────
 
