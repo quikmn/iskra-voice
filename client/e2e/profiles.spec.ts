@@ -15,10 +15,16 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAAEUlEQVR
 const PAGE = (exfil: string) => `<!doctype html>
 <html><body style="font: 20px system-ui; padding: 24px">
 <h1>Host's corner</h1>
-<p id="origin"></p><p id="fetch">fetching…</p><p id="storage"></p>
+<p id="origin"></p><p id="fetch">fetching…</p><p id="storage"></p><p id="rtc"></p>
 <img src="https://example.com/track.png" alt="">
 <script>
   document.getElementById('origin').textContent = 'origin: ' + window.origin
+  // A same-origin child frame would have its own WebRTC.
+  let rtc = 'blocked'
+  try { const f = document.createElement('iframe'); document.body.append(f); if (f.contentWindow.RTCPeerConnection) rtc = 'open' } catch {}
+  try { document.body.insertAdjacentHTML('beforeend', '<iframe></iframe>'); if (document.querySelector('iframe').contentWindow.RTCPeerConnection) rtc = 'open' } catch {}
+  if (typeof RTCPeerConnection !== 'undefined') rtc = 'open'
+  document.getElementById('rtc').textContent = 'rtc: ' + rtc
   try { localStorage.setItem('x', '1'); document.getElementById('storage').textContent = 'storage: open' }
   catch { document.getElementById('storage').textContent = 'storage: blocked' }
   fetch('/').then(() => { document.getElementById('fetch').textContent = 'fetch: worked' },
@@ -77,13 +83,23 @@ test('profiles: avatar, bio, profile card, sandboxed page and themes', async ({ 
   await friend.waitForTimeout(300) // let the card animate in
   await friend.screenshot({ path: join(SHOTS, 'profile-card.png') })
 
-  // The page opens in a sandbox: opaque origin, no storage, no fetch, can't navigate away.
+  // The page opens without scripts: static HTML and CSS only.
   await card.getByRole('button', { name: 'Open profile page' }).click()
   const viewer = friend.getByRole('dialog', { name: "Host's page" })
   await expect(viewer).toBeVisible()
   let pageFrame: Frame | undefined
   await expect.poll(() => (pageFrame = friend.frames().find((f) => f.url().includes('/pages/'))) !== undefined).toBe(true)
+  await expect(pageFrame!.locator('h1')).toHaveText("Host's corner")
+  await expect(pageFrame!.locator('#fetch')).toHaveText('fetching…')
+  await expect(pageFrame!.parentFrame()!.locator('iframe')).toHaveAttribute('sandbox', '')
+  await expect(viewer).toContainText("Run this page's scripts? The author could learn your IP address.")
+  await friend.screenshot({ path: join(SHOTS, 'profile-page-static.png') })
+
+  // With scripts on: still an opaque origin, no storage, no fetch, no WebRTC, can't navigate away.
+  await viewer.getByRole('button', { name: 'Run scripts' }).click()
+  await expect.poll(() => (pageFrame = friend.frames().find((f) => f.url().includes('/pages/') && f.url().includes('scripts=1'))) !== undefined).toBe(true)
   await expect(pageFrame!.locator('#fetch')).toHaveText('fetch: blocked')
+  await expect(pageFrame!.locator('#rtc')).toHaveText('rtc: blocked')
   await expect(pageFrame!.locator('#origin')).toHaveText('origin: null')
   await expect(pageFrame!.locator('#storage')).toHaveText('storage: blocked')
   const wrapper = pageFrame!.parentFrame()!

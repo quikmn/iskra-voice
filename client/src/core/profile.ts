@@ -38,10 +38,12 @@ export function originOf(url: string): string | null {
 const escapeAttribute = (text: string) =>
   text.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
-/** Same lock as the server's prelude: no WebRTC (CSP doesn't cover it). */
+/**
+ * Same lock as the server's prelude (ProfilePages.Prelude, kept identical): no WebRTC (CSP doesn't cover
+ * it) and no reaching into child frames, which would have their own WebRTC. Best effort.
+ */
 export const PAGE_PRELUDE =
-  '<script>(()=>{for(const k of["RTCPeerConnection","webkitRTCPeerConnection","RTCDataChannel","RTCIceTransport","WebTransport"])' +
-  'try{Object.defineProperty(window,k,{value:undefined,writable:false,configurable:false})}catch{}})()</script>'
+  `<script>(()=>{const W=window,d=(o,k,v)=>{try{Object.defineProperty(o,k,{...v,configurable:false})}catch{}},no=()=>null;for(const k of["RTCPeerConnection","webkitRTCPeerConnection","RTCDataChannel","RTCIceTransport","RTCRtpSender","RTCRtpReceiver","RTCRtpTransceiver","WebTransport"])d(W,k,{value:undefined,writable:false});for(const C of[W.HTMLIFrameElement,W.HTMLFrameElement,W.HTMLObjectElement,W.HTMLEmbedElement])if(C){d(C.prototype,"contentWindow",{get:no});d(C.prototype,"contentDocument",{get:no});d(C.prototype,"getSVGDocument",{value:no,writable:false})}d(W,"frames",{get:no});d(W,"length",{get:()=>0});const bad=/^(?:.*:)?(?:i?frame|object|embed)$/i,D=Document.prototype,ce=D.createElement,cn=D.createElementNS,stop=()=>{throw new DOMException("Frames are off","NotSupportedError")};d(D,"createElement",{value:function(n,o){if(bad.test(String(n)))stop();return ce.call(this,n,o)},writable:false});d(D,"createElementNS",{value:function(s,n,o){if(bad.test(String(n)))stop();return cn.call(this,s,n,o)},writable:false})})()</script>`
 
 /** The page policy without the parts only a response header can carry (sandbox, frame-ancestors). */
 export function pagePolicy(imageOrigin: string | null): string {
@@ -71,12 +73,13 @@ export const PAGE_FRAME_ALLOW =
 /**
  * The wrapper around a published page: a script-free document whose only content is the page's
  * sandboxed frame. The wrapper's policy lets that frame load exactly `page` and nothing else, so a
- * page can't navigate itself (and the viewer's IP) off to another site.
+ * page can't navigate itself (and the viewer's IP) off to another site. Without `scripts` the page is
+ * static HTML and CSS (no allow-scripts here, nor in the server's policy).
  */
-export function wrapperDocument(page: string | null): string {
+export function wrapperDocument(page: string | null, scripts = false): string {
   const policy = `default-src 'none'; frame-src ${page ? escapeAttribute(page) : "'none'"}; style-src 'unsafe-inline'; form-action 'none'; base-uri 'none'`
   const frame = page
-    ? `<iframe src="${escapeAttribute(page)}" sandbox="allow-scripts" referrerpolicy="no-referrer" allow="${PAGE_FRAME_ALLOW}" title="Profile page"></iframe>`
+    ? `<iframe src="${escapeAttribute(scripts ? `${page}?scripts=1` : page)}" sandbox="${scripts ? 'allow-scripts' : ''}" referrerpolicy="no-referrer" allow="${PAGE_FRAME_ALLOW}" title="Profile page"></iframe>`
     : ''
   return (
     `<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="${policy}">` +
@@ -84,6 +87,32 @@ export function wrapperDocument(page: string | null): string {
     '<style>html,body{margin:0;height:100%;background:#fff}iframe{border:0;display:block;width:100%;height:100%}</style>' +
     `</head><body>${frame}</body></html>`
   )
+}
+
+// A viewer's choice to run a page's scripts, remembered per page version (its hash), on this device.
+const SCRIPTS_KEY = 'iskra.pageScripts'
+const MAX_REMEMBERED = 200
+
+function scriptChoices(): string[] {
+  try {
+    const list: unknown = JSON.parse(localStorage.getItem(SCRIPTS_KEY) ?? '[]')
+    return Array.isArray(list) ? list.filter((h): h is string => typeof h === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+export function pageScriptsAllowed(hash: string | null | undefined): boolean {
+  return !!hash && scriptChoices().includes(hash)
+}
+
+export function setPageScripts(hash: string, allowed: boolean) {
+  const rest = scriptChoices().filter((h) => h !== hash)
+  try {
+    localStorage.setItem(SCRIPTS_KEY, JSON.stringify(allowed ? [...rest, hash].slice(-MAX_REMEMBERED) : rest))
+  } catch {
+    /* storage unavailable: the choice lasts until the page closes */
+  }
 }
 
 /** Address of a published page, if it is a well-formed /pages/<id> path on that server. */

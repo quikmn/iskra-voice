@@ -120,7 +120,10 @@ public class ProfileTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("text/html", response.Content.Headers.ContentType!.MediaType);
         var csp = response.Headers.GetValues("Content-Security-Policy").Single();
-        Assert.StartsWith("sandbox allow-scripts;", csp);
+        // Scripts are off unless the viewer turns them on.
+        Assert.StartsWith("sandbox; ", csp);
+        Assert.DoesNotContain("allow-scripts", csp);
+        Assert.Contains("script-src 'none'", csp);
         Assert.DoesNotContain("allow-same-origin", csp);
         Assert.DoesNotContain("allow-top-navigation", csp);
         Assert.DoesNotContain("allow-popups", csp);
@@ -133,10 +136,20 @@ public class ProfileTests
         Assert.Contains("camera=()", response.Headers.GetValues("Permissions-Policy").Single());
         Assert.Contains("no-store", response.Headers.CacheControl!.ToString());
 
-        // The page itself, with the WebRTC lock right after the doctype.
-        var body = await response.Content.ReadAsStringAsync();
+        Assert.Equal(Page, await response.Content.ReadAsStringAsync());
+
+        // With scripts on: allow-scripts, and the WebRTC and frame lock right after the doctype.
+        using var withScripts = await server.CreateClient().GetAsync(url + "?scripts=1");
+        var scriptPolicy = withScripts.Headers.GetValues("Content-Security-Policy").Single();
+        Assert.StartsWith("sandbox allow-scripts;", scriptPolicy);
+        Assert.Contains("script-src 'unsafe-inline'", scriptPolicy);
+        foreach (var directive in new[] { "frame-src 'none'", "child-src 'none'", "connect-src 'none'", "worker-src 'none'" })
+            Assert.Contains(directive, scriptPolicy);
+        Assert.DoesNotContain("allow-same-origin", scriptPolicy);
+        var body = await withScripts.Content.ReadAsStringAsync();
         Assert.StartsWith("<!doctype html><script>", body);
-        Assert.Contains("RTCPeerConnection", body);
+        foreach (var locked in new[] { "RTCPeerConnection", "contentWindow", "contentDocument", "createElement", "\"frames\"" })
+            Assert.Contains(locked, body);
         Assert.EndsWith(Page["<!doctype html>".Length..], body);
 
         // Republishing changes the address; the old one is gone.
