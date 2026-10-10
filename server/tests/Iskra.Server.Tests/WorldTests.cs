@@ -57,6 +57,46 @@ public class WorldTests : IDisposable
         Assert.Contains("server.key", ex.Message);
     }
 
+    [Fact]
+    public void Secrets_and_the_world_folder_are_private_on_unix()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Unix file modes only");
+        using (World.OpenOrCreate(_path))
+        {
+            Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute, File.GetUnixFileMode(_path));
+            Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(Path.Combine(_path, "server.key")));
+            Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(Path.Combine(_path, "server.json")));
+        }
+    }
+
+    [Fact]
+    public void Existing_world_readable_secrets_are_tightened_on_load()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Unix file modes only");
+        using (World.OpenOrCreate(_path)) { }
+        var key = Path.Combine(_path, "server.key");
+        var livekit = Path.Combine(_path, "livekit.key");
+        File.WriteAllText(livekit, "key\nsecret\n");
+        var open = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.GroupRead | UnixFileMode.OtherRead;
+        File.SetUnixFileMode(key, open);
+        File.SetUnixFileMode(livekit, open);
+        using (World.OpenOrCreate(_path))
+        {
+            Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(key));
+            Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(livekit));
+        }
+    }
+
+    [Fact]
+    public void A_stale_temp_file_does_not_block_writes()
+    {
+        Directory.CreateDirectory(_path);
+        File.WriteAllText(Path.Combine(_path, "server.key.tmp"), "half");
+        using var world = World.OpenOrCreate(_path);
+        Assert.True(File.Exists(Path.Combine(_path, "server.key")));
+        Assert.False(File.Exists(Path.Combine(_path, "server.key.tmp")));
+    }
+
     public void Dispose()
     {
         try { Directory.Delete(_path, recursive: true); } catch (IOException) { }

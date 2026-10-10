@@ -191,7 +191,7 @@ public sealed class Certificates(World world, IConfiguration config, ILogger<Cer
 
     private async Task IssueAsync(string domain, CancellationToken stopping)
     {
-        System.IO.Directory.CreateDirectory(CertDir);
+        AtomicFile.CreatePrivateDirectory(CertDir);
         var directory = new Uri(Settings.AcmeDirectory);
         var http = new HttpClient(new HttpClientHandler
         {
