@@ -19,6 +19,8 @@ function phaseText(job: ImportJob): string {
   }
 }
 
+const count = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? '' : 's'}`
+
 function Result({ server, job }: { server: ServerState; job: ImportJob }) {
   const byCategory = new Map<string, ImportJob['imported']>()
   for (const channel of job.imported.filter((c) => !c.thread)) {
@@ -29,9 +31,11 @@ function Result({ server, job }: { server: ServerState; job: ImportJob }) {
   return (
     <div className="import-result">
       <p>
-        <strong>{job.messagesDone.toLocaleString()} messages</strong> in {job.imported.length - threads} channels
-        {threads > 0 && ` and ${threads} threads`}, with {job.files.toLocaleString()} files.
-        {job.missingFiles > 0 && ` ${job.missingFiles.toLocaleString()} files weren't in the export; their names are shown instead.`}
+        <strong>{count(job.messagesDone, 'message')}</strong> in {count(job.imported.length - threads, 'channel')}
+        {threads > 0 && ` and ${count(threads, 'thread')}`}
+        {job.files > 0 && `, with ${count(job.files, 'file')}`}.
+        {job.missingFiles === 1 && " 1 file wasn't in the export; its name is shown instead."}
+        {job.missingFiles > 1 && ` ${count(job.missingFiles, 'file')} weren't in the export; their names are shown instead.`}
       </p>
       {[...byCategory].map(([category, channels]) => (
         <div key={category} className="import-category">
@@ -43,7 +47,7 @@ function Result({ server, job }: { server: ServerState; job: ImportJob }) {
                   useApp.setState({ activeServer: server.key })
                   selectChannel(server.key, c.id)
                 }}>#{c.name}</button>
-                <span className="muted">{c.messages.toLocaleString()} messages</span>
+                <span className="muted">{count(c.messages, 'message')}</span>
               </li>
             ))}
           </ul>

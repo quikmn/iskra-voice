@@ -12,14 +12,18 @@ interface MoveState {
 
 export const useMoves = create<MoveState>(() => ({ followed: {} }))
 
-/** Follows a notice if it's valid for this server and points somewhere new. Returns whether it moved. */
-export function followNotice(serverKey: string, notice: unknown): boolean {
+/**
+ * Follows a notice if it's valid for this server and points somewhere new. Returns whether it will move.
+ * `delayMs` lets answers still on their way arrive first (the owner who published it is waiting for one).
+ */
+export function followNotice(serverKey: string, notice: unknown, delayMs = 0): boolean {
   const server = useApp.getState().servers[serverKey]
   if (!server || !verifyMoveNotice(notice, serverKey)) return false
   const { url } = notice as MoveNotice
   if (sameServerUrl(url, server.url)) return false
   useMoves.setState((s) => ({ followed: { ...s.followed, [serverKey]: { from: server.url, to: url, at: Date.now() } } }))
-  moveServer(serverKey, url)
+  if (delayMs > 0) setTimeout(() => moveServer(serverKey, url), delayMs)
+  else moveServer(serverKey, url)
   return true
 }
 
@@ -48,7 +52,7 @@ onWelcomeHook((serverKey, welcome) => {
 onServerEvent((serverKey, type, body) => {
   if (type !== 'server.moved') return
   const { notice } = body as Events['server.moved']
-  if (notice) followNotice(serverKey, notice)
+  if (notice) followNotice(serverKey, notice, 1500)
 })
 
 useApp.subscribe((state, previous) => {
