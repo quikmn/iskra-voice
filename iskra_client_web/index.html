@@ -297,12 +297,13 @@
         .automod-textarea { width:100%; min-height:64px; font-size:12px; font-family:monospace; background:var(--bg-active); border:1px solid var(--bg-hover); border-radius:6px; color:var(--text-normal); padding:6px 8px; resize:vertical; }
         .dnd-indicator { font-size:10px; color:#e74c3c; padding:1px 6px; border-radius:3px; background:rgba(231,76,60,0.15); margin-left:4px; }
         /* ── Forum channels ── */
-        #chat-history.forum-mode { display: block; padding: 0; overflow-y: auto; }
+        #chat-history.forum-mode { display: block; padding: 10px 12px; overflow-y: auto; background: var(--bg-body); }
         #chat-history.forum-thread-mode { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
-        .forum-list-header { display: grid; grid-template-columns: 1fr 80px 160px; padding: 7px 16px 7px 19px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-faint); border-bottom: 1px solid var(--bg-border); background: var(--bg-deep); position: sticky; top: 0; z-index: 2; user-select: none; }
-        .forum-list-row { display: grid; grid-template-columns: 1fr 80px 160px; padding: 11px 16px; border-bottom: 1px solid color-mix(in srgb, var(--bg-border) 65%, transparent); cursor: pointer; transition: background 0.15s, border-left-color 0.15s; align-items: start; border-left: 3px solid transparent; }
-        .forum-list-row:hover { background: var(--bg-hover); border-left-color: var(--accent); }
+        .forum-list-header { display: grid; grid-template-columns: 1fr 80px 160px; padding: 7px 16px 7px 19px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-faint); border-bottom: 1px solid var(--bg-border); background: var(--bg-body); position: sticky; top: -10px; z-index: 2; user-select: none; }
+        .forum-list-row { display: grid; grid-template-columns: 1fr 80px 160px; padding: 11px 16px; border: 1px solid var(--bg-border); border-radius: 7px; margin-bottom: 6px; background: var(--bg-sidebar); cursor: pointer; transition: background 0.15s, border-color 0.15s, transform 0.1s; align-items: start; }
+        .forum-list-row:hover { background: var(--bg-hover); border-color: var(--accent); transform: translateY(-1px); }
         .forum-list-row:hover .forum-list-title { color: var(--accent); }
+        .forum-list-row:active { transform: translateY(0); }
         .forum-list-main {}
         .forum-list-title { font-size: 14px; font-weight: 600; color: var(--text-heading); line-height: 1.35; transition: color 0.15s; }
         .forum-list-excerpt { font-size: 12px; color: var(--text-muted); margin-top: 4px; line-height: 1.45; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
@@ -314,16 +315,20 @@
         .forum-list-lastpost .flp-author { font-weight: 600; color: var(--text-subtle); }
         .forum-tag { font-size: 10px; font-weight: 600; color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent); border-radius: 10px; padding: 1px 7px; }
         /* ── Forum thread view ── */
-        .forum-thread-view { display: flex; flex-direction: column; flex: 1; overflow: hidden; height: 100%; }
+        .forum-thread-view { display: flex; flex-direction: column; flex: 1; overflow: hidden; height: 100%; min-height: 0; }
         .ftv-nav { padding: 8px 14px; border-bottom: 1px solid var(--bg-border); flex-shrink: 0; display: flex; align-items: center; gap: 10px; background: var(--bg-deep); }
         .ftv-back-btn { background: none; border: 1px solid var(--bg-border); border-radius: 5px; color: var(--text-muted); cursor: pointer; font-size: 12px; padding: 4px 12px; flex-shrink: 0; transition: all 0.15s; }
         .ftv-back-btn:hover { background: var(--bg-hover); color: var(--text-normal); border-color: color-mix(in srgb, var(--accent) 50%, var(--bg-border)); }
         .ftv-nav-title { font-size: 13px; font-weight: 700; color: var(--text-heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .ftv-nav-count { font-size: 11px; color: var(--text-faint); margin-left: auto; flex-shrink: 0; background: var(--bg-border); border-radius: 10px; padding: 1px 9px; }
         /* ── phpBB posts ── */
-        .ftv-replies { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+        .ftv-replies { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; min-height: 0; scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb-hover) transparent; }
+        .ftv-replies::-webkit-scrollbar { width: 6px; }
+        .ftv-replies::-webkit-scrollbar-track { background: color-mix(in srgb, var(--bg-border) 30%, transparent); border-radius: 3px; }
+        .ftv-replies::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb-hover); border-radius: 3px; }
+        .ftv-replies::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
         .ftv-no-replies { padding: 36px 16px; color: var(--text-faint); font-size: 13px; text-align: center; letter-spacing: 0.02em; }
-        .ftv-post { display: flex; border: 1px solid var(--bg-border); border-radius: 8px; overflow: hidden; }
+        .ftv-post { display: flex; border: 1px solid var(--bg-border); border-radius: 8px; overflow: hidden; flex-shrink: 0; }
         #ftv-op { border-left: 3px solid var(--accent); }
         .ftv-post-op-tags { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 14px 12px; }
         .ftv-user-panel { width: 120px; flex-shrink: 0; padding: 14px 8px 12px; border-right: 1px solid var(--bg-border); display: flex; flex-direction: column; align-items: center; text-align: center; gap: 5px; background: color-mix(in srgb, var(--bg-deep) 90%, transparent); }
@@ -357,9 +362,9 @@
         .ftv-send-btn { padding: 7px 20px; background: var(--accent); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.15s, transform 0.1s; flex-shrink: 0; height: 36px; }
         .ftv-send-btn:hover { background: var(--accent-hover); transform: translateY(-1px); }
         .ftv-send-btn:active { transform: translateY(0); }
-        #forum-compose-bar { padding: 8px 16px 16px; border-top: 1px solid var(--bg-border); display: none; }
-        #forum-compose-bar.visible { display: block; }
-        .forum-new-post-btn { width: 100%; padding: 10px; background: var(--accent); color: #fff; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s, transform 0.1s; }
+        #forum-compose-bar { padding: 8px 16px 16px; border-top: 1px solid var(--bg-border); display: none; justify-content: flex-end; }
+        #forum-compose-bar.visible { display: flex; }
+        .forum-new-post-btn { padding: 8px 22px; background: var(--accent); color: #fff; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s, transform 0.1s; white-space: nowrap; }
         .forum-new-post-btn:hover { background: var(--accent-hover); transform: translateY(-1px); }
         .forum-new-post-btn:active { transform: translateY(0); }
         #new-post-overlay { display: none; align-items: center; justify-content: center; }
@@ -3126,7 +3131,7 @@ const connectedServerIds = new Set();      // servers with live, authenticated c
 let viewedServerId      = null;            // which server's UI is currently on screen
 let voiceServerId       = null;            // which server the user is voiced on (null = not in voice)
 let voiceChannelId      = null;            // active voice channel ID
-let activeThreadId      = null;            // currently open forum thread ID (mirrors ss.activeThreadId for viewed server)
+
 // Channel ECDH key workspace — the same key material is copied into each server's ss on connect
 let _channelEcdhPriv    = null;
 let _channelEcdhPub     = null;
@@ -3484,11 +3489,11 @@ let _pendingJoinData = null;
 
 // ── Iskra ID / Relay state ────────────────────────────────────────────────────
 const RELAY_URL        = 'https://id.iskra.foo';
-let relayToken         = localStorage.getItem('iskra_relay_token') || null;
-let relayUserId        = localStorage.getItem('iskra_relay_userId') || null;
-let relayAlias         = localStorage.getItem('iskra_relay_alias') || null;
-let relayEmailVerified = localStorage.getItem('iskra_relay_verified') === '1';
-let relayEmail         = localStorage.getItem('iskra_relay_email') || null;
+let relayToken         = sessionStorage.getItem('iskra_relay_token') || null;
+let relayUserId        = sessionStorage.getItem('iskra_relay_userId') || null;
+let relayAlias         = sessionStorage.getItem('iskra_relay_alias') || null;
+let relayEmailVerified = sessionStorage.getItem('iskra_relay_verified') === '1';
+let relayEmail         = sessionStorage.getItem('iskra_relay_email') || null;
 let _relayFriends      = [];     // [{userId, alias}]
 let _relayRequests     = { incoming: [], outgoing: [] };
 let _relayRaw          = {};     // alias → raw records (ciphertext) persisted to localStorage
@@ -3509,7 +3514,10 @@ let _verifyPollTimer   = null;
 let _iskraidFormMode   = 'login';
 let _inRelayMode       = false;
 let relayProfileUrl    = null;
-let relayAvatarDataUrl = localStorage.getItem('iskra_relay_avatar') || null;
+let relayAvatarDataUrl = sessionStorage.getItem('iskra_relay_avatar') || null;
+// One-time migration: clear any relay credentials left in localStorage from older versions
+['iskra_relay_token','iskra_relay_userId','iskra_relay_alias','iskra_relay_verified','iskra_relay_email','iskra_relay_avatar']
+    .forEach(k => localStorage.removeItem(k));
 let _relayReceipts     = {};     // messageId → { recipientAlias, readAt }
 let _relayUnread       = {};     // alias → unread count
 
@@ -3553,7 +3561,7 @@ function avatarHtml(alias, szClass = 'sz-40', clickable = true, showStatus = fal
     const wrap     = dot ? '<div class="av-wrap">' : '';
     const wrapEnd  = dot ? '</div>' : '';
     if (url) {
-        const action = `onclick="openImgOverlay('${url.replace(/'/g,"\\'")}','${escapeHtml(alias)}')"`;
+        const action = `data-img-url="${escapeHtml(url)}" data-img-alias="${escapeHtml(alias)}" onclick="openImgOverlay(this.dataset.imgUrl,this.dataset.imgAlias)"`;
         return `${wrap}<div class="avatar-circle ${szClass} ${clk}" ${action} title="${escapeHtml(alias)}"><img src="${escapeHtml(url)}" data-src="${escapeHtml(url)}" alt="${escapeHtml(alias)}" loading="lazy" onerror="rescueImg(this)"></div>${dot}${wrapEnd}`;
     }
     const bg = `style="background:${avatarColor(alias)}"`;
@@ -3860,7 +3868,7 @@ function updateSettingsServerSection() {
     const divider = document.getElementById('server-icon-section-divider');
     if (!section) return;
     const _ss = serverStates[viewedServerId];
-    const canUpload = !!_ss?.serverUploadBase && ['admin','owner'].includes(_ss?.myRole);
+    const canUpload = !!_ss?.serverUploadBase && isElevated(_ss?.myRole);
     section.classList.toggle('hidden', !canUpload);
     if (divider) divider.classList.toggle('hidden', !canUpload);
     if (!canUpload) return;
@@ -4141,7 +4149,7 @@ function renderChannelList() {
         return;
     }
 
-    const isAdmin = ['admin','owner'].includes(ss.myRole);
+    const isAdmin = isElevated(ss.myRole);
     const drag    = isAdmin ? ' draggable="true"' : '';
     let html = '';
     if (isAdmin) {
@@ -4149,14 +4157,14 @@ function renderChannelList() {
     }
     let currentCatCollapsed = false;
     for (const ch of ss.serverChannels) {
-        if (ch.type === 'Header') {
+        if (ch.type === CH_TYPE.HEADER) {
             const collapsed = ss._collapsedCats.has(ch.id);
             currentCatCollapsed = collapsed;
             html += `<div class="channel-section-label${collapsed ? ' collapsed' : ''}" data-chid="${ch.id}"${drag} onclick="toggleCat('${ch.id}')" oncontextmenu="showChCtxMenu(event,'${ch.id}')">${escapeHtml(ch.name)}</div>`;
             continue;
         }
         if (currentCatCollapsed) continue;
-        if (ch.type === 'Voice') {
+        if (ch.type === CH_TYPE.VOICE) {
             const inVoice  = ch.id === ss.currentChannelId;
             const users    = ss.voiceChannelUsers[ch.id] || [];
             const voiceIcon = ch.muted ? '🔇' : '🔊';
@@ -4179,11 +4187,11 @@ function renderChannelList() {
                 ${setStatusHtml}
                 <div class="voice-user-list">${users.map(u => { const isSpeaking = ss.remoteSpeaking.has(u) || (u === ss.myAlias && speaking && !isMuted && !ss.inMutedChannel); return `<div class="voice-user${isSpeaking ? ' speaking' : ''}" data-alias="${escapeHtml(u)}" onclick="showProfileCard(event,'${escapeHtml(u)}')"${u !== ss.myAlias ? ` oncontextmenu="showUserCtxMenu(event,'${escapeHtml(u)}')"` : ''}><span class="vu-avatar">${avatarHtml(u, 'sz-22', true, true)}</span>${escapeHtml(u)}</div>`; }).join('')}</div>
             </div>`;
-        } else if (ch.type === 'Text') {
+        } else if (ch.type === CH_TYPE.TEXT) {
             const viewing    = ch.id === ss.activeTextChannelId;
             const unread     = !viewing && ss.unreadCounts[ch.id] ? ss.unreadCounts[ch.id] : 0;
             const hasMention = !viewing && !!ss.mentionCounts[ch.id];
-            const canWrite   = ch.readOnly ? ['admin','owner'].includes(ss.myRole) : roleRank(ss.myRole) >= roleRank(ch.writeRole || 'guest');
+            const canWrite   = ch.readOnly ? isElevated(ss.myRole) : roleRank(ss.myRole) >= roleRank(ch.writeRole || 'guest');
             const textIcon   = ch.readOnly ? '📌' : (ch.e2e ? '🔒' : '#');
             const iconStyle  = ch.readOnly ? 'font-size:13px;' : (ch.e2e ? 'font-size:13px;' : 'font-weight:700;font-size:16px;');
             const titleAttr  = ch.readOnly ? 'Read-only' : (!canWrite ? `Requires ${ch.writeRole} role to post` : '');
@@ -4195,7 +4203,7 @@ function renderChannelList() {
                 <span class="ch-name">${escapeHtml(ch.name)}</span>${notifyIcon}
                 ${unread > 0 ? `<span class="ch-unread${hasMention ? ' has-mention' : ''}">${unread > 99 ? '99+' : unread}</span>` : ''}
             </div>`;
-        } else if (ch.type === 'Forum') {
+        } else if (ch.type === CH_TYPE.FORUM) {
             const viewing    = ch.id === ss.activeTextChannelId;
             const unread     = !viewing && ss.unreadCounts[ch.id] ? ss.unreadCounts[ch.id] : 0;
             const hasMention = !viewing && !!ss.mentionCounts[ch.id];
@@ -4248,10 +4256,9 @@ function closeActivityInput(chId) {
 }
 
 function selectTextChannel(id) {
-    DevLog.log('ERR', `[STX] ENTER id=${id} viewed=${viewedServerId}`);
     try {
     const ss = serverStates[viewedServerId];
-    if (!ss) { DevLog.log('ERR', '[STX] NO SS — returning'); return; }
+    if (!ss) return;
     if (ss.activeTextChannelId && ss.activeTextChannelId !== id) {
         _saveDraft(viewedServerId, ss.activeTextChannelId);
     }
@@ -4264,36 +4271,33 @@ function selectTextChannel(id) {
     cancelReply();
     const ch = ss.serverChannels.find(c => c.id === id);
     const inputArea = document.getElementById('input-area');
-    document.getElementById('chat-channel-icon').textContent = ch?.e2e ? '🔒' : '#';
-    DevLog.log('ERR', `[STX] A ch=${ch?.name||'null'} ib=${!!document.querySelector('.input-box')}`);
+    const iconEl = document.getElementById('chat-channel-icon');
+    if (iconEl) iconEl.textContent = ch?.e2e ? '🔒' : '#';
     if (ch) {
-        document.getElementById('chat-channel-name').textContent = ch.name;
+        const nameEl = document.getElementById('chat-channel-name');
+        if (nameEl) nameEl.textContent = ch.name;
         const isReadOnly = ch.readOnly
             ? roleRank(ss.myRole) < roleRank('admin')
             : roleRank(ss.myRole) < roleRank(ch.writeRole || 'guest');
         const placeholder = isReadOnly
             ? (ch.readOnly ? 'Read-only channel' : `Requires ${ch.writeRole} role to post`)
             : `Message #${ch.name}`;
-        document.querySelector('.input-box').placeholder = placeholder;
+        const ib = document.querySelector('.input-box');
+        if (ib) ib.placeholder = placeholder;
         if (inputArea) inputArea.classList.toggle('readonly', isReadOnly);
     }
-    DevLog.log('ERR', `[STX] B isForum=${ch?.type==='Forum'}`);
-    const isForum = ch?.type === 'Forum';
+    const isForum = ch?.type === CH_TYPE.FORUM;
     _setForumMode(isForum);
-    if (isForum) document.getElementById('chat-channel-icon').textContent = '📋';
+    if (isForum && iconEl) iconEl.textContent = '📋';
     ss._forumThreadMsgId = null; ss.activeThreadId = null;
-    activeThreadId = null;
     const h = document.getElementById('chat-history');
-    DevLog.log('ERR', `[STX] C h=${!!h} chMsgs=${Object.keys(ss.channelMessages).length}`);
-    const _diagMap = Object.entries(ss.channelMessages).map(([k,v])=>`${k.slice(-8)}:${v.length}`).join(' ');
-    DevLog.log('DIAG', `SELECT id:${id.slice(-8)} "${ch?.name||'?'}" | target_msgs:${(ss.channelMessages[id]||[]).length} | all:[${_diagMap||'empty'}]`);
+    if (!h) return;
     h.innerHTML = '';
     h.classList.remove('forum-thread-mode');
     h.classList.toggle('forum-mode', isForum);
     window._loadingChannelHistory = true;
     (ss.channelMessages[id] || []).forEach(m => renderChatMessage(m.id, m.author, m.time, m.message, m.edited, m.reactions || {}, m.replyToId, m.replySnippet, m.editHistory, m.threadId, m.threadCount, m.poll, m.forumTitle || null, m.forumTags || null, m.ts || null));
     window._loadingChannelHistory = false;
-    DevLog.log('ERR', `[STX] DONE rendered=${h.children.length} msgs`);
     requestAnimationFrame(() => requestAnimationFrame(() => { const _ch = document.getElementById('chat-history'); if (_ch) _ch.scrollTop = _ch.scrollHeight; }));
     renderChannelList();
     clearTimeout(ss._slowTimer);
@@ -4311,10 +4315,13 @@ function selectTextChannel(id) {
     initUnreadJump();
     DevLog.log('BRIDGE', `Text channel selected: "${ch?.name || id}" | ${(ss.channelMessages[id]||[]).length} msg(s)${ch?.readOnly ? ' [readonly]' : ''}`);
     closeMobSidebar();
-    } catch(e) { DevLog.log('ERR', `[STX] CRASH: ${e.message} | ${(e.stack||'').split('\n')[1]||''}`); }
+    } catch(e) { DevLog.log('ERR', `selectTextChannel crash: ${e.message}`); }
 }
 
 function roleRank(r) { return ({guest:0,member:1,trusted:2,admin:3,owner:4})[r] ?? 0; }
+const ROLES = Object.freeze({ GUEST: 'guest', MEMBER: 'member', TRUSTED: 'trusted', ADMIN: 'admin', OWNER: 'owner' });
+function isElevated(role) { return role === ROLES.ADMIN || role === ROLES.OWNER; }
+const CH_TYPE = Object.freeze({ TEXT: 'Text', VOICE: 'Voice', FORUM: 'Forum', HEADER: 'Header' });
 
 // ── Category collapse ─────────────────────────────────────────────────────────
 function loadCollapsedCats(sid) {
@@ -4585,9 +4592,9 @@ function onQsInput() {
     const q = (document.getElementById('qs-input').value || '').toLowerCase().trim();
     _qsItems = [];
     for (const ch of (ss?.serverChannels || [])) {
-        if (ch.type === 'Header') continue;
+        if (ch.type === CH_TYPE.HEADER) continue;
         if (q && !ch.name.toLowerCase().includes(q)) continue;
-        _qsItems.push({ icon: ch.type === 'Voice' ? '🔊' : ch.type === 'Forum' ? '📋' : (ch.e2e ? '🔒' : '#'), name: ch.name, sub: 'Channel', chId: ch.id, chType: ch.type });
+        _qsItems.push({ icon: ch.type === CH_TYPE.VOICE ? '🔊' : ch.type === CH_TYPE.FORUM ? '📋' : (ch.e2e ? '🔒' : '#'), name: ch.name, sub: 'Channel', chId: ch.id, chType: ch.type });
     }
     for (const alias of Object.keys(dmConversations)) {
         if (q && !alias.toLowerCase().includes(q)) continue;
@@ -4618,8 +4625,8 @@ function qsSelect(idx) {
     if (!it) return;
     closeQuickSwitcher();
     if (it.dmAlias)           { if (!inDmMode) openDmMode(); openDm(it.dmAlias); }
-    else if (it.chType === 'Text')  selectTextChannel(it.chId);
-    else if (it.chType === 'Voice') joinVoice(it.chId);
+    else if (it.chType === CH_TYPE.TEXT)  selectTextChannel(it.chId);
+    else if (it.chType === CH_TYPE.VOICE) joinVoice(it.chId);
 }
 function onQsKey(e) {
     if (e.key === 'Escape')     { closeQuickSwitcher(); return; }
@@ -4769,7 +4776,7 @@ function showProfileCard(event, alias) {
     if (alias !== myAlias && viewedServerId && connectedServerIds.has(viewedServerId)) {
         btns.push(['💬 Message', () => { hideProfileCard(); openDm(alias); }]);
     }
-    if (['admin','owner'].includes(ss?.myRole) && alias !== myAlias) {
+    if (isElevated(ss?.myRole) && alias !== myAlias) {
         btns.push(['⚙ Actions', (e) => { hideProfileCard(); showUserCtxMenu(e, alias); }]);
     }
     btns.push(['🌐 Profile', () => { hideProfileCard(); openProfilePage(alias); }]);
@@ -4838,8 +4845,8 @@ function showChCtxMenu(event, chId) {
     ss._chCtxMenuId = chId;
     _chCtxMenuId = chId;
     const ch = ss.serverChannels.find(c => c.id === chId);
-    const isAdmin = ['admin','owner'].includes(ss.myRole);
-    const isText  = ch?.type === 'Text';
+    const isAdmin = isElevated(ss.myRole);
+    const isText  = ch?.type === CH_TYPE.TEXT;
     // Create section — never shown from channel-item right-click
     document.getElementById('ch-ctx-create-section').classList.add('hidden');
     // Admin section
@@ -4865,7 +4872,7 @@ function showChCtxMenu(event, chId) {
 function showChBgCtxMenu(event) {
     if (event.target.closest('[data-chid]')) return; // let item handler take it
     const ss = serverStates[viewedServerId];
-    if (!ss || !['admin','owner'].includes(ss.myRole)) return;
+    if (!ss || !isElevated(ss.myRole)) return;
     event.preventDefault();
     event.stopPropagation();
     _chCtxMenuId = null;
@@ -5279,7 +5286,7 @@ function showCreateChannelMenu(e) {
         btn.style.cssText = 'flex:1;font-size:11px;padding:5px 2px;';
         btn.textContent = label;
         btn.onclick = () => {
-            const name = input.value.trim() || (type === 'Header' ? 'New Category' : type === 'Voice' ? 'new-voice' : 'new-channel');
+            const name = input.value.trim() || (type === CH_TYPE.HEADER ? 'New Category' : type === CH_TYPE.VOICE ? 'new-voice' : 'new-channel');
             postToServer(viewedServerId, { action: 'ADD_CHANNEL', name, type });
             popup.remove();
         };
@@ -5582,7 +5589,7 @@ function showForwardModal(msgId) {
 
     const sel = document.getElementById('forward-target');
     sel.innerHTML = '';
-    (ss?.serverChannels || []).filter(c => c.type === 'Text').forEach(c => {
+    (ss?.serverChannels || []).filter(c => c.type === CH_TYPE.TEXT).forEach(c => {
         const opt = new Option(`# ${c.name}`, `ch:${c.id}`);
         if (c.id === ss?.activeTextChannelId) opt.selected = true;
         sel.appendChild(opt);
@@ -5708,7 +5715,7 @@ function bmNavigate(sid, cid, key) {
     if (!connectedServerIds.has(sid)) { DevLog.log('INFO', 'That server is not connected — cannot navigate to bookmarked message'); return; }
     if (sid !== viewedServerId) setViewedServer(sid);
     const _bch = serverStates[sid]?.serverChannels.find(c => c.id === cid);
-    if (_bch?.type === 'Voice') joinVoice(cid);
+    if (_bch?.type === CH_TYPE.VOICE) joinVoice(cid);
     else selectTextChannel(cid);
     setTimeout(() => scrollToMsg(key), 300);
 }
@@ -5736,7 +5743,7 @@ function renderEventsPanel() {
     const list = document.getElementById('ev-list');
     if (!list) return;
     const ss = serverStates[viewedServerId];
-    const isAdmin = ['admin','owner'].includes(ss?.myRole);
+    const isAdmin = isElevated(ss?.myRole);
     const addBtnWrap = document.getElementById('ev-add-btn-wrap');
     if (addBtnWrap) addBtnWrap.innerHTML = isAdmin
         ? `<button class="sidebar-hdr-btn" onclick="document.getElementById('ev-add-form').classList.toggle('visible')" title="Add event" style="font-size:16px;">＋</button>`
@@ -5824,7 +5831,7 @@ document.addEventListener('click', e => {
 // ── Channel topic ─────────────────────────────────────────────────────────────
 function editChannelTopic() {
     const ss = serverStates[viewedServerId];
-    if (!ss || !['admin','owner'].includes(ss.myRole)) return;
+    if (!ss || !isElevated(ss.myRole)) return;
     const ch = ss.serverChannels.find(c => c.id === ss.activeTextChannelId);
     if (!ch) return;
     showChEditOverlay('Channel topic (leave empty to clear)', ch.topic || '', val => {
@@ -5837,11 +5844,11 @@ function _updateChannelTopic(channelId) {
     const topicEl = document.getElementById('chat-channel-topic');
     const editBtn = document.getElementById('chat-topic-edit-btn');
     if (topicEl) topicEl.textContent = ch?.topic || '';
-    if (editBtn) editBtn.style.display = ['admin','owner'].includes(ss?.myRole) && ch?.type === 'Text' ? '' : 'none';
+    if (editBtn) editBtn.style.display = isElevated(ss?.myRole) && ch?.type === CH_TYPE.TEXT ? '' : 'none';
 }
 
 // ── @mention autocomplete ─────────────────────────────────────────────────────
-const _ROLE_NAMES     = ['guest','member','trusted','admin','owner'];
+const _ROLE_NAMES     = Object.values(ROLES);
 const _ROLE_NAMES_SET = new Set(_ROLE_NAMES);
 let _mentionPopup   = null;
 let _mentionSuggIdx = 0;
@@ -6159,6 +6166,17 @@ function reconnectWithActiveAlias() {
     }, 800);
 }
 
+function _reconnectAllWithRelay() {
+    if (!relayToken || !relayAlias || !connectedServerIds.size) return;
+    const toReconnect = [...connectedServerIds];
+    showToast(`Reconnecting as @${relayAlias}…`);
+    toReconnect.forEach(sid => disconnectFromServer(sid));
+    setTimeout(() => toReconnect.forEach(sid => {
+        const s = clientConfig.servers.find(x => x.id === sid);
+        if (s) connectToServer(s.id);
+    }), 800);
+}
+
 function removeAlias(alias) {
     clientConfig.aliases = clientConfig.aliases.filter(a => a !== alias);
     if (!clientConfig.aliases.length) clientConfig.aliases = ['Player'];
@@ -6343,7 +6361,7 @@ function renderServerBar() {
         const ss           = serverStates[s.id];
         const isViewed     = s.id === viewedServerId;
         const isConn       = connectedServerIds.has(s.id);
-        const canUpload    = isConn && ['admin','owner'].includes(ss?.myRole);
+        const canUpload    = isConn && isElevated(ss?.myRole);
         const isMuted      = isServerMuted(s.id);
         const displayIcon  = (isConn && ss?.serverIconUrl)
             ? (normalizeUploadUrl(ss.serverIconUrl) || ss.serverIconUrl)
@@ -6380,9 +6398,9 @@ function onServerIconClick(id) {
     const ss = serverStates[id];
     if (ss && connectedServerIds.has(id)) {
         const _och = ss.serverChannels.find(c => c.id === ss.activeTextChannelId);
-        const _tgt = (_och && (_och.type === 'Text' || _och.type === 'Forum'))
+        const _tgt = (_och && (_och.type === CH_TYPE.TEXT || _och.type === CH_TYPE.FORUM))
             ? _och.id
-            : ss.serverChannels.find(c => c.type === 'Text')?.id;
+            : ss.serverChannels.find(c => c.type === CH_TYPE.TEXT)?.id;
         if (_tgt) selectTextChannel(_tgt);
     }
 }
@@ -6406,7 +6424,7 @@ function updateFooterBar() {
     if (statusDot) statusDot.className = `status-dot ${ss?.myStatus || 'online'}`;
     const srv = clientConfig.servers.find(s => s.id === viewedServerId);
     if (srv) document.getElementById('server-name-label').textContent = srv.name;
-    const isAdmin = ['admin','owner'].includes(ss?.myRole);
+    const isAdmin = isElevated(ss?.myRole);
     document.getElementById('tab-btn-admin')?.classList.toggle('visible', isAdmin);
     document.getElementById('tab-btn-webhooks')?.classList.toggle('visible', isAdmin);
     document.getElementById('tab-btn-botapi')?.classList.toggle('visible', isAdmin);
@@ -6435,7 +6453,7 @@ function showServerCtxMenu(e, id) {
     document.getElementById('srv-ctx-name').textContent = s.name;
     const isConn      = connectedServerIds.has(id);
     const ss          = serverStates[id];
-    const canChangeIcon = isConn && ['admin','owner'].includes(ss?.myRole);
+    const canChangeIcon = isConn && isElevated(ss?.myRole);
     const muted = isServerMuted(id);
     document.getElementById('srv-ctx-disconnect-item').style.display = isConn ? '' : 'none';
     document.getElementById('srv-ctx-icon-item').style.display = canChangeIcon ? '' : 'none';
@@ -7254,9 +7272,10 @@ async function setupPeer(target, makeOffer = false, peerServerId = null) {
 async function joinVoice(id) {
     const ss = serverStates[viewedServerId];
     if (!ss) return;
+    if (inDmMode) closeDmMode();
+    if (_inRelayMode) closeRelayPanel();
     if (!processedStream) { try { await initAudio(); } catch {} }
     if (ss.currentChannelId !== id) { postToServer(viewedServerId, { action: 'JOIN_VOICE', channelId: id }); _acquireWakeLock(); }
-    if (inDmMode) { ss.activeTextChannelId = id; return; }
     // Switch chat pane to voice channel text thread
     if (ss.activeTextChannelId === id) return;
     ss.activeTextChannelId = id;
@@ -7264,7 +7283,6 @@ async function joinVoice(id) {
     cancelReply();
     _setForumMode(false);
     ss._forumThreadMsgId = null; ss.activeThreadId = null;
-    activeThreadId = null;
     const ch = ss.serverChannels.find(c => c.id === id);
     const icon = ch?.muted ? '🔇' : '🔊';
     document.getElementById('chat-channel-icon').textContent = icon;
@@ -8046,9 +8064,9 @@ function closeDmMode() {
     const _dss = serverStates[viewedServerId];
     const _dChId = _dss?.activeTextChannelId;
     const _dCh = _dss?.serverChannels.find(c => c.id === _dChId);
-    const _target = (_dCh && (_dCh.type === 'Text' || _dCh.type === 'Forum'))
+    const _target = (_dCh && (_dCh.type === CH_TYPE.TEXT || _dCh.type === CH_TYPE.FORUM))
         ? _dChId
-        : _dss?.serverChannels.find(c => c.type === 'Text')?.id;
+        : _dss?.serverChannels.find(c => c.type === CH_TYPE.TEXT)?.id;
     if (_target) selectTextChannel(_target);
     else document.getElementById('chat-history').innerHTML = '';
 }
@@ -8510,7 +8528,7 @@ function scrollToMsg(msgId, channelId) {
     const switched = channelId && channelId !== serverStates[viewedServerId]?.activeTextChannelId;
     if (switched) {
         const _sch = serverStates[viewedServerId]?.serverChannels.find(c => c.id === channelId);
-        if (_sch?.type === 'Voice') joinVoice(channelId); else selectTextChannel(channelId);
+        if (_sch?.type === CH_TYPE.VOICE) joinVoice(channelId); else selectTextChannel(channelId);
     }
     if (!msgId) return;
     const tryScroll = n => {
@@ -8690,8 +8708,8 @@ function renderChatMessage(msgId, author, time, message, edited, reactions, repl
     let actions = '';
     if (msgId) {
         const isOwn  = author === _rss?.myAlias;
-        const canDel = isOwn || ['admin','owner'].includes(_rss?.myRole);
-        const canPin = ['admin','owner'].includes(_rss?.myRole);
+        const canDel = isOwn || isElevated(_rss?.myRole);
+        const canPin = isElevated(_rss?.myRole);
         const bkd = isBookmarked(msgId);
         actions = `<span class="msg-actions">`;
         actions += `<button class="msg-act-btn msg-act-bookmark${bkd ? ' bookmarked' : ''}" title="${bkd ? 'Remove bookmark' : 'Bookmark'}" onclick="toggleBookmark('${msgId}')">${bkd ? '★' : '☆'}</button>`;
@@ -8861,7 +8879,9 @@ function deleteMessage(evt, msgId) {
         if (inDmMode && activeDmWith) {
             postToServer(viewedServerId, { action: 'DELETE_DM', with: activeDmWith, messageId: msgId });
         } else {
-            postToServer(viewedServerId, { action: 'DELETE_MESSAGE', channelId: serverStates[viewedServerId]?.activeTextChannelId, messageId: msgId });
+            const _dss = serverStates[viewedServerId];
+            const _dChId = _dss?.activeThreadId ? `thread-${_dss.activeThreadId}` : _dss?.activeTextChannelId;
+            postToServer(viewedServerId, { action: 'DELETE_MESSAGE', channelId: _dChId, messageId: msgId });
         }
     };
     if (evt.shiftKey) _execDelete();
@@ -10400,6 +10420,337 @@ function renderE2EAccessList(channelId) {
     return `<div class="e2e-access-list">${rows}${rotateBtn}</div>`;
 }
 
+function requireFields(data, ...fields) {
+    const missing = fields.filter(f => data[f] == null);
+    if (missing.length) { DevLog.log('ERR', `${data.action} missing fields: ${missing.join(',')}`); return false; }
+    return true;
+}
+
+// ── Per-handler functions (extracted from handleBridgeMessage) ───────────────────
+
+async function _bmInitClient(data, ss, isViewed, serverId) {
+    DevLog.log('BRIDGE', `← C# | INIT_CLIENT alias:${data.alias} server:${serverId}`);
+    connectedServerIds.add(serverId);
+    ss._reconnectDelay = 1000;
+    ss.wsReady = true;
+    if (!IS_WEB && ss._wsQueue.length) {
+        ss._wsQueue.forEach(msg => window.chrome.webview.postMessage(msg));
+        ss._wsQueue = [];
+    }
+    ss.myAlias = data.alias;
+    ss.myRole = 'guest';
+    ss.myStatus = 'online';
+    ss.userStatuses = {};
+    ss.userRoles    = {};
+    ss.pinnedMessages = {};
+    ss.inMutedChannel = false;
+    ss.e2eChannelKeys   = {};
+    ss.serverPublicKeys = {};
+    ss.e2eChannelAccess = {};
+    ss.channelMessages  = {};
+    ss.activeTextChannelId = null;
+    if (isViewed) {
+        const _rb2 = document.getElementById('role-badge');
+        if (_rb2) { _rb2.className = ''; _rb2.textContent = ''; }
+        document.getElementById('ui-alias').textContent = ss.myAlias;
+        document.getElementById('voice-mode-label').textContent = '';
+        updateMyAvatar();
+        const srv = clientConfig.servers.find(s => s.id === serverId);
+        document.getElementById('server-name-label').textContent = srv ? srv.name : 'Connected';
+        document.getElementById('sidebar-hdr-btns').style.display = '';
+        document.getElementById('telemetry-strip').style.display = '';
+    }
+    const srv = clientConfig.servers.find(s => s.id === serverId);
+    if (!IS_WEB && ss._localProxyPort > 0) {
+        ss.serverUploadBase = `http://localhost:${ss._localProxyPort}`;
+    } else {
+        const _uProto = IS_WEB && location.protocol === 'https:' ? 'https' : 'http';
+        const _uPort  = (srv?.port === 443 || srv?.port === 80) ? '' : `:${srv?.port}`;
+        ss.serverUploadBase = srv ? `${_uProto}://${srv.host}${_uPort}` : null;
+    }
+    renderServerBar();
+    postToBridge({ action: 'SET_VOICE_MODE', mode: settings.voiceMode });
+    postToBridge({ action: 'SET_PTT_KEY',    keyCode: settings.pttKeyCode });
+    if (isViewed) playSound('connect');
+    ss._suppressJoinSounds = true;
+    setTimeout(() => { ss._suppressJoinSounds = false; }, 2000);
+    await ensureEcdhKeyPair(serverId);
+    if (ss.myEcdhPubKey) {
+        const rawPub = await crypto.subtle.exportKey('raw', ss.myEcdhPubKey);
+        postToServer(serverId, { action:'REGISTER_PUBLIC_KEY', publicKey: _bytesToB64(rawPub) });
+    }
+}
+
+async function _bmChatReceive(data, ss, isViewed, serverId) {
+    const chId = data.channelId;
+    if (!chId) return;
+    DevLog.log('BRIDGE', `← C# | CHAT_RECEIVE from:${data.author} ch:${chId} id:${data.id||'none'}`);
+    let msgText = data.message;
+    let ciphertextBackup = null;
+    if (isE2eCiphertext(msgText)) {
+        ciphertextBackup = msgText;
+        msgText = ss.e2eChannelKeys[chId]
+            ? (await e2eDecrypt(ss.e2eChannelKeys[chId], msgText) ?? '[🔒 Decrypt error]')
+            : '[🔒 Encrypted — waiting for key]';
+    }
+    const isMassNotify = msgText && (msgText.includes('@everyone') || msgText.includes('@here'));
+    const isMention = isMassNotify ||
+        (ss.myAlias && msgText && msgText.toLowerCase().includes(`@${ss.myAlias.toLowerCase()}`)) ||
+        (ss.myRole && data.mentionedRoles && data.mentionedRoles.includes(ss.myRole));
+    const isKeywordHit = !isMention && data.author !== ss.myAlias && msgText &&
+        clientConfig.keywordNotifs?.some(kw => kw && msgText.toLowerCase().includes(kw.toLowerCase()));
+    if (data.ephemeral) {
+        if (isViewed && chId === ss.activeTextChannelId) {
+            renderChatMessage(data.id, data.author, data.time, msgText, false, {}, null, null, [], null, 0, null);
+            const el = document.getElementById(`msg-${data.id}`);
+            if (el) {
+                el.classList.add('msg-ephemeral');
+                let secs = data.ephemeralSeconds || 60;
+                const t = document.createElement('span');
+                t.className = 'msg-ephemeral-timer';
+                el.querySelector('.msg-header')?.appendChild(t);
+                const tick = () => { if (t.isConnected) { t.textContent = ` ⏳ ${secs}s`; if (secs-- > 0) setTimeout(tick, 1000); } };
+                tick();
+            }
+        }
+    } else if (chId) {
+        if (!ss.channelMessages[chId]) ss.channelMessages[chId] = [];
+        const stored = { id: data.id, author: data.author, time: data.time, ts: data.ts || null, message: msgText,
+            reactions: data.reactions || {}, replyToId: data.replyToId || null, replySnippet: data.replySnippet || null, editHistory: data.editHistory || [],
+            threadId: data.threadId || null, threadCount: data.threadCount || 0, poll: data.poll || null,
+            forumTitle: data.forumTitle || null, forumTags: data.forumTags || null };
+        if (ciphertextBackup) stored._ciphertext = ciphertextBackup;
+        if (!data.id || !ss.channelMessages[chId].some(x => x.id === data.id))
+            ss.channelMessages[chId].push(stored);
+        const srvMuted   = isServerMuted(serverId);
+        const bypassMute = isMassNotify;
+        const chNotify   = getChannelNotifyPref(chId);
+        const chSilenced = chNotify === 'muted' || (chNotify === 'mentions' && !isMention);
+        const isNew = !data.ts || data.ts > (ss.lastSeenTs[chId] || 0);
+        if (!isViewed || chId !== ss.activeTextChannelId) {
+            if (!chSilenced && isNew) {
+                ss.unreadCounts[chId] = (ss.unreadCounts[chId] || 0) + 1;
+                if (isMention) ss.mentionCounts[chId] = (ss.mentionCounts[chId] || 0) + 1;
+                saveUnread(serverId);
+                if (isViewed) renderChannelList();
+                renderServerBar();
+            }
+            if (!chSilenced && isNew && (!srvMuted || bypassMute)) playSound((isMention || isKeywordHit) ? 'mention' : 'message');
+            if ((isMention || isKeywordHit) && isNew && data.author !== ss.myAlias) trackMention(serverId, chId, data.author, msgText, data.ts);
+        } else if (isMention || isKeywordHit) {
+            if (!chSilenced && (!srvMuted || bypassMute)) playSound('mention');
+            if (data.author !== ss.myAlias) trackMention(serverId, chId, data.author, msgText, data.ts);
+        }
+        if (!chSilenced && isNew && (!srvMuted || bypassMute) && data.author !== ss.myAlias && !document.hasFocus() && !isDndActive()) {
+            const chName = ss.serverChannels.find(c => c.id === chId)?.name || chId || '';
+            const notifBody = ciphertextBackup ? '🔒 Encrypted message' : (msgText || '').slice(0, 120);
+            const notifTitle = isMention ? `${data.author} mentioned you`
+                : isKeywordHit ? `${data.author} used a keyword`
+                : `#${chName}`;
+            postToBridge({ action: 'NOTIFY', title: notifTitle, body: notifBody });
+        }
+        if (isViewed && chId === ss.activeTextChannelId && !window._relayDmActive)
+            renderChatMessage(data.id, data.author, data.time, msgText, false, data.reactions || {}, data.replyToId, data.replySnippet, data.editHistory || [], data.threadId, data.threadCount, data.poll, data.forumTitle || null, data.forumTags || null, data.ts || null);
+    }
+}
+
+async function _bmServerInfo(data, ss, isViewed, serverId) {
+    if (!requireFields(data, 'channels')) return;
+    DevLog.log('BRIDGE', `← C# | SERVER_INFO name:"${data.name}" channels:${data.channels.length} iceServers:${data.iceServers?.length ?? 0}`);
+    if (data.iceServers && data.iceServers.length) {
+        rtcConfig = { iceServers: data.iceServers };
+        DevLog.log('RTC', `ICE config updated | ${data.iceServers.length} server(s)`);
+    }
+    if (data.serverId) {
+        ss.canonicalId = data.serverId;
+        const thisSrv = clientConfig.servers.find(s => s.id === serverId);
+        if (thisSrv && thisSrv.canonicalId !== data.serverId) {
+            thisSrv.canonicalId = data.serverId;
+            saveClientConfig();
+            syncServersToRelay();
+        }
+        const dupes = clientConfig.servers.filter(s => s.id !== serverId && s.canonicalId === data.serverId);
+        if (dupes.length > 0) {
+            const wrongPort = !IS_WEB && thisSrv?.port === 443 && dupes.some(d => d.port !== 443);
+            if (wrongPort) {
+                const goodEntry = dupes.find(d => d.port !== 443);
+                disconnectFromServer(serverId);
+                delete serverStates[serverId];
+                connectedServerIds.delete(serverId);
+                clientConfig.servers = clientConfig.servers.filter(s => s.id !== serverId);
+                const remainingDupes = dupes.filter(d => d.id !== goodEntry?.id);
+                for (const d of remainingDupes) { disconnectFromServer(d.id); delete serverStates[d.id]; connectedServerIds.delete(d.id); }
+                clientConfig.servers = clientConfig.servers.filter(s => !remainingDupes.find(d => d.id === s.id));
+            } else {
+                for (const dupe of dupes) {
+                    disconnectFromServer(dupe.id);
+                    delete serverStates[dupe.id];
+                    connectedServerIds.delete(dupe.id);
+                }
+                clientConfig.servers = clientConfig.servers.filter(s => !dupes.find(d => d.id === s.id));
+            }
+            saveClientConfig();
+            syncServersToRelay();
+            renderServerBar();
+            renderServerList();
+            DevLog.log('SETTINGS', `Merged ${dupes.length} duplicate server entry(s) for "${data.name}"`);
+        }
+    }
+    if (!IS_WEB && data.serverPort) {
+        const _pSrv = clientConfig.servers.find(s => s.id === serverId);
+        if (_pSrv) {
+            postToBridge({ action: 'UPDATE_PROXY_TARGET', serverId, host: _pSrv.host, port: data.serverPort });
+            if (_pSrv.nativePort !== data.serverPort) {
+                _pSrv.nativePort = data.serverPort;
+                saveClientConfig();
+            }
+        }
+    }
+    ss.serverIconUrl = data.serverIcon || null;
+    (async () => {
+        const srv = clientConfig.servers.find(x => x.id === serverId);
+        if (!srv) return;
+        if (!ss.serverIconUrl) { srv.cachedIconDataUrl = null; saveClientConfig(); return; }
+        const fullUrl = normalizeUploadUrl(ss.serverIconUrl) || ss.serverIconUrl;
+        if (!fullUrl || srv.cachedIconDataUrl) return;
+        try {
+            const res = await fetch(fullUrl);
+            if (!res.ok) return;
+            const blob = await res.blob();
+            const reader = new FileReader();
+            reader.onload = () => { srv.cachedIconDataUrl = reader.result; saveClientConfig(); renderServerBar(); };
+            reader.readAsDataURL(blob);
+        } catch {}
+    })();
+    if (data.userAvatars  && typeof data.userAvatars  === 'object') {
+        Object.assign(ss.userAvatars, data.userAvatars);
+        if (!ss.userAvatars[ss.myAlias] && clientConfig.localAvatars?.[ss.myAlias] && ss.serverUploadBase) {
+            _autoUploadLocalAvatar(ss.myAlias);
+        }
+    }
+    if (data.userStatuses     && typeof data.userStatuses     === 'object') { Object.assign(ss.userStatuses,    data.userStatuses); if (isViewed) updateChannelOnlineCount(); }
+    if (data.userStatusTexts  && typeof data.userStatusTexts  === 'object') Object.assign(ss.userStatusTexts, data.userStatusTexts);
+    if (data.userRoles        && typeof data.userRoles        === 'object') Object.assign(ss.userRoles,       data.userRoles);
+    if (data.roleColors       && typeof data.roleColors       === 'object') ss.roleColors = data.roleColors;
+    if (Array.isArray(data.events)) { ss.serverEvents = data.events; if (isViewed) _checkEventBanners(); }
+    if (data.emojis       && typeof data.emojis       === 'object') ss.serverEmojis    = data.emojis;
+    if (Array.isArray(data.webhooks))     ss.serverWebhooks    = data.webhooks;
+    if (Array.isArray(data.botTokens))    ss.serverBotTokens   = data.botTokens;
+    if (Array.isArray(data.inboundHooks)) ss.serverInboundHooks = data.inboundHooks;
+    if (data.publicKeys && typeof data.publicKeys === 'object') Object.assign(ss.serverPublicKeys, data.publicKeys);
+    if (data.e2eAccess  && typeof data.e2eAccess  === 'object') Object.assign(ss.e2eChannelAccess, data.e2eAccess);
+    if (data.voiceStatuses  && typeof data.voiceStatuses  === 'object') ss.voiceStatuses = data.voiceStatuses;
+    if (data.voiceOccupants && typeof data.voiceOccupants === 'object') Object.assign(ss.voiceChannelUsers, data.voiceOccupants);
+    if (data.starboard && typeof data.starboard === 'object') ss.starboardConfig = { ...ss.starboardConfig, ...data.starboard };
+    if (typeof data.privacyStatement === 'string') ss.serverPrivacyStatement = data.privacyStatement;
+    if (data.dmPublicKeys && typeof data.dmPublicKeys === 'object') Object.assign(ss.dmPublicKeys, data.dmPublicKeys);
+    if (typeof data.xpEnabled === 'boolean') ss.xpEnabled = data.xpEnabled;
+    if (data.memberLevels && typeof data.memberLevels === 'object') ss.memberLevels = data.memberLevels;
+    if (data.memberRioChars && typeof data.memberRioChars === 'object') ss.memberRioChars = data.memberRioChars;
+    if (data.memberSteamProfiles && typeof data.memberSteamProfiles === 'object') ss.memberSteamProfiles = data.memberSteamProfiles;
+    if (data.memberDotaProfiles  && typeof data.memberDotaProfiles  === 'object') ss.memberDotaProfiles  = data.memberDotaProfiles;
+    if (data.memberBios && typeof data.memberBios === 'object') ss.memberBios = data.memberBios;
+    ss.serverChannels = data.channels;
+    ss.channelSlowMode = {};
+    data.channels.forEach(c => { if (c.slowMode) ss.channelSlowMode[c.id] = c.slowMode; });
+    ss._collapsedCats = loadCollapsedCats(serverId);
+    loadUnread(serverId);
+    if (isViewed) {
+        const _prevCh = ss.serverChannels.find(c => c.id === ss.activeTextChannelId);
+        const _initCh = (_prevCh && (_prevCh.type === CH_TYPE.TEXT || _prevCh.type === CH_TYPE.FORUM))
+            ? _prevCh
+            : ss.serverChannels.find(c => c.type === CH_TYPE.TEXT);
+        if (_initCh) selectTextChannel(_initCh.id);
+        updateMyAvatar();
+        renderChannelList();
+        document.getElementById('btn-members')?.classList.add('visible');
+        if (document.getElementById('members-panel')?.classList.contains('open')) renderMembersPanel();
+    }
+    renderServerBar();
+}
+
+function _bmDisconnected(data, ss, isViewed, serverId) {
+    DevLog.log('BRIDGE', `← C# | DISCONNECTED server:${serverId}`);
+    saveUnread(serverId);
+    connectedServerIds.delete(serverId);
+    if (voiceServerId === serverId) {
+        voiceServerId = null; voiceChannelId = null;
+        speaking = false; setMicGate(false);
+    }
+    Object.values(ss.peers).forEach(pc => pc.close());
+    if (ss.displayStream) stopScreenShare();
+    if (ss.localVideoStream) stopVideo();
+    const fresh = createServerState();
+    fresh._userDisconnected = ss._userDisconnected;
+    fresh._reconnectDelay   = ss._reconnectDelay;
+    fresh._reconnectTimer   = ss._reconnectTimer;
+    serverStates[serverId]  = fresh;
+    if (isViewed) {
+        playSound('disconnect');
+        _clearTyping();
+        document.getElementById('event-banner')?.classList.add('hidden');
+        document.getElementById('tab-btn-admin')?.classList.remove('visible');
+        document.getElementById('tab-btn-webhooks')?.classList.remove('visible');
+        document.getElementById('tab-btn-botapi')?.classList.remove('visible');
+        const _sdot = document.getElementById('my-status-dot');
+        if (_sdot) _sdot.className = 'status-dot online';
+        const _rb = document.getElementById('role-badge');
+        if (_rb) { _rb.className = ''; _rb.textContent = ''; }
+        document.getElementById('input-area')?.classList.remove('readonly');
+        updateMyAvatar();
+        const _sp = document.getElementById('screen-share-panel');
+        if (_sp) { _sp.innerHTML = ''; _sp.classList.remove('active'); }
+        closeShareOverlay();
+        updateShareButtonVisibility();
+        _clearWatchPanel();
+        document.getElementById('server-name-label').textContent = 'Not connected';
+        document.getElementById('sidebar-hdr-btns').style.display = 'none';
+        document.getElementById('telemetry-strip').style.display = 'none';
+        if (activeRecorder) stopRecording();
+        document.getElementById('ui-alias').textContent = (relayToken && relayAlias) ? relayAlias : clientConfig.activeAlias;
+        document.getElementById('chat-channel-name').textContent = '—';
+        document.getElementById('chat-history').innerHTML = '';
+        document.getElementById('chat-channel-icon').textContent = '#';
+        closeSearch();
+        renderChannelList();
+        const _membersBtn = document.getElementById('btn-members');
+        if (_membersBtn) _membersBtn.classList.remove('visible', 'active');
+        const _membersPanel = document.getElementById('members-panel');
+        if (_membersPanel) { _membersPanel.classList.remove('open'); _membersPanel.querySelector('#members-list').innerHTML = ''; }
+    }
+    renderServerBar();
+    if (!IS_WEB && !fresh._userDisconnected) _scheduleReconnect(serverId);
+}
+
+async function _bmWebrtcSignal(data, ss, isViewed, serverId) {
+    DevLog.log('BRIDGE', `← C# | WEBRTC_SIGNAL from:${data.sender} type:${data.payload.type}`);
+    const pc = await setupPeer(data.sender, false, serverId);
+    const p  = data.payload;
+    if (!ss._iceBuffer) ss._iceBuffer = {};
+    if (p.type === 'offer') {
+        await pc.setRemoteDescription(new RTCSessionDescription(p.sdp));
+        const ans = await pc.createAnswer();
+        await pc.setLocalDescription(ans);
+        DevLog.log('RTC', `Answer sent to ${data.sender} | sdpLen:${JSON.stringify(ans).length}`);
+        postToServer(serverId, { action: 'WEBRTC_SIGNAL', target: data.sender, sender: ss.myAlias, payload: { type: 'answer', sdp: ans } });
+        for (const c of ss._iceBuffer[data.sender] || []) try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch {}
+        delete ss._iceBuffer[data.sender];
+    } else if (p.type === 'answer') {
+        await pc.setRemoteDescription(new RTCSessionDescription(p.sdp));
+        DevLog.log('RTC', `Remote answer applied from ${data.sender}`);
+        for (const c of ss._iceBuffer[data.sender] || []) try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch {}
+        delete ss._iceBuffer[data.sender];
+    } else if (p.type === 'ice') {
+        if (pc.remoteDescription)
+            try { await pc.addIceCandidate(new RTCIceCandidate(p.candidate)); } catch {}
+        else {
+            if (!ss._iceBuffer[data.sender]) ss._iceBuffer[data.sender] = [];
+            ss._iceBuffer[data.sender].push(p.candidate);
+            DevLog.log('RTC', `ICE buffered for ${data.sender} (no remote desc yet)`);
+        }
+    }
+}
+
 // ── Bridge Message Handler ──────────────────────────────────────────────────────
 async function handleBridgeMessage(data, serverId) {
     // Audio/OS-only messages have no serverId
@@ -10456,57 +10807,7 @@ async function handleBridgeMessage(data, serverId) {
     const isViewed = serverId === viewedServerId;
 
     if (data.action === 'INIT_CLIENT') {
-        DevLog.log('BRIDGE', `← C# | INIT_CLIENT alias:${data.alias} server:${serverId}`);
-        connectedServerIds.add(serverId);
-        ss._reconnectDelay = 1000;
-        ss.wsReady = true;
-        // Flush any messages queued before connection was ready (native: send via C# bridge)
-        if (!IS_WEB && ss._wsQueue.length) {
-            ss._wsQueue.forEach(msg => window.chrome.webview.postMessage(msg));
-            ss._wsQueue = [];
-        }
-        ss.myAlias = data.alias;
-        ss.myRole = 'guest';
-        ss.myStatus = 'online';
-        ss.userStatuses = {};
-        ss.userRoles    = {};
-        ss.pinnedMessages = {};
-        ss.inMutedChannel = false;
-        ss.e2eChannelKeys   = {};
-        ss.serverPublicKeys = {};
-        ss.e2eChannelAccess = {};
-        ss.channelMessages  = {};
-        ss.activeTextChannelId = null;
-        if (isViewed) {
-            const _rb2 = document.getElementById('role-badge');
-            if (_rb2) { _rb2.className = ''; _rb2.textContent = ''; }
-            document.getElementById('ui-alias').textContent = ss.myAlias;
-            document.getElementById('voice-mode-label').textContent = '';
-            updateMyAvatar();
-            const srv = clientConfig.servers.find(s => s.id === serverId);
-            document.getElementById('server-name-label').textContent = srv ? srv.name : 'Connected';
-            document.getElementById('sidebar-hdr-btns').style.display = '';
-            document.getElementById('telemetry-strip').style.display = '';
-        }
-        const srv = clientConfig.servers.find(s => s.id === serverId);
-        if (!IS_WEB && ss._localProxyPort > 0) {
-            ss.serverUploadBase = `http://localhost:${ss._localProxyPort}`;
-        } else {
-            const _uProto = IS_WEB && location.protocol === 'https:' ? 'https' : 'http';
-            const _uPort  = (srv?.port === 443 || srv?.port === 80) ? '' : `:${srv?.port}`;
-            ss.serverUploadBase = srv ? `${_uProto}://${srv.host}${_uPort}` : null;
-        }
-        renderServerBar();
-        postToBridge({ action: 'SET_VOICE_MODE', mode: settings.voiceMode });
-        postToBridge({ action: 'SET_PTT_KEY',    keyCode: settings.pttKeyCode });
-        if (isViewed) playSound('connect');
-        ss._suppressJoinSounds = true;
-        setTimeout(() => { ss._suppressJoinSounds = false; }, 2000);
-        await ensureEcdhKeyPair(serverId);
-        if (ss.myEcdhPubKey) {
-            const rawPub = await crypto.subtle.exportKey('raw', ss.myEcdhPubKey);
-            postToServer(serverId, { action:'REGISTER_PUBLIC_KEY', publicKey: _bytesToB64(rawPub) });
-        }
+        await _bmInitClient(data, ss, isViewed, serverId);
 
     } else if (data.action === 'ROLE_GRANTED') {
         DevLog.log('BRIDGE', `← C# | ROLE_GRANTED role:${data.role}`);
@@ -10543,76 +10844,7 @@ async function handleBridgeMessage(data, serverId) {
         if (settings.voiceMode === 'ptt') setMicGate(pttActive && !isMuted);
 
     } else if (data.action === 'CHAT_RECEIVE') {
-        const chId = data.channelId;
-        if (!chId) return;
-        DevLog.log('BRIDGE', `← C# | CHAT_RECEIVE from:${data.author} ch:${chId} id:${data.id||'none'}`);
-        let msgText = data.message;
-        let ciphertextBackup = null;
-        if (isE2eCiphertext(msgText)) {
-            ciphertextBackup = msgText;
-            msgText = ss.e2eChannelKeys[chId]
-                ? (await e2eDecrypt(ss.e2eChannelKeys[chId], msgText) ?? '[🔒 Decrypt error]')
-                : '[🔒 Encrypted — waiting for key]';
-        }
-        const isMassNotify = msgText && (msgText.includes('@everyone') || msgText.includes('@here'));
-        const isMention = isMassNotify ||
-            (ss.myAlias && msgText && msgText.toLowerCase().includes(`@${ss.myAlias.toLowerCase()}`)) ||
-            (ss.myRole && data.mentionedRoles && data.mentionedRoles.includes(ss.myRole));
-        const isKeywordHit = !isMention && data.author !== ss.myAlias && msgText &&
-            clientConfig.keywordNotifs?.some(kw => kw && msgText.toLowerCase().includes(kw.toLowerCase()));
-        if (data.ephemeral) {
-            if (isViewed && chId === ss.activeTextChannelId) {
-                renderChatMessage(data.id, data.author, data.time, msgText, false, {}, null, null, [], null, 0, null);
-                const el = document.getElementById(`msg-${data.id}`);
-                if (el) {
-                    el.classList.add('msg-ephemeral');
-                    let secs = data.ephemeralSeconds || 60;
-                    const t = document.createElement('span');
-                    t.className = 'msg-ephemeral-timer';
-                    el.querySelector('.msg-header')?.appendChild(t);
-                    const tick = () => { if (t.isConnected) { t.textContent = ` ⏳ ${secs}s`; if (secs-- > 0) setTimeout(tick, 1000); } };
-                    tick();
-                }
-            }
-        } else if (chId) {
-            if (!ss.channelMessages[chId]) ss.channelMessages[chId] = [];
-            const stored = { id: data.id, author: data.author, time: data.time, ts: data.ts || null, message: msgText,
-                reactions: data.reactions || {}, replyToId: data.replyToId || null, replySnippet: data.replySnippet || null, editHistory: data.editHistory || [],
-                threadId: data.threadId || null, threadCount: data.threadCount || 0, poll: data.poll || null,
-                forumTitle: data.forumTitle || null, forumTags: data.forumTags || null };
-            if (ciphertextBackup) stored._ciphertext = ciphertextBackup;
-            if (!data.id || !ss.channelMessages[chId].some(x => x.id === data.id))
-                ss.channelMessages[chId].push(stored);
-            const srvMuted   = isServerMuted(serverId);
-            const bypassMute = isMassNotify;
-            const chNotify   = getChannelNotifyPref(chId);
-            const chSilenced = chNotify === 'muted' || (chNotify === 'mentions' && !isMention);
-            const isNew = !data.ts || data.ts > (ss.lastSeenTs[chId] || 0);
-            if (!isViewed || chId !== ss.activeTextChannelId) {
-                if (!chSilenced && isNew) {
-                    ss.unreadCounts[chId] = (ss.unreadCounts[chId] || 0) + 1;
-                    if (isMention) ss.mentionCounts[chId] = (ss.mentionCounts[chId] || 0) + 1;
-                    saveUnread(serverId);
-                    if (isViewed) renderChannelList();
-                    renderServerBar(); // always update unread badge on icon
-                }
-                if (!chSilenced && isNew && (!srvMuted || bypassMute)) playSound((isMention || isKeywordHit) ? 'mention' : 'message');
-                if ((isMention || isKeywordHit) && isNew && data.author !== ss.myAlias) trackMention(serverId, chId, data.author, msgText, data.ts);
-            } else if (isMention || isKeywordHit) {
-                if (!chSilenced && (!srvMuted || bypassMute)) playSound('mention');
-                if (data.author !== ss.myAlias) trackMention(serverId, chId, data.author, msgText, data.ts);
-            }
-            if (!chSilenced && isNew && (!srvMuted || bypassMute) && data.author !== ss.myAlias && !document.hasFocus() && !isDndActive()) {
-                const chName = ss.serverChannels.find(c => c.id === chId)?.name || chId || '';
-                const notifBody = ciphertextBackup ? '🔒 Encrypted message' : (msgText || '').slice(0, 120);
-                const notifTitle = isMention ? `${data.author} mentioned you`
-                    : isKeywordHit ? `${data.author} used a keyword`
-                    : `#${chName}`;
-                postToBridge({ action: 'NOTIFY', title: notifTitle, body: notifBody });
-            }
-            if (isViewed && chId === ss.activeTextChannelId && !window._relayDmActive)
-                renderChatMessage(data.id, data.author, data.time, msgText, false, data.reactions || {}, data.replyToId, data.replySnippet, data.editHistory || [], data.threadId, data.threadCount, data.poll, data.forumTitle || null, data.forumTags || null, data.ts || null);
-        }
+        await _bmChatReceive(data, ss, isViewed, serverId);
 
     } else if (data.action === 'AUTOMOD_BLOCKED') {
         if (isViewed) showToast(`🚫 ${data.reason || 'Message blocked by auto-moderation.'}`, 'error');
@@ -10661,7 +10893,8 @@ async function handleBridgeMessage(data, serverId) {
         DevLog.log('BRIDGE', `← C# | MESSAGE_DELETED ch:${data.channelId} id:${data.messageId}`);
         if (ss.channelMessages[data.channelId])
             ss.channelMessages[data.channelId] = ss.channelMessages[data.channelId].filter(x => x.id !== data.messageId);
-        if (isViewed && data.channelId === ss.activeTextChannelId) removeMessageFromDOM(data.messageId);
+        if (isViewed && (data.channelId === ss.activeTextChannelId || data.channelId === `thread-${ss.activeThreadId}`))
+            removeMessageFromDOM(data.messageId);
 
     } else if (data.action === 'MESSAGES_BULK_DELETED') {
         DevLog.log('BRIDGE', `← C# | MESSAGES_BULK_DELETED ch:${data.channelId} count:${(data.messageIds||[]).length}`);
@@ -10687,131 +10920,7 @@ async function handleBridgeMessage(data, serverId) {
         }
 
     } else if (data.action === 'SERVER_INFO') {
-        DevLog.log('BRIDGE', `← C# | SERVER_INFO name:"${data.name}" channels:${data.channels.length} iceServers:${data.iceServers?.length ?? 0}`);
-        if (data.iceServers && data.iceServers.length) {
-            rtcConfig = { iceServers: data.iceServers };
-            DevLog.log('RTC', `ICE config updated | ${data.iceServers.length} server(s)`);
-        }
-
-        // Store the server's canonical ID and deduplicate entries for the same physical server
-        if (data.serverId) {
-            ss.canonicalId = data.serverId;
-            const thisSrv = clientConfig.servers.find(s => s.id === serverId);
-            if (thisSrv && thisSrv.canonicalId !== data.serverId) {
-                thisSrv.canonicalId = data.serverId;
-                saveClientConfig();
-                syncServersToRelay();
-            }
-            // Remove duplicate entries (same canonical ID, different host:port record)
-            const dupes = clientConfig.servers.filter(s => s.id !== serverId && s.canonicalId === data.serverId);
-            if (dupes.length > 0) {
-                // Check if the current connection used the wrong port for this platform
-                const wrongPort = !IS_WEB && thisSrv?.port === 443 && dupes.some(d => d.port !== 443);
-                if (wrongPort) {
-                    // Current entry is 443 on native — the dupe with the direct port is the right one
-                    // Disconnect current, mark it as dupe, keep the direct-port entry
-                    const goodEntry = dupes.find(d => d.port !== 443);
-                    disconnectFromServer(serverId);
-                    delete serverStates[serverId];
-                    connectedServerIds.delete(serverId);
-                    clientConfig.servers = clientConfig.servers.filter(s => s.id !== serverId);
-                    // Disconnect and remove remaining wrong dupes (other 443 entries)
-                    const remainingDupes = dupes.filter(d => d.id !== goodEntry?.id);
-                    for (const d of remainingDupes) { disconnectFromServer(d.id); delete serverStates[d.id]; connectedServerIds.delete(d.id); }
-                    clientConfig.servers = clientConfig.servers.filter(s => !remainingDupes.find(d => d.id === s.id));
-                } else {
-                    // Current entry is correct — remove the dupes
-                    for (const dupe of dupes) {
-                        disconnectFromServer(dupe.id);
-                        delete serverStates[dupe.id];
-                        connectedServerIds.delete(dupe.id);
-                    }
-                    clientConfig.servers = clientConfig.servers.filter(s => !dupes.find(d => d.id === s.id));
-                }
-                saveClientConfig();
-                syncServersToRelay();
-                renderServerBar();
-                renderServerList();
-                DevLog.log('SETTINGS', `Merged ${dupes.length} duplicate server entry(s) for "${data.name}"`);
-            }
-        }
-
-        // Learn and persist the server's real direct HTTP port so future connections start with the correct proxy target.
-        // Also send UPDATE_PROXY_TARGET now in case the current proxy was started with the wrong port.
-        if (!IS_WEB && data.serverPort) {
-            const _pSrv = clientConfig.servers.find(s => s.id === serverId);
-            if (_pSrv) {
-                postToBridge({ action: 'UPDATE_PROXY_TARGET', serverId, host: _pSrv.host, port: data.serverPort });
-                if (_pSrv.nativePort !== data.serverPort) {
-                    _pSrv.nativePort = data.serverPort;
-                    saveClientConfig();
-                }
-            }
-        }
-
-        ss.serverIconUrl = data.serverIcon || null;
-        (async () => {
-            const srv = clientConfig.servers.find(x => x.id === serverId);
-            if (!srv) return;
-            if (!ss.serverIconUrl) { srv.cachedIconDataUrl = null; saveClientConfig(); return; }
-            const fullUrl = normalizeUploadUrl(ss.serverIconUrl) || ss.serverIconUrl;
-            if (!fullUrl || srv.cachedIconDataUrl) return;
-            try {
-                const res = await fetch(fullUrl);
-                if (!res.ok) return;
-                const blob = await res.blob();
-                const reader = new FileReader();
-                reader.onload = () => { srv.cachedIconDataUrl = reader.result; saveClientConfig(); renderServerBar(); };
-                reader.readAsDataURL(blob);
-            } catch {}
-        })();
-        if (data.userAvatars  && typeof data.userAvatars  === 'object') {
-            Object.assign(ss.userAvatars, data.userAvatars);
-            if (!ss.userAvatars[ss.myAlias] && clientConfig.localAvatars?.[ss.myAlias] && ss.serverUploadBase) {
-                _autoUploadLocalAvatar(ss.myAlias);
-            }
-        }
-        if (data.userStatuses     && typeof data.userStatuses     === 'object') { Object.assign(ss.userStatuses,    data.userStatuses); if (isViewed) updateChannelOnlineCount(); }
-        if (data.userStatusTexts  && typeof data.userStatusTexts  === 'object') Object.assign(ss.userStatusTexts, data.userStatusTexts);
-        if (data.userRoles        && typeof data.userRoles        === 'object') Object.assign(ss.userRoles,       data.userRoles);
-        if (data.roleColors       && typeof data.roleColors       === 'object') ss.roleColors = data.roleColors;
-        if (Array.isArray(data.events)) { ss.serverEvents = data.events; if (isViewed) _checkEventBanners(); }
-        if (data.emojis       && typeof data.emojis       === 'object') ss.serverEmojis    = data.emojis;
-        if (Array.isArray(data.webhooks))     ss.serverWebhooks    = data.webhooks;
-        if (Array.isArray(data.botTokens))    ss.serverBotTokens   = data.botTokens;
-        if (Array.isArray(data.inboundHooks)) ss.serverInboundHooks = data.inboundHooks;
-        if (data.publicKeys && typeof data.publicKeys === 'object') Object.assign(ss.serverPublicKeys, data.publicKeys);
-        if (data.e2eAccess  && typeof data.e2eAccess  === 'object') Object.assign(ss.e2eChannelAccess, data.e2eAccess);
-        if (data.voiceStatuses  && typeof data.voiceStatuses  === 'object') ss.voiceStatuses = data.voiceStatuses;
-        if (data.voiceOccupants && typeof data.voiceOccupants === 'object') Object.assign(ss.voiceChannelUsers, data.voiceOccupants);
-        if (data.starboard && typeof data.starboard === 'object') ss.starboardConfig = { ...ss.starboardConfig, ...data.starboard };
-        if (typeof data.privacyStatement === 'string') ss.serverPrivacyStatement = data.privacyStatement;
-        if (data.dmPublicKeys && typeof data.dmPublicKeys === 'object') Object.assign(ss.dmPublicKeys, data.dmPublicKeys);
-        if (typeof data.xpEnabled === 'boolean') ss.xpEnabled = data.xpEnabled;
-        if (data.memberLevels && typeof data.memberLevels === 'object') ss.memberLevels = data.memberLevels;
-        if (data.memberRioChars && typeof data.memberRioChars === 'object') ss.memberRioChars = data.memberRioChars;
-        if (data.memberSteamProfiles && typeof data.memberSteamProfiles === 'object') ss.memberSteamProfiles = data.memberSteamProfiles;
-        if (data.memberDotaProfiles  && typeof data.memberDotaProfiles  === 'object') ss.memberDotaProfiles  = data.memberDotaProfiles;
-        if (data.memberBios && typeof data.memberBios === 'object') ss.memberBios = data.memberBios;
-        ss.serverChannels = data.channels;
-        ss.channelSlowMode = {};
-        data.channels.forEach(c => { if (c.slowMode) ss.channelSlowMode[c.id] = c.slowMode; });
-        ss._collapsedCats = loadCollapsedCats(serverId);
-        loadUnread(serverId);
-        DevLog.log('ERR', `[SI] isViewed=${isViewed} chCount=${ss.serverChannels.length} types=${ss.serverChannels.map(c=>c.type).join(',').slice(0,80)}`);
-        if (isViewed) {
-            const _prevCh = ss.serverChannels.find(c => c.id === ss.activeTextChannelId);
-            const _initCh = (_prevCh && (_prevCh.type === 'Text' || _prevCh.type === 'Forum'))
-                ? _prevCh
-                : ss.serverChannels.find(c => c.type === 'Text');
-            DevLog.log('ERR', `[SI] prevCh=${_prevCh?.id||'null'} initCh=${_initCh?.id||'null'} activeTextCh=${ss.activeTextChannelId}`);
-            if (_initCh) selectTextChannel(_initCh.id);
-            updateMyAvatar();
-            renderChannelList();
-            document.getElementById('btn-members')?.classList.add('visible');
-            if (document.getElementById('members-panel')?.classList.contains('open')) renderMembersPanel();
-        }
-        renderServerBar();
+        await _bmServerInfo(data, ss, isViewed, serverId);
 
     } else if (data.action === 'AVATAR_UPDATED') {
         DevLog.log('BRIDGE', `← C# | AVATAR_UPDATED alias:${data.alias}`);
@@ -10848,6 +10957,7 @@ async function handleBridgeMessage(data, serverId) {
         ss.remoteSpeaking.delete(data.alias);
 
     } else if (data.action === 'VOICE_STATE_UPDATE') {
+        if (!requireFields(data, 'channelId', 'users')) return;
         DevLog.log('BRIDGE', `← C# | VOICE_STATE_UPDATE ch:${data.channelId} users:[${data.users.join(',')}]`);
         ss.voiceChannelUsers[data.channelId] = data.users;
         if (data.users.includes(ss.myAlias)) {
@@ -10877,61 +10987,7 @@ async function handleBridgeMessage(data, serverId) {
         }
 
     } else if (data.action === 'DISCONNECTED') {
-        DevLog.log('BRIDGE', `← C# | DISCONNECTED server:${serverId}`);
-        saveUnread(serverId);
-        connectedServerIds.delete(serverId);
-        // Clean up voice if we were voiced on this server
-        if (voiceServerId === serverId) {
-            voiceServerId = null; voiceChannelId = null;
-            speaking = false; setMicGate(false);
-        }
-        // Clean up WebRTC peers for this server
-        Object.values(ss.peers).forEach(pc => pc.close());
-        if (ss.displayStream) stopScreenShare();
-        if (ss.localVideoStream) stopVideo();
-        // Reset this server's state (keep the slot so reconnect can reuse it)
-        const fresh = createServerState();
-        fresh._userDisconnected = ss._userDisconnected;
-        fresh._reconnectDelay   = ss._reconnectDelay;
-        fresh._reconnectTimer   = ss._reconnectTimer;
-        serverStates[serverId]  = fresh;
-        // Only update UI if this was the viewed server
-        if (isViewed) {
-            playSound('disconnect');
-            _clearTyping();
-            document.getElementById('event-banner')?.classList.add('hidden');
-            document.getElementById('tab-btn-admin')?.classList.remove('visible');
-            document.getElementById('tab-btn-webhooks')?.classList.remove('visible');
-            document.getElementById('tab-btn-botapi')?.classList.remove('visible');
-            const _sdot = document.getElementById('my-status-dot');
-            if (_sdot) _sdot.className = 'status-dot online';
-            const _rb = document.getElementById('role-badge');
-            if (_rb) { _rb.className = ''; _rb.textContent = ''; }
-            document.getElementById('input-area')?.classList.remove('readonly');
-            updateMyAvatar();
-            const _sp = document.getElementById('screen-share-panel');
-            if (_sp) { _sp.innerHTML = ''; _sp.classList.remove('active'); }
-            closeShareOverlay();
-            updateShareButtonVisibility();
-            _clearWatchPanel();
-            document.getElementById('server-name-label').textContent = 'Not connected';
-            document.getElementById('sidebar-hdr-btns').style.display = 'none';
-            document.getElementById('telemetry-strip').style.display = 'none';
-            if (activeRecorder) stopRecording();
-            document.getElementById('ui-alias').textContent = (relayToken && relayAlias) ? relayAlias : clientConfig.activeAlias;
-            document.getElementById('chat-channel-name').textContent = '—';
-            document.getElementById('chat-history').innerHTML = '';
-            document.getElementById('chat-channel-icon').textContent = '#';
-            closeSearch();
-            renderChannelList();
-            const _membersBtn = document.getElementById('btn-members');
-            if (_membersBtn) _membersBtn.classList.remove('visible', 'active');
-            const _membersPanel = document.getElementById('members-panel');
-            if (_membersPanel) { _membersPanel.classList.remove('open'); _membersPanel.querySelector('#members-list').innerHTML = ''; }
-        }
-        renderServerBar();
-        // Native: C# signals disconnect; JS must schedule reconnect (web does it in onclose)
-        if (!IS_WEB && !fresh._userDisconnected) _scheduleReconnect(serverId);
+        _bmDisconnected(data, ss, isViewed, serverId);
 
     } else if (data.action === 'AUTH_FAILED') {
         DevLog.log('ERR', `← C# | AUTH_FAILED: ${data.reason}`);
@@ -10960,32 +11016,7 @@ async function handleBridgeMessage(data, serverId) {
         }
 
     } else if (data.action === 'WEBRTC_SIGNAL') {
-        DevLog.log('BRIDGE', `← C# | WEBRTC_SIGNAL from:${data.sender} type:${data.payload.type}`);
-        const pc = await setupPeer(data.sender, false, serverId);
-        const p  = data.payload;
-        if (!ss._iceBuffer) ss._iceBuffer = {};
-        if (p.type === 'offer') {
-            await pc.setRemoteDescription(new RTCSessionDescription(p.sdp));
-            const ans = await pc.createAnswer();
-            await pc.setLocalDescription(ans);
-            DevLog.log('RTC', `Answer sent to ${data.sender} | sdpLen:${JSON.stringify(ans).length}`);
-            postToServer(serverId, { action: 'WEBRTC_SIGNAL', target: data.sender, sender: ss.myAlias, payload: { type: 'answer', sdp: ans } });
-            for (const c of ss._iceBuffer[data.sender] || []) try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch {}
-            delete ss._iceBuffer[data.sender];
-        } else if (p.type === 'answer') {
-            await pc.setRemoteDescription(new RTCSessionDescription(p.sdp));
-            DevLog.log('RTC', `Remote answer applied from ${data.sender}`);
-            for (const c of ss._iceBuffer[data.sender] || []) try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch {}
-            delete ss._iceBuffer[data.sender];
-        } else if (p.type === 'ice') {
-            if (pc.remoteDescription)
-                try { await pc.addIceCandidate(new RTCIceCandidate(p.candidate)); } catch {}
-            else {
-                if (!ss._iceBuffer[data.sender]) ss._iceBuffer[data.sender] = [];
-                ss._iceBuffer[data.sender].push(p.candidate);
-                DevLog.log('RTC', `ICE buffered for ${data.sender} (no remote desc yet)`);
-            }
-        }
+        await _bmWebrtcSignal(data, ss, isViewed, serverId);
 
     } else if (data.action === 'SCREEN_SHARE_STARTED') {
         DevLog.log('RTC', `← C# | SCREEN_SHARE_STARTED from:${data.alias}`);
@@ -11358,7 +11389,6 @@ async function handleBridgeMessage(data, serverId) {
             if (isViewed) {
                 if (ss._forumThreadMsgId === parentMsgId) {
                     ss.activeThreadId = data.threadId;
-                    activeThreadId = data.threadId;
                     postToServer(viewedServerId, { action: 'GET_THREAD_HISTORY', threadId: data.threadId });
                 } else {
                     const row = document.querySelector(`[data-msg-id="${parentMsgId}"]`);
@@ -11383,10 +11413,10 @@ async function handleBridgeMessage(data, serverId) {
         if (isViewed) {
             const parentId = Object.keys(ss.threadMsgMap).find(k => ss.threadMsgMap[k] === data.threadId);
             const ch = ss.channels?.find(c => c.id === ss.activeTextChannelId);
-            if (ch?.type === 'Forum' && parentId) {
+            if (ch?.type === CH_TYPE.FORUM && parentId) {
                 if (ss._forumThreadMsgId === parentId) {
                     // Already in this thread view — don't rebuild, just ensure activeThreadId is set
-                    if (!ss.activeThreadId) { ss.activeThreadId = data.threadId; activeThreadId = data.threadId; }
+                    if (!ss.activeThreadId) { ss.activeThreadId = data.threadId; }
                 } else {
                     openForumThreadView(parentId, ss.activeTextChannelId);
                 }
@@ -11605,7 +11635,7 @@ function showUserCtxMenu(e, alias) {
 
     // Admin section
     const myRole = _ss?.myRole;
-    const isAdmin = ['admin','owner'].includes(myRole);
+    const isAdmin = isElevated(myRole);
     const adminSection = document.getElementById('ctx-admin-section');
     if (adminSection) {
         adminSection.style.display = (isAdmin && alias !== _ss?.myAlias) ? 'block' : 'none';
@@ -11648,9 +11678,9 @@ function showMsgCtxMenu(e, msgId, author) {
 
     const _rss    = serverStates[viewedServerId];
     const isOwn   = author === _rss?.myAlias;
-    const canDel  = isOwn || ['admin','owner'].includes(_rss?.myRole);
-    const canPin  = ['admin','owner'].includes(_rss?.myRole);
-    const isAdmin = ['admin','owner'].includes(_rss?.myRole);
+    const canDel  = isOwn || isElevated(_rss?.myRole);
+    const canPin  = isElevated(_rss?.myRole);
+    const isAdmin = isElevated(_rss?.myRole);
     const isSelf  = author === _rss?.myAlias;
 
     // Reactions row
@@ -12079,7 +12109,7 @@ function renderMembersPanel() {
 // ── Admin Context Menu ─────────────────────────────────────────────────────────
 function _adminCmdChannel() {
     const ss = serverStates[viewedServerId];
-    return ss?.activeTextChannelId || ss?.serverChannels.find(c => c.type === 'Text')?.id;
+    return ss?.activeTextChannelId || ss?.serverChannels.find(c => c.type === CH_TYPE.TEXT)?.id;
 }
 
 function ctxKick() {
@@ -12133,6 +12163,7 @@ function startOrOpenThread(msgId, forumChannelId) {
 
 // ── Forum inline thread view ──────────────────────────────────────────────────
 function openForumThreadView(msgId, channelId) {
+    try {
     const ss = serverStates[viewedServerId];
     if (!ss) return;
     const chId = channelId || ss.activeTextChannelId;
@@ -12145,6 +12176,7 @@ function openForumThreadView(msgId, channelId) {
     document.getElementById('forum-compose-bar')?.classList.remove('visible');
 
     const h = document.getElementById('chat-history');
+    if (!h) return;
     h.classList.remove('forum-mode');
     h.classList.add('forum-thread-mode');
     h.innerHTML = '';
@@ -12227,17 +12259,17 @@ function openForumThreadView(msgId, channelId) {
     const existingThreadId = ss.threadMsgMap[msgId];
     if (existingThreadId) {
         ss.activeThreadId = existingThreadId;
-        activeThreadId = existingThreadId;
         postToServer(viewedServerId, { action: 'GET_THREAD_HISTORY', threadId: existingThreadId });
     } else {
         postToServer(viewedServerId, { action: 'CREATE_THREAD', channelId: chId, messageId: msgId });
     }
+    } catch(e) { DevLog.log('ERR', `openForumThreadView crash: ${e.message}`); }
 }
 
 function _buildFtvPost(data, postNum) {
     const ss = serverStates[viewedServerId];
     const isOwn = data.author === ss?.myAlias;
-    const isElevated = ['admin','owner'].includes(ss?.myRole);
+    const _canModerate = isElevated(ss?.myRole);
     const role = ss?.userRoles?.[data.author] || (isOwn ? ss?.myRole : 'guest') || 'guest';
     const bio = ss?.memberBios?.[data.author] || '';
 
@@ -12283,7 +12315,7 @@ function _buildFtvPost(data, postNum) {
         eBtn.addEventListener('click', () => editMessage(data.id, data.author));
         btnRow.appendChild(eBtn);
     }
-    if ((isOwn || isElevated) && data.id) {
+    if ((isOwn || _canModerate) && data.id) {
         const dBtn = document.createElement('button');
         dBtn.className = 'ftv-act-btn del';
         dBtn.textContent = 'Delete';
@@ -12301,7 +12333,6 @@ function closeForumThread() {
     const ss = serverStates[viewedServerId];
     _stopFtvTranscription();
     if (ss) { ss._forumThreadMsgId = null; ss.activeThreadId = null; }
-    activeThreadId = null;
     if (ss?.activeTextChannelId) selectTextChannel(ss.activeTextChannelId);
 }
 
@@ -12309,17 +12340,6 @@ function sendForumReply(e) {
     if (e.key !== 'Enter' || e.shiftKey) return;
     e.preventDefault();
     sendForumReplyBtn();
-}
-
-function sendForumReplyBtn() {
-    const ta = document.getElementById('ftv-reply-input');
-    const msg = ta?.value.trim();
-    const ss = serverStates[viewedServerId];
-    DevLog.log('FORUM', `→ sendForumReplyBtn msg:"${msg?.slice(0,30)}" threadId:${ss?.activeThreadId}`);
-    if (!msg || !ss?.activeThreadId) return;
-    postToServer(viewedServerId, { action: 'SEND_THREAD_MESSAGE', threadId: ss.activeThreadId, message: msg });
-    ta.value = '';
-    ta.style.height = 'auto';
 }
 
 function _deleteForumPost(e, msgId) {
@@ -12403,13 +12423,14 @@ function _stopFtvTranscription() {
 }
 
 function openThread(threadId, parentMsgId) {
+    try {
     const ss = serverStates[viewedServerId];
     if (ss) ss.activeThreadId = threadId;
-    activeThreadId = threadId;
     const panel = document.getElementById('thread-panel');
     if (!panel) return;
     panel.classList.add('open');
-    document.getElementById('thread-panel-title').textContent = 'Thread';
+    const titleEl = document.getElementById('thread-panel-title');
+    if (titleEl) titleEl.textContent = 'Thread';
 
     const preview = document.getElementById('thread-parent-preview');
     if (preview && parentMsgId) {
@@ -12424,17 +12445,32 @@ function openThread(threadId, parentMsgId) {
     }
     if (preview && !parentMsgId) preview.innerHTML = '';
 
-    document.getElementById('thread-history').innerHTML = '';
+    const th = document.getElementById('thread-history');
+    if (th) th.innerHTML = '';
     postToServer(viewedServerId, { action: 'GET_THREAD_HISTORY', threadId });
+    } catch(e) { DevLog.log('ERR', `openThread crash: ${e.message}`); }
 }
 
 function closeThread() {
     const ss = serverStates[viewedServerId];
     if (ss) ss.activeThreadId = null;
-    activeThreadId = null;
     document.getElementById('thread-panel')?.classList.remove('open');
-    document.getElementById('thread-history').innerHTML = '';
-    document.getElementById('thread-parent-preview').innerHTML = '';
+    const th = document.getElementById('thread-history');
+    if (th) th.innerHTML = '';
+    const tp = document.getElementById('thread-parent-preview');
+    if (tp) tp.innerHTML = '';
+}
+
+function sendForumReplyBtn() {
+    try {
+    const ta = document.getElementById('ftv-reply-input');
+    const msg = ta?.value.trim();
+    const ss = serverStates[viewedServerId];
+    DevLog.log('FORUM', `→ sendForumReplyBtn msg:"${msg?.slice(0,30)}" threadId:${ss?.activeThreadId}`);
+    if (!msg || !ss?.activeThreadId) return;
+    postToServer(viewedServerId, { action: 'SEND_THREAD_MESSAGE', threadId: ss.activeThreadId, message: msg });
+    if (ta) { ta.value = ''; ta.style.height = 'auto'; }
+    } catch(e) { DevLog.log('ERR', `sendForumReplyBtn crash: ${e.message}`); }
 }
 
 function sendThreadMessage(e) {
@@ -12509,7 +12545,7 @@ function renderStarboardSettings() {
     if (!el) return;
     const ss = serverStates[viewedServerId];
     const starboardConfig = ss?.starboardConfig || { enabled: false, channelId: '', emoji: '⭐', threshold: 3 };
-    const textChannels = (ss?.serverChannels || []).filter(c => c.type === 'Text');
+    const textChannels = (ss?.serverChannels || []).filter(c => c.type === CH_TYPE.TEXT);
     const channelOptions = textChannels.map(c =>
         `<option value="${escapeHtml(c.id)}" ${starboardConfig.channelId === c.id ? 'selected' : ''}>#${escapeHtml(c.name)}</option>`
     ).join('');
@@ -12599,15 +12635,15 @@ function renderAdminChannels() {
     if (!el) return;
     const ss = serverStates[viewedServerId];
     if (!ss) { el.innerHTML = '<div class="empty-state">Not connected.</div>'; return; }
-    const canManage = ['admin','owner'].includes(ss.myRole);
+    const canManage = isElevated(ss.myRole);
     // Show add-channel buttons only to admin+
     const addBtns = document.getElementById('admin-ch-add-btns');
     if (addBtns) addBtns.style.display = canManage ? '' : 'none';
     if (!ss.serverChannels.length) { el.innerHTML = '<div class="empty-state">No channels.</div>'; return; }
     const roles = ['guest','member','trusted','admin','owner'];
     el.innerHTML = ss.serverChannels.map((ch, idx) => {
-        const isHeader = ch.type === 'Header';
-        const isVoice  = ch.type === 'Voice';
+        const isHeader = ch.type === CH_TYPE.HEADER;
+        const isVoice  = ch.type === CH_TYPE.VOICE;
         const icon     = isHeader ? '📁' : (isVoice ? '🔊' : (ch.e2e ? '🔒' : '#'));
 
         const moveHtml = canManage ? `
@@ -12734,7 +12770,7 @@ function renderWebhooksSection() {
     if (!el) return;
     const ss = serverStates[viewedServerId];
     const httpBase = ss?.serverUploadBase || 'http://&lt;server&gt;:&lt;port&gt;';
-    const textChannels = (ss?.serverChannels || []).filter(c => c.type === 'Text');
+    const textChannels = (ss?.serverChannels || []).filter(c => c.type === CH_TYPE.TEXT);
     const chOptions = '<option value="">— all channels —</option>' +
         textChannels.map(c => `<option value="${escapeHtml(c.id)}">#${escapeHtml(c.name)}</option>`).join('');
 
@@ -12745,7 +12781,7 @@ function renderWebhooksSection() {
                     <div class="admin-item-name">${escapeHtml(wh.name || 'Unnamed')}</div>
                     <div class="admin-item-sub">${escapeHtml(wh.url || '')}${wh.channelId ? ` · #${escapeHtml(textChannels.find(c=>c.id===wh.channelId)?.name||wh.channelId)}` : ' · all channels'}</div>
                 </div>
-                <button class="btn-danger-sm" onclick="adminDeleteWebhook('${escapeHtml(wh.url||'')}')">✕</button>
+                <button class="btn-danger-sm" data-wh-url="${escapeHtml(wh.url||'')}" onclick="adminDeleteWebhook(this.dataset.whUrl)">✕</button>
             </div>`).join('')
         : '<div class="empty-state">No outbound webhooks.</div>';
 
@@ -14268,16 +14304,16 @@ async function relayFetch(path, opts = {}) {
 
 function relayPersist() {
     if (relayToken) {
-        localStorage.setItem('iskra_relay_token',    relayToken);
-        localStorage.setItem('iskra_relay_userId',   relayUserId || '');
-        localStorage.setItem('iskra_relay_alias',    relayAlias  || '');
-        localStorage.setItem('iskra_relay_verified', relayEmailVerified ? '1' : '0');
-        localStorage.setItem('iskra_relay_email',    relayEmail  || '');
-        if (relayAvatarDataUrl) localStorage.setItem('iskra_relay_avatar', relayAvatarDataUrl);
-        else localStorage.removeItem('iskra_relay_avatar');
+        sessionStorage.setItem('iskra_relay_token',    relayToken);
+        sessionStorage.setItem('iskra_relay_userId',   relayUserId || '');
+        sessionStorage.setItem('iskra_relay_alias',    relayAlias  || '');
+        sessionStorage.setItem('iskra_relay_verified', relayEmailVerified ? '1' : '0');
+        sessionStorage.setItem('iskra_relay_email',    relayEmail  || '');
+        if (relayAvatarDataUrl) sessionStorage.setItem('iskra_relay_avatar', relayAvatarDataUrl);
+        else sessionStorage.removeItem('iskra_relay_avatar');
     } else {
         ['iskra_relay_token','iskra_relay_userId','iskra_relay_alias','iskra_relay_verified','iskra_relay_email','iskra_relay_avatar']
-            .forEach(k => localStorage.removeItem(k));
+            .forEach(k => sessionStorage.removeItem(k));
     }
 }
 
@@ -14553,6 +14589,7 @@ async function iskraidSubmit() {
         renderIskraidTab();
         await relayLoadFriends();
         startRelayPoll();
+        _reconnectAllWithRelay();
     }
 }
 
@@ -14864,14 +14901,12 @@ function toggleRelayPanel() {
     _inRelayMode = !_inRelayMode;
     const btn    = document.getElementById('friends-toggle-btn');
     const panel  = document.getElementById('relay-panel');
-    const dmPanel  = document.getElementById('dm-panel');
     const chList   = document.getElementById('channel-list');
     btn?.classList.toggle('active', _inRelayMode);
     panel?.classList.toggle('open', _inRelayMode);
     if (_inRelayMode) {
-        dmPanel?.classList.remove('open');
+        if (inDmMode) closeDmMode();
         chList?.style.setProperty('display', 'none');
-        document.getElementById('dm-toggle-btn')?.classList.remove('active');
         if (relayToken) relayLoadFriends().then(renderRelayPanel);
         else renderRelayPanel();
     } else {
@@ -15519,7 +15554,7 @@ function initChannelListDragDrop() {
     if (!container) return;
     let _dragId = null;
     container.addEventListener('dragstart', e => {
-        if (!['admin','owner'].includes(serverStates[viewedServerId]?.myRole)) return;
+        if (!isElevated(serverStates[viewedServerId]?.myRole)) return;
         const el = e.target.closest('[data-chid]');
         if (!el) return;
         _dragId = el.dataset.chid;
@@ -15647,7 +15682,7 @@ async function sendVoiceMessage() {
         const serverId = viewedServerId || '';
         const ss = serverStates[viewedServerId];
         const chId = ss?.activeTextChannelId
-            || ss?.serverChannels?.find(c => c.type === 'Text')?.id;
+            || ss?.serverChannels?.find(c => c.type === CH_TYPE.TEXT)?.id;
         if (!serverId || !chId) {
             showToast('Select a text channel first to send a voice message.', 'error');
             return;

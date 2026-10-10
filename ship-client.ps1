@@ -80,6 +80,30 @@ if (Test-Path $launcherExeSrc) {
     Write-Host "Copied iskra_launcher.exe into client bin" -ForegroundColor Cyan
 }
 
+# 2.5 Code-sign the exes (SimplySign Desktop must be connected and logged in)
+Write-Host "Signing executables..." -ForegroundColor Cyan
+$signtool = (Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Recurse -Filter 'signtool.exe' -ErrorAction SilentlyContinue |
+    Where-Object { $_.FullName -match 'x64' } |
+    Sort-Object FullName -Descending |
+    Select-Object -First 1).FullName
+if (-not $signtool) { $signtool = 'signtool' }
+
+$toSign = @(
+    (Join-Path $binDir         'iskra_client.exe'),
+    (Join-Path $launcherBinDir 'iskra_launcher.exe')
+) | Where-Object { Test-Path $_ }
+
+foreach ($exe in $toSign) {
+    $signOut = & "$signtool" sign /tr http://timestamp.certum.pl /td sha256 /fd sha256 /n "Open Source Developer Viktor Lundgren" "$exe" 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Signing FAILED for $([System.IO.Path]::GetFileName($exe)):" -ForegroundColor Red
+        Write-Host ($signOut | Out-String) -ForegroundColor Red
+        Write-Host "Ensure SimplySign Desktop is connected and logged in, then retry." -ForegroundColor Yellow
+        exit 1
+    }
+    Write-Host "  Signed $([System.IO.Path]::GetFileName($exe))" -ForegroundColor Green
+}
+
 # 3. Zip (skip .pdb and .xml)
 Write-Host "Zipping..." -ForegroundColor Cyan
 if (Test-Path $zipOut) { Remove-Item $zipOut }
