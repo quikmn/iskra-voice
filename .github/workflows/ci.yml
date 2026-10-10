@@ -79,6 +79,8 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: bash ../scripts/get-livekit.sh
+      - run: npm ci && npm run typecheck
+        working-directory: bots
       - run: npm run test:interop
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4

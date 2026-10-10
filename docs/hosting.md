@@ -6,20 +6,21 @@ There are three ways to run one:
 
 | | Best for | Friends can join from |
 |---|---|---|
-| **The desktop app** (Windows) | Trying it out, LAN parties, friends at home or anywhere | Desktop app; any browser once it's open to the internet |
-| **The standalone server** on your PC | Always-on server at home | Desktop app; any browser once it's open to the internet |
+| **The desktop app** (Windows; macOS and Linux with the next release) | Trying it out, LAN parties, friends at home or anywhere | Desktop app; any browser and phone once it's open to the internet |
+| **The standalone server** on your PC | Always-on server at home | Desktop app; any browser and phone once it's open to the internet |
 | **The standalone server on a VPS** (Linux) | Friends all over the place, 24/7 | Desktop app and any browser (with HTTPS) |
 
 ## 1. From the desktop app
 
 Install Iskra, click **Create a server**, pick a name. Done: the server runs on your PC (voice included) while the app is open, and you're its owner. Click **Invite friends** to get a link.
 
-- Its folder is `Documents\Iskra\Servers\<name>`.
+- Its folder is `Documents\Iskra\Servers\<name>` (on macOS: `~/Library/Application Support/Iskra/Servers/<name>`).
 - Friends on the same network can join right away. For friends elsewhere, turn on **Settings → Open to the internet** (see [Reaching your server from the internet](#reaching-your-server-from-the-internet)).
+- The server stops when you quit the app. For a server that's always on, use the standalone server.
 
 ## 2. The standalone server
 
-Download `iskra-server` for [Windows or Linux](https://github.com/quikmn/iskra-voice/releases) and unpack it. Voice (LiveKit) is included.
+Download `iskra-server` for [Windows or Linux](https://github.com/quikmn/iskra-voice/releases) (macOS builds come with the next release) and unpack it. Voice (LiveKit) is included.
 
 ```sh
 iskra-server my-server        # Windows: iskra-server.exe my-server
@@ -65,7 +66,7 @@ sudo journalctl -u iskra -f        # shows the owner link on first start
 
 ### One switch: Open to the internet
 
-As the owner, open **Settings** in the app and turn on **Open to the internet**. Iskra then:
+As the owner, open **Settings** in the app and turn on **Open to the internet**. This works the same for a server in the desktop app and for the standalone server at home. Iskra then:
 
 1. **Asks your router to open the ports** (UPnP or NAT-PMP): outside `80/tcp` and `443/tcp` to the server's port, and voice `7881/tcp` and `7882/udp` (your `Voice` ports). It keeps them open while the server runs and closes them when it stops.
 2. **Gives your server a free address** that points at your public IP, like `203-0-113-7.sslip.io`.
@@ -100,6 +101,20 @@ On a VPS, or if you'd rather set things up yourself:
 
 Restart the server. It answers Let's Encrypt on port 80, stores the certificate in `certs/`, renews it automatically, and redirects plain HTTP to HTTPS. Have your own certificate? Use `"Mode": "files"` with `CertFile` and `KeyFile` (PEM).
 
+### Ports at a glance
+
+| Port | What | When |
+|---|---|---|
+| `47070/tcp` (`Port`) | The server: app, invites, uploads, voice signaling, webhooks. Speaks HTTP and HTTPS on the same port. | Always |
+| `80/tcp` → server port | Let's Encrypt's check, and redirects to HTTPS | Open to the internet, or `Https` on |
+| `443/tcp` → server port | HTTPS for friends | Open to the internet, or `Https` on |
+| `7881/tcp`, `7882/udp` | Voice and video media (`RtcTcpPort`, `RtcUdpPort`) | Always, for voice from outside your network |
+| `7880` | LiveKit's local API | Never exposed |
+
+### Push notifications
+
+Nothing to set up. On first start the server makes its push key (`vapid.json`) and sends notifications for mentions, replies, DMs and calls through the browsers' own push services (an outgoing HTTPS connection). Members turn them on per device in **Settings → Notifications**; on phones that needs the web app over HTTPS, and on iPhone and iPad the app added to the Home Screen.
+
 ## `server.json` reference
 
 ```jsonc
@@ -109,6 +124,11 @@ Restart the server. It answers Let's Encrypt on port 80, stores the certificate 
   "PublicUrl": null,                   // how friends reach the server; default http://localhost:<Port>, or https://<Domain>
   "AppUrl": "https://app.iskra.foo",   // the web app invite links open
   "MaxUploadMb": 100,                  // largest file a member may upload
+  "UploadQuota": {                     // per account, over any 24 hours; 0 = no limit (admins and the owner have none)
+    "MemberMbPerDay": 2048,            // members and trusted
+    "GuestMbPerDay": 200
+  },
+  "LocalOnly": false,                  // true: listen on localhost only (testing; nobody else can connect)
   "Voice": {
     "Enabled": true,
     "LiveKitPath": null,               // default: next to iskra-server, then $ISKRA_LIVEKIT, then PATH
@@ -141,12 +161,20 @@ Restart the server. It answers Let's Encrypt on port 80, stores the certificate 
 | `server.json` | Settings (above) |
 | `server.key` | The server's identity. Invite links pin it, so clients know they reach the real server. Keep it secret, keep it with the folder. |
 | `iskra.db` | Members, channels, messages, roles, invites, direct-message envelopes (encrypted end to end) |
-| `uploads/` | Uploaded files, stored once per unique content |
-| `livekit.key` | Keys between the server and its voice service |
-| `certs/` | HTTPS certificates (when HTTPS is on, or open to the internet) |
+| `uploads/` | Uploaded files (including avatars, custom emoji and soundboard sounds), stored once per unique content |
+| `livekit.key` | Keys between the server and its voice service (handed to LiveKit in its environment, never on the command line) |
+| `vapid.json` | The server's push-notification key. Keep it with the folder: if it's lost, a new one is made and members turn notifications on again. |
+| `certs/` | HTTPS certificates and the Let's Encrypt account (when HTTPS is on, or open to the internet) |
+| `owner-invite.txt` | The one-time owner link, until the owner has joined |
 | `server.log` | Output, when started from the desktop app |
 
-**Backups:** stop the server and copy the folder. **Moving:** copy the folder to the new machine, run it there, and update `PublicUrl` if the address changed; members and links keep working because the server's identity travels with it. **Updating:** replace the `iskra-server` and `livekit-server` files and start it again.
+Profile pages, polls, threads, pins, webhooks (only a hash of each secret) and push subscriptions are all in `iskra.db` too, so copying the folder takes everything along.
+
+On Linux and macOS the server creates the folder (and `certs/`) readable by its own user only, writes secrets as `0600`, and tightens older secret files to `0600` when it starts.
+
+Uploads that nothing uses (no message, avatar, emoji, sound, webhook or profile page) are deleted after a day.
+
+**Backups:** stop the server and copy the folder. It holds secrets (`server.key`, `vapid.json`, `livekit.key`, `certs/`), so keep backups private. **Moving:** copy the folder to the new machine, run it there, and update `PublicUrl` if the address changed; members and links keep working because the server's identity travels with it. **Updating:** replace the `iskra-server` and `livekit-server` files and start it again.
 
 ## Roles and moderation
 
