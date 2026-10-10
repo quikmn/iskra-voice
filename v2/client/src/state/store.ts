@@ -5,7 +5,7 @@ import { ready } from '../core/crypto'
 import { createIdentity, type Identity } from '../core/identity'
 import { restoreIdentity } from '../core/recovery'
 import type { InviteLink } from '../core/invite'
-import type { Channel, Events, Member, Message, VoiceParticipant, Welcome } from '../core/protocol'
+import type { Channel, Events, FileInfo, Member, Message, VoiceParticipant, Welcome } from '../core/protocol'
 import * as storage from '../core/storage'
 
 export interface PendingMessage extends Message {
@@ -298,6 +298,15 @@ function onEvent<K extends keyof Events>(key: string, type: K, body: Events[K]):
       patchServer(key, (s) => ({ messages: { ...s.messages, [message.channelId]: upsertMessage(s.messages[message.channelId], message) } }))
       return
     }
+    case 'chat.reactions': {
+      const { id, channelId, reactions } = body as Events['chat.reactions']
+      patchServer(key, (s) => ({
+        messages: s.messages[channelId]
+          ? { ...s.messages, [channelId]: s.messages[channelId].map((m) => (m.id === id && !m.tempId ? { ...m, reactions } : m)) }
+          : s.messages,
+      }))
+      return
+    }
     case 'chat.deleted': {
       const { id, channelId } = body as Events['chat.deleted']
       patchServer(key, (s) => ({
@@ -390,18 +399,29 @@ export async function loadHistory(key: string, channelId: number, older = false)
 
 let tempCounter = 0
 
-export async function sendMessage(key: string, channelId: number, text: string): Promise<void> {
+export interface SendOptions {
+  attachments?: FileInfo[]
+  replyTo?: Message | null
+}
+
+export async function sendMessage(key: string, channelId: number, text: string, options: SendOptions = {}): Promise<void> {
   const server = useApp.getState().servers[key]
   const connection = connections.get(key)
   if (!server?.me || !connection) return
   const tempId = `t${++tempCounter}`
+  const attachments = options.attachments ?? []
+  const reply = options.replyTo
   const temp: PendingMessage = {
     id: Number.MAX_SAFE_INTEGER, channelId, author: server.me.accountKey, text, createdAt: Date.now(), editedAt: null,
+    attachments, reactions: [],
+    replyTo: reply ? { id: reply.id, author: reply.author, text: reply.text, hasAttachments: reply.attachments.length > 0 } : null,
     pending: 'sending', tempId,
   }
   patchServer(key, (s) => ({ messages: { ...s.messages, [channelId]: [...(s.messages[channelId] ?? []), temp] } }))
   try {
-    const { message } = await connection.request('chat.send', { channelId, text })
+    const { message } = await connection.request('chat.send', {
+      channelId, text, attachments: attachments.map((a) => a.id), replyTo: reply?.id,
+    })
     patchServer(key, (s) => ({
       messages: { ...s.messages, [channelId]: upsertMessage((s.messages[channelId] ?? []).filter((m) => m.tempId !== tempId), message) },
     }))
@@ -422,8 +442,38 @@ export function discardFailed(key: string, channelId: number, tempId: string): v
 export async function retryFailed(key: string, channelId: number, message: PendingMessage): Promise<void> {
   if (!message.tempId) return
   discardFailed(key, channelId, message.tempId)
-  await sendMessage(key, channelId, message.text)
+  await sendMessage(key, channelId, message.text, { attachments: message.attachments })
 }
+
+/** Uploads a file to a server, reporting progress (0–1). Resolves with the stored file. */
+export async function uploadFile(key: string, file: File, onProgress: (fraction: number) => void, signal?: AbortSignal): Promise<FileInfo> {
+  const server = useApp.getState().servers[key]
+  const connection = connections.get(key)
+  if (!server || !connection) throw new Error('Not connected.')
+  const { url } = await connection.request('upload.begin', { name: file.name, size: file.size })
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('PUT', server.url + url)
+    xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total)
+    xhr.onload = () => {
+      if (xhr.status === 200) resolve((JSON.parse(xhr.responseText) as { file: FileInfo }).file)
+      else reject(new Error(xhr.status === 413 ? 'That file is too big for this server.' : `Upload failed (${xhr.status}).`))
+    }
+    xhr.onerror = () => reject(new Error('Upload failed. Check your connection.'))
+    xhr.onabort = () => reject(new DOMException('Upload cancelled.', 'AbortError'))
+    signal?.addEventListener('abort', () => xhr.abort())
+    xhr.send(file)
+  })
+}
+
+export function toggleReaction(key: string, message: Message, emoji: string): void {
+  const me = useApp.getState().servers[key]?.me?.accountKey
+  const mine = !!me && message.reactions.some((r) => r.emoji === emoji && r.accounts.includes(me))
+  connections.get(key)?.request('chat.react', { id: message.id, emoji, on: !mine }).catch(() => undefined)
+}
+
+/** Absolute URL of a server file. */
+export const fileUrl = (key: string, file: FileInfo) => (useApp.getState().servers[key]?.url ?? '') + file.url
 
 let lastTyping = 0
 export function notifyTyping(key: string, channelId: number): void {

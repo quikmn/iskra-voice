@@ -188,3 +188,25 @@ export const Expand = (p: P) => (
     <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
   </Svg>
 )
+
+export const Paperclip = (p: P) => (
+  <Svg {...p}>
+    <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+  </Svg>
+)
+
+export const Reply = (p: P) => (
+  <Svg {...p}>
+    <polyline points="9 17 4 12 9 7" />
+    <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+  </Svg>
+)
+
+export const Smile = (p: P) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+    <line x1="9" x2="9.01" y1="9" y2="9" />
+    <line x1="15" x2="15.01" y1="9" y2="9" />
+  </Svg>
+)

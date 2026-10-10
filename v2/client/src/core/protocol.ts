@@ -20,6 +20,26 @@ export interface Channel {
   writeRole: Role
 }
 
+export interface FileInfo {
+  id: string
+  name: string
+  size: number
+  type: string
+  width: number | null
+  height: number | null
+  /** Relative to the server's URL. */
+  url: string
+}
+
+export type ReplyPreview =
+  | { id: number; author: string; text: string; hasAttachments: boolean; deleted?: undefined }
+  | { id: number; deleted: true }
+
+export interface Reaction {
+  emoji: string
+  accounts: string[]
+}
+
 export interface Message {
   id: number
   channelId: number
@@ -27,6 +47,9 @@ export interface Message {
   text: string
   createdAt: number
   editedAt: number | null
+  attachments: FileInfo[]
+  replyTo: ReplyPreview | null
+  reactions: Reaction[]
 }
 
 export interface Invite {
@@ -64,6 +87,7 @@ export interface Events {
   'chat.message': { message: Message }
   'chat.edited': { message: Message }
   'chat.deleted': { id: number; channelId: number }
+  'chat.reactions': { id: number; channelId: number; reactions: Reaction[] }
   'chat.typing': { channelId: number; accountKey: string }
   channels: { channels: Channel[] }
   'member.joined': { member: Member }
@@ -86,7 +110,9 @@ export interface WireDm {
 /** Client → server requests: [body, result]. */
 export interface Requests {
   ping: [Record<string, never>, Record<string, never>]
-  'chat.send': [{ channelId: number; text: string }, { message: Message }]
+  'chat.send': [{ channelId: number; text: string; attachments?: string[]; replyTo?: number }, { message: Message }]
+  'chat.react': [{ id: number; emoji: string; on: boolean }, Record<string, never>]
+  'upload.begin': [{ name: string; size: number }, { url: string; maxBytes: number }]
   'chat.edit': [{ id: number; text: string }, { message: Message }]
   'chat.delete': [{ id: number }, Record<string, never>]
   'chat.history': [{ channelId: number; before?: number; after?: number; limit?: number }, { messages: Message[]; hasMore: boolean }]

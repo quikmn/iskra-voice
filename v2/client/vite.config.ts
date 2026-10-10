@@ -10,8 +10,8 @@ const CSP = [
   "default-src 'self'",
   "script-src 'self' 'wasm-unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
-  "media-src 'self' blob: mediastream:",
+  "img-src 'self' data: blob: http: https:", // attachments come from each server's own address
+  "media-src 'self' blob: mediastream: http: https:",
   "connect-src 'self' ws: wss: http: https:",
   "worker-src 'self' blob:",
   "font-src 'self'",

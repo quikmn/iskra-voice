@@ -1,13 +1,15 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { roleRank, type Member } from '../core/protocol'
+import { roleRank, type FileInfo, type Member } from '../core/protocol'
 import {
-  activeChannelId, connectionFor, discardFailed, loadHistory, notifyTyping, retryFailed, sendMessage, useApp,
+  activeChannelId, connectionFor, discardFailed, loadHistory, notifyTyping, retryFailed, sendMessage, uploadFile, useApp,
   type PendingMessage, type ServerState,
 } from '../state/store'
+import { Attachments, Reactions, ReactionPicker, ReplyLine } from './chat/MessageExtras'
+import { formatSize, replyKey, setReply, useReply } from './chat/helpers'
 import { Avatar, MessageText, Spinner } from './bits'
 import { fullTime, hueFor, messageTime } from './format'
 import type { Panel } from './Shell'
-import { Hash, Menu, Pencil, Send, Trash, Users } from './icons'
+import { Close, Hash, Menu, Paperclip, Pencil, Reply, Send, Smile, Trash, Users } from './icons'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -20,8 +22,24 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
     if (channelId !== null && server.status.state === 'online') void loadHistory(server.key, channelId)
   }, [server.key, channelId, server.status.state])
 
+  const [dragging, setDragging] = useState(false)
+
   return (
-    <div className="chat">
+    <div
+      className={`chat ${dragging ? 'dragging' : ''}`}
+      onDragOver={(e) => {
+        if (!canWrite || !e.dataTransfer.types.includes('Files')) return
+        e.preventDefault()
+        setDragging(true)
+      }}
+      onDragLeave={(e) => e.currentTarget === e.target && setDragging(false)}
+      onDrop={(e) => {
+        setDragging(false)
+        if (!canWrite || e.dataTransfer.files.length === 0) return
+        e.preventDefault()
+        window.dispatchEvent(new CustomEvent('iskra:attach', { detail: [...e.dataTransfer.files] }))
+      }}
+    >
       <header className="chat-header">
         <button className="icon-button mobile-only" onClick={() => onToggle('nav')} aria-label="Open channels">
           <Menu />
@@ -158,7 +176,16 @@ function MessageRow({
   const canDelete = !!me && !message.tempId &&
     (mine || (roleRank(me.role) >= roleRank('admin') && (!author || roleRank(me.role) > roleRank(author.role))))
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [picking, setPicking] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  function jumpTo(id: number) {
+    const target = document.getElementById(`msg-${id}`)
+    if (!target) return
+    target.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    target.classList.add('flash')
+    setTimeout(() => target.classList.remove('flash'), 1500)
+  }
 
   async function remove() {
     try {
@@ -170,7 +197,7 @@ function MessageRow({
   }
 
   return (
-    <div className={`message ${grouped ? 'grouped' : ''} ${message.pending ?? ''}`}>
+    <div id={message.tempId ? undefined : `msg-${message.id}`} className={`message ${grouped && !message.replyTo ? 'grouped' : ''} ${message.pending ?? ''}`}>
       <div className="message-gutter">
         {grouped ? (
           <time className="hover-time" title={fullTime(message.createdAt)}>{messageTime(message.createdAt).replace(/^.* /, '')}</time>
@@ -179,7 +206,8 @@ function MessageRow({
         )}
       </div>
       <div className="message-body">
-        {!grouped && (
+        {message.replyTo && <ReplyLine server={server} reply={message.replyTo} onJump={jumpTo} />}
+        {(!grouped || message.replyTo) && (
           <div className="message-meta">
             <span className="author" style={{ color: `hsl(${hueFor(message.author)} 70% 72%)` }}>{name}</span>
             <time title={fullTime(message.createdAt)}>{messageTime(message.createdAt)}</time>
@@ -188,11 +216,15 @@ function MessageRow({
         {editing ? (
           <EditBox server={server} message={message} onDone={() => onEdit(false)} />
         ) : (
-          <div className="message-text">
-            <MessageText text={message.text} />
-            {message.editedAt && <span className="edited" title={fullTime(message.editedAt)}> (edited)</span>}
-          </div>
+          (message.text || message.editedAt) && (
+            <div className="message-text">
+              <MessageText text={message.text} />
+              {message.editedAt && <span className="edited" title={fullTime(message.editedAt)}> (edited)</span>}
+            </div>
+          )
         )}
+        <Attachments server={server} files={message.attachments} />
+        <Reactions server={server} message={message} />
         {message.pending === 'failed' && (
           <div className="message-failed">
             Couldn't send.{' '}
@@ -203,8 +235,8 @@ function MessageRow({
         )}
         {error && <div className="message-failed">{error}</div>}
       </div>
-      {!editing && !message.tempId && (mine || canDelete) && (
-        <div className="message-actions">
+      {!editing && !message.tempId && (
+        <div className={`message-actions ${picking ? 'open' : ''}`}>
           {confirmDelete ? (
             <>
               <span>Delete?</span>
@@ -213,10 +245,13 @@ function MessageRow({
             </>
           ) : (
             <>
-              {mine && <button onClick={() => onEdit(true)} title="Edit" aria-label="Edit"><Pencil size={15} /></button>}
+              <button onClick={() => setPicking((p) => !p)} title="Add reaction" aria-label="Add reaction"><Smile size={15} /></button>
+              <button onClick={() => setReply(server.key, message.channelId, message)} title="Reply" aria-label="Reply"><Reply size={15} /></button>
+              {mine && message.text && <button onClick={() => onEdit(true)} title="Edit" aria-label="Edit"><Pencil size={15} /></button>}
               {canDelete && <button onClick={() => setConfirmDelete(true)} title="Delete" aria-label="Delete"><Trash size={15} /></button>}
             </>
           )}
+          {picking && <ReactionPicker server={server} message={message} onClose={() => setPicking(false)} />}
         </div>
       )}
     </div>
@@ -258,21 +293,100 @@ function EditBox({ server, message, onDone }: { server: ServerState; message: Pe
   )
 }
 
+interface PendingUpload {
+  localId: string
+  file: File
+  preview: string | null
+  progress: number
+  result: FileInfo | null
+  error: string | null
+  abort: AbortController
+}
+
 function Composer({ server, channelId, channelName }: { server: ServerState; channelId: number; channelName: string }) {
   const [drafts, setDrafts] = useState<Record<number, string>>({})
+  const [uploads, setUploads] = useState<PendingUpload[]>([])
+  const fileInput = useRef<HTMLInputElement>(null)
+  const replyTo = useReply((s) => s.replyTo[replyKey(server.key, channelId)] ?? null)
   const text = drafts[channelId] ?? ''
   const online = server.status.state === 'online'
   const setText = (value: string) => setDrafts((d) => ({ ...d, [channelId]: value }))
+  const uploading = uploads.some((u) => !u.result && !u.error)
+  const ready = uploads.filter((u) => u.result).map((u) => u.result!)
+  const canSend = online && !uploading && (text.trim().length > 0 || ready.length > 0)
+
+  function addFiles(files: File[]) {
+    for (const file of files.slice(0, 10)) {
+      const item: PendingUpload = {
+        localId: `${Date.now()}-${Math.random()}`, file, progress: 0, result: null, error: null, abort: new AbortController(),
+        preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
+      }
+      setUploads((list) => [...list, item])
+      const update = (patch: Partial<PendingUpload>) =>
+        setUploads((list) => list.map((u) => (u.localId === item.localId ? { ...u, ...patch } : u)))
+      uploadFile(server.key, file, (progress) => update({ progress }), item.abort.signal)
+        .then((result) => update({ result, progress: 1 }))
+        .catch((e: Error) => e.name !== 'AbortError' && update({ error: e.message }))
+    }
+  }
+
+  function removeUpload(item: PendingUpload) {
+    item.abort.abort()
+    if (item.preview) URL.revokeObjectURL(item.preview)
+    setUploads((list) => list.filter((u) => u.localId !== item.localId))
+  }
+
+  useEffect(() => {
+    const onAttach = (e: Event) => addFiles((e as CustomEvent<File[]>).detail)
+    window.addEventListener('iskra:attach', onAttach)
+    return () => window.removeEventListener('iskra:attach', onAttach)
+  })
 
   function submit() {
+    if (!canSend) return
     const trimmed = text.trim()
-    if (!trimmed || !online) return
     setText('')
-    void sendMessage(server.key, channelId, trimmed)
+    for (const u of uploads) if (u.preview) URL.revokeObjectURL(u.preview)
+    setUploads([])
+    setReply(server.key, channelId, null)
+    void sendMessage(server.key, channelId, trimmed, { attachments: ready, replyTo })
   }
 
   return (
+    <div className="composer-wrap">
+      {replyTo && (
+        <div className="reply-bar">
+          <span>Replying to <strong>{server.members[replyTo.author]?.name ?? 'someone'}</strong></span>
+          <button className="icon-button small" onClick={() => setReply(server.key, channelId, null)} aria-label="Cancel reply"><Close size={14} /></button>
+        </div>
+      )}
+      {uploads.length > 0 && (
+        <div className="pending-uploads">
+          {uploads.map((u) => (
+            <div key={u.localId} className={`pending-upload ${u.error ? 'failed' : ''}`} title={u.error ?? u.file.name}>
+              {u.preview ? <img src={u.preview} alt="" /> : <span className="file-icon" aria-hidden>📄</span>}
+              <span className="file-name">{u.file.name}</span>
+              <span className="muted">{u.error ? 'Failed' : u.result ? formatSize(u.file.size) : `${Math.round(u.progress * 100)}%`}</span>
+              {!u.result && !u.error && <span className="upload-progress" style={{ width: `${u.progress * 100}%` }} />}
+              <button className="icon-button small" onClick={() => removeUpload(u)} aria-label={`Remove ${u.file.name}`}><Close size={14} /></button>
+            </div>
+          ))}
+        </div>
+      )}
     <div className="composer">
+      <button className="icon-button attach-button" onClick={() => fileInput.current?.click()} aria-label="Attach files" title="Attach files" disabled={!online}>
+        <Paperclip />
+      </button>
+      <input
+        ref={fileInput}
+        type="file"
+        multiple
+        hidden
+        onChange={(e) => {
+          addFiles([...(e.target.files ?? [])])
+          e.target.value = ''
+        }}
+      />
       <AutoTextarea
         key={channelId}
         value={text}
@@ -283,6 +397,13 @@ function Composer({ server, channelId, channelName }: { server: ServerState; cha
           setText(value)
           if (value) notifyTyping(server.key, channelId)
         }}
+        onPaste={(e) => {
+          const files = [...e.clipboardData.files]
+          if (files.length) {
+            e.preventDefault()
+            addFiles(files)
+          }
+        }}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
             e.preventDefault()
@@ -290,22 +411,26 @@ function Composer({ server, channelId, channelName }: { server: ServerState; cha
           } else if (e.key === 'ArrowUp' && !text) {
             e.preventDefault()
             window.dispatchEvent(new Event('iskra:edit-last'))
+          } else if (e.key === 'Escape' && replyTo) {
+            setReply(server.key, channelId, null)
           }
         }}
       />
-      <button className="send-button" onClick={submit} disabled={!text.trim() || !online} aria-label="Send">
+      <button className="send-button" onClick={submit} disabled={!canSend} aria-label="Send">
         <Send />
       </button>
+    </div>
     </div>
   )
 }
 
 function AutoTextarea({
-  value, onChange, onKeyDown, placeholder, autoFocus, maxLength,
+  value, onChange, onKeyDown, onPaste, placeholder, autoFocus, maxLength,
 }: {
   value: string
   onChange: (v: string) => void
   onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void
+  onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void
   placeholder?: string
   autoFocus?: boolean
   maxLength?: number
@@ -327,6 +452,7 @@ function AutoTextarea({
       maxLength={maxLength}
       onChange={(e) => onChange(e.target.value)}
       onKeyDown={onKeyDown}
+      onPaste={onPaste}
     />
   )
 }
