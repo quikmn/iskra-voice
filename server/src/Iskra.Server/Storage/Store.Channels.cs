@@ -2,11 +2,11 @@ namespace Iskra.Server.Storage;
 
 public sealed partial class Store
 {
-    private const string ChannelColumns = "id, name, kind, position, read_role, write_role";
+    private const string ChannelColumns = "id, name, kind, position, read_role, write_role, category_id";
     private const string MessageColumns = "id, channel_id, author_key, text, created_at, edited_at, attachments, reply_to";
 
     private static Channel ReadChannel(Microsoft.Data.Sqlite.SqliteDataReader r) =>
-        new(r.GetInt64(0), r.GetString(1), r.GetString(2), r.GetInt32(3), r.GetString(4), r.GetString(5));
+        new(r.GetInt64(0), r.GetString(1), r.GetString(2), r.GetInt32(3), r.GetString(4), r.GetString(5)) { CategoryId = NullableLong(r, 6) };
 
     private static Message ReadMessage(Microsoft.Data.Sqlite.SqliteDataReader r) =>
         new(r.GetInt64(0), r.GetInt64(1), r.GetString(2), r.GetString(3), r.GetInt64(4), NullableLong(r, 5),

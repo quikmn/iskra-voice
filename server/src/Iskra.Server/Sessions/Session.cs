@@ -160,6 +160,8 @@ public sealed class Session
             server = new { name = _world.Settings.Name, key = Ed25519.ToB64u(_world.ServerPublicKey), appUrl = _world.Settings.AppUrl, publicUrl = _world.InternetUrl,
                 profilePages = ProfileFeature.PagesEnabled(_world.Store) },
             channels = _hub.VisibleChannels(member),
+            categories = _hub.VisibleCategories(member),
+            notify = NotifyFeature.Settings(_world.Store, member.AccountKey, Now),
             members = _world.Store.AllMembers().Select(_hub.PublicMember),
             voice = _voice.Snapshot(member),
             voiceAvailable = _voice.Backend.Available,

@@ -48,7 +48,7 @@ public static class ChannelFeature
         foreach (var session in s.Hub.Sessions)
         {
             var member = session.CurrentMember();
-            if (member is not null) session.Send(Frames.Event("channels", new { channels = s.Hub.VisibleChannels(member) }));
+            if (member is not null) session.Send(s.Hub.ChannelsEvent(member));
         }
     }
 
@@ -65,7 +65,13 @@ public static class ChannelFeature
         var writeRole = Role(body, "writeRole", readRole);
         CheckRoles(readRole, writeRole);
 
+        var categoryId = OrganizeFeature.OptionalCategory(s, body);
         var channel = s.World.Store.CreateChannel(ChannelName(body.String("name", 256)), kind, readRole, writeRole, s.Now);
+        if (categoryId is not null)
+        {
+            s.World.Store.SetChannelCategory(channel.Id, categoryId);
+            channel = channel with { CategoryId = categoryId };
+        }
         BroadcastChannels(s);
         return new { channel = Hub.PublicChannel(channel) };
     }

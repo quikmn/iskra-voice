@@ -102,12 +102,16 @@ public sealed partial class PushService
     /// </summary>
     public static bool CanPingGroups(Member author) => Roles.Rank(author.Role) >= Roles.Rank(Roles.Trusted);
 
-    /// <summary>A new channel message: mentioned people (or a group, for @everyone/@here) and the author of the message it replies to.</summary>
+    /// <summary>
+    /// A new channel message: mentioned people (or a group, for @everyone/@here), the author of the message it replies
+    /// to, and anyone whose notification level for the channel is "all messages". Each person's settings decide.
+    /// </summary>
     public void ChatMessage(Channel channel, Message message)
     {
         var store = _world.Store;
         if (store.GetMember(message.AuthorKey) is not { } author) return;
         var kinds = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var key in store.AccountsWithLevel(Features.NotifyFeature.All)) kinds[key] = "message";
         if (message.ReplyTo is { } replyId && store.GetMessage(replyId) is { } original) kinds[original.AuthorKey] = "reply";
         var groups = GroupMention().Matches(message.Text).Select(m => m.Groups[2].Value).ToHashSet();
         if (groups.Count > 0 && CanPingGroups(author))
@@ -117,14 +121,19 @@ public sealed partial class PushService
         kinds.Remove(message.AuthorKey);
         if (kinds.Count == 0) return;
 
-        var text = MentionToken().Replace(message.Text, m => "@" + (store.GetMember(m.Groups[1].Value)?.Name ?? "unknown"));
+        var authorName = store.DisplayName(author);
+        var text = MentionToken().Replace(message.Text, m => "@" + (store.GetMember(m.Groups[1].Value) is { } who ? store.DisplayName(who) : "unknown"));
         var body = text.Length == 0 ? "Sent an attachment" : Excerpt(text, 140);
+        var settingsChannel = store.SettingsChannelOf(channel.Id);
+        var now = _time.GetUtcNow().ToUnixTimeMilliseconds();
         foreach (var (accountKey, kind) in kinds)
         {
             var target = store.GetMember(accountKey);
             if (target is null || !Permissions.CanRead(target, channel)) continue;
-            var title = kind == "reply" ? $"{author.Name} replied in #{channel.Name}" : $"{author.Name} in #{channel.Name}";
-            Notify(accountKey, new PushNote(kind, $"c:{channel.Id}", title, body, author.Name, ChannelId: channel.Id, MessageId: message.Id));
+            var level = Features.NotifyFeature.EffectiveLevel(store.NotifySettings(accountKey), settingsChannel, now);
+            if (level == Features.NotifyFeature.Nothing || (kind == "message" && level != Features.NotifyFeature.All)) continue;
+            var title = kind == "reply" ? $"{authorName} replied in #{channel.Name}" : $"{authorName} in #{channel.Name}";
+            Notify(accountKey, new PushNote(kind, $"c:{channel.Id}", title, body, authorName, ChannelId: channel.Id, MessageId: message.Id));
         }
     }
 
@@ -132,7 +141,8 @@ public sealed partial class PushService
     public void DirectMessage(Member from, Member to)
     {
         if (from.AccountKey == to.AccountKey) return;
-        Notify(to.AccountKey, new PushNote("dm", $"dm:{from.AccountKey}", $"New message from {from.Name}", "Open Iskra to read it.", from.Name,
+        var name = _world.Store.DisplayName(from);
+        Notify(to.AccountKey, new PushNote("dm", $"dm:{from.AccountKey}", $"New message from {name}", "Open Iskra to read it.", name,
             Peer: from.AccountKey));
     }
 
@@ -153,7 +163,8 @@ public sealed partial class PushService
                 foreach (var old in _lastRing.Where(r => now - r.Value >= _window).Select(r => r.Key).ToList()) _lastRing.Remove(old);
             _lastRing[pair] = now;
         }
-        Notify(calleeKey, new PushNote("call", $"call:{caller.AccountKey}", $"{caller.Name} is calling", "Tap to answer.", caller.Name,
+        var name = _world.Store.DisplayName(caller);
+        Notify(calleeKey, new PushNote("call", $"call:{caller.AccountKey}", $"{name} is calling", "Tap to answer.", name,
             ChannelId: channelId, Peer: caller.AccountKey, Coalesce: false, TtlSeconds: 30));
     }
 

@@ -23,7 +23,7 @@ public sealed partial class Store
         """;
 
     private const string ThreadAwareColumns =
-        "c.id, c.name, c.kind, c.position, COALESCE(p.read_role, c.read_role), COALESCE(p.write_role, c.write_role)";
+        "c.id, c.name, c.kind, c.position, COALESCE(p.read_role, c.read_role), COALESCE(p.write_role, c.write_role), c.category_id";
 
     private const string ThreadSelect = """
         SELECT c.id, c.parent_id, t.root_id, c.name, t.created_by, t.created_at,

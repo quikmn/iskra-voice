@@ -52,10 +52,13 @@ public static partial class ProfileFeature
     {
         var p = store.GetPublicProfile(m.AccountKey);
         var page = p.PageId is not null && PagesEnabled(store);
+        var nick = store.GetNickname(m.AccountKey);
         return new
         {
             accountKey = m.AccountKey,
-            name = m.Name,
+            name = nick ?? m.Name,  // what this server shows (see Nicknames)
+            nick,
+            profileName = m.Name,
             role = m.Role,
             online,
             bot = store.IsBot(m.AccountKey),
