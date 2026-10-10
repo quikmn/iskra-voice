@@ -28,6 +28,8 @@ import { useEmojiSuggest } from './expressions/EmojiSuggest'
 import { PollCard, PollDialog } from './expressions/Polls'
 import { PollIcon } from './expressions/icons'
 import { useServerEmojis } from '../state/expressions'
+import { BlockGate, ChannelSettingsButton, SlowmodeChip, TimedOutBar } from './moderation/Moderation'
+import { useSlowmodeWait, useTimedOut } from './moderation/hooks'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -72,6 +74,7 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
         )}
         <span className="spacer" />
         <HeaderTools key={channel?.id} server={server} channel={channel} />
+        <ChannelSettingsButton server={server} channel={channel} />
         <button className="icon-button members-toggle" onClick={() => onToggle('members')} aria-label="Members" title="Members">
           <Users />
         </button>
@@ -195,14 +198,15 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
       {withPinNotes(rendered, notes).map(({ message, grouped, note }) => note ? (
         <PinNoteRow key={`pin-${note.messageId}-${note.at}`} server={server} channelId={channelId} note={note} />
       ) : (
-        <MessageRow
-          key={message.tempId ?? message.id}
-          server={server}
-          message={message}
-          grouped={grouped}
-          editing={editing === message.id}
-          onEdit={(on) => setEditing(on ? message.id : null)}
-        />
+        <BlockGate key={message.tempId ?? message.id} author={message.author}>
+          <MessageRow
+            server={server}
+            message={message}
+            grouped={grouped}
+            editing={editing === message.id}
+            onEdit={(on) => setEditing(on ? message.id : null)}
+          />
+        </BlockGate>
       ))}
     </div>
     {detached && (
@@ -406,7 +410,9 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
   const setText = (value: string) => setDrafts((d) => ({ ...d, [channelId]: value }))
   const uploading = uploads.some((u) => !u.result && !u.error)
   const ready = uploads.filter((u) => u.result).map((u) => u.result!)
-  const canSend = online && !uploading && (text.trim().length > 0 || ready.length > 0)
+  const slowmode = useSlowmodeWait(server, channelId)
+  const timedOut = useTimedOut(server)
+  const canSend = online && !uploading && slowmode.wait === 0 && (text.trim().length > 0 || ready.length > 0)
 
   function addFiles(files: File[]) {
     for (const file of files.slice(0, 10)) {
@@ -468,6 +474,8 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
     if (server.detached?.[channelId]) void jumpToPresent(server.key, channelId).then(send)
     else send()
   }
+
+  if (timedOut) return <TimedOutBar server={server} />
 
   return (
     <div className="composer-wrap">
@@ -568,6 +576,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
       <button className="icon-button attach-button" onClick={(e) => setPicker(picker ? null : e.currentTarget)} aria-label="Emoji" title="Emoji">
         <Smile />
       </button>
+      <SlowmodeChip seconds={slowmode.seconds} wait={slowmode.wait} />
       <button className="send-button" onClick={submit} disabled={!canSend} aria-label="Send">
         <Send />
       </button>

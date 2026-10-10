@@ -20,8 +20,8 @@ test('settings, Escape, quick switcher and phone message actions', async ({ brow
   const settings = host.getByRole('dialog', { name: 'Settings' })
   const nav = settings.getByRole('navigation', { name: 'Settings sections' })
   await expect(nav.getByRole('button')).toHaveText([
-    'Profile', 'Appearance', 'Devices', 'Recovery key', 'Notifications', 'Voice & audio',
-    'Overview', 'Emoji', 'Soundboard', 'Bots & webhooks', 'Profile pages', 'Open to the internet',
+    'Profile', 'Appearance', 'Devices', 'Recovery key', 'Notifications', 'Voice & audio', 'Blocked people',
+    'Overview', 'Emoji', 'Soundboard', 'Bots & webhooks', 'Profile pages', 'Open to the internet', 'Audit log',
   ])
   await expect(nav.getByRole('button', { name: 'Profile', exact: true })).toHaveAttribute('aria-current', 'page')
   await expect(settings.getByLabel('Display name')).toBeVisible()
@@ -41,7 +41,7 @@ test('settings, Escape, quick switcher and phone message actions', async ({ brow
   await openSettings(phone)
   const phoneSettings = phone.getByRole('dialog', { name: 'Settings' })
   const phoneNav = phoneSettings.getByRole('navigation', { name: 'Settings sections' })
-  await expect(phoneNav.getByRole('button')).toHaveText(['Profile', 'Appearance', 'Devices', 'Recovery key', 'Notifications', 'Voice & audio', 'Overview'])
+  await expect(phoneNav.getByRole('button')).toHaveText(['Profile', 'Appearance', 'Devices', 'Recovery key', 'Notifications', 'Voice & audio', 'Blocked people', 'Overview'])
   await phone.screenshot({ path: join(SHOTS, 'settings-phone-list.png') })
   await phoneNav.getByRole('button', { name: 'Appearance' }).click()
   await expect(phoneSettings.getByRole('heading', { name: 'Appearance' })).toBeVisible()

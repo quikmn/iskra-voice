@@ -2,8 +2,8 @@
 import { roleRank, type Role } from '../../core/protocol'
 
 export type SectionId =
-  | 'profile' | 'appearance' | 'devices' | 'recovery' | 'notifications' | 'voice'
-  | 'overview' | 'emoji' | 'sounds' | 'integrations' | 'pages' | 'internet'
+  | 'profile' | 'appearance' | 'devices' | 'recovery' | 'notifications' | 'voice' | 'blocked'
+  | 'overview' | 'emoji' | 'sounds' | 'integrations' | 'pages' | 'internet' | 'audit'
 
 export interface SectionInfo {
   id: SectionId
@@ -18,6 +18,7 @@ const ACCOUNT: SectionInfo[] = [
   { id: 'recovery', label: 'Recovery key', group: 'account' },
   { id: 'notifications', label: 'Notifications', group: 'account' },
   { id: 'voice', label: 'Voice & audio', group: 'account' },
+  { id: 'blocked', label: 'Blocked people', group: 'account' },
 ]
 
 /** Server sections and the lowest role that may open each. */
@@ -28,6 +29,7 @@ const SERVER: (SectionInfo & { min: Role })[] = [
   { id: 'integrations', label: 'Bots & webhooks', group: 'server', min: 'admin' },
   { id: 'pages', label: 'Profile pages', group: 'server', min: 'admin' },
   { id: 'internet', label: 'Open to the internet', group: 'server', min: 'admin' },
+  { id: 'audit', label: 'Audit log', group: 'server', min: 'admin' },
 ]
 
 /** The sections to show: account always; server ones only with a joined server, by role. */

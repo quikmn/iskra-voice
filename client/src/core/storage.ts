@@ -174,3 +174,11 @@ export function wipeAll(): Promise<void> {
     request.onblocked = () => resolve()
   })
 }
+
+// ── Block list (synced to every server; see state/moderation.ts) ────────────
+
+export async function loadBlocks(): Promise<import('./protocol').BlockEntry[]> {
+  return (await get<import('./protocol').BlockEntry[]>('blocks')) ?? []
+}
+
+export const saveBlocks = (blocks: import('./protocol').BlockEntry[]) => set('blocks', blocks)

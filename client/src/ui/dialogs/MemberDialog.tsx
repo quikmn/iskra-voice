@@ -7,6 +7,8 @@ import { addFriend, openConversation, removeFriend, useDms } from '../../state/d
 import { Avatar, Modal } from '../bits'
 import { removeMemberPage } from '../../state/profile'
 import { BotBadge } from '../chat/BotBits'
+import { BlockButton, ClockIcon, TimeoutControls } from '../moderation/Moderation'
+import { timeoutActive, untilText } from '../../state/moderationRules'
 
 export function MemberDialog({ server, member, onClose }: { server: ServerState; member: Member; onClose: () => void }) {
   const me = server.me
@@ -40,6 +42,9 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
           <strong className="member-card-name">{member.name}</strong> {member.bot && <BotBadge />}
           <div className="muted">{[member.pronouns, member.role, member.online ? 'online' : 'offline'].filter(Boolean).join(' · ')}</div>
           <div className="muted">ID <code>{fingerprint(member.accountKey)}</code></div>
+          {timeoutActive(member) && (
+            <div className="member-timeout-line"><ClockIcon /> Timed out until {untilText(member.timedOutUntil!)}</div>
+          )}
         </div>
       </div>
 
@@ -51,6 +56,7 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
           ) : (
             <button className="button" onClick={() => void addFriend(member.accountKey)}>Add friend</button>
           )}
+          <BlockButton accountKey={member.accountKey} name={member.name} />
         </div>
       )}
 
@@ -102,6 +108,7 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
             </div>
           )}
           {error && <p className="error-text">{error}</p>}
+          <TimeoutControls server={server} member={member} />
         </section>
       )}
     </Modal>

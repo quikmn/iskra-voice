@@ -14,6 +14,7 @@ import { EmojiSection, SoundboardSettingsSection, SoundsSection } from '../expre
 import { DevicesSection } from '../dialogs/DevicesSection'
 import { IntegrationsSection } from '../dialogs/Integrations'
 import { ChevronRight } from '../icons'
+import { AuditLogSection, BlockedSection } from '../moderation/SafetySettings'
 import { settingsSections, type SectionId } from './sections'
 import './settings.css'
 
@@ -93,6 +94,7 @@ function Section({ id, server, onClose }: { id: SectionId; server: ServerState |
     case 'recovery': return <RecoveryKeySection />
     case 'notifications': return <NotificationSettingsSection />
     case 'voice': return <><VoiceSettingsSection /><SoundboardSettingsSection /></>
+    case 'blocked': return <BlockedSection />
   }
   if (!server) return null
   switch (id) {
@@ -102,6 +104,7 @@ function Section({ id, server, onClose }: { id: SectionId; server: ServerState |
     case 'integrations': return <IntegrationsSection server={server} />
     case 'pages': return <PagesSection server={server} />
     case 'internet': return <InternetSection server={server} />
+    case 'audit': return <AuditLogSection server={server} />
   }
 }
 

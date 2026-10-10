@@ -15,6 +15,8 @@ import type { Panel } from './Shell'
 import { CallButtons, CallLogLine, CallPanel } from './calls/Calls'
 import { asLog } from '../state/callMachine'
 import { VoiceBar } from './VoiceBar'
+import { useIsBlocked } from '../state/moderation'
+import { BlockedDmBar } from './moderation/Moderation'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -158,6 +160,7 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
   const scroller = useRef<HTMLDivElement>(null)
   const myKey = identity ? b64u(identity.account.publicKey) : ''
   const reachable = sharedServers(peer).length > 0
+  const blocked = useIsBlocked(peer)
   const messages = conversation?.messages ?? []
 
   useLayoutEffect(() => {
@@ -186,7 +189,7 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
         <h1>{nameOf(peer)}</h1>
         <span className="e2e-badge" title="Only you and they can read these messages"><Lock size={13} /> End-to-end encrypted</span>
         <span className="spacer" />
-        <CallButtons peer={peer} />
+        {!blocked && <CallButtons peer={peer} />}
         <button className="button small" onClick={() => setVerify(true)}>Verify</button>
       </header>
       <CallPanel peer={peer} />
@@ -205,7 +208,9 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
       </div>
 
       <div className="typing-line" />
-      {reachable ? (
+      {blocked ? (
+        <BlockedDmBar accountKey={peer} name={nameOf(peer)} />
+      ) : reachable ? (
         <div className="composer">
           <textarea
             rows={1}
