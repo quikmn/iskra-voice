@@ -18,6 +18,10 @@ public interface IVoiceBackend
     string ApiKey { get; }
     string ApiSecret { get; }
     Task RemoveParticipantAsync(string room, string identity);
+    /// <summary>Changes whether someone already in a room may publish (stage speakers). True if LiveKit applied it or they aren't there.</summary>
+    Task<bool> SetCanPublishAsync(string room, string identity, bool canPublish);
+    /// <summary>Mutes someone's microphone track (they can unmute themselves if they may still publish).</summary>
+    Task MuteMicrophoneAsync(string room, string identity);
 }
 
 /// <summary>
@@ -256,6 +260,64 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
         {
             _log.LogWarning(ex, "Could not reach the voice server to remove a participant");
         }
+    }
+
+    /// <summary>Calls one LiveKit RoomService method (Twirp JSON, signed with a short-lived room-admin token).</summary>
+    private async Task<HttpResponseMessage?> RoomServiceAsync(string method, string room, object body)
+    {
+        if (!Available) return null;
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{ApiUrl}/twirp/livekit.RoomService/{method}")
+        {
+            Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json"),
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", LiveKitTokens.Admin(ApiKey, ApiSecret, room, DateTimeOffset.UtcNow));
+        try
+        {
+            return await _http.SendAsync(request);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            _log.LogWarning(ex, "Could not reach the voice server ({Method})", method);
+            return null;
+        }
+    }
+
+    public async Task<bool> SetCanPublishAsync(string room, string identity, bool canPublish)
+    {
+        // The permission replaces the old one as a whole, so subscribing is spelled out too.
+        using var response = await RoomServiceAsync("UpdateParticipant", room, new
+        {
+            room,
+            identity,
+            permission = new { canSubscribe = true, canPublish, canPublishData = canPublish },
+        });
+        if (response is null) return false;
+        if (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.NotFound) return true;
+        _log.LogWarning("Changing {Identity}'s permissions in {Room} failed: {Status}", identity[..Math.Min(8, identity.Length)], room, response.StatusCode);
+        return false;
+    }
+
+    public async Task MuteMicrophoneAsync(string room, string identity)
+    {
+        using var response = await RoomServiceAsync("GetParticipant", room, new { room, identity });
+        if (response is not { IsSuccessStatusCode: true }) return;
+        using var info = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        if (!info.RootElement.TryGetProperty("tracks", out var tracks) || tracks.ValueKind != JsonValueKind.Array) return;
+        foreach (var track in tracks.EnumerateArray())
+        {
+            if (!IsMicrophone(track) || !track.TryGetProperty("sid", out var sid)) continue;
+            using var _ = await RoomServiceAsync("MutePublishedTrack", room, new { room, identity, trackSid = sid.GetString(), muted = true });
+        }
+    }
+
+    /// <summary>protojson leaves out zero enum values: type AUDIO is 0, source MICROPHONE is 2.</summary>
+    internal static bool IsMicrophone(JsonElement track)
+    {
+        static string? Name(JsonElement t, string field) =>
+            !t.TryGetProperty(field, out var v) ? null : v.ValueKind == JsonValueKind.String ? v.GetString() : v.ToString();
+        var source = Name(track, "source");
+        if (source is not null and not ("UNKNOWN" or "0")) return source is "MICROPHONE" or "2";
+        return Name(track, "type") is null or "AUDIO" or "0";
     }
 
     public override void Dispose()

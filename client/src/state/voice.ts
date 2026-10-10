@@ -93,6 +93,10 @@ export const canShareScreen = () => typeof navigator !== 'undefined' && !!naviga
 let room: Room | null = null
 let e2eeWorker: Worker | null = null
 let mutedBeforeDeafen = false
+/** A stage speaker's mic is published the first time they open it (not the moment they're brought up). */
+let micDeferred = false
+/** We're muting our own mic right now (so the event isn't taken for a moderator's mute). */
+let selfMuting = false
 const audioElements = new Map<string, HTMLMediaElement>()
 let audioContainer: HTMLDivElement | null = null
 
@@ -223,7 +227,17 @@ async function connect(
         track.detach()
         refreshTiles()
       })
-      .on(RoomEvent.TrackMuted, refreshTiles)
+      .on(RoomEvent.TrackMuted, (pub, participant: Participant) => {
+        // A stage moderator muted us: show it, and stay muted until we unmute.
+        if (participant === next.localParticipant && pub.source === Track.Source.Microphone && !selfMuting && !useVoice.getState().muted) {
+          useVoice.setState({ muted: true })
+          reportFlags()
+        }
+        refreshTiles()
+      })
+      .on(RoomEvent.ParticipantPermissionsChanged, (_previous, participant: Participant) => {
+        if (participant === next.localParticipant) void permissionsChanged(next)
+      })
       .on(RoomEvent.TrackUnmuted, refreshTiles)
       .on(RoomEvent.LocalTrackPublished, refreshTiles)
       .on(RoomEvent.LocalTrackUnpublished, (pub: LocalTrackPublication) => {
@@ -281,11 +295,30 @@ async function connect(
   }
 }
 
+/** Stages: the server brought us up to speak or sent us back (through LiveKit, so this is what we may really do). */
+async function permissionsChanged(current: Room): Promise<void> {
+  const canSpeak = !!current.localParticipant.permissions?.canPublish
+  const { session } = useVoice.getState()
+  if (room !== current || !session || session.call || session.canSpeak === canSpeak) return
+  micDeferred = canSpeak
+  if (canSpeak) {
+    useVoice.setState((s) => ({ muted: true, session: s.session && { ...s.session, canSpeak } }))
+  } else {
+    useVoice.setState((s) => ({ camera: false, screen: false, session: s.session && { ...s.session, canSpeak } }))
+    for (const pub of [...current.localParticipant.trackPublications.values()]) {
+      if (pub.track) await current.localParticipant.unpublishTrack(pub.track).catch(() => undefined)
+    }
+  }
+  refreshTiles()
+  reportFlags()
+}
+
 async function cleanup(): Promise<void> {
   const old = room
   const worker = e2eeWorker
   room = null
   e2eeWorker = null
+  micDeferred = false
   for (const element of audioElements.values()) element.remove()
   audioElements.clear()
   useVoice.setState({ session: null, speaking: {}, tiles: [], stageOpen: false, camera: false, screen: false })
@@ -368,11 +401,28 @@ export function setVolume(accountKey: string, volume: number): void {
 /** Opens or pauses the published mic: not muted, and (in push-to-talk mode) the key is held. */
 async function applyMic(): Promise<void> {
   const { muted, settings, pttDown, session } = useVoice.getState()
-  const publication = room?.localParticipant.getTrackPublication(Track.Source.Microphone)
-  if (!publication?.track || !session?.canSpeak) return
+  const current = room
+  if (!current || !session?.canSpeak) return
+  const publication = current.localParticipant.getTrackPublication(Track.Source.Microphone)
   const open = !muted && (settings.mode === 'voice' || pttDown)
-  if (open && publication.isMuted) await publication.unmute()
-  else if (!open && !publication.isMuted) await publication.mute()
+  if (!publication?.track) {
+    if (!open || !micDeferred) return
+    micDeferred = false
+    try {
+      await current.localParticipant.setMicrophoneEnabled(true)
+    } catch {
+      micDeferred = true // try again next time
+      useVoice.setState({ muted: true, error: "Couldn't use your microphone. Check your browser's permissions." })
+    }
+    return
+  }
+  selfMuting = true
+  try {
+    if (open && publication.isMuted) await publication.unmute()
+    else if (!open && !publication.isMuted) await publication.mute()
+  } finally {
+    selfMuting = false
+  }
 }
 
 export function setPushToTalkDown(down: boolean): void {

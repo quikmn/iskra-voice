@@ -117,7 +117,7 @@ public static partial class EventFeature
         if (location.OptionalLong("channelId", min: 1) is { } channelId)
         {
             var channel = ChatFeature.ReadableChannel(s, me, channelId);
-            if (channel.Kind != "voice") throw RequestException.BadRequest("Events can only be in a voice channel.");
+            if (channel.Kind is not ("voice" or "stage")) throw RequestException.BadRequest("Events can only be in a voice or stage channel.");
             return ("voice", channel.Id, null);
         }
         var text = Text.Normalize(location.OptionalString("text", MaxLocation * 2), MaxLocation, allowNewlines: false)

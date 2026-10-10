@@ -115,6 +115,7 @@ public static class SoundboardFeature
         var channel = store.GetChannel(channelId);
         if (channel is null || !Permissions.CanRead(me, channel)) throw RequestException.BadRequest("Join a voice channel to use the soundboard.");
         if (!Permissions.CanWrite(me, channel)) throw RequestException.Forbidden("You can only listen in this channel.");
+        if (channel.Kind == "stage" && !s.Voice.Stages.IsSpeaker(channelId, me.AccountKey)) throw RequestException.Forbidden("Only speakers can play sounds on a stage.");
 
         var listeners = s.Voice.Participants(channelId).Select(p => p.AccountKey).ToHashSet();
         var frame = Frames.Event("sound.played", new { channelId, accountKey = me.AccountKey, sound = Public(sound, store.GetFile(sound.FileId)) });

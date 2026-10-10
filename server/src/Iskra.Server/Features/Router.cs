@@ -41,6 +41,7 @@ public sealed class Router
         ProfileFeature.Register(this);
         ForumFeature.Register(this);
         EventFeature.Register(this);
+        StageFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

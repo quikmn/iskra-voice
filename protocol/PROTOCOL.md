@@ -8,7 +8,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Basics:** [Encoding](#encoding) · [Identity](#identity) · [Connection](#connection) (handshake, errors and close codes, limits) · [Objects](#objects)
 - **Servers and channels:** [Requests and events](#requests-and-events) · [Invite links](#invite-links)
 - **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji)
-- **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard)
+- **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted)
 - **People and integrations:** [Profiles](#profiles) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks)
 - **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events)
@@ -81,7 +81,8 @@ The connection is one WebSocket per server at `wss://<host>/ws`. It uses text fr
        "channels": [Channel...],   // only the ones you can read
        "members": [Member...],
        "voice": [VoiceState...],   // non-empty voice channels you can read (see Voice)
-       "voiceAvailable": true } }
+       "voiceAvailable": true,
+       "stages": [StageState...] } }   // stage channels you can read (see Stage channels)
    ```
 
 Events from other sessions that happen before `welcome` is sent are queued and delivered right after it, in order.
@@ -107,7 +108,7 @@ After the handshake, every request gets a `result` (body as listed, `{}` if none
 | `rate_limited` | Too fast or over a quota (see [Limits](#limits)), or too many open device links |
 | `unknown_type` | No such request type. The session stays open. |
 | `internal` | A bug on the server. The session stays open. |
-| `voice_unavailable` | `voice.join`, `call.start`, `call.accept`: LiveKit isn't running on this server |
+| `voice_unavailable` | `voice.join`, `call.start`, `call.accept`, `stage.start`, `stage.invite`: LiveKit isn't running (or can't be reached) on this server |
 | `busy` | `call.start`: the person is already in another call on this server |
 
 Close codes:
@@ -141,6 +142,7 @@ Rate limits are token buckets per connection. Every request takes from the gener
 | `link.preview` | 1/s | 10 |
 | `poll.create` | 1 every 5 s | 5 |
 | `sound.play` | 1 every 2 s | 3 |
+| `stage.hand` | 1 every 2 s | 5 |
 | `link.create` | 1 every 10 s | 3 |
 
 Some limits are per account, shared by all of its sessions, so opening more connections doesn't buy more:
@@ -160,7 +162,7 @@ Over the limit: `error` with `code: "rate_limited"`; the session stays open. HTT
 ```jsonc
 Member  { "accountKey": "<b64u>", "name": "Viktor", "role": "member", "online": true, "bot": false,
           ...profile fields (see Profiles) }
-Channel { "id": 1, "name": "general", "kind": "text" | "voice", "position": 0, "readRole": "member", "writeRole": "member" }
+Channel { "id": 1, "name": "general", "kind": "text" | "voice" | "stage", "position": 0, "readRole": "member", "writeRole": "member" }
 Message { "id": 42, "channelId": 1, "author": "<accountKey>", "text": "hi", "createdAt": 1760000000000, "editedAt": null,
           "attachments": [File], "replyTo": ..., "reactions": [...],   // Files, replies and reactions
           "pinned": false, "thread": Thread | null,                     // Pins, search and threads
@@ -181,7 +183,7 @@ Roles, lowest to highest: `guest < member < trusted < admin < owner`.
 | `chat.delete` | `id` | | the author, or an admin who outranks the author |
 | `chat.history` | `channelId, before? \| after? \| around?, limit? (1–100, default 50)` | `{ messages (oldest first), hasMore }` | channel readers |
 | `chat.typing` | `channelId` | | channel writers |
-| `channel.create` | `name, kind? (text\|voice), readRole?, writeRole?` | `{ channel }` | admin+ |
+| `channel.create` | `name, kind? (text\|voice\|stage), readRole?, writeRole?` | `{ channel }` | admin+ |
 | `channel.update` | `id, name?, readRole?, writeRole?` | `{ channel }` | admin+ |
 | `channel.delete` | `id` | | admin+ |
 | `profile.update` | `name` and the fields in [Profiles](#profiles) | `{ member }` | anyone |
@@ -320,7 +322,7 @@ Voice runs on a LiveKit server that `iskra-server` starts next to itself (config
 
 | type | body | result | who |
 |---|---|---|---|
-| `voice.join` | `channelId` (a `voice` channel) | `{ url, token, room, canSpeak }` | channel readers (not bots); `canSpeak` = channel writers |
+| `voice.join` | `channelId` (a `voice` or `stage` channel) | `{ url, token, room, canSpeak }` | channel readers (not bots); `canSpeak` = channel writers |
 | `voice.state` | `muted, deafened` (booleans) | | anyone in voice (cosmetic flags shown to others) |
 
 - `token` is a LiveKit JWT for exactly one room (`voice-<channelId>`) with `canPublish = canSpeak`. The client connects to `url` with it.
@@ -760,7 +762,7 @@ Event { "id": 5, "title": "Game night", "description": "Bring snacks" | null, "s
 | type | body | result | who |
 |---|---|---|---|
 | `event.list` | | `{ events }` (scheduled and live, soonest first) | anyone |
-| `event.create` | `title` (1–100), `description?` (≤ 1000, newlines allowed), `startAt, endAt` (start from now on, ≤ 1 year ahead; end after start, ≤ 7 days later), `timeZone` (≤ 64), `location: { channelId }` (a voice channel you can see) or `{ text }` (1–100), `image?` (file id: your own PNG, JPEG, WebP or GIF upload, ≤ 5 MB) | `{ event }` | member+ (not guests); ≤ 100 scheduled or live events per server; 5 at once, then 1 every 2 minutes per account |
+| `event.create` | `title` (1–100), `description?` (≤ 1000, newlines allowed), `startAt, endAt` (start from now on, ≤ 1 year ahead; end after start, ≤ 7 days later), `timeZone` (≤ 64), `location: { channelId }` (a voice or stage channel you can see) or `{ text }` (1–100), `image?` (file id: your own PNG, JPEG, WebP or GIF upload, ≤ 5 MB) | `{ event }` | member+ (not guests); ≤ 100 scheduled or live events per server; 5 at once, then 1 every 2 minutes per account |
 | `event.update` | `id` and any of the fields above (`""` clears `description` and `image`) | `{ event }` | whoever created it, or an admin who outranks them; while scheduled or live (a live event's start can't move) |
 | `event.cancel` | `id` | | same as above |
 | `event.interest` | `id, on?` (default true) | `{ event }` | anyone who can see it, while scheduled or live; 1/s, burst 5 per connection |
@@ -776,3 +778,47 @@ Event { "id": 5, "title": "Game night", "description": "Bring snacks" | null, "s
 | `event.updated` | `{ event }` | everyone who can see it: created, edited, interest changed, live, ended, cancelled |
 | `event.removed` | `{ id }` | people who could see it until an edit moved it to a channel they can't read |
 | `event.reminder` | `{ event, kind: "soon" \| "live" }` | interested members who can see it |
+
+## Stage channels
+
+A stage is a voice channel (`kind: "stage"`, LiveKit room `voice-<channelId>`) for talks, game nights and listening parties: a few speakers, many listeners. **Who may speak is enforced by LiveKit, set by the server**: `voice.join` on a stage always returns a token with `canPublish = false` (and `canSpeak: false`), whatever your role. Bringing someone up to speak makes the server call LiveKit's `RoomService/UpdateParticipant` (Twirp, signed with a 5-minute room-admin token from the world's LiveKit key) to allow publishing (audio, camera and screen share); moving them back to the audience takes it away again, which also unpublishes their tracks. If LiveKit can't be told, a grant fails with `voice_unavailable` and changes nothing; a failed revocation removes the person from the room instead (fail closed).
+
+Roles on a stage:
+
+- **Moderators**: admins (always, on every stage they can read), plus members an admin picks for that one stage (`stage.moderator`; up to 25 per stage; dropped when they're kicked or banned). Moderators can't act on other moderators, except admins on people ranked below them.
+- **Speakers**: allowed to publish right now. At most 16. Only people LiveKit reports in the room (from its signed webhooks), never what a client says.
+- **Audience**: everyone else in the room, listen-only. Those who can write in the channel (`writeRole`), and moderators, can raise a hand; others only listen.
+
+| type | body | result | who |
+|---|---|---|---|
+| `stage.start` | `channelId, topic` (1–120 chars, no newlines) | `StageState` | a moderator in the room; the stage must not be live. You become its first speaker |
+| `stage.update` | `channelId, topic` | | moderators, while live |
+| `stage.end` | `channelId` | | moderators, while live. Everyone is removed from the room |
+| `stage.hand` | `channelId, raised` (bool) | | someone in the room, while live; raising needs the channel's write role (or being a moderator) and not already speaking. Up to 100 hands. Rate limited ([Limits](#limits)) |
+| `stage.invite` | `channelId, accountKey` | | moderators, while live; the person must be in the room and allowed to ask (not a bot). Moderators can bring themselves up. Lowers their hand |
+| `stage.decline` | `channelId, accountKey` | | moderators: lowers that hand |
+| `stage.audience` | `channelId, accountKey?` | | yourself (default, stepping down), or a moderator for someone else |
+| `stage.mute` | `channelId, accountKey` | | moderators, on a speaker in the room: LiveKit mutes their microphone (they can unmute while they're still a speaker) |
+| `stage.remove` | `channelId, accountKey` | | moderators, on someone else in the room: removes them from the room (they can rejoin; kick or ban to keep them out) |
+| `stage.moderator` | `channelId, accountKey, on` (bool) | | admin+; when adding, the person must be a member (not a bot) who can read the stage |
+
+`accountKey` fields are at most 64 characters. Someone not in the room is `not_found`.
+
+```jsonc
+StageState { "channelId": 7, "live": true,
+             "topic": "Friday game night" | null,      // null when not live
+             "startedAt": 1760000000000 | null, "startedBy": "<accountKey>" | null,
+             "speakers": ["<accountKey>", ...],        // in the order they were brought up
+             "hands": [{ "accountKey": "<accountKey>", "raisedAt": 1760000000000 }],   // oldest first
+             "moderators": ["<accountKey>", ...] }     // picked by admins (admins aren't listed)
+```
+
+- Leaving the room drops you from the speakers and the hands, so you rejoin as a listener. When the room empties the stage ends.
+- Demotions, channel permission changes and losing moderation re-check every speaker: anyone no longer allowed to speak is moved to the audience (through LiveKit, as above).
+- Listener count = people in the room (`voice.state`) who aren't speakers.
+- Only speakers can `sound.play` on a stage.
+- Stage state is kept in memory (LiveKit restarting drops everyone anyway); picked moderators are stored.
+
+| event | body | sent to |
+|---|---|---|
+| `stage.state` | `StageState` | readers of the stage, after any change |

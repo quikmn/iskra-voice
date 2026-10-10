@@ -27,14 +27,19 @@ public sealed class VoiceRegistry
         this.hub = hub;
         this.backend = backend;
         this.log = log;
+        Stages = new StageRegistry(world, hub, backend, this);
         backend.AvailabilityChanged += available =>
         {
             if (!available) _rooms.Clear(); // LiveKit restarted: everyone was dropped
+            if (!available) Stages.SyncAll(); // ...and every stage ended
             hub.Broadcast(Frames.Event("voice.available", new { available }));
         };
     }
 
     public IVoiceBackend Backend => backend;
+
+    /// <summary>Stage channels: voice rooms where only invited speakers may publish.</summary>
+    public StageRegistry Stages { get; }
 
     /// <summary>DM calls (rooms named call-…), next to the voice channels.</summary>
     public CallRegistry Calls { get; }
@@ -59,7 +64,7 @@ public sealed class VoiceRegistry
     /// <summary>Voice state for every voice channel this member can see.</summary>
     public List<object> Snapshot(Member member) =>
         world.Store.AllChannels()
-            .Where(c => c.Kind == "voice" && Permissions.CanRead(member, c) && Participants(c.Id).Count > 0)
+            .Where(c => c.Kind is "voice" or "stage" && Permissions.CanRead(member, c) && Participants(c.Id).Count > 0)
             .Select(c => PublicState(c.Id))
             .ToList();
 
@@ -105,13 +110,14 @@ public sealed class VoiceRegistry
                 Publish(channelId);
             }
         }
+        Stages.SyncAll();
     }
 
     private void Publish(long channelId)
     {
         var channel = world.Store.GetChannel(channelId);
-        if (channel is null) return;
-        hub.BroadcastToReaders(channel, Frames.Event("voice.state", PublicState(channelId)));
+        if (channel is not null) hub.BroadcastToReaders(channel, Frames.Event("voice.state", PublicState(channelId)));
+        Stages.Sync(channelId);
     }
 
     /// <summary>Handles a verified LiveKit webhook body.</summary>

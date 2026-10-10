@@ -163,6 +163,7 @@ public sealed class Session
             members = _world.Store.AllMembers().Select(_hub.PublicMember),
             voice = _voice.Snapshot(member),
             voiceAvailable = _voice.Backend.Available,
+            stages = _voice.Stages.Snapshot(member),
         }));
         lock (_earlyGate)
         {

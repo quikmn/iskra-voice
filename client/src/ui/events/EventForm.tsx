@@ -23,7 +23,7 @@ export function EventForm({ server, event, onBack, onClose }: { server: ServerSt
   const initialZone = event?.timeZone ?? localZone()
   const initialStart = event?.startAt ?? defaultStart()
   const initialEnd = event?.endAt ?? initialStart + 2 * 3_600_000
-  const voiceChannels = server.channels.filter((c) => c.kind === 'voice')
+  const voiceChannels = server.channels.filter((c) => c.kind === 'voice' || c.kind === 'stage')
   const live = event?.status === 'live'
 
   const [title, setTitle] = useState(event?.title ?? '')

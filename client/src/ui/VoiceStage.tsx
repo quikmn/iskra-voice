@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { ServerState } from '../state/store'
 import {
   canShareScreen, leaveVoice, toggleCamera, toggleDeafen, toggleMute, toggleScreenShare, useVoice, videoTrackFor, type Tile,
@@ -118,8 +118,8 @@ export function VideoTile({ tile, name, big, speaking, onClick }: { tile: Tile; 
   )
 }
 
-/** Mute, deafen, camera, screen share and hang up. DM calls pass their own hang-up. */
-export function CallControls({ onLeave }: { onLeave?: () => void }) {
+/** Mute, deafen, camera, screen share and hang up. DM calls pass their own hang-up; stages add their own buttons. */
+export function CallControls({ onLeave, extra }: { onLeave?: () => void; extra?: ReactNode }) {
   const session = useVoice((s) => s.session)!
   const { muted, deafened, camera, screen } = useVoice()
   const speak = session.canSpeak
@@ -143,6 +143,7 @@ export function CallControls({ onLeave }: { onLeave?: () => void }) {
           {screen ? <ScreenShareOff /> : <ScreenShare />}
         </button>
       )}
+      {extra}
       <SoundboardButton variant="call" />
       <button className="call-button hang-up" onClick={() => (onLeave ? onLeave() : void leaveVoice())} aria-label={onLeave ? 'Hang up' : 'Leave call'} title={onLeave ? 'Hang up' : 'Leave call'}>
         <PhoneOff />

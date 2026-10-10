@@ -6,6 +6,7 @@ import { threadMentions, useThreads } from '../state/threads'
 import { Avatar } from './bits'
 import { openProfileCard } from '../state/profile'
 import { VoiceBar } from './VoiceBar'
+import { StageSidebar } from './stage/StageSidebar'
 import { CreateChannelDialog } from './dialogs/CreateChannelDialog'
 import { InviteDialog } from './dialogs/InviteDialog'
 import { SettingsDialog } from './settings/SettingsDialog'
@@ -25,7 +26,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
   }
   const isAdmin = server.me ? roleRank(server.me.role) >= roleRank('admin') : false
   const canInvite = server.me ? roleRank(server.me.role) >= roleRank('member') : false
-  const textChannels = server.channels.filter((c) => c.kind !== 'voice')
+  const textChannels = server.channels.filter((c) => c.kind === 'text' || c.kind === 'forum')
   const voiceChannels = server.channels.filter((c) => c.kind === 'voice')
   const voiceSession = useVoice((s) => s.session)
   const speaking = useVoice((s) => s.speaking)
@@ -123,6 +124,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
             </div>
           )
         })}
+        <StageSidebar server={server} onNavigate={onNavigate} onCreate={() => setDialog('channel')} />
       </div>
 
       <VoiceBar />

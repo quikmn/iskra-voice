@@ -109,6 +109,25 @@ public sealed class FakeVoiceBackend : IVoiceBackend
         lock (Removed) Removed.Add((room, identity));
         return Task.CompletedTask;
     }
+
+    /// <summary>Every publish permission change, in order.</summary>
+    public List<(string Room, string Identity, bool CanPublish)> Permissions { get; } = [];
+    public List<(string Room, string Identity)> Muted { get; } = [];
+    /// <summary>Makes permission changes fail, as if LiveKit were unreachable.</summary>
+    public bool FailUpdates { get; set; }
+
+    public Task<bool> SetCanPublishAsync(string room, string identity, bool canPublish)
+    {
+        if (FailUpdates) return Task.FromResult(false);
+        lock (Permissions) Permissions.Add((room, identity, canPublish));
+        return Task.FromResult(true);
+    }
+
+    public Task MuteMicrophoneAsync(string room, string identity)
+    {
+        lock (Muted) Muted.Add((room, identity));
+        return Task.CompletedTask;
+    }
 }
 
 public sealed record User(TestIdentity Identity, TestClient Client, JsonElement Welcome) : IDisposable
