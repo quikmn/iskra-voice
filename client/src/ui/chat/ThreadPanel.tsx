@@ -189,7 +189,7 @@ function ThreadStart({ server, root, createdBy }: { server: ServerState; root: M
       </div>
     )
   }
-  const name = server.members[root.author]?.name ?? 'Former member'
+  const name = root.imported?.name ?? server.members[root.author]?.name ?? 'Former member'
   return (
     <div className="thread-start">
       <div className="thread-root">

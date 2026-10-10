@@ -7,6 +7,7 @@ import {
 import { Attachments, LinkPreviewCard, Reactions, ReactionPicker, ReplyLine } from './chat/MessageExtras'
 import { AuthorAvatar, BotBadge, Embeds } from './chat/BotBits'
 import { authorOf, sameSender } from './chat/bots'
+import { ImportedBadge, ImportedExtras } from './chat/ImportedBits'
 import { firstLink, formatSize, replyKey, setReply, useReply } from './chat/helpers'
 import { Avatar, Spinner } from './bits'
 import { openProfileCard } from '../state/profile'
@@ -280,6 +281,7 @@ function MessageRow({
               <span className="author" style={{ color: `hsl(${hueFor(message.author)} 70% var(--name-l))` }}>{name}</span>
             )}
             {shown.bot && <BotBadge />}
+            {message.imported && <ImportedBadge />}
             <time title={fullTime(message.createdAt)}>{messageTime(message.createdAt)}</time>
             {message.pinned && <PinnedMark />}
           </div>
@@ -298,6 +300,7 @@ function MessageRow({
         <Attachments server={server} files={message.attachments} />
         {message.webhook && <Embeds server={server} embeds={message.webhook.embeds} />}
         {!message.tempId && firstLink(message.text) && <LinkPreviewCard server={server} url={firstLink(message.text)!} />}
+        <ImportedExtras server={server} message={message} />
         <Reactions server={server} message={message} />
         <ThreadSummary server={server} message={message} />
         {message.pending === 'failed' && (
@@ -473,7 +476,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
     <div className="composer-wrap">
       {replyTo && (
         <div className="reply-bar">
-          <span>Replying to <strong>{server.members[replyTo.author]?.name ?? 'someone'}</strong></span>
+          <span>Replying to <strong>{replyTo.imported?.name ?? server.members[replyTo.author]?.name ?? 'someone'}</strong></span>
           <button className="icon-button small" onClick={() => setReply(server.key, channelId, null)} aria-label="Cancel reply"><Close size={14} /></button>
         </div>
       )}

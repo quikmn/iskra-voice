@@ -91,7 +91,7 @@ export function SearchPanel({ server }: { server: ServerState }) {
 
 function ResultCard({ server, result }: { server: ServerState; result: SearchResult }) {
   const { message, matches } = result
-  const name = server.members[message.author]?.name ?? 'Former member'
+  const name = message.imported?.name ?? server.members[message.author]?.name ?? 'Former member'
   const nameOf = (k: string) => server.members[k]?.name ?? null
   const segments = highlightSegments(message.text, matches)
   return (

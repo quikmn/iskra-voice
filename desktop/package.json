@@ -6,7 +6,7 @@
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc -p .",
-    "test": "tsc -p . && node --test dist/platform.test.js",
+    "test": "tsc -p . && node --test dist/platform.test.js dist/restore.test.js",
     "start": "npm run build && electron .",
     "dev": "npm run build && cross-env ISKRA_DEV_URL=http://localhost:5173 electron .",
     "dist": "npm --prefix ../client run build && node scripts/prepare-server.mjs win-x64 && npm run build && electron-builder --win portable nsis --publish never",

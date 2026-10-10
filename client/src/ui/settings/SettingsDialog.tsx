@@ -13,6 +13,8 @@ import { InternetSection } from '../dialogs/InternetSettings'
 import { EmojiSection, SoundboardSettingsSection, SoundsSection } from '../expressions/ExpressionSettings'
 import { DevicesSection } from '../dialogs/DevicesSection'
 import { IntegrationsSection } from '../dialogs/Integrations'
+import { BackupSection } from './BackupSection'
+import { ImportSection } from './ImportSection'
 import { ChevronRight } from '../icons'
 import { settingsSections, type SectionId } from './sections'
 import './settings.css'
@@ -102,6 +104,8 @@ function Section({ id, server, onClose }: { id: SectionId; server: ServerState |
     case 'integrations': return <IntegrationsSection server={server} />
     case 'pages': return <PagesSection server={server} />
     case 'internet': return <InternetSection server={server} />
+    case 'backup': return <BackupSection server={server} />
+    case 'import': return <ImportSection server={server} />
   }
 }
 

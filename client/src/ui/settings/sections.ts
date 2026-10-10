@@ -3,7 +3,7 @@ import { roleRank, type Role } from '../../core/protocol'
 
 export type SectionId =
   | 'profile' | 'appearance' | 'devices' | 'recovery' | 'notifications' | 'voice'
-  | 'overview' | 'emoji' | 'sounds' | 'integrations' | 'pages' | 'internet'
+  | 'overview' | 'emoji' | 'sounds' | 'integrations' | 'pages' | 'internet' | 'backup' | 'import'
 
 export interface SectionInfo {
   id: SectionId
@@ -28,6 +28,8 @@ const SERVER: (SectionInfo & { min: Role })[] = [
   { id: 'integrations', label: 'Bots & webhooks', group: 'server', min: 'admin' },
   { id: 'pages', label: 'Profile pages', group: 'server', min: 'admin' },
   { id: 'internet', label: 'Open to the internet', group: 'server', min: 'admin' },
+  { id: 'backup', label: 'Backup & move', group: 'server', min: 'owner' },
+  { id: 'import', label: 'Import from Discord', group: 'server', min: 'owner' },
 ]
 
 /** The sections to show: account always; server ones only with a joined server, by role. */
