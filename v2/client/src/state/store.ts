@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import { Connection, type ConnectionStatus } from '../core/connection'
 import { ready } from '../core/crypto'
 import { createIdentity, type Identity } from '../core/identity'
+import { restoreIdentity } from '../core/recovery'
 import type { InviteLink } from '../core/invite'
 import type { Channel, Events, Member, Message, VoiceParticipant, Welcome } from '../core/protocol'
 import * as storage from '../core/storage'
@@ -133,6 +134,24 @@ export async function boot(): Promise<void> {
   useApp.setState({ phase: 'ready', identity, profile })
   for (const server of saved) connectServer(server.url, server.serverKey, server.name, server.invite)
   if (saved.length) useApp.setState({ activeServer: saved[0].serverKey })
+}
+
+/** A new device for an existing account (from its recovery key). */
+export async function restoreAccount(seed: Uint8Array, name: string): Promise<void> {
+  const identity = restoreIdentity(seed)
+  const profile = { name, recoverySaved: true }
+  await storage.saveIdentity(identity)
+  await storage.saveProfile(profile)
+  void storage.requestPersistence()
+  useApp.setState({ phase: 'ready', identity, profile })
+}
+
+export async function markRecoverySaved(): Promise<void> {
+  const profile = useApp.getState().profile
+  if (!profile || profile.recoverySaved) return
+  const next = { ...profile, recoverySaved: true }
+  await storage.saveProfile(next)
+  useApp.setState({ profile: next })
 }
 
 export async function completeOnboarding(name: string): Promise<void> {
@@ -419,7 +438,7 @@ export function connectionFor(key: string): Connection | undefined {
 }
 
 export async function renameMe(name: string): Promise<void> {
-  const profile = { name }
+  const profile = { ...useApp.getState().profile, name }
   await storage.saveProfile(profile)
   useApp.setState({ profile })
   await Promise.all(

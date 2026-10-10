@@ -4,6 +4,7 @@ import { fingerprint } from '../../core/connection'
 import { leaveServer, renameMe, useApp, type ServerState } from '../../state/store'
 import { Modal } from '../bits'
 import { VoiceSettingsSection } from './VoiceSettings'
+import { RecoveryKeySection } from './RecoveryKey'
 
 export function SettingsDialog({ server, onClose }: { server: ServerState; onClose: () => void }) {
   const profile = useApp((s) => s.profile)
@@ -38,6 +39,8 @@ export function SettingsDialog({ server, onClose }: { server: ServerState; onClo
           </p>
         )}
       </section>
+
+      <RecoveryKeySection />
 
       <VoiceSettingsSection />
 

@@ -10,6 +10,7 @@ import { ServerRail } from './ServerRail'
 import { useVoice } from '../state/voice'
 import { VoiceStage } from './VoiceStage'
 import { HomeMain, HomeSidebar } from './Home'
+import { RecoveryNudge } from './dialogs/RecoveryKey'
 import { Menu } from './icons'
 
 export type Panel = 'none' | 'nav' | 'members'
@@ -31,6 +32,7 @@ export function Shell() {
       </div>
 
       <main className="main-column">
+        <RecoveryNudge />
         {server && stage ? (
           <VoiceStage server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
         ) : server ? (

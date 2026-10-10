@@ -45,6 +45,8 @@ interface StoredIdentity {
 
 export interface Profile {
   name: string
+  /** The user copied or downloaded their recovery key. */
+  recoverySaved?: boolean
 }
 
 export interface SavedServer {
