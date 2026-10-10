@@ -1,14 +1,20 @@
 import { useState } from 'react'
 import { decodeRecoveryKey } from '../core/recovery'
+import { usePendingLink } from '../state/link'
 import { acceptInvite, completeOnboarding, restoreAccount, useApp } from '../state/store'
 import { hostOf } from './format'
+import { LinkJoin } from './LinkJoin'
+
+type Mode = 'new' | 'existing' | 'recovery' | 'link'
 
 export function Onboarding() {
   const pendingInvite = useApp((s) => s.pendingInvite)
+  const pendingLink = usePendingLink((s) => s.code)
+  const [mode, setMode] = useState<Mode>(pendingLink ? 'link' : 'new')
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
-  const [restoring, setRestoring] = useState(false)
   const [recoveryKey, setRecoveryKey] = useState('')
+  const restoring = mode === 'recovery'
   const trimmed = name.trim()
   const seed = restoring ? decodeRecoveryKey(recoveryKey) : null
   const keyProblem = restoring && recoveryKey.trim().length > 20 && !seed
@@ -22,12 +28,51 @@ export function Onboarding() {
     if (pendingInvite) acceptInvite(pendingInvite)
   }
 
+  const brand = (
+    <div className="brand">
+      <span className="brand-mark">⚡</span> Iskra
+    </div>
+  )
+
+  if (mode === 'link') {
+    return (
+      <div className="onboarding">
+        <div className="onboarding-card">
+          {brand}
+          <LinkJoin initialCode={pendingLink} onBack={() => { usePendingLink.setState({ code: null }); setMode('existing') }} />
+        </div>
+      </div>
+    )
+  }
+
+  if (mode === 'existing') {
+    return (
+      <div className="onboarding">
+        <div className="onboarding-card">
+          {brand}
+          <p className="lead">Welcome back! How do you want to sign in?</p>
+          <div className="choice-list">
+            <button type="button" className="choice" onClick={() => setMode('link')}>
+              <strong>Link with my other device</strong>
+              <span className="muted">Scan a code from Iskra on your phone or computer. Easiest.</span>
+            </button>
+            <button type="button" className="choice" onClick={() => setMode('recovery')}>
+              <strong>Use my recovery key</strong>
+              <span className="muted">The ISKRA-… key you saved.</span>
+            </button>
+          </div>
+          <p className="fine-print">
+            <button type="button" className="link" onClick={() => setMode('new')}>I'm new here</button>
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="onboarding">
       <form className="onboarding-card" onSubmit={submit}>
-        <div className="brand">
-          <span className="brand-mark">⚡</span> Iskra
-        </div>
+        {brand}
         {pendingInvite ? (
           <p className="lead">
             You've been invited to a server at <strong>{hostOf(pendingInvite.serverUrl)}</strong>.
@@ -67,11 +112,11 @@ export function Onboarding() {
         </button>
         <p className="fine-print">
           {restoring ? (
-            <button type="button" className="link" onClick={() => setRestoring(false)}>I'm new here</button>
+            <button type="button" className="link" onClick={() => setMode('existing')}>Back</button>
           ) : (
             <>
-              No email, no password. Your account is a key that stays on this device.{' '}
-              <button type="button" className="link" onClick={() => setRestoring(true)}>I already have an account</button>
+              No email, no password. Your account is a key that stays on your devices.{' '}
+              <button type="button" className="link" onClick={() => setMode('existing')}>I already have Iskra</button>
             </>
           )}
         </p>

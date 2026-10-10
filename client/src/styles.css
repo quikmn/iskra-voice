@@ -542,3 +542,39 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* ── Devices and device linking ─────────────────────────────────────── */
+.device-list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 6px; }
+.device-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--bg); border: 1px solid var(--border); }
+.device-text { display: grid; gap: 2px; flex: 1; min-width: 0; line-height: 1.3; }
+.device-text strong { display: flex; align-items: center; gap: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.device-text .muted { font-size: 13px; }
+.device-current { color: var(--green); }
+.device-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+.small-text { font-size: 13px; }
+.link-offer { display: grid; gap: 10px; justify-items: start; }
+.link-offer p { margin: 0; }
+.qr-code { width: min(240px, 70vw); height: auto; border-radius: 10px; justify-self: center; }
+.link-code, .confirm-code {
+  font-family: var(--mono); background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px;
+  word-break: break-all; user-select: all; width: 100%;
+}
+.link-code { font-size: 14px; line-height: 1.6; }
+.confirm-code { font-size: 32px; font-weight: 700; letter-spacing: 0.12em; text-align: center; color: var(--accent-2); }
+.choice-list { display: grid; gap: 10px; }
+.choice {
+  display: grid; gap: 4px; text-align: left; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg);
+}
+.choice:hover { border-color: var(--accent); }
+.choice .muted { font-size: 13px; }
+.link-join { display: grid; gap: 12px; }
+.link-join .lead { margin: 0; display: flex; align-items: center; gap: 10px; }
+.link-join p { margin: 0; }
+.link-code-field { margin: 0; }
+.qr-scanner { border-radius: 12px; overflow: hidden; background: #000; }
+.qr-scanner video { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; }
+.qr-scanner .muted { background: var(--bg); margin: 0; padding: 14px; }
+@media (max-width: 760px) {
+  .device-row { flex-wrap: wrap; }
+  .onboarding-card { padding: 24px 18px; }
+}

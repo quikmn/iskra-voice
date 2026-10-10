@@ -6,6 +6,7 @@ import { Modal } from '../bits'
 import { VoiceSettingsSection } from './VoiceSettings'
 import { RecoveryKeySection } from './RecoveryKey'
 import { NotificationSettingsSection } from './NotificationSettings'
+import { DevicesSection } from './DevicesSection'
 
 export function SettingsDialog({ server, onClose }: { server?: ServerState | null; onClose: () => void }) {
   const profile = useApp((s) => s.profile)
@@ -40,6 +41,8 @@ export function SettingsDialog({ server, onClose }: { server?: ServerState | nul
           </p>
         )}
       </section>
+
+      <DevicesSection />
 
       <RecoveryKeySection />
 
