@@ -1,0 +1,42 @@
+name: v2
+
+on:
+  push:
+    paths: ['v2/**', '.github/workflows/v2.yml']
+  pull_request:
+    paths: ['v2/**', '.github/workflows/v2.yml']
+
+jobs:
+  server:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: v2/server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet test --configuration Release
+
+  client:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: v2/client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: v2/client/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build

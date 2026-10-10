@@ -1,0 +1,19 @@
+{
+  "v1": {
+    "accountSeed": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
+    "deviceSeed": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI",
+    "serverSeed": "AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM",
+    "accountKey": "iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w",
+    "deviceKey": "gTl3Dqh9F19Wo1Rmw0x-zMuNipG07jeiXfYPW4_Js5Q",
+    "serverKey": "7UkoxijRwsbq6QM4kFmVYSlZJzpcY_k2NsFGFKyHN9E",
+    "nonce": "BAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ",
+    "created": 1760000000000,
+    "cert": {
+      "accountKey": "iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w",
+      "deviceKey": "gTl3Dqh9F19Wo1Rmw0x-zMuNipG07jeiXfYPW4_Js5Q",
+      "created": 1760000000000,
+      "sig": "yTTtaUPF8w0kjh5H-sQSC9TUgRcKp2zMdd1SpHUKka01dVxczIjsaRycOFXkGvTev7_qMLG6ubskVWOMXqe2Bg"
+    },
+    "authSig": "2KcuTdSi6cIld_JBLb5LPpqtllUvwt8SP34Cx3uxkib-7V_2jt6p96gx242LwZAziaRsdv3UtWLwcgXbEiQdCw"
+  }
+}

@@ -1,0 +1,1754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iskra v1 Server Setup Guide (legacy)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #0b0b14;
+  --surface:   #11111e;
+  --surface2:  #16162a;
+  --border:    rgba(120,100,255,0.15);
+  --accent:    #7c6fff;
+  --accent2:   #00cfff;
+  --glow:      rgba(124,111,255,0.35);
+  --glow2:     rgba(0,207,255,0.25);
+  --text:      #e2e2f0;
+  --muted:     #7878a0;
+  --green:     #4ade80;
+  --red:       #f87171;
+  --yellow:    #fbbf24;
+  --orange:    #fb923c;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+#spark-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+/* ── Nav ─────────────────────────────────────────────────────────── */
+nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 48px;
+  background: rgba(11,11,20,0.8);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  font-size: 1.1rem;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.nav-logo svg { width: 26px; height: 26px; }
+
+.nav-links { display: flex; align-items: center; gap: 10px; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover { color: var(--text); border-color: rgba(124,111,255,0.4); background: rgba(124,111,255,0.07); }
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 20px var(--glow);
+}
+.btn-primary:hover { background: #9180ff; box-shadow: 0 0 32px var(--glow); transform: translateY(-1px); }
+
+/* ── Page hero ───────────────────────────────────────────────────── */
+.page-hero {
+  position: relative;
+  z-index: 1;
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 160px 32px 80px;
+  text-align: center;
+}
+
+.page-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(124,111,255,0.3);
+  background: rgba(124,111,255,0.08);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #a89fff;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 28px;
+  animation: fadeUp 0.5s ease both;
+}
+
+.page-hero h1 {
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+  margin-bottom: 20px;
+  animation: fadeUp 0.5s 0.1s ease both;
+}
+
+.page-hero h1 .grad {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.page-hero p {
+  font-size: 1.1rem;
+  color: var(--muted);
+  line-height: 1.65;
+  max-width: 600px;
+  margin: 0 auto 40px;
+  animation: fadeUp 0.5s 0.2s ease both;
+}
+
+.result-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  animation: fadeUp 0.5s 0.3s ease both;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.chip .dot-g { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); flex-shrink: 0; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── One-liner section ───────────────────────────────────────────── */
+.oneliner-section {
+  position: relative;
+  z-index: 1;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 32px 56px;
+}
+
+.oneliner-card {
+  background: linear-gradient(135deg, rgba(124,111,255,0.08) 0%, rgba(0,207,255,0.04) 100%);
+  border: 1px solid rgba(124,111,255,0.28);
+  border-radius: 20px;
+  padding: 36px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 36px;
+  align-items: start;
+}
+
+.oneliner-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent2);
+  margin-bottom: 12px;
+}
+
+.oneliner-left h2 {
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 12px;
+}
+
+.oneliner-left p {
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.65;
+  margin-bottom: 16px;
+}
+
+.oneliner-requirements {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.oneliner-requirements span {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.oneliner-alt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 0.78rem;
+}
+
+.oneliner-alt a { color: var(--accent); text-decoration: none; }
+.oneliner-alt a:hover { text-decoration: underline; }
+.oneliner-dot { color: var(--border); }
+.oneliner-alt span { color: var(--muted); }
+
+.oneliner-orline {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 28px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.oneliner-orline::before,
+.oneliner-orline::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+@media (max-width: 640px) {
+  .oneliner-card { grid-template-columns: 1fr; gap: 24px; padding: 24px; }
+  .oneliner-section { padding-left: 20px; padding-right: 20px; }
+}
+
+/* ── What you need ───────────────────────────────────────────────── */
+.prereq-section {
+  position: relative;
+  z-index: 1;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 32px 80px;
+}
+
+.section-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+
+.section-title {
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin-bottom: 12px;
+}
+
+.section-desc {
+  font-size: 0.95rem;
+  color: var(--muted);
+  line-height: 1.65;
+  margin-bottom: 32px;
+}
+
+.prereq-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.prereq-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 22px;
+}
+
+.prereq-icon { font-size: 1.5rem; margin-bottom: 10px; }
+.prereq-card h3 { font-size: 0.92rem; font-weight: 700; margin-bottom: 6px; }
+.prereq-card p { font-size: 0.82rem; color: var(--muted); line-height: 1.55; }
+.prereq-card .note { margin-top: 8px; font-size: 0.76rem; color: var(--accent2); }
+
+/* ── Steps ───────────────────────────────────────────────────────── */
+.steps-section {
+  position: relative;
+  z-index: 1;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 32px 120px;
+}
+
+.steps-list { display: flex; flex-direction: column; gap: 24px; }
+
+.step-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.step-card:hover { border-color: rgba(124,111,255,0.3); }
+
+.step-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 28px 28px 0;
+}
+
+.step-num {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(124,111,255,0.12);
+  border: 1.5px solid rgba(124,111,255,0.3);
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.step-head-text h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+  letter-spacing: -0.01em;
+}
+
+.step-head-text .step-why {
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.step-body { padding: 22px 28px 28px; }
+
+.step-explain {
+  font-size: 0.9rem;
+  color: var(--text);
+  line-height: 1.7;
+  margin-bottom: 20px;
+}
+
+.step-explain strong { color: var(--accent2); font-weight: 600; }
+
+.step-explain a { color: var(--accent); text-decoration: none; }
+.step-explain a:hover { text-decoration: underline; }
+
+/* Code blocks */
+.code-block {
+  background: #080810;
+  border: 1px solid rgba(120,100,255,0.2);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 16px 0;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: rgba(124,111,255,0.06);
+  border-bottom: 1px solid rgba(120,100,255,0.15);
+}
+
+.code-label { font-size: 0.72rem; color: var(--muted); font-weight: 600; letter-spacing: 0.05em; font-family: 'Inter', sans-serif; text-transform: uppercase; }
+
+.copy-btn {
+  font-size: 0.72rem;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.copy-btn:hover { color: var(--text); border-color: rgba(124,111,255,0.4); }
+.copy-btn.copied { color: var(--green); border-color: rgba(74,222,128,0.4); }
+
+.code-content {
+  padding: 16px;
+  font-size: 0.82rem;
+  line-height: 1.75;
+  white-space: pre;
+  overflow-x: auto;
+  color: #c8c8e8;
+}
+
+.code-content .cm { color: #5a5a7a; }  /* comment */
+.code-content .kw { color: var(--accent); }
+.code-content .st { color: var(--green); }
+.code-content .hl { color: var(--accent2); }
+
+/* Expected output */
+.expected {
+  background: rgba(74,222,128,0.04);
+  border: 1px solid rgba(74,222,128,0.15);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin: 12px 0;
+  font-size: 0.83rem;
+}
+
+.expected-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--green);
+  margin-bottom: 6px;
+}
+
+.expected p { color: var(--muted); line-height: 1.6; }
+.expected code { font-family: 'JetBrains Mono', monospace; color: var(--green); font-size: 0.8rem; }
+
+/* Warning / tip boxes */
+.tip-box {
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin: 12px 0;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.tip-box.tip { background: rgba(0,207,255,0.05); border: 1px solid rgba(0,207,255,0.2); color: var(--muted); }
+.tip-box.tip .tip-icon { color: var(--accent2); font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+
+.tip-box.warn { background: rgba(251,191,36,0.05); border: 1px solid rgba(251,191,36,0.2); color: var(--muted); }
+.tip-box.warn .tip-icon { color: var(--yellow); font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+
+.tip-box strong { color: var(--text); }
+
+/* AI Help section */
+.ai-help-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 16px;
+  background: rgba(124,111,255,0.06);
+  border: 1px solid rgba(124,111,255,0.2);
+  border-radius: 9px;
+  margin-top: 20px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+  width: 100%;
+  text-align: left;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.ai-help-toggle:hover { background: rgba(124,111,255,0.1); border-color: rgba(124,111,255,0.35); }
+
+.ai-help-toggle .arrow { margin-left: auto; transition: transform 0.2s; font-size: 0.75rem; }
+.ai-help-toggle.open .arrow { transform: rotate(180deg); }
+
+.ai-panel {
+  display: none;
+  background: rgba(124,111,255,0.04);
+  border: 1px solid rgba(124,111,255,0.15);
+  border-top: none;
+  border-radius: 0 0 9px 9px;
+  padding: 18px;
+  margin-top: -1px;
+}
+
+.ai-panel.open { display: block; }
+
+.ai-desc {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
+.ai-desc strong { color: var(--text); }
+
+.ai-services {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.ai-service {
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  text-decoration: none;
+  transition: all 0.15s;
+}
+.ai-service:hover { color: var(--text); border-color: rgba(124,111,255,0.35); }
+
+.ai-prompt-wrap { position: relative; }
+
+.ai-prompt-textarea {
+  width: 100%;
+  background: #080810;
+  border: 1px solid rgba(120,100,255,0.2);
+  border-radius: 8px;
+  padding: 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.77rem;
+  color: #c8c8e8;
+  line-height: 1.65;
+  resize: vertical;
+  min-height: 180px;
+  outline: none;
+}
+.ai-prompt-textarea:focus { border-color: rgba(124,111,255,0.4); }
+
+.ai-copy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ai-copy-note { font-size: 0.77rem; color: var(--muted); }
+
+.ai-copy-btn {
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 8px 20px;
+  border-radius: 7px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.ai-copy-btn:hover { background: #9180ff; }
+.ai-copy-btn.copied { background: #22c55e; }
+
+/* VPS provider cards */
+.vps-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin: 16px 0; }
+
+.vps-card {
+  background: #080810;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  transition: border-color 0.2s;
+}
+.vps-card:hover { border-color: rgba(124,111,255,0.3); }
+.vps-card h4 { font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
+.vps-card .price { font-size: 0.8rem; color: var(--green); font-weight: 600; margin-bottom: 4px; }
+.vps-card p { font-size: 0.78rem; color: var(--muted); line-height: 1.5; }
+.vps-card a { color: var(--accent); font-size: 0.78rem; text-decoration: none; }
+.vps-card a:hover { text-decoration: underline; }
+
+/* Done banner */
+.done-banner {
+  position: relative;
+  z-index: 1;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 32px 120px;
+}
+
+.done-card {
+  background: linear-gradient(135deg, rgba(124,111,255,0.1) 0%, rgba(0,207,255,0.06) 100%);
+  border: 1px solid rgba(124,111,255,0.25);
+  border-radius: 20px;
+  padding: 48px;
+  text-align: center;
+}
+
+.done-card h2 { font-size: 1.8rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 12px; }
+.done-card p { font-size: 0.95rem; color: var(--muted); line-height: 1.65; max-width: 500px; margin: 0 auto 28px; }
+
+.done-chips { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 28px; }
+.done-chip { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 999px; font-size: 0.82rem; font-weight: 500; background: var(--surface); border: 1px solid var(--border); color: var(--text); }
+.done-chip .g { color: var(--green); }
+
+/* Divider */
+.divider {
+  position: relative;
+  z-index: 1;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+.divider hr { border: none; border-top: 1px solid var(--border); margin-bottom: 56px; }
+
+/* Footer */
+footer {
+  position: relative;
+  z-index: 1;
+  border-top: 1px solid var(--border);
+  padding: 32px 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+footer p { font-size: 0.8rem; color: var(--muted); }
+footer a { color: var(--muted); text-decoration: none; font-size: 0.8rem; }
+footer a:hover { color: var(--text); }
+
+/* Responsive */
+@media (max-width: 640px) {
+  nav { padding: 14px 20px; }
+  .page-hero { padding: 130px 20px 60px; }
+  .prereq-section, .steps-section, .done-banner, .divider { padding-left: 20px; padding-right: 20px; }
+  .step-head { gap: 14px; padding: 20px 20px 0; }
+  .step-body { padding: 16px 20px 20px; }
+  .done-card { padding: 32px 24px; }
+}
+</style>
+</head>
+<body>
+
+<canvas id="spark-canvas"></canvas>
+
+<!-- ── Nav ─────────────────────────────────────────────────────────── -->
+<nav>
+  <a href="/" class="nav-logo">
+    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="15" stroke="#7c6fff" stroke-width="1.5"/>
+      <path d="M10 22 L16 10 L22 22" stroke="#7c6fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M12 18 H20" stroke="#00cfff" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    Iskra
+  </a>
+  <div class="nav-links">
+    <a href="/" class="btn btn-ghost">← Back to iskra.foo</a>
+    <a href="https://github.com/quikmn/iskra-voice" class="btn btn-primary" target="_blank" rel="noopener">GitHub</a>
+  </div>
+</nav>
+
+<!-- ── Page hero ─────────────────────────────────────────────────── -->
+<div class="page-hero">
+  <div class="tip-box warn" style="text-align:left;margin:0 auto 32px;max-width:680px;font-size:0.9rem">
+    <span class="tip-icon">⚠</span>
+    <div><strong>This guide documents Iskra v1, which is no longer supported.</strong> Its hosted services (Iskra ID and account.iskra.foo, the relay, the web client at app.iskra.foo, the public TURN server and the server list) are offline, and v1 has known security issues, so please don't set up a new v1 server. It's kept here for reference only. Iskra 2 is being rebuilt from the ground up: <a href="https://github.com/quikmn/iskra-voice" target="_blank" rel="noopener" style="color:var(--accent2)">follow it on GitHub</a> or read more on the <a href="/" style="color:var(--accent2)">home page</a>.</div>
+  </div>
+  <div class="page-badge">Server Setup Guide · v1 (legacy)</div>
+  <h1>Your own Iskra server<br>in <span class="grad">about two hours.</span></h1>
+  <p>No experience needed. One cheap VPS, a domain name, and these instructions. We'll walk through every command together — copy, paste, done.</p>
+  <div class="result-chips">
+    <div class="chip"><span class="dot-g"></span> Always-on, no home hardware</div>
+    <div class="chip"><span class="dot-g"></span> CGNAT-proof for everyone</div>
+    <div class="chip"><span class="dot-g"></span> Full SSL encryption</div>
+    <div class="chip"><span class="dot-g"></span> ~$6–10/month total</div>
+  </div>
+</div>
+
+<!-- ── One-liner install ──────────────────────────────────────────── -->
+<div class="oneliner-section">
+  <div class="oneliner-card">
+    <div class="oneliner-left">
+      <div class="oneliner-badge">Automated installer</div>
+      <h2>Skip the guide. One command does everything.</h2>
+      <p>SSH into your VPS, paste this, answer four questions. The script installs nginx, coturn, and Iskra, wires it all together, and gets your SSL certificate. Takes about 5 minutes.</p>
+      <div class="oneliner-requirements">
+        <span>Ubuntu 22.04</span>
+        <span>Root access</span>
+        <span>Domain already pointing at VPS</span>
+      </div>
+    </div>
+    <div class="oneliner-right">
+      <div class="code-block" style="margin:0">
+        <div class="code-header">
+          <span class="code-label">Run on your VPS</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+        <div class="code-content" style="font-size:0.85rem">curl -fsSL https://iskra.foo/install.sh | bash</div>
+      </div>
+      <div class="oneliner-alt">
+        <a href="/install.sh" download>Download script to inspect first</a>
+        <span class="oneliner-dot">·</span>
+        <span>MIT licensed, ~250 lines</span>
+      </div>
+      <div class="tip-box warn" style="margin-top:14px">
+        <span class="tip-icon">⚠</span>
+        <div>Point your domain's DNS at this VPS <strong>before</strong> running — certbot needs it to issue the SSL certificate.</div>
+      </div>
+    </div>
+  </div>
+  <div class="oneliner-orline">
+    <span>or follow the step-by-step guide below</span>
+  </div>
+</div>
+
+<!-- ── What you need ──────────────────────────────────────────────── -->
+<div class="prereq-section">
+  <div class="section-label">Before you start</div>
+  <div class="section-title">What you'll need</div>
+  <p class="section-desc">Four things. That's it. You don't need to know how servers work — the guide handles all of that.</p>
+
+  <div class="prereq-grid">
+    <div class="prereq-card">
+      <div class="prereq-icon">💳</div>
+      <h3>A credit or debit card</h3>
+      <p>To pay for the VPS. You'll spend $4–10 per month depending on provider. Cancel any time.</p>
+    </div>
+    <div class="prereq-card">
+      <div class="prereq-icon">🌐</div>
+      <h3>A domain name</h3>
+      <p>Something like <code style="font-family:'JetBrains Mono',monospace;font-size:0.8em;color:var(--accent2)">myfriends.com</code>. Around $10–15/year from Namecheap or Cloudflare.</p>
+      <p class="note">Technically optional, but you won't get SSL without one — strongly recommended.</p>
+    </div>
+    <div class="prereq-card">
+      <div class="prereq-icon">⏱️</div>
+      <h3>About two hours</h3>
+      <p>Most people finish faster. Take your time, read each step, and don't skip anything.</p>
+    </div>
+    <div class="prereq-card">
+      <div class="prereq-icon">💻</div>
+      <h3>A terminal app</h3>
+      <p><strong>Windows:</strong> Windows Terminal (free, Microsoft Store) or PuTTY.<br><strong>Mac/Linux:</strong> Terminal is already installed.</p>
+    </div>
+  </div>
+</div>
+
+<div class="divider"><hr></div>
+
+<!-- ── Steps ─────────────────────────────────────────────────────── -->
+<div class="steps-section">
+  <div class="section-label">The guide</div>
+  <div class="section-title">Step by step</div>
+  <p class="section-desc" style="margin-bottom:40px">Follow these in order. Each step tells you what to run, what to expect, and what to do if something goes wrong.</p>
+
+  <div class="steps-list">
+
+    <!-- ── Step 1 ──────────────────────────────────────────────── -->
+    <div class="step-card">
+      <div class="step-head">
+        <div class="step-num">1</div>
+        <div class="step-head-text">
+          <h2>Get a VPS (Virtual Private Server)</h2>
+          <p class="step-why">A VPS is a tiny computer in a data center that runs 24/7 so your friends can connect even when your PC is off.</p>
+        </div>
+      </div>
+      <div class="step-body">
+        <p class="step-explain">
+          Sign up with one of the providers below. You want a plan with at least <strong>1 GB RAM</strong> (2 GB is better), and choose <strong>Ubuntu 22.04 LTS</strong> as the operating system when asked. Pick a data center location closest to most of your friends.
+        </p>
+
+        <div class="vps-grid">
+          <div class="vps-card">
+            <h4>Hetzner</h4>
+            <div class="price">~$4–6/month</div>
+            <p>Best value. CX22 (2 vCPU, 4 GB RAM) is excellent for Iskra.</p>
+            <a href="https://hetzner.com" target="_blank">hetzner.com →</a>
+          </div>
+          <div class="vps-card">
+            <h4>DigitalOcean</h4>
+            <div class="price">~$6/month</div>
+            <p>Very beginner friendly. Basic Droplet (1 GB RAM) works fine.</p>
+            <a href="https://digitalocean.com" target="_blank">digitalocean.com →</a>
+          </div>
+          <div class="vps-card">
+            <h4>Vultr</h4>
+            <div class="price">~$6/month</div>
+            <p>Good global coverage. Cloud Compute (1 GB RAM) is plenty.</p>
+            <a href="https://vultr.com" target="_blank">vultr.com →</a>
+          </div>
+        </div>
+
+        <div class="tip-box tip">
+          <span class="tip-icon">ℹ</span>
+          <div>After you create the VPS, the dashboard will show you its <strong>public IP address</strong> — something like <code style="font-family:'JetBrains Mono',monospace;font-size:0.85em">5.75.134.210</code>. Write it down, you'll need it in every step.</div>
+        </div>
+
+        <button class="ai-help-toggle" onclick="toggleAI(this)">
+          🤖 Stuck picking a provider or setting it up? Ask an AI for help
+          <span class="arrow">▼</span>
+        </button>
+        <div class="ai-panel">
+          <p class="ai-desc">Copy this prompt and paste it into <strong>ChatGPT, Gemini, or Claude</strong> (all free). Add your question at the end.</p>
+          <div class="ai-services">
+            <a href="https://chat.openai.com" target="_blank" class="ai-service">ChatGPT (free)</a>
+            <a href="https://gemini.google.com" target="_blank" class="ai-service">Gemini (free)</a>
+            <a href="https://claude.ai" target="_blank" class="ai-service">Claude (free)</a>
+          </div>
+          <div class="ai-prompt-wrap">
+            <textarea class="ai-prompt-textarea" readonly>I am setting up a self-hosted voice chat server called Iskra for a group of friends. Iskra is an open-source Discord-alternative built with C# and vanilla JavaScript.
+
+I am on Step 1: Getting a VPS (Virtual Private Server).
+
+I need to rent a cheap Linux server (Ubuntu 22.04) that runs 24/7. Budget is around $4-10/month. I'm a complete beginner with servers.
+
+My question: [TYPE YOUR QUESTION HERE — e.g. "I signed up for Hetzner but I'm not sure what plan to pick" or "I created the server but I don't see an IP address"]
+
+Please give me simple, step-by-step help. Assume I have no Linux or server experience.</textarea>
+          </div>
+          <div class="ai-copy-row">
+            <span class="ai-copy-note">Edit the prompt above to describe your exact problem, then copy it.</span>
+            <button class="ai-copy-btn" onclick="copyAI(this)">Copy prompt</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Step 2 ──────────────────────────────────────────────── -->
+    <div class="step-card">
+      <div class="step-head">
+        <div class="step-num">2</div>
+        <div class="step-head-text">
+          <h2>Point your domain at the VPS</h2>
+          <p class="step-why">So your friends connect to <code style="font-family:'JetBrains Mono',monospace;font-size:0.85em">chat.yourdomain.com</code> instead of a raw IP, and so SSL certificates work.</p>
+        </div>
+      </div>
+      <div class="step-body">
+        <p class="step-explain">
+          Go to wherever you bought your domain (Namecheap, Cloudflare, Google Domains, etc.) and add a <strong>DNS A record</strong>:
+        </p>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-label">DNS Record to add</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content">Type:   A
+Name:   chat          <span class="cm">(or @ for the root domain, or any name you like)</span>
+Value:  YOUR_VPS_IP   <span class="cm">(the IP address from Step 1)</span>
+TTL:    Auto / 3600</div>
+        </div>
+
+        <p class="step-explain">
+          This creates an address like <code style="font-family:'JetBrains Mono',monospace;font-size:0.85em;color:var(--accent2)">chat.yourdomain.com</code> that points to your VPS. DNS changes take anywhere from 1 minute to a few hours to "spread" across the internet — Cloudflare is usually instant, others can be slower.
+        </p>
+
+        <div class="tip-box tip">
+          <span class="tip-icon">ℹ</span>
+          <div>You can check if your DNS has spread by running <code style="font-family:'JetBrains Mono',monospace;font-size:0.85em">ping chat.yourdomain.com</code> in your terminal. When it shows your VPS IP, you're ready to continue.</div>
+        </div>
+
+        <div class="tip-box warn">
+          <span class="tip-icon">⚠</span>
+          <div><strong>Cloudflare users:</strong> Make sure the DNS record is set to <strong>DNS only</strong> (grey cloud), not Proxied (orange cloud). The orange cloud will break WebSocket connections that Iskra needs.</div>
+        </div>
+
+        <button class="ai-help-toggle" onclick="toggleAI(this)">
+          🤖 Can't find where to add DNS records? Ask an AI
+          <span class="arrow">▼</span>
+        </button>
+        <div class="ai-panel">
+          <p class="ai-desc">Copy this prompt into <strong>ChatGPT, Gemini, or Claude</strong> and describe your specific domain registrar.</p>
+          <div class="ai-services">
+            <a href="https://chat.openai.com" target="_blank" class="ai-service">ChatGPT (free)</a>
+            <a href="https://gemini.google.com" target="_blank" class="ai-service">Gemini (free)</a>
+            <a href="https://claude.ai" target="_blank" class="ai-service">Claude (free)</a>
+          </div>
+          <div class="ai-prompt-wrap">
+            <textarea class="ai-prompt-textarea" readonly>I am setting up a self-hosted voice chat server (Iskra). I need to point my domain name at my VPS's IP address by adding a DNS A record.
+
+My domain registrar is: [TYPE YOUR REGISTRAR HERE — e.g. Namecheap, Cloudflare, GoDaddy, Google Domains]
+My VPS IP address is: [YOUR VPS IP]
+I want the address to be: [e.g. chat.mydomain.com]
+
+My question: [TYPE YOUR QUESTION HERE — e.g. "I can't find where to add DNS records in Namecheap" or "I added the record but ping still shows the wrong IP"]
+
+Please give me simple, step-by-step instructions for my specific registrar. Assume I have no experience with DNS.</textarea>
+          </div>
+          <div class="ai-copy-row">
+            <span class="ai-copy-note">Fill in your registrar and IP before copying.</span>
+            <button class="ai-copy-btn" onclick="copyAI(this)">Copy prompt</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Step 3 ──────────────────────────────────────────────── -->
+    <div class="step-card">
+      <div class="step-head">
+        <div class="step-num">3</div>
+        <div class="step-head-text">
+          <h2>Connect to your VPS via SSH</h2>
+          <p class="step-why">SSH is how you type commands on the remote server. Think of it as a text-only remote desktop.</p>
+        </div>
+      </div>
+      <div class="step-body">
+        <p class="step-explain">
+          Open your terminal (Windows Terminal on Windows, Terminal on Mac/Linux) and run this command, replacing the IP with your VPS's IP:
+        </p>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-label">Your terminal — run once</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content">ssh root@YOUR_VPS_IP</div>
+        </div>
+
+        <p class="step-explain">
+          The first time you connect, SSH will ask you to confirm the server's identity. Type <strong>yes</strong> and press Enter. Then enter the root password your VPS provider gave you (you won't see it being typed — that's normal).
+        </p>
+
+        <div class="expected">
+          <div class="expected-label">What you should see</div>
+          <p>A prompt like <code>root@ubuntu-server:~#</code> — this means you're now in control of your VPS. Every command from this point runs on the remote server, not your own PC.</p>
+        </div>
+
+        <div class="tip-box warn">
+          <span class="tip-icon">⚠</span>
+          <div><strong>Windows users:</strong> If you get "ssh is not recognized", open the Microsoft Store and install <strong>Windows Terminal</strong>. Modern Windows 10/11 includes SSH, but older versions may not.</div>
+        </div>
+
+        <button class="ai-help-toggle" onclick="toggleAI(this)">
+          🤖 SSH connection refused or timing out? Ask an AI
+          <span class="arrow">▼</span>
+        </button>
+        <div class="ai-panel">
+          <p class="ai-desc">Copy this into <strong>ChatGPT, Gemini, or Claude</strong>.</p>
+          <div class="ai-services">
+            <a href="https://chat.openai.com" target="_blank" class="ai-service">ChatGPT (free)</a>
+            <a href="https://gemini.google.com" target="_blank" class="ai-service">Gemini (free)</a>
+            <a href="https://claude.ai" target="_blank" class="ai-service">Claude (free)</a>
+          </div>
+          <div class="ai-prompt-wrap">
+            <textarea class="ai-prompt-textarea" readonly>I am trying to SSH into my VPS to set up an Iskra voice chat server. I am on Windows / Mac / Linux (delete as applicable).
+
+My VPS IP is: [YOUR IP]
+My VPS provider is: [e.g. Hetzner, DigitalOcean, Vultr]
+
+The command I ran: ssh root@[YOUR IP]
+
+What happened:
+[PASTE THE EXACT ERROR MESSAGE OR DESCRIBE WHAT HAPPENED]
+
+Please help me diagnose and fix this. Assume I am a complete beginner with Linux and SSH.</textarea>
+          </div>
+          <div class="ai-copy-row">
+            <span class="ai-copy-note">Paste the exact error message you got into the prompt.</span>
+            <button class="ai-copy-btn" onclick="copyAI(this)">Copy prompt</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Step 4 ──────────────────────────────────────────────── -->
+    <div class="step-card">
+      <div class="step-head">
+        <div class="step-num">4</div>
+        <div class="step-head-text">
+          <h2>Update the system</h2>
+          <p class="step-why">Fresh VPS installs often have outdated software. This makes sure everything is up to date before we install anything.</p>
+        </div>
+      </div>
+      <div class="step-body">
+        <p class="step-explain">Run these two commands. The first downloads the list of available updates. The second installs them. This may take a minute or two.</p>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-label">Run on your VPS</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content">apt update && apt upgrade -y</div>
+        </div>
+
+        <div class="expected">
+          <div class="expected-label">What you should see</div>
+          <p>A lot of scrolling text as packages are downloaded and updated. It ends with something like <code>X upgraded, X newly installed, 0 to remove...</code>. That's normal and good.</p>
+        </div>
+
+        <div class="tip-box tip">
+          <span class="tip-icon">ℹ</span>
+          <div>If a purple screen appears asking about restarting services, just press <strong>Enter</strong> to accept the default selection.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Step 5 ──────────────────────────────────────────────── -->
+    <div class="step-card">
+      <div class="step-head">
+        <div class="step-num">5</div>
+        <div class="step-head-text">
+          <h2>Install all the software</h2>
+          <p class="step-why">We need nginx (web server for SSL), certbot (gets your SSL certificate), dotnet (runs Iskra), and coturn (relays voice for users behind firewalls).</p>
+        </div>
+      </div>
+      <div class="step-body">
+        <p class="step-explain">
+          First, add Microsoft's package source so we can install .NET. Then install everything in one go. Copy and paste all of this exactly:
+        </p>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-label">Run on your VPS — adds .NET source</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content">wget https://packages.microsoft.com/config/ubuntu/22.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+dpkg -i packages-microsoft-prod.deb
+rm packages-microsoft-prod.deb
+apt update</div>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-label">Run on your VPS — installs everything</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content">apt install -y nginx certbot python3-certbot-nginx dotnet-runtime-8.0 coturn unzip</div>
+        </div>
+
+        <div class="expected">
+          <div class="expected-label">What you should see</div>
+          <p>Each package downloads and installs. At the end you'll be back at the prompt with no errors. The whole thing takes 1–3 minutes.</p>
+        </div>
+
+        <button class="ai-help-toggle" onclick="toggleAI(this)">
+          🤖 Got an error during install? Ask an AI
+          <span class="arrow">▼</span>
+        </button>
+        <div class="ai-panel">
+          <p class="ai-desc">Copy this into <strong>ChatGPT, Gemini, or Claude</strong> and paste the error you got.</p>
+          <div class="ai-services">
+            <a href="https://chat.openai.com" target="_blank" class="ai-service">ChatGPT (free)</a>
+            <a href="https://gemini.google.com" target="_blank" class="ai-service">Gemini (free)</a>
+            <a href="https://claude.ai" target="_blank" class="ai-service">Claude (free)</a>
+          </div>
+          <div class="ai-prompt-wrap">
+            <textarea class="ai-prompt-textarea" readonly>I am setting up an Iskra voice chat server on Ubuntu 22.04. I was installing required software and got an error.
+
+I ran this command:
+apt install -y nginx certbot python3-certbot-nginx dotnet-runtime-8.0 coturn unzip
+
+The error I got:
+[PASTE THE EXACT ERROR MESSAGE HERE]
+
+Please help me fix this. I am a complete beginner with Linux. Tell me exactly what commands to run to resolve the issue.</textarea>
+          </div>
+          <div class="ai-copy-row">
+            <span class="ai-copy-note">Paste the full error output into the prompt.</span>
+            <button class="ai-copy-btn" onclick="copyAI(this)">Copy prompt</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Step 6 ──────────────────────────────────────────────── -->
+    <div class="step-card">
+      <div class="step-head">
+        <div class="step-num">6</div>
+        <div class="step-head-text">
+          <h2>Open the right ports in the firewall</h2>
+          <p class="step-why">By default your VPS blocks almost everything. We need to open specific doors for web traffic, Iskra, and voice relay.</p>
+        </div>
+      </div>
+      <div class="step-body">
+        <p class="step-explain">Run each line. Each one opens a specific "door" in the firewall. The last command turns the firewall on.</p>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-label">Run on your VPS</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content">ufw allow 22/tcp          <span class="cm"># SSH — don't skip this or you'll lock yourself out</span>
+ufw allow 80/tcp          <span class="cm"># HTTP (needed for SSL certificate)</span>
+ufw allow 443/tcp         <span class="cm"># HTTPS (your secure web connection)</span>
+ufw allow 8080/tcp        <span class="cm"># Iskra server direct port</span>
+ufw allow 3478/udp        <span class="cm"># TURN relay (standard)</span>
+ufw allow 5349/tcp        <span class="cm"># TURN relay (secure)</span>
+ufw allow 49152:65535/udp <span class="cm"># TURN relay data ports</span>
+ufw enable</div>
+        </div>
+
+        <p class="step-explain">When asked <strong>"Command may disrupt existing ssh connections. Proceed with operation?"</strong> — type <strong>y</strong> and press Enter.</p>
+
+        <div class="expected">
+          <div class="expected-label">What you should see after ufw enable</div>
+          <p><code>Firewall is active and enabled on system startup</code></p>
+        </div>
+
+        <div class="tip-box tip">
+          <span class="tip-icon">ℹ</span>
+          <div>The large port range <code style="font-family:'JetBrains Mono',monospace;font-size:0.85em">49152:65535</code> is used by coturn to relay actual voice/video data between your friends. It needs a lot of ports because each call gets its own temporary port pair.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Step 7 ──────────────────────────────────────────────── -->
+    <div class="step-card">
+      <div class="step-head">
+        <div class="step-num">7</div>
+        <div class="step-head-text">
+          <h2>Download and set up the Iskra server</h2>
+          <p class="step-why">This puts the actual Iskra server software on your VPS.</p>
+        </div>
+      </div>
+      <div class="step-body">
+        <p class="step-explain">
+          Create a folder for Iskra, download the latest server release from GitHub, and extract it. Go to <a href="https://github.com/quikmn/iskra/releases/latest" target="_blank">github.com/quikmn/iskra/releases/latest</a>, find the <strong>Iskra-Server.zip</strong> file, right-click it and copy the download link. Then use that link in the command below:
+        </p>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-label">Run on your VPS</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content">mkdir -p /opt/iskra
+cd /opt/iskra
+wget -O Iskra-Server.zip "PASTE_ISKRA_SERVER_ZIP_URL_HERE"
+unzip Iskra-Server.zip
+ls</div>
+        </div>
+
+        <div class="expected">
+          <div class="expected-label">What you should see after ls</div>
+          <p>A list of files including something like <code>iskra_server.dll</code>, <code>iskra_server</code>, and some other files. The exact names depend on the release.</p>
+        </div>
+
+        <p class="step-explain">
+          Now test that it can run. If you see a file ending in <code style="font-family:'JetBrains Mono',monospace;font-size:0.85em">.dll</code>:
+        </p>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-label">Test run — press Ctrl+C to stop it after a few seconds</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content">dotnet /opt/iskra/iskra_server.dll</div>
+        </div>
+
+        <div class="expected">
+          <div class="expected-label">What you should see</div>
+          <p>Something like <code>Iskra server listening on port 8080</code>. Press <strong>Ctrl+C</strong> to stop it — we'll set it up as a proper background service in a later step.</p>
+        </div>
+
+        <button class="ai-help-toggle" onclick="toggleAI(this)">
+          🤖 Can't find the download URL or getting errors? Ask an AI
+          <span class="arrow">▼</span>
+        </button>
+        <div class="ai-panel">
+          <p class="ai-desc">Copy this into <strong>ChatGPT, Gemini, or Claude</strong>.</p>
+          <div class="ai-services">
+            <a href="https://chat.openai.com" target="_blank" class="ai-service">ChatGPT (free)</a>
+            <a href="https://gemini.google.com" target="_blank" class="ai-service">Gemini (free)</a>
+            <a href="https://claude.ai" target="_blank" class="ai-service">Claude (free)</a>
+          </div>
+          <div class="ai-prompt-wrap">
+            <textarea class="ai-prompt-textarea" readonly>I am setting up an Iskra voice chat server on Ubuntu 22.04. Iskra is an open-source voice chat app — the server is a .NET 8 application.
+
+I am in /opt/iskra and just extracted Iskra-Server.zip. Here is what ls shows:
+[PASTE THE OUTPUT OF ls HERE]
+
+I tried to run it with: dotnet /opt/iskra/iskra_server.dll
+
+What happened:
+[PASTE OUTPUT OR ERROR HERE]
+
+Please help me figure out why it's not running. Tell me exactly what commands to try. Assume I am a complete beginner with Linux and .NET.</textarea>
+          </div>
+          <div class="ai-copy-row">
+            <span class="ai-copy-note">Paste the output of ls and any error messages.</span>
+            <button class="ai-copy-btn" onclick="copyAI(this)">Copy prompt</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Step 8 ──────────────────────────────────────────────── -->
+    <div class="step-card">
+      <div class="step-head">
+        <div class="step-num">8</div>
+        <div class="step-head-text">
+          <h2>Create your server config file</h2>
+          <p class="step-why">This is where you give your server its name, set the port, and configure your TURN relay details.</p>
+        </div>
+      </div>
+      <div class="step-body">
+        <p class="step-explain">
+          Copy this command exactly. Replace the values in <strong>ALL_CAPS</strong> with your own. <code style="font-family:'JetBrains Mono',monospace;font-size:0.85em;color:var(--accent2)">YOUR_DOMAIN</code> is the domain you set up in Step 2. <code style="font-family:'JetBrains Mono',monospace;font-size:0.85em;color:var(--accent2)">YOUR_TURN_PASSWORD</code> should be a long random password (make something up, like <code style="font-family:'JetBrains Mono',monospace;font-size:0.85em">hunter2waffles99</code>).
+        </p>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-label">Run on your VPS — creates server.json</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content">cat > /opt/iskra/server.json << 'EOF'
+{
+  "ServerName":        "My Iskra Server",
+  "Port":              8080,
+  "MaxUsers":          50,
+  "HistoryRetentionDays": 30,
+  "TurnUrls":          ["turn:YOUR_DOMAIN:3478", "turns:YOUR_DOMAIN:5349"],
+  "TurnUsername":      "iskra",
+  "TurnCredential":    "YOUR_TURN_PASSWORD"
+}
+EOF</div>
+        </div>
+
+        <div class="tip-box tip">
+          <span class="tip-icon">ℹ</span>
+          <div><strong>TurnUrls</strong> points to your own VPS — the TURN server we'll set up next runs on the same machine as Iskra. This is what makes voice work even when friends are behind strict firewalls or mobile data (CGNAT).</div>
+        </div>
+
+        <p class="step-explain">Verify the file looks right:</p>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-label">Check the file</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content">cat /opt/iskra/server.json</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Step 9 ──────────────────────────────────────────────── -->
+    <div class="step-card">
+      <div class="step-head">
+        <div class="step-num">9</div>
+        <div class="step-head-text">
+          <h2>Configure coturn (TURN relay)</h2>
+          <p class="step-why">coturn is what lets people on restrictive networks (mobile data, corporate WiFi, CGNAT) still use voice. Without it, some friends simply won't be able to connect voice.</p>
+        </div>
+      </div>
+      <div class="step-body">
+        <p class="step-explain">
+          Replace <strong>YOUR_DOMAIN</strong> and <strong>YOUR_TURN_PASSWORD</strong> with the same values you used in Step 8. The password must match exactly.
+        </p>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-label">Run on your VPS — creates coturn config</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content">cat > /etc/turnserver.conf << 'EOF'
+listening-port=3478
+tls-listening-port=5349
+realm=YOUR_DOMAIN
+user=iskra:YOUR_TURN_PASSWORD
+lt-cred-mech
+fingerprint
+min-port=49152
+max-port=65535
+EOF</div>
+        </div>
+
+        <p class="step-explain">Now tell the system to run coturn automatically and start it:</p>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-label">Run on your VPS</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content">sed -i 's/#TURNSERVER_ENABLED=1/TURNSERVER_ENABLED=1/' /etc/default/coturn
+systemctl enable coturn
+systemctl start coturn
+systemctl status coturn</div>
+        </div>
+
+        <div class="expected">
+          <div class="expected-label">What you should see</div>
+          <p><code>Active: active (running)</code> in green. That means coturn is running and will restart automatically if the server ever reboots.</p>
+        </div>
+
+        <button class="ai-help-toggle" onclick="toggleAI(this)">
+          🤖 coturn showing failed or inactive? Ask an AI
+          <span class="arrow">▼</span>
+        </button>
+        <div class="ai-panel">
+          <p class="ai-desc">Copy this into <strong>ChatGPT, Gemini, or Claude</strong>.</p>
+          <div class="ai-services">
+            <a href="https://chat.openai.com" target="_blank" class="ai-service">ChatGPT (free)</a>
+            <a href="https://gemini.google.com" target="_blank" class="ai-service">Gemini (free)</a>
+            <a href="https://claude.ai" target="_blank" class="ai-service">Claude (free)</a>
+          </div>
+          <div class="ai-prompt-wrap">
+            <textarea class="ai-prompt-textarea" readonly>I am setting up coturn (a TURN relay server) on Ubuntu 22.04 for an Iskra voice chat server. coturn is used to relay WebRTC voice traffic for users behind firewalls.
+
+My /etc/turnserver.conf contains:
+[PASTE YOUR turnserver.conf CONTENTS HERE]
+
+When I run "systemctl status coturn" I see:
+[PASTE THE OUTPUT HERE]
+
+The error in the logs (run: journalctl -u coturn -n 50):
+[PASTE LOG OUTPUT HERE]
+
+Please help me fix the coturn configuration. I am a complete beginner with Linux.</textarea>
+          </div>
+          <div class="ai-copy-row">
+            <span class="ai-copy-note">Run <code style="font-family:'JetBrains Mono',monospace">journalctl -u coturn -n 50</code> to get the logs and paste them.</span>
+            <button class="ai-copy-btn" onclick="copyAI(this)">Copy prompt</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Step 10 ──────────────────────────────────────────────── -->
+    <div class="step-card">
+      <div class="step-head">
+        <div class="step-num">10</div>
+        <div class="step-head-text">
+          <h2>Configure nginx as a reverse proxy</h2>
+          <p class="step-why">nginx sits in front of Iskra and handles the SSL encryption, so your friends' connections are always secure. It also lets Iskra work on the standard HTTPS port (443) instead of 8080.</p>
+        </div>
+      </div>
+      <div class="step-body">
+        <p class="step-explain">
+          Replace <strong>YOUR_DOMAIN</strong> with your actual domain (e.g. <code style="font-family:'JetBrains Mono',monospace;font-size:0.85em;color:var(--accent2)">chat.myfriends.com</code>).
+        </p>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-label">Run on your VPS — creates nginx config</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content">cat > /etc/nginx/sites-available/iskra << 'EOF'
+server {
+    listen 80;
+    server_name YOUR_DOMAIN;
+
+    location / {
+        proxy_pass http://localhost:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 86400;
+    }
+}
+EOF
+
+ln -sf /etc/nginx/sites-available/iskra /etc/nginx/sites-enabled/iskra
+rm -f /etc/nginx/sites-enabled/default
+nginx -t && systemctl reload nginx</div>
+        </div>
+
+        <div class="expected">
+          <div class="expected-label">What you should see</div>
+          <p><code>nginx: configuration file /etc/nginx/nginx.conf test is successful</code></p>
+        </div>
+
+        <div class="tip-box tip">
+          <span class="tip-icon">ℹ</span>
+          <div>The <code style="font-family:'JetBrains Mono',monospace;font-size:0.85em">proxy_read_timeout 86400</code> keeps WebSocket connections alive for up to 24 hours. Without this, long voice sessions might get cut off.</div>
+        </div>
+
+        <button class="ai-help-toggle" onclick="toggleAI(this)">
+          🤖 nginx test failing? Ask an AI
+          <span class="arrow">▼</span>
+        </button>
+        <div class="ai-panel">
+          <p class="ai-desc">Copy this into <strong>ChatGPT, Gemini, or Claude</strong>.</p>
+          <div class="ai-services">
+            <a href="https://chat.openai.com" target="_blank" class="ai-service">ChatGPT (free)</a>
+            <a href="https://gemini.google.com" target="_blank" class="ai-service">Gemini (free)</a>
+            <a href="https://claude.ai" target="_blank" class="ai-service">Claude (free)</a>
+          </div>
+          <div class="ai-prompt-wrap">
+            <textarea class="ai-prompt-textarea" readonly>I am configuring nginx as a reverse proxy for an Iskra voice chat server on Ubuntu 22.04. Iskra is a .NET WebSocket server running on localhost:8080.
+
+My nginx site config (/etc/nginx/sites-available/iskra):
+[PASTE YOUR CONFIG HERE]
+
+When I run "nginx -t" I see:
+[PASTE THE OUTPUT HERE]
+
+Please help me fix the nginx configuration error. Explain what the error means and give me the corrected config. I am a complete beginner with nginx.</textarea>
+          </div>
+          <div class="ai-copy-row">
+            <span class="ai-copy-note">Paste your config and the nginx -t output.</span>
+            <button class="ai-copy-btn" onclick="copyAI(this)">Copy prompt</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Step 11 ──────────────────────────────────────────────── -->
+    <div class="step-card">
+      <div class="step-head">
+        <div class="step-num">11</div>
+        <div class="step-head-text">
+          <h2>Get your SSL certificate</h2>
+          <p class="step-why">SSL makes all connections encrypted. Without it, your friends' messages and voice traffic could theoretically be intercepted. certbot gets a free certificate from Let's Encrypt automatically.</p>
+        </div>
+      </div>
+      <div class="step-body">
+        <p class="step-explain">
+          Replace <strong>YOUR_DOMAIN</strong> and <strong>YOUR_EMAIL</strong>. The email is just for certificate expiry reminders — certificates are free and auto-renew.
+        </p>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-label">Run on your VPS</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content">certbot --nginx -d YOUR_DOMAIN --non-interactive --agree-tos -m YOUR_EMAIL</div>
+        </div>
+
+        <div class="expected">
+          <div class="expected-label">What you should see</div>
+          <p><code>Successfully deployed certificate for YOUR_DOMAIN</code> and <code>Congratulations! You have successfully enabled HTTPS</code>. certbot automatically updates your nginx config with the SSL settings.</p>
+        </div>
+
+        <div class="tip-box warn">
+          <span class="tip-icon">⚠</span>
+          <div><strong>If certbot fails:</strong> the most common reason is that your DNS hasn't spread yet (Step 2). Wait 15–30 minutes and try again. Let's Encrypt needs to be able to reach your domain from the internet.</div>
+        </div>
+
+        <button class="ai-help-toggle" onclick="toggleAI(this)">
+          🤖 certbot giving an error? Ask an AI
+          <span class="arrow">▼</span>
+        </button>
+        <div class="ai-panel">
+          <p class="ai-desc">Copy this into <strong>ChatGPT, Gemini, or Claude</strong>.</p>
+          <div class="ai-services">
+            <a href="https://chat.openai.com" target="_blank" class="ai-service">ChatGPT (free)</a>
+            <a href="https://gemini.google.com" target="_blank" class="ai-service">Gemini (free)</a>
+            <a href="https://claude.ai" target="_blank" class="ai-service">Claude (free)</a>
+          </div>
+          <div class="ai-prompt-wrap">
+            <textarea class="ai-prompt-textarea" readonly>I am trying to get a free SSL certificate using certbot on Ubuntu 22.04. The certificate is for a domain pointing to my VPS that runs an Iskra voice chat server.
+
+My domain: [YOUR DOMAIN]
+My VPS IP: [YOUR IP]
+
+The command I ran:
+certbot --nginx -d YOUR_DOMAIN --non-interactive --agree-tos -m YOUR_EMAIL
+
+The error I got:
+[PASTE THE FULL ERROR HERE]
+
+Things I've already checked:
+- My DNS A record points to [YOUR IP]
+- nginx is running (systemctl status nginx shows active)
+
+Please help me diagnose why certbot is failing. I am a complete beginner with SSL certificates and Linux.</textarea>
+          </div>
+          <div class="ai-copy-row">
+            <span class="ai-copy-note">Paste the full certbot error output.</span>
+            <button class="ai-copy-btn" onclick="copyAI(this)">Copy prompt</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Step 12 ──────────────────────────────────────────────── -->
+    <div class="step-card">
+      <div class="step-head">
+        <div class="step-num">12</div>
+        <div class="step-head-text">
+          <h2>Run Iskra as a background service</h2>
+          <p class="step-why">Right now Iskra only runs when you manually start it. A systemd service makes it start automatically on boot and restart itself if it ever crashes.</p>
+        </div>
+      </div>
+      <div class="step-body">
+        <p class="step-explain">Create the service file, enable it, and start it:</p>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-label">Run on your VPS</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content">cat > /etc/systemd/system/iskra.service << 'EOF'
+[Unit]
+Description=Iskra Voice Chat Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/iskra
+ExecStart=/usr/bin/dotnet /opt/iskra/iskra_server.dll
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable iskra
+systemctl start iskra
+systemctl status iskra</div>
+        </div>
+
+        <div class="expected">
+          <div class="expected-label">What you should see</div>
+          <p><code>Active: active (running)</code> in green. Iskra is now running in the background and will survive reboots.</p>
+        </div>
+
+        <div class="tip-box tip">
+          <span class="tip-icon">ℹ</span>
+          <div>Useful commands to know: <code style="font-family:'JetBrains Mono',monospace;font-size:0.85em">systemctl restart iskra</code> to restart, <code style="font-family:'JetBrains Mono',monospace;font-size:0.85em">systemctl stop iskra</code> to stop, <code style="font-family:'JetBrains Mono',monospace;font-size:0.85em">journalctl -u iskra -f</code> to watch live logs.</div>
+        </div>
+
+        <button class="ai-help-toggle" onclick="toggleAI(this)">
+          🤖 Service showing failed? Ask an AI
+          <span class="arrow">▼</span>
+        </button>
+        <div class="ai-panel">
+          <p class="ai-desc">Copy this into <strong>ChatGPT, Gemini, or Claude</strong>.</p>
+          <div class="ai-services">
+            <a href="https://chat.openai.com" target="_blank" class="ai-service">ChatGPT (free)</a>
+            <a href="https://gemini.google.com" target="_blank" class="ai-service">Gemini (free)</a>
+            <a href="https://claude.ai" target="_blank" class="ai-service">Claude (free)</a>
+          </div>
+          <div class="ai-prompt-wrap">
+            <textarea class="ai-prompt-textarea" readonly>I set up an Iskra voice chat server (.NET 8 application) on Ubuntu 22.04 as a systemd service. The service is not starting correctly.
+
+My /etc/systemd/system/iskra.service:
+[Unit]
+Description=Iskra Voice Chat Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/iskra
+ExecStart=/usr/bin/dotnet /opt/iskra/iskra_server.dll
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+
+Output of "systemctl status iskra":
+[PASTE OUTPUT HERE]
+
+Output of "journalctl -u iskra -n 30":
+[PASTE OUTPUT HERE]
+
+Files in /opt/iskra (run: ls /opt/iskra):
+[PASTE OUTPUT HERE]
+
+Please help me figure out why the service isn't starting and how to fix it.</textarea>
+          </div>
+          <div class="ai-copy-row">
+            <span class="ai-copy-note">Run <code style="font-family:'JetBrains Mono',monospace">journalctl -u iskra -n 30</code> and paste the output.</span>
+            <button class="ai-copy-btn" onclick="copyAI(this)">Copy prompt</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Step 13 ──────────────────────────────────────────────── -->
+    <div class="step-card">
+      <div class="step-head">
+        <div class="step-num">13</div>
+        <div class="step-head-text">
+          <h2>Set up automatic certificate renewal</h2>
+          <p class="step-why">Let's Encrypt certificates expire after 90 days. certbot can renew them automatically so you never have to think about it.</p>
+        </div>
+      </div>
+      <div class="step-body">
+        <p class="step-explain">Run these two commands — they test that renewal works, then set up a timer to do it automatically:</p>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-label">Run on your VPS</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content">certbot renew --dry-run
+systemctl enable certbot.timer
+systemctl start certbot.timer</div>
+        </div>
+
+        <div class="expected">
+          <div class="expected-label">What you should see after dry-run</div>
+          <p><code>Congratulations, all simulated renewals succeeded</code>. The timer will now automatically renew your certificate before it expires.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Step 14 ──────────────────────────────────────────────── -->
+    <div class="step-card" style="border-color: rgba(74,222,128,0.25);">
+      <div class="step-head">
+        <div class="step-num" style="color:var(--green);background:rgba(74,222,128,0.1);border-color:rgba(74,222,128,0.3)">14</div>
+        <div class="step-head-text">
+          <h2>Connect with the Iskra app</h2>
+          <p class="step-why">The server is running. Time to actually use it.</p>
+        </div>
+      </div>
+      <div class="step-body">
+        <p class="step-explain">
+          Download the Iskra client for Windows from the link in the nav bar above. Open it, go to <strong>Settings → Servers → Add Server</strong>, and enter:
+        </p>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-label">Connection details for Iskra client</span></div>
+          <div class="code-content">Address:  YOUR_DOMAIN       <span class="cm">(e.g. chat.myfriends.com)</span>
+Web port: 443               <span class="cm">(the HTTPS port nginx is handling)</span>
+Name:     My Server         <span class="cm">(whatever you want)</span></div>
+        </div>
+
+        <p class="step-explain">Click Connect. You should see your server's channel list. To invite friends, right-click the server icon and choose <strong>Copy Invite Link</strong> — send them that link and they can join with one click.</p>
+
+        <div class="tip-box tip">
+          <span class="tip-icon">ℹ</span>
+          <div>The first account to connect gets <strong>owner</strong> role automatically. Use <code style="font-family:'JetBrains Mono',monospace;font-size:0.85em">/adduser friendname password123</code> in chat to create accounts for your friends, or set the server to open registration in admin settings.</div>
+        </div>
+
+        <div class="tip-box tip">
+          <span class="tip-icon">ℹ</span>
+          <div>Friends can also use the <strong>web client</strong> at <code style="font-family:'JetBrains Mono',monospace;font-size:0.85em">app.iskra.foo</code> — no install needed. The same invite link works there too.</div>
+        </div>
+
+        <button class="ai-help-toggle" onclick="toggleAI(this)">
+          🤖 Can't connect or voice not working? Ask an AI
+          <span class="arrow">▼</span>
+        </button>
+        <div class="ai-panel">
+          <p class="ai-desc">Copy this into <strong>ChatGPT, Gemini, or Claude</strong> — this prompt gives full context about the whole setup.</p>
+          <div class="ai-services">
+            <a href="https://chat.openai.com" target="_blank" class="ai-service">ChatGPT (free)</a>
+            <a href="https://gemini.google.com" target="_blank" class="ai-service">Gemini (free)</a>
+            <a href="https://claude.ai" target="_blank" class="ai-service">Claude (free)</a>
+          </div>
+          <div class="ai-prompt-wrap">
+            <textarea class="ai-prompt-textarea" style="min-height:240px" readonly>I set up an Iskra voice chat server. Here is my full setup:
+
+- OS: Ubuntu 22.04 on a VPS
+- Domain: [YOUR DOMAIN] pointing to [YOUR VPS IP]
+- Iskra server running as systemd service on localhost:8080 (.NET 8)
+- nginx reverse proxy on port 443 with SSL (certbot / Let's Encrypt)
+- coturn TURN relay on ports 3478 (UDP) and 5349 (TCP), relay range 49152-65535
+- Firewall (ufw): 22, 80, 443, 8080, 3478, 5349, 49152:65535 all allowed
+
+My server.json TurnUrls: ["turn:[DOMAIN]:3478", "turns:[DOMAIN]:5349"]
+
+The problem I'm having:
+[DESCRIBE YOUR PROBLEM — e.g. "can't connect at all", "text chat works but voice doesn't", "friends behind mobile data can't connect voice", "connection drops after a few minutes"]
+
+Output of "systemctl status iskra":
+[PASTE HERE]
+
+Output of "systemctl status coturn":
+[PASTE HERE]
+
+Please help me diagnose and fix this. I am a beginner with servers.</textarea>
+          </div>
+          <div class="ai-copy-row">
+            <span class="ai-copy-note">This prompt has full context — paste your service status outputs and describe the problem.</span>
+            <button class="ai-copy-btn" onclick="copyAI(this)">Copy prompt</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /steps-list -->
+</div><!-- /steps-section -->
+
+<!-- ── Done banner ──────────────────────────────────────────────── -->
+<div class="done-banner">
+  <div class="done-card">
+    <h2>You're done. 🎉</h2>
+    <p>You now have a self-hosted voice chat server that runs 24/7, works for everyone regardless of ISP or firewall, and belongs to you — no company, no moderation, no data collection.</p>
+    <div class="done-chips">
+      <div class="done-chip"><span class="g">✓</span> Iskra server running</div>
+      <div class="done-chip"><span class="g">✓</span> TURN relay active</div>
+      <div class="done-chip"><span class="g">✓</span> SSL secured</div>
+      <div class="done-chip"><span class="g">✓</span> Auto-restarts on crash</div>
+      <div class="done-chip"><span class="g">✓</span> Certificate auto-renews</div>
+    </div>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <a href="https://github.com/quikmn/iskra-voice" class="btn btn-primary" target="_blank" rel="noopener">Follow the Iskra 2 rebuild on GitHub</a>
+      <a href="/" class="btn btn-ghost">← Back to iskra.foo</a>
+    </div>
+  </div>
+</div>
+
+<!-- ── Footer ────────────────────────────────────────────────────── -->
+<footer>
+  <p>Iskra — open source voice chat. <a href="https://github.com/quikmn/iskra-voice" target="_blank" rel="noopener">github.com/quikmn/iskra-voice</a></p>
+  <div style="display:flex;gap:20px">
+    <a href="/">Home</a>
+    <a href="https://github.com/quikmn/iskra-voice" target="_blank" rel="noopener">Iskra 2 on GitHub</a>
+    <a href="https://github.com/quikmn/iskra-voice/issues" target="_blank">Report an issue</a>
+  </div>
+</footer>
+
+<script>
+// Spark canvas
+const canvas = document.getElementById('spark-canvas');
+const ctx = canvas.getContext('2d');
+let sparks = [];
+
+function resize() { canvas.width = innerWidth; canvas.height = innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+
+for (let i = 0; i < 60; i++) sparks.push({
+  x: Math.random() * innerWidth, y: Math.random() * innerHeight,
+  vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3,
+  r: Math.random() * 1.5 + 0.3, a: Math.random()
+});
+
+function frame() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  sparks.forEach(s => {
+    s.x += s.vx; s.y += s.vy;
+    if (s.x < 0) s.x = canvas.width; if (s.x > canvas.width) s.x = 0;
+    if (s.y < 0) s.y = canvas.height; if (s.y > canvas.height) s.y = 0;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(124,111,255,${s.a * 0.5})`;
+    ctx.fill();
+  });
+  requestAnimationFrame(frame);
+}
+frame();
+
+// Toggle AI panels
+function toggleAI(btn) {
+  const panel = btn.nextElementSibling;
+  btn.classList.toggle('open');
+  panel.classList.toggle('open');
+}
+
+// Copy code blocks
+function copyCode(btn) {
+  const code = btn.closest('.code-block').querySelector('.code-content');
+  const text = code.innerText.replace(/\s*#.*/g, '').replace(/\n{2,}/g, '\n').trim();
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+// Copy AI prompts
+function copyAI(btn) {
+  const textarea = btn.closest('.ai-panel').querySelector('.ai-prompt-textarea');
+  navigator.clipboard.writeText(textarea.value).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy prompt'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+</script>
+</body>
+</html>

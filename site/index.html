@@ -1,0 +1,2550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iskra - Your server. Your rules.</title>
+<meta name="description" content="Iskra 2 is a self-hosted voice and text chat being rebuilt from the ground up. Run your own server, own your data. Not released yet: follow the rebuild on GitHub.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0b0b14;
+    --surface:   #11111e;
+    --surface2:  #16162a;
+    --border:    rgba(120,100,255,0.15);
+    --accent:    #7c6fff;
+    --accent2:   #00cfff;
+    --glow:      rgba(124,111,255,0.35);
+    --glow2:     rgba(0,207,255,0.25);
+    --text:      #e2e2f0;
+    --muted:     #7878a0;
+    --green:     #4ade80;
+    --red:       #f87171;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Canvas background */
+  #spark-canvas {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.55;
+  }
+
+  /* Nav */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 48px;
+    background: rgba(11,11,20,0.7);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 800;
+    font-size: 1.2rem;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  .nav-logo svg { width: 28px; height: 28px; }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 20px;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { color: var(--text); border-color: rgba(124,111,255,0.4); background: rgba(124,111,255,0.07); }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 0 24px var(--glow);
+  }
+  .btn-primary:hover { background: #9180ff; box-shadow: 0 0 36px var(--glow); transform: translateY(-1px); }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--accent2);
+    border: 1px solid rgba(0,207,255,0.3);
+  }
+  .btn-outline:hover { background: rgba(0,207,255,0.08); border-color: var(--accent2); }
+
+  /* Hero */
+  .hero {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 120px 24px 80px;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(124,111,255,0.3);
+    background: rgba(124,111,255,0.08);
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #a89fff;
+    margin-bottom: 32px;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .hero-badge .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 2s ease infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.8); }
+  }
+
+  .hero h1 {
+    font-size: clamp(3rem, 8vw, 6.5rem);
+    font-weight: 900;
+    line-height: 1.0;
+    letter-spacing: -0.04em;
+    margin-bottom: 12px;
+    animation: fadeUp 0.6s 0.1s ease both;
+  }
+
+  .hero h1 .word-iskra {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    position: relative;
+  }
+
+  .hero-sub {
+    font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+    font-weight: 400;
+    color: var(--muted);
+    margin-bottom: 48px;
+    max-width: 580px;
+    line-height: 1.5;
+    animation: fadeUp 0.6s 0.2s ease both;
+  }
+
+  .hero-sub strong { color: var(--text); font-weight: 600; }
+
+  .hero-cta {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    animation: fadeUp 0.6s 0.3s ease both;
+  }
+
+  .btn-hero {
+    padding: 14px 32px;
+    font-size: 1rem;
+    border-radius: 10px;
+  }
+
+  .hero-note {
+    margin-top: 20px;
+    font-size: 0.8rem;
+    color: var(--muted);
+    animation: fadeUp 0.6s 0.4s ease both;
+  }
+
+  .hero-note span { color: var(--green); }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Scroll indicator */
+  .scroll-hint {
+    position: absolute;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    animation: fadeUp 1s 0.8s ease both;
+  }
+
+  .scroll-line {
+    width: 1px;
+    height: 40px;
+    background: linear-gradient(to bottom, var(--accent), transparent);
+    animation: scrollLine 2s ease infinite;
+  }
+
+  @keyframes scrollLine {
+    0% { transform: scaleY(0); transform-origin: top; opacity: 1; }
+    50% { transform: scaleY(1); transform-origin: top; opacity: 1; }
+    51% { transform: scaleY(1); transform-origin: bottom; opacity: 1; }
+    100% { transform: scaleY(0); transform-origin: bottom; opacity: 0; }
+  }
+
+  /* Strip */
+  .strip {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    flex-wrap: wrap;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .strip-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 20px 36px;
+    border-right: 1px solid var(--border);
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--muted);
+    transition: color 0.2s;
+  }
+
+  .strip-item:last-child { border-right: none; }
+  .strip-item:hover { color: var(--text); }
+  .strip-item svg { color: var(--accent); flex-shrink: 0; }
+
+  /* Section */
+  section {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 100px 32px;
+  }
+
+  .section-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+
+  .section-title {
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    margin-bottom: 16px;
+  }
+
+  .section-desc {
+    font-size: 1.05rem;
+    color: var(--muted);
+    max-width: 560px;
+    line-height: 1.65;
+  }
+
+  /* Features */
+  .features-header { margin-bottom: 56px; }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+  }
+
+  .feature-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    position: relative;
+  }
+
+  .feature-card:hover {
+    border-color: rgba(124,111,255,0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 40px rgba(124,111,255,0.1);
+  }
+
+  .feature-card.accent2-card:hover {
+    border-color: rgba(0,207,255,0.4);
+    box-shadow: 0 8px 40px rgba(0,207,255,0.08);
+  }
+
+  .feature-new {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(74,222,128,0.12);
+    color: var(--green);
+    border: 1px solid rgba(74,222,128,0.25);
+  }
+
+  .feature-icon {
+    width: 42px; height: 42px;
+    border-radius: 10px;
+    background: rgba(124,111,255,0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+    color: var(--accent);
+  }
+
+  .feature-icon.cyan {
+    background: rgba(0,207,255,0.1);
+    color: var(--accent2);
+  }
+
+  .feature-card h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    letter-spacing: -0.01em;
+  }
+
+  .feature-card p {
+    font-size: 0.875rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  /* Iskra ID spotlight */
+  .id-section {
+    position: relative;
+    z-index: 1;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .id-section::before {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 500px; height: 100%;
+    background: radial-gradient(ellipse at 80% 50%, rgba(0,207,255,0.07) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .id-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 100px 32px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: center;
+  }
+
+  .id-left .section-label { color: var(--accent2); }
+
+  .id-left p {
+    font-size: 1rem;
+    color: var(--muted);
+    line-height: 1.7;
+    margin-top: 16px;
+    margin-bottom: 32px;
+  }
+
+  .id-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .id-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: rgba(0,207,255,0.05);
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .id-pill svg { color: var(--accent2); }
+
+  .id-right {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .id-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    transition: border-color 0.2s;
+  }
+
+  .id-card:hover { border-color: rgba(0,207,255,0.3); }
+
+  .id-card-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    background: rgba(0,207,255,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent2);
+    flex-shrink: 0;
+  }
+
+  .id-card h4 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .id-card p {
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* Profile section */
+  .profile-section {
+    position: relative;
+    z-index: 1;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .profile-section::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 600px; height: 100%;
+    background: radial-gradient(ellipse at 20% 50%, rgba(124,111,255,0.07) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .profile-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 100px 32px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: start;
+  }
+
+  .profile-left .section-label { color: var(--accent); }
+
+  .profile-left p {
+    font-size: 1rem;
+    color: var(--muted);
+    line-height: 1.7;
+    margin-top: 16px;
+    margin-bottom: 32px;
+  }
+
+  .profile-left p strong { color: var(--text); }
+
+  .profile-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .profile-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: rgba(124,111,255,0.06);
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .profile-pill svg { color: var(--accent); }
+
+  .profile-right {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .profile-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    transition: border-color 0.2s;
+  }
+
+  .profile-card:hover { border-color: rgba(124,111,255,0.35); }
+
+  .profile-card-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    background: rgba(124,111,255,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    flex-shrink: 0;
+    font-size: 1rem;
+  }
+
+  .profile-card h4 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .profile-card p {
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* Profile Showcases */
+  .showcases-section {
+    position: relative;
+    z-index: 1;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 80px 32px 100px;
+  }
+
+  .showcases-section .section-title { text-align: center; }
+  .showcases-section .section-label { justify-content: center; }
+  .showcases-section .section-desc { text-align: center; max-width: 560px; margin: 16px auto 0; }
+
+  .showcases-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 28px;
+    margin-top: 56px;
+  }
+
+  .showcase-card {
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+    transition: transform 0.25s, box-shadow 0.25s;
+  }
+
+  .showcase-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  }
+
+  .showcase-browser {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: #181820;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .browser-dots { display: flex; gap: 5px; flex-shrink: 0; }
+  .browser-dots span { width: 9px; height: 9px; border-radius: 50%; }
+  .browser-dots span:nth-child(1) { background: #ff5f57; }
+  .browser-dots span:nth-child(2) { background: #febc2e; }
+  .browser-dots span:nth-child(3) { background: #28c840; }
+
+  .browser-url {
+    flex: 1;
+    font-size: 0.68rem;
+    font-family: 'JetBrains Mono', monospace;
+    color: rgba(255,255,255,0.25);
+    background: rgba(255,255,255,0.04);
+    border-radius: 4px;
+    padding: 3px 10px;
+    text-align: center;
+  }
+
+  .showcase-body { height: 420px; overflow: hidden; }
+
+  /* PsychoK1LLr98_TTV */
+  .sc-psycho { background: #04040e; position: relative; overflow: hidden; }
+
+  .sp-iframe {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 900px; height: 506px;
+    border: none;
+    filter: grayscale(85%) brightness(0.38);
+    pointer-events: none;
+  }
+
+  .sp-overlay {
+    position: absolute; inset: 0; z-index: 1;
+    background:
+      linear-gradient(to right, rgba(4,4,20,0.88) 0%, rgba(4,4,20,0.55) 50%, rgba(4,4,20,0.08) 100%),
+      linear-gradient(to top, rgba(4,4,20,0.75) 0%, transparent 40%);
+    pointer-events: none;
+  }
+
+  @keyframes ssj-aura-pulse {
+    0%, 100% { opacity: 0.12; transform: translateX(-50%) scaleX(1); }
+    50% { opacity: 0.28; transform: translateX(-50%) scaleX(1.08); }
+  }
+
+  @keyframes ssj-flash {
+    0%, 78%, 100% { opacity: 0; }
+    80%, 93% { opacity: 0.12; }
+  }
+
+  @keyframes ssj-glow {
+    0%, 100% { text-shadow: 0 0 8px rgba(255,193,7,0.4); }
+    50% { text-shadow: 0 0 18px rgba(255,193,7,0.9), 0 0 36px rgba(255,150,0,0.35); }
+  }
+
+  .sp-aura {
+    position: absolute; bottom: -20px; left: 50%; z-index: 2;
+    width: 280px; height: 200px;
+    background: radial-gradient(ellipse at 50% 100%, rgba(255,195,0,0.45) 0%, rgba(255,140,0,0.18) 48%, transparent 70%);
+    animation: ssj-aura-pulse 2.4s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  .sp-flash {
+    position: absolute; inset: 0; z-index: 3;
+    background: radial-gradient(ellipse at 65% 30%, rgba(255,240,100,0.88) 0%, rgba(255,200,0,0.4) 35%, transparent 65%);
+    animation: ssj-flash 10s ease-in-out infinite;
+    pointer-events: none;
+    mix-blend-mode: screen;
+  }
+
+  .sp-content {
+    position: relative; z-index: 4;
+    padding: 18px 20px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sp-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+
+  .sp-avatar {
+    width: 46px; height: 46px; border-radius: 50%;
+    background: linear-gradient(135deg, #5a2800, #a05000);
+    border: 2px solid #ffc107;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.72rem; font-weight: 900; color: #ffc107; flex-shrink: 0;
+    box-shadow: 0 0 14px rgba(255,193,7,0.5), 0 0 30px rgba(255,150,0,0.2);
+  }
+
+  .sp-name {
+    font-size: 0.88rem; font-weight: 800; color: #fff;
+    animation: ssj-glow 2.4s ease-in-out infinite;
+  }
+
+  .sp-sub { font-size: 0.64rem; color: #ffc107; margin-top: 3px; opacity: 0.8; }
+
+  .sp-bio {
+    font-size: 0.72rem; color: rgba(240,215,160,0.65);
+    line-height: 1.5; font-style: italic;
+    margin-bottom: 12px; padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255,193,7,0.12);
+  }
+
+  .sp-games { display: flex; flex-direction: column; gap: 6px; }
+
+  .sp-game {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,193,7,0.04);
+    border: 1px solid rgba(255,193,7,0.13);
+    border-radius: 6px; padding: 6px 10px;
+  }
+
+  .sp-game-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .sp-game-name { flex: 1; font-size: 0.72rem; color: rgba(255,255,255,0.85); font-weight: 600; }
+  .sp-game-rank { font-size: 0.63rem; color: #ffc107; font-family: 'JetBrains Mono', monospace; }
+
+  /* v0idpilot / space card */
+  .sc-space { background: #020408; position: relative; overflow: hidden; font-family: 'JetBrains Mono', monospace; }
+
+  .sv-iframe {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 900px; height: 506px;
+    border: none;
+    filter: brightness(0.42) saturate(1.3);
+    pointer-events: none;
+  }
+
+  .sv-overlay {
+    position: absolute; inset: 0; z-index: 1;
+    background:
+      linear-gradient(to right, rgba(2,4,12,0.9) 0%, rgba(2,4,12,0.55) 50%, rgba(2,4,12,0.1) 100%),
+      linear-gradient(to top, rgba(2,4,12,0.85) 0%, transparent 45%);
+    pointer-events: none;
+  }
+
+  @keyframes sv-scan {
+    0% { top: 0; opacity: 0; }
+    3% { opacity: 1; }
+    97% { opacity: 0.6; }
+    100% { top: 100%; opacity: 0; }
+  }
+
+  @keyframes sv-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+  }
+
+  @keyframes sv-pulse-bar {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
+  }
+
+  .sv-scan-line {
+    position: absolute; z-index: 2;
+    left: 0; right: 0; height: 1px;
+    background: linear-gradient(to right, transparent, rgba(0,212,255,0.25), transparent);
+    animation: sv-scan 7s linear infinite;
+    pointer-events: none;
+  }
+
+  .sv-content {
+    position: relative; z-index: 3;
+    padding: 22px 22px 20px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sv-bracket-tl, .sv-bracket-tr, .sv-bracket-bl, .sv-bracket-br {
+    position: absolute;
+    width: 14px; height: 14px;
+    border-color: rgba(0,212,255,0.35);
+    border-style: solid;
+  }
+  .sv-bracket-tl { top: 10px; left: 10px; border-width: 1.5px 0 0 1.5px; }
+  .sv-bracket-tr { top: 10px; right: 10px; border-width: 1.5px 1.5px 0 0; }
+  .sv-bracket-bl { bottom: 10px; left: 10px; border-width: 0 0 1.5px 1.5px; }
+  .sv-bracket-br { bottom: 10px; right: 10px; border-width: 0 1.5px 1.5px 0; }
+
+  .sv-sys-label { font-size: 0.58rem; color: rgba(0,212,255,0.4); letter-spacing: 2.5px; text-transform: uppercase; margin-bottom: 6px; }
+  .sv-name { font-size: 1.15rem; font-weight: 700; color: #00d4ff; text-shadow: 0 0 14px rgba(0,212,255,0.55); letter-spacing: -0.5px; }
+  .sv-status-line { font-size: 0.62rem; color: rgba(0,200,255,0.4); margin-top: 5px; display: flex; align-items: center; gap: 6px; }
+  .sv-dot { width: 5px; height: 5px; border-radius: 50%; background: #39ff14; box-shadow: 0 0 6px rgba(57,255,20,0.8); animation: sv-blink 1.8s ease-in-out infinite; flex-shrink: 0; }
+
+  .sv-divider { width: 100%; height: 1px; background: rgba(0,212,255,0.1); margin: 14px 0; }
+
+  .sv-rows { display: flex; flex-direction: column; gap: 7px; margin-bottom: 12px; }
+  .sv-row { display: flex; align-items: center; font-size: 0.64rem; }
+  .sv-row-k { color: rgba(0,212,255,0.35); width: 80px; text-transform: uppercase; letter-spacing: 1px; flex-shrink: 0; }
+  .sv-row-v { color: #c0dcf0; }
+  .sv-row-v.hi { color: #00d4ff; }
+  .sv-bar-row { display: flex; align-items: center; gap: 7px; }
+  .sv-bar { width: 68px; height: 4px; background: rgba(0,212,255,0.08); border-radius: 2px; overflow: hidden; }
+  .sv-bar-fill { height: 100%; border-radius: 2px; background: linear-gradient(to right, #00d4ff, #9b5de5); animation: sv-pulse-bar 3s ease-in-out infinite; }
+  .sv-bar-pct { font-size: 0.6rem; color: rgba(0,212,255,0.45); }
+
+  .sv-log { display: flex; flex-direction: column; gap: 4px; margin-top: auto; padding-top: 8px; border-top: 1px solid rgba(0,212,255,0.07); }
+  .sv-log-line { font-size: 0.61rem; color: rgba(0,180,255,0.3); }
+  .sv-log-line::before { content: '> '; color: rgba(0,212,255,0.18); }
+
+  /* Themes section */
+  .theme-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 48px;
+    margin-bottom: 40px;
+  }
+
+  .theme-swatch {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--muted);
+    transition: border-color 0.18s, color 0.18s, box-shadow 0.18s, background 0.18s, transform 0.15s;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .theme-swatch:hover {
+    color: var(--text);
+    border-color: var(--t-accent, rgba(124,111,255,0.4));
+    background: rgba(255,255,255,0.04);
+    transform: translateY(-1px);
+  }
+
+  .theme-swatch.active {
+    color: var(--text);
+    border-color: var(--t-accent, var(--accent));
+    background: rgba(255,255,255,0.05);
+    box-shadow: 0 0 18px var(--t-glow, var(--glow));
+    transform: translateY(-1px);
+  }
+
+  .swatch-dots {
+    display: flex;
+    gap: 4px;
+  }
+
+  .swatch-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    transition: transform 0.15s;
+  }
+
+  .theme-swatch.active .swatch-dot,
+  .theme-swatch:hover .swatch-dot { transform: scale(1.25); }
+
+  .theme-code-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 36px;
+    margin-bottom: 10px;
+  }
+
+  /* Anti-Discord */
+  .compare-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 56px;
+  }
+
+  .compare-col {
+    border-radius: 16px;
+    padding: 32px;
+  }
+
+  .compare-col.them {
+    background: rgba(248,113,113,0.05);
+    border: 1px solid rgba(248,113,113,0.15);
+  }
+
+  .compare-col.us {
+    background: rgba(74,222,128,0.05);
+    border: 1px solid rgba(74,222,128,0.2);
+    box-shadow: 0 0 40px rgba(74,222,128,0.04);
+  }
+
+  .compare-col h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .compare-col.them h3 { color: var(--red); }
+  .compare-col.us   h3 { color: var(--green); }
+
+  .compare-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .compare-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 0.9rem;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+
+  .compare-list li svg { flex-shrink: 0; margin-top: 1px; }
+
+  /* Steps */
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+    margin-top: 56px;
+    position: relative;
+  }
+
+  .steps::before {
+    content: '';
+    position: absolute;
+    top: 24px;
+    left: calc(16.666% + 16px);
+    right: calc(16.666% + 16px);
+    height: 1px;
+    background: linear-gradient(to right, var(--accent), var(--accent2));
+    opacity: 0.3;
+  }
+
+  .step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 16px;
+  }
+
+  .step-num {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 1rem;
+    color: #fff;
+    box-shadow: 0 0 24px var(--glow);
+    position: relative;
+    z-index: 1;
+  }
+
+  .step h3 { font-size: 1rem; font-weight: 700; }
+  .step p  { font-size: 0.875rem; color: var(--muted); line-height: 1.6; }
+
+  /* Code block */
+  .code-block {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    color: #a8a8c8;
+    line-height: 1.7;
+    margin-top: 24px;
+    overflow-x: auto;
+  }
+
+  .code-block .comment { color: #4e4e6a; }
+  .code-block .key     { color: var(--accent2); }
+  .code-block .val     { color: #c3e88d; }
+  .code-block .str     { color: #f07178; }
+  .code-block .num     { color: #f78c6c; }
+  .code-block .bool    { color: #ffcb6b; }
+
+  /* Final CTA */
+  .cta-section {
+    position: relative;
+    z-index: 1;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 100px 32px;
+    text-align: center;
+    overflow: hidden;
+  }
+
+  .cta-section::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 600px; height: 300px;
+    background: radial-gradient(ellipse at center, rgba(124,111,255,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .cta-section h2 {
+    font-size: clamp(2rem, 4vw, 3.5rem);
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    margin-bottom: 16px;
+    position: relative;
+  }
+
+  .cta-section p {
+    font-size: 1.1rem;
+    color: var(--muted);
+    margin-bottom: 40px;
+    position: relative;
+  }
+
+  .cta-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    position: relative;
+  }
+
+  /* Footer */
+  footer {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 28px 48px;
+    border-top: 1px solid var(--border);
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+
+  footer a { color: var(--muted); text-decoration: none; transition: color 0.2s; }
+  footer a:hover { color: var(--text); }
+
+  .footer-links { display: flex; gap: 20px; }
+
+  /* Divider glow */
+  .glow-divider {
+    position: relative;
+    z-index: 1;
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--accent), var(--accent2), transparent);
+    opacity: 0.4;
+  }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .id-inner { grid-template-columns: 1fr; gap: 48px; }
+    .profile-inner { grid-template-columns: 1fr; gap: 48px; }
+    .showcases-grid { grid-template-columns: 1fr; max-width: 560px; margin-left: auto; margin-right: auto; }
+  }
+
+  @media (max-width: 768px) {
+    nav { padding: 16px 20px; }
+    .strip-item { padding: 16px 20px; font-size: 0.8rem; }
+    .compare-wrapper { grid-template-columns: 1fr; }
+    .steps { grid-template-columns: 1fr; }
+    .steps::before { display: none; }
+    footer { padding: 24px 20px; flex-direction: column; align-items: flex-start; }
+  }
+
+  /* Intersection observer animations */
+  .reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* IskraID opt-in section */
+  .id-optin-banner {
+    background: rgba(0,207,255,0.05);
+    border-bottom: 1px solid rgba(0,207,255,0.12);
+    padding: 18px 32px;
+    text-align: center;
+  }
+
+  .id-optin-banner strong {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  .id-optin-banner span {
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+
+  .id-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 24px;
+    margin-bottom: 24px;
+  }
+
+  .id-split-col {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+
+  .id-split-col-with {
+    border-color: rgba(0,207,255,0.2);
+    background: rgba(0,207,255,0.04);
+  }
+
+  .id-split-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .id-split-col-with .id-split-label {
+    color: var(--accent2);
+  }
+
+  .id-split-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .id-split-list li {
+    font-size: 0.82rem;
+    color: var(--muted);
+    padding-left: 16px;
+    position: relative;
+    line-height: 1.4;
+  }
+
+  .id-split-list li::before {
+    content: '·';
+    position: absolute;
+    left: 4px;
+    color: var(--muted);
+  }
+
+  .id-split-col-with .id-split-list li {
+    color: var(--text);
+  }
+
+  .id-split-col-with .id-split-list li::before {
+    content: '✓';
+    color: var(--accent2);
+    font-size: 0.7rem;
+    top: 1px;
+  }
+
+  /* Deployment modes */
+  .deploy-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 56px;
+  }
+
+  .deploy-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px 32px;
+    display: grid;
+    grid-template-columns: 48px 1fr;
+    gap: 24px;
+    align-items: start;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .deploy-card:hover {
+    border-color: rgba(124,111,255,0.35);
+    box-shadow: 0 4px 32px rgba(124,111,255,0.07);
+  }
+
+  .deploy-num {
+    font-size: 1.9rem;
+    font-weight: 900;
+    color: rgba(124,111,255,0.22);
+    line-height: 1;
+    letter-spacing: -0.04em;
+    padding-top: 3px;
+  }
+
+  .deploy-body h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+    letter-spacing: -0.01em;
+  }
+
+  .deploy-body > p {
+    font-size: 0.875rem;
+    color: var(--muted);
+    line-height: 1.65;
+    margin-bottom: 14px;
+    max-width: 780px;
+  }
+
+  .deploy-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+
+  .deploy-tag {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(124,111,255,0.2);
+    background: rgba(124,111,255,0.07);
+    color: var(--accent);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .deploy-tag.t-green {
+    border-color: rgba(74,222,128,0.2);
+    background: rgba(74,222,128,0.07);
+    color: var(--green);
+  }
+
+  .deploy-tag.t-cyan {
+    border-color: rgba(0,207,255,0.2);
+    background: rgba(0,207,255,0.07);
+    color: var(--accent2);
+  }
+
+  .deploy-snippet {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.76rem;
+    background: rgba(0,0,0,0.42);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 14px 18px;
+    color: #c9d1d9;
+    white-space: pre;
+    overflow-x: auto;
+    line-height: 1.75;
+  }
+
+  .deploy-snippet .dk  { color: var(--accent2); }
+  .deploy-snippet .ds  { color: #a5d6ff; }
+  .deploy-snippet .dn  { color: #79c0ff; }
+  .deploy-snippet .dc  { color: #6e7681; font-style: italic; }
+  .deploy-snippet .dkw { color: #ff7b72; }
+
+  @media (max-width: 640px) {
+    .deploy-card { grid-template-columns: 1fr; gap: 8px; padding: 20px; }
+    .deploy-num { font-size: 1.3rem; }
+  }
+
+  /* Iskra 2 rebuild notice */
+  .rebuild-notice {
+    max-width: 620px;
+    margin: 0 auto 36px;
+    padding: 18px 22px;
+    border-radius: 12px;
+    border: 1px solid rgba(0,207,255,0.25);
+    background: rgba(0,207,255,0.05);
+    box-shadow: 0 0 32px rgba(0,207,255,0.06);
+    text-align: left;
+    font-size: 0.9rem;
+    color: var(--muted);
+    line-height: 1.6;
+    animation: fadeUp 0.6s 0.25s ease both;
+  }
+  .rebuild-notice strong { display: block; color: var(--text); font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
+  .rebuild-notice a { display: inline-block; margin-top: 6px; color: var(--accent2); text-decoration: none; font-weight: 600; }
+  .rebuild-notice a:hover { text-decoration: underline; }
+  .hero-badge .dot.dot-wip { background: #fbbf24; box-shadow: 0 0 8px #fbbf24; }
+  .later-note { margin-top: 32px; font-size: 0.9rem; color: var(--muted); line-height: 1.65; max-width: 780px; }
+  .later-note strong { color: var(--text); }
+
+  @media (max-width: 600px) {
+    nav { padding: 14px 16px; }
+    .nav-hide-sm { display: none !important; }
+    .rebuild-notice { padding: 16px 18px; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="spark-canvas"></canvas>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="#">
+    <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M16 2L4 16h10l-2 10 14-16H16L18 2z" fill="url(#bolt)" stroke="none"/>
+      <defs>
+        <linearGradient id="bolt" x1="4" y1="2" x2="22" y2="26" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#7c6fff"/>
+          <stop offset="100%" stop-color="#00cfff"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    Iskra
+  </a>
+  <div class="nav-links">
+    <a class="btn btn-ghost nav-hide-sm" href="#features">What we're building</a>
+    <a class="btn btn-ghost nav-hide-sm" href="#v1">About v1</a>
+    <a class="btn btn-primary" href="https://github.com/quikmn/iskra-voice" target="_blank" rel="noopener">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+      Follow on GitHub
+    </a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">
+    <span class="dot dot-wip"></span>
+    Iskra 2 · In development · Free &amp; open source
+  </div>
+
+  <h1>
+    <span class="word-iskra">Iskra</span><br>
+    Voice &amp; text chat.<br>No strings attached.
+  </h1>
+
+  <p class="hero-sub">
+    Chat with your friends on a server you run. <strong>Own your data.</strong><br>
+    No email, no password, no subscriptions. We're rebuilding it from the core to get there.
+  </p>
+
+  <div class="rebuild-notice">
+    <strong>Iskra 2 is being rebuilt from the ground up.</strong>
+    Iskra v1 is retired: its hosted services are offline and a security review found serious problems we'd rather fix properly than patch. Iskra 2 isn't released yet, and we're not promising dates. Everything below is what we're building, not something you can download today.
+    <a href="https://github.com/quikmn/iskra-voice" target="_blank" rel="noopener">Follow along on GitHub →</a>
+  </div>
+
+  <div class="hero-cta">
+    <a class="btn btn-primary btn-hero" href="https://github.com/quikmn/iskra-voice" target="_blank" rel="noopener">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+      Follow the rebuild on GitHub
+    </a>
+    <a class="btn btn-outline btn-hero" href="#v1">
+      What happened to v1?
+    </a>
+  </div>
+
+  <p class="hero-note">Windows first · Web app for phone browsers · Linux &amp; Mac later · <span>Not released yet</span></p>
+
+  <div class="scroll-hint">
+    <div class="scroll-line"></div>
+  </div>
+</div>
+
+<!-- STRIP -->
+<div class="strip">
+  <div class="strip-item">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+    Your server is a folder
+  </div>
+  <div class="strip-item">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    E2E encrypted DMs
+  </div>
+  <div class="strip-item">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    Voice that scales
+  </div>
+  <div class="strip-item">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+    Open source
+  </div>
+  <div class="strip-item">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    No email, no password
+  </div>
+  <div class="strip-item">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+    No ads, no tracking
+  </div>
+</div>
+
+<div class="glow-divider"></div>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="features-header reveal">
+    <div class="section-label">What we're building</div>
+    <h2 class="section-title">Everything you need.<br>Nothing you don't.</h2>
+    <p class="section-desc">This is the plan for the first Iskra 2 release: a small core that has to be rock solid before anything else gets added. None of it is out yet.</p>
+  </div>
+
+  <div class="features-grid">
+
+    <div class="feature-card reveal accent2-card">
+      <div class="feature-icon cyan">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <h3>One identity, made on your device</h3>
+      <p>Pick a name and an avatar and you're in. Your identity is a key created on your own device. No email, no password, no signup form, no account service in the middle.</p>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      </div>
+      <h3>Join with an invite link</h3>
+      <p>Click a link, pick a name, you're talking. Server owners can make links that expire or only work a few times, and see or revoke them later.</p>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </div>
+      <h3>Friends &amp; friend codes</h3>
+      <p>Add a friend from any server you share, or swap friend codes. Your friends list comes with you, no central server required.</p>
+    </div>
+
+    <div class="feature-card reveal accent2-card">
+      <div class="feature-icon cyan">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      </div>
+      <h3>End-to-end encrypted DMs</h3>
+      <p>DMs are always end-to-end encrypted, using libsodium, a proven library. No hand-made crypto. If encryption can't happen, the message doesn't send. It never quietly falls back to plain text.</p>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <h3>Honest server channels</h3>
+      <p>Server channels are encrypted on the way, and readable by whoever runs the server: you, or your friend. That's the honest deal, and the app will say plainly who runs each server.</p>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      </div>
+      <h3>Voice Channels</h3>
+      <p>Voice runs through an SFU (LiveKit), so big voice channels stay smooth instead of falling apart past a handful of people. Push-to-talk that works while a game has focus, voice activation, noise suppression, per-user volume.</p>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      </div>
+      <h3>Screen Share &amp; Webcam</h3>
+      <p>Share your screen or webcam into a voice channel, system audio included, at full quality with no paywall. The SFU means a share goes up once, not once per viewer.</p>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      </div>
+      <h3>Text Channels</h3>
+      <p>Markdown, replies, edits, reactions, uploads, image and video embeds, link previews, @mentions, typing indicators and unread badges. The everyday stuff, done properly.</p>
+    </div>
+
+    <div class="feature-card reveal accent2-card">
+      <div class="feature-icon cyan">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      </div>
+      <h3>Create a server in one click</h3>
+      <p>Hit "Create a server" in the app. It sets up HTTPS certificates for you, checks that your friends can actually reach it, and explains in plain words if something's in the way.</p>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      </div>
+      <h3>Your server is a folder</h3>
+      <p>Settings, messages, members and uploads all live in one folder. Copy it to back it up. Copy it somewhere else to move your server. Its identity goes with it.</p>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <h3>Roles &amp; Moderation</h3>
+      <p>Guest, member, trusted, admin, owner. Per-channel read and write permissions, kick, ban and timeout. Every permission check lives in one place on the server, so nothing slips through a side door.</p>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+      </div>
+      <h3>PC first, phone too</h3>
+      <p>A Windows desktop app first, plus a web app that works in phone browsers. Linux and Mac come later, from the same codebase, without a rewrite.</p>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      </div>
+      <h3>Free. Actually free.</h3>
+      <p>No Nitro-style paywalls on screen share quality or upload size. No ads. No tracking. No policy changes from someone you've never met.</p>
+    </div>
+
+  </div>
+
+  <p class="later-note reveal"><strong>After the core is solid, the v1 favourites come back:</strong> threads, pins, search, polls, custom emoji, soundboard, bots and webhooks, audit log, themes, watch party, voice messages and more. Core first, glitch-free, then features.</p>
+</section>
+
+<div class="glow-divider"></div>
+
+<!-- IDENTITY & PRIVACY -->
+<div class="id-section">
+  <div class="id-optin-banner">
+    <strong>No account. No email. No password.</strong>
+    <span>Your identity is a key that lives on your own devices. There's no central account service to sign up for, and nothing to go offline.</span>
+  </div>
+  <div class="id-inner">
+    <div class="id-left reveal">
+      <div class="section-label">Identity &amp; privacy</div>
+      <h2 class="section-title">One identity.<br>Honest encryption.</h2>
+      <p style="margin-top:16px;margin-bottom:0;font-size:1rem;color:var(--muted);line-height:1.7">
+        We only promise what we can actually guarantee. Here's who can read what in Iskra 2:
+      </p>
+
+      <div class="id-split">
+        <div class="id-split-col">
+          <div class="id-split-label">Server channels</div>
+          <ul class="id-split-list">
+            <li>Encrypted on the way to the server</li>
+            <li>Stored on the server you or your friend runs</li>
+            <li>Readable by members and by whoever runs it</li>
+            <li>The app tells you who that is</li>
+            <li>Same for voice and shared files</li>
+          </ul>
+        </div>
+        <div class="id-split-col id-split-col-with">
+          <div class="id-split-label">Direct messages</div>
+          <ul class="id-split-list">
+            <li>End-to-end encrypted, always</li>
+            <li>Only you and your friend can read them</li>
+            <li>libsodium, no home-made crypto</li>
+            <li>No key, no send. Never plain text</li>
+            <li>Safety numbers to check who you're talking to</li>
+          </ul>
+        </div>
+      </div>
+
+      <p style="font-size:0.85rem;color:var(--muted);line-height:1.65">
+        Iskra v1 advertised a "zero-knowledge relay". A security review showed that claim didn't hold, so Iskra 2 drops the central relay completely. DMs are delivered through servers you and your friends already use, and those servers only ever store encrypted messages. They can still see who talks to whom and when, and we'll say so in the app.
+      </p>
+    </div>
+
+    <div class="id-right reveal">
+      <div class="id-card">
+        <div class="id-card-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <div>
+          <h4>Made on your device</h4>
+          <p>First launch: pick a name and an avatar. Your key is created quietly in the background. No forms, no verification emails.</p>
+        </div>
+      </div>
+
+      <div class="id-card">
+        <div class="id-card-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+        </div>
+        <div>
+          <h4>All your devices</h4>
+          <p>Link your phone or a second PC by scanning a QR code or typing a short code. Lose a device? Remove just that one and keep your identity.</p>
+        </div>
+      </div>
+
+      <div class="id-card">
+        <div class="id-card-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        </div>
+        <div>
+          <h4>Recovery, if you want it</h4>
+          <p>Set a recovery password and your key is locked with it on your device before a backup is stored. Skip it, and the app tells you once, plainly, what that means.</p>
+        </div>
+      </div>
+
+      <div class="id-card">
+        <div class="id-card-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <div>
+          <h4>Friend codes</h4>
+          <p>Share a friend code or link to add someone, even if you're not on the same server yet. No global usernames to fight over.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="glow-divider"></div>
+
+<!-- PROFILE PAGES -->
+<div class="profile-section">
+  <div class="profile-inner">
+    <div class="profile-left reveal">
+      <div class="section-label">Profile Pages</div>
+      <h2 class="section-title">Your profile.<br>No paywall.<br>No ceiling.</h2>
+      <p>
+        Discord charges $10/month for an animated avatar and a banner color. That's the product. That's Nitro.
+        <br><br>
+        Iskra profiles are a <strong>page you write and host yourself.</strong> Your best fragvideo, a track you love, a custom layout, a photo gallery, a manifesto. Whatever you actually want to be known for. No feature tiers, no "profile effects" to unlock, no badge shop, no currency. Just a URL and whatever you put on it.
+        <br><br>
+        Host it on GitHub Pages, Neocities, Cloudflare Pages or your own server. All free. Link it in your profile, and everyone who clicks your name can open it, shown in a strict sandbox.
+      </p>
+      <div class="profile-pills">
+        <span class="profile-pill">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Your own HTML &amp; CSS
+        </span>
+        <span class="profile-pill">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Host it anywhere
+        </span>
+        <span class="profile-pill">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          No unlocks, ever
+        </span>
+        <span class="profile-pill">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Free forever
+        </span>
+      </div>
+    </div>
+
+    <div class="profile-right reveal">
+      <div class="profile-card">
+        <div class="profile-card-icon">▶</div>
+        <div>
+          <h4>Show off your clips</h4>
+          <p>Your best clip, a fragvideo, a highlight reel. Put the video next to your page and it plays right in your profile.</p>
+        </div>
+      </div>
+
+      <div class="profile-card">
+        <div class="profile-card-icon">♪</div>
+        <div>
+          <h4>Add music</h4>
+          <p>An audio file hosted with your page. Let people know what you're listening to without asking anyone's permission.</p>
+        </div>
+      </div>
+
+      <div class="profile-card">
+        <div class="profile-card-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        </div>
+        <div>
+          <h4>HTML and CSS, safely boxed in</h4>
+          <p>Custom fonts, animations, layouts, colors. Your page is shown in a strict sandbox on its own separate address: no scripts in the first release, no tracking calls, no way to reach the app or anyone's keys.</p>
+        </div>
+      </div>
+
+      <div class="profile-card">
+        <div class="profile-card-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <div>
+          <h4>Provably yours</h4>
+          <p>Your page carries your fingerprint, so nobody can point their profile at your site. Update it whenever you like. No review queue, no badge shop.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="glow-divider"></div>
+
+<!-- PROFILE SHOWCASES -->
+<section class="showcases-section">
+  <div class="reveal">
+    <div class="section-label" style="justify-content:center">Profile Showcases</div>
+    <h2 class="section-title">What people could actually build.</h2>
+    <p class="section-desc">Two mock-ups of the kind of page you could make: your own design, hosted for free, nothing to unlock.</p>
+    <p class="section-desc">Once Iskra 2 is out, show us your creations. There might even be a contest!</p>
+  </div>
+
+  <div class="showcases-grid reveal">
+
+    <!-- PsychoK1LLr98_TTV -->
+    <div class="showcase-card">
+      <div class="showcase-browser">
+        <div class="browser-dots"><span></span><span></span><span></span></div>
+        <div class="browser-url">psychok1llr98.neocities.org</div>
+      </div>
+      <div class="showcase-body sc-psycho">
+        <iframe class="sp-iframe"
+          src="https://www.youtube.com/embed/rcp3tZ3XFyQ?si=FP_oGPNY8ClWPhQR&controls=0&autoplay=1&mute=1&loop=1&playlist=rcp3tZ3XFyQ&rel=0&modestbranding=1"
+          frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          referrerpolicy="strict-origin-when-cross-origin"
+          allowfullscreen></iframe>
+        <div class="sp-overlay"></div>
+        <div class="sp-aura"></div>
+        <div class="sp-flash"></div>
+        <div class="sp-content">
+          <div class="sp-header">
+            <div class="sp-avatar">SSJ</div>
+            <div>
+              <div class="sp-name">PsychoK1LLr98_TTV</div>
+              <div class="sp-sub">&#9679; LIVE &nbsp;&nbsp; 412 viewers</div>
+            </div>
+          </div>
+          <div class="sp-bio">"i love to pwn noobs in CS2, LOL and Dota2"</div>
+          <div class="sp-games">
+            <div class="sp-game">
+              <div class="sp-game-dot" style="background:#f0b132"></div>
+              <div class="sp-game-name">CS2</div>
+              <div class="sp-game-rank">Global Elite</div>
+            </div>
+            <div class="sp-game">
+              <div class="sp-game-dot" style="background:#00b4d8"></div>
+              <div class="sp-game-name">League of Legends</div>
+              <div class="sp-game-rank">Diamond I</div>
+            </div>
+            <div class="sp-game">
+              <div class="sp-game-dot" style="background:#a855f7"></div>
+              <div class="sp-game-name">Dota 2</div>
+              <div class="sp-game-rank">Herald V</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- v0idpilot -->
+    <div class="showcase-card">
+      <div class="showcase-browser">
+        <div class="browser-dots"><span></span><span></span><span></span></div>
+        <div class="browser-url">v0idpilot.neocities.org</div>
+      </div>
+      <div class="showcase-body sc-space">
+        <iframe class="sv-iframe"
+          src="https://www.youtube.com/embed/pinoqCfpjik?autoplay=1&mute=1&controls=0&start=30&end=180&loop=1&playlist=pinoqCfpjik&rel=0&modestbranding=1"
+          frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          referrerpolicy="strict-origin-when-cross-origin"
+          allowfullscreen></iframe>
+        <div class="sv-overlay"></div>
+        <div class="sv-scan-line"></div>
+        <div class="sv-content">
+          <div class="sv-bracket-tl"></div>
+          <div class="sv-bracket-tr"></div>
+          <div class="sv-bracket-bl"></div>
+          <div class="sv-bracket-br"></div>
+          <div>
+            <div class="sv-sys-label">// system online</div>
+            <div class="sv-name">v0idpilot</div>
+            <div class="sv-status-line">
+              <div class="sv-dot"></div>
+              SIGNAL ACQUIRED / SECTOR THETA-7
+            </div>
+          </div>
+          <div class="sv-divider"></div>
+          <div class="sv-rows">
+            <div class="sv-row">
+              <div class="sv-row-k">sector</div>
+              <div class="sv-row-v hi">THETA-7</div>
+            </div>
+            <div class="sv-row">
+              <div class="sv-row-k">status</div>
+              <div class="sv-row-v">DRIFTING</div>
+            </div>
+            <div class="sv-row">
+              <div class="sv-row-k">distance</div>
+              <div class="sv-row-v">2.4k ly from home</div>
+            </div>
+            <div class="sv-row">
+              <div class="sv-row-k">systems</div>
+              <div class="sv-row-v">23 mapped</div>
+            </div>
+            <div class="sv-row">
+              <div class="sv-row-k">signal</div>
+              <div class="sv-row-v">
+                <div class="sv-bar-row">
+                  <div class="sv-bar"><div class="sv-bar-fill" style="width:82%"></div></div>
+                  <span class="sv-bar-pct">82%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="sv-log">
+            <div class="sv-log-line">exploring void since 2019</div>
+            <div class="sv-log-line">currently: watching stars die</div>
+            <div class="sv-log-line">next jump in T-00:04:17</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<div class="glow-divider"></div>
+
+<!-- THEMES -->
+<section>
+  <div class="reveal">
+    <div class="section-label">Themes</div>
+    <h2 class="section-title">Looks exactly like yours.</h2>
+    <p class="section-desc">Iskra v1 shipped ten themes, and you could write your own in JSON: every color, radius and accent a variable you control. No mods, no ToS violations, no BetterDiscord workarounds. Themes are on the list to come back once the Iskra 2 core is solid. Click around to see the v1 ones.</p>
+  </div>
+
+  <div class="theme-swatches reveal" id="theme-swatches">
+    <div class="theme-swatch active" data-theme="catppuccin" style="--t-accent:#cba6f7;--t-glow:rgba(203,166,247,0.22)">
+      <div class="swatch-dots">
+        <div class="swatch-dot" style="background:#1e1e2e"></div>
+        <div class="swatch-dot" style="background:#cba6f7"></div>
+        <div class="swatch-dot" style="background:#89dceb"></div>
+      </div>
+      Catppuccin
+    </div>
+    <div class="theme-swatch" data-theme="dracula" style="--t-accent:#bd93f9;--t-glow:rgba(189,147,249,0.22)">
+      <div class="swatch-dots">
+        <div class="swatch-dot" style="background:#21222c"></div>
+        <div class="swatch-dot" style="background:#bd93f9"></div>
+        <div class="swatch-dot" style="background:#50fa7b"></div>
+      </div>
+      Dracula
+    </div>
+    <div class="theme-swatch" data-theme="tokyonight" style="--t-accent:#7aa2f7;--t-glow:rgba(122,162,247,0.22)">
+      <div class="swatch-dots">
+        <div class="swatch-dot" style="background:#1a1b26"></div>
+        <div class="swatch-dot" style="background:#7aa2f7"></div>
+        <div class="swatch-dot" style="background:#2ac3de"></div>
+      </div>
+      Tokyo Night
+    </div>
+    <div class="theme-swatch" data-theme="nord" style="--t-accent:#88c0d0;--t-glow:rgba(136,192,208,0.22)">
+      <div class="swatch-dots">
+        <div class="swatch-dot" style="background:#2e3440"></div>
+        <div class="swatch-dot" style="background:#88c0d0"></div>
+        <div class="swatch-dot" style="background:#a3be8c"></div>
+      </div>
+      Nord
+    </div>
+    <div class="theme-swatch" data-theme="onedark" style="--t-accent:#61afef;--t-glow:rgba(97,175,239,0.22)">
+      <div class="swatch-dots">
+        <div class="swatch-dot" style="background:#21252b"></div>
+        <div class="swatch-dot" style="background:#61afef"></div>
+        <div class="swatch-dot" style="background:#98c379"></div>
+      </div>
+      One Dark
+    </div>
+    <div class="theme-swatch" data-theme="solarized" style="--t-accent:#268bd2;--t-glow:rgba(38,139,210,0.22)">
+      <div class="swatch-dots">
+        <div class="swatch-dot" style="background:#002b36"></div>
+        <div class="swatch-dot" style="background:#268bd2"></div>
+        <div class="swatch-dot" style="background:#2aa198"></div>
+      </div>
+      Solarized Dark
+    </div>
+    <div class="theme-swatch" data-theme="default" style="--t-accent:#5865f2;--t-glow:rgba(88,101,242,0.22)">
+      <div class="swatch-dots">
+        <div class="swatch-dot" style="background:#202225"></div>
+        <div class="swatch-dot" style="background:#5865f2"></div>
+        <div class="swatch-dot" style="background:#00aff4"></div>
+      </div>
+      Iskra Dark
+    </div>
+    <div class="theme-swatch" data-theme="synthwave" style="--t-accent:#ff007f;--t-glow:rgba(255,0,127,0.22)">
+      <div class="swatch-dots">
+        <div class="swatch-dot" style="background:#150633"></div>
+        <div class="swatch-dot" style="background:#ff007f"></div>
+        <div class="swatch-dot" style="background:#00f3ff"></div>
+      </div>
+      Synthwave 1984
+    </div>
+    <div class="theme-swatch" data-theme="cyberlime" style="--t-accent:#39ff14;--t-glow:rgba(57,255,20,0.22)">
+      <div class="swatch-dots">
+        <div class="swatch-dot" style="background:#0a140a"></div>
+        <div class="swatch-dot" style="background:#39ff14"></div>
+        <div class="swatch-dot" style="background:#00ffcc"></div>
+      </div>
+      Cyber-Lime
+    </div>
+    <div class="theme-swatch" data-theme="bloodmoon" style="--t-accent:#ff3333;--t-glow:rgba(255,51,51,0.22)">
+      <div class="swatch-dots">
+        <div class="swatch-dot" style="background:#140a0a"></div>
+        <div class="swatch-dot" style="background:#ff3333"></div>
+        <div class="swatch-dot" style="background:#ff66cc"></div>
+      </div>
+      Blood Moon
+    </div>
+  </div>
+
+  <div class="theme-code-label reveal">Snippet from an Iskra v1 theme file</div>
+  <div class="code-block reveal" id="theme-code-block"></div>
+</section>
+
+<div class="glow-divider"></div>
+
+<!-- COMPARE -->
+<section id="compare">
+  <div class="reveal">
+    <div class="section-label">Why Iskra</div>
+    <h2 class="section-title">Done with Discord?<br>Same.</h2>
+    <p class="section-desc">Discord is a VC-funded product optimizing for engagement and monetization. Iskra is a tool you run yourself. The difference is who's in charge. Here's what Iskra 2 is aiming for.</p>
+  </div>
+
+  <div class="compare-wrapper">
+    <div class="compare-col them reveal">
+      <h3>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        Discord
+      </h3>
+      <ul class="compare-list">
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Your data lives on their servers</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Screen share quality and big uploads locked behind $10/month Nitro</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Email, password and an account for every single user</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Text DMs are not end-to-end encrypted</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Your server can be deleted with no warning</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Ads, tracking, and policy changes you don't get a say in</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> No way to back up your server or take it elsewhere</li>
+      </ul>
+    </div>
+
+    <div class="compare-col us reveal">
+      <h3>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Iskra 2 (the goal)
+      </h3>
+      <ul class="compare-list">
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Your server, your machine, your folder</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Free. No Nitro-style paywalls</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> No email, no password. Pick a name and you're in</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> DMs end-to-end encrypted, always</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Runs as long as you keep it running</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> No ads, no tracking. Open source: read it, fork it, audit it</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Back up or move a server by copying a folder</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<div class="glow-divider"></div>
+
+<!-- HOW IT SHOULD WORK -->
+<section>
+  <div class="reveal" style="text-align:center; margin-bottom: 0;">
+    <div class="section-label">The plan</div>
+    <h2 class="section-title">Up in three steps.</h2>
+    <p class="section-desc" style="margin: 0 auto;">Not available yet. This is the flow we're building toward: no config files, no signup, no fiddling.</p>
+  </div>
+
+  <div class="steps">
+    <div class="step reveal">
+      <div class="step-num">1</div>
+      <h3>Create a server</h3>
+      <p>Click "Create a server" in the app. It sets up HTTPS for you and checks that friends can reach it.</p>
+    </div>
+    <div class="step reveal">
+      <div class="step-num">2</div>
+      <h3>Send an invite link</h3>
+      <p>Copy the invite link and drop it in your group chat. Set it to expire or to only work a few times if you like.</p>
+    </div>
+    <div class="step reveal">
+      <div class="step-num">3</div>
+      <h3>Click &amp; talk</h3>
+      <p>Friends open the link, pick a name and an avatar, and they're in. Voice, text, screen share. No email, no password.</p>
+    </div>
+  </div>
+
+  <div class="code-block reveal" style="margin-top: 48px;">
+    <span class="comment"># Your server is a folder. Copy it to back it up, copy it to move it.</span><br>
+    <span class="comment"># (Planned layout, details may change.)</span><br>
+    <span class="key">gaming-world/</span><br>
+    &nbsp;&nbsp;<span class="val">server.json</span>&nbsp;&nbsp;&nbsp;<span class="comment"># settings you can edit by hand</span><br>
+    &nbsp;&nbsp;<span class="val">server.key</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># the server's identity, invite links check it</span><br>
+    &nbsp;&nbsp;<span class="val">iskra.db</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># channels, messages, members, roles</span><br>
+    &nbsp;&nbsp;<span class="val">uploads/</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># files, emoji, avatars</span><br>
+    &nbsp;&nbsp;<span class="val">certs/</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># HTTPS certificates, managed for you</span><br>
+    &nbsp;&nbsp;<span class="val">logs/</span>
+  </div>
+</section>
+
+<!-- HOSTING -->
+<div class="glow-divider"></div>
+<section id="hosting">
+  <div class="reveal" style="text-align:center; margin-bottom:0">
+    <div class="section-label">Hosting</div>
+    <h2 class="section-title">Pick your setup.</h2>
+    <p class="section-desc" style="margin:0 auto">You choose once, when you create the server. Voice relaying runs alongside your server automatically, so there's no separate TURN server to set up and no shared public one to depend on. Which of these make the first release is still being decided.</p>
+  </div>
+
+  <div class="deploy-grid">
+
+    <div class="deploy-card reveal" style="border-color:rgba(124,111,255,0.35); background:rgba(124,111,255,0.04)">
+      <div class="deploy-num" style="color:rgba(124,111,255,0.5)">A</div>
+      <div class="deploy-body">
+        <h3>Desktop app, zero setup</h3>
+        <p>Click "Create a server" and that's it. The app tries to open the port on your router for you when the router allows it. Friends using the desktop app join with your invite link, which carries your server's key so their app knows it's really you.</p>
+        <div class="deploy-tags">
+          <span class="deploy-tag t-green">zero setup</span>
+          <span class="deploy-tag">desktop app friends</span>
+          <span class="deploy-tag">automatic port opening</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="deploy-card reveal">
+      <div class="deploy-num">B</div>
+      <div class="deploy-body">
+        <h3>Your own domain</h3>
+        <p>Point a DNS record at your machine. Iskra gets a free Let's Encrypt certificate and renews it on its own. Works for everyone, including the web app on phones.</p>
+        <div class="deploy-tags">
+          <span class="deploy-tag t-cyan">automatic HTTPS</span>
+          <span class="deploy-tag t-green">works for everyone</span>
+          <span class="deploy-tag">your domain</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="deploy-card reveal">
+      <div class="deploy-num">C</div>
+      <div class="deploy-body">
+        <h3>Free dynamic DNS</h3>
+        <p>No domain? Grab a free name from a dynamic DNS service (DuckDNS, for example) and paste its token. HTTPS is still handled for you, and it works for everyone.</p>
+        <div class="deploy-tags">
+          <span class="deploy-tag t-cyan">automatic HTTPS</span>
+          <span class="deploy-tag t-green">free</span>
+          <span class="deploy-tag t-green">works for everyone</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="deploy-card reveal">
+      <div class="deploy-num">D</div>
+      <div class="deploy-body">
+        <h3>Tunnel, for when ports are a no-go</h3>
+        <p>Behind CGNAT, or can't touch the router? Sign in once to a tunnel service (Tailscale Funnel or Cloudflare Tunnel, for example) and friends can reach your server anyway.</p>
+        <div class="deploy-tags">
+          <span class="deploy-tag t-green">CGNAT-friendly</span>
+          <span class="deploy-tag">no port forwarding</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="deploy-card reveal">
+      <div class="deploy-num">E</div>
+      <div class="deploy-body">
+        <h3>A VPS, always on</h3>
+        <p>Run the server on a cheap Linux VPS with one command, and an install script takes care of the domain and HTTPS. This one arrives together with Linux support, after the Windows release.</p>
+        <div class="deploy-tags">
+          <span class="deploy-tag">VPS</span>
+          <span class="deploy-tag t-green">always-on</span>
+          <span class="deploy-tag">later</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<div class="glow-divider"></div>
+
+<!-- ABOUT V1 -->
+<section id="v1">
+  <div class="features-header reveal">
+    <div class="section-label">About Iskra v1</div>
+    <h2 class="section-title">v1 is retired.</h2>
+    <p class="section-desc">Iskra v1 was a fun first run, and lots of people liked it. But it isn't supported any more, and we'd rather say so plainly than leave it up looking like it works.</p>
+  </div>
+
+  <div class="features-grid">
+    <div class="feature-card reveal">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+      </div>
+      <h3>Its services are offline</h3>
+      <p>Iskra ID and account registration, the relay for cross-server DMs and friends, the web client, the public TURN server and the public server list are all gone. Only this website is still up.</p>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </div>
+      <h3>It has known security problems</h3>
+      <p>A security review found serious issues, including a way for a malicious username to run code on other people's Windows PCs, and a way to pose as a server admin. Its "zero-knowledge relay" and end-to-end encryption claims didn't hold up. Please stop running the v1 client and server.</p>
+    </div>
+
+    <div class="feature-card reveal accent2-card">
+      <div class="feature-icon cyan">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      </div>
+      <h3>What carries over</h3>
+      <p>The ideas and the feel. v1 is the reference for what Iskra 2 should do, but the code is being rebuilt from the core, with every problem from the review turned into a test that has to pass.</p>
+    </div>
+  </div>
+
+  <p class="later-note reveal">Looking for the old server instructions? The <a href="/detailedguide.html" style="color:var(--accent2);text-decoration:none">v1 setup guide (legacy)</a> is still here for reference. It describes software that is no longer supported, and the hosted services it mentions are offline.</p>
+</section>
+
+<div class="glow-divider"></div>
+
+<!-- CTA -->
+<div class="cta-section">
+  <h2 class="reveal">Your server.<br>Your rules.</h2>
+  <p class="reveal">Iskra 2 is on its way. Free, no ads, no bullshit.</p>
+  <div class="cta-buttons reveal">
+    <a class="btn btn-primary btn-hero" href="https://github.com/quikmn/iskra-voice" target="_blank" rel="noopener">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+      Follow the rebuild on GitHub
+    </a>
+    <a class="btn btn-ghost btn-hero" href="#v1">
+      About v1
+    </a>
+    <a class="btn btn-ghost btn-hero" href="https://ko-fi.com/vlundgren" target="_blank" rel="noopener">
+      ☕ Buy me a coffee
+    </a>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <span>© 2026 Viktor Lundgren · <a href="https://github.com/quikmn/iskra-voice/blob/main/LICENSE" target="_blank" rel="noopener">PolyForm Noncommercial 1.0.0</a></span>
+  <div class="footer-links">
+    <a href="https://github.com/quikmn/iskra-voice" target="_blank" rel="noopener">GitHub</a>
+    <a href="/detailedguide.html">v1 guide (legacy)</a>
+    <a href="https://ko-fi.com/vlundgren" target="_blank" rel="noopener">Ko-fi</a>
+    <a href="https://www.paypal.com/donate/?business=viktor.lundgren%40gmail.com" target="_blank" rel="noopener">PayPal</a>
+  </div>
+</footer>
+
+<script>
+// Electric spark canvas
+(function() {
+  const canvas = document.getElementById('spark-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, particles, bolts;
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+
+  function makeParticle() {
+    return {
+      x: Math.random() * W,
+      y: Math.random() * H,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.3,
+      r: Math.random() * 1.5 + 0.3,
+      alpha: Math.random() * 0.5 + 0.1,
+      hue: Math.random() > 0.5 ? 250 : 195,
+    };
+  }
+
+  function makeBolt() {
+    const x1 = Math.random() * W;
+    const y1 = Math.random() * H * 0.6;
+    const x2 = x1 + (Math.random() - 0.5) * 200;
+    const y2 = y1 + Math.random() * 200 + 80;
+    const segments = [];
+    const steps = 8 + Math.floor(Math.random() * 8);
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const ox = t < 1 ? (Math.random() - 0.5) * 40 * Math.sin(t * Math.PI) : 0;
+      segments.push({ x: x1 + (x2 - x1) * t + ox, y: y1 + (y2 - y1) * t });
+    }
+    return {
+      segments,
+      alpha: 0.6 + Math.random() * 0.4,
+      life: 0,
+      maxLife: 8 + Math.random() * 12,
+      hue: Math.random() > 0.5 ? 250 : 195,
+      width: Math.random() * 1 + 0.4,
+    };
+  }
+
+  function init() {
+    resize();
+    particles = Array.from({ length: 120 }, makeParticle);
+    bolts = [];
+  }
+
+  let boltTimer = 0;
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    for (const p of particles) {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${p.hue}, 100%, 75%, ${p.alpha})`;
+      ctx.fill();
+    }
+
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const d = Math.sqrt(dx*dx + dy*dy);
+        if (d < 90) {
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.strokeStyle = `hsla(250, 100%, 75%, ${0.06 * (1 - d/90)})`;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      }
+    }
+
+    boltTimer++;
+    if (boltTimer > 40 && Math.random() < 0.04) {
+      bolts.push(makeBolt());
+      boltTimer = 0;
+    }
+
+    for (let i = bolts.length - 1; i >= 0; i--) {
+      const b = bolts[i];
+      b.life++;
+      const t = b.life / b.maxLife;
+      const alpha = b.alpha * (1 - t * t);
+      if (b.life >= b.maxLife) { bolts.splice(i, 1); continue; }
+      ctx.save();
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = `hsla(${b.hue}, 100%, 80%, ${alpha})`;
+      ctx.strokeStyle = `hsla(${b.hue}, 100%, 90%, ${alpha})`;
+      ctx.lineWidth = b.width;
+      ctx.beginPath();
+      ctx.moveTo(b.segments[0].x, b.segments[0].y);
+      for (let k = 1; k < b.segments.length; k++) ctx.lineTo(b.segments[k].x, b.segments[k].y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', resize);
+  init();
+  draw();
+})();
+
+// Theme picker
+(function() {
+  const T = {
+    catppuccin: {
+      bg: '#181825',
+      c: { key: '#89dceb', str: '#a6e3a1', num: '#fab387', bool: '#f9e2af', comment: '#6c7086' },
+      json: {
+        meta: { name: 'Catppuccin Mocha', desc: 'Soothing pastel palette' },
+        colors: {
+          bgSurface:'#11111b', bgDeep:'#181825', bgBody:'#1e1e2e', bgFloat:'#181825',
+          bgSidebar:'#1e1e2e', bgSidebarHover:'#24243e', bgChat:'#313244',
+          bgHover:'#585b70', bgButton:'#45475a', bgBorder:'#45475a', bgActive:'#6c6f85',
+          textHeading:'#cdd6f4', textNormal:'#cdd6f4', textMuted:'#a6adc8',
+          textSubtle:'#7f849c', textFaint:'#6c7086',
+          accent:'#cba6f7', accentHover:'#b08de0', success:'#a6e3a1', successHover:'#8bc987',
+          danger:'#f38ba8', dangerHover:'#d6728e', warning:'#fab387', link:'#89dceb',
+          statusOnline:'#a6e3a1', statusAway:'#f9e2af', statusDnd:'#f38ba8',
+          mentionBg:'rgba(203,166,247,0.25)', warningBg:'rgba(249,226,175,0.25)',
+          dangerBg:'rgba(243,139,168,0.15)', speakingGlow:'rgba(166,227,161,0.4)',
+          accentSubtle:'rgba(203,166,247,0.08)'
+        }
+      }
+    },
+    dracula: {
+      bg: '#1e1f29',
+      c: { key: '#8be9fd', str: '#50fa7b', num: '#ffb86c', bool: '#f1fa8c', comment: '#505878' },
+      json: {
+        meta: { name: 'Dracula', desc: 'Vibrant purple accents' },
+        colors: {
+          bgSurface:'#191a21', bgDeep:'#21222c', bgBody:'#21222c', bgFloat:'#1e1f29',
+          bgSidebar:'#282a36', bgSidebarHover:'#30324a', bgChat:'#353748',
+          bgHover:'#54576e', bgButton:'#44475a', bgBorder:'#3d3f58', bgActive:'#6272a4',
+          textHeading:'#f8f8f2', textNormal:'#e8e8de', textMuted:'#8090c0',
+          textSubtle:'#6b7aad', textFaint:'#505878',
+          accent:'#bd93f9', accentHover:'#a67fd5', success:'#50fa7b', successHover:'#38d966',
+          danger:'#ff5555', dangerHover:'#e03535', warning:'#ffb86c', link:'#8be9fd',
+          statusOnline:'#50fa7b', statusAway:'#ffb86c', statusDnd:'#ff5555',
+          mentionBg:'rgba(189,147,249,0.25)', warningBg:'rgba(255,184,108,0.25)',
+          dangerBg:'rgba(255,85,85,0.15)', speakingGlow:'rgba(80,250,123,0.4)',
+          accentSubtle:'rgba(189,147,249,0.08)'
+        }
+      }
+    },
+    tokyonight: {
+      bg: '#16161e',
+      c: { key: '#2ac3de', str: '#9ece6a', num: '#e0af68', bool: '#e0af68', comment: '#5a6490' },
+      json: {
+        meta: { name: 'Tokyo Night', desc: 'Inspired by Tokyo after dark' },
+        colors: {
+          bgSurface:'#13141c', bgDeep:'#16161e', bgBody:'#1a1b26', bgFloat:'#16161e',
+          bgSidebar:'#1f2335', bgSidebarHover:'#252a40', bgChat:'#2a2f48',
+          bgHover:'#3d4466', bgButton:'#363b5e', bgBorder:'#3b4261', bgActive:'#464c74',
+          textHeading:'#c0caf5', textNormal:'#a9b1d6', textMuted:'#8899c4',
+          textSubtle:'#7082b4', textFaint:'#5a6490',
+          accent:'#7aa2f7', accentHover:'#5e86e0', success:'#9ece6a', successHover:'#84b552',
+          danger:'#f7768e', dangerHover:'#e05a72', warning:'#e0af68', link:'#2ac3de',
+          statusOnline:'#9ece6a', statusAway:'#e0af68', statusDnd:'#f7768e',
+          mentionBg:'rgba(122,162,247,0.25)', warningBg:'rgba(224,175,104,0.25)',
+          dangerBg:'rgba(247,118,142,0.15)', speakingGlow:'rgba(158,206,106,0.4)',
+          accentSubtle:'rgba(122,162,247,0.08)'
+        }
+      }
+    },
+    nord: {
+      bg: '#2e3440',
+      c: { key: '#8fbcbb', str: '#a3be8c', num: '#d08770', bool: '#ebcb8b', comment: '#7089a0' },
+      json: {
+        meta: { name: 'Nord', desc: 'Arctic, north-bluish palette' },
+        colors: {
+          bgSurface:'#242933', bgDeep:'#2e3440', bgBody:'#2e3440', bgFloat:'#2e3440',
+          bgSidebar:'#3b4252', bgSidebarHover:'#404b5e', bgChat:'#4c566a',
+          bgHover:'#566071', bgButton:'#5e6779', bgBorder:'#6b7a8f', bgActive:'#7d8fa8',
+          textHeading:'#eceff4', textNormal:'#d8dee9', textMuted:'#88aacc',
+          textSubtle:'#8899b0', textFaint:'#7089a0',
+          accent:'#88c0d0', accentHover:'#7ab0c0', success:'#a3be8c', successHover:'#8ca876',
+          danger:'#bf616a', dangerHover:'#a05059', warning:'#ebcb8b', link:'#8fbcbb',
+          statusOnline:'#a3be8c', statusAway:'#ebcb8b', statusDnd:'#bf616a',
+          mentionBg:'rgba(136,192,208,0.25)', warningBg:'rgba(235,203,139,0.25)',
+          dangerBg:'rgba(191,97,106,0.15)', speakingGlow:'rgba(163,190,140,0.4)',
+          accentSubtle:'rgba(136,192,208,0.08)'
+        }
+      }
+    },
+    onedark: {
+      bg: '#21252b',
+      c: { key: '#56b6c2', str: '#98c379', num: '#d19a66', bool: '#e5c07b', comment: '#636b7a' },
+      json: {
+        meta: { name: 'One Dark', desc: "Atom's iconic dark theme" },
+        colors: {
+          bgSurface:'#1a1d23', bgDeep:'#21252b', bgBody:'#1d2025', bgFloat:'#21252b',
+          bgSidebar:'#21252b', bgSidebarHover:'#272b33', bgChat:'#2f333d',
+          bgHover:'#333840', bgButton:'#343a44', bgBorder:'#3e4452', bgActive:'#4b5263',
+          textHeading:'#abb2bf', textNormal:'#abb2bf', textMuted:'#7f848e',
+          textSubtle:'#7a8090', textFaint:'#636b7a',
+          accent:'#61afef', accentHover:'#4d9de0', success:'#98c379', successHover:'#82aa65',
+          danger:'#e06c75', dangerHover:'#c45a62', warning:'#e5c07b', link:'#56b6c2',
+          statusOnline:'#98c379', statusAway:'#e5c07b', statusDnd:'#e06c75',
+          mentionBg:'rgba(97,175,239,0.25)', warningBg:'rgba(229,192,123,0.25)',
+          dangerBg:'rgba(224,108,117,0.15)', speakingGlow:'rgba(152,195,121,0.4)',
+          accentSubtle:'rgba(97,175,239,0.08)'
+        }
+      }
+    },
+    solarized: {
+      bg: '#003541',
+      c: { key: '#2aa198', str: '#859900', num: '#cb4b16', bool: '#b58900', comment: '#4e7085' },
+      json: {
+        meta: { name: 'Solarized Dark', desc: 'Precision colors for machines and people' },
+        colors: {
+          bgSurface:'#001f27', bgDeep:'#002531', bgBody:'#002b36', bgFloat:'#003541',
+          bgSidebar:'#002b36', bgSidebarHover:'#0a3a47', bgChat:'#073642',
+          bgHover:'#156070', bgButton:'#0d4255', bgBorder:'#195060', bgActive:'#226070',
+          textHeading:'#fdf6e3', textNormal:'#93a1a1', textMuted:'#7a9aa3',
+          textSubtle:'#657b83', textFaint:'#4e7085',
+          accent:'#268bd2', accentHover:'#1e6fa6', success:'#859900', successHover:'#6b7d00',
+          danger:'#dc322f', dangerHover:'#b22826', warning:'#cb4b16', link:'#2aa198',
+          statusOnline:'#859900', statusAway:'#b58900', statusDnd:'#dc322f',
+          mentionBg:'rgba(38,139,210,0.25)', warningBg:'rgba(203,75,22,0.25)',
+          dangerBg:'rgba(220,50,47,0.15)', speakingGlow:'rgba(133,153,0,0.4)',
+          accentSubtle:'rgba(38,139,210,0.08)'
+        }
+      }
+    },
+    default: {
+      bg: '#232428',
+      c: { key: '#00aff4', str: '#3ba55d', num: '#faa61a', bool: '#faa61a', comment: '#6b7178' },
+      json: {
+        meta: { name: 'Iskra Dark', desc: 'Default dark theme' },
+        colors: {
+          bgSurface:'#111214', bgDeep:'#1e1f22', bgBody:'#202225', bgFloat:'#232428',
+          bgSidebar:'#2b2d31', bgSidebarHover:'#25272b', bgChat:'#313338',
+          bgHover:'#35373c', bgButton:'#383a40', bgBorder:'#3a3c42', bgActive:'#3f4147',
+          textHeading:'#ffffff', textNormal:'#dcddde', textMuted:'#949ba4',
+          textSubtle:'#72767d', textFaint:'#6b7178',
+          accent:'#5865f2', accentHover:'#4752c4', success:'#3ba55d', successHover:'#2d8a4e',
+          danger:'#ed4245', dangerHover:'#c03537', warning:'#faa61a', link:'#00aff4',
+          statusOnline:'#3ba55d', statusAway:'#faa61a', statusDnd:'#ed4245',
+          mentionBg:'rgba(88,101,242,0.25)', warningBg:'rgba(250,166,26,0.25)',
+          dangerBg:'rgba(237,66,69,0.15)', speakingGlow:'rgba(59,165,93,0.40)',
+          accentSubtle:'rgba(88,101,242,0.08)'
+        }
+      }
+    },
+    synthwave: {
+      bg: '#0f0524',
+      c: { key: '#00f3ff', str: '#ff007f', num: '#ff9a00', bool: '#ff9a00', comment: '#7a5a9a' },
+      json: {
+        meta: { name: 'Synthwave 1984', desc: 'Outrun the grid with neon pinks and deep purples' },
+        colors: {
+          bgSurface:'#0d0221', bgDeep:'#0f0524', bgBody:'#150633', bgFloat:'#1a0840',
+          bgSidebar:'#1a0840', bgSidebarHover:'#261447', bgChat:'#210b45',
+          bgHover:'#2e1c5c', bgButton:'#3a1c71', bgBorder:'#4d2b85', bgActive:'#5c2a9e',
+          textHeading:'#ffffff', textNormal:'#e0e0e0', textMuted:'#b39ddb',
+          textSubtle:'#9575cd', textFaint:'#673ab7',
+          accent:'#ff007f', accentHover:'#e60073', success:'#39ff14', successHover:'#32e612',
+          danger:'#ff3131', dangerHover:'#d92b2b', warning:'#ff9a00', link:'#00f3ff',
+          statusOnline:'#39ff14', statusAway:'#ff9a00', statusDnd:'#ff3131',
+          mentionBg:'rgba(255,0,127,0.25)', warningBg:'rgba(255,154,0,0.25)',
+          dangerBg:'rgba(255,49,49,0.15)', speakingGlow:'rgba(57,255,20,0.4)',
+          accentSubtle:'rgba(255,0,127,0.08)'
+        }
+      }
+    },
+    cyberlime: {
+      bg: '#050f05',
+      c: { key: '#00ffcc', str: '#39ff14', num: '#f0ad4e', bool: '#f0ad4e', comment: '#507050' },
+      json: {
+        meta: { name: 'Cyber-Lime', desc: 'Digital rain and terminal aesthetics' },
+        colors: {
+          bgSurface:'#020a02', bgDeep:'#050f05', bgBody:'#0a140a', bgFloat:'#0d1a0d',
+          bgSidebar:'#0d1a0d', bgSidebarHover:'#142614', bgChat:'#0d1f0d',
+          bgHover:'#1b331b', bgButton:'#1e3d1e', bgBorder:'#2a4d2a', bgActive:'#2e5c2e',
+          textHeading:'#d0ffd0', textNormal:'#a0c0a0', textMuted:'#709070',
+          textSubtle:'#507050', textFaint:'#305030',
+          accent:'#39ff14', accentHover:'#32e612', success:'#39ff14', successHover:'#32e612',
+          danger:'#ff4444', dangerHover:'#cc3333', warning:'#f0ad4e', link:'#00ffcc',
+          statusOnline:'#39ff14', statusAway:'#f0ad4e', statusDnd:'#ff4444',
+          mentionBg:'rgba(57,255,20,0.25)', warningBg:'rgba(240,173,78,0.25)',
+          dangerBg:'rgba(255,68,68,0.15)', speakingGlow:'rgba(57,255,20,0.4)',
+          accentSubtle:'rgba(57,255,20,0.08)'
+        }
+      }
+    },
+    bloodmoon: {
+      bg: '#0f0505',
+      c: { key: '#ff66cc', str: '#00ff88', num: '#ffaa00', bool: '#ffaa00', comment: '#805050' },
+      json: {
+        meta: { name: 'Blood Moon', desc: 'High-contrast darkness with crimson strikes' },
+        colors: {
+          bgSurface:'#0a0000', bgDeep:'#0f0505', bgBody:'#140a0a', bgFloat:'#1a0d0d',
+          bgSidebar:'#1a0d0d', bgSidebarHover:'#261414', bgChat:'#1c0f0f',
+          bgHover:'#331b1b', bgButton:'#4d1a1a', bgBorder:'#662222', bgActive:'#7a2828',
+          textHeading:'#ffffff', textNormal:'#e0c0c0', textMuted:'#a07070',
+          textSubtle:'#805050', textFaint:'#503030',
+          accent:'#ff3333', accentHover:'#cc0000', success:'#00ff88', successHover:'#00cc6e',
+          danger:'#ff0000', dangerHover:'#cc0000', warning:'#ffaa00', link:'#ff66cc',
+          statusOnline:'#00ff88', statusAway:'#ffaa00', statusDnd:'#ff0000',
+          mentionBg:'rgba(255,51,51,0.25)', warningBg:'rgba(255,170,0,0.25)',
+          dangerBg:'rgba(255,0,0,0.15)', speakingGlow:'rgba(0,255,136,0.4)',
+          accentSubtle:'rgba(255,51,51,0.08)'
+        }
+      }
+    }
+  };
+
+  function kv(key, val, kColor, vColor) {
+    return `&nbsp;&nbsp;<span style="color:${kColor}">"${key}"</span>: <span style="color:${vColor}">"${val}"</span>`;
+  }
+
+  function renderTheme(id) {
+    const t = T[id];
+    if (!t) return;
+    const { c, json, bg } = t;
+    const block = document.getElementById('theme-code-block');
+    block.style.background = bg;
+    block.style.borderColor = 'rgba(255,255,255,0.06)';
+
+    const metaLines = Object.entries(json.meta).map(([k,v]) => kv(k, v, c.key, c.str)).join(',<br>');
+    const previewColors = Object.entries(json.colors).slice(0, 7);
+    const colorLines = previewColors.map(([k,v]) => kv(k, v, c.key, c.str)).join(',<br>');
+    const remaining = Object.keys(json.colors).length - 7;
+
+    block.innerHTML =
+      `<span style="color:${c.comment}">// Settings &rarr; Appearance &rarr; Import Theme &rarr; paste this</span><br>` +
+      `{<br>` +
+      `&nbsp;&nbsp;<span style="color:${c.key}">"meta"</span>: {<br>${metaLines}<br>&nbsp;&nbsp;},<br>` +
+      `&nbsp;&nbsp;<span style="color:${c.key}">"colors"</span>: {<br>${colorLines},<br>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:${c.comment}">// ... ${remaining} more keys</span><br>&nbsp;&nbsp;}<br>` +
+      `}`;
+  }
+
+  document.querySelectorAll('.theme-swatch[data-theme]').forEach(el => {
+    el.addEventListener('click', () => {
+      document.querySelectorAll('.theme-swatch').forEach(s => s.classList.remove('active'));
+      el.classList.add('active');
+      renderTheme(el.dataset.theme);
+    });
+  });
+
+  renderTheme('catppuccin');
+})();
+
+// Scroll reveal
+(function() {
+  const els = document.querySelectorAll('.reveal');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((e, i) => {
+      if (e.isIntersecting) {
+        setTimeout(() => e.target.classList.add('visible'), i * 60);
+        io.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.1 });
+  els.forEach(el => io.observe(el));
+})();
+</script>
+
+</body>
+</html>

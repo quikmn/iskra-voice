@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{31C16559-0F2E-401F-8D71-6DC876A4F838}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Iskra.Server", "src\Iskra.Server\Iskra.Server.csproj", "{334EA5FC-7C04-4A05-A850-E4C572CAFD7F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{AFC0B4B5-B408-4CA4-B781-65FF4D9D608D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Iskra.Server.Tests", "tests\Iskra.Server.Tests\Iskra.Server.Tests.csproj", "{1F12E413-B133-4873-9E74-C4D9F1F95EBF}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{334EA5FC-7C04-4A05-A850-E4C572CAFD7F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{334EA5FC-7C04-4A05-A850-E4C572CAFD7F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{334EA5FC-7C04-4A05-A850-E4C572CAFD7F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{334EA5FC-7C04-4A05-A850-E4C572CAFD7F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1F12E413-B133-4873-9E74-C4D9F1F95EBF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1F12E413-B133-4873-9E74-C4D9F1F95EBF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1F12E413-B133-4873-9E74-C4D9F1F95EBF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1F12E413-B133-4873-9E74-C4D9F1F95EBF}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{334EA5FC-7C04-4A05-A850-E4C572CAFD7F} = {31C16559-0F2E-401F-8D71-6DC876A4F838}
+		{1F12E413-B133-4873-9E74-C4D9F1F95EBF} = {AFC0B4B5-B408-4CA4-B781-65FF4D9D608D}
+	EndGlobalSection
+EndGlobal
