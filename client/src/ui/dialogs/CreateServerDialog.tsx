@@ -5,6 +5,12 @@ import { acceptInvite } from '../../state/store'
 import { Modal, Spinner } from '../bits'
 import { appUrl } from '../format'
 
+/** Where the desktop app keeps hosted servers (desktop/src/platform.ts). */
+function hostFolder(): string {
+  if (desktop?.platform === 'darwin') return '~/Library/Application Support/Iskra/Servers'
+  return desktop?.platform === 'win32' ? 'Documents\\Iskra\\Servers' : '~/Documents/Iskra/Servers'
+}
+
 /** Desktop only: start a server on this computer and become its owner. */
 export function CreateServerDialog({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState('')
@@ -43,8 +49,7 @@ export function CreateServerDialog({ onClose }: { onClose: () => void }) {
       }
     >
       <p className="muted">
-        Your server runs on this computer while Iskra is open. Everything stays in a folder you own (Documents\Iskra\Servers), with voice
-        included.
+        Your server runs on this computer while Iskra is open. Everything stays in a folder you own ({hostFolder()}), with voice included.
       </p>
       <label className="field">
         <span>Server name</span>

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { desktop } from '../../platform/desktop'
+import { useEffect, useState } from 'react'
+import { desktop, type PushToTalkStatus } from '../../platform/desktop'
 import { updateVoiceSettings, useVoice } from '../../state/voice'
 
 /** Voice activity vs push-to-talk, and the key. Global key on desktop, in-page key on the web. */
@@ -8,12 +8,13 @@ export function VoiceSettingsSection() {
   const pttDown = useVoice((s) => s.pttDown)
   const [capturing, setCapturing] = useState(false)
   const key = desktop ? settings.desktopKey : settings.webKey
+  const pttStatus = usePushToTalkStatus(settings.mode === 'ptt')
 
   async function captureKey() {
     setCapturing(true)
     if (desktop) {
-      const { code, name } = await desktop.capturePushToTalkKey()
-      updateVoiceSettings({ desktopKey: { code, label: name } })
+      const captured = await desktop.capturePushToTalkKey()
+      if (captured) updateVoiceSettings({ desktopKey: { code: captured.code, label: captured.name } })
     } else {
       const code = await new Promise<{ code: string; label: string }>((resolve) => {
         const onKey = (e: KeyboardEvent) => {
@@ -47,13 +48,52 @@ export function VoiceSettingsSection() {
               {key ? 'Change key' : 'Set key'}
             </button>
           </div>
-          <p className="muted">
-            {desktop
-              ? 'Works everywhere, even while a game has focus. Mouse side buttons work too.'
-              : "In the browser, push to talk only works while this tab is focused. The desktop app works everywhere."}
-          </p>
+          {desktop ? (
+            <PushToTalkHint status={pttStatus} />
+          ) : (
+            <p className="muted">In the browser, push to talk only works while this tab is focused. The desktop app works everywhere.</p>
+          )}
         </>
       )}
     </section>
   )
+}
+
+/** Desktop: whether the global key hook works here. Re-checked while open, so granting a permission shows up right away. */
+function usePushToTalkStatus(active: boolean): PushToTalkStatus {
+  const [status, setStatus] = useState<PushToTalkStatus>('ready')
+  useEffect(() => {
+    if (!desktop || !active) return
+    let alive = true
+    const check = () => void desktop!.pushToTalkStatus().then((s) => alive && setStatus(s), () => undefined)
+    check()
+    const timer = setInterval(check, 3000)
+    return () => {
+      alive = false
+      clearInterval(timer)
+    }
+  }, [active])
+  return status
+}
+
+function PushToTalkHint({ status }: { status: PushToTalkStatus }) {
+  if (status === 'needs-permission') {
+    return (
+      <div>
+        <p className="muted">
+          To notice your key while you're in another app, macOS needs you to allow Iskra under Privacy &amp; Security → Accessibility.
+        </p>
+        <button className="button" onClick={() => void desktop?.openSystemSettings('accessibility')}>Open System Settings</button>
+      </div>
+    )
+  }
+  if (status === 'limited') {
+    return (
+      <p className="muted">
+        On Wayland, Iskra only sees your key while Iskra or an X11 app has focus. For a key that works everywhere, use an X11 session, or voice activity.
+      </p>
+    )
+  }
+  if (status === 'unavailable') return <p className="muted">Push to talk couldn't start on this computer. Voice activity works everywhere.</p>
+  return <p className="muted">Works everywhere, even while a game has focus. Mouse side buttons work too.</p>
 }
