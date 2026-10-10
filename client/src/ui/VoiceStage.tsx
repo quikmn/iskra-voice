@@ -4,6 +4,7 @@ import {
   canShareScreen, leaveVoice, toggleCamera, toggleDeafen, toggleMute, toggleScreenShare, useVoice, videoTrackFor, type Tile,
 } from '../state/voice'
 import { Avatar } from './bits'
+import { openProfileCard } from '../state/profile'
 import {
   Camera, CameraOff, Expand, Headphones, HeadphonesOff, Menu, Mic, MicOff, PhoneOff, ScreenShare, ScreenShareOff, Users, Volume,
 } from './icons'
@@ -47,7 +48,15 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
           {audioOnly.map((p) => {
             const name = server.members[p.accountKey]?.name ?? 'Someone'
             return (
-              <div key={p.accountKey} className={`person-tile ${speaking[p.accountKey] ? 'speaking' : ''}`}>
+              <div
+                key={p.accountKey}
+                className={`person-tile ${speaking[p.accountKey] ? 'speaking' : ''}`}
+                role="button"
+                tabIndex={0}
+                aria-label={`Profile of ${name}`}
+                onClick={(e) => openProfileCard(server.key, p.accountKey, e.currentTarget)}
+                onKeyDown={(e) => e.key === 'Enter' && openProfileCard(server.key, p.accountKey, e.currentTarget)}
+              >
                 <Avatar name={name} accountKey={p.accountKey} size={72} />
                 <span className="tile-label">
                   {name}

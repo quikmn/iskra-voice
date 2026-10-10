@@ -1,0 +1,124 @@
+// Profiles: limits, hashing, and the sandbox documents used to show profile pages.
+// Safety model: protocol/PROTOCOL.md, "Profiles".
+import sodium from 'libsodium-wrappers-sumo'
+import type { Profile } from './storage'
+
+export const MAX_BIO = 190
+export const MAX_PRONOUNS = 40
+export const MAX_PAGE_BYTES = 512 * 1024
+export const AVATAR_SIZE = 256
+export const ACCENT_PATTERN = /^#[0-9a-f]{6}$/i
+
+/** Hex SHA-256, the same hash the server reports as avatarHash / pageHash. */
+export function sha256Hex(bytes: Uint8Array): string {
+  return sodium.to_hex(sodium.crypto_hash_sha256(bytes))
+}
+
+export const utf8Length = (text: string) => new TextEncoder().encode(text).length
+
+/** The text fields sent with auth on every connect (only the ones set on this device). */
+export function authProfile(profile: Profile | null | undefined): { bio?: string; pronouns?: string; accent?: string } {
+  const out: { bio?: string; pronouns?: string; accent?: string } = {}
+  if (profile?.bio !== undefined) out.bio = profile.bio
+  if (profile?.pronouns !== undefined) out.pronouns = profile.pronouns
+  if (profile?.accent !== undefined) out.accent = profile.accent
+  return out
+}
+
+/** A server URL's origin, or null if it isn't a plain http(s) URL. */
+export function originOf(url: string): string | null {
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.origin : null
+  } catch {
+    return null
+  }
+}
+
+const escapeAttribute = (text: string) =>
+  text.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+/** Same lock as the server's prelude: no WebRTC (CSP doesn't cover it). */
+export const PAGE_PRELUDE =
+  '<script>(()=>{for(const k of["RTCPeerConnection","webkitRTCPeerConnection","RTCDataChannel","RTCIceTransport","WebTransport"])' +
+  'try{Object.defineProperty(window,k,{value:undefined,writable:false,configurable:false})}catch{}})()</script>'
+
+/** The page policy without the parts only a response header can carry (sandbox, frame-ancestors). */
+export function pagePolicy(imageOrigin: string | null): string {
+  return (
+    "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; " +
+    `img-src data: blob:${imageOrigin ? ` ${imageOrigin}/files/` : ''}; font-src data:; media-src 'none'; ` +
+    "connect-src 'none'; form-action 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; base-uri 'none'"
+  )
+}
+
+/**
+ * The editor's live preview: the user's HTML with the page policy and prelude in front.
+ * It runs in the same sandbox as a published page (see PageFrame).
+ */
+export function previewDocument(html: string, imageOrigin: string | null): string {
+  const head =
+    `<meta http-equiv="Content-Security-Policy" content="${escapeAttribute(pagePolicy(imageOrigin))}">` +
+    '<meta name="referrer" content="no-referrer">' + PAGE_PRELUDE
+  const doctype = /^\s*<!doctype[^>]*>/i.exec(html)
+  return doctype ? doctype[0] + head + html.slice(doctype[0].length) : head + html
+}
+
+/** Permissions a page never gets, whatever its server says. */
+export const PAGE_FRAME_ALLOW =
+  "camera 'none'; microphone 'none'; geolocation 'none'; display-capture 'none'; autoplay 'none'; fullscreen 'none'; payment 'none'; usb 'none'; serial 'none'"
+
+/**
+ * The wrapper around a published page: a script-free document whose only content is the page's
+ * sandboxed frame. The wrapper's policy lets that frame load exactly `page` and nothing else, so a
+ * page can't navigate itself (and the viewer's IP) off to another site.
+ */
+export function wrapperDocument(page: string | null): string {
+  const policy = `default-src 'none'; frame-src ${page ? escapeAttribute(page) : "'none'"}; style-src 'unsafe-inline'; form-action 'none'; base-uri 'none'`
+  const frame = page
+    ? `<iframe src="${escapeAttribute(page)}" sandbox="allow-scripts" referrerpolicy="no-referrer" allow="${PAGE_FRAME_ALLOW}" title="Profile page"></iframe>`
+    : ''
+  return (
+    `<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="${policy}">` +
+    '<meta name="referrer" content="no-referrer">' +
+    '<style>html,body{margin:0;height:100%;background:#fff}iframe{border:0;display:block;width:100%;height:100%}</style>' +
+    `</head><body>${frame}</body></html>`
+  )
+}
+
+/** Address of a published page, if it is a well-formed /pages/<id> path on that server. */
+export function pageUrl(serverUrl: string, page: string | null | undefined): string | null {
+  const origin = originOf(serverUrl)
+  if (!origin || !page || !/^\/pages\/[A-Za-z0-9_-]{16,64}$/.test(page)) return null
+  return origin + page
+}
+
+export const STARTER_PAGE = `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; font-family: system-ui, sans-serif;
+         background: linear-gradient(135deg, #1b1b30, #3a2a6a); color: #f0eefe; }
+  .card { text-align: center; padding: 32px; }
+  h1 { margin: 0 0 8px; font-size: 2.4rem; }
+  button { font: inherit; border: 0; border-radius: 99px; padding: 10px 20px; background: #7c6fff; color: #fff; cursor: pointer; }
+  .sparks { font-size: 2rem; min-height: 2.5rem; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Hi, I'm new here</h1>
+    <p>This is my corner of the server. Edit me in Settings, Profile page.</p>
+    <div class="sparks" id="sparks"></div>
+    <button id="spark">Make a spark</button>
+  </div>
+  <script>
+    const sparks = ['✨', '⚡', '🔥', '🌟', '💜']
+    document.getElementById('spark').onclick = () => {
+      document.getElementById('sparks').textContent += sparks[Math.floor(Math.random() * sparks.length)]
+    }
+  </script>
+</body>
+</html>
+`

@@ -3,6 +3,7 @@ import { roleRank } from '../core/protocol'
 import { activeChannelId, selectChannel, useApp, type ServerState } from '../state/store'
 import { joinVoice, setStageOpen, useVoice } from '../state/voice'
 import { Avatar } from './bits'
+import { openProfileCard } from '../state/profile'
 import { VoiceBar } from './VoiceBar'
 import { CreateChannelDialog } from './dialogs/CreateChannelDialog'
 import { InviteDialog } from './dialogs/InviteDialog'
@@ -94,8 +95,10 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
                     const member = server.members[p.accountKey]
                     return (
                       <li key={p.accountKey} className={here && speaking[p.accountKey] ? 'speaking' : ''}>
-                        <Avatar name={member?.name ?? '?'} accountKey={p.accountKey} size={22} />
-                        <span className="member-name">{member?.name ?? 'Someone'}</span>
+                        <button className="participant" onClick={(e) => openProfileCard(server.key, p.accountKey, e.currentTarget)}>
+                          <Avatar name={member?.name ?? '?'} accountKey={p.accountKey} size={22} />
+                          <span className="member-name">{member?.name ?? 'Someone'}</span>
+                        </button>
                         {p.deafened ? <span className="voice-flag" title="Deafened"><HeadphonesOff size={14} /></span> : p.muted ? <span className="voice-flag" title="Muted"><MicOff size={14} /></span> : null}
                       </li>
                     )

@@ -7,3 +7,8 @@
 
 /service-worker.js
   Cache-Control: no-cache
+
+# The profile page editor's preview is framed by the app itself.
+/page-preview.html
+  ! X-Frame-Options
+  Content-Security-Policy: frame-ancestors 'self'

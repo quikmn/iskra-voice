@@ -4,7 +4,7 @@ export type Role = 'guest' | 'member' | 'trusted' | 'admin' | 'owner'
 export const ROLES: Role[] = ['guest', 'member', 'trusted', 'admin', 'owner']
 export const roleRank = (role: Role): number => ROLES.indexOf(role)
 
-export interface Member {
+export interface Member extends PublicProfile {
   accountKey: string
   name: string
   role: Role
@@ -82,7 +82,7 @@ export interface VoiceChannelState {
 
 export interface Welcome {
   you: Member
-  server: { name: string; key: string; appUrl: string }
+  server: { name: string; key: string; appUrl: string; profilePages?: boolean }
   channels: Channel[]
   members: Member[]
   voice: VoiceChannelState[]
@@ -104,6 +104,7 @@ export interface Events {
   'voice.state': VoiceChannelState
   'dm.message': { message: WireDm }
   'voice.available': { available: boolean }
+  'profile.pages': { enabled: boolean }
 }
 
 export interface WireDm {
@@ -128,7 +129,10 @@ export interface Requests {
   'channel.create': [{ name: string; kind?: 'text' | 'voice'; readRole?: Role; writeRole?: Role }, { channel: Channel }]
   'channel.update': [{ id: number; name?: string; readRole?: Role; writeRole?: Role }, { channel: Channel }]
   'channel.delete': [{ id: number }, Record<string, never>]
-  'profile.update': [{ name: string }, { member: Member }]
+  'profile.update': [ProfileUpdate, { member: Member }]
+  'profile.page.set': [{ file: string }, { member: Member }]
+  'profile.page.remove': [{ accountKey?: string }, Record<string, never>]
+  'profile.pages.configure': [{ enabled: boolean }, Record<string, never>]
   'member.setRole': [{ accountKey: string; role: Role }, { member: Member }]
   'member.kick': [{ accountKey: string }, Record<string, never>]
   'member.ban': [{ accountKey: string; reason?: string }, Record<string, never>]
@@ -141,6 +145,29 @@ export interface Requests {
   'dm.send': [{ accountKey: string; envelope: import('./dm').DmEnvelope }, { message: WireDm }]
   'dm.history': [{ accountKey: string; before?: number; limit?: number }, { messages: WireDm[]; hasMore: boolean }]
   'dm.conversations': [Record<string, never>, { conversations: { accountKey: string; lastId: number; lastAt: number }[] }]
+}
+
+// ── profiles ──
+
+/** Profile fields on every Member. URLs are relative to the server. Older servers leave them out. */
+export interface PublicProfile {
+  avatar?: string | null
+  /** SHA-256 (hex) of the avatar file, so clients can tell whether theirs is current. */
+  avatarHash?: string | null
+  bio?: string | null
+  pronouns?: string | null
+  accent?: string | null
+  page?: string | null
+  pageHash?: string | null
+}
+
+/** Every field is optional; "" clears it. `avatar` is the id of your own uploaded image. */
+export interface ProfileUpdate {
+  name?: string
+  bio?: string
+  pronouns?: string
+  accent?: string
+  avatar?: string
 }
 
 export type ErrorCode =

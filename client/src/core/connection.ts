@@ -18,6 +18,8 @@ export interface ConnectionOptions {
   expectedServerKey?: string
   /** Display name sent on every connect. */
   name: () => string
+  /** Other profile fields sent on every connect (bio, pronouns, accent). */
+  profile?: () => Record<string, unknown>
   /** Only needed until the first successful join. */
   invite?: string
   onStatus: (status: ConnectionStatus) => void
@@ -177,7 +179,7 @@ export class Connection {
       this.reject('auth_failed', 'The server sent an invalid handshake.')
       return
     }
-    const body: Record<string, unknown> = { cert: identity.cert, sig, profile: { name: this.options.name() } }
+    const body: Record<string, unknown> = { cert: identity.cert, sig, profile: { ...this.options.profile?.(), name: this.options.name() } }
     if (this.invite) body.invite = this.invite
     this.socket?.send(JSON.stringify({ type: 'auth', id: 'auth', body }))
   }

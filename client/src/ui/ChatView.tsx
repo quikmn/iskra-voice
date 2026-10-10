@@ -7,6 +7,7 @@ import {
 import { Attachments, LinkPreviewCard, Reactions, ReactionPicker, ReplyLine } from './chat/MessageExtras'
 import { firstLink, formatSize, replyKey, setReply, useReply } from './chat/helpers'
 import { Avatar, Spinner } from './bits'
+import { openProfileCard } from '../state/profile'
 import { decodeMentions, encodeMentions, renderMarkdown } from './markdown'
 import { fullTime, hueFor, messageTime } from './format'
 import type { Panel } from './Shell'
@@ -203,14 +204,16 @@ function MessageRow({
         {grouped ? (
           <time className="hover-time" title={fullTime(message.createdAt)}>{messageTime(message.createdAt).replace(/^.* /, '')}</time>
         ) : (
-          <Avatar name={name} accountKey={message.author} />
+          <button className="avatar-button" onClick={(e) => openProfileCard(server.key, message.author, e.currentTarget)} aria-label={`Profile of ${name}`}>
+            <Avatar name={name} accountKey={message.author} />
+          </button>
         )}
       </div>
       <div className="message-body">
         {message.replyTo && <ReplyLine server={server} reply={message.replyTo} onJump={jumpTo} />}
         {(!grouped || message.replyTo) && (
           <div className="message-meta">
-            <span className="author" style={{ color: `hsl(${hueFor(message.author)} 70% 72%)` }}>{name}</span>
+            <button className="author" style={{ color: `hsl(${hueFor(message.author)} 70% 72%)` }} onClick={(e) => openProfileCard(server.key, message.author, e.currentTarget)}>{name}</button>
             <time title={fullTime(message.createdAt)}>{messageTime(message.createdAt)}</time>
           </div>
         )}

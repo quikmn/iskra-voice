@@ -13,6 +13,7 @@ import { VoiceStage } from './VoiceStage'
 import { HomeMain, HomeSidebar } from './Home'
 import { RecoveryNudge } from './dialogs/RecoveryKey'
 import { Menu } from './icons'
+import { ProfileLayer } from './profile/ProfileLayer'
 
 export type Panel = 'none' | 'nav' | 'members'
 
@@ -52,6 +53,7 @@ export function Shell() {
       )}
 
       {panel !== 'none' && <div className="scrim" onClick={() => setPanel('none')} />}
+      <ProfileLayer />
       {joining && <JoinDialog onClose={() => setJoining(false)} onCreate={() => { setJoining(false); setCreating(true) }} />}
       {creating && (desktop ? <CreateServerDialog onClose={() => setCreating(false)} /> : <StartServerDialog onClose={() => setCreating(false)} />)}
     </div>
