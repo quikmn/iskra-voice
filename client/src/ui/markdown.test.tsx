@@ -25,8 +25,41 @@ describe('markdown', () => {
   })
 
   it('renders code blocks with a language and quotes', () => {
-    expect(html('```js\nconst a = 1\n```')).toBe('<pre class="code-block" data-language="js"><code>const a = 1</code></pre>')
+    const code = html('```js\nconst a = 1\n```')
+    expect(code).toContain('<pre class="code-block" data-language="js"><code><span class="tok-keyword">const</span> a = <span class="tok-number">1</span></code></pre>')
+    expect(code).toContain('aria-label="Copy code"')
+    expect(html('```\n<b>raw</b>\n```')).toContain('<code>&lt;b&gt;raw&lt;/b&gt;</code>')
     expect(html('> quoted\nnormal')).toBe('<blockquote>quoted\n</blockquote>normal')
+  })
+
+  it('renders headings, subtext and lists', () => {
+    expect(html('# Big\n## Medium\n### Small\n-# fine print')).toBe(
+      '<div class="md-heading md-h1">Big</div><div class="md-heading md-h2">Medium</div><div class="md-heading md-h3">Small</div><div class="md-subtext">fine print</div>',
+    )
+    expect(html('- one\n- **two**\n  - nested\nafter')).toBe(
+      '<ul class="md-list"><li>one</li><li><strong>two</strong></li><li class="md-nested">nested</li></ul>after',
+    )
+    expect(html('3. three\n4. four')).toBe('<ol class="md-list" start="3"><li>three</li><li>four</li></ol>')
+    expect(html('#not a heading')).toBe('#not a heading')
+    expect(html('\\# not a heading')).toBe('# not a heading')
+    expect(html('2 - 1 = 1')).toBe('2 - 1 = 1')
+  })
+
+  it('masks links but asks before opening, and only for http(s)', () => {
+    expect(html('[docs](https://iskra.foo/docs)')).toBe(
+      '<a href="https://iskra.foo/docs" target="_blank" rel="noopener noreferrer" class="masked-link" title="https://iskra.foo/docs">docs</a>',
+    )
+    expect(html('[x](javascript:alert(1))')).toBe('[x](javascript:alert(1))')
+    // A URL as the label can't sneak in a second link.
+    expect(html('[https://bank.example](https://evil.example)')).toContain('>https://bank.example</a>')
+    expect(html('[https://bank.example](https://evil.example)').match(/<a /g)).toHaveLength(1)
+    expect(plainText('see [docs](https://iskra.foo)', ctx)).toBe('see docs')
+  })
+
+  it('shows timestamps in the reader’s time', () => {
+    const out = html('meet <t:1760000000:R> or <t:1760000000:D>')
+    expect(out).toContain('<time class="md-timestamp" dateTime="2025-10-09T08:53:20.000Z"')
+    expect(html('<t:99999999999999999>')).toBe('&lt;t:99999999999999999&gt;')
   })
 
   it('never turns text into HTML', () => {

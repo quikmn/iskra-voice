@@ -1,0 +1,30 @@
+/* ── Rich text: code, headings, lists, masked links, timestamps ─────── */
+.code-wrap { position: relative; max-width: 100%; }
+.code-wrap .code-block { padding-right: 44px; }
+.code-copy {
+  position: absolute; top: 12px; right: 6px; min-width: 28px; height: 26px; padding: 0 6px; display: grid; place-items: center;
+  border: 1px solid var(--border); border-radius: calc(var(--radius) * 0.6); background: var(--surface-2); color: var(--text-2);
+  font-size: 12px; opacity: 0; transition: opacity 0.12s;
+}
+.code-wrap:hover .code-copy, .code-copy:focus-visible { opacity: 1; }
+@media (hover: none) { .code-copy { opacity: 1; } }
+.tok-keyword { color: var(--accent); font-weight: 600; }
+.tok-string { color: color-mix(in srgb, var(--green) 85%, var(--text)); }
+.tok-number { color: var(--amber); }
+.tok-literal { color: var(--accent-2); }
+.tok-comment { color: var(--muted); font-style: italic; }
+.tok-added { color: var(--green); background: color-mix(in srgb, var(--green) 10%, transparent); }
+.tok-removed { color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
+
+.md-heading { font-weight: 800; line-height: 1.25; margin: 6px 0 2px; color: var(--text-strong); white-space: normal; }
+.md-h1 { font-size: 1.5em; }
+.md-h2 { font-size: 1.25em; }
+.md-h3 { font-size: 1.08em; }
+.md-subtext { font-size: 12px; color: var(--muted); white-space: normal; }
+.md-list { margin: 2px 0; padding-left: 22px; white-space: normal; }
+.md-list li { margin: 1px 0; }
+.md-list li.md-nested { margin-left: 18px; list-style-type: circle; }
+.masked-link { text-decoration: underline; text-decoration-style: dotted; }
+.masked-url { overflow-wrap: anywhere; }
+.masked-url code { font-size: 13px; }
+.md-timestamp { background: var(--surface-3); border-radius: 4px; padding: 0 3px; white-space: nowrap; }
