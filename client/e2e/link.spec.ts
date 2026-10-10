@@ -1,3 +1,4 @@
+import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { devices, expect, test, type Page } from '@playwright/test'
 import { createInviteLink, joinVia, SHOTS, startServer, type TestServer } from './helpers'
@@ -61,16 +62,26 @@ test('link a phone with the text code, read DMs on both devices, then remove it'
   await expect(friend.locator('.message-text', { hasText: 'hello both of you 4242' })).toBeVisible()
   await openDm(host, 'Friend')
   await expect(host.locator('.message-text', { hasText: 'hello both of you 4242' })).toBeVisible()
+  // Phone width: the server rail and DM list live in a drawer.
+  await expect(phone.locator('.server-icon.home .badge')).toHaveText('1')
   await phone.getByRole('button', { name: 'Open channels' }).click()
-  await openDm(phone, 'Friend')
+  await phone.getByRole('button', { name: 'Direct messages' }).click()
+  await phone.getByRole('button', { name: 'Open menu' }).first().click()
+  await phone.locator('.dm-row', { hasText: 'Friend' }).click()
   await expect(phone.locator('.message-text', { hasText: 'hello both of you 4242' })).toBeVisible()
   await phone.screenshot({ path: join(SHOTS, 'link-phone-dm.png') })
+
+  // It went out as a forward-secret (v2) envelope, sealed to each device's prekey.
+  const db = readdirSync(server.world).filter((f) => f.startsWith('iskra.db')).map((f) => readFileSync(join(server.world, f)))
+  expect(db.some((bytes) => bytes.includes(Buffer.from('"seal"')))).toBe(true)
+  expect(db.some((bytes) => bytes.includes(Buffer.from('4242')))).toBe(false)
 
   // The host sees both devices and removes the phone.
   await host.getByRole('button', { name: 'Settings' }).click()
   const rows = host.locator('.device-row')
   await expect(rows).toHaveCount(2)
   await expect(rows.filter({ hasText: 'This device' })).toHaveCount(1)
+  await host.waitForTimeout(400) // let the dialog finish fading in
   await host.screenshot({ path: join(SHOTS, 'devices.png') })
   const phoneRow = rows.filter({ hasNotText: 'This device' })
   await phoneRow.getByRole('button', { name: 'Remove' }).click()
