@@ -53,14 +53,14 @@ test('link a phone with the text code, read DMs on both devices, then remove it'
   await phone.getByLabel('Or type the code').fill(code)
   await phone.getByRole('button', { name: 'Link this device' }).click()
 
-  // Both screens show the same number before anything is sent.
+  // The phone shows a number; it has to be typed on the signed-in device before anything is sent.
   const phoneConfirm = phone.getByTestId('link-confirm')
-  const hostConfirm = host.getByTestId('link-confirm')
   await expect(phoneConfirm).toHaveText(/^\d{3} \d{3}$/)
-  await expect(hostConfirm).toHaveText(await phoneConfirm.innerText())
   await expect(host.getByText('Safari on iPhone')).toBeVisible()
+  await expect(host.getByTestId('link-confirm')).toHaveCount(0) // the host never shows it
   await phone.screenshot({ path: join(SHOTS, 'link-confirm-phone.png') })
-  await host.getByRole('button', { name: 'Yes, link it' }).click()
+  await host.getByLabel('Number on the new device').fill(await phoneConfirm.innerText())
+  await host.getByRole('button', { name: 'Link it', exact: true }).click()
   await expect(host.getByText('Done! Your account is on the new device.')).toBeVisible()
 
   // The phone is now Host, on the same server, without an invite.

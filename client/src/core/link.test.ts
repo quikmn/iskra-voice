@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { b64u, randomBytes, ready } from './crypto'
 import {
-  checkMac, confirmationCode, encodeLinkCode, ephemeralKey, linkAppUrl, linkKeys, macKey, newLinkSecret, openPayload,
+  checkMac, confirmationCode, encodeLinkCode, sameConfirmation, ephemeralKey, linkAppUrl, linkKeys, macKey, newLinkSecret, openPayload,
   parseLinkCode, sealPayload, type LinkCode,
 } from './link'
 
@@ -57,6 +57,15 @@ describe('the link handshake', () => {
     const sealed = sealPayload({ seed: 'secret stuff' }, existing, seen!)
     expect(openPayload<{ seed: string }>(sealed, answered, fresh).seed).toBe('secret stuff')
     expect(() => openPayload(sealed, answered, ephemeralKey())).toThrow()
+  })
+
+  it('checks the typed confirmation number', () => {
+    expect(sameConfirmation('042917', '042 917')).toBe(true)
+    expect(sameConfirmation(' 042 917 ', '042 917')).toBe(true)
+    expect(sameConfirmation('042-917', '042 917')).toBe(true)
+    expect(sameConfirmation('042 918', '042 917')).toBe(false)
+    expect(sameConfirmation('', '042 917')).toBe(false)
+    expect(sameConfirmation('42917', '042 917')).toBe(false)
   })
 
   it('a server without the secret cannot slip in its own key', () => {

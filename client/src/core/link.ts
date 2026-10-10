@@ -99,7 +99,13 @@ export function checkMac(epk: string, mac: string, macKeyBytes: Uint8Array): Uin
   }
 }
 
-/** Six digits both screens show, from both ephemeral keys: "042 917". */
+/** Does what the person typed match the confirmation code (spaces and dashes ignored)? */
+export function sameConfirmation(typed: string, code: string): boolean {
+  const digits = typed.replace(/[\s-]/g, '')
+  return /^\d{6}$/.test(digits) && digits === code.replace(/ /g, '')
+}
+
+/** Six digits from both ephemeral keys: "042 917". The new device shows them, the person types them into the existing one. */
 export function confirmationCode(keys: LinkKeys, existingKey: Uint8Array, newKey: Uint8Array): string {
   const hash = sodium.crypto_generichash(8, new Uint8Array([...existingKey, ...newKey]), keys.confirm)
   const n = new DataView(hash.buffer, hash.byteOffset, 8).getUint32(0) % 1_000_000
@@ -137,7 +143,10 @@ export class LinkRelayError extends Error {
 
 function relayError(status: number): LinkRelayError {
   if (status === 404) return new LinkRelayError(status, 'This code has expired or was cancelled. Make a new one on your other device.')
-  if (status === 409) return new LinkRelayError(status, 'This code was already used by another device.')
+  if (status === 409) {
+    return new LinkRelayError(status,
+      "Another device already used this code. If that wasn't you, someone may have seen it: cancel the link on your other device and don't confirm anything there.")
+  }
   if (status === 429) return new LinkRelayError(status, 'Took too long. Make a new code on your other device.')
   return new LinkRelayError(status, `The server said no (${status}).`)
 }

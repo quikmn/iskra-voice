@@ -104,6 +104,36 @@ public class LinkTests
     }
 
     [Fact]
+    public async Task A_payload_is_only_read_after_token_key_and_state_check_out()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        using var http = server.CreateClient();
+        var (token, putKey) = await CreateAsync(alice);
+        var big = new ByteArrayContent(new byte[2 * 1024 * 1024]);
+
+        // Wrong key or no device waiting yet: refused before the (oversized) body is looked at.
+        using (var wrong = await http.PutAsync($"/link/{token}?key={Random32()}", big)) Assert.Equal(HttpStatusCode.Forbidden, wrong.StatusCode);
+        using (var early = await http.PutAsync($"/link/{token}?key={putKey}", new ByteArrayContent([1]))) Assert.Equal(HttpStatusCode.Conflict, early.StatusCode);
+        using (var unknown = await http.PutAsync($"/link/{Random32()}?key={putKey}", big)) Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
+    }
+
+    [Fact]
+    public async Task The_relay_is_rate_limited_per_address()
+    {
+        using var server = new IskraServer();
+        using var http = server.CreateClient();
+        var codes = new List<HttpStatusCode>();
+        for (var i = 0; i < 70; i++)
+        {
+            using var response = await http.GetAsync($"/link/{Random32()}?key=x");
+            codes.Add(response.StatusCode);
+        }
+        Assert.Equal(HttpStatusCode.NotFound, codes[0]);
+        Assert.Contains(HttpStatusCode.TooManyRequests, codes);
+    }
+
+    [Fact]
     public async Task Links_expire()
     {
         using var server = new IskraServer { Settings = { ["Link:TtlMs"] = "400" } };

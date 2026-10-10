@@ -2,7 +2,7 @@
 import { create } from 'zustand'
 import { b64u, fromB64u } from '../core/crypto'
 import {
-  checkMac, confirmationCode, encodeLinkCode, ephemeralKey, linkAppUrl, linkKeys, macKey, newLinkSecret, openPayload,
+  checkMac, confirmationCode, encodeLinkCode, sameConfirmation, ephemeralKey, linkAppUrl, linkKeys, macKey, newLinkSecret, openPayload,
   parseLinkCode, relayDeliver, relayPoll, relayRequest, sealPayload, type EphemeralKey, type LinkCode, type LinkKeys,
 } from '../core/link'
 import type { LinkRequest } from '../core/protocol'
@@ -116,10 +116,19 @@ async function buildPayload(includeHistory: boolean): Promise<LinkPayload> {
   return payload
 }
 
-/** The person checked that both screens show the same code: send the account over. */
-export async function confirmLinkOffer(): Promise<void> {
+/**
+ * The person typed the number the new device shows. Only if it matches does the account go over;
+ * a wrong number cancels the link (it may be someone else's device).
+ */
+export async function confirmLinkOffer(typed: string): Promise<void> {
   const current = offer
-  if (!current?.mine || !current.theirs) return
+  const state = useLinkOffer.getState()
+  if (!current?.mine || !current.theirs || state.phase !== 'confirm') return
+  if (!sameConfirmation(typed, state.confirm)) {
+    await cancelLinkOffer()
+    useLinkOffer.setState({ phase: 'error', message: "That number doesn't match, so nothing was sent. If you didn't start this on your new device, someone else may have your code. Make a new one." }, true)
+    return
+  }
   useLinkOffer.setState({ phase: 'sending' }, true)
   try {
     const sealed = sealPayload(await buildPayload(current.includeHistory), current.mine, current.theirs)

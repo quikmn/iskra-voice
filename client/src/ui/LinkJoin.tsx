@@ -30,7 +30,7 @@ export function LinkJoin({ initialCode, onBack }: { initialCode?: string | null;
     return (
       <div className="link-join">
         <p className="lead"><Spinner /> Waiting for your other device…</p>
-        <p className="muted">Keep the code open there. A number will show up on both screens.</p>
+        <p className="muted">Keep the code open there. A number will show up here to type in there.</p>
         <button type="button" className="button wide" onClick={back}>Cancel</button>
       </div>
     )
@@ -38,9 +38,9 @@ export function LinkJoin({ initialCode, onBack }: { initialCode?: string | null;
   if (state.phase === 'confirm') {
     return (
       <div className="link-join">
-        <p className="lead">Your other device should show the same number:</p>
+        <p className="lead">Type this number on your other device:</p>
         <div className="confirm-code" data-testid="link-confirm">{state.confirm}</div>
-        <p className="muted">If it matches, tap <strong>Yes, link it</strong> there. If it doesn't, cancel on both devices.</p>
+        <p className="muted">It proves this device is yours. Nobody else can see it.</p>
         <button type="button" className="button wide" onClick={back}>Cancel</button>
       </div>
     )
