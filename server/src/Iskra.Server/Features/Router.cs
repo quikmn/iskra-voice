@@ -39,6 +39,7 @@ public sealed class Router
         PushFeature.Register(this);
         HostFeature.Register(this, internet);
         ProfileFeature.Register(this);
+        PresenceFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

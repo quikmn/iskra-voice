@@ -257,6 +257,8 @@ public sealed partial class Store : IDisposable
             );
             """),
         ("security-1", SecurityMigration),
+        ("presence-1", PresenceMigration),
+        ("voice-messages-1", VoiceMessagesMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

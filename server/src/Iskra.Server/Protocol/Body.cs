@@ -54,6 +54,8 @@ public readonly struct Body(JsonElement element)
         };
     }
 
+    public JsonElement? OptionalElement(string name) => Field(name);
+
     public JsonElement Element(string name) =>
         Field(name) ?? throw RequestException.BadRequest($"'{name}' is required.");
 

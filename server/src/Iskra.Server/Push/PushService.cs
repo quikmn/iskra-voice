@@ -182,6 +182,7 @@ public sealed partial class PushService
         List<PushSubscriptionRecord> subscriptions;
         try
         {
+            if (Features.PresenceFeature.DoNotDisturb(_world.Store, accountKey)) return; // do not disturb: no pushes at all
             subscriptions = _world.Store.PushSubscriptions(accountKey);
         }
         catch (ObjectDisposedException) { return; } // shutting down

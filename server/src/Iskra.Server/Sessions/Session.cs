@@ -61,6 +61,9 @@ public sealed class Session
 
     public required Push.PushService Push { get; init; }
 
+    /// <summary>This session reported no activity for a while (see PresenceFeature).</summary>
+    public bool Idle { get; set; }
+
     public World World => _world;
     public Hub Hub => _hub;
     public VoiceRegistry Voice => _voice;
@@ -107,7 +110,8 @@ public sealed class Session
         }
         finally
         {
-            if (AccountKey is not null && _hub.Remove(this))
+            // Going offline, or maybe idle (when the sessions left are all idle).
+            if (AccountKey is not null && (_hub.Remove(this) || !Idle))
             {
                 var member = _world.Store.GetMember(AccountKey);
                 if (member is not null) _hub.Broadcast(Frames.Event("member.updated", new { member = _hub.PublicMember(member) }));
@@ -159,6 +163,7 @@ public sealed class Session
             you = _hub.PublicMember(member),
             server = new { name = _world.Settings.Name, key = Ed25519.ToB64u(_world.ServerPublicKey), appUrl = _world.Settings.AppUrl, publicUrl = _world.InternetUrl,
                 profilePages = ProfileFeature.PagesEnabled(_world.Store) },
+            presence = PresenceFeature.Mine(_world.Store, member.AccountKey, Now),
             channels = _hub.VisibleChannels(member),
             members = _world.Store.AllMembers().Select(_hub.PublicMember),
             voice = _voice.Snapshot(member),
@@ -328,6 +333,7 @@ public sealed class Session
         {
             if (existing.Name != name) _world.Store.SetMemberName(existing.AccountKey, name);
             ProfileFeature.ApplyFromAuth(_world.Store, existing.AccountKey, profile);
+            PresenceFeature.ApplyFromAuth(_world.Store, existing.AccountKey, body, Now);
             _world.Store.SaveDevice(cert, Now);
             return (existing with { Name = name }, AuthFailure.Invalid);
         }
@@ -339,6 +345,7 @@ public sealed class Session
         var member = _world.Store.AddMember(cert.AccountKey, name, role, Now);
         _world.Store.SaveDevice(cert, Now);
         ProfileFeature.ApplyFromAuth(_world.Store, member.AccountKey, profile);
+        PresenceFeature.ApplyFromAuth(_world.Store, member.AccountKey, body, Now);
         if (role == Roles.Owner) OwnerSetup.OwnerJoined(_world);
         _hub.Broadcast(Frames.Event("member.joined", new { member = _hub.PublicMember(member) }));
         return (member, AuthFailure.Invalid);

@@ -48,7 +48,7 @@ public static partial class ProfileFeature
     public static bool PagesEnabled(Store store) => store.GetProfileOption("pages") != "off";
 
     /// <summary>The member as everyone sees it, profile included.</summary>
-    public static object Public(Store store, Member m, bool online)
+    public static object Public(Store store, Member m, PresenceFeature.View presence)
     {
         var p = store.GetPublicProfile(m.AccountKey);
         var page = p.PageId is not null && PagesEnabled(store);
@@ -57,7 +57,9 @@ public static partial class ProfileFeature
             accountKey = m.AccountKey,
             name = m.Name,
             role = m.Role,
-            online,
+            online = presence.Online,
+            status = presence.Status,
+            customStatus = presence.Custom,
             bot = store.IsBot(m.AccountKey),
             avatar = p.Avatar is { } a ? $"/files/{a.Id}/{Uri.EscapeDataString(a.Name)}" : null,
             avatarHash = p.Avatar?.Sha256,

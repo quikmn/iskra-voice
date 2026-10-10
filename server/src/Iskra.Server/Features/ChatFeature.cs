@@ -57,12 +57,14 @@ public static class ChatFeature
             ? ""
             : Text.Normalize(rawText, MaxMessageLength, allowNewlines: true)
               ?? throw RequestException.BadRequest($"Messages must be 1–{MaxMessageLength} characters.");
+        var voice = VoiceMessageFeature.Parse(s, body, attachments, text);
 
         long? replyTo = body.OptionalLong("replyTo", min: 1);
         if (replyTo is { } replyId && s.World.Store.GetMessage(replyId)?.ChannelId != channel.Id)
             throw RequestException.BadRequest("You can only reply to messages in the same channel.");
 
         var message = s.World.Store.AddMessage(channel.Id, me.AccountKey, text, s.Now, attachments, replyTo);
+        VoiceMessageFeature.Saved(s.World.Store, message, voice);
         var publicMessage = View(s, message);
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.message", new { message = publicMessage }));
         ThreadFeature.Touched(s, channel);
@@ -76,6 +78,7 @@ public static class ChatFeature
         var channel = ReadableChannel(s, me, message.ChannelId);
         if (message.AuthorKey != me.AccountKey) throw RequestException.Forbidden("You can only edit your own messages.");
         if (s.World.Store.GetPoll(message.Id) is not null) throw RequestException.BadRequest("Polls can't be edited.");
+        if (VoiceMessageFeature.IsVoice(s.World.Store, message.Id)) throw RequestException.BadRequest("Voice messages can't be edited.");
 
         var text = MessageText(body);
         s.World.Store.EditMessage(message.Id, text, s.Now);

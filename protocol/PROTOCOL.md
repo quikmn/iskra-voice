@@ -10,7 +10,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji)
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted)
-- **People and integrations:** [Profiles](#profiles) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks)
+- **People and integrations:** [Profiles](#profiles) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Presence and voice messages](#presence-and-voice-messages)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints)
 
 ---
@@ -711,3 +711,45 @@ Everything else a server answers over HTTP(S), on the same port as `/ws`:
 | `/livekit` | LiveKit signaling, proxied ([Voice](#voice)) |
 | `POST /internal/livekit-webhook` | LiveKit's signed webhooks, loopback only |
 | `GET /.well-known/acme-challenge/<token>`, `GET /.well-known/iskra-probe/<token>` | Let's Encrypt and the reachability probe ([Internet hosting](#internet-hosting)) |
+
+## Presence and voice messages
+
+### Presence and custom status
+
+You pick a status in the app, which sends it to every server you're on (like the profile). Every `Member` gains:
+
+```jsonc
+{ "online": true,                                    // false when offline or invisible
+  "status": "online" | "idle" | "dnd" | "offline",   // invisible members show as "offline"
+  "customStatus": { "emoji": "🎮" | null, "text": "≤ 128 chars" | null, "expiresAt": 1760000000000 | null } | null }
+```
+
+```jsonc
+Presence { "status": "online" | "idle" | "dnd" | "invisible",
+           "custom": { "emoji"?, "text"?, "expiresAt"? } | null,
+           "updatedAt": 1760000000000 }   // when the person chose it (the device's clock)
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `presence.set` | `Presence` | `{ presence }` (what the server now keeps for you) | anyone |
+| `presence.idle` | `idle` (boolean): this session has had no activity for a while | | anyone |
+
+- `auth` may carry `presence` (a `Presence`, beside `profile`), applied before anyone sees you come online, so choosing invisible never flashes you online. Invalid ones are ignored. `welcome.presence` is the `Presence` the server keeps for you (or `null`).
+- **Newest wins:** the server keeps one `Presence` per account and only replaces it with one whose `updatedAt` is the same or newer, so a device that was offline can't undo a newer choice. `updatedAt` may be at most 10 minutes in the future. When it changes, `presence.self { presence }` goes to the account's other sessions; apps adopt a newer one and pass it on to their other servers.
+- `emoji`: ≤ 16 characters, no spaces, not a server emoji (custom statuses travel between servers). `text`: ≤ 128 characters, one line, the same rules as names. At least one of them, or `custom` counts as `null`. `expiresAt` ≤ 31 days ahead, `null` = until cleared. Expired custom statuses aren't shown (clients also hide them when `expiresAt` passes).
+- What others see: no sessions or `invisible` → `offline` (no custom status); `dnd` or a chosen `idle` as is; otherwise `idle` when every session has reported `presence.idle { idle: true }`, else `online`.
+- **Do not disturb:** the server sends no [Web Push](#push-notifications-web-push) at all to an account whose status is `dnd`, connected or not (it's kept while offline). Apps also stay quiet: no sounds or notifications.
+- Rate limits: `presence.set` 1/s (burst 10), `presence.idle` 1 every 2 s (burst 10).
+
+### Voice messages
+
+A voice message is a channel message with one recorded audio file and no text:
+
+| type | body | result | who |
+|---|---|---|---|
+| `chat.send` | adds `voice?: { duration (ms, 1–300000), waveform (b64u, 1–128 bytes, 0–255 each) }`, with exactly one attachment and empty `text` | | channel writers |
+
+- The file must be Ogg, WebM or MP4 (what `MediaRecorder` makes: Ogg/WebM Opus, Safari's MP4/AAC) and at most 10 MB. For Ogg the server measures the length itself (and refuses recordings over 5 minutes); WebM and MP4 recordings carry no reliable length, so theirs is only bounded. The waveform is computed by the recording app.
+- `Message` gains `voice: { duration, waveform } | null`; the audio is `attachments[0]`. Voice messages can't be edited.
+- Voice messages are for channels only. DMs don't carry files yet, so there is no end-to-end encrypted variant.
