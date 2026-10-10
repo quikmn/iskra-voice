@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { decodeMentions, encodeMentions, mentions, plainText, renderMarkdown } from './markdown'
+import { canPingGroups, decodeMentions, encodeMentions, mentions, plainText, renderMarkdown } from './markdown'
 
 const alice = 'A'.repeat(43)
 const ctx = { nameOf: (k: string) => (k === alice ? 'Alice' : null), me: alice }
@@ -47,6 +47,15 @@ describe('markdown', () => {
     expect(mentions(`hey <@${alice}>`, alice)).toBe(true)
     expect(mentions('@everyone game time', alice)).toBe(true)
     expect(mentions('no one', alice)).toBe(false)
+    expect(mentions('@here quick question', alice)).toBe(true)
+    // Group pings only count from trusted and above (or an allowed webhook), like on the server.
+    expect(mentions('@everyone game time', alice, false)).toBe(false)
+    expect(mentions(`@everyone and <@${alice}>`, alice, false)).toBe(true)
+    expect(canPingGroups('member', false)).toBe(false)
+    expect(canPingGroups(undefined, false)).toBe(false)
+    expect(canPingGroups('trusted', false)).toBe(true)
+    expect(canPingGroups('owner', false)).toBe(true)
+    expect(canPingGroups(undefined, true)).toBe(true)
     expect(plainText(`hey <@${alice}>`, ctx)).toBe('hey @Alice')
   })
 

@@ -133,10 +133,31 @@ public class PushTests
         Assert.Equal("reply", reply.GetProperty("kind").GetString());
         Assert.Equal("Bob replied in #general", reply.GetProperty("title").GetString());
 
+        // @everyone pings only from trusted and above.
         var other = server.World.Store.CreateChannel("news", "text", "member", "member", 0).Id;
         await Say(alice, other, "@everyone patch notes are out");
+        await server.Push.NoneAsync(bobEndpoint);
+        server.World.Store.SetMemberRole(alice.Key, "trusted");
+        await Say(alice, other, "@everyone patch notes are out, for real");
         Assert.Equal("mention", (await server.Push.WaitForAsync(bobEndpoint)).Single().GetProperty("kind").GetString());
         await server.Push.NoneAsync(aliceEndpoint, already: 1);
+    }
+
+    [Fact]
+    public async Task Here_pings_only_members_who_are_online()
+    {
+        using var server = new IskraServer();
+        using var admin = await server.JoinAsync("Admin", "admin");
+        using var bob = await server.JoinAsync("Bob");
+        var carol = await server.JoinAsync("Carol");
+        var bobEndpoint = await SubscribeAsync(bob);
+        var carolEndpoint = await SubscribeAsync(carol);
+        carol.Dispose();
+        await Task.Delay(300); // Carol goes offline
+
+        await Say(admin, server.General, "@here standup in 5");
+        Assert.Equal("mention", (await server.Push.WaitForAsync(bobEndpoint)).Single().GetProperty("kind").GetString());
+        await server.Push.NoneAsync(carolEndpoint);
     }
 
     [Fact]
@@ -300,10 +321,15 @@ public class PushTests
         var push = server.Services.GetRequiredService<PushService>();
         var caller = server.World.Store.GetMember(alice.Key)!;
         push.IncomingCall(caller, bob.Key);
-        push.IncomingCall(caller, bob.Key);
-        var calls = await server.Push.WaitForAsync(endpoint, 2);
+        var calls = await server.Push.WaitForAsync(endpoint, 1);
         Assert.All(calls, c => Assert.Equal("Alice is calling", c.GetProperty("title").GetString()));
         Assert.Equal(30, server.Push.SentTo(endpoint)[0].TtlSeconds);
+        // Calling again right away doesn't ring the phone again; another caller does.
+        push.IncomingCall(caller, bob.Key);
+        await server.Push.NoneAsync(endpoint, already: 1);
+        using var carol = await server.JoinAsync("Carol");
+        push.IncomingCall(server.World.Store.GetMember(carol.Key)!, bob.Key);
+        Assert.Equal("Carol is calling", (await server.Push.WaitForAsync(endpoint, 2))[1].GetProperty("title").GetString());
     }
 
     [Fact]

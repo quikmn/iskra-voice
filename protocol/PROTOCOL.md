@@ -252,8 +252,8 @@ A call between two members runs on a server they both belong to, through its Liv
 
 | type | body | result | who |
 |---|---|---|---|
-| `call.start` | `accountKey, callId` (16 random bytes, b64u, single use), `video?` (bool), `envelope` (DM envelope, ≤ 32 KB) | `{ call, url, token, room }` | members, to another member; error `busy` if they're in another call here, `voice_unavailable` without LiveKit |
-| `call.accept` | `callId` | `{ call, url, token, room }` | the callee, while it rings |
+| `call.start` | `accountKey, callId` (16 random bytes, b64u, single use), `video?` (bool), `envelope` (DM envelope, ≤ 32 KB) | `{ call, url, token, room }` | members (not bots), to another member (not a bot: `bad_request`); error `busy` if they're in another call here, `voice_unavailable` without LiveKit; per account (all sessions) 10 a minute and 3 a minute to the same person (`rate_limited`) |
+| `call.accept` | `callId` | `{ call, url, token, room }` | the callee, while it rings (not bots: `forbidden`) |
 | `call.decline` | `callId, reason? ("declined" \| "busy")` | | the callee, while it rings |
 | `call.end` | `callId` | | either person (the caller cancels a ringing call this way) |
 | `call.pending` | | `{ calls: [{ call, envelope }] }` (calls ringing for you) | yourself |
@@ -285,6 +285,7 @@ A bot is an ordinary identity (account key, device certificate, signed handshake
 - A bot can only join with a bot invite, and a bot invite only works for a client that says `bot: true`. Anything else gets `invite_required` (and the invite isn't used up).
 - The flag is stored by the server and can't be changed afterwards: `Member` gains `bot` (boolean) everywhere members appear.
 - Bots can't join voice (`voice.join` → `forbidden`), create invites, or have a role above `trusted` (`member.setRole` → `bad_request`). They have the same rate limits as everyone else.
+- Bots can't send DMs or take part in calls (`dm.send`, `call.start`, `call.accept` → `forbidden`; calling a bot → `bad_request`): DMs and call keys are end-to-end encrypted to people's devices, which a bot can't read.
 - Commands are a message convention, not a protocol feature: a message starting with `/name args` (or `/name@BotName args` to pick one bot) is a command. See `docs/bots.md`.
 
 ### Webhooks
@@ -382,7 +383,7 @@ Server emoji are written in message text and reactions as `<:name:id>` (`name`: 
 
 ## Push notifications (Web Push)
 
-Each server sends Web Push messages to its members' devices that aren't looking at Iskra: for @mentions (including `@everyone`), replies to your messages, DMs and (hook for the calls feature) incoming calls. The server keeps a VAPID key pair (P-256) in `vapid.json` in the world folder; payloads are encrypted per RFC 8291 (`aes128gcm`) and signed per RFC 8292 with [Lib.Net.Http.WebPush](https://github.com/tpeczek/Lib.Net.Http.WebPush).
+Each server sends Web Push messages to its members' devices that aren't looking at Iskra: for @mentions (including `@everyone` and `@here`), replies to your messages, DMs and (hook for the calls feature) incoming calls. The server keeps a VAPID key pair (P-256) in `vapid.json` in the world folder; payloads are encrypted per RFC 8291 (`aes128gcm`) and signed per RFC 8292 with [Lib.Net.Http.WebPush](https://github.com/tpeczek/Lib.Net.Http.WebPush).
 
 | type | body | result | who |
 |---|---|---|---|
@@ -393,6 +394,8 @@ Each server sends Web Push messages to its members' devices that aren't looking 
 
 - Subscriptions belong to the authenticated **device** (the key in the handshake's certificate). An endpoint belongs to one device; an account keeps at most 10 subscriptions (the least recently refreshed go first).
 - The endpoint is user-supplied, so it must be `https://` on the default port, without credentials, at a known push service: `fcm.googleapis.com`, `android.googleapis.com`, `push.services.mozilla.com`, `notify.windows.com`, `push.apple.com` (or a subdomain). Deliveries also only connect to public addresses (the link preview guard). The push service answering 404 or 410 deletes the subscription.
+- `@everyone` (all members) and `@here` (members online now) only ping when the author is trusted or above; from anyone else the text is shown but nobody is pushed, and clients don't count it as a mention either.
+- Incoming-call pushes ring at once (no merging) but at most once per caller and callee per 15 s window.
 - No pushes to a device whose session reported `focused: true` (a new session starts unfocused), to the author, to people who can't read the channel, or to non-members. Per device and conversation the first push goes out at once; more within 15 s become one follow-up push with a `count`.
 - Payload (JSON, after decryption): `{ v: 1, kind: "mention"|"reply"|"dm"|"call", server, serverName, title, body, tag, channelId?, messageId?, peer?, count, at }`. Mentions and replies carry a ≤ 140-character excerpt; **DMs never carry content**: "New message from X". The `Topic` header is derived from `tag`, so a push service replaces undelivered pushes about the same conversation.
 - Web client: one service worker registration of `/push-sw.js` per server (scope `/push/<serverKey>/`), since every server has its own VAPID key and a registration holds one subscription. A notification click focuses the app (message `{ type: "iskra.open", route }`) or opens `/#/open/<serverKey>/c/<channelId>` / `/#/open/<serverKey>/dm/<accountKey>`. The desktop app uses native notifications and doesn't subscribe.

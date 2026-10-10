@@ -5,7 +5,7 @@ import { ready } from '../core/crypto'
 import { createIdentity, type Identity } from '../core/identity'
 import { restoreIdentity } from '../core/recovery'
 import { authProfile } from '../core/profile'
-import { mentions } from '../ui/markdown'
+import { canPingGroups, mentions } from '../ui/markdown'
 import type { InviteLink } from '../core/invite'
 import type { Channel, Events, FileInfo, Member, Message, VoiceParticipant, Welcome } from '../core/protocol'
 import * as storage from '../core/storage'
@@ -299,7 +299,8 @@ function onEvent<K extends keyof Events>(key: string, type: K, body: Events[K]):
           unread: message.author === s.me?.accountKey || viewing
             ? s.unread
             : { ...s.unread, [message.channelId]: (s.unread[message.channelId] ?? 0) + 1 },
-          mentions: message.author === s.me?.accountKey || viewing || !s.me || !mentions(message.text, s.me.accountKey)
+          mentions: message.author === s.me?.accountKey || viewing || !s.me
+            || !mentions(message.text, s.me.accountKey, canPingGroups(s.members[message.author]?.role, !!message.webhook))
             ? s.mentions
             : { ...s.mentions, [message.channelId]: (s.mentions[message.channelId] ?? 0) + 1 },
         }

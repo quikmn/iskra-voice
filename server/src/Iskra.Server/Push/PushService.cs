@@ -43,6 +43,7 @@ public sealed partial class PushService
     private readonly string[] _extraHosts;
     private readonly ConditionalWeakTable<Session, StrongBox<bool>> _focus = new();
     private readonly Dictionary<string, Burst> _bursts = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, DateTimeOffset> _lastRing = new(StringComparer.Ordinal);
     private readonly Lock _gate = new();
     private readonly SemaphoreSlim _sending = new(8);
 
@@ -92,20 +93,29 @@ public sealed partial class PushService
     [GeneratedRegex("<@([A-Za-z0-9_-]{43})>")]
     private static partial Regex MentionToken();
 
-    [GeneratedRegex(@"(^|\s)@everyone\b")]
-    private static partial Regex Everyone();
+    [GeneratedRegex(@"(^|\s)@(everyone|here)\b")]
+    private static partial Regex GroupMention();
 
-    /// <summary>A new channel message: mentioned people (or everyone, for @everyone) and the author of the message it replies to.</summary>
+    /// <summary>
+    /// Who may ping a group with @everyone (all members) or @here (members online now): trusted and above.
+    /// From anyone else the text is shown but nobody is notified. Clients apply the same rule.
+    /// </summary>
+    public static bool CanPingGroups(Member author) => Roles.Rank(author.Role) >= Roles.Rank(Roles.Trusted);
+
+    /// <summary>A new channel message: mentioned people (or a group, for @everyone/@here) and the author of the message it replies to.</summary>
     public void ChatMessage(Channel channel, Message message)
     {
         var store = _world.Store;
+        if (store.GetMember(message.AuthorKey) is not { } author) return;
         var kinds = new Dictionary<string, string>(StringComparer.Ordinal);
         if (message.ReplyTo is { } replyId && store.GetMessage(replyId) is { } original) kinds[original.AuthorKey] = "reply";
-        if (Everyone().IsMatch(message.Text))
-            foreach (var member in store.AllMembers()) kinds[member.AccountKey] = "mention";
+        var groups = GroupMention().Matches(message.Text).Select(m => m.Groups[2].Value).ToHashSet();
+        if (groups.Count > 0 && CanPingGroups(author))
+            foreach (var member in store.AllMembers())
+                if (groups.Contains("everyone") || _hub.IsOnline(member.AccountKey)) kinds[member.AccountKey] = "mention";
         foreach (Match m in MentionToken().Matches(message.Text)) kinds[m.Groups[1].Value] = "mention";
         kinds.Remove(message.AuthorKey);
-        if (kinds.Count == 0 || store.GetMember(message.AuthorKey) is not { } author) return;
+        if (kinds.Count == 0) return;
 
         var text = MentionToken().Replace(message.Text, m => "@" + (store.GetMember(m.Groups[1].Value)?.Name ?? "unknown"));
         var body = text.Length == 0 ? "Sent an attachment" : Excerpt(text, 140);
@@ -133,6 +143,16 @@ public sealed partial class PushService
     public void IncomingCall(Member caller, string calleeKey, long? channelId = null)
     {
         if (caller.AccountKey == calleeKey) return;
+        // One ringing push per caller and callee per window: calling again and again doesn't buzz their phone each time.
+        var now = _time.GetUtcNow();
+        lock (_gate)
+        {
+            var pair = $"{calleeKey}|{caller.AccountKey}";
+            if (_lastRing.TryGetValue(pair, out var last) && now - last < _window) return;
+            if (_lastRing.Count > 10_000)
+                foreach (var old in _lastRing.Where(r => now - r.Value >= _window).Select(r => r.Key).ToList()) _lastRing.Remove(old);
+            _lastRing[pair] = now;
+        }
         Notify(calleeKey, new PushNote("call", $"call:{caller.AccountKey}", $"{caller.Name} is calling", "Tap to answer.", caller.Name,
             ChannelId: channelId, Peer: caller.AccountKey, Coalesce: false, TtlSeconds: 30));
     }
