@@ -3,6 +3,8 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Iskra.Server.Features;
+using Iskra.Server.Files;
+using Microsoft.Extensions.DependencyInjection;
 using Iskra.Server.Storage;
 using Iskra.Server.Tests.Support;
 using Iskra.Server.Voice;
@@ -250,6 +252,29 @@ public class WatchTests
         var before = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var now = (await alice.RequestAsync("watch.clock")).Body().GetProperty("now").GetInt64();
         Assert.InRange(now, before - 1000, before + 5000);
+    }
+
+    [Fact]
+    public async Task A_video_uploaded_for_a_running_party_is_not_swept()
+    {
+        using var server = new IskraServer();
+        var lounge = Voice(server);
+        using var alice = await server.JoinAsync("Alice");
+        await Join(server, lounge, alice);
+        // A WebM header is enough for the sniffer to call it a video.
+        byte[] webm = [0x1A, 0x45, 0xDF, 0xA3, .. RandomNumberGenerator.GetBytes(64)];
+        var ticket = (await alice.RequestAsync("upload.begin", new { name = "film.webm", size = webm.Length })).Body();
+        using var put = await server.CreateClient().PutAsync(ticket.GetProperty("url").GetString(), new ByteArrayContent(webm));
+        var fileId = JsonDocument.Parse(await put.Content.ReadAsStringAsync()).RootElement.GetProperty("file").GetProperty("id").GetString()!;
+        var party = await StartAsync(alice, lounge, new { kind = "file", fileId });
+
+        var uploads = server.Services.GetRequiredService<Uploads>();
+        Assert.Equal(0, uploads.Sweep(DateTimeOffset.UtcNow.AddHours(25)));
+        Assert.NotNull(server.World.Store.GetFile(fileId));
+
+        await alice.RequestAsync("watch.stop", new { channelId = lounge, partyId = party.GetProperty("id").GetString() });
+        Assert.Equal(1, uploads.Sweep(DateTimeOffset.UtcNow.AddHours(25)));
+        Assert.Null(server.World.Store.GetFile(fileId));
     }
 
     [Fact]

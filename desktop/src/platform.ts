@@ -154,3 +154,20 @@ export function aboutDetail(versions: { app: string; electron: string; chrome: s
     'It builds on open source software, including Electron, Chromium, LiveKit, libsodium, React and RNNoise.',
   ].join('\n')
 }
+
+/** What YouTube sees as the embedding page for the desktop app (whose app:// origin it won't accept as a referrer). */
+export const YOUTUBE_REFERRER = 'https://app.iskra.foo/'
+
+/**
+ * The Referer to send with a request, for YouTube's privacy-enhanced embeds only: requests to youtube-nocookie.com
+ * made from the app's own window. Anything else keeps its headers (null).
+ */
+export function youTubeReferrer(requestUrl: string, fromApp: boolean): string | null {
+  if (!fromApp) return null
+  try {
+    const url = new URL(requestUrl)
+    return url.protocol === 'https:' && url.hostname === 'www.youtube-nocookie.com' ? YOUTUBE_REFERRER : null
+  } catch {
+    return null
+  }
+}

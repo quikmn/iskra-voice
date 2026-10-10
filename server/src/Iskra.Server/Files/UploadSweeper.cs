@@ -11,12 +11,13 @@ public sealed partial class Uploads
     private static partial Regex FileLink();
 
     /// <summary>
-    /// Deletes uploads older than a day that nothing refers to: messages, avatars, emoji, sounds, webhooks
-    /// and profile pages (which may show this server's files by URL). Returns how many records went.
+    /// Deletes uploads older than a day that nothing refers to: messages, avatars, emoji, sounds, webhooks,
+    /// profile pages (which may show this server's files by URL) and running watch parties. Returns how many records went.
     /// </summary>
     public int Sweep(DateTimeOffset now)
     {
         var keep = world.Store.AllPageHtml().SelectMany(html => FileLink().Matches(html).Select(m => m.Groups[1].Value)).ToHashSet();
+        keep.UnionWith(voice.Watch.FileIds());
         var removed = world.Store.DeleteUnreferencedFiles((now - UnusedGrace).ToUnixTimeMilliseconds(), keep);
         foreach (var sha in removed.Distinct())
         {

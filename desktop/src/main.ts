@@ -7,7 +7,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Host } from './host'
 import { isBackupDownload, readBackupInfo } from './restore'
-import { aboutDetail, isAppPage, isWayland, MAC_SETTINGS, skipScreenPicker, trayMenu, type SettingsPane, type TrayAction } from './platform'
+import { aboutDetail, isAppPage, isWayland, MAC_SETTINGS, skipScreenPicker, trayMenu, youTubeReferrer, type SettingsPane, type TrayAction } from './platform'
 import { PushToTalk } from './ptt'
 import { Updates, type UpdateStatus } from './updates'
 
@@ -103,6 +103,13 @@ function setUpSession(): void {
     const file = path.normalize(path.join(CLIENT_DIR, relative))
     if (!file.startsWith(CLIENT_DIR + path.sep)) return new Response('Not found', { status: 404 })
     return net.fetch(pathToFileURL(file).toString())
+  })
+
+  // YouTube's embeds (watch parties) refuse to play without an http(s) referrer ("Error 153"), and app:// isn't one.
+  // Requests to youtube-nocookie.com from the app's own window say they come from the web app instead.
+  appSession.webRequest.onBeforeSendHeaders({ urls: ['https://www.youtube-nocookie.com/*'] }, (details, callback) => {
+    const referrer = youTubeReferrer(details.url, !!details.webContents && isAppUrl(details.webContents.getURL()))
+    callback({ requestHeaders: referrer ? { ...details.requestHeaders, Referer: referrer } : details.requestHeaders })
   })
 
   // Only the permissions a chat app needs, and only for the app itself (never for frames inside it, like profile pages).
