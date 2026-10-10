@@ -40,7 +40,7 @@ Server channels trust the server, because a server is run by you or your friend;
 
 ## The desktop app
 
-The Windows app is the same web app in a locked-down shell: sandboxed, no Node.js in the page, links open in your browser, and the page can only ask the app for push-to-talk, the screen picker and hosting. It's not code-signed yet, which is why Windows asks before the first run.
+The Windows app is the same web app in a locked-down shell: sandboxed, no Node.js in the page, links open in your browser, and the page can only ask the app for push-to-talk, the screen picker and hosting. Every Windows executable we ship is code-signed (Open Source Developer Viktor Lundgren, issued by Certum) and timestamped, so you can check it came from us and wasn't changed.
 
 ## Found a problem?
 

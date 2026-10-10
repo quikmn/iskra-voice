@@ -14,7 +14,7 @@ export function StartServerDialog({ onClose }: { onClose: () => void }) {
         </ol>
         <a className="button primary" href={LINKS.windowsInstaller}>Download Iskra for Windows</a>
         <p className="muted">
-          Windows may say it doesn't recognise the app yet: choose <em>More info → Run anyway</em>.
+          Signed by Open Source Developer Viktor Lundgren. While the app is new, Windows may still ask once before running it.
         </p>
       </section>
 

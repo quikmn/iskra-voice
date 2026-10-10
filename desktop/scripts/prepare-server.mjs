@@ -20,4 +20,8 @@ execFileSync('dotnet', [
 const livekit = join(v2, '.tools', windows ? 'livekit-server.exe' : 'livekit-server')
 if (!existsSync(livekit)) throw new Error(`Missing ${livekit}: run scripts/get-livekit first.`)
 copyFileSync(livekit, join(out, windows ? 'livekit-server.exe' : 'livekit-server'))
+if (windows) {
+  // Sign our own server binary (LiveKit ships as-is from its project).
+  execFileSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(here, 'sign.ps1'), join(out, 'iskra-server.exe')], { stdio: 'inherit' })
+}
 console.log(`Server bundle ready in ${out}`)

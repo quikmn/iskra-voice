@@ -46,7 +46,15 @@
       "target": [
         "nsis",
         "portable"
-      ]
+      ],
+      "signtoolOptions": {
+        "certificateSubjectName": "Open Source Developer Viktor Lundgren",
+        "signingHashAlgorithms": [
+          "sha256"
+        ],
+        "rfc3161TimeStampServer": "http://time.certum.pl",
+        "publisherName": "Open Source Developer Viktor Lundgren"
+      }
     },
     "nsis": {
       "oneClick": true,
