@@ -11,6 +11,7 @@ import { Close, Pencil, Trash } from '../icons'
 import { Attachments } from './MessageExtras'
 import { PinList, Popover } from './HeaderTools'
 import { ArrowLeft, PinIcon, ThreadIcon } from './extraIcons'
+import { openProfileCard } from '../../state/profile'
 
 export function ThreadPanel({ server, threadId }: { server: ServerState; threadId: number }) {
   const thread = useThreads((s) => s.threads[server.key]?.[threadId])
@@ -188,7 +189,11 @@ function ThreadStart({ server, root, createdBy }: { server: ServerState; root: M
         <Avatar name={name} accountKey={root.author} size={36} />
         <div className="message-body">
           <div className="message-meta">
-            <span className="author" style={{ color: `hsl(${hueFor(root.author)} 70% 72%)` }}>{name}</span>
+            {server.members[root.author] ? (
+              <button className="author" style={{ color: `hsl(${hueFor(root.author)} 70% 72%)` }} onClick={(e) => openProfileCard(server.key, root.author, e.currentTarget)}>{name}</button>
+            ) : (
+              <span className="author" style={{ color: `hsl(${hueFor(root.author)} 70% 72%)` }}>{name}</span>
+            )}
             <time title={fullTime(root.createdAt)}>{messageTime(root.createdAt)}</time>
           </div>
           {root.text && (

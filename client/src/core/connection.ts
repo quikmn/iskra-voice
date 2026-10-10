@@ -18,6 +18,8 @@ export interface ConnectionOptions {
   expectedServerKey?: string
   /** Display name sent on every connect. */
   name: () => string
+  /** Other profile fields sent on every connect (bio, pronouns, accent). */
+  profile?: () => Record<string, unknown>
   /** Only needed until the first successful join. */
   invite?: string
   /** Bot accounts say so on every connect (see "Bots and webhooks" in PROTOCOL.md). */
@@ -179,7 +181,7 @@ export class Connection {
       this.reject('auth_failed', 'The server sent an invalid handshake.')
       return
     }
-    const profile = this.options.bot ? { name: this.options.name(), bot: true } : { name: this.options.name() }
+    const profile = { ...this.options.profile?.(), name: this.options.name(), ...(this.options.bot ? { bot: true } : {}) }
     const body: Record<string, unknown> = { cert: identity.cert, sig, profile }
     if (this.invite) body.invite = this.invite
     this.socket?.send(JSON.stringify({ type: 'auth', id: 'auth', body }))

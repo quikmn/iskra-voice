@@ -5,6 +5,7 @@ import { connectionFor, type ServerState } from '../../state/store'
 import { setVolume, useVoice } from '../../state/voice'
 import { addFriend, openConversation, removeFriend, useDms } from '../../state/dms'
 import { Avatar, Modal } from '../bits'
+import { removeMemberPage } from '../../state/profile'
 import { BotBadge } from '../chat/BotBits'
 
 export function MemberDialog({ server, member, onClose }: { server: ServerState; member: Member; onClose: () => void }) {
@@ -37,7 +38,7 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
         <Avatar name={member.name} accountKey={member.accountKey} size={64} online={member.online} />
         <div>
           <strong className="member-card-name">{member.name}</strong> {member.bot && <BotBadge />}
-          <div className="muted">{member.role} · {member.online ? 'online' : 'offline'}</div>
+          <div className="muted">{[member.pronouns, member.role, member.online ? 'online' : 'offline'].filter(Boolean).join(' · ')}</div>
           <div className="muted">ID <code>{fingerprint(member.accountKey)}</code></div>
         </div>
       </div>
@@ -75,6 +76,11 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
               {grantable.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
           </label>
+          {member.page && (
+            <div className="copy-row member-actions">
+              <button className="button danger-outline" onClick={() => void run(() => removeMemberPage(server.key, member))}>Remove profile page</button>
+            </div>
+          )}
           {confirm ? (
             <div className="copy-row">
               <span>{confirm === 'kick' ? `Remove ${member.name}? They can come back with a new invite.` : `Ban ${member.name}? They can't come back until unbanned.`}</span>

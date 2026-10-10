@@ -91,12 +91,13 @@ function setUpSession(): void {
     return net.fetch(pathToFileURL(file).toString())
   })
 
-  // Only the permissions a chat app needs, and only for the app itself.
+  // Only the permissions a chat app needs, and only for the app itself (never for frames inside it, like profile pages).
   const allowed = new Set(['media', 'display-capture', 'notifications', 'clipboard-sanitized-write', 'fullscreen'])
-  appSession.setPermissionRequestHandler((contents, permission, callback) => {
-    callback(isAppUrl(contents.getURL()) && allowed.has(permission))
+  appSession.setPermissionRequestHandler((contents, permission, callback, details) => {
+    callback(isAppUrl(contents.getURL()) && isAppUrl(details.requestingUrl) && allowed.has(permission))
   })
-  appSession.setPermissionCheckHandler((contents, permission) => !!contents && isAppUrl(contents.getURL()) && allowed.has(permission))
+  appSession.setPermissionCheckHandler((contents, permission, requestingOrigin) =>
+    !!contents && isAppUrl(contents.getURL()) && isAppUrl(requestingOrigin + '/') && allowed.has(permission))
 
   // Screen sharing: let the user pick a screen or window in our own picker.
   appSession.setDisplayMediaRequestHandler(async (_request, callback) => {

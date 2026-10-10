@@ -16,7 +16,7 @@ const CSP = [
   "worker-src 'self' blob:",
   "font-src 'self'",
   "object-src 'none'",
-  "frame-src 'none'",
+  "frame-src 'self' http: https:", // profile pages (each in a locked-down wrapper, see ui/profile/PageFrame.tsx)
   "base-uri 'none'",
   "form-action 'none'",
 ].join('; ')

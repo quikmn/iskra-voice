@@ -50,7 +50,7 @@
   border: 1px solid var(--border); background: var(--surface); color: var(--text);
 }
 .poll-choice:hover:not(:disabled) { border-color: var(--accent); }
-.poll-choice.selected { border-color: var(--accent); background: rgba(124, 111, 255, 0.14); }
+.poll-choice.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .poll-marker { flex: none; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--muted); display: grid; place-items: center; color: #fff; }
 .poll-marker.square { border-radius: 5px; }
 .poll-choice.selected .poll-marker { border-color: var(--accent); background: var(--accent); }
@@ -59,9 +59,9 @@
   position: relative; display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 8px; overflow: hidden;
   border: 1px solid var(--border); background: var(--surface);
 }
-.poll-bar { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(124, 111, 255, 0.16); transition: width 0.3s ease; }
+.poll-bar { position: absolute; left: 0; top: 0; bottom: 0; background: color-mix(in srgb, var(--accent) 16%, transparent); transition: width 0.3s ease; }
 .poll-result.mine { border-color: var(--accent); }
-.poll-result.mine .poll-bar { background: rgba(124, 111, 255, 0.32); }
+.poll-result.mine .poll-bar { background: color-mix(in srgb, var(--accent) 32%, transparent); }
 .poll-result.leading .poll-option-text { font-weight: 700; }
 .poll-result.leading .poll-bar { background: rgba(74, 222, 128, 0.2); }
 .poll-check { position: relative; color: var(--accent-2); display: grid; }

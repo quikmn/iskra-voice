@@ -4,7 +4,7 @@ export type Role = 'guest' | 'member' | 'trusted' | 'admin' | 'owner'
 export const ROLES: Role[] = ['guest', 'member', 'trusted', 'admin', 'owner']
 export const roleRank = (role: Role): number => ROLES.indexOf(role)
 
-export interface Member {
+export interface Member extends PublicProfile {
   accountKey: string
   name: string
   role: Role
@@ -82,7 +82,7 @@ export interface VoiceChannelState {
 
 export interface Welcome {
   you: Member
-  server: { name: string; key: string; appUrl: string; publicUrl?: string | null }
+  server: { name: string; key: string; appUrl: string; publicUrl?: string | null; profilePages?: boolean }
   channels: Channel[]
   members: Member[]
   voice: VoiceChannelState[]
@@ -110,6 +110,7 @@ export interface Events {
   'call.accepted': { callId: string }
   'call.ended': { callId: string; reason: CallEndReason }
   'call.state': { callId: string; participants: string[] }
+  'profile.pages': { enabled: boolean }
 }
 
 export interface WireDm {
@@ -134,7 +135,10 @@ export interface Requests {
   'channel.create': [{ name: string; kind?: 'text' | 'voice'; readRole?: Role; writeRole?: Role }, { channel: Channel }]
   'channel.update': [{ id: number; name?: string; readRole?: Role; writeRole?: Role }, { channel: Channel }]
   'channel.delete': [{ id: number }, Record<string, never>]
-  'profile.update': [{ name: string }, { member: Member }]
+  'profile.update': [ProfileUpdate, { member: Member }]
+  'profile.page.set': [{ file: string }, { member: Member }]
+  'profile.page.remove': [{ accountKey?: string }, Record<string, never>]
+  'profile.pages.configure': [{ enabled: boolean }, Record<string, never>]
   'member.setRole': [{ accountKey: string; role: Role }, { member: Member }]
   'member.kick': [{ accountKey: string }, Record<string, never>]
   'member.ban': [{ accountKey: string; reason?: string }, Record<string, never>]
@@ -223,6 +227,29 @@ export interface LinkRequest {
   epk: string
   mac: string
   info: string | null
+}
+
+// ── profiles ──
+
+/** Profile fields on every Member. URLs are relative to the server. Older servers leave them out. */
+export interface PublicProfile {
+  avatar?: string | null
+  /** SHA-256 (hex) of the avatar file, so clients can tell whether theirs is current. */
+  avatarHash?: string | null
+  bio?: string | null
+  pronouns?: string | null
+  accent?: string | null
+  page?: string | null
+  pageHash?: string | null
+}
+
+/** Every field is optional; "" clears it. `avatar` is the id of your own uploaded image. */
+export interface ProfileUpdate {
+  name?: string
+  bio?: string
+  pronouns?: string
+  accent?: string
+  avatar?: string
 }
 
 export type ErrorCode =

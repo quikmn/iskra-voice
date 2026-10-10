@@ -4,6 +4,7 @@ import { Connection, type ConnectionStatus } from '../core/connection'
 import { ready } from '../core/crypto'
 import { createIdentity, type Identity } from '../core/identity'
 import { restoreIdentity } from '../core/recovery'
+import { authProfile } from '../core/profile'
 import { mentions } from '../ui/markdown'
 import type { InviteLink } from '../core/invite'
 import type { Channel, Events, FileInfo, Member, Message, VoiceParticipant, Welcome } from '../core/protocol'
@@ -68,14 +69,14 @@ const connections = new Map<string, Connection>()
 
 type ServerEventListener = (serverKey: string, type: keyof Events, body: unknown) => void
 const eventListeners = new Set<ServerEventListener>()
-const welcomeListeners = new Set<(serverKey: string) => void>()
+const welcomeListeners = new Set<(serverKey: string, welcome: Welcome) => void>()
 
 /** Other state modules (DMs, …) subscribe to server events here instead of importing each other. */
 export function onServerEvent(listener: ServerEventListener): void {
   eventListeners.add(listener)
 }
 
-export function onWelcomeHook(listener: (serverKey: string) => void): void {
+export function onWelcomeHook(listener: (serverKey: string, welcome: Welcome) => void): void {
   welcomeListeners.add(listener)
 }
 const TYPING_MS = 6_000
@@ -222,6 +223,7 @@ function connectServer(url: string, key: string, name: string, invite?: string):
     invite,
     identity,
     name: () => useApp.getState().profile?.name ?? 'Someone',
+    profile: () => authProfile(useApp.getState().profile),
     onStatus: (status) => patchServer(key, () => ({ status })),
     onWelcome: (welcome) => onWelcome(key, welcome),
     onEvent: (type, body) => onEvent(key, type, body),
@@ -258,7 +260,7 @@ function onWelcome(key: string, welcome: Welcome): void {
   }
   const channel = activeChannelId(useApp.getState())
   if (channel !== null && useApp.getState().activeServer === key) void loadHistory(key, channel)
-  for (const listener of welcomeListeners) listener(key)
+  for (const listener of welcomeListeners) listener(key, welcome)
 }
 
 async function catchUp(key: string, channelId: number, after: number): Promise<void> {

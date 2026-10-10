@@ -26,8 +26,8 @@
 .call-panel.ended .call-stage { opacity: 0.6; }
 
 @keyframes call-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(124, 111, 255, 0.55); }
-  50% { box-shadow: 0 0 0 12px rgba(124, 111, 255, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); }
+  50% { box-shadow: 0 0 0 12px color-mix(in srgb, var(--accent) 0%, transparent); }
 }
 
 .call-button.accept { background: #16a34a; color: #fff; }

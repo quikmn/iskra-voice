@@ -48,6 +48,13 @@ export interface Profile {
   name: string
   /** The user copied or downloaded their recovery key. */
   recoverySaved?: boolean
+  // Profile details sent to every server. Undefined: never set on this device, so servers keep what they have.
+  bio?: string
+  pronouns?: string
+  accent?: string
+  /** null: removed on purpose. */
+  avatar?: { bytes: ArrayBuffer; type: string; hash: string } | null
+  page?: { html: string; hash: string } | null
 }
 
 export interface SavedServer {

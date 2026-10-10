@@ -9,6 +9,7 @@ import { AuthorAvatar, BotBadge, Embeds } from './chat/BotBits'
 import { authorOf, sameSender } from './chat/bots'
 import { firstLink, formatSize, replyKey, setReply, useReply } from './chat/helpers'
 import { Avatar, Spinner } from './bits'
+import { openProfileCard } from '../state/profile'
 import { decodeMentions, encodeMentions, renderMarkdown } from './markdown'
 import { fullTime, hueFor, messageTime } from './format'
 import type { Panel } from './Shell'
@@ -203,6 +204,7 @@ function MessageRow({
   const author: Member | undefined = server.members[message.author]
   const shown = authorOf(message, server.members)
   const name = shown.name
+  const canOpenProfile = !message.webhook && !!server.members[message.author]
   const me = server.me
   const mine = me?.accountKey === message.author
   const canDelete = !!me && !message.tempId &&
@@ -230,6 +232,10 @@ function MessageRow({
       <div className="message-gutter">
         {grouped ? (
           <time className="hover-time" title={fullTime(message.createdAt)}>{messageTime(message.createdAt).replace(/^.* /, '')}</time>
+        ) : canOpenProfile ? (
+          <button className="avatar-button" onClick={(e) => openProfileCard(server.key, message.author, e.currentTarget)} aria-label={`Profile of ${name}`}>
+            <AuthorAvatar server={server} author={shown} hueKey={message.author} />
+          </button>
         ) : (
           <AuthorAvatar server={server} author={shown} hueKey={message.author} />
         )}
@@ -238,7 +244,11 @@ function MessageRow({
         {message.replyTo && <ReplyLine server={server} reply={message.replyTo} onJump={jumpTo} />}
         {(!grouped || message.replyTo) && (
           <div className="message-meta">
-            <span className="author" style={{ color: `hsl(${hueFor(message.author)} 70% 72%)` }}>{name}</span>
+            {canOpenProfile ? (
+              <button className="author" style={{ color: `hsl(${hueFor(message.author)} 70% 72%)` }} onClick={(e) => openProfileCard(server.key, message.author, e.currentTarget)}>{name}</button>
+            ) : (
+              <span className="author" style={{ color: `hsl(${hueFor(message.author)} 70% 72%)` }}>{name}</span>
+            )}
             {shown.bot && <BotBadge />}
             <time title={fullTime(message.createdAt)}>{messageTime(message.createdAt)}</time>
             {message.pinned && <PinnedMark />}

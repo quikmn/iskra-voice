@@ -154,7 +154,8 @@ public sealed class Session
         SendNow(Frames.Event("welcome", new
         {
             you = _hub.PublicMember(member),
-            server = new { name = _world.Settings.Name, key = Ed25519.ToB64u(_world.ServerPublicKey), appUrl = _world.Settings.AppUrl, publicUrl = _world.InternetUrl },
+            server = new { name = _world.Settings.Name, key = Ed25519.ToB64u(_world.ServerPublicKey), appUrl = _world.Settings.AppUrl, publicUrl = _world.InternetUrl,
+                profilePages = ProfileFeature.PagesEnabled(_world.Store) },
             channels = _hub.VisibleChannels(member),
             members = _world.Store.AllMembers().Select(_hub.PublicMember),
             voice = _voice.Snapshot(member),
@@ -292,13 +293,14 @@ public sealed class Session
         if (cert is null) return (null, AuthFailure.Invalid);
 
         string? signature = null, name = null, invite = null;
+        JsonElement profile = default;
         var isBot = false;
         try
         {
             var fields = new Body(body);
             signature = fields.OptionalString("sig", 128);
             invite = fields.OptionalString("invite", 64);
-            if (body.TryGetProperty("profile", out var profile))
+            if (body.TryGetProperty("profile", out profile))
             {
                 name = Names.Normalize(new Body(profile).OptionalString("name", 256));
                 isBot = new Body(profile).OptionalBool("bot") ?? false;
@@ -322,6 +324,7 @@ public sealed class Session
         if (existing is not null)
         {
             if (existing.Name != name) _world.Store.SetMemberName(existing.AccountKey, name);
+            ProfileFeature.ApplyFromAuth(_world.Store, existing.AccountKey, profile);
             _world.Store.SaveDevice(cert, Now);
             return (existing with { Name = name }, AuthFailure.Invalid);
         }
@@ -332,6 +335,7 @@ public sealed class Session
         if (isBot) BotFeature.Joined(_world.Store, cert.AccountKey, invite!, Now);
         var member = _world.Store.AddMember(cert.AccountKey, name, role, Now);
         _world.Store.SaveDevice(cert, Now);
+        ProfileFeature.ApplyFromAuth(_world.Store, member.AccountKey, profile);
         if (role == Roles.Owner) OwnerSetup.OwnerJoined(_world);
         _hub.Broadcast(Frames.Event("member.joined", new { member = _hub.PublicMember(member) }));
         return (member, AuthFailure.Invalid);

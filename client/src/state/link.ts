@@ -7,6 +7,7 @@ import {
 } from '../core/link'
 import type { LinkRequest } from '../core/protocol'
 import { normalizeServerUrl } from '../core/invite'
+import { profileForLink, profileFromLink, type LinkedProfile } from '../core/profile'
 import { restoreIdentity, seedOf } from '../core/recovery'
 import * as storage from '../core/storage'
 import { appUrl } from '../ui/format'
@@ -23,6 +24,8 @@ export interface LinkPayload {
   servers: { url: string; serverKey: string; name: string }[]
   friends: storage.StoredFriend[]
   history?: Record<string, storage.StoredDm[]>
+  /** Bio, pronouns, accent, avatar and page, so the new device shows the same profile. */
+  profile?: LinkedProfile
 }
 
 // ── The existing device: shows the code, checks the new device, sends the account ──
@@ -97,7 +100,7 @@ function onLinkRequest(serverKey: string, request: LinkRequest): void {
 async function buildPayload(includeHistory: boolean): Promise<LinkPayload> {
   const { identity, profile } = useApp.getState()
   const saved = await storage.loadServers()
-  return {
+  const payload: LinkPayload = {
     v: 1,
     seed: b64u(seedOf(identity!)),
     name: profile?.name ?? 'Someone',
@@ -105,7 +108,12 @@ async function buildPayload(includeHistory: boolean): Promise<LinkPayload> {
     servers: saved.filter((s) => !s.invite).map((s) => ({ url: s.url, serverKey: s.serverKey, name: s.name })),
     friends: await storage.loadFriends(),
     history: includeHistory ? exportHistory() : undefined,
+    profile: profileForLink(profile),
   }
+  // The relay takes ≤ 1 MB. A big page is the first thing to leave out: servers keep it anyway,
+  // and the new device leaves it alone until it's edited there.
+  if (payload.profile?.page && JSON.stringify(payload).length > 900_000) delete payload.profile.page
+  return payload
 }
 
 /** The person checked that both screens show the same code: send the account over. */
@@ -200,7 +208,11 @@ async function adopt(payload: LinkPayload): Promise<void> {
   if (seed.length !== 32) throw new Error('Unsupported link data.')
   const identity = restoreIdentity(seed)
   await storage.saveIdentity(identity)
-  await storage.saveProfile({ name: String(payload.name ?? 'Someone').slice(0, 32), recoverySaved: !!payload.recoverySaved })
+  await storage.saveProfile({
+    ...profileFromLink(payload.profile),
+    name: String(payload.name ?? 'Someone').slice(0, 32),
+    recoverySaved: !!payload.recoverySaved,
+  })
   const servers = Array.isArray(payload.servers) ? payload.servers : []
   await storage.saveServers(servers
     .filter((s) => typeof s?.url === 'string' && normalizeServerUrl(s.url) && typeof s.serverKey === 'string')

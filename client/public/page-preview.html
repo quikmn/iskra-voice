@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+<!-- Live preview for the profile page editor. Loaded in <iframe sandbox="allow-scripts"> (opaque origin).
+     The HTML being edited arrives by postMessage from the app and runs in a second sandboxed frame,
+     which inherits this policy: inline code only, no network, and nowhere to navigate. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src 'none'; connect-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
+<meta charset="utf-8">
+<style>html, body { margin: 0; height: 100%; background: #fff; } iframe { border: 0; display: block; width: 100%; height: 100%; }</style>
+</head>
+<body>
+<script>
+  let frame = null
+  window.addEventListener('message', (event) => {
+    // Only the app that embeds us may send a page; the page itself (our child) can't.
+    if (event.source !== window.parent || typeof event.data !== 'object' || event.data === null) return
+    if (event.data.type !== 'iskra:preview' || typeof event.data.html !== 'string') return
+    frame?.remove()
+    frame = document.createElement('iframe')
+    frame.setAttribute('sandbox', 'allow-scripts')
+    frame.setAttribute('referrerpolicy', 'no-referrer')
+    frame.setAttribute('title', 'Profile page preview')
+    frame.srcdoc = event.data.html
+    document.body.append(frame)
+  })
+  window.parent.postMessage({ type: 'iskra:preview-ready' }, '*')
+</script>
+</body>
+</html>

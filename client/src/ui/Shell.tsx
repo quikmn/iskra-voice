@@ -15,6 +15,7 @@ import { RecoveryNudge } from './dialogs/RecoveryKey'
 import { Menu } from './icons'
 import { IncomingCall } from './calls/Calls'
 import { SoundToasts } from './expressions/Soundboard'
+import { ProfileLayer } from './profile/ProfileLayer'
 
 export type Panel = 'none' | 'nav' | 'members'
 
@@ -56,6 +57,7 @@ export function Shell() {
       <SoundToasts />
       {panel !== 'none' && <div className="scrim" onClick={() => setPanel('none')} />}
       <IncomingCall />
+      <ProfileLayer />
       {joining && <JoinDialog onClose={() => setJoining(false)} onCreate={() => { setJoining(false); setCreating(true) }} />}
       {creating && (desktop ? <CreateServerDialog onClose={() => setCreating(false)} /> : <StartServerDialog onClose={() => setCreating(false)} />)}
     </div>

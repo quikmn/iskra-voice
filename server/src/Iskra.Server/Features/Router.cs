@@ -38,6 +38,7 @@ public sealed class Router
         SoundboardFeature.Register(this);
         PushFeature.Register(this);
         HostFeature.Register(this, internet);
+        ProfileFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);
