@@ -1,8 +1,8 @@
 {
   "name": "iskra-desktop",
   "private": true,
-  "version": "0.1.0",
-  "description": "Iskra desktop app",
+  "version": "2.0.0-alpha.1",
+  "description": "Iskra: voice and text chat for friends, on servers you own",
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc -p .",

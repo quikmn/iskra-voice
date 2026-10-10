@@ -32,7 +32,7 @@ public class InviteTests
         var file = Path.Combine(server.WorldPath, OwnerSetup.FileName);
         Assert.True(File.Exists(file));
         var link = File.ReadAllText(file).Trim();
-        Assert.StartsWith("http://localhost:5173/#/join/", link);
+        Assert.StartsWith("https://app.iskra.foo/#/join/", link);
         var code = link.Split('.').Last();
 
         using var owner = new TestIdentity();

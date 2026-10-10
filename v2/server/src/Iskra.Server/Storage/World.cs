@@ -13,7 +13,7 @@ public sealed record WorldSettings
     public string? PublicUrl { get; init; }
 
     /// <summary>The web app that invite links open.</summary>
-    public string AppUrl { get; init; } = "http://localhost:5173";
+    public string AppUrl { get; init; } = "https://app.iskra.foo";
 
     [System.Text.Json.Serialization.JsonIgnore]
     public string EffectivePublicUrl => (PublicUrl ?? (Https.Enabled ? Https.DefaultUrl : $"http://localhost:{Port}")).TrimEnd('/');

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { blockedAsInsecure } from './connection'
 import { buildInviteLink, normalizeServerUrl, parseInvite, socketUrl } from './invite'
 
 const serverKey = '7UkoxijRwsbq6QM4kFmVYSlZJzpcY_k2NsFGFKyHN9E'
@@ -38,5 +39,15 @@ describe('invite links', () => {
     expect(normalizeServerUrl('https://user:pw@x.com')).toBeNull()
     expect(socketUrl('https://x.com')).toBe('wss://x.com/ws')
     expect(socketUrl('http://localhost:7070')).toBe('ws://localhost:7070/ws')
+  })
+})
+
+describe('mixed content', () => {
+  it('knows when a browser will refuse an insecure server', () => {
+    expect(blockedAsInsecure('http://192.168.1.10:47070', 'https:')).toBe(true)
+    expect(blockedAsInsecure('http://localhost:47070', 'https:')).toBe(false)
+    expect(blockedAsInsecure('https://chat.example.com', 'https:')).toBe(false)
+    expect(blockedAsInsecure('http://192.168.1.10:47070', 'app:')).toBe(false) // desktop app
+    expect(blockedAsInsecure('http://192.168.1.10:47070', 'http:')).toBe(false)
   })
 })

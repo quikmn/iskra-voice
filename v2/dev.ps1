@@ -6,6 +6,11 @@ param([string]$World = 'world')
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 $worldPath = Join-Path $root ".dev\$World"
+# Dev worlds open invite links in the local dev client, not the public web app.
+if (-not (Test-Path (Join-Path $worldPath 'server.json'))) {
+    New-Item -ItemType Directory -Force $worldPath | Out-Null
+    '{ "Name": "Dev", "AppUrl": "http://localhost:5173" }' | Set-Content (Join-Path $worldPath 'server.json')
+}
 
 $livekit = Join-Path $root '.tools\livekit-server.exe'
 if (-not (Test-Path $livekit)) { & (Join-Path $root 'scripts\get-livekit.ps1') }

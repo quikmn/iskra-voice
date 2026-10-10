@@ -97,6 +97,13 @@ export class Connection {
   private open(): void {
     const Impl = this.options.WebSocketImpl ?? WebSocket
     this.ready = false
+    if (blockedAsInsecure(this.options.serverUrl)) {
+      this.reject(
+        'insecure_server',
+        "This server doesn't use HTTPS, so browsers won't connect to it. Use the Iskra desktop app, or ask the host to turn on HTTPS.",
+      )
+      return
+    }
     this.options.onStatus({ state: 'connecting' })
     let socket: WebSocket
     try {
@@ -213,6 +220,13 @@ export class Connection {
     }
     this.pending.clear()
   }
+}
+
+/** Browsers refuse ws:// from an https:// page, except to this computer. */
+export function blockedAsInsecure(serverUrl: string, pageProtocol = globalThis.location?.protocol): boolean {
+  if (pageProtocol !== 'https:' || !serverUrl.startsWith('http://')) return false
+  const host = new URL(serverUrl).hostname
+  return !(host === 'localhost' || host === '127.0.0.1' || host === '[::1]')
 }
 
 /** Short, human-friendly fingerprint of a key for display ("a1b2-c3d4-e5f6"). */
