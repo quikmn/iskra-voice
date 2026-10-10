@@ -1,0 +1,68 @@
+/* ── Watch parties ──────────────────────────────────────────────────── */
+.watch-party {
+  display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 12px; flex: none; min-height: 0;
+}
+.watch-party.chat-closed { grid-template-columns: minmax(0, 1fr); }
+.watch-main { container-type: inline-size; display: flex; flex-direction: column; min-width: 0; border-radius: calc(var(--radius) * 1.2); overflow: hidden; background: var(--surface); }
+.watch-frame { position: relative; aspect-ratio: 16 / 9; max-height: 62vh; background: #000; }
+.watch-frame:fullscreen { max-height: none; aspect-ratio: auto; }
+.watch-video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; object-fit: contain; background: #000; }
+/* Only the party drives YouTube's player; a click on it would pause just this copy. */
+iframe.watch-video { pointer-events: none; }
+.watch-overlay {
+  position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 10px; padding: 16px;
+  border: 0; background: rgba(0, 0, 0, 0.6); color: #fff; text-align: center; font-size: 15px;
+}
+button.watch-overlay { cursor: pointer; }
+.watch-overlay-play { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; background: var(--accent); color: var(--on-accent); }
+
+.watch-bar { display: grid; gap: 8px; padding: 10px 12px 12px; }
+.watch-title { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.watch-title strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-strong); }
+.watch-title .muted { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.watch-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; min-width: 0; }
+.watch-controls .spacer { flex: 1; }
+.watch-controls .icon-button.on { color: var(--accent); }
+.watch-time { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--text-2); white-space: nowrap; }
+.watch-seek { order: -1; flex: 1 0 100%; margin: 0; }
+.watch-volume { width: 80px; flex: none; }
+.watch-rate { width: auto; flex: none; padding: 4px 6px; font-size: 13px; }
+.watch-host { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.watch-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); cursor: pointer; white-space: nowrap; }
+.watch-toggle input { width: auto; flex: none; margin: 0; padding: 0; accent-color: var(--accent); }
+
+.watch-chat {
+  display: flex; flex-direction: column; min-height: 0; max-height: calc(62vh + 110px);
+  border-radius: calc(var(--radius) * 1.2); background: var(--surface); overflow: hidden;
+}
+.watch-chat header {
+  padding: 10px 12px; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+.watch-chat ol { list-style: none; margin: 0; padding: 8px 10px; flex: 1; min-height: 120px; overflow-y: auto; display: grid; align-content: start; gap: 8px; }
+.watch-chat li { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; overflow-wrap: anywhere; }
+.watch-chat li strong { color: var(--text-strong); margin-right: 2px; }
+.watch-chat-empty { font-size: 13px; }
+.watch-chat form { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--border); }
+.watch-chat input { flex: 1; min-width: 0; }
+
+.watch-upload { display: flex; justify-content: center; cursor: pointer; margin-bottom: 8px; }
+.watch-upload.disabled { opacity: 0.5; pointer-events: none; }
+.small-print { font-size: 12px; margin: 0; }
+
+/* A narrow player keeps its controls on one row: the volume slider goes (the mute button stays). */
+@container (max-width: 480px) {
+  .watch-volume { display: none; }
+}
+
+@media (max-width: 1100px) {
+  .watch-party { grid-template-columns: minmax(0, 1fr); }
+  .watch-chat { max-height: 40vh; }
+}
+
+@media (max-width: 760px) {
+  .watch-frame { max-height: 40vh; }
+  .watch-bar { padding: 8px; }
+  .watch-title { flex-direction: column; gap: 0; }
+  .watch-chat { max-height: 34vh; }
+}

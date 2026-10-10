@@ -45,6 +45,7 @@ public sealed class Router
         PresenceFeature.Register(this);
         ModerationFeature.Register(this);
         OrganizeFeature.Register(this);
+        WatchFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

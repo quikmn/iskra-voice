@@ -92,6 +92,7 @@ public sealed class StageRegistry
     {
         var channel = world.Store.GetChannel(channelId);
         if (IsStage(channel)) hub.BroadcastToReaders(channel!, Frames.Event("stage.state", PublicState(channelId)));
+        voice.Watch.Sync(channelId); // a host who stopped speaking hands the watch party on
     }
 
     private Stage Get(long channelId) => _stages.TryGetValue(channelId, out var stage) ? stage : _stages[channelId] = new Stage();

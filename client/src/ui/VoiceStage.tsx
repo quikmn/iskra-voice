@@ -12,6 +12,8 @@ import type { Panel } from './Shell'
 import { SoundboardButton } from './expressions/Soundboard'
 import { useVolumeMenu } from './useVolumeMenu'
 import './audio.css'
+import { partyFor, useWatch } from '../state/watch'
+import { WatchButton, WatchPartyPanel } from './watch/WatchParty'
 
 /** The call screen: video tiles (screen shares first) and everyone's avatar, with call controls. */
 export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle: (panel: Panel) => void }) {
@@ -24,7 +26,9 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
   const participants = server.voice[session.channelId] ?? []
   const withVideo = new Set(tiles.map((t) => t.accountKey))
   const audioOnly = participants.filter((p) => !withVideo.has(p.accountKey))
-  const focused = tiles.find((t) => t.id === focusId) ?? tiles.find((t) => t.source === 'screen') ?? null
+  const party = useWatch(partyFor(server.key, session.channelId))
+  // A watch party takes the big spot; screen shares then sit with the other tiles.
+  const focused = party ? null : (tiles.find((t) => t.id === focusId) ?? tiles.find((t) => t.source === 'screen') ?? null)
   const others = tiles.filter((t) => t !== focused)
 
   return (
@@ -43,7 +47,8 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
         </button>
       </header>
 
-      <div className={`stage-body ${focused ? 'has-focus' : ''}`}>
+      <div className={`stage-body ${focused || party ? 'has-focus' : ''}`}>
+        {channel && <WatchPartyPanel server={server} channel={channel} />}
         {focused && <VideoTile tile={focused} name={nameIn(server, focused.accountKey)} big speaking={!!speaking[focused.accountKey]} />}
         <div className="stage-grid">
           {others.map((tile) => (
@@ -75,7 +80,7 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
       </div>
 
       {volumeMenu}
-      <CallControls />
+      <CallControls extra={channel && <WatchButton server={server} channel={channel} />} />
     </div>
   )
 }
