@@ -778,7 +778,7 @@ Everyone in a voice channel (or stage) watches the same video in step. The serve
 
 `source` is one of:
 - `{ kind: "url", url }`: `https://` only, absolute, a host, no credentials, no whitespace, ≤ 2048 chars.
-- `{ kind: "file", fileId }`: a file uploaded to this server whose sniffed type is video or audio. The party's `source.url` is its `/files/…` path.
+- `{ kind: "file", fileId }`: a file uploaded to this server whose sniffed type is video or audio. The party's `source.url` is its `/files/…` path. The unused-upload sweep keeps it while a party plays it.
 - `{ kind: "youtube", videoId }`: 11 characters of `A–Z a–z 0–9 _ -`.
 
 Moderators here are admins in voice channels and stage moderators on stages. A `partyId` that isn't the current party's is `not_found`, so a late control can't change a new party.
@@ -795,7 +795,7 @@ WatchParty { "id": "<b64u 12>", "channelId": 3,
 - **Where playback is now**: `position + (serverNow − updatedAt) / 1000 × rate` while playing, else `position`. Clients estimate the server clock with `watch.clock` (several round trips; the shortest one's midpoint wins) and correct drift: under 0.15 s is left alone, up to 1 s they play 5 % faster or slower, beyond that they jump (YouTube only jumps, from 1.5 s). A late joiner gets the party in `welcome` and starts at the right spot.
 - A party starts paused at 0. When its host leaves the room (or may no longer host), it passes to whoever has been in the room longest and may host; when the room empties, or nobody there may host, it ends.
 - In-memory only, like voice state.
-- The web app's Content-Security-Policy allows exactly one third-party script origin for this, `https://www.youtube.com` (the IFrame API loader and the widget code it loads), and frames from `https://www.youtube-nocookie.com`. The embed iframe sends `strict-origin-when-cross-origin` referrers (YouTube requires one) although the app otherwise sends none.
+- The web app's Content-Security-Policy allows exactly one third-party script origin for this, `https://www.youtube.com` (the IFrame API loader and the widget code it loads), and frames from `https://www.youtube-nocookie.com`. The embed iframe sends `strict-origin-when-cross-origin` referrers (YouTube requires one) although the app otherwise sends none. The desktop app's `app://` origin isn't a referrer YouTube accepts ("Error 153"), so its main process sets `Referer: https://app.iskra.foo/` on requests to `https://www.youtube-nocookie.com` made from the app's own window, and on nothing else.
 
 | event | body | sent to |
 |---|---|---|

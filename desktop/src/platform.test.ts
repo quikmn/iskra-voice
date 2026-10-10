@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { compareVersions, defaultHostRoot, exeName, isAppPage, isWayland, newerRelease, serverRid, skipScreenPicker, updateMode } from './platform'
+import { compareVersions, defaultHostRoot, exeName, isAppPage, isWayland, newerRelease, serverRid, skipScreenPicker, updateMode, youTubeReferrer, YOUTUBE_REFERRER } from './platform'
 
 test('server binaries and runtime ids per platform', () => {
   assert.equal(exeName('iskra-server', 'win32'), 'iskra-server.exe')
@@ -71,4 +71,13 @@ test('only the app itself counts as the app page', () => {
   assert.equal(isAppPage('http://localhost:51730/', 'app://iskra', 'http://localhost:5173'), false)
   assert.equal(isAppPage('http://localhost:5173.evil.com/', 'app://iskra', 'http://localhost:5173'), false)
   assert.equal(isAppPage('http://localhost:5173/', 'app://iskra'), false)
+})
+
+test('YouTube embeds get the web app as referrer, only from the app and only for youtube-nocookie.com', () => {
+  assert.equal(youTubeReferrer('https://www.youtube-nocookie.com/embed/aqz-KE-bpKQ?enablejsapi=1', true), YOUTUBE_REFERRER)
+  assert.equal(youTubeReferrer('https://www.youtube-nocookie.com/embed/aqz-KE-bpKQ', false), null)
+  assert.equal(youTubeReferrer('https://www.youtube.com/embed/aqz-KE-bpKQ', true), null)
+  assert.equal(youTubeReferrer('https://www.youtube-nocookie.com.evil.example/', true), null)
+  assert.equal(youTubeReferrer('http://www.youtube-nocookie.com/embed/x', true), null)
+  assert.equal(youTubeReferrer('not a url', true), null)
 })

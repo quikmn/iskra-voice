@@ -46,6 +46,12 @@ public sealed class WatchRegistry
         lock (_gate) return _parties.GetValueOrDefault(channelId);
     }
 
+    /// <summary>Uploaded files that running parties play (kept by the upload sweep).</summary>
+    public List<string> FileIds()
+    {
+        lock (_gate) return _parties.Values.Select(p => p.Source.FileId).OfType<string>().ToList();
+    }
+
     public bool InRoom(long channelId, string accountKey) => voice.Participants(channelId).Any(p => p.AccountKey == accountKey);
 
     /// <summary>Who may start or host a party: in a voice channel its writers; on a stage its speakers and moderators.</summary>
