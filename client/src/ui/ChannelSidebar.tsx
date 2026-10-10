@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { roleRank } from '../core/protocol'
 import { activeChannelId, selectChannel, useApp, type ServerState } from '../state/store'
 import { joinVoice, setStageOpen, useVoice } from '../state/voice'
+import { threadMentions, useThreads } from '../state/threads'
 import { Avatar } from './bits'
 import { VoiceBar } from './VoiceBar'
 import { CreateChannelDialog } from './dialogs/CreateChannelDialog'
@@ -18,6 +19,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
   const voiceChannels = server.channels.filter((c) => c.kind === 'voice')
   const voiceSession = useVoice((s) => s.session)
   const speaking = useVoice((s) => s.speaking)
+  useThreads((s) => s.threads[server.key]) // thread mentions count on their channel
 
   return (
     <div className="channel-sidebar">
@@ -42,7 +44,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
         </div>
         {textChannels.map((channel) => {
           const unread = server.unread[channel.id] ?? 0
-          const pings = server.mentions[channel.id] ?? 0
+          const pings = (server.mentions[channel.id] ?? 0) + threadMentions(server, channel.id)
           return (
             <button
               key={channel.id}

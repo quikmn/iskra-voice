@@ -123,7 +123,7 @@ export interface Requests {
   'link.preview': [{ url: string }, { preview: LinkPreview | null }]
   'chat.edit': [{ id: number; text: string }, { message: Message }]
   'chat.delete': [{ id: number }, Record<string, never>]
-  'chat.history': [{ channelId: number; before?: number; after?: number; limit?: number }, { messages: Message[]; hasMore: boolean }]
+  'chat.history': [{ channelId: number; before?: number; after?: number; around?: number; limit?: number }, { messages: Message[]; hasMore: boolean; hasNewer?: boolean }]
   'chat.typing': [{ channelId: number }, Record<string, never>]
   'channel.create': [{ name: string; kind?: 'text' | 'voice'; readRole?: Role; writeRole?: Role }, { channel: Channel }]
   'channel.update': [{ id: number; name?: string; readRole?: Role; writeRole?: Role }, { channel: Channel }]
@@ -161,3 +161,62 @@ export const CloseCodes = {
   Forbidden: 4403,
   TooLarge: 4413,
 } as const
+
+// ── pins, search and threads ──
+
+export interface Thread {
+  id: number
+  /** The parent channel. */
+  channelId: number
+  rootId: number
+  name: string
+  createdBy: string
+  createdAt: number
+  messageCount: number
+  lastMessageAt: number | null
+}
+
+export interface Pin {
+  message: Message
+  pinnedBy: string
+  pinnedAt: number
+}
+
+export interface SearchRequest {
+  query?: string
+  channelId?: number
+  author?: string
+  has?: ('file' | 'link')[]
+  before?: number
+  after?: number
+  cursor?: number
+  limit?: number
+}
+
+export interface SearchResult {
+  message: Message
+  /** [start, length] in UTF-16 units of message.text. */
+  matches: [number, number][]
+}
+
+export interface Message {
+  pinned?: boolean
+  thread?: Thread | null
+}
+
+export interface Events {
+  'chat.pinned': { id: number; channelId: number; on: boolean; by: string; at: number }
+  'thread.updated': { thread: Thread }
+  'thread.deleted': { id: number; channelId: number; rootId: number }
+}
+
+export interface Requests {
+  'chat.pin': [{ id: number; on: boolean }, Record<string, never>]
+  'pin.list': [{ channelId: number }, { pins: Pin[] }]
+  search: [SearchRequest, { results: SearchResult[]; total: number; hasMore: boolean; threads: Thread[] }]
+  'thread.create': [{ messageId: number; name: string }, { thread: Thread }]
+  'thread.get': [{ id: number }, { thread: Thread; root: Message | null }]
+  'thread.list': [{ channelId: number; limit?: number }, { threads: Thread[] }]
+  'thread.update': [{ id: number; name: string }, { thread: Thread }]
+  'thread.delete': [{ id: number }, Record<string, never>]
+}

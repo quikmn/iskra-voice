@@ -3,6 +3,8 @@
 import { create } from 'zustand'
 import { mentions, plainText } from '../ui/markdown'
 import { activeChannelId, onServerEvent, useApp } from './store'
+import { conversationLabel, isViewingThread } from './threads'
+import { jumpToMessage } from './jump'
 import { b64u } from '../core/crypto'
 import type { Events, WireDm } from '../core/protocol'
 
@@ -96,14 +98,10 @@ onServerEvent((serverKey, type, body) => {
     const myKey = me()
     if (message.author === myKey || !mentions(message.text, myKey)) return
     const viewing = document.hasFocus() && state.activeServer === serverKey && activeChannelId(state) === message.channelId
-    if (viewing) return
-    const channel = server.channels.find((c) => c.id === message.channelId)
+    if (viewing || isViewingThread(serverKey, message.channelId)) return
     const author = server.members[message.author]?.name ?? 'Someone'
-    show(`${author} in #${channel?.name ?? 'chat'}`, plainText(message.text, { nameOf: (k) => server.members[k]?.name ?? null }), () => {
-      void import('./store').then(({ selectServer, selectChannel }) => {
-        selectServer(serverKey)
-        selectChannel(serverKey, message.channelId)
-      })
+    show(`${author} in ${conversationLabel(server, message.channelId)}`, plainText(message.text, { nameOf: (k) => server.members[k]?.name ?? null }), () => {
+      void jumpToMessage(serverKey, message.channelId, message.id)
     })
   }
 

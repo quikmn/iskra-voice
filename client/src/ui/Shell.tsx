@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { activeServerState, useApp } from '../state/store'
 import { ChannelSidebar } from './ChannelSidebar'
-import { ChatView } from './ChatView'
+import { ChatArea } from './chat/ChatArea'
 import { JoinDialog } from './dialogs/JoinDialog'
 import { CreateServerDialog } from './dialogs/CreateServerDialog'
 import { StartServerDialog } from './dialogs/StartServerDialog'
@@ -37,7 +37,7 @@ export function Shell() {
         {server && stage ? (
           <VoiceStage server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
         ) : server ? (
-          <ChatView server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
+          <ChatArea server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
         ) : hasServers ? (
           <HomeMain onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
         ) : (

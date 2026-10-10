@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { roleRank, type FileInfo, type Member } from '../core/protocol'
 import {
   activeChannelId, connectionFor, discardFailed, loadHistory, notifyTyping, retryFailed, sendMessage, uploadFile, useApp,
@@ -11,6 +11,11 @@ import { decodeMentions, encodeMentions, renderMarkdown } from './markdown'
 import { fullTime, hueFor, messageTime } from './format'
 import type { Panel } from './Shell'
 import { Close, Hash, Menu, Paperclip, Pencil, Reply, Send, Smile, Trash, Users } from './icons'
+import { HeaderTools } from './chat/HeaderTools'
+import { JumpToPresent, MessageMenuExtras, PinnedMark, PinNoteRow, ThreadSummary } from './chat/PinThreadBits'
+import { withPinNotes } from './chat/pinThreadHelpers'
+import { jumpToMessage, jumpToPresent, loadNewer, useJumpTarget } from '../state/jump'
+import { pinNotesFor, usePinNotes } from '../state/pins'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -54,6 +59,7 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
           <h1>{server.name}</h1>
         )}
         <span className="spacer" />
+        <HeaderTools key={channel?.id} server={server} channel={channel} />
         <button className="icon-button members-toggle" onClick={() => onToggle('members')} aria-label="Members" title="Members">
           <Users />
         </button>
@@ -82,9 +88,11 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
   )
 }
 
-function MessageList({ server, channelId }: { server: ServerState; channelId: number }) {
+export function MessageList({ server, channelId, header, thread }: { server: ServerState; channelId: number; header?: ReactNode; thread?: boolean }) {
   const messages = server.messages[channelId]
   const hasMore = server.hasMore[channelId]
+  const detached = !!server.detached?.[channelId]
+  const notes = usePinNotes(pinNotesFor(server.key, channelId))
   const scroller = useRef<HTMLDivElement>(null)
   const stickToBottom = useRef(true)
   const restore = useRef<{ height: number; top: number } | null>(null)
@@ -96,9 +104,10 @@ function MessageList({ server, channelId }: { server: ServerState; channelId: nu
       const mine = messages?.filter((m) => !m.tempId && m.author === server.me?.accountKey).at(-1)
       if (mine) setEditing(mine.id)
     }
-    window.addEventListener('iskra:edit-last', onEditLast)
-    return () => window.removeEventListener('iskra:edit-last', onEditLast)
-  }, [messages, server.me])
+    const event = thread ? 'iskra:edit-last-thread' : 'iskra:edit-last'
+    window.addEventListener(event, onEditLast)
+    return () => window.removeEventListener(event, onEditLast)
+  }, [messages, server.me, thread])
 
   useLayoutEffect(() => {
     const el = scroller.current
@@ -107,10 +116,11 @@ function MessageList({ server, channelId }: { server: ServerState; channelId: nu
       // Loaded older messages: keep what the user was looking at in place.
       el.scrollTop = el.scrollHeight - restore.current.height + restore.current.top
       restore.current = null
-    } else if (stickToBottom.current) {
+    } else if (stickToBottom.current && !detached) {
       el.scrollTop = el.scrollHeight
     }
-  }, [messages])
+  }, [messages, detached])
+  useJumpTarget(server.key, channelId, scroller, () => (stickToBottom.current = false), messages)
 
   function onScroll() {
     const el = scroller.current
@@ -120,6 +130,7 @@ function MessageList({ server, channelId }: { server: ServerState; channelId: nu
       restore.current = { height: el.scrollHeight, top: el.scrollTop }
       void loadHistory(server.key, channelId, true)
     }
+    if (detached && el.scrollHeight - el.scrollTop - el.clientHeight < 200) void loadNewer(server.key, channelId)
   }
 
   const rendered = useMemo(() => {
@@ -140,14 +151,17 @@ function MessageList({ server, channelId }: { server: ServerState; channelId: nu
   }
 
   return (
+    <>
     <div className="messages" ref={scroller} onScroll={onScroll}>
-      {!hasMore && (
+      {!hasMore && (header ?? (
         <div className="channel-start">
           <h2>Welcome to the start of the channel.</h2>
           <p>This is where it all begins. Say hi! 👋</p>
         </div>
-      )}
-      {rendered.map(({ message, grouped }) => (
+      ))}
+      {withPinNotes(rendered, notes).map(({ message, grouped, note }) => note ? (
+        <PinNoteRow key={`pin-${note.messageId}-${note.at}`} server={server} channelId={channelId} note={note} />
+      ) : (
         <MessageRow
           key={message.tempId ?? message.id}
           server={server}
@@ -158,6 +172,13 @@ function MessageList({ server, channelId }: { server: ServerState; channelId: nu
         />
       ))}
     </div>
+    {detached && (
+      <JumpToPresent onClick={() => {
+        stickToBottom.current = true
+        void jumpToPresent(server.key, channelId)
+      }} />
+    )}
+    </>
   )
 }
 
@@ -181,11 +202,7 @@ function MessageRow({
   const [error, setError] = useState<string | null>(null)
 
   function jumpTo(id: number) {
-    const target = document.getElementById(`msg-${id}`)
-    if (!target) return
-    target.scrollIntoView({ block: 'center', behavior: 'smooth' })
-    target.classList.add('flash')
-    setTimeout(() => target.classList.remove('flash'), 1500)
+    void jumpToMessage(server.key, message.channelId, id)
   }
 
   async function remove() {
@@ -212,6 +229,7 @@ function MessageRow({
           <div className="message-meta">
             <span className="author" style={{ color: `hsl(${hueFor(message.author)} 70% 72%)` }}>{name}</span>
             <time title={fullTime(message.createdAt)}>{messageTime(message.createdAt)}</time>
+            {message.pinned && <PinnedMark />}
           </div>
         )}
         {editing ? (
@@ -227,6 +245,7 @@ function MessageRow({
         <Attachments server={server} files={message.attachments} />
         {!message.tempId && firstLink(message.text) && <LinkPreviewCard server={server} url={firstLink(message.text)!} />}
         <Reactions server={server} message={message} />
+        <ThreadSummary server={server} message={message} />
         {message.pending === 'failed' && (
           <div className="message-failed">
             Couldn't send.{' '}
@@ -249,6 +268,7 @@ function MessageRow({
             <>
               <button onClick={() => setPicking((p) => !p)} title="Add reaction" aria-label="Add reaction"><Smile size={15} /></button>
               <button onClick={() => setReply(server.key, message.channelId, message)} title="Reply" aria-label="Reply"><Reply size={15} /></button>
+              <MessageMenuExtras server={server} message={message} />
               {mine && message.text && <button onClick={() => onEdit(true)} title="Edit" aria-label="Edit"><Pencil size={15} /></button>}
               {canDelete && <button onClick={() => setConfirmDelete(true)} title="Delete" aria-label="Delete"><Trash size={15} /></button>}
             </>
@@ -306,7 +326,13 @@ interface PendingUpload {
   abort: AbortController
 }
 
-function Composer({ server, channelId, channelName }: { server: ServerState; channelId: number; channelName: string }) {
+export function Composer({ server, channelId, channelName, thread, placeholder }: {
+  server: ServerState
+  channelId: number
+  channelName: string
+  thread?: boolean
+  placeholder?: string
+}) {
   const [drafts, setDrafts] = useState<Record<number, string>>({})
   const [uploads, setUploads] = useState<PendingUpload[]>([])
   const fileInput = useRef<HTMLInputElement>(null)
@@ -341,8 +367,9 @@ function Composer({ server, channelId, channelName }: { server: ServerState; cha
 
   useEffect(() => {
     const onAttach = (e: Event) => addFiles((e as CustomEvent<File[]>).detail)
-    window.addEventListener('iskra:attach', onAttach)
-    return () => window.removeEventListener('iskra:attach', onAttach)
+    const event = thread ? 'iskra:attach-thread' : 'iskra:attach'
+    window.addEventListener(event, onAttach)
+    return () => window.removeEventListener(event, onAttach)
   })
 
   // @mention autocomplete: the word being typed after "@".
@@ -368,7 +395,10 @@ function Composer({ server, channelId, channelName }: { server: ServerState; cha
     for (const u of uploads) if (u.preview) URL.revokeObjectURL(u.preview)
     setUploads([])
     setReply(server.key, channelId, null)
-    void sendMessage(server.key, channelId, trimmed, { attachments: ready, replyTo })
+    const send = () => void sendMessage(server.key, channelId, trimmed, { attachments: ready, replyTo })
+    // Looking at older messages after a jump: go back to the present first.
+    if (server.detached?.[channelId]) void jumpToPresent(server.key, channelId).then(send)
+    else send()
   }
 
   return (
@@ -430,7 +460,7 @@ function Composer({ server, channelId, channelName }: { server: ServerState; cha
         value={text}
         onCaret={setCaret}
         autoFocus
-        placeholder={online ? `Message #${channelName}` : 'Reconnecting…'}
+        placeholder={online ? (placeholder ?? `Message #${channelName}`) : 'Reconnecting…'}
         maxLength={4000}
         onChange={(value) => {
           setText(value)
@@ -455,7 +485,7 @@ function Composer({ server, channelId, channelName }: { server: ServerState; cha
             submit()
           } else if (e.key === 'ArrowUp' && !text) {
             e.preventDefault()
-            window.dispatchEvent(new Event('iskra:edit-last'))
+            window.dispatchEvent(new Event(thread ? 'iskra:edit-last-thread' : 'iskra:edit-last'))
           } else if (e.key === 'Escape' && replyTo) {
             setReply(server.key, channelId, null)
           }
@@ -507,7 +537,7 @@ function AutoTextarea({
   )
 }
 
-function TypingLine({ server, channelId }: { server: ServerState; channelId: number }) {
+export function TypingLine({ server, channelId }: { server: ServerState; channelId: number }) {
   const [now, setNow] = useState(() => Date.now())
   const entries = server.typing[channelId] ?? {}
   const active = Object.entries(entries).filter(([key, until]) => until > now && key !== server.me?.accountKey)
