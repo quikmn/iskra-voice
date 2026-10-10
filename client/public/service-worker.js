@@ -1,5 +1,5 @@
-// The old Iskra web client installed a service worker that cached the app.
-// This replacement clears those caches, removes itself and reloads open tabs, so everyone gets Iskra 2.
+// An earlier web client installed a service worker that cached the app.
+// This replacement clears those caches, removes itself and reloads open tabs, so everyone gets the current app.
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', (event) => {
   event.waitUntil(

@@ -19,7 +19,7 @@ public static class Roles
 
 /// <summary>
 /// Every permission decision lives here, and callers pass the member's role as it is *now*
-/// (never a copy cached at login — a v1 bug).
+/// (never a copy cached at login).
 /// </summary>
 public static class Permissions
 {

@@ -5,7 +5,7 @@ using Iskra.Server.Tests.Support;
 namespace Iskra.Server.Tests;
 
 /// <summary>
-/// The auth handshake, driven over a real WebSocket. Several of these are v1 audit findings
+/// The auth handshake, driven over a real WebSocket. Several of these are classic chat-server attacks
 /// (impersonation, oversized frames, crashing on bad input) written as tests that must stay fixed.
 /// </summary>
 public class HandshakeTests
@@ -57,7 +57,7 @@ public class HandshakeTests
     [Fact]
     public async Task Claiming_someone_elses_account_fails()
     {
-        // v1: anyone could connect as any alias, including an admin. Here the account key must sign the device cert.
+        // Claiming someone's account (even an admin's) needs their account key to sign the device cert.
         using var server = new IskraServer();
         using var victim = new TestIdentity();
         using var attacker = new TestIdentity();
@@ -145,7 +145,7 @@ public class HandshakeTests
     [Fact]
     public async Task Oversized_frame_before_auth_is_closed()
     {
-        // v1: unbounded frames before auth let anyone exhaust server memory.
+        // Unbounded frames before auth would let anyone exhaust server memory.
         using var server = new IskraServer();
         using var client = await server.ConnectAsync();
         await client.ReceiveAsync();
@@ -179,7 +179,7 @@ public class SessionTests
     [Fact]
     public async Task Unknown_types_get_an_error_and_the_session_survives()
     {
-        // v1: a malformed or unexpected message ended the whole session.
+        // A malformed or unexpected message must not end the whole session.
         using var server = new IskraServer();
         using var alice = new TestIdentity();
         using var client = await server.ConnectAsync();

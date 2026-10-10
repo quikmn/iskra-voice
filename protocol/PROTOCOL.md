@@ -1,4 +1,4 @@
-# Iskra 2 wire protocol
+# Iskra wire protocol
 
 Version 1. This is the reference that the server (`server/`) and the client (`client/`) both implement.
 `vectors.json` holds fixed test vectors that both test suites check, so the two sides can't drift apart.

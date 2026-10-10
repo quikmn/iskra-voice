@@ -6,11 +6,11 @@ A self-hosted voice and text app for friend groups: like Discord, but free, easy
 
 | Path | What it is |
 |---|---|
-| `protocol/`, `server/`, `client/`, `desktop/`, `scripts/` | Iskra 2 (see below) |
+| `protocol/`, `server/`, `client/`, `desktop/`, `scripts/` | The app (see below) |
 | `docs/` | Public docs: `hosting.md` (the app links to it), `security.md`, `development.md` |
 | `site/` | The iskra.foo website (Cloudflare Pages project `iskra-hero-page`). Keep it in sync with what the app actually does. |
 
-Iskra 1 lives on the `v1` branch (tag `v1-final`); don't add features to it. Public copy (site, README, release notes) stays positive and never dwells on v1's problems.
+An older, retired codebase lives on the `v1` branch (tag `v1-final`); don't add features to it. **In anything public the product is just "Iskra"**: never "Iskra 2", no "rebuilt", no mention of v1.
 
 Private design notes live in `design/` (local only, ignored). If it exists, read `design/ISKRA_2_DESIGN.md` before making architectural changes; `protocol/PROTOCOL.md` is the public reference.
 

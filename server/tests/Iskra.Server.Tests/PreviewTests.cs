@@ -34,11 +34,11 @@ public class PreviewTests
             <html><head><title>Fallback</title>
             <meta property="og:site_name" content="Iskra">
             <meta content="Voice &amp; text, yours" property="og:description">
-            <meta property="og:title" content="Iskra 2">
+            <meta property="og:title" content="Iskra">
             </head></html>
             """;
         var preview = LinkPreviews.Parse("https://iskra.foo", html)!;
-        Assert.Equal("Iskra 2", preview.Title);
+        Assert.Equal("Iskra", preview.Title);
         Assert.Equal("Voice & text, yours", preview.Description);
         Assert.Equal("Iskra", preview.SiteName);
 

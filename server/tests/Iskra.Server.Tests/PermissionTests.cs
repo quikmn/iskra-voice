@@ -4,7 +4,7 @@ using Iskra.Server.Tests.Support;
 
 namespace Iskra.Server.Tests;
 
-/// <summary>Private channels must not leak (a v1 bug), and role changes must apply immediately.</summary>
+/// <summary>Private channels must not leak, and role changes must apply immediately.</summary>
 public class PermissionTests
 {
     private static long CreateChannel(IskraServer server, string name, string readRole, string writeRole) =>

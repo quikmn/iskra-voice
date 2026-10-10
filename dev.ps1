@@ -1,4 +1,4 @@
-# Starts the Iskra 2 dev stack: server (on a local test world) + web client with hot reload.
+# Starts the Iskra dev stack: server (on a local test world) + web client with hot reload.
 # Usage: .\dev.ps1            -> world in v2\.dev\world
 #        .\dev.ps1 -World gaming
 param([string]$World = 'world')

@@ -13,7 +13,7 @@ Free, no ads, no tracking, no paywalls. Your server is a folder you can copy.</p
 
 ---
 
-> **Iskra 2 is in alpha.** It's the whole app rebuilt from the ground up: more secure, faster and easier. Expect rough edges, and tell us what you find.
+> **Iskra is in alpha.** Expect rough edges, and tell us what you find.
 
 ## Get started
 
@@ -37,7 +37,7 @@ How privacy works, and what a server can and can't see: [docs/security.md](docs/
 
 ## Coming next
 
-One-click internet hosting from the app, Mac and Linux apps, voice calls in DMs, custom profile pages and themes, then favourites from Iskra 1: threads, pins, search, polls, custom emoji, soundboard, bots and webhooks.
+One-click internet hosting from the app, Mac and Linux apps, voice calls in DMs, custom profile pages and themes, threads, pins, search, polls, custom emoji, soundboard, bots and webhooks.
 
 ## For developers
 
@@ -45,7 +45,6 @@ One-click internet hosting from the app, Mac and Linux apps, voice calls in DMs,
 - [Protocol](protocol/PROTOCOL.md): everything the server and clients say to each other.
 - Built with C# / .NET 10, TypeScript / React, Electron, LiveKit and libsodium.
 
-Looking for Iskra 1? It lives on the [`v1` branch](https://github.com/quikmn/iskra-voice/tree/v1).
 
 ## License
 
