@@ -14,7 +14,7 @@ export interface Member extends PublicProfile {
 export interface Channel {
   id: number
   name: string
-  kind: 'text' | 'voice'
+  kind: 'text' | 'voice' | 'forum'
   position: number
   readRole: Role
   writeRole: Role
@@ -132,7 +132,7 @@ export interface Requests {
   'chat.delete': [{ id: number }, Record<string, never>]
   'chat.history': [{ channelId: number; before?: number; after?: number; around?: number; limit?: number }, { messages: Message[]; hasMore: boolean; hasNewer?: boolean }]
   'chat.typing': [{ channelId: number }, Record<string, never>]
-  'channel.create': [{ name: string; kind?: 'text' | 'voice'; readRole?: Role; writeRole?: Role }, { channel: Channel }]
+  'channel.create': [{ name: string; kind?: 'text' | 'voice' | 'forum'; readRole?: Role; writeRole?: Role }, { channel: Channel }]
   'channel.update': [{ id: number; name?: string; readRole?: Role; writeRole?: Role }, { channel: Channel }]
   'channel.delete': [{ id: number }, Record<string, never>]
   'profile.update': [ProfileUpdate, { member: Member }]
@@ -483,4 +483,94 @@ export interface Events {
 export interface Requests {
   'host.status': [Record<string, never>, { status: HostStatus }]
   'host.internet.set': [{ enabled: boolean }, { status: HostStatus }]
+}
+
+// ── forums and events ──
+// See "Forum channels" and "Scheduled events" in PROTOCOL.md.
+
+export interface ForumTag {
+  id: number
+  name: string
+  emoji: string | null
+}
+
+export interface ForumPost {
+  /** The post's thread id (use it as a channelId for replies). */
+  id: number
+  /** The forum channel. */
+  channelId: number
+  rootId: number
+  title: string
+  author: string
+  createdAt: number
+  replyCount: number
+  lastMessageAt: number | null
+  lastActivity: number
+  lastAuthor: string | null
+  tags: number[]
+  pinned: boolean
+  closed: boolean
+  locked: boolean
+  excerpt: string | null
+  image: FileInfo | null
+  attachmentCount: number
+}
+
+export type ForumSort = 'activity' | 'newest'
+
+export type EventLocation = { kind: 'voice'; channelId: number | null } | { kind: 'place'; text: string }
+
+export interface ServerEvent {
+  id: number
+  title: string
+  description: string | null
+  startAt: number
+  endAt: number
+  /** The creator's IANA time zone. */
+  timeZone: string
+  location: EventLocation
+  image: FileInfo | null
+  createdBy: string
+  createdAt: number
+  status: 'scheduled' | 'live' | 'ended' | 'cancelled'
+  interested: string[]
+}
+
+export interface EventFields {
+  title?: string
+  description?: string
+  startAt?: number
+  endAt?: number
+  timeZone?: string
+  location?: { channelId: number } | { text: string }
+  /** A file id; "" removes the cover. */
+  image?: string
+}
+
+export interface Events {
+  'forum.post.updated': { post: ForumPost }
+  'forum.tags': { channelId: number; tags: ForumTag[] }
+  'event.updated': { event: ServerEvent }
+  'event.removed': { id: number }
+  'event.reminder': { event: ServerEvent; kind: 'soon' | 'live' }
+}
+
+export interface Requests {
+  'forum.posts': [
+    { channelId: number; sort?: ForumSort; tag?: number; query?: string; cursor?: string; limit?: number },
+    { posts: ForumPost[]; tags: ForumTag[]; hasMore: boolean; cursor: string | null },
+  ]
+  'forum.post.create': [
+    { channelId: number; title: string; text: string; attachments?: string[]; tags?: number[] },
+    { post: ForumPost; message: Message },
+  ]
+  'forum.post.get': [{ id: number }, { post: ForumPost; root: Message | null }]
+  'forum.post.update': [{ id: number; title?: string; tags?: number[] }, { post: ForumPost }]
+  'forum.post.set': [{ id: number; pinned?: boolean; closed?: boolean; locked?: boolean }, { post: ForumPost }]
+  'forum.tags.set': [{ channelId: number; tags: { id?: number; name: string; emoji?: string | null }[] }, { tags: ForumTag[] }]
+  'event.list': [Record<string, never>, { events: ServerEvent[] }]
+  'event.create': [EventFields & Required<Pick<EventFields, 'title' | 'startAt' | 'endAt' | 'timeZone' | 'location'>>, { event: ServerEvent }]
+  'event.update': [EventFields & { id: number }, { event: ServerEvent }]
+  'event.cancel': [{ id: number }, Record<string, never>]
+  'event.interest': [{ id: number; on: boolean }, { event: ServerEvent }]
 }

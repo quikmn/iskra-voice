@@ -13,6 +13,8 @@ import { PinList, Popover } from './HeaderTools'
 import { ArrowLeft, PinIcon, ThreadIcon } from './extraIcons'
 import { openProfileCard } from '../../state/profile'
 import { useEscapeLayer } from '../layers'
+import { replyBlock } from '../../state/forums'
+import { PostBar, useForumPost } from '../forums/PostBar'
 
 export function ThreadPanel({ server, threadId }: { server: ServerState; threadId: number }) {
   const thread = useThreads((s) => s.threads[server.key]?.[threadId])
@@ -57,6 +59,9 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
   const parent = thread ? server.channels.find((c) => c.id === thread.channelId) : undefined
   const me = server.me
   const canWrite = !!me && !!parent && roleRank(me.role) >= roleRank(parent.writeRole)
+  const post = useForumPost(server, threadId, parent?.kind)
+  const blocked = replyBlock(server, post)
+  const noun = parent?.kind === 'forum' ? 'post' : 'thread'
   const creator = thread ? server.members[thread.createdBy] : undefined
   const canManage = !!me && !!thread && (thread.createdBy === me.accountKey ||
     (roleRank(me.role) >= roleRank('admin') && (!creator || roleRank(me.role) > roleRank(creator.role))))
@@ -132,13 +137,13 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
         )}
         {canManage && renaming === null && !confirmDelete && (
           <>
-            <button className="icon-button" onClick={() => setRenaming(thread!.name)} aria-label="Rename thread" title="Rename"><Pencil size={16} /></button>
-            <button className="icon-button" onClick={() => setConfirmDelete(true)} aria-label="Delete thread" title="Delete thread"><Trash size={16} /></button>
+            <button className="icon-button" onClick={() => setRenaming(thread!.name)} aria-label={`Rename ${noun}`} title="Rename"><Pencil size={16} /></button>
+            <button className="icon-button" onClick={() => setConfirmDelete(true)} aria-label={`Delete ${noun}`} title={`Delete ${noun}`}><Trash size={16} /></button>
           </>
         )}
         {confirmDelete && (
           <span className="confirm-inline">
-            Delete thread?
+            Delete {noun}?
             <button className="button danger small" onClick={() => void remove()}>Delete</button>
             <button className="button small" onClick={() => setConfirmDelete(false)}>Keep</button>
           </span>
@@ -151,6 +156,7 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
         )}
       </header>
       {error && <div className="banner error">{error}</div>}
+      {post && <PostBar server={server} post={post} />}
 
       {missing ? (
         <div className="empty-state"><p>This thread isn't available any more.</p></div>
@@ -161,13 +167,13 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
             server={server}
             channelId={threadId}
             thread
-            header={<ThreadStart server={server} root={shownRoot} createdBy={thread?.createdBy} />}
+            header={<ThreadStart server={server} root={shownRoot} createdBy={thread?.createdBy} post={parent?.kind === 'forum'} />}
           />
           <TypingLine server={server} channelId={threadId} />
-          {canWrite && thread ? (
+          {canWrite && thread && !blocked ? (
             <Composer server={server} channelId={threadId} channelName={thread.name} thread placeholder={`Reply in ${short(thread.name)}`} />
           ) : (
-            <div className="composer read-only">{thread ? "You can't reply in this thread." : <Spinner />}</div>
+            <div className="composer read-only">{blocked ?? (thread ? "You can't reply in this thread." : <Spinner />)}</div>
           )}
         </>
       )}
@@ -178,14 +184,14 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
 const short = (name: string) => (name.length > 28 ? `${name.slice(0, 27).trimEnd()}…` : name)
 
 /** The message the thread started from, at the top of the thread. */
-function ThreadStart({ server, root, createdBy }: { server: ServerState; root: Message | null | undefined; createdBy?: string }) {
+function ThreadStart({ server, root, createdBy, post }: { server: ServerState; root: Message | null | undefined; createdBy?: string; post?: boolean }) {
   if (root === undefined) return <div className="thread-start"><Spinner /></div>
   const starter = createdBy ? server.members[createdBy]?.name ?? 'Someone' : null
   if (root === null) {
     return (
       <div className="thread-start">
         <p className="muted">The original message was deleted.</p>
-        {starter && <p className="muted">{starter} started this thread.</p>}
+        {starter && <p className="muted">{starter} started this {post ? 'post' : 'thread'}.</p>}
       </div>
     )
   }
@@ -211,7 +217,7 @@ function ThreadStart({ server, root, createdBy }: { server: ServerState; root: M
           <Attachments server={server} files={root.attachments} />
         </div>
       </div>
-      {starter && <p className="muted thread-started-by">{starter} started this thread. Replies show up here.</p>}
+      {starter && !post && <p className="muted thread-started-by">{starter} started this thread. Replies show up here.</p>}
     </div>
   )
 }

@@ -18,6 +18,7 @@ import { SoundToasts } from './expressions/Soundboard'
 import { ProfileLayer } from './profile/ProfileLayer'
 import { QuickSwitcher } from './QuickSwitcher'
 import { useEscapeLayer } from './layers'
+import { EventsLayer } from './events/EventsLayer'
 
 export type Panel = 'none' | 'nav' | 'members'
 
@@ -63,6 +64,7 @@ export function Shell() {
       <IncomingCall />
       <ProfileLayer />
       <QuickSwitcher />
+      <EventsLayer />
       {joining && <JoinDialog onClose={() => setJoining(false)} onCreate={() => { setJoining(false); setCreating(true) }} />}
       {creating && (desktop ? <CreateServerDialog onClose={() => setCreating(false)} /> : <StartServerDialog onClose={() => setCreating(false)} />)}
     </div>

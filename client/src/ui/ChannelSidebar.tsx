@@ -11,6 +11,9 @@ import { InviteDialog } from './dialogs/InviteDialog'
 import { SettingsDialog } from './settings/SettingsDialog'
 import { ChevronDown, Hash, HeadphonesOff, Lock, MicOff, Plus, Settings, UserPlus, Volume } from './icons'
 import type { SectionId } from './settings/sections'
+import { forumReplies } from '../state/forums'
+import { ForumIcon } from './forums/icons'
+import { EventsButton } from './events/EventsLayer'
 
 export function ChannelSidebar({ server, onNavigate }: { server: ServerState; onNavigate: () => void }) {
   const activeId = useApp(activeChannelId)
@@ -22,7 +25,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
   }
   const isAdmin = server.me ? roleRank(server.me.role) >= roleRank('admin') : false
   const canInvite = server.me ? roleRank(server.me.role) >= roleRank('member') : false
-  const textChannels = server.channels.filter((c) => c.kind === 'text')
+  const textChannels = server.channels.filter((c) => c.kind !== 'voice')
   const voiceChannels = server.channels.filter((c) => c.kind === 'voice')
   const voiceSession = useVoice((s) => s.session)
   const speaking = useVoice((s) => s.speaking)
@@ -39,6 +42,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
       </header>
 
       <div className="channel-list">
+        <EventsButton server={server} onNavigate={onNavigate} />
         {canInvite && (
           <button className="invite-button" onClick={() => setDialog('invite')}>
             <UserPlus size={16} /> Invite friends
@@ -53,7 +57,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
           )}
         </div>
         {textChannels.map((channel) => {
-          const unread = server.unread[channel.id] ?? 0
+          const unread = (server.unread[channel.id] ?? 0) + (channel.kind === 'forum' ? forumReplies(server, channel.id) : 0)
           const pings = (server.mentions[channel.id] ?? 0) + threadMentions(server, channel.id)
           return (
             <button
@@ -65,7 +69,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
                 onNavigate()
               }}
             >
-              <span className="hash"><Hash size={16} /></span>
+              <span className="hash">{channel.kind === 'forum' ? <ForumIcon size={16} /> : <Hash size={16} />}</span>
               <span className="channel-name">{channel.name}</span>
               {channel.readRole !== 'member' && channel.readRole !== 'guest' && <span className="lock" title={`${channel.readRole}+ only`}><Lock size={12} /></span>}
               {pings > 0 && channel.id !== activeId && <span className="badge" title="Mentions">{pings}</span>}

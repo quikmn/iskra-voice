@@ -75,6 +75,11 @@ export function playTone(kind: 'message' | 'join' | 'leave'): void {
 /** Servers that push to this device: while the page is in the background, their pushes do the notifying. */
 export const pushActive = new Set<string>()
 
+/** A desktop notification (and tone) unless this server's pushes cover it while the page is in the background. */
+export function showNotification(serverKey: string, title: string, body: string, onClick: () => void): void {
+  show(serverKey, title, body, onClick)
+}
+
 function show(serverKey: string, title: string, body: string, onClick: () => void): void {
   if (pushActive.has(serverKey) && !document.hasFocus()) return
   playTone('message')
