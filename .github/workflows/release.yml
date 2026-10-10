@@ -11,12 +11,16 @@ on:
       tag:
         description: 'Tag to build, e.g. v2.0.0-alpha.3'
         required: true
+      ref:
+        description: 'Commit or branch to build from (defaults to the tag; for rebuilding a release after a build fix)'
+        required: false
 
 permissions:
   contents: read
 
 env:
   TAG: ${{ github.event.inputs.tag || github.ref_name }}
+  REF: ${{ github.event.inputs.ref || github.event.inputs.tag || github.ref_name }}
 
 jobs:
   linux:
@@ -24,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.TAG }}
+          ref: ${{ env.REF }}
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
@@ -67,7 +71,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.TAG }}
+          ref: ${{ env.REF }}
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
