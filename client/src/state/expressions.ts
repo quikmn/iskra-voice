@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import type { CustomEmoji, Events, FileInfo, Poll, Sound } from '../core/protocol'
 import { connectionFor, onServerEvent, onWelcomeHook, uploadFile, useApp } from './store'
 import { useVoice } from './voice'
+import { useAudio } from './audio'
 
 export interface SoundboardSettings {
   /** 0–1. */
@@ -110,6 +111,8 @@ export function playUrl(url: string, volume = useExpressions.getState().settings
   try {
     const audio = new Audio(url)
     audio.volume = Math.min(1, Math.max(0, volume))
+    const sink = useAudio.getState().outputDevice
+    if (sink && 'setSinkId' in audio) void audio.setSinkId(sink).catch(() => undefined)
     void audio.play().catch(() => undefined)
     setTimeout(() => {
       audio.pause()

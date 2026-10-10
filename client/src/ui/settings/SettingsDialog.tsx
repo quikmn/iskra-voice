@@ -5,6 +5,7 @@ import { fingerprint } from '../../core/connection'
 import { leaveServer, type ServerState } from '../../state/store'
 import { Modal } from '../bits'
 import { VoiceSettingsSection } from '../dialogs/VoiceSettings'
+import { InputSettingsSection, OutputSettingsSection, ProcessingSettingsSection } from '../dialogs/AudioSettings'
 import { RecoveryKeySection } from '../dialogs/RecoveryKey'
 import { NotificationSettingsSection } from '../dialogs/NotificationSettings'
 import { ProfileSection, ServerPagesOption } from '../profile/ProfileSettings'
@@ -92,7 +93,7 @@ function Section({ id, server, onClose }: { id: SectionId; server: ServerState |
     case 'devices': return <DevicesSection />
     case 'recovery': return <RecoveryKeySection />
     case 'notifications': return <NotificationSettingsSection />
-    case 'voice': return <><VoiceSettingsSection /><SoundboardSettingsSection /></>
+    case 'voice': return <><InputSettingsSection /><VoiceSettingsSection /><ProcessingSettingsSection /><OutputSettingsSection /><SoundboardSettingsSection /></>
   }
   if (!server) return null
   switch (id) {

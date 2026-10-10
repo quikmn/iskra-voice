@@ -27,7 +27,7 @@ export function NotificationSettingsSection() {
             if (e.target.checked) playTone('message')
           }}
         />
-        Sounds
+        Message sounds
       </label>
     </section>
   )

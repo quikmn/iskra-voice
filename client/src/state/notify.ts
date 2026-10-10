@@ -7,6 +7,7 @@ import { conversationLabel, isViewingThread } from './threads'
 import { jumpToMessage } from './jump'
 import { b64u } from '../core/crypto'
 import type { Events, WireDm } from '../core/protocol'
+import { useAudio } from './audio'
 
 interface NotifySettings {
   desktop: boolean
@@ -48,12 +49,33 @@ export async function enableDesktopNotifications(): Promise<boolean> {
 // ── Sounds: tiny synthesized tones, no audio files to load ──────────────────
 
 let audio: AudioContext | null = null
+let audioSink = ''
 
-export function playTone(kind: 'message' | 'join' | 'leave'): void {
-  if (!useNotify.getState().sounds) return
+export type Tone = 'message' | 'join' | 'leave' | 'mute' | 'unmute' | 'deafen' | 'undeafen'
+
+const TONES: Record<Tone, number[]> = {
+  message: [880, 1320],
+  join: [523, 784],
+  leave: [784, 523],
+  mute: [660, 440],
+  unmute: [440, 660],
+  deafen: [587, 392, 294],
+  undeafen: [294, 392, 587],
+}
+
+/** Message sounds follow Notifications; voice sounds (join, leave, mute, deafen) follow Voice & audio. */
+export function playTone(kind: Tone): void {
+  if (kind === 'message' ? !useNotify.getState().sounds : !useAudio.getState().voiceSounds) return
   try {
     audio ??= new AudioContext()
-    const notes = kind === 'message' ? [880, 1320] : kind === 'join' ? [523, 784] : [784, 523]
+    // Play on the chosen output device where the browser allows it.
+    const sink = useAudio.getState().outputDevice
+    const ctx = audio as AudioContext & { setSinkId?: (id: string) => Promise<void> }
+    if (sink !== audioSink && ctx.setSinkId) {
+      audioSink = sink
+      void ctx.setSinkId(sink).catch(() => undefined)
+    }
+    const notes = TONES[kind]
     notes.forEach((frequency, i) => {
       const osc = audio!.createOscillator()
       const gain = audio!.createGain()

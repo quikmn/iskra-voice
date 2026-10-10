@@ -11,6 +11,8 @@ import { InviteDialog } from './dialogs/InviteDialog'
 import { SettingsDialog } from './settings/SettingsDialog'
 import { ChevronDown, Hash, HeadphonesOff, Lock, MicOff, Plus, Settings, UserPlus, Volume } from './icons'
 import type { SectionId } from './settings/sections'
+import { useVolumeMenu } from './useVolumeMenu'
+import './audio.css'
 
 export function ChannelSidebar({ server, onNavigate }: { server: ServerState; onNavigate: () => void }) {
   const activeId = useApp(activeChannelId)
@@ -26,6 +28,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
   const voiceChannels = server.channels.filter((c) => c.kind === 'voice')
   const voiceSession = useVoice((s) => s.session)
   const speaking = useVoice((s) => s.speaking)
+  const { bind, menu: volumeMenu } = useVolumeMenu()
   useThreads((s) => s.threads[server.key]) // thread mentions count on their channel
 
   return (
@@ -104,8 +107,13 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
                 <ul className="voice-participants">
                   {participants.map((p) => {
                     const member = server.members[p.accountKey]
+                    const isMe = p.accountKey === server.me?.accountKey
                     return (
-                      <li key={p.accountKey} className={here && speaking[p.accountKey] ? 'speaking' : ''}>
+                      <li
+                        key={p.accountKey}
+                        className={`${here && speaking[p.accountKey] ? 'speaking' : ''} ${isMe ? 'me' : ''}`}
+                        {...bind(here && !isMe ? { accountKey: p.accountKey, name: member?.name ?? 'Someone' } : null)}
+                      >
                         <button className="participant" onClick={(e) => openProfileCard(server.key, p.accountKey, e.currentTarget)}>
                           <Avatar name={member?.name ?? '?'} accountKey={p.accountKey} size={22} />
                           <span className="member-name">{member?.name ?? 'Someone'}</span>
@@ -121,6 +129,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
         })}
       </div>
 
+      {volumeMenu}
       <VoiceBar />
       <MeBar server={server} onSettings={() => openSettings()} />
 
@@ -145,9 +154,19 @@ function MeBar({ server, onSettings }: { server: ServerState; onSettings: () => 
   const profile = useApp((s) => s.profile)
   const me = server.me
   const name = me?.name ?? profile?.name ?? ''
+  const inVoice = useVoice((s) => !!s.session && s.session.state === 'connected')
+  const speaking = useVoice((s) => s.localSpeaking)
+  const muted = useVoice((s) => s.muted)
+  const deafened = useVoice((s) => s.deafened)
+  const flag = inVoice && (deafened ? 'Deafened' : muted ? 'Muted' : null)
   return (
     <div className="me-bar">
-      {me && <Avatar name={name} accountKey={me.accountKey} size={32} online={server.status.state === 'online'} />}
+      {me && (
+        <span className={`me-avatar ${inVoice && speaking ? 'speaking' : ''}`} title={inVoice ? (flag || (speaking ? 'Speaking' : 'In voice')) : undefined}>
+          <Avatar name={name} accountKey={me.accountKey} size={32} online={server.status.state === 'online'} />
+          {flag && <span className="me-avatar-flag" aria-label={flag}>{deafened ? <HeadphonesOff size={11} /> : <MicOff size={11} />}</span>}
+        </span>
+      )}
       <div className="me-text">
         <strong>{name}</strong>
         <span>{me?.role ?? 'not joined'}</span>
