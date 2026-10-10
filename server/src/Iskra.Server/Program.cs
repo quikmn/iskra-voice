@@ -21,6 +21,7 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<LiveKitHost>());
 builder.Services.AddSingleton<VoiceRegistry>();
 builder.Services.AddSingleton<Uploads>();
 builder.Services.AddSingleton<LinkPreviews>();
+builder.Services.AddSingleton<WebhookIngress>();
 builder.Services.AddReverseProxy().LoadFromMemory(
 [
     new Yarp.ReverseProxy.Configuration.RouteConfig
@@ -141,6 +142,9 @@ app.MapMethods("/upload/{token}", ["OPTIONS"], (HttpContext context) =>
     return Results.NoContent();
 });
 app.MapGet("/files/{id}/{**name}", (HttpContext context, string id, Uploads uploads) => uploads.Serve(context, id));
+
+// Incoming webhooks: POST /hooks/{id}/{secret}.
+WebhookIngress.Map(app);
 
 app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice, Uploads uploads, LinkPreviews previews, Router router,
     IOptions<SessionLimits> limits, ILogger<Session> log, TimeProvider time) =>
