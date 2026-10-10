@@ -42,6 +42,9 @@ public sealed class Session
         System.Threading.Channels.Channel.CreateUnbounded<Outbound>(new UnboundedChannelOptions { SingleReader = true });
 
     private Task<Frame>? _pendingReceive;
+    private readonly Lock _earlyGate = new();
+    /// <summary>Frames from other sessions that arrive before our welcome; sent right after it, in order.</summary>
+    private List<string>? _early = [];
     private volatile bool _closing;
 
     /// <summary>The authenticated account, or null before the handshake completes.</summary>
@@ -101,7 +104,7 @@ public sealed class Session
     private async Task ReadLoopAsync()
     {
         var nonce = RandomNumberGenerator.GetBytes(32);
-        Send(Frames.Event("hello", new
+        SendNow(Frames.Event("hello", new
         {
             v = 1,
             serverKey = Ed25519.ToB64u(_world.ServerPublicKey),
@@ -122,14 +125,14 @@ public sealed class Session
                 AuthFailure.InviteRequired => ("invite_required", "You need a valid invite to join this server.", CloseCodes.AuthFailed),
                 _ => ("auth_failed", "Authentication failed.", CloseCodes.AuthFailed),
             };
-            Send(Frames.Error(envelope?.Id, code, message));
+            SendNow(Frames.Error(envelope?.Id, code, message));
             Close(close, message);
             return;
         }
 
         AccountKey = member.AccountKey;
         var cameOnline = _hub.Add(this);
-        Send(Frames.Event("welcome", new
+        SendNow(Frames.Event("welcome", new
         {
             you = _hub.PublicMember(member),
             server = new { name = _world.Settings.Name, key = Ed25519.ToB64u(_world.ServerPublicKey), appUrl = _world.Settings.AppUrl },
@@ -138,6 +141,11 @@ public sealed class Session
             voice = _voice.Snapshot(member),
             voiceAvailable = _voice.Backend.Available,
         }));
+        lock (_earlyGate)
+        {
+            foreach (var frame in _early!) SendNow(frame);
+            _early = null;
+        }
         if (cameOnline)
         {
             var update = Frames.Event("member.updated", new { member = _hub.PublicMember(member) });
@@ -186,7 +194,7 @@ public sealed class Session
             case FrameKind.Closed:
                 return false;
             case FrameKind.Timeout:
-                Send(Frames.Error(null, "auth_failed", "Authentication timed out."));
+                SendNow(Frames.Error(null, "auth_failed", "Authentication timed out."));
                 Close(CloseCodes.AuthFailed, "Authentication timed out");
                 return false;
             case FrameKind.TooLarge:
@@ -304,8 +312,24 @@ public sealed class Session
 
     // ── Writing ──────────────────────────────────────────────────────────────
 
-    /// <summary>Queues a frame. Safe from any thread; dropped silently once the session is closing.</summary>
+    /// <summary>
+    /// Queues a frame. Safe from any thread; dropped silently once the session is closing.
+    /// Before the welcome has gone out, frames wait so the client always sees welcome first.
+    /// </summary>
     public void Send(string json)
+    {
+        lock (_earlyGate)
+        {
+            if (_early is not null)
+            {
+                _early.Add(json);
+                return;
+            }
+        }
+        SendNow(json);
+    }
+
+    private void SendNow(string json)
     {
         if (!_closing) _outbox.Writer.TryWrite(new Outbound(json, null, null));
     }

@@ -17,6 +17,26 @@ builder.Services.AddSingleton<LiveKitHost>();
 builder.Services.AddSingleton<IVoiceBackend>(sp => sp.GetRequiredService<LiveKitHost>());
 builder.Services.AddHostedService(sp => sp.GetRequiredService<LiveKitHost>());
 builder.Services.AddSingleton<VoiceRegistry>();
+builder.Services.AddReverseProxy().LoadFromMemory(
+[
+    new Yarp.ReverseProxy.Configuration.RouteConfig
+    {
+        RouteId = "livekit",
+        ClusterId = "livekit",
+        Match = new() { Path = "/livekit/{**rest}" },
+        Transforms = [new Dictionary<string, string> { ["PathRemovePrefix"] = "/livekit" }],
+    },
+],
+[
+    new Yarp.ReverseProxy.Configuration.ClusterConfig
+    {
+        ClusterId = "livekit",
+        Destinations = new Dictionary<string, Yarp.ReverseProxy.Configuration.DestinationConfig>
+        {
+            ["local"] = new() { Address = $"http://127.0.0.1:{world.Settings.Voice.Port}" },
+        },
+    },
+]);
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.Configure<SessionLimits>(builder.Configuration.GetSection("Session"));
 builder.WebHost.UseUrls($"http://0.0.0.0:{world.Settings.Port}"); // TLS arrives with hosting (M6)
@@ -29,7 +49,7 @@ app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSecond
 app.MapGet("/", (World w) => Results.Json(new { iskra = 1, name = w.Settings.Name }));
 
 // LiveKit tells us who joined or left voice. Only requests signed with this world's LiveKit secret count.
-app.MapPost("/livekit/webhook", async (HttpContext context, IVoiceBackend backend, VoiceRegistry voice, TimeProvider time) =>
+app.MapPost("/internal/livekit-webhook", async (HttpContext context, IVoiceBackend backend, VoiceRegistry voice, TimeProvider time) =>
 {
     // LiveKit runs on this machine; nobody else has any business here.
     if (context.Connection.RemoteIpAddress is { } ip && !System.Net.IPAddress.IsLoopback(ip)) return Results.NotFound();
@@ -66,6 +86,9 @@ app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice
     using var socket = await context.WebSockets.AcceptWebSocketAsync();
     await new Session(socket, w, hub, voice, router, limits.Value, log, time).RunAsync(context.RequestAborted);
 });
+
+// Voice signaling (LiveKit's WebSocket and HTTP) on the same port as everything else.
+app.MapReverseProxy();
 
 app.Logger.LogInformation("World '{Name}' at {Path}, listening on port {Port}", world.Settings.Name, world.Path, world.Settings.Port);
 if (OwnerSetup.EnsureOwnerInvite(world, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()) is { } ownerLink)

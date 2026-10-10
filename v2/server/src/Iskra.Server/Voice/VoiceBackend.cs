@@ -42,13 +42,28 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
         _world = world;
         _log = log;
         (ApiKey, ApiSecret) = LoadOrCreateKeys(world.Path);
-        ClientUrl = Settings.ClientUrl?.TrimEnd('/') ?? DefaultClientUrl(world.Settings.EffectivePublicUrl, Settings.Port);
+        ClientUrl = Settings.ClientUrl?.TrimEnd('/') ?? DefaultClientUrl(world.Settings.EffectivePublicUrl);
     }
 
-    internal static string DefaultClientUrl(string publicUrl, int port)
+    /// <summary>Voice signaling goes through iskra-server itself (proxied at /livekit), so friends only need the one web port.</summary>
+    internal static string DefaultClientUrl(string publicUrl)
     {
         var uri = new Uri(publicUrl);
-        return $"{(uri.Scheme == "https" ? "wss" : "ws")}://{uri.Host}:{port}";
+        return $"{(uri.Scheme == "https" ? "wss" : "ws")}://{uri.Authority}{uri.AbsolutePath.TrimEnd('/')}/livekit";
+    }
+
+    /// <summary>Where iskra-server reaches LiveKit locally (for the proxy and API calls).</summary>
+    public string LocalUrl => $"http://127.0.0.1:{Settings.Port}";
+
+    /// <summary>On the internet LiveKit must advertise the public IP; on a LAN or localhost the local one.</summary>
+    internal static bool IsLocalOnly(string publicUrl)
+    {
+        var host = new Uri(publicUrl).Host;
+        if (host is "localhost") return true;
+        if (!System.Net.IPAddress.TryParse(host, out var ip)) return false;
+        if (System.Net.IPAddress.IsLoopback(ip)) return true;
+        var b = ip.GetAddressBytes();
+        return b.Length == 4 && (b[0] == 10 || (b[0] == 172 && b[1] >= 16 && b[1] <= 31) || (b[0] == 192 && b[1] == 168));
     }
 
     private static (string, string) LoadOrCreateKeys(string worldPath)
@@ -84,13 +99,13 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
         rtc:
           tcp_port: {Settings.RtcTcpPort}
           udp_port: {Settings.RtcUdpPort}
-          use_external_ip: false
+          use_external_ip: {(IsLocalOnly(_world.Settings.EffectivePublicUrl) ? "false" : "true")}
         keys:
           {ApiKey}: {ApiSecret}
         webhook:
           api_key: {ApiKey}
           urls:
-            - http://127.0.0.1:{iskraPort}/livekit/webhook
+            - http://127.0.0.1:{iskraPort}/internal/livekit-webhook
         room:
           empty_timeout: 30
         logging:

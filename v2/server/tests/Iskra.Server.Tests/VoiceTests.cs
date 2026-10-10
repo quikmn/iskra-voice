@@ -22,7 +22,7 @@ public class VoiceTests
     private static async Task<HttpStatusCode> Webhook(IskraServer server, object evt, bool sign = true, string? secret = null, bool tamper = false)
     {
         var body = JsonSerializer.SerializeToUtf8Bytes(evt);
-        using var request = new HttpRequestMessage(HttpMethod.Post, "/livekit/webhook") { Content = new ByteArrayContent(body) };
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/internal/livekit-webhook") { Content = new ByteArrayContent(body) };
         if (sign)
         {
             var hash = Convert.ToBase64String(SHA256.HashData(tamper ? [.. body, (byte)' '] : body));
@@ -180,7 +180,11 @@ public class VoiceTests
     [Fact]
     public void Default_voice_url_follows_the_server_url()
     {
-        Assert.Equal("ws://localhost:7880", LiveKitHost.DefaultClientUrl("http://localhost:7070", 7880));
-        Assert.Equal("wss://chat.example.com:7880", LiveKitHost.DefaultClientUrl("https://chat.example.com", 7880));
+        Assert.Equal("ws://localhost:7070/livekit", LiveKitHost.DefaultClientUrl("http://localhost:7070"));
+        Assert.Equal("wss://chat.example.com/livekit", LiveKitHost.DefaultClientUrl("https://chat.example.com"));
+        Assert.True(LiveKitHost.IsLocalOnly("http://localhost:7070"));
+        Assert.True(LiveKitHost.IsLocalOnly("http://192.168.1.20:7070"));
+        Assert.False(LiveKitHost.IsLocalOnly("https://chat.example.com"));
+        Assert.False(LiveKitHost.IsLocalOnly("http://203.0.113.5:7070"));
     }
 }

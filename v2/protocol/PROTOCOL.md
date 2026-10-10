@@ -161,7 +161,8 @@ Voice runs on a LiveKit server that `iskra-server` starts next to itself (config
 | `voice.state` | `muted, deafened` (booleans) | | anyone in voice (cosmetic flags shown to others) |
 
 - `token` is a LiveKit JWT for exactly one room (`voice-<channelId>`) with `canPublish = canSpeak`. The client connects to `url` with it.
-- **Who is in voice comes only from LiveKit's signed webhooks** (`POST /livekit/webhook`, loopback only, HS256 JWT whose `sha256` claim matches the body), never from clients. Anyone LiveKit reports who isn't allowed in the room is removed from it.
+- LiveKit's signaling is proxied by iskra-server at `/livekit` (WebSocket and HTTP), so `url` is `ws(s)://<server>/livekit` and clients only need the server's web port plus LiveKit's media ports (UDP 7882, TCP 7881 fallback).
+- **Who is in voice comes only from LiveKit's signed webhooks** (`POST /internal/livekit-webhook`, loopback only, HS256 JWT whose `sha256` claim matches the body), never from clients. Anyone LiveKit reports who isn't allowed in the room is removed from it.
 - Kicks, bans, demotions and channel permission changes remove people from rooms they can no longer read.
 - `welcome` also carries `voice: [VoiceState...]` (non-empty voice channels you can read) and `voiceAvailable`.
 - Error `voice_unavailable`: LiveKit isn't running on this server.
