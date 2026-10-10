@@ -17,7 +17,7 @@ Both show a **BOT** badge, so everyone can tell them apart from people. Admins m
 2. Give it a name (and optionally a picture), pick the channel it posts in, and click **Create webhook**.
 3. Copy the URL. It's only shown once: the server keeps a hash of the secret, not the secret itself. Lost it? Click **New URL** (the old one stops working right away).
 
-Treat the URL like a password: anyone who has it can post in that channel.
+Treat the URL like a password: anyone who has it can post in that channel. Use the `https://` address when your server has one.
 
 ### Post a message
 
@@ -110,7 +110,7 @@ Build and run it with `node build.mjs my-bot.ts && node dist/my-bot.js` (the bui
 
 | API | What it does |
 |---|---|
-| `new Bot({ name, invite?, stateFile?, hearBots?, log? })` | `invite` is only needed the first time. `stateFile` defaults to `<name>.bot.json`. Bots ignore other bots and webhooks unless `hearBots` is true, so two bots can't chat forever. |
+| `new Bot({ name, invite?, stateFile?, hearBots?, log? })` | `invite` is only needed the first time. `stateFile` defaults to `<name>.bot.json` (lowercase, spaces become dashes). Bots ignore other bots and webhooks unless `hearBots` is true, so two bots can't chat forever. |
 | `bot.command(name, description, handler)` | Answers `/name args`. The handler gets `{ args, message, reply, command, bot }`. `/help` is built in. |
 | `bot.on('message', m => ...)` | Every message the bot can see (not its own). `m.reply(text)`, `m.react(emoji)`, `m.authorName`, `m.channel`. |
 | `bot.on('ready' \| 'memberJoined' \| 'event' \| 'status', ...)` | Connected; someone joined; any raw server event; connection state. |
