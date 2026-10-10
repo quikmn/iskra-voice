@@ -165,6 +165,18 @@ public sealed partial class Store : IDisposable
     /// <summary>Named schema steps, applied once each, in order. Add new ones at the end.</summary>
     private static readonly (string Name, string Sql)[] FeatureMigrations =
     [
+        ("push-1", """
+            CREATE TABLE push_subscriptions (
+                device_key  TEXT PRIMARY KEY,
+                account_key TEXT NOT NULL,
+                endpoint    TEXT NOT NULL UNIQUE,
+                p256dh      TEXT NOT NULL,
+                auth        TEXT NOT NULL,
+                created_at  INTEGER NOT NULL,
+                updated_at  INTEGER NOT NULL
+            );
+            CREATE INDEX push_by_account ON push_subscriptions(account_key);
+            """),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

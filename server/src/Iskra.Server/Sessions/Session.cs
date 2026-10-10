@@ -53,6 +53,11 @@ public sealed class Session
     /// <summary>The authenticated account, or null before the handshake completes.</summary>
     public string? AccountKey { get; private set; }
 
+    /// <summary>The device key from the handshake's certificate (one browser or app install).</summary>
+    public string? DeviceKey { get; private set; }
+
+    public required Push.PushService Push { get; init; }
+
     public World World => _world;
     public Hub Hub => _hub;
     public VoiceRegistry Voice => _voice;
@@ -124,7 +129,8 @@ public sealed class Session
         if (!HandleControlFrame(first)) return;
 
         var envelope = first.Kind == FrameKind.Text ? Envelope.TryParse(first.Data) : null;
-        var (member, failure) = envelope is null ? (null, AuthFailure.Invalid) : Authenticate(envelope, nonce);
+        string? deviceKey = null;
+        var (member, failure) = envelope is null ? (null, AuthFailure.Invalid) : Authenticate(envelope, nonce, out deviceKey);
         if (member is null)
         {
             var (code, message, close) = failure switch
@@ -139,6 +145,7 @@ public sealed class Session
         }
 
         AccountKey = member.AccountKey;
+        DeviceKey = deviceKey;
         var cameOnline = _hub.Add(this);
         SendNow(Frames.Event("welcome", new
         {
@@ -261,8 +268,9 @@ public sealed class Session
 
     private enum AuthFailure { Invalid, Banned, InviteRequired }
 
-    private (Member?, AuthFailure) Authenticate(Envelope envelope, byte[] nonce)
+    private (Member?, AuthFailure) Authenticate(Envelope envelope, byte[] nonce, out string? deviceKey)
     {
+        deviceKey = null;
         if (envelope.Type != "auth" || envelope.Body.ValueKind != JsonValueKind.Object) return (null, AuthFailure.Invalid);
         var body = envelope.Body;
 
@@ -298,6 +306,7 @@ public sealed class Session
         if (!Identity.VerifyAuth(cert, _world.ServerPublicKey, nonce, signature)) return (null, AuthFailure.Invalid);
 
         // Identity is proven from here on.
+        deviceKey = cert.DeviceKey;
         if (_world.Store.IsBanned(cert.AccountKey)) return (null, AuthFailure.Banned);
 
         var existing = _world.Store.GetMember(cert.AccountKey);

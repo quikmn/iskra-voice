@@ -241,3 +241,20 @@ Device certificates are stored when a device authenticates, so the server can pu
 | `link.preview` | `url` (http/https, no credentials) | `{ preview: { url, siteName, title, description } \| null }` |
 
 The server fetches the page (so viewers' IPs aren't sent to every site): ≤ 512 KB of HTML, 6 s, ≤ 3 redirects, cached for an hour. It only connects to public addresses: each connection's IP is checked after DNS resolution, so private ranges, loopback, link-local/cloud metadata and redirects into them are refused. No images are fetched or shown. Runs off the read loop; rate-limited to 1/s (burst 10).
+
+## Push notifications (Web Push)
+
+Each server sends Web Push messages to its members' devices that aren't looking at Iskra: for @mentions (including `@everyone`), replies to your messages, DMs and (hook for the calls feature) incoming calls. The server keeps a VAPID key pair (P-256) in `vapid.json` in the world folder; payloads are encrypted per RFC 8291 (`aes128gcm`) and signed per RFC 8292 with [Lib.Net.Http.WebPush](https://github.com/tpeczek/Lib.Net.Http.WebPush).
+
+| type | body | result | who |
+|---|---|---|---|
+| `push.status` | | `{ publicKey, endpoint }` (VAPID key, b64u 65 bytes; this device's endpoint or null) | anyone |
+| `push.subscribe` | `endpoint` (≤ 1024 chars), `keys: { p256dh, auth }` (b64u, 65 and 16 bytes) | | anyone; replaces this device's subscription |
+| `push.unsubscribe` | | | anyone (this device) |
+| `push.focus` | `focused` (boolean) | | anyone: is someone looking at Iskra on this device right now |
+
+- Subscriptions belong to the authenticated **device** (the key in the handshake's certificate). An endpoint belongs to one device; an account keeps at most 10 subscriptions (the least recently refreshed go first).
+- The endpoint is user-supplied, so it must be `https://` on the default port, without credentials, at a known push service: `fcm.googleapis.com`, `android.googleapis.com`, `push.services.mozilla.com`, `notify.windows.com`, `push.apple.com` (or a subdomain). Deliveries also only connect to public addresses (the link preview guard). The push service answering 404 or 410 deletes the subscription.
+- No pushes to a device whose session reported `focused: true` (a new session starts unfocused), to the author, to people who can't read the channel, or to non-members. Per device and conversation the first push goes out at once; more within 15 s become one follow-up push with a `count`.
+- Payload (JSON, after decryption): `{ v: 1, kind: "mention"|"reply"|"dm"|"call", server, serverName, title, body, tag, channelId?, messageId?, peer?, count, at }`. Mentions and replies carry a ≤ 140-character excerpt; **DMs never carry content**: "New message from X". The `Topic` header is derived from `tag`, so a push service replaces undelivered pushes about the same conversation.
+- Web client: one service worker registration of `/push-sw.js` per server (scope `/push/<serverKey>/`), since every server has its own VAPID key and a registration holds one subscription. A notification click focuses the app (message `{ type: "iskra.open", route }`) or opens `/#/open/<serverKey>/c/<channelId>` / `/#/open/<serverKey>/dm/<accountKey>`. The desktop app uses native notifications and doesn't subscribe.

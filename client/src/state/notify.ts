@@ -9,15 +9,17 @@ import type { Events, WireDm } from '../core/protocol'
 interface NotifySettings {
   desktop: boolean
   sounds: boolean
+  /** Push notifications on this device while Iskra is closed (state/push.ts). */
+  push: boolean
 }
 
 const KEY = 'iskra.notify'
 
 function load(): NotifySettings {
   try {
-    return { desktop: true, sounds: true, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }
+    return { desktop: true, sounds: true, push: false, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }
   } catch {
-    return { desktop: true, sounds: true }
+    return { desktop: true, sounds: true, push: false }
   }
 }
 
@@ -68,7 +70,11 @@ export function playTone(kind: 'message' | 'join' | 'leave'): void {
   }
 }
 
-function show(title: string, body: string, onClick: () => void): void {
+/** Servers that push to this device: while the page is in the background, their pushes do the notifying. */
+export const pushActive = new Set<string>()
+
+function show(serverKey: string, title: string, body: string, onClick: () => void): void {
+  if (pushActive.has(serverKey) && !document.hasFocus()) return
   playTone('message')
   if (!useNotify.getState().desktop || !notificationsSupported() || Notification.permission !== 'granted') return
   const notification = new Notification(title, { body: body.slice(0, 200), silent: true })
@@ -99,7 +105,7 @@ onServerEvent((serverKey, type, body) => {
     if (viewing) return
     const channel = server.channels.find((c) => c.id === message.channelId)
     const author = server.members[message.author]?.name ?? 'Someone'
-    show(`${author} in #${channel?.name ?? 'chat'}`, plainText(message.text, { nameOf: (k) => server.members[k]?.name ?? null }), () => {
+    show(serverKey, `${author} in #${channel?.name ?? 'chat'}`, plainText(message.text, { nameOf: (k) => server.members[k]?.name ?? null }), () => {
       void import('./store').then(({ selectServer, selectChannel }) => {
         selectServer(serverKey)
         selectChannel(serverKey, message.channelId)
@@ -135,7 +141,7 @@ onServerEvent((serverKey, type, body) => {
       if (viewing) return
       // The text is end-to-end encrypted; read it from the decrypted conversation.
       const latest = useDms.getState().conversations[message.from]?.messages.at(-1)
-      show(nameOf(message.from), latest?.error ? 'New message' : (latest?.text ?? 'New message'), () => openConversation(message.from))
+      show(serverKey, nameOf(message.from), latest?.error ? 'New message' : (latest?.text ?? 'New message'), () => openConversation(message.from))
     })
   }
 })

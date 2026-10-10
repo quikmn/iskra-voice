@@ -65,6 +65,7 @@ public static class ChatFeature
         var message = s.World.Store.AddMessage(channel.Id, me.AccountKey, text, s.Now, attachments, replyTo);
         var publicMessage = View(s, message);
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.message", new { message = publicMessage }));
+        s.Push.ChatMessage(channel, message);
         return new { message = publicMessage };
     }
 

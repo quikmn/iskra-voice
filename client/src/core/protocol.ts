@@ -141,6 +141,16 @@ export interface Requests {
   'dm.send': [{ accountKey: string; envelope: import('./dm').DmEnvelope }, { message: WireDm }]
   'dm.history': [{ accountKey: string; before?: number; limit?: number }, { messages: WireDm[]; hasMore: boolean }]
   'dm.conversations': [Record<string, never>, { conversations: { accountKey: string; lastId: number; lastAt: number }[] }]
+  'push.status': [Record<string, never>, { publicKey: string; endpoint: string | null }]
+  'push.subscribe': [PushSubscriptionBody, Record<string, never>]
+  'push.unsubscribe': [Record<string, never>, Record<string, never>]
+  'push.focus': [{ focused: boolean }, Record<string, never>]
+}
+
+// ── push ──
+export interface PushSubscriptionBody {
+  endpoint: string
+  keys: { p256dh: string; auth: string }
 }
 
 export type ErrorCode =
