@@ -79,11 +79,32 @@ public sealed partial class LinkPreviews : IDisposable
         if (address.AddressFamily == AddressFamily.InterNetworkV6)
         {
             var b = address.GetAddressBytes();
-            return !(address.IsIPv6LinkLocal || address.IsIPv6SiteLocal || address.IsIPv6Multicast
+            if (address.IsIPv6LinkLocal || address.IsIPv6SiteLocal || address.IsIPv6Multicast
                 || (b[0] & 0xFE) == 0xFC                           // unique local fc00::/7
-                || address.Equals(IPAddress.IPv6None) || address.Equals(IPAddress.IPv6Any));
+                || address.Equals(IPAddress.IPv6None) || address.Equals(IPAddress.IPv6Any)
+                || (b[0] == 0x20 && b[1] == 0x01 && b[2] == 0 && b[3] == 0)                       // Teredo 2001::/32 (hides an IPv4)
+                || (b[0] == 0x20 && b[1] == 0x01 && b[2] == 0x0d && b[3] == 0xb8)                 // documentation 2001:db8::/32
+                || (b[0] == 0 && b[1] == 0x64 && b[2] == 0xff && b[3] == 0x9b && b[4] == 0 && b[5] == 1) // local NAT64 64:ff9b:1::/48
+                || (b[0] == 1 && b.AsSpan(1, 7).IndexOfAnyExcept((byte)0) < 0))                    // discard 100::/64
+                return false;
+            // Addresses that carry an IPv4 address get the IPv4 rules: a private one can't hide inside.
+            return EmbeddedIPv4(b) is not { } v4 || IsPublic(v4);
         }
         return false;
+    }
+
+    /// <summary>
+    /// The IPv4 address inside NAT64 (64:ff9b::/96), 6to4 (2002::/16), IPv4-compatible (::a.b.c.d) and
+    /// IPv4-translated (::ffff:0:a.b.c.d) addresses, or null for an ordinary IPv6 address.
+    /// </summary>
+    internal static IPAddress? EmbeddedIPv4(byte[] b)
+    {
+        static bool Zero(ReadOnlySpan<byte> s) => s.IndexOfAnyExcept((byte)0) < 0;
+        if (b[0] == 0 && b[1] == 0x64 && b[2] == 0xff && b[3] == 0x9b && Zero(b.AsSpan(4, 8))) return new IPAddress(b[12..16]);
+        if (b[0] == 0x20 && b[1] == 0x02) return new IPAddress(b[2..6]);
+        if (Zero(b.AsSpan(0, 12))) return new IPAddress(b[12..16]);
+        if (Zero(b.AsSpan(0, 8)) && b[8] == 0xff && b[9] == 0xff && b[10] == 0 && b[11] == 0) return new IPAddress(b[12..16]);
+        return null;
     }
 
     public async Task<LinkPreview?> GetAsync(string url, CancellationToken cancel)
