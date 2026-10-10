@@ -11,6 +11,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted)
 - **People and integrations:** [Profiles](#profiles) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks)
+- **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints)
 
 ---
@@ -563,7 +564,7 @@ Each server sends Web Push messages to its members' devices that aren't looking 
 - `@everyone` (all members) and `@here` (members online now) only ping when the author is trusted or above; from anyone else the text is shown but nobody is pushed, and clients don't count it as a mention either.
 - Incoming-call pushes ring at once (no merging) but at most once per caller and callee per 15 s window.
 - No pushes to a device whose session reported `focused: true` (a new session starts unfocused), to the author, to people who can't read the channel, or to non-members. Per device and conversation the first push goes out at once; more within 15 s become one follow-up push with a `count`.
-- Payload (JSON, after decryption): `{ v: 1, kind: "mention"|"reply"|"dm"|"call", server, serverName, title, body, tag, channelId?, messageId?, peer?, count, at }`. Mentions and replies carry a ≤ 140-character excerpt; **DMs never carry content**: "New message from X". Calls say "X is calling". The `Topic` header is derived from `tag`, so a push service replaces undelivered pushes about the same conversation.
+- Payload (JSON, after decryption): `{ v: 1, kind: "mention"|"reply"|"dm"|"call"|"event", server, serverName, title, body, tag, channelId?, messageId?, peer?, count, at }`. Mentions and replies carry a ≤ 140-character excerpt; **DMs never carry content**: "New message from X". Calls say "X is calling". Event reminders ([Scheduled events](#scheduled-events)) say "Starting soon: …" or "… is starting now". The `Topic` header is derived from `tag`, so a push service replaces undelivered pushes about the same conversation.
 - Web client: one service worker registration of `/push-sw.js` per server (scope `/push/<serverKey>/`), since every server has its own VAPID key and a registration holds one subscription. A notification click focuses the app (message `{ type: "iskra.open", route }`) or opens `/#/open/<serverKey>/c/<channelId>` / `/#/open/<serverKey>/dm/<accountKey>`. The desktop app uses native notifications and doesn't subscribe.
 
 ## Bots and webhooks
@@ -711,3 +712,67 @@ Everything else a server answers over HTTP(S), on the same port as `/ws`:
 | `/livekit` | LiveKit signaling, proxied ([Voice](#voice)) |
 | `POST /internal/livekit-webhook` | LiveKit's signed webhooks, loopback only |
 | `GET /.well-known/acme-challenge/<token>`, `GET /.well-known/iskra-probe/<token>` | Let's Encrypt and the reachability probe ([Internet hosting](#internet-hosting)) |
+
+## Forum channels
+
+A forum is a channel of kind `forum` (`channel.create` with `kind: "forum"`; listed in `channels` like any channel, same `readRole`/`writeRole`). It holds **posts** instead of a stream of messages. A post is a [thread](#threads) under the forum: its id is the thread id (use it as the `channelId` for `chat.send`, `chat.history`, `chat.typing`, `chat.pin`), its title is the thread name, and its first message is the thread's root, stored in the forum channel itself. `chat.send`, `poll.create` and `thread.create` don't work in a forum directly (`bad_request`).
+
+```jsonc
+Post { "id": 9, "channelId": 3, "rootId": 42, "title": "How do I mute?", "author": "<accountKey>", "createdAt": 0,
+       "replyCount": 4, "lastMessageAt": 0 | null, "lastActivity": 0, "lastAuthor": "<accountKey>" | null,
+       "tags": [tagId], "pinned": false, "closed": false, "locked": false,
+       "excerpt": "first message, ≤ 300 chars" | null, "image": File | null, "attachmentCount": 0 }
+Tag  { "id": 1, "name": "Bug", "emoji": "🐛" | null }
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `forum.posts` | `channelId, sort? ("activity" \| "newest", default activity), tag?, query? (as for search), cursor?, limit? (1–50, default 25)` | `{ posts, tags, hasMore, cursor }` | forum readers |
+| `forum.post.create` | `channelId, title` (1–100), `text` (as `chat.send`; may be empty with attachments), `attachments?`, `tags?` (≤ 5 of the forum's tag ids) | `{ post, message }` | forum writers; ≤ 1000 posts per forum; shares the `thread.create` limit |
+| `forum.post.get` | `id` | `{ post, root: Message \| null }` | forum readers |
+| `forum.post.update` | `id, title?, tags?` | `{ post }` | title: whoever posted it, or an admin who outranks them; tags: the same, or a moderator |
+| `forum.post.set` | `id, pinned?, closed?, locked?` | `{ post }` | pinned, locked: moderators; closed: moderators, or whoever posted it unless it's locked. ≤ 10 pinned posts per forum |
+| `forum.tags.set` | `channelId, tags: [{ id?, name (1–20), emoji? (≤ 16, no spaces) }]` (≤ 20, names unique ignoring case) | `{ tags }` | admin+ |
+
+- **Moderators** are the people who can [pin](#pins) there: trusted+ who can write in the forum.
+- The list is pinned posts first (most recently pinned first), then by last activity (the latest reply, else when it was posted) or by when it was posted, newest first. `cursor` is opaque; pass it back for the next page. `tag` keeps posts that have it. `query` matches posts whose title contains every word (ignoring case and accents) or whose first message or a reply matches the words (full-text, as in [search](#search)).
+- Closed and locked posts take replies only from moderators (`chat.send` → `forbidden`). Closing is for "this is answered"; locking is a moderator's call that the author can't undo.
+- `forum.tags.set` replaces the list: entries with an `id` keep it (and stay on their posts), new names get a new id, and tags left out are removed from every post.
+- Deleting a post: `thread.delete` (it also deletes the first message), or `chat.delete` on the first message (it also deletes the post). Deleting the forum deletes everything in it.
+- Unread markers are kept by clients (which posts and how many replies they've seen); new posts and replies arrive as `chat.message` events, so unread and mention counts work as for threads.
+
+| event | body | sent to |
+|---|---|---|
+| `forum.post.updated` | `{ post }` | forum readers, when a post is created, renamed, retagged, pinned, closed or locked, or its first message is edited (reply counts come with `thread.updated`) |
+| `forum.tags` | `{ channelId, tags }` | forum readers, after `forum.tags.set` |
+
+## Scheduled events
+
+An event has a time, a place and people who are interested. Times are UTC milliseconds; `timeZone` is the creator's IANA zone (e.g. `Europe/Stockholm`), so clients can show the time as the creator meant it next to the viewer's own. The client converts the creator's wall-clock time to UTC; the server only checks that it knows the zone.
+
+```jsonc
+Event { "id": 5, "title": "Game night", "description": "Bring snacks" | null, "startAt": 0, "endAt": 0, "timeZone": "Europe/Stockholm",
+        "location": { "kind": "voice", "channelId": 7 | null } | { "kind": "place", "text": "Viktor's place" },
+        "image": File | null, "createdBy": "<accountKey>", "createdAt": 0,
+        "status": "scheduled" | "live" | "ended" | "cancelled", "interested": [accountKey] }
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `event.list` | | `{ events }` (scheduled and live, soonest first) | anyone |
+| `event.create` | `title` (1–100), `description?` (≤ 1000, newlines allowed), `startAt, endAt` (start from now on, ≤ 1 year ahead; end after start, ≤ 7 days later), `timeZone` (≤ 64), `location: { channelId }` (a voice channel you can see) or `{ text }` (1–100), `image?` (file id: your own PNG, JPEG, WebP or GIF upload, ≤ 5 MB) | `{ event }` | member+ (not guests); ≤ 100 scheduled or live events per server; 5 at once, then 1 every 2 minutes per account |
+| `event.update` | `id` and any of the fields above (`""` clears `description` and `image`) | `{ event }` | whoever created it, or an admin who outranks them; while scheduled or live (a live event's start can't move) |
+| `event.cancel` | `id` | | same as above |
+| `event.interest` | `id, on?` (default true) | `{ event }` | anyone who can see it, while scheduled or live |
+
+- The creator is interested from the start. `interested` lists current members only.
+- **Visibility:** an event in a voice channel is only visible to people who can read that channel (others get `not_found` and no events). If the channel is deleted, `channelId` becomes `null` and the event is visible to everyone.
+- **Timing:** the server moves an event to `live` at `startAt` and to `ended` at `endAt` (within about a second), and forgets ended and cancelled events after 30 days. Moving the start time re-arms the reminder.
+- **Reminders:** 15 minutes before the start (only for events created further ahead than that) and again when it goes live, every interested member who can see it gets `event.reminder` on their sessions and a [push](#push-notifications-web-push) of kind `event` (`channelId` is the voice channel, if any).
+- "Add to calendar" is client-side: an iCalendar (RFC 5545) file with UTC times, built from the event.
+
+| event | body | sent to |
+|---|---|---|
+| `event.updated` | `{ event }` | everyone who can see it: created, edited, interest changed, live, ended, cancelled |
+| `event.removed` | `{ id }` | people who could see it until an edit moved it to a channel they can't read |
+| `event.reminder` | `{ event, kind: "soon" \| "live" }` | interested members who can see it |

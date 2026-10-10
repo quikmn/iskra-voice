@@ -125,6 +125,7 @@ public static class ThreadFeature
             s.Hub.BroadcastToReaders(parent, Frames.Event("thread.deleted",
                 new { id = thread.Id, channelId = thread.ParentId, rootId = thread.RootId }));
         }
+        ForumFeature.ThreadDeleted(s, thread, parent);
         return null;
     }
 }

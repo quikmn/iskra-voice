@@ -257,6 +257,8 @@ public sealed partial class Store : IDisposable
             );
             """),
         ("security-1", SecurityMigration),
+        ("forums-1", ForumsMigration),
+        ("events-1", EventsMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

@@ -44,6 +44,7 @@ public static class ChatFeature
         var channel = ReadableChannel(s, me, body.Long("channelId"));
         if (channel.Kind is not ("text" or "thread")) throw RequestException.BadRequest("You can't send messages to that channel.");
         if (!Permissions.CanWrite(me, channel)) throw RequestException.Forbidden("You can't send messages in this channel.");
+        ForumFeature.CheckReply(s, me, channel);
 
         // Files must be ones you uploaded yourself.
         var attachments = body.OptionalStringArray("attachments", MaxAttachments, 64);
@@ -81,6 +82,7 @@ public static class ChatFeature
         s.World.Store.EditMessage(message.Id, text, s.Now);
         var edited = View(s, message with { Text = text, EditedAt = s.Now });
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.edited", new { message = edited }));
+        ForumFeature.Edited(s, channel, message);
         return new { message = edited };
     }
 
@@ -94,6 +96,7 @@ public static class ChatFeature
         s.World.Store.DeleteMessage(message.Id);
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.deleted", new { id = message.Id, channelId = channel.Id }));
         ThreadFeature.Touched(s, channel);
+        ForumFeature.RootDeleted(s, channel, message.Id);
         return null;
     }
 

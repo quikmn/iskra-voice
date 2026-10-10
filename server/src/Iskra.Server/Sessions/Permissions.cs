@@ -47,4 +47,13 @@ public static class Permissions
     /// <summary>Renaming or deleting a thread: whoever started it, or an admin who outranks them (same rule as deleting messages).</summary>
     public static bool CanManageThread(Member actor, string creatorKey, Member? creator) =>
         creatorKey == actor.AccountKey || (IsAdmin(actor) && (creator is null || Outranks(actor, creator)));
+
+    /// <summary>Forum moderation (pin, lock, close any post, retag): the same people who can pin messages there.</summary>
+    public static bool CanModerateForum(Member member, Channel forum) => CanPin(member, forum);
+
+    /// <summary>Scheduling events: members and above (not guests).</summary>
+    public static bool CanCreateEvent(Member member) => Roles.Rank(member.Role) >= Roles.Rank(Roles.Member);
+
+    /// <summary>Editing or cancelling an event: whoever created it, or an admin who outranks them.</summary>
+    public static bool CanManageEvent(Member actor, string creatorKey, Member? creator) => CanManageThread(actor, creatorKey, creator);
 }
