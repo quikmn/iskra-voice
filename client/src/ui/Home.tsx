@@ -8,7 +8,7 @@ import {
 import { Avatar, Modal } from './bits'
 import { renderMarkdown } from './markdown'
 import { fingerprint } from '../core/connection'
-import { fullTime, hueFor, messageTime } from './format'
+import { clockTime, fullTime, hueFor, messageTime } from './format'
 import { Lock, Menu, Send, Settings, Users } from './icons'
 import { SettingsDialog } from './settings/SettingsDialog'
 import type { Panel } from './Shell'
@@ -238,7 +238,7 @@ function DmRow({ dm, grouped, peer, mine }: { dm: Dm; grouped: boolean; peer: st
   return (
     <div className={`message ${grouped ? 'grouped' : ''} ${dm.pending ?? ''}`}>
       <div className="message-gutter">
-        {grouped ? <time className="hover-time" title={fullTime(dm.sentAt)}>{messageTime(dm.sentAt).replace(/^.* /, '')}</time> : <Avatar name={name} accountKey={dm.from} />}
+        {grouped ? <time className="hover-time" title={fullTime(dm.sentAt)}>{clockTime(dm.sentAt)}</time> : <Avatar name={name} accountKey={dm.from} />}
       </div>
       <div className="message-body">
         {!grouped && (

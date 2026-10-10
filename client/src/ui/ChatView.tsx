@@ -11,7 +11,7 @@ import { firstLink, formatSize, replyKey, setReply, useReply } from './chat/help
 import { Avatar, Spinner } from './bits'
 import { openProfileCard } from '../state/profile'
 import { decodeMentions, encodeMentions, renderMarkdown } from './markdown'
-import { fullTime, hueFor, messageTime } from './format'
+import { clockTime, fullTime, hueFor, messageTime } from './format'
 import type { Panel } from './Shell'
 import { Close, FileIcon, Hash, Menu, Paperclip, Pencil, Reply, Send, Smile, Trash, Users, WifiOff } from './icons'
 import { HeaderTools } from './chat/HeaderTools'
@@ -261,7 +261,7 @@ function MessageRow({
     >
       <div className="message-gutter">
         {grouped ? (
-          <time className="hover-time" title={fullTime(message.createdAt)}>{messageTime(message.createdAt).replace(/^.* /, '')}</time>
+          <time className="hover-time" title={fullTime(message.createdAt)}>{clockTime(message.createdAt)}</time>
         ) : canOpenProfile ? (
           <button className="avatar-button" onClick={(e) => openProfileCard(server.key, message.author, e.currentTarget)} aria-label={`Profile of ${name}`}>
             <AuthorAvatar server={server} author={shown} hueKey={message.author} />

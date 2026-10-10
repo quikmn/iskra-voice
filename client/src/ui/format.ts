@@ -12,6 +12,9 @@ export function messageTime(ms: number, now = Date.now()): string {
 
 export const fullTime = (ms: number) => full.format(new Date(ms))
 
+/** Just the clock time ("06:01 PM"), for grouped messages. */
+export const clockTime = (ms: number) => time.format(new Date(ms))
+
 /** A stable hue per account, so avatars and names are recognisable. */
 export function hueFor(key: string): number {
   let hash = 0

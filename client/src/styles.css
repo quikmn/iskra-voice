@@ -301,7 +301,7 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 .message:hover { background: color-mix(in srgb, var(--text) 3%, transparent); }
 .message-gutter { width: 40px; flex: none; display: flex; justify-content: center; }
 .message-gutter .avatar { width: 40px !important; height: 40px !important; }
-.hover-time { font-size: 10px; color: var(--muted); opacity: 0; padding-top: 4px; }
+.hover-time { font-size: 10px; color: var(--muted); opacity: 0; padding-top: 4px; white-space: nowrap; }
 .message:hover .hover-time { opacity: 1; }
 .message-body { min-width: 0; flex: 1; }
 .message-meta { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
