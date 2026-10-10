@@ -27,7 +27,7 @@ public sealed class Uploads(World world, TimeProvider time, ILogger<Uploads> log
         return token;
     }
 
-    private string PathFor(string sha256) => Path.Combine(world.Path, "uploads", sha256[..2], sha256);
+    public string PathFor(string sha256) => Path.Combine(world.Path, "uploads", sha256[..2], sha256);
 
     public async Task HandleUploadAsync(HttpContext context, string token)
     {

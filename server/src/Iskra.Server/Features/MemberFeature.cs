@@ -10,7 +10,6 @@ public static class MemberFeature
 
     public static void Register(Router router)
     {
-        router.Add("profile.update", UpdateProfile);
         router.Add("member.setRole", SetRole);
         router.Add("member.kick", Kick);
         router.Add("member.ban", BanMember);
@@ -27,16 +26,6 @@ public static class MemberFeature
         var target = s.World.Store.GetMember(key) ?? throw RequestException.NotFound("Member");
         if (!Permissions.Outranks(me, target)) throw RequestException.Forbidden("You can only manage members ranked below you.");
         return target;
-    }
-
-    private static object UpdateProfile(Session s, Member me, Body body)
-    {
-        var name = Names.Normalize(body.String("name", 256))
-            ?? throw RequestException.BadRequest($"Names must be 1–{Names.MaxLength} characters, with no invisible characters.");
-        s.World.Store.SetMemberName(me.AccountKey, name);
-        var member = s.Hub.PublicMember(me with { Name = name });
-        s.Hub.Broadcast(Frames.Event("member.updated", new { member }));
-        return new { member };
     }
 
     private static object SetRole(Session s, Member me, Body body)

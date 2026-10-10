@@ -165,6 +165,26 @@ public sealed partial class Store : IDisposable
     /// <summary>Named schema steps, applied once each, in order. Add new ones at the end.</summary>
     private static readonly (string Name, string Sql)[] FeatureMigrations =
     [
+        ("profiles-1", """
+            CREATE TABLE profiles (
+                account_key TEXT PRIMARY KEY,
+                bio         TEXT,
+                pronouns    TEXT,
+                accent      TEXT,
+                avatar_file TEXT
+            );
+            CREATE TABLE profile_pages (
+                account_key TEXT PRIMARY KEY,
+                page_id     TEXT NOT NULL UNIQUE,
+                html        TEXT NOT NULL,
+                sha256      TEXT NOT NULL,
+                updated_at  INTEGER NOT NULL
+            );
+            CREATE TABLE profile_options (
+                name        TEXT PRIMARY KEY,
+                value       TEXT NOT NULL
+            );
+            """),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

@@ -141,6 +141,7 @@ app.MapMethods("/upload/{token}", ["OPTIONS"], (HttpContext context) =>
     return Results.NoContent();
 });
 app.MapGet("/files/{id}/{**name}", (HttpContext context, string id, Uploads uploads) => uploads.Serve(context, id));
+app.MapGet("/pages/{id}", (HttpContext context, string id, World w) => ProfilePages.Serve(context, w, id));
 
 app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice, Uploads uploads, LinkPreviews previews, Router router,
     IOptions<SessionLimits> limits, ILogger<Session> log, TimeProvider time) =>

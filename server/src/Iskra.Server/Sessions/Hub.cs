@@ -57,7 +57,7 @@ public sealed class Hub(World world)
         foreach (var session in _sessions.Keys.Where(s => s.AccountKey == accountKey)) session.Kick(closeCode, reason);
     }
 
-    public object PublicMember(Member m) => new { accountKey = m.AccountKey, name = m.Name, role = m.Role, online = IsOnline(m.AccountKey) };
+    public object PublicMember(Member m) => Features.ProfileFeature.Public(world.Store, m, IsOnline(m.AccountKey));
 
     public static object PublicChannel(Channel c) =>
         new { id = c.Id, name = c.Name, kind = c.Kind, position = c.Position, readRole = c.ReadRole, writeRole = c.WriteRole };
