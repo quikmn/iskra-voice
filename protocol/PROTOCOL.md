@@ -241,3 +241,65 @@ Device certificates are stored when a device authenticates, so the server can pu
 | `link.preview` | `url` (http/https, no credentials) | `{ preview: { url, siteName, title, description } \| null }` |
 
 The server fetches the page (so viewers' IPs aren't sent to every site): ≤ 512 KB of HTML, 6 s, ≤ 3 redirects, cached for an hour. It only connects to public addresses: each connection's IP is checked after DNS resolution, so private ranges, loopback, link-local/cloud metadata and redirects into them are refused. No images are fetched or shown. Runs off the read loop; rate-limited to 1/s (burst 10).
+
+## Bots and webhooks
+
+### Bot accounts
+
+A bot is an ordinary identity (account key, device certificate, signed handshake) that says so in `auth`:
+`profile: { name, bot: true }`.
+
+| type | body | result | who |
+|---|---|---|---|
+| `bot.invite` | `role?` (`guest`/`member`/`trusted`, default member), `expiresInMs?` (1 min – 30 days, default 7 days) | `{ invite }` (single use) | admin+ |
+
+- A bot can only join with a bot invite, and a bot invite only works for a client that says `bot: true`. Anything else gets `invite_required` (and the invite isn't used up).
+- The flag is stored by the server and can't be changed afterwards: `Member` gains `bot` (boolean) everywhere members appear.
+- Bots can't join voice (`voice.join` → `forbidden`), create invites, or have a role above `trusted` (`member.setRole` → `bad_request`). They have the same rate limits as everyone else.
+- Commands are a message convention, not a protocol feature: a message starting with `/name args` (or `/name@BotName args` to pick one bot) is a command. See `docs/bots.md`.
+
+### Webhooks
+
+An incoming webhook is a secret URL that posts into one text channel. Requests over the WebSocket, all admin+ and only for channels the admin can read (others are `not_found`):
+
+| type | body | result |
+|---|---|---|
+| `webhook.list` | `channelId?` | `{ webhooks: [Webhook] }` |
+| `webhook.create` | `channelId` (a text channel), `name` (1–32), `avatar?` (file id: an image you uploaded), `mentions?` (default false) | `{ webhook, secret, path }` |
+| `webhook.update` | `id`, `name?`, `avatar?` (`""` removes it), `mentions?`, `channelId?` | `{ webhook }` |
+| `webhook.regenerate` | `id` | `{ webhook, secret, path }`; the old URL stops working |
+| `webhook.delete` | `id` | |
+
+```jsonc
+Webhook { "id": "<b64u 16>", "channelId": 1, "name": "GitHub", "avatar": File | null, "mentions": false,
+          "createdBy": "<accountKey>", "createdAt": 0, "lastUsedAt": 0 | null }
+```
+
+- `secret` is 32 random bytes (base64url). It is returned only by `create` and `regenerate`; the server stores its SHA-256 and compares in constant time. `path` is `/hooks/<id>/<secret>` on the server's address.
+- At most 15 webhooks per channel. Deleting the channel deletes its webhooks.
+
+**Posting**: `POST <server>/hooks/<id>/<secret>` with a Discord-style JSON body (also `application/x-www-form-urlencoded` or `multipart/form-data` with `payload_json`, or plain `content`/`username` fields; files are ignored):
+
+| field | rules |
+|---|---|
+| `content` | same rules as `chat.send` text (≤ 4000 characters, no invisible control characters). May be empty when there are embeds. |
+| `username` | overrides the name for this message (cut to 32 characters, same rules as names) |
+| `embeds` | ≤ 10, ≤ 6000 characters in total. Kept: `title` (256), `description` (4096), `url` (http/https), `color`, `timestamp` (ISO 8601, stored as ms), `author.name` (256) and `author.url`, `footer.text` (2048), `fields` (≤ 25: `name` 256, `value` 1024, `inline`). Images, thumbnails and icons are dropped. |
+| `allowed_mentions` | `{ parse: ["users", "everyone"], users: [accountKey...] }`; can only narrow what the webhook may do |
+| `avatar_url`, `tts`, `thread_id`, ... | accepted and ignored (third-party images would reveal viewers' IP addresses) |
+
+- Zero-width spaces (U+200B, U+2060, U+FEFF), which Discord tools use as blank filler, are removed before validation.
+- Mentions: unless an admin turned on `mentions` for the webhook, `<@accountKey>` becomes plain `@Name` and `@everyone`/`@here` get a zero-width joiner, so nobody is pinged.
+- Body ≤ 64 KB (`413`). Rate limit per webhook: 5 at once, then one every 2 s (`429` with `Retry-After` and `{ message, retry_after, global: false }`). Wrong ids or secrets count against the caller's address (20 at once, then 1/s).
+- Answers: `204` (posted), `200` with a Discord-style message for `?wait=true`, `400 { message, code }` for invalid payloads, `404` for an unknown webhook or wrong secret (indistinguishable). `GET` on the URL returns `{ type: 1, id, name, channel_id }`.
+- `POST <server>/hooks/<id>/<secret>/github` accepts GitHub's own webhook format (JSON, or form with `payload`) and posts a short embed for `ping`, `push`, `issues`, `pull_request`, `issue_comment`, `release` and `star`; other actions are answered `204` without a message. Body ≤ 1 MB.
+
+The message is a normal `chat.message` to channel readers, with `author: "webhook:<id>"` (never an account key) and:
+
+```jsonc
+"webhook": { "id": "<webhook id>", "name": "GitHub", "avatar": File | null,
+             "embeds": [{ "title"?, "description"?, "url"?, "color"?, "timestamp"?, "author"?: { "name", "url"? },
+                          "footer"?: { "text" }, "fields"?: [{ "name", "value", "inline" }] }] }
+```
+
+`webhook` is `null` on every other message. Nobody can edit a webhook's message; admins can delete it.

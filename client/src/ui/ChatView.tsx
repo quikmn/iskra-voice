@@ -5,6 +5,8 @@ import {
   type PendingMessage, type ServerState,
 } from '../state/store'
 import { Attachments, LinkPreviewCard, Reactions, ReactionPicker, ReplyLine } from './chat/MessageExtras'
+import { AuthorAvatar, BotBadge, Embeds } from './chat/BotBits'
+import { authorOf, sameSender } from './chat/bots'
 import { firstLink, formatSize, replyKey, setReply, useReply } from './chat/helpers'
 import { Avatar, Spinner } from './bits'
 import { decodeMentions, encodeMentions, renderMarkdown } from './markdown'
@@ -126,7 +128,7 @@ function MessageList({ server, channelId }: { server: ServerState; channelId: nu
     if (!messages) return null
     return messages.map((message, i) => {
       const prev = messages[i - 1]
-      const grouped = !!prev && prev.author === message.author && message.createdAt - prev.createdAt < GROUP_WINDOW_MS && !prev.pending
+      const grouped = !!prev && sameSender(prev, message) && message.createdAt - prev.createdAt < GROUP_WINDOW_MS && !prev.pending
       return { message, grouped }
     })
   }, [messages])
@@ -171,7 +173,8 @@ function MessageRow({
   onEdit: (on: boolean) => void
 }) {
   const author: Member | undefined = server.members[message.author]
-  const name = author?.name ?? 'Former member'
+  const shown = authorOf(message, server.members)
+  const name = shown.name
   const me = server.me
   const mine = me?.accountKey === message.author
   const canDelete = !!me && !message.tempId &&
@@ -203,7 +206,7 @@ function MessageRow({
         {grouped ? (
           <time className="hover-time" title={fullTime(message.createdAt)}>{messageTime(message.createdAt).replace(/^.* /, '')}</time>
         ) : (
-          <Avatar name={name} accountKey={message.author} />
+          <AuthorAvatar server={server} author={shown} hueKey={message.author} />
         )}
       </div>
       <div className="message-body">
@@ -211,6 +214,7 @@ function MessageRow({
         {(!grouped || message.replyTo) && (
           <div className="message-meta">
             <span className="author" style={{ color: `hsl(${hueFor(message.author)} 70% 72%)` }}>{name}</span>
+            {shown.bot && <BotBadge />}
             <time title={fullTime(message.createdAt)}>{messageTime(message.createdAt)}</time>
           </div>
         )}
@@ -225,6 +229,7 @@ function MessageRow({
           )
         )}
         <Attachments server={server} files={message.attachments} />
+        {message.webhook && <Embeds server={server} embeds={message.webhook.embeds} />}
         {!message.tempId && firstLink(message.text) && <LinkPreviewCard server={server} url={firstLink(message.text)!} />}
         <Reactions server={server} message={message} />
         {message.pending === 'failed' && (

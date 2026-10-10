@@ -7,11 +7,12 @@ import { VoiceBar } from './VoiceBar'
 import { CreateChannelDialog } from './dialogs/CreateChannelDialog'
 import { InviteDialog } from './dialogs/InviteDialog'
 import { SettingsDialog } from './dialogs/SettingsDialog'
+import { IntegrationsDialog } from './dialogs/IntegrationsDialog'
 import { Hash, HeadphonesOff, Lock, MicOff, Plus, Settings, UserPlus, Volume } from './icons'
 
 export function ChannelSidebar({ server, onNavigate }: { server: ServerState; onNavigate: () => void }) {
   const activeId = useApp(activeChannelId)
-  const [dialog, setDialog] = useState<'invite' | 'channel' | 'settings' | null>(null)
+  const [dialog, setDialog] = useState<'invite' | 'channel' | 'settings' | 'integrations' | null>(null)
   const isAdmin = server.me ? roleRank(server.me.role) >= roleRank('admin') : false
   const canInvite = server.me ? roleRank(server.me.role) >= roleRank('member') : false
   const textChannels = server.channels.filter((c) => c.kind === 'text')
@@ -30,6 +31,11 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
         {canInvite && (
           <button className="invite-button" onClick={() => setDialog('invite')}>
             <UserPlus size={16} /> Invite friends
+          </button>
+        )}
+        {isAdmin && (
+          <button className="invite-button integrations-button" onClick={() => setDialog('integrations')}>
+            Bots &amp; webhooks
           </button>
         )}
         <div className="channel-group">
@@ -113,6 +119,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
       {dialog === 'invite' && <InviteDialog server={server} onClose={() => setDialog(null)} />}
       {dialog === 'channel' && <CreateChannelDialog server={server} onClose={() => setDialog(null)} />}
       {dialog === 'settings' && <SettingsDialog server={server} onClose={() => setDialog(null)} />}
+      {dialog === 'integrations' && <IntegrationsDialog server={server} onClose={() => setDialog(null)} />}
     </div>
   )
 }
