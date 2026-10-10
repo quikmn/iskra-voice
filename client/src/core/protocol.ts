@@ -104,6 +104,10 @@ export interface Events {
   'voice.state': VoiceChannelState
   'dm.message': { message: WireDm }
   'voice.available': { available: boolean }
+  'call.ring': CallRing
+  'call.accepted': { callId: string }
+  'call.ended': { callId: string; reason: CallEndReason }
+  'call.state': { callId: string; participants: string[] }
 }
 
 export interface WireDm {
@@ -141,11 +145,41 @@ export interface Requests {
   'dm.send': [{ accountKey: string; envelope: import('./dm').DmEnvelope }, { message: WireDm }]
   'dm.history': [{ accountKey: string; before?: number; limit?: number }, { messages: WireDm[]; hasMore: boolean }]
   'dm.conversations': [Record<string, never>, { conversations: { accountKey: string; lastId: number; lastAt: number }[] }]
+  'call.start': [{ accountKey: string; callId: string; video: boolean; envelope: import('./dm').DmEnvelope }, CallMedia]
+  'call.accept': [{ callId: string }, CallMedia]
+  'call.decline': [{ callId: string; reason?: 'declined' | 'busy' }, Record<string, never>]
+  'call.end': [{ callId: string }, Record<string, never>]
+  'call.pending': [Record<string, never>, { calls: CallRing[] }]
+}
+
+// ── calls ──
+export interface WireCall {
+  id: string
+  from: string
+  to: string
+  video: boolean
+  state: 'ringing' | 'active'
+  createdAt: number
+}
+
+export type CallEndReason = 'ended' | 'cancelled' | 'declined' | 'busy' | 'no_answer'
+
+/** The callee's ring: the call plus the caller's encrypted invite (which carries the media key). */
+export interface CallRing {
+  call: WireCall
+  envelope: import('./dm').DmEnvelope
+}
+
+export interface CallMedia {
+  call: WireCall
+  url: string
+  token: string
+  room: string
 }
 
 export type ErrorCode =
   | 'bad_request' | 'forbidden' | 'not_found' | 'rate_limited' | 'unknown_type' | 'internal'
-  | 'auth_failed' | 'invite_required' | 'banned' | 'voice_unavailable'
+  | 'auth_failed' | 'invite_required' | 'banned' | 'voice_unavailable' | 'busy'
 
 export class RequestError extends Error {
   readonly code: ErrorCode | 'disconnected' | 'timeout'

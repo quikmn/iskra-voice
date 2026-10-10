@@ -2,7 +2,7 @@
 // any server you both belong to can carry it, and histories from all of them are merged.
 import { create } from 'zustand'
 import { b64u } from '../core/crypto'
-import { decryptDm, DmError, encryptDm } from '../core/dm'
+import { decryptDm, DmError, encryptDm, type DmContent } from '../core/dm'
 import type { DeviceCert } from '../core/identity'
 import type { WireDm } from '../core/protocol'
 import * as storage from '../core/storage'
@@ -18,6 +18,8 @@ export interface Dm {
   pending?: 'sending' | 'failed'
   /** Set when a message couldn't be decrypted (shown as a notice, never as text). */
   error?: string
+  /** A call log entry (see calls.ts); shown instead of the text. */
+  call?: Record<string, unknown>
 }
 
 export interface Conversation {
@@ -85,8 +87,8 @@ function upsert(list: Dm[], dm: Dm): Dm[] {
 function open(wire: WireDm): Dm {
   const identity = useApp.getState().identity!
   try {
-    const { text, header } = decryptDm(identity, wire.envelope, wire.from, wire.to)
-    return { id: header.id, from: wire.from, to: wire.to, text, sentAt: header.sentAt }
+    const { text, header, call } = decryptDm(identity, wire.envelope, wire.from, wire.to)
+    return { id: header.id, from: wire.from, to: wire.to, text, sentAt: header.sentAt, call }
   } catch (e) {
     return {
       id: `server-${wire.id}-${wire.createdAt}`, from: wire.from, to: wire.to, text: '', sentAt: wire.createdAt,
@@ -155,7 +157,7 @@ export function openFriends(): void {
 
 const deviceCache = new Map<string, { at: number; devices: DeviceCert[] }>()
 
-async function devicesOf(serverKey: string, accountKey: string): Promise<DeviceCert[]> {
+export async function devicesOf(serverKey: string, accountKey: string): Promise<DeviceCert[]> {
   const cacheKey = `${serverKey}:${accountKey}`
   const cached = deviceCache.get(cacheKey)
   if (cached && Date.now() - cached.at < 5 * 60_000) return cached.devices
@@ -164,22 +166,22 @@ async function devicesOf(serverKey: string, accountKey: string): Promise<DeviceC
   return devices
 }
 
-export async function sendDm(peer: string, text: string): Promise<void> {
+export async function sendDm(peer: string, text: string, extra: Pick<DmContent, 'call'> = {}): Promise<void> {
   const identity = useApp.getState().identity
   const mine = me()
   const route = sharedServers(peer)[0]
   const tempId = `pending-${Date.now()}-${Math.random()}`
-  const pending: Dm = { id: tempId, from: mine, to: peer, text, sentAt: Date.now(), pending: 'sending' }
+  const pending: Dm = { id: tempId, from: mine, to: peer, text, sentAt: Date.now(), pending: 'sending', ...extra }
   patchConversation(peer, (c) => ({ messages: upsert(c.messages, pending) }))
 
   try {
     if (!identity || !route) throw new DmError("You don't share an online server with this person right now.")
     const [theirs, ours] = await Promise.all([devicesOf(route, peer), devicesOf(route, mine)])
-    const envelope = encryptDm(identity, peer, theirs, ours, { text })
+    const envelope = encryptDm(identity, peer, theirs, ours, { text, ...extra })
     await connectionFor(route)!.request('dm.send', { accountKey: peer, envelope })
     // The dm.message event (also sent to us) adds the real message; drop the placeholder.
     patchConversation(peer, (c) => ({
-      messages: upsert(c.messages.filter((m) => m.id !== tempId), { id: envelope.header.id, from: mine, to: peer, text, sentAt: envelope.header.sentAt }),
+      messages: upsert(c.messages.filter((m) => m.id !== tempId), { id: envelope.header.id, from: mine, to: peer, text, sentAt: envelope.header.sentAt, ...extra }),
     }))
   } catch (e) {
     patchConversation(peer, (c) => ({

@@ -138,6 +138,16 @@ const fromApp = (event: Electron.IpcMainInvokeEvent | Electron.IpcMainEvent) => 
 ipcMain.handle('iskra:set-ptt', (event, keycode: unknown) => {
   if (fromApp(event)) ptt.setKey(typeof keycode === 'number' ? keycode : null)
 })
+// An incoming call: flash the taskbar and show the window if it's hidden in the tray, without stealing focus.
+ipcMain.handle('iskra:call-alert', (event, on: unknown) => {
+  if (!fromApp(event) || !window) return
+  if (on === true) {
+    if (!window.isVisible() || window.isMinimized()) window.showInactive()
+    if (!window.isFocused()) window.flashFrame(true)
+  } else {
+    window.flashFrame(false)
+  }
+})
 ipcMain.handle('iskra:capture-ptt-key', (event) => (fromApp(event) ? ptt.captureNextKey() : null))
 
 // Hosting servers from the app.
@@ -149,6 +159,9 @@ ipcMain.handle('iskra:host-create', (event, name: unknown, appUrl: unknown) => {
 })
 ipcMain.handle('iskra:host-start', (event, id: unknown) => (fromApp(event) && typeof id === 'string' ? host.start(id) : null))
 ipcMain.handle('iskra:host-stop', (event, id: unknown) => (fromApp(event) && typeof id === 'string' ? host.stop(id) : null))
+
+// Windows shows notifications (incoming calls, messages) under this id.
+if (process.platform === 'win32') app.setAppUserModelId('foo.iskra.desktop')
 
 app.whenReady().then(() => {
   setUpSession()

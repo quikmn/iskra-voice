@@ -13,6 +13,7 @@ import { VoiceStage } from './VoiceStage'
 import { HomeMain, HomeSidebar } from './Home'
 import { RecoveryNudge } from './dialogs/RecoveryKey'
 import { Menu } from './icons'
+import { IncomingCall } from './calls/Calls'
 
 export type Panel = 'none' | 'nav' | 'members'
 
@@ -22,7 +23,7 @@ export function Shell() {
   const [panel, setPanel] = useState<Panel>('none')
   const [joining, setJoining] = useState(false)
   const [creating, setCreating] = useState(false)
-  const stage = useVoice((s) => s.stageOpen && s.session?.serverKey === server?.key)
+  const stage = useVoice((s) => s.stageOpen && s.session?.serverKey === server?.key && !s.session?.call)
   const hasServers = useApp((s) => s.order.length > 0)
 
   return (
@@ -52,6 +53,7 @@ export function Shell() {
       )}
 
       {panel !== 'none' && <div className="scrim" onClick={() => setPanel('none')} />}
+      <IncomingCall />
       {joining && <JoinDialog onClose={() => setJoining(false)} onCreate={() => { setJoining(false); setCreating(true) }} />}
       {creating && (desktop ? <CreateServerDialog onClose={() => setCreating(false)} /> : <StartServerDialog onClose={() => setCreating(false)} />)}
     </div>
