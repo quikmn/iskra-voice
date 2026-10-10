@@ -10,6 +10,8 @@ import {
 } from './icons'
 import type { Panel } from './Shell'
 import { SoundboardButton } from './expressions/Soundboard'
+import { useVolumeMenu } from './useVolumeMenu'
+import './audio.css'
 
 /** The call screen: video tiles (screen shares first) and everyone's avatar, with call controls. */
 export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle: (panel: Panel) => void }) {
@@ -17,6 +19,7 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
   const tiles = useVoice((s) => s.tiles)
   const speaking = useVoice((s) => s.speaking)
   const [focusId, setFocusId] = useState<string | null>(null)
+  const { bind, menu: volumeMenu } = useVolumeMenu()
   const channel = server.channels.find((c) => c.id === session.channelId)
   const participants = server.voice[session.channelId] ?? []
   const withVideo = new Set(tiles.map((t) => t.accountKey))
@@ -50,6 +53,7 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
             const name = server.members[p.accountKey]?.name ?? 'Someone'
             return (
               <div
+                {...bind(p.accountKey === server.me?.accountKey ? null : { accountKey: p.accountKey, name })}
                 key={p.accountKey}
                 className={`person-tile ${speaking[p.accountKey] ? 'speaking' : ''}`}
                 role="button"
@@ -70,6 +74,7 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
         {participants.length === 0 && session.state !== 'connected' && <p className="muted stage-hint">Connecting…</p>}
       </div>
 
+      {volumeMenu}
       <CallControls />
     </div>
   )
@@ -121,12 +126,12 @@ export function VideoTile({ tile, name, big, speaking, onClick }: { tile: Tile; 
 /** Mute, deafen, camera, screen share and hang up. DM calls pass their own hang-up; stages add their own buttons. */
 export function CallControls({ onLeave, extra }: { onLeave?: () => void; extra?: ReactNode }) {
   const session = useVoice((s) => s.session)!
-  const { muted, deafened, camera, screen } = useVoice()
+  const { muted, deafened, camera, screen, localSpeaking } = useVoice()
   const speak = session.canSpeak
   return (
     <div className="call-controls" role="toolbar" aria-label="Call controls">
       {speak && (
-        <button className={`call-button ${muted ? 'off' : ''}`} onClick={() => void toggleMute()} aria-pressed={muted} aria-label={muted ? 'Unmute' : 'Mute'} title={muted ? 'Unmute' : 'Mute'}>
+        <button className={`call-button ${muted ? 'off' : ''} ${localSpeaking && !muted ? 'talking' : ''}`} onClick={() => void toggleMute()} aria-pressed={muted} aria-label={muted ? 'Unmute' : 'Mute'} title={muted ? 'Unmute' : 'Mute'}>
           {muted ? <MicOff /> : <Mic />}
         </button>
       )}

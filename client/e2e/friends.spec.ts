@@ -61,7 +61,9 @@ test('a fresh browser starts at onboarding', async ({ browser }) => {
 })
 
 test('with no servers, you can find out how to start one and change your name', async ({ browser }) => {
-  const page = await (await browser.newContext()).newPage()
+  // A Windows visitor is offered the Windows app first (others get theirs: see links.test.ts).
+  const windows = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
+  const page = await (await browser.newContext({ userAgent: windows })).newPage()
   await page.goto('/')
   await page.getByLabel('Your name').fill('Newbie')
   await page.getByRole('button', { name: 'Continue' }).click()
@@ -69,7 +71,8 @@ test('with no servers, you can find out how to start one and change your name', 
   await page.getByRole('button', { name: 'Start your own server' }).click()
   const guide = page.getByRole('dialog', { name: 'Start your own server' })
   await expect(guide.getByRole('link', { name: 'Download Iskra for Windows' })).toHaveAttribute('href', /Iskra-Setup-.*\.exe$/)
-  await expect(guide.getByRole('link', { name: 'Linux' })).toHaveAttribute('href', /linux-x64\.tar\.gz$/)
+  await expect(guide.getByRole('link', { name: 'Linux', exact: true })).toHaveAttribute('href', /linux-x64\.tar\.gz$/)
+  await expect(guide.getByRole('link', { name: 'Mac (Apple silicon)' })).toHaveAttribute('href', /-mac-arm64\.dmg$/)
   await page.keyboard.press('Escape')
 
   // Settings are reachable from Home too.

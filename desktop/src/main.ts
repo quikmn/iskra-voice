@@ -2,10 +2,11 @@
 // It adds what browsers can't do: push-to-talk while a game has focus, a screen/window picker,
 // the tray, and a stable app:// origin for local storage.
 import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, Menu, nativeImage, net, protocol, session, shell, systemPreferences, Tray } from 'electron'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Host } from './host'
-import { isAppPage, isWayland, MAC_SETTINGS, skipScreenPicker, type SettingsPane } from './platform'
+import { aboutDetail, isAppPage, isWayland, MAC_SETTINGS, skipScreenPicker, trayMenu, type SettingsPane, type TrayAction } from './platform'
 import { PushToTalk } from './ptt'
 import { Updates, type UpdateStatus } from './updates'
 
@@ -31,7 +32,10 @@ let tray: Tray | null = null
 let quitting = false
 const ptt = new PushToTalk((down) => window?.webContents.send('iskra:ptt', down))
 const host = new Host()
-const updates = new Updates((status: UpdateStatus) => window?.webContents.send('iskra:update', status))
+const updates = new Updates((status: UpdateStatus) => {
+  window?.webContents.send('iskra:update', status)
+  updateTray()
+})
 
 if (!app.requestSingleInstanceLock()) app.quit()
 
@@ -165,23 +169,97 @@ function createMacMenu(): void {
   )
 }
 
+const WEBSITE = 'https://iskra.foo'
+const LICENSE_URL = 'https://github.com/quikmn/iskra-voice/blob/main/LICENSE'
+let checking = false
+
 function createTray(): void {
   tray = new Tray(nativeImage.createFromPath(TRAY_ICON))
   tray.setToolTip('Iskra')
-  tray.setContextMenu(
-    Menu.buildFromTemplate([
-      { label: 'Open Iskra', click: showWindow },
-      { type: 'separator' },
-      {
-        label: 'Quit Iskra',
-        click: () => {
-          quitting = true
-          app.quit()
-        },
-      },
-    ]),
-  )
+  updateTray()
   tray.on('click', showWindow)
+}
+
+/** The tray menu, rebuilt whenever the updater's state changes. */
+function updateTray(): void {
+  if (!tray) return
+  const items = trayMenu(updates.current(), checking, updates.enabled)
+  if (process.env.ISKRA_E2E) (globalThis as { iskraTrayMenu?: unknown }).iskraTrayMenu = items // for the desktop e2e test
+  tray.setContextMenu(
+    Menu.buildFromTemplate(items.map((item) =>
+      item.action ? { label: item.label, enabled: item.enabled, click: () => void trayAction(item.action!) } : { type: 'separator' as const })),
+  )
+}
+
+async function trayAction(action: TrayAction): Promise<void> {
+  if (action === 'open') return showWindow()
+  if (action === 'about') return showAbout()
+  if (action === 'check') return checkForUpdates()
+  if (action === 'restart') return void updates.restart(() => (quitting = true))
+  if (action === 'download') {
+    const status = updates.current()
+    if (status.state === 'available' && status.url.startsWith('https://github.com/')) void shell.openExternal(status.url)
+    return
+  }
+  quitting = true
+  app.quit()
+}
+
+/** A small native About box: version, what Iskra is built on, and links. */
+async function showAbout(): Promise<void> {
+  const detail = aboutDetail(
+    { app: app.getVersion(), electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node },
+    process.platform,
+    process.arch,
+  )
+  const options: Electron.MessageBoxOptions = {
+    type: 'info', title: 'About Iskra', message: 'Iskra', detail, icon: nativeImage.createFromPath(path.join(ASSETS, 'icon.png')),
+    buttons: ['OK', 'Website', 'License', 'Open source licenses'], defaultId: 0, cancelId: 0, noLink: true,
+  }
+  const { response } = window ? await dialog.showMessageBox(window, options) : await dialog.showMessageBox(options)
+  if (response === 1) void shell.openExternal(WEBSITE)
+  if (response === 2) void shell.openExternal(LICENSE_URL)
+  if (response === 3) void openThirdPartyLicenses()
+}
+
+/** electron-builder ships Chromium's and Electron's notices next to the app. */
+async function openThirdPartyLicenses(): Promise<void> {
+  const dir = MAC ? path.join(process.resourcesPath, '..') : path.dirname(process.execPath)
+  for (const file of ['LICENSES.chromium.html', 'LICENSE.electron.txt']) {
+    const full = path.join(dir, file)
+    if (existsSync(full)) {
+      void shell.openPath(full)
+      return
+    }
+  }
+  void shell.openExternal('https://github.com/electron/electron/blob/main/LICENSE')
+}
+
+/** "Check for updates" from the tray: always says what it found. */
+async function checkForUpdates(): Promise<void> {
+  if (checking) return
+  checking = true
+  updateTray()
+  const result = await updates.check().finally(() => {
+    checking = false
+    updateTray()
+  })
+  const status = updates.current()
+  if (result === 'found' && status.state === 'ready') return void trayAction('restart')
+  if (result === 'found' && status.state === 'available') return void trayAction('download')
+  const message =
+    result === 'found' ? `Iskra ${'version' in status ? status.version : ''} is downloading`
+    : result === 'up-to-date' ? "You're up to date"
+    : result === 'off' ? 'Updates are off in this build'
+    : "Couldn't check for updates"
+  const detail =
+    result === 'found' ? "It installs in the background. When it's ready, choose Restart to update from this menu or the app."
+    : result === 'up-to-date' ? `Iskra ${app.getVersion()} is the newest version.`
+    : result === 'off' ? "Development builds don't update themselves."
+    : 'Check your internet connection and try again.'
+  const options: Electron.MessageBoxOptions = { type: 'info', title: 'Iskra updates', message, detail, buttons: ['OK'] }
+  if (window) await dialog.showMessageBox(window, options)
+  else await dialog.showMessageBox(options)
 }
 
 /** IPC is only accepted from the app's own page. */

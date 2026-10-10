@@ -1,0 +1,58 @@
+/* ── Voice & audio: level meter, per-person volume, your own speaking ring ── */
+.audio-settings .field small { font-size: 12.5px; }
+.audio-settings .checkbox { margin-bottom: 10px; }
+.audio-settings .segmented { margin-bottom: 8px; }
+.audio-settings .segmented button:disabled { opacity: 0.45; cursor: not-allowed; }
+.mic-test-row { align-items: center; gap: 14px; flex-wrap: wrap; }
+.mic-test-row .checkbox { margin: 0; }
+
+.mic-meter-wrap { position: relative; display: grid; gap: 4px; padding: 4px 0; }
+.mic-meter { position: relative; height: 10px; border-radius: 99px; background: var(--bg); overflow: hidden; border: 1px solid var(--border); }
+.mic-meter-fill {
+  position: absolute; inset: 0; transform-origin: left center; transform: scaleX(0);
+  background: color-mix(in srgb, var(--muted) 60%, transparent); transition: transform 60ms linear;
+}
+.mic-meter.open .mic-meter-fill { background: var(--green); }
+.mic-meter-mark { position: absolute; top: -1px; bottom: -1px; width: 2px; margin-left: -1px; background: var(--text-strong); opacity: 0.7; }
+/* The threshold slider sits on the meter: you drag the marker itself. */
+.mic-threshold {
+  position: absolute; left: 0; right: 0; top: 0; height: 18px; margin: 0; padding: 0; width: 100%;
+  -webkit-appearance: none; appearance: none; background: transparent; cursor: ew-resize;
+}
+.mic-threshold::-webkit-slider-runnable-track { height: 18px; background: transparent; }
+.mic-threshold::-moz-range-track { height: 18px; background: transparent; }
+.mic-threshold::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 8px; height: 18px; border-radius: 4px; background: var(--text-strong); border: 2px solid var(--surface);
+}
+.mic-threshold::-moz-range-thumb { width: 8px; height: 18px; border-radius: 4px; background: var(--text-strong); border: 2px solid var(--surface); }
+.mic-threshold:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.mic-meter-wrap:has(.mic-threshold) .mic-meter-mark { display: none; }
+
+.volume-menu {
+  position: fixed; width: 260px; max-width: calc(100vw - 16px); padding: 12px 14px; display: grid; gap: 10px;
+  background: var(--float); border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.2); box-shadow: var(--shadow-pop);
+  animation: pop 0.14s var(--ease);
+}
+.volume-menu-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.volume-menu-head strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.volume-menu-row { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+.volume-menu-row input { flex: 1; }
+.volume-menu-actions { display: flex; gap: 8px; }
+.volume-menu-note { margin: 0; font-size: 12.5px; }
+.emoji-picker-layer.sheet .volume-menu {
+  left: 0; right: 0; bottom: 0; top: auto; width: 100%; max-width: none; padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  border-radius: calc(var(--radius) * 1.6) calc(var(--radius) * 1.6) 0 0; animation: sheet-up 0.2s var(--ease);
+}
+
+/* You, speaking: a green ring on your avatar and a glow on the mic button. Muted: a red badge. */
+.me-avatar { position: relative; display: inline-grid; border-radius: 50%; flex: none; }
+.me-avatar .avatar { transition: box-shadow 0.12s; }
+.me-avatar.speaking .avatar { box-shadow: 0 0 0 2px var(--rail), 0 0 0 4px var(--green); }
+.me-avatar-flag {
+  position: absolute; right: -4px; bottom: -4px; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--red); color: #fff; border: 2px solid var(--rail);
+}
+.voice-controls .icon-button.talking { color: var(--green); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--green) 55%, transparent); }
+.call-button.talking { box-shadow: 0 0 0 3px var(--green); }
+.voice-participants li.speaking .avatar, .call-person.speaking .avatar { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--green); }
+.person-tile.speaking .avatar { box-shadow: 0 0 0 3px var(--green); }

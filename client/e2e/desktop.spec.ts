@@ -20,10 +20,12 @@ test.afterAll(async () => server?.stop())
 
 test('the desktop app runs the web app on app:// and can join a server', async () => {
   const userData = mkdtempSync(join(tmpdir(), 'iskra-desktop-'))
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'NODE_OPTIONS')) as Record<string, string>
   const app = await electron.launch({
     executablePath: join(DESKTOP, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron'),
     args: [DESKTOP, `--user-data-dir=${userData}`],
     cwd: DESKTOP,
+    env: { ...env, ISKRA_E2E: '1' },
   })
   try {
     const page = await app.firstWindow()
@@ -47,6 +49,36 @@ test('the desktop app runs the web app on app:// and can join a server', async (
     }), `/assets/${worker}`)
     expect(ack).toBe('initAck')
     expect(await page.evaluate(() => 'RTCRtpScriptTransform' in window || 'createEncodedStreams' in RTCRtpSender.prototype)).toBe(true)
+
+    // Noise suppression: the RNNoise worklet and its WebAssembly load from app:// and start under the app's CSP.
+    const assets = readdirSync(resolve(HERE, '../dist/assets'))
+    const rnnoise = {
+      worklet: assets.find((f) => /^workletProcessor-.*\.js$/.test(f) && readFileSync(resolve(HERE, '../dist/assets', f), 'utf8').includes('rnnoise')),
+      wasm: assets.find((f) => /^rnnoise_simd-.*\.wasm$/.test(f)),
+      gate: assets.find((f) => /^micGate\.worklet-.*\.js$/.test(f)),
+    }
+    expect(rnnoise.worklet && rnnoise.wasm && rnnoise.gate).toBeTruthy()
+    const started = await page.evaluate(async ({ worklet, wasm, gate }) => {
+      const ctx = new AudioContext({ sampleRate: 48000 })
+      await ctx.audioWorklet.addModule(`/assets/${worklet}`)
+      await ctx.audioWorklet.addModule(`/assets/${gate}`)
+      const wasmBinary = await (await fetch(`/assets/${wasm}`)).arrayBuffer()
+      const node = new AudioWorkletNode(ctx, '@sapphi-red/web-noise-suppressor/rnnoise', { processorOptions: { maxChannels: 1, wasmBinary } })
+      const failed = await new Promise<boolean>((done) => {
+        node.onprocessorerror = () => done(true)
+        setTimeout(() => done(false), 500)
+      })
+      new AudioWorkletNode(ctx, 'iskra-mic-gate')
+      await ctx.close()
+      return !failed
+    }, rnnoise)
+    expect(started).toBe(true)
+
+    // The tray menu: About, Check for updates (off in a development build), Quit.
+    const trayLabels = () => app.evaluate(() =>
+      ((globalThis as { iskraTrayMenu?: { label: string; action: string | null; enabled: boolean }[] }).iskraTrayMenu ?? [])
+        .filter((i) => i.action).map((i) => `${i.label}${i.enabled ? '' : ' (off)'}`))
+    expect(await trayLabels()).toEqual(['Open Iskra', 'About Iskra', 'Check for updates (off)', 'Quit Iskra'])
 
     await page.getByLabel('Your name').fill('Desk')
     await page.getByRole('button', { name: 'Continue' }).click()

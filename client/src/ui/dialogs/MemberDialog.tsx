@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { fingerprint } from '../../core/connection'
 import { ROLES, roleRank, type Member, type Role } from '../../core/protocol'
 import { connectionFor, type ServerState } from '../../state/store'
-import { setVolume, useVoice } from '../../state/voice'
+import { maxVolume, setVolume, useVoice } from '../../state/voice'
 import { addFriend, openConversation, removeFriend, useDms } from '../../state/dms'
 import { Avatar, Modal } from '../bits'
 import { removeMemberPage } from '../../state/profile'
@@ -70,7 +70,7 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
           <h3>Voice</h3>
           <label className="field">
             <span>Volume · {Math.round(volume * 100)}%</span>
-            <input type="range" min={0} max={2} step={0.05} value={volume} onChange={(e) => setVolume(member.accountKey, Number(e.target.value))} />
+            <input type="range" min={0} max={maxVolume()} step={0.05} value={Math.min(volume, maxVolume())} onChange={(e) => setVolume(member.accountKey, Number(e.target.value))} />
           </label>
         </section>
       )}

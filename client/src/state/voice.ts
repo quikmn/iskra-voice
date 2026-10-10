@@ -1,11 +1,14 @@
 // Voice and video: one LiveKit room at a time. The server hands out the token; LiveKit carries the media.
 import {
-  ConnectionState, ExternalE2EEKeyProvider, Room, RoomEvent, ScreenSharePresets, Track, VideoPresets,
+  ConnectionState, ExternalE2EEKeyProvider, LocalAudioTrack, Room, RoomEvent, ScreenSharePresets, Track, VideoPresets,
   type LocalTrackPublication, type Participant, type RemoteParticipant, type RemoteTrack, type RoomOptions,
 } from 'livekit-client'
 import { create } from 'zustand'
 import { desktop } from '../platform/desktop'
 import { connectionFor } from './store'
+import { canBoost, captureOptions, effectiveVolume, onAudioSettings, useAudio, type AudioSettings } from './audio'
+import { MicProcessor, strongWorks } from './micPipeline'
+import { playTone } from './notify'
 
 export interface VoiceSession {
   serverKey: string
@@ -52,6 +55,10 @@ interface VoiceState {
   settings: VoiceSettings
   /** The push-to-talk key is held right now. */
   pttDown: boolean
+  /** Your own mic is above the voice activity threshold (measured here, so it shows instantly). */
+  localSpeaking: boolean
+  /** RNNoise is cleaning up your mic in this call (null: not in a call or not known yet). */
+  strongActive: boolean | null
 }
 
 const VOLUME_KEY = 'iskra.volumes'
@@ -86,6 +93,8 @@ export const useVoice = create<VoiceState>(() => ({
   error: null,
   settings: loadSettings(),
   pttDown: false,
+  localSpeaking: false,
+  strongActive: null,
 }))
 
 export const canShareScreen = () => typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia
@@ -111,8 +120,93 @@ function container(): HTMLDivElement {
 
 function applyVolume(participant: RemoteParticipant): void {
   const { volumes, deafened } = useVoice.getState()
-  participant.setVolume(deafened ? 0 : (volumes[participant.identity] ?? 1))
-  participant.setVolume(deafened ? 0 : (volumes[participant.identity] ?? 1), Track.Source.ScreenShareAudio)
+  const volume = effectiveVolume(volumes[participant.identity] ?? 1, useAudio.getState().outputVolume, deafened, boosting)
+  participant.setVolume(volume)
+  participant.setVolume(volume, Track.Source.ScreenShareAudio)
+}
+
+// ── Your own mic: processing, level and speaking ─────────────────────────
+
+/** This call mixes audio with Web Audio, so people can be turned up past 100%. */
+let boosting = false
+let processor: MicProcessor | null = null
+/** Whether the mic was captured with the browser's noise suppression on. */
+let capturedWithBrowserNs: boolean | null = null
+const levelListeners = new Set<(db: number) => void>()
+
+/** The highest volume a person can be set to on this device. */
+export const maxVolume = () => (canBoost() ? 2 : 1)
+
+/** Your mic level in dBFS while in a call (the settings meter listens). */
+export function onMicLevel(listener: (db: number) => void): () => void {
+  levelListeners.add(listener)
+  return () => levelListeners.delete(listener)
+}
+
+export const micPipelineActive = () => !!processor?.active
+
+function onLevel(db: number, open: boolean): void {
+  for (const l of levelListeners) l(db)
+  const { muted, pttDown, settings, localSpeaking } = useVoice.getState()
+  const talking = open && !muted && (settings.mode === 'voice' || pttDown)
+  if (talking !== localSpeaking) setLocalSpeaking(talking)
+}
+
+function setLocalSpeaking(on: boolean): void {
+  const me = room?.localParticipant.identity
+  useVoice.setState((s) => {
+    const speaking = { ...s.speaking }
+    if (me && on) speaking[me] = true
+    else if (me) delete speaking[me]
+    return { localSpeaking: on, speaking }
+  })
+}
+
+/** RNNoise turned out not to run here: capture again with the browser's noise suppression instead. */
+function onStrong(strong: boolean | null): void {
+  useVoice.setState({ strongActive: strong })
+  const settings = useAudio.getState()
+  // Only when that changes what we ask the browser for (strongWorks() is false from now on), so this can't loop.
+  if (settings.noise === 'strong' && !strong && capturedWithBrowserNs === false && captureOptions(settings, strongWorks()).noiseSuppression) {
+    setTimeout(() => void recapture(settings), 0)
+  }
+}
+
+function micTrack(): LocalAudioTrack | null {
+  const track = room?.localParticipant.getTrackPublication(Track.Source.Microphone)?.track
+  return track instanceof LocalAudioTrack ? track : null
+}
+
+/** Gets the mic again with the current device and browser processing (the processor follows along). */
+async function recapture(settings: AudioSettings): Promise<void> {
+  const track = micTrack()
+  if (!track) return
+  const options = captureOptions(settings, strongWorks())
+  capturedWithBrowserNs = options.noiseSuppression
+  try {
+    await track.restartTrack(options)
+  } catch {
+    // The chosen device is gone: fall back to the default one.
+    if (settings.inputDevice) await track.restartTrack({ ...options, deviceId: undefined }).catch(() => undefined)
+  }
+  await applyMic()
+}
+
+onAudioSettings((next, prev) => {
+  if (!room) return
+  if (next.noise !== prev.noise || next.echoCancellation !== prev.echoCancellation || next.autoGainControl !== prev.autoGainControl ||
+    next.inputDevice !== prev.inputDevice) {
+    void recapture(next)
+  } else if (next.inputVolume !== prev.inputVolume || next.threshold !== prev.threshold) {
+    processor?.active?.update(next)
+  }
+  if (next.outputDevice !== prev.outputDevice) void room.switchActiveDevice('audiooutput', next.outputDevice || 'default').catch(() => undefined)
+  if (next.outputVolume !== prev.outputVolume) room.remoteParticipants.forEach(applyVolume)
+})
+
+/** Mute and deafen sounds. */
+function voiceTone(kind: 'mute' | 'unmute' | 'deafen' | 'undeafen'): void {
+  if (useVoice.getState().session) playTone(kind)
 }
 
 function reportFlags(): void {
@@ -200,10 +294,15 @@ async function connect(
       return false
     }
     e2eeWorker = worker
+    const audio = useAudio.getState()
+    boosting = canBoost()
     const next = new Room({
       adaptiveStream: true,
       dynacast: true,
-      audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      // Web Audio mixing lets people be turned up past 100% (only where it can also pick the output device).
+      webAudioMix: boosting,
+      audioOutput: audio.outputDevice ? { deviceId: audio.outputDevice } : undefined,
+      audioCaptureDefaults: captureOptions(audio, strongWorks()),
       videoCaptureDefaults: { resolution: VideoPresets.h720.resolution },
       publishDefaults: { simulcast: true, screenShareEncoding: ScreenSharePresets.h1080fps30.encoding },
       encryption,
@@ -249,7 +348,20 @@ async function connect(
       .on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => applyVolume(participant))
       .on(RoomEvent.ParticipantDisconnected, refreshTiles)
       .on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
-        useVoice.setState({ speaking: Object.fromEntries(speakers.map((p) => [p.identity, true as const])) })
+        // Your own ring comes from your mic's level here when we measure it: quicker than the server's.
+        const me = next.localParticipant.identity
+        const measured = micPipelineActive()
+        const speaking: Record<string, true> = {}
+        for (const p of speakers) if (!measured || p.identity !== me) speaking[p.identity] = true
+        if (measured && useVoice.getState().localSpeaking) speaking[me] = true
+        useVoice.setState({ speaking })
+      })
+      .on(RoomEvent.AudioPlaybackStatusChanged, () => {
+        // The browser held back playback until the next tap or key press.
+        if (next.canPlaybackAudio) return
+        const start = () => void next.startAudio().catch(() => undefined)
+        window.addEventListener('pointerdown', start, { once: true, capture: true })
+        window.addEventListener('keydown', start, { once: true, capture: true })
       })
       .on(RoomEvent.ParticipantEncryptionStatusChanged, (enabled: boolean, participant?: Participant) => {
         if (room === next && participant === next.localParticipant)
@@ -278,7 +390,36 @@ async function connect(
     if (canSpeak) {
       try {
         // Publish the mic once; muting and push-to-talk just pause it (instant, no new permission prompts).
-        await next.localParticipant.setMicrophoneEnabled(true)
+        const options = captureOptions(useAudio.getState(), strongWorks())
+        capturedWithBrowserNs = options.noiseSuppression
+        let tracks
+        try {
+          tracks = await next.localParticipant.createTracks({ audio: options })
+        } catch (e) {
+          // A remembered device that's gone: use the default one.
+          if (!options.deviceId) throw e
+          tracks = await next.localParticipant.createTracks({ audio: { ...options, deviceId: undefined } })
+        }
+        const track = tracks.find((t): t is LocalAudioTrack => t instanceof LocalAudioTrack)
+        if (!track) throw new Error('no microphone')
+        if (room !== next) {
+          track.stop()
+          return false
+        }
+        // The processed mic is what gets published: nothing leaves before noise suppression is on.
+        if (typeof AudioWorkletNode === 'function') {
+          const mic = new MicProcessor(() => useAudio.getState(), onLevel, onStrong)
+          try {
+            await track.setProcessor(mic)
+            processor = mic
+          } catch {
+            // Send the mic as it is, with the browser's own noise suppression if you want any.
+            const noiseSuppression = useAudio.getState().noise !== 'off'
+            capturedWithBrowserNs = noiseSuppression
+            if (noiseSuppression !== options.noiseSuppression) await track.restartTrack({ ...options, noiseSuppression }).catch(() => undefined)
+          }
+        }
+        await next.localParticipant.publishTrack(track, { source: Track.Source.Microphone })
         await applyMic()
       } catch {
         useVoice.setState({ muted: true, error: "Couldn't use your microphone. Check your browser's permissions." })
@@ -319,9 +460,13 @@ async function cleanup(): Promise<void> {
   room = null
   e2eeWorker = null
   micDeferred = false
+  processor = null // LiveKit destroys it with the track
+  capturedWithBrowserNs = null
   for (const element of audioElements.values()) element.remove()
   audioElements.clear()
-  useVoice.setState({ session: null, speaking: {}, tiles: [], stageOpen: false, camera: false, screen: false })
+  useVoice.setState({
+    session: null, speaking: {}, tiles: [], stageOpen: false, camera: false, screen: false, localSpeaking: false, strongActive: null,
+  })
   if (old && old.state !== ConnectionState.Disconnected) await old.disconnect()
   worker?.terminate()
 }
@@ -343,6 +488,7 @@ export async function toggleMute(): Promise<void> {
     room?.remoteParticipants.forEach(applyVolume)
   }
   useVoice.setState({ muted: nextMuted })
+  voiceTone(nextMuted ? 'mute' : 'unmute')
   if (room && session?.canSpeak) await applyMic()
   reportFlags()
 }
@@ -354,6 +500,7 @@ export async function toggleDeafen(): Promise<void> {
   // Deafening mutes you too; undeafening puts your mic back how it was.
   const nextMuted = next ? true : mutedBeforeDeafen
   useVoice.setState({ deafened: next, muted: nextMuted })
+  voiceTone(next ? 'deafen' : 'undeafen')
   room?.remoteParticipants.forEach(applyVolume)
   if (room && session?.canSpeak) await applyMic()
   reportFlags()
@@ -416,6 +563,7 @@ async function applyMic(): Promise<void> {
     }
     return
   }
+  if (!open && useVoice.getState().localSpeaking) setLocalSpeaking(false)
   selfMuting = true
   try {
     if (open && publication.isMuted) await publication.unmute()

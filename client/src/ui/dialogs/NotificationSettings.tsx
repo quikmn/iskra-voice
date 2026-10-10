@@ -29,7 +29,7 @@ export function NotificationSettingsSection({ server }: { server?: ServerState |
             if (e.target.checked) playTone('message', true)
           }}
         />
-        Sounds
+        Message sounds
       </label>
       {server?.me && <ServerNotifySettings server={server} />}
     </section>

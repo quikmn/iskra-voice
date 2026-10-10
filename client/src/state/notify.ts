@@ -11,6 +11,7 @@ import { isDoNotDisturb } from './presence'
 import { notifyFor, serverBadges, useOrganize } from './organize'
 import { shouldNotify } from './organizeLogic'
 import { isBlocked, useBlocks } from './moderation'
+import { useAudio } from './audio'
 
 interface NotifySettings {
   desktop: boolean
@@ -52,12 +53,34 @@ export async function enableDesktopNotifications(): Promise<boolean> {
 // ── Sounds: tiny synthesized tones, no audio files to load ──────────────────
 
 let audio: AudioContext | null = null
+let audioSink = ''
 
-export function playTone(kind: 'message' | 'join' | 'leave', test = false): void {
-  if (!useNotify.getState().sounds || (isDoNotDisturb() && !test)) return
+export type Tone = 'message' | 'join' | 'leave' | 'mute' | 'unmute' | 'deafen' | 'undeafen'
+
+const TONES: Record<Tone, number[]> = {
+  message: [880, 1320],
+  join: [523, 784],
+  leave: [784, 523],
+  mute: [660, 440],
+  unmute: [440, 660],
+  deafen: [587, 392, 294],
+  undeafen: [294, 392, 587],
+}
+
+/** Message sounds follow Notifications; voice sounds (join, leave, mute, deafen) follow Voice & audio. */
+export function playTone(kind: Tone, test = false): void {
+  if (kind === 'message' ? !useNotify.getState().sounds : !useAudio.getState().voiceSounds) return
+  if (isDoNotDisturb() && !test) return
   try {
     audio ??= new AudioContext()
-    const notes = kind === 'message' ? [880, 1320] : kind === 'join' ? [523, 784] : [784, 523]
+    // Play on the chosen output device where the browser allows it.
+    const sink = useAudio.getState().outputDevice
+    const ctx = audio as AudioContext & { setSinkId?: (id: string) => Promise<void> }
+    if (sink !== audioSink && ctx.setSinkId) {
+      audioSink = sink
+      void ctx.setSinkId(sink).catch(() => undefined)
+    }
+    const notes = TONES[kind]
     notes.forEach((frequency, i) => {
       const osc = audio!.createOscillator()
       const gain = audio!.createGain()

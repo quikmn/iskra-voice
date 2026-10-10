@@ -152,6 +152,9 @@ test('polls, server emoji, reactions and the soundboard', async ({ browser }) =>
   await friend.getByRole('dialog', { name: 'Soundboard' }).getByRole('button', { name: /airhorn/ }).click()
   await expect(host.locator('.sound-toast')).toContainText('Friend played airhorn')
   await expect(friend.locator('.sound-toast')).toContainText('Friend played airhorn')
+  // On a phone the toast stays clear of the header.
+  const header = (await friend.locator('.stage .chat-header').boundingBox())!
+  expect((await friend.locator('.sound-toast').boundingBox())!.y).toBeGreaterThan(header.y + header.height)
   await expect.poll(() => host.evaluate(() => (window as unknown as { played: string[] }).played.length)).toBe(1)
   await host.screenshot({ path: join(SHOTS, 'soundboard-toast.png') })
   await friend.screenshot({ path: join(SHOTS, 'soundboard-mobile.png') })

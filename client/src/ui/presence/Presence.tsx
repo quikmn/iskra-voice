@@ -25,7 +25,11 @@ export function CustomStatusLine({ custom, className }: { custom: CustomStatus |
 }
 
 /** Avatar, name and status in the me bar; opens the status menu. */
-export function MeStatusButton({ name, accountKey, sub }: { name: string; accountKey: string; sub: ReactNode }) {
+export function MeStatusButton({ name, accountKey, sub, speaking = false, flag = null, title }: {
+  name: string; accountKey: string; sub: ReactNode
+  /** Voice: a ring while you talk, and a muted/deafened mark. */
+  speaking?: boolean; flag?: ReactNode; title?: string
+}) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const [editing, setEditing] = useState(false)
   const state = usePresence()
@@ -40,7 +44,10 @@ export function MeStatusButton({ name, accountKey, sub }: { name: string; accoun
         aria-haspopup="menu"
         aria-expanded={!!anchor}
       >
-        <Avatar name={name} accountKey={accountKey} size={32} status={status} />
+        <span className={`me-avatar ${speaking ? 'speaking' : ''}`} title={title}>
+          <Avatar name={name} accountKey={accountKey} size={32} status={status} />
+          {flag}
+        </span>
         <span className="me-text">
           <strong>{name}</strong>
           {custom ? <CustomStatusLine custom={custom} className="me-custom" /> : <span>{sub}</span>}

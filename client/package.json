@@ -13,6 +13,7 @@
     "test:e2e": "dotnet build ../server/src/Iskra.Server -v q -nologo && playwright test"
   },
   "dependencies": {
+    "@sapphi-red/web-noise-suppressor": "0.4.1",
     "barcode-detector": "3.2.2",
     "libsodium-wrappers-sumo": "^0.8.4",
     "livekit-client": "2.22.3",

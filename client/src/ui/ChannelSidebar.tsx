@@ -8,9 +8,11 @@ import { ChannelList } from './organize/ChannelList'
 import { CreateChannelDialog } from './dialogs/CreateChannelDialog'
 import { InviteDialog } from './dialogs/InviteDialog'
 import { SettingsDialog } from './settings/SettingsDialog'
-import { ChevronDown, Settings, UserPlus } from './icons'
+import { ChevronDown, HeadphonesOff, MicOff, Settings, UserPlus } from './icons'
+import { useVoice } from '../state/voice'
 import type { SectionId } from './settings/sections'
 import { EventsButton } from './events/EventsLayer'
+import './audio.css'
 
 export function ChannelSidebar({ server, onNavigate }: { server: ServerState; onNavigate: () => void }) {
   const [dialog, setDialog] = useState<'invite' | 'channel' | 'settings' | null>(null)
@@ -71,10 +73,17 @@ function MeBar({ server, onSettings }: { server: ServerState; onSettings: () => 
   const profile = useApp((s) => s.profile)
   const me = server.me
   const name = me?.name ?? profile?.name ?? ''
+  const inVoice = useVoice((s) => !!s.session && s.session.state === 'connected')
+  const speaking = useVoice((s) => s.localSpeaking)
+  const muted = useVoice((s) => s.muted)
+  const deafened = useVoice((s) => s.deafened)
+  const flag = inVoice && (deafened ? 'Deafened' : muted ? 'Muted' : null)
   return (
     <div className="me-bar">
       {me ? (
-        <MeStatusButton name={name} accountKey={me.accountKey} sub={me.role} />
+        <MeStatusButton name={name} accountKey={me.accountKey} sub={me.role} speaking={inVoice && speaking}
+          title={inVoice ? (flag || (speaking ? 'Speaking' : 'In voice')) : undefined}
+          flag={flag ? <span className="me-avatar-flag" aria-label={flag}>{deafened ? <HeadphonesOff size={11} /> : <MicOff size={11} />}</span> : null} />
       ) : (
         <div className="me-text">
           <strong>{name}</strong>

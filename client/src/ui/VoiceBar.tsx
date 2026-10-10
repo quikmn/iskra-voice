@@ -11,6 +11,7 @@ export function VoiceBar() {
   const muted = useVoice((s) => s.muted)
   const deafened = useVoice((s) => s.deafened)
   const error = useVoice((s) => s.error)
+  const talking = useVoice((s) => s.localSpeaking)
   const server = useApp((s) => (session ? s.servers[session.serverKey] : null))
   const channel = server?.channels.find((c) => c.id === session?.channelId)
   const call = useCalls((s) => s.call)
@@ -48,7 +49,10 @@ export function VoiceBar() {
       </div>
       <div className="voice-controls">
         {session.canSpeak && (
-          <button className={`icon-button ${muted ? 'off' : ''}`} onClick={() => void toggleMute()} aria-pressed={muted} aria-label={muted ? 'Unmute' : 'Mute'} title={muted ? 'Unmute' : 'Mute'}>
+          <button
+            className={`icon-button ${muted ? 'off' : ''} ${talking && !muted ? 'talking' : ''}`}
+            onClick={() => void toggleMute()} aria-pressed={muted} aria-label={muted ? 'Unmute' : 'Mute'} title={muted ? 'Unmute' : 'Mute'}
+          >
             {muted ? <MicOff /> : <Mic />}
           </button>
         )}
