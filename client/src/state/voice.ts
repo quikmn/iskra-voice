@@ -162,7 +162,10 @@ function setLocalSpeaking(on: boolean): void {
 function onStrong(strong: boolean | null): void {
   useVoice.setState({ strongActive: strong })
   const settings = useAudio.getState()
-  if (settings.noise === 'strong' && !strong && capturedWithBrowserNs === false) setTimeout(() => void recapture(settings), 0)
+  // Only when that changes what we ask the browser for (strongWorks() is false from now on), so this can't loop.
+  if (settings.noise === 'strong' && !strong && capturedWithBrowserNs === false && captureOptions(settings, strongWorks()).noiseSuppression) {
+    setTimeout(() => void recapture(settings), 0)
+  }
 }
 
 function micTrack(): LocalAudioTrack | null {

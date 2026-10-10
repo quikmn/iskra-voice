@@ -114,3 +114,43 @@ export function isAppPage(url: string, appOrigin: string, devUrl?: string): bool
     return false
   }
 }
+
+/** What the updater is doing, as the tray and the app see it. */
+export type UpdateState =
+  | { state: 'none' }
+  | { state: 'downloading'; version: string }
+  | { state: 'ready'; version: string }
+  | { state: 'available'; version: string; url: string }
+
+export type TrayAction = 'open' | 'about' | 'check' | 'restart' | 'download' | 'quit'
+export interface TrayItem {
+  action: TrayAction | null
+  label: string
+  enabled: boolean
+}
+
+/** The tray's right-click menu (null action = separator). The update item follows what the updater is doing. */
+export function trayMenu(update: UpdateState, checking: boolean, updatesOn: boolean): TrayItem[] {
+  const item = (action: TrayAction, label: string, enabled = true): TrayItem => ({ action, label, enabled })
+  const sep: TrayItem = { action: null, label: '', enabled: true }
+  const updateItem =
+    update.state === 'ready' ? item('restart', `Restart to update to ${update.version}`)
+    : update.state === 'available' ? item('download', `Download Iskra ${update.version}`)
+    : update.state === 'downloading' ? item('check', `Downloading ${update.version}…`, false)
+    : checking ? item('check', 'Checking for updates…', false)
+    : item('check', 'Check for updates', updatesOn)
+  return [item('open', 'Open Iskra'), sep, item('about', 'About Iskra'), updateItem, sep, item('quit', 'Quit Iskra')]
+}
+
+/** The About box's text. */
+export function aboutDetail(versions: { app: string; electron: string; chrome: string; node: string }, platform: NodeJS.Platform, arch: string): string {
+  const os = platform === 'win32' ? 'Windows' : platform === 'darwin' ? 'macOS' : platform === 'linux' ? 'Linux' : platform
+  return [
+    `Version ${versions.app} (${os}, ${arch})`,
+    `Electron ${versions.electron} · Chromium ${versions.chrome} · Node ${versions.node}`,
+    '',
+    'Voice and text chat for friends, on servers you own.',
+    'Iskra is source-available under the PolyForm Noncommercial License 1.0.0.',
+    'It builds on open source software, including Electron, Chromium, LiveKit, libsodium, React and RNNoise.',
+  ].join('\n')
+}

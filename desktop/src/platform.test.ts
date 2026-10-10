@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { compareVersions, defaultHostRoot, exeName, isAppPage, isWayland, newerRelease, serverRid, skipScreenPicker, updateMode } from './platform'
+import { aboutDetail, compareVersions, defaultHostRoot, exeName, isAppPage, isWayland, newerRelease, serverRid, skipScreenPicker, trayMenu, updateMode } from './platform'
 
 test('server binaries and runtime ids per platform', () => {
   assert.equal(exeName('iskra-server', 'win32'), 'iskra-server.exe')
@@ -71,4 +71,25 @@ test('only the app itself counts as the app page', () => {
   assert.equal(isAppPage('http://localhost:51730/', 'app://iskra', 'http://localhost:5173'), false)
   assert.equal(isAppPage('http://localhost:5173.evil.com/', 'app://iskra', 'http://localhost:5173'), false)
   assert.equal(isAppPage('http://localhost:5173/', 'app://iskra'), false)
+})
+
+test('the tray menu follows the updater', () => {
+  const labels = (items: ReturnType<typeof trayMenu>) => items.filter((i) => i.action).map((i) => `${i.label}${i.enabled ? '' : ' (off)'}`)
+  assert.deepEqual(labels(trayMenu({ state: 'none' }, false, true)), ['Open Iskra', 'About Iskra', 'Check for updates', 'Quit Iskra'])
+  assert.deepEqual(labels(trayMenu({ state: 'none' }, true, true))[2], 'Checking for updates… (off)')
+  assert.deepEqual(labels(trayMenu({ state: 'none' }, false, false))[2], 'Check for updates (off)') // development builds
+  assert.deepEqual(labels(trayMenu({ state: 'downloading', version: '2.1.0' }, false, true))[2], 'Downloading 2.1.0… (off)')
+  const ready = trayMenu({ state: 'ready', version: '2.1.0' }, false, true)
+  assert.equal(ready.find((i) => i.action === 'restart')?.label, 'Restart to update to 2.1.0')
+  const available = trayMenu({ state: 'available', version: '2.1.0', url: 'https://github.com/x' }, false, true)
+  assert.equal(available.find((i) => i.action === 'download')?.label, 'Download Iskra 2.1.0')
+  assert.equal(trayMenu({ state: 'none' }, false, true).filter((i) => !i.action).length, 2)
+})
+
+test('the About box names the version and what Iskra is built on', () => {
+  const text = aboutDetail({ app: '2.0.0', electron: '44.4.5', chrome: '140.0', node: '24.1' }, 'darwin', 'arm64')
+  assert.match(text, /^Version 2\.0\.0 \(macOS, arm64\)/)
+  assert.match(text, /Electron 44\.4\.5/)
+  assert.match(text, /PolyForm Noncommercial/)
+  assert.match(text, /RNNoise/)
 })

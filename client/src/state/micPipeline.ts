@@ -60,6 +60,7 @@ export async function createMicPipeline(source: MediaStreamTrack, settings: Audi
   }
   const stopResuming = keepRunning(ctx)
   const fail = () => {
+    if (wantStrong) strongBroken = true // e.g. Firefox when the mic's sample rate isn't 48 kHz
     stopResuming()
     void ctx.close().catch(() => undefined)
     return null
