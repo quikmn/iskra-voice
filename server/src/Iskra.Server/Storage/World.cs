@@ -32,6 +32,27 @@ public sealed record WorldSettings
     public HttpsSettings Https { get; init; } = new();
 
     public InternetSettings Internet { get; init; } = new();
+
+    public BackupSettings Backups { get; init; } = new();
+
+    public ImportSettings Import { get; init; } = new();
+}
+
+/// <summary>Automatic daily backups into the world's backups/ folder (unencrypted: the folder already holds the keys).</summary>
+public sealed record BackupSettings
+{
+    public bool Enabled { get; init; } = true;
+    /// <summary>How many daily backups to keep (1–30).</summary>
+    public int Keep { get; init; } = 7;
+    /// <summary>Also copy uploads into each daily backup. Off by default: they stay in uploads/ and only grow.</summary>
+    public bool IncludeUploads { get; init; }
+}
+
+/// <summary>Imports (Discord exports).</summary>
+public sealed record ImportSettings
+{
+    /// <summary>Largest export (zip or JSON) the owner may upload, in MB.</summary>
+    public int MaxMb { get; init; } = 4096;
 }
 
 /// <summary>Daily upload allowance per account, in MB over any 24 hours. 0 means no limit.</summary>
@@ -108,6 +129,9 @@ public sealed class World : IDisposable
 
     /// <summary>How friends on the internet reach this server right now (set by internet hosting), or null.</summary>
     public string? InternetUrl { get; set; }
+
+    /// <summary>A signed "this server moved" notice, once the owner has published one (see MoveFeature).</summary>
+    public Features.MoveNotice? Moved { get; set; }
     public Key ServerKey { get; }
     public byte[] ServerPublicKey { get; }
     public Store Store { get; }

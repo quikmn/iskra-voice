@@ -8,10 +8,18 @@ using Iskra.Server.Voice;
 using Microsoft.Extensions.Options;
 
 // Usage: iskra-server <world-folder>   (the folder is created with defaults if it doesn't exist)
+// Also: restore, backup, move, import-discord (see Cli.cs).
+if (Iskra.Server.Cli.IsCommand(args.FirstOrDefault()))
+{
+    Environment.ExitCode = Iskra.Server.Cli.Run(args);
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 var worldPath = builder.Configuration["World"] ?? args.FirstOrDefault(a => !a.StartsWith('-')) ?? "world";
 var world = World.OpenOrCreate(worldPath);
+MoveFeature.Load(world);
 
 builder.Services.AddSingleton(world);
 builder.Services.AddSingleton<Hub>();
@@ -58,6 +66,9 @@ builder.Services.AddSingleton<IPortMapper>(sp => builder.Configuration["Internet
     : ActivatorUtilities.CreateInstance<PortMapper>(sp));
 builder.Services.AddSingleton<InternetHost>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<InternetHost>());
+builder.Services.AddSingleton<Iskra.Server.Backups.BackupService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<Iskra.Server.Backups.BackupService>());
+builder.Services.AddSingleton<Iskra.Server.Import.ImportService>();
 
 var https = world.Settings.Https;
 if (https.Enabled)
@@ -198,6 +209,11 @@ app.MapGet("/pages/{id}", (HttpContext context, string id, World w) => ProfilePa
 WebhookIngress.Map(app);
 // Device linking: a short-lived relay for a new device that has no account yet.
 LinkRelay.MapEndpoints(app);
+// Backups, moving to another computer, imports.
+BackupFeature.MapEndpoints(app);
+MoveFeature.MapEndpoints(app);
+ImportFeature.MapEndpoints(app);
+app.Services.GetRequiredService<Iskra.Server.Import.ImportService>().CleanUp();
 
 app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice, Uploads uploads, LinkPreviews previews, Router router,
     IOptions<SessionLimits> limits, ILogger<Session> log, TimeProvider time, PushService push) =>

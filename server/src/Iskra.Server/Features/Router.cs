@@ -14,7 +14,7 @@ public sealed class Router
     private readonly Dictionary<string, AsyncHandler> _asyncHandlers = new(StringComparer.Ordinal);
     private readonly ILogger<Router> _log;
 
-    public Router(ILogger<Router> log, Hosting.InternetHost internet)
+    public Router(ILogger<Router> log, Hosting.InternetHost internet, Backups.BackupService backups, Import.ImportService imports)
     {
         _log = log;
         Add("ping", (_, _, _) => new { });
@@ -39,6 +39,9 @@ public sealed class Router
         PushFeature.Register(this);
         HostFeature.Register(this, internet);
         ProfileFeature.Register(this);
+        BackupFeature.Register(this, backups);
+        MoveFeature.Register(this);
+        ImportFeature.Register(this, imports);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);
@@ -48,6 +51,7 @@ public sealed class Router
 
     public void Handle(Session session, Member me, Envelope request)
     {
+        if (MoveFeature.Refuse(session, request)) return;
         if (_asyncHandlers.TryGetValue(request.Type, out var asyncHandler))
         {
             _ = RunAsync(session, me, request, asyncHandler);

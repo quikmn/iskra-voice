@@ -158,7 +158,8 @@ public sealed class Session
         {
             you = _hub.PublicMember(member),
             server = new { name = _world.Settings.Name, key = Ed25519.ToB64u(_world.ServerPublicKey), appUrl = _world.Settings.AppUrl, publicUrl = _world.InternetUrl,
-                profilePages = ProfileFeature.PagesEnabled(_world.Store) },
+                profilePages = ProfileFeature.PagesEnabled(_world.Store),
+                moved = _world.Moved is { } moved ? MoveFeature.View(moved) : null },
             channels = _hub.VisibleChannels(member),
             members = _world.Store.AllMembers().Select(_hub.PublicMember),
             voice = _voice.Snapshot(member),

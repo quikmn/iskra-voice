@@ -11,7 +11,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted)
 - **People and integrations:** [Profiles](#profiles) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks)
-- **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints)
+- **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Backups, moving and imports](#backups-moving-and-imports)
 
 ---
 
@@ -708,6 +708,62 @@ Everything else a server answers over HTTP(S), on the same port as `/ws`:
 | `GET /pages/<id>` | Profile pages, in a sandbox ([Profile pages](#profile-pages-the-safety-model)) |
 | `POST`, `GET /hooks/<id>/<secret>`, `POST .../github` | Incoming webhooks ([Webhooks](#webhooks)) |
 | `POST`, `GET`, `PUT /link/<token>` | The device-linking relay ([Device linking](#device-linking)) |
+| `GET /backup/<token>`, `PUT /import/<ticket>`, `GET /.well-known/iskra-moved` | Backup downloads, Discord imports and the move notice ([Backups, moving and imports](#backups-moving-and-imports)) |
 | `/livekit` | LiveKit signaling, proxied ([Voice](#voice)) |
 | `POST /internal/livekit-webhook` | LiveKit's signed webhooks, loopback only |
 | `GET /.well-known/acme-challenge/<token>`, `GET /.well-known/iskra-probe/<token>` | Let's Encrypt and the reachability probe ([Internet hosting](#internet-hosting)) |
+
+## Backups, moving and imports
+
+### Backups
+
+| type | body | result | who |
+|---|---|---|---|
+| `backup.create` | `passphrase` (8–1024 characters) | `{ url: "/backup/<token>", name, size, expiresAt }` | owner; one backup at a time (`rate_limited` while one is being made) |
+| `backup.status` | | `{ auto: { enabled, keep, includeUploads }, local: [{ name, size, createdAt }], folder }` | owner |
+| `backup.settings` | `enabled?`, `keep?` (1–30), `includeUploads?` | same as `backup.status` | owner (written to `server.json` → `Backups`) |
+
+- While a backup is built, the requesting session gets `backup.progress { done, total }` (bytes, about every 2%).
+- `GET /backup/<token>` serves the file (`Content-Disposition: attachment`, `no-store`, CORS open). The token is 24 random bytes and works for 30 minutes; then the file is deleted.
+- **What's in it:** a zip of `manifest.json` (`{ iskraBackup: 1, createdAt, serverKey, name, uploads, includesUploads }`), `iskra.db` (a consistent copy made with SQLite's online backup API on a separate read connection, so the server keeps running), `server.json`, `server.key`, `livekit.key`, `vapid.json` and `uploads/ab/<sha256>`. Certificates aren't included (the new machine gets its own), nor are the owner invite or a move notice.
+- **Encryption** (a backup holds the server key): `"ISKRABK1"`, `u32be` header length, header JSON `{ v: 1, kdf: "argon2id13", salt (b64u 16), ops, mem, createdAt, serverKey, name }`, the 24-byte `crypto_secretstream_xchacha20poly1305` header, then chunks of `u32be length || ciphertext` (≤ 64 KB plaintext each). Key = `crypto_pwhash` Argon2id13(passphrase in NFC, salt, ops = 3, mem = 256 MB). The first chunk's associated data is the magic plus the header JSON and the last chunk carries `TAG_FINAL`, so a changed header, reordered or cut-off chunks and a wrong passphrase are all detected. Readers refuse `ops` outside 1–10 and `mem` outside 8 MB–1 GB.
+- **Automatic daily backups:** `backups/auto-YYYY-MM-DD.zip` in the world folder: the same zip, unencrypted (the folder already holds the keys), files 0600 and the folder 0700 on Linux and macOS. The newest `Keep` are kept. `server.json`: `"Backups": { "Enabled": true, "Keep": 7, "IncludeUploads": false }`; uploads stay in `uploads/` unless `IncludeUploads` is on.
+- **Restore:** `iskra-server restore <backup> <world-folder>`. The folder must be new or empty. The passphrase comes from `--passphrase-stdin`, `$ISKRA_BACKUP_PASSPHRASE` or a prompt; `--json` prints `{ ok, name, serverKey, folder, uploads, messages }`. Only the names above are written: anything else in the zip (`../`, absolute paths) is ignored, every upload must match its SHA-256 name, and the key must match the manifest. On any failure the new folder is removed again. `iskra-server backup <world-folder> <file>` makes an encrypted backup from the command line.
+
+### Moving a server
+
+```jsonc
+MoveNotice { "serverKey": "<b64u 32>", "url": "https://new.example.com", "movedAt": 1760000000000, "sig": "<b64u 64>" }
+```
+`sig = Ed25519.sign(serverSecret, "iskra/server-moved/v1" || 0x00 || serverKey(32) || u64be(movedAt) || utf8(url))`
+
+| type | body | result | who |
+|---|---|---|---|
+| `server.move` | `url` (absolute http(s), no credentials, query or fragment, ≤ 512 chars; not this server's current address) | `{ notice }` | owner |
+| `server.move.cancel` | | | owner |
+
+- The notice is kept in `moved.json` in the world folder and checked against the server key when it's loaded. `iskra-server move <world-folder> <url>` writes it with the server stopped; `--cancel` removes it.
+- Event `server.moved { notice | null }` to everyone. `welcome.server.moved` carries it too, and `GET /.well-known/iskra-moved` returns it (CORS open, `no-store`, 404 if none) so clients can fetch it from the old address.
+- While a notice is up, every request except `ping`, `server.move`, `server.move.cancel`, `backup.create`, `backup.status`, `host.status` and `host.internet.set` gets `error` code `moved`, so nobody keeps writing into the old copy.
+- Clients verify the signature against the server key they already trust (from the invite link) and then switch their saved address to `url`. The new address must still answer `hello` with the same key, so a notice can only ever lead to the same server.
+
+### Importing from Discord
+
+The owner can import a Discord server's history from [DiscordChatExporter](https://github.com/Tyrrrz/DiscordChatExporter) JSON exports: one channel's `.json`, or a `.zip` of several. Exports made with `--media` include files and avatars, in `<export>.json_Files/`.
+
+| type | body | result | who |
+|---|---|---|---|
+| `import.begin` | `size` (bytes, ≤ `Import.MaxMb`, default 4096), `readOnly?` (imported channels only admins can write in) | `{ url: "/import/<ticket>", maxBytes }` | owner; one import at a time (`rate_limited`) |
+| `import.status` | | `{ job: ImportJob \| null, running }` (the latest import) | owner |
+| `import.cancel` | | | owner, while one runs (`not_found` otherwise) |
+
+- `PUT /import/<ticket>` with the raw file (single use, 30 minutes; `413` past the size; `415` unless it starts like a zip or a JSON object) answers `202 { started: true }`, and the import runs on the server.
+- Event `import.progress { job }` goes to the owner's sessions (≤ 4 a second, plus each phase change): `ImportJob { phase: "reading" | "importing" | "done" | "failed" | "cancelled", channels, channelsDone, messages, messagesDone, files, missingFiles, skipped, current, error, warnings: [string], imported: [{ id, name, category, messages, thread }] }`. When it's done, everyone gets `channels`.
+- A failed or cancelled import removes every channel it made.
+- Each Discord channel becomes a text channel (lowercase with dashes, `-2` added if the name is taken; read `member`, write `member`, or `admin` when read-only). Its Discord category is kept with it (`imported_channels.category`) for channel categories. A thread export becomes an Iskra thread when the message it started from was imported into its parent channel, and a channel of its own otherwise.
+- Messages of type `Default`, `Reply`, `ChatInputCommand` and `ContextMenuCommand` are imported in order (system notices are skipped), with their timestamps and edit times, replies (within the channel), pins (up to 50 per channel), stickers and forwarded text as text, and embed text when a message has nothing else. Text is NFC with control and invisible formatting characters dropped, ≤ 4000 characters.
+- Authors aren't accounts here. `author` is `"discord:<user id>"` and the message gains `imported: { source: "discord", name, avatar: File | null, bot, reactions: [{ emoji, count }], missingAttachments: [{ name, size }] } | null` (null on every other message). Clients label these "Imported from Discord". Reply previews gain `importedName` (string or null). Reactions are counts (custom emoji as `:name:`); people can still react to imported messages as usual. Nobody can edit imported messages; admins can delete them.
+- Files and avatars come only from the upload itself and are never fetched from Discord. A reference is resolved inside the zip as text (relative to the export, then by file name for absolute paths), so it can't reach anything on disk. Every file is stored like an upload and typed by its content; avatars must be PNG, JPEG, WebP or GIF ≤ 1 MB. Files over `MaxUploadMb`, remote links and files not in the upload are listed in `missingAttachments`.
+- Limits: ≤ 2000 exports and 200,000 entries per zip, ≤ 500 channels per import, ≤ 16 MB for any single JSON value (exports are read as a stream, so their size doesn't matter otherwise), ≤ 4× `Import.MaxMb` unpacked in total. Zip entries with unsafe names are skipped.
+- Roles and permissions can't be imported: DiscordChatExporter doesn't export them in a usable form. Direct-message exports are skipped.
+- From the command line: `iskra-server import-discord <world-folder> <export.zip|.json> [--read-only]`, best with the server stopped (a running server shows the new channels after a restart).
