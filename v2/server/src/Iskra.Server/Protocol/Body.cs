@@ -32,6 +32,17 @@ public readonly struct Body(JsonElement element)
         return text;
     }
 
+    public string[] OptionalStringArray(string name, int maxItems, int maxLength)
+    {
+        if (Field(name) is not { } value) return [];
+        if (value.ValueKind != JsonValueKind.Array) throw RequestException.BadRequest($"'{name}' must be a list.");
+        if (value.GetArrayLength() > maxItems) throw RequestException.BadRequest($"'{name}' can have at most {maxItems} items.");
+        return value.EnumerateArray().Select(item =>
+            item.ValueKind == JsonValueKind.String && item.GetString() is { } s && s.Length <= maxLength
+                ? s
+                : throw RequestException.BadRequest($"'{name}' must be a list of strings.")).ToArray();
+    }
+
     public bool? OptionalBool(string name)
     {
         if (Field(name) is not { } value) return null;

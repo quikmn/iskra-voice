@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading.Channels;
 using Iskra.Server.Crypto;
 using Iskra.Server.Features;
+using Iskra.Server.Files;
 using Iskra.Server.Protocol;
 using Iskra.Server.Storage;
 using Iskra.Server.Voice;
@@ -33,6 +34,7 @@ public sealed class Session
     private readonly World _world;
     private readonly Hub _hub;
     private readonly VoiceRegistry _voice;
+    private readonly Uploads _uploads;
     private readonly Router _router;
     private readonly SessionLimits _limits;
     private readonly ILogger _log;
@@ -53,11 +55,13 @@ public sealed class Session
     public World World => _world;
     public Hub Hub => _hub;
     public VoiceRegistry Voice => _voice;
+    public Uploads Uploads => _uploads;
     public TimeProvider Time => _time;
     public long Now => _time.GetUtcNow().ToUnixTimeMilliseconds();
 
-    public Session(WebSocket ws, World world, Hub hub, VoiceRegistry voice, Router router, SessionLimits limits, ILogger log, TimeProvider time)
+    public Session(WebSocket ws, World world, Hub hub, VoiceRegistry voice, Uploads uploads, Router router, SessionLimits limits, ILogger log, TimeProvider time)
     {
+        _uploads = uploads;
         _ws = ws;
         _world = world;
         _hub = hub;

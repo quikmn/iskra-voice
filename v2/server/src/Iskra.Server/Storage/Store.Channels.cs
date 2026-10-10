@@ -3,13 +3,14 @@ namespace Iskra.Server.Storage;
 public sealed partial class Store
 {
     private const string ChannelColumns = "id, name, kind, position, read_role, write_role";
-    private const string MessageColumns = "id, channel_id, author_key, text, created_at, edited_at";
+    private const string MessageColumns = "id, channel_id, author_key, text, created_at, edited_at, attachments, reply_to";
 
     private static Channel ReadChannel(Microsoft.Data.Sqlite.SqliteDataReader r) =>
         new(r.GetInt64(0), r.GetString(1), r.GetString(2), r.GetInt32(3), r.GetString(4), r.GetString(5));
 
     private static Message ReadMessage(Microsoft.Data.Sqlite.SqliteDataReader r) =>
-        new(r.GetInt64(0), r.GetInt64(1), r.GetString(2), r.GetString(3), r.GetInt64(4), NullableLong(r, 5));
+        new(r.GetInt64(0), r.GetInt64(1), r.GetString(2), r.GetString(3), r.GetInt64(4), NullableLong(r, 5),
+            r.IsDBNull(6) ? [] : System.Text.Json.JsonSerializer.Deserialize<string[]>(r.GetString(6)) ?? [], NullableLong(r, 7));
 
     public List<Channel> AllChannels() =>
         Query($"SELECT {ChannelColumns} FROM channels ORDER BY position, id;", ReadChannel);
@@ -38,12 +39,15 @@ public sealed partial class Store
 
     // ── Messages ─────────────────────────────────────────────────────────────
 
-    public Message AddMessage(long channelId, string authorKey, string text, long now)
+    public Message AddMessage(long channelId, string authorKey, string text, long now, string[]? attachments = null, long? replyTo = null)
     {
+        attachments ??= [];
         var id = Convert.ToInt64(Scalar("""
-            INSERT INTO messages (channel_id, author_key, text, created_at) VALUES ($ch, $author, $text, $now) RETURNING id;
-            """, ("$ch", channelId), ("$author", authorKey), ("$text", text), ("$now", now)));
-        return new Message(id, channelId, authorKey, text, now, null);
+            INSERT INTO messages (channel_id, author_key, text, created_at, attachments, reply_to)
+            VALUES ($ch, $author, $text, $now, $att, $reply) RETURNING id;
+            """, ("$ch", channelId), ("$author", authorKey), ("$text", text), ("$now", now),
+            ("$att", attachments.Length == 0 ? null : System.Text.Json.JsonSerializer.Serialize(attachments)), ("$reply", replyTo)));
+        return new Message(id, channelId, authorKey, text, now, null, attachments, replyTo);
     }
 
     public Message? GetMessage(long id) =>

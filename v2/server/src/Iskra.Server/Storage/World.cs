@@ -18,6 +18,9 @@ public sealed record WorldSettings
     [System.Text.Json.Serialization.JsonIgnore]
     public string EffectivePublicUrl => (PublicUrl ?? (Https.Enabled ? Https.DefaultUrl : $"http://localhost:{Port}")).TrimEnd('/');
 
+    /// <summary>Largest file a member may upload. Generous by default: no Nitro here.</summary>
+    public int MaxUploadMb { get; init; } = 100;
+
     public VoiceSettings Voice { get; init; } = new();
 
     public HttpsSettings Https { get; init; } = new();

@@ -4,7 +4,9 @@ namespace Iskra.Server.Storage;
 
 public sealed record Member(string AccountKey, string Name, string Role, long JoinedAt);
 public sealed record Channel(long Id, string Name, string Kind, int Position, string ReadRole, string WriteRole);
-public sealed record Message(long Id, long ChannelId, string AuthorKey, string Text, long CreatedAt, long? EditedAt);
+public sealed record Message(long Id, long ChannelId, string AuthorKey, string Text, long CreatedAt, long? EditedAt,
+    string[] Attachments, long? ReplyTo);
+public sealed record StoredFile(string Id, string Sha256, string Name, long Size, string Type, int? Width, int? Height, string Uploader, long CreatedAt);
 public sealed record Invite(string Code, string CreatedBy, long CreatedAt, long? ExpiresAt, int? MaxUses, int Uses, string Role, bool Revoked);
 public sealed record Ban(string AccountKey, string Reason, string BannedBy, long BannedAt);
 public sealed record DirectMessage(long Id, string From, string To, string Envelope, long CreatedAt);
@@ -15,7 +17,7 @@ public sealed record DirectMessage(long Id, string From, string To, string Envel
 /// </summary>
 public sealed partial class Store : IDisposable
 {
-    private const int SchemaVersion = 2;
+    private const int SchemaVersion = 3;
 
     private readonly SqliteConnection _db;
     private readonly Lock _gate = new();
@@ -109,6 +111,33 @@ public sealed partial class Store : IDisposable
                 CREATE INDEX dms_by_pair ON dms(from_key, to_key, id);
                 CREATE INDEX dms_by_recipient ON dms(to_key, id);
                 PRAGMA user_version = 2;
+                """);
+        }
+
+        if (version < 3)
+        {
+            Exec("""
+                CREATE TABLE files (
+                    id          TEXT PRIMARY KEY,
+                    sha256      TEXT NOT NULL,
+                    name        TEXT NOT NULL,
+                    size        INTEGER NOT NULL,
+                    type        TEXT NOT NULL,
+                    width       INTEGER,
+                    height      INTEGER,
+                    uploader    TEXT NOT NULL,
+                    created_at  INTEGER NOT NULL
+                );
+                CREATE TABLE reactions (
+                    message_id  INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+                    account_key TEXT NOT NULL,
+                    emoji       TEXT NOT NULL,
+                    created_at  INTEGER NOT NULL,
+                    PRIMARY KEY (message_id, account_key, emoji)
+                );
+                ALTER TABLE messages ADD COLUMN attachments TEXT;
+                ALTER TABLE messages ADD COLUMN reply_to INTEGER;
+                PRAGMA user_version = 3;
                 """);
         }
     }

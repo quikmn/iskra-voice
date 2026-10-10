@@ -1,4 +1,5 @@
 using Iskra.Server.Features;
+using Iskra.Server.Files;
 using Iskra.Server.Hosting;
 using Iskra.Server.Sessions;
 using Iskra.Server.Storage;
@@ -18,6 +19,7 @@ builder.Services.AddSingleton<LiveKitHost>();
 builder.Services.AddSingleton<IVoiceBackend>(sp => sp.GetRequiredService<LiveKitHost>());
 builder.Services.AddHostedService(sp => sp.GetRequiredService<LiveKitHost>());
 builder.Services.AddSingleton<VoiceRegistry>();
+builder.Services.AddSingleton<Uploads>();
 builder.Services.AddReverseProxy().LoadFromMemory(
 [
     new Yarp.ReverseProxy.Configuration.RouteConfig
@@ -125,7 +127,21 @@ app.MapPost("/internal/livekit-webhook", async (HttpContext context, IVoiceBacke
     return Results.Ok();
 });
 
-app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice, Router router, IOptions<SessionLimits> limits,
+// Files: PUT with a ticket from upload.begin; GET by unguessable id.
+app.MapMethods("/upload/{token}", ["PUT"], async (HttpContext context, string token, Uploads uploads) =>
+{
+    if (context.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } limit)
+        limit.MaxRequestBodySize = uploads.MaxBytes;
+    await uploads.HandleUploadAsync(context, token);
+});
+app.MapMethods("/upload/{token}", ["OPTIONS"], (HttpContext context) =>
+{
+    Uploads.AllowCors(context);
+    return Results.NoContent();
+});
+app.MapGet("/files/{id}/{**name}", (HttpContext context, string id, Uploads uploads) => uploads.Serve(context, id));
+
+app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice, Uploads uploads, Router router, IOptions<SessionLimits> limits,
     ILogger<Session> log, TimeProvider time) =>
 {
     if (!context.WebSockets.IsWebSocketRequest)
@@ -134,7 +150,7 @@ app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice
         return;
     }
     using var socket = await context.WebSockets.AcceptWebSocketAsync();
-    await new Session(socket, w, hub, voice, router, limits.Value, log, time).RunAsync(context.RequestAborted);
+    await new Session(socket, w, hub, voice, uploads, router, limits.Value, log, time).RunAsync(context.RequestAborted);
 });
 
 // Voice signaling (LiveKit's WebSocket and HTTP) on the same port as everything else.

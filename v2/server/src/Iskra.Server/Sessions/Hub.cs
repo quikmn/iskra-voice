@@ -62,9 +62,6 @@ public sealed class Hub(World world)
     public static object PublicChannel(Channel c) =>
         new { id = c.Id, name = c.Name, kind = c.Kind, position = c.Position, readRole = c.ReadRole, writeRole = c.WriteRole };
 
-    public static object PublicMessage(Message m) =>
-        new { id = m.Id, channelId = m.ChannelId, author = m.AuthorKey, text = m.Text, createdAt = m.CreatedAt, editedAt = m.EditedAt };
-
     /// <summary>The channels this member can see, in order.</summary>
     public List<object> VisibleChannels(Member member) =>
         world.Store.AllChannels().Where(c => Permissions.CanRead(member, c)).Select(PublicChannel).ToList();
