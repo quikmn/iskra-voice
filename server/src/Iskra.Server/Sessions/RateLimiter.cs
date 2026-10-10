@@ -19,6 +19,7 @@ public sealed class RateLimiter(TimeProvider time)
         ["chat.react"] = (20, 5),
         ["link.preview"] = (10, 1),
         ["chat.typing"] = (3, 0.5),
+        ["link.create"] = (3, 0.1),
         ["*"] = (40, 10),
     };
 

@@ -21,6 +21,8 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<LiveKitHost>());
 builder.Services.AddSingleton<VoiceRegistry>();
 builder.Services.AddSingleton<Uploads>();
 builder.Services.AddSingleton<LinkPreviews>();
+builder.Services.AddSingleton<LinkRelay>();
+builder.Services.Configure<LinkSettings>(builder.Configuration.GetSection("Link"));
 builder.Services.AddReverseProxy().LoadFromMemory(
 [
     new Yarp.ReverseProxy.Configuration.RouteConfig
@@ -141,6 +143,9 @@ app.MapMethods("/upload/{token}", ["OPTIONS"], (HttpContext context) =>
     return Results.NoContent();
 });
 app.MapGet("/files/{id}/{**name}", (HttpContext context, string id, Uploads uploads) => uploads.Serve(context, id));
+
+// Device linking: a short-lived relay for a new device that has no account yet.
+LinkRelay.MapEndpoints(app);
 
 app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice, Uploads uploads, LinkPreviews previews, Router router,
     IOptions<SessionLimits> limits, ILogger<Session> log, TimeProvider time) =>

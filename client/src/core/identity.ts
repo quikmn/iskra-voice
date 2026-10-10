@@ -24,6 +24,8 @@ export interface Identity {
   account: SigningKeyPair
   device: SigningKeyPair
   cert: DeviceCert
+  /** This device's X25519 prekeys for forward-secret DMs (see core/devices.ts). Loaded separately. */
+  prekeys?: import('./devices').PrekeyPair[]
 }
 
 export function certifyDevice(account: SigningKeyPair, devicePublicKey: Uint8Array, created: number): DeviceCert {

@@ -13,10 +13,12 @@
     "test:e2e": "dotnet build ../server/src/Iskra.Server -v q -nologo && playwright test"
   },
   "dependencies": {
+    "barcode-detector": "3.2.2",
     "libsodium-wrappers-sumo": "^0.8.4",
     "livekit-client": "2.22.3",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "uqr": "0.1.3",
     "zustand": "^5.0.15"
   },
   "devDependencies": {

@@ -53,6 +53,9 @@ public sealed class Session
     /// <summary>The authenticated account, or null before the handshake completes.</summary>
     public string? AccountKey { get; private set; }
 
+    /// <summary>The device key this session authenticated with.</summary>
+    public string? DeviceKey { get; private set; }
+
     public World World => _world;
     public Hub Hub => _hub;
     public VoiceRegistry Voice => _voice;
@@ -131,6 +134,7 @@ public sealed class Session
             {
                 AuthFailure.Banned => ("banned", "You are banned from this server.", CloseCodes.Forbidden),
                 AuthFailure.InviteRequired => ("invite_required", "You need a valid invite to join this server.", CloseCodes.AuthFailed),
+                AuthFailure.DeviceRevoked => ("device_revoked", "This device was removed from its account.", CloseCodes.AuthFailed),
                 _ => ("auth_failed", "Authentication failed.", CloseCodes.AuthFailed),
             };
             SendNow(Frames.Error(envelope?.Id, code, message));
@@ -259,7 +263,7 @@ public sealed class Session
 
     // ── Auth ─────────────────────────────────────────────────────────────────
 
-    private enum AuthFailure { Invalid, Banned, InviteRequired }
+    private enum AuthFailure { Invalid, Banned, InviteRequired, DeviceRevoked }
 
     private (Member?, AuthFailure) Authenticate(Envelope envelope, byte[] nonce)
     {
@@ -298,7 +302,9 @@ public sealed class Session
         if (!Identity.VerifyAuth(cert, _world.ServerPublicKey, nonce, signature)) return (null, AuthFailure.Invalid);
 
         // Identity is proven from here on.
+        if (_world.Store.IsDeviceRevoked(cert.AccountKey, cert.DeviceKey)) return (null, AuthFailure.DeviceRevoked);
         if (_world.Store.IsBanned(cert.AccountKey)) return (null, AuthFailure.Banned);
+        DeviceKey = cert.DeviceKey;
 
         var existing = _world.Store.GetMember(cert.AccountKey);
         if (existing is not null)

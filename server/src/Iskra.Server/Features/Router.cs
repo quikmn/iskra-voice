@@ -24,6 +24,8 @@ public sealed class Router
         InviteFeature.Register(this);
         VoiceFeature.Register(this);
         DmFeature.Register(this);
+        DeviceFeature.Register(this);
+        LinkFeature.Register(this);
         PreviewFeature.Register(this);
     }
 
