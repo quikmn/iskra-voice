@@ -119,7 +119,7 @@ export function PinList({ server, channelId, onJump }: { server: ServerState; ch
   return (
     <ul className="pin-list">
       {pins.map(({ message, pinnedBy, pinnedAt }) => {
-        const author = server.members[message.author]?.name ?? 'Former member'
+        const author = message.imported?.name ?? server.members[message.author]?.name ?? 'Former member'
         return (
           <li key={message.id} className="pin-item">
             <Avatar name={author} accountKey={message.author} size={28} />

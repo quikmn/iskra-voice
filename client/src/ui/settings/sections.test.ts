@@ -14,7 +14,7 @@ describe('settings sections', () => {
     expect(ids('member')).toEqual([...account, 'overview'])
     expect(ids('trusted')).toEqual([...account, 'overview', 'sounds'])
     expect(ids('admin')).toEqual([...account, 'overview', 'emoji', 'sounds', 'integrations', 'pages', 'internet', 'audit'])
-    expect(ids('owner')).toEqual(ids('admin'))
+    expect(ids('owner')).toEqual([...ids('admin'), 'backup', 'import'])
   })
 
   it('groups account before server', () => {

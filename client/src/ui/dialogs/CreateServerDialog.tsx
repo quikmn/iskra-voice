@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { parseInvite } from '../../core/invite'
 import { desktop } from '../../platform/desktop'
 import { acceptInvite } from '../../state/store'
+import { RestoreServer } from './RestoreServer'
+import '../settings/backup.css'
 import { Modal, Spinner } from '../bits'
 import { appUrl } from '../format'
 
@@ -26,6 +28,12 @@ const ShieldIcon = () => (
 
 /** Desktop only: start a server on this computer and become its owner. */
 export function CreateServerDialog({ onClose }: { onClose: () => void }) {
+  const [restoring, setRestoring] = useState(false)
+  if (restoring) return <RestoreServer onBack={() => setRestoring(false)} onClose={onClose} />
+  return <NewServer onClose={onClose} onRestore={desktop?.host.pickBackup ? () => setRestoring(true) : undefined} />
+}
+
+function NewServer({ onClose, onRestore }: { onClose: () => void; onRestore?: () => void }) {
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -79,6 +87,11 @@ export function CreateServerDialog({ onClose }: { onClose: () => void }) {
         </p>
       )}
       {error && <p className="error-text">{error}</p>}
+      {onRestore && (
+        <p className="muted restore-link">
+          Moving a server here? <button className="link" onClick={onRestore}>Restore from a backup</button>
+        </p>
+      )}
     </Modal>
   )
 }

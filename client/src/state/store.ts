@@ -207,6 +207,20 @@ export function leaveServer(key: string): void {
   void persistServers()
 }
 
+/**
+ * Points a saved server at a new address (it moved, or was restored on this computer) and reconnects there.
+ * Adds it to the list if it isn't there yet. The server key never changes, so the new address must be the same server.
+ */
+export function moveServer(key: string, url: string, name?: string): void {
+  const existing = useApp.getState().servers[key]
+  if (existing?.url === url) return
+  connections.get(key)?.stop()
+  connections.delete(key)
+  if (existing) patchServer(key, () => ({ url, publicUrl: null }))
+  connectServer(url, key, existing?.name ?? name ?? url.replace(/^https?:\/\//, ''))
+  void persistServers()
+}
+
 function connectServer(url: string, key: string, name: string, invite?: string): void {
   const { identity } = useApp.getState()
   if (!identity) return

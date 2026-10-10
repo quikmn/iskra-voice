@@ -1,0 +1,19 @@
+/* ── Imported messages (Discord) ─────────────────────────────────────── */
+.imported-badge {
+  display: inline-block; align-self: center; flex: none; font-size: 11px; font-weight: 600; line-height: 1;
+  padding: 3px 6px; border-radius: 99px; color: var(--muted);
+  border: 1px solid var(--border); background: var(--surface-2); white-space: nowrap;
+}
+.reaction.static { cursor: default; }
+.reaction.static:hover { border-color: var(--border); }
+.imported-missing { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; max-width: 420px; }
+.imported-missing li {
+  display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: baseline; padding: 6px 10px; font-size: 13px;
+  border: 1px dashed var(--border); border-radius: calc(var(--radius) * 0.6);
+}
+.imported-missing-name { font-weight: 600; overflow-wrap: anywhere; }
+
+@media (max-width: 760px) {
+  /* Keep the name line short on phones: just the word. */
+  .message-meta .imported-badge { font-size: 10px; padding: 2px 5px; }
+}

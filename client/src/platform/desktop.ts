@@ -17,6 +17,20 @@ export interface HostedServer {
   ownerInvite: string | null
 }
 
+export interface PickedBackup {
+  path: string
+  fileName: string
+  /** The server's name from the backup's header (encrypted backups), if readable. */
+  name: string | null
+  encrypted: boolean
+}
+
+export interface RestoredServer {
+  server: HostedServer
+  serverKey: string
+  name: string
+}
+
 /**
  * ready: works everywhere. needs-permission: macOS Accessibility is off.
  * limited: Wayland, where only keys pressed in X11 apps reach us. unavailable: the key hook couldn't start.
@@ -47,7 +61,13 @@ export interface DesktopBridge {
     create(name: string, appUrl: string): Promise<HostedServer | null>
     start(id: string): Promise<HostedServer | null>
     stop(id: string): Promise<HostedServer | null>
+    /** Asks for a backup file (.iskrabackup, or a daily .zip); null if cancelled. `encrypted` backups need the passphrase. */
+    pickBackup?(): Promise<PickedBackup | null>
+    /** Restores a picked backup into a new server folder here and starts it. Rejects with a readable message. */
+    restore?(path: string, passphrase: string): Promise<RestoredServer>
   }
+  /** Saves a file from a server URL (asks where). */
+  download?(url: string): Promise<boolean>
 }
 
 export const desktop: DesktopBridge | undefined = (globalThis as { iskraDesktop?: DesktopBridge }).iskraDesktop

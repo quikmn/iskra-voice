@@ -14,7 +14,8 @@ public static class MessageViews
             var original = store.GetMessage(replyId);
             reply = original is null
                 ? new { id = replyId, deleted = true }
-                : new { id = original.Id, author = original.AuthorKey, text = Excerpt(original.Text), hasAttachments = original.Attachments.Length > 0 };
+                : new { id = original.Id, author = original.AuthorKey, text = Excerpt(original.Text), hasAttachments = original.Attachments.Length > 0,
+                    importedName = ImportFeature.AuthorName(store, original.AuthorKey) };
         }
         return new
         {
@@ -32,6 +33,7 @@ public static class MessageViews
             webhook = WebhookFeature.MessageView(store, m),
             poll = PollFeature.View(store, m.Id),
             voice = VoiceMessageFeature.View(store, m.Id),
+            imported = ImportFeature.MessageView(store, m),
         };
     }
 

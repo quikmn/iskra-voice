@@ -7,6 +7,7 @@ import { connect, createServer } from 'node:net'
 import { networkInterfaces } from 'node:os'
 import path from 'node:path'
 import { defaultHostRoot, exeName } from './platform'
+import { adjustRestoredSettings } from './restore'
 
 export interface HostedServer {
   id: string
@@ -239,6 +240,54 @@ export class Host {
     this.processes.delete(id)
     if (child) await stopServer(child)
     return this.describe(id)
+  }
+
+  /**
+   * Restores a backup into a new server folder (iskra-server restore, passphrase on stdin), gives it free ports and
+   * this network's address, and starts it. Rejects with the server's own explanation (wrong passphrase, damaged file).
+   */
+  async restore(backupPath: string, passphrase: string, hint: string | null): Promise<{ server: HostedServer; serverKey: string; name: string }> {
+    const binary = serverBinary()
+    if (!binary) throw new Error("This build doesn't include the server.")
+    mkdirSync(this.root, { recursive: true })
+    const base = slug(hint ?? path.basename(backupPath).replace(/\.(iskrabackup|zip)$/i, ''))
+    let id = base
+    for (let n = 2; existsSync(path.join(this.root, id)); n++) id = `${base}-${n}`
+    const folder = path.join(this.root, id)
+
+    const result = await new Promise<{ name: string; serverKey: string }>((resolve, reject) => {
+      const child = spawn(binary, ['restore', backupPath, folder, '--passphrase-stdin', '--json'], {
+        stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true,
+      })
+      let out = ''
+      let err = ''
+      child.stdout.on('data', (d: Buffer) => (out += d.toString()))
+      child.stderr.on('data', (d: Buffer) => (err += d.toString()))
+      child.once('error', (e) => reject(new Error(`The server couldn't run: ${e.message}`)))
+      child.once('exit', (code) => {
+        const line = out.trim().split(/\r?\n/).at(-1) ?? ''
+        try {
+          const parsed = JSON.parse(line) as { ok?: boolean; name?: string; serverKey?: string }
+          if (code === 0 && parsed.ok && parsed.serverKey) return resolve({ name: parsed.name ?? id, serverKey: parsed.serverKey })
+        } catch {
+          /* not JSON: an error message */
+        }
+        const message = err.trim().split(/\r?\n/).filter(Boolean).at(-1)
+        reject(new Error(message || "The backup couldn't be restored."))
+      })
+      child.stdin.on('error', () => undefined)
+      child.stdin.end(`${passphrase}\n`)
+    })
+
+    // This computer's ports and address; everything else stays as it was.
+    const file = path.join(folder, 'server.json')
+    const settings = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>
+    const taken = new Set(this.list().filter((s) => s.id !== id).flatMap((s) => [s.port]))
+    const port = await pickPort(taken, typeof settings.Port === 'number' ? settings.Port : 47070)
+    const voicePort = await pickPort(new Set([...taken, port]), 7880)
+    writeFileSync(file, JSON.stringify(adjustRestoredSettings(settings, { port, voicePort }, lanAddress(), process.env.ISKRA_LOCAL_ONLY === '1'), null, 2))
+    const server = await this.start(id)
+    return { server, serverKey: result.serverKey, name: result.name }
   }
 
   running(): boolean {

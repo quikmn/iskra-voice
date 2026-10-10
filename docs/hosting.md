@@ -1,6 +1,6 @@
 # Hosting an Iskra server
 
-An Iskra server is **a folder**. Everything lives in it: settings, members, messages, files and keys. Copy the folder to back it up or move it to another machine.
+An Iskra server is **a folder**. Everything lives in it: settings, members, messages, files and keys. Back it up from the app with one click and restore it on any machine (see [Backups, moving and importing](#backups-moving-and-importing)).
 
 There are three ways to run one:
 
@@ -115,6 +115,67 @@ Restart the server. It answers Let's Encrypt on port 80, stores the certificate 
 
 Nothing to set up. On first start the server makes its push key (`vapid.json`) and sends notifications for mentions, replies, DMs and calls through the browsers' own push services (an outgoing HTTPS connection). Members turn them on per device in **Settings → Notifications**; on phones that needs the web app over HTTPS, and on iPhone and iPad the app added to the Home Screen.
 
+## Backups, moving and importing
+
+### Backups
+
+**Download one:** as the owner, open **Settings → Backup & move**, choose a passphrase and click **Make backup**. You get one file (`<name>-<date>.iskrabackup`) with everything: messages, channels, members, roles, files, settings and the server's key. It's made while the server keeps running.
+
+Because the file holds the server's key, it's always encrypted with your passphrase (Argon2id and XChaCha20-Poly1305 from libsodium). Keep the file and the passphrase in different places: without the passphrase nobody can open it, and nobody can recover it for you either.
+
+**Daily backups:** every day the server also keeps a copy of the database, settings and keys in its own `backups/` folder (the last 7), so a bad disk write or a mistake can be undone. These aren't encrypted, since they sit next to the keys anyway (owner-only file permissions on Linux and macOS). Uploaded files stay in `uploads/`; turn on **Include uploaded files** if you want them copied too. Change this in **Settings → Backup & move** or in `server.json` → `Backups`. A daily backup only helps while that disk is fine, so download one now and then as well.
+
+From the command line (this works while the server runs, too):
+
+```sh
+iskra-server backup my-server my-server.iskrabackup      # asks for a passphrase
+```
+
+### Restoring
+
+- **Desktop app:** **Create a server → Restore from a backup**, pick the file and enter the passphrase. The server starts on this computer with everything it had, on free ports and this network's address.
+- **Standalone server:**
+
+  ```sh
+  iskra-server restore my-server.iskrabackup my-server    # asks for the passphrase
+  iskra-server my-server
+  ```
+
+  The folder must be new or empty: a restore never overwrites a server. Daily backups (`backups/auto-*.zip`) restore the same way, without a passphrase. Check `Port` and `PublicUrl` in `server.json` if the new machine's address is different. HTTPS certificates aren't in backups; the new machine gets its own.
+
+For scripts, `--passphrase-stdin` reads the passphrase from standard input (or set `ISKRA_BACKUP_PASSPHRASE`).
+
+### Moving a server to another computer
+
+Use **Settings → Backup & move → Move this server**. It walks you through it:
+
+1. **Back up** this server.
+2. **Restore** the backup on the new computer (as above) and start it there. If friends join from outside your home, turn on **Open to the internet** there, or set up HTTPS.
+3. **Enter the new address.** Iskra connects to it and checks that it really is this server (it has the same key).
+4. **Move everyone.** The old copy publishes a notice, *"this server moved to &lt;new address&gt;"*, signed with the server's key. Everyone's app checks the signature against the key it already trusts and switches to the new address by itself; people who are offline get it the next time they connect. From then on the old copy refuses new messages, so nothing gets lost in it.
+
+Keep the old copy running for a few days so everyone gets the notice, then stop it, and share new invite links from the new address. Changed your mind? `iskra-server move <old-folder> --cancel` takes the notice down. With the old server stopped, `iskra-server move <old-folder> <new-address>` publishes one.
+
+Members and their roles, channels and history all come along, because the server's identity travels with it. Direct messages are end-to-end encrypted: their envelopes come along too, and everyone's app keeps its own history.
+
+### Importing from Discord
+
+Bring your Discord server's history along with [DiscordChatExporter](https://github.com/Tyrrrz/DiscordChatExporter):
+
+1. Export the channels you want in the **JSON** format. Turn on **Download assets** (`--media` on the command line) to include files and profile pictures.
+2. Zip the folder it made, or use a single `.json` file.
+3. As the owner, open **Settings → Import from Discord** and upload it. A progress bar shows how it's going, and you can keep chatting meanwhile.
+
+Each Discord channel becomes a channel here (threads become threads), with its messages in order, their dates, replies, pins, files and reaction counts. Messages show their authors' Discord names and pictures with an **Imported from Discord** label: those people aren't accounts here, and nobody can edit those messages. Tick **read-only archive** to keep the imported channels for reading only. Each channel's Discord category is kept with it.
+
+What doesn't come along: **roles and permissions** (DiscordChatExporter can't export them, so set up roles here and invite your friends), direct messages, and files that weren't downloaded with the export (their names are shown instead; Iskra never fetches anything from Discord). The upload is checked like any other: zip entries can't point outside the export, every file is typed by its content, and there are size limits (`Import.MaxMb`, 4 GB by default).
+
+From the command line, best with the server stopped:
+
+```sh
+iskra-server import-discord my-server export.zip              # add --read-only for an archive
+```
+
 ## `server.json` reference
 
 ```jsonc
@@ -150,6 +211,14 @@ Nothing to set up. On first start the server makes its push key (`vapid.json`) a
     "Domain": null,                    // your own domain pointing at your network; default <ip>.sslip.io
     "DnsSuffix": "sslip.io",
     "PortMapping": true                // ask the router to open ports (UPnP / NAT-PMP); false to forward them yourself
+  },
+  "Backups": {                         // daily backups in backups/ (Settings → Backup & move)
+    "Enabled": true,
+    "Keep": 7,                         // how many days to keep (1–30)
+    "IncludeUploads": false            // also copy uploads/ into each one
+  },
+  "Import": {
+    "MaxMb": 4096                      // largest Discord export the owner may upload
   }
 }
 ```
@@ -166,6 +235,8 @@ Nothing to set up. On first start the server makes its push key (`vapid.json`) a
 | `vapid.json` | The server's push-notification key. Keep it with the folder: if it's lost, a new one is made and members turn notifications on again. |
 | `certs/` | HTTPS certificates and the Let's Encrypt account (when HTTPS is on, or open to the internet) |
 | `owner-invite.txt` | The one-time owner link, until the owner has joined |
+| `backups/` | Daily backups (`auto-YYYY-MM-DD.zip`, not encrypted) and, briefly, a backup being downloaded |
+| `moved.json` | The signed "this server moved" notice, after **Move this server** |
 | `server.log` | Output, when started from the desktop app |
 
 Profile pages, polls, threads, pins, webhooks (only a hash of each secret) and push subscriptions are all in `iskra.db` too, so copying the folder takes everything along.
@@ -174,7 +245,7 @@ On Linux and macOS the server creates the folder (and `certs/`) readable by its 
 
 Uploads that nothing uses (no message, avatar, emoji, sound, webhook or profile page) are deleted after a day.
 
-**Backups:** stop the server and copy the folder. It holds secrets (`server.key`, `vapid.json`, `livekit.key`, `certs/`), so keep backups private. **Moving:** copy the folder to the new machine, run it there, and update `PublicUrl` if the address changed; members and links keep working because the server's identity travels with it. **Updating:** replace the `iskra-server` and `livekit-server` files and start it again.
+**Backups and moving:** see [Backups, moving and importing](#backups-moving-and-importing). Copying the stopped server's folder works too; it holds secrets (`server.key`, `vapid.json`, `livekit.key`, `certs/`, `backups/`), so keep copies private. **Updating:** replace the `iskra-server` and `livekit-server` files and start it again.
 
 ## Roles and moderation
 

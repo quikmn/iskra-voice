@@ -44,6 +44,22 @@ public static class OrganizeFeature
         if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can organize channels.");
     }
 
+    /// <summary>
+    /// An imported channel goes into the category with this name (ignoring case), created at the end if there's none
+    /// and the server has room; it's added after the category's last channel. Unusable names leave it uncategorized.
+    /// </summary>
+    public static void PlaceImportedChannel(Store store, long channelId, string? categoryName)
+    {
+        if (Text.Normalize(categoryName, MaxCategoryNameLength, allowNewlines: false) is not { } name) return;
+        var category = store.AllCategories().FirstOrDefault(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase));
+        if (category is null)
+        {
+            if (store.CountCategories() >= MaxCategories) return;
+            category = store.CreateCategory(name);
+        }
+        store.MoveChannel(channelId, category.Id, null);
+    }
+
     private static string CategoryName(string raw) =>
         Text.Normalize(raw, MaxCategoryNameLength, allowNewlines: false)
         ?? throw RequestException.BadRequest($"Category names must be 1–{MaxCategoryNameLength} characters, with no invisible characters.");

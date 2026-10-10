@@ -14,6 +14,8 @@ import { InternetSection } from '../dialogs/InternetSettings'
 import { EmojiSection, SoundboardSettingsSection, SoundsSection } from '../expressions/ExpressionSettings'
 import { DevicesSection } from '../dialogs/DevicesSection'
 import { IntegrationsSection } from '../dialogs/Integrations'
+import { BackupSection } from './BackupSection'
+import { ImportSection } from './ImportSection'
 import { ChevronRight } from '../icons'
 import { AuditLogSection, BlockedSection } from '../moderation/SafetySettings'
 import { NicknameField } from '../organize/ServerSettings'
@@ -107,6 +109,8 @@ function Section({ id, server, onClose }: { id: SectionId; server: ServerState |
     case 'pages': return <PagesSection server={server} />
     case 'internet': return <InternetSection server={server} />
     case 'audit': return <AuditLogSection server={server} />
+    case 'backup': return <BackupSection server={server} />
+    case 'import': return <ImportSection server={server} />
   }
 }
 

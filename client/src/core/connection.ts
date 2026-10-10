@@ -86,7 +86,8 @@ export class Connection {
     return this.ready
   }
 
-  request<K extends keyof Requests>(type: K, body: Requests[K][0]): Promise<Requests[K][1]> {
+  /** `timeoutMs` overrides the usual wait for slow work (making a backup). */
+  request<K extends keyof Requests>(type: K, body: Requests[K][0], timeoutMs?: number): Promise<Requests[K][1]> {
     const socket = this.socket
     if (!socket || !this.ready) return Promise.reject(new RequestError('disconnected', 'Not connected.'))
     const id = `c${++this.nextId}`
@@ -94,7 +95,7 @@ export class Connection {
       const timer = setTimeout(() => {
         this.pending.delete(id)
         reject(new RequestError('timeout', 'The server took too long to answer.'))
-      }, this.options.requestTimeoutMs ?? 15_000)
+      }, timeoutMs ?? this.options.requestTimeoutMs ?? 15_000)
       this.pending.set(id, { resolve: resolve as (b: unknown) => void, reject, timer })
       socket.send(JSON.stringify({ type, id, body }))
     })

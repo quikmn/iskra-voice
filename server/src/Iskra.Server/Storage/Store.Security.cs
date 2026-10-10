@@ -18,7 +18,7 @@ public sealed partial class Store
 
     /// <summary>
     /// Deletes file records older than <paramref name="cutoff"/> that no message, avatar, emoji, sound, webhook,
-    /// webhook post or event cover refers to, nor any id in <paramref name="keep"/>. One statement, so a reference added meanwhile
+    /// webhook post, event cover or imported author refers to, nor any id in <paramref name="keep"/>. One statement, so a reference added meanwhile
     /// is respected. Returns the deleted files' hashes.
     /// </summary>
     public List<string> DeleteUnreferencedFiles(long cutoff, IReadOnlyCollection<string> keep) =>
@@ -33,7 +33,8 @@ public sealed partial class Store
                 UNION SELECT file_id FROM sounds
                 UNION SELECT avatar FROM webhooks WHERE avatar IS NOT NULL
                 UNION SELECT avatar FROM webhook_messages WHERE avatar IS NOT NULL
-                UNION SELECT image_file FROM events WHERE image_file IS NOT NULL)
+                UNION SELECT image_file FROM events WHERE image_file IS NOT NULL
+                UNION SELECT avatar_file FROM imported_authors WHERE avatar_file IS NOT NULL)
             RETURNING sha256;
             """, r => r.GetString(0), ("$cutoff", cutoff), ("$keep", System.Text.Json.JsonSerializer.Serialize(keep)));
 

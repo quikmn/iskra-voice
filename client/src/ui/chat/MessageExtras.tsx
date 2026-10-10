@@ -67,7 +67,7 @@ export function Attachments({ server, files }: { server: ServerState; files: Fil
 
 export function ReplyLine({ server, reply, onJump }: { server: ServerState; reply: ReplyPreview; onJump: (id: number) => void }) {
   if (reply.deleted) return <div className="reply-line muted">↪ Original message was deleted</div>
-  const name = server.members[reply.author]?.name ?? 'Someone'
+  const name = reply.importedName ?? server.members[reply.author]?.name ?? 'Someone'
   const text = plainText(reply.text, { nameOf: (k) => server.members[k]?.name ?? null }).replace(/\s+/g, ' ')
   return (
     <button className="reply-line" onClick={() => onJump(reply.id)}>

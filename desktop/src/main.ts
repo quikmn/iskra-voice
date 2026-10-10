@@ -2,10 +2,11 @@
 // It adds what browsers can't do: push-to-talk while a game has focus, a screen/window picker,
 // the tray, and a stable app:// origin for local storage.
 import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, Menu, nativeImage, net, protocol, session, shell, systemPreferences, Tray } from 'electron'
-import { existsSync } from 'node:fs'
+import { closeSync, existsSync, openSync, readSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Host } from './host'
+import { isBackupDownload, readBackupInfo } from './restore'
 import { aboutDetail, isAppPage, isWayland, MAC_SETTINGS, skipScreenPicker, trayMenu, type SettingsPane, type TrayAction } from './platform'
 import { PushToTalk } from './ptt'
 import { Updates, type UpdateStatus } from './updates'
@@ -333,6 +334,41 @@ ipcMain.handle('iskra:host-create', (event, name: unknown, appUrl: unknown) => {
 })
 ipcMain.handle('iskra:host-start', (event, id: unknown) => (fromApp(event) && typeof id === 'string' ? host.start(id) : null))
 ipcMain.handle('iskra:host-stop', (event, id: unknown) => (fromApp(event) && typeof id === 'string' ? host.stop(id) : null))
+
+// Restoring a server from a backup: the file comes from our own open dialog, never a path the page makes up.
+const pickedBackups = new Map<string, string | null>()
+ipcMain.handle('iskra:host-pick-backup', async (event) => {
+  if (!fromApp(event) || !window) return null
+  const picked = await dialog.showOpenDialog(window, {
+    title: 'Restore a server from a backup',
+    properties: ['openFile'],
+    filters: [{ name: 'Iskra backups', extensions: ['iskrabackup', 'zip'] }],
+  })
+  const file = picked.filePaths[0]
+  if (picked.canceled || !file) return null
+  const head = Buffer.alloc(4108)
+  const fd = openSync(file, 'r')
+  let read = 0
+  try {
+    read = readSync(fd, head, 0, head.length, 0)
+  } finally {
+    closeSync(fd)
+  }
+  const info = readBackupInfo(head.subarray(0, read))
+  if (!info) throw new Error("That file isn't an Iskra backup.")
+  pickedBackups.set(file, info.name)
+  return { path: file, fileName: path.basename(file), name: info.name, encrypted: info.encrypted }
+})
+ipcMain.handle('iskra:host-restore', (event, file: unknown, passphrase: unknown) => {
+  if (!fromApp(event) || typeof file !== 'string' || !pickedBackups.has(file) || typeof passphrase !== 'string' || passphrase.length > 1024) return null
+  return host.restore(file, passphrase, pickedBackups.get(file) ?? null)
+})
+// Saving a backup someone just made: only /backup/<token> links, with the usual "Save as" dialog.
+ipcMain.handle('iskra:download', (event, url: unknown) => {
+  if (!fromApp(event) || !isBackupDownload(url)) return false
+  event.sender.downloadURL(url)
+  return true
+})
 
 // Windows shows notifications (incoming calls, messages) under this id.
 if (process.platform === 'win32') app.setAppUserModelId('foo.iskra.desktop')

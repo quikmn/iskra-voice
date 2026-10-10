@@ -1,0 +1,71 @@
+/* ── Backup & move, Import from Discord ──────────────────────────────── */
+.backup-maker { display: grid; gap: 0; max-width: 420px; margin-top: 12px; }
+.backup-maker > .button { justify-self: start; margin-top: 4px; min-width: 140px; }
+.backup-strength { margin: -8px 0 14px; font-size: 13px; color: var(--muted); }
+.backup-strength.weak { color: var(--yellow, var(--muted)); }
+.backup-strength.ok, .backup-strength.strong { color: var(--green-strong, var(--muted)); }
+.backup-progress { display: grid; gap: 6px; margin: 8px 0 12px; }
+.backup-progress progress { width: 100%; height: 8px; }
+.backup-done {
+  display: flex; gap: 12px; align-items: flex-start; margin-top: 12px; padding: 14px 16px;
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2);
+}
+.backup-done p { margin: 4px 0 10px; }
+.backup-done strong { overflow-wrap: anywhere; }
+.backup-check, .move-step-number {
+  flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--accent); color: var(--on-accent); font-size: 13px; font-weight: 700;
+}
+.backup-options { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin: 12px 0; }
+.backup-options .field { display: flex; align-items: center; gap: 10px; }
+.backup-options .field > span { margin: 0; }
+.backup-list { list-style: none; margin: 12px 0 4px; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.backup-list li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 12px; font-size: 14px; }
+.backup-list li + li { border-top: 1px solid var(--border); }
+.backup-list code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.backup-folder { font-size: 13px; overflow-wrap: anywhere; }
+
+/* Move this server */
+.modal.move-dialog { width: min(600px, 100%); }
+.move-steps { list-style: none; display: flex; gap: 6px; margin: 0 0 18px; padding: 0; counter-reset: none; }
+.move-steps li { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; color: var(--muted); font-weight: 600; }
+.move-steps li span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.move-steps li:not(.current):not(.past) .move-step-number { background: var(--surface-3); color: var(--muted); }
+.move-steps li.current { color: var(--text-strong); }
+.move-steps li + li::before { content: ''; flex: none; width: 12px; height: 1px; background: var(--border); margin-right: 2px; }
+.move-pane > p:first-child { margin-top: 0; }
+.move-pane .guide-option h4 { margin: 0 0 6px; }
+.move-command {
+  margin: 0 0 8px; padding: 10px 12px; border-radius: calc(var(--radius) * 0.6); background: var(--bg); font-family: var(--mono);
+  font-size: 13px; overflow-x: auto; white-space: pre;
+}
+.move-ok { color: var(--green-strong, var(--text)); font-weight: 600; }
+.move-pane .copy-row input { font-family: var(--mono); font-size: 14px; }
+
+/* Import */
+.import-how { margin: 12px 0 16px; padding-left: 20px; display: grid; gap: 6px; }
+.import-form { display: grid; gap: 10px; justify-items: start; }
+.import-form .field { margin-bottom: 0; width: 100%; }
+.import-form input[type='file'] { max-width: 100%; }
+.import-status { display: grid; gap: 10px; justify-items: start; margin-top: 12px; }
+.import-status .backup-progress { width: 100%; }
+.import-result p { margin: 0 0 10px; }
+.import-category { margin-bottom: 10px; }
+.import-category-name { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.import-category ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.import-category li { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.import-warnings summary { cursor: pointer; color: var(--muted); }
+.import-warnings ul { margin: 6px 0 0; padding-left: 20px; font-size: 13px; color: var(--muted); }
+.import-note { margin-top: 20px; font-size: 13px; }
+
+@media (max-width: 760px) {
+  .move-steps li span:last-child { display: none; }
+  .move-steps li.current span:last-child { display: inline; }
+  .backup-maker { max-width: none; }
+  .backup-maker > .button { justify-self: stretch; }
+}
+
+/* Restore a server (desktop) */
+.restore-file { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 14px 0; }
+.restore-file-name { min-width: 0; overflow-wrap: anywhere; }
+.restore-link { margin: 16px 0 0; font-size: 14px; }

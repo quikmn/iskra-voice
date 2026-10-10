@@ -32,7 +32,7 @@ export interface FileInfo {
 }
 
 export type ReplyPreview =
-  | { id: number; author: string; text: string; hasAttachments: boolean; deleted?: undefined }
+  | { id: number; author: string; text: string; hasAttachments: boolean; deleted?: undefined; importedName?: string | null }
   | { id: number; deleted: true }
 
 export interface LinkPreview {
@@ -82,7 +82,7 @@ export interface VoiceChannelState {
 
 export interface Welcome {
   you: Member
-  server: { name: string; key: string; appUrl: string; publicUrl?: string | null; profilePages?: boolean }
+  server: { name: string; key: string; appUrl: string; publicUrl?: string | null; profilePages?: boolean; moved?: MoveNotice | null }
   channels: Channel[]
   members: Member[]
   voice: VoiceChannelState[]
@@ -254,7 +254,7 @@ export interface ProfileUpdate {
 
 export type ErrorCode =
   | 'bad_request' | 'forbidden' | 'not_found' | 'rate_limited' | 'unknown_type' | 'internal'
-  | 'auth_failed' | 'invite_required' | 'banned' | 'voice_unavailable' | 'busy' | 'device_revoked' | 'conflict'
+  | 'auth_failed' | 'invite_required' | 'banned' | 'voice_unavailable' | 'busy' | 'device_revoked' | 'conflict' | 'moved'
 
 export class RequestError extends Error {
   readonly code: ErrorCode | 'disconnected' | 'timeout'
@@ -883,4 +883,68 @@ export interface Requests {
   'gcall.leave': [{ callId: string }, Record<string, never>]
   'gcall.key': [{ callId: string; version: number; envelope: GroupEnvelope }, Record<string, never>]
   'gcall.list': [Record<string, never>, { calls: GroupCallRing[] }]
+}
+
+// ── backups, moving and imports ──
+// See "Backups, moving and imports" in PROTOCOL.md.
+
+/** "This server moved to url", signed with the server key. */
+export interface MoveNotice {
+  serverKey: string
+  url: string
+  movedAt: number
+  sig: string
+}
+
+/** What an imported message carries: who wrote it where it came from, reaction counts, files the export didn't include. */
+export interface ImportedInfo {
+  source: 'discord'
+  name: string
+  avatar: FileInfo | null
+  bot: boolean
+  reactions: { emoji: string; count: number }[]
+  missingAttachments: { name: string; size: number }[]
+}
+
+export interface Message {
+  /** Set on messages imported from another app (author is then "discord:<id>"). */
+  imported?: ImportedInfo | null
+}
+
+export interface ImportJob {
+  phase: 'reading' | 'importing' | 'done' | 'failed' | 'cancelled'
+  channels: number
+  channelsDone: number
+  messages: number
+  messagesDone: number
+  files: number
+  missingFiles: number
+  skipped: number
+  current: string | null
+  error: string | null
+  warnings: string[]
+  imported: { id: number; name: string; category: string | null; messages: number; thread: boolean }[]
+}
+
+export interface BackupStatus {
+  auto: { enabled: boolean; keep: number; includeUploads: boolean }
+  local: { name: string; size: number; createdAt: number }[]
+  folder: string
+}
+
+export interface Events {
+  'server.moved': { notice: MoveNotice | null }
+  'backup.progress': { done: number; total: number }
+  'import.progress': { job: ImportJob }
+}
+
+export interface Requests {
+  'backup.create': [{ passphrase: string }, { url: string; name: string; size: number; expiresAt: number }]
+  'backup.status': [Record<string, never>, BackupStatus]
+  'backup.settings': [{ enabled?: boolean; keep?: number; includeUploads?: boolean }, BackupStatus]
+  'server.move': [{ url: string }, { notice: MoveNotice }]
+  'server.move.cancel': [Record<string, never>, Record<string, never>]
+  'import.begin': [{ size: number; readOnly?: boolean }, { url: string; maxBytes: number }]
+  'import.status': [Record<string, never>, { job: ImportJob | null; running: boolean }]
+  'import.cancel': [Record<string, never>, Record<string, never>]
 }
