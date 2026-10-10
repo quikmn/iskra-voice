@@ -70,6 +70,10 @@ public sealed partial class Store
         Exec("UPDATE channels SET name = $name WHERE id = $id AND kind = 'thread';", ("$id", id), ("$name", name));
 
     /// <summary>Every channel and thread (threads with their parent's roles), for deciding what someone may search.</summary>
-    public List<Channel> AllConversations() =>
-        Query($"SELECT {ThreadAwareColumns} FROM channels c LEFT JOIN channels p ON p.id = c.parent_id;", ReadChannel);
+    public List<Channel> AllConversations()
+    {
+        var parents = ThreadParents();
+        return WithOverrides(Query($"SELECT {ThreadAwareColumns} FROM channels c LEFT JOIN channels p ON p.id = c.parent_id;", ReadChannel),
+            c => parents.GetValueOrDefault(c.Id, c.Id));
+    }
 }

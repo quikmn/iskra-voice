@@ -14,12 +14,12 @@ public sealed partial class Store
 
     /// <summary>Text and voice channels (threads live under their channel and aren't listed).</summary>
     public List<Channel> AllChannels() =>
-        Query($"SELECT {ChannelColumns} FROM channels WHERE parent_id IS NULL ORDER BY position, id;", ReadChannel);
+        WithOverrides(Query($"SELECT {ChannelColumns} FROM channels WHERE parent_id IS NULL ORDER BY position, id;", ReadChannel));
 
     /// <summary>A channel or a thread. Threads always carry their parent channel's roles.</summary>
     public Channel? GetChannel(long id) =>
-        Query($"SELECT {ThreadAwareColumns} FROM channels c LEFT JOIN channels p ON p.id = c.parent_id WHERE c.id = $id;",
-            ReadChannel, ("$id", id)).FirstOrDefault();
+        WithOverrides(Query($"SELECT {ThreadAwareColumns} FROM channels c LEFT JOIN channels p ON p.id = c.parent_id WHERE c.id = $id;",
+            ReadChannel, ("$id", id)).FirstOrDefault());
 
     public Channel CreateChannel(string name, string kind, string readRole, string writeRole, long now)
     {

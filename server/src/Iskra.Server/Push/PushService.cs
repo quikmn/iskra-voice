@@ -97,10 +97,11 @@ public sealed partial class PushService
     private static partial Regex GroupMention();
 
     /// <summary>
-    /// Who may ping a group with @everyone (all members) or @here (members online now): trusted and above.
+    /// Who may ping a group with @everyone (all members) or @here (members online now): trusted and above, or a role that allows it.
     /// From anyone else the text is shown but nobody is notified. Clients apply the same rule.
     /// </summary>
-    public static bool CanPingGroups(Member author) => Roles.Rank(author.Role) >= Roles.Rank(Roles.Trusted);
+    public static bool CanPingGroups(Member author) =>
+        Roles.Rank(author.Role) >= Roles.Rank(Roles.Trusted) || Permissions.Has(author, Perm.MentionEveryone);
 
     /// <summary>A new channel message: mentioned people (or a group, for @everyone/@here) and the author of the message it replies to.</summary>
     public void ChatMessage(Channel channel, Message message)
@@ -122,7 +123,7 @@ public sealed partial class PushService
         foreach (var (accountKey, kind) in kinds)
         {
             var target = store.GetMember(accountKey);
-            if (target is null || !Permissions.CanRead(target, channel)) continue;
+            if (target is null || !Permissions.CanRead(target, channel) || store.HasBlocked(accountKey, author.AccountKey)) continue;
             var title = kind == "reply" ? $"{author.Name} replied in #{channel.Name}" : $"{author.Name} in #{channel.Name}";
             Notify(accountKey, new PushNote(kind, $"c:{channel.Id}", title, body, author.Name, ChannelId: channel.Id, MessageId: message.Id));
         }

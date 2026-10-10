@@ -2,8 +2,20 @@ using Microsoft.Data.Sqlite;
 
 namespace Iskra.Server.Storage;
 
-public sealed record Member(string AccountKey, string Name, string Role, long JoinedAt);
-public sealed record Channel(long Id, string Name, string Kind, int Position, string ReadRole, string WriteRole);
+public sealed record Member(string AccountKey, string Name, string Role, long JoinedAt)
+{
+    /// <summary>Custom roles, highest first (see Store.Roles.cs).</summary>
+    public long[] RoleIds { get; init; } = [];
+    /// <summary>Everything the member's custom roles grant together.</summary>
+    public Perm Perms { get; init; }
+    /// <summary>Position of the member's highest custom role (0 = none).</summary>
+    public int TopPosition { get; init; }
+}
+public sealed record Channel(long Id, string Name, string Kind, int Position, string ReadRole, string WriteRole)
+{
+    /// <summary>Per-role overrides (a thread carries its parent channel's).</summary>
+    public ChannelOverride[] Overrides { get; init; } = [];
+}
 public sealed record Message(long Id, long ChannelId, string AuthorKey, string Text, long CreatedAt, long? EditedAt,
     string[] Attachments, long? ReplyTo);
 public sealed record StoredFile(string Id, string Sha256, string Name, long Size, string Type, int? Width, int? Height, string Uploader, long CreatedAt);
@@ -258,6 +270,7 @@ public sealed partial class Store : IDisposable
             """),
         ("security-1", SecurityMigration),
         ("moderation-1", ModerationMigration),
+        ("roles-1", RolesMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

@@ -67,6 +67,7 @@ public static partial class ProfileFeature
             page = page ? $"/pages/{p.PageId}" : null,
             pageHash = page ? p.PageSha256 : null,
             timedOutUntil = store.GetTimeout(m.AccountKey)?.Until,
+            roles = m.RoleIds,
         };
     }
 

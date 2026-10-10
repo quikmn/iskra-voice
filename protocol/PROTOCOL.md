@@ -12,7 +12,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted)
 - **People and integrations:** [Profiles](#profiles) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints)
-- **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation)
+- **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation) · [Roles and permissions](#roles-and-permissions)
 
 ---
 
@@ -763,3 +763,43 @@ AuditEntry { "id": 7, "at": 1760000000000, "action": "member.timeout", "actor": 
 
 - Names are recorded with the entry, so it stays readable after people leave. Entries older than 90 days are deleted.
 - Actions and their `details`: `member.kick`, `member.ban`, `member.unban`, `member.role` `{ from, to }`, `member.timeout` `{ durationMs, until }`, `member.timeout.remove`, `channel.create` `{ channelId, name, kind, readRole, writeRole, slowmode }`, `channel.update` `{ channelId, name, changes: { name?, readRole?, writeRole?, slowmode?: { from, to } } }`, `channel.delete` `{ channelId, name, kind }`, `message.delete` (by someone other than the author; the target is the author) `{ channelId, channelName, messageId, author }`, `thread.delete` (by someone other than its creator), `message.pin` / `message.unpin` `{ channelId, channelName, messageId }`, `webhook.create` / `webhook.update` / `webhook.regenerate` / `webhook.delete` `{ id, name, channelId }`, `bot.invite` `{ role, expiresAt }`, `emoji.create` / `emoji.rename` / `emoji.delete`, `sound.create` / `sound.update` / `sound.delete`, `invite.create` `{ role, maxUses, expiresAt }`, `invite.revoke` `{ role, uses }`, `profile.page.remove` (someone else's), `server.pages` `{ enabled }`, `server.internet` `{ enabled }`. Invite codes and message text are never recorded.
+
+## Roles and permissions
+
+Custom roles sit on top of the levels (`guest < member < trusted < admin < owner`), which keep working as before: every member still has exactly one level, channels still have `readRole`/`writeRole` levels, and existing worlds need no data changes (the `roles-1` migration only adds tables). Admins and the owner have every permission below.
+
+```jsonc
+Role { "id": 3, "name": "Moderator", "color": "#3ba55c" | null, "icon": "🛡️" | null, "hoist": true, "position": 2,
+       "permissions": ["manageMessages", "kickMembers", ...] }
+```
+
+- `position`: 1 is the lowest; higher is higher. New roles start at the bottom.
+- `hoist`: shown as its own group in the member list. Name colour: the highest role with a colour. Both are client-side choices.
+- `Member` gains `roles: [roleId]` (highest first); members can hold several. `Channel` gains `overrides: [{ roleId, allow: [ChannelPerm], deny: [ChannelPerm] }]`.
+
+**Permissions** (`permissions`): `manageMessages` (delete others' messages, pin, end polls, manage threads), `timeoutMembers`, `kickMembers`, `banMembers` (also unban and the ban list), `manageChannels` (create, edit, delete channels they can see, slowmode, overrides), `manageRoles`, `viewAuditLog`, `manageExpressions` (emoji and sounds), `manageWebhooks`, `mentionEveryone` (`@everyone`/`@here` ping; trusted+ still can), `moveMembers`, `muteMembers`. Clients offer a "Moderator" preset with all of them. Setting levels (`member.setRole`), bot invites, profile pages and internet hosting stay admin-only. People who manage messages or channels skip slowmode.
+
+**Hierarchy**: the owner, then admins, then members with custom roles by their highest role's position, then trusted, member, guest. Kicking, banning, timing out, deleting someone's message, managing someone's roles, muting and moving work only on people strictly below you. Members holding the same highest role are equal.
+
+| type | body | result | who |
+|---|---|---|---|
+| `role.list` | | `{ roles: [Role] }` (highest first) | anyone |
+| `role.create` | `name` (1–32), `color?` (`#rrggbb`), `icon?` (one emoji, ≤ 16 chars), `hoist?`, `permissions?` | `{ role }` | `manageRoles`; ≤ 100 roles |
+| `role.update` | `id` and any of the above (`""` clears `color`/`icon`) | `{ role }` | `manageRoles`, the role below your highest |
+| `role.delete` | `id` | | same (takes it off everyone and removes its overrides) |
+| `role.reorder` | `ids` (every role once, highest first) | `{ roles }` | `manageRoles`; roles at or above your highest can't move, and nothing can move up to them |
+| `member.roles.set` | `accountKey, roles: [roleId]` (replaces the list) | `{ member }` | `manageRoles`; yourself or someone below you; every role added or removed must be below your highest |
+| `channel.overrides.set` | `id` (a channel you can see), `roleId`, `allow?`, `deny?` (both empty removes it) | `{ channel }` | `manageChannels`, the role below your highest |
+| `voice.mute` | `accountKey, muted` | | `muteMembers`, someone below you (or yourself) who is in a voice channel you can see |
+| `voice.move` | `accountKey, channelId` (a voice channel you can see and they can join) | | `moveMembers`, same |
+
+- Only permissions you have yourself can be added to a role (admins: any). A permission the role already had can stay.
+- Event `roles` `{ roles }` to everyone after any role change. Membership and override changes send `member.updated`, a fresh `channels` list to everyone, and take people out of voice rooms they can no longer join.
+
+**Channel overrides** (`ChannelPerm`: `view`, `send`, `connect`, `speak`). The levels give the base: `readRole` grants view and connect, `writeRole` send and speak. Then, over all of the member's roles, denies are removed and allows added (an allow from any role wins over a deny). Without `view` nothing else applies, and `speak` needs `connect`. Threads follow their channel. This decides everything about a channel: the channel list, history, events and broadcasts, search, pushes, voice tokens (`canSpeak`, `voice.join` → `forbidden` without connect) and the LiveKit webhook check.
+
+**Voice moderation**: a server mute tells LiveKit to stop the person's publishing (`UpdateParticipant`), shows `serverMuted: true` in `voice.state`, and lasts until unmuted (also across rejoins; a server restart forgets it). A move sends `voice.moved { channelId }` to the person's sessions, whose app joins that channel, and removes them from the old room.
+
+**Audit log** gains `role.create`, `role.update` (`{ added, removed }` permissions), `role.delete`, `role.reorder`, `member.roles` (`{ added, removed }` role names), `channel.overrides`, `voice.mute`, `voice.unmute`, `voice.move`. Reading it needs `viewAuditLog`.
+
+**Pushes and blocks**: the server sends no mention or reply push from someone the recipient has blocked. Clients also leave messages from blocked people out of unread and mention counts and notifications.

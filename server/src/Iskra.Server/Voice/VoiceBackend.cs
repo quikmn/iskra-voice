@@ -18,6 +18,8 @@ public interface IVoiceBackend
     string ApiKey { get; }
     string ApiSecret { get; }
     Task RemoveParticipantAsync(string room, string identity);
+    /// <summary>Allows or stops a participant's publishing (server mute).</summary>
+    Task UpdateParticipantAsync(string room, string identity, bool canPublish) => Task.CompletedTask;
 }
 
 /// <summary>
@@ -255,6 +257,27 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
         catch (HttpRequestException ex)
         {
             _log.LogWarning(ex, "Could not reach the voice server to remove a participant");
+        }
+    }
+
+    public async Task UpdateParticipantAsync(string room, string identity, bool canPublish)
+    {
+        if (!Available) return;
+        var body = new { room, identity, permission = new { canSubscribe = true, canPublish, canPublishData = true } };
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{ApiUrl}/twirp/livekit.RoomService/UpdateParticipant")
+        {
+            Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json"),
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", LiveKitTokens.Admin(ApiKey, ApiSecret, room, DateTimeOffset.UtcNow));
+        try
+        {
+            using var response = await _http.SendAsync(request);
+            if (!response.IsSuccessStatusCode && response.StatusCode != System.Net.HttpStatusCode.NotFound)
+                _log.LogWarning("Updating {Identity} in {Room} failed: {Status}", identity[..8], room, response.StatusCode);
+        }
+        catch (HttpRequestException ex)
+        {
+            _log.LogWarning(ex, "Could not reach the voice server to update a participant");
         }
     }
 

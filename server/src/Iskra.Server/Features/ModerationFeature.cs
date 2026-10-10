@@ -121,7 +121,7 @@ public static class ModerationFeature
 
     private static object SetTimeout(Session s, Member me, Body body)
     {
-        var target = MemberFeature.Target(s, me, body);
+        var target = MemberFeature.Target(s, me, body, Perm.TimeoutMembers);
         var duration = body.OptionalLong("durationMs") ?? throw RequestException.BadRequest("'durationMs' is required.");
         if (!TimeoutDurations.Contains(duration))
             throw RequestException.BadRequest("'durationMs' must be 60 s, 5 min, 1 hour, 1 day or 1 week.");
@@ -138,7 +138,7 @@ public static class ModerationFeature
 
     private static object RemoveTimeout(Session s, Member me, Body body)
     {
-        var target = MemberFeature.Target(s, me, body);
+        var target = MemberFeature.Target(s, me, body, Perm.TimeoutMembers);
         if (!s.World.Store.RemoveTimeout(target.AccountKey)) throw RequestException.NotFound("Timeout");
         Audit.Record(s, "member.timeout.remove", target.AccountKey);
         var member = s.Hub.PublicMember(target);
@@ -155,10 +155,10 @@ public static class ModerationFeature
 
     // ── Slowmode ─────────────────────────────────────────────────────────────
 
-    /// <summary>Before a message is stored: one message per member per slowmode interval. Admins are exempt.</summary>
+    /// <summary>Before a message is stored: one message per member per slowmode interval. People who manage messages or channels are exempt.</summary>
     internal static void CheckSlowmode(Session s, Member me, Channel channel)
     {
-        if (Permissions.IsAdmin(me)) return;
+        if (Permissions.Has(me, Perm.ManageMessages) || Permissions.Has(me, Perm.ManageChannels)) return;
         var seconds = s.World.Store.Slowmode(channel.Id);
         if (seconds <= 0) return;
         if (!s.Hub.Slowmode.TryTake(channel.Id, me.AccountKey, seconds * 1000L, s.Now, out var waitMs))
@@ -183,7 +183,7 @@ public static class ModerationFeature
 
     private static object ListAudit(Session s, Member me, Body body)
     {
-        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can read the audit log.");
+        if (!Permissions.Has(me, Perm.ViewAuditLog)) throw RequestException.Forbidden("You can't read the audit log on this server.");
         var action = body.OptionalString("action", 40);
         var person = body.OptionalString("person", 64);
         var before = body.OptionalLong("before", min: 1);

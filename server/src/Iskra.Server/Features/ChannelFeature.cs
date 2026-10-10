@@ -18,7 +18,7 @@ public static class ChannelFeature
 
     private static void RequireAdmin(Member me)
     {
-        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can manage channels.");
+        if (!Permissions.Has(me, Perm.ManageChannels)) throw RequestException.Forbidden("You can't manage channels on this server.");
     }
 
     /// <summary>Channel names are lowercase with dashes, like "game-night".</summary>
@@ -53,8 +53,9 @@ public static class ChannelFeature
     }
 
     /// <summary>Threads are managed with thread.update/thread.delete, not as channels.</summary>
-    private static Channel ManagedChannel(Session s, Body body) =>
-        s.World.Store.GetChannel(body.Long("id")) is { Kind: not "thread" } channel ? channel : throw RequestException.NotFound("Channel");
+    internal static Channel ManagedChannel(Session s, Member me, Body body) =>
+        s.World.Store.GetChannel(body.Long("id")) is { Kind: not "thread" } channel && Permissions.CanRead(me, channel)
+            ? channel : throw RequestException.NotFound("Channel");
 
     private static object Create(Session s, Member me, Body body)
     {
@@ -76,7 +77,7 @@ public static class ChannelFeature
     private static object Update(Session s, Member me, Body body)
     {
         RequireAdmin(me);
-        var channel = ManagedChannel(s, body);
+        var channel = ManagedChannel(s, me, body);
         var name = body.OptionalString("name", 256) is { } raw ? ChannelName(raw) : channel.Name;
         var updated = channel with
         {
@@ -104,7 +105,7 @@ public static class ChannelFeature
     private static object? Delete(Session s, Member me, Body body)
     {
         RequireAdmin(me);
-        var channel = ManagedChannel(s, body);
+        var channel = ManagedChannel(s, me, body);
         Audit.Record(s, "channel.delete", details: new { channelId = channel.Id, name = channel.Name, kind = channel.Kind });
         s.World.Store.DeleteChannel(channel.Id);
         BroadcastChannels(s);

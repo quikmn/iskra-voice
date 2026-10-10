@@ -109,6 +109,14 @@ public sealed class FakeVoiceBackend : IVoiceBackend
         lock (Removed) Removed.Add((room, identity));
         return Task.CompletedTask;
     }
+
+    public List<(string Room, string Identity, bool CanPublish)> Updated { get; } = [];
+
+    public Task UpdateParticipantAsync(string room, string identity, bool canPublish)
+    {
+        lock (Updated) Updated.Add((room, identity, canPublish));
+        return Task.CompletedTask;
+    }
 }
 
 public sealed record User(TestIdentity Identity, TestClient Client, JsonElement Welcome) : IDisposable

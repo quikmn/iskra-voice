@@ -70,6 +70,10 @@ public sealed partial class Store
         }
     }
 
+    /// <summary>True if <paramref name="who"/> has blocked <paramref name="whom"/>.</summary>
+    public bool HasBlocked(string who, string whom) =>
+        Scalar("SELECT 1 FROM blocks WHERE account_key = $a AND blocked_key = $b AND blocked = 1;", ("$a", who), ("$b", whom)) is not null;
+
     /// <summary>True if either account has blocked the other.</summary>
     public bool EitherBlocked(string a, string b) =>
         Scalar("""

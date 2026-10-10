@@ -36,6 +36,29 @@ public sealed class VoiceRegistry
 
     public IVoiceBackend Backend => backend;
 
+    /// <summary>Members a moderator muted on this server (kept until unmuted; a restart forgets them).</summary>
+    private readonly ConcurrentDictionary<string, byte> _serverMuted = new();
+
+    public bool IsServerMuted(string accountKey) => _serverMuted.ContainsKey(accountKey);
+
+    /// <summary>Server mute: LiveKit stops (or allows again) their publishing, and everyone in the channel sees it.</summary>
+    public void SetServerMuted(string accountKey, bool muted, bool canSpeak)
+    {
+        if (muted) _serverMuted[accountKey] = 0;
+        else _serverMuted.TryRemove(accountKey, out _);
+        if (ChannelOfMember(accountKey) is not { } channelId) return;
+        _ = backend.UpdateParticipantAsync(RoomName(channelId), accountKey, canPublish: !muted && canSpeak);
+        Publish(channelId);
+    }
+
+    /// <summary>Takes someone out of whatever voice channel they're in (a move to another channel).</summary>
+    public void Disconnect(string accountKey)
+    {
+        if (ChannelOfMember(accountKey) is not { } channelId) return;
+        _ = backend.RemoveParticipantAsync(RoomName(channelId), accountKey);
+        Left(channelId, accountKey);
+    }
+
     /// <summary>DM calls (rooms named call-…), next to the voice channels.</summary>
     public CallRegistry Calls { get; }
 
@@ -53,7 +76,10 @@ public sealed class VoiceRegistry
     public object PublicState(long channelId) => new
     {
         channelId,
-        participants = Participants(channelId).Select(m => new { accountKey = m.AccountKey, muted = m.Muted, deafened = m.Deafened }),
+        participants = Participants(channelId).Select(m => new
+        {
+            accountKey = m.AccountKey, muted = m.Muted, deafened = m.Deafened, serverMuted = _serverMuted.ContainsKey(m.AccountKey),
+        }),
     };
 
     /// <summary>Voice state for every voice channel this member can see.</summary>
@@ -99,7 +125,7 @@ public sealed class VoiceRegistry
             foreach (var accountKey in room.Keys)
             {
                 var member = world.Store.GetMember(accountKey);
-                if (channel is not null && member is not null && Permissions.CanRead(member, channel)) continue;
+                if (channel is not null && member is not null && Permissions.CanConnect(member, channel)) continue;
                 room.TryRemove(accountKey, out _);
                 _ = backend.RemoveParticipantAsync(RoomName(channelId), accountKey);
                 Publish(channelId);
@@ -145,7 +171,7 @@ public sealed class VoiceRegistry
                 // A token only works for members who could read the channel when it was issued; re-check anyway.
                 var member = world.Store.GetMember(identity);
                 var channel = world.Store.GetChannel(channelId);
-                if (member is null || channel is null || !Permissions.CanRead(member, channel)
+                if (member is null || channel is null || !Permissions.CanConnect(member, channel)
                     || Features.ModerationFeature.IsTimedOut(world.Store, identity, now))
                 {
                     _ = backend.RemoveParticipantAsync(room!, identity);
