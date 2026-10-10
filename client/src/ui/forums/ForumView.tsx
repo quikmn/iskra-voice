@@ -4,7 +4,8 @@ import { roleRank, type Channel, type ForumPost, type ForumTag } from '../../cor
 import type { ServerState } from '../../state/store'
 import { DEFAULT_VIEW, forumKey, loadPosts, openPost, seenFor, useForums, type ForumView as View } from '../../state/forums'
 import { unreadOf, visiblePosts } from '../../state/forumLogic'
-import { useThreads } from '../../state/threads'
+import { openThread, useThreads } from '../../state/threads'
+import { useJump } from '../../state/jump'
 import { Avatar, Spinner } from '../bits'
 import { Lock, Menu, Plus, Users } from '../icons'
 import { plainText } from '../markdown'
@@ -42,6 +43,17 @@ export function ForumView({ server, channel, onToggle }: { server: ServerState; 
   useEffect(() => {
     if (online) void loadPosts(server.key, channel.id, view)
   }, [server.key, channel.id, view, online])
+
+  // Jumping to a post's first message (a mention, a search result) opens that post.
+  const target = useJump((s) => s.target)
+  const loaded = server.messages[channel.id]
+  useEffect(() => {
+    if (!target || target.key !== server.key || target.channelId !== channel.id) return
+    const root = loaded?.find((m) => m.id === target.messageId)
+    if (!root) return
+    useJump.setState({ target: null })
+    if (root.thread) openThread(server.key, root.thread.id, root.thread)
+  }, [target, loaded, server.key, channel.id])
 
   const posts = useMemo(() => visiblePosts(list?.posts ?? [], view.sort, view.tag), [list?.posts, view.sort, view.tag])
   const tagById = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags])

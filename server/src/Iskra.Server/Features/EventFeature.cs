@@ -305,8 +305,8 @@ public sealed class EventScheduler(World world, Hub hub, PushService push, TimeP
         {
             if (store.GetMember(accountKey) is not { } member || !EventFeature.CanSee(store, member, e)) continue;
             hub.SendToAccount(accountKey, frame);
-            push.Notify(accountKey, new PushNote("event", $"event:{e.Id}", title, body, creator,
-                ChannelId: e.LocationKind == "voice" ? e.ChannelId : null, Coalesce: false,
+            // No channelId: a click opens the server (a voice channel isn't somewhere to land).
+            push.Notify(accountKey, new PushNote("event", $"event:{e.Id}", title, body, creator, Coalesce: false,
                 TtlSeconds: kind == "live" ? 3600 : (int)Math.Clamp((e.StartAt - now) / 1000, 60, 3600)));
         }
     }

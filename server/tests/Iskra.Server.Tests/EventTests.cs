@@ -156,7 +156,7 @@ public class EventTests
         var push = (await server.Push.WaitForAsync(endpoint))[0];
         Assert.Equal("event", push.GetProperty("kind").GetString());
         Assert.Contains("Quick game", push.GetProperty("title").GetString());
-        Assert.Equal(lounge, push.GetProperty("channelId").GetInt64());
+        Assert.Equal(JsonValueKind.Null, push.GetProperty("channelId").ValueKind);
 
         var live = (await bob.EventAsync("event.reminder")).Body();
         Assert.Equal("live", live.GetProperty("kind").GetString());
@@ -173,6 +173,17 @@ public class EventTests
         }
         Assert.Equal("ended", server.World.Store.GetEvent(id)!.Status);
         Assert.Equal("bad_request", (await alice.RequestAsync("event.cancel", new { id })).ErrorCode());
+    }
+
+    [Fact]
+    public async Task Interest_toggling_is_rate_limited()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        var id = (await Create(alice, Plan())).GetProperty("id").GetInt64();
+        var codes = new List<string?>();
+        for (var i = 0; i < 8; i++) codes.Add((await alice.RequestAsync("event.interest", new { id, on = i % 2 == 0 })).ErrorCode());
+        Assert.Contains("rate_limited", codes);
     }
 
     [Fact]

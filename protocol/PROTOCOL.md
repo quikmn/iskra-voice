@@ -763,12 +763,12 @@ Event { "id": 5, "title": "Game night", "description": "Bring snacks" | null, "s
 | `event.create` | `title` (1–100), `description?` (≤ 1000, newlines allowed), `startAt, endAt` (start from now on, ≤ 1 year ahead; end after start, ≤ 7 days later), `timeZone` (≤ 64), `location: { channelId }` (a voice channel you can see) or `{ text }` (1–100), `image?` (file id: your own PNG, JPEG, WebP or GIF upload, ≤ 5 MB) | `{ event }` | member+ (not guests); ≤ 100 scheduled or live events per server; 5 at once, then 1 every 2 minutes per account |
 | `event.update` | `id` and any of the fields above (`""` clears `description` and `image`) | `{ event }` | whoever created it, or an admin who outranks them; while scheduled or live (a live event's start can't move) |
 | `event.cancel` | `id` | | same as above |
-| `event.interest` | `id, on?` (default true) | `{ event }` | anyone who can see it, while scheduled or live |
+| `event.interest` | `id, on?` (default true) | `{ event }` | anyone who can see it, while scheduled or live; 1/s, burst 5 per connection |
 
 - The creator is interested from the start. `interested` lists current members only.
 - **Visibility:** an event in a voice channel is only visible to people who can read that channel (others get `not_found` and no events). If the channel is deleted, `channelId` becomes `null` and the event is visible to everyone.
 - **Timing:** the server moves an event to `live` at `startAt` and to `ended` at `endAt` (within about a second), and forgets ended and cancelled events after 30 days. Moving the start time re-arms the reminder.
-- **Reminders:** 15 minutes before the start (only for events created further ahead than that) and again when it goes live, every interested member who can see it gets `event.reminder` on their sessions and a [push](#push-notifications-web-push) of kind `event` (`channelId` is the voice channel, if any).
+- **Reminders:** 15 minutes before the start (only for events created further ahead than that) and again when it goes live, every interested member who can see it gets `event.reminder` on their sessions and a [push](#push-notifications-web-push) of kind `event` (no `channelId`: a click opens the server).
 - "Add to calendar" is client-side: an iCalendar (RFC 5545) file with UTC times, built from the event.
 
 | event | body | sent to |

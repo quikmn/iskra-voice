@@ -24,6 +24,7 @@ public sealed class RateLimiter(TimeProvider time)
         ["poll.vote"] = (10, 2),
         ["sound.play"] = (3, 0.5),
         ["link.create"] = (3, 0.1),
+        ["event.interest"] = (5, 1),
         ["device.revoke.new"] = (10, 10 / 3600.0), // new revocations: 10 an hour, so a thief can't use up the 100 at once
         ["*"] = (40, 10),
     };
