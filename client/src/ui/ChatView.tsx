@@ -1,10 +1,12 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { roleRank, type FileInfo, type Member } from '../core/protocol'
 import {
   activeChannelId, connectionFor, discardFailed, loadHistory, notifyTyping, retryFailed, sendMessage, uploadFile, useApp,
   type PendingMessage, type ServerState,
 } from '../state/store'
 import { Attachments, LinkPreviewCard, Reactions, ReactionPicker, ReplyLine } from './chat/MessageExtras'
+import { AuthorAvatar, BotBadge, Embeds } from './chat/BotBits'
+import { authorOf, sameSender } from './chat/bots'
 import { firstLink, formatSize, replyKey, setReply, useReply } from './chat/helpers'
 import { Avatar, Spinner } from './bits'
 import { openProfileCard } from '../state/profile'
@@ -12,6 +14,18 @@ import { decodeMentions, encodeMentions, renderMarkdown } from './markdown'
 import { fullTime, hueFor, messageTime } from './format'
 import type { Panel } from './Shell'
 import { Close, Hash, Menu, Paperclip, Pencil, Reply, Send, Smile, Trash, Users } from './icons'
+import { HeaderTools } from './chat/HeaderTools'
+import { JumpToPresent, MessageMenuExtras, PinnedMark, PinNoteRow, ThreadSummary } from './chat/PinThreadBits'
+import { withPinNotes } from './chat/pinThreadHelpers'
+import { jumpToMessage, jumpToPresent, loadNewer, useJumpTarget } from '../state/jump'
+import { pinNotesFor, usePinNotes } from '../state/pins'
+import { decodeEmoji, encodeEmoji, insertAt } from './expressions/emoji'
+import { EmojiPicker } from './expressions/EmojiPicker'
+import { useEmojiLookup } from './expressions/useEmojiLookup'
+import { useEmojiSuggest } from './expressions/EmojiSuggest'
+import { PollCard, PollDialog } from './expressions/Polls'
+import { PollIcon } from './expressions/icons'
+import { useServerEmojis } from '../state/expressions'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -55,6 +69,7 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
           <h1>{server.name}</h1>
         )}
         <span className="spacer" />
+        <HeaderTools key={channel?.id} server={server} channel={channel} />
         <button className="icon-button members-toggle" onClick={() => onToggle('members')} aria-label="Members" title="Members">
           <Users />
         </button>
@@ -83,9 +98,11 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
   )
 }
 
-function MessageList({ server, channelId }: { server: ServerState; channelId: number }) {
+export function MessageList({ server, channelId, header, thread }: { server: ServerState; channelId: number; header?: ReactNode; thread?: boolean }) {
   const messages = server.messages[channelId]
   const hasMore = server.hasMore[channelId]
+  const detached = !!server.detached?.[channelId]
+  const notes = usePinNotes(pinNotesFor(server.key, channelId))
   const scroller = useRef<HTMLDivElement>(null)
   const stickToBottom = useRef(true)
   const restore = useRef<{ height: number; top: number } | null>(null)
@@ -97,9 +114,10 @@ function MessageList({ server, channelId }: { server: ServerState; channelId: nu
       const mine = messages?.filter((m) => !m.tempId && m.author === server.me?.accountKey).at(-1)
       if (mine) setEditing(mine.id)
     }
-    window.addEventListener('iskra:edit-last', onEditLast)
-    return () => window.removeEventListener('iskra:edit-last', onEditLast)
-  }, [messages, server.me])
+    const event = thread ? 'iskra:edit-last-thread' : 'iskra:edit-last'
+    window.addEventListener(event, onEditLast)
+    return () => window.removeEventListener(event, onEditLast)
+  }, [messages, server.me, thread])
 
   useLayoutEffect(() => {
     const el = scroller.current
@@ -108,10 +126,11 @@ function MessageList({ server, channelId }: { server: ServerState; channelId: nu
       // Loaded older messages: keep what the user was looking at in place.
       el.scrollTop = el.scrollHeight - restore.current.height + restore.current.top
       restore.current = null
-    } else if (stickToBottom.current) {
+    } else if (stickToBottom.current && !detached) {
       el.scrollTop = el.scrollHeight
     }
-  }, [messages])
+  }, [messages, detached])
+  useJumpTarget(server.key, channelId, scroller, () => (stickToBottom.current = false), messages)
 
   function onScroll() {
     const el = scroller.current
@@ -121,13 +140,14 @@ function MessageList({ server, channelId }: { server: ServerState; channelId: nu
       restore.current = { height: el.scrollHeight, top: el.scrollTop }
       void loadHistory(server.key, channelId, true)
     }
+    if (detached && el.scrollHeight - el.scrollTop - el.clientHeight < 200) void loadNewer(server.key, channelId)
   }
 
   const rendered = useMemo(() => {
     if (!messages) return null
     return messages.map((message, i) => {
       const prev = messages[i - 1]
-      const grouped = !!prev && prev.author === message.author && message.createdAt - prev.createdAt < GROUP_WINDOW_MS && !prev.pending
+      const grouped = !!prev && sameSender(prev, message) && message.createdAt - prev.createdAt < GROUP_WINDOW_MS && !prev.pending
       return { message, grouped }
     })
   }, [messages])
@@ -141,14 +161,17 @@ function MessageList({ server, channelId }: { server: ServerState; channelId: nu
   }
 
   return (
+    <>
     <div className="messages" ref={scroller} onScroll={onScroll}>
-      {!hasMore && (
+      {!hasMore && (header ?? (
         <div className="channel-start">
           <h2>Welcome to the start of the channel.</h2>
           <p>This is where it all begins. Say hi! 👋</p>
         </div>
-      )}
-      {rendered.map(({ message, grouped }) => (
+      ))}
+      {withPinNotes(rendered, notes).map(({ message, grouped, note }) => note ? (
+        <PinNoteRow key={`pin-${note.messageId}-${note.at}`} server={server} channelId={channelId} note={note} />
+      ) : (
         <MessageRow
           key={message.tempId ?? message.id}
           server={server}
@@ -159,6 +182,13 @@ function MessageList({ server, channelId }: { server: ServerState; channelId: nu
         />
       ))}
     </div>
+    {detached && (
+      <JumpToPresent onClick={() => {
+        stickToBottom.current = true
+        void jumpToPresent(server.key, channelId)
+      }} />
+    )}
+    </>
   )
 }
 
@@ -172,7 +202,9 @@ function MessageRow({
   onEdit: (on: boolean) => void
 }) {
   const author: Member | undefined = server.members[message.author]
-  const name = author?.name ?? 'Former member'
+  const shown = authorOf(message, server.members)
+  const name = shown.name
+  const canOpenProfile = !message.webhook && !!server.members[message.author]
   const me = server.me
   const mine = me?.accountKey === message.author
   const canDelete = !!me && !message.tempId &&
@@ -180,13 +212,10 @@ function MessageRow({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [picking, setPicking] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const emojiLookup = useEmojiLookup(server.key)
 
   function jumpTo(id: number) {
-    const target = document.getElementById(`msg-${id}`)
-    if (!target) return
-    target.scrollIntoView({ block: 'center', behavior: 'smooth' })
-    target.classList.add('flash')
-    setTimeout(() => target.classList.remove('flash'), 1500)
+    void jumpToMessage(server.key, message.channelId, id)
   }
 
   async function remove() {
@@ -203,33 +232,44 @@ function MessageRow({
       <div className="message-gutter">
         {grouped ? (
           <time className="hover-time" title={fullTime(message.createdAt)}>{messageTime(message.createdAt).replace(/^.* /, '')}</time>
-        ) : (
+        ) : canOpenProfile ? (
           <button className="avatar-button" onClick={(e) => openProfileCard(server.key, message.author, e.currentTarget)} aria-label={`Profile of ${name}`}>
-            <Avatar name={name} accountKey={message.author} />
+            <AuthorAvatar server={server} author={shown} hueKey={message.author} />
           </button>
+        ) : (
+          <AuthorAvatar server={server} author={shown} hueKey={message.author} />
         )}
       </div>
       <div className="message-body">
         {message.replyTo && <ReplyLine server={server} reply={message.replyTo} onJump={jumpTo} />}
         {(!grouped || message.replyTo) && (
           <div className="message-meta">
-            <button className="author" style={{ color: `hsl(${hueFor(message.author)} 70% 72%)` }} onClick={(e) => openProfileCard(server.key, message.author, e.currentTarget)}>{name}</button>
+            {canOpenProfile ? (
+              <button className="author" style={{ color: `hsl(${hueFor(message.author)} 70% 72%)` }} onClick={(e) => openProfileCard(server.key, message.author, e.currentTarget)}>{name}</button>
+            ) : (
+              <span className="author" style={{ color: `hsl(${hueFor(message.author)} 70% 72%)` }}>{name}</span>
+            )}
+            {shown.bot && <BotBadge />}
             <time title={fullTime(message.createdAt)}>{messageTime(message.createdAt)}</time>
+            {message.pinned && <PinnedMark />}
           </div>
         )}
         {editing ? (
           <EditBox server={server} message={message} onDone={() => onEdit(false)} />
         ) : (
-          (message.text || message.editedAt) && (
+          (message.text || message.editedAt) && !message.poll && (
             <div className="message-text">
-              {renderMarkdown(message.text, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey })}
+              {renderMarkdown(message.text, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey, emoji: emojiLookup })}
               {message.editedAt && <span className="edited" title={fullTime(message.editedAt)}> (edited)</span>}
             </div>
           )
         )}
+        {message.poll && <PollCard server={server} message={message} />}
         <Attachments server={server} files={message.attachments} />
+        {message.webhook && <Embeds server={server} embeds={message.webhook.embeds} />}
         {!message.tempId && firstLink(message.text) && <LinkPreviewCard server={server} url={firstLink(message.text)!} />}
         <Reactions server={server} message={message} />
+        <ThreadSummary server={server} message={message} />
         {message.pending === 'failed' && (
           <div className="message-failed">
             Couldn't send.{' '}
@@ -252,7 +292,8 @@ function MessageRow({
             <>
               <button onClick={() => setPicking((p) => !p)} title="Add reaction" aria-label="Add reaction"><Smile size={15} /></button>
               <button onClick={() => setReply(server.key, message.channelId, message)} title="Reply" aria-label="Reply"><Reply size={15} /></button>
-              {mine && message.text && <button onClick={() => onEdit(true)} title="Edit" aria-label="Edit"><Pencil size={15} /></button>}
+              <MessageMenuExtras server={server} message={message} />
+              {mine && message.text && !message.poll && <button onClick={() => onEdit(true)} title="Edit" aria-label="Edit"><Pencil size={15} /></button>}
               {canDelete && <button onClick={() => setConfirmDelete(true)} title="Delete" aria-label="Delete"><Trash size={15} /></button>}
             </>
           )}
@@ -264,7 +305,8 @@ function MessageRow({
 }
 
 function EditBox({ server, message, onDone }: { server: ServerState; message: PendingMessage; onDone: () => void }) {
-  const original = decodeMentions(message.text, (k) => server.members[k]?.name ?? null)
+  const original = decodeEmoji(decodeMentions(message.text, (k) => server.members[k]?.name ?? null))
+  const emojis = useServerEmojis(server.key)
   const [text, setText] = useState(original)
   const [error, setError] = useState<string | null>(null)
 
@@ -272,7 +314,7 @@ function EditBox({ server, message, onDone }: { server: ServerState; message: Pe
     const trimmed = text.trim()
     if (!trimmed || trimmed === original) return onDone()
     try {
-      await connectionFor(server.key)?.request('chat.edit', { id: message.id, text: encodeMentions(trimmed, Object.values(server.members)) })
+      await connectionFor(server.key)?.request('chat.edit', { id: message.id, text: encodeEmoji(encodeMentions(trimmed, Object.values(server.members)), emojis) })
       onDone()
     } catch (e) {
       setError((e as Error).message)
@@ -309,10 +351,19 @@ interface PendingUpload {
   abort: AbortController
 }
 
-function Composer({ server, channelId, channelName }: { server: ServerState; channelId: number; channelName: string }) {
+export function Composer({ server, channelId, channelName, thread, placeholder }: {
+  server: ServerState
+  channelId: number
+  channelName: string
+  thread?: boolean
+  placeholder?: string
+}) {
   const [drafts, setDrafts] = useState<Record<number, string>>({})
   const [uploads, setUploads] = useState<PendingUpload[]>([])
   const fileInput = useRef<HTMLInputElement>(null)
+  const [picker, setPicker] = useState<HTMLElement | null>(null)
+  const [pollOpen, setPollOpen] = useState(false)
+  const emojis = useServerEmojis(server.key)
   const replyTo = useReply((s) => s.replyTo[replyKey(server.key, channelId)] ?? null)
   const text = drafts[channelId] ?? ''
   const online = server.status.state === 'online'
@@ -344,8 +395,9 @@ function Composer({ server, channelId, channelName }: { server: ServerState; cha
 
   useEffect(() => {
     const onAttach = (e: Event) => addFiles((e as CustomEvent<File[]>).detail)
-    window.addEventListener('iskra:attach', onAttach)
-    return () => window.removeEventListener('iskra:attach', onAttach)
+    const event = thread ? 'iskra:attach-thread' : 'iskra:attach'
+    window.addEventListener(event, onAttach)
+    return () => window.removeEventListener(event, onAttach)
   })
 
   // @mention autocomplete: the word being typed after "@".
@@ -356,6 +408,10 @@ function Composer({ server, channelId, channelName }: { server: ServerState; cha
     .filter((m) => m.name.toLowerCase().startsWith(query.toLowerCase()) && m.accountKey !== server.me?.accountKey)
     .sort((a, b) => Number(b.online) - Number(a.online) || a.name.localeCompare(b.name))
     .slice(0, 6)
+  const emojiSuggest = useEmojiSuggest(server.key, text, caret, (next) => {
+    setText(next.text)
+    setCaret(next.caret)
+  })
 
   function insertMention(name: string) {
     const before = text.slice(0, caret).replace(/@([^\s@]{0,32})$/u, `@${name} `)
@@ -366,12 +422,15 @@ function Composer({ server, channelId, channelName }: { server: ServerState; cha
 
   function submit() {
     if (!canSend) return
-    const trimmed = encodeMentions(text.trim(), Object.values(server.members))
+    const trimmed = encodeEmoji(encodeMentions(text.trim(), Object.values(server.members)), emojis)
     setText('')
     for (const u of uploads) if (u.preview) URL.revokeObjectURL(u.preview)
     setUploads([])
     setReply(server.key, channelId, null)
-    void sendMessage(server.key, channelId, trimmed, { attachments: ready, replyTo })
+    const send = () => void sendMessage(server.key, channelId, trimmed, { attachments: ready, replyTo })
+    // Looking at older messages after a jump: go back to the present first.
+    if (server.detached?.[channelId]) void jumpToPresent(server.key, channelId).then(send)
+    else send()
   }
 
   return (
@@ -399,6 +458,9 @@ function Composer({ server, channelId, channelName }: { server: ServerState; cha
       <button className="icon-button attach-button" onClick={() => fileInput.current?.click()} aria-label="Attach files" title="Attach files" disabled={!online}>
         <Paperclip />
       </button>
+      <button className="icon-button attach-button" onClick={() => setPollOpen(true)} aria-label="Create a poll" title="Create a poll" disabled={!online}>
+        <PollIcon />
+      </button>
       <input
         ref={fileInput}
         type="file"
@@ -409,6 +471,7 @@ function Composer({ server, channelId, channelName }: { server: ServerState; cha
           e.target.value = ''
         }}
       />
+      {emojiSuggest.popup}
       {suggestions.length > 0 && (
         <div className="mention-popup" role="listbox" aria-label="Mention someone">
           {suggestions.map((m, i) => (
@@ -433,7 +496,7 @@ function Composer({ server, channelId, channelName }: { server: ServerState; cha
         value={text}
         onCaret={setCaret}
         autoFocus
-        placeholder={online ? `Message #${channelName}` : 'Reconnecting…'}
+        placeholder={online ? (placeholder ?? `Message #${channelName}`) : 'Reconnecting…'}
         maxLength={4000}
         onChange={(value) => {
           setText(value)
@@ -447,6 +510,7 @@ function Composer({ server, channelId, channelName }: { server: ServerState; cha
           }
         }}
         onKeyDown={(e) => {
+          if (emojiSuggest.onKeyDown(e)) return
           if (suggestions.length > 0 && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
             e.preventDefault()
             setPick((p) => (p + (e.key === 'ArrowDown' ? 1 : suggestions.length - 1)) % suggestions.length)
@@ -458,16 +522,33 @@ function Composer({ server, channelId, channelName }: { server: ServerState; cha
             submit()
           } else if (e.key === 'ArrowUp' && !text) {
             e.preventDefault()
-            window.dispatchEvent(new Event('iskra:edit-last'))
+            window.dispatchEvent(new Event(thread ? 'iskra:edit-last-thread' : 'iskra:edit-last'))
           } else if (e.key === 'Escape' && replyTo) {
             setReply(server.key, channelId, null)
           }
         }}
       />
+      <button className="icon-button attach-button" onClick={(e) => setPicker(picker ? null : e.currentTarget)} aria-label="Emoji" title="Emoji">
+        <Smile />
+      </button>
       <button className="send-button" onClick={submit} disabled={!canSend} aria-label="Send">
         <Send />
       </button>
     </div>
+      {picker && (
+        <EmojiPicker
+          serverKey={server.key}
+          anchor={picker}
+          keepOpen
+          onClose={() => setPicker(null)}
+          onPick={(value) => {
+            const next = insertAt(text, caret, decodeEmoji(value))
+            setText(next.text)
+            setCaret(next.caret)
+          }}
+        />
+      )}
+      {pollOpen && <PollDialog server={server} channelId={channelId} onClose={() => setPollOpen(false)} />}
     </div>
   )
 }
@@ -510,7 +591,7 @@ function AutoTextarea({
   )
 }
 
-function TypingLine({ server, channelId }: { server: ServerState; channelId: number }) {
+export function TypingLine({ server, channelId }: { server: ServerState; channelId: number }) {
   const [now, setNow] = useState(() => Date.now())
   const entries = server.typing[channelId] ?? {}
   const active = Object.entries(entries).filter(([key, until]) => until > now && key !== server.me?.accountKey)

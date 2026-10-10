@@ -12,6 +12,9 @@ import { fullTime, hueFor, messageTime } from './format'
 import { Lock, Menu, Send, Settings, Users } from './icons'
 import { SettingsDialog } from './dialogs/SettingsDialog'
 import type { Panel } from './Shell'
+import { CallButtons, CallLogLine, CallPanel } from './calls/Calls'
+import { asLog } from '../state/callMachine'
+import { VoiceBar } from './VoiceBar'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -75,6 +78,7 @@ export function HomeSidebar({ onNavigate }: { onNavigate: () => void }) {
           </button>
         ))}
       </div>
+      <VoiceBar />
       <HomeMeBar />
     </div>
   )
@@ -164,8 +168,10 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
         <h1>{nameOf(peer)}</h1>
         <span className="e2e-badge" title="Only you and they can read these messages"><Lock size={13} /> End-to-end encrypted</span>
         <span className="spacer" />
+        <CallButtons peer={peer} />
         <button className="button small" onClick={() => setVerify(true)}>Verify</button>
       </header>
+      <CallPanel peer={peer} />
 
       <div className="messages" ref={scroller}>
         <div className="channel-start">
@@ -223,7 +229,9 @@ function DmRow({ dm, grouped, peer, mine }: { dm: Dm; grouped: boolean; peer: st
             <time title={fullTime(dm.sentAt)}>{messageTime(dm.sentAt)}</time>
           </div>
         )}
-        {dm.error && !dm.pending ? (
+        {asLog(dm.call) && !dm.error ? (
+          <CallLogLine call={dm.call} from={dm.from} peer={peer} />
+        ) : dm.error && !dm.pending ? (
           <div className="message-notice"><Lock size={13} /> {dm.error}</div>
         ) : (
           <div className="message-text">{renderMarkdown(dm.text, { nameOf: (k) => nameOf(k) })}</div>
@@ -241,7 +249,7 @@ function DmRow({ dm, grouped, peer, mine }: { dm: Dm; grouped: boolean; peer: st
   )
 }
 
-function SafetyNumberDialog({ me, peer, onClose }: { me: string; peer: string; onClose: () => void }) {
+export function SafetyNumberDialog({ me, peer, onClose }: { me: string; peer: string; onClose: () => void }) {
   const number = safetyNumber(me, peer)
   return (
     <Modal title={`Verify ${nameOf(peer)}`} onClose={onClose}>

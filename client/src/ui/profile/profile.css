@@ -1,5 +1,5 @@
 /* ── Profiles: avatars, cards, pages, theme picker ─────────────────── */
-.avatar-image { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; display: block; }
+.avatar > .avatar-image { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; display: block; }
 .avatar-button { border: 0; background: none; padding: 0; border-radius: var(--avatar-radius); height: fit-content; }
 .avatar-button:focus-visible, .author:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 button.author { border: 0; background: none; padding: 0; font: inherit; font-weight: 600; cursor: pointer; }

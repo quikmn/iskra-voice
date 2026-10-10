@@ -21,6 +21,7 @@ public static class VoiceFeature
     {
         var channel = ChatFeature.ReadableChannel(s, me, body.Long("channelId"));
         if (channel.Kind != "voice") throw RequestException.BadRequest("That isn't a voice channel.");
+        if (s.World.Store.IsBot(me.AccountKey)) throw RequestException.Forbidden("Bots can't join voice.");
         var backend = s.Voice.Backend;
         if (!backend.Available) throw new RequestException("voice_unavailable", "Voice isn't available on this server right now.");
 

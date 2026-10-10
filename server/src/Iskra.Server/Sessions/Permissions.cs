@@ -39,4 +39,12 @@ public static class Permissions
 
     public static bool CanDeleteMessage(Member actor, Message message, Member? author) =>
         message.AuthorKey == actor.AccountKey || (IsAdmin(actor) && (author is null || Outranks(actor, author)));
+
+    /// <summary>Pinning is a shared, channel-wide action: trusted+ who can also write in the channel.</summary>
+    public static bool CanPin(Member member, Channel channel) =>
+        CanWrite(member, channel) && Roles.Rank(member.Role) >= Roles.Rank(Roles.Trusted);
+
+    /// <summary>Renaming or deleting a thread: whoever started it, or an admin who outranks them (same rule as deleting messages).</summary>
+    public static bool CanManageThread(Member actor, string creatorKey, Member? creator) =>
+        creatorKey == actor.AccountKey || (IsAdmin(actor) && (creator is null || Outranks(actor, creator)));
 }

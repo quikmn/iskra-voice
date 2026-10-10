@@ -2,6 +2,7 @@ import type { MouseEvent } from 'react'
 import { ROLES, roleRank, type Member, type Role } from '../core/protocol'
 import type { ServerState } from '../state/store'
 import { Avatar } from './bits'
+import { BotBadge } from './chat/BotBits'
 import { openProfileCard } from '../state/profile'
 
 const ROLE_TITLES: Record<Role, string> = { owner: 'Owner', admin: 'Admins', trusted: 'Trusted', member: 'Members', guest: 'Guests' }
@@ -45,6 +46,7 @@ function MemberRow({ member, onClick }: { member: Member; onClick: (e: MouseEven
         <span className="member-name">{member.name}</span>
         {member.pronouns && <span className="member-pronouns">{member.pronouns}</span>}
       </span>
+      {member.bot && <BotBadge />}
     </button>
   )
 }

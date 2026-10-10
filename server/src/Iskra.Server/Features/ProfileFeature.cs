@@ -49,6 +49,7 @@ public static partial class ProfileFeature
             name = m.Name,
             role = m.Role,
             online,
+            bot = store.IsBot(m.AccountKey),
             avatar = p.Avatar is { } a ? $"/files/{a.Id}/{Uri.EscapeDataString(a.Name)}" : null,
             avatarHash = p.Avatar?.Sha256,
             bio = p.Bio,

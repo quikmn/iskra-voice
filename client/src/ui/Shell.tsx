@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { activeServerState, useApp } from '../state/store'
 import { ChannelSidebar } from './ChannelSidebar'
-import { ChatView } from './ChatView'
+import { ChatArea } from './chat/ChatArea'
 import { JoinDialog } from './dialogs/JoinDialog'
 import { CreateServerDialog } from './dialogs/CreateServerDialog'
 import { StartServerDialog } from './dialogs/StartServerDialog'
@@ -13,6 +13,8 @@ import { VoiceStage } from './VoiceStage'
 import { HomeMain, HomeSidebar } from './Home'
 import { RecoveryNudge } from './dialogs/RecoveryKey'
 import { Menu } from './icons'
+import { IncomingCall } from './calls/Calls'
+import { SoundToasts } from './expressions/Soundboard'
 import { ProfileLayer } from './profile/ProfileLayer'
 
 export type Panel = 'none' | 'nav' | 'members'
@@ -23,7 +25,7 @@ export function Shell() {
   const [panel, setPanel] = useState<Panel>('none')
   const [joining, setJoining] = useState(false)
   const [creating, setCreating] = useState(false)
-  const stage = useVoice((s) => s.stageOpen && s.session?.serverKey === server?.key)
+  const stage = useVoice((s) => s.stageOpen && s.session?.serverKey === server?.key && !s.session?.call)
   const hasServers = useApp((s) => s.order.length > 0)
 
   return (
@@ -38,7 +40,7 @@ export function Shell() {
         {server && stage ? (
           <VoiceStage server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
         ) : server ? (
-          <ChatView server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
+          <ChatArea server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
         ) : hasServers ? (
           <HomeMain onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
         ) : (
@@ -52,7 +54,9 @@ export function Shell() {
         </aside>
       )}
 
+      <SoundToasts />
       {panel !== 'none' && <div className="scrim" onClick={() => setPanel('none')} />}
+      <IncomingCall />
       <ProfileLayer />
       {joining && <JoinDialog onClose={() => setJoining(false)} onCreate={() => { setJoining(false); setCreating(true) }} />}
       {creating && (desktop ? <CreateServerDialog onClose={() => setCreating(false)} /> : <StartServerDialog onClose={() => setCreating(false)} />)}

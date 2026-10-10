@@ -1,0 +1,68 @@
+/* ── DM calls ───────────────────────────────────────────────────────── */
+.call-panel {
+  display: flex; flex-direction: column; flex: none; background: #07070d; border-bottom: 1px solid var(--border);
+  max-height: 46vh;
+}
+.call-panel.has-video { height: 46vh; }
+.call-top { display: flex; align-items: center; gap: 10px; padding: 10px 16px 0; min-width: 0; }
+.call-top .spacer { flex: 1; }
+.call-verify { font-size: 13px; color: var(--muted); }
+.e2e-badge.pending { color: var(--muted); background: var(--surface-2); }
+.call-status { font-size: 13px; font-weight: 600; color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.call-status.active { color: var(--green); }
+.call-status.ended { color: var(--red); }
+.call-stage {
+  flex: 1; min-height: 0; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 12px;
+  padding: 14px 16px 4px; overflow-y: auto;
+}
+.call-stage .video-tile { flex: 1 1 280px; max-width: 640px; height: 100%; max-height: 100%; aspect-ratio: auto; }
+.call-person { display: grid; justify-items: center; gap: 8px; padding: 6px; }
+.call-person .avatar { box-shadow: 0 0 0 3px transparent; transition: box-shadow 0.12s; }
+.call-person.speaking .avatar { box-shadow: 0 0 0 3px var(--green); }
+.call-person.waiting .avatar { animation: call-pulse 1.6s ease-in-out infinite; }
+.call-person-name { font-size: 13px; font-weight: 600; color: var(--text-2); }
+.call-error { margin: 4px 16px 0; color: var(--red); font-size: 13px; text-align: center; }
+.call-panel .call-controls { padding-top: 8px; padding-bottom: 12px; }
+.call-panel.ended .call-stage { opacity: 0.6; }
+
+@keyframes call-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); }
+  50% { box-shadow: 0 0 0 12px color-mix(in srgb, var(--accent) 0%, transparent); }
+}
+
+.call-button.accept { background: #16a34a; color: #fff; }
+.call-button.accept:hover { background: #15803d; }
+
+.incoming-call {
+  position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px;
+  background: rgba(4, 4, 10, 0.72); backdrop-filter: blur(6px);
+}
+.incoming-card {
+  width: min(340px, 100%); display: grid; justify-items: center; gap: 6px; padding: 28px 24px 22px; text-align: center;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+}
+.incoming-card h2 { margin: 10px 0 0; font-size: 22px; overflow-wrap: anywhere; }
+.incoming-card p { margin: 0 0 6px; }
+.incoming-avatar { border-radius: 50%; animation: call-pulse 1.6s ease-in-out infinite; }
+.incoming-actions { display: flex; gap: 48px; margin-top: 18px; }
+.incoming-action { display: grid; justify-items: center; gap: 6px; font-size: 13px; color: var(--text-2); }
+.incoming-action .call-button { width: 60px; height: 60px; }
+
+.call-log { display: inline-flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 14px; }
+.call-log svg { color: var(--green); }
+.call-log.missed svg { color: var(--red); }
+
+@media (max-width: 760px) {
+  .call-panel, .call-panel.has-video { max-height: 58vh; }
+  .call-panel.has-video { height: 58vh; }
+  .call-top { padding: 8px 10px 0; }
+  .call-top .e2e-badge, .incoming-card .e2e-badge { display: inline-flex; }
+  .call-stage { padding: 8px; gap: 8px; }
+  .call-stage .video-tile { flex-basis: 100%; }
+  .incoming-call { padding: 0; place-items: stretch; }
+  .incoming-card {
+    width: 100%; border-radius: 0; border: 0; align-content: center;
+    padding: 24px 16px calc(32px + env(safe-area-inset-bottom));
+  }
+  .incoming-actions { padding-top: 40px; }
+}

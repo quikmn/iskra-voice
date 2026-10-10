@@ -165,6 +165,60 @@ public sealed partial class Store : IDisposable
     /// <summary>Named schema steps, applied once each, in order. Add new ones at the end.</summary>
     private static readonly (string Name, string Sql)[] FeatureMigrations =
     [
+        ("bots-1", BotsMigration),
+        ("polls-1", """
+            CREATE TABLE polls (
+                message_id  INTEGER PRIMARY KEY REFERENCES messages(id) ON DELETE CASCADE,
+                question    TEXT NOT NULL,
+                options     TEXT NOT NULL,
+                multi       INTEGER NOT NULL,
+                expires_at  INTEGER,
+                closed_at   INTEGER
+            );
+            CREATE INDEX polls_open ON polls(expires_at) WHERE closed_at IS NULL AND expires_at IS NOT NULL;
+            CREATE TABLE poll_votes (
+                message_id  INTEGER NOT NULL REFERENCES polls(message_id) ON DELETE CASCADE,
+                account_key TEXT NOT NULL,
+                option      INTEGER NOT NULL,
+                created_at  INTEGER NOT NULL,
+                PRIMARY KEY (message_id, account_key, option)
+            );
+            """),
+        ("emoji-1", """
+            CREATE TABLE emojis (
+                id          TEXT PRIMARY KEY,
+                name        TEXT NOT NULL UNIQUE,
+                file_id     TEXT NOT NULL,
+                created_by  TEXT NOT NULL,
+                created_at  INTEGER NOT NULL
+            );
+            """),
+        ("sounds-1", """
+            CREATE TABLE sounds (
+                id          TEXT PRIMARY KEY,
+                name        TEXT NOT NULL,
+                emoji       TEXT,
+                file_id     TEXT NOT NULL,
+                duration_ms INTEGER NOT NULL,
+                created_by  TEXT NOT NULL,
+                created_at  INTEGER NOT NULL
+            );
+            """),
+        ("push-1", """
+            CREATE TABLE push_subscriptions (
+                device_key  TEXT PRIMARY KEY,
+                account_key TEXT NOT NULL,
+                endpoint    TEXT NOT NULL UNIQUE,
+                p256dh      TEXT NOT NULL,
+                auth        TEXT NOT NULL,
+                created_at  INTEGER NOT NULL,
+                updated_at  INTEGER NOT NULL
+            );
+            CREATE INDEX push_by_account ON push_subscriptions(account_key);
+            """),
+        ("pins-1", PinsMigration),
+        ("search-1", SearchMigration),
+        ("threads-1", ThreadsMigration),
         ("profiles-1", """
             CREATE TABLE profiles (
                 account_key TEXT PRIMARY KEY,

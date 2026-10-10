@@ -7,6 +7,7 @@ import { RecoveryKeySection } from './RecoveryKey'
 import { NotificationSettingsSection } from './NotificationSettings'
 import { ProfileSection, ServerPagesOption } from '../profile/ProfileSettings'
 import { AppearanceSection } from '../profile/AppearanceSettings'
+import { ServerExpressionsSections, SoundboardSettingsSection } from '../expressions/ExpressionSettings'
 
 export function SettingsDialog({ server, onClose }: { server?: ServerState | null; onClose: () => void }) {
   const [confirmLeave, setConfirmLeave] = useState(false)
@@ -21,7 +22,11 @@ export function SettingsDialog({ server, onClose }: { server?: ServerState | nul
 
       <VoiceSettingsSection />
 
+      <SoundboardSettingsSection />
+
       <NotificationSettingsSection />
+
+      {server && <ServerExpressionsSections server={server} />}
 
       {server && <section className="settings-section">
         <h3>This server</h3>

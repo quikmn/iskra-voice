@@ -74,9 +74,9 @@ test('with no servers, you can find out how to start one and change your name', 
 
   // Settings are reachable from Home too.
   await page.getByRole('button', { name: 'Settings' }).click()
-  const name = page.getByRole('dialog', { name: 'Settings' }).locator('input').first()
+  const name = page.getByRole('dialog', { name: 'Settings' }).getByLabel('Display name')
   await name.fill('Veteran')
-  await page.getByRole('button', { name: 'Save' }).click()
+  await page.getByRole('button', { name: 'Save profile' }).click()
   await page.keyboard.press('Escape')
   await expect(page.locator('.me-text strong')).toHaveText('Veteran')
 })

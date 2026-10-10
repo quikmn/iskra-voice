@@ -22,11 +22,15 @@ public sealed class IskraServer : WebApplicationFactory<Program>
     public string WorldPath { get; } = Path.Combine(Path.GetTempPath(), "iskra-test-" + Guid.NewGuid().ToString("N"));
     public int AuthTimeoutMs { get; init; } = 5_000;
     public bool AllowLoopbackPreviews { get; init; }
+    public int RingTimeoutMs { get; init; } = 45_000;
 
     public World World => Services.GetRequiredService<World>();
 
     /// <summary>Stands in for LiveKit: always available, records removals.</summary>
     public FakeVoiceBackend Voice { get; } = new();
+
+    /// <summary>Stands in for the browser push services: records every push.</summary>
+    public FakePushSender Push { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -34,7 +38,13 @@ public sealed class IskraServer : WebApplicationFactory<Program>
         builder.UseSetting("Session:AuthTimeoutMs", AuthTimeoutMs.ToString());
         builder.UseSetting("Session:CloseGraceMs", "200");
         builder.UseSetting("Previews:AllowLoopbackForTests", AllowLoopbackPreviews.ToString());
-        builder.ConfigureTestServices(services => services.AddSingleton<IVoiceBackend>(Voice));
+        builder.UseSetting("Push:CoalesceMs", "600");
+        builder.UseSetting("Calls:RingTimeoutMs", RingTimeoutMs.ToString());
+        builder.ConfigureTestServices(services =>
+        {
+            services.AddSingleton<IVoiceBackend>(Voice);
+            services.AddSingleton<Iskra.Server.Push.IPushSender>(Push);
+        });
     }
 
     public async Task<TestClient> ConnectAsync()

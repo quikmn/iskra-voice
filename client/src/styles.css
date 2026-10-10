@@ -564,3 +564,20 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* ── Installed app and push notifications ───────────────────────────── */
+/* Installed on a phone, the app runs edge to edge: keep clear of the notch and the status bar. */
+#root { padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left); }
+.shell { height: calc(100dvh - env(safe-area-inset-top)); }
+.nav-column, .members-column { padding-top: env(safe-area-inset-top); }
+@media (max-width: 760px) { .nav-column { background: var(--rail); } }
+@media (min-width: 761px) { .nav-column { padding-top: 0; } }
+@media (min-width: 1101px) { .members-column { padding-top: 0; } }
+@media (display-mode: standalone) {
+  body { overscroll-behavior: none; }
+}
+.push-settings { display: grid; gap: 8px; margin: 2px 0 10px; }
+.push-settings p { margin: 0; }
+.push-status, .push-hint { font-size: 13px; }
+.push-error { font-size: 13px; color: var(--red); }
+.push-install { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
