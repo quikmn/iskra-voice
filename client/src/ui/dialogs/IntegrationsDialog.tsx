@@ -13,9 +13,9 @@ type Tab = 'webhooks' | 'bots'
 export function IntegrationsDialog({ server, onClose }: { server: ServerState; onClose: () => void }) {
   const [tab, setTab] = useState<Tab>('webhooks')
   return (
-    <Modal title="Integrations" onClose={onClose}>
+    <Modal title="Bots & webhooks" onClose={onClose}>
       <div className="integrations">
-        <div className="segmented" role="tablist" aria-label="Integrations">
+        <div className="segmented" role="tablist" aria-label="Bots and webhooks">
           <button role="tab" aria-selected={tab === 'webhooks'} className={tab === 'webhooks' ? 'on' : ''} onClick={() => setTab('webhooks')}>Webhooks</button>
           <button role="tab" aria-selected={tab === 'bots'} className={tab === 'bots' ? 'on' : ''} onClick={() => setTab('bots')}>Bots</button>
         </div>
