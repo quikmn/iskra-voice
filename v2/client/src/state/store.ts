@@ -4,6 +4,7 @@ import { Connection, type ConnectionStatus } from '../core/connection'
 import { ready } from '../core/crypto'
 import { createIdentity, type Identity } from '../core/identity'
 import { restoreIdentity } from '../core/recovery'
+import { mentions } from '../ui/markdown'
 import type { InviteLink } from '../core/invite'
 import type { Channel, Events, FileInfo, Member, Message, VoiceParticipant, Welcome } from '../core/protocol'
 import * as storage from '../core/storage'
@@ -27,6 +28,8 @@ export interface ServerState {
   /** accountKey → when the "typing" hint expires, per channel. */
   typing: Record<number, Record<string, number>>
   unread: Record<number, number>
+  /** Unread messages that mention you, per channel. */
+  mentions: Record<number, number>
   /** Who is in each voice channel (from the server, which hears it from LiveKit). */
   voice: Record<number, VoiceParticipant[]>
   voiceAvailable: boolean
@@ -204,7 +207,7 @@ function connectServer(url: string, key: string, name: string, invite?: string):
       ...state.servers,
       [key]: state.servers[key] ?? {
         key, url, name, status: { state: 'connecting' }, me: null, channels: [], members: {},
-        messages: {}, hasMore: {}, typing: {}, unread: {}, voice: {}, voiceAvailable: false, appUrl: null,
+        messages: {}, hasMore: {}, typing: {}, unread: {}, mentions: {}, voice: {}, voiceAvailable: false, appUrl: null,
       },
     },
   }))
@@ -289,6 +292,9 @@ function onEvent<K extends keyof Events>(key: string, type: K, body: Events[K]):
           unread: message.author === s.me?.accountKey || viewing
             ? s.unread
             : { ...s.unread, [message.channelId]: (s.unread[message.channelId] ?? 0) + 1 },
+          mentions: message.author === s.me?.accountKey || viewing || !s.me || !mentions(message.text, s.me.accountKey)
+            ? s.mentions
+            : { ...s.mentions, [message.channelId]: (s.mentions[message.channelId] ?? 0) + 1 },
         }
       })
       return
@@ -361,7 +367,7 @@ function onEvent<K extends keyof Events>(key: string, type: K, body: Events[K]):
 
 export function selectChannel(key: string, channelId: number): void {
   useApp.setState((state) => ({ activeChannel: { ...state.activeChannel, [key]: channelId } }))
-  patchServer(key, (s) => ({ unread: { ...s.unread, [channelId]: 0 } }))
+  patchServer(key, (s) => ({ unread: { ...s.unread, [channelId]: 0 }, mentions: { ...s.mentions, [channelId]: 0 } }))
   void loadHistory(key, channelId)
 }
 

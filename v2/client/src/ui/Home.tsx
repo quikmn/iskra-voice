@@ -5,7 +5,8 @@ import { useApp } from '../state/store'
 import {
   discardDm, isOnline, markRead, nameOf, openConversation, openFriends, removeFriend, sendDm, sharedServers, useDms, type Dm,
 } from '../state/dms'
-import { Avatar, MessageText, Modal } from './bits'
+import { Avatar, Modal } from './bits'
+import { renderMarkdown } from './markdown'
 import { fingerprint } from '../core/connection'
 import { fullTime, hueFor, messageTime } from './format'
 import { Lock, Menu, Send, Users } from './icons'
@@ -203,7 +204,7 @@ function DmRow({ dm, grouped, peer, mine }: { dm: Dm; grouped: boolean; peer: st
         {dm.error && !dm.pending ? (
           <div className="message-notice"><Lock size={13} /> {dm.error}</div>
         ) : (
-          <div className="message-text"><MessageText text={dm.text} /></div>
+          <div className="message-text">{renderMarkdown(dm.text, { nameOf: (k) => nameOf(k) })}</div>
         )}
         {dm.pending === 'failed' && mine && (
           <div className="message-failed">

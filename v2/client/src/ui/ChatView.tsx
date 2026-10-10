@@ -6,7 +6,8 @@ import {
 } from '../state/store'
 import { Attachments, Reactions, ReactionPicker, ReplyLine } from './chat/MessageExtras'
 import { formatSize, replyKey, setReply, useReply } from './chat/helpers'
-import { Avatar, MessageText, Spinner } from './bits'
+import { Avatar, Spinner } from './bits'
+import { decodeMentions, encodeMentions, renderMarkdown } from './markdown'
 import { fullTime, hueFor, messageTime } from './format'
 import type { Panel } from './Shell'
 import { Close, Hash, Menu, Paperclip, Pencil, Reply, Send, Smile, Trash, Users } from './icons'
@@ -218,7 +219,7 @@ function MessageRow({
         ) : (
           (message.text || message.editedAt) && (
             <div className="message-text">
-              <MessageText text={message.text} />
+              {renderMarkdown(message.text, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey })}
               {message.editedAt && <span className="edited" title={fullTime(message.editedAt)}> (edited)</span>}
             </div>
           )
@@ -259,14 +260,15 @@ function MessageRow({
 }
 
 function EditBox({ server, message, onDone }: { server: ServerState; message: PendingMessage; onDone: () => void }) {
-  const [text, setText] = useState(message.text)
+  const original = decodeMentions(message.text, (k) => server.members[k]?.name ?? null)
+  const [text, setText] = useState(original)
   const [error, setError] = useState<string | null>(null)
 
   async function save() {
     const trimmed = text.trim()
-    if (!trimmed || trimmed === message.text) return onDone()
+    if (!trimmed || trimmed === original) return onDone()
     try {
-      await connectionFor(server.key)?.request('chat.edit', { id: message.id, text: trimmed })
+      await connectionFor(server.key)?.request('chat.edit', { id: message.id, text: encodeMentions(trimmed, Object.values(server.members)) })
       onDone()
     } catch (e) {
       setError((e as Error).message)
@@ -342,9 +344,25 @@ function Composer({ server, channelId, channelName }: { server: ServerState; cha
     return () => window.removeEventListener('iskra:attach', onAttach)
   })
 
+  // @mention autocomplete: the word being typed after "@".
+  const [caret, setCaret] = useState(0)
+  const [pick, setPick] = useState(0)
+  const query = /(?:^|\s)@([^\s@]{0,32})$/u.exec(text.slice(0, caret))?.[1]
+  const suggestions = query === undefined ? [] : Object.values(server.members)
+    .filter((m) => m.name.toLowerCase().startsWith(query.toLowerCase()) && m.accountKey !== server.me?.accountKey)
+    .sort((a, b) => Number(b.online) - Number(a.online) || a.name.localeCompare(b.name))
+    .slice(0, 6)
+
+  function insertMention(name: string) {
+    const before = text.slice(0, caret).replace(/@([^\s@]{0,32})$/u, `@${name} `)
+    setText(before + text.slice(caret))
+    setCaret(before.length)
+    setPick(0)
+  }
+
   function submit() {
     if (!canSend) return
-    const trimmed = text.trim()
+    const trimmed = encodeMentions(text.trim(), Object.values(server.members))
     setText('')
     for (const u of uploads) if (u.preview) URL.revokeObjectURL(u.preview)
     setUploads([])
@@ -387,9 +405,29 @@ function Composer({ server, channelId, channelName }: { server: ServerState; cha
           e.target.value = ''
         }}
       />
+      {suggestions.length > 0 && (
+        <div className="mention-popup" role="listbox" aria-label="Mention someone">
+          {suggestions.map((m, i) => (
+            <button
+              key={m.accountKey}
+              role="option"
+              aria-selected={i === pick % suggestions.length}
+              className={i === pick % suggestions.length ? 'active' : ''}
+              onMouseDown={(e) => {
+                e.preventDefault()
+                insertMention(m.name)
+              }}
+            >
+              <Avatar name={m.name} accountKey={m.accountKey} size={24} online={m.online} />
+              {m.name}
+            </button>
+          ))}
+        </div>
+      )}
       <AutoTextarea
         key={channelId}
         value={text}
+        onCaret={setCaret}
         autoFocus
         placeholder={online ? `Message #${channelName}` : 'Reconnecting…'}
         maxLength={4000}
@@ -405,7 +443,13 @@ function Composer({ server, channelId, channelName }: { server: ServerState; cha
           }
         }}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+          if (suggestions.length > 0 && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+            e.preventDefault()
+            setPick((p) => (p + (e.key === 'ArrowDown' ? 1 : suggestions.length - 1)) % suggestions.length)
+          } else if (suggestions.length > 0 && (e.key === 'Enter' || e.key === 'Tab')) {
+            e.preventDefault()
+            insertMention(suggestions[pick % suggestions.length].name)
+          } else if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
             e.preventDefault()
             submit()
           } else if (e.key === 'ArrowUp' && !text) {
@@ -425,10 +469,11 @@ function Composer({ server, channelId, channelName }: { server: ServerState; cha
 }
 
 function AutoTextarea({
-  value, onChange, onKeyDown, onPaste, placeholder, autoFocus, maxLength,
+  value, onChange, onKeyDown, onPaste, onCaret, placeholder, autoFocus, maxLength,
 }: {
   value: string
   onChange: (v: string) => void
+  onCaret?: (position: number) => void
   onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void
   onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void
   placeholder?: string
@@ -450,7 +495,11 @@ function AutoTextarea({
       placeholder={placeholder}
       autoFocus={autoFocus}
       maxLength={maxLength}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => {
+        onChange(e.target.value)
+        onCaret?.(e.target.selectionStart)
+      }}
+      onSelect={(e) => onCaret?.(e.currentTarget.selectionStart)}
       onKeyDown={onKeyDown}
       onPaste={onPaste}
     />

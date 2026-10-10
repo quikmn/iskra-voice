@@ -42,6 +42,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
         </div>
         {textChannels.map((channel) => {
           const unread = server.unread[channel.id] ?? 0
+          const pings = server.mentions[channel.id] ?? 0
           return (
             <button
               key={channel.id}
@@ -55,7 +56,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
               <span className="hash"><Hash size={16} /></span>
               <span className="channel-name">{channel.name}</span>
               {channel.readRole !== 'member' && channel.readRole !== 'guest' && <span className="lock" title={`${channel.readRole}+ only`}><Lock size={12} /></span>}
-              {unread > 0 && channel.id !== activeId && <span className="badge">{unread}</span>}
+              {pings > 0 && channel.id !== activeId && <span className="badge" title="Mentions">{pings}</span>}
             </button>
           )
         })}

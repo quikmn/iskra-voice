@@ -410,6 +410,31 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 .composer { padding-left: 4px; }
 .chat.dragging .messages { outline: 2px dashed var(--accent); outline-offset: -8px; }
 
+/* ── Formatting, mentions ───────────────────────────────────────────── */
+.message-text code { font-size: 0.88em; }
+.code-block {
+  margin: 6px 0 2px; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  font-family: var(--mono); font-size: 13px; white-space: pre; overflow-x: auto; max-width: 100%;
+}
+.code-block code { background: none; padding: 0; }
+.message-text blockquote { margin: 2px 0; padding-left: 10px; border-left: 3px solid var(--surface-3); color: var(--text-2); }
+.spoiler { background: var(--surface-3); color: transparent; border-radius: 4px; cursor: pointer; padding: 0 2px; }
+.spoiler > * { visibility: hidden; }
+.spoiler.shown { background: rgba(255, 255, 255, 0.06); color: inherit; cursor: auto; }
+.spoiler.shown > * { visibility: visible; }
+.mention { color: #c9c3ff; background: rgba(124, 111, 255, 0.2); border-radius: 4px; padding: 0 3px; font-weight: 600; }
+.mention.me { color: #fde68a; background: rgba(251, 191, 36, 0.2); }
+.unread-dot { position: absolute; left: -12px; top: 20px; width: 8px; height: 8px; border-radius: 0 4px 4px 0; background: var(--text); }
+.composer { position: relative; }
+.mention-popup {
+  position: absolute; left: 0; right: 0; bottom: calc(100% + 6px); z-index: 20; padding: 6px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.35);
+}
+.mention-popup button {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 8px; border: 0; border-radius: 6px; background: none; text-align: left;
+}
+.mention-popup button.active, .mention-popup button:hover { background: var(--surface-3); }
+
 /* ── Members ────────────────────────────────────────────────────────── */
 .member-list { padding: 14px 8px; }
 .member-list h3 { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); margin: 12px 8px 6px; }

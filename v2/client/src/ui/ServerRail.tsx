@@ -29,6 +29,7 @@ export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavig
         const server = servers[key]
         if (!server) return null
         const unread = Object.values(server.unread).reduce((a, b) => a + b, 0)
+        const pings = Object.values(server.mentions).reduce((a, b) => a + b, 0)
         const offline = server.status.state !== 'online'
         return (
           <button
@@ -41,7 +42,8 @@ export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavig
             }}
           >
             {initials(server.name)}
-            {unread > 0 && key !== active && <span className="badge">{unread > 99 ? '99+' : unread}</span>}
+            {pings > 0 && key !== active && <span className="badge">{pings > 99 ? '99+' : pings}</span>}
+            {pings === 0 && unread > 0 && key !== active && <span className="unread-dot" />}
           </button>
         )
       })}

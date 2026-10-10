@@ -5,6 +5,7 @@ import { leaveServer, renameMe, useApp, type ServerState } from '../../state/sto
 import { Modal } from '../bits'
 import { VoiceSettingsSection } from './VoiceSettings'
 import { RecoveryKeySection } from './RecoveryKey'
+import { NotificationSettingsSection } from './NotificationSettings'
 
 export function SettingsDialog({ server, onClose }: { server: ServerState; onClose: () => void }) {
   const profile = useApp((s) => s.profile)
@@ -43,6 +44,8 @@ export function SettingsDialog({ server, onClose }: { server: ServerState; onClo
       <RecoveryKeySection />
 
       <VoiceSettingsSection />
+
+      <NotificationSettingsSection />
 
       <section className="settings-section">
         <h3>This server</h3>

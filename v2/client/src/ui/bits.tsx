@@ -1,5 +1,5 @@
 // Small shared UI pieces.
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { hueFor, initials } from './format'
 import { Close } from './icons'
 
@@ -57,4 +57,21 @@ export function Modal({ title, onClose, children, footer }: { title: string; onC
 
 export function Spinner() {
   return <span className="spinner" aria-label="Loading" />
+}
+
+/** Hidden text that reveals on click (||like this||). */
+export function Spoiler({ children }: { children: ReactNode }) {
+  const [shown, setShown] = useState(false)
+  return (
+    <span
+      className={`spoiler ${shown ? 'shown' : ''}`}
+      role="button"
+      tabIndex={0}
+      aria-label={shown ? undefined : 'Spoiler, click to reveal'}
+      onClick={() => setShown(true)}
+      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setShown(true)}
+    >
+      {children}
+    </span>
+  )
 }
