@@ -2,12 +2,25 @@ import { describe, expect, it } from 'vitest'
 import { fromB64, toB64, toB64u } from '../src/b64'
 import { deviceId, openHandle, parseDevice, parseHandleKeys, sealHandle, type Device } from '../src/handle'
 import { handle, MAX_BODY, type Env, type RateLimit, type Relay, type Sender } from '../src/index'
-import { importEs256, signJwt } from '../src/jwt'
+import { importEs256, signJwt, verifyVapid } from '../src/jwt'
 import { Apns, Fcm, parseServiceAccount, type PushMessage } from '../src/services'
 
 const key = (n: number) => toB64(new Uint8Array(32).fill(n))
-const IOS: Device = { platform: 'ios', token: 'ab'.repeat(32), voip: 'cd'.repeat(32) }
-const ANDROID: Device = { platform: 'android', token: 'fcm-token_' + 'x'.repeat(140) }
+// A server's VAPID key pair (RFC 8292); the relay binds each handle to the public key.
+const newPair = () => crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']) as Promise<CryptoKeyPair>
+const rawKey = async (pair: CryptoKeyPair) => toB64u(new Uint8Array(await crypto.subtle.exportKey('raw', pair.publicKey)))
+const vapidPair = await newPair()
+const VAPID = await rawKey(vapidPair)
+const IOS: Device = { platform: 'ios', token: 'ab'.repeat(32), voip: 'cd'.repeat(32), vapid: VAPID }
+const ANDROID: Device = { platform: 'android', token: 'fcm-token_' + 'x'.repeat(140), vapid: VAPID }
+
+/** What an Iskra server (Lib.Net.Http.WebPush) sends: vapid t=<ES256 JWT>, k=<public key>. */
+async function vapidHeader(claims: Record<string, unknown> = {}, pair: CryptoKeyPair = vapidPair, key = VAPID) {
+  const exp = Math.floor(Date.now() / 1000) + 12 * 3600
+  const jwt = await signJwt(pair.privateKey, { typ: 'JWT', alg: 'ES256' }, { aud: 'https://push.iskra.foo', exp, sub: 'https://chat.example', ...claims })
+  return `vapid t=${jwt}, k=${key}`
+}
+const AUTHORIZATION = await vapidHeader()
 
 async function pem(keyPair: CryptoKeyPair): Promise<string> {
   const der = new Uint8Array(await crypto.subtle.exportKey('pkcs8', keyPair.privateKey))
@@ -49,10 +62,11 @@ describe('handles', () => {
     expect(a).toMatch(/^[A-Za-z0-9_-]+$/)
     expect(await openHandle(keys, a)).toEqual(IOS)
     expect(await openHandle(keys, await sealHandle(keys, ANDROID))).toEqual(ANDROID)
-    expect(await openHandle(keys, await sealHandle(keys, { platform: 'ios', token: 'ef'.repeat(32), sandbox: true }))).toEqual({
+    expect(await openHandle(keys, await sealHandle(keys, { platform: 'ios', token: 'ef'.repeat(32), sandbox: true, vapid: VAPID }))).toEqual({
       platform: 'ios',
       token: 'ef'.repeat(32),
       sandbox: true,
+      vapid: VAPID,
     })
   })
 
@@ -92,20 +106,25 @@ describe('handles', () => {
 
 describe('registrations', () => {
   it('accept real-looking tokens only', () => {
-    expect(parseDevice({ platform: 'ios', token: 'AB'.repeat(32), voip: 'cd'.repeat(32), sandbox: true })).toEqual({
+    const vapidKey = VAPID
+    expect(parseDevice({ platform: 'ios', token: 'AB'.repeat(32), voip: 'cd'.repeat(32), sandbox: true, vapidKey })).toEqual({
       platform: 'ios',
       token: 'ab'.repeat(32),
       voip: 'cd'.repeat(32),
       sandbox: true,
+      vapid: VAPID,
     })
-    expect(parseDevice({ platform: 'android', token: ANDROID.token })).toEqual(ANDROID)
-    expect(parseDevice({ platform: 'ios', token: 'zz'.repeat(32) })).toBeNull()
-    expect(parseDevice({ platform: 'ios', token: 'ab' })).toBeNull()
-    expect(parseDevice({ platform: 'ios', token: 'ab'.repeat(32), voip: 5 })).toBeNull()
-    expect(parseDevice({ platform: 'android', token: 'short' })).toBeNull()
-    expect(parseDevice({ platform: 'android', token: ANDROID.token, voip: 'cd'.repeat(32) })).toBeNull()
-    expect(parseDevice({ platform: 'android', token: 'a b'.repeat(20) })).toBeNull()
-    expect(parseDevice({ platform: 'web', token: 'x'.repeat(64) })).toBeNull()
+    expect(parseDevice({ platform: 'android', token: ANDROID.token, vapidKey })).toEqual(ANDROID)
+    expect(parseDevice({ platform: 'android', token: ANDROID.token })).toBeNull() // no server key
+    expect(parseDevice({ platform: 'android', token: ANDROID.token, vapidKey: 'C' + VAPID.slice(1) })).toBeNull() // not a point
+    expect(parseDevice({ platform: 'ios', token: 'zz'.repeat(32), vapidKey })).toBeNull()
+    expect(parseDevice({ platform: 'ios', token: 'ab', vapidKey })).toBeNull()
+    expect(parseDevice({ platform: 'ios', token: 'ab'.repeat(32), voip: 5, vapidKey })).toBeNull()
+    expect(parseDevice({ platform: 'android', token: 'short', vapidKey })).toBeNull()
+    expect(parseDevice({ platform: 'android', token: 'x'.repeat(401), vapidKey })).toBeNull()
+    expect(parseDevice({ platform: 'android', token: ANDROID.token, voip: 'cd'.repeat(32), vapidKey })).toBeNull()
+    expect(parseDevice({ platform: 'android', token: 'a b'.repeat(20), vapidKey })).toBeNull()
+    expect(parseDevice({ platform: 'web', token: 'x'.repeat(64), vapidKey })).toBeNull()
     expect(parseDevice(null)).toBeNull()
   })
 })
@@ -119,6 +138,24 @@ describe('JWTs', () => {
     expect(header).toEqual({ alg: 'ES256', kid: 'K' })
     expect(claims).toEqual({ iss: 'T', iat: 1 })
     expect(fromB64(jwt.split('.')[2])!.length).toBe(64) // raw r||s, as JWS wants
+  })
+
+  it('check VAPID: key, signature, audience and expiry', async () => {
+    const now = Date.now()
+    const aud = 'https://push.iskra.foo'
+    const seconds = Math.floor(now / 1000)
+    expect(await verifyVapid(await vapidHeader(), VAPID, aud, now)).toBe(true)
+    expect(await verifyVapid((await vapidHeader()).replace('vapid', 'VAPID'), VAPID, aud, now)).toBe(true)
+    expect(await verifyVapid(await vapidHeader(), VAPID, 'https://other.example', now)).toBe(false)
+    expect(await verifyVapid(await vapidHeader({ exp: seconds - 1 }), VAPID, aud, now)).toBe(false)
+    expect(await verifyVapid(await vapidHeader({ exp: seconds + 3 * 24 * 3600 }), VAPID, aud, now)).toBe(false)
+    // Another server's key, or this server's key with another server's signature.
+    const other = await newPair()
+    expect(await verifyVapid(await vapidHeader({}, other, await rawKey(other)), VAPID, aud, now)).toBe(false)
+    expect(await verifyVapid(await vapidHeader({}, other, VAPID), VAPID, aud, now)).toBe(false)
+    expect(await verifyVapid(`WebPush ${(await vapidHeader()).slice(6)}`, VAPID, aud, now)).toBe(false)
+    expect(await verifyVapid(null, VAPID, aud, now)).toBe(false)
+    expect(await verifyVapid('vapid t=a.b.c, k=' + VAPID, VAPID, aud, now)).toBe(false)
   })
 })
 
@@ -175,7 +212,7 @@ describe('APNs', () => {
     expect(headers['apns-collapse-id']).toBeUndefined()
     expect(JSON.parse(calls[0].init.body as string)).toEqual({ e: 'ZW5j', k: 'call' })
     // Without a VoIP token a call is an ordinary alert.
-    expect(await apns.send({ platform: 'ios', token: IOS.token }, call)).toBe('ok')
+    expect(await apns.send({ platform: 'ios', token: IOS.token, vapid: VAPID }, call)).toBe('ok')
     expect((calls[1].init.headers as Record<string, string>)['apns-push-type']).toBe('alert')
   })
 
@@ -287,13 +324,13 @@ describe('the worker', () => {
   const pushInit = (body: Uint8Array, headers: Record<string, string> = {}): RequestInit => ({
     method: 'POST',
     body: body as BodyInit,
-    headers: { 'content-encoding': 'aes128gcm', ttl: '60', topic: 'abc', urgency: 'high', authorization: 'vapid t=x, k=y', ...headers },
+    headers: { 'content-encoding': 'aes128gcm', ttl: '60', topic: 'abc', urgency: 'high', authorization: AUTHORIZATION, ...headers },
   })
   const encrypted = new Uint8Array(120).map((_, i) => i)
 
   it('registers a phone and forwards an encrypted push to it unchanged', async () => {
     const { apns, register, call } = await setup()
-    const { response, endpoint } = await register({ platform: 'ios', token: IOS.token, voip: IOS.voip })
+    const { response, endpoint } = await register({ platform: 'ios', token: IOS.token, voip: IOS.voip, vapidKey: VAPID })
     expect(response.status).toBe(200)
     expect(response.headers.get('access-control-allow-origin')).toBe('*')
     expect(endpoint).toMatch(/^https:\/\/push\.iskra\.foo\/v1\/push\/[A-Za-z0-9_-]+$/)
@@ -312,7 +349,7 @@ describe('the worker', () => {
 
   it('sends Android pushes through FCM', async () => {
     const { fcm, apns, register, call } = await setup()
-    const { endpoint } = await register({ platform: 'android', token: ANDROID.token })
+    const { endpoint } = await register({ platform: 'android', token: ANDROID.token, vapidKey: VAPID })
     expect((await call(new URL(endpoint).pathname, pushInit(encrypted, { urgency: 'normal' }))).status).toBe(201)
     expect(fcm.sent[0].device).toEqual(ANDROID)
     expect(fcm.sent[0].message.urgent).toBe(false)
@@ -333,13 +370,13 @@ describe('the worker', () => {
   it('says when a platform is not configured', async () => {
     const { relay, register } = await setup()
     relay.fcm = null
-    expect((await register({ platform: 'android', token: ANDROID.token })).response.status).toBe(503)
+    expect((await register({ platform: 'android', token: ANDROID.token, vapidKey: VAPID })).response.status).toBe(503)
   })
 
   it('tells servers to forget unknown and dead handles (404/410)', async () => {
     const { apns, register, call } = await setup()
     expect((await call('/v1/push/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', pushInit(encrypted))).status).toBe(404)
-    const { endpoint } = await register({ platform: 'ios', token: IOS.token })
+    const { endpoint } = await register({ platform: 'ios', token: IOS.token, vapidKey: VAPID })
     apns.result = 'gone'
     expect((await call(new URL(endpoint).pathname, pushInit(encrypted))).status).toBe(410)
     apns.result = 'failed'
@@ -348,7 +385,7 @@ describe('the worker', () => {
 
   it('checks Web Push headers and body size', async () => {
     const { apns, register, call } = await setup()
-    const path = new URL((await register({ platform: 'ios', token: IOS.token })).endpoint).pathname
+    const path = new URL((await register({ platform: 'ios', token: IOS.token, vapidKey: VAPID })).endpoint).pathname
     expect((await call(path, pushInit(encrypted, { 'content-encoding': 'aesgcm' }))).status).toBe(415)
     expect((await call(path, pushInit(encrypted, { ttl: 'soon' }))).status).toBe(400)
     expect((await call(path, pushInit(new Uint8Array(MAX_BODY + 1)))).status).toBe(413)
@@ -364,8 +401,8 @@ describe('the worker', () => {
   it('rate limits registrations per IP and pushes per device and sender', async () => {
     const env: Env = { REGISTER_LIMIT: new Limit(1), SEND_IP_LIMIT: new Limit(100), DEVICE_LIMIT: new Limit(1) }
     const { register, call } = await setup(env)
-    const { endpoint } = await register({ platform: 'ios', token: IOS.token })
-    const second = await register({ platform: 'ios', token: IOS.token })
+    const { endpoint } = await register({ platform: 'ios', token: IOS.token, vapidKey: VAPID })
+    const second = await register({ platform: 'ios', token: IOS.token, vapidKey: VAPID })
     expect(second.response.status).toBe(429)
     expect((env.REGISTER_LIMIT as Limit).keys).toEqual(['203.0.113.5', '203.0.113.5'])
     const path = new URL(endpoint).pathname
@@ -373,9 +410,21 @@ describe('the worker', () => {
     const limited = await call(path, pushInit(encrypted))
     expect(limited.status).toBe(429)
     expect(limited.headers.get('retry-after')).toBe('60')
-    expect((env.DEVICE_LIMIT as Limit).keys[0]).toBe(await deviceId({ platform: 'ios', token: IOS.token }))
+    expect((env.DEVICE_LIMIT as Limit).keys[0]).toBe(await deviceId(IOS))
     const sender = new Limit(0)
     expect((await (await setup({ SEND_IP_LIMIT: sender })).call(path, pushInit(encrypted))).status).toBe(429)
+  })
+
+  it('takes pushes only from the server the handle was made for', async () => {
+    const { apns, register, call } = await setup()
+    const path = new URL((await register({ platform: 'ios', token: IOS.token, vapidKey: VAPID })).endpoint).pathname
+    const other = await newPair()
+    const noAuth = pushInit(encrypted)
+    delete (noAuth.headers as Record<string, string>).authorization
+    expect((await call(path, noAuth)).status).toBe(401)
+    expect((await call(path, pushInit(encrypted, { authorization: await vapidHeader({}, other, await rawKey(other)) }))).status).toBe(403)
+    expect((await call(path, pushInit(encrypted, { authorization: await vapidHeader({ aud: 'https://fcm.googleapis.com' }) }))).status).toBe(403)
+    expect(apns.sent).toHaveLength(0)
   })
 
   it('reports health without secrets', async () => {

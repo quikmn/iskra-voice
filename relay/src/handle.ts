@@ -1,6 +1,7 @@
-// Push handles: a phone's push token, sealed with a key only the relay has (AES-256-GCM, WebCrypto). Iskra servers
-// store the handle inside a push endpoint URL and never see the token; the relay opens it when a push comes in.
-// Nothing is stored: the handle carries everything, so the relay keeps no database of devices.
+// Push handles: a phone's push token and the one Iskra server's VAPID key it is for, sealed with a key only the relay
+// has (AES-256-GCM, WebCrypto). The server stores the handle inside a push endpoint URL and never sees the token; the
+// relay opens it when a push comes in and accepts it only if the push is VAPID-signed by that server (RFC 8292), so a
+// leaked handle is useless to anyone else. Nothing is stored: the handle carries everything.
 import { fromB64, toB64u, utf8 } from './b64'
 
 export type Platform = 'ios' | 'android'
@@ -13,6 +14,8 @@ export interface Device {
   voip?: string
   /** iOS: a development build (APNs sandbox). */
   sandbox?: boolean
+  /** The Iskra server's VAPID public key (b64u, 65-byte P-256 point): only it may push with this handle. */
+  vapid: string
 }
 
 export interface HandleKeys {
@@ -44,7 +47,7 @@ export async function parseHandleKeys(spec: string | undefined): Promise<HandleK
 }
 
 export async function sealHandle(keys: HandleKeys, device: Device): Promise<string> {
-  const plain = utf8.encode(JSON.stringify({ p: device.platform === 'ios' ? 'i' : 'a', t: device.token, v: device.voip, s: device.sandbox ? 1 : undefined }))
+  const plain = utf8.encode(JSON.stringify({ p: device.platform === 'ios' ? 'i' : 'a', t: device.token, v: device.voip, s: device.sandbox ? 1 : undefined, k: device.vapid }))
   const nonce = crypto.getRandomValues(new Uint8Array(NONCE))
   const sealed = new Uint8Array(
     await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce, additionalData: AAD }, keys.keys.get(keys.current)!, plain),
@@ -70,13 +73,14 @@ export async function openHandle(keys: HandleKeys, handle: string): Promise<Devi
       key,
       bytes.subarray(2 + NONCE) as BufferSource,
     )
-    const d = JSON.parse(new TextDecoder().decode(plain)) as { p?: string; t?: string; v?: string; s?: number }
-    if ((d.p !== 'i' && d.p !== 'a') || typeof d.t !== 'string') return null
+    const d = JSON.parse(new TextDecoder().decode(plain)) as { p?: string; t?: string; v?: string; s?: number; k?: string }
+    if ((d.p !== 'i' && d.p !== 'a') || typeof d.t !== 'string' || typeof d.k !== 'string') return null
     return {
       platform: d.p === 'i' ? 'ios' : 'android',
       token: d.t,
       ...(typeof d.v === 'string' ? { voip: d.v } : {}),
       ...(d.s === 1 ? { sandbox: true } : {}),
+      vapid: d.k,
     }
   } catch {
     return null
@@ -90,12 +94,21 @@ export async function deviceId(device: Device): Promise<string> {
 }
 
 const HEX_TOKEN = /^[0-9a-fA-F]{64,200}$/
-const FCM_TOKEN = /^[A-Za-z0-9_:\-.]{32,512}$/
+const FCM_TOKEN = /^[A-Za-z0-9_:\-.]{32,400}$/
+
+/** An uncompressed P-256 point, base64url (what browsers call applicationServerKey). */
+export function validVapidKey(key: unknown): key is string {
+  if (typeof key !== 'string' || !/^[A-Za-z0-9_-]{87}$/.test(key)) return false
+  const bytes = fromB64(key)
+  return bytes !== null && bytes.length === 65 && bytes[0] === 4
+}
 
 /** Checks what an app sends to /v1/register. Null if it isn't a device. */
 export function parseDevice(body: unknown): Device | null {
   if (!body || typeof body !== 'object') return null
   const b = body as Record<string, unknown>
+  if (!validVapidKey(b.vapidKey)) return null
+  const vapid = b.vapidKey
   if (b.platform === 'ios') {
     if (typeof b.token !== 'string' || !HEX_TOKEN.test(b.token)) return null
     if (b.voip !== undefined && (typeof b.voip !== 'string' || !HEX_TOKEN.test(b.voip))) return null
@@ -105,11 +118,12 @@ export function parseDevice(body: unknown): Device | null {
       token: b.token.toLowerCase(),
       ...(typeof b.voip === 'string' ? { voip: b.voip.toLowerCase() } : {}),
       ...(b.sandbox === true ? { sandbox: true } : {}),
+      vapid,
     }
   }
   if (b.platform === 'android') {
     if (typeof b.token !== 'string' || !FCM_TOKEN.test(b.token) || b.voip !== undefined || b.sandbox !== undefined) return null
-    return { platform: 'android', token: b.token }
+    return { platform: 'android', token: b.token, vapid }
   }
   return null
 }

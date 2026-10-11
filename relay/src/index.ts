@@ -3,15 +3,16 @@
 // endpoint with a sealed handle in it. Servers push to that endpoint like to any browser (RFC 8030/8291, body
 // encrypted to the phone); the relay opens the handle and hands the still-encrypted body to APNs or FCM.
 //
-//   POST /v1/register              { platform, token, voip?, sandbox? } → { endpoint }      (the app)
+//   POST /v1/register              { platform, token, voip?, sandbox?, vapidKey } → { endpoint }   (the app, per server)
 //   POST /v1/push/<handle>         Web Push: TTL, Topic, Urgency headers, aes128gcm body       (servers)
 //   POST /v1/call/<handle>         the same, for a ringing call
 //   GET  /v1/health                { ok, apns, fcm }
 //
-// No storage, no logs of tokens or bodies. Abuse limits: per IP for registrations and sends, per device for sends,
-// bodies ≤ 3 KB, only handles this relay sealed.
+// No storage, no logs of tokens or bodies. Abuse limits: a handle is bound to one server's VAPID key and only pushes
+// signed with it are taken; per IP for registrations and sends, per device for sends; bodies ≤ 3 KB.
 import { toB64 } from './b64'
 import { deviceId, openHandle, parseDevice, parseHandleKeys, sealHandle, type Device, type HandleKeys } from './handle'
+import { verifyVapid } from './jwt'
 import { Apns, Fcm, parseServiceAccount, type PushMessage, type SendResult } from './services'
 
 /** Cloudflare's rate limiting binding (wrangler.toml [[ratelimits]]). */
@@ -84,7 +85,7 @@ async function allowed(limit: RateLimit | undefined, key: string): Promise<boole
   }
 }
 
-export async function handle(request: Request, env: Env, relay?: Relay): Promise<Response> {
+export async function handle(request: Request, env: Env, relay?: Relay, now: number = Date.now()): Promise<Response> {
   const url = new URL(request.url)
   const ip = request.headers.get('cf-connecting-ip') ?? 'unknown'
 
@@ -121,6 +122,10 @@ export async function handle(request: Request, env: Env, relay?: Relay): Promise
   const device = await openHandle(r.keys, route[2])
   // Web Push semantics: 404/410 tell the server to forget this subscription.
   if (!device) return problem(404, 'Unknown push handle.')
+  // Only the server this handle was made for (RFC 8292: 401 without authorization, 403 with the wrong key).
+  const authorization = request.headers.get('authorization')
+  if (!authorization) return problem(401, 'VAPID authorization is required.')
+  if (!(await verifyVapid(authorization, device.vapid, url.origin, now))) return problem(403, "This push isn't signed by the server this handle belongs to.")
   if (!(await allowed(env.DEVICE_LIMIT, await deviceId(device)))) return problem(429, 'Too many pushes to this device.', { 'retry-after': '60' })
 
   if ((request.headers.get('content-encoding') ?? '').toLowerCase() !== 'aes128gcm') return problem(415, 'Bodies must be aes128gcm (RFC 8291).')
