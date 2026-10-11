@@ -25,3 +25,8 @@
   Content-Type: application/json
   Access-Control-Allow-Origin: *
   Cache-Control: max-age=3600
+
+# Universal Links for the iPhone/iPad app (mobile/ios). No extension, so the type must be set here.
+/.well-known/apple-app-site-association
+  Content-Type: application/json
+  Cache-Control: max-age=3600

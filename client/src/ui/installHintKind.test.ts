@@ -7,7 +7,7 @@ const android = 'Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KH
 const windows = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
 
 const env = (over: Partial<HintEnv>): HintEnv => ({
-  userAgent: iphone, maxTouchPoints: 5, standalone: false, referrer: '', desktopApp: false, automated: false, ...over,
+  userAgent: iphone, maxTouchPoints: 5, standalone: false, referrer: '', desktopApp: false, nativeApp: false, automated: false, ...over,
 })
 
 function memoryStore(initial: Record<string, string> = {}) {
@@ -27,13 +27,15 @@ describe('install hint', () => {
     expect(installHintKind(env({ userAgent: android }))).toBe('android')
   })
 
-  it('stays away from computers, installed apps, the desktop app and automation', () => {
+  it('stays away from computers, installed apps, the desktop and phone apps and automation', () => {
     expect(installHintKind(env({ userAgent: windows, maxTouchPoints: 0 }))).toBeNull()
     expect(installHintKind(env({ standalone: true }))).toBeNull()
     expect(installHintKind(env({ userAgent: android, standalone: true }))).toBeNull()
     // The Android app (Trusted Web Activity) opens Iskra with an android-app:// referrer.
     expect(installHintKind(env({ userAgent: android, referrer: 'android-app://foo.iskra.app/' }))).toBeNull()
     expect(installHintKind(env({ desktopApp: true }))).toBeNull()
+    // The iPhone/iPad app (mobile/) is already the app: no "Add to Home Screen".
+    expect(installHintKind(env({ nativeApp: true }))).toBeNull()
     expect(installHintKind(env({ automated: true }))).toBeNull()
   })
 

@@ -38,7 +38,9 @@ export function AppearanceSection() {
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
     link.download = `${current.meta.name.replace(/[^\w-]+/g, '-').toLowerCase() || 'theme'}.iskra-theme.json`
+    document.body.appendChild(link) // in the document, so the phone app can route it to the share sheet
     link.click()
+    link.remove()
     setTimeout(() => URL.revokeObjectURL(link.href), 1000)
   }
 

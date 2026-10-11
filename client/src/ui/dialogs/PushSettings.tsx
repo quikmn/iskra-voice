@@ -56,6 +56,7 @@ export function PushSettings() {
         </p>
       )}
       {support === 'unsupported' && <p className="muted push-hint">{t('settings.push.unsupported')}</p>}
+      {support === 'native-app' && <p className="muted push-hint">{t('settings.push.nativeApp')}</p>}
       {installable && (
         <div className="push-install">
           <span className="muted">{t('settings.push.getApp')}</span>

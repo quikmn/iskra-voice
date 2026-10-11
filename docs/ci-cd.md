@@ -44,6 +44,7 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
                     └─ server ..... ssh root@DROPLET_HOST X → iskra-update X → https://chat.iskra.foo (checks it answers)
 
  DEPLOY ONLY: deploy.yml by hand (workflow_dispatch: ref, site, webapp, server_version)
+ iOS APP: mobile-ios.yml by hand (workflow_dispatch: ref, upload) ──► TestFlight (not part of a release yet)
 ```
 
 | File | What it does |
@@ -61,6 +62,8 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
 | `docs/releases/<version>.md` | Release notes (become the GitHub release text) |
 | `desktop/scripts/sign.ps1` | Signs the standalone Windows server exe with the Certum certificate |
 | `android/build.ps1` | Signed APK (+ AAB) |
+| `.github/workflows/mobile-ios.yml` | iPhone/iPad app: build, cloud-sign, upload to TestFlight ([iOS app](#ios-app)) |
+| `scripts/mobile-version.mjs` | The phone app's version and build numbers (tested by the root `npm test`) |
 
 Supply chain: every action is pinned to a full commit SHA with the version as a comment (Dependabot keeps them
 current); every workflow starts with minimal `permissions:` and widens them per job; wrangler is pinned
@@ -139,7 +142,7 @@ Windows SmartScreen reputation builds per certificate, so expect warnings again 
 | Item | Where | Expiry / renewal |
 |---|---|---|
 | Developer ID Application "Viktor Lundgren (BWX2M8XSNZ)" | Key and certificate: `D:\Development_Projects\devkeys\apple-developer-id.{key,csr,pem,p12}`, password in `apple-developer-id-p12-password.txt`, intermediate `apple-DeveloperIDG2CA.*`. In GitHub: secrets `MAC_CERT_P12_BASE64`, `MAC_CERT_PASSWORD`, variable `MAC_IDENTITY` | Valid until **2031-09-17** |
-| App Store Connect API key (.p8) for notarization | Secrets `APPSTORE_API_KEY_BASE64`, `APPSTORE_KEY_ID`, `APPSTORE_ISSUER_ID` | No expiry; revoke in App Store Connect → Users and Access → Integrations |
+| App Store Connect API key (.p8) for notarization and the iOS app | Secrets `APPSTORE_API_KEY_BASE64`, `APPSTORE_KEY_ID`, `APPSTORE_ISSUER_ID` | No expiry; revoke in App Store Connect → Users and Access → Integrations. The iOS app's cloud signing needs the key's role to be **Admin** |
 | Apple Developer Program membership | developer.apple.com (owner's Apple ID) | Yearly (99 USD). If it lapses, notarization stops and new certificates can't be made |
 
 `release.yml` falls back to ad-hoc signing (no notarization) when the Apple secrets are missing, so a broken Apple
@@ -154,8 +157,34 @@ setup gives unsigned Mac builds instead of failing; check the "Desktop app (sign
 4. `base64 -w0 apple-developer-id.p12 | gh secret set MAC_CERT_P12_BASE64`, `gh secret set MAC_CERT_PASSWORD < apple-developer-id-p12-password.txt`;
    update `MAC_IDENTITY` if the name changed. Keep the old files until a release has been signed with the new ones.
 
-**Rotate the API key:** App Store Connect → Integrations → new key (Developer role), download the .p8 once,
-set the three secrets, run a release (or `release.yml` with workflow_dispatch) to test, then revoke the old key.
+**Rotate the API key:** App Store Connect → Integrations → new key (**Admin** role: the iOS app's cloud signing needs it;
+notarization works with any role), download the .p8 once, set the three secrets, run `mobile-ios.yml` with `upload=false`
+and a release (or `release.yml` with workflow_dispatch) to test, then revoke the old key.
+
+### iOS app
+
+The iPhone/iPad app (`mobile/`, Capacitor around the built client; details in [mobile/README.md](../mobile/README.md))
+is built on GitHub's macOS runners by `.github/workflows/mobile-ios.yml` and uploaded to TestFlight. No Mac is involved.
+
+| Item | Where | Notes |
+|---|---|---|
+| App ID `foo.iskra.app` | developer.apple.com → Identifiers (team BWX2M8XSNZ) | Capabilities: Associated Domains, Push Notifications (phase 2) |
+| App record "Iskra" | App Store Connect → Apps | Created by the owner once (the API can't); TestFlight internal group with automatic distribution |
+| Signing | Xcode cloud signing with the `APPSTORE_*` key | No certificates, profiles or keychains in CI. Apple keeps a cloud-managed "Apple Distribution" certificate; it shows under Certificates and renews itself |
+| Universal Links | `client/public/.well-known/apple-app-site-association` on app.iskra.foo, entitlement `applinks:app.iskra.foo` | Deploy the web app before testers install |
+| Export compliance | `ITSAppUsesNonExemptEncryption = false` in Info.plist | Standard algorithms, mass-market exemption; reasoning and open questions (France) in mobile/README.md |
+
+**Build numbers.** `CFBundleShortVersionString` is the numeric part of `desktop/package.json`'s version (2.0.0-alpha.10 →
+2.0.0); `CFBundleVersion` is `<version code>.<run number>.<run attempt>` with Android's version code (20000110), so it rises
+with every release and every rebuild. App Store Connect rejects a build number it has already seen for that version; just
+rerun. Once a `2.0.0` build is approved for the App Store, that version is closed: the next builds must be a higher
+version (the next release bump does that).
+
+**Running it.** `gh workflow run mobile-ios.yml [-f ref=vX] [-f upload=false]` (default: main, upload). The run summary
+names the version and build; Apple then processes the build (5–30 min) and TestFlight shows it to the internal group.
+Wiring it into releases later: add a job to `release-finalize.yml` after `publish`:
+`ios: { needs: publish, uses: ./.github/workflows/mobile-ios.yml, with: { ref: <tag> }, secrets: inherit }`
+(the caller's `permissions` must include `contents: read`).
 
 ### Cloudflare
 
@@ -262,6 +291,12 @@ or revert quickly.
 | Linux CI: audio/video device errors | Runners have no sound card or display. Electron tests run under `xvfb-run`; browser tests use Chromium's fake media devices. Don't add tests that need real devices |
 | Windows Firewall prompts during tests | Something listened on all interfaces. Tests must be localhost-only (`LocalOnly: true`, `ISKRA_LOCAL_ONLY=1`); `scripts/dev-firewall.ps1` adds block rules for new exe paths |
 | CodeQL C# job fails to build | Needs .NET 10 (setup-dotnet in codeql.yml); same build as CI |
+| iOS: "Cloud signing permission error" / "doesn't have permission to … cloud-managed distribution certificates" | The API key isn't Admin. New Admin key, replace the three `APPSTORE_*` secrets ([iOS app](#ios-app), mobile/README.md step 3) |
+| iOS: "No profiles for 'foo.iskra.app'" / "No Account for Team" | The App ID isn't registered, or a developer agreement is pending (developer.apple.com and App Store Connect → Business). Owner fixes it, rerun |
+| iOS archive fails on signing with `archive_signing=adhoc` | Rerun with `-f archive_signing=automatic`. If later runs then fail with "certificate … private key not installed", revoke the old "Created via API" development certificates |
+| iOS upload: "bundle version must be higher" / "redundant binary upload" | That build number exists: rerun (the attempt number goes up). "No suitable application records" → the App Store Connect app record is missing |
+| iOS upload: "SDK version issue" / "built with … SDK" | Apple wants a newer Xcode than the runner has; the workflow picks the newest installed. Wait for GitHub's image or switch `runs-on` to a newer macOS image |
+| Universal Links open Safari instead of the app | `curl -sI https://app.iskra.foo/.well-known/apple-app-site-association` must be 200 `application/json` with no redirect; Apple's CDN caches it (up to a day): reinstall the app later |
 
 **Undoing a release:** don't delete or move the tag. Fix forward with the next version. To pull a broken release
 from the auto-updater quickly, mark it a prerelease (`gh release edit vX --prerelease --latest=false`) and mark the
@@ -276,5 +311,5 @@ migration ran in between (migrations are forward-only); otherwise restore from a
 - Public text (release notes, site, docs): the product is just "Iskra". Never "Iskra 2", never "rebuilt", never v1.
 - Releases are published as Latest, not prerelease.
 - Tests and local servers listen on localhost only (no firewall prompts).
-- Needs the human: the SimplySign phone code, the Apple developer portal and App Store Connect, the Play Console,
+- Needs the human: the SimplySign phone code, the Apple developer portal and App Store Connect (app record, TestFlight testers, API keys), the Play Console,
   the Cloudflare dashboard (new tokens), DigitalOcean, approving `release` environment runs, anything that costs money.

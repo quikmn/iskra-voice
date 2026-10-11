@@ -12,6 +12,7 @@ import { canBoost, captureOptions, effectiveVolume, onAudioSettings, useAudio, t
 import { MicProcessor, strongWorks } from './micPipeline'
 import { playTone } from './notify'
 import { screenShareOptions, useScreenShareSettings } from './screenShare'
+import { iosApp } from '../platform/native'
 
 export interface VoiceSession {
   serverKey: string
@@ -102,7 +103,8 @@ export const useVoice = create<VoiceState>(() => ({
   strongActive: null,
 }))
 
-export const canShareScreen = () => typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia
+// Never in the iPhone/iPad app: iOS web views can't capture the screen.
+export const canShareScreen = () => !iosApp && typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia
 
 let room: Room | null = null
 let e2eeWorker: Worker | null = null

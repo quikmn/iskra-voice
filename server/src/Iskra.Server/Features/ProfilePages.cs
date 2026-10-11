@@ -28,10 +28,10 @@ public static partial class ProfilePages
     /// </summary>
     public const string Prelude = """<script>(()=>{const W=window,d=(o,k,v)=>{try{Object.defineProperty(o,k,{...v,configurable:false})}catch{}},no=()=>null;for(const k of["RTCPeerConnection","webkitRTCPeerConnection","RTCDataChannel","RTCIceTransport","RTCRtpSender","RTCRtpReceiver","RTCRtpTransceiver","WebTransport"])d(W,k,{value:undefined,writable:false});for(const C of[W.HTMLIFrameElement,W.HTMLFrameElement,W.HTMLObjectElement,W.HTMLEmbedElement])if(C){d(C.prototype,"contentWindow",{get:no});d(C.prototype,"contentDocument",{get:no});d(C.prototype,"getSVGDocument",{value:no,writable:false})}d(W,"frames",{get:no});d(W,"length",{get:()=>0});const bad=/^(?:.*:)?(?:i?frame|object|embed)$/i,D=Document.prototype,ce=D.createElement,cn=D.createElementNS,stop=()=>{throw new DOMException("Frames are off","NotSupportedError")};d(D,"createElement",{value:function(n,o){if(bad.test(String(n)))stop();return ce.call(this,n,o)},writable:false});d(D,"createElementNS",{value:function(s,n,o){if(bad.test(String(n)))stop();return cn.call(this,s,n,o)},writable:false})})()</script>""";
 
-    /// <summary>Apps allowed to frame pages: the official web app, the desktop app, local development, and this server's AppUrl.</summary>
+    /// <summary>Apps allowed to frame pages: the official web app, the desktop app, the phone app, local development, and this server's AppUrl.</summary>
     public static string FrameAncestors(World world)
     {
-        var list = new List<string> { "'self'", "https://app.iskra.foo", "app://iskra", "http://localhost:*", "http://127.0.0.1:*" };
+        var list = new List<string> { "'self'", "https://app.iskra.foo", "app://iskra", "capacitor://localhost", "http://localhost:*", "http://127.0.0.1:*" };
         if (Uri.TryCreate(world.Settings.AppUrl, UriKind.Absolute, out var app) && app.Scheme is "http" or "https")
         {
             var origin = $"{app.Scheme}://{app.IdnHost}{(app.IsDefaultPort ? "" : $":{app.Port}")}";

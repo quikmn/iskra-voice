@@ -1,0 +1,201 @@
+name: Mobile iOS
+
+# Builds the iPhone/iPad app (mobile/: Capacitor around client/dist) and uploads it to TestFlight.
+# Signing is automatic: Xcode's cloud signing with the App Store Connect API key (secrets APPSTORE_*), no
+# certificates or profiles stored here. See mobile/README.md and docs/ci-cd.md "iOS app".
+# Run by hand (Actions → Mobile iOS → Run workflow, or `gh workflow run mobile-ios.yml`); release-finalize.yml
+# can call it later as a reusable workflow (`uses: ./.github/workflows/mobile-ios.yml`, `secrets: inherit`).
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Tag, branch or commit to build (default: the branch the run starts on)'
+        required: false
+      upload:
+        description: 'Upload to TestFlight (off: build, sign and check only)'
+        type: boolean
+        default: true
+      archive_signing:
+        description: 'How the archive is signed before cloud signing re-signs it for the App Store'
+        type: choice
+        options: [adhoc, automatic]
+        default: adhoc
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        required: false
+      upload:
+        type: boolean
+        default: true
+      archive_signing:
+        type: string
+        default: adhoc
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-ios
+  cancel-in-progress: false
+
+env:
+  TEAM_ID: BWX2M8XSNZ
+  BUNDLE_ID: foo.iskra.app
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            mobile/package-lock.json
+
+      # App Store uploads need a current SDK: use the newest released Xcode on the runner, not the default.
+      - name: Pick Xcode
+        run: |
+          xcode="$(ls -d /Applications/Xcode_*.app | grep -viE 'beta|rc|release.?candidate' | sort -V | tail -1)"
+          sudo xcode-select -s "$xcode/Contents/Developer"
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: Version
+        run: |
+          node scripts/mobile-version.mjs "${{ github.run_number }}" "${{ github.run_attempt }}" | tee -a "$GITHUB_ENV"
+
+      - run: npm ci
+        working-directory: client
+      - run: npm run build
+        working-directory: client
+      - run: npm ci
+        working-directory: mobile
+      - name: Copy the web app into the native project
+        run: npx cap sync ios
+        working-directory: mobile
+
+      - name: App Store Connect API key
+        env:
+          API_KEY: ${{ secrets.APPSTORE_API_KEY_BASE64 }}
+          KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+        run: |
+          if [ -z "$API_KEY" ] || [ -z "$KEY_ID" ] || [ -z "$ISSUER_ID" ]; then
+            echo "::error::APPSTORE_API_KEY_BASE64, APPSTORE_KEY_ID and APPSTORE_ISSUER_ID must be set"
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/keys"
+          echo "$API_KEY" | base64 --decode > "$RUNNER_TEMP/keys/AuthKey.p8"
+          chmod 600 "$RUNNER_TEMP/keys/AuthKey.p8"
+
+      - name: Archive
+        env:
+          KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+          ARCHIVE_SIGNING: ${{ inputs.archive_signing }}
+        run: |
+          # adhoc: sign the archive locally without a certificate (entitlements included), so runs never create
+          # development certificates; the export below signs it for the App Store with Apple's cloud certificate.
+          # automatic: plain automatic signing (creates an "Apple Development" certificate on each fresh runner).
+          signing=()
+          if [ "$ARCHIVE_SIGNING" != "automatic" ]; then
+            signing=(CODE_SIGN_IDENTITY=- AD_HOC_CODE_SIGNING_ALLOWED=YES)
+          fi
+          xcodebuild archive \
+            -project mobile/ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Iskra.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey.p8" \
+            -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID" \
+            CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM="$TEAM_ID" \
+            MARKETING_VERSION="$MARKETING_VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            "${signing[@]}" > "$RUNNER_TEMP/archive.log" 2>&1 || { grep -E 'error:' "$RUNNER_TEMP/archive.log" | head -40; tail -60 "$RUNNER_TEMP/archive.log"; exit 1; }
+          grep -E '^\*\* ARCHIVE' "$RUNNER_TEMP/archive.log"
+
+      - name: Export options
+        run: |
+          for destination in export upload; do
+            cat > "$RUNNER_TEMP/export-$destination.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>$destination</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict>
+          </plist>
+          EOF
+            plutil -lint "$RUNNER_TEMP/export-$destination.plist"
+          done
+
+      - name: Sign for the App Store (cloud signing)
+        env:
+          KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+        run: |
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Iskra.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/export-export.plist" -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey.p8" \
+            -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID"
+          ls -la "$RUNNER_TEMP/export"
+
+      # The checks that matter for TestFlight and Universal Links, before anything is uploaded.
+      - name: Check the signed app
+        run: |
+          cd "$RUNNER_TEMP"
+          rm -rf check && mkdir check && unzip -q export/*.ipa -d check
+          app="$(ls -d check/Payload/*.app)"
+          plist="$app/Info.plist"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")" = "$BUNDLE_ID"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")" = "$MARKETING_VERSION"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$plist")" = "$BUILD_NUMBER"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :ITSAppUsesNonExemptEncryption' "$plist")" = "false"
+          test -f "$app/public/index.html"
+          codesign --verify --strict "$app"
+          codesign -dvv "$app" 2>&1 | grep -E '^(Authority|TeamIdentifier)='
+          codesign -d --entitlements - --xml "$app" > entitlements.plist
+          plutil -p entitlements.plist
+          grep -q 'applinks:app.iskra.foo' entitlements.plist || { echo "::error::associated-domains entitlement missing"; exit 1; }
+          grep -q "$TEAM_ID.$BUNDLE_ID" entitlements.plist
+          echo "Iskra $APP_VERSION ($MARKETING_VERSION build $BUILD_NUMBER) is signed for the App Store"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: iskra-ios-${{ env.APP_VERSION }}-${{ env.BUILD_NUMBER }}
+          path: ${{ runner.temp }}/export/*.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload to TestFlight
+        if: ${{ inputs.upload }}
+        env:
+          KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+        run: |
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Iskra.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/export-upload.plist" -exportPath "$RUNNER_TEMP/upload" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey.p8" \
+            -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID"
+          {
+            echo "### Uploaded to App Store Connect"
+            echo "Iskra $APP_VERSION: version $MARKETING_VERSION, build $BUILD_NUMBER."
+            echo "Apple processes it (5–30 min), then it appears in TestFlight for the internal group."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove the key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/keys"

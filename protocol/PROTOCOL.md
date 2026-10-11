@@ -557,7 +557,7 @@ A page is one HTML file the member wrote. Viewers only load it when they click "
 Content-Security-Policy: sandbox [allow-scripts]; default-src 'none'; script-src 'none' | 'unsafe-inline'; style-src 'unsafe-inline';
   img-src data: blob: <this server>/files/; font-src data:; media-src 'none'; connect-src 'none'; form-action 'none';
   frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none'; base-uri 'none';
-  frame-ancestors 'self' https://app.iskra.foo app://iskra http://localhost:* http://127.0.0.1:* <AppUrl>
+  frame-ancestors 'self' https://app.iskra.foo app://iskra capacitor://localhost http://localhost:* http://127.0.0.1:* <AppUrl>
 Permissions-Policy: camera=(), microphone=(), geolocation=(), autoplay=(), display-capture=(), fullscreen=(), payment=(), usb=(), …
 X-Content-Type-Options: nosniff · Referrer-Policy: no-referrer · X-DNS-Prefetch-Control: off
 Cross-Origin-Opener-Policy: same-origin · Cache-Control: no-store

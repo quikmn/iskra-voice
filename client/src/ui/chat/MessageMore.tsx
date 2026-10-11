@@ -7,15 +7,16 @@ import type { Message } from '../../core/protocol'
 import type { PendingMessage, ServerState } from '../../state/store'
 import { markUnread } from '../../state/unread'
 import { Avatar, Modal } from '../bits'
+import { appUrl } from '../format'
 import { EmojiGlyph } from '../expressions/EmojiPicker'
 import { usePopoverPosition } from '../expressions/popover'
 import { useEscapeLayer, useFocusTrap } from '../layers'
 import { plainText } from '../markdown'
 import './more.css'
 
-/** Where links to this server's messages should open: its web app, or this app. */
+/** Where links to this server's messages should open: its web app, or this page if it's a web page (not app:// or capacitor://). */
 export function linkTo(server: ServerState, message: Message): string {
-  const base = server.appUrl ?? `${window.location.origin}${window.location.pathname}`
+  const base = appUrl(server.appUrl)
   return messageLink(base, server.key, message.channelId, message.id)
 }
 

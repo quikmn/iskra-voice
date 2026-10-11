@@ -8,6 +8,7 @@ import { errorMessage } from '../i18n/errors'
 import { b64u, fromB64u } from '../core/crypto'
 import { parseOpenRoute, pushScope, pushSupport, serverOfScope, type OpenTarget, type PushSupport } from '../core/pushRoute'
 import { desktop } from '../platform/desktop'
+import { native } from '../platform/native'
 import { pushActive, updateNotify, useNotify } from './notify'
 import { connectionFor, onWelcomeHook, selectChannel, selectServer, useApp } from './store'
 
@@ -19,8 +20,9 @@ interface PushState {
 
 export const usePush = create<PushState>(() => ({ servers: {}, error: null }))
 
-export function currentPushSupport(): PushSupport | 'desktop-app' {
+export function currentPushSupport(): PushSupport | 'desktop-app' | 'native-app' {
   if (desktop) return 'desktop-app'
+  if (native) return 'native-app' // web push doesn't reach an app's web view; native push is phase 2 (mobile/README.md)
   return pushSupport({
     userAgent: navigator.userAgent,
     maxTouchPoints: navigator.maxTouchPoints ?? 0,

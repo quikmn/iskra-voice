@@ -1,0 +1,13 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["BWX2M8XSNZ.foo.iskra.app"],
+        "components": [
+          { "/": "/", "#": "/join/*", "comment": "Invite links" },
+          { "/": "/", "#": "/link/*", "comment": "Device linking" }
+        ]
+      }
+    ]
+  }
+}
