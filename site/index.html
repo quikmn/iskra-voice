@@ -178,12 +178,14 @@
     font-weight: 400;
     color: var(--muted);
     margin-bottom: 48px;
-    max-width: 580px;
+    max-width: 760px;
     line-height: 1.5;
+    text-wrap: balance;
     animation: fadeUp 0.6s 0.2s ease both;
   }
 
-  .hero-sub strong { color: var(--text); font-weight: 600; }
+  .hero-sub strong { color: var(--text); font-weight: 600; white-space: nowrap; }
+  .hero-sub span { display: block; }
 
   .hero-cta {
     display: flex;
@@ -1362,8 +1364,8 @@
   </h1>
 
   <p class="hero-sub">
-    Chat with your friends on a server you run. <strong>Own your data.</strong><br>
-    No email, no password, no subscriptions. Secure, fast and easy, and the alpha is out now.
+    <span>Chat with your friends on a server you run. <strong>Own your data.</strong></span>
+    <span>No email, no password, no subscriptions. Secure, fast and easy.</span>
   </p>
 
 
