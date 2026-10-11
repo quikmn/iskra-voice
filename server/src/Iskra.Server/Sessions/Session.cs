@@ -179,6 +179,7 @@ public sealed class Session
             stages = _voice.Stages.Snapshot(member),
             watch = _voice.Watch.Snapshot(member),
             rotations = KeyFeature.Recent(_world.Store),
+            keyLog = KeyLogFeature.Head(_world, Now),
             rules = RulesFeature.View(_world.Store, member),
         }));
         lock (_earlyGate)

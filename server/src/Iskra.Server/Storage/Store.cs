@@ -292,6 +292,7 @@ public sealed partial class Store : IDisposable
         ("automod-1", AutoModMigration),
         ("reports-1", ReportsMigration),
         ("accounts-1", AccountsMigration),
+        ("keylog-1", KeyLogMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────
