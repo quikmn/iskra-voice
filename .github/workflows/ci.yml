@@ -98,6 +98,29 @@ jobs:
           name: playwright-results
           path: client/test-results
 
+  # Availability evidence: backs up a server with members, messages and files, restores it into a new folder and checks
+  # nothing was lost or changed (server/tests/Iskra.Server.Tests/RestoreDrillTests.cs). The JSON report is kept as an artifact.
+  backup-restore-drill:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet test --configuration Release --filter-class Iskra.Server.Tests.RestoreDrillTests
+        env:
+          ISKRA_DRILL_REPORT: ${{ runner.temp }}/restore-drill.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: restore-drill-report
+          path: ${{ runner.temp }}/restore-drill.json
+          if-no-files-found: error
+          retention-days: 90
+
   release-scripts:
     runs-on: ubuntu-latest
     steps:

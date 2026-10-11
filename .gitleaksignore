@@ -1,0 +1,18 @@
+# Findings gitleaks (.github/workflows/secrets.yml) may skip, by fingerprint (commit:file:rule:line).
+# Only add an entry after checking the value isn't a real secret, or after the secret was revoked; say which here.
+# Anything new is still reported.
+
+# Tests: a fixed LiveKit test secret and a test server key (not used anywhere real).
+acd5d5429dfe8aacceb6d3cfeab717c521be38e0:v2/server/tests/Iskra.Server.Tests/Support/TestServer.cs:generic-api-key:73
+ca5a86f0ed2251d972e0f1f0741e7592a858a85c:v2/client/src/core/invite.test.ts:generic-api-key:4
+
+# The retired first codebase (tag v1-final), no longer in the tree. Listed so the history scan stays green;
+# docs/compliance/owner-actions.md asks the owner to confirm these are revoked or were never real.
+b408220b1449d8dde1d7ceda2a14c9b4edf63eb8:iskra_client/index.html:gcp-api-key:2661
+5fde3fe2a3ca9cb9bb6a055500034a027b702561:README.md:generic-api-key:86
+5fde3fe2a3ca9cb9bb6a055500034a027b702561:README.md:generic-api-key:158
+5fde3fe2a3ca9cb9bb6a055500034a027b702561:README.md:generic-api-key:258
+820d3897f44b17561405442ca2e9de9413577324:servers/example-alpha/server.json:generic-api-key:10
+820d3897f44b17561405442ca2e9de9413577324:servers/example-beta/server.json:generic-api-key:10
+820d3897f44b17561405442ca2e9de9413577324:servers/quikmn-main/server.json:generic-api-key:11
+499e1e67919ed10757a1f9b2e6d5b494dbbaf74e:iskra_client/iskra_client/Program.cs:generic-api-key:70
