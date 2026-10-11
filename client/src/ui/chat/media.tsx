@@ -82,6 +82,8 @@ export function Lightbox({ items, start, onClose }: { items: GalleryItem[]; star
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const gesture = useRef<{ x: number; y: number; pan: { x: number; y: number }; pinch?: number; zoom: number; lastTap?: number } | null>(null)
   const lastTap = useRef(0)
+  /** The last gesture moved, so the click that follows it isn't a tap on the backdrop. */
+  const dragged = useRef(false)
   const item = items[index]
   useEscapeLayer(onClose)
   useFocusTrap(ref)
@@ -138,6 +140,7 @@ export function Lightbox({ items, start, onClose }: { items: GalleryItem[]; star
     const dy = e.clientY - g.y
     setDrag({ x: 0, y: 0 })
     const moved = Math.hypot(dx, dy) > 10
+    dragged.current = moved
     if (!moved) {
       // Double tap / double click toggles zoom.
       const now = performance.now()
@@ -167,7 +170,7 @@ export function Lightbox({ items, start, onClose }: { items: GalleryItem[]; star
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         onWheel={(e) => setZoomClamped(zoom * (e.deltaY < 0 ? 1.2 : 1 / 1.2))}
-        onClick={(e) => e.target === e.currentTarget && zoom === 1 && onClose()}
+        onClick={(e) => e.target === e.currentTarget && zoom === 1 && !dragged.current && onClose()}
       >
         <img
           src={item.url}
