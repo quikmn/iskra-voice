@@ -167,7 +167,7 @@ export function SoundsSection({ server }: { server: ServerState }) {
   return (
     <section className="settings-section">
       <h3>Soundboard sounds · {sounds.length}</h3>
-      <p className="muted">Anyone who can talk in a voice channel can play these for the call. MP3, Ogg or WAV, up to 5 seconds and 512 KB.</p>
+      <p className="muted">Anyone who can talk in a voice channel can play these for the call. MP3, Ogg or WAV, any length. Anyone can stop a sound from the soundboard.</p>
       <input ref={input} type="file" hidden accept="audio/mpeg,audio/ogg,audio/wav,audio/x-wav,.mp3,.ogg,.wav" aria-label="Sound file"
         onChange={(e) => {
           const file = e.target.files?.[0]
@@ -219,7 +219,7 @@ function SoundRow({ server, sound }: { server: ServerState; sound: Sound }) {
 
   return (
     <li className="expression-row">
-      <button className="icon-button" aria-label={`Preview ${sound.name}`} title="Preview (only you hear it)" disabled={!url} onClick={() => url && playUrl(url, undefined, sound.durationMs)}>
+      <button className="icon-button" aria-label={`Preview ${sound.name}`} title="Preview (only you hear it)" disabled={!url} onClick={() => url && playUrl(url)}>
         <Play size={16} />
       </button>
       {canManage ? (

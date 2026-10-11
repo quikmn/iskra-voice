@@ -14,10 +14,6 @@ namespace Iskra.Server.Features;
 public static class SoundboardFeature
 {
     public const int MaxSounds = 100;
-    public const int MaxBytes = 512 * 1024;
-    public const int MaxDurationMs = 5_000;
-    /// <summary>Encoders pad a few frames, so a "5 second" clip may measure slightly longer.</summary>
-    private const int DurationSlackMs = 150;
     private static readonly string[] Types = ["audio/mpeg", "audio/ogg", "audio/wav"];
 
     public static void Register(Router router)
@@ -69,14 +65,12 @@ public static class SoundboardFeature
         var file = store.GetFile(body.String("fileId", 64));
         if (file is null || file.Uploader != me.AccountKey) throw RequestException.BadRequest("Unknown file.");
         if (!Types.Contains(file.Type)) throw RequestException.BadRequest("Sounds must be MP3, Ogg or WAV files.");
-        if (file.Size > MaxBytes) throw RequestException.BadRequest($"Sounds can be up to {MaxBytes / 1024} KB.");
-
+        // Any length: the upload limit (MaxUploadMb) is the only size limit, and listeners can stop a sound.
         var path = s.Uploads.PathFor(file.Sha256);
         var duration = File.Exists(path) ? AudioProbe.DurationMs(File.ReadAllBytes(path), file.Type) : null;
         if (duration is null) throw RequestException.BadRequest("Couldn't read that sound. Try an MP3, Ogg or WAV file.");
-        if (duration > MaxDurationMs + DurationSlackMs) throw RequestException.BadRequest($"Sounds can be up to {MaxDurationMs / 1000} seconds long.");
 
-        var sound = new Sound(Ed25519.ToB64u(RandomNumberGenerator.GetBytes(9)), name, emoji, file.Id, Math.Min(duration.Value, MaxDurationMs),
+        var sound = new Sound(Ed25519.ToB64u(RandomNumberGenerator.GetBytes(9)), name, emoji, file.Id, duration.Value,
             me.AccountKey, s.Now);
         store.AddSound(sound);
         Audit.Record(s, "sound.create", details: new { id = sound.Id, name });

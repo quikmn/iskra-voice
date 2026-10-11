@@ -105,7 +105,7 @@ public class SoundboardTests
         server.Services.GetRequiredService<VoiceRegistry>().Joined(channelId, user.Key, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 
     [Fact]
-    public async Task Trusted_members_add_sounds_within_limits()
+    public async Task Trusted_members_add_sounds_of_any_length()
     {
         using var server = new IskraServer();
         using var member = await server.JoinAsync("Member");
@@ -119,16 +119,13 @@ public class SoundboardTests
         Assert.Equal(2000, sound.GetProperty("durationMs").GetInt32());
         Assert.Equal("airhorn", (await member.EventAsync("sounds.updated")).Body().GetProperty("sounds")[0].GetProperty("name").GetString());
 
-        Assert.Equal("bad_request", (await AddSound(server, trusted, Wav(6000), "long")).ErrorCode());
-        Assert.Equal("bad_request", (await AddSound(server, trusted, Mp3(250), "long-mp3")).ErrorCode()); // 6.5 s
-        Assert.Equal("result", (await AddSound(server, trusted, Mp3(150), "short-mp3")).Type());          // 3.9 s
+        Assert.Equal(60_000, (await AddSound(server, trusted, Wav(60_000), "long")).Body().GetProperty("sound").GetProperty("durationMs").GetInt32());
+        Assert.Equal("result", (await AddSound(server, trusted, Mp3(250), "long-mp3")).Type());  // 6.5 s
+        Assert.Equal("result", (await AddSound(server, trusted, Mp3(150), "short-mp3")).Type()); // 3.9 s
         Assert.Equal("result", (await AddSound(server, trusted, OggOpus(48_000), "ogg")).Type());
         Assert.Equal("bad_request", (await AddSound(server, trusted, EmojiTests.Png, "image")).ErrorCode());
         Assert.Equal("bad_request", (await AddSound(server, trusted, Wav(1000), "", null)).ErrorCode());
         Assert.Equal("bad_request", (await AddSound(server, trusted, Wav(1000), "spaced", "a b")).ErrorCode());
-        // Over 512 KB, even if it claims to be short.
-        var big = Wav(1000).Concat(new byte[512 * 1024]).ToArray();
-        Assert.Equal("bad_request", (await AddSound(server, trusted, big, "big")).ErrorCode());
     }
 
     [Fact]

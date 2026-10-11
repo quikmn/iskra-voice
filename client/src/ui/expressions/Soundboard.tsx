@@ -1,7 +1,7 @@
 // The soundboard button in the voice bar and call controls, its sound grid, and the "Alice played …" toasts.
 import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { playSound, useExpressions, useServerSounds } from '../../state/expressions'
+import { playSound, stopSounds, useExpressions, useServerSounds, useSoundsPlaying } from '../../state/expressions'
 import { useApp } from '../../state/store'
 import { useVoice } from '../../state/voice'
 import { SoundboardIcon } from './icons'
@@ -32,6 +32,7 @@ export function SoundboardButton({ variant }: { variant: 'bar' | 'call' }) {
 function SoundboardPanel({ serverKey, anchor, onClose }: { serverKey: string; anchor: HTMLElement | null; onClose: () => void }) {
   const sounds = useServerSounds(serverKey)
   const muted = useExpressions((s) => s.settings.muted)
+  const playingCount = useSoundsPlaying((s) => s.count)
   const [query, setQuery] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [cooling, setCooling] = useState<string | null>(null)
@@ -64,6 +65,9 @@ function SoundboardPanel({ serverKey, anchor, onClose }: { serverKey: string; an
       >
         <header className="soundboard-header">
           <strong>Soundboard</strong>
+          {playingCount > 0 && (
+            <button className="button ghost small" onClick={stopSounds} title="Stops the sounds playing for you">Stop sounds</button>
+          )}
           {sounds.length > 8 && (
             <input className="emoji-search" placeholder="Search sounds" aria-label="Search sounds" value={query} onChange={(e) => setQuery(e.target.value)} />
           )}

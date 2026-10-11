@@ -96,28 +96,38 @@ function onSoundPlayed(serverKey: string, { channelId, accountKey, sound }: Even
   const { settings } = useExpressions.getState()
   const url = serverFileUrl(serverKey, sound.url)
   if (settings.muted || voice.deafened || !url || settings.volume <= 0) return
-  playUrl(url, settings.volume, sound.durationMs)
+  playUrl(url, settings.volume)
 }
 
-/** Soundboard sounds are at most this long; playback stops there whatever the file holds. */
-export const MAX_SOUND_MS = 5000
+/** Sounds playing right now (any length), so they can be stopped. */
+const playing = new Set<HTMLAudioElement>()
+/** How many sounds are playing; the soundboard shows "Stop sounds" while any are. */
+export const useSoundsPlaying = create<{ count: number }>(() => ({ count: 0 }))
+const playingChanged = () => useSoundsPlaying.setState({ count: playing.size })
 
-/** When to stop a sound: its measured length (never more than the limit), plus a little slack for decoding. */
-export const stopAfterMs = (durationMs: number | undefined) =>
-  Math.min(Number.isFinite(durationMs) && durationMs! > 0 ? durationMs! : MAX_SOUND_MS, MAX_SOUND_MS) + 250
+function finish(audio: HTMLAudioElement) {
+  if (!playing.delete(audio)) return
+  audio.pause()
+  audio.removeAttribute('src')
+  playingChanged()
+}
 
-/** Plays a sound locally (a received soundboard sound, or a preview), cut off at its measured length. */
-export function playUrl(url: string, volume = useExpressions.getState().settings.volume, durationMs?: number): void {
+/** Stops every soundboard sound and preview playing for you. */
+export function stopSounds(): void {
+  for (const audio of [...playing]) finish(audio)
+}
+
+/** Plays a sound locally (a received soundboard sound, or a preview) to its end, or until stopped. */
+export function playUrl(url: string, volume = useExpressions.getState().settings.volume): void {
   try {
     const audio = new Audio(url)
     audio.volume = Math.min(1, Math.max(0, volume))
     const sink = useAudio.getState().outputDevice
     if (sink && 'setSinkId' in audio) void audio.setSinkId(sink).catch(() => undefined)
-    void audio.play().catch(() => undefined)
-    setTimeout(() => {
-      audio.pause()
-      audio.removeAttribute('src')
-    }, stopAfterMs(durationMs))
+    audio.onended = audio.onerror = () => finish(audio)
+    playing.add(audio)
+    playingChanged()
+    void audio.play().catch(() => finish(audio))
   } catch {
     /* no audio support */
   }
@@ -174,8 +184,6 @@ export async function playSound(serverKey: string, id: string) {
 
 export const EMOJI_MAX_BYTES = 256 * 1024
 export const EMOJI_MAX_SIDE = 128
-export const SOUND_MAX_BYTES = 512 * 1024
-export const SOUND_MAX_MS = 5_000
 
 /** Fits a still image into 128×128 (PNG). GIFs keep their animation, so they must already be small enough. */
 export async function prepareEmojiImage(file: File): Promise<File> {
@@ -248,9 +256,6 @@ export function audioDuration(file: File): Promise<number> {
 }
 
 export async function addSound(serverKey: string, file: File, name: string, emoji: string | null): Promise<void> {
-  if (file.size > SOUND_MAX_BYTES) throw new Error('Sounds can be up to 512 KB.')
-  const duration = await audioDuration(file).catch(() => null)
-  if (duration !== null && Number.isFinite(duration) && duration > SOUND_MAX_MS + 150) throw new Error('Sounds can be up to 5 seconds long.')
   const uploaded = await uploadFile(serverKey, file, () => undefined)
   await connection(serverKey).request('sound.create', { name, emoji, fileId: uploaded.id })
 }

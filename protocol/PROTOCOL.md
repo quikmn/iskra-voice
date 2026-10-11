@@ -356,7 +356,7 @@ Voice runs on a LiveKit server that `iskra-server` starts next to itself (config
 | type | body | result | who |
 |---|---|---|---|
 | `sound.list` | | `{ sounds: [Sound] }` | anyone |
-| `sound.create` | `name` (1–32 chars), `emoji?` (≤ 16 chars, no spaces), `fileId` (your own upload: MP3, Ogg or WAV by content, ≤ 512 KB, ≤ 5 s) | `{ sound }` | trusted+ |
+| `sound.create` | `name` (1–32 chars), `emoji?` (≤ 16 chars, no spaces), `fileId` (your own upload: MP3, Ogg or WAV by content, any length; the upload limit applies) | `{ sound }` | trusted+ |
 | `sound.update` | `id, name, emoji?` | `{ sound }` | whoever added it, or admin+ |
 | `sound.delete` | `id` | | whoever added it, or admin+ |
 | `sound.play` | `id` | | someone in a voice channel who can speak there |
