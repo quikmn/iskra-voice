@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "foo.iskra.app",
+      "sha256_cert_fingerprints": [
+        "7C:59:41:BA:AC:BF:AC:1D:FC:2C:4C:C5:18:47:2B:DB:52:99:F7:E4:12:F2:C6:72:03:74:97:B3:81:82:A2:0A"
+      ]
+    }
+  }
+]
