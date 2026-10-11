@@ -39,13 +39,7 @@ release doesn't exist yet). Without `latest.yml` on a release, Windows installs 
 
 ## First run on macOS
 
-The macOS app isn't notarized by Apple (no Developer ID yet), so the first launch needs one extra step:
-
-1. Open the dmg and drag Iskra to Applications.
-2. Open Iskra. macOS says it can't verify it: click **Done**.
-3. Open **System Settings → Privacy & Security**, scroll down and click **Open Anyway** next to Iskra, then confirm.
-
-If macOS says the app "is damaged", run `xattr -dr com.apple.quarantine /Applications/Iskra.app` in Terminal and open it again.
+The macOS app is signed with a Developer ID and notarized by Apple (from 2.0.0-alpha.9): open the dmg, drag Iskra to Applications and open it.
 Iskra asks for the microphone and camera when you first use them. Push to talk needs **Accessibility** and screen sharing needs
 **Screen & System Audio Recording** (Privacy & Security); the app points you there when needed.
 
