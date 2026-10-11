@@ -3,6 +3,7 @@ import { ROLES, roleRank, type Member, type Role } from '../core/protocol'
 import type { ServerState } from '../state/store'
 import { Avatar } from './bits'
 import { BotBadge } from './chat/BotBits'
+import { ActivityLine } from './ActivityLine'
 import { openProfileCard } from '../state/profile'
 import { useMemberPresence } from '../state/presence'
 import { STATUS_LABELS } from '../state/presenceRules'
@@ -71,7 +72,8 @@ function MemberRow({ member, color, icon, onClick }: {
       <Avatar name={member.name} accountKey={member.accountKey} size={32} status={status} />
       <span className="member-text">
         <span className="member-name" style={color ? { color } : undefined}>{member.name}</span>
-        {custom ? <CustomStatusLine custom={custom} className="member-status" />
+        {member.activity ? <ActivityLine activity={member.activity} withTime={false} />
+          : custom ? <CustomStatusLine custom={custom} className="member-status" />
           : member.pronouns && <span className="member-pronouns">{member.pronouns}</span>}
       </span>
       {icon && <span className="member-role-icon" aria-hidden>{icon}</span>}

@@ -1056,3 +1056,21 @@ export interface Requests {
   'voice.mute': [{ accountKey: string; muted: boolean }, Record<string, never>]
   'voice.move': [{ accountKey: string; channelId: number }, Record<string, never>]
 }
+
+// ── activity ──
+
+/** "Playing X": what someone is doing right now (PROTOCOL.md "Activity status"). */
+export interface Activity {
+  name: string
+  /** When it started, ms since epoch (set by the server). */
+  since: number
+}
+
+export interface Member {
+  /** Only while online; null or missing when there's none. */
+  activity?: Activity | null
+}
+
+export interface Requests {
+  'activity.set': [{ name: string | null }, { activity: Activity | null }]
+}

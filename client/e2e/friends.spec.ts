@@ -18,6 +18,9 @@ test('two friends join with invite links and chat', async ({ browser }) => {
 
   const friendContext = await browser.newContext()
   const friend = await friendContext.newPage()
+  // Browsers on a computer can hand the invite to the desktop app instead.
+  await friend.goto(friendLink)
+  await expect(friend.getByRole('link', { name: 'Open in the app' })).toHaveAttribute('href', `iskra://join/${friendLink.split('/join/')[1]}`)
   await joinVia(friend, friendLink, 'Friend')
 
   await send(friend, 'hey! 👋 is this thing on? https://iskra.foo')

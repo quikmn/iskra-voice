@@ -3,6 +3,7 @@ import { decodeRecoveryKey } from '../core/recovery'
 import { usePendingLink } from '../state/link'
 import { acceptInvite, completeOnboarding, restoreAccount, useApp } from '../state/store'
 import { hostOf } from './format'
+import { OpenInApp } from './OpenInApp'
 import { LinkJoin } from './LinkJoin'
 
 type Mode = 'new' | 'existing' | 'recovery' | 'link'
@@ -74,11 +75,14 @@ export function Onboarding() {
       <form className="onboarding-card" onSubmit={submit}>
         {brand}
         {pendingInvite ? (
-          <p className="lead">
-            You've been invited to a server at <strong>{hostOf(pendingInvite.serverUrl)}</strong>.
-            <br />
-            Pick a name and you're in.
-          </p>
+          <>
+            <p className="lead">
+              You've been invited to a server at <strong>{hostOf(pendingInvite.serverUrl)}</strong>.
+              <br />
+              Pick a name and you're in.
+            </p>
+            <OpenInApp invite={pendingInvite} />
+          </>
         ) : (
           <p className="lead">Voice and text chat with your friends, on a server you own. Pick a name to get started.</p>
         )}

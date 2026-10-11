@@ -48,7 +48,7 @@ public static partial class ProfileFeature
     public static bool PagesEnabled(Store store) => store.GetProfileOption("pages") != "off";
 
     /// <summary>The member as everyone sees it, profile included.</summary>
-    public static object Public(Store store, Member m, PresenceFeature.View presence)
+    public static object Public(Store store, Member m, PresenceFeature.View presence, object? activity = null)
     {
         var p = store.GetPublicProfile(m.AccountKey);
         var page = p.PageId is not null && PagesEnabled(store);
@@ -73,6 +73,7 @@ public static partial class ProfileFeature
             pageHash = page ? p.PageSha256 : null,
             timedOutUntil = store.GetTimeout(m.AccountKey)?.Until,
             roles = m.RoleIds,
+            activity, // ActivityFeature: { name, since } or null
         };
     }
 

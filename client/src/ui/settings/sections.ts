@@ -2,7 +2,7 @@
 import { roleRank, type Permission, type Role } from '../../core/protocol'
 
 export type SectionId =
-  | 'profile' | 'appearance' | 'devices' | 'recovery' | 'security' | 'notifications' | 'voice' | 'blocked'
+  | 'profile' | 'appearance' | 'devices' | 'recovery' | 'security' | 'notifications' | 'voice' | 'blocked' | 'desktop'
   | 'overview' | 'roles' | 'emoji' | 'sounds' | 'integrations' | 'pages' | 'internet' | 'audit' | 'backup' | 'import'
 
 export interface SectionInfo {
@@ -20,6 +20,7 @@ const ACCOUNT: SectionInfo[] = [
   { id: 'notifications', label: 'Notifications', group: 'account' },
   { id: 'voice', label: 'Voice & audio', group: 'account' },
   { id: 'blocked', label: 'Blocked people', group: 'account' },
+  { id: 'desktop', label: 'Desktop app', group: 'account' },
 ]
 
 /** Server sections: the lowest level that may open each, or a permission from a custom role that also opens it. */
@@ -36,11 +37,12 @@ const SERVER: (SectionInfo & { min: Role; perm?: Permission })[] = [
   { id: 'import', label: 'Import from Discord', group: 'server', min: 'owner' },
 ]
 
-/** The sections to show: account always; server ones only with a joined server, by level or permission. */
-export function settingsSections(role: Role | null | undefined, can: (perm: Permission) => boolean = () => false): SectionInfo[] {
-  if (!role) return ACCOUNT
+/** The sections to show: account always (Desktop app only in the app); server ones only with a joined server, by level or permission. */
+export function settingsSections(role: Role | null | undefined, can: (perm: Permission) => boolean = () => false, desktopApp = false): SectionInfo[] {
+  const account = desktopApp ? ACCOUNT : ACCOUNT.filter((s) => s.id !== 'desktop')
+  if (!role) return account
   return [
-    ...ACCOUNT,
+    ...account,
     ...SERVER.filter((s) => roleRank(role) >= roleRank(s.min) || (s.perm && can(s.perm))).map(({ id, label, group }) => ({ id, label, group })),
   ]
 }

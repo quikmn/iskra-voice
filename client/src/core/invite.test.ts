@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { blockedAsInsecure } from './connection'
-import { buildInviteLink, normalizeServerUrl, parseInvite, socketUrl } from './invite'
+import { appInviteLink, buildInviteLink, normalizeServerUrl, parseInvite, socketUrl } from './invite'
 
 const serverKey = '7UkoxijRwsbq6QM4kFmVYSlZJzpcY_k2NsFGFKyHN9E'
 
@@ -49,5 +49,14 @@ describe('mixed content', () => {
     expect(blockedAsInsecure('https://chat.example.com', 'https:')).toBe(false)
     expect(blockedAsInsecure('http://192.168.1.10:47070', 'app:')).toBe(false) // desktop app
     expect(blockedAsInsecure('http://192.168.1.10:47070', 'http:')).toBe(false)
+  })
+})
+
+describe('iskra:// app links', () => {
+  it('carry the same invite, and parse back', () => {
+    const invite = { serverUrl: 'https://chat.example.com', serverKey: 'A'.repeat(43), code: 'abcdefgh12' }
+    const link = appInviteLink(invite)
+    expect(link).toMatch(/^iskra:\/\/join\/[A-Za-z0-9_-]+\.A{43}\.abcdefgh12$/)
+    expect(parseInvite(link)).toEqual(invite)
   })
 })

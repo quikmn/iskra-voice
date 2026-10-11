@@ -10,6 +10,7 @@ import { startTitleBadge } from './state/notify'
 import { startPush } from './state/push'
 import { startPresenceWatch } from './state/presence'
 import './state/moves'
+import { startDesktopLinks } from './state/desktopShell'
 import { ScreenPicker } from './ui/ScreenPicker'
 import { Spinner } from './ui/bits'
 import { JoinPrompt } from './ui/dialogs/JoinDialog'
@@ -52,7 +53,9 @@ export function App() {
     const stopTitle = startTitleBadge()
     const stopPush = startPush()
     const stopPresence = startPresenceWatch()
+    const stopLinks = startDesktopLinks()
     return () => {
+      stopLinks()
       stopPtt()
       stopTitle()
       stopPush()

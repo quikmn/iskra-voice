@@ -11,6 +11,7 @@ import {
 import type { Panel } from './Shell'
 import { SoundboardButton } from './expressions/Soundboard'
 import { useVolumeMenu } from './useVolumeMenu'
+import { ScreenShareMenu } from './ScreenShareMenu'
 import './audio.css'
 import { partyFor, useWatch } from '../state/watch'
 import { WatchButton, WatchPartyPanel } from './watch/WatchParty'
@@ -132,6 +133,7 @@ export function VideoTile({ tile, name, big, speaking, onClick }: { tile: Tile; 
 export function CallControls({ onLeave, extra }: { onLeave?: () => void; extra?: ReactNode }) {
   const session = useVoice((s) => s.session)!
   const { muted, deafened, camera, screen, localSpeaking } = useVoice()
+  const [shareMenu, setShareMenu] = useState<HTMLElement | null>(null)
   const speak = session.canSpeak
   return (
     <div className="call-controls" role="toolbar" aria-label="Call controls">
@@ -149,11 +151,15 @@ export function CallControls({ onLeave, extra }: { onLeave?: () => void; extra?:
         </button>
       )}
       {speak && canShareScreen() && (
-        <button className={`call-button ${screen ? 'on' : ''}`} onClick={() => void toggleScreenShare()} aria-pressed={screen} aria-label={screen ? 'Stop sharing' : 'Share your screen'} title={screen ? 'Stop sharing' : 'Share your screen'}>
+        <button
+          className={`call-button ${screen ? 'on' : ''}`}
+          onClick={(e) => (screen ? void toggleScreenShare() : setShareMenu(shareMenu ? null : e.currentTarget))}
+          aria-pressed={screen} aria-expanded={screen ? undefined : !!shareMenu} aria-label={screen ? 'Stop sharing' : 'Share your screen'} title={screen ? 'Stop sharing' : 'Share your screen'}>
           {screen ? <ScreenShareOff /> : <ScreenShare />}
         </button>
       )}
       {extra}
+      {shareMenu && <ScreenShareMenu anchor={shareMenu} onClose={() => setShareMenu(null)} />}
       <SoundboardButton variant="call" />
       <button className="call-button hang-up" onClick={() => (onLeave ? onLeave() : void leaveVoice())} aria-label={onLeave ? 'Hang up' : 'Leave call'} title={onLeave ? 'Hang up' : 'Leave call'}>
         <PhoneOff />

@@ -15,6 +15,8 @@ public sealed class Hub(World world, TimeProvider time)
 
     /// <summary>Who sent what when, for channel slowmode.</summary>
     public Features.SlowmodeTracker Slowmode { get; } = new();
+    /// <summary>"Playing X" per online account (Features/ActivityFeature.cs).</summary>
+    public Features.ActivityRegistry Activities { get; } = new(time);
 
     private readonly ConcurrentDictionary<Session, byte> _sessions = new();
 
@@ -34,7 +36,9 @@ public sealed class Hub(World world, TimeProvider time)
     public bool Remove(Session session)
     {
         _sessions.TryRemove(session, out _);
-        return session.AccountKey is not null && !IsOnline(session.AccountKey);
+        if (session.AccountKey is null || IsOnline(session.AccountKey)) return false;
+        Activities.Clear(session.AccountKey); // activity only lasts while you're online
+        return true;
     }
 
     /// <summary>Sends to every connected member.</summary>
@@ -63,8 +67,12 @@ public sealed class Hub(World world, TimeProvider time)
         foreach (var session in _sessions.Keys.Where(s => s.AccountKey == accountKey)) session.Kick(closeCode, reason);
     }
 
-    public object PublicMember(Member m) =>
-        Features.ProfileFeature.Public(world.Store, m, Features.PresenceFeature.Of(world.Store, this, m.AccountKey, time.GetUtcNow().ToUnixTimeMilliseconds()));
+    public object PublicMember(Member m)
+    {
+        var presence = Features.PresenceFeature.Of(world.Store, this, m.AccountKey, time.GetUtcNow().ToUnixTimeMilliseconds());
+        // "Playing X" only while they show as online (never for invisible members).
+        return Features.ProfileFeature.Public(world.Store, m, presence, presence.Online ? Features.ActivityFeature.Public(Activities.Get(m.AccountKey)) : null);
+    }
 
     public static object PublicChannel(Channel c, int slowmode = 0) =>
         new

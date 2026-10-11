@@ -20,6 +20,7 @@ import { renderMarkdown } from '../markdown'
 import { useMemberPresence } from '../../state/presence'
 import { STATUS_LABELS } from '../../state/presenceRules'
 import { CustomStatusLine } from '../presence/Presence'
+import { ActivityLine } from '../ActivityLine'
 import './profile.css'
 
 export function ProfileLayer() {
@@ -112,6 +113,7 @@ function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; me
           </div>
           {presence.custom && <div className="profile-status"><CustomStatusLine custom={presence.custom} /></div>}
           <RoleChips server={server} member={member} />
+          {member.activity && <div className="profile-activity"><ActivityLine activity={member.activity} /></div>}
           {member.bio && (
             <div className="profile-bio">
               {renderMarkdown(member.bio, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey })}

@@ -183,3 +183,88 @@ export function keychainKind(platform: NodeJS.Platform, available: boolean, linu
   if (platform === 'linux' && (linuxBackend === 'basic_text' || linuxBackend === 'unknown' || !linuxBackend)) return 'basic'
   return 'keyring'
 }
+
+// ── iskra:// links ───────────────────────────────────────────────────────
+
+export const DEEP_LINK_SCHEME = 'iskra'
+/** <b64u(server url)>.<server key>.<code>, as in web invite links (#/join/...). */
+const INVITE_TOKEN = /^[A-Za-z0-9_-]{4,600}\.[A-Za-z0-9_-]{43}\.[A-Za-z0-9_-]{8,64}$/
+
+/**
+ * The invite token in an iskra://join/<token> (or iskra://invite/<token>) link, or null. Nothing else is
+ * accepted: no other paths, no query, fragment, user info or port, and nothing that needs decoding.
+ */
+export function parseDeepLink(raw: unknown): string | null {
+  if (typeof raw !== 'string' || raw.length > 800) return null
+  const match = /^iskra:\/\/(join|invite)\/([^/?#]+)\/?$/i.exec(raw)
+  if (!match) return null
+  return INVITE_TOKEN.test(match[2]) ? match[2] : null
+}
+
+/** Windows and Linux pass the link as a command-line argument (first launch or a second instance). */
+export function deepLinkFromArgv(argv: readonly string[]): string | null {
+  for (const arg of argv) {
+    const token = parseDeepLink(arg)
+    if (token) return token
+  }
+  return null
+}
+
+// ── Desktop settings (kept by the main process: some apply before the window exists) ──
+
+export interface DesktopSettings {
+  /** Start when you log in, hidden in the tray. */
+  openAtLogin: boolean
+  /** The window's close button hides to the tray instead of quitting. */
+  closeToTray: boolean
+  /** GPU acceleration (takes effect after a restart). */
+  hardwareAcceleration: boolean
+  /** Show "Playing X" from running games (opt-in). */
+  activity: boolean
+  /** Your own programs to show as games: display name and process name (e.g. "mygame.exe"). */
+  customGames: { name: string; process: string }[]
+}
+
+export const DEFAULT_DESKTOP_SETTINGS: DesktopSettings = {
+  openAtLogin: false, closeToTray: true, hardwareAcceleration: true, activity: false, customGames: [],
+}
+
+export const MAX_CUSTOM_GAMES = 30
+
+/** Display names: 1–64 visible characters (the server checks again). */
+const cleanName = (v: unknown) =>
+  typeof v === 'string' && v.trim().length > 0 && v.trim().length <= 64 && !/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(v) ? v.trim() : null
+/** Process names: a file name only, no paths. */
+const cleanProcess = (v: unknown) =>
+  typeof v === 'string' && v.trim().length > 0 && v.trim().length <= 100 && !/[\\/:*?"<>|\p{Cc}]/u.test(v) ? v.trim() : null
+
+export function parseDesktopSettings(raw: unknown): DesktopSettings {
+  const s = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+  const flag = (key: 'openAtLogin' | 'closeToTray' | 'hardwareAcceleration' | 'activity') =>
+    typeof s[key] === 'boolean' ? (s[key] as boolean) : DEFAULT_DESKTOP_SETTINGS[key]
+  const customGames: DesktopSettings['customGames'] = []
+  if (Array.isArray(s.customGames)) {
+    for (const g of s.customGames.slice(0, MAX_CUSTOM_GAMES)) {
+      const name = cleanName((g as Record<string, unknown> | null)?.name)
+      const proc = cleanProcess((g as Record<string, unknown> | null)?.process)
+      if (name && proc) customGames.push({ name, process: proc })
+    }
+  }
+  return {
+    openAtLogin: flag('openAtLogin'), closeToTray: flag('closeToTray'), hardwareAcceleration: flag('hardwareAcceleration'),
+    activity: flag('activity'), customGames,
+  }
+}
+
+/** The flag a login-started app gets, so it stays in the tray. */
+export const HIDDEN_FLAG = '--hidden'
+
+/** Linux: ~/.config/autostart/iskra.desktop (setLoginItemSettings doesn't exist there). */
+export function autostartEntry(exec: string): string {
+  // Desktop entry quoting: " ` $ \ get a backslash inside quotes, and that backslash is itself escaped in the file.
+  const quoted = /[\s"'$`\\]/.test(exec) ? `"${exec.replace(/(["`$\\])/g, '\\\\$1')}"` : exec
+  return ['[Desktop Entry]', 'Type=Application', 'Name=Iskra', `Exec=${quoted} ${HIDDEN_FLAG}`, 'X-GNOME-Autostart-enabled=true', ''].join('\n')
+}
+
+/** The macOS dock badge for an unread count. */
+export const badgeText = (count: number) => (count <= 0 || !Number.isFinite(count) ? '' : count > 99 ? '99+' : String(Math.floor(count)))

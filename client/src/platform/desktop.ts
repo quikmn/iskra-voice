@@ -35,6 +35,15 @@ export interface RestoredServer {
  * ready: works everywhere. needs-permission: macOS Accessibility is off.
  * limited: Wayland, where only keys pressed in X11 apps reach us. unavailable: the key hook couldn't start.
  */
+/** Kept by the desktop app itself (desktop/src/settings.ts). */
+export interface DesktopSettings {
+  openAtLogin: boolean
+  closeToTray: boolean
+  hardwareAcceleration: boolean
+  activity: boolean
+  customGames: { name: string; process: string }[]
+}
+
 export type PushToTalkStatus = 'ready' | 'needs-permission' | 'limited' | 'unavailable'
 
 export interface DesktopBridge {
@@ -61,6 +70,22 @@ export interface DesktopBridge {
     encrypt(data: string): Promise<string | null>
     decrypt(data: string): Promise<string | null>
   }
+  settings: {
+    get(): Promise<DesktopSettings | null>
+    set(patch: Partial<DesktopSettings>): Promise<DesktopSettings>
+    /** Restarts the app (hardware acceleration changes). */
+    relaunch(): Promise<void>
+  }
+  /** Unread count on the taskbar / dock; Windows shows `overlay` (a small PNG data URL) as the overlay icon. */
+  setBadge(count: number, overlay: string | null): Promise<void>
+  /** Flash the taskbar (bounce the dock) while the app isn't focused. */
+  attention(): Promise<void>
+  /** An iskra://join/... invite token that started the app, once. */
+  takeDeepLink(): Promise<string | null>
+  /** The game running now, if activity status is on (only its name; never the program list). */
+  activity(): Promise<string | null>
+  onActivity(callback: (game: string | null) => void): () => void
+  onDeepLink(callback: (token: string) => void): () => void
   host: {
     available(): Promise<boolean>
     list(): Promise<HostedServer[]>

@@ -22,6 +22,11 @@ describe('settings sections', () => {
       .toEqual([...account, 'overview', 'roles', 'audit'])
   })
 
+  it('shows Desktop app only in the desktop app', () => {
+    expect(settingsSections(null, undefined, true).map((s) => s.id)).toEqual([...account, 'desktop'])
+    expect(settingsSections('admin', undefined, true).map((s) => s.id).indexOf('desktop')).toBe(account.length)
+  })
+
   it('groups account before server', () => {
     const groups = settingsSections('owner').map((s) => s.group)
     expect(groups.indexOf('server')).toBe(account.length)

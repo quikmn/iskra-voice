@@ -13,6 +13,8 @@ import { notifyFor, serverBadges, useOrganize } from './organize'
 import { shouldNotify } from './organizeLogic'
 import { isBlocked, useBlocks } from './moderation'
 import { useAudio } from './audio'
+import { desktop } from '../platform/desktop'
+import { overlayIcon } from '../platform/badge'
 
 interface NotifySettings {
   desktop: boolean
@@ -112,6 +114,7 @@ export function show(serverKey: string, title: string, body: string, onClick: ()
   if (pushActive.has(serverKey) && !document.hasFocus()) return
   if (isDoNotDisturb()) return // do not disturb: no sounds or notifications (unread badges still count)
   playTone('message')
+  if (!document.hasFocus()) void desktop?.attention?.().catch(() => undefined)
   if (!useNotify.getState().desktop || !notificationsSupported() || Notification.permission !== 'granted') return
   const notification = new Notification(title, { body: body.slice(0, 200), silent: true })
   notification.onclick = () => {
@@ -180,6 +183,8 @@ onServerEvent((serverKey, type, body) => {
   }
 })
 
+let lastBadge = -1
+
 /** Keeps "(3) Iskra" in the title for unread mentions and DMs. */
 export function startTitleBadge(): () => void {
   const update = async () => {
@@ -191,6 +196,11 @@ export function startTitleBadge(): () => void {
     const groupCount = Object.values(useGroups.getState().groups).reduce((n, g) => n + g.unread, 0)
     const total = mentionCount + dmCount + groupCount
     document.title = total > 0 ? `(${total}) Iskra` : 'Iskra'
+    // The desktop app also shows it on the taskbar / dock.
+    if (desktop?.setBadge && total !== lastBadge) {
+      lastBadge = total
+      void desktop.setBadge(total, overlayIcon(total)).catch(() => undefined)
+    }
   }
   const unsubscribe = useApp.subscribe(() => void update())
   const unsubscribeOrganize = useOrganize.subscribe(() => void update())

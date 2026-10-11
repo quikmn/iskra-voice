@@ -56,7 +56,16 @@ test('friends talk in a voice channel', async ({ browser }) => {
   await expect(friend.locator('.person-tile')).toHaveCount(1) // the host moved from avatar to video
 
   // Screen share shows up big for the friend.
+  // Screen share: pick quality and what you're sharing first (remembered for next time).
   await host.locator('.call-controls').getByRole('button', { name: 'Share your screen' }).click()
+  const shareMenu = host.getByRole('dialog', { name: 'Share your screen' })
+  await expect(shareMenu.getByRole('radio', { name: '1080p 30' })).toHaveAttribute('aria-checked', 'true')
+  await shareMenu.getByRole('radio', { name: '1080p 60' }).click()
+  await shareMenu.getByRole('radio', { name: 'Detail' }).click()
+  await expect(shareMenu.getByLabel(/Share audio/)).toBeChecked()
+  await host.screenshot({ path: join(SHOTS, 'screen-share-menu.png') })
+  await shareMenu.getByRole('button', { name: 'Share screen' }).click()
+  expect(await host.evaluate(() => JSON.parse(localStorage.getItem('iskra.screenshare') ?? '{}'))).toEqual({ quality: '1080p60', audio: true, hint: 'detail' })
   const screen = friend.locator('.video-tile.screen.big video')
   await expect(screen).toHaveCount(1, { timeout: 15_000 })
   await expect.poll(() => screen.evaluate((v: HTMLVideoElement) => v.videoWidth), { timeout: 15_000 }).toBeGreaterThan(0)

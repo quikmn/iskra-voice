@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { aboutDetail, compareVersions, defaultHostRoot, exeName, isAppPage, isWayland, keychainKind, newerRelease, serverRid, skipScreenPicker, trayMenu, updateMode, youTubeReferrer, YOUTUBE_REFERRER } from './platform'
+import { aboutDetail, autostartEntry, badgeText, compareVersions, deepLinkFromArgv, DEFAULT_DESKTOP_SETTINGS, parseDeepLink, parseDesktopSettings, defaultHostRoot, exeName, isAppPage, isWayland, keychainKind, newerRelease, serverRid, skipScreenPicker, trayMenu, updateMode, youTubeReferrer, YOUTUBE_REFERRER } from './platform'
 
 test('server binaries and runtime ids per platform', () => {
   assert.equal(exeName('iskra-server', 'win32'), 'iskra-server.exe')
@@ -111,4 +111,61 @@ test('which keychain protects the stored keys', () => {
   assert.equal(keychainKind('linux', true, 'basic_text', {}), 'basic')
   assert.equal(keychainKind('linux', false, 'unknown', {}), 'unavailable')
   assert.equal(keychainKind('win32', true, null, { ISKRA_NO_KEYCHAIN: '1' }), 'unavailable')
+})
+
+test('iskra:// links only ever carry an invite', () => {
+  const token = `aHR0cDovL2xvY2FsaG9zdDo0NzA3MA.${'A'.repeat(43)}.abcdefgh12`
+  assert.equal(parseDeepLink(`iskra://join/${token}`), token)
+  assert.equal(parseDeepLink(`iskra://invite/${token}/`), token)
+  assert.equal(parseDeepLink(`ISKRA://join/${token}`), token)
+  for (const bad of [
+    `iskra://link/${token}`, // device linking is never started from outside
+    `iskra://join/${token}?x=1`,
+    `iskra://join/${token}#x`,
+    `iskra://join/${token}/more`,
+    `iskra://user@join/${token}`,
+    `iskra://join:80/${token}`,
+    `iskra://join/${token.replace('.abcdefgh12', '.abc')}`, // code too short
+    `iskra://join/${token.replace('A'.repeat(43), 'A'.repeat(42))}`,
+    `iskra://join/%2e%2e/${token}`,
+    `https://join/${token}`,
+    `iskra://join/${'a'.repeat(900)}`,
+    42,
+    null,
+  ]) assert.equal(parseDeepLink(bad), null, String(bad))
+  assert.equal(deepLinkFromArgv(['C:\Iskra\Iskra.exe', '--hidden', `iskra://join/${token}`]), token)
+  assert.equal(deepLinkFromArgv(['iskra', '--allow-file-access', 'iskra://evil/x']), null)
+})
+
+test('desktop settings: safe defaults, only booleans kept', () => {
+  assert.deepEqual(parseDesktopSettings(null), DEFAULT_DESKTOP_SETTINGS)
+  assert.equal(DEFAULT_DESKTOP_SETTINGS.openAtLogin, false)
+  assert.equal(DEFAULT_DESKTOP_SETTINGS.closeToTray, true)
+  assert.deepEqual(parseDesktopSettings({ openAtLogin: true, closeToTray: 'no', hardwareAcceleration: false, extra: 1 }), {
+    openAtLogin: true, closeToTray: true, hardwareAcceleration: false, activity: false, customGames: [],
+  })
+  assert.equal(DEFAULT_DESKTOP_SETTINGS.activity, false) // opt-in
+  const games = parseDesktopSettings({ customGames: [
+    { name: 'My Game', process: 'mygame.exe' },
+    { name: 'Path', process: 'C:\\Games\\x.exe' }, // paths aren't process names
+    { name: 'Bad\u202Ename', process: 'x.exe' },
+    { name: '', process: 'y.exe' },
+    'nonsense',
+    null,
+  ] }).customGames
+  assert.deepEqual(games, [{ name: 'My Game', process: 'mygame.exe' }])
+  assert.equal(parseDesktopSettings({ customGames: Array.from({ length: 50 }, (_, i) => ({ name: `G${i}`, process: `g${i}.exe` })) }).customGames.length, 30)
+})
+
+test('Linux autostart entry starts hidden and quotes paths', () => {
+  assert.match(autostartEntry('/opt/Iskra/iskra'), /^Exec=\/opt\/Iskra\/iskra --hidden$/m)
+  assert.match(autostartEntry('/home/a b/Iskra.AppImage'), /^Exec="\/home\/a b\/Iskra\.AppImage" --hidden$/m)
+  assert.ok(autostartEntry('/x/$(rm)').includes('Exec="/x/\\\\$(rm)" --hidden'))
+})
+
+test('dock badge text', () => {
+  assert.equal(badgeText(0), '')
+  assert.equal(badgeText(3), '3')
+  assert.equal(badgeText(150), '99+')
+  assert.equal(badgeText(Number.NaN), '')
 })
