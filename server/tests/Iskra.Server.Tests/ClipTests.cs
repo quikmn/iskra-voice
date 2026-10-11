@@ -149,4 +149,34 @@ public class ClipTests
         Assert.Equal("not_found", (await member.RequestAsync("voice.clip", new { channelId = voice })).ErrorCode());
         Assert.Equal("bad_request", (await member.RequestAsync("voice.clip", new { channelId = server.General })).ErrorCode());
     }
+
+    [Fact]
+    public async Task Voice_chat_and_clip_notices_are_exported_kept_for_retention_and_deleted_with_the_account()
+    {
+        using var server = new IskraServer();
+        var voice = Channel(server);
+        using var owner = await server.JoinAsync("Owner", "owner");
+        using var alice = await server.JoinAsync("Alice");
+        await alice.RequestAsync("chat.send", new { channelId = voice, text = "said in the lounge" });
+        InVoice(server, voice, alice);
+        await alice.RequestAsync("voice.state", new { muted = false, deafened = false, clips = true });
+        var notice = (await alice.RequestAsync("voice.clip", new { channelId = voice })).Body().GetProperty("message").GetProperty("id").GetInt64();
+
+        // Download my data: the voice channel's chat is in it, with the channel's name.
+        var data = await ComplianceTests.Download(server, (await alice.RequestAsync("data.export")).Body());
+        var exported = data.GetProperty("messages").EnumerateArray().ToList();
+        Assert.Contains(exported, m => m.GetProperty("text").GetString() == "said in the lounge" && m.GetProperty("channel_name").GetString() == "lounge");
+        Assert.Contains(exported, m => m.GetProperty("id").GetInt64() == notice);
+
+        // Retention sweeps them like any message (the notice's marker goes with it).
+        ComplianceTests.Sql(server, "UPDATE messages SET created_at = $t WHERE id = $id;", ("$t", ComplianceTests.DaysAgo(40)), ("$id", notice));
+        await owner.RequestAsync("retention.update", new { messagesDays = 30 });
+        Assert.Equal(1, ComplianceTests.Sweeper(server).Sweep().Messages);
+        Assert.False(server.World.Store.IsClipNotice(notice));
+
+        // Deleting the account with its messages takes the voice chat too.
+        Assert.Equal("result", (await alice.RequestAsync("account.delete", new { deletion = AccountDeletionTests.Deletion(alice.Identity, messages: true) })).Type());
+        var left = (await owner.RequestAsync("chat.history", new { channelId = voice })).Body().GetProperty("messages");
+        Assert.Empty(left.EnumerateArray());
+    }
 }

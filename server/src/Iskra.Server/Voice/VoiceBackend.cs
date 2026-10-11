@@ -135,9 +135,10 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
         catch (InvalidOperationException) { }
     }
 
+    // LiveKit's API only listens on localhost: clients reach it through the server's /livekit proxy. Media ports stay open.
     private string ConfigYaml(int iskraPort) => $"""
         port: {Settings.Port}
-        {(_world.Settings.LocalOnly ? "bind_addresses: [127.0.0.1]" : "")}
+        bind_addresses: [127.0.0.1]
         rtc:
           tcp_port: {Settings.RtcTcpPort}
           udp_port: {Settings.RtcUdpPort}

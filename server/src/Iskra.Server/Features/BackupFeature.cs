@@ -74,6 +74,7 @@ public static class BackupFeature
         }
         var made = await backups.CreateDownloadAsync(passphrase, Progress, CancellationToken.None)
             ?? throw new RequestException("rate_limited", "A backup is being made right now. Try again in a moment.");
+        SecurityLog.Record(s, "backup.download", details: new { size = made.Size });
         return new
         {
             url = $"/backup/{made.Token}",
@@ -101,6 +102,7 @@ public static class BackupFeature
         var enabled = body.OptionalBool("enabled");
         var keep = body.OptionalLong("keep", min: 1, max: 30);
         var includeUploads = body.OptionalBool("includeUploads");
+        var before = s.World.Settings.Backups;
         s.World.UpdateSettings(w => w with
         {
             Backups = w.Backups with
@@ -110,6 +112,8 @@ public static class BackupFeature
                 IncludeUploads = includeUploads ?? w.Backups.IncludeUploads,
             },
         });
+        if (s.World.Settings.Backups != before)
+            SecurityLog.Record(s, "backup.settings", details: new { from = before, to = s.World.Settings.Backups });
         return Status(backups, s, me);
     }
 }

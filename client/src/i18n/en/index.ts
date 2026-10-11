@@ -24,6 +24,7 @@ import { expressions } from './expressions'
 import { friends } from './friends'
 import { account } from './account'
 import { safety } from './safety'
+import { compliance } from './compliance'
 import { clips } from './clips'
 
 export const en = {
@@ -52,5 +53,6 @@ export const en = {
   friends,
   account,
   safety,
+  compliance,
   clips,
 } as const
