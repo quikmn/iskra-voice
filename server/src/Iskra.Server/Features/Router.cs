@@ -67,6 +67,7 @@ public sealed class Router
         UpdateFeature.Register(this, updates);
         ProductivityFeature.Register(this);
         ComplianceFeature.Register(this, exports);
+        ClipFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

@@ -70,8 +70,9 @@ export function channelAccess(member: Member | null | undefined, channel: Channe
   return out
 }
 
+/** Posting in a channel's chat (voice and stage channels have one too; speaking there is `speak`). */
 export const canSendIn = (member: Member | null | undefined, channel: Channel, roles: ServerRole[]) =>
-  channelAccess(member, channel, roles).has(channel.kind === 'voice' ? 'speak' : 'send')
+  channelAccess(member, channel, roles).has('send')
 
 export function canDeleteMessage(me: Member | null | undefined, message: Message, author: Member | undefined, roles: ServerRole[]): boolean {
   if (!me) return false

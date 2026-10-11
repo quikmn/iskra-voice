@@ -15,6 +15,7 @@ import type { Panel } from '../Shell'
 import { CallControls, VideoTile } from '../VoiceStage'
 import { CheckIcon, HandIcon, ShieldIcon, StageIcon, StepDownIcon, UserMinusIcon } from './stageIcons'
 import { WatchButton, WatchPartyPanel } from '../watch/WatchParty'
+import { VoiceChatButton } from '../clips/VoiceRoom'
 import './stage.css'
 import { useTranslation } from 'react-i18next'
 import { t as i18t } from '../../i18n'
@@ -106,6 +107,7 @@ export function StageView({ server, onToggle }: { server: ServerState; onToggle:
         {moderator && live && (
           <button className="button small danger-outline stage-end" onClick={() => setDialog('end')}>{t('stage.endStage')}</button>
         )}
+        <VoiceChatButton server={server} channelId={channelId} />
         <button className="icon-button members-toggle" onClick={() => onToggle('members')} aria-label={t('stage.members')} title={t('stage.members')}>
           <Users />
         </button>

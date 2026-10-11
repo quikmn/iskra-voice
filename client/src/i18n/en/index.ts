@@ -27,6 +27,7 @@ import { safety } from './safety'
 import { productivity } from './productivity'
 import { compliance } from './compliance'
 import { updates } from './updates'
+import { clips } from './clips'
 
 export const en = {
   common,
@@ -57,4 +58,5 @@ export const en = {
   productivity,
   compliance,
   updates,
+  clips,
 } as const

@@ -17,7 +17,7 @@ import { decodeMentions, encodeMentions, renderMarkdown } from './markdown'
 import { clockTime, fullTime, hueFor, messageTime } from './format'
 import { formatNumber } from '../i18n/format'
 import type { Panel } from './Shell'
-import { Close, FileIcon, Hash, Menu, Paperclip, Pencil, Reply, Send, Smile, Trash, Users, WifiOff } from './icons'
+import { Close, FileIcon, Hash, Menu, Paperclip, Pencil, Reply, Send, Smile, Trash, Users, Volume, WifiOff } from './icons'
 import { HeaderTools } from './chat/HeaderTools'
 import { MessageActionSheet } from './chat/MessageActionSheet'
 import { useLongPress } from './chat/useLongPress'
@@ -53,6 +53,7 @@ import { AutoModAlertCard } from './automod/AutoModAlert'
 import { userMenuProps } from './people/userMenuProps'
 import { EditedMark } from './productivity/EditHistory'
 import { useSendLater } from './productivity/SendLater'
+import { ClipNoticeRow } from './clips/ClipNotice'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -91,7 +92,7 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
         </button>
         {channel ? (
           <h1>
-            <span className="hash"><Hash size={20} /></span>
+            <span className="hash">{channel.kind === 'voice' || channel.kind === 'stage' ? <Volume size={20} /> : <Hash size={20} />}</span>
             {channel.name}
           </h1>
         ) : (
@@ -235,7 +236,7 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
       ) : (
         <Fragment key={message.tempId ?? message.id}>
           {message.id === firstUnread && !message.tempId && <UnreadDivider main={!thread} />}
-          <BlockGate author={message.author}>
+          {message.clip && !message.tempId ? <ClipNoticeRow server={server} message={message} /> : <BlockGate author={message.author}>
             <MessageRow
               server={server}
               message={message}
@@ -243,7 +244,7 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
               editing={editing === message.id}
               onEdit={(on) => setEditing(on ? message.id : null)}
             />
-          </BlockGate>
+          </BlockGate>}
         </Fragment>
       ))}
     </div>

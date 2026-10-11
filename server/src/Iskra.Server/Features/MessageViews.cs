@@ -38,6 +38,7 @@ public static class MessageViews
             sticker = StickerFeature.View(store, m.Id),
             gif = GifFeature.View(store, m.Id),
             automod = AutoModFeature.MessageView(store, m),
+            clip = ClipFeature.View(store, m.Id),
         };
     }
 

@@ -109,6 +109,9 @@ export const canShareScreen = () => !iosApp && typeof navigator !== 'undefined' 
 let room: Room | null = null
 let e2eeWorker: Worker | null = null
 
+/** The LiveKit room of the call you're in (clips listen to it). */
+export const activeRoom = (): Room | null => room
+
 /** A shared-key provider that also takes keys at a given index, so a group call can switch keys without a gap. */
 class CallKeyProvider extends ExternalE2EEKeyProvider {
   async setIndexedKey(key: Uint8Array, index: number): Promise<void> {

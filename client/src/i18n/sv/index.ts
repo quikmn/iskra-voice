@@ -28,6 +28,7 @@ import { safety } from './safety'
 import { productivity } from './productivity'
 import { compliance } from './compliance'
 import { updates } from './updates'
+import { clips } from './clips'
 
 export const sv: Messages = {
   common,
@@ -58,4 +59,5 @@ export const sv: Messages = {
   productivity,
   compliance,
   updates,
+  clips,
 }

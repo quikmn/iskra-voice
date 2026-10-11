@@ -42,8 +42,8 @@ public static class ChatFeature
     private static object Send(Session s, Member me, Body body)
     {
         var channel = ReadableChannel(s, me, body.Long("channelId"));
-        if (channel.Kind is not ("text" or "thread")) throw RequestException.BadRequest("You can't send messages to that channel.");
-        if (!Permissions.CanWrite(me, channel)) throw RequestException.Forbidden("You can't send messages in this channel.");
+        if (channel.Kind is not ("text" or "thread" or "voice" or "stage")) throw RequestException.BadRequest("You can't send messages to that channel.");
+        if (!Permissions.CanSend(me, channel)) throw RequestException.Forbidden("You can't send messages in this channel.");
         ForumFeature.CheckReply(s, me, channel);
 
         // Files must be ones you uploaded yourself.
@@ -115,6 +115,7 @@ public static class ChatFeature
         if (message.AuthorKey != me.AccountKey) throw RequestException.Forbidden("You can only edit your own messages.");
         if (s.World.Store.GetPoll(message.Id) is not null) throw RequestException.BadRequest("Polls can't be edited.");
         if (VoiceMessageFeature.IsVoice(s.World.Store, message.Id)) throw RequestException.BadRequest("Voice messages can't be edited.");
+        ClipFeature.CheckEdit(s.World.Store, message);
         if (s.World.Store.GetMessageSticker(message.Id) is not null) throw RequestException.BadRequest("Stickers can't be edited.");
         if (s.World.Store.GetMessageGif(message.Id) is not null) throw RequestException.BadRequest("GIFs can't be edited.");
 
@@ -134,6 +135,7 @@ public static class ChatFeature
         var channel = ReadableChannel(s, me, message.ChannelId);
         var author = s.World.Store.GetMember(message.AuthorKey);
         if (!Permissions.CanDeleteMessage(me, message, author)) throw RequestException.Forbidden();
+        ClipFeature.CheckDelete(s.World.Store, me, message);
         if (message.AuthorKey != me.AccountKey)
             Audit.Record(s, "message.delete", author?.AccountKey,
                 details: new { channelId = channel.Id, channelName = channel.Name, messageId = message.Id, author = message.AuthorKey });
@@ -192,7 +194,7 @@ public static class ChatFeature
     private static object? Typing(Session s, Member me, Body body)
     {
         var channel = ReadableChannel(s, me, body.Long("channelId"));
-        if (!Permissions.CanWrite(me, channel)) throw RequestException.Forbidden();
+        if (!Permissions.CanSend(me, channel)) throw RequestException.Forbidden();
         if (PresenceFeature.Invisible(s.World.Store, me.AccountKey)) return null; // typing would give an invisible member away
 
         var frame = Frames.Event("chat.typing", new { channelId = channel.Id, accountKey = me.AccountKey });

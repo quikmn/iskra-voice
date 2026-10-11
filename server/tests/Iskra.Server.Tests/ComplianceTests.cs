@@ -13,10 +13,10 @@ namespace Iskra.Server.Tests;
 public class ComplianceTests
 {
     private static long Now => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-    private static long DaysAgo(int days) => Now - (long)TimeSpan.FromDays(days).TotalMilliseconds;
+    internal static long DaysAgo(int days) => Now - (long)TimeSpan.FromDays(days).TotalMilliseconds;
 
     /// <summary>Changes rows behind the server's back (to make data old), through a second connection.</summary>
-    private static void Sql(IskraServer server, string sql, params (string, object)[] args)
+    internal static void Sql(IskraServer server, string sql, params (string, object)[] args)
     {
         using var db = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = Path.Combine(server.WorldPath, "iskra.db"), Pooling = false }.ToString());
         db.Open();
@@ -29,7 +29,7 @@ public class ComplianceTests
     private static async Task<List<JsonElement>> Log(User owner, object? query = null) =>
         (await owner.RequestAsync("security.log.list", query ?? new { })).Body().GetProperty("entries").EnumerateArray().ToList();
 
-    private static RetentionSweeper Sweeper(IskraServer server) =>
+    internal static RetentionSweeper Sweeper(IskraServer server) =>
         server.Services.GetServices<IHostedService>().OfType<RetentionSweeper>().Single();
 
     // ── Security log ─────────────────────────────────────────────────────────
@@ -206,7 +206,7 @@ public class ComplianceTests
 
     // ── Download my data ─────────────────────────────────────────────────────
 
-    private static async Task<JsonElement> Download(IskraServer server, JsonElement result)
+    internal static async Task<JsonElement> Download(IskraServer server, JsonElement result)
     {
         using var response = await server.CreateClient().GetAsync(result.GetProperty("url").GetString());
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

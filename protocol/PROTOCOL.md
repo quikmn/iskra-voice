@@ -1750,3 +1750,26 @@ Scheduled { "id": 7, "kind": "channel" | "dm" | "group", "channelId": 1 | null, 
 | `chat.edits` | `id` | `{ versions: [{ text, at }] }` (earlier versions, oldest first; `at` is when that text was written) | the author, or members who can manage messages; `not_found` if you can't read the channel |
 
 - `chat.edit` keeps the text it replaces (at most 20 earlier versions per message; the oldest go first). Deleting a message deletes its history, and so does deleting the account that wrote it. DMs and groups can't be edited, so there is no history for them.
+## Voice channel chat and clips
+
+### Text chat in voice and stage channels
+
+Every `voice` and `stage` channel has its own text chat. It is an ordinary channel conversation: `chat.send`, `chat.edit`, `chat.delete`, `chat.history`, `chat.typing`, `chat.react`, `chat.pin`, `search`, replies, attachments, mentions, AutoMod, slowmode (`channel.update` `slowmode` works on voice and stage channels), rules and timeouts all work as in a text channel, with the voice channel's id as `channelId`.
+
+- **Who:** readers of the channel read it (`view`); posting (`chat.send`, `chat.typing`, pinning) needs `view` and `send`, from the channel's write level and role overrides, as in text channels. Speaking is the separate `speak` permission, so a role can be allowed to talk but not type, or the other way round. Not a reader: `not_found`.
+- Polls, threads, webhooks and forwarding stay text-channel only (`bad_request`).
+- Unread and mention counts work as for text channels (apps count them on the voice channel's row).
+
+### Clips
+
+A clip is the last few seconds (15–120) of what someone hears in a call, recorded **on their own device** from a rolling buffer. Nothing is recorded by the server or uploaded unless the person shares the file afterwards. The protocol only carries the consent side:
+
+| type | body | result | who |
+|---|---|---|---|
+| `voice.state` | adds `clips?` (bool): clips are turned on. Left out: unchanged | | anyone in voice |
+| `voice.clip` | `channelId` (the voice or stage channel you're in) | `{ message }` | someone LiveKit reports in that channel who has `clips: true` (not in it: `forbidden`; clips off or not a voice channel: `bad_request`); 3 at once, then one per 10 s (`rate_limited`) |
+
+- `voice.state` events list `clips` (bool) for every participant, so everyone in the call (and everyone who can see the channel) can see who has clips on. Joining starts with `clips: false`; apps send it again after joining.
+- `voice.clip` posts a **clip notice** to the channel's chat: a message by the person who saved the clip, with empty `text` and `clip: {}` (`clip` is null on other messages). It's sent to readers as `chat.message`. Clip notices can't be edited (`bad_request`), and the person who saved the clip can't delete it (`forbidden`); moderators with `manageMessages` who outrank them can.
+- **DM and group calls** have no channel: apps announce clips over the LiveKit room's data channel instead, on topic `iskra.clips`, as JSON `{ "v": 1, "clips": bool }` (sent on joining, on every change, and to each person who joins) and `{ "v": 1, "saved": true }` when a clip is saved. Apps show the same "clips on" mark and a "saved a clip" line in the call. This is a courtesy between honest apps: nothing can stop a modified app from recording what it receives, in any call.
+- Apps only offer clips to people who turned them on (off by default), and save a clip only while the notice can be shown (in a channel: after `voice.clip` succeeds).

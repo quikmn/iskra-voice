@@ -25,6 +25,8 @@ import { isFull, limitLabel } from '../../state/voiceRulesLogic'
 import '../rules/rules.css'
 import './organize.css'
 import { userMenuProps } from '../people/userMenuProps'
+import { VoiceChatRowButton } from '../clips/VoiceChatRowButton'
+import { ClipsMark } from '../clips/ClipControls'
 
 type Drag = { kind: 'channel' | 'category'; id: number }
 type Over = { kind: 'channel' | 'category' | 'top'; id: number; after?: boolean }
@@ -294,6 +296,7 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
             <span className={`voice-limit ${full ? 'full' : ''}`} aria-label={t(full ? 'organize.list.countFull' : 'organize.list.count', { people: participants.length, limit: channel.userLimit ?? 0 })}>{limit}</span>
           )}
         </button>
+        <VoiceChatRowButton server={server} channel={channel} onNavigate={onNavigate} />
         <button className="icon-button small org-more" onClick={onMenu} aria-label={t('organize.list.options', { name: channel.name })} title={t('organize.list.channelOptions')}>
           <More />
         </button>
@@ -312,6 +315,7 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
                 <button className="participant" onClick={(e) => openProfileCard(server.key, p.accountKey, e.currentTarget)}>
                   <Avatar name={member?.name ?? '?'} accountKey={p.accountKey} size={22} />
                   <span className="member-name">{member?.name ?? t('common.someone')}</span>
+                  <ClipsMark on={p.clips} />
                 </button>
                 {p.serverMuted ? <span className="voice-flag server-muted" title={t('organize.list.serverMuted')}><MicOff size={14} /></span> : p.deafened ? <span className="voice-flag" title={t('organize.list.deafened')}><HeadphonesOff size={14} /></span> : p.muted ? <span className="voice-flag" title={t('organize.list.muted')}><MicOff size={14} /></span> : null}
               </li>
@@ -330,6 +334,7 @@ function StageRow({ server, channel, rowProps, onMenu, onNavigate }: {
   return (
     <div {...rowProps}>
       <StageEntry server={server} channelId={channel.id} name={channel.name} onNavigate={onNavigate} />
+      <VoiceChatRowButton server={server} channel={channel} onNavigate={onNavigate} />
       <button className="icon-button small org-more" onClick={onMenu} aria-label={t('organize.list.options', { name: channel.name })} title={t('organize.list.channelOptions')}>
         <More />
       </button>
