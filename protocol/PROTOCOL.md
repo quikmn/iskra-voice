@@ -14,7 +14,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Backups, moving and imports](#backups-moving-and-imports)
 - **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation) · [Roles and permissions](#roles-and-permissions) · [Reliable sends](#reliable-sends) · [AutoMod](#automod)
-- **Keys:** [Account key rotation](#account-key-rotation) · [Keys on the device](#keys-on-the-device) · [Leaving a server and signing out](#leaving-a-server-and-signing-out)
+- **Keys:** [Account key rotation](#account-key-rotation) · [Keys on the device](#keys-on-the-device) · [Leaving a server and signing out](#leaving-a-server-and-signing-out) · [Reports, deleting an account and handing over a server](#reports-deleting-an-account-and-handing-over-a-server)
 
 ---
 
@@ -103,6 +103,7 @@ If a handshake check fails, the server sends `error` and closes:
 | `device_revoked` | 4401 | Valid identity, but the account revoked this device |
 | `account_rotated` | 4401 | Valid identity, but this account key was rotated away. The body adds `rotations` and `handover` ([Account key rotation](#account-key-rotation)) |
 | `account_disputed` | 4401 | Your rotation lost to an earlier one and is now a dispute for the admins |
+| `account_deleted` | 4401 | The account was deleted. The body adds `deletion` ([Deleting an account](#deleting-an-account)) |
 | `banned` | 4403 | The account is banned |
 
 After the handshake, every request gets a `result` (body as listed, `{}` if none) or an `error` with one of these codes:
@@ -1518,3 +1519,56 @@ DM content gains `friend`:
 - Removes your membership (roles, nickname and the like go with it, as with a kick), sends `member.removed { accountKey }` to everyone, and closes all your sessions on this server right after the answer (close code 4403, "You left this server."). Coming back needs a new invite. Messages you wrote stay.
 - Apps use it when you sign out of a device and choose to leave your servers too. Signing out itself is local: the app deletes its keys, history and settings from the device (in the desktop app the stored keys are only readable through the OS keychain, and the wrapped key is deleted with the rest). Other devices of the account are not affected; they keep working, and so does the recovery key.
 
+
+## Reports, deleting an account and handing over a server
+
+### Reports
+
+Anyone can report a message or a person to the server's **moderators**: members who can delete others' messages, time out, kick or ban (`manageMessages`, `timeoutMembers`, `kickMembers` or `banMembers`; admins and the owner always). Moderators handle reports with the usual tools (`chat.delete`, `member.timeout`, `member.kick`, `member.ban`) and then resolve them.
+
+```jsonc
+Report { "id": 4, "at": 1760000000000, "kind": "message" | "member" | "dm",
+         "reason": "spam" | "harassment" | "hate" | "sexual" | "violence" | "self_harm" | "illegal" | "other",
+         "note": "Keeps doing this" | null, "status": "open" | "resolved",
+         "reporter": "<accountKey>" | null, "reporterName": "Sam",   // null / "" once the reporter deleted their account
+         "target": "<accountKey>", "targetName": "Troll",            // the author of a reported message
+         "message": { "id", "channelId", "channelName", "text", "attachments": [File], "createdAt", "deleted": false } | null,  // kind message
+         "messages": [{ "author": "<accountKey>", "text": "…", "at": 1760000000000 }] | null,                                   // kind dm
+         "resolution": { "by", "byName", "at", "outcome": "dismissed" | "deleted" | "timeout" | "kick" | "ban" | "other", "note" } | null }
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `report.create` | `reason`, `note?` (≤ 500 chars, newlines allowed) and either `messageId` or `accountKey` (+ `messages?`, 1–20 `{ author, text (1–2000), at }`) | `{ id, already }` | anyone; a message you can read and didn't write, or a member who isn't you |
+| `report.list` | `status?` (`open`, default, or `resolved`), `before?` (report id), `limit?` (1–50, default 50) | `{ reports: [Report], hasMore }` (newest first) | moderators |
+| `report.resolve` | `id`, `outcome`, `note?` (≤ 200) | `{ report }` | moderators who can see it; an already resolved report is `conflict` |
+| `report.count` | | `{ open }` (open reports you can see; 0 for everyone else) | anyone |
+
+- **A copy of the message** is kept with a message report (text and attachments as they were when reported), so editing or deleting the message doesn't hide it; `deleted` tells whether the original is still there. Attached files are kept while the report exists.
+- **Who sees a report:** moderators, except the reported person (a report about a moderator is hidden from that moderator). A message report also needs the moderator to be able to read its channel (a deleted channel: admins only). The reporter is shown to moderators but never to the reported person; nothing about a report is sent to them.
+- **Encrypted conversations:** the server can't read DMs or groups, so a report about a person may carry `messages`: decrypted messages the reporter chose to share, each written by the reporter or the reported person. The server can't check them, and apps say so to moderators. Apps send this only to a server both people are on, after the reporter saw exactly what will be sent.
+- Reporting the same message or person again while your earlier report is open answers `{ id, already: true }`. Limits: 5 reports at once, then one every 2 minutes per account (`rate_limited`); at most 20 open reports per reporter and 2000 open per server. Resolved reports are deleted after 90 days.
+- Event `report.count` `{ open }` goes to every online moderator (each their own count) when a report is made or resolved. Apps show it as a badge.
+- **Audit:** `report.resolve` (actor the moderator, target the reported person, reason the note) `{ reportId, kind, reason, outcome }`. The reporter is never recorded.
+
+### Deleting an account
+
+There is no central account server, so an account is deleted server by server, with a statement signed by the account key, so nobody else can delete it:
+
+```jsonc
+AccountDeletion { "accountKey": "<b64u 32>", "deletedAt": 1760000000000, "messages": false, "sig": "<b64u 64>" }
+```
+`sig = Ed25519.sign(accountSecret, "iskra/account-delete/v1" || 0x00 || accountKey(32) || u64be(deletedAt) || u8(messages ? 1 : 0))`
+
+| type | body | result | who |
+|---|---|---|---|
+| `account.delete` | `deletion` (an `AccountDeletion` for your own account; `deletedAt` at most 10 minutes in the future) | | any member except the owner and bots (`forbidden`) |
+| `owner.transfer` | `accountKey` (a member who isn't a bot) | | the owner; they become an admin and the member the owner |
+
+**What the server deletes**, in one transaction: membership, roles, nickname, profile, avatar and profile page, presence, synced settings and notification settings, block list, timeouts, rules agreement, event interest, devices, revocations, prekeys and push subscriptions, the account's end-to-end encrypted DMs (sent and received) and group messages, encrypted DM files, and its invites stop working. Names are removed from the audit log, and from reports the account made. With `messages: true` its channel messages, reactions and poll votes go too; otherwise its messages stay, without a name. Bans and reports about the account stay. Group membership is a signed chain, so apps leave their groups (signed `leave` changes) before deleting.
+
+**Afterwards** the server keeps the deletion, so the key can't come back: a handshake with it fails with `account_deleted` (close 4401, even with an invite), and the error body carries `deletion`. The account's sessions get `account.deleted` `{ deletion }` and close (4403); everyone else gets `member.removed` `{ accountKey }` and `member.deleted` `{ accountKey, messages }` (apps drop the person's messages from view when `messages` is true). Voice and calls with the account end.
+
+**Other devices** learn of it when they next connect anywhere it was applied. A device checks the signature against its own account key (so a server can't make it wipe itself), sends the same `account.delete` to its other servers the deleting device couldn't reach, then deletes its keys and data. Messages already on other people's devices (DMs, groups) stay there.
+
+**Owners** can't delete their account on a server they own: they hand it over with `owner.transfer` first, or shut the server down. Audit: `owner.transfer` (target the new owner) `{ from }` (their level before).
