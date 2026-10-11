@@ -12,6 +12,7 @@ import { CustomStatusLine } from './presence/Presence'
 import { TimeoutBadge } from './moderation/Moderation'
 import { useServerRoles } from '../state/roles'
 import { hoistedRole, nameColor, rolesOf } from '../state/permissions'
+import { userMenuProps } from './people/userMenuProps'
 
 export function MemberList({ server }: { server: ServerState }) {
   const { t } = useTranslation()
@@ -23,7 +24,7 @@ export function MemberList({ server }: { server: ServerState }) {
   // Online people with a hoisted role are grouped under their highest one; the rest by level.
   const hoisted = new Map(online.map((m) => [m.accountKey, hoistedRole(m, roles)]))
   const row = (m: Member) => (
-    <MemberRow key={m.accountKey} member={m} color={nameColor(m, roles)} icon={rolesOf(m, roles).find((r) => r.icon)?.icon ?? null}
+    <MemberRow key={m.accountKey} serverKey={server.key} member={m} color={nameColor(m, roles)} icon={rolesOf(m, roles).find((r) => r.icon)?.icon ?? null}
       onClick={(e) => openProfileCard(server.key, m.accountKey, e.currentTarget)} />
   )
 
@@ -61,7 +62,8 @@ export function MemberList({ server }: { server: ServerState }) {
   )
 }
 
-function MemberRow({ member, color, icon, onClick }: {
+function MemberRow({ serverKey, member, color, icon, onClick }: {
+  serverKey: string
   member: Member
   color: string | null
   icon: string | null
@@ -70,7 +72,7 @@ function MemberRow({ member, color, icon, onClick }: {
   useTranslation()
   const { status, custom } = useMemberPresence(member)
   return (
-    <button className="member" onClick={onClick} aria-label={`${member.name}, ${STATUS_LABELS[status]}`}>
+    <button className="member" onClick={onClick} {...userMenuProps(member.accountKey, serverKey)} aria-label={`${member.name}, ${STATUS_LABELS[status]}`}>
       <Avatar name={member.name} accountKey={member.accountKey} size={32} status={status} />
       <span className="member-text">
         <span className="member-name" style={color ? { color } : undefined}>{member.name}</span>

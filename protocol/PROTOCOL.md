@@ -9,7 +9,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Servers and channels:** [Requests and events](#requests-and-events) · [Invite links](#invite-links) · [Organizing a server](#organizing-a-server)
 - **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji) · [Stickers](#stickers) · [GIFs](#gifs)
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties)
-- **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted)
+- **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Friends](#friends)
 - **People and integrations:** [Profiles](#profiles) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Presence and voice messages](#presence-and-voice-messages)
 - **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Backups, moving and imports](#backups-moving-and-imports)
@@ -376,7 +376,7 @@ The server stores and relays opaque envelopes between members. It knows who talk
 | type | body | result | who |
 |---|---|---|---|
 | `dm.devices` | `accountKey` | `{ devices: [DeviceCert...], prekeys: [SignedPrekey...], revoked: [Revocation...] }` (up to 20 devices, most recently seen first; revoked devices left out) | anyone; the target must be a member (or yourself) |
-| `dm.send` | `accountKey, envelope` (JSON object, ≤ 32 KB) | `{ message }` | members, to members or yourself |
+| `dm.send` | `accountKey, envelope` (JSON object, ≤ 32 KB), `silent?` (bool: no [push](#push-notifications-web-push); for quiet [friend actions](#friends)) | `{ message }` | members, to members or yourself |
 | `dm.history` | `accountKey, before?, limit? (1–100)` | `{ messages (oldest first), hasMore }` | only your own conversations |
 | `dm.conversations` | | `{ conversations: [{ accountKey, lastId, lastAt }] }` | yourself |
 
@@ -1489,3 +1489,23 @@ Limits (`bad_request` beyond them): `blocked` ≤ 500 entries, `allowed` ≤ 100
   (`Message.automod` is null on every other message.) `snippet` is the text cut to 120 characters, with blocked words masked to their first letter and `•••`; clients show it hidden until clicked. `channelId`, `channelName` and `snippet` are null unless everyone who can read the alert channel could also read the original channel (by `readRole`). Alerts can't be edited; people who manage messages can delete them.
 - Every block is recorded in the [audit log](#audit-log) as `automod.block` (actor `"automod:"`, `actorName` "AutoMod", target the sender, reason the rule) `{ rule, what, channelId, channelName, timeoutMs }`, never with the text. Audit entries and alerts are sent at most once per member and rule every 30 seconds (a timeout is always recorded); requests stay rate limited as usual.
 - `automod.update` is recorded as `automod.update` `{ enabled, rules: ["words", ...], blockedWords }`.
+
+## Friends
+
+Friends are mutual: one person sends a request, the other accepts it. There is no account server, so requests and answers are **friend actions** carried inside ordinary end-to-end encrypted DMs (any server both people share can carry them; the server sees only a DM). No new server messages; `dm.send` gains `silent` so quiet actions don't push.
+
+DM content gains `friend`:
+
+```jsonc
+{ "text": "<fallback for apps that don't know friends>",
+  "friend": { "kind": "request" | "accept" | "cancel" | "decline" | "remove",
+              "from": "<accountKey>", "to": "<accountKey>", "at": 1760000000000, "id": "<b64u 12>", "sig": "<b64u 64>" } }
+```
+
+- `sig` is Ed25519 by the `from` **account** key over `"iskra/friend/v1" || 0x00 || JSON.stringify([kind, from, to, at, id])`. Receivers check it, that `from`/`to` are the DM's sender and recipient (or earlier keys of the same person, see [account key rotation](#account-key-rotation)), that `at` is at most 10 minutes in the future and `id` ≤ 32 characters. A DM whose `friend` fails any check is shown as unreadable, never as text. So a server, or anyone else, can't forge an accept or replay one person's action into another conversation.
+- Each app keeps both sides' actions per person (newest 32, one per sender and `id`) and folds them in `at` order: `request` → pending (two requests that meet make you friends); `accept` answers an open request; `cancel` withdraws your request; `decline` ("Ignore") drops a request on the recipient's side only (the sender still sees it as pending); `remove` ends a friendship (or anything pending) on both sides. Because your own devices get a copy of every DM you send, the friends list follows you to them; device linking also copies it.
+- Quiet kinds (`cancel`, `decline`, `remove`) are sent with `silent: true` and never notify or count as unread. `request` and `accept` notify (subject to do not disturb).
+- Blocking someone sends the matching quiet action first and ends the relation; actions from people you've blocked are ignored (and `dm.send` between them is `forbidden` anyway, see [Blocking](#blocking)).
+- If someone sends a request while you're already friends (they lost their list), your app answers with `accept`.
+- Friends lists from before requests existed (kept on one device) become requests, sent once you share a server with that person.
+

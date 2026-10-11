@@ -8,6 +8,7 @@ import { roleRank, type Role } from '../core/protocol'
 import { Spoiler } from './bits'
 import { t } from '../i18n'
 import { resolveKey } from '../state/keyMap'
+import { userMenuProps } from './people/userMenuProps'
 import { CUSTOM_EMOJI_SOURCE, isEmojiOnly } from './expressions/emoji'
 import { CodeBlock, MaskedLink, Timestamp } from './chat/RichText'
 import { TIMESTAMP_SOURCE, formatTimestamp, parseTimestamp, type TimestampStyle } from './chat/richTextRules'
@@ -21,6 +22,8 @@ export interface MarkdownContext {
   emoji?: (id: string) => string | null
   /** A mentioned role: its name, colour, and whether the viewer has it. */
   roleOf?: (id: number) => { name: string; color: string | null; mine: boolean } | null
+  /** The server the text is on, for the people menu on mentions (none in DMs). */
+  serverKey?: string
 }
 
 const URL_PATTERN = /https?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]]/y
@@ -105,7 +108,7 @@ function inline(text: string, ctx: MarkdownContext, depth = 0, links = true): Re
       const who = resolveKey(mention[1])
       const name = ctx.nameOf(who)
       out.push(
-        <span key={key++} className={`mention ${who === ctx.me ? 'me' : ''}`}>@{name ?? t('chat.markdown.unknown')}</span>,
+        <span key={key++} className={`mention ${who === ctx.me ? 'me' : ''}`} {...userMenuProps(name ? who : null, ctx.serverKey ?? null)}>@{name ?? t('chat.markdown.unknown')}</span>,
       )
       i += mention[0].length
       continue

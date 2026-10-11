@@ -170,18 +170,16 @@ onServerEvent((serverKey, type, body) => {
     })
   }
 
-  if (type === 'dm.message') {
-    const { message } = body as { message: WireDm }
-    const myKey = me()
-    if (message.from === myKey) return
-    void import('./dms').then(({ useDms, nameOf, openConversation }) => {
-      if (isOnScreen(dmConv(message.from))) return
-      // The text is end-to-end encrypted; read it from the decrypted conversation.
-      const latest = useDms.getState().conversations[message.from]?.messages.at(-1)
-      show(serverKey, nameOf(message.from), latest?.error ? t('app.notify.newMessage') : (latest?.text ?? t('app.notify.newMessage')), () => openConversation(message.from))
-    })
-  }
+  if (type === 'dm.message') dmServer.set((body as { message: WireDm }).message.from, serverKey)
 })
+
+// DMs notify once decrypted (friend actions notify from friends.ts, or not at all).
+const dmServer = new Map<string, string>()
+void import('./dms').then(({ onDmOpened, nameOf, openConversation }) => onDmOpened((peer, dms, live) => {
+  const dm = dms.at(-1)
+  if (!live || !dm || dm.from === me() || dm.friend || isOnScreen(dmConv(peer))) return
+  show(dmServer.get(dm.from) ?? '', nameOf(dm.from), dm.error ? t('app.notify.newMessage') : (dm.text || t('app.notify.newMessage')), () => openConversation(peer))
+}))
 
 let lastBadge = -1
 

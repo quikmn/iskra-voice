@@ -21,6 +21,7 @@ import { groups } from './groups'
 import { stage } from './stage'
 import { watch } from './watch'
 import { expressions } from './expressions'
+import { friends } from './friends'
 
 export const en = {
   common,
@@ -45,4 +46,5 @@ export const en = {
   stage,
   watch,
   expressions,
+  friends,
 } as const

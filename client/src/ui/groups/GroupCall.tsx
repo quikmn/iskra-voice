@@ -14,6 +14,7 @@ import { CallControls, VideoTile } from '../VoiceStage'
 import '../calls/calls.css'
 import { useTranslation } from 'react-i18next'
 import { groupText } from './groupText'
+import { userMenuProps } from '../people/userMenuProps'
 
 const myKey = () => {
   const identity = useApp.getState().identity
@@ -150,7 +151,7 @@ export function GroupCallPanel({ groupKey }: { groupKey: string }) {
           const camera = cameras.get(k)
           if (camera) return <VideoTile key={camera.id} tile={camera} name={k === me ? t('calls.you') : knownName(k)} speaking={!!speaking[k]} />
           return (
-            <div key={k} className={`person-tile ${speaking[k] ? 'speaking' : ''}`}>
+            <div key={k} className={`person-tile ${speaking[k] ? 'speaking' : ''}`} {...userMenuProps(k)}>
               <Avatar name={knownName(k)} accountKey={k} size={narrow ? 48 : 64} />
               <span className="tile-label">{k === me ? t('calls.you') : knownName(k)}</span>
             </div>

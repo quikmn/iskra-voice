@@ -1,0 +1,36 @@
+/* ── People: the Friends page, friend buttons and the people menu ─────── */
+.friends-header { gap: 12px; }
+.friends-header h1 { flex: none; }
+.friends-tabs { display: flex; gap: 4px; min-width: 0; overflow-x: auto; }
+.friends-tab {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 0; border-radius: calc(var(--radius) * 0.6);
+  background: transparent; color: var(--muted); font: inherit; font-size: 14px; font-weight: 600; white-space: nowrap;
+}
+.friends-tab:hover { background: var(--hover); color: var(--text); }
+.friends-tab.on { background: var(--surface-3); color: var(--text); }
+.friends-tab .badge { position: static; }
+.friend-chip {
+  display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 3px 8px; border-radius: 999px;
+  background: var(--surface-3); color: var(--muted); font-size: 12px; font-weight: 600;
+}
+.friend-chip.on { color: var(--green, var(--accent)); }
+.friend-error { flex-basis: 100%; font-size: 12px; }
+.friend-line {
+  display: flex; align-items: center; gap: 8px; margin: 6px 16px 6px 72px; color: var(--muted); font-size: 13px;
+}
+.friend-line svg { flex: none; color: var(--accent); }
+.dm-header-friend { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.dm-header-person { display: inline-flex; align-items: center; gap: 8px; min-width: 0; border-radius: calc(var(--radius) * 0.6); }
+.dm-header-person h1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-menu-confirm { display: grid; gap: 10px; padding: 4px 8px 8px; max-width: 280px; }
+.user-menu-confirm p { margin: 0; font-size: 13px; }
+.user-menu-volume { padding: 4px 8px; }
+.user-menu-volume .volume-menu-note { display: none; }
+.user-menu-roles .org-item { cursor: pointer; }
+.user-menu-roles input { margin: 0; }
+.user-menu-error { margin: 6px 8px 2px; font-size: 12px; }
+.org-sheet .user-menu-confirm { max-width: none; padding: 4px 4px 8px; }
+@media (max-width: 760px) {
+  .friends-header h1 { display: none; }
+  .friend-line { margin-left: 16px; }
+}

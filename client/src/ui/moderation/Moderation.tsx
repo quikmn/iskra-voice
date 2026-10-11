@@ -12,6 +12,7 @@ import { Settings } from '../icons'
 import { useServerRoles } from '../../state/roles'
 import { has } from '../../state/permissions'
 import { useNow } from './hooks'
+import { blockPerson } from '../../state/friends'
 import './moderation.css'
 
 export const ClockIcon = ({ size = 14 }: { size?: number }) => (
@@ -140,7 +141,7 @@ export function BlockButton({ accountKey, name }: { accountKey: string; name: st
     <div className="block-confirm" role="group" aria-label={t('moderation.blocked.confirmLabel', { name })}>
       <span>{t('moderation.blocked.confirm', { name })}</span>
       <div className="copy-row">
-        <button className="button danger" onClick={() => { void setBlocked(accountKey, true); setConfirm(false) }}>{t('moderation.blocked.block')}</button>
+        <button className="button danger" onClick={() => { void blockPerson(accountKey); setConfirm(false) }}>{t('moderation.blocked.block')}</button>
         <button className="button" onClick={() => setConfirm(false)}>{t('common.cancel')}</button>
       </div>
     </div>

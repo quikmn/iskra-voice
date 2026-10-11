@@ -13,7 +13,6 @@ import { moveCategory, moveChannel, toggleCollapsed, useCategories, useNotifyFor
 import { channelBadges, dropOnCategory, dropOnChannel, isVoiceLike, layoutChannels } from '../../state/organizeLogic'
 import { ForumIcon } from '../forums/icons'
 import { StageEntry } from '../stage/StageSidebar'
-import { useVolumeMenu } from '../useVolumeMenu'
 import { Avatar } from '../bits'
 import { ChevronDown, Hash, HeadphonesOff, Lock, MicOff, Plus, Volume } from '../icons'
 import { CategoryMenu, ChannelMenu } from './Menus'
@@ -25,6 +24,7 @@ import { showRules, useMustAgree } from '../../state/rules'
 import { isFull, limitLabel } from '../../state/voiceRulesLogic'
 import '../rules/rules.css'
 import './organize.css'
+import { userMenuProps } from '../people/userMenuProps'
 
 type Drag = { kind: 'channel' | 'category'; id: number }
 type Over = { kind: 'channel' | 'category' | 'top'; id: number; after?: boolean }
@@ -270,7 +270,6 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
   const speaking = useVoice((s) => s.speaking)
   const participants = server.voice[channel.id] ?? []
   const here = voiceSession?.serverKey === server.key && voiceSession.channelId === channel.id
-  const { bind, menu: volumeMenu } = useVolumeMenu()
   const mustAgree = useMustAgree(server.key)
   const bypass = has(server.me, useServerRoles(server.key), 'moveMembers')
   const limit = limitLabel(participants.length, channel.userLimit)
@@ -308,7 +307,7 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
               <li
                 key={p.accountKey}
                 className={`${here && speaking[p.accountKey] ? 'speaking' : ''} ${isMe ? 'me' : ''}`}
-                {...bind(here && !isMe ? { accountKey: p.accountKey, name: member?.name ?? t('common.someone') } : null)}
+                {...userMenuProps(p.accountKey, server.key)}
               >
                 <button className="participant" onClick={(e) => openProfileCard(server.key, p.accountKey, e.currentTarget)}>
                   <Avatar name={member?.name ?? '?'} accountKey={p.accountKey} size={22} />
@@ -320,7 +319,6 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
           })}
         </ul>
       )}
-      {volumeMenu}
     </div>
   )
 }

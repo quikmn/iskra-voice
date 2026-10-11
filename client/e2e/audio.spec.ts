@@ -110,18 +110,20 @@ test('mic test, strong noise suppression in a call, your own speaking ring and p
   await expect(host.locator('.me-avatar.speaking')).toHaveCount(0)
   await host.locator('.call-controls').getByRole('button', { name: 'Unmute' }).click()
 
-  // Right-click someone in voice for their volume.
+  // Right-click someone in voice: their menu has their volume.
   await lounge(friend).locator('li', { hasText: 'Host' }).click({ button: 'right' })
-  const menu = friend.getByRole('dialog', { name: 'Volume for Host' })
+  const menu = friend.getByRole('dialog', { name: 'Options for Host' })
   await expect(menu).toBeVisible()
-  await menu.getByRole('slider').fill('1.5')
+  await menu.getByRole('slider', { name: 'Volume for Host' }).fill('1.5')
   await expect(menu).toContainText('150%')
   await friend.screenshot({ path: join(SHOTS, 'audio-volume-menu.png') })
   await friend.keyboard.press('Escape')
   await expect(menu).toBeHidden()
   // Nothing to adjust for yourself.
   await lounge(friend).locator('li', { hasText: 'Friend' }).click({ button: 'right' })
-  await expect(friend.getByRole('dialog', { name: /^Volume for/ })).toHaveCount(0)
+  await expect(friend.getByRole('dialog', { name: 'Options for Friend' })).toBeVisible()
+  await expect(friend.getByRole('slider', { name: /^Volume for/ })).toHaveCount(0)
+  await friend.keyboard.press('Escape')
 
   // Phones: press and hold someone in voice for a volume sheet.
   const phoneLink = await createInviteLink(host)
@@ -134,9 +136,9 @@ test('mic test, strong noise suppression in a call, your own speaking ring and p
   const hostRow = lounge(phone).locator('li', { hasText: 'Host' })
   await expect(hostRow).toBeVisible()
   await longPress(phone, hostRow)
-  const sheet = phone.getByRole('dialog', { name: 'Volume for Host' })
+  const sheet = phone.getByRole('dialog', { name: 'Options for Host' })
   await expect(sheet).toBeVisible()
-  await expect(phone.locator('.emoji-picker-layer.sheet')).toBeVisible()
+  await expect(phone.locator('.action-sheet.org-sheet')).toBeVisible()
   await expect(phone.locator('.profile-card')).toHaveCount(0) // the hold didn't also open the profile
   await sheet.getByRole('button', { name: 'Mute for me' }).click()
   await expect(sheet).toContainText('0%')

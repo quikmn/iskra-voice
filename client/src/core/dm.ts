@@ -58,6 +58,8 @@ export interface DmContent {
   forward?: DmForward
   /** End-to-end encrypted attachments (core/dmFiles.ts); `text` may then be empty. */
   files?: DmFile[]
+  /** A signed friend action (core/friend.ts, which checks it). `text` is the fallback for other apps. */
+  friend?: Record<string, unknown>
 }
 
 export interface DmForward {
@@ -258,9 +260,10 @@ export function openContent(identity: Identity, envelope: Pick<DmEnvelope, 'v' |
   if (typeof content.text !== 'string' || content.text.length > MAX_TEXT) throw new DmError('Unsupported message content.')
   const call = content.call && typeof content.call === 'object' && !Array.isArray(content.call) ? { call: content.call } : {}
   const group = content.group && typeof content.group === 'object' && !Array.isArray(content.group) ? { group: content.group as Record<string, unknown> } : {}
+  const friend = content.friend && typeof content.friend === 'object' && !Array.isArray(content.friend) ? { friend: content.friend } : {}
   const forward = content.forward === undefined ? null : cleanForward(content.forward)
   const files = checkFiles(content.files)
-  return { text: content.text, ...call, ...group, ...(forward ? { forward } : {}), ...(files.length ? { files } : {}) }
+  return { text: content.text, ...call, ...group, ...friend, ...(forward ? { forward } : {}), ...(files.length ? { files } : {}) }
 }
 
 /**

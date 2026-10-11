@@ -3,9 +3,11 @@ import { useTranslation } from 'react-i18next'
 import { b64u } from '../core/crypto'
 import { safetyNumber } from '../core/dm'
 import { useApp } from '../state/store'
-import {
-  discardDm, isOnline, nameOf, openConversation, openFriends, removeFriend, sendDm, sharedServers, useDms, type Dm,
-} from '../state/dms'
+import { discardDm, nameOf, openConversation, openFriends, sendDm, sharedServers, useDms, type Dm } from '../state/dms'
+import { useIncomingCount } from '../state/friends'
+import { quietKind } from '../state/friendMachine'
+import { FriendButtons, FriendLine, FriendsView } from './people/Friends'
+import { userMenuProps } from './people/userMenuProps'
 import { dividerOf, dividerTarget, dmConv, useRead, useReads } from '../state/readState'
 import { UnreadBar, UnreadDivider } from './organize/UnreadBits'
 import { Avatar, Modal } from './bits'
@@ -51,8 +53,12 @@ export function HomeSidebar({ onNavigate }: { onNavigate: () => void }) {
   const open = useDms((s) => s.open)
   const reads = useReads((s) => s.convs)
   useApp((s) => s.servers) // re-render when names or presence change
+  const incoming = useIncomingCount()
+  // Friend requests alone don't make a conversation (they're on the Friends page).
+  const lastAt = (messages: Dm[]) => messages.findLast((m) => !m.friend)?.sentAt ?? 0
   const peers = Object.entries(conversations)
-    .sort(([, a], [, b]) => (b.messages.at(-1)?.sentAt ?? 0) - (a.messages.at(-1)?.sentAt ?? 0))
+    .filter(([peer, c]) => lastAt(c.messages) > 0 || (open.kind === 'dm' && open.peer === peer))
+    .sort(([, a], [, b]) => lastAt(b.messages) - lastAt(a.messages))
 
   return (
     <div className="channel-sidebar">
@@ -69,6 +75,7 @@ export function HomeSidebar({ onNavigate }: { onNavigate: () => void }) {
         >
           <span className="hash"><Users size={16} /></span>
           <span className="channel-name">{t('app.home.friends')}</span>
+          {incoming > 0 && <span className="badge" aria-label={t('friends.pendingBadge', { count: incoming })}>{incoming}</span>}
         </button>
         <GroupRows onNavigate={onNavigate} />
         <div className="channel-group"><span>{t('app.home.conversations')}</span></div>
@@ -77,6 +84,7 @@ export function HomeSidebar({ onNavigate }: { onNavigate: () => void }) {
           <button
             key={peer}
             className={`channel dm-row ${open.kind === 'dm' && open.peer === peer ? 'active' : ''} ${reads[dmConv(peer)]?.unread ? 'unread' : ''}`}
+            {...userMenuProps(peer)}
             onClick={() => {
               openConversation(peer)
               onNavigate()
@@ -103,68 +111,6 @@ export function HomeMain({ onToggle }: { onToggle: (panel: Panel) => void }) {
   return open.kind === 'dm' ? <DmView peer={open.peer} onToggle={onToggle} /> : <FriendsView onToggle={onToggle} />
 }
 
-function FriendsView({ onToggle }: { onToggle: (panel: Panel) => void }) {
-  const { t } = useTranslation()
-  const friends = useDms((s) => s.friends)
-  useApp((s) => s.servers)
-  const list = Object.values(friends).sort((a, b) => Number(isOnline(b.accountKey)) - Number(isOnline(a.accountKey)) || nameOf(a.accountKey).localeCompare(nameOf(b.accountKey)))
-  const online = list.filter((f) => isOnline(f.accountKey)).length
-
-  return (
-    <div className="chat">
-      <header className="chat-header">
-        <button className="icon-button mobile-only" onClick={() => onToggle('nav')} aria-label={t('app.openMenu')}>
-          <Menu />
-        </button>
-        <h1><span className="hash"><Users size={20} /></span>{t('app.home.friends')}</h1>
-      </header>
-      <div className="friends">
-        {list.length === 0 ? (
-          <div className="empty-state">
-            <span className="empty-icon"><Users size={32} /></span>
-            <h1>{t('app.home.noFriends')}</h1>
-            <p>{t('app.home.noFriendsHint')}</p>
-          </div>
-        ) : (
-          <>
-            <h3 className="section-title">{t('app.home.onlineCount', { online, total: list.length })}</h3>
-            {list.map((friend) => <FriendRow key={friend.accountKey} accountKey={friend.accountKey} />)}
-          </>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function FriendRow({ accountKey }: { accountKey: string }) {
-  const { t } = useTranslation()
-  const [confirm, setConfirm] = useState(false)
-  const reachable = sharedServers(accountKey).length > 0
-  const name = nameOf(accountKey)
-  return (
-    <div className="friend-row">
-      <AccountAvatar name={name} accountKey={accountKey} size={40} />
-      <div className="friend-text">
-        <strong>{name}</strong>
-        <AccountStatusText accountKey={accountKey} fallback className="muted" />
-      </div>
-      {confirm ? (
-        <>
-          <button className="button small danger" onClick={() => void removeFriend(accountKey)}>{t('app.home.removeName', { name })}</button>
-          <button className="button small" onClick={() => setConfirm(false)}>{t('app.home.keep')}</button>
-        </>
-      ) : (
-        <>
-          <button className="button small" disabled={!reachable} title={reachable ? undefined : t('app.home.noSharedServer')} onClick={() => openConversation(accountKey)}>
-            {t('app.home.message')}
-          </button>
-          <button className="button small ghost" onClick={() => setConfirm(true)} aria-label={t('app.home.removeFriend', { name })}>{t('common.remove')}</button>
-        </>
-      )}
-    </div>
-  )
-}
-
 function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => void }) {
   const { t } = useTranslation()
   const conversation = useDms((s) => s.conversations[peer])
@@ -184,7 +130,7 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
   }, [messages.length])
 
   const divider = dividerOf(useRead(dmConv(peer)))
-  const firstNew = divider && dividerTarget(messages, divider.from, (m) => (m.pending || m.notice || m.from === myKey ? null : { id: m.id, at: m.sentAt }))
+  const firstNew = divider && dividerTarget(messages, divider.from, (m) => (m.pending || m.notice || m.friend || m.from === myKey ? null : { id: m.id, at: m.sentAt }))
 
   return (
     <div
@@ -206,11 +152,14 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
         <button className="icon-button mobile-only" onClick={() => onToggle('nav')} aria-label={t('app.openMenu')}>
           <Menu />
         </button>
-        <AccountAvatar name={nameOf(peer)} accountKey={peer} size={28} />
-        <h1>{nameOf(peer)}</h1>
+        <span className="dm-header-person" {...userMenuProps(peer)}>
+          <AccountAvatar name={nameOf(peer)} accountKey={peer} size={28} />
+          <h1>{nameOf(peer)}</h1>
+        </span>
         <AccountStatusText accountKey={peer} className="muted dm-header-status" />
         <span className="e2e-badge" title={t('app.home.e2eTitle')}><Lock size={13} /> {t('app.home.e2e')}</span>
         <span className="spacer" />
+        {reachable && <span className="dm-header-friend"><FriendButtons accountKey={peer} header /></span>}
         {!blocked && <CallButtons peer={peer} />}
         <button className="button small" onClick={() => setVerify(true)}>{t('app.home.verify')}</button>
       </header>
@@ -226,8 +175,9 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
         </div>
         {messages.map((dm, i) => {
           if (dm.notice) return <DmKeyNotice key={`${dm.from}:${dm.id}`} dm={dm} onVerify={() => setVerify(true)} />
+          if (dm.friend) return quietKind(dm.friend.kind) ? null : <FriendLine key={`${dm.from}:${dm.id}`} dm={dm} mine={dm.from === myKey} />
           const prev = messages[i - 1]
-          const grouped = !!prev && !prev.notice && prev.from === dm.from && dm.sentAt - prev.sentAt < GROUP_WINDOW_MS && !prev.pending && !prev.error
+          const grouped = !!prev && !prev.notice && !prev.friend && prev.from === dm.from && dm.sentAt - prev.sentAt < GROUP_WINDOW_MS && !prev.pending && !prev.error
           return (
             <Fragment key={`${dm.from}:${dm.id}`}>
               {dm === firstNew && <UnreadDivider />}
@@ -257,12 +207,12 @@ function DmRow({ dm, grouped, peer, mine }: { dm: Dm; grouped: boolean; peer: st
   return (
     <div className={`message ${grouped ? 'grouped' : ''} ${dm.pending ?? ''}`}>
       <div className="message-gutter">
-        {grouped ? <time className="hover-time" title={fullTime(dm.sentAt)}>{clockTime(dm.sentAt)}</time> : <Avatar name={name} accountKey={dm.from} />}
+        {grouped ? <time className="hover-time" title={fullTime(dm.sentAt)}>{clockTime(dm.sentAt)}</time> : <span {...userMenuProps(dm.from)}><Avatar name={name} accountKey={dm.from} /></span>}
       </div>
       <div className="message-body">
         {!grouped && (
           <div className="message-meta">
-            <span className="author" style={{ color: `hsl(${hueFor(dm.from)} 70% var(--name-l))` }}>{name}</span>
+            <span className="author" style={{ color: `hsl(${hueFor(dm.from)} 70% var(--name-l))` }} {...userMenuProps(dm.from)}>{name}</span>
             <time title={fullTime(dm.sentAt)}>{messageTime(dm.sentAt)}</time>
           </div>
         )}

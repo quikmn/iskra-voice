@@ -21,6 +21,7 @@ import { replyBlock } from '../../state/forums'
 import { PostBar } from '../forums/PostBar'
 import { useForumPost } from '../forums/useForumPost'
 import { resolveKey } from '../../state/keyMap'
+import { userMenuProps } from '../people/userMenuProps'
 
 export function ThreadPanel({ server, threadId }: { server: ServerState; threadId: number }) {
   const thread = useThreads((s) => s.threads[server.key]?.[threadId])
@@ -204,7 +205,7 @@ function ThreadStart({ server, root, createdBy, post }: { server: ServerState; r
         <div className="message-body">
           <div className="message-meta">
             {server.members[root.author] ? (
-              <button className="author" style={{ color: `hsl(${hueFor(root.author)} 70% var(--name-l))` }} onClick={(e) => openProfileCard(server.key, root.author, e.currentTarget)}>{name}</button>
+              <button className="author" style={{ color: `hsl(${hueFor(root.author)} 70% var(--name-l))` }} onClick={(e) => openProfileCard(server.key, root.author, e.currentTarget)} {...userMenuProps(root.author, server.key)}>{name}</button>
             ) : (
               <span className="author" style={{ color: `hsl(${hueFor(root.author)} 70% var(--name-l))` }}>{name}</span>
             )}
@@ -212,7 +213,7 @@ function ThreadStart({ server, root, createdBy, post }: { server: ServerState; r
           </div>
           {root.text && (
             <div className="message-text">
-              {renderMarkdown(root.text, { nameOf: (k) => server.members[k]?.name ?? null, me: server.me?.accountKey, roleOf })}
+              {renderMarkdown(root.text, { nameOf: (k) => server.members[k]?.name ?? null, me: server.me?.accountKey, roleOf, serverKey: server.key })}
             </div>
           )}
           <Attachments server={server} files={root.attachments} />

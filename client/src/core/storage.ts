@@ -248,6 +248,17 @@ export async function loadFriends(): Promise<StoredFriend[]> {
 
 export const saveFriends = (friends: StoredFriend[]) => set('friends', friends)
 
+/** Friend requests and friends (state/friends.ts): per person, the signed actions both sides sent. */
+export interface StoredFriendState {
+  v: 1
+  peers: Record<string, { name: string; events: { id: string; kind: import('./friend').FriendKind; mine: boolean; at: number }[] }>
+  /** People to send a request to once we share a server (friends from before requests existed). */
+  unsent: string[]
+}
+
+export const loadFriendState = () => get<StoredFriendState>('friendState')
+export const saveFriendState = (state: StoredFriendState) => set('friendState', state)
+
 /** Ask the browser not to evict our data (matters most on iOS Safari). */
 export async function requestPersistence(): Promise<boolean> {
   try {
@@ -295,6 +306,8 @@ export interface StoredDm {
   forward?: import('./dm').DmForward
   /** Encrypted attachments: where they are and their keys (core/dmFiles.ts). */
   files?: unknown
+  /** A checked friend action (core/friend.ts). */
+  friend?: import('./friend').FriendAction
 }
 
 /** Decrypted DMs per conversation. Servers keep only envelopes, and old prekeys get deleted, so this is the history. */

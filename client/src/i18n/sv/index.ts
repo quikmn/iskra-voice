@@ -22,6 +22,7 @@ import { groups } from './groups'
 import { stage } from './stage'
 import { watch } from './watch'
 import { expressions } from './expressions'
+import { friends } from './friends'
 
 export const sv: Messages = {
   common,
@@ -46,4 +47,5 @@ export const sv: Messages = {
   stage,
   watch,
   expressions,
+  friends,
 }
