@@ -26,6 +26,8 @@ import { friends } from './friends'
 import { account } from './account'
 import { safety } from './safety'
 import { productivity } from './productivity'
+import { docs } from './docs'
+import { catchup } from './catchup'
 import { compliance } from './compliance'
 import { updates } from './updates'
 import { clips } from './clips'
@@ -57,6 +59,8 @@ export const sv: Messages = {
   account,
   safety,
   productivity,
+  docs,
+  catchup,
   compliance,
   updates,
   clips,

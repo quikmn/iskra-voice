@@ -106,7 +106,7 @@ export const AUDIT_ACTIONS = [
   'invite.create', 'invite.revoke', 'webhook.create', 'webhook.update', 'webhook.regenerate', 'webhook.delete', 'bot.invite',
   'emoji.create', 'emoji.rename', 'emoji.delete', 'sound.create', 'sound.update', 'sound.delete',
   'profile.page.remove', 'server.pages', 'server.internet', 'limits.update', 'automod.block', 'automod.update',
-  'report.resolve', 'owner.transfer',
+  'report.resolve', 'owner.transfer', 'docs.page.create', 'docs.page.delete', 'docs.page.restore', 'docs.home.set',
 ] as const
 
 export type AuditFilter = (typeof AUDIT_ACTIONS)[number]
@@ -116,7 +116,7 @@ type Underscored<S extends string> = S extends `${infer A}.${infer B}` ? `${A}_$
 export const auditActionLabel = (action: AuditFilter): string =>
   t(`moderation.audit.filters.${action.replace(/\./g, '_') as Underscored<AuditFilter>}`)
 
-const AUTOMOD_WHAT = ['message', 'edit', 'poll', 'post', 'thread', 'event', 'watch'] as const
+const AUTOMOD_WHAT = ['message', 'edit', 'poll', 'post', 'thread', 'event', 'watch', 'page'] as const
 
 const str = (v: unknown): string => (typeof v === 'string' || typeof v === 'number' ? String(v) : '')
 
@@ -208,6 +208,13 @@ export function auditText(e: AuditEntry): string {
       return t('moderation.audit.reportResolve', { actor, target, outcome: t(`safety.outcomes.${outcome}`) })
     }
     case 'owner.transfer': return t('moderation.audit.ownerTransfer', { actor, target })
+    case 'docs.page.create': return t('moderation.audit.docsPageCreate', { actor, title: str(d.title), channel: channel(d.channelName) })
+    case 'docs.page.delete': return t('moderation.audit.docsPageDelete', { actor, title: str(d.title), channel: channel(d.channelName) })
+    case 'docs.page.restore': {
+      const version = str((d.extra as Record<string, unknown> | null)?.version)
+      return t('moderation.audit.docsPageRestore', { actor, title: str(d.title), channel: channel(d.channelName), version })
+    }
+    case 'docs.home.set': return d.pageId ? t('moderation.audit.docsHomeSet', { actor, title: str(d.title) }) : t('moderation.audit.docsHomeClear', { actor })
     case 'automod.block': {
       const kind = AUTOMOD_WHAT.find((w) => w === str(d.what)) ?? 'message'
       const vars = {

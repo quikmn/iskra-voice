@@ -47,6 +47,7 @@ public sealed class RetentionSweeper(World world, Hub hub, Uploads uploads, Data
                 } while (deleted.Count == Batch);
                 result.Envelopes = world.Store.DeleteEnvelopesBefore(cutoff);
                 world.Store.PruneMessageVersions(cutoff); // edit history follows its messages
+                world.Store.PruneDocRevisions(cutoff); // old docs revisions follow message retention
             }
             if (r.UploadsDays > 0) result.Files = uploads.DeleteOldMessageFiles(Cutoff(r.UploadsDays));
             if (r.SecurityLogDays > 0) result.Security = world.Store.PruneSecurityLog(Cutoff(r.SecurityLogDays));

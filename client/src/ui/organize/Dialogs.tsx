@@ -110,7 +110,7 @@ export function ChannelSettingsDialog({ server, channel, onClose }: { server: Se
       <div className="options-row">
         <RolePicker label={t('organize.channelSettings.whoSees')} value={readRole} onChange={setReadRole} />
         <RolePicker
-          label={channel.kind === 'voice' ? t('organize.channelSettings.whoSpeaks') : channel.kind === 'stage' ? t('organize.channelSettings.whoAsks') : t('organize.channelSettings.whoPosts')}
+          label={channel.kind === 'voice' ? t('organize.channelSettings.whoSpeaks') : channel.kind === 'stage' ? t('organize.channelSettings.whoAsks') : channel.kind === 'docs' ? t('docs.channel.whoCanEdit') : t('organize.channelSettings.whoPosts')}
           value={write} onChange={setWriteRole} min={readRole} />
       </div>
       <label className="field">

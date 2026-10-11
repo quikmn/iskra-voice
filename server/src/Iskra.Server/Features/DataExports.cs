@@ -140,6 +140,13 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         Section("editHistory", $"""
             SELECT e.message_id, e.text, e.written_at FROM message_edits e JOIN messages m ON m.id = e.message_id
             WHERE m.author_key {Mine} ORDER BY e.id;
+        Section("docsPages", $"""
+            SELECT p.id, p.channel_id, c.name AS channel_name, p.title, p.created_by, p.created_at, p.updated_by, p.updated_at
+            FROM doc_pages p LEFT JOIN channels c ON c.id = p.channel_id WHERE p.created_by {Mine} OR p.updated_by {Mine} ORDER BY p.id;
+            """);
+        Section("docsRevisions", $"""
+            SELECT r.page_id, p.title AS page_title, r.version, r.title, r.text, r.author, r.created_at, r.restored_from
+            FROM doc_revisions r LEFT JOIN doc_pages p ON p.id = r.page_id WHERE r.author {Mine} ORDER BY r.page_id, r.version;
             """);
         Section("reactions", $"SELECT message_id, account_key, emoji, created_at FROM reactions WHERE account_key {Mine} ORDER BY created_at;");
         Section("pollVotes", $"SELECT message_id, account_key, option, created_at FROM poll_votes WHERE account_key {Mine};");
@@ -183,6 +190,8 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         - messages, editHistory, reactions, pollVotes, eventInterest, uploads, invitesCreated: what you wrote and shared in server
           channels (editHistory: earlier versions of your edited messages).
           Uploaded files are listed by name, size and type; open them in the app or ask the owner for a full backup.
+        - docsPages, docsRevisions: docs pages you made or last edited, and every saved version of a page you wrote
+          (older versions may have gone: the server keeps 50 per page).
         - directMessages, groups, groupMessagesSent: your direct messages and group chats are end-to-end encrypted, so the
           server only knows who wrote to whom and when. Their content is on your devices: in the app, use
           Settings -> Privacy & data -> Download data on this device.

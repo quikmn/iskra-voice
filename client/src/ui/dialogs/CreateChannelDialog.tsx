@@ -8,13 +8,14 @@ import { useCategories } from '../../state/organize'
 import { Hash, Volume } from '../icons'
 import { StageIcon } from '../stage/stageIcons'
 import { ForumIcon } from '../forums/icons'
+import { DocsIcon } from '../docs/icons'
 
 export function CreateChannelDialog({ server, categoryId: initialCategory = null, onClose }: { server: ServerState; categoryId?: number | null; onClose: () => void }) {
   const { t } = useTranslation()
   const categories = useCategories(server.key)
   const [categoryId, setCategoryId] = useState<number | null>(initialCategory)
   const [name, setName] = useState('')
-  const [kind, setKind] = useState<'text' | 'voice' | 'forum' | 'stage'>('text')
+  const [kind, setKind] = useState<'text' | 'voice' | 'forum' | 'stage' | 'docs'>('text')
   const [readRole, setReadRole] = useState<Role>('member')
   const [writeRole, setWriteRole] = useState<Role>('member')
   const [error, setError] = useState<string | null>(null)
@@ -29,7 +30,7 @@ export function CreateChannelDialog({ server, categoryId: initialCategory = null
         name: slug, kind, readRole, writeRole: ROLES.indexOf(writeRole) < ROLES.indexOf(readRole) ? readRole : writeRole,
         categoryId: categoryId ?? undefined,
       })
-      if (channel.kind === 'text' || channel.kind === 'forum') selectChannel(server.key, channel.id)
+      if (channel.kind === 'text' || channel.kind === 'forum' || channel.kind === 'docs') selectChannel(server.key, channel.id)
       onClose()
     } catch (e) {
       setError(errorMessage(e))
@@ -53,6 +54,11 @@ export function CreateChannelDialog({ server, categoryId: initialCategory = null
         <button role="radio" aria-checked={kind === 'voice'} className={kind === 'voice' ? 'on' : ''} onClick={() => setKind('voice')}><Volume size={16} /> {t('settings.channel.voice')}</button>
         <button role="radio" aria-checked={kind === 'forum'} className={kind === 'forum' ? 'on' : ''} onClick={() => setKind('forum')}><ForumIcon size={16} /> {t('settings.channel.forum')}</button>
         <button role="radio" aria-checked={kind === 'stage'} className={kind === 'stage' ? 'on' : ''} onClick={() => setKind('stage')}><StageIcon size={16} /> {t('settings.channel.stage')}</button>
+        <button role="radio" aria-checked={kind === 'docs'} className={kind === 'docs' ? 'on' : ''} onClick={() => {
+          setKind('docs')
+          // Docs: everyone reads, trusted and above edit (a starting point the admin can change).
+          if (ROLES.indexOf(writeRole) < ROLES.indexOf('trusted')) setWriteRole('trusted')
+        }}><DocsIcon size={16} /> {t('docs.channel.kind')}</button>
       </div>
       <label className="field">
         <span>{t('settings.overview.name')}</span>
@@ -61,9 +67,10 @@ export function CreateChannelDialog({ server, categoryId: initialCategory = null
       {slug && <p className="muted"><Trans i18nKey="settings.channel.appearsAs" values={{ name: `${kind === 'text' || kind === 'forum' ? '#' : ''}${slug}` }} components={{ b: <strong /> }} /></p>}
       {kind === 'forum' && <p className="muted">{t('settings.channel.forumHint')}</p>}
       {kind === 'stage' && <p className="muted">{t('settings.channel.stageHint')}</p>}
+      {kind === 'docs' && <p className="muted">{t('docs.channel.hint')}</p>}
       <div className="options-row">
         <RolePicker label={t('settings.channel.whoCanSee')} value={readRole} onChange={setReadRole} />
-        <RolePicker label={kind === 'voice' ? t('settings.channel.whoCanSpeak') : kind === 'stage' ? t('settings.channel.whoCanAsk') : t('settings.channel.whoCanPost')} value={writeRole} onChange={setWriteRole} min={readRole} />
+        <RolePicker label={kind === 'voice' ? t('settings.channel.whoCanSpeak') : kind === 'stage' ? t('settings.channel.whoCanAsk') : kind === 'docs' ? t('docs.channel.whoCanEdit') : t('settings.channel.whoCanPost')} value={writeRole} onChange={setWriteRole} min={readRole} />
       </div>
       {categories.length > 0 && (
         <label className="field inline">

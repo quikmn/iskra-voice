@@ -172,7 +172,7 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
       <DmKeyWarning peer={peer} />
 
       <div className="messages" ref={scroller}>
-        <UnreadBar conv={dmConv(peer)} scroller={scroller} onJump={() => undefined} />
+        <UnreadBar conv={dmConv(peer)} scroller={scroller} onJump={() => undefined} catchUp={{ spec: { kind: 'dm', peer }, title: nameOf(peer) }} />
         <div className="channel-start">
           <Avatar name={nameOf(peer)} accountKey={peer} size={64} />
           <h2>{nameOf(peer)}</h2>
@@ -212,6 +212,7 @@ function DmRow({ dm, grouped, peer, mine }: { dm: Dm; grouped: boolean; peer: st
   const tools = usePrivateMessageTools(dm.pending || dm.error || asLog(dm.call) ? null : dmTarget(peer, dm), dm.text)
   return (
     <div id={privateRowId(dm.from, dm.id)} {...tools.rowProps} className={`message ${grouped ? 'grouped' : ''} ${dm.pending ?? ''} ${tools.rowProps.className ?? ''}`}>
+    <div className={`message ${grouped ? 'grouped' : ''} ${dm.pending ?? ''}`} data-dm-id={dm.id}>
       <div className="message-gutter">
         {grouped ? <time className="hover-time" title={fullTime(dm.sentAt)}>{clockTime(dm.sentAt)}</time> : <span {...userMenuProps(dm.from)}><Avatar name={name} accountKey={dm.from} /></span>}
       </div>

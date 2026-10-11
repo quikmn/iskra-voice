@@ -12,6 +12,8 @@ import { openProfileCard } from '../../state/profile'
 import { moveCategory, moveChannel, toggleCollapsed, useCategories, useNotifyFor, useOrganize } from '../../state/organize'
 import { channelBadges, dropOnCategory, dropOnChannel, isVoiceLike, layoutChannels } from '../../state/organizeLogic'
 import { ForumIcon } from '../forums/icons'
+import { DocsIcon } from '../docs/icons'
+import { StartHereEntry } from '../docs/StartHere'
 import { StageEntry } from '../stage/StageSidebar'
 import { Avatar } from '../bits'
 import { ChevronDown, Hash, HeadphonesOff, Lock, MicOff, Plus, Volume } from '../icons'
@@ -145,6 +147,7 @@ export function ChannelList({ server, isAdmin, onNavigate, onCreateChannel }: {
 
   return (
     <>
+      <StartHereEntry server={server} onNavigate={onNavigate} />
       {(topText.length > 0 || isAdmin) && (
         <div className={`channel-group ${over?.kind === 'top' && over.id === 0 ? 'drop-into' : ''}`}
           {...target({ kind: 'top', id: 0 }, (d) => d.kind === 'channel', toTop)}>
@@ -252,7 +255,7 @@ function TextRow({ server, channel, active, rowProps, onMenu, onNavigate }: {
           onNavigate()
         }}
       >
-        <span className="hash">{channel.kind === 'forum' ? <ForumIcon size={16} /> : <Hash size={16} />}</span>
+        <span className="hash">{channel.kind === 'forum' ? <ForumIcon size={16} /> : channel.kind === 'docs' ? <DocsIcon size={16} /> : <Hash size={16} />}</span>
         <span className="channel-name">{channel.name}</span>
         {channel.readRole !== 'member' && channel.readRole !== 'guest' && <span className="lock" title={t('organize.list.only', { role: levelName(channel.readRole) })}><Lock size={12} /></span>}
         {shown.pings > 0 && !active && <span className="badge" title={t('organize.list.mentions')}>{shown.pings}</span>}
