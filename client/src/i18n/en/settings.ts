@@ -172,6 +172,7 @@ export const settings = {
     failed: "Couldn't turn on push for {{servers}}{{error}}.",
     ios: 'To get notifications on iPhone or iPad, add Iskra to your Home Screen first: tap <b>Share</b>, then <b>Add to Home Screen</b>, and open Iskra from there.',
     unsupported: "This browser can't show notifications while Iskra is closed.",
+    nativeApp: 'Notifications while Iskra is closed are coming to the iPhone and iPad app in an update.',
     getApp: 'Get Iskra as an app on this device.',
     install: 'Install Iskra',
   },

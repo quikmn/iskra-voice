@@ -173,6 +173,7 @@ export const settings: Messages['settings'] = {
     failed: 'Kunde inte slå på pushaviseringar för {{servers}}{{error}}.',
     ios: 'För att få aviseringar på iPhone eller iPad lägger du först till Iskra på hemskärmen: tryck på <b>Dela</b>, sedan <b>Lägg till på hemskärmen</b>, och öppna Iskra därifrån.',
     unsupported: 'Den här webbläsaren kan inte visa aviseringar när Iskra är stängd.',
+    nativeApp: 'Aviseringar när Iskra är stängd kommer till appen för iPhone och iPad i en uppdatering.',
     getApp: 'Skaffa Iskra som app på den här enheten.',
     install: 'Installera Iskra',
   },

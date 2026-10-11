@@ -134,6 +134,7 @@ public class ProfileTests
             Assert.Contains(directive, csp);
         Assert.Contains("img-src data: blob: http://localhost/files/;", csp);
         Assert.Contains("frame-ancestors 'self' https://app.iskra.foo app://iskra", csp);
+        Assert.Contains(" capacitor://localhost ", csp); // the iPhone/iPad app (mobile/)
         Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
         Assert.Equal("no-referrer", response.Headers.GetValues("Referrer-Policy").Single());
         Assert.Contains("camera=()", response.Headers.GetValues("Permissions-Policy").Single());

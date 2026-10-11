@@ -29,6 +29,7 @@ table doesn't cover it, **stop and report**. Don't improvise fixes. Background a
 | "update the server (to V)" | [F. Update the server](#f-update-the-server-chatiskrafoo) |
 | "fix the checksums of V" | [G. Re-run checksums](#g-re-run-checksums-and-attestations) |
 | "is CI green?" | [H. Check CI](#h-check-ci-status) |
+| "build iOS and upload to TestFlight" | [I. iOS app to TestFlight](#i-ios-app-to-testflight) |
 
 ## A. Full release
 
@@ -124,6 +125,24 @@ Use after files on a published release were replaced.
 1. `gh run list -L 10`
 2. For each `failure` on main: `gh run view <id> --log-failed` and report the failing job and the first error lines. Don't fix it unless asked.
 
+## I. iOS app to TestFlight
+
+`R` = what to build: a release tag `vV` (default: the latest release, `gh release view --json tagName --jq .tagName`)
+or `main` if the human said so.
+1. **Universal Links file is live** (only needed once, and after changing it):
+   **bash** `curl -sI https://app.iskra.foo/.well-known/apple-app-site-association | grep -i content-type`
+   ✔ `application/json`. ✘ 404 → do [E](#e-redeploy-the-web-app-appiskrafoo) with `ref=main` first.
+2. `gh workflow run mobile-ios.yml -f ref=R`
+   (A first try or a check without uploading: add `-f upload=false`.)
+3. `gh run list --workflow mobile-ios.yml -L 1` → note the id; `gh run view <id> --json status,conclusion,jobs` every few
+   minutes (15–30 min).
+4. ✔ conclusion `success`. The step "Check the signed app" ends with `Iskra … is signed for the App Store`; the run summary
+   says "Uploaded to App Store Connect" with the version and build. Note the build number.
+5. Tell the human: "Build <build> of <version> is processing at App Store Connect → Iskra → TestFlight; it shows up for the
+   internal group in 5–30 minutes. Testers update in the TestFlight app."
+
+Never change the API key, the App Store Connect app or TestFlight groups yourself; those are the human's.
+
 ## Decision table
 
 | You see | Do |
@@ -149,6 +168,9 @@ Use after files on a published release were replaced.
 | Deploy `site`/`webapp` check failed after 5 minutes | Rerun that deploy once (D/E). Still failing: report |
 | Deploy `server` failed | Report the log (`--log-failed`). The server rolled back by itself. Don't retry without the human |
 | `Host key verification failed` | Stop. The droplet's host key changed; the human must check it |
+| mobile-ios.yml: `Cloud signing permission error`, `No profiles for 'foo.iskra.app'`, `No Account for Team`, `agreement` | Stop. The human must fix the Apple side (ci-cd.md, "iOS app" and troubleshooting) |
+| mobile-ios.yml archive fails on signing | Rerun once with `-f archive_signing=automatic`. Fails again: stop and report |
+| mobile-ios.yml upload: `bundle version` / `redundant binary` | `gh run rerun <id>` once (the build number rises with the attempt) |
 | Anything else | Stop and report the exact message |
 
 ## Report format

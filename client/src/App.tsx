@@ -12,6 +12,7 @@ import { startPush } from './state/push'
 import { startPresenceWatch } from './state/presence'
 import './state/moves'
 import { startDesktopLinks } from './state/desktopShell'
+import { startNativeShell } from './state/nativeShell'
 import { ScreenPicker } from './ui/ScreenPicker'
 import { Spinner } from './ui/bits'
 import { JoinPrompt } from './ui/dialogs/JoinDialog'
@@ -57,8 +58,10 @@ export function App() {
     const stopPush = startPush()
     const stopPresence = startPresenceWatch()
     const stopLinks = startDesktopLinks()
+    const stopNative = startNativeShell()
     return () => {
       stopLinks()
+      stopNative()
       stopPtt()
       stopHotkeys()
       stopTitle()

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { LINKS } from '../links'
 import { desktop } from '../platform/desktop'
+import { native } from '../platform/native'
 import { installApp, useInstall } from '../state/push'
 import { Close } from './icons'
 import { dismissHint, hintDismissed, installHintKind, type InstallHintKind } from './installHintKind'
@@ -25,6 +26,7 @@ function currentKind(): InstallHintKind | null {
     standalone: matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true,
     referrer: document.referrer,
     desktopApp: !!desktop,
+    nativeApp: !!native,
     automated: navigator.webdriver === true,
   })
   return kind && !hintDismissed(storage(), kind) ? kind : null

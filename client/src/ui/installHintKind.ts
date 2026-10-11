@@ -11,6 +11,8 @@ export interface HintEnv {
   referrer: string
   /** Inside the desktop app. */
   desktopApp: boolean
+  /** Inside the phone app (mobile/). */
+  nativeApp: boolean
   /** Driven by automation (navigator.webdriver): tests and link previews don't get nagged. */
   automated: boolean
 }
@@ -22,7 +24,7 @@ export function isIos(userAgent: string, maxTouchPoints: number): boolean {
 
 /** The hint to show, or null when Iskra is already an app here (or this isn't a phone or tablet). */
 export function installHintKind(env: HintEnv): InstallHintKind | null {
-  if (env.desktopApp || env.automated || env.standalone || env.referrer.startsWith('android-app://')) return null
+  if (env.desktopApp || env.nativeApp || env.automated || env.standalone || env.referrer.startsWith('android-app://')) return null
   if (isIos(env.userAgent, env.maxTouchPoints)) return 'ios'
   if (/Android/i.test(env.userAgent)) return 'android'
   return null
