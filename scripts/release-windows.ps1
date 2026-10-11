@@ -3,7 +3,7 @@
 # uploaded to the GitHub release, then starts the Release finalize workflow.
 #
 #   .\scripts\release-windows.ps1 2.0.0-alpha.10
-#   .\scripts\release-windows.ps1 2.0.0-alpha.10 -SkipBuild     # upload files already in desktop\release and android\release
+#   .\scripts\release-windows.ps1 2.0.0-alpha.10 -SkipBuild     # upload files already in desktop\release and mobile\release
 #   .\scripts\release-windows.ps1 2.0.0-alpha.10 -NoFinalize    # upload only; start finalize yourself later
 #
 # Run it from the release commit (the vX tag), with SimplySign Desktop logged in. It never prints secrets.
@@ -97,7 +97,7 @@ try {
   $portable = "desktop\release\Iskra-Portable-$Version.exe"
   $server = 'desktop\build\server-win-x64\iskra-server.exe'
   $zip = "desktop\release\iskra-server-$Version-win-x64.zip"
-  $apk = "android\release\Iskra-$Version.apk"
+  $apk = "mobile\release\Iskra-$Version.apk"
 
   Step 'Checking signatures'
   foreach ($f in $setup, $portable, $server) {
@@ -115,10 +115,10 @@ try {
     Compress-Archive -Path 'desktop\build\server-win-x64\*' -DestinationPath $zip
     Write-Host "Built $zip"
 
-    Step 'Building the Android APK'
+    Step 'Building the Android APK (the Capacitor app, signed with the release key)'
     Remove-Item $apk -ErrorAction SilentlyContinue
-    & .\android\build.ps1 -ApkOnly
-    if (-not (Test-Path $apk)) { Stop-Release "android\build.ps1 didn't produce $apk (see its output above)." }
+    & .\mobile\scripts\build-android.ps1 -ApkOnly
+    if (-not (Test-Path $apk)) { Stop-Release "mobile\scripts\build-android.ps1 didn't produce $apk (see its output above)." }
   }
 
   # ── Upload ──

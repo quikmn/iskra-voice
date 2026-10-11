@@ -106,3 +106,43 @@ jobs:
         with:
           node-version: '24'
       - run: npm test
+
+  # The push relay (relay/, a Cloudflare Worker): unit tests and types.
+  relay:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: relay
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: relay/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+
+  # The Android app (mobile/android): unit tests (push decryption, payloads) and an unsigned release build.
+  # Release APKs are signed on the owner's PC (mobile/scripts/build-android.ps1); the key never comes to CI.
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            mobile/package-lock.json
+      - run: npm ci && npm run build
+        working-directory: client
+      - run: npm ci && npx cap sync android
+        working-directory: mobile
+      - name: Gradle
+        working-directory: mobile/android
+        run: |
+          export JAVA_HOME="$JAVA_HOME_21_X64"
+          ./gradlew testReleaseUnitTest assembleRelease --no-daemon --console=plain
