@@ -1,0 +1,101 @@
+/* ── Trust and safety: terms, reports, the reports queue, deleting an account ── */
+
+/* Terms on the first-run screen and in the "terms changed" dialog. */
+.terms-agreement {
+  display: grid; gap: 10px; margin: 0 0 18px; padding: 14px 16px; border-radius: 12px;
+  background: var(--bg); border: 1px solid var(--border); font-size: 14px;
+}
+.terms-summary ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; color: var(--text-2); }
+.terms-summary p { margin: 6px 0 0; }
+.terms-links a { color: var(--accent-2); }
+.terms-first { display: grid; gap: 4px; }
+.terms-update { max-width: 460px; }
+.choice:disabled { opacity: 0.5; cursor: not-allowed; }
+.choice:disabled:hover { border-color: var(--border); }
+.account-deleted-note {
+  margin: 0 0 16px; padding: 10px 12px; border-radius: var(--radius); font-size: 14px;
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--text-2);
+}
+
+/* The report dialog. */
+.report-modal .modal-body { display: grid; gap: 14px; }
+.report-quote {
+  display: grid; gap: 4px; margin: 0; padding: 10px 12px; border-left: 3px solid var(--accent); border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--surface-2); font-size: 14px; overflow-wrap: anywhere; white-space: pre-wrap; max-height: 160px; overflow: auto;
+}
+.report-lead { margin: 0; }
+.report-reasons { border: 0; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; min-width: 0; }
+.report-reasons legend { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.report-reason {
+  display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius);
+  cursor: pointer; line-height: 1.3;
+}
+.report-reason input { margin: 2px 0 0; flex: none; width: 16px; height: 16px; padding: 0; }
+.report-reason > span { min-width: 0; }
+.report-reason span { display: grid; gap: 2px; }
+.report-reason small { font-size: 12px; }
+.report-reason.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.report-share { display: grid; gap: 8px; }
+.report-share p { margin: 0; }
+.report-share-list {
+  list-style: none; margin: 0; padding: 0; max-height: 240px; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius);
+}
+.report-share-list li { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.report-share-list li:last-child { border-bottom: 0; }
+.report-share-list .checkbox input, .report-consent input, .delete-messages input { width: 16px; height: 16px; padding: 0; }
+.report-share-list .checkbox > span { display: grid; gap: 2px; min-width: 0; }
+.report-share-text { overflow-wrap: anywhere; white-space: pre-wrap; font-size: 14px; }
+.report-consent { padding: 10px 12px; border-radius: var(--radius); background: var(--warning-bg); font-size: 14px; }
+.report-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 4px; }
+.report-sent { display: grid; gap: 6px; }
+.report-sent p { margin: 0; color: var(--text-2); }
+.report-team { margin-top: 10px; }
+
+/* The reports queue (Settings → This server → Reports). */
+.reports-button {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; margin-bottom: 6px; border: 0; border-radius: var(--radius);
+  background: color-mix(in srgb, var(--danger-solid) 14%, transparent); color: var(--text); font-weight: 600; text-align: left;
+}
+.reports-button:hover { background: color-mix(in srgb, var(--danger-solid) 22%, transparent); }
+.reports-button span:first-of-type { flex: 1; }
+.reports-badge {
+  min-width: 20px; padding: 1px 6px; border-radius: 999px; background: var(--danger-solid); color: #fff; font-size: 12px; text-align: center;
+}
+.report-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.report-card { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); min-width: 0; }
+.report-card.resolved { opacity: 0.85; }
+.report-head { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.report-head > div { display: grid; min-width: 0; }
+.report-head .muted { font-size: 13px; }
+.report-body { display: grid; gap: 6px; }
+.report-meta { margin: 0; font-size: 13px; }
+.report-files { display: flex; flex-wrap: wrap; gap: 8px; }
+.report-files a { color: var(--accent-2); }
+.report-shared { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.report-shared li { display: grid; gap: 2px; padding: 8px 10px; background: var(--bg); border-radius: var(--radius); overflow-wrap: anywhere; white-space: pre-wrap; }
+.report-note { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+.report-resolution { margin: 0; font-size: 14px; color: var(--text-2); }
+.report-act { display: grid; gap: 8px; }
+.report-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+.report-confirm p { margin: 0 0 8px; font-size: 14px; }
+.report-note-input { width: 100%; }
+
+/* Deleting an account; About & legal. */
+.delete-account-list { margin: 0 0 14px; padding-left: 18px; display: grid; gap: 4px; color: var(--text-2); }
+.delete-owned { display: grid; gap: 10px; padding: 12px 14px; margin-bottom: 14px; border-radius: var(--radius); background: var(--danger-bg); }
+.delete-owned p { margin: 0; }
+.delete-owned-server { display: grid; gap: 6px; padding-top: 8px; border-top: 1px solid var(--border); }
+.delete-owned-server select { flex: 1; min-width: 0; }
+.delete-unreachable { padding: 10px 12px; border-radius: var(--radius); background: var(--warning-bg); font-size: 14px; }
+.delete-messages { margin: 0 0 14px; }
+.delete-messages > span { display: grid; gap: 2px; }
+.legal-links { margin: 0 0 14px; padding-left: 18px; display: grid; gap: 6px; }
+.legal-links a { color: var(--accent-2); }
+.about-safety { margin-top: 18px; }
+@media (max-width: 760px) {
+  .report-reasons { grid-template-columns: 1fr; }
+  .report-actions .button { flex: 1; }
+}
+.more-menu button.danger { color: var(--red); }
+/* The first-run card grew with the terms: let short screens scroll it instead of cutting it off. */
+.onboarding { overflow-y: auto; place-items: safe center; }

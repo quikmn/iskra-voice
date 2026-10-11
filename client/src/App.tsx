@@ -11,6 +11,7 @@ import { startTitleBadge } from './state/notify'
 import { startPush } from './state/push'
 import { startPresenceWatch } from './state/presence'
 import './state/moves'
+import './state/accountDeletion'
 import { startDesktopLinks } from './state/desktopShell'
 import { ScreenPicker } from './ui/ScreenPicker'
 import { Spinner } from './ui/bits'
@@ -21,6 +22,8 @@ import { UpdateToast } from './ui/UpdateToast'
 import { InstallHint } from './ui/InstallHint'
 import { LockScreen, NewKeyDialog, RetiredScreen } from './ui/keys/KeyScreens'
 import { useKeys } from './state/keys'
+import { TermsUpdateDialog } from './ui/safety/Terms'
+import { ReportLayer } from './ui/safety/ReportDialog'
 
 /** Picks up "#/join/..." invite links and "#/link/..." device links, then clears them from the address bar. */
 function readInviteFromHash(): void {
@@ -96,6 +99,8 @@ export function App() {
       <ScreenPicker />
       <UpdateToast />
       <InstallHint signedIn />
+      <ReportLayer />
+      <TermsUpdateDialog />
     </>
   )
 }

@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test, type FrameLocator, type Page } from '@playwright/test'
-import { createInviteLink, hasLiveKit, joinVia, SHOTS, startServer, type TestServer } from './helpers'
+import { agreeToTerms, createInviteLink, hasLiveKit, joinVia, SHOTS, startServer, type TestServer } from './helpers'
 
 test.skip(process.env.ISKRA_E2E_NETWORK !== '1', 'talks to YouTube: set ISKRA_E2E_NETWORK=1')
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
@@ -92,6 +92,7 @@ test('a YouTube watch party plays in the desktop app (app:// origin)', async () 
   try {
     const page = await app.firstWindow()
     expect(page.url()).toMatch(/^app:\/\/iskra\//)
+    await agreeToTerms(page)
     await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
     await page.getByLabel('Your name').fill('Desk')
     await page.getByRole('button', { name: 'Continue' }).click()

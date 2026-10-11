@@ -106,6 +106,7 @@ export const AUDIT_ACTIONS = [
   'invite.create', 'invite.revoke', 'webhook.create', 'webhook.update', 'webhook.regenerate', 'webhook.delete', 'bot.invite',
   'emoji.create', 'emoji.rename', 'emoji.delete', 'sound.create', 'sound.update', 'sound.delete',
   'profile.page.remove', 'server.pages', 'server.internet', 'limits.update', 'automod.block', 'automod.update',
+  'report.resolve', 'owner.transfer',
 ] as const
 
 export type AuditFilter = (typeof AUDIT_ACTIONS)[number]
@@ -202,6 +203,11 @@ export function auditText(e: AuditEntry): string {
     case 'server.internet': return t(d.enabled ? 'moderation.audit.internetOn' : 'moderation.audit.internetOff', { actor })
     case 'limits.update': return t('moderation.audit.limits', { actor })
     case 'automod.update': return t(d.enabled ? 'moderation.audit.automodUpdate' : 'moderation.audit.automodOff', { actor })
+    case 'report.resolve': {
+      const outcome = ['dismissed', 'deleted', 'timeout', 'kick', 'ban', 'other'].includes(str(d.outcome)) ? str(d.outcome) as 'other' : 'other'
+      return t('moderation.audit.reportResolve', { actor, target, outcome: t(`safety.outcomes.${outcome}`) })
+    }
+    case 'owner.transfer': return t('moderation.audit.ownerTransfer', { actor, target })
     case 'automod.block': {
       const kind = AUTOMOD_WHAT.find((w) => w === str(d.what)) ?? 'message'
       const vars = {

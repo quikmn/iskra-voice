@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { createInviteLink, joinVia, openSettings, SHOTS, startServer, type TestServer } from './helpers'
+import { agreeToTerms, createInviteLink, joinVia, openSettings, SHOTS, startServer, type TestServer } from './helpers'
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -37,6 +37,7 @@ test('signing out of the only device warns first, can leave the servers, and lan
   await expect(host.locator('.member-list')).not.toContainText('Temp')
 
   // "I already use Iskra" leads to linking or the recovery key.
+  await agreeToTerms(temp)
   await temp.getByRole('button', { name: /I already use Iskra/ }).click()
   await expect(temp.getByRole('button', { name: /Link with my other device/ })).toBeVisible()
   await expect(temp.getByRole('button', { name: /Use my recovery key/ })).toBeVisible()
@@ -51,6 +52,7 @@ test('an invite link also offers "I already use Iskra" before making an account'
   await expect(page.getByText("You've been invited")).toBeVisible()
   await expect(page.getByRole('button', { name: /I already use Iskra on another device/ })).toBeVisible()
   await page.screenshot({ path: join(SHOTS, 'onboarding-choice-invite.png') })
+  await agreeToTerms(page)
   await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
   await page.getByLabel('Your name').fill('Newcomer')
   await page.getByRole('button', { name: 'Join' }).click()

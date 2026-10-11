@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { settingsSections } from './sections'
 
 const ids = (role: Parameters<typeof settingsSections>[0]) => settingsSections(role).map((s) => s.id)
-const account = ['profile', 'appearance', 'devices', 'recovery', 'security', 'notifications', 'voice', 'blocked']
+const account = ['profile', 'appearance', 'devices', 'recovery', 'security', 'notifications', 'voice', 'blocked', 'account', 'about']
 
 describe('settings sections', () => {
   it('shows only your account without a server', () => {
@@ -13,18 +13,20 @@ describe('settings sections', () => {
     expect(ids('guest')).toEqual([...account, 'overview'])
     expect(ids('member')).toEqual([...account, 'overview'])
     expect(ids('trusted')).toEqual([...account, 'overview', 'sounds'])
-    expect(ids('admin')).toEqual([...account, 'overview', 'roles', 'automod', 'emoji', 'sounds', 'integrations', 'pages', 'internet', 'audit', 'rules'])
+    expect(ids('admin')).toEqual([...account, 'overview', 'reports', 'roles', 'automod', 'emoji', 'sounds', 'integrations', 'pages', 'internet', 'audit', 'rules'])
     expect(ids('owner')).toEqual([...ids('admin'), 'limits', 'backup', 'import'])
   })
 
   it('opens sections for the permissions a custom role gives', () => {
     expect(settingsSections('member', (p) => p === 'viewAuditLog' || p === 'manageRoles').map((s) => s.id))
       .toEqual([...account, 'overview', 'roles', 'audit'])
+    expect(settingsSections('member', (p) => p === 'kickMembers').map((s) => s.id)).toEqual([...account, 'overview', 'reports'])
   })
 
   it('shows Desktop app only in the desktop app', () => {
-    expect(settingsSections(null, undefined, true).map((s) => s.id)).toEqual([...account, 'desktop'])
-    expect(settingsSections('admin', undefined, true).map((s) => s.id).indexOf('desktop')).toBe(account.length)
+    const withDesktop = [...account.slice(0, 8), 'desktop', ...account.slice(8)]
+    expect(settingsSections(null, undefined, true).map((s) => s.id)).toEqual(withDesktop)
+    expect(settingsSections('admin', undefined, true).map((s) => s.id).indexOf('desktop')).toBe(8)
   })
 
   it('groups account before server', () => {

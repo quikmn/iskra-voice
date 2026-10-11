@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { devices, expect, test, type Page } from '@playwright/test'
-import { createInviteLink, joinVia, openSettings, SHOTS, startServer, type TestServer } from './helpers'
+import { agreeToTerms, createInviteLink, joinVia, openSettings, SHOTS, startServer, type TestServer } from './helpers'
 
 let server: TestServer
 test.beforeEach(async () => {
@@ -67,6 +67,7 @@ test('a linked device brings DM and group history; groups on a removed server ar
     await route.continue()
   })
   await phone.goto('/')
+  await agreeToTerms(phone)
   await phone.getByRole('button', { name: /I already use Iskra/ }).click()
   await phone.getByRole('button', { name: /Link with my other device/ }).click()
   await phone.getByLabel('Or type the code').fill(code)

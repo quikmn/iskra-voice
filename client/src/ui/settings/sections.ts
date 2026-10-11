@@ -3,8 +3,8 @@ import { roleRank, type Permission, type Role } from '../../core/protocol'
 import { t } from '../../i18n'
 
 export type SectionId =
-  | 'profile' | 'appearance' | 'devices' | 'recovery' | 'security' | 'notifications' | 'voice' | 'blocked' | 'desktop'
-  | 'overview' | 'roles' | 'automod' | 'emoji' | 'sounds' | 'integrations' | 'pages' | 'internet' | 'audit' | 'rules' | 'limits' | 'backup' | 'import'
+  | 'profile' | 'appearance' | 'devices' | 'recovery' | 'security' | 'notifications' | 'voice' | 'blocked' | 'desktop' | 'account' | 'about'
+  | 'overview' | 'reports' | 'roles' | 'automod' | 'emoji' | 'sounds' | 'integrations' | 'pages' | 'internet' | 'audit' | 'rules' | 'limits' | 'backup' | 'import'
 
 export interface SectionInfo {
   id: SectionId
@@ -24,11 +24,15 @@ const ACCOUNT: SectionEntry[] = [
   { id: 'voice', group: 'account' },
   { id: 'blocked', group: 'account' },
   { id: 'desktop', group: 'account' },
+  { id: 'account', group: 'account' },
+  { id: 'about', group: 'account' },
 ]
 
 /** Server sections: the lowest level that may open each, or a permission from a custom role that also opens it. */
-const SERVER: (SectionEntry & { min: Role; perm?: Permission })[] = [
+const SERVER: (SectionEntry & { min: Role; perm?: Permission; perms?: Permission[] })[] = [
   { id: 'overview', group: 'server', min: 'guest' },
+  // Moderators: any of the permissions that act on reports.
+  { id: 'reports', group: 'server', min: 'admin', perms: ['manageMessages', 'timeoutMembers', 'kickMembers', 'banMembers'] },
   { id: 'roles', group: 'server', min: 'admin', perm: 'manageRoles' },
   { id: 'automod', group: 'server', min: 'admin', perm: 'manageAutoMod' },
   { id: 'emoji', group: 'server', min: 'admin', perm: 'manageExpressions' },
@@ -50,6 +54,6 @@ export function settingsSections(role: Role | null | undefined, can: (perm: Perm
   if (!role) return account.map(labelled)
   return [
     ...account,
-    ...SERVER.filter((s) => roleRank(role) >= roleRank(s.min) || (s.perm && can(s.perm))),
+    ...SERVER.filter((s) => roleRank(role) >= roleRank(s.min) || (s.perm && can(s.perm)) || s.perms?.some(can)),
   ].map(labelled)
 }

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { joinVia, send, startServer, type TestServer } from './helpers'
+import { agreeToTerms, joinVia, send, startServer, type TestServer } from './helpers'
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -27,6 +27,7 @@ test('a recovery key brings your account back on a fresh device, owner role incl
   // A brand-new browser (nothing stored) restores from the key.
   const second = await (await browser.newContext()).newPage()
   await second.goto(ownerLink) // any link to the server works once you're a member
+  await agreeToTerms(second)
   await second.getByRole('button', { name: /I already use Iskra/ }).click()
   await second.getByRole('button', { name: /Use my recovery key/ }).click()
   await second.getByLabel('Recovery key').fill(` ${recoveryKey.toLowerCase().replace(/-/g, ' ')} `)

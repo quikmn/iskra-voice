@@ -16,6 +16,8 @@ import { moveToChannel, serverMute, setMemberRoles, useServerRoles } from '../..
 import { connectionFor, useApp, type ServerState } from '../../state/store'
 import { closeUserMenu, useUserMenu, type UserMenuTarget } from '../../state/userMenu'
 import { useVoice } from '../../state/voice'
+import { openReport } from '../../state/reports'
+import { transferOwnership } from '../../state/accountDeletion'
 import { MenuItem, MenuTitle, OrgMenu } from '../organize/OrgMenu'
 import { VolumeControls } from '../VolumeMenu'
 import '../organize/organize.css'
@@ -27,7 +29,7 @@ export function UserMenuLayer() {
   return <UserMenu key={`${target.accountKey}:${target.serverKey}`} target={target} />
 }
 
-type View = 'main' | 'block' | 'remove' | 'kick' | 'ban' | 'timeout' | 'move' | 'roles'
+type View = 'main' | 'block' | 'remove' | 'kick' | 'ban' | 'timeout' | 'move' | 'roles' | 'transfer'
 
 /** Whether you hear this person right now: a DM call, a group call or a voice channel you're both in. */
 function useHears(accountKey: string, server: ServerState | undefined): boolean {
@@ -71,6 +73,7 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
   const moveTargets = server && participant && (self || below) && has(me, roles, 'moveMembers')
     ? server.channels.filter((c) => c.kind === 'voice' && c.id !== Number(voiceChannel)) : []
   const canCall = !self && !blocked && callServers(accountKey).length > 0
+  const canTransfer = !!member && !self && !member.bot && me?.role === 'owner'
   const canMessage = !self && (sharedServers(accountKey).length > 0 || !!useDms.getState().conversations[accountKey])
 
   const run = (action: () => unknown) => async () => {
@@ -87,12 +90,13 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
   }
 
   let body
-  if (view === 'block' || view === 'remove' || view === 'kick' || view === 'ban') {
+  if (view === 'block' || view === 'remove' || view === 'kick' || view === 'ban' || view === 'transfer') {
     const confirm = {
       block: { text: t('moderation.blocked.confirm', { name }), button: t('moderation.blocked.block'), action: () => blockPerson(accountKey) },
       remove: { text: t('friends.removeConfirm', { name }), button: t('friends.removeName'), action: () => removeFriend(accountKey) },
       kick: { text: t('settings.member.kickConfirm', { name }), button: t('settings.member.kick'), action: () => connectionFor(server!.key)?.request('member.kick', { accountKey }) },
       ban: { text: t('settings.member.banConfirm', { name }), button: t('settings.member.ban'), action: () => connectionFor(server!.key)?.request('member.ban', { accountKey }) },
+      transfer: { text: t('safety.transfer.menuConfirm', { name, server: server?.name ?? '' }), button: t('safety.transfer.button'), action: () => transferOwnership(server!.key, accountKey) },
     }[view]
     body = (
       <div className="user-menu-confirm">
@@ -183,7 +187,9 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
             {canBan && <MenuItem danger onClick={() => setView('ban')}>{t('friends.menu.ban', { name })}</MenuItem>}
           </>
         )}
+        {canTransfer && <MenuItem danger onClick={() => setView('transfer')}>{t('safety.transfer.menu')}</MenuItem>}
         <div className="org-sep" />
+        {!self && <MenuItem danger onClick={go(() => openReport({ kind: 'person', accountKey, serverKey: target.serverKey }))}>{t('safety.report.menuPerson')}</MenuItem>}
         {!self && (blocked
           ? <MenuItem onClick={run(() => setBlocked(accountKey, false))}>{t('moderation.blocked.unblock')}</MenuItem>
           : <MenuItem danger onClick={() => setView('block')}>{t('moderation.blocked.block')}</MenuItem>)}

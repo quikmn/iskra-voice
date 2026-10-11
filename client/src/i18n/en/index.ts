@@ -23,6 +23,7 @@ import { watch } from './watch'
 import { expressions } from './expressions'
 import { friends } from './friends'
 import { account } from './account'
+import { safety } from './safety'
 
 export const en = {
   common,
@@ -49,4 +50,5 @@ export const en = {
   expressions,
   friends,
   account,
+  safety,
 } as const

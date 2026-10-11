@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
-import { createInviteLink, joinVia, openSettings, SHOTS, startServer, type TestServer } from './helpers'
+import { agreeToTerms, createInviteLink, joinVia, openSettings, SHOTS, startServer, type TestServer } from './helpers'
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -29,6 +29,7 @@ test('someone with a stolen key replaces it first; the owner claims it back and 
   const leaked = await recoveryKeyOf(friend)
   const thief = await (await browser.newContext()).newPage()
   await thief.goto(invite)
+  await agreeToTerms(thief)
   await thief.getByRole('button', { name: /I already use Iskra/ }).click()
   await thief.getByRole('button', { name: /Use my recovery key/ }).click()
   await thief.getByLabel('Recovery key').fill(leaked)

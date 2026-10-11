@@ -16,6 +16,7 @@ import { useVoice } from '../state/voice'
 import type { SectionId } from './settings/sections'
 import { EventsButton } from './events/EventsLayer'
 import { RulesButton } from './rules/Rules'
+import { ReportsButton } from './safety/ReportsSection'
 import { errorMessage } from '../i18n/errors'
 import './audio.css'
 
@@ -43,6 +44,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
       </header>
 
       <div className="channel-list">
+        <ReportsButton server={server} onOpen={() => openSettings('reports')} />
         <RulesButton server={server} onNavigate={onNavigate} />
         <EventsButton server={server} onNavigate={onNavigate} />
         {canInvite && (

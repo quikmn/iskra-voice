@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
-import { joinVia, SHOTS, startServer, type TestServer } from './helpers'
+import { agreeToTerms, joinVia, SHOTS, startServer, type TestServer } from './helpers'
 
 // Full Chromium (new headless): the headless shell always reports notifications as denied.
 test.use({ channel: 'chromium' })
@@ -156,6 +156,7 @@ test('on iPhone, Safari explains Add to Home Screen first', async ({ browser }) 
   })
   const page = await context.newPage()
   await page.goto('/')
+  await agreeToTerms(page)
   await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
   await page.getByLabel('Your name').fill('Phone')
   await page.getByRole('button', { name: 'Continue' }).click()

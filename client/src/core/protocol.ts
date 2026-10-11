@@ -1279,3 +1279,60 @@ export interface Requests {
   'automod.get': [Record<string, never>, { automod: AutoModConfig }]
   'automod.update': [{ automod: AutoModConfig }, { automod: AutoModConfig }]
 }
+
+// ── reports, account deletion and owner transfer ──
+// See "Reports, deleting an account and handing over a server" in PROTOCOL.md.
+
+export type ReportReason = 'spam' | 'harassment' | 'hate' | 'sexual' | 'violence' | 'self_harm' | 'illegal' | 'other'
+export type ReportOutcome = 'dismissed' | 'deleted' | 'timeout' | 'kick' | 'ban' | 'other'
+
+/** A message from an encrypted conversation that the reporter chose to share (the server can't check it). */
+export interface SharedMessage {
+  author: string
+  text: string
+  at: number
+}
+
+export interface Report {
+  id: number
+  at: number
+  kind: 'message' | 'member' | 'dm'
+  reason: ReportReason
+  note: string | null
+  status: 'open' | 'resolved'
+  /** Null once the reporter deleted their account. */
+  reporter: string | null
+  reporterName: string
+  target: string
+  targetName: string
+  /** A copy of the reported message as it was when reported. */
+  message: { id: number; channelId: number; channelName: string; text: string; attachments: FileInfo[]; createdAt: number; deleted: boolean } | null
+  messages: SharedMessage[] | null
+  resolution: { by: string; byName: string; at: number; outcome: ReportOutcome; note: string | null } | null
+}
+
+/** Signed by the account key: "iskra/account-delete/v1" 0x00 accountKey(32) u64be(deletedAt) u8(messages). */
+export interface AccountDeletion {
+  accountKey: string
+  deletedAt: number
+  messages: boolean
+  sig: string
+}
+
+export interface Events {
+  'report.count': { open: number }
+  'account.deleted': { deletion: AccountDeletion }
+  'member.deleted': { accountKey: string; messages: boolean }
+}
+
+export interface Requests {
+  'report.create': [
+    { reason: ReportReason; note?: string; messageId?: number; accountKey?: string; messages?: SharedMessage[] },
+    { id: number; already: boolean },
+  ]
+  'report.list': [{ status?: 'open' | 'resolved'; before?: number; limit?: number }, { reports: Report[]; hasMore: boolean }]
+  'report.resolve': [{ id: number; outcome: ReportOutcome; note?: string }, { report: Report }]
+  'report.count': [Record<string, never>, { open: number }]
+  'account.delete': [{ deletion: AccountDeletion }, Record<string, never>]
+  'owner.transfer': [{ accountKey: string }, Record<string, never>]
+}

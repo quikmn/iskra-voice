@@ -5,7 +5,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
 import { _electron as electron, expect, test } from '@playwright/test'
-import { SHOTS, startServer, type TestServer } from './helpers'
+import { agreeToTerms, SHOTS, startServer, type TestServer } from './helpers'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DESKTOP = resolve(HERE, '../../desktop')
@@ -84,6 +84,8 @@ test('the desktop app runs the web app on app:// and can join a server', async (
       ((globalThis as { iskraTrayMenu?: { label: string; action: string | null; enabled: boolean }[] }).iskraTrayMenu ?? [])
         .filter((i) => i.action).map((i) => `${i.label}${i.enabled ? '' : ' (off)'}`))
     expect(await trayLabels()).toEqual(['Open Iskra', 'About Iskra', 'Check for updates (off)', 'Quit Iskra'])
+
+    await agreeToTerms(page)
 
     await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
     await page.getByLabel('Your name').fill('Desk')
@@ -177,6 +179,7 @@ test('creating a server from the desktop app makes you its owner', async () => {
   })
   try {
     const page = await app.firstWindow()
+    await agreeToTerms(page)
     await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
     await page.getByLabel('Your name').fill('Host')
     await page.getByRole('button', { name: 'Continue' }).click()
@@ -213,6 +216,7 @@ test('Desktop app settings, the unread badge, and iskra:// invite links', async 
   try {
     const page = await app.firstWindow()
     await expect(page.getByText("You've been invited")).toBeVisible()
+    await agreeToTerms(page)
     await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
     await page.getByLabel('Your name').fill('Linked')
     await page.getByRole('button', { name: 'Join' }).click()
@@ -302,6 +306,7 @@ test('restoring a server from a backup in the desktop app', async () => {
       dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [file] })) as typeof dialog.showOpenDialog
     }, saved)
     const page = await app.firstWindow()
+    await agreeToTerms(page)
     await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
     await page.getByLabel('Your name').fill('Host')
     await page.getByRole('button', { name: 'Continue' }).click()
