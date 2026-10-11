@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { roleRank, type FileInfo, type Member } from '../core/protocol'
 import {
   activeChannelId, connectionFor, discardFailed, loadHistory, notifyTyping, retryAll, retryFailed, sendMessage, uploadFile, useApp,
@@ -33,6 +33,9 @@ import { VoiceMessage, VoiceRecordButton } from './chat/voice/VoiceMessages'
 import { voiceRecordingSupported, type Recording } from './chat/voice/recorder'
 import { BlockGate, ChannelSettingsButton, SlowmodeChip, TimedOutBar } from './moderation/Moderation'
 import { useSlowmodeWait, useTimedOut } from './moderation/hooks'
+import { ForwardDialog, ForwardedLine, ForwardIcon } from './organize/ForwardDialog'
+import { UnreadBar, UnreadDivider } from './organize/UnreadBits'
+import { useUnreadMarker } from '../state/unread'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -135,6 +138,7 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
   const stickToBottom = useRef(true)
   const restore = useRef<{ height: number; top: number } | null>(null)
   const [editing, setEditing] = useState<number | null>(null)
+  const firstUnread = useUnreadMarker(server.key, channelId)?.firstId ?? null
 
   // Up-arrow in an empty composer edits your last message.
   useEffect(() => {
@@ -191,6 +195,7 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
   return (
     <>
     <div className="messages" ref={scroller} onScroll={onScroll}>
+      {!thread && <UnreadBar server={server} channelId={channelId} scroller={scroller} onJump={() => (stickToBottom.current = false)} />}
       {!hasMore && (header ?? (
         <div className="channel-start">
           <span className="channel-start-icon" aria-hidden><Hash size={32} /></span>
@@ -201,15 +206,18 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
       {withPinNotes(rendered, notes).map(({ message, grouped, note }) => note ? (
         <PinNoteRow key={`pin-${note.messageId}-${note.at}`} server={server} channelId={channelId} note={note} />
       ) : (
-        <BlockGate key={message.tempId ?? message.id} author={message.author}>
-          <MessageRow
-            server={server}
-            message={message}
-            grouped={grouped}
-            editing={editing === message.id}
-            onEdit={(on) => setEditing(on ? message.id : null)}
-          />
-        </BlockGate>
+        <Fragment key={message.tempId ?? message.id}>
+          {!thread && message.id === firstUnread && !message.tempId && <UnreadDivider />}
+          <BlockGate author={message.author}>
+            <MessageRow
+              server={server}
+              message={message}
+              grouped={grouped && message.id !== firstUnread}
+              editing={editing === message.id}
+              onEdit={(on) => setEditing(on ? message.id : null)}
+            />
+          </BlockGate>
+        </Fragment>
       ))}
     </div>
     {detached && (
@@ -242,6 +250,8 @@ function MessageRow({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [picking, setPicking] = useState(false)
   const [sheet, setSheet] = useState(false)
+  const [forwarding, setForwarding] = useState(false)
+  const canForward = !message.tempId && !message.poll && (!!message.text || message.attachments.length > 0)
   const canEdit = mine && !!message.text && !message.poll
   const longPress = useLongPress(() => setSheet(true), !message.tempId && !editing)
   const [error, setError] = useState<string | null>(null)
@@ -292,6 +302,13 @@ function MessageRow({
             {message.pinned && <PinnedMark />}
           </div>
         )}
+        {message.forwarded && (
+          <ForwardedLine
+            label={message.forwarded.channelName ? `#${message.forwarded.channelName}` : null}
+            onOpen={message.forwarded.channelId && message.forwarded.messageId
+              ? () => void jumpToMessage(server.key, message.forwarded!.channelId!, message.forwarded!.messageId!) : undefined}
+          />
+        )}
         {editing ? (
           <EditBox server={server} message={message} onDone={() => onEdit(false)} />
         ) : (
@@ -332,6 +349,7 @@ function MessageRow({
               <button onClick={() => setPicking((p) => !p)} title="Add reaction" aria-label="Add reaction"><Smile size={15} /></button>
               <button onClick={() => setReply(server.key, message.channelId, message)} title="Reply" aria-label="Reply"><Reply size={15} /></button>
               <MessageMenuExtras server={server} message={message} />
+              {canForward && <button onClick={() => setForwarding(true)} title="Forward" aria-label="Forward"><ForwardIcon /></button>}
               {canEdit && <button onClick={() => onEdit(true)} title="Edit" aria-label="Edit"><Pencil size={15} /></button>}
               {canDelete && <button onClick={() => setConfirmDelete(true)} title="Delete" aria-label="Delete"><Trash size={15} /></button>}
             </>
@@ -340,8 +358,10 @@ function MessageRow({
         </div>
       )}
       {sheet && (
-        <MessageActionSheet server={server} message={message} canEdit={canEdit} canDelete={canDelete} onEdit={() => onEdit(true)} onClose={() => setSheet(false)} />
+        <MessageActionSheet server={server} message={message} canEdit={canEdit} canDelete={canDelete} onEdit={() => onEdit(true)} onClose={() => setSheet(false)}
+          onForward={canForward ? () => setForwarding(true) : undefined} />
       )}
+      {forwarding && <ForwardDialog server={server} message={message} onClose={() => setForwarding(false)} />}
     </div>
   )
 }

@@ -22,6 +22,8 @@ public static class OrganizeFeature
         router.Add("channel.move", MoveChannel);
         router.Add("member.nick", SetNick);
         NotifyFeature.Register(router);
+        ForwardFeature.Register(router);
+        PrefsFeature.Register(router);
     }
 
     public static object PublicCategory(Category c) => new { id = c.Id, name = c.Name, position = c.Position };

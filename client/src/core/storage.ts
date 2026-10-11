@@ -292,6 +292,7 @@ export interface StoredDm {
   call?: Record<string, unknown>
   /** A local notice ("safety number changed"), see state/dms.ts. */
   notice?: 'key-changed' | 'key-disputed'
+  forward?: import('./dm').DmForward
 }
 
 /** Decrypted DMs per conversation. Servers keep only envelopes, and old prekeys get deleted, so this is the history. */

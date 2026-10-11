@@ -339,7 +339,7 @@ function onEvent<K extends keyof Events>(key: string, type: K, body: Events[K]):
           unread: message.author === s.me?.accountKey || viewing
             ? s.unread
             : { ...s.unread, [message.channelId]: (s.unread[message.channelId] ?? 0) + 1 },
-          mentions: message.author === s.me?.accountKey || viewing || !s.me
+          mentions: message.author === s.me?.accountKey || viewing || !s.me || message.forwarded
             || !mentions(message.text, s.me.accountKey, canPingGroups(s.members[message.author]?.role, !!message.webhook))
             ? s.mentions
             : { ...s.mentions, [message.channelId]: (s.mentions[message.channelId] ?? 0) + 1 },

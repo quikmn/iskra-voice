@@ -7,6 +7,7 @@ import { useFocusTrap } from '../layers'
 import { EmojiPicker } from '../expressions/EmojiPicker'
 import { SmilePlus } from '../expressions/icons'
 import { Copy, Pencil, Reply, Trash } from '../icons'
+import { ForwardIcon } from '../organize/ForwardDialog'
 import { useEscapeLayer } from '../layers'
 import { plainText } from '../markdown'
 import { PinIcon, PinOffIcon, ThreadIcon } from './extraIcons'
@@ -14,13 +15,14 @@ import { QUICK_REACTIONS, setReply } from './helpers'
 import { NewThreadDialog } from './PinThreadBits'
 import { pinThreadAbilities } from './abilities'
 
-export function MessageActionSheet({ server, message, canEdit, canDelete, onEdit, onClose }: {
+export function MessageActionSheet({ server, message, canEdit, canDelete, onEdit, onClose, onForward }: {
   server: ServerState
   message: PendingMessage
   canEdit: boolean
   canDelete: boolean
   onEdit: () => void
   onClose: () => void
+  onForward?: () => void
 }) {
   const [view, setView] = useState<'menu' | 'emoji' | 'thread' | 'delete'>('menu')
   const [error, setError] = useState<string | null>(null)
@@ -71,6 +73,7 @@ export function MessageActionSheet({ server, message, canEdit, canDelete, onEdit
                   {message.pinned ? <><PinOffIcon /> Unpin message</> : <><PinIcon /> Pin message</>}
                 </button>
               )}
+              {onForward && <button role="menuitem" onClick={run(onForward)}><ForwardIcon /> Forward</button>}
               {canEdit && <button role="menuitem" onClick={run(onEdit)}><Pencil /> Edit message</button>}
               {text && <button role="menuitem" onClick={run(() => navigator.clipboard.writeText(text))}><Copy /> Copy text</button>}
               {canDelete && <button role="menuitem" className="danger" onClick={() => setView('delete')}><Trash /> Delete message</button>}

@@ -270,6 +270,7 @@ public sealed partial class Store : IDisposable
         ("groups-1", GroupsMigration),
         ("import-1", ImportMigration),
         ("keys-1", KeysMigration),
+        ("organize-2", Organize2Migration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

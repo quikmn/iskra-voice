@@ -138,7 +138,7 @@ onServerEvent((serverKey, type, body) => {
     const groupPings = canPingGroups(server.members[message.author]?.role, !!message.webhook)
     // Your notification level for the channel decides (all messages, only mentions, nothing; mutes quiet "all").
     if (isBlocked(useBlocks.getState().entries, message.author)) return
-    if (message.author === myKey || !shouldNotify(notifyFor(serverKey, message.channelId), mentions(message.text, myKey, groupPings))) return
+    if (message.author === myKey || !shouldNotify(notifyFor(serverKey, message.channelId), !message.forwarded && mentions(message.text, myKey, groupPings))) return
     const viewing = document.hasFocus() && state.activeServer === serverKey && activeChannelId(state) === message.channelId
     if (viewing || isViewingThread(serverKey, message.channelId)) return
     const author = message.webhook?.name ?? server.members[message.author]?.name ?? 'Someone'

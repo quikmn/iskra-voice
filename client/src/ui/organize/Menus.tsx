@@ -1,7 +1,8 @@
 // What you can do with a channel or a category: notifications and mutes for everyone, arranging for admins.
 import { useState } from 'react'
 import type { Category, Channel, NotifyLevel } from '../../core/protocol'
-import { patchServer, type ServerState } from '../../state/store'
+import type { ServerState } from '../../state/store'
+import { markChannelRead } from '../../state/unread'
 import {
   deleteCategory, moveCategory, moveChannel, muteFor, setNotifyLevel, toggleCollapsed, useCategories, useNotifyFor, useOrganize,
 } from '../../state/organize'
@@ -126,7 +127,7 @@ export function ChannelMenu({ server, channel, anchor, isAdmin, onEdit, onClose 
           <MenuTitle>{label}</MenuTitle>
           <div className="org-list" role="menu">
             {unread > 0 && (
-              <MenuItem onClick={run(() => patchServer(server.key, (s) => ({ unread: { ...s.unread, [channel.id]: 0 }, mentions: { ...s.mentions, [channel.id]: 0 } })))}>
+              <MenuItem onClick={run(() => markChannelRead(server.key, channel.id))}>
                 Mark as read
               </MenuItem>
             )}

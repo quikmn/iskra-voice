@@ -155,3 +155,49 @@ public sealed partial class Store
     public long SettingsChannelOf(long channelId) =>
         Convert.ToInt64(Scalar("SELECT COALESCE(parent_id, id) FROM channels WHERE id = $id;", ("$id", channelId)) ?? channelId);
 }
+
+public sealed record ForwardInfo(long SourceChannelId, long SourceMessageId, long SourceCreatedAt);
+
+/// <summary>Forwarded messages and per-account preferences (opaque, client-encrypted blobs).</summary>
+public sealed partial class Store
+{
+    private const string Organize2Migration = """
+        CREATE TABLE message_forwards (
+            message_id      INTEGER PRIMARY KEY REFERENCES messages(id) ON DELETE CASCADE,
+            source_channel  INTEGER NOT NULL,
+            source_message  INTEGER NOT NULL,
+            source_created  INTEGER NOT NULL
+        );
+        CREATE TABLE account_prefs (
+            account_key TEXT NOT NULL,
+            name        TEXT NOT NULL,
+            data        TEXT NOT NULL,
+            updated_at  INTEGER NOT NULL,
+            PRIMARY KEY (account_key, name)
+        );
+        CREATE TRIGGER organize_prefs_gone AFTER DELETE ON members BEGIN
+            DELETE FROM account_prefs WHERE account_key = old.account_key;
+        END;
+        """;
+
+    public void AddForward(long messageId, ForwardInfo info) =>
+        Exec("INSERT INTO message_forwards (message_id, source_channel, source_message, source_created) VALUES ($id, $ch, $msg, $at);",
+            ("$id", messageId), ("$ch", info.SourceChannelId), ("$msg", info.SourceMessageId), ("$at", info.SourceCreatedAt));
+
+    public ForwardInfo? GetForward(long messageId) =>
+        Query("SELECT source_channel, source_message, source_created FROM message_forwards WHERE message_id = $id;",
+            r => new ForwardInfo(r.GetInt64(0), r.GetInt64(1), r.GetInt64(2)), ("$id", messageId)).FirstOrDefault();
+
+    public (string Data, long UpdatedAt)? GetPref(string accountKey, string name) =>
+        Query("SELECT data, updated_at FROM account_prefs WHERE account_key = $key AND name = $name;",
+            r => ((string Data, long UpdatedAt)?)(r.GetString(0), r.GetInt64(1)), ("$key", accountKey), ("$name", name)).FirstOrDefault();
+
+    public int CountPrefs(string accountKey) =>
+        Convert.ToInt32(Scalar("SELECT COUNT(*) FROM account_prefs WHERE account_key = $key;", ("$key", accountKey)));
+
+    public void SetPref(string accountKey, string name, string data, long updatedAt) =>
+        Exec("""
+            INSERT INTO account_prefs (account_key, name, data, updated_at) VALUES ($key, $name, $data, $at)
+            ON CONFLICT(account_key, name) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at;
+            """, ("$key", accountKey), ("$name", name), ("$data", data), ("$at", updatedAt));
+}
