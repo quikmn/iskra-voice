@@ -24,6 +24,8 @@ import { expressions } from './expressions'
 import { friends } from './friends'
 import { account } from './account'
 import { safety } from './safety'
+import { docs } from './docs'
+import { catchup } from './catchup'
 
 export const en = {
   common,
@@ -51,4 +53,6 @@ export const en = {
   friends,
   account,
   safety,
+  docs,
+  catchup,
 } as const

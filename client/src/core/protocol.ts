@@ -14,7 +14,7 @@ export interface Member extends PublicProfile {
 export interface Channel {
   id: number
   name: string
-  kind: 'text' | 'voice' | 'forum' | 'stage'
+  kind: 'text' | 'voice' | 'forum' | 'stage' | 'docs'
   position: number
   readRole: Role
   writeRole: Role
@@ -133,7 +133,7 @@ export interface Requests {
   'chat.delete': [{ id: number }, Record<string, never>]
   'chat.history': [{ channelId: number; before?: number; after?: number; around?: number; limit?: number }, { messages: Message[]; hasMore: boolean; hasNewer?: boolean }]
   'chat.typing': [{ channelId: number }, Record<string, never>]
-  'channel.create': [{ name: string; kind?: 'text' | 'voice' | 'forum' | 'stage'; readRole?: Role; writeRole?: Role; slowmode?: number; categoryId?: number; userLimit?: number }, { channel: Channel }]
+  'channel.create': [{ name: string; kind?: 'text' | 'voice' | 'forum' | 'stage' | 'docs'; readRole?: Role; writeRole?: Role; slowmode?: number; categoryId?: number; userLimit?: number }, { channel: Channel }]
   'channel.update': [{ id: number; name?: string; readRole?: Role; writeRole?: Role; slowmode?: number; userLimit?: number }, { channel: Channel }]
   'channel.delete': [{ id: number }, Record<string, never>]
   'profile.update': [ProfileUpdate, { member: Member }]
@@ -1335,4 +1335,67 @@ export interface Requests {
   'report.count': [Record<string, never>, { open: number }]
   'account.delete': [{ deletion: AccountDeletion }, Record<string, never>]
   'owner.transfer': [{ accountKey: string }, Record<string, never>]
+}
+
+// ── docs channels ──
+// See "Docs channels" in PROTOCOL.md.
+
+export interface DocPage {
+  id: number
+  channelId: number
+  parentId: number | null
+  title: string
+  position: number
+  version: number
+  createdBy: string
+  createdAt: number
+  updatedBy: string
+  updatedAt: number
+  /** Text size in UTF-8 bytes. */
+  size: number
+  /** Only in docs.page.get / create / save / restore results. */
+  text?: string
+}
+
+export interface DocRevision {
+  version: number
+  title: string
+  author: string
+  createdAt: number
+  restoredFrom: number | null
+  size: number
+  text?: string
+}
+
+/** The server's "Start here" page, as you see it. */
+export interface DocHome {
+  pageId: number
+  channelId: number
+  title: string
+}
+
+export interface DocSearchResult {
+  page: DocPage
+  snippet: string
+  matches: [number, number][]
+}
+
+export interface Events {
+  'docs.page.updated': { page: DocPage }
+  'docs.page.deleted': { channelId: number; ids: number[] }
+  'docs.home': { home: DocHome | null }
+}
+
+export interface Requests {
+  'docs.pages': [{ channelId: number }, { pages: DocPage[]; home: number | null }]
+  'docs.page.get': [{ id: number; version?: number }, { page: DocPage; revision?: DocRevision }]
+  'docs.page.create': [{ channelId: number; title: string; parentId?: number | null; text?: string; file?: string }, { page: DocPage }]
+  'docs.page.save': [{ id: number; baseVersion: number; title?: string; text?: string; file?: string }, { page: DocPage }]
+  'docs.page.move': [{ id: number; parentId?: number | null; before?: number | null }, { page: DocPage }]
+  'docs.page.delete': [{ id: number }, Record<string, never>]
+  'docs.page.history': [{ id: number }, { page: DocPage; revisions: DocRevision[] }]
+  'docs.page.restore': [{ id: number; version: number; baseVersion: number }, { page: DocPage }]
+  'docs.home.get': [Record<string, never>, { home: DocHome | null }]
+  'docs.home.set': [{ pageId: number | null }, { home: DocHome | null }]
+  'docs.search': [{ query: string; channelId?: number; limit?: number }, { results: DocSearchResult[] }]
 }

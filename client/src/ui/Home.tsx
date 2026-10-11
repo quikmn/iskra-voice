@@ -167,7 +167,7 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
       <DmKeyWarning peer={peer} />
 
       <div className="messages" ref={scroller}>
-        <UnreadBar conv={dmConv(peer)} scroller={scroller} onJump={() => undefined} />
+        <UnreadBar conv={dmConv(peer)} scroller={scroller} onJump={() => undefined} catchUp={{ spec: { kind: 'dm', peer }, title: nameOf(peer) }} />
         <div className="channel-start">
           <Avatar name={nameOf(peer)} accountKey={peer} size={64} />
           <h2>{nameOf(peer)}</h2>
@@ -205,7 +205,7 @@ function DmRow({ dm, grouped, peer, mine }: { dm: Dm; grouped: boolean; peer: st
   const { t } = useTranslation()
   const name = nameOf(dm.from)
   return (
-    <div className={`message ${grouped ? 'grouped' : ''} ${dm.pending ?? ''}`}>
+    <div className={`message ${grouped ? 'grouped' : ''} ${dm.pending ?? ''}`} data-dm-id={dm.id}>
       <div className="message-gutter">
         {grouped ? <time className="hover-time" title={fullTime(dm.sentAt)}>{clockTime(dm.sentAt)}</time> : <span {...userMenuProps(dm.from)}><Avatar name={name} accountKey={dm.from} /></span>}
       </div>

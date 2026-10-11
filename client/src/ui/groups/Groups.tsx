@@ -424,7 +424,7 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
       )}
 
       <div className="messages" ref={scroller}>
-        <UnreadBar conv={groupConv(groupKey)} scroller={scroller} onJump={() => undefined} />
+        <UnreadBar conv={groupConv(groupKey)} scroller={scroller} onJump={() => undefined} catchUp={{ spec: { kind: 'group', key: groupKey }, title }} />
         <div className="channel-start">
           <GroupAvatar members={g.view.members} size={64} />
           <h2>{title}</h2>
@@ -470,7 +470,7 @@ function GroupRow({ m, grouped, groupKey, mine }: { m: GroupMsg; grouped: boolea
   const { t } = useTranslation()
   const name = knownName(m.from)
   return (
-    <div className={`message ${grouped ? 'grouped' : ''} ${m.pending ?? ''}`}>
+    <div className={`message ${grouped ? 'grouped' : ''} ${m.pending ?? ''}`} data-dm-id={m.id}>
       <div className="message-gutter">
         {grouped ? <time className="hover-time" title={fullTime(m.sentAt)}>{clockTime(m.sentAt)}</time> : <Avatar name={name} accountKey={m.from} />}
       </div>

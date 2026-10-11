@@ -51,6 +51,7 @@ import { sendSticker } from '../state/stickers'
 import { SpoilerToggle, isSpoilerName, longTextFile } from './chat/media'
 import { AutoModAlertCard } from './automod/AutoModAlert'
 import { userMenuProps } from './people/userMenuProps'
+import { conversationLabel } from '../state/threads'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -220,6 +221,7 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
     <>
     <div className="messages" ref={scroller} onScroll={onScroll}>
       <UnreadBar conv={conv} scroller={scroller} onJump={() => (stickToBottom.current = false)}
+        catchUp={{ spec: { kind: 'channel', serverKey: server.key, channelId }, title: conversationLabel(server, channelId) }}
         loadOlder={() => loadHistory(server.key, channelId, true).then(() => !!useApp.getState().servers[server.key]?.hasMore[channelId])} />
       {!hasMore && (header ?? (
         <div className="channel-start">
