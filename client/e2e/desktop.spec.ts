@@ -129,9 +129,6 @@ test('restoring a server from a backup in the desktop app', async () => {
   const hostRoot = mkdtempSync(join(tmpdir(), 'iskra-hosted-'))
   const saved = join(mkdtempSync(join(tmpdir(), 'iskra-desktop-backup-')), 'moving.iskrabackup')
   const original = await startServer('Moving House')
-  // stop() waits for an exit that has already happened if called twice, so only once.
-  let stopOriginal: Promise<void> | null = null
-  const stop = () => (stopOriginal ??= original.stop())
   const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'NODE_OPTIONS')) as Record<string, string>
   const app = await electron.launch({
     executablePath: join(DESKTOP, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron'),
@@ -188,7 +185,7 @@ test('restoring a server from a backup in the desktop app', async () => {
     expect(json.PublicUrl).toBe(`http://localhost:${json.Port}`)
     expect(`http://localhost:${json.Port}`).not.toBe(original.url)
     // The saved server now points at the restored copy, with everything it had; you're still its owner.
-    await stop()
+    await original.stop()
     await expect(page.locator('.message', { hasText: 'packed and ready' })).toBeVisible({ timeout: 30_000 })
     await expect(page.locator('.me-text')).toContainText('owner')
     await page.getByPlaceholder('Message #general').fill('unpacked')
@@ -197,7 +194,7 @@ test('restoring a server from a backup in the desktop app', async () => {
     await page.screenshot({ path: join(SHOTS, 'desktop-restored.png') })
   } finally {
     await app.close()
-    await stop()
+    await original.stop()
     rmSync(userData, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
     rmSync(dirname(saved), { recursive: true, force: true })
     rmSync(hostRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 })
