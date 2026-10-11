@@ -1,5 +1,5 @@
-// The phone app shell (Capacitor). It bundles the built web client and runs it from capacitor://localhost,
-// so the app opens without the network. iOS today; Android joins in phase 2 (see README.md).
+// The phone app shell (Capacitor), one for iOS and Android. It bundles the built web client and runs it from
+// capacitor://localhost (iOS) or http://localhost (Android), so the app opens without the network. See README.md.
 import type { CapacitorConfig } from '@capacitor/cli'
 
 const config: CapacitorConfig = {
@@ -14,6 +14,15 @@ const config: CapacitorConfig = {
     backgroundColor: '#0B0B14',
     // Servers are anyone's hosts, so no App-Bound Domains.
     limitsNavigationsToAppBoundDomains: false,
+  },
+  android: {
+    path: 'android',
+    backgroundColor: '#0B0B14',
+  },
+  server: {
+    // http://localhost, not https://localhost: still a secure context (microphone, WebCrypto), and LAN servers without
+    // HTTPS keep working as in the desktop app (an https page may not open ws://). Matches the server's frame-ancestors.
+    androidScheme: 'http',
   },
   plugins: {
     // Shrink the web view above the keyboard, as a browser tab does, so the composer stays visible.
