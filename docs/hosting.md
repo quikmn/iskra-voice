@@ -6,7 +6,7 @@ There are three ways to run one:
 
 | | Best for | Friends can join from |
 |---|---|---|
-| **The desktop app** (Windows; macOS and Linux with the next release) | Trying it out, LAN parties, friends at home or anywhere | Desktop app; any browser and phone once it's open to the internet |
+| **The desktop app** (Windows, macOS and Linux) | Trying it out, LAN parties, friends at home or anywhere | Desktop app; any browser and phone once it's open to the internet |
 | **The standalone server** on your PC | Always-on server at home | Desktop app; any browser and phone once it's open to the internet |
 | **The standalone server on a VPS** (Linux) | Friends all over the place, 24/7 | Desktop app and any browser (with HTTPS) |
 
@@ -20,7 +20,7 @@ Install Iskra, click **Create a server**, pick a name. Done: the server runs on 
 
 ## 2. The standalone server
 
-Download `iskra-server` for [Windows or Linux](https://github.com/quikmn/iskra-voice/releases) (macOS builds come with the next release) and unpack it. Voice (LiveKit) is included.
+Download `iskra-server` for [Windows, Linux or macOS](https://github.com/quikmn/iskra-voice/releases) and unpack it. Voice (LiveKit) is included.
 
 ```sh
 iskra-server my-server        # Windows: iskra-server.exe my-server

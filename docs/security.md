@@ -168,7 +168,7 @@ The desktop app is the same web app in a locked-down shell: sandboxed, no Node.j
 - `iskra://` links only ever open an invite: anything else in them is ignored.
 
 - **Windows:** every executable we ship is code-signed (Open Source Developer Viktor Lundgren, issued by Certum) and timestamped, so you can check it came from us and wasn't changed. The installer only installs updates signed with that same certificate.
-- **macOS and Linux** (with the next release): the macOS app is ad-hoc signed but not yet notarized by Apple, and the Linux packages aren't signed. Download them only from the GitHub releases page.
+- **macOS and Linux:** the macOS app is ad-hoc signed but not yet notarized by Apple (the first time, right-click it and choose Open), and the Linux packages aren't signed. Download them only from the GitHub releases page.
 - Servers you create in the app run on your computer and only open ports to the internet when you switch on **Open to the internet**.
 
 ## Found a problem?

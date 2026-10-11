@@ -20,8 +20,8 @@ Free, no ads, no tracking, no paywalls. Your server is a folder you can copy.</p
 **Join friends:** open their invite link. Pick a name and you're in: no email, no password, no signup.
 
 **Start your own server:**
-- **Easiest:** install the [Windows app](https://github.com/quikmn/iskra-voice/releases) and click **Create a server**. It runs on your PC with voice included, and you're the owner. Turn on **Open to the internet** and friends anywhere can join, in the browser too. Click **Invite friends** and send the link.
-- **Always on, at home or on a VPS:** download the server for Windows or Linux, run `iskra-server my-server`, and open the owner link it prints. See the [hosting guide](docs/hosting.md).
+- **Easiest:** install the [desktop app](https://github.com/quikmn/iskra-voice/releases) (Windows, macOS or Linux) and click **Create a server**. It runs on your PC with voice included, and you're the owner. Turn on **Open to the internet** and friends anywhere can join, in the browser too. Click **Invite friends** and send the link.
+- **Always on, at home or on a VPS:** download the server for Windows, Linux or macOS, run `iskra-server my-server`, and open the owner link it prints. See the [hosting guide](docs/hosting.md).
 
 ## What's in it
 
@@ -40,13 +40,12 @@ Free, no ads, no tracking, no paywalls. Your server is a folder you can copy.</p
 - **Your account is a key on your devices,** stored encrypted, with an optional app lock. Link a phone by scanning a QR code, see your devices, remove any of them, and replace your account key if it ever leaks.
 - **One-click internet hosting:** Iskra opens the ports on your router, gets a free address and sets up HTTPS by itself.
 - **Your server is a folder,** with daily backups. Download an encrypted backup, restore it anywhere and move your members along, or import your Discord server's history.
-- **Everywhere:** Windows app with auto-update, a tray and iskra:// invite links, and a web app for PCs and phones that installs like an app and sends push notifications.
+- **Everywhere:** apps for Windows, macOS and Linux with auto-update, a tray and iskra:// invite links, and a web app for PCs and phones that installs like an app and sends push notifications.
 
 How privacy works, and what a server can and can't see: [docs/security.md](docs/security.md).
 
 ## Coming next
 
-- **Mac and Linux apps** with the next release (the builds are ready). The first macOS builds aren't notarized by Apple yet.
 - **Native phone apps.** Until then, the web app installs to your home screen.
 - **DMs with people you share no server with.**
 
