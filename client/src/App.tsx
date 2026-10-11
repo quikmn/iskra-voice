@@ -17,6 +17,7 @@ import { JoinPrompt } from './ui/dialogs/JoinDialog'
 import { Onboarding } from './ui/Onboarding'
 import { Shell } from './ui/Shell'
 import { UpdateToast } from './ui/UpdateToast'
+import { InstallHint } from './ui/InstallHint'
 import { LockScreen, NewKeyDialog, RetiredScreen } from './ui/keys/KeyScreens'
 import { useKeys } from './state/keys'
 
@@ -73,7 +74,14 @@ export function App() {
     )
   }
   if (phase === 'locked') return <LockScreen />
-  if (phase === 'onboarding') return <Onboarding />
+  if (phase === 'onboarding') {
+    return (
+      <>
+        <Onboarding />
+        <InstallHint signedIn={false} />
+      </>
+    )
+  }
   if (revoked) return <RevokedScreen />
   if (retired) return <RetiredScreen />
   return (
@@ -84,6 +92,7 @@ export function App() {
       {pendingInvite && <JoinPrompt invite={pendingInvite} />}
       <ScreenPicker />
       <UpdateToast />
+      <InstallHint signedIn />
     </>
   )
 }

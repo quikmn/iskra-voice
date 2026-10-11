@@ -1,0 +1,29 @@
+/* ── Phone install hint ────────────────────────────────────────────── */
+.install-hint {
+  position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: var(--z-toast);
+  margin: 0 auto; max-width: 440px;
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 8px 12px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) * 1.2);
+  box-shadow: var(--shadow-pop);
+  animation: install-hint-in 0.3s ease-out 0.6s both; /* after the page settles */
+}
+.install-hint.in-app { bottom: calc(84px + env(safe-area-inset-bottom)); } /* clear of the message box */
+.install-hint-icon { flex: none; width: 40px; height: 40px; border-radius: 10px; }
+.install-hint-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; line-height: 1.35; }
+.install-hint-text strong { font-size: 14px; }
+.install-hint-text span { font-size: 13px; color: var(--text-2); }
+.install-hint-text b { color: var(--text); font-weight: 600; }
+.install-hint-share { vertical-align: -2px; color: var(--accent); }
+.install-hint-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.install-hint-actions .button { padding: 7px 14px; text-decoration: none; }
+.install-hint .icon-button { flex: none; margin-top: -4px; }
+@keyframes install-hint-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .install-hint { animation: none; }
+}

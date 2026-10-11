@@ -19,3 +19,9 @@
 /page-preview.html
   ! X-Frame-Options
   Content-Security-Policy: frame-ancestors 'self'
+
+# Digital Asset Links for the Android app (Trusted Web Activity).
+/.well-known/assetlinks.json
+  Content-Type: application/json
+  Access-Control-Allow-Origin: *
+  Cache-Control: max-age=3600
