@@ -162,6 +162,7 @@ public sealed class ImportService(World world, Hub hub, Uploads uploads, TimePro
         _ = Task.Run(() =>
         {
             DiscordImporter? importer = null;
+            ImportProgress? final = null;
             try
             {
                 using var source = ExportSource.Open(path);
@@ -178,19 +179,18 @@ public sealed class ImportService(World world, Hub hub, Uploads uploads, TimePro
                 });
                 importer.Run(source, cancel);
                 _lastChannels = [.. importer.Channels];
-                Report(importer.Progress, force: true);
+                final = importer.Progress;
                 RefreshChannels();
                 log.LogInformation("Imported {Messages} messages into {Channels} channels from Discord", importer.Progress.MessagesDone, importer.Channels.Count);
             }
             catch (Exception ex)
             {
                 if (ex is not (InvalidDataException or OperationCanceledException or IOException)) log.LogError(ex, "Import failed");
-                var progress = importer?.Progress ?? new ImportProgress
+                final = importer?.Progress ?? new ImportProgress
                 {
                     Phase = ex is OperationCanceledException ? "cancelled" : "failed",
                     Error = ex is InvalidDataException or IOException ? ex.Message : ex is OperationCanceledException ? null : "Something went wrong while importing.",
                 };
-                Report(progress, force: true);
             }
             finally
             {
@@ -200,6 +200,8 @@ public sealed class ImportService(World world, Hub hub, Uploads uploads, TimePro
                     _running?.Dispose();
                     _running = null;
                 }
+                // Reported only once the slot is free, so "done"/"failed" means a new import can start right away.
+                if (final is not null) Report(final, force: true);
             }
         }, CancellationToken.None);
     }
