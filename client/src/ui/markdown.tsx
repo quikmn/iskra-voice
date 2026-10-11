@@ -4,6 +4,7 @@
 import { Fragment, type ReactNode } from 'react'
 import { roleRank, type Role } from '../core/protocol'
 import { Spoiler } from './bits'
+import { resolveKey } from '../state/keyMap'
 import { CUSTOM_EMOJI_SOURCE, isEmojiOnly } from './expressions/emoji'
 
 export interface MarkdownContext {
@@ -63,9 +64,11 @@ function inline(text: string, ctx: MarkdownContext, depth = 0): ReactNode[] {
     const mention = MENTION_PATTERN.exec(text)
     if (mention) {
       flush()
-      const name = ctx.nameOf(mention[1])
+      // Someone who replaced their account key is shown under their current key (a checked rotation, state/keyMap.ts).
+      const who = resolveKey(mention[1])
+      const name = ctx.nameOf(who)
       out.push(
-        <span key={key++} className={`mention ${mention[1] === ctx.me ? 'me' : ''}`}>@{name ?? 'unknown'}</span>,
+        <span key={key++} className={`mention ${who === ctx.me ? 'me' : ''}`}>@{name ?? 'unknown'}</span>,
       )
       i += mention[0].length
       continue
@@ -170,7 +173,7 @@ export function renderMarkdown(text: string, ctx: MarkdownContext): ReactNode {
 /** Plain text of a message for previews and notifications (mentions become @names, markers stay). */
 export function plainText(text: string, ctx: MarkdownContext): string {
   return text
-    .replace(/<@([A-Za-z0-9_-]{43})>/g, (_, key: string) => `@${ctx.nameOf(key) ?? 'unknown'}`)
+    .replace(/<@([A-Za-z0-9_-]{43})>/g, (_, key: string) => `@${ctx.nameOf(resolveKey(key)) ?? 'unknown'}`)
     .replace(ROLE_TOKEN, (_, id: string) => `@${ctx.roleOf?.(Number(id))?.name ?? 'role'}`)
     .replace(new RegExp(CUSTOM_EMOJI_SOURCE, 'g'), (_, name: string) => `:${name}:`)
 }
@@ -192,7 +195,7 @@ export function encodeMentions(text: string, members: { accountKey: string; name
 /** The reverse, for editing a message: tokens back to "@Name". */
 export function decodeMentions(text: string, nameOf: (accountKey: string) => string | null, roleName?: (id: number) => string | null): string {
   return text
-    .replace(/<@([A-Za-z0-9_-]{43})>/g, (_, key: string) => `@${nameOf(key) ?? 'unknown'}`)
+    .replace(/<@([A-Za-z0-9_-]{43})>/g, (_, key: string) => `@${nameOf(resolveKey(key)) ?? 'unknown'}`)
     .replace(ROLE_TOKEN, (token, id: string) => {
       const name = roleName?.(Number(id))
       return name ? `@${name}` : token
@@ -207,7 +210,9 @@ export const roleMentions = (text: string): number[] => [...text.matchAll(ROLE_T
  * groups (see canPingGroups)? Otherwise the text still shows, it just doesn't notify.
  */
 export function mentions(text: string, me: string, groupPings = true): boolean {
-  return text.includes(`<@${me}>`) || (groupPings && /(^|\s)@(everyone|here)\b/.test(text))
+  if (groupPings && /(^|\s)@(everyone|here)\b/.test(text)) return true
+  for (const [, key] of text.matchAll(/<@([A-Za-z0-9_-]{43})>/g)) if (resolveKey(key) === me) return true
+  return false
 }
 
 /**

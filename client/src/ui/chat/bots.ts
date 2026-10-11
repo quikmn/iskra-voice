@@ -1,5 +1,6 @@
 // Non-component helpers for bot and webhook messages.
 import type { FileInfo, Member, Message } from '../../core/protocol'
+import { resolveKey } from '../../state/keyMap'
 
 export interface AuthorInfo {
   name: string
@@ -14,7 +15,8 @@ export function authorOf(message: Pick<Message, 'author' | 'webhook' | 'imported
   if (message.webhook) return { name: message.webhook.name, bot: true, avatar: message.webhook.avatar }
   // Imported from Discord: the name and avatar it had there (not an account here).
   if (message.imported) return { name: message.imported.name, bot: message.imported.bot, avatar: message.imported.avatar }
-  const member = members[message.author]
+  // A message from before its author replaced their account key: the server moved it, our cached copy may not have.
+  const member = members[message.author] ?? members[resolveKey(message.author)]
   if (message.author.startsWith('webhook:')) return { name: 'Webhook', bot: true, avatar: null }
   return { name: member?.name ?? 'Former member', bot: !!member?.bot, avatar: null }
 }

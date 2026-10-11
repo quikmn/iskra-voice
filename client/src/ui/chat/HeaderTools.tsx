@@ -13,6 +13,7 @@ import { relativeTime } from './pinThreadHelpers'
 import { PinIcon, SearchIcon, ThreadIcon } from './extraIcons'
 import { useEscapeLayer } from '../layers'
 import './chat-extras.css'
+import { resolveKey } from '../../state/keyMap'
 
 const INACTIVE_MS = 7 * 24 * 3600 * 1000
 
@@ -119,7 +120,7 @@ export function PinList({ server, channelId, onJump }: { server: ServerState; ch
   return (
     <ul className="pin-list">
       {pins.map(({ message, pinnedBy, pinnedAt }) => {
-        const author = message.imported?.name ?? server.members[message.author]?.name ?? 'Former member'
+        const author = message.imported?.name ?? (server.members[message.author] ?? server.members[resolveKey(message.author)])?.name ?? 'Former member'
         return (
           <li key={message.id} className="pin-item">
             <Avatar name={author} accountKey={message.author} size={28} />

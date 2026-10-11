@@ -18,6 +18,7 @@ import { useEscapeLayer } from '../layers'
 import { replyBlock } from '../../state/forums'
 import { PostBar } from '../forums/PostBar'
 import { useForumPost } from '../forums/useForumPost'
+import { resolveKey } from '../../state/keyMap'
 
 export function ThreadPanel({ server, threadId }: { server: ServerState; threadId: number }) {
   const thread = useThreads((s) => s.threads[server.key]?.[threadId])
@@ -200,7 +201,7 @@ function ThreadStart({ server, root, createdBy, post }: { server: ServerState; r
       </div>
     )
   }
-  const name = root.imported?.name ?? server.members[root.author]?.name ?? 'Former member'
+  const name = root.imported?.name ?? (server.members[root.author] ?? server.members[resolveKey(root.author)])?.name ?? 'Former member'
   return (
     <div className="thread-start">
       <div className="thread-root">
