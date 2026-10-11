@@ -1,6 +1,8 @@
 // Version numbers for the phone app, from desktop/package.json (the one app version).
 //   node scripts/mobile-version.mjs [run_number] [run_attempt]
 // prints MARKETING_VERSION=2.0.0 and BUILD_NUMBER=20000109.<run>.<attempt> lines (for $GITHUB_ENV).
+//   node scripts/mobile-version.mjs --android
+// prints APP_VERSION and VERSION_CODE (mobile/scripts/build-android.ps1).
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
@@ -8,7 +10,8 @@ const VERSION = /^(\d+)\.(\d+)\.(\d+)(?:-(alpha|beta|rc)\.(\d+))?$/
 const STAGE = { alpha: 100, beta: 200, rc: 300 }
 
 /**
- * Android's version code (android/build.ps1): (major*10000 + minor*100 + patch)*1000, plus 100+n for alpha.n,
+ * Android's version code (mobile/scripts/build-android.ps1; the same scheme the earlier Android app used, so
+ * installed copies update in place): (major*10000 + minor*100 + patch)*1000, plus 100+n for alpha.n,
  * 200+n for beta.n, 300+n for rc.n and 900 for a final release, so every release orders after the last.
  */
 export function versionCode(version) {
@@ -39,8 +42,13 @@ export function buildNumber(version, run = 0, attempt = 1) {
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const pkg = JSON.parse(readFileSync(new URL('../desktop/package.json', import.meta.url), 'utf8'))
-  const [run = '0', attempt = '1'] = process.argv.slice(2)
+  const args = process.argv.slice(2)
   console.log(`APP_VERSION=${pkg.version}`)
+  if (args[0] === '--android') {
+    console.log(`VERSION_CODE=${versionCode(pkg.version)}`)
+    process.exit(0)
+  }
+  const [run = '0', attempt = '1'] = args
   console.log(`MARKETING_VERSION=${marketingVersion(pkg.version)}`)
   console.log(`BUILD_NUMBER=${buildNumber(pkg.version, run, attempt)}`)
 }

@@ -1,12 +1,14 @@
 {
   "name": "iskra-mobile",
   "private": true,
-  "description": "Iskra for phones: one Capacitor shell around the built web client (client/dist). iOS now, Android in phase 2. See README.md.",
+  "description": "Iskra for phones: one Capacitor shell around the built web client (client/dist), for iOS and Android. See README.md.",
   "scripts": {
-    "sync": "cap sync ios",
+    "sync": "cap sync",
+    "android": "pwsh -NoProfile -File scripts/build-android.ps1",
     "icons": "python scripts/icons.py"
   },
   "dependencies": {
+    "@capacitor/android": "8.5.2",
     "@capacitor/app": "8.1.1",
     "@capacitor/core": "8.5.2",
     "@capacitor/filesystem": "8.1.3",

@@ -9,5 +9,13 @@
 		<string>applinks:app.iskra.foo</string>
 		<string>webcredentials:app.iskra.foo</string>
 	</array>
+	<!-- Push (APNs and PushKit). Export for the App Store turns this into "production". -->
+	<key>aps-environment</key>
+	<string>development</string>
+	<!-- The push keys, shared with the Notification Service Extension. -->
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)foo.iskra.app.shared</string>
+	</array>
 </dict>
 </plist>

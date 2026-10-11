@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name" translatable="false">Iskra</string>
+    <string name="title_activity_main" translatable="false">Iskra</string>
+    <string name="package_name" translatable="false">foo.iskra.app</string>
+    <string name="custom_url_scheme" translatable="false">foo.iskra.app</string>
+    <string name="channel_messages">Messages and mentions</string>
+    <string name="channel_calls">Calls</string>
+    <string name="channel_voice">In voice</string>
+    <string name="voice_leave">Leave</string>
+</resources>

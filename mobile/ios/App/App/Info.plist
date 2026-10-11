@@ -40,6 +40,9 @@
 		</dict>
 	</array>
 	<!-- Only standard encryption (libsodium, TLS, WebRTC's DTLS-SRTP): exempt, see mobile/README.md "Export compliance". -->
+	<!-- Push keys live in this keychain group, shared with the Notification Service Extension (Shared/PushKeys.swift). -->
+	<key>IskraKeychainGroup</key>
+	<string>$(AppIdentifierPrefix)foo.iskra.app.shared</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
@@ -77,6 +80,12 @@
 			</array>
 		</dict>
 	</dict>
+	<!-- Voice keeps going with the screen locked; calls ring through CallKit from VoIP pushes (CallManager.swift). -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+		<string>voip</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

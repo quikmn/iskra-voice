@@ -1,28 +1,48 @@
 // Push notifications while Iskra is closed (phones included). Each server has its own push key, and a service worker
 // registration holds one subscription, so every server gets its own registration of /push-sw.js (scope /push/<key>/).
 // The server skips devices that are looking at Iskra, so this reports focus to every server we're subscribed on.
-// The desktop app has native notifications and doesn't use any of this.
+// The desktop app has native notifications and doesn't use any of this. The phone app gets native push through the
+// Iskra push relay instead of a service worker (nativePush.ts); everything else here is shared.
 import { create } from 'zustand'
 import { t } from '../i18n'
 import { errorMessage } from '../i18n/errors'
 import { b64u, fromB64u } from '../core/crypto'
 import { parseOpenRoute, pushScope, pushSupport, serverOfScope, type OpenTarget, type PushSupport } from '../core/pushRoute'
 import { desktop } from '../platform/desktop'
-import { native } from '../platform/native'
+import { native, type NativePermission, type NativePushRegistration } from '../platform/native'
+import { RelayError, syncNativeServer } from './nativePush'
 import { pushActive, updateNotify, useNotify } from './notify'
 import { connectionFor, onWelcomeHook, selectChannel, selectServer, useApp } from './store'
+
+type Permission = 'granted' | 'denied' | 'default'
 
 interface PushState {
   /** Servers this device gets pushes from ('error': registering failed). */
   servers: Record<string, 'on' | 'error'>
   error: string | null
+  /** The phone app's notification permission (browsers: read live from Notification.permission). */
+  nativePermission: Permission
 }
 
-export const usePush = create<PushState>(() => ({ servers: {}, error: null }))
+export const usePush = create<PushState>(() => ({ servers: {}, error: null, nativePermission: 'default' }))
 
-export function currentPushSupport(): PushSupport | 'desktop-app' | 'native-app' {
+const fromNative = (p: NativePermission): Permission => (p === 'prompt' ? 'default' : p)
+
+/** May this device show notifications: the browser's or the phone's permission. */
+export function pushPermission(): Permission {
+  if (native) return usePush.getState().nativePermission
+  return typeof Notification === 'undefined' ? 'default' : Notification.permission
+}
+
+/** pushPermission() as a hook, so the settings follow the phone app's answer. */
+export function usePushPermission(): Permission {
+  const nativePermission = usePush((s) => s.nativePermission)
+  return native ? nativePermission : pushPermission()
+}
+
+export function currentPushSupport(): PushSupport | 'desktop-app' {
   if (desktop) return 'desktop-app'
-  if (native) return 'native-app' // web push doesn't reach an app's web view; native push is phase 2 (mobile/README.md)
+  if (native) return 'supported' // APNs/FCM through the push relay
   return pushSupport({
     userAgent: navigator.userAgent,
     maxTouchPoints: navigator.maxTouchPoints ?? 0,
@@ -33,7 +53,25 @@ export function currentPushSupport(): PushSupport | 'desktop-app' | 'native-app'
   })
 }
 
-const canPush = () => currentPushSupport() === 'supported' && useNotify.getState().push && Notification.permission === 'granted'
+const canPush = () => currentPushSupport() === 'supported' && useNotify.getState().push && pushPermission() === 'granted'
+
+/** The phone's push tokens and keys, asked for once (and again after the OS changes the token). */
+let nativeRegistration: Promise<NativePushRegistration> | null = null
+function nativeTokens(): Promise<NativePushRegistration> {
+  nativeRegistration ??= native!.push.register().catch((e: unknown) => {
+    nativeRegistration = null
+    throw e
+  })
+  return nativeRegistration
+}
+
+/** Asks the phone for permission (iOS and Android 13+ show their prompt once) and registers for push. */
+async function askNative(): Promise<Permission> {
+  await nativeTokens().catch(() => undefined)
+  const permission = fromNative(await native!.push.permission().catch((): NativePermission => 'denied'))
+  usePush.setState({ nativePermission: permission })
+  return permission
+}
 
 function setServer(key: string, state: 'on' | 'error' | null, error: string | null = null): void {
   if (state === 'on') pushActive.add(key)
@@ -49,7 +87,11 @@ function setServer(key: string, state: 'on' | 'error' | null, error: string | nu
 /** Turns push on for this device (asks for permission; call it from a click) and registers with every server. */
 export async function enablePush(): Promise<boolean> {
   if (currentPushSupport() !== 'supported') return false
-  const permission = Notification.permission === 'default' ? await Notification.requestPermission() : Notification.permission
+  const permission = native
+    ? await askNative()
+    : Notification.permission === 'default'
+      ? await Notification.requestPermission()
+      : Notification.permission
   if (permission !== 'granted') {
     updateNotify({ push: false })
     return false
@@ -104,6 +146,13 @@ async function doSync(key: string): Promise<void> {
   const connection = connectionFor(key)
   if (!connection?.isOnline) return
   try {
+    if (native) {
+      await syncNativeServer(connection, await nativeTokens())
+      setServer(key, 'on')
+      lastFocus.delete(key)
+      reportFocus(key)
+      return
+    }
     const { publicKey, endpoint } = await connection.request('push.status', {})
     const reg = await navigator.serviceWorker.register('/push-sw.js', { scope: pushScope(key) })
     await activated(reg)
@@ -122,7 +171,7 @@ async function doSync(key: string): Promise<void> {
     lastFocus.delete(key)
     reportFocus(key)
   } catch (e) {
-    setServer(key, 'error', errorMessage(e))
+    setServer(key, 'error', e instanceof RelayError ? t('app.push.relayFailed', { error: e.message }) : errorMessage(e))
   }
 }
 
@@ -229,9 +278,40 @@ function readOpenHash(): void {
   if (target) openWhenReady(target)
 }
 
+/** The phone app: notification taps, new push tokens, and the permission (people can change it in the phone's settings). */
+function startNativePush(): () => void {
+  if (!native) return () => {}
+  const stops = [
+    native.push.onOpen((route) => {
+      const target = parseOpenRoute(route)
+      if (target) openWhenReady(target)
+    }),
+    native.push.onTokenChange(() => {
+      nativeRegistration = null
+      if (canPush()) for (const key of useApp.getState().order) void syncServer(key)
+    }),
+  ]
+  const refresh = () =>
+    void native!.push.permission().then((p) => {
+      const before = usePush.getState().nativePermission
+      usePush.setState({ nativePermission: fromNative(p) })
+      if (before !== 'granted' && canPush()) for (const key of useApp.getState().order) void syncServer(key)
+    }, () => undefined)
+  refresh()
+  const onVisible = () => {
+    if (document.visibilityState === 'visible') refresh()
+  }
+  document.addEventListener('visibilitychange', onVisible)
+  return () => {
+    stops.forEach((stop) => stop())
+    document.removeEventListener('visibilitychange', onVisible)
+  }
+}
+
 /** Wires up notification clicks, focus reporting and cleanup. Returns a function that undoes it. */
 export function startPush(): () => void {
   readOpenHash()
+  const stopNative = startNativePush()
   let timer: ReturnType<typeof setTimeout> | undefined
   const onFocusChange = () => {
     clearTimeout(timer)
@@ -262,6 +342,7 @@ export function startPush(): () => void {
   navigator.serviceWorker?.addEventListener('message', onMessage)
   return () => {
     clearTimeout(timer)
+    stopNative()
     stopOrder()
     window.removeEventListener('hashchange', readOpenHash)
     window.removeEventListener('focus', onFocusChange)

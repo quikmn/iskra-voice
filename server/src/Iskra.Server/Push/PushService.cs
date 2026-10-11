@@ -41,6 +41,16 @@ public sealed partial class PushService
     private readonly ILogger<PushService> _log;
     private readonly TimeSpan _window;
     private readonly string[] _extraHosts;
+    private readonly string[] _relayHosts;
+    public const string WebKind = "web";
+    public const string NativeKind = "native";
+
+    /// <summary>The Iskra push relay (relay/ in the repo), which holds the APNs and FCM credentials for the phone apps.</summary>
+    public static readonly string[] KnownRelayHosts = ["push.iskra.foo"];
+
+    [GeneratedRegex("^/v1/push/[A-Za-z0-9_-]{20,1000}$")]
+    private static partial Regex RelayPath();
+
     private readonly ConditionalWeakTable<Session, StrongBox<bool>> _focus = new();
     private readonly Dictionary<string, Burst> _bursts = new(StringComparer.Ordinal);
     private readonly Dictionary<string, DateTimeOffset> _lastRing = new(StringComparer.Ordinal);
@@ -59,22 +69,38 @@ public sealed partial class PushService
         _log = log;
         _window = TimeSpan.FromMilliseconds(config.GetValue("Push:CoalesceMs", 15_000));
         _extraHosts = (config["Push:ExtraHosts"] ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        _relayHosts = [.. KnownRelayHosts, .. (config["Push:RelayHosts"] ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
     }
 
     // ── Subscriptions ────────────────────────────────────────────────────────
 
-    /// <summary>Null if the endpoint is acceptable, else why not: https, default port, a known push service, no credentials.</summary>
-    public string? CheckEndpoint(string endpoint)
+    /// <summary>
+    /// Null if the endpoint is acceptable, else why not: https, default port, no credentials, and a known browser push
+    /// service (web) or the Iskra push relay with a handle path (native, the phone apps).
+    /// </summary>
+    public string? CheckEndpoint(string endpoint, string kind = WebKind)
     {
         if (endpoint.Length > MaxEndpointLength || !Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
             return "That isn't a push endpoint.";
         if (uri.Scheme != "https" || !uri.IsDefaultPort || uri.UserInfo.Length > 0 || uri.Fragment.Length > 0 || uri.HostNameType != UriHostNameType.Dns)
             return "Push endpoints must be plain https URLs.";
         var host = uri.IdnHost.ToLowerInvariant();
+        if (kind == NativeKind)
+            return _relayHosts.Contains(host) && uri.Query.Length == 0 && RelayPath().IsMatch(uri.AbsolutePath)
+                ? null
+                : "That isn't an Iskra push relay endpoint.";
         return KnownPushHosts.Concat(_extraHosts).Any(h => host == h || host.EndsWith("." + h, StringComparison.Ordinal))
             ? null
             : "That push service isn't supported.";
     }
+
+    /// <summary>Whether a stored subscription is a phone app's (through the relay) rather than a browser's.</summary>
+    public bool IsNative(string endpoint) =>
+        Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) && _relayHosts.Contains(uri.IdnHost.ToLowerInvariant()) && RelayPath().IsMatch(uri.AbsolutePath);
+
+    /// <summary>Where a push goes: ringing calls use the relay's call path, so iOS can show CallKit's incoming call screen.</summary>
+    public string DeliveryEndpoint(string endpoint, PushNote note) =>
+        note.Kind == "call" && IsNative(endpoint) ? endpoint.Replace("/v1/push/", "/v1/call/", StringComparison.Ordinal) : endpoint;
 
     /// <summary>p256dh: an uncompressed P-256 point (65 bytes); auth: a 16-byte secret. Both base64url.</summary>
     public static bool ValidKeys(string p256dh, string auth) =>
@@ -283,7 +309,7 @@ public sealed partial class PushService
     {
         var payload = JsonSerializer.Serialize(Payload(note, count), Json.Options);
         var topic = Ed25519.ToB64u(SHA256.HashData(Encoding.UTF8.GetBytes(note.Tag)))[..32];
-        var delivery = new PushDelivery(sub.Endpoint, sub.P256dh, sub.Auth, payload, topic, Urgent: true, note.TtlSeconds);
+        var delivery = new PushDelivery(DeliveryEndpoint(sub.Endpoint, note), sub.P256dh, sub.Auth, payload, topic, Urgent: true, note.TtlSeconds);
         _ = Task.Run(async () =>
         {
             await _sending.WaitAsync();
@@ -322,6 +348,7 @@ public sealed partial class PushService
             title,
             body,
             tag = note.Tag,
+            from = note.FromName, // who it's from (the phone apps' call screens show it)
             channelId = note.ChannelId,
             messageId = note.MessageId,
             peer = note.Peer,

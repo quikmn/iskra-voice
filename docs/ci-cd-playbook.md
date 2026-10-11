@@ -31,6 +31,8 @@ table doesn't cover it, **stop and report**. Don't improvise fixes. Background a
 | "is CI green?" | [H. Check CI](#h-check-ci-status) |
 | "build iOS and upload to TestFlight" | [I. iOS app to TestFlight](#i-ios-app-to-testflight) |
 | an `outage` issue was opened / "is everything up?" | [J. Outage alert](#j-outage-alert) |
+| "build the Android app" | [K. Android app](#k-android-app) |
+| "deploy the push relay" | [L. Deploy the push relay](#l-deploy-the-push-relay-pushiskrafoo) |
 
 ## A. Full release
 
@@ -161,6 +163,21 @@ The uptime workflow (`uptime.yml`, every 15 minutes) opened or updated an issue 
      chat.iskra.foo renews in the server (port 80 must be open): report to the human.
 4. Never close an `outage` issue by hand while a check still fails, and never change the schedule to silence it.
 
+## K. Android app
+
+Releases build the APK in B (release-windows.ps1). On its own, on the Windows PC (the release key lives only there):
+1. `git checkout <tag or main>`, then `pwsh -NoProfile -File mobile/scripts/build-android.ps1` (add `-ApkOnly` to skip the AAB).
+2. ✔ Ends with `Built ...\mobile\release\Iskra-V.apk (signed by the release key, 7c5941ba…)`. A warning
+   `this build gets NO push notifications` means `devkeys\iskra-google-services.json` is missing: tell the human.
+3. Never print or open the keystore or its password file.
+
+## L. Deploy the push relay (push.iskra.foo)
+
+1. Changes to `relay/` must be on main on GitHub (as in D.1).
+2. `gh workflow run deploy.yml -f ref=main -f relay=true`
+3. Watch as in C.3. ✔ job `relay` green; its last step prints `{"ok":true,"apns":true,"fcm":true}`.
+   `apns: false` or `fcm: false`: the human hasn't set those secrets yet (ci-cd.md "Push relay"); report it, don't retry.
+
 ## Decision table
 
 | You see | Do |
@@ -178,7 +195,8 @@ The uptime workflow (`uptime.yml`, every 15 minutes) opened or updated an issue 
 | `certificate expired` / `expires on` warning | Report it; point to ci-cd.md "Windows code signing". Stop if expired |
 | `tag vV isn't on GitHub yet` | Do A.5, then rerun |
 | `HEAD isn't the vV commit` | Do B.1, then rerun |
-| `android\build.ps1 didn't produce` / `Missing ...android-sdk` | Stop and report |
+| `build-android.ps1 didn't produce` / `Missing ...android-sdk` / `No JDK 21` / `fingerprint isn't in assetlinks.json` | Stop and report (never try another keystore) |
+| `this build gets NO push notifications` warning | Go on (the Android app works without push), but tell the human `devkeys\iskra-google-services.json` is missing |
 | `still missing files after 60 minutes` | Check release.yml (A.6). If it succeeded since, do C. If it failed, report |
 | Finalize waiting for approval | Tell the human to approve at the run url. Wait |
 | Finalize `missing (...)` | Stop and report the missing names |
@@ -190,6 +208,9 @@ The uptime workflow (`uptime.yml`, every 15 minutes) opened or updated an issue 
 | mobile-ios.yml archive fails on signing | Rerun once with `-f archive_signing=automatic`. Fails again: stop and report |
 | mobile-ios.yml upload: `bundle version` / `redundant binary` | `gh run rerun <id>` once (the build number rises with the attempt) |
 | `outage` issue open | Do [J](#j-outage-alert). Report what fails; the droplet and DNS are the human's |
+| mobile-ios.yml `Check push decryption` fails | Stop and report (a code bug, not an Apple problem) |
+| mobile-ios.yml: `No profiles for 'foo.iskra.app.NotificationService'` | Stop. The human registers that App ID (mobile/README.md, owner setup step 7) |
+| deploy.yml `relay`: `HANDLE_KEYS` missing / `Authentication error` / custom domain error | Stop and report (ci-cd.md "Push relay") |
 | Anything else | Stop and report the exact message |
 
 ## Report format

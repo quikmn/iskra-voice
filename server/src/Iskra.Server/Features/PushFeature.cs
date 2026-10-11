@@ -5,7 +5,7 @@ using Iskra.Server.Storage;
 
 namespace Iskra.Server.Features;
 
-/// <summary>Web Push registration for this device, and whether the user is looking at Iskra on it right now.</summary>
+/// <summary>Push registration for this device (browsers, or the phone apps through the push relay), and whether the user is looking at Iskra on it right now.</summary>
 public static class PushFeature
 {
     public static void Register(Router router)
@@ -19,13 +19,18 @@ public static class PushFeature
     private static object Status(Session s, Member me, Body body)
     {
         var sub = s.World.Store.PushSubscriptionFor(s.DeviceKey!);
-        return new { publicKey = s.Push.Keys.PublicKey, endpoint = sub?.AccountKey == me.AccountKey ? sub.Endpoint : null };
+        var endpoint = sub?.AccountKey == me.AccountKey ? sub.Endpoint : null;
+        var kind = endpoint is null ? null : s.Push.IsNative(endpoint) ? PushService.NativeKind : PushService.WebKind;
+        return new { publicKey = s.Push.Keys.PublicKey, endpoint, kind };
     }
 
     private static object? Subscribe(Session s, Member me, Body body)
     {
         var endpoint = body.String("endpoint", PushService.MaxEndpointLength);
-        if (s.Push.CheckEndpoint(endpoint) is { } problem) throw RequestException.BadRequest(problem);
+        // "native": a phone app's endpoint at the Iskra push relay (APNs/FCM); "web" (default): a browser's push service.
+        var kind = body.OptionalString("kind", 10) ?? PushService.WebKind;
+        if (kind is not (PushService.WebKind or PushService.NativeKind)) throw RequestException.BadRequest("'kind' must be web or native.");
+        if (s.Push.CheckEndpoint(endpoint, kind) is { } problem) throw RequestException.BadRequest(problem);
         var keys = new Body(body.Element("keys"));
         var p256dh = keys.String("p256dh", 100);
         var auth = keys.String("auth", 40);

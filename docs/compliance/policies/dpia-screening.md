@@ -41,10 +41,20 @@ residual risks are tracked in the [risk register](risk-register.md):
 - Adding analytics, profiling, content scanning, recommendations or AI processing of messages.
 - Weakening end-to-end encryption (e.g. server-side search or backup of DMs).
 - Targeting children or schools.
-- A native push relay or any central service that sees users of many servers.
+- Any central service that sees users of many servers beyond the push relay as screened below.
+
+## Push relay (screened 2026-10-11)
+
+The phone apps get notifications through push.iskra.foo (relay/README.md), a central service used by every server's
+phone users. It stores nothing (no device list, no logs of tokens or bodies); payloads are end-to-end encrypted from
+the Iskra server to the phone, so the relay, Apple and Google see a device token, the sending server's IP, time,
+ciphertext size and whether it's a call. Handles are bound to one server, so the relay can't be used to link a
+person across servers by anything but the device token (which only the relay sees). Result: no high risk; no full
+DPIA. Redo if the relay starts storing anything, logging, or reading payloads.
 
 ## Change log
 
 | Date | Change |
 |---|---|
 | 2026-10-11 | First version |
+| 2026-10-11 | Push relay screened |

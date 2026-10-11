@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { useNotify } from '../../state/notify'
-import { currentPushSupport, disablePush, enablePush, installApp, useInstall, usePush } from '../../state/push'
+import { native } from '../../platform/native'
+import { currentPushSupport, disablePush, enablePush, installApp, useInstall, usePush, usePushPermission } from '../../state/push'
 import { useApp } from '../../state/store'
 
 /** Push notifications while Iskra is closed, and installing the web app. Not shown in the desktop app. */
@@ -14,9 +15,9 @@ export function PushSettings() {
   const names = useApp((s) => s.servers)
   const installable = useInstall((s) => s.prompt !== null)
   const [busy, setBusy] = useState(false)
+  const permission = usePushPermission()
   if (support === 'desktop-app') return null
 
-  const permission = typeof Notification === 'undefined' ? 'default' : Notification.permission
   const on = wanted && permission === 'granted'
   const failed = Object.entries(servers).filter(([, state]) => state === 'error').map(([key]) => names[key]?.name ?? t('settings.push.aServer'))
   const active = Object.values(servers).filter((state) => state === 'on').length
@@ -43,6 +44,8 @@ export function PushSettings() {
               {t('settings.push.onFor', { count: active })}
             </p>
           )}
+          {native && permission === 'denied' && <p className="muted push-hint">{t('settings.push.nativeDenied')}</p>}
+          {native && on && <p className="muted push-hint">{t('settings.push.nativeHint')}</p>}
           {on && failed.length > 0 && (
             <p className="push-error" role="alert">
               {t('settings.push.failed', { servers: failed.join(', '), error: error ? ` (${error})` : '' })}
@@ -56,7 +59,6 @@ export function PushSettings() {
         </p>
       )}
       {support === 'unsupported' && <p className="muted push-hint">{t('settings.push.unsupported')}</p>}
-      {support === 'native-app' && <p className="muted push-hint">{t('settings.push.nativeApp')}</p>}
       {installable && (
         <div className="push-install">
           <span className="muted">{t('settings.push.getApp')}</span>
