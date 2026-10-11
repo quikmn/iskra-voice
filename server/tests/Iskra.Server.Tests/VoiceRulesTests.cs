@@ -255,6 +255,10 @@ public class VoiceRulesTests
         Assert.Equal("result", (await bot.RequestAsync("chat.send", new { channelId = server.General, text = "🎲" })).Type());
 
         await alice.RequestAsync("rules.accept", new { version = 1 });
+        // The owner and the bot aren't counted.
+        var counts = (await admin.RequestAsync("rules.get")).Body().GetProperty("rules");
+        Assert.Equal(2, counts.GetProperty("agreed").GetInt32());
+        Assert.Equal(2, counts.GetProperty("members").GetInt32());
         Assert.Equal("result", (await alice.RequestAsync("chat.send", new { channelId = server.General, text = "ok" })).Type());
 
         // A small edit keeps everyone's agreement; a material change can ask again.

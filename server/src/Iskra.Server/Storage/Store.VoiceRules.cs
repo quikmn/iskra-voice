@@ -81,9 +81,14 @@ public sealed partial class Store
             ON CONFLICT(account_key) DO UPDATE SET version = MAX(version, excluded.version), at = excluded.at;
             """, ("$v", version), ("$at", now));
 
-    /// <summary>How many current members agreed to <paramref name="version"/> or later.</summary>
-    public int RulesAgreedCount(int version) =>
-        Convert.ToInt32(Scalar("""
-            SELECT COUNT(*) FROM members m JOIN rules_accepted a ON a.account_key = m.account_key WHERE a.version >= $v;
-            """, ("$v", version)));
+    /// <summary>Members who have to agree (not the owner, not bots), and how many of them agreed to <paramref name="version"/> or later.</summary>
+    public (int Agreed, int Members) RulesAgreement(int version)
+    {
+        var rows = Query("""
+            SELECT m.account_key, COALESCE(a.version, 0) FROM members m LEFT JOIN rules_accepted a ON a.account_key = m.account_key
+            WHERE m.role != 'owner';
+            """, r => (Key: r.GetString(0), Version: r.GetInt32(1)));
+        var people = rows.Where(r => !IsBot(r.Key)).ToList();
+        return (people.Count(r => r.Version >= version), people.Count);
+    }
 }

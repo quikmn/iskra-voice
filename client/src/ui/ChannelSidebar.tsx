@@ -14,6 +14,7 @@ import { ChevronDown, HeadphonesOff, MicOff, Settings, UserPlus } from './icons'
 import { useVoice } from '../state/voice'
 import type { SectionId } from './settings/sections'
 import { EventsButton } from './events/EventsLayer'
+import { RulesButton } from './rules/Rules'
 import './audio.css'
 
 export function ChannelSidebar({ server, onNavigate }: { server: ServerState; onNavigate: () => void }) {
@@ -39,6 +40,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
       </header>
 
       <div className="channel-list">
+        <RulesButton server={server} onNavigate={onNavigate} />
         <EventsButton server={server} onNavigate={onNavigate} />
         {canInvite && (
           <button className="invite-button" onClick={() => setDialog('invite')}>

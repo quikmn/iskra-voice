@@ -48,6 +48,7 @@ public static class RulesFeature
     {
         var rules = store.Rules();
         var version = rules?.Version ?? 0;
+        var (agreed, members) = counts ? store.RulesAgreement(version) : (0, 0);
         return new
         {
             text = rules?.Text ?? "",
@@ -57,8 +58,8 @@ public static class RulesFeature
             updatedAt = rules?.UpdatedAt,
             mustAgree = MustAgree(store, rules, member),
             agreedVersion = store.AcceptedRulesVersion(member.AccountKey),
-            agreed = counts ? store.RulesAgreedCount(version) : (int?)null,
-            members = counts ? store.AllMembers().Count(m => m.Role != Roles.Owner && !store.IsBot(m.AccountKey)) : (int?)null,
+            agreed = counts ? agreed : (int?)null,
+            members = counts ? members : (int?)null,
         };
     }
 
