@@ -96,9 +96,11 @@ public sealed class Session
 
     public Member? CurrentMember() => AccountKey is null ? null : _world.Store.GetMember(AccountKey);
 
-    public async Task RunAsync(CancellationToken aborted)
+    /// <param name="stopping">The server is shutting down: say goodbye (clients reconnect) instead of holding shutdown open.</param>
+    public async Task RunAsync(CancellationToken aborted, CancellationToken stopping = default)
     {
         using var _ = aborted.Register(() => _ws.Abort());
+        using var __ = stopping.Register(() => Close(WebSocketCloseStatus.EndpointUnavailable, "Server is restarting"));
         var writer = WriteLoopAsync();
         try
         {

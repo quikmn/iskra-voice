@@ -240,7 +240,7 @@ app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice
         Push = push,
         Gifs = context.RequestServices.GetRequiredService<Iskra.Server.Gifs.GifService>(),
         Origin = $"{context.Request.Scheme}://{context.Request.Host}",
-    }.RunAsync(context.RequestAborted);
+    }.RunAsync(context.RequestAborted, context.RequestServices.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping);
 });
 
 // Voice signaling (LiveKit's WebSocket and HTTP) on the same port as everything else.

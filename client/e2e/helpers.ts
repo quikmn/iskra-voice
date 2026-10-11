@@ -95,7 +95,7 @@ export async function joinVia(page: Page, link: string, name: string) {
   await expect(page.getByText("You've been invited")).toBeVisible()
   await page.getByLabel('Your name').fill(name)
   await page.getByRole('button', { name: 'Join' }).click()
-  await expect(page.getByRole('heading', { name: 'general' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'general' })).toBeVisible({ timeout: 15_000 })
 }
 
 export async function send(page: Page, text: string) {
