@@ -34,7 +34,7 @@ test('the desktop app runs the web app on app:// and can join a server', async (
 
     // The preload bridge is there, and only that.
     const bridge = await page.evaluate(() => Object.keys((window as unknown as { iskraDesktop: object }).iskraDesktop).sort())
-    expect(bridge).toEqual(['callAlert', 'capturePushToTalkKey', 'host', 'onPickScreen', 'onPushToTalk', 'openSystemSettings', 'pickScreen', 'platform', 'pushToTalkStatus', 'setPushToTalkKey', 'updates'])
+    expect(bridge).toEqual(['callAlert', 'capturePushToTalkKey', 'download', 'host', 'keychain', 'onPickScreen', 'onPushToTalk', 'openSystemSettings', 'pickScreen', 'platform', 'pushToTalkStatus', 'setPushToTalkKey', 'updates'])
     expect(await page.evaluate(() => typeof (window as unknown as { require?: unknown }).require)).toBe('undefined')
 
     // Calls: LiveKit's end-to-end encryption worker loads from app:// under the app's CSP, and frames can be transformed.
@@ -108,7 +108,7 @@ test('the desktop app runs the web app on app:// and can join a server', async (
     await expect(page.getByText('New version available')).toBeHidden()
 
     // Push-to-talk settings are available.
-    await page.getByRole('button', { name: 'Settings' }).click()
+    await page.getByRole('button', { name: 'Settings', exact: true }).click()
     await page.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Voice & audio' }).click()
     await page.getByRole('radio', { name: 'Push to talk' }).click()
     await expect(page.getByText('Works everywhere, even while a game has focus')).toBeVisible()

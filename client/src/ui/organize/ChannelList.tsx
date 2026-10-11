@@ -12,6 +12,7 @@ import { channelBadges, dropOnCategory, dropOnChannel, isVoiceLike, layoutChanne
 import { forumReplies } from '../../state/forums'
 import { ForumIcon } from '../forums/icons'
 import { StageEntry } from '../stage/StageSidebar'
+import { useVolumeMenu } from '../useVolumeMenu'
 import { Avatar } from '../bits'
 import { ChevronDown, Hash, HeadphonesOff, Lock, MicOff, Plus, Volume } from '../icons'
 import { CategoryMenu, ChannelMenu } from './Menus'
@@ -260,6 +261,7 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
   const speaking = useVoice((s) => s.speaking)
   const participants = server.voice[channel.id] ?? []
   const here = voiceSession?.serverKey === server.key && voiceSession.channelId === channel.id
+  const { bind, menu: volumeMenu } = useVolumeMenu()
   return (
     <div className="voice-channel">
       <div {...rowProps}>
@@ -284,8 +286,13 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
         <ul className="voice-participants">
           {participants.map((p) => {
             const member = server.members[p.accountKey]
+            const isMe = p.accountKey === server.me?.accountKey
             return (
-              <li key={p.accountKey} className={here && speaking[p.accountKey] ? 'speaking' : ''}>
+              <li
+                key={p.accountKey}
+                className={`${here && speaking[p.accountKey] ? 'speaking' : ''} ${isMe ? 'me' : ''}`}
+                {...bind(here && !isMe ? { accountKey: p.accountKey, name: member?.name ?? 'Someone' } : null)}
+              >
                 <button className="participant" onClick={(e) => openProfileCard(server.key, p.accountKey, e.currentTarget)}>
                   <Avatar name={member?.name ?? '?'} accountKey={p.accountKey} size={22} />
                   <span className="member-name">{member?.name ?? 'Someone'}</span>
@@ -296,6 +303,7 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
           })}
         </ul>
       )}
+      {volumeMenu}
     </div>
   )
 }

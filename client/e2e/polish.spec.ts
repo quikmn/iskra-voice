@@ -20,8 +20,8 @@ test('settings, Escape, quick switcher and phone message actions', async ({ brow
   const settings = host.getByRole('dialog', { name: 'Settings' })
   const nav = settings.getByRole('navigation', { name: 'Settings sections' })
   await expect(nav.getByRole('button')).toHaveText([
-    'Profile', 'Appearance', 'Devices', 'Recovery key', 'Notifications', 'Voice & audio', 'Blocked people',
-    'Overview', 'Emoji', 'Soundboard', 'Bots & webhooks', 'Profile pages', 'Open to the internet', 'Audit log',
+    'Profile', 'Appearance', 'Devices', 'Recovery key', 'App lock', 'Notifications', 'Voice & audio', 'Blocked people',
+    'Overview', 'Emoji', 'Soundboard', 'Bots & webhooks', 'Profile pages', 'Open to the internet', 'Audit log', 'Backup & move', 'Import from Discord',
   ])
   await expect(nav.getByRole('button', { name: 'Profile', exact: true })).toHaveAttribute('aria-current', 'page')
   await expect(settings.getByLabel('Display name')).toBeVisible()
@@ -41,7 +41,7 @@ test('settings, Escape, quick switcher and phone message actions', async ({ brow
   await openSettings(phone)
   const phoneSettings = phone.getByRole('dialog', { name: 'Settings' })
   const phoneNav = phoneSettings.getByRole('navigation', { name: 'Settings sections' })
-  await expect(phoneNav.getByRole('button')).toHaveText(['Profile', 'Appearance', 'Devices', 'Recovery key', 'Notifications', 'Voice & audio', 'Blocked people', 'Overview'])
+  await expect(phoneNav.getByRole('button')).toHaveText(['Profile', 'Appearance', 'Devices', 'Recovery key', 'App lock', 'Notifications', 'Voice & audio', 'Blocked people', 'Overview'])
   await phone.screenshot({ path: join(SHOTS, 'settings-phone-list.png') })
   await phoneNav.getByRole('button', { name: 'Appearance' }).click()
   await expect(phoneSettings.getByRole('heading', { name: 'Appearance' })).toBeVisible()
@@ -83,7 +83,7 @@ test('settings, Escape, quick switcher and phone message actions', async ({ brow
   const own = host.locator('.message', { hasText: 'press and hold me' })
   await longPress(host, own.locator('.message-body'))
   const ownSheet = host.getByRole('dialog', { name: 'Message actions' })
-  await expect(ownSheet.getByRole('menuitem')).toHaveText(['Reply', 'Start a thread', 'Pin message', 'Edit message', 'Copy text', 'Delete message'])
+  await expect(ownSheet.getByRole('menuitem')).toHaveText(['Reply', 'Start a thread', 'Pin message', 'Forward', 'Edit message', 'Copy text', 'Delete message'])
   await host.keyboard.press('Escape')
   await expect(ownSheet).toHaveCount(0)
 })

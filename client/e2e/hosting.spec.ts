@@ -64,7 +64,7 @@ async function openSettings(page: Page) {
   // On a phone the settings button lives in the channels drawer.
   const drawer = page.getByRole('button', { name: 'Open channels' })
   if (await drawer.isVisible()) await drawer.click()
-  await page.getByRole('button', { name: 'Settings' }).click()
+  await page.getByRole('button', { name: 'Settings', exact: true }).click()
   await page.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Open to the internet' }).click()
   await expect(page.getByRole('heading', { name: 'Open to the internet' })).toBeVisible()
 }
@@ -80,7 +80,7 @@ test('owner opens the server to the internet; without port 80 nothing plain HTTP
   // Members don't see the panel.
   const friend = await (await browser.newContext()).newPage()
   await joinVia(friend, await createInviteLink(owner), 'Friend')
-  await friend.getByRole('button', { name: 'Settings' }).click()
+  await friend.getByRole('button', { name: 'Settings', exact: true }).click()
   await expect(friend.getByRole('heading', { name: 'Profile' })).toBeVisible()
   await expect(friend.getByRole('heading', { name: 'Open to the internet' })).toHaveCount(0)
   await expect(friend.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Open to the internet' })).toHaveCount(0)

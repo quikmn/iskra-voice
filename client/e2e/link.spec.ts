@@ -21,7 +21,7 @@ test('link a phone with the text code, read DMs on both devices, then remove it'
   await joinVia(friend, await createInviteLink(host), 'Friend')
 
   // The existing device shows a link code.
-  await host.getByRole('button', { name: 'Settings' }).click()
+  await host.getByRole('button', { name: 'Settings', exact: true }).click()
   await host.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Devices', exact: true }).click()
   await host.getByRole('button', { name: 'Link a device' }).click()
   await host.getByRole('button', { name: 'Show code' }).click()
@@ -96,7 +96,7 @@ test('link a phone with the text code, read DMs on both devices, then remove it'
   expect(db.some((bytes) => bytes.includes(Buffer.from('4242')))).toBe(false)
 
   // The host sees both devices and removes the phone.
-  await host.getByRole('button', { name: 'Settings' }).click()
+  await host.getByRole('button', { name: 'Settings', exact: true }).click()
   await host.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Devices', exact: true }).click()
   const rows = host.locator('.device-row')
   await expect(rows).toHaveCount(2)

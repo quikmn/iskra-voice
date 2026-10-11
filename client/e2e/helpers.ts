@@ -110,7 +110,7 @@ export async function createInviteLink(page: Page): Promise<string> {
 
 /** Opens Settings from the bar under the channel list, then a section by its name in the sidebar (or list, on phones). */
 export async function openSettings(page: Page, section?: string) {
-  await page.locator('.me-bar').getByRole('button', { name: 'Settings' }).click()
+  await page.locator('.me-bar').getByRole('button', { name: 'Settings', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Settings' })
   await expect(dialog).toBeVisible()
   if (section) await dialog.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: section, exact: true }).click()
