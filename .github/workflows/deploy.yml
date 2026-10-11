@@ -188,9 +188,14 @@ jobs:
         if: always()
         run: rm -f "$RUNNER_TEMP/droplet_key" "$RUNNER_TEMP/known_hosts"
       - name: Check chat.iskra.foo
+        env:
+          VERSION: ${{ inputs.server_version }}
         run: |
+          # Servers with /health (after 2.0.0-alpha.10) must report the new version; older ones just have to answer.
           for i in $(seq 1 12); do
-            if curl -fsS --max-time 20 https://chat.iskra.foo/ | grep -q '"iskra"'; then echo 'chat.iskra.foo answers'; exit 0; fi
+            code="$(curl -sS -o "$RUNNER_TEMP/health.json" -w '%{http_code}' --max-time 20 https://chat.iskra.foo/health || true)"
+            if [ "$code" = 200 ] && grep -qF "\"version\":\"$VERSION\"" "$RUNNER_TEMP/health.json"; then echo "chat.iskra.foo runs $VERSION"; exit 0; fi
+            if [ "$code" = 404 ] && curl -fsS --max-time 20 https://chat.iskra.foo/ | grep -q '"iskra"'; then echo 'chat.iskra.foo answers'; exit 0; fi
             sleep 10
           done
-          echo "::error::chat.iskra.foo doesn't answer 200 after 2 minutes"; exit 1
+          echo "::error::chat.iskra.foo doesn't answer as $VERSION after 2 minutes"; cat "$RUNNER_TEMP/health.json" 2>/dev/null; exit 1

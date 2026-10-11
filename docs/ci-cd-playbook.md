@@ -30,6 +30,7 @@ table doesn't cover it, **stop and report**. Don't improvise fixes. Background a
 | "fix the checksums of V" | [G. Re-run checksums](#g-re-run-checksums-and-attestations) |
 | "is CI green?" | [H. Check CI](#h-check-ci-status) |
 | "build iOS and upload to TestFlight" | [I. iOS app to TestFlight](#i-ios-app-to-testflight) |
+| an `outage` issue was opened / "is everything up?" | [J. Outage alert](#j-outage-alert) |
 
 ## A. Full release
 
@@ -111,7 +112,8 @@ Use when B uploaded everything but finalize didn't start (or failed and the caus
 1. The version must be a published release: `gh release view vV --json isDraft --jq .isDraft` → `false`.
    Default V: the latest release (`gh release view --json tagName --jq .tagName`, without the `v`).
 2. `gh workflow run deploy.yml -f server_version=V`
-3. Watch as in C.3. ✔ job `server` green. Its log ends with `chat.iskra.foo answers`.
+3. Watch as in C.3. ✔ job `server` green. Its log ends with `chat.iskra.foo runs V` (or `chat.iskra.foo answers` for a
+   version without `/health`).
 
 ## G. Re-run checksums and attestations
 
@@ -143,6 +145,22 @@ or `main` if the human said so.
 
 Never change the API key, the App Store Connect app or TestFlight groups yourself; those are the human's.
 
+## J. Outage alert
+
+The uptime workflow (`uptime.yml`, every 15 minutes) opened or updated an issue labelled `outage`.
+1. `gh issue list --label outage --state open` → read the issue: it lists each failing check.
+2. Confirm it's still failing: `gh workflow run uptime.yml`, then watch as in C.3; its summary is a table of every check.
+   It closes the issue by itself when all pass.
+3. By check:
+   - `iskra.foo` / `app.iskra.foo` doesn't answer: `curl -sI https://iskra.foo`. Cloudflare's status page
+     (cloudflarestatus.com) first. A bad deploy: redeploy ([D](#d-redeploy-the-site-iskrafoo) / [E](#e-redeploy-the-web-app-appiskrafoo)).
+   - `chat.iskra.foo` doesn't answer, `/health` unhealthy or `voice … down`, voice port not reachable: the droplet. Report to
+     the human; they log in with the admin key (`journalctl -u iskra -n 200`, `systemctl status iskra`). Right after a
+     server update: [F](#f-update-the-server-chatiskrafoo) with the previous version only if the human agrees.
+   - `certificate … expires in N days`: Pages hosts renew themselves (report if it stays under 14 days for 2 days);
+     chat.iskra.foo renews in the server (port 80 must be open): report to the human.
+4. Never close an `outage` issue by hand while a check still fails, and never change the schedule to silence it.
+
 ## Decision table
 
 | You see | Do |
@@ -171,6 +189,7 @@ Never change the API key, the App Store Connect app or TestFlight groups yoursel
 | mobile-ios.yml: `Cloud signing permission error`, `No profiles for 'foo.iskra.app'`, `No Account for Team`, `agreement` | Stop. The human must fix the Apple side (ci-cd.md, "iOS app" and troubleshooting) |
 | mobile-ios.yml archive fails on signing | Rerun once with `-f archive_signing=automatic`. Fails again: stop and report |
 | mobile-ios.yml upload: `bundle version` / `redundant binary` | `gh run rerun <id>` once (the build number rises with the attempt) |
+| `outage` issue open | Do [J](#j-outage-alert). Report what fails; the droplet and DNS are the human's |
 | Anything else | Stop and report the exact message |
 
 ## Report format

@@ -22,6 +22,7 @@ import { DevicesSection } from '../dialogs/DevicesSection'
 import { IntegrationsSection } from '../dialogs/Integrations'
 import { BackupSection } from './BackupSection'
 import { LimitsSection } from './LimitsSection'
+import { UpdatesSection } from './UpdatesSection'
 import { LanguageSection } from './LanguageSection'
 import { RulesSection } from '../rules/Rules'
 import { ImportSection } from './ImportSection'
@@ -139,6 +140,7 @@ function Section({ id, server, onClose }: { id: SectionId; server: ServerState |
     case 'rules': return <RulesSection server={server} />
     case 'backup': return <BackupSection server={server} />
     case 'import': return <ImportSection server={server} />
+    case 'updates': return <UpdatesSection server={server} />
     case 'roles': return <RolesSection server={server} />
     case 'automod': return <AutoModSection server={server} />
     case 'securityLog': return <SecurityLogSection server={server} />

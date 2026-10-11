@@ -75,5 +75,11 @@ export const compliance: Messages['compliance'] = {
     retention_update: 'Ändrade lagringstider',
     data_export: 'Laddade ner data',
     security_log_export: 'Exporterade säkerhetsloggen',
+    update_check: 'Sökte efter uppdateringar',
+    update_settings: 'Ändrade inställningar för uppdateringar',
+    update_install: 'Startade en uppdatering',
+    update_installed: 'Uppdaterade servern',
+    update_failed: 'En uppdatering misslyckades',
+    update_rolledback: 'Backade en uppdatering som inte startade',
   },
 }

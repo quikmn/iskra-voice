@@ -26,6 +26,7 @@ export const settings = {
     limits: 'Limits',
     backup: 'Backup & move',
     import: 'Import from Discord',
+    updates: 'Updates',
     privacy: 'Privacy & data',
     securityLog: 'Security log',
   },

@@ -5,7 +5,7 @@ import { t } from '../../i18n'
 export type SectionId =
   | 'profile' | 'appearance' | 'devices' | 'recovery' | 'security' | 'notifications' | 'voice' | 'blocked' | 'desktop' | 'account' | 'privacy' | 'about'
   | 'overview' | 'reports' | 'roles' | 'automod' | 'emoji' | 'sounds' | 'integrations' | 'pages' | 'internet' | 'audit' | 'rules' | 'limits' | 'backup' | 'import'
-  | 'securityLog'
+  | 'securityLog' | 'updates'
 
 export interface SectionInfo {
   id: SectionId
@@ -48,6 +48,7 @@ const SERVER: (SectionEntry & { min: Role; perm?: Permission; perms?: Permission
   { id: 'backup', group: 'server', min: 'owner' },
   { id: 'import', group: 'server', min: 'owner' },
   { id: 'securityLog', group: 'server', min: 'owner' },
+  { id: 'updates', group: 'server', min: 'owner' },
 ]
 
 /** The sections to show: account always (Desktop app only in the app); server ones only with a joined server, by level or permission. */

@@ -73,5 +73,11 @@ export const compliance = {
     retention_update: 'Changed data retention',
     data_export: 'Downloaded data',
     security_log_export: 'Exported the security log',
+    update_check: 'Checked for updates',
+    update_settings: 'Changed update settings',
+    update_install: 'Started an update',
+    update_installed: 'Updated the server',
+    update_failed: 'An update failed',
+    update_rolledback: 'Undid an update that didn’t start',
   },
 } as const

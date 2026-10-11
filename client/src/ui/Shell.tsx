@@ -27,6 +27,7 @@ import { EventsLayer } from './events/EventsLayer'
 import { DisputeNotices } from './keys/KeyScreens'
 import { Shortcuts } from './organize/Shortcuts'
 import { RulesLayer } from './rules/Rules'
+import { ServerUpdateNotice } from './ServerUpdateNotice'
 
 export type Panel = 'none' | 'nav' | 'members'
 
@@ -55,6 +56,7 @@ export function Shell() {
       <main className="main-column">
         <RecoveryNudge />
         <DisputeNotices />
+        {server && <ServerUpdateNotice server={server} />}
         {server && stage ? (
           isStageChannel
             ? <StageView server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />

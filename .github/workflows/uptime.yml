@@ -1,0 +1,33 @@
+name: Uptime
+
+# Every 15 minutes: iskra.foo, app.iskra.foo, chat.iskra.foo (and its /health), the voice port and TLS expiry.
+# Problems open one GitHub issue labelled "outage" (assigned to the owner, so GitHub emails them); it's updated only
+# when the set of failures changes and closed when everything passes again. See docs/ci-cd.md, "Uptime monitoring".
+on:
+  schedule:
+    - cron: '4-59/15 * * * *' # off the hour: scheduled runs at :00 are the most delayed
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read # the check script
+      issues: write # open, update and close the outage issue
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/uptime-check.sh
+          sparse-checkout-cone-mode: false
+      - name: Check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/uptime-check.sh

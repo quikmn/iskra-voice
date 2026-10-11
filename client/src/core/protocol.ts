@@ -1369,3 +1369,44 @@ export interface Requests {
   'retention.update': [Partial<Retention>, Retention]
   'data.export': [{ accountKey?: string }, { url: string; name: string; size: number; expiresAt: number }]
 }
+
+// ── server updates ──
+// See "Server updates and health" in PROTOCOL.md.
+
+export type UpdateMode = 'off' | 'notify' | 'auto'
+export type UpdateChannel = 'stable' | 'prerelease'
+export type ServerUpdateState = 'idle' | 'checking' | 'downloading' | 'verifying' | 'installing' | 'restarting' | 'failed'
+/** Why this server can't install updates itself. */
+export type AutoUpdateBlock = 'desktop' | 'development' | 'platform' | 'guard' | 'readonly'
+
+export interface ServerUpdateStatus {
+  current: string
+  mode: UpdateMode
+  channel: UpdateChannel
+  window: string
+  requireAttestation: boolean
+  managed: 'desktop' | null
+  canCheck: boolean
+  auto: { possible: boolean; reason: AutoUpdateBlock | null }
+  latest: { version: string; url: string; publishedAt: number; prerelease: boolean; package: boolean } | null
+  state: ServerUpdateState
+  progress: { done: number; total: number } | null
+  checkedAt: number | null
+  error: string | null
+  /** Which error, for showing it in the owner's language (PROTOCOL.md). */
+  errorCode: string | null
+  lastUpdate: { from: string; to: string; ok: boolean } | null
+  attested: boolean | null
+}
+
+export interface Events {
+  'update.status': { status: ServerUpdateStatus }
+  'server.restarting': { reason: 'update'; version: string }
+}
+
+export interface Requests {
+  'update.status': [Record<string, never>, { status: ServerUpdateStatus }]
+  'update.check': [Record<string, never>, { status: ServerUpdateStatus }]
+  'update.settings': [{ mode?: UpdateMode; channel?: UpdateChannel; window?: string; requireAttestation?: boolean }, { status: ServerUpdateStatus }]
+  'update.install': [Record<string, never>, { status: ServerUpdateStatus }]
+}

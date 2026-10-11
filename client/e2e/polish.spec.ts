@@ -22,7 +22,7 @@ test('settings, Escape, quick switcher and phone message actions', async ({ brow
   await expect(nav.getByRole('button')).toHaveText([
     'Profile', 'Appearance', 'Devices', 'Recovery key', 'App lock', 'Notifications', 'Voice & audio', 'Blocked people', 'Account', 'Privacy & data', 'About & legal',
     'Overview', 'Reports', 'Roles', 'AutoMod', 'Emoji', 'Soundboard', 'Bots & webhooks', 'Profile pages', 'Open to the internet', 'Audit log', 'Rules', 'Limits', 'Backup & move', 'Import from Discord',
-    'Security log',
+    'Security log', 'Updates',
   ])
   await expect(nav.getByRole('button', { name: 'Profile', exact: true })).toHaveAttribute('aria-current', 'page')
   await expect(settings.getByLabel('Display name')).toBeVisible()

@@ -14,7 +14,7 @@ describe('settings sections', () => {
     expect(ids('member')).toEqual([...account, 'overview'])
     expect(ids('trusted')).toEqual([...account, 'overview', 'sounds'])
     expect(ids('admin')).toEqual([...account, 'overview', 'reports', 'roles', 'automod', 'emoji', 'sounds', 'integrations', 'pages', 'internet', 'audit', 'rules'])
-    expect(ids('owner')).toEqual([...ids('admin'), 'limits', 'backup', 'import', 'securityLog'])
+    expect(ids('owner')).toEqual([...ids('admin'), 'limits', 'backup', 'import', 'securityLog', 'updates'])
   })
 
   it('opens sections for the permissions a custom role gives', () => {

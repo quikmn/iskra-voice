@@ -16,6 +16,7 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
 5. [Refresh calendar](#5-refresh-calendar)
 6. [Troubleshooting](#6-troubleshooting)
 7. [Rules for agents](#7-rules-for-agents)
+8. [Uptime monitoring](#8-uptime-monitoring)
 
 ## 1. Overview
 
@@ -26,6 +27,8 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
  push to main / PR / weekly ──► codeql.yml ... code scanning: JS/TS, C#, workflows
  push to main / weekly ──► scorecard.yml ..... OpenSSF Scorecard → code scanning + scorecard.dev
  weekly ──► Dependabot ............ grouped PRs for npm (client, desktop, bots), NuGet (server), GitHub Actions
+ every 15 min ──► uptime.yml ....... iskra.foo, app.iskra.foo, chat.iskra.foo (+ /health), voice port, TLS expiry
+                                     ──► GitHub issue labelled "outage" on a change of state (section 8)
 
  RELEASE
  ① npm run release -- X        (any OS)   bump version in desktop/package.json(+lock), client/src/links.ts,
@@ -70,6 +73,8 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
 | `android/build.ps1` | Signed APK (+ AAB) |
 | `.github/workflows/mobile-ios.yml` | iPhone/iPad app: build, cloud-sign, upload to TestFlight ([iOS app](#ios-app)) |
 | `scripts/mobile-version.mjs` | The phone app's version and build numbers (tested by the root `npm test`) |
+| `.github/workflows/uptime.yml`, `scripts/uptime-check.sh` | Uptime checks and outage issues ([section 8](#8-uptime-monitoring)) |
+| `server/deploy/iskra-update-guard` | Shipped in the Linux server tarball (release.yml): undoes a server self-update that doesn't start (docs/hosting.md) |
 
 Supply chain: every action is pinned to a full commit SHA with the version as a comment (Dependabot keeps them
 current); every workflow starts with minimal `permissions:` and widens them per job; wrangler is pinned
@@ -106,8 +111,12 @@ apps update themselves from the release (`latest*.yml`), with `allowPrerelease` 
    chat.iskra.foo answers, GitHub's Latest is vX, the downloads resolve.
 6. Afterwards: `git checkout main`.
 
-The user's own server updates through finalize. Other people's servers don't update themselves: they download the
-new `iskra-server` package (docs/hosting.md).
+The user's own server updates through finalize. Other standalone servers look for new releases themselves (owner
+setting, Settings → Updates: off / tell me / install automatically on Linux with systemd; docs/hosting.md "Updating").
+They read the same release: the `iskra-server-<v>-<rid>` package, `SHA256SUMS.txt`, GitHub's asset digests and the
+attestations, so every release needs SHA256SUMS.txt (finalize makes it) and the Linux tarball needs
+`iskra-update-guard` (release.yml adds it). Servers report their version at `/health`; release builds get it from
+`prepare-server.mjs` (`-p:Version=` from desktop/package.json), anything else says `0.0.0-dev` and never updates.
 
 ## 3. Deploying without a release
 
@@ -293,6 +302,7 @@ many of them (branch protection, review) are owner settings too. Click-by-click 
 | **2027-09 (before 2027-10-01), then yearly** | `Expires` in both security.txt files | Move it a year ahead (RFC 9116: at most a year), check Contact and Policy still work, deploy site and web app |
 | Yearly | iskra.foo domain | Check auto-renew at the registrar |
 | Yearly | Offline backups | Check the keystore, devkeys folder and admin SSH key copies still open |
+| After 60 days without commits | Uptime schedule | GitHub pauses scheduled workflows in inactive repos (it emails first): Actions → Uptime → Enable workflow |
 | **2031-08 (before 2031-09-17)** | Apple Developer ID certificate | New CSR, certificate, p12, secrets (section 4) |
 | ~2053 | Android keystore | Far future; Play App Signing removes the problem |
 
@@ -324,6 +334,8 @@ or revert quickly.
 | iOS archive fails on signing with `archive_signing=adhoc` | Rerun with `-f archive_signing=automatic`. If later runs then fail with "certificate … private key not installed", revoke the old "Created via API" development certificates |
 | iOS upload: "bundle version must be higher" / "redundant binary upload" | That build number exists: rerun (the attempt number goes up). "No suitable application records" → the App Store Connect app record is missing |
 | iOS upload: "SDK version issue" / "built with … SDK" | Apple wants a newer Xcode than the runner has; the workflow picks the newest installed. Wait for GitHub's image or switch `runs-on` to a newer macOS image |
+| `outage` issue opened | See [section 8](#8-uptime-monitoring) and playbook J. The issue closes itself when the checks pass |
+| Deploy `server`: "doesn't answer as X" | `/health` reports another version: `iskra-update` rolled back, or the build wasn't stamped with its version (prepare-server.mjs). `curl https://chat.iskra.foo/health` |
 | Universal Links open Safari instead of the app | `curl -sI https://app.iskra.foo/.well-known/apple-app-site-association` must be 200 `application/json` with no redirect; Apple's CDN caches it (up to a day): reinstall the app later |
 
 **Undoing a release:** don't delete or move the tag. Fix forward with the next version. To pull a broken release
@@ -341,3 +353,31 @@ migration ran in between (migrations are forward-only); otherwise restore from a
 - Tests and local servers listen on localhost only (no firewall prompts).
 - Needs the human: the SimplySign phone code, the Apple developer portal and App Store Connect (app record, TestFlight testers, API keys), the Play Console,
   the Cloudflare dashboard (new tokens), DigitalOcean, approving `release` environment runs, anything that costs money.
+
+## 8. Uptime monitoring
+
+`.github/workflows/uptime.yml` runs `scripts/uptime-check.sh` every 15 minutes (at :04, :19, :34, :49; GitHub may
+delay scheduled runs by a few minutes) and on demand (`gh workflow run uptime.yml`). It uses only the automatic
+`GITHUB_TOKEN` (`contents: read`, `issues: write`); no secrets, and the checkout action is pinned by SHA.
+
+| Check | Fails when |
+|---|---|
+| `https://iskra.foo`, `https://app.iskra.foo` | Not HTTP 2xx within 20 s |
+| `https://chat.iskra.foo/` | The answer isn't Iskra's `{"iskra":1,...}` |
+| `https://chat.iskra.foo/health` | Not 200, or `"voice":"down"` (LiveKit isn't running). A 404 (a version without `/health`) passes |
+| `chat.iskra.foo:7881/tcp` | Can't open a TCP connection (voice over TCP; UDP 7882 can't be checked this way) |
+| TLS certificates of all three | Expire in under 14 days, or can't be read |
+
+Each check gets 3 tries, 20 s apart, so a blip isn't an outage. The run's summary shows a table of every check.
+
+**Alerts.** A failing check opens one issue labelled `outage` (the label is created if missing), titled after the first
+failure and **assigned to the repo owner**, so GitHub emails them (Settings → Notifications → "Assigned" / email must
+stay on). While it stays open the workflow only edits it and comments when the *set* of failing checks changes (not when
+details like "9 days left" do), and it closes the issue with a comment when everything passes again. The run itself
+stays green when it found an outage (the issue is the alert; a red run would send a second email). A red run means the
+check itself broke (e.g. GitHub's API), which CI failure emails cover.
+
+**Changing it:** hosts and thresholds are environment variables at the top of the script (`SITE`, `APP`, `CHAT`,
+`VOICE_PORT`, `CERT_WARN_DAYS`, `TRIES`, `PAUSE`). Try it locally without touching issues:
+`DRY_RUN=1 TRIES=1 bash scripts/uptime-check.sh`. There's no public status page; the open `outage` issue is the
+status (the repo is public, so keep issue text to what the checks say).
