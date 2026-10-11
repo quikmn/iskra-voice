@@ -5,7 +5,7 @@ import { agreeToTerms, SHOTS } from './helpers'
 const { defaultBrowserType: _i, ...iphone } = devices['iPhone 13']
 
 // The iPhone/iPad app (mobile/) runs this client with Capacitor's bridge in place; here a stand-in for it.
-test('inside the iPhone app: no Home Screen hints, no web push prompt', async ({ browser }) => {
+test('inside the iPhone app: no Home Screen hints, push goes through the app', async ({ browser }) => {
   const context = await browser.newContext(iphone)
   await context.addInitScript(() => {
     Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false })
@@ -24,7 +24,8 @@ test('inside the iPhone app: no Home Screen hints, no web push prompt', async ({
   await page.getByRole('button', { name: 'Open menu' }).click()
   await page.getByRole('button', { name: 'Settings', exact: true }).click()
   await page.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Notifications' }).click()
-  await expect(page.getByText('coming to the iPhone and iPad app')).toBeVisible()
+  // Native push (APNs through the push relay), offered without the web push prerequisites.
+  await expect(page.getByRole('checkbox', { name: /Push notifications on this device/ })).toBeVisible()
   await expect(page.getByText('add Iskra to your Home Screen first')).toHaveCount(0)
   await page.screenshot({ path: join(SHOTS, 'ios-app-push.png'), animations: 'disabled' })
   await context.close()
