@@ -27,8 +27,8 @@ test('friends send end-to-end encrypted DMs the server cannot read', async ({ br
   await box.press('Enter')
   await expect(friend.locator('.message-text', { hasText: secret })).toBeVisible()
 
-  // Host sees an unread badge on Home and reads it.
-  await expect(host.locator('.server-icon.home .badge')).toHaveText('1')
+  // Host sees a badge on Home (the message and the friend request) and reads it.
+  await expect(host.locator('.server-icon.home .badge')).toHaveText('2')
   await host.getByRole('button', { name: 'Direct messages' }).click()
   await host.locator('.dm-row', { hasText: 'Friend' }).click()
   await expect(host.locator('.message-text', { hasText: secret })).toBeVisible()
@@ -48,9 +48,10 @@ test('friends send end-to-end encrypted DMs the server cannot read', async ({ br
   await friend.keyboard.press('Escape')
   await friend.screenshot({ path: join(SHOTS, 'dm.png') })
 
-  // The friend shows up in the Friends list.
-  await friend.getByRole('button', { name: 'Friends' }).click()
-  await expect(friend.locator('.friend-row', { hasText: 'Host' })).toBeVisible()
+  // The friend request waits in the Friends page until Host answers.
+  await friend.locator('.channel', { hasText: 'Friends' }).click()
+  await friend.getByRole('tab', { name: 'Pending' }).click()
+  await expect(friend.locator('.friend-row', { hasText: 'Host' })).toContainText('Request sent')
 
   // The server's files never contain the message text.
   for (const file of readdirSync(server.world).filter((f) => f.startsWith('iskra.db'))) {

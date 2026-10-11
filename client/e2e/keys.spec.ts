@@ -18,7 +18,7 @@ async function recoveryKeyOf(page: Page): Promise<string> {
 
 async function restore(page: Page, link: string, recoveryKey: string, name: string) {
   await page.goto(link)
-  await page.getByRole('button', { name: 'I already have Iskra' }).click()
+  await page.getByRole('button', { name: /I already use Iskra/ }).click()
   await page.getByRole('button', { name: /Use my recovery key/ }).click()
   await page.getByLabel('Recovery key').fill(recoveryKey)
   await page.getByLabel('Your name').fill(name)
@@ -120,6 +120,7 @@ test('replacing the account key: your other device and your friends follow, the 
 test('app lock: a passphrase protects the keys and is asked for at startup', async ({ browser }) => {
   const page = await (await browser.newContext()).newPage()
   await page.goto('/')
+  await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
   await page.getByLabel('Your name').fill('Locked')
   await page.getByRole('button', { name: 'Continue' }).click()
   await expect(page.getByText('No servers yet')).toBeVisible()

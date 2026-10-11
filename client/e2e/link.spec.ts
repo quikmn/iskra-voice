@@ -49,7 +49,7 @@ test('link a phone with the text code, read DMs on both devices, then remove it'
   const { defaultBrowserType: _, ...iphone } = devices['iPhone 13']
   const phone = await (await browser.newContext({ ...iphone })).newPage()
   await phone.goto('/')
-  await phone.getByRole('button', { name: 'I already have Iskra' }).click()
+  await phone.getByRole('button', { name: /I already use Iskra/ }).click()
   await phone.getByRole('button', { name: /Link with my other device/ }).click()
   await phone.getByLabel('Or type the code').fill(code)
   await phone.getByRole('button', { name: 'Link this device' }).click()

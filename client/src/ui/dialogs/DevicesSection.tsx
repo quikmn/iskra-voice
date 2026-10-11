@@ -9,6 +9,7 @@ import { Modal, Spinner } from '../bits'
 import { messageTime } from '../format'
 import { Pencil } from '../icons'
 import { QrCode } from '../QrCode'
+import { SignOutSection } from './SignOut'
 
 function DeviceRow({ device }: { device: DeviceView }) {
   const { t } = useTranslation()
@@ -87,6 +88,7 @@ export function DevicesSection() {
       )}
       <button className="button" onClick={() => setLinking(true)}>{t('settings.devices.link')}</button>
       {linking && <LinkDeviceDialog onClose={() => setLinking(false)} />}
+      <SignOutSection />
     </section>
   )
 }

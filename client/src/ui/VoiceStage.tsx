@@ -12,11 +12,11 @@ import {
 } from './icons'
 import type { Panel } from './Shell'
 import { SoundboardButton } from './expressions/Soundboard'
-import { useVolumeMenu } from './useVolumeMenu'
 import { ScreenShareMenu } from './ScreenShareMenu'
 import './audio.css'
 import { partyFor, useWatch } from '../state/watch'
 import { WatchButton, WatchPartyPanel } from './watch/WatchParty'
+import { userMenuProps } from './people/userMenuProps'
 
 /** The call screen: video tiles (screen shares first) and everyone's avatar, with call controls. */
 export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle: (panel: Panel) => void }) {
@@ -25,7 +25,6 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
   const tiles = useVoice((s) => s.tiles)
   const speaking = useVoice((s) => s.speaking)
   const [focusId, setFocusId] = useState<string | null>(null)
-  const { bind, menu: volumeMenu } = useVolumeMenu()
   const channel = server.channels.find((c) => c.id === session.channelId)
   const participants = server.voice[session.channelId] ?? []
   const withVideo = new Set(tiles.map((t) => t.accountKey))
@@ -62,7 +61,7 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
             const name = server.members[p.accountKey]?.name ?? t('common.someone')
             return (
               <div
-                {...bind(p.accountKey === server.me?.accountKey ? null : { accountKey: p.accountKey, name })}
+                {...userMenuProps(p.accountKey, server.key)}
                 key={p.accountKey}
                 className={`person-tile ${speaking[p.accountKey] ? 'speaking' : ''}`}
                 role="button"
@@ -83,7 +82,6 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
         {participants.length === 0 && session.state !== 'connected' && <p className="muted stage-hint">{t('voice.bar.connecting')}</p>}
       </div>
 
-      {volumeMenu}
       <CallControls extra={channel && <WatchButton server={server} channel={channel} />} />
     </div>
   )

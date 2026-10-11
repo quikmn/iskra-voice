@@ -29,7 +29,7 @@ test('someone with a stolen key replaces it first; the owner claims it back and 
   const leaked = await recoveryKeyOf(friend)
   const thief = await (await browser.newContext()).newPage()
   await thief.goto(invite)
-  await thief.getByRole('button', { name: 'I already have Iskra' }).click()
+  await thief.getByRole('button', { name: /I already use Iskra/ }).click()
   await thief.getByRole('button', { name: /Use my recovery key/ }).click()
   await thief.getByLabel('Recovery key').fill(leaked)
   await thief.getByLabel('Your name').fill('Friend')

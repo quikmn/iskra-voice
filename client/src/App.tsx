@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { parseInvite } from './core/invite'
 import { boot, retryAll, useApp } from './state/store'
-import { loadFriends } from './state/dms'
+import { loadFriends } from './state/friends'
 import { useDevices } from './state/devices'
 import { usePendingLink } from './state/link'
 import { AlreadySignedInNotice, RevokedScreen } from './ui/DeviceNotices'

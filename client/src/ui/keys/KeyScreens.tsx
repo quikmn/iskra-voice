@@ -4,7 +4,8 @@ import { Trans, useTranslation } from 'react-i18next'
 import { fingerprint } from '../../core/connection'
 import { encodeRecoveryKey, seedOf } from '../../core/recovery'
 import { resetThisDevice } from '../../state/devices'
-import { loadFriends, nameOf } from '../../state/dms'
+import { nameOf } from '../../state/dms'
+import { reloadFriends } from '../../state/friends'
 import { claimAccountBack, resolveDispute, retryRetired, useKeys } from '../../state/keys'
 import { unlock, useLock } from '../../state/lock'
 import { activeServerState, boot, useApp } from '../../state/store'
@@ -66,7 +67,7 @@ export function LockScreen() {
       return
     }
     await boot()
-    await loadFriends()
+    await reloadFriends()
   }
 
   if (status === 'error') {

@@ -50,6 +50,7 @@ import { sendGif } from '../state/gifs'
 import { sendSticker } from '../state/stickers'
 import { SpoilerToggle, isSpoilerName, longTextFile } from './chat/media'
 import { AutoModAlertCard } from './automod/AutoModAlert'
+import { userMenuProps } from './people/userMenuProps'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -308,7 +309,7 @@ function MessageRow({
         {grouped ? (
           <time className="hover-time" title={fullTime(message.createdAt)}>{clockTime(message.createdAt)}</time>
         ) : canOpenProfile ? (
-          <button className="avatar-button" onClick={(e) => openProfileCard(server.key, message.author, e.currentTarget)} aria-label={t('chat.message.profileOf', { name })}>
+          <button className="avatar-button" onClick={(e) => openProfileCard(server.key, message.author, e.currentTarget)} {...userMenuProps(message.author, server.key)} aria-label={t('chat.message.profileOf', { name })}>
             <AuthorAvatar server={server} author={shown} hueKey={message.author} />
           </button>
         ) : (
@@ -320,7 +321,7 @@ function MessageRow({
         {(!grouped || message.replyTo) && (
           <div className="message-meta">
             {canOpenProfile ? (
-              <button className="author" style={{ color: authorColor }} onClick={(e) => openProfileCard(server.key, message.author, e.currentTarget)}>{name}</button>
+              <button className="author" style={{ color: authorColor }} onClick={(e) => openProfileCard(server.key, message.author, e.currentTarget)} {...userMenuProps(message.author, server.key)}>{name}</button>
             ) : (
               <span className="author" style={{ color: authorColor }}>{name}</span>
             )}
@@ -342,7 +343,7 @@ function MessageRow({
         ) : (
           (message.text || message.editedAt) && !message.poll && (
             <div className="message-text">
-              {renderMarkdown(message.text, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey, emoji: emojiLookup, roleOf })}
+              {renderMarkdown(message.text, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey, emoji: emojiLookup, roleOf, serverKey: server.key })}
               {message.editedAt && <span className="edited" title={fullTime(message.editedAt)}> {t('chat.message.edited')}</span>}
             </div>
           )

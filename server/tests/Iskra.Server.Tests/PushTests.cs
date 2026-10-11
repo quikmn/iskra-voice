@@ -246,6 +246,28 @@ public class PushTests
     }
 
     [Fact]
+    public async Task Silent_dms_are_delivered_but_not_pushed()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        using var bob = await server.JoinAsync("Bob");
+        var endpoint = await SubscribeAsync(bob);
+
+        // A quiet friend action (cancel, ignore, remove): stored and relayed like any DM, no push.
+        await alice.RequestAsync("dm.send", new { accountKey = bob.Key, envelope = new { v = 2 }, silent = true });
+        await bob.EventAsync("dm.message");
+        await server.Push.NoneAsync(endpoint);
+        var history = (await bob.RequestAsync("dm.history", new { accountKey = alice.Key })).Body();
+        Assert.Single(history.GetProperty("messages").EnumerateArray());
+
+        // A wrong type is refused before anything is stored; silent: false is an ordinary send.
+        Assert.Equal("bad_request", (await alice.RequestAsync("dm.send", new { accountKey = bob.Key, envelope = new { v = 2 }, silent = "yes" })).ErrorCode());
+        Assert.Single((await bob.RequestAsync("dm.history", new { accountKey = alice.Key })).Body().GetProperty("messages").EnumerateArray());
+        await alice.RequestAsync("dm.send", new { accountKey = bob.Key, envelope = new { v = 2 }, silent = false });
+        Assert.Single(await server.Push.WaitForAsync(endpoint));
+    }
+
+    [Fact]
     public async Task Bursts_are_merged_into_one_follow_up_push()
     {
         using var server = new IskraServer();

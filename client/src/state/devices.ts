@@ -192,10 +192,10 @@ export async function revokeDevice(deviceKey: string): Promise<void> {
   await refreshDevices()
 }
 
-/** After this device was removed: forget everything stored here and start over. */
+/** After this device was removed (or its keys can't be opened): forget everything stored here and start over. */
 export async function resetThisDevice(): Promise<void> {
-  await storage.wipeAll()
-  window.location.reload()
+  const { signOutThisDevice } = await import('./signOut')
+  await signOutThisDevice()
 }
 
 onWelcomeHook((serverKey) => void onWelcome(serverKey))

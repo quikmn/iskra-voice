@@ -108,9 +108,9 @@ test('screenshot tour', async ({ browser }) => {
   for (const [page, size] of [[fresh, 'desktop'], [freshPhone, 'phone']] as const) {
     await part(`onboarding ${size}`, async () => {
       await page.goto('/')
-      await expect(page.getByLabel('Your name')).toBeVisible()
+      await expect(page.getByRole('button', { name: /I’m new to Iskra/ })).toBeVisible()
       await shot(page, `01-onboarding-${size}`)
-      await page.getByRole('button', { name: 'I already have Iskra' }).click()
+      await page.getByRole('button', { name: /I already use Iskra/ }).click()
       await shot(page, `02-onboarding-existing-${size}`)
       await page.getByRole('button', { name: /Link with my other device/ }).click()
       await shot(page, `03-onboarding-link-${size}`)
@@ -158,6 +158,7 @@ test('screenshot tour', async ({ browser }) => {
     })
     const page = await ctx.newPage()
     await page.goto('/')
+    await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
     await page.getByLabel('Your name').fill('Desk')
     await page.getByRole('button', { name: 'Continue' }).click()
     await expect(page.getByText('Update ready')).toBeVisible()
@@ -176,6 +177,7 @@ test('screenshot tour', async ({ browser }) => {
   await host.goto(server.ownerLink())
   await expect(host.getByText("You've been invited")).toBeVisible()
   await shot(host, '10-onboarding-invite-desktop')
+  await host.getByRole('button', { name: /I’m new to Iskra/ }).click()
   await host.getByLabel('Your name').fill('Viktor')
   await host.getByRole('button', { name: 'Join' }).click()
   await expect(host.getByRole('heading', { name: 'general' })).toBeVisible()

@@ -96,6 +96,7 @@ export async function startServer(name: string, voice = false, env: Record<strin
 export async function joinVia(page: Page, link: string, name: string) {
   await page.goto(link)
   await expect(page.getByText("You've been invited")).toBeVisible()
+  await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
   await page.getByLabel('Your name').fill(name)
   await page.getByRole('button', { name: 'Join' }).click()
   await expect(page.getByRole('heading', { name: 'general' })).toBeVisible({ timeout: 15_000 })

@@ -10,6 +10,7 @@ import { b64u } from '../core/crypto'
 import { revokedSet } from '../core/devices'
 import { decryptDm, DmError, encryptDm, type DmContent, type DmEnvelope, type DmForward } from '../core/dm'
 import { checkFiles, type DmFile } from '../core/dmFiles'
+import { checkFriend, type FriendAction } from '../core/friend'
 import type { DeviceCert } from '../core/identity'
 import type { DeviceBundle, WireDm } from '../core/protocol'
 import * as storage from '../core/storage'
@@ -66,6 +67,8 @@ export interface Dm {
   forward?: DmForward
   /** End-to-end encrypted attachments. */
   files?: DmFile[]
+  /** A checked friend action (see state/friends.ts); shown as a small line, or not at all. */
+  friend?: FriendAction
 }
 
 export interface Conversation {
@@ -73,6 +76,7 @@ export interface Conversation {
   loaded: boolean
 }
 
+/** Someone you're friends with (both of you agreed; see state/friends.ts, which keeps this map). */
 export interface Friend {
   accountKey: string
   name: string
@@ -134,10 +138,13 @@ function open(wire: WireDm): Dm {
   const identity = useApp.getState().identity!
   try {
     // Messages sent to or from an earlier key of the same person (a checked rotation) belong to their current key.
-    const { text, header, call, forward, files } = decryptDm(identity, wire.envelope, wire.from, wire.to, sameAccount)
+    const { text, header, call, forward, files, friend: rawFriend } = decryptDm(identity, wire.envelope, wire.from, wire.to, sameAccount)
+    // A friend action must carry a good signature from the sender; never shown as plain text if it doesn't.
+    const friend = rawFriend === undefined ? undefined : checkFriend(rawFriend, wire.from, wire.to, Date.now(), sameAccount)
+    if (friend === null) throw new DmError("The sender's device couldn't be verified.")
     return {
       id: header.id, from: resolveKey(wire.from), to: resolveKey(wire.to), text, sentAt: orderTime(header.sentAt, wire.createdAt), call,
-      ...(forward ? { forward } : {}), ...(files ? { files } : {}),
+      ...(forward ? { forward } : {}), ...(files ? { files } : {}), ...(friend ? { friend } : {}),
     }
   } catch (e) {
     // The header id (unauthenticated here) only lets a readable local copy of the same message win.
@@ -160,7 +167,7 @@ let historyLoaded = false
 
 const storable = (m: Dm): storage.StoredDm => ({
   id: m.id, from: m.from, to: m.to, text: m.text, sentAt: m.sentAt, ...(m.call ? { call: m.call } : {}), ...(m.notice ? { notice: m.notice } : {}),
-  ...(m.forward ? { forward: m.forward } : {}), ...(m.files?.length ? { files: m.files } : {}),
+  ...(m.forward ? { forward: m.forward } : {}), ...(m.files?.length ? { files: m.files } : {}), ...(m.friend ? { friend: m.friend } : {}),
 })
 
 /** Attachments from storage or another device, checked like freshly decrypted ones (dropped if malformed). */
@@ -214,8 +221,9 @@ export function loadLocalHistory(): Promise<void> {
 export async function importHistory(history: Record<string, storage.StoredDm[]>): Promise<void> {
   for (const [peer, messages] of Object.entries(history)) {
     if (!Array.isArray(messages)) continue
+    // Friend actions come over separately (state/friends.ts), already checked.
     const clean = messages.filter((m) => typeof m?.id === 'string' && typeof m.text === 'string' && typeof m.sentAt === 'number'
-      && typeof m.from === 'string' && typeof m.to === 'string')
+      && typeof m.from === 'string' && typeof m.to === 'string' && !m.friend)
     await storage.saveDmConversation(peer, clean.map((m) => storable({ ...m, files: storedFiles(m.files) })))
   }
 }
@@ -240,6 +248,14 @@ export function exportHistory(perConversation = 200, maxBytes = 600_000): Record
   return out
 }
 
+type DmListener = (peer: string, dms: Dm[], live: boolean) => void
+const dmListeners: DmListener[] = []
+
+/** Called with every decrypted DM that wasn't in the conversation yet (live: just sent, not loaded history). */
+export function onDmOpened(listener: DmListener): void {
+  dmListeners.push(listener)
+}
+
 /** Every dm.message event from any server. */
 async function onDmEvent(wire: WireDm): Promise<void> {
   await Promise.all([ensurePrekeys(), keysReady()])
@@ -249,7 +265,9 @@ async function onDmEvent(wire: WireDm): Promise<void> {
   const known = useDms.getState().conversations[peer]?.messages.some((m) => m.id === dm.id && m.from === dm.from)
   patchConversation(peer, (c) => ({ messages: upsert(c.messages, dm) }))
   // Unread (state/readState.ts): someone else's message, the first time it arrives (it can come from several servers).
-  if (dm.from !== mine && !known) noteMessage(dmConv(peer), { id: dm.id, at: dm.sentAt }, false)
+  // Friend actions show in the Friends page instead.
+  if (dm.from !== mine && !known && !dm.friend) noteMessage(dmConv(peer), { id: dm.id, at: dm.sentAt }, false)
+  if (!known) for (const listener of dmListeners) listener(peer, [dm], true)
 }
 
 export async function loadConversations(): Promise<void> {
@@ -285,7 +303,10 @@ export async function loadHistory(peer: string): Promise<void> {
     }),
   )
   const opened = results.flat().map(open)
+  const before = useDms.getState().conversations[peer]?.messages ?? []
+  const fresh = opened.filter((dm) => !dm.error && !before.some((m) => m.id === dm.id && m.from === dm.from))
   patchConversation(peer, (c) => ({ messages: opened.reduce(upsert, c.messages), loaded: true }))
+  if (fresh.length) for (const listener of dmListeners) listener(peer, fresh, false)
 }
 
 export function openConversation(peer: string): void {
@@ -385,7 +406,15 @@ useApp.subscribe((state) => {
  * Someone (or this account) moved to a new account key: conversations, messages and friends follow
  * <paramref name="resolve"/>, and each person in <paramref name="changes"/> gets a "safety number changed" notice.
  */
+const keyListeners: ((resolve: (key: string) => string) => void)[] = []
+
+/** Called when account keys move (friends.ts moves its entries along). */
+export function onKeyChanges(listener: (resolve: (key: string) => string) => void): void {
+  keyListeners.push(listener)
+}
+
 export function applyKeyChanges(resolve: (key: string) => string, changes: (Rotation & { disputed?: boolean })[]): void {
+  for (const listener of keyListeners) listener(resolve)
   const mine = me()
   const before = useDms.getState()
   const moved: string[] = []
@@ -411,43 +440,9 @@ export function applyKeyChanges(resolve: (key: string) => string, changes: (Rota
     }
     conversations[peer] = { ...conversations[peer], messages: upsert(conversations[peer].messages, notice) }
   }
-  const friends: Record<string, Friend> = {}
-  for (const f of Object.values(before.friends)) {
-    const key = resolve(f.accountKey)
-    friends[key] ??= { ...f, accountKey: key }
-  }
   const open = before.open.kind === 'dm' ? { kind: 'dm' as const, peer: resolve(before.open.peer) } : before.open
-  useDms.setState({ conversations, friends, open })
+  useDms.setState({ conversations, open })
   if (!historyLoaded) return
   for (const peer of Object.keys(conversations)) persist(peer)
   for (const peer of moved) void storage.deleteDmConversation(peer).catch(() => undefined)
-  if (moved.length || Object.keys(friends).length !== Object.keys(before.friends).length || Object.values(before.friends).some((f) => !friends[f.accountKey]))
-    void saveFriends()
-}
-
-// ── Friends (kept on this device) ──────────────────────────────────────────
-
-export async function loadFriends(): Promise<void> {
-  const list = await storage.loadFriends()
-  await keysReady()
-  useDms.setState({ friends: Object.fromEntries(list.map((f) => [resolveKey(f.accountKey), { ...f, accountKey: resolveKey(f.accountKey) }])) })
-}
-
-async function saveFriends(): Promise<void> {
-  await storage.saveFriends(Object.values(useDms.getState().friends))
-}
-
-export async function addFriend(accountKey: string): Promise<void> {
-  if (accountKey === me()) return
-  useDms.setState((s) => ({ friends: { ...s.friends, [accountKey]: { accountKey, name: nameOf(accountKey), addedAt: Date.now() } } }))
-  await saveFriends()
-}
-
-export async function removeFriend(accountKey: string): Promise<void> {
-  useDms.setState((s) => {
-    const friends = { ...s.friends }
-    delete friends[accountKey]
-    return { friends }
-  })
-  await saveFriends()
 }

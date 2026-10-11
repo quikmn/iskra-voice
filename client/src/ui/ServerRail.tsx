@@ -4,6 +4,7 @@ import { useRef, useState, type DragEvent, type MouseEvent, type PointerEvent as
 import { useTranslation } from 'react-i18next'
 import { selectServer, useApp, type ServerState } from '../state/store'
 import { openFriends } from '../state/dms'
+import { useIncomingCount } from '../state/friends'
 import { initials } from './format'
 import { Plus } from './icons'
 import { useOrganize } from '../state/organize'
@@ -65,7 +66,7 @@ export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavig
   const layout = useRail((s) => s.layout)
   useOrganize((s) => s.notify) // badges follow notification settings
   useOrganize((s) => s.clock)
-  const dmUnread = useReads((s) => homeUnread(s.convs))
+  const dmUnread = useReads((s) => homeUnread(s.convs)) + useIncomingCount() // friend requests count too
   useReads((s) => s.convs) // server badges follow read state
   useThreads((s) => s.threads) // (thread counts belong to their channel)
   const [drag, setDrag] = useState<Drag | null>(null)

@@ -55,13 +55,15 @@ public static class DmFeature
         var raw = envelope.GetRawText();
         if (raw.Length > MaxEnvelopeBytes) throw RequestException.BadRequest("Message is too large.");
 
+        var silent = body.OptionalBool("silent") == true;
         var files = DmFileFeature.CheckAttachments(s, me, peer, body);
         var message = s.World.Store.AddDm(me.AccountKey, peer.AccountKey, raw, s.Now);
         s.World.Store.LinkDmFiles(message.Id, files);
         var frame = Frames.Event("dm.message", new { message = PublicDm(message) });
         s.Hub.SendToAccount(peer.AccountKey, frame);
         if (peer.AccountKey != me.AccountKey) s.Hub.SendToAccount(me.AccountKey, frame); // your other devices
-        s.Push.DirectMessage(me, peer);
+        // Quiet sends (a cancelled friend request and the like) don't push a "new message" notification.
+        if (!silent) s.Push.DirectMessage(me, peer);
         return new { message = PublicDm(message) };
     }
 

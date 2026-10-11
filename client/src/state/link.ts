@@ -15,7 +15,9 @@ import { restoreIdentity, seedOf } from '../core/recovery'
 import * as storage from '../core/storage'
 import { appUrl } from '../ui/format'
 import { platformName } from './devices'
-import { exportHistory, importHistory, loadFriends } from './dms'
+import { exportHistory, importHistory } from './dms'
+import { reloadFriends } from './friends'
+import { cleanFriendState } from './friendMachine'
 import { exportGroups, importGroups } from './groups'
 import { boot, connectionFor, onServerEvent, useApp } from './store'
 import { knownRotations, remember } from './keyMap'
@@ -29,6 +31,8 @@ export interface LinkPayload {
   recoverySaved: boolean
   servers: { url: string; serverKey: string; name: string }[]
   friends: storage.StoredFriend[]
+  /** Friends and friend requests (state/friends.ts). Older apps only know `friends`. */
+  friendState?: storage.StoredFriendState
   /** Older apps: recent DMs inside the payload. Now history follows in parts (see historyParts). */
   history?: Record<string, storage.StoredDm[]>
   /** Bio, pronouns, accent, avatar and page, so the new device shows the same profile. */
@@ -151,6 +155,7 @@ async function buildPayload(): Promise<LinkPayload> {
     recoverySaved: !!profile?.recoverySaved,
     servers: saved.filter((s) => !s.invite).map((s) => ({ url: s.url, serverKey: s.serverKey, name: s.name })),
     friends: await storage.loadFriends(),
+    friendState: await storage.loadFriendState().catch(() => undefined),
     profile: profileForLink(profile),
     rotations: chainTo(b64u(identity!.account.publicKey), knownRotations(), 16),
   }
@@ -321,6 +326,8 @@ async function adopt(payload: LinkPayload): Promise<void> {
     .slice(0, 100)
     .map((s) => ({ url: normalizeServerUrl(s.url)!, serverKey: s.serverKey, name: String(s.name ?? '').slice(0, 100) })))
   if (Array.isArray(payload.friends)) await storage.saveFriends(payload.friends.slice(0, 1000))
+  const friendState = cleanFriendState(payload.friendState)
+  if (friendState) await storage.saveFriendState(friendState)
   if (payload.history && typeof payload.history === 'object') await importHistory(payload.history)
   // Only rotations that check out and lead to this very key are kept.
   if (Array.isArray(payload.rotations))
@@ -330,5 +337,5 @@ async function adopt(payload: LinkPayload): Promise<void> {
 async function finish(): Promise<void> {
   void storage.requestPersistence()
   await boot()
-  await loadFriends()
+  await reloadFriends()
 }

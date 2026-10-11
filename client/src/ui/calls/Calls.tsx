@@ -10,9 +10,9 @@ import { Avatar } from '../bits'
 import { Lock, Phone, PhoneMissed, PhoneOff, Video } from '../icons'
 import { SafetyNumberDialog } from '../Home'
 import { CallControls, VideoTile } from '../VoiceStage'
-import { useVolumeMenu } from '../useVolumeMenu'
 import './calls.css'
 import { useTranslation } from 'react-i18next'
+import { userMenuProps } from '../people/userMenuProps'
 
 const myKey = () => {
   const identity = useApp.getState().identity
@@ -59,7 +59,6 @@ export function CallPanel({ peer }: { peer: string }) {
   const speaking = useVoice((s) => s.speaking)
   const error = useVoice((s) => s.error)
   const [verify, setVerify] = useState(false)
-  const { bind, menu: volumeMenu } = useVolumeMenu()
   const active = call?.phase === 'active'
   const now = useTicker(active)
   if (!call || call.peer !== peer || call.phase === 'incoming') return null
@@ -95,7 +94,7 @@ export function CallPanel({ peer }: { peer: string }) {
         {people.map((key) => (
           <div
             key={key}
-            {...bind(key === me || !inCall ? null : { accountKey: key, name: nameOf(key) })}
+            {...userMenuProps(key)}
             className={`call-person ${speaking[key] ? 'speaking' : ''} ${key === peer && !inRoom.includes(peer) && call.phase !== 'ended' ? 'waiting' : ''}`}
           >
             <Avatar name={nameOf(key)} accountKey={key} size={64} />
@@ -104,7 +103,6 @@ export function CallPanel({ peer }: { peer: string }) {
         ))}
       </div>
 
-      {volumeMenu}
       {error && inCall && <p className="call-error" role="alert">{error}</p>}
       {call.phase !== 'ended' && (inCall && session ? (
         <CallControls onLeave={() => void hangUp()} />

@@ -24,6 +24,7 @@ import './groups.css'
 import { Trans, useTranslation } from 'react-i18next'
 import { groupText } from './groupText'
 import { errorMessage } from '../../i18n/errors'
+import { userMenuProps } from '../people/userMenuProps'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -302,7 +303,7 @@ function MembersDialog({ g, onClose, onAdd, onRename }: { g: GroupConv; onClose:
       <h3 className="section-title">{t('groups.members', { count: members.length })}</h3>
       <div className="group-members">
         {members.map((k) => (
-          <div key={k} className="friend-row">
+          <div key={k} className="friend-row" {...userMenuProps(k)}>
             <Avatar name={knownName(k)} accountKey={k} size={36} online={isOnline(k)} />
             <div className="friend-text">
               <strong>{k === me ? t('groups.nameYou', { name: knownName(k) }) : knownName(k)}</strong>

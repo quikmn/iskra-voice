@@ -149,7 +149,9 @@ export interface Requests {
   'voice.join': [{ channelId: number }, { url: string; token: string; room: string; canSpeak: boolean }]
   'voice.state': [{ muted: boolean; deafened: boolean }, Record<string, never>]
   'dm.devices': [{ accountKey: string }, DeviceBundle]
-  'dm.send': [{ accountKey: string; envelope: import('./dm').DmEnvelope; files?: string[] }, { message: WireDm }]
+  // ── signing out ──
+  'member.leave': [Record<string, never>, Record<string, never>]
+  'dm.send': [{ accountKey: string; envelope: import('./dm').DmEnvelope; files?: string[]; /** No push (quiet friend actions). */ silent?: boolean }, { message: WireDm }]
   'dm.history': [{ accountKey: string; before?: number; limit?: number }, { messages: WireDm[]; hasMore: boolean }]
   'dm.conversations': [Record<string, never>, { conversations: { accountKey: string; lastId: number; lastAt: number }[] }]
   'device.list': [Record<string, never>, { devices: DeviceInfo[]; revoked: Revocation[] }]

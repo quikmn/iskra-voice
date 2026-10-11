@@ -92,6 +92,7 @@ test('a YouTube watch party plays in the desktop app (app:// origin)', async () 
   try {
     const page = await app.firstWindow()
     expect(page.url()).toMatch(/^app:\/\/iskra\//)
+    await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
     await page.getByLabel('Your name').fill('Desk')
     await page.getByRole('button', { name: 'Continue' }).click()
     await page.getByRole('button', { name: 'I have an invite link' }).click()

@@ -6,7 +6,8 @@ import { errorMessage } from '../../i18n/errors'
 import { fingerprint } from '../../core/connection'
 import { pageScriptsAllowed, pageUrl, setPageScripts, wrapperDocument } from '../../core/profile'
 import { roleRank, type Member } from '../../core/protocol'
-import { addFriend, openConversation, removeFriend, useDms } from '../../state/dms'
+import { openConversation } from '../../state/dms'
+import { FriendButtons } from '../people/Friends'
 import {
   closeMemberDetails, closeProfileCard, closeProfilePage, openMemberDetails, openProfilePage, removeMemberPage, useProfiles,
 } from '../../state/profile'
@@ -70,7 +71,6 @@ function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; me
   const me = server.me
   const isSelf = me?.accountKey === member.accountKey
   const page = pagesOn ? pageUrl(server.url, member.page) : null
-  const isFriend = useDms((s) => !!s.friends[member.accountKey])
   const presence = useMemberPresence(member)
 
   useLayoutEffect(() => {
@@ -132,11 +132,7 @@ function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; me
             {!isSelf && (
               <button className="button" onClick={() => { openConversation(member.accountKey); closeProfileCard() }}>{t('settings.member.message')}</button>
             )}
-            {!isSelf && (isFriend ? (
-              <button className="button" onClick={() => void removeFriend(member.accountKey)}>{t('settings.member.removeFriend')}</button>
-            ) : (
-              <button className="button" onClick={() => void addFriend(member.accountKey)}>{t('settings.member.addFriend')}</button>
-            ))}
+            {!isSelf && <FriendButtons accountKey={member.accountKey} />}
             {isSelf ? (
               <button className="button" onClick={onEdit}>{t('profile.edit')}</button>
             ) : (
