@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { devices, expect, test } from '@playwright/test'
-import { SHOTS } from './helpers'
+import { agreeToTerms, SHOTS } from './helpers'
 
 const { defaultBrowserType: _i, ...iphone } = devices['iPhone 13']
 
@@ -15,6 +15,7 @@ test('inside the iPhone app: no Home Screen hints, no web push prompt', async ({
   })
   const page = await context.newPage()
   await page.goto('/')
+  await agreeToTerms(page)
   await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
   await page.getByLabel('Your name').fill('Phone')
   await page.getByRole('button', { name: 'Continue' }).click()
