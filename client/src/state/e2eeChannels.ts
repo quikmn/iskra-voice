@@ -18,7 +18,7 @@ import {
   signChannelChange, verifyChannelChain, voiceKey, voiceKeyIndex,
   type ChannelAction, type ChannelContent, type ChannelKeyEnvelope, type ChannelView, type MemberDevices,
 } from '../core/channelChain'
-import { GroupBehindError, GroupError, type GroupChange } from '../core/group'
+import { GroupBehindError, GroupError, sameKey, type GroupChange } from '../core/group'
 import { RequestError, roleRank, type Channel, type Events, type FileInfo, type Message, type Requests, type Role, type SearchRequest, type SearchResult } from '../core/protocol'
 import * as storage from '../core/storage'
 import { ensurePrekeys, ownRevokedDevices } from './devices'
@@ -402,6 +402,8 @@ export interface Shown {
   state: 'ok' | 'pending' | 'error'
   files?: DmFile[]
   error?: string
+  /** No key yet for an epoch this account was in: tried again when keys arrive. */
+  retry?: boolean
 }
 
 type Shownable = PendingMessage & { e2eeShown?: Shown }
@@ -439,14 +441,42 @@ function decryptOne(serverKey: string, message: Shownable): Shownable {
     if (live.delete(tag)) notifyChannelMessage(serverKey, out)
     return out
   } catch (e) {
-    if (e instanceof GroupBehindError || (e instanceof MissingKeyError && !waitingSync.has(rec.slot))) {
+    const failure = decryptFailure(e, rec.view, env.version, me(), waitingSync.has(rec.slot))
+    if (failure === 'sync') {
       requestSync(serverKey, channel.id)
       return { ...message, e2eeShown: { state: 'pending' } }
     }
     live.delete(`${serverKey}:${message.id}`)
-    return { ...message, e2eeShown: { state: 'error', error: (e as Error).message } }
+    return { ...message, e2eeShown: failure }
   }
 }
+
+export const BEFORE_YOU_JOINED = 'This message was sent before you could read this channel.'
+
+/**
+ * What to show for a message that didn't decrypt, or 'sync' to fetch the chain and keys and try again. A key for an
+ * epoch you weren't in never comes (you joined later); one you were in may still be on its way, so it's retried.
+ */
+export function decryptFailure(e: unknown, view: Pick<ChannelView, 'changes'>, version: number, myKey: string, syncing: boolean): Shown | 'sync' {
+  if (e instanceof GroupBehindError) return 'sync'
+  if (e instanceof MissingKeyError) {
+    const wasIn = !!myKey && !!view.changes.find((c) => c.version === version)?.members.some((m) => sameKey(m, myKey))
+    if (!wasIn) return { state: 'error', error: BEFORE_YOU_JOINED }
+    return syncing ? { state: 'error', error: (e as Error).message, retry: true } : 'sync'
+  }
+  return { state: 'error', error: (e as Error).message }
+}
+
+/** Loads (and if needed fetches) an encrypted channel's chain and keys, so {@link readable} can decrypt right away. */
+export async function prepareChannel(serverKey: string, channelId: number): Promise<void> {
+  const channel = encryptedChannel(serverKey, channelId)
+  if (!channel) return
+  const rec = await load(serverKey, channel.id)
+  if (!rec.view || !rec.keys.has(rec.view.version)) await syncChannel(serverKey, channel.id)
+}
+
+/** A message as this device can show it (decrypted if it can be), for lists outside the chat (pins, a thread's root). */
+export const readable = (serverKey: string, message: Message): Message => (message.e2ee ? decryptOne(serverKey, message as Shownable) : message)
 
 function requestSync(serverKey: string, channelId: number): void {
   const slot = slotOf(serverKey, channelId)
@@ -459,7 +489,7 @@ function requestSync(serverKey: string, channelId: number): void {
   })
 }
 
-const needsWork = (m: Shownable) => !!m.e2ee && (!m.e2eeShown || m.e2eeShown.state === 'pending')
+const needsWork = (m: Shownable) => !!m.e2ee && (!m.e2eeShown || m.e2eeShown.state === 'pending' || !!m.e2eeShown.retry)
 
 /** Decrypts what's waiting in a server's loaded channels (pending ones are tried again). */
 function redecrypt(serverKey: string, onlyNew = false): void {

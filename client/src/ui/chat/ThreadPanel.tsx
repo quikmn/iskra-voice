@@ -1,5 +1,6 @@
 // A thread beside its channel (full screen on phones): the message it started from, its replies, a composer.
 import { useEffect, useState } from 'react'
+import { prepareChannel, readable } from '../../state/e2eeChannels'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
 import type { Message } from '../../core/protocol'
@@ -40,10 +41,11 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
     if (!online) return
     let alive = true
     connectionFor(server.key)?.request('thread.get', { id: threadId })
-      .then((r) => {
+      .then(async (r) => {
         if (!alive) return
         rememberThreads(server.key, [r.thread])
-        setRoot(r.root)
+        if (r.root?.e2ee) await prepareChannel(server.key, r.root.channelId).catch(() => {})
+        if (alive) setRoot(r.root && readable(server.key, r.root))
       })
       .catch(() => alive && setMissing(true))
     return () => {

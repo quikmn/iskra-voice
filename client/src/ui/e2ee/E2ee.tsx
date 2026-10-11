@@ -6,7 +6,7 @@ import type { Channel, Message } from '../../core/protocol'
 import { t } from '../../i18n'
 import { en } from '../../i18n/en'
 import { errorMessage } from '../../i18n/errors'
-import { encryptedChannel, rekeyChannel, shownOf, slotOf, useE2ee } from '../../state/e2eeChannels'
+import { BEFORE_YOU_JOINED, encryptedChannel, rekeyChannel, shownOf, slotOf, useE2ee } from '../../state/e2eeChannels'
 import { findingsAbout, useKt } from '../../state/kt'
 import type { ServerState } from '../../state/store'
 import { MAX_CHANNEL_MEMBERS } from '../../core/channelChain'
@@ -111,7 +111,7 @@ export function EncryptedBits({ message }: { message: Message }) {
   if (!message.e2ee) return null
   if (!shown || shown.state === 'pending') return <div className="e2ee-note muted">{t('e2ee.message.pending')}</div>
   if (shown.state === 'error') {
-    const noKey = shown.error === "This device doesn't have the key for this message." || shown.error === 'This message was sent before you could read this channel.'
+    const noKey = shown.error === "This device doesn't have the key for this message." || shown.error === BEFORE_YOU_JOINED
     return <div className="e2ee-note muted" data-testid="e2ee-unreadable"><Lock size={12} /> {noKey ? t('e2ee.message.noKey') : t('e2ee.message.error')}</div>
   }
   return shown.files?.length ? <DmAttachments files={shown.files} /> : null
