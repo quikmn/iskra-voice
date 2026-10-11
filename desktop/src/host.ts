@@ -7,6 +7,7 @@ import { connect, createServer } from 'node:net'
 import { networkInterfaces } from 'node:os'
 import path from 'node:path'
 import { defaultHostRoot, exeName } from './platform'
+import { text } from './i18n'
 import { adjustRestoredSettings } from './restore'
 
 export interface HostedServer {
@@ -73,7 +74,7 @@ async function portFree(port: number): Promise<boolean> {
 
 async function pickPort(taken: Set<number>, start: number): Promise<number> {
   for (let port = start; port < start + 200; port++) if (!taken.has(port) && (await portFree(port))) return port
-  throw new Error('No free port found.')
+  throw new Error(text().host.noPort)
 }
 
 function slug(name: string): string {
@@ -143,7 +144,7 @@ export class Host {
   }
 
   async create(name: string, appUrl: string): Promise<HostedServer> {
-    const clean = name.trim().slice(0, 60) || 'My server'
+    const clean = name.trim().slice(0, 60) || text().host.defaultName
     mkdirSync(this.root, { recursive: true })
     let id = slug(clean)
     for (let n = 2; existsSync(path.join(this.root, id)); n++) id = `${slug(clean)}-${n}`
@@ -177,7 +178,7 @@ export class Host {
   async start(id: string): Promise<HostedServer> {
     if (this.processes.has(id)) return this.describe(id)
     const binary = serverBinary()
-    if (!binary) throw new Error("This build doesn't include the server.")
+    if (!binary) throw new Error(text().host.noServer)
     const folder = path.join(this.root, id)
     this.refreshLanAddress(folder)
     const livekit = liveKitBinary()
@@ -207,9 +208,9 @@ export class Host {
       if (this.processes.get(id) === child) this.processes.delete(id)
       closeSync(log)
     }
-    child.once('exit', () => ended(new Error('The server stopped right after starting. Is its port in use?')))
+    child.once('exit', () => ended(new Error(text().host.stoppedEarly)))
     // e.g. the binary can't be executed (missing, or blocked by the OS).
-    child.once('error', (error) => ended(new Error(`The server couldn't start: ${error.message}`)))
+    child.once('error', (error) => ended(new Error(text().host.couldntStart(error.message))))
 
     // Ready when it answers HTTP (and has written its owner invite on first run).
     const { port } = this.describe(id)
@@ -249,7 +250,7 @@ export class Host {
    */
   async restore(backupPath: string, passphrase: string, hint: string | null): Promise<{ server: HostedServer; serverKey: string; name: string }> {
     const binary = serverBinary()
-    if (!binary) throw new Error("This build doesn't include the server.")
+    if (!binary) throw new Error(text().host.noServer)
     mkdirSync(this.root, { recursive: true })
     const base = slug(hint ?? path.basename(backupPath).replace(/\.(iskrabackup|zip)$/i, ''))
     let id = base
@@ -264,7 +265,7 @@ export class Host {
       let err = ''
       child.stdout.on('data', (d: Buffer) => (out += d.toString()))
       child.stderr.on('data', (d: Buffer) => (err += d.toString()))
-      child.once('error', (e) => reject(new Error(`The server couldn't run: ${e.message}`)))
+      child.once('error', (e) => reject(new Error(text().host.couldntRun(e.message))))
       child.once('exit', (code) => {
         const line = out.trim().split(/\r?\n/).at(-1) ?? ''
         try {
@@ -274,7 +275,7 @@ export class Host {
           /* not JSON: an error message */
         }
         const message = err.trim().split(/\r?\n/).filter(Boolean).at(-1)
-        reject(new Error(message || "The backup couldn't be restored."))
+        reject(new Error(message || text().host.restoreFailed))
       })
       child.stdin.on('error', () => undefined)
       child.stdin.end(`${passphrase}\n`)

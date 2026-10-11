@@ -1,0 +1,51 @@
+// Presence text (English): statuses, custom status, activity. Keep in step with ../sv/presence.ts.
+export const presence = {
+  status: {
+    online: 'Online',
+    idle: 'Idle',
+    dnd: 'Do not disturb',
+    invisible: 'Invisible',
+    offline: 'Offline',
+  },
+  hints: {
+    idle: 'Also set automatically when you step away',
+    dnd: 'No sounds, notifications or pushes',
+    invisible: "You'll look offline, but can use Iskra as usual",
+  },
+  clearAfter: {
+    '30m': '30 minutes',
+    '1h': '1 hour',
+    '4h': '4 hours',
+    today: 'Today',
+    never: "Don't clear",
+  },
+  clearsInMinutes: 'Clears in {{minutes}} min',
+  clearsInHours: 'Clears in {{hours}} h',
+  setStatus: 'Set your status (now {{status}})',
+  yourStatus: 'Your status',
+  setCustom: 'Set a custom status',
+  clearCustom: 'Clear custom status',
+  custom: {
+    title: 'Custom status',
+    clear: 'Clear status',
+    hint: "Shown next to your name on every server you're on.",
+    label: "What's happening?",
+    changeEmoji: 'Emoji {{emoji}}, change',
+    pickEmoji: 'Pick an emoji',
+    placeholder: 'Out for lunch',
+    clearInput: 'Clear text and emoji',
+    clearAfter: 'Clear after',
+  },
+  errors: {
+    singleEmoji: 'Pick a single emoji.',
+    tooLong: 'Custom statuses can be up to {{max}} characters.',
+  },
+  activity: {
+    playing: 'Playing <b>{{name}}</b>',
+    playingTitle: 'Playing {{name}}',
+    justStarted: 'just started',
+    minutes: '{{minutes}} min',
+    hours: '{{hours}} h',
+    hoursMinutes: '{{hours}} h {{minutes}} min',
+  },
+} as const

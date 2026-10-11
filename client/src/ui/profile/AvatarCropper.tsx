@@ -1,11 +1,13 @@
 // Pick the square part of a picture to use as your avatar: drag to move, slide to zoom.
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { AVATAR_SIZE } from '../../core/profile'
 import { Modal } from '../bits'
 
 const VIEW = 240
 
 export function AvatarCropper({ file, onCancel, onDone }: { file: File; onCancel: () => void; onDone: (image: Blob) => void }) {
+  const { t } = useTranslation()
   const [image, setImage] = useState<HTMLImageElement | null>(null)
   const [url, setUrl] = useState<string | null>(null)
   const [zoom, setZoom] = useState(1)
@@ -23,7 +25,7 @@ export function AvatarCropper({ file, onCancel, onDone }: { file: File; onCancel
       const s = Math.max(VIEW / img.naturalWidth, VIEW / img.naturalHeight)
       setOffset({ x: (VIEW - img.naturalWidth * s) / 2, y: (VIEW - img.naturalHeight * s) / 2 })
     }
-    img.onerror = () => setError("That file doesn't look like a picture.")
+    img.onerror = () => setError(t('profile.notPicture'))
     img.src = objectUrl
     return () => URL.revokeObjectURL(objectUrl)
   }, [file])
@@ -76,17 +78,17 @@ export function AvatarCropper({ file, onCancel, onDone }: { file: File; onCancel
     if (!blob || blob.type !== 'image/webp') blob = await encode('image/png')
     setBusy(false)
     if (blob) onDone(blob)
-    else setError("Couldn't process that picture.")
+    else setError(t('profile.cantProcess'))
   }
 
   return (
     <Modal
-      title="Crop your picture"
+      title={t('profile.crop')}
       onClose={onCancel}
       footer={
         <>
-          <button className="button" onClick={onCancel}>Cancel</button>
-          <button className="button primary" disabled={!image || busy} onClick={() => void save()}>Use picture</button>
+          <button className="button" onClick={onCancel}>{t('common.cancel')}</button>
+          <button className="button primary" disabled={!image || busy} onClick={() => void save()}>{t('profile.usePicture')}</button>
         </>
       }
     >
@@ -112,8 +114,8 @@ export function AvatarCropper({ file, onCancel, onDone }: { file: File; onCancel
             )}
           </div>
           <label className="field">
-            <span>Zoom</span>
-            <input type="range" min={1} max={4} step={0.01} value={zoom} onChange={(e) => changeZoom(Number(e.target.value))} aria-label="Zoom" />
+            <span>{t('profile.zoom')}</span>
+            <input type="range" min={1} max={4} step={0.01} value={zoom} onChange={(e) => changeZoom(Number(e.target.value))} aria-label={t('profile.zoom')} />
           </label>
         </div>
       )}

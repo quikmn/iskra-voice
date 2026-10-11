@@ -2,6 +2,7 @@
 // Every value is checked against a strict pattern or allowlist and set one CSS variable at a time
 // (style.setProperty), so a theme can never inject CSS of its own.
 import { BUILT_IN_THEMES, DEFAULT_THEME_ID } from './themes'
+import { t } from '../i18n'
 
 export const COLOR_KEYS = [
   'bgSurface', 'bgDeep', 'bgBody', 'bgFloat', 'bgSidebar', 'bgSidebarHover', 'bgChat', 'bgHover', 'bgButton', 'bgBorder', 'bgActive',
@@ -113,61 +114,61 @@ export type ThemeResult = { ok: true; theme: ThemeFile } | { ok: false; errors: 
 /** Strict: unknown keys and anything that isn't exactly the expected shape are errors. */
 export function validateTheme(input: unknown): ThemeResult {
   const errors: string[] = []
-  if (!isPlainObject(input)) return { ok: false, errors: ['A theme is a JSON object with "meta" and "colors".'] }
+  if (!isPlainObject(input)) return { ok: false, errors: [t('profile.theme.errors.notObject')] }
   for (const key of Object.keys(input)) {
-    if (!['meta', 'colors', 'radius', 'avatarShape', 'fonts'].includes(key)) errors.push(`Unknown key "${key}".`)
+    if (!['meta', 'colors', 'radius', 'avatarShape', 'fonts'].includes(key)) errors.push(t('profile.theme.errors.unknownKey', { key }))
   }
 
   const meta: ThemeFile['meta'] = { name: '' }
-  if (!isPlainObject(input.meta)) errors.push('"meta" must be an object with a "name".')
+  if (!isPlainObject(input.meta)) errors.push(t('profile.theme.errors.meta'))
   else {
-    for (const key of Object.keys(input.meta)) if (!['name', 'desc', 'scheme'].includes(key)) errors.push(`Unknown key "meta.${key}".`)
+    for (const key of Object.keys(input.meta)) if (!['name', 'desc', 'scheme'].includes(key)) errors.push(t('profile.theme.errors.unknownKey', { key: `meta.${key}` }))
     const name = cleanText(input.meta.name, 40)
     if (name) meta.name = name
-    else errors.push('"meta.name" must be 1–40 characters.')
+    else errors.push(t('profile.theme.errors.name'))
     if (input.meta.desc !== undefined) {
       const desc = cleanText(input.meta.desc, 120)
       if (desc) meta.desc = desc
-      else errors.push('"meta.desc" must be 1–120 characters.')
+      else errors.push(t('profile.theme.errors.desc'))
     }
     if (input.meta.scheme !== undefined) {
       if (input.meta.scheme === 'dark' || input.meta.scheme === 'light') meta.scheme = input.meta.scheme
-      else errors.push('"meta.scheme" must be "dark" or "light".')
+      else errors.push(t('profile.theme.errors.scheme'))
     }
   }
 
   const colors: ThemeFile['colors'] = {}
-  if (input.colors !== undefined && !isPlainObject(input.colors)) errors.push('"colors" must be an object.')
+  if (input.colors !== undefined && !isPlainObject(input.colors)) errors.push(t('profile.theme.errors.mustBeObject', { key: 'colors' }))
   else if (isPlainObject(input.colors)) {
     for (const [key, value] of Object.entries(input.colors)) {
       if (!(COLOR_KEYS as readonly string[]).includes(key)) {
-        errors.push(`Unknown colour "${key}".`)
+        errors.push(t('profile.theme.errors.unknownColour', { key }))
         continue
       }
       const color = safeColor(value)
       if (color) colors[key as ColorKey] = color
-      else errors.push(`"colors.${key}" must be a colour like #7c6fff or rgba(124, 111, 255, 0.5).`)
+      else errors.push(t('profile.theme.errors.colour', { key: `colors.${key}` }))
     }
   }
 
   const theme: ThemeFile = { meta, colors }
   if (input.radius !== undefined) {
     if (typeof input.radius === 'number' && Number.isInteger(input.radius) && input.radius >= 0 && input.radius <= 24) theme.radius = input.radius
-    else errors.push('"radius" must be a whole number from 0 to 24.')
+    else errors.push(t('profile.theme.errors.radius'))
   }
   if (input.avatarShape !== undefined) {
     if (typeof input.avatarShape === 'string' && Object.hasOwn(AVATAR_SHAPES, input.avatarShape)) theme.avatarShape = input.avatarShape as ThemeFile['avatarShape']
-    else errors.push(`"avatarShape" must be one of: ${Object.keys(AVATAR_SHAPES).join(', ')}.`)
+    else errors.push(t('profile.theme.errors.oneOf', { key: 'avatarShape', values: Object.keys(AVATAR_SHAPES).join(', ') }))
   }
   if (input.fonts !== undefined) {
-    if (!isPlainObject(input.fonts)) errors.push('"fonts" must be an object.')
+    if (!isPlainObject(input.fonts)) errors.push(t('profile.theme.errors.mustBeObject', { key: 'fonts' }))
     else {
       theme.fonts = {}
       for (const [key, value] of Object.entries(input.fonts)) {
         const table = key === 'body' ? BODY_FONTS : key === 'mono' ? MONO_FONTS : null
-        if (!table) errors.push(`Unknown key "fonts.${key}".`)
+        if (!table) errors.push(t('profile.theme.errors.unknownKey', { key: `fonts.${key}` }))
         else if (typeof value === 'string' && Object.hasOwn(table, value)) (theme.fonts as Record<string, string>)[key] = value
-        else errors.push(`"fonts.${key}" must be one of: ${Object.keys(table).join(', ')}.`)
+        else errors.push(t('profile.theme.errors.oneOf', { key: `fonts.${key}`, values: Object.keys(table).join(', ') }))
       }
     }
   }
@@ -175,12 +176,12 @@ export function validateTheme(input: unknown): ThemeResult {
 }
 
 export function parseTheme(text: string): ThemeResult {
-  if (text.length > MAX_THEME_CHARS) return { ok: false, errors: [`Themes can be up to ${MAX_THEME_CHARS} characters.`] }
+  if (text.length > MAX_THEME_CHARS) return { ok: false, errors: [t('profile.theme.errors.tooLong', { max: MAX_THEME_CHARS })] }
   let parsed: unknown
   try {
     parsed = JSON.parse(text)
   } catch (e) {
-    return { ok: false, errors: [`Not valid JSON: ${(e as Error).message}`] }
+    return { ok: false, errors: [t('profile.theme.errors.json', { message: (e as Error).message })] }
   }
   return validateTheme(parsed)
 }

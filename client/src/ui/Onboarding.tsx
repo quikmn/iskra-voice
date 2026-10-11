@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import { decodeRecoveryKey } from '../core/recovery'
 import { usePendingLink } from '../state/link'
 import { acceptInvite, completeOnboarding, restoreAccount, useApp } from '../state/store'
@@ -9,6 +10,7 @@ import { LinkJoin } from './LinkJoin'
 type Mode = 'new' | 'existing' | 'recovery' | 'link'
 
 export function Onboarding() {
+  const { t } = useTranslation()
   const pendingInvite = useApp((s) => s.pendingInvite)
   const pendingLink = usePendingLink((s) => s.code)
   const [mode, setMode] = useState<Mode>(pendingLink ? 'link' : 'new')
@@ -51,19 +53,19 @@ export function Onboarding() {
       <div className="onboarding">
         <div className="onboarding-card">
           {brand}
-          <p className="lead">Welcome back! How do you want to sign in?</p>
+          <p className="lead">{t('app.onboarding.welcomeBack')}</p>
           <div className="choice-list">
             <button type="button" className="choice" onClick={() => setMode('link')}>
-              <strong>Link with my other device</strong>
-              <span className="muted">Scan a code from Iskra on your phone or computer. Easiest.</span>
+              <strong>{t('app.onboarding.linkDevice')}</strong>
+              <span className="muted">{t('app.onboarding.linkDeviceHint')}</span>
             </button>
             <button type="button" className="choice" onClick={() => setMode('recovery')}>
-              <strong>Use my recovery key</strong>
-              <span className="muted">The ISKRA-… key you saved.</span>
+              <strong>{t('app.onboarding.useRecoveryKey')}</strong>
+              <span className="muted">{t('app.onboarding.useRecoveryKeyHint')}</span>
             </button>
           </div>
           <p className="fine-print">
-            <button type="button" className="link" onClick={() => setMode('new')}>I'm new here</button>
+            <button type="button" className="link" onClick={() => setMode('new')}>{t('app.onboarding.imNew')}</button>
           </p>
         </div>
       </div>
@@ -77,18 +79,18 @@ export function Onboarding() {
         {pendingInvite ? (
           <>
             <p className="lead">
-              You've been invited to a server at <strong>{hostOf(pendingInvite.serverUrl)}</strong>.
+              <Trans i18nKey="app.onboarding.invited" values={{ host: hostOf(pendingInvite.serverUrl) }} components={{ b: <strong /> }} />
               <br />
-              Pick a name and you're in.
+              {t('app.onboarding.pickNameInvited')}
             </p>
             <OpenInApp invite={pendingInvite} />
           </>
         ) : (
-          <p className="lead">Voice and text chat with your friends, on a server you own. Pick a name to get started.</p>
+          <p className="lead">{t('app.onboarding.intro')}</p>
         )}
         {restoring && (
           <label className="field">
-            <span>Recovery key</span>
+            <span>{t('app.onboarding.recoveryKey')}</span>
             <textarea
               rows={3}
               value={recoveryKey}
@@ -97,30 +99,30 @@ export function Onboarding() {
               spellCheck={false}
               autoComplete="off"
             />
-            {keyProblem && <small className="error-text">That key doesn't check out. Look for a typo.</small>}
-            {seed && <small className="success-text">Key looks right.</small>}
+            {keyProblem && <small className="error-text">{t('app.onboarding.keyProblem')}</small>}
+            {seed && <small className="success-text">{t('app.onboarding.keyOk')}</small>}
           </label>
         )}
         <label className="field">
-          <span>Your name</span>
+          <span>{t('app.onboarding.yourName')}</span>
           <input
             autoFocus
             maxLength={32}
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="What should friends call you?"
+            placeholder={t('app.onboarding.namePlaceholder')}
           />
         </label>
         <button className="button primary wide" disabled={!trimmed || busy || (restoring && !seed)}>
-          {restoring ? 'Restore my account' : pendingInvite ? 'Join' : 'Continue'}
+          {restoring ? t('app.onboarding.restore') : pendingInvite ? t('common.join') : t('common.continue')}
         </button>
         <p className="fine-print">
           {restoring ? (
-            <button type="button" className="link" onClick={() => setMode('existing')}>Back</button>
+            <button type="button" className="link" onClick={() => setMode('existing')}>{t('common.back')}</button>
           ) : (
             <>
-              No email, no password. Your account is a key that stays on your devices.{' '}
-              <button type="button" className="link" onClick={() => setMode('existing')}>I already have Iskra</button>
+              {t('app.onboarding.noPassword')}{' '}
+              <button type="button" className="link" onClick={() => setMode('existing')}>{t('app.onboarding.haveIskra')}</button>
             </>
           )}
         </p>

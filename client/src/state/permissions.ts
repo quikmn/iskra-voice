@@ -1,27 +1,25 @@
 // Mirrors the server's permission rules (Sessions/Permissions.cs) so the UI only offers what will work.
 // The server decides; this only hides buttons that would fail.
 import {
-  roleRank, type Channel, type ChannelPermission, type Member, type Message, type Permission, type ServerRole,
+  roleRank, type Channel, type ChannelPermission, type Member, type Message, type Permission, type Role, type ServerRole,
 } from '../core/protocol'
+import { t } from '../i18n'
 
-export const PERMISSIONS: { id: Permission; label: string; hint: string }[] = [
-  { id: 'manageMessages', label: 'Manage messages', hint: "Delete and pin others' messages, end polls, manage threads" },
-  { id: 'timeoutMembers', label: 'Time out members', hint: 'Stop someone writing and talking for a while' },
-  { id: 'kickMembers', label: 'Kick members', hint: 'Remove people (they can come back with an invite)' },
-  { id: 'banMembers', label: 'Ban members', hint: 'Remove people for good, and unban them' },
-  { id: 'manageChannels', label: 'Manage channels', hint: 'Create, edit and delete channels, slowmode and channel permissions' },
-  { id: 'manageRoles', label: 'Manage roles', hint: 'Create and give roles below their own highest role' },
-  { id: 'viewAuditLog', label: 'View audit log', hint: 'See who did what on this server' },
-  { id: 'manageExpressions', label: 'Manage emoji and sounds', hint: "Add, rename and delete anyone's emoji and sounds" },
-  { id: 'manageWebhooks', label: 'Manage webhooks', hint: 'Create and change webhooks' },
-  { id: 'mentionEveryone', label: 'Mention @everyone', hint: 'Notify everyone with @everyone and @here' },
-  { id: 'moveMembers', label: 'Move members', hint: 'Move people between voice channels' },
-  { id: 'muteMembers', label: 'Mute members', hint: 'Mute people in voice for everyone' },
-  { id: 'manageAutoMod', label: 'Manage AutoMod', hint: 'Change the blocked words and spam rules' },
+export const PERMISSIONS: Permission[] = [
+  'manageMessages', 'timeoutMembers', 'kickMembers', 'banMembers', 'manageChannels', 'manageRoles', 'viewAuditLog',
+  'manageExpressions', 'manageWebhooks', 'mentionEveryone', 'moveMembers', 'muteMembers', 'manageAutoMod',
 ]
 
+export const permissionLabel = (p: Permission) => t(`roles.permissions.${p}.label`)
+export const permissionHint = (p: Permission) => t(`roles.permissions.${p}.hint`)
+
+const LEVELS: readonly string[] = ['guest', 'member', 'trusted', 'admin', 'owner'] satisfies Role[]
+
+/** A level's name in the app's language ("member"); anything else as is. */
+export const levelName = (role: string): string => (LEVELS.includes(role) ? t(`common.roles.${role as Role}`) : role)
+
 /** The "Moderator" preset: every permission a moderator needs, without being an admin. */
-export const MODERATOR_PRESET: Permission[] = PERMISSIONS.map((p) => p.id)
+export const MODERATOR_PRESET: Permission[] = [...PERMISSIONS]
 
 export const isAdmin = (member: Member | null | undefined) => !!member && roleRank(member.role) >= roleRank('admin')
 

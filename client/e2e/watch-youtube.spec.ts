@@ -85,7 +85,7 @@ test('a YouTube watch party plays in the desktop app (app:// origin)', async () 
   const userData = mkdtempSync(join(tmpdir(), 'iskra-desktop-'))
   const app = await electron.launch({
     executablePath: electronBin,
-    args: [DESKTOP, `--user-data-dir=${userData}`, '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required'],
+    args: [DESKTOP, `--user-data-dir=${userData}`, '--lang=en-US', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required'],
     cwd: DESKTOP,
     env: { ...process.env, ISKRA_LOCAL_ONLY: '1' },
   })

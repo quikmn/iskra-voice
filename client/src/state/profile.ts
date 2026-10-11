@@ -1,5 +1,6 @@
 // Your profile lives on this device and is sent to every server you're on: edit once, every server updates.
 // Text fields go with each connect (auth); the avatar and page are uploaded wherever they're out of date.
+import { t } from '../i18n'
 import { create } from 'zustand'
 import { sha256Hex } from '../core/profile'
 import type { Member, ProfileUpdate } from '../core/protocol'
@@ -78,7 +79,7 @@ const onlineServers = () => useApp.getState().order.filter((key) => connectionFo
 
 async function saveLocal(patch: Partial<storage.Profile>): Promise<storage.Profile> {
   const current = useApp.getState().profile
-  if (!current) throw new Error('No profile yet.')
+  if (!current) throw new Error(t('profile.noProfile'))
   const next = { ...current, ...patch }
   await storage.saveProfile(next)
   useApp.setState({ profile: next })

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { roleRank } from '../core/protocol'
 import { has } from '../state/permissions'
 import { useServerRoles } from '../state/roles'
@@ -15,9 +16,11 @@ import { useVoice } from '../state/voice'
 import type { SectionId } from './settings/sections'
 import { EventsButton } from './events/EventsLayer'
 import { RulesButton } from './rules/Rules'
+import { errorMessage } from '../i18n/errors'
 import './audio.css'
 
 export function ChannelSidebar({ server, onNavigate }: { server: ServerState; onNavigate: () => void }) {
+  const { t } = useTranslation()
   const [dialog, setDialog] = useState<'invite' | 'channel' | 'settings' | null>(null)
   const [section, setSection] = useState<SectionId | undefined>(undefined)
   const openSettings = (at?: SectionId) => {
@@ -32,7 +35,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
   return (
     <div className="channel-sidebar">
       <header className="sidebar-header">
-        <button className="server-header-button" onClick={() => openSettings('overview')} aria-label={`${server.name}: server options`} title="Server options">
+        <button className="server-header-button" onClick={() => openSettings('overview')} aria-label={t('app.sidebar.serverOptionsLabel', { name: server.name })} title={t('app.sidebar.serverOptions')}>
           <span className="server-name">{server.name}</span>
           <ConnectionPill server={server} />
           <ChevronDown size={16} />
@@ -44,7 +47,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
         <EventsButton server={server} onNavigate={onNavigate} />
         {canInvite && (
           <button className="invite-button" onClick={() => setDialog('invite')}>
-            <UserPlus size={16} /> Invite friends
+            <UserPlus size={16} /> {t('app.sidebar.inviteFriends')}
           </button>
         )}
         <ChannelList server={server} isAdmin={isAdmin} onNavigate={onNavigate} onCreateChannel={(categoryId) => {
@@ -64,16 +67,18 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
 }
 
 function ConnectionPill({ server }: { server: ServerState }) {
+  const { t } = useTranslation()
   const { status } = server
   if (status.state === 'online') return null
   const label =
-    status.state === 'connecting' ? 'Connecting…'
-      : status.state === 'offline' ? `Reconnecting in ${Math.ceil(status.retryInMs / 1000)}s`
-        : 'No access'
-  return <span className={`pill ${status.state}`} title={status.state === 'rejected' ? status.message : undefined}>{label}</span>
+    status.state === 'connecting' ? t('app.sidebar.connecting')
+      : status.state === 'offline' ? t('app.sidebar.reconnectingIn', { seconds: Math.ceil(status.retryInMs / 1000) })
+        : t('app.sidebar.noAccess')
+  return <span className={`pill ${status.state}`} title={status.state === 'rejected' ? errorMessage(status) : undefined}>{label}</span>
 }
 
 function MeBar({ server, onSettings }: { server: ServerState; onSettings: () => void }) {
+  const { t } = useTranslation()
   const profile = useApp((s) => s.profile)
   const me = server.me
   const name = me?.name ?? profile?.name ?? ''
@@ -81,20 +86,20 @@ function MeBar({ server, onSettings }: { server: ServerState; onSettings: () => 
   const speaking = useVoice((s) => s.localSpeaking)
   const muted = useVoice((s) => s.muted)
   const deafened = useVoice((s) => s.deafened)
-  const flag = inVoice && (deafened ? 'Deafened' : muted ? 'Muted' : null)
+  const flag = inVoice && (deafened ? t('voice.deafened') : muted ? t('voice.muted') : null)
   return (
     <div className="me-bar">
       {me ? (
-        <MeStatusButton name={name} accountKey={me.accountKey} sub={me.role} speaking={inVoice && speaking}
-          title={inVoice ? (flag || (speaking ? 'Speaking' : 'In voice')) : undefined}
+        <MeStatusButton name={name} accountKey={me.accountKey} sub={t(`common.roles.${me.role}`)} speaking={inVoice && speaking}
+          title={inVoice ? (flag || (speaking ? t('voice.speaking') : t('voice.inVoice'))) : undefined}
           flag={flag ? <span className="me-avatar-flag" aria-label={flag}>{deafened ? <HeadphonesOff size={11} /> : <MicOff size={11} />}</span> : null} />
       ) : (
         <div className="me-text">
           <strong>{name}</strong>
-          <span>not joined</span>
+          <span>{t('app.sidebar.notJoined')}</span>
         </div>
       )}
-      <button className="icon-button" onClick={onSettings} aria-label="Settings" title="Settings">
+      <button className="icon-button" onClick={onSettings} aria-label={t('common.settings')} title={t('common.settings')}>
         <Settings />
       </button>
     </div>

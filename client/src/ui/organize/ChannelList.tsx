@@ -2,6 +2,8 @@
 // Admins drag channels and categories to arrange them on desktop; every row also has a menu (right click, or the
 // ⋯ button, which phones always show).
 import { useState, type DragEvent, type HTMLAttributes, type MouseEvent } from 'react'
+import { useTranslation } from 'react-i18next'
+import { levelName } from '../../state/permissions'
 import type { Category, Channel } from '../../core/protocol'
 import { activeChannelId, selectChannel, useApp, type ServerState } from '../../state/store'
 import { joinVoice, setStageOpen, useVoice } from '../../state/voice'
@@ -56,6 +58,7 @@ export function ChannelList({ server, isAdmin, onNavigate, onCreateChannel }: {
   /** Opens the create-channel dialog, optionally inside a category. */
   onCreateChannel: (categoryId: number | null) => void
 }) {
+  const { t } = useTranslation()
   const categories = useCategories(server.key)
   const collapsed = useOrganize((s) => s.collapsed[server.key]) ?? []
   const activeId = useApp(activeChannelId)
@@ -143,13 +146,13 @@ export function ChannelList({ server, isAdmin, onNavigate, onCreateChannel }: {
       {(topText.length > 0 || isAdmin) && (
         <div className={`channel-group ${over?.kind === 'top' && over.id === 0 ? 'drop-into' : ''}`}
           {...target({ kind: 'top', id: 0 }, (d) => d.kind === 'channel', toTop)}>
-          <span>Text channels</span>
+          <span>{t('organize.list.text')}</span>
           {isAdmin && (
             <span className="org-group-actions">
-              <button className="icon-button small" onClick={() => setDialog({ kind: 'category' })} aria-label="Create category" title="Create category">
+              <button className="icon-button small" onClick={() => setDialog({ kind: 'category' })} aria-label={t('organize.list.createCategory')} title={t('organize.list.createCategory')}>
                 <FolderPlus />
               </button>
-              <button className="icon-button small" onClick={() => onCreateChannel(null)} aria-label="Create channel" title="Create channel">
+              <button className="icon-button small" onClick={() => onCreateChannel(null)} aria-label={t('organize.list.createChannel')} title={t('organize.list.createChannel')}>
                 <Plus size={14} />
               </button>
             </span>
@@ -160,9 +163,9 @@ export function ChannelList({ server, isAdmin, onNavigate, onCreateChannel }: {
       {(topVoice.length > 0 || isAdmin) && (
         <div className={`channel-group ${over?.kind === 'top' && over.id === 1 ? 'drop-into' : ''}`}
           {...target({ kind: 'top', id: 1 }, (d) => d.kind === 'channel', toTop)}>
-          <span>Voice channels</span>
+          <span>{t('organize.list.voice')}</span>
           {isAdmin && (
-            <button className="icon-button small" onClick={() => onCreateChannel(null)} aria-label="Create voice channel" title="Create channel">
+            <button className="icon-button small" onClick={() => onCreateChannel(null)} aria-label={t('organize.list.createVoice')} title={t('organize.list.createChannel')}>
               <Plus size={14} />
             </button>
           )}
@@ -198,17 +201,17 @@ export function ChannelList({ server, isAdmin, onNavigate, onCreateChannel }: {
               </button>
               <span className="org-group-actions">
                 {isAdmin && (
-                  <button className="icon-button small" onClick={() => onCreateChannel(category.id)} aria-label={`Create channel in ${category.name}`} title="Create channel">
+                  <button className="icon-button small" onClick={() => onCreateChannel(category.id)} aria-label={t('organize.list.createIn', { category: category.name })} title={t('organize.list.createChannel')}>
                     <Plus size={14} />
                   </button>
                 )}
-                <button className="icon-button small org-more" onClick={openMenu('category', category.id)} aria-label={`${category.name} options`} title="Category options">
+                <button className="icon-button small org-more" onClick={openMenu('category', category.id)} aria-label={t('organize.list.options', { name: category.name })} title={t('organize.list.categoryOptions')}>
                   <More />
                 </button>
               </span>
             </div>
             {shown.map(renderChannel)}
-            {isAdmin && channels.length === 0 && !isCollapsed && <p className="org-empty">Drag channels here</p>}
+            {isAdmin && channels.length === 0 && !isCollapsed && <p className="org-empty">{t('organize.list.dragHere')}</p>}
           </section>
         )
       })}
@@ -233,6 +236,7 @@ type RowProps = HTMLAttributes<HTMLDivElement>
 function TextRow({ server, channel, active, rowProps, onMenu, onNavigate }: {
   server: ServerState; channel: Channel; active: boolean; rowProps: RowProps; onMenu: (e: MouseEvent<HTMLElement>) => void; onNavigate: () => void
 }) {
+  const { t } = useTranslation()
   const notify = useNotifyFor(server.key, channel.id)
   const counts = useChannelCounts(server.key, channel)
   const shown = channelBadges(counts.unread, counts.mentions, notify)
@@ -248,10 +252,10 @@ function TextRow({ server, channel, active, rowProps, onMenu, onNavigate }: {
       >
         <span className="hash">{channel.kind === 'forum' ? <ForumIcon size={16} /> : <Hash size={16} />}</span>
         <span className="channel-name">{channel.name}</span>
-        {channel.readRole !== 'member' && channel.readRole !== 'guest' && <span className="lock" title={`${channel.readRole}+ only`}><Lock size={12} /></span>}
-        {shown.pings > 0 && !active && <span className="badge" title="Mentions">{shown.pings}</span>}
+        {channel.readRole !== 'member' && channel.readRole !== 'guest' && <span className="lock" title={t('organize.list.only', { role: levelName(channel.readRole) })}><Lock size={12} /></span>}
+        {shown.pings > 0 && !active && <span className="badge" title={t('organize.list.mentions')}>{shown.pings}</span>}
       </button>
-      <button className="icon-button small org-more" onClick={onMenu} aria-label={`#${channel.name} options`} title="Channel options">
+      <button className="icon-button small org-more" onClick={onMenu} aria-label={t('organize.list.options', { name: `#${channel.name}` })} title={t('organize.list.channelOptions')}>
         <More />
       </button>
     </div>
@@ -261,6 +265,7 @@ function TextRow({ server, channel, active, rowProps, onMenu, onNavigate }: {
 function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
   server: ServerState; channel: Channel; rowProps: RowProps; onMenu: (e: MouseEvent<HTMLElement>) => void; onNavigate: () => void
 }) {
+  const { t } = useTranslation()
   const voiceSession = useVoice((s) => s.session)
   const speaking = useVoice((s) => s.speaking)
   const participants = server.voice[channel.id] ?? []
@@ -276,7 +281,7 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
         <button
           className={`channel ${here ? 'active' : ''}`}
           disabled={!server.voiceAvailable}
-          title={!server.voiceAvailable ? 'Voice is unavailable on this server' : full ? `${channel.name} is full` : `Join ${channel.name}`}
+          title={!server.voiceAvailable ? t('organize.list.voiceUnavailable') : full ? t('organize.list.full', { name: channel.name }) : t('organize.list.join', { name: channel.name })}
           onClick={() => {
             if (mustAgree) return showRules(server.key)
             void joinVoice(server.key, channel.id)
@@ -287,10 +292,10 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
           <span className="channel-name">{channel.name}</span>
           {here && voiceSession.state !== 'connected' && <span className="pill">…</span>}
           {limit && (
-            <span className={`voice-limit ${full ? 'full' : ''}`} aria-label={`${participants.length} of ${channel.userLimit} people${full ? ', full' : ''}`}>{limit}</span>
+            <span className={`voice-limit ${full ? 'full' : ''}`} aria-label={t(full ? 'organize.list.countFull' : 'organize.list.count', { people: participants.length, limit: channel.userLimit ?? 0 })}>{limit}</span>
           )}
         </button>
-        <button className="icon-button small org-more" onClick={onMenu} aria-label={`${channel.name} options`} title="Channel options">
+        <button className="icon-button small org-more" onClick={onMenu} aria-label={t('organize.list.options', { name: channel.name })} title={t('organize.list.channelOptions')}>
           <More />
         </button>
       </div>
@@ -303,13 +308,13 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
               <li
                 key={p.accountKey}
                 className={`${here && speaking[p.accountKey] ? 'speaking' : ''} ${isMe ? 'me' : ''}`}
-                {...bind(here && !isMe ? { accountKey: p.accountKey, name: member?.name ?? 'Someone' } : null)}
+                {...bind(here && !isMe ? { accountKey: p.accountKey, name: member?.name ?? t('common.someone') } : null)}
               >
                 <button className="participant" onClick={(e) => openProfileCard(server.key, p.accountKey, e.currentTarget)}>
                   <Avatar name={member?.name ?? '?'} accountKey={p.accountKey} size={22} />
-                  <span className="member-name">{member?.name ?? 'Someone'}</span>
+                  <span className="member-name">{member?.name ?? t('common.someone')}</span>
                 </button>
-                {p.serverMuted ? <span className="voice-flag server-muted" title="Muted by a moderator"><MicOff size={14} /></span> : p.deafened ? <span className="voice-flag" title="Deafened"><HeadphonesOff size={14} /></span> : p.muted ? <span className="voice-flag" title="Muted"><MicOff size={14} /></span> : null}
+                {p.serverMuted ? <span className="voice-flag server-muted" title={t('organize.list.serverMuted')}><MicOff size={14} /></span> : p.deafened ? <span className="voice-flag" title={t('organize.list.deafened')}><HeadphonesOff size={14} /></span> : p.muted ? <span className="voice-flag" title={t('organize.list.muted')}><MicOff size={14} /></span> : null}
               </li>
             )
           })}
@@ -323,10 +328,11 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
 function StageRow({ server, channel, rowProps, onMenu, onNavigate }: {
   server: ServerState; channel: Channel; rowProps: RowProps; onMenu: (e: MouseEvent<HTMLElement>) => void; onNavigate: () => void
 }) {
+  const { t } = useTranslation()
   return (
     <div {...rowProps}>
       <StageEntry server={server} channelId={channel.id} name={channel.name} onNavigate={onNavigate} />
-      <button className="icon-button small org-more" onClick={onMenu} aria-label={`${channel.name} options`} title="Channel options">
+      <button className="icon-button small org-more" onClick={onMenu} aria-label={t('organize.list.options', { name: channel.name })} title={t('organize.list.channelOptions')}>
         <More />
       </button>
     </div>

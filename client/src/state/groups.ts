@@ -21,6 +21,8 @@ import { isBlocked, useBlocks } from './moderation'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 import { forgetConversation, groupConv, isOnScreen, noteMessage, seeConversation } from './readState'
 import { keysReady } from './keyMap'
+import { t } from '../i18n'
+import { errorMessage } from '../i18n/errors'
 
 export interface GroupConv {
   /** "<serverKey>/<groupId>" */
@@ -58,10 +60,13 @@ export const isMember = (g: GroupConv | undefined) => !!g?.view?.members.include
 /** The group lives on a server you left: kept read-only on this device until you remove it. */
 export const isArchived = (g: GroupConv | undefined) => !!g && !useApp.getState().servers[g.serverKey]
 
+/** nameOf's stand-in for people it doesn't know. */
+const isUnnamed = (name: string) => name === 'Someone' || name === t('common.someone')
+
 /** Someone's name from any server, else as a group last saw it (its server may be gone). */
 export function knownName(accountKey: string): string {
   const name = nameOf(accountKey)
-  if (name !== 'Someone') return name
+  if (!isUnnamed(name)) return name
   for (const g of Object.values(useGroups.getState().groups)) if (g.names[accountKey]) return g.names[accountKey]
   return name
 }
@@ -76,7 +81,7 @@ function namesFor(g: GroupConv): Record<string, string> {
   const people = new Set([...(g.view?.changes.flatMap((c) => [c.by, ...c.targets]) ?? []), ...g.messages.map((m) => m.from)])
   for (const k of people) {
     const name = nameOf(k)
-    if (name !== 'Someone') names[k] = name.slice(0, 32)
+    if (!isUnnamed(name)) names[k] = name.slice(0, 32)
   }
   return names
 }
@@ -307,7 +312,8 @@ async function onGroupMessage(serverKey: string, wire: WireGroupMessage): Promis
   // Someone you blocked stays in the group and their messages arrive, but they never notify you.
   if (!mine && !viewing && !silent && !isBlocked(useBlocks.getState().entries, message.from)) {
     const g = useGroups.getState().groups[key]
-    show(serverKey, `${nameOf(message.from)} in ${g ? titleOf(g) : 'a group'}`, message.error ? 'New message' : message.text, () => openGroup(key))
+    show(serverKey, t('groups.notify.title', { name: nameOf(message.from), group: g ? titleOf(g) : t('groups.notify.aGroup') }),
+      message.error ? t('groups.notify.newMessage') : message.text, () => openGroup(key))
   }
 }
 
@@ -352,7 +358,7 @@ export async function sealForGroup(key: string, content: DmContent): Promise<{ e
   return { envelope: await encryptFor(g!, content), version: g!.view!.version }
 }
 
-/** Why you can't write in this group right now, or null if you can. */
+/** Why you can't write in this group right now, or null if you can (in English; the UI shows it with groupText). */
 export function cannotSend(g: GroupConv | undefined): string | null {
   if (!g) return 'This group is gone.'
   if (isArchived(g)) return "This group's server isn't in your list any more, so the group is archived. You can still read it here."
@@ -398,7 +404,7 @@ export async function sendGroupMessage(key: string, text: string, extra: Pick<Dm
     settle(await deliver(key, { text, ...extra }, (envelope) => settle(envelope, 'sending')))
   } catch (e) {
     patchGroup(key, (g) => ({
-      messages: g.messages.map((m) => (isOurs(m) ? { ...m, pending: 'failed' as const, error: (e as Error).message } : m)),
+      messages: g.messages.map((m) => (isOurs(m) ? { ...m, pending: 'failed' as const, error: errorMessage(e) } : m)),
     }))
   }
 }
@@ -409,7 +415,7 @@ export function discardGroupMessage(key: string, id: string): void {
 
 export async function renameGroup(key: string, name: string): Promise<void> {
   const clean = name.trim().slice(0, MAX_GROUP_NAME)
-  await sendGroupMessage(key, clean ? `Named the group ${clean}` : 'Removed the group name', { group: { kind: 'rename', name: clean } })
+  await sendGroupMessage(key, clean ? t('groups.sent.named', { name: clean }) : t('groups.sent.removedName'), { group: { kind: 'rename', name: clean } })
 }
 
 // ── Creating and changing groups ───────────────────────────────────────────
@@ -453,7 +459,7 @@ export async function addToGroup(key: string, people: string[]): Promise<void> {
   await changeGroup(key, 'add', people)
   // New people can't read the old rename, so tell everyone the current name again, quietly.
   const g = useGroups.getState().groups[key]
-  if (g?.name) await sendGroupMessage(key, `The group is called ${g.name}`, { group: { kind: 'rename', name: g.name, silent: true } })
+  if (g?.name) await sendGroupMessage(key, t('groups.sent.isCalled', { name: g.name }), { group: { kind: 'rename', name: g.name, silent: true } })
 }
 
 export const removeFromGroup = (key: string, person: string) => changeGroup(key, 'remove', [person])

@@ -1,9 +1,11 @@
 // Settings → My account → Blocked people, and Settings → This server → Audit log (admins).
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { errorMessage } from '../../i18n/errors'
 import { fingerprint } from '../../core/connection'
 import type { AuditEntry } from '../../core/protocol'
 import { loadAudit, setBlocked, useBlocks } from '../../state/moderation'
-import { AUDIT_ACTIONS, auditText } from '../../state/moderationRules'
+import { AUDIT_ACTIONS, auditActionLabel, auditText } from '../../state/moderationRules'
 import { useDms } from '../../state/dms'
 import { useApp, type ServerState } from '../../state/store'
 import { Avatar, Spinner } from '../bits'
@@ -21,19 +23,17 @@ function useNameOf(): (accountKey: string) => string | null {
 }
 
 export function BlockedSection() {
+  const { t } = useTranslation()
   const entries = useBlocks((s) => s.entries)
   const nameOf = useNameOf()
   const blocked = entries.filter((e) => e.blocked).sort((a, b) => b.at - a.at)
 
   return (
     <section className="settings-section">
-      <h3>Blocked people</h3>
-      <p className="muted">
-        People you block can't message or call you on any server you share, and their messages in channels are collapsed for you.
-        They aren't told. Your list follows your account to every server and device.
-      </p>
+      <h3>{t('moderation.blocked.title')}</h3>
+      <p className="muted">{t('moderation.blocked.intro')}</p>
       {blocked.length === 0 ? (
-        <p className="empty-note">You haven't blocked anyone. You can block someone from their profile (More → Block).</p>
+        <p className="empty-note">{t('moderation.blocked.empty')}</p>
       ) : (
         <ul className="blocked-list">
           {blocked.map((e) => {
@@ -42,10 +42,10 @@ export function BlockedSection() {
               <li key={e.accountKey}>
                 <Avatar name={name ?? '?'} accountKey={e.accountKey} size={32} />
                 <span className="blocked-name">
-                  <strong>{name ?? 'Someone'}</strong>
-                  <span className="muted">ID <code>{fingerprint(e.accountKey)}</code> · blocked {messageTime(e.at)}</span>
+                  <strong>{name ?? t('common.someone')}</strong>
+                  <span className="muted">{t('moderation.blocked.id')} <code>{fingerprint(e.accountKey)}</code> · {t('moderation.blocked.when', { time: messageTime(e.at) })}</span>
                 </span>
-                <button className="button small" onClick={() => void setBlocked(e.accountKey, false)}>Unblock</button>
+                <button className="button small" onClick={() => void setBlocked(e.accountKey, false)}>{t('moderation.blocked.unblock')}</button>
               </li>
             )
           })}
@@ -56,6 +56,7 @@ export function BlockedSection() {
 }
 
 export function AuditLogSection({ server }: { server: ServerState }) {
+  const { t } = useTranslation()
   const [action, setAction] = useState('')
   const [person, setPerson] = useState('')
   const [entries, setEntries] = useState<AuditEntry[] | null>(null)
@@ -70,7 +71,7 @@ export function AuditLogSection({ server }: { server: ServerState }) {
       setHasMore(page.hasMore)
       setError(null)
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
       if (!before) setEntries([])
     }
   }, [server.key, action, person])
@@ -84,9 +85,9 @@ export function AuditLogSection({ server }: { server: ServerState }) {
         setHasMore(page.hasMore)
         setError(null)
       },
-      (e: Error) => {
+      (e: unknown) => {
         if (!live) return
-        setError(e.message)
+        setError(errorMessage(e))
         setEntries([])
       },
     )
@@ -97,30 +98,30 @@ export function AuditLogSection({ server }: { server: ServerState }) {
 
   return (
     <section className="settings-section">
-      <h3>Audit log</h3>
-      <p className="muted">Moderation and admin actions on this server from the last 90 days. Only admins can see this.</p>
+      <h3>{t('moderation.audit.title')}</h3>
+      <p className="muted">{t('moderation.audit.intro')}</p>
       <div className="audit-filters">
         <label className="field">
-          <span>Action</span>
+          <span>{t('moderation.audit.action')}</span>
           <select value={action} onChange={(e) => setAction(e.target.value)}>
-            <option value="">All actions</option>
-            {AUDIT_ACTIONS.map((a) => <option key={a.action} value={a.action}>{a.label}</option>)}
+            <option value="">{t('moderation.audit.allActions')}</option>
+            {AUDIT_ACTIONS.map((a) => <option key={a} value={a}>{auditActionLabel(a)}</option>)}
           </select>
         </label>
         <label className="field">
-          <span>Person</span>
+          <span>{t('moderation.audit.person')}</span>
           <select value={person} onChange={(e) => setPerson(e.target.value)}>
-            <option value="">Everyone</option>
+            <option value="">{t('moderation.audit.everyone')}</option>
             {people.map((m) => <option key={m.accountKey} value={m.accountKey}>{m.name}</option>)}
           </select>
         </label>
-        <button className="button small" onClick={() => void load()}>Refresh</button>
+        <button className="button small" onClick={() => void load()}>{t('moderation.audit.refresh')}</button>
       </div>
       {error && <p className="error-text">{error}</p>}
       {entries === null ? (
         <Spinner />
       ) : entries.length === 0 ? (
-        <p className="empty-note">Nothing here{action || person ? ' for these filters' : ' yet'}.</p>
+        <p className="empty-note">{action || person ? t('moderation.audit.emptyFiltered') : t('moderation.audit.empty')}</p>
       ) : (
         <ul className="audit-list">
           {entries.map((e) => (
@@ -128,7 +129,7 @@ export function AuditLogSection({ server }: { server: ServerState }) {
               <Avatar name={e.actorName || '?'} accountKey={e.actor} size={28} />
               <div>
                 <div className="audit-text">{auditText(e)}</div>
-                {e.reason && <div className="audit-reason">Reason: {e.reason}</div>}
+                {e.reason && <div className="audit-reason">{t('moderation.audit.reason', { reason: e.reason })}</div>}
                 <time className="muted" title={fullTime(e.at)}>{messageTime(e.at)}</time>
               </div>
             </li>
@@ -143,7 +144,7 @@ export function AuditLogSection({ server }: { server: ServerState }) {
             void load(entries.at(-1)?.id).finally(() => setLoadingMore(false))
           }}
         >
-          {loadingMore ? 'Loading…' : 'Show older'}
+          {loadingMore ? t('common.loading') : t('moderation.audit.showOlder')}
         </button>
       )}
     </section>

@@ -1,5 +1,7 @@
 // Forum dialogs: writing a new post, and the admin's tag editor.
 import { useRef, useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
+import { errorMessage } from '../../i18n/errors'
 import type { Channel, FileInfo, ForumTag } from '../../core/protocol'
 import { uploadFile, type ServerState } from '../../state/store'
 import { createPost, openPost, saveTags } from '../../state/forums'
@@ -27,6 +29,7 @@ interface Upload {
 }
 
 export function NewPostDialog({ server, forum, tags, onClose }: { server: ServerState; forum: Channel; tags: ForumTag[]; onClose: () => void }) {
+  const { t } = useTranslation()
   const [title, setTitle] = useState('')
   const [text, setText] = useState('')
   const [picked, setPicked] = useState<number[]>([])
@@ -46,7 +49,7 @@ export function NewPostDialog({ server, forum, tags, onClose }: { server: Server
       setUploads((list) => [...list, item].slice(0, 10))
       uploadFile(server.key, file, (progress) => update({ progress }), item.abort.signal)
         .then((result) => update({ result, progress: 1 }))
-        .catch((e: Error) => update({ error: e.name === 'AbortError' ? undefined : e.message }))
+        .catch((e: Error) => update({ error: e.name === 'AbortError' ? undefined : errorMessage(e) }))
     }
   }
 
@@ -60,31 +63,31 @@ export function NewPostDialog({ server, forum, tags, onClose }: { server: Server
       openPost(server.key, created)
       onClose()
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
       setBusy(false)
     }
   }
 
   return (
     <Modal
-      title="New post"
-      heading={<>New post in <span className="muted">{forum.name}</span></>}
+      title={t('forums.newPost.title')}
+      heading={<Trans i18nKey="forums.newPost.heading" values={{ forum: forum.name }} tOptions={{ interpolation: { escapeValue: true } }} shouldUnescape components={{ name: <span className="muted" /> }} />}
       onClose={onClose}
       wide
       className="post-modal"
       footer={
         <>
-          <button className="button" onClick={onClose}>Cancel</button>
-          <button className="button primary" disabled={!canPost} onClick={() => void post()}>{busy ? 'Posting…' : 'Post'}</button>
+          <button className="button" onClick={onClose}>{t('common.cancel')}</button>
+          <button className="button primary" disabled={!canPost} onClick={() => void post()}>{busy ? t('forums.newPost.posting') : t('forums.newPost.post')}</button>
         </>
       }
     >
       <label className="field">
-        <span>Title</span>
-        <input value={title} maxLength={100} autoFocus onChange={(e) => setTitle(e.target.value)} placeholder="What's it about?" />
+        <span>{t('forums.newPost.titleLabel')}</span>
+        <input value={title} maxLength={100} autoFocus onChange={(e) => setTitle(e.target.value)} placeholder={t('forums.newPost.titlePlaceholder')} />
       </label>
       <label className="field">
-        <span>Message</span>
+        <span>{t('forums.newPost.message')}</span>
         <textarea
           value={text}
           maxLength={4000}
@@ -93,12 +96,12 @@ export function NewPostDialog({ server, forum, tags, onClose }: { server: Server
           onKeyDown={(e) => {
             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) void post()
           }}
-          placeholder="Add details, links, or a picture"
+          placeholder={t('forums.newPost.messagePlaceholder')}
         />
       </label>
       {tags.length > 0 && (
         <fieldset className="field tag-picker">
-          <legend>Tags <span className="muted">(up to {MAX_POST_TAGS})</span></legend>
+          <legend>{t('forums.newPost.tags')} <span className="muted">{t('forums.newPost.upTo', { max: MAX_POST_TAGS })}</span></legend>
           <div className="forum-tags inline">
             {tags.map((tag) => {
               const on = picked.includes(tag.id)
@@ -121,7 +124,7 @@ export function NewPostDialog({ server, forum, tags, onClose }: { server: Server
       )}
       <div className="post-attachments">
         <button type="button" className="button small" onClick={() => fileInput.current?.click()} disabled={uploads.length >= 10}>
-          <Paperclip size={14} /> Attach files
+          <Paperclip size={14} /> {t('forums.newPost.attach')}
         </button>
         <input ref={fileInput} type="file" multiple hidden onChange={(e) => { attach(e.target.files); e.target.value = '' }} />
         {uploads.map((u) => (
@@ -131,7 +134,7 @@ export function NewPostDialog({ server, forum, tags, onClose }: { server: Server
             <button
               type="button"
               className="icon-button small"
-              aria-label={`Remove ${u.name}`}
+              aria-label={t('forums.newPost.remove', { name: u.name })}
               onClick={() => {
                 u.abort.abort()
                 setUploads((list) => list.filter((x) => x.id !== u.id))
@@ -155,46 +158,47 @@ interface DraftTag {
 }
 
 export function TagsDialog({ server, forum, tags, onClose }: { server: ServerState; forum: Channel; tags: ForumTag[]; onClose: () => void }) {
-  const [draft, setDraft] = useState<DraftTag[]>(() => tags.map((t) => ({ key: `t${t.id}`, id: t.id, name: t.name, emoji: t.emoji ?? '' })))
+  const { t } = useTranslation()
+  const [draft, setDraft] = useState<DraftTag[]>(() => tags.map((tag) => ({ key: `t${tag.id}`, id: tag.id, name: tag.name, emoji: tag.emoji ?? '' })))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const names = draft.map((t) => t.name.trim().toLowerCase())
-  const problem = names.some((n) => !n) ? 'Every tag needs a name.'
-    : new Set(names).size !== names.length ? 'Tag names must be different from each other.' : null
+  const names = draft.map((tag) => tag.name.trim().toLowerCase())
+  const problem = names.some((n) => !n) ? t('forums.tags.problemName')
+    : new Set(names).size !== names.length ? t('forums.tags.problemUnique') : null
 
-  const patch = (key: string, change: Partial<DraftTag>) => setDraft((list) => list.map((t) => (t.key === key ? { ...t, ...change } : t)))
+  const patch = (key: string, change: Partial<DraftTag>) => setDraft((list) => list.map((tag) => (tag.key === key ? { ...tag, ...change } : tag)))
 
   async function save() {
     if (problem || busy) return
     setBusy(true)
     try {
-      await saveTags(server.key, forum.id, draft.map((t) => ({ id: t.id, name: t.name.trim(), emoji: t.emoji.trim() || null })))
+      await saveTags(server.key, forum.id, draft.map((tag) => ({ id: tag.id, name: tag.name.trim(), emoji: tag.emoji.trim() || null })))
       onClose()
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
       setBusy(false)
     }
   }
 
   return (
     <Modal
-      title="Forum tags"
-      heading={<>Tags in <span className="muted">{forum.name}</span></>}
+      title={t('forums.tags.title')}
+      heading={<Trans i18nKey="forums.tags.heading" values={{ forum: forum.name }} tOptions={{ interpolation: { escapeValue: true } }} shouldUnescape components={{ name: <span className="muted" /> }} />}
       onClose={onClose}
       footer={
         <>
-          <button className="button" onClick={onClose}>Cancel</button>
-          <button className="button primary" disabled={!!problem || busy} onClick={() => void save()}>Save</button>
+          <button className="button" onClick={onClose}>{t('common.cancel')}</button>
+          <button className="button primary" disabled={!!problem || busy} onClick={() => void save()}>{t('common.save')}</button>
         </>
       }
     >
-      <p className="muted">People pick up to {MAX_POST_TAGS} tags for a post, and everyone can filter the forum by them. Removing a tag takes it off every post.</p>
+      <p className="muted">{t('forums.tags.intro', { max: MAX_POST_TAGS })}</p>
       <ul className="tag-editor">
         {draft.map((tag) => (
           <li key={tag.key}>
-            <input className="tag-emoji" value={tag.emoji} maxLength={16} placeholder="🙂" aria-label="Emoji (optional)" onChange={(e) => patch(tag.key, { emoji: e.target.value })} />
-            <input value={tag.name} maxLength={20} placeholder="Tag name" aria-label="Tag name" onChange={(e) => patch(tag.key, { name: e.target.value })} />
-            <button className="icon-button" aria-label={`Remove ${tag.name || 'tag'}`} onClick={() => setDraft((list) => list.filter((t) => t.key !== tag.key))}>
+            <input className="tag-emoji" value={tag.emoji} maxLength={16} placeholder="🙂" aria-label={t('forums.tags.emoji')} onChange={(e) => patch(tag.key, { emoji: e.target.value })} />
+            <input value={tag.name} maxLength={20} placeholder={t('forums.tags.namePlaceholder')} aria-label={t('forums.tags.nameLabel')} onChange={(e) => patch(tag.key, { name: e.target.value })} />
+            <button className="icon-button" aria-label={tag.name ? t('forums.tags.remove', { name: tag.name }) : t('forums.tags.removeTag')} onClick={() => setDraft((list) => list.filter((x) => x.key !== tag.key))}>
               <Trash size={16} />
             </button>
           </li>
@@ -202,10 +206,10 @@ export function TagsDialog({ server, forum, tags, onClose }: { server: ServerSta
       </ul>
       {draft.length < MAX_FORUM_TAGS ? (
         <button className="button small" onClick={() => setDraft((list) => [...list, { key: nextKey(), name: '', emoji: '' }])}>
-          <Plus size={14} /> Add a tag
+          <Plus size={14} /> {t('forums.tags.add')}
         </button>
       ) : (
-        <p className="muted">That's the most a forum can have ({MAX_FORUM_TAGS}).</p>
+        <p className="muted">{t('forums.tags.max', { max: MAX_FORUM_TAGS })}</p>
       )}
       {(problem && draft.length > 0 ? problem : error) && <p className="error-text">{error ?? problem}</p>}
     </Modal>

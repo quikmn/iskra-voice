@@ -4,6 +4,8 @@ import {
   type LocalTrackPublication, type Participant, type RemoteParticipant, type RemoteTrack, type RoomOptions,
 } from 'livekit-client'
 import { create } from 'zustand'
+import { t } from '../i18n'
+import { errorMessage } from '../i18n/errors'
 import { desktop } from '../platform/desktop'
 import { connectionFor } from './store'
 import { canBoost, captureOptions, effectiveVolume, onAudioSettings, useAudio, type AudioSettings } from './audio'
@@ -346,7 +348,7 @@ async function connect(
 
     // A few frames fail while a new key goes round (someone left, the key changed): only failures that keep
     // coming are worth showing, and the notice goes away once they stop.
-    const DECRYPT_ERROR = "Part of the call couldn't be decrypted."
+    const DECRYPT_ERROR = t('voice.errors.decrypt')
     let failingSince = 0
     let lastFailure = 0
     const decryptFailed = () => {
@@ -472,7 +474,7 @@ async function connect(
         await next.localParticipant.publishTrack(track, { source: Track.Source.Microphone })
         await applyMic()
       } catch {
-        useVoice.setState({ muted: true, error: "Couldn't use your microphone. Check your browser's permissions." })
+        useVoice.setState({ muted: true, error: t('voice.errors.mic') })
       }
       if (options.camera) await toggleCamera()
     }
@@ -481,7 +483,7 @@ async function connect(
     return true
   } catch (e) {
     if (useVoice.getState().session === session) await cleanup()
-    useVoice.setState({ error: (e as Error).message || 'Could not join voice.' })
+    useVoice.setState({ error: (e as Error)?.message ? errorMessage(e) : t('voice.errors.join') })
     return false
   }
 }
@@ -564,7 +566,7 @@ export async function toggleCamera(): Promise<void> {
     await room.localParticipant.setCameraEnabled(next)
     useVoice.setState({ camera: next })
   } catch {
-    useVoice.setState({ camera: false, error: "Couldn't use your camera. Check your browser's permissions." })
+    useVoice.setState({ camera: false, error: t('voice.errors.camera') })
   }
   refreshTiles()
 }
@@ -579,7 +581,7 @@ export async function toggleScreenShare(): Promise<void> {
     useVoice.setState({ screen: next })
   } catch (e) {
     // Cancelling the browser's picker isn't an error worth showing.
-    if ((e as Error).name !== 'NotAllowedError') useVoice.setState({ error: "Couldn't start screen sharing." })
+    if ((e as Error).name !== 'NotAllowedError') useVoice.setState({ error: t('voice.errors.screen') })
     useVoice.setState({ screen: false })
   }
   refreshTiles()
@@ -611,7 +613,7 @@ async function applyMic(): Promise<void> {
       await current.localParticipant.setMicrophoneEnabled(true)
     } catch {
       micDeferred = true // try again next time
-      useVoice.setState({ muted: true, error: "Couldn't use your microphone. Check your browser's permissions." })
+      useVoice.setState({ muted: true, error: t('voice.errors.mic') })
     }
     return
   }

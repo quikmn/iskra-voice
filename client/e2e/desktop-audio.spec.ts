@@ -19,7 +19,7 @@ test.skip(!built, 'build desktop/ (npm run build) and the client (npm run build)
 test("shared system audio leaves out Iskra's own sound", async () => {
   const userData = mkdtempSync(join(tmpdir(), 'iskra-desktop-'))
   const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'NODE_OPTIONS')) as Record<string, string>
-  const app = await electron.launch({ executablePath: ELECTRON, args: [DESKTOP, `--user-data-dir=${userData}`, '--autoplay-policy=no-user-gesture-required'], cwd: DESKTOP, env })
+  const app = await electron.launch({ executablePath: ELECTRON, args: [DESKTOP, `--user-data-dir=${userData}`, '--lang=en-US', '--autoplay-policy=no-user-gesture-required'], cwd: DESKTOP, env })
   let other: ChildProcess | null = null
   try {
     const page = await app.firstWindow()

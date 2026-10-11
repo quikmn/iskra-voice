@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
+import { errorMessage } from '../../i18n/errors'
 import { LINKS } from '../../links'
 import { hostChecklist, hostSummary, lanHost, loadHostStatus, manualForwards, setInternet, useHosting, type Step } from '../../state/hosting'
 import type { ServerState } from '../../state/store'
@@ -13,13 +15,14 @@ function StepIcon({ state }: { state: Step['state'] }) {
 
 /** "Open to the internet": one switch for the owner, a live checklist, and what to do when it can't work. */
 export function InternetSection({ server }: { server: ServerState }) {
+  const { t } = useTranslation()
   const status = useHosting((s) => s.status[server.key])
   const isOwner = server.me?.role === 'owner'
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    loadHostStatus(server.key).catch((e: Error) => setError(e.message))
+    loadHostStatus(server.key).catch((e: Error) => setError(errorMessage(e)))
   }, [server.key])
 
   async function change(enabled: boolean) {
@@ -28,7 +31,7 @@ export function InternetSection({ server }: { server: ServerState }) {
     try {
       await setInternet(server.key, enabled)
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
     } finally {
       setBusy(false)
     }
@@ -37,7 +40,7 @@ export function InternetSection({ server }: { server: ServerState }) {
   if (!status) {
     return (
       <section className="settings-section internet">
-        <h3>Open to the internet</h3>
+        <h3>{t('settings.sections.internet')}</h3>
         {error ? <p className="error-text">{error}</p> : <Spinner />}
       </section>
     )
@@ -50,34 +53,31 @@ export function InternetSection({ server }: { server: ServerState }) {
 
   return (
     <section className="settings-section internet" data-testid="internet-section">
-      <h3>Open to the internet</h3>
+      <h3>{t('settings.sections.internet')}</h3>
       <div className="internet-head">
         <div>
-          <strong>Let friends anywhere join</strong>
+          <strong>{t('settings.internet.letFriends')}</strong>
           <p className={`internet-summary ${summary.tone}`}>{summary.text}</p>
         </div>
         <button
           className={`switch ${status.enabled ? 'on' : ''}`}
           role="switch"
           aria-checked={status.enabled}
-          aria-label="Open to the internet"
+          aria-label={t('settings.sections.internet')}
           disabled={!isOwner || busy}
           onClick={() => void change(!status.enabled)}
         >
           <span />
         </button>
       </div>
-      {!isOwner && <p className="muted">Only the owner can change this.</p>}
+      {!isOwner && <p className="muted">{t('settings.internet.ownerOnly')}</p>}
       {!status.enabled && isOwner && (
-        <p className="muted">
-          Iskra asks your router to open the ports, gives your server a free address and a real HTTPS certificate, so
-          invite links work for friends anywhere. You can turn it off any time.
-        </p>
+        <p className="muted">{t('settings.internet.intro')}</p>
       )}
       {error && <p className="error-text">{error}</p>}
 
       {status.enabled && (
-        <ol className="checklist" aria-label="Progress">
+        <ol className="checklist" aria-label={t('settings.internet.progress')}>
           {steps.map((step) => (
             <li key={step.id} className={`step ${step.state}`} data-step={step.id} data-state={step.state}>
               <StepIcon state={step.state} />
@@ -92,26 +92,23 @@ export function InternetSection({ server }: { server: ServerState }) {
 
       {status.enabled && status.cgnat && (
         <div className="internet-callout warn">
-          <strong>Your provider shares one internet address between customers</strong>
-          <p>
-            This is called carrier-grade NAT. Nobody outside can reach a server in your home, whatever the router
-            settings. Two good options: ask your provider for a public IPv4 address (often free, sometimes a small
-            fee), or run the server on a small VPS, which costs a few euros a month.
-          </p>
-          <a href={`${LINKS.hostingGuide}#on-a-linux-vps-with-systemd`} target="_blank" rel="noopener noreferrer">How to run it on a VPS</a>
+          <strong>{t('settings.internet.cgnatTitle')}</strong>
+          <p>{t('settings.internet.cgnat')}</p>
+          <a href={`${LINKS.hostingGuide}#on-a-linux-vps-with-systemd`} target="_blank" rel="noopener noreferrer">{t('settings.internet.vps')}</a>
         </div>
       )}
 
       {forwards.length > 0 && (
         <div className="internet-callout" data-testid="manual-forwards">
-          <strong>Forward these ports by hand</strong>
+          <strong>{t('settings.internet.forwardTitle')}</strong>
           <p>
-            Open your router's settings page (often <code>192.168.1.1</code> or <code>192.168.0.1</code>), find
-            "Port forwarding", and add{lan ? <> these, pointing at this computer, <code>{lan}</code></> : ' these, pointing at this computer'}:
+            {lan
+              ? <Trans i18nKey="settings.internet.forwardLan" values={{ lan }} components={{ code: <code /> }} />
+              : <Trans i18nKey="settings.internet.forward" components={{ code: <code /> }} />}
           </p>
           <table className="forward-table">
             <thead>
-              <tr><th>Outside port</th><th>To port</th><th>Type</th><th>For</th></tr>
+              <tr><th>{t('settings.internet.outside')}</th><th>{t('settings.internet.toPort')}</th><th>{t('settings.internet.type')}</th><th>{t('settings.internet.for')}</th></tr>
             </thead>
             <tbody>
               {forwards.map((f) => (
@@ -121,38 +118,35 @@ export function InternetSection({ server }: { server: ServerState }) {
               ))}
             </tbody>
           </table>
-          <p className="muted">
-            Or turn on UPnP in the router and Iskra does this for you. Then press Check again.
-          </p>
+          <p className="muted">{t('settings.internet.upnp')}</p>
         </div>
       )}
 
       {status.enabled && status.publicUrl?.startsWith('http://') && (
         <div className="internet-callout" role="alert">
-          <strong>This address has no HTTPS</strong>
+          <strong>{t('settings.internet.noHttpsTitle')}</strong>
           <p>
-            <code>{status.publicUrl}</code> is set as PublicUrl in server.json. Over plain HTTP, anyone along the way can read
-            messages and take over logins. Remove it and let Iskra get a certificate, or put the server behind HTTPS.
+            <Trans i18nKey="settings.internet.noHttps" values={{ url: status.publicUrl }} components={{ code: <code /> }} />
           </p>
         </div>
       )}
       {status.enabled && !status.publicUrl && status.address && status.https.state !== 'valid' && (
-        <p className="internet-address muted">Waiting for HTTPS. Until then, invite links use your local address.</p>
+        <p className="internet-address muted">{t('settings.internet.waitingHttps')}</p>
       )}
       {status.enabled && status.publicUrl?.startsWith('https://') && (
         <p className="internet-address">
-          Friends join at <code>{status.publicUrl}</code>. New invite links use it.
-          {status.autoAddress && <span className="muted"> If your internet address changes, the address changes too; send new invites then.</span>}
+          <Trans i18nKey="settings.internet.joinAt" values={{ url: status.publicUrl }} components={{ code: <code /> }} />
+          {status.autoAddress && <span className="muted"> {t('settings.internet.addressChanges')}</span>}
         </p>
       )}
 
       <div className="internet-actions">
         {status.enabled && isOwner && (
           <button className="button" disabled={busy} onClick={() => void change(true)}>
-            {busy ? <Spinner /> : 'Check again'}
+            {busy ? <Spinner /> : t('settings.internet.checkAgain')}
           </button>
         )}
-        {status.lanUrl && <span className="muted">On your network: <code>{status.lanUrl}</code></span>}
+        {status.lanUrl && <span className="muted"><Trans i18nKey="settings.internet.onNetwork" values={{ url: status.lanUrl }} components={{ code: <code /> }} /></span>}
       </div>
     </section>
   )

@@ -7,6 +7,7 @@ import * as storage from '../core/storage'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 import { blockChange, mergeBlocks, sameBlocks } from './moderationRules'
 import { senderRules } from './senderRules'
+import { t } from '../i18n'
 
 export const useBlocks = create<{ entries: BlockEntry[] }>(() => ({ entries: [] }))
 
@@ -86,13 +87,13 @@ async function refreshMyTimeout(serverKey: string): Promise<void> {
 
 export async function timeoutMember(serverKey: string, accountKey: string, durationMs: number, reason?: string): Promise<void> {
   const connection = connectionFor(serverKey)
-  if (!connection) throw new Error('Not connected.')
+  if (!connection) throw new Error(t('errors.codes.disconnected'))
   await connection.request('member.timeout', { accountKey, durationMs, reason: reason?.trim() || undefined })
 }
 
 export async function removeTimeout(serverKey: string, accountKey: string): Promise<void> {
   const connection = connectionFor(serverKey)
-  if (!connection) throw new Error('Not connected.')
+  if (!connection) throw new Error(t('errors.codes.disconnected'))
   await connection.request('member.timeout.remove', { accountKey })
 }
 
@@ -108,7 +109,7 @@ export async function loadAudit(
   serverKey: string, filter: { action?: string; person?: string; before?: number },
 ): Promise<{ entries: AuditEntry[]; hasMore: boolean }> {
   const connection = connectionFor(serverKey)
-  if (!connection) throw new Error('Not connected.')
+  if (!connection) throw new Error(t('errors.codes.disconnected'))
   return connection.request('audit.list', { ...filter, limit: 50 })
 }
 

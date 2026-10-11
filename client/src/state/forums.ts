@@ -5,6 +5,8 @@ import { roleRank, type Events, type ForumPost, type ForumSort, type ForumTag, t
 import { connectionFor, onServerEvent, type ServerState } from './store'
 import { openThread, rememberThreads } from './threads'
 import { trimSeen, upsertPost, type ForumSeen } from './forumLogic'
+import { t } from '../i18n'
+import { errorMessage } from '../i18n/errors'
 
 export interface ForumView {
   sort: ForumSort
@@ -112,7 +114,7 @@ export function canManagePost(server: ServerState, post: ForumPost): boolean {
 /** Why you can't reply in this post, or null if you can. */
 export function replyBlock(server: ServerState, post: ForumPost | undefined): string | null {
   if (!post || (!post.closed && !post.locked) || canModerateForum(server, post.channelId)) return null
-  return post.locked ? 'This post is locked.' : 'This post is closed. Its author or a moderator can reopen it.'
+  return post.locked ? t('forums.replyBlock.locked') : t('forums.replyBlock.closed')
 }
 
 // ── Loading ─────────────────────────────────────────────────────────────────
@@ -160,7 +162,7 @@ export async function loadPosts(serverKey: string, forumId: number, view: ForumV
       }
     })
   } catch (e) {
-    useForums.setState((s) => ({ lists: { ...s.lists, [key]: { ...(s.lists[key] ?? { posts: [], hasMore: false, cursor: null, view }), loading: false, error: (e as Error).message } } }))
+    useForums.setState((s) => ({ lists: { ...s.lists, [key]: { ...(s.lists[key] ?? { posts: [], hasMore: false, cursor: null, view }), loading: false, error: errorMessage(e) } } }))
   }
 }
 

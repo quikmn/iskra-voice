@@ -2,6 +2,8 @@
 import { create } from 'zustand'
 import type { HostPort, HostStatus } from '../core/protocol'
 import { connectionFor, onServerEvent, useApp, type ServerState } from './store'
+import { t } from '../i18n'
+import { formatDate } from '../i18n/format'
 
 interface HostingState {
   /** host.status per server key (admins only). */
@@ -27,7 +29,7 @@ onServerEvent((key, type, body) => {
 
 export async function loadHostStatus(key: string): Promise<HostStatus> {
   const connection = connectionFor(key)
-  if (!connection) throw new Error('Not connected.')
+  if (!connection) throw new Error(t('errors.codes.disconnected'))
   const { status } = await connection.request('host.status', {})
   setStatus(key, status)
   return status
@@ -36,7 +38,7 @@ export async function loadHostStatus(key: string): Promise<HostStatus> {
 /** Turns internet hosting on or off. Turning it on while it's on checks everything again right away. */
 export async function setInternet(key: string, enabled: boolean): Promise<void> {
   const connection = connectionFor(key)
-  if (!connection) throw new Error('Not connected.')
+  if (!connection) throw new Error(t('errors.codes.disconnected'))
   const { status } = await connection.request('host.internet.set', { enabled })
   setStatus(key, status)
 }
@@ -57,85 +59,82 @@ export interface Step {
   detail: string
 }
 
-const PORT_PURPOSE: Record<HostPort['name'], string> = {
-  acme: 'certificate check',
-  web: 'the server',
-  'voice-tcp': 'voice',
-  'voice-udp': 'voice',
-}
+const PORT_PURPOSE = {
+  acme: 'settings.internet.purpose.acme',
+  web: 'settings.internet.purpose.web',
+  'voice-tcp': 'settings.internet.purpose.voice',
+  'voice-udp': 'settings.internet.purpose.voice',
+} as const satisfies Record<HostPort['name'], string>
 
 /** Plain-language steps: router found → ports opened → address → HTTPS certificate → reachable. */
 export function hostChecklist(s: HostStatus): Step[] {
   const failed = s.ports.filter((p) => p.state === 'failed')
   const manual = s.ports.some((p) => p.state === 'manual')
+  const routerLabel = t('settings.internet.steps.router')
   const router: Step = (() => {
     switch (s.router.state) {
       case 'searching':
-        return { id: 'router', label: 'Find your router', state: 'working', detail: 'Looking for your router…' }
+        return { id: 'router', label: routerLabel, state: 'working', detail: t('settings.internet.steps.routerSearching') }
       case 'found':
-        return { id: 'router', label: 'Find your router', state: 'done', detail: `Found your router (${s.router.kind ?? 'UPnP'}).` }
+        return { id: 'router', label: routerLabel, state: 'done', detail: t('settings.internet.steps.routerFound', { kind: s.router.kind ?? 'UPnP' }) }
       case 'disabled':
-        return { id: 'router', label: 'Find your router', state: 'done', detail: 'Automatic port opening is off: you forward the ports yourself.' }
+        return { id: 'router', label: routerLabel, state: 'done', detail: t('settings.internet.steps.routerDisabled') }
       case 'not_found':
-        return {
-          id: 'router', label: 'Find your router', state: 'problem',
-          detail: "Your router didn't answer. Automatic port opening (UPnP or NAT-PMP) is probably turned off in its settings.",
-        }
+        return { id: 'router', label: routerLabel, state: 'problem', detail: t('settings.internet.steps.routerNotFound') }
       default:
-        return { id: 'router', label: 'Find your router', state: 'todo', detail: '' }
+        return { id: 'router', label: routerLabel, state: 'todo', detail: '' }
     }
   })()
 
+  const portsLabel = t('settings.internet.steps.ports')
   const ports: Step = s.cgnat
-    ? { id: 'ports', label: 'Open the ports', state: 'problem', detail: "Skipped: opening ports at home won't help behind your provider's shared address." }
+    ? { id: 'ports', label: portsLabel, state: 'problem', detail: t('settings.internet.steps.portsSkipped') }
     : s.ports.length > 0 && s.ports.every((p) => p.state === 'open')
-      ? { id: 'ports', label: 'Open the ports', state: 'done', detail: `Opened ${s.ports.map((p) => `${p.external}/${p.protocol}`).join(', ')}.` }
+      ? { id: 'ports', label: portsLabel, state: 'done', detail: t('settings.internet.steps.portsOpened', { ports: s.ports.map((p) => `${p.external}/${p.protocol}`).join(', ') }) }
       : failed.length > 0
         ? {
-            id: 'ports', label: 'Open the ports', state: 'problem',
-            detail: failed.map((p) => `${p.external}/${p.protocol} (${PORT_PURPOSE[p.name]}): ${p.error ?? 'refused'}`).join(' '),
+            id: 'ports', label: portsLabel, state: 'problem',
+            detail: failed.map((p) => `${p.external}/${p.protocol} (${t(PORT_PURPOSE[p.name])}): ${p.error ?? t('settings.internet.steps.refused')}`).join(' '),
           }
         : manual
-          ? { id: 'ports', label: 'Open the ports', state: 'problem', detail: 'Forward the ports below on your router.' }
-          : { id: 'ports', label: 'Open the ports', state: s.router.state === 'searching' ? 'todo' : 'working', detail: '' }
+          ? { id: 'ports', label: portsLabel, state: 'problem', detail: t('settings.internet.steps.portsManual') }
+          : { id: 'ports', label: portsLabel, state: s.router.state === 'searching' ? 'todo' : 'working', detail: '' }
 
+  const addressLabel = t('settings.internet.steps.address')
   const address: Step = s.address
-    ? { id: 'address', label: 'Public address', state: 'done', detail: s.autoAddress ? `${s.address} (free automatic address for ${s.publicIp})` : s.address }
+    ? { id: 'address', label: addressLabel, state: 'done', detail: s.autoAddress ? t('settings.internet.steps.autoAddress', { address: s.address, ip: s.publicIp ?? '' }) : s.address }
     : s.cgnat
-      ? { id: 'address', label: 'Public address', state: 'problem', detail: `Your router's internet address (${s.publicIp}) is shared by your provider (carrier-grade NAT).` }
-      : { id: 'address', label: 'Public address', state: 'todo', detail: 'Needs your router (or your own domain in server.json).' }
+      ? { id: 'address', label: addressLabel, state: 'problem', detail: t('settings.internet.steps.addressShared', { ip: s.publicIp ?? '' }) }
+      : { id: 'address', label: addressLabel, state: 'todo', detail: t('settings.internet.steps.addressNeeds') }
 
   const https: Step = (() => {
-    const label = 'HTTPS certificate'
+    const label = t('settings.internet.steps.https')
     switch (s.https.state) {
       case 'valid':
-        return { id: 'https', label, state: 'done', detail: `Browsers trust ${s.https.domain}${s.https.expiresAt ? `, renews automatically before ${new Date(s.https.expiresAt).toLocaleDateString()}` : ''}.` }
-      case 'requesting':
-        return { id: 'https', label, state: 'working', detail: "Asking Let's Encrypt for a free certificate…" }
-      case 'needs_port_80':
         return {
-          id: 'https', label, state: 'problem',
-          detail: "Let's Encrypt checks port 80, and your router won't open it. Friends with the Iskra desktop app can still join; browsers need HTTPS.",
+          id: 'https', label, state: 'done',
+          detail: s.https.expiresAt
+            ? t('settings.internet.steps.httpsValidRenews', { domain: s.https.domain ?? '', date: formatDate(s.https.expiresAt, { year: 'numeric', month: 'numeric', day: 'numeric' }) })
+            : t('settings.internet.steps.httpsValid', { domain: s.https.domain ?? '' }),
         }
+      case 'requesting':
+        return { id: 'https', label, state: 'working', detail: t('settings.internet.steps.httpsRequesting') }
+      case 'needs_port_80':
+        return { id: 'https', label, state: 'problem', detail: t('settings.internet.steps.httpsPort80') }
       case 'failed':
-        return { id: 'https', label, state: 'problem', detail: `Let's Encrypt said: ${s.https.error ?? 'something went wrong'}. Retrying automatically.` }
+        return { id: 'https', label, state: 'problem', detail: t('settings.internet.steps.httpsFailed', { error: s.https.error ?? t('settings.internet.steps.somethingWrong') }) }
       default:
         return { id: 'https', label, state: 'todo', detail: '' }
     }
   })()
 
+  const reachableLabel = t('settings.internet.steps.reachable')
   const reachable: Step =
     s.reachable === 'verified'
-      ? { id: 'reachable', label: 'Reachable from the internet', state: 'done', detail: "Let's Encrypt reached your server from the internet." }
+      ? { id: 'reachable', label: reachableLabel, state: 'done', detail: t('settings.internet.steps.reachableVerified') }
       : s.reachable === 'router'
-        ? {
-            id: 'reachable', label: 'Reachable from the internet', state: 'done',
-            detail: 'Your router forwards the ports to this computer (checked from inside your network).',
-          }
-        : {
-            id: 'reachable', label: 'Reachable from the internet', state: 'todo',
-            detail: "Not confirmed from outside yet: Iskra doesn't use outside services to test. Send a friend an invite to try it.",
-          }
+        ? { id: 'reachable', label: reachableLabel, state: 'done', detail: t('settings.internet.steps.reachableRouter') }
+        : { id: 'reachable', label: reachableLabel, state: 'todo', detail: t('settings.internet.steps.reachableUnknown') }
 
   return [router, ports, address, https, reachable]
 }
@@ -157,7 +156,7 @@ export function manualForwards(s: HostStatus): Forward[] {
       external: p.name === 'web' && autoHttps ? 443 : p.external,
       internal: p.internal,
       protocol: p.protocol === 'tcp' ? ('TCP' as const) : ('UDP' as const),
-      purpose: PORT_PURPOSE[p.name],
+      purpose: t(PORT_PURPOSE[p.name]),
     }))
 }
 
@@ -173,12 +172,12 @@ export function lanHost(s: HostStatus): string | null {
 
 /** One line for the overall state, shown next to the toggle. */
 export function hostSummary(s: HostStatus): { tone: 'ok' | 'warn' | 'busy' | 'off'; text: string } {
-  if (!s.enabled) return { tone: 'off', text: 'Only people on your network can join.' }
-  if (s.cgnat) return { tone: 'warn', text: "Your internet connection can't host a server directly." }
-  if (s.publicUrl?.startsWith('https://')) return { tone: 'ok', text: 'Open to the internet. Invite links work in any browser.' }
-  if (s.publicUrl) return { tone: 'warn', text: 'Using a plain HTTP address set in server.json: messages and logins cross the internet unencrypted.' }
-  if (s.router.state === 'searching') return { tone: 'busy', text: 'Setting things up…' }
-  if (s.address && (s.https.state === 'requesting' || s.https.state === 'waiting')) return { tone: 'busy', text: 'Waiting for HTTPS…' }
-  if (s.address && s.https.state !== 'valid') return { tone: 'warn', text: "Waiting for HTTPS. Invite links stay local until it works. See what's missing below." }
-  return { tone: 'warn', text: "Not reachable from the internet yet. See what's missing below." }
+  if (!s.enabled) return { tone: 'off', text: t('settings.internet.summary.off') }
+  if (s.cgnat) return { tone: 'warn', text: t('settings.internet.summary.cgnat') }
+  if (s.publicUrl?.startsWith('https://')) return { tone: 'ok', text: t('settings.internet.summary.open') }
+  if (s.publicUrl) return { tone: 'warn', text: t('settings.internet.summary.plainHttp') }
+  if (s.router.state === 'searching') return { tone: 'busy', text: t('settings.internet.summary.settingUp') }
+  if (s.address && (s.https.state === 'requesting' || s.https.state === 'waiting')) return { tone: 'busy', text: t('settings.internet.summary.waitingHttps') }
+  if (s.address && s.https.state !== 'valid') return { tone: 'warn', text: t('settings.internet.summary.waitingHttpsLocal') }
+  return { tone: 'warn', text: t('settings.internet.summary.notReachable') }
 }

@@ -1,5 +1,6 @@
 // Encrypted DM attachments: encrypt and upload (ciphertext only), and download, check and decrypt for display.
 import { DmError } from '../core/dm'
+import { t } from '../i18n'
 import { cleanName, decryptFile, encryptFile, encryptedSize, type DmFile } from '../core/dmFiles'
 import { sniff } from '../core/sniff'
 import { connectionFor, useApp } from './store'
@@ -14,10 +15,10 @@ function put(url: string, body: Uint8Array, onProgress: (fraction: number) => vo
     xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total)
     xhr.onload = () => {
       if (xhr.status === 200) resolve((JSON.parse(xhr.responseText) as { file: { id: string } }).file.id)
-      else reject(new Error(xhr.status === 413 ? 'That file is too big for this server.' : `Upload failed (${xhr.status}).`))
+      else reject(new Error(xhr.status === 413 ? t('dms.files.tooBigForServer') : t('dms.files.uploadFailedStatus', { status: xhr.status })))
     }
-    xhr.onerror = () => reject(new Error('Upload failed. Check your connection.'))
-    xhr.onabort = () => reject(new DOMException('Upload cancelled.', 'AbortError'))
+    xhr.onerror = () => reject(new Error(t('dms.files.uploadFailed')))
+    xhr.onabort = () => reject(new DOMException(t('dms.files.uploadCancelled'), 'AbortError'))
     signal?.addEventListener('abort', () => xhr.abort())
     xhr.send(body as Uint8Array<ArrayBuffer>)
   })
@@ -28,10 +29,10 @@ export async function uploadDmFile(
   serverKey: string, peer: string | { groupId: string }, file: File, onProgress: (fraction: number) => void,
   signal?: AbortSignal, voice?: DmFile['voice'],
 ): Promise<DmFile> {
-  if (file.size > MAX_DM_FILE_BYTES) throw new Error(`Files in direct messages can be up to ${MAX_DM_FILE_BYTES / 1024 / 1024} MB.`)
+  if (file.size > MAX_DM_FILE_BYTES) throw new Error(t('dms.files.tooBig', { mb: MAX_DM_FILE_BYTES / 1024 / 1024 }))
   const server = useApp.getState().servers[serverKey]
   const connection = connectionFor(serverKey)
-  if (!server || !connection?.isOnline) throw new Error('Not connected.')
+  if (!server || !connection?.isOnline) throw new Error(t('errors.codes.disconnected'))
   const plain = new Uint8Array(await file.arrayBuffer())
   const { ciphertext, key, hash } = encryptFile(plain)
   const { url } = await connection.request('dm.upload.begin', { ...(typeof peer === 'string' ? { accountKey: peer } : peer), size: ciphertext.length })
@@ -65,15 +66,15 @@ export function openDmFile(file: DmFile): Promise<OpenedFile> {
 }
 
 async function fetchAndDecrypt(file: DmFile): Promise<OpenedFile> {
-  if (file.size > MAX_DM_FILE_BYTES) throw new DmError('This file is too big to open here.')
+  if (file.size > MAX_DM_FILE_BYTES) throw new DmError(t('dms.files.tooBigToOpen'))
   const server = useApp.getState().servers[file.server]
   const connection = connectionFor(file.server)
-  if (!server || !connection?.isOnline) throw new DmError("The server that has this file isn't connected right now.")
+  if (!server || !connection?.isOnline) throw new DmError(t('dms.files.serverOffline'))
   const { url } = await connection.request('dm.file.url', { id: file.id })
   const response = await fetch(server.url + url)
-  if (!response.ok) throw new DmError("Couldn't download this file.")
+  if (!response.ok) throw new DmError(t('dms.files.downloadFailed'))
   const expected = encryptedSize(file.size)
-  if (Number(response.headers.get('content-length') ?? expected) !== expected) throw new DmError("This file doesn't match what was sent.")
+  if (Number(response.headers.get('content-length') ?? expected) !== expected) throw new DmError(t('dms.errors.fileMismatch'))
   const plain = decryptFile(new Uint8Array(await response.arrayBuffer()), file)
   const kind = sniff(plain.subarray(0, 64))
   // Only types channels show inline get their real type; everything else stays an opaque download.

@@ -1,6 +1,8 @@
 // Settings → Profile: picture, name, pronouns, bio, accent colour and your profile page.
 // Saved on this device and sent to every server you're on.
 import { useEffect, useRef, useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
+import { errorMessage } from '../../i18n/errors'
 import { b64u } from '../../core/crypto'
 import { fingerprint } from '../../core/connection'
 import { MAX_BIO, MAX_PRONOUNS } from '../../core/profile'
@@ -13,6 +15,7 @@ import { PageEditor } from './PageEditor'
 import './profile.css'
 
 export function ProfileSection() {
+  const { t } = useTranslation()
   const profile = useApp((s) => s.profile)
   const identity = useApp((s) => s.identity)
   const [name, setName] = useState(profile?.name ?? '')
@@ -37,41 +40,41 @@ export function ProfileSection() {
   const dirty = Object.keys(changes).length > 0
 
   function report(failed: string[], done: string) {
-    setStatus(failed.length ? { kind: 'error', text: `Saved here, but ${failed.join(', ')} didn't take it.` } : { kind: 'saved', text: done })
+    setStatus(failed.length ? { kind: 'error', text: t('profile.savedExcept', { servers: failed.join(', ') }) } : { kind: 'saved', text: done })
   }
 
   async function save() {
     if (!dirty || !trimmed) return
     try {
-      report(await updateProfile(changes), 'Saved')
+      report(await updateProfile(changes), t('common.saved'))
     } catch (e) {
-      setStatus({ kind: 'error', text: (e as Error).message })
+      setStatus({ kind: 'error', text: errorMessage(e) })
     }
   }
 
   async function applyAvatar(image: Blob | null) {
     setCropping(null)
     try {
-      report(await setAvatar(image), image ? 'Picture updated' : 'Picture removed')
+      report(await setAvatar(image), image ? t('profile.pictureUpdated') : t('profile.pictureRemoved'))
     } catch (e) {
-      setStatus({ kind: 'error', text: (e as Error).message })
+      setStatus({ kind: 'error', text: errorMessage(e) })
     }
   }
 
   return (
     <section className="settings-section">
-      <h3>Profile</h3>
+      <h3>{t('settings.sections.profile')}</h3>
       <div className="avatar-row">
         <Avatar name={trimmed || '?'} accountKey={accountKey} size={72} src={avatarUrl} />
         <div className="copy-row">
-          <button className="button small" onClick={() => fileInput.current?.click()}>{profile?.avatar ? 'Change picture' : 'Upload picture'}</button>
-          {profile?.avatar && <button className="button small danger-outline" onClick={() => void applyAvatar(null)}>Remove</button>}
+          <button className="button small" onClick={() => fileInput.current?.click()}>{profile?.avatar ? t('profile.changePicture') : t('profile.uploadPicture')}</button>
+          {profile?.avatar && <button className="button small danger-outline" onClick={() => void applyAvatar(null)}>{t('common.remove')}</button>}
           <input
             ref={fileInput}
             type="file"
             accept="image/png,image/jpeg,image/webp,image/gif"
             hidden
-            aria-label="Profile picture"
+            aria-label={t('profile.picture')}
             onChange={(e) => {
               const file = e.target.files?.[0]
               e.target.value = ''
@@ -82,48 +85,48 @@ export function ProfileSection() {
       </div>
 
       <label className="field">
-        <span>Display name</span>
+        <span>{t('profile.displayName')}</span>
         <input value={name} maxLength={32} onChange={(e) => { setName(e.target.value); setStatus(null) }} />
       </label>
       <label className="field">
-        <span>Pronouns</span>
-        <input value={pronouns} maxLength={MAX_PRONOUNS} placeholder="Optional" onChange={(e) => { setPronouns(e.target.value); setStatus(null) }} />
+        <span>{t('profile.pronouns')}</span>
+        <input value={pronouns} maxLength={MAX_PRONOUNS} placeholder={t('profile.optional')} onChange={(e) => { setPronouns(e.target.value); setStatus(null) }} />
       </label>
       <label className="field">
-        <span>About me · {bio.trim().length}/{MAX_BIO}</span>
+        <span>{t('profile.aboutMe', { length: bio.trim().length, max: MAX_BIO })}</span>
         <textarea
           value={bio}
           rows={3}
           maxLength={MAX_BIO}
-          placeholder="A line or two. **bold**, *italic* and links work."
+          placeholder={t('profile.bioPlaceholder')}
           onChange={(e) => { setBio(e.target.value); setStatus(null) }}
         />
       </label>
       <div className="field">
-        <span>Accent colour</span>
+        <span>{t('profile.accent')}</span>
         <div className="copy-row">
-          <input className="color-input" type="color" value={accent || '#7c6fff'} aria-label="Accent colour" onChange={(e) => { setAccent(e.target.value); setStatus(null) }} />
-          {accent ? <button className="button small" onClick={() => setAccent('')}>Use default</button> : <span className="muted">Shown on your profile card</span>}
+          <input className="color-input" type="color" value={accent || '#7c6fff'} aria-label={t('profile.accent')} onChange={(e) => { setAccent(e.target.value); setStatus(null) }} />
+          {accent ? <button className="button small" onClick={() => setAccent('')}>{t('profile.useDefault')}</button> : <span className="muted">{t('profile.accentHint')}</span>}
         </div>
       </div>
       <div className="copy-row">
-        <button className="button primary" disabled={!dirty || !trimmed} onClick={() => void save()}>Save profile</button>
+        <button className="button primary" disabled={!dirty || !trimmed} onClick={() => void save()}>{t('profile.save')}</button>
         {status && <span className={status.kind === 'error' ? 'error-text' : 'success-text'}>{status.text}</span>}
       </div>
 
       <div className="page-summary">
         <div>
-          <strong>Profile page</strong>
+          <strong>{t('profile.page')}</strong>
           <p className="muted">
-            {profile?.page ? 'Published on servers that allow pages.' : 'Your own little web page, shown from your profile card.'}
+            {profile?.page ? t('profile.pagePublished') : t('profile.pageHint')}
           </p>
         </div>
-        <button className="button small" onClick={() => setEditingPage(true)}>{profile?.page ? 'Edit page' : 'Make a page'}</button>
+        <button className="button small" onClick={() => setEditingPage(true)}>{profile?.page ? t('profile.editPage') : t('profile.makePage')}</button>
       </div>
 
       {identity && (
         <p className="muted">
-          Your ID: <code>{fingerprint(accountKey)}</code>. Friends can use it to check it's really you.
+          <Trans i18nKey="profile.yourId" values={{ id: fingerprint(accountKey) }} components={{ code: <code /> }} />
         </p>
       )}
 
@@ -135,6 +138,7 @@ export function ProfileSection() {
 
 /** Admins: whether members may publish profile pages on this server. */
 export function ServerPagesOption({ server }: { server: ServerState }) {
+  const { t } = useTranslation()
   const enabled = useProfiles((s) => !!s.pagesEnabled[server.key])
   const [error, setError] = useState<string | null>(null)
   if (!server.me || roleRank(server.me.role) < roleRank('admin')) return null
@@ -144,9 +148,9 @@ export function ServerPagesOption({ server }: { server: ServerState }) {
         <input
           type="checkbox"
           checked={enabled}
-          onChange={(e) => void setPagesEnabled(server.key, e.target.checked).then(() => setError(null), (err: Error) => setError(err.message))}
+          onChange={(e) => void setPagesEnabled(server.key, e.target.checked).then(() => setError(null), (err: Error) => setError(errorMessage(err)))}
         />
-        Members can publish profile pages here
+        {t('profile.allowPages')}
       </label>
       {error && <p className="error-text">{error}</p>}
     </>

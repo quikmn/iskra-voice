@@ -1,5 +1,7 @@
 // Pure helpers for richer message text: Discord-style timestamps and a small syntax highlighter for code blocks.
 
+import { intlLocale } from '../../i18n'
+
 // ── Timestamps: <t:1700000000> or <t:1700000000:R> ─────────────────────────
 
 export type TimestampStyle = 't' | 'T' | 'd' | 'D' | 'f' | 'F' | 'R'
@@ -18,7 +20,7 @@ interface FormatOptions {
 }
 
 export function formatTimestamp(ms: number, style: TimestampStyle = 'f', options: FormatOptions = {}): string {
-  const { locale, timeZone, now = Date.now() } = options
+  const { locale = intlLocale(), timeZone, now = Date.now() } = options
   const f = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(locale, { timeZone, ...o }).format(ms)
   switch (style) {
     case 't': return f({ hour: 'numeric', minute: '2-digit' })

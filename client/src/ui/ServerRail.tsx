@@ -1,6 +1,7 @@
 // The server rail: DMs, then your servers and folders. Drag to reorder (onto another server to make a folder);
 // right-click or press and hold for a menu. The layout syncs across your devices (state/rail.ts).
 import { useRef, useState, type DragEvent, type MouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { selectServer, useApp, type ServerState } from '../state/store'
 import { openFriends } from '../state/dms'
 import { initials } from './format'
@@ -57,6 +58,7 @@ function useHold(onHold: (anchor: MenuAnchor) => void) {
 }
 
 export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavigate: () => void }) {
+  const { t } = useTranslation()
   const order = useApp((s) => s.order)
   const servers = useApp((s) => s.servers)
   const active = useApp((s) => s.activeServer)
@@ -153,11 +155,11 @@ export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavig
   }
 
   return (
-    <nav className="server-rail" aria-label="Servers">
+    <nav className="server-rail" aria-label={t('app.rail.servers')}>
       <button
         className={`server-icon home ${active === null ? 'active' : ''}`}
-        title="Direct messages"
-        aria-label="Direct messages"
+        title={t('app.home.directMessages')}
+        aria-label={t('app.home.directMessages')}
         onClick={() => {
           openFriends()
           onNavigate()
@@ -175,28 +177,28 @@ export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavig
           {item.servers.map((key) => icon(key, true))}
         </Folder>
       ))}
-      <button className="server-icon add" title="Join a server" onClick={onJoin} aria-label="Join a server">
+      <button className="server-icon add" title={t('app.rail.join')} onClick={onJoin} aria-label={t('app.rail.join')}>
         <Plus size={22} />
       </button>
 
       {menuServer && (
-        <OrgMenu anchor={menu!.anchor} label={`${menuServer.name} options`} onClose={close}>
+        <OrgMenu anchor={menu!.anchor} label={t('app.rail.options', { name: menuServer.name })} onClose={close}>
           <MenuTitle>{menuServer.name}</MenuTitle>
           <div className="org-list" role="menu">
-            <MenuItem onClick={act(() => markServerRead(menuServer.key))}>Mark as read</MenuItem>
+            <MenuItem onClick={act(() => markServerRead(menuServer.key))}>{t('app.rail.markRead')}</MenuItem>
             <ServerRulesItem serverKey={menuServer.key} onDone={close} />
             <div className="org-sep" role="separator" />
-            <MenuItem onClick={act(() => setRail(stepServer(layout, order, menuServer.key, -1)))}>Move up</MenuItem>
-            <MenuItem onClick={act(() => setRail(stepServer(layout, order, menuServer.key, 1)))}>Move down</MenuItem>
+            <MenuItem onClick={act(() => setRail(stepServer(layout, order, menuServer.key, -1)))}>{t('app.rail.moveUp')}</MenuItem>
+            <MenuItem onClick={act(() => setRail(stepServer(layout, order, menuServer.key, 1)))}>{t('app.rail.moveDown')}</MenuItem>
             {folderOfMenu ? (
               <MenuItem onClick={act(() => setRail(moveServer(layout, order, menuServer.key, { kind: 'after', target: folderOfMenu.id }, newFolderId)))}>
-                Remove from folder
+                {t('app.rail.removeFromFolder')}
               </MenuItem>
             ) : (
               <>
                 {folders.map((f) => (
                   <MenuItem key={f.id} onClick={act(() => setRail(moveServer(layout, order, menuServer.key, { kind: 'into', folder: f.id }, newFolderId)))}>
-                    Add to {f.name || 'folder'}
+                    {f.name ? t('app.rail.addTo', { name: f.name }) : t('app.rail.addToFolder')}
                   </MenuItem>
                 ))}
                 <MenuItem onClick={act(() => {
@@ -204,22 +206,22 @@ export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavig
                   const next = newFolder(layout, order, menuServer.key, id)
                   setRail(next)
                   setEditing(next.find((i): i is RailFolder => i.kind === 'folder' && i.id === id) ?? null)
-                })}>New folder</MenuItem>
+                })}>{t('app.rail.newFolder')}</MenuItem>
               </>
             )}
           </div>
         </OrgMenu>
       )}
       {menuFolder && (
-        <OrgMenu anchor={menu!.anchor} label={`${menuFolder.name || 'Folder'} options`} onClose={close}>
-          <MenuTitle>{menuFolder.name || 'Folder'}</MenuTitle>
+        <OrgMenu anchor={menu!.anchor} label={t('app.rail.options', { name: menuFolder.name || t('app.rail.folder') })} onClose={close}>
+          <MenuTitle>{menuFolder.name || t('app.rail.folder')}</MenuTitle>
           <div className="org-list" role="menu">
-            <MenuItem onClick={act(() => menuFolder.servers.forEach(markServerRead))}>Mark all as read</MenuItem>
-            <MenuItem onClick={act(() => setEditing(menuFolder))}>Folder settings</MenuItem>
+            <MenuItem onClick={act(() => menuFolder.servers.forEach(markServerRead))}>{t('app.rail.markAllRead')}</MenuItem>
+            <MenuItem onClick={act(() => setEditing(menuFolder))}>{t('app.rail.folderSettings')}</MenuItem>
             <MenuItem onClick={act(() => setRail(updateFolder(layout, menuFolder.id, { collapsed: !menuFolder.collapsed })))}>
-              {menuFolder.collapsed ? 'Open folder' : 'Close folder'}
+              {menuFolder.collapsed ? t('app.rail.openFolder') : t('app.rail.closeFolder')}
             </MenuItem>
-            <MenuItem onClick={act(() => setRail(ungroup(layout, menuFolder.id)))}>Ungroup</MenuItem>
+            <MenuItem onClick={act(() => setRail(ungroup(layout, menuFolder.id)))}>{t('app.rail.ungroup')}</MenuItem>
           </div>
         </OrgMenu>
       )}
@@ -258,11 +260,12 @@ function Folder({ folder, servers, active, className, dnd, onToggle, onContextMe
   folder: RailFolder; servers: Record<string, ServerState>; active: string | null; className: string; dnd: Dnd
   onToggle: () => void; onContextMenu: (e: MouseEvent<HTMLElement>) => void; onHold: (a: MenuAnchor) => void; children: ReactNode
 }) {
+  const { t } = useTranslation()
   const hold = useHold(onHold)
   const members = folder.servers.map((k) => servers[k]).filter((s): s is ServerState => !!s)
   const totals = members.map(serverBadges)
-  const pings = totals.reduce((n, t) => n + t.pings, 0)
-  const unread = totals.reduce((n, t) => n + t.unread, 0)
+  const pings = totals.reduce((n, b) => n + b.pings, 0)
+  const unread = totals.reduce((n, b) => n + b.unread, 0)
   const holdsActive = !!active && folder.servers.includes(active)
   const label = folder.name || members.map((s) => s.name).join(', ')
   return (
@@ -270,7 +273,7 @@ function Folder({ folder, servers, active, className, dnd, onToggle, onContextMe
       <button
         className={`server-icon folder-icon ${folder.collapsed && holdsActive ? 'active' : ''} ${className}`}
         title={label}
-        aria-label={`Folder ${label}`}
+        aria-label={t('app.rail.folderLabel', { name: label })}
         aria-expanded={!folder.collapsed}
         onClick={onToggle}
         onContextMenu={onContextMenu}

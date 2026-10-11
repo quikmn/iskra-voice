@@ -16,11 +16,15 @@ import { CallControls, VideoTile } from '../VoiceStage'
 import { CheckIcon, HandIcon, ShieldIcon, StageIcon, StepDownIcon, UserMinusIcon } from './stageIcons'
 import { WatchButton, WatchPartyPanel } from '../watch/WatchParty'
 import './stage.css'
+import { useTranslation } from 'react-i18next'
+import { t as i18t } from '../../i18n'
+import { errorMessage } from '../../i18n/errors'
 
-const nameIn = (server: ServerState, accountKey: string) => server.members[accountKey]?.name ?? 'Someone'
+const nameIn = (server: ServerState, accountKey: string) => server.members[accountKey]?.name ?? i18t('common.someone')
 
 /** A stage: speakers up top (with video and screen shares), the audience below, and moderator tools. */
 export function StageView({ server, onToggle }: { server: ServerState; onToggle: (panel: Panel) => void }) {
+  const { t } = useTranslation()
   const session = useVoice((s) => s.session)!
   const channelId = session.channelId
   const channel = server.channels.find((c) => c.id === channelId)
@@ -45,7 +49,7 @@ export function StageView({ server, onToggle }: { server: ServerState; onToggle:
 
   const run = (action: () => Promise<unknown>) => () => {
     setError(null)
-    action().catch((e: Error) => setError(e.message))
+    action().catch((e: Error) => setError(errorMessage(e)))
   }
 
   const speakerTiles = tiles.filter((t) => state?.speakers.includes(t.accountKey))
@@ -58,11 +62,11 @@ export function StageView({ server, onToggle }: { server: ServerState; onToggle:
   }
 
   const stageButton = !live ? null : amSpeaker ? (
-    <button className="call-button" onClick={run(() => moveToAudience(server.key, channelId))} aria-label="Move to audience" title="Move to audience">
+    <button className="call-button" onClick={run(() => moveToAudience(server.key, channelId))} aria-label={t('stage.moveToAudience')} title={t('stage.moveToAudience')}>
       <StepDownIcon />
     </button>
   ) : moderator ? (
-    <button className="call-button" onClick={run(() => inviteToSpeak(server.key, channelId, me))} aria-label="Speak" title="Speak">
+    <button className="call-button" onClick={run(() => inviteToSpeak(server.key, channelId, me))} aria-label={t('stage.speak')} title={t('stage.speak')}>
       <Mic />
     </button>
   ) : canAsk ? (
@@ -70,8 +74,8 @@ export function StageView({ server, onToggle }: { server: ServerState; onToggle:
       className={`call-button ${handUp ? 'on' : ''}`}
       onClick={run(() => setHand(server.key, channelId, !handUp))}
       aria-pressed={handUp}
-      aria-label={handUp ? 'Lower hand' : 'Raise hand'}
-      title={handUp ? 'Lower hand' : 'Ask to speak'}
+      aria-label={handUp ? t('stage.lowerHand') : t('stage.raiseHand')}
+      title={handUp ? t('stage.lowerHand') : t('stage.askToSpeak')}
     >
       <HandIcon />
     </button>
@@ -80,29 +84,29 @@ export function StageView({ server, onToggle }: { server: ServerState; onToggle:
   return (
     <div className="stage stage-channel">
       <header className="chat-header">
-        <button className="icon-button mobile-only" onClick={() => onToggle('nav')} aria-label="Open channels">
+        <button className="icon-button mobile-only" onClick={() => onToggle('nav')} aria-label={t('stage.openChannels')}>
           <Menu />
         </button>
         <h1>
           <span className="hash"><StageIcon size={20} /></span>
-          {channel?.name ?? 'Stage'}
+          {channel?.name ?? t('stage.stage')}
         </h1>
-        {live && <span className="live-pill">Live</span>}
+        {live && <span className="live-pill">{t('stage.live')}</span>}
         <span className="spacer" />
         {moderator && live && (
-          <button className="icon-button" onClick={() => setDialog('topic')} aria-label="Edit topic" title="Edit topic">
+          <button className="icon-button" onClick={() => setDialog('topic')} aria-label={t('stage.editTopic')} title={t('stage.editTopic')}>
             <Pencil />
           </button>
         )}
         {isAdmin && (
-          <button className="icon-button" onClick={() => setDialog('moderators')} aria-label="Stage moderators" title="Stage moderators">
+          <button className="icon-button" onClick={() => setDialog('moderators')} aria-label={t('stage.moderators')} title={t('stage.moderators')}>
             <ShieldIcon />
           </button>
         )}
         {moderator && live && (
-          <button className="button small danger-outline stage-end" onClick={() => setDialog('end')}>End stage</button>
+          <button className="button small danger-outline stage-end" onClick={() => setDialog('end')}>{t('stage.endStage')}</button>
         )}
-        <button className="icon-button members-toggle" onClick={() => onToggle('members')} aria-label="Members" title="Members">
+        <button className="icon-button members-toggle" onClick={() => onToggle('members')} aria-label={t('stage.members')} title={t('stage.members')}>
           <Users />
         </button>
       </header>
@@ -112,18 +116,18 @@ export function StageView({ server, onToggle }: { server: ServerState; onToggle:
           <StageLobby server={server} channelId={channelId} moderator={moderator} connected={session.state === 'connected'} count={participants.length} />
         ) : (
           <>
-            <section className="stage-topic" aria-label="Topic">
+            <section className="stage-topic" aria-label={t('stage.topic')}>
               <h2>{state?.topic}</h2>
               <p className="muted">
                 {listenerLabel(audience.length)}
-                {state?.startedBy && <> · started by {nameIn(server, state.startedBy)}</>}
+                {state?.startedBy && t('stage.startedBy', { name: nameIn(server, state.startedBy) })}
               </p>
-              {amSpeaker && session.canSpeak && muted && <p className="stage-hint-pill">You're on stage. Unmute when you're ready to talk.</p>}
+              {amSpeaker && session.canSpeak && muted && <p className="stage-hint-pill">{t('stage.onStageHint')}</p>}
             </section>
 
             {channel && <WatchPartyPanel server={server} channel={channel} stage={state} />}
 
-            <section className="stage-speakers" aria-label="Speakers">
+            <section className="stage-speakers" aria-label={t('stage.speakers')}>
               {focused && <VideoTile tile={focused} name={nameIn(server, focused.accountKey)} big speaking={!!speaking[focused.accountKey]} />}
               <div className="stage-grid">
                 {speakerTiles.filter((t) => t !== focused).map((tile) => (
@@ -133,22 +137,22 @@ export function StageView({ server, onToggle }: { server: ServerState; onToggle:
                   <SpeakerTile key={p.accountKey} server={server} participant={p} speaking={!!speaking[p.accountKey]} onOpen={openPerson} />
                 ))}
               </div>
-              {speakers.length === 0 && <p className="muted stage-hint">Nobody is speaking right now.</p>}
+              {speakers.length === 0 && <p className="muted stage-hint">{t('stage.nobodySpeaking')}</p>}
             </section>
 
             {moderator && hands.length > 0 && (
-              <section className="stage-requests" aria-label="Requests to speak">
-                <h3>Requests to speak <span className="count">{hands.length}</span></h3>
+              <section className="stage-requests" aria-label={t('stage.requests')}>
+                <h3>{t('stage.requests')} <span className="count">{hands.length}</span></h3>
                 <ul>
                   {hands.map((key) => (
                     <li key={key}>
                       <Avatar name={nameIn(server, key)} accountKey={key} size={28} />
                       <span className="member-name">{nameIn(server, key)}</span>
-                      <button className="button small primary" onClick={run(() => inviteToSpeak(server.key, channelId, key))} aria-label={`Let ${nameIn(server, key)} speak`}>
-                        <CheckIcon size={14} /> Accept
+                      <button className="button small primary" onClick={run(() => inviteToSpeak(server.key, channelId, key))} aria-label={t('stage.letSpeak', { name: nameIn(server, key) })}>
+                        <CheckIcon size={14} /> {t('stage.accept')}
                       </button>
-                      <button className="button small ghost" onClick={run(() => declineHand(server.key, channelId, key))} aria-label={`Decline ${nameIn(server, key)}`}>
-                        Decline
+                      <button className="button small ghost" onClick={run(() => declineHand(server.key, channelId, key))} aria-label={t('stage.declineName', { name: nameIn(server, key) })}>
+                        {t('stage.decline')}
                       </button>
                     </li>
                   ))}
@@ -156,17 +160,17 @@ export function StageView({ server, onToggle }: { server: ServerState; onToggle:
               </section>
             )}
 
-            <section className="stage-audience" aria-label="Audience">
-              <h3>Audience <span className="count">{audience.length}</span></h3>
+            <section className="stage-audience" aria-label={t('stage.audience')}>
+              <h3>{t('stage.audience')} <span className="count">{audience.length}</span></h3>
               {audience.length === 0 ? (
-                <p className="muted">No listeners yet.</p>
+                <p className="muted">{t('stage.noListeners')}</p>
               ) : (
                 <ul>
                   {audience.map((p) => (
                     <li key={p.accountKey}>
                       <button className="stage-listener" onClick={(e) => openPerson(p.accountKey, e.currentTarget)} aria-label={nameIn(server, p.accountKey)}>
                         <Avatar name={nameIn(server, p.accountKey)} accountKey={p.accountKey} size={48} />
-                        {hands.includes(p.accountKey) && <span className="hand-badge" title="Wants to speak"><HandIcon size={12} /></span>}
+                        {hands.includes(p.accountKey) && <span className="hand-badge" title={t('stage.wantsToSpeak')}><HandIcon size={12} /></span>}
                         <span className="listener-name">{nameIn(server, p.accountKey)}</span>
                       </button>
                     </li>
@@ -190,16 +194,16 @@ export function StageView({ server, onToggle }: { server: ServerState; onToggle:
       {dialog === 'moderators' && channel && <ModeratorsDialog server={server} channel={channel} state={state} onClose={() => setDialog(null)} />}
       {dialog === 'end' && (
         <Modal
-          title="End the stage?"
+          title={t('stage.endTitle')}
           onClose={() => setDialog(null)}
           footer={
             <>
-              <button className="button" onClick={() => setDialog(null)}>Cancel</button>
-              <button className="button danger" onClick={() => { setDialog(null); run(() => endStage(server.key, channelId))() }}>End stage</button>
+              <button className="button" onClick={() => setDialog(null)}>{t('common.cancel')}</button>
+              <button className="button danger" onClick={() => { setDialog(null); run(() => endStage(server.key, channelId))() }}>{t('stage.endStage')}</button>
             </>
           }
         >
-          <p>Everyone on the stage will be disconnected.</p>
+          <p>{t('stage.endBody')}</p>
         </Modal>
       )}
     </div>
@@ -232,6 +236,7 @@ function SpeakerTile({ server, participant, speaking, onOpen }: {
 function StageLobby({ server, channelId, moderator, connected, count }: {
   server: ServerState; channelId: number; moderator: boolean; connected: boolean; count: number
 }) {
+  const { t } = useTranslation()
   const [topic, setTopic] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -244,7 +249,7 @@ function StageLobby({ server, channelId, moderator, connected, count }: {
     try {
       await startStage(server.key, channelId, topic.trim())
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
     } finally {
       setBusy(false)
     }
@@ -255,24 +260,24 @@ function StageLobby({ server, channelId, moderator, connected, count }: {
       <span className="stage-lobby-icon" aria-hidden><StageIcon size={30} /></span>
       {moderator ? (
         <>
-          <h2>Start the stage</h2>
-          <p className="muted">Pick a topic. You'll speak first; others join as listeners and can ask to speak.</p>
+          <h2>{t('stage.lobby.start')}</h2>
+          <p className="muted">{t('stage.lobby.intro')}</p>
           <form className="stage-start" onSubmit={(e) => { e.preventDefault(); void start() }}>
             <label className="field">
-              <span>Topic</span>
-              <input value={topic} maxLength={MAX_STAGE_TOPIC} onChange={(e) => setTopic(e.target.value)} placeholder="Friday game night" />
+              <span>{t('stage.topic')}</span>
+              <input value={topic} maxLength={MAX_STAGE_TOPIC} onChange={(e) => setTopic(e.target.value)} placeholder={t('stage.lobby.placeholder')} />
             </label>
-            <button className="button primary" type="submit" disabled={!topic.trim() || busy || !connected || !inRoom}>Go live</button>
+            <button className="button primary" type="submit" disabled={!topic.trim() || busy || !connected || !inRoom}>{t('stage.lobby.goLive')}</button>
           </form>
           {error && <p className="error-text" role="alert">{error}</p>}
         </>
       ) : (
         <>
-          <h2>This stage isn't live yet</h2>
-          <p className="muted">You'll hear the speakers as soon as a moderator starts it.</p>
+          <h2>{t('stage.lobby.notLive')}</h2>
+          <p className="muted">{t('stage.lobby.waiting')}</p>
         </>
       )}
-      {count > 0 && <p className="muted">{count === 1 ? '1 person here' : `${count} people here`}</p>}
+      {count > 0 && <p className="muted">{t('stage.lobby.here', { count })}</p>}
     </div>
   )
 }
@@ -281,6 +286,7 @@ function StageLobby({ server, channelId, moderator, connected, count }: {
 function PersonSheet({ server, channel, state, accountKey, onError, onClose }: {
   server: ServerState; channel: Channel; state: StageState | undefined; accountKey: string; onError: (message: string) => void; onClose: () => void
 }) {
+  const { t } = useTranslation()
   const ref = useRef<HTMLDivElement>(null)
   useEscapeLayer(onClose)
   useFocusTrap(ref)
@@ -296,37 +302,37 @@ function PersonSheet({ server, channel, state, accountKey, onError, onClose }: {
   const live = !!state?.live
   const act = (action: () => Promise<unknown>) => () => {
     onClose()
-    action().catch((e: Error) => onError(e.message))
+    action().catch((e: Error) => onError(errorMessage(e)))
   }
   const name = nameIn(server, accountKey)
 
   return createPortal(
     <div className="sheet-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="action-sheet" role="dialog" aria-label={`${name} on the stage`} ref={ref} tabIndex={-1}>
+      <div className="action-sheet" role="dialog" aria-label={t('stage.sheet.onStage', { name })} ref={ref} tabIndex={-1}>
         <span className="sheet-grabber" aria-hidden />
         <div className="stage-sheet-head">
           <Avatar name={name} accountKey={accountKey} size={40} />
           <div>
             <strong>{name}</strong>
-            <span className="muted">{speaker ? 'Speaker' : hand ? 'Wants to speak' : 'Listener'}</span>
+            <span className="muted">{speaker ? t('stage.sheet.speaker') : hand ? t('stage.wantsToSpeak') : t('stage.sheet.listener')}</span>
           </div>
         </div>
         <div className="sheet-list" role="menu">
-          <button role="menuitem" onClick={() => { onClose(); openProfileCard(server.key, accountKey, null) }}><Users /> View profile</button>
+          <button role="menuitem" onClick={() => { onClose(); openProfileCard(server.key, accountKey, null) }}><Users /> {t('stage.sheet.viewProfile')}</button>
           {live && canAct && !speaker && maySpeak(server, channel, state, accountKey) && (
-            <button role="menuitem" onClick={act(() => inviteToSpeak(server.key, channel.id, accountKey))}><HandIcon /> {self ? 'Speak' : 'Invite to speak'}</button>
+            <button role="menuitem" onClick={act(() => inviteToSpeak(server.key, channel.id, accountKey))}><HandIcon /> {self ? t('stage.speak') : t('stage.sheet.inviteToSpeak')}</button>
           )}
           {live && hand && !self && (
-            <button role="menuitem" onClick={act(() => declineHand(server.key, channel.id, accountKey))}><StepDownIcon /> Decline request</button>
+            <button role="menuitem" onClick={act(() => declineHand(server.key, channel.id, accountKey))}><StepDownIcon /> {t('stage.sheet.declineRequest')}</button>
           )}
           {live && canAct && speaker && !self && !participant?.muted && (
-            <button role="menuitem" onClick={act(() => muteSpeaker(server.key, channel.id, accountKey))}><MicOff /> Mute</button>
+            <button role="menuitem" onClick={act(() => muteSpeaker(server.key, channel.id, accountKey))}><MicOff /> {t('stage.sheet.mute')}</button>
           )}
           {live && canAct && speaker && (
-            <button role="menuitem" onClick={act(() => moveToAudience(server.key, channel.id, self ? undefined : accountKey))}><StepDownIcon /> Move to audience</button>
+            <button role="menuitem" onClick={act(() => moveToAudience(server.key, channel.id, self ? undefined : accountKey))}><StepDownIcon /> {t('stage.moveToAudience')}</button>
           )}
           {canAct && !self && (
-            <button role="menuitem" className="danger" onClick={act(() => removeFromStage(server.key, channel.id, accountKey))}><UserMinusIcon /> Remove from stage</button>
+            <button role="menuitem" className="danger" onClick={act(() => removeFromStage(server.key, channel.id, accountKey))}><UserMinusIcon /> {t('stage.sheet.remove')}</button>
           )}
         </div>
       </div>
@@ -336,25 +342,26 @@ function PersonSheet({ server, channel, state, accountKey, onError, onClose }: {
 }
 
 function TopicDialog({ initial, onSave, onClose }: { initial: string; onSave: (topic: string) => Promise<void>; onClose: () => void }) {
+  const { t } = useTranslation()
   const [topic, setTopic] = useState(initial)
   const [error, setError] = useState<string | null>(null)
   const save = () => {
     if (!topic.trim()) return
-    onSave(topic.trim()).then(onClose, (e: Error) => setError(e.message))
+    onSave(topic.trim()).then(onClose, (e: Error) => setError(errorMessage(e)))
   }
   return (
     <Modal
-      title="Stage topic"
+      title={t('stage.topicTitle')}
       onClose={onClose}
       footer={
         <>
-          <button className="button" onClick={onClose}>Cancel</button>
-          <button className="button primary" disabled={!topic.trim()} onClick={save}>Save</button>
+          <button className="button" onClick={onClose}>{t('common.cancel')}</button>
+          <button className="button primary" disabled={!topic.trim()} onClick={save}>{t('common.save')}</button>
         </>
       }
     >
       <label className="field">
-        <span>Topic</span>
+        <span>{t('stage.topic')}</span>
         <input value={topic} maxLength={MAX_STAGE_TOPIC} onChange={(e) => setTopic(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && save()} autoFocus />
       </label>
       {error && <p className="error-text">{error}</p>}
@@ -364,6 +371,7 @@ function TopicDialog({ initial, onSave, onClose }: { initial: string; onSave: (t
 
 /** Admins pick who else moderates this stage. */
 function ModeratorsDialog({ server, channel, state, onClose }: { server: ServerState; channel: Channel; state: StageState | undefined; onClose: () => void }) {
+  const { t } = useTranslation()
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState('')
   const people = Object.values(server.members)
@@ -371,11 +379,11 @@ function ModeratorsDialog({ server, channel, state, onClose }: { server: ServerS
     .filter((m) => m.name.toLowerCase().includes(filter.trim().toLowerCase()))
     .sort((a, b) => a.name.localeCompare(b.name))
   return (
-    <Modal title="Stage moderators" onClose={onClose} footer={<button className="button primary" onClick={onClose}>Done</button>}>
-      <p className="muted">Moderators start and end the stage, bring people up to speak and send them back. Admins always can.</p>
+    <Modal title={t('stage.moderators')} onClose={onClose} footer={<button className="button primary" onClick={onClose}>{t('common.done')}</button>}>
+      <p className="muted">{t('stage.moderatorsIntro')}</p>
       <label className="field">
-        <span>Find someone</span>
-        <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Name" />
+        <span>{t('stage.findSomeone')}</span>
+        <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={t('stage.namePlaceholder')} />
       </label>
       <ul className="stage-moderators">
         {people.map((m) => {
@@ -386,16 +394,16 @@ function ModeratorsDialog({ server, channel, state, onClose }: { server: ServerS
                 <input
                   type="checkbox"
                   checked={on}
-                  onChange={() => setStageModerator(server.key, channel.id, m.accountKey, !on).catch((e: Error) => setError(e.message))}
+                  onChange={() => setStageModerator(server.key, channel.id, m.accountKey, !on).catch((e: Error) => setError(errorMessage(e)))}
                 />
                 <Avatar name={m.name} accountKey={m.accountKey} size={28} />
                 <span className="member-name">{m.name}</span>
-                <span className="muted role">{m.role}</span>
+                <span className="muted role">{t(`common.roles.${m.role}`)}</span>
               </label>
             </li>
           )
         })}
-        {people.length === 0 && <li className="muted">Nobody else to pick.</li>}
+        {people.length === 0 && <li className="muted">{t('stage.nobodyToPick')}</li>}
       </ul>
       {error && <p className="error-text">{error}</p>}
     </Modal>

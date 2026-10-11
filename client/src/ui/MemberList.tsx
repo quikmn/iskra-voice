@@ -1,4 +1,5 @@
 import type { MouseEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ROLES, roleRank, type Member, type Role } from '../core/protocol'
 import type { ServerState } from '../state/store'
 import { Avatar } from './bits'
@@ -12,9 +13,9 @@ import { TimeoutBadge } from './moderation/Moderation'
 import { useServerRoles } from '../state/roles'
 import { hoistedRole, nameColor, rolesOf } from '../state/permissions'
 
-const ROLE_TITLES: Record<Role, string> = { owner: 'Owner', admin: 'Admins', trusted: 'Trusted', member: 'Members', guest: 'Guests' }
-
 export function MemberList({ server }: { server: ServerState }) {
+  const { t } = useTranslation()
+  const roleTitle = (role: Role) => t(`app.members.roleTitles.${role}`)
   const roles = useServerRoles(server.key)
   const members = Object.values(server.members).sort((a, b) => a.name.localeCompare(b.name))
   const online = members.filter((m) => m.online)
@@ -44,7 +45,7 @@ export function MemberList({ server }: { server: ServerState }) {
         return (
           <section key={role}>
             <h3>
-              {ROLE_TITLES[role]} — {group.length}
+              {roleTitle(role)} — {group.length}
             </h3>
             {group.map(row)}
           </section>
@@ -52,7 +53,7 @@ export function MemberList({ server }: { server: ServerState }) {
       })}
       {offline.length > 0 && (
         <section className="offline">
-          <h3>Offline — {offline.length}</h3>
+          <h3>{t('presence.status.offline')} — {offline.length}</h3>
           {offline.sort((a, b) => roleRank(b.role) - roleRank(a.role)).map(row)}
         </section>
       )}
@@ -66,6 +67,7 @@ function MemberRow({ member, color, icon, onClick }: {
   icon: string | null
   onClick: (e: MouseEvent<HTMLElement>) => void
 }) {
+  useTranslation()
   const { status, custom } = useMemberPresence(member)
   return (
     <button className="member" onClick={onClick} aria-label={`${member.name}, ${STATUS_LABELS[status]}`}>

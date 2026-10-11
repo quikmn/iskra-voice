@@ -1,5 +1,7 @@
 // Settings → Backup & move (owner): an encrypted backup to download, the daily copies on the server, and moving it.
 import { useEffect, useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
+import { errorMessage } from '../../i18n/errors'
 import { createBackup, downloadFile, formatBytes, MIN_PASSPHRASE, passphraseStrength, useBackups } from '../../state/backups'
 import { connectionFor, type ServerState } from '../../state/store'
 import type { BackupStatus } from '../../core/protocol'
@@ -8,15 +10,16 @@ import { MoveServerDialog } from './MoveServerDialog'
 import '../dialogs/InternetSettings.css'
 import './backup.css'
 
-const STRENGTH: Record<ReturnType<typeof passphraseStrength>, string> = {
-  'too-short': `At least ${MIN_PASSPHRASE} characters.`,
-  weak: 'Works, but a longer one is safer: a few random words are easy to remember.',
-  ok: 'Good.',
-  strong: 'Strong.',
-}
+const STRENGTH = {
+  'too-short': 'settings.backup.strength.tooShort',
+  weak: 'settings.backup.strength.weak',
+  ok: 'settings.backup.strength.ok',
+  strong: 'settings.backup.strength.strong',
+} as const satisfies Record<ReturnType<typeof passphraseStrength>, string>
 
 /** Passphrase (twice), then "Make backup": builds it on the server and downloads it. */
 export function BackupMaker({ server, onMade }: { server: ServerState; onMade?: () => void }) {
+  const { t } = useTranslation()
   const [passphrase, setPassphrase] = useState('')
   const [again, setAgain] = useState('')
   const [busy, setBusy] = useState(false)
@@ -39,7 +42,7 @@ export function BackupMaker({ server, onMade }: { server: ServerState; onMade?: 
       downloadFile(result.url)
       onMade?.()
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
     } finally {
       setBusy(false)
     }
@@ -50,14 +53,11 @@ export function BackupMaker({ server, onMade }: { server: ServerState; onMade?: 
       <div className="backup-done" role="status">
         <span className="backup-check" aria-hidden>✓</span>
         <div>
-          <strong>Backup ready: {made.name}</strong>
-          <p className="muted">
-            {formatBytes(made.size)}. Your download should have started. Keep the file and the passphrase in different places: without the
-            passphrase nobody can open it, not even you.
-          </p>
+          <strong>{t('settings.backup.ready', { name: made.name })}</strong>
+          <p className="muted">{t('settings.backup.readyHint', { size: formatBytes(made.size) })}</p>
           <div className="copy-row">
-            <button className="button" onClick={() => downloadFile(made.url)}>Download again</button>
-            <button className="button ghost" onClick={() => setMade(null)}>Make another</button>
+            <button className="button" onClick={() => downloadFile(made.url)}>{t('settings.backup.downloadAgain')}</button>
+            <button className="button ghost" onClick={() => setMade(null)}>{t('settings.backup.makeAnother')}</button>
           </div>
         </div>
       </div>
@@ -68,39 +68,40 @@ export function BackupMaker({ server, onMade }: { server: ServerState; onMade?: 
   return (
     <form className="backup-maker" onSubmit={(e) => { e.preventDefault(); void make() }}>
       <label className="field">
-        <span>Passphrase</span>
+        <span>{t('settings.restore.passphrase')}</span>
         <input type="password" autoComplete="new-password" value={passphrase} maxLength={1024} disabled={busy}
           onChange={(e) => setPassphrase(e.target.value)} aria-describedby={`strength-${server.key}`} />
       </label>
-      <p id={`strength-${server.key}`} className={`backup-strength ${strength}`}>{passphrase ? STRENGTH[strength] : 'The backup holds the server\'s secret key, so it is encrypted with this.'}</p>
+      <p id={`strength-${server.key}`} className={`backup-strength ${strength}`}>{passphrase ? t(STRENGTH[strength], { min: MIN_PASSPHRASE }) : t('settings.backup.passphraseHint')}</p>
       <label className="field">
-        <span>Passphrase again</span>
+        <span>{t('settings.backup.again')}</span>
         <input type="password" autoComplete="new-password" value={again} maxLength={1024} disabled={busy}
           onChange={(e) => setAgain(e.target.value)} aria-invalid={mismatch} />
       </label>
-      {mismatch && <p className="error-text">The passphrases don't match.</p>}
+      {mismatch && <p className="error-text">{t('keys.appLock.mismatch')}</p>}
       {busy && (
         <div className="backup-progress" aria-live="polite">
-          <progress value={fraction ?? undefined} max={1} aria-label="Making the backup" />
+          <progress value={fraction ?? undefined} max={1} aria-label={t('settings.backup.making')} />
           <span className="muted">
-            {fraction === null ? 'Preparing…' : `Packing ${formatBytes(progress!.done)} of ${formatBytes(progress!.total)}…`}
+            {fraction === null ? t('settings.backup.preparing') : t('settings.backup.packing', { done: formatBytes(progress!.done), total: formatBytes(progress!.total) })}
           </span>
         </div>
       )}
       {error && <p className="error-text">{error}</p>}
       <button className="button primary" type="submit" disabled={!ready}>
-        {busy ? <Spinner /> : 'Make backup'}
+        {busy ? <Spinner /> : t('settings.backup.make')}
       </button>
     </form>
   )
 }
 
 function AutoBackups({ server }: { server: ServerState }) {
+  const { t } = useTranslation()
   const [status, setStatus] = useState<BackupStatus | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    connectionFor(server.key)?.request('backup.status', {}).then(setStatus).catch((e: Error) => setError(e.message))
+    connectionFor(server.key)?.request('backup.status', {}).then(setStatus).catch((e: Error) => setError(errorMessage(e)))
   }, [server.key])
 
   async function change(patch: { enabled?: boolean; keep?: number; includeUploads?: boolean }) {
@@ -109,7 +110,7 @@ function AutoBackups({ server }: { server: ServerState }) {
       const next = await connectionFor(server.key)?.request('backup.settings', patch)
       if (next) setStatus(next)
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
     }
   }
 
@@ -118,69 +119,61 @@ function AutoBackups({ server }: { server: ServerState }) {
     <>
       <div className="internet-head">
         <div>
-          <strong>Back up every day</strong>
-          <p className="muted">
-            A copy of the messages, settings and keys, kept in the server's own folder in case something goes wrong there. For a copy
-            somewhere else, download one above.
-          </p>
+          <strong>{t('settings.backup.daily')}</strong>
+          <p className="muted">{t('settings.backup.dailyHint')}</p>
         </div>
         <button className={`switch ${status.auto.enabled ? 'on' : ''}`} role="switch" aria-checked={status.auto.enabled}
-          aria-label="Back up every day" onClick={() => void change({ enabled: !status.auto.enabled })}>
+          aria-label={t('settings.backup.daily')} onClick={() => void change({ enabled: !status.auto.enabled })}>
           <span />
         </button>
       </div>
       {status.auto.enabled && (
         <div className="backup-options">
           <label className="field inline">
-            <span>Keep</span>
+            <span>{t('settings.backup.keep')}</span>
             <select value={status.auto.keep} onChange={(e) => void change({ keep: Number(e.target.value) })}>
-              {[...new Set([3, 7, 14, 30, status.auto.keep])].sort((a, b) => a - b).map((n) => <option key={n} value={n}>{n} days</option>)}
+              {[...new Set([3, 7, 14, 30, status.auto.keep])].sort((a, b) => a - b).map((n) => <option key={n} value={n}>{t('settings.invite.days', { count: n })}</option>)}
             </select>
           </label>
           <label className="checkbox">
             <input type="checkbox" checked={status.auto.includeUploads} onChange={(e) => void change({ includeUploads: e.target.checked })} />
-            Include uploaded files (uses much more space)
+            {t('settings.backup.includeUploads')}
           </label>
         </div>
       )}
       {status.local.length > 0 ? (
-        <ul className="backup-list" aria-label="Daily backups">
+        <ul className="backup-list" aria-label={t('settings.backup.dailyTitle')}>
           {status.local.map((b) => (
             <li key={b.name}><code>{b.name}</code><span className="muted">{formatBytes(b.size)}</span></li>
           ))}
         </ul>
       ) : (
-        status.auto.enabled && <p className="muted">The first one is made a few minutes after the server starts.</p>
+        status.auto.enabled && <p className="muted">{t('settings.backup.firstSoon')}</p>
       )}
-      <p className="muted backup-folder">In <code>{status.folder}</code></p>
+      <p className="muted backup-folder"><Trans i18nKey="settings.backup.inFolder" values={{ folder: status.folder }} components={{ code: <code /> }} /></p>
       {error && <p className="error-text">{error}</p>}
     </>
   )
 }
 
 export function BackupSection({ server }: { server: ServerState }) {
+  const { t } = useTranslation()
   const [moving, setMoving] = useState(false)
   return (
     <>
       <section className="settings-section backup" data-testid="backup-section">
-        <h3>Backup &amp; move</h3>
-        <p className="muted">
-          Download everything about this server in one encrypted file: messages, channels, members, files, settings and its key. You can
-          restore it on any computer with Iskra.
-        </p>
+        <h3>{t('settings.sections.backup')}</h3>
+        <p className="muted">{t('settings.backup.intro')}</p>
         <BackupMaker server={server} />
       </section>
       <section className="settings-section backup">
-        <h3>Daily backups</h3>
+        <h3>{t('settings.backup.dailyTitle')}</h3>
         <AutoBackups server={server} />
       </section>
       <section className="settings-section backup">
-        <h3>Move this server</h3>
-        <p className="muted">
-          New PC, or moving to a VPS? Restore a backup there, then send everyone over: their apps switch to the new address by
-          themselves.
-        </p>
-        <button className="button" onClick={() => setMoving(true)}>Move this server…</button>
+        <h3>{t('settings.backup.moveTitle')}</h3>
+        <p className="muted">{t('settings.backup.moveHint')}</p>
+        <button className="button" onClick={() => setMoving(true)}>{t('settings.backup.moveButton')}</button>
       </section>
       {moving && <MoveServerDialog server={server} onClose={() => setMoving(false)} />}
     </>

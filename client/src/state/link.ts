@@ -4,8 +4,10 @@ import { b64u, fromB64u } from '../core/crypto'
 import {
   checkMac, confirmationCode, encodeLinkCode, sameConfirmation, ephemeralKey, linkAppUrl, linkKeys, macKey, newLinkSecret, openPart, openPayload,
   parseLinkCode, relayDeliver, relayPoll, relayPutPart, relayRequest, relayTakePart, sealPart, sealPayload, splitParts, PART_BYTES,
-  type EphemeralKey, type LinkCode, type LinkKeys,
+  type EphemeralKey, type LinkCode, type LinkKeys, LinkRelayError,
 } from '../core/link'
+import { t } from '../i18n'
+import { errorMessage } from '../i18n/errors'
 import type { LinkRequest } from '../core/protocol'
 import { normalizeServerUrl } from '../core/invite'
 import { profileForLink, profileFromLink, type LinkedProfile } from '../core/profile'
@@ -78,6 +80,20 @@ interface Offer {
 }
 
 export const useLinkOffer = create<OfferState>(() => ({ phase: 'idle' }))
+
+/** Relay and link errors in the app's language (core/link.ts speaks English). */
+function linkError(e: unknown): string {
+  if (e instanceof LinkRelayError) {
+    if (e.message.startsWith('The new device stopped')) return t('app.link.errors.receiverStopped')
+    if (e.status === 408) return t('app.link.errors.senderStopped')
+    if (e.status === 404) return t('app.link.errors.expired')
+    if (e.status === 409) return t('app.link.errors.used')
+    if (e.status === 429) return t('app.link.errors.tooSlow')
+    return t('app.link.errors.refused', { status: e.status })
+  }
+  if (e instanceof Error && e.message === 'Part of the history arrived out of order.') return t('app.link.errors.outOfOrder')
+  return errorMessage(e)
+}
 let offer: Offer | null = null
 
 /** Servers we could relay a link through: online ones. */
@@ -91,7 +107,7 @@ export async function startLinkOffer(serverKey: string, includeHistory: boolean)
   const server = useApp.getState().servers[serverKey]
   const connection = connectionFor(serverKey)
   if (!server || !connection) {
-    useLinkOffer.setState({ phase: 'error', message: "That server isn't connected right now." }, true)
+    useLinkOffer.setState({ phase: 'error', message: t('app.link.errors.serverOffline') }, true)
     return
   }
   useLinkOffer.setState({ phase: 'creating' }, true)
@@ -103,7 +119,7 @@ export async function startLinkOffer(serverKey: string, includeHistory: boolean)
       phase: 'waiting', text: encodeLinkCode(code), url: linkAppUrl(appUrl(server.appUrl), code), serverName: server.name, expiresAt,
     }, true)
   } catch (e) {
-    useLinkOffer.setState({ phase: 'error', message: (e as Error).message }, true)
+    useLinkOffer.setState({ phase: 'error', message: linkError(e) }, true)
   }
 }
 
@@ -114,7 +130,7 @@ function onLinkRequest(serverKey: string, request: LinkRequest): void {
   if (!theirs) {
     // Someone has the token but not the secret: not the device the code was shown to.
     void cancelLinkOffer()
-    useLinkOffer.setState({ phase: 'error', message: "A device tried to link with a code that doesn't match. Nothing was sent. Try again with a new code." }, true)
+    useLinkOffer.setState({ phase: 'error', message: t('app.link.errors.wrongDevice') }, true)
     return
   }
   const mine = ephemeralKey()
@@ -122,7 +138,7 @@ function onLinkRequest(serverKey: string, request: LinkRequest): void {
   current.theirs = theirs
   connectionFor(serverKey)?.request('link.respond', { token: request.token, epk: b64u(mine.publicKey), mac: macKey(mine.publicKey, current.keys.macExisting) })
     .then(() => useLinkOffer.setState({ phase: 'confirm', confirm: confirmationCode(current.keys, mine.publicKey, theirs), info: request.info }, true))
-    .catch((e: Error) => useLinkOffer.setState({ phase: 'error', message: e.message }, true))
+    .catch((e: Error) => useLinkOffer.setState({ phase: 'error', message: linkError(e) }, true))
 }
 
 async function buildPayload(): Promise<LinkPayload> {
@@ -154,7 +170,7 @@ export async function confirmLinkOffer(typed: string): Promise<void> {
   if (!current?.mine || !current.theirs || state.phase !== 'confirm') return
   if (!sameConfirmation(typed, state.confirm)) {
     await cancelLinkOffer()
-    useLinkOffer.setState({ phase: 'error', message: "That number doesn't match, so nothing was sent. If you didn't start this on your new device, someone else may have your code. Make a new one." }, true)
+    useLinkOffer.setState({ phase: 'error', message: t('app.link.errors.wrongNumber') }, true)
     return
   }
   useLinkOffer.setState({ phase: 'sending' }, true)
@@ -174,13 +190,13 @@ export async function confirmLinkOffer(typed: string): Promise<void> {
     } catch (e) {
       // The account is already there; only (part of) the history didn't make it.
       offer = null
-      useLinkOffer.setState({ phase: 'done', warning: `Your message history didn't all arrive: ${(e as Error).message}` }, true)
+      useLinkOffer.setState({ phase: 'done', warning: t('app.link.historyIncomplete', { reason: linkError(e) }) }, true)
       return
     }
     offer = null
     useLinkOffer.setState({ phase: 'done' }, true)
   } catch (e) {
-    useLinkOffer.setState({ phase: 'error', message: (e as Error).message }, true)
+    useLinkOffer.setState({ phase: 'error', message: linkError(e) }, true)
   }
 }
 
@@ -222,7 +238,7 @@ export function cancelLinkJoin(): void {
 export async function joinWithCode(input: string): Promise<void> {
   const code = parseLinkCode(input)
   if (!code) {
-    useLinkJoin.setState({ phase: 'error', message: "That code doesn't look right. Check it on your other device." }, true)
+    useLinkJoin.setState({ phase: 'error', message: t('app.link.errors.badCode') }, true)
     return
   }
   const run = ++joinRun
@@ -238,10 +254,10 @@ export async function joinWithCode(input: string): Promise<void> {
       if (!alive()) return
       if (state.state === 'answered' && !existing) {
         existing = checkMac(state.epk, state.mac, keys.macExisting)
-        if (!existing) throw new Error("The answer didn't match the code, so it may not be from your device. Nothing was linked.")
+        if (!existing) throw new Error(t('app.link.errors.badAnswer'))
         useLinkJoin.setState({ phase: 'confirm', confirm: confirmationCode(keys, existing, mine.publicKey) }, true)
       } else if (state.state === 'done') {
-        if (!existing) throw new Error('Something went wrong. Make a new code and try again.')
+        if (!existing) throw new Error(t('app.link.errors.generic'))
         useLinkJoin.setState({ phase: 'finishing' }, true)
         const payload = openPayload<LinkPayload>(fromB64u(state.payload), existing, mine)
         await adopt(payload)
@@ -262,7 +278,7 @@ export async function joinWithCode(input: string): Promise<void> {
       await sleep(1000)
     }
   } catch (e) {
-    if (alive()) useLinkJoin.setState({ phase: 'error', message: e instanceof TypeError ? "Couldn't reach the server in the code." : (e as Error).message }, true)
+    if (alive()) useLinkJoin.setState({ phase: 'error', message: e instanceof TypeError ? t('app.link.errors.unreachable') : linkError(e) }, true)
   }
 }
 
@@ -289,9 +305,9 @@ async function receiveHistory(code: LinkCode, readKey: string, total: number, ex
 
 /** Becomes the account: a fresh device key certified by the account seed, then the same servers and history. */
 async function adopt(payload: LinkPayload): Promise<void> {
-  if (payload?.v !== 1 || typeof payload.seed !== 'string') throw new Error('Unsupported link data. Update Iskra on both devices.')
+  if (payload?.v !== 1 || typeof payload.seed !== 'string') throw new Error(t('app.link.errors.unsupported'))
   const seed = fromB64u(payload.seed)
-  if (seed.length !== 32) throw new Error('Unsupported link data.')
+  if (seed.length !== 32) throw new Error(t('app.link.errors.unsupportedShort'))
   const identity = restoreIdentity(seed)
   await storage.saveIdentity(identity)
   await storage.saveProfile({

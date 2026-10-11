@@ -4,17 +4,18 @@ import { roleRank, type Channel, type Member, type Message } from '../core/proto
 import type { DmForward } from '../core/dm'
 import { connectionFor, type ServerState } from './store'
 import { sendDm } from './dms'
+import { t } from '../i18n'
 
 export async function forwardToChannel(serverKey: string, message: Message, channelId: number): Promise<void> {
   const connection = connectionFor(serverKey)
-  if (!connection) throw new Error('Not connected.')
+  if (!connection) throw new Error(t('errors.codes.disconnected'))
   await connection.request('chat.forward', { id: message.id, channelId })
 }
 
 /** Where the message came from, as the DM's recipient may see it. */
 export function forwardLabel(server: ServerState, source: Channel | undefined, peer: Member | undefined): string | null {
   if (!source || !peer || roleRank(peer.role) < roleRank(source.readRole)) return null
-  return `#${source.name} on ${server.name}`
+  return t('chat.forward.from', { channel: source.name, server: server.name })
 }
 
 export function dmForward(server: ServerState, message: Message, peerKey: string): { text: string; forward: DmForward } {
@@ -22,9 +23,9 @@ export function dmForward(server: ServerState, message: Message, peerKey: string
   const source = server.channels.find((c) => c.id === message.channelId)
   const files = message.attachments.map((f) => ({ name: f.name, url: base + f.url, size: f.size, type: f.type }))
   // Mentions read as names: the recipient may not know these people.
-  const text = message.text.replace(/<@([A-Za-z0-9_-]{43})>/g, (_, k: string) => `@${server.members[k]?.name ?? 'someone'}`)
+  const text = message.text.replace(/<@([A-Za-z0-9_-]{43})>/g, (_, k: string) => `@${server.members[k]?.name ?? t('chat.composer.someone')}`)
   return {
-    text: text || files.map((f) => f.name).join(', ') || 'Forwarded message',
+    text: text || files.map((f) => f.name).join(', ') || t('chat.forward.fallback'),
     forward: { from: forwardLabel(server, source, server.members[peerKey]), files },
   }
 }

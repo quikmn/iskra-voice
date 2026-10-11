@@ -1,5 +1,6 @@
 // Time zones and calendar files for scheduled events. Pure functions on Intl; no React, no store.
 import type { ServerEvent } from '../core/protocol'
+import { intlLocale, t } from '../i18n'
 
 /** The browser's IANA time zone ("Europe/Stockholm"), or UTC if it can't say. */
 export function localZone(): string {
@@ -73,25 +74,25 @@ export function utcToZoned(utcMs: number, zone: string): { date: string; time: s
 }
 
 /** "Sat, Oct 24, 7:30 PM" in the viewer's zone (or `zone`). */
-export function formatWhen(utcMs: number, zone?: string, locale?: string): string {
+export function formatWhen(utcMs: number, zone?: string, locale = intlLocale()): string {
   return new Intl.DateTimeFormat(locale, { timeZone: zone, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
     .format(new Date(utcMs))
 }
 
-export function formatClock(utcMs: number, zone?: string, locale?: string): string {
+export function formatClock(utcMs: number, zone?: string, locale = intlLocale()): string {
   return new Intl.DateTimeFormat(locale, { timeZone: zone, hour: 'numeric', minute: '2-digit' }).format(new Date(utcMs))
 }
 
 /** "7:30 PM – 9:30 PM", or with the end's date when it ends on another day. */
-export function formatRange(start: number, end: number, zone?: string, locale?: string): string {
+export function formatRange(start: number, end: number, zone?: string, locale = intlLocale()): string {
   const sameDay = utcToZoned(start, zone ?? localZone()).date === utcToZoned(end, zone ?? localZone()).date
   return `${formatWhen(start, zone, locale)} – ${sameDay ? formatClock(end, zone, locale) : formatWhen(end, zone, locale)}`
 }
 
 /** The creator's own clock, when it differs from the viewer's: "7:30 PM in Europe/Stockholm". Null when it's the same. */
-export function creatorTime(event: ServerEvent, viewerZone: string, locale?: string): string | null {
+export function creatorTime(event: ServerEvent, viewerZone: string, locale = intlLocale()): string | null {
   if (zoneOffset(event.startAt, event.timeZone) === zoneOffset(event.startAt, viewerZone)) return null
-  return `${formatWhen(event.startAt, event.timeZone, locale)} in ${event.timeZone.replace(/_/g, ' ')}`
+  return t('events.creatorTime', { when: formatWhen(event.startAt, event.timeZone, locale), zone: event.timeZone.replace(/_/g, ' ') })
 }
 
 /** "in 25 min", "in 3 h", "in 2 days", or null once it has started. */
@@ -99,11 +100,10 @@ export function startsIn(start: number, now: number): string | null {
   const ms = start - now
   if (ms <= 0) return null
   const minutes = Math.ceil(ms / 60_000)
-  if (minutes < 60) return `in ${minutes} min`
+  if (minutes < 60) return t('events.startsIn.minutes', { n: minutes })
   const hours = Math.round(minutes / 60)
-  if (hours < 24) return `in ${hours} h`
-  const days = Math.round(hours / 24)
-  return `in ${days} day${days === 1 ? '' : 's'}`
+  if (hours < 24) return t('events.startsIn.hours', { n: hours })
+  return t('events.startsIn.days', { count: Math.round(hours / 24) })
 }
 
 /** Upcoming and live events, soonest first: what the sidebar badge counts. */

@@ -7,6 +7,8 @@ import { Modal } from '../bits'
 import { Close, Plus } from '../icons'
 import { Check } from './icons'
 import { isPollClosed, myVotes, POLL_DURATIONS, POLL_LIMITS, pollProblem, pollResults, timeLeft } from './poll'
+import { useTranslation } from 'react-i18next'
+import { errorMessage } from '../../i18n/errors'
 
 function useNow(active: boolean): number {
   const [now, setNow] = useState(() => Date.now())
@@ -19,6 +21,7 @@ function useNow(active: boolean): number {
 }
 
 export function PollCard({ server, message }: { server: ServerState; message: Message }) {
+  const { t } = useTranslation()
   const poll = message.poll!
   const me = server.me
   const now = useNow(poll.expiresAt !== null && poll.closedAt === null)
@@ -42,7 +45,7 @@ export function PollCard({ server, message }: { server: ServerState; message: Me
     try {
       await action()
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
     } finally {
       setBusy(false)
     }
@@ -60,27 +63,29 @@ export function PollCard({ server, message }: { server: ServerState; message: Me
   })
 
   const status = closed
-    ? poll.closedAt !== null && (poll.expiresAt === null || poll.closedAt < poll.expiresAt) ? 'Ended early' : 'Poll closed'
+    ? poll.closedAt !== null && (poll.expiresAt === null || poll.closedAt < poll.expiresAt) ? t('expressions.poll.endedEarly') : t('expressions.poll.closed')
     : poll.expiresAt !== null ? timeLeft(poll.expiresAt - now) : null
 
   return (
-    <div className={`poll ${closed ? 'closed' : ''}`} role="group" aria-label={`Poll: ${poll.question}`}>
+    <div className={`poll ${closed ? 'closed' : ''}`} role="group" aria-label={t('expressions.poll.label', { question: poll.question })}>
       <div className="poll-question">{poll.question}</div>
       <div className="poll-hint muted">
-        {closed ? 'Final results' : showResults ? 'Results so far' : poll.multi ? 'Select one or more answers' : 'Select one answer'}
+        {closed ? t('expressions.poll.finalResults') : showResults ? t('expressions.poll.resultsSoFar') : poll.multi ? t('expressions.poll.selectMany') : t('expressions.poll.selectOne')}
       </div>
       <ul className="poll-options">
         {poll.options.map((option, i) => {
           const isMine = mine.includes(i)
           const leading = closed && results.leaders.includes(i)
           if (showResults) {
-            const names = option.votes.map((k) => server.members[k]?.name ?? 'Someone')
+            const names = option.votes.map((k) => server.members[k]?.name ?? t('common.someone'))
             return (
               <li key={i} className={`poll-result ${isMine ? 'mine' : ''} ${leading ? 'leading' : ''}`}
-                title={names.length ? names.slice(0, 15).join(', ') + (names.length > 15 ? ` and ${names.length - 15} more` : '') : 'No votes'}>
+                title={names.length
+                  ? names.length > 15 ? t('expressions.poll.votersMore', { names: names.slice(0, 15).join(', '), count: names.length - 15 }) : names.join(', ')
+                  : t('expressions.poll.noVotes')}>
                 <span className="poll-bar" style={{ width: `${results.percents[i]}%` }} />
                 <span className="poll-option-text">{option.text}</span>
-                {isMine && <span className="poll-check" aria-label="Your vote"><Check size={14} /></span>}
+                {isMine && <span className="poll-check" aria-label={t('expressions.poll.yourVote')}><Check size={14} /></span>}
                 <span className="poll-count">{results.counts[i]} · {results.percents[i]}%</span>
               </li>
             )
@@ -104,24 +109,24 @@ export function PollCard({ server, message }: { server: ServerState; message: Me
       </ul>
       <div className="poll-footer">
         <span className="muted">
-          {results.voters} {results.voters === 1 ? 'vote' : 'votes'}{status ? ` · ${status}` : ''}
+          {t('expressions.poll.votes', { count: results.voters })}{status ? ` · ${status}` : ''}
         </span>
         <span className="spacer" />
         {!closed && !showResults && (
           <>
-            {!voted && <button className="link" onClick={() => setPeek(true)}>Show results</button>}
-            {changing && <button className="link" onClick={() => setChanging(false)}>Cancel</button>}
-            <button className="button primary small" disabled={busy || selected.length === 0} onClick={() => void vote()}>Vote</button>
+            {!voted && <button className="link" onClick={() => setPeek(true)}>{t('expressions.poll.showResults')}</button>}
+            {changing && <button className="link" onClick={() => setChanging(false)}>{t('common.cancel')}</button>}
+            <button className="button primary small" disabled={busy || selected.length === 0} onClick={() => void vote()}>{t('expressions.poll.vote')}</button>
           </>
         )}
-        {!closed && showResults && peek && !voted && <button className="link" onClick={() => setPeek(false)}>Back to voting</button>}
+        {!closed && showResults && peek && !voted && <button className="link" onClick={() => setPeek(false)}>{t('expressions.poll.backToVoting')}</button>}
         {!closed && showResults && voted && !peek && (
           <>
-            <button className="link" disabled={busy} onClick={() => void run(() => votePoll(server.key, message.id, []))}>Remove vote</button>
-            <button className="link" disabled={busy} onClick={() => { setSelected(mine); setChanging(true) }}>Change vote</button>
+            <button className="link" disabled={busy} onClick={() => void run(() => votePoll(server.key, message.id, []))}>{t('expressions.poll.removeVote')}</button>
+            <button className="link" disabled={busy} onClick={() => { setSelected(mine); setChanging(true) }}>{t('expressions.poll.changeVote')}</button>
           </>
         )}
-        {canEnd && <button className="link danger-link" disabled={busy} onClick={() => void run(() => endPoll(server.key, message.id))}>End poll</button>}
+        {canEnd && <button className="link danger-link" disabled={busy} onClick={() => void run(() => endPoll(server.key, message.id))}>{t('expressions.poll.end')}</button>}
       </div>
       {error && <div className="message-failed">{error}</div>}
     </div>
@@ -129,6 +134,7 @@ export function PollCard({ server, message }: { server: ServerState; message: Me
 }
 
 export function PollDialog({ server, channelId, onClose }: { server: ServerState; channelId: number; onClose: () => void }) {
+  const { t } = useTranslation()
   const [question, setQuestion] = useState('')
   const [options, setOptions] = useState(['', ''])
   const [duration, setDuration] = useState<number | null>(24 * 3_600_000)
@@ -147,7 +153,7 @@ export function PollDialog({ server, channelId, onClose }: { server: ServerState
       })
       onClose()
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
       setBusy(false)
     }
   }
@@ -156,30 +162,30 @@ export function PollDialog({ server, channelId, onClose }: { server: ServerState
 
   return (
     <Modal
-      title="Create a poll"
+      title={t('expressions.poll.create')}
       onClose={onClose}
       footer={
         <>
           {error && <span className="error-text">{error}</span>}
-          <button className="button" onClick={onClose}>Cancel</button>
-          <button className="button primary" disabled={busy || !!problem} onClick={() => void post()}>Post poll</button>
+          <button className="button" onClick={onClose}>{t('common.cancel')}</button>
+          <button className="button primary" disabled={busy || !!problem} onClick={() => void post()}>{t('expressions.poll.post')}</button>
         </>
       }
     >
       <label className="field">
-        <span>Question</span>
-        <input value={question} maxLength={POLL_LIMITS.question} placeholder="What should we play tonight?" onChange={(e) => setQuestion(e.target.value)} />
+        <span>{t('expressions.poll.question')}</span>
+        <input value={question} maxLength={POLL_LIMITS.question} placeholder={t('expressions.poll.questionPlaceholder')} onChange={(e) => setQuestion(e.target.value)} />
       </label>
       <div className="field">
-        <span>Answers</span>
+        <span>{t('expressions.poll.answers')}</span>
         <div className="poll-editor">
           {options.map((option, i) => (
             <div key={i} className="copy-row">
               <input
                 value={option}
                 maxLength={POLL_LIMITS.option}
-                aria-label={`Answer ${i + 1}`}
-                placeholder={`Answer ${i + 1}`}
+                aria-label={t('expressions.poll.answer', { n: i + 1 })}
+                placeholder={t('expressions.poll.answer', { n: i + 1 })}
                 onChange={(e) => setOption(i, e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && i === options.length - 1 && options.length < POLL_LIMITS.maxOptions && option.trim()) {
@@ -190,7 +196,7 @@ export function PollDialog({ server, channelId, onClose }: { server: ServerState
                 autoFocus={i === options.length - 1 && i >= 2}
               />
               {options.length > POLL_LIMITS.minOptions && (
-                <button className="icon-button small" aria-label={`Remove answer ${i + 1}`} onClick={() => setOptions((list) => list.filter((_, j) => j !== i))}>
+                <button className="icon-button small" aria-label={t('expressions.poll.removeAnswer', { n: i + 1 })} onClick={() => setOptions((list) => list.filter((_, j) => j !== i))}>
                   <Close size={14} />
                 </button>
               )}
@@ -198,21 +204,21 @@ export function PollDialog({ server, channelId, onClose }: { server: ServerState
           ))}
           {options.length < POLL_LIMITS.maxOptions && (
             <button className="button add-answer" onClick={() => setOptions((list) => [...list, ''])}>
-              <Plus size={14} /> Add answer
+              <Plus size={14} /> {t('expressions.poll.addAnswer')}
             </button>
           )}
         </div>
       </div>
       <div className="copy-row poll-settings">
         <label className="field">
-          <span>Duration</span>
+          <span>{t('expressions.poll.duration')}</span>
           <select value={duration ?? ''} onChange={(e) => setDuration(e.target.value ? Number(e.target.value) : null)}>
-            {POLL_DURATIONS.map((d) => <option key={d.label} value={d.ms ?? ''}>{d.label}</option>)}
+            {POLL_DURATIONS.map((d) => <option key={d.id} value={d.ms ?? ''}>{t(`expressions.poll.durations.${d.id}`)}</option>)}
           </select>
         </label>
         <label className="checkbox">
           <input type="checkbox" checked={multi} onChange={(e) => setMulti(e.target.checked)} />
-          Allow multiple answers
+          {t('expressions.poll.multi')}
         </label>
       </div>
     </Modal>

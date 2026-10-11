@@ -2,6 +2,7 @@
 // a full-screen gallery with zoom and swipe, inline previews of text files, and long pastes sent as message.txt.
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
 import { ChevronLeft, ChevronRight, Close, FileIcon } from '../icons'
 import { useEscapeLayer, useFocusTrap } from '../layers'
 import { formatSize } from './helpers'
@@ -16,9 +17,10 @@ export function longTextFile(text: string): File {
 }
 
 export function SpoilerToggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  const { t } = useTranslation()
   return (
-    <button className={`spoiler-toggle ${on ? 'on' : ''}`} onClick={onToggle} aria-pressed={on} title={on ? 'Spoiler: hidden until clicked' : 'Mark as spoiler'}>
-      {on ? 'Spoiler' : 'Mark spoiler'}
+    <button className={`spoiler-toggle ${on ? 'on' : ''}`} onClick={onToggle} aria-pressed={on} title={on ? t('chat.media.spoilerOnTitle') : t('chat.media.spoilerOffTitle')}>
+      {on ? t('chat.media.spoiler') : t('chat.media.markSpoiler')}
     </button>
   )
 }
@@ -26,11 +28,12 @@ export function SpoilerToggle({ on, onToggle }: { on: boolean; onToggle: () => v
 /** Covers its child until clicked once. */
 export function SpoilerCover({ active, children, className }: { active: boolean; children: React.ReactNode; className?: string }) {
   const [shown, setShown] = useState(false)
+  const { t } = useTranslation()
   if (!active || shown) return <>{children}</>
   return (
     <div className={`spoiler-cover ${className ?? ''}`}>
       <div className="spoiler-blur" aria-hidden>{children}</div>
-      <button className="spoiler-reveal" onClick={() => setShown(true)}>Spoiler</button>
+      <button className="spoiler-reveal" onClick={() => setShown(true)}>{t('chat.media.spoiler')}</button>
     </div>
   )
 }
@@ -47,13 +50,14 @@ export interface GalleryItem {
 
 /** One image, or several as a grid; clicking opens the gallery at that image. */
 export function ImageGrid({ items, onOpen }: { items: GalleryItem[]; onOpen: (index: number) => void }) {
+  const { t } = useTranslation()
   if (items.length === 0) return null
   const single = items.length === 1
   return (
     <div className={`attachment-grid n${Math.min(items.length, 5)}`}>
       {items.map((item, i) => (
         <SpoilerCover key={item.url} active={isSpoilerName(item.name)} className="grid-cell">
-          <button className="attachment-image grid-cell" onClick={() => onOpen(i)} aria-label={`Open ${shownName(item.name)}`}>
+          <button className="attachment-image grid-cell" onClick={() => onOpen(i)} aria-label={t('chat.media.openImage', { name: shownName(item.name) })}>
             <img src={item.url} alt={shownName(item.name)} loading="lazy" style={single ? fitted(item) : undefined} />
           </button>
         </SpoilerCover>
@@ -85,6 +89,7 @@ export function Lightbox({ items, start, onClose }: { items: GalleryItem[]; star
   /** The last gesture moved, so the click that follows it isn't a tap on the backdrop. */
   const dragged = useRef(false)
   const item = items[index]
+  const { t } = useTranslation()
   useEscapeLayer(onClose)
   useFocusTrap(ref)
 
@@ -160,8 +165,8 @@ export function Lightbox({ items, start, onClose }: { items: GalleryItem[]; star
       <header className="lightbox-bar">
         <span className="lightbox-title">{shownName(item.name)}{item.size !== undefined && <span className="muted"> · {formatSize(item.size)}</span>}</span>
         {items.length > 1 && <span className="lightbox-count" aria-live="polite">{index + 1} / {items.length}</span>}
-        <a className="button small" href={item.url} target="_blank" rel="noopener noreferrer" download={shownName(item.name)}>Open original</a>
-        <button className="icon-button" onClick={onClose} aria-label="Close"><Close /></button>
+        <a className="button small" href={item.url} target="_blank" rel="noopener noreferrer" download={shownName(item.name)}>{t('chat.media.openOriginal')}</a>
+        <button className="icon-button" onClick={onClose} aria-label={t('common.close')}><Close /></button>
       </header>
       <div
         className="lightbox-stage"
@@ -182,8 +187,8 @@ export function Lightbox({ items, start, onClose }: { items: GalleryItem[]; star
       </div>
       {items.length > 1 && (
         <>
-          <button className="lightbox-nav prev" onClick={() => go(-1)} aria-label="Previous image"><ChevronLeft size={28} /></button>
-          <button className="lightbox-nav next" onClick={() => go(1)} aria-label="Next image"><ChevronRight size={28} /></button>
+          <button className="lightbox-nav prev" onClick={() => go(-1)} aria-label={t('chat.media.previous')}><ChevronLeft size={28} /></button>
+          <button className="lightbox-nav next" onClick={() => go(1)} aria-label={t('chat.media.next')}><ChevronRight size={28} /></button>
         </>
       )}
     </div>,
@@ -203,6 +208,7 @@ export const isTextFile = (name: string, size: number) => TEXT_FILE.test(name) &
 export function TextFilePreview({ url, name, size }: { url: string; name: string; size: number }) {
   const [text, setText] = useState<string | null>(null)
   const [expanded, setExpanded] = useState(false)
+  const { t } = useTranslation()
   useEffect(() => {
     let alive = true
     fetch(url)
@@ -221,12 +227,12 @@ export function TextFilePreview({ url, name, size }: { url: string; name: string
         <span className="file-icon" aria-hidden><FileIcon size={18} /></span>
         <span className="file-name">{shownName(name)}</span>
         <span className="muted">{formatSize(size)}</span>
-        <a className="button small" href={url} download={shownName(name)} target="_blank" rel="noopener noreferrer">Download</a>
+        <a className="button small" href={url} download={shownName(name)} target="_blank" rel="noopener noreferrer">{t('common.download')}</a>
       </div>
       {text !== null && (
         <>
           <pre className="text-file-body">{expanded || !long ? text : lines.slice(0, PREVIEW_LINES).join('\n')}</pre>
-          {long && <button className="link text-file-more" onClick={() => setExpanded((e) => !e)}>{expanded ? 'Show less' : `Show all ${lines.length} lines`}</button>}
+          {long && <button className="link text-file-more" onClick={() => setExpanded((e) => !e)}>{expanded ? t('chat.media.showLess') : t('chat.media.showAllLines', { count: lines.length })}</button>}
         </>
       )}
     </div>

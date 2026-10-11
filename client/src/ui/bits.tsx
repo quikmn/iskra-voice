@@ -1,6 +1,7 @@
 // Small shared UI pieces.
 import { useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
 import { useApp } from '../state/store'
 import { hueFor, initials } from './format'
 import { ChevronLeft, Close } from './icons'
@@ -68,6 +69,7 @@ export function Modal({ title, heading, onBack, onClose, children, footer, wide,
   wide?: boolean
   className?: string
 }) {
+  const { t } = useTranslation()
   const ref = useRef<HTMLDivElement>(null)
   useEscapeLayer(onClose)
   useFocusTrap(ref)
@@ -77,12 +79,12 @@ export function Modal({ title, heading, onBack, onClose, children, footer, wide,
       <div className={`modal ${wide ? 'wide' : ''} ${className ?? ''}`} role="dialog" aria-modal="true" aria-label={title} ref={ref} tabIndex={-1}>
         <header className="modal-header">
           {onBack && (
-            <button className="icon-button modal-back" onClick={onBack} aria-label="Back">
+            <button className="icon-button modal-back" onClick={onBack} aria-label={t('common.back')}>
               <ChevronLeft />
             </button>
           )}
           <h2>{heading ?? title}</h2>
-          <button className="icon-button modal-close" onClick={onClose} aria-label="Close">
+          <button className="icon-button modal-close" onClick={onClose} aria-label={t('common.close')}>
             <Close />
           </button>
         </header>
@@ -95,18 +97,20 @@ export function Modal({ title, heading, onBack, onClose, children, footer, wide,
 }
 
 export function Spinner() {
-  return <span className="spinner" aria-label="Loading" />
+  const { t } = useTranslation()
+  return <span className="spinner" aria-label={t('app.loading')} />
 }
 
 /** Hidden text that reveals on click (||like this||). */
 export function Spoiler({ children }: { children: ReactNode }) {
+  const { t } = useTranslation()
   const [shown, setShown] = useState(false)
   return (
     <span
       className={`spoiler ${shown ? 'shown' : ''}`}
       role="button"
       tabIndex={0}
-      aria-label={shown ? undefined : 'Spoiler, click to reveal'}
+      aria-label={shown ? undefined : t('app.spoiler')}
       onClick={() => setShown(true)}
       onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setShown(true)}
     >

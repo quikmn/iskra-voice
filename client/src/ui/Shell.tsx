@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { activeServerState, useApp } from '../state/store'
 import { ChannelSidebar } from './ChannelSidebar'
 import { ChatArea } from './chat/ChatArea'
@@ -88,29 +89,30 @@ export function Shell() {
 }
 
 function EmptyState({ onJoin, onCreate, onMenu }: { onJoin: () => void; onCreate: () => void; onMenu: () => void }) {
+  const { t } = useTranslation()
   return (
     <div className="empty-state">
-      <button className="icon-button mobile-only menu-button" onClick={onMenu} aria-label="Open menu">
+      <button className="icon-button mobile-only menu-button" onClick={onMenu} aria-label={t('app.openMenu')}>
         <Menu />
       </button>
       <span className="empty-icon" aria-hidden>
         <svg width="34" height="34" viewBox="0 0 24 24" aria-hidden><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" fill="currentColor" /></svg>
       </span>
-      <h1>No servers yet</h1>
+      <h1>{t('app.empty.title')}</h1>
       {desktop ? (
         <>
-          <p>Start your own server on this computer, or join a friend's with an invite link.</p>
+          <p>{t('app.empty.desktop')}</p>
           <div className="copy-row">
-            <button className="button primary" onClick={onCreate}>Create a server</button>
-            <button className="button" onClick={onJoin}>I have an invite link</button>
+            <button className="button primary" onClick={onCreate}>{t('app.empty.create')}</button>
+            <button className="button" onClick={onJoin}>{t('app.empty.haveInvite')}</button>
           </div>
         </>
       ) : (
         <>
-          <p>Join a friend's server with their invite link, or start your own in a couple of minutes.</p>
+          <p>{t('app.empty.web')}</p>
           <div className="copy-row">
-            <button className="button primary" onClick={onJoin}>I have an invite link</button>
-            <button className="button" onClick={onCreate}>Start your own server</button>
+            <button className="button primary" onClick={onJoin}>{t('app.empty.haveInvite')}</button>
+            <button className="button" onClick={onCreate}>{t('app.empty.start')}</button>
           </div>
         </>
       )}

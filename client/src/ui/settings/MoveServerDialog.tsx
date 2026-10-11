@@ -1,5 +1,7 @@
 // "Move this server": a guided flow. Back up → restore on the new computer → check the new address → send everyone there.
 import { useEffect, useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
+import { errorMessage } from '../../i18n/errors'
 import { cleanServerUrl, probeServerKey } from '../../core/move'
 import { LINKS } from '../../links'
 import { desktop, type HostedServer } from '../../platform/desktop'
@@ -8,12 +10,7 @@ import { Modal, Spinner } from '../bits'
 import { BackupMaker } from './BackupSection'
 
 type Step = 'backup' | 'restore' | 'address' | 'done'
-const STEPS: { id: Step; label: string }[] = [
-  { id: 'backup', label: 'Back up' },
-  { id: 'restore', label: 'Restore' },
-  { id: 'address', label: 'Switch' },
-  { id: 'done', label: 'Done' },
-]
+const STEPS: { id: Step }[] = [{ id: 'backup' }, { id: 'restore' }, { id: 'address' }, { id: 'done' }]
 
 /** The copy hosted by this desktop app, if this is the computer the server runs on. */
 function useLocalCopy(server: ServerState): HostedServer | null {
@@ -31,6 +28,7 @@ function useLocalCopy(server: ServerState): HostedServer | null {
 }
 
 export function MoveServerDialog({ server, onClose }: { server: ServerState; onClose: () => void }) {
+  const { t } = useTranslation()
   const [step, setStep] = useState<Step>('backup')
   const [address, setAddress] = useState('')
   const [checked, setChecked] = useState<'idle' | 'checking' | 'same' | 'other' | 'unreachable'>('idle')
@@ -56,7 +54,7 @@ export function MoveServerDialog({ server, onClose }: { server: ServerState; onC
       await connectionFor(server.key)?.request('server.move', { url })
       setStep('done')
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
     } finally {
       setBusy(false)
     }
@@ -64,103 +62,98 @@ export function MoveServerDialog({ server, onClose }: { server: ServerState; onC
 
   const footer = (
     <>
-      {index > 0 && step !== 'done' && <button className="button ghost" onClick={() => setStep(STEPS[index - 1].id)}>Back</button>}
-      {step === 'backup' && <button className="button primary" onClick={() => setStep('restore')}>I have a backup</button>}
-      {step === 'restore' && <button className="button primary" onClick={() => setStep('address')}>It's running there</button>}
+      {index > 0 && step !== 'done' && <button className="button ghost" onClick={() => setStep(STEPS[index - 1].id)}>{t('common.back')}</button>}
+      {step === 'backup' && <button className="button primary" onClick={() => setStep('restore')}>{t('settings.move.haveBackup')}</button>}
+      {step === 'restore' && <button className="button primary" onClick={() => setStep('address')}>{t('settings.move.running')}</button>}
       {step === 'address' && (
         <button className="button primary" disabled={checked !== 'same' || busy} onClick={() => void move()}>
-          {busy ? <Spinner /> : 'Move everyone'}
+          {busy ? <Spinner /> : t('settings.move.moveEveryone')}
         </button>
       )}
-      {step === 'done' && <button className="button primary" onClick={onClose}>Close</button>}
+      {step === 'done' && <button className="button primary" onClick={onClose}>{t('common.close')}</button>}
     </>
   )
 
   return (
-    <Modal title="Move this server" onClose={onClose} footer={footer} className="move-dialog">
-      <ol className="move-steps" aria-label="Steps">
+    <Modal title={t('settings.backup.moveTitle')} onClose={onClose} footer={footer} className="move-dialog">
+      <ol className="move-steps" aria-label={t('settings.move.steps')}>
         {STEPS.map((s, i) => (
           <li key={s.id} className={i < index ? 'past' : i === index ? 'current' : ''} aria-current={i === index ? 'step' : undefined}>
             <span className="move-step-number" aria-hidden>{i < index ? '✓' : i + 1}</span>
-            <span>{s.label}</span>
+            <span>{t(`settings.move.step.${s.id}`)}</span>
           </li>
         ))}
       </ol>
 
       {step === 'backup' && (
         <div className="move-pane">
-          <p>First, make a backup of <strong>{server.name}</strong>. It includes everything, and its key, so the new copy is the same server.</p>
+          <p><Trans i18nKey="settings.move.backupFirst" values={{ name: server.name }} components={{ b: <strong /> }} /></p>
           <BackupMaker server={server} onMade={() => setStep('restore')} />
         </div>
       )}
 
       {step === 'restore' && (
         <div className="move-pane">
-          <p>Copy the backup file to the new computer, then restore it there:</p>
+          <p>{t('settings.move.copyFile')}</p>
           <section className="guide-option">
-            <h4>With the Iskra app</h4>
+            <h4>{t('settings.move.withApp')}</h4>
             <ol>
-              <li>Install Iskra (<a href={LINKS.windowsInstaller}>download</a>) and open it.</li>
-              <li>Click <strong>Create a server</strong>, then <strong>Restore from a backup</strong>, and pick the file.</li>
-              <li>Enter the passphrase. The server starts right away.</li>
+              <li><Trans i18nKey="settings.move.app1" components={{ a: <a href={LINKS.windowsInstaller} /> }} /></li>
+              <li><Trans i18nKey="settings.move.app2" components={{ b: <strong /> }} /></li>
+              <li>{t('settings.move.app3')}</li>
             </ol>
           </section>
           <section className="guide-option">
-            <h4>On a VPS or with the command line</h4>
+            <h4>{t('settings.move.withCli')}</h4>
             <pre className="move-command">iskra-server restore my-server.iskrabackup my-server{'\n'}iskra-server my-server</pre>
-            <p className="muted">Check the port and <code>PublicUrl</code> in <code>server.json</code> if the new machine's address is different.</p>
+            <p className="muted"><Trans i18nKey="settings.move.checkPort" components={{ code: <code /> }} /></p>
           </section>
           <p className="muted">
-            For friends outside your home network, turn on <strong>Open to the internet</strong> on the new copy (or set up HTTPS) before
-            you continue.
+            <Trans i18nKey="settings.move.internet" components={{ b: <strong /> }} />
           </p>
         </div>
       )}
 
       {step === 'address' && (
         <div className="move-pane">
-          <p>Where does the new copy run? Use the address friends will connect to.</p>
+          <p>{t('settings.move.where')}</p>
           <label className="field">
-            <span>New address</span>
+            <span>{t('settings.move.newAddress')}</span>
             <div className="copy-row">
               <input value={address} placeholder="https://chat.example.com" autoFocus inputMode="url" autoCapitalize="off" spellCheck={false}
                 onChange={(e) => { setAddress(e.target.value); setChecked('idle') }}
                 onKeyDown={(e) => e.key === 'Enter' && void check()} />
               <button className="button" disabled={!url || checked === 'checking'} onClick={() => void check()}>
-                {checked === 'checking' ? <Spinner /> : 'Check'}
+                {checked === 'checking' ? <Spinner /> : t('settings.move.check')}
               </button>
             </div>
           </label>
-          {address && !url && <p className="error-text">That doesn't look like an address. Try https://chat.example.com or http://192.168.1.20:47070.</p>}
-          {checked === 'same' && <p className="move-ok" role="status">✓ That's this server, running at its new address.</p>}
-          {checked === 'other' && <p className="error-text">A different server answers there. Restore this server's backup on it first.</p>}
+          {address && !url && <p className="error-text">{t('settings.move.badAddress')}</p>}
+          {checked === 'same' && <p className="move-ok" role="status">✓ {t('settings.move.same')}</p>}
+          {checked === 'other' && <p className="error-text">{t('settings.move.other')}</p>}
           {checked === 'unreachable' && (
-            <p className="error-text">Couldn't reach it from here. Is it running, and can this device reach that address?</p>
+            <p className="error-text">{t('settings.move.unreachable')}</p>
           )}
-          <p className="muted">
-            When you move everyone, their apps switch to the new address by themselves (they check that it's signed by this server).
-            This copy then stops taking messages. Keep it running for a few days, so people who are offline now get the news.
-          </p>
+          <p className="muted">{t('settings.move.howItWorks')}</p>
           {error && <p className="error-text">{error}</p>}
         </div>
       )}
 
       {step === 'done' && (
         <div className="move-pane">
-          <p className="move-ok">✓ Everyone is being sent to <strong>{url}</strong>.</p>
+          <p className="move-ok">✓ <Trans i18nKey="settings.move.sending" values={{ url: url ?? '' }} components={{ b: <strong /> }} /></p>
           <p className="muted">
-            Share new invite links from the new address. If you change your mind, cancel the move from the old computer with{' '}
-            <code>iskra-server move &lt;folder&gt; --cancel</code>.
+            {t('settings.move.cancelHint')}{' '}<code>iskra-server move &lt;folder&gt; --cancel</code>.
           </p>
           {local && desktop && (
             <div className="settings-danger">
               <div>
-                <strong>The old copy runs on this computer</strong>
-                <p className="muted">Stop it once everyone has moved over. Its folder stays where it is.</p>
+                <strong>{t('settings.move.oldHere')}</strong>
+                <p className="muted">{t('settings.move.oldHereHint')}</p>
               </div>
               <button className="button danger-outline" disabled={stopped}
                 onClick={() => void desktop!.host.stop(local.id).then(() => setStopped(true))}>
-                {stopped ? 'Stopped' : 'Stop old copy'}
+                {stopped ? t('settings.move.stopped') : t('settings.move.stopOld')}
               </button>
             </div>
           )}

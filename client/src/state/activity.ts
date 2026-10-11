@@ -1,6 +1,7 @@
 // Activity status ("Playing X"): the desktop app detects the game, this sends its name to every server.
 import { desktop } from '../platform/desktop'
 import { connectionFor, onWelcomeHook, useApp } from './store'
+import { t } from '../i18n'
 
 let current: string | null = null
 
@@ -29,8 +30,8 @@ export function startActivity(): () => void {
 /** "12 min", "1 h 5 min": how long an activity has been going. */
 export function elapsed(since: number, now: number): string {
   const minutes = Math.max(0, Math.floor((now - since) / 60_000))
-  if (minutes < 1) return 'just started'
-  if (minutes < 60) return `${minutes} min`
+  if (minutes < 1) return t('presence.activity.justStarted')
+  if (minutes < 60) return t('presence.activity.minutes', { minutes })
   const hours = Math.floor(minutes / 60)
-  return minutes % 60 ? `${hours} h ${minutes % 60} min` : `${hours} h`
+  return minutes % 60 ? t('presence.activity.hoursMinutes', { hours, minutes: minutes % 60 }) : t('presence.activity.hours', { hours })
 }

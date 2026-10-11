@@ -36,6 +36,7 @@ export interface ConnectionOptions {
 }
 
 interface Pending {
+  type: string
   resolve: (body: unknown) => void
   reject: (error: RequestError) => void
   timer: ReturnType<typeof setTimeout>
@@ -91,14 +92,14 @@ export class Connection {
   /** `timeoutMs` overrides the usual wait for slow work (making a backup). */
   request<K extends keyof Requests>(type: K, body: Requests[K][0], timeoutMs?: number): Promise<Requests[K][1]> {
     const socket = this.socket
-    if (!socket || !this.ready) return Promise.reject(new RequestError('disconnected', 'Not connected.'))
+    if (!socket || !this.ready) return Promise.reject(new RequestError('disconnected', 'Not connected.', type))
     const id = `c${++this.nextId}`
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id)
-        reject(new RequestError('timeout', 'The server took too long to answer.'))
+        reject(new RequestError('timeout', 'The server took too long to answer.', type))
       }, timeoutMs ?? this.options.requestTimeoutMs ?? 15_000)
-      this.pending.set(id, { resolve: resolve as (b: unknown) => void, reject, timer })
+      this.pending.set(id, { type, resolve: resolve as (b: unknown) => void, reject, timer })
       socket.send(JSON.stringify({ type, id, body }))
     })
   }
@@ -157,7 +158,7 @@ export class Connection {
           this.pending.delete(frame.id!)
           clearTimeout(pending.timer)
           if (frame.type === 'result') pending.resolve(body)
-          else pending.reject(new RequestError(body.code as RequestError['code'], String(body.message ?? 'Request failed.')))
+          else pending.reject(new RequestError(body.code as RequestError['code'], String(body.message ?? 'Request failed.'), pending.type))
         } else if (frame.type === 'error' && !this.ready) {
           // Rejected during the handshake.
           this.reject(String(body.code ?? 'auth_failed'), String(body.message ?? 'The server refused the connection.'), body)
@@ -234,7 +235,7 @@ export class Connection {
   private failPending(code: 'disconnected', message: string): void {
     for (const [, pending] of this.pending) {
       clearTimeout(pending.timer)
-      pending.reject(new RequestError(code, message))
+      pending.reject(new RequestError(code, message, pending.type))
     }
     this.pending.clear()
   }

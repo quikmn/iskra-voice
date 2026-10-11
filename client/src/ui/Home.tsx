@@ -1,4 +1,5 @@
 import { Fragment, useLayoutEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { b64u } from '../core/crypto'
 import { safetyNumber } from '../core/dm'
 import { useApp } from '../state/store'
@@ -28,14 +29,15 @@ import { DM_ATTACH_EVENT, DmAttachments, DmComposer } from './dms/DmFiles'
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
 function HomeMeBar() {
+  const { t } = useTranslation()
   const profile = useApp((s) => s.profile)
   const identity = useApp((s) => s.identity)
   const [open, setOpen] = useState(false)
   if (!profile || !identity) return null
   return (
     <div className="me-bar">
-      <MeStatusButton name={profile.name} accountKey={b64u(identity.account.publicKey)} sub="you" />
-      <button className="icon-button" onClick={() => setOpen(true)} aria-label="Settings" title="Settings">
+      <MeStatusButton name={profile.name} accountKey={b64u(identity.account.publicKey)} sub={t('common.you')} />
+      <button className="icon-button" onClick={() => setOpen(true)} aria-label={t('common.settings')} title={t('common.settings')}>
         <Settings />
       </button>
       {open && <SettingsDialog onClose={() => setOpen(false)} />}
@@ -44,6 +46,7 @@ function HomeMeBar() {
 }
 
 export function HomeSidebar({ onNavigate }: { onNavigate: () => void }) {
+  const { t } = useTranslation()
   const conversations = useDms((s) => s.conversations)
   const open = useDms((s) => s.open)
   const reads = useReads((s) => s.convs)
@@ -54,7 +57,7 @@ export function HomeSidebar({ onNavigate }: { onNavigate: () => void }) {
   return (
     <div className="channel-sidebar">
       <header className="sidebar-header">
-        <h2>Direct messages</h2>
+        <h2>{t('app.home.directMessages')}</h2>
       </header>
       <div className="channel-list">
         <button
@@ -65,11 +68,11 @@ export function HomeSidebar({ onNavigate }: { onNavigate: () => void }) {
           }}
         >
           <span className="hash"><Users size={16} /></span>
-          <span className="channel-name">Friends</span>
+          <span className="channel-name">{t('app.home.friends')}</span>
         </button>
         <GroupRows onNavigate={onNavigate} />
-        <div className="channel-group"><span>Conversations</span></div>
-        {peers.length === 0 && <p className="sidebar-hint">Your direct messages show up here. Start one from anyone's profile.</p>}
+        <div className="channel-group"><span>{t('app.home.conversations')}</span></div>
+        {peers.length === 0 && <p className="sidebar-hint">{t('app.home.dmHint')}</p>}
         {peers.map(([peer]) => (
           <button
             key={peer}
@@ -101,6 +104,7 @@ export function HomeMain({ onToggle }: { onToggle: (panel: Panel) => void }) {
 }
 
 function FriendsView({ onToggle }: { onToggle: (panel: Panel) => void }) {
+  const { t } = useTranslation()
   const friends = useDms((s) => s.friends)
   useApp((s) => s.servers)
   const list = Object.values(friends).sort((a, b) => Number(isOnline(b.accountKey)) - Number(isOnline(a.accountKey)) || nameOf(a.accountKey).localeCompare(nameOf(b.accountKey)))
@@ -109,21 +113,21 @@ function FriendsView({ onToggle }: { onToggle: (panel: Panel) => void }) {
   return (
     <div className="chat">
       <header className="chat-header">
-        <button className="icon-button mobile-only" onClick={() => onToggle('nav')} aria-label="Open menu">
+        <button className="icon-button mobile-only" onClick={() => onToggle('nav')} aria-label={t('app.openMenu')}>
           <Menu />
         </button>
-        <h1><span className="hash"><Users size={20} /></span>Friends</h1>
+        <h1><span className="hash"><Users size={20} /></span>{t('app.home.friends')}</h1>
       </header>
       <div className="friends">
         {list.length === 0 ? (
           <div className="empty-state">
             <span className="empty-icon"><Users size={32} /></span>
-            <h1>No friends yet</h1>
-            <p>Open someone's profile in a server's member list and choose “Add friend”. Friends show up here wherever you meet them.</p>
+            <h1>{t('app.home.noFriends')}</h1>
+            <p>{t('app.home.noFriendsHint')}</p>
           </div>
         ) : (
           <>
-            <h3 className="section-title">{online} of {list.length} online</h3>
+            <h3 className="section-title">{t('app.home.onlineCount', { online, total: list.length })}</h3>
             {list.map((friend) => <FriendRow key={friend.accountKey} accountKey={friend.accountKey} />)}
           </>
         )}
@@ -133,6 +137,7 @@ function FriendsView({ onToggle }: { onToggle: (panel: Panel) => void }) {
 }
 
 function FriendRow({ accountKey }: { accountKey: string }) {
+  const { t } = useTranslation()
   const [confirm, setConfirm] = useState(false)
   const reachable = sharedServers(accountKey).length > 0
   const name = nameOf(accountKey)
@@ -145,15 +150,15 @@ function FriendRow({ accountKey }: { accountKey: string }) {
       </div>
       {confirm ? (
         <>
-          <button className="button small danger" onClick={() => void removeFriend(accountKey)}>Remove {name}</button>
-          <button className="button small" onClick={() => setConfirm(false)}>Keep</button>
+          <button className="button small danger" onClick={() => void removeFriend(accountKey)}>{t('app.home.removeName', { name })}</button>
+          <button className="button small" onClick={() => setConfirm(false)}>{t('app.home.keep')}</button>
         </>
       ) : (
         <>
-          <button className="button small" disabled={!reachable} title={reachable ? undefined : "You don't share an online server right now"} onClick={() => openConversation(accountKey)}>
-            Message
+          <button className="button small" disabled={!reachable} title={reachable ? undefined : t('app.home.noSharedServer')} onClick={() => openConversation(accountKey)}>
+            {t('app.home.message')}
           </button>
-          <button className="button small ghost" onClick={() => setConfirm(true)} aria-label={`Remove ${name} from friends`}>Remove</button>
+          <button className="button small ghost" onClick={() => setConfirm(true)} aria-label={t('app.home.removeFriend', { name })}>{t('common.remove')}</button>
         </>
       )}
     </div>
@@ -161,6 +166,7 @@ function FriendRow({ accountKey }: { accountKey: string }) {
 }
 
 function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => void }) {
+  const { t } = useTranslation()
   const conversation = useDms((s) => s.conversations[peer])
   const identity = useApp((s) => s.identity)
   useApp((s) => s.servers)
@@ -197,16 +203,16 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
       }}
     >
       <header className="chat-header">
-        <button className="icon-button mobile-only" onClick={() => onToggle('nav')} aria-label="Open menu">
+        <button className="icon-button mobile-only" onClick={() => onToggle('nav')} aria-label={t('app.openMenu')}>
           <Menu />
         </button>
         <AccountAvatar name={nameOf(peer)} accountKey={peer} size={28} />
         <h1>{nameOf(peer)}</h1>
         <AccountStatusText accountKey={peer} className="muted dm-header-status" />
-        <span className="e2e-badge" title="Only you and they can read these messages"><Lock size={13} /> End-to-end encrypted</span>
+        <span className="e2e-badge" title={t('app.home.e2eTitle')}><Lock size={13} /> {t('app.home.e2e')}</span>
         <span className="spacer" />
         {!blocked && <CallButtons peer={peer} />}
-        <button className="button small" onClick={() => setVerify(true)}>Verify</button>
+        <button className="button small" onClick={() => setVerify(true)}>{t('app.home.verify')}</button>
       </header>
       <CallPanel peer={peer} />
       <DmKeyWarning peer={peer} />
@@ -216,7 +222,7 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
         <div className="channel-start">
           <Avatar name={nameOf(peer)} accountKey={peer} size={64} />
           <h2>{nameOf(peer)}</h2>
-          <p>This is the start of your conversation with {nameOf(peer)}. Messages are end-to-end encrypted: servers only pass them along.</p>
+          <p>{t('app.home.dmStart', { name: nameOf(peer) })}</p>
         </div>
         {messages.map((dm, i) => {
           if (dm.notice) return <DmKeyNotice key={`${dm.from}:${dm.id}`} dm={dm} onVerify={() => setVerify(true)} />
@@ -235,9 +241,9 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
       {blocked ? (
         <BlockedDmBar accountKey={peer} name={nameOf(peer)} />
       ) : reachable ? (
-        <DmComposer key={peer} peer={peer} placeholder={`Message ${nameOf(peer)}`} />
+        <DmComposer key={peer} peer={peer} placeholder={t('app.home.messagePlaceholder', { name: nameOf(peer) })} />
       ) : (
-        <div className="composer read-only">You don't share an online server with {nameOf(peer)} right now, so messages can't be delivered.</div>
+        <div className="composer read-only">{t('app.home.unreachable', { name: nameOf(peer) })}</div>
       )}
 
       {verify && identity && <SafetyNumberDialog me={myKey} peer={peer} onClose={() => setVerify(false)} />}
@@ -246,6 +252,7 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
 }
 
 function DmRow({ dm, grouped, peer, mine }: { dm: Dm; grouped: boolean; peer: string; mine: boolean }) {
+  const { t } = useTranslation()
   const name = nameOf(dm.from)
   return (
     <div className={`message ${grouped ? 'grouped' : ''} ${dm.pending ?? ''}`}>
@@ -273,10 +280,10 @@ function DmRow({ dm, grouped, peer, mine }: { dm: Dm; grouped: boolean; peer: st
         )}
         {dm.pending === 'failed' && mine && (
           <div className="message-failed">
-            {dm.error ?? "Couldn't send."}{' '}
-            <button className="link" onClick={() => { discardDm(peer, dm.id); void sendDm(peer, dm.text, dm.files ? { files: dm.files } : {}) }}>Retry</button>
+            {dm.error ?? t('app.home.couldntSend')}{' '}
+            <button className="link" onClick={() => { discardDm(peer, dm.id); void sendDm(peer, dm.text, dm.files ? { files: dm.files } : {}) }}>{t('common.retry')}</button>
             {' · '}
-            <button className="link" onClick={() => discardDm(peer, dm.id)}>Discard</button>
+            <button className="link" onClick={() => discardDm(peer, dm.id)}>{t('app.home.discard')}</button>
           </div>
         )}
       </div>
@@ -285,18 +292,16 @@ function DmRow({ dm, grouped, peer, mine }: { dm: Dm; grouped: boolean; peer: st
 }
 
 export function SafetyNumberDialog({ me, peer, onClose }: { me: string; peer: string; onClose: () => void }) {
+  const { t } = useTranslation()
   const number = safetyNumber(me, peer)
   return (
-    <Modal title={`Verify ${nameOf(peer)}`} onClose={onClose}>
-      <p className="muted">
-        Compare this number with {nameOf(peer)} in person or on a call. If it matches on both screens, nobody, not even a server, can read or
-        fake your messages.
-      </p>
+    <Modal title={t('app.home.verifyTitle', { name: nameOf(peer) })} onClose={onClose}>
+      <p className="muted">{t('app.home.verifyBody', { name: nameOf(peer) })}</p>
       <div className="safety-number">
         {number.split(' ').map((group, i) => <span key={i}>{group}</span>)}
       </div>
       <p className="muted">
-        Their ID: <code>{fingerprint(peer)}</code> · Your ID: <code>{fingerprint(me)}</code>
+        {t('app.home.theirId')} <code>{fingerprint(peer)}</code> · {t('app.home.yourId')} <code>{fingerprint(me)}</code>
       </p>
     </Modal>
   )

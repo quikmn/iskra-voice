@@ -21,6 +21,9 @@ import { DmAttachments, DmComposer } from '../dms/DmFiles'
 import type { Panel } from '../Shell'
 import { GroupCallButtons, GroupCallPanel, OngoingCallBanner } from './GroupCall'
 import './groups.css'
+import { Trans, useTranslation } from 'react-i18next'
+import { groupText } from './groupText'
+import { errorMessage } from '../../i18n/errors'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -45,6 +48,7 @@ export function GroupAvatar({ members, size = 28 }: { members: string[]; size?: 
 
 /** The "Groups" part of the DM sidebar. */
 export function GroupRows({ onNavigate }: { onNavigate: () => void }) {
+  const { t } = useTranslation()
   const groups = useGroups((s) => s.groups)
   const open = useDms((s) => s.open)
   const reads = useReads((s) => s.convs)
@@ -69,28 +73,28 @@ export function GroupRows({ onNavigate }: { onNavigate: () => void }) {
       <GroupAvatar members={g.view!.members} />
       <span className="channel-name">
         {titleOf(g)}
-        <small>{old ? 'Archived' : `${g.view!.members.length} members`}</small>
+        <small>{old ? t('groups.archived') : t('groups.members', { count: g.view!.members.length })}</small>
       </span>
-      {!old && calls[g.key] && <span className="group-call-dot" title="Call in progress"><Phone size={12} /></span>}
+      {!old && calls[g.key] && <span className="group-call-dot" title={t('groups.callInProgress')}><Phone size={12} /></span>}
       {!old && unread(g) > 0 && <span className="badge">{unread(g)}</span>}
     </button>
   )
   return (
     <>
       <div className="channel-group">
-        <span>Groups</span>
-        <button className="icon-button small" onClick={() => setCreating(true)} aria-label="New group" title="New group">
+        <span>{t('groups.groups')}</span>
+        <button className="icon-button small" onClick={() => setCreating(true)} aria-label={t('groups.newGroup')} title={t('groups.newGroup')}>
           <Plus size={14} />
         </button>
       </div>
       {list.length === 0 && (
         <button className="channel new-group-row" onClick={() => setCreating(true)}>
           <span className="hash"><Users size={16} /></span>
-          <span className="channel-name">New group</span>
+          <span className="channel-name">{t('groups.newGroup')}</span>
         </button>
       )}
       {list.map((g) => row(g, false))}
-      {archived.length > 0 && <div className="channel-group archived-heading"><span>Archived groups</span></div>}
+      {archived.length > 0 && <div className="channel-group archived-heading"><span>{t('groups.archivedGroups')}</span></div>}
       {archived.map((g) => row(g, true))}
       {creating && <NewGroupDialog onClose={() => setCreating(false)} onCreated={onNavigate} />}
     </>
@@ -100,6 +104,7 @@ export function GroupRows({ onNavigate }: { onNavigate: () => void }) {
 // ── Picking people ─────────────────────────────────────────────────────────
 
 function PeoplePicker({ candidates, picked, onChange, max }: { candidates: string[]; picked: string[]; onChange: (p: string[]) => void; max: number }) {
+  const { t } = useTranslation()
   const [query, setQuery] = useState('')
   const shown = candidates
     .filter((k) => knownName(k).toLowerCase().includes(query.trim().toLowerCase()))
@@ -108,10 +113,10 @@ function PeoplePicker({ candidates, picked, onChange, max }: { candidates: strin
     <div className="people-picker">
       <label className="people-search">
         <Search size={16} />
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find people" aria-label="Find people" />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('groups.findPeople')} aria-label={t('groups.findPeople')} />
       </label>
-      <div className="people-list" role="group" aria-label="People">
-        {shown.length === 0 && <p className="muted people-empty">{candidates.length ? 'Nobody by that name.' : 'Nobody else is on this server yet.'}</p>}
+      <div className="people-list" role="group" aria-label={t('groups.people')}>
+        {shown.length === 0 && <p className="muted people-empty">{candidates.length ? t('groups.nobodyByName') : t('groups.nobodyElse')}</p>}
         {shown.map((k) => {
           const on = picked.includes(k)
           const full = !on && picked.length >= max
@@ -134,6 +139,7 @@ function PeoplePicker({ candidates, picked, onChange, max }: { candidates: strin
 }
 
 export function NewGroupDialog({ onClose, onCreated }: { onClose: () => void; onCreated?: () => void }) {
+  const { t } = useTranslation()
   const servers = useApp((s) => s.servers)
   const order = useApp((s) => s.order)
   const online = order.filter((k) => servers[k]?.status.state === 'online')
@@ -154,44 +160,44 @@ export function NewGroupDialog({ onClose, onCreated }: { onClose: () => void; on
       onCreated?.()
       onClose()
     } catch (e) {
-      setError((e as Error).message)
+      setError(groupText(errorMessage(e)))
       setBusy(false)
     }
   }
 
   return (
     <Modal
-      title="New group"
+      title={t('groups.newGroup')}
       onClose={onClose}
       footer={
         <>
-          <button className="button" onClick={onClose}>Cancel</button>
+          <button className="button" onClick={onClose}>{t('common.cancel')}</button>
           <button className="button primary" disabled={!enough || busy} onClick={() => void create()}>
-            {busy ? 'Creating…' : 'Create group'}
+            {busy ? t('groups.creating') : t('groups.createGroup')}
           </button>
         </>
       }
     >
       {online.length === 0 ? (
-        <p className="muted">Connect to a server first: a group lives on a server you share with everyone in it.</p>
+        <p className="muted">{t('groups.connectFirst')}</p>
       ) : (
         <>
-          <p className="muted group-intro">Pick 2 to {MAX_GROUP_MEMBERS - 1} people from a server you share. Messages and calls are end-to-end encrypted.</p>
+          <p className="muted group-intro">{t('groups.pickIntro', { max: MAX_GROUP_MEMBERS - 1 })}</p>
           {online.length > 1 && (
             <label className="field">
-              <span>Server</span>
+              <span>{t('groups.server')}</span>
               <select value={serverKey} onChange={(e) => { setServerKey(e.target.value); setPicked([]) }}>
                 {online.map((k) => <option key={k} value={k}>{servers[k].name}</option>)}
               </select>
             </label>
           )}
           <label className="field">
-            <span>Group name (optional)</span>
-            <input value={name} maxLength={MAX_GROUP_NAME} onChange={(e) => setName(e.target.value)} placeholder="Weekend crew" />
+            <span>{t('groups.nameOptional')}</span>
+            <input value={name} maxLength={MAX_GROUP_NAME} onChange={(e) => setName(e.target.value)} placeholder={t('groups.namePlaceholder')} />
           </label>
           <PeoplePicker candidates={candidates} picked={picked} onChange={setPicked} max={MAX_GROUP_MEMBERS - 1} />
           <p className="muted picked-count" role="status">
-            {picked.length === 0 ? 'Nobody picked yet' : `${picked.length} picked${enough ? '' : ': pick at least one more'}`}
+            {picked.length === 0 ? t('groups.nobodyPicked') : enough ? t('groups.picked', { count: picked.length }) : t('groups.pickedMore', { count: picked.length })}
           </p>
         </>
       )}
@@ -201,6 +207,7 @@ export function NewGroupDialog({ onClose, onCreated }: { onClose: () => void; on
 }
 
 function AddPeopleDialog({ g, onClose }: { g: GroupConv; onClose: () => void }) {
+  const { t } = useTranslation()
   const [picked, setPicked] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -215,27 +222,27 @@ function AddPeopleDialog({ g, onClose }: { g: GroupConv; onClose: () => void }) 
       await addToGroup(g.key, picked)
       onClose()
     } catch (e) {
-      setError((e as Error).message)
+      setError(groupText(errorMessage(e)))
       setBusy(false)
     }
   }
 
   return (
     <Modal
-      title="Add people"
+      title={t('groups.addPeople')}
       onClose={onClose}
       footer={
         <>
-          <button className="button" onClick={onClose}>Cancel</button>
-          <button className="button primary" disabled={!picked.length || busy} onClick={() => void add()}>Add</button>
+          <button className="button" onClick={onClose}>{t('common.cancel')}</button>
+          <button className="button primary" disabled={!picked.length || busy} onClick={() => void add()}>{t('common.add')}</button>
         </>
       }
     >
       {room <= 0 ? (
-        <p className="muted">This group is full ({MAX_GROUP_MEMBERS} people).</p>
+        <p className="muted">{t('groups.full', { max: MAX_GROUP_MEMBERS })}</p>
       ) : (
         <>
-          <p className="muted group-intro">New people see messages from now on, not the ones before they joined.</p>
+          <p className="muted group-intro">{t('groups.newPeopleNote')}</p>
           <PeoplePicker candidates={candidates} picked={picked} onChange={setPicked} max={room} />
         </>
       )}
@@ -245,6 +252,7 @@ function AddPeopleDialog({ g, onClose }: { g: GroupConv; onClose: () => void }) 
 }
 
 function RenameDialog({ g, onClose }: { g: GroupConv; onClose: () => void }) {
+  const { t } = useTranslation()
   const [name, setName] = useState(g.name ?? '')
   const save = () => {
     void renameGroup(g.key, name)
@@ -252,25 +260,26 @@ function RenameDialog({ g, onClose }: { g: GroupConv; onClose: () => void }) {
   }
   return (
     <Modal
-      title="Rename group"
+      title={t('groups.renameGroup')}
       onClose={onClose}
       footer={
         <>
-          <button className="button" onClick={onClose}>Cancel</button>
-          <button className="button primary" disabled={name.trim() === (g.name ?? '')} onClick={save}>Save</button>
+          <button className="button" onClick={onClose}>{t('common.cancel')}</button>
+          <button className="button primary" disabled={name.trim() === (g.name ?? '')} onClick={save}>{t('common.save')}</button>
         </>
       }
     >
       <label className="field">
-        <span>Group name</span>
-        <input value={name} maxLength={MAX_GROUP_NAME} autoFocus onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && save()} placeholder="No name: shows who's in it" />
+        <span>{t('groups.groupName')}</span>
+        <input value={name} maxLength={MAX_GROUP_NAME} autoFocus onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && save()} placeholder={t('groups.noNamePlaceholder')} />
       </label>
-      <p className="muted">Everyone in the group sees the new name. The server never does: it's sent end-to-end encrypted.</p>
+      <p className="muted">{t('groups.renameNote')}</p>
     </Modal>
   )
 }
 
 function MembersDialog({ g, onClose, onAdd, onRename }: { g: GroupConv; onClose: () => void; onAdd: () => void; onRename: () => void }) {
+  const { t } = useTranslation()
   const [confirm, setConfirm] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const me = myKey()
@@ -284,28 +293,28 @@ function MembersDialog({ g, onClose, onAdd, onRename }: { g: GroupConv; onClose:
       await run()
       setConfirm(null)
     } catch (e) {
-      setError((e as Error).message)
+      setError(groupText(errorMessage(e)))
     }
   }
 
   return (
     <Modal title={`${titleOf(g)}`} onClose={onClose}>
-      <h3 className="section-title">{members.length} members</h3>
+      <h3 className="section-title">{t('groups.members', { count: members.length })}</h3>
       <div className="group-members">
         {members.map((k) => (
           <div key={k} className="friend-row">
             <Avatar name={knownName(k)} accountKey={k} size={36} online={isOnline(k)} />
             <div className="friend-text">
-              <strong>{k === me ? `${knownName(k)} (you)` : knownName(k)}</strong>
-              <span className="muted">{k === owner ? 'Owner' : isOnline(k) ? 'Online' : 'Offline'}</span>
+              <strong>{k === me ? t('groups.nameYou', { name: knownName(k) }) : knownName(k)}</strong>
+              <span className="muted">{k === owner ? t('groups.owner') : isOnline(k) ? t('groups.online') : t('groups.offline')}</span>
             </div>
             {member && owner === me && k !== me && (confirm === k ? (
               <>
-                <button className="button small danger" onClick={() => void act(() => removeFromGroup(g.key, k))}>Remove {knownName(k)}</button>
-                <button className="button small" onClick={() => setConfirm(null)}>Keep</button>
+                <button className="button small danger" onClick={() => void act(() => removeFromGroup(g.key, k))}>{t('groups.removeName', { name: knownName(k) })}</button>
+                <button className="button small" onClick={() => setConfirm(null)}>{t('groups.keep')}</button>
               </>
             ) : (
-              <button className="button small ghost" onClick={() => setConfirm(k)} aria-label={`Remove ${knownName(k)} from the group`}>Remove</button>
+              <button className="button small ghost" onClick={() => setConfirm(k)} aria-label={t('groups.removeFromGroup', { name: knownName(k) })}>{t('common.remove')}</button>
             ))}
           </div>
         ))}
@@ -313,21 +322,20 @@ function MembersDialog({ g, onClose, onAdd, onRename }: { g: GroupConv; onClose:
       {error && <p className="error-text">{error}</p>}
       {member && (
         <div className="group-actions">
-          <button className="button" disabled={members.length >= MAX_GROUP_MEMBERS} onClick={onAdd}><UserPlus size={16} /> Add people</button>
-          <button className="button" onClick={onRename}><Pencil size={16} /> Rename</button>
+          <button className="button" disabled={members.length >= MAX_GROUP_MEMBERS} onClick={onAdd}><UserPlus size={16} /> {t('groups.addPeople')}</button>
+          <button className="button" onClick={onRename}><Pencil size={16} /> {t('groups.rename')}</button>
           {confirm === 'leave' ? (
             <>
-              <button className="button danger" onClick={() => void act(async () => { await leaveGroup(g.key); onClose() })}>Leave for good</button>
-              <button className="button" onClick={() => setConfirm(null)}>Stay</button>
+              <button className="button danger" onClick={() => void act(async () => { await leaveGroup(g.key); onClose() })}>{t('groups.leaveForGood')}</button>
+              <button className="button" onClick={() => setConfirm(null)}>{t('groups.stay')}</button>
             </>
           ) : (
-            <button className="button danger ghost" onClick={() => setConfirm('leave')}>Leave group</button>
+            <button className="button danger ghost" onClick={() => setConfirm('leave')}>{t('groups.leaveGroup')}</button>
           )}
         </div>
       )}
       <p className="muted group-rules">
-        Anyone in the group can add people. {owner === me ? 'You can' : `${owner ? knownName(owner) : 'The owner'} can`} remove people; if the owner leaves, the
-        longest-standing member takes over. Every change is signed by whoever made it and checked by every device, so a server can't slip anyone in.
+        {owner === me ? t('groups.rulesYou') : t('groups.rulesOther', { name: owner ? knownName(owner) : t('groups.theOwner') })}
       </p>
     </Modal>
   )
@@ -336,6 +344,7 @@ function MembersDialog({ g, onClose, onAdd, onRename }: { g: GroupConv; onClose:
 // ── The conversation ───────────────────────────────────────────────────────
 
 export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: (panel: Panel) => void }) {
+  const { t } = useTranslation()
   const g = useGroups((s) => s.groups[groupKey])
   useApp((s) => s.servers)
   const joined = useGroupCalls((s) => s.joined)
@@ -357,10 +366,10 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
     return (
       <div className="chat">
         <header className="chat-header">
-          <button className="icon-button mobile-only" onClick={() => onToggle('nav')} aria-label="Open menu"><Menu /></button>
-          <h1>Group</h1>
+          <button className="icon-button mobile-only" onClick={() => onToggle('nav')} aria-label={t('groups.openMenu')}><Menu /></button>
+          <h1>{t('groups.group')}</h1>
         </header>
-        <div className="empty-state"><p>{g?.problem ?? 'Loading this group…'}</p></div>
+        <div className="empty-state"><p>{g?.problem ? groupText(g.problem) : t('groups.loading')}</p></div>
       </div>
     )
   }
@@ -371,13 +380,13 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
     const rename = !m.error ? asRename(m.group) : null
     if (rename) {
       if ((m.group as { silent?: unknown }).silent === true) return null
-      const who = m.from === me ? 'You' : knownName(m.from)
-      return <SystemLine key={`${m.from}:${m.id}`} icon="pencil" text={rename.name ? `${who} named the group ${rename.name}` : `${who} removed the group name`} at={m.sentAt} />
+      const who = m.from === me ? t('groups.you') : knownName(m.from)
+      return <SystemLine key={`${m.from}:${m.id}`} icon="pencil" text={rename.name ? t('groups.namedGroup', { who, name: rename.name }) : t('groups.removedName', { who })} at={m.sentAt} />
     }
     const callLine = !m.error ? asGroupCallLine(m.call) : null
     if (callLine) {
-      const who = m.from === me ? 'You' : knownName(m.from)
-      return <SystemLine key={`${m.from}:${m.id}`} icon={callLine.video ? 'video' : 'phone'} text={`${who} started a ${callLine.video ? 'video' : 'voice'} call`} at={m.sentAt} />
+      const who = m.from === me ? t('groups.you') : knownName(m.from)
+      return <SystemLine key={`${m.from}:${m.id}`} icon={callLine.video ? 'video' : 'phone'} text={callLine.video ? t('groups.startedVideo', { who }) : t('groups.startedVoice', { who })} at={m.sentAt} />
     }
     const prev = items[i - 1]
     const grouped = prev?.kind === 'message' && prev.message.from === m.from && m.sentAt - prev.message.sentAt < GROUP_WINDOW_MS
@@ -394,13 +403,13 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
   return (
     <div className="chat group-chat">
       <header className="chat-header">
-        <button className="icon-button mobile-only" onClick={() => onToggle('nav')} aria-label="Open menu"><Menu /></button>
+        <button className="icon-button mobile-only" onClick={() => onToggle('nav')} aria-label={t('groups.openMenu')}><Menu /></button>
         <GroupAvatar members={g.view.members} />
         <h1 className="group-title">{title}</h1>
-        <span className="e2e-badge" title="Only the people in this group can read these messages"><Lock size={13} /> End-to-end encrypted</span>
+        <span className="e2e-badge" title={t('groups.onlyPeopleRead')}><Lock size={13} /> {t('groups.e2e')}</span>
         <span className="spacer" />
         {member && <GroupCallButtons groupKey={groupKey} />}
-        <button className="icon-button" onClick={() => setDialog('members')} aria-label="Group members" title="Members">
+        <button className="icon-button" onClick={() => setDialog('members')} aria-label={t('groups.groupMembers')} title={t('groups.membersTitle')}>
           <Users />
         </button>
       </header>
@@ -408,8 +417,8 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
       {call && !inThisCall && member && <OngoingCallBanner groupKey={groupKey} />}
       {archived && (
         <div className="archived-banner" role="status">
-          <span><strong>Archived.</strong> This group's server isn't in your server list any more, so the group is read-only here. It stays on this device until you remove it.</span>
-          <button className="button small" onClick={() => forgetGroup(groupKey)}>Remove</button>
+          <span><Trans i18nKey="groups.archivedBanner" components={{ b: <strong /> }} /></span>
+          <button className="button small" onClick={() => forgetGroup(groupKey)}>{t('common.remove')}</button>
         </div>
       )}
 
@@ -418,9 +427,9 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
         <div className="channel-start">
           <GroupAvatar members={g.view.members} size={64} />
           <h2>{title}</h2>
-          <p>This is the start of the group. Messages and calls are end-to-end encrypted: the server only passes them along.</p>
+          <p>{t('groups.start')}</p>
         </div>
-        {g.problem && <p className="group-problem" role="alert"><Lock size={14} /> {g.problem}</p>}
+        {g.problem && <p className="group-problem" role="alert"><Lock size={14} /> {groupText(g.problem)}</p>}
         {items.map((item, i) => (
           <Fragment key={item.kind === 'change' ? `c${item.change.version}` : `${item.message.from}:${item.message.id}`}>
             {item.kind === 'message' && item.message === firstNew && <UnreadDivider />}
@@ -431,11 +440,11 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
 
       <div className="typing-line" />
       {!reason ? (
-        <DmComposer key={groupKey} peer="" placeholder={`Message ${title}`} group={{ key: groupKey, serverKey: g.serverKey, id: g.id }} />
+        <DmComposer key={groupKey} peer="" placeholder={t('groups.messagePlaceholder', { title })} group={{ key: groupKey, serverKey: g.serverKey, id: g.id }} />
       ) : (
         <div className="composer read-only">
-          {reason}
-          {!member && !archived && <button className="link" onClick={() => forgetGroup(groupKey)}>Remove from this device</button>}
+          {groupText(reason)}
+          {!member && !archived && <button className="link" onClick={() => forgetGroup(groupKey)}>{t('groups.removeFromDevice')}</button>}
         </div>
       )}
 
@@ -457,6 +466,7 @@ function SystemLine({ text, at, icon }: { text: string; at: number; icon?: 'penc
 }
 
 function GroupRow({ m, grouped, groupKey, mine }: { m: GroupMsg; grouped: boolean; groupKey: string; mine: boolean }) {
+  const { t } = useTranslation()
   const name = knownName(m.from)
   return (
     <div className={`message ${grouped ? 'grouped' : ''} ${m.pending ?? ''}`}>
@@ -471,7 +481,7 @@ function GroupRow({ m, grouped, groupKey, mine }: { m: GroupMsg; grouped: boolea
           </div>
         )}
         {m.error && !m.pending ? (
-          <div className="message-notice"><Lock size={13} /> {m.error}</div>
+          <div className="message-notice"><Lock size={13} /> {groupText(m.error)}</div>
         ) : (
           <>
             {m.text && <div className="message-text">{renderMarkdown(m.text, { nameOf: (k) => knownName(k) })}</div>}
@@ -480,10 +490,10 @@ function GroupRow({ m, grouped, groupKey, mine }: { m: GroupMsg; grouped: boolea
         )}
         {m.pending === 'failed' && mine && (
           <div className="message-failed">
-            {m.error ?? "Couldn't send."}{' '}
-            <button className="link" onClick={() => { discardGroupMessage(groupKey, m.id); void sendGroupMessage(groupKey, m.text, m.files ? { files: m.files } : {}) }}>Retry</button>
+            {m.error ? groupText(m.error) : t('groups.couldNotSend')}{' '}
+            <button className="link" onClick={() => { discardGroupMessage(groupKey, m.id); void sendGroupMessage(groupKey, m.text, m.files ? { files: m.files } : {}) }}>{t('common.retry')}</button>
             {' · '}
-            <button className="link" onClick={() => discardGroupMessage(groupKey, m.id)}>Discard</button>
+            <button className="link" onClick={() => discardGroupMessage(groupKey, m.id)}>{t('groups.discard')}</button>
           </div>
         )}
       </div>

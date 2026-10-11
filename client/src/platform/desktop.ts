@@ -1,4 +1,6 @@
 // What the desktop app (Electron preload) adds. Undefined in a normal browser.
+import { onLanguage } from '../i18n'
+
 export interface ScreenSource {
   id: string
   name: string
@@ -62,6 +64,8 @@ export interface DesktopBridge {
   onHotkey?(callback: (action: 'mute' | 'deafen') => void): () => void
   /** macOS: opens a Privacy & Security page in System Settings. */
   openSystemSettings(pane: 'accessibility' | 'screen' | 'microphone' | 'camera'): Promise<void>
+  /** Tells the shell the app's language, for the tray and native dialogs (older shells don't have it). */
+  setLanguage?(language: string): Promise<void>
   updates: {
     status(): Promise<unknown>
     onStatus(callback: (status: unknown) => void): () => void
@@ -109,3 +113,6 @@ export interface DesktopBridge {
 }
 
 export const desktop: DesktopBridge | undefined = (globalThis as { iskraDesktop?: DesktopBridge }).iskraDesktop
+
+// The tray and native dialogs follow the app's language.
+if (desktop?.setLanguage) onLanguage((language) => void desktop!.setLanguage!(language).catch(() => undefined))

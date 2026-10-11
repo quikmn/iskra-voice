@@ -1,5 +1,7 @@
 // Keyboard shortcuts: unread navigation and marking read, plus the list of every shortcut (Ctrl+/).
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { useVoice } from '../../state/voice'
 import { goToUnread, markAllRead, markOpenRead } from '../../state/unread'
 import { openLayers } from '../layers'
@@ -10,39 +12,40 @@ const mac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator
 const MOD = mac ? '⌘' : 'Ctrl'
 const ALT = mac ? '⌥' : 'Alt'
 
-function shortcutList(pttKey: string | null): { group: string; items: [string[], string][] }[] {
+function shortcutList(t: TFunction, pttKey: string | null): { group: string; items: [string[], string][] }[] {
   return [
     {
-      group: 'Getting around',
+      group: t('organize.shortcuts.gettingAround'),
       items: [
-        [[MOD, 'K'], 'Jump to a channel, person or server'],
-        [[ALT, '↑'], 'Previous unread channel'],
-        [[ALT, '↓'], 'Next unread channel'],
-        [['Esc'], 'Mark this conversation as read (or close what is open)'],
-        [['Shift', 'Esc'], 'Mark the whole server as read (at Home: every DM)'],
-        [[MOD, '/'], 'Show these shortcuts'],
+        [[MOD, 'K'], t('organize.shortcuts.jump')],
+        [[ALT, '↑'], t('organize.shortcuts.prevUnread')],
+        [[ALT, '↓'], t('organize.shortcuts.nextUnread')],
+        [['Esc'], t('organize.shortcuts.markRead')],
+        [['Shift', 'Esc'], t('organize.shortcuts.markServerRead')],
+        [[MOD, '/'], t('organize.shortcuts.show')],
       ],
     },
     {
-      group: 'Writing',
+      group: t('organize.shortcuts.writing'),
       items: [
-        [['Enter'], 'Send'],
-        [['Shift', 'Enter'], 'New line'],
-        [['↑'], 'Edit your last message (in an empty message box)'],
-        [['Enter'], 'Save an edit'],
-        [['Esc'], 'Cancel an edit or a reply'],
-        [['@'], 'Mention someone; ↑ ↓ to choose, Enter or Tab to pick'],
-        [[':'], 'Emoji by name; ↑ ↓ to choose, Enter or Tab to pick'],
+        [['Enter'], t('organize.shortcuts.send')],
+        [['Shift', 'Enter'], t('organize.shortcuts.newLine')],
+        [['↑'], t('organize.shortcuts.editLast')],
+        [['Enter'], t('organize.shortcuts.saveEdit')],
+        [['Esc'], t('organize.shortcuts.cancelEdit')],
+        [['@'], t('organize.shortcuts.mention')],
+        [[':'], t('organize.shortcuts.emoji')],
       ],
     },
     {
-      group: 'Voice',
-      items: [[[pttKey ?? 'Not set'], pttKey ? 'Push to talk (hold)' : 'Push to talk: pick a key in Settings → Voice & audio']],
+      group: t('organize.shortcuts.voice'),
+      items: [[[pttKey ?? t('organize.shortcuts.notSet')], pttKey ? t('organize.shortcuts.ptt') : t('organize.shortcuts.pttUnset')]],
     },
   ]
 }
 
 export function Shortcuts() {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -67,9 +70,9 @@ export function Shortcuts() {
   const ptt = useVoice((s) => (s.settings.mode === 'ptt' ? (s.settings.desktopKey ?? s.settings.webKey)?.label ?? null : null))
   if (!open) return null
   return (
-    <Modal title="Keyboard shortcuts" onClose={() => setOpen(false)} wide>
+    <Modal title={t('organize.shortcuts.title')} onClose={() => setOpen(false)} wide>
       <div className="shortcut-groups">
-        {shortcutList(ptt).map(({ group, items }) => (
+        {shortcutList(t, ptt).map(({ group, items }) => (
           <section key={group}>
             <h3>{group}</h3>
             <dl className="shortcut-list">
@@ -83,7 +86,7 @@ export function Shortcuts() {
           </section>
         ))}
       </div>
-      <p className="muted">Right-click a channel, category or server (or press and hold on a phone) for more.</p>
+      <p className="muted">{t('organize.shortcuts.more')}</p>
     </Modal>
   )
 }

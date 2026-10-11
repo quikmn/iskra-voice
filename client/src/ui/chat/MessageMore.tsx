@@ -1,6 +1,7 @@
 // The "More" menu on a message (copy link, copy text, mark unread, who reacted) and the reactions list.
 import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
 import { messageLink } from '../../core/pushRoute'
 import type { Message } from '../../core/protocol'
 import type { PendingMessage, ServerState } from '../../state/store'
@@ -29,10 +30,11 @@ const MoreIcon = () => (
 export function MessageMoreButton({ server, message }: { server: ServerState; message: PendingMessage }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const [reactions, setReactions] = useState(false)
+  const { t } = useTranslation()
   if (message.tempId) return null
   return (
     <>
-      <button onClick={(e) => setAnchor(anchor ? null : e.currentTarget)} title="More" aria-label="More" aria-haspopup="menu" aria-expanded={!!anchor}>
+      <button onClick={(e) => setAnchor(anchor ? null : e.currentTarget)} title={t('common.more')} aria-label={t('common.more')} aria-haspopup="menu" aria-expanded={!!anchor}>
         <MoreIcon />
       </button>
       {anchor && <MoreMenu server={server} message={message} anchor={anchor} onClose={() => setAnchor(null)} onReactions={() => setReactions(true)} />}
@@ -47,6 +49,7 @@ function MoreMenu({ server, message, anchor, onClose, onReactions }: {
   const ref = useRef<HTMLDivElement>(null)
   const { style } = usePopoverPosition(anchor, ref)
   const [done, setDone] = useState<string | null>(null)
+  const { t } = useTranslation()
   useEscapeLayer(onClose)
   useFocusTrap(ref)
   const text = plainText(message.text, { nameOf: (k) => server.members[k]?.name ?? null })
@@ -58,18 +61,18 @@ function MoreMenu({ server, message, anchor, onClose, onReactions }: {
         setTimeout(onClose, 700)
       } else onClose()
     } catch {
-      setDone("Couldn't do that")
+      setDone(t('chat.actions.failed'))
     }
   }
   return createPortal(
     <div className="more-menu-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={ref} className="more-menu" style={style} role="menu" aria-label="Message options" tabIndex={-1}>
+      <div ref={ref} className="more-menu" style={style} role="menu" aria-label={t('chat.actions.options')} tabIndex={-1}>
         {done ? <div className="more-done" role="status">{done}</div> : (
           <>
-            <button role="menuitem" onClick={act('Link copied', () => copyMessageLink(server, message))}>Copy message link</button>
-            {text && <button role="menuitem" onClick={act('Text copied', () => navigator.clipboard.writeText(text))}>Copy text</button>}
-            <button role="menuitem" onClick={act(null, () => markUnread(server.key, message.channelId, message.id))}>Mark unread</button>
-            {message.reactions.length > 0 && <button role="menuitem" onClick={act(null, onReactions)}>View reactions</button>}
+            <button role="menuitem" onClick={act(t('chat.actions.linkCopied'), () => copyMessageLink(server, message))}>{t('chat.actions.copyLink')}</button>
+            {text && <button role="menuitem" onClick={act(t('chat.actions.textCopied'), () => navigator.clipboard.writeText(text))}>{t('chat.actions.copyText')}</button>}
+            <button role="menuitem" onClick={act(null, () => markUnread(server.key, message.channelId, message.id))}>{t('chat.actions.markUnread')}</button>
+            {message.reactions.length > 0 && <button role="menuitem" onClick={act(null, onReactions)}>{t('chat.actions.viewReactions')}</button>}
           </>
         )}
       </div>
@@ -82,10 +85,11 @@ function MoreMenu({ server, message, anchor, onClose, onReactions }: {
 export function ReactionsDialog({ server, message, initial, onClose }: { server: ServerState; message: Message; initial?: string; onClose: () => void }) {
   const [emoji, setEmoji] = useState(initial ?? message.reactions[0]?.emoji)
   const current = message.reactions.find((r) => r.emoji === emoji) ?? message.reactions[0]
+  const { t } = useTranslation()
   return (
-    <Modal title="Reactions" onClose={onClose}>
+    <Modal title={t('chat.reactions.dialogTitle')} onClose={onClose}>
       <div className="reactions-dialog">
-        <div className="reaction-tabs" role="tablist" aria-label="Emoji">
+        <div className="reaction-tabs" role="tablist" aria-label={t('chat.composer.emoji')}>
           {message.reactions.map((r) => (
             <button key={r.emoji} role="tab" aria-selected={r === current} className={r === current ? 'active' : ''} onClick={() => setEmoji(r.emoji)}>
               <EmojiGlyph serverKey={server.key} emoji={r.emoji} /> <span>{r.accounts.length}</span>
@@ -94,7 +98,7 @@ export function ReactionsDialog({ server, message, initial, onClose }: { server:
         </div>
         <ul className="reaction-people" role="tabpanel">
           {current?.accounts.map((key) => {
-            const name = server.members[key]?.name ?? 'Someone who left'
+            const name = server.members[key]?.name ?? t('chat.reactions.someoneWhoLeft')
             return (
               <li key={key}>
                 <Avatar name={name} accountKey={key} size={28} />

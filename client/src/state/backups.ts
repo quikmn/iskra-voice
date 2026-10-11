@@ -4,6 +4,7 @@ import { b64u, fromB64u, sealToServer } from '../core/crypto'
 import type { Events, ImportJob } from '../core/protocol'
 import { desktop } from '../platform/desktop'
 import { connectionFor, onServerEvent, useApp } from './store'
+import { t } from '../i18n'
 
 interface BackupProgress {
   done: number
@@ -31,7 +32,7 @@ onServerEvent((serverKey, type, body) => {
 
 function connection(serverKey: string) {
   const c = connectionFor(serverKey)
-  if (!c) throw new Error('Not connected to this server.')
+  if (!c) throw new Error(t('settings.backup.notConnected'))
   return c
 }
 
@@ -86,7 +87,7 @@ export function downloadFile(url: string): void {
 /** Uploads an export and starts the import; progress then arrives as import.progress events. */
 export async function startImport(serverKey: string, file: File, readOnly: boolean, onUpload: (fraction: number) => void): Promise<void> {
   const server = useApp.getState().servers[serverKey]
-  if (!server) throw new Error('Not connected to this server.')
+  if (!server) throw new Error(t('settings.backup.notConnected'))
   const { url } = await connection(serverKey).request('import.begin', { size: file.size, readOnly })
   useBackups.setState((s) => ({ imports: { ...s.imports, [serverKey]: undefined } }))
   await new Promise<void>((resolve, reject) => {
@@ -95,11 +96,11 @@ export async function startImport(serverKey: string, file: File, readOnly: boole
     xhr.upload.onprogress = (e) => e.lengthComputable && onUpload(e.loaded / e.total)
     xhr.onload = () => {
       if (xhr.status === 202) resolve()
-      else if (xhr.status === 413) reject(new Error('That file is bigger than this server accepts for imports.'))
-      else if (xhr.status === 415) reject(new Error("That isn't a DiscordChatExporter JSON export or a zip of them."))
-      else reject(new Error(`Upload failed (${xhr.status}).`))
+      else if (xhr.status === 413) reject(new Error(t('settings.import.tooBig')))
+      else if (xhr.status === 415) reject(new Error(t('settings.import.wrongType')))
+      else reject(new Error(t('settings.import.uploadFailedStatus', { status: xhr.status })))
     }
-    xhr.onerror = () => reject(new Error('Upload failed. Check your connection.'))
+    xhr.onerror = () => reject(new Error(t('settings.import.uploadFailed')))
     xhr.send(file)
   })
 }
@@ -113,18 +114,8 @@ export function cancelImport(serverKey: string): Promise<unknown> {
   return connection(serverKey).request('import.cancel', {})
 }
 
-/** "1.4 GB" */
-export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  const units = ['KB', 'MB', 'GB', 'TB']
-  let value = bytes / 1024
-  let unit = 0
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024
-    unit++
-  }
-  return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`
-}
+/** "1.4 GB", in the app's language. */
+export { formatBytes } from '../i18n/format'
 
 /** 0–1 for a progress bar (null while there's nothing to measure yet). */
 export function importFraction(job: ImportJob): number | null {

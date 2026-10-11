@@ -5,6 +5,7 @@ import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 import { senderRules } from './senderRules'
 import { canPingGroups, mentionsMyRole } from './permissions'
 import { mentions } from '../ui/markdown'
+import { t } from '../i18n'
 
 export const useRoles = create<Record<string, ServerRole[]>>(() => ({}))
 
@@ -17,7 +18,7 @@ const sorted = (roles: ServerRole[]) => [...roles].sort((a, b) => b.position - a
 
 function connection(serverKey: string) {
   const c = connectionFor(serverKey)
-  if (!c) throw new Error('Not connected.')
+  if (!c) throw new Error(t('errors.codes.disconnected'))
   return c
 }
 

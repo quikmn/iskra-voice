@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { desktop } from '../platform/desktop'
 import { parseUpdateStatus, updateNotice, type UpdateStatus } from '../platform/updates'
 import { Close } from './icons'
@@ -16,6 +17,7 @@ function readDismissed(): string | null {
 
 /** Desktop only: "Update ready, restart" once an update has downloaded, or a download link for builds that can't update themselves. */
 export function UpdateToast() {
+  const { t } = useTranslation()
   const [status, setStatus] = useState<UpdateStatus>({ state: 'none' })
   const [dismissed, setDismissed] = useState(readDismissed)
   const [restarting, setRestarting] = useState(false)
@@ -54,21 +56,21 @@ export function UpdateToast() {
         </svg>
       </div>
       <div className="update-toast-text">
-        <strong>{notice.kind === 'ready' ? 'Update ready' : 'New version available'}</strong>
+        <strong>{notice.kind === 'ready' ? t('app.update.ready') : t('app.update.available')}</strong>
         <span>
-          {notice.kind === 'ready' ? `Iskra ${notice.version} is downloaded. Restart to finish.` : `Iskra ${notice.version} is out.`}
+          {notice.kind === 'ready' ? t('app.update.readyBody', { version: notice.version }) : t('app.update.availableBody', { version: notice.version })}
         </span>
       </div>
       {notice.kind === 'ready' ? (
         <button className="button primary" onClick={() => void restart()} disabled={restarting}>
-          {restarting ? 'Restarting…' : 'Restart'}
+          {restarting ? t('app.update.restarting') : t('app.update.restart')}
         </button>
       ) : (
         <a className="button primary" href={notice.url} target="_blank" rel="noreferrer">
-          Download
+          {t('common.download')}
         </a>
       )}
-      <button className="icon-button" onClick={dismiss} aria-label={notice.kind === 'ready' ? 'Later' : 'Dismiss'} title={notice.kind === 'ready' ? 'Later (installs when you quit)' : 'Dismiss'}>
+      <button className="icon-button" onClick={dismiss} aria-label={notice.kind === 'ready' ? t('app.update.later') : t('app.dismiss')} title={notice.kind === 'ready' ? t('app.update.laterTitle') : t('app.dismiss')}>
         <Close size={16} />
       </button>
     </div>

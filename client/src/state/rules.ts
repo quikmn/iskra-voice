@@ -2,6 +2,7 @@
 import { create } from 'zustand'
 import type { Events, Requests, ServerRules } from '../core/protocol'
 import { connectionFor, onServerEvent, onWelcomeHook } from './store'
+import { t } from '../i18n'
 
 interface RulesState {
   /** serverKey → the rules as you see them there. */
@@ -33,7 +34,7 @@ onServerEvent((serverKey, type, body) => {
 
 function connection(serverKey: string) {
   const c = connectionFor(serverKey)
-  if (!c) throw new Error('Not connected to this server.')
+  if (!c) throw new Error(t('rules.notConnected'))
   return c
 }
 

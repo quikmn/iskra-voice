@@ -1,5 +1,6 @@
 // Your devices: prekeys (forward secrecy), the device list, renaming and revoking.
 // Servers only store what devices sign; every server you're on gets the same signed statements.
+import { t } from '../i18n'
 import { create } from 'zustand'
 import { b64u } from '../core/crypto'
 import {
@@ -167,7 +168,7 @@ export async function refreshDevices(): Promise<void> {
       continue
     }
     merged.set(d.deviceKey, {
-      deviceKey: d.deviceKey, name: d.name ?? d.platform ?? 'Unnamed device', platform: d.platform,
+      deviceKey: d.deviceKey, name: d.name ?? d.platform ?? t('settings.devices.unnamed'), platform: d.platform,
       created: d.created, lastSeen: d.lastSeen, current: d.deviceKey === thisDevice(),
     })
   }

@@ -12,6 +12,8 @@ import { useNotify } from './notify'
 import { isDoNotDisturb } from './presence'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 import { joinCall, leaveVoice, useVoice } from './voice'
+import { t } from '../i18n'
+import { errorMessage } from '../i18n/errors'
 
 interface CallsState {
   call: CallInfo | null
@@ -70,7 +72,7 @@ export async function startCall(peer: string, video: boolean): Promise<void> {
   const id = b64u(randomBytes(16))
   dispatch({ type: 'dial', id, peer, serverKey: serverKey ?? '', video, at: Date.now() })
   if (!identity || !serverKey) {
-    dispatch({ type: 'ended', id, reason: 'failed', at: Date.now(), error: `You don't share a server with calls with ${nameOf(peer)} right now.` })
+    dispatch({ type: 'ended', id, reason: 'failed', at: Date.now(), error: t('calls.noServerWith', { name: nameOf(peer) }) })
     return
   }
   setTimeout(() => {
@@ -81,7 +83,7 @@ export async function startCall(peer: string, video: boolean): Promise<void> {
   const key = randomBytes(32)
   try {
     const envelope = await encryptFor(serverKey, peer, {
-      text: video ? 'Incoming video call' : 'Incoming voice call',
+      text: video ? t('calls.incomingVideo') : t('calls.incomingVoice'),
       call: { kind: 'invite', id, key: b64u(key), video },
     })
     const media = await connectionFor(serverKey)!.request('call.start', { accountKey: peer, callId: id, video, envelope })
@@ -92,10 +94,10 @@ export async function startCall(peer: string, video: boolean): Promise<void> {
     }
     keys.set(id, key)
     const joined = await joinCall(serverKey, { id, peer }, media, key, video)
-    if (!joined && useCalls.getState().call?.id === id) await hangUp("Couldn't connect the call.")
+    if (!joined && useCalls.getState().call?.id === id) await hangUp(t('calls.couldNotConnect'))
   } catch (e) {
     const busy = e instanceof RequestError && e.code === 'busy'
-    dispatch({ type: 'ended', id, reason: busy ? 'busy' : 'failed', at: Date.now(), error: (e as Error).message })
+    dispatch({ type: 'ended', id, reason: busy ? 'busy' : 'failed', at: Date.now(), error: errorMessage(e) })
   }
 }
 
@@ -136,9 +138,9 @@ export async function acceptCall(): Promise<void> {
     dispatch({ type: 'accepted', id: call.id, at: Date.now() })
     openConversation(call.peer)
     const joined = await joinCall(call.serverKey, { id: call.id, peer: call.peer }, media, key, call.video)
-    if (!joined && useCalls.getState().call?.id === call.id) await hangUp("Couldn't connect the call.")
+    if (!joined && useCalls.getState().call?.id === call.id) await hangUp(t('calls.couldNotConnect'))
   } catch {
-    dispatch({ type: 'ended', id: call.id, reason: 'failed', at: Date.now(), error: 'This call is no longer available.' })
+    dispatch({ type: 'ended', id: call.id, reason: 'failed', at: Date.now(), error: t('calls.noLongerAvailable') })
   }
 }
 
@@ -258,8 +260,8 @@ useCalls.subscribe((state, prev) => {
     if (!quiet) void desktop?.callAlert?.(true)
     const call = state.call!
     if (!quiet && !document.hasFocus() && useNotify.getState().desktop && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-      notification = new Notification(`${nameOf(call.peer)} is calling`, {
-        body: call.video ? 'Video call · end-to-end encrypted' : 'Voice call · end-to-end encrypted',
+      notification = new Notification(t('calls.isCalling', { name: nameOf(call.peer) }), {
+        body: call.video ? t('calls.notifyVideo') : t('calls.notifyVoice'),
         tag: 'iskra-call',
         requireInteraction: true,
         silent: true,

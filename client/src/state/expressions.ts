@@ -4,6 +4,7 @@ import type { CustomEmoji, Events, FileInfo, Poll, Sound } from '../core/protoco
 import { connectionFor, onServerEvent, onWelcomeHook, uploadFile, useApp } from './store'
 import { useVoice } from './voice'
 import { useAudio } from './audio'
+import { t } from '../i18n'
 
 export interface SoundboardSettings {
   /** 0–1. */
@@ -162,7 +163,7 @@ onWelcomeHook((serverKey) => void loadLists(serverKey))
 
 function connection(serverKey: string) {
   const c = connectionFor(serverKey)
-  if (!c) throw new Error('Not connected.')
+  if (!c) throw new Error(t('expressions.errors.notConnected'))
   return c
 }
 
@@ -187,17 +188,17 @@ export const EMOJI_MAX_SIDE = 128
 
 /** Fits a still image into 128×128 (PNG). GIFs keep their animation, so they must already be small enough. */
 export async function prepareEmojiImage(file: File): Promise<File> {
-  if (!/^image\/(png|gif|webp|jpeg)$/.test(file.type)) throw new Error('Emoji must be PNG, GIF or WebP images.')
+  if (!/^image\/(png|gif|webp|jpeg)$/.test(file.type)) throw new Error(t('expressions.errors.emojiType'))
   const url = URL.createObjectURL(file)
   try {
     const image = new Image()
     image.src = url
     await image.decode().catch(() => {
-      throw new Error("Couldn't read that image.")
+      throw new Error(t('expressions.errors.cantReadImage'))
     })
     const { naturalWidth: width, naturalHeight: height } = image
     if (file.type === 'image/gif') {
-      if (width > EMOJI_MAX_SIDE || height > EMOJI_MAX_SIDE) throw new Error(`Animated emoji can be up to ${EMOJI_MAX_SIDE}×${EMOJI_MAX_SIDE} pixels.`)
+      if (width > EMOJI_MAX_SIDE || height > EMOJI_MAX_SIDE) throw new Error(t('expressions.errors.animatedTooBig', { side: EMOJI_MAX_SIDE }))
       return file
     }
     if (file.type !== 'image/jpeg' && width <= EMOJI_MAX_SIDE && height <= EMOJI_MAX_SIDE && file.size <= EMOJI_MAX_BYTES) return file
@@ -209,7 +210,7 @@ export async function prepareEmojiImage(file: File): Promise<File> {
     context.imageSmoothingQuality = 'high'
     context.drawImage(image, 0, 0, canvas.width, canvas.height)
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
-    if (!blob) throw new Error("Couldn't read that image.")
+    if (!blob) throw new Error(t('expressions.errors.cantReadImage'))
     return new File([blob], file.name.replace(/\.\w+$/, '') + '.png', { type: 'image/png' })
   } finally {
     URL.revokeObjectURL(url)
@@ -248,7 +249,7 @@ export function audioDuration(file: File): Promise<number> {
     }
     audio.onerror = () => {
       URL.revokeObjectURL(url)
-      reject(new Error("Couldn't read that sound. Try an MP3, Ogg or WAV file."))
+      reject(new Error(t('expressions.errors.cantReadSound')))
     }
     audio.src = url
   })

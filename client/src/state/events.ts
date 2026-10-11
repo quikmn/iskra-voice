@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import { roleRank, type EventFields, type Events, type Requests, type ServerEvent } from '../core/protocol'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp, type ServerState } from './store'
 import { showNotification } from './notify'
+import { t } from '../i18n'
 
 export interface EventReminder {
   id: string
@@ -86,7 +87,7 @@ function request<K extends 'event.create' | 'event.update' | 'event.cancel' | 'e
   serverKey: string, type: K, body: Requests[K][0],
 ): Promise<Requests[K][1]> {
   const connection = connectionFor(serverKey)
-  if (!connection) return Promise.reject(new Error('Not connected.'))
+  if (!connection) return Promise.reject(new Error(t('errors.codes.disconnected')))
   return connection.request(type, body)
 }
 
@@ -117,7 +118,7 @@ onServerEvent((serverKey, type, body) => {
     useEvents.setState((s) => ({ reminders: [...s.reminders.filter((r) => r.event.id !== event.id || r.serverKey !== serverKey), { id, serverKey, event, kind }].slice(-3) }))
     setTimeout(() => dismissReminder(id), 60_000)
     const server = useApp.getState().servers[serverKey]
-    showNotification(serverKey, kind === 'live' ? `${event.title} is starting now` : `Starting soon: ${event.title}`,
-      server ? `On ${server.name}` : '', () => showEvents(serverKey, event.id))
+    showNotification(serverKey, kind === 'live' ? t('events.notifyLive', { title: event.title }) : t('events.notifySoon', { title: event.title }),
+      server ? t('events.notifyOn', { server: server.name }) : '', () => showEvents(serverKey, event.id))
   }
 })

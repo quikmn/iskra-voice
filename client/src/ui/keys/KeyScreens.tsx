@@ -1,5 +1,6 @@
 // Screens and notices about this device's keys: the app lock, a replaced account key, disputes for admins.
 import { useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import { fingerprint } from '../../core/connection'
 import { encodeRecoveryKey, seedOf } from '../../core/recovery'
 import { resetThisDevice } from '../../state/devices'
@@ -10,7 +11,15 @@ import { activeServerState, boot, useApp } from '../../state/store'
 import { roleRank } from '../../core/protocol'
 import { Modal, Spinner } from '../bits'
 import { KeyActions } from '../dialogs/RecoveryKey'
+import { errorMessage } from '../../i18n/errors'
 import './keys.css'
+
+/** The vault's own (English) startup errors, in the reader's language. */
+const VAULT_ERRORS = {
+  "Iskra's keys are protected by this computer's keychain, which isn't available right now.": 'keys.vault.keychainMissing',
+  "This computer's keychain wouldn't unlock Iskra's keys. Make sure you're signed in as the same user, then try again.": 'keys.vault.keychainRefused',
+  "The key that protects Iskra's data in this browser is missing or damaged.": 'keys.vault.browserKeyMissing',
+} as const
 
 function Brand() {
   return (
@@ -21,16 +30,17 @@ function Brand() {
 }
 
 /** Clearing the device, with one confirmation step. */
-function ResetButton({ label = 'Clear Iskra from this device' }: { label?: string }) {
+function ResetButton({ label }: { label?: string }) {
+  const { t } = useTranslation()
   const [confirm, setConfirm] = useState(false)
   const [busy, setBusy] = useState(false)
-  if (!confirm) return <button className="button wide" onClick={() => setConfirm(true)}>{label}</button>
+  if (!confirm) return <button className="button wide" onClick={() => setConfirm(true)}>{label ?? t('keys.reset.button')}</button>
   return (
     <div className="key-confirm">
-      <p className="warning-text">This deletes your account and messages from this device. You can come back with your recovery key or by linking from another device.</p>
+      <p className="warning-text">{t('keys.reset.warning')}</p>
       <div className="copy-row">
-        <button className="button danger" disabled={busy} onClick={() => { setBusy(true); void resetThisDevice() }}>Clear this device</button>
-        <button className="button" onClick={() => setConfirm(false)}>Cancel</button>
+        <button className="button danger" disabled={busy} onClick={() => { setBusy(true); void resetThisDevice() }}>{t('keys.reset.confirm')}</button>
+        <button className="button" onClick={() => setConfirm(false)}>{t('common.cancel')}</button>
       </div>
     </div>
   )
@@ -38,6 +48,7 @@ function ResetButton({ label = 'Clear Iskra from this device' }: { label?: strin
 
 /** Startup: the app lock passphrase, or the keychain didn't cooperate. */
 export function LockScreen() {
+  const { t } = useTranslation()
   const status = useLock((s) => s.status)
   const message = useLock((s) => s.message)
   const [passphrase, setPassphrase] = useState('')
@@ -63,9 +74,9 @@ export function LockScreen() {
       <div className="onboarding">
         <div className="onboarding-card">
           <Brand />
-          <p className="lead">Iskra can't open its keys</p>
-          <p className="muted">{message}</p>
-          <button className="button primary wide" onClick={() => window.location.reload()}>Try again</button>
+          <p className="lead">{t('keys.lock.cantOpen')}</p>
+          <p className="muted">{message && message in VAULT_ERRORS ? t(VAULT_ERRORS[message as keyof typeof VAULT_ERRORS]) : message}</p>
+          <button className="button primary wide" onClick={() => window.location.reload()}>{t('common.tryAgain')}</button>
           <ResetButton />
         </div>
       </div>
@@ -76,22 +87,19 @@ export function LockScreen() {
     <div className="onboarding">
       <form className="onboarding-card" onSubmit={(e) => { e.preventDefault(); void submit() }}>
         <Brand />
-        <p className="lead">Iskra is locked</p>
+        <p className="lead">{t('keys.lock.locked')}</p>
         <label className="field">
-          <span>App lock passphrase</span>
+          <span>{t('keys.lock.passphrase')}</span>
           <input type="password" autoComplete="current-password" autoFocus value={passphrase} aria-invalid={wrong}
             onChange={(e) => { setPassphrase(e.target.value); setWrong(false) }} />
         </label>
-        {wrong && <p className="error-text" role="alert">That passphrase isn't right.</p>}
+        {wrong && <p className="error-text" role="alert">{t('keys.lock.wrong')}</p>}
         <button type="submit" className="button primary wide" disabled={!passphrase || busy}>
-          {busy ? <><Spinner /> Unlocking…</> : 'Unlock'}
+          {busy ? <><Spinner /> {t('keys.lock.unlocking')}</> : t('keys.lock.unlock')}
         </button>
         <details className="key-help">
-          <summary>Forgot it?</summary>
-          <p className="muted">
-            The passphrase can't be recovered: it's what encrypts your keys on this device. Clear Iskra from this device, then sign in again
-            with your recovery key or by linking from another of your devices.
-          </p>
+          <summary>{t('keys.lock.forgot')}</summary>
+          <p className="muted">{t('keys.lock.forgotHint')}</p>
           <ResetButton />
         </details>
       </form>
@@ -101,6 +109,7 @@ export function LockScreen() {
 
 /** This device's account key was replaced and it wasn't handed the new one. */
 export function RetiredScreen() {
+  const { t } = useTranslation()
   const [claiming, setClaiming] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -108,36 +117,29 @@ export function RetiredScreen() {
     <div className="onboarding">
       <div className="onboarding-card">
         <Brand />
-        <p className="lead">Your account key was replaced</p>
+        <p className="lead">{t('keys.retired.title')}</p>
+        <p className="muted">{t('keys.retired.body')}</p>
         <p className="muted">
-          Your account was moved to a new key, by another of your devices or by someone who has your recovery key. This device wasn't given the
-          new key, so it can't sign in with the old one.
+          <Trans i18nKey="keys.retired.ifYou" components={{ b: <strong /> }} />
         </p>
-        <p className="muted">
-          <strong>If that was you</strong> on another device, clear this device and link it again from there (Settings → Devices → Link a
-          device).
-        </p>
-        <button className="button wide" onClick={retryRetired}>Try again</button>
+        <button className="button wide" onClick={retryRetired}>{t('common.tryAgain')}</button>
         {claiming ? (
           <div className="key-confirm">
-            <p>
-              Your servers will be asked to move your account to a new key from this device. Where someone else already took it, the server's
-              admins decide who's really you, so tell them. You'll get a new recovery key.
-            </p>
+            <p>{t('keys.retired.claimHint')}</p>
             {error && <p className="error-text">{error}</p>}
             <div className="copy-row">
               <button className="button danger" disabled={busy}
                 onClick={async () => {
                   setBusy(true)
-                  try { await claimAccountBack() } catch (e) { setError((e as Error).message); setBusy(false) }
+                  try { await claimAccountBack() } catch (e) { setError(errorMessage(e)); setBusy(false) }
                 }}>
-                Take my account back
+                {t('keys.retired.claim')}
               </button>
-              <button className="button" onClick={() => setClaiming(false)}>Cancel</button>
+              <button className="button" onClick={() => setClaiming(false)}>{t('common.cancel')}</button>
             </div>
           </div>
         ) : (
-          <button className="button danger-outline wide" onClick={() => setClaiming(true)}>That wasn't me</button>
+          <button className="button danger-outline wide" onClick={() => setClaiming(true)}>{t('keys.retired.notMe')}</button>
         )}
         <ResetButton />
       </div>
@@ -147,29 +149,29 @@ export function RetiredScreen() {
 
 /** After this device moved to a new account key: the new recovery key, right away. */
 export function NewKeyDialog() {
+  const { t } = useTranslation()
   const moved = useKeys((s) => s.moved)
   const identity = useApp((s) => s.identity)
   if (!moved || !identity) return null
   const recoveryKey = encodeRecoveryKey(seedOf(identity))
   const close = () => useKeys.setState({ moved: null })
   return (
-    <Modal title="Your account has a new key" onClose={close}>
+    <Modal title={t('keys.newKey.title')} onClose={close}>
       <p className="muted">
-        {moved === 'here'
-          ? 'Your servers moved your account, roles and messages to the new key. Friends will see that your safety number changed.'
-          : 'Your account key was replaced on another of your devices, and this device now has the new key.'}{' '}
-        Your old recovery key no longer works. Save the new one:
+        {moved === 'here' ? t('keys.newKey.movedHere') : t('keys.newKey.movedElsewhere')}{' '}
+        {t('keys.newKey.saveIt')}
       </p>
       <div className="recovery-key" data-testid="new-recovery-key">{recoveryKey}</div>
       <KeyActions recoveryKey={recoveryKey} />
-      <p className="warning-text">Anyone with this key can use your account. Never share it.</p>
-      <button className="button primary" onClick={close}>Done</button>
+      <p className="warning-text">{t('keys.newKey.warning')}</p>
+      <button className="button primary" onClick={close}>{t('common.done')}</button>
     </Modal>
   )
 }
 
 /** Admins of the server you're looking at: someone's old key was claimed twice. */
 export function DisputeNotices() {
+  const { t } = useTranslation()
   const server = useApp(activeServerState)
   const disputes = useKeys((s) => s.disputes)
   const [busy, setBusy] = useState<string | null>(null)
@@ -188,15 +190,14 @@ export function DisputeNotices() {
         return (
           <div className="nudge key-dispute" role="status" key={rotation.oldKey}>
             <p>
-              <strong>{name}'s account is disputed.</strong> Two different keys claimed it, so one of them may be someone with a stolen key. Ask{' '}
-              {name} in person or on a call which key is theirs (Settings → Recovery key shows it), then keep that one.
+              <Trans i18nKey="keys.dispute.body" values={{ name }} components={{ b: <strong /> }} />
             </p>
             <div className="copy-row">
               <button className="button small" disabled={busy === rotation.oldKey} onClick={() => void decide(rotation.newKey)}>
-                Keep {fingerprint(rotation.newKey)}
+                {t('keys.dispute.keep', { key: fingerprint(rotation.newKey) })}
               </button>
               <button className="button small" disabled={busy === rotation.oldKey} onClick={() => void decide(rotation.contest!.newKey)}>
-                Give it to {fingerprint(rotation.contest!.newKey)}
+                {t('keys.dispute.giveTo', { key: fingerprint(rotation.contest!.newKey) })}
               </button>
             </div>
           </div>

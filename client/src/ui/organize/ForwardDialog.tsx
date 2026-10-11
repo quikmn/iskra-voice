@@ -1,5 +1,8 @@
 // Forward a message to a channel you can post in on this server, or to someone as a DM.
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { errorMessage } from '../../i18n/errors'
+import { Trans } from 'react-i18next'
 import { roleRank, type Message } from '../../core/protocol'
 import type { ServerState } from '../../state/store'
 import { useDms } from '../../state/dms'
@@ -13,6 +16,7 @@ import './organize.css'
 type Target = { kind: 'channel'; id: number; label: string } | { kind: 'dm'; key: string; label: string }
 
 export function ForwardDialog({ server, message, onClose }: { server: ServerState; message: Message; onClose: () => void }) {
+  const { t } = useTranslation()
   const [query, setQuery] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -28,7 +32,7 @@ export function ForwardDialog({ server, message, onClose }: { server: ServerStat
   for (const f of Object.values(friends)) if (f.accountKey !== me?.accountKey && !people.has(f.accountKey)) people.set(f.accountKey, f.name)
   const dms: Target[] = [...people].map(([key, label]) => ({ kind: 'dm' as const, key, label })).sort((a, b) => a.label.localeCompare(b.label))
   const q = query.trim().toLowerCase().replace(/^[#@]/, '')
-  const shown = [...channels, ...dms].filter((t) => !q || t.label.toLowerCase().includes(q))
+  const shown = [...channels, ...dms].filter((x) => !q || x.label.toLowerCase().includes(q))
 
   async function send(target: Target) {
     const tag = target.kind === 'channel' ? `c${target.id}` : target.key
@@ -39,35 +43,35 @@ export function ForwardDialog({ server, message, onClose }: { server: ServerStat
       else await forwardToDm(server, message, target.key)
       onClose()
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
       setBusy(null)
     }
   }
 
   const preview = plainText(message.text, { nameOf: (k) => server.members[k]?.name ?? null }).replace(/\s+/g, ' ').slice(0, 140)
   return (
-    <Modal title="Forward message" onClose={onClose}>
+    <Modal title={t('organize.forward.title')} onClose={onClose}>
       <blockquote className="forward-preview">
-        {preview || `${message.attachments.length} file${message.attachments.length === 1 ? '' : 's'}`}
+        {preview || t('organize.forward.files', { count: message.attachments.length })}
       </blockquote>
       <label className="field">
-        <span>Send to</span>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search channels and people" aria-label="Search channels and people" />
+        <span>{t('organize.forward.sendTo')}</span>
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('organize.forward.search')} aria-label={t('organize.forward.search')} />
       </label>
       <div className="forward-targets" role="list">
-        {shown.length === 0 && <p className="muted">Nothing matches.</p>}
-        {shown.map((t) => {
-          const tag = t.kind === 'channel' ? `c${t.id}` : t.key
+        {shown.length === 0 && <p className="muted">{t('organize.forward.nothing')}</p>}
+        {shown.map((target) => {
+          const tag = target.kind === 'channel' ? `c${target.id}` : target.key
           return (
             <div key={tag} className="forward-target" role="listitem">
-              {t.kind === 'channel'
+              {target.kind === 'channel'
                 ? <span className="forward-icon"><Hash size={16} /></span>
-                : <Avatar name={t.label} accountKey={t.key} size={24} />}
-              <span className="forward-name">{t.label}</span>
-              {t.kind === 'dm' && <span className="muted forward-kind">Direct message</span>}
-              <button className="button small" disabled={busy !== null} onClick={() => void send(t)}
-                aria-label={`Forward to ${t.kind === 'channel' ? '#' : ''}${t.label}`}>
-                {busy === tag ? 'Sending…' : 'Send'}
+                : <Avatar name={target.label} accountKey={target.key} size={24} />}
+              <span className="forward-name">{target.label}</span>
+              {target.kind === 'dm' && <span className="muted forward-kind">{t('organize.forward.dm')}</span>}
+              <button className="button small" disabled={busy !== null} onClick={() => void send(target)}
+                aria-label={t('organize.forward.to', { target: `${target.kind === 'channel' ? '#' : ''}${target.label}` })}>
+                {busy === tag ? t('organize.forward.sending') : t('common.send')}
               </button>
             </div>
           )
@@ -86,12 +90,19 @@ export const ForwardIcon = ({ size = 15 }: { size?: number }) => (
 
 /** "Forwarded from #channel" above a forwarded message. */
 export function ForwardedLine({ label, onOpen }: { label: string | null; onOpen?: () => void }) {
+  const { t } = useTranslation()
   return (
     <div className="forwarded-line">
       <ForwardIcon size={13} />
       {label ? (
-        <>Forwarded from {onOpen ? <button className="link" onClick={onOpen}>{label}</button> : <span>{label}</span>}</>
-      ) : 'Forwarded'}
+        <Trans
+          i18nKey="organize.forward.fromLine"
+          values={{ label }}
+          tOptions={{ interpolation: { escapeValue: true } }}
+          shouldUnescape
+          components={{ a: onOpen ? <button className="link" onClick={onOpen} /> : <span /> }}
+        />
+      ) : t('organize.forward.forwarded')}
     </div>
   )
 }

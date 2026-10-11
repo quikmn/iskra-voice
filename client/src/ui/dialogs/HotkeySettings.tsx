@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { desktop } from '../../platform/desktop'
 import {
   captureWebHotkey, globalHotkeys, HOTKEY_ACTIONS, setDesktopHotkey, setWebHotkey, useHotkeys, type HotkeyAction,
@@ -6,10 +7,11 @@ import {
 import { PushToTalkHint, usePushToTalkStatus } from './VoiceSettings'
 import './hotkeys.css'
 
-const NAMES: Record<HotkeyAction, string> = { mute: 'Toggle mute', deafen: 'Toggle deafen' }
+const NAMES = { mute: 'settings.hotkeys.mute', deafen: 'settings.hotkeys.deafen' } as const satisfies Record<HotkeyAction, string>
 
 /** Mute and deafen keybinds: global on desktop (even in games), in-app shortcuts in the browser. */
 export function HotkeySettingsSection() {
+  const { t } = useTranslation()
   const global = globalHotkeys()
   const binds = useHotkeys((s) => (global ? s.desktop : s.web))
   const [capturing, setCapturing] = useState<HotkeyAction | null>(null)
@@ -63,43 +65,43 @@ export function HotkeySettingsSection() {
 
   return (
     <section className="settings-section">
-      <h3>Keybinds</h3>
+      <h3>{t('settings.hotkeys.title')}</h3>
       <div className="hotkey-list">
         {HOTKEY_ACTIONS.map((action) => {
           const label = binds[action]?.label
           const waiting = capturing === action
           return (
             <div className="hotkey-row" key={action}>
-              <span className="hotkey-name" id={`hotkey-${action}`}>{NAMES[action]}</span>
+              <span className="hotkey-name" id={`hotkey-${action}`}>{t(NAMES[action])}</span>
               <span className={`key-chip ${label || waiting ? '' : 'unset'}`} aria-labelledby={`hotkey-${action}`} aria-live="polite">
-                {waiting ? 'Press a key…' : (label ?? 'Not set')}
+                {waiting ? t('settings.voice.pressKey') : (label ?? t('settings.hotkeys.notSet'))}
               </span>
               <div className="hotkey-actions">
                 {waiting ? (
-                  <button className="button small" onClick={cancel}>Cancel</button>
+                  <button className="button small" onClick={cancel}>{t('common.cancel')}</button>
                 ) : (
-                  <button className="button small" onClick={() => void capture(action)} aria-label={`${label ? 'Change' : 'Set'} ${NAMES[action].toLowerCase()} key`}>
-                    {label ? 'Change' : 'Set key'}
+                  <button className="button small" onClick={() => void capture(action)}
+                    aria-label={t(label ? 'settings.hotkeys.changeFor' : 'settings.hotkeys.setFor', { action: t(NAMES[action]).toLowerCase() })}>
+                    {label ? t('settings.hotkeys.change') : t('settings.voice.setKey')}
                   </button>
                 )}
                 {label && !waiting && (
-                  <button className="button ghost small" onClick={() => clear(action)} aria-label={`Clear ${NAMES[action].toLowerCase()} key`}>Clear</button>
+                  <button className="button ghost small" onClick={() => clear(action)}
+                    aria-label={t('settings.hotkeys.clearFor', { action: t(NAMES[action]).toLowerCase() })}>{t('common.clear')}</button>
                 )}
               </div>
             </div>
           )
         })}
       </div>
-      {capturing && <p className="muted">Hold Ctrl, Shift or Alt for a combo{global ? ', or press a mouse side button' : ''}. Esc cancels.</p>}
+      {capturing && <p className="muted">{global ? t('settings.hotkeys.comboHintDesktop') : t('settings.hotkeys.comboHint')}</p>}
       {global ? (
         <>
           <PushToTalkHint status={status} />
-          <p className="muted">Plain keys don't fire while you're typing in Iskra; combos with Ctrl or Alt always do.</p>
+          <p className="muted">{t('settings.hotkeys.plainKeys')}</p>
         </>
       ) : (
-        <p className="muted">
-          In the browser, these shortcuts work while Iskra is the focused tab (plain keys not while you type). For hotkeys that work while you're in a game, use the desktop app.
-        </p>
+        <p className="muted">{t('settings.hotkeys.browser')}</p>
       )}
     </section>
   )

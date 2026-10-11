@@ -1,5 +1,6 @@
 // Per-OS decisions, kept free of Electron imports so they can be unit-tested anywhere.
 import path from 'node:path'
+import { DESKTOP_TEXT, parseLanguage, type DesktopLanguage, type DesktopText } from './i18n'
 
 type Env = Record<string, string | undefined>
 
@@ -130,28 +131,31 @@ export interface TrayItem {
 }
 
 /** The tray's right-click menu (null action = separator). The update item follows what the updater is doing. */
-export function trayMenu(update: UpdateState, checking: boolean, updatesOn: boolean): TrayItem[] {
+export function trayMenu(update: UpdateState, checking: boolean, updatesOn: boolean, text: DesktopText = DESKTOP_TEXT.en): TrayItem[] {
+  const t = text.tray
   const item = (action: TrayAction, label: string, enabled = true): TrayItem => ({ action, label, enabled })
   const sep: TrayItem = { action: null, label: '', enabled: true }
   const updateItem =
-    update.state === 'ready' ? item('restart', `Restart to update to ${update.version}`)
-    : update.state === 'available' ? item('download', `Download Iskra ${update.version}`)
-    : update.state === 'downloading' ? item('check', `Downloading ${update.version}…`, false)
-    : checking ? item('check', 'Checking for updates…', false)
-    : item('check', 'Check for updates', updatesOn)
-  return [item('open', 'Open Iskra'), sep, item('about', 'About Iskra'), updateItem, sep, item('quit', 'Quit Iskra')]
+    update.state === 'ready' ? item('restart', t.restart(update.version))
+    : update.state === 'available' ? item('download', t.download(update.version))
+    : update.state === 'downloading' ? item('check', t.downloading(update.version), false)
+    : checking ? item('check', t.checking, false)
+    : item('check', t.check, updatesOn)
+  return [item('open', t.open), sep, item('about', t.about), updateItem, sep, item('quit', t.quit)]
 }
 
 /** The About box's text. */
-export function aboutDetail(versions: { app: string; electron: string; chrome: string; node: string }, platform: NodeJS.Platform, arch: string): string {
+export function aboutDetail(
+  versions: { app: string; electron: string; chrome: string; node: string }, platform: NodeJS.Platform, arch: string, text: DesktopText = DESKTOP_TEXT.en,
+): string {
   const os = platform === 'win32' ? 'Windows' : platform === 'darwin' ? 'macOS' : platform === 'linux' ? 'Linux' : platform
   return [
-    `Version ${versions.app} (${os}, ${arch})`,
+    text.about.version(versions.app, os, arch),
     `Electron ${versions.electron} · Chromium ${versions.chrome} · Node ${versions.node}`,
     '',
-    'Voice and text chat for friends, on servers you own.',
-    'Iskra is source-available under the PolyForm Noncommercial License 1.0.0.',
-    'It builds on open source software, including Electron, Chromium, LiveKit, libsodium, React and RNNoise.',
+    text.about.tagline,
+    text.about.license,
+    text.about.builtOn,
   ].join('\n')
 }
 
@@ -250,10 +254,12 @@ export interface DesktopSettings {
   activity: boolean
   /** Your own programs to show as games: display name and process name (e.g. "mygame.exe"). */
   customGames: { name: string; process: string }[]
+  /** The app's language as the page last reported it (null: not yet, follow the OS). */
+  language: DesktopLanguage | null
 }
 
 export const DEFAULT_DESKTOP_SETTINGS: DesktopSettings = {
-  openAtLogin: false, closeToTray: true, hardwareAcceleration: true, activity: false, customGames: [],
+  openAtLogin: false, closeToTray: true, hardwareAcceleration: true, activity: false, customGames: [], language: null,
 }
 
 export const MAX_CUSTOM_GAMES = 30
@@ -279,7 +285,7 @@ export function parseDesktopSettings(raw: unknown): DesktopSettings {
   }
   return {
     openAtLogin: flag('openAtLogin'), closeToTray: flag('closeToTray'), hardwareAcceleration: flag('hardwareAcceleration'),
-    activity: flag('activity'), customGames,
+    activity: flag('activity'), customGames, language: parseLanguage(s.language),
   }
 }
 

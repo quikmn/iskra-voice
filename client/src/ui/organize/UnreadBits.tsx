@@ -1,14 +1,16 @@
 // The "New messages" divider and the bar that jumps up to it, for any conversation (state/readState.ts places them).
 import { useEffect, useState, type RefObject } from 'react'
+import { useTranslation } from 'react-i18next'
 import { dividerOf, markConversationRead, useRead } from '../../state/readState'
 import { clockTime } from '../format'
 import './organize.css'
 
 /** `main`: the one in the main message list (it has the id the jump bar and tests look for). */
 export function UnreadDivider({ main = true }: { main?: boolean }) {
+  const { t } = useTranslation()
   return (
-    <div className="unread-divider" id={main ? 'unread-divider' : undefined} role="separator" aria-label="New messages">
-      <span>New messages</span>
+    <div className="unread-divider" id={main ? 'unread-divider' : undefined} role="separator" aria-label={t('organize.unread.newMessages')}>
+      <span>{t('organize.unread.newMessages')}</span>
     </div>
   )
 }
@@ -20,6 +22,7 @@ export function UnreadBar({ conv, scroller, onJump, loadOlder }: {
   /** Loads an older page; resolves to whether there's more. */
   loadOlder?: () => Promise<boolean>
 }) {
+  const { t } = useTranslation()
   const divider = dividerOf(useRead(conv))
   const showing = !!divider
   const [above, setAbove] = useState(false)
@@ -57,9 +60,9 @@ export function UnreadBar({ conv, scroller, onJump, loadOlder }: {
   return (
     <div className="unread-bar-wrap"><div className="unread-bar" role="status">
       <button className="unread-bar-jump" onClick={() => void jump()}>
-        {divider.count} new message{divider.count === 1 ? '' : 's'} since {clockTime(divider.from.at)} · Jump to first unread
+        {t('organize.unread.bar', { count: divider.count, time: clockTime(divider.from.at) })}
       </button>
-      <button className="unread-bar-read" onClick={() => markConversationRead(conv)}>Mark as read</button>
+      <button className="unread-bar-read" onClick={() => markConversationRead(conv)}>{t('organize.unread.markRead')}</button>
     </div></div>
   )
 }

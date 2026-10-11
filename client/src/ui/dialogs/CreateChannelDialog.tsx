@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
+import { errorMessage } from '../../i18n/errors'
 import { ROLES, type Role } from '../../core/protocol'
 import { connectionFor, selectChannel, type ServerState } from '../../state/store'
 import { Modal } from '../bits'
@@ -8,6 +10,7 @@ import { StageIcon } from '../stage/stageIcons'
 import { ForumIcon } from '../forums/icons'
 
 export function CreateChannelDialog({ server, categoryId: initialCategory = null, onClose }: { server: ServerState; categoryId?: number | null; onClose: () => void }) {
+  const { t } = useTranslation()
   const categories = useCategories(server.key)
   const [categoryId, setCategoryId] = useState<number | null>(initialCategory)
   const [name, setName] = useState('')
@@ -29,44 +32,44 @@ export function CreateChannelDialog({ server, categoryId: initialCategory = null
       if (channel.kind === 'text' || channel.kind === 'forum') selectChannel(server.key, channel.id)
       onClose()
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
       setBusy(false)
     }
   }
 
   return (
     <Modal
-      title="Create channel"
+      title={t('settings.channel.title')}
       onClose={onClose}
       footer={
         <>
-          <button className="button" onClick={onClose}>Cancel</button>
-          <button className="button primary" disabled={!slug || busy} onClick={() => void create()}>Create</button>
+          <button className="button" onClick={onClose}>{t('common.cancel')}</button>
+          <button className="button primary" disabled={!slug || busy} onClick={() => void create()}>{t('common.create')}</button>
         </>
       }
     >
-      <div className="segmented" role="radiogroup" aria-label="Channel type">
-        <button role="radio" aria-checked={kind === 'text'} className={kind === 'text' ? 'on' : ''} onClick={() => setKind('text')}><Hash size={16} /> Text</button>
-        <button role="radio" aria-checked={kind === 'voice'} className={kind === 'voice' ? 'on' : ''} onClick={() => setKind('voice')}><Volume size={16} /> Voice</button>
-        <button role="radio" aria-checked={kind === 'forum'} className={kind === 'forum' ? 'on' : ''} onClick={() => setKind('forum')}><ForumIcon size={16} /> Forum</button>
-        <button role="radio" aria-checked={kind === 'stage'} className={kind === 'stage' ? 'on' : ''} onClick={() => setKind('stage')}><StageIcon size={16} /> Stage</button>
+      <div className="segmented" role="radiogroup" aria-label={t('settings.channel.type')}>
+        <button role="radio" aria-checked={kind === 'text'} className={kind === 'text' ? 'on' : ''} onClick={() => setKind('text')}><Hash size={16} /> {t('settings.channel.text')}</button>
+        <button role="radio" aria-checked={kind === 'voice'} className={kind === 'voice' ? 'on' : ''} onClick={() => setKind('voice')}><Volume size={16} /> {t('settings.channel.voice')}</button>
+        <button role="radio" aria-checked={kind === 'forum'} className={kind === 'forum' ? 'on' : ''} onClick={() => setKind('forum')}><ForumIcon size={16} /> {t('settings.channel.forum')}</button>
+        <button role="radio" aria-checked={kind === 'stage'} className={kind === 'stage' ? 'on' : ''} onClick={() => setKind('stage')}><StageIcon size={16} /> {t('settings.channel.stage')}</button>
       </div>
       <label className="field">
-        <span>Name</span>
-        <input value={name} maxLength={32} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void create()} placeholder="game-night" />
+        <span>{t('settings.overview.name')}</span>
+        <input value={name} maxLength={32} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void create()} placeholder={t('settings.channel.namePlaceholder')} />
       </label>
-      {slug && <p className="muted">Will appear as <strong>{kind === 'text' || kind === 'forum' ? '#' : ''}{slug}</strong></p>}
-      {kind === 'forum' && <p className="muted">A forum holds posts with a title, tags and their own replies: good for questions, ideas and plans.</p>}
-      {kind === 'stage' && <p className="muted">For talks and listening parties: everyone joins as a listener, and moderators bring people up to speak.</p>}
+      {slug && <p className="muted"><Trans i18nKey="settings.channel.appearsAs" values={{ name: `${kind === 'text' || kind === 'forum' ? '#' : ''}${slug}` }} components={{ b: <strong /> }} /></p>}
+      {kind === 'forum' && <p className="muted">{t('settings.channel.forumHint')}</p>}
+      {kind === 'stage' && <p className="muted">{t('settings.channel.stageHint')}</p>}
       <div className="options-row">
-        <RolePicker label="Who can see it" value={readRole} onChange={setReadRole} />
-        <RolePicker label={kind === 'voice' ? 'Who can speak' : kind === 'stage' ? 'Who can ask to speak' : 'Who can post'} value={writeRole} onChange={setWriteRole} min={readRole} />
+        <RolePicker label={t('settings.channel.whoCanSee')} value={readRole} onChange={setReadRole} />
+        <RolePicker label={kind === 'voice' ? t('settings.channel.whoCanSpeak') : kind === 'stage' ? t('settings.channel.whoCanAsk') : t('settings.channel.whoCanPost')} value={writeRole} onChange={setWriteRole} min={readRole} />
       </div>
       {categories.length > 0 && (
         <label className="field inline">
-          <span>Category</span>
+          <span>{t('settings.channel.category')}</span>
           <select value={categoryId ?? ''} onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}>
-            <option value="">No category</option>
+            <option value="">{t('settings.channel.noCategory')}</option>
             {[...categories].sort((a, b) => a.position - b.position).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </label>
@@ -79,12 +82,13 @@ export function CreateChannelDialog({ server, categoryId: initialCategory = null
 export function RolePicker({ label, value, onChange, min = 'guest', max = 'owner' }: {
   label: string; value: Role; onChange: (r: Role) => void; min?: Role; max?: Role
 }) {
+  const { t } = useTranslation()
   const options = ROLES.filter((r) => ROLES.indexOf(r) >= ROLES.indexOf(min) && ROLES.indexOf(r) <= ROLES.indexOf(max))
   return (
     <label className="field inline">
       <span>{label}</span>
       <select value={options.includes(value) ? value : options[0]} onChange={(e) => onChange(e.target.value as Role)}>
-        {options.map((r) => <option key={r} value={r}>{r}+</option>)}
+        {options.map((r) => <option key={r} value={r}>{t(`common.roles.${r}`)}+</option>)}
       </select>
     </label>
   )

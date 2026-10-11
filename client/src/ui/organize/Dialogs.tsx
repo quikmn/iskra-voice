@@ -1,5 +1,8 @@
 // Admin dialogs: naming a category, and a channel's settings (name, who can see and post, slowmode, category, delete).
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { errorMessage } from '../../i18n/errors'
+import { t as translate } from '../../i18n'
 import { ROLES, type Category, type Channel, type Role } from '../../core/protocol'
 import { connectionFor, type ServerState } from '../../state/store'
 import { createCategory, moveChannel, renameCategory, useCategories } from '../../state/organize'
@@ -10,6 +13,7 @@ import { ChannelOverrides } from '../roles/RoleSettings'
 import { UserLimitField } from '../rules/UserLimitField'
 
 export function CategoryDialog({ server, category, onClose }: { server: ServerState; category?: Category; onClose: () => void }) {
+  const { t } = useTranslation()
   const [name, setName] = useState(category?.name ?? '')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -23,35 +27,36 @@ export function CategoryDialog({ server, category, onClose }: { server: ServerSt
       else await createCategory(server.key, trimmed)
       onClose()
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
       setBusy(false)
     }
   }
 
   return (
     <Modal
-      title={category ? 'Rename category' : 'Create category'}
+      title={category ? t('organize.category.rename') : t('organize.category.create')}
       onClose={onClose}
       footer={
         <>
-          <button className="button" onClick={onClose}>Cancel</button>
+          <button className="button" onClick={onClose}>{t('common.cancel')}</button>
           <button className="button primary" disabled={!trimmed || busy || trimmed === category?.name} onClick={() => void save()}>
-            {category ? 'Save' : 'Create'}
+            {category ? t('common.save') : t('common.create')}
           </button>
         </>
       }
     >
       <label className="field">
-        <span>Name</span>
-        <input value={name} maxLength={32} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void save()} placeholder="Games" />
+        <span>{t('organize.category.name')}</span>
+        <input value={name} maxLength={32} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void save()} placeholder={t('organize.category.placeholder')} />
       </label>
-      {!category && <p className="muted">Drag channels into it, or use a channel's menu to move it there. Everyone only sees the channels they can open.</p>}
+      {!category && <p className="muted">{t('organize.category.hint')}</p>}
       {error && <p className="error-text">{error}</p>}
     </Modal>
   )
 }
 
 export function ChannelSettingsDialog({ server, channel, onClose }: { server: ServerState; channel: Channel; onClose: () => void }) {
+  const { t } = useTranslation()
   const categories = useCategories(server.key)
   const [name, setName] = useState(channel.name)
   const [readRole, setReadRole] = useState<Role>(channel.readRole)
@@ -73,14 +78,14 @@ export function ChannelSettingsDialog({ server, channel, onClose }: { server: Se
       await action()
       onClose()
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
       setBusy(false)
     }
   }
 
   const save = () => act(async () => {
     const connection = connectionFor(server.key)
-    if (!connection) throw new Error('Not connected.')
+    if (!connection) throw new Error(translate('errors.codes.disconnected'))
     await connection.request('channel.update', {
       id: channel.id, name: slug, readRole, writeRole: write, slowmode: hasSlowmode ? slowmode : undefined,
       userLimit: channel.kind === 'voice' ? userLimit : undefined,
@@ -90,58 +95,60 @@ export function ChannelSettingsDialog({ server, channel, onClose }: { server: Se
 
   return (
     <Modal
-      title={`${channel.kind === 'text' || channel.kind === 'forum' ? '#' : ''}${channel.name} settings`}
+      title={t('organize.channelSettings.title', { name: `${channel.kind === 'text' || channel.kind === 'forum' ? '#' : ''}${channel.name}` })}
       onClose={onClose}
       footer={
         <>
-          <button className="button" onClick={onClose}>Cancel</button>
-          <button className="button primary" disabled={!slug || busy} onClick={() => void save()}>Save</button>
+          <button className="button" onClick={onClose}>{t('common.cancel')}</button>
+          <button className="button primary" disabled={!slug || busy} onClick={() => void save()}>{t('common.save')}</button>
         </>
       }
     >
       <label className="field">
-        <span>Name</span>
+        <span>{t('organize.channelSettings.name')}</span>
         <input value={name} maxLength={32} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void save()} />
       </label>
       <div className="options-row">
-        <RolePicker label="Who can see it" value={readRole} onChange={setReadRole} />
-        <RolePicker label={channel.kind === 'voice' ? 'Who can speak' : channel.kind === 'stage' ? 'Who can ask to speak' : 'Who can post'} value={write} onChange={setWriteRole} min={readRole} />
+        <RolePicker label={t('organize.channelSettings.whoSees')} value={readRole} onChange={setReadRole} />
+        <RolePicker
+          label={channel.kind === 'voice' ? t('organize.channelSettings.whoSpeaks') : channel.kind === 'stage' ? t('organize.channelSettings.whoAsks') : t('organize.channelSettings.whoPosts')}
+          value={write} onChange={setWriteRole} min={readRole} />
       </div>
       {hasSlowmode && (
         <label className="field">
-          <span>Slowmode · {slowmode ? `one message every ${slowmodeLabel(slowmode)}` : 'off'}</span>
+          <span>{slowmode ? t('organize.channelSettings.slowmodeOn', { every: slowmodeLabel(slowmode) }) : t('organize.channelSettings.slowmodeOff')}</span>
           <input
-            type="range" min={0} max={SLOWMODE_STEPS.length - 1} step={1} aria-label="Slowmode"
+            type="range" min={0} max={SLOWMODE_STEPS.length - 1} step={1} aria-label={t('organize.channelSettings.slowmodeLabel')}
             value={Math.max(0, SLOWMODE_STEPS.indexOf(slowmode as (typeof SLOWMODE_STEPS)[number]))}
             onChange={(e) => setSlowmode(SLOWMODE_STEPS[Number(e.target.value)])}
           />
-          <small className="muted">Members can send one message per interval here. Admins aren't limited.</small>
+          <small className="muted">{t('organize.channelSettings.slowmodeHint')}</small>
         </label>
       )}
       {channel.kind === 'voice' && <UserLimitField value={userLimit} onChange={setUserLimit} />}
       <ChannelOverrides server={server} channel={channel} />
       <label className="field inline">
-        <span>Category</span>
+        <span>{t('organize.channelSettings.category')}</span>
         <select value={categoryId ?? ''} onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}>
-          <option value="">No category</option>
+          <option value="">{t('organize.channelSettings.noCategory')}</option>
           {[...categories].sort((a, b) => a.position - b.position).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
       </label>
       <div className="settings-danger">
         <div>
-          <strong>Delete channel</strong>
-          <p className="muted">Deletes its messages, threads and pins for everyone. This can't be undone.</p>
+          <strong>{t('organize.channelSettings.deleteTitle')}</strong>
+          <p className="muted">{t('organize.channelSettings.deleteHint')}</p>
         </div>
         {confirmDelete ? (
           <div className="copy-row">
             <button className="button danger" disabled={busy}
               onClick={() => void act(() => connectionFor(server.key)!.request('channel.delete', { id: channel.id }))}>
-              Delete
+              {t('common.delete')}
             </button>
-            <button className="button" onClick={() => setConfirmDelete(false)}>Cancel</button>
+            <button className="button" onClick={() => setConfirmDelete(false)}>{t('common.cancel')}</button>
           </div>
         ) : (
-          <button className="button danger-outline" onClick={() => setConfirmDelete(true)}>Delete channel</button>
+          <button className="button danger-outline" onClick={() => setConfirmDelete(true)}>{t('organize.channelSettings.deleteTitle')}</button>
         )}
       </div>
       {error && <p className="error-text">{error}</p>}

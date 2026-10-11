@@ -1,6 +1,7 @@
 // Pieces markdown.tsx renders for richer text: highlighted code with a copy button, masked links that ask before
 // leaving, and timestamps shown in the reader's own time zone.
 import { useState, type ReactNode } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import { Modal } from '../bits'
 import { Copy } from '../icons'
 import { formatTimestamp, highlight, type TimestampStyle } from './richTextRules'
@@ -8,6 +9,7 @@ import './rich-text.css'
 
 export function CodeBlock({ code, language }: { code: string; language: string }) {
   const [copied, setCopied] = useState(false)
+  const { t } = useTranslation()
   async function copy() {
     try {
       await navigator.clipboard.writeText(code)
@@ -21,11 +23,11 @@ export function CodeBlock({ code, language }: { code: string; language: string }
     <div className="code-wrap">
       <pre className="code-block" data-language={language || undefined}>
         <code>
-          {language ? highlight(code, language).map((t, i) => (t.kind === 'plain' ? t.text : <span key={i} className={`tok-${t.kind}`}>{t.text}</span>)) : code}
+          {language ? highlight(code, language).map((tok, i) => (tok.kind === 'plain' ? tok.text : <span key={i} className={`tok-${tok.kind}`}>{tok.text}</span>)) : code}
         </code>
       </pre>
-      <button className="code-copy" onClick={() => void copy()} aria-label="Copy code" title="Copy code">
-        {copied ? 'Copied' : <Copy size={14} />}
+      <button className="code-copy" onClick={() => void copy()} aria-label={t('chat.richText.copyCode')} title={t('chat.richText.copyCode')}>
+        {copied ? t('common.copied') : <Copy size={14} />}
       </button>
     </div>
   )
@@ -34,6 +36,7 @@ export function CodeBlock({ code, language }: { code: string; language: string }
 /** [text](https://…): the text is the sender's choice, so opening asks first and shows where it really goes. */
 export function MaskedLink({ url, children }: { url: string; children: ReactNode }) {
   const [asking, setAsking] = useState(false)
+  const { t } = useTranslation()
   let host = url
   try {
     host = new URL(url).host
@@ -57,11 +60,11 @@ export function MaskedLink({ url, children }: { url: string; children: ReactNode
       </a>
       {asking && (
         <Modal
-          title="Leaving Iskra"
+          title={t('chat.richText.leaving')}
           onClose={() => setAsking(false)}
           footer={
             <>
-              <button className="button" onClick={() => setAsking(false)}>Go back</button>
+              <button className="button" onClick={() => setAsking(false)}>{t('chat.richText.goBack')}</button>
               <button
                 className="button primary"
                 onClick={() => {
@@ -69,12 +72,12 @@ export function MaskedLink({ url, children }: { url: string; children: ReactNode
                   setAsking(false)
                 }}
               >
-                Open link
+                {t('chat.richText.openLink')}
               </button>
             </>
           }
         >
-          <p>This link goes to <strong>{host}</strong>. Only open it if you trust where it leads:</p>
+          <p><Trans i18nKey="chat.richText.linkGoesTo" values={{ host }} components={{ b: <strong /> }} /></p>
           <p className="masked-url"><code>{url}</code></p>
         </Modal>
       )}
@@ -83,6 +86,7 @@ export function MaskedLink({ url, children }: { url: string; children: ReactNode
 }
 
 export function Timestamp({ ms, style }: { ms: number; style: TimestampStyle }) {
+  useTranslation() // re-render in a new language
   return (
     <time className="md-timestamp" dateTime={new Date(ms).toISOString()} title={formatTimestamp(ms, 'F')}>
       {formatTimestamp(ms, style)}

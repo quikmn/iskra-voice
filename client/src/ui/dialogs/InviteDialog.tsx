@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { errorMessage } from '../../i18n/errors'
 import { buildInviteLink } from '../../core/invite'
 import type { Invite } from '../../core/protocol'
 import { connectionFor, type ServerState } from '../../state/store'
@@ -7,13 +9,14 @@ import { Modal, Spinner } from '../bits'
 import { appUrl } from '../format'
 
 const LIFETIMES = [
-  { label: '1 hour', ms: 3600_000 },
-  { label: '1 day', ms: 24 * 3600_000 },
-  { label: '7 days', ms: 7 * 24 * 3600_000 },
-  { label: '30 days', ms: 30 * 24 * 3600_000 },
+  { hours: 1, ms: 3600_000 },
+  { days: 1, ms: 24 * 3600_000 },
+  { days: 7, ms: 7 * 24 * 3600_000 },
+  { days: 30, ms: 30 * 24 * 3600_000 },
 ]
 
 export function InviteDialog({ server, onClose }: { server: ServerState; onClose: () => void }) {
+  const { t } = useTranslation()
   const [lifetime, setLifetime] = useState(LIFETIMES[2].ms)
   const [singleUse, setSingleUse] = useState(false)
   // One invite per combination of options, created on demand.
@@ -30,7 +33,7 @@ export function InviteDialog({ server, onClose }: { server: ServerState; onClose
     connectionFor(server.key)
       ?.request('invite.create', { expiresInMs: lifetime, maxUses: singleUse ? 1 : undefined })
       .then((r) => !cancelled && setInvites((all) => ({ ...all, [optionsKey]: r.invite })))
-      .catch((e: Error) => !cancelled && setError(e.message))
+      .catch((e: Error) => !cancelled && setError(errorMessage(e)))
     return () => {
       cancelled = true
     }
@@ -44,25 +47,29 @@ export function InviteDialog({ server, onClose }: { server: ServerState; onClose
   }
 
   return (
-    <Modal title={`Invite friends to ${server.name}`} onClose={onClose}>
-      <p className="muted">Send this link to a friend. Opening it lets them pick a name and join.</p>
+    <Modal title={t('settings.invite.title', { name: server.name })} onClose={onClose}>
+      <p className="muted">{t('settings.invite.intro')}</p>
       <div className="copy-row">
-        <input readOnly value={link} placeholder="Creating link…" onFocus={(e) => e.target.select()} />
+        <input readOnly value={link} placeholder={t('settings.invite.creating')} onFocus={(e) => e.target.select()} />
         <button className="button primary" onClick={() => void copy()} disabled={!invite}>
-          {invite ? (copied ? 'Copied!' : 'Copy') : <Spinner />}
+          {invite ? (copied ? t('settings.recovery.copied') : t('common.copy')) : <Spinner />}
         </button>
       </div>
       {error && <p className="error-text">{error}</p>}
       <div className="options-row">
         <label className="field inline">
-          <span>Expires after</span>
+          <span>{t('settings.invite.expiresAfter')}</span>
           <select value={lifetime} onChange={(e) => setLifetime(Number(e.target.value))}>
-            {LIFETIMES.map((l) => <option key={l.ms} value={l.ms}>{l.label}</option>)}
+            {LIFETIMES.map((l) => (
+              <option key={l.ms} value={l.ms}>
+                {l.hours ? t('settings.invite.hours', { count: l.hours }) : t('settings.invite.days', { count: l.days ?? 0 })}
+              </option>
+            ))}
           </select>
         </label>
         <label className="checkbox">
           <input type="checkbox" checked={singleUse} onChange={(e) => setSingleUse(e.target.checked)} />
-          Single use
+          {t('settings.invite.singleUse')}
         </label>
       </div>
     </Modal>

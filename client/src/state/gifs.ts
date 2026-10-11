@@ -1,6 +1,7 @@
 // GIFs (KLIPY), per server: in "direct" mode this device calls KLIPY with the server's key (KLIPY sees your address
 // and searches); "through this server" asks the server, which proxies search and media. Favourites live on this device.
 import { create } from 'zustand'
+import { t } from '../i18n'
 import { klipyUrl, parseKlipyCategories, parseKlipyPage, type KlipyGif } from '../core/klipy'
 import type { Events, GifCategory, GifResult, GifStatus, Message } from '../core/protocol'
 import { connectionFor, onServerEvent, onWelcomeHook, sendMessage, type SendOptions } from './store'
@@ -57,7 +58,7 @@ onServerEvent((serverKey, type, body) => {
 
 const connection = (serverKey: string) => {
   const c = connectionFor(serverKey)
-  if (!c?.isOnline) throw new Error('Not connected.')
+  if (!c?.isOnline) throw new Error(t('errors.codes.disconnected'))
   return c
 }
 
@@ -66,11 +67,11 @@ const fromKlipy = (g: KlipyGif): GifResult => ({ ...g, token: '', direct: true }
 /** Direct mode: straight to KLIPY (no cookies, no referrer). */
 async function klipy(serverKey: string, kind: 'trending' | 'search' | 'categories', params: { q?: string; page?: number } = {}): Promise<unknown> {
   const status = useGifs.getState().status[serverKey]
-  if (!status?.key) throw new Error("GIFs aren't on for this server.")
+  if (!status?.key) throw new Error(t('chat.gifs.off'))
   const response = await fetch(klipyUrl(kind, status.key, { ...params, customerId: status.customerId ?? undefined }), {
     credentials: 'omit', referrerPolicy: 'no-referrer', cache: 'no-store',
   }).catch(() => null)
-  if (!response?.ok) throw new Error("Couldn't reach KLIPY.")
+  if (!response?.ok) throw new Error(t('chat.gifs.unreachable'))
   return response.json()
 }
 

@@ -1,5 +1,6 @@
 // Settings → Devices: your devices, renaming, removing, and linking a new one.
 import { useEffect, useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import { refreshDevices, renameDevice, revokeDevice, useDevices, type DeviceView } from '../../state/devices'
 import {
   cancelLinkOffer, confirmLinkOffer, linkableServers, startLinkOffer, useLinkOffer,
@@ -10,6 +11,7 @@ import { Pencil } from '../icons'
 import { QrCode } from '../QrCode'
 
 function DeviceRow({ device }: { device: DeviceView }) {
+  const { t } = useTranslation()
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(device.name)
   const [confirming, setConfirming] = useState(false)
@@ -29,35 +31,35 @@ function DeviceRow({ device }: { device: DeviceView }) {
       <div className="device-text">
         {editing ? (
           <div className="copy-row">
-            <input aria-label="Device name" value={name} maxLength={32} autoFocus onChange={(e) => setName(e.target.value)}
+            <input aria-label={t('settings.devices.name')} value={name} maxLength={32} autoFocus onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') void save(); if (e.key === 'Escape') { e.preventDefault(); setEditing(false) } }} />
-            <button className="button small primary" disabled={!trimmed || busy} onClick={() => void save()}>Save</button>
+            <button className="button small primary" disabled={!trimmed || busy} onClick={() => void save()}>{t('common.save')}</button>
           </div>
         ) : (
           <strong>
             {device.name}
-            {device.current && <span className="pill device-current">This device</span>}
+            {device.current && <span className="pill device-current">{t('settings.devices.thisDevice')}</span>}
           </strong>
         )}
         <span className="muted">
           {device.platform && device.platform !== device.name ? `${device.platform} · ` : ''}
-          {device.current ? 'Active now' : `Last seen ${messageTime(device.lastSeen)}`}
+          {device.current ? t('settings.devices.activeNow') : t('settings.devices.lastSeen', { when: messageTime(device.lastSeen) })}
         </span>
       </div>
       {!editing && (
         <div className="device-actions">
-          <button className="icon-button" aria-label={`Rename ${device.name}`} title="Rename" onClick={() => setEditing(true)}>
+          <button className="icon-button" aria-label={t('settings.devices.renameNamed', { name: device.name })} title={t('settings.devices.rename')} onClick={() => setEditing(true)}>
             <Pencil size={16} />
           </button>
           {!device.current && (confirming ? (
             <>
               <button className="button small danger" disabled={busy} onClick={async () => { setBusy(true); await revokeDevice(device.deviceKey) }}>
-                Remove
+                {t('common.remove')}
               </button>
-              <button className="button small" onClick={() => setConfirming(false)}>Keep</button>
+              <button className="button small" onClick={() => setConfirming(false)}>{t('settings.devices.keep')}</button>
             </>
           ) : (
-            <button className="button small danger-outline" onClick={() => setConfirming(true)}>Remove</button>
+            <button className="button small danger-outline" onClick={() => setConfirming(true)}>{t('common.remove')}</button>
           ))}
         </div>
       )}
@@ -66,6 +68,7 @@ function DeviceRow({ device }: { device: DeviceView }) {
 }
 
 export function DevicesSection() {
+  const { t } = useTranslation()
   const devices = useDevices((s) => s.devices)
   const loaded = useDevices((s) => s.loaded)
   const [linking, setLinking] = useState(false)
@@ -73,33 +76,35 @@ export function DevicesSection() {
 
   return (
     <section className="settings-section">
-      <h3>Devices</h3>
-      <p className="muted">Everywhere you're signed in. Removing a device signs it out and stops it getting new messages.</p>
+      <h3>{t('settings.sections.devices')}</h3>
+      <p className="muted">{t('settings.devices.intro')}</p>
       {!loaded ? <Spinner /> : devices.length === 0 ? (
-        <p className="muted">Connect to a server to see your devices.</p>
+        <p className="muted">{t('settings.devices.empty')}</p>
       ) : (
         <ul className="device-list">
           {devices.map((d) => <DeviceRow key={d.deviceKey} device={d} />)}
         </ul>
       )}
-      <button className="button" onClick={() => setLinking(true)}>Link a device</button>
+      <button className="button" onClick={() => setLinking(true)}>{t('settings.devices.link')}</button>
       {linking && <LinkDeviceDialog onClose={() => setLinking(false)} />}
     </section>
   )
 }
 
 function Countdown({ until }: { until: number }) {
+  const { t } = useTranslation()
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(timer)
   }, [])
   const left = Math.max(0, Math.round((until - now) / 1000))
-  return <>{left > 0 ? `Expires in ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : 'Expired'}</>
+  return <>{left > 0 ? t('settings.devices.expiresIn', { time: `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` }) : t('settings.devices.expired')}</>
 }
 
 /** The existing device's side: show the code, check the confirmation, send the account. */
 export function LinkDeviceDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation()
   const state = useLinkOffer()
   const servers = linkableServers()
   const [serverKey, setServerKey] = useState(servers[0]?.key ?? '')
@@ -115,17 +120,15 @@ export function LinkDeviceDialog({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <Modal title="Link a device" onClose={close}>
+    <Modal title={t('settings.devices.link')} onClose={close}>
       {state.phase === 'idle' && (servers.length === 0 ? (
-        <p className="muted">Linking goes through one of your servers. Connect to a server first.</p>
+        <p className="muted">{t('settings.devices.linkNoServer')}</p>
       ) : (
         <>
-          <p className="muted">
-            Sign in on your phone or another computer without your recovery key. Your account is sent encrypted, straight to the new device.
-          </p>
+          <p className="muted">{t('settings.devices.linkIntro')}</p>
           {servers.length > 1 && (
             <label className="field">
-              <span>Through server</span>
+              <span>{t('settings.devices.throughServer')}</span>
               <select value={serverKey} onChange={(e) => setServerKey(e.target.value)}>
                 {servers.map((s) => <option key={s.key} value={s.key}>{s.name}</option>)}
               </select>
@@ -133,9 +136,9 @@ export function LinkDeviceDialog({ onClose }: { onClose: () => void }) {
           )}
           <label className="checkbox field">
             <input type="checkbox" checked={history} onChange={(e) => setHistory(e.target.checked)} />
-            Bring my message history (direct messages and groups)
+            {t('settings.devices.bringHistory')}
           </label>
-          <button className="button primary" onClick={() => void startLinkOffer(serverKey, history)}>Show code</button>
+          <button className="button primary" onClick={() => void startLinkOffer(serverKey, history)}>{t('settings.devices.showCode')}</button>
         </>
       ))}
 
@@ -143,26 +146,26 @@ export function LinkDeviceDialog({ onClose }: { onClose: () => void }) {
 
       {state.phase === 'waiting' && (
         <div className="link-offer">
-          <p>On the new device, open Iskra, choose <strong>I already have Iskra</strong>, and scan this code.</p>
-          <QrCode text={state.url} label="Device link QR code" />
-          <p className="muted">Or type this code:</p>
+          <p><Trans i18nKey="settings.devices.scanHint" components={{ b: <strong /> }} /></p>
+          <QrCode text={state.url} label={t('settings.devices.qrLabel')} />
+          <p className="muted">{t('settings.devices.orType')}</p>
           <div className="link-code" data-testid="link-code">{state.text}</div>
           <div className="copy-row">
             <button className="button small" onClick={async () => { await navigator.clipboard.writeText(state.text); setCopied(true) }}>
-              {copied ? 'Copied!' : 'Copy code'}
+              {copied ? t('settings.recovery.copied') : t('settings.devices.copyCode')}
             </button>
-            <span className="muted small-text"><Countdown until={state.expiresAt} /> · via {state.serverName}</span>
+            <span className="muted small-text"><Countdown until={state.expiresAt} /> · {t('settings.devices.via', { server: state.serverName })}</span>
           </div>
-          <p className="warning-text small-text">Anyone with this code can become you. Only use it on your own device.</p>
+          <p className="warning-text small-text">{t('settings.devices.codeWarning')}</p>
         </div>
       )}
 
       {state.phase === 'confirm' && (
         <form className="link-offer" onSubmit={(e) => { e.preventDefault(); void confirmLinkOffer(typed) }}>
-          <p>{state.info ? <><strong>{state.info}</strong> wants to link.</> : 'A device wants to link.'} Type the number it shows:</p>
+          <p>{state.info ? <Trans i18nKey="settings.devices.wantsToLink" values={{ device: state.info }} components={{ b: <strong /> }} /> : t('settings.devices.aDeviceWants')} {t('settings.devices.typeNumber')}</p>
           <input
             className="confirm-code"
-            aria-label="Number on the new device"
+            aria-label={t('settings.devices.numberLabel')}
             inputMode="numeric"
             autoComplete="one-time-code"
             maxLength={7}
@@ -171,10 +174,10 @@ export function LinkDeviceDialog({ onClose }: { onClose: () => void }) {
             onChange={(e) => setTyped(e.target.value)}
             autoFocus
           />
-          <p className="muted">Only your own new device shows this number. Then it gets your account.</p>
+          <p className="muted">{t('settings.devices.numberHint')}</p>
           <div className="copy-row">
-            <button type="submit" className="button primary" disabled={typed.replace(/\D/g, '').length !== 6}>Link it</button>
-            <button type="button" className="button" onClick={close}>Cancel</button>
+            <button type="submit" className="button primary" disabled={typed.replace(/\D/g, '').length !== 6}>{t('settings.devices.linkIt')}</button>
+            <button type="button" className="button" onClick={close}>{t('common.cancel')}</button>
           </div>
         </form>
       )}
@@ -182,24 +185,24 @@ export function LinkDeviceDialog({ onClose }: { onClose: () => void }) {
       {state.phase === 'sending' && (
         state.total ? (
           <div className="link-progress" role="status">
-            <p className="muted"><Spinner /> Sending your message history… {Math.round((100 * (state.sent ?? 0)) / state.total)}%</p>
-            <progress max={state.total} value={state.sent ?? 0} aria-label="History sent" />
+            <p className="muted"><Spinner /> {t('settings.devices.sendingHistory', { percent: Math.round((100 * (state.sent ?? 0)) / state.total) })}</p>
+            <progress max={state.total} value={state.sent ?? 0} aria-label={t('settings.devices.historySent')} />
           </div>
-        ) : <p className="muted"><Spinner /> Sending your account…</p>
+        ) : <p className="muted"><Spinner /> {t('settings.devices.sendingAccount')}</p>
       )}
 
       {state.phase === 'done' && (
         <div className="link-offer">
-          <p className="success-text">Done! Your account is on the new device.</p>
+          <p className="success-text">{t('settings.devices.linked')}</p>
           {state.warning && <p className="warning-text">{state.warning}</p>}
-          <button className="button primary" onClick={() => { onClose(); void refreshDevices() }}>Close</button>
+          <button className="button primary" onClick={() => { onClose(); void refreshDevices() }}>{t('common.close')}</button>
         </div>
       )}
 
       {state.phase === 'error' && (
         <div className="link-offer">
           <p className="error-text">{state.message}</p>
-          <button className="button" onClick={() => void cancelLinkOffer()}>Try again</button>
+          <button className="button" onClick={() => void cancelLinkOffer()}>{t('common.tryAgain')}</button>
         </div>
       )}
     </Modal>

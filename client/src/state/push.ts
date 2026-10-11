@@ -3,6 +3,8 @@
 // The server skips devices that are looking at Iskra, so this reports focus to every server we're subscribed on.
 // The desktop app has native notifications and doesn't use any of this.
 import { create } from 'zustand'
+import { t } from '../i18n'
+import { errorMessage } from '../i18n/errors'
 import { b64u, fromB64u } from '../core/crypto'
 import { parseOpenRoute, pushScope, pushSupport, serverOfScope, type OpenTarget, type PushSupport } from '../core/pushRoute'
 import { desktop } from '../platform/desktop'
@@ -74,7 +76,7 @@ function activated(reg: ServiceWorkerRegistration): Promise<void> {
   const worker = reg.installing ?? reg.waiting
   if (reg.active || !worker) return Promise.resolve()
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('The notification worker did not start.')), 15_000)
+    const timer = setTimeout(() => reject(new Error(t('app.push.workerFailed'))), 15_000)
     worker.addEventListener('statechange', () => {
       if (worker.state === 'activated') {
         clearTimeout(timer)
@@ -112,13 +114,13 @@ async function doSync(key: string): Promise<void> {
     }
     sub ??= await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: fromB64u(publicKey) as BufferSource })
     const keys = sub.toJSON().keys
-    if (!keys?.p256dh || !keys.auth) throw new Error('The browser gave no push keys.')
+    if (!keys?.p256dh || !keys.auth) throw new Error(t('app.push.noKeys'))
     if (sub.endpoint !== endpoint) await connection.request('push.subscribe', { endpoint: sub.endpoint, keys: { p256dh: keys.p256dh, auth: keys.auth } })
     setServer(key, 'on')
     lastFocus.delete(key)
     reportFocus(key)
   } catch (e) {
-    setServer(key, 'error', e instanceof Error ? e.message : String(e))
+    setServer(key, 'error', errorMessage(e))
   }
 }
 

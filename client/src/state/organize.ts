@@ -4,6 +4,7 @@ import { create } from 'zustand'
 import type { Category, Events, Member, NotifyLevel, NotifySetting } from '../core/protocol'
 import { connectionFor, onServerEvent, onWelcomeHook } from './store'
 import { knownThread } from './threads'
+import { t } from '../i18n'
 import { effectiveNotify, nextMuteEnd, notifyKey, type EffectiveNotify, type NotifyMap } from './organizeLogic'
 
 interface OrganizeState {
@@ -111,7 +112,7 @@ export function toggleCollapsed(serverKey: string, categoryId: number): void {
 
 function connection(serverKey: string) {
   const c = connectionFor(serverKey)
-  if (!c) throw new Error('Not connected.')
+  if (!c) throw new Error(t('errors.codes.disconnected'))
   return c
 }
 

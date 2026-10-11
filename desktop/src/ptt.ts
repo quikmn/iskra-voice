@@ -2,6 +2,7 @@
 // Uses libuiohook (via uiohook-napi); only the configured keys' actions are reported to the app, never other keys.
 import { uIOhook, UiohookKey, type UiohookKeyboardEvent, type UiohookMouseEvent } from 'uiohook-napi'
 import { ComboCapture, HotkeyMatcher, hotkeyName, ModifierTracker, modsOf, MOUSE, type HotkeyAction, type Hotkeys } from './hotkeys'
+import { text } from './i18n'
 
 // Keys are libuiohook keycodes; mouse buttons are encoded as 0x10000 + button (side buttons are popular for PTT).
 
@@ -9,8 +10,8 @@ const KEY_NAMES = new Map<number, string>(Object.entries(UiohookKey).map(([name,
 
 /** A human-readable name for a key code ("V", "Ctrl", "Mouse 4"). */
 export function keyName(code: number): string {
-  if (code >= MOUSE) return `Mouse ${code - MOUSE}`
-  return KEY_NAMES.get(code) ?? `Key ${code}`
+  if (code >= MOUSE) return text().keys.mouse(code - MOUSE)
+  return KEY_NAMES.get(code) ?? text().keys.key(code)
 }
 
 export class PushToTalk {

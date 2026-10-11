@@ -1,5 +1,7 @@
 // What you can do with a channel or a category: notifications and mutes for everyone, arranging for admins.
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { errorMessage } from '../../i18n/errors'
 import type { Category, Channel, NotifyLevel } from '../../core/protocol'
 import type { ServerState } from '../../state/store'
 import { markChannelRead, useChannelCounts } from '../../state/unread'
@@ -7,7 +9,7 @@ import {
   deleteCategory, moveCategory, moveChannel, muteFor, setNotifyLevel, toggleCollapsed, useCategories, useNotifyFor, useOrganize,
 } from '../../state/organize'
 import {
-  LEVEL_LABELS, MUTE_CHOICES, layoutChannels, muteLabel, notifyKey, stepCategory, stepChannel,
+  MUTE_CHOICES, layoutChannels, levelLabel, muteChoiceLabel, muteLabel, notifyKey, stepCategory, stepChannel,
 } from '../../state/organizeLogic'
 import { MenuItem, MenuTitle, OrgMenu, type MenuAnchor } from './OrgMenu'
 
@@ -21,7 +23,7 @@ function useRunner(onClose: () => void): [Run, string | null] {
         await action()
         onClose()
       } catch (e) {
-        setError((e as Error).message)
+        setError(errorMessage(e))
       }
     })()
   }
@@ -36,22 +38,22 @@ function NotifyViews({ server, channelId, view, setView, run }: {
   setView: (v: 'menu') => void
   run: Run
 }) {
+  const { t } = useTranslation()
   const own = useOrganize((s) => s.notify[server.key]?.[notifyKey(channelId)])
   const serverLevel = useNotifyFor(server.key, null).chosen
-  const where = channelId === null ? 'server' : 'channel'
   if (view === 'levels') {
     const current = own?.level ?? 'default'
     const pick = (level: NotifyLevel | 'default') => run(() => setNotifyLevel(server.key, channelId, level))
     return (
       <>
-        <MenuTitle onBack={() => setView('menu')}>Notify me about</MenuTitle>
+        <MenuTitle onBack={() => setView('menu')}>{t('organize.menu.notifyAbout')}</MenuTitle>
         <div className="org-list" role="menu">
           {channelId !== null && (
-            <MenuItem checked={current === 'default'} onClick={pick('default')} hint={LEVEL_LABELS[serverLevel]}>Server default</MenuItem>
+            <MenuItem checked={current === 'default'} onClick={pick('default')} hint={levelLabel(serverLevel)}>{t('organize.menu.serverDefault')}</MenuItem>
           )}
           {(['all', 'mentions', 'none'] as const).map((level) => (
             <MenuItem key={level} checked={current === level || (channelId === null && current === 'default' && level === 'mentions')} onClick={pick(level)}>
-              {LEVEL_LABELS[level]}
+              {levelLabel(level)}
             </MenuItem>
           ))}
         </div>
@@ -60,10 +62,10 @@ function NotifyViews({ server, channelId, view, setView, run }: {
   }
   return (
     <>
-      <MenuTitle onBack={() => setView('menu')}>Mute this {where}</MenuTitle>
+      <MenuTitle onBack={() => setView('menu')}>{channelId === null ? t('organize.menu.muteServer') : t('organize.menu.muteChannel')}</MenuTitle>
       <div className="org-list" role="menu">
         {MUTE_CHOICES.map((choice) => (
-          <MenuItem key={choice.minutes} onClick={run(() => muteFor(server.key, channelId, choice.minutes))}>{choice.label}</MenuItem>
+          <MenuItem key={choice.minutes} onClick={run(() => muteFor(server.key, channelId, choice.minutes))}>{muteChoiceLabel(choice)}</MenuItem>
         ))}
       </div>
     </>
@@ -72,18 +74,19 @@ function NotifyViews({ server, channelId, view, setView, run }: {
 
 /** Notification rows shared by the channel menu and the server's notification settings. */
 function NotifyRows({ server, channelId, setView, run }: { server: ServerState; channelId: number | null; setView: (v: 'levels' | 'mute') => void; run: Run }) {
+  const { t } = useTranslation()
   const notify = useNotifyFor(server.key, channelId)
   const own = useOrganize((s) => s.notify[server.key]?.[notifyKey(channelId)])
   const clock = useOrganize((s) => s.clock)
   const ownMuted = muteLabel(own?.mutedUntil ?? null, clock)
-  const where = channelId === null ? 'server' : 'channel'
+  const isServer = channelId === null
   return (
     <>
-      <MenuItem onClick={() => setView('levels')} hint={LEVEL_LABELS[notify.chosen]}>Notifications</MenuItem>
+      <MenuItem onClick={() => setView('levels')} hint={levelLabel(notify.chosen)}>{t('organize.menu.notifications')}</MenuItem>
       {ownMuted ? (
-        <MenuItem onClick={run(() => muteFor(server.key, channelId, 0))} hint={ownMuted}>Unmute {where}</MenuItem>
+        <MenuItem onClick={run(() => muteFor(server.key, channelId, 0))} hint={ownMuted}>{isServer ? t('organize.menu.unmuteServer') : t('organize.menu.unmuteChannel')}</MenuItem>
       ) : (
-        <MenuItem onClick={() => setView('mute')} hint={notify.muted ? 'Server is muted' : undefined}>Mute {where}</MenuItem>
+        <MenuItem onClick={() => setView('mute')} hint={notify.muted ? t('organize.menu.serverIsMuted') : undefined}>{isServer ? t('organize.menu.mute.server') : t('organize.menu.mute.channel')}</MenuItem>
       )}
     </>
   )
@@ -97,6 +100,7 @@ export function ChannelMenu({ server, channel, anchor, isAdmin, onEdit, onClose 
   onEdit: () => void
   onClose: () => void
 }) {
+  const { t } = useTranslation()
   const [view, setView] = useState<'menu' | 'levels' | 'mute' | 'move'>('menu')
   const [run, error] = useRunner(onClose)
   const categories = useCategories(server.key)
@@ -108,14 +112,14 @@ export function ChannelMenu({ server, channel, anchor, isAdmin, onEdit, onClose 
   const label = channel.kind === 'voice' ? channel.name : `#${channel.name}`
 
   return (
-    <OrgMenu anchor={anchor} label={`${label} options`} onClose={onClose}>
+    <OrgMenu anchor={anchor} label={t('organize.list.options', { name: label })} onClose={onClose}>
       {view === 'levels' || view === 'mute' ? (
         <NotifyViews server={server} channelId={channel.id} view={view} setView={setView} run={run} />
       ) : view === 'move' ? (
         <>
-          <MenuTitle onBack={() => setView('menu')}>Move {label} to</MenuTitle>
+          <MenuTitle onBack={() => setView('menu')}>{t('organize.menu.moveTo', { label })}</MenuTitle>
           <div className="org-list" role="menu">
-            <MenuItem checked={channel.categoryId == null} onClick={run(() => moveChannel(server.key, channel.id, null, null))}>No category</MenuItem>
+            <MenuItem checked={channel.categoryId == null} onClick={run(() => moveChannel(server.key, channel.id, null, null))}>{t('organize.channelSettings.noCategory')}</MenuItem>
             {layout.groups.map(({ category }) => (
               <MenuItem key={category.id} checked={channel.categoryId === category.id} onClick={run(() => moveChannel(server.key, channel.id, category.id, null))}>
                 {category.name}
@@ -129,17 +133,17 @@ export function ChannelMenu({ server, channel, anchor, isAdmin, onEdit, onClose 
           <div className="org-list" role="menu">
             {unread > 0 && (
               <MenuItem onClick={run(() => markChannelRead(server.key, channel.id))}>
-                Mark as read
+                {t('organize.menu.markRead')}
               </MenuItem>
             )}
             {channel.kind === 'text' && <NotifyRows server={server} channelId={channel.id} setView={setView} run={run} />}
             {isAdmin && (
               <>
                 <div className="org-sep" role="separator" />
-                {up && <MenuItem onClick={run(() => moveChannel(server.key, channel.id, up.categoryId, up.before))}>Move up</MenuItem>}
-                {down && <MenuItem onClick={run(() => moveChannel(server.key, channel.id, down.categoryId, down.before))}>Move down</MenuItem>}
-                <MenuItem onClick={() => setView('move')} hint={categories.find((c) => c.id === channel.categoryId)?.name ?? 'None'}>Move to category</MenuItem>
-                <MenuItem onClick={() => { onEdit(); onClose() }}>Edit channel</MenuItem>
+                {up && <MenuItem onClick={run(() => moveChannel(server.key, channel.id, up.categoryId, up.before))}>{t('organize.menu.moveUp')}</MenuItem>}
+                {down && <MenuItem onClick={run(() => moveChannel(server.key, channel.id, down.categoryId, down.before))}>{t('organize.menu.moveDown')}</MenuItem>}
+                <MenuItem onClick={() => setView('move')} hint={categories.find((c) => c.id === channel.categoryId)?.name ?? t('common.none')}>{t('organize.menu.moveToCategory')}</MenuItem>
+                <MenuItem onClick={() => { onEdit(); onClose() }}>{t('organize.menu.editChannel')}</MenuItem>
               </>
             )}
           </div>
@@ -159,6 +163,7 @@ export function CategoryMenu({ server, category, anchor, isAdmin, onCreateChanne
   onRename: () => void
   onClose: () => void
 }) {
+  const { t } = useTranslation()
   const [view, setView] = useState<'menu' | 'delete'>('menu')
   const [run, error] = useRunner(onClose)
   const categories = useCategories(server.key)
@@ -166,27 +171,27 @@ export function CategoryMenu({ server, category, anchor, isAdmin, onCreateChanne
   const up = stepCategory(categories, category.id, -1)
   const down = stepCategory(categories, category.id, 1)
   return (
-    <OrgMenu anchor={anchor} label={`${category.name} options`} onClose={onClose}>
+    <OrgMenu anchor={anchor} label={t('organize.list.options', { name: category.name })} onClose={onClose}>
       {view === 'delete' ? (
         <div className="sheet-confirm">
-          <strong>Delete {category.name}?</strong>
-          <p className="muted">Its channels stay, at the top of the list without a category.</p>
-          <button className="button danger wide" onClick={run(() => deleteCategory(server.key, category.id))}>Delete category</button>
-          <button className="button wide" onClick={() => setView('menu')}>Cancel</button>
+          <strong>{t('organize.menu.deleteTitle', { name: category.name })}</strong>
+          <p className="muted">{t('organize.menu.deleteHint')}</p>
+          <button className="button danger wide" onClick={run(() => deleteCategory(server.key, category.id))}>{t('organize.menu.deleteCategory')}</button>
+          <button className="button wide" onClick={() => setView('menu')}>{t('common.cancel')}</button>
         </div>
       ) : (
         <>
           <MenuTitle>{category.name}</MenuTitle>
           <div className="org-list" role="menu">
-            <MenuItem onClick={run(() => toggleCollapsed(server.key, category.id))}>{collapsed ? 'Expand' : 'Collapse'}</MenuItem>
+            <MenuItem onClick={run(() => toggleCollapsed(server.key, category.id))}>{collapsed ? t('organize.menu.expand') : t('organize.menu.collapse')}</MenuItem>
             {isAdmin && (
               <>
                 <div className="org-sep" role="separator" />
-                <MenuItem onClick={() => { onCreateChannel(); onClose() }}>Create channel here</MenuItem>
-                <MenuItem onClick={() => { onRename(); onClose() }}>Rename category</MenuItem>
-                {up && <MenuItem onClick={run(() => moveCategory(server.key, category.id, up.before))}>Move up</MenuItem>}
-                {down && <MenuItem onClick={run(() => moveCategory(server.key, category.id, down.before))}>Move down</MenuItem>}
-                <MenuItem danger onClick={() => setView('delete')}>Delete category</MenuItem>
+                <MenuItem onClick={() => { onCreateChannel(); onClose() }}>{t('organize.menu.createHere')}</MenuItem>
+                <MenuItem onClick={() => { onRename(); onClose() }}>{t('organize.menu.renameCategory')}</MenuItem>
+                {up && <MenuItem onClick={run(() => moveCategory(server.key, category.id, up.before))}>{t('organize.menu.moveUp')}</MenuItem>}
+                {down && <MenuItem onClick={run(() => moveCategory(server.key, category.id, down.before))}>{t('organize.menu.moveDown')}</MenuItem>}
+                <MenuItem danger onClick={() => setView('delete')}>{t('organize.menu.deleteCategory')}</MenuItem>
               </>
             )}
           </div>

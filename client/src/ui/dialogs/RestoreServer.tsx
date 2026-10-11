@@ -1,11 +1,13 @@
 // Desktop only: "Restore a server from backup". Pick the file, enter its passphrase, and it runs on this computer.
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { desktop, type PickedBackup } from '../../platform/desktop'
 import { moveServer, useApp } from '../../state/store'
 import { Modal, Spinner } from '../bits'
 import '../settings/backup.css'
 
 export function RestoreServer({ onBack, onClose }: { onBack: () => void; onClose: () => void }) {
+  const { t } = useTranslation()
   const [picked, setPicked] = useState<PickedBackup | null>(null)
   const [passphrase, setPassphrase] = useState('')
   const [busy, setBusy] = useState(false)
@@ -42,24 +44,21 @@ export function RestoreServer({ onBack, onClose }: { onBack: () => void; onClose
 
   return (
     <Modal
-      title="Restore a server from backup"
+      title={t('settings.restore.title')}
       onBack={onBack}
       onClose={onClose}
       footer={
         <>
-          <button className="button" onClick={onBack}>Back</button>
+          <button className="button" onClick={onBack}>{t('common.back')}</button>
           <button className="button primary" disabled={!picked || busy || (picked.encrypted && !passphrase)} onClick={() => void restore()}>
-            {busy ? <Spinner /> : 'Restore'}
+            {busy ? <Spinner /> : t('settings.restore.restore')}
           </button>
         </>
       }
     >
-      <p className="muted">
-        Bring a server here from another computer: pick its backup (made in Settings → Backup &amp; move, or a daily backup from its
-        folder). It runs on this computer while Iskra is open, with everything it had.
-      </p>
+      <p className="muted">{t('settings.restore.intro')}</p>
       <div className="restore-file">
-        <button className="button" onClick={() => void pick()} disabled={busy}>{picked ? 'Pick another file' : 'Choose backup file…'}</button>
+        <button className="button" onClick={() => void pick()} disabled={busy}>{picked ? t('settings.restore.pickAnother') : t('settings.restore.choose')}</button>
         {picked && (
           <span className="restore-file-name">
             <strong>{picked.name ?? picked.fileName}</strong>
@@ -69,12 +68,12 @@ export function RestoreServer({ onBack, onClose }: { onBack: () => void; onClose
       </div>
       {picked?.encrypted && (
         <label className="field">
-          <span>Passphrase</span>
+          <span>{t('settings.restore.passphrase')}</span>
           <input type="password" autoFocus value={passphrase} maxLength={1024} disabled={busy}
             onChange={(e) => setPassphrase(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void restore()} />
         </label>
       )}
-      {busy && <p className="muted">Restoring and starting the server… this can take a minute for big servers.</p>}
+      {busy && <p className="muted">{t('settings.restore.busy')}</p>}
       {error && <p className="error-text">{error}</p>}
     </Modal>
   )

@@ -1,6 +1,10 @@
 // Voice messages: the mic button and recording bar in the composer, and the inline player in messages.
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { VoiceInfo } from '../../../core/protocol'
+import { t as translate } from '../../../i18n'
+import { errorMessage } from '../../../i18n/errors'
+import { formatNumber } from '../../../i18n/format'
 import { fileUrl, type PendingMessage, type ServerState } from '../../../state/store'
 import { Mic, Send, Trash } from '../../icons'
 import { useEscapeLayer } from '../../layers'
@@ -13,9 +17,9 @@ type Mode = 'idle' | 'starting' | 'holding' | 'locked' | 'sending'
 
 function micError(e: unknown): string {
   const name = (e as DOMException)?.name
-  if (name === 'NotAllowedError' || name === 'SecurityError') return "Iskra can't use your microphone. Allow it in your browser's site settings."
-  if (name === 'NotFoundError') return 'No microphone found.'
-  return "Couldn't start recording."
+  if (name === 'NotAllowedError' || name === 'SecurityError') return translate('chat.voice.micBlocked')
+  if (name === 'NotFoundError') return translate('chat.voice.noMic')
+  return translate('chat.voice.startFailed')
 }
 
 /**
@@ -31,6 +35,7 @@ export function VoiceRecordButton({ onSend, disabled }: { onSend: (recording: Re
   const recorder = useRef<VoiceRecorder | null>(null)
   const press = useRef<{ x: number; at: number } | null>(null)
   const recording = mode === 'holding' || mode === 'locked' || mode === 'starting'
+  const { t } = useTranslation()
   useEscapeLayer(() => cancel(), recording)
 
   useEffect(() => {
@@ -71,12 +76,12 @@ export function VoiceRecordButton({ onSend, disabled }: { onSend: (recording: Re
     try {
       const result = await r.stop()
       if (!result) {
-        setError('Too short. Hold the mic button to record.')
+        setError(t('chat.voice.tooShort'))
         return
       }
       await onSend(result)
     } catch (e) {
-      setError((e as Error).message || "Couldn't send the voice message.")
+      setError((e as Error)?.message ? errorMessage(e) : t('chat.voice.sendFailed'))
     } finally {
       setMode('idle')
     }
@@ -130,8 +135,8 @@ export function VoiceRecordButton({ onSend, disabled }: { onSend: (recording: Re
     <>
       <button
         className={`icon-button attach-button voice-record-button ${mode === 'holding' ? 'holding' : ''}`}
-        aria-label="Record a voice message"
-        title="Hold to record a voice message, or tap"
+        aria-label={t('chat.voice.record')}
+        title={t('chat.voice.recordTitle')}
         disabled={disabled}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -143,9 +148,9 @@ export function VoiceRecordButton({ onSend, disabled }: { onSend: (recording: Re
         <Mic />
       </button>
       {mode !== 'idle' && (
-        <div className={`voice-recording ${mode}`} role="group" aria-label="Recording a voice message">
+        <div className={`voice-recording ${mode}`} role="group" aria-label={t('chat.voice.recording')}>
           {mode === 'locked' && (
-            <button className="icon-button voice-cancel" onClick={cancel} aria-label="Cancel recording" title="Cancel">
+            <button className="icon-button voice-cancel" onClick={cancel} aria-label={t('chat.voice.cancelRecording')} title={t('common.cancel')}>
               <Trash />
             </button>
           )}
@@ -156,14 +161,14 @@ export function VoiceRecordButton({ onSend, disabled }: { onSend: (recording: Re
           </span>
           {mode === 'holding' && (
             <span className="voice-slide-hint" style={{ opacity: 1 - Math.min(0.8, slide / CANCEL_SLIDE_PX), transform: `translateX(${-Math.min(slide, CANCEL_SLIDE_PX) / 3}px)` }}>
-              ‹ Slide to cancel
+              ‹ {t('chat.voice.slideToCancel')}
             </span>
           )}
-          {mode === 'locked' && left < 30_000 && <span className="voice-rec-left">{formatDuration(left)} left</span>}
-          {mode === 'starting' && <span className="voice-slide-hint">Opening microphone…</span>}
-          {mode === 'sending' && <span className="voice-slide-hint"><Spinner /> Sending…</span>}
+          {mode === 'locked' && left < 30_000 && <span className="voice-rec-left">{t('chat.voice.left', { time: formatDuration(left) })}</span>}
+          {mode === 'starting' && <span className="voice-slide-hint">{t('chat.voice.opening')}</span>}
+          {mode === 'sending' && <span className="voice-slide-hint"><Spinner /> {t('chat.voice.sending')}</span>}
           {mode === 'locked' && (
-            <button className="send-button voice-send" onClick={() => void finish()} aria-label="Send voice message" title="Send">
+            <button className="send-button voice-send" onClick={() => void finish()} aria-label={t('chat.voice.send')} title={t('common.send')}>
               <Send />
             </button>
           )}
@@ -172,7 +177,7 @@ export function VoiceRecordButton({ onSend, disabled }: { onSend: (recording: Re
       {error && (
         <div className="voice-error" role="alert">
           {error}
-          <button className="link" onClick={() => setError(null)}>Dismiss</button>
+          <button className="link" onClick={() => setError(null)}>{t('chat.voice.dismiss')}</button>
         </div>
       )}
     </>
@@ -208,6 +213,7 @@ export function VoicePlayer({ src, voice }: { src: string | null; voice: VoiceIn
   const [position, setPosition] = useState(0)
   const [rate, setRate] = useState(loadRate)
   const [failed, setFailed] = useState(false)
+  const { t } = useTranslation()
   const bars = decodeWaveform(voice.waveform, BARS)
   const duration = voice.duration
   const progress = Math.min(1, position / duration)
@@ -283,7 +289,7 @@ export function VoicePlayer({ src, voice }: { src: string | null; voice: VoiceIn
           onError={() => setFailed(true)}
         />
       )}
-      <button className="voice-play" onClick={() => void toggle()} disabled={!src} aria-label={playing ? 'Pause voice message' : 'Play voice message'}>
+      <button className="voice-play" onClick={() => void toggle()} disabled={!src} aria-label={playing ? t('chat.voice.pause') : t('chat.voice.play')}>
         {playing ? <PauseIcon /> : <PlayIcon />}
       </button>
       <div
@@ -291,11 +297,11 @@ export function VoicePlayer({ src, voice }: { src: string | null; voice: VoiceIn
         className="voice-wave"
         role="slider"
         tabIndex={0}
-        aria-label="Position"
+        aria-label={t('chat.voice.position')}
         aria-valuemin={0}
         aria-valuemax={Math.round(duration / 1000)}
         aria-valuenow={Math.round(position / 1000)}
-        aria-valuetext={`${formatDuration(position)} of ${formatDuration(duration)}`}
+        aria-valuetext={t('chat.voice.positionOf', { position: formatDuration(position), duration: formatDuration(duration) })}
         onPointerDown={(e) => {
           if (!src) return
           e.currentTarget.setPointerCapture(e.pointerId)
@@ -316,9 +322,9 @@ export function VoicePlayer({ src, voice }: { src: string | null; voice: VoiceIn
           <span key={i} className={(i + 0.5) / BARS <= progress ? 'played' : ''} style={{ height: `${Math.max(10, h * 100)}%` }} />
         ))}
       </div>
-      <span className="voice-time">{failed ? "Can't play" : formatDuration(playing || position > 0 ? position : duration)}</span>
-      <button className="voice-rate" onClick={changeRate} aria-label={`Playback speed ${rate}×`} title="Playback speed">
-        {rate}×
+      <span className="voice-time">{failed ? t('chat.voice.cantPlay') : formatDuration(playing || position > 0 ? position : duration)}</span>
+      <button className="voice-rate" onClick={changeRate} aria-label={t('chat.voice.speedLabel', { rate: formatNumber(rate) })} title={t('chat.voice.speed')}>
+        {formatNumber(rate)}×
       </button>
     </div>
   )

@@ -1,5 +1,6 @@
 // Pure helpers for group DMs (no sockets, no stores), so they can be tested on their own.
 import type { GroupView, VerifiedChange } from '../core/group'
+import { t } from '../i18n'
 
 export interface GroupMsg {
   /** The id inside the encrypted header; the same on every device. */
@@ -34,18 +35,18 @@ export function timeline(messages: GroupMsg[], view: GroupView | null): Timeline
 
 function list(names: string[]): string {
   if (names.length <= 1) return names[0] ?? ''
-  return `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
+  return t('groups.change.and', { list: names.slice(0, -1).join(', '), last: names.at(-1)! })
 }
 
 /** "Alice added Bob and Carol", with "you" for yourself. */
 export function changeText(change: Pick<VerifiedChange, 'action' | 'by' | 'targets'>, me: string, nameOf: (key: string) => string): string {
-  const who = (key: string, start = false) => (key === me ? (start ? 'You' : 'you') : nameOf(key))
-  const targets = list(change.targets.map((t) => who(t)))
+  const who = (key: string, start = false) => (key === me ? (start ? t('groups.change.youSubject') : t('groups.change.youObject')) : nameOf(key))
+  const targets = list(change.targets.map((k) => who(k)))
   switch (change.action) {
-    case 'create': return `${who(change.by, true)} created the group with ${targets}`
-    case 'add': return `${who(change.by, true)} added ${targets}`
-    case 'remove': return `${who(change.by, true)} removed ${targets}`
-    case 'leave': return `${who(change.by, true)} left the group`
+    case 'create': return t('groups.change.created', { who: who(change.by, true), targets })
+    case 'add': return t('groups.change.added', { who: who(change.by, true), targets })
+    case 'remove': return t('groups.change.removed', { who: who(change.by, true), targets })
+    case 'leave': return t('groups.change.left', { who: who(change.by, true) })
   }
 }
 
@@ -53,9 +54,9 @@ export function changeText(change: Pick<VerifiedChange, 'action' | 'by' | 'targe
 export function groupTitle(name: string | null, members: string[], me: string, nameOf: (key: string) => string): string {
   if (name) return name
   const others = members.filter((m) => m !== me).map(nameOf)
-  if (others.length === 0) return 'Just you'
+  if (others.length === 0) return t('groups.title.justYou')
   if (others.length <= 4) return list(others)
-  return `${others.slice(0, 3).join(', ')} and ${others.length - 3} more`
+  return t('groups.title.andMore', { names: others.slice(0, 3).join(', '), count: others.length - 3 })
 }
 
 /** Grid columns for a call with `count` tiles: fills a wide screen, stacks on a phone. */
@@ -111,5 +112,8 @@ export function asGroupCallLine(call: unknown): { kind: 'group-start'; id: strin
  */
 export function ringNotice(caller: string, group: string, video: boolean, env: { focused: boolean; enabled: boolean; permission: string }): { title: string; body: string } | null {
   if (env.focused || !env.enabled || env.permission !== 'granted') return null
-  return { title: `${caller} started a group call`, body: `${group} · ${video ? 'Video' : 'Voice'} call · end-to-end encrypted` }
+  return {
+    title: t('groups.call.started', { name: caller }),
+    body: video ? t('groups.call.ringBodyVideo', { group }) : t('groups.call.ringBodyVoice', { group }),
+  }
 }

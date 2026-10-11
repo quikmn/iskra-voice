@@ -1,6 +1,7 @@
 // Desktop notifications, the unread count in the window title, and small sounds.
 // Notifications fire for mentions (every message at "All messages") and DMs when you aren't already looking at them.
 import { create } from 'zustand'
+import { t } from '../i18n'
 import { plainText } from '../ui/markdown'
 import { senderRules } from './senderRules'
 import { onServerEvent, useApp } from './store'
@@ -145,8 +146,8 @@ onServerEvent((serverKey, type, body) => {
     if (message.author === myKey || senderRules.ignored(message.author) || isBlocked(useBlocks.getState().entries, message.author)) return
     if (!shouldNotify(notifyFor(serverKey, message.channelId), !message.forwarded && senderRules.mentionsMe(server, message))) return
     if (isOnScreen(channelConv(serverKey, message.channelId))) return
-    const author = message.webhook?.name ?? server.members[message.author]?.name ?? 'Someone'
-    show(serverKey, `${author} in ${conversationLabel(server, message.channelId)}`, plainText(message.text, { nameOf: (k) => server.members[k]?.name ?? null }), () => {
+    const author = message.webhook?.name ?? server.members[message.author]?.name ?? t('common.someone')
+    show(serverKey, t('app.notify.authorIn', { author, where: conversationLabel(server, message.channelId) }), plainText(message.text, { nameOf: (k) => server.members[k]?.name ?? null }), () => {
       void jumpToMessage(serverKey, message.channelId, message.id)
     })
   }
@@ -177,7 +178,7 @@ onServerEvent((serverKey, type, body) => {
       if (isOnScreen(dmConv(message.from))) return
       // The text is end-to-end encrypted; read it from the decrypted conversation.
       const latest = useDms.getState().conversations[message.from]?.messages.at(-1)
-      show(serverKey, nameOf(message.from), latest?.error ? 'New message' : (latest?.text ?? 'New message'), () => openConversation(message.from))
+      show(serverKey, nameOf(message.from), latest?.error ? t('app.notify.newMessage') : (latest?.text ?? t('app.notify.newMessage')), () => openConversation(message.from))
     })
   }
 })

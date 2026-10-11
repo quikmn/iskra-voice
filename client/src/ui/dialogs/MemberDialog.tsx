@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { errorMessage } from '../../i18n/errors'
 import { fingerprint } from '../../core/connection'
 import { ROLES, roleRank, type Member, type Role } from '../../core/protocol'
 import { connectionFor, type ServerState } from '../../state/store'
@@ -17,6 +19,7 @@ import { has, outranks } from '../../state/permissions'
 import { MemberRolesEditor, RoleChips, VoiceModControls } from '../roles/RoleSettings'
 
 export function MemberDialog({ server, member, onClose }: { server: ServerState; member: Member; onClose: () => void }) {
+  const { t } = useTranslation()
   const me = server.me
   const isSelf = me?.accountKey === member.accountKey
   const roles = useServerRoles(server.key)
@@ -36,7 +39,7 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
       await action()
       setError(null)
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
     }
   }
 
@@ -54,22 +57,22 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
         <div>
           <strong className="member-card-name">{member.name}</strong> {member.bot && <BotBadge />}
           {member.nick && member.profileName && <div className="muted">{member.profileName}</div>}
-          <div className="muted">{[member.pronouns, member.role, STATUS_LABELS[presence.status].toLowerCase()].filter(Boolean).join(' · ')}</div>
-          <div className="muted">ID <code>{fingerprint(member.accountKey)}</code></div>
+          <div className="muted">{[member.pronouns, t(`common.roles.${member.role}`), STATUS_LABELS[presence.status].toLowerCase()].filter(Boolean).join(' · ')}</div>
+          <div className="muted">{t('settings.member.id')} <code>{fingerprint(member.accountKey)}</code></div>
           <RoleChips server={server} member={member} />
           {timeoutActive(member) && (
-            <div className="member-timeout-line"><ClockIcon /> Timed out until {untilText(member.timedOutUntil!)}</div>
+            <div className="member-timeout-line"><ClockIcon /> {t('settings.member.timedOutUntil', { until: untilText(member.timedOutUntil!) })}</div>
           )}
         </div>
       </div>
 
       {!isSelf && (
         <div className="copy-row member-actions">
-          <button className="button primary" onClick={() => { openConversation(member.accountKey); onClose() }}>Message</button>
+          <button className="button primary" onClick={() => { openConversation(member.accountKey); onClose() }}>{t('settings.member.message')}</button>
           {isFriend ? (
-            <button className="button" onClick={() => void removeFriend(member.accountKey)}>Remove friend</button>
+            <button className="button" onClick={() => void removeFriend(member.accountKey)}>{t('settings.member.removeFriend')}</button>
           ) : (
-            <button className="button" onClick={() => void addFriend(member.accountKey)}>Add friend</button>
+            <button className="button" onClick={() => void addFriend(member.accountKey)}>{t('settings.member.addFriend')}</button>
           )}
           <BlockButton accountKey={member.accountKey} name={member.name} />
         </div>
@@ -77,9 +80,9 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
 
       {inMyVoice && (
         <section className="settings-section">
-          <h3>Voice</h3>
+          <h3>{t('settings.member.voice')}</h3>
           <label className="field">
-            <span>Volume · {Math.round(volume * 100)}%</span>
+            <span>{t('settings.member.volume', { percent: Math.round(volume * 100) })}</span>
             <input type="range" min={0} max={maxVolume()} step={0.05} value={Math.min(volume, maxVolume())} onChange={(e) => setVolume(member.accountKey, Number(e.target.value))} />
           </label>
         </section>
@@ -91,24 +94,24 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
 
       {(canModerate || canKick || canBan || canTimeout) && connection && (
         <section className="settings-section">
-          <h3>Moderation</h3>
+          <h3>{t('settings.member.moderation')}</h3>
           {canModerate && <label className="field inline">
-            <span>Level</span>
+            <span>{t('settings.member.level')}</span>
             <select
               value={member.role}
               onChange={(e) => void run(() => connection.request('member.setRole', { accountKey: member.accountKey, role: e.target.value as Role }))}
             >
-              {grantable.map((r) => <option key={r} value={r}>{r}</option>)}
+              {grantable.map((r) => <option key={r} value={r}>{t(`common.roles.${r}`)}</option>)}
             </select>
           </label>}
           {canModerate && member.page && (
             <div className="copy-row member-actions">
-              <button className="button danger-outline" onClick={() => void run(() => removeMemberPage(server.key, member))}>Remove profile page</button>
+              <button className="button danger-outline" onClick={() => void run(() => removeMemberPage(server.key, member))}>{t('settings.member.removePage')}</button>
             </div>
           )}
           {confirm ? (
             <div className="copy-row">
-              <span>{confirm === 'kick' ? `Remove ${member.name}? They can come back with a new invite.` : `Ban ${member.name}? They can't come back until unbanned.`}</span>
+              <span>{confirm === 'kick' ? t('settings.member.kickConfirm', { name: member.name }) : t('settings.member.banConfirm', { name: member.name })}</span>
               <button
                 className="button danger"
                 onClick={() => void run(async () => {
@@ -116,14 +119,14 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
                   onClose()
                 })}
               >
-                {confirm === 'kick' ? 'Kick' : 'Ban'}
+                {confirm === 'kick' ? t('settings.member.kick') : t('settings.member.ban')}
               </button>
-              <button className="button" onClick={() => setConfirm(null)}>Cancel</button>
+              <button className="button" onClick={() => setConfirm(null)}>{t('common.cancel')}</button>
             </div>
           ) : (canKick || canBan) && (
             <div className="copy-row">
-              {canKick && <button className="button danger-outline" onClick={() => setConfirm('kick')}>Kick</button>}
-              {canBan && <button className="button danger-outline" onClick={() => setConfirm('ban')}>Ban</button>}
+              {canKick && <button className="button danger-outline" onClick={() => setConfirm('kick')}>{t('settings.member.kick')}</button>}
+              {canBan && <button className="button danger-outline" onClick={() => setConfirm('ban')}>{t('settings.member.ban')}</button>}
             </div>
           )}
           {error && <p className="error-text">{error}</p>}
