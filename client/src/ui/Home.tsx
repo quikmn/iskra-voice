@@ -9,7 +9,7 @@ import { Avatar, Modal } from './bits'
 import { renderMarkdown } from './markdown'
 import { fingerprint } from '../core/connection'
 import { clockTime, fullTime, hueFor, messageTime } from './format'
-import { Lock, Menu, Send, Settings, Users } from './icons'
+import { Lock, Menu, Settings, Users } from './icons'
 import { SettingsDialog } from './settings/SettingsDialog'
 import { ForwardedFiles, ForwardedLine } from './organize/ForwardDialog'
 import type { Panel } from './Shell'
@@ -21,6 +21,7 @@ import { useIsBlocked } from '../state/moderation'
 import { BlockedDmBar } from './moderation/Moderation'
 import { GroupChat, GroupRows } from './groups/Groups'
 import { DmKeyNotice, DmKeyWarning } from './keys/DmKeyNotice'
+import { DM_ATTACH_EVENT, DmAttachments, DmComposer } from './dms/DmFiles'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -161,7 +162,7 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
   const identity = useApp((s) => s.identity)
   useApp((s) => s.servers)
   const [verify, setVerify] = useState(false)
-  const [text, setText] = useState('')
+  const [dragging, setDragging] = useState(false)
   const scroller = useRef<HTMLDivElement>(null)
   const myKey = identity ? b64u(identity.account.publicKey) : ''
   const reachable = sharedServers(peer).length > 0
@@ -177,15 +178,22 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
     if (conversation?.unread) markRead(peer)
   }, [conversation?.unread, peer])
 
-  function submit() {
-    const trimmed = text.trim()
-    if (!trimmed || !reachable) return
-    setText('')
-    void sendDm(peer, trimmed)
-  }
-
   return (
-    <div className="chat">
+    <div
+      className={`chat ${dragging ? 'dragging' : ''}`}
+      onDragOver={(e) => {
+        if (!reachable || !e.dataTransfer.types.includes('Files')) return
+        e.preventDefault()
+        setDragging(true)
+      }}
+      onDragLeave={(e) => e.currentTarget === e.target && setDragging(false)}
+      onDrop={(e) => {
+        setDragging(false)
+        if (!reachable || e.dataTransfer.files.length === 0) return
+        e.preventDefault()
+        window.dispatchEvent(new CustomEvent(DM_ATTACH_EVENT, { detail: [...e.dataTransfer.files] }))
+      }}
+    >
       <header className="chat-header">
         <button className="icon-button mobile-only" onClick={() => onToggle('nav')} aria-label="Open menu">
           <Menu />
@@ -219,24 +227,7 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
       {blocked ? (
         <BlockedDmBar accountKey={peer} name={nameOf(peer)} />
       ) : reachable ? (
-        <div className="composer">
-          <textarea
-            rows={1}
-            value={text}
-            maxLength={4000}
-            placeholder={`Message ${nameOf(peer)}`}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-                e.preventDefault()
-                submit()
-              }
-            }}
-          />
-          <button className="send-button" onClick={submit} disabled={!text.trim()} aria-label="Send">
-            <Send />
-          </button>
-        </div>
+        <DmComposer key={peer} peer={peer} placeholder={`Message ${nameOf(peer)}`} />
       ) : (
         <div className="composer read-only">You don't share an online server with {nameOf(peer)} right now, so messages can't be delivered.</div>
       )}
@@ -267,14 +258,15 @@ function DmRow({ dm, grouped, peer, mine }: { dm: Dm; grouped: boolean; peer: st
         ) : (
           <>
             {dm.forward && <ForwardedLine label={dm.forward.from} />}
-            <div className="message-text">{renderMarkdown(dm.text, { nameOf: (k) => nameOf(k) })}</div>
+            {dm.text && <div className="message-text">{renderMarkdown(dm.text, { nameOf: (k) => nameOf(k) })}</div>}
             {dm.forward && dm.forward.files.length > 0 && <ForwardedFiles files={dm.forward.files} />}
+            <DmAttachments files={dm.files} />
           </>
         )}
         {dm.pending === 'failed' && mine && (
           <div className="message-failed">
             {dm.error ?? "Couldn't send."}{' '}
-            <button className="link" onClick={() => { discardDm(peer, dm.id); void sendDm(peer, dm.text) }}>Retry</button>
+            <button className="link" onClick={() => { discardDm(peer, dm.id); void sendDm(peer, dm.text, dm.files ? { files: dm.files } : {}) }}>Retry</button>
             {' · '}
             <button className="link" onClick={() => discardDm(peer, dm.id)}>Discard</button>
           </div>

@@ -125,7 +125,7 @@ export interface WireDm {
 /** Client → server requests: [body, result]. */
 export interface Requests {
   ping: [Record<string, never>, Record<string, never>]
-  'chat.send': [{ channelId: number; text: string; attachments?: string[]; replyTo?: number; voice?: VoiceInfo; nonce?: string }, { message: Message; nonce?: string | null }]
+  'chat.send': [{ channelId: number; text: string; attachments?: string[]; replyTo?: number; voice?: VoiceInfo; sticker?: string; gif?: string | DirectGif; nonce?: string }, { message: Message; nonce?: string | null }]
   'chat.react': [{ id: number; emoji: string; on: boolean }, Record<string, never>]
   'upload.begin': [{ name: string; size: number }, { url: string; maxBytes: number }]
   'link.preview': [{ url: string }, { preview: LinkPreview | null }]
@@ -149,7 +149,7 @@ export interface Requests {
   'voice.join': [{ channelId: number }, { url: string; token: string; room: string; canSpeak: boolean }]
   'voice.state': [{ muted: boolean; deafened: boolean }, Record<string, never>]
   'dm.devices': [{ accountKey: string }, DeviceBundle]
-  'dm.send': [{ accountKey: string; envelope: import('./dm').DmEnvelope }, { message: WireDm }]
+  'dm.send': [{ accountKey: string; envelope: import('./dm').DmEnvelope; files?: string[] }, { message: WireDm }]
   'dm.history': [{ accountKey: string; before?: number; limit?: number }, { messages: WireDm[]; hasMore: boolean }]
   'dm.conversations': [Record<string, never>, { conversations: { accountKey: string; lastId: number; lastAt: number }[] }]
   'device.list': [Record<string, never>, { devices: DeviceInfo[]; revoked: Revocation[] }]
@@ -256,7 +256,7 @@ export interface ProfileUpdate {
 export type ErrorCode =
   | 'bad_request' | 'forbidden' | 'not_found' | 'rate_limited' | 'unknown_type' | 'internal'
   | 'auth_failed' | 'invite_required' | 'banned' | 'voice_unavailable' | 'busy' | 'device_revoked' | 'conflict' | 'moved'
-  | 'account_rotated' | 'account_disputed' | 'rotation_conflict'
+  | 'account_rotated' | 'account_disputed' | 'rotation_conflict' | 'unavailable'
 
 export class RequestError extends Error {
   readonly code: ErrorCode | 'disconnected' | 'timeout'
@@ -1073,4 +1073,109 @@ export interface Member {
 
 export interface Requests {
   'activity.set': [{ name: string | null }, { activity: Activity | null }]
+}
+
+// ── encrypted DM attachments ──
+
+export interface Requests {
+  'dm.upload.begin': [{ accountKey: string; size: number }, { url: string; maxBytes: number }]
+  'dm.file.url': [{ id: string }, { url: string; size: number }]
+}
+
+// ── stickers ──
+
+export interface Sticker {
+  id: string
+  name: string
+  /** Relative to the server's URL; null once deleted (on messages). */
+  url: string | null
+  animated: boolean
+  createdBy?: string
+}
+
+export interface Message {
+  /** A sticker message (no text or attachments). */
+  sticker?: Sticker | null
+}
+
+export interface Events {
+  'stickers.updated': { stickers: Sticker[] }
+}
+
+export interface Requests {
+  'sticker.list': [Record<string, never>, { stickers: Sticker[] }]
+  'sticker.create': [{ name: string; fileId: string }, { sticker: Sticker }]
+  'sticker.rename': [{ id: string; name: string }, { sticker: Sticker }]
+  'sticker.delete': [{ id: string }, Record<string, never>]
+}
+
+// ── GIFs (through the server) ──
+
+/** A GIF search result. Through the server: media URLs are its proxy (relative). Direct: KLIPY's own addresses. */
+export interface GifResult {
+  id: string
+  title: string
+  width: number
+  height: number
+  url: string
+  preview: string
+  /** Through the server: send this back in chat.send's `gif`. Empty in direct mode. */
+  token: string
+  /** Loaded straight from KLIPY (direct mode). */
+  direct?: boolean
+}
+
+export type GifMode = 'direct' | 'proxy'
+
+export interface GifStatus {
+  enabled: boolean
+  provider: string | null
+  mode?: GifMode
+  /** Direct mode only: the server's KLIPY key and this member's pseudonymous customer id. */
+  key?: string | null
+  customerId?: string | null
+}
+
+/** chat.send's `gif` in direct mode: the GIF as KLIPY gave it. */
+export interface DirectGif {
+  id: string
+  title: string
+  url: string
+  preview: string
+  width: number
+  height: number
+}
+
+export interface GifCategory {
+  name: string
+  query: string
+  preview: string | null
+}
+
+export interface MessageGif {
+  /** KLIPY's own addresses (direct mode): shown after a click unless the viewer allows loading them. */
+  direct?: boolean
+  provider: string
+  id: string
+  title: string
+  width: number
+  height: number
+  url: string
+  preview: string
+}
+
+export interface Message {
+  gif?: MessageGif | null
+}
+
+export interface Events {
+  'gif.status': GifStatus
+}
+
+export interface Requests {
+  'gif.status': [Record<string, never>, GifStatus]
+  'gif.configure': [{ key?: string; mode?: GifMode }, Record<string, never>]
+  'gif.trending': [{ page?: number }, { gifs: GifResult[]; hasNext: boolean }]
+  'gif.search': [{ q: string; page?: number }, { gifs: GifResult[]; hasNext: boolean }]
+  'gif.categories': [Record<string, never>, { categories: GifCategory[] }]
 }

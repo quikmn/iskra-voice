@@ -35,6 +35,8 @@ public static class MessageViews
             voice = VoiceMessageFeature.View(store, m.Id),
             imported = ImportFeature.MessageView(store, m),
             forwarded = ForwardFeature.View(store, m),
+            sticker = StickerFeature.View(store, m.Id),
+            gif = GifFeature.View(store, m.Id),
         };
     }
 

@@ -14,6 +14,8 @@ import { ProfileSection, ServerPagesOption } from '../profile/ProfileSettings'
 import { AppearanceSection } from '../profile/AppearanceSettings'
 import { InternetSection } from '../dialogs/InternetSettings'
 import { EmojiSection, SoundboardSettingsSection, SoundsSection } from '../expressions/ExpressionSettings'
+import { StickerSection } from '../chat/Stickers'
+import { GifSettings, GifViewerSettings } from '../chat/GifSettings'
 import { DevicesSection } from '../dialogs/DevicesSection'
 import { IntegrationsSection } from '../dialogs/Integrations'
 import { BackupSection } from './BackupSection'
@@ -100,7 +102,7 @@ export function SettingsDialog({ server, onClose, section: initial }: { server?:
 function Section({ id, server, onClose }: { id: SectionId; server: ServerState | null; onClose: () => void }) {
   switch (id) {
     case 'profile': return <ProfileSection />
-    case 'appearance': return <AppearanceSection />
+    case 'appearance': return <><AppearanceSection /><GifViewerSettings /></>
     case 'devices': return <DevicesSection />
     case 'recovery': return <><RecoveryKeySection /><RotateKeySection /></>
     case 'security': return <AppLockSection />
@@ -112,7 +114,7 @@ function Section({ id, server, onClose }: { id: SectionId; server: ServerState |
   if (!server) return null
   switch (id) {
     case 'overview': return <OverviewSection server={server} onClose={onClose} />
-    case 'emoji': return <EmojiSection server={server} />
+    case 'emoji': return <><EmojiSection server={server} /><StickerSection server={server} /></>
     case 'sounds': return <SoundsSection server={server} />
     case 'integrations': return <IntegrationsSection server={server} />
     case 'pages': return <PagesSection server={server} />
@@ -136,6 +138,7 @@ function OverviewSection({ server, onClose }: { server: ServerState; onClose: ()
         <div><dt>Server ID</dt><dd><code>{fingerprint(server.key)}</code></dd></div>
       </dl>
       {server.me && <NicknameField server={server} member={server.me} />}
+      <GifSettings server={server} />
       <div className="settings-danger">
         <div>
           <strong>Remove from my list</strong>

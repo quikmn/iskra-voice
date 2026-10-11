@@ -54,6 +54,9 @@ public sealed class Router
         KeyFeature.Register(this);
         RoleFeature.Register(this);
         ActivityFeature.Register(this);
+        DmFileFeature.Register(this);
+        StickerFeature.Register(this);
+        GifFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

@@ -41,11 +41,15 @@ test('share an image, reply to it and react', async ({ browser }) => {
   await friend.locator('.reaction-picker').getByRole('menuitem', { name: '🔥' }).click()
   await expect(host.locator('.message', { hasText: 'look at this' }).first().locator('.reaction')).toContainText('🔥 1')
 
-  // Plain files are download cards.
+  // Text files show a preview with a download link; other files are download cards.
   await host.locator('input[type=file]').setInputFiles({ name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') })
   await expect(host.locator('.pending-upload .muted')).toHaveText('5 B')
   await host.getByPlaceholder('Message #general').press('Enter')
-  await expect(friend.locator('a.attachment-file', { hasText: 'notes.txt' })).toBeVisible()
+  await expect(friend.locator('.text-file', { hasText: 'notes.txt' }).locator('.text-file-body')).toHaveText('hello')
+  await host.locator('input[type=file]').setInputFiles({ name: 'data.bin', mimeType: 'application/octet-stream', buffer: Buffer.from([0, 1, 2, 3]) })
+  await expect(host.locator('.pending-upload .muted')).toHaveText('4 B')
+  await host.getByPlaceholder('Message #general').press('Enter')
+  await expect(friend.locator('a.attachment-file', { hasText: 'data.bin' })).toBeVisible()
 
   await host.screenshot({ path: join(SHOTS, 'files.png') })
 })

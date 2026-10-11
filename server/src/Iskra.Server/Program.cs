@@ -35,6 +35,8 @@ builder.Services.AddSingleton<VoiceRegistry>();
 builder.Services.AddSingleton<Uploads>();
 builder.Services.AddHostedService<UploadSweeper>();
 builder.Services.AddSingleton<LinkPreviews>();
+builder.Services.AddSingleton<Iskra.Server.Gifs.GifService>();
+builder.Services.AddSingleton<Iskra.Server.Gifs.IGifUpstream, Iskra.Server.Gifs.GifUpstream>();
 builder.Services.AddSingleton<WebhookIngress>();
 builder.Services.AddHostedService<PollCloser>();
 builder.Services.AddSingleton<EventScheduler>();
@@ -209,6 +211,9 @@ app.MapMethods("/upload/{token}", ["OPTIONS"], (HttpContext context) =>
     return Results.NoContent();
 });
 app.MapGet("/files/{id}/{**name}", (HttpContext context, string id, Uploads uploads) => uploads.Serve(context, id));
+app.MapGet("/gifs/media", (HttpContext context, Iskra.Server.Gifs.GifService gifs, Iskra.Server.Gifs.IGifUpstream upstream, Hub hub) =>
+    GifFeature.ServeMedia(context, gifs, upstream, hub));
+app.MapGet("/dmfiles/{id}", (HttpContext context, string id, Uploads uploads, World w) => DmFileFeature.Serve(context, w, uploads, id));
 app.MapGet("/pages/{id}", (HttpContext context, string id, World w) => ProfilePages.Serve(context, w, id));
 
 // Incoming webhooks: POST /hooks/{id}/{secret}.
@@ -233,6 +238,7 @@ app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice
     await new Session(socket, w, hub, voice, uploads, previews, router, limits.Value, log, time)
     {
         Push = push,
+        Gifs = context.RequestServices.GetRequiredService<Iskra.Server.Gifs.GifService>(),
         Origin = $"{context.Request.Scheme}://{context.Request.Host}",
     }.RunAsync(context.RequestAborted);
 });

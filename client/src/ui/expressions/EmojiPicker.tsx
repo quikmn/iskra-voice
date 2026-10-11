@@ -1,5 +1,5 @@
 // Emoji picker: search, recently used, this server's emoji and the standard set. A popover on desktop, a sheet on phones.
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { CustomEmoji } from '../../core/protocol'
 import { serverFileUrl, useServerEmojis } from '../../state/expressions'
@@ -54,7 +54,7 @@ interface Item {
  * (above if there's room, else below); on narrow screens it's a bottom sheet.
  */
 export function EmojiPicker({
-  serverKey, anchor, onPick, onClose, keepOpen,
+  serverKey, anchor, onPick, onClose, keepOpen, tabs, body,
 }: {
   serverKey: string
   anchor: HTMLElement | null
@@ -62,6 +62,10 @@ export function EmojiPicker({
   onClose: () => void
   /** Shift-click picks several (like Discord); otherwise picking closes. */
   keepOpen?: boolean
+  /** Shown above everything (the composer's Emoji / GIFs / Stickers tabs). */
+  tabs?: ReactNode
+  /** Replaces the emoji grid (another tab's content), keeping the same frame and placement. */
+  body?: ReactNode
 }) {
   const emojis = useServerEmojis(serverKey)
   const serverName = useApp((s) => s.servers[serverKey]?.name ?? 'This server')
@@ -116,6 +120,8 @@ export function EmojiPicker({
         role="dialog"
         aria-label="Emoji picker"
       >
+        {tabs}
+        {body ?? <>
         <input
           className="emoji-search"
           placeholder="Search emoji"
@@ -168,6 +174,7 @@ export function EmojiPicker({
         <footer className="emoji-preview">
           {hover ? <><span className="emoji-preview-glyph">{glyph(hover)}</span><span>{hover.label}</span></> : <span className="muted">Pick an emoji</span>}
         </footer>
+        </>}
       </div>
     </div>,
     document.body,

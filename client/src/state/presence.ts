@@ -5,7 +5,8 @@ import { create } from 'zustand'
 import { b64u } from '../core/crypto'
 import type { ChosenStatus, CustomStatus, Member, Presence } from '../core/protocol'
 import { activeCustom, bestStatus, isNewer, statusOf, type ShownStatus } from './presenceRules'
-import { connectionFor, onServerEvent, onWelcomeHook, setAuthPresence, useApp } from './store'
+import { connectionFor, onServerEvent, onWelcomeHook, setAuthPresence, setInvisibleCheck, useApp } from './store'
+import { senderRules } from './senderRules'
 
 const KEY = 'iskra.presence'
 export const IDLE_AFTER_MS = 10 * 60_000
@@ -74,6 +75,9 @@ export const setStatus = (status: ChosenStatus) => choose({ status })
 export const setCustomStatus = (custom: CustomStatus | null) => choose({ custom })
 
 export const isDoNotDisturb = () => usePresence.getState().mine.status === 'dnd'
+export const isInvisible = () => usePresence.getState().mine.status === 'invisible'
+setInvisibleCheck(isInvisible)
+senderRules.hereCounts = () => !isInvisible()
 
 // ── Showing it ──────────────────────────────────────────────────────────────
 

@@ -1,3 +1,4 @@
+import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { createInviteLink, joinVia, SHOTS, startServer, type TestServer } from './helpers'
@@ -8,7 +9,10 @@ test.beforeAll(async () => {
 })
 test.afterAll(async () => server?.stop())
 
-test('presence: do not disturb, custom status, invisible; voice messages in a channel', async ({ browser }) => {
+// A 3×2 PNG.
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAAEUlEQVR4nGNgYGD4z4AEMDgAHNoB/zrD+5kAAAAASUVORK5CYII=', 'base64')
+
+test('presence: do not disturb, custom status, invisible; encrypted DM attachments; voice messages', async ({ browser }) => {
   const host = await (await browser.newContext()).newPage()
   await joinVia(host, server.ownerLink(), 'Host')
   const friend = await (await browser.newContext()).newPage()
@@ -50,6 +54,47 @@ test('presence: do not disturb, custom status, invisible; voice messages in a ch
   await friend.getByPlaceholder('Message Host').fill('fort update?')
   await friend.getByPlaceholder('Message Host').press('Enter')
   await expect(friend.locator('.dm-row', { hasText: 'Host' }).locator('.dm-status')).toHaveText(/Building a pillow fort/)
+
+  // End-to-end encrypted attachments: a picture, a text file and a voice message.
+  const SECRET_TEXT = 'the treasure is under the third stone 4417'
+  await friend.locator('.composer input[type=file]').setInputFiles([
+    { name: 'map.png', mimeType: 'image/png', buffer: PNG },
+    { name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from(SECRET_TEXT) },
+  ])
+  await expect(friend.locator('.pending-upload', { hasText: 'notes.txt' })).not.toContainText('%')
+  await expect(friend.locator('.pending-upload', { hasText: 'map.png' })).not.toContainText('%')
+  await friend.getByPlaceholder('Message Host').fill('here is the map')
+  await friend.getByPlaceholder('Message Host').press('Enter')
+  await friend.getByRole('button', { name: 'Record a voice message' }).click()
+  await friend.waitForTimeout(1500)
+  await friend.getByRole('button', { name: 'Send voice message' }).click()
+
+  await host.getByRole('button', { name: 'Direct messages' }).click()
+  await host.locator('.dm-row', { hasText: 'Friend' }).click()
+  const picture = host.locator('.attachment-image img')
+  await expect(picture).toHaveAttribute('src', /^blob:/)
+  await expect.poll(() => picture.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(3)
+  const fileRow = host.locator('.dm-file', { hasText: 'notes.txt' })
+  await fileRow.getByRole('button', { name: 'Download' }).click()
+  const saved = fileRow.getByRole('link', { name: 'Save' })
+  await expect(saved).toHaveAttribute('href', /^blob:/)
+  expect(await saved.evaluate(async (a: HTMLAnchorElement) => await (await fetch(a.href)).text())).toBe(SECRET_TEXT)
+  const dmVoice = host.locator('.voice-player').last()
+  await expect(dmVoice.getByRole('button', { name: 'Play voice message' })).toBeEnabled()
+  await dmVoice.getByRole('button', { name: 'Play voice message' }).click()
+  await expect(dmVoice.getByRole('button', { name: 'Pause voice message' })).toBeVisible()
+  await dmVoice.getByRole('button', { name: 'Pause voice message' }).click()
+  await host.screenshot({ path: join(SHOTS, 'dm-attachments.png') })
+
+  // The server only ever had ciphertext.
+  const stored = readdirSync(join(server.world, 'uploads'), { recursive: true, withFileTypes: true })
+    .filter((e) => e.isFile()).map((e) => readFileSync(join(e.parentPath, e.name)))
+  expect(stored.length).toBeGreaterThanOrEqual(3)
+  for (const bytes of stored) {
+    expect(bytes.includes(PNG.subarray(0, 8))).toBe(false)
+    expect(bytes.includes(Buffer.from(SECRET_TEXT))).toBe(false)
+  }
+  await host.locator('.server-rail').getByTitle('Presence Test').click()
 
   // Invisible: Host looks offline but keeps chatting.
   await host.getByRole('button', { name: /Set your status/ }).click()

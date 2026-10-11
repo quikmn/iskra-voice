@@ -3,64 +3,54 @@ import { useEffect, useState } from 'react'
 import type { FileInfo, LinkPreview, Message, ReplyPreview } from '../../core/protocol'
 import { formatSize, QUICK_REACTIONS } from './helpers'
 import { connectionFor, fileUrl, toggleReaction, type ServerState } from '../../state/store'
-import { Modal } from '../bits'
+import { ImageGrid, Lightbox, SpoilerCover, TextFilePreview, isSpoilerName, isTextFile, shownName } from './media'
 import { EmojiGlyph, EmojiPicker } from '../expressions/EmojiPicker'
 import { SmilePlus } from '../expressions/icons'
 import { useEscapeLayer } from '../layers'
 import { FileIcon } from '../icons'
 import { plainText } from '../markdown'
+import { ReactionsDialog } from './MessageMore'
+import { embedFor, type Embed } from './embeds'
 
-const MAX_W = 420
-const MAX_H = 320
-
-/** Fits an image into the preview box while keeping its shape, so nothing jumps when it loads. */
-function previewSize(file: FileInfo): { width: number; height: number } | undefined {
-  if (!file.width || !file.height) return undefined
-  const scale = Math.min(1, MAX_W / file.width, MAX_H / file.height)
-  return { width: Math.round(file.width * scale), height: Math.round(file.height * scale) }
-}
-
+/** Images as a grid that opens the gallery; videos, audio, text previews and other files below. Spoilers stay covered until clicked. */
 export function Attachments({ server, files }: { server: ServerState; files: FileInfo[] }) {
-  const [open, setOpen] = useState<FileInfo | null>(null)
+  const [open, setOpen] = useState<number | null>(null)
   if (files.length === 0) return null
+  const images = files.filter((f) => f.type.startsWith('image/'))
+  const gallery = images.map((f) => ({ url: fileUrl(server.key, f), name: f.name, size: f.size, width: f.width, height: f.height }))
   return (
     <div className="attachments">
-      {files.map((file) => {
+      <ImageGrid items={gallery} onOpen={setOpen} />
+      {files.filter((f) => !f.type.startsWith('image/')).map((file) => {
         const url = fileUrl(server.key, file)
-        if (file.type.startsWith('image/')) {
-          return (
-            <button key={file.id} className="attachment-image" onClick={() => setOpen(file)} aria-label={`Open ${file.name}`}>
-              <img src={url} alt={file.name} loading="lazy" style={previewSize(file)} />
-            </button>
-          )
-        }
+        const spoiler = isSpoilerName(file.name)
         if (file.type.startsWith('video/')) {
-          return <video key={file.id} className="attachment-video" src={url} controls preload="metadata" />
+          return (
+            <SpoilerCover key={file.id} active={spoiler}>
+              <video className="attachment-video" src={url} controls preload="metadata" />
+            </SpoilerCover>
+          )
         }
         if (file.type.startsWith('audio/')) {
           return (
             <div key={file.id} className="attachment-file">
-              <span className="file-name">{file.name}</span>
+              <span className="file-name">{shownName(file.name)}</span>
               <audio src={url} controls preload="none" />
             </div>
           )
         }
+        if (isTextFile(file.name, file.size)) {
+          return <SpoilerCover key={file.id} active={spoiler}><TextFilePreview url={url} name={file.name} size={file.size} /></SpoilerCover>
+        }
         return (
-          <a key={file.id} className="attachment-file" href={url} download={file.name} target="_blank" rel="noopener noreferrer">
+          <a key={file.id} className="attachment-file" href={url} download={shownName(file.name)} target="_blank" rel="noopener noreferrer">
             <span className="file-icon" aria-hidden><FileIcon size={22} /></span>
-            <span className="file-name">{file.name}</span>
+            <span className="file-name">{shownName(file.name)}</span>
             <span className="muted">{formatSize(file.size)}</span>
           </a>
         )
       })}
-      {open && (
-        <Modal title={open.name} onClose={() => setOpen(null)}>
-          <img className="lightbox-image" src={fileUrl(server.key, open)} alt={open.name} />
-          <p className="muted">
-            <a href={fileUrl(server.key, open)} target="_blank" rel="noopener noreferrer">Open original</a> · {formatSize(open.size)}
-          </p>
-        </Modal>
-      )}
+      {open !== null && <Lightbox items={gallery} start={open} onClose={() => setOpen(null)} />}
     </div>
   )
 }
@@ -80,9 +70,11 @@ export function ReplyLine({ server, reply, onJump }: { server: ServerState; repl
 
 export function Reactions({ server, message }: { server: ServerState; message: Message }) {
   const me = server.me?.accountKey
+  const [who, setWho] = useState<string | null>(null)
   if (message.reactions.length === 0) return null
   return (
     <div className="reactions">
+      {who && <ReactionsDialog server={server} message={message} initial={who} onClose={() => setWho(null)} />}
       {message.reactions.map((r) => {
         const mine = !!me && r.accounts.includes(me)
         const names = r.accounts.map((k) => server.members[k]?.name ?? 'Someone').join(', ')
@@ -90,9 +82,13 @@ export function Reactions({ server, message }: { server: ServerState; message: M
           <button
             key={r.emoji}
             className={`reaction ${mine ? 'mine' : ''}`}
-            title={names}
+            title={`${names} (right-click to see everyone)`}
             aria-pressed={mine}
             onClick={() => toggleReaction(server.key, message, r.emoji)}
+            onContextMenu={(e) => {
+              e.preventDefault()
+              setWho(r.emoji)
+            }}
           >
             <EmojiGlyph serverKey={server.key} emoji={r.emoji} /> <span className="count">{r.accounts.length}</span>
           </button>
@@ -149,6 +145,8 @@ export function LinkPreviewCard({ server, url }: { server: ServerState; url: str
     }
   }, [server.key, url])
 
+  const embed = embedFor(url, window.location.hostname || 'localhost')
+  if (embed) return <EmbedCard embed={embed} url={url} preview={preview} />
   if (!preview || (!preview.title && !preview.description)) return null
   return (
     <div className="link-preview">
@@ -157,6 +155,36 @@ export function LinkPreviewCard({ server, url }: { server: ServerState; url: str
         <a className="link-title" href={url} target="_blank" rel="noopener noreferrer">{preview.title}</a>
       )}
       {preview.description && <div className="link-description">{preview.description}</div>}
+    </div>
+  )
+}
+
+/** A YouTube/Twitch/X/Reddit link: the server's preview first; their player only loads when asked (it talks to them). */
+function EmbedCard({ embed, url, preview }: { embed: Embed; url: string; preview: LinkPreview | null }) {
+  const [loaded, setLoaded] = useState(false)
+  const action = embed.shape === 'video' ? `Play on ${embed.provider}` : `Load ${embed.provider} post`
+  return (
+    <div className={`link-preview embed-card ${loaded ? 'loaded' : ''}`}>
+      <div className="link-site">{preview?.siteName ?? embed.provider}</div>
+      <a className="link-title" href={url} target="_blank" rel="noopener noreferrer">{preview?.title ?? url}</a>
+      {preview?.description && !loaded && <div className="link-description">{preview.description}</div>}
+      {loaded ? (
+        <iframe
+          className={`embed-frame ${embed.shape}`}
+          src={embed.src}
+          title={`${embed.provider}: ${preview?.title ?? url}`}
+          sandbox="allow-scripts allow-same-origin allow-popups allow-presentation"
+          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+          referrerPolicy="strict-origin-when-cross-origin"
+          allowFullScreen
+        />
+      ) : (
+        <button className={`embed-play ${embed.shape}`} onClick={() => setLoaded(true)}>
+          <span className="embed-play-icon" aria-hidden>▶</span>
+          <span>{action}</span>
+          <span className="muted embed-note">Loads from {embed.provider}, who will see your IP address</span>
+        </button>
+      )}
     </div>
   )
 }

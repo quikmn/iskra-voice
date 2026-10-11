@@ -12,6 +12,7 @@
 //   - v1, and v2 for a device without a usable prekey: crypto_box from the sender's device key to the
 //     recipient's device key.
 // - No device keys means no message. There is no plaintext fallback.
+import { checkFiles, type DmFile } from './dmFiles'
 import sodium from 'libsodium-wrappers-sumo'
 import { b64u, fromB64u, randomBytes } from './crypto'
 import { currentPrekey, usablePrekeys, type SignedPrekey } from './devices'
@@ -55,6 +56,8 @@ export interface DmContent {
   group?: Record<string, unknown>
   /** A forwarded message: where from (null: not shown) and its files, as links. */
   forward?: DmForward
+  /** End-to-end encrypted attachments (core/dmFiles.ts); `text` may then be empty. */
+  files?: DmFile[]
 }
 
 export interface DmForward {
@@ -145,7 +148,8 @@ export function revokedFor(identity: Identity, options: EncryptOptions): Set<str
 }
 
 export function checkText(content: DmContent): void {
-  if (content.text.length === 0 || content.text.length > MAX_TEXT) throw new DmError(`Messages must be 1–${MAX_TEXT} characters.`)
+  const hasFiles = (content.files?.length ?? 0) > 0
+  if ((content.text.length === 0 && !hasFiles) || content.text.length > MAX_TEXT) throw new DmError(`Messages must be 1–${MAX_TEXT} characters.`)
 }
 
 /**
@@ -255,7 +259,8 @@ export function openContent(identity: Identity, envelope: Pick<DmEnvelope, 'v' |
   const call = content.call && typeof content.call === 'object' && !Array.isArray(content.call) ? { call: content.call } : {}
   const group = content.group && typeof content.group === 'object' && !Array.isArray(content.group) ? { group: content.group as Record<string, unknown> } : {}
   const forward = content.forward === undefined ? null : cleanForward(content.forward)
-  return { text: content.text, ...call, ...group, ...(forward ? { forward } : {}) }
+  const files = checkFiles(content.files)
+  return { text: content.text, ...call, ...group, ...(forward ? { forward } : {}), ...(files.length ? { files } : {}) }
 }
 
 /**

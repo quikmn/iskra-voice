@@ -1,0 +1,76 @@
+/* ── Composer picker tabs, GIFs ─────────────────────────────────────── */
+.expression-tabs { display: flex; gap: 4px; padding: 8px 10px 0; flex: none; }
+.expression-tabs button {
+  flex: 1; border: 0; background: none; color: var(--text-2); font-weight: 600; font-size: 13px; padding: 7px 8px;
+  border-radius: calc(var(--radius) * 0.6);
+}
+.expression-tabs button:hover { background: var(--surface-3); color: var(--text); }
+.expression-tabs button.active { background: var(--accent-subtle); color: var(--text-strong); box-shadow: inset 0 -2px 0 var(--accent); }
+.emoji-picker .sticker-panel, .emoji-picker .gif-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.emoji-picker .sticker-grid { flex: 1; }
+.picker-empty { grid-column: 1 / -1; padding: 12px 4px; font-size: 13px; text-align: center; }
+
+.gif-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.gif-center { display: grid; place-items: center; align-content: center; gap: 8px; padding: 16px; text-align: center; }
+.gif-off { flex: 1; }
+.gif-off p { margin: 0; font-size: 13px; max-width: 300px; }
+.gif-off .button { text-decoration: none; }
+.gif-top { display: flex; gap: 6px; margin: 10px 10px 6px; }
+.gif-search { flex: 1; min-width: 0; }
+.gif-fav-toggle {
+  flex: none; border: 1px solid var(--border); border-radius: calc(var(--radius) * 0.7); background: var(--surface-2); color: var(--text-2);
+  padding: 0 10px; font-size: 13px;
+}
+.gif-fav-toggle.on { border-color: var(--amber); color: var(--amber); }
+.gif-categories { display: flex; gap: 6px; overflow-x: auto; padding: 0 10px 6px; flex: none; scrollbar-width: none; }
+.gif-categories button {
+  flex: none; border: 1px solid var(--border); border-radius: 14px; padding: 3px 10px; background: var(--surface-2); color: var(--text-2); font-size: 12px;
+}
+.gif-categories button:hover { color: var(--text); border-color: var(--accent); }
+.gif-scroll { flex: 1; overflow-y: auto; padding: 0 10px 8px; }
+.gif-heading { margin: 4px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.gif-grid { columns: 2; column-gap: 6px; }
+.gif-cell { position: relative; break-inside: avoid; margin-bottom: 6px; border-radius: calc(var(--radius) * 0.7); overflow: hidden; background: var(--surface-3); min-height: 60px; }
+.gif-send { display: block; width: 100%; height: 100%; padding: 0; border: 0; background: none; }
+.gif-send img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.gif-send:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.gif-star {
+  position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; border-radius: 50%; border: 0; display: grid; place-items: center;
+  background: rgba(0, 0, 0, 0.55); color: #fff; font-size: 14px; opacity: 0; transition: opacity 0.12s;
+}
+.gif-cell:hover .gif-star, .gif-star:focus-visible, .gif-star.on { opacity: 1; }
+.gif-star.on { color: var(--amber); }
+@media (hover: none) { .gif-star { opacity: 0.85; } }
+.gif-more { display: block; margin: 4px auto 0; }
+.gif-attribution { flex: none; padding: 6px 10px; font-size: 11px; border-top: 1px solid var(--border); text-align: right; }
+
+.chat-gif { position: relative; display: inline-block; margin-top: 4px; max-width: 100%; }
+.chat-gif img { display: block; max-width: min(320px, 100%); height: auto; }
+.chat-gif-badge {
+  position: absolute; left: 6px; bottom: 6px; padding: 1px 5px; border-radius: 4px; background: rgba(0, 0, 0, 0.6); color: #fff;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.05em;
+}
+
+.gif-settings .copy-row input { flex: 1; min-width: 0; }
+.gif-settings { margin: 18px 0; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); }
+.gif-settings h4 { margin: 0 0 6px; }
+.gif-settings p { margin: 0 0 8px; font-size: 13px; }
+.gif-button { font-size: 11px; font-weight: 800; letter-spacing: 0.04em; width: auto; padding: 0 6px; }
+@media (max-width: 480px) { .gif-button { display: none; } }
+
+.gif-mode { border: 0; padding: 0; margin: 12px 0 0; display: grid; gap: 8px; }
+.gif-mode legend { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 6px; }
+.gif-mode .radio { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: calc(var(--radius) * 0.7); background: var(--bg); cursor: pointer; }
+.gif-mode .radio > span { display: grid; gap: 3px; font-size: 14px; }
+.gif-mode .radio .muted { font-size: 12.5px; }
+.klipy-frame { display: block; width: 100%; height: 100%; border: 0; pointer-events: none; background: transparent; }
+.gif-send .klipy-frame { min-height: 60px; }
+.chat-gif.direct { margin-top: 4px; border-radius: calc(var(--radius) * 0.8); overflow: hidden; background: var(--surface-2); max-width: 100%; }
+.gif-click-to-load {
+  position: relative; display: grid; place-content: center; justify-items: center; gap: 4px; max-width: 100%; margin-top: 4px; padding: 12px;
+  border: 1px dashed var(--border); border-radius: calc(var(--radius) * 0.8); background: var(--surface-2); color: var(--text); text-align: center;
+}
+.gif-click-to-load:hover { border-color: var(--accent); }
+.gif-click-to-load .muted { font-size: 12px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gif-click-to-load .gif-note { font-size: 11px; }
+.gif-mode .radio input { width: auto; flex: none; margin: 3px 0 0; }

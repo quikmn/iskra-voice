@@ -1,11 +1,15 @@
 // Chat formatting, Discord-style, rendered straight to React elements (never to an HTML string).
-// Supported: ```code blocks```, `code`, **bold**, *italic* / _italic_, ~~strike~~, ||spoiler||,
-// > quotes, links, mentions written as <@accountKey> (shown as @name) or <@&roleId> (@Role), and server emoji written as <:name:id>.
-import { Fragment, type ReactNode } from 'react'
+// Supported: ```code blocks``` (highlighted, with copy), `code`, **bold**, *italic* / _italic_, ~~strike~~, ||spoiler||,
+// > quotes, # headings, -# subtext, - and 1. lists, links, [masked](https://…) links (they ask before opening),
+// <t:unix:style> timestamps, mentions written as <@accountKey> (shown as @name) or <@&roleId> (@Role), and server emoji written as <:name:id>.
+import { Fragment, type MouseEvent, type ReactNode } from 'react'
+import { parseOpenRoute } from '../core/pushRoute'
 import { roleRank, type Role } from '../core/protocol'
 import { Spoiler } from './bits'
 import { resolveKey } from '../state/keyMap'
 import { CUSTOM_EMOJI_SOURCE, isEmojiOnly } from './expressions/emoji'
+import { CodeBlock, MaskedLink, Timestamp } from './chat/RichText'
+import { TIMESTAMP_SOURCE, formatTimestamp, parseTimestamp, type TimestampStyle } from './chat/richTextRules'
 
 export interface MarkdownContext {
   /** Display name for a mentioned account, or null if unknown. */
@@ -23,6 +27,19 @@ const MENTION_PATTERN = /<@([A-Za-z0-9_-]{43})>/y
 const ROLE_MENTION_PATTERN = /<@&(\d{1,12})>/y
 const ROLE_TOKEN = /<@&(\d{1,12})>/g
 const EMOJI_PATTERN = new RegExp(CUSTOM_EMOJI_SOURCE, 'y')
+const MASKED_SOURCE = '\\[([^\\]\\n]{1,200})\\]\\((https?:\\/\\/[^\\s<>"\')]+)\\)'
+const MASKED_PATTERN = new RegExp(MASKED_SOURCE, 'y')
+const TIMESTAMP_PATTERN = new RegExp(TIMESTAMP_SOURCE, 'y')
+
+/** Message links ("…/#/open/<server>/c/<channel>/m/<id>") open right here instead of in a new tab. */
+function openInApp(url: string): ((e: MouseEvent) => void) | undefined {
+  const hash = url.slice(url.indexOf('#'))
+  if (!url.includes('#/open/') || !parseOpenRoute(hash)) return undefined
+  return (e) => {
+    e.preventDefault()
+    window.location.hash = hash
+  }
+}
 
 /** Inline rules in priority order: the first one that matches at a position wins. */
 const INLINE: { open: string; close: string; render: (children: ReactNode, key: number) => ReactNode; raw?: boolean; wordEdges?: boolean }[] = [
@@ -34,7 +51,7 @@ const INLINE: { open: string; close: string; render: (children: ReactNode, key: 
   { open: '_', close: '_', wordEdges: true, render: (c, key) => <em key={key}>{c}</em> },
 ]
 
-function inline(text: string, ctx: MarkdownContext, depth = 0): ReactNode[] {
+function inline(text: string, ctx: MarkdownContext, depth = 0, links = true): ReactNode[] {
   const out: ReactNode[] = []
   let plain = ''
   let key = 0
@@ -45,17 +62,36 @@ function inline(text: string, ctx: MarkdownContext, depth = 0): ReactNode[] {
 
   for (let i = 0; i < text.length; ) {
     // Escaped character: show it as-is.
-    if (text[i] === '\\' && i + 1 < text.length && /[\\`*_~|<>]/.test(text[i + 1])) {
+    if (text[i] === '\\' && i + 1 < text.length && /[\\`*_~|<>]/.test(text[i + 1]) || (text[i] === '\\' && /[[\]#-]/.test(text[i + 1] ?? ''))) {
       plain += text[i + 1]
       i += 2
       continue
     }
 
+    MASKED_PATTERN.lastIndex = i
+    const masked = links ? MASKED_PATTERN.exec(text) : null
+    if (masked) {
+      flush()
+      out.push(<MaskedLink key={key++} url={masked[2]}>{inline(masked[1], ctx, depth + 1, false)}</MaskedLink>)
+      i += masked[0].length
+      continue
+    }
+
+    TIMESTAMP_PATTERN.lastIndex = i
+    const stamp = TIMESTAMP_PATTERN.exec(text)
+    const ms = stamp ? parseTimestamp(stamp[1]) : null
+    if (stamp && ms !== null) {
+      flush()
+      out.push(<Timestamp key={key++} ms={ms} style={(stamp[2] ?? 'f') as TimestampStyle} />)
+      i += stamp[0].length
+      continue
+    }
+
     URL_PATTERN.lastIndex = i
-    const url = URL_PATTERN.exec(text)
+    const url = links ? URL_PATTERN.exec(text) : null
     if (url) {
       flush()
-      out.push(<a key={key++} href={url[0]} target="_blank" rel="noopener noreferrer">{url[0]}</a>)
+      out.push(<a key={key++} href={url[0]} target="_blank" rel="noopener noreferrer" onClick={openInApp(url[0])}>{url[0]}</a>)
       i += url[0].length
       continue
     }
@@ -112,7 +148,7 @@ function inline(text: string, ctx: MarkdownContext, depth = 0): ReactNode[] {
       const valid = inner.length > 0 && atEdges && (rule.raw || (!/^\s/.test(inner) && !/\s$/.test(inner)))
       if (valid) {
         flush()
-        out.push(rule.render(rule.raw ? inner : inline(inner, ctx, depth + 1), key++))
+        out.push(rule.render(rule.raw ? inner : inline(inner, ctx, depth + 1, links), key++))
         i = end + rule.close.length
         continue
       }
@@ -135,11 +171,7 @@ export function renderMarkdown(text: string, ctx: MarkdownContext): ReactNode {
       const newline = part.indexOf('\n')
       const language = newline > 0 && /^[\w+-]{1,20}$/.test(part.slice(0, newline).trim()) ? part.slice(0, newline).trim() : ''
       const body = language ? part.slice(newline + 1) : part.replace(/^\n/, '')
-      blocks.push(
-        <pre key={`code${index}`} className="code-block" data-language={language || undefined}>
-          <code>{body.replace(/\n$/, '')}</code>
-        </pre>,
-      )
+      blocks.push(<CodeBlock key={`code${index}`} code={body.replace(/\n$/, '')} language={language} />)
       return
     }
     const source = index % 2 === 1 ? '```' + part : part
@@ -149,11 +181,33 @@ export function renderMarkdown(text: string, ctx: MarkdownContext): ReactNode {
       if (quote.length) blocks.push(<blockquote key={k}>{quote}</blockquote>)
       quote = []
     }
+    let list: { ordered: boolean; start: number; items: ReactNode[] } | null = null
+    const flushList = (k: string) => {
+      if (list) {
+        blocks.push(list.ordered
+          ? <ol key={k} className="md-list" start={list.start}>{list.items}</ol>
+          : <ul key={k} className="md-list">{list.items}</ul>)
+      }
+      list = null
+    }
     lines.forEach((line, n) => {
       const k = `${index}-${n}`
       const isQuote = /^> ?/.test(line)
       const content = isQuote ? line.replace(/^> ?/, '') : line
-      const rendered = (
+      const block = blockOf(content)
+      if (block?.kind === 'item' && !isQuote) {
+        flushQuote(`q${k}`)
+        if (list && list.ordered !== block.ordered) flushList(`l${k}`)
+        list ??= { ordered: block.ordered, start: block.start, items: [] }
+        list.items.push(<li key={k} className={block.nested ? 'md-nested' : undefined}>{inline(block.text, ctx)}</li>)
+        return
+      }
+      flushList(`l${k}`)
+      const rendered = block?.kind === 'heading' ? (
+        <div key={k} className={`md-heading md-h${block.level}`}>{inline(block.text, ctx)}</div>
+      ) : block?.kind === 'subtext' ? (
+        <div key={k} className="md-subtext">{inline(block.text, ctx)}</div>
+      ) : (
         <Fragment key={k}>
           {inline(content, ctx)}
           {n < lines.length - 1 && '\n'}
@@ -165,9 +219,26 @@ export function renderMarkdown(text: string, ctx: MarkdownContext): ReactNode {
         blocks.push(rendered)
       }
     })
+    flushList(`l${index}-end`)
     flushQuote(`q${index}-end`)
   })
   return isEmojiOnly(text) ? <span className="jumbo">{blocks}</span> : <>{blocks}</>
+}
+
+type Block =
+  | { kind: 'heading'; level: 1 | 2 | 3; text: string }
+  | { kind: 'subtext'; text: string }
+  | { kind: 'item'; ordered: boolean; start: number; nested: boolean; text: string }
+
+/** Line-level markdown: "# Heading", "-# small print", "- item", "1. item" (two leading spaces nest an item). */
+function blockOf(line: string): Block | null {
+  const heading = /^(#{1,3}) (\S.*)$/.exec(line)
+  if (heading) return { kind: 'heading', level: heading[1].length as 1 | 2 | 3, text: heading[2] }
+  const subtext = /^-# (\S.*)$/.exec(line)
+  if (subtext) return { kind: 'subtext', text: subtext[1] }
+  const item = /^( {2,})?([-*]|(\d{1,9})\.) (\S.*)$/.exec(line)
+  if (item) return { kind: 'item', ordered: !!item[3], start: item[3] ? Number(item[3]) : 1, nested: !!item[1], text: item[4] }
+  return null
 }
 
 /** Plain text of a message for previews and notifications (mentions become @names, markers stay). */
@@ -176,6 +247,11 @@ export function plainText(text: string, ctx: MarkdownContext): string {
     .replace(/<@([A-Za-z0-9_-]{43})>/g, (_, key: string) => `@${ctx.nameOf(resolveKey(key)) ?? 'unknown'}`)
     .replace(ROLE_TOKEN, (_, id: string) => `@${ctx.roleOf?.(Number(id))?.name ?? 'role'}`)
     .replace(new RegExp(CUSTOM_EMOJI_SOURCE, 'g'), (_, name: string) => `:${name}:`)
+    .replace(new RegExp(TIMESTAMP_SOURCE, 'g'), (all: string, seconds: string, style?: string) => {
+      const ms = parseTimestamp(seconds)
+      return ms === null ? all : formatTimestamp(ms, (style ?? 'f') as TimestampStyle)
+    })
+    .replace(new RegExp(MASKED_SOURCE, 'g'), '$1')
 }
 
 /** Turns "@Name" into mention tokens for members (and roles) with that exact name (longest names first; members win a tie). */
@@ -209,8 +285,9 @@ export const roleMentions = (text: string): number[] => [...text.matchAll(ROLE_T
  * Does this message mention the viewer: directly, or with @everyone/@here when its author may ping
  * groups (see canPingGroups)? Otherwise the text still shows, it just doesn't notify.
  */
-export function mentions(text: string, me: string, groupPings = true): boolean {
-  if (groupPings && /(^|\s)@(everyone|here)\b/.test(text)) return true
+/** `here`: whether @here counts for you (not while you're invisible: you aren't "here" for anyone). */
+export function mentions(text: string, me: string, groupPings = true, here = true): boolean {
+  if (groupPings && (here ? /(^|\s)@(everyone|here)\b/ : /(^|\s)@everyone\b/).test(text)) return true
   for (const [, key] of text.matchAll(/<@([A-Za-z0-9_-]{43})>/g)) if (resolveKey(key) === me) return true
   return false
 }

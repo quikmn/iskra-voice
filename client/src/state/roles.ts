@@ -82,7 +82,7 @@ onServerEvent((serverKey, type, body) => {
 senderRules.canPingGroups = (server, message) =>
   canPingGroups(server.members[message.author], rolesFor(server.key), !!message.webhook)
 senderRules.mentionsMe = (server, message) =>
-  !!server.me && (mentions(message.text, server.me.accountKey, senderRules.canPingGroups(server, message))
+  !!server.me && (mentions(message.text, server.me.accountKey, senderRules.canPingGroups(server, message), senderRules.hereCounts())
     || mentionsMyRole(message.text, server.me, server.members[message.author], rolesFor(server.key), !!message.webhook))
 
 /** For rendering: a role mention's name, colour, and whether I have it. */

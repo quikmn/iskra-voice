@@ -23,7 +23,6 @@ import { withPinNotes } from './chat/pinThreadHelpers'
 import { jumpToMessage, jumpToPresent, loadNewer, useJumpTarget } from '../state/jump'
 import { pinNotesFor, usePinNotes } from '../state/pins'
 import { decodeEmoji, encodeEmoji, insertAt } from './expressions/emoji'
-import { EmojiPicker } from './expressions/EmojiPicker'
 import { useEmojiLookup } from './expressions/useEmojiLookup'
 import { useEmojiSuggest } from './expressions/EmojiSuggest'
 import { PollCard, PollDialog } from './expressions/Polls'
@@ -38,6 +37,14 @@ import { UnreadBar, UnreadDivider } from './organize/UnreadBits'
 import { useUnreadMarker } from '../state/unread'
 import { useRoleLookup, useServerRoles } from '../state/roles'
 import { canDeleteMessage, canMentionRole, canSendIn, has, nameColor } from '../state/permissions'
+import { draftKey, setDraft, useDraft } from '../state/drafts'
+import { useUnreadMarker as useMarkedUnread } from '../state/unreadMarker'
+import { MessageMoreButton } from './chat/MessageMore'
+import { StickerMessage } from './chat/Stickers'
+import { ExpressionPicker, GifMessage, type ExpressionTab } from './chat/ExpressionPicker'
+import { sendGif } from '../state/gifs'
+import { sendSticker } from '../state/stickers'
+import { SpoilerToggle, isSpoilerName, longTextFile } from './chat/media'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -261,6 +268,7 @@ function MessageRow({
   const longPress = useLongPress(() => setSheet(true), !message.tempId && !editing)
   const [error, setError] = useState<string | null>(null)
   const emojiLookup = useEmojiLookup(server.key)
+  const unreadFrom = useMarkedUnread(server.key, message.channelId)
 
   function jumpTo(id: number) {
     void jumpToMessage(server.key, message.channelId, id)
@@ -276,6 +284,8 @@ function MessageRow({
   }
 
   return (
+    <>
+    {unreadFrom === message.id && <div className="new-divider" role="separator">New</div>}
     <div
       id={message.tempId ? undefined : `msg-${message.id}`}
       className={`message ${grouped && !message.replyTo ? 'grouped' : ''} ${message.pending ?? ''} ${sheet ? 'pressed' : ''}`}
@@ -325,6 +335,8 @@ function MessageRow({
           )
         )}
         {message.poll && <PollCard server={server} message={message} />}
+        {message.sticker && <StickerMessage server={server} sticker={message.sticker} />}
+        {message.gif && <GifMessage server={server} gif={message.gif} />}
         {message.voice ? <VoiceMessage server={server} message={message} /> : <Attachments server={server} files={message.attachments} />}
         {message.webhook && <Embeds server={server} embeds={message.webhook.embeds} />}
         {!message.tempId && firstLink(message.text) && <LinkPreviewCard server={server} url={firstLink(message.text)!} />}
@@ -355,6 +367,7 @@ function MessageRow({
               <button onClick={() => setReply(server.key, message.channelId, message)} title="Reply" aria-label="Reply"><Reply size={15} /></button>
               <MessageMenuExtras server={server} message={message} />
               {canForward && <button onClick={() => setForwarding(true)} title="Forward" aria-label="Forward"><ForwardIcon /></button>}
+              <MessageMoreButton server={server} message={message} />
               {canEdit && <button onClick={() => onEdit(true)} title="Edit" aria-label="Edit"><Pencil size={15} /></button>}
               {canDelete && <button onClick={() => setConfirmDelete(true)} title="Delete" aria-label="Delete"><Trash size={15} /></button>}
             </>
@@ -368,6 +381,7 @@ function MessageRow({
       )}
       {forwarding && <ForwardDialog server={server} message={message} onClose={() => setForwarding(false)} />}
     </div>
+    </>
   )
 }
 
@@ -429,21 +443,34 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
   thread?: boolean
   placeholder?: string
 }) {
-  const [drafts, setDrafts] = useState<Record<number, string>>({})
   const [uploads, setUploads] = useState<PendingUpload[]>([])
   const fileInput = useRef<HTMLInputElement>(null)
   const [picker, setPicker] = useState<HTMLElement | null>(null)
+  const [pickerTab, setPickerTab] = useState<ExpressionTab>('emoji')
+  const openPicker = (anchor: HTMLElement, tab: ExpressionTab) => {
+    if (picker && pickerTab === tab) return setPicker(null)
+    setPickerTab(tab)
+    setPicker(anchor)
+  }
   const [pollOpen, setPollOpen] = useState(false)
   const emojis = useServerEmojis(server.key)
   const replyTo = useReply((s) => s.replyTo[replyKey(server.key, channelId)] ?? null)
-  const text = drafts[channelId] ?? ''
+  const text = useDraft(draftKey.channel(server.key, channelId))
   const online = server.status.state === 'online'
-  const setText = (value: string) => setDrafts((d) => ({ ...d, [channelId]: value }))
+  const setText = (value: string) => setDraft(draftKey.channel(server.key, channelId), value)
   const uploading = uploads.some((u) => !u.result && !u.error)
   const ready = uploads.filter((u) => u.result).map((u) => u.result!)
   const slowmode = useSlowmodeWait(server, channelId)
   const timedOut = useTimedOut(server)
   const canSend = online && !uploading && slowmode.wait === 0 && (text.trim().length > 0 || ready.length > 0)
+
+  function startUpload(item: PendingUpload) {
+    const update = (patch: Partial<PendingUpload>) =>
+      setUploads((list) => list.map((u) => (u.localId === item.localId ? { ...u, ...patch } : u)))
+    uploadFile(server.key, item.file, (progress) => update({ progress }), item.abort.signal)
+      .then((result) => update({ result, progress: 1 }))
+      .catch((e: Error) => e.name !== 'AbortError' && update({ error: e.message }))
+  }
 
   function addFiles(files: File[]) {
     for (const file of files.slice(0, 10)) {
@@ -452,12 +479,19 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
         preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
       }
       setUploads((list) => [...list, item])
-      const update = (patch: Partial<PendingUpload>) =>
-        setUploads((list) => list.map((u) => (u.localId === item.localId ? { ...u, ...patch } : u)))
-      uploadFile(server.key, file, (progress) => update({ progress }), item.abort.signal)
-        .then((result) => update({ result, progress: 1 }))
-        .catch((e: Error) => e.name !== 'AbortError' && update({ error: e.message }))
+      startUpload(item)
     }
+  }
+
+  /** Spoilers travel in the file name (SPOILER_…), so toggling uploads the file again under the new name. */
+  function toggleSpoiler(item: PendingUpload) {
+    item.abort.abort()
+    const name = isSpoilerName(item.file.name) ? item.file.name.replace(/^SPOILER_/, '') : `SPOILER_${item.file.name}`
+    const next: PendingUpload = {
+      ...item, file: new File([item.file], name, { type: item.file.type }), progress: 0, result: null, error: null, abort: new AbortController(),
+    }
+    setUploads((list) => list.map((u) => (u.localId === item.localId ? next : u)))
+    startUpload(next)
   }
 
   function removeUpload(item: PendingUpload) {
@@ -536,8 +570,9 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
         <div className="pending-uploads">
           {uploads.map((u) => (
             <div key={u.localId} className={`pending-upload ${u.error ? 'failed' : ''}`} title={u.error ?? u.file.name}>
-              {u.preview ? <img src={u.preview} alt="" /> : <span className="file-icon" aria-hidden><FileIcon size={20} /></span>}
+              {u.preview ? <img src={u.preview} alt="" className={isSpoilerName(u.file.name) ? 'spoiler-preview' : undefined} /> : <span className="file-icon" aria-hidden><FileIcon size={20} /></span>}
               <span className="file-name">{u.file.name}</span>
+              <SpoilerToggle on={isSpoilerName(u.file.name)} onToggle={() => toggleSpoiler(u)} />
               <span className="muted">{u.error ? 'Failed' : u.result ? formatSize(u.file.size) : `${Math.round(u.progress * 100)}%`}</span>
               {!u.result && !u.error && <span className="upload-progress" style={{ width: `${u.progress * 100}%` }} />}
               <button className="icon-button small" onClick={() => removeUpload(u)} aria-label={`Remove ${u.file.name}`}><Close size={14} /></button>
@@ -601,6 +636,13 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
           if (files.length) {
             e.preventDefault()
             addFiles(files)
+            return
+          }
+          // Too long for one message: send it as a text file instead (like Discord's message.txt).
+          const pasted = e.clipboardData.getData('text')
+          if (text.length + pasted.length > 4000) {
+            e.preventDefault()
+            addFiles([longTextFile(pasted)])
           }
         }}
         onKeyDown={(e) => {
@@ -623,7 +665,10 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
           }
         }}
       />
-      <button className="icon-button attach-button" onClick={(e) => setPicker(picker ? null : e.currentTarget)} aria-label="Emoji" title="Emoji">
+      <button className="icon-button attach-button gif-button" onClick={(e) => openPicker(e.currentTarget, 'gifs')} aria-label="GIFs" title="GIFs" disabled={!online}>
+        GIF
+      </button>
+      <button className="icon-button attach-button" onClick={(e) => openPicker(e.currentTarget, 'emoji')} aria-label="Emoji" title="Emoji, GIFs and stickers">
         <Smile />
       </button>
       {!text.trim() && uploads.length === 0 && voiceRecordingSupported() && <VoiceRecordButton onSend={sendVoice} disabled={!online} />}
@@ -633,15 +678,24 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
       </button>
     </div>
       {picker && (
-        <EmojiPicker
-          serverKey={server.key}
+        <ExpressionPicker
+          key={pickerTab}
+          server={server}
           anchor={picker}
-          keepOpen
+          initialTab={pickerTab}
           onClose={() => setPicker(null)}
-          onPick={(value) => {
+          onEmoji={(value) => {
             const next = insertAt(text, caret, decodeEmoji(value))
             setText(next.text)
             setCaret(next.caret)
+          }}
+          onGif={(gif) => {
+            setReply(server.key, channelId, null)
+            void sendGif(server.key, channelId, gif, { replyTo })
+          }}
+          onSticker={(sticker) => {
+            setReply(server.key, channelId, null)
+            void sendSticker(server.key, channelId, sticker, { replyTo })
           }}
         />
       )}

@@ -30,11 +30,13 @@ public sealed partial class Store
                 SELECT j.value FROM messages m, json_each(m.attachments) j WHERE m.attachments IS NOT NULL
                 UNION SELECT avatar_file FROM profiles WHERE avatar_file IS NOT NULL
                 UNION SELECT file_id FROM emojis
+                UNION SELECT file_id FROM stickers
                 UNION SELECT file_id FROM sounds
                 UNION SELECT avatar FROM webhooks WHERE avatar IS NOT NULL
                 UNION SELECT avatar FROM webhook_messages WHERE avatar IS NOT NULL
                 UNION SELECT image_file FROM events WHERE image_file IS NOT NULL
-                UNION SELECT avatar_file FROM imported_authors WHERE avatar_file IS NOT NULL)
+                UNION SELECT avatar_file FROM imported_authors WHERE avatar_file IS NOT NULL
+                UNION SELECT file_id FROM dm_files WHERE message_id IS NOT NULL)
             RETURNING sha256;
             """, r => r.GetString(0), ("$cutoff", cutoff), ("$keep", System.Text.Json.JsonSerializer.Serialize(keep)));
 

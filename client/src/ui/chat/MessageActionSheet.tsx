@@ -14,6 +14,8 @@ import { PinIcon, PinOffIcon, ThreadIcon } from './extraIcons'
 import { QUICK_REACTIONS, setReply } from './helpers'
 import { NewThreadDialog } from './PinThreadBits'
 import { pinThreadAbilities } from './abilities'
+import { copyMessageLink, ReactionsDialog } from './MessageMore'
+import { markUnread } from '../../state/unreadMarker'
 
 export function MessageActionSheet({ server, message, canEdit, canDelete, onEdit, onClose, onForward }: {
   server: ServerState
@@ -24,7 +26,7 @@ export function MessageActionSheet({ server, message, canEdit, canDelete, onEdit
   onClose: () => void
   onForward?: () => void
 }) {
-  const [view, setView] = useState<'menu' | 'emoji' | 'thread' | 'delete'>('menu')
+  const [view, setView] = useState<'menu' | 'emoji' | 'thread' | 'delete' | 'reactions'>('menu')
   const [error, setError] = useState<string | null>(null)
   const ref = useRef<HTMLDivElement>(null)
   const { pinnable, threadable } = pinThreadAbilities(server, message)
@@ -43,6 +45,7 @@ export function MessageActionSheet({ server, message, canEdit, canDelete, onEdit
   if (view === 'emoji') {
     return <EmojiPicker serverKey={server.key} anchor={null} onClose={onClose} onPick={(emoji) => toggleReaction(server.key, message, emoji)} />
   }
+  if (view === 'reactions') return <ReactionsDialog server={server} message={message} onClose={onClose} />
   if (view === 'thread') return createPortal(<NewThreadDialog server={server} message={message} onClose={onClose} />, document.body)
 
   const text = plainText(message.text, { nameOf: (k) => server.members[k]?.name ?? null })
@@ -76,6 +79,9 @@ export function MessageActionSheet({ server, message, canEdit, canDelete, onEdit
               {onForward && <button role="menuitem" onClick={run(onForward)}><ForwardIcon /> Forward</button>}
               {canEdit && <button role="menuitem" onClick={run(onEdit)}><Pencil /> Edit message</button>}
               {text && <button role="menuitem" onClick={run(() => navigator.clipboard.writeText(text))}><Copy /> Copy text</button>}
+              <button role="menuitem" onClick={run(() => copyMessageLink(server, message))}><Copy /> Copy message link</button>
+              <button role="menuitem" onClick={run(() => markUnread(server.key, message.channelId, message.id))}><Reply /> Mark unread</button>
+              {message.reactions.length > 0 && <button role="menuitem" onClick={() => setView('reactions')}><SmilePlus /> View reactions</button>}
               {canDelete && <button role="menuitem" className="danger" onClick={() => setView('delete')}><Trash /> Delete message</button>}
             </div>
           </>

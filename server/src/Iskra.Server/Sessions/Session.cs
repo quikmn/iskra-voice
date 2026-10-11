@@ -61,6 +61,8 @@ public sealed class Session
 
     public required Push.PushService Push { get; init; }
 
+    public required Gifs.GifService Gifs { get; init; }
+
     /// <summary>This session reported no activity for a while (see PresenceFeature).</summary>
     public bool Idle { get; set; }
 

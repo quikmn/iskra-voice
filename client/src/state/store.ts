@@ -7,7 +7,7 @@ import { restoreIdentity } from '../core/recovery'
 import { authProfile } from '../core/profile'
 import { senderRules } from './senderRules'
 import type { InviteLink } from '../core/invite'
-import type { Channel, Events, FileInfo, Member, Message, VoiceInfo, VoiceParticipant, Welcome } from '../core/protocol'
+import type { Channel, DirectGif, Events, FileInfo, Member, Message, MessageGif, Sticker, VoiceInfo, VoiceParticipant, Welcome } from '../core/protocol'
 import * as storage from '../core/storage'
 import { openDeviceVault } from './lock'
 
@@ -17,6 +17,8 @@ export interface PendingMessage extends Message {
   tempId?: string
   /** Sent with chat.send; the server stores a message once per nonce, so retries can't duplicate it. */
   nonce?: string
+  /** A pending GIF's token (or direct GIF), for retrying. */
+  gifToken?: string | DirectGif
 }
 
 export interface ServerState {
@@ -92,6 +94,11 @@ export function onWelcomeHook(listener: (serverKey: string, welcome: Welcome) =>
 const TYPING_MS = 6_000
 
 let authPresence: () => unknown = () => undefined
+let invisible: () => boolean = () => false
+/** state/presence.ts says whether you're invisible: no typing hints then, and @here isn't for you. */
+export function setInvisibleCheck(check: () => boolean): void {
+  invisible = check
+}
 /** state/presence.ts hands its current choice to every connect. */
 export function setAuthPresence(provider: () => unknown): void {
   authPresence = provider
@@ -469,11 +476,14 @@ export interface SendOptions {
   attachments?: FileInfo[]
   replyTo?: Message | null
   voice?: VoiceInfo
+  sticker?: Sticker
+  /** A GIF from the picker: shown right away, sent by its token. */
+  gif?: { token: string | DirectGif; shown: MessageGif }
   /** Reuse a nonce (retrying a failed message). */
   nonce?: string
 }
 
-type SendBody = { channelId: number; text: string; attachments: string[]; replyTo?: number; nonce: string; voice?: VoiceInfo }
+type SendBody = { channelId: number; text: string; attachments: string[]; replyTo?: number; nonce: string; voice?: VoiceInfo; sticker?: string; gif?: string | DirectGif }
 /** Sends that lost their connection, by tempId: sent again when the server is back. */
 const unsentSends = new Map<string, { key: string; channelId: number; body: SendBody }>()
 
@@ -510,13 +520,14 @@ export async function sendMessage(key: string, channelId: number, text: string, 
   const reply = options.replyTo
   const temp: PendingMessage = {
     id: Number.MAX_SAFE_INTEGER, channelId, author: server.me.accountKey, text, createdAt: Date.now(), editedAt: null,
-    attachments, reactions: [], voice: options.voice ?? null,
+    attachments, reactions: [], voice: options.voice ?? null, sticker: options.sticker ?? null, gif: options.gif?.shown ?? null, gifToken: options.gif?.token,
     replyTo: reply ? { id: reply.id, author: reply.author, text: reply.text, hasAttachments: reply.attachments.length > 0 } : null,
     pending: 'sending', tempId, nonce: options.nonce ?? b64u(randomBytes(16)),
   }
   patchServer(key, (s) => ({ messages: { ...s.messages, [channelId]: [...(s.messages[channelId] ?? []), temp] } }))
   await deliver(key, channelId, tempId, {
     channelId, text, attachments: attachments.map((a) => a.id), replyTo: reply?.id, nonce: temp.nonce!, voice: options.voice,
+    sticker: options.sticker?.id, gif: options.gif?.token,
   })
 }
 
@@ -527,7 +538,9 @@ export function discardFailed(key: string, channelId: number, tempId: string): v
 export async function retryFailed(key: string, channelId: number, message: PendingMessage): Promise<void> {
   if (!message.tempId) return
   discardFailed(key, channelId, message.tempId)
-  await sendMessage(key, channelId, message.text, { attachments: message.attachments, voice: message.voice ?? undefined, nonce: message.nonce })
+  await sendMessage(key, channelId, message.text, { attachments: message.attachments, voice: message.voice ?? undefined, nonce: message.nonce,
+    sticker: message.sticker ?? undefined, gif: message.gif && message.gifToken ? { token: message.gifToken, shown: message.gif } : undefined,
+  })
 }
 
 /** Uploads a file to a server, reporting progress (0–1). Resolves with the stored file. */
@@ -562,7 +575,7 @@ export const fileUrl = (key: string, file: FileInfo) => (useApp.getState().serve
 
 let lastTyping = 0
 export function notifyTyping(key: string, channelId: number): void {
-  if (Date.now() - lastTyping < 3_000) return
+  if (Date.now() - lastTyping < 3_000 || invisible()) return
   lastTyping = Date.now()
   connections.get(key)?.request('chat.typing', { channelId }).catch(() => undefined)
 }

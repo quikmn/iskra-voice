@@ -55,6 +55,9 @@ public static class PresenceFeature
     /// <summary>Do not disturb holds back Web Push for the account, whether or not it's connected.</summary>
     public static bool DoNotDisturb(Store store, string accountKey) => store.GetPresence(accountKey)?.Status == "dnd";
 
+    /// <summary>Invisible members don't show up as typing, and @here (members online now) doesn't count them.</summary>
+    public static bool Invisible(Store store, string accountKey) => store.GetPresence(accountKey)?.Status == "invisible";
+
     // ── Parsing ──────────────────────────────────────────────────────────────
 
     /// <summary><c>{ status, custom: { emoji?, text?, expiresAt? } | null, updatedAt }</c>.</summary>

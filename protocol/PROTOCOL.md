@@ -7,7 +7,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 
 - **Basics:** [Encoding](#encoding) · [Identity](#identity) · [Connection](#connection) (handshake, errors and close codes, limits) · [Objects](#objects)
 - **Servers and channels:** [Requests and events](#requests-and-events) · [Invite links](#invite-links) · [Organizing a server](#organizing-a-server)
-- **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji)
+- **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji) · [Stickers](#stickers) · [GIFs](#gifs)
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted)
 - **People and integrations:** [Profiles](#profiles) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Presence and voice messages](#presence-and-voice-messages)
@@ -876,6 +876,7 @@ Presence { "status": "online" | "idle" | "dnd" | "invisible",
 - **Newest wins:** the server keeps one `Presence` per account and only replaces it with one whose `updatedAt` is the same or newer, so a device that was offline can't undo a newer choice. `updatedAt` may be at most 10 minutes in the future. When it changes, `presence.self { presence }` goes to the account's other sessions; apps adopt a newer one and pass it on to their other servers.
 - `emoji`: ≤ 16 characters, no spaces, not a server emoji (custom statuses travel between servers). `text`: ≤ 128 characters, one line, the same rules as names. At least one of them, or `custom` counts as `null`. `expiresAt` ≤ 31 days ahead, `null` = until cleared. Expired custom statuses aren't shown (clients also hide them when `expiresAt` passes).
 - What others see: no sessions or `invisible` → `offline` (no custom status); `dnd` or a chosen `idle` as is; otherwise `idle` when every session has reported `presence.idle { idle: true }`, else `online`.
+- Invisible members aren't given away elsewhere either: their `chat.typing` is accepted but not passed on, and `@here` (members online now) neither pushes them nor counts as a mention in their own app. Voice is the exception: a voice channel shows who is in it ([Voice](#voice)), invisible or not.
 - **Do not disturb:** the server sends no [Web Push](#push-notifications-web-push) at all to an account whose status is `dnd`, connected or not (it's kept while offline). Apps also stay quiet: no sounds or notifications.
 - Rate limits: `presence.set` 1/s (burst 10), `presence.idle` 1 every 2 s (burst 10).
 
@@ -889,7 +890,69 @@ A voice message is a channel message with one recorded audio file and no text:
 
 - The file must be Ogg, WebM or MP4 (what `MediaRecorder` makes: Ogg/WebM Opus, Safari's MP4/AAC) and at most 10 MB. For Ogg the server measures the length itself (and refuses recordings over 5 minutes); WebM and MP4 recordings carry no reliable length, so theirs is only bounded. The waveform is computed by the recording app.
 - `Message` gains `voice: { duration, waveform } | null`; the audio is `attachments[0]`. Voice messages can't be edited.
-- Voice messages are for channels only. DMs don't carry files yet, so there is no end-to-end encrypted variant.
+- In DMs, a voice message is an [encrypted DM attachment](#encrypted-dm-attachments) with `voice` set (the server never sees the length or waveform).
+
+### Encrypted DM attachments
+
+Pictures, videos, files and voice messages in DMs are end-to-end encrypted like the text. The server stores ciphertext it can't read, under the upload quota, and hands it out only to the people in the conversation.
+
+| type | body | result | who |
+|---|---|---|---|
+| `dm.upload.begin` | `accountKey` (the other person, or yourself), `size` (ciphertext bytes, ≤ `MaxUploadMb`) | `{ url: "/upload/<ticket>", maxBytes }` | members (not bots); counts against the [upload limits](#limits) like `upload.begin` |
+| `dm.send` | adds `files?: [fileId...]` (≤ 10): your own DM uploads for this person, each sent once | | |
+| `dm.file.url` | `id` | `{ url: "/dmfiles/<id>?exp=…&sig=…", size }` (valid 10 minutes) | the accounts in the file's access list; anyone else gets `not_found` |
+
+- The upload is `PUT <server>/upload/<ticket>` as usual. DM uploads are never sniffed (type `application/octet-stream`), never served from `/files/`, and readable only by their **access list**: the uploader and the `accountKey` given to `dm.upload.begin` (a list, so group DMs can use the same table later). `GET /dmfiles/<id>` needs the signed link from `dm.file.url` (HMAC-SHA-256 over `"iskra/dm-file-link/v1"`, the id and the expiry, with a key the server makes at startup) and answers the bytes as an opaque `attachment` (`nosniff`, a sandboxing CSP). Uploads no DM refers to are swept after 24 hours like other uploads.
+- **Encryption** (client): a random 32-byte key per file; libsodium `crypto_secretstream_xchacha20poly1305` over 64 KiB chunks, additional data `"iskra/dm-file/v1"` on every chunk, the last one tagged `FINAL`. Ciphertext = 24-byte header ‖ chunks (each 17 bytes longer than its plaintext). `hash` = BLAKE2b-256 (`crypto_generichash(32)`) of the ciphertext.
+- The DM content (inside the encrypted envelope) gains `files: [DmFile]`, and `text` may then be empty:
+  ```jsonc
+  DmFile { "server": "<serverKey holding it>", "id": "<fileId>", "key": "<b64u 32>", "hash": "<b64u 32>",
+           "name": "≤ 200 chars", "type": "sender's MIME type (a hint)", "size": 12345 /* plaintext bytes */,
+           "voice"?: { "duration": 1-300000, "waveform": "<b64u ≤ 128 bytes>" } }
+  ```
+  The message goes through the server that holds its files.
+- **Receiving:** the app checks every field (a malformed list makes the message unreadable), downloads, checks the length and `hash`, decrypts every chunk (failing on any change, truncation or extra bytes), then decides how to show the file from its **decrypted bytes** with the same rules as channel uploads (PNG, JPEG, GIF, WebP, MP4, WebM, Ogg, MP3, WAV inline, from a `blob:` URL); anything else, whatever its claimed type, is only offered as a download under its cleaned name.
+- Rate limits: `dm.upload.begin` 2/s (burst 10, plus the per-account `upload.begin` limit), `dm.file.url` 10/s (burst 40).
+- What the server learns: who sent how many files to whom, when, and their sizes (padded only by the 17 bytes per chunk). Not their names, types, contents or whether one is a voice message.
+
+## Stickers
+
+Admins upload stickers (bigger pictures than emoji); anyone who can write in a channel sends one as a message of its own.
+
+| type | body | result | who |
+|---|---|---|---|
+| `sticker.list` | | `{ stickers: [Sticker] }` | anyone |
+| `sticker.create` | `name` (1–30 chars, the same rules as names), `fileId` (your own upload: PNG, GIF or WebP, ≤ 512 KB, ≤ 320×320 px) | `{ sticker }` | admin+; ≤ 60 per server |
+| `sticker.rename` | `id, name` | `{ sticker }` | admin+ |
+| `sticker.delete` | `id` | | admin+ |
+| `chat.send` | adds `sticker?: id`; `text` must then be empty and there are no `attachments` | | channel writers |
+
+`Sticker { id, name, url: "/files/<id>/<name>", animated, createdBy }`. Event `stickers.updated { stickers }` goes to everyone on any change. `Message` gains `sticker: { id, name, url, animated } | null`: the name is kept as it was when sent, and `url` is `null` once the sticker is deleted. Sticker messages can't be edited.
+
+Message links (client side, no protocol change): `<appUrl>/#/open/<serverKey>/c/<channelId>/m/<messageId>` opens the app at that message (it extends the push notification routes above). Spoiler attachments are files whose name starts with `SPOILER_`; apps show them covered until clicked. Encrypted DM attachments carry the same prefix inside their (encrypted) name.
+
+## GIFs
+
+The GIF picker uses [KLIPY](https://docs.klipy.com) (Google closed Tenor's API on 30 June 2026). An admin adds a KLIPY API key and picks how apps get GIFs:
+
+- **Direct** (the default, what KLIPY's standard terms require: requests and media loads from users' devices): members' apps get the key and their own `customerId` in `gif.status`, search KLIPY themselves and load GIFs from KLIPY's media hosts. **KLIPY sees their address and searches.** The key reaches every member's app, which is acceptable for a key made for one server. GIFs in messages are KLIPY addresses (`direct: true`); apps show them only after a click ("Load GIF from KLIPY"), unless the viewer turned on auto-load on their device. Apps load KLIPY images inside a sandboxed frame (`sandbox=""`, no scripts) whose own policy is `img-src https://static.klipy.com https://static1.klipy.com https://static2.klipy.com` and nothing else, after checking the address.
+- **Through this server** (`mode: "proxy"`; KLIPY's terms allow this only with their written approval, developers@klipy.com): the server searches and proxies the files, so KLIPY sees only the server's address; the key never leaves the server.
+
+| type | body | result | who |
+|---|---|---|---|
+| `gif.status` | | `{ enabled, provider: "klipy" \| null, mode: "direct" \| "proxy", key, customerId }` (`key` and `customerId` only in direct mode, else `null`) | anyone |
+| `gif.configure` | `key?` (a KLIPY API key, 8–128 of `A–Z a–z 0–9 - _`; `""` turns GIFs off), `mode?` (`direct` \| `proxy`); at least one | | admin+ |
+| `gif.trending` | `page?` (1–50) | `{ gifs: [Gif], hasNext }` | anyone; proxy mode only (`unavailable` otherwise) |
+| `gif.search` | `q` (1–100 chars, one line), `page?` | `{ gifs: [Gif], hasNext }` | as above |
+| `gif.categories` | | `{ categories: [{ name, query, preview \| null }] }` | as above |
+| `chat.send` | adds `gif?`: in proxy mode a `token` from a `Gif`; in direct mode `{ id, title, url, preview?, width, height }` as KLIPY gave it (`url`/`preview` must be `https` on KLIPY's media hosts, the default port, no credentials). Then no `text`, `attachments` or `sticker` | | channel writers |
+
+- `Gif { id, title, width, height, url, preview, token }`. Event `gif.status` goes to every session (each with its own `customerId`) when an admin changes the key or mode. Without a key, GIF requests answer `unavailable` (also when KLIPY can't be reached or the server's budget for calls to it is used up). Rate limits: `gif.search` and `gif.trending` 1/s (burst 10), `gif.categories` 1 every 5 s (burst 5).
+- **customer_id:** direct mode, a per-member pseudonym (an HMAC of the account key, never the key itself); proxy mode, one pseudonym for the whole server.
+- **Proxy mode details:** the server calls `https://api.klipy.com/api/v1/<key>/gifs/{trending|search|categories}` with `content_filter=medium`, caches answers for 5 minutes, and has a shared budget of 60 calls a minute. `url`/`preview` are `/gifs/media?u=<b64u(KLIPY URL)>&s=<HMAC>`: the server only fetches links it signed (key in the world, so old messages keep working), only KLIPY's media hosts over https without credentials, through the link-preview fetcher's rules (public addresses only, checked after DNS; no redirects), and only answers GIF, WebP, PNG or JPEG up to 15 MB, streamed and never stored (`nosniff`, a sandboxing CSP, browser caching only), 20 requests a second per client address (burst 200, `429`). In direct mode `/gifs/media` answers `404`. The token is the item (id, title, the two KLIPY URLs, size) signed by the server, so a proxied message can only carry a GIF the server handed out.
+- `Message` gains `gif: { provider, id, title, width, height, url, preview, direct } | null`, shown the way the server is set up when the message is fetched. GIF messages can't be edited.
+- **Ads:** KLIPY only returns ad objects when ads are switched on for the key in its Partner Panel (they're optional). Keep them off; any that still arrive are left out, in both modes, as are results whose files aren't on KLIPY's media hosts.
+- The app's own `img-src` can't be narrowed to KLIPY (attachments come from each server's own address); the KLIPY frame above is where that restriction lives.
 
 ## Safety and moderation
 

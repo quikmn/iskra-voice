@@ -293,6 +293,8 @@ export interface StoredDm {
   /** A local notice ("safety number changed"), see state/dms.ts. */
   notice?: 'key-changed' | 'key-disputed'
   forward?: import('./dm').DmForward
+  /** Encrypted attachments: where they are and their keys (core/dmFiles.ts). */
+  files?: unknown
 }
 
 /** Decrypted DMs per conversation. Servers keep only envelopes, and old prekeys get deleted, so this is the history. */

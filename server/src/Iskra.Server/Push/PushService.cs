@@ -120,7 +120,7 @@ public sealed partial class PushService
         var groups = GroupMention().Matches(message.Text).Select(m => m.Groups[2].Value).ToHashSet();
         if (pings && groups.Count > 0 && CanPingGroups(author))
             foreach (var member in store.AllMembers())
-                if (groups.Contains("everyone") || _hub.IsOnline(member.AccountKey)) kinds[member.AccountKey] = "mention";
+                if (groups.Contains("everyone") || Features.PresenceFeature.Of(store, _hub, member.AccountKey, _time.GetUtcNow().ToUnixTimeMilliseconds()).Online) kinds[member.AccountKey] = "mention";
         if (pings)
         {
             foreach (Match m in MentionToken().Matches(message.Text)) kinds[m.Groups[1].Value] = "mention";

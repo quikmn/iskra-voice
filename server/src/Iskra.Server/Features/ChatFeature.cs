@@ -54,11 +54,13 @@ public static class ChatFeature
             if (file is null || file.Uploader != me.AccountKey) throw RequestException.BadRequest("Unknown attachment.");
         }
         var rawText = body.OptionalString("text", MaxMessageLength * 2) ?? "";
-        var text = rawText.Trim().Length == 0 && attachments.Length > 0
+        var text = rawText.Trim().Length == 0 && (attachments.Length > 0 || body.OptionalString("sticker", 64) is not null || body.OptionalElement("gif") is not null)
             ? ""
             : Text.Normalize(rawText, MaxMessageLength, allowNewlines: true)
               ?? throw RequestException.BadRequest($"Messages must be 1–{MaxMessageLength} characters.");
         var voice = VoiceMessageFeature.Parse(s, body, attachments, text);
+        var sticker = StickerFeature.Parse(s, body, attachments, text);
+        var gif = GifFeature.Parse(s, body, attachments, text);
 
         long? replyTo = body.OptionalLong("replyTo", min: 1);
         if (replyTo is { } replyId && s.World.Store.GetMessage(replyId)?.ChannelId != channel.Id)
@@ -78,6 +80,8 @@ public static class ChatFeature
             message = stored!;
         }
         VoiceMessageFeature.Saved(s.World.Store, message, voice);
+        if (sticker is not null) s.World.Store.SetMessageSticker(message.Id, sticker);
+        GifFeature.Saved(s.World.Store, message, gif);
         var publicMessage = View(s, message);
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.message", new { message = publicMessage, nonce }));
         ThreadFeature.Touched(s, channel);
@@ -109,6 +113,8 @@ public static class ChatFeature
         if (message.AuthorKey != me.AccountKey) throw RequestException.Forbidden("You can only edit your own messages.");
         if (s.World.Store.GetPoll(message.Id) is not null) throw RequestException.BadRequest("Polls can't be edited.");
         if (VoiceMessageFeature.IsVoice(s.World.Store, message.Id)) throw RequestException.BadRequest("Voice messages can't be edited.");
+        if (s.World.Store.GetMessageSticker(message.Id) is not null) throw RequestException.BadRequest("Stickers can't be edited.");
+        if (s.World.Store.GetMessageGif(message.Id) is not null) throw RequestException.BadRequest("GIFs can't be edited.");
 
         var text = MessageText(body);
         s.World.Store.EditMessage(message.Id, text, s.Now);
@@ -183,6 +189,7 @@ public static class ChatFeature
     {
         var channel = ReadableChannel(s, me, body.Long("channelId"));
         if (!Permissions.CanWrite(me, channel)) throw RequestException.Forbidden();
+        if (PresenceFeature.Invisible(s.World.Store, me.AccountKey)) return null; // typing would give an invisible member away
 
         var frame = Frames.Event("chat.typing", new { channelId = channel.Id, accountKey = me.AccountKey });
         foreach (var other in s.Hub.Sessions.Where(o => o.AccountKey != me.AccountKey))

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseOpenRoute, pushScope, pushSupport, serverOfScope } from './pushRoute'
+import { messageLink, parseOpenRoute, pushScope, pushSupport, serverOfScope } from './pushRoute'
 
 const S = 'A'.repeat(43)
 const P = 'b'.repeat(42) + '_'
@@ -55,5 +55,15 @@ describe('push support', () => {
   it('says so when the browser has no push at all', () => {
     expect(pushSupport({ ...full, hasPushManager: false, userAgent: 'Firefox' })).toBe('unsupported')
     expect(pushSupport({ ...full, userAgent: ipad, standalone: true, hasPushManager: false })).toBe('unsupported')
+  })
+})
+
+describe('message links', () => {
+  it('round-trip through the open route', () => {
+    const link = messageLink('https://app.iskra.foo/', S, 12, 345)
+    expect(link).toBe(`https://app.iskra.foo/#/open/${S}/c/12/m/345`)
+    expect(parseOpenRoute(new URL(link).hash)).toEqual({ server: S, kind: 'channel', channelId: 12, messageId: 345 })
+    expect(parseOpenRoute(`#/open/${S}/c/12/m/0`)).toBeNull()
+    expect(parseOpenRoute(`#/open/${S}/m/3`)).toBeNull()
   })
 })
