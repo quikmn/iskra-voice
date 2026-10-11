@@ -14,13 +14,21 @@ export const SHOTS = resolve(HERE, 'screenshots')
 
 export const hasLiveKit = () => existsSync(LIVEKIT)
 
+/** Ports already handed out in this test process: the OS can offer a just-released port again. */
+const handedOut = new Set<number>()
+
 export async function freePort(): Promise<number> {
-  return new Promise((done) => {
-    const probe = createServer().listen(0, () => {
-      const port = (probe.address() as { port: number }).port
-      probe.close(() => done(port))
+  for (;;) {
+    const port = await new Promise<number>((done) => {
+      const probe = createServer().listen(0, () => {
+        const found = (probe.address() as { port: number }).port
+        probe.close(() => done(found))
+      })
     })
-  })
+    if (handedOut.has(port)) continue
+    handedOut.add(port)
+    return port
+  }
 }
 
 export interface TestServer {
@@ -54,7 +62,9 @@ export async function startServer(name: string, voice = false, env: Record<strin
   const url = `http://localhost:${port}`
   for (let i = 0; ; i++) {
     try {
-      if ((await fetch(url)).ok) break
+      // Iskra itself, not something else that happens to answer on the port.
+      const response = await fetch(url)
+      if (response.ok && 'iskra' in ((await response.json().catch(() => ({}))) as object)) break
     } catch {
       /* starting */
     }
