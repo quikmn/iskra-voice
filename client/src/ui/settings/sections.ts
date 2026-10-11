@@ -3,7 +3,7 @@ import { roleRank, type Permission, type Role } from '../../core/protocol'
 
 export type SectionId =
   | 'profile' | 'appearance' | 'devices' | 'recovery' | 'security' | 'notifications' | 'voice' | 'blocked' | 'desktop'
-  | 'overview' | 'roles' | 'emoji' | 'sounds' | 'integrations' | 'pages' | 'internet' | 'audit' | 'limits' | 'backup' | 'import'
+  | 'overview' | 'roles' | 'automod' | 'emoji' | 'sounds' | 'integrations' | 'pages' | 'internet' | 'audit' | 'limits' | 'backup' | 'import'
 
 export interface SectionInfo {
   id: SectionId
@@ -27,6 +27,7 @@ const ACCOUNT: SectionInfo[] = [
 const SERVER: (SectionInfo & { min: Role; perm?: Permission })[] = [
   { id: 'overview', label: 'Overview', group: 'server', min: 'guest' },
   { id: 'roles', label: 'Roles', group: 'server', min: 'admin', perm: 'manageRoles' },
+  { id: 'automod', label: 'AutoMod', group: 'server', min: 'admin', perm: 'manageAutoMod' },
   { id: 'emoji', label: 'Emoji', group: 'server', min: 'admin', perm: 'manageExpressions' },
   { id: 'sounds', label: 'Soundboard', group: 'server', min: 'trusted', perm: 'manageExpressions' },
   { id: 'integrations', label: 'Bots & webhooks', group: 'server', min: 'admin', perm: 'manageWebhooks' },

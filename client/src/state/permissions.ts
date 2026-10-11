@@ -17,6 +17,7 @@ export const PERMISSIONS: { id: Permission; label: string; hint: string }[] = [
   { id: 'mentionEveryone', label: 'Mention @everyone', hint: 'Notify everyone with @everyone and @here' },
   { id: 'moveMembers', label: 'Move members', hint: 'Move people between voice channels' },
   { id: 'muteMembers', label: 'Mute members', hint: 'Mute people in voice for everyone' },
+  { id: 'manageAutoMod', label: 'Manage AutoMod', hint: 'Change the blocked words and spam rules' },
 ]
 
 /** The "Moderator" preset: every permission a moderator needs, without being an admin. */

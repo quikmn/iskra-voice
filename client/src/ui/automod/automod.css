@@ -1,0 +1,51 @@
+/* ── AutoMod: settings section and alert cards ───────────────────────── */
+.automod-master { padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); margin-top: 12px; }
+.automod-preset { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 12px 0 0; font-size: 13px; }
+.automod-note { margin: 10px 0 4px; font-size: 13px; }
+
+.automod-rule { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-top: 12px; transition: border-color 0.15s; }
+.automod-rule.on { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.automod-rule-body { margin-top: 12px; display: grid; gap: 10px; }
+.automod-rule-body .field { margin-bottom: 0; }
+.automod-rule textarea, .automod-group select { width: 100%; }
+.automod-rule textarea { font-family: var(--mono); font-size: 13px; resize: vertical; min-height: 44px; }
+
+.automod-inline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 14px; }
+.automod-number { width: 72px; }
+.automod-radios { display: grid; gap: 8px; font-size: 14px; }
+
+.automod-actions {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding-top: 10px; border-top: 1px dashed var(--border); font-size: 14px;
+}
+.automod-actions select { max-width: 100%; }
+
+.automod-group { margin-top: 20px; }
+.automod-group h4 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.automod-group > p.muted { margin: 0 0 8px; font-size: 13px; }
+.automod-chips { border: 0; margin: 0 0 10px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.automod-chips legend { padding: 0; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: var(--text-2); }
+.automod-chip {
+  border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text-2);
+  padding: 4px 11px; font-size: 13px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.automod-chip:hover { background: var(--hover); }
+.automod-chip.on { background: var(--accent-subtle); border-color: var(--accent); color: var(--text-strong); }
+
+.automod-save {
+  position: sticky; bottom: 0; margin-top: 20px; padding: 10px 12px; display: none; align-items: center; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow-pop); font-size: 14px;
+}
+.automod-save.show { display: flex; }
+
+/* An alert in the chat. */
+.automod-alert {
+  margin-top: 2px; padding: 8px 12px; border-left: 3px solid var(--amber); border-radius: calc(var(--radius) * 0.6);
+  background: var(--warning-bg); max-width: 640px; font-size: 14px;
+}
+.automod-alert-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.automod-alert-rule {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--amber);
+}
+.automod-alert .link { font-weight: 600; }
+.automod-alert-snippet { margin-top: 6px; color: var(--text-2); overflow-wrap: anywhere; }

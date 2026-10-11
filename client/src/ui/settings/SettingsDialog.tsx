@@ -26,6 +26,7 @@ import { ChevronRight } from '../icons'
 import { AuditLogSection, BlockedSection } from '../moderation/SafetySettings'
 import { NicknameField } from '../organize/ServerSettings'
 import { RolesSection } from '../roles/RoleSettings'
+import { AutoModSection } from '../automod/AutoModSection'
 import { useServerRoles } from '../../state/roles'
 import { has } from '../../state/permissions'
 import { settingsSections, type SectionId } from './sections'
@@ -125,6 +126,7 @@ function Section({ id, server, onClose }: { id: SectionId; server: ServerState |
     case 'backup': return <BackupSection server={server} />
     case 'import': return <ImportSection server={server} />
     case 'roles': return <RolesSection server={server} />
+    case 'automod': return <AutoModSection server={server} />
   }
 }
 
