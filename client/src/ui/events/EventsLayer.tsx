@@ -1,5 +1,4 @@
 // Scheduled events: the sidebar button (with a badge), the events dialog wherever it's opened from, and reminder toasts.
-import { useEffect, useState } from 'react'
 import { useApp, type ServerState } from '../../state/store'
 import { closeEvents, dismissReminder, showEvents, useEvents } from '../../state/events'
 import { openEvents, startsIn } from '../../state/eventTime'
@@ -7,17 +6,8 @@ import { joinVoice } from '../../state/voice'
 import { Close } from '../icons'
 import { CalendarIcon } from '../forums/icons'
 import { EventsDialog } from './EventsDialog'
+import { useNow } from './useNow'
 import './events.css'
-
-/** Re-renders every so often, for "in 5 min" and live states. */
-export function useNow(intervalMs = 30_000): number {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), intervalMs)
-    return () => clearInterval(timer)
-  }, [intervalMs])
-  return now
-}
 
 export function EventsButton({ server, onNavigate }: { server: ServerState; onNavigate: () => void }) {
   const events = useEvents((s) => s.events[server.key])

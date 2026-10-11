@@ -8,7 +8,7 @@ import {
 import { correction, formatTime, parseWatchInput, positionAt, WATCH_RATES } from '../../state/watchSync'
 import { Avatar, Modal } from '../bits'
 import { Expand, Send } from '../icons'
-import { loadYouTubeApi, videoAdapter, youTubeAdapter, youTubeEmbedUrl, type PlayerAdapter, type YTPlayer } from './players'
+import { videoAdapter, YouTubeBridge, youTubeEmbedUrl, type PlayerAdapter } from './players'
 import { ChatIcon, PauseIcon, PlayIcon, TvIcon, VolumeOffIcon, VolumeOnIcon } from './watchIcons'
 import './watch.css'
 
@@ -271,28 +271,45 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
   )
 }
 
-/** Our own youtube-nocookie iframe (so we choose its referrer policy and parameters); the official API drives it. */
+/**
+ * YouTube's privacy-enhanced embed in a sandboxed frame, driven over the IFrame Player API's postMessage protocol:
+ * no YouTube script runs in the app's page. Reports an adapter once the player answers.
+ */
 function YouTubeFrame({ videoId, onReady, onError }: { videoId: string; onReady: (adapter: PlayerAdapter) => void; onError: (message: string) => void }) {
   const ref = useRef<HTMLIFrameElement>(null)
   const callbacks = useRef({ onReady, onError })
+  const src = youTubeEmbedUrl(videoId, window.location.origin)
   useEffect(() => {
     callbacks.current = { onReady, onError }
   }, [onReady, onError])
   useEffect(() => {
-    let player: YTPlayer | null = null
-    let cancelled = false
-    loadYouTubeApi().then((yt) => {
-      if (cancelled || !ref.current) return
-      player = new yt.Player(ref.current, {
-        events: {
-          onReady: () => !cancelled && player && callbacks.current.onReady(youTubeAdapter(yt, player)),
-          onError: () => callbacks.current.onError("YouTube won't play this video here (it may not allow embedding)."),
-        },
-      })
-    }, (e: Error) => callbacks.current.onError(e.message))
+    const frame = ref.current
+    if (!frame) return
+    const bridge = new YouTubeBridge(frame)
+    let announced = false
+    let failed = false
+    const onMessage = (e: MessageEvent) => {
+      if (!bridge.receive(e)) return
+      if (bridge.info.error !== null && !failed) {
+        failed = true
+        callbacks.current.onError("YouTube won't play this video here (it may not allow embedding).")
+      }
+      if (bridge.info.ready && !announced) {
+        announced = true
+        callbacks.current.onReady(bridge.adapter())
+      }
+    }
+    const onLoad = () => bridge.listen()
+    window.addEventListener('message', onMessage)
+    frame.addEventListener('load', onLoad)
+    // Ask the player to report to us until it does (it ignores us before it has loaded).
+    const listen = setInterval(() => {
+      if (!bridge.info.ready) bridge.listen()
+    }, 400)
     return () => {
-      cancelled = true
-      player?.destroy()
+      window.removeEventListener('message', onMessage)
+      frame.removeEventListener('load', onLoad)
+      clearInterval(listen)
     }
   }, [videoId])
   return (
@@ -300,9 +317,10 @@ function YouTubeFrame({ videoId, onReady, onError }: { videoId: string; onReady:
       ref={ref}
       className="watch-video"
       title="YouTube video"
-      src={youTubeEmbedUrl(videoId, window.location.origin)}
+      src={src}
       allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
       referrerPolicy="strict-origin-when-cross-origin"
+      sandbox="allow-scripts allow-same-origin allow-presentation"
       allowFullScreen
     />
   )

@@ -16,10 +16,12 @@ import { CheckCircle, ForumIcon, ReplyCount, TagIcon } from './icons'
 import { NewPostDialog, TagsDialog } from './ForumDialogs'
 import './forums.css'
 
+const NO_TAGS: ForumTag[] = []
+
 export function ForumView({ server, channel, onToggle }: { server: ServerState; channel: Channel; onToggle: (panel: Panel) => void }) {
   const key = forumKey(server.key, channel.id)
   const list = useForums((s) => s.lists[key])
-  const tags = useForums((s) => s.tags[key]) ?? []
+  const tags = useForums((s) => s.tags[key]) ?? NO_TAGS
   const seen = useForums((s) => s.seen[key])
   const openId = useThreads((s) => (s.open?.key === server.key ? s.open.id : null))
   const [view, setView] = useState<View>(DEFAULT_VIEW)

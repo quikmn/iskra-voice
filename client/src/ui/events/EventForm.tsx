@@ -40,6 +40,7 @@ export function EventForm({ server, event, onBack, onClose }: { server: ServerSt
   const [uploading, setUploading] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [opened] = useState(() => Date.now())
   const fileInput = useRef<HTMLInputElement>(null)
   const zones = useMemo(() => zoneList(zone), [zone])
 
@@ -47,7 +48,7 @@ export function EventForm({ server, event, onBack, onClose }: { server: ServerSt
   const endAt = zonedToUtc(end.date, end.time, zone)
   const problem = !title.trim() ? 'Give it a title.'
     : startAt === null || endAt === null ? 'Pick a date and time.'
-      : !live && startAt < Date.now() - 60_000 ? 'Pick a time in the future.'
+      : !live && startAt < opened - 60_000 ? 'Pick a time in the future.'
         : endAt <= startAt ? 'The end has to be after the start.'
           : endAt - startAt > 7 * 24 * 3_600_000 ? 'Events can last up to 7 days.'
             : where === 'voice' && channelId === null ? 'Pick a voice channel.'

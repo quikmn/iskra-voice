@@ -2,22 +2,12 @@
 import { useEffect, useState } from 'react'
 import type { ForumPost, ForumTag } from '../../core/protocol'
 import type { ServerState } from '../../state/store'
-import { canManagePost, canModerateForum, fetchPost, forumKey, markPostSeen, setPostState, updatePost, useForums } from '../../state/forums'
+import { canManagePost, canModerateForum, forumKey, markPostSeen, setPostState, updatePost, useForums } from '../../state/forums'
 import { Lock } from '../icons'
 import { PinIcon } from '../chat/extraIcons'
 import { CheckCircle, TagIcon } from './icons'
 import { MAX_POST_TAGS } from './ForumDialogs'
 import './forums.css'
-
-/** The forum post behind a thread id, fetched if the panel was opened from elsewhere (a link, a notification). */
-export function useForumPost(server: ServerState, threadId: number, parentKind: string | undefined): ForumPost | undefined {
-  const post = useForums((s) => s.posts[server.key]?.[threadId])
-  const online = server.status.state === 'online'
-  useEffect(() => {
-    if (parentKind === 'forum' && !post && online) void fetchPost(server.key, threadId)
-  }, [parentKind, post, online, server.key, threadId])
-  return parentKind === 'forum' ? post : undefined
-}
 
 export function PostBar({ server, post }: { server: ServerState; post: ForumPost }) {
   const tags = useForums((s) => s.tags[forumKey(server.key, post.channelId)]) ?? []

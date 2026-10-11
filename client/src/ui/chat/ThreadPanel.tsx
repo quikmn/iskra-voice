@@ -14,7 +14,8 @@ import { ArrowLeft, PinIcon, ThreadIcon } from './extraIcons'
 import { openProfileCard } from '../../state/profile'
 import { useEscapeLayer } from '../layers'
 import { replyBlock } from '../../state/forums'
-import { PostBar, useForumPost } from '../forums/PostBar'
+import { PostBar } from '../forums/PostBar'
+import { useForumPost } from '../forums/useForumPost'
 
 export function ThreadPanel({ server, threadId }: { server: ServerState; threadId: number }) {
   const thread = useThreads((s) => s.threads[server.key]?.[threadId])

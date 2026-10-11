@@ -9,7 +9,8 @@ import { Avatar, Modal } from '../bits'
 import { Pencil, Plus, Volume } from '../icons'
 import { CalendarIcon, CalendarPlus, MapPin, StarIcon } from '../forums/icons'
 import { EventForm } from './EventForm'
-import { useNow } from './EventsLayer'
+import { useNow } from './useNow'
+import { placeOf } from './place'
 
 export function EventsDialog({ server, focus, onClose }: { server: ServerState; focus?: number; onClose: () => void }) {
   const events = useEvents((s) => s.events[server.key])
@@ -62,13 +63,6 @@ export function EventsDialog({ server, focus, onClose }: { server: ServerState; 
       </div>
     </Modal>
   )
-}
-
-/** Where it is, in words ("lounge" for a voice channel here, or the text). */
-export function placeOf(server: ServerState, event: ServerEvent): { label: string; voiceId: number | null } {
-  if (event.location.kind === 'place') return { label: event.location.text, voiceId: null }
-  const channel = server.channels.find((c) => c.id === (event.location as { channelId: number | null }).channelId)
-  return channel ? { label: channel.name, voiceId: channel.id } : { label: 'A voice channel', voiceId: null }
 }
 
 function downloadIcs(server: ServerState, event: ServerEvent) {

@@ -8,8 +8,8 @@ import { defineConfig, type Plugin } from 'vite'
  */
 const CSP = [
   "default-src 'self'",
-  // YouTube's IFrame Player API (watch parties) is the one third-party script: its loader and the widget code it pulls in.
-  "script-src 'self' 'wasm-unsafe-eval' https://www.youtube.com",
+  // No third-party scripts: YouTube (watch parties) runs in its own sandboxed frame, driven over postMessage.
+  "script-src 'self' 'wasm-unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: http: https:", // attachments come from each server's own address
   "media-src 'self' blob: mediastream: http: https:",

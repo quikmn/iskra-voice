@@ -1,4 +1,4 @@
-// The two kinds of player a watch party drives: a plain <video> and YouTube's IFrame Player API.
+// The two kinds of player a watch party drives: a plain <video> and YouTube's embed (over postMessage).
 
 export interface PlayerAdapter {
   time(): number
@@ -35,84 +35,128 @@ export function videoAdapter(video: HTMLVideoElement): PlayerAdapter {
   }
 }
 
-// ── YouTube (official IFrame Player API, privacy-enhanced youtube-nocookie.com embeds) ──
+// ── YouTube (privacy-enhanced youtube-nocookie.com embed, driven over postMessage) ──
+// No YouTube script ever runs in the app's own page (it could read keys there). The embed runs in its own sandboxed
+// frame; we send it the IFrame Player API's postMessage commands and listen to the state it reports back.
 
-interface YTPlayer {
-  getCurrentTime(): number
-  getDuration(): number
-  getPlayerState(): number
-  playVideo(): void
-  pauseVideo(): void
-  seekTo(seconds: number, allowSeekAhead: boolean): void
-  getPlaybackRate(): number
-  setPlaybackRate(rate: number): void
-  setVolume(volume: number): void
-  mute(): void
-  unMute(): void
-  destroy(): void
+export const YOUTUBE_ORIGIN = 'https://www.youtube-nocookie.com'
+
+/** What the player has told us so far. */
+export interface YouTubeInfo {
+  ready: boolean
+  time: number
+  /** When `time` was reported (ms). */
+  at: number
+  /** -1 unstarted, 0 ended, 1 playing, 2 paused, 3 buffering, 5 cued. */
+  state: number
+  duration: number
+  rate: number
+  error: number | null
 }
 
-interface YTNamespace {
-  Player: new (element: HTMLIFrameElement, options: { events: { onReady?: () => void; onError?: (e: { data: number }) => void } }) => YTPlayer
-  PlayerState: { PLAYING: number; BUFFERING: number }
-}
+export const initialYouTubeInfo = (): YouTubeInfo => ({ ready: false, time: 0, at: 0, state: -1, duration: 0, rate: 1, error: null })
 
-declare global {
-  interface Window {
-    YT?: YTNamespace
-    onYouTubeIframeAPIReady?: () => void
+/**
+ * Folds one message from the embed into what we know. Anything that isn't the player's JSON is ignored
+ * (returns `info` unchanged). Callers check the message's origin and source window first.
+ */
+export function readYouTubeMessage(info: YouTubeInfo, raw: unknown, now: number): YouTubeInfo {
+  if (typeof raw !== 'string' || raw.length > 100_000) return info
+  let data: { event?: unknown; info?: unknown }
+  try {
+    data = JSON.parse(raw)
+  } catch {
+    return info
   }
+  if (!data || typeof data !== 'object') return info
+  const next = { ...info }
+  if (data.event === 'onReady') next.ready = true
+  else if (data.event === 'onStateChange' && typeof data.info === 'number') next.state = data.info
+  else if (data.event === 'onError' && typeof data.info === 'number') next.error = data.info
+  else if ((data.event === 'infoDelivery' || data.event === 'initialDelivery') && data.info && typeof data.info === 'object') {
+    const i = data.info as Record<string, unknown>
+    next.ready = true
+    if (typeof i.currentTime === 'number' && Number.isFinite(i.currentTime)) {
+      next.time = i.currentTime
+      next.at = now
+    }
+    if (typeof i.playerState === 'number') next.state = i.playerState
+    if (typeof i.duration === 'number' && Number.isFinite(i.duration) && i.duration > 0) next.duration = i.duration
+    if (typeof i.playbackRate === 'number' && i.playbackRate > 0) next.rate = i.playbackRate
+  } else return info
+  return next
 }
 
-export const YOUTUBE_API = 'https://www.youtube.com/iframe_api'
-let loading: Promise<YTNamespace> | null = null
-
-/** Loads YouTube's IFrame Player API once (the only third-party script the app allows, see the CSP). */
-export function loadYouTubeApi(): Promise<YTNamespace> {
-  if (window.YT?.Player) return Promise.resolve(window.YT)
-  loading ??= new Promise<YTNamespace>((resolve, reject) => {
-    const previous = window.onYouTubeIframeAPIReady
-    window.onYouTubeIframeAPIReady = () => {
-      previous?.()
-      if (window.YT) resolve(window.YT)
-    }
-    const script = document.createElement('script')
-    script.src = YOUTUBE_API
-    script.async = true
-    script.onerror = () => {
-      loading = null
-      reject(new Error("Couldn't load YouTube's player."))
-    }
-    document.head.appendChild(script)
-  })
-  return loading
+/** The player's position now, extrapolated from its last report while it plays. */
+export function youTubeTime(info: YouTubeInfo, now: number): number {
+  const playing = info.state === 1
+  return info.time + (playing && info.at > 0 ? ((now - info.at) / 1000) * info.rate : 0)
 }
 
-/** The embed URL for our own iframe (the API then attaches to it). No autoplay, no YouTube controls: the party drives it. */
+/** The embed URL. No autoplay, no YouTube controls: the party drives it. `origin` lets the player post back to us. */
 export function youTubeEmbedUrl(videoId: string, origin: string): string {
   const params = new URLSearchParams({ enablejsapi: '1', controls: '0', disablekb: '1', playsinline: '1', rel: '0', iv_load_policy: '3' })
   if (origin.startsWith('http')) params.set('origin', origin)
-  return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?${params}`
+  return `${YOUTUBE_ORIGIN}/embed/${encodeURIComponent(videoId)}?${params}`
 }
 
-export function youTubeAdapter(yt: YTNamespace, player: YTPlayer): PlayerAdapter {
-  return {
-    time: () => player.getCurrentTime() ?? 0,
-    duration: () => player.getDuration() ?? 0,
-    paused: () => ![yt.PlayerState.PLAYING, yt.PlayerState.BUFFERING].includes(player.getPlayerState()),
-    play: async () => player.playVideo(),
-    pause: () => player.pauseVideo(),
-    seek: (s) => player.seekTo(s, true),
-    setRate: (r) => {
-      if (player.getPlaybackRate() !== r) player.setPlaybackRate(r)
-    },
-    setVolume: (v, muted) => {
-      player.setVolume(Math.round(v * 100))
-      if (muted) player.mute()
-      else player.unMute()
-    },
-    canNudge: false,
+/** Talks to one embed frame: commands out, state in. */
+export class YouTubeBridge {
+  info: YouTubeInfo = initialYouTubeInfo()
+  private readonly frame: HTMLIFrameElement
+
+  constructor(frame: HTMLIFrameElement) {
+    this.frame = frame
+  }
+
+  private post(message: object): void {
+    this.frame.contentWindow?.postMessage(JSON.stringify({ ...message, id: 1, channel: 'widget' }), YOUTUBE_ORIGIN)
+  }
+
+  /** Asks the player to start reporting (repeat until it's ready). */
+  listen(): void {
+    this.post({ event: 'listening' })
+  }
+
+  command(func: string, args: unknown[] = []): void {
+    this.post({ event: 'command', func, args })
+  }
+
+  /** Feeds a window message in; true if it came from this frame's player. */
+  receive(e: MessageEvent): boolean {
+    if (e.origin !== YOUTUBE_ORIGIN || e.source !== this.frame.contentWindow) return false
+    this.info = readYouTubeMessage(this.info, e.data, Date.now())
+    return true
+  }
+
+  adapter(): PlayerAdapter {
+    return {
+      time: () => youTubeTime(this.info, Date.now()),
+      duration: () => this.info.duration,
+      paused: () => this.info.state !== 1 && this.info.state !== 3,
+      play: async () => {
+        this.command('playVideo')
+        this.info = { ...this.info, state: 1, at: Date.now() }
+      },
+      pause: () => {
+        this.info = { ...this.info, time: youTubeTime(this.info, Date.now()), state: 2 }
+        this.command('pauseVideo')
+      },
+      seek: (s) => {
+        this.command('seekTo', [s, true])
+        this.info = { ...this.info, time: s, at: Date.now() }
+      },
+      setRate: (r) => {
+        if (this.info.rate !== r) {
+          this.command('setPlaybackRate', [r])
+          this.info = { ...this.info, rate: r }
+        }
+      },
+      setVolume: (v, muted) => {
+        this.command('setVolume', [Math.round(v * 100)])
+        this.command(muted ? 'mute' : 'unMute')
+      },
+      canNudge: false,
+    }
   }
 }
-
-export type { YTPlayer, YTNamespace }
