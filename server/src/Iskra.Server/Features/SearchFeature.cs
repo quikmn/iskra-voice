@@ -50,6 +50,9 @@ public static class SearchFeature
 
         // What the requester may read right now; nothing else is ever looked at.
         var readable = s.World.Store.AllConversations().Where(c => Permissions.CanRead(me, c)).Select(c => c.Id).ToHashSet();
+        // Encrypted channels are searched on the device: the server only has ciphertext.
+        var encrypted = s.World.Store.AllE2ee().Keys.ToHashSet();
+        readable.RemoveWhere(id => encrypted.Contains(id) || s.World.Store.GetE2ee(id) is not null);
         if (body.OptionalLong("channelId") is { } channelId)
         {
             var channel = ChatFeature.ReadableChannel(s, me, channelId);

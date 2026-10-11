@@ -164,7 +164,9 @@ public sealed partial class PushService
         var authorName = store.DisplayName(author);
         var text = MentionToken().Replace(message.Text, m => "@" + (store.GetMember(m.Groups[1].Value) is { } who ? store.DisplayName(who) : "unknown"));
         text = RoleMention().Replace(text, m => "@" + (long.TryParse(m.Groups[1].Value, out var id) && store.GetRole(id) is { } r ? r.Name : "role"));
-        var body = text.Length == 0 ? "Sent an attachment" : Excerpt(text, 140);
+        // Encrypted channels: the server can't read the message, so the push only says where it is.
+        var encrypted = store.GetE2ee(channel.Id) is not null;
+        var body = encrypted ? "Open Iskra to read it." : text.Length == 0 ? "Sent an attachment" : Excerpt(text, 140);
         var settingsChannel = store.SettingsChannelOf(channel.Id);
         var now = _time.GetUtcNow().ToUnixTimeMilliseconds();
         foreach (var (accountKey, kind) in kinds)
@@ -174,7 +176,8 @@ public sealed partial class PushService
             if (store.EitherBlocked(accountKey, author.AccountKey)) continue; // blocked people never buzz your phone
             var level = Features.NotifyFeature.EffectiveLevel(store.NotifySettings(accountKey), settingsChannel, now);
             if (level == Features.NotifyFeature.Nothing || (kind == "message" && level != Features.NotifyFeature.All)) continue;
-            var title = kind == "reply" ? $"{authorName} replied in #{channel.Name}" : $"{authorName} in #{channel.Name}";
+            var title = encrypted ? $"New message in #{channel.Name}"
+                : kind == "reply" ? $"{authorName} replied in #{channel.Name}" : $"{authorName} in #{channel.Name}";
             Notify(accountKey, new PushNote(kind, $"c:{channel.Id}", title, body, authorName, ChannelId: channel.Id, MessageId: message.Id));
         }
     }

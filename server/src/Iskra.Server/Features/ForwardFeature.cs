@@ -18,12 +18,14 @@ public static class ForwardFeature
         var store = s.World.Store;
         var source = store.GetMessage(body.Long("id")) ?? throw RequestException.NotFound("Message");
         var from = ChatFeature.ReadableChannel(s, me, source.ChannelId);
+        E2eeChannelFeature.RefusePlaintext(store, from, "Forwarding");
         if (store.GetPoll(source.Id) is not null) throw RequestException.BadRequest("Polls can't be forwarded.");
         if (source.Text.Length == 0 && source.Attachments.Length == 0) throw RequestException.BadRequest("There's nothing to forward in that message.");
 
         var target = ChatFeature.ReadableChannel(s, me, body.Long("channelId"));
         if (target.Kind is not ("text" or "thread")) throw RequestException.BadRequest("You can't send messages to that channel.");
         if (!Permissions.CanWrite(me, target)) throw RequestException.Forbidden("You can't send messages in this channel.");
+        E2eeChannelFeature.RefusePlaintext(store, target, "Forwarding");
 
         AutoModFeature.Check(s, me, target, source.Text, "message");
         var message = store.AddMessage(target.Id, me.AccountKey, source.Text, s.Now, source.Attachments);
