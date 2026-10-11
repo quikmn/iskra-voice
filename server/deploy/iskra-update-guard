@@ -1,0 +1,33 @@
+#!/bin/sh
+# iskra-update-guard: runs before iskra-server starts (systemd ExecStartPre, see docs/hosting.md).
+# After an automatic update, the new version confirms itself once it has run for a minute. If it fails to start
+# three times in a row before that, this puts the previous version back, so the server comes up again.
+# It only touches files in its own folder (where iskra-server lives) and their .update/ subfolder.
+set -u
+dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd) || exit 0
+u="$dir/.update"
+mkdir -p "$u" 2>/dev/null || exit 0
+touch "$u/guard-ran" 2>/dev/null
+[ -f "$u/pending" ] || exit 0
+
+starts=$(cat "$u/starts" 2>/dev/null || echo 0)
+case "$starts" in '' | *[!0-9]*) starts=0 ;; esac
+if [ "$starts" -lt 3 ]; then
+  echo $((starts + 1)) > "$u/starts"
+  exit 0
+fi
+
+echo "iskra-update-guard: the updated server didn't start ($(cat "$u/pending")); putting the previous version back" >&2
+if [ -f "$u/added" ]; then
+  while IFS= read -r name; do
+    case "$name" in '' | */* | .*) continue ;; esac
+    rm -f -- "$dir/$name"
+  done < "$u/added"
+fi
+for f in "$u/previous"/*; do
+  [ -f "$f" ] || continue
+  mv -f -- "$f" "$dir/$(basename -- "$f")"
+done
+mv -f -- "$u/pending" "$u/rolled-back"
+rm -f -- "$u/starts" "$u/added"
+exit 0

@@ -26,6 +26,7 @@ export const settings = {
     limits: 'Limits',
     backup: 'Backup & move',
     import: 'Import from Discord',
+    updates: 'Updates',
   },
   dialog: {
     sectionsLabel: 'Settings sections',

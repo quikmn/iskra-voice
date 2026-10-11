@@ -77,6 +77,12 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<InternetHost>());
 builder.Services.AddSingleton<Iskra.Server.Backups.BackupService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<Iskra.Server.Backups.BackupService>());
 builder.Services.AddSingleton<Iskra.Server.Import.ImportService>();
+// Server updates from GitHub releases (Settings → Updates). Updates:FeedFile reads releases from a file instead (tests).
+builder.Services.AddSingleton<Iskra.Server.Updates.IReleaseFeed>(sp => builder.Configuration["Updates:FeedFile"] is { Length: > 0 } feedFile
+    ? new Iskra.Server.Updates.FileReleaseFeed(feedFile)
+    : ActivatorUtilities.CreateInstance<Iskra.Server.Updates.GitHubReleaseFeed>(sp));
+builder.Services.AddSingleton<Iskra.Server.Updates.UpdateService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<Iskra.Server.Updates.UpdateService>());
 
 var https = world.Settings.Https;
 if (https.Enabled)
@@ -170,6 +176,8 @@ app.MapGet("/.well-known/iskra-probe/{token}", (string token, InternetHost inter
 app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(20) });
 
 app.MapGet("/", (World w) => Results.Json(new { iskra = 1, name = w.Settings.Name }));
+// For uptime monitors: up, version, how long it's been running, whether voice is up. Nothing secret.
+app.MapGet("/health", (IVoiceBackend voice, World w, Iskra.Server.Updates.UpdateService updates) => HealthFeature.Report(w, voice, updates.Env.Current));
 
 // LiveKit tells us who joined or left voice. Only requests signed with this world's LiveKit secret count.
 app.MapPost("/internal/livekit-webhook", async (HttpContext context, IVoiceBackend backend, VoiceRegistry voice, TimeProvider time) =>

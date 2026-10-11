@@ -27,6 +27,7 @@ export const settings: Messages['settings'] = {
     limits: 'Gränser',
     backup: 'Säkerhetskopia och flytt',
     import: 'Importera från Discord',
+    updates: 'Uppdateringar',
   },
   dialog: {
     sectionsLabel: 'Inställningsavsnitt',

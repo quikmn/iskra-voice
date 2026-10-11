@@ -1336,3 +1336,42 @@ export interface Requests {
   'account.delete': [{ deletion: AccountDeletion }, Record<string, never>]
   'owner.transfer': [{ accountKey: string }, Record<string, never>]
 }
+
+// ── server updates ──
+// See "Server updates and health" in PROTOCOL.md.
+
+export type UpdateMode = 'off' | 'notify' | 'auto'
+export type UpdateChannel = 'stable' | 'prerelease'
+export type ServerUpdateState = 'idle' | 'checking' | 'downloading' | 'verifying' | 'installing' | 'restarting' | 'failed'
+/** Why this server can't install updates itself. */
+export type AutoUpdateBlock = 'desktop' | 'development' | 'platform' | 'guard' | 'readonly'
+
+export interface ServerUpdateStatus {
+  current: string
+  mode: UpdateMode
+  channel: UpdateChannel
+  window: string
+  requireAttestation: boolean
+  managed: 'desktop' | null
+  canCheck: boolean
+  auto: { possible: boolean; reason: AutoUpdateBlock | null }
+  latest: { version: string; url: string; publishedAt: number; prerelease: boolean; package: boolean } | null
+  state: ServerUpdateState
+  progress: { done: number; total: number } | null
+  checkedAt: number | null
+  error: string | null
+  lastUpdate: { from: string; to: string; ok: boolean } | null
+  attested: boolean | null
+}
+
+export interface Events {
+  'update.status': { status: ServerUpdateStatus }
+  'server.restarting': { reason: 'update'; version: string }
+}
+
+export interface Requests {
+  'update.status': [Record<string, never>, { status: ServerUpdateStatus }]
+  'update.check': [Record<string, never>, { status: ServerUpdateStatus }]
+  'update.settings': [{ mode?: UpdateMode; channel?: UpdateChannel; window?: string; requireAttestation?: boolean }, { status: ServerUpdateStatus }]
+  'update.install': [Record<string, never>, { status: ServerUpdateStatus }]
+}

@@ -7,6 +7,8 @@
     <AssemblyName>iskra-server</AssemblyName>
     <RootNamespace>Iskra.Server</RootNamespace>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Release builds pass -p:Version=<app version> (desktop/scripts/prepare-server.mjs); this marks everything else. -->
+    <Version>0.0.0-dev</Version>
   </PropertyGroup>
 
   <ItemGroup>

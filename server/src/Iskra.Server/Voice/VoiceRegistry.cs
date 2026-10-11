@@ -95,6 +95,9 @@ public sealed class VoiceRegistry
     public IReadOnlyList<VoiceMember> Participants(long channelId) =>
         _rooms.TryGetValue(channelId, out var room) ? room.Values.OrderBy(m => m.JoinedAt).ToList() : [];
 
+    /// <summary>How many people are in voice channels right now.</summary>
+    public int InVoice => _rooms.Values.Sum(r => r.Count);
+
     public long? ChannelOfMember(string accountKey) =>
         _rooms.FirstOrDefault(r => r.Value.ContainsKey(accountKey)).Key is var id && id != 0 ? id : null;
 

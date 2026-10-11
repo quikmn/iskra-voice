@@ -1572,3 +1572,42 @@ AccountDeletion { "accountKey": "<b64u 32>", "deletedAt": 1760000000000, "messag
 **Other devices** learn of it when they next connect anywhere it was applied. A device checks the signature against its own account key (so a server can't make it wipe itself), sends the same `account.delete` to its other servers the deleting device couldn't reach, then deletes its keys and data. Messages already on other people's devices (DMs, groups) stay there.
 
 **Owners** can't delete their account on a server they own: they hand it over with `owner.transfer` first, or shut the server down. Audit: `owner.transfer` (target the new owner) `{ from }` (their level before).
+
+## Server updates and health
+
+The standalone server can check GitHub releases for new versions, tell the owner, and (on Linux under systemd) install them itself. A server run by the desktop app updates together with the app and never checks. Settings live in `server.json` → `Updates` (`Mode`: `off` | `notify` (default) | `auto`; `Channel`: `stable` | `prerelease`; `Window`: `HH:mm`, local time; `RequireAttestation`: bool).
+
+```jsonc
+UpdateStatus {
+  "current": "2.0.0-alpha.10",          // "0.0.0-dev" for development builds (they never check)
+  "mode": "off" | "notify" | "auto", "channel": "stable" | "prerelease", "window": "04:00", "requireAttestation": false,
+  "managed": "desktop" | null,          // "desktop": updates with the desktop app; mode is "off" and can't change
+  "canCheck": true,
+  "auto": { "possible": false, "reason": "desktop" | "development" | "platform" | "guard" | "readonly" | null },
+  "latest": { "version": "2.0.0-alpha.11", "url": "https://github.com/quikmn/iskra-voice/releases/tag/v2.0.0-alpha.11",
+              "publishedAt": 1760000000000, "prerelease": false, "package": true } | null,   // newest newer release on the channel
+  "state": "idle" | "checking" | "downloading" | "verifying" | "installing" | "restarting" | "failed",
+  "progress": { "done": 1048576, "total": 66350346 } | null,   // while downloading (bytes)
+  "checkedAt": 1760000000000 | null, "error": "Couldn't reach GitHub to check for updates." | null,
+  "lastUpdate": { "from": "2.0.0-alpha.10", "to": "2.0.0-alpha.11", "ok": true } | null,  // ok false: it didn't start and was undone
+  "attested": true | false | null       // whether GitHub has a build attestation for the package being installed
+}
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `update.status` | | `{ status: UpdateStatus }` | owner |
+| `update.check` | | `{ status }` (after asking GitHub; a check within 30 s of the last one reuses it) | owner; limit 3, then one every 20 s |
+| `update.settings` | `mode?`, `channel?`, `window?` (`HH:mm`, exactly 5 chars), `requireAttestation?` | `{ status }` | owner; `bad_request` for unknown values, for any change on a desktop-hosted server, and for `auto` when `auto.possible` is false |
+| `update.install` | | `{ status }` (installing has started) | owner; `bad_request` when it can't install here or there's nothing newer (or no package for this system), `conflict` while an install runs |
+
+- **Events:** `update.status` `{ status }` goes to the owner's sessions whenever it changes (check results, download progress about every 2%, failures). `server.restarting` `{ reason: "update", version }` goes to every session about 5 seconds before the server restarts into a new version; apps tell members, then reconnect as usual.
+- **Checks:** unauthenticated GitHub API (`GET /repos/quikmn/iskra-voice/releases`, `If-None-Match` with the last ETag), 2 minutes after start and then every 6 hours (not when `Mode` is `off`, except "Check now"). On a rate-limit answer the next check waits until GitHub's reset time. Drafts and tags that aren't `v<version>` are ignored. "stable" means releases GitHub doesn't mark as prerelease (alphas are published as normal releases).
+- **Packages:** `iskra-server-<v>-linux-x64.tar.gz`, `-osx-arm64.tar.gz`, `-osx-x64.tar.gz`, `-win-x64.zip`. Downloads only from `https://github.com/quikmn/iskra-voice/releases/download/`, HTTPS only (redirects to GitHub's storage), at most 512 MB.
+- **Verification before anything is replaced:** the package's SHA-256 must match its line in the release's `SHA256SUMS.txt` and GitHub's own `digest` for the file (when the API gives one), and its size must match. Then `GET /repos/quikmn/iskra-voice/attestations/sha256:<hash>` is asked whether a build-provenance attestation exists (`attested`); with `RequireAttestation` an install without one fails. The server doesn't check Sigstore signatures itself (see docs/hosting.md for what this does and doesn't protect against). The archive may only hold plain files at its top level with plain names (no folders, links, `..` or absolute paths) and must contain `iskra-server`. The unpacked `iskra-server version` must print the new version (so a package that can't run on this machine is never swapped in).
+- **Automatic install** (`Mode: "auto"`): only when `auto.possible`: Linux x64, a release build, not desktop-hosted, the folder iskra-server runs from is writable, and `iskra-update-guard` ran just before this start (systemd `ExecStartPre`). It starts in the hour after `Window` when nobody is in a voice channel; a version that failed or was undone isn't retried automatically.
+- **Swap and rollback:** files are renamed into place inside the server's folder; the replaced ones go to `.update/previous/`. The server writes `.update/pending` and exits with code 75 (systemd's `Restart=on-failure` starts the new version). The new version confirms itself after running for 60 s. If it fails to start three times before that, `iskra-update-guard` puts the previous files back (`.update/rolled-back`), and the owner sees `lastUpdate.ok: false`.
+
+### Health
+
+`GET /health` → `200 { "iskra": 1, "status": "ok", "version": "2.0.0-alpha.10", "uptimeSeconds": 8123, "voice": "up" | "down" | "off" }`. No names, addresses, member counts or settings. For uptime monitors; `GET /` (`{ iskra: 1, name }`) stays as before.

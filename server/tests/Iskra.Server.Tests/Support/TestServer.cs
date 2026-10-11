@@ -41,6 +41,9 @@ public sealed class IskraServer : WebApplicationFactory<Program>
     /// <summary>Stands in for the GIF provider (KLIPY).</summary>
     public FakeGifUpstream Gifs { get; } = new();
 
+    /// <summary>Stands in for GitHub's releases (server updates).</summary>
+    public FakeReleaseFeed Releases { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("World", WorldPath);
@@ -54,6 +57,7 @@ public sealed class IskraServer : WebApplicationFactory<Program>
             services.AddSingleton<IVoiceBackend>(Voice);
             services.AddSingleton<Iskra.Server.Push.IPushSender>(Push);
             services.AddSingleton<Iskra.Server.Gifs.IGifUpstream>(Gifs);
+            services.AddSingleton<Iskra.Server.Updates.IReleaseFeed>(Releases);
             if (PortMapper is not null) services.AddSingleton(PortMapper);
         });
         foreach (var (key, value) in Settings) builder.UseSetting(key, value);
