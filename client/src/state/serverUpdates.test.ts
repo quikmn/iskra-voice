@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ServerUpdateStatus } from '../core/protocol'
-import { autoBlockText, normalizeWindow, progressPercent, stateText, updateNotice } from './serverUpdates'
+import { autoBlockText, normalizeWindow, progressPercent, stateText, updateErrorText, updateNotice } from './serverUpdates'
 
 const base: ServerUpdateStatus = {
   current: '2.0.0-alpha.10',
@@ -16,6 +16,7 @@ const base: ServerUpdateStatus = {
   progress: null,
   checkedAt: 1,
   error: null,
+  errorCode: null,
   lastUpdate: null,
   attested: null,
 }
@@ -56,6 +57,12 @@ describe('server update texts', () => {
     expect(stateText({ ...base, state: 'downloading', progress: { done: 1, total: 4 } })).toBe('Downloading… 25%')
     expect(stateText({ ...base, state: 'downloading' })).toBe('Downloading…')
     expect(stateText(base)).toBeNull()
+  })
+
+  it('shows known errors in the app language and others as the server said', () => {
+    expect(updateErrorText(base)).toBeNull()
+    expect(updateErrorText({ ...base, error: 'x', errorCode: 'checksum' })).toBe('The download doesn’t match its checksum in SHA256SUMS.txt.')
+    expect(updateErrorText({ ...base, error: 'Something new', errorCode: 'brand_new' })).toBe('Something new')
   })
 
   it('reads times the way the server wants them', () => {

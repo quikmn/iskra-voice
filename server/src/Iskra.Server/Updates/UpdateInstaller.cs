@@ -65,7 +65,7 @@ public sealed class UpdateInstaller(string appDir)
     public static async Task CheckRunsAsync(string stagedExe, string version, CancellationToken cancel)
     {
         var start = new ProcessStartInfo(stagedExe, "version") { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
-        using var process = Process.Start(start) ?? throw new UpdateVerificationException("The new version didn't start.");
+        using var process = Process.Start(start) ?? throw new UpdateVerificationException("The new version didn't start.", "wont_run");
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancel);
         timeout.CancelAfter(TimeSpan.FromSeconds(60));
         string output;
@@ -79,10 +79,10 @@ public sealed class UpdateInstaller(string appDir)
         catch (OperationCanceledException) when (!cancel.IsCancellationRequested)
         {
             try { process.Kill(); } catch (InvalidOperationException) { }
-            throw new UpdateVerificationException("The new version didn't answer in time.");
+            throw new UpdateVerificationException("The new version didn't answer in time.", "wont_run");
         }
         if (process.ExitCode != 0 || output != version)
-            throw new UpdateVerificationException($"The new version doesn't run on this machine (it answered \"{Truncate(output)}\", exit code {process.ExitCode}).");
+            throw new UpdateVerificationException($"The new version doesn't run on this machine (it answered \"{Truncate(output)}\", exit code {process.ExitCode}).", "wont_run");
     }
 
     private static string Truncate(string s) => s.Length > 80 ? s[..80] + "…" : s;

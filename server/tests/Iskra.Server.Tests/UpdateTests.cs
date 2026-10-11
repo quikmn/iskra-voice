@@ -375,6 +375,13 @@ public class UpdateTests
         Assert.Equal("2.2.0-alpha.1", changed.GetProperty("latest").GetProperty("version").GetString());
         var json = JsonNode.Parse(File.ReadAllText(Path.Combine(server.WorldPath, "server.json")))!;
         Assert.Equal("prerelease", json["Updates"]!["Channel"]!.GetValue<string>());
+
+        // Checks and setting changes are in the security log, with who did them.
+        var check = server.World.Store.SecurityEvents("update.check", null, null, 10).Last(); // newest first
+        Assert.Equal(owner.Key, check.Account);
+        Assert.Contains("2.1.0", check.Details);
+        var changed2 = Assert.Single(server.World.Store.SecurityEvents("update.settings", null, null, 10));
+        Assert.Contains("prerelease", changed2.Details);
         while ((await owner.EventAsync("update.status")).Body().GetProperty("status").GetProperty("channel").GetString() != "prerelease") { }
     }
 
@@ -488,6 +495,9 @@ public class UpdateTests
         Assert.Equal("server old", File.ReadAllText(Path.Combine(app, ".update", "previous", "iskra-server")));
         Assert.Equal(new UpdateMarker("2.0.0", "2.1.0"), new UpdateInstaller(app).Pending);
         await member.NoEventAsync("update.status"); // only the owner gets the details
+        var install = Assert.Single(server.World.Store.SecurityEvents("update.install", null, null, 10));
+        Assert.Equal(owner.Key, install.Account);
+        Assert.Contains("2.1.0", install.Details);
     }
 
     [Theory]
@@ -506,7 +516,7 @@ public class UpdateTests
         var updates = server.Services.GetRequiredService<UpdateService>();
         var restarted = false;
         updates.Restart = () => restarted = true;
-        updates.CheckRuns = (_, _, _) => failure == "binary" ? throw new UpdateVerificationException("The new version doesn't run on this machine.") : Task.CompletedTask;
+        updates.CheckRuns = (_, _, _) => failure == "binary" ? throw new UpdateVerificationException("The new version doesn't run on this machine.", "wont_run") : Task.CompletedTask;
         using var owner = await server.JoinAsync("Owner", "owner");
         using var member = await server.JoinAsync("Member");
         if (failure == "attestation") await owner.RequestAsync("update.settings", new { requireAttestation = true });
@@ -515,6 +525,15 @@ public class UpdateTests
         await owner.RequestAsync("update.install");
         var status = await WaitForState(owner, "failed");
         var error = status.GetProperty("error").GetString()!;
+        Assert.Equal(failure switch
+        {
+            "checksum" => "checksum",
+            "digest" => "github_checksum",
+            "attestation" => "attestation_missing",
+            _ => "wont_run",
+        }, status.GetProperty("errorCode").GetString());
+        Assert.Contains(failure == "binary" ? "wont_run" : failure == "attestation" ? "attestation_missing" : "checksum",
+            server.World.Store.SecurityEvents("update.failed", null, null, 10).Single().Details);
         Assert.Contains(failure switch
         {
             "checksum" => "checksum in SHA256SUMS.txt",
@@ -569,6 +588,7 @@ public class UpdateTests
             Assert.Equal("2.0.0", last.GetProperty("from").GetString());
             Assert.True(last.GetProperty("ok").GetBoolean());
             Assert.Null(installer.Pending);
+            Assert.Single(server.World.Store.SecurityEvents("update.installed", null, null, 10));
         }
 
         // Another update that the guard undid: the owner hears about it, and auto mode leaves that version alone.
@@ -582,6 +602,8 @@ public class UpdateTests
             var last = (await owner.RequestAsync("update.status")).Body().GetProperty("status").GetProperty("lastUpdate");
             Assert.Equal("2.2.0", last.GetProperty("to").GetString());
             Assert.False(last.GetProperty("ok").GetBoolean());
+            var undone = Assert.Single(server.World.Store.SecurityEvents("update.rolledback", null, null, 10));
+            Assert.Null(undone.Account); // the server did it, not a person
         }
     }
 

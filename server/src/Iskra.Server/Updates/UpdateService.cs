@@ -31,7 +31,7 @@ public sealed record AutoInstall(bool Possible, string? Reason);
 public sealed record UpdateStatus(
     string Current, string Mode, string Channel, string Window, bool RequireAttestation,
     string? Managed, bool CanCheck, AutoInstall Auto, LatestRelease? Latest, string State, UpdateProgress? Progress,
-    long? CheckedAt, string? Error, LastUpdate? LastUpdate, bool? Attested);
+    long? CheckedAt, string? Error, string? ErrorCode, LastUpdate? LastUpdate, bool? Attested);
 
 /// <summary>
 /// Looks for new releases on GitHub (every 6 hours, from 2 minutes after start), tells the owner, and in "auto" mode
@@ -70,6 +70,8 @@ public sealed class UpdateService : BackgroundService
     private UpdateProgress? _progress;
     private long? _checkedAt;
     private string? _error;
+    /// <summary>Which error (apps translate it): see PROTOCOL.md.</summary>
+    private string? _errorCode;
     private LastUpdate? _last;
     private bool? _attested;
     private DateTimeOffset _nextCheck;
@@ -140,7 +142,7 @@ public sealed class UpdateService : BackgroundService
                 Env.ManagedByDesktop ? "desktop" : null, CanCheck, Auto(),
                 newest is null ? null : new LatestRelease(newest.Version, newest.PageUrl, newest.PublishedAt, newest.Prerelease,
                     UpdatePicker.Candidate(newest, Env.Rid) is not null),
-                _state, _progress, _checkedAt, _error, _last, _attested);
+                _state, _progress, _checkedAt, _error, _errorCode, _last, _attested);
         }
     }
 
@@ -163,7 +165,7 @@ public sealed class UpdateService : BackgroundService
             {
                 _releases = releases;
                 _checkedAt = _time.GetUtcNow().ToUnixTimeMilliseconds();
-                _error = null;
+                (_error, _errorCode) = (null, null);
             }
             _nextCheck = _time.GetUtcNow() + CheckEvery;
             if (Newest() is { } newest) _log.LogInformation("Iskra {Version} is out (this server runs {Current}).", newest.Version, Env.Current);
@@ -171,14 +173,14 @@ public sealed class UpdateService : BackgroundService
         }
         catch (FeedRateLimitedException ex)
         {
-            lock (_gate) _error = "GitHub asked us to wait; checking again later.";
+            lock (_gate) (_error, _errorCode) = ("GitHub asked us to wait; checking again later.", "rate_limited");
             _nextCheck = ex.RetryAt > _time.GetUtcNow() ? ex.RetryAt : _time.GetUtcNow() + TimeSpan.FromMinutes(15);
             return false;
         }
         catch (Exception ex) when (ex is HttpRequestException or JsonException or TaskCanceledException or IOException && !cancel.IsCancellationRequested)
         {
             _log.LogWarning("Update check failed: {Error}", ex.Message);
-            lock (_gate) _error = "Couldn't reach GitHub to check for updates.";
+            lock (_gate) (_error, _errorCode) = ("Couldn't reach GitHub to check for updates.", "unreachable");
             _nextCheck = _time.GetUtcNow() + TimeSpan.FromHours(1);
             return false;
         }
@@ -203,10 +205,11 @@ public sealed class UpdateService : BackgroundService
             if (_state is not ("idle" or "failed")) return ("conflict", "An update is already being installed.");
             _state = "downloading";
             _progress = new UpdateProgress(0, candidate.Package.Size);
-            _error = null;
+            (_error, _errorCode) = (null, null);
             _attested = null;
         }
         _log.LogInformation("Updating to Iskra {Version} ({How}).", newest.Version, manual ? "asked by the owner" : "automatic");
+        if (!manual) Log("update.install", new { from = Env.Current, to = newest.Version, auto = true }); // the owner's own is logged with their session
         Publish();
         _ = Task.Run(() => InstallAsync(candidate, _lifetime.ApplicationStopping));
         return null;
@@ -240,7 +243,7 @@ public sealed class UpdateService : BackgroundService
             if (Settings.RequireAttestation && attested != true)
                 throw new UpdateVerificationException(attested == false
                     ? "GitHub has no build attestation for this package."
-                    : "Couldn't ask GitHub about the package's build attestation.");
+                    : "Couldn't ask GitHub about the package's build attestation.", attested == false ? "attestation_missing" : "attestation_unknown");
 
             Step("installing");
             var exe = Env.Rid!.StartsWith("win-", StringComparison.Ordinal) ? "iskra-server.exe" : "iskra-server";
@@ -263,14 +266,15 @@ public sealed class UpdateService : BackgroundService
             {
                 _state = "failed";
                 _progress = null;
-                _error = ex switch
+                (_error, _errorCode) = ex switch
                 {
-                    UpdateVerificationException => ex.Message,
-                    HttpRequestException or TaskCanceledException => "The download failed. Try again later.",
-                    _ => $"Couldn't install the update: {ex.Message}",
+                    UpdateVerificationException v => (ex.Message, v.Code),
+                    HttpRequestException or TaskCanceledException => ("The download failed. Try again later.", "download"),
+                    _ => ($"Couldn't install the update: {ex.Message}", "install"),
                 };
                 _failedVersion = version;
             }
+            Log("update.failed", new { version, code = _errorCode });
             TryDelete(download);
             try { if (Directory.Exists(staged)) Directory.Delete(staged, recursive: true); } catch (IOException) { }
             Publish();
@@ -313,6 +317,7 @@ public sealed class UpdateService : BackgroundService
         if (_installer.TakeRolledBack() is { } undone)
         {
             _log.LogWarning("The update from {From} to {To} didn't start and was undone.", undone.From, undone.To);
+            Log("update.rolledback", new { from = undone.From, to = undone.To });
             lock (_gate)
             {
                 _last = new LastUpdate(undone.From, undone.To, false);
@@ -335,6 +340,7 @@ public sealed class UpdateService : BackgroundService
     {
         if (_installer.Confirm() is not { } done) return;
         _log.LogInformation("Updated from {From} to {To}.", done.From, done.To);
+        Log("update.installed", new { from = done.From, to = done.To });
         lock (_gate) _last = new LastUpdate(done.From, done.To, true);
         Publish();
     }
@@ -390,6 +396,10 @@ public sealed class UpdateService : BackgroundService
         Publish();
         return null;
     }
+
+    /// <summary>Things the server did by itself go into the security log without an account.</summary>
+    private void Log(string evt, object details) =>
+        Features.SecurityLog.Record(_world.Store, _time.GetUtcNow().ToUnixTimeMilliseconds(), evt, details: details);
 
     /// <summary>Sends the status to the owner's sessions when it changed.</summary>
     private void Publish()

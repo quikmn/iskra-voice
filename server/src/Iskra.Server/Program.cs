@@ -83,6 +83,8 @@ builder.Services.AddSingleton<Iskra.Server.Updates.IReleaseFeed>(sp => builder.C
     : ActivatorUtilities.CreateInstance<Iskra.Server.Updates.GitHubReleaseFeed>(sp));
 builder.Services.AddSingleton<Iskra.Server.Updates.UpdateService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<Iskra.Server.Updates.UpdateService>());
+builder.Services.AddSingleton<DataExports>();
+builder.Services.AddHostedService<RetentionSweeper>();
 
 var https = world.Settings.Https;
 if (https.Enabled)
@@ -104,6 +106,7 @@ if (https.Enabled)
             OnConnection = _ => ValueTask.FromResult(new System.Net.Security.SslServerAuthenticationOptions
             {
                 ServerCertificateContext = certificates.Context,
+                EnabledSslProtocols = SecurityHeaders.Protocols,
             }),
         }));
     });
@@ -125,6 +128,7 @@ var app = builder.Build();
 app.Lifetime.ApplicationStopped.Register(world.Dispose);
 ChildProcesses.StopWhenParentExits(app.Lifetime, app.Logger);
 ChildProcesses.StopWhenStdinCloses(app.Lifetime, app.Logger);
+SecurityHeaders.Use(app);
 
 if (https.Enabled)
 {
@@ -232,6 +236,8 @@ LinkRelay.MapEndpoints(app);
 BackupFeature.MapEndpoints(app);
 MoveFeature.MapEndpoints(app);
 ImportFeature.MapEndpoints(app);
+// "Download my data" links.
+ComplianceFeature.MapEndpoints(app);
 app.Services.GetRequiredService<Iskra.Server.Import.ImportService>().CleanUp();
 
 app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice, Uploads uploads, LinkPreviews previews, Router router,
@@ -248,6 +254,7 @@ app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice
         Push = push,
         Gifs = context.RequestServices.GetRequiredService<Iskra.Server.Gifs.GifService>(),
         Origin = $"{context.Request.Scheme}://{context.Request.Host}",
+        RemoteIp = context.Connection.RemoteIpAddress is { } ip ? (ip.IsIPv4MappedToIPv6 ? ip.MapToIPv4() : ip).ToString() : null,
     }.RunAsync(context.RequestAborted, context.RequestServices.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping);
 });
 

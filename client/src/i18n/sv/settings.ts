@@ -28,6 +28,8 @@ export const settings: Messages['settings'] = {
     backup: 'Säkerhetskopia och flytt',
     import: 'Importera från Discord',
     updates: 'Uppdateringar',
+    privacy: 'Integritet och data',
+    securityLog: 'Säkerhetslogg',
   },
   dialog: {
     sectionsLabel: 'Inställningsavsnitt',

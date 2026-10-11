@@ -61,7 +61,8 @@ jobs:
           v="$(node -p "require('./desktop/package.json').version")"
           grep -qF "releases/download/v$v/Iskra-Setup-$v.exe" site/index.html || { echo "::error::site/index.html doesn't link to $v"; exit 1; }
           echo "VERSION=$v" >> "$GITHUB_ENV"
-      # Only the site's own files (every page, the stylesheet, worker.js, .assetsignore; never wrangler.toml or .wrangler/),
+      # Only the site's own files (every page, the stylesheets, fonts/, .well-known/ (security.txt), worker.js, .assetsignore;
+      # never wrangler.toml or .wrangler/),
       # from a folder outside git, so Pages deploys to production as deploy-hero.ps1 did. Pages serves terms.html at /terms.
       - name: Deploy iskra.foo (Pages project iskra-hero-page)
         env:
@@ -71,7 +72,7 @@ jobs:
           out="$RUNNER_TEMP/site"
           mkdir -p "$out"
           cp site/*.html site/*.css site/worker.js site/.assetsignore "$out/"
-          cp -r site/fonts "$out/"
+          cp -r site/fonts site/.well-known "$out/"
           ls -la "$out"
           cd "$out"
           npx --yes "$WRANGLER" pages deploy . --project-name=iskra-hero-page --commit-dirty=true
@@ -98,6 +99,16 @@ jobs:
             done
             echo "::error::iskra.foo/$page isn't served after 2 minutes"; exit 1
           done
+      - name: Check security.txt
+        run: |
+          # RFC 9116 contact file; its Canonical line names this host.
+          for i in $(seq 1 8); do
+            if curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' "https://iskra.foo/.well-known/security.txt?deploy=$GITHUB_RUN_ID-$i" | grep -qxF 'Canonical: https://iskra.foo/.well-known/security.txt'; then
+              echo "iskra.foo/.well-known/security.txt answers"; exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::iskra.foo/.well-known/security.txt isn't served after 2 minutes"; exit 1
 
   webapp:
     if: inputs.webapp
@@ -140,6 +151,15 @@ jobs:
             sleep 15
           done
           echo "::error::app.iskra.foo doesn't serve $ASSET after 5 minutes"; exit 1
+      - name: Check security.txt
+        run: |
+          for i in $(seq 1 8); do
+            if curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' "https://app.iskra.foo/.well-known/security.txt?deploy=$GITHUB_RUN_ID-$i" | grep -qxF 'Canonical: https://app.iskra.foo/.well-known/security.txt'; then
+              echo "app.iskra.foo/.well-known/security.txt answers"; exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::app.iskra.foo/.well-known/security.txt isn't served after 2 minutes"; exit 1
 
   server:
     if: inputs.server_version != ''

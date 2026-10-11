@@ -11,18 +11,22 @@ public static class UpdateFeature
     public static void Register(Router router, UpdateService updates)
     {
         router.Add("update.status", (s, me, _) => Status(updates, me));
-        router.Add("update.settings", (s, me, body) => Settings(updates, me, body));
+        router.Add("update.settings", (s, me, body) => Settings(s, updates, me, body));
         router.AddAsync("update.check", async (s, me, _) =>
         {
             OwnerOnly(me);
             await updates.CheckAsync(manual: true, CancellationToken.None);
-            return new { status = updates.Status() };
+            var status = updates.Status();
+            SecurityLog.Record(s, "update.check", details: new { latest = status.Latest?.Version });
+            return new { status };
         });
         router.Add("update.install", (s, me, _) =>
         {
             OwnerOnly(me);
             if (updates.TryStartInstall(manual: true) is { } refused) throw new RequestException(refused.Code, refused.Message);
-            return new { status = updates.Status() };
+            var status = updates.Status();
+            SecurityLog.Record(s, "update.install", details: new { from = status.Current, to = status.Latest?.Version });
+            return new { status };
         });
     }
 
@@ -37,12 +41,14 @@ public static class UpdateFeature
         return new { status = updates.Status() };
     }
 
-    private static object Settings(UpdateService updates, Member me, Body body)
+    private static object Settings(Session s, UpdateService updates, Member me, Body body)
     {
         OwnerOnly(me);
+        var before = s.World.Settings.Updates;
         var error = updates.ChangeSettings(
             body.OptionalString("mode", 16), body.OptionalString("channel", 16), body.OptionalString("window", 5), body.OptionalBool("requireAttestation"));
         if (error is not null) throw RequestException.BadRequest(error);
+        if (s.World.Settings.Updates != before) SecurityLog.Record(s, "update.settings", details: new { from = before, to = s.World.Settings.Updates });
         return new { status = updates.Status() };
     }
 }

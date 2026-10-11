@@ -9,7 +9,12 @@ namespace Iskra.Server.Updates;
 /// <summary>A release's server package for this machine, and the checksum list next to it.</summary>
 public sealed record UpdateCandidate(Release Release, ReleaseAsset Package, ReleaseAsset Sums);
 
-public sealed class UpdateVerificationException(string message) : Exception(message);
+/// <summary>A check failed. <see cref="Code"/> tells apps which (they show it in the owner's language).</summary>
+public sealed class UpdateVerificationException(string message, string code = "package") : Exception(message)
+{
+    /// <summary>"sums", "size", "checksum", "github_checksum", "package", "wont_run", "attestation_missing", "attestation_unknown".</summary>
+    public string Code { get; } = code;
+}
 
 /// <summary>Which package fits which machine, and which release to take.</summary>
 public static class UpdatePicker
@@ -65,7 +70,7 @@ public static partial class UpdateVerifier
             var match = SumLine().Match(raw.TrimEnd('\r'));
             if (!match.Success) continue;
             var name = match.Groups[2].Value.Trim();
-            if (sums.ContainsKey(name)) throw new UpdateVerificationException($"{UpdatePicker.SumsFile} lists {name} twice.");
+            if (sums.ContainsKey(name)) throw new UpdateVerificationException($"{UpdatePicker.SumsFile} lists {name} twice.", "sums");
             sums[name] = match.Groups[1].Value.ToLowerInvariant();
         }
         return sums;
@@ -82,12 +87,12 @@ public static partial class UpdateVerifier
     {
         var sums = ParseSums(sumsText);
         if (!sums.TryGetValue(asset.Name, out var expected))
-            throw new UpdateVerificationException($"{UpdatePicker.SumsFile} doesn't list {asset.Name}.");
+            throw new UpdateVerificationException($"{UpdatePicker.SumsFile} doesn't list {asset.Name}.", "sums");
         if (asset.Size > 0 && new FileInfo(path).Length != asset.Size)
-            throw new UpdateVerificationException($"{asset.Name} has the wrong size.");
+            throw new UpdateVerificationException($"{asset.Name} has the wrong size.", "size");
         var actual = Sha256File(path);
-        if (actual != expected) throw new UpdateVerificationException($"{asset.Name} doesn't match its checksum in {UpdatePicker.SumsFile}.");
-        if (asset.Sha256 is { } digest && digest != actual) throw new UpdateVerificationException($"{asset.Name} doesn't match GitHub's checksum for it.");
+        if (actual != expected) throw new UpdateVerificationException($"{asset.Name} doesn't match its checksum in {UpdatePicker.SumsFile}.", "checksum");
+        if (asset.Sha256 is { } digest && digest != actual) throw new UpdateVerificationException($"{asset.Name} doesn't match GitHub's checksum for it.", "github_checksum");
         return actual;
     }
 }

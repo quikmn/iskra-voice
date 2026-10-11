@@ -1,5 +1,6 @@
 // A line above the chat: "Update available" for the owner, "restarting for an update" for everyone.
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { updateNotice, useServerUpdates } from '../state/serverUpdates'
 import type { ServerState } from '../state/store'
 import { SettingsDialog } from './settings/SettingsDialog'
@@ -16,6 +17,7 @@ function readDismissed(serverKey: string): string | null {
 }
 
 export function ServerUpdateNotice({ server }: { server: ServerState }) {
+  const { t } = useTranslation()
   const status = useServerUpdates((s) => s.status[server.key])
   const restarting = useServerUpdates((s) => s.restarting[server.key])
   const [dismissed, setDismissed] = useState<Record<string, string | null>>({})
@@ -26,7 +28,7 @@ export function ServerUpdateNotice({ server }: { server: ServerState }) {
   if (restarting) {
     return (
       <div className="nudge update-nudge" role="status" aria-live="polite">
-        <p>{server.name} is restarting for an update to Iskra {restarting}. It’ll be back in a moment.</p>
+        <p>{t('updates.notice.restarting', { server: server.name, version: restarting })}</p>
       </div>
     )
   }
@@ -46,11 +48,11 @@ export function ServerUpdateNotice({ server }: { server: ServerState }) {
     <>
       <div className="nudge update-nudge" role="status">
         <p>
-          {notice.installing ? `Updating ${server.name} to Iskra ${notice.version}…` : `Update available for ${server.name}: Iskra ${notice.version}.`}{' '}
-          <a href={notice.url} target="_blank" rel="noreferrer">What’s new</a>
+          {t(notice.installing ? 'updates.notice.installing' : 'updates.notice.available', { server: server.name, version: notice.version })}{' '}
+          <a href={notice.url} target="_blank" rel="noreferrer">{t('updates.whatsNew')}</a>
         </p>
-        <button className="button primary small" onClick={() => setOpen(true)}>Open Updates</button>
-        {!notice.installing && <button className="button small" onClick={dismiss}>Later</button>}
+        <button className="button primary small" onClick={() => setOpen(true)}>{t('updates.notice.open')}</button>
+        {!notice.installing && <button className="button small" onClick={dismiss}>{t('updates.notice.later')}</button>}
       </div>
       {open && <SettingsDialog server={server} section="updates" onClose={() => setOpen(false)} />}
     </>

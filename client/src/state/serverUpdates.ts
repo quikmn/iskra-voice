@@ -2,6 +2,7 @@
 import { create } from 'zustand'
 import type { AutoUpdateBlock, Events, ServerUpdateStatus, UpdateChannel, UpdateMode } from '../core/protocol'
 import { connectionFor, onServerEvent, onWelcomeHook } from './store'
+import { i18next, t } from '../i18n'
 
 interface ServerUpdatesState {
   /** serverKey → the update status (owners only). */
@@ -36,7 +37,7 @@ onServerEvent((serverKey, type, body) => {
 
 function connection(serverKey: string) {
   const c = connectionFor(serverKey)
-  if (!c) throw new Error('Not connected to this server.')
+  if (!c) throw new Error(t('errors.codes.disconnected'))
   return c
 }
 
@@ -69,29 +70,29 @@ export function updateNotice(status: ServerUpdateStatus | undefined, dismissed: 
 
 /** Why "Install automatically" isn't available here, in plain words. */
 export function autoBlockText(reason: AutoUpdateBlock | null): string {
-  switch (reason) {
-    case 'desktop': return 'This server runs in the Iskra desktop app and updates together with it.'
-    case 'development': return 'This is a development build; it doesn’t update.'
-    case 'platform': return 'Installing by itself works on Linux servers run by systemd. Here you’ll get a notice, then download the new version yourself.'
-    case 'guard': return 'Add iskra-update-guard to the systemd service (see the hosting guide) so a failed update can be undone; then it can install by itself.'
-    case 'readonly': return 'The server can’t write to the folder it runs from, so it can’t replace itself.'
-    default: return ''
-  }
+  return reason ? t(`updates.blocked.${reason}`) : ''
 }
 
 /** What's happening right now, for the status line. */
 export function stateText(status: ServerUpdateStatus): string | null {
   switch (status.state) {
-    case 'checking': return 'Checking for updates…'
+    case 'checking': return t('updates.state.checking')
     case 'downloading': {
-      const p = progressPercent(status)
-      return p === null ? 'Downloading…' : `Downloading… ${p}%`
+      const percent = progressPercent(status)
+      return percent === null ? t('updates.state.downloading') : t('updates.state.downloadingPercent', { percent })
     }
-    case 'verifying': return 'Checking the download…'
-    case 'installing': return 'Installing…'
-    case 'restarting': return 'Restarting into the new version…'
+    case 'verifying': return t('updates.state.verifying')
+    case 'installing': return t('updates.state.installing')
+    case 'restarting': return t('updates.state.restarting')
     default: return null
   }
+}
+
+/** The server's error in the app's language when we know its code, else as the server said it. */
+export function updateErrorText(status: ServerUpdateStatus): string | null {
+  if (!status.error && !status.errorCode) return null
+  const key = `updates.errors.${status.errorCode ?? ''}`
+  return status.errorCode && i18next.exists(key) ? t(key as never) : status.error
 }
 
 export function progressPercent(status: ServerUpdateStatus): number | null {

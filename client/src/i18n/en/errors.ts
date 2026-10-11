@@ -26,6 +26,11 @@ export const errors = {
   },
   /** Specific requests, by request type with dots as underscores, then error code. */
   requests: {
+    update_install: {
+      bad_request: "This server can't install that update.",
+      conflict: 'An update is already being installed.',
+    },
+    update_settings: { bad_request: "That setting isn't possible on this server." },
     call_start: {
       busy: "They're in another call.",
       rate_limited: 'Too many calls in a short time. Try again in a minute.',
