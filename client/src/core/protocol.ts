@@ -124,7 +124,7 @@ export interface WireDm {
 /** Client → server requests: [body, result]. */
 export interface Requests {
   ping: [Record<string, never>, Record<string, never>]
-  'chat.send': [{ channelId: number; text: string; attachments?: string[]; replyTo?: number; voice?: VoiceInfo; sticker?: string }, { message: Message }]
+  'chat.send': [{ channelId: number; text: string; attachments?: string[]; replyTo?: number; voice?: VoiceInfo; sticker?: string; gif?: string }, { message: Message }]
   'chat.react': [{ id: number; emoji: string; on: boolean }, Record<string, never>]
   'upload.begin': [{ name: string; size: number }, { url: string; maxBytes: number }]
   'link.preview': [{ url: string }, { preview: LinkPreview | null }]
@@ -254,7 +254,7 @@ export interface ProfileUpdate {
 
 export type ErrorCode =
   | 'bad_request' | 'forbidden' | 'not_found' | 'rate_limited' | 'unknown_type' | 'internal'
-  | 'auth_failed' | 'invite_required' | 'banned' | 'voice_unavailable' | 'busy' | 'device_revoked'
+  | 'auth_failed' | 'invite_required' | 'banned' | 'voice_unavailable' | 'busy' | 'device_revoked' | 'unavailable'
 
 export class RequestError extends Error {
   readonly code: ErrorCode | 'disconnected' | 'timeout'
@@ -570,4 +570,50 @@ export interface Requests {
   'sticker.create': [{ name: string; fileId: string }, { sticker: Sticker }]
   'sticker.rename': [{ id: string; name: string }, { sticker: Sticker }]
   'sticker.delete': [{ id: string }, Record<string, never>]
+}
+
+// ── GIFs (through the server) ──
+
+/** A GIF search result. Media URLs point at the server's proxy (relative to the server's URL). */
+export interface GifResult {
+  id: string
+  title: string
+  width: number
+  height: number
+  url: string
+  preview: string
+  /** Send this back in chat.send's `gif`. */
+  token: string
+}
+
+export interface GifCategory {
+  name: string
+  query: string
+  preview: string | null
+}
+
+export interface MessageGif {
+  provider: string
+  id: string
+  title: string
+  width: number
+  height: number
+  url: string
+  preview: string
+}
+
+export interface Message {
+  gif?: MessageGif | null
+}
+
+export interface Events {
+  'gif.status': { enabled: boolean; provider: string | null }
+}
+
+export interface Requests {
+  'gif.status': [Record<string, never>, { enabled: boolean; provider: string | null }]
+  'gif.configure': [{ key: string }, Record<string, never>]
+  'gif.trending': [{ page?: number }, { gifs: GifResult[]; hasNext: boolean }]
+  'gif.search': [{ q: string; page?: number }, { gifs: GifResult[]; hasNext: boolean }]
+  'gif.categories': [Record<string, never>, { categories: GifCategory[] }]
 }

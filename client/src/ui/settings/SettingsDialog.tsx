@@ -12,6 +12,7 @@ import { AppearanceSection } from '../profile/AppearanceSettings'
 import { InternetSection } from '../dialogs/InternetSettings'
 import { EmojiSection, SoundboardSettingsSection, SoundsSection } from '../expressions/ExpressionSettings'
 import { StickerSection } from '../chat/Stickers'
+import { GifSettings } from '../chat/GifSettings'
 import { DevicesSection } from '../dialogs/DevicesSection'
 import { IntegrationsSection } from '../dialogs/Integrations'
 import { ChevronRight } from '../icons'
@@ -117,6 +118,7 @@ function OverviewSection({ server, onClose }: { server: ServerState; onClose: ()
         <div><dt>Address</dt><dd><code>{server.url}</code></dd></div>
         <div><dt>Server ID</dt><dd><code>{fingerprint(server.key)}</code></dd></div>
       </dl>
+      <GifSettings server={server} />
       <div className="settings-danger">
         <div>
           <strong>Remove from my list</strong>

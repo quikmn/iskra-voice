@@ -22,7 +22,6 @@ import { withPinNotes } from './chat/pinThreadHelpers'
 import { jumpToMessage, jumpToPresent, loadNewer, useJumpTarget } from '../state/jump'
 import { pinNotesFor, usePinNotes } from '../state/pins'
 import { decodeEmoji, encodeEmoji, insertAt } from './expressions/emoji'
-import { EmojiPicker } from './expressions/EmojiPicker'
 import { useEmojiLookup } from './expressions/useEmojiLookup'
 import { useEmojiSuggest } from './expressions/EmojiSuggest'
 import { PollCard, PollDialog } from './expressions/Polls'
@@ -33,7 +32,9 @@ import { voiceRecordingSupported, type Recording } from './chat/voice/recorder'
 import { draftKey, setDraft, useDraft } from '../state/drafts'
 import { useUnreadMarker } from '../state/unreadMarker'
 import { MessageMoreButton } from './chat/MessageMore'
-import { StickerButton, StickerMessage } from './chat/Stickers'
+import { StickerMessage } from './chat/Stickers'
+import { ExpressionPicker, GifMessage, type ExpressionTab } from './chat/ExpressionPicker'
+import { sendGif } from '../state/gifs'
 import { sendSticker } from '../state/stickers'
 import { SpoilerToggle, isSpoilerName, longTextFile } from './chat/media'
 
@@ -307,6 +308,7 @@ function MessageRow({
         )}
         {message.poll && <PollCard server={server} message={message} />}
         {message.sticker && <StickerMessage server={server} sticker={message.sticker} />}
+        {message.gif && <GifMessage server={server} gif={message.gif} />}
         {message.voice ? <VoiceMessage server={server} message={message} /> : <Attachments server={server} files={message.attachments} />}
         {message.webhook && <Embeds server={server} embeds={message.webhook.embeds} />}
         {!message.tempId && firstLink(message.text) && <LinkPreviewCard server={server} url={firstLink(message.text)!} />}
@@ -411,6 +413,12 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
   const [uploads, setUploads] = useState<PendingUpload[]>([])
   const fileInput = useRef<HTMLInputElement>(null)
   const [picker, setPicker] = useState<HTMLElement | null>(null)
+  const [pickerTab, setPickerTab] = useState<ExpressionTab>('emoji')
+  const openPicker = (anchor: HTMLElement, tab: ExpressionTab) => {
+    if (picker && pickerTab === tab) return setPicker(null)
+    setPickerTab(tab)
+    setPicker(anchor)
+  }
   const [pollOpen, setPollOpen] = useState(false)
   const emojis = useServerEmojis(server.key)
   const replyTo = useReply((s) => s.replyTo[replyKey(server.key, channelId)] ?? null)
@@ -608,15 +616,10 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
           }
         }}
       />
-      <StickerButton
-        server={server}
-        disabled={!online}
-        onPick={(sticker) => {
-          setReply(server.key, channelId, null)
-          void sendSticker(server.key, channelId, sticker, { replyTo })
-        }}
-      />
-      <button className="icon-button attach-button" onClick={(e) => setPicker(picker ? null : e.currentTarget)} aria-label="Emoji" title="Emoji">
+      <button className="icon-button attach-button gif-button" onClick={(e) => openPicker(e.currentTarget, 'gifs')} aria-label="GIFs" title="GIFs" disabled={!online}>
+        GIF
+      </button>
+      <button className="icon-button attach-button" onClick={(e) => openPicker(e.currentTarget, 'emoji')} aria-label="Emoji" title="Emoji, GIFs and stickers">
         <Smile />
       </button>
       {!text.trim() && uploads.length === 0 && voiceRecordingSupported() && <VoiceRecordButton onSend={sendVoice} disabled={!online} />}
@@ -625,15 +628,24 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
       </button>
     </div>
       {picker && (
-        <EmojiPicker
-          serverKey={server.key}
+        <ExpressionPicker
+          key={pickerTab}
+          server={server}
           anchor={picker}
-          keepOpen
+          initialTab={pickerTab}
           onClose={() => setPicker(null)}
-          onPick={(value) => {
+          onEmoji={(value) => {
             const next = insertAt(text, caret, decodeEmoji(value))
             setText(next.text)
             setCaret(next.caret)
+          }}
+          onGif={(gif) => {
+            setReply(server.key, channelId, null)
+            void sendGif(server.key, channelId, gif, { replyTo })
+          }}
+          onSticker={(sticker) => {
+            setReply(server.key, channelId, null)
+            void sendSticker(server.key, channelId, sticker, { replyTo })
           }}
         />
       )}

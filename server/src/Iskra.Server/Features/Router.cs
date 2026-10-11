@@ -42,6 +42,7 @@ public sealed class Router
         PresenceFeature.Register(this);
         DmFileFeature.Register(this);
         StickerFeature.Register(this);
+        GifFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

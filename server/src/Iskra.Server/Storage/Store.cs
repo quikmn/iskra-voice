@@ -261,6 +261,7 @@ public sealed partial class Store : IDisposable
         ("voice-messages-1", VoiceMessagesMigration),
         ("dm-files-1", DmFilesMigration),
         ("stickers-1", StickersMigration),
+        ("gifs-1", GifsMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

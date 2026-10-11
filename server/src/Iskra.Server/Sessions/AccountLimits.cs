@@ -16,6 +16,7 @@ public sealed class AccountLimits(TimeProvider time)
         ["call.start.callee"] = (3, 3 / 60.0),     // …and 3 a minute to the same person
         ["thread.create"] = (5, 5 / 60.0),
         ["link.http"] = (60, 2),                   // device-link HTTP requests, per client address
+        ["gif.media"] = (200, 20),                 // GIF media proxy, per client address
     };
 
     private const int PruneAbove = 10_000;

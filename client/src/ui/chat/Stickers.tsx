@@ -1,16 +1,13 @@
 // Stickers: the picker in the composer, how a sticker message looks, and the admin list in Settings.
 import { useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import type { Sticker } from '../../core/protocol'
 import { serverFileUrl } from '../../state/expressions'
 import { MAX_STICKERS, addSticker, deleteSticker, renameSticker, useServerStickers } from '../../state/stickers'
 import type { ServerState } from '../../state/store'
-import { usePopoverPosition } from '../expressions/popover'
 import { Trash } from '../icons'
-import { useEscapeLayer, useFocusTrap } from '../layers'
 import './stickers.css'
 
-const StickerIcon = () => (
+export const StickerIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     <path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9.5L21 14.5V5a2 2 0 0 0-2-2h-3.5" />
     <path d="M14 21v-4.5a2 2 0 0 1 2-2h5" />
@@ -20,54 +17,24 @@ const StickerIcon = () => (
   </svg>
 )
 
-/** The composer's sticker button; hidden on servers without stickers. */
-export function StickerButton({ server, onPick, disabled }: { server: ServerState; onPick: (sticker: Sticker) => void; disabled?: boolean }) {
-  const stickers = useServerStickers(server.key)
-  const [anchor, setAnchor] = useState<HTMLElement | null>(null)
-  if (stickers.length === 0) return null
-  return (
-    <>
-      <button className="icon-button attach-button" onClick={(e) => setAnchor(anchor ? null : e.currentTarget)} aria-label="Stickers" title="Stickers" disabled={disabled}>
-        <StickerIcon />
-      </button>
-      {anchor && (
-        <StickerPicker
-          server={server}
-          anchor={anchor}
-          onClose={() => setAnchor(null)}
-          onPick={(sticker) => {
-            setAnchor(null)
-            onPick(sticker)
-          }}
-        />
-      )}
-    </>
-  )
-}
-
-function StickerPicker({ server, anchor, onPick, onClose }: { server: ServerState; anchor: HTMLElement; onPick: (s: Sticker) => void; onClose: () => void }) {
+/** The stickers tab of the composer's picker: search and a grid; picking sends. */
+export function StickerPanel({ server, onPick }: { server: ServerState; onPick: (sticker: Sticker) => void }) {
   const stickers = useServerStickers(server.key)
   const [query, setQuery] = useState('')
-  const ref = useRef<HTMLDivElement>(null)
-  const { style, sheet } = usePopoverPosition(anchor, ref)
-  useEscapeLayer(onClose)
-  useFocusTrap(ref)
   const shown = stickers.filter((s) => s.name.toLowerCase().includes(query.trim().toLowerCase()))
-  return createPortal(
-    <div className={`sticker-layer ${sheet ? 'sheet' : ''}`} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={ref} className="sticker-picker" style={style} role="dialog" aria-label="Stickers" tabIndex={-1}>
-        <input className="sticker-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a sticker" aria-label="Search stickers" autoFocus />
-        <div className="sticker-grid">
-          {shown.map((sticker) => (
-            <button key={sticker.id} className="sticker-cell" onClick={() => onPick(sticker)} aria-label={`Send sticker ${sticker.name}`} title={sticker.name}>
-              <img src={serverFileUrl(server.key, sticker.url) ?? undefined} alt="" loading="lazy" draggable={false} />
-            </button>
-          ))}
-          {shown.length === 0 && <p className="muted">No stickers match.</p>}
-        </div>
+  return (
+    <div className="sticker-panel">
+      <input className="sticker-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a sticker" aria-label="Search stickers" />
+      <div className="sticker-grid">
+        {shown.map((sticker) => (
+          <button key={sticker.id} className="sticker-cell" onClick={() => onPick(sticker)} aria-label={`Send sticker ${sticker.name}`} title={sticker.name}>
+            <img src={serverFileUrl(server.key, sticker.url) ?? undefined} alt="" loading="lazy" draggable={false} />
+          </button>
+        ))}
+        {stickers.length === 0 && <p className="muted picker-empty">This server has no stickers yet. Admins can add some in Settings → Emoji.</p>}
+        {stickers.length > 0 && shown.length === 0 && <p className="muted picker-empty">No stickers match.</p>}
       </div>
-    </div>,
-    document.body,
+    </div>
   )
 }
 

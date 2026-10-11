@@ -33,6 +33,7 @@ public static class MessageViews
             poll = PollFeature.View(store, m.Id),
             voice = VoiceMessageFeature.View(store, m.Id),
             sticker = StickerFeature.View(store, m.Id),
+            gif = GifFeature.View(store, m.Id),
         };
     }
 

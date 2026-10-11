@@ -8,4 +8,5 @@ export const LINKS = {
   serverLinux: download(`iskra-server-${RELEASE_VERSION}-linux-x64.tar.gz`),
   releases: 'https://github.com/quikmn/iskra-voice/releases',
   hostingGuide: 'https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md',
+  gifsGuide: 'https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md#gifs',
 }

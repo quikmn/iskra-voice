@@ -7,13 +7,15 @@ import { restoreIdentity } from '../core/recovery'
 import { authProfile } from '../core/profile'
 import { canPingGroups, mentions } from '../ui/markdown'
 import type { InviteLink } from '../core/invite'
-import type { Channel, Events, FileInfo, Member, Message, Sticker, VoiceInfo, VoiceParticipant, Welcome } from '../core/protocol'
+import type { Channel, Events, FileInfo, Member, Message, MessageGif, Sticker, VoiceInfo, VoiceParticipant, Welcome } from '../core/protocol'
 import * as storage from '../core/storage'
 
 export interface PendingMessage extends Message {
   pending?: 'sending' | 'failed'
   /** Client-side id for messages that aren't confirmed yet. */
   tempId?: string
+  /** A pending GIF's token, for retrying. */
+  gifToken?: string
 }
 
 export interface ServerState {
@@ -431,6 +433,8 @@ export interface SendOptions {
   replyTo?: Message | null
   voice?: VoiceInfo
   sticker?: Sticker
+  /** A GIF from the picker: shown right away, sent by its token. */
+  gif?: { token: string; shown: MessageGif }
 }
 
 export async function sendMessage(key: string, channelId: number, text: string, options: SendOptions = {}): Promise<void> {
@@ -442,14 +446,14 @@ export async function sendMessage(key: string, channelId: number, text: string, 
   const reply = options.replyTo
   const temp: PendingMessage = {
     id: Number.MAX_SAFE_INTEGER, channelId, author: server.me.accountKey, text, createdAt: Date.now(), editedAt: null,
-    attachments, reactions: [], voice: options.voice ?? null, sticker: options.sticker ?? null,
+    attachments, reactions: [], voice: options.voice ?? null, sticker: options.sticker ?? null, gif: options.gif?.shown ?? null, gifToken: options.gif?.token,
     replyTo: reply ? { id: reply.id, author: reply.author, text: reply.text, hasAttachments: reply.attachments.length > 0 } : null,
     pending: 'sending', tempId,
   }
   patchServer(key, (s) => ({ messages: { ...s.messages, [channelId]: [...(s.messages[channelId] ?? []), temp] } }))
   try {
     const { message } = await connection.request('chat.send', {
-      channelId, text, attachments: attachments.map((a) => a.id), replyTo: reply?.id, voice: options.voice, sticker: options.sticker?.id,
+      channelId, text, attachments: attachments.map((a) => a.id), replyTo: reply?.id, voice: options.voice, sticker: options.sticker?.id, gif: options.gif?.token,
     })
     patchServer(key, (s) => ({
       messages: { ...s.messages, [channelId]: upsertMessage((s.messages[channelId] ?? []).filter((m) => m.tempId !== tempId), message) },
@@ -471,7 +475,9 @@ export function discardFailed(key: string, channelId: number, tempId: string): v
 export async function retryFailed(key: string, channelId: number, message: PendingMessage): Promise<void> {
   if (!message.tempId) return
   discardFailed(key, channelId, message.tempId)
-  await sendMessage(key, channelId, message.text, { attachments: message.attachments, voice: message.voice ?? undefined, sticker: message.sticker ?? undefined })
+  await sendMessage(key, channelId, message.text, { attachments: message.attachments, voice: message.voice ?? undefined, sticker: message.sticker ?? undefined,
+    gif: message.gif && message.gifToken ? { token: message.gifToken, shown: message.gif } : undefined,
+  })
 }
 
 /** Uploads a file to a server, reporting progress (0–1). Resolves with the stored file. */

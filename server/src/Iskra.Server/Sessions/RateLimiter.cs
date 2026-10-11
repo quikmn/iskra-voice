@@ -27,6 +27,9 @@ public sealed class RateLimiter(TimeProvider time)
         ["presence.set"] = (10, 1),
         ["dm.upload.begin"] = (10, 2),
         ["dm.file.url"] = (40, 10),
+        ["gif.search"] = (10, 1),
+        ["gif.trending"] = (10, 1),
+        ["gif.categories"] = (5, 0.2),
         ["presence.idle"] = (10, 0.5),
         ["device.revoke.new"] = (10, 10 / 3600.0), // new revocations: 10 an hour, so a thief can't use up the 100 at once
         ["*"] = (40, 10),
