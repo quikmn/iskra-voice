@@ -61,4 +61,4 @@ How privacy works, and what a server can and can't see: [docs/security.md](docs/
 
 [PolyForm Noncommercial 1.0.0](LICENSE): free to use, host and modify for any noncommercial purpose.
 
-Like it? [Buy me a coffee on Ko-fi](https://ko-fi.com/vlundgren).
+Like it? [Buy me a coffee on Ko-fi](https://ko-fi.com/vlundgren) or [donate with PayPal](https://paypal.me/iskrafoo).

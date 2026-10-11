@@ -17,6 +17,8 @@ export const LINKS = {
   releases: 'https://github.com/quikmn/iskra-voice/releases',
   // The Android app (android/build.ps1) is attached to every release.
   androidApp: 'https://github.com/quikmn/iskra-voice/releases/latest',
+  kofi: 'https://ko-fi.com/vlundgren',
+  paypal: 'https://paypal.me/iskrafoo',
   hostingGuide: 'https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md',
   gifsGuide: 'https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md#gifs',
 }

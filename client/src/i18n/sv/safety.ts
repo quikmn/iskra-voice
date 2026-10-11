@@ -138,5 +138,9 @@ export const safety: Messages['safety'] = {
     accepted: 'Du godkände villkoren (version {{version}}) {{when}}.',
     safetyHint: 'För sådant som en servers moderatorer inte hanterar: olagligt innehåll, någon i fara, eller en server som struntar i anmälningar. Mejla {{email}}.',
     email: 'Mejla Iskra-teamet',
+    supportTitle: 'Stöd Iskra',
+    supportHint: 'Iskra är gratis, utan reklam och prenumerationer. Gillar du det hjälper en liten slant till att hålla det igång.',
+    kofi: 'Ko-fi',
+    paypal: 'PayPal',
   },
 }

@@ -136,5 +136,9 @@ export const safety = {
     accepted: 'You agreed to the terms (version {{version}}) on {{when}}.',
     safetyHint: 'For things a server’s moderators don’t handle: illegal content, someone in danger, or a server that ignores reports. Email {{email}}.',
     email: 'Email the Iskra team',
+    supportTitle: 'Support Iskra',
+    supportHint: 'Iskra is free, with no ads or subscriptions. If you like it, a small tip helps keep it going.',
+    kofi: 'Ko-fi',
+    paypal: 'PayPal',
   },
 } as const

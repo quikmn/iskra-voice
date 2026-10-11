@@ -3,7 +3,8 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { b64u } from '../../core/crypto'
 import { errorMessage } from '../../i18n/errors'
-import { RELEASE_VERSION } from '../../links'
+import { LINKS, RELEASE_VERSION } from '../../links'
+import { native } from '../../platform/native'
 import { deleteAccount, deletionPlan, transferOwnership } from '../../state/accountDeletion'
 import { leaveServer, useApp } from '../../state/store'
 import { LEGAL_LINKS, safetyMailto, SAFETY_EMAIL, useTerms } from '../../state/terms'
@@ -142,6 +143,16 @@ function OwnedServer({ serverKey }: { serverKey: string }) {
   )
 }
 
+/** Tip links: on the web and in the desktop app, not in the phone apps (App Store and Play payment rules). */
+function tipsAllowed(): boolean {
+  if (native) return false
+  try {
+    return !document.referrer.startsWith('android-app://') // the Android app (Trusted Web Activity)
+  } catch {
+    return true
+  }
+}
+
 export function AboutSection() {
   const { t } = useTranslation()
   const accepted = useTerms((s) => s.accepted)
@@ -163,6 +174,16 @@ export function AboutSection() {
         </div>
         <a className="button" href={safetyMailto(t('safety.report.mailSubject'))}>{t('safety.about.email')}</a>
       </div>
+      {tipsAllowed() && (
+        <div className="about-support">
+          <strong>{t('safety.about.supportTitle')}</strong>
+          <p className="muted">{t('safety.about.supportHint')}</p>
+          <div className="about-support-links">
+            <a className="button" href={LINKS.kofi} target="_blank" rel="noreferrer">{t('safety.about.kofi')}</a>
+            <a className="button" href={LINKS.paypal} target="_blank" rel="noreferrer">{t('safety.about.paypal')}</a>
+          </div>
+        </div>
+      )}
     </section>
   )
 }
