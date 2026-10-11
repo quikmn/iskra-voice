@@ -80,7 +80,7 @@ test('computers get no hint; the Android app’s asset links are served', async 
   expect(links.headers()['content-type']).toContain('application/json')
   const statements = await links.json()
   expect(statements[0]).toMatchObject({
-    relation: ['delegate_permission/common.handle_all_urls'],
+    relation: ['delegate_permission/common.handle_all_urls', 'delegate_permission/common.get_login_creds'],
     target: { namespace: 'android_app', package_name: 'foo.iskra.app' },
   })
   expect(statements[0].target.sha256_cert_fingerprints[0]).toMatch(/^([0-9A-F]{2}:){31}[0-9A-F]{2}$/)

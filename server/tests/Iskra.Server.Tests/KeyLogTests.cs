@@ -70,6 +70,11 @@ public class KeyLogTests
     }
 
     [Fact]
+    public void Entries_hash_exactly_like_the_client() =>
+        // Same vector as client/src/core/keylog.test.ts.
+        Assert.Equal("HDAGcWbJZWJdv3SdvbSOkFgjcLtQ23ByiJ6Ws9qM9_4", Ed25519.ToB64u(KeyLogFeature.EntryHash(new byte[32], 1, "{\"kind\":\"join\",\"at\":1,\"key\":\"x\",\"name\":\"Åsa\"}")));
+
+    [Fact]
     public async Task Welcome_carries_a_signed_head_and_every_member_is_in_the_log()
     {
         using var server = new IskraServer();

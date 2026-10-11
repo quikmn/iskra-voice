@@ -40,8 +40,48 @@ Your keys, your devices' short-lived DM keys and your decrypted direct messages 
 - **the desktop app:** your operating system's keychain (Windows DPAPI, macOS Keychain, or GNOME Keyring / KWallet on Linux). A copy of Iskra's data folder is useless on another computer or user account. On Linux without a keyring, the app says so and uses the browser method below.
 - **the browser:** a key the browser keeps for Iskra and never reveals to the page (a non-extractable WebCrypto key). That keeps your keys out of copies, exports and casual snooping of the stored data. It does *not* stop someone who can use your browser profile or run code in the app.
 - **an app lock (optional, Settings → App lock):** a passphrase, stretched with Argon2id, that Iskra asks for at every start. Without it, nobody can read your keys or messages from the device's storage, even with a full copy. Forget it and you'll need your recovery key.
+- **passkeys (optional, Settings → App lock):** unlock with your fingerprint, face, device PIN or a security key (Windows Hello, Touch ID and Face ID, Android, iCloud Keychain, Google Password Manager, security keys). This isn't just a screen in front of the app: Iskra asks the passkey for its PRF secret (the WebAuthn PRF extension, which only that passkey can produce, after it has checked it's you) and derives the key that unlocks your data from it (HKDF). Without the passkey or your passphrase, the stored keys stay encrypted. Passkeys that can't do PRF are refused with an explanation, and the passphrase is always there instead. You can add several (a laptop's Windows Hello and a security key, say), rename and remove them; your recovery key works as before.
 
 Data stored before this existed is encrypted the first time the app starts. Linking devices and recovery keys work as before.
+
+### Where passkeys work
+
+| Where | Passkeys for the app lock |
+|---|---|
+| Chrome, Edge (Windows, macOS, Linux, ChromeOS) | Yes, with passkeys that support PRF: Google Password Manager, security keys with `hmac-secret`, phones (scan a QR code), and Windows Hello or iCloud Keychain where the system offers PRF |
+| Safari 18 and later (macOS, iPhone, iPad) | Yes, with iCloud Keychain passkeys and security keys |
+| Firefox | Recent versions, with security keys and passkeys that support PRF |
+| Android (Chrome, and the Iskra app, which runs in Chrome) | Yes, with Google Password Manager passkeys and security keys |
+| Desktop app on Windows | Yes: Windows Hello, security keys and phones. The app's own page can't use WebAuthn, so it opens a small window on `app.iskra.foo` for the passkey prompt |
+| Desktop app on macOS and Linux | Security keys. Touch ID and iCloud Keychain are only offered to browsers, so on a Mac use a security key, a passphrase, or Iskra in Safari |
+| iPhone app | Prepared (`webcredentials:app.iskra.foo`), not yet confirmed on devices; if iOS refuses, the app says so and you use a passphrase |
+
+## Key transparency
+
+A server can't forge anyone's signature, but it does decide which key it shows you as "Alice". Key transparency makes it hard for a server to show different people different keys, or to rewrite what it showed, without being caught.
+
+- **Each server keeps a key log**: every account key it has shown (with the name it showed), every key replacement and every dispute, in order. Each entry is linked to the one before it by a hash, and the server signs the newest one with its own key. Entries are only ever added.
+- **Your app checks it every time it connects**: the log must carry on from the point your app saw last (never shorter, never different), every member the server shows must be in it, and every key replacement it announces too.
+- **Your servers are compared with each other**: if two servers say someone's old key moved to different new keys, you're told.
+- **Your friends' apps compare notes with yours**: now and then a DM carries a small signed summary (inside the end-to-end encryption) of the logs you both see and the key replacements you know. If a server signed one log for you and a different one for your friend, the two signatures prove it, and both apps say so. It also shows when a server lists a device for a friend that their own app doesn't know.
+- **Someone using a friend's name** with a different key, on a server your friend isn't on, gets a gentle warning.
+- You see what was found in Settings → App lock, above the chat when it's serious, and in the DM with the person concerned. Anyone can read a server's whole log in the app (Settings → App lock → View log), checked from the first entry: the view an owner or auditor uses.
+
+**What it catches:** a server that shows you a key its own log doesn't have; a server that shows two people different histories (a "split view"), as soon as two people who use that server talk to each other by DM; a server that rewrites or rolls back its log; servers that disagree about where someone's account went.
+
+**What it doesn't:** it detects, it doesn't prevent. A server that shows *everyone* the same fake person is consistent: names aren't identities, so if the first time you ever meet someone is on a server you don't trust, nothing but comparing safety numbers tells you it's really them. A split view stays hidden from someone who shares no friend with the people they're checking and never compares safety numbers. A server can refuse to answer (the app then shows it as unchecked, not as fine). The log tells members which keys joined when, under which names, which they could see in the member list anyway.
+
+**Compared to the big systems:**
+
+| | Iskra | CONIKS | Keybase | WhatsApp key transparency |
+|---|---|---|---|---|
+| Directory | One small log per server, read in full by every member's app | A Merkle prefix tree per provider, one signed root per epoch | Per-user signature chains plus one global Merkle tree | An auditable key directory (append-only Merkle tree), one published root per epoch |
+| Catching a split view | Signed heads gossiped between friends inside E2EE DMs, plus comparing servers | Clients and auditors gossip signed roots | The root was anchored in a public blockchain | A third-party auditor checks that each root only extends the last one |
+| Checking your own key | Your app sees the whole log and every replacement of your key | Clients check their own entry every epoch | You sign your own chain | Your app checks your own entry |
+| Privacy of the directory | Members see the log (as they see the member list) | Hidden names (VRFs) | Public | Hidden (VRFs) |
+| Who could still fool you | A server you only use with people you never DM, on first contact | A provider nobody gossips with | The service, until someone checks the anchored root | The provider and the auditor together |
+
+Iskra's version is deliberately light: servers are small and many, so a full log costs little, and there's no company to run auditors. It adds most where several servers or friends overlap.
 
 ## Who can read what
 
@@ -155,7 +195,7 @@ We'd rather tell you than have you find out:
 - **Replacing a stolen account key is a race.** Whoever holds your old key can replace it too. On each server the first valid replacement wins; a second claim within 30 days makes the account disputed until an admin decides, and after 30 days the old key is dead. A thief who acts first on a server where you don't (or that has no other admin) keeps the account there until an admin steps in. Your friends see "safety number changed" either way: verify before trusting.
 - **Keys on your device are only as safe as the device while Iskra is running.** Encryption at rest protects copies of the stored data, not a device someone can use as you. In the browser, without an app lock, anyone who can open your browser profile can open Iskra. Malware running as you can read keys from memory. Lock your devices, and use an app lock on shared computers.
 - **Forward secrecy has limits:** it covers messages once their prekey is deleted (at most about five weeks after sending). A device that hasn't published a prekey (an older app version) gets messages wrapped to its long-term key instead: still end-to-end encrypted, without forward secrecy, and a server could hold back prekeys to force that.
-- **Safety numbers are opt-in.** Until you compare them, you trust that the server showed you the right person the first time.
+- **Safety numbers are opt-in.** Until you compare them, you trust that the server showed you the right person the first time. [Key transparency](#key-transparency) catches a server that shows different people different keys, but not a fake person everyone is shown.
 - **Calls use one key for the whole call**; in a group call the key changes only when the group does, so someone who leaves the call but stays in the group could still decrypt it (they could rejoin anyway).
 - **Group chats:** the server can't add people or read messages, but it can hold back a change for a while, and two devices that never compare notes could, in a rare race, be shown different (correctly signed) versions of a group's history. There's no group-wide safety number: compare each person's.
 - **Watch parties and GIFs** load from their sources (YouTube, a website, KLIPY), which then see your IP address. For GIFs, only "through the server" mode keeps it from KLIPY.
@@ -163,7 +203,7 @@ We'd rather tell you than have you find out:
 
 ## The desktop app
 
-The desktop app is the same web app in a locked-down shell: sandboxed, no Node.js in the page, links open in your browser, and the page can only ask the app for push-to-talk, the screen picker, call alerts, updates, opening the system's privacy settings, hosting and restoring backups, its own settings, the taskbar badge, the keychain that protects your keys, and the game you're playing (when you turned that on).
+The desktop app is the same web app in a locked-down shell: sandboxed, no Node.js in the page, links open in your browser, and the page can only ask the app for push-to-talk, the screen picker, call alerts, updates, opening the system's privacy settings, hosting and restoring backups, its own settings, the taskbar badge, the keychain that protects your keys, passkey prompts for the app lock (in a separate window that can only show Iskra's own prompt page), and the game you're playing (when you turned that on).
 
 - `iskra://` links only ever open an invite: anything else in them is ignored.
 
