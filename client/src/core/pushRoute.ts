@@ -3,22 +3,30 @@
 
 export type OpenTarget =
   | { server: string; kind: 'server' }
-  | { server: string; kind: 'channel'; channelId: number }
+  | { server: string; kind: 'channel'; channelId: number; messageId?: number }
   | { server: string; kind: 'dm'; peer: string }
 
 const KEY = '[A-Za-z0-9_-]{43}'
-const ROUTE = new RegExp(`^#?/open/(${KEY})(?:/c/([1-9][0-9]{0,15})|/dm/(${KEY}))?/?$`)
+const ID = '[1-9][0-9]{0,15}'
+const ROUTE = new RegExp(`^#?/open/(${KEY})(?:/c/(${ID})(?:/m/(${ID}))?|/dm/(${KEY}))?/?$`)
 
 export function parseOpenRoute(route: string): OpenTarget | null {
   const match = ROUTE.exec(route)
   if (!match) return null
-  const [, server, channel, peer] = match
+  const [, server, channel, message, peer] = match
   if (channel) {
     const channelId = Number(channel)
-    return Number.isSafeInteger(channelId) ? { server, kind: 'channel', channelId } : null
+    const messageId = message ? Number(message) : undefined
+    if (!Number.isSafeInteger(channelId) || (messageId !== undefined && !Number.isSafeInteger(messageId))) return null
+    return messageId ? { server, kind: 'channel', channelId, messageId } : { server, kind: 'channel', channelId }
   }
   if (peer) return { server, kind: 'dm', peer }
   return { server, kind: 'server' }
+}
+
+/** A link to one message, for "Copy message link": opens the app (or this one) right at it. */
+export function messageLink(appBase: string, server: string, channelId: number, messageId: number): string {
+  return `${appBase.replace(/\/+$/, '')}/#/open/${server}/c/${channelId}/m/${messageId}`
 }
 
 /** The service worker scope for a server's push registration. */

@@ -32,6 +32,7 @@ public static class MessageViews
             webhook = WebhookFeature.MessageView(store, m),
             poll = PollFeature.View(store, m.Id),
             voice = VoiceMessageFeature.View(store, m.Id),
+            sticker = StickerFeature.View(store, m.Id),
         };
     }
 

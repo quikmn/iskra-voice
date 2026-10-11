@@ -41,6 +41,7 @@ public sealed class Router
         ProfileFeature.Register(this);
         PresenceFeature.Register(this);
         DmFileFeature.Register(this);
+        StickerFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

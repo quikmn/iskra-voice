@@ -7,7 +7,7 @@ import { restoreIdentity } from '../core/recovery'
 import { authProfile } from '../core/profile'
 import { canPingGroups, mentions } from '../ui/markdown'
 import type { InviteLink } from '../core/invite'
-import type { Channel, Events, FileInfo, Member, Message, VoiceInfo, VoiceParticipant, Welcome } from '../core/protocol'
+import type { Channel, Events, FileInfo, Member, Message, Sticker, VoiceInfo, VoiceParticipant, Welcome } from '../core/protocol'
 import * as storage from '../core/storage'
 
 export interface PendingMessage extends Message {
@@ -430,6 +430,7 @@ export interface SendOptions {
   attachments?: FileInfo[]
   replyTo?: Message | null
   voice?: VoiceInfo
+  sticker?: Sticker
 }
 
 export async function sendMessage(key: string, channelId: number, text: string, options: SendOptions = {}): Promise<void> {
@@ -441,14 +442,14 @@ export async function sendMessage(key: string, channelId: number, text: string, 
   const reply = options.replyTo
   const temp: PendingMessage = {
     id: Number.MAX_SAFE_INTEGER, channelId, author: server.me.accountKey, text, createdAt: Date.now(), editedAt: null,
-    attachments, reactions: [], voice: options.voice ?? null,
+    attachments, reactions: [], voice: options.voice ?? null, sticker: options.sticker ?? null,
     replyTo: reply ? { id: reply.id, author: reply.author, text: reply.text, hasAttachments: reply.attachments.length > 0 } : null,
     pending: 'sending', tempId,
   }
   patchServer(key, (s) => ({ messages: { ...s.messages, [channelId]: [...(s.messages[channelId] ?? []), temp] } }))
   try {
     const { message } = await connection.request('chat.send', {
-      channelId, text, attachments: attachments.map((a) => a.id), replyTo: reply?.id, voice: options.voice,
+      channelId, text, attachments: attachments.map((a) => a.id), replyTo: reply?.id, voice: options.voice, sticker: options.sticker?.id,
     })
     patchServer(key, (s) => ({
       messages: { ...s.messages, [channelId]: upsertMessage((s.messages[channelId] ?? []).filter((m) => m.tempId !== tempId), message) },
@@ -470,7 +471,7 @@ export function discardFailed(key: string, channelId: number, tempId: string): v
 export async function retryFailed(key: string, channelId: number, message: PendingMessage): Promise<void> {
   if (!message.tempId) return
   discardFailed(key, channelId, message.tempId)
-  await sendMessage(key, channelId, message.text, { attachments: message.attachments, voice: message.voice ?? undefined })
+  await sendMessage(key, channelId, message.text, { attachments: message.attachments, voice: message.voice ?? undefined, sticker: message.sticker ?? undefined })
 }
 
 /** Uploads a file to a server, reporting progress (0–1). Resolves with the stored file. */

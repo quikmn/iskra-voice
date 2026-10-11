@@ -777,3 +777,19 @@ Pictures, videos, files and voice messages in DMs are end-to-end encrypted like 
 - **Receiving:** the app checks every field (a malformed list makes the message unreadable), downloads, checks the length and `hash`, decrypts every chunk (failing on any change, truncation or extra bytes), then decides how to show the file from its **decrypted bytes** with the same rules as channel uploads (PNG, JPEG, GIF, WebP, MP4, WebM, Ogg, MP3, WAV inline, from a `blob:` URL); anything else, whatever its claimed type, is only offered as a download under its cleaned name.
 - Rate limits: `dm.upload.begin` 2/s (burst 10, plus the per-account `upload.begin` limit), `dm.file.url` 10/s (burst 40).
 - What the server learns: who sent how many files to whom, when, and their sizes (padded only by the 17 bytes per chunk). Not their names, types, contents or whether one is a voice message.
+
+## Stickers
+
+Admins upload stickers (bigger pictures than emoji); anyone who can write in a channel sends one as a message of its own.
+
+| type | body | result | who |
+|---|---|---|---|
+| `sticker.list` | | `{ stickers: [Sticker] }` | anyone |
+| `sticker.create` | `name` (1–30 chars, the same rules as names), `fileId` (your own upload: PNG, GIF or WebP, ≤ 512 KB, ≤ 320×320 px) | `{ sticker }` | admin+; ≤ 60 per server |
+| `sticker.rename` | `id, name` | `{ sticker }` | admin+ |
+| `sticker.delete` | `id` | | admin+ |
+| `chat.send` | adds `sticker?: id`; `text` must then be empty and there are no `attachments` | | channel writers |
+
+`Sticker { id, name, url: "/files/<id>/<name>", animated, createdBy }`. Event `stickers.updated { stickers }` goes to everyone on any change. `Message` gains `sticker: { id, name, url, animated } | null`: the name is kept as it was when sent, and `url` is `null` once the sticker is deleted. Sticker messages can't be edited.
+
+Message links (client side, no protocol change): `<appUrl>/#/open/<serverKey>/c/<channelId>/m/<messageId>` opens the app at that message (it extends the push notification routes above). Spoiler attachments are files whose name starts with `SPOILER_`; apps show them covered until clicked. Encrypted DM attachments carry the same prefix inside their (encrypted) name.

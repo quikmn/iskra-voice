@@ -124,7 +124,7 @@ export interface WireDm {
 /** Client → server requests: [body, result]. */
 export interface Requests {
   ping: [Record<string, never>, Record<string, never>]
-  'chat.send': [{ channelId: number; text: string; attachments?: string[]; replyTo?: number; voice?: VoiceInfo }, { message: Message }]
+  'chat.send': [{ channelId: number; text: string; attachments?: string[]; replyTo?: number; voice?: VoiceInfo; sticker?: string }, { message: Message }]
   'chat.react': [{ id: number; emoji: string; on: boolean }, Record<string, never>]
   'upload.begin': [{ name: string; size: number }, { url: string; maxBytes: number }]
   'link.preview': [{ url: string }, { preview: LinkPreview | null }]
@@ -543,4 +543,31 @@ export interface Requests {
 export interface Requests {
   'dm.upload.begin': [{ accountKey: string; size: number }, { url: string; maxBytes: number }]
   'dm.file.url': [{ id: string }, { url: string; size: number }]
+}
+
+// ── stickers ──
+
+export interface Sticker {
+  id: string
+  name: string
+  /** Relative to the server's URL; null once deleted (on messages). */
+  url: string | null
+  animated: boolean
+  createdBy?: string
+}
+
+export interface Message {
+  /** A sticker message (no text or attachments). */
+  sticker?: Sticker | null
+}
+
+export interface Events {
+  'stickers.updated': { stickers: Sticker[] }
+}
+
+export interface Requests {
+  'sticker.list': [Record<string, never>, { stickers: Sticker[] }]
+  'sticker.create': [{ name: string; fileId: string }, { sticker: Sticker }]
+  'sticker.rename': [{ id: string; name: string }, { sticker: Sticker }]
+  'sticker.delete': [{ id: string }, Record<string, never>]
 }

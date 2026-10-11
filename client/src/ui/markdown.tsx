@@ -2,7 +2,8 @@
 // Supported: ```code blocks``` (highlighted, with copy), `code`, **bold**, *italic* / _italic_, ~~strike~~, ||spoiler||,
 // > quotes, # headings, -# subtext, - and 1. lists, links, [masked](https://…) links (they ask before opening),
 // <t:unix:style> timestamps, mentions written as <@accountKey> (shown as @name) and server emoji written as <:name:id>.
-import { Fragment, type ReactNode } from 'react'
+import { Fragment, type MouseEvent, type ReactNode } from 'react'
+import { parseOpenRoute } from '../core/pushRoute'
 import { roleRank, type Role } from '../core/protocol'
 import { Spoiler } from './bits'
 import { CUSTOM_EMOJI_SOURCE, isEmojiOnly } from './expressions/emoji'
@@ -24,6 +25,16 @@ const EMOJI_PATTERN = new RegExp(CUSTOM_EMOJI_SOURCE, 'y')
 const MASKED_SOURCE = '\\[([^\\]\\n]{1,200})\\]\\((https?:\\/\\/[^\\s<>"\')]+)\\)'
 const MASKED_PATTERN = new RegExp(MASKED_SOURCE, 'y')
 const TIMESTAMP_PATTERN = new RegExp(TIMESTAMP_SOURCE, 'y')
+
+/** Message links ("…/#/open/<server>/c/<channel>/m/<id>") open right here instead of in a new tab. */
+function openInApp(url: string): ((e: MouseEvent) => void) | undefined {
+  const hash = url.slice(url.indexOf('#'))
+  if (!url.includes('#/open/') || !parseOpenRoute(hash)) return undefined
+  return (e) => {
+    e.preventDefault()
+    window.location.hash = hash
+  }
+}
 
 /** Inline rules in priority order: the first one that matches at a position wins. */
 const INLINE: { open: string; close: string; render: (children: ReactNode, key: number) => ReactNode; raw?: boolean; wordEdges?: boolean }[] = [
@@ -75,7 +86,7 @@ function inline(text: string, ctx: MarkdownContext, depth = 0, links = true): Re
     const url = links ? URL_PATTERN.exec(text) : null
     if (url) {
       flush()
-      out.push(<a key={key++} href={url[0]} target="_blank" rel="noopener noreferrer">{url[0]}</a>)
+      out.push(<a key={key++} href={url[0]} target="_blank" rel="noopener noreferrer" onClick={openInApp(url[0])}>{url[0]}</a>)
       i += url[0].length
       continue
     }

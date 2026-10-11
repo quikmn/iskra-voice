@@ -11,6 +11,7 @@ import { ProfileSection, ServerPagesOption } from '../profile/ProfileSettings'
 import { AppearanceSection } from '../profile/AppearanceSettings'
 import { InternetSection } from '../dialogs/InternetSettings'
 import { EmojiSection, SoundboardSettingsSection, SoundsSection } from '../expressions/ExpressionSettings'
+import { StickerSection } from '../chat/Stickers'
 import { DevicesSection } from '../dialogs/DevicesSection'
 import { IntegrationsSection } from '../dialogs/Integrations'
 import { ChevronRight } from '../icons'
@@ -97,7 +98,7 @@ function Section({ id, server, onClose }: { id: SectionId; server: ServerState |
   if (!server) return null
   switch (id) {
     case 'overview': return <OverviewSection server={server} onClose={onClose} />
-    case 'emoji': return <EmojiSection server={server} />
+    case 'emoji': return <><EmojiSection server={server} /><StickerSection server={server} /></>
     case 'sounds': return <SoundsSection server={server} />
     case 'integrations': return <IntegrationsSection server={server} />
     case 'pages': return <PagesSection server={server} />

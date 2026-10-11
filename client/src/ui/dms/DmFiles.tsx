@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { DmFile } from '../../core/dmFiles'
 import { sendDm, sharedServers } from '../../state/dms'
 import { MAX_DM_FILE_BYTES, openDmFile, uploadDmFile, type OpenedFile } from '../../state/dmFiles'
-import { Modal } from '../bits'
+import { draftKey, setDraft, useDraft } from '../../state/drafts'
+import { ImageGrid, Lightbox, SpoilerCover, SpoilerToggle, isSpoilerName, longTextFile, shownName } from '../chat/media'
 import { formatSize } from '../chat/helpers'
 import { Close, FileIcon, Lock, Paperclip, Send } from '../icons'
 import { VoicePlayer, VoiceRecordButton } from '../chat/voice/VoiceMessages'
@@ -20,12 +21,15 @@ interface PendingUpload {
   preview: string | null
   progress: number
   result: DmFile | null
+  /** Shown covered until clicked; the name gets SPOILER_ when sent (names travel inside the encrypted message). */
+  spoiler?: boolean
   error: string | null
   abort: AbortController
 }
 
 export function DmComposer({ peer, placeholder }: { peer: string; placeholder: string }) {
-  const [text, setText] = useState('')
+  const text = useDraft(draftKey.dm(peer))
+  const setText = (value: string) => setDraft(draftKey.dm(peer), value)
   const [uploads, setUploads] = useState<PendingUpload[]>([])
   const fileInput = useRef<HTMLInputElement>(null)
   const route = sharedServers(peer)[0]
@@ -64,7 +68,8 @@ export function DmComposer({ peer, placeholder }: { peer: string; placeholder: s
 
   function submit() {
     if (!canSend) return
-    const files = ready.filter((f) => f.server === ready[0]?.server)
+    const files = uploads.filter((u) => u.result && u.result.server === ready[0]?.server)
+      .map((u) => (u.spoiler && !isSpoilerName(u.result!.name) ? { ...u.result!, name: `SPOILER_${u.result!.name}` } : u.result!))
     for (const u of uploads) if (u.preview) URL.revokeObjectURL(u.preview)
     setUploads([])
     setText('')
@@ -85,6 +90,7 @@ export function DmComposer({ peer, placeholder }: { peer: string; placeholder: s
             <div key={u.localId} className={`pending-upload ${u.error ? 'failed' : ''}`} title={u.error ?? u.file.name}>
               {u.preview ? <img src={u.preview} alt="" /> : <span className="file-icon" aria-hidden><FileIcon size={20} /></span>}
               <span className="file-name">{u.file.name}</span>
+              <SpoilerToggle on={!!u.spoiler} onToggle={() => setUploads((list) => list.map((x) => (x.localId === u.localId ? { ...x, spoiler: !x.spoiler } : x)))} />
               <span className="muted">{u.error ? 'Failed' : u.result ? formatSize(u.file.size) : `${Math.round(u.progress * 100)}%`}</span>
               {!u.result && !u.error && <span className="upload-progress" style={{ width: `${u.progress * 100}%` }} />}
               <button className="icon-button small" onClick={() => removeUpload(u)} aria-label={`Remove ${u.file.name}`}><Close size={14} /></button>
@@ -117,6 +123,12 @@ export function DmComposer({ peer, placeholder }: { peer: string; placeholder: s
             if (files.length) {
               e.preventDefault()
               addFiles(files)
+              return
+            }
+            const pasted = e.clipboardData.getData('text')
+            if (text.length + pasted.length > 4000) {
+              e.preventDefault()
+              addFiles([longTextFile(pasted)])
             }
           }}
           onKeyDown={(e) => {
@@ -172,25 +184,21 @@ function DmAttachment({ file }: { file: DmFile }) {
     return <VoicePlayer src={opened?.url ?? null} voice={file.voice} />
   }
   if (opened?.inline && opened.type.startsWith('image/')) {
+    const items = [{ url: opened.url, name: file.name, size: file.size }]
     return (
       <>
-        <button className="attachment-image" onClick={() => setZoom(true)} aria-label={`Open ${file.name}`}>
-          <img src={opened.url} alt={file.name} />
-        </button>
-        {zoom && (
-          <Modal title={file.name} onClose={() => setZoom(false)}>
-            <img className="lightbox-image" src={opened.url} alt={file.name} />
-            <p className="muted"><a href={opened.url} download={file.name}>Save</a> · {formatSize(file.size)} · end-to-end encrypted</p>
-          </Modal>
-        )}
+        <ImageGrid items={items} onOpen={() => setZoom(true)} />
+        {zoom && <Lightbox items={items} start={0} onClose={() => setZoom(false)} />}
       </>
     )
   }
-  if (opened?.inline && opened.type.startsWith('video/')) return <video className="attachment-video" src={opened.url} controls preload="metadata" />
+  if (opened?.inline && opened.type.startsWith('video/')) {
+    return <SpoilerCover active={isSpoilerName(file.name)}><video className="attachment-video" src={opened.url} controls preload="metadata" /></SpoilerCover>
+  }
   if (opened?.inline && opened.type.startsWith('audio/')) {
     return (
       <div className="attachment-file">
-        <span className="file-name">{file.name}</span>
+        <span className="file-name">{shownName(file.name)}</span>
         <audio src={opened.url} controls preload="metadata" />
       </div>
     )
@@ -200,10 +208,10 @@ function DmAttachment({ file }: { file: DmFile }) {
   return (
     <div className="attachment-file dm-file">
       <span className="file-icon" aria-hidden><FileIcon size={22} /></span>
-      <span className="file-name">{file.name}</span>
+      <span className="file-name">{shownName(file.name)}</span>
       <span className="muted">{formatSize(file.size)}</span>
       {opened ? (
-        <a className="button small" href={opened.url} download={file.name}>Save</a>
+        <a className="button small" href={opened.url} download={shownName(file.name)}>Save</a>
       ) : (
         <button className="button small" disabled={busy} onClick={open}>{busy ? 'Decrypting…' : 'Download'}</button>
       )}

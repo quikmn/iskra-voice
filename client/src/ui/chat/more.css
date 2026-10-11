@@ -1,0 +1,22 @@
+/* ── Message "More" menu, reactions list, "New" divider ─────────────── */
+.more-menu-backdrop { position: fixed; inset: 0; z-index: var(--z-popover); }
+.more-menu {
+  position: fixed; min-width: 200px; padding: 6px; background: var(--float); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow-pop); display: grid; outline: none; animation: fade 0.12s ease-out;
+}
+.more-menu button { border: 0; background: none; color: var(--text); text-align: left; padding: 8px 10px; border-radius: calc(var(--radius) * 0.6); font-size: 14px; }
+.more-menu button:hover { background: var(--hover); }
+.more-done { padding: 8px 10px; color: var(--green); font-size: 14px; }
+
+.reactions-dialog { display: grid; gap: 10px; }
+.reaction-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.reaction-tabs button {
+  display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 14px; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--text-2); font-size: 14px;
+}
+.reaction-tabs button.active { border-color: var(--accent); background: var(--accent-subtle); color: var(--text); }
+.reaction-people { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 50vh; overflow-y: auto; }
+.reaction-people li { display: flex; align-items: center; gap: 10px; padding: 6px 4px; }
+
+.new-divider { display: flex; align-items: center; gap: 8px; margin: 6px 16px; color: var(--red); font-size: 11px; font-weight: 800; text-transform: uppercase; }
+.new-divider::before { content: ''; flex: 1; height: 1px; background: var(--red); opacity: 0.7; }

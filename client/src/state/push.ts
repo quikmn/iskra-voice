@@ -171,7 +171,18 @@ export function openTarget(target: OpenTarget): void {
     return
   }
   selectServer(target.server)
-  if (target.kind === 'channel') selectChannel(target.server, target.channelId)
+  if (target.kind !== 'channel') return
+  if (target.messageId === undefined) return selectChannel(target.server, target.channelId)
+  // A message link: jump once this server is connected.
+  const { server, channelId, messageId } = target
+  const jump = () => void import('./jump').then(({ jumpToMessage }) => jumpToMessage(server, channelId, messageId))
+  if (useApp.getState().servers[server]?.status.state === 'online') return jump()
+  selectChannel(server, channelId)
+  const stop = useApp.subscribe((state) => {
+    if (state.servers[server]?.status.state !== 'online') return
+    stop()
+    jump()
+  })
 }
 
 /** A fresh window opened from a notification: wait until the saved servers are loaded. */
