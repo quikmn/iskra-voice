@@ -344,6 +344,21 @@ async function connect(
     })
     room = next
 
+    // A few frames fail while a new key goes round (someone left, the key changed): only failures that keep
+    // coming are worth showing, and the notice goes away once they stop.
+    const DECRYPT_ERROR = "Part of the call couldn't be decrypted."
+    let failingSince = 0
+    let lastFailure = 0
+    const decryptFailed = () => {
+      const now = Date.now()
+      if (now - lastFailure > 2000) failingSince = now
+      lastFailure = now
+      if (now - failingSince >= 3000) useVoice.setState({ error: DECRYPT_ERROR })
+      setTimeout(() => {
+        if (room === next && Date.now() - lastFailure >= 3000 && useVoice.getState().error === DECRYPT_ERROR) useVoice.setState({ error: null })
+      }, 3100)
+    }
+
     next
       .on(RoomEvent.TrackSubscribed, (track: RemoteTrack, _pub, participant: RemoteParticipant) => {
         if (track.kind === Track.Kind.Audio) {
@@ -403,7 +418,7 @@ async function connect(
           useVoice.setState((s) => ({ session: s.session && { ...s.session, encrypted: enabled } }))
       })
       .on(RoomEvent.EncryptionError, () => {
-        if (room === next) useVoice.setState({ error: "Part of the call couldn't be decrypted." })
+        if (room === next) decryptFailed()
       })
       .on(RoomEvent.ConnectionStateChanged, (state: ConnectionState) => {
         if (room !== next) return
