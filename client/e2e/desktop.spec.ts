@@ -32,7 +32,7 @@ test('the desktop app runs the web app on app:// and can join a server', async (
 
     // The preload bridge is there, and only that.
     const bridge = await page.evaluate(() => Object.keys((window as unknown as { iskraDesktop: object }).iskraDesktop).sort())
-    expect(bridge).toEqual(['callAlert', 'capturePushToTalkKey', 'host', 'onPickScreen', 'onPushToTalk', 'openSystemSettings', 'pickScreen', 'platform', 'pushToTalkStatus', 'setPushToTalkKey', 'updates'])
+    expect(bridge).toEqual(['callAlert', 'capturePushToTalkKey', 'download', 'host', 'onPickScreen', 'onPushToTalk', 'openSystemSettings', 'pickScreen', 'platform', 'pushToTalkStatus', 'setPushToTalkKey', 'updates'])
     expect(await page.evaluate(() => typeof (window as unknown as { require?: unknown }).require)).toBe('undefined')
 
     // Calls: LiveKit's end-to-end encryption worker loads from app:// under the app's CSP, and frames can be transformed.
@@ -120,5 +120,86 @@ test('creating a server from the desktop app makes you its owner', async () => {
     rmSync(hostRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 })
     // Quitting the app stops the server cleanly (so it can remove router port mappings), not with a kill.
     expect(logText).toContain('asked it to stop; shutting down')
+  }
+})
+
+test('restoring a server from a backup in the desktop app', async () => {
+  test.setTimeout(240_000)
+  const userData = mkdtempSync(join(tmpdir(), 'iskra-desktop-'))
+  const hostRoot = mkdtempSync(join(tmpdir(), 'iskra-hosted-'))
+  const saved = join(mkdtempSync(join(tmpdir(), 'iskra-desktop-backup-')), 'moving.iskrabackup')
+  const original = await startServer('Moving House')
+  // stop() waits for an exit that has already happened if called twice, so only once.
+  let stopOriginal: Promise<void> | null = null
+  const stop = () => (stopOriginal ??= original.stop())
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'NODE_OPTIONS')) as Record<string, string>
+  const app = await electron.launch({
+    executablePath: join(DESKTOP, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron'),
+    args: [DESKTOP, `--user-data-dir=${userData}`],
+    cwd: DESKTOP,
+    env: { ...env, ISKRA_HOST_ROOT: hostRoot, ISKRA_LOCAL_ONLY: '1' },
+  })
+  try {
+    // Native dialogs can't be clicked by a test: "Save as" and "Open" answer with our temp file.
+    await app.evaluate(({ dialog, session }, file) => {
+      session.defaultSession.on('will-download', (_e: unknown, item: { setSavePath(path: string): void }) => item.setSavePath(file))
+      dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [file] })) as typeof dialog.showOpenDialog
+    }, saved)
+    const page = await app.firstWindow()
+    await page.getByLabel('Your name').fill('Host')
+    await page.getByRole('button', { name: 'Continue' }).click()
+    await page.getByRole('button', { name: 'I have an invite link' }).click()
+    await page.getByLabel('Invite link').fill(original.ownerLink())
+    await page.getByRole('button', { name: 'Join', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'general' })).toBeVisible()
+    await page.getByPlaceholder('Message #general').fill('packed and ready')
+    await page.getByPlaceholder('Message #general').press('Enter')
+    await expect(page.locator('.message', { hasText: 'packed and ready' })).toBeVisible()
+
+    // Back it up from Settings; the app saves the file.
+    await page.locator('.me-bar').getByRole('button', { name: 'Settings' }).click()
+    const settings = page.getByRole('dialog', { name: 'Settings' })
+    await settings.getByRole('button', { name: 'Backup & move', exact: true }).click()
+    await settings.getByLabel('Passphrase', { exact: true }).fill('correct horse battery staple')
+    await settings.getByLabel('Passphrase again').fill('correct horse battery staple')
+    await settings.getByRole('button', { name: 'Make backup' }).click()
+    await expect(settings.getByText(/Backup ready/)).toBeVisible({ timeout: 30_000 })
+    await expect.poll(() => existsSync(saved) && readFileSync(saved).subarray(0, 8).toString(), { timeout: 15_000 }).toBe('ISKRABK1')
+    await page.keyboard.press('Escape')
+
+    // Restore it on "this computer": a new server folder, its own port, localhost only, same server key.
+    await page.getByRole('button', { name: 'Join a server' }).click()
+    await page.getByRole('button', { name: 'start your own server' }).click()
+    await page.getByRole('button', { name: 'Restore from a backup' }).click()
+    const restore = page.getByRole('dialog', { name: 'Restore a server from backup' })
+    await restore.getByRole('button', { name: 'Choose backup file…' }).click()
+    await expect(restore.getByText('Moving House')).toBeVisible()
+    await restore.getByLabel('Passphrase').fill('wrong passphrase')
+    await restore.getByRole('button', { name: 'Restore', exact: true }).click()
+    await expect(restore.getByText(/Wrong passphrase/)).toBeVisible({ timeout: 30_000 })
+    await page.screenshot({ path: join(SHOTS, 'desktop-restore.png') })
+    await restore.getByLabel('Passphrase').fill('correct horse battery staple')
+    await restore.getByRole('button', { name: 'Restore', exact: true }).click()
+    await expect(restore).toBeHidden({ timeout: 60_000 })
+
+    const folder = join(hostRoot, 'moving-house')
+    const json = JSON.parse(readFileSync(join(folder, 'server.json'), 'utf8')) as { Port: number; LocalOnly: boolean; PublicUrl: string }
+    expect(json.LocalOnly).toBe(true)
+    expect(json.PublicUrl).toBe(`http://localhost:${json.Port}`)
+    expect(`http://localhost:${json.Port}`).not.toBe(original.url)
+    // The saved server now points at the restored copy, with everything it had; you're still its owner.
+    await stop()
+    await expect(page.locator('.message', { hasText: 'packed and ready' })).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('.me-text')).toContainText('owner')
+    await page.getByPlaceholder('Message #general').fill('unpacked')
+    await page.getByPlaceholder('Message #general').press('Enter')
+    await expect(page.locator('.message:not(.sending):not(.failed)', { hasText: 'unpacked' })).toBeVisible({ timeout: 15_000 })
+    await page.screenshot({ path: join(SHOTS, 'desktop-restored.png') })
+  } finally {
+    await app.close()
+    await stop()
+    rmSync(userData, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
+    rmSync(dirname(saved), { recursive: true, force: true })
+    rmSync(hostRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 })
   }
 })

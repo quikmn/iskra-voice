@@ -228,7 +228,8 @@ export class Host {
   /** Home networks hand out new addresses now and then; keep invite links pointing at the current one. */
   private refreshLanAddress(folder: string): void {
     const file = path.join(folder, 'server.json')
-    const settings = JSON.parse(readFileSync(file, 'utf8')) as { PublicUrl?: string; Port?: number }
+    const settings = JSON.parse(readFileSync(file, 'utf8')) as { PublicUrl?: string; Port?: number; LocalOnly?: boolean }
+    if (settings.LocalOnly) return // nobody else can connect: its address stays localhost
     const current = `http://${lanAddress()}:${settings.Port ?? 47070}`
     if (settings.PublicUrl?.match(/^http:\/\/(10\.|192\.168\.|172\.|localhost)/) && settings.PublicUrl !== current) {
       writeFileSync(file, JSON.stringify({ ...settings, PublicUrl: current }, null, 2))
