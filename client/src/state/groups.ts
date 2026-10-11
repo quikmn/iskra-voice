@@ -366,12 +366,13 @@ export function cannotSend(g: GroupConv | undefined): string | null {
 }
 
 /** Sends to the group, retrying once if it changed meanwhile (the new member list gets it). */
-async function deliver(key: string, content: DmContent): Promise<GroupEnvelope> {
+async function deliver(key: string, content: DmContent, onEncrypted?: (envelope: GroupEnvelope) => void): Promise<GroupEnvelope> {
   for (let attempt = 0; ; attempt++) {
     const g = useGroups.getState().groups[key]
     const reason = cannotSend(g)
     if (reason) throw new DmError(reason)
     const envelope = await encryptFor(g!, content)
+    onEncrypted?.(envelope)
     try {
       await connectionFor(g!.serverKey)!.request('group.send', {
         groupId: g!.id, version: g!.view!.version, envelope, ...(content.files?.length ? { files: content.files.map((f) => f.id) } : {}),
@@ -385,17 +386,22 @@ async function deliver(key: string, content: DmContent): Promise<GroupEnvelope> 
 }
 
 export async function sendGroupMessage(key: string, text: string, extra: Pick<DmContent, 'call' | 'group' | 'files'> = {}): Promise<void> {
-  const tempId = `pending-${Date.now()}-${Math.random()}`
   const mine = me()
-  addMessage(key, { id: tempId, from: mine, text, sentAt: Date.now(), pending: 'sending', ...extra }, false)
+  let id = `pending-${Date.now()}-${Math.random()}`
+  const isOurs = (m: GroupMsg) => m.id === id && m.from === mine
+  addMessage(key, { id, from: mine, text, sentAt: Date.now(), pending: 'sending', ...extra }, false)
+  // The placeholder takes the real id before each send, so our own group.message echo (which can arrive before the
+  // request's result) merges into it instead of showing the message twice.
+  const settle = (envelope: GroupEnvelope, pending?: 'sending') => {
+    patchGroup(key, (g) => ({ messages: g.messages.filter((m) => !isOurs(m)) }))
+    id = envelope.header.id
+    addMessage(key, { id, from: mine, text, sentAt: envelope.header.sentAt, ...(pending ? { pending } : {}), ...extra }, false)
+  }
   try {
-    const envelope = await deliver(key, { text, ...extra })
-    patchGroup(key, (g) => ({ messages: g.messages.filter((m) => m.id !== tempId) }))
-    // The group.message event (sent to us too) brings the same id; this makes it show at once.
-    addMessage(key, { id: envelope.header.id, from: mine, text, sentAt: envelope.header.sentAt, ...extra }, false)
+    settle(await deliver(key, { text, ...extra }, (envelope) => settle(envelope, 'sending')))
   } catch (e) {
     patchGroup(key, (g) => ({
-      messages: g.messages.map((m) => (m.id === tempId ? { ...m, pending: 'failed' as const, error: (e as Error).message } : m)),
+      messages: g.messages.map((m) => (isOurs(m) ? { ...m, pending: 'failed' as const, error: (e as Error).message } : m)),
     }))
   }
 }

@@ -320,17 +320,21 @@ export async function sendDm(peer: string, text: string, extra: Pick<DmContent, 
   const pending: Dm = { id: tempId, from: mine, to: peer, text, sentAt: Date.now(), pending: 'sending', ...extra }
   patchConversation(peer, (c) => ({ messages: upsert(c.messages, pending) }))
 
+  let id = tempId
+  const isOurs = (m: Dm) => m.id === id && m.from === mine
   try {
     if (!identity || !route) throw new DmError("You don't share an online server with this person right now.")
     const envelope = await encryptFor(route, peer, { text, ...extra })
+    // The placeholder takes the real id before sending, so our own dm.message echo (which can arrive before the
+    // request's result) merges into it instead of showing the message twice.
+    const sent: Dm = { id: envelope.header.id, from: mine, to: peer, text, sentAt: envelope.header.sentAt, ...extra }
+    patchConversation(peer, (c) => ({ messages: upsert(c.messages.filter((m) => !isOurs(m)), { ...sent, pending: 'sending' }) }))
+    id = sent.id
     await connectionFor(route)!.request('dm.send', { accountKey: peer, envelope, ...(extra.files?.length ? { files: extra.files.map((f) => f.id) } : {}) })
-    // The dm.message event (also sent to us) adds the real message; drop the placeholder.
-    patchConversation(peer, (c) => ({
-      messages: upsert(c.messages.filter((m) => m.id !== tempId), { id: envelope.header.id, from: mine, to: peer, text, sentAt: envelope.header.sentAt, ...extra }),
-    }))
+    patchConversation(peer, (c) => ({ messages: upsert(c.messages.filter((m) => !isOurs(m)), sent) }))
   } catch (e) {
     patchConversation(peer, (c) => ({
-      messages: c.messages.map((m) => (m.id === tempId ? { ...m, pending: 'failed' as const, error: (e as Error).message } : m)),
+      messages: c.messages.map((m) => (isOurs(m) ? { ...m, pending: 'failed' as const, error: (e as Error).message } : m)),
     }))
   }
 }
