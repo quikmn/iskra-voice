@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import { useNotify } from '../../state/notify'
 import { currentPushSupport, disablePush, enablePush, installApp, useInstall, usePush } from '../../state/push'
 import { useApp } from '../../state/store'
 
 /** Push notifications while Iskra is closed, and installing the web app. Not shown in the desktop app. */
 export function PushSettings() {
+  const { t } = useTranslation()
   const support = currentPushSupport()
   const wanted = useNotify((s) => s.push)
   const servers = usePush((s) => s.servers)
@@ -16,7 +18,7 @@ export function PushSettings() {
 
   const permission = typeof Notification === 'undefined' ? 'default' : Notification.permission
   const on = wanted && permission === 'granted'
-  const failed = Object.entries(servers).filter(([, state]) => state === 'error').map(([key]) => names[key]?.name ?? 'a server')
+  const failed = Object.entries(servers).filter(([, state]) => state === 'error').map(([key]) => names[key]?.name ?? t('settings.push.aServer'))
   const active = Object.values(servers).filter((state) => state === 'on').length
 
   async function toggle(checked: boolean) {
@@ -34,31 +36,30 @@ export function PushSettings() {
         <>
           <label className="checkbox">
             <input type="checkbox" checked={on} disabled={busy || permission === 'denied'} onChange={(e) => void toggle(e.target.checked)} />
-            Push notifications on this device, even when Iskra is closed
+            {t('settings.push.toggle')}
           </label>
           {on && active > 0 && (
             <p className="muted push-status">
-              On for {active === 1 ? '1 server' : `${active} servers`}: mentions, replies and direct messages.
+              {t('settings.push.onFor', { count: active })}
             </p>
           )}
           {on && failed.length > 0 && (
             <p className="push-error" role="alert">
-              Couldn't turn on push for {failed.join(', ')}{error ? ` (${error})` : ''}.
+              {t('settings.push.failed', { servers: failed.join(', '), error: error ? ` (${error})` : '' })}
             </p>
           )}
         </>
       )}
       {support === 'needs-install' && (
         <p className="muted push-hint">
-          To get notifications on iPhone or iPad, add Iskra to your Home Screen first: tap <strong>Share</strong>, then{' '}
-          <strong>Add to Home Screen</strong>, and open Iskra from there.
+          <Trans i18nKey="settings.push.ios" components={{ b: <strong /> }} />
         </p>
       )}
-      {support === 'unsupported' && <p className="muted push-hint">This browser can't show notifications while Iskra is closed.</p>}
+      {support === 'unsupported' && <p className="muted push-hint">{t('settings.push.unsupported')}</p>}
       {installable && (
         <div className="push-install">
-          <span className="muted">Get Iskra as an app on this device.</span>
-          <button className="button" onClick={() => void installApp()}>Install Iskra</button>
+          <span className="muted">{t('settings.push.getApp')}</span>
+          <button className="button" onClick={() => void installApp()}>{t('settings.push.install')}</button>
         </div>
       )}
     </div>

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { desktop, type PushToTalkStatus } from '../../platform/desktop'
 import { updateVoiceSettings, useVoice } from '../../state/voice'
 
 /** Voice activity vs push-to-talk, and the key. Global key on desktop, in-page key on the web. */
 export function VoiceSettingsSection() {
+  const { t } = useTranslation()
   const settings = useVoice((s) => s.settings)
   const pttDown = useVoice((s) => s.pttDown)
   const [capturing, setCapturing] = useState(false)
@@ -31,27 +33,27 @@ export function VoiceSettingsSection() {
 
   return (
     <section className="settings-section">
-      <h3>Input mode</h3>
-      <div className="segmented" role="radiogroup" aria-label="Input mode">
+      <h3>{t('settings.voice.inputMode')}</h3>
+      <div className="segmented" role="radiogroup" aria-label={t('settings.voice.inputMode')}>
         <button role="radio" aria-checked={settings.mode === 'voice'} className={settings.mode === 'voice' ? 'on' : ''} onClick={() => updateVoiceSettings({ mode: 'voice' })}>
-          Voice activity
+          {t('settings.voice.voiceActivity')}
         </button>
         <button role="radio" aria-checked={settings.mode === 'ptt'} className={settings.mode === 'ptt' ? 'on' : ''} onClick={() => updateVoiceSettings({ mode: 'ptt' })}>
-          Push to talk
+          {t('settings.voice.ptt')}
         </button>
       </div>
       {settings.mode === 'ptt' && (
         <>
           <div className="copy-row">
-            <span className={`key-chip ${pttDown ? 'down' : ''}`}>{capturing ? 'Press a key…' : (key?.label ?? 'No key set')}</span>
+            <span className={`key-chip ${pttDown ? 'down' : ''}`}>{capturing ? t('settings.voice.pressKey') : (key?.label ?? t('settings.voice.noKey'))}</span>
             <button className="button" onClick={() => void captureKey()} disabled={capturing}>
-              {key ? 'Change key' : 'Set key'}
+              {key ? t('settings.voice.changeKey') : t('settings.voice.setKey')}
             </button>
           </div>
           {desktop ? (
             <PushToTalkHint status={pttStatus} />
           ) : (
-            <p className="muted">In the browser, push to talk only works while this tab is focused. The desktop app works everywhere.</p>
+            <p className="muted">{t('settings.voice.browserPtt')}</p>
           )}
         </>
       )}
@@ -77,23 +79,16 @@ export function usePushToTalkStatus(active: boolean): PushToTalkStatus {
 }
 
 export function PushToTalkHint({ status }: { status: PushToTalkStatus }) {
+  const { t } = useTranslation()
   if (status === 'needs-permission') {
     return (
       <div>
-        <p className="muted">
-          To notice your key while you're in another app, macOS needs you to allow Iskra under Privacy &amp; Security → Accessibility.
-        </p>
-        <button className="button" onClick={() => void desktop?.openSystemSettings('accessibility')}>Open System Settings</button>
+        <p className="muted">{t('settings.voice.macPermission')}</p>
+        <button className="button" onClick={() => void desktop?.openSystemSettings('accessibility')}>{t('settings.voice.openSystemSettings')}</button>
       </div>
     )
   }
-  if (status === 'limited') {
-    return (
-      <p className="muted">
-        On Wayland, Iskra only sees your key while Iskra or an X11 app has focus. For a key that works everywhere, use an X11 session, or voice activity.
-      </p>
-    )
-  }
-  if (status === 'unavailable') return <p className="muted">Push to talk couldn't start on this computer. Voice activity works everywhere.</p>
-  return <p className="muted">Works everywhere, even while a game has focus. Mouse side buttons work too.</p>
+  if (status === 'limited') return <p className="muted">{t('settings.voice.wayland')}</p>
+  if (status === 'unavailable') return <p className="muted">{t('settings.voice.pttUnavailable')}</p>
+  return <p className="muted">{t('settings.voice.worksEverywhere')}</p>
 }

@@ -2,13 +2,14 @@
 import type { PinNote } from '../../state/pins'
 import type { PendingMessage } from '../../state/store'
 import { messageTime } from '../format'
+import { t } from '../../i18n'
 
 /** "3m ago", "2h ago", or a date. */
 export function relativeTime(ms: number, now = Date.now()): string {
   const minutes = Math.floor((now - ms) / 60_000)
-  if (minutes < 1) return 'just now'
-  if (minutes < 60) return `${minutes}m ago`
-  if (minutes < 24 * 60) return `${Math.floor(minutes / 60)}h ago`
+  if (minutes < 1) return t('chat.time.justNow')
+  if (minutes < 60) return t('chat.time.minutesAgo', { n: minutes })
+  if (minutes < 24 * 60) return t('chat.time.hoursAgo', { n: Math.floor(minutes / 60) })
   return messageTime(ms, now)
 }
 

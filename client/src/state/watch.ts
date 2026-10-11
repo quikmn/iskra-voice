@@ -5,6 +5,7 @@ import { roleRank, type Channel, type Events, type StageState, type WatchParty, 
 import { connectionFor, onServerEvent, onWelcomeHook, type ServerState } from './store'
 import { isStageModerator } from './stages'
 import { bestOffset, clockSample, type ClockSample } from './watchSync'
+import { t } from '../i18n'
 
 export interface WatchChatLine {
   accountKey: string
@@ -103,7 +104,7 @@ export function canControlWatch(server: ServerState, channel: Channel, stage: St
 
 function connection(serverKey: string) {
   const c = connectionFor(serverKey)
-  if (!c) throw new Error('Not connected.')
+  if (!c) throw new Error(t('watch.notConnected'))
   return c
 }
 

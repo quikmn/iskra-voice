@@ -1,7 +1,10 @@
 // End-to-end encrypted attachments in DMs: the composer (attach, paste, drop, voice) and how attachments show.
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { t as translate } from '../../i18n'
+import { formatNumber } from '../../i18n/format'
 import type { DmFile } from '../../core/dmFiles'
-import { sendDm, sharedServers } from '../../state/dms'
+import { dmErrorText, sendDm, sharedServers } from '../../state/dms'
 import { sendGroupMessage } from '../../state/groups'
 import { MAX_DM_FILE_BYTES, openDmFile, uploadDmFile, type OpenedFile } from '../../state/dmFiles'
 import { draftKey, setDraft, useDraft } from '../../state/drafts'
@@ -37,6 +40,7 @@ export function DmComposer({ peer, placeholder, group }: {
   const setText = (value: string) => setDraft(draft, value)
   const [uploads, setUploads] = useState<PendingUpload[]>([])
   const fileInput = useRef<HTMLInputElement>(null)
+  const { t } = useTranslation()
   const route = group ? group.serverKey : sharedServers(peer)[0]
   const target = group ? { groupId: group.id } : peer
   const send = (body: string, files: DmFile[]) =>
@@ -50,7 +54,7 @@ export function DmComposer({ peer, placeholder, group }: {
     for (const file of files.slice(0, 10 - uploads.length)) {
       const item: PendingUpload = {
         localId: `${Date.now()}-${Math.random()}`, file, progress: 0, result: null, abort: new AbortController(),
-        error: file.size > MAX_DM_FILE_BYTES ? `Up to ${MAX_DM_FILE_BYTES / 1024 / 1024} MB in direct messages.` : null,
+        error: file.size > MAX_DM_FILE_BYTES ? t('dms.files.upTo', { mb: MAX_DM_FILE_BYTES / 1024 / 1024 }) : null,
         preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
       }
       setUploads((list) => [...list, item])
@@ -58,7 +62,7 @@ export function DmComposer({ peer, placeholder, group }: {
       const update = (patch: Partial<PendingUpload>) => setUploads((list) => list.map((u) => (u.localId === item.localId ? { ...u, ...patch } : u)))
       uploadDmFile(route, target, file, (progress) => update({ progress }), item.abort.signal)
         .then((result) => update({ result, progress: 1 }))
-        .catch((e: Error) => e.name !== 'AbortError' && update({ error: e.message }))
+        .catch((e: Error) => e.name !== 'AbortError' && update({ error: dmErrorText(e) }))
     }
   }
 
@@ -85,7 +89,7 @@ export function DmComposer({ peer, placeholder, group }: {
   }
 
   async function sendVoice(recording: Recording) {
-    if (!route) throw new Error("You don't share an online server with this person right now.")
+    if (!route) throw new Error(t('dms.errors.noSharedServer'))
     const file = await uploadDmFile(route, target, recording.file, () => {}, undefined, { duration: recording.duration, waveform: recording.waveform })
     await send('', [file])
   }
@@ -99,15 +103,15 @@ export function DmComposer({ peer, placeholder, group }: {
               {u.preview ? <img src={u.preview} alt="" /> : <span className="file-icon" aria-hidden><FileIcon size={20} /></span>}
               <span className="file-name">{u.file.name}</span>
               <SpoilerToggle on={!!u.spoiler} onToggle={() => setUploads((list) => list.map((x) => (x.localId === u.localId ? { ...x, spoiler: !x.spoiler } : x)))} />
-              <span className="muted">{u.error ? 'Failed' : u.result ? formatSize(u.file.size) : `${Math.round(u.progress * 100)}%`}</span>
+              <span className="muted">{u.error ? t('chat.composer.failed') : u.result ? formatSize(u.file.size) : formatNumber(u.progress, { style: 'percent', maximumFractionDigits: 0 })}</span>
               {!u.result && !u.error && <span className="upload-progress" style={{ width: `${u.progress * 100}%` }} />}
-              <button className="icon-button small" onClick={() => removeUpload(u)} aria-label={`Remove ${u.file.name}`}><Close size={14} /></button>
+              <button className="icon-button small" onClick={() => removeUpload(u)} aria-label={t('chat.composer.removeFile', { name: u.file.name })}><Close size={14} /></button>
             </div>
           ))}
         </div>
       )}
       <div className="composer">
-        <button className="icon-button attach-button" onClick={() => fileInput.current?.click()} aria-label="Attach files" title="Attach files (end-to-end encrypted)">
+        <button className="icon-button attach-button" onClick={() => fileInput.current?.click()} aria-label={t('chat.composer.attach')} title={t('dms.files.attachTitle')}>
           <Paperclip />
         </button>
         <input
@@ -147,7 +151,7 @@ export function DmComposer({ peer, placeholder, group }: {
           }}
         />
         {!text.trim() && uploads.length === 0 && voiceRecordingSupported() && <VoiceRecordButton onSend={sendVoice} disabled={!route} />}
-        <button className="send-button" onClick={submit} disabled={!canSend} aria-label="Send">
+        <button className="send-button" onClick={submit} disabled={!canSend} aria-label={t('common.send')}>
           <Send />
         </button>
       </div>
@@ -172,7 +176,7 @@ function useOpened(file: DmFile, auto: boolean) {
     setState((s) => ({ ...s, busy: true, error: null }))
     openDmFile(file).then(
       (opened) => setState({ opened, error: null, busy: false }),
-      (e: Error) => setState({ opened: null, error: e.message || "Couldn't open this file.", busy: false }),
+      (e: Error) => setState({ opened: null, error: e.message ? dmErrorText(e) : translate('dms.files.openFailed'), busy: false }),
     )
   }
   useEffect(() => {
@@ -186,9 +190,10 @@ function DmAttachment({ file }: { file: DmFile }) {
   const media = file.voice || /^(image|video|audio)\//.test(file.type)
   const { opened, error, busy, open } = useOpened(file, !!media && file.size <= AUTO_OPEN_BYTES)
   const [zoom, setZoom] = useState(false)
+  const { t } = useTranslation()
 
   if (file.voice) {
-    if (error) return <div className="message-notice"><Lock size={13} /> {error} <button className="link" onClick={open}>Retry</button></div>
+    if (error) return <div className="message-notice"><Lock size={13} /> {error} <button className="link" onClick={open}>{t('common.retry')}</button></div>
     return <VoicePlayer src={opened?.url ?? null} voice={file.voice} />
   }
   if (opened?.inline && opened.type.startsWith('image/')) {
@@ -219,9 +224,9 @@ function DmAttachment({ file }: { file: DmFile }) {
       <span className="file-name">{shownName(file.name)}</span>
       <span className="muted">{formatSize(file.size)}</span>
       {opened ? (
-        <a className="button small" href={opened.url} download={shownName(file.name)}>Save</a>
+        <a className="button small" href={opened.url} download={shownName(file.name)}>{t('common.save')}</a>
       ) : (
-        <button className="button small" disabled={busy} onClick={open}>{busy ? 'Decrypting…' : 'Download'}</button>
+        <button className="button small" disabled={busy} onClick={open}>{busy ? t('dms.files.decrypting') : t('common.download')}</button>
       )}
       {error && <span className="error-text dm-file-error">{error}</span>}
     </div>

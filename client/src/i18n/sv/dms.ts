@@ -1,4 +1,36 @@
 import type { Messages } from '../types'
 
 export const dms: Messages['dms'] = {
+  errors: {
+    noDevices: 'Den här personen har inga enheter som vi kan kryptera till än.',
+    length: 'Meddelanden måste vara 1–{{max}} tecken.',
+    oldKey: 'Meddelandet låstes med en äldre nyckel som den här enheten sedan har raderat, så det kan inte läsas här.',
+    notDecrypted: 'Meddelandet kunde inte dekrypteras.',
+    unsupportedFormat: 'Meddelandeformatet stöds inte.',
+    mismatch: 'Meddelandets avsändare eller mottagare stämmer inte.',
+    notForYou: 'Meddelandet är inte till dig.',
+    unverified: 'Avsändarens enhet kunde inte verifieras.',
+    notForDevice: 'Meddelandet krypterades inte för den här enheten.',
+    tampered: 'Någon har manipulerat meddelandet.',
+    unsupportedContent: 'Meddelandets innehåll stöds inte.',
+    fileMismatch: 'Filen stämmer inte med det som skickades.',
+    fileDamaged: 'Filen är skadad.',
+    unreadable: 'Meddelandet kunde inte läsas.',
+    noAccount: 'Det finns inget konto på den här enheten.',
+    noSharedServer: 'Ni har ingen gemensam server online just nu.',
+  },
+  files: {
+    tooBigForServer: 'Filen är för stor för den här servern.',
+    uploadFailedStatus: 'Uppladdningen misslyckades ({{status}}).',
+    uploadFailed: 'Uppladdningen misslyckades. Kolla din anslutning.',
+    uploadCancelled: 'Uppladdningen avbröts.',
+    tooBig: 'Filer i direktmeddelanden får vara högst {{mb}} MB.',
+    upTo: 'Högst {{mb}} MB i direktmeddelanden.',
+    tooBigToOpen: 'Filen är för stor för att öppnas här.',
+    serverOffline: 'Servern som har filen är inte ansluten just nu.',
+    downloadFailed: 'Kunde inte ladda ner filen.',
+    openFailed: 'Kunde inte öppna filen.',
+    attachTitle: 'Bifoga filer (krypterade hela vägen)',
+    decrypting: 'Dekrypterar…',
+  },
 }

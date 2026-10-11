@@ -1,6 +1,7 @@
 // Non-component helpers shared by the chat UI.
 import { create } from 'zustand'
 import type { Message } from '../../core/protocol'
+import { formatNumber } from '../../i18n/format'
 
 /** Which message the composer is replying to, per server+channel. */
 export const useReply = create<{ replyTo: Record<string, Message | null> }>(() => ({ replyTo: {} }))
@@ -9,11 +10,13 @@ export function setReply(serverKey: string, channelId: number, message: Message 
   useReply.setState((s) => ({ replyTo: { ...s.replyTo, [replyKey(serverKey, channelId)]: message } }))
 }
 
+/** "512 B", "34 KB", "1.5 MB", "2.25 GB", with the language's decimal mark. */
 export function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`
-  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`
+  const n = (value: number, digits: number) => formatNumber(value, { minimumFractionDigits: digits, maximumFractionDigits: digits, useGrouping: false })
+  if (bytes < 1024) return `${n(bytes, 0)} B`
+  if (bytes < 1024 * 1024) return `${n(bytes / 1024, 0)} KB`
+  if (bytes < 1024 * 1024 * 1024) return `${n(bytes / 1024 / 1024, 1)} MB`
+  return `${n(bytes / 1024 / 1024 / 1024, 2)} GB`
 }
 
 export const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '🎉', '👀', '✅', '❌', '💯', '🙏', '😎', '🤔', '👋', 'GG']

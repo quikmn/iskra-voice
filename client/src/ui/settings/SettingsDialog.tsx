@@ -1,6 +1,7 @@
 // Settings: a sidebar of sections on wide screens, a list that opens each section on phones.
 // "My account" is about you on every server; "This server" is the server you're looking at, by role.
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { fingerprint } from '../../core/connection'
 import { leaveServer, type ServerState } from '../../state/store'
 import { Modal } from '../bits'
@@ -50,6 +51,7 @@ function usePhone(): boolean {
 }
 
 export function SettingsDialog({ server, onClose, section: initial }: { server?: ServerState | null; onClose: () => void; section?: SectionId }) {
+  const { t } = useTranslation()
   const phone = usePhone()
   const roles = useServerRoles(server?.key)
   const sections = settingsSections(server?.me?.role, (perm) => has(server?.me, roles, perm), !!desktop)
@@ -61,22 +63,22 @@ export function SettingsDialog({ server, onClose, section: initial }: { server?:
 
   return (
     <Modal
-      title="Settings"
-      heading={phone && current ? current.label : 'Settings'}
+      title={t('common.settings')}
+      heading={phone && current ? current.label : t('common.settings')}
       onBack={phone && current ? () => setPicked(null) : undefined}
       onClose={onClose}
       className="settings-modal"
     >
       <div className={`settings-layout ${phone ? (current ? 'phone-pane' : 'phone-list') : ''}`}>
         {showList && (
-          <nav className="settings-nav" aria-label="Settings sections">
+          <nav className="settings-nav" aria-label={t('settings.dialog.sectionsLabel')}>
             {(['account', 'server'] as const).map((group) => {
               const items = sections.filter((s) => s.group === group)
               if (items.length === 0) return null
               return (
                 <div key={group} className="settings-nav-group">
                   <div className="settings-nav-title" title={group === 'server' ? server?.name : undefined}>
-                    {group === 'account' ? 'My account' : `This server · ${server?.name ?? ''}`}
+                    {group === 'account' ? t('settings.dialog.myAccount') : t('settings.dialog.thisServer', { name: server?.name ?? '' })}
                   </div>
                   {items.map((s) => (
                     <button
@@ -135,30 +137,31 @@ function Section({ id, server, onClose }: { id: SectionId; server: ServerState |
 }
 
 function OverviewSection({ server, onClose }: { server: ServerState; onClose: () => void }) {
+  const { t } = useTranslation()
   const [confirmLeave, setConfirmLeave] = useState(false)
   return (
     <section className="settings-section">
-      <h3>Overview</h3>
+      <h3>{t('settings.sections.overview')}</h3>
       <dl className="settings-facts">
-        <div><dt>Name</dt><dd>{server.name}</dd></div>
-        <div><dt>Your role</dt><dd className="capitalize">{server.me?.role ?? 'not joined'}</dd></div>
-        <div><dt>Address</dt><dd><code>{server.url}</code></dd></div>
-        <div><dt>Server ID</dt><dd><code>{fingerprint(server.key)}</code></dd></div>
+        <div><dt>{t('settings.overview.name')}</dt><dd>{server.name}</dd></div>
+        <div><dt>{t('settings.overview.yourRole')}</dt><dd className="capitalize">{server.me?.role ? t(`common.roles.${server.me.role}`) : t('settings.overview.notJoined')}</dd></div>
+        <div><dt>{t('settings.overview.address')}</dt><dd><code>{server.url}</code></dd></div>
+        <div><dt>{t('settings.overview.serverId')}</dt><dd><code>{fingerprint(server.key)}</code></dd></div>
       </dl>
       {server.me && <NicknameField server={server} member={server.me} />}
       <GifSettings server={server} />
       <div className="settings-danger">
         <div>
-          <strong>Remove from my list</strong>
-          <p className="muted">Hides this server here. You stay a member and can come back with any invite link.</p>
+          <strong>{t('settings.overview.removeTitle')}</strong>
+          <p className="muted">{t('settings.overview.removeHint')}</p>
         </div>
         {confirmLeave ? (
           <div className="copy-row">
-            <button className="button danger" onClick={() => { leaveServer(server.key); onClose() }}>Remove</button>
-            <button className="button" onClick={() => setConfirmLeave(false)}>Cancel</button>
+            <button className="button danger" onClick={() => { leaveServer(server.key); onClose() }}>{t('common.remove')}</button>
+            <button className="button" onClick={() => setConfirmLeave(false)}>{t('common.cancel')}</button>
           </div>
         ) : (
-          <button className="button danger-outline" onClick={() => setConfirmLeave(true)}>Remove server</button>
+          <button className="button danger-outline" onClick={() => setConfirmLeave(true)}>{t('settings.overview.removeServer')}</button>
         )}
       </div>
     </section>
@@ -166,13 +169,11 @@ function OverviewSection({ server, onClose }: { server: ServerState; onClose: ()
 }
 
 function PagesSection({ server }: { server: ServerState }) {
+  const { t } = useTranslation()
   return (
     <section className="settings-section">
-      <h3>Profile pages</h3>
-      <p className="muted">
-        Members can make a small web page that opens from their profile card. Pages run in a sandbox: they can't see anyone's account or
-        messages, and their scripts only run when the viewer allows it. Admins can remove any page.
-      </p>
+      <h3>{t('settings.sections.pages')}</h3>
+      <p className="muted">{t('settings.pages.intro')}</p>
       <ServerPagesOption server={server} />
     </section>
   )

@@ -1,5 +1,6 @@
 // Server stickers: the list per server (kept fresh by stickers.updated), sending one, and managing them (admins).
 import { create } from 'zustand'
+import { t } from '../i18n'
 import type { Events, Sticker } from '../core/protocol'
 import { connectionFor, onServerEvent, onWelcomeHook, sendMessage, uploadFile, type SendOptions } from './store'
 
@@ -30,17 +31,17 @@ export function sendSticker(serverKey: string, channelId: number, sticker: Stick
 
 /** Still images bigger than 320 px (or JPEGs) are shrunk to a PNG; GIFs must already fit. */
 export async function prepareStickerImage(file: File): Promise<File> {
-  if (!/^image\/(png|gif|webp|jpeg)$/.test(file.type)) throw new Error('Stickers must be PNG, GIF or WebP images.')
+  if (!/^image\/(png|gif|webp|jpeg)$/.test(file.type)) throw new Error(t('chat.stickers.wrongType'))
   const url = URL.createObjectURL(file)
   try {
     const image = new Image()
     image.src = url
     await image.decode().catch(() => {
-      throw new Error("Couldn't read that image.")
+      throw new Error(t('chat.stickers.unreadable'))
     })
     const { naturalWidth: width, naturalHeight: height } = image
     if (file.type === 'image/gif') {
-      if (width > MAX_SIDE || height > MAX_SIDE) throw new Error(`Animated stickers can be up to ${MAX_SIDE}×${MAX_SIDE} pixels.`)
+      if (width > MAX_SIDE || height > MAX_SIDE) throw new Error(t('chat.stickers.tooLarge', { side: MAX_SIDE }))
       return file
     }
     if (file.type !== 'image/jpeg' && width <= MAX_SIDE && height <= MAX_SIDE && file.size <= MAX_BYTES) return file
@@ -52,7 +53,7 @@ export async function prepareStickerImage(file: File): Promise<File> {
     context.imageSmoothingQuality = 'high'
     context.drawImage(image, 0, 0, canvas.width, canvas.height)
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
-    if (!blob) throw new Error("Couldn't read that image.")
+    if (!blob) throw new Error(t('chat.stickers.unreadable'))
     return new File([blob], file.name.replace(/\.\w+$/, '') + '.png', { type: 'image/png' })
   } finally {
     URL.revokeObjectURL(url)
@@ -61,7 +62,7 @@ export async function prepareStickerImage(file: File): Promise<File> {
 
 const connection = (serverKey: string) => {
   const c = connectionFor(serverKey)
-  if (!c?.isOnline) throw new Error('Not connected.')
+  if (!c?.isOnline) throw new Error(t('errors.codes.disconnected'))
   return c
 }
 

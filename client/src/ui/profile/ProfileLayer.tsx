@@ -1,6 +1,8 @@
 // Profile cards (a popover on wide screens, a bottom sheet on phones), the profile page viewer,
 // and the full member dialog they lead to. Rendered once by the Shell.
 import { useLayoutEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { errorMessage } from '../../i18n/errors'
 import { fingerprint } from '../../core/connection'
 import { pageScriptsAllowed, pageUrl, setPageScripts, wrapperDocument } from '../../core/profile'
 import { roleRank, type Member } from '../../core/protocol'
@@ -60,6 +62,7 @@ const CARD_WIDTH = 320
 const narrow = () => window.matchMedia('(max-width: 760px)').matches
 
 function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; member: Member; rect: DOMRect | null; onEdit: () => void }) {
+  const { t } = useTranslation()
   const ref = useRef<HTMLDivElement>(null)
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null)
   const sheet = !rect || narrow()
@@ -89,12 +92,12 @@ function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; me
         ref={ref}
         className="profile-card"
         role="dialog"
-        aria-label={`Profile of ${member.name}`}
+        aria-label={t('profile.cardLabel', { name: member.name })}
         tabIndex={-1}
         style={sheet ? undefined : { width: CARD_WIDTH, left: position?.left ?? -9999, top: position?.top ?? 0 }}
       >
         <div className="profile-banner" style={{ background: banner }}>
-          <button className="icon-button small profile-close" onClick={closeProfileCard} aria-label="Close">
+          <button className="icon-button small profile-close" onClick={closeProfileCard} aria-label={t('common.close')}>
             <Close />
           </button>
         </div>
@@ -108,7 +111,7 @@ function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; me
           {member.nick && member.profileName && member.profileName !== member.name && <div className="profile-realname">{member.profileName}</div>}
           <div className="profile-sub">
             {member.pronouns && <span>{member.pronouns}</span>}
-            <span className={`role-chip role-${member.role}`}>{member.role}</span>
+            <span className={`role-chip role-${member.role}`}>{t(`common.roles.${member.role}`)}</span>
             <span className="profile-status-label"><span className={`status-dot presence-${presence.status}`} aria-hidden />{STATUS_LABELS[presence.status]}</span>
           </div>
           {presence.custom && <div className="profile-status"><CustomStatusLine custom={presence.custom} /></div>}
@@ -119,25 +122,25 @@ function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; me
               {renderMarkdown(member.bio, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey })}
             </div>
           )}
-          <div className="profile-id muted">ID <code>{fingerprint(member.accountKey)}</code></div>
+          <div className="profile-id muted">{t('settings.member.id')} <code>{fingerprint(member.accountKey)}</code></div>
           <div className="profile-actions">
             {page && (
               <button className="button primary" onClick={() => openProfilePage(server.key, member.accountKey)}>
-                Open profile page
+                {t('profile.openPage')}
               </button>
             )}
             {!isSelf && (
-              <button className="button" onClick={() => { openConversation(member.accountKey); closeProfileCard() }}>Message</button>
+              <button className="button" onClick={() => { openConversation(member.accountKey); closeProfileCard() }}>{t('settings.member.message')}</button>
             )}
             {!isSelf && (isFriend ? (
-              <button className="button" onClick={() => void removeFriend(member.accountKey)}>Remove friend</button>
+              <button className="button" onClick={() => void removeFriend(member.accountKey)}>{t('settings.member.removeFriend')}</button>
             ) : (
-              <button className="button" onClick={() => void addFriend(member.accountKey)}>Add friend</button>
+              <button className="button" onClick={() => void addFriend(member.accountKey)}>{t('settings.member.addFriend')}</button>
             ))}
             {isSelf ? (
-              <button className="button" onClick={onEdit}>Edit profile</button>
+              <button className="button" onClick={onEdit}>{t('profile.edit')}</button>
             ) : (
-              <button className="button" onClick={() => openMemberDetails(server.key, member.accountKey)}>More</button>
+              <button className="button" onClick={() => openMemberDetails(server.key, member.accountKey)}>{t('common.more')}</button>
             )}
           </div>
         </div>
@@ -151,6 +154,7 @@ function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; me
  * viewer turns them on for this version of the page.
  */
 export function PageViewer({ server, member }: { server: ServerState; member: Member }) {
+  const { t } = useTranslation()
   const url = pageUrl(server.url, member.page)
   const me = server.me
   const canRemove = !!me && me.accountKey !== member.accountKey && roleRank(me.role) >= roleRank('admin') && roleRank(me.role) > roleRank(member.role)
@@ -163,21 +167,19 @@ export function PageViewer({ server, member }: { server: ServerState; member: Me
   }
 
   return (
-    <Modal title={`${member.name}'s page`} onClose={closeProfilePage} wide>
-      <p className="page-note muted">
-        Made by {member.name}. It runs in a sandbox: it can't see your account, your messages or anything on this device.
-      </p>
+    <Modal title={t('profile.viewerTitle', { name: member.name })} onClose={closeProfilePage} wide>
+      <p className="page-note muted">{t('profile.madeBy', { name: member.name })}</p>
       {url && !isSelf && (
         <div className="page-scripts">
           {scripts ? (
             <>
-              <span>Scripts are on. The author could learn your IP address.</span>
-              <button className="button small" onClick={() => choose(false)}>Turn off</button>
+              <span>{t('profile.scriptsOn')}</span>
+              <button className="button small" onClick={() => choose(false)}>{t('keys.appLock.turnOff')}</button>
             </>
           ) : (
             <>
-              <span>Run this page's scripts? The author could learn your IP address.</span>
-              <button className="button small" onClick={() => choose(true)}>Run scripts</button>
+              <span>{t('profile.runScriptsQuestion')}</span>
+              <button className="button small" onClick={() => choose(true)}>{t('profile.runScripts')}</button>
             </>
           )}
         </div>
@@ -186,22 +188,22 @@ export function PageViewer({ server, member }: { server: ServerState; member: Me
         <iframe
           key={scripts ? 'scripts' : 'static'}
           className="page-frame"
-          title={`${member.name}'s profile page`}
+          title={t('profile.frameTitle', { name: member.name })}
           srcDoc={wrapperDocument(url, scripts)}
           referrerPolicy="no-referrer"
         />
       ) : (
-        <p className="muted">This page isn't available.</p>
+        <p className="muted">{t('profile.unavailable')}</p>
       )}
       {canRemove && (
         <div className="copy-row page-admin">
           <button
             className="button danger-outline small"
             onClick={() =>
-              void removeMemberPage(server.key, member).then(closeProfilePage, (e: Error) => setError(e.message))
+              void removeMemberPage(server.key, member).then(closeProfilePage, (e: Error) => setError(errorMessage(e)))
             }
           >
-            Remove this page
+            {t('profile.removePage')}
           </button>
           {error && <span className="error-text">{error}</span>}
         </div>

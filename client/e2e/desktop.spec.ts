@@ -24,7 +24,7 @@ test('the desktop app runs the web app on app:// and can join a server', async (
   const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'NODE_OPTIONS')) as Record<string, string>
   const app = await electron.launch({
     executablePath: join(DESKTOP, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron'),
-    args: [DESKTOP, `--user-data-dir=${userData}`],
+    args: [DESKTOP, `--user-data-dir=${userData}`, '--lang=en-US'],
     cwd: DESKTOP,
     env: { ...env, ISKRA_E2E: '1' },
   })
@@ -170,7 +170,7 @@ test('creating a server from the desktop app makes you its owner', async () => {
   const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'NODE_OPTIONS')) as Record<string, string>
   const app = await electron.launch({
     executablePath: join(DESKTOP, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron'),
-    args: [DESKTOP, `--user-data-dir=${userData}`],
+    args: [DESKTOP, `--user-data-dir=${userData}`, '--lang=en-US'],
     cwd: DESKTOP,
     env: { ...env, ISKRA_HOST_ROOT: hostRoot, ISKRA_LOCAL_ONLY: "1" },
   })
@@ -207,7 +207,7 @@ test('Desktop app settings, the unread badge, and iskra:// invite links', async 
   const linkServer = await startServer('Desktop Links')
   const token = linkServer.ownerLink().split('/join/')[1]
   // Started by clicking an invite link: the app opens on that invite.
-  const app = await electron.launch({ executablePath: electronExe, args: [DESKTOP, `--user-data-dir=${userData}`, `iskra://join/${token}`], cwd: DESKTOP, env })
+  const app = await electron.launch({ executablePath: electronExe, args: [DESKTOP, `--user-data-dir=${userData}`, '--lang=en-US', `iskra://join/${token}`], cwd: DESKTOP, env })
   try {
     const page = await app.firstWindow()
     await expect(page.getByText("You've been invited")).toBeVisible()
@@ -218,7 +218,7 @@ test('Desktop app settings, the unread badge, and iskra:// invite links', async 
 
     // A second launch with a link (another click) goes to the running app; only invites get through.
     const second = (link: string) => new Promise<void>((done) => {
-      spawn(electronExe, [DESKTOP, `--user-data-dir=${userData}`, link], { cwd: DESKTOP, env, stdio: 'ignore' }).once('exit', () => done())
+      spawn(electronExe, [DESKTOP, `--user-data-dir=${userData}`, '--lang=en-US', link], { cwd: DESKTOP, env, stdio: 'ignore' }).once('exit', () => done())
     })
     await second(`iskra://link/${token}`)
     await page.waitForTimeout(500)
@@ -288,7 +288,7 @@ test('restoring a server from a backup in the desktop app', async () => {
   const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'NODE_OPTIONS')) as Record<string, string>
   const app = await electron.launch({
     executablePath: join(DESKTOP, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron'),
-    args: [DESKTOP, `--user-data-dir=${userData}`],
+    args: [DESKTOP, `--user-data-dir=${userData}`, '--lang=en-US'],
     cwd: DESKTOP,
     env: { ...env, ISKRA_HOST_ROOT: hostRoot, ISKRA_LOCAL_ONLY: '1' },
   })

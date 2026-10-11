@@ -1,5 +1,6 @@
 // Pure helpers for voice user limits and server rules (unit-tested; no React or sockets here).
 import type { ServerRules } from '../core/protocol'
+import { t } from '../i18n'
 
 export const MAX_USER_LIMIT = 99
 export const MAX_RULES_LENGTH = 6000
@@ -51,8 +52,8 @@ export function rulesUpdate(current: ServerRules | undefined, draft: RulesDraft)
 
 /** Can the draft be saved? Returns why not, or null. */
 export function rulesProblem(draft: RulesDraft): string | null {
-  if (draft.text.trim().length > MAX_RULES_LENGTH) return `Rules can be up to ${MAX_RULES_LENGTH} characters.`
-  if (draft.welcome.trim().length > MAX_WELCOME_LENGTH) return `The welcome message can be up to ${MAX_WELCOME_LENGTH} characters.`
-  if (draft.required && !draft.text.trim()) return 'Write the rules before asking people to agree to them.'
+  if (draft.text.trim().length > MAX_RULES_LENGTH) return t('rules.problems.rulesTooLong', { max: MAX_RULES_LENGTH })
+  if (draft.welcome.trim().length > MAX_WELCOME_LENGTH) return t('rules.problems.welcomeTooLong', { max: MAX_WELCOME_LENGTH })
+  if (draft.required && !draft.text.trim()) return t('rules.problems.writeFirst')
   return null
 }

@@ -3,6 +3,9 @@
 // Decrypted messages are also kept on this device: with forward secrecy, old envelopes on the
 // servers stop being readable once their prekey is deleted, so the local copy is the history.
 import { create } from 'zustand'
+import type { ParseKeys } from 'i18next'
+import { t } from '../i18n'
+import { errorMessage } from '../i18n/errors'
 import { b64u } from '../core/crypto'
 import { revokedSet } from '../core/devices'
 import { decryptDm, DmError, encryptDm, type DmContent, type DmEnvelope, type DmForward } from '../core/dm'
@@ -16,6 +19,34 @@ import { keysReady, resolveKey, sameAccount } from './keyMap'
 import type { Rotation } from '../core/rotation'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 import { dmConv, moveConversation, noteMessage, seeConversation } from './readState'
+
+/** The English texts of core's DmErrors (core can't translate: the bot SDK shares it), by key. */
+const CORE_ERRORS: Record<string, ParseKeys> = {
+  "This person hasn't got any devices we can encrypt to yet.": 'dms.errors.noDevices',
+  "This message was locked to an older key that this device has since deleted, so it can't be read here.": 'dms.errors.oldKey',
+  "This message couldn't be decrypted.": 'dms.errors.notDecrypted',
+  'Unsupported message format.': 'dms.errors.unsupportedFormat',
+  "This message's sender or recipient doesn't match.": 'dms.errors.mismatch',
+  "This message isn't for you.": 'dms.errors.notForYou',
+  "The sender's device couldn't be verified.": 'dms.errors.unverified',
+  "This message wasn't encrypted for this device.": 'dms.errors.notForDevice',
+  'This message was tampered with.': 'dms.errors.tampered',
+  'Unsupported message content.': 'dms.errors.unsupportedContent',
+  "This file doesn't match what was sent.": 'dms.errors.fileMismatch',
+  'This file is damaged.': 'dms.errors.fileDamaged',
+}
+
+/** What to show for a DM or group DM error: core's messages translated, server errors by code, else the text. */
+export function dmErrorText(e: unknown): string {
+  const message = (e as Error | null)?.message
+  if (typeof message === 'string') {
+    const key = CORE_ERRORS[message]
+    if (key) return t(key) as string
+    const length = /^Messages must be 1–(\d+) characters\.$/.exec(message)
+    if (length) return t('dms.errors.length', { max: Number(length[1]) })
+  }
+  return errorMessage(e)
+}
 
 export interface Dm {
   /** The id inside the encrypted header; the same on every server and device. */
@@ -79,7 +110,7 @@ export function nameOf(accountKey: string): string {
     const member = server.members[accountKey]
     if (member) return member.profileName ?? member.name // DMs aren't on a server: their own name, not a nickname
   }
-  return useDms.getState().friends[accountKey]?.name ?? 'Someone'
+  return useDms.getState().friends[accountKey]?.name ?? t('common.someone')
 }
 
 export function isOnline(accountKey: string): boolean {
@@ -114,7 +145,7 @@ function open(wire: WireDm): Dm {
     return {
       id: typeof headerId === 'string' && headerId.length <= 32 ? headerId : `server-${wire.id}-${wire.createdAt}`,
       from: resolveKey(wire.from), to: resolveKey(wire.to), text: '', sentAt: wire.createdAt,
-      error: e instanceof DmError ? e.message : "This message couldn't be read.",
+      error: e instanceof DmError ? dmErrorText(e) : t('dms.errors.unreadable'),
     }
   }
 }
@@ -294,7 +325,7 @@ export async function devicesOf(serverKey: string, accountKey: string): Promise<
  */
 export async function encryptFor(serverKey: string, peer: string, content: DmContent): Promise<DmEnvelope> {
   const identity = useApp.getState().identity
-  if (!identity) throw new DmError('No account on this device.')
+  if (!identity) throw new DmError(t('dms.errors.noAccount'))
   const mine = me()
   const [theirs, ours, ownRevoked] = await Promise.all([bundleOf(serverKey, peer), bundleOf(serverKey, mine), ownRevokedDevices(), ensurePrekeys()])
   const revokedDevices = [...revokedSet(peer, theirs.revoked), ...revokedSet(mine, ours.revoked), ...ownRevoked]
@@ -317,7 +348,7 @@ export async function sendDm(peer: string, text: string, extra: Pick<DmContent, 
   let id = tempId
   const isOurs = (m: Dm) => m.id === id && m.from === mine
   try {
-    if (!identity || !route) throw new DmError("You don't share an online server with this person right now.")
+    if (!identity || !route) throw new DmError(t('dms.errors.noSharedServer'))
     const envelope = await encryptFor(route, peer, { text, ...extra })
     // The placeholder takes the real id before sending, so our own dm.message echo (which can arrive before the
     // request's result) merges into it instead of showing the message twice.
@@ -328,7 +359,7 @@ export async function sendDm(peer: string, text: string, extra: Pick<DmContent, 
     patchConversation(peer, (c) => ({ messages: upsert(c.messages.filter((m) => !isOurs(m)), sent) }))
   } catch (e) {
     patchConversation(peer, (c) => ({
-      messages: c.messages.map((m) => (isOurs(m) ? { ...m, pending: 'failed' as const, error: (e as Error).message } : m)),
+      messages: c.messages.map((m) => (isOurs(m) ? { ...m, pending: 'failed' as const, error: dmErrorText(e) } : m)),
     }))
   }
 }

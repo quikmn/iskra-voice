@@ -1,6 +1,9 @@
 // Creating or editing an event. Times are typed as wall-clock times in a chosen time zone (yours by default)
 // and sent as UTC, with the zone, so everyone sees the right moment in their own time.
 import { useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { errorMessage } from '../../i18n/errors'
+import { formatDate } from '../../i18n/format'
 import type { FileInfo, ServerEvent } from '../../core/protocol'
 import { uploadFile, type ServerState } from '../../state/store'
 import { createEvent, updateEvent } from '../../state/events'
@@ -20,6 +23,7 @@ function defaultStart(): number {
 }
 
 export function EventForm({ server, event, onBack, onClose }: { server: ServerState; event?: ServerEvent; onBack: () => void; onClose: () => void }) {
+  const { t } = useTranslation()
   const initialZone = event?.timeZone ?? localZone()
   const initialStart = event?.startAt ?? defaultStart()
   const initialEnd = event?.endAt ?? initialStart + 2 * 3_600_000
@@ -46,25 +50,25 @@ export function EventForm({ server, event, onBack, onClose }: { server: ServerSt
 
   const startAt = zonedToUtc(start.date, start.time, zone)
   const endAt = zonedToUtc(end.date, end.time, zone)
-  const problem = !title.trim() ? 'Give it a title.'
-    : startAt === null || endAt === null ? 'Pick a date and time.'
-      : !live && startAt < opened - 60_000 ? 'Pick a time in the future.'
-        : endAt <= startAt ? 'The end has to be after the start.'
-          : endAt - startAt > 7 * 24 * 3_600_000 ? 'Events can last up to 7 days.'
-            : where === 'voice' && channelId === null ? 'Pick a voice channel.'
-              : where === 'place' && !place.trim() ? 'Say where it is.'
+  const problem = !title.trim() ? t('events.form.problems.title')
+    : startAt === null || endAt === null ? t('events.form.problems.time')
+      : !live && startAt < opened - 60_000 ? t('events.form.problems.future')
+        : endAt <= startAt ? t('events.form.problems.endAfterStart')
+          : endAt - startAt > 7 * 24 * 3_600_000 ? t('events.form.problems.tooLong')
+            : where === 'voice' && channelId === null ? t('events.form.problems.voice')
+              : where === 'place' && !place.trim() ? t('events.form.problems.place')
                 : null
 
   async function pickImage(file: File | undefined) {
     if (!file) return
-    if (!IMAGE_TYPES.includes(file.type)) return setError('Cover images must be PNG, JPEG, WebP or GIF.')
-    if (file.size > MAX_IMAGE_BYTES) return setError('Cover images can be up to 5 MB.')
+    if (!IMAGE_TYPES.includes(file.type)) return setError(t('events.form.problems.imageType'))
+    if (file.size > MAX_IMAGE_BYTES) return setError(t('events.form.problems.imageSize'))
     setError(null)
     setUploading(0)
     try {
       setImage(await uploadFile(server.key, file, (p) => setUploading(p)))
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
     } finally {
       setUploading(null)
     }
@@ -100,92 +104,92 @@ export function EventForm({ server, event, onBack, onClose }: { server: ServerSt
       }
       onBack()
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
       setBusy(false)
     }
   }
 
   return (
     <Modal
-      title={event ? 'Edit event' : 'Schedule an event'}
+      title={event ? t('events.form.edit') : t('events.form.schedule')}
       onBack={onBack}
       onClose={onClose}
       wide
       className="events-modal"
       footer={
         <>
-          <button className="button" onClick={onBack}>Back</button>
+          <button className="button" onClick={onBack}>{t('common.back')}</button>
           <button className="button primary" disabled={!!problem || busy || uploading !== null} onClick={() => void save()}>
-            {event ? 'Save' : 'Schedule'}
+            {event ? t('common.save') : t('events.form.scheduleButton')}
           </button>
         </>
       }
     >
       <label className="field">
-        <span>Title</span>
-        <input value={title} maxLength={100} autoFocus onChange={(e) => setTitle(e.target.value)} placeholder="Game night" />
+        <span>{t('events.form.title')}</span>
+        <input value={title} maxLength={100} autoFocus onChange={(e) => setTitle(e.target.value)} placeholder={t('events.form.titlePlaceholder')} />
       </label>
       <label className="field">
-        <span>Description</span>
-        <textarea value={description} maxLength={1000} rows={3} onChange={(e) => setDescription(e.target.value)} placeholder="What's the plan? (optional)" />
+        <span>{t('events.form.description')}</span>
+        <textarea value={description} maxLength={1000} rows={3} onChange={(e) => setDescription(e.target.value)} placeholder={t('events.form.descriptionPlaceholder')} />
       </label>
 
       <div className="event-times">
         <label className="field">
-          <span>Starts</span>
+          <span>{t('events.form.starts')}</span>
           <div className="date-time">
-            <input type="date" aria-label="Start date" value={start.date} disabled={live} onChange={(e) => changeStart({ ...start, date: e.target.value })} />
-            <input type="time" aria-label="Start time" value={start.time} disabled={live} onChange={(e) => changeStart({ ...start, time: e.target.value })} />
+            <input type="date" aria-label={t('events.form.startDate')} value={start.date} disabled={live} onChange={(e) => changeStart({ ...start, date: e.target.value })} />
+            <input type="time" aria-label={t('events.form.startTime')} value={start.time} disabled={live} onChange={(e) => changeStart({ ...start, time: e.target.value })} />
           </div>
         </label>
         <label className="field">
-          <span>Ends</span>
+          <span>{t('events.form.ends')}</span>
           <div className="date-time">
-            <input type="date" aria-label="End date" value={end.date} onChange={(e) => setEnd({ ...end, date: e.target.value })} />
-            <input type="time" aria-label="End time" value={end.time} onChange={(e) => setEnd({ ...end, time: e.target.value })} />
+            <input type="date" aria-label={t('events.form.endDate')} value={end.date} onChange={(e) => setEnd({ ...end, date: e.target.value })} />
+            <input type="time" aria-label={t('events.form.endTime')} value={end.time} onChange={(e) => setEnd({ ...end, time: e.target.value })} />
           </div>
         </label>
       </div>
       <label className="field">
-        <span>Time zone</span>
+        <span>{t('events.form.zone')}</span>
         <select value={zone} disabled={live} onChange={(e) => setZone(e.target.value)}>
           {zones.map((z) => <option key={z} value={z}>{z.replace(/_/g, ' ')}</option>)}
         </select>
       </label>
       {zone !== localZone() && startAt !== null && (
-        <p className="muted event-local-hint">That's {new Date(startAt).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })} your time.</p>
+        <p className="muted event-local-hint">{t('events.form.yourTime', { time: formatDate(startAt, { weekday: 'short', hour: 'numeric', minute: '2-digit' }) })}</p>
       )}
 
       <div className="field">
-        <span>Where</span>
-        <div className="segmented" role="radiogroup" aria-label="Where">
+        <span>{t('events.form.where')}</span>
+        <div className="segmented" role="radiogroup" aria-label={t('events.form.where')}>
           <button role="radio" aria-checked={where === 'voice'} className={where === 'voice' ? 'on' : ''} disabled={voiceChannels.length === 0} onClick={() => setWhere('voice')}>
-            <Volume size={16} /> Voice channel
+            <Volume size={16} /> {t('events.form.voiceChannel')}
           </button>
           <button role="radio" aria-checked={where === 'place'} className={where === 'place' ? 'on' : ''} onClick={() => setWhere('place')}>
-            <MapPin size={16} /> Somewhere else
+            <MapPin size={16} /> {t('events.form.elsewhere')}
           </button>
         </div>
         {where === 'voice' ? (
-          <select aria-label="Voice channel" value={channelId ?? ''} onChange={(e) => setChannelId(Number(e.target.value))}>
-            {channelId !== null && !voiceChannels.some((c) => c.id === channelId) && <option value={channelId}>A voice channel</option>}
+          <select aria-label={t('events.form.voiceChannel')} value={channelId ?? ''} onChange={(e) => setChannelId(Number(e.target.value))}>
+            {channelId !== null && !voiceChannels.some((c) => c.id === channelId) && <option value={channelId}>{t('events.aVoiceChannel')}</option>}
             {voiceChannels.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         ) : (
-          <input aria-label="Place" value={place} maxLength={100} onChange={(e) => setPlace(e.target.value)} placeholder="A link, an address, or a game server" />
+          <input aria-label={t('events.form.place')} value={place} maxLength={100} onChange={(e) => setPlace(e.target.value)} placeholder={t('events.form.placePlaceholder')} />
         )}
       </div>
 
       <div className="field">
-        <span>Cover image</span>
+        <span>{t('events.form.cover')}</span>
         {image ? (
           <div className="event-cover-preview">
-            <img src={server.url + image.url} alt="Cover" />
-            <button className="icon-button" aria-label="Remove cover image" onClick={() => setImage(null)}><Close size={16} /></button>
+            <img src={server.url + image.url} alt={t('events.form.coverAlt')} />
+            <button className="icon-button" aria-label={t('events.form.removeCover')} onClick={() => setImage(null)}><Close size={16} /></button>
           </div>
         ) : (
           <button className="button small cover-pick" onClick={() => fileInput.current?.click()} disabled={uploading !== null}>
-            <ImageIcon size={14} /> {uploading !== null ? `Uploading ${Math.round(uploading * 100)}%` : 'Add a cover image'}
+            <ImageIcon size={14} /> {uploading !== null ? t('events.form.uploading', { percent: Math.round(uploading * 100) }) : t('events.form.addCover')}
           </button>
         )}
         <input ref={fileInput} type="file" accept={IMAGE_TYPES.join(',')} hidden onChange={(e) => { void pickImage(e.target.files?.[0]); e.target.value = '' }} />

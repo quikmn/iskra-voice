@@ -1,5 +1,7 @@
 // The composer's picker: Emoji / GIFs / Stickers tabs in one popover (a sheet on phones).
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useTranslation } from 'react-i18next'
+import { errorMessage } from '../../i18n/errors'
 import type { GifCategory, GifResult, MessageGif, Sticker } from '../../core/protocol'
 import { serverFileUrl } from '../../state/expressions'
 import { gifCategories, isFavourite, searchGifs, toggleFavourite, trendingGifs, useGifs, useGifStatus } from '../../state/gifs'
@@ -13,11 +15,11 @@ import { StickerPanel } from './Stickers'
 import './gifs.css'
 
 export type ExpressionTab = 'emoji' | 'gifs' | 'stickers'
-const TABS: { id: ExpressionTab; label: string }[] = [
-  { id: 'emoji', label: 'Emoji' },
-  { id: 'gifs', label: 'GIFs' },
-  { id: 'stickers', label: 'Stickers' },
-]
+const TABS = [
+  { id: 'emoji', label: 'chat.picker.emoji' },
+  { id: 'gifs', label: 'chat.picker.gifs' },
+  { id: 'stickers', label: 'chat.picker.stickers' },
+] as const
 
 export function ExpressionPicker({ server, anchor, initialTab = 'emoji', onEmoji, onGif, onSticker, onClose }: {
   server: ServerState
@@ -29,11 +31,12 @@ export function ExpressionPicker({ server, anchor, initialTab = 'emoji', onEmoji
   onClose: () => void
 }) {
   const [tab, setTab] = useState<ExpressionTab>(initialTab)
+  const { t } = useTranslation()
   const tabs = (
-    <div className="expression-tabs" role="tablist" aria-label="Pick">
-      {TABS.map((t) => (
-        <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'active' : ''} onClick={() => setTab(t.id)}>
-          {t.label}
+    <div className="expression-tabs" role="tablist" aria-label={t('chat.picker.pick')}>
+      {TABS.map((tb) => (
+        <button key={tb.id} role="tab" aria-selected={tab === tb.id} className={tab === tb.id ? 'active' : ''} onClick={() => setTab(tb.id)}>
+          {t(tb.label)}
         </button>
       ))}
     </div>
@@ -64,6 +67,7 @@ function GifPanel({ server, onPick }: { server: ServerState; onPick: (gif: GifRe
   const [categories, setCategories] = useState<GifCategory[]>([])
   const [view, setView] = useState<'browse' | 'favourites'>('browse')
   const run = useRef(0)
+  const { t } = useTranslation()
 
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(query.trim()), 350)
@@ -93,7 +97,7 @@ function GifPanel({ server, onPick }: { server: ServerState; onPick: (gif: GifRe
       setPage(next)
       setHasNext(result.hasNext && next < 50)
     } catch (e) {
-      if (id === run.current) setError((e as Error).message)
+      if (id === run.current) setError(errorMessage(e))
     } finally {
       if (id === run.current) setBusy(false)
     }
@@ -103,9 +107,9 @@ function GifPanel({ server, onPick }: { server: ServerState; onPick: (gif: GifRe
   if (!enabled) {
     return (
       <div className="gif-panel gif-center gif-off">
-        <strong>GIFs aren't on for this server yet</strong>
-        <p className="muted">An admin can turn them on in Settings → Overview with a free API key from KLIPY.</p>
-        <a className="button small" href={LINKS.gifsGuide} target="_blank" rel="noopener noreferrer">How to set up GIFs</a>
+        <strong>{t('chat.picker.offTitle')}</strong>
+        <p className="muted">{t('chat.picker.offHint')}</p>
+        <a className="button small" href={LINKS.gifsGuide} target="_blank" rel="noopener noreferrer">{t('chat.picker.setUp')}</a>
       </div>
     )
   }
@@ -114,32 +118,32 @@ function GifPanel({ server, onPick }: { server: ServerState; onPick: (gif: GifRe
   return (
     <div className="gif-panel">
       <div className="gif-top">
-        <input className="gif-search" value={query} onChange={(e) => { setQuery(e.target.value); setView('browse') }} placeholder="Search GIFs" aria-label="Search GIFs" maxLength={100} />
-        <button className={`gif-fav-toggle ${view === 'favourites' ? 'on' : ''}`} aria-pressed={view === 'favourites'} onClick={() => setView(view === 'favourites' ? 'browse' : 'favourites')} title="Favourites" aria-label={`Favourite GIFs (${favourites?.length ?? 0})`}>
+        <input className="gif-search" value={query} onChange={(e) => { setQuery(e.target.value); setView('browse') }} placeholder={t('chat.picker.searchGifs')} aria-label={t('chat.picker.searchGifs')} maxLength={100} />
+        <button className={`gif-fav-toggle ${view === 'favourites' ? 'on' : ''}`} aria-pressed={view === 'favourites'} onClick={() => setView(view === 'favourites' ? 'browse' : 'favourites')} title={t('chat.picker.favourites')} aria-label={t('chat.picker.favouriteCount', { n: favourites?.length ?? 0 })}>
           ★ <span>{favourites?.length ?? 0}</span>
         </button>
       </div>
       {view === 'browse' && !debounced && categories.length > 0 && (
-        <div className="gif-categories" role="list" aria-label="Categories">
+        <div className="gif-categories" role="list" aria-label={t('chat.picker.categories')}>
           {categories.slice(0, 20).map((c) => (
             <button key={c.query} role="listitem" onClick={() => setQuery(c.query)}>{c.name}</button>
           ))}
         </div>
       )}
       <div className="gif-scroll">
-        {view === 'browse' && <h4 className="gif-heading">{debounced ? `Results for “${debounced}”` : 'Trending'}</h4>}
-        {view === 'favourites' && !shown.length && <p className="muted picker-empty">Star a GIF to keep it here (on this device).</p>}
-        {view === 'browse' && !busy && !error && !gifs.length && <p className="muted picker-empty">No GIFs found.</p>}
+        {view === 'browse' && <h4 className="gif-heading">{debounced ? t('chat.picker.resultsFor', { query: debounced }) : t('chat.picker.trending')}</h4>}
+        {view === 'favourites' && !shown.length && <p className="muted picker-empty">{t('chat.picker.favouritesEmpty')}</p>}
+        {view === 'browse' && !busy && !error && !gifs.length && <p className="muted picker-empty">{t('chat.picker.noGifs')}</p>}
         <div className="gif-grid">
           {shown.map((gif) => (
             <div key={gif.id} className="gif-cell" style={{ aspectRatio: gif.width && gif.height ? `${gif.width} / ${gif.height}` : undefined }}>
-              <button className="gif-send" onClick={() => onPick(gif)} aria-label={`Send GIF: ${gif.title}`} title={gif.title}>
+              <button className="gif-send" onClick={() => onPick(gif)} aria-label={t('chat.picker.sendGif', { title: gif.title })} title={gif.title}>
                 <GifImage server={server} url={gif.preview} direct={!!gif.direct} alt="" />
               </button>
               <button
                 className={`gif-star ${isFavourite(favourites, gif) ? 'on' : ''}`}
                 onClick={() => toggleFavourite(server.key, gif)}
-                aria-label={isFavourite(favourites, gif) ? `Remove ${gif.title} from favourites` : `Add ${gif.title} to favourites`}
+                aria-label={isFavourite(favourites, gif) ? t('chat.picker.unfavourite', { title: gif.title }) : t('chat.picker.favourite', { title: gif.title })}
                 aria-pressed={isFavourite(favourites, gif)}
               >
                 ★
@@ -149,10 +153,10 @@ function GifPanel({ server, onPick }: { server: ServerState; onPick: (gif: GifRe
         </div>
         {error && <p className="error-text picker-empty">{error}</p>}
         {busy && <div className="gif-center"><Spinner /></div>}
-        {view === 'browse' && hasNext && !busy && <button className="button small gif-more" onClick={() => void load(page + 1)}>Load more</button>}
+        {view === 'browse' && hasNext && !busy && <button className="button small gif-more" onClick={() => void load(page + 1)}>{t('chat.picker.loadMore')}</button>}
       </div>
       <footer className="gif-attribution muted">
-        Powered by KLIPY · {isDirect ? 'KLIPY sees your address and searches' : `through ${server.name}, so KLIPY doesn't see who you are`}
+        {t('chat.picker.poweredBy')} · {isDirect ? t('chat.picker.directNote') : t('chat.picker.proxyNote', { name: server.name })}
       </footer>
     </div>
   )
@@ -174,6 +178,7 @@ export function GifMessage({ server, gif }: { server: ServerState; gif: MessageG
   const [open, setOpen] = useState(false)
   const autoLoad = useGifs((s) => s.autoLoad)
   const [load, setLoad] = useState(false)
+  const { t } = useTranslation()
   const scale = Math.min(1, 320 / (gif.width || 320), 240 / (gif.height || 240))
   const size = gif.width && gif.height ? { width: Math.round(gif.width * scale), height: Math.round(gif.height * scale) } : { width: 240, height: 180 }
   if (gif.direct) {
@@ -181,9 +186,9 @@ export function GifMessage({ server, gif }: { server: ServerState; gif: MessageG
       return (
         <button className="gif-click-to-load" style={size} onClick={() => setLoad(true)}>
           <span className="chat-gif-badge" aria-hidden>GIF</span>
-          <strong>Load GIF from KLIPY</strong>
+          <strong>{t('chat.picker.loadGif')}</strong>
           <span className="muted">{gif.title}</span>
-          <span className="muted gif-note">KLIPY will see your address</span>
+          <span className="muted gif-note">{t('chat.picker.loadGifNote')}</span>
         </button>
       )
     }
@@ -198,7 +203,7 @@ export function GifMessage({ server, gif }: { server: ServerState; gif: MessageG
   if (!url) return null
   return (
     <>
-      <button className="attachment-image chat-gif" onClick={() => setOpen(true)} aria-label={`GIF: ${gif.title}`}>
+      <button className="attachment-image chat-gif" onClick={() => setOpen(true)} aria-label={t('chat.picker.gifLabel', { title: gif.title })}>
         <img src={url} alt={gif.title} loading="lazy" style={size} />
         <span className="chat-gif-badge" aria-hidden>GIF</span>
       </button>

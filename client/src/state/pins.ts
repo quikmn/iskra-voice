@@ -1,6 +1,7 @@
 // Pinned messages. Pinning is announced with an event; the "X pinned a message" note in the
 // timeline is drawn from it (it isn't a message, so it isn't in history after a reload).
 import { create } from 'zustand'
+import { t } from '../i18n'
 import { roleRank, type Events, type Message, type Pin } from '../core/protocol'
 import { canSendIn, has } from './permissions'
 import { rolesFor } from './roles'
@@ -34,7 +35,7 @@ export function canPin(server: ServerState, channelId: number): boolean {
 
 export async function setPinned(serverKey: string, message: Message, on: boolean): Promise<void> {
   const connection = connectionFor(serverKey)
-  if (!connection) throw new Error('Not connected.')
+  if (!connection) throw new Error(t('errors.codes.disconnected'))
   await connection.request('chat.pin', { id: message.id, on })
 }
 

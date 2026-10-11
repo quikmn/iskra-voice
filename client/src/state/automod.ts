@@ -1,6 +1,7 @@
 // AutoMod settings: the defaults, the suggested preset and the form <-> settings conversion (no React, no socket).
 // The server checks everything again; these limits only let the form say what's wrong before saving.
 import type { AutoModAction, AutoModConfig, AutoModRule } from '../core/protocol'
+import { t } from '../i18n'
 
 export const AUTOMOD_LIMITS = { blocked: 500, allowed: 100, wordLength: 50, wildcards: 4, domains: 50 } as const
 
@@ -56,11 +57,11 @@ export function parseList(text: string): string[] {
 
 /** The first problem with a word list, or null. */
 export function wordListProblem(entries: string[], max: number): string | null {
-  if (entries.length > max) return `Up to ${max} entries (this has ${entries.length}).`
+  if (entries.length > max) return t('automod.problems.tooMany', { max, count: entries.length })
   for (const e of entries) {
-    if (e.length > AUTOMOD_LIMITS.wordLength) return `"${e.slice(0, 20)}…" is longer than ${AUTOMOD_LIMITS.wordLength} characters.`
-    if (!/[\p{L}\p{N}]/u.test(e)) return `"${e}" needs at least one letter or digit.`
-    if ((e.match(/\*/g) ?? []).length > AUTOMOD_LIMITS.wildcards) return `"${e}" has more than ${AUTOMOD_LIMITS.wildcards} *.`
+    if (e.length > AUTOMOD_LIMITS.wordLength) return t('automod.problems.tooLong', { start: e.slice(0, 20), max: AUTOMOD_LIMITS.wordLength })
+    if (!/[\p{L}\p{N}]/u.test(e)) return t('automod.problems.noLetter', { entry: e })
+    if ((e.match(/\*/g) ?? []).length > AUTOMOD_LIMITS.wildcards) return t('automod.problems.wildcards', { entry: e, max: AUTOMOD_LIMITS.wildcards })
   }
   return null
 }
@@ -72,13 +73,10 @@ export function parseDomains(text: string): { domains: string[]; bad: string | n
   return { domains: [...new Set(domains)], bad }
 }
 
-export const RULE_LABELS: Record<AutoModRule, string> = {
-  words: 'Blocked word',
-  mentions: 'Mention spam',
-  flood: 'Sending too fast',
-  duplicates: 'Repeated message',
-  links: 'Link',
-}
+const RULES: readonly string[] = ['words', 'mentions', 'flood', 'duplicates', 'links'] satisfies AutoModRule[]
+
+/** "Blocked word"; a rule this app doesn't know yet as is. */
+export const ruleLabel = (rule: string): string => (RULES.includes(rule) ? t(`automod.ruleLabels.${rule as AutoModRule}`) : rule)
 
 /** How many rules are on (for the summary line). */
 export const activeRules = (c: AutoModConfig): AutoModRule[] =>

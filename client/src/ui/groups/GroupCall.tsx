@@ -12,6 +12,8 @@ import { Avatar } from '../bits'
 import { Lock, Phone, PhoneOff, Video } from '../icons'
 import { CallControls, VideoTile } from '../VoiceStage'
 import '../calls/calls.css'
+import { useTranslation } from 'react-i18next'
+import { groupText } from './groupText'
 
 const myKey = () => {
   const identity = useApp.getState().identity
@@ -43,6 +45,7 @@ function useTicker(on: boolean): number {
 
 /** Start a voice or video call, or join the one going on. */
 export function GroupCallButtons({ groupKey }: { groupKey: string }) {
+  const { t } = useTranslation()
   const g = useGroups((s) => s.groups[groupKey])
   const call = useGroupCalls((s) => s.calls[groupKey])
   const joined = useGroupCalls((s) => s.joined)
@@ -52,18 +55,19 @@ export function GroupCallButtons({ groupKey }: { groupKey: string }) {
   const busy = isBusy(dmCall) || !!joined
   if (call) {
     return (
-      <button className="button small join-call" disabled={busy} onClick={() => void joinOngoingCall(groupKey)} title={busy ? "You're already in a call" : 'Join the call'}>
-        <Phone size={15} /> Join call
+      <button className="button small join-call" disabled={busy} onClick={() => void joinOngoingCall(groupKey)} title={busy ? t('calls.alreadyInCall') : t('groups.call.joinTitle')}>
+        <Phone size={15} /> {t('groups.call.joinCall')}
       </button>
     )
   }
-  const reason = cannotSend(g) ?? (!voiceAvailable ? "Calls aren't available on this group's server right now" : busy ? "You're already in a call" : null)
+  const blocked = cannotSend(g)
+  const reason = (blocked && groupText(blocked)) ?? (!voiceAvailable ? t('groups.call.unavailable') : busy ? t('calls.alreadyInCall') : null)
   return (
     <>
-      <button className="icon-button" disabled={!!reason} title={reason ?? 'Start a voice call'} aria-label="Start voice call" onClick={() => void startGroupCall(groupKey, false)}>
+      <button className="icon-button" disabled={!!reason} title={reason ?? t('calls.startVoiceTitle')} aria-label={t('calls.startVoice')} onClick={() => void startGroupCall(groupKey, false)}>
         <Phone />
       </button>
-      <button className="icon-button" disabled={!!reason} title={reason ?? 'Start a video call'} aria-label="Start video call" onClick={() => void startGroupCall(groupKey, true)}>
+      <button className="icon-button" disabled={!!reason} title={reason ?? t('calls.startVideoTitle')} aria-label={t('calls.startVideo')} onClick={() => void startGroupCall(groupKey, true)}>
         <Video />
       </button>
     </>
@@ -72,6 +76,7 @@ export function GroupCallButtons({ groupKey }: { groupKey: string }) {
 
 /** A call is going on in this group and you're not in it. */
 export function OngoingCallBanner({ groupKey }: { groupKey: string }) {
+  const { t } = useTranslation()
   const call = useGroupCalls((s) => s.calls[groupKey])
   const joined = useGroupCalls((s) => s.joined)
   const dmCall = useCalls((s) => s.call)
@@ -82,19 +87,20 @@ export function OngoingCallBanner({ groupKey }: { groupKey: string }) {
     <div className="ongoing-call" role="status">
       <span className="ongoing-icon">{call.video ? <Video size={16} /> : <Phone size={16} />}</span>
       <span className="ongoing-text">
-        <strong>{call.video ? 'Video call' : 'Voice call'} in progress</strong>
-        <span className="muted">{people.length === 0 ? 'Starting…' : people.map(knownName).join(', ')}</span>
+        <strong>{call.video ? t('groups.call.videoInProgress') : t('groups.call.voiceInProgress')}</strong>
+        <span className="muted">{people.length === 0 ? t('groups.call.starting') : people.map(knownName).join(', ')}</span>
       </span>
       <span className="ongoing-faces" aria-hidden>
         {people.slice(0, 4).map((k) => <Avatar key={k} name={knownName(k)} accountKey={k} size={24} />)}
       </span>
-      <button className="button small join-call" disabled={busy} onClick={() => void joinOngoingCall(groupKey)}>Join</button>
+      <button className="button small join-call" disabled={busy} onClick={() => void joinOngoingCall(groupKey)}>{t('common.join')}</button>
     </div>
   )
 }
 
 /** The call you're in: one tile per person (their camera, or their avatar), screen shares big on top. */
 export function GroupCallPanel({ groupKey }: { groupKey: string }) {
+  const { t } = useTranslation()
   const call = useGroupCalls((s) => s.calls[groupKey])
   const joined = useGroupCalls((s) => s.joined)
   const callError = useGroupCalls((s) => s.error)
@@ -117,18 +123,18 @@ export function GroupCallPanel({ groupKey }: { groupKey: string }) {
   const strip = screens.filter((t) => t !== focused)
   const count = people.length + strip.length
   const columns = callColumns(count, narrow)
-  const status = !joined.hasKey ? 'Waiting for the call key…'
+  const status = !joined.hasKey ? t('groups.call.waitingKey')
     : connected ? formatDuration(now - joined.joinedAt)
-    : session?.state === 'reconnecting' ? 'Reconnecting…' : 'Connecting…'
+    : session?.state === 'reconnecting' ? t('calls.reconnecting') : t('calls.connecting')
 
   return (
-    <section className={`call-panel group-call ${tiles.length ? 'has-video' : ''} ${focused ? 'has-focus' : ''}`} aria-label="Group call" data-key-version={call?.keyVersion}>
+    <section className={`call-panel group-call ${tiles.length ? 'has-video' : ''} ${focused ? 'has-focus' : ''}`} aria-label={t('groups.call.groupCall')} data-key-version={call?.keyVersion}>
       <div className="call-top">
-        <span className={`e2e-badge ${inCall && session.encrypted ? '' : 'pending'}`} title="Only the people in this group can hear and see this call">
-          <Lock size={13} /> {inCall && session.encrypted ? 'End-to-end encrypted' : 'Encrypted call'}
+        <span className={`e2e-badge ${inCall && session.encrypted ? '' : 'pending'}`} title={t('groups.call.onlyPeople')}>
+          <Lock size={13} /> {inCall && session.encrypted ? t('calls.e2e') : t('calls.encryptedCall')}
         </span>
         <span className="spacer" />
-        <span className="muted call-count">{people.length} in call</span>
+        <span className="muted call-count">{t('groups.call.inCall', { count: people.length })}</span>
         <span className={`call-status ${connected && joined.hasKey ? 'active' : ''}`} role="status">{status}</span>
       </div>
       {focused && (
@@ -142,21 +148,21 @@ export function GroupCallPanel({ groupKey }: { groupKey: string }) {
         ))}
         {people.map((k) => {
           const camera = cameras.get(k)
-          if (camera) return <VideoTile key={camera.id} tile={camera} name={k === me ? 'You' : knownName(k)} speaking={!!speaking[k]} />
+          if (camera) return <VideoTile key={camera.id} tile={camera} name={k === me ? t('calls.you') : knownName(k)} speaking={!!speaking[k]} />
           return (
             <div key={k} className={`person-tile ${speaking[k] ? 'speaking' : ''}`}>
               <Avatar name={knownName(k)} accountKey={k} size={narrow ? 48 : 64} />
-              <span className="tile-label">{k === me ? 'You' : knownName(k)}</span>
+              <span className="tile-label">{k === me ? t('calls.you') : knownName(k)}</span>
             </div>
           )
         })}
       </div>
-      {(voiceError || callError) && <p className="call-error" role="alert">{voiceError ?? callError}</p>}
+      {(voiceError || callError) && <p className="call-error" role="alert">{voiceError ?? groupText(callError!)}</p>}
       {inCall && session ? (
         <CallControls onLeave={() => void leaveGroupCall()} />
       ) : (
         <div className="call-controls">
-          <button className="call-button hang-up" onClick={() => void leaveGroupCall()} aria-label="Hang up" title="Hang up"><PhoneOff /></button>
+          <button className="call-button hang-up" onClick={() => void leaveGroupCall()} aria-label={t('calls.hangUp')} title={t('calls.hangUp')}><PhoneOff /></button>
         </div>
       )}
     </section>
@@ -165,29 +171,30 @@ export function GroupCallPanel({ groupKey }: { groupKey: string }) {
 
 /** Someone started a call in one of your groups. */
 export function IncomingGroupCall() {
+  const { t } = useTranslation()
   const ringing = useGroupCalls((s) => s.ringing)
   const g = useGroups((s) => (ringing ? s.groups[ringing.key] : undefined))
   useApp((s) => s.servers)
   if (!ringing) return null
   const caller = knownName(ringing.from)
-  const title = g ? titleOf(g) : 'a group'
+  const title = g ? titleOf(g) : t('groups.call.aGroup')
   return (
-    <div className="incoming-call" role="alertdialog" aria-label={`${caller} started a group call`}>
+    <div className="incoming-call" role="alertdialog" aria-label={t('groups.call.started', { name: caller })}>
       <div className="incoming-card">
         <div className="incoming-avatar"><Avatar name={caller} accountKey={ringing.from} size={96} /></div>
         <h2>{title}</h2>
-        <p className="muted">{caller} started a {ringing.video ? 'video' : 'voice'} call</p>
-        <span className="e2e-badge"><Lock size={13} /> End-to-end encrypted</span>
+        <p className="muted">{ringing.video ? t('groups.call.startedVideo', { name: caller }) : t('groups.call.startedVoice', { name: caller })}</p>
+        <span className="e2e-badge"><Lock size={13} /> {t('calls.e2e')}</span>
         <div className="incoming-actions">
           <label className="incoming-action">
-            <button className="call-button hang-up" onClick={declineGroupCall} aria-label="Decline"><PhoneOff /></button>
-            <span>Decline</span>
+            <button className="call-button hang-up" onClick={declineGroupCall} aria-label={t('calls.decline')}><PhoneOff /></button>
+            <span>{t('calls.decline')}</span>
           </label>
           <label className="incoming-action">
-            <button className="call-button accept" onClick={() => { openGroup(ringing.key); void joinOngoingCall(ringing.key, ringing.video) }} aria-label="Join" autoFocus>
+            <button className="call-button accept" onClick={() => { openGroup(ringing.key); void joinOngoingCall(ringing.key, ringing.video) }} aria-label={t('common.join')} autoFocus>
               {ringing.video ? <Video /> : <Phone />}
             </button>
-            <span>Join</span>
+            <span>{t('common.join')}</span>
           </label>
         </div>
       </div>

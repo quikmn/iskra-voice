@@ -1,14 +1,16 @@
+import { useTranslation } from 'react-i18next'
 import { PushSettings } from './PushSettings'
 import type { ServerState } from '../../state/store'
 import { ServerNotifySettings } from '../organize/ServerSettings'
 import { enableDesktopNotifications, notificationsSupported, playTone, updateNotify, useNotify } from '../../state/notify'
 
 export function NotificationSettingsSection({ server }: { server?: ServerState | null }) {
+  const { t } = useTranslation()
   const { desktop, sounds } = useNotify()
   const blocked = notificationsSupported() && Notification.permission === 'denied'
   return (
     <section className="settings-section">
-      <h3>Notifications</h3>
+      <h3>{t('settings.sections.notifications')}</h3>
       <label className="checkbox">
         <input
           type="checkbox"
@@ -16,9 +18,9 @@ export function NotificationSettingsSection({ server }: { server?: ServerState |
           disabled={!notificationsSupported() || blocked}
           onChange={(e) => (e.target.checked ? void enableDesktopNotifications() : updateNotify({ desktop: false }))}
         />
-        Desktop notifications for mentions and direct messages (or every message, where you chose All messages)
+        {t('settings.notifications.desktop')}
       </label>
-      {blocked && <p className="muted">Notifications are blocked in your browser settings for this site.</p>}
+      {blocked && <p className="muted">{t('settings.notifications.blocked')}</p>}
       <PushSettings />
       <label className="checkbox">
         <input
@@ -29,7 +31,7 @@ export function NotificationSettingsSection({ server }: { server?: ServerState |
             if (e.target.checked) playTone('message', true)
           }}
         />
-        Message sounds
+        {t('settings.notifications.sounds')}
       </label>
       {server?.me && <ServerNotifySettings server={server} />}
     </section>

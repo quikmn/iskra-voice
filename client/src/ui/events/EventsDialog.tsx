@@ -1,5 +1,9 @@
 // The events dialog: upcoming and live events as cards (interested, add to calendar, join), and the create/edit form.
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { errorMessage } from '../../i18n/errors'
+import { formatDate } from '../../i18n/format'
+import { t as translate } from '../../i18n'
 import type { ServerEvent } from '../../core/protocol'
 import type { ServerState } from '../../state/store'
 import { cancelEvent, canCreateEvent, canManageEvent, setInterested, useEvents } from '../../state/events'
@@ -13,6 +17,7 @@ import { useNow } from './useNow'
 import { placeOf } from './place'
 
 export function EventsDialog({ server, focus, onClose }: { server: ServerState; focus?: number; onClose: () => void }) {
+  const { t } = useTranslation()
   const events = useEvents((s) => s.events[server.key])
   const [mode, setMode] = useState<{ kind: 'list' } | { kind: 'form'; event?: ServerEvent }>({ kind: 'list' })
   const now = useNow()
@@ -38,21 +43,21 @@ export function EventsDialog({ server, focus, onClose }: { server: ServerState; 
 
   return (
     <Modal
-      title="Events"
-      heading={<>Events <span className="muted">on {server.name}</span></>}
+      title={t('events.dialog.title')}
+      heading={<>{t('events.dialog.title')} <span className="muted">{t('events.dialog.on', { server: server.name })}</span></>}
       onClose={onClose}
       wide
       className="events-modal"
       footer={canCreateEvent(server) ? (
-        <button className="button primary" onClick={() => setMode({ kind: 'form' })}><Plus size={16} /> Schedule an event</button>
+        <button className="button primary" onClick={() => setMode({ kind: 'form' })}><Plus size={16} /> {t('events.dialog.schedule')}</button>
       ) : undefined}
     >
       <div ref={listRef} className="event-list">
         {list.length === 0 ? (
           <div className="event-empty">
             <span className="empty-icon"><CalendarIcon size={30} /></span>
-            <h3>Nothing planned yet</h3>
-            <p className="muted">{canCreateEvent(server) ? 'Plan a game night, a movie or a meetup. People can say they are interested and get a reminder before it starts.' : 'Events members plan show up here.'}</p>
+            <h3>{t('events.dialog.empty')}</h3>
+            <p className="muted">{canCreateEvent(server) ? t('events.dialog.emptyCreate') : t('events.dialog.emptyView')}</p>
           </div>
         ) : (
           list.map((event) => (
@@ -67,7 +72,7 @@ export function EventsDialog({ server, focus, onClose }: { server: ServerState; 
 
 function downloadIcs(server: ServerState, event: ServerEvent) {
   const place = placeOf(server, event)
-  const ics = eventIcs(event, { serverKey: server.key, place: place.voiceId !== null ? `${place.label} (voice) on ${server.name}` : place.label })
+  const ics = eventIcs(event, { serverKey: server.key, place: place.voiceId !== null ? translate('events.dialog.icsPlace', { place: place.label, server: server.name }) : place.label })
   const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }))
   const link = document.createElement('a')
   link.href = url
@@ -81,6 +86,7 @@ function downloadIcs(server: ServerState, event: ServerEvent) {
 function EventCard({ server, event, now, focused, onEdit, onJoined }: {
   server: ServerState; event: ServerEvent; now: number; focused: boolean; onEdit: () => void; onJoined: () => void
 }) {
+  const { t } = useTranslation()
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -100,7 +106,7 @@ function EventCard({ server, event, now, focused, onEdit, onJoined }: {
     try {
       await action()
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
     } finally {
       setBusy(false)
     }
@@ -113,12 +119,12 @@ function EventCard({ server, event, now, focused, onEdit, onJoined }: {
       )}
       <div className="event-top">
         <div className="event-date" aria-hidden>
-          <span>{start.toLocaleDateString(undefined, { month: 'short' })}</span>
+          <span>{formatDate(start, { month: 'short' })}</span>
           <strong>{start.getDate()}</strong>
         </div>
         <div className="event-head">
           <div className="event-status">
-            {live ? <span className="live-pill">Live now</span> : soon && <span className="muted">{soon}</span>}
+            {live ? <span className="live-pill">{t('events.dialog.liveNow')}</span> : soon && <span className="muted">{soon}</span>}
           </div>
           <h3>{event.title}</h3>
           <p className="event-when">
@@ -139,7 +145,7 @@ function EventCard({ server, event, now, focused, onEdit, onJoined }: {
           ))}
         </div>
         <span className="muted">
-          {event.interested.length} interested · planned by {creator?.name ?? 'a former member'}
+          {t('events.dialog.interestedCount', { count: event.interested.length, creator: creator?.name ?? t('events.dialog.formerMember') })}
         </span>
       </div>
       <div className="event-actions">
@@ -149,7 +155,7 @@ function EventCard({ server, event, now, focused, onEdit, onJoined }: {
           disabled={busy}
           onClick={() => void run(() => setInterested(server.key, event.id, !interested))}
         >
-          <StarIcon size={14} filled={interested} /> {interested ? 'Interested' : "I'm interested"}
+          <StarIcon size={14} filled={interested} /> {interested ? t('events.dialog.interested') : t('events.dialog.imInterested')}
         </button>
         {live && place.voiceId !== null && server.voiceAvailable && (
           <button
@@ -159,23 +165,23 @@ function EventCard({ server, event, now, focused, onEdit, onJoined }: {
               onJoined()
             }}
           >
-            <Volume size={14} /> Join voice
+            <Volume size={14} /> {t('events.dialog.joinVoice')}
           </button>
         )}
         <button className="button ghost small" onClick={() => downloadIcs(server, event)}>
-          <CalendarPlus size={14} /> Add to calendar
+          <CalendarPlus size={14} /> {t('events.dialog.addToCalendar')}
         </button>
         {canManageEvent(server, event) && (
           confirmCancel ? (
             <span className="confirm-inline">
-              Cancel this event?
-              <button className="button danger small" disabled={busy} onClick={() => void run(() => cancelEvent(server.key, event.id))}>Cancel event</button>
-              <button className="button small" onClick={() => setConfirmCancel(false)}>Keep</button>
+              {t('events.dialog.cancelConfirm')}
+              <button className="button danger small" disabled={busy} onClick={() => void run(() => cancelEvent(server.key, event.id))}>{t('events.dialog.cancelEvent')}</button>
+              <button className="button small" onClick={() => setConfirmCancel(false)}>{t('events.dialog.keep')}</button>
             </span>
           ) : (
             <>
-              <button className="button ghost small" onClick={onEdit}><Pencil size={14} /> Edit</button>
-              <button className="button ghost small danger-text" onClick={() => setConfirmCancel(true)}>Cancel event</button>
+              <button className="button ghost small" onClick={onEdit}><Pencil size={14} /> {t('common.edit')}</button>
+              <button className="button ghost small danger-text" onClick={() => setConfirmCancel(true)}>{t('events.dialog.cancelEvent')}</button>
             </>
           )
         )}

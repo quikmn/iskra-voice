@@ -1,5 +1,6 @@
 // Ctrl/Cmd+K: jump to any channel or conversation by typing a few letters.
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import { nameOf, openConversation, openFriends, useDms } from '../state/dms'
 import { selectChannel, selectServer, useApp } from '../state/store'
 import { channelConv, dmConv, useReads } from '../state/readState'
@@ -25,6 +26,7 @@ export function QuickSwitcher() {
 }
 
 function SwitcherDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation()
   const servers = useApp((s) => s.servers)
   const order = useApp((s) => s.order)
   const conversations = useDms((s) => s.conversations)
@@ -39,7 +41,7 @@ function SwitcherDialog({ onClose }: { onClose: () => void }) {
   const items = useMemo<SwitchItem[]>(() => {
     const list: SwitchItem[] = []
     for (const peer of new Set([...Object.keys(conversations), ...Object.keys(friends)])) {
-      list.push({ id: `dm:${peer}`, kind: 'dm', label: nameOf(peer), context: 'Direct message', unread: reads[dmConv(peer)]?.unread ?? 0 })
+      list.push({ id: `dm:${peer}`, kind: 'dm', label: nameOf(peer), context: t('app.switcher.directMessage'), unread: reads[dmConv(peer)]?.unread ?? 0 })
     }
     for (const key of order) {
       const server = servers[key]
@@ -49,9 +51,9 @@ function SwitcherDialog({ onClose }: { onClose: () => void }) {
         list.push({ id: `ch:${key}:${channel.id}`, kind: 'channel', label: channel.name, context: server.name, unread: reads[channelConv(key, channel.id)]?.unread ?? 0 })
       }
     }
-    list.push({ id: 'friends', kind: 'friends', label: 'Friends', context: 'Direct messages', unread: 0 })
+    list.push({ id: 'friends', kind: 'friends', label: t('app.home.friends'), context: t('app.home.directMessages'), unread: 0 })
     return list
-  }, [servers, order, conversations, friends, reads])
+  }, [servers, order, conversations, friends, reads, t])
   const shown = rankItems(items, query)
   const active = shown.length ? pick % shown.length : 0
 
@@ -67,14 +69,14 @@ function SwitcherDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="modal-backdrop switcher-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal switcher" role="dialog" aria-modal="true" aria-label="Jump to a conversation" ref={ref} tabIndex={-1}>
+      <div className="modal switcher" role="dialog" aria-modal="true" aria-label={t('app.switcher.title')} ref={ref} tabIndex={-1}>
         <label className="switcher-search">
           <Search size={18} />
           <input
             autoFocus
             value={query}
-            placeholder="Where to? Type a channel or a name"
-            aria-label="Search channels and conversations"
+            placeholder={t('app.switcher.placeholder')}
+            aria-label={t('app.switcher.searchLabel')}
             role="combobox"
             aria-expanded
             aria-controls="switcher-results"
@@ -91,8 +93,8 @@ function SwitcherDialog({ onClose }: { onClose: () => void }) {
             }}
           />
         </label>
-        <ul className="switcher-results" id="switcher-results" role="listbox" aria-label="Results">
-          {shown.length === 0 && <li className="switcher-empty muted">Nothing matches “{query.trim()}”.</li>}
+        <ul className="switcher-results" id="switcher-results" role="listbox" aria-label={t('app.switcher.results')}>
+          {shown.length === 0 && <li className="switcher-empty muted">{t('app.switcher.noMatch', { query: query.trim() })}</li>}
           {shown.map((item, i) => (
             <li
               key={item.id}
@@ -113,7 +115,9 @@ function SwitcherDialog({ onClose }: { onClose: () => void }) {
           ))}
         </ul>
         <footer className="switcher-hint muted">
-          <span><kbd>↑</kbd> <kbd>↓</kbd> to move</span> <span><kbd>Enter</kbd> to open</span> <span><kbd>Esc</kbd> to close</span>
+          <span><Trans i18nKey="app.switcher.hintMove" components={{ kbd: <kbd /> }} /></span>{' '}
+          <span><Trans i18nKey="app.switcher.hintOpen" components={{ kbd: <kbd /> }} /></span>{' '}
+          <span><Trans i18nKey="app.switcher.hintClose" components={{ kbd: <kbd /> }} /></span>
         </footer>
       </div>
     </div>

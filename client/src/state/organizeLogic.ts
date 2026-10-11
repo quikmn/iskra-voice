@@ -1,6 +1,8 @@
 // Pure helpers for organizing a server: grouping channels into categories, drag-and-drop targets, and how
 // notification settings combine. No React or socket here, so it's easy to test.
 import type { Category, Channel, NotifyLevel, NotifySetting } from '../core/protocol'
+import { t } from '../i18n'
+import { formatDate } from '../i18n/format'
 
 export interface ChannelLayout {
   /** Channels outside any category (shown at the top). */
@@ -145,22 +147,25 @@ export function nextMuteEnd(maps: NotifyMap[], now: number): number | null {
   return soonest
 }
 
-export const MUTE_CHOICES: { label: string; minutes: number }[] = [
-  { label: 'For 15 minutes', minutes: 15 },
-  { label: 'For 1 hour', minutes: 60 },
-  { label: 'For 8 hours', minutes: 8 * 60 },
-  { label: 'For 24 hours', minutes: 24 * 60 },
-  { label: 'Until I turn it back on', minutes: -1 },
-]
+export const MUTE_CHOICES = [
+  { key: 'm15', minutes: 15 },
+  { key: 'h1', minutes: 60 },
+  { key: 'h8', minutes: 8 * 60 },
+  { key: 'h24', minutes: 24 * 60 },
+  { key: 'forever', minutes: -1 },
+] as const
 
-export const LEVEL_LABELS: Record<NotifyLevel, string> = { all: 'All messages', mentions: 'Only @mentions', none: 'Nothing' }
+export const muteChoiceLabel = (choice: (typeof MUTE_CHOICES)[number]) => t(`organize.mute.${choice.key}`)
+
+/** "All messages", "Only @mentions", "Nothing". */
+export const levelLabel = (level: NotifyLevel) => t(`organize.levels.${level}`)
 
 /** "Muted until 14:30", "Muted until Tue 09:00", or "Muted". */
 export function muteLabel(until: number | null, now: number): string {
   if (until === null || (until !== -1 && until <= now)) return ''
-  if (until === -1) return 'Muted'
+  if (until === -1) return t('organize.mute.muted')
   const date = new Date(until)
-  const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  const time = formatDate(date, { hour: '2-digit', minute: '2-digit' })
   const sameDay = new Date(now).toDateString() === date.toDateString()
-  return sameDay ? `Muted until ${time}` : `Muted until ${date.toLocaleDateString([], { weekday: 'short' })} ${time}`
+  return t('organize.mute.until', { time: sameDay ? time : `${formatDate(date, { weekday: 'short' })} ${time}` })
 }

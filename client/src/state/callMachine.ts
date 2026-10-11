@@ -1,5 +1,6 @@
 // The DM call state machine, kept pure so it can be tested without sockets or media.
 // One call at a time: outgoing (ringing them) → active → ended, or incoming (ringing us) → active → ended.
+import { t } from '../i18n'
 
 export type EndReason = 'ended' | 'cancelled' | 'declined' | 'busy' | 'no_answer' | 'failed' | 'answered_elsewhere'
 
@@ -58,10 +59,10 @@ export function callLog(call: CallInfo): { outcome: 'missed' | 'declined' | 'end
 
 /** The fallback text of a call log entry (what apps without call support show). */
 export function callLogText(video: boolean, outcome: 'missed' | 'declined' | 'ended', duration?: number): string {
-  const kind = video ? 'video call' : 'voice call'
-  if (outcome === 'missed') return `Missed ${kind}`
-  if (outcome === 'declined') return `Declined ${kind}`
-  return `${kind[0].toUpperCase()}${kind.slice(1)} · ${formatDuration(duration ?? 0)}`
+  if (outcome === 'missed') return video ? t('calls.log.missedVideo') : t('calls.log.missedVoice')
+  if (outcome === 'declined') return video ? t('calls.log.declinedVideo') : t('calls.log.declinedVoice')
+  const d = formatDuration(duration ?? 0)
+  return video ? t('calls.log.videoDuration', { duration: d }) : t('calls.log.voiceDuration', { duration: d })
 }
 
 export function formatDuration(ms: number): string {
@@ -75,12 +76,12 @@ export function formatDuration(ms: number): string {
 /** What the caller sees when a call ends before or after it was answered. */
 export function endMessage(call: CallInfo): string {
   switch (call.endReason) {
-    case 'no_answer': return 'No answer'
-    case 'declined': return 'Declined'
-    case 'busy': return 'Busy'
-    case 'cancelled': return 'Cancelled'
-    case 'failed': return call.error ?? "Couldn't connect the call"
-    default: return 'Call ended'
+    case 'no_answer': return t('calls.end.noAnswer')
+    case 'declined': return t('calls.end.declined')
+    case 'busy': return t('calls.end.busy')
+    case 'cancelled': return t('calls.end.cancelled')
+    case 'failed': return call.error ?? t('calls.end.failed')
+    default: return t('calls.end.ended')
   }
 }
 

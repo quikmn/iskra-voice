@@ -9,6 +9,8 @@ import { EMOJI_CATEGORIES } from './emojiData'
 import { usePopoverPosition } from './popover'
 import { useEscapeLayer } from '../layers'
 import './expressions.css'
+import { useTranslation } from 'react-i18next'
+import type { en } from '../../i18n/en'
 
 const RECENT_KEY = 'iskra.emoji.recent'
 
@@ -41,6 +43,8 @@ export function EmojiGlyph({ serverKey, emoji, className }: { serverKey: string;
     : <span className={className}>:{custom.name}:</span>
 }
 
+type Category = keyof typeof en.expressions.picker.categories
+
 const token = (e: CustomEmoji) => `<:${e.name}:${e.id}>`
 
 interface Item {
@@ -67,8 +71,9 @@ export function EmojiPicker({
   /** Replaces the emoji grid (another tab's content), keeping the same frame and placement. */
   body?: ReactNode
 }) {
+  const { t } = useTranslation()
   const emojis = useServerEmojis(serverKey)
-  const serverName = useApp((s) => s.servers[serverKey]?.name ?? 'This server')
+  const serverName = useApp((s) => s.servers[serverKey]?.name) ?? t('expressions.picker.thisServer')
   const [query, setQuery] = useState('')
   const [hover, setHover] = useState<Item | null>(null)
   const panel = useRef<HTMLDivElement>(null)
@@ -93,11 +98,11 @@ export function EmojiPicker({
     : null
 
   const sections: { id: string; title: string; icon: string | CustomEmoji; items: Item[] }[] = results
-    ? [{ id: 'results', title: results.length ? 'Results' : 'No emoji found', icon: '🔍', items: results }]
+    ? [{ id: 'results', title: results.length ? t('expressions.picker.results') : t('expressions.picker.noResults'), icon: '🔍', items: results }]
     : [
-      ...(recentItems.length ? [{ id: 'recent', title: 'Recently used', icon: '🕘', items: recentItems }] : []),
+      ...(recentItems.length ? [{ id: 'recent', title: t('expressions.picker.recent'), icon: '🕘', items: recentItems }] : []),
       ...(customItems.length ? [{ id: 'server', title: serverName, icon: emojis[0], items: customItems }] : []),
-      ...EMOJI_CATEGORIES.map((c) => ({ id: c.name, title: c.name, icon: c.icon, items: c.emoji.map((e) => ({ value: e.char, label: `:${e.name}:` })) })),
+      ...EMOJI_CATEGORIES.map((c) => ({ id: c.name, title: t(`expressions.picker.categories.${c.name as Category}`), icon: c.icon, items: c.emoji.map((e) => ({ value: e.char, label: `:${e.name}:` })) })),
     ]
 
   function pick(item: Item, shift: boolean) {
@@ -118,14 +123,14 @@ export function EmojiPicker({
         className="emoji-picker"
         style={style}
         role="dialog"
-        aria-label="Emoji picker"
+        aria-label={t('expressions.picker.title')}
       >
         {tabs}
         {body ?? <>
         <input
           className="emoji-search"
-          placeholder="Search emoji"
-          aria-label="Search emoji"
+          placeholder={t('expressions.picker.search')}
+          aria-label={t('expressions.picker.search')}
           value={query}
           autoFocus={!sheet}
           onChange={(e) => setQuery(e.target.value)}
@@ -134,7 +139,7 @@ export function EmojiPicker({
           }}
         />
         {!results && (
-          <nav className="emoji-tabs" aria-label="Emoji categories">
+          <nav className="emoji-tabs" aria-label={t('expressions.picker.categoriesLabel')}>
             {sections.map((section) => (
               <button
                 key={section.id}
@@ -172,7 +177,7 @@ export function EmojiPicker({
           ))}
         </div>
         <footer className="emoji-preview">
-          {hover ? <><span className="emoji-preview-glyph">{glyph(hover)}</span><span>{hover.label}</span></> : <span className="muted">Pick an emoji</span>}
+          {hover ? <><span className="emoji-preview-glyph">{glyph(hover)}</span><span>{hover.label}</span></> : <span className="muted">{t('expressions.picker.pickOne')}</span>}
         </footer>
         </>}
       </div>

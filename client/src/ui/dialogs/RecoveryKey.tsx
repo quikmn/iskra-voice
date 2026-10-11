@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { t } from '../../i18n'
 import { encodeRecoveryKey, seedOf } from '../../core/recovery'
 import { markRecoverySaved, useApp } from '../../state/store'
 import { buildInviteLink } from '../../core/invite'
@@ -17,18 +19,18 @@ function serverLines(): string[] {
     .map((key) => servers[key])
     .filter((s) => s?.me)
     .map((s) => `  ${s.name}: ${buildInviteLink(appUrl(s.appUrl), { serverUrl: s.url, serverKey: s.key, code: 'returning' })}`)
-  return lines.length ? ['', 'Your servers (after restoring, open a link to get back in):', ...lines] : []
+  return lines.length ? ['', t('settings.recovery.file.servers'), ...lines] : []
 }
 
 function download(key: string, name: string) {
   const text = [
-    'Iskra recovery key',
+    t('settings.recovery.file.title'),
     '',
     key,
     '',
-    `Account: ${name}`,
-    'Anyone with this key can use your account. Keep it somewhere safe (a password manager is ideal).',
-    'To restore: open Iskra on any device, choose "I already have Iskra", then "Use my recovery key", and paste the key.',
+    t('settings.recovery.file.account', { name }),
+    t('settings.recovery.file.warning'),
+    t('settings.recovery.file.howTo'),
     ...serverLines(),
   ].join('\r\n')
   const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }))
@@ -38,6 +40,7 @@ function download(key: string, name: string) {
 }
 
 export function KeyActions({ recoveryKey }: { recoveryKey: string }) {
+  const { t } = useTranslation()
   const name = useApp((s) => s.profile?.name ?? '')
   const [copied, setCopied] = useState(false)
   return (
@@ -50,7 +53,7 @@ export function KeyActions({ recoveryKey }: { recoveryKey: string }) {
           void markRecoverySaved()
         }}
       >
-        {copied ? 'Copied!' : 'Copy'}
+        {copied ? t('settings.recovery.copied') : t('common.copy')}
       </button>
       <button
         className="button"
@@ -59,30 +62,29 @@ export function KeyActions({ recoveryKey }: { recoveryKey: string }) {
           void markRecoverySaved()
         }}
       >
-        Download as a file
+        {t('settings.recovery.downloadFile')}
       </button>
     </div>
   )
 }
 
 export function RecoveryKeySection() {
+  const { t } = useTranslation()
   const recoveryKey = useRecoveryKey()
   const [shown, setShown] = useState(false)
   if (!recoveryKey) return null
   return (
     <section className="settings-section">
-      <h3>Recovery key</h3>
-      <p className="muted">
-        Your account lives on your devices, not on a server. This key is how you get it back on a new device or after clearing your browser.
-      </p>
+      <h3>{t('settings.sections.recovery')}</h3>
+      <p className="muted">{t('settings.recovery.intro')}</p>
       {shown ? (
         <>
           <div className="recovery-key">{recoveryKey}</div>
           <KeyActions recoveryKey={recoveryKey} />
-          <p className="warning-text">Anyone with this key can use your account. Never share it.</p>
+          <p className="warning-text">{t('keys.newKey.warning')}</p>
         </>
       ) : (
-        <button className="button" onClick={() => setShown(true)}>Show recovery key</button>
+        <button className="button" onClick={() => setShown(true)}>{t('settings.recovery.show')}</button>
       )}
     </section>
   )
@@ -90,6 +92,7 @@ export function RecoveryKeySection() {
 
 /** A gentle reminder until the key has been saved once. */
 export function RecoveryNudge() {
+  const { t } = useTranslation()
   const saved = useApp((s) => s.profile?.recoverySaved)
   const hasServer = useApp((s) => s.order.length > 0)
   const [later, setLater] = useState(false)
@@ -100,16 +103,16 @@ export function RecoveryNudge() {
   return (
     <>
       <div className="nudge" role="status">
-        <p>Save your recovery key, so you never lose your account.</p>
-        <button className="button primary small" onClick={() => setOpen(true)}>Save it</button>
-        <button className="button small" onClick={() => setLater(true)}>Later</button>
+        <p>{t('settings.recovery.nudge')}</p>
+        <button className="button primary small" onClick={() => setOpen(true)}>{t('settings.recovery.saveIt')}</button>
+        <button className="button small" onClick={() => setLater(true)}>{t('settings.recovery.later')}</button>
       </div>
       {open && (
-        <Modal title="Your recovery key" onClose={() => setOpen(false)}>
-          <p className="muted">Keep this somewhere safe, like a password manager. You'll need it to use your account on a new device.</p>
+        <Modal title={t('settings.recovery.yourKey')} onClose={() => setOpen(false)}>
+          <p className="muted">{t('settings.recovery.keepSafe')}</p>
           <div className="recovery-key">{recoveryKey}</div>
           <KeyActions recoveryKey={recoveryKey} />
-          <p className="warning-text">Anyone with this key can use your account. Never share it.</p>
+          <p className="warning-text">{t('keys.newKey.warning')}</p>
         </Modal>
       )}
     </>

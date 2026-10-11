@@ -15,6 +15,8 @@ import { nameOf } from './dms'
 import { useNotify } from './notify'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 import { joinGroupCall, leaveVoice, setCallKey, useVoice } from './voice'
+import { t } from '../i18n'
+import { errorMessage } from '../i18n/errors'
 
 export interface GroupCallInfo extends WireGroupCall {
   serverKey: string
@@ -120,17 +122,17 @@ export async function startGroupCall(key: string, video: boolean): Promise<void>
       connection.request('gcall.leave', { callId }).catch(() => undefined) // hung up while it was starting
       return
     }
-    void sendGroupMessage(key, video ? 'Started a video call' : 'Started a voice call', { call: { kind: 'group-start', id: callId, video } })
+    void sendGroupMessage(key, video ? t('groups.sent.startedVideo') : t('groups.sent.startedVoice'), { call: { kind: 'group-start', id: callId, video } })
     const joined = await joinGroupCall(g.serverKey, { key, callId }, result.ticket, { key: mediaKey, index: 0 }, video)
-    if (!joined) await leaveGroupCall("Couldn't connect the call.")
+    if (!joined) await leaveGroupCall(t('calls.couldNotConnect'))
     setTimeout(() => {
       // Nobody came: don't sit in an empty call forever.
       const call = useGroupCalls.getState().calls[key]
       if (useGroupCalls.getState().joined?.callId === callId && call && call.participants.every((p) => p === me()))
-        void leaveGroupCall('Nobody joined the call.')
+        void leaveGroupCall(t('groups.call.nobodyJoined'))
     }, ALONE_MS)
   } catch (e) {
-    useGroupCalls.setState({ joined: null, error: (e as Error).message })
+    useGroupCalls.setState({ joined: null, error: errorMessage(e) })
   }
 }
 
@@ -153,7 +155,7 @@ export async function joinOngoingCall(key: string, camera = false): Promise<void
     useGroupCalls.setState((s) => ({ joined: s.joined && { ...s.joined, hasKey: !!best } }))
     openGroup(key)
     const joined = await joinGroupCall(call.serverKey, { key, callId: call.id }, ticket, best && { key: best.key, index: best.index }, camera)
-    if (!joined) return void (await leaveGroupCall("Couldn't connect the call."))
+    if (!joined) return void (await leaveGroupCall(t('calls.couldNotConnect')))
     // A newer key may have come in while we were connecting.
     const latest = accepted.get(call.id)
     if (latest && latest !== best) {
@@ -162,7 +164,7 @@ export async function joinOngoingCall(key: string, camera = false): Promise<void
     }
     maybeRekey()
   } catch {
-    useGroupCalls.setState({ joined: null, error: 'This call is no longer available.' })
+    useGroupCalls.setState({ joined: null, error: t('calls.noLongerAvailable') })
   }
 }
 
@@ -298,7 +300,7 @@ useGroupCalls.subscribe((state, prev) => {
     void desktop?.callAlert?.(true)
     const ringing = state.ringing
     const g = useGroups.getState().groups[ringing.key]
-    const note = ringNotice(nameOf(ringing.from), g ? titleOf(g) : 'A group', ringing.video, {
+    const note = ringNotice(nameOf(ringing.from), g ? titleOf(g) : t('groups.call.ringGroup'), ringing.video, {
       focused: document.hasFocus(),
       enabled: useNotify.getState().desktop,
       permission: typeof Notification === 'undefined' ? 'unsupported' : Notification.permission,

@@ -1,11 +1,13 @@
 // Scans a QR code with the camera. Uses the browser's BarcodeDetector where there is one (Chrome on
 // Android, …); otherwise a ZXing WebAssembly build that ships with the app (Safari on iPhone, Firefox).
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { qrDetector, type Detector } from './qrDetector'
 
 export function QrScanner({ onResult }: { onResult: (text: string) => void }) {
   const video = useRef<HTMLVideoElement>(null)
-  const [problem, setProblem] = useState<string | null>(null)
+  const { t } = useTranslation()
+  const [problem, setProblem] = useState<'noCamera' | 'noAccess' | 'noReader' | null>(null)
   const done = useRef(onResult)
   useEffect(() => {
     done.current = onResult
@@ -18,13 +20,13 @@ export function QrScanner({ onResult }: { onResult: (text: string) => void }) {
 
     async function start() {
       if (!navigator.mediaDevices?.getUserMedia) {
-        setProblem("This browser can't use the camera here. Paste the code instead.")
+        setProblem('noCamera')
         return
       }
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
       } catch {
-        setProblem('No camera access. Allow the camera, or paste the code instead.')
+        setProblem('noAccess')
         return
       }
       if (stopped) return stream.getTracks().forEach((t) => t.stop())
@@ -35,7 +37,7 @@ export function QrScanner({ onResult }: { onResult: (text: string) => void }) {
       try {
         detector = await qrDetector()
       } catch {
-        setProblem("Couldn't start the QR reader. Paste the code instead.")
+        setProblem('noReader')
         return
       }
       const tick = async () => {
@@ -66,7 +68,7 @@ export function QrScanner({ onResult }: { onResult: (text: string) => void }) {
 
   return (
     <div className="qr-scanner">
-      {problem ? <p className="muted">{problem}</p> : <video ref={video} playsInline muted aria-label="Camera view" />}
+      {problem ? <p className="muted">{t(`app.qr.${problem}`)}</p> : <video ref={video} playsInline muted aria-label={t('app.qr.cameraView')} />}
     </div>
   )
 }

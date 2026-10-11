@@ -1,14 +1,16 @@
 // Poll results maths and wording, kept apart from the UI so it can be tested.
 import type { Poll } from '../../core/protocol'
+import { t } from '../../i18n'
 
-export const POLL_DURATIONS: { label: string; ms: number | null }[] = [
-  { label: '1 hour', ms: 3_600_000 },
-  { label: '4 hours', ms: 4 * 3_600_000 },
-  { label: '8 hours', ms: 8 * 3_600_000 },
-  { label: '24 hours', ms: 24 * 3_600_000 },
-  { label: '3 days', ms: 3 * 86_400_000 },
-  { label: '1 week', ms: 7 * 86_400_000 },
-  { label: 'No end', ms: null },
+/** Labels are keys under expressions.poll.durations. */
+export const POLL_DURATIONS: { id: 'h1' | 'h4' | 'h8' | 'h24' | 'd3' | 'w1' | 'none'; ms: number | null }[] = [
+  { id: 'h1', ms: 3_600_000 },
+  { id: 'h4', ms: 4 * 3_600_000 },
+  { id: 'h8', ms: 8 * 3_600_000 },
+  { id: 'h24', ms: 24 * 3_600_000 },
+  { id: 'd3', ms: 3 * 86_400_000 },
+  { id: 'w1', ms: 7 * 86_400_000 },
+  { id: 'none', ms: null },
 ]
 
 export const POLL_LIMITS = { question: 300, option: 55, minOptions: 2, maxOptions: 10 }
@@ -43,20 +45,20 @@ export function myVotes(poll: Poll, me: string | undefined): number[] {
 
 /** "45m left", "3h left", "2d left". */
 export function timeLeft(ms: number): string {
-  if (ms < 60_000) return 'less than a minute left'
-  if (ms < 3_600_000) return `${Math.floor(ms / 60_000)}m left`
-  if (ms < 86_400_000) return `${Math.floor(ms / 3_600_000)}h left`
-  return `${Math.floor(ms / 86_400_000)}d left`
+  if (ms < 60_000) return t('expressions.poll.lessThanMinute')
+  if (ms < 3_600_000) return t('expressions.poll.minutesLeft', { count: Math.floor(ms / 60_000) })
+  if (ms < 86_400_000) return t('expressions.poll.hoursLeft', { count: Math.floor(ms / 3_600_000) })
+  return t('expressions.poll.daysLeft', { count: Math.floor(ms / 86_400_000) })
 }
 
 /** Checks a poll before sending it; returns the problem, or null. */
 export function pollProblem(question: string, options: string[]): string | null {
   const q = question.trim()
   const answers = options.map((o) => o.trim()).filter(Boolean)
-  if (!q) return 'Ask a question.'
-  if (q.length > POLL_LIMITS.question) return `Questions can be up to ${POLL_LIMITS.question} characters.`
-  if (answers.length < POLL_LIMITS.minOptions) return 'Add at least two answers.'
-  if (answers.some((a) => a.length > POLL_LIMITS.option)) return `Answers can be up to ${POLL_LIMITS.option} characters.`
-  if (new Set(answers.map((a) => a.toLowerCase())).size !== answers.length) return 'Answers must be different from each other.'
+  if (!q) return t('expressions.poll.askQuestion')
+  if (q.length > POLL_LIMITS.question) return t('expressions.poll.questionTooLong', { max: POLL_LIMITS.question })
+  if (answers.length < POLL_LIMITS.minOptions) return t('expressions.poll.twoAnswers')
+  if (answers.some((a) => a.length > POLL_LIMITS.option)) return t('expressions.poll.answerTooLong', { max: POLL_LIMITS.option })
+  if (new Set(answers.map((a) => a.toLowerCase())).size !== answers.length) return t('expressions.poll.different')
   return null
 }

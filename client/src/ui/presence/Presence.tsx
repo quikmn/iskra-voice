@@ -1,6 +1,7 @@
 // Status pieces: the custom status line, the "you" button in the me bar with its status menu, and the custom status dialog.
 import { useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
 import type { ChosenStatus, CustomStatus } from '../../core/protocol'
 import { myShownStatus, setCustomStatus, setStatus, useAccountPresence, usePresence } from '../../state/presence'
 import {
@@ -30,6 +31,7 @@ export function MeStatusButton({ name, accountKey, sub, speaking = false, flag =
   /** Voice: a ring while you talk, and a muted/deafened mark. */
   speaking?: boolean; flag?: ReactNode; title?: string
 }) {
+  const { t } = useTranslation()
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const [editing, setEditing] = useState(false)
   const state = usePresence()
@@ -40,7 +42,7 @@ export function MeStatusButton({ name, accountKey, sub, speaking = false, flag =
       <button
         className="me-status-button"
         onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}
-        aria-label={`Set your status (now ${STATUS_LABELS[status]})`}
+        aria-label={t('presence.setStatus', { status: STATUS_LABELS[status] })}
         aria-haspopup="menu"
         aria-expanded={!!anchor}
       >
@@ -62,6 +64,7 @@ export function MeStatusButton({ name, accountKey, sub, speaking = false, flag =
 const CHOICES: ChosenStatus[] = ['online', 'idle', 'dnd', 'invisible']
 
 function StatusMenu({ anchor, onClose, onCustom }: { anchor: HTMLElement; onClose: () => void; onCustom: () => void }) {
+  const { t } = useTranslation()
   const ref = useRef<HTMLDivElement>(null)
   const { style, sheet } = usePopoverPosition(anchor, ref)
   const mine = usePresence((s) => s.mine)
@@ -76,14 +79,14 @@ function StatusMenu({ anchor, onClose, onCustom }: { anchor: HTMLElement; onClos
 
   return createPortal(
     <div className={sheet ? 'sheet-backdrop' : 'status-menu-backdrop'} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={ref} className={sheet ? 'action-sheet status-menu' : 'status-menu floating'} style={style} role="menu" aria-label="Your status" tabIndex={-1}>
+      <div ref={ref} className={sheet ? 'action-sheet status-menu' : 'status-menu floating'} style={style} role="menu" aria-label={t('presence.yourStatus')} tabIndex={-1}>
         {sheet && <span className="sheet-grabber" aria-hidden />}
         <div className="status-custom-row">
           <button className="status-custom-edit" role="menuitem" onClick={onCustom}>
-            {custom ? <CustomStatusLine custom={custom} /> : <><Smile size={16} /> <span>Set a custom status</span></>}
+            {custom ? <CustomStatusLine custom={custom} /> : <><Smile size={16} /> <span>{t('presence.setCustom')}</span></>}
           </button>
           {custom && (
-            <button className="icon-button small" onClick={() => setCustomStatus(null)} aria-label="Clear custom status" title="Clear custom status">
+            <button className="icon-button small" onClick={() => setCustomStatus(null)} aria-label={t('presence.clearCustom')} title={t('presence.clearCustom')}>
               <Close size={14} />
             </button>
           )}
@@ -107,6 +110,7 @@ function StatusMenu({ anchor, onClose, onCustom }: { anchor: HTMLElement; onClos
 }
 
 export function CustomStatusDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation()
   const current = activeCustom(usePresence.getState().mine.custom)
   const [emoji, setEmoji] = useState(current?.emoji ?? '')
   const [text, setText] = useState(current?.text ?? '')
@@ -125,39 +129,39 @@ export function CustomStatusDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal
-      title="Custom status"
+      title={t('presence.custom.title')}
       onClose={onClose}
       footer={
         <>
-          {current && <button className="button" onClick={() => { setCustomStatus(null); onClose() }}>Clear status</button>}
-          <button className="button primary" onClick={save}>Save</button>
+          {current && <button className="button" onClick={() => { setCustomStatus(null); onClose() }}>{t('presence.custom.clear')}</button>}
+          <button className="button primary" onClick={save}>{t('common.save')}</button>
         </>
       }
     >
-      <p className="muted">Shown next to your name on every server you're on.</p>
+      <p className="muted">{t('presence.custom.hint')}</p>
       <div className="field">
-        <span id="custom-status-label">What's happening?</span>
+        <span id="custom-status-label">{t('presence.custom.label')}</span>
         <div className="custom-status-input">
-          <button className="icon-button custom-status-emoji-button" onClick={(e) => setPicker(picker ? null : e.currentTarget)} aria-label={emoji ? `Emoji ${emoji}, change` : 'Pick an emoji'} title="Pick an emoji">
+          <button className="icon-button custom-status-emoji-button" onClick={(e) => setPicker(picker ? null : e.currentTarget)} aria-label={emoji ? t('presence.custom.changeEmoji', { emoji }) : t('presence.custom.pickEmoji')} title={t('presence.custom.pickEmoji')}>
             {emoji ? <span className="custom-status-emoji">{emoji}</span> : <Smile />}
           </button>
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
             maxLength={MAX_STATUS_TEXT}
-            placeholder="Out for lunch"
+            placeholder={t('presence.custom.placeholder')}
             aria-labelledby="custom-status-label"
             autoFocus
             onKeyDown={(e) => e.key === 'Enter' && save()}
           />
           {(text || emoji) && (
-            <button className="icon-button small" onClick={() => { setText(''); setEmoji('') }} aria-label="Clear text and emoji"><Close size={14} /></button>
+            <button className="icon-button small" onClick={() => { setText(''); setEmoji('') }} aria-label={t('presence.custom.clearInput')}><Close size={14} /></button>
           )}
         </div>
         <small className="field-hint muted">{text.length}/{MAX_STATUS_TEXT}</small>
       </div>
       <label className="field">
-        <span>Clear after</span>
+        <span>{t('presence.custom.clearAfter')}</span>
         <select value={clearAfter} onChange={(e) => setClearAfter(e.target.value as ClearAfter)}>
           {CLEAR_AFTER.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
         </select>
@@ -186,6 +190,7 @@ export function AccountAvatar({ accountKey, name, size }: { accountKey: string; 
 
 /** The custom status of an account, or (with `fallback`) its status in words. */
 export function AccountStatusText({ accountKey, fallback, className }: { accountKey: string; fallback?: boolean; className?: string }) {
+  useTranslation()
   const { status, custom } = useAccountPresence(accountKey)
   if (custom) return <CustomStatusLine custom={custom} className={className} />
   return fallback ? <span className={className}>{STATUS_LABELS[status]}</span> : null

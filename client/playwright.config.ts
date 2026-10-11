@@ -9,7 +9,8 @@ export default defineConfig({
   timeout: 60_000,
   fullyParallel: false,
   reporter: [['list']],
-  use: { baseURL: `http://localhost:${APP_PORT}`, trace: 'retain-on-failure' },
+  // English (US) whatever the machine's language: the specs match the English text.
+  use: { baseURL: `http://localhost:${APP_PORT}`, trace: 'retain-on-failure', locale: 'en-US' },
   projects: [
     {
       name: 'chromium',

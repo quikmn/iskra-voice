@@ -11,8 +11,12 @@ import { Expand, Send } from '../icons'
 import { videoAdapter, YouTubeBridge, youTubeEmbedUrl, YOUTUBE_FRAME, type PlayerAdapter } from './players'
 import { ChatIcon, PauseIcon, PlayIcon, TvIcon, VolumeOffIcon, VolumeOnIcon } from './watchIcons'
 import './watch.css'
+import { useTranslation } from 'react-i18next'
+import { t as i18t } from '../../i18n'
+import { errorMessage } from '../../i18n/errors'
+import { formatNumber } from '../../i18n/format'
 
-const nameIn = (server: ServerState, accountKey: string) => server.members[accountKey]?.name ?? 'Someone'
+const nameIn = (server: ServerState, accountKey: string) => server.members[accountKey]?.name ?? i18t('common.someone')
 const VOLUME_KEY = 'iskra.watchVolume'
 
 function loadVolume(): number {
@@ -26,12 +30,13 @@ function loadVolume(): number {
 
 /** "Watch together" in the call controls: for whoever may start a party, while none is on. */
 export function WatchButton({ server, channel, stage }: { server: ServerState; channel: Channel; stage?: StageState }) {
+  const { t } = useTranslation()
   const party = useWatch(partyFor(server.key, channel.id))
   const [open, setOpen] = useState(false)
   if (party || !mayHostWatch(server, channel, stage)) return null
   return (
     <>
-      <button className="call-button" onClick={() => setOpen(true)} aria-label="Watch together" title="Watch together">
+      <button className="call-button" onClick={() => setOpen(true)} aria-label={t('watch.watchTogether')} title={t('watch.watchTogether')}>
         <TvIcon />
       </button>
       {open && <StartWatchDialog server={server} channelId={channel.id} onClose={() => setOpen(false)} />}
@@ -40,6 +45,7 @@ export function WatchButton({ server, channel, stage }: { server: ServerState; c
 }
 
 function StartWatchDialog({ server, channelId, onClose }: { server: ServerState; channelId: number; onClose: () => void }) {
+  const { t } = useTranslation()
   const [link, setLink] = useState('')
   const [title, setTitle] = useState('')
   const [busy, setBusy] = useState(false)
@@ -55,7 +61,7 @@ function StartWatchDialog({ server, channelId, onClose }: { server: ServerState;
       await startWatch(server.key, channelId, source, title.trim() || undefined)
       onClose()
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
       setBusy(false)
     }
   }
@@ -68,7 +74,7 @@ function StartWatchDialog({ server, channelId, onClose }: { server: ServerState;
       setBusy(false)
       await start({ kind: 'file', fileId: info.id })
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
       setBusy(false)
     } finally {
       setProgress(null)
@@ -77,30 +83,30 @@ function StartWatchDialog({ server, channelId, onClose }: { server: ServerState;
 
   return (
     <Modal
-      title="Watch together"
+      title={t('watch.watchTogether')}
       onClose={onClose}
       footer={
         <>
-          <button className="button" onClick={onClose}>Cancel</button>
-          <button className="button primary" disabled={!parsed || busy} onClick={() => void start()}>Start</button>
+          <button className="button" onClick={onClose}>{t('common.cancel')}</button>
+          <button className="button primary" disabled={!parsed || busy} onClick={() => void start()}>{t('watch.start')}</button>
         </>
       }
     >
-      <p className="muted">Everyone in the channel watches in step. Paste a YouTube link or an https link to a video file, or upload one.</p>
+      <p className="muted">{t('watch.intro')}</p>
       <label className="field">
-        <span>Link</span>
-        <input value={link} onChange={(e) => setLink(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void start()} placeholder="https://youtu.be/… or https://…/video.mp4" autoFocus />
+        <span>{t('watch.link')}</span>
+        <input value={link} onChange={(e) => setLink(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void start()} placeholder={t('watch.linkPlaceholder')} autoFocus />
       </label>
-      {link.trim() && !parsed && <p className="error-text">That needs to be a YouTube link or an https:// link.</p>}
+      {link.trim() && !parsed && <p className="error-text">{t('watch.badLink')}</p>}
       <label className="field">
-        <span>Title (optional)</span>
-        <input value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} placeholder="Movie night" />
+        <span>{t('watch.titleOptional')}</span>
+        <input value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} placeholder={t('watch.titlePlaceholder')} />
       </label>
       <label className={`button watch-upload ${busy ? 'disabled' : ''}`}>
-        {progress !== null ? `Uploading… ${Math.round(progress * 100)}%` : 'Upload a video'}
+        {progress !== null ? t('watch.uploading', { percent: Math.round(progress * 100) }) : t('watch.uploadVideo')}
         <input type="file" accept="video/mp4,video/webm,audio/*" hidden disabled={busy} onChange={(e) => e.target.files?.[0] && void upload(e.target.files[0])} />
       </label>
-      <p className="muted small-print">Anything else? Share your screen with audio instead.</p>
+      <p className="muted small-print">{t('watch.screenInstead')}</p>
       {error && <p className="error-text" role="alert">{error}</p>}
     </Modal>
   )
@@ -108,11 +114,12 @@ function StartWatchDialog({ server, channelId, onClose }: { server: ServerState;
 
 /** The party: a big player with shared controls, and the party chat beside it (below it on phones). */
 export function WatchPartyPanel({ server, channel, stage }: { server: ServerState; channel: Channel; stage?: StageState }) {
+  const { t } = useTranslation()
   const party = useWatch(partyFor(server.key, channel.id))
   const [chatOpen, setChatOpen] = useState(true)
   if (!party) return null
   return (
-    <section className={`watch-party ${chatOpen ? '' : 'chat-closed'}`} aria-label="Watch party">
+    <section className={`watch-party ${chatOpen ? '' : 'chat-closed'}`} aria-label={t('watch.watchParty')}>
       <WatchPlayer key={party.id} server={server} channel={channel} stage={stage} party={party} chatOpen={chatOpen} onToggleChat={() => setChatOpen(!chatOpen)} />
       {chatOpen && <WatchChat server={server} channelId={channel.id} />}
     </section>
@@ -122,6 +129,7 @@ export function WatchPartyPanel({ server, channel, stage }: { server: ServerStat
 function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: {
   server: ServerState; channel: Channel; stage?: StageState; party: WatchParty; chatOpen: boolean; onToggleChat: () => void
 }) {
+  const { t } = useTranslation()
   const adapter = useRef<PlayerAdapter | null>(null)
   const frame = useRef<HTMLDivElement>(null)
   const partyRef = useRef(party)
@@ -179,7 +187,7 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
 
   const act = (change: Parameters<typeof controlWatch>[2]) => {
     setError(null)
-    controlWatch(server.key, party, change).catch((e: Error) => setError(e.message))
+    controlWatch(server.key, party, change).catch((e: Error) => setError(errorMessage(e)))
   }
   const position = () => adapter.current?.time() ?? positionAt(party, serverNow(server.key))
   const commitSeek = () => {
@@ -188,7 +196,7 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
     setDrag(null)
   }
 
-  const title = party.source.title || (party.source.kind === 'youtube' ? 'YouTube video' : 'Video')
+  const title = party.source.title || (party.source.kind === 'youtube' ? t('watch.youtubeVideo') : t('watch.video'))
   return (
     <div className="watch-main">
       <div className="watch-frame" ref={frame}>
@@ -204,14 +212,14 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
             playsInline
             preload="auto"
             onLoadedMetadata={() => setReady(true)}
-            onError={() => setFailed("This video can't be played here. Check the link, or share your screen instead.")}
+            onError={() => setFailed(t('watch.cantPlay'))}
           />
         )}
         {failed && <div className="watch-overlay"><p>{failed}</p></div>}
         {!failed && blocked && (
           <button className="watch-overlay" onClick={() => adapter.current?.play().then(() => setBlocked(false), () => undefined)}>
             <span className="watch-overlay-play"><PlayIcon size={28} /></span>
-            <span>Tap to watch along</span>
+            <span>{t('watch.tapToWatch')}</span>
           </button>
         )}
       </div>
@@ -219,11 +227,11 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
       <div className="watch-bar">
         <div className="watch-title">
           <strong title={title}>{title}</strong>
-          <span className="muted">Hosted by {nameIn(server, party.host)}{party.anyoneControls ? ' · anyone can control' : ''}</span>
+          <span className="muted">{t('watch.hostedBy', { name: nameIn(server, party.host) })}{party.anyoneControls ? t('watch.anyoneControlsSuffix') : ''}</span>
         </div>
-        <div className="watch-controls" role="toolbar" aria-label="Watch party controls">
+        <div className="watch-controls" role="toolbar" aria-label={t('watch.controls')}>
           {control && (
-            <button className="icon-button" onClick={() => act({ playing: !party.playing, position: position() })} aria-label={party.playing ? 'Pause' : 'Play'} title={party.playing ? 'Pause' : 'Play'}>
+            <button className="icon-button" onClick={() => act({ playing: !party.playing, position: position() })} aria-label={party.playing ? t('watch.pause') : t('watch.play')} title={party.playing ? t('watch.pause') : t('watch.play')}>
               {party.playing ? <PauseIcon /> : <PlayIcon />}
             </button>
           )}
@@ -231,7 +239,7 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
           <input
             type="range"
             className="watch-seek"
-            aria-label="Position"
+            aria-label={t('watch.position')}
             min={0}
             max={Math.max(now.duration, 0.1)}
             step={1}
@@ -244,25 +252,25 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
           />
           <span className="spacer" />
           {control && (
-            <select className="watch-rate" aria-label="Speed" value={party.rate} onChange={(e) => act({ rate: Number(e.target.value), position: position() })}>
-              {WATCH_RATES.map((r) => <option key={r} value={r}>{r}×</option>)}
+            <select className="watch-rate" aria-label={t('watch.speed')} value={party.rate} onChange={(e) => act({ rate: Number(e.target.value), position: position() })}>
+              {WATCH_RATES.map((r) => <option key={r} value={r}>{t('watch.rate', { rate: formatNumber(r) })}</option>)}
             </select>
           )}
-          <button className="icon-button" onClick={() => setMuted(!muted)} aria-label={muted ? 'Unmute video' : 'Mute video'} title={muted ? 'Unmute video' : 'Mute video'}>
+          <button className="icon-button" onClick={() => setMuted(!muted)} aria-label={muted ? t('watch.unmuteVideo') : t('watch.muteVideo')} title={muted ? t('watch.unmuteVideo') : t('watch.muteVideo')}>
             {muted || volume === 0 ? <VolumeOffIcon /> : <VolumeOnIcon />}
           </button>
-          <input type="range" className="watch-volume" aria-label="Video volume" min={0} max={1} step={0.05} value={muted ? 0 : volume}
+          <input type="range" className="watch-volume" aria-label={t('watch.videoVolume')} min={0} max={1} step={0.05} value={muted ? 0 : volume}
             onChange={(e) => { setVolume(Number(e.target.value)); setMuted(false) }} />
-          <button className="icon-button" onClick={() => void frame.current?.requestFullscreen?.()} aria-label="Full screen" title="Full screen"><Expand size={16} /></button>
-          <button className={`icon-button ${chatOpen ? 'on' : ''}`} onClick={onToggleChat} aria-pressed={chatOpen} aria-label="Party chat" title="Party chat"><ChatIcon /></button>
+          <button className="icon-button" onClick={() => void frame.current?.requestFullscreen?.()} aria-label={t('watch.fullScreen')} title={t('watch.fullScreen')}><Expand size={16} /></button>
+          <button className={`icon-button ${chatOpen ? 'on' : ''}`} onClick={onToggleChat} aria-pressed={chatOpen} aria-label={t('watch.partyChat')} title={t('watch.partyChat')}><ChatIcon /></button>
         </div>
         {(host || moderator) && (
           <div className="watch-host">
             <label className="watch-toggle">
-              <input type="checkbox" checked={party.anyoneControls} onChange={(e) => setAnyoneControls(server.key, party, e.target.checked).catch((err: Error) => setError(err.message))} />
-              Anyone can control
+              <input type="checkbox" checked={party.anyoneControls} onChange={(e) => setAnyoneControls(server.key, party, e.target.checked).catch((err: Error) => setError(errorMessage(err)))} />
+              {t('watch.anyoneControls')}
             </label>
-            <button className="button small danger-outline" onClick={() => stopWatch(server.key, party).catch((e: Error) => setError(e.message))}>End watch party</button>
+            <button className="button small danger-outline" onClick={() => stopWatch(server.key, party).catch((e: Error) => setError(errorMessage(e)))}>{t('watch.end')}</button>
           </div>
         )}
         {error && <p className="error-text" role="alert">{error}</p>}
@@ -276,6 +284,7 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
  * no YouTube script runs in the app's page. Reports an adapter once the player answers.
  */
 function YouTubeFrame({ videoId, onReady, onError }: { videoId: string; onReady: (adapter: PlayerAdapter) => void; onError: (message: string) => void }) {
+  const { t } = useTranslation()
   const ref = useRef<HTMLIFrameElement>(null)
   const callbacks = useRef({ onReady, onError })
   const src = youTubeEmbedUrl(videoId, window.location.origin)
@@ -292,7 +301,7 @@ function YouTubeFrame({ videoId, onReady, onError }: { videoId: string; onReady:
       if (!bridge.receive(e)) return
       if (bridge.info.error !== null && !failed) {
         failed = true
-        callbacks.current.onError("YouTube won't play this video here (it may not allow embedding).")
+        callbacks.current.onError(i18t('watch.youtubeRefused'))
       }
       if (bridge.info.ready && !announced) {
         announced = true
@@ -316,7 +325,7 @@ function YouTubeFrame({ videoId, onReady, onError }: { videoId: string; onReady:
     <iframe
       ref={ref}
       className="watch-video"
-      title="YouTube video"
+      title={t('watch.youtubeVideo')}
       src={src}
       allow={YOUTUBE_FRAME.allow}
       referrerPolicy={YOUTUBE_FRAME.referrerPolicy}
@@ -327,6 +336,7 @@ function YouTubeFrame({ videoId, onReady, onError }: { videoId: string; onReady:
 }
 
 function WatchChat({ server, channelId }: { server: ServerState; channelId: number }) {
+  const { t } = useTranslation()
   const lines = useWatch((s) => s.chat[watchKey(server.key, channelId)]) ?? EMPTY
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -343,16 +353,16 @@ function WatchChat({ server, channelId }: { server: ServerState; channelId: numb
     try {
       await sendWatchChat(server.key, channelId, message)
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
       setText(message)
     }
   }
 
   return (
-    <aside className="watch-chat" aria-label="Party chat">
-      <header>Party chat</header>
+    <aside className="watch-chat" aria-label={t('watch.partyChat')}>
+      <header>{t('watch.partyChat')}</header>
       <ol ref={list}>
-        {lines.length === 0 && <li className="muted watch-chat-empty">Say hi. Messages here aren't saved.</li>}
+        {lines.length === 0 && <li className="muted watch-chat-empty">{t('watch.chatEmpty')}</li>}
         {lines.map((line, i) => (
           <li key={`${line.at}-${i}`}>
             <Avatar name={nameIn(server, line.accountKey)} accountKey={line.accountKey} size={22} />
@@ -361,8 +371,8 @@ function WatchChat({ server, channelId }: { server: ServerState; channelId: numb
         ))}
       </ol>
       <form onSubmit={(e) => { e.preventDefault(); void send() }}>
-        <input value={text} maxLength={500} onChange={(e) => setText(e.target.value)} placeholder="Message the party" aria-label="Message the party" />
-        <button className="icon-button" type="submit" disabled={!text.trim()} aria-label="Send"><Send size={16} /></button>
+        <input value={text} maxLength={500} onChange={(e) => setText(e.target.value)} placeholder={t('watch.messageParty')} aria-label={t('watch.messageParty')} />
+        <button className="icon-button" type="submit" disabled={!text.trim()} aria-label={t('common.send')}><Send size={16} /></button>
       </form>
       {error && <p className="error-text">{error}</p>}
     </aside>

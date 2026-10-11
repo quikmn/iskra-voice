@@ -1,4 +1,5 @@
 // Search results beside the chat (full screen on phones). Matches are highlighted with React elements.
+import { useTranslation } from 'react-i18next'
 import type { SearchResult } from '../../core/protocol'
 import type { ServerState } from '../../state/store'
 import { closeSearch, resultCount, runSearch, setSearchText, useSearch } from '../../state/search'
@@ -12,20 +13,21 @@ import { ArrowLeft, SearchIcon } from './extraIcons'
 import { useEscapeLayer } from '../layers'
 import { resolveKey } from '../../state/keyMap'
 
-const HINTS: [string, string][] = [
-  ['from:', 'a person'],
-  ['in:', 'a channel'],
-  ['has:file', 'with attachments'],
-  ['has:link', 'with links'],
-  ['before:', 'a date (2026-01-31)'],
-  ['after:', 'a date'],
-]
+const HINTS = [
+  ['from:', 'chat.search.hints.from'],
+  ['in:', 'chat.search.hints.in'],
+  ['has:file', 'chat.search.hints.hasFile'],
+  ['has:link', 'chat.search.hints.hasLink'],
+  ['before:', 'chat.search.hints.before'],
+  ['after:', 'chat.search.hints.after'],
+] as const
 
 const isPhone = () => window.matchMedia('(max-width: 760px)').matches
 
 export function SearchPanel({ server }: { server: ServerState }) {
   const { text, searched, results, total, totalCapped, hasMore, loading, error } = useSearch()
   useEscapeLayer(closeSearch)
+  const { t } = useTranslation()
 
   function addFilter(filter: string) {
     const next = `${text.trim()} ${filter}`.trimStart()
@@ -34,15 +36,15 @@ export function SearchPanel({ server }: { server: ServerState }) {
   }
 
   return (
-    <section className="side-panel search-panel" aria-label="Search results">
+    <section className="side-panel search-panel" aria-label={t('chat.search.results')}>
       <header className="side-panel-header">
-        <button className="icon-button panel-back" onClick={closeSearch} aria-label="Close search"><ArrowLeft /></button>
+        <button className="icon-button panel-back" onClick={closeSearch} aria-label={t('chat.search.close')}><ArrowLeft /></button>
         <label className="header-search panel-search">
           <SearchIcon size={15} />
           <input
             type="search"
-            placeholder={`Search ${server.name}`}
-            aria-label="Search messages"
+            placeholder={t('chat.search.placeholder', { name: server.name })}
+            aria-label={t('chat.search.searchMessages')}
             value={text}
             maxLength={300}
             autoFocus={isPhone()}
@@ -51,21 +53,21 @@ export function SearchPanel({ server }: { server: ServerState }) {
           />
         </label>
         <div className="panel-title desktop-title">
-          <h2>{searched ? (loading && results.length === 0 ? 'Searching…' : resultCount(total, totalCapped)) : 'Search'}</h2>
+          <h2>{searched ? (loading && results.length === 0 ? t('chat.search.searching') : resultCount(total, totalCapped)) : t('common.search')}</h2>
         </div>
         <span className="spacer" />
-        <button className="icon-button panel-close" onClick={closeSearch} aria-label="Close search" title="Close"><Close /></button>
+        <button className="icon-button panel-close" onClick={closeSearch} aria-label={t('chat.search.close')} title={t('common.close')}><Close /></button>
       </header>
 
       <div className="search-results">
         {error && <p className="error-text search-note">{error}</p>}
         {!searched && !error && (
           <div className="search-help">
-            <p className="muted">Search messages in every channel you can see. Narrow it down with:</p>
+            <p className="muted">{t('chat.search.help')}</p>
             <div className="search-chips">
               {HINTS.map(([filter, label]) => (
                 <button key={filter} className="search-chip" onClick={() => addFilter(filter)}>
-                  <code>{filter}</code> <span className="muted">{label}</span>
+                  <code>{filter}</code> <span className="muted">{t(label)}</span>
                 </button>
               ))}
             </div>
@@ -73,8 +75,8 @@ export function SearchPanel({ server }: { server: ServerState }) {
         )}
         {searched && !loading && !error && results.length === 0 && (
           <div className="search-note">
-            <p>No messages found.</p>
-            <p className="muted">Try fewer words, or check the filters.</p>
+            <p>{t('chat.search.none')}</p>
+            <p className="muted">{t('chat.search.noneHint')}</p>
           </div>
         )}
         {results.length > 0 && <p className="search-note muted mobile-count">{resultCount(total, totalCapped)}</p>}
@@ -83,7 +85,7 @@ export function SearchPanel({ server }: { server: ServerState }) {
         </ul>
         {loading && <div className="search-note"><Spinner /></div>}
         {hasMore && !loading && (
-          <button className="button wide load-more" onClick={() => void runSearch(server.key, true)}>Show more results</button>
+          <button className="button wide load-more" onClick={() => void runSearch(server.key, true)}>{t('chat.search.more')}</button>
         )}
       </div>
     </section>
@@ -92,7 +94,8 @@ export function SearchPanel({ server }: { server: ServerState }) {
 
 function ResultCard({ server, result }: { server: ServerState; result: SearchResult }) {
   const { message, matches } = result
-  const name = message.imported?.name ?? (server.members[message.author] ?? server.members[resolveKey(message.author)])?.name ?? 'Former member'
+  const { t } = useTranslation()
+  const name = message.imported?.name ?? (server.members[message.author] ?? server.members[resolveKey(message.author)])?.name ?? t('chat.author.formerMember')
   const nameOf = (k: string) => server.members[k]?.name ?? null
   const segments = highlightSegments(message.text, matches)
   return (
@@ -119,7 +122,7 @@ function ResultCard({ server, result }: { server: ServerState; result: SearchRes
                   : <span key={i}>{readableMentions(segment.text, nameOf)}</span>,
               )}
               {!message.text && message.attachments.length > 0 && (
-                <span className="muted">{message.attachments.length} attachment{message.attachments.length === 1 ? '' : 's'}</span>
+                <span className="muted">{t('chat.search.attachments', { count: message.attachments.length })}</span>
               )}
             </span>
           </span>

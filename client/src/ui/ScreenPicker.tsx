@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { desktop, type ScreenSource } from '../platform/desktop'
 import { Modal } from './bits'
 
 /** Desktop only: choose which screen or window to share. */
 export function ScreenPicker() {
+  const { t } = useTranslation()
   const [sources, setSources] = useState<ScreenSource[] | null>(null)
 
   useEffect(() => desktop?.onPickScreen(setSources), [])
@@ -17,8 +19,8 @@ export function ScreenPicker() {
   const windows = sources.filter((s) => !s.isScreen)
 
   return (
-    <Modal title="Share your screen" onClose={() => choose(null)}>
-      {[{ title: 'Screens', list: screens }, { title: 'Windows', list: windows }].map(
+    <Modal title={t('voice.share.title')} onClose={() => choose(null)}>
+      {[{ title: t('voice.share.screens'), list: screens }, { title: t('voice.share.windows'), list: windows }].map(
         (group) =>
           group.list.length > 0 && (
             <section key={group.title} className="settings-section">

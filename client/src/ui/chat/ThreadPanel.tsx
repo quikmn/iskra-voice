@@ -1,5 +1,7 @@
 // A thread beside its channel (full screen on phones): the message it started from, its replies, a composer.
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { errorMessage } from '../../i18n/errors'
 import type { Message } from '../../core/protocol'
 import { useRoleLookup, useServerRoles } from '../../state/roles'
 import { canSendIn, has, outranks } from '../../state/permissions'
@@ -29,6 +31,7 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
   const [pinsOpen, setPinsOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const online = server.status.state === 'online'
+  const { t } = useTranslation()
   useEscapeLayer(closeThread)
 
   // The thread and the message it started from.
@@ -55,7 +58,7 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
   const me = server.me
   const post = useForumPost(server, threadId, parent?.kind)
   const blocked = replyBlock(server, post)
-  const noun = parent?.kind === 'forum' ? 'post' : 'thread'
+  const isPost = parent?.kind === 'forum'
   const roles = useServerRoles(server.key)
   const canWrite = !!parent && canSendIn(me, parent, roles)
   const creator = thread ? server.members[thread.createdBy] : undefined
@@ -72,7 +75,7 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
       await renameThread(server.key, thread.id, name)
       setRenaming(null)
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
     }
   }
 
@@ -81,7 +84,7 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
       await deleteThread(server.key, threadId)
       closeThread()
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
       setConfirmDelete(false)
     }
   }
@@ -89,7 +92,7 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
   return (
     <section
       className="side-panel thread-panel"
-      aria-label={thread ? `Thread ${thread.name}` : 'Thread'}
+      aria-label={thread ? t('chat.threads.label', { name: thread.name }) : t('chat.threads.thread')}
       onDragOver={(e) => {
         if (canWrite && e.dataTransfer.types.includes('Files')) e.preventDefault()
       }}
@@ -100,7 +103,7 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
       }}
     >
       <header className="side-panel-header">
-        <button className="icon-button panel-back" onClick={closeThread} aria-label="Back to channel"><ArrowLeft /></button>
+        <button className="icon-button panel-back" onClick={closeThread} aria-label={t('chat.threads.backToChannel')}><ArrowLeft /></button>
         <span className="panel-icon"><ThreadIcon /></span>
         {renaming !== null ? (
           <input
@@ -108,7 +111,7 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
             value={renaming}
             maxLength={100}
             autoFocus
-            aria-label="Thread name"
+            aria-label={t('chat.threads.name')}
             onChange={(e) => setRenaming(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') void saveName()
@@ -121,32 +124,32 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
           />
         ) : (
           <div className="panel-title">
-            <h2>{thread?.name ?? 'Thread'}</h2>
-            {parent && <span className="muted">in #{parent.name}</span>}
+            <h2>{thread?.name ?? t('chat.threads.thread')}</h2>
+            {parent && <span className="muted">{t('chat.threads.inChannel', { name: parent.name })}</span>}
           </div>
         )}
         <span className="spacer" />
         {thread && (
-          <button className={`icon-button ${pinsOpen ? 'on' : ''}`} onClick={() => setPinsOpen((v) => !v)} aria-label="Pinned in this thread" title="Pinned messages">
+          <button className={`icon-button ${pinsOpen ? 'on' : ''}`} onClick={() => setPinsOpen((v) => !v)} aria-label={t('chat.threads.pinnedHere')} title={t('chat.header.pins')}>
             <PinIcon />
           </button>
         )}
         {canManage && renaming === null && !confirmDelete && (
           <>
-            <button className="icon-button" onClick={() => setRenaming(thread!.name)} aria-label={`Rename ${noun}`} title="Rename"><Pencil size={16} /></button>
-            <button className="icon-button" onClick={() => setConfirmDelete(true)} aria-label={`Delete ${noun}`} title={`Delete ${noun}`}><Trash size={16} /></button>
+            <button className="icon-button" onClick={() => setRenaming(thread!.name)} aria-label={isPost ? t('chat.threads.renamePost') : t('chat.threads.renameThread')} title={t('chat.threads.rename')}><Pencil size={16} /></button>
+            <button className="icon-button" onClick={() => setConfirmDelete(true)} aria-label={isPost ? t('chat.threads.deletePost') : t('chat.threads.deleteThread')} title={isPost ? t('chat.threads.deletePost') : t('chat.threads.deleteThread')}><Trash size={16} /></button>
           </>
         )}
         {confirmDelete && (
           <span className="confirm-inline">
-            Delete {noun}?
-            <button className="button danger small" onClick={() => void remove()}>Delete</button>
-            <button className="button small" onClick={() => setConfirmDelete(false)}>Keep</button>
+            {isPost ? t('chat.threads.deletePostConfirm') : t('chat.threads.deleteThreadConfirm')}
+            <button className="button danger small" onClick={() => void remove()}>{t('common.delete')}</button>
+            <button className="button small" onClick={() => setConfirmDelete(false)}>{t('chat.threads.keep')}</button>
           </span>
         )}
-        <button className="icon-button panel-close" onClick={closeThread} aria-label="Close thread" title="Close"><Close /></button>
+        <button className="icon-button panel-close" onClick={closeThread} aria-label={t('chat.threads.close')} title={t('common.close')}><Close /></button>
         {pinsOpen && thread && (
-          <Popover title={`Pinned in ${thread.name}`} onClose={() => setPinsOpen(false)}>
+          <Popover title={t('chat.threads.pinnedIn', { name: thread.name })} onClose={() => setPinsOpen(false)}>
             <PinList server={server} channelId={thread.id} onJump={() => setPinsOpen(false)} />
           </Popover>
         )}
@@ -155,7 +158,7 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
       {post && <PostBar server={server} post={post} />}
 
       {missing ? (
-        <div className="empty-state"><p>This thread isn't available any more.</p></div>
+        <div className="empty-state"><p>{t('chat.threads.missing')}</p></div>
       ) : (
         <>
           <MessageList
@@ -167,9 +170,9 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
           />
           <TypingLine server={server} channelId={threadId} />
           {canWrite && thread && !blocked ? (
-            <Composer server={server} channelId={threadId} channelName={thread.name} thread placeholder={`Reply in ${short(thread.name)}`} />
+            <Composer server={server} channelId={threadId} channelName={thread.name} thread placeholder={t('chat.threads.replyIn', { name: short(thread.name) })} />
           ) : (
-            <div className="composer read-only">{blocked ?? (thread ? "You can't reply in this thread." : <Spinner />)}</div>
+            <div className="composer read-only">{blocked ?? (thread ? t('chat.threads.cannotReply') : <Spinner />)}</div>
           )}
         </>
       )}
@@ -182,17 +185,18 @@ const short = (name: string) => (name.length > 28 ? `${name.slice(0, 27).trimEnd
 /** The message the thread started from, at the top of the thread. */
 function ThreadStart({ server, root, createdBy, post }: { server: ServerState; root: Message | null | undefined; createdBy?: string; post?: boolean }) {
   const roleOf = useRoleLookup(server.key, server.me)
+  const { t } = useTranslation()
   if (root === undefined) return <div className="thread-start"><Spinner /></div>
-  const starter = createdBy ? server.members[createdBy]?.name ?? 'Someone' : null
+  const starter = createdBy ? server.members[createdBy]?.name ?? t('common.someone') : null
   if (root === null) {
     return (
       <div className="thread-start">
-        <p className="muted">The original message was deleted.</p>
-        {starter && <p className="muted">{starter} started this {post ? 'post' : 'thread'}.</p>}
+        <p className="muted">{t('chat.threads.rootDeleted')}</p>
+        {starter && <p className="muted">{post ? t('chat.threads.startedPost', { name: starter }) : t('chat.threads.startedThread', { name: starter })}</p>}
       </div>
     )
   }
-  const name = root.imported?.name ?? (server.members[root.author] ?? server.members[resolveKey(root.author)])?.name ?? 'Former member'
+  const name = root.imported?.name ?? (server.members[root.author] ?? server.members[resolveKey(root.author)])?.name ?? t('chat.author.formerMember')
   return (
     <div className="thread-start">
       <div className="thread-root">
@@ -214,7 +218,7 @@ function ThreadStart({ server, root, createdBy, post }: { server: ServerState; r
           <Attachments server={server} files={root.attachments} />
         </div>
       </div>
-      {starter && !post && <p className="muted thread-started-by">{starter} started this thread. Replies show up here.</p>}
+      {starter && !post && <p className="muted thread-started-by">{t('chat.threads.startedHint', { name: starter })}</p>}
     </div>
   )
 }

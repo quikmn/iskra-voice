@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import { desktopOs, LINKS, type DesktopOs } from '../../links'
 import { Modal } from '../bits'
 
@@ -25,15 +26,16 @@ function useMacIntel(active: boolean): boolean {
 
 /** The big download button for this visitor's computer, and the other systems underneath. */
 function DesktopDownload({ os }: { os: DesktopOs }) {
+  const { t } = useTranslation()
   const intel = useMacIntel(os === 'mac')
   return (
     <>
-      {os === 'windows' && <a className="button primary" href={LINKS.windowsInstaller}>Download Iskra for Windows</a>}
+      {os === 'windows' && <a className="button primary" href={LINKS.windowsInstaller}>{t('settings.start.downloadFor', { os: 'Windows' })}</a>}
       {os === 'mac' && (
-        <a className="button primary" href={intel ? LINKS.macIntel : LINKS.macAppleSilicon}>Download Iskra for Mac{intel ? ' (Intel)' : ''}</a>
+        <a className="button primary" href={intel ? LINKS.macIntel : LINKS.macAppleSilicon}>{t('settings.start.downloadFor', { os: intel ? 'Mac (Intel)' : 'Mac' })}</a>
       )}
-      {os === 'linux' && <a className="button primary" href={LINKS.linuxAppImage}>Download Iskra for Linux (AppImage)</a>}
-      {os === 'other' && <p className="muted">The app runs on the Windows, Mac or Linux computer that will host your server.</p>}
+      {os === 'linux' && <a className="button primary" href={LINKS.linuxAppImage}>{t('settings.start.downloadFor', { os: 'Linux (AppImage)' })}</a>}
+      {os === 'other' && <p className="muted">{t('settings.start.otherOs')}</p>}
 
       <p className="muted download-others">
         {os === 'mac' && <>{intel ? <a href={LINKS.macAppleSilicon}>Apple silicon</a> : <a href={LINKS.macIntel}>Intel Mac</a>} · </>}
@@ -41,48 +43,50 @@ function DesktopDownload({ os }: { os: DesktopOs }) {
         {os !== 'windows' && <><a href={LINKS.windowsInstaller}>Windows</a> · </>}
         {os !== 'mac' && <><a href={LINKS.macAppleSilicon}>Mac (Apple silicon)</a> · <a href={LINKS.macIntel}>Mac (Intel)</a> · </>}
         {os !== 'linux' && <><a href={LINKS.linuxAppImage}>Linux AppImage</a> · <a href={LINKS.linuxDeb}>.deb</a> · <a href={LINKS.linuxRpm}>.rpm</a> · </>}
-        <a href={LINKS.releases} target="_blank" rel="noopener noreferrer">All downloads</a>
+        <a href={LINKS.releases} target="_blank" rel="noopener noreferrer">{t('settings.start.allDownloads')}</a>
       </p>
 
       {os === 'windows' && (
-        <p className="muted">Signed by Open Source Developer Viktor Lundgren. While the app is new, Windows may still ask once before running it.</p>
+        <p className="muted">{t('settings.start.signed')}</p>
       )}
-      {os === 'mac' && <p className="muted">The first time, macOS may ask you to confirm: right-click Iskra in Applications and choose Open.</p>}
+      {os === 'mac' && <p className="muted">{t('settings.start.macFirst')}</p>}
     </>
   )
 }
 
 /** In the browser: how to start your own server (the desktop app can do it in one click). */
 export function StartServerDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation()
   const [os] = useState(visitorOs)
   return (
-    <Modal title="Start your own server" onClose={onClose}>
+    <Modal title={t('settings.start.title')} onClose={onClose}>
       <section className="guide-option">
-        <h3>Easiest: the Iskra app{os !== 'other' ? ` for ${OS_NAME[os]}` : ''}</h3>
+        <h3>{os !== 'other' ? t('settings.start.easiestFor', { os: OS_NAME[os] }) : t('settings.start.easiest')}</h3>
         <ol>
-          <li>Download and install Iskra.</li>
-          <li>Click <strong>Create a server</strong>. It runs on your computer, voice included, and you're the owner.</li>
-          <li>Click <strong>Invite friends</strong> and send them the link.</li>
+          <li>{t('settings.start.step1')}</li>
+          <li><Trans i18nKey="settings.start.step2" components={{ b: <strong /> }} /></li>
+          <li><Trans i18nKey="settings.start.step3" components={{ b: <strong /> }} /></li>
         </ol>
         <DesktopDownload os={os} />
       </section>
 
       <section className="guide-option">
-        <h3>Or run the server yourself (home PC or a VPS)</h3>
+        <h3>{t('settings.start.selfTitle')}</h3>
         <ol>
           <li>
-            Download the server for <a href={LINKS.serverWindows}>Windows</a>, <a href={LINKS.serverLinux}>Linux</a> or
-            Mac (<a href={LINKS.serverMacAppleSilicon}>Apple silicon</a>, <a href={LINKS.serverMacIntel}>Intel</a>) and unpack it.
+            <Trans i18nKey="settings.start.self1" components={{
+              win: <a href={LINKS.serverWindows} />, linux: <a href={LINKS.serverLinux} />,
+              arm: <a href={LINKS.serverMacAppleSilicon} />, intel: <a href={LINKS.serverMacIntel} />,
+            }} />
           </li>
           <li>
-            Run <code>iskra-server my-server</code>. It creates a folder called <code>my-server</code> that holds everything.
+            <Trans i18nKey="settings.start.self2" components={{ code: <code /> }} />
           </li>
-          <li>Open the link it prints to become the owner, then invite your friends.</li>
+          <li>{t('settings.start.self3')}</li>
         </ol>
         <p className="muted">
-          For friends joining over the internet from a browser, the server needs HTTPS. It's built in: set your domain in{' '}
-          <code>server.json</code> and it gets a free certificate automatically.{' '}
-          <a href={LINKS.hostingGuide} target="_blank" rel="noopener noreferrer">Hosting guide</a>
+          <Trans i18nKey="settings.start.https" components={{ code: <code /> }} />{' '}
+          <a href={LINKS.hostingGuide} target="_blank" rel="noopener noreferrer">{t('settings.start.hostingGuide')}</a>
         </p>
       </section>
     </Modal>

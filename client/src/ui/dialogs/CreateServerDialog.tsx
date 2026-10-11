@@ -1,4 +1,7 @@
 import { useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
+import { t } from '../../i18n'
+import { errorMessage } from '../../i18n/errors'
 import { parseInvite } from '../../core/invite'
 import { desktop } from '../../platform/desktop'
 import { acceptInvite } from '../../state/store'
@@ -15,8 +18,8 @@ function hostFolder(): string {
 
 /** The one-time network prompt the OS shows when the server first listens. */
 function firewallNote(): string | null {
-  if (desktop?.platform === 'win32') return 'Windows may ask once to allow Iskra and its voice service on your network. Click Allow so friends can join.'
-  if (desktop?.platform === 'darwin') return 'macOS may ask once to let Iskra accept incoming connections. Click Allow so friends can join.'
+  if (desktop?.platform === 'win32') return t('settings.createServer.firewallWindows')
+  if (desktop?.platform === 'darwin') return t('settings.createServer.firewallMac')
   return null
 }
 
@@ -34,6 +37,7 @@ export function CreateServerDialog({ onClose }: { onClose: () => void }) {
 }
 
 function NewServer({ onClose, onRestore }: { onClose: () => void; onRestore?: () => void }) {
+  const { t } = useTranslation()
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -46,39 +50,36 @@ function NewServer({ onClose, onRestore }: { onClose: () => void; onRestore?: ()
     try {
       const hosted = await desktop.host.create(trimmed, appUrl())
       const invite = hosted?.ownerInvite ? parseInvite(hosted.ownerInvite) : null
-      if (!hosted || !invite) throw new Error("The server started but didn't hand out an owner link.")
+      if (!hosted || !invite) throw new Error(t('settings.createServer.noOwnerLink'))
       // You're on the same computer, so connect over localhost (it never changes).
       acceptInvite({ ...invite, serverUrl: hosted.localUrl })
       onClose()
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
       setBusy(false)
     }
   }
 
   return (
     <Modal
-      title="Create a server"
+      title={t('settings.createServer.title')}
       onClose={onClose}
       footer={
         <>
-          <button className="button" onClick={onClose}>Cancel</button>
+          <button className="button" onClick={onClose}>{t('common.cancel')}</button>
           <button className="button primary" disabled={!trimmed || busy} onClick={() => void create()}>
-            {busy ? <Spinner /> : 'Create'}
+            {busy ? <Spinner /> : t('common.create')}
           </button>
         </>
       }
     >
-      <p className="muted">
-        Your server runs on this computer while Iskra is open. Everything stays in a folder you own ({hostFolder()}), with voice included.
-      </p>
+      <p className="muted">{t('settings.createServer.intro', { folder: hostFolder() })}</p>
       <label className="field">
-        <span>Server name</span>
-        <input autoFocus value={name} maxLength={60} placeholder="Game Night" onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void create()} />
+        <span>{t('settings.createServer.name')}</span>
+        <input autoFocus value={name} maxLength={60} placeholder={t('settings.createServer.namePlaceholder')} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void create()} />
       </label>
       <p className="muted">
-        Friends on your network can join right away with an invite link. For friends anywhere, turn on <strong>Open to the internet</strong> in the
-        server's settings afterwards.
+        <Trans i18nKey="settings.createServer.network" components={{ b: <strong /> }} />
       </p>
       {firewallNote() && (
         <p className="dialog-note" role="note">
@@ -89,7 +90,7 @@ function NewServer({ onClose, onRestore }: { onClose: () => void; onRestore?: ()
       {error && <p className="error-text">{error}</p>}
       {onRestore && (
         <p className="muted restore-link">
-          Moving a server here? <button className="link" onClick={onRestore}>Restore from a backup</button>
+          {t('settings.createServer.moving')} <button className="link" onClick={onRestore}>{t('settings.createServer.restore')}</button>
         </p>
       )}
     </Modal>

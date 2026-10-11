@@ -6,6 +6,7 @@ import { Fragment, type MouseEvent, type ReactNode } from 'react'
 import { parseOpenRoute } from '../core/pushRoute'
 import { roleRank, type Role } from '../core/protocol'
 import { Spoiler } from './bits'
+import { t } from '../i18n'
 import { resolveKey } from '../state/keyMap'
 import { CUSTOM_EMOJI_SOURCE, isEmojiOnly } from './expressions/emoji'
 import { CodeBlock, MaskedLink, Timestamp } from './chat/RichText'
@@ -104,7 +105,7 @@ function inline(text: string, ctx: MarkdownContext, depth = 0, links = true): Re
       const who = resolveKey(mention[1])
       const name = ctx.nameOf(who)
       out.push(
-        <span key={key++} className={`mention ${who === ctx.me ? 'me' : ''}`}>@{name ?? 'unknown'}</span>,
+        <span key={key++} className={`mention ${who === ctx.me ? 'me' : ''}`}>@{name ?? t('chat.markdown.unknown')}</span>,
       )
       i += mention[0].length
       continue
@@ -117,7 +118,7 @@ function inline(text: string, ctx: MarkdownContext, depth = 0, links = true): Re
       const role = ctx.roleOf?.(Number(roleMention[1])) ?? null
       out.push(
         <span key={key++} className={`mention role-mention ${role?.mine ? 'me' : ''}`} style={role?.color ? { color: role.color } : undefined}>
-          @{role?.name ?? 'deleted role'}
+          @{role?.name ?? t('chat.markdown.deletedRole')}
         </span>,
       )
       i += roleMention[0].length
@@ -244,8 +245,8 @@ function blockOf(line: string): Block | null {
 /** Plain text of a message for previews and notifications (mentions become @names, markers stay). */
 export function plainText(text: string, ctx: MarkdownContext): string {
   return text
-    .replace(/<@([A-Za-z0-9_-]{43})>/g, (_, key: string) => `@${ctx.nameOf(resolveKey(key)) ?? 'unknown'}`)
-    .replace(ROLE_TOKEN, (_, id: string) => `@${ctx.roleOf?.(Number(id))?.name ?? 'role'}`)
+    .replace(/<@([A-Za-z0-9_-]{43})>/g, (_, key: string) => `@${ctx.nameOf(resolveKey(key)) ?? t('chat.markdown.unknown')}`)
+    .replace(ROLE_TOKEN, (_, id: string) => `@${ctx.roleOf?.(Number(id))?.name ?? t('chat.markdown.role')}`)
     .replace(new RegExp(CUSTOM_EMOJI_SOURCE, 'g'), (_, name: string) => `:${name}:`)
     .replace(new RegExp(TIMESTAMP_SOURCE, 'g'), (all: string, seconds: string, style?: string) => {
       const ms = parseTimestamp(seconds)
@@ -271,7 +272,7 @@ export function encodeMentions(text: string, members: { accountKey: string; name
 /** The reverse, for editing a message: tokens back to "@Name". */
 export function decodeMentions(text: string, nameOf: (accountKey: string) => string | null, roleName?: (id: number) => string | null): string {
   return text
-    .replace(/<@([A-Za-z0-9_-]{43})>/g, (_, key: string) => `@${nameOf(resolveKey(key)) ?? 'unknown'}`)
+    .replace(/<@([A-Za-z0-9_-]{43})>/g, (_, key: string) => `@${nameOf(resolveKey(key)) ?? t('chat.markdown.unknown')}`)
     .replace(ROLE_TOKEN, (token, id: string) => {
       const name = roleName?.(Number(id))
       return name ? `@${name}` : token

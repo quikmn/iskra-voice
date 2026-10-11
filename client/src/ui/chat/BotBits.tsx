@@ -1,4 +1,5 @@
 // How bots and webhooks look in chat: the BOT badge, webhook avatars and embed cards.
+import { useTranslation } from 'react-i18next'
 import type { Embed } from '../../core/protocol'
 import { fileUrl, type ServerState } from '../../state/store'
 import { Avatar } from '../bits'
@@ -9,7 +10,8 @@ import { embedColor, safeUrl } from './bots'
 import '../bots.css'
 
 export function BotBadge() {
-  return <span className="bot-badge" title="Bot">BOT</span>
+  const { t } = useTranslation()
+  return <span className="bot-badge" title={t('chat.bot.title')}>{t('chat.bot.badge')}</span>
 }
 
 /** The member avatar, or a webhook's own image. */
@@ -21,6 +23,7 @@ export function AuthorAvatar({ server, author, hueKey, size }: { server: ServerS
 }
 
 export function Embeds({ server, embeds }: { server: ServerState; embeds: Embed[] }) {
+  useTranslation() // dates follow the language
   if (embeds.length === 0) return null
   const ctx = { nameOf: (k: string) => server.members[k]?.name ?? null, me: server.me?.accountKey }
   return (

@@ -1,6 +1,9 @@
 // The profile page editor: one HTML file on the left, a live preview on the right that runs in
 // the same sandbox as the published page (public/page-preview.html).
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { errorMessage } from '../../i18n/errors'
+import { formatNumber } from '../../i18n/format'
 import { MAX_PAGE_BYTES, previewDocument, STARTER_PAGE, utf8Length } from '../../core/profile'
 import { publishPage, useProfiles } from '../../state/profile'
 import { useApp } from '../../state/store'
@@ -9,6 +12,7 @@ import { Modal } from '../bits'
 const PREVIEW_URL = `${import.meta.env.BASE_URL}page-preview.html`
 
 export function PageEditor({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation()
   const saved = useApp((s) => s.profile?.page ?? null)
   const [html, setHtml] = useState(saved?.html ?? STARTER_PAGE)
   const [status, setStatus] = useState<{ kind: 'saved' | 'error'; text: string } | null>(null)
@@ -44,11 +48,11 @@ export function PageEditor({ onClose }: { onClose: () => void }) {
       const failed = await publishPage(next)
       setStatus(
         failed.length
-          ? { kind: 'error', text: `Saved here, but ${failed.join(', ')} didn't take it.` }
-          : { kind: 'saved', text: next === null ? 'Page removed' : 'Published' },
+          ? { kind: 'error', text: t('profile.savedExcept', { servers: failed.join(', ') }) }
+          : { kind: 'saved', text: next === null ? t('profile.pageRemoved') : t('profile.published') },
       )
     } catch (e) {
-      setStatus({ kind: 'error', text: (e as Error).message })
+      setStatus({ kind: 'error', text: errorMessage(e) })
     } finally {
       setBusy(false)
     }
@@ -56,39 +60,38 @@ export function PageEditor({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal
-      title="Your profile page"
+      title={t('profile.yourPage')}
       onClose={onClose}
       wide
       footer={
         <>
           {status && <span className={`editor-status ${status.kind === 'error' ? 'error-text' : 'success-text'}`}>{status.text}</span>}
-          {saved && <button className="button danger-outline" disabled={busy} onClick={() => void publish(null)}>Unpublish</button>}
-          <button className="button primary" disabled={busy || tooBig || !html.trim()} onClick={() => void publish(html)}>Publish</button>
+          {saved && <button className="button danger-outline" disabled={busy} onClick={() => void publish(null)}>{t('profile.unpublish')}</button>}
+          <button className="button primary" disabled={busy || tooBig || !html.trim()} onClick={() => void publish(html)}>{t('profile.publish')}</button>
         </>
       }
     >
       <p className="muted page-note">
-        One HTML file with inline CSS, JavaScript and data: images, up to {MAX_PAGE_BYTES / 1024} KB. It runs in a sandbox:
-        no network, no forms, no pop-ups, and no access to anyone's account. Viewers see it without scripts unless they turn them on.
-        {closedOn.length > 0 && ` Pages are turned off on ${closedOn.join(', ')}.`}
+        {t('profile.editorNote', { max: MAX_PAGE_BYTES / 1024 })}
+        {closedOn.length > 0 && ` ${t('profile.pagesOff', { servers: closedOn.join(', ') })}`}
       </p>
       <div className="page-editor">
         <div className="page-source">
           <textarea
             value={html}
             spellCheck={false}
-            aria-label="Page HTML"
+            aria-label={t('profile.pageHtml')}
             onChange={(e) => { setHtml(e.target.value); setStatus(null) }}
           />
           <div className="page-source-bar">
-            <span className={tooBig ? 'error-text' : 'muted'}>{(bytes / 1024).toFixed(1)} / {MAX_PAGE_BYTES / 1024} KB</span>
-            <button className="link" onClick={() => setHtml(STARTER_PAGE)}>Start from the template</button>
+            <span className={tooBig ? 'error-text' : 'muted'}>{formatNumber(bytes / 1024, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} / {MAX_PAGE_BYTES / 1024} KB</span>
+            <button className="link" onClick={() => setHtml(STARTER_PAGE)}>{t('profile.template')}</button>
           </div>
         </div>
         <iframe
           ref={frame}
           className="page-preview"
-          title="Preview"
+          title={t('profile.preview')}
           src={PREVIEW_URL}
           sandbox="allow-scripts"
           referrerPolicy="no-referrer"

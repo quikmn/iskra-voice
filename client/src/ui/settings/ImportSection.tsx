@@ -1,5 +1,9 @@
 // Settings → Import from Discord (owner): upload a DiscordChatExporter export and watch it come in.
 import { useEffect, useRef, useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
+import { t } from '../../i18n'
+import { errorMessage } from '../../i18n/errors'
+import { formatNumber } from '../../i18n/format'
 import type { ImportJob } from '../../core/protocol'
 import { cancelImport, formatBytes, importFraction, loadImportStatus, startImport, useBackups } from '../../state/backups'
 import { selectChannel, useApp, type ServerState } from '../../state/store'
@@ -10,18 +14,23 @@ const EXPORTER = 'https://github.com/Tyrrrz/DiscordChatExporter'
 
 function phaseText(job: ImportJob): string {
   switch (job.phase) {
-    case 'reading': return job.current ? `Reading ${job.current}…` : 'Reading the export…'
+    case 'reading': return job.current ? t('settings.import.reading', { name: job.current }) : t('settings.import.readingExport')
     case 'importing':
-      return `${job.messagesDone.toLocaleString()} of ${job.messages.toLocaleString()} messages · channel ${Math.min(job.channelsDone + 1, job.channels)} of ${job.channels}${job.current ? ` (#${job.current})` : ''}`
-    case 'done': return 'Done'
-    case 'failed': return job.error ?? "The import didn't work."
-    case 'cancelled': return 'Cancelled. Nothing was kept.'
+      return t('settings.import.progress', {
+        done: formatNumber(job.messagesDone), total: formatNumber(job.messages),
+        channel: Math.min(job.channelsDone + 1, job.channels), channels: job.channels, current: job.current ? ` (#${job.current})` : '',
+      })
+    case 'done': return t('common.done')
+    case 'failed': return job.error ?? t('settings.import.failed')
+    case 'cancelled': return t('settings.import.cancelled')
   }
 }
 
-const count = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? '' : 's'}`
+type Noun = 'messages' | 'channels' | 'threads' | 'files'
+const count = (n: number, noun: Noun) => t(`settings.import.${noun}`, { count: n, n: formatNumber(n) })
 
 function Result({ server, job }: { server: ServerState; job: ImportJob }) {
+  useTranslation()
   const byCategory = new Map<string, ImportJob['imported']>()
   for (const channel of job.imported.filter((c) => !c.thread)) {
     const key = channel.category ?? ''
@@ -31,11 +40,11 @@ function Result({ server, job }: { server: ServerState; job: ImportJob }) {
   return (
     <div className="import-result">
       <p>
-        <strong>{count(job.messagesDone, 'message')}</strong> in {count(job.imported.length - threads, 'channel')}
-        {threads > 0 && ` and ${count(threads, 'thread')}`}
-        {job.files > 0 && `, with ${count(job.files, 'file')}`}.
-        {job.missingFiles === 1 && " 1 file wasn't in the export; its name is shown instead."}
-        {job.missingFiles > 1 && ` ${count(job.missingFiles, 'file')} weren't in the export; their names are shown instead.`}
+        <strong>{count(job.messagesDone, 'messages')}</strong> {t('settings.import.inChannels', { channels: count(job.imported.length - threads, 'channels') })}
+        {threads > 0 && ` ${t('settings.import.andThreads', { threads: count(threads, 'threads') })}`}
+        {job.files > 0 && `, ${t('settings.import.withFiles', { files: count(job.files, 'files') })}`}.
+        {job.missingFiles === 1 && ` ${t('settings.import.missingOne')}`}
+        {job.missingFiles > 1 && ` ${t('settings.import.missingMany', { files: count(job.missingFiles, 'files') })}`}
       </p>
       {[...byCategory].map(([category, channels]) => (
         <div key={category} className="import-category">
@@ -47,7 +56,7 @@ function Result({ server, job }: { server: ServerState; job: ImportJob }) {
                   useApp.setState({ activeServer: server.key })
                   selectChannel(server.key, c.id)
                 }}>#{c.name}</button>
-                <span className="muted">{count(c.messages, 'message')}</span>
+                <span className="muted">{count(c.messages, 'messages')}</span>
               </li>
             ))}
           </ul>
@@ -58,6 +67,7 @@ function Result({ server, job }: { server: ServerState; job: ImportJob }) {
 }
 
 export function ImportSection({ server }: { server: ServerState }) {
+  const { t } = useTranslation()
   const job = useBackups((s) => s.imports[server.key])
   const [file, setFile] = useState<File | null>(null)
   const [readOnly, setReadOnly] = useState(false)
@@ -79,7 +89,7 @@ export function ImportSection({ server }: { server: ServerState }) {
       setFile(null)
       if (input.current) input.current.value = ''
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
     } finally {
       setUpload(null)
     }
@@ -88,40 +98,36 @@ export function ImportSection({ server }: { server: ServerState }) {
   const fraction = job ? importFraction(job) : null
   return (
     <section className="settings-section import" data-testid="import-section">
-      <h3>Import from Discord</h3>
-      <p className="muted">
-        Bring your Discord server's history along: channels, messages with their dates, replies, pins, files and reaction counts.
-        Messages keep their authors' Discord names and pictures and are marked as imported.
-      </p>
+      <h3>{t('settings.sections.import')}</h3>
+      <p className="muted">{t('settings.import.intro')}</p>
       <ol className="import-how">
         <li>
-          Export your channels with <a href={EXPORTER} target="_blank" rel="noopener noreferrer">DiscordChatExporter</a> in the{' '}
-          <strong>JSON</strong> format. Turn on <strong>Download assets</strong> to bring files and profile pictures too.
+          <Trans i18nKey="settings.import.step1" components={{ link: <a href={EXPORTER} target="_blank" rel="noopener noreferrer" />, b: <strong /> }} />
         </li>
-        <li>Zip the folder it made (or pick a single .json file).</li>
-        <li>Upload it here. You can keep using Iskra while it imports.</li>
+        <li>{t('settings.import.step2')}</li>
+        <li>{t('settings.import.step3')}</li>
       </ol>
 
       {!running && upload === null && (
         <div className="import-form">
           <label className="field">
-            <span>Export</span>
+            <span>{t('settings.import.export')}</span>
             <input ref={input} type="file" accept=".zip,.json,application/zip,application/json"
               onChange={(e) => { setFile(e.target.files?.[0] ?? null); setError(null) }} />
           </label>
           {file && <p className="muted">{file.name} · {formatBytes(file.size)}</p>}
           <label className="checkbox">
             <input type="checkbox" checked={readOnly} onChange={(e) => setReadOnly(e.target.checked)} />
-            Keep imported channels as a read-only archive (only admins can post there)
+            {t('settings.import.readOnly')}
           </label>
-          <button className="button primary" disabled={!file} onClick={() => void start()}>Import</button>
+          <button className="button primary" disabled={!file} onClick={() => void start()}>{t('settings.import.import')}</button>
         </div>
       )}
 
       {upload !== null && (
         <div className="backup-progress" aria-live="polite">
-          <progress value={upload} max={1} aria-label="Uploading" />
-          <span className="muted">Uploading… {Math.round(upload * 100)}%</span>
+          <progress value={upload} max={1} aria-label={t('settings.import.uploadingLabel')} />
+          <span className="muted">{t('settings.import.uploading', { percent: Math.round(upload * 100) })}</span>
         </div>
       )}
 
@@ -129,7 +135,7 @@ export function ImportSection({ server }: { server: ServerState }) {
         <div className={`import-status ${job.phase}`} aria-live="polite" data-testid="import-status">
           {running && (
             <div className="backup-progress">
-              <progress value={fraction ?? undefined} max={1} aria-label="Importing" />
+              <progress value={fraction ?? undefined} max={1} aria-label={t('settings.import.importing')} />
               <span className="muted">{phaseText(job)}</span>
             </div>
           )}
@@ -137,23 +143,20 @@ export function ImportSection({ server }: { server: ServerState }) {
           {job.phase === 'done' && <Result server={server} job={job} />}
           {job.warnings.length > 0 && (
             <details className="import-warnings">
-              <summary>{job.warnings.length} note{job.warnings.length === 1 ? '' : 's'}</summary>
+              <summary>{t('settings.import.notes', { count: job.warnings.length })}</summary>
               <ul>{job.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
             </details>
           )}
           {running && (
-            <button className="button danger-outline" onClick={() => void cancelImport(server.key).catch((e: Error) => setError(e.message))}>
-              {job.phase === 'reading' ? <Spinner /> : null} Cancel import
+            <button className="button danger-outline" onClick={() => void cancelImport(server.key).catch((e: Error) => setError(errorMessage(e)))}>
+              {job.phase === 'reading' ? <Spinner /> : null} {t('settings.import.cancel')}
             </button>
           )}
         </div>
       )}
       {error && <p className="error-text">{error}</p>}
 
-      <p className="muted import-note">
-        Roles and permissions don't come along: DiscordChatExporter can't export them, so set up roles here and invite your friends.
-        Direct messages aren't imported.
-      </p>
+      <p className="muted import-note">{t('settings.import.note')}</p>
     </section>
   )
 }

@@ -1,5 +1,7 @@
 // Message search: the query typed in the header, its results and paging.
 import { create } from 'zustand'
+import { t } from '../i18n'
+import { errorMessage } from '../i18n/errors'
 import type { SearchResult } from '../core/protocol'
 import { parseSearch } from '../ui/chat/searchQuery'
 import { connectionFor, useApp } from './store'
@@ -23,7 +25,7 @@ interface SearchState {
 const initial = { text: '', searched: '', results: [], total: 0, totalCapped: false, hasMore: false, loading: false, error: null }
 
 /** "1 result", "12 results", "1000+ results". */
-export const resultCount = (total: number, capped: boolean) => `${total}${capped ? '+' : ''} ${total === 1 && !capped ? 'result' : 'results'}`
+export const resultCount = (total: number, capped: boolean) => (capped ? t('chat.search.resultCountCapped', { n: total }) : t('chat.search.resultCount', { count: total }))
 
 export const useSearch = create<SearchState>(() => ({ key: null, ...initial }))
 
@@ -52,7 +54,7 @@ export async function runSearch(key: string, more = false): Promise<void> {
   if (parsed.errors.length || parsed.empty) {
     useSearch.setState({
       searched: text, results: [], total: 0, hasMore: false, loading: false,
-      error: parsed.errors[0] ?? 'Type something to search for.',
+      error: parsed.errors[0] ?? t('chat.search.typeSomething'),
     })
     return
   }
@@ -71,6 +73,6 @@ export async function runSearch(key: string, more = false): Promise<void> {
       loading: false,
     }))
   } catch (e) {
-    if (mine === generation) useSearch.setState({ loading: false, error: (e as Error).message })
+    if (mine === generation) useSearch.setState({ loading: false, error: errorMessage(e) })
   }
 }

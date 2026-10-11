@@ -2,6 +2,7 @@
 // Supported: plain words, in:channel, from:name (or from:"two words"), has:file / has:link,
 // before:/after:/during: with YYYY-MM-DD, "today" or "yesterday".
 import type { Channel, Member, SearchRequest } from '../../core/protocol'
+import { t } from '../../i18n'
 
 export interface ParsedSearch {
   request: SearchRequest
@@ -45,7 +46,7 @@ export function parseSearch(input: string, ctx: { channels: Channel[]; members: 
         const name = value.replace(/^#/, '').toLowerCase()
         const channel = ctx.channels.find((c) => c.kind === 'text' && c.name.toLowerCase() === name)
         if (channel) request.channelId = channel.id
-        else errors.push(`No channel called #${name}.`)
+        else errors.push(t('chat.search.noChannel', { name }))
         break
       }
       case 'from': {
@@ -56,14 +57,14 @@ export function parseSearch(input: string, ctx: { channels: Channel[]; members: 
         const prefix = ctx.members.filter((m) => names(m).some((n) => n.startsWith(name)))
         const found = exact.length === 1 ? exact[0] : prefix.length === 1 ? prefix[0] : null
         if (found) request.author = found.accountKey
-        else errors.push(exact.length + prefix.length > 1 ? `More than one person matches "${value}".` : `Nobody called "${value}".`)
+        else errors.push(exact.length + prefix.length > 1 ? t('chat.search.manyPeople', { value }) : t('chat.search.nobody', { value }))
         break
       }
       case 'has': {
         const kind = value.toLowerCase().replace(/s$/, '')
         const has: 'file' | 'link' | null = kind === 'file' || kind === 'attachment' || kind === 'image' ? 'file' : kind === 'link' ? 'link' : null
         if (has) request.has = [...new Set([...(request.has ?? []), has])]
-        else errors.push('Use has:file or has:link.')
+        else errors.push(t('chat.search.hasHint'))
         break
       }
       case 'before':
@@ -71,7 +72,7 @@ export function parseSearch(input: string, ctx: { channels: Channel[]; members: 
       case 'during': {
         const day = parseDay(value, now)
         if (!day) {
-          errors.push(`Dates look like 2026-01-31 (in ${key}:).`)
+          errors.push(t('chat.search.dateHint', { key }))
           break
         }
         if (key === 'before') request.before = day.getTime()

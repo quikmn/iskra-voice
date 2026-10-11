@@ -1,5 +1,6 @@
 // A small menu: a popover at the pointer on desktop, a sheet from the bottom on phones.
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { createPortal } from 'react-dom'
 import { useEscapeLayer, useFocusTrap } from '../layers'
 import { ChevronLeft } from '../icons'
@@ -73,9 +74,10 @@ export function MenuItem({ children, onClick, danger, checked, disabled, hint }:
 }
 
 export function MenuTitle({ children, onBack }: { children: ReactNode; onBack?: () => void }) {
+  const { t } = useTranslation()
   return (
     <div className="org-menu-title">
-      {onBack && <button className="icon-button small" onClick={onBack} aria-label="Back"><ChevronLeft size={16} /></button>}
+      {onBack && <button className="icon-button small" onClick={onBack} aria-label={t('common.back')}><ChevronLeft size={16} /></button>}
       <span>{children}</span>
     </div>
   )

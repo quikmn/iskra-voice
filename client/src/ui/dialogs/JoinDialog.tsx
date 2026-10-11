@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import { fingerprint } from '../../core/connection'
 import { parseInvite, type InviteLink } from '../../core/invite'
 import { acceptInvite, useApp } from '../../state/store'
@@ -8,6 +9,7 @@ import { hostOf } from '../format'
 
 /** Paste an invite link. */
 export function JoinDialog({ onClose, onCreate }: { onClose: () => void; onCreate?: () => void }) {
+  const { t } = useTranslation()
   const [text, setText] = useState('')
   const invite = parseInvite(text)
   const showError = text.trim().length > 0 && !invite
@@ -20,17 +22,17 @@ export function JoinDialog({ onClose, onCreate }: { onClose: () => void; onCreat
 
   return (
     <Modal
-      title="Join a server"
+      title={t('settings.join.title')}
       onClose={onClose}
       footer={
         <>
-          <button className="button" onClick={onClose}>Cancel</button>
-          <button className="button primary" disabled={!invite} onClick={join}>Join</button>
+          <button className="button" onClick={onClose}>{t('common.cancel')}</button>
+          <button className="button primary" disabled={!invite} onClick={join}>{t('common.join')}</button>
         </>
       }
     >
       <label className="field">
-        <span>Invite link</span>
+        <span>{t('settings.join.inviteLink')}</span>
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -38,11 +40,11 @@ export function JoinDialog({ onClose, onCreate }: { onClose: () => void; onCreat
           placeholder="https://app.iskra.foo/#/join/…"
         />
       </label>
-      {showError && <p className="error-text">That doesn't look like an Iskra invite link.</p>}
+      {showError && <p className="error-text">{t('settings.join.invalid')}</p>}
       {invite && <InviteSummary invite={invite} />}
       {onCreate && (
         <p className="muted">
-          Or <button className="link" onClick={onCreate}>start your own server</button>.
+          <Trans i18nKey="settings.join.orCreate" components={{ link: <button className="link" onClick={onCreate} /> }} />
         </p>
       )}
     </Modal>
@@ -51,15 +53,16 @@ export function JoinDialog({ onClose, onCreate }: { onClose: () => void; onCreat
 
 /** Confirmation when someone opens an invite link while already set up. */
 export function JoinPrompt({ invite }: { invite: InviteLink }) {
+  const { t } = useTranslation()
   const close = () => useApp.setState({ pendingInvite: null })
   return (
     <Modal
-      title="You're invited"
+      title={t('settings.join.invited')}
       onClose={close}
       footer={
         <>
-          <button className="button" onClick={close}>Not now</button>
-          <button className="button primary" onClick={() => acceptInvite(invite)}>Join server</button>
+          <button className="button" onClick={close}>{t('settings.join.notNow')}</button>
+          <button className="button primary" onClick={() => acceptInvite(invite)}>{t('settings.join.joinServer')}</button>
         </>
       }
     >
@@ -69,19 +72,20 @@ export function JoinPrompt({ invite }: { invite: InviteLink }) {
 }
 
 function InviteSummary({ invite }: { invite: InviteLink }) {
+  const { t } = useTranslation()
   return (
     <div className="invite-summary">
       <div>
-        <span className="label">Server</span>
+        <span className="label">{t('settings.join.server')}</span>
         <strong>{hostOf(invite.serverUrl)}</strong>
       </div>
       <div>
-        <span className="label">Server ID</span>
+        <span className="label">{t('settings.overview.serverId')}</span>
         <code>{fingerprint(invite.serverKey)}</code>
       </div>
       <OpenInApp invite={invite} />
       {invite.serverUrl.startsWith('http://') && !/^http:\/\/(localhost|127\.|192\.168\.|10\.)/.test(invite.serverUrl) && (
-        <p className="warning-text">This server doesn't use HTTPS, so your connection to it isn't encrypted.</p>
+        <p className="warning-text">{t('settings.join.noHttps')}</p>
       )}
     </div>
   )

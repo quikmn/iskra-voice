@@ -1,5 +1,6 @@
 // App state. Components read from here; all server traffic goes through the actions below.
 import { create } from 'zustand'
+import { t } from '../i18n'
 import { Connection, type ConnectionStatus } from '../core/connection'
 import { b64u, randomBytes, ready } from '../core/crypto'
 import { createIdentity, type Identity } from '../core/identity'
@@ -487,7 +488,7 @@ const unsentSends = new Map<string, { key: string; channelId: number; body: Send
 async function deliver(key: string, channelId: number, tempId: string, body: SendBody): Promise<void> {
   try {
     const connection = connections.get(key)
-    if (!connection) throw new Error('Not connected.')
+    if (!connection) throw new Error(t('errors.codes.disconnected'))
     const { message } = await connection.request('chat.send', body)
     unsentSends.delete(tempId)
     patchServer(key, (s) => ({
@@ -546,7 +547,7 @@ export async function retryFailed(key: string, channelId: number, message: Pendi
 export async function uploadFile(key: string, file: File, onProgress: (fraction: number) => void, signal?: AbortSignal): Promise<FileInfo> {
   const server = useApp.getState().servers[key]
   const connection = connections.get(key)
-  if (!server || !connection) throw new Error('Not connected.')
+  if (!server || !connection) throw new Error(t('errors.codes.disconnected'))
   const { url } = await connection.request('upload.begin', { name: file.name, size: file.size })
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
@@ -554,9 +555,9 @@ export async function uploadFile(key: string, file: File, onProgress: (fraction:
     xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total)
     xhr.onload = () => {
       if (xhr.status === 200) resolve((JSON.parse(xhr.responseText) as { file: FileInfo }).file)
-      else reject(new Error(xhr.status === 413 ? 'That file is too big for this server.' : `Upload failed (${xhr.status}).`))
+      else reject(new Error(xhr.status === 413 ? t('app.upload.tooBig') : t('app.upload.failedStatus', { status: xhr.status })))
     }
-    xhr.onerror = () => reject(new Error('Upload failed. Check your connection.'))
+    xhr.onerror = () => reject(new Error(t('app.upload.failed')))
     xhr.onabort = () => reject(new DOMException('Upload cancelled.', 'AbortError'))
     signal?.addEventListener('abort', () => xhr.abort())
     xhr.send(file)

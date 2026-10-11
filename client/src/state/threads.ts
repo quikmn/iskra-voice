@@ -1,6 +1,7 @@
 // Threads: side conversations under a message. On the wire a thread is a channel id of its own,
 // so its messages and typing live in the server state, and its read state in readState.ts, like any channel's.
 import { create } from 'zustand'
+import { t } from '../i18n'
 import type { Events, Message, Thread } from '../core/protocol'
 import { connectionFor, onServerEvent, patchServer, useApp, type ServerState } from './store'
 import { channelConv, forgetConversation, seeConversation } from './readState'
@@ -70,7 +71,7 @@ export async function loadThreads(key: string, channelId: number): Promise<Threa
 
 export async function createThread(key: string, message: Message, name: string): Promise<Thread> {
   const connection = connectionFor(key)
-  if (!connection) throw new Error('Not connected.')
+  if (!connection) throw new Error(t('errors.codes.disconnected'))
   const { thread } = await connection.request('thread.create', { messageId: message.id, name })
   rememberThreads(key, [thread])
   patchRoot(key, thread.channelId, thread.rootId, thread)
@@ -101,9 +102,9 @@ export function conversationLabel(server: ServerState, channelId: number): strin
   const channel = server.channels.find((c) => c.id === channelId)
   if (channel) return `#${channel.name}`
   const thread = knownThread(server.key, channelId)
-  if (!thread) return 'a thread'
+  if (!thread) return t('chat.threads.aThread')
   const parent = server.channels.find((c) => c.id === thread.channelId)
-  return `#${parent?.name ?? 'channel'} › ${thread.name}`
+  return `#${parent?.name ?? t('chat.threads.channel')} › ${thread.name}`
 }
 
 onServerEvent((key, type, body) => {

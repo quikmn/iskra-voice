@@ -1,4 +1,6 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
+import { errorMessage } from '../i18n/errors'
 import type { FileInfo, Member } from '../core/protocol'
 import {
   activeChannelId, connectionFor, discardFailed, loadHistory, notifyTyping, retryAll, retryFailed, sendMessage, uploadFile, useApp,
@@ -13,6 +15,7 @@ import { Avatar, Spinner } from './bits'
 import { openProfileCard } from '../state/profile'
 import { decodeMentions, encodeMentions, renderMarkdown } from './markdown'
 import { clockTime, fullTime, hueFor, messageTime } from './format'
+import { formatNumber } from '../i18n/format'
 import type { Panel } from './Shell'
 import { Close, FileIcon, Hash, Menu, Paperclip, Pencil, Reply, Send, Smile, Trash, Users, WifiOff } from './icons'
 import { HeaderTools } from './chat/HeaderTools'
@@ -55,6 +58,7 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
   const channel = server.channels.find((c) => c.id === channelId)
   const roles = useServerRoles(server.key)
   const canWrite = !!channel && canSendIn(server.me, channel, roles)
+  const { t } = useTranslation()
 
   useEffect(() => {
     if (channelId !== null && server.status.state === 'online') void loadHistory(server.key, channelId)
@@ -79,7 +83,7 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
       }}
     >
       <header className="chat-header">
-        <button className="icon-button mobile-only" onClick={() => onToggle('nav')} aria-label="Open channels">
+        <button className="icon-button mobile-only" onClick={() => onToggle('nav')} aria-label={t('chat.view.openChannels')}>
           <Menu />
         </button>
         {channel ? (
@@ -93,7 +97,7 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
         <span className="spacer" />
         <HeaderTools key={channel?.id} server={server} channel={channel} />
         <ChannelSettingsButton server={server} channel={channel} />
-        <button className="icon-button members-toggle" onClick={() => onToggle('members')} aria-label="Members" title="Members">
+        <button className="icon-button members-toggle" onClick={() => onToggle('members')} aria-label={t('chat.view.members')} title={t('chat.view.members')}>
           <Users />
         </button>
       </header>
@@ -107,7 +111,7 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
           {canWrite ? (
             <Composer server={server} channelId={channel.id} channelName={channel.name} />
           ) : (
-            <div className="composer read-only">You can't send messages in this channel.</div>
+            <div className="composer read-only">{t('chat.view.readOnly')}</div>
           )}
         </>
       ) : (
@@ -115,8 +119,8 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
           {server.status.state === 'online' ? (
             <>
               <span className="empty-icon"><Hash size={32} /></span>
-              <h1>No channels here yet</h1>
-              <p>{has(server.me, roles, 'manageChannels') ? 'Create one with the + next to Text channels.' : 'An admin can add some. Check back soon.'}</p>
+              <h1>{t('chat.view.noChannels')}</h1>
+              <p>{has(server.me, roles, 'manageChannels') ? t('chat.view.noChannelsAdmin') : t('chat.view.noChannelsMember')}</p>
             </>
           ) : <Spinner />}
         </div>
@@ -128,15 +132,16 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
 /** Plain words for a server that's away: reconnecting (with a "Try now"), or turned us away. */
 function ConnectionBanner({ server }: { server: ServerState }) {
   const { status } = server
+  const { t } = useTranslation()
   if (status.state === 'rejected') {
-    return <div className="banner error" role="alert"><span>{status.message}</span></div>
+    return <div className="banner error" role="alert"><span>{errorMessage(status)}</span></div>
   }
   if (status.state !== 'offline') return null
   return (
     <div className="banner warn" role="status">
       <WifiOff size={16} />
-      <span>Can't reach {server.name} right now. Iskra keeps trying in the background.</span>
-      <button className="button small" onClick={retryAll}>Try now</button>
+      <span>{t('chat.view.offline', { name: server.name })}</span>
+      <button className="button small" onClick={retryAll}>{t('chat.view.tryNow')}</button>
     </div>
   )
 }
@@ -152,6 +157,7 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
   const [editing, setEditing] = useState<number | null>(null)
   const conv = channelConv(server.key, channelId)
   const divider = dividerOf(useRead(conv))
+  const { t } = useTranslation()
 
   // Up-arrow in an empty composer edits your last message.
   useEffect(() => {
@@ -217,8 +223,8 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
       {!hasMore && (header ?? (
         <div className="channel-start">
           <span className="channel-start-icon" aria-hidden><Hash size={32} /></span>
-          <p className="channel-start-title">Welcome to #{server.channels.find((c) => c.id === channelId)?.name ?? 'this channel'}</p>
-          <p>This is the start of the channel. Say hi! 👋</p>
+          <p className="channel-start-title">{t('chat.view.welcome', { name: server.channels.find((c) => c.id === channelId)?.name ?? t('chat.view.thisChannel') })}</p>
+          <p>{t('chat.view.channelStart')}</p>
         </div>
       ))}
       {withPinNotes(rendered, notes).map(({ message, grouped, note }) => note ? (
@@ -276,6 +282,7 @@ function MessageRow({
   const longPress = useLongPress(() => setSheet(true), !message.tempId && !editing)
   const [error, setError] = useState<string | null>(null)
   const emojiLookup = useEmojiLookup(server.key)
+  const { t } = useTranslation()
 
   function jumpTo(id: number) {
     void jumpToMessage(server.key, message.channelId, id)
@@ -285,7 +292,7 @@ function MessageRow({
     try {
       await connectionFor(server.key)?.request('chat.delete', { id: message.id })
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
     }
     setConfirmDelete(false)
   }
@@ -301,7 +308,7 @@ function MessageRow({
         {grouped ? (
           <time className="hover-time" title={fullTime(message.createdAt)}>{clockTime(message.createdAt)}</time>
         ) : canOpenProfile ? (
-          <button className="avatar-button" onClick={(e) => openProfileCard(server.key, message.author, e.currentTarget)} aria-label={`Profile of ${name}`}>
+          <button className="avatar-button" onClick={(e) => openProfileCard(server.key, message.author, e.currentTarget)} aria-label={t('chat.message.profileOf', { name })}>
             <AuthorAvatar server={server} author={shown} hueKey={message.author} />
           </button>
         ) : (
@@ -336,7 +343,7 @@ function MessageRow({
           (message.text || message.editedAt) && !message.poll && (
             <div className="message-text">
               {renderMarkdown(message.text, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey, emoji: emojiLookup, roleOf })}
-              {message.editedAt && <span className="edited" title={fullTime(message.editedAt)}> (edited)</span>}
+              {message.editedAt && <span className="edited" title={fullTime(message.editedAt)}> {t('chat.message.edited')}</span>}
             </div>
           )
         )}
@@ -357,16 +364,16 @@ function MessageRow({
               const roleName = (id: number) => roles.find((r) => r.id === id)?.name ?? null
               setDraft(draftKey.channel(server.key, message.channelId), decodeEmoji(decodeMentions(message.text, (k) => server.members[k]?.name ?? null, roleName)))
               discardFailed(server.key, message.channelId, message.tempId!)
-            }}>Edit</button>
+            }}>{t('common.edit')}</button>
             {' · '}
-            <button className="link" onClick={() => discardFailed(server.key, message.channelId, message.tempId!)}>Discard</button>
+            <button className="link" onClick={() => discardFailed(server.key, message.channelId, message.tempId!)}>{t('chat.message.discard')}</button>
           </div>
         ) : message.pending === 'failed' && (
           <div className="message-failed">
-            Couldn't send.{' '}
-            <button className="link" onClick={() => void retryFailed(server.key, message.channelId, message)}>Retry</button>
+            {t('chat.message.couldNotSend')}{' '}
+            <button className="link" onClick={() => void retryFailed(server.key, message.channelId, message)}>{t('common.retry')}</button>
             {' · '}
-            <button className="link" onClick={() => discardFailed(server.key, message.channelId, message.tempId!)}>Discard</button>
+            <button className="link" onClick={() => discardFailed(server.key, message.channelId, message.tempId!)}>{t('chat.message.discard')}</button>
           </div>
         )}
         {error && <div className="message-failed">{error}</div>}
@@ -375,19 +382,19 @@ function MessageRow({
         <div className={`message-actions ${picking ? 'open' : ''}`}>
           {confirmDelete ? (
             <>
-              <span>Delete?</span>
-              <button className="danger" onClick={() => void remove()}>Yes</button>
-              <button onClick={() => setConfirmDelete(false)}>No</button>
+              <span>{t('chat.message.deleteConfirm')}</span>
+              <button className="danger" onClick={() => void remove()}>{t('common.yes')}</button>
+              <button onClick={() => setConfirmDelete(false)}>{t('common.no')}</button>
             </>
           ) : (
             <>
-              <button onClick={() => setPicking((p) => !p)} title="Add reaction" aria-label="Add reaction"><Smile size={15} /></button>
-              <button onClick={() => setReply(server.key, message.channelId, message)} title="Reply" aria-label="Reply"><Reply size={15} /></button>
+              <button onClick={() => setPicking((p) => !p)} title={t('chat.message.addReaction')} aria-label={t('chat.message.addReaction')}><Smile size={15} /></button>
+              <button onClick={() => setReply(server.key, message.channelId, message)} title={t('chat.message.reply')} aria-label={t('chat.message.reply')}><Reply size={15} /></button>
               <MessageMenuExtras server={server} message={message} />
-              {canForward && <button onClick={() => setForwarding(true)} title="Forward" aria-label="Forward"><ForwardIcon /></button>}
+              {canForward && <button onClick={() => setForwarding(true)} title={t('chat.message.forward')} aria-label={t('chat.message.forward')}><ForwardIcon /></button>}
               <MessageMoreButton server={server} message={message} />
-              {canEdit && <button onClick={() => onEdit(true)} title="Edit" aria-label="Edit"><Pencil size={15} /></button>}
-              {canDelete && <button onClick={() => setConfirmDelete(true)} title="Delete" aria-label="Delete"><Trash size={15} /></button>}
+              {canEdit && <button onClick={() => onEdit(true)} title={t('common.edit')} aria-label={t('common.edit')}><Pencil size={15} /></button>}
+              {canDelete && <button onClick={() => setConfirmDelete(true)} title={t('common.delete')} aria-label={t('common.delete')}><Trash size={15} /></button>}
             </>
           )}
           {picking && <ReactionPicker server={server} message={message} onClose={() => setPicking(false)} />}
@@ -409,6 +416,7 @@ function EditBox({ server, message, onDone }: { server: ServerState; message: Pe
   const emojis = useServerEmojis(server.key)
   const [text, setText] = useState(original)
   const [error, setError] = useState<string | null>(null)
+  const { t } = useTranslation()
 
   async function save() {
     const trimmed = text.trim()
@@ -417,7 +425,7 @@ function EditBox({ server, message, onDone }: { server: ServerState; message: Pe
       await connectionFor(server.key)?.request('chat.edit', { id: message.id, text: encodeEmoji(encodeMentions(trimmed, Object.values(server.members), roles.filter((r) => canMentionRole(server.me ?? undefined, r, roles))), emojis) })
       onDone()
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
     }
   }
 
@@ -438,7 +446,7 @@ function EditBox({ server, message, onDone }: { server: ServerState; message: Pe
         }}
       />
       <div className="edit-hint">
-        Enter to save · Esc to cancel {error && <span className="error-text">· {error}</span>}
+        {t('chat.message.editHint')} {error && <span className="error-text">· {error}</span>}
       </div>
     </div>
   )
@@ -463,6 +471,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
 }) {
   const [uploads, setUploads] = useState<PendingUpload[]>([])
   const fileInput = useRef<HTMLInputElement>(null)
+  const { t } = useTranslation()
   const [picker, setPicker] = useState<HTMLElement | null>(null)
   const [pickerTab, setPickerTab] = useState<ExpressionTab>('emoji')
   const openPicker = (anchor: HTMLElement, tab: ExpressionTab) => {
@@ -488,7 +497,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
       setUploads((list) => list.map((u) => (u.localId === item.localId ? { ...u, ...patch } : u)))
     uploadFile(server.key, item.file, (progress) => update({ progress }), item.abort.signal)
       .then((result) => update({ result, progress: 1 }))
-      .catch((e: Error) => e.name !== 'AbortError' && update({ error: e.message }))
+      .catch((e: Error) => e.name !== 'AbortError' && update({ error: errorMessage(e) }))
   }
 
   function addFiles(files: File[]) {
@@ -582,8 +591,8 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
     <div className="composer-wrap">
       {replyTo && (
         <div className="reply-bar">
-          <span>Replying to <strong>{replyTo.imported?.name ?? server.members[replyTo.author]?.name ?? 'someone'}</strong></span>
-          <button className="icon-button small" onClick={() => setReply(server.key, channelId, null)} aria-label="Cancel reply"><Close size={14} /></button>
+          <span><Trans i18nKey="chat.composer.replyingTo" values={{ name: replyTo.imported?.name ?? server.members[replyTo.author]?.name ?? t('chat.composer.someone') }} components={{ b: <strong /> }} /></span>
+          <button className="icon-button small" onClick={() => setReply(server.key, channelId, null)} aria-label={t('chat.composer.cancelReply')}><Close size={14} /></button>
         </div>
       )}
       {uploads.length > 0 && (
@@ -593,18 +602,18 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
               {u.preview ? <img src={u.preview} alt="" className={isSpoilerName(u.file.name) ? 'spoiler-preview' : undefined} /> : <span className="file-icon" aria-hidden><FileIcon size={20} /></span>}
               <span className="file-name">{u.file.name}</span>
               <SpoilerToggle on={isSpoilerName(u.file.name)} onToggle={() => toggleSpoiler(u)} />
-              <span className="muted">{u.error ? 'Failed' : u.result ? formatSize(u.file.size) : `${Math.round(u.progress * 100)}%`}</span>
+              <span className="muted">{u.error ? t('chat.composer.failed') : u.result ? formatSize(u.file.size) : formatNumber(u.progress, { style: 'percent', maximumFractionDigits: 0 })}</span>
               {!u.result && !u.error && <span className="upload-progress" style={{ width: `${u.progress * 100}%` }} />}
-              <button className="icon-button small" onClick={() => removeUpload(u)} aria-label={`Remove ${u.file.name}`}><Close size={14} /></button>
+              <button className="icon-button small" onClick={() => removeUpload(u)} aria-label={t('chat.composer.removeFile', { name: u.file.name })}><Close size={14} /></button>
             </div>
           ))}
         </div>
       )}
     <div className="composer">
-      <button className="icon-button attach-button" onClick={() => fileInput.current?.click()} aria-label="Attach files" title="Attach files" disabled={!online}>
+      <button className="icon-button attach-button" onClick={() => fileInput.current?.click()} aria-label={t('chat.composer.attach')} title={t('chat.composer.attach')} disabled={!online}>
         <Paperclip />
       </button>
-      <button className="icon-button attach-button" onClick={() => setPollOpen(true)} aria-label="Create a poll" title="Create a poll" disabled={!online}>
+      <button className="icon-button attach-button" onClick={() => setPollOpen(true)} aria-label={t('chat.composer.poll')} title={t('chat.composer.poll')} disabled={!online}>
         <PollIcon />
       </button>
       <input
@@ -619,7 +628,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
       />
       {emojiSuggest.popup}
       {suggestions.length > 0 && (
-        <div className="mention-popup" role="listbox" aria-label="Mention someone">
+        <div className="mention-popup" role="listbox" aria-label={t('chat.composer.mention')}>
           {suggestions.map((m, i) => (
             <button
               key={m.key}
@@ -635,7 +644,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
                 ? <Avatar name={m.name} accountKey={m.member.accountKey} size={24} online={m.member.online} />
                 : <span className="mention-role-icon" style={m.color ? { color: m.color } : undefined} aria-hidden>@</span>}
               {m.name}
-              {!m.member && <span className="muted mention-kind">role</span>}
+              {!m.member && <span className="muted mention-kind">{t('chat.composer.role')}</span>}
             </button>
           ))}
         </div>
@@ -645,7 +654,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
         value={text}
         onCaret={setCaret}
         autoFocus
-        placeholder={online ? (placeholder ?? `Message #${channelName}`) : 'Reconnecting…'}
+        placeholder={online ? (placeholder ?? t('chat.composer.placeholder', { name: channelName })) : t('chat.composer.reconnecting')}
         maxLength={4000}
         onChange={(value) => {
           setText(value)
@@ -685,15 +694,15 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
           }
         }}
       />
-      <button className="icon-button attach-button gif-button" onClick={(e) => openPicker(e.currentTarget, 'gifs')} aria-label="GIFs" title="GIFs" disabled={!online}>
+      <button className="icon-button attach-button gif-button" onClick={(e) => openPicker(e.currentTarget, 'gifs')} aria-label={t('chat.composer.gifs')} title={t('chat.composer.gifs')} disabled={!online}>
         GIF
       </button>
-      <button className="icon-button attach-button" onClick={(e) => openPicker(e.currentTarget, 'emoji')} aria-label="Emoji" title="Emoji, GIFs and stickers">
+      <button className="icon-button attach-button" onClick={(e) => openPicker(e.currentTarget, 'emoji')} aria-label={t('chat.composer.emoji')} title={t('chat.composer.emojiTitle')}>
         <Smile />
       </button>
       {!text.trim() && uploads.length === 0 && voiceRecordingSupported() && <VoiceRecordButton onSend={sendVoice} disabled={!online} />}
       <SlowmodeChip seconds={slowmode.seconds} wait={slowmode.wait} />
-      <button className="send-button" onClick={submit} disabled={!canSend} aria-label="Send">
+      <button className="send-button" onClick={submit} disabled={!canSend} aria-label={t('common.send')}>
         <Send />
       </button>
     </div>
@@ -765,6 +774,7 @@ function AutoTextarea({
 export function TypingLine({ server, channelId }: { server: ServerState; channelId: number }) {
   const [now, setNow] = useState(() => Date.now())
   const entries = server.typing[channelId] ?? {}
+  const { t } = useTranslation()
   const active = Object.entries(entries).filter(([key, until]) => until > now && key !== server.me?.accountKey)
 
   useEffect(() => {
@@ -773,9 +783,9 @@ export function TypingLine({ server, channelId }: { server: ServerState; channel
     return () => clearInterval(timer)
   }, [active.length])
 
-  const names = active.map(([key]) => server.members[key]?.name ?? 'Someone')
+  const names = active.map(([key]) => server.members[key]?.name ?? t('common.someone'))
   const text =
-    names.length === 0 ? '' : names.length === 1 ? `${names[0]} is typing…`
-      : names.length <= 3 ? `${names.join(', ')} are typing…` : 'Several people are typing…'
+    names.length === 0 ? '' : names.length === 1 ? t('chat.typing.one', { name: names[0] })
+      : names.length <= 3 ? t('chat.typing.some', { names: names.join(', ') }) : t('chat.typing.many')
   return <div className="typing-line" aria-live="polite">{text}</div>
 }

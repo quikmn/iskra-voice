@@ -1,5 +1,6 @@
 // Keys at rest: which protection this device uses, and the optional app lock passphrase.
 // The encryption itself lives in core/vault.ts and core/storage.ts.
+import { t } from '../i18n'
 import { create } from 'zustand'
 import { b64u, fromB64u } from '../core/crypto'
 import * as storage from '../core/storage'
@@ -75,7 +76,7 @@ export async function unlock(passphrase: string): Promise<boolean> {
 export const MIN_PASSPHRASE = 8
 
 export async function setPassphrase(passphrase: string | null): Promise<void> {
-  if (passphrase !== null && passphrase.length < MIN_PASSPHRASE) throw new Error(`Use at least ${MIN_PASSPHRASE} characters.`)
+  if (passphrase !== null && passphrase.length < MIN_PASSPHRASE) throw new Error(t('keys.errors.minLength', { min: MIN_PASSPHRASE }))
   await storage.setLockPassphrase(passphrase)
   useLock.setState({ passphrase: passphrase !== null })
 }

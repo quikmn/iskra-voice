@@ -2,10 +2,12 @@
 import { useState, type KeyboardEvent, type ReactNode } from 'react'
 import { serverFileUrl, useServerEmojis } from '../../state/expressions'
 import { completeEmoji, emojiQueryAt, searchEmoji, type EmojiResult } from './emoji'
+import { useTranslation } from 'react-i18next'
 
 export function useEmojiSuggest(
   serverKey: string, text: string, caret: number, apply: (next: { text: string; caret: number }) => void,
 ): { open: boolean; onKeyDown: (e: KeyboardEvent<HTMLTextAreaElement>) => boolean; popup: ReactNode } {
+  const { t } = useTranslation()
   const emojis = useServerEmojis(serverKey)
   const [pick, setPick] = useState(0)
   const [dismissed, setDismissed] = useState<string | null>(null)
@@ -38,7 +40,7 @@ export function useEmojiSuggest(
   }
 
   const popup = results.length > 0 && (
-    <div className="mention-popup emoji-suggest" role="listbox" aria-label="Emoji">
+    <div className="mention-popup emoji-suggest" role="listbox" aria-label={t('expressions.suggest')}>
       {results.map((r, i) => {
         const label = r.kind === 'custom' ? r.emoji.name : r.name
         return (

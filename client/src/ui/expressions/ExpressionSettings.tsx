@@ -8,25 +8,29 @@ import {
 import type { ServerState } from '../../state/store'
 import { Trash } from '../icons'
 import { Play } from './icons'
+import { Trans, useTranslation } from 'react-i18next'
+import { errorMessage } from '../../i18n/errors'
+import { formatNumber } from '../../i18n/format'
 
 const MAX_EMOJIS = 200
 
 export function SoundboardSettingsSection() {
+  const { t } = useTranslation()
   const { volume, muted } = useExpressions((s) => s.settings)
   return (
     <section className="settings-section">
-      <h3>Soundboard</h3>
+      <h3>{t('expressions.settings.soundboard')}</h3>
       <label className="field">
-        <span>Soundboard volume · {Math.round(volume * 100)}%</span>
+        <span>{t('expressions.settings.volume', { percent: Math.round(volume * 100) })}</span>
         <input
           type="range" min={0} max={100} step={5} value={Math.round(volume * 100)} disabled={muted}
-          aria-label="Soundboard volume"
+          aria-label={t('expressions.settings.volumeLabel')}
           onChange={(e) => updateSoundboardSettings({ volume: Number(e.target.value) / 100 })}
         />
       </label>
       <label className="checkbox">
         <input type="checkbox" checked={muted} onChange={(e) => updateSoundboardSettings({ muted: e.target.checked })} />
-        Mute the soundboard (you won't hear sounds others play)
+        {t('expressions.settings.mute')}
       </label>
     </section>
   )
@@ -44,6 +48,7 @@ export function ServerExpressionsSections({ server }: { server: ServerState }) {
 }
 
 export function EmojiSection({ server }: { server: ServerState }) {
+  const { t } = useTranslation()
   const emojis = useServerEmojis(server.key)
   const input = useRef<HTMLInputElement>(null)
   const [pending, setPending] = useState<{ file: File; preview: string; name: string } | null>(null)
@@ -67,7 +72,7 @@ export function EmojiSection({ server }: { server: ServerState }) {
       URL.revokeObjectURL(pending.preview)
       setPending(null)
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
     } finally {
       setBusy(false)
     }
@@ -75,22 +80,22 @@ export function EmojiSection({ server }: { server: ServerState }) {
 
   return (
     <section className="settings-section">
-      <h3>Server emoji · {emojis.length} / {MAX_EMOJIS}</h3>
-      <p className="muted">Use them anywhere on this server as <code>:name:</code>. PNG, GIF or WebP; bigger still images are shrunk to 128×128.</p>
-      <input ref={input} type="file" hidden accept="image/png,image/gif,image/webp,image/jpeg" aria-label="Emoji image" onChange={(e) => { choose(e.target.files?.[0]); e.target.value = '' }} />
+      <h3>{t('expressions.settings.emojiTitle', { count: emojis.length, max: MAX_EMOJIS })}</h3>
+      <p className="muted"><Trans i18nKey="expressions.settings.emojiIntro" components={{ code: <code /> }} /></p>
+      <input ref={input} type="file" hidden accept="image/png,image/gif,image/webp,image/jpeg" aria-label={t('expressions.settings.emojiImage')} onChange={(e) => { choose(e.target.files?.[0]); e.target.value = '' }} />
       {pending ? (
         <div className="expression-new">
           <img className="custom-emoji big" src={pending.preview} alt="" />
           <input
-            value={pending.name} maxLength={32} aria-label="Emoji name"
+            value={pending.name} maxLength={32} aria-label={t('expressions.settings.emojiName')}
             onChange={(e) => setPending({ ...pending, name: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_') })}
             onKeyDown={(e) => e.key === 'Enter' && void upload()}
           />
-          <button className="button primary" disabled={busy || !nameValid} onClick={() => void upload()}>{busy ? 'Adding…' : 'Add'}</button>
-          <button className="button" disabled={busy} onClick={() => { URL.revokeObjectURL(pending.preview); setPending(null) }}>Cancel</button>
+          <button className="button primary" disabled={busy || !nameValid} onClick={() => void upload()}>{busy ? t('expressions.settings.adding') : t('common.add')}</button>
+          <button className="button" disabled={busy} onClick={() => { URL.revokeObjectURL(pending.preview); setPending(null) }}>{t('common.cancel')}</button>
         </div>
       ) : (
-        <button className="button" disabled={emojis.length >= MAX_EMOJIS} onClick={() => input.current?.click()}>Upload emoji</button>
+        <button className="button" disabled={emojis.length >= MAX_EMOJIS} onClick={() => input.current?.click()}>{t('expressions.settings.uploadEmoji')}</button>
       )}
       {error && <p className="error-text">{error}</p>}
       {emojis.length > 0 && (
@@ -103,6 +108,7 @@ export function EmojiSection({ server }: { server: ServerState }) {
 }
 
 function EmojiRow({ server, emoji }: { server: ServerState; emoji: CustomEmoji }) {
+  const { t } = useTranslation()
   const [name, setName] = useState(emoji.name)
   const [error, setError] = useState<string | null>(null)
   const [confirm, setConfirm] = useState(false)
@@ -113,7 +119,7 @@ function EmojiRow({ server, emoji }: { server: ServerState; emoji: CustomEmoji }
       await renameEmoji(server.key, emoji.id, name)
       setError(null)
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
       setName(emoji.name)
     }
   }
@@ -123,27 +129,28 @@ function EmojiRow({ server, emoji }: { server: ServerState; emoji: CustomEmoji }
       <img className="custom-emoji big" src={serverFileUrl(server.key, emoji.url) ?? undefined} alt={`:${emoji.name}:`} />
       <div className="expression-fields">
         <input
-          value={name} maxLength={32} aria-label={`Name of :${emoji.name}:`}
+          value={name} maxLength={32} aria-label={t('expressions.settings.nameOf', { name: `:${emoji.name}:` })}
           onChange={(e) => setName(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_'))}
           onBlur={() => void rename()}
           onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
         />
-        <span className="muted">by {server.members[emoji.createdBy]?.name ?? 'a former member'}</span>
+        <span className="muted">{t('expressions.settings.by', { name: server.members[emoji.createdBy]?.name ?? t('expressions.settings.formerMember') })}</span>
         {error && <span className="error-text">{error}</span>}
       </div>
       {confirm ? (
         <>
-          <button className="button danger small" onClick={() => void deleteEmoji(server.key, emoji.id).catch((e: Error) => setError(e.message))}>Delete</button>
-          <button className="button small" onClick={() => setConfirm(false)}>Keep</button>
+          <button className="button danger small" onClick={() => void deleteEmoji(server.key, emoji.id).catch((e: Error) => setError(errorMessage(e)))}>{t('common.delete')}</button>
+          <button className="button small" onClick={() => setConfirm(false)}>{t('expressions.settings.keep')}</button>
         </>
       ) : (
-        <button className="icon-button" aria-label={`Delete :${emoji.name}:`} title="Delete" onClick={() => setConfirm(true)}><Trash size={16} /></button>
+        <button className="icon-button" aria-label={t('expressions.settings.deleteName', { name: `:${emoji.name}:` })} title={t('common.delete')} onClick={() => setConfirm(true)}><Trash size={16} /></button>
       )}
     </li>
   )
 }
 
 export function SoundsSection({ server }: { server: ServerState }) {
+  const { t } = useTranslation()
   const sounds = useServerSounds(server.key)
   const input = useRef<HTMLInputElement>(null)
   const [pending, setPending] = useState<{ file: File; name: string; emoji: string } | null>(null)
@@ -158,7 +165,7 @@ export function SoundsSection({ server }: { server: ServerState }) {
       await addSound(server.key, pending.file, pending.name.trim(), pending.emoji.trim() || null)
       setPending(null)
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
     } finally {
       setBusy(false)
     }
@@ -166,9 +173,9 @@ export function SoundsSection({ server }: { server: ServerState }) {
 
   return (
     <section className="settings-section">
-      <h3>Soundboard sounds · {sounds.length}</h3>
-      <p className="muted">Anyone who can talk in a voice channel can play these for the call. MP3, Ogg or WAV, any length. Anyone can stop a sound from the soundboard.</p>
-      <input ref={input} type="file" hidden accept="audio/mpeg,audio/ogg,audio/wav,audio/x-wav,.mp3,.ogg,.wav" aria-label="Sound file"
+      <h3>{t('expressions.settings.soundsTitle', { count: sounds.length })}</h3>
+      <p className="muted">{t('expressions.settings.soundsIntro')}</p>
+      <input ref={input} type="file" hidden accept="audio/mpeg,audio/ogg,audio/wav,audio/x-wav,.mp3,.ogg,.wav" aria-label={t('expressions.settings.soundFile')}
         onChange={(e) => {
           const file = e.target.files?.[0]
           e.target.value = ''
@@ -176,13 +183,13 @@ export function SoundsSection({ server }: { server: ServerState }) {
         }} />
       {pending ? (
         <div className="expression-new">
-          <input className="sound-emoji-input" value={pending.emoji} maxLength={16} placeholder="🔊" aria-label="Sound emoji" onChange={(e) => setPending({ ...pending, emoji: e.target.value })} />
-          <input value={pending.name} maxLength={32} aria-label="Sound name" onChange={(e) => setPending({ ...pending, name: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && void upload()} />
-          <button className="button primary" disabled={busy || !pending.name.trim()} onClick={() => void upload()}>{busy ? 'Adding…' : 'Add'}</button>
-          <button className="button" disabled={busy} onClick={() => setPending(null)}>Cancel</button>
+          <input className="sound-emoji-input" value={pending.emoji} maxLength={16} placeholder="🔊" aria-label={t('expressions.settings.soundEmoji')} onChange={(e) => setPending({ ...pending, emoji: e.target.value })} />
+          <input value={pending.name} maxLength={32} aria-label={t('expressions.settings.soundName')} onChange={(e) => setPending({ ...pending, name: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && void upload()} />
+          <button className="button primary" disabled={busy || !pending.name.trim()} onClick={() => void upload()}>{busy ? t('expressions.settings.adding') : t('common.add')}</button>
+          <button className="button" disabled={busy} onClick={() => setPending(null)}>{t('common.cancel')}</button>
         </div>
       ) : (
-        <button className="button" onClick={() => input.current?.click()}>Upload sound</button>
+        <button className="button" onClick={() => input.current?.click()}>{t('expressions.settings.uploadSound')}</button>
       )}
       {error && <p className="error-text">{error}</p>}
       {sounds.length > 0 && (
@@ -195,6 +202,7 @@ export function SoundsSection({ server }: { server: ServerState }) {
 }
 
 function SoundRow({ server, sound }: { server: ServerState; sound: Sound }) {
+  const { t } = useTranslation()
   const me = server.me
   const canManage = !!me && (sound.createdBy === me.accountKey || roleRank(me.role) >= roleRank('admin'))
   const [name, setName] = useState(sound.name)
@@ -209,7 +217,7 @@ function SoundRow({ server, sound }: { server: ServerState; sound: Sound }) {
       await updateSound(server.key, sound.id, name.trim(), emoji.trim() || null)
       setError(null)
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorMessage(e))
       setName(sound.name)
       setEmoji(sound.emoji ?? '')
     }
@@ -219,32 +227,32 @@ function SoundRow({ server, sound }: { server: ServerState; sound: Sound }) {
 
   return (
     <li className="expression-row">
-      <button className="icon-button" aria-label={`Preview ${sound.name}`} title="Preview (only you hear it)" disabled={!url} onClick={() => url && playUrl(url)}>
+      <button className="icon-button" aria-label={t('expressions.settings.preview', { name: sound.name })} title={t('expressions.settings.previewTitle')} disabled={!url} onClick={() => url && playUrl(url)}>
         <Play size={16} />
       </button>
       {canManage ? (
         <>
-          <input className="sound-emoji-input" value={emoji} maxLength={16} placeholder="🔊" aria-label={`Emoji for ${sound.name}`}
+          <input className="sound-emoji-input" value={emoji} maxLength={16} placeholder="🔊" aria-label={t('expressions.settings.emojiFor', { name: sound.name })}
             onChange={(e) => setEmoji(e.target.value)} onBlur={() => void save()} onKeyDown={blurOnEnter} />
           <div className="expression-fields">
-            <input value={name} maxLength={32} aria-label={`Name of ${sound.name}`} onChange={(e) => setName(e.target.value)} onBlur={() => void save()} onKeyDown={blurOnEnter} />
-            <span className="muted">{(sound.durationMs / 1000).toFixed(1)} s · by {server.members[sound.createdBy]?.name ?? 'a former member'}</span>
+            <input value={name} maxLength={32} aria-label={t('expressions.settings.nameOf', { name: sound.name })} onChange={(e) => setName(e.target.value)} onBlur={() => void save()} onKeyDown={blurOnEnter} />
+            <span className="muted">{t('expressions.settings.seconds', { seconds: formatNumber(sound.durationMs / 1000, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) })} · {t('expressions.settings.by', { name: server.members[sound.createdBy]?.name ?? t('expressions.settings.formerMember') })}</span>
             {error && <span className="error-text">{error}</span>}
           </div>
         </>
       ) : (
         <div className="expression-fields">
           <span>{sound.emoji ?? '🔊'} {sound.name}</span>
-          <span className="muted">{(sound.durationMs / 1000).toFixed(1)} s · by {server.members[sound.createdBy]?.name ?? 'a former member'}</span>
+          <span className="muted">{t('expressions.settings.seconds', { seconds: formatNumber(sound.durationMs / 1000, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) })} · {t('expressions.settings.by', { name: server.members[sound.createdBy]?.name ?? t('expressions.settings.formerMember') })}</span>
         </div>
       )}
       {canManage && (confirm ? (
         <>
-          <button className="button danger small" onClick={() => void deleteSound(server.key, sound.id).catch((e: Error) => setError(e.message))}>Delete</button>
-          <button className="button small" onClick={() => setConfirm(false)}>Keep</button>
+          <button className="button danger small" onClick={() => void deleteSound(server.key, sound.id).catch((e: Error) => setError(errorMessage(e)))}>{t('common.delete')}</button>
+          <button className="button small" onClick={() => setConfirm(false)}>{t('expressions.settings.keep')}</button>
         </>
       ) : (
-        <button className="icon-button" aria-label={`Delete ${sound.name}`} title="Delete" onClick={() => setConfirm(true)}><Trash size={16} /></button>
+        <button className="icon-button" aria-label={t('expressions.settings.deleteName', { name: sound.name })} title={t('common.delete')} onClick={() => setConfirm(true)}><Trash size={16} /></button>
       ))}
     </li>
   )

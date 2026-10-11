@@ -1,6 +1,7 @@
 // Account key rotation in the app: replacing this account's key, following a rotation made on another of its
 // devices, and following contacts who replaced theirs. See "Account key rotation" in protocol/PROTOCOL.md.
 // Every rotation is checked here (both signatures); what a server says about one is never taken on trust.
+import { t } from '../i18n'
 import { create } from 'zustand'
 import { b64u, generateSigningKeyPair } from '../core/crypto'
 import { certifyDevice, type DeviceCert, type Identity } from '../core/identity'
@@ -93,7 +94,7 @@ export async function ownDeviceCerts(): Promise<DeviceCert[]> {
 export function rotateAccountKey(keepDevices: string[]): Promise<void> {
   return serial(async () => {
     const identity = useApp.getState().identity
-    if (!identity) throw new Error('No account on this device.')
+    if (!identity) throw new Error(t('keys.errors.noAccount'))
     await keysReady()
     const certs = (await ownDeviceCerts()).filter((c) => keepDevices.includes(c.deviceKey))
     const prepared = prepareRotation(identity, certs)
@@ -113,7 +114,7 @@ export function rotateAccountKey(keepDevices: string[]): Promise<void> {
       }
     }))
     await saveDone(entry)
-    if (servers.length > 0 && conflicts === servers.length) throw new Error('Someone else already replaced this account key on your servers.')
+    if (servers.length > 0 && conflicts === servers.length) throw new Error(t('keys.errors.alreadyReplaced'))
     await switchIdentity(prepared.identity, 'here')
   })
 }

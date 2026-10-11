@@ -6,18 +6,20 @@ import { Avatar } from '../bits'
 import { Plus } from '../icons'
 import { StageIcon } from './stageIcons'
 import './stage.css'
+import { useTranslation } from 'react-i18next'
 
 /** The "Stages" group in the channel list: live badge, topic, who's speaking and how many listen. */
 export function StageSidebar({ server, onNavigate, onCreate }: { server: ServerState; onNavigate: () => void; onCreate: () => void }) {
+  const { t } = useTranslation()
   const stages = server.channels.filter((c) => c.kind === 'stage')
   const isAdmin = server.me ? roleRank(server.me.role) >= roleRank('admin') : false
   if (stages.length === 0) return null
   return (
     <>
       <div className="channel-group">
-        <span>Stages</span>
+        <span>{t('stage.sidebar.stages')}</span>
         {isAdmin && (
-          <button className="icon-button small" onClick={onCreate} aria-label="Create stage" title="Create channel">
+          <button className="icon-button small" onClick={onCreate} aria-label={t('stage.sidebar.create')} title={t('stage.sidebar.createTitle')}>
             <Plus size={14} />
           </button>
         )}
@@ -28,6 +30,7 @@ export function StageSidebar({ server, onNavigate, onCreate }: { server: ServerS
 }
 
 export function StageEntry({ server, channelId, name, onNavigate }: { server: ServerState; channelId: number; name: string; onNavigate: () => void }) {
+  const { t } = useTranslation()
   const state = useStages(stageFor(server.key, channelId))
   const session = useVoice((s) => s.session)
   const here = session?.serverKey === server.key && session.channelId === channelId && !session.call
@@ -38,7 +41,7 @@ export function StageEntry({ server, channelId, name, onNavigate }: { server: Se
       <button
         className={`channel ${here ? 'active' : ''}`}
         disabled={!server.voiceAvailable}
-        title={server.voiceAvailable ? `Join ${name}` : 'Voice is unavailable on this server'}
+        title={server.voiceAvailable ? t('stage.sidebar.join', { name }) : t('stage.sidebar.unavailable')}
         onClick={() => {
           void joinVoice(server.key, channelId)
           onNavigate()
@@ -47,7 +50,7 @@ export function StageEntry({ server, channelId, name, onNavigate }: { server: Se
         <span className="hash"><StageIcon size={16} /></span>
         <span className="channel-name">{name}</span>
         {here && session.state !== 'connected' && <span className="pill">…</span>}
-        {live && <span className="live-pill">Live</span>}
+        {live && <span className="live-pill">{t('stage.live')}</span>}
       </button>
       {live && (
         <div className="stage-entry-info">

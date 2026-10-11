@@ -1,5 +1,6 @@
 // Settings → Appearance: pick a look (it applies right away), or import, edit and export theme JSON.
 import { useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { chooseTheme, loadThemeChoice, parseTheme, themeFor, type ThemeChoice, type ThemeFile } from '../../theme/theme'
 import { BUILT_IN_THEMES, DEFAULT_THEME_ID } from '../../theme/themes'
 import './profile.css'
@@ -7,6 +8,7 @@ import './profile.css'
 const swatches = (theme: ThemeFile) => [theme.colors.bgDeep ?? '#0b0b14', theme.colors.accent ?? '#7c6fff', theme.colors.link ?? '#00cfff']
 
 export function AppearanceSection() {
+  const { t } = useTranslation()
   const [choice, setChoice] = useState<ThemeChoice>(loadThemeChoice)
   const [editing, setEditing] = useState(false)
   const [text, setText] = useState('')
@@ -42,8 +44,8 @@ export function AppearanceSection() {
 
   return (
     <section className="settings-section">
-      <h3>Appearance</h3>
-      <div className="theme-grid" role="radiogroup" aria-label="Theme">
+      <h3>{t('settings.sections.appearance')}</h3>
+      <div className="theme-grid" role="radiogroup" aria-label={t('profile.theme.label')}>
         {BUILT_IN_THEMES.map(({ id, theme }) => {
           const active = 'id' in choice && choice.id === id
           return (
@@ -51,7 +53,7 @@ export function AppearanceSection() {
               <span className="theme-dots" style={{ background: theme.colors.bgChat }}>
                 {swatches(theme).map((c, i) => <span key={i} style={{ background: c }} />)}
               </span>
-              <span className="theme-name">{theme.meta.name}{id === DEFAULT_THEME_ID ? ' (default)' : ''}</span>
+              <span className="theme-name">{id === DEFAULT_THEME_ID ? t('profile.theme.defaultName', { name: theme.meta.name }) : theme.meta.name}</span>
             </button>
           )
         })}
@@ -67,21 +69,21 @@ export function AppearanceSection() {
 
       <div className="copy-row theme-actions">
         <button className="button small" onClick={() => { setText(JSON.stringify(current, null, 2)); setErrors([]); setEditing(!editing) }}>
-          {editing ? 'Close editor' : 'Write your own'}
+          {editing ? t('profile.theme.closeEditor') : t('profile.theme.writeOwn')}
         </button>
-        <button className="button small" onClick={() => fileInput.current?.click()}>Import</button>
-        <button className="button small" onClick={exportTheme}>Export</button>
+        <button className="button small" onClick={() => fileInput.current?.click()}>{t('profile.theme.import')}</button>
+        <button className="button small" onClick={exportTheme}>{t('profile.theme.export')}</button>
         <input
           ref={fileInput}
           type="file"
           accept="application/json,.json"
           hidden
-          aria-label="Theme file"
+          aria-label={t('profile.theme.file')}
           onChange={async (e) => {
             const file = e.target.files?.[0]
             e.target.value = ''
             if (!file) return
-            if (file.size > 64 * 1024) setErrors(['That file is too big to be a theme.'])
+            if (file.size > 64 * 1024) setErrors([t('profile.theme.tooBig')])
             else applyText(await file.text())
           }}
         />
@@ -89,12 +91,9 @@ export function AppearanceSection() {
 
       {editing && (
         <div className="theme-editor">
-          <textarea value={text} rows={12} spellCheck={false} aria-label="Theme JSON" onChange={(e) => { setText(e.target.value); setErrors([]) }} />
-          <p className="muted">
-            Colours are hex (#7c6fff) or rgb()/rgba(). Also: "radius" 0–24, "avatarShape" circle, rounded or square, and
-            "fonts" body inter, system, rounded, serif or mono.
-          </p>
-          <button className="button primary small" onClick={() => applyText(text)}>Apply</button>
+          <textarea value={text} rows={12} spellCheck={false} aria-label={t('profile.theme.json')} onChange={(e) => { setText(e.target.value); setErrors([]) }} />
+          <p className="muted">{t('profile.theme.help')}</p>
+          <button className="button primary small" onClick={() => applyText(text)}>{t('common.apply')}</button>
         </div>
       )}
       {errors.length > 0 && (

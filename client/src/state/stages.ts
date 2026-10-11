@@ -3,6 +3,7 @@
 import { create } from 'zustand'
 import { roleRank, type Channel, type Events, type Requests, type StageState, type VoiceParticipant } from '../core/protocol'
 import { connectionFor, onServerEvent, onWelcomeHook, type ServerState } from './store'
+import { t } from '../i18n'
 
 /** `${serverKey}:${channelId}` → the server's latest state of that stage. */
 export const useStages = create<{ stages: Record<string, StageState> }>(() => ({ stages: {} }))
@@ -62,11 +63,11 @@ export function stageView(state: StageState | undefined, participants: VoicePart
 }
 
 /** "1 listening", "12 listening". */
-export const listenerLabel = (count: number) => `${count} listening`
+export const listenerLabel = (count: number) => t('stage.listening', { count })
 
 async function send<K extends keyof Requests>(serverKey: string, type: K, body: Requests[K][0]): Promise<void> {
   const connection = connectionFor(serverKey)
-  if (!connection) throw new Error('Not connected.')
+  if (!connection) throw new Error(t('stage.notConnected'))
   await connection.request(type, body)
 }
 

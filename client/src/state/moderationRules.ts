@@ -1,5 +1,8 @@
 // Pure rules for blocks, timeouts, slowmode and audit entries (no React, no socket), mirrored from the server.
 import type { AuditEntry, BlockEntry, Member } from '../core/protocol'
+import { t } from '../i18n'
+import { formatDate } from '../i18n/format'
+import { levelName } from './permissions'
 
 /** Per person the newest change wins; on a tie a block beats an unblock (same rule as the server). */
 export function mergeBlocks(...lists: BlockEntry[][]): BlockEntry[] {
@@ -34,12 +37,24 @@ export function blockChange(entries: BlockEntry[], accountKey: string, blocked: 
 // ── Timeouts ────────────────────────────────────────────────────────────────
 
 export const TIMEOUT_OPTIONS = [
-  { label: '60 seconds', ms: 60_000 },
-  { label: '5 minutes', ms: 5 * 60_000 },
-  { label: '1 hour', ms: 3_600_000 },
-  { label: '1 day', ms: 86_400_000 },
-  { label: '1 week', ms: 7 * 86_400_000 },
+  { ms: 60_000 },
+  { ms: 5 * 60_000 },
+  { ms: 3_600_000 },
+  { ms: 86_400_000 },
+  { ms: 7 * 86_400_000 },
 ] as const
+
+/** "60 seconds", "5 minutes", "1 hour", "1 day", "1 week"; other lengths in minutes. */
+export function durationLabel(ms: number): string {
+  switch (ms) {
+    case 60_000: return t('moderation.duration.seconds', { count: 60 })
+    case 5 * 60_000: return t('moderation.duration.minutes', { count: 5 })
+    case 3_600_000: return t('moderation.duration.hours', { count: 1 })
+    case 86_400_000: return t('moderation.duration.days', { count: 1 })
+    case 7 * 86_400_000: return t('moderation.duration.weeks', { count: 1 })
+    default: return t('moderation.duration.minutes', { count: Math.round(ms / 60_000) })
+  }
+}
 
 export const timeoutActive = (member: Pick<Member, 'timedOutUntil'> | null | undefined, now = Date.now()): boolean =>
   !!member?.timedOutUntil && member.timedOutUntil > now
@@ -47,10 +62,10 @@ export const timeoutActive = (member: Pick<Member, 'timedOutUntil'> | null | und
 /** "14:05" today, "Tue 14:05" this week, else a date. */
 export function untilText(until: number, now = Date.now()): string {
   const date = new Date(until)
-  const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  const time = formatDate(date, { hour: '2-digit', minute: '2-digit' })
   if (new Date(now).toDateString() === date.toDateString()) return time
-  if (until - now < 6 * 86_400_000) return `${date.toLocaleDateString([], { weekday: 'short' })} ${time}`
-  return `${date.toLocaleDateString([], { day: 'numeric', month: 'short' })} ${time}`
+  if (until - now < 6 * 86_400_000) return `${formatDate(date, { weekday: 'short' })} ${time}`
+  return `${formatDate(date, { day: 'numeric', month: 'short' })} ${time}`
 }
 
 // ── Slowmode ────────────────────────────────────────────────────────────────
@@ -59,10 +74,10 @@ export const SLOWMODE_STEPS = [0, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3
 
 /** "Off", "5 s", "2 min", "6 h". */
 export function slowmodeLabel(seconds: number): string {
-  if (seconds <= 0) return 'Off'
-  if (seconds < 60) return `${seconds} s`
-  if (seconds < 3600) return `${seconds / 60} min`
-  return `${seconds / 3600} h`
+  if (seconds <= 0) return t('moderation.slowmode.off')
+  if (seconds < 60) return t('moderation.slowmode.seconds', { n: seconds })
+  if (seconds < 3600) return t('moderation.slowmode.minutes', { n: seconds / 60 })
+  return t('moderation.slowmode.hours', { n: seconds / 3600 })
 }
 
 /** How long until you may send again (0 = now). */
@@ -84,120 +99,125 @@ export function countdown(ms: number): string {
 // ── Audit log ───────────────────────────────────────────────────────────────
 
 /** Filter choices in the audit log viewer. */
-export const AUDIT_ACTIONS: { action: string; label: string }[] = [
-  { action: 'member.kick', label: 'Kicks' },
-  { action: 'member.ban', label: 'Bans' },
-  { action: 'member.unban', label: 'Unbans' },
-  { action: 'member.timeout', label: 'Timeouts' },
-  { action: 'member.timeout.remove', label: 'Timeouts removed' },
-  { action: 'member.role', label: 'Role changes' },
-  { action: 'member.roles', label: "Members' roles" },
-  { action: 'role.create', label: 'Roles created' },
-  { action: 'role.update', label: 'Roles edited' },
-  { action: 'role.delete', label: 'Roles deleted' },
-  { action: 'role.reorder', label: 'Roles reordered' },
-  { action: 'channel.overrides', label: 'Channel permissions' },
-  { action: 'voice.mute', label: 'Voice mutes' },
-  { action: 'voice.move', label: 'Voice moves' },
-  { action: 'channel.create', label: 'Channels created' },
-  { action: 'channel.update', label: 'Channels edited' },
-  { action: 'channel.delete', label: 'Channels deleted' },
-  { action: 'message.delete', label: 'Messages deleted' },
-  { action: 'thread.delete', label: 'Threads deleted' },
-  { action: 'message.pin', label: 'Pins' },
-  { action: 'message.unpin', label: 'Unpins' },
-  { action: 'invite.create', label: 'Invites created' },
-  { action: 'invite.revoke', label: 'Invites revoked' },
-  { action: 'webhook.create', label: 'Webhooks created' },
-  { action: 'webhook.update', label: 'Webhooks edited' },
-  { action: 'webhook.regenerate', label: 'Webhook URLs reset' },
-  { action: 'webhook.delete', label: 'Webhooks deleted' },
-  { action: 'bot.invite', label: 'Bot invites' },
-  { action: 'emoji.create', label: 'Emoji added' },
-  { action: 'emoji.rename', label: 'Emoji renamed' },
-  { action: 'emoji.delete', label: 'Emoji deleted' },
-  { action: 'sound.create', label: 'Sounds added' },
-  { action: 'sound.update', label: 'Sounds edited' },
-  { action: 'sound.delete', label: 'Sounds deleted' },
-  { action: 'profile.page.remove', label: 'Profile pages removed' },
-  { action: 'server.pages', label: 'Profile page setting' },
-  { action: 'server.internet', label: 'Internet hosting' },
-  { action: 'limits.update', label: 'Limits changed' },
-  { action: 'automod.block', label: 'Blocked by AutoMod' },
-  { action: 'automod.update', label: 'AutoMod settings' },
-]
+export const AUDIT_ACTIONS = [
+  'member.kick', 'member.ban', 'member.unban', 'member.timeout', 'member.timeout.remove', 'member.role', 'member.roles',
+  'role.create', 'role.update', 'role.delete', 'role.reorder', 'channel.overrides', 'voice.mute', 'voice.move',
+  'channel.create', 'channel.update', 'channel.delete', 'message.delete', 'thread.delete', 'message.pin', 'message.unpin',
+  'invite.create', 'invite.revoke', 'webhook.create', 'webhook.update', 'webhook.regenerate', 'webhook.delete', 'bot.invite',
+  'emoji.create', 'emoji.rename', 'emoji.delete', 'sound.create', 'sound.update', 'sound.delete',
+  'profile.page.remove', 'server.pages', 'server.internet', 'limits.update', 'automod.block', 'automod.update',
+] as const
 
-const AUTOMOD_WHAT: Record<string, string> = {
-  message: 'a message', edit: 'an edit', poll: 'a poll', post: 'a forum post', thread: 'a thread name', event: 'an event', watch: 'a watch party message',
-}
+export type AuditFilter = (typeof AUDIT_ACTIONS)[number]
+type Underscored<S extends string> = S extends `${infer A}.${infer B}` ? `${A}_${Underscored<B>}` : S
+
+/** A filter's label ("Kicks"). */
+export const auditActionLabel = (action: AuditFilter): string =>
+  t(`moderation.audit.filters.${action.replace(/\./g, '_') as Underscored<AuditFilter>}`)
+
+const AUTOMOD_WHAT = ['message', 'edit', 'poll', 'post', 'thread', 'event', 'watch'] as const
 
 const str = (v: unknown): string => (typeof v === 'string' || typeof v === 'number' ? String(v) : '')
-const durationText = (ms: number) => TIMEOUT_OPTIONS.find((o) => o.ms === ms)?.label ?? `${Math.round(ms / 60_000)} minutes`
 
 /** One readable line: "Viktor timed out Sam for 1 hour". Names come from the entry (they survive people leaving). */
 export function auditText(e: AuditEntry): string {
-  const actor = e.actorName || 'Someone'
-  const target = e.targetName ?? 'someone'
+  const actor = e.actorName || t('moderation.audit.someone')
+  const target = e.targetName ?? t('moderation.audit.someoneLower')
   const d = e.details ?? {}
-  const channel = (name: unknown) => (str(name) ? `#${str(name)}` : 'a channel')
+  const channel = (name: unknown) => (str(name) ? `#${str(name)}` : t('moderation.audit.aChannel'))
   const changes = (d.changes ?? {}) as Record<string, { from: unknown; to: unknown }>
+  const level = (v: unknown) => levelName(str(v))
   switch (e.action) {
-    case 'member.kick': return `${actor} kicked ${target}`
-    case 'member.ban': return `${actor} banned ${target}`
-    case 'member.unban': return `${actor} unbanned ${target}`
-    case 'member.timeout': return `${actor} timed out ${target} for ${durationText(Number(d.durationMs))}`
-    case 'member.timeout.remove': return `${actor} ended ${target}'s timeout`
-    case 'member.role': return `${actor} changed ${target}'s role from ${str(d.from)} to ${str(d.to)}`
+    case 'member.kick': return t('moderation.audit.kick', { actor, target })
+    case 'member.ban': return t('moderation.audit.ban', { actor, target })
+    case 'member.unban': return t('moderation.audit.unban', { actor, target })
+    case 'member.timeout': return t('moderation.audit.timeout', { actor, target, duration: durationLabel(Number(d.durationMs)) })
+    case 'member.timeout.remove': return t('moderation.audit.timeoutRemove', { actor, target })
+    case 'member.role': return t('moderation.audit.role', { actor, target, from: level(d.from), to: level(d.to) })
     case 'member.roles': {
       const list = (v: unknown) => (Array.isArray(v) ? v.map(str).join(', ') : '')
-      const parts = [list(d.added) && `gave ${target} ${list(d.added)}`, list(d.removed) && `took ${list(d.removed)} from ${target}`].filter(Boolean)
-      return `${actor} ${parts.join(' and ') || `changed ${target}'s roles`}`
+      const added = list(d.added)
+      const removed = list(d.removed)
+      if (added && removed) return t('moderation.audit.rolesBoth', { actor, target, added, removed })
+      if (added) return t('moderation.audit.rolesAdded', { actor, target, added })
+      if (removed) return t('moderation.audit.rolesRemoved', { actor, target, removed })
+      return t('moderation.audit.rolesChanged', { actor, target })
     }
-    case 'role.create': return `${actor} created the role ${str(d.name)}`
-    case 'role.update': return `${actor} edited the role ${str(d.name)}`
-    case 'role.delete': return `${actor} deleted the role ${str(d.name)}`
-    case 'role.reorder': return `${actor} reordered the roles`
-    case 'channel.overrides': return `${actor} changed what ${str(d.role)} can do in ${channel(d.name)}`
-    case 'voice.mute': return `${actor} muted ${target} in ${channel(d.channelName)}`
-    case 'voice.unmute': return `${actor} unmuted ${target} in ${channel(d.channelName)}`
-    case 'voice.move': return `${actor} moved ${target} to ${channel(d.to)}`
-    case 'channel.create': return `${actor} created ${channel(d.name)}`
-    case 'channel.delete': return `${actor} deleted ${channel(d.name)}`
+    case 'role.create': return t('moderation.audit.roleCreate', { actor, name: str(d.name) })
+    case 'role.update': return t('moderation.audit.roleUpdate', { actor, name: str(d.name) })
+    case 'role.delete': return t('moderation.audit.roleDelete', { actor, name: str(d.name) })
+    case 'role.reorder': return t('moderation.audit.roleReorder', { actor })
+    case 'channel.overrides': return t('moderation.audit.overrides', { actor, role: str(d.role), channel: channel(d.name) })
+    case 'voice.mute': return t('moderation.audit.voiceMute', { actor, target, channel: channel(d.channelName) })
+    case 'voice.unmute': return t('moderation.audit.voiceUnmute', { actor, target, channel: channel(d.channelName) })
+    case 'voice.move': return t('moderation.audit.voiceMove', { actor, target, channel: channel(d.to) })
+    case 'channel.create': return t('moderation.audit.channelCreate', { actor, channel: channel(d.name) })
+    case 'channel.delete': return t('moderation.audit.channelDelete', { actor, channel: channel(d.name) })
     case 'channel.update': {
       const parts = Object.entries(changes).map(([field, c]) => {
-        if (field === 'slowmode') return `slowmode ${slowmodeLabel(Number(c.from)).toLowerCase()} → ${slowmodeLabel(Number(c.to)).toLowerCase()}`
-        if (field === 'name') return `name #${str(c.from)} → #${str(c.to)}`
-        return `${field === 'readRole' ? 'who can read' : 'who can write'} ${str(c.from)} → ${str(c.to)}`
+        if (field === 'slowmode') {
+          return t('moderation.audit.changeSlowmode', {
+            from: slowmodeLabel(Number(c.from)).toLowerCase(), to: slowmodeLabel(Number(c.to)).toLowerCase(),
+          })
+        }
+        if (field === 'name') return t('moderation.audit.changeName', { from: str(c.from), to: str(c.to) })
+        return t(field === 'readRole' ? 'moderation.audit.changeRead' : 'moderation.audit.changeWrite', { from: level(c.from), to: level(c.to) })
       })
-      return `${actor} edited ${channel(d.name)}${parts.length ? `: ${parts.join(', ')}` : ''}`
+      return parts.length
+        ? t('moderation.audit.channelUpdateChanges', { actor, channel: channel(d.name), changes: parts.join(', ') })
+        : t('moderation.audit.channelUpdate', { actor, channel: channel(d.name) })
     }
-    case 'message.delete': return `${actor} deleted a message by ${e.targetName ?? 'a webhook or former member'} in ${channel(d.channelName)}`
-    case 'thread.delete': return `${actor} deleted ${target}'s thread "${str(d.name)}" in ${channel(d.channelName)}`
-    case 'message.pin': return `${actor} pinned a message${e.targetName ? ` by ${e.targetName}` : ''} in ${channel(d.channelName)}`
-    case 'message.unpin': return `${actor} unpinned a message${e.targetName ? ` by ${e.targetName}` : ''} in ${channel(d.channelName)}`
-    case 'invite.create': return `${actor} created an invite (${str(d.role) || 'member'}${d.maxUses ? `, ${str(d.maxUses)} uses` : ''})`
-    case 'invite.revoke': return `${actor} revoked ${e.target === e.actor ? 'their' : `${target}'s`} invite`
-    case 'webhook.create': return `${actor} created the webhook "${str(d.name)}"`
-    case 'webhook.update': return `${actor} edited the webhook "${str(d.name)}"`
-    case 'webhook.regenerate': return `${actor} reset the URL of the webhook "${str(d.name)}"`
-    case 'webhook.delete': return `${actor} deleted the webhook "${str(d.name)}"`
-    case 'bot.invite': return `${actor} created a bot invite (${str(d.role)})`
-    case 'emoji.create': return `${actor} added the emoji :${str(d.name)}:`
-    case 'emoji.rename': return `${actor} renamed the emoji :${str(d.from)}: to :${str(d.to)}:`
-    case 'emoji.delete': return `${actor} deleted the emoji :${str(d.name)}:`
-    case 'sound.create': return `${actor} added the sound "${str(d.name)}"`
-    case 'sound.update': return `${actor} edited the sound "${str(d.to)}"`
-    case 'sound.delete': return `${actor} deleted the sound "${str(d.name)}"`
-    case 'profile.page.remove': return `${actor} removed ${target}'s profile page`
-    case 'server.pages': return `${actor} turned profile pages ${d.enabled ? 'on' : 'off'}`
-    case 'server.internet': return `${actor} turned internet hosting ${d.enabled ? 'on' : 'off'}`
-    case 'limits.update': return `${actor} changed the upload and soundboard limits`
-    case 'automod.update': return `${actor} ${d.enabled ? 'changed the AutoMod settings' : 'turned AutoMod off'}`
+    case 'message.delete':
+      return t('moderation.audit.messageDelete', { actor, target: e.targetName ?? t('moderation.audit.formerMember'), channel: channel(d.channelName) })
+    case 'thread.delete': return t('moderation.audit.threadDelete', { actor, target, name: str(d.name), channel: channel(d.channelName) })
+    case 'message.pin':
+      return e.targetName
+        ? t('moderation.audit.pinBy', { actor, target: e.targetName, channel: channel(d.channelName) })
+        : t('moderation.audit.pin', { actor, channel: channel(d.channelName) })
+    case 'message.unpin':
+      return e.targetName
+        ? t('moderation.audit.unpinBy', { actor, target: e.targetName, channel: channel(d.channelName) })
+        : t('moderation.audit.unpin', { actor, channel: channel(d.channelName) })
+    case 'invite.create': {
+      const role = level(d.role || 'member')
+      return d.maxUses
+        ? t('moderation.audit.inviteCreateUses', { actor, role, count: Number(d.maxUses) })
+        : t('moderation.audit.inviteCreate', { actor, role })
+    }
+    case 'invite.revoke':
+      return e.target === e.actor ? t('moderation.audit.inviteRevokeOwn', { actor }) : t('moderation.audit.inviteRevoke', { actor, target })
+    case 'webhook.create': return t('moderation.audit.webhookCreate', { actor, name: str(d.name) })
+    case 'webhook.update': return t('moderation.audit.webhookUpdate', { actor, name: str(d.name) })
+    case 'webhook.regenerate': return t('moderation.audit.webhookRegenerate', { actor, name: str(d.name) })
+    case 'webhook.delete': return t('moderation.audit.webhookDelete', { actor, name: str(d.name) })
+    case 'bot.invite': return t('moderation.audit.botInvite', { actor, role: level(d.role) })
+    case 'emoji.create': return t('moderation.audit.emojiCreate', { actor, name: str(d.name) })
+    case 'emoji.rename': return t('moderation.audit.emojiRename', { actor, from: str(d.from), to: str(d.to) })
+    case 'emoji.delete': return t('moderation.audit.emojiDelete', { actor, name: str(d.name) })
+    case 'sound.create': return t('moderation.audit.soundCreate', { actor, name: str(d.name) })
+    case 'sound.update': return t('moderation.audit.soundUpdate', { actor, name: str(d.to) })
+    case 'sound.delete': return t('moderation.audit.soundDelete', { actor, name: str(d.name) })
+    case 'profile.page.remove': return t('moderation.audit.pageRemove', { actor, target })
+    case 'server.pages': return t(d.enabled ? 'moderation.audit.pagesOn' : 'moderation.audit.pagesOff', { actor })
+    case 'server.internet': return t(d.enabled ? 'moderation.audit.internetOn' : 'moderation.audit.internetOff', { actor })
+    case 'limits.update': return t('moderation.audit.limits', { actor })
+    case 'automod.update': return t(d.enabled ? 'moderation.audit.automodUpdate' : 'moderation.audit.automodOff', { actor })
     case 'automod.block': {
-      const where = str(d.channelName) ? ` in ${channel(d.channelName)}` : ''
-      const timeout = Number(d.timeoutMs) > 0 ? ` and timed them out for ${durationText(Number(d.timeoutMs))}` : ''
-      return `AutoMod blocked ${AUTOMOD_WHAT[str(d.what)] ?? 'a message'} by ${target}${where} (${e.reason ?? 'a rule'})${timeout}`
+      const kind = AUTOMOD_WHAT.find((w) => w === str(d.what)) ?? 'message'
+      const vars = {
+        what: t(`moderation.audit.what.${kind}`),
+        target,
+        channel: channel(d.channelName),
+        reason: e.reason ?? t('moderation.audit.aRule'),
+        duration: durationLabel(Number(d.timeoutMs)),
+      }
+      const where = !!str(d.channelName)
+      const timeout = Number(d.timeoutMs) > 0
+      if (where && timeout) return t('moderation.audit.automodBlockInTimeout', vars)
+      if (where) return t('moderation.audit.automodBlockIn', vars)
+      if (timeout) return t('moderation.audit.automodBlockTimeout', vars)
+      return t('moderation.audit.automodBlock', vars)
     }
-    default: return `${actor}: ${e.action}`
+    default: return t('moderation.audit.other', { actor, action: e.action })
   }
 }

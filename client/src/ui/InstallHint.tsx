@@ -1,6 +1,7 @@
 // Phones in the browser: a one-time, dismissible "get the app" hint. iPhone/iPad → add to Home Screen (needed for
 // notifications there), Android → the Android app, or the browser's own install.
 import { useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import { LINKS } from '../links'
 import { desktop } from '../platform/desktop'
 import { installApp, useInstall } from '../state/push'
@@ -40,6 +41,7 @@ const ShareIcon = () => (
 
 /** `signedIn`: on iPhone the Home Screen app keeps its own sign-in, so say how to get in there. */
 export function InstallHint({ signedIn }: { signedIn: boolean }) {
+  const { t } = useTranslation()
   const [kind, setKind] = useState(currentKind)
   const installable = useInstall((s) => s.prompt !== null)
   if (!kind) return null
@@ -50,36 +52,35 @@ export function InstallHint({ signedIn }: { signedIn: boolean }) {
   }
 
   return (
-    <aside className={signedIn ? 'install-hint in-app' : 'install-hint'} aria-label="Get the Iskra app">
+    <aside className={signedIn ? 'install-hint in-app' : 'install-hint'} aria-label={t('app.install.getApp')}>
       <img className="install-hint-icon" src="/icons/icon-192.png" alt="" width={40} height={40} />
       <div className="install-hint-text">
         {kind === 'ios' ? (
           <>
-            <strong>Add Iskra to your Home Screen</strong>
+            <strong>{t('app.install.iosTitle')}</strong>
             <span>
-              Tap <ShareIcon /> <b>Share</b>, then <b>Add to Home Screen</b>. Notifications on iPhone only work from the Home
-              Screen app.
-              {signedIn && ' It signs in on its own: open it and tap "I already have Iskra".'}
+              <Trans i18nKey="app.install.iosSteps" components={{ icon: <ShareIcon />, b: <b /> }} />
+              {signedIn && <>{' '}{t('app.install.iosSignIn')}</>}
             </span>
           </>
         ) : (
           <>
-            <strong>Get the Iskra app</strong>
-            <span>Notifications, voice and video, right from your home screen.</span>
+            <strong>{t('app.install.getApp')}</strong>
+            <span>{t('app.install.androidBody')}</span>
             <div className="install-hint-actions">
               <a className="button primary" href={LINKS.androidApp} target="_blank" rel="noreferrer">
-                Get the Android app
+                {t('app.install.android')}
               </a>
               {installable && (
                 <button className="button" onClick={() => void installApp().then(() => setKind(null))}>
-                  Install
+                  {t('app.install.install')}
                 </button>
               )}
             </div>
           </>
         )}
       </div>
-      <button className="icon-button" onClick={dismiss} aria-label="Dismiss" title="Dismiss">
+      <button className="icon-button" onClick={dismiss} aria-label={t('app.dismiss')} title={t('app.dismiss')}>
         <Close size={16} />
       </button>
     </aside>
