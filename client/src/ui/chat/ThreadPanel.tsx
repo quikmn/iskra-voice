@@ -1,6 +1,8 @@
 // A thread beside its channel (full screen on phones): the message it started from, its replies, a composer.
 import { useEffect, useState } from 'react'
-import { roleRank, type Message } from '../../core/protocol'
+import type { Message } from '../../core/protocol'
+import { useServerRoles } from '../../state/roles'
+import { canSendIn, has, outranks } from '../../state/permissions'
 import { connectionFor, loadHistory, type ServerState } from '../../state/store'
 import { closeThread, deleteThread, markThreadRead, renameThread, rememberThreads, useThreads } from '../../state/threads'
 import { Composer, MessageList, TypingLine } from '../ChatView'
@@ -56,10 +58,11 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
 
   const parent = thread ? server.channels.find((c) => c.id === thread.channelId) : undefined
   const me = server.me
-  const canWrite = !!me && !!parent && roleRank(me.role) >= roleRank(parent.writeRole)
+  const roles = useServerRoles(server.key)
+  const canWrite = !!parent && canSendIn(me, parent, roles)
   const creator = thread ? server.members[thread.createdBy] : undefined
   const canManage = !!me && !!thread && (thread.createdBy === me.accountKey ||
-    (roleRank(me.role) >= roleRank('admin') && (!creator || roleRank(me.role) > roleRank(creator.role))))
+    (has(me, roles, 'manageMessages') && (!creator || outranks(me, creator, roles))))
   // Prefer the live copy of the root message when its channel is loaded.
   const liveRoot = thread ? server.messages[thread.channelId]?.find((m) => m.id === thread.rootId && !m.tempId) : undefined
   const shownRoot = liveRoot ?? root

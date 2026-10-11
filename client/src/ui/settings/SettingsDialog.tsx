@@ -15,6 +15,9 @@ import { DevicesSection } from '../dialogs/DevicesSection'
 import { IntegrationsSection } from '../dialogs/Integrations'
 import { ChevronRight } from '../icons'
 import { AuditLogSection, BlockedSection } from '../moderation/SafetySettings'
+import { RolesSection } from '../roles/RoleSettings'
+import { useServerRoles } from '../../state/roles'
+import { has } from '../../state/permissions'
 import { settingsSections, type SectionId } from './sections'
 import './settings.css'
 
@@ -34,7 +37,8 @@ function usePhone(): boolean {
 
 export function SettingsDialog({ server, onClose, section: initial }: { server?: ServerState | null; onClose: () => void; section?: SectionId }) {
   const phone = usePhone()
-  const sections = settingsSections(server?.me?.role)
+  const roles = useServerRoles(server?.key)
+  const sections = settingsSections(server?.me?.role, (perm) => has(server?.me, roles, perm))
   const [picked, setPicked] = useState<SectionId | null>(initial ?? (isPhone() ? null : 'profile'))
   // A section can vanish (role changed); wide screens always show one.
   const current = sections.find((s) => s.id === picked) ?? (phone ? null : sections[0])
@@ -105,6 +109,7 @@ function Section({ id, server, onClose }: { id: SectionId; server: ServerState |
     case 'pages': return <PagesSection server={server} />
     case 'internet': return <InternetSection server={server} />
     case 'audit': return <AuditLogSection server={server} />
+    case 'roles': return <RolesSection server={server} />
   }
 }
 

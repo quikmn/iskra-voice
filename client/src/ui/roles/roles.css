@@ -1,0 +1,62 @@
+/* ── Custom roles ──────────────────────────────────────────────────── */
+
+.role-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; }
+
+.role-chips { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; padding: 0; }
+.role-chip-custom {
+  display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px;
+  background: var(--surface-3); color: var(--text); font-size: 12px; font-weight: 500;
+}
+
+/* Settings → Roles */
+.role-list { list-style: none; margin: 14px 0 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.role-row { display: flex; align-items: center; gap: 6px; padding: 4px 8px; background: var(--surface); }
+.role-row + .role-row { border-top: 1px solid var(--border); }
+.role-row.selected { background: var(--surface-3); }
+.role-row.dragging { opacity: 0.5; }
+.drag-handle { color: var(--muted); cursor: grab; letter-spacing: -3px; padding: 0 4px; user-select: none; }
+.drag-handle.locked { cursor: default; opacity: 0.3; }
+.role-pick {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 8px 6px; border: 0; background: transparent;
+  color: var(--text); text-align: left; font-weight: 500;
+}
+.role-pick .role-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.role-move { display: flex; gap: 2px; }
+.role-editor { margin-top: 16px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); display: grid; gap: 10px; }
+.role-editor-fields { display: flex; flex-wrap: wrap; gap: 12px; }
+.role-editor-fields .field { flex: 1; min-width: 140px; margin-bottom: 0; }
+.role-editor-fields .role-icon-field { flex: 0 0 90px; min-width: 90px; }
+.role-perms-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.role-perms-head strong { flex: 1; }
+.role-perms { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px 16px; }
+.role-perms .checkbox { align-items: flex-start; }
+.role-perms .checkbox > span { display: grid; gap: 1px; }
+.role-perms small { font-size: 12px; }
+.role-editor-actions .spacer { flex: 1; }
+
+/* Member dialog */
+.member-roles-editor, .voice-mod { display: grid; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.role-checks { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.role-checks .checkbox { gap: 6px; align-items: center; }
+
+/* Channel settings: permissions by role */
+.channel-overrides { display: grid; gap: 10px; margin-top: 8px; padding-top: 14px; border-top: 1px solid var(--border); }
+.channel-overrides p { margin: 0; font-size: 13px; }
+.override-row { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); }
+.override-role { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.override-perm { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 14px; }
+.tri { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; flex: none; }
+.tri button { width: 34px; height: 28px; border: 0; background: transparent; color: var(--muted); font-weight: 700; }
+.tri button + button { border-left: 1px solid var(--border); }
+.tri button.on.tri-deny { background: var(--danger-bg); color: var(--red); }
+.tri button.on.tri-allow { background: color-mix(in srgb, var(--green) 18%, transparent); color: var(--green); }
+.tri button.on.tri-inherit { background: var(--surface-3); color: var(--text); }
+
+/* Member list: role icon, and a moderator's mute in voice */
+.member-role-icon { font-size: 13px; flex: none; }
+.voice-flag.server-muted { color: var(--red); }
+
+@media (max-width: 760px) {
+  .role-perms { grid-template-columns: minmax(0, 1fr); }
+  .tri button { width: 40px; height: 34px; }
+}

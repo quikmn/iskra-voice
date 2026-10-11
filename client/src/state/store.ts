@@ -5,7 +5,8 @@ import { ready } from '../core/crypto'
 import { createIdentity, type Identity } from '../core/identity'
 import { restoreIdentity } from '../core/recovery'
 import { authProfile } from '../core/profile'
-import { canPingGroups, mentions } from '../ui/markdown'
+import { mentions } from '../ui/markdown'
+import { senderRules } from './senderRules'
 import type { InviteLink } from '../core/invite'
 import type { Channel, Events, FileInfo, Member, Message, VoiceParticipant, Welcome } from '../core/protocol'
 import * as storage from '../core/storage'
@@ -296,11 +297,11 @@ function onEvent<K extends keyof Events>(key: string, type: K, body: Events[K]):
             ? { ...s.messages, [message.channelId]: upsertMessage(s.messages[message.channelId], message) }
             : s.messages, // not loaded yet: history will fetch it
           typing: { ...s.typing, [message.channelId]: typing },
-          unread: message.author === s.me?.accountKey || viewing
+          unread: message.author === s.me?.accountKey || viewing || senderRules.ignored(message.author)
             ? s.unread
             : { ...s.unread, [message.channelId]: (s.unread[message.channelId] ?? 0) + 1 },
-          mentions: message.author === s.me?.accountKey || viewing || !s.me
-            || !mentions(message.text, s.me.accountKey, canPingGroups(s.members[message.author]?.role, !!message.webhook))
+          mentions: message.author === s.me?.accountKey || viewing || !s.me || senderRules.ignored(message.author)
+            || !mentions(message.text, s.me.accountKey, senderRules.canPingGroups(s, message))
             ? s.mentions
             : { ...s.mentions, [message.channelId]: (s.mentions[message.channelId] ?? 0) + 1 },
         }

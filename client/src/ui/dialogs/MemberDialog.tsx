@@ -9,11 +9,20 @@ import { removeMemberPage } from '../../state/profile'
 import { BotBadge } from '../chat/BotBits'
 import { BlockButton, ClockIcon, TimeoutControls } from '../moderation/Moderation'
 import { timeoutActive, untilText } from '../../state/moderationRules'
+import { useServerRoles } from '../../state/roles'
+import { has, outranks } from '../../state/permissions'
+import { MemberRolesEditor, RoleChips, VoiceModControls } from '../roles/RoleSettings'
 
 export function MemberDialog({ server, member, onClose }: { server: ServerState; member: Member; onClose: () => void }) {
   const me = server.me
   const isSelf = me?.accountKey === member.accountKey
+  const roles = useServerRoles(server.key)
+  const below = !isSelf && outranks(me, member, roles)
+  // Levels and profile pages stay with admins; the rest comes from permissions (custom roles).
   const canModerate = !!me && !isSelf && roleRank(me.role) >= roleRank('admin') && roleRank(me.role) > roleRank(member.role)
+  const canKick = below && has(me, roles, 'kickMembers')
+  const canBan = below && has(me, roles, 'banMembers')
+  const canTimeout = below && has(me, roles, 'timeoutMembers')
   const grantable = me ? ROLES.filter((r) => roleRank(r) < roleRank(me.role)) : []
   const [confirm, setConfirm] = useState<'kick' | 'ban' | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -42,6 +51,7 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
           <strong className="member-card-name">{member.name}</strong> {member.bot && <BotBadge />}
           <div className="muted">{[member.pronouns, member.role, member.online ? 'online' : 'offline'].filter(Boolean).join(' · ')}</div>
           <div className="muted">ID <code>{fingerprint(member.accountKey)}</code></div>
+          <RoleChips server={server} member={member} />
           {timeoutActive(member) && (
             <div className="member-timeout-line"><ClockIcon /> Timed out until {untilText(member.timedOutUntil!)}</div>
           )}
@@ -70,19 +80,22 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
         </section>
       )}
 
-      {canModerate && connection && (
+      <MemberRolesEditor server={server} member={member} />
+      <VoiceModControls server={server} member={member} />
+
+      {(canModerate || canKick || canBan || canTimeout) && connection && (
         <section className="settings-section">
           <h3>Moderation</h3>
-          <label className="field inline">
-            <span>Role</span>
+          {canModerate && <label className="field inline">
+            <span>Level</span>
             <select
               value={member.role}
               onChange={(e) => void run(() => connection.request('member.setRole', { accountKey: member.accountKey, role: e.target.value as Role }))}
             >
               {grantable.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
-          </label>
-          {member.page && (
+          </label>}
+          {canModerate && member.page && (
             <div className="copy-row member-actions">
               <button className="button danger-outline" onClick={() => void run(() => removeMemberPage(server.key, member))}>Remove profile page</button>
             </div>
@@ -101,14 +114,14 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
               </button>
               <button className="button" onClick={() => setConfirm(null)}>Cancel</button>
             </div>
-          ) : (
+          ) : (canKick || canBan) && (
             <div className="copy-row">
-              <button className="button danger-outline" onClick={() => setConfirm('kick')}>Kick</button>
-              <button className="button danger-outline" onClick={() => setConfirm('ban')}>Ban</button>
+              {canKick && <button className="button danger-outline" onClick={() => setConfirm('kick')}>Kick</button>}
+              {canBan && <button className="button danger-outline" onClick={() => setConfirm('ban')}>Ban</button>}
             </div>
           )}
           {error && <p className="error-text">{error}</p>}
-          <TimeoutControls server={server} member={member} />
+          {canTimeout && <TimeoutControls server={server} member={member} />}
         </section>
       )}
     </Modal>

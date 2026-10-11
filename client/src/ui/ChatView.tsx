@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { roleRank, type FileInfo, type Member } from '../core/protocol'
+import type { FileInfo, Member } from '../core/protocol'
 import {
   activeChannelId, connectionFor, discardFailed, loadHistory, notifyTyping, retryAll, retryFailed, sendMessage, uploadFile, useApp,
   type PendingMessage, type ServerState,
@@ -30,13 +30,16 @@ import { PollIcon } from './expressions/icons'
 import { useServerEmojis } from '../state/expressions'
 import { BlockGate, ChannelSettingsButton, SlowmodeChip, TimedOutBar } from './moderation/Moderation'
 import { useSlowmodeWait, useTimedOut } from './moderation/hooks'
+import { useServerRoles } from '../state/roles'
+import { canDeleteMessage, canSendIn, has, nameColor } from '../state/permissions'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
 export function ChatView({ server, onToggle }: { server: ServerState; onToggle: (panel: Panel) => void }) {
   const channelId = useApp(activeChannelId)
   const channel = server.channels.find((c) => c.id === channelId)
-  const canWrite = !!server.me && !!channel && roleRank(server.me.role) >= roleRank(channel.writeRole)
+  const roles = useServerRoles(server.key)
+  const canWrite = !!channel && canSendIn(server.me, channel, roles)
 
   useEffect(() => {
     if (channelId !== null && server.status.state === 'online') void loadHistory(server.key, channelId)
@@ -98,7 +101,7 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
             <>
               <span className="empty-icon"><Hash size={32} /></span>
               <h1>No channels here yet</h1>
-              <p>{roleRank(server.me?.role ?? 'guest') >= roleRank('admin') ? 'Create one with the + next to Text channels.' : 'An admin can add some. Check back soon.'}</p>
+              <p>{has(server.me, roles, 'manageChannels') ? 'Create one with the + next to Text channels.' : 'An admin can add some. Check back soon.'}</p>
             </>
           ) : <Spinner />}
         </div>
@@ -234,8 +237,9 @@ function MessageRow({
   const canOpenProfile = !message.webhook && !!server.members[message.author]
   const me = server.me
   const mine = me?.accountKey === message.author
-  const canDelete = !!me && !message.tempId &&
-    (mine || (roleRank(me.role) >= roleRank('admin') && (!author || roleRank(me.role) > roleRank(author.role))))
+  const roles = useServerRoles(server.key)
+  const canDelete = !message.tempId && canDeleteMessage(me, message, author, roles)
+  const authorColor = (!message.webhook && nameColor(author, roles)) || `hsl(${hueFor(message.author)} 70% var(--name-l))`
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [picking, setPicking] = useState(false)
   const [sheet, setSheet] = useState(false)
@@ -279,9 +283,9 @@ function MessageRow({
         {(!grouped || message.replyTo) && (
           <div className="message-meta">
             {canOpenProfile ? (
-              <button className="author" style={{ color: `hsl(${hueFor(message.author)} 70% var(--name-l))` }} onClick={(e) => openProfileCard(server.key, message.author, e.currentTarget)}>{name}</button>
+              <button className="author" style={{ color: authorColor }} onClick={(e) => openProfileCard(server.key, message.author, e.currentTarget)}>{name}</button>
             ) : (
-              <span className="author" style={{ color: `hsl(${hueFor(message.author)} 70% var(--name-l))` }}>{name}</span>
+              <span className="author" style={{ color: authorColor }}>{name}</span>
             )}
             {shown.bot && <BotBadge />}
             <time title={fullTime(message.createdAt)}>{messageTime(message.createdAt)}</time>

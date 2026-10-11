@@ -1,6 +1,7 @@
 // Hooks for the moderation UI: a ticking clock, your timeout, and the slowmode countdown.
 import { useSyncExternalStore } from 'react'
-import { roleRank } from '../../core/protocol'
+import { has } from '../../state/permissions'
+import { useServerRoles } from '../../state/roles'
 import { lastSentKey, useLastSent } from '../../state/moderation'
 import { slowmodeWait, timeoutActive } from '../../state/moderationRules'
 import type { ServerState } from '../../state/store'
@@ -42,7 +43,8 @@ export function useTimedOut(server: ServerState): boolean {
 /** Milliseconds until you may send in this channel again (admins never wait). */
 export function useSlowmodeWait(server: ServerState, channelId: number): { seconds: number; wait: number } {
   const channel = server.channels.find((c) => c.id === channelId)
-  const exempt = !server.me || roleRank(server.me.role) >= roleRank('admin')
+  const roles = useServerRoles(server.key)
+  const exempt = !server.me || has(server.me, roles, 'manageMessages') || has(server.me, roles, 'manageChannels')
   const seconds = exempt ? 0 : channel?.slowmode ?? 0
   const recorded = useLastSent((s) => s[lastSentKey(server.key, channelId)])
   const me = server.me?.accountKey

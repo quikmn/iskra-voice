@@ -6,11 +6,13 @@ import type { AuditEntry, BlockEntry, Events } from '../core/protocol'
 import * as storage from '../core/storage'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 import { blockChange, mergeBlocks, sameBlocks } from './moderationRules'
+import { senderRules } from './senderRules'
 
 export const useBlocks = create<{ entries: BlockEntry[] }>(() => ({ entries: [] }))
 
 export const isBlocked = (entries: BlockEntry[], accountKey: string) => entries.some((e) => e.accountKey === accountKey && e.blocked)
 export const useIsBlocked = (accountKey: string) => useBlocks((s) => isBlocked(s.entries, accountKey))
+senderRules.ignored = (accountKey) => isBlocked(useBlocks.getState().entries, accountKey)
 
 let loaded: Promise<void> | null = null
 function ensureLoaded(): Promise<void> {

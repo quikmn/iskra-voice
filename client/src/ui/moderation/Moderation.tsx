@@ -7,6 +7,9 @@ import { countdown, slowmodeLabel, SLOWMODE_STEPS, timeoutActive, TIMEOUT_OPTION
 import { connectionFor, type ServerState } from '../../state/store'
 import { Modal } from '../bits'
 import { Settings } from '../icons'
+import { useServerRoles } from '../../state/roles'
+import { has } from '../../state/permissions'
+import { ChannelOverrides } from '../roles/RoleSettings'
 import { useNow } from './hooks'
 import './moderation.css'
 
@@ -164,7 +167,8 @@ export function SlowmodeChip({ seconds, wait }: { seconds: number; wait: number 
 
 export function ChannelSettingsButton({ server, channel }: { server: ServerState; channel: Channel | undefined }) {
   const [open, setOpen] = useState(false)
-  if (!channel || !server.me || roleRank(server.me.role) < roleRank('admin')) return null
+  const roles = useServerRoles(server.key)
+  if (!channel || !has(server.me, roles, 'manageChannels')) return null
   return (
     <>
       <button className="icon-button" onClick={() => setOpen(true)} aria-label="Channel settings" title="Channel settings">
@@ -241,10 +245,11 @@ function ChannelSettingsDialog({ server, channel, onClose }: { server: ServerSta
             value={SLOWMODE_STEPS.indexOf(slowmode as (typeof SLOWMODE_STEPS)[number])}
             onChange={(e) => setSlowmodeValue(SLOWMODE_STEPS[Number(e.target.value)])}
           />
-          <small className="muted">Members can send one message per interval here. Admins aren't limited.</small>
+          <small className="muted">Members can send one message per interval here. Admins and moderators aren't limited.</small>
         </label>
       )}
       {error && <p className="error-text">{error}</p>}
+      <ChannelOverrides server={server} channel={channel} />
     </Modal>
   )
 }

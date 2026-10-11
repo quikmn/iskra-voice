@@ -21,7 +21,7 @@ test('settings, Escape, quick switcher and phone message actions', async ({ brow
   const nav = settings.getByRole('navigation', { name: 'Settings sections' })
   await expect(nav.getByRole('button')).toHaveText([
     'Profile', 'Appearance', 'Devices', 'Recovery key', 'Notifications', 'Voice & audio', 'Blocked people',
-    'Overview', 'Emoji', 'Soundboard', 'Bots & webhooks', 'Profile pages', 'Open to the internet', 'Audit log',
+    'Overview', 'Roles', 'Emoji', 'Soundboard', 'Bots & webhooks', 'Profile pages', 'Open to the internet', 'Audit log',
   ])
   await expect(nav.getByRole('button', { name: 'Profile', exact: true })).toHaveAttribute('aria-current', 'page')
   await expect(settings.getByLabel('Display name')).toBeVisible()

@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { roleRank } from '../core/protocol'
+import { has } from '../state/permissions'
+import { useServerRoles } from '../state/roles'
 import { activeChannelId, selectChannel, useApp, type ServerState } from '../state/store'
 import { joinVoice, setStageOpen, useVoice } from '../state/voice'
 import { threadMentions, useThreads } from '../state/threads'
@@ -20,7 +22,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
     setSection(at)
     setDialog('settings')
   }
-  const isAdmin = server.me ? roleRank(server.me.role) >= roleRank('admin') : false
+  const isAdmin = has(server.me, useServerRoles(server.key), 'manageChannels') // may create channels
   const canInvite = server.me ? roleRank(server.me.role) >= roleRank('member') : false
   const textChannels = server.channels.filter((c) => c.kind === 'text')
   const voiceChannels = server.channels.filter((c) => c.kind === 'voice')
@@ -110,7 +112,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
                           <Avatar name={member?.name ?? '?'} accountKey={p.accountKey} size={22} />
                           <span className="member-name">{member?.name ?? 'Someone'}</span>
                         </button>
-                        {p.deafened ? <span className="voice-flag" title="Deafened"><HeadphonesOff size={14} /></span> : p.muted ? <span className="voice-flag" title="Muted"><MicOff size={14} /></span> : null}
+                        {p.serverMuted ? <span className="voice-flag server-muted" title="Muted by a moderator"><MicOff size={14} /></span> : p.deafened ? <span className="voice-flag" title="Deafened"><HeadphonesOff size={14} /></span> : p.muted ? <span className="voice-flag" title="Muted"><MicOff size={14} /></span> : null}
                       </li>
                     )
                   })}
