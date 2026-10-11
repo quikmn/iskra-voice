@@ -120,7 +120,7 @@ export const chat: Messages['chat'] = {
     pinMessage: 'Fäst meddelandet',
     unpinMessage: 'Lossa meddelandet',
     pinned: 'Fäst',
-    note: '<b>{{name}}</b> fäste <link>ett meddelande</link>.',
+    note: '<b>{{name}}</b> fäste <a>ett meddelande</a>.',
   },
   threads: {
     empty: 'Inga trådar än.',

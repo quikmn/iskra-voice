@@ -98,7 +98,7 @@ export function MoveServerDialog({ server, onClose }: { server: ServerState; onC
           <section className="guide-option">
             <h4>{t('settings.move.withApp')}</h4>
             <ol>
-              <li><Trans i18nKey="settings.move.app1" components={{ link: <a href={LINKS.windowsInstaller} /> }} /></li>
+              <li><Trans i18nKey="settings.move.app1" components={{ a: <a href={LINKS.windowsInstaller} /> }} /></li>
               <li><Trans i18nKey="settings.move.app2" components={{ b: <strong /> }} /></li>
               <li>{t('settings.move.app3')}</li>
             </ol>

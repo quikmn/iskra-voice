@@ -4,7 +4,7 @@ export const app = {
   dismiss: 'Dismiss',
   loading: 'Loading',
   spoiler: 'Spoiler, click to reveal',
-  openInApp: 'Have the Iskra app? <link>Open in the app</link>',
+  openInApp: 'Have the Iskra app? <a>Open in the app</a>',
   home: {
     directMessages: 'Direct messages',
     friends: 'Friends',

@@ -102,7 +102,7 @@ export function ImportSection({ server }: { server: ServerState }) {
       <p className="muted">{t('settings.import.intro')}</p>
       <ol className="import-how">
         <li>
-          <Trans i18nKey="settings.import.step1" components={{ link: <a href={EXPORTER} target="_blank" rel="noopener noreferrer" />, b: <strong /> }} />
+          <Trans i18nKey="settings.import.step1" components={{ a: <a href={EXPORTER} target="_blank" rel="noopener noreferrer" />, b: <strong /> }} />
         </li>
         <li>{t('settings.import.step2')}</li>
         <li>{t('settings.import.step3')}</li>

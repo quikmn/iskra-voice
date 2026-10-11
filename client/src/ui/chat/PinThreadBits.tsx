@@ -124,7 +124,7 @@ export function PinNoteRow({ server, channelId, note }: { server: ServerState; c
       <span className="pin-note-icon"><PinIcon size={15} /></span>
       <span>
         <Trans i18nKey="chat.pins.note" values={{ name: who }}
-          components={{ b: <strong />, link: <button className="link" onClick={() => void jumpToMessage(server.key, channelId, note.messageId)} /> }} />
+          components={{ b: <strong />, a: <button className="link" onClick={() => void jumpToMessage(server.key, channelId, note.messageId)} /> }} />
       </span>
       <time className="muted" title={fullTime(note.at)}>{messageTime(note.at)}</time>
     </div>

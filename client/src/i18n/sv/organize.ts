@@ -57,7 +57,7 @@ export const organize: Messages['organize'] = {
     dm: 'Direktmeddelande',
     to: 'Vidarebefordra till {{target}}',
     sending: 'Skickar…',
-    fromLine: 'Vidarebefordrat från <link>{{label}}</link>',
+    fromLine: 'Vidarebefordrat från <a>{{label}}</a>',
     forwarded: 'Vidarebefordrat',
   },
   list: {

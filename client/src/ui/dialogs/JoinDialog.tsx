@@ -44,7 +44,7 @@ export function JoinDialog({ onClose, onCreate }: { onClose: () => void; onCreat
       {invite && <InviteSummary invite={invite} />}
       {onCreate && (
         <p className="muted">
-          <Trans i18nKey="settings.join.orCreate" components={{ link: <button className="link" onClick={onCreate} /> }} />
+          <Trans i18nKey="settings.join.orCreate" components={{ a: <button className="link" onClick={onCreate} /> }} />
         </p>
       )}
     </Modal>

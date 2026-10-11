@@ -51,6 +51,12 @@ describe('catalogs', () => {
     expect(mismatched).toEqual([])
   })
 
+  it("don't name <Trans> tags after void HTML elements (their content would vanish)", () => {
+    const VOID = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr'])
+    const bad = Object.entries(catalogs.en).filter(([, text]) => tags(text).some((tag) => VOID.has(tag.replace('/', '')))).map(([key]) => key)
+    expect(bad).toEqual([])
+  })
+
   it('have every plural form each language needs', () => {
     const missing: string[] = []
     for (const [lang, catalog] of Object.entries(catalogs)) {

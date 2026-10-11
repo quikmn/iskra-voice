@@ -100,7 +100,7 @@ export function ForwardedLine({ label, onOpen }: { label: string | null; onOpen?
           values={{ label }}
           tOptions={{ interpolation: { escapeValue: true } }}
           shouldUnescape
-          components={{ link: onOpen ? <button className="link" onClick={onOpen} /> : <span /> }}
+          components={{ a: onOpen ? <button className="link" onClick={onOpen} /> : <span /> }}
         />
       ) : t('organize.forward.forwarded')}
     </div>

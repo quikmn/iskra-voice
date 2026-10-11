@@ -56,7 +56,7 @@ export const organize = {
     dm: 'Direct message',
     to: 'Forward to {{target}}',
     sending: 'Sending…',
-    fromLine: 'Forwarded from <link>{{label}}</link>',
+    fromLine: 'Forwarded from <a>{{label}}</a>',
     forwarded: 'Forwarded',
   },
   list: {

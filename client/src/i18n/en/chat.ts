@@ -119,7 +119,7 @@ export const chat = {
     pinMessage: 'Pin message',
     unpinMessage: 'Unpin message',
     pinned: 'Pinned',
-    note: '<b>{{name}}</b> pinned <link>a message</link>.',
+    note: '<b>{{name}}</b> pinned <a>a message</a>.',
   },
   threads: {
     empty: 'No threads yet.',

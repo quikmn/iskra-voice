@@ -5,7 +5,7 @@ export const app: Messages['app'] = {
   dismiss: 'Stäng',
   loading: 'Laddar',
   spoiler: 'Spoiler, klicka för att visa',
-  openInApp: 'Har du Iskra-appen? <link>Öppna i appen</link>',
+  openInApp: 'Har du Iskra-appen? <a>Öppna i appen</a>',
   home: {
     directMessages: 'Direktmeddelanden',
     friends: 'Vänner',

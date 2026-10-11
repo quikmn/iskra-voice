@@ -10,7 +10,7 @@ export function OpenInApp({ invite }: { invite: InviteLink }) {
   if (desktop || typeof navigator === 'undefined' || desktopOs(navigator.userAgent, navigator.platform, navigator.maxTouchPoints) === 'other') return null
   return (
     <p className="muted open-in-app">
-      <Trans i18nKey="app.openInApp" components={{ link: <a href={appInviteLink(invite)} /> }} />
+      <Trans i18nKey="app.openInApp" components={{ a: <a href={appInviteLink(invite)} /> }} />
     </p>
   )
 }
