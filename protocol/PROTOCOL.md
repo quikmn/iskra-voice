@@ -1279,6 +1279,8 @@ Group messages push `{ kind: "group", group, title: "New message from X", body: 
 | `backup.create` | `sealedPassphrase` (b64u, ≤ 4096 chars; the passphrase, 8–1024 characters, sealed as below) | `{ url: "/backup/<token>", name, size, expiresAt }` | owner; one backup at a time (`rate_limited` while one is being made) |
 | `backup.status` | | `{ auto: { enabled, keep, includeUploads }, local: [{ name, size, createdAt }], folder }` | owner |
 | `backup.settings` | `enabled?`, `keep?` (1–30), `includeUploads?` | same as `backup.status` | owner (written to `server.json` → `Backups`) |
+| `limits.get` | – | `{ maxUploadMb, memberMbPerDay, guestMbPerDay, soundMaxSeconds, soundMaxMb, emojiMaxKb, stickerMaxKb }` (0 = no limit, except `maxUploadMb`) | any member |
+| `limits.update` | any of the `limits.get` fields (whole numbers; `maxUploadMb` ≥ 1) | same as `limits.get` | owner (written to `server.json` → `MaxUploadMb`, `UploadQuota`, `Limits`) |
 
 - **The passphrase never crosses the network in the clear.** The client seals it to the server key it verified in the handshake: `sealedPassphrase = crypto_box_seal("iskra/backup-passphrase/v1" || 0x00 || serverKey(32) || utf8(passphrase), X25519(serverKey))`, where `X25519(serverKey)` is `crypto_sign_ed25519_pk_to_curve25519` of the server's Ed25519 key. The server opens it with its own key converted the same way and checks the context and key prefix. A plain `passphrase` field, or a box that doesn't open or carries another context or key, is `bad_request`.
 - While a backup is built, the requesting session gets `backup.progress { done, total }` (bytes, about every 2%).
