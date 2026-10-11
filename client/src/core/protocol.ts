@@ -162,7 +162,7 @@ export interface Requests {
   'link.create': [Record<string, never>, { token: string; putKey: string; expiresAt: number }]
   'link.respond': [{ token: string; epk: string; mac: string }, Record<string, never>]
   'link.cancel': [{ token: string }, Record<string, never>]
-  'push.status': [Record<string, never>, { publicKey: string; endpoint: string | null }]
+  'push.status': [Record<string, never>, { publicKey: string; endpoint: string | null; kind?: PushKind | null }]
   'push.subscribe': [PushSubscriptionBody, Record<string, never>]
   'push.unsubscribe': [Record<string, never>, Record<string, never>]
   'push.focus': [{ focused: boolean }, Record<string, never>]
@@ -202,7 +202,11 @@ export interface CallMedia {
 export interface PushSubscriptionBody {
   endpoint: string
   keys: { p256dh: string; auth: string }
+  /** 'native': a phone app's endpoint at the Iskra push relay (see "Native push" in PROTOCOL.md). */
+  kind?: PushKind
 }
+
+export type PushKind = 'web' | 'native'
 
 // ── identity: devices, revocations, prekeys, device linking ──
 type Revocation = import('./devices').Revocation

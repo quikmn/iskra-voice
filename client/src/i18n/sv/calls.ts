@@ -22,6 +22,11 @@ export const calls: Messages['calls'] = {
   incomingVoice: 'Inkommande röstsamtal',
   decline: 'Avvisa',
   accept: 'Svara',
+  native: {
+    inVoice: 'I röstkanalen {{channel}}',
+    callWith: 'Samtal med {{name}}',
+    groupCall: 'Gruppsamtal',
+  },
   log: {
     declinedYoursVideo: '{{name}} avvisade ditt videosamtal',
     declinedYoursVoice: '{{name}} avvisade ditt röstsamtal',

@@ -1,6 +1,8 @@
-// Phone app glue (mobile/): links that open the app, saving files, status bar colours. Nothing happens in a browser.
+// Phone app glue (mobile/): links that open the app, saving files, status bar colours, voice in the background and the
+// phone's call screen (nativeCalls.ts). Nothing happens in a browser.
 import { parseInvite } from '../core/invite'
 import { native, nativeLinkTarget } from '../platform/native'
+import { startNativeCalls } from './nativeCalls'
 import { usePendingLink } from './link'
 import { useApp } from './store'
 
@@ -49,10 +51,12 @@ export function startNativeShell(): () => void {
   if (!native) return () => {}
   const stopLinks = native.onOpenUrl(openUrl)
   const stopTheme = followTheme()
+  const stopCalls = startNativeCalls()
   document.addEventListener('click', onClick, true)
   return () => {
     stopLinks()
     stopTheme()
+    stopCalls()
     document.removeEventListener('click', onClick, true)
   }
 }

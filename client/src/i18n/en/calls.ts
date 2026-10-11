@@ -21,6 +21,11 @@ export const calls = {
   incomingVoice: 'Incoming voice call',
   decline: 'Decline',
   accept: 'Accept',
+  native: {
+    inVoice: 'In voice: {{channel}}',
+    callWith: 'Call with {{name}}',
+    groupCall: 'Group call',
+  },
   log: {
     declinedYoursVideo: '{{name}} declined your video call',
     declinedYoursVoice: '{{name}} declined your voice call',

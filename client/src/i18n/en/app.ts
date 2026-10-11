@@ -176,5 +176,6 @@ export const app = {
   push: {
     workerFailed: 'The notification worker did not start.',
     noKeys: 'The browser gave no push keys.',
+    relayFailed: "The push relay couldn't register this phone ({{error}})",
   },
 } as const

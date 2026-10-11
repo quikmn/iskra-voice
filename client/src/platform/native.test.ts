@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { parseInvite } from '../core/invite'
 import clientPackage from '../../package.json'
 import shellPackage from '../../../mobile/package.json'
-import { iosApp, native, nativeLinkTarget, nativePlatform, safeFileName } from './native'
+import { iosApp, native, nativeLinkTarget, nativePlatform, parseCallAction, safeFileName } from './native'
 
 const INVITE = 'aHR0cHM6Ly9jaGF0LmV4YW1wbGUuY29t.' + 'A'.repeat(43) + '.abcdefgh12'
 
@@ -51,6 +51,18 @@ describe('saved file names', () => {
     expect(safeFileName('')).toBe('file')
     expect(safeFileName('x'.repeat(300) + '.pdf')).toHaveLength(120)
     expect(safeFileName('x'.repeat(300) + '.pdf').endsWith('.pdf')).toBe(true)
+  })
+})
+
+describe('call actions from the phone', () => {
+  const server = 'S'.repeat(43)
+  it('take only answer/decline for a DM peer or a group', () => {
+    expect(parseCallAction({ action: 'answer', server, peer: 'A'.repeat(43) })).toEqual({ action: 'answer', server, peer: 'A'.repeat(43) })
+    expect(parseCallAction({ action: 'decline', server, group: 'g'.repeat(22) })).toEqual({ action: 'decline', server, group: 'g'.repeat(22) })
+    expect(parseCallAction({ action: 'mute', server, peer: 'A'.repeat(43) })).toBeNull()
+    expect(parseCallAction({ action: 'answer', server: 'short', peer: 'A'.repeat(43) })).toBeNull()
+    expect(parseCallAction({ action: 'answer', server, peer: 'A/'.repeat(20) })).toBeNull()
+    expect(parseCallAction({ action: 'answer', server })).toBeNull()
   })
 })
 
