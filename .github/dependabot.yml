@@ -1,0 +1,38 @@
+# Weekly dependency updates. Minor and patch updates come as one PR per ecosystem and folder; majors one by one.
+# New versions wait a week (cooldown) so a freshly published bad release has time to be caught.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directories: [/client, /desktop, /bots]
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: nuget
+    directory: /server
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      nuget-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      actions-minor-patch:
+        update-types: [minor, patch]

@@ -33,4 +33,7 @@ relay.json
 
 # Local tool state
 .wrangler/
-.claude/
+.claude/*
+!.claude/agents/
+!.claude/skills/
+!.claude/skills/release/

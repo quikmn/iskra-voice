@@ -1,0 +1,97 @@
+name: Release finalize
+
+# Last step of a release (docs/ci-cd.md), started by scripts/release-windows.ps1 once every build is attached:
+# checks the release files, adds SHA256SUMS.txt and build-provenance attestations, publishes the release as
+# Latest with docs/releases/<version>.md as notes, then deploys iskra.foo and app.iskra.foo and updates chat.iskra.foo.
+# Runs in the `release` environment: add required reviewers there to approve each release by hand.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag, e.g. v2.0.0-alpha.10'
+        required: true
+      deploy:
+        description: 'Deploy the site and web app and update chat.iskra.foo after publishing'
+        type: boolean
+        default: true
+
+permissions: {}
+
+concurrency:
+  group: release-finalize-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write # upload SHA256SUMS.txt, publish the release
+      id-token: write # sign the attestations (Sigstore)
+      attestations: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    env:
+      TAG: ${{ inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Check the tag
+        id: version
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-alpha\.[0-9]+)?$ ]] || { echo "::error::'$TAG' isn't a release tag (vX.Y.Z or vX.Y.Z-alpha.N)"; exit 1; }
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - name: Check the version and release notes
+        run: |
+          test "$(node -p "require('./desktop/package.json').version")" = "$VERSION" || { echo "::error::desktop/package.json at $TAG isn't $VERSION"; exit 1; }
+          test -s "docs/releases/$VERSION.md" || { echo "::error::docs/releases/$VERSION.md is missing at $TAG"; exit 1; }
+          gh release view "$TAG" --json isDraft,name --jq '"Release \(.name) (draft: \(.isDraft))"'
+      - name: Download the release files
+        run: |
+          mkdir "$RUNNER_TEMP/assets"
+          gh release download "$TAG" --dir "$RUNNER_TEMP/assets"
+          rm -f "$RUNNER_TEMP/assets/SHA256SUMS.txt"
+          ls -l "$RUNNER_TEMP/assets"
+      - name: Check every expected file is there and the update files match
+        run: node scripts/release-assets.mjs check "$VERSION" "$RUNNER_TEMP/assets"
+      - name: SHA256SUMS.txt
+        run: node scripts/release-assets.mjs sums "$RUNNER_TEMP/assets"
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-checksums: ${{ runner.temp }}/assets/SHA256SUMS.txt
+      - name: Upload SHA256SUMS.txt
+        run: gh release upload "$TAG" "$RUNNER_TEMP/assets/SHA256SUMS.txt" --clobber
+      - name: Publish
+        run: |
+          title="$(node --input-type=module -e "import { releaseTitle } from './scripts/release-lib.mjs'; console.log(releaseTitle(process.argv[1]))" "$VERSION")"
+          gh release edit "$TAG" --draft=false --prerelease=false --latest --title "$title" --notes-file "docs/releases/$VERSION.md"
+          echo "Published $title: https://github.com/$GH_REPO/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"
+      - name: Check the downloads
+        run: |
+          for f in "Iskra-Setup-$VERSION.exe" "Iskra-$VERSION-mac-arm64.dmg" "Iskra-$VERSION-x86_64.AppImage" SHA256SUMS.txt; do
+            curl -fsSIL -o /dev/null --max-time 30 "https://github.com/$GH_REPO/releases/download/$TAG/$f" || { echo "::error::$f doesn't download"; exit 1; }
+          done
+          latest="$(gh release view --json tagName --jq .tagName)"
+          test "$latest" = "$TAG" || { echo "::error::GitHub's latest release is $latest, not $TAG"; exit 1; }
+
+  deploy:
+    needs: publish
+    if: inputs.deploy
+    permissions:
+      contents: read
+    uses: ./.github/workflows/deploy.yml
+    with:
+      ref: refs/tags/${{ inputs.tag }}
+      site: true
+      webapp: true
+      server_version: ${{ needs.publish.outputs.version }}
+    secrets: inherit

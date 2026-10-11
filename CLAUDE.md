@@ -7,7 +7,7 @@ A self-hosted voice and text app for friend groups: like Discord, but free, easy
 | Path | What it is |
 |---|---|
 | `protocol/`, `server/`, `client/`, `desktop/`, `bots/`, `scripts/` | The app (see below) |
-| `docs/` | Public docs: `hosting.md` (the app links to it), `security.md`, `bots.md`, `development.md` |
+| `docs/` | Public docs: `hosting.md` (the app links to it), `security.md`, `bots.md`, `development.md`, `ci-cd.md` + `ci-cd-playbook.md` (releases and deploys), `releases/` (release notes) |
 | `site/` | The iskra.foo website (Cloudflare Pages project `iskra-hero-page`). Keep it in sync with what the app actually does. |
 
 An older, retired codebase lives on the `v1` branch (tag `v1-final`); don't add features to it. **In anything public the product is just "Iskra"**: never "Iskra 2", no "rebuilt", no mention of v1.
@@ -52,7 +52,9 @@ cd bots;     npm run typecheck    # bot SDK
 .\dev.ps1                          # run everything locally
 ```
 
-CI (`.github/workflows/ci.yml`): server and client tests on Windows and Linux, desktop unit tests on Windows, Linux and macOS, interop and e2e on Linux. `release.yml` builds the Linux and macOS apps on a `v*` tag.
+CI (`.github/workflows/ci.yml`): server and client tests on Windows and Linux, desktop unit tests on Windows, Linux and macOS, interop and e2e on Linux, release-script tests. `release.yml` builds the Linux and macOS apps on a `v*` tag; `release-finalize.yml` publishes and deploys; `deploy.yml` redeploys; CodeQL and Dependabot run weekly.
+
+**Releasing, deploying, credentials:** read [docs/ci-cd.md](docs/ci-cd.md) (reference: pipeline, secrets, expiry and renewal, troubleshooting) and follow [docs/ci-cd-playbook.md](docs/ci-cd-playbook.md) (step by step). `/release <version>` runs the playbook with the `release-runner` agent. Pin new actions to a full commit SHA with a version comment.
 
 ## Rules
 
