@@ -22,7 +22,7 @@ last column) and updating the matrix in the same commit. Menu names change over 
 | 14 | Yearly review (policies, access, risks, security.txt) | ISO 5.1, 5.35, 5.36; CC4.1 | |
 | 15 | Owner devices hardened | ISO 8.1, 7.x; CC6.8 | |
 | 16 | Decide licensing before selling | ISO 5.31, 5.32 | |
-| 17 | Update the privacy policy for the security log | GDPR Art. 13 | |
+| 17 | Keep the privacy policy in step with the security log (deploy the updated site; leave IP logging off) | GDPR Art. 13 | |
 | 18 | Revoke or confirm dead the secrets in old public history | ISO 5.17, 8.12; CC6.1 | |
 
 ## 1. Turn on MFA everywhere
