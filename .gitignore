@@ -37,3 +37,7 @@ relay.json
 !.claude/agents/
 !.claude/skills/
 !.claude/skills/release/
+
+# Local server folders and test data on the owner's PC
+/servers/
+/ISKRATESTING/
