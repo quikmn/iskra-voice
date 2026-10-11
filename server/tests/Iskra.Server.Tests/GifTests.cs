@@ -13,12 +13,12 @@ public class GifTests
     {
         var admin = await server.JoinAsync("Admin", "admin");
         var bob = await server.JoinAsync("Bob");
-        Assert.Equal("result", (await admin.RequestAsync("gif.configure", new { key = Key })).Type());
+        Assert.Equal("result", (await admin.RequestAsync("gif.configure", new { key = Key, mode = "proxy" })).Type());
         return (admin, bob);
     }
 
     [Fact]
-    public async Task Admins_turn_gifs_on_and_the_key_never_reaches_anyone()
+    public async Task Through_the_server_the_key_never_reaches_anyone()
     {
         using var server = new IskraServer();
         using var admin = await server.JoinAsync("Admin", "admin");
@@ -29,9 +29,11 @@ public class GifTests
         Assert.Equal("forbidden", (await bob.RequestAsync("gif.configure", new { key = Key })).ErrorCode());
         Assert.Equal("bad_request", (await admin.RequestAsync("gif.configure", new { key = "has spaces and ;" })).ErrorCode());
         Assert.Equal("bad_request", (await admin.RequestAsync("gif.configure", new { })).ErrorCode());
-        Assert.Equal("result", (await admin.RequestAsync("gif.configure", new { key = Key })).Type());
+        Assert.Equal("bad_request", (await admin.RequestAsync("gif.configure", new { key = Key, mode = "sideways" })).ErrorCode());
+        Assert.Equal("result", (await admin.RequestAsync("gif.configure", new { key = Key, mode = "proxy" })).Type());
         var status = await bob.EventAsync("gif.status");
         Assert.True(status.Body().GetProperty("enabled").GetBoolean());
+        Assert.Equal("proxy", status.Body().GetProperty("mode").GetString());
         Assert.Equal("klipy", status.Body().GetProperty("provider").GetString());
         Assert.DoesNotContain(Key, status.GetRawText());
 
@@ -146,6 +148,48 @@ public class GifTests
             server.Gifs.Media = _ => ("image/gif", "GIF89a"u8.ToArray(), 100L * 1024 * 1024);
             Assert.Equal(HttpStatusCode.BadGateway, (await http.GetAsync(url)).StatusCode);
         }
+    }
+
+    [Fact]
+    public async Task Direct_mode_is_the_default_and_apps_talk_to_klipy_themselves()
+    {
+        using var server = new IskraServer();
+        using var admin = await server.JoinAsync("Admin", "admin");
+        using var bob = await server.JoinAsync("Bob");
+        Assert.Equal("result", (await admin.RequestAsync("gif.configure", new { key = Key })).Type());
+        var status = (await bob.EventAsync("gif.status")).Body();
+        Assert.Equal("direct", status.GetProperty("mode").GetString());
+        Assert.Equal(Key, status.GetProperty("key").GetString()); // apps need it to call KLIPY
+        var bobId = status.GetProperty("customerId").GetString()!;
+        var adminId = (await admin.RequestAsync("gif.status")).Body().GetProperty("customerId").GetString()!;
+        Assert.NotEqual(bobId, adminId);
+        Assert.DoesNotContain(bob.Key[..10], bobId);
+
+        // The server's search and media proxy stay off.
+        Assert.Equal("unavailable", (await bob.RequestAsync("gif.trending")).ErrorCode());
+        Assert.Empty(server.Gifs.Requests);
+
+        // Apps send what KLIPY gave them, but only KLIPY's media addresses.
+        object Gif(string url) => new { id = "cat-9", title = "A cat", url, preview = url, width = 200, height = 150 };
+        var sent = await bob.RequestAsync("chat.send", new { channelId = server.General, text = "", gif = Gif("https://static.klipy.com/ii/cat-9/md.gif") });
+        Assert.Equal("result", sent.Type());
+        var gif = sent.Body().GetProperty("message").GetProperty("gif");
+        Assert.True(gif.GetProperty("direct").GetBoolean());
+        Assert.Equal("https://static.klipy.com/ii/cat-9/md.gif", gif.GetProperty("url").GetString());
+        foreach (var bad in new[] { "https://evil.example/x.gif", "http://static.klipy.com/x.gif", "https://static.klipy.com.evil.example/x.gif", "https://127.0.0.1/x.gif" })
+            Assert.Equal("bad_request", (await bob.RequestAsync("chat.send", new { channelId = server.General, text = "", gif = Gif(bad) })).ErrorCode());
+        Assert.Equal(HttpStatusCode.NotFound, (await server.CreateClient().GetAsync("/gifs/media?u=x&s=y")).StatusCode);
+
+        // Switching to the proxy shows the same message through the server.
+        await admin.RequestAsync("gif.configure", new { mode = "proxy" });
+        var proxied = (await bob.EventAsync("gif.status")).Body();
+        Assert.Equal(JsonValueKind.Null, proxied.GetProperty("key").ValueKind);
+        var history = (await bob.RequestAsync("chat.history", new { channelId = server.General })).Body().GetProperty("messages");
+        var shown = history.EnumerateArray().Last().GetProperty("gif");
+        Assert.False(shown.GetProperty("direct").GetBoolean());
+        Assert.StartsWith("/gifs/media?u=", shown.GetProperty("url").GetString());
+        // …and in proxy mode an app can't post an address of its own.
+        Assert.Equal("bad_request", (await bob.RequestAsync("chat.send", new { channelId = server.General, text = "", gif = Gif("https://static.klipy.com/ii/x/md.gif") })).ErrorCode());
     }
 
     [Theory]

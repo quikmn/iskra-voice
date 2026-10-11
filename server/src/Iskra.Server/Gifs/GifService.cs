@@ -94,6 +94,28 @@ public sealed class GifService(World world, IGifUpstream upstream, TimeProvider 
 
     public bool Enabled => world.Store.GetGifSetting(KeySetting) is not null;
 
+    /// <summary>
+    /// "direct" (the default, what KLIPY's standard terms ask for): members' devices get the key and call KLIPY and load
+    /// GIFs themselves. "proxy": everything goes through this server (only with KLIPY's written approval).
+    /// </summary>
+    public string Mode => world.Store.GetGifSetting("mode") == "proxy" ? "proxy" : "direct";
+
+    public static string ModeOf(Store store) => store.GetGifSetting("mode") == "proxy" ? "proxy" : "direct";
+
+    public bool Proxied => Mode == "proxy";
+
+    public void SetMode(string mode)
+    {
+        world.Store.SetGifSetting("mode", mode == "proxy" ? "proxy" : null);
+        _cache.Clear();
+    }
+
+    /// <summary>Direct mode: the key, for members' devices (KLIPY keys are per app, here per server).</summary>
+    public string? DirectKey => Mode == "direct" ? world.Store.GetGifSetting(KeySetting) : null;
+
+    /// <summary>Direct mode: a stable pseudonym per member for KLIPY's customer_id (not their account key).</summary>
+    public string CustomerIdFor(string accountKey) => Sign("gif-customer", accountKey)[..22];
+
     /// <summary>Sets (or with null, removes) the provider key.</summary>
     public void Configure(string? key)
     {
@@ -149,6 +171,7 @@ public sealed class GifService(World world, IGifUpstream upstream, TimeProvider 
     private async Task<T?> Cached<T>(string cacheKey, string path, Func<string, T> parse) where T : class
     {
         var key = world.Store.GetGifSetting(KeySetting) ?? throw new GifUnavailable("GIFs aren't turned on for this server.");
+        if (!Proxied) throw new GifUnavailable("On this server, apps load GIFs from KLIPY directly.");
         if (_cache.TryGetValue(cacheKey, out var hit) && time.GetUtcNow() - hit.At < CacheFor) return (T)hit.Value;
         if (!TakeBudget()) throw new GifUnavailable("Lots of GIF searches right now. Try again in a minute.");
         var json = await upstream.GetJsonAsync(new Uri($"{ApiBase}{Uri.EscapeDataString(key)}/gifs/{path}"), CancellationToken.None);

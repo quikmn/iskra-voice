@@ -7,15 +7,15 @@ import { restoreIdentity } from '../core/recovery'
 import { authProfile } from '../core/profile'
 import { canPingGroups, mentions } from '../ui/markdown'
 import type { InviteLink } from '../core/invite'
-import type { Channel, Events, FileInfo, Member, Message, MessageGif, Sticker, VoiceInfo, VoiceParticipant, Welcome } from '../core/protocol'
+import type { Channel, DirectGif, Events, FileInfo, Member, Message, MessageGif, Sticker, VoiceInfo, VoiceParticipant, Welcome } from '../core/protocol'
 import * as storage from '../core/storage'
 
 export interface PendingMessage extends Message {
   pending?: 'sending' | 'failed'
   /** Client-side id for messages that aren't confirmed yet. */
   tempId?: string
-  /** A pending GIF's token, for retrying. */
-  gifToken?: string
+  /** A pending GIF's token (or direct GIF), for retrying. */
+  gifToken?: string | DirectGif
 }
 
 export interface ServerState {
@@ -434,7 +434,7 @@ export interface SendOptions {
   voice?: VoiceInfo
   sticker?: Sticker
   /** A GIF from the picker: shown right away, sent by its token. */
-  gif?: { token: string; shown: MessageGif }
+  gif?: { token: string | DirectGif; shown: MessageGif }
 }
 
 export async function sendMessage(key: string, channelId: number, text: string, options: SendOptions = {}): Promise<void> {

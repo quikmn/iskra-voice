@@ -57,3 +57,20 @@
 .gif-settings p { margin: 0 0 8px; font-size: 13px; }
 .gif-button { font-size: 11px; font-weight: 800; letter-spacing: 0.04em; width: auto; padding: 0 6px; }
 @media (max-width: 480px) { .gif-button { display: none; } }
+
+.gif-mode { border: 0; padding: 0; margin: 12px 0 0; display: grid; gap: 8px; }
+.gif-mode legend { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 6px; }
+.gif-mode .radio { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: calc(var(--radius) * 0.7); background: var(--bg); cursor: pointer; }
+.gif-mode .radio > span { display: grid; gap: 3px; font-size: 14px; }
+.gif-mode .radio .muted { font-size: 12.5px; }
+.klipy-frame { display: block; width: 100%; height: 100%; border: 0; pointer-events: none; background: transparent; }
+.gif-send .klipy-frame { min-height: 60px; }
+.chat-gif.direct { margin-top: 4px; border-radius: calc(var(--radius) * 0.8); overflow: hidden; background: var(--surface-2); max-width: 100%; }
+.gif-click-to-load {
+  position: relative; display: grid; place-content: center; justify-items: center; gap: 4px; max-width: 100%; margin-top: 4px; padding: 12px;
+  border: 1px dashed var(--border); border-radius: calc(var(--radius) * 0.8); background: var(--surface-2); color: var(--text); text-align: center;
+}
+.gif-click-to-load:hover { border-color: var(--accent); }
+.gif-click-to-load .muted { font-size: 12px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gif-click-to-load .gif-note { font-size: 11px; }
+.gif-mode .radio input { width: auto; flex: none; margin: 3px 0 0; }

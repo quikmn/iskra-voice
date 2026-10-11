@@ -124,7 +124,7 @@ export interface WireDm {
 /** Client → server requests: [body, result]. */
 export interface Requests {
   ping: [Record<string, never>, Record<string, never>]
-  'chat.send': [{ channelId: number; text: string; attachments?: string[]; replyTo?: number; voice?: VoiceInfo; sticker?: string; gif?: string }, { message: Message }]
+  'chat.send': [{ channelId: number; text: string; attachments?: string[]; replyTo?: number; voice?: VoiceInfo; sticker?: string; gif?: string | DirectGif }, { message: Message }]
   'chat.react': [{ id: number; emoji: string; on: boolean }, Record<string, never>]
   'upload.begin': [{ name: string; size: number }, { url: string; maxBytes: number }]
   'link.preview': [{ url: string }, { preview: LinkPreview | null }]
@@ -574,7 +574,7 @@ export interface Requests {
 
 // ── GIFs (through the server) ──
 
-/** A GIF search result. Media URLs point at the server's proxy (relative to the server's URL). */
+/** A GIF search result. Through the server: media URLs are its proxy (relative). Direct: KLIPY's own addresses. */
 export interface GifResult {
   id: string
   title: string
@@ -582,8 +582,31 @@ export interface GifResult {
   height: number
   url: string
   preview: string
-  /** Send this back in chat.send's `gif`. */
+  /** Through the server: send this back in chat.send's `gif`. Empty in direct mode. */
   token: string
+  /** Loaded straight from KLIPY (direct mode). */
+  direct?: boolean
+}
+
+export type GifMode = 'direct' | 'proxy'
+
+export interface GifStatus {
+  enabled: boolean
+  provider: string | null
+  mode?: GifMode
+  /** Direct mode only: the server's KLIPY key and this member's pseudonymous customer id. */
+  key?: string | null
+  customerId?: string | null
+}
+
+/** chat.send's `gif` in direct mode: the GIF as KLIPY gave it. */
+export interface DirectGif {
+  id: string
+  title: string
+  url: string
+  preview: string
+  width: number
+  height: number
 }
 
 export interface GifCategory {
@@ -593,6 +616,8 @@ export interface GifCategory {
 }
 
 export interface MessageGif {
+  /** KLIPY's own addresses (direct mode): shown after a click unless the viewer allows loading them. */
+  direct?: boolean
   provider: string
   id: string
   title: string
@@ -607,12 +632,12 @@ export interface Message {
 }
 
 export interface Events {
-  'gif.status': { enabled: boolean; provider: string | null }
+  'gif.status': GifStatus
 }
 
 export interface Requests {
-  'gif.status': [Record<string, never>, { enabled: boolean; provider: string | null }]
-  'gif.configure': [{ key: string }, Record<string, never>]
+  'gif.status': [Record<string, never>, GifStatus]
+  'gif.configure': [{ key?: string; mode?: GifMode }, Record<string, never>]
   'gif.trending': [{ page?: number }, { gifs: GifResult[]; hasNext: boolean }]
   'gif.search': [{ q: string; page?: number }, { gifs: GifResult[]; hasNext: boolean }]
   'gif.categories': [Record<string, never>, { categories: GifCategory[] }]

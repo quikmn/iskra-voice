@@ -1,56 +1,109 @@
-// GIFs through each server's proxy: whether a server has them on, searching, sending, and favourites (on this device).
+// GIFs (KLIPY), per server: in "direct" mode this device calls KLIPY with the server's key (KLIPY sees your address
+// and searches); "through this server" asks the server, which proxies search and media. Favourites live on this device.
 import { create } from 'zustand'
-import type { Events, GifCategory, GifResult, Message } from '../core/protocol'
+import { klipyUrl, parseKlipyCategories, parseKlipyPage, type KlipyGif } from '../core/klipy'
+import type { Events, GifCategory, GifResult, GifStatus, Message } from '../core/protocol'
 import { connectionFor, onServerEvent, onWelcomeHook, sendMessage, type SendOptions } from './store'
 
 interface GifState {
-  /** Per server: GIFs on (true), off (false), or unknown/older server (missing). */
-  enabled: Record<string, boolean>
-  /** Per server, newest first. Tokens are signed by that server, so favourites are kept per server. */
+  /** Per server; missing until known (older servers say nothing: off). */
+  status: Record<string, GifStatus>
+  /** Per server, newest first (tokens and addresses are per server). */
   favourites: Record<string, GifResult[]>
+  /** Show direct-mode GIFs in messages without a click (each one then loads from KLIPY). */
+  autoLoad: boolean
 }
 
 const FAVOURITES_KEY = 'iskra.gifFavourites'
+const AUTO_KEY = 'iskra.gifAutoLoad'
 export const MAX_FAVOURITES = 100
 
-function loadFavourites(): Record<string, GifResult[]> {
+function loadJson<T>(key: string, fallback: T): T {
   try {
-    const raw = JSON.parse(localStorage.getItem(FAVOURITES_KEY) ?? '{}') as Record<string, GifResult[]>
-    return raw && typeof raw === 'object' ? raw : {}
+    return (JSON.parse(localStorage.getItem(key) ?? 'null') as T) ?? fallback
   } catch {
-    return {}
+    return fallback
   }
 }
 
-export const useGifs = create<GifState>(() => ({ enabled: {}, favourites: loadFavourites() }))
+function save(key: string, value: unknown): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch {
+    /* private mode */
+  }
+}
+
+export const useGifs = create<GifState>(() => ({ status: {}, favourites: loadJson(FAVOURITES_KEY, {}), autoLoad: loadJson<boolean>(AUTO_KEY, false) === true }))
+
+export const useGifStatus = (serverKey: string) => useGifs((s) => s.status[serverKey])
+
+export function setGifAutoLoad(on: boolean): void {
+  useGifs.setState({ autoLoad: on })
+  save(AUTO_KEY, on)
+}
+
+const setStatus = (serverKey: string, status: GifStatus) => useGifs.setState((s) => ({ status: { ...s.status, [serverKey]: status } }))
 
 onWelcomeHook((serverKey) => {
   connectionFor(serverKey)?.request('gif.status', {})
-    .then(({ enabled }) => useGifs.setState((s) => ({ enabled: { ...s.enabled, [serverKey]: enabled } })))
-    .catch(() => useGifs.setState((s) => ({ enabled: { ...s.enabled, [serverKey]: false } }))) // older servers
+    .then((status) => setStatus(serverKey, status))
+    .catch(() => setStatus(serverKey, { enabled: false, provider: null })) // older servers
 })
 
 onServerEvent((serverKey, type, body) => {
-  if (type !== 'gif.status') return
-  const { enabled } = body as Events['gif.status']
-  useGifs.setState((s) => ({ enabled: { ...s.enabled, [serverKey]: enabled } }))
+  if (type === 'gif.status') setStatus(serverKey, body as Events['gif.status'])
 })
 
-const request = (serverKey: string) => {
-  const connection = connectionFor(serverKey)
-  if (!connection?.isOnline) throw new Error('Not connected.')
-  return connection
+const connection = (serverKey: string) => {
+  const c = connectionFor(serverKey)
+  if (!c?.isOnline) throw new Error('Not connected.')
+  return c
 }
 
-export const trendingGifs = (serverKey: string, page = 1) => request(serverKey).request('gif.trending', { page })
-export const searchGifs = (serverKey: string, q: string, page = 1) => request(serverKey).request('gif.search', { q, page })
-export const gifCategories = (serverKey: string): Promise<GifCategory[]> =>
-  request(serverKey).request('gif.categories', {}).then((r) => r.categories)
-export const configureGifs = (serverKey: string, key: string) => request(serverKey).request('gif.configure', { key })
+const fromKlipy = (g: KlipyGif): GifResult => ({ ...g, token: '', direct: true })
+
+/** Direct mode: straight to KLIPY (no cookies, no referrer). */
+async function klipy(serverKey: string, kind: 'trending' | 'search' | 'categories', params: { q?: string; page?: number } = {}): Promise<unknown> {
+  const status = useGifs.getState().status[serverKey]
+  if (!status?.key) throw new Error("GIFs aren't on for this server.")
+  const response = await fetch(klipyUrl(kind, status.key, { ...params, customerId: status.customerId ?? undefined }), {
+    credentials: 'omit', referrerPolicy: 'no-referrer', cache: 'no-store',
+  }).catch(() => null)
+  if (!response?.ok) throw new Error("Couldn't reach KLIPY.")
+  return response.json()
+}
+
+const direct = (serverKey: string) => useGifs.getState().status[serverKey]?.mode !== 'proxy'
+
+export async function trendingGifs(serverKey: string, page = 1): Promise<{ gifs: GifResult[]; hasNext: boolean }> {
+  if (!direct(serverKey)) return connection(serverKey).request('gif.trending', { page })
+  const result = parseKlipyPage(await klipy(serverKey, 'trending', { page }))
+  return { gifs: result.gifs.map(fromKlipy), hasNext: result.hasNext }
+}
+
+export async function searchGifs(serverKey: string, q: string, page = 1): Promise<{ gifs: GifResult[]; hasNext: boolean }> {
+  if (!direct(serverKey)) return connection(serverKey).request('gif.search', { q, page })
+  const result = parseKlipyPage(await klipy(serverKey, 'search', { q, page }))
+  return { gifs: result.gifs.map(fromKlipy), hasNext: result.hasNext }
+}
+
+export async function gifCategories(serverKey: string): Promise<GifCategory[]> {
+  if (!direct(serverKey)) return (await connection(serverKey).request('gif.categories', {})).categories
+  return parseKlipyCategories(await klipy(serverKey, 'categories'))
+}
+
+export const configureGifs = (serverKey: string, change: { key?: string; mode?: 'direct' | 'proxy' }) =>
+  connection(serverKey).request('gif.configure', change)
 
 export function sendGif(serverKey: string, channelId: number, gif: GifResult, options: Pick<SendOptions, 'replyTo'> = {}): Promise<void> {
-  const shown: NonNullable<Message['gif']> = { provider: 'klipy', id: gif.id, title: gif.title, width: gif.width, height: gif.height, url: gif.url, preview: gif.preview }
-  return sendMessage(serverKey, channelId, '', { ...options, gif: { token: gif.token, shown } })
+  const shown: NonNullable<Message['gif']> = {
+    provider: 'klipy', id: gif.id, title: gif.title, width: gif.width, height: gif.height, url: gif.url, preview: gif.preview, direct: !!gif.direct,
+  }
+  const token = gif.direct
+    ? { id: gif.id, title: gif.title, url: gif.url, preview: gif.preview, width: gif.width, height: gif.height }
+    : gif.token
+  return sendMessage(serverKey, channelId, '', { ...options, gif: { token, shown } })
 }
 
 // ── Favourites ──────────────────────────────────────────────────────────────
@@ -62,11 +115,7 @@ export function toggleFavourite(serverKey: string, gif: GifResult): void {
     const list = s.favourites[serverKey] ?? []
     const next = isFavourite(list, gif) ? list.filter((f) => f.id !== gif.id) : [gif, ...list].slice(0, MAX_FAVOURITES)
     const favourites = { ...s.favourites, [serverKey]: next }
-    try {
-      localStorage.setItem(FAVOURITES_KEY, JSON.stringify(favourites))
-    } catch {
-      /* private mode */
-    }
+    save(FAVOURITES_KEY, favourites)
     return { favourites }
   })
 }

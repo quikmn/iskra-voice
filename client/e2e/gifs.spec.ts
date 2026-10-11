@@ -1,6 +1,6 @@
 import { createServer, type Server } from 'node:http'
 import { join } from 'node:path'
-import { expect, test } from '@playwright/test'
+import { expect, test, type BrowserContext } from '@playwright/test'
 import { createInviteLink, freePort, joinVia, openSettings, SHOTS, startServer, type TestServer } from './helpers'
 
 // A 3×2 PNG, served as every GIF.
@@ -48,10 +48,33 @@ test.afterAll(async () => {
   fake?.close()
 })
 
-test('GIFs through the server: off until an admin adds a key, then search, favourites and sending', async ({ browser }) => {
-  const host = await (await browser.newContext()).newPage()
+/** Direct mode: this browser context talks to (a stand-in for) KLIPY itself. Returns what it asked for. */
+async function fakeKlipyInBrowser(context: BrowserContext): Promise<string[]> {
+  const asked: string[] = []
+  await context.route('https://api.klipy.com/**', (route) => {
+    const url = new URL(route.request().url())
+    asked.push(url.pathname + url.search)
+    const kind = url.pathname.split('/').pop()
+    const body = kind === 'categories'
+      ? { result: true, data: { categories: [{ category: 'Dogs', query: 'dog' }] } }
+      : { result: true, data: { data: ['dog-1', 'dog-2'].map(item), has_next: false } }
+    return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(body) })
+  })
+  await context.route('https://static*.klipy.com/**', (route) => {
+    asked.push(route.request().url())
+    return route.fulfill({ status: 200, contentType: 'image/png', body: PNG })
+  })
+  return asked
+}
+
+test('GIFs: off until an admin adds a key, direct from KLIPY by default, or through the server', async ({ browser }) => {
+  const hostContext = await browser.newContext()
+  const hostAsked = await fakeKlipyInBrowser(hostContext)
+  const host = await hostContext.newPage()
   await joinVia(host, server.ownerLink(), 'Host')
-  const friend = await (await browser.newContext()).newPage()
+  const friendContext = await browser.newContext()
+  const friendAsked = await fakeKlipyInBrowser(friendContext)
+  const friend = await friendContext.newPage()
   await joinVia(friend, await createInviteLink(host), 'Friend')
 
   // Off: the GIF tab says how to turn it on.
@@ -65,8 +88,41 @@ test('GIFs through the server: off until an admin adds a key, then search, favou
   await host.getByLabel('KLIPY API key').fill(KEY)
   await host.getByRole('button', { name: 'Turn on' }).click()
   await expect(host.locator('.gif-settings').getByRole('status')).toHaveText('GIFs are on.')
+  await expect(host.getByRole('radio', { name: /Direct/ })).toBeChecked()
   await host.screenshot({ path: join(SHOTS, 'gifs-settings.png') })
   await host.keyboard.press('Escape')
+
+  // Direct (the default): the friend's app asks KLIPY itself, and says so.
+  await friend.getByRole('button', { name: 'GIFs', exact: true }).click()
+  const directPicker = friend.getByRole('dialog', { name: 'Emoji picker' })
+  await expect(directPicker.getByRole('button', { name: /^Send GIF:/ })).toHaveCount(2)
+  await expect(directPicker.locator('.gif-attribution')).toContainText('KLIPY sees your address and searches')
+  expect(friendAsked.some((a) => a.startsWith(`/api/v1/${KEY}/gifs/trending?`) && a.includes('customer_id='))).toBe(true)
+  await expect(directPicker.locator('iframe.klipy-frame').first()).toHaveAttribute('sandbox', '')
+  await directPicker.getByRole('button', { name: 'Send GIF: A dog-1 GIF' }).click()
+  // The host's app doesn't touch KLIPY until the host asks for it.
+  const load = host.getByRole('button', { name: /Load GIF from KLIPY/ })
+  await expect(load).toBeVisible()
+  expect(hostAsked.filter((a) => a.includes('klipy.com'))).toHaveLength(0)
+  await host.screenshot({ path: join(SHOTS, 'gifs-click-to-load.png') })
+  await load.click()
+  await expect(host.locator('.chat-gif.direct iframe.klipy-frame')).toBeVisible()
+  await expect.poll(() => hostAsked.some((a) => a.startsWith('https://static.klipy.com/ii/dog-1/'))).toBe(true)
+  // With auto-load on, the next one shows right away.
+  await openSettings(friend, 'Appearance')
+  await friend.getByLabel(/Load GIFs from KLIPY without asking/).check()
+  await friend.keyboard.press('Escape')
+  await expect(friend.locator('.chat-gif.direct iframe.klipy-frame')).toBeVisible()
+  expect(seen.filter((s) => s.startsWith('/api/'))).toHaveLength(0) // the server never called KLIPY
+
+  // Through this server (only with KLIPY's approval): the server searches and proxies the files.
+  await openSettings(host, 'Overview')
+  await host.getByRole('radio', { name: /Through this server/ }).click()
+  await expect(host.locator('.gif-settings').getByRole('status')).toHaveText('GIFs now go through this server.')
+  await host.keyboard.press('Escape')
+  // The direct GIF from before shows through the server too (once messages are fetched again).
+  await host.reload()
+  await expect(host.locator('.chat-gif img').first()).toHaveAttribute('src', new RegExp(`^${server.url}/gifs/media\\?u=`))
 
   // Trending, a category, search, a favourite.
   await friend.getByRole('button', { name: 'GIFs', exact: true }).click()

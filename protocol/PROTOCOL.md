@@ -794,22 +794,25 @@ Admins upload stickers (bigger pictures than emoji); anyone who can write in a c
 
 Message links (client side, no protocol change): `<appUrl>/#/open/<serverKey>/c/<channelId>/m/<messageId>` opens the app at that message (it extends the push notification routes above). Spoiler attachments are files whose name starts with `SPOILER_`; apps show them covered until clicked. Encrypted DM attachments carry the same prefix inside their (encrypted) name.
 
-## GIFs (through the server)
+## GIFs
 
-The GIF picker uses [KLIPY](https://docs.klipy.com) (Google closed Tenor's API on 30 June 2026). Every request goes through the server: members' devices never contact KLIPY, so it sees the server's address and searches, never who searched.
+The GIF picker uses [KLIPY](https://docs.klipy.com) (Google closed Tenor's API on 30 June 2026). An admin adds a KLIPY API key and picks how apps get GIFs:
+
+- **Direct** (the default, what KLIPY's standard terms require: requests and media loads from users' devices): members' apps get the key and their own `customerId` in `gif.status`, search KLIPY themselves and load GIFs from KLIPY's media hosts. **KLIPY sees their address and searches.** The key reaches every member's app, which is acceptable for a key made for one server. GIFs in messages are KLIPY addresses (`direct: true`); apps show them only after a click ("Load GIF from KLIPY"), unless the viewer turned on auto-load on their device. Apps load KLIPY images inside a sandboxed frame (`sandbox=""`, no scripts) whose own policy is `img-src https://static.klipy.com https://static1.klipy.com https://static2.klipy.com` and nothing else, after checking the address.
+- **Through this server** (`mode: "proxy"`; KLIPY's terms allow this only with their written approval, developers@klipy.com): the server searches and proxies the files, so KLIPY sees only the server's address; the key never leaves the server.
 
 | type | body | result | who |
 |---|---|---|---|
-| `gif.status` | | `{ enabled, provider: "klipy" \| null }` | anyone |
-| `gif.configure` | `key` (a KLIPY API key, 8–128 of `A–Z a–z 0–9 - _`; `""` turns GIFs off) | | admin+ |
-| `gif.trending` | `page?` (1–50) | `{ gifs: [Gif], hasNext }` | anyone |
-| `gif.search` | `q` (1–100 chars, one line), `page?` | `{ gifs: [Gif], hasNext }` | anyone |
-| `gif.categories` | | `{ categories: [{ name, query, preview \| null }] }` | anyone |
-| `chat.send` | adds `gif?: token` (from a `Gif`); then no `text`, `attachments` or `sticker` | | channel writers |
+| `gif.status` | | `{ enabled, provider: "klipy" \| null, mode: "direct" \| "proxy", key, customerId }` (`key` and `customerId` only in direct mode, else `null`) | anyone |
+| `gif.configure` | `key?` (a KLIPY API key, 8–128 of `A–Z a–z 0–9 - _`; `""` turns GIFs off), `mode?` (`direct` \| `proxy`); at least one | | admin+ |
+| `gif.trending` | `page?` (1–50) | `{ gifs: [Gif], hasNext }` | anyone; proxy mode only (`unavailable` otherwise) |
+| `gif.search` | `q` (1–100 chars, one line), `page?` | `{ gifs: [Gif], hasNext }` | as above |
+| `gif.categories` | | `{ categories: [{ name, query, preview \| null }] }` | as above |
+| `chat.send` | adds `gif?`: in proxy mode a `token` from a `Gif`; in direct mode `{ id, title, url, preview?, width, height }` as KLIPY gave it (`url`/`preview` must be `https` on KLIPY's media hosts, the default port, no credentials). Then no `text`, `attachments` or `sticker` | | channel writers |
 
-`Gif { id, title, width, height, url, preview, token }`. Event `gif.status { enabled, provider }` goes to everyone when an admin changes it. Without a key the GIF requests answer `unavailable` (also when KLIPY can't be reached or the server's budget for calls to it is used up). Rate limits: `gif.search` and `gif.trending` 1/s (burst 10), `gif.categories` 1 every 5 s (burst 5).
-
-- **The key** is stored in `iskra.db` and never sent to any client. The server calls `https://api.klipy.com/api/v1/<key>/gifs/{trending|search|categories}` with **one pseudonymous `customer_id` for the whole server** (an HMAC, so members can't be told apart), `content_filter=medium`, answers cached for 5 minutes, and a shared budget of 60 calls a minute. Results that aren't GIFs (ads) or whose files aren't on KLIPY's media hosts are left out.
-- **Media proxy:** `url` and `preview` are `/gifs/media?u=<b64u(KLIPY URL)>&s=<HMAC>` on this server. The server only fetches links it signed (key in the world, so old messages keep working after restarts), only `https://static.klipy.com`, `static1.klipy.com` or `static2.klipy.com` on the default port without credentials, through the link-preview fetcher's rules (public addresses only, checked after DNS; no redirects), and only answers GIF, WebP, PNG or JPEG up to 15 MB, streamed and never stored (`nosniff`, a sandboxing CSP, browser caching only). Per client address: 20 requests a second, burst 200 (`429`).
-- **Token:** a GIF's item (id, title, the two KLIPY URLs, size), signed by the server, so a message can only carry a GIF the server handed out. `Message` gains `gif: { provider, id, title, width, height, url, preview } | null`; GIF messages can't be edited.
-- **KLIPY's terms:** its standard integration rules ask apps to call the API and load media directly from users' devices; server-side requests and proxying need KLIPY's written approval (developers@klipy.com). A test key works (100 calls an hour); admins who want a production key should ask KLIPY to approve this setup. GIPHY forbids proxying outright, so it isn't offered.
+- `Gif { id, title, width, height, url, preview, token }`. Event `gif.status` goes to every session (each with its own `customerId`) when an admin changes the key or mode. Without a key, GIF requests answer `unavailable` (also when KLIPY can't be reached or the server's budget for calls to it is used up). Rate limits: `gif.search` and `gif.trending` 1/s (burst 10), `gif.categories` 1 every 5 s (burst 5).
+- **customer_id:** direct mode, a per-member pseudonym (an HMAC of the account key, never the key itself); proxy mode, one pseudonym for the whole server.
+- **Proxy mode details:** the server calls `https://api.klipy.com/api/v1/<key>/gifs/{trending|search|categories}` with `content_filter=medium`, caches answers for 5 minutes, and has a shared budget of 60 calls a minute. `url`/`preview` are `/gifs/media?u=<b64u(KLIPY URL)>&s=<HMAC>`: the server only fetches links it signed (key in the world, so old messages keep working), only KLIPY's media hosts over https without credentials, through the link-preview fetcher's rules (public addresses only, checked after DNS; no redirects), and only answers GIF, WebP, PNG or JPEG up to 15 MB, streamed and never stored (`nosniff`, a sandboxing CSP, browser caching only), 20 requests a second per client address (burst 200, `429`). In direct mode `/gifs/media` answers `404`. The token is the item (id, title, the two KLIPY URLs, size) signed by the server, so a proxied message can only carry a GIF the server handed out.
+- `Message` gains `gif: { provider, id, title, width, height, url, preview, direct } | null`, shown the way the server is set up when the message is fetched. GIF messages can't be edited.
+- **Ads:** KLIPY only returns ad objects when ads are switched on for the key in its Partner Panel (they're optional). Keep them off; any that still arrive are left out, in both modes, as are results whose files aren't on KLIPY's media hosts.
+- The app's own `img-src` can't be narrowed to KLIPY (attachments come from each server's own address); the KLIPY frame above is where that restriction lives.

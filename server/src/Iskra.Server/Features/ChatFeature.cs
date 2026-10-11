@@ -53,7 +53,7 @@ public static class ChatFeature
             if (file is null || file.Uploader != me.AccountKey) throw RequestException.BadRequest("Unknown attachment.");
         }
         var rawText = body.OptionalString("text", MaxMessageLength * 2) ?? "";
-        var text = rawText.Trim().Length == 0 && (attachments.Length > 0 || body.OptionalString("sticker", 64) is not null || body.OptionalString("gif", 4096) is not null)
+        var text = rawText.Trim().Length == 0 && (attachments.Length > 0 || body.OptionalString("sticker", 64) is not null || body.OptionalElement("gif") is not null)
             ? ""
             : Text.Normalize(rawText, MaxMessageLength, allowNewlines: true)
               ?? throw RequestException.BadRequest($"Messages must be 1–{MaxMessageLength} characters.");

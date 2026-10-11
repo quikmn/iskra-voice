@@ -1,8 +1,9 @@
 // The composer's picker: Emoji / GIFs / Stickers tabs in one popover (a sheet on phones).
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { GifCategory, GifResult, MessageGif, Sticker } from '../../core/protocol'
 import { serverFileUrl } from '../../state/expressions'
-import { gifCategories, isFavourite, searchGifs, toggleFavourite, trendingGifs, useGifs } from '../../state/gifs'
+import { gifCategories, isFavourite, searchGifs, toggleFavourite, trendingGifs, useGifs, useGifStatus } from '../../state/gifs'
+import { klipyFrameDocument } from '../../core/klipy'
 import type { ServerState } from '../../state/store'
 import { LINKS } from '../../links'
 import { Spinner } from '../bits'
@@ -48,8 +49,11 @@ export function ExpressionPicker({ server, anchor, initialTab = 'emoji', onEmoji
 // ── GIFs ────────────────────────────────────────────────────────────────────
 
 function GifPanel({ server, onPick }: { server: ServerState; onPick: (gif: GifResult) => void }) {
-  const enabled = useGifs((s) => s.enabled[server.key])
-  const favourites = useGifs((s) => s.favourites[server.key])
+  const status = useGifStatus(server.key)
+  const enabled = status?.enabled
+  const isDirect = status?.mode !== 'proxy'
+  // Favourites made in the other mode can't be sent in this one.
+  const favourites = useGifs((s) => s.favourites[server.key])?.filter((f) => !!f.direct === isDirect)
   const [query, setQuery] = useState('')
   const [debounced, setDebounced] = useState('')
   const [gifs, setGifs] = useState<GifResult[]>([])
@@ -71,12 +75,12 @@ function GifPanel({ server, onPick }: { server: ServerState; onPick: (gif: GifRe
     if (!enabled) return
     void load(1, true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debounced, enabled, server.key])
+  }, [debounced, enabled, status?.mode, server.key])
 
   useEffect(() => {
     if (!enabled) return
     gifCategories(server.key).then(setCategories).catch(() => setCategories([]))
-  }, [enabled, server.key])
+  }, [enabled, status?.mode, server.key])
 
   async function load(next: number, fresh = false) {
     const id = ++run.current
@@ -100,7 +104,7 @@ function GifPanel({ server, onPick }: { server: ServerState; onPick: (gif: GifRe
     return (
       <div className="gif-panel gif-center gif-off">
         <strong>GIFs aren't on for this server yet</strong>
-        <p className="muted">An admin can turn them on in Settings → Overview with a free API key from KLIPY. Searches then go through this server, so the GIF service never sees who you are.</p>
+        <p className="muted">An admin can turn them on in Settings → Overview with a free API key from KLIPY.</p>
         <a className="button small" href={LINKS.gifsGuide} target="_blank" rel="noopener noreferrer">How to set up GIFs</a>
       </div>
     )
@@ -130,7 +134,7 @@ function GifPanel({ server, onPick }: { server: ServerState; onPick: (gif: GifRe
           {shown.map((gif) => (
             <div key={gif.id} className="gif-cell" style={{ aspectRatio: gif.width && gif.height ? `${gif.width} / ${gif.height}` : undefined }}>
               <button className="gif-send" onClick={() => onPick(gif)} aria-label={`Send GIF: ${gif.title}`} title={gif.title}>
-                <img src={serverFileUrl(server.key, gif.preview) ?? undefined} alt="" loading="lazy" draggable={false} />
+                <GifImage server={server} url={gif.preview} direct={!!gif.direct} alt="" />
               </button>
               <button
                 className={`gif-star ${isFavourite(favourites, gif) ? 'on' : ''}`}
@@ -147,18 +151,51 @@ function GifPanel({ server, onPick }: { server: ServerState; onPick: (gif: GifRe
         {busy && <div className="gif-center"><Spinner /></div>}
         {view === 'browse' && hasNext && !busy && <button className="button small gif-more" onClick={() => void load(page + 1)}>Load more</button>}
       </div>
-      <footer className="gif-attribution muted">Powered by KLIPY · through {server.name}</footer>
+      <footer className="gif-attribution muted">
+        Powered by KLIPY · {isDirect ? 'KLIPY sees your address and searches' : `through ${server.name}, so KLIPY doesn't see who you are`}
+      </footer>
     </div>
   )
 }
 
-/** A GIF in a message, shown through the server's proxy. */
+/**
+ * One GIF image. Through the server: an <img> from its proxy. Direct: KLIPY's file inside a sandboxed frame whose own
+ * policy lets it load images from KLIPY's media hosts only (and nothing else), after checking the address.
+ */
+function GifImage({ server, url, direct, alt, style }: { server: ServerState; url: string; direct: boolean; alt: string; style?: CSSProperties }) {
+  if (!direct) return <img src={serverFileUrl(server.key, url) ?? undefined} alt={alt} loading="lazy" draggable={false} style={style} />
+  const doc = klipyFrameDocument(url, alt)
+  if (!doc) return null
+  return <iframe className="klipy-frame" srcDoc={doc} sandbox="" referrerPolicy="no-referrer" title={alt || 'GIF'} loading="lazy" style={style} tabIndex={-1} />
+}
+
+/** A GIF in a message: through the server's proxy, or (direct mode) from KLIPY after a click unless auto-load is on. */
 export function GifMessage({ server, gif }: { server: ServerState; gif: MessageGif }) {
   const [open, setOpen] = useState(false)
+  const autoLoad = useGifs((s) => s.autoLoad)
+  const [load, setLoad] = useState(false)
+  const scale = Math.min(1, 320 / (gif.width || 320), 240 / (gif.height || 240))
+  const size = gif.width && gif.height ? { width: Math.round(gif.width * scale), height: Math.round(gif.height * scale) } : { width: 240, height: 180 }
+  if (gif.direct) {
+    if (!autoLoad && !load) {
+      return (
+        <button className="gif-click-to-load" style={size} onClick={() => setLoad(true)}>
+          <span className="chat-gif-badge" aria-hidden>GIF</span>
+          <strong>Load GIF from KLIPY</strong>
+          <span className="muted">{gif.title}</span>
+          <span className="muted gif-note">KLIPY will see your address</span>
+        </button>
+      )
+    }
+    return (
+      <div className="chat-gif direct" style={size}>
+        <GifImage server={server} url={gif.url} direct alt={gif.title} style={size} />
+        <span className="chat-gif-badge" aria-hidden>GIF</span>
+      </div>
+    )
+  }
   const url = serverFileUrl(server.key, gif.url)
   if (!url) return null
-  const scale = Math.min(1, 320 / (gif.width || 320), 240 / (gif.height || 240))
-  const size = gif.width && gif.height ? { width: Math.round(gif.width * scale), height: Math.round(gif.height * scale) } : undefined
   return (
     <>
       <button className="attachment-image chat-gif" onClick={() => setOpen(true)} aria-label={`GIF: ${gif.title}`}>

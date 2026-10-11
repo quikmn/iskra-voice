@@ -12,7 +12,7 @@ import { AppearanceSection } from '../profile/AppearanceSettings'
 import { InternetSection } from '../dialogs/InternetSettings'
 import { EmojiSection, SoundboardSettingsSection, SoundsSection } from '../expressions/ExpressionSettings'
 import { StickerSection } from '../chat/Stickers'
-import { GifSettings } from '../chat/GifSettings'
+import { GifSettings, GifViewerSettings } from '../chat/GifSettings'
 import { DevicesSection } from '../dialogs/DevicesSection'
 import { IntegrationsSection } from '../dialogs/Integrations'
 import { ChevronRight } from '../icons'
@@ -90,7 +90,7 @@ export function SettingsDialog({ server, onClose, section: initial }: { server?:
 function Section({ id, server, onClose }: { id: SectionId; server: ServerState | null; onClose: () => void }) {
   switch (id) {
     case 'profile': return <ProfileSection />
-    case 'appearance': return <AppearanceSection />
+    case 'appearance': return <><AppearanceSection /><GifViewerSettings /></>
     case 'devices': return <DevicesSection />
     case 'recovery': return <RecoveryKeySection />
     case 'notifications': return <NotificationSettingsSection />
