@@ -121,4 +121,18 @@ test('key transparency: the log checks out, and a key the server never logged is
 
   // The honest view has nothing to report.
   await expect(host.getByTestId('kt-banner')).toHaveCount(0)
+
+  // Friends compare notes inside their DMs: a signed summary of the logs they see rides along, and matches.
+  const pal = await (await browser.newContext()).newPage()
+  await joinVia(pal, await createInviteLink(host), 'Pal')
+  await pal.locator('.member-list').getByRole('button', { name: 'Host' }).click()
+  await pal.getByRole('dialog').getByRole('button', { name: 'Message', exact: true }).click()
+  await pal.getByPlaceholder('Message Host').fill('hello from pal')
+  await pal.getByPlaceholder('Message Host').press('Enter')
+  await host.getByRole('button', { name: 'Direct messages' }).click()
+  await host.locator('.dm-row', { hasText: 'Pal' }).click()
+  await expect(host.locator('.message-text', { hasText: 'hello from pal' })).toBeVisible()
+  await expect.poll(async () => Object.keys(((await rawSlot(host, 'kt')) as { gossipSeen?: object })?.gossipSeen ?? {}).length).toBe(1)
+  await expect(host.getByTestId('kt-dm-warning')).toHaveCount(0)
+  await expect(host.getByTestId('kt-banner')).toHaveCount(0)
 })

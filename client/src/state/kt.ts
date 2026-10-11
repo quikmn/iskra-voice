@@ -305,7 +305,9 @@ setDmGossip({ attach: (peer) => gossipFor(peer), receive: (from, to, raw) => voi
 /** Findings about one person (any of their keys). */
 export const findingsAbout = (findings: Finding[], peer: string) => {
   const keys = new Set(keysOf(peer))
-  return findings.filter((f) => (f.person && keys.has(resolveKey(f.person))) || f.keys?.some((k) => keys.has(resolveKey(k))))
+  const about = (key: string) => keys.has(resolveKey(key))
+  // A lookalike warning belongs in the conversation with the lookalike, not with the friend they copy.
+  return findings.filter((f) => f.kind === 'lookalike' ? f.keys?.some(about) : (f.person && about(f.person)) || f.keys?.some(about))
 }
 
 /** Our verified copy of a server's log head, if any. */

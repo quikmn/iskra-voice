@@ -1,7 +1,7 @@
 // Settings → Security: passkeys that unlock the app lock (WebAuthn PRF, see platform/passkeys.ts).
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { PasskeyError, problemOf, type PasskeyProblem } from '../../platform/passkeys'
+import { passkeyProblemKey } from './passkeyText'
 import {
   addPasskeyLock, canUsePasskeys, checkPassphrase, confirmWithPasskey, defaultPasskeyName, removePasskeyLock, renamePasskeyLock, useLock,
   type PasskeyInfo,
@@ -12,19 +12,6 @@ import { intlLocale } from '../../i18n'
 import './keys.css'
 
 const dateLabel = (ms: number) => new Date(ms).toLocaleDateString(intlLocale(), { year: 'numeric', month: 'short', day: 'numeric' })
-
-const PROBLEMS = {
-  unsupported: 'keys.passkeys.problems.unsupported',
-  'no-prf': 'keys.passkeys.problems.noPrf',
-  cancelled: 'keys.passkeys.problems.cancelled',
-  exists: 'keys.passkeys.problems.exists',
-  failed: 'keys.passkeys.problems.failed',
-} as const satisfies Record<PasskeyProblem, string>
-
-/** What to tell the person about a passkey that didn't work. */
-export function passkeyProblemKey(e: unknown): (typeof PROBLEMS)[PasskeyProblem] {
-  return PROBLEMS[e instanceof PasskeyError ? e.problem : problemOf(e)]
-}
 
 /** Before changing the lock: the current passphrase, or (without one) one of the passkeys. */
 async function confirmLock(passphrase: string): Promise<boolean> {
