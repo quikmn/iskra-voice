@@ -229,6 +229,7 @@ public static class ForumFeature
 
         if (store.ThreadCount(forum.Id) >= ThreadFeature.MaxThreadsPerChannel)
             throw RequestException.BadRequest("This forum has too many posts. Delete some old ones first.");
+        AutoModFeature.Check(s, me, forum, title + "\n" + text, "post");
         ModerationFeature.CheckSlowmode(s, me, forum);
         if (!s.Hub.Limits.TryTake(me.AccountKey, "thread.create")) throw new RequestException("rate_limited", "Too many new posts. Try again in a minute.");
 
@@ -260,6 +261,7 @@ public static class ForumFeature
         if (title is not null && !isAuthor) throw RequestException.Forbidden("Only whoever posted this, or an admin, can rename it.");
         if (retag && !isAuthor && !Permissions.CanModerateForum(me, forum)) throw RequestException.Forbidden("You can't change this post's tags.");
         var tags = retag ? PostTags(store, forum, body) : null;
+        if (title is not null) AutoModFeature.Check(s, me, forum, title, "post");
 
         if (title is not null) store.RenameThread(post.Id, title);
         if (tags is not null) store.SetPostTags(post.Id, tags);

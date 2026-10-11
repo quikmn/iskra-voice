@@ -169,6 +169,7 @@ public static partial class WatchFeature
             ?? throw RequestException.BadRequest($"Messages must be 1–{MaxChatLength} characters.");
         RequireInRoom(s, me, channel);
         if (s.Voice.Watch.Get(channel.Id) is null) throw RequestException.NotFound("Watch party");
+        AutoModFeature.Check(s, me, channel, text, "watch");
         s.Voice.Watch.Chat(channel, me.AccountKey, text);
         return null;
     }

@@ -20,6 +20,8 @@ export interface PendingMessage extends Message {
   nonce?: string
   /** A pending GIF's token (or direct GIF), for retrying. */
   gifToken?: string | DirectGif
+  /** Why AutoMod blocked it (retrying wouldn't help). */
+  blockedReason?: string
 }
 
 export interface ServerState {
@@ -500,7 +502,9 @@ async function deliver(key: string, channelId: number, tempId: string, body: Sen
     patchServer(key, (s) => ({
       messages: {
         ...s.messages,
-        [channelId]: (s.messages[channelId] ?? []).map((m) => (m.tempId === tempId ? { ...m, pending: 'failed' as const } : m)),
+        [channelId]: (s.messages[channelId] ?? []).map((m) => (m.tempId === tempId
+          ? { ...m, pending: 'failed' as const, blockedReason: (e as { code?: string }).code === 'automod' ? (e as Error).message : undefined }
+          : m)),
       },
     }))
   }

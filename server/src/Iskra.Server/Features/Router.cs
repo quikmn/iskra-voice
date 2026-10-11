@@ -59,6 +59,7 @@ public sealed class Router
         StickerFeature.Register(this);
         GifFeature.Register(this);
         RulesFeature.Register(this);
+        AutoModFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

@@ -123,7 +123,13 @@ export const AUDIT_ACTIONS: { action: string; label: string }[] = [
   { action: 'server.pages', label: 'Profile page setting' },
   { action: 'server.internet', label: 'Internet hosting' },
   { action: 'limits.update', label: 'Limits changed' },
+  { action: 'automod.block', label: 'Blocked by AutoMod' },
+  { action: 'automod.update', label: 'AutoMod settings' },
 ]
+
+const AUTOMOD_WHAT: Record<string, string> = {
+  message: 'a message', edit: 'an edit', poll: 'a poll', post: 'a forum post', thread: 'a thread name', event: 'an event', watch: 'a watch party message',
+}
 
 const str = (v: unknown): string => (typeof v === 'string' || typeof v === 'number' ? String(v) : '')
 const durationText = (ms: number) => TIMEOUT_OPTIONS.find((o) => o.ms === ms)?.label ?? `${Math.round(ms / 60_000)} minutes`
@@ -186,6 +192,12 @@ export function auditText(e: AuditEntry): string {
     case 'server.pages': return `${actor} turned profile pages ${d.enabled ? 'on' : 'off'}`
     case 'server.internet': return `${actor} turned internet hosting ${d.enabled ? 'on' : 'off'}`
     case 'limits.update': return `${actor} changed the upload and soundboard limits`
+    case 'automod.update': return `${actor} ${d.enabled ? 'changed the AutoMod settings' : 'turned AutoMod off'}`
+    case 'automod.block': {
+      const where = str(d.channelName) ? ` in ${channel(d.channelName)}` : ''
+      const timeout = Number(d.timeoutMs) > 0 ? ` and timed them out for ${durationText(Number(d.timeoutMs))}` : ''
+      return `AutoMod blocked ${AUTOMOD_WHAT[str(d.what)] ?? 'a message'} by ${target}${where} (${e.reason ?? 'a rule'})${timeout}`
+    }
     default: return `${actor}: ${e.action}`
   }
 }

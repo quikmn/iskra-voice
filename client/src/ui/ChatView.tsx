@@ -46,6 +46,7 @@ import { ExpressionPicker, GifMessage, type ExpressionTab } from './chat/Express
 import { sendGif } from '../state/gifs'
 import { sendSticker } from '../state/stickers'
 import { SpoilerToggle, isSpoilerName, longTextFile } from './chat/media'
+import { AutoModAlertCard } from './automod/AutoModAlert'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -340,6 +341,7 @@ function MessageRow({
           )
         )}
         {message.poll && <PollCard server={server} message={message} />}
+        {message.automod && <AutoModAlertCard server={server} alert={message.automod} />}
         {message.sticker && <StickerMessage server={server} sticker={message.sticker} />}
         {message.gif && <GifMessage server={server} gif={message.gif} />}
         {message.voice ? <VoiceMessage server={server} message={message} /> : <Attachments server={server} files={message.attachments} />}
@@ -348,7 +350,18 @@ function MessageRow({
         <ImportedExtras server={server} message={message} />
         <Reactions server={server} message={message} />
         <ThreadSummary server={server} message={message} />
-        {message.pending === 'failed' && (
+        {message.pending === 'failed' && message.blockedReason ? (
+          <div className="message-failed" role="alert">
+            {message.blockedReason}{' '}
+            <button className="link" onClick={() => {
+              const roleName = (id: number) => roles.find((r) => r.id === id)?.name ?? null
+              setDraft(draftKey.channel(server.key, message.channelId), decodeEmoji(decodeMentions(message.text, (k) => server.members[k]?.name ?? null, roleName)))
+              discardFailed(server.key, message.channelId, message.tempId!)
+            }}>Edit</button>
+            {' · '}
+            <button className="link" onClick={() => discardFailed(server.key, message.channelId, message.tempId!)}>Discard</button>
+          </div>
+        ) : message.pending === 'failed' && (
           <div className="message-failed">
             Couldn't send.{' '}
             <button className="link" onClick={() => void retryFailed(server.key, message.channelId, message)}>Retry</button>

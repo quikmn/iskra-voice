@@ -289,6 +289,7 @@ public sealed partial class Store : IDisposable
         ("gifs-1", GifsMigration),
         ("voice-limits-1", VoiceLimitsMigration),
         ("rules-1", RulesMigration),
+        ("automod-1", AutoModMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

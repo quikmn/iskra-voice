@@ -17,6 +17,7 @@ public enum Perm : long
     MentionEveryone = 1 << 9,
     MoveMembers = 1 << 10,
     MuteMembers = 1 << 11,
+    ManageAutoMod = 1 << 12,
 }
 
 /// <summary>What a channel override can allow or deny for a role.</summary>

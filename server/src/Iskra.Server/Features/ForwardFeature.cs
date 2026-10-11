@@ -25,6 +25,7 @@ public static class ForwardFeature
         if (target.Kind is not ("text" or "thread")) throw RequestException.BadRequest("You can't send messages to that channel.");
         if (!Permissions.CanWrite(me, target)) throw RequestException.Forbidden("You can't send messages in this channel.");
 
+        AutoModFeature.Check(s, me, target, source.Text, "message");
         var message = store.AddMessage(target.Id, me.AccountKey, source.Text, s.Now, source.Attachments);
         // A forward of a forward points at the original.
         var info = store.GetForward(source.Id) ?? new ForwardInfo(from.Id, source.Id, source.CreatedAt);

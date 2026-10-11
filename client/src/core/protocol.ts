@@ -258,6 +258,7 @@ export type ErrorCode =
   | 'auth_failed' | 'invite_required' | 'banned' | 'voice_unavailable' | 'busy' | 'device_revoked' | 'conflict' | 'moved'
   | 'account_rotated' | 'account_disputed' | 'rotation_conflict' | 'unavailable'
   | 'channel_full' | 'rules_required'
+  | 'automod'
 
 export class RequestError extends Error {
   readonly code: ErrorCode | 'disconnected' | 'timeout'
@@ -1017,7 +1018,7 @@ export interface Requests {
 
 export type Permission =
   | 'manageMessages' | 'timeoutMembers' | 'kickMembers' | 'banMembers' | 'manageChannels' | 'manageRoles'
-  | 'viewAuditLog' | 'manageExpressions' | 'manageWebhooks' | 'mentionEveryone' | 'moveMembers' | 'muteMembers'
+  | 'viewAuditLog' | 'manageExpressions' | 'manageWebhooks' | 'mentionEveryone' | 'moveMembers' | 'muteMembers' | 'manageAutoMod'
 
 export type ChannelPermission = 'view' | 'send' | 'connect' | 'speak'
 
@@ -1228,4 +1229,48 @@ export interface Requests {
   'rules.get': [Record<string, never>, { rules: ServerRules }]
   'rules.update': [{ text?: string; welcome?: string; required?: boolean; reaccept?: boolean }, { rules: ServerRules }]
   'rules.accept': [{ version: number }, { rules: ServerRules }]
+}
+
+// ── automod ──
+// Server-side rules that block messages before they're stored. See "AutoMod" in PROTOCOL.md.
+
+/** A block always happens; optionally also a timeout (one of the timeout lengths, 0 = none) and an alert. */
+export interface AutoModAction {
+  timeoutMs: number
+  alert: boolean
+}
+
+export interface AutoModConfig {
+  enabled: boolean
+  words: { enabled: boolean; blocked: string[]; allowed: string[]; action: AutoModAction }
+  mentions: { enabled: boolean; max: number; action: AutoModAction }
+  flood: { enabled: boolean; count: number; seconds: number; action: AutoModAction }
+  duplicates: { enabled: boolean; count: number; seconds: number; action: AutoModAction }
+  links: { enabled: boolean; mode: 'invites' | 'all'; allowedDomains: string[]; action: AutoModAction }
+  exemptRoles: number[]
+  exemptChannels: number[]
+  alertChannelId: number | null
+}
+
+export type AutoModRule = 'words' | 'mentions' | 'flood' | 'duplicates' | 'links'
+
+/** On an AutoMod alert (author "automod:"): what was blocked. Channel and snippet are null when they'd reveal a private channel. */
+export interface AutoModAlert {
+  rule: AutoModRule
+  what: 'message' | 'edit' | 'poll' | 'post' | 'thread' | 'event' | 'watch'
+  member: string
+  memberName: string
+  channelId: number | null
+  channelName: string | null
+  snippet: string | null
+  timeoutMs: number
+}
+
+export interface Message {
+  automod?: AutoModAlert | null
+}
+
+export interface Requests {
+  'automod.get': [Record<string, never>, { automod: AutoModConfig }]
+  'automod.update': [{ automod: AutoModConfig }, { automod: AutoModConfig }]
 }

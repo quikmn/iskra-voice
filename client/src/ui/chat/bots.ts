@@ -13,6 +13,7 @@ export interface AuthorInfo {
 /** Who wrote a message, as shown above it: a webhook's name, a member, or a former member. */
 export function authorOf(message: Pick<Message, 'author' | 'webhook' | 'imported'>, members: Record<string, Member>): AuthorInfo {
   if (message.webhook) return { name: message.webhook.name, bot: true, avatar: message.webhook.avatar }
+  if (message.author === 'automod:') return { name: 'AutoMod', bot: true, avatar: null }
   // Imported from Discord: the name and avatar it had there (not an account here).
   if (message.imported) return { name: message.imported.name, bot: message.imported.bot, avatar: message.imported.avatar }
   // A message from before its author replaced their account key: the server moved it, our cached copy may not have.
