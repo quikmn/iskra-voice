@@ -1,8 +1,7 @@
 // Keyboard shortcuts: unread navigation and marking read, plus the list of every shortcut (Ctrl+/).
 import { useEffect, useState } from 'react'
-import { activeChannelId, useApp } from '../../state/store'
 import { useVoice } from '../../state/voice'
-import { goToUnread, markChannelRead, markServerRead } from '../../state/unread'
+import { goToUnread, markAllRead, markOpenRead } from '../../state/unread'
 import { openLayers } from '../layers'
 import { Modal } from '../bits'
 import './organize.css'
@@ -19,8 +18,8 @@ function shortcutList(pttKey: string | null): { group: string; items: [string[],
         [[MOD, 'K'], 'Jump to a channel, person or server'],
         [[ALT, '↑'], 'Previous unread channel'],
         [[ALT, '↓'], 'Next unread channel'],
-        [['Esc'], 'Mark this channel as read (or close what is open)'],
-        [['Shift', 'Esc'], 'Mark the whole server as read'],
+        [['Esc'], 'Mark this conversation as read (or close what is open)'],
+        [['Shift', 'Esc'], 'Mark the whole server as read (at Home: every DM)'],
         [[MOD, '/'], 'Show these shortcuts'],
       ],
     },
@@ -53,18 +52,13 @@ export function Shortcuts() {
         return
       }
       if (e.defaultPrevented || openLayers() > 0) return
-      const state = useApp.getState()
-      const server = state.activeServer
       if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
         if (goToUnread(e.key === 'ArrowDown' ? 1 : -1)) e.preventDefault()
         return
       }
-      if (e.key === 'Escape' && server) {
-        if (e.shiftKey) markServerRead(server)
-        else {
-          const channel = activeChannelId(state)
-          if (channel !== null) markChannelRead(server, channel)
-        }
+      if (e.key === 'Escape') {
+        if (e.shiftKey) markAllRead()
+        else markOpenRead()
       }
     }
     window.addEventListener('keydown', onKey)

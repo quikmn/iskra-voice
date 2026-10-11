@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { nameOf, openConversation, openFriends, useDms } from '../state/dms'
 import { selectChannel, selectServer, useApp } from '../state/store'
+import { channelConv, dmConv, useReads } from '../state/readState'
 import { setStageOpen } from '../state/voice'
 import { Avatar } from './bits'
 import { Hash, Search, Users } from './icons'
@@ -28,6 +29,7 @@ function SwitcherDialog({ onClose }: { onClose: () => void }) {
   const order = useApp((s) => s.order)
   const conversations = useDms((s) => s.conversations)
   const friends = useDms((s) => s.friends)
+  const reads = useReads((s) => s.convs)
   const [query, setQuery] = useState('')
   const [pick, setPick] = useState(0)
   const ref = useRef<HTMLDivElement>(null)
@@ -37,19 +39,19 @@ function SwitcherDialog({ onClose }: { onClose: () => void }) {
   const items = useMemo<SwitchItem[]>(() => {
     const list: SwitchItem[] = []
     for (const peer of new Set([...Object.keys(conversations), ...Object.keys(friends)])) {
-      list.push({ id: `dm:${peer}`, kind: 'dm', label: nameOf(peer), context: 'Direct message', unread: conversations[peer]?.unread ?? 0 })
+      list.push({ id: `dm:${peer}`, kind: 'dm', label: nameOf(peer), context: 'Direct message', unread: reads[dmConv(peer)]?.unread ?? 0 })
     }
     for (const key of order) {
       const server = servers[key]
       if (!server) continue
       for (const channel of server.channels) {
         if (channel.kind !== 'text') continue
-        list.push({ id: `ch:${key}:${channel.id}`, kind: 'channel', label: channel.name, context: server.name, unread: server.unread[channel.id] ?? 0 })
+        list.push({ id: `ch:${key}:${channel.id}`, kind: 'channel', label: channel.name, context: server.name, unread: reads[channelConv(key, channel.id)]?.unread ?? 0 })
       }
     }
     list.push({ id: 'friends', kind: 'friends', label: 'Friends', context: 'Direct messages', unread: 0 })
     return list
-  }, [servers, order, conversations, friends])
+  }, [servers, order, conversations, friends, reads])
   const shown = rankItems(items, query)
   const active = shown.length ? pick % shown.length : 0
 

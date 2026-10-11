@@ -4,7 +4,7 @@ import type { Message } from '../../core/protocol'
 import { useRoleLookup, useServerRoles } from '../../state/roles'
 import { canSendIn, has, outranks } from '../../state/permissions'
 import { connectionFor, loadHistory, type ServerState } from '../../state/store'
-import { closeThread, deleteThread, markThreadRead, renameThread, rememberThreads, useThreads } from '../../state/threads'
+import { closeThread, deleteThread, renameThread, rememberThreads, useThreads } from '../../state/threads'
 import { Composer, MessageList, TypingLine } from '../ChatView'
 import { Avatar, Spinner } from '../bits'
 import { fullTime, hueFor, messageTime } from '../format'
@@ -29,7 +29,6 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
   const [pinsOpen, setPinsOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const online = server.status.state === 'online'
-  const messages = server.messages[threadId]
   useEscapeLayer(closeThread)
 
   // The thread and the message it started from.
@@ -51,14 +50,6 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
   useEffect(() => {
     if (online) void loadHistory(server.key, threadId)
   }, [server.key, threadId, online])
-
-  // Reading it clears its unread count, now and whenever the window comes back into focus.
-  useEffect(() => {
-    if (document.hasFocus()) markThreadRead(server.key, threadId)
-    const onFocus = () => markThreadRead(server.key, threadId)
-    window.addEventListener('focus', onFocus)
-    return () => window.removeEventListener('focus', onFocus)
-  }, [server.key, threadId, messages])
 
   const parent = thread ? server.channels.find((c) => c.id === thread.channelId) : undefined
   const me = server.me

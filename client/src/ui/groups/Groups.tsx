@@ -1,16 +1,18 @@
 // Group DMs: the sidebar rows, the conversation, and the dialogs to make a group, add people and manage it.
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { b64u } from '../../core/crypto'
 import { asRename, MAX_GROUP_MEMBERS, MAX_GROUP_NAME, ownerOf } from '../../core/group'
 import { isOnline } from '../../state/dms'
 import { asGroupCallLine, changeText, timeline, type GroupMsg } from '../../state/groupLogic'
 import {
-  addToGroup, cannotSend, createGroup, discardGroupMessage, forgetGroup, groupCandidates, isArchived, isMember, leaveGroup, markGroupRead, openGroup,
+  addToGroup, cannotSend, createGroup, discardGroupMessage, forgetGroup, groupCandidates, isArchived, isMember, leaveGroup, openGroup,
   knownName, removeFromGroup, renameGroup, sendGroupMessage, titleOf, useGroups, type GroupConv,
 } from '../../state/groups'
 import { useGroupCalls } from '../../state/groupCalls'
 import { useDms } from '../../state/dms'
 import { useApp } from '../../state/store'
+import { dividerOf, dividerTarget, groupConv, useRead, useReads } from '../../state/readState'
+import { UnreadBar, UnreadDivider } from '../organize/UnreadBits'
 import { Avatar, Modal } from '../bits'
 import { clockTime, fullTime, hueFor, messageTime } from '../format'
 import { Lock, Menu, Pencil, Phone, Plus, Search, UserPlus, Users, Video } from '../icons'
@@ -45,6 +47,8 @@ export function GroupAvatar({ members, size = 28 }: { members: string[]; size?: 
 export function GroupRows({ onNavigate }: { onNavigate: () => void }) {
   const groups = useGroups((s) => s.groups)
   const open = useDms((s) => s.open)
+  const reads = useReads((s) => s.convs)
+  const unread = (g: GroupConv) => reads[groupConv(g.key)]?.unread ?? 0
   const calls = useGroupCalls((s) => s.calls)
   const [creating, setCreating] = useState(false)
   useApp((s) => s.servers)
@@ -56,7 +60,7 @@ export function GroupRows({ onNavigate }: { onNavigate: () => void }) {
   const row = (g: GroupConv, old: boolean) => (
     <button
       key={g.key}
-      className={`channel dm-row group-row ${open.kind === 'group' && open.key === g.key ? 'active' : ''} ${g.unread && !old ? 'unread' : ''} ${isMember(g) && !old ? '' : 'former'}`}
+      className={`channel dm-row group-row ${open.kind === 'group' && open.key === g.key ? 'active' : ''} ${unread(g) && !old ? 'unread' : ''} ${isMember(g) && !old ? '' : 'former'}`}
       onClick={() => {
         openGroup(g.key)
         onNavigate()
@@ -68,7 +72,7 @@ export function GroupRows({ onNavigate }: { onNavigate: () => void }) {
         <small>{old ? 'Archived' : `${g.view!.members.length} members`}</small>
       </span>
       {!old && calls[g.key] && <span className="group-call-dot" title="Call in progress"><Phone size={12} /></span>}
-      {!old && g.unread > 0 && <span className="badge">{g.unread}</span>}
+      {!old && unread(g) > 0 && <span className="badge">{unread(g)}</span>}
     </button>
   )
   return (
@@ -346,9 +350,8 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
     if (el) el.scrollTop = el.scrollHeight
   }, [items.length])
 
-  useEffect(() => {
-    if (g?.unread) markGroupRead(groupKey)
-  }, [g?.unread, groupKey])
+  const divider = dividerOf(useRead(groupConv(groupKey)))
+  const firstNew = divider && dividerTarget(g?.messages ?? [], divider.from, (m) => (m.pending || m.from === me ? null : { id: m.id, at: m.sentAt }))
 
   if (!g?.view) {
     return (
@@ -360,6 +363,26 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
         <div className="empty-state"><p>{g?.problem ?? 'Loading this group…'}</p></div>
       </div>
     )
+  }
+
+  const groupItem = (item: (typeof items)[number], i: number) => {
+    if (item.kind === 'change') return <SystemLine key={`c${item.change.version}`} text={changeText(item.change, me, knownName)} at={item.at} />
+    const m = item.message
+    const rename = !m.error ? asRename(m.group) : null
+    if (rename) {
+      if ((m.group as { silent?: unknown }).silent === true) return null
+      const who = m.from === me ? 'You' : knownName(m.from)
+      return <SystemLine key={`${m.from}:${m.id}`} icon="pencil" text={rename.name ? `${who} named the group ${rename.name}` : `${who} removed the group name`} at={m.sentAt} />
+    }
+    const callLine = !m.error ? asGroupCallLine(m.call) : null
+    if (callLine) {
+      const who = m.from === me ? 'You' : knownName(m.from)
+      return <SystemLine key={`${m.from}:${m.id}`} icon={callLine.video ? 'video' : 'phone'} text={`${who} started a ${callLine.video ? 'video' : 'voice'} call`} at={m.sentAt} />
+    }
+    const prev = items[i - 1]
+    const grouped = prev?.kind === 'message' && prev.message.from === m.from && m.sentAt - prev.message.sentAt < GROUP_WINDOW_MS
+      && !prev.message.pending && !prev.message.error && !prev.message.group && !prev.message.call && m !== firstNew
+    return <GroupRow key={`${m.from}:${m.id}`} m={m} grouped={grouped} groupKey={groupKey} mine={m.from === me} />
   }
 
   const reason = cannotSend(g)
@@ -391,31 +414,19 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
       )}
 
       <div className="messages" ref={scroller}>
+        <UnreadBar conv={groupConv(groupKey)} scroller={scroller} onJump={() => undefined} />
         <div className="channel-start">
           <GroupAvatar members={g.view.members} size={64} />
           <h2>{title}</h2>
           <p>This is the start of the group. Messages and calls are end-to-end encrypted: the server only passes them along.</p>
         </div>
         {g.problem && <p className="group-problem" role="alert"><Lock size={14} /> {g.problem}</p>}
-        {items.map((item, i) => {
-          if (item.kind === 'change') return <SystemLine key={`c${item.change.version}`} text={changeText(item.change, me, knownName)} at={item.at} />
-          const m = item.message
-          const rename = !m.error ? asRename(m.group) : null
-          if (rename) {
-            if ((m.group as { silent?: unknown }).silent === true) return null
-            const who = m.from === me ? 'You' : knownName(m.from)
-            return <SystemLine key={`${m.from}:${m.id}`} icon="pencil" text={rename.name ? `${who} named the group ${rename.name}` : `${who} removed the group name`} at={m.sentAt} />
-          }
-          const callLine = !m.error ? asGroupCallLine(m.call) : null
-          if (callLine) {
-            const who = m.from === me ? 'You' : knownName(m.from)
-            return <SystemLine key={`${m.from}:${m.id}`} icon={callLine.video ? 'video' : 'phone'} text={`${who} started a ${callLine.video ? 'video' : 'voice'} call`} at={m.sentAt} />
-          }
-          const prev = items[i - 1]
-          const grouped = prev?.kind === 'message' && prev.message.from === m.from && m.sentAt - prev.message.sentAt < GROUP_WINDOW_MS
-            && !prev.message.pending && !prev.message.error && !prev.message.group && !prev.message.call
-          return <GroupRow key={`${m.from}:${m.id}`} m={m} grouped={grouped} groupKey={groupKey} mine={m.from === me} />
-        })}
+        {items.map((item, i) => (
+          <Fragment key={item.kind === 'change' ? `c${item.change.version}` : `${item.message.from}:${item.message.id}`}>
+            {item.kind === 'message' && item.message === firstNew && <UnreadDivider />}
+            {groupItem(item, i)}
+          </Fragment>
+        ))}
       </div>
 
       <div className="typing-line" />

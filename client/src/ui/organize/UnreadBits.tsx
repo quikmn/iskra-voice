@@ -1,33 +1,36 @@
-// The "New messages" divider and the bar that jumps up to it.
+// The "New messages" divider and the bar that jumps up to it, for any conversation (state/readState.ts places them).
 import { useEffect, useState, type RefObject } from 'react'
-import { loadHistory, useApp, type ServerState } from '../../state/store'
-import { markChannelRead, useUnreadMarker } from '../../state/unread'
+import { dividerOf, markConversationRead, useRead } from '../../state/readState'
 import { clockTime } from '../format'
 import './organize.css'
 
-export function UnreadDivider() {
+/** `main`: the one in the main message list (it has the id the jump bar and tests look for). */
+export function UnreadDivider({ main = true }: { main?: boolean }) {
   return (
-    <div className="unread-divider" id="unread-divider" role="separator" aria-label="New messages">
+    <div className="unread-divider" id={main ? 'unread-divider' : undefined} role="separator" aria-label="New messages">
       <span>New messages</span>
     </div>
   )
 }
 
-export function UnreadBar({ server, channelId, scroller, onJump }: {
-  server: ServerState
-  channelId: number
+export function UnreadBar({ conv, scroller, onJump, loadOlder }: {
+  conv: string
   scroller: RefObject<HTMLDivElement | null>
   onJump: () => void
+  /** Loads an older page; resolves to whether there's more. */
+  loadOlder?: () => Promise<boolean>
 }) {
-  const marker = useUnreadMarker(server.key, channelId)
+  const divider = dividerOf(useRead(conv))
+  const showing = !!divider
   const [above, setAbove] = useState(false)
+  const find = () => scroller.current?.querySelector<HTMLElement>('.unread-divider') ?? null
 
   useEffect(() => {
     const el = scroller.current
-    if (!el || !marker) return
+    if (!el || !showing) return
     const check = () => {
-      const divider = el.querySelector<HTMLElement>('#unread-divider')
-      setAbove(!divider || divider.getBoundingClientRect().bottom < el.getBoundingClientRect().top + 4)
+      const line = el.querySelector<HTMLElement>('.unread-divider')
+      setAbove(!line || line.getBoundingClientRect().bottom < el.getBoundingClientRect().top + 4)
     }
     check()
     el.addEventListener('scroll', check, { passive: true })
@@ -36,28 +39,27 @@ export function UnreadBar({ server, channelId, scroller, onJump }: {
       el.removeEventListener('scroll', check)
       clearInterval(timer)
     }
-  }, [scroller, marker])
+  }, [scroller, showing])
 
-  if (!marker || !above) return null
+  if (!divider || !above) return null
 
   async function jump() {
     onJump()
     // Older pages until the first new message is loaded.
-    for (let i = 0; i < 20 && !document.getElementById('unread-divider'); i++) {
-      const s = useApp.getState().servers[server.key]
-      if (!s?.hasMore[channelId]) break
-      await loadHistory(server.key, channelId, true)
+    for (let i = 0; i < 20 && !find() && loadOlder; i++) {
+      if (!(await loadOlder())) break
       await new Promise((r) => setTimeout(r, 30))
     }
-    document.getElementById('unread-divider')?.scrollIntoView({ block: 'center' })
+    await new Promise((r) => setTimeout(r, 30))
+    find()?.scrollIntoView({ block: 'center' })
   }
 
   return (
     <div className="unread-bar-wrap"><div className="unread-bar" role="status">
       <button className="unread-bar-jump" onClick={() => void jump()}>
-        {marker.count} new message{marker.count === 1 ? '' : 's'}{marker.since ? ` since ${clockTime(marker.since)}` : ''} · Jump to first unread
+        {divider.count} new message{divider.count === 1 ? '' : 's'} since {clockTime(divider.from.at)} · Jump to first unread
       </button>
-      <button className="unread-bar-read" onClick={() => markChannelRead(server.key, channelId)}>Mark as read</button>
+      <button className="unread-bar-read" onClick={() => markConversationRead(conv)}>Mark as read</button>
     </div></div>
   )
 }

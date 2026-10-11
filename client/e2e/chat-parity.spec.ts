@@ -128,11 +128,11 @@ test('chat parity: rich text, images, spoilers, drafts, links, unread, reactions
   await last(friend).getByRole('link').click()
   await expect(friend.locator('.message.flash', { hasText: 'the plan is final' })).toBeVisible()
 
-  // ── Mark unread: a "New" line the next time you come back ──
+  // ── Mark unread: the "New messages" divider sits there when you come back ──
   await (await moreMenu(friend, 'filler 3')).getByRole('menuitem', { name: 'Mark unread' }).click()
   await friend.getByRole('button', { name: 'Direct messages' }).click()
   await friend.locator('.server-rail').getByTitle('Parity Test').click()
-  const divider = friend.locator('.new-divider')
+  const divider = friend.locator('#unread-divider')
   await expect(divider).toBeVisible()
   await expect(divider.locator('+ .message')).toContainText('filler 3')
 

@@ -15,6 +15,7 @@ import { ensurePrekeys, ownRevokedDevices } from './devices'
 import { keysReady, resolveKey, sameAccount } from './keyMap'
 import type { Rotation } from '../core/rotation'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
+import { dmConv, moveConversation, noteMessage, seeConversation } from './readState'
 
 export interface Dm {
   /** The id inside the encrypted header; the same on every server and device. */
@@ -39,7 +40,6 @@ export interface Dm {
 export interface Conversation {
   messages: Dm[]
   loaded: boolean
-  unread: number
 }
 
 export interface Friend {
@@ -89,7 +89,7 @@ export function isOnline(accountKey: string): boolean {
 function patchConversation(peer: string, patch: (c: Conversation) => Partial<Conversation>): void {
   let changed = false
   useDms.setState((state) => {
-    const current = state.conversations[peer] ?? { messages: [], loaded: false, unread: 0 }
+    const current = state.conversations[peer] ?? { messages: [], loaded: false }
     const next = { ...current, ...patch(current) }
     changed = next.messages !== current.messages
     return { conversations: { ...state.conversations, [peer]: next } }
@@ -215,12 +215,10 @@ async function onDmEvent(wire: WireDm): Promise<void> {
   const mine = me()
   const dm = open(wire)
   const peer = dm.from === mine ? dm.to : dm.from
-  const state = useDms.getState()
-  const viewing = useApp.getState().activeServer === null && state.open.kind === 'dm' && state.open.peer === peer && document.hasFocus()
-  patchConversation(peer, (c) => ({
-    messages: upsert(c.messages, dm),
-    unread: dm.from === mine || viewing ? c.unread : c.unread + 1,
-  }))
+  const known = useDms.getState().conversations[peer]?.messages.some((m) => m.id === dm.id && m.from === dm.from)
+  patchConversation(peer, (c) => ({ messages: upsert(c.messages, dm) }))
+  // Unread (state/readState.ts): someone else's message, the first time it arrives (it can come from several servers).
+  if (dm.from !== mine && !known) noteMessage(dmConv(peer), { id: dm.id, at: dm.sentAt }, false)
 }
 
 export async function loadConversations(): Promise<void> {
@@ -262,12 +260,8 @@ export async function loadHistory(peer: string): Promise<void> {
 export function openConversation(peer: string): void {
   useApp.setState({ activeServer: null })
   useDms.setState({ open: { kind: 'dm', peer } })
-  patchConversation(peer, () => ({ unread: 0 }))
+  seeConversation(dmConv(peer))
   void loadHistory(peer)
-}
-
-export function markRead(peer: string): void {
-  patchConversation(peer, () => ({ unread: 0 }))
 }
 
 export function openFriends(): void {
@@ -367,11 +361,14 @@ export function applyKeyChanges(resolve: (key: string) => string, changes: (Rota
   const conversations: Record<string, Conversation> = {}
   for (const [peer, c] of Object.entries(before.conversations)) {
     const target = resolve(peer)
-    if (target !== peer) moved.push(peer)
+    if (target !== peer) {
+      moved.push(peer)
+      moveConversation(dmConv(peer), dmConv(target))
+    }
     const messages = c.messages.map((m) => ({ ...m, from: resolve(m.from), to: resolve(m.to) }))
     const into = conversations[target]
     conversations[target] = into
-      ? { messages: messages.reduce(upsert, into.messages), loaded: into.loaded || c.loaded, unread: into.unread + c.unread }
+      ? { messages: messages.reduce(upsert, into.messages), loaded: into.loaded || c.loaded }
       : { ...c, messages: messages.reduce<Dm[]>(upsert, []) }
   }
   for (const change of changes) {

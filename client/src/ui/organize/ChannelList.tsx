@@ -5,11 +5,10 @@ import { useState, type DragEvent, type HTMLAttributes, type MouseEvent } from '
 import type { Category, Channel } from '../../core/protocol'
 import { activeChannelId, selectChannel, useApp, type ServerState } from '../../state/store'
 import { joinVoice, setStageOpen, useVoice } from '../../state/voice'
-import { threadMentions } from '../../state/threads'
+import { useChannelCounts } from '../../state/unread'
 import { openProfileCard } from '../../state/profile'
 import { moveCategory, moveChannel, toggleCollapsed, useCategories, useNotifyFor, useOrganize } from '../../state/organize'
 import { channelBadges, dropOnCategory, dropOnChannel, isVoiceLike, layoutChannels } from '../../state/organizeLogic'
-import { forumReplies } from '../../state/forums'
 import { ForumIcon } from '../forums/icons'
 import { StageEntry } from '../stage/StageSidebar'
 import { useVolumeMenu } from '../useVolumeMenu'
@@ -230,8 +229,8 @@ function TextRow({ server, channel, active, rowProps, onMenu, onNavigate }: {
   server: ServerState; channel: Channel; active: boolean; rowProps: RowProps; onMenu: (e: MouseEvent<HTMLElement>) => void; onNavigate: () => void
 }) {
   const notify = useNotifyFor(server.key, channel.id)
-  const unread = (server.unread[channel.id] ?? 0) + (channel.kind === 'forum' ? forumReplies(server, channel.id) : 0)
-  const shown = channelBadges(unread, (server.mentions[channel.id] ?? 0) + threadMentions(server, channel.id), notify)
+  const counts = useChannelCounts(server.key, channel)
+  const shown = channelBadges(counts.unread, counts.mentions, notify)
   return (
     <div {...rowProps}>
       <button

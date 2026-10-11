@@ -1,8 +1,9 @@
 // Threads: side conversations under a message. On the wire a thread is a channel id of its own,
-// so its messages, unread counts and typing live in the server state like any channel's.
+// so its messages and typing live in the server state, and its read state in readState.ts, like any channel's.
 import { create } from 'zustand'
 import type { Events, Message, Thread } from '../core/protocol'
 import { connectionFor, onServerEvent, patchServer, useApp, type ServerState } from './store'
+import { channelConv, forgetConversation, seeConversation } from './readState'
 
 interface ThreadsState {
   /** serverKey → thread id → thread. */
@@ -88,32 +89,11 @@ export async function deleteThread(key: string, id: number): Promise<void> {
 export function openThread(key: string, id: number, thread?: Thread): void {
   if (thread) rememberThreads(key, [thread])
   useThreads.setState({ open: { key, id } })
-  markThreadRead(key, id)
+  seeConversation(channelConv(key, id))
 }
 
 export function closeThread(): void {
   useThreads.setState({ open: null })
-}
-
-export function markThreadRead(key: string, id: number): void {
-  const server = useApp.getState().servers[key]
-  if (!server || (!server.unread[id] && !server.mentions[id])) return
-  patchServer(key, (s) => ({ unread: { ...s.unread, [id]: 0 }, mentions: { ...s.mentions, [id]: 0 } }))
-}
-
-export function isViewingThread(key: string, id: number): boolean {
-  const open = useThreads.getState().open
-  return document.hasFocus() && open?.key === key && open.id === id && useApp.getState().activeServer === key
-}
-
-/** Unread mentions in a channel's threads (shown on the channel in the sidebar). */
-export function threadMentions(server: ServerState, channelId: number): number {
-  const threads = useThreads.getState().threads[server.key] ?? {}
-  let total = 0
-  for (const [id, count] of Object.entries(server.mentions)) {
-    if (count && threads[Number(id)]?.channelId === channelId) total += count
-  }
-  return total
 }
 
 /** "#general › Game night" for notifications and search results. */
@@ -138,15 +118,14 @@ onServerEvent((key, type, body) => {
     patchServer(key, (s) => {
       const messages = { ...s.messages }
       delete messages[id]
-      return { messages, unread: { ...s.unread, [id]: 0 }, mentions: { ...s.mentions, [id]: 0 } }
+      return { messages }
     })
+    forgetConversation(channelConv(key, id))
   } else if (type === 'chat.message') {
     const { message } = body as Events['chat.message']
     const server = useApp.getState().servers[key]
     if (!server || !isThreadId(server, message.channelId)) return
     // Learn about threads we haven't seen, so badges and notifications can name them.
     if (!knownThread(key, message.channelId)) void fetchThread(key, message.channelId)
-    // The store counts it as unread; undo that when the thread is on screen.
-    if (isViewingThread(key, message.channelId)) queueMicrotask(() => markThreadRead(key, message.channelId))
   }
 })

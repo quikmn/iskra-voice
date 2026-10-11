@@ -10,6 +10,7 @@ import type { InviteLink } from '../core/invite'
 import type { Channel, DirectGif, Events, FileInfo, Member, Message, MessageGif, Sticker, VoiceInfo, VoiceParticipant, Welcome } from '../core/protocol'
 import * as storage from '../core/storage'
 import { openDeviceVault } from './lock'
+import { channelConv, noteMessage, seeConversation } from './readState'
 
 export interface PendingMessage extends Message {
   pending?: 'sending' | 'failed'
@@ -33,9 +34,6 @@ export interface ServerState {
   hasMore: Record<number, boolean>
   /** accountKey → when the "typing" hint expires, per channel. */
   typing: Record<number, Record<string, number>>
-  unread: Record<number, number>
-  /** Unread messages that mention you, per channel. */
-  mentions: Record<number, number>
   /** Who is in each voice channel (from the server, which hears it from LiveKit). */
   voice: Record<number, VoiceParticipant[]>
   voiceAvailable: boolean
@@ -253,7 +251,7 @@ function connectServer(url: string, key: string, name: string, invite?: string):
       ...state.servers,
       [key]: state.servers[key] ?? {
         key, url, name, status: { state: 'connecting' }, me: null, channels: [], members: {},
-        messages: {}, hasMore: {}, typing: {}, unread: {}, mentions: {}, voice: {}, voiceAvailable: false, appUrl: null, publicUrl: null,
+        messages: {}, hasMore: {}, typing: {}, voice: {}, voiceAvailable: false, appUrl: null, publicUrl: null,
       },
     },
   }))
@@ -344,8 +342,6 @@ function onEvent<K extends keyof Events>(key: string, type: K, body: Events[K]):
           ? { messages: { ...s.messages, [message.channelId]: s.messages[message.channelId].filter((m) => !(m.tempId && m.nonce === nonce)) } }
           : {}))
       }
-      const state = useApp.getState()
-      const viewing = state.activeServer === key && activeChannelId(state) === message.channelId && document.hasFocus()
       patchServer(key, (s) => {
         const typing = { ...s.typing[message.channelId] }
         delete typing[message.author]
@@ -354,15 +350,14 @@ function onEvent<K extends keyof Events>(key: string, type: K, body: Events[K]):
             ? { ...s.messages, [message.channelId]: upsertMessage(s.messages[message.channelId], message) }
             : s.messages, // not loaded yet: history will fetch it
           typing: { ...s.typing, [message.channelId]: typing },
-          unread: message.author === s.me?.accountKey || viewing || senderRules.ignored(message.author)
-            ? s.unread
-            : { ...s.unread, [message.channelId]: (s.unread[message.channelId] ?? 0) + 1 },
-          mentions: message.author === s.me?.accountKey || viewing || !s.me || message.forwarded || senderRules.ignored(message.author)
-            || !senderRules.mentionsMe(s, message)
-            ? s.mentions
-            : { ...s.mentions, [message.channelId]: (s.mentions[message.channelId] ?? 0) + 1 },
         }
       })
+      // Unread and mentions (state/readState.ts): not your own messages, nor ones from people you blocked.
+      const s = useApp.getState().servers[key]
+      if (s && message.author !== s.me?.accountKey && !senderRules.ignored(message.author)) {
+        noteMessage(channelConv(key, message.channelId), { id: message.id, at: message.createdAt },
+          !!s.me && !message.forwarded && senderRules.mentionsMe(s, message))
+      }
       return
     }
     case 'chat.edited': {
@@ -433,7 +428,7 @@ function onEvent<K extends keyof Events>(key: string, type: K, body: Events[K]):
 
 export function selectChannel(key: string, channelId: number): void {
   useApp.setState((state) => ({ activeChannel: { ...state.activeChannel, [key]: channelId } }))
-  patchServer(key, (s) => ({ unread: { ...s.unread, [channelId]: 0 }, mentions: { ...s.mentions, [channelId]: 0 } }))
+  seeConversation(channelConv(key, channelId))
   void loadHistory(key, channelId)
 }
 

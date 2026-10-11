@@ -1,106 +1,156 @@
-// Unread navigation: the "New messages" divider (where you left off when you opened a channel), marking channels
-// and servers read, and moving to the previous or next unread channel.
-import { create } from 'zustand'
-import type { PendingMessage, ServerState } from './store'
-import { activeChannelId, patchServer, selectChannel, useApp } from './store'
-import { threadMentions, useThreads } from './threads'
+// Unread on servers and at Home: which conversations are on screen, a channel's counts (its threads included), the
+// server and title badges, marking things read or unread, and moving to the previous or next unread channel.
+// The read state itself lives in readState.ts.
+import type { Channel } from '../core/protocol'
+import type { ServerState } from './store'
+import { activeChannelId, selectChannel, useApp } from './store'
+import { useThreads } from './threads'
+import { useDms } from './dms'
 import { notifyFor, useOrganize } from './organize'
 import { channelBadges, layoutChannels } from './organizeLogic'
+import { resetForumSeen } from './forums'
+import { senderRules } from './senderRules'
+import {
+  channelConv, dmConv, groupConv, markConversationRead, markConversationUnread, markReadWhere, serverPrefix, setShown, useReads,
+  type ConversationRead,
+} from './readState'
 
-export interface UnreadMarker {
-  /** How many messages were new when you opened the channel. */
-  count: number
-  /** The newest message then (the count is of messages up to it). */
-  anchorId: number | null
-  /** The first new message, once it's loaded. */
-  firstId: number | null
-  since: number | null
+// ── What's on screen ────────────────────────────────────────────────────────
+
+function syncShown(): void {
+  const app = useApp.getState()
+  const server = app.activeServer
+  const channel = activeChannelId(app)
+  setShown('channel', server && channel !== null ? channelConv(server, channel) : null)
+  const thread = useThreads.getState().open
+  setShown('thread', thread && thread.key === server ? channelConv(thread.key, thread.id) : null)
+  const home = useDms.getState().open
+  setShown('home', server !== null ? null : home.kind === 'dm' ? dmConv(home.peer) : home.kind === 'group' ? groupConv(home.key) : null)
+}
+useApp.subscribe(syncShown)
+useThreads.subscribe(syncShown)
+useDms.subscribe(syncShown)
+syncShown()
+
+// ── Counts ──────────────────────────────────────────────────────────────────
+
+type Counts = { unread: number; mentions: number }
+
+/** A channel row's counts: its own, plus mentions in its threads (and, for a forum, every new reply in its posts). */
+export function channelCounts(serverKey: string, channel: Pick<Channel, 'id' | 'kind'>,
+  convs = useReads.getState().convs, threads = useThreads.getState().threads[serverKey] ?? {}): Counts {
+  const own = convs[channelConv(serverKey, channel.id)]
+  let unread = own?.unread ?? 0
+  let mentions = own?.mentions ?? 0
+  for (const thread of Object.values(threads)) {
+    if (thread.channelId !== channel.id) continue
+    const r = convs[channelConv(serverKey, thread.id)]
+    if (!r) continue
+    mentions += r.mentions
+    if (channel.kind === 'forum') unread += r.unread
+  }
+  return { unread, mentions }
 }
 
-export const useUnread = create<{ markers: Record<string, UnreadMarker> }>(() => ({ markers: {} }))
-
-export const markerKey = (serverKey: string, channelId: number) => `${serverKey}:${channelId}`
-
-export const useUnreadMarker = (serverKey: string, channelId: number) => useUnread((s) => s.markers[markerKey(serverKey, channelId)])
-
-/** Finds the first new message in what's loaded (null if older messages still need loading). */
-export function resolveMarker(marker: UnreadMarker, list: PendingMessage[] | undefined, hasMore: boolean): UnreadMarker {
-  if (marker.firstId !== null || !list) return marker
-  const confirmed = list.filter((m) => !m.tempId)
-  const anchorId = marker.anchorId ?? confirmed.at(-1)?.id ?? null
-  if (anchorId === null) return marker
-  const upTo = confirmed.filter((m) => m.id <= anchorId)
-  const first = upTo.length >= marker.count ? upTo[upTo.length - marker.count] : hasMore ? undefined : upTo[0]
-  return { ...marker, anchorId, firstId: first?.id ?? null, since: first ? first.createdAt : marker.since }
+/** channelCounts, re-rendering when read state or the server's threads change. */
+export function useChannelCounts(serverKey: string, channel: Pick<Channel, 'id' | 'kind'>): Counts {
+  const convs = useReads((s) => s.convs)
+  const threads = useThreads((s) => s.threads[serverKey])
+  return channelCounts(serverKey, channel, convs, threads ?? {})
 }
 
-function setMarker(key: string, marker: UnreadMarker | null): void {
-  useUnread.setState((s) => {
-    const markers = { ...s.markers }
-    if (marker) markers[key] = marker
-    else delete markers[key]
-    return { markers }
+/** Channels that can show unread in the sidebar (text and forums), in sidebar order. */
+function listedChannels(server: ServerState): Channel[] {
+  const layout = layoutChannels(server.channels, useOrganize.getState().categories[server.key] ?? [])
+  return [...layout.uncategorized, ...layout.groups.flatMap((g) => g.channels)].filter((c) => c.kind === 'text' || c.kind === 'forum')
+}
+
+/** What each listed channel shows once notification settings apply (muted: no dot; "Nothing": no mention badge). */
+export function channelRows(server: ServerState): { id: number; unread: boolean; pings: number; count: number }[] {
+  return listedChannels(server).map((c) => {
+    const counts = channelCounts(server.key, c)
+    const shown = channelBadges(counts.unread, counts.mentions, notifyFor(server.key, c.id))
+    return { id: c.id, unread: shown.unread, pings: shown.pings, count: counts.unread }
   })
 }
 
-// Watches which channel is open: opening one with unread messages leaves a marker; leaving it clears it.
-let viewing: { server: string; channel: number } | null = null
-useApp.subscribe((state) => {
-  const server = state.activeServer
-  const channel = activeChannelId(state)
-  const current = server && channel !== null ? { server, channel } : null
-  if (current?.server !== viewing?.server || current?.channel !== viewing?.channel) {
-    if (viewing) setMarker(markerKey(viewing.server, viewing.channel), null)
-    viewing = current
-    if (current) {
-      const s = state.servers[current.server]
-      const count = s?.unread[current.channel] ?? 0
-      if (count > 0) {
-        const list = s.messages[current.channel]
-        setMarker(markerKey(current.server, current.channel),
-          resolveMarker({ count, anchorId: list ? list.filter((m) => !m.tempId).at(-1)?.id ?? null : null, firstId: null, since: null }, list, !!s.hasMore[current.channel]))
-      }
-    }
+/** The server icon's badge and dot: the sum of what its channel rows show. */
+export function serverBadges(server: ServerState): { pings: number; unread: number } {
+  let pings = 0
+  let unread = 0
+  for (const row of channelRows(server)) {
+    pings += row.pings
+    if (row.unread) unread += row.count
   }
-  // Resolve the open channel's marker as its history loads.
-  if (current) {
-    const key = markerKey(current.server, current.channel)
-    const marker = useUnread.getState().markers[key]
-    const s = state.servers[current.server]
-    if (marker && marker.firstId === null && s) {
-      const next = resolveMarker(marker, s.messages[current.channel], !!s.hasMore[current.channel])
-      if (next !== marker) setMarker(key, next)
-    }
-  }
-})
+  return { pings, unread }
+}
 
-// ── Marking read ────────────────────────────────────────────────────────────
+/** Unread messages in DMs and group DMs (the Home badge). */
+export function homeUnread(convs: Record<string, ConversationRead> = useReads.getState().convs): number {
+  let total = 0
+  for (const [k, r] of Object.entries(convs)) if (k.startsWith('d:') || k.startsWith('g:')) total += r.unread
+  return total
+}
+
+/** The title and taskbar count: the mention badges on server icons, plus unread DMs and group DMs. */
+export function badgeTotal(): number {
+  return Object.values(useApp.getState().servers).reduce((n, s) => n + serverBadges(s).pings, 0) + homeUnread()
+}
+
+// ── Marking read and unread ─────────────────────────────────────────────────
 
 export function markChannelRead(serverKey: string, channelId: number): void {
   const threads = useThreads.getState().threads[serverKey] ?? {}
-  const ids = [channelId, ...Object.values(threads).filter((t) => t.channelId === channelId).map((t) => t.id)]
-  patchServer(serverKey, (s) => ({
-    unread: { ...s.unread, ...Object.fromEntries(ids.map((id) => [id, 0])) },
-    mentions: { ...s.mentions, ...Object.fromEntries(ids.map((id) => [id, 0])) },
-  }))
-  setMarker(markerKey(serverKey, channelId), null)
+  const keys = new Set([channelId, ...Object.values(threads).filter((t) => t.channelId === channelId).map((t) => t.id)]
+    .map((id) => channelConv(serverKey, id)))
+  markReadWhere((k) => keys.has(k))
+  const channel = useApp.getState().servers[serverKey]?.channels.find((c) => c.id === channelId)
+  if (channel?.kind === 'forum') resetForumSeen(serverKey, channelId)
 }
 
 export function markServerRead(serverKey: string): void {
-  patchServer(serverKey, () => ({ unread: {}, mentions: {} }))
-  useUnread.setState((s) => ({ markers: Object.fromEntries(Object.entries(s.markers).filter(([k]) => !k.startsWith(`${serverKey}:`))) }))
+  markReadWhere((k) => k.startsWith(serverPrefix(serverKey)))
+  for (const c of useApp.getState().servers[serverKey]?.channels ?? []) if (c.kind === 'forum') resetForumSeen(serverKey, c.id)
+}
+
+/** "Mark unread" on a message: unread from there on, counted the way arriving messages are. */
+export function markUnread(serverKey: string, channelId: number, messageId: number): void {
+  const server = useApp.getState().servers[serverKey]
+  const message = server?.messages[channelId]?.find((m) => m.id === messageId && !m.tempId)
+  if (!server || !message) return
+  const counted = server.messages[channelId].filter((m) => !m.tempId && m.id >= messageId
+    && m.author !== server.me?.accountKey && !senderRules.ignored(m.author))
+  const mentions = counted.filter((m) => !m.forwarded && senderRules.mentionsMe(server, m)).length
+  markConversationUnread(channelConv(serverKey, channelId), { id: message.id, at: message.createdAt }, { unread: counted.length, mentions })
+}
+
+/** Esc: what's open is read (the channel and its threads, or the DM or group). */
+export function markOpenRead(): void {
+  const app = useApp.getState()
+  if (app.activeServer) {
+    const channel = activeChannelId(app)
+    if (channel !== null) markChannelRead(app.activeServer, channel)
+    const thread = useThreads.getState().open
+    if (thread?.key === app.activeServer) markConversationRead(channelConv(thread.key, thread.id))
+    return
+  }
+  const home = useDms.getState().open
+  if (home.kind === 'dm') markConversationRead(dmConv(home.peer))
+  if (home.kind === 'group') markConversationRead(groupConv(home.key))
+}
+
+/** Shift+Esc: the whole server, or every DM and group at Home. */
+export function markAllRead(): void {
+  const server = useApp.getState().activeServer
+  if (server) markServerRead(server)
+  else markReadWhere((k) => k.startsWith('d:') || k.startsWith('g:'))
 }
 
 // ── Moving between unread channels ──────────────────────────────────────────
 
-/** Text channels in sidebar order, with whether each has something unread for you. */
+/** Listed channels in sidebar order, with whether each shows something unread for you. */
 export function unreadOrder(server: ServerState): { id: number; unread: boolean }[] {
-  const layout = layoutChannels(server.channels, useOrganize.getState().categories[server.key] ?? [])
-  const ordered = [...layout.uncategorized, ...layout.groups.flatMap((g) => g.channels)].filter((c) => c.kind === 'text')
-  return ordered.map((c) => {
-    const shown = channelBadges(server.unread[c.id] ?? 0, (server.mentions[c.id] ?? 0) + threadMentions(server, c.id), notifyFor(server.key, c.id))
-    return { id: c.id, unread: shown.unread || shown.pings > 0 }
-  })
+  return channelRows(server).map((row) => ({ id: row.id, unread: row.unread || row.pings > 0 }))
 }
 
 /** The next unread channel after (or before) the current one, wrapping around. */

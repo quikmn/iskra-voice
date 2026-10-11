@@ -4,6 +4,7 @@ import type { Channel, Pin, Thread } from '../../core/protocol'
 import type { ServerState } from '../../state/store'
 import { canPin, loadPins, setPinned, usePinNotes } from '../../state/pins'
 import { loadThreads, openThread, useThreads } from '../../state/threads'
+import { channelConv, useReads } from '../../state/readState'
 import { openSearch, runSearch, setSearchText, useSearch, closeSearch } from '../../state/search'
 import { jumpToMessage } from '../../state/jump'
 import { Avatar, Spinner } from '../bits'
@@ -156,6 +157,7 @@ function ThreadList({ server, channelId, onOpen }: { server: ServerState; channe
   const [showOlder, setShowOlder] = useState(false)
   const [now] = useState(() => Date.now())
   const all = useThreads((s) => s.threads[server.key])
+  const reads = useReads((s) => s.convs)
 
   useEffect(() => {
     loadThreads(server.key, channelId).then(() => setLoaded(true)).catch((e: Error) => setError(e.message))
@@ -179,8 +181,8 @@ function ThreadList({ server, channelId, onOpen }: { server: ServerState; channe
     )
   }
   const row = (t: Thread) => {
-    const pings = server.mentions[t.id] ?? 0
-    const unread = server.unread[t.id] ?? 0
+    const pings = reads[channelConv(server.key, t.id)]?.mentions ?? 0
+    const unread = reads[channelConv(server.key, t.id)]?.unread ?? 0
     return (
       <li key={t.id}>
         <button className={`thread-row ${unread ? 'unread' : ''}`} onClick={() => {

@@ -19,6 +19,7 @@ import { groupTitle, type GroupMsg } from './groupLogic'
 import { show } from './notify'
 import { isBlocked, useBlocks } from './moderation'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
+import { forgetConversation, groupConv, isOnScreen, noteMessage, seeConversation } from './readState'
 import { keysReady } from './keyMap'
 
 export interface GroupConv {
@@ -36,7 +37,6 @@ export interface GroupConv {
   names: Record<string, string>
   messages: GroupMsg[]
   loaded: boolean
-  unread: number
   /** The server says we're not in it, without a signed change we could check (we may have missed it while away). */
   gone?: boolean
   /** The chain didn't verify, or contradicts what this device saw before. Shown; sending stays off. */
@@ -82,7 +82,7 @@ function namesFor(g: GroupConv): Record<string, string> {
 }
 
 function blank(serverKey: string, id: string): GroupConv {
-  return { key: groupKey(serverKey, id), serverKey, id, chain: [], view: null, name: null, nameAt: 0, names: {}, messages: [], loaded: false, unread: 0 }
+  return { key: groupKey(serverKey, id), serverKey, id, chain: [], view: null, name: null, nameAt: 0, names: {}, messages: [], loaded: false }
 }
 
 function patchGroup(key: string, patch: (g: GroupConv) => Partial<GroupConv>): void {
@@ -286,17 +286,14 @@ async function openMessage(key: string, wire: WireGroupMessage): Promise<GroupMs
 /** Adds a message (and applies a rename in it if it's the newest one). */
 function addMessage(key: string, message: GroupMsg, countUnread: boolean): void {
   const rename = !message.error && !message.pending ? asRename(message.group) : null
+  const known = useGroups.getState().groups[key]?.messages.some((m) => m.id === message.id && m.from === message.from)
+  if (countUnread && !known) noteMessage(groupConv(key), { id: message.id, at: message.sentAt }, false)
   patchGroup(key, (g) => ({
     messages: mergeDm(g.messages, message),
-    unread: countUnread ? g.unread + 1 : g.unread,
     ...(rename && message.sentAt >= g.nameAt ? { name: rename.name || null, nameAt: message.sentAt } : {}),
   }))
 }
 
-const isViewing = (key: string) => {
-  const open = useDms.getState().open
-  return useApp.getState().activeServer === null && open.kind === 'group' && open.key === key && document.hasFocus()
-}
 
 async function onGroupMessage(serverKey: string, wire: WireGroupMessage): Promise<void> {
   await ensurePrekeys()
@@ -304,9 +301,9 @@ async function onGroupMessage(serverKey: string, wire: WireGroupMessage): Promis
   if (!useGroups.getState().groups[key]?.view) await syncGroup(key)
   const message = await openMessage(key, wire)
   const mine = message.from === me()
-  const viewing = isViewing(key)
+  const viewing = isOnScreen(groupConv(key))
   const silent = !!asRename(message.group) && (message.group as { silent?: unknown }).silent === true
-  addMessage(key, message, !mine && !viewing && !silent)
+  addMessage(key, message, !mine && !silent)
   // Someone you blocked stays in the group and their messages arrive, but they never notify you.
   if (!mine && !viewing && !silent && !isBlocked(useBlocks.getState().entries, message.from)) {
     const g = useGroups.getState().groups[key]
@@ -470,6 +467,7 @@ export async function leaveGroup(key: string): Promise<void> {
 
 /** Drops a group from this device (after leaving, or when you were removed). */
 export function forgetGroup(key: string): void {
+  forgetConversation(groupConv(key))
   useGroups.setState((s) => {
     const groups = { ...s.groups }
     delete groups[key]
@@ -483,12 +481,8 @@ export function forgetGroup(key: string): void {
 export function openGroup(key: string): void {
   useApp.setState({ activeServer: null })
   useDms.setState({ open: { kind: 'group', key } })
-  patchGroup(key, () => ({ unread: 0 }))
+  seeConversation(groupConv(key))
   void loadGroupHistory(key)
-}
-
-export function markGroupRead(key: string): void {
-  patchGroup(key, () => ({ unread: 0 }))
 }
 
 // ── Server events ──────────────────────────────────────────────────────────
