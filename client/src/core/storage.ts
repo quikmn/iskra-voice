@@ -401,3 +401,9 @@ export async function loadBlocks(): Promise<import('./protocol').BlockEntry[]> {
 }
 
 export const saveBlocks = (blocks: import('./protocol').BlockEntry[]) => set('blocks', blocks)
+
+// ── Productivity: saved messages and cached reminders (see state/saved.ts, state/reminders.ts) ──
+
+/** A private value kept encrypted at rest (it may quote DMs). */
+export const loadPrivate = <T>(name: string) => getSecret<T>(`productivity:${name}`)
+export const savePrivate = (name: string, value: unknown) => setSecret(`productivity:${name}`, value)

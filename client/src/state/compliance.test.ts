@@ -16,6 +16,7 @@ describe('data on this device', () => {
     blocks: [{ accountKey: 'b', blocked: true, at: 2 }],
     dms: { friend: [dm('1'), dm('2', { files: [{ key: 'file-key-secret', name: 'a.png' }], call: { kind: 'missed' } })] },
     groups: [{ serverKey: 'srv', id: 'g', chain: [{ payload: 'p', sig: 's' }], name: 'Crew', nameAt: 1, names: { me: 'Sam' }, messages: [dm('3')] }],
+    saved: [{ key: 'k1', ref: { kind: 'dm', peer: 'friend', from: 'me', id: '1' }, savedAt: 9, snap: { preview: 'text 1' } }, { key: 'k2', ref: {}, savedAt: 1, removedAt: 2 }],
   })
   const text = JSON.stringify(exported)
 
@@ -26,6 +27,7 @@ describe('data on this device', () => {
     expect(exported.directMessages[0].messages[1]).toMatchObject({ attachments: 1, call: true })
     expect(exported.groups[0]).toMatchObject({ name: 'Crew', members: { me: 'Sam' } })
     expect(exported.servers).toEqual([{ name: 'Hangout', url: 'https://chat.example.com', serverKey: 'srv' }])
+    expect(exported.savedMessages).toEqual([{ message: { kind: 'dm', peer: 'friend', from: 'me', id: '1' }, savedAt: 9, snapshot: { preview: 'text 1' } }])
   })
 
   it('leaves out keys, invites and raw bytes', () => {

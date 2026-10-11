@@ -1337,6 +1337,88 @@ export interface Requests {
   'owner.transfer': [{ accountKey: string }, Record<string, never>]
 }
 
+// ── productivity: edit history, reminders, scheduled messages, the inbox ──
+
+export interface MessageVersion {
+  text: string
+  /** When this version was written. */
+  at: number
+}
+
+/** `data` is sealed by your devices (core/sealed.ts); channelId/messageId only for reminders about a channel message. */
+export interface WireReminder {
+  id: number
+  dueAt: number
+  data: string
+  channelId: number | null
+  messageId: number | null
+  createdAt: number
+  firedAt: number | null
+}
+
+export type ScheduledKind = 'channel' | 'dm' | 'group'
+
+export interface WireScheduled {
+  id: number
+  kind: ScheduledKind
+  channelId: number | null
+  /** The DM's recipient. */
+  accountKey: string | null
+  groupId: string | null
+  version: number | null
+  /** Channel messages only. */
+  text: string | null
+  replyTo: number | null
+  /** DMs and groups: end-to-end encrypted when scheduled. */
+  envelope: import('./dm').DmEnvelope | import('./group').GroupEnvelope | null
+  sendAt: number
+  createdAt: number
+  status: 'pending' | 'sending' | 'failed'
+  error: string | null
+}
+
+export type InboxKind = 'mention' | 'reply' | 'role' | 'everyone'
+
+export interface InboxItem {
+  kind: InboxKind
+  channelId: number
+  at: number
+  message: Message
+}
+
+export interface Events {
+  'reminder.updated': { reminder: WireReminder }
+  'reminder.deleted': { id: number }
+  'reminder.due': { reminder: WireReminder }
+  'scheduled.updated': { scheduled: WireScheduled }
+  'scheduled.deleted': { id: number; sent: boolean }
+  'inbox.new': { item: InboxItem }
+}
+
+export interface Requests {
+  'chat.edits': [{ id: number }, { versions: MessageVersion[] }]
+  'reminder.create': [{ dueAt: number; data: string; messageId?: number }, { reminder: WireReminder }]
+  'reminder.list': [Record<string, never>, { reminders: WireReminder[] }]
+  'reminder.update': [{ id: number; dueAt: number; data?: string }, { reminder: WireReminder }]
+  'reminder.delete': [{ id: number }, Record<string, never>]
+  'scheduled.create': [
+    { sendAt: number } & (
+      | { channelId: number; text: string; replyTo?: number }
+      | { accountKey: string; envelope: import('./dm').DmEnvelope }
+      | { groupId: string; version: number; envelope: import('./group').GroupEnvelope }
+    ),
+    { scheduled: WireScheduled },
+  ]
+  'scheduled.list': [Record<string, never>, { scheduled: WireScheduled[] }]
+  'scheduled.update': [
+    { id: number; sendAt?: number; text?: string; envelope?: import('./dm').DmEnvelope | import('./group').GroupEnvelope; version?: number },
+    { scheduled: WireScheduled },
+  ]
+  'scheduled.delete': [{ id: number }, Record<string, never>]
+  'scheduled.send': [{ id: number }, { message: unknown }]
+  'inbox.list': [{ before?: number; limit?: number }, { items: InboxItem[]; hasMore: boolean; next: number | null }]
+}
+
 // ── security log, retention and data export ──
 // See "Security log, retention and your data" in PROTOCOL.md.
 

@@ -51,6 +51,8 @@ import { sendSticker } from '../state/stickers'
 import { SpoilerToggle, isSpoilerName, longTextFile } from './chat/media'
 import { AutoModAlertCard } from './automod/AutoModAlert'
 import { userMenuProps } from './people/userMenuProps'
+import { EditedMark } from './productivity/EditHistory'
+import { useSendLater } from './productivity/SendLater'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -344,7 +346,7 @@ function MessageRow({
           (message.text || message.editedAt) && !message.poll && (
             <div className="message-text">
               {renderMarkdown(message.text, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey, emoji: emojiLookup, roleOf, serverKey: server.key })}
-              {message.editedAt && <span className="edited" title={fullTime(message.editedAt)}> {t('chat.message.edited')}</span>}
+              <EditedMark server={server} message={message} />
             </div>
           )
         )}
@@ -553,6 +555,16 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
       .slice(0, 3)
       .map((r) => ({ key: `role-${r.id}`, name: r.name, color: r.color })),
   ]
+  const later = useSendLater({
+    target: { kind: 'channel', server: server.key, channelId, replyTo: replyTo?.id },
+    prepare: () => (text.trim() ? encodeEmoji(encodeMentions(text.trim(), Object.values(server.members), mentionableRoles), emojis) : null),
+    blocked: uploads.length > 0 ? t('productivity.sendLater.noFiles') : null,
+    disabled: !online,
+    onScheduled: () => {
+      setText('')
+      setReply(server.key, channelId, null)
+    },
+  })
   const emojiSuggest = useEmojiSuggest(server.key, text, caret, (next) => {
     setText(next.text)
     setCaret(next.caret)
@@ -703,10 +715,12 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
       </button>
       {!text.trim() && uploads.length === 0 && voiceRecordingSupported() && <VoiceRecordButton onSend={sendVoice} disabled={!online} />}
       <SlowmodeChip seconds={slowmode.seconds} wait={slowmode.wait} />
-      <button className="send-button" onClick={submit} disabled={!canSend} aria-label={t('common.send')}>
+      {later.button}
+      <button className="send-button" onClick={submit} disabled={!canSend} aria-label={t('common.send')} {...later.sendProps}>
         <Send />
       </button>
     </div>
+      {later.dialog}
       {picker && (
         <ExpressionPicker
           key={pickerTab}

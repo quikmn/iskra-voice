@@ -6,7 +6,7 @@ using Iskra.Server.Storage;
 namespace Iskra.Server.Features;
 
 /// <summary>
-/// Enforces Retention in server.json every hour: channel messages and DM/group envelopes, files in messages and DMs, and the
+/// Enforces Retention in server.json every hour: channel messages (with their edit history) and DM/group envelopes, files in messages and DMs, and the
 /// security log. The audit log is pruned by the ModerationSweeper; expired data exports are deleted here too.
 /// </summary>
 public sealed class RetentionSweeper(World world, Hub hub, Uploads uploads, DataExports exports, TimeProvider time, ILogger<RetentionSweeper> log)
@@ -46,6 +46,7 @@ public sealed class RetentionSweeper(World world, Hub hub, Uploads uploads, Data
                     Forget(deleted, announce: result.Messages <= MaxAnnounced);
                 } while (deleted.Count == Batch);
                 result.Envelopes = world.Store.DeleteEnvelopesBefore(cutoff);
+                world.Store.PruneMessageVersions(cutoff); // edit history follows its messages
             }
             if (r.UploadsDays > 0) result.Files = uploads.DeleteOldMessageFiles(Cutoff(r.UploadsDays));
             if (r.SecurityLogDays > 0) result.Security = world.Store.PruneSecurityLog(Cutoff(r.SecurityLogDays));

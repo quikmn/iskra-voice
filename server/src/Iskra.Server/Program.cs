@@ -42,6 +42,7 @@ builder.Services.AddHostedService<PollCloser>();
 builder.Services.AddSingleton<EventScheduler>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<EventScheduler>());
 builder.Services.AddHostedService<ModerationSweeper>();
+builder.Services.AddHostedService<ProductivityScheduler>();
 builder.Services.AddPush(world);
 builder.Services.AddSingleton<LinkRelay>();
 builder.Services.Configure<LinkSettings>(builder.Configuration.GetSection("Link"));

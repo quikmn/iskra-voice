@@ -77,6 +77,7 @@ public sealed class Session
     public VoiceRegistry Voice => _voice;
     public Uploads Uploads => _uploads;
     public LinkPreviews Previews => _previews;
+    public Router Router => _router;
     public TimeProvider Time => _time;
     public long Now => _time.GetUtcNow().ToUnixTimeMilliseconds();
 
@@ -94,6 +95,20 @@ public sealed class Session
         _log = log;
         _time = time;
         _rateLimiter = new RateLimiter(time);
+    }
+
+    /// <summary>
+    /// A session without a connection that acts for <paramref name="accountKey"/>: scheduled messages go out through it with
+    /// the same handlers and checks as a live send (<see cref="Router.Invoke"/>). Anything sent to it is dropped.
+    /// </summary>
+    public static Session Detached(string accountKey, World world, Hub hub, VoiceRegistry voice, Uploads uploads, LinkPreviews previews,
+        Router router, ILogger log, TimeProvider time, Push.PushService push, Gifs.GifService gifs)
+    {
+        var session = new Session(null!, world, hub, voice, uploads, previews, router, new SessionLimits(), log, time) { Push = push, Gifs = gifs };
+        session.AccountKey = accountKey;
+        session._early = null;
+        session._closing = true;
+        return session;
     }
 
     /// <summary>The member record as it is right now (roles can change mid-session).</summary>

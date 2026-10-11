@@ -137,6 +137,10 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
             SELECT m.id, m.channel_id, c.name AS channel_name, m.author_key, m.text, m.created_at, m.edited_at, m.attachments, m.reply_to
             FROM messages m LEFT JOIN channels c ON c.id = m.channel_id WHERE m.author_key {Mine} ORDER BY m.id;
             """);
+        Section("editHistory", $"""
+            SELECT e.message_id, e.text, e.written_at FROM message_edits e JOIN messages m ON m.id = e.message_id
+            WHERE m.author_key {Mine} ORDER BY e.id;
+            """);
         Section("reactions", $"SELECT message_id, account_key, emoji, created_at FROM reactions WHERE account_key {Mine} ORDER BY created_at;");
         Section("pollVotes", $"SELECT message_id, account_key, option, created_at FROM poll_votes WHERE account_key {Mine};");
         Section("eventInterest", $"SELECT event_id, account_key, created_at FROM event_interest WHERE account_key {Mine};");
@@ -144,6 +148,14 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         Section("directMessages", $"SELECT id, from_key, to_key, created_at FROM dms WHERE from_key {Mine} OR to_key {Mine} ORDER BY id;");
         Section("groups", $"SELECT group_id, account_key FROM group_members WHERE account_key {Mine};");
         Section("groupMessagesSent", $"SELECT id, group_id, from_key, created_at FROM group_messages WHERE from_key {Mine} ORDER BY id;");
+        // Reminders' data is sealed by your devices (what they're about and your note); the server only knows the rest.
+        Section("reminders", $"SELECT id, account_key, due_at, channel_id, message_id, data, created_at, fired_at FROM reminders WHERE account_key {Mine} ORDER BY id;");
+        // Encrypted scheduled DMs and group messages are left out (the server can't read them); channel ones include their text.
+        Section("scheduledMessages", $"""
+            SELECT id, account_key, kind, channel_id, peer_key, group_id, text, reply_to, send_at, created_at, status, error
+            FROM scheduled_messages WHERE account_key {Mine} ORDER BY id;
+            """);
+        Section("inbox", $"SELECT account_key, message_id, channel_id, kind, created_at FROM inbox_items WHERE account_key {Mine} ORDER BY message_id;");
         Section("invitesCreated", $"SELECT created_by, created_at, expires_at, max_uses, uses, role, revoked FROM invites WHERE created_by {Mine};");
         Section("timeouts", $"SELECT account_key, until, reason, at FROM timeouts WHERE account_key {Mine};");
         Section("bans", $"SELECT account_key, reason, banned_at FROM bans WHERE account_key {Mine};");
@@ -168,11 +180,14 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         - syncedSettings, notificationSettings, rulesAccepted, blockList: your settings as the server keeps them.
         - devices, removedDevices, pushSubscriptions, keyRotations, accountDeletion: your account's keys and devices
           (public keys only: your private keys never leave your devices).
-        - messages, reactions, pollVotes, eventInterest, uploads, invitesCreated: what you wrote and shared in server channels.
+        - messages, editHistory, reactions, pollVotes, eventInterest, uploads, invitesCreated: what you wrote and shared in server
+          channels (editHistory: earlier versions of your edited messages).
           Uploaded files are listed by name, size and type; open them in the app or ask the owner for a full backup.
         - directMessages, groups, groupMessagesSent: your direct messages and group chats are end-to-end encrypted, so the
           server only knows who wrote to whom and when. Their content is on your devices: in the app, use
           Settings -> Privacy & data -> Download data on this device.
+        - reminders, scheduledMessages, inbox: your reminders (what each is about is sealed by your devices: "data"), messages
+          waiting to be sent later (encrypted DMs and group messages only by time and recipient), and messages that mentioned you.
         - timeouts, bans, reportsMade, reportsAboutYou, auditLog, securityLog: moderation and security records about you.
           Reports about you don't say who made them.
 

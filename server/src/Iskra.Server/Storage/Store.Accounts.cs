@@ -60,6 +60,10 @@ public sealed partial class Store
                 DELETE FROM dm_file_access WHERE account_key = $k;
                 DELETE FROM dm_files WHERE uploader = $k;
                 DELETE FROM group_messages WHERE from_key = $k;
+                DELETE FROM reminders WHERE account_key = $k;
+                DELETE FROM scheduled_messages WHERE account_key = $k OR peer_key = $k;
+                DELETE FROM inbox_items WHERE account_key = $k;
+                DELETE FROM message_edits WHERE message_id IN (SELECT id FROM messages WHERE author_key = $k);
                 UPDATE invites SET revoked = 1 WHERE created_by = $k;
                 UPDATE audit_log SET actor_name = '' WHERE actor = $k;
                 UPDATE audit_log SET target_name = NULL WHERE target = $k;

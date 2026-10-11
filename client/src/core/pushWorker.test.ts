@@ -72,6 +72,14 @@ describe('push service worker', () => {
     expect(w.shown[2].options.data).toEqual({ route: `/open/${SERVER}` })
   })
 
+  it('routes reminders to the reminder (its content is sealed, so the app opens it)', async () => {
+    const w = worker()
+    await w.push({ ...mention, kind: 'reminder', title: 'Reminder', tag: 'reminder:5', channelId: 7, reminder: 5 })
+    await w.push({ ...mention, kind: 'reminder', title: 'Reminder', tag: 'reminder:6', channelId: null, reminder: 'x' })
+    expect(w.shown[0].options.data).toEqual({ route: `/open/${SERVER}/r/5` })
+    expect(w.shown[1].options.data).toEqual({ route: `/open/${SERVER}` })
+  })
+
   it('falls back to a generic notification for anything unexpected', async () => {
     const w = worker()
     await w.push({ ...mention, server: 'X'.repeat(43) }) // another server's payload in this registration

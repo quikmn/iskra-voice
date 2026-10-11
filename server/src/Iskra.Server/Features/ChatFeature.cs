@@ -87,6 +87,7 @@ public static class ChatFeature
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.message", new { message = publicMessage, nonce }));
         ThreadFeature.Touched(s, channel);
         s.Push.ChatMessage(channel, message);
+        InboxFeature.Record(s, channel, message);
         return new { message = publicMessage, nonce };
     }
 
@@ -119,6 +120,7 @@ public static class ChatFeature
 
         var text = MessageText(body);
         AutoModFeature.Check(s, me, channel, text, "edit");
+        if (text != message.Text) EditHistoryFeature.Record(s.World.Store, message);
         s.World.Store.EditMessage(message.Id, text, s.Now);
         var edited = View(s, message with { Text = text, EditedAt = s.Now });
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.edited", new { message = edited }));

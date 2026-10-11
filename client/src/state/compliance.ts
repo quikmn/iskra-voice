@@ -87,6 +87,8 @@ interface DeviceExportInput {
   blocks: unknown[]
   dms: Record<string, storage.StoredDm[]>
   groups: storage.StoredGroup[]
+  /** Saved messages (state/saved.ts), as kept on this device. */
+  saved?: unknown[]
 }
 
 /** A DM as exported: what was said and when; attachment keys and call internals stay on the device. */
@@ -128,14 +130,19 @@ export function buildDeviceExport(input: DeviceExportInput) {
       members: g.names ?? {},
       messages: g.messages.map(plainMessage),
     })),
+    savedMessages: (input.saved ?? []).flatMap((raw) => {
+      const e = raw as { ref?: unknown; savedAt?: unknown; removedAt?: unknown; snap?: unknown } | null
+      return e && e.ref && !e.removedAt ? [{ message: e.ref, savedAt: e.savedAt, snapshot: e.snap ?? null }] : []
+    }),
   }
 }
 
 /** Reads the device's storage (decrypting it with the vault, which is open while the app runs). */
 export async function collectDeviceExport(now = Date.now()) {
   const identity = useApp.getState().identity
-  const [profile, servers, friends, blocks, dms, groups] = await Promise.all([
+  const [profile, servers, friends, blocks, dms, groups, saved] = await Promise.all([
     storage.loadProfile(), storage.loadServers(), storage.loadFriends(), storage.loadBlocks(), storage.loadDmHistory(), storage.loadGroups(),
+    storage.loadPrivate<unknown[]>('saved').catch(() => undefined),
   ])
   return buildDeviceExport({
     now,
@@ -147,6 +154,7 @@ export async function collectDeviceExport(now = Date.now()) {
     blocks,
     dms,
     groups,
+    saved: Array.isArray(saved) ? saved : [],
   })
 }
 
