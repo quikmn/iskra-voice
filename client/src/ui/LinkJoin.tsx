@@ -45,6 +45,14 @@ export function LinkJoin({ initialCode, onBack }: { initialCode?: string | null;
       </div>
     )
   }
+  if (state.phase === 'history') {
+    return (
+      <div className="link-progress" role="status">
+        <p className="lead"><Spinner /> Bringing your message history… {Math.round((100 * state.received) / state.total)}%</p>
+        <progress max={state.total} value={state.received} aria-label="History received" />
+      </div>
+    )
+  }
   if (state.phase === 'finishing') {
     return <p className="lead"><Spinner /> Setting up your account…</p>
   }

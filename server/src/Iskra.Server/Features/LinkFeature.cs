@@ -17,6 +17,14 @@ public sealed class LinkSettings
     public int MaxRequestBytes { get; set; } = 1024;
     public int MaxPayloadBytes { get; set; } = 1024 * 1024;
     public int MaxPolls { get; set; } = 600;
+    /// <summary>History parts after the payload (each ≤ MaxPayloadBytes), how many may wait in memory per link and in total.</summary>
+    public int MaxParts { get; set; } = 256;
+    public int MaxBufferedParts { get; set; } = 4;
+    public long MaxBufferedBytes { get; set; } = 64L * 1024 * 1024;
+    /// <summary>While parts flow, the link stays alive this long after the last one moved.</summary>
+    public int PartIdleMs { get; set; } = 2 * 60 * 1000;
+    /// <summary>How long a GET for a part that hasn't arrived waits before answering 204.</summary>
+    public int PartWaitMs { get; set; } = 15_000;
 }
 
 /// <summary>
@@ -42,6 +50,12 @@ public sealed class LinkRelay
         public string? ExistingEpk, ExistingMac;
         public byte[]? Payload;
         public int Polls;
+        // History parts: put and taken strictly in order, a few at a time.
+        public int Parts;
+        public int NextPut;
+        public int NextGet;
+        public readonly Dictionary<int, byte[]> Waiting = [];
+        public TaskCompletionSource Arrived = new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 
     private static readonly ConditionalWeakTable<World, LinkRelay> ByWorld = new();
@@ -50,6 +64,7 @@ public sealed class LinkRelay
     private readonly Lock _gate = new();
     private readonly TimeProvider _time;
     private readonly AccountLimits _perAddress;
+    private long _bufferedBytes;
 
     public LinkSettings Settings { get; }
 
@@ -65,6 +80,9 @@ public sealed class LinkRelay
     private bool Allowed(HttpContext context) =>
         _perAddress.TryTake(context.Connection.RemoteIpAddress?.ToString() ?? "unknown", "link.http");
 
+    private bool AllowedPart(HttpContext context) =>
+        _perAddress.TryTake(context.Connection.RemoteIpAddress?.ToString() ?? "unknown", "link.part");
+
     private static IResult TooMany() => Results.StatusCode(StatusCodes.Status429TooManyRequests);
 
     /// <summary>The relay for a world (WebSocket handlers are static and reach it through the session's world).</summary>
@@ -78,7 +96,16 @@ public sealed class LinkRelay
     private void Sweep()
     {
         var now = Now;
-        foreach (var (token, entry) in _entries.Where(e => e.Value.Expires <= now).ToList()) _entries.Remove(token);
+        foreach (var (token, entry) in _entries.Where(e => e.Value.Expires <= now).ToList()) Drop(token, entry);
+    }
+
+    /// <summary>Must hold the lock.</summary>
+    private void Drop(string token, Entry entry)
+    {
+        _entries.Remove(token);
+        _bufferedBytes -= entry.Waiting.Values.Sum(p => (long)p.Length);
+        entry.Waiting.Clear();
+        entry.Arrived.TrySetResult();
     }
 
     private Entry? Find(string token)
@@ -123,7 +150,7 @@ public sealed class LinkRelay
     {
         lock (_gate)
         {
-            if (Find(token) is { } entry && entry.AccountKey == accountKey) _entries.Remove(token);
+            if (Find(token) is { } entry && entry.AccountKey == accountKey) Drop(token, entry);
         }
     }
 
@@ -179,9 +206,13 @@ public sealed class LinkRelay
             {
                 case State.Answered:
                     return Results.Json(new { state = "answered", epk = entry.ExistingEpk, mac = entry.ExistingMac });
+                case State.Done when entry.Payload is null:
+                    return Results.NotFound();
                 case State.Done:
-                    _entries.Remove(token);
-                    return Results.Json(new { state = "done", payload = Ed25519.ToB64u(entry.Payload) });
+                    var payload = Ed25519.ToB64u(entry.Payload);
+                    entry.Payload = null;
+                    if (entry.Parts == 0) _entries.Remove(token); // handed out once; with history parts to come, the link lives on
+                    return Results.Json(new { state = "done", payload, parts = entry.Parts });
                 default:
                     return Results.Json(new { state = "waiting", expiresAt = entry.Expires });
             }
@@ -204,15 +235,83 @@ public sealed class LinkRelay
     }
 
     /// <summary>The existing device uploads the encrypted payload (too big for a WebSocket frame).</summary>
-    public IResult Deliver(string token, string? putKey, byte[] payload)
+    public IResult Deliver(string token, string? putKey, byte[] payload, int parts = 0)
     {
         lock (_gate)
         {
             if (CheckDelivery(token, putKey) is { } refused) return refused;
             var entry = _entries[token];
             entry.Payload = payload;
+            entry.Parts = parts;
             entry.State = State.Done;
+            if (parts > 0) entry.Expires = Math.Max(entry.Expires, Now + Settings.PartIdleMs);
             return Results.Ok(new { });
+        }
+    }
+
+    // ── History parts: after the payload, the existing device streams more sealed parts, in order ──
+
+    private static bool KeyMatches(string? given, string? expected) =>
+        given is not null && expected is not null
+        && CryptographicOperations.FixedTimeEquals(System.Text.Encoding.UTF8.GetBytes(given), System.Text.Encoding.UTF8.GetBytes(expected));
+
+    /// <summary>Null if part <paramref name="index"/> may be put now, else the answer (429: wait, the new device hasn't caught up).</summary>
+    public IResult? CanDeliverPart(string token, string? putKey, int index)
+    {
+        lock (_gate)
+        {
+            var entry = Find(token);
+            if (entry is null) return Results.NotFound();
+            if (!KeyMatches(putKey, entry.PutKey)) return Results.StatusCode(StatusCodes.Status403Forbidden);
+            if (entry.State != State.Done || index != entry.NextPut || index >= entry.Parts) return Results.Conflict();
+            if (entry.NextPut - entry.NextGet >= Settings.MaxBufferedParts || _bufferedBytes >= Settings.MaxBufferedBytes)
+                return Results.StatusCode(StatusCodes.Status429TooManyRequests);
+            return null;
+        }
+    }
+
+    public IResult DeliverPart(string token, string? putKey, int index, byte[] part)
+    {
+        lock (_gate)
+        {
+            if (CanDeliverPart(token, putKey, index) is { } refused) return refused;
+            var entry = _entries[token];
+            entry.Waiting[index] = part;
+            entry.NextPut++;
+            _bufferedBytes += part.Length;
+            entry.Expires = Now + Settings.PartIdleMs;
+            entry.Arrived.TrySetResult();
+            entry.Arrived = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            return Results.Ok(new { });
+        }
+    }
+
+    /// <summary>The new device takes part <paramref name="index"/> (once), waiting a while for it to arrive; 204 if it hasn't yet.</summary>
+    public async Task<IResult> TakePartAsync(string token, string? readKey, int index)
+    {
+        var deadline = Now + Settings.PartWaitMs;
+        while (true)
+        {
+            Task arrived;
+            lock (_gate)
+            {
+                var entry = Find(token);
+                if (entry is null) return Results.NotFound();
+                if (!KeyMatches(readKey, entry.ReadKey)) return Results.StatusCode(StatusCodes.Status403Forbidden);
+                if (entry.State != State.Done || entry.Payload is not null || index != entry.NextGet || index >= entry.Parts) return Results.Conflict();
+                if (entry.Waiting.Remove(index, out var part))
+                {
+                    entry.NextGet++;
+                    _bufferedBytes -= part.Length;
+                    entry.Expires = Now + Settings.PartIdleMs;
+                    if (entry.NextGet == entry.Parts) _entries.Remove(token);
+                    return Results.Bytes(part, "application/octet-stream");
+                }
+                arrived = entry.Arrived.Task;
+            }
+            var left = deadline - Now;
+            if (left <= 0) return Results.NoContent();
+            await Task.WhenAny(arrived, Task.Delay(TimeSpan.FromMilliseconds(left), _time));
         }
     }
 
@@ -290,7 +389,31 @@ public sealed class LinkRelay
             var body = await ReadBodyAsync(context, relay.Settings.MaxPayloadBytes);
             if (body is null) return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
             if (body.Length == 0) return Results.BadRequest();
-            return relay.Deliver(token, key, body);
+            var parts = 0;
+            if (context.Request.Query["parts"] is { Count: > 0 } raw && (!int.TryParse(raw, out parts) || parts < 0 || parts > relay.Settings.MaxParts))
+                return Results.BadRequest();
+            return relay.Deliver(token, key, body, parts);
+        });
+        app.MapMethods("/link/{token}/part/{index:int}", ["OPTIONS"], (HttpContext context) =>
+        {
+            AllowCors(context);
+            return Results.NoContent();
+        });
+        // Parts need the put or read key, so they get a roomier per-address limit than the open endpoints.
+        app.MapPut("/link/{token}/part/{index:int}", async (HttpContext context, string token, int index, string? key, LinkRelay relay) =>
+        {
+            AllowCors(context);
+            if (!relay.AllowedPart(context)) return TooMany();
+            if (relay.CanDeliverPart(token, key, index) is { } refused) return refused;
+            var body = await ReadBodyAsync(context, relay.Settings.MaxPayloadBytes);
+            if (body is null) return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
+            if (body.Length == 0) return Results.BadRequest();
+            return relay.DeliverPart(token, key, index, body);
+        });
+        app.MapGet("/link/{token}/part/{index:int}", async (HttpContext context, string token, int index, string? key, LinkRelay relay) =>
+        {
+            AllowCors(context);
+            return relay.AllowedPart(context) ? await relay.TakePartAsync(token, key, index) : TooMany();
         });
     }
 }

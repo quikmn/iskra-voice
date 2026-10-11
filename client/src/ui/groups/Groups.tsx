@@ -2,11 +2,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { b64u } from '../../core/crypto'
 import { asRename, MAX_GROUP_MEMBERS, MAX_GROUP_NAME, ownerOf } from '../../core/group'
-import { nameOf, isOnline } from '../../state/dms'
+import { isOnline } from '../../state/dms'
 import { asGroupCallLine, changeText, timeline, type GroupMsg } from '../../state/groupLogic'
 import {
-  addToGroup, cannotSend, createGroup, discardGroupMessage, forgetGroup, groupCandidates, isMember, leaveGroup, markGroupRead, openGroup,
-  removeFromGroup, renameGroup, sendGroupMessage, titleOf, useGroups, type GroupConv,
+  addToGroup, cannotSend, createGroup, discardGroupMessage, forgetGroup, groupCandidates, isArchived, isMember, leaveGroup, markGroupRead, openGroup,
+  knownName, removeFromGroup, renameGroup, sendGroupMessage, titleOf, useGroups, type GroupConv,
 } from '../../state/groups'
 import { useGroupCalls } from '../../state/groupCalls'
 import { useDms } from '../../state/dms'
@@ -31,11 +31,11 @@ export function GroupAvatar({ members, size = 28 }: { members: string[]; size?: 
   const me = myKey()
   const others = members.filter((m) => m !== me)
   const [a, b] = others.length ? others : [me]
-  if (!b) return <Avatar name={nameOf(a)} accountKey={a} size={size} />
+  if (!b) return <Avatar name={knownName(a)} accountKey={a} size={size} />
   return (
     <span className="group-avatar" style={{ width: size, height: size }} aria-hidden>
-      <Avatar name={nameOf(a)} accountKey={a} size={Math.round(size * 0.66)} />
-      <Avatar name={nameOf(b)} accountKey={b} size={Math.round(size * 0.66)} />
+      <Avatar name={knownName(a)} accountKey={a} size={Math.round(size * 0.66)} />
+      <Avatar name={knownName(b)} accountKey={b} size={Math.round(size * 0.66)} />
     </span>
   )
 }
@@ -47,9 +47,29 @@ export function GroupRows({ onNavigate }: { onNavigate: () => void }) {
   const calls = useGroupCalls((s) => s.calls)
   const [creating, setCreating] = useState(false)
   useApp((s) => s.servers)
-  const list = Object.values(groups)
+  const sorted = Object.values(groups)
     .filter((g) => g.view)
     .sort((a, b) => (b.messages.at(-1)?.sentAt ?? b.view!.changes.at(-1)!.at) - (a.messages.at(-1)?.sentAt ?? a.view!.changes.at(-1)!.at))
+  const list = sorted.filter((g) => !isArchived(g))
+  const archived = sorted.filter(isArchived)
+  const row = (g: GroupConv, old: boolean) => (
+    <button
+      key={g.key}
+      className={`channel dm-row group-row ${open.kind === 'group' && open.key === g.key ? 'active' : ''} ${g.unread && !old ? 'unread' : ''} ${isMember(g) && !old ? '' : 'former'}`}
+      onClick={() => {
+        openGroup(g.key)
+        onNavigate()
+      }}
+    >
+      <GroupAvatar members={g.view!.members} />
+      <span className="channel-name">
+        {titleOf(g)}
+        <small>{old ? 'Archived' : `${g.view!.members.length} members`}</small>
+      </span>
+      {!old && calls[g.key] && <span className="group-call-dot" title="Call in progress"><Phone size={12} /></span>}
+      {!old && g.unread > 0 && <span className="badge">{g.unread}</span>}
+    </button>
+  )
   return (
     <>
       <div className="channel-group">
@@ -64,24 +84,9 @@ export function GroupRows({ onNavigate }: { onNavigate: () => void }) {
           <span className="channel-name">New group</span>
         </button>
       )}
-      {list.map((g) => (
-        <button
-          key={g.key}
-          className={`channel dm-row group-row ${open.kind === 'group' && open.key === g.key ? 'active' : ''} ${g.unread ? 'unread' : ''} ${isMember(g) ? '' : 'former'}`}
-          onClick={() => {
-            openGroup(g.key)
-            onNavigate()
-          }}
-        >
-          <GroupAvatar members={g.view!.members} />
-          <span className="channel-name">
-            {titleOf(g)}
-            <small>{g.view!.members.length} members</small>
-          </span>
-          {calls[g.key] && <span className="group-call-dot" title="Call in progress"><Phone size={12} /></span>}
-          {g.unread > 0 && <span className="badge">{g.unread}</span>}
-        </button>
-      ))}
+      {list.map((g) => row(g, false))}
+      {archived.length > 0 && <div className="channel-group archived-heading"><span>Archived groups</span></div>}
+      {archived.map((g) => row(g, true))}
       {creating && <NewGroupDialog onClose={() => setCreating(false)} onCreated={onNavigate} />}
     </>
   )
@@ -92,8 +97,8 @@ export function GroupRows({ onNavigate }: { onNavigate: () => void }) {
 function PeoplePicker({ candidates, picked, onChange, max }: { candidates: string[]; picked: string[]; onChange: (p: string[]) => void; max: number }) {
   const [query, setQuery] = useState('')
   const shown = candidates
-    .filter((k) => nameOf(k).toLowerCase().includes(query.trim().toLowerCase()))
-    .sort((a, b) => Number(isOnline(b)) - Number(isOnline(a)) || nameOf(a).localeCompare(nameOf(b)))
+    .filter((k) => knownName(k).toLowerCase().includes(query.trim().toLowerCase()))
+    .sort((a, b) => Number(isOnline(b)) - Number(isOnline(a)) || knownName(a).localeCompare(knownName(b)))
   return (
     <div className="people-picker">
       <label className="people-search">
@@ -113,8 +118,8 @@ function PeoplePicker({ candidates, picked, onChange, max }: { candidates: strin
                 disabled={full}
                 onChange={() => onChange(on ? picked.filter((p) => p !== k) : [...picked, k])}
               />
-              <Avatar name={nameOf(k)} accountKey={k} size={32} online={isOnline(k)} />
-              <span className="person-name">{nameOf(k)}</span>
+              <Avatar name={knownName(k)} accountKey={k} size={32} online={isOnline(k)} />
+              <span className="person-name">{knownName(k)}</span>
             </label>
           )
         })}
@@ -266,7 +271,7 @@ function MembersDialog({ g, onClose, onAdd, onRename }: { g: GroupConv; onClose:
   const me = myKey()
   const members = g.view?.members ?? []
   const owner = g.view ? ownerOf(g.view) : undefined
-  const member = isMember(g)
+  const member = isMember(g) && !isArchived(g)
 
   async function act(run: () => Promise<void>) {
     setError(null)
@@ -284,18 +289,18 @@ function MembersDialog({ g, onClose, onAdd, onRename }: { g: GroupConv; onClose:
       <div className="group-members">
         {members.map((k) => (
           <div key={k} className="friend-row">
-            <Avatar name={nameOf(k)} accountKey={k} size={36} online={isOnline(k)} />
+            <Avatar name={knownName(k)} accountKey={k} size={36} online={isOnline(k)} />
             <div className="friend-text">
-              <strong>{k === me ? `${nameOf(k)} (you)` : nameOf(k)}</strong>
+              <strong>{k === me ? `${knownName(k)} (you)` : knownName(k)}</strong>
               <span className="muted">{k === owner ? 'Owner' : isOnline(k) ? 'Online' : 'Offline'}</span>
             </div>
             {member && owner === me && k !== me && (confirm === k ? (
               <>
-                <button className="button small danger" onClick={() => void act(() => removeFromGroup(g.key, k))}>Remove {nameOf(k)}</button>
+                <button className="button small danger" onClick={() => void act(() => removeFromGroup(g.key, k))}>Remove {knownName(k)}</button>
                 <button className="button small" onClick={() => setConfirm(null)}>Keep</button>
               </>
             ) : (
-              <button className="button small ghost" onClick={() => setConfirm(k)} aria-label={`Remove ${nameOf(k)} from the group`}>Remove</button>
+              <button className="button small ghost" onClick={() => setConfirm(k)} aria-label={`Remove ${knownName(k)} from the group`}>Remove</button>
             ))}
           </div>
         ))}
@@ -316,7 +321,7 @@ function MembersDialog({ g, onClose, onAdd, onRename }: { g: GroupConv; onClose:
         </div>
       )}
       <p className="muted group-rules">
-        Anyone in the group can add people. {owner === me ? 'You can' : `${owner ? nameOf(owner) : 'The owner'} can`} remove people; if the owner leaves, the
+        Anyone in the group can add people. {owner === me ? 'You can' : `${owner ? knownName(owner) : 'The owner'} can`} remove people; if the owner leaves, the
         longest-standing member takes over. Every change is signed by whoever made it and checked by every device, so a server can't slip anyone in.
       </p>
     </Modal>
@@ -360,7 +365,8 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
   const reason = cannotSend(g)
   const title = titleOf(g)
   const inThisCall = joined?.key === groupKey
-  const member = isMember(g)
+  const archived = isArchived(g)
+  const member = isMember(g) && !archived
 
   function submit() {
     const trimmed = text.trim()
@@ -384,6 +390,12 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
       </header>
       {inThisCall && <GroupCallPanel groupKey={groupKey} />}
       {call && !inThisCall && member && <OngoingCallBanner groupKey={groupKey} />}
+      {archived && (
+        <div className="archived-banner" role="status">
+          <span><strong>Archived.</strong> This group's server isn't in your server list any more, so the group is read-only here. It stays on this device until you remove it.</span>
+          <button className="button small" onClick={() => forgetGroup(groupKey)}>Remove</button>
+        </div>
+      )}
 
       <div className="messages" ref={scroller}>
         <div className="channel-start">
@@ -393,17 +405,17 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
         </div>
         {g.problem && <p className="group-problem" role="alert"><Lock size={14} /> {g.problem}</p>}
         {items.map((item, i) => {
-          if (item.kind === 'change') return <SystemLine key={`c${item.change.version}`} text={changeText(item.change, me, nameOf)} at={item.at} />
+          if (item.kind === 'change') return <SystemLine key={`c${item.change.version}`} text={changeText(item.change, me, knownName)} at={item.at} />
           const m = item.message
           const rename = !m.error ? asRename(m.group) : null
           if (rename) {
             if ((m.group as { silent?: unknown }).silent === true) return null
-            const who = m.from === me ? 'You' : nameOf(m.from)
+            const who = m.from === me ? 'You' : knownName(m.from)
             return <SystemLine key={`${m.from}:${m.id}`} icon="pencil" text={rename.name ? `${who} named the group ${rename.name}` : `${who} removed the group name`} at={m.sentAt} />
           }
           const callLine = !m.error ? asGroupCallLine(m.call) : null
           if (callLine) {
-            const who = m.from === me ? 'You' : nameOf(m.from)
+            const who = m.from === me ? 'You' : knownName(m.from)
             return <SystemLine key={`${m.from}:${m.id}`} icon={callLine.video ? 'video' : 'phone'} text={`${who} started a ${callLine.video ? 'video' : 'voice'} call`} at={m.sentAt} />
           }
           const prev = items[i - 1]
@@ -434,7 +446,7 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
       ) : (
         <div className="composer read-only">
           {reason}
-          {!member && <button className="link" onClick={() => forgetGroup(groupKey)}>Remove from this device</button>}
+          {!member && !archived && <button className="link" onClick={() => forgetGroup(groupKey)}>Remove from this device</button>}
         </div>
       )}
 
@@ -456,7 +468,7 @@ function SystemLine({ text, at, icon }: { text: string; at: number; icon?: 'penc
 }
 
 function GroupRow({ m, grouped, groupKey, mine }: { m: GroupMsg; grouped: boolean; groupKey: string; mine: boolean }) {
-  const name = nameOf(m.from)
+  const name = knownName(m.from)
   return (
     <div className={`message ${grouped ? 'grouped' : ''} ${m.pending ?? ''}`}>
       <div className="message-gutter">
@@ -472,7 +484,7 @@ function GroupRow({ m, grouped, groupKey, mine }: { m: GroupMsg; grouped: boolea
         {m.error && !m.pending ? (
           <div className="message-notice"><Lock size={13} /> {m.error}</div>
         ) : (
-          <div className="message-text">{renderMarkdown(m.text, { nameOf: (k) => nameOf(k) })}</div>
+          <div className="message-text">{renderMarkdown(m.text, { nameOf: (k) => knownName(k) })}</div>
         )}
         {m.pending === 'failed' && mine && (
           <div className="message-failed">

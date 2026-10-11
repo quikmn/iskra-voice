@@ -133,7 +133,7 @@ export function LinkDeviceDialog({ onClose }: { onClose: () => void }) {
           )}
           <label className="checkbox field">
             <input type="checkbox" checked={history} onChange={(e) => setHistory(e.target.checked)} />
-            Also copy recent direct messages
+            Bring my message history (direct messages and groups)
           </label>
           <button className="button primary" onClick={() => void startLinkOffer(serverKey, history)}>Show code</button>
         </>
@@ -179,11 +179,19 @@ export function LinkDeviceDialog({ onClose }: { onClose: () => void }) {
         </form>
       )}
 
-      {state.phase === 'sending' && <p className="muted"><Spinner /> Sending your account…</p>}
+      {state.phase === 'sending' && (
+        state.total ? (
+          <div className="link-progress" role="status">
+            <p className="muted"><Spinner /> Sending your message history… {Math.round((100 * (state.sent ?? 0)) / state.total)}%</p>
+            <progress max={state.total} value={state.sent ?? 0} aria-label="History sent" />
+          </div>
+        ) : <p className="muted"><Spinner /> Sending your account…</p>
+      )}
 
       {state.phase === 'done' && (
         <div className="link-offer">
           <p className="success-text">Done! Your account is on the new device.</p>
+          {state.warning && <p className="warning-text">{state.warning}</p>}
           <button className="button primary" onClick={() => { onClose(); void refreshDevices() }}>Close</button>
         </div>
       )}

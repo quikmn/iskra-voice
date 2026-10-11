@@ -131,7 +131,7 @@ export function openPayload<T>(sealed: Uint8Array, existingKey: Uint8Array, mine
 export type RelayState =
   | { state: 'waiting' }
   | { state: 'answered'; epk: string; mac: string }
-  | { state: 'done'; payload: string }
+  | { state: 'done'; payload: string; parts?: number }
 
 export class LinkRelayError extends Error {
   readonly status: number
@@ -167,11 +167,69 @@ export async function relayPoll(code: LinkCode, readKey: string): Promise<RelayS
 }
 
 /** The existing device uploads the sealed payload (with the put key from link.create). */
-export async function relayDeliver(serverUrl: string, token: string, putKey: string, sealed: Uint8Array): Promise<void> {
-  const response = await fetch(`${serverUrl}/link/${encodeURIComponent(token)}?key=${encodeURIComponent(putKey)}`, {
+export async function relayDeliver(serverUrl: string, token: string, putKey: string, sealed: Uint8Array, parts = 0): Promise<void> {
+  const response = await fetch(`${serverUrl}/link/${encodeURIComponent(token)}?key=${encodeURIComponent(putKey)}${parts ? `&parts=${parts}` : ''}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/octet-stream' },
     body: sealed as BodyInit,
   })
   if (!response.ok) throw relayError(response.status)
+}
+
+// ── History parts: message history follows the account in sealed parts, each ≤ 1 MB on the relay ──
+
+/** Plaintext bytes per part (the sealed part adds 40 bytes and 8 for the index and count). */
+export const PART_BYTES = 768 * 1024
+
+/** Splits bytes into parts of at most `size`. */
+export function splitParts(bytes: Uint8Array, size = PART_BYTES): Uint8Array[] {
+  const parts: Uint8Array[] = []
+  for (let i = 0; i < bytes.length; i += size) parts.push(bytes.slice(i, i + size))
+  return parts.length ? parts : [new Uint8Array()]
+}
+
+/** nonce(24) || crypto_box(u32be(index) || u32be(count) || bytes): the index and count are sealed with the part, so the relay can't reorder, swap or drop parts unnoticed. */
+export function sealPart(index: number, count: number, bytes: Uint8Array, existing: EphemeralKey, newKey: Uint8Array): Uint8Array {
+  const plain = new Uint8Array(8 + bytes.length)
+  const view = new DataView(plain.buffer)
+  view.setUint32(0, index)
+  view.setUint32(4, count)
+  plain.set(bytes, 8)
+  const nonce = randomBytes(sodium.crypto_box_NONCEBYTES)
+  return new Uint8Array([...nonce, ...sodium.crypto_box_easy(plain, nonce, newKey, existing.secretKey)])
+}
+
+export function openPart(sealed: Uint8Array, index: number, count: number, existingKey: Uint8Array, mine: EphemeralKey): Uint8Array {
+  const n = sodium.crypto_box_NONCEBYTES
+  const plain = sodium.crypto_box_open_easy(sealed.slice(n), sealed.slice(0, n), existingKey, mine.secretKey)
+  const view = new DataView(plain.buffer, plain.byteOffset, plain.byteLength)
+  if (plain.length < 8 || view.getUint32(0) !== index || view.getUint32(4) !== count) throw new Error('Part of the history arrived out of order.')
+  return plain.slice(8)
+}
+
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+/** The existing device uploads part `index`; waits while the new device catches up (the relay holds only a few). */
+export async function relayPutPart(serverUrl: string, token: string, putKey: string, index: number, sealed: Uint8Array, timeoutMs = 120_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  for (;;) {
+    const response = await fetch(`${serverUrl}/link/${encodeURIComponent(token)}/part/${index}?key=${encodeURIComponent(putKey)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: sealed as BodyInit,
+    })
+    if (response.ok) return
+    if (response.status !== 429 || Date.now() > deadline) throw response.status === 429 ? new LinkRelayError(429, 'The new device stopped receiving your history.') : relayError(response.status)
+    await wait(400)
+  }
+}
+
+/** The new device takes part `index`, waiting for it to arrive. */
+export async function relayTakePart(code: LinkCode, readKey: string, index: number, timeoutMs = 120_000): Promise<Uint8Array> {
+  const deadline = Date.now() + timeoutMs
+  for (;;) {
+    const response = await fetch(`${relayUrl(code)}/part/${index}?key=${encodeURIComponent(readKey)}`, { cache: 'no-store' })
+    if (response.status === 200) return new Uint8Array(await response.arrayBuffer())
+    if (response.status !== 204 || Date.now() > deadline) throw response.status === 204 ? new LinkRelayError(408, 'Your other device stopped sending your history.') : relayError(response.status)
+  }
 }

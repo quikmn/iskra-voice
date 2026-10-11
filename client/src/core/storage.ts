@@ -317,6 +317,8 @@ export interface StoredGroup {
   chain: { payload: string; sig: string }[]
   name: string | null
   nameAt: number
+  /** Display names of the people in it, so an archived group (server gone) still shows who said what. */
+  names?: Record<string, string>
   messages: (StoredDm & { group?: Record<string, unknown> })[]
 }
 

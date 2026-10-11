@@ -102,3 +102,12 @@ export function asGroupCallLine(call: unknown): { kind: 'group-start'; id: strin
   if (c.kind !== 'group-start' || typeof c.id !== 'string' || typeof c.video !== 'boolean') return null
   return { kind: 'group-start', id: c.id, video: c.video }
 }
+
+/**
+ * The system notification for a ringing group call, or null when it shouldn't show: like a 1:1 call, only while the
+ * window isn't focused, desktop notifications are on and the browser allows them.
+ */
+export function ringNotice(caller: string, group: string, video: boolean, env: { focused: boolean; enabled: boolean; permission: string }): { title: string; body: string } | null {
+  if (env.focused || !env.enabled || env.permission !== 'granted') return null
+  return { title: `${caller} started a group call`, body: `${group} · ${video ? 'Video' : 'Voice'} call · end-to-end encrypted` }
+}

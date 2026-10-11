@@ -772,3 +772,10 @@ input.confirm-code::placeholder { color: var(--faint); }
 .presence.dnd { background: var(--red); }
 .presence.dnd::after { content: ''; position: absolute; left: 22%; right: 22%; top: 50%; height: 2px; margin-top: -1px; border-radius: 1px; background: var(--sidebar); }
 .presence.invisible { background: var(--sidebar); box-shadow: inset 0 0 0 2px var(--faint); }
+
+/* ── Device linking: message history progress ───────────────────────── */
+.link-progress { display: grid; gap: 8px; width: 100%; }
+.link-progress progress { width: 100%; height: 8px; appearance: none; border: 0; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+.link-progress progress::-webkit-progress-bar { background: var(--surface-2); }
+.link-progress progress::-webkit-progress-value { background: var(--accent); border-radius: 99px; transition: width 0.2s; }
+.link-progress progress::-moz-progress-bar { background: var(--accent); }

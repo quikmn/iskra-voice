@@ -6,10 +6,13 @@ import { create } from 'zustand'
 import { b64u, fromB64u, randomBytes } from '../core/crypto'
 import { decryptGroup, GroupBehindError, type GroupEnvelope } from '../core/group'
 import { RequestError, type GroupCallRing, type WireGroupCall } from '../core/protocol'
+import { desktop } from '../platform/desktop'
 import { isBusy } from './callMachine'
 import { startRinging, stopRinging, useCalls } from './calls'
-import { checkGroupKey, isNewerKey, keyholder } from './groupLogic'
-import { groupKey, openGroup, sealForGroup, sendGroupMessage, syncGroup, useGroups } from './groups'
+import { checkGroupKey, isNewerKey, keyholder, ringNotice } from './groupLogic'
+import { groupKey, openGroup, sealForGroup, sendGroupMessage, syncGroup, titleOf, useGroups } from './groups'
+import { nameOf } from './dms'
+import { useNotify } from './notify'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 import { joinGroupCall, leaveVoice, setCallKey, useVoice } from './voice'
 
@@ -282,9 +285,45 @@ useVoice.subscribe((state, prev) => {
   if (joined && prev.session?.group?.callId === joined.callId && state.session?.group?.callId !== joined.callId) void leaveGroupCall()
 })
 
-// Ringing sound while a group call rings for you.
+// Ringing while a group call rings for you: the sound, the desktop app's attention, and (when the window isn't
+// focused) a system notification, like a 1:1 call.
+let notification: Notification | null = null
+
 useGroupCalls.subscribe((state, prev) => {
   if (state.ringing?.callId === prev.ringing?.callId) return
-  if (state.ringing) startRinging('in')
-  else if (!isBusy(useCalls.getState().call)) stopRinging()
+  notification?.close()
+  notification = null
+  if (state.ringing) {
+    startRinging('in')
+    void desktop?.callAlert?.(true)
+    const ringing = state.ringing
+    const g = useGroups.getState().groups[ringing.key]
+    const note = ringNotice(nameOf(ringing.from), g ? titleOf(g) : 'A group', ringing.video, {
+      focused: document.hasFocus(),
+      enabled: useNotify.getState().desktop,
+      permission: typeof Notification === 'undefined' ? 'unsupported' : Notification.permission,
+    })
+    if (note) {
+      notification = new Notification(note.title, { body: note.body, tag: `iskra-gcall-${ringing.callId}`, requireInteraction: true, silent: true })
+      notification.onclick = () => {
+        window.focus()
+        openGroup(ringing.key)
+        notification?.close()
+      }
+    }
+  } else {
+    if (!isBusy(useCalls.getState().call)) stopRinging()
+    if (prev.ringing) void desktop?.callAlert?.(false)
+  }
+})
+
+// Leaving a server archives its groups: forget their calls.
+useApp.subscribe((state, prev) => {
+  if (state.servers === prev.servers) return
+  const { calls, ringing } = useGroupCalls.getState()
+  const gone = Object.values(calls).filter((c) => !state.servers[c.serverKey])
+  if (gone.length === 0) return
+  const left = { ...calls }
+  for (const c of gone) delete left[c.key]
+  useGroupCalls.setState({ calls: left, ringing: ringing && gone.some((c) => c.id === ringing.callId) ? null : ringing })
 })

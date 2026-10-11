@@ -2,8 +2,9 @@
 import { create } from 'zustand'
 import { b64u, fromB64u } from '../core/crypto'
 import {
-  checkMac, confirmationCode, encodeLinkCode, sameConfirmation, ephemeralKey, linkAppUrl, linkKeys, macKey, newLinkSecret, openPayload,
-  parseLinkCode, relayDeliver, relayPoll, relayRequest, sealPayload, type EphemeralKey, type LinkCode, type LinkKeys,
+  checkMac, confirmationCode, encodeLinkCode, sameConfirmation, ephemeralKey, linkAppUrl, linkKeys, macKey, newLinkSecret, openPart, openPayload,
+  parseLinkCode, relayDeliver, relayPoll, relayPutPart, relayRequest, relayTakePart, sealPart, sealPayload, splitParts, PART_BYTES,
+  type EphemeralKey, type LinkCode, type LinkKeys,
 } from '../core/link'
 import type { LinkRequest } from '../core/protocol'
 import { normalizeServerUrl } from '../core/invite'
@@ -13,6 +14,7 @@ import * as storage from '../core/storage'
 import { appUrl } from '../ui/format'
 import { platformName } from './devices'
 import { exportHistory, importHistory, loadFriends } from './dms'
+import { exportGroups, importGroups } from './groups'
 import { boot, connectionFor, onServerEvent, useApp } from './store'
 import { knownRotations, remember } from './keyMap'
 import { chainTo, type Rotation } from '../core/rotation'
@@ -25,11 +27,33 @@ export interface LinkPayload {
   recoverySaved: boolean
   servers: { url: string; serverKey: string; name: string }[]
   friends: storage.StoredFriend[]
+  /** Older apps: recent DMs inside the payload. Now history follows in parts (see historyParts). */
   history?: Record<string, storage.StoredDm[]>
   /** Bio, pronouns, accent, avatar and page, so the new device shows the same profile. */
   profile?: LinkedProfile
   /** The account key rotations that led to this key, for servers that missed them. */
   rotations?: Rotation[]
+  /** How many sealed history parts follow the payload on the relay (0 or missing: none). */
+  historyParts?: number
+}
+
+/** What the history parts carry, joined back together: 1:1 DMs and group DMs (with their signed chains and names). */
+export interface LinkHistory {
+  v: 1
+  dms: Record<string, storage.StoredDm[]>
+  groups: storage.StoredGroup[]
+}
+
+/** At most this many parts (~48 MB); bigger histories keep the newest messages of each conversation. */
+export const MAX_HISTORY_PARTS = 64
+
+/** Everything this device has, trimmed per conversation until it fits. */
+export function buildHistory(maxBytes = MAX_HISTORY_PARTS * PART_BYTES): Uint8Array {
+  for (let per = 5000; ; per = Math.floor(per / 2)) {
+    const history: LinkHistory = { v: 1, dms: exportHistory(per, Infinity), groups: exportGroups(per) }
+    const bytes = new TextEncoder().encode(JSON.stringify(history))
+    if (bytes.length <= maxBytes || per <= 10) return bytes
+  }
 }
 
 // ── The existing device: shows the code, checks the new device, sends the account ──
@@ -39,8 +63,8 @@ export type OfferState =
   | { phase: 'creating' }
   | { phase: 'waiting'; text: string; url: string; serverName: string; expiresAt: number }
   | { phase: 'confirm'; confirm: string; info: string | null }
-  | { phase: 'sending' }
-  | { phase: 'done' }
+  | { phase: 'sending'; sent?: number; total?: number }
+  | { phase: 'done'; warning?: string }
   | { phase: 'error'; message: string }
 
 interface Offer {
@@ -101,7 +125,7 @@ function onLinkRequest(serverKey: string, request: LinkRequest): void {
     .catch((e: Error) => useLinkOffer.setState({ phase: 'error', message: e.message }, true))
 }
 
-async function buildPayload(includeHistory: boolean): Promise<LinkPayload> {
+async function buildPayload(): Promise<LinkPayload> {
   const { identity, profile } = useApp.getState()
   const saved = await storage.loadServers()
   const payload: LinkPayload = {
@@ -111,7 +135,6 @@ async function buildPayload(includeHistory: boolean): Promise<LinkPayload> {
     recoverySaved: !!profile?.recoverySaved,
     servers: saved.filter((s) => !s.invite).map((s) => ({ url: s.url, serverKey: s.serverKey, name: s.name })),
     friends: await storage.loadFriends(),
-    history: includeHistory ? exportHistory() : undefined,
     profile: profileForLink(profile),
     rotations: chainTo(b64u(identity!.account.publicKey), knownRotations(), 16),
   }
@@ -136,9 +159,24 @@ export async function confirmLinkOffer(typed: string): Promise<void> {
   }
   useLinkOffer.setState({ phase: 'sending' }, true)
   try {
-    const sealed = sealPayload(await buildPayload(current.includeHistory), current.mine, current.theirs)
+    const payload = await buildPayload()
+    const parts = current.includeHistory ? splitParts(buildHistory()) : []
+    payload.historyParts = parts.length
     const server = useApp.getState().servers[current.serverKey]
-    await relayDeliver(server.url, current.code.token, current.putKey, sealed)
+    await relayDeliver(server.url, current.code.token, current.putKey, sealPayload(payload, current.mine, current.theirs), parts.length)
+    // The history follows in sealed parts; the relay holds only a few at a time, so this goes at the new device's pace.
+    try {
+      for (let i = 0; i < parts.length; i++) {
+        if (offer !== current) return // cancelled
+        useLinkOffer.setState({ phase: 'sending', sent: i, total: parts.length }, true)
+        await relayPutPart(server.url, current.code.token, current.putKey, i, sealPart(i, parts.length, parts[i], current.mine, current.theirs))
+      }
+    } catch (e) {
+      // The account is already there; only (part of) the history didn't make it.
+      offer = null
+      useLinkOffer.setState({ phase: 'done', warning: `Your message history didn't all arrive: ${(e as Error).message}` }, true)
+      return
+    }
     offer = null
     useLinkOffer.setState({ phase: 'done' }, true)
   } catch (e) {
@@ -164,6 +202,7 @@ export type JoinState =
   | { phase: 'connecting' }
   | { phase: 'confirm'; confirm: string }
   | { phase: 'finishing' }
+  | { phase: 'history'; received: number; total: number }
   | { phase: 'error'; message: string }
 
 export const useLinkJoin = create<JoinState>(() => ({ phase: 'idle' }))
@@ -204,7 +243,19 @@ export async function joinWithCode(input: string): Promise<void> {
       } else if (state.state === 'done') {
         if (!existing) throw new Error('Something went wrong. Make a new code and try again.')
         useLinkJoin.setState({ phase: 'finishing' }, true)
-        await adopt(openPayload<LinkPayload>(fromB64u(state.payload), existing, mine))
+        const payload = openPayload<LinkPayload>(fromB64u(state.payload), existing, mine)
+        await adopt(payload)
+        // The count that matters is the one sealed in the payload, not what the relay says.
+        const total = Number.isSafeInteger(payload.historyParts) ? Math.min(payload.historyParts!, MAX_HISTORY_PARTS) : 0
+        if (total > 0) {
+          try {
+            await receiveHistory(code, readKey, total, existing, mine, alive)
+          } catch {
+            /* the account is here either way; history the other device couldn't send stays there */
+          }
+        }
+        if (!alive()) return
+        await finish()
         useLinkJoin.setState({ phase: 'idle' }, true)
         return
       }
@@ -213,6 +264,27 @@ export async function joinWithCode(input: string): Promise<void> {
   } catch (e) {
     if (alive()) useLinkJoin.setState({ phase: 'error', message: e instanceof TypeError ? "Couldn't reach the server in the code." : (e as Error).message }, true)
   }
+}
+
+/** Receives the history parts in order and stores them, showing progress. */
+async function receiveHistory(code: LinkCode, readKey: string, total: number, existing: Uint8Array, mine: EphemeralKey, alive: () => boolean): Promise<void> {
+  const chunks: Uint8Array[] = []
+  for (let i = 0; i < total && alive(); i++) {
+    useLinkJoin.setState({ phase: 'history', received: i, total }, true)
+    chunks.push(openPart(await relayTakePart(code, readKey, i), i, total, existing, mine))
+  }
+  if (!alive()) return
+  useLinkJoin.setState({ phase: 'history', received: total, total }, true)
+  const bytes = new Uint8Array(chunks.reduce((n, c) => n + c.length, 0))
+  let offset = 0
+  for (const c of chunks) {
+    bytes.set(c, offset)
+    offset += c.length
+  }
+  const history = JSON.parse(new TextDecoder().decode(bytes)) as Partial<LinkHistory>
+  if (history?.v !== 1) return
+  if (history.dms && typeof history.dms === 'object') await importHistory(history.dms)
+  await importGroups(history.groups)
 }
 
 /** Becomes the account: a fresh device key certified by the account seed, then the same servers and history. */
@@ -237,6 +309,9 @@ async function adopt(payload: LinkPayload): Promise<void> {
   // Only rotations that check out and lead to this very key are kept.
   if (Array.isArray(payload.rotations))
     await remember(chainTo(b64u(identity.account.publicKey), payload.rotations.slice(0, 16), 16))
+}
+
+async function finish(): Promise<void> {
   void storage.requestPersistence()
   await boot()
   await loadFriends()
