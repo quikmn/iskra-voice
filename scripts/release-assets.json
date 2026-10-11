@@ -1,0 +1,8 @@
+{
+  "$comment": "Files every release must carry ({v} = version). Read by release-lib.mjs (release-assets.mjs, release-finalize.yml) and release-windows.ps1.",
+  "windows": ["Iskra-Setup-{v}.exe", "Iskra-Setup-{v}.exe.blockmap", "Iskra-Portable-{v}.exe", "latest.yml", "iskra-server-{v}-win-x64.zip"],
+  "mac": ["Iskra-{v}-mac-arm64.dmg", "Iskra-{v}-mac-x64.dmg", "Iskra-{v}-mac-arm64.zip", "Iskra-{v}-mac-x64.zip", "Iskra-{v}-mac-arm64.dmg.blockmap", "Iskra-{v}-mac-x64.dmg.blockmap", "Iskra-{v}-mac-arm64.zip.blockmap", "Iskra-{v}-mac-x64.zip.blockmap", "latest-mac.yml"],
+  "linux": ["Iskra-{v}-x86_64.AppImage", "Iskra-{v}-amd64.deb", "Iskra-{v}-x86_64.rpm", "latest-linux.yml"],
+  "server": ["iskra-server-{v}-linux-x64.tar.gz", "iskra-server-{v}-osx-arm64.tar.gz", "iskra-server-{v}-osx-x64.tar.gz"],
+  "android": ["Iskra-{v}.apk"]
+}
