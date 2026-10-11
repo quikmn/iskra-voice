@@ -122,6 +122,7 @@ test('save, remind, send later, the inbox and edit history', async ({ browser })
   await hostBox.fill('first version')
   await hostBox.press('Enter')
   await expect(host.locator('.message-text', { hasText: 'first version' })).toBeVisible()
+  await expect(host.locator('.message', { hasText: 'first version' })).not.toHaveClass(/sending/) // stored, so it's the one Up edits
   await hostBox.press('ArrowUp')
   const edit = host.locator('.edit-box textarea')
   await edit.fill('second version')

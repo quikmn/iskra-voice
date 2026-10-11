@@ -1,0 +1,7 @@
+# Security contact for Iskra (https://iskra.foo). See the policy below for scope and what to expect.
+Contact: https://github.com/quikmn/iskra-voice/security/advisories/new
+Contact: mailto:spark@iskra.foo
+Expires: 2027-10-01T00:00:00.000Z
+Policy: https://github.com/quikmn/iskra-voice/blob/main/SECURITY.md
+Preferred-Languages: en, sv
+Canonical: https://iskra.foo/.well-known/security.txt

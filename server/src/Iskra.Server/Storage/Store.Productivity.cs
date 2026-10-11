@@ -85,6 +85,12 @@ public sealed partial class Store
         }
     }
 
+    /// <summary>
+    /// Retention: earlier versions written before <paramref name="cutoff"/> (a message's versions also go with the message,
+    /// by cascade). Returns how many went.
+    /// </summary>
+    public int PruneMessageVersions(long cutoff) => DeleteOlder("message_edits", "written_at", cutoff);
+
     /// <summary>Earlier versions, oldest first.</summary>
     public List<MessageVersion> MessageVersions(long messageId) =>
         Query("SELECT text, written_at FROM message_edits WHERE message_id = $m ORDER BY id;",

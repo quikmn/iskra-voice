@@ -1,8 +1,12 @@
+using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Iskra.Server.Crypto;
 using Iskra.Server.Features;
 using Iskra.Server.Tests.Support;
+using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Iskra.Server.Tests;
 
@@ -313,5 +317,64 @@ public class ProductivityTests
         // A deleted message leaves the inbox.
         await admin.RequestAsync("chat.delete", new { id });
         Assert.Empty(server.World.Store.InboxItems(alice.Key, null, 10));
+    }
+
+    // ── Compliance: data export and retention ────────────────────────────────
+
+    [Fact]
+    public async Task The_data_export_includes_reminders_scheduled_messages_inbox_and_edit_history()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        using var bob = await server.JoinAsync("Bob");
+        var id = await SayAsync(alice, server.General, "draft one");
+        await alice.RequestAsync("chat.edit", new { id, text = "draft two" });
+        await SayAsync(bob, server.General, $"hi <@{alice.Key}>");
+        var data = Sealed();
+        await alice.RequestAsync("reminder.create", new { dueAt = Now + 3_600_000, data, messageId = id });
+        await alice.RequestAsync("scheduled.create", new { channelId = server.General, text = "tomorrow's news", sendAt = Now + 3_600_000 });
+        await alice.RequestAsync("scheduled.create", new { accountKey = bob.Key, envelope = new { v = 2, ct = "sealed" }, sendAt = Now + 3_600_000 });
+
+        var made = (await alice.RequestAsync("data.export")).Body();
+        using var response = await server.CreateClient().GetAsync(made.GetProperty("url").GetString());
+        using var zip = new ZipArchive(new MemoryStream(await response.Content.ReadAsByteArrayAsync()));
+        using var stream = zip.GetEntry("data.json")!.Open();
+        var export = JsonDocument.Parse(stream).RootElement;
+
+        Assert.Equal("draft one", Assert.Single(export.GetProperty("editHistory").EnumerateArray()).GetProperty("text").GetString());
+        Assert.Equal(data, Assert.Single(export.GetProperty("reminders").EnumerateArray()).GetProperty("data").GetString());
+        var scheduled = export.GetProperty("scheduledMessages").EnumerateArray().ToList();
+        Assert.Equal(["channel", "dm"], scheduled.Select(x => x.GetProperty("kind").GetString()));
+        Assert.Equal("tomorrow's news", scheduled[0].GetProperty("text").GetString());
+        Assert.DoesNotContain("sealed", export.GetRawText().Replace(data, "")); // encrypted envelopes stay out
+        Assert.Equal("mention", Assert.Single(export.GetProperty("inbox").EnumerateArray()).GetProperty("kind").GetString());
+        Assert.Contains("reminders", new StreamReader(zip.GetEntry("README.txt")!.Open()).ReadToEnd());
+    }
+
+    [Fact]
+    public async Task Message_retention_takes_edit_history_and_inbox_items_with_the_messages()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        using var bob = await server.JoinAsync("Bob");
+        var old = await SayAsync(bob, server.General, $"old <@{owner.Key}>");
+        await bob.RequestAsync("chat.edit", new { id = old, text = $"old, edited <@{owner.Key}>" });
+        var fresh = await SayAsync(bob, server.General, "fresh");
+        await bob.RequestAsync("chat.edit", new { id = fresh, text = "fresh, edited" });
+        using (var db = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = Path.Combine(server.WorldPath, "iskra.db"), Pooling = false }.ToString()))
+        {
+            db.Open();
+            using var cmd = db.CreateCommand();
+            cmd.CommandText = "UPDATE messages SET created_at = $t WHERE id = $id; UPDATE message_edits SET written_at = $t WHERE message_id = $id;";
+            cmd.Parameters.AddWithValue("$t", Now - 40L * 86_400_000);
+            cmd.Parameters.AddWithValue("$id", old);
+            cmd.ExecuteNonQuery();
+        }
+        await owner.RequestAsync("retention.update", new { messagesDays = 30 });
+        server.Services.GetServices<IHostedService>().OfType<RetentionSweeper>().Single().Sweep();
+
+        Assert.Empty(server.World.Store.MessageVersions(old));
+        Assert.Single(server.World.Store.MessageVersions(fresh));
+        Assert.Empty(server.World.Store.InboxItems(owner.Key, null, 10));
     }
 }

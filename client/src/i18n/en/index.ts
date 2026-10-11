@@ -25,6 +25,7 @@ import { friends } from './friends'
 import { account } from './account'
 import { safety } from './safety'
 import { productivity } from './productivity'
+import { compliance } from './compliance'
 
 export const en = {
   common,
@@ -53,4 +54,5 @@ export const en = {
   account,
   safety,
   productivity,
+  compliance,
 } as const

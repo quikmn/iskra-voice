@@ -45,6 +45,8 @@ public sealed class RateLimiter(TimeProvider time)
         ["account.rotate"] = (10, 0.2),
         ["reminder.create"] = (10, 1),
         ["scheduled.create"] = (10, 1),
+        ["data.export"] = (2, 1 / 600.0), // "Download my data": two, then one every 10 minutes
+        ["security.log.list"] = (20, 2),
         ["*"] = (40, 10),
     };
 
