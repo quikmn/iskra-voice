@@ -348,6 +348,7 @@ public sealed partial class PushService
             title,
             body,
             tag = note.Tag,
+            from = note.FromName, // who it's from (the phone apps' call screens show it)
             channelId = note.ChannelId,
             messageId = note.MessageId,
             peer = note.Peer,

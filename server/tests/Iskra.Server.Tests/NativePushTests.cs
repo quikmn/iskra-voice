@@ -90,6 +90,7 @@ public class NativePushTests
         var callEndpoint = endpoint.Replace("/v1/push/", "/v1/call/");
         var ring = (await server.Push.WaitForAsync(callEndpoint)).Single();
         Assert.Equal("call", ring.GetProperty("kind").GetString());
+        Assert.Equal("Alice", ring.GetProperty("from").GetString()); // the phone's call screen shows the caller
         Assert.Equal(30, server.Push.SentTo(callEndpoint).Single().TtlSeconds);
         Assert.Single(server.Push.SentTo(endpoint)); // the call didn't go to the ordinary path
     }
