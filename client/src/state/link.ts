@@ -14,6 +14,8 @@ import { appUrl } from '../ui/format'
 import { platformName } from './devices'
 import { exportHistory, importHistory, loadFriends } from './dms'
 import { boot, connectionFor, onServerEvent, useApp } from './store'
+import { knownRotations, remember } from './keyMap'
+import { chainTo, type Rotation } from '../core/rotation'
 
 /** What the new device receives, encrypted. */
 export interface LinkPayload {
@@ -26,6 +28,8 @@ export interface LinkPayload {
   history?: Record<string, storage.StoredDm[]>
   /** Bio, pronouns, accent, avatar and page, so the new device shows the same profile. */
   profile?: LinkedProfile
+  /** The account key rotations that led to this key, for servers that missed them. */
+  rotations?: Rotation[]
 }
 
 // ── The existing device: shows the code, checks the new device, sends the account ──
@@ -109,6 +113,7 @@ async function buildPayload(includeHistory: boolean): Promise<LinkPayload> {
     friends: await storage.loadFriends(),
     history: includeHistory ? exportHistory() : undefined,
     profile: profileForLink(profile),
+    rotations: chainTo(b64u(identity!.account.publicKey), knownRotations(), 16),
   }
   // The relay takes ≤ 1 MB. A big page is the first thing to leave out: servers keep it anyway,
   // and the new device leaves it alone until it's edited there.
@@ -229,6 +234,9 @@ async function adopt(payload: LinkPayload): Promise<void> {
     .map((s) => ({ url: normalizeServerUrl(s.url)!, serverKey: s.serverKey, name: String(s.name ?? '').slice(0, 100) })))
   if (Array.isArray(payload.friends)) await storage.saveFriends(payload.friends.slice(0, 1000))
   if (payload.history && typeof payload.history === 'object') await importHistory(payload.history)
+  // Only rotations that check out and lead to this very key are kept.
+  if (Array.isArray(payload.rotations))
+    await remember(chainTo(b64u(identity.account.publicKey), payload.rotations.slice(0, 16), 16))
   void storage.requestPersistence()
   await boot()
   await loadFriends()

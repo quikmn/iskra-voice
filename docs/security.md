@@ -8,13 +8,40 @@ There's no email and no password. On first launch the app creates a key pair on 
 
 - Joining a server means signing a fresh challenge from that server. Nobody can join as you without your device, and a login meant for one server can't be replayed against another.
 - Names aren't unique, keys are. If you want to be sure who someone is, compare **safety numbers** (open a DM, click *Verify*).
-- Your **recovery key** (Settings → Recovery key) restores your account on a new device. It's the only copy outside your devices, so keep it somewhere safe, like a password manager. Anyone who has it can use your account.
+- Your **recovery key** (Settings → Recovery key) restores your account on a new device. It's the only copy outside your devices, so keep it somewhere safe, like a password manager. Anyone who has it can use your account, until you replace your account key (below).
+
+## Replacing your account key
+
+If your recovery key leaked, or someone may have copied one of your devices, **replace your account key** (Settings → Recovery key → Replace account key).
+
+- Your device makes a new key and your old key signs it over, and the new key signs too, so nobody can point your account at a key they don't hold. Your servers check both signatures, then move your membership, role, profile, messages, reactions and direct messages to the new key, and keep a record of the change.
+- You choose which of your devices to keep. Each one gets a new certificate and the new key, sealed to that device (libsodium `crypto_box_seal`); it only accepts a key that matches the signed hand-over, so a server can't slip in one of its own. Devices you untick are signed out for good.
+- Your old key and old recovery key stop working on every server that has the change. You get a new recovery key straight away. Servers you weren't connected to get the change the next time you connect.
+- Your friends' apps check the signatures themselves, keep your conversation and its history, and show **"safety number changed"**, so they can verify you again.
+
+**What if someone else has your old key?** They could try to replace it too, and a server can't tell which of you is the real one. Iskra's rule:
+
+1. The first valid replacement wins on each server.
+2. Every device of the old account is told. A device that wasn't given the new key says "Your account key was replaced" and offers **That wasn't me**: it claims the account for a new key of yours.
+3. A second, different claim within 30 days doesn't win, but marks the account as **disputed**: its role drops to member (so a thief can't keep admin or owner rights) and admins are asked to decide. An admin who knows you keeps the right key, which restores your role. After 30 days the old key is simply dead.
+
+So act fast: on servers where you replace the key first, you win outright. On a server where a thief got there first and nobody else is an admin, the account stays disputed. Your friends' apps warn them while an account is disputed.
 
 ## Your devices
 
 - **Linking a device** (Settings → Devices → Link a device) moves your account to a phone or another computer without typing the recovery key: scan the QR code or type the code. The code holds a one-time secret that never reaches the server; both devices prove they know it, then the new device shows a six-digit number that you type into the signed-in one before anything is sent (a wrong number cancels the link). Your account is encrypted from one device straight to the other (libsodium `crypto_box`), so the server that relays it can't read it or slip in a device of its own. Codes expire after five minutes and work once.
 - **Removing a device** (Settings → Devices) signs a revocation with your account key and hands it to every server you're on. Servers then refuse that device, sign it out, stop listing it and stop sending it push notifications, and senders stop encrypting messages for it.
-- Every linked device keeps your account key in the app's storage (that's what lets it link and remove devices too). **Removing a device stops that device's own key**: it can't connect or get new messages. It does **not** stop someone who copied the device's storage: with the account key they can certify a new device as you. Treat a copied device like a leaked recovery key. Servers let one connection remove at most 10 devices an hour, so a thief can't use up the account's 100 removals at once.
+- Every linked device keeps your account key in the app's storage (that's what lets it link and remove devices too). **Removing a device stops that device's own key**: it can't connect or get new messages. It does **not** stop someone who copied the device's storage: with the account key they can certify a new device as you. For a copied device, [replace your account key](#replacing-your-account-key) and leave that device out. Servers let one connection remove at most 10 devices an hour, so a thief can't use up the account's 100 removals at once.
+
+## Your keys on your device
+
+Your keys, your devices' short-lived DM keys and your decrypted direct messages are stored **encrypted** (XChaCha20-Poly1305), with a key that is itself protected by:
+
+- **the desktop app:** your operating system's keychain (Windows DPAPI, macOS Keychain, or GNOME Keyring / KWallet on Linux). A copy of Iskra's data folder is useless on another computer or user account. On Linux without a keyring, the app says so and uses the browser method below.
+- **the browser:** a key the browser keeps for Iskra and never reveals to the page (a non-extractable WebCrypto key). That keeps your keys out of copies, exports and casual snooping of the stored data. It does *not* stop someone who can use your browser profile or run code in the app.
+- **an app lock (optional, Settings → App lock):** a passphrase, stretched with Argon2id, that Iskra asks for at every start. Without it, nobody can read your keys or messages from the device's storage, even with a full copy. Forget it and you'll need your recovery key.
+
+Data stored before this existed is encrypted the first time the app starts. Linking devices and recovery keys work as before.
 
 ## Who can read what
 
@@ -86,8 +113,8 @@ We'd rather tell you than have you find out:
 
 - **Server channels, voice channels and files are not end-to-end encrypted.** Whoever runs the server can read them.
 - **Metadata.** Servers see who messages and calls whom, when, and for how long. Your push service sees when you get a notification.
-- **No account key rotation yet.** A leaked recovery key, or a device whose storage was copied, can't be shut out for good: removing devices only stops device keys, and the account key itself can't be replaced yet. Today the only fix is a new account. Planned: rotating the account key (old key signs over to a new one, servers and contacts follow) and keeping the key encrypted on the device.
-- **Your device holds your keys and your decrypted DM history unencrypted** (in the browser's storage, or the desktop app's data folder). Anyone with access to your unlocked device or user account can read them. Lock your devices.
+- **Replacing a stolen account key is a race.** Whoever holds your old key can replace it too. On each server the first valid replacement wins; a second claim within 30 days makes the account disputed until an admin decides, and after 30 days the old key is dead. A thief who acts first on a server where you don't (or that has no other admin) keeps the account there until an admin steps in. Your friends see "safety number changed" either way: verify before trusting.
+- **Keys on your device are only as safe as the device while Iskra is running.** Encryption at rest protects copies of the stored data, not a device someone can use as you. In the browser, without an app lock, anyone who can open your browser profile can open Iskra. Malware running as you can read keys from memory. Lock your devices, and use an app lock on shared computers.
 - **Forward secrecy has limits:** it covers messages once their prekey is deleted (at most about five weeks after sending). A device that hasn't published a prekey (an older app version) gets messages wrapped to its long-term key instead: still end-to-end encrypted, without forward secrecy, and a server could hold back prekeys to force that.
 - **Safety numbers are opt-in.** Until you compare them, you trust that the server showed you the right person the first time.
 - **Calls use one key for the whole call**; there's no key change mid-call. Calls are one-to-one.

@@ -1,8 +1,14 @@
 // Local persistence in IndexedDB: the identity keys, the list of servers, prekeys and DM history.
 // Keys only leave this device inside an end-to-end encrypted device link (see core/link.ts).
+// Secrets (keys, prekeys, decrypted DMs) are encrypted at rest with the vault's data key (core/vault.ts).
 import { b64u, fromB64u } from './crypto'
 import type { PrekeyPair, Revocation } from './devices'
 import type { DeviceCert, Identity } from './identity'
+import type { Handover, Rotation } from './rotation'
+import {
+  browserWrapper, isSealed, lockDataKey, newDataKey, openValue, sealValue, unlockDataKey,
+  type KeyWrapper, type VaultRecord, type WrapKind,
+} from './vault'
 
 const DB_NAME = 'iskra'
 const STORE = 'kv'
@@ -25,6 +31,16 @@ async function get<T>(key: string): Promise<T | undefined> {
   })
 }
 
+async function remove(key: string): Promise<void> {
+  const db = await openDb()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite')
+    tx.objectStore(STORE).delete(key)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+}
+
 async function set(key: string, value: unknown): Promise<void> {
   const db = await openDb()
   return new Promise((resolve, reject) => {
@@ -34,6 +50,130 @@ async function set(key: string, value: unknown): Promise<void> {
     tx.onerror = () => reject(tx.error)
   })
 }
+
+// ── Encryption at rest ─────────────────────────────────────────────────────
+
+let dataKey: Uint8Array | null = null
+let vault: VaultRecord | null = null
+let wrapper: KeyWrapper | null = null
+/** The unwrapped passphrase box, while the app lock waits for its passphrase. */
+let lockedBox: Uint8Array | null = null
+
+export type VaultState =
+  | { state: 'open' }
+  | { state: 'locked' }
+  | { state: 'error'; message: string }
+
+const browserWrap = browserWrapper(() => get<CryptoKey>('vault-wrap-key'), (key) => set('vault-wrap-key', key))
+
+/** Slots holding secrets. Anything else (server list, friends, profile) stays readable before unlock. */
+const SECRET_SLOTS = ['identity', 'prekeys', 'dm-peers']
+
+async function getSecret<T>(slot: string): Promise<T | undefined> {
+  const raw = await get<unknown>(slot)
+  if (raw === undefined) return undefined
+  if (!isSealed(raw)) return raw as T // stored before encryption at rest; migrated on open
+  if (!dataKey) throw new Error('Iskra is locked.')
+  return openValue<T>(dataKey, slot, raw)
+}
+
+async function setSecret(slot: string, value: unknown): Promise<void> {
+  if (!dataKey) throw new Error('Iskra is locked.')
+  await set(slot, sealValue(dataKey, slot, value))
+}
+
+/** Encrypts anything still stored in the clear (data from before encryption at rest). Safe to repeat. */
+async function migrateSecrets(): Promise<void> {
+  if (await get('vault-migrated')) return
+  const peers = (await getSecret<string[]>('dm-peers')) ?? []
+  const groups = (await getSecret<string[]>('group-keys')) ?? []
+  for (const slot of [...SECRET_SLOTS, 'group-keys', ...peers.map((p) => `dm:${p}`), ...groups.map((g) => `group:${g}`)]) {
+    const raw = await get<unknown>(slot)
+    if (raw !== undefined && !isSealed(raw)) await setSecret(slot, raw)
+  }
+  await set('vault-migrated', 1)
+}
+
+/**
+ * Opens (or on first start creates) the vault. <paramref name="system"/> is the OS keychain wrap when the desktop app
+ * has one; otherwise the browser wrap is used. Resolves 'locked' when an app lock passphrase is set.
+ */
+export async function openVault(system?: KeyWrapper | null): Promise<VaultState> {
+  if (dataKey) return { state: 'open' }
+  vault = (await get<VaultRecord>('vault')) ?? null
+  if (!vault) {
+    wrapper = system ?? browserWrap
+    const key = newDataKey()
+    vault = { v: 1, wrap: wrapper.kind, data: b64u(await wrapper.wrap(key)) }
+    await set('vault', vault)
+    dataKey = key
+    await migrateSecrets()
+    return { state: 'open' }
+  }
+  if (vault.wrap === 'system' && !system)
+    return { state: 'error', message: "Iskra's keys are protected by this computer's keychain, which isn't available right now." }
+  wrapper = vault.wrap === 'system' ? system! : browserWrap
+  let inner: Uint8Array
+  try {
+    inner = await wrapper.unwrap(fromB64u(vault.data))
+  } catch {
+    return {
+      state: 'error',
+      message: vault.wrap === 'system'
+        ? "This computer's keychain wouldn't unlock Iskra's keys. Make sure you're signed in as the same user, then try again."
+        : "The key that protects Iskra's data in this browser is missing or damaged.",
+    }
+  }
+  // The keychain became available (e.g. Linux with a keyring now): move to it.
+  if (vault.wrap === 'browser' && system) {
+    vault = { ...vault, wrap: 'system', data: b64u(await system.wrap(inner)) }
+    wrapper = system
+    await set('vault', vault)
+  }
+  if (vault.lock) {
+    lockedBox = inner
+    return { state: 'locked' }
+  }
+  dataKey = inner
+  await migrateSecrets()
+  return { state: 'open' }
+}
+
+/** Tries the app lock passphrase. False if it's wrong. */
+export async function unlockVault(passphrase: string): Promise<boolean> {
+  if (!vault?.lock || !lockedBox) return !!dataKey
+  const key = unlockDataKey(lockedBox, passphrase, vault.lock)
+  if (!key) return false
+  dataKey = key
+  lockedBox = null
+  await migrateSecrets()
+  return true
+}
+
+/** Sets, changes or (null) removes the app lock passphrase. */
+export async function setLockPassphrase(passphrase: string | null): Promise<void> {
+  if (!dataKey || !wrapper || !vault) throw new Error('Iskra is locked.')
+  if (passphrase) {
+    const { box, params } = lockDataKey(dataKey, passphrase)
+    vault = { v: 1, wrap: wrapper.kind, data: b64u(await wrapper.wrap(box)), lock: params }
+  } else {
+    vault = { v: 1, wrap: wrapper.kind, data: b64u(await wrapper.wrap(dataKey)) }
+  }
+  await set('vault', vault)
+}
+
+/** Checks the current app lock passphrase (asked before changing or removing it). */
+export async function checkLockPassphrase(passphrase: string): Promise<boolean> {
+  if (!vault?.lock || !wrapper) return false
+  try {
+    const box = await wrapper.unwrap(fromB64u(vault.data))
+    return unlockDataKey(box, passphrase, vault.lock) !== null
+  } catch {
+    return false
+  }
+}
+
+export const vaultInfo = (): { wrap: WrapKind | null; locked: boolean } => ({ wrap: vault?.wrap ?? null, locked: !!vault?.lock })
 
 interface StoredIdentity {
   v: 1
@@ -66,7 +206,7 @@ export interface SavedServer {
 }
 
 export async function loadIdentity(): Promise<Identity | null> {
-  const stored = await get<StoredIdentity>('identity')
+  const stored = await getSecret<StoredIdentity>('identity')
   if (!stored || stored.v !== 1) return null
   return {
     account: { publicKey: fromB64u(stored.accountPublic), secretKey: fromB64u(stored.accountSecret) },
@@ -84,7 +224,7 @@ export async function saveIdentity(identity: Identity): Promise<void> {
     deviceSecret: b64u(identity.device.secretKey),
     cert: identity.cert,
   }
-  await set('identity', stored)
+  await setSecret('identity', stored)
 }
 
 export const loadProfile = () => get<Profile>('profile')
@@ -127,12 +267,12 @@ interface StoredPrekey {
 }
 
 export async function loadPrekeys(): Promise<PrekeyPair[]> {
-  const stored = (await get<StoredPrekey[]>('prekeys')) ?? []
+  const stored = (await getSecret<StoredPrekey[]>('prekeys')) ?? []
   return stored.map((p) => ({ publicKey: fromB64u(p.publicKey), secretKey: fromB64u(p.secretKey), created: p.created, retiredAt: p.retiredAt }))
 }
 
 export const savePrekeys = (prekeys: PrekeyPair[]) =>
-  set('prekeys', prekeys.map((p): StoredPrekey => ({ publicKey: b64u(p.publicKey), secretKey: b64u(p.secretKey), created: p.created, retiredAt: p.retiredAt })))
+  setSecret('prekeys', prekeys.map((p): StoredPrekey => ({ publicKey: b64u(p.publicKey), secretKey: b64u(p.secretKey), created: p.created, retiredAt: p.retiredAt })))
 
 /** Revocations this account made (from any of its devices), re-sent to servers that missed them. */
 export async function loadRevocations(): Promise<Revocation[]> {
@@ -150,19 +290,21 @@ export interface StoredDm {
   sentAt: number
   /** Call log entries (see state/calls.ts). */
   call?: Record<string, unknown>
+  /** A local notice ("safety number changed"), see state/dms.ts. */
+  notice?: 'key-changed' | 'key-disputed'
 }
 
 /** Decrypted DMs per conversation. Servers keep only envelopes, and old prekeys get deleted, so this is the history. */
 export async function loadDmHistory(): Promise<Record<string, StoredDm[]>> {
-  const peers = (await get<string[]>('dm-peers')) ?? []
-  const entries = await Promise.all(peers.map(async (peer) => [peer, (await get<StoredDm[]>(`dm:${peer}`)) ?? []] as const))
+  const peers = (await getSecret<string[]>('dm-peers')) ?? []
+  const entries = await Promise.all(peers.map(async (peer) => [peer, (await getSecret<StoredDm[]>(`dm:${peer}`)) ?? []] as const))
   return Object.fromEntries(entries)
 }
 
 export async function saveDmConversation(peer: string, messages: StoredDm[]): Promise<void> {
-  const peers = (await get<string[]>('dm-peers')) ?? []
-  if (!peers.includes(peer)) await set('dm-peers', [...peers, peer])
-  await set(`dm:${peer}`, messages)
+  const peers = (await getSecret<string[]>('dm-peers')) ?? []
+  if (!peers.includes(peer)) await setSecret('dm-peers', [...peers, peer])
+  await setSecret(`dm:${peer}`, messages)
 }
 
 // ── group DMs ──
@@ -177,23 +319,52 @@ export interface StoredGroup {
   messages: (StoredDm & { group?: Record<string, unknown> })[]
 }
 
+// Group messages are decrypted content, so they're encrypted at rest like DMs.
 export async function loadGroups(): Promise<StoredGroup[]> {
-  const keys = (await get<string[]>('group-keys')) ?? []
-  const groups = await Promise.all(keys.map((key) => get<StoredGroup>(`group:${key}`)))
+  const keys = (await getSecret<string[]>('group-keys')) ?? []
+  const groups = await Promise.all(keys.map((key) => getSecret<StoredGroup>(`group:${key}`)))
   return groups.filter((g): g is StoredGroup => !!g)
 }
 
 export async function saveGroup(key: string, group: StoredGroup): Promise<void> {
-  const keys = (await get<string[]>('group-keys')) ?? []
-  if (!keys.includes(key)) await set('group-keys', [...keys, key])
-  await set(`group:${key}`, group)
+  const keys = (await getSecret<string[]>('group-keys')) ?? []
+  if (!keys.includes(key)) await setSecret('group-keys', [...keys, key])
+  await setSecret(`group:${key}`, group)
 }
 
 export async function deleteGroup(key: string): Promise<void> {
-  const keys = (await get<string[]>('group-keys')) ?? []
-  await set('group-keys', keys.filter((k) => k !== key))
-  await set(`group:${key}`, undefined)
+  const keys = (await getSecret<string[]>('group-keys')) ?? []
+  await setSecret('group-keys', keys.filter((k) => k !== key))
+  await remove(`group:${key}`)
 }
+
+/** Drops a conversation (after merging it into another one, e.g. the peer's key rotated). */
+export async function deleteDmConversation(peer: string): Promise<void> {
+  const peers = (await getSecret<string[]>('dm-peers')) ?? []
+  if (peers.includes(peer)) await setSecret('dm-peers', peers.filter((p) => p !== peer))
+  await remove(`dm:${peer}`)
+}
+
+// ── Account key rotations (public, signed statements) ──────────────────────
+
+/** Verified rotations this device knows: its own account's and its contacts'. */
+export async function loadRotations(): Promise<Rotation[]> {
+  return (await get<Rotation[]>('rotations')) ?? []
+}
+
+export const saveRotations = (rotations: Rotation[]) => set('rotations', rotations)
+
+/** A rotation this device made, with what each server still needs (certificates and hand-overs). */
+export interface RotationOutbox {
+  rotation: Rotation
+  certs: DeviceCert[]
+  handovers: Handover[]
+  /** Servers that have the whole package. */
+  done: string[]
+}
+
+export const loadRotationOutbox = async () => (await get<RotationOutbox[]>('rotation-outbox')) ?? []
+export const saveRotationOutbox = (outbox: RotationOutbox[]) => set('rotation-outbox', outbox)
 
 /** Forgets everything on this device (after it was removed from its account). */
 export function wipeAll(): Promise<void> {

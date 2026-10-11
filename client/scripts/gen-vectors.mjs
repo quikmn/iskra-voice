@@ -28,5 +28,17 @@ const v1 = {
   cert: { accountKey: b64(account.publicKey), deviceKey: b64(device.publicKey), created, sig: b64(certSig) },
   authSig: b64(authSig),
 }
-writeFileSync(new URL('../../protocol/vectors.json', import.meta.url), JSON.stringify({ v1 }, null, 2) + '\n')
+// Account key rotation: the account above hands over to a new key (seed 5). Both keys sign the same payload.
+const next = sodium.crypto_sign_seed_keypair(new Uint8Array(32).fill(5))
+const rotatedAt = 1760000000000
+const rotationPayload = payload('iskra/account-rotate/v1', account.publicKey, next.publicKey, u64be(rotatedAt))
+const rotation = {
+  newSeed: b64(new Uint8Array(32).fill(5)),
+  rotation: {
+    oldKey: b64(account.publicKey), newKey: b64(next.publicKey), rotatedAt,
+    oldSig: b64(sodium.crypto_sign_detached(rotationPayload, account.privateKey)),
+    newSig: b64(sodium.crypto_sign_detached(rotationPayload, next.privateKey)),
+  },
+}
+writeFileSync(new URL('../../protocol/vectors.json', import.meta.url), JSON.stringify({ v1, rotation }, null, 2) + '\n')
 console.log('wrote vectors.json')

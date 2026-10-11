@@ -15,5 +15,15 @@
       "sig": "yTTtaUPF8w0kjh5H-sQSC9TUgRcKp2zMdd1SpHUKka01dVxczIjsaRycOFXkGvTev7_qMLG6ubskVWOMXqe2Bg"
     },
     "authSig": "2KcuTdSi6cIld_JBLb5LPpqtllUvwt8SP34Cx3uxkib-7V_2jt6p96gx242LwZAziaRsdv3UtWLwcgXbEiQdCw"
+  },
+  "rotation": {
+    "newSeed": "BQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQU",
+    "rotation": {
+      "oldKey": "iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w",
+      "newKey": "bnoc3Smwt4_ROvTFWY_v9O8qlxZuPKby5Pv8zYBQW_E",
+      "rotatedAt": 1760000000000,
+      "oldSig": "EvwmsTjocI2FMK4KhqnYOC16I_MH2I771QRp011JP8FjDBBShyGhM1yiggk5zeT3S3VKVNhwhfMLBDd0d45bCw",
+      "newSig": "zlZSDfLTC4uauuNm3LvSsLT7m4x7EVgmKiT2XG4De1w4KbDFOz3cg_s9GxSWTHferKsQwuZFO1tLF-xVvoE7DQ"
+    }
   }
 }

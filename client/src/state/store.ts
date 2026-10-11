@@ -9,6 +9,7 @@ import { canPingGroups, mentions } from '../ui/markdown'
 import type { InviteLink } from '../core/invite'
 import type { Channel, Events, FileInfo, Member, Message, VoiceInfo, VoiceParticipant, Welcome } from '../core/protocol'
 import * as storage from '../core/storage'
+import { openDeviceVault } from './lock'
 
 export interface PendingMessage extends Message {
   pending?: 'sending' | 'failed'
@@ -43,7 +44,8 @@ export interface ServerState {
 }
 
 interface AppState {
-  phase: 'loading' | 'onboarding' | 'ready'
+  /** locked: waiting for the app lock passphrase (or the keychain failed), see state/lock.ts. */
+  phase: 'loading' | 'locked' | 'onboarding' | 'ready'
   identity: Identity | null
   profile: storage.Profile | null
   servers: Record<string, ServerState>
@@ -66,6 +68,12 @@ export const useApp = create<AppState>(() => ({
 }))
 
 const connections = new Map<string, Connection>()
+
+/** Account key rotations sent in the handshake (state/keys.ts fills this in). */
+let authRotations: () => unknown[] = () => []
+export function setAuthRotations(source: () => unknown[]): void {
+  authRotations = source
+}
 
 type ServerEventListener = (serverKey: string, type: keyof Events, body: unknown) => void
 const eventListeners = new Set<ServerEventListener>()
@@ -140,6 +148,10 @@ async function persistServers(): Promise<void> {
 
 export async function boot(): Promise<void> {
   await ready()
+  if (!(await openDeviceVault())) {
+    useApp.setState({ phase: 'locked' })
+    return
+  }
   const [identity, profile, saved] = await Promise.all([storage.loadIdentity(), storage.loadProfile(), storage.loadServers()])
   if (!identity || !profile) {
     useApp.setState({ phase: 'onboarding' })
@@ -245,12 +257,19 @@ function connectServer(url: string, key: string, name: string, invite?: string):
     name: () => useApp.getState().profile?.name ?? 'Someone',
     profile: () => authProfile(useApp.getState().profile),
     presence: () => authPresence(),
+    rotations: () => authRotations(),
     onStatus: (status) => patchServer(key, () => ({ status })),
     onWelcome: (welcome) => onWelcome(key, welcome),
     onEvent: (type, body) => onEvent(key, type, body),
   })
   connections.set(key, connection)
   connection.start()
+}
+
+/** Reconnects every server with the current identity (after an account key rotation). */
+export function reconnectAll(): void {
+  const { servers, order } = useApp.getState()
+  for (const key of order) if (servers[key]) connectServer(servers[key].url, key, servers[key].name)
 }
 
 /** Retry servers that are waiting to reconnect (e.g. the network came back). */

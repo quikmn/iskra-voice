@@ -37,7 +37,7 @@ function download(key: string, name: string) {
   URL.revokeObjectURL(url)
 }
 
-function KeyActions({ recoveryKey }: { recoveryKey: string }) {
+export function KeyActions({ recoveryKey }: { recoveryKey: string }) {
   const name = useApp((s) => s.profile?.name ?? '')
   const [copied, setCopied] = useState(false)
   return (

@@ -148,9 +148,10 @@ public sealed class Session
                 AuthFailure.Banned => ("banned", "You are banned from this server.", CloseCodes.Forbidden),
                 AuthFailure.InviteRequired => ("invite_required", "You need a valid invite to join this server.", CloseCodes.AuthFailed),
                 AuthFailure.DeviceRevoked => ("device_revoked", "This device was removed from its account.", CloseCodes.AuthFailed),
+                AuthFailure.KeyRotation => (_authError!.Value.Code, _authError.Value.Message, CloseCodes.AuthFailed),
                 _ => ("auth_failed", "Authentication failed.", CloseCodes.AuthFailed),
             };
-            SendNow(Frames.Error(envelope?.Id, code, message));
+            SendNow(Frames.Error(envelope?.Id, code, message, failure == AuthFailure.KeyRotation ? _authError!.Value.Extra : null));
             Close(close, message);
             return;
         }
@@ -173,6 +174,7 @@ public sealed class Session
             voiceAvailable = _voice.Backend.Available,
             stages = _voice.Stages.Snapshot(member),
             watch = _voice.Watch.Snapshot(member),
+            rotations = KeyFeature.Recent(_world.Store),
         }));
         lock (_earlyGate)
         {
@@ -284,7 +286,10 @@ public sealed class Session
 
     // ── Auth ─────────────────────────────────────────────────────────────────
 
-    private enum AuthFailure { Invalid, Banned, InviteRequired, DeviceRevoked }
+    private enum AuthFailure { Invalid, Banned, InviteRequired, DeviceRevoked, KeyRotation }
+
+    /// <summary>Set when the handshake fails because of an account key rotation (see KeyFeature.OnAuth).</summary>
+    private (string Code, string Message, object Extra)? _authError;
 
     private (Member?, AuthFailure) Authenticate(Envelope envelope, byte[] nonce, out string? deviceKey)
     {
@@ -330,6 +335,8 @@ public sealed class Session
 
         // Identity is proven from here on.
         if (_world.Store.IsDeviceRevoked(cert.AccountKey, cert.DeviceKey)) return (null, AuthFailure.DeviceRevoked);
+        _authError = KeyFeature.OnAuth(_world, _hub, _voice, cert, body, Now);
+        if (_authError is not null) return (null, AuthFailure.KeyRotation);
         deviceKey = cert.DeviceKey;
         if (_world.Store.IsBanned(cert.AccountKey)) return (null, AuthFailure.Banned);
 
@@ -340,6 +347,7 @@ public sealed class Session
             ProfileFeature.ApplyFromAuth(_world.Store, existing.AccountKey, profile);
             PresenceFeature.ApplyFromAuth(_world.Store, existing.AccountKey, body, Now);
             _world.Store.SaveDevice(cert, Now);
+            KeyFeature.SignedIn(_world.Store, cert);
             return (existing with { Name = name }, AuthFailure.Invalid);
         }
 
@@ -386,6 +394,21 @@ public sealed class Session
         Send(Frames.Event("kicked", new { reason }));
         Close(code, reason);
     }
+
+    private Action? _afterReply;
+
+    /// <summary>Runs <paramref name="action"/> right after the current request's result is queued (read loop only).</summary>
+    public void AfterReply(Action action) => _afterReply += action;
+
+    public void RunAfterReply()
+    {
+        var action = _afterReply;
+        _afterReply = null;
+        action?.Invoke();
+    }
+
+    /// <summary>Closes the session from outside without a kicked event (e.g. the account moved to a new key).</summary>
+    public void End(int code, string reason) => Close(code, reason);
 
     private void Close(int code, string reason) => Close((WebSocketCloseStatus)code, reason);
 

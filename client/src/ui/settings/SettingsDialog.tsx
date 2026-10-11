@@ -16,6 +16,7 @@ import { DevicesSection } from '../dialogs/DevicesSection'
 import { IntegrationsSection } from '../dialogs/Integrations'
 import { BackupSection } from './BackupSection'
 import { ImportSection } from './ImportSection'
+import { AppLockSection, RotateKeySection } from '../keys/KeySettings'
 import { ChevronRight } from '../icons'
 import { AuditLogSection, BlockedSection } from '../moderation/SafetySettings'
 import { NicknameField } from '../organize/ServerSettings'
@@ -95,7 +96,8 @@ function Section({ id, server, onClose }: { id: SectionId; server: ServerState |
     case 'profile': return <ProfileSection />
     case 'appearance': return <AppearanceSection />
     case 'devices': return <DevicesSection />
-    case 'recovery': return <RecoveryKeySection />
+    case 'recovery': return <><RecoveryKeySection /><RotateKeySection /></>
+    case 'security': return <AppLockSection />
     case 'notifications': return <NotificationSettingsSection server={server} />
     case 'voice': return <><InputSettingsSection /><VoiceSettingsSection /><ProcessingSettingsSection /><OutputSettingsSection /><SoundboardSettingsSection /></>
     case 'blocked': return <BlockedSection />

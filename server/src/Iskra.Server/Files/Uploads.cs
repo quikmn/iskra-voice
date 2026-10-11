@@ -11,7 +11,7 @@ namespace Iskra.Server.Files;
 /// the bytes are then PUT to /upload/{ticket}. Files are stored once per content (uploads/ab/abcdef…)
 /// and served from unguessable ids with headers that never let a file run as part of the site.
 /// </summary>
-public sealed partial class Uploads(World world, TimeProvider time, ILogger<Uploads> log, Voice.VoiceRegistry voice)
+public sealed partial class Uploads(World world, TimeProvider time, ILogger<Uploads> log, Voice.VoiceRegistry? voice = null)
 {
     private sealed record Ticket(string Uploader, string Name, long MaxBytes, DateTimeOffset Expires)
     {

@@ -14,6 +14,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Backups, moving and imports](#backups-moving-and-imports)
 - **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation)
+- **Keys:** [Account key rotation](#account-key-rotation) · [Keys on the device](#keys-on-the-device)
 
 ---
 
@@ -39,7 +40,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 ```
 `sig = Ed25519.sign(accountSecret, "iskra/device-cert/v1" || 0x00 || deviceKey(32) || u64be(created))`
 
-Devices can be listed, renamed and revoked; see [Devices and device linking](#devices-and-device-linking).
+Devices can be listed, renamed and revoked; see [Devices and device linking](#devices-and-device-linking). The account key itself can be replaced; see [Account key rotation](#account-key-rotation).
 
 ## Connection
 
@@ -66,6 +67,7 @@ The connection is one WebSocket per server at `wss://<host>/ws`. It uses text fr
 
    Because the signature covers the server's key and a fresh nonce, it can't be replayed, either against this server or against a different one.
    `profile` may also carry `bio`, `pronouns` and `accent` ([Profiles](#profiles)) and `bot: true` ([Bots](#bot-accounts)).
+   `rotations` (optional, ≤ 4 `Rotation`s) brings an account key rotation to a server that missed it ([Account key rotation](#account-key-rotation)).
 3. **Server checks:**
    - the certificate signature
    - the auth signature
@@ -84,7 +86,8 @@ The connection is one WebSocket per server at `wss://<host>/ws`. It uses text fr
        "voice": [VoiceState...],   // non-empty voice channels you can read (see Voice)
        "voiceAvailable": true,
        "stages": [StageState...],      // stage channels you can read (see Stage channels)
-       "watch": [WatchParty...] } }    // watch parties in channels you can read (see Watch parties)
+       "watch": [WatchParty...],       // watch parties in channels you can read (see Watch parties)
+       "rotations": [AppliedRotation...] } }  // the 200 most recent key rotations here (see Account key rotation)
    ```
 
 Events from other sessions that happen before `welcome` is sent are queued and delivered right after it, in order.
@@ -98,6 +101,8 @@ If a handshake check fails, the server sends `error` and closes:
 | `auth_failed` | 4401 | Bad certificate, signature or name, or timeout (same message whatever the reason) |
 | `invite_required` | 4401 | Valid identity, not a member, no usable invite (also: a bot invite used by a person, or a person's invite used by a bot) |
 | `device_revoked` | 4401 | Valid identity, but the account revoked this device |
+| `account_rotated` | 4401 | Valid identity, but this account key was rotated away. The body adds `rotations` and `handover` ([Account key rotation](#account-key-rotation)) |
+| `account_disputed` | 4401 | Your rotation lost to an earlier one and is now a dispute for the admins |
 | `banned` | 4403 | The account is banned |
 
 After the handshake, every request gets a `result` (body as listed, `{}` if none) or an `error` with one of these codes:
@@ -113,6 +118,7 @@ After the handshake, every request gets a `result` (body as listed, `{}` if none
 | `voice_unavailable` | `voice.join`, `call.start`, `call.accept`, `stage.start`, `stage.invite`, `gcall.*`: LiveKit isn't running (or can't be reached) on this server |
 | `busy` | `call.start`: the person is already in another call on this server; `gcall.start`: the group already has a call |
 | `conflict` | `group.change`, `group.send`, `gcall.start`, `gcall.key`: the group changed in the meantime ([Group DMs](#group-dms-and-group-calls-end-to-end-encrypted)) |
+| `rotation_conflict` | `account.rotate`: this account key was already rotated to a different key here |
 
 Close codes:
 
@@ -121,6 +127,7 @@ Close codes:
 | 4400 | 10 malformed frames in a row |
 | 4401 | Auth failed, timed out, invite required, or device revoked (during the handshake) |
 | 4403 | Banned, kicked, no longer a member, or this device was revoked while connected (preceded by a `kicked` event) |
+| 4409 | The account moved to a new key (preceded by `account.rotated`) |
 | 4413 | Frame too large |
 
 ### Limits
@@ -151,6 +158,7 @@ Rate limits are token buckets per connection. Every request takes from the gener
 | `watch.chat` | 1/s | 5 |
 | `watch.clock` | 2/s | 10 |
 | `link.create` | 1 every 10 s | 3 |
+| `account.rotate` | 1 every 5 s | 10 |
 
 Some limits are per account, shared by all of its sessions, so opening more connections doesn't buy more:
 
@@ -433,7 +441,7 @@ SignedPrekey { "deviceKey": "<b64u 32>", "key": "<b64u 32, X25519>", "created": 
 ```
 
 - Revocation: `sig = Ed25519.sign(accountSecret, "iskra/device-revoke/v1" || 0x00 || deviceKey(32) || u64be(revokedAt))`. `revokedAt` may be at most 10 minutes in the future. A revocation only ever applies to devices of the account that signed it. At most 100 per account; idempotent. A session can add at most 10 new ones per hour (`rate_limited`; handing over known ones doesn't count).
-- What revocation does not do: every device holds the account secret (unencrypted, in the app's storage), so whoever copied a device's storage can sign new device certificates. Revocation stops a device key, not the account key, and there's no account key rotation yet (future work).
+- What revocation does not do: every device holds the account secret, so whoever copied a device's storage can sign new device certificates. Revocation stops a device key, not the account key; to shut out a copied account key, [rotate it](#account-key-rotation).
 - Once a server has a revocation: the device's auth fails with `device_revoked`; its open sessions get `device.revoked` and are kicked (4403); it disappears from `dm.devices` and `device.list`; its prekey and push subscription are dropped. The revocation can arrive before the device ever connects there.
 - Clients keep the revocations they know (their own, and verified ones from any server) and hand missing ones to each server on connect, so a revocation reaches every server the account is on.
 - Prekey: `sig = Ed25519.sign(deviceSecret, "iskra/prekey/v1" || 0x00 || key(32) || u64be(created))`, signed by the **device** key, so the account-signed certificate vouches for it. The server keeps the newest per device and refuses keys older than 60 days or more than 10 minutes in the future.
@@ -471,7 +479,7 @@ The handshake (libsodium):
 4. Both show `crypto_generichash(8, E.pk || N.pk, key = k3)` as 6 digits (first 4 bytes, big-endian, mod 10⁶). The new device shows them and the person types them into the existing device, which only continues if they match (a wrong number cancels the link). A new device whose `POST` gets `409` (someone else used the token first) warns the person not to confirm anything on the other device.
 5. Only then: `payload = nonce(24) || crypto_box(JSON, nonce, N.pk, E.sk)`, uploaded with `PUT`.
 
-Payload: `{ v: 1, seed, name, recoverySaved, servers: [{ url, serverKey, name }], friends, history?, profile? }`: the 32-byte account seed (the new device makes its own device key and certificate from it), name, server list, friends, optionally recent decrypted DM history (≤ 200 messages per conversation, ≤ ~600 KB) and the profile ([below](#device-linking-carries-the-profile)). A server without the secret can't produce a valid MAC, so it can't put its own key in the middle; the confirmation code also catches someone who saw the code racing the real device.
+Payload: `{ v: 1, seed, name, recoverySaved, servers: [{ url, serverKey, name }], friends, history?, profile?, rotations? }`: the 32-byte account seed (the new device makes its own device key and certificate from it), name, server list, friends, optionally recent decrypted DM history (≤ 200 messages per conversation, ≤ ~600 KB), the profile ([below](#device-linking-carries-the-profile)) and the account key rotations that led to this key (≤ 16, so the new device can bring them to servers that missed them; it keeps only ones that check out). A server without the secret can't produce a valid MAC, so it can't put its own key in the middle; the confirmation code also catches someone who saw the code racing the real device.
 
 ## Calls (voice and video in DMs, end-to-end encrypted)
 
@@ -1169,3 +1177,65 @@ The owner can import a Discord server's history from [DiscordChatExporter](https
 - Limits: ≤ 2000 exports and 200,000 entries per zip, ≤ 500 channels per import, ≤ 16 MB for any single JSON value (exports are read as a stream, so their size doesn't matter otherwise), ≤ 4× `Import.MaxMb` unpacked in total. Zip entries with unsafe names are skipped.
 - Roles and permissions can't be imported: DiscordChatExporter doesn't export them in a usable form. Direct-message exports are skipped.
 - From the command line: `iskra-server import-discord <world-folder> <export.zip|.json> [--read-only]`, best with the server stopped (a running server shows the new channels after a restart).
+
+## Account key rotation
+
+An account can replace its account key, for example after its recovery key leaked or a device's storage was copied. The old key signs a hand-over to the new one; servers move the account and keep the history; other people's apps check the signatures themselves and follow.
+
+```jsonc
+Rotation        { "oldKey": "<b64u 32>", "newKey": "<b64u 32>", "rotatedAt": 1760000000000, "oldSig": "<b64u 64>", "newSig": "<b64u 64>" }
+AppliedRotation { ...Rotation, "appliedAt": 1760000000000,          // when this server applied it
+                  "contest": Rotation | null, "disputed": false }   // a second claim on the same old key (below)
+```
+
+- `payload = "iskra/account-rotate/v1" || 0x00 || oldKey(32) || newKey(32) || u64be(rotatedAt)`; `oldSig` is the old account key's signature over it, `newSig` the new key's. The new key signing too means nobody can point an account at a key they don't hold (or merge it into someone else's).
+- A key is rotated away at most once per server, so the rotations form a chain (`K0 → K1 → K2`, at most 16 links). A retired key can't sign in, revoke devices or rotate again there.
+- Device keys stay the same: the rotating device re-certifies the account's devices with the new key (ordinary `DeviceCert`s), so prekeys and push subscriptions carry on. Devices that aren't re-certified are dropped.
+
+| type | body | result | who |
+|---|---|---|---|
+| `account.rotate` | `rotation`, `certs?` (≤ 20 `DeviceCert`s signed by `newKey`), `handovers?` (≤ 20 `{ device, seal }`, only for re-certified devices) | `{ status: "applied" \| "already" }` | the old key (to rotate) or the new key (to add certificates and hand-overs to a rotation already applied here) |
+| `account.rotations` | `accountKey` | `{ rotations: [AppliedRotation] }` (the keys that led to it, oldest first) | anyone |
+| `account.dispute.resolve` | `oldKey, keep` (one of the two disputed keys) | | admin+ who outranks the disputed member, not about themselves |
+
+**What a server checks and does** (`account.rotate`, or `auth.rotations`):
+
+- both signatures; `rotatedAt` at most 10 minutes in the future; the old key is a member here (or banned: the ban moves along); the new key was never seen here (no member, ban, device or rotation). Otherwise `bad_request`.
+- In one transaction it moves everything kept about the old key to the new one: membership, role, name and profile, profile page, messages, reactions, pins, threads, polls, files, invites, bans, bots, push subscriptions and DMs (envelopes keep their signed headers; only the routing fields change). Revocations stay under the old key, which signed them. Server convention: any table storing account keys keeps them in TEXT columns named `account_key`, `*_key` or `*_by` (or `uploader`), which the move rewrites automatically.
+- The old key's live sessions get `account.rotated` and are closed with 4409; everyone gets `member.rotated`; voice and calls the old key was in are ended.
+- Later, a sign-in with the old key fails with `account_rotated`, whose body carries `rotations` (where the key went, step by step) and `handover` (this device's sealed hand-over, if there is one, else `null`). Hand-overs are deleted once the device signs in with the new key.
+
+**Catching up a server.** Clients remember their rotations and send them in `auth.rotations` to servers that missed them (offline at the time): a contiguous chain ending at the certificate's account key, starting at a key the server knows. The server applies each link as above before checking membership; a broken or invalid chain is ignored (the device is then a stranger: `invite_required`). Afterwards the client sends `account.rotate` from the new key with the certificates and hand-overs.
+
+**Hand-over to the account's other devices.** Every device holds the account key, so the rotating device gives the new one to each device it carries over: `seal = crypto_box_seal(newSeed(32), X25519(deviceKey))` (the device key converted as for DMs). A device that learns of a rotation opens its seal, derives the key pair from the seed and only accepts it if the public key is that rotation's `newKey`, signed over by its own old key. So a server can't slip in a key of its own. A device without a seal (not carried over, or a restore from the old recovery key) can't follow: the app tells the person their key was replaced.
+
+**Two claims on one key.** Whoever has the old key (the owner, or someone who stole it) can rotate, and a server can't tell them apart. The rule:
+
+1. **The first valid rotation wins** on each server, immediately.
+2. Every device of the old account is told (the `account.rotated` event, or `account_rotated` at its next sign-in), so the real owner finds out on every device. A device that wasn't handed the new key says "Your account key was replaced" and offers to **claim it back**: it signs its own rotation from the old key to a fresh key.
+3. A second, different rotation of the same old key within **30 days** of the first being applied (`ContestWindowMs`) doesn't win, but makes the account **disputed**: the server records it as `contest`, caps the current holder's role at `member` (so a thief can't keep using admin or owner rights), answers the claimant `account_disputed` and sends `account.disputed` to everyone. Only the first contest is recorded. After 30 days the old key is simply dead.
+4. An admin who knows the person settles it with `account.dispute.resolve`: keeping the current key restores its role; keeping the contesting key moves the account there (the other key's sessions get `account.rotated` and close, its devices are dropped) and restores the role. `account.resolved` goes to everyone.
+
+Limits of this: a thief who rotates first on a server where the owner doesn't act holds the account there until an admin decides; a server whose only admin is the disputed account stays disputed. On servers the owner reaches first, the owner's rotation wins.
+
+| event | body | sent to |
+|---|---|---|
+| `account.rotated` | `{ rotations: [AppliedRotation], handover: seal \| null }` | the old key's sessions, right before 4409 (also the loser of a resolved dispute) |
+| `member.rotated` | `{ rotation: AppliedRotation, member }` | everyone |
+| `account.disputed` | `{ rotation: AppliedRotation, member }` (the current holder, role capped) | everyone |
+| `account.resolved` | `{ rotation: AppliedRotation, previousKey, member }` | everyone |
+
+**What contacts' apps do.** They verify every rotation's two signatures themselves (never trusting the server's word), remember them, and treat the chain as one person: the friend entry, the DM conversation and its local history move to the new key, envelopes whose signed header names an earlier key of the same chain still decrypt, and the conversation shows **"Safety number changed"** (the safety number covers account keys, so it does change). A disputed account gets a warning until it's resolved.
+
+**On the rotating device:** the new key gets a new recovery key, shown right away; the old recovery key stops working on every server that has the rotation.
+
+## Keys on the device
+
+Local storage only; nothing here goes over the wire.
+
+- Secrets (the identity, prekeys, a pending rotation, decrypted DM history) are stored in IndexedDB encrypted with a random 32-byte data key: `XChaCha20-Poly1305(JSON, nonce(24), key, ad = "iskra/local/v1" || 0x00 || storage key)`. The associated data binds each value to its slot, so values can't be swapped.
+- The data key is stored wrapped:
+  - **desktop app:** with Electron `safeStorage` (Windows DPAPI, macOS Keychain, Linux libsecret/kwallet). On Linux without a keyring (`basic_text` backend) the app uses the browser wrap below and says so.
+  - **browser:** with a non-extractable AES-GCM `CryptoKey` kept in IndexedDB (`wrap = AES-GCM(key, iv(12), dataKey)`).
+  - **app lock (optional):** the data key is additionally wrapped with `crypto_pwhash` (Argon2id13, opslimit 3, memlimit 64 MiB, random 16-byte salt) of the passphrase and `crypto_secretbox`, and the app asks for the passphrase at startup.
+- Data stored before this existed is encrypted on first start. Device linking and recovery keys work as before (the app has the keys in memory once unlocked).

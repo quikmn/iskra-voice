@@ -187,16 +187,20 @@ function openSlot(identity: Identity, slot: DmStaticSlot | DmPrekeySlot, sender:
 
 /**
  * Decrypts an envelope (v1 or v2). <paramref name="from"/> and <paramref name="to"/> are what the server says
- * (it routed the message); they must match the encrypted header.
+ * (it routed the message); they must match the encrypted header. <paramref name="same"/> says whether two account
+ * keys are one person (a verified key rotation, see core/rotation.ts): servers re-route old messages to the new key.
  */
-export function decryptDm(identity: Identity, envelope: DmEnvelope, from: string, to: string): DmContent & { header: DmHeader } {
+export function decryptDm(
+  identity: Identity, envelope: DmEnvelope, from: string, to: string,
+  same: (a: string, b: string) => boolean = (a, b) => a === b,
+): DmContent & { header: DmHeader } {
   if (!envelope || (envelope.v !== 1 && envelope.v !== 2) || !envelope.header || !envelope.sender || !Array.isArray(envelope.keys))
     throw new DmError('Unsupported message format.')
   const { header, sender } = envelope
   const me = b64u(identity.account.publicKey)
 
-  if (header.from !== from || header.to !== to) throw new DmError("This message's sender or recipient doesn't match.")
-  if (from !== me && to !== me) throw new DmError("This message isn't for you.")
+  if (!same(header.from, from) || !same(header.to, to)) throw new DmError("This message's sender or recipient doesn't match.")
+  if (!same(from, me) && !same(to, me)) throw new DmError("This message isn't for you.")
   if (sender.accountKey !== header.from || !verifyDeviceCert(sender)) throw new DmError("The sender's device couldn't be verified.")
 
   return { ...openContent(identity, envelope, associatedData(envelope.v, header)), header }

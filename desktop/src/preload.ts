@@ -1,5 +1,5 @@
 // The only bridge between the web app and the desktop shell. Small on purpose:
-// push-to-talk, the screen picker, hosting (and restoring backups), update notices and saving backups, nothing else.
+// push-to-talk, the screen picker, hosting (and restoring backups), update notices, saving backups and the OS keychain, nothing else.
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 
 export interface ScreenSource {
@@ -39,6 +39,12 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
   },
   pickScreen: (id: string | null): void => ipcRenderer.send('iskra:screen-picked', typeof id === 'string' ? id : null),
   callAlert: (on: boolean): Promise<void> => ipcRenderer.invoke('iskra:call-alert', on === true),
+
+  keychain: {
+    status: (): Promise<string> => ipcRenderer.invoke('iskra:keychain-status'),
+    encrypt: (data: string): Promise<string | null> => ipcRenderer.invoke('iskra:keychain-encrypt', data),
+    decrypt: (data: string): Promise<string | null> => ipcRenderer.invoke('iskra:keychain-decrypt', data),
+  },
 
   host: {
     available: (): Promise<boolean> => ipcRenderer.invoke('iskra:host-available'),

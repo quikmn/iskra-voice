@@ -11,6 +11,8 @@ import type { DeviceBundle, WireDm } from '../core/protocol'
 import * as storage from '../core/storage'
 import { mergeDm, orderTime } from './dmMerge'
 import { ensurePrekeys, ownRevokedDevices } from './devices'
+import { keysReady, resolveKey, sameAccount } from './keyMap'
+import type { Rotation } from '../core/rotation'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 
 export interface Dm {
@@ -25,6 +27,8 @@ export interface Dm {
   error?: string
   /** A call log entry (see calls.ts); shown instead of the text. */
   call?: Record<string, unknown>
+  /** A local notice, not a message: the person's account key (and so the safety number) changed. */
+  notice?: 'key-changed' | 'key-disputed'
 }
 
 export interface Conversation {
@@ -93,14 +97,15 @@ const upsert = (list: Dm[], dm: Dm): Dm[] => mergeDm(list, dm)
 function open(wire: WireDm): Dm {
   const identity = useApp.getState().identity!
   try {
-    const { text, header, call } = decryptDm(identity, wire.envelope, wire.from, wire.to)
-    return { id: header.id, from: wire.from, to: wire.to, text, sentAt: orderTime(header.sentAt, wire.createdAt), call }
+    // Messages sent to or from an earlier key of the same person (a checked rotation) belong to their current key.
+    const { text, header, call } = decryptDm(identity, wire.envelope, wire.from, wire.to, sameAccount)
+    return { id: header.id, from: resolveKey(wire.from), to: resolveKey(wire.to), text, sentAt: orderTime(header.sentAt, wire.createdAt), call }
   } catch (e) {
     // The header id (unauthenticated here) only lets a readable local copy of the same message win.
     const headerId = wire.envelope?.header?.id
     return {
       id: typeof headerId === 'string' && headerId.length <= 32 ? headerId : `server-${wire.id}-${wire.createdAt}`,
-      from: wire.from, to: wire.to, text: '', sentAt: wire.createdAt,
+      from: resolveKey(wire.from), to: resolveKey(wire.to), text: '', sentAt: wire.createdAt,
       error: e instanceof DmError ? e.message : "This message couldn't be read.",
     }
   }
@@ -114,7 +119,9 @@ let saveTimer: ReturnType<typeof setTimeout> | null = null
 let saving: Promise<void> = Promise.resolve()
 let historyLoaded = false
 
-const storable = (m: Dm): storage.StoredDm => ({ id: m.id, from: m.from, to: m.to, text: m.text, sentAt: m.sentAt, ...(m.call ? { call: m.call } : {}) })
+const storable = (m: Dm): storage.StoredDm => ({
+  id: m.id, from: m.from, to: m.to, text: m.text, sentAt: m.sentAt, ...(m.call ? { call: m.call } : {}), ...(m.notice ? { notice: m.notice } : {}),
+})
 
 function persist(peer: string): void {
   if (!historyLoaded) return
@@ -137,11 +144,13 @@ let historyLoading: Promise<void> | null = null
 
 export function loadLocalHistory(): Promise<void> {
   historyLoading ??= (async () => {
+    await keysReady()
     const stored = await storage.loadDmHistory().catch(() => ({}) as Record<string, storage.StoredDm[]>)
     for (const [peer, messages] of Object.entries(stored)) {
       patchConversation(peer, (c) => ({ messages: messages.reduce<Dm[]>(upsert, c.messages) }))
     }
     historyLoaded = true
+    applyKeyChanges(resolveKey, [])
     // Save whatever arrived while we were loading.
     for (const [peer, c] of Object.entries(useDms.getState().conversations)) {
       if (c.messages.filter((m) => !m.pending && !m.error).length > (stored[peer]?.length ?? 0)) persist(peer)
@@ -182,10 +191,10 @@ export function exportHistory(perConversation = 200, maxBytes = 600_000): Record
 
 /** Every dm.message event from any server. */
 async function onDmEvent(wire: WireDm): Promise<void> {
-  await ensurePrekeys()
+  await Promise.all([ensurePrekeys(), keysReady()])
   const mine = me()
-  const peer = wire.from === mine ? wire.to : wire.from
   const dm = open(wire)
+  const peer = dm.from === mine ? dm.to : dm.from
   const state = useDms.getState()
   const viewing = useApp.getState().activeServer === null && state.open.kind === 'dm' && state.open.peer === peer && document.hasFocus()
   patchConversation(peer, (c) => ({
@@ -200,6 +209,8 @@ export async function loadConversations(): Promise<void> {
     sharedServers(mine).map(async (serverKey) => {
       try {
         const { conversations } = await connectionFor(serverKey)!.request('dm.conversations', {})
+        await keysReady()
+        for (const c of conversations) c.accountKey = resolveKey(c.accountKey)
         for (const c of conversations) patchConversation(c.accountKey, () => ({}))
         // Read (and keep) what arrived while we were away, before its prekey can expire.
         await loadLocalHistory()
@@ -213,7 +224,7 @@ export async function loadConversations(): Promise<void> {
 }
 
 export async function loadHistory(peer: string): Promise<void> {
-  await ensurePrekeys()
+  await Promise.all([ensurePrekeys(), keysReady()])
   const results = await Promise.all(
     sharedServers(peer).map(async (serverKey) => {
       try {
@@ -317,11 +328,55 @@ useApp.subscribe((state) => {
   if (state.phase === 'ready' && !historyLoaded) void loadLocalHistory()
 })
 
+// ── Account key changes ─────────────────────────────────────────────────────
+
+/**
+ * Someone (or this account) moved to a new account key: conversations, messages and friends follow
+ * <paramref name="resolve"/>, and each person in <paramref name="changes"/> gets a "safety number changed" notice.
+ */
+export function applyKeyChanges(resolve: (key: string) => string, changes: (Rotation & { disputed?: boolean })[]): void {
+  const mine = me()
+  const before = useDms.getState()
+  const moved: string[] = []
+  const conversations: Record<string, Conversation> = {}
+  for (const [peer, c] of Object.entries(before.conversations)) {
+    const target = resolve(peer)
+    if (target !== peer) moved.push(peer)
+    const messages = c.messages.map((m) => ({ ...m, from: resolve(m.from), to: resolve(m.to) }))
+    const into = conversations[target]
+    conversations[target] = into
+      ? { messages: messages.reduce(upsert, into.messages), loaded: into.loaded || c.loaded, unread: into.unread + c.unread }
+      : { ...c, messages: messages.reduce<Dm[]>(upsert, []) }
+  }
+  for (const change of changes) {
+    const peer = resolve(change.newKey)
+    if (peer === mine || !conversations[peer]) continue
+    const notice: Dm = {
+      id: `key-${change.newKey.slice(0, 20)}`, from: peer, to: mine, text: '', sentAt: change.rotatedAt,
+      notice: change.disputed ? 'key-disputed' : 'key-changed',
+    }
+    conversations[peer] = { ...conversations[peer], messages: upsert(conversations[peer].messages, notice) }
+  }
+  const friends: Record<string, Friend> = {}
+  for (const f of Object.values(before.friends)) {
+    const key = resolve(f.accountKey)
+    friends[key] ??= { ...f, accountKey: key }
+  }
+  const open = before.open.kind === 'dm' ? { kind: 'dm' as const, peer: resolve(before.open.peer) } : before.open
+  useDms.setState({ conversations, friends, open })
+  if (!historyLoaded) return
+  for (const peer of Object.keys(conversations)) persist(peer)
+  for (const peer of moved) void storage.deleteDmConversation(peer).catch(() => undefined)
+  if (moved.length || Object.keys(friends).length !== Object.keys(before.friends).length || Object.values(before.friends).some((f) => !friends[f.accountKey]))
+    void saveFriends()
+}
+
 // ── Friends (kept on this device) ──────────────────────────────────────────
 
 export async function loadFriends(): Promise<void> {
   const list = await storage.loadFriends()
-  useDms.setState({ friends: Object.fromEntries(list.map((f) => [f.accountKey, f])) })
+  await keysReady()
+  useDms.setState({ friends: Object.fromEntries(list.map((f) => [resolveKey(f.accountKey), { ...f, accountKey: resolveKey(f.accountKey) }])) })
 }
 
 async function saveFriends(): Promise<void> {

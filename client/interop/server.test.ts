@@ -17,6 +17,7 @@ import {
   relayDeliver, relayPoll, relayRequest, sealPayload,
 } from '../src/core/link'
 import { restoreIdentity, seedOf } from '../src/core/recovery'
+import { KeyMap, openHandover, prepareRotation, verifyRotation } from '../src/core/rotation'
 import { buildInviteLink, parseInvite, type InviteLink } from '../src/core/invite'
 import type { Events, Welcome } from '../src/core/protocol'
 
@@ -234,6 +235,58 @@ describe('client ↔ server', () => {
     users.push(again)
     await waitFor(() => again.status?.state === 'rejected', 'refused')
     expect(again.status).toMatchObject({ code: 'device_revoked' })
+  })
+
+  it('rotates an account key: a carried-over device follows, contacts see it, old DMs still open', async () => {
+    const [owner, friend] = users
+    const ownerKey = b64u(owner.identity.account.publicKey)
+    const friendKey = b64u(friend.identity.account.publicKey)
+    const phoneIdentity = restoreIdentity(seedOf(friend.identity))
+    const phone = new TestUser('Friend', server, undefined, phoneIdentity)
+    users.push(phone)
+    await phone.online()
+
+    // A DM to the friend before the rotation.
+    const bundle = await owner.connection.request('dm.devices', { accountKey: friendKey })
+    const before = encryptDm(owner.identity, friendKey, bundle.devices, [], { text: 'before the new key' })
+    await owner.connection.request('dm.send', { accountKey: friendKey, envelope: before })
+
+    const prepared = prepareRotation(friend.identity, [phoneIdentity.cert])
+    const newKey = prepared.rotation.newKey
+    const { status } = await friend.connection.request('account.rotate', {
+      rotation: prepared.rotation, certs: prepared.certs, handovers: prepared.handovers,
+    })
+    expect(status).toBe('applied')
+    await waitFor(() => friend.status?.state === 'rejected', 'old session closed')
+    expect(friend.status).toMatchObject({ code: 'account_rotated' })
+
+    // The other device opens its hand-over and checks it against the signed rotation.
+    const moved = await phone.event('account.rotated')
+    const opened = openHandover(phoneIdentity, moved.handover!, moved.rotations)
+    expect(opened && b64u(opened.account.publicKey)).toBe(newKey)
+
+    // Contacts get the signed statement and check it themselves.
+    const seen = await owner.event('member.rotated')
+    expect(verifyRotation(seen.rotation)).toBe(true)
+    expect(seen.member.accountKey).toBe(newKey)
+
+    // Signing in with the new key: same member; the old DM is routed to the new key and still opens.
+    const next = new TestUser('Friend', server, undefined, prepared.identity)
+    users.push(next)
+    await next.online()
+    expect(next.welcome?.you.role).toBe('member')
+    const { messages } = await next.connection.request('dm.history', { accountKey: ownerKey })
+    const keys = new KeyMap([seen.rotation])
+    const old = messages.find((m) => m.envelope.header.id === before.header.id)!
+    expect(old.to).toBe(newKey)
+    expect(decryptDm(prepared.identity, old.envelope, old.from, old.to, (a, b) => keys.same(a, b)).text).toBe('before the new key')
+
+    // The old key is refused with where it went.
+    const stale = new TestUser('Friend', server, undefined, friend.identity)
+    users.push(stale)
+    const refused = await waitFor(() => (stale.status?.state === 'rejected' ? stale.status : null), 'old key refused')
+    expect(refused.code).toBe('account_rotated')
+    expect((refused.detail?.rotations as { newKey: string }[])[0].newKey).toBe(newKey)
   })
 
   it('reconnects by itself after a server restart', async () => {

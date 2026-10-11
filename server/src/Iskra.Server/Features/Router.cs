@@ -51,6 +51,7 @@ public sealed class Router
         BackupFeature.Register(this, backups);
         MoveFeature.Register(this);
         ImportFeature.Register(this, imports);
+        KeyFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);
@@ -80,6 +81,7 @@ public sealed class Router
         {
             var result = handler(session, me, new Body(request.Body));
             session.Send(Frames.Result(request.Id, result ?? new { }));
+            session.RunAfterReply();
         }
         catch (RequestException ex)
         {

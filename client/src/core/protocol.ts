@@ -255,6 +255,7 @@ export interface ProfileUpdate {
 export type ErrorCode =
   | 'bad_request' | 'forbidden' | 'not_found' | 'rate_limited' | 'unknown_type' | 'internal'
   | 'auth_failed' | 'invite_required' | 'banned' | 'voice_unavailable' | 'busy' | 'device_revoked' | 'conflict' | 'moved'
+  | 'account_rotated' | 'account_disputed' | 'rotation_conflict'
 
 export class RequestError extends Error {
   readonly code: ErrorCode | 'disconnected' | 'timeout'
@@ -268,6 +269,7 @@ export const CloseCodes = {
   BadRequests: 4400,
   AuthFailed: 4401,
   Forbidden: 4403,
+  Rotated: 4409,
   TooLarge: 4413,
 } as const
 
@@ -947,4 +949,27 @@ export interface Requests {
   'import.begin': [{ size: number; readOnly?: boolean }, { url: string; maxBytes: number }]
   'import.status': [Record<string, never>, { job: ImportJob | null; running: boolean }]
   'import.cancel': [Record<string, never>, Record<string, never>]
+}
+
+// ── account key rotation ──
+
+export interface Welcome {
+  /** The most recent account key rotations on this server (see "Account key rotation"). Older servers leave it out. */
+  rotations?: import('./rotation').AppliedRotation[]
+}
+
+export interface Events {
+  'account.rotated': { rotations: import('./rotation').AppliedRotation[]; handover: string | null }
+  'member.rotated': { rotation: import('./rotation').AppliedRotation; member: Member }
+  'account.disputed': { rotation: import('./rotation').AppliedRotation; member: Member }
+  'account.resolved': { rotation: import('./rotation').AppliedRotation; previousKey: string; member: Member }
+}
+
+export interface Requests {
+  'account.rotate': [
+    { rotation: import('./rotation').Rotation; certs?: import('./identity').DeviceCert[]; handovers?: import('./rotation').Handover[] },
+    { status: 'applied' | 'already' },
+  ]
+  'account.rotations': [{ accountKey: string }, { rotations: import('./rotation').AppliedRotation[] }]
+  'account.dispute.resolve': [{ oldKey: string; keep: string }, Record<string, never>]
 }

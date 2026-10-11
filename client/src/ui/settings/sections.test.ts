@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { settingsSections } from './sections'
 
 const ids = (role: Parameters<typeof settingsSections>[0]) => settingsSections(role).map((s) => s.id)
-const account = ['profile', 'appearance', 'devices', 'recovery', 'notifications', 'voice', 'blocked']
+const account = ['profile', 'appearance', 'devices', 'recovery', 'security', 'notifications', 'voice', 'blocked']
 
 describe('settings sections', () => {
   it('shows only your account without a server', () => {

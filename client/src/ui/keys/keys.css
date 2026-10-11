@@ -1,0 +1,17 @@
+/* ── account keys: lock screen, replaced key, disputes, settings ── */
+
+.key-confirm { display: grid; gap: 10px; margin-top: 4px; }
+.key-confirm p { margin: 0; }
+.key-help { margin-top: 6px; }
+.key-help summary { cursor: pointer; color: var(--muted); font-size: 14px; }
+.key-help[open] summary { margin-bottom: 8px; }
+.key-devices { border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px 6px; margin: 0 0 14px; display: grid; gap: 8px; min-width: 0; }
+.key-devices legend { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); padding: 0 4px; }
+.key-devices .checkbox span { overflow-wrap: anywhere; }
+.key-lock-form { max-width: 420px; }
+.key-dispute { flex-wrap: wrap; }
+.key-dispute p { flex: 1 1 280px; }
+.dm-key-notice { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 10px 16px; padding: 8px 12px;
+  border-radius: 10px; background: var(--surface-2); color: var(--muted); font-size: 13px; text-align: center; }
+.dm-key-notice.disputed { color: var(--red); background: var(--danger-bg); }
+.dm-key-warning { margin: 0 16px 8px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--red); color: var(--red); background: var(--danger-bg); font-size: 13px; }

@@ -8,8 +8,8 @@ export type ConnectionStatus =
   | { state: 'connecting' }
   | { state: 'online' }
   | { state: 'offline'; retryInMs: number }
-  /** The server said no (no invite, banned, kicked, wrong server). We don't retry. */
-  | { state: 'rejected'; code: string; message: string }
+  /** The server said no (no invite, banned, kicked, wrong server, key rotated). We don't retry. */
+  | { state: 'rejected'; code: string; message: string; detail?: Record<string, unknown> }
 
 export interface ConnectionOptions {
   serverUrl: string
@@ -26,6 +26,8 @@ export interface ConnectionOptions {
   invite?: string
   /** Bot accounts say so on every connect (see "Bots and webhooks" in PROTOCOL.md). */
   bot?: boolean
+  /** Account key rotations that led to this identity, for servers that missed them (see "Account key rotation"). */
+  rotations?: () => unknown[]
   onStatus: (status: ConnectionStatus) => void
   onWelcome: (welcome: Welcome) => void
   onEvent: <K extends keyof Events>(type: K, body: Events[K]) => void
@@ -158,7 +160,7 @@ export class Connection {
           else pending.reject(new RequestError(body.code as RequestError['code'], String(body.message ?? 'Request failed.')))
         } else if (frame.type === 'error' && !this.ready) {
           // Rejected during the handshake.
-          this.reject(String(body.code ?? 'auth_failed'), String(body.message ?? 'The server refused the connection.'))
+          this.reject(String(body.code ?? 'auth_failed'), String(body.message ?? 'The server refused the connection.'), body)
         }
         return
       }
@@ -189,13 +191,15 @@ export class Connection {
     if (this.invite) body.invite = this.invite
     const presence = this.options.presence?.()
     if (presence) body.presence = presence
+    const rotations = this.options.rotations?.() ?? []
+    if (rotations.length) body.rotations = rotations
     this.socket?.send(JSON.stringify({ type: 'auth', id: 'auth', body }))
   }
 
-  private reject(code: string, message: string): void {
+  private reject(code: string, message: string, detail?: Record<string, unknown>): void {
     this.rejected = true
     this.ready = false
-    this.options.onStatus({ state: 'rejected', code, message })
+    this.options.onStatus({ state: 'rejected', code, message, ...(detail ? { detail } : {}) })
     this.socket?.close(1000)
   }
 
@@ -204,6 +208,10 @@ export class Connection {
     this.ready = false
     this.failPending('disconnected', 'Connection lost.')
     if (this.stopped || this.rejected) return
+    if (code === CloseCodes.Rotated) {
+      this.reject('account_rotated', 'This account moved to a new key.')
+      return
+    }
     if (code === CloseCodes.Forbidden) {
       this.reject('forbidden', 'You no longer have access to this server.')
       return

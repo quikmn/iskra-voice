@@ -17,7 +17,7 @@ public sealed partial class Uploads
     public int Sweep(DateTimeOffset now)
     {
         var keep = world.Store.AllPageHtml().SelectMany(html => FileLink().Matches(html).Select(m => m.Groups[1].Value)).ToHashSet();
-        keep.UnionWith(voice.Watch.FileIds());
+        if (voice is not null) keep.UnionWith(voice.Watch.FileIds()); // none from the command line
         var removed = world.Store.DeleteUnreferencedFiles((now - UnusedGrace).ToUnixTimeMilliseconds(), keep);
         foreach (var sha in removed.Distinct())
         {

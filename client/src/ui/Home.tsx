@@ -19,6 +19,7 @@ import { AccountAvatar, AccountStatusText, MeStatusButton } from './presence/Pre
 import { useIsBlocked } from '../state/moderation'
 import { BlockedDmBar } from './moderation/Moderation'
 import { GroupChat, GroupRows } from './groups/Groups'
+import { DmKeyNotice, DmKeyWarning } from './keys/DmKeyNotice'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -197,6 +198,7 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
         <button className="button small" onClick={() => setVerify(true)}>Verify</button>
       </header>
       <CallPanel peer={peer} />
+      <DmKeyWarning peer={peer} />
 
       <div className="messages" ref={scroller}>
         <div className="channel-start">
@@ -205,8 +207,9 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
           <p>This is the start of your conversation with {nameOf(peer)}. Messages are end-to-end encrypted: servers only pass them along.</p>
         </div>
         {messages.map((dm, i) => {
+          if (dm.notice) return <DmKeyNotice key={`${dm.from}:${dm.id}`} dm={dm} onVerify={() => setVerify(true)} />
           const prev = messages[i - 1]
-          const grouped = !!prev && prev.from === dm.from && dm.sentAt - prev.sentAt < GROUP_WINDOW_MS && !prev.pending && !prev.error
+          const grouped = !!prev && !prev.notice && prev.from === dm.from && dm.sentAt - prev.sentAt < GROUP_WINDOW_MS && !prev.pending && !prev.error
           return <DmRow key={`${dm.from}:${dm.id}`} dm={dm} grouped={grouped} peer={peer} mine={dm.from === myKey} />
         })}
       </div>

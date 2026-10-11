@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { aboutDetail, compareVersions, defaultHostRoot, exeName, isAppPage, isWayland, newerRelease, serverRid, skipScreenPicker, trayMenu, updateMode, youTubeReferrer, YOUTUBE_REFERRER } from './platform'
+import { aboutDetail, compareVersions, defaultHostRoot, exeName, isAppPage, isWayland, keychainKind, newerRelease, serverRid, skipScreenPicker, trayMenu, updateMode, youTubeReferrer, YOUTUBE_REFERRER } from './platform'
 
 test('server binaries and runtime ids per platform', () => {
   assert.equal(exeName('iskra-server', 'win32'), 'iskra-server.exe')
@@ -101,4 +101,14 @@ test('YouTube embeds get the web app as referrer, only from the app and only for
   assert.equal(youTubeReferrer('https://www.youtube-nocookie.com.evil.example/', true), null)
   assert.equal(youTubeReferrer('http://www.youtube-nocookie.com/embed/x', true), null)
   assert.equal(youTubeReferrer('not a url', true), null)
+})
+
+test('which keychain protects the stored keys', () => {
+  assert.equal(keychainKind('win32', true, null, {}), 'keyring')
+  assert.equal(keychainKind('darwin', true, null, {}), 'keyring')
+  assert.equal(keychainKind('linux', true, 'gnome_libsecret', {}), 'keyring')
+  assert.equal(keychainKind('linux', true, 'kwallet5', {}), 'keyring')
+  assert.equal(keychainKind('linux', true, 'basic_text', {}), 'basic')
+  assert.equal(keychainKind('linux', false, 'unknown', {}), 'unavailable')
+  assert.equal(keychainKind('win32', true, null, { ISKRA_NO_KEYCHAIN: '1' }), 'unavailable')
 })

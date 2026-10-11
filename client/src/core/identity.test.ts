@@ -29,8 +29,14 @@ describe('device certificates', () => {
 
 describe('shared test vectors (must match the C# server)', () => {
   const v = vectors.v1
-  const account = signingKeyPairFromSeed(fromB64u(v.accountSeed))
-  const device = signingKeyPairFromSeed(fromB64u(v.deviceSeed))
+  // Derived once libsodium is ready (describe bodies run before beforeAll).
+  let account: ReturnType<typeof signingKeyPairFromSeed>
+  let device: ReturnType<typeof signingKeyPairFromSeed>
+  beforeAll(async () => {
+    await ready()
+    account = signingKeyPairFromSeed(fromB64u(v.accountSeed))
+    device = signingKeyPairFromSeed(fromB64u(v.deviceSeed))
+  })
 
   it('derives the expected public keys', () => {
     expect(b64u(account.publicKey)).toBe(v.accountKey)
