@@ -1,9 +1,13 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.IO.Compression;
+using Iskra.Server.Crypto;
+using Iskra.Server.Features;
 using Iskra.Server.Files;
 using Iskra.Server.Tests.Support;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Iskra.Server.Tests;
 
@@ -315,5 +319,59 @@ public class DocsTests
         var http = server.CreateClient();
         Assert.Equal(HttpStatusCode.OK, (await http.GetAsync($"/files/{shown}/x")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await http.GetAsync($"/files/{unused}/x")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Pages_are_in_the_data_export_follow_retention_and_lose_a_deleted_authors_name()
+    {
+        using var server = new IskraServer();
+        var wiki = Docs(server);
+        using var owner = await server.JoinAsync("Owner", "owner");
+        using var anna = await server.JoinAsync("Anna", "trusted");
+        using var bo = await server.JoinAsync("Bo", "trusted");
+        var id = Id(await Create(anna, wiki, "Raid plan", "anna's first draft"));
+        await bo.RequestAsync("docs.page.save", new { id, baseVersion = 1, text = "bo's edit" });
+        await anna.RequestAsync("docs.page.save", new { id, baseVersion = 2, text = "anna again" });
+
+        // "Download my data" has the pages Anna made and every version she wrote.
+        var made = (await anna.RequestAsync("data.export")).Body();
+        using (var response = await server.CreateClient().GetAsync(made.GetProperty("url").GetString()))
+        using (var zip = new ZipArchive(new MemoryStream(await response.Content.ReadAsByteArrayAsync())))
+        using (var json = zip.GetEntry("data.json")!.Open())
+        {
+            var data = JsonDocument.Parse(json).RootElement;
+            Assert.Equal("Raid plan", data.GetProperty("docsPages")[0].GetProperty("title").GetString());
+            Assert.Equal(["anna's first draft", "anna again"],
+                data.GetProperty("docsRevisions").EnumerateArray().Select(r => r.GetProperty("text").GetString()));
+        }
+
+        // Retention: old revisions go with old messages, but never a page's current version.
+        var old = DateTimeOffset.UtcNow.AddDays(-40).ToUnixTimeMilliseconds();
+        using (var db = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={Path.Combine(server.WorldPath, "iskra.db")};Pooling=False"))
+        {
+            db.Open();
+            using var cmd = db.CreateCommand();
+            cmd.CommandText = $"UPDATE doc_revisions SET created_at = {old};";
+            cmd.ExecuteNonQuery();
+        }
+        await owner.RequestAsync("retention.update", new { messagesDays = 30 });
+        server.Services.GetServices<IHostedService>().OfType<RetentionSweeper>().Single().Sweep();
+        var left = (await bo.RequestAsync("docs.page.history", new { id })).Body().GetProperty("revisions");
+        Assert.Equal(3, left.EnumerateArray().Single().GetProperty("version").GetInt64());
+
+        // Anna deletes her account with her messages: the page stays, without her name on it.
+        await bo.RequestAsync("docs.page.save", new { id, baseVersion = 3, text = "bo's version" });
+        var at = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var sig = Ed25519.Sign(anna.Identity.Account, Ed25519.Payload(AccountFeature.DeleteContext, Ed25519.PublicKeyOf(anna.Identity.Account),
+            Ed25519.U64BigEndian(at), [1]));
+        Assert.Equal("result", (await anna.RequestAsync("account.delete", new
+        {
+            deletion = new { accountKey = anna.Key, deletedAt = at, messages = true, sig = Ed25519.ToB64u(sig) },
+        })).Type());
+        var page = (await bo.RequestAsync("docs.page.get", new { id })).Body().GetProperty("page");
+        Assert.Equal("bo's version", page.GetProperty("text").GetString());
+        Assert.Equal("", page.GetProperty("createdBy").GetString());
+        var history = (await bo.RequestAsync("docs.page.history", new { id })).Body().GetProperty("revisions").EnumerateArray().ToList();
+        Assert.Equal([4L], history.Select(r => r.GetProperty("version").GetInt64())); // Anna's older version went
     }
 }

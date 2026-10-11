@@ -26,8 +26,9 @@ public sealed partial class Store
     /// <summary>
     /// Deletes everything this server keeps about the account, in one transaction: membership, roles, nickname, profile and
     /// profile page, presence, settings, block list, devices, prekeys, push subscriptions, its end-to-end encrypted DMs and group
-    /// messages (ciphertext), DM file access, and its invites stop working. Names in the audit log and the account as reporter are
-    /// removed; bans and reports about it stay. With <see cref="AccountDeletion.Messages"/>, its messages, reactions and votes go too.
+    /// messages (ciphertext), DM file access, and its invites stop working. Names in the audit log, IP addresses in the security log
+    /// and the account as reporter are removed; bans and reports about it stay. With <see cref="AccountDeletion.Messages"/>, its messages, reactions and votes go too,
+    /// and its docs revisions go or lose its name.
     /// Group membership is a signed chain: the app leaves its groups (signed) before deleting.
     /// </summary>
     public void DeleteAccount(AccountDeletion deletion, long now)
@@ -63,6 +64,7 @@ public sealed partial class Store
                 UPDATE invites SET revoked = 1 WHERE created_by = $k;
                 UPDATE audit_log SET actor_name = '' WHERE actor = $k;
                 UPDATE audit_log SET target_name = NULL WHERE target = $k;
+                UPDATE security_log SET ip = NULL WHERE account_key = $k;
                 UPDATE reports SET reporter_key = NULL, reporter_name = '' WHERE reporter_key = $k;
                 UPDATE reports SET target_name = '' WHERE target_key = $k;
                 """, k);
@@ -72,6 +74,7 @@ public sealed partial class Store
                     DELETE FROM reactions WHERE account_key = $k;
                     DELETE FROM poll_votes WHERE account_key = $k;
                     """, k);
+            if (deletion.Messages) Run(tx, DocsForgetAuthor, k); // docs pages stay (they're shared); see Store.Docs.cs
             Run(tx, """
                 INSERT INTO account_deletions (account_key, deleted_at, messages, sig, applied_at) VALUES ($k, $at, $m, $sig, $now)
                 ON CONFLICT(account_key) DO NOTHING;

@@ -20,8 +20,11 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
 ## 1. Overview
 
 ```
- every push / PR ──► ci.yml ............ server, client, desktop tests (Win/Linux/macOS), interop + e2e, release-script tests
+ every push / PR ──► ci.yml ............ server, client, desktop tests (Win/Linux/macOS), interop + e2e, release-script tests,
+                                         backup-restore drill (report kept as an artifact)
+ every push / PR / weekly ──► secrets.yml .. gitleaks over the whole git history
  push to main / PR / weekly ──► codeql.yml ... code scanning: JS/TS, C#, workflows
+ push to main / weekly ──► scorecard.yml ..... OpenSSF Scorecard → code scanning + scorecard.dev
  weekly ──► Dependabot ............ grouped PRs for npm (client, desktop, bots), NuGet (server), GitHub Actions
 
  RELEASE
@@ -36,7 +39,7 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
         ├─ gh release upload ............... onto the draft
         ├─ waits until all 22 files are on the release
         └─► release-finalize.yml (workflow_dispatch, environment "release")
-              ├─ publish: check files + latest*.yml hashes, SHA256SUMS.txt, attestations,
+              ├─ publish: check files + latest*.yml hashes, CycloneDX SBOMs, SHA256SUMS.txt, attestations,
               │           publish as Latest (not prerelease) with docs/releases/X.md
               └─► deploy.yml (reusable, environment "release")
                     ├─ site ....... wrangler → Pages iskra-hero-page → https://iskra.foo  (checks the new links and every page)
@@ -58,7 +61,10 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
 | `.github/workflows/release.yml` | Linux and macOS builds on a `v*` tag |
 | `.github/workflows/release-finalize.yml` | Publish + deploy |
 | `.github/workflows/deploy.yml` | Site, web app and server deploys with checks; called by finalize or run by hand |
-| `.github/workflows/ci.yml`, `codeql.yml`, `.github/dependabot.yml` | Tests, code scanning, dependency updates |
+| `.github/workflows/ci.yml`, `codeql.yml`, `.github/dependabot.yml` | Tests (including the backup-restore drill), code scanning, dependency updates |
+| `.github/workflows/secrets.yml`, `.gitleaks.toml`, `.gitleaksignore` | Secret scan of the whole history ([below](#secret-scanning-and-security-settings)) |
+| `.github/workflows/scorecard.yml` | OpenSSF Scorecard (supply-chain checks), results in the Security tab |
+| `SECURITY.md`, `site/.well-known/security.txt`, `client/public/.well-known/security.txt` | Vulnerability disclosure policy and the RFC 9116 contact files on iskra.foo and app.iskra.foo |
 | `docs/releases/<version>.md` | Release notes (become the GitHub release text) |
 | `desktop/scripts/sign.ps1` | Signs the standalone Windows server exe with the Certum certificate |
 | `android/build.ps1` | Signed APK (+ AAB) |
@@ -68,6 +74,13 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
 Supply chain: every action is pinned to a full commit SHA with the version as a comment (Dependabot keeps them
 current); every workflow starts with minimal `permissions:` and widens them per job; wrangler is pinned
 (`WRANGLER` in deploy.yml). Releases carry build-provenance attestations: `gh attestation verify <file> -R quikmn/iskra-voice`.
+Each release also carries CycloneDX 1.6 SBOMs, made by finalize from the tag's lock files and project:
+`iskra-sbom-web-X.cdx.json` (web app, runtime npm packages), `iskra-sbom-desktop-X.cdx.json` (desktop shell's runtime npm
+packages; the web app inside it is the web SBOM) and `iskra-sbom-server-X.cdx.json` (server NuGet packages). They're in
+SHA256SUMS.txt and attested like every other file. Tools are pinned in the step (`@cyclonedx/cyclonedx-npm`, the `CycloneDX`
+dotnet tool). Check one with `gh attestation verify iskra-sbom-server-X.cdx.json -R quikmn/iskra-voice`, or feed it to a
+scanner (`grype sbom:iskra-sbom-server-X.cdx.json`). They aren't in `release-assets.json`, so release-windows.ps1 doesn't wait for them;
+`release-assets.mjs check` lists them as "unexpected file", which is fine.
 For Linux/macOS files they come from the build workflow; for Windows and Android files (built locally) they only
 prove the file is the one the finalize run published, not how it was built.
 
@@ -103,13 +116,13 @@ new `iskra-server` package (docs/hosting.md).
 | Input | Effect |
 |---|---|
 | `ref` | Tag or branch the site and web app are built from (`main` for a site text fix, the release tag to redeploy a release) |
-| `site` | iskra.foo from `site/`: every `*.html` page (index, terms, privacy, support, delete-account), `*.css` (site.css, fonts.css), the `fonts/` folder (self-hosted Inter and JetBrains Mono), worker.js and .assetsignore; never wrangler.toml or .wrangler/. Pages serves `terms.html` at `/terms` (and redirects `/terms.html` there). Fails if index.html doesn't link to the version in desktop/package.json at that ref, or if a page isn't served at `https://iskra.foo/<page>` afterwards (checked by its `<link rel="canonical">`, so every new page needs one) |
-| `webapp` | Builds `client/` and deploys `client/dist` to app.iskra.foo (branch main = production) |
+| `site` | iskra.foo from `site/`: every `*.html` page (index, terms, privacy, support, delete-account), `*.css` (site.css, fonts.css), the `fonts/` folder (self-hosted Inter and JetBrains Mono), `.well-known/` (security.txt), worker.js and .assetsignore; never wrangler.toml or .wrangler/. Pages serves `terms.html` at `/terms` (and redirects `/terms.html` there). Fails if index.html doesn't link to the version in desktop/package.json at that ref, or if a page isn't served at `https://iskra.foo/<page>` afterwards (checked by its `<link rel="canonical">`, so every new page needs one), or `/.well-known/security.txt` isn't |
+| `webapp` | Builds `client/` and deploys `client/dist` to app.iskra.foo (branch main = production), then checks the new bundle and `/.well-known/security.txt` |
 | `server_version` | Runs `iskra-update <version>` on the droplet. The version must be a published release (it downloads from GitHub and checks SHA256SUMS.txt) |
 
 Local fallback (no CI): `site/` with the `iskra-deploy-cf` token through `D:\Development_Projects\IskraHeroPage\deploy-hero.ps1`
 (it decrypts the token itself; never print it). It deploys its own folder `IskraHeroPage\iskra-site`, not `site/`: copy
-`site/*.html`, `site/*.css`, `site/fonts/`, `site/worker.js` and `site/.assetsignore` into it first, because a Pages deploy replaces the whole
+`site/*.html`, `site/*.css`, `site/fonts/`, `site/.well-known/`, `site/worker.js` and `site/.assetsignore` into it first, because a Pages deploy replaces the whole
 site and would drop any page that's missing. The web app deploys with `npx wrangler@4.136.3 pages deploy dist --project-name=iskra-webclient --branch=main`
 from `client/` after `npm run build`, and the server with `ssh -i ~/.ssh/iskrapersonalvoip root@146.190.236.187 iskra-update <version>`.
 
@@ -257,17 +270,27 @@ days before production. If Play signs the app, add Play's app-signing fingerprin
     then delete the repo-level ones). Recommended: then only the release/deploy jobs on main can read them, not
     every workflow on every branch. The Apple secrets stay at repo level (release.yml's tag build uses them).
 
+### Secret scanning and security settings
+
+`secrets.yml` runs [gitleaks](https://github.com/gitleaks/gitleaks) (pinned release, checksum checked in the workflow) over
+every branch and tag on each push, PR and weekly. GitHub's own protections are owner settings, not files: repo → Settings →
+**Advanced Security** (Code security): turn on **Secret scanning** and **Push protection** (blocks a push that contains a known
+token format), **Private vulnerability reporting** (SECURITY.md points reporters there), Dependabot alerts and security updates,
+and CodeQL (already a workflow). Scorecard publishes its score at scorecard.dev and puts its findings under Security → Code scanning;
+many of them (branch protection, review) are owner settings too. Click-by-click steps: docs/compliance/owner-actions.md.
+
 ## 5. Refresh calendar
 
 | When | What | Do |
 |---|---|---|
 | Every Windows release | SimplySign session | Log in with the phone code before `release-windows.ps1` |
-| Weekly (Mondays) | Dependabot PRs, CodeQL scan | Merge green Dependabot PRs; look at new code-scanning alerts (Security tab) |
+| Weekly (Mondays) | Dependabot PRs, CodeQL, Scorecard and secret scans | Merge green Dependabot PRs; look at new code-scanning alerts (Security tab: CodeQL and Scorecard) and secret-scanning alerts |
 | Continuous | Droplet OS updates | Automatic (unattended-upgrades); reboot now and then (`ssh … reboot` with the admin key) when `/var/run/reboot-required` exists |
 | Every ~60 days, automatic | chat.iskra.foo HTTPS certificate | The server renews it itself; port 80 must stay open |
 | Yearly (membership date) | Apple Developer Program | Renew, or Mac builds stop being notarized |
 | Yearly | Cloudflare tokens, CI SSH key | Optional rotation (they don't expire): see section 4 |
 | **2027-04 (before 2027-05-12)** | Certum code-signing certificate | Renew (section 4); same CN keeps auto-update working |
+| **2027-09 (before 2027-10-01), then yearly** | `Expires` in both security.txt files | Move it a year ahead (RFC 9116: at most a year), check Contact and Policy still work, deploy site and web app |
 | Yearly | iskra.foo domain | Check auto-renew at the registrar |
 | Yearly | Offline backups | Check the keystore, devkeys folder and admin SSH key copies still open |
 | **2031-08 (before 2031-09-17)** | Apple Developer ID certificate | New CSR, certificate, p12, secrets (section 4) |
@@ -292,6 +315,9 @@ or revert quickly.
 | `release.yml`: "Check the tag matches the app version" fails | The tag was pushed without `npm run release`. Don't move the tag: delete the draft release, bump to the next version |
 | Linux CI: audio/video device errors | Runners have no sound card or display. Electron tests run under `xvfb-run`; browser tests use Chromium's fake media devices. Don't add tests that need real devices |
 | Windows Firewall prompts during tests | Something listened on all interfaces. Tests must be localhost-only (`LocalOnly: true`, `ISKRA_LOCAL_ONLY=1`); `scripts/dev-firewall.ps1` adds block rules for new exe paths |
+| Secrets scan fails | gitleaks found something that looks like a secret (the log shows file, commit and rule, value redacted). A real one: revoke/rotate it at the service **first** (it's public the moment it's pushed), then remove it from the tree. A false positive: add its fingerprint (`commit:file:rule:line`, printed in the log) to `.gitleaksignore` with a comment why, or a path to `.gitleaks.toml` for test data |
+| SBOM step fails in finalize | Usually npm or NuGet being unreachable, or a lock file out of step with package.json at the tag: rerun. Nothing is published before it passes |
+| `backup-restore-drill` fails | A backup didn't restore to the same data: treat it as a real bug in Backups/ (the report artifact `restore-drill-report` says what differed) |
 | CodeQL C# job fails to build | Needs .NET 10 (setup-dotnet in codeql.yml); same build as CI |
 | iOS: "Cloud signing permission error" / "doesn't have permission to … cloud-managed distribution certificates" | The API key isn't Admin. New Admin key, replace the three `APPSTORE_*` secrets ([iOS app](#ios-app), mobile/README.md step 3) |
 | iOS: "No profiles for 'foo.iskra.app'" / "No Account for Team" | The App ID isn't registered, or a developer agreement is pending (developer.apple.com and App Store Connect → Business). Owner fixes it, rerun |

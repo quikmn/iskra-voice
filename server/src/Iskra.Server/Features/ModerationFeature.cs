@@ -16,7 +16,6 @@ public static class ModerationFeature
     public const int MaxBlocks = 500;
     public const int MaxReasonLength = 200;
     public const int MaxAuditPage = 100;
-    public static readonly TimeSpan AuditRetention = TimeSpan.FromDays(90);
     /// <summary>How far in the future a block entry's time may be (clock skew).</summary>
     private const long MaxClockSkewMs = 10 * 60 * 1000;
 
@@ -204,7 +203,7 @@ public static class ModerationFeature
     }
 }
 
-/// <summary>Records moderation and admin actions for the audit log (kept <see cref="ModerationFeature.AuditRetention"/>).</summary>
+/// <summary>Records moderation and admin actions for the audit log (kept Retention.AuditDays, 90 by default).</summary>
 public static class Audit
 {
     /// <summary>Call before the change removes the target (names are looked up now and kept with the entry).</summary>
@@ -249,7 +248,7 @@ public sealed class SlowmodeTracker
     }
 }
 
-/// <summary>Ends timeouts when they run out (so everyone sees it) and drops audit entries older than 90 days.</summary>
+/// <summary>Ends timeouts when they run out (so everyone sees it) and drops audit entries older than Retention.AuditDays.</summary>
 public sealed class ModerationSweeper(World world, Hub hub, TimeProvider time, ILogger<ModerationSweeper> log) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stopping)
@@ -273,7 +272,7 @@ public sealed class ModerationSweeper(World world, Hub hub, TimeProvider time, I
                 if (world.Store.GetMember(key) is { } member) hub.Broadcast(Frames.Event("member.updated", new { member = hub.PublicMember(member) }));
             if (pruneAudit)
             {
-                world.Store.PruneAudit(now - (long)ModerationFeature.AuditRetention.TotalMilliseconds);
+                if (world.Settings.Retention.AuditDays is > 0 and var days) world.Store.PruneAudit(now - (long)TimeSpan.FromDays(days).TotalMilliseconds);
                 world.Store.PruneNonces(now - (long)TimeSpan.FromDays(1).TotalMilliseconds);
             }
         }

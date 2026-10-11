@@ -221,6 +221,34 @@ public sealed partial class Store
     public void SetDocHome(long? pageId) =>
         Exec("INSERT INTO doc_home (id, page_id) VALUES (1, $p) ON CONFLICT(id) DO UPDATE SET page_id = excluded.page_id;", ("$p", pageId));
 
+    /// <summary>
+    /// A deleted account that asked for its messages to go: its old docs revisions go, and pages and the revisions others still
+    /// read (a page's current version) keep their text but lose the author ("" = someone who left). Runs inside DeleteAccount.
+    /// </summary>
+    private const string DocsForgetAuthor = """
+        DELETE FROM doc_revisions WHERE author = $k
+            AND version < (SELECT p.version FROM doc_pages p WHERE p.id = doc_revisions.page_id);
+        UPDATE doc_revisions SET author = '' WHERE author = $k;
+        UPDATE doc_pages SET created_by = '' WHERE created_by = $k;
+        UPDATE doc_pages SET updated_by = '' WHERE updated_by = $k;
+        """;
+
+    /// <summary>
+    /// Retention: revisions older than <paramref name="cutoff"/> go, except each page's current version (pages themselves stay:
+    /// they're the server's documents, not messages). Returns how many went.
+    /// </summary>
+    public int PruneDocRevisions(long cutoff)
+    {
+        lock (_gate)
+        {
+            using var cmd = Command("""
+                DELETE FROM doc_revisions WHERE created_at < $cutoff
+                    AND version < (SELECT p.version FROM doc_pages p WHERE p.id = doc_revisions.page_id);
+                """, [("$cutoff", cutoff)]);
+            return cmd.ExecuteNonQuery();
+        }
+    }
+
     /// <summary>Uploads that any page (or any of its kept revisions) shows, so the upload sweeper keeps them.</summary>
     public HashSet<string> DocFileIds() => Query("SELECT DISTINCT file_id FROM doc_files;", r => r.GetString(0)).ToHashSet();
 

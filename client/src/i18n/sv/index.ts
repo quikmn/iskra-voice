@@ -27,6 +27,7 @@ import { account } from './account'
 import { safety } from './safety'
 import { docs } from './docs'
 import { catchup } from './catchup'
+import { compliance } from './compliance'
 
 export const sv: Messages = {
   common,
@@ -56,4 +57,5 @@ export const sv: Messages = {
   safety,
   docs,
   catchup,
+  compliance,
 }

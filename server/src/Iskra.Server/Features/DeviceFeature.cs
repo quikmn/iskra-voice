@@ -84,6 +84,7 @@ public static class DeviceFeature
             if (s.World.Store.CountRevocations(me.AccountKey) >= MaxRevocations) throw RequestException.BadRequest("Too many revoked devices.");
             if (!s.TryTakeLimit("device.revoke.new")) throw new RequestException("rate_limited", "Too many devices removed in a short time. Try again later.");
             s.World.Store.AddRevocation(new DeviceRevocation(me.AccountKey, deviceKey, revokedAt, sig));
+            SecurityLog.Record(s, "device.revoke", details: new { deviceKey });
         }
 
         var notice = Frames.Event("device.revoked", new { deviceKey });

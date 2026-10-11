@@ -26,6 +26,7 @@ import { account } from './account'
 import { safety } from './safety'
 import { docs } from './docs'
 import { catchup } from './catchup'
+import { compliance } from './compliance'
 
 export const en = {
   common,
@@ -55,4 +56,5 @@ export const en = {
   safety,
   docs,
   catchup,
+  compliance,
 } as const

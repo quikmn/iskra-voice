@@ -1,0 +1,8 @@
+# gitleaks config for .github/workflows/secrets.yml: the default rules, plus files that hold public test data.
+# Single historic false positives are listed by fingerprint in .gitleaksignore instead.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Shared crypto test vectors: keys and signatures derived from fixed public seeds (scripts/gen-vectors.mjs)"
+paths = ['''^(v2/)?protocol/vectors\.json$''']
