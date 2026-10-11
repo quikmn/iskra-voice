@@ -7,7 +7,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 
 - **Basics:** [Encoding](#encoding) · [Identity](#identity) · [Connection](#connection) (handshake, errors and close codes, limits) · [Objects](#objects)
 - **Servers and channels:** [Requests and events](#requests-and-events) · [Invite links](#invite-links) · [Organizing a server](#organizing-a-server)
-- **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji) · [Stickers](#stickers) · [GIFs](#gifs)
+- **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji) · [Stickers](#stickers) · [GIFs](#gifs) · [Saved messages, reminders, scheduled messages and the inbox](#saved-messages-reminders-scheduled-messages-and-the-inbox)
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Friends](#friends)
 - **People and integrations:** [Profiles](#profiles) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Presence and voice messages](#presence-and-voice-messages)
@@ -1572,3 +1572,70 @@ AccountDeletion { "accountKey": "<b64u 32>", "deletedAt": 1760000000000, "messag
 **Other devices** learn of it when they next connect anywhere it was applied. A device checks the signature against its own account key (so a server can't make it wipe itself), sends the same `account.delete` to its other servers the deleting device couldn't reach, then deletes its keys and data. Messages already on other people's devices (DMs, groups) stay there.
 
 **Owners** can't delete their account on a server they own: they hand it over with `owner.transfer` first, or shut the server down. Audit: `owner.transfer` (target the new owner) `{ from }` (their level before).
+
+## Saved messages, reminders, scheduled messages and the inbox
+
+### Saved messages
+
+No new server messages: apps keep the list as a [synced preference](#synced-preferences) named `saved`, sealed like any other, so servers can't see what you saved (DMs included), only the size of the sealed list. The sealed JSON is compact: `{ "v": 1, "keys": [<server, account and group keys>], "items": [[ref, savedAt, removedAt, snap?]] }`, where `ref` is `["c", serverIdx, channelId, messageId]`, `["d", peerIdx, fromIdx, headerId]` or `["g", groupIdx, fromIdx, headerId]` (group = `"<serverKey>/<groupId>"`) and `snap` is `[authorIdx, authorName, preview, sentAt, where]` (a shortened preview, dropped from the oldest entries if needed to stay under the preference size limit). At most 150 saved messages.
+
+- Lists merge entry by entry (the newest save or removal per message wins), so saving on two devices at once loses nothing; apps write the merged list back wherever it differs. A removal is kept 30 days so other devices learn of it, then forgotten.
+- Channel messages are opened by id (`chat.history` with `around`); a deleted one shows as gone. DM and group messages open from the device's own history.
+
+### Reminders
+
+```jsonc
+Reminder { "id": 4, "dueAt": 1760000000000, "data": "<b64u>", "channelId": 1 | null, "messageId": 42 | null,
+           "createdAt": 1760000000000, "firedAt": 1760000000000 | null }
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `reminder.create` | `dueAt` (now − 1 min … now + 366 days), `data` (sealed, ≤ 2048 chars), `messageId?` (a channel or thread message you can read) | `{ reminder }` | anyone; ≤ 100 reminders per account here; 1/s, burst 10 |
+| `reminder.list` | | `{ reminders }` (yours, by time) | anyone |
+| `reminder.update` | `id, dueAt, data?` | `{ reminder }` (pending again: a snooze or a new time) | the owner (`not_found` for anyone else) |
+| `reminder.delete` | `id` | | the owner (done, or cancelled) |
+
+- `data` is opaque to the server: apps seal `{ ref, snap, note }` (which message, a snapshot of it, a note ≤ 500 chars) with XChaCha20-Poly1305 under `crypto_kdf_derive_from_key(32, 2, "iskrapri", accountSeed)`, with `"iskra/private/v1" || 0x00 || "reminder"` as associated data, as `nonce(24) || ciphertext`. For DMs and groups the server knows only the time; for a channel message it also keeps `messageId`, so the push can say where.
+- At `dueAt` (checked every second) the server sets `firedAt`, sends `reminder.due { reminder }` to every session of the account and pushes `{ kind: "reminder", reminder: <id>, title: "Reminder", body }` to its devices (not merged with other pushes; the body quotes the message only if it's a channel message the member can still read). A click opens `/#/open/<serverKey>/r/<id>`: the app opens the sealed data and jumps to the message. Fired reminders stay listed until deleted (30 days at most).
+- Events `reminder.updated { reminder }` and `reminder.deleted { id }` go to the account's other sessions. A reminder whose owner left the server is dropped when it's due.
+- Apps keep a DM reminder on a server they share with the person (any connected server otherwise), and a group reminder on the group's server.
+
+### Scheduled messages
+
+```jsonc
+Scheduled { "id": 7, "kind": "channel" | "dm" | "group", "channelId": 1 | null, "accountKey": "<peer>" | null, "groupId": "<id>" | null,
+            "version": 3 | null, "text": "…" | null, "replyTo": 41 | null, "envelope": {...} | null,
+            "sendAt": 1760000000000, "createdAt": 1760000000000, "status": "pending" | "sending" | "failed", "error": "…" | null }
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `scheduled.create` | `sendAt` and one of: `channelId, text (1–4000), replyTo?` · `accountKey, envelope (≤ 32 KB)` · `groupId, version (current), envelope (≤ 56 KB)` | `{ scheduled }` | members, not bots; channel: you can write there now; ≤ 50 per account here; 1/s, burst 10 |
+| `scheduled.list` | | `{ scheduled }` (yours, by time) | anyone |
+| `scheduled.update` | `id, sendAt?, text?` (channel) or `envelope?` (+ `version` for groups) | `{ scheduled }` (a failed one becomes pending again) | the owner; `conflict` while it's being sent |
+| `scheduled.delete` | `id` | | the owner |
+| `scheduled.send` | `id` | the send's result (`{ message }`) | the owner: sends it now (a failed one too); a refusal is `bad_request` with the reason, and it stays failed |
+
+- `sendAt`: from now − 1 min to now + 90 days for channel messages; encrypted ones at most 30 days after they were encrypted (prekeys are kept at least that long, see [forward secrecy](#forward-secrecy-envelope-v2)).
+- **Sending** happens at `sendAt` (checked every second) exactly as if the author sent it then: the server runs `chat.send`, `dm.send` or `group.send` for the author, through the same gates (timeouts, [rules](#server-rules), a moved server) and checks (permissions, [slowmode](#slowmode), [AutoMod](#automod), blocking, the group's current version). Channel sends use the nonce `scheduled-<id>`, so a send interrupted by a restart never posts twice. Sent: `scheduled.deleted { id, sent: true }` to the author's sessions. Refused: status `failed` with `error`, `scheduled.updated { scheduled }` to the author's sessions, and a push `{ kind: "scheduled", title: "Your scheduled message wasn't sent", body: <reason> }`. An author who left is dropped silently.
+- **End-to-end encryption:** the server can't encrypt for you, so apps encrypt DMs and group messages when they're scheduled, with the send time as the envelope's `sentAt`, and the server stores only the envelope. The trade-offs: devices the recipients add before it's sent can't read it; a group that changed in the meantime refuses it (`conflict`, so it fails; apps encrypt it again for the current members on "Send now"); and it's limited to 30 days ahead. Changing the time or the text means encrypting again. In exchange it goes out while all your apps are closed, and the server never sees the text.
+- Events `scheduled.updated { scheduled }` and `scheduled.deleted { id, sent }` go to the author's other sessions. No attachments yet.
+
+### Inbox
+
+| type | body | result | who |
+|---|---|---|---|
+| `inbox.list` | `before?` (a message id), `limit?` (1–50, default 30) | `{ items: [{ kind, channelId, at, message }], hasMore, next }` (newest first) | anyone |
+
+- When a message is sent, the server records who it pings, by the same rules as [push](#push-notifications-web-push): `mention` (`<@key>`), `reply` (to your message), `role` (a role you have, if it's mentionable or the author may ping groups) and `everyone` (`@everyone`, or `@here` for members online then, from people allowed to ping groups). One item per person and message (the strongest kind), never for the author, bots or two people where one blocked the other, and only for members who can read the channel. Each gets `inbox.new { item }`.
+- `inbox.list` leaves out messages you can't read any more (or whose author you blocked); deleting a message removes its items. Items are kept 60 days, at most 500 per account.
+- Read or unread isn't stored on the server: apps take it from their own read state, and after reconnecting count items newer than the last one they had seen as unread mentions. The app's inbox also lists unread DMs and groups, friend requests and reminders that are due.
+
+### Edit history
+
+| type | body | result | who |
+|---|---|---|---|
+| `chat.edits` | `id` | `{ versions: [{ text, at }] }` (earlier versions, oldest first; `at` is when that text was written) | the author, or members who can manage messages; `not_found` if you can't read the channel |
+
+- `chat.edit` keeps the text it replaces (at most 20 earlier versions per message; the oldest go first). Deleting a message deletes its history, and so does deleting the account that wrote it. DMs and groups can't be edited, so there is no history for them.
