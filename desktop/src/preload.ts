@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
     return () => ipcRenderer.off('iskra:hotkey', listener)
   },
   openSystemSettings: (pane: string): Promise<void> => ipcRenderer.invoke('iskra:open-settings', pane),
+  setLanguage: (language: string): Promise<void> => ipcRenderer.invoke('iskra:set-language', language),
 
   updates: {
     status: (): Promise<unknown> => ipcRenderer.invoke('iskra:update-status'),

@@ -16,6 +16,7 @@ import { PushToTalk } from './ptt'
 import { ActivityDetector } from './activity'
 import { applyOpenAtLogin, loadDesktopSettings, saveDesktopSettings, startedHidden } from './settings'
 import { Updates, type UpdateStatus } from './updates'
+import { languageFromLocales, parseLanguage, setDesktopLanguage, text } from './i18n'
 
 /** Chromium's media::AudioDeviceDescription::kLoopbackWithoutChromeId: system audio minus this app's own. */
 const LOOPBACK_WITHOUT_ISKRA = 'loopbackWithoutChrome'
@@ -182,9 +183,9 @@ async function explainScreenPermission(): Promise<void> {
   if (!window) return
   const { response } = await dialog.showMessageBox(window, {
     type: 'info',
-    message: 'Allow Iskra to share your screen',
-    detail: 'Turn on Iskra under Privacy & Security → Screen & System Audio Recording in System Settings, then quit and reopen Iskra.',
-    buttons: ['Open System Settings', 'Not now'],
+    message: text().screen.message,
+    detail: text().screen.detail,
+    buttons: [text().screen.open, text().screen.notNow],
     defaultId: 0,
     cancelId: 1,
   })
@@ -198,7 +199,7 @@ function createMacMenu(): void {
       { role: 'appMenu' },
       { role: 'editMenu' },
       {
-        label: 'View',
+        label: text().menu.view,
         submenu: [{ role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'togglefullscreen' }],
       },
       { role: 'windowMenu' },
@@ -220,7 +221,7 @@ function createTray(): void {
 /** The tray menu, rebuilt whenever the updater's state changes. */
 function updateTray(): void {
   if (!tray) return
-  const items = trayMenu(updates.current(), checking, updates.enabled)
+  const items = trayMenu(updates.current(), checking, updates.enabled, text())
   if (process.env.ISKRA_E2E) (globalThis as { iskraTrayMenu?: unknown }).iskraTrayMenu = items // for the desktop e2e test
   tray.setContextMenu(
     Menu.buildFromTemplate(items.map((item) =>
@@ -248,10 +249,11 @@ async function showAbout(): Promise<void> {
     { app: app.getVersion(), electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node },
     process.platform,
     process.arch,
+    text(),
   )
   const options: Electron.MessageBoxOptions = {
-    type: 'info', title: 'About Iskra', message: 'Iskra', detail, icon: nativeImage.createFromPath(path.join(ASSETS, 'icon.png')),
-    buttons: ['OK', 'Website', 'License', 'Open source licenses'], defaultId: 0, cancelId: 0, noLink: true,
+    type: 'info', title: text().about.title, message: 'Iskra', detail, icon: nativeImage.createFromPath(path.join(ASSETS, 'icon.png')),
+    buttons: [...text().about.buttons], defaultId: 0, cancelId: 0, noLink: true,
   }
   const { response } = window ? await dialog.showMessageBox(window, options) : await dialog.showMessageBox(options)
   if (response === 1) void shell.openExternal(WEBSITE)
@@ -284,17 +286,18 @@ async function checkForUpdates(): Promise<void> {
   const status = updates.current()
   if (result === 'found' && status.state === 'ready') return void trayAction('restart')
   if (result === 'found' && status.state === 'available') return void trayAction('download')
+  const t = text().updates
   const message =
-    result === 'found' ? `Iskra ${'version' in status ? status.version : ''} is downloading`
-    : result === 'up-to-date' ? "You're up to date"
-    : result === 'off' ? 'Updates are off in this build'
-    : "Couldn't check for updates"
+    result === 'found' ? t.downloading('version' in status ? status.version : '')
+    : result === 'up-to-date' ? t.upToDate
+    : result === 'off' ? t.off
+    : t.failed
   const detail =
-    result === 'found' ? "It installs in the background. When it's ready, choose Restart to update from this menu or the app."
-    : result === 'up-to-date' ? `Iskra ${app.getVersion()} is the newest version.`
-    : result === 'off' ? "Development builds don't update themselves."
-    : 'Check your internet connection and try again.'
-  const options: Electron.MessageBoxOptions = { type: 'info', title: 'Iskra updates', message, detail, buttons: ['OK'] }
+    result === 'found' ? t.downloadingDetail
+    : result === 'up-to-date' ? t.upToDateDetail(app.getVersion())
+    : result === 'off' ? t.offDetail
+    : t.failedDetail
+  const options: Electron.MessageBoxOptions = { type: 'info', title: t.title, message, detail, buttons: [t.ok] }
   if (window) await dialog.showMessageBox(window, options)
   else await dialog.showMessageBox(options)
 }
@@ -374,6 +377,20 @@ ipcMain.handle('iskra:set-desktop-settings', (event, patch: unknown) => {
     console.error('Saving settings:', error)
   }
   return settings
+})
+// The page's language (its picker, or the system's), so the tray and dialogs match it, also on the next start.
+ipcMain.handle('iskra:set-language', (event, value: unknown) => {
+  const language = parseLanguage(value)
+  if (!fromApp(event) || !language) return
+  setDesktopLanguage(language)
+  updateTray()
+  if (language === settings.language) return
+  settings = { ...settings, language }
+  try {
+    saveDesktopSettings(settings)
+  } catch (error) {
+    console.error('Saving settings:', error)
+  }
 })
 ipcMain.handle('iskra:relaunch', (event) => {
   if (!fromApp(event)) return
@@ -458,9 +475,9 @@ const pickedBackups = new Map<string, string | null>()
 ipcMain.handle('iskra:host-pick-backup', async (event) => {
   if (!fromApp(event) || !window) return null
   const picked = await dialog.showOpenDialog(window, {
-    title: 'Restore a server from a backup',
+    title: text().backup.pickTitle,
     properties: ['openFile'],
-    filters: [{ name: 'Iskra backups', extensions: ['iskrabackup', 'zip'] }],
+    filters: [{ name: text().backup.filter, extensions: ['iskrabackup', 'zip'] }],
   })
   const file = picked.filePaths[0]
   if (picked.canceled || !file) return null
@@ -473,7 +490,7 @@ ipcMain.handle('iskra:host-pick-backup', async (event) => {
     closeSync(fd)
   }
   const info = readBackupInfo(head.subarray(0, read))
-  if (!info) throw new Error("That file isn't an Iskra backup.")
+  if (!info) throw new Error(text().backup.notBackup)
   pickedBackups.set(file, info.name)
   return { path: file, fileName: path.basename(file), name: info.name, encrypted: info.encrypted }
 })
@@ -492,6 +509,8 @@ ipcMain.handle('iskra:download', (event, url: unknown) => {
 if (process.platform === 'win32') app.setAppUserModelId('foo.iskra.desktop')
 
 app.whenReady().then(() => {
+  // Until the page says otherwise: the OS's language.
+  setDesktopLanguage(settings.language ?? languageFromLocales(app.getPreferredSystemLanguages()))
   setUpSession()
   if (MAC) createMacMenu()
   createWindow()
