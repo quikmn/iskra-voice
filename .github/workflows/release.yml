@@ -11,12 +11,16 @@ on:
       tag:
         description: 'Tag to build, e.g. v2.0.0-alpha.3'
         required: true
+      ref:
+        description: 'Commit or branch to build from (defaults to the tag; for rebuilding a release after a build fix)'
+        required: false
 
 permissions:
   contents: read
 
 env:
   TAG: ${{ github.event.inputs.tag || github.ref_name }}
+  REF: ${{ github.event.inputs.ref || github.event.inputs.tag || github.ref_name }}
 
 jobs:
   linux:
@@ -24,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.TAG }}
+          ref: ${{ env.REF }}
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
@@ -37,7 +41,7 @@ jobs:
             desktop/package-lock.json
       - name: Check the tag matches the app version
         run: test "v$(node -p "require('./desktop/package.json').version")" = "$TAG"
-      - run: sudo apt-get update && sudo apt-get install -y rpm
+      - run: sudo apt-get update && sudo apt-get install -y rpm libx11-dev libxtst-dev libxt-dev libxinerama-dev libx11-xcb-dev libxkbcommon-dev libxkbcommon-x11-dev libxkbfile-dev libxrandr-dev libxi-dev libxext-dev libxfixes-dev # uiohook-napi builds from source on Linux
       - run: bash scripts/get-livekit.sh linux-x64
       - run: npm ci
         working-directory: client
@@ -67,7 +71,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.TAG }}
+          ref: ${{ env.REF }}
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'

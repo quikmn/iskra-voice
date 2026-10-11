@@ -338,6 +338,7 @@ public class KeyTests
             Sql("INSERT INTO timeouts (account_key, until, reason, by_key, at) VALUES ($b, $now + 60000, 'x', $a, $now);");
             Sql("INSERT INTO audit_log (at, action, actor, actor_name, target, target_name) VALUES ($now, 'member.kick', $a, 'Alice', $b, 'Bob'), ($now, 'member.timeout', $b, 'Bob', $a, 'Alice');");
             Sql("INSERT INTO nicknames (account_key, nick) VALUES ($a, 'Al');");
+            Sql("INSERT INTO account_prefs (account_key, name, data, updated_at) VALUES ($a, 'rail', 'sealed', $now);");
             Sql("INSERT INTO notify_settings (account_key, channel_id, level) VALUES ($a, 0, 'all');");
             Sql("INSERT INTO presence (account_key, status, updated_at) VALUES ($a, 'dnd', $now);");
             Sql("INSERT INTO events (id, title, start_at, end_at, time_zone, location_kind, location, created_by, created_at) VALUES (77, 't', $now + 3600000, $now + 7200000, 'UTC', 'place', 'here', $a, $now);");

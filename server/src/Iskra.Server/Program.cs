@@ -1,3 +1,4 @@
+using Iskra.Server;
 using Iskra.Server.Features;
 using Iskra.Server.Files;
 using Iskra.Server.Hosting;
@@ -15,9 +16,10 @@ if (Iskra.Server.Cli.IsCommand(args.FirstOrDefault()))
     return;
 }
 
-var builder = WebApplication.CreateBuilder(args);
+var (worldArg, configArgs) = CommandLine.Split(args);
+var builder = WebApplication.CreateBuilder(configArgs);
 
-var worldPath = builder.Configuration["World"] ?? args.FirstOrDefault(a => !a.StartsWith('-')) ?? "world";
+var worldPath = builder.Configuration["World"] ?? worldArg ?? "world";
 var world = World.OpenOrCreate(worldPath);
 MoveFeature.Load(world);
 

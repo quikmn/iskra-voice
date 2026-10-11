@@ -1,6 +1,6 @@
 // "Open to the internet" against a real server whose router is a stand-in (--Internet:TestRouter).
 import { spawn, type ChildProcess } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { closeSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -8,6 +8,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { APP_PORT } from '../playwright.config'
 import { createInviteLink, freePort, joinVia, SHOTS } from './helpers'
 
+const LOGS = resolve(dirname(fileURLToPath(import.meta.url)), '../test-results')
 const SERVER_DLL = resolve(dirname(fileURLToPath(import.meta.url)), '../../server/src/Iskra.Server/bin/Debug/net10.0/iskra-server.dll')
 
 interface Hosted {
@@ -28,7 +29,11 @@ async function startServer(name: string, router: string): Promise<Hosted> {
     // Never the real Let's Encrypt from tests.
     Https: { AcmeDirectory: 'http://127.0.0.1:9/directory' },
   }))
-  const proc: ChildProcess = spawn('dotnet', [SERVER_DLL, world, `--Internet:TestRouter=${router}`], { stdio: 'ignore' })
+  // The server's log goes to test-results (uploaded by CI when a test fails).
+  mkdirSync(LOGS, { recursive: true })
+  const log = openSync(join(LOGS, `server-${name.replace(/\W+/g, '-')}.log`), 'w')
+  const proc: ChildProcess = spawn('dotnet', [SERVER_DLL, world, `--Internet:TestRouter=${router}`], { stdio: ['ignore', log, log] })
+  closeSync(log)
   for (let i = 0; ; i++) {
     try {
       if ((await fetch(`http://localhost:${port}`)).ok) break
