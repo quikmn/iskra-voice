@@ -2,10 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Universal Links: app.iskra.foo invite and device links open the app (client/public/.well-known/apple-app-site-association). -->
+	<!-- Universal Links: app.iskra.foo invite and device links open the app (client/public/.well-known/apple-app-site-association).
+	     webcredentials: app lock passkeys belong to app.iskra.foo, like the web app's (client/src/platform/passkeys.ts). -->
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>applinks:app.iskra.foo</string>
+		<string>webcredentials:app.iskra.foo</string>
 	</array>
 </dict>
 </plist>

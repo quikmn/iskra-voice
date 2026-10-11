@@ -60,6 +60,8 @@ export interface DmContent {
   files?: DmFile[]
   /** A signed friend action (core/friend.ts, which checks it). `text` is the fallback for other apps. */
   friend?: Record<string, unknown>
+  /** Key transparency gossip (core/keylog.ts, which checks it). Older apps ignore it. */
+  kt?: Record<string, unknown>
 }
 
 export interface DmForward {
@@ -261,9 +263,10 @@ export function openContent(identity: Identity, envelope: Pick<DmEnvelope, 'v' |
   const call = content.call && typeof content.call === 'object' && !Array.isArray(content.call) ? { call: content.call } : {}
   const group = content.group && typeof content.group === 'object' && !Array.isArray(content.group) ? { group: content.group as Record<string, unknown> } : {}
   const friend = content.friend && typeof content.friend === 'object' && !Array.isArray(content.friend) ? { friend: content.friend } : {}
+  const kt = content.kt && typeof content.kt === 'object' && !Array.isArray(content.kt) ? { kt: content.kt } : {}
   const forward = content.forward === undefined ? null : cleanForward(content.forward)
   const files = checkFiles(content.files)
-  return { text: content.text, ...call, ...group, ...friend, ...(forward ? { forward } : {}), ...(files.length ? { files } : {}) }
+  return { text: content.text, ...call, ...group, ...friend, ...kt, ...(forward ? { forward } : {}), ...(files.length ? { files } : {}) }
 }
 
 /**

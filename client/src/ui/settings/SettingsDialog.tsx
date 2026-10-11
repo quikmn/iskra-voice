@@ -28,6 +28,7 @@ import { LanguageSection } from './LanguageSection'
 import { RulesSection } from '../rules/Rules'
 import { ImportSection } from './ImportSection'
 import { AppLockSection, RotateKeySection } from '../keys/KeySettings'
+import { KeyTransparencySection } from '../keys/KeyTransparency'
 import { ChevronRight } from '../icons'
 import { AuditLogSection, BlockedSection } from '../moderation/SafetySettings'
 import { NicknameField } from '../organize/ServerSettings'
@@ -118,7 +119,7 @@ function Section({ id, server, onClose }: { id: SectionId; server: ServerState |
     case 'appearance': return <><AppearanceSection /><LanguageSection /><GifViewerSettings /></>
     case 'devices': return <DevicesSection />
     case 'recovery': return <><RecoveryKeySection /><RotateKeySection /></>
-    case 'security': return <AppLockSection />
+    case 'security': return <><AppLockSection /><KeyTransparencySection /></>
     case 'notifications': return <NotificationSettingsSection server={server} />
     case 'voice': return <><InputSettingsSection /><VoiceSettingsSection /><HotkeySettingsSection /><ClipSettingsSection /><ProcessingSettingsSection /><OutputSettingsSection /><SoundboardSettingsSection /></>
     case 'blocked': return <BlockedSection />

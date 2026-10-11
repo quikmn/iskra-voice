@@ -30,6 +30,7 @@ import { DM_ATTACH_EVENT, DmAttachments, DmComposer } from './dms/DmFiles'
 import { SavedRow } from './productivity/InboxButton'
 import { usePrivateMessageTools } from './productivity/MessageTools'
 import { dmTarget, privateRowId } from '../state/messageRefs'
+import { KeyHistory } from './keys/KeyTransparency'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -259,6 +260,7 @@ export function SafetyNumberDialog({ me, peer, onClose }: { me: string; peer: st
       <p className="muted">
         {t('app.home.theirId')} <code>{fingerprint(peer)}</code> · {t('app.home.yourId')} <code>{fingerprint(me)}</code>
       </p>
+      <KeyHistory peer={peer} />
     </Modal>
   )
 }

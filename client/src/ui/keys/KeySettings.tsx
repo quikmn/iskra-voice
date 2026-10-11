@@ -5,10 +5,11 @@ import { b64u } from '../../core/crypto'
 import { fingerprint } from '../../core/connection'
 import { refreshDevices, useDevices } from '../../state/devices'
 import { rotateAccountKey } from '../../state/keys'
-import { checkPassphrase, MIN_PASSPHRASE, setPassphrase, useLock } from '../../state/lock'
+import { checkPassphrase, confirmWithPasskey, MIN_PASSPHRASE, setPassphrase, useLock } from '../../state/lock'
 import { useApp } from '../../state/store'
 import { Modal, Spinner } from '../bits'
 import { errorMessage } from '../../i18n/errors'
+import { PasskeySettings } from './PasskeySettings'
 import './keys.css'
 
 export function RotateKeySection() {
@@ -99,6 +100,7 @@ export function AppLockSection() {
   const { t } = useTranslation()
   const protection = useLock((s) => s.protection)
   const hasPassphrase = useLock((s) => s.passphrase)
+  const hasPasskeys = useLock((s) => s.passkeys.length > 0)
   const [mode, setMode] = useState<'idle' | 'set' | 'remove'>('idle')
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
@@ -122,9 +124,11 @@ export function AppLockSection() {
     setBusy(true)
     try {
       if (hasPassphrase && !(await checkPassphrase(current))) throw new Error(t('keys.appLock.wrongCurrent'))
+      // Only passkeys so far: one of them confirms the change.
+      if (!hasPassphrase && useLock.getState().passkeys.length > 0 && !(await confirmWithPasskey())) throw new Error(t('keys.passkeys.wrong'))
       await setPassphrase(mode === 'remove' ? null : next)
       reset()
-      setDone(mode === 'remove' ? t('keys.appLock.turnedOff') : t('keys.appLock.saved'))
+      setDone(mode === 'remove' ? t(useLock.getState().passkeys.length ? 'keys.appLock.passphraseRemoved' : 'keys.appLock.turnedOff') : t('keys.appLock.saved'))
     } catch (e) {
       setError(errorMessage(e))
       setBusy(false)
@@ -140,7 +144,7 @@ export function AppLockSection() {
       {mode === 'idle' ? (
         <div className="copy-row">
           <button className="button" onClick={() => { setDone(null); setMode('set') }}>{hasPassphrase ? t('keys.appLock.change') : t('keys.appLock.set')}</button>
-          {hasPassphrase && <button className="button danger-outline" onClick={() => { setDone(null); setMode('remove') }}>{t('keys.appLock.turnOffButton')}</button>}
+          {hasPassphrase && <button className="button danger-outline" onClick={() => { setDone(null); setMode('remove') }}>{t(hasPasskeys ? 'keys.appLock.removePassphrase' : 'keys.appLock.turnOffButton')}</button>}
         </div>
       ) : (
         <form className="key-lock-form" onSubmit={(e) => { e.preventDefault(); void save() }}>
@@ -166,13 +170,14 @@ export function AppLockSection() {
           <div className="copy-row">
             <button type="submit" className={`button ${mode === 'remove' ? 'danger' : 'primary'}`}
               disabled={busy || (mode === 'set' && next.length < MIN_PASSPHRASE) || (hasPassphrase && !current)}>
-              {busy ? <Spinner /> : mode === 'remove' ? t('keys.appLock.turnOff') : t('common.save')}
+              {busy ? <Spinner /> : mode === 'remove' ? t(hasPasskeys ? 'keys.appLock.removePassphrase' : 'keys.appLock.turnOff') : t('common.save')}
             </button>
             <button type="button" className="button" disabled={busy} onClick={reset}>{t('common.cancel')}</button>
           </div>
           {mode === 'set' && <p className="muted small-text">{t('keys.appLock.minLength', { min: MIN_PASSPHRASE })}</p>}
         </form>
       )}
+      <PasskeySettings />
     </section>
   )
 }

@@ -15,3 +15,36 @@
   border-radius: 10px; background: var(--surface-2); color: var(--muted); font-size: 13px; text-align: center; }
 .dm-key-notice.disputed { color: var(--red); background: var(--danger-bg); }
 .dm-key-warning { margin: 0 16px 8px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--red); color: var(--red); background: var(--danger-bg); font-size: 13px; }
+
+/* ── passkeys (app lock) ── */
+.passkeys { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+.passkeys h4 { margin: 0 0 6px; }
+.passkey-list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 8px; }
+.passkey-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
+.passkey-meta { display: grid; gap: 2px; min-width: 0; }
+.passkey-meta strong { overflow-wrap: anywhere; }
+.lock-or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; margin: 4px 0; }
+.lock-or::before, .lock-or::after { content: ''; flex: 1; border-top: 1px solid var(--border); }
+
+/* ── key transparency ── */
+.kt-findings, .kt-servers, .kt-log, .kt-history ul { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 8px; }
+.kt-finding { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 12px;
+  border-radius: 10px; border: 1px solid var(--border); }
+.kt-finding p { margin: 0; flex: 1 1 240px; overflow-wrap: anywhere; }
+.kt-finding.high { border-color: var(--red); background: var(--danger-bg); }
+.kt-server { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 8px 12px;
+  border: 1px solid var(--border); border-radius: 10px; }
+.kt-server-meta { display: grid; gap: 2px; min-width: 0; }
+.kt-server-meta strong { overflow-wrap: anywhere; }
+.kt-log { max-height: min(60vh, 520px); overflow-y: auto; gap: 0; }
+.kt-entry { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 6px 2px; border-bottom: 1px solid var(--border); }
+.kt-seq { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
+.kt-what { display: grid; min-width: 0; overflow-wrap: anywhere; }
+.kt-hash { font-size: 12px; color: var(--muted); }
+.kt-history { margin-top: 12px; }
+.kt-history h4 { margin: 0 0 6px; }
+.kt-history li { overflow-wrap: anywhere; }
+.kt-banner { flex-wrap: wrap; border-color: var(--red); }
+.kt-banner p { flex: 1 1 280px; margin: 0; }
+@media (max-width: 480px) { .kt-hash { display: none; } .kt-entry { grid-template-columns: auto 1fr; } }

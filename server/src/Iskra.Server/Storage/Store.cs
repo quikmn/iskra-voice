@@ -295,6 +295,7 @@ public sealed partial class Store : IDisposable
         ("compliance-1", ComplianceMigration),
         ("productivity-1", ProductivityMigration),
         ("clips-1", ClipsMigration),
+        ("keylog-1", KeyLogMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

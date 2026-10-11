@@ -57,6 +57,11 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
     encrypt: (data: string): Promise<string | null> => ipcRenderer.invoke('iskra:keychain-encrypt', data),
     decrypt: (data: string): Promise<string | null> => ipcRenderer.invoke('iskra:keychain-decrypt', data),
   },
+  // App lock passkeys: the main process runs the WebAuthn ceremony (desktop/src/passkeys.ts).
+  // Resolves with { ok: true, ... } or { ok: false, name } (WebAuthn's error names), never rejects.
+  passkey: {
+    run: (op: 'create' | 'get', request: unknown): Promise<unknown> => ipcRenderer.invoke('iskra:passkey', op === 'create' ? 'create' : 'get', request),
+  },
   settings: {
     get: (): Promise<unknown> => ipcRenderer.invoke('iskra:desktop-settings'),
     set: (patch: unknown): Promise<unknown> => ipcRenderer.invoke('iskra:set-desktop-settings', patch),

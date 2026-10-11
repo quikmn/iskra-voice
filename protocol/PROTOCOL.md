@@ -14,7 +14,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Backups, moving and imports](#backups-moving-and-imports)
 - **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation) · [Roles and permissions](#roles-and-permissions) · [Reliable sends](#reliable-sends) · [AutoMod](#automod)
-- **Keys:** [Account key rotation](#account-key-rotation) · [Keys on the device](#keys-on-the-device) · [Leaving a server and signing out](#leaving-a-server-and-signing-out) · [Reports, deleting an account and handing over a server](#reports-deleting-an-account-and-handing-over-a-server)
+- **Keys:** [Account key rotation](#account-key-rotation) · [Keys on the device](#keys-on-the-device) · [Leaving a server and signing out](#leaving-a-server-and-signing-out) · [Reports, deleting an account and handing over a server](#reports-deleting-an-account-and-handing-over-a-server) · [Passkeys and key transparency](#passkeys-and-key-transparency)
 
 ---
 
@@ -1392,6 +1392,7 @@ Local storage only; nothing here goes over the wire.
   - **desktop app:** with Electron `safeStorage` (Windows DPAPI, macOS Keychain, Linux libsecret/kwallet). On Linux without a keyring (`basic_text` backend) the app uses the browser wrap below and says so.
   - **browser:** with a non-extractable AES-GCM `CryptoKey` kept in IndexedDB (`wrap = AES-GCM(key, iv(12), dataKey)`).
   - **app lock (optional):** the data key is additionally wrapped with `crypto_pwhash` (Argon2id13, opslimit 3, memlimit 64 MiB, random 16-byte salt) of the passphrase and `crypto_secretbox`, and the app asks for the passphrase at startup.
+  - **passkeys (optional):** each passkey's PRF output wraps another copy of the data key; see [Passkeys for the app lock](#passkeys-for-the-app-lock).
 - Data stored before this existed is encrypted on first start. Device linking and recovery keys work as before (the app has the keys in memory once unlocked).
 
 ## Activity status
@@ -1593,6 +1594,9 @@ SecurityEvent { "id": 12, "at": 1760000000000, "event": "auth.failed", "account"
 | `device.new` | who | `{ deviceKey }`: an existing member signed in from a device this server hasn't seen |
 | `device.revoke` | who | `{ deviceKey }` |
 | `account.rotate`, `account.rotate.disputed` | the new key / the holder | `{ devices }` / none |
+| `account.dispute.resolve` | the key that kept the account | `{ kept: "current" \| "contest" }` |
+| `keylog.alert` | who reported it | `{ kind, seq, head }`: a member's app found a problem with this server's [key log](#key-transparency) |
+| `keylog.reloaded`, `keylog.broken` | none | `{ from, to }`: the key log in the database changed underneath the server (a restored backup, an edit) / `{ seq }`: an entry whose hash doesn't link up |
 | `account.delete` | who | `{ messages }` |
 | `backup.download`, `backup.settings`, `backup.cli`, `backup.restored` | the owner / none | `{ size }`, `{ from, to }`, none, `{ backupMadeAt, uploads }` |
 | `server.move`, `server.move.cancel` | the owner / none | `{ url, cli? }`, `{ cli? }` |
@@ -1773,3 +1777,54 @@ A clip is the last few seconds (15–120) of what someone hears in a call, recor
 - `voice.clip` posts a **clip notice** to the channel's chat: a message by the person who saved the clip, with empty `text` and `clip: {}` (`clip` is null on other messages). It's sent to readers as `chat.message`. Clip notices can't be edited (`bad_request`), and the person who saved the clip can't delete it (`forbidden`); moderators with `manageMessages` who outrank them can.
 - **DM and group calls** have no channel: apps announce clips over the LiveKit room's data channel instead, on topic `iskra.clips`, as JSON `{ "v": 1, "clips": bool }` (sent on joining, on every change, and to each person who joins) and `{ "v": 1, "saved": true }` when a clip is saved. Apps show the same "clips on" mark and a "saved a clip" line in the call. This is a courtesy between honest apps: nothing can stop a modified app from recording what it receives, in any call.
 - Apps only offer clips to people who turned them on (off by default), and save a clip only while the notice can be shown (in a channel: after `voice.clip` succeeds).
+## Passkeys and key transparency
+
+### Passkeys for the app lock
+
+Local only; nothing goes over the wire. A passkey can open the [app lock](#keys-on-the-device) instead of (or next to) the passphrase. Its **PRF** output (WebAuthn `prf` extension, CTAP2 `hmac-secret`) is the secret, so the passkey actually protects the stored keys rather than gating a screen; the WebAuthn signatures aren't checked, since nothing is proven to a server.
+
+- Each passkey gets a slot in the vault record: `{ id (credential id), name (≤ 64), salt (32 random bytes), box, rpId, created, lastUsed? }`, at most 10.
+- `kek = HKDF-SHA256(ikm = PRF(salt), salt = salt, info = "iskra/passkey-kek/v1")` (WebCrypto), 32 bytes. `box = wrap(nonce(24) || crypto_secretbox(dataKey, nonce, kek))`, where `wrap` is the device wrap (OS keychain or the browser's non-extractable key), so a copy of the storage needs both the device and the passkey.
+- With only passkeys (no passphrase) the plain wrapped data key is removed (`data = ""`). Removing the last passkey without a passphrase puts the data key back under the device wrap. Adding, removing or changing a lock method first asks for the current passphrase, or (without one) one of the passkeys.
+- Creating: `navigator.credentials.create` with `userVerification: "required"`, `residentKey: "preferred"`, `excludeCredentials` (this device's passkeys), a random per-device user handle and `extensions.prf.eval.first = salt`. If the authenticator reports PRF but didn't evaluate it while creating, the app asks once more with `get`. No PRF: the passkey isn't used (the app says so; the passphrase stays available).
+- Unlocking: `navigator.credentials.get` with `allowCredentials` = this device's passkeys and `prf.evalByCredential` = each one's salt.
+- Relying party: the page's host in a browser; `app.iskra.foo` in the desktop app and the phone app. The desktop app's page is on `app://iskra`, where Chromium refuses WebAuthn, so its main process runs the ceremony in a small window on `https://app.iskra.foo/passkey`, served from memory in an in-memory session that answers nothing else (`desktop/src/passkeys.ts`; requests are checked JSON). The iOS app has `webcredentials:app.iskra.foo` (entitlement + `apple-app-site-association`), the Android app `delegate_permission/common.get_login_creds` in `assetlinks.json`.
+
+### Key transparency
+
+A server can't forge a signature, but it decides which key it shows as which person. Key transparency makes it hard to show different people different keys without being caught: each server keeps an append-only, hash-chained, signed **key log**, and clients check it, compare servers, and compare notes with each other.
+
+```jsonc
+KeyLogHead  { "seq": 12, "hash": "<b64u 32>", "at": 1760000000000, "sig": "<b64u 64>" }
+KeyLogEntry { "seq": 12, "data": "<JSON text, exactly as hashed>" }
+// data is one of:
+{ "kind": "join",    "at": 1760000000000, "key": "<accountKey>", "name": "Viktor" }   // a key first shown here
+{ "kind": "name",    "at": ..., "key": "<accountKey>", "name": "Vik" }                  // its name changed
+{ "kind": "rotate",  "at": ..., "rotation": Rotation }                                  // applied (Account key rotation)
+{ "kind": "contest", "at": ..., "rotation": Rotation }                                  // a second claim: disputed
+{ "kind": "resolve", "at": ..., "rotation": Rotation, "previousKey": "<accountKey>" }   // an admin settled it (rotation = the winner)
+```
+
+- `hash(seq) = SHA-256("iskra/keylog-entry/v1" || 0x00 || hash(seq-1) || u64be(seq) || utf8(data))`, with `hash(0)` = 32 zero bytes. Clients hash the `data` string exactly as received.
+- `sig = Ed25519.sign(serverSecret, "iskra/keylog-head/v1" || 0x00 || serverKey(32) || u64be(seq) || hash(seq) || u64be(at))`, with the server key clients pinned when joining. An empty log has `seq: 0`, zero hash, `at: 0`.
+- The server brings the log up to date from its members and rotations before it hands out a head (welcome, the requests below) and right after it applies a rotation, contest or resolution, so every key it shows, and every account move, is in the log. Entries never change: account moves rewrite account keys everywhere else, not here.
+
+| type | body | result | who |
+|---|---|---|---|
+| `keylog.head` | | `{ head: KeyLogHead }` | anyone |
+| `keylog.entries` | `after?` (seq, ≥ 0, default 0), `limit?` (1–100, default 100) | `{ entries: [KeyLogEntry] (oldest first), head: KeyLogHead }` | anyone |
+| `keylog.alert` | `kind` (`fork`, `rollback`, `bad-log`, `unlogged-key`, `unlogged-rotation`, `gossip-fork`), `seq?` | | anyone: an app found that about this server's log. Recorded in the owner's [security log](#security-log) as `keylog.alert`, nothing else |
+
+`welcome` gains `keyLog: KeyLogHead` (absent on older servers).
+
+**What clients check** (`client/src/core/keylog.ts`, `state/kt.ts`):
+
+1. **Continuity.** Each device stores the newest verified head per server and its recent hashes. A new head must be signed, never older (`rollback`), the same hash at the same position (`fork`), and reachable from the stored head through the entries (`fork`, `gap`); rotations inside entries must carry valid signatures (`bad-entry`).
+2. **The server's own word.** Every member a server shows must be in its log (a `join`, or the new key of a `rotate`/`resolve`); every rotation it announces must be in its log. The client reads the log once more before reporting, in case someone just joined.
+3. **Across servers.** Logs from different servers that move the same old key to different new keys are reported (`split`).
+4. **Gossip.** A DM to a friend carries, at most every 12 hours per friend (or when a head moved), a signed digest in its content: `kt: { v: 1, from, to, at, heads: [{ server, ...KeyLogHead }] (≤ 16, servers both use), rotations: [Rotation] (≤ 16, people on those servers and the sender), devices: [deviceKey] (≤ 20, the sender's own), sig }`, `sig = Ed25519.sign(fromAccountSecret, "iskra/kt-gossip/v1" || 0x00 || JSON.stringify([from, to, at, heads as [server, seq, hash, at, sig], rotations as [oldKey, newKey, rotatedAt, oldSig, newSig], devices]))`. The receiver checks it like a friend action (signed by the sender, from/to are the DM's, not more than 10 minutes in the future, at most 7 days old) and then: a friend's head at a position it has, with a different hash, is proof the server signed two histories (`gossip-fork`); a head ahead of its own is remembered and checked once its log gets there; a rotation that moves an old key somewhere other than where it follows it is reported (`gossip-conflict`); a device a server lists for the friend that the friend doesn't list (and is over an hour older than the digest) is reported (`device-unknown`). Older apps ignore `kt`.
+5. **Lookalikes.** Someone on a server using a friend's name with a different key, while the friend isn't on that server, is shown as a gentle warning.
+
+Findings are shown in Settings → App lock → Key transparency, as a banner above the chat for serious ones, and in the DM with the person concerned. The log can be read entry by entry in the app (an auditor's view), checked from the first entry.
+
+**Limits.** This is detection, not prevention: a server can still show a fake key to someone who has no friend in common to compare with and never compares safety numbers, and it can refuse to answer. Only the first server a person meets someone on vouches for the first key (trust on first use). There's no global log or third-party auditors; gossip only covers servers two friends share. See [security.md](../docs/security.md#key-transparency) for the comparison with CONIKS, Keybase and WhatsApp.

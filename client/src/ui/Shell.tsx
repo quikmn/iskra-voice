@@ -25,6 +25,7 @@ import { QuickSwitcher } from './QuickSwitcher'
 import { useEscapeLayer } from './layers'
 import { EventsLayer } from './events/EventsLayer'
 import { DisputeNotices } from './keys/KeyScreens'
+import { KtNotices } from './keys/KeyTransparency'
 import { Shortcuts } from './organize/Shortcuts'
 import { RulesLayer } from './rules/Rules'
 import { ServerUpdateNotice } from './ServerUpdateNotice'
@@ -60,6 +61,7 @@ export function Shell() {
         <RecoveryNudge />
         <DisputeNotices />
         {server && <ServerUpdateNotice server={server} />}
+        <KtNotices />
         {server && stage ? (
           <VoiceRoom server={server}>
             {isStageChannel

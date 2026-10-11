@@ -61,7 +61,8 @@ Gap: write a short STRIDE-style threat model per component (server, client, desk
 | 2.9 Cryptographic verifier | Ed25519 signatures over a server nonce + server key (no replay across servers), device certificates verified, revoked devices refused ([Identity.cs](../../server/src/Iskra.Server/Crypto/Identity.cs)) | met |
 | 2.5 Recovery | Recovery key (the account key) shown on request; device linking with a one-time secret, a six-digit confirmation code typed on the signed-in device, and a 5-minute expiry; account key replacement with dual signatures and a dispute window ([docs/security.md](../security.md)) | met |
 | 2.10 Service authentication | LiveKit webhooks verified with the world's LiveKit secret and loopback-only; webhook ingress by hashed secret; CI → droplet by forced-command SSH key | met |
-| Protection of keys on devices | XChaCha20-Poly1305 at rest with OS keychain (desktop) or non-extractable WebCrypto key (browser), optional Argon2id app lock | met |
+| Protection of keys on devices | XChaCha20-Poly1305 at rest with OS keychain (desktop) or non-extractable WebCrypto key (browser), optional Argon2id app lock and/or passkeys: WebAuthn with user verification, whose PRF output (HKDF-SHA256) wraps the data key, so the passkey protects the keys rather than gating a screen ([vault.ts](../../client/src/core/vault.ts), [passkeys.ts](../../client/src/platform/passkeys.ts)); changing the lock needs the current passphrase or passkey | met |
+| Key directory integrity (impersonation by a server) | Key transparency: per-server append-only key log, SHA-256 hash chain, head signed with the server's Ed25519 key; clients verify continuity, that shown members/rotations are logged, compare servers, and gossip signed heads in E2EE DMs; problems reach the owner's security log (`keylog.alert`, `keylog.broken`) ([KeyLogFeature.cs](../../server/src/Iskra.Server/Features/KeyLogFeature.cs), [keylog.ts](../../client/src/core/keylog.ts), [security.md](../security.md#key-transparency)) | met (detection, documented limits) |
 
 ## V3 Session management — met (cookie items n/a)
 
@@ -95,7 +96,8 @@ Gap: write a short STRIDE-style threat model per component (server, client, desk
 
 | Area | Evidence | Verdict |
 |---|---|---|
-| 6.2 Algorithms | Ed25519 (NSec/libsodium), XChaCha20-Poly1305, `crypto_box_seal`, `crypto_secretstream`, Argon2id; no custom primitives | met |
+| 6.2 Algorithms | Ed25519 (NSec/libsodium), XChaCha20-Poly1305, `crypto_box_seal`, `crypto_secretstream`, Argon2id, SHA-256 (key log hash chain), HKDF-SHA256 (WebCrypto, passkey PRF → key-encryption key); no custom primitives | met |
+| 6.4 Key management on devices | Data key wrapped per lock method (device wrap, passphrase box, one slot per passkey, ≤ 10); the data key itself never leaves the device; passkeys without PRF are refused | met |
 | 6.3 Random values | `RandomNumberGenerator` on the server, libsodium `randombytes` in clients | met |
 | 6.4 Secret management | Server secrets in the world folder, `0600` on Linux/macOS; CI secrets in GitHub secrets; no secrets in code (gitleaks in CI) | met |
 | 6.1 Data classification / encryption at rest on the server | DMs, group chats and their files are end-to-end encrypted. Server channel data in `iskra.db` is not encrypted at rest (relies on host disk security); downloaded backups are encrypted | met (documented limitation) |

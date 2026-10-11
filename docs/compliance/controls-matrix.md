@@ -101,7 +101,7 @@ security log (`security_log` table, `security.log.list`, Settings → Security l
 | 5.13 Labelling of information | Classification column in the inventory; no document labelling scheme | POL/asset-inventory | partial |
 | 5.14 Information transfer | TLS, E2EE, encrypted backups (passphrase sealed to the server key) | SEC | met |
 | 5.15 Access control | Policy and product access control | POL/access-control | met |
-| 5.16 Identity management | Accounts are keys; device certificates; admin accounts listed | POL/access-control, POL/asset-inventory | met |
+| 5.16 Identity management | Accounts are keys; device certificates; signed per-server key log (key transparency) with client-side checks and gossip; admin accounts listed | POL/access-control, POL/asset-inventory | met |
 | 5.17 Authentication information | Recovery keys user-held; secrets in GitHub/devkeys; MFA and old v1 secrets to handle | OA 1, OA 18 | owner-action |
 | 5.18 Access rights | Yearly access review defined | POL/access-control "Access review" | owner-action |
 | 5.19 Supplier relationships | Vendor register with checks before adding | POL/vendor-register | met |
@@ -163,11 +163,11 @@ Hosted services run at Cloudflare and DigitalOcean, whose data-centre controls a
 
 | Control | How Iskra meets it | Evidence | Status |
 |---|---|---|---|
-| 8.1 User endpoint devices | App: keys encrypted at rest, app lock. Owner devices: hardening to confirm | SEC "Your keys on your device", OA 15 | partial |
+| 8.1 User endpoint devices | App: keys encrypted at rest, app lock (passphrase and/or passkeys with WebAuthn PRF). Owner devices: hardening to confirm | SEC "Your keys on your device", OA 15 | partial |
 | 8.2 Privileged access rights | Owner-only server functions; forced-command CI key; scoped tokens; environment secrets to move | POL/access-control, OA 7 | partial |
 | 8.3 Information access restriction | Per-request, per-channel permission checks; private channels invisible | [Permissions.cs][perms], [PermissionTests.cs][permtests] | met |
 | 8.4 Access to source code | Public repo; write access only the owner; ruleset to add | OA 6 | owner-action |
-| 8.5 Secure authentication | Ed25519 challenge-response, device certificates and revocation; MFA on admin accounts | [Session.cs][session], [HandshakeTests.cs][handshake], OA 1 | partial |
+| 8.5 Secure authentication | Ed25519 challenge-response, device certificates and revocation; passkey (biometric/PIN/security key) app unlock; key transparency against servers swapping keys; MFA on admin accounts | [Session.cs][session], [HandshakeTests.cs][handshake], OA 1 | partial |
 | 8.6 Capacity management | Limits and quotas; no capacity alerts | HOST, OA 10 | partial |
 | 8.7 Protection against malware | Uploads typed by content and served sandboxed; signed releases; CodeQL | [Uploads.cs][uploads], CICD | met |
 | 8.8 Management of technical vulnerabilities | Policy with SLAs, Dependabot, CodeQL, Scorecard; GitHub alert settings pending | POL/vulnerability-management, OA 2–5 | partial |
@@ -234,11 +234,11 @@ Details and evidence: [asvs-l2-self-assessment.md](asvs-l2-self-assessment.md).
 | Chapter | How Iskra meets it | Evidence | Status |
 |---|---|---|---|
 | V1 Architecture and threat modeling | Documented trust model; no formal threat model yet | SEC | partial |
-| V2 Authentication | Key-based challenge-response; password items n/a | [Session.cs][session] | met |
+| V2 Authentication | Key-based challenge-response; passkeys (WebAuthn PRF) for the local app lock; key transparency log; password items n/a | [Session.cs][session] | met |
 | V3 Session management | Authenticated WebSocket per session; no cookies/tokens | [Session.cs][session] | met |
 | V4 Access control | Server-side, per request and broadcast | [Permissions.cs][perms] | met |
 | V5 Validation, sanitization, encoding | Typed validation, React rendering, SSRF protection, parameterised SQL | [LinkPreviews.cs][previews] | met |
-| V6 Stored cryptography | libsodium primitives, secrets `0600` | SEC | met |
+| V6 Stored cryptography | libsodium primitives (plus WebCrypto HKDF for passkey PRF), secrets `0600`, signed hash-chained key log | SEC | met |
 | V7 Error handling and logging | SecLog, Audit, generic errors | [ComplianceFeature.cs][seclog] | met |
 | V8 Data protection | Encryption at rest on devices, export, deletion; secrets in webhook URLs by design | SEC | partial |
 | V9 Communication | TLS 1.2+, HSTS; plain HTTP possible on LAN servers | [Program.cs][program] | partial |
@@ -254,7 +254,7 @@ Details and evidence: [asvs-l2-self-assessment.md](asvs-l2-self-assessment.md).
 |---|---|---|---|
 | MASVS-STORAGE | Keys and decrypted DMs encrypted at rest (OS keychain via Electron `safeStorage`; non-extractable WebCrypto key in web views); optional Argon2id app lock | SEC "Your keys on your device" | met |
 | MASVS-CRYPTO | libsodium-wrappers-sumo; no custom primitives; shared vectors | [vectors.json][vectors] | met |
-| MASVS-AUTH | Device keys certified by the account key; device revocation; app lock | SEC "Your devices" | met |
+| MASVS-AUTH | Device keys certified by the account key; device revocation; app lock (passphrase or passkey; iPhone app passkeys not yet device-verified) | SEC "Your devices" | met |
 | MASVS-NETWORK | HTTPS required by web views for remote servers; desktop allows plain HTTP for LAN servers; no certificate pinning (server identity pinned by its Ed25519 key in invites instead) | SEC, HOST | partial |
 | MASVS-PLATFORM | Electron: `contextIsolation`, `sandbox`, no `nodeIntegration`, navigation and window-open handlers, permission handler, IPC only from the app page; `iskra://` links only open invites; iOS Universal Links via AASA | [desktop/src/main.ts][main], SEC "The desktop app" | met |
 | MASVS-CODE | Dependabot for desktop deps, Electron kept current, signed auto-updates checking publisher | [dependabot.yml][dependabot], CICD §4 | met |

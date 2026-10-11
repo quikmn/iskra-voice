@@ -1,13 +1,14 @@
 // Local persistence in IndexedDB: the identity keys, the list of servers, prekeys and DM history.
 // Keys only leave this device inside an end-to-end encrypted device link (see core/link.ts).
 // Secrets (keys, prekeys, decrypted DMs) are encrypted at rest with the vault's data key (core/vault.ts).
+import sodium from 'libsodium-wrappers-sumo'
 import { b64u, fromB64u } from './crypto'
 import type { PrekeyPair, Revocation } from './devices'
 import type { DeviceCert, Identity } from './identity'
 import type { Handover, Rotation } from './rotation'
 import {
-  browserWrapper, isSealed, lockDataKey, newDataKey, openValue, sealValue, unlockDataKey,
-  type KeyWrapper, type VaultRecord, type WrapKind,
+  addPasskeySlot, browserWrapper, isLocked, isSealed, newDataKey, openPasskeySlot, openValue, removePasskeySlot, sealValue,
+  unlockDataKey, withPassphrase, type KeyWrapper, type PasskeySlot, type VaultRecord, type WrapKind,
 } from './vault'
 
 const DB_NAME = 'iskra'
@@ -115,7 +116,8 @@ export async function openVault(system?: KeyWrapper | null): Promise<VaultState>
   wrapper = vault.wrap === 'system' ? system! : browserWrap
   let inner: Uint8Array
   try {
-    inner = await wrapper.unwrap(fromB64u(vault.data))
+    // Only passkeys open it: nothing to unwrap until one is used.
+    inner = vault.data ? await wrapper.unwrap(fromB64u(vault.data)) : new Uint8Array()
   } catch {
     return {
       state: 'error',
@@ -126,12 +128,13 @@ export async function openVault(system?: KeyWrapper | null): Promise<VaultState>
   }
   // The keychain became available (e.g. Linux with a keyring now): move to it.
   if (vault.wrap === 'browser' && system) {
-    vault = { ...vault, wrap: 'system', data: b64u(await system.wrap(inner)) }
+    const passkeys = vault.passkeys && await Promise.all(vault.passkeys.map(async (p) => ({ ...p, box: b64u(await system.wrap(await browserWrap.unwrap(fromB64u(p.box)))) })))
+    vault = { ...vault, wrap: 'system', data: vault.data ? b64u(await system.wrap(inner)) : '', ...(passkeys ? { passkeys } : {}) }
     wrapper = system
     await set('vault', vault)
   }
-  if (vault.lock) {
-    lockedBox = inner
+  if (isLocked(vault)) {
+    lockedBox = vault.lock ? inner : null
     return { state: 'locked' }
   }
   dataKey = inner
@@ -141,7 +144,8 @@ export async function openVault(system?: KeyWrapper | null): Promise<VaultState>
 
 /** Tries the app lock passphrase. False if it's wrong. */
 export async function unlockVault(passphrase: string): Promise<boolean> {
-  if (!vault?.lock || !lockedBox) return !!dataKey
+  if (dataKey) return true
+  if (!vault?.lock || !lockedBox) return false
   const key = unlockDataKey(lockedBox, passphrase, vault.lock)
   if (!key) return false
   dataKey = key
@@ -150,15 +154,61 @@ export async function unlockVault(passphrase: string): Promise<boolean> {
   return true
 }
 
+/** Opens the vault with a passkey's PRF output. False if it isn't one of this device's passkeys. */
+export async function unlockVaultWithPasskey(credentialId: string, prf: Uint8Array): Promise<boolean> {
+  if (dataKey) return true
+  if (!vault || !wrapper) return false
+  const key = await openPasskeySlot(vault, wrapper, credentialId, prf)
+  if (!key) return false
+  dataKey = key
+  lockedBox = null
+  vault = { ...vault, passkeys: vault.passkeys?.map((p) => (p.id === credentialId ? { ...p, lastUsed: Date.now() } : p)) }
+  await set('vault', vault)
+  await migrateSecrets()
+  return true
+}
+
+/** Checks a passkey's PRF output against its slot without changing anything. */
+export async function checkPasskey(credentialId: string, prf: Uint8Array): Promise<boolean> {
+  if (!vault || !wrapper) return false
+  const key = await openPasskeySlot(vault, wrapper, credentialId, prf)
+  if (key) sodium.memzero(key)
+  return !!key
+}
+
 /** Sets, changes or (null) removes the app lock passphrase. */
 export async function setLockPassphrase(passphrase: string | null): Promise<void> {
   if (!dataKey || !wrapper || !vault) throw new Error('Iskra is locked.')
-  if (passphrase) {
-    const { box, params } = lockDataKey(dataKey, passphrase)
-    vault = { v: 1, wrap: wrapper.kind, data: b64u(await wrapper.wrap(box)), lock: params }
-  } else {
-    vault = { v: 1, wrap: wrapper.kind, data: b64u(await wrapper.wrap(dataKey)) }
+  vault = await withPassphrase(vault, dataKey, wrapper, passphrase)
+  await set('vault', vault)
+}
+
+/** The WebAuthn user handle for this device's passkeys (made on first use). */
+export async function passkeyUserId(): Promise<string> {
+  if (!vault) throw new Error('Iskra is locked.')
+  if (!vault.passkeyUser) {
+    vault = { ...vault, passkeyUser: b64u(crypto.getRandomValues(new Uint8Array(16))) }
+    await set('vault', vault)
   }
+  return vault.passkeyUser!
+}
+
+/** Lets a passkey open the app lock (its PRF output wraps the data key). */
+export async function addPasskey(passkey: { id: string; name: string; salt: Uint8Array; prf: Uint8Array; rpId: string }): Promise<void> {
+  if (!dataKey || !wrapper || !vault) throw new Error('Iskra is locked.')
+  vault = await addPasskeySlot(vault, dataKey, wrapper, passkey)
+  await set('vault', vault)
+}
+
+export async function removePasskey(id: string): Promise<void> {
+  if (!dataKey || !wrapper || !vault) throw new Error('Iskra is locked.')
+  vault = await removePasskeySlot(vault, id, dataKey, wrapper)
+  await set('vault', vault)
+}
+
+export async function renamePasskey(id: string, name: string): Promise<void> {
+  if (!vault) throw new Error('Iskra is locked.')
+  vault = { ...vault, passkeys: vault.passkeys?.map((p) => (p.id === id ? { ...p, name: name.slice(0, 64) } : p)) }
   await set('vault', vault)
 }
 
@@ -173,7 +223,14 @@ export async function checkLockPassphrase(passphrase: string): Promise<boolean> 
   }
 }
 
-export const vaultInfo = (): { wrap: WrapKind | null; locked: boolean } => ({ wrap: vault?.wrap ?? null, locked: !!vault?.lock })
+export const vaultInfo = (): { wrap: WrapKind | null; locked: boolean; passkeys: Omit<PasskeySlot, 'box' | 'salt'>[] } => ({
+  wrap: vault?.wrap ?? null,
+  locked: !!vault?.lock,
+  passkeys: (vault?.passkeys ?? []).map(({ id, name, rpId, created, lastUsed }) => ({ id, name, rpId, created, lastUsed })),
+})
+
+/** PRF inputs for unlocking: each passkey's credential id and salt. */
+export const passkeySlots = (): { id: string; salt: string; rpId: string }[] => (vault?.passkeys ?? []).map(({ id, salt, rpId }) => ({ id, salt, rpId }))
 
 interface StoredIdentity {
   v: 1
@@ -393,6 +450,11 @@ export function wipeAll(): Promise<void> {
     request.onblocked = () => resolve()
   })
 }
+
+// ── Key transparency (state/kt.ts): signed log heads and what they said; public data, so not encrypted ──
+
+export const loadKt = <T>() => get<T>('kt')
+export const saveKt = (kt: unknown) => set('kt', kt)
 
 // ── Block list (synced to every server; see state/moderation.ts) ────────────
 

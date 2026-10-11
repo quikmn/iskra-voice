@@ -59,6 +59,10 @@ const en = {
     mouse: (button: number) => `Mouse ${button}`,
     key: (code: number) => `Key ${code}`,
   },
+  passkey: {
+    title: 'Iskra passkey',
+    waiting: 'Follow the prompt from your device or security key.',
+  },
 }
 
 export type DesktopText = typeof en
@@ -118,6 +122,10 @@ const sv: DesktopText = {
   keys: {
     mouse: (button) => `Mus ${button}`,
     key: (code) => `Tangent ${code}`,
+  },
+  passkey: {
+    title: 'Nyckel för Iskra',
+    waiting: 'Följ anvisningen från din enhet eller säkerhetsnyckel.',
   },
 }
 

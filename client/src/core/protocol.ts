@@ -1505,4 +1505,23 @@ export interface Message {
 
 export interface Requests {
   'voice.clip': [{ channelId: number }, { message: Message }]
+// ── key transparency ──
+
+/** A key log head the server signed: "iskra/keylog-head/v1" 0x00 serverKey(32) u64be(seq) hash(32) u64be(at). */
+export interface KeyLogHead {
+  seq: number
+  hash: string
+  at: number
+  sig: string
+}
+
+export interface Welcome {
+  /** Absent on servers from before key transparency. */
+  keyLog?: KeyLogHead
+}
+
+export interface Requests {
+  'keylog.head': [Record<string, never>, { head: KeyLogHead }]
+  'keylog.entries': [{ after?: number; limit?: number }, { entries: { seq: number; data: string }[]; head: KeyLogHead }]
+  'keylog.alert': [{ kind: string; seq?: number }, Record<string, never>]
 }

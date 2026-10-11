@@ -75,6 +75,8 @@ export interface DesktopBridge {
   pickScreen(id: string | null): void
   /** An incoming call: flash the taskbar and bring the window up (without stealing focus). */
   callAlert?(on: boolean): Promise<void>
+  /** WebAuthn ceremonies for app lock passkeys, run by the main process on https://app.iskra.foo (desktop/src/passkeys.ts). */
+  passkey?: { run(op: 'create' | 'get', request: unknown): Promise<{ ok: boolean; name?: string; message?: string } & Record<string, unknown>> }
   /** The OS keychain (Electron safeStorage). basic: Linux without a keyring, which protects nothing. */
   keychain?: {
     status(): Promise<'keyring' | 'basic' | 'unavailable'>

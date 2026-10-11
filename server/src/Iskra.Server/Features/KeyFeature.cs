@@ -112,6 +112,7 @@ public static class KeyFeature
                 var capped = Roles.Rank(holder.Role) > Roles.Rank(Roles.Member) ? Roles.Member : holder.Role;
                 store.RecordContest(r.OldKey, r, holder.AccountKey, holder.Role, capped, now);
                 SecurityLog.Record(store, now, "account.rotate.disputed", holder.AccountKey, requester?.LoggedIp);
+                KeyLogFeature.Sync(world, now);
                 var disputed = store.RotationFrom(r.OldKey)!;
                 var member = hub.PublicMember(holder with { Role = capped });
                 hub.Broadcast(Frames.Event("account.disputed", new { rotation = PublicApplied(disputed), member }));
@@ -127,6 +128,7 @@ public static class KeyFeature
             store.ApplyRotation(r, certs, handovers, now);
             // Under the new key, like everything else the rotation moved (the old key stays only in the signed rotation).
             SecurityLog.Record(store, now, "account.rotate", r.NewKey, requester?.LoggedIp, new { devices = certs.Count });
+            KeyLogFeature.Sync(world, now);
         }
 
         var applied = store.RotationFrom(r.OldKey)!;
@@ -266,7 +268,12 @@ public static class KeyFeature
         if (!keepContest && keep != applied.Rotation.NewKey) throw RequestException.BadRequest("'keep' must be one of the two keys in the dispute.");
         if (keepContest && store.KeyKnown(keep)) throw RequestException.BadRequest("That key is already in use here.");
 
-        lock (Gate) store.ResolveDispute(applied, keepContest, [], s.Now);
+        lock (Gate)
+        {
+            store.ResolveDispute(applied, keepContest, [], s.Now);
+            KeyLogFeature.Sync(s.World, s.Now); // logged at once, so the key log never skips a holder
+        }
+        SecurityLog.Record(s, "account.dispute.resolve", keep, new { kept = keepContest ? "contest" : "current" });
         var resolved = store.RotationFrom(oldKey)!;
         if (keepContest)
         {
