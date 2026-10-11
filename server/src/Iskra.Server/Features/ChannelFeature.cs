@@ -67,17 +67,19 @@ public static class ChannelFeature
         CheckRoles(readRole, writeRole);
 
         var slowmode = ModerationFeature.SlowmodeField(body) ?? 0;
+        var userLimit = VoiceLimitFeature.Field(body, kind) ?? 0;
         var categoryId = OrganizeFeature.OptionalCategory(s, body);
         var channel = s.World.Store.CreateChannel(ChannelName(body.String("name", 256)), kind, readRole, writeRole, s.Now);
         if (slowmode > 0) s.World.Store.SetSlowmode(channel.Id, slowmode);
+        if (userLimit > 0) s.World.Store.SetUserLimit(channel.Id, userLimit);
         if (categoryId is not null)
         {
             s.World.Store.SetChannelCategory(channel.Id, categoryId);
             channel = channel with { CategoryId = categoryId };
         }
-        Audit.Record(s, "channel.create", details: new { channelId = channel.Id, name = channel.Name, kind, readRole, writeRole, slowmode });
+        Audit.Record(s, "channel.create", details: new { channelId = channel.Id, name = channel.Name, kind, readRole, writeRole, slowmode, userLimit });
         BroadcastChannels(s);
-        return new { channel = Hub.PublicChannel(channel, slowmode) };
+        return new { channel = Hub.PublicChannel(channel, slowmode, userLimit) };
     }
 
     private static object Update(Session s, Member me, Body body)
@@ -94,18 +96,22 @@ public static class ChannelFeature
         CheckRoles(updated.ReadRole, updated.WriteRole);
         var oldSlowmode = s.World.Store.Slowmode(channel.Id);
         var slowmode = ModerationFeature.SlowmodeField(body) ?? oldSlowmode;
+        var oldLimit = s.World.Store.UserLimit(channel.Id);
+        var userLimit = VoiceLimitFeature.Field(body, channel.Kind) ?? oldLimit;
 
         s.World.Store.UpdateChannel(updated);
         if (slowmode != oldSlowmode) s.World.Store.SetSlowmode(channel.Id, slowmode);
+        if (userLimit != oldLimit) s.World.Store.SetUserLimit(channel.Id, userLimit);
         var changes = new Dictionary<string, object>();
         if (updated.Name != channel.Name) changes["name"] = new { from = channel.Name, to = updated.Name };
         if (updated.ReadRole != channel.ReadRole) changes["readRole"] = new { from = channel.ReadRole, to = updated.ReadRole };
         if (updated.WriteRole != channel.WriteRole) changes["writeRole"] = new { from = channel.WriteRole, to = updated.WriteRole };
         if (slowmode != oldSlowmode) changes["slowmode"] = new { from = oldSlowmode, to = slowmode };
+        if (userLimit != oldLimit) changes["userLimit"] = new { from = oldLimit, to = userLimit };
         if (changes.Count > 0) Audit.Record(s, "channel.update", details: new { channelId = channel.Id, name = updated.Name, changes });
         BroadcastChannels(s);
         s.Voice.EnforceAccess();
-        return new { channel = Hub.PublicChannel(updated, slowmode) };
+        return new { channel = Hub.PublicChannel(updated, slowmode, userLimit) };
     }
 
     private static object? Delete(Session s, Member me, Body body)
