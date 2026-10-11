@@ -26,6 +26,8 @@ export const useCalls = create<CallsState>(() => ({ call: null, inRoom: [] }))
 /** Media keys by call id. Memory only, dropped when the call ends. */
 const keys = new Map<string, Uint8Array>()
 const OUTGOING_WATCHDOG_MS = 60_000
+/** How long a ringing call waits for the server's reason after the room drops (see the voice subscription below). */
+const ROOM_DROP_GRACE_MS = 2_000
 
 const me = () => {
   const identity = useApp.getState().identity
@@ -198,7 +200,14 @@ onWelcomeHook((serverKey) => {
 useVoice.subscribe((state, prev) => {
   const call = useCalls.getState().call
   if (!call || call.phase === 'ended') return
-  if (prev.session?.call?.id === call.id && state.session?.call?.id !== call.id) void hangUp()
+  if (prev.session?.call?.id !== call.id || state.session?.call?.id === call.id) return
+  if (call.phase === 'active') return void hangUp()
+  // Still ringing: a decline (or "busy") also takes us out of the room, and that can arrive just before the
+  // server's call.ended with the real reason. Give it a moment so the caller sees "Declined", not "Cancelled".
+  setTimeout(() => {
+    const now = useCalls.getState().call
+    if (now?.id === call.id && now.phase !== 'ended') void hangUp()
+  }, ROOM_DROP_GRACE_MS)
 })
 
 // ── Ringing: sound, desktop notification, and the desktop app's attention ───
