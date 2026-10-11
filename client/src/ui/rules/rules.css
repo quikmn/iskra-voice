@@ -1,0 +1,41 @@
+/* ── Server rules and voice user limits ── */
+
+.rules-button { margin-bottom: 8px; }
+.rules-button.needs { color: var(--text); }
+.rules-button .rules-badge { background: var(--accent); font-size: 11px; padding: 0 7px; }
+
+.rules-modal .modal-body { display: grid; gap: 12px; }
+.rules-welcome { margin: 0; color: var(--text-strong); font-size: 15px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.rules-lead { margin: 0; }
+.rules-text {
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px;
+  line-height: 1.55; overflow-wrap: anywhere; white-space: pre-wrap;
+}
+.rules-agreed { margin: 0; color: var(--green); }
+
+.rules-bar { display: flex; align-items: center; gap: 10px; line-height: 1.4; background: var(--accent-subtle); flex-wrap: wrap; }
+.rules-bar svg { color: var(--accent); flex: none; }
+.rules-bar span { flex: 1; min-width: 180px; }
+
+.rules-settings .rules-editor-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
+.rules-settings .rules-editor-head > span { font-size: 13px; color: var(--muted); font-weight: 600; }
+.rules-input {
+  width: 100%; min-height: 180px; margin-top: 8px; resize: vertical; font: inherit; line-height: 1.5;
+  background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px;
+}
+.rules-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.rules-preview { margin-top: 8px; min-height: 180px; }
+.rules-count { display: block; text-align: right; margin: 4px 0 12px; }
+.rules-count.over { color: var(--red); }
+.rules-settings .checkbox { margin-top: 10px; }
+.rules-settings .rules-ask { margin-left: 26px; }
+.rules-settings .copy-row { margin-top: 14px; }
+
+.voice-limit { margin-left: auto; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--muted); padding: 1px 6px; border-radius: 6px; background: var(--bg); flex: none; }
+.voice-limit.full { color: var(--red); background: var(--danger-bg); }
+
+@media (max-width: 760px) {
+  .rules-modal .modal-footer { flex-direction: column-reverse; }
+  .rules-modal .modal-footer .button { width: 100%; justify-content: center; }
+  .rules-settings .rules-ask { margin-left: 0; }
+}

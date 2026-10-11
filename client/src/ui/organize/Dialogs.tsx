@@ -7,6 +7,7 @@ import { Modal } from '../bits'
 import { RolePicker } from '../dialogs/CreateChannelDialog'
 import { slowmodeLabel, SLOWMODE_STEPS } from '../../state/moderationRules'
 import { ChannelOverrides } from '../roles/RoleSettings'
+import { UserLimitField } from '../rules/UserLimitField'
 
 export function CategoryDialog({ server, category, onClose }: { server: ServerState; category?: Category; onClose: () => void }) {
   const [name, setName] = useState(category?.name ?? '')
@@ -58,6 +59,7 @@ export function ChannelSettingsDialog({ server, channel, onClose }: { server: Se
   const [categoryId, setCategoryId] = useState<number | null>(channel.categoryId ?? null)
   const [slowmode, setSlowmode] = useState(channel.slowmode ?? 0)
   const hasSlowmode = channel.kind === 'text' || channel.kind === 'forum'
+  const [userLimit, setUserLimit] = useState(channel.userLimit ?? 0)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -81,6 +83,7 @@ export function ChannelSettingsDialog({ server, channel, onClose }: { server: Se
     if (!connection) throw new Error('Not connected.')
     await connection.request('channel.update', {
       id: channel.id, name: slug, readRole, writeRole: write, slowmode: hasSlowmode ? slowmode : undefined,
+      userLimit: channel.kind === 'voice' ? userLimit : undefined,
     })
     if (categoryId !== (channel.categoryId ?? null)) await moveChannel(server.key, channel.id, categoryId, null)
   })
@@ -115,6 +118,7 @@ export function ChannelSettingsDialog({ server, channel, onClose }: { server: Se
           <small className="muted">Members can send one message per interval here. Admins aren't limited.</small>
         </label>
       )}
+      {channel.kind === 'voice' && <UserLimitField value={userLimit} onChange={setUserLimit} />}
       <ChannelOverrides server={server} channel={channel} />
       <label className="field inline">
         <span>Category</span>

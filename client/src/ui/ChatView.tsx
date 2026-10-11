@@ -32,6 +32,8 @@ import { VoiceMessage, VoiceRecordButton } from './chat/voice/VoiceMessages'
 import { voiceRecordingSupported, type Recording } from './chat/voice/recorder'
 import { BlockGate, ChannelSettingsButton, SlowmodeChip, TimedOutBar } from './moderation/Moderation'
 import { useSlowmodeWait, useTimedOut } from './moderation/hooks'
+import { RulesBar } from './rules/Rules'
+import { useMustAgree } from '../state/rules'
 import { ForwardDialog, ForwardedLine, ForwardIcon } from './organize/ForwardDialog'
 import { UnreadBar, UnreadDivider } from './organize/UnreadBits'
 import { channelConv, dividerOf, dividerTarget, useRead } from '../state/readState'
@@ -465,6 +467,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
   const ready = uploads.filter((u) => u.result).map((u) => u.result!)
   const slowmode = useSlowmodeWait(server, channelId)
   const timedOut = useTimedOut(server)
+  const mustAgree = useMustAgree(server.key)
   const canSend = online && !uploading && slowmode.wait === 0 && (text.trim().length > 0 || ready.length > 0)
 
   function startUpload(item: PendingUpload) {
@@ -560,6 +563,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
   }
 
   if (timedOut) return <TimedOutBar server={server} />
+  if (mustAgree) return <RulesBar server={server} />
 
   return (
     <div className="composer-wrap">

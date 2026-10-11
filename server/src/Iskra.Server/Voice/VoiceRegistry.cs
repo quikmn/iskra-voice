@@ -75,6 +75,18 @@ public sealed class VoiceRegistry
     /// <summary>Group DM calls (rooms named gcall-…).</summary>
     public GroupCallRegistry GroupCalls { get; }
 
+    /// <summary>Someone a moderator moved may join that channel for a short while even when it's full.</summary>
+    private readonly ConcurrentDictionary<(string Account, long Channel), long> _movePasses = new();
+
+    public void GrantMovePass(string accountKey, long channelId, long until)
+    {
+        foreach (var (key, expires) in _movePasses) if (expires < until - Features.VoiceLimitFeature.MovePassMs) _movePasses.TryRemove(key, out _);
+        _movePasses[(accountKey, channelId)] = until;
+    }
+
+    public bool HasMovePass(string accountKey, long channelId, long now) =>
+        _movePasses.TryGetValue((accountKey, channelId), out var until) && until >= now;
+
     public static string RoomName(long channelId) => $"voice-{channelId}";
 
     public static long? ChannelOf(string? room) =>
@@ -194,7 +206,9 @@ public sealed class VoiceRegistry
                 var member = world.Store.GetMember(identity);
                 var channel = world.Store.GetChannel(channelId);
                 if (member is null || channel is null || !Permissions.CanConnect(member, channel)
-                    || Features.ModerationFeature.IsTimedOut(world.Store, identity, now))
+                    || Features.ModerationFeature.IsTimedOut(world.Store, identity, now)
+                    || Features.RulesFeature.MustAgree(world.Store, member)
+                    || !Features.VoiceLimitFeature.HasRoom(world.Store, this, member, channel, now))
                 {
                     _ = backend.RemoveParticipantAsync(room!, identity);
                     return;

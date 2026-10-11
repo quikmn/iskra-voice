@@ -13,7 +13,7 @@ describe('settings sections', () => {
     expect(ids('guest')).toEqual([...account, 'overview'])
     expect(ids('member')).toEqual([...account, 'overview'])
     expect(ids('trusted')).toEqual([...account, 'overview', 'sounds'])
-    expect(ids('admin')).toEqual([...account, 'overview', 'roles', 'emoji', 'sounds', 'integrations', 'pages', 'internet', 'audit'])
+    expect(ids('admin')).toEqual([...account, 'overview', 'roles', 'emoji', 'sounds', 'integrations', 'pages', 'internet', 'audit', 'rules'])
     expect(ids('owner')).toEqual([...ids('admin'), 'limits', 'backup', 'import'])
   })
 

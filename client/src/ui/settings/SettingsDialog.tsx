@@ -20,6 +20,7 @@ import { DevicesSection } from '../dialogs/DevicesSection'
 import { IntegrationsSection } from '../dialogs/Integrations'
 import { BackupSection } from './BackupSection'
 import { LimitsSection } from './LimitsSection'
+import { RulesSection } from '../rules/Rules'
 import { ImportSection } from './ImportSection'
 import { AppLockSection, RotateKeySection } from '../keys/KeySettings'
 import { ChevronRight } from '../icons'
@@ -122,6 +123,7 @@ function Section({ id, server, onClose }: { id: SectionId; server: ServerState |
     case 'internet': return <InternetSection server={server} />
     case 'audit': return <AuditLogSection server={server} />
     case 'limits': return <LimitsSection server={server} />
+    case 'rules': return <RulesSection server={server} />
     case 'backup': return <BackupSection server={server} />
     case 'import': return <ImportSection server={server} />
     case 'roles': return <RolesSection server={server} />

@@ -133,8 +133,8 @@ export interface Requests {
   'chat.delete': [{ id: number }, Record<string, never>]
   'chat.history': [{ channelId: number; before?: number; after?: number; around?: number; limit?: number }, { messages: Message[]; hasMore: boolean; hasNewer?: boolean }]
   'chat.typing': [{ channelId: number }, Record<string, never>]
-  'channel.create': [{ name: string; kind?: 'text' | 'voice' | 'forum' | 'stage'; readRole?: Role; writeRole?: Role; slowmode?: number; categoryId?: number }, { channel: Channel }]
-  'channel.update': [{ id: number; name?: string; readRole?: Role; writeRole?: Role; slowmode?: number }, { channel: Channel }]
+  'channel.create': [{ name: string; kind?: 'text' | 'voice' | 'forum' | 'stage'; readRole?: Role; writeRole?: Role; slowmode?: number; categoryId?: number; userLimit?: number }, { channel: Channel }]
+  'channel.update': [{ id: number; name?: string; readRole?: Role; writeRole?: Role; slowmode?: number; userLimit?: number }, { channel: Channel }]
   'channel.delete': [{ id: number }, Record<string, never>]
   'profile.update': [ProfileUpdate, { member: Member }]
   'profile.page.set': [{ file: string }, { member: Member }]
@@ -257,6 +257,7 @@ export type ErrorCode =
   | 'bad_request' | 'forbidden' | 'not_found' | 'rate_limited' | 'unknown_type' | 'internal'
   | 'auth_failed' | 'invite_required' | 'banned' | 'voice_unavailable' | 'busy' | 'device_revoked' | 'conflict' | 'moved'
   | 'account_rotated' | 'account_disputed' | 'rotation_conflict' | 'unavailable'
+  | 'channel_full' | 'rules_required'
 
 export class RequestError extends Error {
   readonly code: ErrorCode | 'disconnected' | 'timeout'
@@ -1191,4 +1192,40 @@ export interface Requests {
   'gif.trending': [{ page?: number }, { gifs: GifResult[]; hasNext: boolean }]
   'gif.search': [{ q: string; page?: number }, { gifs: GifResult[]; hasNext: boolean }]
   'gif.categories': [Record<string, never>, { categories: GifCategory[] }]
+}
+
+// ── voice user limits and server rules ──
+
+export interface Channel {
+  /** Voice channels: how many people fit (0 = no limit). People who can move members join anyway. */
+  userLimit?: number
+}
+
+/** The server's rules as you see them. `version` goes up when everyone has to agree again. */
+export interface ServerRules {
+  text: string
+  welcome: string
+  required: boolean
+  version: number
+  updatedAt: number | null
+  /** You still have to agree before writing, reacting or joining voice. */
+  mustAgree: boolean
+  agreedVersion: number
+  /** Admins only (rules.get / rules.update): how many members agreed, and how many there are. */
+  agreed?: number | null
+  members?: number | null
+}
+
+export interface Welcome {
+  rules?: ServerRules
+}
+
+export interface Events {
+  rules: { rules: ServerRules }
+}
+
+export interface Requests {
+  'rules.get': [Record<string, never>, { rules: ServerRules }]
+  'rules.update': [{ text?: string; welcome?: string; required?: boolean; reaccept?: boolean }, { rules: ServerRules }]
+  'rules.accept': [{ version: number }, { rules: ServerRules }]
 }

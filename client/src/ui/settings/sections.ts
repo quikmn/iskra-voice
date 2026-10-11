@@ -3,7 +3,7 @@ import { roleRank, type Permission, type Role } from '../../core/protocol'
 
 export type SectionId =
   | 'profile' | 'appearance' | 'devices' | 'recovery' | 'security' | 'notifications' | 'voice' | 'blocked' | 'desktop'
-  | 'overview' | 'roles' | 'emoji' | 'sounds' | 'integrations' | 'pages' | 'internet' | 'audit' | 'limits' | 'backup' | 'import'
+  | 'overview' | 'roles' | 'emoji' | 'sounds' | 'integrations' | 'pages' | 'internet' | 'audit' | 'rules' | 'limits' | 'backup' | 'import'
 
 export interface SectionInfo {
   id: SectionId
@@ -33,6 +33,7 @@ const SERVER: (SectionInfo & { min: Role; perm?: Permission })[] = [
   { id: 'pages', label: 'Profile pages', group: 'server', min: 'admin' },
   { id: 'internet', label: 'Open to the internet', group: 'server', min: 'admin' },
   { id: 'audit', label: 'Audit log', group: 'server', min: 'admin', perm: 'viewAuditLog' },
+  { id: 'rules', label: 'Rules', group: 'server', min: 'admin' },
   { id: 'limits', label: 'Limits', group: 'server', min: 'owner' },
   { id: 'backup', label: 'Backup & move', group: 'server', min: 'owner' },
   { id: 'import', label: 'Import from Discord', group: 'server', min: 'owner' },

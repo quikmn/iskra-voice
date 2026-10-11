@@ -13,6 +13,7 @@ import { useReads } from '../state/readState'
 import { useThreads } from '../state/threads'
 import { MenuItem, MenuTitle, OrgMenu, type MenuAnchor } from './organize/OrgMenu'
 import { FolderDialog } from './organize/FolderDialog'
+import { ServerRulesItem } from './rules/Rules'
 import './organize/organize.css'
 
 type Drag = { kind: 'server' | 'folder'; id: string }
@@ -183,6 +184,7 @@ export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavig
           <MenuTitle>{menuServer.name}</MenuTitle>
           <div className="org-list" role="menu">
             <MenuItem onClick={act(() => markServerRead(menuServer.key))}>Mark as read</MenuItem>
+            <ServerRulesItem serverKey={menuServer.key} onDone={close} />
             <div className="org-sep" role="separator" />
             <MenuItem onClick={act(() => setRail(stepServer(layout, order, menuServer.key, -1)))}>Move up</MenuItem>
             <MenuItem onClick={act(() => setRail(stepServer(layout, order, menuServer.key, 1)))}>Move down</MenuItem>

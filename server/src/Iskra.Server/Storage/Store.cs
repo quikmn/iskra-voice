@@ -287,6 +287,8 @@ public sealed partial class Store : IDisposable
         ("dm-files-1", DmFilesMigration),
         ("stickers-1", StickersMigration),
         ("gifs-1", GifsMigration),
+        ("voice-limits-1", VoiceLimitsMigration),
+        ("rules-1", RulesMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

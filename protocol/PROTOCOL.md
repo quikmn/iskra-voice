@@ -11,7 +11,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted)
 - **People and integrations:** [Profiles](#profiles) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Presence and voice messages](#presence-and-voice-messages)
-- **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events)
+- **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Backups, moving and imports](#backups-moving-and-imports)
 - **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation) · [Roles and permissions](#roles-and-permissions) · [Reliable sends](#reliable-sends)
 - **Keys:** [Account key rotation](#account-key-rotation) · [Keys on the device](#keys-on-the-device)
@@ -119,6 +119,8 @@ After the handshake, every request gets a `result` (body as listed, `{}` if none
 | `busy` | `call.start`: the person is already in another call on this server; `gcall.start`: the group already has a call |
 | `conflict` | `group.change`, `group.send`, `gcall.start`, `gcall.key`: the group changed in the meantime ([Group DMs](#group-dms-and-group-calls-end-to-end-encrypted)) |
 | `rotation_conflict` | `account.rotate`: this account key was already rotated to a different key here |
+| `channel_full` | `voice.join`: the voice channel is at its [user limit](#voice-user-limits) |
+| `rules_required` | You haven't agreed to the [server rules](#server-rules) yet (writing, reacting, voice) |
 
 Close codes:
 
@@ -1404,3 +1406,40 @@ Every `Member` gains `activity: { "name": "Factorio", "since": 1760000000000 } |
 - Real changes are limited to 5 in a burst, then one per 10 seconds per connection (`rate_limited`).
 - Each change is broadcast as `member.updated`. `welcome.members` carries current activities.
 - `activity` is a separate field next to [presence](#presence-and-custom-status) (`status`, `customStatus`) on the same `Member`, so clients can show both. Members who appear offline (no sessions, or `invisible`) show no activity.
+
+## Voice user limits and server rules
+
+### Voice user limits
+
+`Channel` gains `userLimit` (0 = no limit; always 0 for text, forum and stage channels). `channel.create` and `channel.update` take `userLimit?` (0–99), voice channels only: on a stage it's `bad_request`, since a stage is made for a big audience that mostly listens (LiveKit's own limits still apply).
+
+- `voice.join` on a voice channel with `userLimit` people already in it (from LiveKit's webhooks, not counting yourself) answers `channel_full` ("lounge is full (5/5). …").
+- People who can move members (`moveMembers`: admins, the owner and roles with it) join anyway, as on Discord. Someone moved there with `voice.move` may join it for 60 s even when it's full.
+- LiveKit joins are checked again: a join that would go over the limit (two tokens handed out at the same moment, an old token) is removed from the room, with the same exceptions.
+- Lowering the limit doesn't remove anyone already inside. Clients show "2/5" next to the channel.
+- Audit: `channel.create` details gain `userLimit`; `channel.update` changes gain `userLimit: { from, to }`.
+
+### Server rules
+
+Admins write rules (Markdown, rendered like messages) and an optional welcome message. When agreeing is **required**, members who haven't agreed to the current version can read but not take part until they do.
+
+```jsonc
+Rules { "text": "1. Be kind …", "welcome": "Welcome!", "required": true,
+        "version": 2,                 // goes up when everyone has to agree again
+        "updatedAt": 1760000000000 | null,
+        "mustAgree": false,           // you, right now
+        "agreedVersion": 2,           // the newest version you agreed to (0 = never)
+        "agreed": 14 | null, "members": 15 | null }   // admins, in rules.get and rules.update: how many agreed (owner and bots not counted)
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `rules.get` | | `{ rules }` | anyone |
+| `rules.update` | `text?` (≤ 6000 chars, newlines allowed; `""` clears), `welcome?` (≤ 500 chars), `required?` (bool), `reaccept?` (bool) | `{ rules }` | admin+ |
+| `rules.accept` | `version` (the version you were shown) | `{ rules }` | anyone, while agreeing is required; another version is `conflict` |
+
+- `welcome` carries `rules` (`Rules`, without the counts). Event `rules` `{ rules }` goes to every session (each its own view) after `rules.update`, and to your own sessions after `rules.accept`.
+- `required` needs non-empty `text`. `reaccept: true` (only with `required`) raises `version`, so everyone must agree again. Turning `required` on without `reaccept` counts everyone who is a member right now as having agreed, so only people who join later are asked; with `reaccept`, existing members are asked too. Edits without `reaccept` keep everyone's agreement. Whoever saves required rules has agreed to them.
+- Not yet agreed: these answer `rules_required`: `chat.send`, `chat.edit`, `chat.react`, `chat.typing`, `chat.pin`, `chat.forward`, `upload.begin`, `thread.create`, `thread.update`, `poll.create`, `poll.vote`, `poll.end`, `voice.join`, `sound.play`, `call.start`, `call.accept`, `stage.hand`, `stage.start`, `forum.post.create`, `forum.post.update`, `event.create`, `event.update`, `event.interest`, `watch.start`, `watch.control`, `watch.chat`, `invite.create`. LiveKit joins from them are removed. Reading, DMs, profile changes and settings keep working.
+- The owner and bots never need to agree; webhooks don't go through sessions. Agreements are stored per account key and kept if someone leaves and comes back.
+- Audit: `rules.update` `{ required, reaccept, version, textChanged }`.

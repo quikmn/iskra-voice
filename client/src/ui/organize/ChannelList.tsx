@@ -17,6 +17,11 @@ import { ChevronDown, Hash, HeadphonesOff, Lock, MicOff, Plus, Volume } from '..
 import { CategoryMenu, ChannelMenu } from './Menus'
 import { CategoryDialog, ChannelSettingsDialog } from './Dialogs'
 import type { MenuAnchor } from './OrgMenu'
+import { has } from '../../state/permissions'
+import { useServerRoles } from '../../state/roles'
+import { showRules, useMustAgree } from '../../state/rules'
+import { isFull, limitLabel } from '../../state/voiceRulesLogic'
+import '../rules/rules.css'
 import './organize.css'
 
 type Drag = { kind: 'channel' | 'category'; id: number }
@@ -261,14 +266,19 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
   const participants = server.voice[channel.id] ?? []
   const here = voiceSession?.serverKey === server.key && voiceSession.channelId === channel.id
   const { bind, menu: volumeMenu } = useVolumeMenu()
+  const mustAgree = useMustAgree(server.key)
+  const bypass = has(server.me, useServerRoles(server.key), 'moveMembers')
+  const limit = limitLabel(participants.length, channel.userLimit)
+  const full = !here && isFull(participants.length, channel.userLimit, bypass)
   return (
     <div className="voice-channel">
       <div {...rowProps}>
         <button
           className={`channel ${here ? 'active' : ''}`}
           disabled={!server.voiceAvailable}
-          title={server.voiceAvailable ? `Join ${channel.name}` : 'Voice is unavailable on this server'}
+          title={!server.voiceAvailable ? 'Voice is unavailable on this server' : full ? `${channel.name} is full` : `Join ${channel.name}`}
           onClick={() => {
+            if (mustAgree) return showRules(server.key)
             void joinVoice(server.key, channel.id)
             onNavigate()
           }}
@@ -276,6 +286,9 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
           <span className="hash"><Volume size={16} /></span>
           <span className="channel-name">{channel.name}</span>
           {here && voiceSession.state !== 'connected' && <span className="pill">…</span>}
+          {limit && (
+            <span className={`voice-limit ${full ? 'full' : ''}`} aria-label={`${participants.length} of ${channel.userLimit} people${full ? ', full' : ''}`}>{limit}</span>
+          )}
         </button>
         <button className="icon-button small org-more" onClick={onMenu} aria-label={`${channel.name} options`} title="Channel options">
           <More />

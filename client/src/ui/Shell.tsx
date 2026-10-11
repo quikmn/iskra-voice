@@ -24,6 +24,7 @@ import { useEscapeLayer } from './layers'
 import { EventsLayer } from './events/EventsLayer'
 import { DisputeNotices } from './keys/KeyScreens'
 import { Shortcuts } from './organize/Shortcuts'
+import { RulesLayer } from './rules/Rules'
 
 export type Panel = 'none' | 'nav' | 'members'
 
@@ -79,6 +80,7 @@ export function Shell() {
       <QuickSwitcher />
       <EventsLayer />
       <Shortcuts />
+      <RulesLayer />
       {joining && <JoinDialog onClose={() => setJoining(false)} onCreate={() => { setJoining(false); setCreating(true) }} />}
       {creating && (desktop ? <CreateServerDialog onClose={() => setCreating(false)} /> : <StartServerDialog onClose={() => setCreating(false)} />)}
     </div>
