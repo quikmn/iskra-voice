@@ -58,26 +58,39 @@ window.check = {
     const embed = embedFor(${JSON.stringify(TWITCH)}, location.hostname)
     return frame(embed.src, EMBED_FRAME).src
   },
-  // Drives a YouTube frame like the watch party: listen until ready, then play.
-  bridge: () => new Promise((resolve, reject) => {
+  // Drives a YouTube frame like the watch party: listen until ready, then play. The stand-in also reports whether
+  // it may play sound without a click (it never waits for sound to come out: CI machines have no audio output).
+  bridge: () => new Promise((resolve) => {
     const f = frame(youTubeEmbedUrl(${JSON.stringify(VIDEO)}, location.origin), YOUTUBE_FRAME)
     const bridge = new YouTubeBridge(f)
+    const seen = []
+    let loads = 0
     let autoplay = null
     let played = false
+    let playing = false
+    let done = false
+    f.addEventListener('load', () => loads++)
+    const report = (ok, why) => {
+      if (done) return
+      done = true
+      clearInterval(timer)
+      resolve({ ok, why, ready: bridge.info.ready, state: bridge.info.state, time: bridge.info.time, duration: bridge.info.duration, autoplay,
+        frame: { src: f.src, loads, hasWindow: !!f.contentWindow }, messages: seen.slice(-12) })
+    }
     addEventListener('message', (e) => {
+      seen.push({ origin: e.origin, fromFrame: e.source === f.contentWindow, data: typeof e.data === 'string' ? e.data.slice(0, 160) : e.data })
       if (e.origin === 'https://www.youtube-nocookie.com' && e.source === f.contentWindow && typeof e.data === 'object' && e.data?.check) autoplay = e.data.autoplay
       else if (!bridge.receive(e)) return
       if (bridge.info.ready && !played) {
         played = true
         bridge.adapter().play()
       }
-      if (bridge.info.state === 1 && bridge.info.time >= 1 && autoplay !== null) {
-        clearInterval(timer)
-        resolve({ ready: bridge.info.ready, state: bridge.info.state, duration: bridge.info.duration, autoplay })
-      }
+      // The player said it's playing from 1 s on: remembered, as the autoplay report may come later.
+      if (bridge.info.state === 1 && bridge.info.time >= 1) playing = true
+      if (playing && autoplay) report(true, 'played')
     })
     const timer = setInterval(() => bridge.listen(), 200)
-    setTimeout(() => { clearInterval(timer); reject(new Error('the YouTube frame never answered')) }, ${TIMEOUT - 5000})
+    setTimeout(() => report(false, !bridge.info.ready ? 'the player never got ready' : !playing ? 'the player never reported playing' : 'no autoplay report'), ${TIMEOUT - 5000})
   }),
 }
 `
@@ -86,7 +99,11 @@ window.check = {
 const FAKE_PLAYER = `<!doctype html><title>player</title><script>
 const send = (data) => parent.postMessage(JSON.stringify(data), '*')
 let playing = false
-// Unmuted sound without a click: 'allowed', or the error (NotAllowedError when autoplay is blocked).
+let probed = false
+// May this frame start unmuted sound without a click? Chromium decides inside play() itself: when the autoplay policy
+// says no, play() rejects at once with NotAllowedError and the element stays paused; when it says yes, the element
+// stops being paused right away. Whether sound then actually starts needs an audio output (Linux CI runners have
+// none, and play() may then never settle), so that part is reported but not waited for.
 function autoplay() {
   const rate = 8000
   const wav = new DataView(new ArrayBuffer(44 + rate))
@@ -96,15 +113,21 @@ function autoplay() {
   text(36, 'data'); wav.setUint32(40, rate, true)
   for (let i = 44; i < 44 + rate; i++) wav.setUint8(i, 128)
   const audio = new Audio(URL.createObjectURL(new Blob([wav], { type: 'audio/wav' })))
-  return audio.play().then(() => 'allowed', (e) => e.name)
+  const started = audio.play().then(() => ({ policy: 'allowed', playback: 'started' }), (e) => ({ policy: e.name === 'NotAllowedError' ? 'blocked' : 'allowed', playback: e.name }))
+  const pausedAfterPlay = audio.paused
+  const pending = new Promise((r) => setTimeout(() => r({ policy: pausedAfterPlay ? 'unknown' : 'allowed', playback: 'pending' }), 2000))
+  return Promise.race([started, pending]).then((result) => ({ ...result, pausedAfterPlay }))
 }
 addEventListener('message', (e) => {
   let data
   try { data = JSON.parse(e.data) } catch { return }
   if (data.event === 'listening') {
     send({ event: 'onReady', id: data.id, channel: data.channel })
-    send({ event: 'infoDelivery', info: { currentTime: 0, duration: 596, playerState: playing ? 1 : 5, playbackRate: 1 } })
-    autoplay().then((result) => parent.postMessage({ check: true, autoplay: result }, '*'))
+    send({ event: 'infoDelivery', info: { currentTime: playing ? 1 : 0, duration: 596, playerState: playing ? 1 : 5, playbackRate: 1 } })
+    if (!probed) {
+      probed = true
+      autoplay().then((result) => parent.postMessage({ check: true, autoplay: result }, '*'))
+    }
   }
   if (data.event === 'command' && data.func === 'playVideo') {
     playing = true
@@ -178,8 +201,10 @@ async function run(clientDir: string): Promise<void> {
   configureAppSession(fake, clientDir, isAppUrl)
   const win2 = appWindow(fake)
   await openApp(win2)
+  const served: string[] = []
   fake.protocol.handle('https', (request) => {
     const url = new URL(request.url)
+    served.push(request.url)
     if (url.hostname === 'www.youtube-nocookie.com' && url.pathname === `/embed/${VIDEO}`) {
       return new Response(FAKE_PLAYER, { headers: { 'content-type': 'text/html' } })
     }
@@ -187,9 +212,11 @@ async function run(clientDir: string): Promise<void> {
   })
   try {
     const bridge = await within(win2.webContents.executeJavaScript('check.bridge()'), 'the YouTube bridge')
-    expect(bridge.ready && bridge.state === 1 && bridge.duration === 596, 'the watch party drives the sandboxed YouTube frame over postMessage', bridge)
-    // Other errors (say, no audio device on a CI machine) aren't the autoplay policy.
-    expect(bridge.autoplay !== null && bridge.autoplay !== 'NotAllowedError', 'the YouTube frame may start playing without a click', bridge.autoplay)
+    // On failure, everything needed to tell why: what the stand-in served, the frame's URL and loads, the last messages.
+    const diagnostics = { ...bridge, served, frameUrl: win2.webContents.mainFrame.frames[0]?.url ?? null }
+    expect(bridge.ok && bridge.ready && bridge.state === 1 && bridge.duration === 596, 'the watch party drives the sandboxed YouTube frame over postMessage', diagnostics)
+    expect(bridge.autoplay?.policy === 'allowed', 'the YouTube frame may start playing without a click', diagnostics)
+    if (bridge.autoplay?.playback === 'pending') console.log('   (no sound started within 2 s: this machine likely has no audio output)')
   } catch (error) {
     expect(false, 'the watch party drives the sandboxed YouTube frame over postMessage', String(error))
   }
