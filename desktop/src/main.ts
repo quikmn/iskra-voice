@@ -11,6 +11,7 @@ import {
   skipScreenPicker, trayMenu, type DesktopSettings, type SettingsPane, type TrayAction,
 } from './platform'
 import { PushToTalk } from './ptt'
+import { ActivityDetector } from './activity'
 import { applyOpenAtLogin, loadDesktopSettings, saveDesktopSettings, startedHidden } from './settings'
 import { Updates, type UpdateStatus } from './updates'
 
@@ -42,6 +43,8 @@ let tray: Tray | null = null
 let quitting = false
 const ptt = new PushToTalk((down) => window?.webContents.send('iskra:ptt', down))
 const host = new Host()
+// "Playing X": only the matched game's name ever reaches the page.
+const activity = new ActivityDetector((game) => window?.webContents.send('iskra:activity', game))
 const updates = new Updates((status: UpdateStatus) => {
   window?.webContents.send('iskra:update', status)
   updateTray()
@@ -355,7 +358,9 @@ ipcMain.handle('iskra:set-desktop-settings', (event, patch: unknown) => {
   if (!fromApp(event) || !patch || typeof patch !== 'object') return settings
   const next = parseDesktopSettings({ ...settings, ...patch })
   if (next.openAtLogin !== settings.openAtLogin) applyOpenAtLogin(next.openAtLogin)
+  const activityChanged = next.activity !== settings.activity || JSON.stringify(next.customGames) !== JSON.stringify(settings.customGames)
   settings = next
+  if (activityChanged) activity.configure(settings.activity, settings.customGames)
   try {
     saveDesktopSettings(settings)
   } catch (error) {
@@ -369,6 +374,8 @@ ipcMain.handle('iskra:relaunch', (event) => {
   app.relaunch()
   app.quit()
 })
+
+ipcMain.handle('iskra:activity', (event) => (fromApp(event) ? activity.game : null))
 
 // iskra:// links that arrived before the page was ready.
 ipcMain.handle('iskra:take-deep-link', (event) => {
@@ -431,6 +438,7 @@ app.whenReady().then(() => {
   if (!MAC) ptt.start()
   void host.startAll()
   updates.start()
+  activity.configure(settings.activity, settings.customGames)
 })
 
 // macOS: clicking the Dock icon brings the window back.

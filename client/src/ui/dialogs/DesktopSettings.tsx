@@ -27,6 +27,7 @@ export function DesktopSettingsSection() {
   const restartNeeded = startedWith !== null && startedWith !== settings.hardwareAcceleration
 
   return (
+    <>
     <section className="settings-section">
       <h3>Desktop app</h3>
       <label className="checkbox">
@@ -56,6 +57,59 @@ export function DesktopSettingsSection() {
           <button className="button primary" onClick={() => void desktop!.settings.relaunch()}>Restart now</button>
         </div>
       )}
+    </section>
+    <ActivitySettings settings={settings} update={update} />
+    </>
+  )
+}
+
+/** Activity status: opt-in game detection, plus your own programs. */
+function ActivitySettings({ settings, update }: { settings: DesktopSettings; update: (patch: Partial<DesktopSettings>) => Promise<void> }) {
+  const [game, setGame] = useState<string | null>(null)
+  const [name, setName] = useState('')
+  const [program, setProgram] = useState('')
+  useEffect(() => {
+    if (!desktop) return
+    void desktop.activity().then(setGame, () => undefined)
+    return desktop.onActivity(setGame)
+  }, [])
+  const add = () => {
+    if (!name.trim() || !program.trim()) return
+    void update({ customGames: [...settings.customGames, { name: name.trim(), process: program.trim() }] })
+    setName('')
+    setProgram('')
+  }
+
+  return (
+    <section className="settings-section">
+      <h3>Activity status</h3>
+      <label className="checkbox">
+        <input type="checkbox" checked={settings.activity} onChange={(e) => void update({ activity: e.target.checked })} />
+        <span>
+          Show the game you're playing
+          <br /><small className="muted">
+            Iskra checks running program names against a list of games every 30 seconds, on this computer. Only the game's name is
+            shared, as "Playing …" on your profile. Never window titles or your other programs.
+          </small>
+        </span>
+      </label>
+      {settings.activity && <p className="muted" role="status">{game ? `Now: Playing ${game}` : 'No game detected right now.'}</p>}
+      <p className="muted">Add a game that isn't recognised: its name, and its program file (as in Task Manager, e.g. mygame.exe).</p>
+      {settings.customGames.length > 0 && (
+        <ul className="custom-games">
+          {settings.customGames.map((g, i) => (
+            <li key={`${g.process}-${i}`}>
+              <span><strong>{g.name}</strong> · <code>{g.process}</code></span>
+              <button className="button small" onClick={() => void update({ customGames: settings.customGames.filter((_, j) => j !== i) })}>Remove</button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <form className="custom-game-add" onSubmit={(e) => { e.preventDefault(); add() }}>
+        <input aria-label="Game name" placeholder="Game name" maxLength={64} value={name} onChange={(e) => setName(e.target.value)} />
+        <input aria-label="Program file" placeholder="mygame.exe" maxLength={100} value={program} onChange={(e) => setProgram(e.target.value)} />
+        <button className="button" disabled={!name.trim() || !program.trim() || settings.customGames.length >= 30}>Add</button>
+      </form>
     </section>
   )
 }

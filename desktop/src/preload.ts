@@ -48,6 +48,12 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
   setBadge: (count: number, overlay: string | null): Promise<void> => ipcRenderer.invoke('iskra:badge', count, overlay),
   attention: (): Promise<void> => ipcRenderer.invoke('iskra:attention'),
   takeDeepLink: (): Promise<string | null> => ipcRenderer.invoke('iskra:take-deep-link'),
+  activity: (): Promise<string | null> => ipcRenderer.invoke('iskra:activity'),
+  onActivity: (callback: (game: string | null) => void): (() => void) => {
+    const listener = (_e: IpcRendererEvent, game: string | null) => callback(typeof game === 'string' ? game : null)
+    ipcRenderer.on('iskra:activity', listener)
+    return () => ipcRenderer.off('iskra:activity', listener)
+  },
   onDeepLink: (callback: (token: string) => void): (() => void) => {
     const listener = (_e: IpcRendererEvent, token: string) => callback(token)
     ipcRenderer.on('iskra:deep-link', listener)

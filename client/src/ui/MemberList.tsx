@@ -3,6 +3,7 @@ import { ROLES, roleRank, type Member, type Role } from '../core/protocol'
 import type { ServerState } from '../state/store'
 import { Avatar } from './bits'
 import { BotBadge } from './chat/BotBits'
+import { ActivityLine } from './ActivityLine'
 import { openProfileCard } from '../state/profile'
 
 const ROLE_TITLES: Record<Role, string> = { owner: 'Owner', admin: 'Admins', trusted: 'Trusted', member: 'Members', guest: 'Guests' }
@@ -44,7 +45,8 @@ function MemberRow({ member, onClick }: { member: Member; onClick: (e: MouseEven
       <Avatar name={member.name} accountKey={member.accountKey} size={32} online={member.online} />
       <span className="member-text">
         <span className="member-name">{member.name}</span>
-        {member.pronouns && <span className="member-pronouns">{member.pronouns}</span>}
+        {member.activity ? <ActivityLine activity={member.activity} withTime={false} />
+          : member.pronouns && <span className="member-pronouns">{member.pronouns}</span>}
       </span>
       {member.bot && <BotBadge />}
     </button>

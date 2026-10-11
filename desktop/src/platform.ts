@@ -190,14 +190,41 @@ export interface DesktopSettings {
   closeToTray: boolean
   /** GPU acceleration (takes effect after a restart). */
   hardwareAcceleration: boolean
+  /** Show "Playing X" from running games (opt-in). */
+  activity: boolean
+  /** Your own programs to show as games: display name and process name (e.g. "mygame.exe"). */
+  customGames: { name: string; process: string }[]
 }
 
-export const DEFAULT_DESKTOP_SETTINGS: DesktopSettings = { openAtLogin: false, closeToTray: true, hardwareAcceleration: true }
+export const DEFAULT_DESKTOP_SETTINGS: DesktopSettings = {
+  openAtLogin: false, closeToTray: true, hardwareAcceleration: true, activity: false, customGames: [],
+}
+
+export const MAX_CUSTOM_GAMES = 30
+
+/** Display names: 1–64 visible characters (the server checks again). */
+const cleanName = (v: unknown) =>
+  typeof v === 'string' && v.trim().length > 0 && v.trim().length <= 64 && !/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(v) ? v.trim() : null
+/** Process names: a file name only, no paths. */
+const cleanProcess = (v: unknown) =>
+  typeof v === 'string' && v.trim().length > 0 && v.trim().length <= 100 && !/[\\/:*?"<>|\p{Cc}]/u.test(v) ? v.trim() : null
 
 export function parseDesktopSettings(raw: unknown): DesktopSettings {
   const s = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
-  const flag = (key: keyof DesktopSettings) => (typeof s[key] === 'boolean' ? (s[key] as boolean) : DEFAULT_DESKTOP_SETTINGS[key])
-  return { openAtLogin: flag('openAtLogin'), closeToTray: flag('closeToTray'), hardwareAcceleration: flag('hardwareAcceleration') }
+  const flag = (key: 'openAtLogin' | 'closeToTray' | 'hardwareAcceleration' | 'activity') =>
+    typeof s[key] === 'boolean' ? (s[key] as boolean) : DEFAULT_DESKTOP_SETTINGS[key]
+  const customGames: DesktopSettings['customGames'] = []
+  if (Array.isArray(s.customGames)) {
+    for (const g of s.customGames.slice(0, MAX_CUSTOM_GAMES)) {
+      const name = cleanName((g as Record<string, unknown> | null)?.name)
+      const proc = cleanProcess((g as Record<string, unknown> | null)?.process)
+      if (name && proc) customGames.push({ name, process: proc })
+    }
+  }
+  return {
+    openAtLogin: flag('openAtLogin'), closeToTray: flag('closeToTray'), hardwareAcceleration: flag('hardwareAcceleration'),
+    activity: flag('activity'), customGames,
+  }
 }
 
 /** The flag a login-started app gets, so it stays in the tray. */

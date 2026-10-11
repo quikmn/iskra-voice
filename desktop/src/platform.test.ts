@@ -123,8 +123,19 @@ test('desktop settings: safe defaults, only booleans kept', () => {
   assert.equal(DEFAULT_DESKTOP_SETTINGS.openAtLogin, false)
   assert.equal(DEFAULT_DESKTOP_SETTINGS.closeToTray, true)
   assert.deepEqual(parseDesktopSettings({ openAtLogin: true, closeToTray: 'no', hardwareAcceleration: false, extra: 1 }), {
-    openAtLogin: true, closeToTray: true, hardwareAcceleration: false,
+    openAtLogin: true, closeToTray: true, hardwareAcceleration: false, activity: false, customGames: [],
   })
+  assert.equal(DEFAULT_DESKTOP_SETTINGS.activity, false) // opt-in
+  const games = parseDesktopSettings({ customGames: [
+    { name: 'My Game', process: 'mygame.exe' },
+    { name: 'Path', process: 'C:\\Games\\x.exe' }, // paths aren't process names
+    { name: 'Bad\u202Ename', process: 'x.exe' },
+    { name: '', process: 'y.exe' },
+    'nonsense',
+    null,
+  ] }).customGames
+  assert.deepEqual(games, [{ name: 'My Game', process: 'mygame.exe' }])
+  assert.equal(parseDesktopSettings({ customGames: Array.from({ length: 50 }, (_, i) => ({ name: `G${i}`, process: `g${i}.exe` })) }).customGames.length, 30)
 })
 
 test('Linux autostart entry starts hidden and quotes paths', () => {

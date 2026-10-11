@@ -498,3 +498,7 @@ export interface Member {
   /** Only while online; null or missing when there's none. */
   activity?: Activity | null
 }
+
+export interface Requests {
+  'activity.set': [{ name: string | null }, { activity: Activity | null }]
+}

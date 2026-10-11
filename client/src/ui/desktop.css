@@ -13,3 +13,14 @@
   left: 0; right: 0; bottom: 0; top: auto; width: 100%; max-width: none; padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
   border-radius: calc(var(--radius) * 1.6) calc(var(--radius) * 1.6) 0 0; animation: sheet-up 0.2s var(--ease);
 }
+
+/* "Playing X" */
+.activity-line { display: block; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.activity-line strong { color: var(--text-2); font-weight: 600; }
+.profile-activity { margin: 8px 0 0; padding: 8px 10px; border-radius: calc(var(--radius) * 0.7); background: var(--surface-3); }
+.profile-activity .activity-line { font-size: 13px; }
+.custom-games { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 6px; }
+.custom-games li { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.custom-games li span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.custom-game-add { display: flex; gap: 8px; flex-wrap: wrap; }
+.custom-game-add input { flex: 1; min-width: 120px; }

@@ -16,6 +16,7 @@ import { SettingsDialog } from '../settings/SettingsDialog'
 import { hueFor } from '../format'
 import { Close } from '../icons'
 import { renderMarkdown } from '../markdown'
+import { ActivityLine } from '../ActivityLine'
 import './profile.css'
 
 export function ProfileLayer() {
@@ -103,6 +104,7 @@ function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; me
             {member.pronouns && <span>{member.pronouns}</span>}
             <span className={`role-chip role-${member.role}`}>{member.role}</span>
           </div>
+          {member.activity && <div className="profile-activity"><ActivityLine activity={member.activity} /></div>}
           {member.bio && (
             <div className="profile-bio">
               {renderMarkdown(member.bio, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey })}

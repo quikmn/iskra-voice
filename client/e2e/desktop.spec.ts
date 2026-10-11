@@ -36,7 +36,7 @@ test('the desktop app runs the web app on app:// and can join a server', async (
     // The preload bridge is there, and only that.
     const bridge = await page.evaluate(() => Object.keys((window as unknown as { iskraDesktop: object }).iskraDesktop).sort())
     expect(bridge).toEqual([
-      'attention', 'callAlert', 'capturePushToTalkKey', 'host', 'onDeepLink', 'onPickScreen', 'onPushToTalk', 'openSystemSettings', 'pickScreen',
+      'activity', 'attention', 'callAlert', 'capturePushToTalkKey', 'host', 'onActivity', 'onDeepLink', 'onPickScreen', 'onPushToTalk', 'openSystemSettings', 'pickScreen',
       'platform', 'pushToTalkStatus', 'setBadge', 'setPushToTalkKey', 'settings', 'takeDeepLink', 'updates',
     ])
     expect(await page.evaluate(() => typeof (window as unknown as { require?: unknown }).require)).toBe('undefined')
@@ -206,9 +206,31 @@ test('Desktop app settings, the unread badge, and iskra:// invite links', async 
     await expect(settings.getByRole('button', { name: 'Restart now' })).toBeVisible()
     await page.screenshot({ path: join(SHOTS, 'desktop-settings-app.png') })
     await expect.poll(() => existsSync(join(userData, 'desktop.json')) && JSON.parse(readFileSync(join(userData, 'desktop.json'), 'utf8')))
-      .toEqual({ openAtLogin: false, closeToTray: false, hardwareAcceleration: false })
+      .toEqual({ openAtLogin: false, closeToTray: false, hardwareAcceleration: false, activity: false, customGames: [] })
     await settings.getByLabel(/Hardware acceleration/).check()
     await expect(settings.getByRole('button', { name: 'Restart now' })).toHaveCount(0)
+
+    // Activity status: off by default. A program of your own (here: the app itself) shows as "Playing ...".
+    await expect(settings.getByLabel(/Show the game you're playing/)).not.toBeChecked()
+    await settings.getByLabel('Game name').fill('Test Game')
+    await settings.getByLabel('Program file').fill(process.platform === 'win32' ? 'electron.exe' : 'electron')
+    await settings.getByRole('button', { name: 'Add', exact: true }).click()
+    await settings.getByLabel(/Show the game you're playing/).check()
+    await expect(settings.getByText('Now: Playing Test Game')).toBeVisible()
+    await page.screenshot({ path: join(SHOTS, 'desktop-activity-settings.png') })
+    await page.keyboard.press('Escape')
+    const meInList = page.locator('.member', { hasText: 'Linked' })
+    await expect(meInList.locator('.activity-line')).toHaveText('Playing Test Game')
+    // Only the game's name was stored, never the program list.
+    const stored = JSON.parse(readFileSync(join(userData, 'desktop.json'), 'utf8'))
+    expect(stored.activity).toBe(true)
+    expect(Object.keys(stored).sort()).toEqual(['activity', 'closeToTray', 'customGames', 'hardwareAcceleration', 'openAtLogin'])
+    // Turning it off clears it for everyone.
+    await page.locator('.me-bar').getByRole('button', { name: 'Settings' }).click()
+    await settings.getByRole('button', { name: 'Desktop app', exact: true }).click()
+    await settings.getByLabel(/Show the game you're playing/).uncheck()
+    await page.keyboard.press('Escape')
+    await expect(meInList.locator('.activity-line')).toHaveCount(0)
   } finally {
     await app.close()
     await linkServer.stop()

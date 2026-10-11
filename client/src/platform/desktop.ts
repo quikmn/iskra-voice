@@ -26,6 +26,8 @@ export interface DesktopSettings {
   openAtLogin: boolean
   closeToTray: boolean
   hardwareAcceleration: boolean
+  activity: boolean
+  customGames: { name: string; process: string }[]
 }
 
 export type PushToTalkStatus = 'ready' | 'needs-permission' | 'limited' | 'unavailable'
@@ -60,6 +62,9 @@ export interface DesktopBridge {
   attention(): Promise<void>
   /** An iskra://join/... invite token that started the app, once. */
   takeDeepLink(): Promise<string | null>
+  /** The game running now, if activity status is on (only its name; never the program list). */
+  activity(): Promise<string | null>
+  onActivity(callback: (game: string | null) => void): () => void
   onDeepLink(callback: (token: string) => void): () => void
   host: {
     available(): Promise<boolean>
