@@ -6,7 +6,8 @@ using Iskra.Server.Storage;
 
 namespace Iskra.Server.Voice;
 
-public sealed record VoiceMember(string AccountKey, bool Muted, bool Deafened, long JoinedAt);
+/// <summary><see cref="Clips"/>: they have clips (saving the last seconds of the call) turned on, shown to everyone in the call.</summary>
+public sealed record VoiceMember(string AccountKey, bool Muted, bool Deafened, long JoinedAt, bool Clips = false);
 
 /// <summary>
 /// Who is in which voice channel. Joins and leaves come only from LiveKit's signed webhooks
@@ -92,6 +93,9 @@ public sealed class VoiceRegistry
     public static long? ChannelOf(string? room) =>
         room is not null && room.StartsWith("voice-", StringComparison.Ordinal) && long.TryParse(room.AsSpan(6), out var id) ? id : null;
 
+    public VoiceMember? Participant(long channelId, string accountKey) =>
+        _rooms.TryGetValue(channelId, out var room) && room.TryGetValue(accountKey, out var member) ? member : null;
+
     public IReadOnlyList<VoiceMember> Participants(long channelId) =>
         _rooms.TryGetValue(channelId, out var room) ? room.Values.OrderBy(m => m.JoinedAt).ToList() : [];
 
@@ -103,7 +107,7 @@ public sealed class VoiceRegistry
         channelId,
         participants = Participants(channelId).Select(m => new
         {
-            accountKey = m.AccountKey, muted = m.Muted, deafened = m.Deafened, serverMuted = _serverMuted.ContainsKey(m.AccountKey),
+            accountKey = m.AccountKey, muted = m.Muted, deafened = m.Deafened, serverMuted = _serverMuted.ContainsKey(m.AccountKey), clips = m.Clips,
         }),
     };
 
@@ -131,11 +135,11 @@ public sealed class VoiceRegistry
         if (_rooms.TryRemove(channelId, out _)) Publish(channelId);
     }
 
-    public bool SetFlags(string accountKey, bool muted, bool deafened)
+    public bool SetFlags(string accountKey, bool muted, bool deafened, bool? clips = null)
     {
         var channelId = ChannelOfMember(accountKey);
         if (channelId is null || !_rooms.TryGetValue(channelId.Value, out var room) || !room.TryGetValue(accountKey, out var current)) return false;
-        room[accountKey] = current with { Muted = muted, Deafened = deafened };
+        room[accountKey] = current with { Muted = muted, Deafened = deafened, Clips = clips ?? current.Clips };
         Publish(channelId.Value);
         return true;
     }

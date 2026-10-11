@@ -63,6 +63,7 @@ public sealed class Router
         LeaveFeature.Register(this);
         ReportFeature.Register(this);
         AccountFeature.Register(this);
+        ClipFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);
