@@ -1,7 +1,7 @@
 // Voice and video: one LiveKit room at a time. The server hands out the token; LiveKit carries the media.
 import {
   ConnectionState, createKeyMaterialFromBuffer, ExternalE2EEKeyProvider, LocalAudioTrack, Room, RoomEvent, ScreenSharePresets, Track, VideoPresets,
-  type LocalTrackPublication, type Participant, type RemoteParticipant, type RemoteTrack, type RoomOptions,
+  type LocalTrackPublication, type Participant, type RemoteParticipant, type RemoteTrack, type RemoteTrackPublication, type RoomOptions,
 } from 'livekit-client'
 import { create } from 'zustand'
 import { t } from '../i18n'
@@ -235,6 +235,9 @@ function refreshTiles(): void {
   const collect = (participant: Participant, isLocal: boolean) => {
     for (const pub of participant.trackPublications.values()) {
       if (pub.kind !== Track.Kind.Video || !pub.track || pub.isMuted) continue
+      // A share that just stopped can linger for a moment (unsubscribed, or its track ended) before it's unpublished.
+      if (!isLocal && !(pub as RemoteTrackPublication).isSubscribed) continue
+      if (pub.track.mediaStreamTrack?.readyState === 'ended') continue
       const source = pub.source === Track.Source.ScreenShare ? 'screen' : 'camera'
       tiles.push({ id: `${participant.identity}:${pub.trackSid}`, accountKey: participant.identity, source, isLocal })
     }
@@ -368,6 +371,9 @@ async function connect(
           audioElements.set(participant.identity + track.sid, element)
           container().appendChild(element)
           applyVolume(participant)
+        } else {
+          // The sender's capture ended (they stopped sharing): drop the tile even if the room hasn't said so yet.
+          track.mediaStreamTrack.addEventListener('ended', refreshTiles)
         }
         refreshTiles()
       })
@@ -390,6 +396,9 @@ async function connect(
         if (participant === next.localParticipant) void permissionsChanged(next)
       })
       .on(RoomEvent.TrackUnmuted, refreshTiles)
+      // Over the internet "unpublished" can arrive after "unsubscribed": refresh on both, or a stopped share stays as a black tile.
+      .on(RoomEvent.TrackPublished, refreshTiles)
+      .on(RoomEvent.TrackUnpublished, refreshTiles)
       .on(RoomEvent.LocalTrackPublished, refreshTiles)
       .on(RoomEvent.LocalTrackUnpublished, (pub: LocalTrackPublication) => {
         // The browser's own "Stop sharing" button ends the share without going through us.

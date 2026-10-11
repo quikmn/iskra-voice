@@ -245,8 +245,8 @@ function TextRow({ server, channel, active, rowProps, onMenu, onNavigate }: {
       <button
         className={`channel ${active ? 'active' : ''} ${shown.unread ? 'unread' : ''} ${shown.dimmed ? 'muted' : ''}`}
         onClick={() => {
+          setStageOpen(false) // first: leaving the call screen for chat must never depend on the rest
           selectChannel(server.key, channel.id)
-          setStageOpen(false)
           onNavigate()
         }}
       >
