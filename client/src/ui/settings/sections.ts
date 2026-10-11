@@ -3,8 +3,9 @@ import { roleRank, type Permission, type Role } from '../../core/protocol'
 import { t } from '../../i18n'
 
 export type SectionId =
-  | 'profile' | 'appearance' | 'devices' | 'recovery' | 'security' | 'notifications' | 'voice' | 'blocked' | 'desktop' | 'account' | 'about'
+  | 'profile' | 'appearance' | 'devices' | 'recovery' | 'security' | 'notifications' | 'voice' | 'blocked' | 'desktop' | 'account' | 'privacy' | 'about'
   | 'overview' | 'reports' | 'roles' | 'automod' | 'emoji' | 'sounds' | 'integrations' | 'pages' | 'internet' | 'audit' | 'rules' | 'limits' | 'backup' | 'import'
+  | 'securityLog'
 
 export interface SectionInfo {
   id: SectionId
@@ -25,6 +26,7 @@ const ACCOUNT: SectionEntry[] = [
   { id: 'blocked', group: 'account' },
   { id: 'desktop', group: 'account' },
   { id: 'account', group: 'account' },
+  { id: 'privacy', group: 'account' },
   { id: 'about', group: 'account' },
 ]
 
@@ -45,6 +47,7 @@ const SERVER: (SectionEntry & { min: Role; perm?: Permission; perms?: Permission
   { id: 'limits', group: 'server', min: 'owner' },
   { id: 'backup', group: 'server', min: 'owner' },
   { id: 'import', group: 'server', min: 'owner' },
+  { id: 'securityLog', group: 'server', min: 'owner' },
 ]
 
 /** The sections to show: account always (Desktop app only in the app); server ones only with a joined server, by level or permission. */

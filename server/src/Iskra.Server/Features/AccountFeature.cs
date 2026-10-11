@@ -54,6 +54,7 @@ public static class AccountFeature
         var messages = deletion.Messages ? store.MessagesBy(me.AccountKey) : [];
         var channels = messages.Select(m => m.ChannelId).Distinct().Select(store.GetChannel).OfType<Channel>().ToList();
         store.DeleteAccount(deletion, s.Now);
+        SecurityLog.Record(s.World.Store, s.Now, "account.delete", me.AccountKey, details: new { messages = deletion.Messages });
 
         // Threads and forums whose messages went: forum posts lose their first message, threads their counts.
         foreach (var channel in channels)

@@ -46,6 +46,7 @@ public static class DualProtocol
             {
                 ServerCertificateContext = certificate(),
                 ApplicationProtocols = [SslApplicationProtocol.Http11],
+                EnabledSslProtocols = SecurityHeaders.Protocols,
                 ClientCertificateRequired = false,
                 CertificateRevocationCheckMode = X509RevocationMode.NoCheck,
             }, timeout.Token);

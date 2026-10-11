@@ -96,7 +96,7 @@
     <li><strong>Your presence</strong> (online, idle, in voice) is kept in memory only while you're connected.</li>
   </ul>
   <p>Server channels, voice channels and files are <strong>not</strong> end-to-end encrypted: whoever runs the server can read them, and so can the members allowed into each channel. Servers use HTTPS when the owner has turned it on (it's automatic with "Open to the internet").</p>
-  <p>A server sees your <strong>IP address</strong> while you're connected, because it needs it to talk to you. Iskra's server doesn't store IP addresses in its database and doesn't log requests by default. Servers also keep <strong>daily backups</strong> (the last 7 days by default) so the owner can undo mistakes.</p>
+  <p>A server sees your <strong>IP address</strong> while you're connected, because it needs it to talk to you. Iskra's server doesn't store IP addresses in its database and doesn't log requests by default. Each server keeps a <strong>security log</strong> that only its owner can read: failed sign-ins, new members and devices, account key changes, account deletions, backups and data downloads, with the account key and time (never message text). It records IP addresses only if the owner turns that on. Servers also keep <strong>daily backups</strong> (the last 7 days by default) so the owner can undo mistakes.</p>
   <p>Links in messages get a preview (title and description) that <strong>the server fetches</strong>, not your device, so the website sees the server's address instead of yours.</p>
 
   <h2 id="e2ee">4. Direct messages, group chats and calls</h2>
@@ -155,7 +155,7 @@
     <li><strong>Your messages and files</strong> stay on a server until you or a moderator delete them, the server's owner removes them, or you delete your account (and choose to delete your messages).</li>
     <li><strong>Uploads that aren't used</strong> by any message, avatar or the like are deleted after 24 hours.</li>
     <li><strong>Encrypted DM envelopes</strong> stay on a server so your other devices can fetch them; deleting your account removes your copies. The short-lived keys that protect them are deleted about five weeks after use, after which old envelopes can't be decrypted even with your device keys.</li>
-    <li><strong>Audit log entries</strong>: 90 days. <strong>Resolved reports</strong>: 90 days after they're resolved.</li>
+    <li><strong>Audit log entries</strong>: 90 days. <strong>Security log entries</strong>: 365 days. <strong>Resolved reports</strong>: 90 days after they're resolved. A server's owner can change these, and can also choose to delete messages and files after a set time.</li>
     <li><strong>Daily server backups</strong>: 7 days by default (the owner can choose 1 to 30).</li>
     <li><strong>Ended or cancelled events</strong>: 30 days.</li>
   </ul>
@@ -168,13 +168,13 @@
     <li>deletes the server copies of your <strong>encrypted DMs and group chats</strong>;</li>
     <li>revokes all your devices, and wipes Iskra from the device you're using.</li>
   </ul>
-  <p>What isn't deleted: messages already on other people's devices (for example the DMs you sent them) stay with them. Moderators may keep reports and the audit log for safety, with your name removed. Servers that are offline at the time are reached by your other devices when they next connect, or you can ask their owners. See <a href="/delete-account">How to delete your account</a> for step-by-step instructions and what to do if you've lost your devices.</p>
+  <p>What isn't deleted: messages already on other people's devices (for example the DMs you sent them) stay with them. Moderators may keep reports and the audit log for safety, with your name removed, and the owner keeps the security log entries about your account (without IP addresses) until they expire. Servers that are offline at the time are reached by your other devices when they next connect, or you can ask their owners. See <a href="/delete-account">How to delete your account</a> for step-by-step instructions and what to do if you've lost your devices.</p>
 
   <h2 id="children">12. Children</h2>
   <p>Iskra is for people aged 13 or over, or the age at which you can consent to online services yourself in your country if that's higher (13 in Sweden; up to 16 in some EU countries). Below that age, you may only use it with a parent's or guardian's permission where the law allows. If you believe a child's data is on a server we run without that permission, email <a href="mailto:spark@iskra.foo">spark@iskra.foo</a> and we'll delete it.</p>
 
   <h2 id="rights">13. Your rights</h2>
-  <p>Under the GDPR you have the right to <strong>access</strong> your data, to have it <strong>corrected</strong> or <strong>erased</strong>, to <strong>restrict</strong> or <strong>object</strong> to how it's used, and to get it in a portable form. Much of this you can do yourself in the app. For a server, ask its owner; for iskra.foo, app.iskra.foo and servers we run, email us.</p>
+  <p>Under the GDPR you have the right to <strong>access</strong> your data, to have it <strong>corrected</strong> or <strong>erased</strong>, to <strong>restrict</strong> or <strong>object</strong> to how it's used, and to get it in a portable form. Much of this you can do yourself in the app: <span class="path">Settings → Privacy &amp; data</span> downloads what each server keeps about you and what your device keeps (including your DM and group chat history). For a server, ask its owner; for iskra.foo, app.iskra.foo and servers we run, email us.</p>
   <p>Why we process data on what we run: to provide the service you asked for (your account, messages and calls on our server), and our legitimate interest in keeping the sites and servers working, secure and free of abuse. Where the law requires it, we may share information with authorities.</p>
   <p>You can complain to the Swedish data protection authority, <strong>Integritetsskyddsmyndigheten (IMY)</strong>, at <a href="https://www.imy.se" target="_blank" rel="noopener">imy.se</a>, or to the authority where you live. We'd appreciate the chance to fix it first.</p>
 

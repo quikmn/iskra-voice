@@ -14,7 +14,8 @@ public sealed class Router
     private readonly Dictionary<string, AsyncHandler> _asyncHandlers = new(StringComparer.Ordinal);
     private readonly ILogger<Router> _log;
 
-    public Router(ILogger<Router> log, Hosting.InternetHost internet, Backups.BackupService backups, Import.ImportService imports)
+    public Router(ILogger<Router> log, Hosting.InternetHost internet, Backups.BackupService backups, Import.ImportService imports,
+        DataExports exports)
     {
         _log = log;
         Add("ping", (_, _, _) => new { });
@@ -63,6 +64,7 @@ public sealed class Router
         LeaveFeature.Register(this);
         ReportFeature.Register(this);
         AccountFeature.Register(this);
+        ComplianceFeature.Register(this, exports);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);
