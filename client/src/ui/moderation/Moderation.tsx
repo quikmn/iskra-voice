@@ -1,12 +1,14 @@
 // Safety in the chat: collapsed messages from people you blocked, the timed-out composer, the slowmode
 // countdown, timeout and block controls for a member, and channel settings (slowmode) for admins.
 import { useState, type ReactNode } from 'react'
-import { roleRank, type Channel, type Member } from '../../core/protocol'
+import type { Channel, Member } from '../../core/protocol'
 import { removeTimeout, setBlocked, timeoutMember, useIsBlocked, useMyTimeouts } from '../../state/moderation'
 import { countdown, slowmodeLabel, timeoutActive, TIMEOUT_OPTIONS, untilText } from '../../state/moderationRules'
 import type { ServerState } from '../../state/store'
 import { ChannelSettingsDialog } from '../organize/Dialogs'
 import { Settings } from '../icons'
+import { useServerRoles } from '../../state/roles'
+import { has } from '../../state/permissions'
 import { useNow } from './hooks'
 import './moderation.css'
 
@@ -164,7 +166,8 @@ export function SlowmodeChip({ seconds, wait }: { seconds: number; wait: number 
 
 export function ChannelSettingsButton({ server, channel }: { server: ServerState; channel: Channel | undefined }) {
   const [open, setOpen] = useState(false)
-  if (!channel || !server.me || roleRank(server.me.role) < roleRank('admin')) return null
+  const roles = useServerRoles(server.key)
+  if (!channel || !has(server.me, roles, 'manageChannels')) return null
   return (
     <>
       <button className="icon-button" onClick={() => setOpen(true)} aria-label="Channel settings" title="Channel settings">

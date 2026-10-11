@@ -91,7 +91,8 @@ export interface Welcome {
 
 /** Server → client events, keyed by type. */
 export interface Events {
-  'chat.message': { message: Message }
+  /** `nonce`: the sender's, so their app can match its placeholder. */
+  'chat.message': { message: Message; nonce?: string | null }
   'chat.edited': { message: Message }
   'chat.deleted': { id: number; channelId: number }
   'chat.reactions': { id: number; channelId: number; reactions: Reaction[] }
@@ -124,7 +125,7 @@ export interface WireDm {
 /** Client → server requests: [body, result]. */
 export interface Requests {
   ping: [Record<string, never>, Record<string, never>]
-  'chat.send': [{ channelId: number; text: string; attachments?: string[]; replyTo?: number; voice?: VoiceInfo }, { message: Message }]
+  'chat.send': [{ channelId: number; text: string; attachments?: string[]; replyTo?: number; voice?: VoiceInfo; nonce?: string }, { message: Message; nonce?: string | null }]
   'chat.react': [{ id: number; emoji: string; on: boolean }, Record<string, never>]
   'upload.begin': [{ name: string; size: number }, { url: string; maxBytes: number }]
   'link.preview': [{ url: string }, { preview: LinkPreview | null }]
@@ -996,4 +997,62 @@ export interface Requests {
   'chat.forward': [{ id: number; channelId: number }, { message: Message }]
   'prefs.get': [{ name: string }, { data: string | null; updatedAt: number | null }]
   'prefs.set': [{ name: string; data: string; updatedAt: number }, Record<string, never>]
+}
+
+// ── roles and permissions ──
+
+export type Permission =
+  | 'manageMessages' | 'timeoutMembers' | 'kickMembers' | 'banMembers' | 'manageChannels' | 'manageRoles'
+  | 'viewAuditLog' | 'manageExpressions' | 'manageWebhooks' | 'mentionEveryone' | 'moveMembers' | 'muteMembers'
+
+export type ChannelPermission = 'view' | 'send' | 'connect' | 'speak'
+
+/** A custom role. Position 1 is the lowest. */
+export interface ServerRole {
+  id: number
+  name: string
+  color: string | null
+  icon: string | null
+  hoist: boolean
+  /** Anyone may @mention it (otherwise only people who may mention everyone). */
+  mentionable?: boolean
+  position: number
+  permissions: Permission[]
+}
+
+export interface ChannelOverride {
+  roleId: number
+  allow: ChannelPermission[]
+  deny: ChannelPermission[]
+}
+
+export interface Member {
+  /** Custom role ids, highest first. */
+  roles?: number[]
+}
+
+export interface Channel {
+  overrides?: ChannelOverride[]
+}
+
+export interface VoiceParticipant {
+  /** Muted by a moderator. */
+  serverMuted?: boolean
+}
+
+export interface Events {
+  roles: { roles: ServerRole[] }
+  'voice.moved': { channelId: number }
+}
+
+export interface Requests {
+  'role.list': [Record<string, never>, { roles: ServerRole[] }]
+  'role.create': [{ name: string; color?: string; icon?: string; hoist?: boolean; mentionable?: boolean; permissions?: Permission[] }, { role: ServerRole }]
+  'role.update': [{ id: number; name?: string; color?: string; icon?: string; hoist?: boolean; mentionable?: boolean; permissions?: Permission[] }, { role: ServerRole }]
+  'role.delete': [{ id: number }, Record<string, never>]
+  'role.reorder': [{ ids: number[] }, { roles: ServerRole[] }]
+  'member.roles.set': [{ accountKey: string; roles: number[] }, { member: Member }]
+  'channel.overrides.set': [{ id: number; roleId: number; allow?: ChannelPermission[]; deny?: ChannelPermission[] }, { channel: Channel }]
+  'voice.mute': [{ accountKey: string; muted: boolean }, Record<string, never>]
+  'voice.move': [{ accountKey: string; channelId: number }, Record<string, never>]
 }

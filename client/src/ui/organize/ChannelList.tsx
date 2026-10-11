@@ -297,7 +297,7 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
                   <Avatar name={member?.name ?? '?'} accountKey={p.accountKey} size={22} />
                   <span className="member-name">{member?.name ?? 'Someone'}</span>
                 </button>
-                {p.deafened ? <span className="voice-flag" title="Deafened"><HeadphonesOff size={14} /></span> : p.muted ? <span className="voice-flag" title="Muted"><MicOff size={14} /></span> : null}
+                {p.serverMuted ? <span className="voice-flag server-muted" title="Muted by a moderator"><MicOff size={14} /></span> : p.deafened ? <span className="voice-flag" title="Deafened"><HeadphonesOff size={14} /></span> : p.muted ? <span className="voice-flag" title="Muted"><MicOff size={14} /></span> : null}
               </li>
             )
           })}

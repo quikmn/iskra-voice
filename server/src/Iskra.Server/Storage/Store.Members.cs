@@ -8,10 +8,10 @@ public sealed partial class Store
         new(r.GetString(0), r.GetString(1), r.GetString(2), r.GetInt64(3));
 
     public Member? GetMember(string accountKey) =>
-        Query($"SELECT {MemberColumns} FROM members WHERE account_key = $key;", ReadMember, ("$key", accountKey)).FirstOrDefault();
+        HydrateMember(Query($"SELECT {MemberColumns} FROM members WHERE account_key = $key;", ReadMember, ("$key", accountKey)).FirstOrDefault());
 
     public List<Member> AllMembers() =>
-        Query($"SELECT {MemberColumns} FROM members ORDER BY joined_at;", ReadMember);
+        HydrateMembers(Query($"SELECT {MemberColumns} FROM members ORDER BY joined_at;", ReadMember));
 
     public int CountMembers() => Convert.ToInt32(Scalar("SELECT COUNT(*) FROM members;"));
 
@@ -30,8 +30,11 @@ public sealed partial class Store
     public void SetMemberRole(string accountKey, string role) =>
         Exec("UPDATE members SET role = $role WHERE account_key = $key;", ("$key", accountKey), ("$role", role));
 
-    public void RemoveMember(string accountKey) =>
+    public void RemoveMember(string accountKey)
+    {
         Exec("DELETE FROM members WHERE account_key = $key;", ("$key", accountKey));
+        Exec("DELETE FROM member_roles WHERE account_key = $key;", ("$key", accountKey));
+    }
 
     // ── Bans ─────────────────────────────────────────────────────────────────
 

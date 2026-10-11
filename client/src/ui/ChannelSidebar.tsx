@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { roleRank } from '../core/protocol'
+import { has } from '../state/permissions'
+import { useServerRoles } from '../state/roles'
 import { useApp, type ServerState } from '../state/store'
 import { useThreads } from '../state/threads'
 import { VoiceBar } from './VoiceBar'
@@ -21,7 +23,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
     setSection(at)
     setDialog('settings')
   }
-  const isAdmin = server.me ? roleRank(server.me.role) >= roleRank('admin') : false
+  const isAdmin = has(server.me, useServerRoles(server.key), 'manageChannels') // may create channels
   const canInvite = server.me ? roleRank(server.me.role) >= roleRank('member') : false
   const [createIn, setCreateIn] = useState<number | null>(null)
   useThreads((s) => s.threads[server.key]) // thread mentions count on their channel

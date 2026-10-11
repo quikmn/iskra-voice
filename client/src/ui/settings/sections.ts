@@ -1,9 +1,9 @@
 // Settings navigation: your account first, then the server you're looking at, limited to what your role allows.
-import { roleRank, type Role } from '../../core/protocol'
+import { roleRank, type Permission, type Role } from '../../core/protocol'
 
 export type SectionId =
   | 'profile' | 'appearance' | 'devices' | 'recovery' | 'security' | 'notifications' | 'voice' | 'blocked'
-  | 'overview' | 'emoji' | 'sounds' | 'integrations' | 'pages' | 'internet' | 'audit' | 'backup' | 'import'
+  | 'overview' | 'roles' | 'emoji' | 'sounds' | 'integrations' | 'pages' | 'internet' | 'audit' | 'backup' | 'import'
 
 export interface SectionInfo {
   id: SectionId
@@ -22,21 +22,25 @@ const ACCOUNT: SectionInfo[] = [
   { id: 'blocked', label: 'Blocked people', group: 'account' },
 ]
 
-/** Server sections and the lowest role that may open each. */
-const SERVER: (SectionInfo & { min: Role })[] = [
+/** Server sections: the lowest level that may open each, or a permission from a custom role that also opens it. */
+const SERVER: (SectionInfo & { min: Role; perm?: Permission })[] = [
   { id: 'overview', label: 'Overview', group: 'server', min: 'guest' },
-  { id: 'emoji', label: 'Emoji', group: 'server', min: 'admin' },
-  { id: 'sounds', label: 'Soundboard', group: 'server', min: 'trusted' },
-  { id: 'integrations', label: 'Bots & webhooks', group: 'server', min: 'admin' },
+  { id: 'roles', label: 'Roles', group: 'server', min: 'admin', perm: 'manageRoles' },
+  { id: 'emoji', label: 'Emoji', group: 'server', min: 'admin', perm: 'manageExpressions' },
+  { id: 'sounds', label: 'Soundboard', group: 'server', min: 'trusted', perm: 'manageExpressions' },
+  { id: 'integrations', label: 'Bots & webhooks', group: 'server', min: 'admin', perm: 'manageWebhooks' },
   { id: 'pages', label: 'Profile pages', group: 'server', min: 'admin' },
   { id: 'internet', label: 'Open to the internet', group: 'server', min: 'admin' },
-  { id: 'audit', label: 'Audit log', group: 'server', min: 'admin' },
+  { id: 'audit', label: 'Audit log', group: 'server', min: 'admin', perm: 'viewAuditLog' },
   { id: 'backup', label: 'Backup & move', group: 'server', min: 'owner' },
   { id: 'import', label: 'Import from Discord', group: 'server', min: 'owner' },
 ]
 
-/** The sections to show: account always; server ones only with a joined server, by role. */
-export function settingsSections(role: Role | null | undefined): SectionInfo[] {
+/** The sections to show: account always; server ones only with a joined server, by level or permission. */
+export function settingsSections(role: Role | null | undefined, can: (perm: Permission) => boolean = () => false): SectionInfo[] {
   if (!role) return ACCOUNT
-  return [...ACCOUNT, ...SERVER.filter((s) => roleRank(role) >= roleRank(s.min)).map(({ id, label, group }) => ({ id, label, group }))]
+  return [
+    ...ACCOUNT,
+    ...SERVER.filter((s) => roleRank(role) >= roleRank(s.min) || (s.perm && can(s.perm))).map(({ id, label, group }) => ({ id, label, group })),
+  ]
 }

@@ -196,7 +196,7 @@ public sealed class StageRegistry
         await _apply.WaitAsync();
         try
         {
-            var speak = IsSpeaker(channelId, accountKey);
+            var speak = IsSpeaker(channelId, accountKey) && !voice.IsServerMuted(accountKey); // a server mute wins over the stage
             if (await backend.SetCanPublishAsync(room, accountKey, speak)) return true;
             if (!speak) await backend.RemoveParticipantAsync(room, accountKey);
             return false;

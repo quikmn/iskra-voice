@@ -67,7 +67,14 @@ public sealed class Hub(World world, TimeProvider time)
         Features.ProfileFeature.Public(world.Store, m, Features.PresenceFeature.Of(world.Store, this, m.AccountKey, time.GetUtcNow().ToUnixTimeMilliseconds()));
 
     public static object PublicChannel(Channel c, int slowmode = 0) =>
-        new { id = c.Id, name = c.Name, kind = c.Kind, position = c.Position, readRole = c.ReadRole, writeRole = c.WriteRole, slowmode, categoryId = c.CategoryId };
+        new
+        {
+            id = c.Id, name = c.Name, kind = c.Kind, position = c.Position, readRole = c.ReadRole, writeRole = c.WriteRole, slowmode, categoryId = c.CategoryId,
+            overrides = c.Overrides.Select(o => new
+            {
+                roleId = o.RoleId, allow = Features.RoleFeature.ChannelPermNames(o.Allow), deny = Features.RoleFeature.ChannelPermNames(o.Deny),
+            }),
+        };
 
     /// <summary>The channels this member can see, in order.</summary>
     public List<object> VisibleChannels(Member member)

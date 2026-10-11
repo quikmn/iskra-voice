@@ -52,6 +52,7 @@ public sealed class Router
         MoveFeature.Register(this);
         ImportFeature.Register(this, imports);
         KeyFeature.Register(this);
+        RoleFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

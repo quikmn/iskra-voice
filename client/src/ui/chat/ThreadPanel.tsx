@@ -1,6 +1,8 @@
 // A thread beside its channel (full screen on phones): the message it started from, its replies, a composer.
 import { useEffect, useState } from 'react'
-import { roleRank, type Message } from '../../core/protocol'
+import type { Message } from '../../core/protocol'
+import { useRoleLookup, useServerRoles } from '../../state/roles'
+import { canSendIn, has, outranks } from '../../state/permissions'
 import { connectionFor, loadHistory, type ServerState } from '../../state/store'
 import { closeThread, deleteThread, markThreadRead, renameThread, rememberThreads, useThreads } from '../../state/threads'
 import { Composer, MessageList, TypingLine } from '../ChatView'
@@ -59,13 +61,14 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
 
   const parent = thread ? server.channels.find((c) => c.id === thread.channelId) : undefined
   const me = server.me
-  const canWrite = !!me && !!parent && roleRank(me.role) >= roleRank(parent.writeRole)
   const post = useForumPost(server, threadId, parent?.kind)
   const blocked = replyBlock(server, post)
   const noun = parent?.kind === 'forum' ? 'post' : 'thread'
+  const roles = useServerRoles(server.key)
+  const canWrite = !!parent && canSendIn(me, parent, roles)
   const creator = thread ? server.members[thread.createdBy] : undefined
   const canManage = !!me && !!thread && (thread.createdBy === me.accountKey ||
-    (roleRank(me.role) >= roleRank('admin') && (!creator || roleRank(me.role) > roleRank(creator.role))))
+    (has(me, roles, 'manageMessages') && (!creator || outranks(me, creator, roles))))
   // Prefer the live copy of the root message when its channel is loaded.
   const liveRoot = thread ? server.messages[thread.channelId]?.find((m) => m.id === thread.rootId && !m.tempId) : undefined
   const shownRoot = liveRoot ?? root
@@ -186,6 +189,7 @@ const short = (name: string) => (name.length > 28 ? `${name.slice(0, 27).trimEnd
 
 /** The message the thread started from, at the top of the thread. */
 function ThreadStart({ server, root, createdBy, post }: { server: ServerState; root: Message | null | undefined; createdBy?: string; post?: boolean }) {
+  const roleOf = useRoleLookup(server.key, server.me)
   if (root === undefined) return <div className="thread-start"><Spinner /></div>
   const starter = createdBy ? server.members[createdBy]?.name ?? 'Someone' : null
   if (root === null) {
@@ -212,7 +216,7 @@ function ThreadStart({ server, root, createdBy, post }: { server: ServerState; r
           </div>
           {root.text && (
             <div className="message-text">
-              {renderMarkdown(root.text, { nameOf: (k) => server.members[k]?.name ?? null, me: server.me?.accountKey })}
+              {renderMarkdown(root.text, { nameOf: (k) => server.members[k]?.name ?? null, me: server.me?.accountKey, roleOf })}
             </div>
           )}
           <Attachments server={server} files={root.attachments} />

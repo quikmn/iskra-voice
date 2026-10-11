@@ -63,16 +63,44 @@ public static class ChatFeature
         long? replyTo = body.OptionalLong("replyTo", min: 1);
         if (replyTo is { } replyId && s.World.Store.GetMessage(replyId)?.ChannelId != channel.Id)
             throw RequestException.BadRequest("You can only reply to messages in the same channel.");
+
+        // A retry of a send that already went through (the reply was lost with the connection): same answer, nothing new.
+        var nonce = Nonce(body);
+        if (nonce is not null && s.World.Store.NonceUsed(me.AccountKey, nonce)) return Repeat(s, me, nonce);
         ModerationFeature.CheckSlowmode(s, me, channel);
 
-        var message = s.World.Store.AddMessage(channel.Id, me.AccountKey, text, s.Now, attachments, replyTo);
+        Message message;
+        if (nonce is null) message = s.World.Store.AddMessage(channel.Id, me.AccountKey, text, s.Now, attachments, replyTo);
+        else
+        {
+            var (stored, created) = s.World.Store.AddMessageOnce(nonce, channel.Id, me.AccountKey, text, s.Now, attachments, replyTo);
+            if (!created) return Repeat(s, me, nonce);
+            message = stored!;
+        }
         VoiceMessageFeature.Saved(s.World.Store, message, voice);
         var publicMessage = View(s, message);
-        s.Hub.BroadcastToReaders(channel, Frames.Event("chat.message", new { message = publicMessage }));
+        s.Hub.BroadcastToReaders(channel, Frames.Event("chat.message", new { message = publicMessage, nonce }));
         ThreadFeature.Touched(s, channel);
         s.Push.ChatMessage(channel, message);
-        return new { message = publicMessage };
+        return new { message = publicMessage, nonce };
     }
+
+    public const int MinNonceLength = 8;
+    public const int MaxNonceLength = 64;
+
+    private static string? Nonce(Body body)
+    {
+        var nonce = body.OptionalString("nonce", MaxNonceLength);
+        if (nonce is null) return null;
+        if (nonce.Length < MinNonceLength || !nonce.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_'))
+            throw RequestException.BadRequest($"'nonce' must be {MinNonceLength}–{MaxNonceLength} characters of a–z, A–Z, 0–9, - and _.");
+        return nonce;
+    }
+
+    private static object Repeat(Session s, Member me, string nonce) =>
+        s.World.Store.MessageForNonce(me.AccountKey, nonce) is { } earlier
+            ? new { message = View(s, earlier), nonce }
+            : throw RequestException.NotFound("Message"); // sent, then deleted
 
     private static object Edit(Session s, Member me, Body body)
     {

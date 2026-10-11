@@ -63,7 +63,7 @@ public static class WebhookFeature
 
     private static void RequireAdmin(Member me)
     {
-        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can manage webhooks.");
+        if (!Permissions.Has(me, Perm.ManageWebhooks)) throw RequestException.Forbidden("You can't manage webhooks on this server.");
     }
 
     private static Channel TextChannel(Session s, Member me, long id)

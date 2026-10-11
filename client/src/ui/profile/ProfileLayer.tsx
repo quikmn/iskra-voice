@@ -12,6 +12,7 @@ import { useApp, type ServerState } from '../../state/store'
 import { Avatar, Modal } from '../bits'
 import { useEscapeLayer, useFocusTrap } from '../layers'
 import { MemberDialog } from '../dialogs/MemberDialog'
+import { RoleChips } from '../roles/RoleSettings'
 import { SettingsDialog } from '../settings/SettingsDialog'
 import { hueFor } from '../format'
 import { Close } from '../icons'
@@ -110,6 +111,7 @@ function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; me
             <span className="profile-status-label"><span className={`status-dot presence-${presence.status}`} aria-hidden />{STATUS_LABELS[presence.status]}</span>
           </div>
           {presence.custom && <div className="profile-status"><CustomStatusLine custom={presence.custom} /></div>}
+          <RoleChips server={server} member={member} />
           {member.bio && (
             <div className="profile-bio">
               {renderMarkdown(member.bio, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey })}

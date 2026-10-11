@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { roleRank, type FileInfo, type Member } from '../core/protocol'
+import type { FileInfo, Member } from '../core/protocol'
 import {
   activeChannelId, connectionFor, discardFailed, loadHistory, notifyTyping, retryAll, retryFailed, sendMessage, uploadFile, useApp,
   type PendingMessage, type ServerState,
@@ -36,13 +36,16 @@ import { useSlowmodeWait, useTimedOut } from './moderation/hooks'
 import { ForwardDialog, ForwardedLine, ForwardIcon } from './organize/ForwardDialog'
 import { UnreadBar, UnreadDivider } from './organize/UnreadBits'
 import { useUnreadMarker } from '../state/unread'
+import { useRoleLookup, useServerRoles } from '../state/roles'
+import { canDeleteMessage, canMentionRole, canSendIn, has, nameColor } from '../state/permissions'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
 export function ChatView({ server, onToggle }: { server: ServerState; onToggle: (panel: Panel) => void }) {
   const channelId = useApp(activeChannelId)
   const channel = server.channels.find((c) => c.id === channelId)
-  const canWrite = !!server.me && !!channel && roleRank(server.me.role) >= roleRank(channel.writeRole)
+  const roles = useServerRoles(server.key)
+  const canWrite = !!channel && canSendIn(server.me, channel, roles)
 
   useEffect(() => {
     if (channelId !== null && server.status.state === 'online') void loadHistory(server.key, channelId)
@@ -104,7 +107,7 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
             <>
               <span className="empty-icon"><Hash size={32} /></span>
               <h1>No channels here yet</h1>
-              <p>{roleRank(server.me?.role ?? 'guest') >= roleRank('admin') ? 'Create one with the + next to Text channels.' : 'An admin can add some. Check back soon.'}</p>
+              <p>{has(server.me, roles, 'manageChannels') ? 'Create one with the + next to Text channels.' : 'An admin can add some. Check back soon.'}</p>
             </>
           ) : <Spinner />}
         </div>
@@ -245,8 +248,10 @@ function MessageRow({
   const canOpenProfile = !message.webhook && !!server.members[message.author]
   const me = server.me
   const mine = me?.accountKey === message.author
-  const canDelete = !!me && !message.tempId &&
-    (mine || (roleRank(me.role) >= roleRank('admin') && (!author || roleRank(me.role) > roleRank(author.role))))
+  const roles = useServerRoles(server.key)
+  const roleOf = useRoleLookup(server.key, me)
+  const canDelete = !message.tempId && canDeleteMessage(me, message, author, roles)
+  const authorColor = (!message.webhook && nameColor(author, roles)) || `hsl(${hueFor(message.author)} 70% var(--name-l))`
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [picking, setPicking] = useState(false)
   const [sheet, setSheet] = useState(false)
@@ -292,9 +297,9 @@ function MessageRow({
         {(!grouped || message.replyTo) && (
           <div className="message-meta">
             {canOpenProfile ? (
-              <button className="author" style={{ color: `hsl(${hueFor(message.author)} 70% var(--name-l))` }} onClick={(e) => openProfileCard(server.key, message.author, e.currentTarget)}>{name}</button>
+              <button className="author" style={{ color: authorColor }} onClick={(e) => openProfileCard(server.key, message.author, e.currentTarget)}>{name}</button>
             ) : (
-              <span className="author" style={{ color: `hsl(${hueFor(message.author)} 70% var(--name-l))` }}>{name}</span>
+              <span className="author" style={{ color: authorColor }}>{name}</span>
             )}
             {shown.bot && <BotBadge />}
             {message.imported && <ImportedBadge />}
@@ -314,7 +319,7 @@ function MessageRow({
         ) : (
           (message.text || message.editedAt) && !message.poll && (
             <div className="message-text">
-              {renderMarkdown(message.text, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey, emoji: emojiLookup })}
+              {renderMarkdown(message.text, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey, emoji: emojiLookup, roleOf })}
               {message.editedAt && <span className="edited" title={fullTime(message.editedAt)}> (edited)</span>}
             </div>
           )
@@ -367,7 +372,8 @@ function MessageRow({
 }
 
 function EditBox({ server, message, onDone }: { server: ServerState; message: PendingMessage; onDone: () => void }) {
-  const original = decodeEmoji(decodeMentions(message.text, (k) => server.members[k]?.name ?? null))
+  const roles = useServerRoles(server.key)
+  const original = decodeEmoji(decodeMentions(message.text, (k) => server.members[k]?.name ?? null, (id) => roles.find((r) => r.id === id)?.name ?? null))
   const emojis = useServerEmojis(server.key)
   const [text, setText] = useState(original)
   const [error, setError] = useState<string | null>(null)
@@ -376,7 +382,7 @@ function EditBox({ server, message, onDone }: { server: ServerState; message: Pe
     const trimmed = text.trim()
     if (!trimmed || trimmed === original) return onDone()
     try {
-      await connectionFor(server.key)?.request('chat.edit', { id: message.id, text: encodeEmoji(encodeMentions(trimmed, Object.values(server.members)), emojis) })
+      await connectionFor(server.key)?.request('chat.edit', { id: message.id, text: encodeEmoji(encodeMentions(trimmed, Object.values(server.members), roles.filter((r) => canMentionRole(server.me ?? undefined, r, roles))), emojis) })
       onDone()
     } catch (e) {
       setError((e as Error).message)
@@ -471,10 +477,19 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
   const [caret, setCaret] = useState(0)
   const [pick, setPick] = useState(0)
   const query = /(?:^|\s)@([^\s@]{0,32})$/u.exec(text.slice(0, caret))?.[1]
-  const suggestions = query === undefined ? [] : Object.values(server.members)
-    .filter((m) => [m.name, m.profileName ?? m.name].some((n) => n.toLowerCase().startsWith(query.toLowerCase())) && m.accountKey !== server.me?.accountKey)
-    .sort((a, b) => Number(b.online) - Number(a.online) || a.name.localeCompare(b.name))
-    .slice(0, 6)
+  const roles = useServerRoles(server.key)
+  const mentionableRoles = roles.filter((r) => canMentionRole(server.me ?? undefined, r, roles))
+  const suggestions: { key: string; name: string; member?: Member; color?: string | null }[] = query === undefined ? [] : [
+    ...Object.values(server.members)
+      .filter((m) => [m.name, m.profileName ?? m.name].some((n) => n.toLowerCase().startsWith(query.toLowerCase())) && m.accountKey !== server.me?.accountKey)
+      .sort((a, b) => Number(b.online) - Number(a.online) || a.name.localeCompare(b.name))
+      .slice(0, 6)
+      .map((m) => ({ key: m.accountKey, name: m.name, member: m })),
+    ...mentionableRoles
+      .filter((r) => r.name.toLowerCase().startsWith(query.toLowerCase()))
+      .slice(0, 3)
+      .map((r) => ({ key: `role-${r.id}`, name: r.name, color: r.color })),
+  ]
   const emojiSuggest = useEmojiSuggest(server.key, text, caret, (next) => {
     setText(next.text)
     setCaret(next.caret)
@@ -496,7 +511,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
 
   function submit() {
     if (!canSend) return
-    const trimmed = encodeEmoji(encodeMentions(text.trim(), Object.values(server.members)), emojis)
+    const trimmed = encodeEmoji(encodeMentions(text.trim(), Object.values(server.members), mentionableRoles), emojis)
     setText('')
     for (const u of uploads) if (u.preview) URL.revokeObjectURL(u.preview)
     setUploads([])
@@ -552,7 +567,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
         <div className="mention-popup" role="listbox" aria-label="Mention someone">
           {suggestions.map((m, i) => (
             <button
-              key={m.accountKey}
+              key={m.key}
               role="option"
               aria-selected={i === pick % suggestions.length}
               className={i === pick % suggestions.length ? 'active' : ''}
@@ -561,8 +576,11 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
                 insertMention(m.name)
               }}
             >
-              <Avatar name={m.name} accountKey={m.accountKey} size={24} online={m.online} />
+              {m.member
+                ? <Avatar name={m.name} accountKey={m.member.accountKey} size={24} online={m.member.online} />
+                : <span className="mention-role-icon" style={m.color ? { color: m.color } : undefined} aria-hidden>@</span>}
               {m.name}
+              {!m.member && <span className="muted mention-kind">role</span>}
             </button>
           ))}
         </div>

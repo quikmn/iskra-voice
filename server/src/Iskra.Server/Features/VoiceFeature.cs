@@ -22,12 +22,13 @@ public static class VoiceFeature
         var channel = ChatFeature.ReadableChannel(s, me, body.Long("channelId"));
         if (channel.Kind is not ("voice" or "stage")) throw RequestException.BadRequest("That isn't a voice channel.");
         if (s.World.Store.IsBot(me.AccountKey)) throw RequestException.Forbidden("Bots can't join voice.");
+        if (!Permissions.CanConnect(me, channel)) throw RequestException.Forbidden("You can't join this voice channel.");
         var backend = s.Voice.Backend;
         if (!backend.Available) throw new RequestException("voice_unavailable", "Voice isn't available on this server right now.");
 
         var room = VoiceRegistry.RoomName(channel.Id);
         // Everyone joins a stage listening; speaking is granted later through LiveKit's API (StageRegistry).
-        var canSpeak = channel.Kind == "voice" && Permissions.CanWrite(me, channel);
+        var canSpeak = channel.Kind == "voice" && Permissions.CanWrite(me, channel) && !s.Voice.IsServerMuted(me.AccountKey);
         var token = LiveKitTokens.ForRoom(backend.ApiKey, backend.ApiSecret, me.AccountKey, me.Name, room,
             canPublish: canSpeak, s.Time.GetUtcNow());
         // Over HTTPS (internet hosting) voice goes through the same address the client used.

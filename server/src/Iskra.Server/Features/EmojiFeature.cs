@@ -61,7 +61,7 @@ public static partial class EmojiFeature
 
     private static void RequireAdmin(Member me)
     {
-        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can manage emoji.");
+        if (!Permissions.Has(me, Perm.ManageExpressions)) throw RequestException.Forbidden("You can't manage emoji on this server.");
     }
 
     private static string Name(Body body, Store store, string? exceptId = null)

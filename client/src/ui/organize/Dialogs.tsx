@@ -6,6 +6,7 @@ import { createCategory, moveChannel, renameCategory, useCategories } from '../.
 import { Modal } from '../bits'
 import { RolePicker } from '../dialogs/CreateChannelDialog'
 import { slowmodeLabel, SLOWMODE_STEPS } from '../../state/moderationRules'
+import { ChannelOverrides } from '../roles/RoleSettings'
 
 export function CategoryDialog({ server, category, onClose }: { server: ServerState; category?: Category; onClose: () => void }) {
   const [name, setName] = useState(category?.name ?? '')
@@ -114,6 +115,7 @@ export function ChannelSettingsDialog({ server, channel, onClose }: { server: Se
           <small className="muted">Members can send one message per interval here. Admins aren't limited.</small>
         </label>
       )}
+      <ChannelOverrides server={server} channel={channel} />
       <label className="field inline">
         <span>Category</span>
         <select value={categoryId ?? ''} onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}>

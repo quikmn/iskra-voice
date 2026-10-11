@@ -93,14 +93,18 @@ public sealed partial class PushService
     [GeneratedRegex("<@([A-Za-z0-9_-]{43})>")]
     private static partial Regex MentionToken();
 
+    [GeneratedRegex("<@&([0-9]{1,12})>")]
+    private static partial Regex RoleMention();
+
     [GeneratedRegex(@"(^|\s)@(everyone|here)\b")]
     private static partial Regex GroupMention();
 
     /// <summary>
-    /// Who may ping a group with @everyone (all members) or @here (members online now): trusted and above.
+    /// Who may ping a group with @everyone (all members) or @here (members online now): trusted and above, or a role that allows it.
     /// From anyone else the text is shown but nobody is notified. Clients apply the same rule.
     /// </summary>
-    public static bool CanPingGroups(Member author) => Roles.Rank(author.Role) >= Roles.Rank(Roles.Trusted);
+    public static bool CanPingGroups(Member author) =>
+        Roles.Rank(author.Role) >= Roles.Rank(Roles.Trusted) || Permissions.Has(author, Perm.MentionEveryone);
 
     /// <summary>
     /// A new channel message: mentioned people (or a group, for @everyone/@here), the author of the message it replies
@@ -118,12 +122,22 @@ public sealed partial class PushService
             foreach (var member in store.AllMembers())
                 if (groups.Contains("everyone") || _hub.IsOnline(member.AccountKey)) kinds[member.AccountKey] = "mention";
         if (pings)
+        {
             foreach (Match m in MentionToken().Matches(message.Text)) kinds[m.Groups[1].Value] = "mention";
+            // @Role: its members, if the role lets anyone mention it or the author may mention everyone.
+            foreach (Match m in RoleMention().Matches(message.Text))
+            {
+                if (!long.TryParse(m.Groups[1].Value, out var roleId) || store.GetRole(roleId) is not { } role) continue;
+                if (!role.Mentionable && !CanPingGroups(author)) continue;
+                foreach (var key in store.MembersWithRole(roleId)) kinds[key] = "mention";
+            }
+        }
         kinds.Remove(message.AuthorKey);
         if (kinds.Count == 0) return;
 
         var authorName = store.DisplayName(author);
         var text = MentionToken().Replace(message.Text, m => "@" + (store.GetMember(m.Groups[1].Value) is { } who ? store.DisplayName(who) : "unknown"));
+        text = RoleMention().Replace(text, m => "@" + (long.TryParse(m.Groups[1].Value, out var id) && store.GetRole(id) is { } r ? r.Name : "role"));
         var body = text.Length == 0 ? "Sent an attachment" : Excerpt(text, 140);
         var settingsChannel = store.SettingsChannelOf(channel.Id);
         var now = _time.GetUtcNow().ToUnixTimeMilliseconds();

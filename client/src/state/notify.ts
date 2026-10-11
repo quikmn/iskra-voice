@@ -1,7 +1,8 @@
 // Desktop notifications, the unread count in the window title, and small sounds.
 // Notifications fire for mentions (every message at "All messages") and DMs when you aren't already looking at them.
 import { create } from 'zustand'
-import { canPingGroups, mentions, plainText } from '../ui/markdown'
+import { plainText } from '../ui/markdown'
+import { senderRules } from './senderRules'
 import { activeChannelId, onServerEvent, useApp } from './store'
 import { conversationLabel, isViewingThread } from './threads'
 import { jumpToMessage } from './jump'
@@ -135,10 +136,9 @@ onServerEvent((serverKey, type, body) => {
   if (type === 'chat.message') {
     const { message } = body as Events['chat.message']
     const myKey = me()
-    const groupPings = canPingGroups(server.members[message.author]?.role, !!message.webhook)
-    // Your notification level for the channel decides (all messages, only mentions, nothing; mutes quiet "all").
-    if (isBlocked(useBlocks.getState().entries, message.author)) return
-    if (message.author === myKey || !shouldNotify(notifyFor(serverKey, message.channelId), !message.forwarded && mentions(message.text, myKey, groupPings))) return
+    // Blocked people never notify; then your notification level for the channel decides (all, mentions, nothing).
+    if (message.author === myKey || senderRules.ignored(message.author) || isBlocked(useBlocks.getState().entries, message.author)) return
+    if (!shouldNotify(notifyFor(serverKey, message.channelId), !message.forwarded && senderRules.mentionsMe(server, message))) return
     const viewing = document.hasFocus() && state.activeServer === serverKey && activeChannelId(state) === message.channelId
     if (viewing || isViewingThread(serverKey, message.channelId)) return
     const author = message.webhook?.name ?? server.members[message.author]?.name ?? 'Someone'

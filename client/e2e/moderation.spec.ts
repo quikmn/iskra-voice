@@ -86,7 +86,7 @@ test('block, timeout, slowmode and the audit log', async ({ browser }) => {
   // Their last message may be recent enough to count already: wait until they can send.
   await expect(friend.locator('.slowmode-chip')).toHaveText(/10 s/, { timeout: 15_000 })
   await send(friend, 'slow and steady')
-  await expect(friend.locator('.message-text', { hasText: 'slow and steady' })).toBeVisible()
+  await expect(friend.locator('[id^="msg-"] .message-text', { hasText: 'slow and steady' })).toBeVisible()
   await expect(friend.locator('.slowmode-chip.waiting')).toHaveText(/0:\d\d/)
   await expect(friend.getByRole('button', { name: 'Send' })).toBeDisabled()
   await friend.screenshot({ path: join(SHOTS, 'moderation-slowmode.png') })
@@ -117,7 +117,11 @@ test('block, timeout, slowmode and the audit log', async ({ browser }) => {
   await host.getByRole('button', { name: 'Open channels' }).click()
   await openSettings(host)
   const phoneSettings = host.getByRole('dialog', { name: 'Settings' })
-  await phoneSettings.getByRole('button', { name: 'Audit log' }).click()
+  // The last item is below the fold on a phone now: scroll to it first.
+  const auditItem = phoneSettings.getByRole('button', { name: 'Audit log' })
+  await auditItem.scrollIntoViewIfNeeded()
+  await host.waitForTimeout(300)
+  await auditItem.click()
   await expect(host.locator('.audit-list')).toBeVisible()
   await host.waitForTimeout(400) // let the pane finish sliding in
   await host.screenshot({ path: join(SHOTS, 'moderation-audit-phone.png') })

@@ -18,35 +18,82 @@ public static class Roles
 }
 
 /// <summary>
-/// Every permission decision lives here, and callers pass the member's role as it is *now*
-/// (never a copy cached at login).
+/// Every permission decision lives here, and callers pass the member as it is *now* (never a copy cached at login).
+/// Two layers: the level (guest &lt; member &lt; trusted &lt; admin &lt; owner) and, on top, custom roles that grant
+/// permissions (<see cref="Perm"/>) and per-channel overrides. Admins and the owner have every permission.
 /// </summary>
 public static class Permissions
 {
-    public static bool CanRead(Member member, Channel channel) => Roles.Rank(member.Role) >= Roles.Rank(channel.ReadRole);
-
-    public static bool CanWrite(Member member, Channel channel) =>
-        CanRead(member, channel) && Roles.Rank(member.Role) >= Roles.Rank(channel.WriteRole);
-
     public static bool IsAdmin(Member member) => Roles.Rank(member.Role) >= Roles.Rank(Roles.Admin);
 
-    /// <summary>Moderation (kick, ban, role changes) only works on people ranked strictly below you.</summary>
-    public static bool Outranks(Member actor, Member target) => Roles.Rank(actor.Role) > Roles.Rank(target.Role);
+    /// <summary>A server-wide permission: admins and the owner always, otherwise from a custom role.</summary>
+    public static bool Has(Member member, Perm perm) => IsAdmin(member) || (member.Perms & perm) == perm;
 
-    /// <summary>You can hand out roles strictly below your own (admins up to trusted, the owner up to admin).</summary>
+    /// <summary>
+    /// The hierarchy: owner, then admins, then anyone with custom roles (by their highest role), then trusted, member, guest.
+    /// </summary>
+    private static (int Tier, int Value) Height(Member m) =>
+        m.Role == Roles.Owner ? (3, 0)
+        : IsAdmin(m) ? (2, 0)
+        : m.TopPosition > 0 ? (1, m.TopPosition)
+        : (0, Roles.Rank(m.Role));
+
+    /// <summary>Moderation (kick, ban, timeout, roles) only works on people ranked strictly below you.</summary>
+    public static bool Outranks(Member actor, Member target) => Height(actor).CompareTo(Height(target)) > 0;
+
+    /// <summary>Custom roles you can hand out, edit or reorder: those below your highest role (admins: all).</summary>
+    public static bool IsAbove(Member actor, int rolePosition) => IsAdmin(actor) || actor.TopPosition > rolePosition;
+
+    /// <summary>You can hand out levels strictly below your own (admins up to trusted, the owner up to admin).</summary>
     public static bool CanGrant(Member actor, string role) =>
         IsAdmin(actor) && Roles.Rank(role) < Roles.Rank(actor.Role);
 
+    /// <summary>
+    /// What the member may do in a channel: the read/write levels give the base (read: view and connect; write: send and speak),
+    /// then the overrides of the member's roles apply: denies first, then allows (an allow from any role wins).
+    /// Without view nothing else counts; speaking needs connect. (Admins follow the levels too: an owner-only channel stays hidden from them.)
+    /// </summary>
+    public static ChannelPerm Access(Member member, Channel channel)
+    {
+        var rank = Roles.Rank(member.Role);
+        var bits = ChannelPerm.None;
+        if (rank >= Roles.Rank(channel.ReadRole)) bits |= ChannelPerm.View | ChannelPerm.Connect;
+        if (rank >= Roles.Rank(channel.WriteRole)) bits |= ChannelPerm.Send | ChannelPerm.Speak;
+        if (channel.Overrides.Length > 0 && member.RoleIds.Length > 0)
+        {
+            ChannelPerm allow = ChannelPerm.None, deny = ChannelPerm.None;
+            foreach (var o in channel.Overrides)
+            {
+                if (Array.IndexOf(member.RoleIds, o.RoleId) < 0) continue;
+                allow |= o.Allow;
+                deny |= o.Deny;
+            }
+            bits = (bits & ~deny) | allow;
+        }
+        if (!bits.HasFlag(ChannelPerm.View)) return ChannelPerm.None;
+        if (!bits.HasFlag(ChannelPerm.Connect)) bits &= ~ChannelPerm.Speak;
+        return bits;
+    }
+
+    public static bool CanRead(Member member, Channel channel) => Access(member, channel).HasFlag(ChannelPerm.View);
+
+    /// <summary>Text: send messages. Voice: connect and speak.</summary>
+    public static bool CanWrite(Member member, Channel channel) =>
+        Access(member, channel).HasFlag(channel.Kind is "voice" or "stage" ? ChannelPerm.View | ChannelPerm.Connect | ChannelPerm.Speak : ChannelPerm.View | ChannelPerm.Send);
+
+    /// <summary>Joining a voice channel (listening).</summary>
+    public static bool CanConnect(Member member, Channel channel) => Access(member, channel).HasFlag(ChannelPerm.View | ChannelPerm.Connect);
+
     public static bool CanDeleteMessage(Member actor, Message message, Member? author) =>
-        message.AuthorKey == actor.AccountKey || (IsAdmin(actor) && (author is null || Outranks(actor, author)));
+        message.AuthorKey == actor.AccountKey || (Has(actor, Perm.ManageMessages) && (author is null || Outranks(actor, author)));
 
-    /// <summary>Pinning is a shared, channel-wide action: trusted+ who can also write in the channel.</summary>
+    /// <summary>Pinning is a shared, channel-wide action: writers who are trusted+ or can manage messages.</summary>
     public static bool CanPin(Member member, Channel channel) =>
-        CanWrite(member, channel) && Roles.Rank(member.Role) >= Roles.Rank(Roles.Trusted);
+        CanWrite(member, channel) && (Roles.Rank(member.Role) >= Roles.Rank(Roles.Trusted) || Has(member, Perm.ManageMessages));
 
-    /// <summary>Renaming or deleting a thread: whoever started it, or an admin who outranks them (same rule as deleting messages).</summary>
+    /// <summary>Renaming or deleting a thread: whoever started it, or someone who can manage messages and outranks them.</summary>
     public static bool CanManageThread(Member actor, string creatorKey, Member? creator) =>
-        creatorKey == actor.AccountKey || (IsAdmin(actor) && (creator is null || Outranks(actor, creator)));
+        creatorKey == actor.AccountKey || (Has(actor, Perm.ManageMessages) && (creator is null || Outranks(actor, creator)));
 
     /// <summary>Forum moderation (pin, lock, close any post, retag): the same people who can pin messages there.</summary>
     public static bool CanModerateForum(Member member, Channel forum) => CanPin(member, forum);
@@ -54,6 +101,6 @@ public static class Permissions
     /// <summary>Scheduling events: members and above (not guests).</summary>
     public static bool CanCreateEvent(Member member) => Roles.Rank(member.Role) >= Roles.Rank(Roles.Member);
 
-    /// <summary>Editing or cancelling an event: whoever created it, or an admin who outranks them.</summary>
+    /// <summary>Editing or cancelling an event: whoever created it, or someone who can manage messages and outranks them.</summary>
     public static bool CanManageEvent(Member actor, string creatorKey, Member? creator) => CanManageThread(actor, creatorKey, creator);
 }

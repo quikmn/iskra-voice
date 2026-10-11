@@ -2,10 +2,20 @@ using Microsoft.Data.Sqlite;
 
 namespace Iskra.Server.Storage;
 
-public sealed record Member(string AccountKey, string Name, string Role, long JoinedAt);
+public sealed record Member(string AccountKey, string Name, string Role, long JoinedAt)
+{
+    /// <summary>Custom roles, highest first (see Store.Roles.cs).</summary>
+    public long[] RoleIds { get; init; } = [];
+    /// <summary>Everything the member's custom roles grant together.</summary>
+    public Perm Perms { get; init; }
+    /// <summary>Position of the member's highest custom role (0 = none).</summary>
+    public int TopPosition { get; init; }
+}
 public sealed record Channel(long Id, string Name, string Kind, int Position, string ReadRole, string WriteRole)
 {
     public long? CategoryId { get; init; }
+    /// <summary>Per-role overrides (a thread carries its parent channel's).</summary>
+    public ChannelOverride[] Overrides { get; init; } = [];
 }
 public sealed record Message(long Id, long ChannelId, string AuthorKey, string Text, long CreatedAt, long? EditedAt,
     string[] Attachments, long? ReplyTo);
@@ -271,6 +281,9 @@ public sealed partial class Store : IDisposable
         ("import-1", ImportMigration),
         ("keys-1", KeysMigration),
         ("organize-2", Organize2Migration),
+        ("roles-1", RolesMigration),
+        ("sends-1", SendsMigration),
+        ("roles-2", "ALTER TABLE roles ADD COLUMN mentionable INTEGER NOT NULL DEFAULT 0;"),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

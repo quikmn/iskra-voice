@@ -112,6 +112,8 @@ public sealed class FakeVoiceBackend : IVoiceBackend
 
     /// <summary>Every publish permission change, in order.</summary>
     public List<(string Room, string Identity, bool CanPublish)> Permissions { get; } = [];
+    /// <summary>The same list, under the name the moderation tests use.</summary>
+    public List<(string Room, string Identity, bool CanPublish)> Updated => Permissions;
     public List<(string Room, string Identity)> Muted { get; } = [];
     /// <summary>Makes permission changes fail, as if LiveKit were unreachable.</summary>
     public bool FailUpdates { get; set; }

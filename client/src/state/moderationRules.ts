@@ -91,6 +91,14 @@ export const AUDIT_ACTIONS: { action: string; label: string }[] = [
   { action: 'member.timeout', label: 'Timeouts' },
   { action: 'member.timeout.remove', label: 'Timeouts removed' },
   { action: 'member.role', label: 'Role changes' },
+  { action: 'member.roles', label: "Members' roles" },
+  { action: 'role.create', label: 'Roles created' },
+  { action: 'role.update', label: 'Roles edited' },
+  { action: 'role.delete', label: 'Roles deleted' },
+  { action: 'role.reorder', label: 'Roles reordered' },
+  { action: 'channel.overrides', label: 'Channel permissions' },
+  { action: 'voice.mute', label: 'Voice mutes' },
+  { action: 'voice.move', label: 'Voice moves' },
   { action: 'channel.create', label: 'Channels created' },
   { action: 'channel.update', label: 'Channels edited' },
   { action: 'channel.delete', label: 'Channels deleted' },
@@ -133,6 +141,19 @@ export function auditText(e: AuditEntry): string {
     case 'member.timeout': return `${actor} timed out ${target} for ${durationText(Number(d.durationMs))}`
     case 'member.timeout.remove': return `${actor} ended ${target}'s timeout`
     case 'member.role': return `${actor} changed ${target}'s role from ${str(d.from)} to ${str(d.to)}`
+    case 'member.roles': {
+      const list = (v: unknown) => (Array.isArray(v) ? v.map(str).join(', ') : '')
+      const parts = [list(d.added) && `gave ${target} ${list(d.added)}`, list(d.removed) && `took ${list(d.removed)} from ${target}`].filter(Boolean)
+      return `${actor} ${parts.join(' and ') || `changed ${target}'s roles`}`
+    }
+    case 'role.create': return `${actor} created the role ${str(d.name)}`
+    case 'role.update': return `${actor} edited the role ${str(d.name)}`
+    case 'role.delete': return `${actor} deleted the role ${str(d.name)}`
+    case 'role.reorder': return `${actor} reordered the roles`
+    case 'channel.overrides': return `${actor} changed what ${str(d.role)} can do in ${channel(d.name)}`
+    case 'voice.mute': return `${actor} muted ${target} in ${channel(d.channelName)}`
+    case 'voice.unmute': return `${actor} unmuted ${target} in ${channel(d.channelName)}`
+    case 'voice.move': return `${actor} moved ${target} to ${channel(d.to)}`
     case 'channel.create': return `${actor} created ${channel(d.name)}`
     case 'channel.delete': return `${actor} deleted ${channel(d.name)}`
     case 'channel.update': {

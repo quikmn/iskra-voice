@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { canPingGroups, decodeMentions, encodeMentions, mentions, plainText, renderMarkdown } from './markdown'
+import { canPingGroups, decodeMentions, encodeMentions, mentions, plainText, renderMarkdown, roleMentions } from './markdown'
 
 const alice = 'A'.repeat(43)
 const ctx = { nameOf: (k: string) => (k === alice ? 'Alice' : null), me: alice }
@@ -71,5 +71,17 @@ describe('markdown', () => {
     expect(encodeMentions('mail me at x@Alice.com', members)).toBe('mail me at x@Alice.com')
     expect(encodeMentions('@Alicea is someone else', members)).toBe('@Alicea is someone else')
     expect(decodeMentions(`hi <@${alice}>`, (k) => (k === alice ? 'Alice' : null))).toBe('hi @Alice')
+  })
+})
+
+describe('role mentions', () => {
+  const key = 'A'.repeat(43)
+  it('encodes @Role names (members win a tie) and decodes them back', () => {
+    const roles = [{ id: 7, name: 'Moderators' }, { id: 8, name: 'Sam' }]
+    const encoded = encodeMentions('hey @Moderators and @Sam', [{ accountKey: key, name: 'Sam' }], roles)
+    expect(encoded).toBe(`hey <@&7> and <@${key}>`)
+    expect(roleMentions(encoded)).toEqual([7])
+    expect(decodeMentions(encoded, () => 'Sam', (id) => (id === 7 ? 'Moderators' : null))).toBe('hey @Moderators and @Sam')
+    expect(plainText('<@&7> ping', { nameOf: () => null, roleOf: () => ({ name: 'Moderators', color: null, mine: false }) })).toBe('@Moderators ping')
   })
 })
