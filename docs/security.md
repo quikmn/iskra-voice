@@ -65,11 +65,11 @@ A server can't forge anyone's signature, but it does decide which key it shows y
 - **Your servers are compared with each other**: if two servers say someone's old key moved to different new keys, you're told.
 - **Your friends' apps compare notes with yours**: now and then a DM carries a small signed summary (inside the end-to-end encryption) of the logs you both see and the key replacements you know. If a server signed one log for you and a different one for your friend, the two signatures prove it, and both apps say so. It also shows when a server lists a device for a friend that their own app doesn't know.
 - **Someone using a friend's name** with a different key, on a server your friend isn't on, gets a gentle warning.
-- You see what was found in Settings → App lock, above the chat when it's serious, and in the DM with the person concerned. Anyone can read a server's whole log in the app (Settings → App lock → View log), checked from the first entry: the view an owner or auditor uses.
+- You see what was found in Settings → App lock, above the chat when it's serious, and in the DM with the person concerned. Anyone can read a server's whole log in the app (Settings → App lock → View log), checked from the first entry: the view an owner or auditor uses. Problems an app finds are also reported to the server's owner, in its security log, and so is a log that was changed in the database.
 
 **What it catches:** a server that shows you a key its own log doesn't have; a server that shows two people different histories (a "split view"), as soon as two people who use that server talk to each other by DM; a server that rewrites or rolls back its log; servers that disagree about where someone's account went.
 
-**What it doesn't:** it detects, it doesn't prevent. A server that shows *everyone* the same fake person is consistent: names aren't identities, so if the first time you ever meet someone is on a server you don't trust, nothing but comparing safety numbers tells you it's really them. A split view stays hidden from someone who shares no friend with the people they're checking and never compares safety numbers. A server can refuse to answer (the app then shows it as unchecked, not as fine). The log tells members which keys joined when, under which names, which they could see in the member list anyway.
+**What it doesn't:** it detects, it doesn't prevent. A server that shows *everyone* the same fake person is consistent: names aren't identities, so if the first time you ever meet someone is on a server you don't trust, nothing but comparing safety numbers tells you it's really them. A split view stays hidden from someone who shares no friend with the people they're checking and never compares safety numbers. A server can refuse to answer (the app then shows it as unchecked, not as fine). The log tells members which keys joined when, under which names, which they could see in the member list anyway. Restoring a server from an older backup rolls its log back too, so members' apps will flag it: tell your members when you do.
 
 **Compared to the big systems:**
 
@@ -142,6 +142,13 @@ Server channels trust the server, because a server is run by you or your friend;
 - **Backups** are encrypted with a passphrase you choose (Argon2id, then XChaCha20-Poly1305 in chunks, so a changed or cut-off file is caught). The passphrase is sealed to the server's key before it leaves your app, so it never crosses the network in the clear, even without HTTPS. The automatic daily backups in the server folder aren't encrypted: they sit next to the keys already, so keep that folder private.
 - **Discord imports** only read the uploaded export: files referenced inside it are matched by name inside the archive, never fetched from Discord or read from anywhere else on disk.
 
+### Security log, retention and your data
+
+- **Security log** (Settings → Security log, the owner only): failed sign-ins, rate-limit hits, new members and devices, account key changes, account deletions, removed devices, backups and restores, moves, retention changes and data downloads, with the account key and time. Never message text, invite codes, passphrases or keys. IP addresses only if the owner turns that on (off by default). Bursts of the same event are capped, so a flood can't fill the disk. Moderators' actions stay in the audit log.
+- **Retention:** the owner chooses how long the server keeps messages (and encrypted DM and group envelopes), files in messages and DMs, the audit log (90 days by default) and the security log (365 days). 0 keeps forever; older data is deleted every hour.
+- **Download my data** (Settings → Privacy & data): a zip of everything a server keeps about you, through a link that works for 10 minutes; the owner can make one for a member who asks. The content of your DMs and group chats is only on your devices, so **Download data on this device** exports it from there (without your keys).
+- **HTTP:** every response refuses MIME sniffing, referrers and framing by other sites; HTTPS uses TLS 1.2 or 1.3 and HSTS for domain names. The voice service's own API only listens on the server itself.
+
 ### Profile pages
 
 A profile page is HTML someone else wrote, so it's locked in a strict sandbox. It only loads when you click *Open profile page*, and then:
@@ -213,4 +220,6 @@ The desktop app is the same web app in a locked-down shell: sandboxed, no Node.j
 
 ## Found a problem?
 
-Please open an issue on [GitHub](https://github.com/quikmn/iskra-voice/issues), or for something sensitive, email the maintainer (address on the GitHub profile) before making it public.
+How this maps to SOC 2, ISO/IEC 27001, the GDPR and OWASP ASVS, with the policies and evidence: [docs/compliance](compliance/README.md).
+
+For a security problem, please [report it privately](https://github.com/quikmn/iskra-voice/security/advisories/new) or email spark@iskra.foo, not in a public issue. [SECURITY.md](../SECURITY.md) explains what's in scope and what to expect. For anything else, open an issue on [GitHub](https://github.com/quikmn/iskra-voice/issues).

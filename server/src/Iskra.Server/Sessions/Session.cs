@@ -53,6 +53,12 @@ public sealed class Session
     /// <summary>The scheme and host this client connected through (e.g. https://1-2-3-4.sslip.io), when known.</summary>
     public string? Origin { get; init; }
 
+    /// <summary>The client's IP address: limits bursts in the security log, and is recorded there only if the owner turned that on.</summary>
+    public string? RemoteIp { get; init; }
+
+    /// <summary><see cref="RemoteIp"/> if the security log records addresses (Retention.SecurityLogIps), else null.</summary>
+    public string? LoggedIp => _world.Settings.Retention.SecurityLogIps ? RemoteIp : null;
+
     /// <summary>The authenticated account, or null before the handshake completes.</summary>
     public string? AccountKey { get; private set; }
 
@@ -155,6 +161,7 @@ public sealed class Session
                 AuthFailure.KeyRotation => (_authError!.Value.Code, _authError.Value.Message, CloseCodes.AuthFailed),
                 _ => ("auth_failed", "Authentication failed.", CloseCodes.AuthFailed),
             };
+            SecurityLog.Record(_world.Store, Now, "auth.failed", _provenAccount, LoggedIp, new { reason = code }, source: RemoteIp);
             SendNow(Frames.Error(envelope?.Id, code, message, failure == AuthFailure.KeyRotation ? _authError!.Value.Extra : null));
             Close(close, message);
             return;
@@ -212,6 +219,11 @@ public sealed class Session
 
             if (!_rateLimiter.TryTake(request.Type))
             {
+                if (Now - _rateLoggedAt >= 60_000)
+                {
+                    _rateLoggedAt = Now;
+                    SecurityLog.Record(this, "rate_limited", details: new { type = request.Type.Length <= 64 ? request.Type : request.Type[..64] });
+                }
                 Send(Frames.Error(request.Id, "rate_limited", "Slow down a little."));
                 continue;
             }
@@ -297,6 +309,12 @@ public sealed class Session
     /// <summary>Set when the handshake fails because the account was deleted or its key rotated (AccountFeature/KeyFeature.OnAuth).</summary>
     private (string Code, string Message, object Extra)? _authError;
 
+    /// <summary>The account a failed handshake proved it holds (signature checked), for the security log.</summary>
+    private string? _provenAccount;
+
+    /// <summary>When this session last wrote a rate_limited entry (one a minute at most).</summary>
+    private long _rateLoggedAt = long.MinValue / 2;
+
     private (Member?, AuthFailure) Authenticate(Envelope envelope, byte[] nonce, out string? deviceKey)
     {
         deviceKey = null;
@@ -340,6 +358,7 @@ public sealed class Session
         if (!Identity.VerifyAuth(cert, _world.ServerPublicKey, nonce, signature)) return (null, AuthFailure.Invalid);
 
         // Identity is proven from here on.
+        _provenAccount = cert.AccountKey;
         if (_world.Store.IsDeviceRevoked(cert.AccountKey, cert.DeviceKey)) return (null, AuthFailure.DeviceRevoked);
         _authError = AccountFeature.OnAuth(_world.Store, cert) ?? KeyFeature.OnAuth(_world, _hub, _voice, cert, body, Now);
         if (_authError is not null) return (null, AuthFailure.KeyRotation);
@@ -352,6 +371,8 @@ public sealed class Session
             if (existing.Name != name) _world.Store.SetMemberName(existing.AccountKey, name);
             ProfileFeature.ApplyFromAuth(_world.Store, existing.AccountKey, profile);
             PresenceFeature.ApplyFromAuth(_world.Store, existing.AccountKey, body, Now);
+            if (!_world.Store.HasDevice(cert.DeviceKey))
+                SecurityLog.Record(_world.Store, Now, "device.new", cert.AccountKey, LoggedIp, new { deviceKey = cert.DeviceKey });
             _world.Store.SaveDevice(cert, Now);
             KeyFeature.SignedIn(_world.Store, cert);
             return (existing with { Name = name }, AuthFailure.Invalid);
@@ -366,6 +387,7 @@ public sealed class Session
         ProfileFeature.ApplyFromAuth(_world.Store, member.AccountKey, profile);
         PresenceFeature.ApplyFromAuth(_world.Store, member.AccountKey, body, Now);
         if (role == Roles.Owner) OwnerSetup.OwnerJoined(_world);
+        SecurityLog.Record(_world.Store, Now, "member.joined", member.AccountKey, LoggedIp, new { role, bot = isBot });
         _hub.Broadcast(Frames.Event("member.joined", new { member = _hub.PublicMember(member) }));
         return (member, AuthFailure.Invalid);
     }

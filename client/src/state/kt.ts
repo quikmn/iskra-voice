@@ -32,6 +32,8 @@ export interface Finding {
   keys?: string[]
   /** The friend whose gossip showed it. */
   by?: string
+  /** The log position it's about, when there is one. */
+  seq?: number
 }
 
 export type LogStatus =
@@ -65,6 +67,8 @@ interface KtState {
 
 export const useKt = create<KtState>(() => ({ logs: {}, findings: [], seen: {} }))
 
+/** Findings about one server's log that its owner is told about (keylog.alert). */
+const ALERTS: FindingKind[] = ['fork', 'rollback', 'bad-log', 'unlogged-key', 'unlogged-rotation', 'gossip-fork']
 const HIGH: FindingKind[] = ['fork', 'rollback', 'bad-log', 'unlogged-key', 'unlogged-rotation', 'split', 'gossip-fork', 'gossip-conflict']
 /** Gossip goes out at most this often per friend (more often when something changed). */
 export const GOSSIP_EVERY_MS = 12 * 60 * 60 * 1000
@@ -101,6 +105,9 @@ function report(finding: Omit<Finding, 'at' | 'severity'> & { severity?: Finding
   if (data.findings.some((f) => f.id === finding.id)) return
   data.findings = [...data.findings, { severity: HIGH.includes(finding.kind) ? 'high' as const : 'medium' as const, at: Date.now(), ...finding }].slice(-MAX_FINDINGS)
   save()
+  // The server's owner sees it in their security log (an honest owner wants to know their server was tampered with).
+  if (finding.server && ALERTS.includes(finding.kind))
+    void connectionFor(finding.server)?.request('keylog.alert', { kind: finding.kind, ...(finding.seq ? { seq: finding.seq } : {}) }).catch(() => undefined)
 }
 
 export function dismissFinding(id: string): void {
@@ -281,7 +288,7 @@ export async function receiveGossip(from: string, to: string, raw: Record<string
   save()
   for (const f of findings) {
     if (f.kind === 'fork') {
-      report({ id: `gossip-fork:${f.server}`, kind: 'gossip-fork', server: f.server, by: from })
+      report({ id: `gossip-fork:${f.server}`, kind: 'gossip-fork', server: f.server, by: from, seq: f.seq })
       setLog(f.server, { state: 'problem', seq: data.views[f.server]?.head.seq ?? 0, hash: data.views[f.server]?.head.hash ?? '', checkedAt: Date.now() })
     } else {
       report({ id: `gossip-conflict:${f.oldKey}:${f.theirs}`, kind: 'gossip-conflict', person: f.mine, keys: [f.oldKey, f.mine, f.theirs], by: from })

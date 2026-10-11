@@ -243,6 +243,13 @@ iskra-server import-discord my-server export.zip              # add --read-only 
   },
   "Import": {
     "MaxMb": 4096                      // largest Discord export the owner may upload
+  },
+  "Retention": {                       // how long data is kept, in days; 0 = forever (Settings → Security log)
+    "MessagesDays": 0,                 // channel messages, and encrypted DM and group envelopes
+    "UploadsDays": 0,                  // files in messages and DMs (avatars, emoji, stickers, sounds and event covers stay)
+    "AuditDays": 90,                   // the audit log
+    "SecurityLogDays": 365,            // the security log
+    "SecurityLogIps": false            // also record IP addresses in the security log
   }
 }
 ```
@@ -262,12 +269,15 @@ iskra-server import-discord my-server export.zip              # add --read-only 
 | `backups/` | Daily backups (`auto-YYYY-MM-DD.zip`, not encrypted) and, briefly, a backup being downloaded |
 | `moved.json` | The signed "this server moved" notice, after **Move this server** |
 | `server.log` | Output, when started from the desktop app |
+| `exports/` | "Download my data" files while their 10-minute link lasts (never in backups) |
 
 Profile pages, polls, threads, pins, forums, events, roles, groups (their encrypted messages), webhooks (only a hash of each secret) and push subscriptions are all in `iskra.db` too, so copying the folder takes everything along.
 
 On Linux and macOS the server creates the folder (and `certs/`) readable by its own user only, writes secrets as `0600`, and tightens older secret files to `0600` when it starts.
 
 Uploads that nothing uses (no message, DM, avatar, emoji, sticker, sound, webhook, event cover, profile page or running watch party) are deleted after a day.
+
+**Security log and retention:** the owner reads the server's security log in **Settings → Security log** (failed sign-ins, new members and devices, key changes, account deletions, backups, moves, data downloads; IP addresses only if you turn that on) and sets how long messages, files, the audit log and the security log are kept. Deleting happens every hour and can't be undone. Members download what the server keeps about them in **Settings → Privacy & data**; if someone asks you instead, use **Someone's data** in Settings → Security log.
 
 **Backups and moving:** see [Backups, moving and importing](#backups-moving-and-importing). Copying the stopped server's folder works too; it holds secrets (`server.key`, `vapid.json`, `livekit.key`, `certs/`, `backups/`), so keep copies private. **Updating:** replace the `iskra-server` and `livekit-server` files and start it again.
 

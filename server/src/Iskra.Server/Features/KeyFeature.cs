@@ -111,6 +111,7 @@ public static class KeyFeature
                 if (holder is null) return (Outcome.Refused, "This account key was already rotated to a different key.");
                 var capped = Roles.Rank(holder.Role) > Roles.Rank(Roles.Member) ? Roles.Member : holder.Role;
                 store.RecordContest(r.OldKey, r, holder.AccountKey, holder.Role, capped, now);
+                SecurityLog.Record(store, now, "account.rotate.disputed", holder.AccountKey, requester?.LoggedIp);
                 KeyLogFeature.Sync(world, now);
                 var disputed = store.RotationFrom(r.OldKey)!;
                 var member = hub.PublicMember(holder with { Role = capped });
@@ -125,6 +126,8 @@ public static class KeyFeature
             if (store.KeyKnown(r.NewKey)) return (Outcome.Refused, "The new key is already in use here.");
             if (ChainTo(store, r.OldKey).Count >= MaxChain - 1) return (Outcome.Refused, "This account has rotated its key too many times.");
             store.ApplyRotation(r, certs, handovers, now);
+            // Under the new key, like everything else the rotation moved (the old key stays only in the signed rotation).
+            SecurityLog.Record(store, now, "account.rotate", r.NewKey, requester?.LoggedIp, new { devices = certs.Count });
             KeyLogFeature.Sync(world, now);
         }
 
@@ -270,6 +273,7 @@ public static class KeyFeature
             store.ResolveDispute(applied, keepContest, [], s.Now);
             KeyLogFeature.Sync(s.World, s.Now); // logged at once, so the key log never skips a holder
         }
+        SecurityLog.Record(s, "account.dispute.resolve", keep, new { kept = keepContest ? "contest" : "current" });
         var resolved = store.RotationFrom(oldKey)!;
         if (keepContest)
         {

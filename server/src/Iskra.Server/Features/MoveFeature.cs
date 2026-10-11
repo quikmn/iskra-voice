@@ -108,6 +108,7 @@ public static class MoveFeature
         var current = new[] { s.World.Settings.PublicUrl, s.World.InternetUrl, s.Origin }.Select(CleanUrl);
         if (current.Contains(url)) throw RequestException.BadRequest("That's this server's current address. Enter where it runs now.");
         var notice = Publish(s.World, url, s.Now);
+        SecurityLog.Record(s, "server.move", details: new { url });
         s.Hub.Broadcast(Frames.Event("server.moved", new { notice = View(notice) }));
         return new { notice = View(notice) };
     }
@@ -117,6 +118,7 @@ public static class MoveFeature
         RequireOwner(me);
         File.Delete(Path.Combine(s.World.Path, FileName));
         s.World.Moved = null;
+        SecurityLog.Record(s, "server.move.cancel");
         s.Hub.Broadcast(Frames.Event("server.moved", new { notice = (object?)null }));
         return null;
     }

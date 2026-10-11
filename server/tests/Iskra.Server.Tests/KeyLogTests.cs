@@ -174,4 +174,34 @@ public class KeyLogTests
         Assert.Equal("bad_request", (await alice.RequestAsync("keylog.entries", new { after = -1 })).ErrorCode());
         Assert.Equal("bad_request", (await alice.RequestAsync("keylog.entries", new { limit = 0 })).ErrorCode());
     }
+
+    [Fact]
+    public async Task Alerts_from_members_and_a_tampered_log_go_in_the_owners_security_log()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        using var bob = await server.JoinAsync("Bob");
+        await ReadLogAsync(server, bob);
+
+        // A member's app found a fork: the owner hears about it (and nothing else is taken from the report).
+        Assert.Equal("bad_request", (await bob.RequestAsync("keylog.alert", new { kind = "whatever" })).ErrorCode());
+        Assert.Equal("result", (await bob.RequestAsync("keylog.alert", new { kind = "gossip-fork", seq = 2 })).Type());
+        Assert.Equal("forbidden", (await bob.RequestAsync("security.log.list")).ErrorCode());
+        var alert = (await owner.RequestAsync("security.log.list", new { @event = "keylog.alert" })).Body().GetProperty("entries")[0];
+        Assert.Equal(bob.Key, alert.GetProperty("account").GetString());
+        Assert.Equal("gossip-fork", alert.GetProperty("details").GetProperty("kind").GetString());
+
+        // Someone edits the database underneath: the server notices the broken link when it next reads the log.
+        using (var db = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={Path.Combine(server.WorldPath, "iskra.db")};Pooling=False"))
+        {
+            db.Open();
+            using var cmd = db.CreateCommand();
+            cmd.CommandText = "UPDATE keylog SET hash = zeroblob(32) WHERE seq = 2;";
+            Assert.Equal(1, cmd.ExecuteNonQuery());
+        }
+        await owner.RequestAsync("keylog.head");
+        var events = (await owner.RequestAsync("security.log.list")).Body().GetProperty("entries").EnumerateArray().Select(e => e.GetProperty("event").GetString()).ToList();
+        Assert.Contains("keylog.reloaded", events);
+        Assert.Contains("keylog.broken", events);
+    }
 }

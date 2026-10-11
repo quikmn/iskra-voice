@@ -200,6 +200,8 @@ public static partial class BackupArchive
             var key = Ed25519.ToB64u(world.ServerPublicKey);
             if (key != manifest.ServerKey) throw new InvalidDataException("The backup is damaged (its key doesn't match).");
             var (messages, _, _) = world.Store.Counts();
+            Features.SecurityLog.Record(world.Store, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), "backup.restored",
+                details: new { backupMadeAt = manifest.CreatedAt, uploads });
             return new RestoreResult(world.Settings.Name, key, uploads, messages, target);
         }
         catch

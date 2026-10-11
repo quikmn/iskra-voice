@@ -26,6 +26,23 @@ public static class KeyLogFeature
     {
         router.Add("keylog.head", (s, _, _) => new { head = Head(s.World, s.Now) });
         router.Add("keylog.entries", Entries);
+        router.Add("keylog.alert", Alert);
+    }
+
+    /// <summary>What a member's app may report about this server's log (see state/kt.ts).</summary>
+    public static readonly HashSet<string> AlertKinds = ["fork", "rollback", "bad-log", "unlogged-key", "unlogged-rotation", "gossip-fork"];
+
+    /// <summary>
+    /// A member's app found something wrong with this server's key log: the owner sees it in the security log.
+    /// Nothing is trusted from it beyond "someone reported this"; bursts are capped like every security event.
+    /// </summary>
+    private static object? Alert(Session s, Member me, Body body)
+    {
+        var kind = body.String("kind", 32);
+        if (!AlertKinds.Contains(kind)) throw RequestException.BadRequest("Unknown 'kind'.");
+        var seq = body.OptionalLong("seq", 0);
+        SecurityLog.Record(s, "keylog.alert", details: new { kind, seq, head = s.World.Store.KeyLogLast()?.Seq ?? 0 });
+        return null;
     }
 
     // ── Hashing and signing ─────────────────────────────────────────────────
@@ -86,7 +103,14 @@ public static class KeyLogFeature
         {
             // A restore can swap the database underneath: replay when our view doesn't match it.
             var last = store.KeyLogLast();
-            if (state.Seq != (last?.Seq ?? 0) || (last is not null && !last.Hash.AsSpan().SequenceEqual(state.Hash))) Replay(store, state);
+            if (state.Seq != (last?.Seq ?? 0) || (last is not null && !last.Hash.AsSpan().SequenceEqual(state.Hash)))
+            {
+                var before = state.Seq;
+                var broken = Replay(store, state);
+                // Not our own first load: the database changed underneath (a restored backup, or someone editing it).
+                if (before >= 0) SecurityLog.Record(store, now, "keylog.reloaded", details: new { from = before, to = state.Seq });
+                if (broken is { } at) SecurityLog.Record(store, now, "keylog.broken", details: new { seq = at });
+            }
 
             foreach (var r in store.AllRotationsForLog())
             {
@@ -124,8 +148,10 @@ public static class KeyLogFeature
         state.Hash = hash;
     }
 
-    private static void Replay(Store store, State state)
+    /// <summary>Rebuilds the state from the stored entries, checking every link. Returns the first entry whose hash doesn't match, if any.</summary>
+    private static long? Replay(Store store, State state)
     {
+        long? broken = null;
         state.Seq = 0;
         state.Hash = new byte[32];
         state.Names.Clear();
@@ -134,11 +160,13 @@ public static class KeyLogFeature
         {
             foreach (var e in page)
             {
+                if (broken is null && (e.Seq != state.Seq + 1 || !EntryHash(state.Hash, e.Seq, e.Data).AsSpan().SequenceEqual(e.Hash))) broken = e.Seq;
                 Apply(state, e.Data);
                 state.Seq = e.Seq;
                 state.Hash = e.Hash;
             }
         }
+        return broken;
     }
 
     /// <summary>Folds one entry into the state (the same rules clients use to read the log).</summary>

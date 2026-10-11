@@ -1337,6 +1337,39 @@ export interface Requests {
   'owner.transfer': [{ accountKey: string }, Record<string, never>]
 }
 
+// ── security log, retention and data export ──
+// See "Security log, retention and your data" in PROTOCOL.md.
+
+export interface SecurityEvent {
+  id: number
+  at: number
+  event: string
+  account: string | null
+  accountName: string | null
+  /** Only when the owner turned on securityLogIps. */
+  ip: string | null
+  details: Record<string, unknown> | null
+}
+
+/** Days to keep each kind of data (0 keeps forever). */
+export interface Retention {
+  messagesDays: number
+  uploadsDays: number
+  auditDays: number
+  securityLogDays: number
+  securityLogIps: boolean
+}
+
+export interface Requests {
+  'security.log.list': [
+    { event?: string; account?: string; before?: number; limit?: number; export?: boolean },
+    { entries: SecurityEvent[]; hasMore: boolean },
+  ]
+  'retention.get': [Record<string, never>, Retention]
+  'retention.update': [Partial<Retention>, Retention]
+  'data.export': [{ accountKey?: string }, { url: string; name: string; size: number; expiresAt: number }]
+}
+
 // ── key transparency ──
 
 /** A key log head the server signed: "iskra/keylog-head/v1" 0x00 serverKey(32) u64be(seq) hash(32) u64be(at). */
@@ -1355,4 +1388,5 @@ export interface Welcome {
 export interface Requests {
   'keylog.head': [Record<string, never>, { head: KeyLogHead }]
   'keylog.entries': [{ after?: number; limit?: number }, { entries: { seq: number; data: string }[]; head: KeyLogHead }]
+  'keylog.alert': [{ kind: string; seq?: number }, Record<string, never>]
 }

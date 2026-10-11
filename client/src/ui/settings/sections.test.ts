@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { settingsSections } from './sections'
 
 const ids = (role: Parameters<typeof settingsSections>[0]) => settingsSections(role).map((s) => s.id)
-const account = ['profile', 'appearance', 'devices', 'recovery', 'security', 'notifications', 'voice', 'blocked', 'account', 'about']
+const account = ['profile', 'appearance', 'devices', 'recovery', 'security', 'notifications', 'voice', 'blocked', 'account', 'privacy', 'about']
 
 describe('settings sections', () => {
   it('shows only your account without a server', () => {
@@ -14,7 +14,7 @@ describe('settings sections', () => {
     expect(ids('member')).toEqual([...account, 'overview'])
     expect(ids('trusted')).toEqual([...account, 'overview', 'sounds'])
     expect(ids('admin')).toEqual([...account, 'overview', 'reports', 'roles', 'automod', 'emoji', 'sounds', 'integrations', 'pages', 'internet', 'audit', 'rules'])
-    expect(ids('owner')).toEqual([...ids('admin'), 'limits', 'backup', 'import'])
+    expect(ids('owner')).toEqual([...ids('admin'), 'limits', 'backup', 'import', 'securityLog'])
   })
 
   it('opens sections for the permissions a custom role gives', () => {
