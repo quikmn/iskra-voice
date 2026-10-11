@@ -339,6 +339,12 @@ public class KeyTests
             Sql("INSERT INTO audit_log (at, action, actor, actor_name, target, target_name) VALUES ($now, 'member.kick', $a, 'Alice', $b, 'Bob'), ($now, 'member.timeout', $b, 'Bob', $a, 'Alice');");
             Sql("INSERT INTO nicknames (account_key, nick) VALUES ($a, 'Al');");
             Sql("INSERT INTO account_prefs (account_key, name, data, updated_at) VALUES ($a, 'rail', 'sealed', $now);");
+            Sql("INSERT INTO roles (id, name, position, created_at) VALUES (5, 'Crew', 1, $now);");
+            Sql("INSERT INTO member_roles (account_key, role_id) VALUES ($a, 5);");
+            Sql("INSERT INTO send_nonces (account_key, nonce, message_id, created_at) VALUES ($a, 'nonce-123', 1, $now);");
+            Sql("INSERT INTO dm_files (file_id, uploader) VALUES ('dmf1', $a);");
+            Sql("INSERT INTO dm_file_access (file_id, account_key) VALUES ('dmf1', $a), ('dmf1', $b);");
+            Sql("INSERT INTO stickers (id, name, file_id, created_by, created_at) VALUES ('st1', 'wave', 'f', $a, $now);");
             Sql("INSERT INTO notify_settings (account_key, channel_id, level) VALUES ($a, 0, 'all');");
             Sql("INSERT INTO presence (account_key, status, updated_at) VALUES ($a, 'dnd', $now);");
             Sql("INSERT INTO events (id, title, start_at, end_at, time_zone, location_kind, location, created_by, created_at) VALUES (77, 't', $now + 3600000, $now + 7200000, 'UTC', 'place', 'here', $a, $now);");
