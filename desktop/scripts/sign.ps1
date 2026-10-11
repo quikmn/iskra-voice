@@ -3,9 +3,7 @@
 # isn't on this machine, so anyone can still build unsigned.
 param([Parameter(Mandatory, ValueFromRemainingArguments)][string[]]$Files)
 $ErrorActionPreference = 'Stop'
-# Started from PowerShell 7, Windows PowerShell inherits its module path and can miss the Cert: drive's
-# -CodeSigningCert switch, so load the module explicitly and filter on the key usage ourselves.
-Import-Module Microsoft.PowerShell.Security
+# Filters on the key usage itself: -CodeSigningCert is missing when the module path points at PowerShell 7's modules.
 $cert = Get-ChildItem Cert:\CurrentUser\My |
   Where-Object { $_.HasPrivateKey -and $_.Subject -like '*Open Source Developer Viktor Lundgren*' -and ($_.EnhancedKeyUsageList.ObjectId -contains '1.3.6.1.5.5.7.3.3') } |
   Select-Object -First 1

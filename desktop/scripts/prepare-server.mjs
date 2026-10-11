@@ -35,8 +35,10 @@ for (const rid of rids) {
     chmodSync(join(out, 'livekit-server'), 0o755)
   }
   if (windows && process.platform === 'win32' && !process.env.ISKRA_UNSIGNED) {
-    // Sign our own server binary (LiveKit ships as-is from its project).
-    execFileSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(here, 'sign.ps1'), join(out, 'iskra-server.exe')], { stdio: 'inherit' })
+    // Sign our own server binary (LiveKit ships as-is from its project). Without PowerShell 7's module path, so
+    // Windows PowerShell loads its own certificate cmdlets.
+    const { PSModulePath: _, ...env } = process.env
+    execFileSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(here, 'sign.ps1'), join(out, 'iskra-server.exe')], { stdio: 'inherit', env })
   }
   console.log(`Server bundle for ${rid} ready in ${out}`)
 }
