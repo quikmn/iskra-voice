@@ -10,6 +10,7 @@ import {
   type GroupAction, type GroupChange, type GroupEnvelope, type GroupView,
 } from '../core/group'
 import { RequestError, type WireGroup, type WireGroupMessage } from '../core/protocol'
+import { checkFiles, type DmFile } from '../core/dmFiles'
 import * as storage from '../core/storage'
 import { ensurePrekeys, ownRevokedDevices } from './devices'
 import { mergeDm, orderTime } from './dmMerge'
@@ -18,6 +19,7 @@ import { groupTitle, type GroupMsg } from './groupLogic'
 import { show } from './notify'
 import { isBlocked, useBlocks } from './moderation'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
+import { keysReady } from './keyMap'
 
 export interface GroupConv {
   /** "<serverKey>/<groupId>" */
@@ -122,10 +124,22 @@ function persist(key: string): void {
   }, 300)
 }
 
+/** Attachments from storage or another device, checked like freshly decrypted ones (dropped if malformed). */
+function storedFiles(raw: unknown): { files?: DmFile[] } {
+  try {
+    const files = checkFiles(raw)
+    return files.length ? { files } : {}
+  } catch {
+    return {}
+  }
+}
+
 const storable = (g: GroupConv): storage.StoredGroup => ({
   serverKey: g.serverKey, id: g.id, chain: g.chain, name: g.name, nameAt: g.nameAt, names: namesFor(g),
   messages: g.messages.filter((m) => !m.pending && !m.error).slice(-MAX_LOCAL)
-    .map(({ id, from, text, sentAt, call, group }) => ({ id, from, to: g.id, text, sentAt, ...(call ? { call } : {}), ...(group ? { group } : {}) })),
+    .map(({ id, from, text, sentAt, call, group, files }) => ({
+      id, from, to: g.id, text, sentAt, ...(call ? { call } : {}), ...(group ? { group } : {}), ...(files?.length ? { files } : {}),
+    })),
 })
 
 /** Every group on this device with its chain and history, for a device link (the new device re-checks the chains). */
@@ -146,8 +160,8 @@ export async function importGroups(groups: unknown): Promise<void> {
     if (!g || !text(g.serverKey, 64) || !text(g.id, 32) || !Array.isArray(g.chain) || !Array.isArray(g.messages)) continue
     const chain = g.chain.filter((c) => c && text(c.payload, 4096) && text(c.sig, 128)).map(({ payload, sig }) => ({ payload, sig }))
     const messages = g.messages.filter((m) => m && text(m.id, 64) && text(m.from, 64) && text(m.text, 4000) && typeof m.sentAt === 'number')
-      .map(({ id, from, text, sentAt, call, group }) => ({ id, from, to: g.id!, text, sentAt,
-        ...(call && typeof call === 'object' ? { call } : {}), ...(group && typeof group === 'object' ? { group } : {}) }))
+      .map(({ id, from, text, sentAt, call, group, files }) => ({ id, from, to: g.id!, text, sentAt,
+        ...(call && typeof call === 'object' ? { call } : {}), ...(group && typeof group === 'object' ? { group } : {}), ...storedFiles(files) }))
     await storage.saveGroup(groupKey(g.serverKey!, g.id!), {
       serverKey: g.serverKey!, id: g.id!, chain, messages: messages.slice(-MAX_LOCAL),
       name: typeof g.name === 'string' ? g.name.slice(0, MAX_GROUP_NAME) : null, nameAt: typeof g.nameAt === 'number' ? g.nameAt : 0,
@@ -160,6 +174,7 @@ export async function importGroups(groups: unknown): Promise<void> {
 /** Loads the groups kept on this device, re-checking each chain. */
 export function loadLocalGroups(): Promise<void> {
   localLoading ??= (async () => {
+    await keysReady() // chains compare members under their current keys
     const stored = await storage.loadGroups().catch(() => [] as storage.StoredGroup[])
     for (const s of stored) {
       let view: GroupView | null = null
@@ -174,7 +189,8 @@ export function loadLocalGroups(): Promise<void> {
         chain: view ? s.chain : g.chain, view: view ?? g.view, problem: problem ?? g.problem,
         name: s.nameAt >= g.nameAt ? s.name : g.name, nameAt: Math.max(s.nameAt, g.nameAt),
         names: { ...(s.names && typeof s.names === 'object' ? s.names : {}), ...g.names },
-        messages: s.messages.map(({ id, from, text, sentAt, call, group }) => ({ id, from, text, sentAt, call, group })).reduce<GroupMsg[]>(mergeDm, g.messages),
+        messages: s.messages.map(({ id, from, text, sentAt, call, group, files }) => ({ id, from, text, sentAt, call, group, ...storedFiles(files) }))
+          .reduce<GroupMsg[]>(mergeDm, g.messages),
       }))
     }
     localLoaded = true
@@ -250,8 +266,8 @@ async function openMessage(key: string, wire: WireGroupMessage): Promise<GroupMs
     const view = useGroups.getState().groups[key]?.view
     try {
       if (!view) throw new GroupBehindError('Group not loaded yet.')
-      const { text, header, call, group } = decryptGroup(identity, wire.envelope, routed, view)
-      return { id: header.id, from: wire.from, text, sentAt: orderTime(header.sentAt, wire.createdAt), call, group }
+      const { text, header, call, group, files } = decryptGroup(identity, wire.envelope, routed, view)
+      return { id: header.id, from: wire.from, text, sentAt: orderTime(header.sentAt, wire.createdAt), call, group, ...(files ? { files } : {}) }
     } catch (e) {
       if (e instanceof GroupBehindError && attempt === 0) {
         await syncGroup(key)
@@ -357,7 +373,9 @@ async function deliver(key: string, content: DmContent): Promise<GroupEnvelope> 
     if (reason) throw new DmError(reason)
     const envelope = await encryptFor(g!, content)
     try {
-      await connectionFor(g!.serverKey)!.request('group.send', { groupId: g!.id, version: g!.view!.version, envelope })
+      await connectionFor(g!.serverKey)!.request('group.send', {
+        groupId: g!.id, version: g!.view!.version, envelope, ...(content.files?.length ? { files: content.files.map((f) => f.id) } : {}),
+      })
       return envelope
     } catch (e) {
       if (!(e instanceof RequestError && e.code === 'conflict') || attempt > 0) throw e
@@ -366,7 +384,7 @@ async function deliver(key: string, content: DmContent): Promise<GroupEnvelope> 
   }
 }
 
-export async function sendGroupMessage(key: string, text: string, extra: Pick<DmContent, 'call' | 'group'> = {}): Promise<void> {
+export async function sendGroupMessage(key: string, text: string, extra: Pick<DmContent, 'call' | 'group' | 'files'> = {}): Promise<void> {
   const tempId = `pending-${Date.now()}-${Math.random()}`
   const mine = me()
   addMessage(key, { id: tempId, from: mine, text, sentAt: Date.now(), pending: 'sending', ...extra }, false)

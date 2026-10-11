@@ -2,6 +2,7 @@
 // Shared by DMs (which keys are one person) and state/keys.ts (which learns and makes rotations).
 import { bareRotation, KeyMap, verifyRotation, type Rotation } from '../core/rotation'
 import * as storage from '../core/storage'
+import { setGroupKeyResolver } from '../core/group'
 
 let keys = new KeyMap()
 let known: Rotation[] = []
@@ -20,6 +21,8 @@ export const keyMap = () => keys
 export const knownRotations = () => known
 /** The current key of whoever held <paramref name="key"/>. */
 export const resolveKey = (key: string) => keys.resolve(key)
+// Group chains compare members under their current keys (core/group.ts).
+setGroupKeyResolver(resolveKey)
 export const sameAccount = (a: string, b: string) => keys.same(a, b)
 
 /** Adds verified rotations (first claim on an old key wins). Returns the new ones. */

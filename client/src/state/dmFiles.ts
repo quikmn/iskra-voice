@@ -23,9 +23,9 @@ function put(url: string, body: Uint8Array, onProgress: (fraction: number) => vo
   })
 }
 
-/** Encrypts a file for a DM with `peer` and uploads the ciphertext to `serverKey` (one you both are on). */
+/** Encrypts a file for a DM with `peer` (or a group DM: `{ groupId }`) and uploads the ciphertext to `serverKey`. */
 export async function uploadDmFile(
-  serverKey: string, peer: string, file: File, onProgress: (fraction: number) => void,
+  serverKey: string, peer: string | { groupId: string }, file: File, onProgress: (fraction: number) => void,
   signal?: AbortSignal, voice?: DmFile['voice'],
 ): Promise<DmFile> {
   if (file.size > MAX_DM_FILE_BYTES) throw new Error(`Files in direct messages can be up to ${MAX_DM_FILE_BYTES / 1024 / 1024} MB.`)
@@ -34,7 +34,7 @@ export async function uploadDmFile(
   if (!server || !connection?.isOnline) throw new Error('Not connected.')
   const plain = new Uint8Array(await file.arrayBuffer())
   const { ciphertext, key, hash } = encryptFile(plain)
-  const { url } = await connection.request('dm.upload.begin', { accountKey: peer, size: ciphertext.length })
+  const { url } = await connection.request('dm.upload.begin', { ...(typeof peer === 'string' ? { accountKey: peer } : peer), size: ciphertext.length })
   const id = await put(server.url + url, ciphertext, onProgress, signal)
   return {
     server: serverKey, id, key, hash, name: cleanName(file.name), type: (file.type || 'application/octet-stream').slice(0, 100), size: plain.length,

@@ -14,6 +14,8 @@ export interface GroupMsg {
   call?: Record<string, unknown>
   /** A rename (see core/group.ts asRename). */
   group?: Record<string, unknown>
+  /** End-to-end encrypted attachments (core/dmFiles.ts). */
+  files?: import('../core/dmFiles').DmFile[]
 }
 
 /** One row of a group conversation: a message, or a membership change from the signed chain. */

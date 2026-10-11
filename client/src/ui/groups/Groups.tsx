@@ -13,8 +13,9 @@ import { useDms } from '../../state/dms'
 import { useApp } from '../../state/store'
 import { Avatar, Modal } from '../bits'
 import { clockTime, fullTime, hueFor, messageTime } from '../format'
-import { Lock, Menu, Pencil, Phone, Plus, Search, Send, UserPlus, Users, Video } from '../icons'
+import { Lock, Menu, Pencil, Phone, Plus, Search, UserPlus, Users, Video } from '../icons'
 import { renderMarkdown } from '../markdown'
+import { DmAttachments, DmComposer } from '../dms/DmFiles'
 import type { Panel } from '../Shell'
 import { GroupCallButtons, GroupCallPanel, OngoingCallBanner } from './GroupCall'
 import './groups.css'
@@ -335,7 +336,6 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
   useApp((s) => s.servers)
   const joined = useGroupCalls((s) => s.joined)
   const call = useGroupCalls((s) => s.calls[groupKey])
-  const [text, setText] = useState('')
   const [dialog, setDialog] = useState<'members' | 'add' | 'rename' | null>(null)
   const scroller = useRef<HTMLDivElement>(null)
   const items = useMemo(() => (g ? timeline(g.messages, g.view) : []), [g])
@@ -367,13 +367,6 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
   const inThisCall = joined?.key === groupKey
   const archived = isArchived(g)
   const member = isMember(g) && !archived
-
-  function submit() {
-    const trimmed = text.trim()
-    if (!trimmed || reason) return
-    setText('')
-    void sendGroupMessage(groupKey, trimmed)
-  }
 
   return (
     <div className="chat group-chat">
@@ -427,22 +420,7 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
 
       <div className="typing-line" />
       {!reason ? (
-        <div className="composer">
-          <textarea
-            rows={1}
-            value={text}
-            maxLength={4000}
-            placeholder={`Message ${title}`}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-                e.preventDefault()
-                submit()
-              }
-            }}
-          />
-          <button className="send-button" onClick={submit} disabled={!text.trim()} aria-label="Send"><Send /></button>
-        </div>
+        <DmComposer key={groupKey} peer="" placeholder={`Message ${title}`} group={{ key: groupKey, serverKey: g.serverKey, id: g.id }} />
       ) : (
         <div className="composer read-only">
           {reason}
@@ -484,12 +462,15 @@ function GroupRow({ m, grouped, groupKey, mine }: { m: GroupMsg; grouped: boolea
         {m.error && !m.pending ? (
           <div className="message-notice"><Lock size={13} /> {m.error}</div>
         ) : (
-          <div className="message-text">{renderMarkdown(m.text, { nameOf: (k) => knownName(k) })}</div>
+          <>
+            {m.text && <div className="message-text">{renderMarkdown(m.text, { nameOf: (k) => knownName(k) })}</div>}
+            <DmAttachments files={m.files} />
+          </>
         )}
         {m.pending === 'failed' && mine && (
           <div className="message-failed">
             {m.error ?? "Couldn't send."}{' '}
-            <button className="link" onClick={() => { discardGroupMessage(groupKey, m.id); void sendGroupMessage(groupKey, m.text) }}>Retry</button>
+            <button className="link" onClick={() => { discardGroupMessage(groupKey, m.id); void sendGroupMessage(groupKey, m.text, m.files ? { files: m.files } : {}) }}>Retry</button>
             {' · '}
             <button className="link" onClick={() => discardGroupMessage(groupKey, m.id)}>Discard</button>
           </div>

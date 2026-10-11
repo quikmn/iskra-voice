@@ -126,3 +126,27 @@ describe('group messages', () => {
     expect(asRename({ kind: 'other' })).toBeNull()
   })
 })
+
+describe('group chains across account key rotations', () => {
+  it("accepts a member's new key once the rotation is known, and keeps checking the old changes", async () => {
+    const { setGroupKeyResolver } = await import('./group')
+    const { alice, bob, carol, dave, id, create } = setup()
+    const bobNew = createIdentity()
+    // Without the rotation, Bob's new key is a stranger.
+    expect(() => verifyChain(id, [create, signChange(bobNew, verifyChain(id, [create]), id, 'add', [key(dave)])])).toThrow()
+    setGroupKeyResolver((k) => (k === key(bob) ? key(bobNew) : k))
+    try {
+      const view = verifyChain(id, [create])
+      const add = signChange(bobNew, view, id, 'add', [key(dave)])
+      const v2 = verifyChain(id, [create, add])
+      expect(v2.members).toEqual([key(alice), key(bobNew), key(carol), key(dave)])
+      // Messages from either key of Bob's are his.
+      const env = encryptGroup(bobNew, v2, bundle(alice, bobNew, carol, dave), { text: 'new key, same me' })
+      expect(decryptGroup(alice, env, route(env), v2).text).toBe('new key, same me')
+      // The owner can still remove Bob, under his new key.
+      expect(() => signChange(alice, v2, id, 'remove', [key(bobNew)])).not.toThrow()
+    } finally {
+      setGroupKeyResolver((k) => k)
+    }
+  })
+})

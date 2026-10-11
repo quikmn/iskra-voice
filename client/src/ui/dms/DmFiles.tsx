@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { DmFile } from '../../core/dmFiles'
 import { sendDm, sharedServers } from '../../state/dms'
+import { sendGroupMessage } from '../../state/groups'
 import { MAX_DM_FILE_BYTES, openDmFile, uploadDmFile, type OpenedFile } from '../../state/dmFiles'
 import { draftKey, setDraft, useDraft } from '../../state/drafts'
 import { ImageGrid, Lightbox, SpoilerCover, SpoilerToggle, isSpoilerName, longTextFile, shownName } from '../chat/media'
@@ -27,12 +28,19 @@ interface PendingUpload {
   abort: AbortController
 }
 
-export function DmComposer({ peer, placeholder }: { peer: string; placeholder: string }) {
-  const text = useDraft(draftKey.dm(peer))
-  const setText = (value: string) => setDraft(draftKey.dm(peer), value)
+/** Composer for a DM with `peer`, or for a group DM when `group` is given (files are then readable by its members). */
+export function DmComposer({ peer, placeholder, group }: {
+  peer: string; placeholder: string; group?: { key: string; serverKey: string; id: string }
+}) {
+  const draft = group ? draftKey.dm(`g:${group.key}`) : draftKey.dm(peer)
+  const text = useDraft(draft)
+  const setText = (value: string) => setDraft(draft, value)
   const [uploads, setUploads] = useState<PendingUpload[]>([])
   const fileInput = useRef<HTMLInputElement>(null)
-  const route = sharedServers(peer)[0]
+  const route = group ? group.serverKey : sharedServers(peer)[0]
+  const target = group ? { groupId: group.id } : peer
+  const send = (body: string, files: DmFile[]) =>
+    group ? sendGroupMessage(group.key, body, files.length ? { files } : {}) : sendDm(peer, body, files.length ? { files } : {})
   const uploading = uploads.some((u) => !u.result && !u.error)
   const ready = uploads.filter((u) => u.result).map((u) => u.result!)
   const canSend = !!route && !uploading && (text.trim().length > 0 || ready.length > 0)
@@ -48,7 +56,7 @@ export function DmComposer({ peer, placeholder }: { peer: string; placeholder: s
       setUploads((list) => [...list, item])
       if (item.error) continue
       const update = (patch: Partial<PendingUpload>) => setUploads((list) => list.map((u) => (u.localId === item.localId ? { ...u, ...patch } : u)))
-      uploadDmFile(route, peer, file, (progress) => update({ progress }), item.abort.signal)
+      uploadDmFile(route, target, file, (progress) => update({ progress }), item.abort.signal)
         .then((result) => update({ result, progress: 1 }))
         .catch((e: Error) => e.name !== 'AbortError' && update({ error: e.message }))
     }
@@ -73,13 +81,13 @@ export function DmComposer({ peer, placeholder }: { peer: string; placeholder: s
     for (const u of uploads) if (u.preview) URL.revokeObjectURL(u.preview)
     setUploads([])
     setText('')
-    void sendDm(peer, text.trim(), files.length ? { files } : {})
+    void send(text.trim(), files)
   }
 
   async function sendVoice(recording: Recording) {
     if (!route) throw new Error("You don't share an online server with this person right now.")
-    const file = await uploadDmFile(route, peer, recording.file, () => {}, undefined, { duration: recording.duration, waveform: recording.waveform })
-    await sendDm(peer, '', { files: [file] })
+    const file = await uploadDmFile(route, target, recording.file, () => {}, undefined, { duration: recording.duration, waveform: recording.waveform })
+    await send('', [file])
   }
 
   return (

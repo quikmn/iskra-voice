@@ -894,15 +894,16 @@ A voice message is a channel message with one recorded audio file and no text:
 
 ### Encrypted DM attachments
 
-Pictures, videos, files and voice messages in DMs are end-to-end encrypted like the text. The server stores ciphertext it can't read, under the upload quota, and hands it out only to the people in the conversation.
+Pictures, videos, files and voice messages in DMs and [group DMs](#group-dms-and-group-calls-end-to-end-encrypted) are end-to-end encrypted like the text. The server stores ciphertext it can't read, under the upload quota, and hands it out only to the people in the conversation.
 
 | type | body | result | who |
 |---|---|---|---|
-| `dm.upload.begin` | `accountKey` (the other person, or yourself), `size` (ciphertext bytes, ≤ `MaxUploadMb`) | `{ url: "/upload/<ticket>", maxBytes }` | members (not bots); counts against the [upload limits](#limits) like `upload.begin` |
+| `dm.upload.begin` | `accountKey` (the other person, or yourself) or `groupId` (a group you're in), `size` (ciphertext bytes, ≤ `MaxUploadMb`) | `{ url: "/upload/<ticket>", maxBytes }` | members (not bots); counts against the [upload limits](#limits) like `upload.begin` |
 | `dm.send` | adds `files?: [fileId...]` (≤ 10): your own DM uploads for this person, each sent once | | |
+| `group.send` | adds `files?: [fileId...]` (≤ 10): your own DM uploads that every current member can read, each sent once | | |
 | `dm.file.url` | `id` | `{ url: "/dmfiles/<id>?exp=…&sig=…", size }` (valid 10 minutes) | the accounts in the file's access list; anyone else gets `not_found` |
 
-- The upload is `PUT <server>/upload/<ticket>` as usual. DM uploads are never sniffed (type `application/octet-stream`), never served from `/files/`, and readable only by their **access list**: the uploader and the `accountKey` given to `dm.upload.begin` (a list, so group DMs can use the same table later). `GET /dmfiles/<id>` needs the signed link from `dm.file.url` (HMAC-SHA-256 over `"iskra/dm-file-link/v1"`, the id and the expiry, with a key the server makes at startup) and answers the bytes as an opaque `attachment` (`nosniff`, a sandboxing CSP). Uploads no DM refers to are swept after 24 hours like other uploads.
+- The upload is `PUT <server>/upload/<ticket>` as usual. DM uploads are never sniffed (type `application/octet-stream`), never served from `/files/`, and readable only by their **access list**: the uploader and the `accountKey` given to `dm.upload.begin`, or for a group every member at the time of the upload (people added later can't fetch older files; people who left keep access to what was shared while they were in). `GET /dmfiles/<id>` needs the signed link from `dm.file.url` (HMAC-SHA-256 over `"iskra/dm-file-link/v1"`, the id and the expiry, with a key the server makes at startup) and answers the bytes as an opaque `attachment` (`nosniff`, a sandboxing CSP). Uploads no DM refers to are swept after 24 hours like other uploads.
 - **Encryption** (client): a random 32-byte key per file; libsodium `crypto_secretstream_xchacha20poly1305` over 64 KiB chunks, additional data `"iskra/dm-file/v1"` on every chunk, the last one tagged `FINAL`. Ciphertext = 24-byte header ‖ chunks (each 17 bytes longer than its plaintext). `hash` = BLAKE2b-256 (`crypto_generichash(32)`) of the ciphertext.
 - The DM content (inside the encrypted envelope) gains `files: [DmFile]`, and `text` may then be empty:
   ```jsonc

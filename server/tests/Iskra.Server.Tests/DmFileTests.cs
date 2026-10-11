@@ -123,4 +123,30 @@ public class DmFileTests
         Assert.Equal("not_found", (await alice.RequestAsync("dm.file.url", new { id = unsent })).ErrorCode());
         Assert.Null(server.World.Store.GetDmFile(unsent));
     }
+
+    [Fact]
+    public async Task Group_dm_attachments_are_for_the_members_of_the_group()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        using var bob = await server.JoinAsync("Bob");
+        using var carol = await server.JoinAsync("Carol");
+        using var eve = await server.JoinAsync("Eve");
+        var group = GroupTests.NewId();
+        await GroupTests.CreateAsync(alice, group, bob, carol);
+        Assert.Equal("not_found", (await eve.RequestAsync("dm.upload.begin", new { groupId = group, size = 10 })).ErrorCode());
+
+        var ticket = (await alice.RequestAsync("dm.upload.begin", new { groupId = group, size = 4 })).Body();
+        using var response = await server.CreateClient().PutAsync(ticket.GetProperty("url").GetString(), new ByteArrayContent([1, 2, 3, 4]));
+        var id = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("file").GetProperty("id").GetString()!;
+        Assert.Equal("result", (await alice.RequestAsync("group.send", new { groupId = group, version = 1, envelope = new { v = 2 }, files = new[] { id } })).Type());
+        // Only once, and only your own.
+        Assert.Equal("bad_request", (await alice.RequestAsync("group.send", new { groupId = group, version = 1, envelope = new { v = 2 }, files = new[] { id } })).ErrorCode());
+        foreach (var member in new[] { alice, bob, carol }) await LinkFor(member, id);
+        Assert.Equal("not_found", (await eve.RequestAsync("dm.file.url", new { id })).ErrorCode());
+
+        // A file uploaded for a DM can't be slipped into a group whose members can't read it.
+        var dmFile = await UploadFor(server, alice, bob.Key, [5, 6]);
+        Assert.Equal("bad_request", (await alice.RequestAsync("group.send", new { groupId = group, version = 1, envelope = new { v = 2 }, files = new[] { dmFile } })).ErrorCode());
+    }
 }

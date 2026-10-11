@@ -878,7 +878,7 @@ export interface Requests {
   'group.change': [{ change: GroupChange }, { group: WireGroup }]
   'group.list': [Record<string, never>, { groups: { group: WireGroup; lastId: number | null; lastAt: number | null }[] }]
   'group.get': [{ groupId: string; since?: number }, { group: WireGroup; changes: (GroupChange & { version: number })[] }]
-  'group.send': [{ groupId: string; version: number; envelope: GroupEnvelope }, { message: WireGroupMessage }]
+  'group.send': [{ groupId: string; version: number; envelope: GroupEnvelope; files?: string[] }, { message: WireGroupMessage }]
   'group.history': [{ groupId: string; before?: number; limit?: number }, { messages: WireGroupMessage[]; hasMore: boolean }]
   'gcall.start': [{ groupId: string; callId: string; version: number; video: boolean; envelope: GroupEnvelope }, { call: WireGroupCall; ticket: CallTicket }]
   'gcall.join': [{ callId: string }, { ring: GroupCallRing; ticket: CallTicket }]
@@ -1078,7 +1078,7 @@ export interface Requests {
 // ── encrypted DM attachments ──
 
 export interface Requests {
-  'dm.upload.begin': [{ accountKey: string; size: number }, { url: string; maxBytes: number }]
+  'dm.upload.begin': [{ accountKey?: string; groupId?: string; size: number }, { url: string; maxBytes: number }]
   'dm.file.url': [{ id: string }, { url: string; size: number }]
 }
 

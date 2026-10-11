@@ -116,8 +116,10 @@ public static class GroupFeature
         if (envelope.ValueKind != JsonValueKind.Object) throw RequestException.BadRequest("'envelope' must be an object.");
         var raw = envelope.GetRawText();
         if (raw.Length > MaxEnvelopeBytes) throw RequestException.BadRequest("Message is too large.");
+        var files = DmFileFeature.CheckGroupAttachments(s, me, group.Members, body);
 
         var message = s.World.Store.AddGroupMessage(group.Id, me.AccountKey, version, raw, s.Now);
+        if (files.Length > 0) s.World.Store.LinkDmFiles(message.Id, files);
         var frame = Frames.Event("group.message", new { message = PublicMessage(message) });
         foreach (var account in group.Members) s.Hub.SendToAccount(account, frame);
         s.Push.GroupMessage(me, group.Id, Reachable(s, group));

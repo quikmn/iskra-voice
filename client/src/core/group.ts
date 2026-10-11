@@ -98,9 +98,24 @@ export function parseChange(change: GroupChange): { body: ChangeBody; head: stri
   return { body: body as ChangeBody, head: headOf(bytes) }
 }
 
+// ── Account key rotations ───────────────────────────────────────────────────
+// Someone who replaced their account key (a verified rotation) is the same member under their new key. Changes stay
+// signed by whichever key made them; member lists are compared under everyone's current key.
+
+let currentKey: (accountKey: string) => string = (k) => k
+
+/** Set by the app (state/keyMap.ts): maps an earlier account key to the current one, from verified rotations. */
+export function setGroupKeyResolver(resolve: (accountKey: string) => string): void {
+  currentKey = resolve
+}
+
+const sameKey = (a: string, b: string) => a === b || currentKey(a) === currentKey(b)
+
 /** The member list a change must produce (null view: a new group). Throws if the change breaks the rules. */
-export function expectedMembers(view: GroupView | null, c: Pick<ChangeBody, 'action' | 'by' | 'targets' | 'version' | 'prev'>): string[] {
+export function expectedMembers(view: GroupView | null, change: Pick<ChangeBody, 'action' | 'by' | 'targets' | 'version' | 'prev'>): string[] {
   const distinct = (keys: string[]) => new Set(keys).size === keys.length
+  const c = { ...change, by: currentKey(change.by), targets: change.targets.map(currentKey) }
+  if (view) view = { ...view, members: view.members.map(currentKey) }
   let members: string[]
   if (c.action === 'create') {
     if (view) throw new GroupError('This group was created twice.')
@@ -133,7 +148,7 @@ function apply(view: GroupView | null, change: GroupChange, groupId: string): Gr
   const { body, head } = parseChange(change)
   if (body.group !== groupId) throw new GroupError('A change from another group was mixed in.')
   const members = expectedMembers(view, body)
-  if (members.length !== body.members.length || members.some((m, i) => m !== body.members[i]))
+  if (members.length !== body.members.length || members.some((m, i) => !sameKey(m, body.members[i])))
     throw new GroupError("A change's member list doesn't match what it did.")
   return { id: groupId, version: body.version, head, members, changes: [...(view?.changes ?? []), { ...body, head }] }
 }
@@ -197,14 +212,15 @@ export function encryptGroup(
   options: EncryptOptions & { prekeys: SignedPrekey[] } = { prekeys: [] },
 ): GroupEnvelope {
   const from = b64u(identity.account.publicKey)
-  if (!view.members.includes(from)) throw new GroupError("You're not in this group any more.")
+  if (!view.members.some((m) => sameKey(m, from))) throw new GroupError("You're not in this group any more.")
   checkText(content)
   const revoked = revokedFor(identity, options)
   const targets: DeviceCert[] = validDevices([identity.cert], from, revoked)
   for (const member of view.members) {
     // Only the members of the verified chain, whatever else the bundles hold.
-    const devices = bundles.filter((b) => b.accountKey === member).flatMap((b) => b.devices)
-    for (const d of validDevices(devices, member, revoked)) if (!targets.some((t) => t.deviceKey === d.deviceKey)) targets.push(d)
+    const bundle = bundles.filter((b) => sameKey(b.accountKey, member))
+    const devices = bundle.flatMap((b) => b.devices)
+    for (const d of validDevices(devices, bundle[0]?.accountKey ?? member, revoked)) if (!targets.some((t) => t.deviceKey === d.deviceKey)) targets.push(d)
   }
   if (!targets.some((t) => t.accountKey !== from)) throw new DmError("Nobody else in this group has a device we can encrypt to yet.")
   const header: GroupHeader = { from, group: view.id, version: view.version, head: view.head, sentAt: now, id: b64u(randomBytes(12)) }
@@ -228,7 +244,7 @@ export function decryptGroup(
   if (header.version > view.version) throw new GroupBehindError('This message is for a newer version of the group.')
   const at = view.changes.find((c) => c.version === header.version)
   if (!at || at.head !== header.head) throw new DmError("This message was sent to a member list this group never had.")
-  if (!at.members.includes(header.from)) throw new DmError("This message is from someone who wasn't in the group.")
+  if (!at.members.some((m) => sameKey(m, header.from))) throw new DmError("This message is from someone who wasn't in the group.")
   if (sender.accountKey !== header.from || !verifyDeviceCert(sender)) throw new DmError("The sender's device couldn't be verified.")
   return { ...openContent(identity, { ...envelope, v: 2 }, groupAd(header)), header }
 }

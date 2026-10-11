@@ -55,9 +55,14 @@ async function syncWith(serverKey: string): Promise<void> {
   try {
     const { data, updatedAt } = await connection.request('prefs.get', { name: PREF })
     const local = useRail.getState().layout
-    if (data && updatedAt !== null && updatedAt > local.updatedAt) {
-      const opened = openPrefs(key, PREF, data)
-      const remote = opened === null ? null : parseLayout(JSON.parse(opened))
+    const opened = data ? openPrefs(key, PREF, data) : null
+    if (data && opened === null && updatedAt !== null && local.updatedAt > 0) {
+      // Sealed under an earlier account key (it was replaced): seal ours again under the current one.
+      const resealed = { ...local, updatedAt: Math.max(local.updatedAt, updatedAt + 1) }
+      keep(resealed)
+      await pushTo(serverKey, resealed)
+    } else if (opened !== null && updatedAt !== null && updatedAt > local.updatedAt) {
+      const remote = parseLayout(JSON.parse(opened))
       if (remote) keep(remote)
     } else if ((updatedAt ?? 0) < local.updatedAt) {
       await pushTo(serverKey, local)

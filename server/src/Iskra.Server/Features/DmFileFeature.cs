@@ -12,7 +12,8 @@ namespace Iskra.Server.Features;
 /// End-to-end encrypted DM attachments. Apps encrypt each file with its own random key and upload only ciphertext;
 /// the key, name, type and size travel inside the DM envelope. The server stores the bytes opaquely (never sniffed,
 /// never served from /files/), counts them against the upload quota, and hands short-lived download links only to
-/// the accounts in the file's access list: the people in the conversation.
+/// the accounts in the file's access list: the people in the conversation (both people of a DM, or the group's members
+/// when it was uploaded, for a group DM).
 /// </summary>
 public static class DmFileFeature
 {
@@ -32,13 +33,24 @@ public static class DmFileFeature
     private static object Begin(Session s, Member me, Body body)
     {
         if (s.World.Store.IsBot(me.AccountKey)) throw RequestException.Forbidden("Bots can't send direct messages.");
-        var key = body.String("accountKey", 64);
-        var peer = (key == me.AccountKey ? me : s.World.Store.GetMember(key)) ?? throw RequestException.NotFound("Member");
+        string[] readers;
+        if (body.OptionalString("groupId", GroupChain.IdLength) is { } groupId)
+        {
+            // A group DM: everyone in the group now (the access list doesn't change when the group does).
+            var group = GroupFeature.Mine(s, me, groupId);
+            readers = [.. group.Members];
+        }
+        else
+        {
+            var key = body.String("accountKey", 64);
+            var peer = (key == me.AccountKey ? me : s.World.Store.GetMember(key)) ?? throw RequestException.NotFound("Member");
+            readers = [me.AccountKey, peer.AccountKey];
+        }
         var size = body.OptionalLong("size", min: 1) ?? throw RequestException.BadRequest("'size' is required.");
         if (size > s.Uploads.MaxBytes)
             throw RequestException.BadRequest($"Files can be up to {s.Uploads.MaxBytes / 1024 / 1024} MB on this server.");
         if (!s.Hub.Limits.TryTake(me.AccountKey, "upload.begin")) throw new RequestException("rate_limited", "Slow down a little.");
-        var token = s.Uploads.Issue(me.AccountKey, me.Role, "dm-file", size, [me.AccountKey, peer.AccountKey])
+        var token = s.Uploads.Issue(me.AccountKey, me.Role, "dm-file", size, readers.Distinct().ToArray())
             ?? throw new RequestException("rate_limited",
                 $"You've reached today's upload limit on this server ({s.Uploads.DailyQuota(me.Role)!.Value / 1024 / 1024} MB a day). Try again later.");
         return new { url = $"/upload/{token}", maxBytes = s.Uploads.MaxBytes };
@@ -65,6 +77,19 @@ public static class DmFileFeature
         {
             var file = s.World.Store.GetDmFile(id);
             if (file is null || file.Uploader != me.AccountKey || file.MessageId is not null || !s.World.Store.CanReadDmFile(id, peer.AccountKey))
+                throw RequestException.BadRequest("Unknown attachment.");
+        }
+        return ids;
+    }
+
+    /// <summary>The files a group.send carries: your own DM uploads, readable by every current member, not sent before.</summary>
+    public static string[] CheckGroupAttachments(Session s, Member me, IReadOnlyCollection<string> members, Body body)
+    {
+        var ids = body.OptionalStringArray("files", MaxFilesPerMessage, 64).Distinct().ToArray();
+        foreach (var id in ids)
+        {
+            var file = s.World.Store.GetDmFile(id);
+            if (file is null || file.Uploader != me.AccountKey || file.MessageId is not null || members.Any(m => !s.World.Store.CanReadDmFile(id, m)))
                 throw RequestException.BadRequest("Unknown attachment.");
         }
         return ids;
