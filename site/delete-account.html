@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Delete Your Account - Iskra</title>
+<meta name="description" content="How to delete your Iskra account and data: the steps in the app, what is deleted and what isn't, and what to do if you can't open the app anymore.">
+<link rel="canonical" href="https://iskra.foo/delete-account">
+<meta name="theme-color" content="#0b0b14">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/site.css">
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="/">
+    <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M16 2L4 16h10l-2 10 14-16H16L18 2z" fill="url(#bolt)" stroke="none"/>
+      <defs>
+        <linearGradient id="bolt" x1="4" y1="2" x2="22" y2="26" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#7c6fff"/>
+          <stop offset="100%" stop-color="#00cfff"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    Iskra
+  </a>
+  <div class="nav-links">
+    <a class="btn btn-ghost nav-hide-sm" href="/support">Help</a>
+    <a class="btn btn-ghost nav-hide-sm" href="https://github.com/quikmn/iskra-voice" target="_blank" rel="noopener">GitHub</a>
+    <a class="btn btn-primary" href="/#download">Download</a>
+  </div>
+</nav>
+
+<main class="doc">
+  <div class="doc-kicker">Your data</div>
+  <h1>How to delete your <span class="grad">Iskra account</span></h1>
+  <p class="updated">Last updated 11 October 2026</p>
+
+  <p class="lead">You can delete your Iskra account and its data yourself, from the app, on every server at once. It takes a minute.</p>
+
+  <div class="box">
+    <div class="box-title">Good to know first</div>
+    <p>There is <strong>no central Iskra account database</strong>. Your account exists only on your own devices and on the servers you joined, so deleting it means removing it from each of those. The app does that for you.</p>
+  </div>
+
+  <h2 id="steps">Delete your account in the app</h2>
+  <ol class="steps">
+    <li>Open Iskra: the desktop app, <a href="https://app.iskra.foo">app.iskra.foo</a>, or the app on your phone.</li>
+    <li>Go to <span class="path">Settings → Account</span>.</li>
+    <li>Choose <strong>Delete account</strong>.</li>
+    <li>Choose whether to <strong>also delete all your messages</strong> on your servers. If you don't, your messages stay, without your profile.</li>
+    <li>Confirm by typing <strong>DELETE</strong> and pressing the delete button.</li>
+    <li>Done. Iskra removes your account from every server it can reach, then wipes this device and starts fresh.</li>
+  </ol>
+
+  <h3 id="owners">If you own a server</h3>
+  <p>A server can't be left without an owner. Before you delete your account, either:</p>
+  <ul>
+    <li><strong>hand it over:</strong> open the server's settings, go to <strong>Members</strong>, open the person's menu and choose <strong>Transfer ownership</strong>; or</li>
+    <li><strong>shut it down:</strong> stop the server and delete its folder (in the desktop app, servers live in <code>Documents\Iskra\Servers</code>, or <code>~/Library/Application Support/Iskra/Servers</code> on a Mac). Make a backup first in <span class="path">Settings → Backup &amp; move</span> if you might want it later.</li>
+  </ul>
+
+  <h2 id="what">What is deleted</h2>
+  <ul>
+    <li>Your <strong>profile</strong> on every server you're in: name, avatar, bio, pronouns, profile page, nickname, roles, and your settings there.</li>
+    <li>If you chose it, <strong>all your messages</strong> on those servers, with their files and reactions.</li>
+    <li>The server copies of your <strong>end-to-end encrypted DMs and group chats</strong>.</li>
+    <li>Your <strong>devices</strong> are revoked, and your push notification subscriptions removed.</li>
+    <li><strong>This device</strong> is wiped: your keys, messages and settings.</li>
+  </ul>
+
+  <h2 id="kept">What isn't deleted</h2>
+  <ul>
+    <li><strong>Copies on other people's devices.</strong> Messages already delivered to someone, such as the DMs you sent them, stay on their devices. Nobody can reach into someone else's phone or computer.</li>
+    <li><strong>Reports and the moderation log.</strong> A server's moderators may keep reports and its audit log for safety, with your name removed. Audit log entries are deleted after 90 days, and resolved reports 90 days after they're resolved.</li>
+    <li><strong>Backups.</strong> A server's daily backups (kept for 7 days by default) may still hold your data until they're replaced.</li>
+    <li><strong>Servers that are offline</strong> at the time can't be reached. If you're signed in on other devices, they finish the job when they next connect to that server. Otherwise, ask that server's owner to remove you.</li>
+  </ul>
+
+  <h2 id="lost">If you can't open the app anymore</h2>
+  <p>Deleting your account needs one of your devices or your recovery key, because only they can prove the account is yours. Nobody else, including us, can sign in as you.</p>
+  <ul>
+    <li><strong>You have your recovery key:</strong> open Iskra on any device, choose <strong>I already have Iskra</strong>, then <strong>Use my recovery key</strong>, and paste the key. Then follow the <a href="#steps">steps above</a>.</li>
+    <li><strong>You've lost all your devices and your recovery key:</strong> ask the owner of each server you were on to remove you and your data from their server. The server's owner is responsible for it, and we can't do it for them.</li>
+    <li><strong>Servers we run</strong> (such as chat.iskra.foo): email <a href="mailto:spark@iskra.foo?subject=Delete%20my%20account">spark@iskra.foo</a> with the subject "Delete my account", your display name and the server's address. Because there's no password, we may ask you to prove the account is yours (for example by describing your account or recent activity) before deleting anything.</li>
+  </ul>
+
+  <h2 id="more">More</h2>
+  <p>The <a href="/privacy">privacy policy</a> explains what Iskra stores and where. Questions? Email <a href="mailto:spark@iskra.foo">spark@iskra.foo</a>.</p>
+  <p>See also: <a href="/terms">Terms of Use</a> · <a href="/support">Help &amp; support</a></p>
+</main>
+
+<!-- FOOTER -->
+<footer>
+  <span>© 2026 Viktor Lundgren · <a href="https://github.com/quikmn/iskra-voice/blob/main/LICENSE" target="_blank" rel="noopener">PolyForm Noncommercial 1.0.0</a></span>
+  <div class="footer-links">
+    <a href="https://github.com/quikmn/iskra-voice" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md" target="_blank" rel="noopener">Hosting guide</a>
+    <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/security.md" target="_blank" rel="noopener">Security</a>
+    <a href="/terms">Terms</a>
+    <a href="/privacy">Privacy</a>
+    <a href="/support">Support</a>
+    <a href="/delete-account" aria-current="page">Delete account</a>
+    <a href="https://ko-fi.com/vlundgren" target="_blank" rel="noopener">Ko-fi</a>
+    <a href="https://www.paypal.com/donate/?business=viktor.lundgren%40gmail.com" target="_blank" rel="noopener">PayPal</a>
+  </div>
+</footer>
+
+</body>
+</html>

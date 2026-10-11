@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy - Iskra</title>
+<meta name="description" content="What Iskra stores, where, and who can see it: your keys stay on your devices, servers are run by their owners, DMs and calls are end-to-end encrypted, and there are no ads or tracking.">
+<link rel="canonical" href="https://iskra.foo/privacy">
+<meta name="theme-color" content="#0b0b14">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/site.css">
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="/">
+    <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M16 2L4 16h10l-2 10 14-16H16L18 2z" fill="url(#bolt)" stroke="none"/>
+      <defs>
+        <linearGradient id="bolt" x1="4" y1="2" x2="22" y2="26" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#7c6fff"/>
+          <stop offset="100%" stop-color="#00cfff"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    Iskra
+  </a>
+  <div class="nav-links">
+    <a class="btn btn-ghost nav-hide-sm" href="/support">Help</a>
+    <a class="btn btn-ghost nav-hide-sm" href="https://github.com/quikmn/iskra-voice" target="_blank" rel="noopener">GitHub</a>
+    <a class="btn btn-primary" href="/#download">Download</a>
+  </div>
+</nav>
+
+<main class="doc">
+  <div class="doc-kicker">Privacy</div>
+  <h1>Privacy <span class="grad">Policy</span></h1>
+  <p class="updated">Last updated 11 October 2026</p>
+
+  <p class="lead">Iskra is built so that as little as possible about you ends up anywhere. This page explains what is stored, where, who can see it, and how to get rid of it.</p>
+
+  <div class="box ok">
+    <div class="box-title">The short version</div>
+    <ul>
+      <li><strong>No ads, no analytics, no tracking.</strong> Not in the apps, not on the websites.</li>
+      <li><strong>No email, no phone number, no password.</strong> Your account is a key on your devices.</li>
+      <li><strong>There's no central Iskra database.</strong> Each server you join stores your profile and what you post there, and is run by its owner.</li>
+      <li><strong>Direct messages, group chats and their calls are end-to-end encrypted.</strong> Servers only pass along ciphertext.</li>
+      <li><strong>You can delete your account</strong> from the app, on every server at once.</li>
+    </ul>
+  </div>
+
+  <ul class="toc" aria-label="Contents">
+    <li><a href="#controller">1. Who is responsible</a></li>
+    <li><a href="#device">2. On your device</a></li>
+    <li><a href="#servers">3. On the servers you join</a></li>
+    <li><a href="#e2ee">4. DMs, group chats and calls</a></li>
+    <li><a href="#voice">5. Voice and video</a></li>
+    <li><a href="#reports">6. Reports and moderation</a></li>
+    <li><a href="#push">7. Notifications</a></li>
+    <li><a href="#third">8. Other services the apps contact</a></li>
+    <li><a href="#sites">9. The websites</a></li>
+    <li><a href="#retention">10. How long things are kept</a></li>
+    <li><a href="#delete">11. Deleting your data</a></li>
+    <li><a href="#children">12. Children</a></li>
+    <li><a href="#rights">13. Your rights</a></li>
+    <li><a href="#changes">14. Changes and contact</a></li>
+  </ul>
+
+  <h2 id="controller">1. Who is responsible for your data</h2>
+  <p>Iskra isn't one service: it's software that many people run. So who is responsible (the "controller" under the GDPR) depends on where your data is:</p>
+  <ul>
+    <li><strong>Each server's owner</strong> is responsible for the data on their server: your profile there, your messages, files and so on. If you want something from a server, ask its owner. They can see everything on their server that isn't end-to-end encrypted.</li>
+    <li><strong>Viktor Lundgren ("From a Spark")</strong>, Sweden, is responsible for the websites <strong>iskra.foo</strong> and <strong>app.iskra.foo</strong>, and for the servers he runs, such as <strong>chat.iskra.foo</strong>. Contact: <a href="mailto:spark@iskra.foo">spark@iskra.foo</a>. In this policy, "we" means him.</li>
+  </ul>
+  <p>We make the apps, but we don't receive your chats, your contacts or your usage. The apps don't send anything to us.</p>
+
+  <h2 id="device">2. On your device</h2>
+  <ul>
+    <li><strong>Your account keys</strong> are created on your device and never leave it unencrypted. In the desktop app they're protected by your operating system's keychain (Windows DPAPI, macOS Keychain, or GNOME Keyring / KWallet on Linux). In the browser and the phone app they're stored in the browser's storage (IndexedDB), encrypted with a key the browser keeps and never reveals. You can add an <strong>app lock</strong> passphrase on top (<span class="path">Settings → App lock</span>).</li>
+    <li><strong>Your decrypted direct messages and group chats</strong>, your settings, and the list of servers you've joined are stored on the device, encrypted in the same way.</li>
+    <li><strong>Settings that sync</strong> between your devices are stored on your servers end-to-end encrypted, so a server can't read them or see which other servers you're on.</li>
+    <li>Your <strong>recovery key</strong> is shown to you once and whenever you ask for it. Where you keep it is up to you.</li>
+    <li><strong>Activity status</strong> ("Playing&nbsp;X", desktop app only) is off until you turn it on. Games are recognised on your computer; only the game's name is sent to your servers, never the list of running programs.</li>
+  </ul>
+
+  <h2 id="servers">3. On the servers you join</h2>
+  <p>When you join a server, it stores what it needs to run your account there:</p>
+  <ul>
+    <li><strong>Your account's public key</strong> (your identity) and the public keys and names of your devices.</li>
+    <li><strong>Your profile:</strong> display name, avatar, bio, pronouns, profile colour, custom status, and your profile page if you make one. Plus your nickname, roles and when you joined, and which server rules you accepted.</li>
+    <li><strong>What you post:</strong> messages, edits, files, images, voice messages, reactions, polls and votes, pins, threads, forum posts, events you create or are interested in, emoji, stickers and sounds you add.</li>
+    <li><strong>Settings for that server</strong>, such as notification levels, and your block list (so the server can stop DMs and calls from people you've blocked; nobody else sees it).</li>
+    <li><strong>Push subscriptions</strong> for the devices where you turned notifications on (see <a href="#push">Notifications</a>).</li>
+    <li><strong>Your presence</strong> (online, idle, in voice) is kept in memory only while you're connected.</li>
+  </ul>
+  <p>Server channels, voice channels and files are <strong>not</strong> end-to-end encrypted: whoever runs the server can read them, and so can the members allowed into each channel. Servers use HTTPS when the owner has turned it on (it's automatic with "Open to the internet").</p>
+  <p>A server sees your <strong>IP address</strong> while you're connected, because it needs it to talk to you. Iskra's server doesn't store IP addresses in its database and doesn't log requests by default. Servers also keep <strong>daily backups</strong> (the last 7 days by default) so the owner can undo mistakes.</p>
+  <p>Links in messages get a preview (title and description) that <strong>the server fetches</strong>, not your device, so the website sees the server's address instead of yours.</p>
+
+  <h2 id="e2ee">4. Direct messages, group chats and calls</h2>
+  <p>Direct messages and group chats, including their pictures, files and voice messages, are <strong>end-to-end encrypted</strong>: only the people in the conversation can read them. Voice and video calls in DMs and group chats are end-to-end encrypted too. You can read the details in our <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/security.md" target="_blank" rel="noopener">security notes</a>.</p>
+  <p>A server that carries them stores <strong>only the ciphertext and the metadata needed to deliver it</strong>: who sent what to whom, when, and how big it is, plus group membership. It also knows who calls whom, when and for how long. It can't read the content or listen to the call.</p>
+
+  <h2 id="voice">5. Voice and video</h2>
+  <p>Voice and video go through a voice service (LiveKit) that runs <strong>alongside each server, on the same machine</strong>, under the server owner's control. It sees your IP address while you're in a call. In voice channels and stages the audio and video aren't end-to-end encrypted (the server could in principle access them); in DM and group calls they are. Iskra doesn't record calls.</p>
+  <p>When a server is open to the internet, its voice service may ask a public STUN server (by default one run by Google) for the server's own public address. This reveals the server's address, not yours.</p>
+
+  <h2 id="reports">6. Reports and moderation</h2>
+  <ul>
+    <li><strong>When you report a message</strong>, the server keeps a copy of it as it was when you reported it (text and attachments), with your reason and note, so moderators can see it even if it's deleted.</li>
+    <li><strong>When you report from a DM or group chat</strong>, only the messages you choose to share are sent to that server's moderators. The server can't check them against the encrypted originals, and moderators are told so.</li>
+    <li><strong>Your identity as the reporter</strong> is visible to the server's moderators, but <strong>never</strong> to the person you reported.</li>
+    <li>Moderators' actions (deleting messages, timeouts, kicks, bans, role changes) are recorded in the server's <strong>audit log</strong>, with names, for 90 days. Resolved reports are deleted 90 days after they're resolved.</li>
+    <li>If you email a safety concern to <a href="mailto:spark@iskra.foo">spark@iskra.foo</a>, we keep the email for as long as we need it to handle the concern, and we may pass illegal content to the authorities.</li>
+  </ul>
+
+  <h2 id="push">7. Notifications</h2>
+  <p>If you turn on notifications (<span class="path">Settings → Notifications</span>, per device), each server sends them through <strong>your browser's push service</strong>: Google (Chrome, Edge on Android, the Android app), Mozilla (Firefox), Microsoft (Edge on Windows) or Apple (Safari, iPhone and iPad). This uses the Web Push standard: every notification is encrypted to your device, so the push service can't read it, but it does see that a notification was sent to your device, and when.</p>
+  <ul>
+    <li><strong>DM and group chat notifications never contain the message</strong>, just "New message from&nbsp;X".</li>
+    <li>Mentions and replies in server channels include the sender's name, the channel and a short excerpt (up to 140 characters).</li>
+  </ul>
+  <p>The Android app runs the web app in Chrome, so its notifications come through Google's push service as well. If we release native phone apps later, their notifications would go through Apple's (APNs) or Google's (FCM) notification services in the same content-free way for DMs; we'll update this page first.</p>
+
+  <h2 id="third">8. Other services the apps may contact</h2>
+  <p>The apps contact your servers, and these other services only in the situations listed:</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Service</th><th>When</th><th>What it sees</th></tr></thead>
+      <tbody>
+        <tr><td><strong>KLIPY</strong> (GIFs)</td><td>Only if a server's owner turned GIFs on. By default your app searches KLIPY directly, and GIFs in messages load only after you click them (unless you turn on auto-load). An owner can instead route everything through the server.</td><td>Direct: your IP address, your search words, and a pseudonymous ID for you per server (not your account key). Through the server: only the server's address.</td></tr>
+        <tr><td><strong>YouTube, Twitch, X, Reddit</strong></td><td>Only when you press Play or Load on an embedded link, or join a watch party playing a YouTube video. YouTube uses its privacy-enhanced (youtube-nocookie.com) player.</td><td>Your IP address and what you play, under their own privacy policies.</td></tr>
+        <tr><td><strong>Watch-party sources</strong></td><td>When you join a watch party: everyone's app plays the video from its source (YouTube, a website, or the server).</td><td>Your IP address.</td></tr>
+        <tr><td><strong>GitHub</strong></td><td>The desktop app checks GitHub's releases for updates shortly after it starts and every few hours, and downloads updates from there. Downloads on iskra.foo come from GitHub too.</td><td>Your IP address and the app version.</td></tr>
+        <tr><td><strong>Google</strong> (spell checker)</td><td>The desktop app may download spell-checking dictionaries from Google's servers (standard behaviour of Electron, the framework the app is built on).</td><td>Your IP address and the dictionary language.</td></tr>
+        <tr><td><strong>Profile pages</strong></td><td>Only if you choose to run a profile page's scripts.</td><td>The page's author could learn your IP address. The app warns you first.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>If you <strong>run a server</strong> and turn on "Open to the internet", the server also talks to your router (UPnP or NAT-PMP, on your own network) to open ports, gets an HTTPS certificate from <strong>Let's Encrypt</strong>, and, if you haven't set your own domain, uses an address under <strong>sslip.io</strong> (a public DNS service that turns a name like <code>1-2-3-4.sslip.io</code> into the server's IP address). The server also fetches link previews from the linked websites and sends notifications to the push services above.</p>
+  <p>That's the complete list. The apps load no fonts, scripts or images from other sites, and contain no analytics, advertising or crash-reporting services.</p>
+
+  <h2 id="sites">9. The websites</h2>
+  <p><strong>iskra.foo</strong> and <strong>app.iskra.foo</strong> are static sites hosted on <strong>Cloudflare Pages</strong>. Like any web host, Cloudflare processes your IP address and request details to deliver the pages and protect them from attacks, and keeps short-lived logs. We don't add analytics, cookies or trackers to either site.</p>
+  <ul>
+    <li><strong>app.iskra.foo</strong> only delivers the web app's files. Once loaded, the app talks straight to the servers you join; Cloudflare doesn't see your chats.</li>
+    <li><strong>iskra.foo</strong> (this website) loads its fonts from <strong>Google Fonts</strong>, so Google sees your IP address when you visit it. The app itself doesn't use Google Fonts.</li>
+    <li>Links to Ko-fi, PayPal and GitHub take you to those sites, under their own privacy policies.</li>
+  </ul>
+  <p>Some of these companies (Cloudflare, Google, GitHub, and some push services) are based in the United States. They transfer data under the EU's approved safeguards, such as the EU–US Data Privacy Framework or standard contractual clauses.</p>
+
+  <h2 id="retention">10. How long things are kept</h2>
+  <ul>
+    <li><strong>Your messages and files</strong> stay on a server until you or a moderator delete them, the server's owner removes them, or you delete your account (and choose to delete your messages).</li>
+    <li><strong>Uploads that aren't used</strong> by any message, avatar or the like are deleted after 24 hours.</li>
+    <li><strong>Encrypted DM envelopes</strong> stay on a server so your other devices can fetch them; deleting your account removes your copies. The short-lived keys that protect them are deleted about five weeks after use, after which old envelopes can't be decrypted even with your device keys.</li>
+    <li><strong>Audit log entries</strong>: 90 days. <strong>Resolved reports</strong>: 90 days after they're resolved.</li>
+    <li><strong>Daily server backups</strong>: 7 days by default (the owner can choose 1 to 30).</li>
+    <li><strong>Ended or cancelled events</strong>: 30 days.</li>
+  </ul>
+
+  <h2 id="delete">11. Deleting your data</h2>
+  <p>You can delete things yourself: edit your profile, delete your own messages, remove a device, or leave a server. To remove everything at once, use <strong>Delete account</strong> in <span class="path">Settings → Account</span>. It:</p>
+  <ul>
+    <li>removes your profile, avatar, nickname, roles and settings on <strong>every server you're in</strong>;</li>
+    <li>optionally deletes <strong>all your messages</strong> on those servers;</li>
+    <li>deletes the server copies of your <strong>encrypted DMs and group chats</strong>;</li>
+    <li>revokes all your devices, and wipes Iskra from the device you're using.</li>
+  </ul>
+  <p>What isn't deleted: messages already on other people's devices (for example the DMs you sent them) stay with them. Moderators may keep reports and the audit log for safety, with your name removed. Servers that are offline at the time are reached by your other devices when they next connect, or you can ask their owners. See <a href="/delete-account">How to delete your account</a> for step-by-step instructions and what to do if you've lost your devices.</p>
+
+  <h2 id="children">12. Children</h2>
+  <p>Iskra is for people aged 13 or over, or the age at which you can consent to online services yourself in your country if that's higher (13 in Sweden; up to 16 in some EU countries). Below that age, you may only use it with a parent's or guardian's permission where the law allows. If you believe a child's data is on a server we run without that permission, email <a href="mailto:spark@iskra.foo">spark@iskra.foo</a> and we'll delete it.</p>
+
+  <h2 id="rights">13. Your rights</h2>
+  <p>Under the GDPR you have the right to <strong>access</strong> your data, to have it <strong>corrected</strong> or <strong>erased</strong>, to <strong>restrict</strong> or <strong>object</strong> to how it's used, and to get it in a portable form. Much of this you can do yourself in the app. For a server, ask its owner; for iskra.foo, app.iskra.foo and servers we run, email us.</p>
+  <p>Why we process data on what we run: to provide the service you asked for (your account, messages and calls on our server), and our legitimate interest in keeping the sites and servers working, secure and free of abuse. Where the law requires it, we may share information with authorities.</p>
+  <p>You can complain to the Swedish data protection authority, <strong>Integritetsskyddsmyndigheten (IMY)</strong>, at <a href="https://www.imy.se" target="_blank" rel="noopener">imy.se</a>, or to the authority where you live. We'd appreciate the chance to fix it first.</p>
+
+  <h2 id="changes">14. Changes and contact</h2>
+  <p>If we change this policy, we update this page and the date at the top. If a change matters, the app will tell you.</p>
+  <p>Viktor Lundgren ("From a Spark"), Sweden · <a href="mailto:spark@iskra.foo">spark@iskra.foo</a></p>
+  <p>See also: <a href="/terms">Terms of Use</a> · <a href="/support">Help &amp; support</a> · <a href="/delete-account">Delete your account</a></p>
+</main>
+
+<!-- FOOTER -->
+<footer>
+  <span>© 2026 Viktor Lundgren · <a href="https://github.com/quikmn/iskra-voice/blob/main/LICENSE" target="_blank" rel="noopener">PolyForm Noncommercial 1.0.0</a></span>
+  <div class="footer-links">
+    <a href="https://github.com/quikmn/iskra-voice" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md" target="_blank" rel="noopener">Hosting guide</a>
+    <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/security.md" target="_blank" rel="noopener">Security</a>
+    <a href="/terms">Terms</a>
+    <a href="/privacy" aria-current="page">Privacy</a>
+    <a href="/support">Support</a>
+    <a href="/delete-account">Delete account</a>
+    <a href="https://ko-fi.com/vlundgren" target="_blank" rel="noopener">Ko-fi</a>
+    <a href="https://www.paypal.com/donate/?business=viktor.lundgren%40gmail.com" target="_blank" rel="noopener">PayPal</a>
+  </div>
+</footer>
+
+</body>
+</html>
