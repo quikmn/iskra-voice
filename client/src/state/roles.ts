@@ -3,7 +3,8 @@ import { create } from 'zustand'
 import type { ChannelPermission, Events, Permission, ServerRole } from '../core/protocol'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 import { senderRules } from './senderRules'
-import { canPingGroups } from './permissions'
+import { canPingGroups, mentionsMyRole } from './permissions'
+import { mentions } from '../ui/markdown'
 
 export const useRoles = create<Record<string, ServerRole[]>>(() => ({}))
 
@@ -24,7 +25,7 @@ export async function createRole(serverKey: string, role: { name: string; color?
   return (await connection(serverKey).request('role.create', role)).role
 }
 
-export async function updateRole(serverKey: string, id: number, patch: { name?: string; color?: string; icon?: string; hoist?: boolean; permissions?: Permission[] }) {
+export async function updateRole(serverKey: string, id: number, patch: { name?: string; color?: string; icon?: string; hoist?: boolean; mentionable?: boolean; permissions?: Permission[] }) {
   return (await connection(serverKey).request('role.update', { id, ...patch })).role
 }
 
@@ -80,6 +81,18 @@ onServerEvent((serverKey, type, body) => {
 
 senderRules.canPingGroups = (server, message) =>
   canPingGroups(server.members[message.author], rolesFor(server.key), !!message.webhook)
+senderRules.mentionsMe = (server, message) =>
+  !!server.me && (mentions(message.text, server.me.accountKey, senderRules.canPingGroups(server, message))
+    || mentionsMyRole(message.text, server.me, server.members[message.author], rolesFor(server.key), !!message.webhook))
+
+/** For rendering: a role mention's name, colour, and whether I have it. */
+export function useRoleLookup(serverKey: string, me: { roles?: number[] } | null | undefined) {
+  const roles = useServerRoles(serverKey)
+  return (id: number) => {
+    const role = roles.find((r) => r.id === id)
+    return role ? { name: role.name, color: role.color, mine: !!me?.roles?.includes(id) } : null
+  }
+}
 
 /** For components outside a server context. */
 export const activeRoles = () => {

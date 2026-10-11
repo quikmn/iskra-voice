@@ -12,7 +12,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted)
 - **People and integrations:** [Profiles](#profiles) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints)
-- **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation) · [Roles and permissions](#roles-and-permissions)
+- **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation) · [Roles and permissions](#roles-and-permissions) · [Reliable sends](#reliable-sends)
 
 ---
 
@@ -802,4 +802,12 @@ Role { "id": 3, "name": "Moderator", "color": "#3ba55c" | null, "icon": "🛡️
 
 **Audit log** gains `role.create`, `role.update` (`{ added, removed }` permissions), `role.delete`, `role.reorder`, `member.roles` (`{ added, removed }` role names), `channel.overrides`, `voice.mute`, `voice.unmute`, `voice.move`. Reading it needs `viewAuditLog`.
 
+**Role mentions**: `<@&roleId>` in message text, shown as `@Role`. `Role` gains `mentionable` (default false; set with `role.create`/`role.update`). A role mention notifies (push, and clients count it as a mention) the role's members when the role is mentionable or the author may mention everyone (trusted+ or `mentionEveryone`); otherwise it's just text. Webhook posts never ping roles. Clients autocomplete only roles the author may mention.
+
 **Pushes and blocks**: the server sends no mention or reply push from someone the recipient has blocked. Clients also leave messages from blocked people out of unread and mention counts and notifications.
+
+## Reliable sends
+
+`chat.send` takes `nonce?` (8–64 characters of `A–Z a–z 0–9 - _`, random per message). The server stores at most one message per account and nonce (remembered for a day): a send that repeats a nonce gets `{ message, nonce }` with the message already stored, and nothing is posted or broadcast again (slowmode doesn't count it again; `not_found` if that message was deleted since). The result and the `chat.message` event carry the `nonce` (null without one), so the sender's app can replace its placeholder whichever arrives first.
+
+Clients make a nonce per message and, when the connection drops before the reply, send the same request again after reconnecting (before catching up on history). A retry from the "Couldn't send" state reuses the nonce too.

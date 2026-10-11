@@ -1,7 +1,7 @@
 // A thread beside its channel (full screen on phones): the message it started from, its replies, a composer.
 import { useEffect, useState } from 'react'
 import type { Message } from '../../core/protocol'
-import { useServerRoles } from '../../state/roles'
+import { useRoleLookup, useServerRoles } from '../../state/roles'
 import { canSendIn, has, outranks } from '../../state/permissions'
 import { connectionFor, loadHistory, type ServerState } from '../../state/store'
 import { closeThread, deleteThread, markThreadRead, renameThread, rememberThreads, useThreads } from '../../state/threads'
@@ -182,6 +182,7 @@ const short = (name: string) => (name.length > 28 ? `${name.slice(0, 27).trimEnd
 
 /** The message the thread started from, at the top of the thread. */
 function ThreadStart({ server, root, createdBy }: { server: ServerState; root: Message | null | undefined; createdBy?: string }) {
+  const roleOf = useRoleLookup(server.key, server.me)
   if (root === undefined) return <div className="thread-start"><Spinner /></div>
   const starter = createdBy ? server.members[createdBy]?.name ?? 'Someone' : null
   if (root === null) {
@@ -208,7 +209,7 @@ function ThreadStart({ server, root, createdBy }: { server: ServerState; root: M
           </div>
           {root.text && (
             <div className="message-text">
-              {renderMarkdown(root.text, { nameOf: (k) => server.members[k]?.name ?? null, me: server.me?.accountKey })}
+              {renderMarkdown(root.text, { nameOf: (k) => server.members[k]?.name ?? null, me: server.me?.accountKey, roleOf })}
             </div>
           )}
           <Attachments server={server} files={root.attachments} />

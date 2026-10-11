@@ -271,6 +271,8 @@ public sealed partial class Store : IDisposable
         ("security-1", SecurityMigration),
         ("moderation-1", ModerationMigration),
         ("roles-1", RolesMigration),
+        ("sends-1", SendsMigration),
+        ("roles-2", "ALTER TABLE roles ADD COLUMN mentionable INTEGER NOT NULL DEFAULT 0;"),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

@@ -86,6 +86,20 @@ export const nameColor = (member: Member | null | undefined, roles: ServerRole[]
 /** The highest role shown on its own in the member list. */
 export const hoistedRole = (member: Member, roles: ServerRole[]) => rolesOf(member, roles).find((r) => r.hoist) ?? null
 
+/** A role mention notifies when the role allows anyone to mention it, or the author may mention everyone. Webhooks never ping roles. */
+export const canMentionRole = (author: Member | undefined, role: ServerRole, roles: ServerRole[]) =>
+  !!role.mentionable || (!!author && canPingGroups(author, roles, false))
+
+/** Does this message mention one of the viewer's roles (in a way that notifies)? */
+export function mentionsMyRole(text: string, me: Member | null | undefined, author: Member | undefined, roles: ServerRole[], webhook: boolean): boolean {
+  if (!me || webhook) return false
+  const mine = new Set(me.roles ?? [])
+  return [...text.matchAll(/<@&(\d{1,12})>/g)].some((m) => {
+    const role = roles.find((r) => r.id === Number(m[1]))
+    return !!role && mine.has(role.id) && canMentionRole(author, role, roles)
+  })
+}
+
 /** Who can @everyone: webhooks, trusted+, or a role that allows it. */
 export const canPingGroups = (author: Member | undefined, roles: ServerRole[], webhook: boolean) =>
   webhook || (!!author && (roleRank(author.role) >= roleRank('trusted') || has(author, roles, 'mentionEveryone')))

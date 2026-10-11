@@ -58,7 +58,8 @@ public static partial class RoleFeature
 
     public static object Public(CustomRole r) => new
     {
-        id = r.Id, name = r.Name, color = r.Color, icon = r.Icon, hoist = r.Hoist, position = r.Position, permissions = PermList(r.Perms),
+        id = r.Id, name = r.Name, color = r.Color, icon = r.Icon, hoist = r.Hoist, mentionable = r.Mentionable, position = r.Position,
+        permissions = PermList(r.Perms),
     };
 
     // ── Validation ───────────────────────────────────────────────────────────
@@ -133,6 +134,11 @@ public static partial class RoleFeature
         var name = RoleName(body.String("name", 128));
         var role = s.World.Store.CreateRole(name, Color(body, null), Icon(body, null), body.OptionalBool("hoist") ?? false,
             ParsePerms(body, me, Perm.None), s.Now);
+        if (body.OptionalBool("mentionable") == true)
+        {
+            role = role with { Mentionable = true };
+            s.World.Store.UpdateRole(role);
+        }
         Audit.Record(s, "role.create", details: new { id = role.Id, name = role.Name, permissions = PermList(role.Perms) });
         RolesChanged(s);
         return new { role = Public(role) };
@@ -148,6 +154,7 @@ public static partial class RoleFeature
             Color = Color(body, role.Color),
             Icon = Icon(body, role.Icon),
             Hoist = body.OptionalBool("hoist") ?? role.Hoist,
+            Mentionable = body.OptionalBool("mentionable") ?? role.Mentionable,
             Perms = ParsePerms(body, me, role.Perms),
         };
         s.World.Store.UpdateRole(updated);

@@ -191,9 +191,11 @@ public class SafetyTests
         Assert.Equal("result", (await member.RequestAsync("chat.send", new { channelId = server.General, text = "back" })).Type());
 
         server.Services.GetServices<IHostedService>().OfType<ModerationSweeper>().Single().Sweep(pruneAudit: false);
-        var updated = (await admin.EventAsync("member.updated")).Body().GetProperty("member");
+        // Skip earlier updates (the member coming online can arrive late): the sweep's one says the timeout is over.
+        JsonElement updated;
+        do updated = (await admin.EventAsync("member.updated")).Body().GetProperty("member");
+        while (updated.GetProperty("timedOutUntil").ValueKind != JsonValueKind.Null);
         Assert.Equal(member.Key, updated.GetProperty("accountKey").GetString());
-        Assert.Equal(JsonValueKind.Null, updated.GetProperty("timedOutUntil").ValueKind);
         Assert.Null(server.World.Store.GetTimeout(member.Key));
     }
 

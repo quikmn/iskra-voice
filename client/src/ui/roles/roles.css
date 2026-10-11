@@ -60,3 +60,8 @@
   .role-perms { grid-template-columns: minmax(0, 1fr); }
   .tri button { width: 40px; height: 34px; }
 }
+
+/* Role mentions and their autocomplete */
+.mention.role-mention { font-weight: 600; }
+.mention-role-icon { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--surface-3); font-weight: 700; color: var(--muted); }
+.mention-kind { margin-left: auto; font-size: 12px; }

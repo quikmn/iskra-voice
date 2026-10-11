@@ -1,11 +1,10 @@
 // App state. Components read from here; all server traffic goes through the actions below.
 import { create } from 'zustand'
 import { Connection, type ConnectionStatus } from '../core/connection'
-import { ready } from '../core/crypto'
+import { b64u, randomBytes, ready } from '../core/crypto'
 import { createIdentity, type Identity } from '../core/identity'
 import { restoreIdentity } from '../core/recovery'
 import { authProfile } from '../core/profile'
-import { mentions } from '../ui/markdown'
 import { senderRules } from './senderRules'
 import type { InviteLink } from '../core/invite'
 import type { Channel, Events, FileInfo, Member, Message, VoiceParticipant, Welcome } from '../core/protocol'
@@ -15,6 +14,8 @@ export interface PendingMessage extends Message {
   pending?: 'sending' | 'failed'
   /** Client-side id for messages that aren't confirmed yet. */
   tempId?: string
+  /** Sent with chat.send; the server stores a message once per nonce, so retries can't duplicate it. */
+  nonce?: string
 }
 
 export interface ServerState {
@@ -259,6 +260,8 @@ function onWelcome(key: string, welcome: Welcome): void {
       if (lastId !== undefined) void catchUp(key, Number(channelId), lastId)
     }
   }
+  // Sends cut off by the disconnect go again first (same nonce: the server answers with the stored message if it got it).
+  for (const [tempId, unsent] of unsentSends) if (unsent.key === key) void deliver(key, unsent.channelId, tempId, unsent.body)
   const channel = activeChannelId(useApp.getState())
   if (channel !== null && useApp.getState().activeServer === key) void loadHistory(key, channel)
   for (const listener of welcomeListeners) listener(key, welcome)
@@ -286,7 +289,14 @@ function onEvent<K extends keyof Events>(key: string, type: K, body: Events[K]):
   for (const listener of eventListeners) listener(key, type, body)
   switch (type) {
     case 'chat.message': {
-      const { message } = body as Events['chat.message']
+      const { message, nonce } = body as Events['chat.message']
+      // Our own send arriving (maybe before its reply, or after a reconnect): it replaces the placeholder.
+      if (nonce) {
+        for (const [tempId, unsent] of unsentSends) if (unsent.key === key && unsent.body.nonce === nonce) unsentSends.delete(tempId)
+        patchServer(key, (s) => (s.messages[message.channelId]?.some((m) => m.tempId && m.nonce === nonce)
+          ? { messages: { ...s.messages, [message.channelId]: s.messages[message.channelId].filter((m) => !(m.tempId && m.nonce === nonce)) } }
+          : {}))
+      }
       const state = useApp.getState()
       const viewing = state.activeServer === key && activeChannelId(state) === message.channelId && document.hasFocus()
       patchServer(key, (s) => {
@@ -301,7 +311,7 @@ function onEvent<K extends keyof Events>(key: string, type: K, body: Events[K]):
             ? s.unread
             : { ...s.unread, [message.channelId]: (s.unread[message.channelId] ?? 0) + 1 },
           mentions: message.author === s.me?.accountKey || viewing || !s.me || senderRules.ignored(message.author)
-            || !mentions(message.text, s.me.accountKey, senderRules.canPingGroups(s, message))
+            || !senderRules.mentionsMe(s, message)
             ? s.mentions
             : { ...s.mentions, [message.channelId]: (s.mentions[message.channelId] ?? 0) + 1 },
         }
@@ -418,6 +428,36 @@ let tempCounter = 0
 export interface SendOptions {
   attachments?: FileInfo[]
   replyTo?: Message | null
+  /** Reuse a nonce (retrying a failed message). */
+  nonce?: string
+}
+
+type SendBody = { channelId: number; text: string; attachments: string[]; replyTo?: number; nonce: string }
+/** Sends that lost their connection, by tempId: sent again when the server is back. */
+const unsentSends = new Map<string, { key: string; channelId: number; body: SendBody }>()
+
+async function deliver(key: string, channelId: number, tempId: string, body: SendBody): Promise<void> {
+  try {
+    const connection = connections.get(key)
+    if (!connection) throw new Error('Not connected.')
+    const { message } = await connection.request('chat.send', body)
+    unsentSends.delete(tempId)
+    patchServer(key, (s) => ({
+      messages: { ...s.messages, [channelId]: upsertMessage((s.messages[channelId] ?? []).filter((m) => m.tempId !== tempId), message) },
+    }))
+  } catch (e) {
+    if ((e as { code?: string }).code === 'disconnected') {
+      unsentSends.set(tempId, { key, channelId, body }) // stays "sending" until we're back
+      return
+    }
+    unsentSends.delete(tempId)
+    patchServer(key, (s) => ({
+      messages: {
+        ...s.messages,
+        [channelId]: (s.messages[channelId] ?? []).map((m) => (m.tempId === tempId ? { ...m, pending: 'failed' as const } : m)),
+      },
+    }))
+  }
 }
 
 export async function sendMessage(key: string, channelId: number, text: string, options: SendOptions = {}): Promise<void> {
@@ -431,24 +471,12 @@ export async function sendMessage(key: string, channelId: number, text: string, 
     id: Number.MAX_SAFE_INTEGER, channelId, author: server.me.accountKey, text, createdAt: Date.now(), editedAt: null,
     attachments, reactions: [],
     replyTo: reply ? { id: reply.id, author: reply.author, text: reply.text, hasAttachments: reply.attachments.length > 0 } : null,
-    pending: 'sending', tempId,
+    pending: 'sending', tempId, nonce: options.nonce ?? b64u(randomBytes(16)),
   }
   patchServer(key, (s) => ({ messages: { ...s.messages, [channelId]: [...(s.messages[channelId] ?? []), temp] } }))
-  try {
-    const { message } = await connection.request('chat.send', {
-      channelId, text, attachments: attachments.map((a) => a.id), replyTo: reply?.id,
-    })
-    patchServer(key, (s) => ({
-      messages: { ...s.messages, [channelId]: upsertMessage((s.messages[channelId] ?? []).filter((m) => m.tempId !== tempId), message) },
-    }))
-  } catch {
-    patchServer(key, (s) => ({
-      messages: {
-        ...s.messages,
-        [channelId]: (s.messages[channelId] ?? []).map((m) => (m.tempId === tempId ? { ...m, pending: 'failed' as const } : m)),
-      },
-    }))
-  }
+  await deliver(key, channelId, tempId, {
+    channelId, text, attachments: attachments.map((a) => a.id), replyTo: reply?.id, nonce: temp.nonce!,
+  })
 }
 
 export function discardFailed(key: string, channelId: number, tempId: string): void {
@@ -458,7 +486,7 @@ export function discardFailed(key: string, channelId: number, tempId: string): v
 export async function retryFailed(key: string, channelId: number, message: PendingMessage): Promise<void> {
   if (!message.tempId) return
   discardFailed(key, channelId, message.tempId)
-  await sendMessage(key, channelId, message.text, { attachments: message.attachments })
+  await sendMessage(key, channelId, message.text, { attachments: message.attachments, nonce: message.nonce })
 }
 
 /** Uploads a file to a server, reporting progress (0–1). Resolves with the stored file. */

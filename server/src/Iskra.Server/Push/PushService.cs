@@ -93,6 +93,9 @@ public sealed partial class PushService
     [GeneratedRegex("<@([A-Za-z0-9_-]{43})>")]
     private static partial Regex MentionToken();
 
+    [GeneratedRegex("<@&([0-9]{1,12})>")]
+    private static partial Regex RoleMention();
+
     [GeneratedRegex(@"(^|\s)@(everyone|here)\b")]
     private static partial Regex GroupMention();
 
@@ -115,10 +118,18 @@ public sealed partial class PushService
             foreach (var member in store.AllMembers())
                 if (groups.Contains("everyone") || _hub.IsOnline(member.AccountKey)) kinds[member.AccountKey] = "mention";
         foreach (Match m in MentionToken().Matches(message.Text)) kinds[m.Groups[1].Value] = "mention";
+        // @Role: its members, if the role lets anyone mention it or the author may mention everyone.
+        foreach (Match m in RoleMention().Matches(message.Text))
+        {
+            if (!long.TryParse(m.Groups[1].Value, out var roleId) || store.GetRole(roleId) is not { } role) continue;
+            if (!role.Mentionable && !CanPingGroups(author)) continue;
+            foreach (var key in store.MembersWithRole(roleId)) kinds[key] = "mention";
+        }
         kinds.Remove(message.AuthorKey);
         if (kinds.Count == 0) return;
 
         var text = MentionToken().Replace(message.Text, m => "@" + (store.GetMember(m.Groups[1].Value)?.Name ?? "unknown"));
+        text = RoleMention().Replace(text, m => "@" + (long.TryParse(m.Groups[1].Value, out var id) && store.GetRole(id) is { } r ? r.Name : "role"));
         var body = text.Length == 0 ? "Sent an attachment" : Excerpt(text, 140);
         foreach (var (accountKey, kind) in kinds)
         {

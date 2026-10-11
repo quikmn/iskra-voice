@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Channel, Member, Role, ServerRole } from '../core/protocol'
-import { canDeleteMessage, canPingGroups, canSendIn, channelAccess, has, hoistedRole, isAbove, nameColor, outranks } from './permissions'
+import { canDeleteMessage, canPingGroups, canSendIn, channelAccess, has, hoistedRole, isAbove, mentionsMyRole, nameColor, outranks } from './permissions'
 
 const role = (id: number, position: number, extra: Partial<ServerRole> = {}): ServerRole =>
   ({ id, name: `r${id}`, color: null, icon: null, hoist: false, position, permissions: [], ...extra })
@@ -53,5 +53,18 @@ describe('permissions', () => {
     expect(hoistedRole(member('member', [3]), roles)?.id).toBe(3)
     expect(canPingGroups(member('member'), [role(9, 1, { permissions: ['mentionEveryone'] })], false)).toBe(false)
     expect(canPingGroups(member('member', [9]), [role(9, 1, { permissions: ['mentionEveryone'] })], false)).toBe(true)
+  })
+})
+
+describe('role mentions', () => {
+  it('notify members of the role when it is mentionable or the author may mention everyone', () => {
+    const list = [role(5, 1, { mentionable: false }), role(6, 2, { mentionable: true }), role(7, 3, { permissions: ['mentionEveryone'] })]
+    const me = member('member', [5, 6])
+    expect(mentionsMyRole('hi <@&5>', me, member('member', [], 'a'), list, false)).toBe(false)
+    expect(mentionsMyRole('hi <@&6>', me, member('member', [], 'a'), list, false)).toBe(true)
+    expect(mentionsMyRole('hi <@&5>', me, member('member', [7], 'a'), list, false)).toBe(true)
+    expect(mentionsMyRole('hi <@&5>', me, member('trusted', [], 'a'), list, false)).toBe(true)
+    expect(mentionsMyRole('hi <@&6>', me, undefined, list, true)).toBe(false) // webhooks never ping roles
+    expect(mentionsMyRole('hi <@&7>', me, member('owner', [], 'a'), list, false)).toBe(false) // not my role
   })
 })

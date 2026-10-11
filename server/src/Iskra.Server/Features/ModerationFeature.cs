@@ -269,7 +269,11 @@ public sealed class ModerationSweeper(World world, Hub hub, TimeProvider time, I
             var now = time.GetUtcNow().ToUnixTimeMilliseconds();
             foreach (var key in world.Store.EndExpiredTimeouts(now))
                 if (world.Store.GetMember(key) is { } member) hub.Broadcast(Frames.Event("member.updated", new { member = hub.PublicMember(member) }));
-            if (pruneAudit) world.Store.PruneAudit(now - (long)ModerationFeature.AuditRetention.TotalMilliseconds);
+            if (pruneAudit)
+            {
+                world.Store.PruneAudit(now - (long)ModerationFeature.AuditRetention.TotalMilliseconds);
+                world.Store.PruneNonces(now - (long)TimeSpan.FromDays(1).TotalMilliseconds);
+            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

@@ -1,7 +1,7 @@
 // Desktop notifications, the unread count in the window title, and small sounds.
 // Notifications fire for mentions and DMs when you aren't already looking at them.
 import { create } from 'zustand'
-import { mentions, plainText } from '../ui/markdown'
+import { plainText } from '../ui/markdown'
 import { senderRules } from './senderRules'
 import { activeChannelId, onServerEvent, useApp } from './store'
 import { conversationLabel, isViewingThread } from './threads'
@@ -103,8 +103,7 @@ onServerEvent((serverKey, type, body) => {
   if (type === 'chat.message') {
     const { message } = body as Events['chat.message']
     const myKey = me()
-    const groupPings = senderRules.canPingGroups(server, message)
-    if (message.author === myKey || senderRules.ignored(message.author) || !mentions(message.text, myKey, groupPings)) return
+    if (message.author === myKey || senderRules.ignored(message.author) || !senderRules.mentionsMe(server, message)) return
     const viewing = document.hasFocus() && state.activeServer === serverKey && activeChannelId(state) === message.channelId
     if (viewing || isViewingThread(serverKey, message.channelId)) return
     const author = message.webhook?.name ?? server.members[message.author]?.name ?? 'Someone'

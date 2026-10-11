@@ -105,6 +105,21 @@ test('custom roles: create, reorder, assign, moderate without admin, channel per
   await expect(log).toContainText('Host gave Mira Moderator')
   await expect(log).toContainText('Host edited the role Moderator')
 
+  // ── @Role mentions: autocomplete, then highlighted for the role's members.
+  await mod.keyboard.press('Escape')
+  const box = host.getByPlaceholder('Message #general')
+  await box.fill('@Mod')
+  const option = host.getByRole('listbox', { name: 'Mention someone' }).getByRole('option', { name: /Moderator/ })
+  await expect(option).toContainText('role')
+  await box.press('Enter')
+  await expect(box).toHaveValue('@Moderator ')
+  await box.pressSequentially('can someone look?')
+  await box.press('Enter')
+  await expect(mod.locator('.mention.role-mention.me', { hasText: '@Moderator' })).toBeVisible()
+  await expect(member.locator('.mention.role-mention', { hasText: '@Moderator' })).toBeVisible()
+  await expect(member.locator('.mention.role-mention.me')).toHaveCount(0)
+  await mod.screenshot({ path: join(SHOTS, 'roles-mention.png') })
+
   // Phone width: the roles list still fits.
   await host.setViewportSize({ width: 390, height: 844 })
   await host.getByRole('button', { name: 'Open channels' }).click()

@@ -32,7 +32,11 @@ public enum ChannelPerm : long
 }
 
 /// <summary>A custom role. Position 1 is the lowest; higher numbers are higher in the hierarchy.</summary>
-public sealed record CustomRole(long Id, string Name, string? Color, string? Icon, bool Hoist, int Position, Perm Perms, long CreatedAt);
+public sealed record CustomRole(long Id, string Name, string? Color, string? Icon, bool Hoist, int Position, Perm Perms, long CreatedAt)
+{
+    /// <summary>Anyone may @mention it (otherwise only people who may mention everyone).</summary>
+    public bool Mentionable { get; init; }
+}
 public sealed record ChannelOverride(long RoleId, ChannelPerm Allow, ChannelPerm Deny);
 
 public sealed partial class Store
@@ -63,11 +67,11 @@ public sealed partial class Store
         );
         """;
 
-    private const string RoleColumns = "id, name, color, icon, hoist, position, perms, created_at";
+    private const string RoleColumns = "id, name, color, icon, hoist, position, perms, created_at, mentionable";
 
     private static CustomRole ReadRole(Microsoft.Data.Sqlite.SqliteDataReader r) =>
         new(r.GetInt64(0), r.GetString(1), r.IsDBNull(2) ? null : r.GetString(2), r.IsDBNull(3) ? null : r.GetString(3),
-            r.GetInt64(4) != 0, r.GetInt32(5), (Perm)r.GetInt64(6), r.GetInt64(7));
+            r.GetInt64(4) != 0, r.GetInt32(5), (Perm)r.GetInt64(6), r.GetInt64(7)) { Mentionable = r.GetInt64(8) != 0 };
 
     /// <summary>Highest first.</summary>
     public List<CustomRole> AllRoles() => Query($"SELECT {RoleColumns} FROM roles ORDER BY position DESC;", ReadRole);
@@ -90,8 +94,9 @@ public sealed partial class Store
     }
 
     public void UpdateRole(CustomRole role) =>
-        Exec("UPDATE roles SET name = $n, color = $c, icon = $i, hoist = $h, perms = $p WHERE id = $id;",
-            ("$id", role.Id), ("$n", role.Name), ("$c", role.Color), ("$i", role.Icon), ("$h", role.Hoist ? 1 : 0), ("$p", (long)role.Perms));
+        Exec("UPDATE roles SET name = $n, color = $c, icon = $i, hoist = $h, perms = $p, mentionable = $m WHERE id = $id;",
+            ("$id", role.Id), ("$n", role.Name), ("$c", role.Color), ("$i", role.Icon), ("$h", role.Hoist ? 1 : 0), ("$p", (long)role.Perms),
+            ("$m", role.Mentionable ? 1 : 0));
 
     public void DeleteRole(long id)
     {

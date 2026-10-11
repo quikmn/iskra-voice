@@ -1,6 +1,6 @@
 // Chat formatting, Discord-style, rendered straight to React elements (never to an HTML string).
 // Supported: ```code blocks```, `code`, **bold**, *italic* / _italic_, ~~strike~~, ||spoiler||,
-// > quotes, links, mentions written as <@accountKey> (shown as @name) and server emoji written as <:name:id>.
+// > quotes, links, mentions written as <@accountKey> (shown as @name) or <@&roleId> (@Role), and server emoji written as <:name:id>.
 import { Fragment, type ReactNode } from 'react'
 import { roleRank, type Role } from '../core/protocol'
 import { Spoiler } from './bits'
@@ -13,10 +13,14 @@ export interface MarkdownContext {
   me?: string
   /** Image URL of a server emoji by id, or null if it isn't (or is no longer) on the server. */
   emoji?: (id: string) => string | null
+  /** A mentioned role: its name, colour, and whether the viewer has it. */
+  roleOf?: (id: number) => { name: string; color: string | null; mine: boolean } | null
 }
 
 const URL_PATTERN = /https?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]]/y
 const MENTION_PATTERN = /<@([A-Za-z0-9_-]{43})>/y
+const ROLE_MENTION_PATTERN = /<@&(\d{1,12})>/y
+const ROLE_TOKEN = /<@&(\d{1,12})>/g
 const EMOJI_PATTERN = new RegExp(CUSTOM_EMOJI_SOURCE, 'y')
 
 /** Inline rules in priority order: the first one that matches at a position wins. */
@@ -64,6 +68,20 @@ function inline(text: string, ctx: MarkdownContext, depth = 0): ReactNode[] {
         <span key={key++} className={`mention ${mention[1] === ctx.me ? 'me' : ''}`}>@{name ?? 'unknown'}</span>,
       )
       i += mention[0].length
+      continue
+    }
+
+    ROLE_MENTION_PATTERN.lastIndex = i
+    const roleMention = ROLE_MENTION_PATTERN.exec(text)
+    if (roleMention) {
+      flush()
+      const role = ctx.roleOf?.(Number(roleMention[1])) ?? null
+      out.push(
+        <span key={key++} className={`mention role-mention ${role?.mine ? 'me' : ''}`} style={role?.color ? { color: role.color } : undefined}>
+          @{role?.name ?? 'deleted role'}
+        </span>,
+      )
+      i += roleMention[0].length
       continue
     }
 
@@ -153,24 +171,36 @@ export function renderMarkdown(text: string, ctx: MarkdownContext): ReactNode {
 export function plainText(text: string, ctx: MarkdownContext): string {
   return text
     .replace(/<@([A-Za-z0-9_-]{43})>/g, (_, key: string) => `@${ctx.nameOf(key) ?? 'unknown'}`)
+    .replace(ROLE_TOKEN, (_, id: string) => `@${ctx.roleOf?.(Number(id))?.name ?? 'role'}`)
     .replace(new RegExp(CUSTOM_EMOJI_SOURCE, 'g'), (_, name: string) => `:${name}:`)
 }
 
-/** Turns "@Name" into mention tokens for members with that exact name (longest names first). */
-export function encodeMentions(text: string, members: { accountKey: string; name: string }[]): string {
-  const sorted = [...members].sort((a, b) => b.name.length - a.name.length)
+/** Turns "@Name" into mention tokens for members (and roles) with that exact name (longest names first; members win a tie). */
+export function encodeMentions(text: string, members: { accountKey: string; name: string }[], roles: { id: number; name: string }[] = []): string {
+  const targets = [
+    ...members.map((m) => ({ name: m.name, token: `<@${m.accountKey}>` })),
+    ...roles.map((r) => ({ name: r.name, token: `<@&${r.id}>` })),
+  ].sort((a, b) => b.name.length - a.name.length)
   let out = text
-  for (const m of sorted) {
-    const escaped = m.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    out = out.replace(new RegExp(`(^|[^\\w<])@${escaped}(?![\\p{L}\\p{N}_])`, 'gu'), `$1<@${m.accountKey}>`)
+  for (const t of targets) {
+    const escaped = t.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    out = out.replace(new RegExp(`(^|[^\\w<])@${escaped}(?![\\p{L}\\p{N}_])`, 'gu'), (_, before: string) => `${before}${t.token}`)
   }
   return out
 }
 
 /** The reverse, for editing a message: tokens back to "@Name". */
-export function decodeMentions(text: string, nameOf: (accountKey: string) => string | null): string {
-  return text.replace(/<@([A-Za-z0-9_-]{43})>/g, (_, key: string) => `@${nameOf(key) ?? 'unknown'}`)
+export function decodeMentions(text: string, nameOf: (accountKey: string) => string | null, roleName?: (id: number) => string | null): string {
+  return text
+    .replace(/<@([A-Za-z0-9_-]{43})>/g, (_, key: string) => `@${nameOf(key) ?? 'unknown'}`)
+    .replace(ROLE_TOKEN, (token, id: string) => {
+      const name = roleName?.(Number(id))
+      return name ? `@${name}` : token
+    })
 }
+
+/** Role ids mentioned in a message. */
+export const roleMentions = (text: string): number[] => [...text.matchAll(ROLE_TOKEN)].map((m) => Number(m[1]))
 
 /**
  * Does this message mention the viewer: directly, or with @everyone/@here when its author may ping

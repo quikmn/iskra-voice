@@ -127,6 +127,7 @@ function RoleEditor({ server, role, onDeleted }: { server: ServerState; role: Se
   const [color, setColor] = useState(role.color)
   const [icon, setIcon] = useState(role.icon ?? '')
   const [hoist, setHoist] = useState(role.hoist)
+  const [mentionable, setMentionable] = useState(!!role.mentionable)
   const [perms, setPerms] = useState<Permission[]>(role.permissions)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
@@ -136,7 +137,7 @@ function RoleEditor({ server, role, onDeleted }: { server: ServerState; role: Se
 
   async function save() {
     try {
-      await updateRole(server.key, role.id, { name, color: color ?? '', icon, hoist, permissions: perms })
+      await updateRole(server.key, role.id, { name, color: color ?? '', icon, hoist, mentionable, permissions: perms })
       setError(null)
       setStatus('Saved')
     } catch (e) {
@@ -168,6 +169,10 @@ function RoleEditor({ server, role, onDeleted }: { server: ServerState; role: Se
       <label className="checkbox">
         <input type="checkbox" checked={hoist} disabled={!editable} onChange={(e) => setHoist(e.target.checked)} />
         Show people with this role separately in the member list
+      </label>
+      <label className="checkbox">
+        <input type="checkbox" checked={mentionable} disabled={!editable} onChange={(e) => setMentionable(e.target.checked)} />
+        Allow anyone to @mention this role (people who can mention @everyone always can)
       </label>
       <div className="role-perms-head">
         <strong>Permissions</strong>
