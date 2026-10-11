@@ -1211,10 +1211,11 @@ Group messages push `{ kind: "group", group, title: "New message from X", body: 
 
 | type | body | result | who |
 |---|---|---|---|
-| `backup.create` | `passphrase` (8–1024 characters) | `{ url: "/backup/<token>", name, size, expiresAt }` | owner; one backup at a time (`rate_limited` while one is being made) |
+| `backup.create` | `sealedPassphrase` (b64u, ≤ 4096 chars; the passphrase, 8–1024 characters, sealed as below) | `{ url: "/backup/<token>", name, size, expiresAt }` | owner; one backup at a time (`rate_limited` while one is being made) |
 | `backup.status` | | `{ auto: { enabled, keep, includeUploads }, local: [{ name, size, createdAt }], folder }` | owner |
 | `backup.settings` | `enabled?`, `keep?` (1–30), `includeUploads?` | same as `backup.status` | owner (written to `server.json` → `Backups`) |
 
+- **The passphrase never crosses the network in the clear.** The client seals it to the server key it verified in the handshake: `sealedPassphrase = crypto_box_seal("iskra/backup-passphrase/v1" || 0x00 || serverKey(32) || utf8(passphrase), X25519(serverKey))`, where `X25519(serverKey)` is `crypto_sign_ed25519_pk_to_curve25519` of the server's Ed25519 key. The server opens it with its own key converted the same way and checks the context and key prefix. A plain `passphrase` field, or a box that doesn't open or carries another context or key, is `bad_request`.
 - While a backup is built, the requesting session gets `backup.progress { done, total }` (bytes, about every 2%).
 - `GET /backup/<token>` serves the file (`Content-Disposition: attachment`, `no-store`, CORS open). The token is 24 random bytes and works for 30 minutes; then the file is deleted.
 - **What's in it:** a zip of `manifest.json` (`{ iskraBackup: 1, createdAt, serverKey, name, uploads, includesUploads }`), `iskra.db` (a consistent copy made with SQLite's online backup API on a separate read connection, so the server keeps running), `server.json`, `server.key`, `livekit.key`, `vapid.json` and `uploads/ab/<sha256>`. Certificates aren't included (the new machine gets its own), nor are the owner invite or a move notice.

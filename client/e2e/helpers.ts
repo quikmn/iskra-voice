@@ -48,6 +48,9 @@ export async function startServer(name: string, voice = false, env: Record<strin
     }),
   )
   const proc: ChildProcess = spawn('dotnet', [SERVER_DLL, world], { stdio: 'ignore', env: { ...process.env, ...env } })
+  let exited = false
+  proc.once('exit', () => (exited = true))
+  let stopping: Promise<void> | null = null
   const url = `http://localhost:${port}`
   for (let i = 0; ; i++) {
     try {
@@ -74,14 +77,16 @@ export async function startServer(name: string, voice = false, env: Record<strin
     world,
     url,
     ownerLink: () => readFileSync(join(world, 'owner-invite.txt'), 'utf8').trim(),
-    stop: async () => {
-      if (proc.exitCode === null) {
-        const exited = new Promise((r) => proc.once('exit', r))
+    // Idempotent: later calls share the first one. On Windows a killed process keeps exitCode null
+    // (signalCode is set instead), so 'exit' is tracked from the start rather than read from exitCode.
+    stop: () => (stopping ??= (async () => {
+      if (!exited) {
+        const done = new Promise((r) => proc.once('exit', r))
         proc.kill()
-        await exited
+        await done
       }
       rmSync(world, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
-    },
+    })()),
   }
 }
 

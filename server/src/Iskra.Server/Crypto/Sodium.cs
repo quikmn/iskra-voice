@@ -26,6 +26,54 @@ internal static class Sodium
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl, EntryPoint = "sodium_init")]
     private static extern int Init();
 
+    public const int SealBytes = 48; // crypto_box_SEALBYTES
+
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl, EntryPoint = "crypto_sign_ed25519_pk_to_curve25519")]
+    private static extern int EdPkToCurve(byte[] curvePk, byte[] edPk);
+
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl, EntryPoint = "crypto_sign_ed25519_sk_to_curve25519")]
+    private static extern int EdSkToCurve(byte[] curveSk, byte[] edSk);
+
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl, EntryPoint = "crypto_box_seal")]
+    private static extern int BoxSeal(byte[] c, byte[] m, ulong mLength, byte[] pk);
+
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl, EntryPoint = "crypto_box_seal_open")]
+    private static extern int BoxSealOpen(byte[] m, byte[] c, ulong cLength, byte[] pk, byte[] sk);
+
+    /// <summary>crypto_box_seal to an Ed25519 public key (converted to X25519). The client does this; tests use it here.</summary>
+    public static byte[] SealToEd25519(byte[] message, byte[] edPublicKey)
+    {
+        _ = Ready.Value;
+        var pk = new byte[32];
+        if (EdPkToCurve(pk, edPublicKey) != 0) throw new ArgumentException("Not an Ed25519 public key.");
+        var c = new byte[message.Length + SealBytes];
+        if (BoxSeal(c, message, (ulong)message.Length, pk) != 0) throw new InvalidOperationException("crypto_box_seal failed.");
+        return c;
+    }
+
+    /// <summary>Opens a sealed box made for the Ed25519 key with this seed; null if it wasn't sealed to us or was changed.</summary>
+    public static byte[]? OpenSealedWithEd25519(byte[] sealedBox, byte[] edSeed, byte[] edPublicKey)
+    {
+        _ = Ready.Value;
+        if (sealedBox.Length < SealBytes) return null;
+        var pk = new byte[32];
+        var sk = new byte[32];
+        var edSk = new byte[64];
+        try
+        {
+            edSeed.CopyTo(edSk, 0);
+            edPublicKey.CopyTo(edSk, 32);
+            if (EdPkToCurve(pk, edPublicKey) != 0 || EdSkToCurve(sk, edSk) != 0) return null;
+            var m = new byte[sealedBox.Length - SealBytes];
+            return BoxSealOpen(m, sealedBox, (ulong)sealedBox.Length, pk, sk) == 0 ? m : null;
+        }
+        finally
+        {
+            System.Security.Cryptography.CryptographicOperations.ZeroMemory(sk);
+            System.Security.Cryptography.CryptographicOperations.ZeroMemory(edSk);
+        }
+    }
+
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl, EntryPoint = "crypto_pwhash")]
     private static extern int PwHash(byte[] output, ulong outputLength, byte[] password, ulong passwordLength,
         byte[] salt, ulong opsLimit, nuint memLimit, int alg);

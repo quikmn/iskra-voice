@@ -63,3 +63,12 @@ export function u64be(value: number): Uint8Array {
   new DataView(out.buffer).setBigUint64(0, BigInt(value), false)
   return out
 }
+
+/**
+ * Seals a secret to a server's identity key (crypto_box_seal to its Ed25519 key in X25519 form), as
+ * context || 0x00 || serverKey(32) || data, so only that server can read it, and only for that purpose.
+ */
+export function sealToServer(serverKey: Uint8Array, context: string, data: Uint8Array): Uint8Array {
+  const x25519 = sodium.crypto_sign_ed25519_pk_to_curve25519(serverKey)
+  return sodium.crypto_box_seal(signedPayload(context, serverKey, data), x25519)
+}
