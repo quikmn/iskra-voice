@@ -334,7 +334,7 @@ export async function loadGroupHistory(key: string): Promise<void> {
 }
 
 /** Encrypts for every device of every member of the verified chain, never for revoked devices. */
-async function encryptFor(g: GroupConv, content: DmContent): Promise<GroupEnvelope> {
+async function encryptFor(g: GroupConv, content: DmContent, sentAt = Date.now()): Promise<GroupEnvelope> {
   const identity = useApp.getState().identity
   if (!identity || !g.view) throw new DmError('No account on this device.')
   const [bundles, ownRevoked] = await Promise.all([
@@ -344,18 +344,18 @@ async function encryptFor(g: GroupConv, content: DmContent): Promise<GroupEnvelo
   ])
   const found = bundles.filter((b) => !!b)
   const revokedDevices = [...ownRevoked, ...found.flatMap((b) => [...revokedSet(b.accountKey, b.bundle.revoked)])]
-  return encryptGroup(identity, g.view, found.map((b) => ({ accountKey: b.accountKey, devices: b.bundle.devices })), content, Date.now(), {
+  return encryptGroup(identity, g.view, found.map((b) => ({ accountKey: b.accountKey, devices: b.bundle.devices })), content, sentAt, {
     prekeys: found.flatMap((b) => b.bundle.prekeys ?? []),
     revokedDevices,
   })
 }
 
 /** Encrypts `content` for a group's current member list (for group call keys). */
-export async function sealForGroup(key: string, content: DmContent): Promise<{ envelope: GroupEnvelope; version: number }> {
+export async function sealForGroup(key: string, content: DmContent, sentAt = Date.now()): Promise<{ envelope: GroupEnvelope; version: number }> {
   const g = useGroups.getState().groups[key]
   const reason = cannotSend(g)
   if (reason) throw new DmError(reason)
-  return { envelope: await encryptFor(g!, content), version: g!.view!.version }
+  return { envelope: await encryptFor(g!, content, sentAt), version: g!.view!.version }
 }
 
 /** Why you can't write in this group right now, or null if you can (in English; the UI shows it with groupText). */

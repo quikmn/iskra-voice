@@ -6,15 +6,16 @@ export type OpenTarget =
   | { server: string; kind: 'channel'; channelId: number; messageId?: number }
   | { server: string; kind: 'dm'; peer: string }
   | { server: string; kind: 'group'; group: string }
+  | { server: string; kind: 'reminder'; id: number }
 
 const KEY = '[A-Za-z0-9_-]{43}'
 const ID = '[1-9][0-9]{0,15}'
-const ROUTE = new RegExp(`^#?/open/(${KEY})(?:/c/(${ID})(?:/m/(${ID}))?|/dm/(${KEY})|/g/([A-Za-z0-9_-]{22}))?/?$`)
+const ROUTE = new RegExp(`^#?/open/(${KEY})(?:/c/(${ID})(?:/m/(${ID}))?|/dm/(${KEY})|/g/([A-Za-z0-9_-]{22})|/r/(${ID}))?/?$`)
 
 export function parseOpenRoute(route: string): OpenTarget | null {
   const match = ROUTE.exec(route)
   if (!match) return null
-  const [, server, channel, message, peer, group] = match
+  const [, server, channel, message, peer, group, reminder] = match
   if (channel) {
     const channelId = Number(channel)
     const messageId = message ? Number(message) : undefined
@@ -23,6 +24,7 @@ export function parseOpenRoute(route: string): OpenTarget | null {
   }
   if (peer) return { server, kind: 'dm', peer }
   if (group) return { server, kind: 'group', group }
+  if (reminder && Number.isSafeInteger(Number(reminder))) return { server, kind: 'reminder', id: Number(reminder) }
   return { server, kind: 'server' }
 }
 

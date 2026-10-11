@@ -20,6 +20,7 @@ function scopeServer() {
 /** Where a click on this push should take you, as an app route ("/open/..."). */
 function routeFor(data) {
   const base = `/open/${data.server}`
+  if (data.kind === 'reminder' && Number.isSafeInteger(data.reminder) && data.reminder > 0) return `${base}/r/${data.reminder}`
   if (typeof data.group === 'string' && GROUP.test(data.group)) return `${base}/g/${data.group}`
   if (data.kind === 'dm' && typeof data.peer === 'string' && KEY.test(data.peer)) return `${base}/dm/${data.peer}`
   if (Number.isSafeInteger(data.channelId) && data.channelId > 0) return `${base}/c/${data.channelId}`

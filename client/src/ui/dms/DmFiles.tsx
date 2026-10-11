@@ -13,6 +13,7 @@ import { formatSize } from '../chat/helpers'
 import { Close, FileIcon, Lock, Paperclip, Send } from '../icons'
 import { VoicePlayer, VoiceRecordButton } from '../chat/voice/VoiceMessages'
 import { voiceRecordingSupported, type Recording } from '../chat/voice/recorder'
+import { useSendLater } from '../productivity/SendLater'
 import './dm-files.css'
 
 /** Decrypted automatically when small enough; bigger files wait for a click. */
@@ -48,6 +49,13 @@ export function DmComposer({ peer, placeholder, group }: {
   const uploading = uploads.some((u) => !u.result && !u.error)
   const ready = uploads.filter((u) => u.result).map((u) => u.result!)
   const canSend = !!route && !uploading && (text.trim().length > 0 || ready.length > 0)
+  const later = useSendLater({
+    target: group ? { kind: 'group', key: group.key } : { kind: 'dm', peer },
+    prepare: () => text.trim() || null,
+    blocked: uploads.length > 0 ? t('productivity.sendLater.noFiles') : null,
+    disabled: !route,
+    onScheduled: () => setText(''),
+  })
 
   function addFiles(files: File[]) {
     if (!route) return
@@ -151,10 +159,12 @@ export function DmComposer({ peer, placeholder, group }: {
           }}
         />
         {!text.trim() && uploads.length === 0 && voiceRecordingSupported() && <VoiceRecordButton onSend={sendVoice} disabled={!route} />}
-        <button className="send-button" onClick={submit} disabled={!canSend} aria-label={t('common.send')}>
+        {later.button}
+        <button className="send-button" onClick={submit} disabled={!canSend} aria-label={t('common.send')} {...later.sendProps}>
           <Send />
         </button>
       </div>
+      {later.dialog}
     </div>
   )
 }

@@ -16,6 +16,7 @@ import { useThreads } from '../state/threads'
 import { MenuItem, MenuTitle, OrgMenu, type MenuAnchor } from './organize/OrgMenu'
 import { FolderDialog } from './organize/FolderDialog'
 import { ServerRulesItem } from './rules/Rules'
+import { InboxButton } from './productivity/InboxButton'
 import './organize/organize.css'
 
 type Drag = { kind: 'server' | 'folder'; id: string }
@@ -169,6 +170,7 @@ export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavig
         <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" fill="currentColor" /></svg>
         {dmUnread > 0 && active !== null && <span className="badge">{dmUnread > 99 ? '99+' : dmUnread}</span>}
       </button>
+      <InboxButton onNavigate={onNavigate} />
       <div className="rail-divider" />
       {items.map((item) => item.kind === 'server' ? icon(item.key, false) : (
         <Folder key={item.id} folder={item} servers={servers} active={active} className={dropClass(item.id)}

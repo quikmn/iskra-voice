@@ -1,0 +1,91 @@
+/* ── Saved messages, reminders, scheduled messages, the inbox and edit history ── */
+
+/* The bell in the rail */
+.server-icon.inbox-icon { display: grid; place-items: center; color: var(--text-2); }
+.server-icon.inbox-icon:hover { color: var(--on-accent); }
+
+/* "(edited)" you can open */
+.edited-button { border: 0; background: none; padding: 0; font: inherit; font-size: 11px; color: var(--muted); cursor: pointer; text-decoration: underline dotted; text-underline-offset: 2px; }
+.edited-button:hover { color: var(--text); }
+
+/* Time picker */
+.when-picker { display: grid; gap: 10px; }
+.when-presets { display: grid; gap: 6px; }
+.when-preset {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; text-align: left;
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); color: var(--text); font: inherit; cursor: pointer;
+}
+.when-preset:hover, .when-preset.on { border-color: var(--accent); background: var(--accent-subtle); }
+.when-preset .muted { font-size: 12px; white-space: nowrap; }
+.when-custom input { width: 100%; }
+.when-custom small { font-size: 12px; }
+.remind-about { margin: 0 0 6px; font-size: 13px; }
+.remind-quote {
+  margin: 0 0 14px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--surface-2); border-radius: 0 var(--radius) var(--radius) 0;
+  color: var(--text-2); font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 9em; overflow: auto;
+}
+.small-note { font-size: 12px; margin: 0 0 10px; display: flex; gap: 6px; align-items: center; }
+
+/* DM and group message actions */
+.message-actions.private-actions .error-text { font-size: 12px; padding: 0 6px; }
+
+/* A short confirmation */
+.productivity-done {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: var(--z-toast); padding: 10px 16px; border-radius: 999px;
+  background: var(--float); border: 1px solid var(--border); box-shadow: var(--shadow-pop); font-size: 14px; animation: pop 0.16s var(--ease);
+  max-width: calc(100vw - 32px);
+}
+
+/* The inbox */
+.inbox-dialog .modal-body { padding-top: 8px; }
+.inbox-tabs { position: sticky; top: 0; z-index: 1; }
+.inbox-toolbar { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 8px; }
+.inbox-toolbar .button.small { display: inline-flex; gap: 6px; align-items: center; }
+.inbox-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip {
+  border: 1px solid var(--border); background: transparent; color: var(--text-2); border-radius: 999px; padding: 4px 12px; font: inherit; font-size: 13px; cursor: pointer;
+}
+.chip:hover { background: var(--hover); }
+.chip.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.inbox-everyone { font-size: 13px; color: var(--text-2); margin: 4px 0 12px; }
+.inbox-empty { text-align: center; padding: 32px 8px; }
+.inbox-heading { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin: 14px 0 6px; }
+.inbox-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.inbox-row { display: flex; align-items: flex-start; gap: 8px; border-radius: var(--radius); padding: 2px; }
+.inbox-row.unread { background: var(--accent-subtle); }
+.inbox-row-main {
+  flex: 1; min-width: 0; display: flex; gap: 10px; align-items: flex-start; text-align: left; padding: 8px; border: 0; background: none; color: var(--text);
+  font: inherit; border-radius: var(--radius);
+}
+button.inbox-row-main { cursor: pointer; }
+button.inbox-row-main:hover { background: var(--hover); }
+.inbox-row-icon { flex: none; display: grid; place-items: center; width: 32px; }
+.inbox-glyph {
+  width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-3); color: var(--text-2); font-weight: 700;
+}
+.inbox-glyph.reminder { color: var(--accent); }
+.inbox-glyph.failed { color: var(--red); }
+.inbox-row-text { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.inbox-row-title { display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }
+.inbox-row-title strong { color: var(--text-strong); }
+.inbox-row-sub { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inbox-row-body { font-size: 14px; color: var(--text); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.inbox-when { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+.inbox-row-time { flex: none; font-size: 11px; color: var(--muted); white-space: nowrap; padding-top: 2px; }
+.inbox-unread { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; display: inline-block; margin-left: 4px; }
+.inbox-row-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; padding: 8px 6px 8px 0; max-width: 50%; }
+.inbox-more { margin: 12px auto 0; display: block; }
+.scheduled-edit { width: 100%; min-height: 120px; resize: vertical; }
+.saved-count { margin-left: auto; font-size: 12px; }
+
+/* Edit history */
+.history-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.history-item { padding: 10px 12px; border-radius: var(--radius); background: var(--surface-2); display: grid; gap: 4px; }
+.history-item.current { border: 1px solid var(--accent); }
+.history-when { font-size: 12px; color: var(--muted); }
+
+@media (max-width: 760px) {
+  .inbox-row { flex-wrap: wrap; }
+  .inbox-row-actions { max-width: none; width: 100%; padding: 0 8px 8px 50px; justify-content: flex-start; }
+  .productivity-done { bottom: calc(16px + env(safe-area-inset-bottom)); }
+}

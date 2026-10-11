@@ -344,13 +344,13 @@ export async function devicesOf(serverKey: string, accountKey: string): Promise<
  * Encrypts for everyone who should read it (their devices and ours), forward secret where the devices
  * have prekeys, never for revoked devices. Used for DMs and call invites.
  */
-export async function encryptFor(serverKey: string, peer: string, content: DmContent): Promise<DmEnvelope> {
+export async function encryptFor(serverKey: string, peer: string, content: DmContent, sentAt = Date.now()): Promise<DmEnvelope> {
   const identity = useApp.getState().identity
   if (!identity) throw new DmError(t('dms.errors.noAccount'))
   const mine = me()
   const [theirs, ours, ownRevoked] = await Promise.all([bundleOf(serverKey, peer), bundleOf(serverKey, mine), ownRevokedDevices(), ensurePrekeys()])
   const revokedDevices = [...revokedSet(peer, theirs.revoked), ...revokedSet(mine, ours.revoked), ...ownRevoked]
-  return encryptDm(identity, peer, theirs.devices, peer === mine ? [] : ours.devices, content, Date.now(), {
+  return encryptDm(identity, peer, theirs.devices, peer === mine ? [] : ours.devices, content, sentAt, {
     prekeys: [...(theirs.prekeys ?? []), ...(ours.prekeys ?? [])],
     revokedDevices,
   })

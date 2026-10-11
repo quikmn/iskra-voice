@@ -19,6 +19,7 @@ import { pinThreadAbilities } from './abilities'
 import { copyMessageLink, ReactionsDialog } from './MessageMore'
 import { markUnread } from '../../state/unread'
 import { canReport, openReport } from '../../state/reports'
+import { ChannelSaveRemind } from '../productivity/MessageTools'
 
 const FlagIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -91,6 +92,7 @@ export function MessageActionSheet({ server, message, canEdit, canDelete, onEdit
               {text && <button role="menuitem" onClick={run(() => navigator.clipboard.writeText(text))}><Copy /> {t('chat.actions.copyText')}</button>}
               <button role="menuitem" onClick={run(() => copyMessageLink(server, message))}><Copy /> {t('chat.actions.copyLink')}</button>
               <button role="menuitem" onClick={run(() => markUnread(server.key, message.channelId, message.id))}><Reply /> {t('chat.actions.markUnread')}</button>
+              <ChannelSaveRemind server={server} message={message} wrap={(_label, action) => run(action)} icons />
               {message.reactions.length > 0 && <button role="menuitem" onClick={() => setView('reactions')}><SmilePlus /> {t('chat.actions.viewReactions')}</button>}
               {canReport(server, message) && (
                 <button role="menuitem" className="danger" onClick={run(() => openReport({ kind: 'message', serverKey: server.key, message }))}><FlagIcon /> {t('safety.report.menuMessage')}</button>

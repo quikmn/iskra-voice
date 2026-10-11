@@ -18,6 +18,8 @@ import { clockTime, fullTime, hueFor, messageTime } from '../format'
 import { Lock, Menu, Pencil, Phone, Plus, Search, UserPlus, Users, Video } from '../icons'
 import { renderMarkdown } from '../markdown'
 import { DmAttachments, DmComposer } from '../dms/DmFiles'
+import { usePrivateMessageTools } from '../productivity/MessageTools'
+import { groupTarget, privateRowId } from '../../state/messageRefs'
 import type { Panel } from '../Shell'
 import { GroupCallButtons, GroupCallPanel, OngoingCallBanner } from './GroupCall'
 import './groups.css'
@@ -469,8 +471,9 @@ function SystemLine({ text, at, icon }: { text: string; at: number; icon?: 'penc
 function GroupRow({ m, grouped, groupKey, mine }: { m: GroupMsg; grouped: boolean; groupKey: string; mine: boolean }) {
   const { t } = useTranslation()
   const name = knownName(m.from)
+  const tools = usePrivateMessageTools(m.pending || m.error || m.call ? null : groupTarget(groupKey, m), m.text)
   return (
-    <div className={`message ${grouped ? 'grouped' : ''} ${m.pending ?? ''}`}>
+    <div id={privateRowId(m.from, m.id)} {...tools.rowProps} className={`message ${grouped ? 'grouped' : ''} ${m.pending ?? ''} ${tools.rowProps.className ?? ''}`}>
       <div className="message-gutter">
         {grouped ? <time className="hover-time" title={fullTime(m.sentAt)}>{clockTime(m.sentAt)}</time> : <Avatar name={name} accountKey={m.from} />}
       </div>
@@ -498,6 +501,7 @@ function GroupRow({ m, grouped, groupKey, mine }: { m: GroupMsg; grouped: boolea
           </div>
         )}
       </div>
+      {tools.tools}
     </div>
   )
 }

@@ -10,6 +10,7 @@ describe('push routes', () => {
     expect(parseOpenRoute(`#/open/${S}/dm/${P}`)).toEqual({ server: S, kind: 'dm', peer: P })
     expect(parseOpenRoute(`/open/${S}`)).toEqual({ server: S, kind: 'server' })
     expect(parseOpenRoute(`/open/${S}/g/${'g'.repeat(22)}`)).toEqual({ server: S, kind: 'group', group: 'g'.repeat(22) })
+    expect(parseOpenRoute(`/open/${S}/r/7`)).toEqual({ server: S, kind: 'reminder', id: 7 })
   })
 
   it('rejects anything else', () => {
@@ -22,6 +23,8 @@ describe('push routes', () => {
       `/open/${S}/dm/../../x`,
       `/open/${S}/x/1`,
       `/open/${S}/g/short`,
+      `/open/${S}/r/0`,
+      `/open/${S}/r/x`,
       `https://evil.example/open/${S}`,
       `/join/${S}`,
     ]) {
