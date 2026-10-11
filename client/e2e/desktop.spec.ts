@@ -36,8 +36,9 @@ test('the desktop app runs the web app on app:// and can join a server', async (
     // The preload bridge is there, and only that.
     const bridge = await page.evaluate(() => Object.keys((window as unknown as { iskraDesktop: object }).iskraDesktop).sort())
     expect(bridge).toEqual([
-      'activity', 'attention', 'callAlert', 'capturePushToTalkKey', 'download', 'host', 'keychain', 'onActivity', 'onDeepLink', 'onPickScreen', 'onPushToTalk', 'openSystemSettings', 'pickScreen',
-      'platform', 'pushToTalkStatus', 'setBadge', 'setPushToTalkKey', 'settings', 'takeDeepLink', 'updates',
+      'activity', 'attention', 'callAlert', 'cancelHotkeyCapture', 'captureHotkey', 'capturePushToTalkKey', 'download', 'host', 'keychain', 'onActivity', 'onDeepLink',
+      'onHotkey', 'onPickScreen', 'onPushToTalk', 'openSystemSettings', 'pickScreen', 'platform', 'pushToTalkStatus', 'setBadge', 'setHotkeys', 'setPushToTalkKey', 'settings',
+      'takeDeepLink', 'updates',
     ])
     expect(await page.evaluate(() => typeof (window as unknown as { require?: unknown }).require)).toBe('undefined')
 
@@ -115,8 +116,48 @@ test('the desktop app runs the web app on app:// and can join a server', async (
     await page.getByRole('button', { name: 'Settings', exact: true }).click()
     await page.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Voice & audio' }).click()
     await page.getByRole('radio', { name: 'Push to talk' }).click()
-    await expect(page.getByText('Works everywhere, even while a game has focus')).toBeVisible()
+    await expect(page.getByText('Works everywhere, even while a game has focus').first()).toBeVisible()
     await page.screenshot({ path: join(SHOTS, 'desktop-settings.png') })
+
+    // Mute/deafen keybinds are global here. The page only ever hears an action's name from the shell.
+    await expect(page.getByRole('heading', { name: 'Keybinds' })).toBeVisible()
+    await expect(page.getByText("Plain keys don't fire while you're typing in Iskra")).toBeVisible()
+    await expect(page.getByText('use the desktop app')).toHaveCount(0)
+    await page.evaluate(() => {
+      const d = (window as unknown as { iskraDesktop: { onHotkey(cb: (a: string) => void): () => void } }).iskraDesktop
+      const w = window as unknown as { heard: string[] }
+      w.heard = []
+      d.onHotkey((a) => w.heard.push(a))
+    })
+    await app.evaluate(({ BrowserWindow }) => {
+      for (const action of ['mute', 'KeyA', 'deafen', 42]) BrowserWindow.getAllWindows()[0].webContents.send('iskra:hotkey', action)
+    })
+    await expect.poll(() => page.evaluate(() => (window as unknown as { heard: string[] }).heard)).toEqual(['mute', 'deafen'])
+    // "Set key" listens to the global hook; Cancel ends it with nothing.
+    const muteRow = page.locator('.hotkey-row', { hasText: 'Toggle mute' })
+    await page.getByRole('button', { name: 'Set toggle mute key' }).click()
+    await expect(muteRow.locator('.key-chip')).toHaveText('Press a key…')
+    await muteRow.getByRole('button', { name: 'Cancel' }).click()
+    await expect(muteRow.locator('.key-chip')).toHaveText('Not set')
+    // Real keys through the OS hook (Windows): Ctrl+F24 as the mute key. No keyboard has F23/F24, so tapping them touches nothing else.
+    if (process.platform === 'win32') {
+      const tap = (key: 'F23' | 'F24', ctrl: boolean) => app.evaluate((_electron, { dir, key, ctrl }) => {
+        const { createRequire } = process.getBuiltinModule('node:module')
+        const { uIOhook, UiohookKey } = createRequire(`${dir}/package.json`)('uiohook-napi')
+        uIOhook.keyTap(UiohookKey[key], ctrl ? [UiohookKey.Ctrl] : [])
+      }, { dir: DESKTOP, key, ctrl })
+      await page.getByRole('button', { name: 'Set toggle mute key' }).click()
+      await expect(muteRow.locator('.key-chip')).toHaveText('Press a key…')
+      await tap('F24', true)
+      await expect(muteRow.locator('.key-chip')).toHaveText('Ctrl + F24')
+      await page.evaluate(() => ((window as unknown as { heard: string[] }).heard = []))
+      await tap('F23', true) // not a hotkey: never reported
+      await tap('F24', false) // without Ctrl: not it either
+      await tap('F24', true)
+      await expect.poll(() => page.evaluate(() => (window as unknown as { heard: string[] }).heard)).toEqual(['mute'])
+      await muteRow.getByRole('button', { name: 'Clear toggle mute key' }).click()
+      await expect(muteRow.locator('.key-chip')).toHaveText('Not set')
+    }
   } finally {
     await app.close()
     rmSync(userData, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })

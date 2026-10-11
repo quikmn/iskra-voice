@@ -5,6 +5,7 @@ import { fingerprint } from '../../core/connection'
 import { leaveServer, type ServerState } from '../../state/store'
 import { Modal } from '../bits'
 import { VoiceSettingsSection } from '../dialogs/VoiceSettings'
+import { HotkeySettingsSection } from '../dialogs/HotkeySettings'
 import { InputSettingsSection, OutputSettingsSection, ProcessingSettingsSection } from '../dialogs/AudioSettings'
 import { DesktopSettingsSection } from '../dialogs/DesktopSettings'
 import { desktop } from '../../platform/desktop'
@@ -108,7 +109,7 @@ function Section({ id, server, onClose }: { id: SectionId; server: ServerState |
     case 'recovery': return <><RecoveryKeySection /><RotateKeySection /></>
     case 'security': return <AppLockSection />
     case 'notifications': return <NotificationSettingsSection server={server} />
-    case 'voice': return <><InputSettingsSection /><VoiceSettingsSection /><ProcessingSettingsSection /><OutputSettingsSection /><SoundboardSettingsSection /></>
+    case 'voice': return <><InputSettingsSection /><VoiceSettingsSection /><HotkeySettingsSection /><ProcessingSettingsSection /><OutputSettingsSection /><SoundboardSettingsSection /></>
     case 'blocked': return <BlockedSection />
     case 'desktop': return <DesktopSettingsSection />
   }

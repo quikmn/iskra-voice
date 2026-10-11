@@ -6,6 +6,7 @@ import { closeSync, existsSync, openSync, readSync } from 'node:fs'
 import path from 'node:path'
 import { APP_ORIGIN, configureAppSession, registerAppScheme } from './appSession'
 import { Host } from './host'
+import { parseHotkeys } from './hotkeys'
 import { isBackupDownload, readBackupInfo } from './restore'
 import {
   aboutDetail, badgeText, DEEP_LINK_SCHEME, deepLinkFromArgv, isAppPage, isWayland, MAC_SETTINGS, parseDeepLink, parseDesktopSettings,
@@ -39,7 +40,8 @@ registerAppScheme()
 let window: BrowserWindow | null = null
 let tray: Tray | null = null
 let quitting = false
-const ptt = new PushToTalk((down) => window?.webContents.send('iskra:ptt', down))
+// Mute/deafen hotkeys: only the action's name reaches the page, never which keys were pressed.
+const ptt = new PushToTalk((down) => window?.webContents.send('iskra:ptt', down), (action) => window?.webContents.send('iskra:hotkey', action))
 const host = new Host()
 // "Playing X": only the matched game's name ever reaches the page.
 const activity = new ActivityDetector((game) => window?.webContents.send('iskra:activity', game))
@@ -336,6 +338,19 @@ ipcMain.handle('iskra:capture-ptt-key', (event) => {
   if (!fromApp(event)) return null
   if (!ptt.running) startPtt(true)
   return ptt.captureNextKey()
+})
+ipcMain.handle('iskra:set-hotkeys', (event, binds: unknown) => {
+  if (!fromApp(event)) return
+  ptt.setHotkeys(parseHotkeys(binds))
+  if (ptt.hasHotkeys && !ptt.running) startPtt(false)
+})
+ipcMain.handle('iskra:capture-hotkey', (event) => {
+  if (!fromApp(event)) return null
+  if (!ptt.running) startPtt(true)
+  return ptt.captureNextHotkey(process.platform)
+})
+ipcMain.handle('iskra:cancel-hotkey-capture', (event) => {
+  if (fromApp(event)) ptt.cancelCapture()
 })
 ipcMain.handle('iskra:ptt-status', (event) => (fromApp(event) ? pttStatus() : 'unavailable'))
 ipcMain.handle('iskra:open-settings', (event, pane: unknown) => {

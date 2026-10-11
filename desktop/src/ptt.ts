@@ -1,9 +1,9 @@
-// Global push-to-talk: key down/up anywhere, even while a game has focus.
-// Uses libuiohook (via uiohook-napi); only the configured key is reported to the app.
+// Global push-to-talk and mute/deafen hotkeys: key down/up anywhere, even while a game has focus.
+// Uses libuiohook (via uiohook-napi); only the configured keys' actions are reported to the app, never other keys.
 import { uIOhook, UiohookKey, type UiohookKeyboardEvent, type UiohookMouseEvent } from 'uiohook-napi'
+import { ComboCapture, HotkeyMatcher, hotkeyName, ModifierTracker, modsOf, MOUSE, type HotkeyAction, type Hotkeys } from './hotkeys'
 
-/** Keys are libuiohook keycodes; mouse buttons are encoded as 0x10000 + button (side buttons are popular for PTT). */
-const MOUSE = 0x10000
+// Keys are libuiohook keycodes; mouse buttons are encoded as 0x10000 + button (side buttons are popular for PTT).
 
 const KEY_NAMES = new Map<number, string>(Object.entries(UiohookKey).map(([name, code]) => [code as number, name]))
 
@@ -18,11 +18,15 @@ export class PushToTalk {
   private down = false
   private started = false
   private listening = false
-  private capture: ((code: number) => void) | null = null
+  private capture: ((code: number, mods: number, down: boolean) => void) | null = null
+  private readonly hotkeys = new HotkeyMatcher()
+  private readonly mods = new ModifierTracker()
   private readonly onChange: (down: boolean) => void
+  private readonly onHotkey: (action: HotkeyAction) => void
 
-  constructor(onChange: (down: boolean) => void) {
+  constructor(onChange: (down: boolean) => void, onHotkey: (action: HotkeyAction) => void = () => undefined) {
     this.onChange = onChange
+    this.onHotkey = onHotkey
   }
 
   /** Starts listening (once); false if the OS refused (e.g. no Accessibility permission on macOS). */
@@ -30,10 +34,10 @@ export class PushToTalk {
     if (this.started) return true
     if (!this.listening) {
       this.listening = true
-      uIOhook.on('keydown', (e: UiohookKeyboardEvent) => this.press(e.keycode))
-      uIOhook.on('keyup', (e: UiohookKeyboardEvent) => this.release(e.keycode))
-      uIOhook.on('mousedown', (e: UiohookMouseEvent) => this.press(MOUSE + Number(e.button)))
-      uIOhook.on('mouseup', (e: UiohookMouseEvent) => this.release(MOUSE + Number(e.button)))
+      uIOhook.on('keydown', (e: UiohookKeyboardEvent) => this.press(e.keycode, this.mods.update(e.keycode, modsOf(e), true)))
+      uIOhook.on('keyup', (e: UiohookKeyboardEvent) => this.release(e.keycode, this.mods.update(e.keycode, modsOf(e), false)))
+      uIOhook.on('mousedown', (e: UiohookMouseEvent) => this.press(MOUSE + Number(e.button), this.mods.update(0, modsOf(e), true)))
+      uIOhook.on('mouseup', (e: UiohookMouseEvent) => this.release(MOUSE + Number(e.button), this.mods.update(0, modsOf(e), false)))
     }
     try {
       uIOhook.start()
@@ -61,30 +65,67 @@ export class PushToTalk {
     }
   }
 
+  /** Mute/deafen hotkeys (none: the hook still runs for push-to-talk, if set). */
+  setHotkeys(binds: Hotkeys): void {
+    this.hotkeys.set(binds)
+  }
+
+  get hasHotkeys(): boolean {
+    return this.hotkeys.active
+  }
+
   /** Resolves with the next key or mouse button pressed (for the "press a key" settings field); null if keys can't be seen. */
   captureNextKey(): Promise<{ code: number; name: string } | null> {
     if (!this.started) return Promise.resolve(null)
+    this.cancelCapture()
     return new Promise((resolve) => {
-      this.capture = (code) => resolve({ code, name: keyName(code) })
+      this.capture = (code, _mods, down) => {
+        // Left and right mouse buttons would make PTT unusable; ignore them while capturing.
+        if (!down || code === MOUSE + 1 || code === MOUSE + 2) return
+        this.capture = null
+        resolve(code < 0 ? null : { code, name: keyName(code) })
+      }
     })
   }
 
-  private press(code: number): void {
+  /** Like captureNextKey, with Ctrl/Shift/Alt/Meta held as part of it (mute/deafen hotkeys). Escape cancels. */
+  captureNextHotkey(platform: NodeJS.Platform): Promise<{ code: number; mods: number; name: string } | null> {
+    if (!this.started) return Promise.resolve(null)
+    this.cancelCapture()
+    const combo = new ComboCapture()
+    return new Promise((resolve) => {
+      this.capture = (code, mods, down) => {
+        const result = code < 0 ? 'cancel' : down ? combo.down(code, mods) : combo.up(code, mods)
+        if (!result) return
+        this.capture = null
+        resolve(result === 'cancel' ? null : { ...result, name: hotkeyName(result, keyName, platform) })
+      }
+    })
+  }
+
+  /** Ends a pending capture with null. */
+  cancelCapture(): void {
+    this.capture?.(-1, 0, true)
+  }
+
+  private press(code: number, mods: number): void {
     if (this.capture) {
-      // Left and right mouse buttons would make PTT unusable; ignore them while capturing.
-      if (code === MOUSE + 1 || code === MOUSE + 2) return
-      const done = this.capture
-      this.capture = null
-      done(code)
+      this.capture(code, mods, true)
       return
     }
+    for (const action of this.hotkeys.down(code, mods)) this.onHotkey(action)
     if (code === this.key && !this.down) {
       this.down = true
       this.onChange(true)
     }
   }
 
-  private release(code: number): void {
+  private release(code: number, mods: number): void {
+    this.hotkeys.up(code)
+    if (this.capture) {
+      this.capture(code, mods, false)
+      return
+    }
     if (code === this.key && this.down) {
       this.down = false
       this.onChange(false)

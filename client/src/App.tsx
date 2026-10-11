@@ -6,6 +6,7 @@ import { useDevices } from './state/devices'
 import { usePendingLink } from './state/link'
 import { AlreadySignedInNotice, RevokedScreen } from './ui/DeviceNotices'
 import { startPushToTalk } from './state/voice'
+import { startHotkeys } from './state/hotkeys'
 import { startTitleBadge } from './state/notify'
 import { startPush } from './state/push'
 import { startPresenceWatch } from './state/presence'
@@ -50,6 +51,7 @@ export function App() {
     window.addEventListener('hashchange', readInviteFromHash)
     window.addEventListener('online', retryAll)
     const stopPtt = startPushToTalk()
+    const stopHotkeys = startHotkeys()
     const stopTitle = startTitleBadge()
     const stopPush = startPush()
     const stopPresence = startPresenceWatch()
@@ -57,6 +59,7 @@ export function App() {
     return () => {
       stopLinks()
       stopPtt()
+      stopHotkeys()
       stopTitle()
       stopPush()
       stopPresence()
