@@ -103,14 +103,16 @@ test('turning on push registers a worker per server, subscribes, and reports foc
     void cdp.send('ServiceWorker.enable')
   })
   const payload = { v: 1, kind: 'mention', server: serverKey, title: 'Friend in #general', body: 'hey @Host', tag: 'c:1', channelId: 1, count: 1, at: Date.now() }
-  await cdp.send('ServiceWorker.deliverPushMessage', { origin: new URL(page.url()).origin, registrationId, data: JSON.stringify(payload) })
+  // Delivered again while nothing shows: a push that arrives before the worker is running can be dropped
+  // (same tag, so repeats replace each other).
   await expect
-    .poll(() =>
-      page.evaluate(async (scope) => {
+    .poll(async () => {
+      await cdp.send('ServiceWorker.deliverPushMessage', { origin: new URL(page.url()).origin, registrationId, data: JSON.stringify(payload) })
+      return page.evaluate(async (scope) => {
         const reg = await navigator.serviceWorker.getRegistration(scope)
         return (await reg!.getNotifications()).map((n) => ({ title: n.title, body: n.body, route: n.data?.route }))
-      }, `/push/${serverKey}/`),
-    )
+      }, `/push/${serverKey}/`)
+    })
     .toContainEqual({ title: 'Friend in #general', body: 'hey @Host', route: `/open/${serverKey}/c/1` })
 
   // After a reload the device is still subscribed: the server already has this endpoint, so nothing is re-sent.
