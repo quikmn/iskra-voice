@@ -1,0 +1,11 @@
+/* ── Mute/deafen keybinds (Settings → Voice & audio) ─────────────────── */
+.hotkey-list { display: grid; gap: 8px; margin-bottom: 12px; }
+.hotkey-row { display: grid; grid-template-columns: minmax(110px, 1fr) minmax(140px, 200px) 136px; align-items: center; gap: 10px; }
+.hotkey-name { font-weight: 600; color: var(--text); }
+.hotkey-row .key-chip { min-width: 0; font-size: 13px; padding: 6px 12px; overflow-wrap: anywhere; }
+.hotkey-row .key-chip.unset { color: var(--muted); font-weight: 500; }
+.hotkey-actions { display: flex; gap: 6px; }
+@media (max-width: 520px) {
+  .hotkey-row { grid-template-columns: minmax(0, 1fr) 136px; row-gap: 6px; }
+  .hotkey-name { grid-column: 1 / -1; }
+}

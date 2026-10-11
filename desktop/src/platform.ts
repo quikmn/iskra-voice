@@ -172,6 +172,33 @@ export function youTubeReferrer(requestUrl: string, fromApp: boolean): string | 
   }
 }
 
+/** Twitch's embeddable players (chat link embeds). */
+export const TWITCH_EMBED_URLS = ['https://player.twitch.tv/*', 'https://clips.twitch.tv/*']
+
+/** scheme://host of a page URL (Node's URL gives "null" as the origin of app:// pages). */
+export function pageOrigin(url: string): string | null {
+  try {
+    const u = new URL(url)
+    return u.host ? `${u.protocol}//${u.host}` : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Response headers for an embed framed by `embedder`: every CSP frame-ancestors directive (Twitch sends
+ * `frame-ancestors https://<parent>`) allows just the embedder instead. Other headers and directives are kept.
+ */
+export function embedderHeaders(headers: Record<string, string[]>, embedder: string): Record<string, string[]> {
+  const out: Record<string, string[]> = {}
+  for (const [name, values] of Object.entries(headers)) {
+    out[name] = name.toLowerCase() === 'content-security-policy'
+      ? values.map((v) => v.replace(/(^|;)\s*frame-ancestors[^;]*/gi, (_m, start: string) => `${start}${start ? ' ' : ''}frame-ancestors ${embedder}`))
+      : values
+  }
+  return out
+}
+
 /**
  * Whether the OS keychain can protect Iskra's keys (Electron safeStorage).
  * keyring: DPAPI, Keychain, libsecret or kwallet. basic: Linux without a keyring, where safeStorage falls back to a

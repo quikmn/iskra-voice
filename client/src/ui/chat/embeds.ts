@@ -11,6 +11,13 @@ export interface Embed {
   shape: 'video' | 'post'
 }
 
+/** Every embed frame's attributes: sandboxed, but players may open their own site in a new window. */
+export const EMBED_FRAME = {
+  allow: 'autoplay; encrypted-media; picture-in-picture; fullscreen',
+  referrerPolicy: 'strict-origin-when-cross-origin',
+  sandbox: 'allow-scripts allow-same-origin allow-popups allow-presentation',
+} as const
+
 const ID = /^[\w-]+$/
 
 function parse(url: string): URL | null {

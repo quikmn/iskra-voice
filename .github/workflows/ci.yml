@@ -60,6 +60,12 @@ jobs:
           cache-dependency-path: desktop/package-lock.json
       - run: npm ci
       - run: npm test
+      # YouTube and Twitch embeds in real Electron on each OS (offline: no host names resolve).
+      - run: node node_modules/electron/install.js
+      - run: npm run test:electron
+        if: runner.os != 'Linux'
+      - run: xvfb-run -a npm run test:electron -- --no-sandbox
+        if: runner.os == 'Linux'
 
   end-to-end:
     runs-on: ubuntu-latest

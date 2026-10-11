@@ -10,7 +10,7 @@ import { useEscapeLayer } from '../layers'
 import { FileIcon } from '../icons'
 import { plainText } from '../markdown'
 import { ReactionsDialog } from './MessageMore'
-import { embedFor, type Embed } from './embeds'
+import { EMBED_FRAME, embedFor, type Embed } from './embeds'
 
 /** Images as a grid that opens the gallery; videos, audio, text previews and other files below. Spoilers stay covered until clicked. */
 export function Attachments({ server, files }: { server: ServerState; files: FileInfo[] }) {
@@ -173,9 +173,9 @@ function EmbedCard({ embed, url, preview }: { embed: Embed; url: string; preview
           className={`embed-frame ${embed.shape}`}
           src={embed.src}
           title={`${embed.provider}: ${preview?.title ?? url}`}
-          sandbox="allow-scripts allow-same-origin allow-popups allow-presentation"
-          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-          referrerPolicy="strict-origin-when-cross-origin"
+          sandbox={EMBED_FRAME.sandbox}
+          allow={EMBED_FRAME.allow}
+          referrerPolicy={EMBED_FRAME.referrerPolicy}
           allowFullScreen
         />
       ) : (

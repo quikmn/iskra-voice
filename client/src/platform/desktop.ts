@@ -53,6 +53,13 @@ export interface DesktopBridge {
   capturePushToTalkKey(): Promise<{ code: number; name: string } | null>
   onPushToTalk(callback: (down: boolean) => void): () => void
   pushToTalkStatus(): Promise<PushToTalkStatus>
+  /** Global mute/deafen hotkeys: codes and modifiers (Ctrl 1, Shift 2, Alt 4, Meta 8). Missing in older desktop builds. */
+  setHotkeys?(binds: Partial<Record<'mute' | 'deafen', { code: number; mods: number }>>): Promise<void>
+  /** The next key or side button pressed, with modifiers held; null if cancelled (Escape) or keys can't be seen. */
+  captureHotkey?(): Promise<{ code: number; mods: number; name: string } | null>
+  cancelHotkeyCapture?(): Promise<void>
+  /** Only the action ever arrives, never which keys were pressed. */
+  onHotkey?(callback: (action: 'mute' | 'deafen') => void): () => void
   /** macOS: opens a Privacy & Security page in System Settings. */
   openSystemSettings(pane: 'accessibility' | 'screen' | 'microphone' | 'camera'): Promise<void>
   updates: {

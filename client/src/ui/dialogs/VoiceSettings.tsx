@@ -60,7 +60,7 @@ export function VoiceSettingsSection() {
 }
 
 /** Desktop: whether the global key hook works here. Re-checked while open, so granting a permission shows up right away. */
-function usePushToTalkStatus(active: boolean): PushToTalkStatus {
+export function usePushToTalkStatus(active: boolean): PushToTalkStatus {
   const [status, setStatus] = useState<PushToTalkStatus>('ready')
   useEffect(() => {
     if (!desktop || !active) return
@@ -76,7 +76,7 @@ function usePushToTalkStatus(active: boolean): PushToTalkStatus {
   return status
 }
 
-function PushToTalkHint({ status }: { status: PushToTalkStatus }) {
+export function PushToTalkHint({ status }: { status: PushToTalkStatus }) {
   if (status === 'needs-permission') {
     return (
       <div>

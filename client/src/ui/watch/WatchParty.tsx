@@ -8,7 +8,7 @@ import {
 import { correction, formatTime, parseWatchInput, positionAt, WATCH_RATES } from '../../state/watchSync'
 import { Avatar, Modal } from '../bits'
 import { Expand, Send } from '../icons'
-import { videoAdapter, YouTubeBridge, youTubeEmbedUrl, type PlayerAdapter } from './players'
+import { videoAdapter, YouTubeBridge, youTubeEmbedUrl, YOUTUBE_FRAME, type PlayerAdapter } from './players'
 import { ChatIcon, PauseIcon, PlayIcon, TvIcon, VolumeOffIcon, VolumeOnIcon } from './watchIcons'
 import './watch.css'
 
@@ -318,9 +318,9 @@ function YouTubeFrame({ videoId, onReady, onError }: { videoId: string; onReady:
       className="watch-video"
       title="YouTube video"
       src={src}
-      allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-      referrerPolicy="strict-origin-when-cross-origin"
-      sandbox="allow-scripts allow-same-origin allow-presentation"
+      allow={YOUTUBE_FRAME.allow}
+      referrerPolicy={YOUTUBE_FRAME.referrerPolicy}
+      sandbox={YOUTUBE_FRAME.sandbox}
       allowFullScreen
     />
   )
