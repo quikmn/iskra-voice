@@ -163,6 +163,7 @@ public static partial class EventFeature
         var zone = TimeZone(body.String("timeZone", 64));
         var (kind, channelId, place) = Location(s, me, body.Element("location"));
         var image = body.OptionalString("image", 64) is { } fileId ? Image(s, me, fileId, null) : null;
+        AutoModFeature.Check(s, me, null, title + "\n" + description, "event");
         if (store.OpenEventCount() >= MaxOpenEvents) throw RequestException.BadRequest($"This server already has {MaxOpenEvents} upcoming events.");
         if (!s.Hub.Limits.TryTake(me.AccountKey, "event.create")) throw new RequestException("rate_limited", "Too many new events. Try again in a few minutes.");
 
@@ -200,6 +201,7 @@ public static partial class EventFeature
             e = e with { LocationKind = kind, ChannelId = channelId, Location = place };
         }
         if (body.OptionalString("image", 64) is { } fileId) e = e with { ImageFile = Image(s, me, fileId, e.ImageFile) };
+        if (e.Title != before.Title || e.Description != before.Description) AutoModFeature.Check(s, me, null, e.Title + "\n" + e.Description, "event");
 
         s.World.Store.UpdateEvent(e);
         Broadcast(s.Hub, s.World.Store, e, before);

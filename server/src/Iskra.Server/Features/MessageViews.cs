@@ -37,6 +37,7 @@ public static class MessageViews
             forwarded = ForwardFeature.View(store, m),
             sticker = StickerFeature.View(store, m.Id),
             gif = GifFeature.View(store, m.Id),
+            automod = AutoModFeature.MessageView(store, m),
         };
     }
 

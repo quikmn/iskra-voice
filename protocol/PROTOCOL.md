@@ -13,7 +13,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **People and integrations:** [Profiles](#profiles) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Presence and voice messages](#presence-and-voice-messages)
 - **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Backups, moving and imports](#backups-moving-and-imports)
-- **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation) · [Roles and permissions](#roles-and-permissions) · [Reliable sends](#reliable-sends)
+- **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation) · [Roles and permissions](#roles-and-permissions) · [Reliable sends](#reliable-sends) · [AutoMod](#automod)
 - **Keys:** [Account key rotation](#account-key-rotation) · [Keys on the device](#keys-on-the-device)
 
 ---
@@ -119,6 +119,7 @@ After the handshake, every request gets a `result` (body as listed, `{}` if none
 | `busy` | `call.start`: the person is already in another call on this server; `gcall.start`: the group already has a call |
 | `conflict` | `group.change`, `group.send`, `gcall.start`, `gcall.key`: the group changed in the meantime ([Group DMs](#group-dms-and-group-calls-end-to-end-encrypted)) |
 | `rotation_conflict` | `account.rotate`: this account key was already rotated to a different key here |
+| `automod` | [AutoMod](#automod) blocked the message (or title, name, poll); `message` says why. Nothing was stored or sent |
 
 Close codes:
 
@@ -1021,7 +1022,7 @@ Role { "id": 3, "name": "Moderator", "color": "#3ba55c" | null, "icon": "🛡️
 - `hoist`: shown as its own group in the member list. Name colour: the highest role with a colour. Both are client-side choices.
 - `Member` gains `roles: [roleId]` (highest first); members can hold several. `Channel` gains `overrides: [{ roleId, allow: [ChannelPerm], deny: [ChannelPerm] }]`.
 
-**Permissions** (`permissions`): `manageMessages` (delete others' messages, pin, end polls, manage threads), `timeoutMembers`, `kickMembers`, `banMembers` (also unban and the ban list), `manageChannels` (create, edit, delete channels they can see, slowmode, overrides), `manageRoles`, `viewAuditLog`, `manageExpressions` (emoji and sounds), `manageWebhooks`, `mentionEveryone` (`@everyone`/`@here` ping; trusted+ still can), `moveMembers`, `muteMembers`. Clients offer a "Moderator" preset with all of them. Setting levels (`member.setRole`), bot invites, profile pages and internet hosting stay admin-only. People who manage messages or channels skip slowmode.
+**Permissions** (`permissions`): `manageMessages` (delete others' messages, pin, end polls, manage threads), `timeoutMembers`, `kickMembers`, `banMembers` (also unban and the ban list), `manageChannels` (create, edit, delete channels they can see, slowmode, overrides), `manageRoles`, `viewAuditLog`, `manageExpressions` (emoji and sounds), `manageWebhooks`, `mentionEveryone` (`@everyone`/`@here` ping; trusted+ still can), `moveMembers`, `muteMembers`, `manageAutoMod` ([AutoMod](#automod) settings). Clients offer a "Moderator" preset with all of them. Setting levels (`member.setRole`), bot invites, profile pages and internet hosting stay admin-only. People who manage messages or channels skip slowmode.
 
 **Hierarchy**: the owner, then admins, then members with custom roles by their highest role's position, then trusted, member, guest. Kicking, banning, timing out, deleting someone's message, managing someone's roles, muting and moving work only on people strictly below you. Members holding the same highest role are equal.
 
@@ -1404,3 +1405,48 @@ Every `Member` gains `activity: { "name": "Factorio", "since": 1760000000000 } |
 - Real changes are limited to 5 in a burst, then one per 10 seconds per connection (`rate_limited`).
 - Each change is broadcast as `member.updated`. `welcome.members` carries current activities.
 - `activity` is a separate field next to [presence](#presence-and-custom-status) (`status`, `customStatus`) on the same `Member`, so clients can show both. Members who appear offline (no sessions, or `invisible`) show no activity.
+
+## AutoMod
+
+Server-side rules that stop unwanted messages before they are stored or sent to anyone. Off until an admin turns it on.
+
+```jsonc
+AutoMod {
+  "enabled": false,
+  "words":      { "enabled": false, "blocked": ["bad*", "two words"], "allowed": ["badge"], "action": Action },
+  "mentions":   { "enabled": false, "max": 10, "action": Action },             // more than max people/roles in one message
+  "flood":      { "enabled": false, "count": 8, "seconds": 10, "action": Action },   // more than count messages within seconds
+  "duplicates": { "enabled": false, "count": 3, "seconds": 60, "action": Action },   // the same text more than count times within seconds
+  "links":      { "enabled": false, "mode": "invites" | "all", "allowedDomains": ["youtube.com"], "action": Action },
+  "exemptRoles": [roleId], "exemptChannels": [channelId], "alertChannelId": 7 | null
+}
+Action { "timeoutMs": 0, "alert": false }   // a block always happens; optionally also a timeout and an alert
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `automod.get` | | `{ automod: AutoMod }` | `manageAutoMod` |
+| `automod.update` | `automod: AutoMod` (replaces everything; missing parts take the defaults) | `{ automod: AutoMod }` | `manageAutoMod`; a `timeoutMs` other than 0 also needs `timeoutMembers` |
+
+Limits (`bad_request` beyond them): `blocked` ≤ 500 entries, `allowed` ≤ 100, each 1–50 characters with at least one letter or digit and at most 4 `*` (blank entries are dropped, duplicates merged); `mentions.max` 1–50; `flood.count` 2–50, `flood.seconds` 2–120; `duplicates.count` 1–20, `duplicates.seconds` 5–3600; `allowedDomains` ≤ 50 domains like `example.com` (a scheme, `www.` or `*.` in front is dropped); `exemptRoles` ≤ 100 existing roles; `exemptChannels` ≤ 500 channels you can see (not threads); `alertChannelId` a text channel you can see; `timeoutMs` 0 or a [timeout](#timeouts) length. Deleted roles and channels drop out of the settings.
+
+**Matching.** Text is compared after Unicode compatibility decomposition (fullwidth and styled letters become plain ones), with accents and other combining marks, invisible format characters (zero-width spaces and joiners, …) and case removed. Words are runs of letters and digits. An entry matches whole words: `bad` matches "BÁD!" but not "badge"; `*` stands for any letters within a word (`bad*`, `*bad`, `b*d`) or for any one word in a phrase (`big * cat`); a phrase matches those words in a row, whatever is between them. Three or more single letters in a row are also read as one word ("b a d", "b.a.d"). A match that is exactly an `allowed` entry doesn't count. `mentions` counts distinct `<@accountKey>` and `<@&roleId>` mentions, and `@everyone` and `@here` once each. `links` mode `invites` blocks Discord invites and Iskra invite links; mode `all` blocks every `http(s)://` or `www.` link (and bare invites) unless its host is an allowed domain or under one.
+
+**What is checked:** `chat.send`, `chat.edit`, `chat.forward` (the forwarded text, in the target channel), `poll.create` (question and answers), `thread.create` / `thread.update` (the name), `forum.post.create` (title and first message) / `forum.post.update` (the title), `event.create` / `event.update` (title and description) and `watch.chat`. New messages, polls and forum posts also count towards `flood` and `duplicates` (all channels together, kept in memory: a restart forgets them); edits and names don't. Webhook posts aren't checked. **End-to-end encrypted DMs and groups are never checked**: the server can't read them.
+
+**Who is exempt:** admins and the owner always; members holding an exempt role; anything in an exempt channel (threads and forum posts follow their channel; events have no channel).
+
+**When a rule matches** (the first of words, mentions, links, duplicates, flood): the request answers `error` `automod` with a message for the sender ("Blocked by AutoMod: it contains a word that isn't allowed on this server."), and nothing is stored or broadcast. Then, as the rule's `action` says:
+
+- `timeoutMs`: the sender is [timed out](#timeouts) for that long (unless a longer timeout is already running; the reason is "AutoMod: …"), with `member.updated` as usual, and the message ends with "You're timed out for 5 minutes."
+- `alert`: an alert message is posted in `alertChannelId` (if it's still a text channel) and sent as `chat.message` to its readers. Its `author` is `"automod:"` (never an account key), `text` is `""`, and `Message` gains:
+
+  ```jsonc
+  "automod": { "rule": "words", "what": "message" | "edit" | "poll" | "post" | "thread" | "event" | "watch",
+               "member": "<accountKey>", "memberName": "Sam", "channelId": 1 | null, "channelName": "general" | null,
+               "snippet": "you s•••, really" | null, "timeoutMs": 300000 }
+  ```
+
+  (`Message.automod` is null on every other message.) `snippet` is the text cut to 120 characters, with blocked words masked to their first letter and `•••`; clients show it hidden until clicked. `channelId`, `channelName` and `snippet` are null unless everyone who can read the alert channel could also read the original channel (by `readRole`). Alerts can't be edited; people who manage messages can delete them.
+- Every block is recorded in the [audit log](#audit-log) as `automod.block` (actor `"automod:"`, `actorName` "AutoMod", target the sender, reason the rule) `{ rule, what, channelId, channelName, timeoutMs }`, never with the text. Audit entries and alerts are sent at most once per member and rule every 30 seconds (a timeout is always recorded); requests stay rate limited as usual.
+- `automod.update` is recorded as `automod.update` `{ enabled, rules: ["words", ...], blockedWords }`.

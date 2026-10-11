@@ -69,6 +69,7 @@ public static class ChatFeature
         // A retry of a send that already went through (the reply was lost with the connection): same answer, nothing new.
         var nonce = Nonce(body);
         if (nonce is not null && s.World.Store.NonceUsed(me.AccountKey, nonce)) return Repeat(s, me, nonce);
+        AutoModFeature.Check(s, me, channel, text, "message");
         ModerationFeature.CheckSlowmode(s, me, channel);
 
         Message message;
@@ -117,6 +118,7 @@ public static class ChatFeature
         if (s.World.Store.GetMessageGif(message.Id) is not null) throw RequestException.BadRequest("GIFs can't be edited.");
 
         var text = MessageText(body);
+        AutoModFeature.Check(s, me, channel, text, "edit");
         s.World.Store.EditMessage(message.Id, text, s.Now);
         var edited = View(s, message with { Text = text, EditedAt = s.Now });
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.edited", new { message = edited }));
