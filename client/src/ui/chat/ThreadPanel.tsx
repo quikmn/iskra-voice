@@ -13,6 +13,7 @@ import { PinList, Popover } from './HeaderTools'
 import { ArrowLeft, PinIcon, ThreadIcon } from './extraIcons'
 import { openProfileCard } from '../../state/profile'
 import { useEscapeLayer } from '../layers'
+import { resolveKey } from '../../state/keyMap'
 
 export function ThreadPanel({ server, threadId }: { server: ServerState; threadId: number }) {
   const thread = useThreads((s) => s.threads[server.key]?.[threadId])
@@ -189,7 +190,7 @@ function ThreadStart({ server, root, createdBy }: { server: ServerState; root: M
       </div>
     )
   }
-  const name = server.members[root.author]?.name ?? 'Former member'
+  const name = (server.members[root.author] ?? server.members[resolveKey(root.author)])?.name ?? 'Former member'
   return (
     <div className="thread-start">
       <div className="thread-root">

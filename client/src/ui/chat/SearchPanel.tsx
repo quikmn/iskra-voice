@@ -10,6 +10,7 @@ import { Close } from '../icons'
 import { highlightSegments, readableMentions } from './searchQuery'
 import { ArrowLeft, SearchIcon } from './extraIcons'
 import { useEscapeLayer } from '../layers'
+import { resolveKey } from '../../state/keyMap'
 
 const HINTS: [string, string][] = [
   ['from:', 'a person'],
@@ -91,7 +92,7 @@ export function SearchPanel({ server }: { server: ServerState }) {
 
 function ResultCard({ server, result }: { server: ServerState; result: SearchResult }) {
   const { message, matches } = result
-  const name = server.members[message.author]?.name ?? 'Former member'
+  const name = (server.members[message.author] ?? server.members[resolveKey(message.author)])?.name ?? 'Former member'
   const nameOf = (k: string) => server.members[k]?.name ?? null
   const segments = highlightSegments(message.text, matches)
   return (

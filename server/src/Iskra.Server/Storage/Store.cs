@@ -303,9 +303,13 @@ public sealed partial class Store : IDisposable
     private static long? NullableLong(SqliteDataReader r, int i) => r.IsDBNull(i) ? null : r.GetInt64(i);
     private static int? NullableInt(SqliteDataReader r, int i) => r.IsDBNull(i) ? null : r.GetInt32(i);
 
+    /// <summary>
+    /// Closes the database. Runs from ApplicationStopped while sessions may still be finishing a statement, so it waits
+    /// for the write lock: closing the connection under a running command made Dispose throw (and the host log it).
+    /// </summary>
     public void Dispose()
     {
         lock (_readerGate) _reader?.Dispose();
-        _db.Dispose();
+        lock (_gate) _db.Dispose();
     }
 }

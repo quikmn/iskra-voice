@@ -147,7 +147,12 @@ function onRetired(rotations: AppliedRotation[] | undefined, handover: string | 
     if (!identity) return
     const mine = b64u(identity.account.publicKey)
     const chain = chainFrom(mine, (rotations ?? []).filter((r) => verifyRotation(r)))
-    if (chain.length === 0) return // about a key we already left, or not verifiable
+    if (chain.length === 0) {
+      // An admin settled a dispute against our key: the old key we came from now leads somewhere else.
+      const lost = (rotations ?? []).find((r) => verifyRotation(r) && r.newKey !== mine && keyMap().same(r.oldKey, mine))
+      if (lost) useKeys.setState({ retired: { rotations: [lost], claimed: false } })
+      return // otherwise: about a key we already left, or not verifiable
+    }
     if (handover) {
       const opened = openHandover(identity, handover, chain)
       if (opened) {
@@ -255,7 +260,9 @@ onServerEvent((serverKey, type, body) => {
         members[member.accountKey] = member
         return { members }
       })
+      // Settled: the dispute was filed under whoever held the account then, which may be the losing key.
       setDispute(serverKey, { ...rotation, disputed: false })
+      setDispute(serverKey, { ...rotation, newKey: previousKey, disputed: false })
       if (previousKey !== rotation.newKey && verifyRotation(rotation) && !keyMap().same(rotation.oldKey, myKey())) {
         // The admins gave the account to the other key: our view follows, with a fresh "safety number changed".
         void serial(async () => {

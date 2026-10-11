@@ -8,6 +8,27 @@ public class WorldTests : IDisposable
     private readonly string _path = Path.Combine(Path.GetTempPath(), "iskra-world-" + Guid.NewGuid().ToString("N"));
 
     [Fact]
+    public async Task Closing_the_world_waits_for_a_running_statement()
+    {
+        // Regression: ApplicationStopped disposed the store while sessions were still querying it, so Dispose threw.
+        var world = World.OpenOrCreate(_path);
+        for (var i = 0; i < 50; i++) world.Store.AddMember(Guid.NewGuid().ToString("N"), "M", "member", 0);
+        using var stop = new CancellationTokenSource();
+        var busy = Task.Run(() =>
+        {
+            while (!stop.IsCancellationRequested)
+            {
+                try { world.Store.AllMembers(); }
+                catch (Exception) { return; } // closed under us is fine; closing is what must not throw
+            }
+        });
+        await Task.Delay(50);
+        world.Dispose();
+        stop.Cancel();
+        await busy;
+    }
+
+    [Fact]
     public void A_missing_folder_is_created_with_defaults()
     {
         using var world = World.OpenOrCreate(_path);

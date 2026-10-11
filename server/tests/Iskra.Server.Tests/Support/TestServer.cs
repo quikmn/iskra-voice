@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Key = NSec.Cryptography.Key;
 
 namespace Iskra.Server.Tests.Support;
@@ -52,6 +53,9 @@ public sealed class IskraServer : WebApplicationFactory<Program>
             if (PortMapper is not null) services.AddSingleton(PortMapper);
         });
         foreach (var (key, value) in Settings) builder.UseSetting(key, value);
+        // Not the Windows Event Log: a test host writes there late in shutdown, after its EventLog handle is gone,
+        // which turned any logged shutdown problem into a failed test.
+        builder.ConfigureLogging(logging => logging.ClearProviders().AddConsole());
     }
 
     public async Task<TestClient> ConnectAsync()
