@@ -19,6 +19,7 @@ public sealed partial class Uploads
         var keep = world.Store.AllPageHtml().SelectMany(html => FileLink().Matches(html).Select(m => m.Groups[1].Value)).ToHashSet();
         if (voice is not null) keep.UnionWith(voice.Watch.FileIds()); // none from the command line
         keep.UnionWith(world.Store.ReportFileIds()); // moderators still look at reported files
+        keep.UnionWith(world.Store.DocFileIds()); // pictures in docs pages (and their revisions)
         var removed = world.Store.DeleteUnreferencedFiles((now - UnusedGrace).ToUnixTimeMilliseconds(), keep);
         if (removed.Count > 0) world.Store.ForgetDeletedDmFiles();
         foreach (var sha in removed.Distinct())

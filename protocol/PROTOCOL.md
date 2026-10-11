@@ -11,7 +11,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Friends](#friends)
 - **People and integrations:** [Profiles](#profiles) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Presence and voice messages](#presence-and-voice-messages)
-- **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules)
+- **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Backups, moving and imports](#backups-moving-and-imports)
 - **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation) · [Roles and permissions](#roles-and-permissions) · [Reliable sends](#reliable-sends) · [AutoMod](#automod)
 - **Keys:** [Account key rotation](#account-key-rotation) · [Keys on the device](#keys-on-the-device) · [Leaving a server and signing out](#leaving-a-server-and-signing-out) · [Reports, deleting an account and handing over a server](#reports-deleting-an-account-and-handing-over-a-server)
@@ -181,7 +181,7 @@ Over the limit: `error` with `code: "rate_limited"`; the session stays open. HTT
 ```jsonc
 Member  { "accountKey": "<b64u>", "name": "Viktor", "role": "member", "online": true, "bot": false,
           ...profile fields (see Profiles) }
-Channel { "id": 1, "name": "general", "kind": "text" | "voice" | "stage", "position": 0, "readRole": "member", "writeRole": "member" }
+Channel { "id": 1, "name": "general", "kind": "text" | "voice" | "forum" | "stage" | "docs", "position": 0, "readRole": "member", "writeRole": "member" }
 Message { "id": 42, "channelId": 1, "author": "<accountKey>", "text": "hi", "createdAt": 1760000000000, "editedAt": null,
           "attachments": [File], "replyTo": ..., "reactions": [...],   // Files, replies and reactions
           "pinned": false, "thread": Thread | null,                     // Pins, search and threads
@@ -1442,7 +1442,7 @@ Rules { "text": "1. Be kind …", "welcome": "Welcome!", "required": true,
 
 - `welcome` carries `rules` (`Rules`, without the counts). Event `rules` `{ rules }` goes to every session (each its own view) after `rules.update`, and to your own sessions after `rules.accept`.
 - `required` needs non-empty `text`. `reaccept: true` (only with `required`) raises `version`, so everyone must agree again. Turning `required` on without `reaccept` counts everyone who is a member right now as having agreed, so only people who join later are asked; with `reaccept`, existing members are asked too. Edits without `reaccept` keep everyone's agreement. Whoever saves required rules has agreed to them.
-- Not yet agreed: these answer `rules_required`: `chat.send`, `chat.edit`, `chat.react`, `chat.typing`, `chat.pin`, `chat.forward`, `upload.begin`, `thread.create`, `thread.update`, `poll.create`, `poll.vote`, `poll.end`, `voice.join`, `sound.play`, `call.start`, `call.accept`, `stage.hand`, `stage.start`, `forum.post.create`, `forum.post.update`, `event.create`, `event.update`, `event.interest`, `watch.start`, `watch.control`, `watch.chat`, `invite.create`. LiveKit joins from them are removed. Reading, DMs, profile changes and settings keep working.
+- Not yet agreed: these answer `rules_required`: `chat.send`, `chat.edit`, `chat.react`, `chat.typing`, `chat.pin`, `chat.forward`, `upload.begin`, `thread.create`, `thread.update`, `poll.create`, `poll.vote`, `poll.end`, `voice.join`, `sound.play`, `call.start`, `call.accept`, `stage.hand`, `stage.start`, `forum.post.create`, `forum.post.update`, `event.create`, `event.update`, `event.interest`, `watch.start`, `watch.control`, `watch.chat`, `invite.create`, and the page changes in [docs channels](#docs-channels). LiveKit joins from them are removed. Reading, DMs, profile changes and settings keep working.
 - The owner and bots never need to agree; webhooks don't go through sessions. Agreements are stored per account key and kept if someone leaves and comes back.
 - Audit: `rules.update` `{ required, reaccept, version, textChanged }`.
 
@@ -1572,3 +1572,44 @@ AccountDeletion { "accountKey": "<b64u 32>", "deletedAt": 1760000000000, "messag
 **Other devices** learn of it when they next connect anywhere it was applied. A device checks the signature against its own account key (so a server can't make it wipe itself), sends the same `account.delete` to its other servers the deleting device couldn't reach, then deletes its keys and data. Messages already on other people's devices (DMs, groups) stay there.
 
 **Owners** can't delete their account on a server they own: they hand it over with `owner.transfer` first, or shut the server down. Audit: `owner.transfer` (target the new owner) `{ from }` (their level before).
+
+## Docs channels
+
+A docs channel (`channel.create` with `kind: "docs"`) is a small wiki: **pages** with a title and Markdown text (the message syntax, plus tables, `![alt](/files/<id>/<name>)` pictures from this server's uploads, and `---` rules; apps show no pictures from anywhere else). Pages can have **sub-pages**, one level deep. Reading follows the channel's read access; creating, editing, moving and restoring follow its write access. Without a `writeRole`, a docs channel is created with `writeRole: "trusted"` (or the read role, if that is higher): everyone reads, trusted members and above edit. `chat.send` and the other message requests don't work in a docs channel (`bad_request`).
+
+```jsonc
+DocPage { "id": 12, "channelId": 7, "parentId": null | 3, "title": "Start here", "position": 0,
+          "version": 4,                       // goes up by one on every save
+          "createdBy": "<accountKey>", "createdAt": 1760000000000,
+          "updatedBy": "<accountKey>", "updatedAt": 1760000000000,
+          "size": 1834,                       // text, in UTF-8 bytes
+          "text": "# Welcome …" }             // only in docs.page.get / create / save / restore results
+Revision { "version": 3, "title": "…", "author": "<accountKey>", "createdAt": 1760000000000, "restoredFrom": null | 1, "size": 1200 }
+Home { "pageId": 12, "channelId": 7, "title": "Start here" }   // or null
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `docs.pages` | `channelId` | `{ pages: [DocPage without text], home: pageId \| null }` | readers |
+| `docs.page.get` | `id`, `version?` | `{ page }` with text; with `version`: `{ page (without text), revision: Revision + text }` | readers |
+| `docs.page.create` | `channelId, title` (1–100 chars, one line), `parentId?` (a top-level page in this channel), `text?` or `file?` | `{ page }` | writers; ≤ 500 pages per channel |
+| `docs.page.save` | `id, baseVersion`, `title?`, `text?` or `file?` (at least one) | `{ page }` | writers |
+| `docs.page.move` | `id, parentId?` (null: top level), `before?` (a page at the same level; null: last) | `{ page }` | writers; a page with sub-pages stays at the top level |
+| `docs.page.delete` | `id` | | whoever made the page (if they can write there), or a writer who can [pin](#pins) there (trusted+ or `manageMessages`). Its sub-pages go too |
+| `docs.page.history` | `id` | `{ page, revisions: [Revision] }` (newest first) | readers |
+| `docs.page.restore` | `id, version, baseVersion` | `{ page }` | writers |
+| `docs.home.get` | | `{ home }` | anyone |
+| `docs.home.set` | `pageId?` (null clears) | `{ home }` | `manageChannels` |
+| `docs.search` | `query` (as for [search](#pins-search-and-threads)), `channelId?`, `limit?` (1–25, default 10) | `{ results: [{ page, snippet, matches: [[start, length]] }] }` (best first; titles weigh more) | readers of each channel searched |
+
+- **Text:** at most **100 KB** of UTF-8. Line endings become `\n`; control characters (other than newline and tab) and invisible formatting characters (bidi overrides, zero-width spaces; not the zero-width joiner) are removed rather than refused, since pasted text often has some; trailing whitespace is trimmed. Text may be empty. A long page doesn't fit in a socket frame (64 KB), so apps upload it as a file (`upload.begin`, `PUT`) and pass `file`: the id of your own upload, UTF-8 text (`bad_request` otherwise). Uploads used this way are swept like any unused upload.
+- **Versions (optimistic concurrency):** every save names `baseVersion`, the version it started from. If the page has moved on, nothing is saved and the answer is `conflict`; apps then fetch the current page and offer to compare and merge (they kept the text they started from). Saving the same title and text again answers the page as it is, without a new version.
+- **Revisions:** every save keeps the new title and text as a revision. A save by the same person within 10 minutes of their previous one replaces that revision (so a burst of saves is one entry; the first revision of a page is always kept). At most 50 revisions per page; the oldest go first. Restoring saves an old revision's title and text as a new version (`restoredFrom` tells which). Revisions go when their page does.
+- **Pictures:** pages show this server's uploads by URL (`/files/<id>/…`); uploads named in any saved version of a page are kept by the upload sweeper while the page exists.
+- **Start here:** one page per server, shown at the top of everyone's channel list (when they can read its channel). Event `docs.home` `{ home }` goes to every session, each with its own view, when it's set, cleared, renamed or deleted.
+- **Events** to the channel's readers: `docs.page.updated` `{ page }` (without text) after a create, save, restore or move (a move sends one per page whose position changed), and `docs.page.deleted` `{ channelId, ids }`.
+- **Search:** SQLite FTS5 over titles and text (accents ignored, prefix matches), only in docs channels the requester can read right now. `snippet` is a piece of the page with the matches at `matches` (UTF-16 offsets).
+- **Safety:** AutoMod checks the title and text of every create, save and restore (`automod` with `what: "page"` in the audit entry); timed-out members get `forbidden`, and members who must still agree to the [rules](#server-rules) get `rules_required` for `docs.page.create`, `docs.page.save`, `docs.page.move`, `docs.page.delete` and `docs.page.restore`. Rate limits: `docs.page.create` 0.2/s (burst 5), `docs.page.save` 1/s (burst 10), `docs.search` 2/s (burst 10).
+- **Audit:** `docs.page.create`, `docs.page.delete`, `docs.page.restore` `{ channelId, channelName, pageId, title, extra: { version } | null }` and `docs.home.set` (the same, or `{ pageId: null }` when cleared). Page text is never recorded.
+- **Links:** apps link to a page with `#/open/<serverKey>/c/<channelId>/p/<pageId>` (like message links), which opens the page in the app.
+
