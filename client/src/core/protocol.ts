@@ -1417,6 +1417,8 @@ export interface Requests {
   'scheduled.delete': [{ id: number }, Record<string, never>]
   'scheduled.send': [{ id: number }, { message: unknown }]
   'inbox.list': [{ before?: number; limit?: number }, { items: InboxItem[]; hasMore: boolean; next: number | null }]
+}
+
 // ── docs channels ──
 // See "Docs channels" in PROTOCOL.md.
 
@@ -1552,6 +1554,8 @@ export interface Requests {
   'update.check': [Record<string, never>, { status: ServerUpdateStatus }]
   'update.settings': [{ mode?: UpdateMode; channel?: UpdateChannel; window?: string; requireAttestation?: boolean }, { status: ServerUpdateStatus }]
   'update.install': [Record<string, never>, { status: ServerUpdateStatus }]
+}
+
 // ── voice chat and clips ──
 
 export interface VoiceParticipant {
@@ -1566,6 +1570,8 @@ export interface Message {
 
 export interface Requests {
   'voice.clip': [{ channelId: number }, { message: Message }]
+}
+
 // ── key transparency ──
 
 /** A key log head the server signed: "iskra/keylog-head/v1" 0x00 serverKey(32) u64be(seq) hash(32) u64be(at). */

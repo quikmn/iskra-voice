@@ -140,6 +140,7 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         Section("editHistory", $"""
             SELECT e.message_id, e.text, e.written_at FROM message_edits e JOIN messages m ON m.id = e.message_id
             WHERE m.author_key {Mine} ORDER BY e.id;
+            """);
         Section("docsPages", $"""
             SELECT p.id, p.channel_id, c.name AS channel_name, p.title, p.created_by, p.created_at, p.updated_by, p.updated_at
             FROM doc_pages p LEFT JOIN channels c ON c.id = p.channel_id WHERE p.created_by {Mine} OR p.updated_by {Mine} ORDER BY p.id;

@@ -473,8 +473,7 @@ function GroupRow({ m, grouped, groupKey, mine }: { m: GroupMsg; grouped: boolea
   const name = knownName(m.from)
   const tools = usePrivateMessageTools(m.pending || m.error || m.call ? null : groupTarget(groupKey, m), m.text)
   return (
-    <div id={privateRowId(m.from, m.id)} {...tools.rowProps} className={`message ${grouped ? 'grouped' : ''} ${m.pending ?? ''} ${tools.rowProps.className ?? ''}`}>
-    <div className={`message ${grouped ? 'grouped' : ''} ${m.pending ?? ''}`} data-dm-id={m.id}>
+    <div id={privateRowId(m.from, m.id)} {...tools.rowProps} data-dm-id={m.id} className={`message ${grouped ? 'grouped' : ''} ${m.pending ?? ''} ${tools.rowProps.className ?? ''}`}>
       <div className="message-gutter">
         {grouped ? <time className="hover-time" title={fullTime(m.sentAt)}>{clockTime(m.sentAt)}</time> : <Avatar name={name} accountKey={m.from} />}
       </div>
