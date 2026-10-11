@@ -83,7 +83,10 @@ export async function startServer(name: string, voice = false, env: Record<strin
       if (!exited) {
         const done = new Promise((r) => proc.once('exit', r))
         proc.kill()
+        // A clean stop takes a moment; don't let a stuck one eat the hook timeout.
+        const force = setTimeout(() => proc.kill('SIGKILL'), 10_000)
         await done
+        clearTimeout(force)
       }
       rmSync(world, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
     })()),
