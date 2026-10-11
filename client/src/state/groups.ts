@@ -29,6 +29,8 @@ export interface GroupConv {
   name: string | null
   /** When the name was set (the newest rename wins). */
   nameAt: number
+  /** Last known display names of the people in it (kept for when its server is gone). */
+  names: Record<string, string>
   messages: GroupMsg[]
   loaded: boolean
   unread: number
@@ -50,12 +52,34 @@ const me = () => {
 /** Whether you're in this group as far as its verified chain says (and the server agrees). */
 export const isMember = (g: GroupConv | undefined) => !!g?.view?.members.includes(me()) && !g.gone
 
+/** The group lives on a server you left: kept read-only on this device until you remove it. */
+export const isArchived = (g: GroupConv | undefined) => !!g && !useApp.getState().servers[g.serverKey]
+
+/** Someone's name from any server, else as a group last saw it (its server may be gone). */
+export function knownName(accountKey: string): string {
+  const name = nameOf(accountKey)
+  if (name !== 'Someone') return name
+  for (const g of Object.values(useGroups.getState().groups)) if (g.names[accountKey]) return g.names[accountKey]
+  return name
+}
+
 export function titleOf(g: GroupConv): string {
-  return groupTitle(g.name, g.view?.members ?? [], me(), nameOf)
+  return groupTitle(g.name, g.view?.members ?? [], me(), knownName)
+}
+
+/** Names of everyone who was ever in the group or wrote in it, refreshed from the servers we can see. */
+function namesFor(g: GroupConv): Record<string, string> {
+  const names = { ...g.names }
+  const people = new Set([...(g.view?.changes.flatMap((c) => [c.by, ...c.targets]) ?? []), ...g.messages.map((m) => m.from)])
+  for (const k of people) {
+    const name = nameOf(k)
+    if (name !== 'Someone') names[k] = name.slice(0, 32)
+  }
+  return names
 }
 
 function blank(serverKey: string, id: string): GroupConv {
-  return { key: groupKey(serverKey, id), serverKey, id, chain: [], view: null, name: null, nameAt: 0, messages: [], loaded: false, unread: 0 }
+  return { key: groupKey(serverKey, id), serverKey, id, chain: [], view: null, name: null, nameAt: 0, names: {}, messages: [], loaded: false, unread: 0 }
 }
 
 function patchGroup(key: string, patch: (g: GroupConv) => Partial<GroupConv>): void {
@@ -65,6 +89,7 @@ function patchGroup(key: string, patch: (g: GroupConv) => Partial<GroupConv>): v
     const current = state.groups[key] ?? blank(serverKey, id)
     const next = { ...current, ...patch(current) }
     changed = next.messages !== current.messages || next.chain !== current.chain || next.name !== current.name
+    if (changed && useApp.getState().servers[serverKey]) next.names = namesFor(next)
     return { groups: { ...state.groups, [key]: next } }
   })
   if (changed) persist(key)
@@ -90,12 +115,45 @@ function persist(key: string): void {
       for (const k of keys) {
         const g = useGroups.getState().groups[k]
         if (!g) continue
-        const messages = g.messages.filter((m) => !m.pending && !m.error).slice(-MAX_LOCAL)
-          .map(({ id, from, text, sentAt, call, group }) => ({ id, from, to: g.id, text, sentAt, ...(call ? { call } : {}), ...(group ? { group } : {}) }))
-        await storage.saveGroup(k, { serverKey: g.serverKey, id: g.id, chain: g.chain, name: g.name, nameAt: g.nameAt, messages }).catch(() => undefined)
+        await storage.saveGroup(k, storable(g)).catch(() => undefined)
       }
     })
   }, 300)
+}
+
+const storable = (g: GroupConv): storage.StoredGroup => ({
+  serverKey: g.serverKey, id: g.id, chain: g.chain, name: g.name, nameAt: g.nameAt, names: namesFor(g),
+  messages: g.messages.filter((m) => !m.pending && !m.error).slice(-MAX_LOCAL)
+    .map(({ id, from, text, sentAt, call, group }) => ({ id, from, to: g.id, text, sentAt, ...(call ? { call } : {}), ...(group ? { group } : {}) })),
+})
+
+/** Every group on this device with its chain and history, for a device link (the new device re-checks the chains). */
+export function exportGroups(perGroup = MAX_LOCAL): storage.StoredGroup[] {
+  return Object.values(useGroups.getState().groups)
+    .filter((g) => g.chain.length > 0)
+    .map((g) => {
+      const stored = storable(g)
+      return { ...stored, messages: stored.messages.slice(-perGroup) }
+    })
+}
+
+/** Groups copied from another device (device linking). Chains are verified again when they load. */
+export async function importGroups(groups: unknown): Promise<void> {
+  if (!Array.isArray(groups)) return
+  const text = (x: unknown, max: number) => typeof x === 'string' && x.length <= max
+  for (const g of groups.slice(0, 1000) as Partial<storage.StoredGroup>[]) {
+    if (!g || !text(g.serverKey, 64) || !text(g.id, 32) || !Array.isArray(g.chain) || !Array.isArray(g.messages)) continue
+    const chain = g.chain.filter((c) => c && text(c.payload, 4096) && text(c.sig, 128)).map(({ payload, sig }) => ({ payload, sig }))
+    const messages = g.messages.filter((m) => m && text(m.id, 64) && text(m.from, 64) && text(m.text, 4000) && typeof m.sentAt === 'number')
+      .map(({ id, from, text, sentAt, call, group }) => ({ id, from, to: g.id!, text, sentAt,
+        ...(call && typeof call === 'object' ? { call } : {}), ...(group && typeof group === 'object' ? { group } : {}) }))
+    await storage.saveGroup(groupKey(g.serverKey!, g.id!), {
+      serverKey: g.serverKey!, id: g.id!, chain, messages: messages.slice(-MAX_LOCAL),
+      name: typeof g.name === 'string' ? g.name.slice(0, MAX_GROUP_NAME) : null, nameAt: typeof g.nameAt === 'number' ? g.nameAt : 0,
+      names: Object.fromEntries(Object.entries(g.names && typeof g.names === 'object' ? g.names : {})
+        .filter(([k, v]) => k.length <= 64 && typeof v === 'string').slice(0, 1000).map(([k, v]) => [k, String(v).slice(0, 32)])),
+    })
+  }
 }
 
 /** Loads the groups kept on this device, re-checking each chain. */
@@ -114,6 +172,7 @@ export function loadLocalGroups(): Promise<void> {
       patchGroup(key, (g) => ({
         chain: view ? s.chain : g.chain, view: view ?? g.view, problem: problem ?? g.problem,
         name: s.nameAt >= g.nameAt ? s.name : g.name, nameAt: Math.max(s.nameAt, g.nameAt),
+        names: { ...(s.names && typeof s.names === 'object' ? s.names : {}), ...g.names },
         messages: s.messages.map(({ id, from, text, sentAt, call, group }) => ({ id, from, text, sentAt, call, group })).reduce<GroupMsg[]>(mergeDm, g.messages),
       }))
     }
@@ -281,6 +340,7 @@ export async function sealForGroup(key: string, content: DmContent): Promise<{ e
 /** Why you can't write in this group right now, or null if you can. */
 export function cannotSend(g: GroupConv | undefined): string | null {
   if (!g) return 'This group is gone.'
+  if (isArchived(g)) return "This group's server isn't in your list any more, so the group is archived. You can still read it here."
   if (g.problem) return g.problem
   if (!isMember(g)) return "You're not in this group any more."
   if (useApp.getState().servers[g.serverKey]?.status.state !== 'online') return "This group's server is offline right now, so messages can't be delivered."

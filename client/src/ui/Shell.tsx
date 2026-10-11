@@ -11,6 +11,7 @@ import { ServerRail } from './ServerRail'
 import { useVoice } from '../state/voice'
 import { VoiceStage } from './VoiceStage'
 import { HomeMain, HomeSidebar } from './Home'
+import { useDms } from '../state/dms'
 import { RecoveryNudge } from './dialogs/RecoveryKey'
 import { Menu } from './icons'
 import { IncomingCall } from './calls/Calls'
@@ -30,6 +31,8 @@ export function Shell() {
   const [creating, setCreating] = useState(false)
   const stage = useVoice((s) => s.stageOpen && s.session?.serverKey === server?.key && !s.session?.call && !s.session?.group)
   const hasServers = useApp((s) => s.order.length > 0)
+  // A conversation stays readable after its server is gone (archived groups, DM history).
+  const openConversation = useDms((s) => s.open.kind !== 'friends')
   // Escape closes an open drawer (phones and narrow windows).
   useEscapeLayer(() => setPanel('none'), panel !== 'none')
 
@@ -46,7 +49,7 @@ export function Shell() {
           <VoiceStage server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
         ) : server ? (
           <ChatArea server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
-        ) : hasServers ? (
+        ) : hasServers || openConversation ? (
           <HomeMain onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
         ) : (
           <EmptyState onJoin={() => setJoining(true)} onCreate={() => setCreating(true)} onMenu={() => setPanel('nav')} />

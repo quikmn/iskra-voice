@@ -12,6 +12,12 @@
 .group-row.former { opacity: 0.6; }
 .group-call-dot { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: color-mix(in srgb, var(--green) 18%, transparent); color: var(--green); flex: none; }
 .new-group-row { color: var(--muted); }
+.archived-heading { margin-top: 6px; }
+.archived-banner {
+  display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--border); flex: none;
+  background: var(--surface-2); color: var(--text-2); font-size: 14px;
+}
+.archived-banner span { flex: 1; min-width: 0; }
 
 .group-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 

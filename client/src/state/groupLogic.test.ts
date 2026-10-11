@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { GroupView, VerifiedChange } from '../core/group'
-import { callColumns, changeText, checkGroupKey, groupTitle, isNewerKey, keyholder, timeline } from './groupLogic'
+import { callColumns, changeText, checkGroupKey, groupTitle, isNewerKey, keyholder, ringNotice, timeline } from './groupLogic'
 
 const names: Record<string, string> = { a: 'Alice', b: 'Bob', c: 'Carol', d: 'Dave', e: 'Erin' }
 const nameOf = (k: string) => names[k] ?? 'Someone'
@@ -47,5 +47,13 @@ describe('group helpers', () => {
   it('picks the longest-present member still in the group to send new keys', () => {
     expect(keyholder(['c', 'a', 'b'], ['a', 'b'])).toBe('a')
     expect(keyholder(['c'], ['a', 'b'])).toBeUndefined()
+  })
+
+  it('notifies about a ringing group call only when the window is in the background and notifications are allowed', () => {
+    const env = { focused: false, enabled: true, permission: 'granted' }
+    expect(ringNotice('Alice', 'Trip', true, env)).toEqual({ title: 'Alice started a group call', body: 'Trip · Video call · end-to-end encrypted' })
+    expect(ringNotice('Alice', 'Trip', false, { ...env, focused: true })).toBeNull()
+    expect(ringNotice('Alice', 'Trip', false, { ...env, enabled: false })).toBeNull()
+    expect(ringNotice('Alice', 'Trip', false, { ...env, permission: 'default' })).toBeNull()
   })
 })

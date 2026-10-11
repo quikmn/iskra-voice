@@ -3,10 +3,9 @@ import { useEffect, useState } from 'react'
 import { b64u } from '../../core/crypto'
 import { formatDuration, isBusy } from '../../state/callMachine'
 import { useCalls } from '../../state/calls'
-import { nameOf } from '../../state/dms'
 import { callColumns } from '../../state/groupLogic'
 import { declineGroupCall, joinOngoingCall, leaveGroupCall, startGroupCall, useGroupCalls } from '../../state/groupCalls'
-import { cannotSend, openGroup, titleOf, useGroups } from '../../state/groups'
+import { cannotSend, knownName, openGroup, titleOf, useGroups } from '../../state/groups'
 import { useApp } from '../../state/store'
 import { useVoice, type Tile } from '../../state/voice'
 import { Avatar } from '../bits'
@@ -84,10 +83,10 @@ export function OngoingCallBanner({ groupKey }: { groupKey: string }) {
       <span className="ongoing-icon">{call.video ? <Video size={16} /> : <Phone size={16} />}</span>
       <span className="ongoing-text">
         <strong>{call.video ? 'Video call' : 'Voice call'} in progress</strong>
-        <span className="muted">{people.length === 0 ? 'Starting…' : people.map(nameOf).join(', ')}</span>
+        <span className="muted">{people.length === 0 ? 'Starting…' : people.map(knownName).join(', ')}</span>
       </span>
       <span className="ongoing-faces" aria-hidden>
-        {people.slice(0, 4).map((k) => <Avatar key={k} name={nameOf(k)} accountKey={k} size={24} />)}
+        {people.slice(0, 4).map((k) => <Avatar key={k} name={knownName(k)} accountKey={k} size={24} />)}
       </span>
       <button className="button small join-call" disabled={busy} onClick={() => void joinOngoingCall(groupKey)}>Join</button>
     </div>
@@ -134,20 +133,20 @@ export function GroupCallPanel({ groupKey }: { groupKey: string }) {
       </div>
       {focused && (
         <div className="group-focus">
-          <VideoTile tile={focused} name={nameOf(focused.accountKey)} big speaking={false} />
+          <VideoTile tile={focused} name={knownName(focused.accountKey)} big speaking={false} />
         </div>
       )}
       <div className={`group-grid count-${Math.min(count, 10)}`} style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
         {strip.map((tile) => (
-          <VideoTile key={tile.id} tile={tile} name={nameOf(tile.accountKey)} speaking={false} onClick={() => setFocusId(tile.id)} />
+          <VideoTile key={tile.id} tile={tile} name={knownName(tile.accountKey)} speaking={false} onClick={() => setFocusId(tile.id)} />
         ))}
         {people.map((k) => {
           const camera = cameras.get(k)
-          if (camera) return <VideoTile key={camera.id} tile={camera} name={k === me ? 'You' : nameOf(k)} speaking={!!speaking[k]} />
+          if (camera) return <VideoTile key={camera.id} tile={camera} name={k === me ? 'You' : knownName(k)} speaking={!!speaking[k]} />
           return (
             <div key={k} className={`person-tile ${speaking[k] ? 'speaking' : ''}`}>
-              <Avatar name={nameOf(k)} accountKey={k} size={narrow ? 48 : 64} />
-              <span className="tile-label">{k === me ? 'You' : nameOf(k)}</span>
+              <Avatar name={knownName(k)} accountKey={k} size={narrow ? 48 : 64} />
+              <span className="tile-label">{k === me ? 'You' : knownName(k)}</span>
             </div>
           )
         })}
@@ -170,7 +169,7 @@ export function IncomingGroupCall() {
   const g = useGroups((s) => (ringing ? s.groups[ringing.key] : undefined))
   useApp((s) => s.servers)
   if (!ringing) return null
-  const caller = nameOf(ringing.from)
+  const caller = knownName(ringing.from)
   const title = g ? titleOf(g) : 'a group'
   return (
     <div className="incoming-call" role="alertdialog" aria-label={`${caller} started a group call`}>
