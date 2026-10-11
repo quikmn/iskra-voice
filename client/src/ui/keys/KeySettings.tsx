@@ -5,10 +5,11 @@ import { b64u } from '../../core/crypto'
 import { fingerprint } from '../../core/connection'
 import { refreshDevices, useDevices } from '../../state/devices'
 import { rotateAccountKey } from '../../state/keys'
-import { checkPassphrase, MIN_PASSPHRASE, setPassphrase, useLock } from '../../state/lock'
+import { checkPassphrase, confirmWithPasskey, MIN_PASSPHRASE, setPassphrase, useLock } from '../../state/lock'
 import { useApp } from '../../state/store'
 import { Modal, Spinner } from '../bits'
 import { errorMessage } from '../../i18n/errors'
+import { PasskeySettings } from './PasskeySettings'
 import './keys.css'
 
 export function RotateKeySection() {
@@ -122,6 +123,8 @@ export function AppLockSection() {
     setBusy(true)
     try {
       if (hasPassphrase && !(await checkPassphrase(current))) throw new Error(t('keys.appLock.wrongCurrent'))
+      // Only passkeys so far: one of them confirms the change.
+      if (!hasPassphrase && useLock.getState().passkeys.length > 0 && !(await confirmWithPasskey())) throw new Error(t('keys.passkeys.wrong'))
       await setPassphrase(mode === 'remove' ? null : next)
       reset()
       setDone(mode === 'remove' ? t('keys.appLock.turnedOff') : t('keys.appLock.saved'))
@@ -173,6 +176,7 @@ export function AppLockSection() {
           {mode === 'set' && <p className="muted small-text">{t('keys.appLock.minLength', { min: MIN_PASSPHRASE })}</p>}
         </form>
       )}
+      <PasskeySettings />
     </section>
   )
 }

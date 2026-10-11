@@ -7,7 +7,8 @@ import { resetThisDevice } from '../../state/devices'
 import { nameOf } from '../../state/dms'
 import { reloadFriends } from '../../state/friends'
 import { claimAccountBack, resolveDispute, retryRetired, useKeys } from '../../state/keys'
-import { unlock, useLock } from '../../state/lock'
+import { canUsePasskeys, unlock, unlockWithPasskey, useLock } from '../../state/lock'
+import { passkeyProblemKey } from './PasskeySettings'
 import { activeServerState, boot, useApp } from '../../state/store'
 import { roleRank } from '../../core/protocol'
 import { Modal, Spinner } from '../bits'
@@ -52,9 +53,27 @@ export function LockScreen() {
   const { t } = useTranslation()
   const status = useLock((s) => s.status)
   const message = useLock((s) => s.message)
+  const hasPassphrase = useLock((s) => s.passphrase)
+  const hasPasskeys = useLock((s) => s.passkeys.length > 0) && canUsePasskeys()
   const [passphrase, setPassphrase] = useState('')
   const [busy, setBusy] = useState(false)
   const [wrong, setWrong] = useState(false)
+  const [passkeyError, setPasskeyError] = useState<string | null>(null)
+
+  async function withPasskey() {
+    if (busy) return
+    setBusy(true)
+    setPasskeyError(null)
+    try {
+      if (!(await unlockWithPasskey())) throw new Error('wrong')
+    } catch (e) {
+      setPasskeyError(e instanceof Error && e.message === 'wrong' ? t('keys.passkeys.wrong') : t(passkeyProblemKey(e)))
+      setBusy(false)
+      return
+    }
+    await boot()
+    await reloadFriends()
+  }
 
   async function submit() {
     if (!passphrase || busy) return
@@ -89,18 +108,33 @@ export function LockScreen() {
       <form className="onboarding-card" onSubmit={(e) => { e.preventDefault(); void submit() }}>
         <Brand />
         <p className="lead">{t('keys.lock.locked')}</p>
-        <label className="field">
-          <span>{t('keys.lock.passphrase')}</span>
-          <input type="password" autoComplete="current-password" autoFocus value={passphrase} aria-invalid={wrong}
-            onChange={(e) => { setPassphrase(e.target.value); setWrong(false) }} />
-        </label>
-        {wrong && <p className="error-text" role="alert">{t('keys.lock.wrong')}</p>}
-        <button type="submit" className="button primary wide" disabled={!passphrase || busy}>
-          {busy ? <><Spinner /> {t('keys.lock.unlocking')}</> : t('keys.lock.unlock')}
-        </button>
+        {hasPasskeys && (
+          <>
+            <button type="button" className={`button wide ${hasPassphrase ? '' : 'primary'}`} disabled={busy} onClick={() => void withPasskey()}
+              data-testid="unlock-passkey">
+              {busy && !passphrase ? <><Spinner /> {t('keys.lock.unlocking')}</> : t('keys.passkeys.unlock')}
+            </button>
+            {passkeyError && <p className="error-text" role="alert">{passkeyError}</p>}
+            {hasPassphrase && <div className="lock-or">{t('keys.passkeys.or')}</div>}
+          </>
+        )}
+        {hasPassphrase && (
+          <>
+            <label className="field">
+              <span>{t('keys.lock.passphrase')}</span>
+              <input type="password" autoComplete="current-password" autoFocus={!hasPasskeys} value={passphrase} aria-invalid={wrong}
+                onChange={(e) => { setPassphrase(e.target.value); setWrong(false) }} />
+            </label>
+            {wrong && <p className="error-text" role="alert">{t('keys.lock.wrong')}</p>}
+            <button type="submit" className="button primary wide" disabled={!passphrase || busy}>
+              {busy && passphrase ? <><Spinner /> {t('keys.lock.unlocking')}</> : t('keys.lock.unlock')}
+            </button>
+          </>
+        )}
+        {!hasPassphrase && !hasPasskeys && <p className="muted">{t('keys.passkeys.unavailable')}</p>}
         <details className="key-help">
           <summary>{t('keys.lock.forgot')}</summary>
-          <p className="muted">{t('keys.lock.forgotHint')}</p>
+          <p className="muted">{t(hasPassphrase ? 'keys.lock.forgotHint' : 'keys.passkeys.lostHint')}</p>
           <ResetButton />
         </details>
       </form>

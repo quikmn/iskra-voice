@@ -25,6 +25,7 @@ import { QuickSwitcher } from './QuickSwitcher'
 import { useEscapeLayer } from './layers'
 import { EventsLayer } from './events/EventsLayer'
 import { DisputeNotices } from './keys/KeyScreens'
+import { KtNotices } from './keys/KeyTransparency'
 import { Shortcuts } from './organize/Shortcuts'
 import { RulesLayer } from './rules/Rules'
 
@@ -55,6 +56,7 @@ export function Shell() {
       <main className="main-column">
         <RecoveryNudge />
         <DisputeNotices />
+        <KtNotices />
         {server && stage ? (
           isStageChannel
             ? <StageView server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
