@@ -49,6 +49,7 @@ public sealed class Router
         GroupFeature.Register(this);
         GroupCallFeature.Register(this);
         BackupFeature.Register(this, backups);
+        LimitsFeature.Register(this);
         MoveFeature.Register(this);
         ImportFeature.Register(this, imports);
         KeyFeature.Register(this);

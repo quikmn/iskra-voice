@@ -929,6 +929,17 @@ export interface ImportJob {
   imported: { id: number; name: string; category: string | null; messages: number; thread: boolean }[]
 }
 
+/** Upload and expression limits (0 = no limit, except maxUploadMb). */
+export interface ServerLimits {
+  maxUploadMb: number
+  memberMbPerDay: number
+  guestMbPerDay: number
+  soundMaxSeconds: number
+  soundMaxMb: number
+  emojiMaxKb: number
+  stickerMaxKb: number
+}
+
 export interface BackupStatus {
   auto: { enabled: boolean; keep: number; includeUploads: boolean }
   local: { name: string; size: number; createdAt: number }[]
@@ -944,6 +955,8 @@ export interface Events {
 export interface Requests {
   'backup.create': [{ sealedPassphrase: string }, { url: string; name: string; size: number; expiresAt: number }]
   'backup.status': [Record<string, never>, BackupStatus]
+  'limits.get': [Record<string, never>, ServerLimits]
+  'limits.update': [Partial<ServerLimits>, ServerLimits]
   'backup.settings': [{ enabled?: boolean; keep?: number; includeUploads?: boolean }, BackupStatus]
   'server.move': [{ url: string }, { notice: MoveNotice }]
   'server.move.cancel': [Record<string, never>, Record<string, never>]

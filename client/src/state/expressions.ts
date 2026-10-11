@@ -198,7 +198,6 @@ export async function prepareEmojiImage(file: File): Promise<File> {
     const { naturalWidth: width, naturalHeight: height } = image
     if (file.type === 'image/gif') {
       if (width > EMOJI_MAX_SIDE || height > EMOJI_MAX_SIDE) throw new Error(`Animated emoji can be up to ${EMOJI_MAX_SIDE}×${EMOJI_MAX_SIDE} pixels.`)
-      if (file.size > EMOJI_MAX_BYTES) throw new Error('Emoji can be up to 256 KB.')
       return file
     }
     if (file.type !== 'image/jpeg' && width <= EMOJI_MAX_SIDE && height <= EMOJI_MAX_SIDE && file.size <= EMOJI_MAX_BYTES) return file

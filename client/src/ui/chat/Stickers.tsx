@@ -72,7 +72,7 @@ export function StickerSection({ server }: { server: ServerState }) {
   return (
     <section className="settings-section">
       <h3>Stickers · {stickers.length} / {MAX_STICKERS}</h3>
-      <p className="muted">Big pictures people send on their own from the sticker button. PNG, GIF or WebP up to 512 KB; still images are shrunk to 320×320.</p>
+      <p className="muted">Big pictures people send on their own from the sticker button. PNG, GIF or WebP; still images are shrunk to 320×320.</p>
       <input ref={input} type="file" hidden accept="image/png,image/gif,image/webp,image/jpeg" aria-label="Sticker image"
         onChange={(e) => {
           const file = e.target.files?.[0]

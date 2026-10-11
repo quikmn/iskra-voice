@@ -122,6 +122,7 @@ export const AUDIT_ACTIONS: { action: string; label: string }[] = [
   { action: 'profile.page.remove', label: 'Profile pages removed' },
   { action: 'server.pages', label: 'Profile page setting' },
   { action: 'server.internet', label: 'Internet hosting' },
+  { action: 'limits.update', label: 'Limits changed' },
 ]
 
 const str = (v: unknown): string => (typeof v === 'string' || typeof v === 'number' ? String(v) : '')
@@ -184,6 +185,7 @@ export function auditText(e: AuditEntry): string {
     case 'profile.page.remove': return `${actor} removed ${target}'s profile page`
     case 'server.pages': return `${actor} turned profile pages ${d.enabled ? 'on' : 'off'}`
     case 'server.internet': return `${actor} turned internet hosting ${d.enabled ? 'on' : 'off'}`
+    case 'limits.update': return `${actor} changed the upload and soundboard limits`
     default: return `${actor}: ${e.action}`
   }
 }

@@ -202,10 +202,16 @@ iskra-server import-discord my-server export.zip              # add --read-only 
   "Port": 47070,                       // the server's port: HTTP, plus HTTPS when open to the internet (localhost-only with Https on)
   "PublicUrl": null,                   // how friends reach the server; default http://localhost:<Port>, or https://<Domain>
   "AppUrl": "https://app.iskra.foo",   // the web app invite links open
-  "MaxUploadMb": 100,                  // largest file a member may upload
+  "MaxUploadMb": 512,                  // largest file a member may upload (also in the app: Settings → Limits)
   "UploadQuota": {                     // per account, over any 24 hours; 0 = no limit (admins and the owner have none)
-    "MemberMbPerDay": 2048,            // members and trusted
-    "GuestMbPerDay": 200
+    "MemberMbPerDay": 10240,           // members and trusted
+    "GuestMbPerDay": 1024
+  },
+  "Limits": {                          // 0 = no limit (uploads still can't exceed MaxUploadMb)
+    "SoundMaxSeconds": 0,              // soundboard sound length
+    "SoundMaxMb": 0,
+    "EmojiMaxKb": 1024,
+    "StickerMaxKb": 4096
   },
   "LocalOnly": false,                  // true: listen on localhost only (testing; nobody else can connect)
   "Voice": {

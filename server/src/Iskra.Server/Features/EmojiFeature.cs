@@ -15,7 +15,6 @@ namespace Iskra.Server.Features;
 public static partial class EmojiFeature
 {
     public const int MaxEmojis = 200;
-    public const int MaxBytes = 256 * 1024;
     public const int MaxSide = 128;
     private static readonly string[] Types = ["image/png", "image/gif", "image/webp"];
 
@@ -82,7 +81,8 @@ public static partial class EmojiFeature
         var file = store.GetFile(body.String("fileId", 64));
         if (file is null || file.Uploader != me.AccountKey) throw RequestException.BadRequest("Unknown file.");
         if (!Types.Contains(file.Type)) throw RequestException.BadRequest("Emoji must be PNG, GIF or WebP images.");
-        if (file.Size > MaxBytes) throw RequestException.BadRequest($"Emoji can be up to {MaxBytes / 1024} KB.");
+        var maxKb = s.World.Settings.Limits.EmojiMaxKb;
+        if (maxKb > 0 && file.Size > maxKb * 1024L) throw RequestException.BadRequest($"Emoji can be up to {maxKb} KB on this server.");
         if (file.Width is not { } w || file.Height is not { } h || w < 1 || h < 1)
             throw RequestException.BadRequest("Couldn't read that image's size.");
         if (w > MaxSide || h > MaxSide) throw RequestException.BadRequest($"Emoji can be up to {MaxSide}×{MaxSide} pixels.");

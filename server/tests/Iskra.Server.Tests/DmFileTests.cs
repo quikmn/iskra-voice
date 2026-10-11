@@ -111,7 +111,7 @@ public class DmFileTests
         using var server = new IskraServer();
         using var alice = await server.JoinAsync("Alice");
         using var bob = await server.JoinAsync("Bob");
-        Assert.Equal("bad_request", (await alice.RequestAsync("dm.upload.begin", new { accountKey = bob.Key, size = 101L * 1024 * 1024 })).ErrorCode());
+        Assert.Equal("bad_request", (await alice.RequestAsync("dm.upload.begin", new { accountKey = bob.Key, size = 513L * 1024 * 1024 })).ErrorCode());
         Assert.Equal("not_found", (await alice.RequestAsync("dm.upload.begin", new { accountKey = "nobody", size = 10 })).ErrorCode());
 
         var sent = await UploadFor(server, alice, bob.Key, RandomNumberGenerator.GetBytes(64));

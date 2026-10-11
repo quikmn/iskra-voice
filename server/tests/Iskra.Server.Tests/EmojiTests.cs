@@ -111,6 +111,7 @@ public class EmojiTests
         Assert.Equal("bad_request", (await AddEmoji(server, admin, "big", PngHeader(129, 64))).ErrorCode());
         Assert.Equal("result", (await AddEmoji(server, admin, "edge", PngHeader(128, 128))).Type());
         Assert.Equal("bad_request", (await AddEmoji(server, admin, "html", Encoding.UTF8.GetBytes("<svg onload=alert(1)>"))).ErrorCode());
+        server.World.UpdateSettings(s => s with { Limits = s.Limits with { EmojiMaxKb = 256 } });
         var heavy = new byte[256 * 1024 + 1];
         Png.CopyTo(heavy, 0);
         Assert.Equal("bad_request", (await AddEmoji(server, admin, "heavy", heavy)).ErrorCode());

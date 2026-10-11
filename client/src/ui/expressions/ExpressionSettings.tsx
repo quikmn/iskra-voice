@@ -76,7 +76,7 @@ export function EmojiSection({ server }: { server: ServerState }) {
   return (
     <section className="settings-section">
       <h3>Server emoji · {emojis.length} / {MAX_EMOJIS}</h3>
-      <p className="muted">Use them anywhere on this server as <code>:name:</code>. PNG, GIF or WebP up to 256 KB; bigger still images are shrunk to 128×128.</p>
+      <p className="muted">Use them anywhere on this server as <code>:name:</code>. PNG, GIF or WebP; bigger still images are shrunk to 128×128.</p>
       <input ref={input} type="file" hidden accept="image/png,image/gif,image/webp,image/jpeg" aria-label="Emoji image" onChange={(e) => { choose(e.target.files?.[0]); e.target.value = '' }} />
       {pending ? (
         <div className="expression-new">

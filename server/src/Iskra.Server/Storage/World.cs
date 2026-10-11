@@ -22,7 +22,7 @@ public sealed record WorldSettings
     public string EffectivePublicUrl => (PublicUrl ?? (Https.Enabled ? Https.DefaultUrl : $"http://localhost:{Port}")).TrimEnd('/');
 
     /// <summary>Largest file a member may upload. Generous by default: no Nitro here.</summary>
-    public int MaxUploadMb { get; init; } = 100;
+    public int MaxUploadMb { get; init; } = 512;
 
     /// <summary>How much each account may upload per day (admins and the owner aren't limited).</summary>
     public UploadQuotaSettings UploadQuota { get; init; } = new();
@@ -36,6 +36,18 @@ public sealed record WorldSettings
     public BackupSettings Backups { get; init; } = new();
 
     public ImportSettings Import { get; init; } = new();
+
+    /// <summary>Soundboard, emoji and sticker limits (Settings → Limits in the app, or here).</summary>
+    public LimitsSettings Limits { get; init; } = new();
+}
+
+/// <summary>Size and length limits for expressions. 0 means no limit (uploads still can't exceed MaxUploadMb).</summary>
+public sealed record LimitsSettings
+{
+    public int SoundMaxSeconds { get; init; }
+    public int SoundMaxMb { get; init; }
+    public int EmojiMaxKb { get; init; } = 1024;
+    public int StickerMaxKb { get; init; } = 4096;
 }
 
 /// <summary>Automatic daily backups into the world's backups/ folder (unencrypted: the folder already holds the keys).</summary>
@@ -58,8 +70,8 @@ public sealed record ImportSettings
 /// <summary>Daily upload allowance per account, in MB over any 24 hours. 0 means no limit.</summary>
 public sealed record UploadQuotaSettings
 {
-    public int MemberMbPerDay { get; init; } = 2048;
-    public int GuestMbPerDay { get; init; } = 200;
+    public int MemberMbPerDay { get; init; } = 10240;
+    public int GuestMbPerDay { get; init; } = 1024;
 }
 
 /// <summary>Opening the server to the internet: router port mapping, an automatic address and HTTPS.</summary>

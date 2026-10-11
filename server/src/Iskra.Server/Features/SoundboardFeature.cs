@@ -65,10 +65,15 @@ public static class SoundboardFeature
         var file = store.GetFile(body.String("fileId", 64));
         if (file is null || file.Uploader != me.AccountKey) throw RequestException.BadRequest("Unknown file.");
         if (!Types.Contains(file.Type)) throw RequestException.BadRequest("Sounds must be MP3, Ogg or WAV files.");
-        // Any length: the upload limit (MaxUploadMb) is the only size limit, and listeners can stop a sound.
+        // No limits unless the owner sets some (Limits in server.json); listeners can always stop a sound.
+        var limits = s.World.Settings.Limits;
+        if (limits.SoundMaxMb > 0 && file.Size > limits.SoundMaxMb * 1024L * 1024)
+            throw RequestException.BadRequest($"Sounds can be up to {limits.SoundMaxMb} MB on this server.");
         var path = s.Uploads.PathFor(file.Sha256);
         var duration = File.Exists(path) ? AudioProbe.DurationMs(File.ReadAllBytes(path), file.Type) : null;
         if (duration is null) throw RequestException.BadRequest("Couldn't read that sound. Try an MP3, Ogg or WAV file.");
+        if (limits.SoundMaxSeconds > 0 && duration > limits.SoundMaxSeconds * 1000L + 150) // encoders pad a few frames
+            throw RequestException.BadRequest($"Sounds can be up to {limits.SoundMaxSeconds} seconds long on this server.");
 
         var sound = new Sound(Ed25519.ToB64u(RandomNumberGenerator.GetBytes(9)), name, emoji, file.Id, duration.Value,
             me.AccountKey, s.Now);

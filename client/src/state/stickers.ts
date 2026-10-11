@@ -5,6 +5,7 @@ import { connectionFor, onServerEvent, onWelcomeHook, sendMessage, uploadFile, t
 
 export const MAX_STICKERS = 60
 const MAX_SIDE = 320
+/** Still images bigger than this are re-encoded at sticker size (the server sets the real limit). */
 const MAX_BYTES = 512 * 1024
 const EMPTY: Sticker[] = []
 
@@ -40,7 +41,6 @@ export async function prepareStickerImage(file: File): Promise<File> {
     const { naturalWidth: width, naturalHeight: height } = image
     if (file.type === 'image/gif') {
       if (width > MAX_SIDE || height > MAX_SIDE) throw new Error(`Animated stickers can be up to ${MAX_SIDE}×${MAX_SIDE} pixels.`)
-      if (file.size > MAX_BYTES) throw new Error('Stickers can be up to 512 KB.')
       return file
     }
     if (file.type !== 'image/jpeg' && width <= MAX_SIDE && height <= MAX_SIDE && file.size <= MAX_BYTES) return file
