@@ -32,7 +32,7 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
                                             server tarballs; attestations; creates the DRAFT release vX
  ③ scripts/release-windows.ps1 X  (this Windows PC, SimplySign logged in)
         ├─ npm run dist ................... signed Setup + Portable exe, latest.yml, signed iskra-server.exe
-        ├─ server zip, android/build.ps1 .. iskra-server-X-win-x64.zip, Iskra-X.apk
+        ├─ server zip, build-android.ps1 .. iskra-server-X-win-x64.zip, Iskra-X.apk (mobile/, signed locally)
         ├─ gh release upload ............... onto the draft
         ├─ waits until all 22 files are on the release
         └─► release-finalize.yml (workflow_dispatch, environment "release")
@@ -43,8 +43,9 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
                     ├─ webapp ..... client build → Pages iskra-webclient → https://app.iskra.foo (checks the new index asset)
                     └─ server ..... ssh root@DROPLET_HOST X → iskra-update X → https://chat.iskra.foo (checks it answers)
 
- DEPLOY ONLY: deploy.yml by hand (workflow_dispatch: ref, site, webapp, server_version)
+ DEPLOY ONLY: deploy.yml by hand (workflow_dispatch: ref, site, webapp, server_version, relay)
  iOS APP: mobile-ios.yml by hand (workflow_dispatch: ref, upload) ──► TestFlight (not part of a release yet)
+ PUSH RELAY: deploy.yml relay=true ──► Worker iskra-push → https://push.iskra.foo (APNs/FCM for the phone apps)
 ```
 
 | File | What it does |
@@ -61,7 +62,8 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
 | `.github/workflows/ci.yml`, `codeql.yml`, `.github/dependabot.yml` | Tests, code scanning, dependency updates |
 | `docs/releases/<version>.md` | Release notes (become the GitHub release text) |
 | `desktop/scripts/sign.ps1` | Signs the standalone Windows server exe with the Certum certificate |
-| `android/build.ps1` | Signed APK (+ AAB) |
+| `mobile/scripts/build-android.ps1` | Signed Android APK (+ AAB) from the Capacitor shell ([Android](#android)) |
+| `relay/` | The push relay (Cloudflare Worker); deployed by deploy.yml `relay` ([Push relay](#push-relay)) |
 | `.github/workflows/mobile-ios.yml` | iPhone/iPad app: build, cloud-sign, upload to TestFlight ([iOS app](#ios-app)) |
 | `scripts/mobile-version.mjs` | The phone app's version and build numbers (tested by the root `npm test`) |
 
@@ -106,6 +108,7 @@ new `iskra-server` package (docs/hosting.md).
 | `site` | iskra.foo from `site/`: every `*.html` page (index, terms, privacy, support, delete-account), `*.css` (site.css, fonts.css), the `fonts/` folder (self-hosted Inter and JetBrains Mono), worker.js and .assetsignore; never wrangler.toml or .wrangler/. Pages serves `terms.html` at `/terms` (and redirects `/terms.html` there). Fails if index.html doesn't link to the version in desktop/package.json at that ref, or if a page isn't served at `https://iskra.foo/<page>` afterwards (checked by its `<link rel="canonical">`, so every new page needs one) |
 | `webapp` | Builds `client/` and deploys `client/dist` to app.iskra.foo (branch main = production) |
 | `server_version` | Runs `iskra-update <version>` on the droplet. The version must be a published release (it downloads from GitHub and checks SHA256SUMS.txt) |
+| `relay` | Tests and deploys `relay/` (Worker `iskra-push`, custom domain push.iskra.foo), sets its secrets from the `release` environment, checks `/v1/health` |
 
 Local fallback (no CI): `site/` with the `iskra-deploy-cf` token through `D:\Development_Projects\IskraHeroPage\deploy-hero.ps1`
 (it decrypts the token itself; never print it). It deploys its own folder `IskraHeroPage\iskra-site`, not `site/`: copy
@@ -170,7 +173,8 @@ is built on GitHub's macOS runners by `.github/workflows/mobile-ios.yml` and upl
 
 | Item | Where | Notes |
 |---|---|---|
-| App ID `foo.iskra.app` | developer.apple.com → Identifiers (team BWX2M8XSNZ) | Capabilities: Associated Domains, Push Notifications (phase 2) |
+| App ID `foo.iskra.app` | developer.apple.com → Identifiers (team BWX2M8XSNZ) | Capabilities: Associated Domains, Push Notifications |
+| App ID `foo.iskra.app.NotificationService` | Same place | The Notification Service Extension (decrypts pushes). Xcode registers it during cloud signing; mobile/README.md step 7 if not |
 | App record "Iskra" | App Store Connect → Apps | Created by the owner once (the API can't); TestFlight internal group with automatic distribution |
 | Signing | Xcode cloud signing with the `APPSTORE_*` key | No certificates, profiles or keychains in CI. Apple keeps a cloud-managed "Apple Distribution" certificate; it shows under Certificates and renews itself |
 | Universal Links | `client/public/.well-known/apple-app-site-association` on app.iskra.foo, entitlement `applinks:app.iskra.foo` | Deploy the web app before testers install |
@@ -229,23 +233,83 @@ options → `gh secret set DROPLET_SSH_KEY < iskra-droplet-ci` → run deploy.ym
 
 ### Android
 
+The Android app is the Capacitor shell in `mobile/android` ([mobile/README.md](../mobile/README.md#android)), built and
+signed on the Windows PC by `mobile/scripts/build-android.ps1` (release-windows.ps1 runs it). The signing key never
+goes to CI; CI (`ci.yml` job `android`) only runs the unit tests and an unsigned build.
+
 | Item | Where | Notes |
 |---|---|---|
-| Release keystore | `D:\Development_Projects\devkeys\iskra-android.keystore` (PKCS12, alias `iskra`), password in `iskra-android-keystore.txt` | Valid ~27 years. Its SHA-256 fingerprint is in `client/public/.well-known/assetlinks.json` |
-| Play Console | Developer account "From a Spark", contact spark@iskra.foo | Not published yet |
+| Release keystore | `D:\Development_Projects\devkeys\iskra-android.keystore` (PKCS12, alias `iskra`), password in `iskra-android-keystore.txt` | Valid ~27 years. Its SHA-256 fingerprint is in `client/public/.well-known/assetlinks.json`; the build script refuses an APK whose signer isn't listed there |
+| Firebase app config | `D:\Development_Projects\devkeys\iskra-google-services.json` | Not secret (it ships inside the APK) but per project; the build copies it in and removes it. Missing → the app builds without push (warning) |
+| Toolchain | `devtools\android-sdk` (platform 36, build-tools 36.1.0, licenses accepted), JDK 21 (`devtools\jdk-21` or `C:\Program Files\Java\jdk-21`) | Gradle 8.14.3 comes from the wrapper. The old Bubblewrap and JDK 17 in devtools are no longer needed |
+| Play Console | Developer account "From a Spark", contact spark@iskra.foo | Not published yet. The AAB is built for it |
 
 **Losing the keystore means installed APKs can never be updated** (Android requires the same key); everyone would
 have to uninstall and reinstall. Keep an offline copy (encrypted USB stick and a password manager entry with the
 password). Plan: enrol in Play App Signing when publishing on Play; Google then holds the app key and the upload
 key can be replaced, and could live in CI. New personal Play accounts need a closed test with 12 testers for 14
-days before production. If Play signs the app, add Play's app-signing fingerprint to assetlinks.json.
+days before production. If Play signs the app, add Play's app-signing fingerprint to assetlinks.json. Play also asks
+for declarations: foreground service types (microphone, media playback: "voice chat in the background"), and
+full-screen intents (incoming calls).
+
+Version codes continue the old Trusted Web Activity's scheme (last: 2.0.0-alpha.7 = 20000107), so its installs update
+to the Capacitor app in place. The TWA project is gone from the tree (`android/README.md`, git history).
+
+### Push relay
+
+Iskra servers are self-hosted and can't hold Apple's or Google's push credentials, so the phone apps get pushes
+through **push.iskra.foo**, a Cloudflare Worker in `relay/` ([relay/README.md](../relay/README.md)). It stores nothing;
+payloads stay encrypted to the phone. Deploy: `gh workflow run deploy.yml -f ref=main -f relay=true`.
+
+| Secret (GitHub environment `release`) | Worker secret | What | Expiry / renewal |
+|---|---|---|---|
+| `RELAY_HANDLE_KEYS` | `HANDLE_KEYS` | `1:<base64 of 32 random bytes>`: seals push handles | Doesn't expire. Rotate: set `2:<new>,1:<old>` (new first), deploy; drop `1:` only after every app has re-registered (months), since old handles stop working without it. If it leaks: new key alone, deploy; phones re-register on their next launch |
+| `APNS_KEY_P8` | `APNS_KEY` | APNs auth key (.p8 contents) | **Never expires**, but can be revoked; Apple allows 2 APNs keys per team |
+| `APNS_KEY_ID` | `APNS_KEY_ID` | Its 10-character Key ID | With the key |
+| `FCM_SERVICE_ACCOUNT_JSON` | `FCM_SERVICE_ACCOUNT` | Firebase service account key (JSON) | Doesn't expire by default; rotate yearly (below). Org policies may force expiry |
+| (variables in `relay/wrangler.toml`) | `APNS_TEAM_ID`, `APNS_TOPIC` | `BWX2M8XSNZ`, `foo.iskra.app` | |
+
+The Cloudflare token (`CLOUDFLARE_API_TOKEN`) also needs **Workers Scripts: Edit** (it has it) and, for the custom
+domain, zone `iskra.foo` **Workers Routes: Edit** and **DNS: Edit**. If deploy fails on the custom domain, add those
+permissions, or attach the domain once by hand: Cloudflare → Workers & Pages → iskra-push → Settings → Domains &
+Routes → Add → Custom domain `push.iskra.foo`.
+
+**One-time setup (owner, ~20 minutes):**
+1. **Handle key.** In a terminal: `node -e "console.log('1:' + require('crypto').randomBytes(32).toString('base64'))" | gh secret set RELAY_HANDLE_KEYS --env release`
+   (it goes straight into GitHub; don't save it elsewhere: losing it only means phones register again).
+2. **APNs key.** developer.apple.com → Certificates, Identifiers & Profiles → **Keys** → **+** → Key Name `Iskra push relay`
+   → tick **Apple Push Notifications service (APNs)** → Configure: Environment **Sandbox & Production**, Key Restriction
+   **Team Scoped (All Topics)** → Save → Continue → Register → **Download** (only once) `AuthKey_<KEYID>.p8`; note the
+   Key ID (Team ID is `BWX2M8XSNZ`). Then, from the folder with it:
+   `gh secret set APNS_KEY_P8 --env release < AuthKey_<KEYID>.p8` and `gh secret set APNS_KEY_ID --env release` (paste the Key ID).
+   Keep the .p8 in `devkeys\` (offline backup), never in the repo.
+3. **App ID push capability.** Identifiers → `foo.iskra.app` → **Push Notifications** ticked (mobile/README.md step 1).
+   Nothing to configure for the key-based setup (no certificates).
+4. **Firebase project.** console.firebase.google.com → **Create a project** → name `Iskra` → Google Analytics **off** →
+   Create. Then **Add app** → Android → package name `foo.iskra.app`, nickname `Iskra` → Register → **Download
+   google-services.json** → save it as `D:\Development_Projects\devkeys\iskra-google-services.json` → skip the SDK steps.
+5. **FCM service account.** Firebase console → ⚙ Project settings → **Service accounts** → Firebase Admin SDK →
+   **Generate new private key** → Generate key (downloads a JSON). Then `gh secret set FCM_SERVICE_ACCOUNT_JSON --env release < iskra-xxxx-firebase-adminsdk-....json`
+   and delete the downloaded file (or keep it in `devkeys\`). Check Project settings → **Cloud Messaging**: "Firebase
+   Cloud Messaging API (V1)" is **Enabled** (enable it in Google Cloud if not).
+6. **Deploy** the relay: `gh workflow run deploy.yml -f ref=main -f relay=true`. Its last step prints
+   `{"ok":true,"apns":true,"fcm":true}`.
+7. Build a new Android APK (it now includes the Firebase config) and a new iOS build; turn on push in each app.
+
+**Rotate the APNs key:** create a second key (step 2), set both secrets, deploy the relay, check a push arrives, then
+revoke the old key (Keys → old key → Revoke). If a key leaks: revoke it at once (pushes stop until the new one is
+deployed). **Rotate the FCM service account key:** Google Cloud console → IAM & Admin → Service accounts →
+`firebase-adminsdk-…` → Keys → **Add key** → JSON; set the secret, deploy the relay, check, then delete the old key there.
+**Lost/broken relay:** phones stop getting pushes (nothing else breaks); servers keep the subscriptions until the
+relay answers 404/410.
 
 ### GitHub
 
 - The `gh` CLI on the Windows PC is logged in as the owner (`gh auth status`); release-windows.ps1 uses it.
 - Workflows use the automatic `GITHUB_TOKEN` with per-job permissions; no personal tokens are stored.
 - Secrets (repo level): `CLOUDFLARE_API_TOKEN`, `DROPLET_SSH_KEY`, `MAC_CERT_P12_BASE64`, `MAC_CERT_PASSWORD`,
-  `APPSTORE_API_KEY_BASE64`, `APPSTORE_KEY_ID`, `APPSTORE_ISSUER_ID`. Variables: `CLOUDFLARE_ACCOUNT_ID`,
+  `APPSTORE_API_KEY_BASE64`, `APPSTORE_KEY_ID`, `APPSTORE_ISSUER_ID`. Environment `release` only: `RELAY_HANDLE_KEYS`,
+  `APNS_KEY_P8`, `APNS_KEY_ID`, `FCM_SERVICE_ACCOUNT_JSON` ([Push relay](#push-relay)). Variables: `CLOUDFLARE_ACCOUNT_ID`,
   `DROPLET_HOST`, `DROPLET_KNOWN_HOSTS`, `MAC_IDENTITY`.
 - Environment `release` (Settings → Environments → New environment). Used by release-finalize.yml and deploy.yml.
   Options worth setting:
@@ -267,6 +331,7 @@ days before production. If Play signs the app, add Play's app-signing fingerprin
 | Every ~60 days, automatic | chat.iskra.foo HTTPS certificate | The server renews it itself; port 80 must stay open |
 | Yearly (membership date) | Apple Developer Program | Renew, or Mac builds stop being notarized |
 | Yearly | Cloudflare tokens, CI SSH key | Optional rotation (they don't expire): see section 4 |
+| Yearly | FCM service account key | Rotate ([Push relay](#push-relay)). The APNs key never expires; only revoke/replace it if it leaks |
 | **2027-04 (before 2027-05-12)** | Certum code-signing certificate | Renew (section 4); same CN keeps auto-update working |
 | Yearly | iskra.foo domain | Check auto-renew at the registrar |
 | Yearly | Offline backups | Check the keystore, devkeys folder and admin SSH key copies still open |
@@ -298,6 +363,10 @@ or revert quickly.
 | iOS archive fails on signing with `archive_signing=adhoc` | Rerun with `-f archive_signing=automatic`. If later runs then fail with "certificate … private key not installed", revoke the old "Created via API" development certificates |
 | iOS upload: "bundle version must be higher" / "redundant binary upload" | That build number exists: rerun (the attempt number goes up). "No suitable application records" → the App Store Connect app record is missing |
 | iOS upload: "SDK version issue" / "built with … SDK" | Apple wants a newer Xcode than the runner has; the workflow picks the newest installed. Wait for GitHub's image or switch `runs-on` to a newer macOS image |
+| Push relay health says `"apns":false` / `"fcm":false` | That secret isn't set in the `release` environment, or deploy.yml ran before it was: set it, rerun with `relay=true` |
+| Phones get no pushes, relay healthy | Settings → Notifications in the app shows the error per server. "push relay couldn't register": relay down or rate limited. Android without Firebase config: rebuild with `devkeys\iskra-google-services.json`. iOS: `aps-environment` must be production in the build (mobile-ios.yml checks it) |
+| iOS: "No profiles for 'foo.iskra.app.NotificationService'" | Register that App ID (mobile/README.md step 7), rerun |
+| build-android.ps1: "fingerprint isn't in assetlinks.json" | It found a different keystore. Never ship that APK: installed apps couldn't update. Point `ISKRA_ANDROID_KEYSTORE` at the real one |
 | Universal Links open Safari instead of the app | `curl -sI https://app.iskra.foo/.well-known/apple-app-site-association` must be 200 `application/json` with no redirect; Apple's CDN caches it (up to a day): reinstall the app later |
 
 **Undoing a release:** don't delete or move the tag. Fix forward with the next version. To pull a broken release
@@ -313,5 +382,5 @@ migration ran in between (migrations are forward-only); otherwise restore from a
 - Public text (release notes, site, docs): the product is just "Iskra". Never "Iskra 2", never "rebuilt", never v1.
 - Releases are published as Latest, not prerelease.
 - Tests and local servers listen on localhost only (no firewall prompts).
-- Needs the human: the SimplySign phone code, the Apple developer portal and App Store Connect (app record, TestFlight testers, API keys), the Play Console,
+- Needs the human: the SimplySign phone code, the Apple developer portal and App Store Connect (app record, TestFlight testers, API keys, the APNs key), the Firebase console, the Play Console,
   the Cloudflare dashboard (new tokens), DigitalOcean, approving `release` environment runs, anything that costs money.

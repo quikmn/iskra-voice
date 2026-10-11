@@ -30,3 +30,12 @@ test('rejects what it cannot number', () => {
   assert.throws(() => buildNumber('2.0.0', -1))
   assert.throws(() => buildNumber('2.0.0', '1;rm'))
 })
+
+test('the Android build reads its version code from the CLI', async () => {
+  const { execFileSync } = await import('node:child_process')
+  const { readFileSync } = await import('node:fs')
+  const { fileURLToPath } = await import('node:url')
+  const version = JSON.parse(readFileSync(new URL('../desktop/package.json', import.meta.url), 'utf8')).version
+  const out = execFileSync(process.execPath, [new URL('./mobile-version.mjs', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'), '--android'], { encoding: 'utf8' })
+  assert.equal(out, `APP_VERSION=${version}\nVERSION_CODE=${versionCode(version)}\n`)
+})
