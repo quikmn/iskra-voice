@@ -43,6 +43,9 @@ function ReportDialog({ target }: { target: ReportTarget }) {
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState(false)
   const blocked = useIsBlocked(person)
+  // A message from an encrypted channel: the server can't read it, so the reporter may share what it says.
+  const sealedText = target.kind === 'message' && target.message.e2ee ? target.message.text : ''
+  const [shareSealed, setShareSealed] = useState(true)
 
   const shared = candidates.filter((c) => picked.has(c.id))
   const canSend = !!serverKey && !!reason && !busy && (shared.length === 0 || consent)
@@ -56,7 +59,8 @@ function ReportDialog({ target }: { target: ReportTarget }) {
       await sendReport(serverKey, {
         reason, note,
         ...(target.kind === 'message'
-          ? { messageId: target.message.id }
+          ? { messageId: target.message.id,
+              ...(sealedText && shareSealed ? { messages: [{ author: target.message.author, text: sealedText.slice(0, 2000), at: target.message.createdAt }] } : {}) }
           : { accountKey: person, ...(shared.length ? { messages: shared.map(({ author, text, at }) => ({ author, text, at })) } : {}) }),
       })
       setSent(true)
@@ -123,6 +127,12 @@ function ReportDialog({ target }: { target: ReportTarget }) {
           <strong>{name}</strong>
           <span>{plainText(target.message.text, { nameOf: (k) => server.members[k]?.name ?? null }) || t('safety.report.noText')}</span>
         </blockquote>
+      )}
+      {sealedText && (
+        <label className="checkbox report-consent">
+          <input type="checkbox" checked={shareSealed} onChange={(e) => setShareSealed(e.target.checked)} />
+          <span>{t('e2ee.report.share')}<br /><span className="muted small-text">{t('e2ee.report.shareHint')}</span></span>
+        </label>
       )}
       <p className="muted report-lead">
         {encrypted ? t('safety.report.encryptedLead', { name }) : t('safety.report.lead', { server: server?.name ?? '', name })}

@@ -63,6 +63,7 @@ export function SearchPanel({ server }: { server: ServerState }) {
       <div className="search-results">
         {error && <p className="error-text search-note">{error}</p>}
         {searched && <DocSearchHits server={server} query={searched} />}
+        {searched && server.channels.some((c) => c.e2ee) && <p className="search-note muted small-text">{t('e2ee.search.local')}</p>}
         {!searched && !error && (
           <div className="search-help">
             <p className="muted">{t('chat.search.help')}</p>

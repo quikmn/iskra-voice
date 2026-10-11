@@ -271,7 +271,23 @@ export async function joinVoice(serverKey: string, channelId: number): Promise<v
 
   const connection = connectionFor(serverKey)
   if (!connection) return
-  await connect({ serverKey, channelId, state: 'connecting', canSpeak: false }, () => connection.request('voice.join', { channelId }))
+  // Encrypted voice channels: media is end-to-end encrypted with a key from the channel's current epoch.
+  let groupKey: { key: Uint8Array; index: number } | null = null
+  try {
+    groupKey = await channelVoiceKeys(serverKey, channelId)
+  } catch (e) {
+    useVoice.setState({ error: (e as Error).message })
+    return
+  }
+  await connect({ serverKey, channelId, state: 'connecting', canSpeak: false }, () => connection.request('voice.join', { channelId }),
+    groupKey ? { groupKey } : {})
+}
+
+type ChannelVoiceKeys = (serverKey: string, channelId: number) => Promise<{ key: Uint8Array; index: number } | null>
+let channelVoiceKeys: ChannelVoiceKeys = async () => null
+/** state/e2eeChannels.ts gives the media key of encrypted voice channels (null for other channels). */
+export function setChannelVoiceKeys(provider: ChannelVoiceKeys): void {
+  channelVoiceKeys = provider
 }
 
 /**
