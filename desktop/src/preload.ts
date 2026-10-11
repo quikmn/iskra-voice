@@ -20,13 +20,13 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
     return () => ipcRenderer.off('iskra:ptt', listener)
   },
   pushToTalkStatus: (): Promise<string> => ipcRenderer.invoke('iskra:ptt-status'),
-  // Mute/deafen hotkeys: the page sets them and hears which action fired, never other keys.
+  // Mute/deafen/clip hotkeys: the page sets them and hears which action fired, never other keys.
   setHotkeys: (binds: unknown): Promise<void> => ipcRenderer.invoke('iskra:set-hotkeys', binds),
   captureHotkey: (): Promise<{ code: number; mods: number; name: string } | null> => ipcRenderer.invoke('iskra:capture-hotkey'),
   cancelHotkeyCapture: (): Promise<void> => ipcRenderer.invoke('iskra:cancel-hotkey-capture'),
-  onHotkey: (callback: (action: 'mute' | 'deafen') => void): (() => void) => {
+  onHotkey: (callback: (action: 'mute' | 'deafen' | 'clip') => void): (() => void) => {
     const listener = (_e: IpcRendererEvent, action: unknown) => {
-      if (action === 'mute' || action === 'deafen') callback(action)
+      if (action === 'mute' || action === 'deafen' || action === 'clip') callback(action)
     }
     ipcRenderer.on('iskra:hotkey', listener)
     return () => ipcRenderer.off('iskra:hotkey', listener)

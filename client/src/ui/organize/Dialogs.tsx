@@ -63,7 +63,6 @@ export function ChannelSettingsDialog({ server, channel, onClose }: { server: Se
   const [writeRole, setWriteRole] = useState<Role>(channel.writeRole)
   const [categoryId, setCategoryId] = useState<number | null>(channel.categoryId ?? null)
   const [slowmode, setSlowmode] = useState(channel.slowmode ?? 0)
-  const hasSlowmode = channel.kind === 'text' || channel.kind === 'forum'
   const [userLimit, setUserLimit] = useState(channel.userLimit ?? 0)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -87,7 +86,7 @@ export function ChannelSettingsDialog({ server, channel, onClose }: { server: Se
     const connection = connectionFor(server.key)
     if (!connection) throw new Error(translate('errors.codes.disconnected'))
     await connection.request('channel.update', {
-      id: channel.id, name: slug, readRole, writeRole: write, slowmode: hasSlowmode ? slowmode : undefined,
+      id: channel.id, name: slug, readRole, writeRole: write, slowmode,
       userLimit: channel.kind === 'voice' ? userLimit : undefined,
     })
     if (categoryId !== (channel.categoryId ?? null)) await moveChannel(server.key, channel.id, categoryId, null)
@@ -114,17 +113,15 @@ export function ChannelSettingsDialog({ server, channel, onClose }: { server: Se
           label={channel.kind === 'voice' ? t('organize.channelSettings.whoSpeaks') : channel.kind === 'stage' ? t('organize.channelSettings.whoAsks') : t('organize.channelSettings.whoPosts')}
           value={write} onChange={setWriteRole} min={readRole} />
       </div>
-      {hasSlowmode && (
-        <label className="field">
-          <span>{slowmode ? t('organize.channelSettings.slowmodeOn', { every: slowmodeLabel(slowmode) }) : t('organize.channelSettings.slowmodeOff')}</span>
-          <input
-            type="range" min={0} max={SLOWMODE_STEPS.length - 1} step={1} aria-label={t('organize.channelSettings.slowmodeLabel')}
-            value={Math.max(0, SLOWMODE_STEPS.indexOf(slowmode as (typeof SLOWMODE_STEPS)[number]))}
-            onChange={(e) => setSlowmode(SLOWMODE_STEPS[Number(e.target.value)])}
-          />
-          <small className="muted">{t('organize.channelSettings.slowmodeHint')}</small>
-        </label>
-      )}
+      <label className="field">
+        <span>{slowmode ? t('organize.channelSettings.slowmodeOn', { every: slowmodeLabel(slowmode) }) : t('organize.channelSettings.slowmodeOff')}</span>
+        <input
+          type="range" min={0} max={SLOWMODE_STEPS.length - 1} step={1} aria-label={t('organize.channelSettings.slowmodeLabel')}
+          value={Math.max(0, SLOWMODE_STEPS.indexOf(slowmode as (typeof SLOWMODE_STEPS)[number]))}
+          onChange={(e) => setSlowmode(SLOWMODE_STEPS[Number(e.target.value)])}
+        />
+        <small className="muted">{t('organize.channelSettings.slowmodeHint')}</small>
+      </label>
       {channel.kind === 'voice' && <UserLimitField value={userLimit} onChange={setUserLimit} />}
       <ChannelOverrides server={server} channel={channel} />
       <label className="field inline">

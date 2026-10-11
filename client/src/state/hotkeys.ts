@@ -1,11 +1,11 @@
-// Mute and deafen hotkeys. Desktop: global (they work while a game has focus), seen by the desktop shell, which only
+// Mute, deafen and clip hotkeys. Desktop: global (they work while a game has focus), seen by the desktop shell, which only
 // ever tells us which action fired. Browser: in-app shortcuts while Iskra is the focused tab.
 import { create } from 'zustand'
 import { desktop } from '../platform/desktop'
 import { toggleDeafen, toggleMute, useVoice } from './voice'
 
-export type HotkeyAction = 'mute' | 'deafen'
-export const HOTKEY_ACTIONS: readonly HotkeyAction[] = ['mute', 'deafen']
+export type HotkeyAction = 'mute' | 'deafen' | 'clip'
+export const HOTKEY_ACTIONS: readonly HotkeyAction[] = ['mute', 'deafen', 'clip']
 
 /** Browser: a KeyboardEvent.code plus the modifiers held with it. */
 export interface WebHotkey {
@@ -171,11 +171,18 @@ export const desktopTypesText = (h: DesktopHotkey): boolean =>
 
 // ── Running them ──────────────────────────────────────────────────────────
 
-/** Mute or deafen in whatever voice session is on (channel, DM call, group call, stage). */
+let clipHandler: () => void = () => {}
+/** What the clip hotkey does (state/clips.ts sets it, so this file stays light). */
+export const onClipHotkey = (handler: () => void): void => {
+  clipHandler = handler
+}
+
+/** Mute, deafen or save a clip in whatever voice session is on (channel, DM call, group call, stage). */
 export function runHotkey(action: HotkeyAction): void {
   const { session } = useVoice.getState()
   if (!session) return
-  if (action === 'mute') {
+  if (action === 'clip') clipHandler()
+  else if (action === 'mute') {
     // Stage listeners have no mic to mute.
     if (session.canSpeak) void toggleMute()
   } else void toggleDeafen()

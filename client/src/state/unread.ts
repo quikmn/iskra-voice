@@ -59,10 +59,10 @@ export function useChannelCounts(serverKey: string, channel: Pick<Channel, 'id' 
   return channelCounts(serverKey, channel, convs, threads ?? {})
 }
 
-/** Channels that can show unread in the sidebar (text and forums), in sidebar order. */
+/** Channels that can show unread in the sidebar (text, forums, and the chat of voice and stage channels), in sidebar order. */
 function listedChannels(server: ServerState): Channel[] {
   const layout = layoutChannels(server.channels, useOrganize.getState().categories[server.key] ?? [])
-  return [...layout.uncategorized, ...layout.groups.flatMap((g) => g.channels)].filter((c) => c.kind === 'text' || c.kind === 'forum')
+  return [...layout.uncategorized, ...layout.groups.flatMap((g) => g.channels)]
 }
 
 /** What each listed channel shows once notification settings apply (muted: no dot; "Nothing": no mention badge). */

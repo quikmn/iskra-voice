@@ -1,0 +1,74 @@
+/* ── Voice channel chat ───────────────────────────────────────────────────── */
+.chat-area.voice-room > .stage { flex: 1; min-width: 0; height: auto; }
+.voice-chat-toggle { position: relative; }
+.voice-chat-toggle.on { color: var(--text-strong); background: var(--hover); }
+.voice-chat-toggle .chat-count {
+  position: absolute; top: 2px; right: 0; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
+  background: var(--accent); color: var(--on-accent); font-size: 10px; font-weight: 700; display: grid; place-items: center;
+  border: 2px solid var(--stage); box-sizing: content-box;
+}
+.voice-chat-toggle .chat-count.ping { background: var(--red); color: #fff; }
+.voice-chat-start .channel-start-icon { color: var(--muted); }
+@media (min-width: 1101px) {
+  /* The chat takes the member list's place, like a thread does. */
+  .shell:has(.chat-area.voice-room.has-panel) { grid-template-columns: auto minmax(0, 1fr); }
+  .shell:has(.chat-area.voice-room.has-panel) .members-column { display: none; }
+}
+
+/* The chat button on a voice channel's row. */
+.voice-chat-row-button { position: relative; opacity: 0; }
+.voice-chat-row-button.has-unread, .voice-chat-row-button.active,
+.org-row:hover .voice-chat-row-button, .voice-chat-row-button:focus-visible { opacity: 1; }
+.voice-chat-row-button.has-unread { color: var(--text-strong); }
+.voice-chat-row-button.active { color: var(--accent); }
+.voice-chat-row-button .badge { position: absolute; top: -4px; right: -6px; min-width: 16px; height: 16px; font-size: 10px; padding: 0 4px; }
+@media (hover: none) { .voice-chat-row-button { opacity: 1; } }
+/* Room for the row's ⋯ button, which sits over the right edge when it shows. */
+.org-row:hover .voice-chat-row-button, .org-row:focus-within .voice-chat-row-button { margin-right: 26px; }
+@media (max-width: 760px) { .org-row .voice-chat-row-button { margin-right: 26px; } }
+
+/* ── Clips ────────────────────────────────────────────────────────────────── */
+.clip-button.idle { color: var(--muted); }
+.clips-strip {
+  display: flex; width: fit-content; align-items: center; gap: 8px; max-width: calc(100% - 32px);
+  margin: 6px auto -4px; padding: 4px 12px; border-radius: 99px; font-size: 12px; color: var(--text-2);
+  background: color-mix(in srgb, var(--red) 10%, var(--surface-2)); border: 1px solid color-mix(in srgb, var(--red) 30%, var(--border));
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis; flex: none;
+}
+.clips-strip > span:last-child { overflow: hidden; text-overflow: ellipsis; }
+.clips-dot, .clips-mark {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--red); flex: none; display: inline-block;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--red) 22%, transparent);
+}
+.clips-mark { width: 7px; height: 7px; margin-left: 6px; vertical-align: middle; }
+
+.clip-toasts {
+  position: fixed; top: calc(72px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: var(--z-notice);
+  display: grid; gap: 6px; width: max-content; max-width: calc(100vw - 24px);
+}
+.clip-toast {
+  display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 99px; font-size: 14px;
+  background: var(--float); border: 1px solid var(--border); box-shadow: var(--shadow-pop); animation: clip-toast-in 0.2s ease-out;
+}
+.clip-toast.error { border-radius: 12px; padding: 8px 8px 8px 14px; }
+@keyframes clip-toast-in { from { opacity: 0; transform: translateY(-6px); } }
+@media (max-width: 760px) {
+  .clip-toasts { top: auto; bottom: calc(96px + env(safe-area-inset-bottom)); }
+}
+
+.clip-dialog .clip-preview { width: 100%; max-height: 50vh; border-radius: 10px; background: #000; display: block; }
+.clip-dialog .clip-preview.audio-only { height: 54px; background: var(--surface-2); }
+.clip-trim { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.clip-trim input[type='range'] { width: 100%; }
+.clip-note { margin: 8px 0 0; font-size: 13px; }
+.clip-done { margin: 8px 0 0; color: var(--green); font-size: 14px; }
+.clip-dialog .modal-footer .button { display: inline-flex; align-items: center; gap: 6px; }
+@media (max-width: 520px) {
+  .clip-trim { grid-template-columns: 1fr; }
+}
+
+.clip-notice-icon { color: var(--red); display: inline-grid; }
+.clip-notice-remove { margin-left: auto; opacity: 0; }
+.clip-notice:hover .clip-notice-remove, .clip-notice-remove:focus-visible { opacity: 1; }
+@media (hover: none) { .clip-notice-remove { opacity: 1; } }
+.attachment-video.audio-only { height: 54px; width: min(360px, 100%); background: transparent; }

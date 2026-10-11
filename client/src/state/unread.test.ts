@@ -133,13 +133,14 @@ describe('server badges', () => {
     noteMessage(channelConv('srv', 20), ref(1), false)
     expect(serverBadges(server)).toEqual({ pings: 0, unread: 0 })
     expect(unreadOrder(server).some((c) => c.unread)).toBe(false)
-    // Unread in a voice channel's chat isn't in the sidebar either.
-    noteMessage(channelConv('srv', 4), ref(2), false)
-    expect(serverBadges(server).unread).toBe(0)
     // A forum reply shows on the forum row, the server icon, and Alt+↓ goes there.
     noteMessage(channelConv('srv', 30), ref(3), false)
     expect(serverBadges(server)).toEqual({ pings: 0, unread: 1 })
     expect(nextUnread(unreadOrder(server), 1, 1)).toBe(3)
+    // A voice channel's chat shows on its row (the chat button) and counts too.
+    noteMessage(channelConv('srv', 4), ref(2), false)
+    expect(serverBadges(server).unread).toBe(2)
+    expect(unreadOrder(server).find((c) => c.id === 4)?.unread).toBe(true)
   })
 
   it('the title count follows the same mention badges and DMs', () => {

@@ -29,7 +29,9 @@ export function Attachments({ server, files }: { server: ServerState; files: Fil
         if (file.type.startsWith('video/')) {
           return (
             <SpoilerCover key={file.id} active={spoiler}>
-              <video className="attachment-video" src={url} controls preload="metadata" />
+              {/* A WebM with only sound (an audio clip) gets a slim player instead of a black box. */}
+              <video className="attachment-video" src={url} controls preload="metadata"
+                onLoadedMetadata={(e) => e.currentTarget.classList.toggle('audio-only', e.currentTarget.videoWidth === 0)} />
             </SpoilerCover>
           )
         }

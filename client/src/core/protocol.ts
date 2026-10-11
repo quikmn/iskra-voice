@@ -147,7 +147,7 @@ export interface Requests {
   'invite.list': [Record<string, never>, { invites: Invite[] }]
   'invite.revoke': [{ code: string }, Record<string, never>]
   'voice.join': [{ channelId: number }, { url: string; token: string; room: string; canSpeak: boolean }]
-  'voice.state': [{ muted: boolean; deafened: boolean }, Record<string, never>]
+  'voice.state': [{ muted: boolean; deafened: boolean; clips?: boolean }, Record<string, never>]
   'dm.devices': [{ accountKey: string }, DeviceBundle]
   // ── signing out ──
   'member.leave': [Record<string, never>, Record<string, never>]
@@ -1335,4 +1335,20 @@ export interface Requests {
   'report.count': [Record<string, never>, { open: number }]
   'account.delete': [{ deletion: AccountDeletion }, Record<string, never>]
   'owner.transfer': [{ accountKey: string }, Record<string, never>]
+}
+
+// ── voice chat and clips ──
+
+export interface VoiceParticipant {
+  /** They have clips turned on (they can save the last seconds of the call). */
+  clips?: boolean
+}
+
+export interface Message {
+  /** A "saved a clip" notice (the author saved it; no text). */
+  clip?: Record<string, never> | null
+}
+
+export interface Requests {
+  'voice.clip': [{ channelId: number }, { message: Message }]
 }

@@ -25,6 +25,7 @@ import { expressions } from './expressions'
 import { friends } from './friends'
 import { account } from './account'
 import { safety } from './safety'
+import { clips } from './clips'
 
 export const sv: Messages = {
   common,
@@ -52,4 +53,5 @@ export const sv: Messages = {
   friends,
   account,
   safety,
+  clips,
 }
