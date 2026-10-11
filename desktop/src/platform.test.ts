@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { aboutDetail, autostartEntry, badgeText, compareVersions, deepLinkFromArgv, DEFAULT_DESKTOP_SETTINGS, parseDeepLink, parseDesktopSettings, defaultHostRoot, exeName, isAppPage, isWayland, keychainKind, newerRelease, serverRid, skipScreenPicker, trayMenu, updateMode, youTubeReferrer, YOUTUBE_REFERRER } from './platform'
+import { aboutDetail, autostartEntry, badgeText, compareVersions, deepLinkFromArgv, DEFAULT_DESKTOP_SETTINGS, embedderHeaders, pageOrigin, parseDeepLink, parseDesktopSettings, defaultHostRoot, exeName, isAppPage, isWayland, keychainKind, newerRelease, serverRid, skipScreenPicker, trayMenu, updateMode, youTubeReferrer, YOUTUBE_REFERRER } from './platform'
 
 test('server binaries and runtime ids per platform', () => {
   assert.equal(exeName('iskra-server', 'win32'), 'iskra-server.exe')
@@ -101,6 +101,25 @@ test('YouTube embeds get the web app as referrer, only from the app and only for
   assert.equal(youTubeReferrer('https://www.youtube-nocookie.com.evil.example/', true), null)
   assert.equal(youTubeReferrer('http://www.youtube-nocookie.com/embed/x', true), null)
   assert.equal(youTubeReferrer('not a url', true), null)
+})
+
+test('Twitch players framed by the app allow the app as their frame ancestor', () => {
+  assert.equal(pageOrigin('app://iskra/index.html'), 'app://iskra')
+  assert.equal(pageOrigin('http://localhost:5173/#/x'), 'http://localhost:5173')
+  assert.equal(pageOrigin('about:blank'), null)
+  assert.equal(pageOrigin('nope'), null)
+  const headers = {
+    'Content-Security-Policy': ['frame-ancestors https://iskra', "default-src 'self'; frame-ancestors https://a https://b; img-src *"],
+    'content-security-policy': ['FRAME-ANCESTORS https://iskra'],
+    'Cache-Control': ['no-cache'],
+  }
+  assert.deepEqual(embedderHeaders(headers, 'app://iskra'), {
+    'Content-Security-Policy': ['frame-ancestors app://iskra', "default-src 'self'; frame-ancestors app://iskra; img-src *"],
+    'content-security-policy': ['frame-ancestors app://iskra'],
+    'Cache-Control': ['no-cache'],
+  })
+  // Policies without frame-ancestors are left alone.
+  assert.deepEqual(embedderHeaders({ 'Content-Security-Policy': ["script-src 'self'"] }, 'app://iskra'), { 'Content-Security-Policy': ["script-src 'self'"] })
 })
 
 test('which keychain protects the stored keys', () => {

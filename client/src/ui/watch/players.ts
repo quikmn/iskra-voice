@@ -93,6 +93,13 @@ export function youTubeTime(info: YouTubeInfo, now: number): number {
   return info.time + (playing && info.at > 0 ? ((now - info.at) / 1000) * info.rate : 0)
 }
 
+/** The embed frame's attributes: sandboxed (no popups, no navigating the app), allowed to play and go fullscreen. */
+export const YOUTUBE_FRAME = {
+  allow: 'autoplay; encrypted-media; picture-in-picture; fullscreen',
+  referrerPolicy: 'strict-origin-when-cross-origin',
+  sandbox: 'allow-scripts allow-same-origin allow-presentation',
+} as const
+
 /** The embed URL. No autoplay, no YouTube controls: the party drives it. `origin` lets the player post back to us. */
 export function youTubeEmbedUrl(videoId: string, origin: string): string {
   const params = new URLSearchParams({ enablejsapi: '1', controls: '0', disablekb: '1', playsinline: '1', rel: '0', iv_load_policy: '3' })

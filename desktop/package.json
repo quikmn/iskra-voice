@@ -12,6 +12,7 @@
   "scripts": {
     "build": "tsc -p .",
     "test": "tsc -p . && node --test dist/platform.test.js dist/restore.test.js dist/games.test.js",
+    "test:electron": "tsc -p . && electron dist/embeds.check.js",
     "start": "npm run build && electron .",
     "dev": "npm run build && cross-env ISKRA_DEV_URL=http://localhost:5173 electron .",
     "dist": "npm --prefix ../client run build && node scripts/prepare-server.mjs win-x64 && npm run build && electron-builder --win portable nsis --publish never",
@@ -47,6 +48,7 @@
     "files": [
       "dist/**",
       "!dist/**/*.test.js",
+      "!dist/**/*.check.js",
       "assets/**",
       "package.json"
     ],

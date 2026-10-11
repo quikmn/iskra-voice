@@ -1,15 +1,15 @@
 // Iskra desktop: a thin, locked-down shell around the same web app.
 // It adds what browsers can't do: push-to-talk while a game has focus, a screen/window picker,
 // the tray, and a stable app:// origin for local storage.
-import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, Menu, nativeImage, net, protocol, safeStorage, session, shell, systemPreferences, Tray } from 'electron'
+import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, Menu, nativeImage, safeStorage, session, shell, systemPreferences, Tray } from 'electron'
 import { closeSync, existsSync, openSync, readSync } from 'node:fs'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { APP_ORIGIN, configureAppSession, registerAppScheme } from './appSession'
 import { Host } from './host'
 import { isBackupDownload, readBackupInfo } from './restore'
 import {
   aboutDetail, badgeText, DEEP_LINK_SCHEME, deepLinkFromArgv, isAppPage, isWayland, MAC_SETTINGS, parseDeepLink, parseDesktopSettings,
-  keychainKind, skipScreenPicker, trayMenu, youTubeReferrer, type DesktopSettings, type SettingsPane, type TrayAction,
+  keychainKind, skipScreenPicker, trayMenu, type DesktopSettings, type SettingsPane, type TrayAction,
 } from './platform'
 import { PushToTalk } from './ptt'
 import { ActivityDetector } from './activity'
@@ -19,7 +19,6 @@ import { Updates, type UpdateStatus } from './updates'
 /** Chromium's media::AudioDeviceDescription::kLoopbackWithoutChromeId: system audio minus this app's own. */
 const LOOPBACK_WITHOUT_ISKRA = 'loopbackWithoutChrome'
 const DEV_URL = process.env.ISKRA_DEV_URL // e.g. http://localhost:5173 while developing
-const APP_ORIGIN = 'app://iskra'
 const ASSETS = path.join(__dirname, '..', 'assets')
 const MAC = process.platform === 'darwin'
 const WAYLAND = isWayland(process.platform, process.env)
@@ -35,9 +34,7 @@ if (process.platform === 'linux') app.commandLine.appendSwitch('enable-features'
 let settings: DesktopSettings = loadDesktopSettings()
 if (!settings.hardwareAcceleration) app.disableHardwareAcceleration()
 
-protocol.registerSchemesAsPrivileged([
-  { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
-])
+registerAppScheme()
 
 let window: BrowserWindow | null = null
 let tray: Tray | null = null
@@ -136,21 +133,8 @@ function createWindow(): void {
 function setUpSession(): void {
   const appSession = session.defaultSession
 
-  // Serve the built web app from app://iskra/ (a secure, stable origin for IndexedDB and getUserMedia).
-  protocol.handle('app', (request) => {
-    const { pathname } = new URL(request.url)
-    const relative = decodeURIComponent(pathname) === '/' ? '/index.html' : decodeURIComponent(pathname)
-    const file = path.normalize(path.join(CLIENT_DIR, relative))
-    if (!file.startsWith(CLIENT_DIR + path.sep)) return new Response('Not found', { status: 404 })
-    return net.fetch(pathToFileURL(file).toString())
-  })
-
-  // YouTube's embeds (watch parties) refuse to play without an http(s) referrer ("Error 153"), and app:// isn't one.
-  // Requests to youtube-nocookie.com from the app's own window say they come from the web app instead.
-  appSession.webRequest.onBeforeSendHeaders({ urls: ['https://www.youtube-nocookie.com/*'] }, (details, callback) => {
-    const referrer = youTubeReferrer(details.url, !!details.webContents && isAppUrl(details.webContents.getURL()))
-    callback({ requestHeaders: referrer ? { ...details.requestHeaders, Referer: referrer } : details.requestHeaders })
-  })
+  // app://iskra/, and what YouTube and Twitch embeds need to play there.
+  configureAppSession(appSession, CLIENT_DIR, isAppUrl)
 
   // Only the permissions a chat app needs, and only for the app itself (never for frames inside it, like profile pages).
   const allowed = new Set(['media', 'display-capture', 'notifications', 'clipboard-sanitized-write', 'fullscreen'])
