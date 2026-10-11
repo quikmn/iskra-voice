@@ -21,6 +21,7 @@ import { DevicesSection } from '../dialogs/DevicesSection'
 import { IntegrationsSection } from '../dialogs/Integrations'
 import { BackupSection } from './BackupSection'
 import { LimitsSection } from './LimitsSection'
+import { LanguageSection } from './LanguageSection'
 import { RulesSection } from '../rules/Rules'
 import { ImportSection } from './ImportSection'
 import { AppLockSection, RotateKeySection } from '../keys/KeySettings'
@@ -106,7 +107,7 @@ export function SettingsDialog({ server, onClose, section: initial }: { server?:
 function Section({ id, server, onClose }: { id: SectionId; server: ServerState | null; onClose: () => void }) {
   switch (id) {
     case 'profile': return <ProfileSection />
-    case 'appearance': return <><AppearanceSection /><GifViewerSettings /></>
+    case 'appearance': return <><AppearanceSection /><LanguageSection /><GifViewerSettings /></>
     case 'devices': return <DevicesSection />
     case 'recovery': return <><RecoveryKeySection /><RotateKeySection /></>
     case 'security': return <AppLockSection />

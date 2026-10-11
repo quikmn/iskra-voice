@@ -262,9 +262,12 @@ export type ErrorCode =
 
 export class RequestError extends Error {
   readonly code: ErrorCode | 'disconnected' | 'timeout'
-  constructor(code: RequestError['code'], message: string) {
+  /** The request that failed, so the app can say what went wrong in the reader's language. */
+  readonly type?: string
+  constructor(code: RequestError['code'], message: string, type?: string) {
     super(message)
     this.code = code
+    this.type = type
   }
 }
 

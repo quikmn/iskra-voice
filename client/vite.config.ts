@@ -15,5 +15,6 @@ export default defineConfig({
   plugins: [react(), csp()],
   test: {
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    setupFiles: ['src/i18n/testSetup.ts'],
   },
 })

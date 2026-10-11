@@ -1,19 +1,22 @@
-const time = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' })
-const dayTime = new Intl.DateTimeFormat(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' })
-const full = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+import { dateTimeFormat } from '../i18n/format'
+
+// In the app's language (formatters are cached per locale).
+const time = () => dateTimeFormat({ hour: '2-digit', minute: '2-digit' })
+const dayTime = () => dateTimeFormat({ weekday: 'short', hour: '2-digit', minute: '2-digit' })
+const full = () => dateTimeFormat({ dateStyle: 'medium', timeStyle: 'short' })
 
 export function messageTime(ms: number, now = Date.now()): string {
   const date = new Date(ms)
   const today = new Date(now)
-  if (date.toDateString() === today.toDateString()) return time.format(date)
-  if (now - ms < 6 * 24 * 3600 * 1000) return dayTime.format(date)
-  return full.format(date)
+  if (date.toDateString() === today.toDateString()) return time().format(date)
+  if (now - ms < 6 * 24 * 3600 * 1000) return dayTime().format(date)
+  return full().format(date)
 }
 
-export const fullTime = (ms: number) => full.format(new Date(ms))
+export const fullTime = (ms: number) => full().format(new Date(ms))
 
 /** Just the clock time ("06:01 PM"), for grouped messages. */
-export const clockTime = (ms: number) => time.format(new Date(ms))
+export const clockTime = (ms: number) => time().format(new Date(ms))
 
 /** A stable hue per account, so avatars and names are recognisable. */
 export function hueFor(key: string): number {
