@@ -10,14 +10,12 @@ export type OpenTarget =
 
 const KEY = '[A-Za-z0-9_-]{43}'
 const ID = '[1-9][0-9]{0,15}'
-const ROUTE = new RegExp(`^#?/open/(${KEY})(?:/c/(${ID})(?:/m/(${ID}))?|/dm/(${KEY})|/g/([A-Za-z0-9_-]{22})|/r/(${ID}))?/?$`)
-const ROUTE = new RegExp(`^#?/open/(${KEY})(?:/c/(${ID})(?:/m/(${ID})|/p/(${ID}))?|/dm/(${KEY})|/g/([A-Za-z0-9_-]{22}))?/?$`)
+const ROUTE = new RegExp(`^#?/open/(${KEY})(?:/c/(${ID})(?:/m/(${ID})|/p/(${ID}))?|/dm/(${KEY})|/g/([A-Za-z0-9_-]{22})|/r/(${ID}))?/?$`)
 
 export function parseOpenRoute(route: string): OpenTarget | null {
   const match = ROUTE.exec(route)
   if (!match) return null
-  const [, server, channel, message, peer, group, reminder] = match
-  const [, server, channel, message, page, peer, group] = match
+  const [, server, channel, message, page, peer, group, reminder] = match
   if (channel) {
     const channelId = Number(channel)
     const messageId = message ? Number(message) : undefined
