@@ -1572,3 +1572,72 @@ AccountDeletion { "accountKey": "<b64u 32>", "deletedAt": 1760000000000, "messag
 **Other devices** learn of it when they next connect anywhere it was applied. A device checks the signature against its own account key (so a server can't make it wipe itself), sends the same `account.delete` to its other servers the deleting device couldn't reach, then deletes its keys and data. Messages already on other people's devices (DMs, groups) stay there.
 
 **Owners** can't delete their account on a server they own: they hand it over with `owner.transfer` first, or shut the server down. Audit: `owner.transfer` (target the new owner) `{ from }` (their level before).
+
+
+## Security log, retention and your data
+
+### Security log
+
+Moderation and admin actions are in the audit log (`audit.list`). The **security log** keeps what the audit log doesn't, for the owner only:
+
+```jsonc
+SecurityEvent { "id": 12, "at": 1760000000000, "event": "auth.failed", "account": "<accountKey>" | null, "accountName": "Sam" | null,
+                "ip": "203.0.113.7" | null, "details": { ... } | null }
+```
+
+| event | account | details |
+|---|---|---|
+| `auth.failed` | the key, if its signature checked out (else null) | `{ reason }`: the handshake's error code (`auth_failed`, `invite_required`, `banned`, `device_revoked`, `account_deleted`, `account_rotated`, …) |
+| `rate_limited` | who | `{ type }` (the request type). At most one entry per connection per minute |
+| `member.joined` | who | `{ role, bot }` (never the invite code) |
+| `device.new` | who | `{ deviceKey }`: an existing member signed in from a device this server hasn't seen |
+| `device.revoke` | who | `{ deviceKey }` |
+| `account.rotate`, `account.rotate.disputed` | the new key / the holder | `{ devices }` / none |
+| `account.delete` | who | `{ messages }` |
+| `backup.download`, `backup.settings`, `backup.cli`, `backup.restored` | the owner / none | `{ size }`, `{ from, to }`, none, `{ backupMadeAt, uploads }` |
+| `server.move`, `server.move.cancel` | the owner / none | `{ url, cli? }`, `{ cli? }` |
+| `retention.update` | the owner | `{ from, to }` (Retention below) |
+| `data.export` | whose data | `{ by }` when the owner exported someone else's |
+| `security.log.export` | the owner | |
+
+- Never in it: message text, invite codes, passphrases, secrets of any kind.
+- **IP addresses** are recorded only if the owner turns on `securityLogIps` (off by default). Without it `ip` is null.
+- A burst of the same event from the same address (or account) is capped at 10 entries a minute; the next entry after a burst has `details.suppressedBefore` (how many were left out).
+- Entries follow an account through key rotation like everything else. Deleting an account clears `ip` on its entries and keeps the rest (`account.delete` included) for the security log's retention.
+
+| type | body | result | who |
+|---|---|---|---|
+| `security.log.list` | `event?` (≤ 40), `account?` (≤ 64), `before?` (entry id), `limit?` (1–500, default 100), `export?` (true on the first page of an export: adds `security.log.export`) | `{ entries: [SecurityEvent], hasMore }` (newest first) | the owner |
+
+### Retention
+
+`server.json` → `Retention`, also in Settings → Security log. 0 days keeps forever.
+
+```jsonc
+Retention { "messagesDays": 0, "uploadsDays": 0, "auditDays": 90, "securityLogDays": 365, "securityLogIps": false }
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `retention.get` | | `Retention` | the owner |
+| `retention.update` | any of `messagesDays`, `uploadsDays`, `auditDays`, `securityLogDays` (0–36500), `securityLogIps` (bool) | `Retention` | the owner; written to server.json, applies from the next sweep |
+
+A sweep runs at start and every hour:
+- `messagesDays`: channel messages older than that are deleted (with their reactions, pins, polls and search entries; a forum post whose first message goes is deleted too), and so are end-to-end encrypted DM and group envelopes. Readers get `chat.deleted` for each message (`thread.deleted` for forum posts) when a sweep deletes 200 or fewer; after a bigger sweep apps see the change when they load history.
+- `uploadsDays`: files uploaded before then that only messages or DMs use are deleted (messages keep their text; the attachment is gone). Avatars, emoji, stickers, sounds, event covers, webhook avatars, files shown on profile pages, files in running watch parties and in open reports stay.
+- `auditDays`: audit entries; `securityLogDays`: security entries. The unused-upload sweep (a day) and daily backups (`Backups.Keep`) are unchanged.
+
+### Download my data
+
+| type | body | result | who |
+|---|---|---|---|
+| `data.export` | `accountKey?` (default: you) | `{ url: "/export/<token>", name, size, expiresAt }` | anyone for themselves; the owner for any member or former member this server knows (`not_found` otherwise), to answer a request made to them directly |
+
+- `GET /export/<token>` (relative to the server's URL) returns `iskra-data-YYYY-MM-DD.zip` (`Content-Disposition: attachment`, `no-store`, `nosniff`, a sandbox CSP) for 10 minutes; then the link is gone and the file deleted. Exports are written to `exports/` in the world folder, which backups leave out; leftovers are deleted when the server starts.
+- The zip has `README.txt` and `data.json` (`format: "iskra-data-export/v1"`): the account and its earlier keys (after key rotation), the server, and one list of rows per section: `membership`, `nickname`, `customRoles`, `profile`, `profilePage`, `presence`, `syncedSettings`, `notificationSettings`, `rulesAccepted`, `devices`, `removedDevices`, `pushSubscriptions` (no endpoints or keys), `blockList`, `keyRotations`, `accountDeletion`, `messages`, `reactions`, `pollVotes`, `eventInterest`, `uploads` (metadata), `directMessages` and `groupMessagesSent` (who, whom, when: no envelopes), `groups`, `invitesCreated` (no codes), `timeouts`, `bans`, `reportsMade`, `reportsAboutYou` (without the reporter or their note), `auditLog`, `securityLog`. `exportedBy` names the owner when it isn't you.
+- Rate limit: two, then one every 10 minutes per connection; one export is made at a time on a server (`rate_limited` while another runs).
+- The content of end-to-end encrypted DMs and groups is only on members' devices; apps export it from the device itself (Settings → Privacy & data → Download data on this device).
+
+### HTTP hardening
+
+Every HTTP response gets `X-Content-Type-Options: nosniff` and `Referrer-Policy: no-referrer`, and (except profile pages, which the app frames) `X-Frame-Options: DENY` and a CSP with `frame-ancestors 'none'` (`default-src 'none'` when the handler set none). HTTPS responses for a domain name (not an IP address or localhost) get `Strict-Transport-Security: max-age=31536000`. HTTPS accepts TLS 1.2 and 1.3 only. LiveKit's own API listens on 127.0.0.1 only; clients reach voice through `/livekit` on the server's port.

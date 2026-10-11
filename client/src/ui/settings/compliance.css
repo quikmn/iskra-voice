@@ -1,0 +1,16 @@
+/* Settings → Privacy & data and Security log */
+.settings-section h4 { margin: 18px 0 4px; font-size: 14px; }
+.data-export-list { list-style: none; margin: 10px 0 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.data-export-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; }
+.data-export-list li + li { border-top: 1px solid var(--border); }
+.data-export-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.data-export-note { margin-top: 18px; }
+.security-log .audit-reason { overflow-wrap: anywhere; }
+.retention-confirm { margin-top: 12px; padding: 12px 14px; border: 1px solid var(--danger-solid); background: var(--danger-bg); border-radius: var(--radius); }
+.retention-confirm p { margin: 0 0 10px; }
+.retention-ips { display: flex; gap: 10px; align-items: flex-start; margin-top: 16px; }
+.retention-ips > span { display: grid; gap: 2px; }
+.settings-section > .limits-grid + .button { margin-top: 12px; }
+@media (max-width: 760px) {
+  .data-export-list li { flex-wrap: wrap; }
+}

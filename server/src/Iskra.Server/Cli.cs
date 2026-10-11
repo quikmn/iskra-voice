@@ -118,6 +118,7 @@ public static class Cli
             using (var encrypted = BackupFile.Encrypt(file, passphrase, Ed25519.ToB64u(world.ServerPublicKey), world.Settings.Name, now))
                 BackupArchive.Write(world, encrypted, includeUploads: true, now);
             File.Move(temp, output, overwrite: true);
+            SecurityLog.Record(world.Store, now, "backup.cli");
         }
         finally
         {
@@ -134,11 +135,13 @@ public static class Cli
         if (flags.Contains("--cancel"))
         {
             File.Delete(Path.Combine(world.Path, MoveFeature.FileName));
+            SecurityLog.Record(world.Store, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), "server.move.cancel", details: new { cli = true });
             Console.WriteLine("The move notice is gone. Start the server as usual.");
             return 0;
         }
         var clean = MoveFeature.CleanUrl(url) ?? throw new InvalidDataException("That isn't an http(s) address.");
         MoveFeature.Publish(world, clean, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        SecurityLog.Record(world.Store, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), "server.move", details: new { url = clean, cli = true });
         Console.WriteLine($"Members who connect here will be sent to {clean}. Keep this server running for a while so everyone gets the notice.");
         return 0;
     }
