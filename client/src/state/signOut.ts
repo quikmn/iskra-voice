@@ -13,7 +13,8 @@ const KEEP = new Set(['iskra.language', 'iskra.theme', 'iskra.audio'])
 const within = <T,>(promise: Promise<T>, ms = 4000) =>
   Promise.race([promise.catch(() => undefined), new Promise<undefined>((resolve) => setTimeout(resolve, ms))])
 
-export async function signOutThisDevice({ leaveServers = false }: { leaveServers?: boolean } = {}): Promise<void> {
+/** `after` runs once everything is wiped, right before the app restarts (e.g. to leave a notice for the next screen). */
+export async function signOutThisDevice({ leaveServers = false, after }: { leaveServers?: boolean; after?: () => void } = {}): Promise<void> {
   const { identity, order } = useApp.getState()
   const online = order.filter((key) => connectionFor(key)?.isOnline)
   if (identity && online.length) {
@@ -35,5 +36,6 @@ export async function signOutThisDevice({ leaveServers = false }: { leaveServers
   } catch {
     /* storage blocked: nothing to clear */
   }
+  after?.()
   window.location.reload()
 }

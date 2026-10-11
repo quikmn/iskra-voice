@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test'
 import { Bot } from '../../bots/sdk/src/index'
-import { createInviteLink, hasLiveKit, joinVia, longPress, send, SHOTS, startServer, type TestServer } from './helpers'
+import { agreeToTerms, createInviteLink, hasLiveKit, joinVia, longPress, send, SHOTS, startServer, type TestServer } from './helpers'
 
 test.skip(!process.env.ISKRA_TOUR, 'screenshot tour: set ISKRA_TOUR=1')
 test.use({ actionTimeout: 8000 })
@@ -110,6 +110,7 @@ test('screenshot tour', async ({ browser }) => {
       await page.goto('/')
       await expect(page.getByRole('button', { name: /I’m new to Iskra/ })).toBeVisible()
       await shot(page, `01-onboarding-${size}`)
+      await agreeToTerms(page)
       await page.getByRole('button', { name: /I already use Iskra/ }).click()
       await shot(page, `02-onboarding-existing-${size}`)
       await page.getByRole('button', { name: /Link with my other device/ }).click()
@@ -158,6 +159,7 @@ test('screenshot tour', async ({ browser }) => {
     })
     const page = await ctx.newPage()
     await page.goto('/')
+    await agreeToTerms(page)
     await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
     await page.getByLabel('Your name').fill('Desk')
     await page.getByRole('button', { name: 'Continue' }).click()
@@ -177,6 +179,7 @@ test('screenshot tour', async ({ browser }) => {
   await host.goto(server.ownerLink())
   await expect(host.getByText("You've been invited")).toBeVisible()
   await shot(host, '10-onboarding-invite-desktop')
+  await agreeToTerms(host)
   await host.getByRole('button', { name: /I’m new to Iskra/ }).click()
   await host.getByLabel('Your name').fill('Viktor')
   await host.getByRole('button', { name: 'Join' }).click()

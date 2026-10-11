@@ -61,6 +61,8 @@ public sealed class Router
         RulesFeature.Register(this);
         AutoModFeature.Register(this);
         LeaveFeature.Register(this);
+        ReportFeature.Register(this);
+        AccountFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

@@ -290,6 +290,8 @@ public sealed partial class Store : IDisposable
         ("voice-limits-1", VoiceLimitsMigration),
         ("rules-1", RulesMigration),
         ("automod-1", AutoModMigration),
+        ("reports-1", ReportsMigration),
+        ("accounts-1", AccountsMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

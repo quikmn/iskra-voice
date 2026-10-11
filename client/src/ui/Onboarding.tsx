@@ -6,6 +6,9 @@ import { acceptInvite, completeOnboarding, restoreAccount, useApp } from '../sta
 import { hostOf } from './format'
 import { OpenInApp } from './OpenInApp'
 import { LinkJoin } from './LinkJoin'
+import { acceptTerms, useTermsAccepted } from '../state/terms'
+import { takeDeletedNotice } from '../state/accountDeletion'
+import { TermsAgreement, TermsFirst } from './safety/Terms'
 
 // First the choice: new here, or already on another device (so people link instead of making a second account).
 type Mode = 'choose' | 'new' | 'existing' | 'recovery' | 'link'
@@ -22,6 +25,14 @@ export function Onboarding() {
   const trimmed = name.trim()
   const seed = restoring ? decodeRecoveryKey(recoveryKey) : null
   const keyProblem = restoring && recoveryKey.trim().length > 20 && !seed
+  // The terms are agreed on the first screen, whichever way people go from there.
+  const accepted = useTermsAccepted()
+  const [agreed, setAgreed] = useState(false)
+  const [deleted] = useState(takeDeletedNotice)
+  const pick = (next: Mode) => () => {
+    if (!accepted) acceptTerms()
+    setMode(next)
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -43,7 +54,9 @@ export function Onboarding() {
       <div className="onboarding">
         <div className="onboarding-card">
           {brand}
-          <LinkJoin initialCode={pendingLink} onBack={() => { usePendingLink.setState({ code: null }); setMode('existing') }} />
+          <TermsFirst>
+            <LinkJoin initialCode={pendingLink} onBack={() => { usePendingLink.setState({ code: null }); setMode('existing') }} />
+          </TermsFirst>
         </div>
       </div>
     )
@@ -63,14 +76,16 @@ export function Onboarding() {
       <div className="onboarding">
         <div className="onboarding-card">
           {brand}
+          {deleted && <p className="account-deleted-note" role="status">{t('safety.deleteAccount.doneNotice')}</p>}
           {invited || <p className="lead">{t('account.welcome.lead')}</p>}
+          {!accepted && <TermsAgreement agreed={agreed} onChange={setAgreed} />}
           <p className="onboarding-question">{t('account.welcome.question')}</p>
           <div className="choice-list equal">
-            <button type="button" className="choice" onClick={() => setMode('new')}>
+            <button type="button" className="choice" disabled={!accepted && !agreed} onClick={pick('new')}>
               <strong>{t('account.welcome.new')}</strong>
               <span className="muted">{t('account.welcome.newHint')}</span>
             </button>
-            <button type="button" className="choice" onClick={() => setMode('existing')}>
+            <button type="button" className="choice" disabled={!accepted && !agreed} onClick={pick('existing')}>
               <strong>{t('account.welcome.existing')}</strong>
               <span className="muted">{t('account.welcome.existingHint')}</span>
             </button>

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Help &amp; Support - Iskra</title>
+<meta name="description" content="Help with Iskra: joining and hosting servers, your recovery key and new devices, notifications, voice problems, reporting and blocking, and how to contact us.">
+<link rel="canonical" href="https://iskra.foo/support">
+<meta name="theme-color" content="#0b0b14">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/site.css">
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="/">
+    <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M16 2L4 16h10l-2 10 14-16H16L18 2z" fill="url(#bolt)" stroke="none"/>
+      <defs>
+        <linearGradient id="bolt" x1="4" y1="2" x2="22" y2="26" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#7c6fff"/>
+          <stop offset="100%" stop-color="#00cfff"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    Iskra
+  </a>
+  <div class="nav-links">
+    <a class="btn btn-ghost nav-hide-sm" href="/support" aria-current="page">Help</a>
+    <a class="btn btn-ghost nav-hide-sm" href="https://github.com/quikmn/iskra-voice" target="_blank" rel="noopener">GitHub</a>
+    <a class="btn btn-primary" href="/#download">Download</a>
+  </div>
+</nav>
+
+<main class="doc">
+  <div class="doc-kicker">Help</div>
+  <h1>Help &amp; <span class="grad">Support</span></h1>
+  <p class="updated">Last updated 11 October 2026</p>
+
+  <p class="lead">Answers to the common questions, how to report something, and how to reach us.</p>
+
+  <div class="box">
+    <div class="box-title">Quick links</div>
+    <ul>
+      <li>Something unsafe? <a href="#safety">Report it</a> in the app, or email <a href="mailto:spark@iskra.foo?subject=Safety%20concern">spark@iskra.foo</a>.</li>
+      <li>Found a bug or have an idea? <a href="https://github.com/quikmn/iskra-voice/issues" target="_blank" rel="noopener">Open an issue on GitHub</a>.</li>
+      <li>Want to leave? <a href="/delete-account">Delete your account</a>.</li>
+    </ul>
+  </div>
+
+  <h2 id="start">Getting started</h2>
+
+  <details>
+    <summary>How do I join a server?</summary>
+    <p>Ask someone on the server for an <strong>invite link</strong> (they get one from <strong>Invite friends</strong>). Open the link: it opens Iskra in your browser, or in the desktop app if you have it. Pick a name and you're in. No email or password needed.</p>
+    <p>You can also open <a href="https://app.iskra.foo">app.iskra.foo</a> or the desktop app, choose <strong>Join a server</strong> and paste the link.</p>
+  </details>
+
+  <details>
+    <summary>How do I start my own server?</summary>
+    <p>In the desktop app, click <strong>Create a server</strong> and pick a name. The server runs on your computer while the app is open, and you're its owner. Click <strong>Invite friends</strong> to get a link.</p>
+    <p>Friends on your home network can join right away. For friends elsewhere, turn on <span class="path">Settings → Open to the internet</span>: it opens the ports on your router and sets up HTTPS for you. For a server that's always on, run the standalone server on a spare computer or a rented one.</p>
+    <p>Everything is explained in the <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md" target="_blank" rel="noopener">hosting guide</a>.</p>
+  </details>
+
+  <details>
+    <summary>Can I use Iskra on my phone?</summary>
+    <p>Yes: open <a href="https://app.iskra.foo">app.iskra.foo</a> in your phone's browser and add it to your home screen. On iPhone and iPad, tap <strong>Share</strong>, then <strong>Add to Home Screen</strong> (notifications only work from the Home Screen app). The server you join needs HTTPS, which "Open to the internet" sets up.</p>
+  </details>
+
+  <h2 id="account">Your account and devices</h2>
+
+  <details>
+    <summary>What's the recovery key, and why does it matter?</summary>
+    <p>Your account lives on your devices, not on a server, and there's no password. The <strong>recovery key</strong> is how you get your account back on a new device, or after clearing your browser or losing your phone. Find it in <span class="path">Settings → Recovery key</span> and keep it somewhere safe, like a password manager.</p>
+    <p><strong>Nobody can recover it for you</strong>, not us and not a server owner. And anyone who has it can use your account, so never share it. Nobody from Iskra or a server will ever ask you for it.</p>
+  </details>
+
+  <details>
+    <summary>How do I use my account on a new phone or computer?</summary>
+    <p>The easiest way is <strong>device linking</strong>: on a device where you're signed in, open <span class="path">Settings → Devices → Link a device</span>, then scan the QR code (or type the code) on the new device. Both devices show a six-digit number to compare before anything is sent. Your account goes straight from one device to the other, encrypted.</p>
+    <p>No other device at hand? On the new device choose <strong>I already have Iskra</strong>, then <strong>Use my recovery key</strong>, and paste your key. Then open an invite link to each of your servers to get back in.</p>
+  </details>
+
+  <details>
+    <summary>I lost a device. What should I do?</summary>
+    <p>On another device, open <span class="path">Settings → Devices</span> and remove the lost one. It's signed out for good. If you're worried someone has your recovery key, you can replace your account key in the app; your friends will see that your safety number changed.</p>
+  </details>
+
+  <details>
+    <summary>How do I leave a server or sign out?</summary>
+    <ul>
+      <li><strong>Hide a server</strong> from your list: open the server's settings, <span class="path">Overview → Remove server</span>. You stay a member and can come back with any invite link.</li>
+      <li><strong>Sign out of this device</strong>: <span class="path">Settings → Devices → Sign out of this device</span>. Tick <strong>Also leave my servers</strong> to leave them on every device. Make sure you've saved your recovery key if this is your only device.</li>
+      <li><strong>Leave Iskra completely</strong>: <a href="/delete-account">delete your account</a>.</li>
+    </ul>
+  </details>
+
+  <h2 id="notifications">Notifications</h2>
+
+  <details>
+    <summary>I don't get notifications</summary>
+    <ul>
+      <li>Turn them on for each device in <span class="path">Settings → Notifications</span>, and allow them when your browser or system asks.</li>
+      <li>If it says notifications are blocked, allow them for Iskra in your browser's site settings (or your phone's settings), then try again.</li>
+      <li>On iPhone and iPad, notifications only work in the app added to the Home Screen.</li>
+      <li>On phones, the server needs HTTPS ("Open to the internet" sets it up).</li>
+      <li>You won't get a notification on a device you're actively using, and a muted server or channel doesn't notify you (right-click it, or long-press on a phone, to check).</li>
+    </ul>
+  </details>
+
+  <h2 id="voice">Voice and video</h2>
+
+  <details>
+    <summary>Nobody can hear me, or I can't hear anyone</summary>
+    <ul>
+      <li>Check that Iskra may use your microphone (browser site settings, or your system's privacy settings), and pick the right devices in <span class="path">Settings → Voice &amp; audio</span>.</li>
+      <li>Make sure you're not muted or deafened, and that push-to-talk isn't on by mistake.</li>
+      <li>If voice works at home but not for friends elsewhere, the server's voice ports need to be reachable: <code>7881/tcp</code> and <code>7882/udp</code>. "Open to the internet" opens them on most routers; otherwise forward them by hand (see the <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md#ports-at-a-glance" target="_blank" rel="noopener">ports in the hosting guide</a>).</li>
+      <li>Strict networks (some workplaces, schools and VPNs) can block voice. Try another network to check.</li>
+    </ul>
+  </details>
+
+  <details>
+    <summary>Video or screen sharing doesn't work</summary>
+    <p>Allow camera or screen recording for Iskra (on macOS: <span class="path">System Settings → Privacy &amp; Security</span>). Calls in DMs and group chats are end-to-end encrypted, and a browser that can't encrypt media can't join them: use an up-to-date browser or the desktop app.</p>
+  </details>
+
+  <h2 id="safety">Safety: reporting and blocking</h2>
+  <ul>
+    <li><strong>Report a message or a person:</strong> open the message's menu, or the person's menu, and choose <strong>Report</strong>. It goes to that server's moderators, who can delete it, time the person out, kick or ban them. The reported person never sees who reported them.</li>
+    <li><strong>In DMs and group chats</strong> (end-to-end encrypted), you can choose messages to share with the moderators of a server you both are on.</li>
+    <li><strong>Block someone:</strong> from their menu, choose <strong>Block</strong>. It stops their DMs and calls to you on every server you share, and their messages stop notifying you. Manage your list in <span class="path">Settings → Blocked people</span>.</li>
+  </ul>
+
+  <div class="box warn">
+    <div class="box-title">Report a safety concern to the Iskra team</div>
+    <p>For illegal content, a danger to someone, a server whose moderators ignore reports, or anything on a server we run, email <a href="mailto:spark@iskra.foo?subject=Safety%20concern">spark@iskra.foo</a> with the subject "Safety concern". Include the server's address and what happened (screenshots help). If someone is in immediate danger, call your local emergency number first (112 in the EU).</p>
+  </div>
+  <p>Read the <a href="/terms#guidelines">community guidelines</a> for what isn't allowed on Iskra.</p>
+
+  <h2 id="bugs">Bugs and ideas</h2>
+  <p>Found a bug, or have an idea for Iskra? <a href="https://github.com/quikmn/iskra-voice/issues" target="_blank" rel="noopener">Open an issue on GitHub</a>. Say which app you use (desktop, web, phone), its version, and what you did. Please don't put private messages, keys or invite links in a public issue.</p>
+  <p>Found a security problem? Email <a href="mailto:spark@iskra.foo?subject=Security">spark@iskra.foo</a> instead of opening a public issue.</p>
+
+  <h2 id="contact">Contact</h2>
+  <p>Iskra is made by Viktor Lundgren ("From a Spark") in Sweden. Email <a href="mailto:spark@iskra.foo">spark@iskra.foo</a>. We can't help with servers we don't run (we can't see them); for those, ask the server's owner.</p>
+  <p>See also: <a href="/terms">Terms of Use</a> · <a href="/privacy">Privacy policy</a> · <a href="/delete-account">Delete your account</a> · <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/security.md" target="_blank" rel="noopener">Security</a></p>
+</main>
+
+<!-- FOOTER -->
+<footer>
+  <span>© 2026 Viktor Lundgren · <a href="https://github.com/quikmn/iskra-voice/blob/main/LICENSE" target="_blank" rel="noopener">PolyForm Noncommercial 1.0.0</a></span>
+  <div class="footer-links">
+    <a href="https://github.com/quikmn/iskra-voice" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md" target="_blank" rel="noopener">Hosting guide</a>
+    <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/security.md" target="_blank" rel="noopener">Security</a>
+    <a href="/terms">Terms</a>
+    <a href="/privacy">Privacy</a>
+    <a href="/support" aria-current="page">Support</a>
+    <a href="/delete-account">Delete account</a>
+    <a href="https://ko-fi.com/vlundgren" target="_blank" rel="noopener">Ko-fi</a>
+    <a href="https://www.paypal.com/donate/?business=viktor.lundgren%40gmail.com" target="_blank" rel="noopener">PayPal</a>
+  </div>
+</footer>
+
+</body>
+</html>

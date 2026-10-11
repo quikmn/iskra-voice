@@ -6,6 +6,7 @@ import { messageLink } from '../../core/pushRoute'
 import type { Message } from '../../core/protocol'
 import type { PendingMessage, ServerState } from '../../state/store'
 import { markUnread } from '../../state/unread'
+import { canReport, openReport } from '../../state/reports'
 import { Avatar, Modal } from '../bits'
 import { appUrl } from '../format'
 import { EmojiGlyph } from '../expressions/EmojiPicker'
@@ -74,6 +75,9 @@ function MoreMenu({ server, message, anchor, onClose, onReactions }: {
             {text && <button role="menuitem" onClick={act(t('chat.actions.textCopied'), () => navigator.clipboard.writeText(text))}>{t('chat.actions.copyText')}</button>}
             <button role="menuitem" onClick={act(null, () => markUnread(server.key, message.channelId, message.id))}>{t('chat.actions.markUnread')}</button>
             {message.reactions.length > 0 && <button role="menuitem" onClick={act(null, onReactions)}>{t('chat.actions.viewReactions')}</button>}
+            {canReport(server, message) && (
+              <button role="menuitem" className="danger" onClick={act(null, () => openReport({ kind: 'message', serverKey: server.key, message }))}>{t('safety.report.menuMessage')}</button>
+            )}
           </>
         )}
       </div>

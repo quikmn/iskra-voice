@@ -39,7 +39,7 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
               ├─ publish: check files + latest*.yml hashes, SHA256SUMS.txt, attestations,
               │           publish as Latest (not prerelease) with docs/releases/X.md
               └─► deploy.yml (reusable, environment "release")
-                    ├─ site ....... wrangler → Pages iskra-hero-page → https://iskra.foo  (checks the new links)
+                    ├─ site ....... wrangler → Pages iskra-hero-page → https://iskra.foo  (checks the new links and every page)
                     ├─ webapp ..... client build → Pages iskra-webclient → https://app.iskra.foo (checks the new index asset)
                     └─ server ..... ssh root@DROPLET_HOST X → iskra-update X → https://chat.iskra.foo (checks it answers)
 
@@ -103,12 +103,14 @@ new `iskra-server` package (docs/hosting.md).
 | Input | Effect |
 |---|---|
 | `ref` | Tag or branch the site and web app are built from (`main` for a site text fix, the release tag to redeploy a release) |
-| `site` | iskra.foo from `site/` (index.html, worker.js, .assetsignore). Fails if the page doesn't link to the version in desktop/package.json at that ref |
+| `site` | iskra.foo from `site/`: every `*.html` page (index, terms, privacy, support, delete-account), `*.css` (site.css), worker.js and .assetsignore; never wrangler.toml or .wrangler/. Pages serves `terms.html` at `/terms` (and redirects `/terms.html` there). Fails if index.html doesn't link to the version in desktop/package.json at that ref, or if a page isn't served at `https://iskra.foo/<page>` afterwards (checked by its `<link rel="canonical">`, so every new page needs one) |
 | `webapp` | Builds `client/` and deploys `client/dist` to app.iskra.foo (branch main = production) |
 | `server_version` | Runs `iskra-update <version>` on the droplet. The version must be a published release (it downloads from GitHub and checks SHA256SUMS.txt) |
 
 Local fallback (no CI): `site/` with the `iskra-deploy-cf` token through `D:\Development_Projects\IskraHeroPage\deploy-hero.ps1`
-(it decrypts the token itself; never print it), the web app with `npx wrangler@4.136.3 pages deploy dist --project-name=iskra-webclient --branch=main`
+(it decrypts the token itself; never print it). It deploys its own folder `IskraHeroPage\iskra-site`, not `site/`: copy
+`site/*.html`, `site/*.css`, `site/worker.js` and `site/.assetsignore` into it first, because a Pages deploy replaces the whole
+site and would drop any page that's missing. The web app deploys with `npx wrangler@4.136.3 pages deploy dist --project-name=iskra-webclient --branch=main`
 from `client/` after `npm run build`, and the server with `ssh -i ~/.ssh/iskrapersonalvoip root@146.190.236.187 iskra-update <version>`.
 
 ## 4. Secrets and credentials

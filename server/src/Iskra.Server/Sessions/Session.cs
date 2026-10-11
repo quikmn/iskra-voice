@@ -293,7 +293,7 @@ public sealed class Session
 
     private enum AuthFailure { Invalid, Banned, InviteRequired, DeviceRevoked, KeyRotation }
 
-    /// <summary>Set when the handshake fails because of an account key rotation (see KeyFeature.OnAuth).</summary>
+    /// <summary>Set when the handshake fails because the account was deleted or its key rotated (AccountFeature/KeyFeature.OnAuth).</summary>
     private (string Code, string Message, object Extra)? _authError;
 
     private (Member?, AuthFailure) Authenticate(Envelope envelope, byte[] nonce, out string? deviceKey)
@@ -340,7 +340,7 @@ public sealed class Session
 
         // Identity is proven from here on.
         if (_world.Store.IsDeviceRevoked(cert.AccountKey, cert.DeviceKey)) return (null, AuthFailure.DeviceRevoked);
-        _authError = KeyFeature.OnAuth(_world, _hub, _voice, cert, body, Now);
+        _authError = AccountFeature.OnAuth(_world.Store, cert) ?? KeyFeature.OnAuth(_world, _hub, _voice, cert, body, Now);
         if (_authError is not null) return (null, AuthFailure.KeyRotation);
         deviceKey = cert.DeviceKey;
         if (_world.Store.IsBanned(cert.AccountKey)) return (null, AuthFailure.Banned);

@@ -98,7 +98,7 @@ Use when B uploaded everything but finalize didn't start (or failed and the caus
 
 1. Changes to `site/` must already be on main on GitHub: `git fetch` then `git status -sb` shows no `ahead`.
 2. `gh workflow run deploy.yml -f ref=main -f site=true`
-3. Watch as in C.3. ✔ job `site` green (its last step checks iskra.foo).
+3. Watch as in C.3. ✔ job `site` green (its last steps check that iskra.foo links to the version and that every page in `site/`, such as /terms, /privacy, /support and /delete-account, is served).
 
 ## E. Redeploy the web app (app.iskra.foo)
 

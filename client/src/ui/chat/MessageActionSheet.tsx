@@ -18,6 +18,13 @@ import { NewThreadDialog } from './PinThreadBits'
 import { pinThreadAbilities } from './abilities'
 import { copyMessageLink, ReactionsDialog } from './MessageMore'
 import { markUnread } from '../../state/unread'
+import { canReport, openReport } from '../../state/reports'
+
+const FlagIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M4 22V4c4-2 8 2 12 0s4 0 4 0v10c-4 2-8-2-12 0s-4 0-4 0" />
+  </svg>
+)
 
 export function MessageActionSheet({ server, message, canEdit, canDelete, onEdit, onClose, onForward }: {
   server: ServerState
@@ -85,6 +92,9 @@ export function MessageActionSheet({ server, message, canEdit, canDelete, onEdit
               <button role="menuitem" onClick={run(() => copyMessageLink(server, message))}><Copy /> {t('chat.actions.copyLink')}</button>
               <button role="menuitem" onClick={run(() => markUnread(server.key, message.channelId, message.id))}><Reply /> {t('chat.actions.markUnread')}</button>
               {message.reactions.length > 0 && <button role="menuitem" onClick={() => setView('reactions')}><SmilePlus /> {t('chat.actions.viewReactions')}</button>}
+              {canReport(server, message) && (
+                <button role="menuitem" className="danger" onClick={run(() => openReport({ kind: 'message', serverKey: server.key, message }))}><FlagIcon /> {t('safety.report.menuMessage')}</button>
+              )}
               {canDelete && <button role="menuitem" className="danger" onClick={() => setView('delete')}><Trash /> {t('chat.actions.deleteMessage')}</button>}
             </div>
           </>

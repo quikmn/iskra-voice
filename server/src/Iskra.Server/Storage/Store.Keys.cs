@@ -120,7 +120,7 @@ public sealed partial class Store
 
     // Tables whose rows a rotation must never rewrite: signed statements stay under the key that signed them.
     private static readonly HashSet<string> RotationSkipTables =
-        new(["migrations", "account_rotations", "rotation_handovers", "device_revocations", "devices", "group_changes"],StringComparer.OrdinalIgnoreCase);
+        new(["migrations", "account_rotations", "rotation_handovers", "device_revocations", "devices", "group_changes", "account_deletions"],StringComparer.OrdinalIgnoreCase);
 
     // Convention for every table (also future ones): account keys live in TEXT columns named account_key, *_key or *_by
     // (or uploader). Device keys are not account keys.

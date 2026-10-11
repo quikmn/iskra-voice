@@ -34,6 +34,8 @@ import { AutoModSection } from '../automod/AutoModSection'
 import { useServerRoles } from '../../state/roles'
 import { has } from '../../state/permissions'
 import { settingsSections, type SectionId } from './sections'
+import { AboutSection, AccountSection } from '../safety/AccountSection'
+import { ReportsSection } from '../safety/ReportsSection'
 import './settings.css'
 
 const PHONE = '(max-width: 760px)'
@@ -117,6 +119,8 @@ function Section({ id, server, onClose }: { id: SectionId; server: ServerState |
     case 'voice': return <><InputSettingsSection /><VoiceSettingsSection /><HotkeySettingsSection /><ProcessingSettingsSection /><OutputSettingsSection /><SoundboardSettingsSection /></>
     case 'blocked': return <BlockedSection />
     case 'desktop': return <DesktopSettingsSection />
+    case 'account': return <AccountSection />
+    case 'about': return <AboutSection />
   }
   if (!server) return null
   switch (id) {
@@ -127,6 +131,7 @@ function Section({ id, server, onClose }: { id: SectionId; server: ServerState |
     case 'pages': return <PagesSection server={server} />
     case 'internet': return <InternetSection server={server} />
     case 'audit': return <AuditLogSection server={server} />
+    case 'reports': return <ReportsSection server={server} onClose={onClose} />
     case 'limits': return <LimitsSection server={server} />
     case 'rules': return <RulesSection server={server} />
     case 'backup': return <BackupSection server={server} />

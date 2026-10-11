@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test } from '@playwright/test'
+import { agreeToTerms } from './helpers'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DESKTOP = resolve(HERE, '../../desktop')
@@ -23,6 +24,7 @@ test("shared system audio leaves out Iskra's own sound", async () => {
   let other: ChildProcess | null = null
   try {
     const page = await app.firstWindow()
+    await agreeToTerms(page)
     await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
     await page.getByLabel('Your name').fill('Sharer')
     await page.getByRole('button', { name: 'Continue' }).click()
