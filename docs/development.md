@@ -91,3 +91,19 @@ The web app is `client/dist` after `npm run build`; it's deployed to app.iskra.f
 - New protocol messages go into `protocol/PROTOCOL.md` first, with limits, and get a server test. Every bug gets a regression test.
 - No hand-made crypto: libsodium primitives, domain-separated signatures, no plaintext fallbacks.
 - User content is rendered by React only; never put it into HTML strings.
+
+## Translations
+
+The web client uses i18next. English (`client/src/i18n/en/`) is the source of truth; every other language must have exactly the same keys, which `tsc` and the catalog test check.
+
+- New UI text: add a key to `client/src/i18n/en/<area>.ts` and the same key to every other language. In components use `useTranslation()`, outside React `t` from `i18n`. Dates and numbers go through `i18n/format.ts`, errors shown to people through `errorMessage(e)`.
+- Adding a language:
+  1. Copy `client/src/i18n/sv/` to `client/src/i18n/<code>/` and translate the values.
+  2. Register it in `i18n/types.ts` (`LANGUAGES`, `LANGUAGE_NAMES`) and `i18n/index.ts` (`resources`, the `intlLocale` default region). Translate `<code>/errors.ts` for server errors.
+  3. Languages with more plural forms than one/other need those keys (`_few`, `_many`, ...); the catalog test checks every form `Intl.PluralRules` needs.
+  4. Desktop: add a dictionary to `DESKTOP_TEXT` in `desktop/src/i18n.ts`, and the code to `DesktopLanguage`, `parseLanguage` and `languageFromLocales`.
+  5. Run `npm test` in `client` and `desktop`.
+
+## Android app
+
+`android/` is a Trusted Web Activity around app.iskra.foo (see `android/README.md`). `.\android\build.ps1` builds the signed APK into `android/release/Iskra-<version>.apk`, using the version in `desktop/package.json`. The release key lives outside the repo; every update must be signed with the same key, and its fingerprint is in `client/public/.well-known/assetlinks.json`.
