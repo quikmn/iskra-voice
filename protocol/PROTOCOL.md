@@ -453,6 +453,16 @@ The **link code**: `<server url without "https://">/<base32(token(10) || secret(
 
 The relay's HTTP endpoints are rate limited per client address (2/s, burst 60; `429`).
 
+**Message history** follows the payload in parts when the person chooses "Bring my message history":
+
+| HTTP | body | answer |
+|---|---|---|
+| `PUT /link/<token>?key=<putKey>&parts=<n>` | the sealed payload, as above; `n` (0–256) history parts will follow | as above. With `n > 0` the link stays alive while parts move (2 minutes after the last one) |
+| `PUT /link/<token>/part/<i>?key=<putKey>` | sealed part `i` (≤ 1 MB), strictly in order | `200`; `429` while 4 parts (or 64 MB across all links) wait to be read: try again shortly; `409` out of order |
+| `GET /link/<token>/part/<i>?key=<read key>` | | the part's bytes (handed out once, in order), or `204` if it hasn't arrived within 15 s. `409` before the payload was read. After the last part the link is gone |
+
+Part endpoints need one of the link's keys and have their own per-address limit (20/s, burst 300). A part is `nonce(24) || crypto_box(u32be(i) || u32be(n) || bytes, nonce, N.pk, E.sk)`; the payload's sealed `historyParts` says how many to expect, so the relay can't reorder, swap or drop parts unnoticed. The parts joined together are the UTF-8 JSON `{ v: 1, dms: { <peer>: [StoredDm...] }, groups: [{ serverKey, id, chain: [GroupChange...], name, nameAt, messages }] }`: every DM and group DM kept on the device (the newest messages of each conversation if it would pass ~48 MB). The new device verifies every group chain again before using it. Older apps put recent DMs in the payload's `history` field instead; new devices still accept it.
+
 Event `link.request { token, epk, mac, info }` goes to the session that created the link. Links live 5 minutes and are kept in memory only (≤ 100 per server).
 
 The handshake (libsodium):
@@ -810,4 +820,5 @@ Group messages push `{ kind: "group", group, title: "New message from X", body: 
 - It can withhold or delay changes: a device that hasn't heard about a removal keeps encrypting to the old list until it does. The server refuses messages for an old version, so this needs a misbehaving server, and only shows the removed person what they would have seen before the removal.
 - Clients pin the chain they verified and refuse a chain that contradicts it, but two devices that never compare notes could be shown different (correctly signed) forks if two members changed the group at the same moment and the server accepted both. There's no group-wide safety number; compare each member's DM safety number to be sure of their keys.
 - People who leave the call but stay in the group keep the call key (they could rejoin anyway); keys change only when the group does.
-- Group history isn't carried by device linking yet; a new device reads messages from when it was linked.
+- A new device reads group messages from when it was linked, unless the history came along in the link ([history parts](#device-linking)).
+- Groups whose server you removed from your list stay on your device, read-only ("archived"), until you remove them; adding the server back makes them active again.

@@ -17,6 +17,7 @@ public sealed class AccountLimits(TimeProvider time)
         ["thread.create"] = (5, 5 / 60.0),
         ["group.change"] = (10, 10 / 60.0),       // creating groups and changing who is in them
         ["link.http"] = (60, 2),                   // device-link HTTP requests, per client address
+        ["link.part"] = (300, 20),                 // device-link history parts (they need the link keys), per client address
     };
 
     private const int PruneAbove = 10_000;

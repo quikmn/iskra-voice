@@ -765,3 +765,10 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 .chat-header:has(+ .call-panel) .e2e-badge { display: none; }
 input.confirm-code { display: block; width: 100%; }
 input.confirm-code::placeholder { color: var(--faint); }
+
+/* ── Device linking: message history progress ───────────────────────── */
+.link-progress { display: grid; gap: 8px; width: 100%; }
+.link-progress progress { width: 100%; height: 8px; appearance: none; border: 0; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+.link-progress progress::-webkit-progress-bar { background: var(--surface-2); }
+.link-progress progress::-webkit-progress-value { background: var(--accent); border-radius: 99px; transition: width 0.2s; }
+.link-progress progress::-moz-progress-bar { background: var(--accent); }
