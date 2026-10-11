@@ -10,7 +10,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji)
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted)
-- **People and integrations:** [Profiles](#profiles) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks)
+- **People and integrations:** [Profiles](#profiles) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints)
 
 ---
@@ -711,3 +711,18 @@ Everything else a server answers over HTTP(S), on the same port as `/ws`:
 | `/livekit` | LiveKit signaling, proxied ([Voice](#voice)) |
 | `POST /internal/livekit-webhook` | LiveKit's signed webhooks, loopback only |
 | `GET /.well-known/acme-challenge/<token>`, `GET /.well-known/iskra-probe/<token>` | Let's Encrypt and the reachability probe ([Internet hosting](#internet-hosting)) |
+
+## Activity status
+
+What someone is doing right now ("Playing Factorio"), shown next to their name. It's opt-in on the client: the desktop app can detect games by matching running program names against a list, on the user's own computer, and sends only the matched game's name. Nothing about how it was detected, and never the list of programs, goes over the wire.
+
+Every `Member` gains `activity: { "name": "Factorio", "since": 1760000000000 } | null`. It lives only in the server's memory and only while the account is online: it's `null` for offline members and cleared when the last connection closes.
+
+| type | body | result | who |
+|---|---|---|---|
+| `activity.set` | `name` (1–64 chars, same text rules as names; `null` or `""` clears) | `{ activity }` | anyone |
+
+- `since` is set by the server when the name changes; sending the same name again keeps it and broadcasts nothing.
+- Real changes are limited to 5 in a burst, then one per 10 seconds per connection (`rate_limited`).
+- Each change is broadcast as `member.updated`. `welcome.members` carries current activities.
+- When presence (status and custom status) lands, `activity` stays a separate field of the same `Member`, so clients can show both.

@@ -13,6 +13,9 @@ public sealed class Hub(World world, TimeProvider time)
     /// <summary>Rate limits shared by all of an account's sessions.</summary>
     public AccountLimits Limits { get; } = new(time);
 
+    /// <summary>"Playing X" per online account (Features/ActivityFeature.cs).</summary>
+    public Features.ActivityRegistry Activities { get; } = new(time);
+
     private readonly ConcurrentDictionary<Session, byte> _sessions = new();
 
     public IEnumerable<Session> Sessions => _sessions.Keys;
@@ -31,7 +34,9 @@ public sealed class Hub(World world, TimeProvider time)
     public bool Remove(Session session)
     {
         _sessions.TryRemove(session, out _);
-        return session.AccountKey is not null && !IsOnline(session.AccountKey);
+        if (session.AccountKey is null || IsOnline(session.AccountKey)) return false;
+        Activities.Clear(session.AccountKey); // activity only lasts while you're online
+        return true;
     }
 
     /// <summary>Sends to every connected member.</summary>
@@ -60,7 +65,11 @@ public sealed class Hub(World world, TimeProvider time)
         foreach (var session in _sessions.Keys.Where(s => s.AccountKey == accountKey)) session.Kick(closeCode, reason);
     }
 
-    public object PublicMember(Member m) => Features.ProfileFeature.Public(world.Store, m, IsOnline(m.AccountKey));
+    public object PublicMember(Member m)
+    {
+        var online = IsOnline(m.AccountKey);
+        return Features.ProfileFeature.Public(world.Store, m, online, online ? Features.ActivityFeature.Public(Activities.Get(m.AccountKey)) : null);
+    }
 
     public static object PublicChannel(Channel c) =>
         new { id = c.Id, name = c.Name, kind = c.Kind, position = c.Position, readRole = c.ReadRole, writeRole = c.WriteRole };

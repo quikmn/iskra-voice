@@ -48,7 +48,7 @@ public static partial class ProfileFeature
     public static bool PagesEnabled(Store store) => store.GetProfileOption("pages") != "off";
 
     /// <summary>The member as everyone sees it, profile included.</summary>
-    public static object Public(Store store, Member m, bool online)
+    public static object Public(Store store, Member m, bool online, object? activity = null)
     {
         var p = store.GetPublicProfile(m.AccountKey);
         var page = p.PageId is not null && PagesEnabled(store);
@@ -66,6 +66,7 @@ public static partial class ProfileFeature
             accent = p.Accent,
             page = page ? $"/pages/{p.PageId}" : null,
             pageHash = page ? p.PageSha256 : null,
+            activity, // ActivityFeature: { name, since } or null
         };
     }
 

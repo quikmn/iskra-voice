@@ -484,3 +484,17 @@ export interface Requests {
   'host.status': [Record<string, never>, { status: HostStatus }]
   'host.internet.set': [{ enabled: boolean }, { status: HostStatus }]
 }
+
+// ── activity ──
+
+/** "Playing X": what someone is doing right now (PROTOCOL.md "Activity status"). */
+export interface Activity {
+  name: string
+  /** When it started, ms since epoch (set by the server). */
+  since: number
+}
+
+export interface Member {
+  /** Only while online; null or missing when there's none. */
+  activity?: Activity | null
+}
