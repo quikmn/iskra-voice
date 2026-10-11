@@ -49,10 +49,11 @@ Data stored before this existed is encrypted the first time the app starts. Link
 |---|---|---|
 | Everything on the wire | HTTPS / WSS (when the server has HTTPS) | You and the server |
 | Server channels, voice channels, files, profiles | The server's permissions | Members allowed in that channel, and whoever runs the server |
-| Direct messages | **End-to-end encryption** | Only the two of you |
-| Calls in DMs (voice and video) | **End-to-end encryption** | Only the two of you |
+| Direct messages, with their pictures, files and voice messages | **End-to-end encryption** | Only the two of you |
+| Group chats, with their files | **End-to-end encryption** | Only the people in the group |
+| Calls in DMs and group calls (voice and video) | **End-to-end encryption** | Only the people in the call |
 
-Server channels trust the server, because a server is run by you or your friend; the app always tells you which server you're on. Direct messages and calls don't trust anyone: servers only pass encrypted envelopes and encrypted media along.
+Server channels trust the server, because a server is run by you or your friend; the app always tells you which server you're on. Direct messages, group chats and calls don't trust anyone: servers only pass encrypted envelopes and encrypted media along.
 
 ### Direct messages in detail
 
@@ -62,6 +63,21 @@ Server channels trust the server, because a server is run by you or your friend;
 - The sender, recipient, time and message id are bound into the encryption, so a message can't be altered, replayed or moved to another conversation.
 - Device keys come with certificates signed by the account, so a server can't slip in a device of its own.
 - There's no unencrypted fallback: if a message can't be encrypted, it isn't sent.
+
+### Pictures, files and voice messages in DMs and group chats
+
+- Each file is encrypted on your device with its own random key (libsodium `crypto_secretstream`, in 64 KB chunks, so a changed, reordered or cut-off file is caught). The key, the name and the type travel inside the encrypted message; the server only stores ciphertext.
+- The server hands a file only to the people in the conversation (for a group: its members when the file was shared), through short-lived signed links, and never shows it as a web page or image.
+- Your app decides how to show a file from its **decrypted bytes**, with the same rules as channel uploads: only real pictures, video and audio play inline; anything else is a download.
+- The server sees how many files you send, when, to whom and roughly how big they are; not what's in them, their names or whether one is a voice message.
+
+### Group chats in detail
+
+- Group messages are encrypted like DMs, with forward secrecy, for every device of every member.
+- **Who is in a group is a chain of signed changes**: every add, removal or leave is signed by the member who made it and linked to the change before it. Your app checks every link itself, so a server can't add anyone to a group, reorder its history or slip in a member list of its own. Someone who replaced their account key stays the same member.
+- A message names the exact member list it was encrypted for, so it can't be passed off as sent to different people. New members only read what's sent after they joined.
+- Group calls work like DM calls: a fresh key per call sent inside the encrypted group chat, and a new one when the group changes during the call.
+- The server knows who is in which group and when people write; it doesn't know the group's name or anything said in it. Notifications only say "New message from X".
 
 ### Calls in detail
 
@@ -79,6 +95,12 @@ Server channels trust the server, because a server is run by you or your friend;
 - Rate limits, size limits and strict input validation on everything. Uploads, calls and new threads are limited per account, and each account has a daily upload allowance.
 - On Linux and macOS, the server's keys and other secrets are readable only by the user that runs it.
 - Who's in a voice channel or call comes only from the voice service's signed reports, never from what a client claims.
+- **Roles:** custom roles only add the permissions given to them; someone who manages roles can only change roles below their own highest one and can't hand out permissions they don't have. Channel overrides are checked on the server for every message, upload, voice join and broadcast. Only people with the right permission can mention a role that isn't open to mentions.
+- **Stages:** who may speak is enforced by the voice service itself. Everyone joins a stage listen-only, and the server tells the voice service to allow (or stop) someone's microphone, camera and screen share when a moderator brings them up (or back down). If it can't, it fails closed.
+- **Blocking someone** stops DMs and calls between you on every server you share (the list goes with you, but never to anyone else), ends a call with them, and stops their messages, mentions and group call rings from notifying you. Their messages in shared channels and groups are still there, collapsed in your app.
+- **Timeouts and slowmode** are enforced by the server: a timed-out member can't write, react, use voice or make posts and events until it ends. Moderation actions are written to an audit log admins can read; message text and invite codes never are.
+- **Backups** are encrypted with a passphrase you choose (Argon2id, then XChaCha20-Poly1305 in chunks, so a changed or cut-off file is caught). The passphrase is sealed to the server's key before it leaves your app, so it never crosses the network in the clear, even without HTTPS. The automatic daily backups in the server folder aren't encrypted: they sit next to the keys already, so keep that folder private.
+- **Discord imports** only read the uploaded export: files referenced inside it are matched by name inside the archive, never fetched from Discord or read from anywhere else on disk.
 
 ### Profile pages
 
@@ -90,6 +112,23 @@ A profile page is HTML someone else wrote, so it's locked in a strict sandbox. I
 - it gets no camera, microphone, autoplay or other device access.
 
 Admins can turn pages off for their server or remove a member's page.
+
+### GIFs
+
+The GIF picker uses KLIPY. An admin adds a KLIPY key and chooses how members' apps reach it:
+
+- **Directly** (the default, what KLIPY's terms ask for): your app searches KLIPY itself, so **KLIPY sees your IP address and what you search for**, under a per-member pseudonym rather than your account key. GIFs in messages don't load until you click them (you can turn on auto-load for your device), and they're shown in a sandboxed frame that can only load images from KLIPY's own image hosts.
+- **Through the server** (only with KLIPY's written approval): the server searches and fetches the GIFs, so KLIPY only sees the server. It only fetches from KLIPY's image hosts, only addresses it signed itself, and never stores the files.
+
+Ads stay off, and anything that isn't a GIF from KLIPY's own hosts is left out.
+
+### Watch parties
+
+A watch party only shares a clock: each app plays the video itself, from its source. **Whoever hosts the video sees your IP address**: YouTube for a YouTube video, the website for a link, your server for an upload. YouTube plays in its privacy-enhanced (youtube-nocookie.com) player inside a sandboxed frame; no YouTube code runs inside the app itself, where it could reach your keys. The desktop app sends YouTube the web app's address as the referring page (YouTube requires one) and nothing else.
+
+### Activity status
+
+"Playing X" is off until you turn it on in the desktop app. Games are recognised on your own computer by matching running program names against a list; only the game's name is sent, never the list of programs. It's kept in memory while you're online and hidden while you appear offline or invisible.
 
 ### Themes
 
@@ -117,12 +156,16 @@ We'd rather tell you than have you find out:
 - **Keys on your device are only as safe as the device while Iskra is running.** Encryption at rest protects copies of the stored data, not a device someone can use as you. In the browser, without an app lock, anyone who can open your browser profile can open Iskra. Malware running as you can read keys from memory. Lock your devices, and use an app lock on shared computers.
 - **Forward secrecy has limits:** it covers messages once their prekey is deleted (at most about five weeks after sending). A device that hasn't published a prekey (an older app version) gets messages wrapped to its long-term key instead: still end-to-end encrypted, without forward secrecy, and a server could hold back prekeys to force that.
 - **Safety numbers are opt-in.** Until you compare them, you trust that the server showed you the right person the first time.
-- **Calls use one key for the whole call**; there's no key change mid-call. Calls are one-to-one.
+- **Calls use one key for the whole call**; in a group call the key changes only when the group does, so someone who leaves the call but stays in the group could still decrypt it (they could rejoin anyway).
+- **Group chats:** the server can't add people or read messages, but it can hold back a change for a while, and two devices that never compare notes could, in a rare race, be shown different (correctly signed) versions of a group's history. There's no group-wide safety number: compare each person's.
+- **Watch parties and GIFs** load from their sources (YouTube, a website, KLIPY), which then see your IP address. For GIFs, only "through the server" mode keeps it from KLIPY.
 - **Profile pages:** if you turn a page's scripts on, blocking WebRTC inside it is best effort, since browsers don't cover it with the usual policy, so its author could learn your IP address. A page may show images uploaded to its own server, and that server can see when they're loaded.
 
 ## The desktop app
 
-The desktop app is the same web app in a locked-down shell: sandboxed, no Node.js in the page, links open in your browser, and the page can only ask the app for push-to-talk, the screen picker, call alerts, updates, opening the system's privacy settings, and hosting.
+The desktop app is the same web app in a locked-down shell: sandboxed, no Node.js in the page, links open in your browser, and the page can only ask the app for push-to-talk, the screen picker, call alerts, updates, opening the system's privacy settings, hosting and restoring backups, its own settings, the taskbar badge, the keychain that protects your keys, and the game you're playing (when you turned that on).
+
+- `iskra://` links only ever open an invite: anything else in them is ignored.
 
 - **Windows:** every executable we ship is code-signed (Open Source Developer Viktor Lundgren, issued by Certum) and timestamped, so you can check it came from us and wasn't changed. The installer only installs updates signed with that same certificate.
 - **macOS and Linux** (with the next release): the macOS app is ad-hoc signed but not yet notarized by Apple, and the Linux packages aren't signed. Download them only from the GitHub releases page.

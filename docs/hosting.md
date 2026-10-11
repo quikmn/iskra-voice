@@ -113,7 +113,25 @@ Restart the server. It answers Let's Encrypt on port 80, stores the certificate 
 
 ### Push notifications
 
-Nothing to set up. On first start the server makes its push key (`vapid.json`) and sends notifications for mentions, replies, DMs and calls through the browsers' own push services (an outgoing HTTPS connection). Members turn them on per device in **Settings → Notifications**; on phones that needs the web app over HTTPS, and on iPhone and iPad the app added to the Home Screen.
+Nothing to set up. On first start the server makes its push key (`vapid.json`) and sends notifications for mentions, replies, DMs, group chats, calls and event reminders through the browsers' own push services (an outgoing HTTPS connection). Members turn them on per device in **Settings → Notifications**; on phones that needs the web app over HTTPS, and on iPhone and iPad the app added to the Home Screen.
+
+### Voice, stages and watch parties
+
+Voice channels, stages, DM and group calls and watch parties all use the same voice service (LiveKit), which the server starts and stops by itself: nothing extra to run or open beyond the voice ports above. Stages are voice channels where the server tells LiveKit who may speak. A watch party only shares a clock through the server; everyone's app plays the video from its source (YouTube, a link, or a file uploaded to your server, which then serves it to everyone watching).
+
+### GIFs
+
+The GIF picker uses [KLIPY](https://docs.klipy.com) (Google closed Tenor's API in June 2026). It's off until an admin adds a key:
+
+1. Sign up at the KLIPY Partner Panel and create an API key for your server. Leave ads **off**.
+2. In Iskra: **Settings → Overview**, under GIFs, paste the key and click **Turn on**.
+
+There are two modes:
+
+- **Direct** (the default, and what KLIPY's standard terms allow): members' apps search KLIPY and load GIFs from KLIPY themselves, so KLIPY sees their IP addresses and searches. The key is shared with your members' apps, which is fine for a key made just for your server. GIFs in messages load when clicked, unless someone turned on auto-load for their device (Settings → Appearance).
+- **Through this server**: your server searches KLIPY and passes the GIFs along, so KLIPY only sees your server, and the key never leaves it. KLIPY's terms only allow this with their written approval (developers@klipy.com); turn it on once you have it. It uses your server's bandwidth for every GIF shown.
+
+To turn GIFs off, click **Turn off** there.
 
 ## Backups, moving and importing
 
@@ -239,14 +257,16 @@ iskra-server import-discord my-server export.zip              # add --read-only 
 | `moved.json` | The signed "this server moved" notice, after **Move this server** |
 | `server.log` | Output, when started from the desktop app |
 
-Profile pages, polls, threads, pins, webhooks (only a hash of each secret) and push subscriptions are all in `iskra.db` too, so copying the folder takes everything along.
+Profile pages, polls, threads, pins, forums, events, roles, groups (their encrypted messages), webhooks (only a hash of each secret) and push subscriptions are all in `iskra.db` too, so copying the folder takes everything along.
 
 On Linux and macOS the server creates the folder (and `certs/`) readable by its own user only, writes secrets as `0600`, and tightens older secret files to `0600` when it starts.
 
-Uploads that nothing uses (no message, avatar, emoji, sound, webhook or profile page) are deleted after a day.
+Uploads that nothing uses (no message, DM, avatar, emoji, sticker, sound, webhook, event cover, profile page or running watch party) are deleted after a day.
 
 **Backups and moving:** see [Backups, moving and importing](#backups-moving-and-importing). Copying the stopped server's folder works too; it holds secrets (`server.key`, `vapid.json`, `livekit.key`, `certs/`, `backups/`), so keep copies private. **Updating:** replace the `iskra-server` and `livekit-server` files and start it again.
 
 ## Roles and moderation
 
-`guest < member < trusted < admin < owner`. Each channel has a role needed to see it and a role needed to post (or speak, in voice). Admins can kick and ban people ranked below them and hand out roles below their own; the owner can do everything. Invite links can carry a role and expire after 1 hour to 30 days, optionally single use.
+`guest < member < trusted < admin < owner`. Each channel has a level needed to see it and a level needed to post (or speak, in voice). Admins can kick and ban people ranked below them and hand out levels below their own; the owner can do everything. Invite links can carry a level and expire after 1 hour to 30 days, optionally single use.
+
+On top of the levels, admins can make **custom roles** (Settings → Roles) with a name, colour and icon, and give them permissions such as managing messages, timing people out, kicking, banning, managing channels or roles, muting and moving people in voice, or mentioning everyone. Roles can also change what a channel allows (**per-channel overrides**), and roles can be made mentionable. Moderators have **timeouts**, **slowmode** per channel, **server mute** and **move** in voice, and an **audit log** of moderation actions (kept 90 days).

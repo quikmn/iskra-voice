@@ -25,25 +25,28 @@ Free, no ads, no tracking, no paywalls. Your server is a folder you can copy.</p
 
 ## What's in it
 
-- **Text channels:** Markdown, @mentions, replies, reactions, edits, uploads up to 100 MB (no Nitro needed), images and video inline, link previews, unread and mention badges.
+- **Text channels:** Markdown with headings, lists and highlighted code, spoilers, @mentions for people and roles, replies, reactions, edits, forwarding, drafts, message links and "mark unread", voice messages, uploads up to 100 MB (no Nitro needed) with a gallery view, link previews, unread markers and mention badges.
+- **Forums and events:** forum channels for questions and plans, with tags, search and "new" markers; scheduled events with reminders, "Interested" and add to calendar.
 - **Threads, pins and search:** side conversations off any message, pinned messages per channel, and fast search with filters that jumps straight to the result.
-- **Polls, custom emoji and a soundboard:** server emoji in messages and reactions, quick polls, and short sounds everyone in voice hears.
-- **Voice channels:** low-latency voice for big groups (LiveKit), push-to-talk that works while a game has focus, per-person volume, camera and 1080p screen sharing with sound.
-- **Friends, DMs and calls:** DMs and voice and video calls are end-to-end encrypted, and DMs have forward secrecy. Compare safety numbers to be sure who you're talking to.
+- **Polls, custom emoji, stickers, GIFs and a soundboard:** server emoji and stickers, a GIF picker (KLIPY), quick polls, and short sounds everyone in voice hears.
+- **Voice channels:** low-latency voice for big groups (LiveKit), strong noise suppression, push-to-talk that works while a game has focus, per-person volume, camera and 1080p screen sharing with sound.
+- **Stages and watch parties:** listen-only rooms where moderators bring people up to speak, and video links, uploads or YouTube watched in step by everyone in voice.
+- **Friends, DMs, group chats and calls:** DMs (with pictures, files and voice messages), group chats of up to ten and voice and video calls, one-to-one or in a group, are all end-to-end encrypted, and DMs have forward secrecy. Compare safety numbers to be sure who you're talking to.
+- **Status and activity:** online, idle, do not disturb or invisible, a custom status, and "Playing X" from the desktop app if you turn it on.
+- **Organized your way:** channel categories, server folders, notification levels and mutes per channel or server, nicknames, unread navigation and keyboard shortcuts.
 - **Profiles your way:** avatar, bio, pronouns and an accent colour, plus your own profile page in HTML, safely sandboxed. Eleven themes, or write your own in JSON.
 - **Bots and webhooks:** Discord-compatible webhooks (GitHub too) and a small Node SDK for bots.
-- **Roles and moderation:** private and read-only channels, invite links with expiry or single use, kick and ban.
-- **Your account is a key on your devices.** Link a phone by scanning a QR code, see your devices, and remove any of them.
+- **Roles and moderation:** custom roles with permissions, colours and per-channel overrides, private and read-only channels, invite links with expiry or single use, blocking, timeouts, slowmode, server mute, kick, ban and an audit log.
+- **Your account is a key on your devices,** stored encrypted, with an optional app lock. Link a phone by scanning a QR code, see your devices, remove any of them, and replace your account key if it ever leaks.
 - **One-click internet hosting:** Iskra opens the ports on your router, gets a free address and sets up HTTPS by itself.
-- **Your server is a folder.** Copy it to back it up or move it.
-- **Everywhere:** Windows app with auto-update, and a web app for PCs and phones that installs like an app and sends push notifications.
+- **Your server is a folder,** with daily backups. Download an encrypted backup, restore it anywhere and move your members along, or import your Discord server's history.
+- **Everywhere:** Windows app with auto-update, a tray and iskra:// invite links, and a web app for PCs and phones that installs like an app and sends push notifications.
 
 How privacy works, and what a server can and can't see: [docs/security.md](docs/security.md).
 
 ## Coming next
 
 - **Mac and Linux apps** with the next release (the builds are ready). The first macOS builds aren't notarized by Apple yet.
-- **Group DMs and group calls.** DMs and calls are one-to-one for now.
 - **Native phone apps.** Until then, the web app installs to your home screen.
 - **DMs with people you share no server with.**
 

@@ -5,14 +5,14 @@
 | Folder | What |
 |---|---|
 | `protocol/` | `PROTOCOL.md`, the wire protocol (source of truth for client and server), and `vectors.json`, shared crypto test vectors both sides check |
-| `server/` | C# / .NET 10 server: sessions, permissions, storage (SQLite), voice and calls (LiveKit), uploads, HTTPS and internet hosting, push, webhooks |
+| `server/` | C# / .NET 10 server: sessions, roles and permissions, storage (SQLite), voice, stages, watch parties and calls (LiveKit), uploads, HTTPS and internet hosting, push, webhooks, backups, Discord import, GIFs |
 | `client/` | TypeScript + React + Vite web app (also what the desktop app runs); installable as a PWA |
-| `desktop/` | Electron shell for Windows, macOS and Linux: push-to-talk, screen picker, tray, auto-update, one-click hosting |
+| `desktop/` | Electron shell for Windows, macOS and Linux: push-to-talk, screen picker, tray, auto-update, one-click hosting and restore, keychain, `iskra://` links, game activity |
 | `bots/` | Node SDK for bots (reuses the client's core) and the Dice example bot; see [bots.md](bots.md) |
 | `scripts/` | Downloads pinned tools (LiveKit, Pebble) into `.tools/` with checksum checks; `dev-firewall.ps1` (see below) |
 | `site/` | The iskra.foo website |
 
-Inside the server, each feature lives in `Features/<Feature>Feature.cs` (registered with one line in `Router.cs`) and keeps its store methods in `Storage/Store.<Feature>.cs`. In the client, `src/core/` holds protocol, crypto and connection code shared with the bot SDK, and `src/state/` holds app state, one file per feature.
+Inside the server, each feature lives in `Features/<Feature>Feature.cs` (registered with one line in `Router.cs`) and keeps its store methods in `Storage/Store.<Feature>.cs`. Background work (event reminders, poll expiry, timeouts, the upload sweep, daily backups) runs in hosted services next to the features. In the client, `src/core/` holds protocol, crypto and connection code shared with the bot SDK, `src/state/` holds app state, one file per feature (rules that need no React or store are in separate `*Logic.ts`/`*Rules.ts` files with unit tests), and `src/ui/` holds components grouped by area (`forums/`, `events/`, `stage/`, `watch/`, `groups/`, `roles/`, `moderation/`, `organize/`, ...).
 
 ## Prerequisites
 
@@ -47,7 +47,7 @@ cd desktop; npm test                 # desktop unit tests (per-platform helpers)
 cd bots;    npm run typecheck        # bot SDK and examples
 ```
 
-Run one e2e spec on its own port (useful with several checkouts): `$env:ISKRA_E2E_PORT=5299; npx playwright test e2e/calls.spec.ts`. Screenshots go to `client/e2e/screenshots`.
+Run one e2e spec on its own port (useful with several checkouts): `$env:ISKRA_E2E_PORT=5299; npx playwright test e2e/calls.spec.ts`. Screenshots go to `client/e2e/screenshots`. Specs that talk to the internet (YouTube watch parties) only run with `ISKRA_E2E_NETWORK=1`; the desktop specs need `npm run build` in `desktop/` and `client/` first.
 
 CI (`.github/workflows/ci.yml`):
 
@@ -61,6 +61,8 @@ CI (`.github/workflows/ci.yml`):
 ## Database changes
 
 Never bump the schema version. Append a named step to `FeatureMigrations` in `server/src/Iskra.Server/Storage/Store.cs`, e.g. `("pins-1", "CREATE TABLE ...")`. Each name runs once per world, in order; never edit a step that has shipped: add `<feature>-2` instead.
+
+Name columns that hold account keys `account_key`, `*_key`, `*_by` or `uploader` (TEXT): replacing an account key moves every such column automatically. Account keys anywhere else (JSON, other names) need a line in `Rekey` (`Storage/Store.Keys.cs`) and a row in `KeyTests.A_rotation_moves_the_account_in_every_feature`.
 
 ## Building releases
 

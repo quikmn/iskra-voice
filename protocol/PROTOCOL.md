@@ -1193,6 +1193,7 @@ GroupChange { "payload": "<b64u of UTF-8 JSON, ≤ 4096 chars>", "sig": "<b64u 6
   - `leave`: anyone in the group, for themselves only.
 - `at` is the author's clock; the server refuses changes more than 10 minutes off. Everyone named in `create`/`add` must be a member of this server and not a bot.
 - The server applies changes one at a time: `version` must be the current version + 1 and `prev` the current head, else `conflict`. A group nobody is left in is deleted.
+- **Account key rotations:** a member who [replaced their account key](#account-key-rotation) stays the same member. The server moves them to the new key in the group's member list; changes already made stay as they were signed. Clients compare member lists under everyone's current key (from rotations they verified), so a change signed by the new key, or listing it, fits a chain that names the old one. A client that doesn't know the rotation yet refuses such a change until it does.
 
 ### Requests and events
 
