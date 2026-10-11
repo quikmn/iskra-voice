@@ -71,6 +71,7 @@ jobs:
           out="$RUNNER_TEMP/site"
           mkdir -p "$out"
           cp site/*.html site/*.css site/worker.js site/.assetsignore "$out/"
+          cp -r site/fonts "$out/"
           ls -la "$out"
           cd "$out"
           npx --yes "$WRANGLER" pages deploy . --project-name=iskra-hero-page --commit-dirty=true
