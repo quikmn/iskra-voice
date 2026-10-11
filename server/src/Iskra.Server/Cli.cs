@@ -15,11 +15,12 @@ namespace Iskra.Server;
 ///   iskra-server backup &lt;world-folder&gt; &lt;file&gt;         make an encrypted backup
 ///   iskra-server move &lt;world-folder&gt; &lt;new-address&gt;   publish "this server moved" (or --cancel)
 ///   iskra-server import-discord &lt;world-folder&gt; &lt;export&gt; [--read-only]
+///   iskra-server version                                   print the version
 /// The passphrase comes from --passphrase-stdin (one line), $ISKRA_BACKUP_PASSPHRASE, or a prompt.
 /// </summary>
 public static class Cli
 {
-    private static readonly string[] Commands = ["restore", "backup", "move", "import-discord", "help", "--help"];
+    private static readonly string[] Commands = ["restore", "backup", "move", "import-discord", "version", "--version", "help", "--help"];
 
     public static bool IsCommand(string? first) => first is not null && Commands.Contains(first);
 
@@ -35,6 +36,8 @@ public static class Cli
                 "backup" when rest.Length == 3 => Backup(rest[1], rest[2], flags),
                 "move" when rest.Length == 3 || (rest.Length == 2 && flags.Contains("--cancel")) => Move(rest[1], rest.ElementAtOrDefault(2), flags),
                 "import-discord" when rest.Length == 3 => ImportDiscord(rest[1], rest[2], flags),
+                "version" when rest.Length == 1 => PrintVersion(),
+                null when flags.Contains("--version") && args.Length == 1 => PrintVersion(),
                 _ => Usage(),
             };
         }
@@ -43,6 +46,13 @@ public static class Cli
             Console.Error.WriteLine(ex.Message);
             return 1;
         }
+    }
+
+    /// <summary>Just the version (the updater runs a new package with this to check it works here).</summary>
+    private static int PrintVersion()
+    {
+        Console.WriteLine(Updates.Versions.Current);
+        return 0;
     }
 
     private static int Usage()
@@ -56,6 +66,7 @@ public static class Cli
               iskra-server move <world-folder> --cancel                take that notice down again
               iskra-server import-discord <world-folder> <export>      import DiscordChatExporter JSON (a .json or a .zip)
                                                                        add --read-only to make the channels an archive
+              iskra-server version                                     print the version
             Passphrases: --passphrase-stdin (one line), or $ISKRA_BACKUP_PASSPHRASE, or you're asked.
             Add --json to restore for a machine-readable result.
             """);
@@ -118,6 +129,7 @@ public static class Cli
             using (var encrypted = BackupFile.Encrypt(file, passphrase, Ed25519.ToB64u(world.ServerPublicKey), world.Settings.Name, now))
                 BackupArchive.Write(world, encrypted, includeUploads: true, now);
             File.Move(temp, output, overwrite: true);
+            SecurityLog.Record(world.Store, now, "backup.cli");
         }
         finally
         {
@@ -134,11 +146,13 @@ public static class Cli
         if (flags.Contains("--cancel"))
         {
             File.Delete(Path.Combine(world.Path, MoveFeature.FileName));
+            SecurityLog.Record(world.Store, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), "server.move.cancel", details: new { cli = true });
             Console.WriteLine("The move notice is gone. Start the server as usual.");
             return 0;
         }
         var clean = MoveFeature.CleanUrl(url) ?? throw new InvalidDataException("That isn't an http(s) address.");
         MoveFeature.Publish(world, clean, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        SecurityLog.Record(world.Store, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), "server.move", details: new { url = clean, cli = true });
         Console.WriteLine($"Members who connect here will be sent to {clean}. Keep this server running for a while so everyone gets the notice.");
         return 0;
     }

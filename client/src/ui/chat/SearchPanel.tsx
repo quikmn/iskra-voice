@@ -12,6 +12,7 @@ import { highlightSegments, readableMentions } from './searchQuery'
 import { ArrowLeft, SearchIcon } from './extraIcons'
 import { useEscapeLayer } from '../layers'
 import { resolveKey } from '../../state/keyMap'
+import { DocSearchHits } from '../docs/DocSearchHits'
 
 const HINTS = [
   ['from:', 'chat.search.hints.from'],
@@ -61,6 +62,7 @@ export function SearchPanel({ server }: { server: ServerState }) {
 
       <div className="search-results">
         {error && <p className="error-text search-note">{error}</p>}
+        {searched && <DocSearchHits server={server} query={searched} />}
         {!searched && !error && (
           <div className="search-help">
             <p className="muted">{t('chat.search.help')}</p>

@@ -27,6 +27,10 @@ import { BlockedDmBar } from './moderation/Moderation'
 import { GroupChat, GroupRows } from './groups/Groups'
 import { DmKeyNotice, DmKeyWarning } from './keys/DmKeyNotice'
 import { DM_ATTACH_EVENT, DmAttachments, DmComposer } from './dms/DmFiles'
+import { SavedRow } from './productivity/InboxButton'
+import { usePrivateMessageTools } from './productivity/MessageTools'
+import { dmTarget, privateRowId } from '../state/messageRefs'
+import { KeyHistory } from './keys/KeyTransparency'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -77,6 +81,7 @@ export function HomeSidebar({ onNavigate }: { onNavigate: () => void }) {
           <span className="channel-name">{t('app.home.friends')}</span>
           {incoming > 0 && <span className="badge" aria-label={t('friends.pendingBadge', { count: incoming })}>{incoming}</span>}
         </button>
+        <SavedRow onNavigate={onNavigate} />
         <GroupRows onNavigate={onNavigate} />
         <div className="channel-group"><span>{t('app.home.conversations')}</span></div>
         {peers.length === 0 && <p className="sidebar-hint">{t('app.home.dmHint')}</p>}
@@ -167,7 +172,7 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
       <DmKeyWarning peer={peer} />
 
       <div className="messages" ref={scroller}>
-        <UnreadBar conv={dmConv(peer)} scroller={scroller} onJump={() => undefined} />
+        <UnreadBar conv={dmConv(peer)} scroller={scroller} onJump={() => undefined} catchUp={{ spec: { kind: 'dm', peer }, title: nameOf(peer) }} />
         <div className="channel-start">
           <Avatar name={nameOf(peer)} accountKey={peer} size={64} />
           <h2>{nameOf(peer)}</h2>
@@ -204,8 +209,10 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
 function DmRow({ dm, grouped, peer, mine }: { dm: Dm; grouped: boolean; peer: string; mine: boolean }) {
   const { t } = useTranslation()
   const name = nameOf(dm.from)
+  const tools = usePrivateMessageTools(dm.pending || dm.error || asLog(dm.call) ? null : dmTarget(peer, dm), dm.text)
   return (
-    <div className={`message ${grouped ? 'grouped' : ''} ${dm.pending ?? ''}`}>
+    <div id={privateRowId(dm.from, dm.id)} {...tools.rowProps} className={`message ${grouped ? 'grouped' : ''} ${dm.pending ?? ''} ${tools.rowProps.className ?? ''}`}>
+    <div className={`message ${grouped ? 'grouped' : ''} ${dm.pending ?? ''}`} data-dm-id={dm.id}>
       <div className="message-gutter">
         {grouped ? <time className="hover-time" title={fullTime(dm.sentAt)}>{clockTime(dm.sentAt)}</time> : <span {...userMenuProps(dm.from)}><Avatar name={name} accountKey={dm.from} /></span>}
       </div>
@@ -237,6 +244,7 @@ function DmRow({ dm, grouped, peer, mine }: { dm: Dm; grouped: boolean; peer: st
           </div>
         )}
       </div>
+      {tools.tools}
     </div>
   )
 }
@@ -253,6 +261,7 @@ export function SafetyNumberDialog({ me, peer, onClose }: { me: string; peer: st
       <p className="muted">
         {t('app.home.theirId')} <code>{fingerprint(peer)}</code> · {t('app.home.yourId')} <code>{fingerprint(me)}</code>
       </p>
+      <KeyHistory peer={peer} />
     </Modal>
   )
 }

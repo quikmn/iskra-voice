@@ -14,7 +14,7 @@ export interface Member extends PublicProfile {
 export interface Channel {
   id: number
   name: string
-  kind: 'text' | 'voice' | 'forum' | 'stage'
+  kind: 'text' | 'voice' | 'forum' | 'stage' | 'docs'
   position: number
   readRole: Role
   writeRole: Role
@@ -133,7 +133,7 @@ export interface Requests {
   'chat.delete': [{ id: number }, Record<string, never>]
   'chat.history': [{ channelId: number; before?: number; after?: number; around?: number; limit?: number }, { messages: Message[]; hasMore: boolean; hasNewer?: boolean }]
   'chat.typing': [{ channelId: number }, Record<string, never>]
-  'channel.create': [{ name: string; kind?: 'text' | 'voice' | 'forum' | 'stage'; readRole?: Role; writeRole?: Role; slowmode?: number; categoryId?: number; userLimit?: number }, { channel: Channel }]
+  'channel.create': [{ name: string; kind?: 'text' | 'voice' | 'forum' | 'stage' | 'docs'; readRole?: Role; writeRole?: Role; slowmode?: number; categoryId?: number; userLimit?: number }, { channel: Channel }]
   'channel.update': [{ id: number; name?: string; readRole?: Role; writeRole?: Role; slowmode?: number; userLimit?: number }, { channel: Channel }]
   'channel.delete': [{ id: number }, Record<string, never>]
   'profile.update': [ProfileUpdate, { member: Member }]
@@ -147,7 +147,7 @@ export interface Requests {
   'invite.list': [Record<string, never>, { invites: Invite[] }]
   'invite.revoke': [{ code: string }, Record<string, never>]
   'voice.join': [{ channelId: number }, { url: string; token: string; room: string; canSpeak: boolean }]
-  'voice.state': [{ muted: boolean; deafened: boolean }, Record<string, never>]
+  'voice.state': [{ muted: boolean; deafened: boolean; clips?: boolean }, Record<string, never>]
   'dm.devices': [{ accountKey: string }, DeviceBundle]
   // ── signing out ──
   'member.leave': [Record<string, never>, Record<string, never>]
@@ -1339,4 +1339,254 @@ export interface Requests {
   'report.count': [Record<string, never>, { open: number }]
   'account.delete': [{ deletion: AccountDeletion }, Record<string, never>]
   'owner.transfer': [{ accountKey: string }, Record<string, never>]
+}
+
+// ── productivity: edit history, reminders, scheduled messages, the inbox ──
+
+export interface MessageVersion {
+  text: string
+  /** When this version was written. */
+  at: number
+}
+
+/** `data` is sealed by your devices (core/sealed.ts); channelId/messageId only for reminders about a channel message. */
+export interface WireReminder {
+  id: number
+  dueAt: number
+  data: string
+  channelId: number | null
+  messageId: number | null
+  createdAt: number
+  firedAt: number | null
+}
+
+export type ScheduledKind = 'channel' | 'dm' | 'group'
+
+export interface WireScheduled {
+  id: number
+  kind: ScheduledKind
+  channelId: number | null
+  /** The DM's recipient. */
+  accountKey: string | null
+  groupId: string | null
+  version: number | null
+  /** Channel messages only. */
+  text: string | null
+  replyTo: number | null
+  /** DMs and groups: end-to-end encrypted when scheduled. */
+  envelope: import('./dm').DmEnvelope | import('./group').GroupEnvelope | null
+  sendAt: number
+  createdAt: number
+  status: 'pending' | 'sending' | 'failed'
+  error: string | null
+}
+
+export type InboxKind = 'mention' | 'reply' | 'role' | 'everyone'
+
+export interface InboxItem {
+  kind: InboxKind
+  channelId: number
+  at: number
+  message: Message
+}
+
+export interface Events {
+  'reminder.updated': { reminder: WireReminder }
+  'reminder.deleted': { id: number }
+  'reminder.due': { reminder: WireReminder }
+  'scheduled.updated': { scheduled: WireScheduled }
+  'scheduled.deleted': { id: number; sent: boolean }
+  'inbox.new': { item: InboxItem }
+}
+
+export interface Requests {
+  'chat.edits': [{ id: number }, { versions: MessageVersion[] }]
+  'reminder.create': [{ dueAt: number; data: string; messageId?: number }, { reminder: WireReminder }]
+  'reminder.list': [Record<string, never>, { reminders: WireReminder[] }]
+  'reminder.update': [{ id: number; dueAt: number; data?: string }, { reminder: WireReminder }]
+  'reminder.delete': [{ id: number }, Record<string, never>]
+  'scheduled.create': [
+    { sendAt: number } & (
+      | { channelId: number; text: string; replyTo?: number }
+      | { accountKey: string; envelope: import('./dm').DmEnvelope }
+      | { groupId: string; version: number; envelope: import('./group').GroupEnvelope }
+    ),
+    { scheduled: WireScheduled },
+  ]
+  'scheduled.list': [Record<string, never>, { scheduled: WireScheduled[] }]
+  'scheduled.update': [
+    { id: number; sendAt?: number; text?: string; envelope?: import('./dm').DmEnvelope | import('./group').GroupEnvelope; version?: number },
+    { scheduled: WireScheduled },
+  ]
+  'scheduled.delete': [{ id: number }, Record<string, never>]
+  'scheduled.send': [{ id: number }, { message: unknown }]
+  'inbox.list': [{ before?: number; limit?: number }, { items: InboxItem[]; hasMore: boolean; next: number | null }]
+// ── docs channels ──
+// See "Docs channels" in PROTOCOL.md.
+
+export interface DocPage {
+  id: number
+  channelId: number
+  parentId: number | null
+  title: string
+  position: number
+  version: number
+  createdBy: string
+  createdAt: number
+  updatedBy: string
+  updatedAt: number
+  /** Text size in UTF-8 bytes. */
+  size: number
+  /** Only in docs.page.get / create / save / restore results. */
+  text?: string
+}
+
+export interface DocRevision {
+  version: number
+  title: string
+  author: string
+  createdAt: number
+  restoredFrom: number | null
+  size: number
+  text?: string
+}
+
+/** The server's "Start here" page, as you see it. */
+export interface DocHome {
+  pageId: number
+  channelId: number
+  title: string
+}
+
+export interface DocSearchResult {
+  page: DocPage
+  snippet: string
+  matches: [number, number][]
+}
+
+export interface Events {
+  'docs.page.updated': { page: DocPage }
+  'docs.page.deleted': { channelId: number; ids: number[] }
+  'docs.home': { home: DocHome | null }
+}
+
+export interface Requests {
+  'docs.pages': [{ channelId: number }, { pages: DocPage[]; home: number | null }]
+  'docs.page.get': [{ id: number; version?: number }, { page: DocPage; revision?: DocRevision }]
+  'docs.page.create': [{ channelId: number; title: string; parentId?: number | null; text?: string; file?: string }, { page: DocPage }]
+  'docs.page.save': [{ id: number; baseVersion: number; title?: string; text?: string; file?: string }, { page: DocPage }]
+  'docs.page.move': [{ id: number; parentId?: number | null; before?: number | null }, { page: DocPage }]
+  'docs.page.delete': [{ id: number }, Record<string, never>]
+  'docs.page.history': [{ id: number }, { page: DocPage; revisions: DocRevision[] }]
+  'docs.page.restore': [{ id: number; version: number; baseVersion: number }, { page: DocPage }]
+  'docs.home.get': [Record<string, never>, { home: DocHome | null }]
+  'docs.home.set': [{ pageId: number | null }, { home: DocHome | null }]
+  'docs.search': [{ query: string; channelId?: number; limit?: number }, { results: DocSearchResult[] }]
+}
+
+// ── security log, retention and data export ──
+// See "Security log, retention and your data" in PROTOCOL.md.
+
+export interface SecurityEvent {
+  id: number
+  at: number
+  event: string
+  account: string | null
+  accountName: string | null
+  /** Only when the owner turned on securityLogIps. */
+  ip: string | null
+  details: Record<string, unknown> | null
+}
+
+/** Days to keep each kind of data (0 keeps forever). */
+export interface Retention {
+  messagesDays: number
+  uploadsDays: number
+  auditDays: number
+  securityLogDays: number
+  securityLogIps: boolean
+}
+
+export interface Requests {
+  'security.log.list': [
+    { event?: string; account?: string; before?: number; limit?: number; export?: boolean },
+    { entries: SecurityEvent[]; hasMore: boolean },
+  ]
+  'retention.get': [Record<string, never>, Retention]
+  'retention.update': [Partial<Retention>, Retention]
+  'data.export': [{ accountKey?: string }, { url: string; name: string; size: number; expiresAt: number }]
+}
+
+// ── server updates ──
+// See "Server updates and health" in PROTOCOL.md.
+
+export type UpdateMode = 'off' | 'notify' | 'auto'
+export type UpdateChannel = 'stable' | 'prerelease'
+export type ServerUpdateState = 'idle' | 'checking' | 'downloading' | 'verifying' | 'installing' | 'restarting' | 'failed'
+/** Why this server can't install updates itself. */
+export type AutoUpdateBlock = 'desktop' | 'development' | 'platform' | 'guard' | 'readonly'
+
+export interface ServerUpdateStatus {
+  current: string
+  mode: UpdateMode
+  channel: UpdateChannel
+  window: string
+  requireAttestation: boolean
+  managed: 'desktop' | null
+  canCheck: boolean
+  auto: { possible: boolean; reason: AutoUpdateBlock | null }
+  latest: { version: string; url: string; publishedAt: number; prerelease: boolean; package: boolean } | null
+  state: ServerUpdateState
+  progress: { done: number; total: number } | null
+  checkedAt: number | null
+  error: string | null
+  /** Which error, for showing it in the owner's language (PROTOCOL.md). */
+  errorCode: string | null
+  lastUpdate: { from: string; to: string; ok: boolean } | null
+  attested: boolean | null
+}
+
+export interface Events {
+  'update.status': { status: ServerUpdateStatus }
+  'server.restarting': { reason: 'update'; version: string }
+}
+
+export interface Requests {
+  'update.status': [Record<string, never>, { status: ServerUpdateStatus }]
+  'update.check': [Record<string, never>, { status: ServerUpdateStatus }]
+  'update.settings': [{ mode?: UpdateMode; channel?: UpdateChannel; window?: string; requireAttestation?: boolean }, { status: ServerUpdateStatus }]
+  'update.install': [Record<string, never>, { status: ServerUpdateStatus }]
+// ── voice chat and clips ──
+
+export interface VoiceParticipant {
+  /** They have clips turned on (they can save the last seconds of the call). */
+  clips?: boolean
+}
+
+export interface Message {
+  /** A "saved a clip" notice (the author saved it; no text). */
+  clip?: Record<string, never> | null
+}
+
+export interface Requests {
+  'voice.clip': [{ channelId: number }, { message: Message }]
+// ── key transparency ──
+
+/** A key log head the server signed: "iskra/keylog-head/v1" 0x00 serverKey(32) u64be(seq) hash(32) u64be(at). */
+export interface KeyLogHead {
+  seq: number
+  hash: string
+  at: number
+  sig: string
+}
+
+export interface Welcome {
+  /** Absent on servers from before key transparency. */
+  keyLog?: KeyLogHead
+}
+
+export interface Requests {
+  'keylog.head': [Record<string, never>, { head: KeyLogHead }]
+  'keylog.entries': [{ after?: number; limit?: number }, { entries: { seq: number; data: string }[]; head: KeyLogHead }]
+  'keylog.alert': [{ kind: string; seq?: number }, Record<string, never>]
 }

@@ -96,6 +96,8 @@ test('mute and deafen keybinds work in the browser while Iskra is focused', asyn
 
   // Phone width: the rows still fit.
   await page.setViewportSize({ width: 390, height: 844 })
-  await expect(settings.getByRole('button', { name: 'Set toggle mute key' })).toBeInViewport()
+  const setMute = settings.getByRole('button', { name: 'Set toggle mute key' })
+  await setMute.scrollIntoViewIfNeeded() // the clip row sits below now
+  await expect(setMute).toBeInViewport()
   await page.screenshot({ path: join(SHOTS, 'hotkeys-settings-phone.png') })
 })

@@ -17,7 +17,7 @@ import { decodeMentions, encodeMentions, renderMarkdown } from './markdown'
 import { clockTime, fullTime, hueFor, messageTime } from './format'
 import { formatNumber } from '../i18n/format'
 import type { Panel } from './Shell'
-import { Close, FileIcon, Hash, Menu, Paperclip, Pencil, Reply, Send, Smile, Trash, Users, WifiOff } from './icons'
+import { Close, FileIcon, Hash, Menu, Paperclip, Pencil, Reply, Send, Smile, Trash, Users, Volume, WifiOff } from './icons'
 import { HeaderTools } from './chat/HeaderTools'
 import { MessageActionSheet } from './chat/MessageActionSheet'
 import { useLongPress } from './chat/useLongPress'
@@ -51,6 +51,10 @@ import { sendSticker } from '../state/stickers'
 import { SpoilerToggle, isSpoilerName, longTextFile } from './chat/media'
 import { AutoModAlertCard } from './automod/AutoModAlert'
 import { userMenuProps } from './people/userMenuProps'
+import { EditedMark } from './productivity/EditHistory'
+import { useSendLater } from './productivity/SendLater'
+import { ClipNoticeRow } from './clips/ClipNotice'
+import { conversationLabel } from '../state/threads'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -89,7 +93,7 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
         </button>
         {channel ? (
           <h1>
-            <span className="hash"><Hash size={20} /></span>
+            <span className="hash">{channel.kind === 'voice' || channel.kind === 'stage' ? <Volume size={20} /> : <Hash size={20} />}</span>
             {channel.name}
           </h1>
         ) : (
@@ -220,6 +224,7 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
     <>
     <div className="messages" ref={scroller} onScroll={onScroll}>
       <UnreadBar conv={conv} scroller={scroller} onJump={() => (stickToBottom.current = false)}
+        catchUp={{ spec: { kind: 'channel', serverKey: server.key, channelId }, title: conversationLabel(server, channelId) }}
         loadOlder={() => loadHistory(server.key, channelId, true).then(() => !!useApp.getState().servers[server.key]?.hasMore[channelId])} />
       {!hasMore && (header ?? (
         <div className="channel-start">
@@ -233,7 +238,7 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
       ) : (
         <Fragment key={message.tempId ?? message.id}>
           {message.id === firstUnread && !message.tempId && <UnreadDivider main={!thread} />}
-          <BlockGate author={message.author}>
+          {message.clip && !message.tempId ? <ClipNoticeRow server={server} message={message} /> : <BlockGate author={message.author}>
             <MessageRow
               server={server}
               message={message}
@@ -241,7 +246,7 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
               editing={editing === message.id}
               onEdit={(on) => setEditing(on ? message.id : null)}
             />
-          </BlockGate>
+          </BlockGate>}
         </Fragment>
       ))}
     </div>
@@ -344,7 +349,7 @@ function MessageRow({
           (message.text || message.editedAt) && !message.poll && (
             <div className="message-text">
               {renderMarkdown(message.text, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey, emoji: emojiLookup, roleOf, serverKey: server.key })}
-              {message.editedAt && <span className="edited" title={fullTime(message.editedAt)}> {t('chat.message.edited')}</span>}
+              <EditedMark server={server} message={message} />
             </div>
           )
         )}
@@ -553,6 +558,16 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
       .slice(0, 3)
       .map((r) => ({ key: `role-${r.id}`, name: r.name, color: r.color })),
   ]
+  const later = useSendLater({
+    target: { kind: 'channel', server: server.key, channelId, replyTo: replyTo?.id },
+    prepare: () => (text.trim() ? encodeEmoji(encodeMentions(text.trim(), Object.values(server.members), mentionableRoles), emojis) : null),
+    blocked: uploads.length > 0 ? t('productivity.sendLater.noFiles') : null,
+    disabled: !online,
+    onScheduled: () => {
+      setText('')
+      setReply(server.key, channelId, null)
+    },
+  })
   const emojiSuggest = useEmojiSuggest(server.key, text, caret, (next) => {
     setText(next.text)
     setCaret(next.caret)
@@ -703,10 +718,12 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
       </button>
       {!text.trim() && uploads.length === 0 && voiceRecordingSupported() && <VoiceRecordButton onSend={sendVoice} disabled={!online} />}
       <SlowmodeChip seconds={slowmode.seconds} wait={slowmode.wait} />
-      <button className="send-button" onClick={submit} disabled={!canSend} aria-label={t('common.send')}>
+      {later.button}
+      <button className="send-button" onClick={submit} disabled={!canSend} aria-label={t('common.send')} {...later.sendProps}>
         <Send />
       </button>
     </div>
+      {later.dialog}
       {picker && (
         <ExpressionPicker
           key={pickerTab}

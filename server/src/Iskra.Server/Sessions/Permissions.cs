@@ -81,6 +81,9 @@ public static class Permissions
     public static bool CanWrite(Member member, Channel channel) =>
         Access(member, channel).HasFlag(channel.Kind is "voice" or "stage" ? ChannelPerm.View | ChannelPerm.Connect | ChannelPerm.Speak : ChannelPerm.View | ChannelPerm.Send);
 
+    /// <summary>Posting in the channel's chat (text channels, and the text chat of voice and stage channels).</summary>
+    public static bool CanSend(Member member, Channel channel) => Access(member, channel).HasFlag(ChannelPerm.View | ChannelPerm.Send);
+
     /// <summary>Joining a voice channel (listening).</summary>
     public static bool CanConnect(Member member, Channel channel) => Access(member, channel).HasFlag(ChannelPerm.View | ChannelPerm.Connect);
 
@@ -89,7 +92,7 @@ public static class Permissions
 
     /// <summary>Pinning is a shared, channel-wide action: writers who are trusted+ or can manage messages.</summary>
     public static bool CanPin(Member member, Channel channel) =>
-        CanWrite(member, channel) && (Roles.Rank(member.Role) >= Roles.Rank(Roles.Trusted) || Has(member, Perm.ManageMessages));
+        CanSend(member, channel) && (Roles.Rank(member.Role) >= Roles.Rank(Roles.Trusted) || Has(member, Perm.ManageMessages));
 
     /// <summary>Renaming or deleting a thread: whoever started it, or someone who can manage messages and outranks them.</summary>
     public static bool CanManageThread(Member actor, string creatorKey, Member? creator) =>

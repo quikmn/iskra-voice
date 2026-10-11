@@ -48,8 +48,11 @@ After=network-online.target
 [Service]
 User=iskra
 WorkingDirectory=/opt/iskra
+# Undoes an automatic update that doesn't start (see Updating). Optional, but needed for automatic updates.
+ExecStartPre=-/opt/iskra/iskra-update-guard
 ExecStart=/opt/iskra/iskra-server /opt/iskra/world
 Restart=on-failure
+RestartSec=5
 # Lets the server use ports 80 and 443 without running as root.
 AmbientCapabilities=CAP_NET_BIND_SERVICE
 
@@ -61,6 +64,37 @@ WantedBy=multi-user.target
 sudo systemctl enable --now iskra
 sudo journalctl -u iskra -f        # shows the owner link on first start
 ```
+
+### Updating
+
+As the owner, open **Settings → Updates**. It shows the version the server runs and whether a newer one is out (the owner also gets a short notice above the chat). Choose what happens when one is:
+
+| | What it does | Where |
+|---|---|---|
+| **Off** | Never looks for new versions | Everywhere |
+| **Tell me** (default) | Looks at [GitHub releases](https://github.com/quikmn/iskra-voice/releases) every 6 hours and tells you | Everywhere |
+| **Install automatically** | Also installs it, in the hour after a time you pick (`04:00` by default, server time), once nobody is in a voice channel. **Update now** installs it right away | Linux, run by systemd as above |
+
+**Installing by hand** (Windows, macOS, or "Tell me"): stop the server, unpack the new `iskra-server` package over the old files (the server folder, e.g. `my-server`, isn't in the package and stays as it is), start it again. A server started by the desktop app updates together with the app and never checks by itself.
+
+**How an automatic update works:**
+
+1. The server downloads the package for its system (`iskra-server-<version>-linux-x64.tar.gz`) and the release's `SHA256SUMS.txt`, from `github.com/quikmn/iskra-voice` over HTTPS only.
+2. It checks the package's SHA-256 against `SHA256SUMS.txt` **and** against the checksum GitHub lists for the file, and that the archive holds nothing but plain files at its top level. It runs the new `iskra-server version` to make sure it starts on this machine. Anything that doesn't match stops the update; nothing has been replaced yet.
+3. It swaps the new files in (the old ones go to `.update/previous/` next to `iskra-server`), tells everyone *"restarting for an update"*, and exits; systemd starts the new version a few seconds later. Members' apps reconnect by themselves.
+4. The new version confirms itself after running for a minute. If it fails to start three times before that, `iskra-update-guard` puts the previous version back and the owner sees *"the update didn't start"*; that version isn't tried again automatically.
+
+Every check you start, change of setting, install, failure, finished update and rollback is written to the security log (**Settings → Security log**).
+
+Automatic updates need: the systemd unit above with the `ExecStartPre` line (Settings → Updates says so if it's missing; `iskra-update-guard` comes in the Linux package), and the server's user owning the folder `iskra-server` is in (`chown -R iskra:iskra /opt/iskra`). Updates never touch the world folder. Database changes in new versions are forward-only, so a rolled-back version runs on a database the new one may already have migrated; that's why a version only confirms after it has started cleanly, and why daily backups exist.
+
+**What the checks prove (trust model).** The download comes over TLS from GitHub, and the checksums come from the same GitHub release. That catches corrupted or truncated downloads and anyone tampering between GitHub and you. It does *not* protect against someone who can publish releases on the Iskra repository, since they could replace the package and `SHA256SUMS.txt` together. For that, releases carry [build-provenance attestations](https://docs.github.com/actions/security-for-github-actions/using-artifact-attestations): the server asks GitHub whether one exists for the exact file and shows it, and **Only install releases with a GitHub build attestation** makes it required. The server doesn't verify the attestation's Sigstore signature itself; to do that, run `gh attestation verify <file> -R quikmn/iskra-voice` before updating by hand. If you'd rather review every release first, use **Tell me**.
+
+The server only asks GitHub's public API (no account; 60 requests an hour per IP, and an unchanged list doesn't count), and tells GitHub nothing beyond what any request does (its IP address) and its version in the `User-Agent`.
+
+### Health check
+
+`GET /health` answers `{"iskra":1,"status":"ok","version":"…","uptimeSeconds":…,"voice":"up"}` (`voice` is `up`, `down` or `off`): nothing private, for an uptime monitor. `GET /` answers `{"iskra":1,"name":…}` as before.
 
 ## Reaching your server from the internet
 
@@ -243,6 +277,19 @@ iskra-server import-discord my-server export.zip              # add --read-only 
   },
   "Import": {
     "MaxMb": 4096                      // largest Discord export the owner may upload
+  },
+  "Updates": {                         // Settings → Updates (see Updating)
+    "Mode": "notify",                  // "off" | "notify" (tell the owner) | "auto" (also install; Linux with systemd)
+    "Channel": "stable",               // "stable" | "prerelease" (also test versions)
+    "Window": "04:00",                 // automatic installs start within the hour after this (server time)
+    "RequireAttestation": false        // only install releases with a GitHub build attestation
+  },
+  "Retention": {                       // how long data is kept, in days; 0 = forever (Settings → Security log)
+    "MessagesDays": 0,                 // channel messages, and encrypted DM and group envelopes
+    "UploadsDays": 0,                  // files in messages and DMs (avatars, emoji, stickers, sounds and event covers stay)
+    "AuditDays": 90,                   // the audit log
+    "SecurityLogDays": 365,            // the security log
+    "SecurityLogIps": false            // also record IP addresses in the security log
   }
 }
 ```
@@ -262,6 +309,7 @@ iskra-server import-discord my-server export.zip              # add --read-only 
 | `backups/` | Daily backups (`auto-YYYY-MM-DD.zip`, not encrypted) and, briefly, a backup being downloaded |
 | `moved.json` | The signed "this server moved" notice, after **Move this server** |
 | `server.log` | Output, when started from the desktop app |
+| `exports/` | "Download my data" files while their 10-minute link lasts (never in backups) |
 
 Profile pages, polls, threads, pins, forums, events, roles, groups (their encrypted messages), webhooks (only a hash of each secret) and push subscriptions are all in `iskra.db` too, so copying the folder takes everything along.
 
@@ -269,7 +317,9 @@ On Linux and macOS the server creates the folder (and `certs/`) readable by its 
 
 Uploads that nothing uses (no message, DM, avatar, emoji, sticker, sound, webhook, event cover, profile page or running watch party) are deleted after a day.
 
-**Backups and moving:** see [Backups, moving and importing](#backups-moving-and-importing). Copying the stopped server's folder works too; it holds secrets (`server.key`, `vapid.json`, `livekit.key`, `certs/`, `backups/`), so keep copies private. **Updating:** replace the `iskra-server` and `livekit-server` files and start it again.
+**Security log and retention:** the owner reads the server's security log in **Settings → Security log** (failed sign-ins, new members and devices, key changes, account deletions, backups, moves, data downloads; IP addresses only if you turn that on) and sets how long messages, files, the audit log and the security log are kept. Deleting happens every hour and can't be undone. Members download what the server keeps about them in **Settings → Privacy & data**; if someone asks you instead, use **Someone's data** in Settings → Security log.
+
+**Backups and moving:** see [Backups, moving and importing](#backups-moving-and-importing). Copying the stopped server's folder works too; it holds secrets (`server.key`, `vapid.json`, `livekit.key`, `certs/`, `backups/`), so keep copies private. **Updating:** see [Updating](#updating). Automatic updates keep their state in `.update/` next to `iskra-server`, not in the world folder.
 
 ## Roles and moderation
 

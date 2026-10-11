@@ -12,6 +12,8 @@ import { openProfileCard } from '../../state/profile'
 import { moveCategory, moveChannel, toggleCollapsed, useCategories, useNotifyFor, useOrganize } from '../../state/organize'
 import { channelBadges, dropOnCategory, dropOnChannel, isVoiceLike, layoutChannels } from '../../state/organizeLogic'
 import { ForumIcon } from '../forums/icons'
+import { DocsIcon } from '../docs/icons'
+import { StartHereEntry } from '../docs/StartHere'
 import { StageEntry } from '../stage/StageSidebar'
 import { Avatar } from '../bits'
 import { ChevronDown, Hash, HeadphonesOff, Lock, MicOff, Plus, Volume } from '../icons'
@@ -25,6 +27,8 @@ import { isFull, limitLabel } from '../../state/voiceRulesLogic'
 import '../rules/rules.css'
 import './organize.css'
 import { userMenuProps } from '../people/userMenuProps'
+import { VoiceChatRowButton } from '../clips/VoiceChatRowButton'
+import { ClipsMark } from '../clips/ClipControls'
 
 type Drag = { kind: 'channel' | 'category'; id: number }
 type Over = { kind: 'channel' | 'category' | 'top'; id: number; after?: boolean }
@@ -143,6 +147,7 @@ export function ChannelList({ server, isAdmin, onNavigate, onCreateChannel }: {
 
   return (
     <>
+      <StartHereEntry server={server} onNavigate={onNavigate} />
       {(topText.length > 0 || isAdmin) && (
         <div className={`channel-group ${over?.kind === 'top' && over.id === 0 ? 'drop-into' : ''}`}
           {...target({ kind: 'top', id: 0 }, (d) => d.kind === 'channel', toTop)}>
@@ -250,7 +255,7 @@ function TextRow({ server, channel, active, rowProps, onMenu, onNavigate }: {
           onNavigate()
         }}
       >
-        <span className="hash">{channel.kind === 'forum' ? <ForumIcon size={16} /> : <Hash size={16} />}</span>
+        <span className="hash">{channel.kind === 'forum' ? <ForumIcon size={16} /> : channel.kind === 'docs' ? <DocsIcon size={16} /> : <Hash size={16} />}</span>
         <span className="channel-name">{channel.name}</span>
         {channel.readRole !== 'member' && channel.readRole !== 'guest' && <span className="lock" title={t('organize.list.only', { role: levelName(channel.readRole) })}><Lock size={12} /></span>}
         {shown.pings > 0 && !active && <span className="badge" title={t('organize.list.mentions')}>{shown.pings}</span>}
@@ -294,6 +299,7 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
             <span className={`voice-limit ${full ? 'full' : ''}`} aria-label={t(full ? 'organize.list.countFull' : 'organize.list.count', { people: participants.length, limit: channel.userLimit ?? 0 })}>{limit}</span>
           )}
         </button>
+        <VoiceChatRowButton server={server} channel={channel} onNavigate={onNavigate} />
         <button className="icon-button small org-more" onClick={onMenu} aria-label={t('organize.list.options', { name: channel.name })} title={t('organize.list.channelOptions')}>
           <More />
         </button>
@@ -312,6 +318,7 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
                 <button className="participant" onClick={(e) => openProfileCard(server.key, p.accountKey, e.currentTarget)}>
                   <Avatar name={member?.name ?? '?'} accountKey={p.accountKey} size={22} />
                   <span className="member-name">{member?.name ?? t('common.someone')}</span>
+                  <ClipsMark on={p.clips} />
                 </button>
                 {p.serverMuted ? <span className="voice-flag server-muted" title={t('organize.list.serverMuted')}><MicOff size={14} /></span> : p.deafened ? <span className="voice-flag" title={t('organize.list.deafened')}><HeadphonesOff size={14} /></span> : p.muted ? <span className="voice-flag" title={t('organize.list.muted')}><MicOff size={14} /></span> : null}
               </li>
@@ -330,6 +337,7 @@ function StageRow({ server, channel, rowProps, onMenu, onNavigate }: {
   return (
     <div {...rowProps}>
       <StageEntry server={server} channelId={channel.id} name={channel.name} onNavigate={onNavigate} />
+      <VoiceChatRowButton server={server} channel={channel} onNavigate={onNavigate} />
       <button className="icon-button small org-more" onClick={onMenu} aria-label={t('organize.list.options', { name: channel.name })} title={t('organize.list.channelOptions')}>
         <More />
       </button>

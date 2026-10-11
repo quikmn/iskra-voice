@@ -39,6 +39,37 @@ public sealed record WorldSettings
 
     /// <summary>Soundboard, emoji and sticker limits (Settings → Limits in the app, or here).</summary>
     public LimitsSettings Limits { get; init; } = new();
+
+    /// <summary>Updating the standalone server from GitHub releases (Settings → Updates).</summary>
+    public UpdateSettings Updates { get; init; } = new();
+
+    /// <summary>How long data is kept (Settings → Security in the app, or here). 0 days means keep.</summary>
+    public RetentionSettings Retention { get; init; } = new();
+}
+
+/// <summary>"off": never look; "notify": tell the owner; "auto": also install in the daily window (Linux with systemd).</summary>
+public sealed record UpdateSettings
+{
+    public string Mode { get; init; } = "notify";
+    /// <summary>"stable" (releases not marked prerelease on GitHub) or "prerelease" (all of them).</summary>
+    public string Channel { get; init; } = "stable";
+    /// <summary>Local time (HH:mm) when automatic updates may start; they start within the hour after it.</summary>
+    public string Window { get; init; } = "04:00";
+    /// <summary>Only install releases that GitHub has a build-provenance attestation for.</summary>
+    public bool RequireAttestation { get; init; }
+}
+
+/// <summary>Retention in days, enforced hourly by the RetentionSweeper. 0 keeps forever.</summary>
+public sealed record RetentionSettings
+{
+    /// <summary>Channel messages, and end-to-end encrypted DM and group envelopes.</summary>
+    public int MessagesDays { get; init; }
+    /// <summary>Files in messages and DMs (avatars, emoji, stickers, sounds and event covers stay).</summary>
+    public int UploadsDays { get; init; }
+    public int AuditDays { get; init; } = 90;
+    public int SecurityLogDays { get; init; } = 365;
+    /// <summary>Also record IP addresses in the security log. Off by default: Iskra doesn't keep IP addresses otherwise.</summary>
+    public bool SecurityLogIps { get; init; }
 }
 
 /// <summary>Size and length limits for expressions. 0 means no limit (uploads still can't exceed MaxUploadMb).</summary>

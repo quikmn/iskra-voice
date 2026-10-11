@@ -4,6 +4,7 @@ import type { Dm } from '../../state/dms'
 import { nameOf } from '../../state/dms'
 import { useKeys } from '../../state/keys'
 import { keysOf } from '../../state/keyMap'
+import { DmKtWarning } from './KeyTransparency'
 import { fullTime, messageTime } from '../format'
 import { Lock } from '../icons'
 import './keys.css'
@@ -28,7 +29,7 @@ export function DmKeyWarning({ peer }: { peer: string }) {
   const disputed = useKeys((s) => (s.disputes[peer]?.length ?? 0) > 0)
   const conflicted = useKeys((s) => keysOf(peer).some((k) => (s.conflicts[k]?.length ?? 0) > 1))
   const { t } = useTranslation()
-  if (!disputed && !conflicted) return null
+  if (!disputed && !conflicted) return <DmKtWarning peer={peer} />
   return (
     <div className="dm-key-warning" role="alert">
       {t('keys.notice.twoKeys', { name: nameOf(peer) })}

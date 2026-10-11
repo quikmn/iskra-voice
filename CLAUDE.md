@@ -7,7 +7,7 @@ A self-hosted voice and text app for friend groups: like Discord, but free, easy
 | Path | What it is |
 |---|---|
 | `protocol/`, `server/`, `client/`, `desktop/`, `mobile/`, `relay/`, `bots/`, `scripts/` | The app (see below) |
-| `docs/` | Public docs: `hosting.md` (the app links to it), `security.md`, `bots.md`, `development.md`, `ci-cd.md` + `ci-cd-playbook.md` (releases and deploys), `releases/` (release notes) |
+| `docs/` | Public docs: `hosting.md` (the app links to it), `security.md`, `bots.md`, `development.md`, `ci-cd.md` + `ci-cd-playbook.md` (releases and deploys), `releases/` (release notes), `compliance/` (controls matrix, ASVS self-assessment, policies, owner actions) |
 | `site/` | The iskra.foo website (Cloudflare Pages project `iskra-hero-page`). Keep it in sync with what the app actually does. |
 
 An older, retired codebase lives on the `v1` branch (tag `v1-final`); don't add features to it. **In anything public the product is just "Iskra"**: never "Iskra 2", no "rebuilt", no mention of v1.
@@ -69,5 +69,6 @@ CI (`.github/workflows/ci.yml`): server and client tests on Windows and Linux, d
 - Don't put user content into HTML strings in the client; let React render it. Never use `dangerouslySetInnerHTML` on user content.
 - Never commit secrets, world folders, `design/`, or deploy scripts that contain keys.
 - Live infrastructure: only the static sites (iskra.foo, app.iskra.foo on Cloudflare Pages) and the push relay (push.iskra.foo, a Worker). No hosted servers; testing is local.
+- Compliance: [docs/compliance](docs/compliance/README.md) maps controls to code. Security events go in the security log (`SecurityLog.Record`, never message text, codes or secrets; IPs only via `LoggedIp`); new personal data gets a section in `DataExports` and a line in `docs/compliance/policies/data-retention.md`; keep `SECURITY.md`, `security.txt` (Expires, yearly) and the controls matrix in step.
 - Releases: GitHub releases built from `desktop` (`npm run dist`) plus server zips. Keep `client/src/links.ts` (download links in the app) and the site's download section in step with the latest release.
 - Default server port is 47070 (7070 clashes with AnyDesk). Test tools live in `.tools` (`scripts/get-livekit.*`, `scripts/get-pebble.ps1`).

@@ -42,6 +42,7 @@ builder.Services.AddHostedService<PollCloser>();
 builder.Services.AddSingleton<EventScheduler>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<EventScheduler>());
 builder.Services.AddHostedService<ModerationSweeper>();
+builder.Services.AddHostedService<ProductivityScheduler>();
 builder.Services.AddPush(world);
 builder.Services.AddSingleton<LinkRelay>();
 builder.Services.Configure<LinkSettings>(builder.Configuration.GetSection("Link"));
@@ -77,6 +78,14 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<InternetHost>());
 builder.Services.AddSingleton<Iskra.Server.Backups.BackupService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<Iskra.Server.Backups.BackupService>());
 builder.Services.AddSingleton<Iskra.Server.Import.ImportService>();
+// Server updates from GitHub releases (Settings → Updates). Updates:FeedFile reads releases from a file instead (tests).
+builder.Services.AddSingleton<Iskra.Server.Updates.IReleaseFeed>(sp => builder.Configuration["Updates:FeedFile"] is { Length: > 0 } feedFile
+    ? new Iskra.Server.Updates.FileReleaseFeed(feedFile)
+    : ActivatorUtilities.CreateInstance<Iskra.Server.Updates.GitHubReleaseFeed>(sp));
+builder.Services.AddSingleton<Iskra.Server.Updates.UpdateService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<Iskra.Server.Updates.UpdateService>());
+builder.Services.AddSingleton<DataExports>();
+builder.Services.AddHostedService<RetentionSweeper>();
 
 var https = world.Settings.Https;
 if (https.Enabled)
@@ -98,6 +107,7 @@ if (https.Enabled)
             OnConnection = _ => ValueTask.FromResult(new System.Net.Security.SslServerAuthenticationOptions
             {
                 ServerCertificateContext = certificates.Context,
+                EnabledSslProtocols = SecurityHeaders.Protocols,
             }),
         }));
     });
@@ -119,6 +129,7 @@ var app = builder.Build();
 app.Lifetime.ApplicationStopped.Register(world.Dispose);
 ChildProcesses.StopWhenParentExits(app.Lifetime, app.Logger);
 ChildProcesses.StopWhenStdinCloses(app.Lifetime, app.Logger);
+SecurityHeaders.Use(app);
 
 if (https.Enabled)
 {
@@ -170,6 +181,8 @@ app.MapGet("/.well-known/iskra-probe/{token}", (string token, InternetHost inter
 app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(20) });
 
 app.MapGet("/", (World w) => Results.Json(new { iskra = 1, name = w.Settings.Name }));
+// For uptime monitors: up, version, how long it's been running, whether voice is up. Nothing secret.
+app.MapGet("/health", (IVoiceBackend voice, World w, Iskra.Server.Updates.UpdateService updates) => HealthFeature.Report(w, voice, updates.Env.Current));
 
 // LiveKit tells us who joined or left voice. Only requests signed with this world's LiveKit secret count.
 app.MapPost("/internal/livekit-webhook", async (HttpContext context, IVoiceBackend backend, VoiceRegistry voice, TimeProvider time) =>
@@ -224,6 +237,8 @@ LinkRelay.MapEndpoints(app);
 BackupFeature.MapEndpoints(app);
 MoveFeature.MapEndpoints(app);
 ImportFeature.MapEndpoints(app);
+// "Download my data" links.
+ComplianceFeature.MapEndpoints(app);
 app.Services.GetRequiredService<Iskra.Server.Import.ImportService>().CleanUp();
 
 app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice, Uploads uploads, LinkPreviews previews, Router router,
@@ -240,6 +255,7 @@ app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice
         Push = push,
         Gifs = context.RequestServices.GetRequiredService<Iskra.Server.Gifs.GifService>(),
         Origin = $"{context.Request.Scheme}://{context.Request.Host}",
+        RemoteIp = context.Connection.RemoteIpAddress is { } ip ? (ip.IsIPv4MappedToIPv6 ? ip.MapToIPv4() : ip).ToString() : null,
     }.RunAsync(context.RequestAborted, context.RequestServices.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping);
 });
 

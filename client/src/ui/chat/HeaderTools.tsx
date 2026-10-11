@@ -24,14 +24,16 @@ export function HeaderTools({ server, channel }: { server: ServerState; channel:
   const [open, setOpen] = useState<'threads' | 'pins' | null>(null)
   const text = useSearch((s) => s.text)
   const { t } = useTranslation()
-  if (!channel || channel.kind !== 'text') return null
+  if (!channel || !['text', 'voice', 'stage'].includes(channel.kind)) return null
   const toggle = (which: 'threads' | 'pins') => setOpen((o) => (o === which ? null : which))
 
   return (
     <div className="header-tools">
-      <button className={`icon-button ${open === 'threads' ? 'on' : ''}`} onClick={() => toggle('threads')} aria-label={t('chat.header.threads')} title={t('chat.header.threads')} aria-expanded={open === 'threads'}>
-        <ThreadIcon />
-      </button>
+      {channel.kind === 'text' && (
+        <button className={`icon-button ${open === 'threads' ? 'on' : ''}`} onClick={() => toggle('threads')} aria-label={t('chat.header.threads')} title={t('chat.header.threads')} aria-expanded={open === 'threads'}>
+          <ThreadIcon />
+        </button>
+      )}
       <button className={`icon-button ${open === 'pins' ? 'on' : ''}`} onClick={() => toggle('pins')} aria-label={t('chat.header.pins')} title={t('chat.header.pins')} aria-expanded={open === 'pins'}>
         <PinIcon />
       </button>

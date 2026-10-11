@@ -7,14 +7,14 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 
 - **Basics:** [Encoding](#encoding) · [Identity](#identity) · [Connection](#connection) (handshake, errors and close codes, limits) · [Objects](#objects)
 - **Servers and channels:** [Requests and events](#requests-and-events) · [Invite links](#invite-links) · [Organizing a server](#organizing-a-server)
-- **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji) · [Stickers](#stickers) · [GIFs](#gifs)
+- **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji) · [Stickers](#stickers) · [GIFs](#gifs) · [Saved messages, reminders, scheduled messages and the inbox](#saved-messages-reminders-scheduled-messages-and-the-inbox)
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Friends](#friends)
 - **People and integrations:** [Profiles](#profiles) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) ([phone apps](#native-push-phone-apps)) · [Bots and webhooks](#bots-and-webhooks) · [Presence and voice messages](#presence-and-voice-messages)
-- **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules)
+- **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Backups, moving and imports](#backups-moving-and-imports)
 - **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation) · [Roles and permissions](#roles-and-permissions) · [Reliable sends](#reliable-sends) · [AutoMod](#automod)
-- **Keys:** [Account key rotation](#account-key-rotation) · [Keys on the device](#keys-on-the-device) · [Leaving a server and signing out](#leaving-a-server-and-signing-out) · [Reports, deleting an account and handing over a server](#reports-deleting-an-account-and-handing-over-a-server)
+- **Keys:** [Account key rotation](#account-key-rotation) · [Keys on the device](#keys-on-the-device) · [Leaving a server and signing out](#leaving-a-server-and-signing-out) · [Reports, deleting an account and handing over a server](#reports-deleting-an-account-and-handing-over-a-server) · [Passkeys and key transparency](#passkeys-and-key-transparency)
 
 ---
 
@@ -181,7 +181,7 @@ Over the limit: `error` with `code: "rate_limited"`; the session stays open. HTT
 ```jsonc
 Member  { "accountKey": "<b64u>", "name": "Viktor", "role": "member", "online": true, "bot": false,
           ...profile fields (see Profiles) }
-Channel { "id": 1, "name": "general", "kind": "text" | "voice" | "stage", "position": 0, "readRole": "member", "writeRole": "member" }
+Channel { "id": 1, "name": "general", "kind": "text" | "voice" | "forum" | "stage" | "docs", "position": 0, "readRole": "member", "writeRole": "member" }
 Message { "id": 42, "channelId": 1, "author": "<accountKey>", "text": "hi", "createdAt": 1760000000000, "editedAt": null,
           "attachments": [File], "replyTo": ..., "reactions": [...],   // Files, replies and reactions
           "pinned": false, "thread": Thread | null,                     // Pins, search and threads
@@ -1392,6 +1392,7 @@ Local storage only; nothing here goes over the wire.
   - **desktop app:** with Electron `safeStorage` (Windows DPAPI, macOS Keychain, Linux libsecret/kwallet). On Linux without a keyring (`basic_text` backend) the app uses the browser wrap below and says so.
   - **browser:** with a non-extractable AES-GCM `CryptoKey` kept in IndexedDB (`wrap = AES-GCM(key, iv(12), dataKey)`).
   - **app lock (optional):** the data key is additionally wrapped with `crypto_pwhash` (Argon2id13, opslimit 3, memlimit 64 MiB, random 16-byte salt) of the passphrase and `crypto_secretbox`, and the app asks for the passphrase at startup.
+  - **passkeys (optional):** each passkey's PRF output wraps another copy of the data key; see [Passkeys for the app lock](#passkeys-for-the-app-lock).
 - Data stored before this existed is encrypted on first start. Device linking and recovery keys work as before (the app has the keys in memory once unlocked).
 
 ## Activity status
@@ -1442,7 +1443,7 @@ Rules { "text": "1. Be kind …", "welcome": "Welcome!", "required": true,
 
 - `welcome` carries `rules` (`Rules`, without the counts). Event `rules` `{ rules }` goes to every session (each its own view) after `rules.update`, and to your own sessions after `rules.accept`.
 - `required` needs non-empty `text`. `reaccept: true` (only with `required`) raises `version`, so everyone must agree again. Turning `required` on without `reaccept` counts everyone who is a member right now as having agreed, so only people who join later are asked; with `reaccept`, existing members are asked too. Edits without `reaccept` keep everyone's agreement. Whoever saves required rules has agreed to them.
-- Not yet agreed: these answer `rules_required`: `chat.send`, `chat.edit`, `chat.react`, `chat.typing`, `chat.pin`, `chat.forward`, `upload.begin`, `thread.create`, `thread.update`, `poll.create`, `poll.vote`, `poll.end`, `voice.join`, `sound.play`, `call.start`, `call.accept`, `stage.hand`, `stage.start`, `forum.post.create`, `forum.post.update`, `event.create`, `event.update`, `event.interest`, `watch.start`, `watch.control`, `watch.chat`, `invite.create`. LiveKit joins from them are removed. Reading, DMs, profile changes and settings keep working.
+- Not yet agreed: these answer `rules_required`: `chat.send`, `chat.edit`, `chat.react`, `chat.typing`, `chat.pin`, `chat.forward`, `upload.begin`, `thread.create`, `thread.update`, `poll.create`, `poll.vote`, `poll.end`, `voice.join`, `sound.play`, `call.start`, `call.accept`, `stage.hand`, `stage.start`, `forum.post.create`, `forum.post.update`, `event.create`, `event.update`, `event.interest`, `watch.start`, `watch.control`, `watch.chat`, `invite.create`, and the page changes in [docs channels](#docs-channels). LiveKit joins from them are removed. Reading, DMs, profile changes and settings keep working.
 - The owner and bots never need to agree; webhooks don't go through sessions. Agreements are stored per account key and kept if someone leaves and comes back.
 - Audit: `rules.update` `{ required, reaccept, version, textChanged }`.
 
@@ -1572,6 +1573,302 @@ AccountDeletion { "accountKey": "<b64u 32>", "deletedAt": 1760000000000, "messag
 **Other devices** learn of it when they next connect anywhere it was applied. A device checks the signature against its own account key (so a server can't make it wipe itself), sends the same `account.delete` to its other servers the deleting device couldn't reach, then deletes its keys and data. Messages already on other people's devices (DMs, groups) stay there.
 
 **Owners** can't delete their account on a server they own: they hand it over with `owner.transfer` first, or shut the server down. Audit: `owner.transfer` (target the new owner) `{ from }` (their level before).
+
+
+## Security log, retention and your data
+
+### Security log
+
+Moderation and admin actions are in the audit log (`audit.list`). The **security log** keeps what the audit log doesn't, for the owner only:
+
+```jsonc
+SecurityEvent { "id": 12, "at": 1760000000000, "event": "auth.failed", "account": "<accountKey>" | null, "accountName": "Sam" | null,
+                "ip": "203.0.113.7" | null, "details": { ... } | null }
+```
+
+| event | account | details |
+|---|---|---|
+| `auth.failed` | the key, if its signature checked out (else null) | `{ reason }`: the handshake's error code (`auth_failed`, `invite_required`, `banned`, `device_revoked`, `account_deleted`, `account_rotated`, …) |
+| `rate_limited` | who | `{ type }` (the request type). At most one entry per connection per minute |
+| `member.joined` | who | `{ role, bot }` (never the invite code) |
+| `device.new` | who | `{ deviceKey }`: an existing member signed in from a device this server hasn't seen |
+| `device.revoke` | who | `{ deviceKey }` |
+| `account.rotate`, `account.rotate.disputed` | the new key / the holder | `{ devices }` / none |
+| `account.dispute.resolve` | the key that kept the account | `{ kept: "current" \| "contest" }` |
+| `keylog.alert` | who reported it | `{ kind, seq, head }`: a member's app found a problem with this server's [key log](#key-transparency) |
+| `keylog.reloaded`, `keylog.broken` | none | `{ from, to }`: the key log in the database changed underneath the server (a restored backup, an edit) / `{ seq }`: an entry whose hash doesn't link up |
+| `account.delete` | who | `{ messages }` |
+| `backup.download`, `backup.settings`, `backup.cli`, `backup.restored` | the owner / none | `{ size }`, `{ from, to }`, none, `{ backupMadeAt, uploads }` |
+| `server.move`, `server.move.cancel` | the owner / none | `{ url, cli? }`, `{ cli? }` |
+| `retention.update` | the owner | `{ from, to }` (Retention below) |
+| `data.export` | whose data | `{ by }` when the owner exported someone else's |
+| `security.log.export` | the owner | |
+
+- Never in it: message text, invite codes, passphrases, secrets of any kind.
+- **IP addresses** are recorded only if the owner turns on `securityLogIps` (off by default). Without it `ip` is null.
+- A burst of the same event from the same address (or account) is capped at 10 entries a minute; the next entry after a burst has `details.suppressedBefore` (how many were left out).
+- Entries follow an account through key rotation like everything else. Deleting an account clears `ip` on its entries and keeps the rest (`account.delete` included) for the security log's retention.
+
+| type | body | result | who |
+|---|---|---|---|
+| `security.log.list` | `event?` (≤ 40), `account?` (≤ 64), `before?` (entry id), `limit?` (1–500, default 100), `export?` (true on the first page of an export: adds `security.log.export`) | `{ entries: [SecurityEvent], hasMore }` (newest first) | the owner |
+
+### Retention
+
+`server.json` → `Retention`, also in Settings → Security log. 0 days keeps forever.
+
+```jsonc
+Retention { "messagesDays": 0, "uploadsDays": 0, "auditDays": 90, "securityLogDays": 365, "securityLogIps": false }
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `retention.get` | | `Retention` | the owner |
+| `retention.update` | any of `messagesDays`, `uploadsDays`, `auditDays`, `securityLogDays` (0–36500), `securityLogIps` (bool) | `Retention` | the owner; written to server.json, applies from the next sweep |
+
+A sweep runs at start and every hour:
+- `messagesDays`: channel messages older than that are deleted (with their reactions, pins, polls and search entries; a forum post whose first message goes is deleted too), and so are end-to-end encrypted DM and group envelopes. Readers get `chat.deleted` for each message (`thread.deleted` for forum posts) when a sweep deletes 200 or fewer; after a bigger sweep apps see the change when they load history.
+- `uploadsDays`: files uploaded before then that only messages or DMs use are deleted (messages keep their text; the attachment is gone). Avatars, emoji, stickers, sounds, event covers, webhook avatars, files shown on profile pages, files in running watch parties and in open reports stay.
+- `auditDays`: audit entries; `securityLogDays`: security entries. The unused-upload sweep (a day) and daily backups (`Backups.Keep`) are unchanged.
+
+### Download my data
+
+| type | body | result | who |
+|---|---|---|---|
+| `data.export` | `accountKey?` (default: you) | `{ url: "/export/<token>", name, size, expiresAt }` | anyone for themselves; the owner for any member or former member this server knows (`not_found` otherwise), to answer a request made to them directly |
+
+- `GET /export/<token>` (relative to the server's URL) returns `iskra-data-YYYY-MM-DD.zip` (`Content-Disposition: attachment`, `no-store`, `nosniff`, a sandbox CSP) for 10 minutes; then the link is gone and the file deleted. Exports are written to `exports/` in the world folder, which backups leave out; leftovers are deleted when the server starts.
+- The zip has `README.txt` and `data.json` (`format: "iskra-data-export/v1"`): the account and its earlier keys (after key rotation), the server, and one list of rows per section: `membership`, `nickname`, `customRoles`, `profile`, `profilePage`, `presence`, `syncedSettings`, `notificationSettings`, `rulesAccepted`, `devices`, `removedDevices`, `pushSubscriptions` (no endpoints or keys), `blockList`, `keyRotations`, `accountDeletion`, `messages`, `reactions`, `pollVotes`, `eventInterest`, `uploads` (metadata), `directMessages` and `groupMessagesSent` (who, whom, when: no envelopes), `groups`, `invitesCreated` (no codes), `timeouts`, `bans`, `reportsMade`, `reportsAboutYou` (without the reporter or their note), `auditLog`, `securityLog`. `exportedBy` names the owner when it isn't you.
+- Rate limit: two, then one every 10 minutes per connection; one export is made at a time on a server (`rate_limited` while another runs).
+- The content of end-to-end encrypted DMs and groups is only on members' devices; apps export it from the device itself (Settings → Privacy & data → Download data on this device).
+
+### HTTP hardening
+
+Every HTTP response gets `X-Content-Type-Options: nosniff` and `Referrer-Policy: no-referrer`, and (except profile pages, which the app frames) `X-Frame-Options: DENY` and a CSP with `frame-ancestors 'none'` (`default-src 'none'` when the handler set none). HTTPS responses for a domain name (not an IP address or localhost) get `Strict-Transport-Security: max-age=31536000`. HTTPS accepts TLS 1.2 and 1.3 only. LiveKit's own API listens on 127.0.0.1 only; clients reach voice through `/livekit` on the server's port.
+
+## Server updates and health
+
+The standalone server can check GitHub releases for new versions, tell the owner, and (on Linux under systemd) install them itself. A server run by the desktop app updates together with the app and never checks. Settings live in `server.json` → `Updates` (`Mode`: `off` | `notify` (default) | `auto`; `Channel`: `stable` | `prerelease`; `Window`: `HH:mm`, local time; `RequireAttestation`: bool).
+
+```jsonc
+UpdateStatus {
+  "current": "2.0.0-alpha.10",          // "0.0.0-dev" for development builds (they never check)
+  "mode": "off" | "notify" | "auto", "channel": "stable" | "prerelease", "window": "04:00", "requireAttestation": false,
+  "managed": "desktop" | null,          // "desktop": updates with the desktop app; mode is "off" and can't change
+  "canCheck": true,
+  "auto": { "possible": false, "reason": "desktop" | "development" | "platform" | "guard" | "readonly" | null },
+  "latest": { "version": "2.0.0-alpha.11", "url": "https://github.com/quikmn/iskra-voice/releases/tag/v2.0.0-alpha.11",
+              "publishedAt": 1760000000000, "prerelease": false, "package": true } | null,   // newest newer release on the channel
+  "state": "idle" | "checking" | "downloading" | "verifying" | "installing" | "restarting" | "failed",
+  "progress": { "done": 1048576, "total": 66350346 } | null,   // while downloading (bytes)
+  "checkedAt": 1760000000000 | null, "error": "Couldn't reach GitHub to check for updates." | null,
+  "errorCode": "rate_limited" | "unreachable" | "download" | "install" | "sums" | "size" | "checksum" | "github_checksum"
+             | "package" | "wont_run" | "attestation_missing" | "attestation_unknown" | null,   // apps show their own text for it
+  "lastUpdate": { "from": "2.0.0-alpha.10", "to": "2.0.0-alpha.11", "ok": true } | null,  // ok false: it didn't start and was undone
+  "attested": true | false | null       // whether GitHub has a build attestation for the package being installed
+}
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `update.status` | | `{ status: UpdateStatus }` | owner |
+| `update.check` | | `{ status }` (after asking GitHub; a check within 30 s of the last one reuses it) | owner; limit 3, then one every 20 s |
+| `update.settings` | `mode?`, `channel?`, `window?` (`HH:mm`, exactly 5 chars), `requireAttestation?` | `{ status }` | owner; `bad_request` for unknown values, for any change on a desktop-hosted server, and for `auto` when `auto.possible` is false |
+| `update.install` | | `{ status }` (installing has started) | owner; `bad_request` when it can't install here or there's nothing newer (or no package for this system), `conflict` while an install runs |
+
+- **Events:** `update.status` `{ status }` goes to the owner's sessions whenever it changes (check results, download progress about every 2%, failures). `server.restarting` `{ reason: "update", version }` goes to every session about 5 seconds before the server restarts into a new version; apps tell members, then reconnect as usual.
+- **Checks:** unauthenticated GitHub API (`GET /repos/quikmn/iskra-voice/releases`, `If-None-Match` with the last ETag), 2 minutes after start and then every 6 hours (not when `Mode` is `off`, except "Check now"). On a rate-limit answer the next check waits until GitHub's reset time. Drafts and tags that aren't `v<version>` are ignored. "stable" means releases GitHub doesn't mark as prerelease (alphas are published as normal releases).
+- **Packages:** `iskra-server-<v>-linux-x64.tar.gz`, `-osx-arm64.tar.gz`, `-osx-x64.tar.gz`, `-win-x64.zip`. Downloads only from `https://github.com/quikmn/iskra-voice/releases/download/`, HTTPS only (redirects to GitHub's storage), at most 512 MB.
+- **Verification before anything is replaced:** the package's SHA-256 must match its line in the release's `SHA256SUMS.txt` and GitHub's own `digest` for the file (when the API gives one), and its size must match. Then `GET /repos/quikmn/iskra-voice/attestations/sha256:<hash>` is asked whether a build-provenance attestation exists (`attested`); with `RequireAttestation` an install without one fails. The server doesn't check Sigstore signatures itself (see docs/hosting.md for what this does and doesn't protect against). The archive may only hold plain files at its top level with plain names (no folders, links, `..` or absolute paths) and must contain `iskra-server`. The unpacked `iskra-server version` must print the new version (so a package that can't run on this machine is never swapped in).
+- **Automatic install** (`Mode: "auto"`): only when `auto.possible`: Linux x64, a release build, not desktop-hosted, the folder iskra-server runs from is writable, and `iskra-update-guard` ran just before this start (systemd `ExecStartPre`). It starts in the hour after `Window` when nobody is in a voice channel; a version that failed or was undone isn't retried automatically.
+- **Security log** (see "Security log" above): `update.check` (the owner, `{ latest }`), `update.settings` (the owner, `{ from, to }`), `update.install` (the owner `{ from, to }`, or no account with `{ from, to, auto: true }`), and with no account: `update.failed` `{ version, code }`, `update.installed` `{ from, to }` (confirmed), `update.rolledback` `{ from, to }`.
+- **Swap and rollback:** files are renamed into place inside the server's folder; the replaced ones go to `.update/previous/`. The server writes `.update/pending` and exits with code 75 (systemd's `Restart=on-failure` starts the new version). The new version confirms itself after running for 60 s. If it fails to start three times before that, `iskra-update-guard` puts the previous files back (`.update/rolled-back`), and the owner sees `lastUpdate.ok: false`.
+
+### Health
+
+`GET /health` → `200 { "iskra": 1, "status": "ok", "version": "2.0.0-alpha.10", "uptimeSeconds": 8123, "voice": "up" | "down" | "off" }`. No names, addresses, member counts or settings. For uptime monitors; `GET /` (`{ iskra: 1, name }`) stays as before.
+
+## Saved messages, reminders, scheduled messages and the inbox
+
+### Saved messages
+
+No new server messages: apps keep the list as a [synced preference](#synced-preferences) named `saved`, sealed like any other, so servers can't see what you saved (DMs included), only the size of the sealed list. The sealed JSON is compact: `{ "v": 1, "keys": [<server, account and group keys>], "items": [[ref, savedAt, removedAt, snap?]] }`, where `ref` is `["c", serverIdx, channelId, messageId]`, `["d", peerIdx, fromIdx, headerId]` or `["g", groupIdx, fromIdx, headerId]` (group = `"<serverKey>/<groupId>"`) and `snap` is `[authorIdx, authorName, preview, sentAt, where]` (a shortened preview, dropped from the oldest entries if needed to stay under the preference size limit). At most 150 saved messages.
+
+- Lists merge entry by entry (the newest save or removal per message wins), so saving on two devices at once loses nothing; apps write the merged list back wherever it differs. A removal is kept 30 days so other devices learn of it, then forgotten.
+- Channel messages are opened by id (`chat.history` with `around`); a deleted one shows as gone. DM and group messages open from the device's own history.
+
+### Reminders
+
+```jsonc
+Reminder { "id": 4, "dueAt": 1760000000000, "data": "<b64u>", "channelId": 1 | null, "messageId": 42 | null,
+           "createdAt": 1760000000000, "firedAt": 1760000000000 | null }
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `reminder.create` | `dueAt` (now − 1 min … now + 366 days), `data` (sealed, ≤ 2048 chars), `messageId?` (a channel or thread message you can read) | `{ reminder }` | anyone; ≤ 100 reminders per account here; 1/s, burst 10 |
+| `reminder.list` | | `{ reminders }` (yours, by time) | anyone |
+| `reminder.update` | `id, dueAt, data?` | `{ reminder }` (pending again: a snooze or a new time) | the owner (`not_found` for anyone else) |
+| `reminder.delete` | `id` | | the owner (done, or cancelled) |
+
+- `data` is opaque to the server: apps seal `{ ref, snap, note }` (which message, a snapshot of it, a note ≤ 500 chars) with XChaCha20-Poly1305 under `crypto_kdf_derive_from_key(32, 2, "iskrapri", accountSeed)`, with `"iskra/private/v1" || 0x00 || "reminder"` as associated data, as `nonce(24) || ciphertext`. For DMs and groups the server knows only the time; for a channel message it also keeps `messageId`, so the push can say where.
+- At `dueAt` (checked every second) the server sets `firedAt`, sends `reminder.due { reminder }` to every session of the account and pushes `{ kind: "reminder", reminder: <id>, title: "Reminder", body }` to its devices (not merged with other pushes; the body quotes the message only if it's a channel message the member can still read). A click opens `/#/open/<serverKey>/r/<id>`: the app opens the sealed data and jumps to the message. Fired reminders stay listed until deleted (30 days at most).
+- Events `reminder.updated { reminder }` and `reminder.deleted { id }` go to the account's other sessions. A reminder whose owner left the server is dropped when it's due.
+- Apps keep a DM reminder on a server they share with the person (any connected server otherwise), and a group reminder on the group's server.
+
+### Scheduled messages
+
+```jsonc
+Scheduled { "id": 7, "kind": "channel" | "dm" | "group", "channelId": 1 | null, "accountKey": "<peer>" | null, "groupId": "<id>" | null,
+            "version": 3 | null, "text": "…" | null, "replyTo": 41 | null, "envelope": {...} | null,
+            "sendAt": 1760000000000, "createdAt": 1760000000000, "status": "pending" | "sending" | "failed", "error": "…" | null }
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `scheduled.create` | `sendAt` and one of: `channelId, text (1–4000), replyTo?` · `accountKey, envelope (≤ 32 KB)` · `groupId, version (current), envelope (≤ 56 KB)` | `{ scheduled }` | members, not bots; channel: you can write there now; ≤ 50 per account here; 1/s, burst 10 |
+| `scheduled.list` | | `{ scheduled }` (yours, by time) | anyone |
+| `scheduled.update` | `id, sendAt?, text?` (channel) or `envelope?` (+ `version` for groups) | `{ scheduled }` (a failed one becomes pending again) | the owner; `conflict` while it's being sent |
+| `scheduled.delete` | `id` | | the owner |
+| `scheduled.send` | `id` | the send's result (`{ message }`) | the owner: sends it now (a failed one too); a refusal is `bad_request` with the reason, and it stays failed |
+
+- `sendAt`: from now − 1 min to now + 90 days for channel messages; encrypted ones at most 30 days after they were encrypted (prekeys are kept at least that long, see [forward secrecy](#forward-secrecy-envelope-v2)).
+- **Sending** happens at `sendAt` (checked every second) exactly as if the author sent it then: the server runs `chat.send`, `dm.send` or `group.send` for the author, through the same gates (timeouts, [rules](#server-rules), a moved server) and checks (permissions, [slowmode](#slowmode), [AutoMod](#automod), blocking, the group's current version). Channel sends use the nonce `scheduled-<id>`, so a send interrupted by a restart never posts twice. Sent: `scheduled.deleted { id, sent: true }` to the author's sessions. Refused: status `failed` with `error`, `scheduled.updated { scheduled }` to the author's sessions, and a push `{ kind: "scheduled", title: "Your scheduled message wasn't sent", body: <reason> }`. An author who left is dropped silently.
+- **End-to-end encryption:** the server can't encrypt for you, so apps encrypt DMs and group messages when they're scheduled, with the send time as the envelope's `sentAt`, and the server stores only the envelope. The trade-offs: devices the recipients add before it's sent can't read it; a group that changed in the meantime refuses it (`conflict`, so it fails; apps encrypt it again for the current members on "Send now"); and it's limited to 30 days ahead. Changing the time or the text means encrypting again. In exchange it goes out while all your apps are closed, and the server never sees the text.
+- Events `scheduled.updated { scheduled }` and `scheduled.deleted { id, sent }` go to the author's other sessions. No attachments yet.
+
+### Inbox
+
+| type | body | result | who |
+|---|---|---|---|
+| `inbox.list` | `before?` (a message id), `limit?` (1–50, default 30) | `{ items: [{ kind, channelId, at, message }], hasMore, next }` (newest first) | anyone |
+
+- When a message is sent, the server records who it pings, by the same rules as [push](#push-notifications-web-push): `mention` (`<@key>`), `reply` (to your message), `role` (a role you have, if it's mentionable or the author may ping groups) and `everyone` (`@everyone`, or `@here` for members online then, from people allowed to ping groups). One item per person and message (the strongest kind), never for the author, bots or two people where one blocked the other, and only for members who can read the channel. Each gets `inbox.new { item }`.
+- `inbox.list` leaves out messages you can't read any more (or whose author you blocked); deleting a message removes its items. Items are kept 60 days, at most 500 per account.
+- Read or unread isn't stored on the server: apps take it from their own read state, and after reconnecting count items newer than the last one they had seen as unread mentions. The app's inbox also lists unread DMs and groups, friend requests and reminders that are due.
+
+### Edit history
+
+| type | body | result | who |
+|---|---|---|---|
+| `chat.edits` | `id` | `{ versions: [{ text, at }] }` (earlier versions, oldest first; `at` is when that text was written) | the author, or members who can manage messages; `not_found` if you can't read the channel |
+
+- `chat.edit` keeps the text it replaces (at most 20 earlier versions per message; the oldest go first). Deleting a message deletes its history, and so does deleting the account that wrote it. DMs and groups can't be edited, so there is no history for them.
+## Voice channel chat and clips
+
+### Text chat in voice and stage channels
+
+Every `voice` and `stage` channel has its own text chat. It is an ordinary channel conversation: `chat.send`, `chat.edit`, `chat.delete`, `chat.history`, `chat.typing`, `chat.react`, `chat.pin`, `search`, replies, attachments, mentions, AutoMod, slowmode (`channel.update` `slowmode` works on voice and stage channels), rules and timeouts all work as in a text channel, with the voice channel's id as `channelId`.
+
+- **Who:** readers of the channel read it (`view`); posting (`chat.send`, `chat.typing`, pinning) needs `view` and `send`, from the channel's write level and role overrides, as in text channels. Speaking is the separate `speak` permission, so a role can be allowed to talk but not type, or the other way round. Not a reader: `not_found`.
+- Polls, threads, webhooks and forwarding stay text-channel only (`bad_request`).
+- Unread and mention counts work as for text channels (apps count them on the voice channel's row).
+
+### Clips
+
+A clip is the last few seconds (15–120) of what someone hears in a call, recorded **on their own device** from a rolling buffer. Nothing is recorded by the server or uploaded unless the person shares the file afterwards. The protocol only carries the consent side:
+
+| type | body | result | who |
+|---|---|---|---|
+| `voice.state` | adds `clips?` (bool): clips are turned on. Left out: unchanged | | anyone in voice |
+| `voice.clip` | `channelId` (the voice or stage channel you're in) | `{ message }` | someone LiveKit reports in that channel who has `clips: true` (not in it: `forbidden`; clips off or not a voice channel: `bad_request`); 3 at once, then one per 10 s (`rate_limited`) |
+
+- `voice.state` events list `clips` (bool) for every participant, so everyone in the call (and everyone who can see the channel) can see who has clips on. Joining starts with `clips: false`; apps send it again after joining.
+- `voice.clip` posts a **clip notice** to the channel's chat: a message by the person who saved the clip, with empty `text` and `clip: {}` (`clip` is null on other messages). It's sent to readers as `chat.message`. Clip notices can't be edited (`bad_request`), and the person who saved the clip can't delete it (`forbidden`); moderators with `manageMessages` who outrank them can.
+- **DM and group calls** have no channel: apps announce clips over the LiveKit room's data channel instead, on topic `iskra.clips`, as JSON `{ "v": 1, "clips": bool }` (sent on joining, on every change, and to each person who joins) and `{ "v": 1, "saved": true }` when a clip is saved. Apps show the same "clips on" mark and a "saved a clip" line in the call. This is a courtesy between honest apps: nothing can stop a modified app from recording what it receives, in any call.
+- Apps only offer clips to people who turned them on (off by default), and save a clip only while the notice can be shown (in a channel: after `voice.clip` succeeds).
+## Passkeys and key transparency
+
+### Passkeys for the app lock
+
+Local only; nothing goes over the wire. A passkey can open the [app lock](#keys-on-the-device) instead of (or next to) the passphrase. Its **PRF** output (WebAuthn `prf` extension, CTAP2 `hmac-secret`) is the secret, so the passkey actually protects the stored keys rather than gating a screen; the WebAuthn signatures aren't checked, since nothing is proven to a server.
+
+- Each passkey gets a slot in the vault record: `{ id (credential id), name (≤ 64), salt (32 random bytes), box, rpId, created, lastUsed? }`, at most 10.
+- `kek = HKDF-SHA256(ikm = PRF(salt), salt = salt, info = "iskra/passkey-kek/v1")` (WebCrypto), 32 bytes. `box = wrap(nonce(24) || crypto_secretbox(dataKey, nonce, kek))`, where `wrap` is the device wrap (OS keychain or the browser's non-extractable key), so a copy of the storage needs both the device and the passkey.
+- With only passkeys (no passphrase) the plain wrapped data key is removed (`data = ""`). Removing the last passkey without a passphrase puts the data key back under the device wrap. Adding, removing or changing a lock method first asks for the current passphrase, or (without one) one of the passkeys.
+- Creating: `navigator.credentials.create` with `userVerification: "required"`, `residentKey: "preferred"`, `excludeCredentials` (this device's passkeys), a random per-device user handle and `extensions.prf.eval.first = salt`. If the authenticator reports PRF but didn't evaluate it while creating, the app asks once more with `get`. No PRF: the passkey isn't used (the app says so; the passphrase stays available).
+- Unlocking: `navigator.credentials.get` with `allowCredentials` = this device's passkeys and `prf.evalByCredential` = each one's salt.
+- Relying party: the page's host in a browser; `app.iskra.foo` in the desktop app and the phone app. The desktop app's page is on `app://iskra`, where Chromium refuses WebAuthn, so its main process runs the ceremony in a small window on `https://app.iskra.foo/passkey`, served from memory in an in-memory session that answers nothing else (`desktop/src/passkeys.ts`; requests are checked JSON). The iOS app has `webcredentials:app.iskra.foo` (entitlement + `apple-app-site-association`), the Android app `delegate_permission/common.get_login_creds` in `assetlinks.json`.
+
+### Key transparency
+
+A server can't forge a signature, but it decides which key it shows as which person. Key transparency makes it hard to show different people different keys without being caught: each server keeps an append-only, hash-chained, signed **key log**, and clients check it, compare servers, and compare notes with each other.
+
+```jsonc
+KeyLogHead  { "seq": 12, "hash": "<b64u 32>", "at": 1760000000000, "sig": "<b64u 64>" }
+KeyLogEntry { "seq": 12, "data": "<JSON text, exactly as hashed>" }
+// data is one of:
+{ "kind": "join",    "at": 1760000000000, "key": "<accountKey>", "name": "Viktor" }   // a key first shown here
+{ "kind": "name",    "at": ..., "key": "<accountKey>", "name": "Vik" }                  // its name changed
+{ "kind": "rotate",  "at": ..., "rotation": Rotation }                                  // applied (Account key rotation)
+{ "kind": "contest", "at": ..., "rotation": Rotation }                                  // a second claim: disputed
+{ "kind": "resolve", "at": ..., "rotation": Rotation, "previousKey": "<accountKey>" }   // an admin settled it (rotation = the winner)
+```
+
+- `hash(seq) = SHA-256("iskra/keylog-entry/v1" || 0x00 || hash(seq-1) || u64be(seq) || utf8(data))`, with `hash(0)` = 32 zero bytes. Clients hash the `data` string exactly as received.
+- `sig = Ed25519.sign(serverSecret, "iskra/keylog-head/v1" || 0x00 || serverKey(32) || u64be(seq) || hash(seq) || u64be(at))`, with the server key clients pinned when joining. An empty log has `seq: 0`, zero hash, `at: 0`.
+- The server brings the log up to date from its members and rotations before it hands out a head (welcome, the requests below) and right after it applies a rotation, contest or resolution, so every key it shows, and every account move, is in the log. Entries never change: account moves rewrite account keys everywhere else, not here.
+
+| type | body | result | who |
+|---|---|---|---|
+| `keylog.head` | | `{ head: KeyLogHead }` | anyone |
+| `keylog.entries` | `after?` (seq, ≥ 0, default 0), `limit?` (1–100, default 100) | `{ entries: [KeyLogEntry] (oldest first), head: KeyLogHead }` | anyone |
+| `keylog.alert` | `kind` (`fork`, `rollback`, `bad-log`, `unlogged-key`, `unlogged-rotation`, `gossip-fork`), `seq?` | | anyone: an app found that about this server's log. Recorded in the owner's [security log](#security-log) as `keylog.alert`, nothing else |
+
+`welcome` gains `keyLog: KeyLogHead` (absent on older servers).
+
+**What clients check** (`client/src/core/keylog.ts`, `state/kt.ts`):
+
+1. **Continuity.** Each device stores the newest verified head per server and its recent hashes. A new head must be signed, never older (`rollback`), the same hash at the same position (`fork`), and reachable from the stored head through the entries (`fork`, `gap`); rotations inside entries must carry valid signatures (`bad-entry`).
+2. **The server's own word.** Every member a server shows must be in its log (a `join`, or the new key of a `rotate`/`resolve`); every rotation it announces must be in its log. The client reads the log once more before reporting, in case someone just joined.
+3. **Across servers.** Logs from different servers that move the same old key to different new keys are reported (`split`).
+4. **Gossip.** A DM to a friend carries, at most every 12 hours per friend (or when a head moved), a signed digest in its content: `kt: { v: 1, from, to, at, heads: [{ server, ...KeyLogHead }] (≤ 16, servers both use), rotations: [Rotation] (≤ 16, people on those servers and the sender), devices: [deviceKey] (≤ 20, the sender's own), sig }`, `sig = Ed25519.sign(fromAccountSecret, "iskra/kt-gossip/v1" || 0x00 || JSON.stringify([from, to, at, heads as [server, seq, hash, at, sig], rotations as [oldKey, newKey, rotatedAt, oldSig, newSig], devices]))`. The receiver checks it like a friend action (signed by the sender, from/to are the DM's, not more than 10 minutes in the future, at most 7 days old) and then: a friend's head at a position it has, with a different hash, is proof the server signed two histories (`gossip-fork`); a head ahead of its own is remembered and checked once its log gets there; a rotation that moves an old key somewhere other than where it follows it is reported (`gossip-conflict`); a device a server lists for the friend that the friend doesn't list (and is over an hour older than the digest) is reported (`device-unknown`). Older apps ignore `kt`.
+5. **Lookalikes.** Someone on a server using a friend's name with a different key, while the friend isn't on that server, is shown as a gentle warning.
+
+Findings are shown in Settings → App lock → Key transparency, as a banner above the chat for serious ones, and in the DM with the person concerned. The log can be read entry by entry in the app (an auditor's view), checked from the first entry.
+
+**Limits.** This is detection, not prevention: a server can still show a fake key to someone who has no friend in common to compare with and never compares safety numbers, and it can refuse to answer. Only the first server a person meets someone on vouches for the first key (trust on first use). There's no global log or third-party auditors; gossip only covers servers two friends share. See [security.md](../docs/security.md#key-transparency) for the comparison with CONIKS, Keybase and WhatsApp.
+
+## Docs channels
+
+A docs channel (`channel.create` with `kind: "docs"`) is a small wiki: **pages** with a title and Markdown text (the message syntax, plus tables, `![alt](/files/<id>/<name>)` pictures from this server's uploads, and `---` rules; apps show no pictures from anywhere else). Pages can have **sub-pages**, one level deep. Reading follows the channel's read access; creating, editing, moving and restoring follow its write access. Without a `writeRole`, a docs channel is created with `writeRole: "trusted"` (or the read role, if that is higher): everyone reads, trusted members and above edit. `chat.send` and the other message requests don't work in a docs channel (`bad_request`).
+
+```jsonc
+DocPage { "id": 12, "channelId": 7, "parentId": null | 3, "title": "Start here", "position": 0,
+          "version": 4,                       // goes up by one on every save
+          "createdBy": "<accountKey>", "createdAt": 1760000000000,
+          "updatedBy": "<accountKey>", "updatedAt": 1760000000000,
+          "size": 1834,                       // text, in UTF-8 bytes
+          "text": "# Welcome …" }             // only in docs.page.get / create / save / restore results
+Revision { "version": 3, "title": "…", "author": "<accountKey>", "createdAt": 1760000000000, "restoredFrom": null | 1, "size": 1200 }
+Home { "pageId": 12, "channelId": 7, "title": "Start here" }   // or null
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `docs.pages` | `channelId` | `{ pages: [DocPage without text], home: pageId \| null }` | readers |
+| `docs.page.get` | `id`, `version?` | `{ page }` with text; with `version`: `{ page (without text), revision: Revision + text }` | readers |
+| `docs.page.create` | `channelId, title` (1–100 chars, one line), `parentId?` (a top-level page in this channel), `text?` or `file?` | `{ page }` | writers; ≤ 500 pages per channel |
+| `docs.page.save` | `id, baseVersion`, `title?`, `text?` or `file?` (at least one) | `{ page }` | writers |
+| `docs.page.move` | `id, parentId?` (null: top level), `before?` (a page at the same level; null: last) | `{ page }` | writers; a page with sub-pages stays at the top level |
+| `docs.page.delete` | `id` | | whoever made the page (if they can write there), or a writer who can [pin](#pins) there (trusted+ or `manageMessages`). Its sub-pages go too |
+| `docs.page.history` | `id` | `{ page, revisions: [Revision] }` (newest first) | readers |
+| `docs.page.restore` | `id, version, baseVersion` | `{ page }` | writers |
+| `docs.home.get` | | `{ home }` | anyone |
+| `docs.home.set` | `pageId?` (null clears) | `{ home }` | `manageChannels` |
+| `docs.search` | `query` (as for [search](#pins-search-and-threads)), `channelId?`, `limit?` (1–25, default 10) | `{ results: [{ page, snippet, matches: [[start, length]] }] }` (best first; titles weigh more) | readers of each channel searched |
+
+- **Text:** at most **100 KB** of UTF-8. Line endings become `\n`; control characters (other than newline and tab) and invisible formatting characters (bidi overrides, zero-width spaces; not the zero-width joiner) are removed rather than refused, since pasted text often has some; trailing whitespace is trimmed. Text may be empty. A long page doesn't fit in a socket frame (64 KB), so apps upload it as a file (`upload.begin`, `PUT`) and pass `file`: the id of your own upload, UTF-8 text (`bad_request` otherwise). Uploads used this way are swept like any unused upload.
+- **Versions (optimistic concurrency):** every save names `baseVersion`, the version it started from. If the page has moved on, nothing is saved and the answer is `conflict`; apps then fetch the current page and offer to compare and merge (they kept the text they started from). Saving the same title and text again answers the page as it is, without a new version.
+- **Revisions:** every save keeps the new title and text as a revision. A save by the same person within 10 minutes of their previous one replaces that revision (so a burst of saves is one entry; the first revision of a page is always kept). At most 50 revisions per page; the oldest go first. Restoring saves an old revision's title and text as a new version (`restoredFrom` tells which). Revisions go when their page does.
+- **Pictures:** pages show this server's uploads by URL (`/files/<id>/…`); uploads named in any saved version of a page are kept by the upload sweeper while the page exists.
+- **Start here:** one page per server, shown at the top of everyone's channel list (when they can read its channel). Event `docs.home` `{ home }` goes to every session, each with its own view, when it's set, cleared, renamed or deleted.
+- **Events** to the channel's readers: `docs.page.updated` `{ page }` (without text) after a create, save, restore or move (a move sends one per page whose position changed), and `docs.page.deleted` `{ channelId, ids }`.
+- **Search:** SQLite FTS5 over titles and text (accents ignored, prefix matches), only in docs channels the requester can read right now. `snippet` is a piece of the page with the matches at `matches` (UTF-16 offsets).
+- **Safety:** AutoMod checks the title and text of every create, save and restore (`automod` with `what: "page"` in the audit entry); timed-out members get `forbidden`, and members who must still agree to the [rules](#server-rules) get `rules_required` for `docs.page.create`, `docs.page.save`, `docs.page.move`, `docs.page.delete` and `docs.page.restore`. Rate limits: `docs.page.create` 0.2/s (burst 5), `docs.page.save` 1/s (burst 10), `docs.search` 2/s (burst 10).
+- **Audit:** `docs.page.create`, `docs.page.delete`, `docs.page.restore` `{ channelId, channelName, pageId, title, extra: { version } | null }` and `docs.home.set` (the same, or `{ pageId: null }` when cleared). Page text is never recorded.
+- **Your data:** `data.export` includes `docsPages` (pages you made or last edited) and `docsRevisions` (every kept version you wrote, with its text). **Retention:** with `messagesDays` set, revisions older than that go in the hourly sweep, except each page's current version; pages stay. **Deleting an account** keeps its pages and revisions under its key (like its messages); with `messages: true` its revisions go, except a page's current version, which keeps its text with `author` `""`, and `createdBy`/`updatedBy` become `""` (apps show "someone who left").
+- **Links:** apps link to a page with `#/open/<serverKey>/c/<channelId>/p/<pageId>` (like message links), which opens the page in the app.
 
 ## Native push (phone apps)
 

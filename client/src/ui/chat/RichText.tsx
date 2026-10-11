@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { Modal } from '../bits'
+import { parseOpenRoute } from '../../core/pushRoute'
 import { Copy } from '../icons'
 import { formatTimestamp, highlight, type TimestampStyle } from './richTextRules'
 import './rich-text.css'
@@ -53,7 +54,10 @@ export function MaskedLink({ url, children }: { url: string; children: ReactNode
         title={url}
         onClick={(e) => {
           e.preventDefault()
-          setAsking(true)
+          // Links into the app (a message, a channel, a docs page) open right here, without asking.
+          const hash = url.includes('#/open/') ? url.slice(url.indexOf('#')) : ''
+          if (hash && parseOpenRoute(hash)) window.location.hash = hash
+          else setAsking(true)
         }}
       >
         {children}

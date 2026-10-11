@@ -25,8 +25,13 @@ import { QuickSwitcher } from './QuickSwitcher'
 import { useEscapeLayer } from './layers'
 import { EventsLayer } from './events/EventsLayer'
 import { DisputeNotices } from './keys/KeyScreens'
+import { KtNotices } from './keys/KeyTransparency'
 import { Shortcuts } from './organize/Shortcuts'
 import { RulesLayer } from './rules/Rules'
+import { ServerUpdateNotice } from './ServerUpdateNotice'
+import { ProductivityLayer } from './productivity/InboxButton'
+import { VoiceRoom } from './clips/VoiceRoom'
+import { ClipLayer } from './clips/ClipControls'
 
 export type Panel = 'none' | 'nav' | 'members'
 
@@ -55,10 +60,14 @@ export function Shell() {
       <main className="main-column">
         <RecoveryNudge />
         <DisputeNotices />
+        {server && <ServerUpdateNotice server={server} />}
+        <KtNotices />
         {server && stage ? (
-          isStageChannel
-            ? <StageView server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
-            : <VoiceStage server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
+          <VoiceRoom server={server}>
+            {isStageChannel
+              ? <StageView server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
+              : <VoiceStage server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />}
+          </VoiceRoom>
         ) : server ? (
           <ChatArea server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
         ) : hasServers || openConversation ? (
@@ -84,6 +93,8 @@ export function Shell() {
       <EventsLayer />
       <Shortcuts />
       <RulesLayer />
+      <ProductivityLayer />
+      <ClipLayer />
       {joining && <JoinDialog onClose={() => setJoining(false)} onCreate={() => { setJoining(false); setCreating(true) }} />}
       {creating && (desktop ? <CreateServerDialog onClose={() => setCreating(false)} /> : <StartServerDialog onClose={() => setCreating(false)} />)}
     </div>

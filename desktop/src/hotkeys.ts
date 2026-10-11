@@ -18,8 +18,8 @@ const MODIFIER_KEYS = new Map<number, number>([
 ])
 const ESCAPE = 1
 
-export type HotkeyAction = 'mute' | 'deafen'
-export const HOTKEY_ACTIONS: readonly HotkeyAction[] = ['mute', 'deafen']
+export type HotkeyAction = 'mute' | 'deafen' | 'clip'
+export const HOTKEY_ACTIONS: readonly HotkeyAction[] = ['mute', 'deafen', 'clip']
 
 export interface Hotkey {
   code: number

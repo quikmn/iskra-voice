@@ -71,7 +71,8 @@ jobs:
           v="$(node -p "require('./desktop/package.json').version")"
           grep -qF "releases/download/v$v/Iskra-Setup-$v.exe" site/index.html || { echo "::error::site/index.html doesn't link to $v"; exit 1; }
           echo "VERSION=$v" >> "$GITHUB_ENV"
-      # Only the site's own files (every page, the stylesheet, worker.js, .assetsignore; never wrangler.toml or .wrangler/),
+      # Only the site's own files (every page, the stylesheets, fonts/, .well-known/ (security.txt), worker.js, .assetsignore;
+      # never wrangler.toml or .wrangler/),
       # from a folder outside git, so Pages deploys to production as deploy-hero.ps1 did. Pages serves terms.html at /terms.
       - name: Deploy iskra.foo (Pages project iskra-hero-page)
         env:
@@ -81,7 +82,7 @@ jobs:
           out="$RUNNER_TEMP/site"
           mkdir -p "$out"
           cp site/*.html site/*.css site/worker.js site/.assetsignore "$out/"
-          cp -r site/fonts "$out/"
+          cp -r site/fonts site/.well-known "$out/"
           ls -la "$out"
           cd "$out"
           npx --yes "$WRANGLER" pages deploy . --project-name=iskra-hero-page --commit-dirty=true
@@ -108,6 +109,16 @@ jobs:
             done
             echo "::error::iskra.foo/$page isn't served after 2 minutes"; exit 1
           done
+      - name: Check security.txt
+        run: |
+          # RFC 9116 contact file; its Canonical line names this host.
+          for i in $(seq 1 8); do
+            if curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' "https://iskra.foo/.well-known/security.txt?deploy=$GITHUB_RUN_ID-$i" | grep -qxF 'Canonical: https://iskra.foo/.well-known/security.txt'; then
+              echo "iskra.foo/.well-known/security.txt answers"; exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::iskra.foo/.well-known/security.txt isn't served after 2 minutes"; exit 1
 
   webapp:
     if: inputs.webapp
@@ -150,6 +161,15 @@ jobs:
             sleep 15
           done
           echo "::error::app.iskra.foo doesn't serve $ASSET after 5 minutes"; exit 1
+      - name: Check security.txt
+        run: |
+          for i in $(seq 1 8); do
+            if curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' "https://app.iskra.foo/.well-known/security.txt?deploy=$GITHUB_RUN_ID-$i" | grep -qxF 'Canonical: https://app.iskra.foo/.well-known/security.txt'; then
+              echo "app.iskra.foo/.well-known/security.txt answers"; exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::app.iskra.foo/.well-known/security.txt isn't served after 2 minutes"; exit 1
 
   server:
     if: inputs.server_version != ''
@@ -178,12 +198,17 @@ jobs:
         if: always()
         run: rm -f "$RUNNER_TEMP/droplet_key" "$RUNNER_TEMP/known_hosts"
       - name: Check chat.iskra.foo
+        env:
+          VERSION: ${{ inputs.server_version }}
         run: |
+          # Servers with /health (after 2.0.0-alpha.10) must report the new version; older ones just have to answer.
           for i in $(seq 1 12); do
-            if curl -fsS --max-time 20 https://chat.iskra.foo/ | grep -q '"iskra"'; then echo 'chat.iskra.foo answers'; exit 0; fi
+            code="$(curl -sS -o "$RUNNER_TEMP/health.json" -w '%{http_code}' --max-time 20 https://chat.iskra.foo/health || true)"
+            if [ "$code" = 200 ] && grep -qF "\"version\":\"$VERSION\"" "$RUNNER_TEMP/health.json"; then echo "chat.iskra.foo runs $VERSION"; exit 0; fi
+            if [ "$code" = 404 ] && curl -fsS --max-time 20 https://chat.iskra.foo/ | grep -q '"iskra"'; then echo 'chat.iskra.foo answers'; exit 0; fi
             sleep 10
           done
-          echo "::error::chat.iskra.foo doesn't answer 200 after 2 minutes"; exit 1
+          echo "::error::chat.iskra.foo doesn't answer as $VERSION after 2 minutes"; cat "$RUNNER_TEMP/health.json" 2>/dev/null; exit 1
 
   # The push relay (relay/, a Cloudflare Worker): tests, deploy, then its secrets from the `release` environment
   # (docs/ci-cd.md "Push relay"). Secrets that aren't set yet are left out; the relay then says which platform is off.

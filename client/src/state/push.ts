@@ -227,8 +227,24 @@ export function openTarget(target: OpenTarget): void {
     void import('./dms').then(({ openConversation }) => openConversation(target.peer))
     return
   }
+  if (target.kind === 'reminder') {
+    // Its content is sealed: open it once the server is connected and its reminders are loaded.
+    const open = () => void import('./reminders').then(({ openReminder }) => openReminder(target.server, target.id))
+    if (useApp.getState().servers[target.server]?.status.state === 'online') return open()
+    const stop = useApp.subscribe((state) => {
+      if (state.servers[target.server]?.status.state !== 'online') return
+      stop()
+      open()
+    })
+    return
+  }
   selectServer(target.server)
   if (target.kind !== 'channel') return
+  if (target.pageId !== undefined) {
+    const { server, channelId, pageId } = target
+    void import('./docs').then(({ goToPage }) => goToPage(server, channelId, pageId))
+    return
+  }
   if (target.messageId === undefined) return selectChannel(target.server, target.channelId)
   // A message link: jump once this server is connected.
   const { server, channelId, messageId } = target

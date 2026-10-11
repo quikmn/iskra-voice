@@ -26,6 +26,7 @@ public sealed class RateLimiter(TimeProvider time)
         ["poll.create"] = (5, 0.2),
         ["poll.vote"] = (10, 2),
         ["sound.play"] = (3, 0.5),
+        ["voice.clip"] = (3, 0.1),
         ["stage.hand"] = (5, 0.5),
         ["watch.start"] = (8, 0.5),
         ["watch.control"] = (10, 4),
@@ -43,6 +44,14 @@ public sealed class RateLimiter(TimeProvider time)
         ["presence.idle"] = (10, 0.5),
         ["device.revoke.new"] = (10, 10 / 3600.0), // new revocations: 10 an hour, so a thief can't use up the 100 at once
         ["account.rotate"] = (10, 0.2),
+        ["update.check"] = (3, 0.05),
+        ["reminder.create"] = (10, 1),
+        ["scheduled.create"] = (10, 1),
+        ["docs.page.create"] = (5, 0.2),
+        ["docs.page.save"] = (10, 1),
+        ["docs.search"] = (10, 2),
+        ["data.export"] = (2, 1 / 600.0), // "Download my data": two, then one every 10 minutes
+        ["security.log.list"] = (20, 2),
         ["*"] = (40, 10),
     };
 

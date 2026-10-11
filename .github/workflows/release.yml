@@ -55,6 +55,8 @@ jobs:
       - name: Server bundle
         run: |
           v="${TAG#v}"
+          # The guard undoes an automatic update that doesn't start (systemd ExecStartPre, docs/hosting.md).
+          install -m 755 server/deploy/iskra-update-guard desktop/build/server-linux-x64/iskra-update-guard
           tar -czf "desktop/release/iskra-server-$v-linux-x64.tar.gz" -C desktop/build/server-linux-x64 .
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

@@ -14,7 +14,8 @@ public sealed class Router
     private readonly Dictionary<string, AsyncHandler> _asyncHandlers = new(StringComparer.Ordinal);
     private readonly ILogger<Router> _log;
 
-    public Router(ILogger<Router> log, Hosting.InternetHost internet, Backups.BackupService backups, Import.ImportService imports)
+    public Router(ILogger<Router> log, Hosting.InternetHost internet, Backups.BackupService backups, Import.ImportService imports,
+        DataExports exports, Updates.UpdateService updates)
     {
         _log = log;
         Add("ping", (_, _, _) => new { });
@@ -63,6 +64,12 @@ public sealed class Router
         LeaveFeature.Register(this);
         ReportFeature.Register(this);
         AccountFeature.Register(this);
+        UpdateFeature.Register(this, updates);
+        ProductivityFeature.Register(this);
+        DocsFeature.Register(this);
+        ComplianceFeature.Register(this, exports);
+        ClipFeature.Register(this);
+        KeyLogFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);
@@ -103,6 +110,20 @@ public sealed class Router
             _log.LogError(ex, "Handler {Type} failed", request.Type);
             session.Send(Frames.Error(request.Id, "internal", "Something went wrong on the server."));
         }
+    }
+
+    /// <summary>
+    /// Runs a request for a session without a connection (<see cref="Session.Detached"/>): the same gates and handler as a
+    /// live request. Returns the result body; refusals throw <see cref="RequestException"/>.
+    /// </summary>
+    public object? Invoke(Session session, Member me, string type, System.Text.Json.JsonElement body)
+    {
+        if ((ModerationFeature.Gate(session, me, type) ?? RulesFeature.Gate(session, me, type)) is { } refused) throw refused;
+        if (session.World.Moved is { } moved) throw new RequestException("moved", $"This server has moved to {moved.Url}.");
+        if (!_handlers.TryGetValue(type, out var handler)) throw new RequestException("unknown_type", $"Unknown type '{Truncate(type, 64)}'.");
+        var result = handler(session, me, new Body(body));
+        session.RunAfterReply();
+        return result;
     }
 
     private async Task RunAsync(Session session, Member me, Envelope request, AsyncHandler handler)

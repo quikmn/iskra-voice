@@ -43,7 +43,7 @@ public static class VoiceFeature
     {
         var muted = body.OptionalBool("muted") ?? false;
         var deafened = body.OptionalBool("deafened") ?? false;
-        s.Voice.SetFlags(me.AccountKey, muted, deafened);
+        s.Voice.SetFlags(me.AccountKey, muted, deafened, body.OptionalBool("clips"));
         return null;
     }
 }

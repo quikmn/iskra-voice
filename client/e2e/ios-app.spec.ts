@@ -33,7 +33,12 @@ test('inside the iPhone app: no Home Screen hints, no web push prompt', async ({
 test('Universal Links: apple-app-site-association names the app and only invite and device links', async ({ request }) => {
   const response = await request.get('/.well-known/apple-app-site-association')
   expect(response.ok()).toBe(true)
-  const { applinks } = (await response.json()) as { applinks: { details: { appIDs: string[]; components: Record<string, string>[] }[] } }
+  const { applinks, webcredentials } = (await response.json()) as {
+    applinks: { details: { appIDs: string[]; components: Record<string, string>[] }[] }
+    webcredentials: { apps: string[] }
+  }
   expect(applinks.details[0].appIDs).toEqual(['BWX2M8XSNZ.foo.iskra.app'])
+  // App lock passkeys in the app are app.iskra.foo's.
+  expect(webcredentials.apps).toEqual(['BWX2M8XSNZ.foo.iskra.app'])
   expect(applinks.details[0].components.map((c) => c['#'])).toEqual(['/join/*', '/link/*'])
 })

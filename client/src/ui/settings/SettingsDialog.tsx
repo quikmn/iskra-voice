@@ -7,6 +7,7 @@ import { leaveServer, type ServerState } from '../../state/store'
 import { Modal } from '../bits'
 import { VoiceSettingsSection } from '../dialogs/VoiceSettings'
 import { HotkeySettingsSection } from '../dialogs/HotkeySettings'
+import { ClipSettingsSection } from '../clips/ClipSettings'
 import { InputSettingsSection, OutputSettingsSection, ProcessingSettingsSection } from '../dialogs/AudioSettings'
 import { DesktopSettingsSection } from '../dialogs/DesktopSettings'
 import { desktop } from '../../platform/desktop'
@@ -22,10 +23,12 @@ import { DevicesSection } from '../dialogs/DevicesSection'
 import { IntegrationsSection } from '../dialogs/Integrations'
 import { BackupSection } from './BackupSection'
 import { LimitsSection } from './LimitsSection'
+import { UpdatesSection } from './UpdatesSection'
 import { LanguageSection } from './LanguageSection'
 import { RulesSection } from '../rules/Rules'
 import { ImportSection } from './ImportSection'
 import { AppLockSection, RotateKeySection } from '../keys/KeySettings'
+import { KeyTransparencySection } from '../keys/KeyTransparency'
 import { ChevronRight } from '../icons'
 import { AuditLogSection, BlockedSection } from '../moderation/SafetySettings'
 import { NicknameField } from '../organize/ServerSettings'
@@ -36,6 +39,8 @@ import { has } from '../../state/permissions'
 import { settingsSections, type SectionId } from './sections'
 import { AboutSection, AccountSection } from '../safety/AccountSection'
 import { ReportsSection } from '../safety/ReportsSection'
+import { PrivacySection } from './PrivacySection'
+import { SecurityLogSection } from './SecurityLogSection'
 import './settings.css'
 
 const PHONE = '(max-width: 760px)'
@@ -114,12 +119,13 @@ function Section({ id, server, onClose }: { id: SectionId; server: ServerState |
     case 'appearance': return <><AppearanceSection /><LanguageSection /><GifViewerSettings /></>
     case 'devices': return <DevicesSection />
     case 'recovery': return <><RecoveryKeySection /><RotateKeySection /></>
-    case 'security': return <AppLockSection />
+    case 'security': return <><AppLockSection /><KeyTransparencySection /></>
     case 'notifications': return <NotificationSettingsSection server={server} />
-    case 'voice': return <><InputSettingsSection /><VoiceSettingsSection /><HotkeySettingsSection /><ProcessingSettingsSection /><OutputSettingsSection /><SoundboardSettingsSection /></>
+    case 'voice': return <><InputSettingsSection /><VoiceSettingsSection /><HotkeySettingsSection /><ClipSettingsSection /><ProcessingSettingsSection /><OutputSettingsSection /><SoundboardSettingsSection /></>
     case 'blocked': return <BlockedSection />
     case 'desktop': return <DesktopSettingsSection />
     case 'account': return <AccountSection />
+    case 'privacy': return <PrivacySection />
     case 'about': return <AboutSection />
   }
   if (!server) return null
@@ -136,8 +142,10 @@ function Section({ id, server, onClose }: { id: SectionId; server: ServerState |
     case 'rules': return <RulesSection server={server} />
     case 'backup': return <BackupSection server={server} />
     case 'import': return <ImportSection server={server} />
+    case 'updates': return <UpdatesSection server={server} />
     case 'roles': return <RolesSection server={server} />
     case 'automod': return <AutoModSection server={server} />
+    case 'securityLog': return <SecurityLogSection server={server} />
   }
 }
 

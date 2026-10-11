@@ -17,6 +17,9 @@ import './audio.css'
 import { partyFor, useWatch } from '../state/watch'
 import { WatchButton, WatchPartyPanel } from './watch/WatchParty'
 import { userMenuProps } from './people/userMenuProps'
+import { VoiceChatButton } from './clips/VoiceRoom'
+import { ClipButton, ClipsMark, ClipsStrip } from './clips/ClipControls'
+import { setWatchedTile } from '../state/clips'
 
 /** The call screen: video tiles (screen shares first) and everyone's avatar, with call controls. */
 export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle: (panel: Panel) => void }) {
@@ -33,6 +36,8 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
   // A watch party takes the big spot; screen shares then sit with the other tiles.
   const focused = party ? null : (tiles.find((t) => t.id === focusId) ?? tiles.find((t) => t.source === 'screen') ?? null)
   const others = tiles.filter((t) => t !== focused)
+  // A clip keeps the screen share shown big.
+  useEffect(() => setWatchedTile(focused?.id ?? null), [focused?.id])
 
   return (
     <div className="stage">
@@ -45,6 +50,7 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
           {channel?.name ?? t('voice.stage.voice')}
         </h1>
         <span className="spacer" />
+        <VoiceChatButton server={server} channelId={session.channelId} />
         <button className="icon-button members-toggle" onClick={() => onToggle('members')} aria-label={t('voice.stage.members')} title={t('voice.stage.members')}>
           <Users />
         </button>
@@ -73,6 +79,7 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
                 <Avatar name={name} accountKey={p.accountKey} size={72} />
                 <span className="tile-label">
                   {name}
+                  <ClipsMark on={p.clips} />
                   {p.deafened ? <HeadphonesOff size={14} /> : p.muted ? <MicOff size={14} /> : null}
                 </span>
               </div>
@@ -139,6 +146,8 @@ export function CallControls({ onLeave, extra }: { onLeave?: () => void; extra?:
   const [shareMenu, setShareMenu] = useState<HTMLElement | null>(null)
   const speak = session.canSpeak
   return (
+    <>
+    <ClipsStrip />
     <div className="call-controls" role="toolbar" aria-label={t('voice.stage.controls')}>
       {speak && (
         <button className={`call-button ${muted ? 'off' : ''} ${localSpeaking && !muted ? 'talking' : ''}`} onClick={() => void toggleMute()} aria-pressed={muted} aria-label={muted ? t('voice.unmute') : t('voice.mute')} title={muted ? t('voice.unmute') : t('voice.mute')}>
@@ -164,9 +173,11 @@ export function CallControls({ onLeave, extra }: { onLeave?: () => void; extra?:
       {extra}
       {shareMenu && <ScreenShareMenu anchor={shareMenu} onClose={() => setShareMenu(null)} />}
       <SoundboardButton variant="call" />
+      <ClipButton />
       <button className="call-button hang-up" onClick={() => (onLeave ? onLeave() : void leaveVoice())} aria-label={onLeave ? t('voice.hangUp') : t('voice.leaveCall')} title={onLeave ? t('voice.hangUp') : t('voice.leaveCall')}>
         <PhoneOff />
       </button>
     </div>
+    </>
   )
 }

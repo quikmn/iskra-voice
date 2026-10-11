@@ -366,7 +366,7 @@ public class KeyTests
         Assert.Equal("applied", result.Body().GetProperty("status").GetString());
 
         // The old key is gone from every column of every table, except the signed statements.
-        var signed = new HashSet<string> { "account_rotations", "rotation_handovers", "device_revocations", "devices", "group_changes" };
+        var signed = new HashSet<string> { "account_rotations", "rotation_handovers", "device_revocations", "devices", "group_changes", "keylog" };
         using (var db = new SqliteConnection($"Data Source={Path.Combine(server.WorldPath, "iskra.db")};Mode=ReadOnly;Pooling=False"))
         {
             db.Open();

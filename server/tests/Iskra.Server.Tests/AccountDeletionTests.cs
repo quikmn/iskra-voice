@@ -10,7 +10,7 @@ public class AccountDeletionTests
 {
     private static long Now => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
-    private static object Deletion(TestIdentity who, bool messages, long? at = null, Key? signWith = null)
+    internal static object Deletion(TestIdentity who, bool messages, long? at = null, Key? signWith = null)
     {
         var deletedAt = at ?? Now;
         var account = Ed25519.PublicKeyOf(who.Account);

@@ -17,6 +17,7 @@ import { ActivityDetector } from './activity'
 import { applyOpenAtLogin, loadDesktopSettings, saveDesktopSettings, startedHidden } from './settings'
 import { Updates, type UpdateStatus } from './updates'
 import { languageFromLocales, parseLanguage, setDesktopLanguage, text } from './i18n'
+import { ceremonyScript, parseCreate, parseGet, PASSKEY_ORIGIN, PASSKEY_PAGE, passkeyPage, type CreateRequest, type GetRequest } from './passkeys'
 
 /** Chromium's media::AudioDeviceDescription::kLoopbackWithoutChromeId: system audio minus this app's own. */
 const LOOPBACK_WITHOUT_ISKRA = 'loopbackWithoutChrome'
@@ -457,6 +458,53 @@ ipcMain.handle('iskra:keychain-decrypt', (event, data: unknown) => {
     return safeStorage.decryptString(Buffer.from(data, 'base64url'))
   } catch {
     return null
+  }
+})
+
+// Passkeys for the app lock: the ceremony runs in a small window on https://app.iskra.foo (see passkeys.ts).
+let passkeyBusy = false
+function runPasskey(op: 'create' | 'get', request: CreateRequest | GetRequest): Promise<unknown> {
+  // In memory only, and it never reaches the network: every https request gets the one local page (or a 404).
+  const ses = session.fromPartition('iskra-passkeys')
+  if (!ses.protocol.isProtocolHandled('https')) {
+    ses.protocol.handle('https', (req) => req.url === PASSKEY_PAGE
+      ? new Response(passkeyPage(text().passkey.title, text().passkey.waiting), { headers: { 'content-type': 'text/html; charset=utf-8' } })
+      : new Response('', { status: 404 }))
+    ses.setPermissionRequestHandler((_c, _p, callback) => callback(false))
+  }
+  const ceremony = new BrowserWindow({
+    parent: window ?? undefined, modal: !!window, width: 380, height: 180, resizable: false, minimizable: false, maximizable: false,
+    title: text().passkey.title, icon: ICON, backgroundColor: '#0B0B14', autoHideMenuBar: true, show: false,
+    webPreferences: { session: ses, sandbox: true, contextIsolation: true, nodeIntegration: false, devTools: !app.isPackaged },
+  })
+  ceremony.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  ceremony.webContents.on('will-navigate', (e) => e.preventDefault())
+  return new Promise((resolve) => {
+    let done = false
+    const finish = (result: unknown) => {
+      if (done) return
+      done = true
+      resolve(result)
+      if (!ceremony.isDestroyed()) ceremony.destroy()
+    }
+    ceremony.on('closed', () => finish({ ok: false, name: 'NotAllowedError', message: 'Closed' }))
+    ceremony.once('ready-to-show', () => {
+      ceremony.show()
+      ceremony.focus()
+      ceremony.webContents.executeJavaScript(ceremonyScript(op, request), true).then(finish, () => finish({ ok: false, name: 'Error', message: 'Failed' }))
+    })
+    void ceremony.loadURL(PASSKEY_PAGE).catch(() => finish({ ok: false, name: 'NotSupportedError', message: `Couldn't open ${PASSKEY_ORIGIN}` }))
+  })
+}
+ipcMain.handle('iskra:passkey', async (event, op: unknown, raw: unknown) => {
+  if (!fromApp(event) || passkeyBusy) return { ok: false, name: 'NotAllowedError', message: 'Busy' }
+  const request = op === 'create' ? parseCreate(raw) : op === 'get' ? parseGet(raw) : null
+  if (!request) return { ok: false, name: 'NotSupportedError', message: 'Bad request' }
+  passkeyBusy = true
+  try {
+    return await runPasskey(op as 'create' | 'get', request)
+  } finally {
+    passkeyBusy = false
   }
 })
 

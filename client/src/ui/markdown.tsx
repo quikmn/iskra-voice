@@ -165,6 +165,9 @@ function inline(text: string, ctx: MarkdownContext, depth = 0, links = true): Re
   return out
 }
 
+/** Inline formatting only (docs tables use it for cells). */
+export const renderInline = (text: string, ctx: MarkdownContext): ReactNode[] => inline(text, ctx)
+
 /** Renders a whole message: fenced code blocks and quotes, then inline formatting per line. */
 export function renderMarkdown(text: string, ctx: MarkdownContext): ReactNode {
   const blocks: ReactNode[] = []

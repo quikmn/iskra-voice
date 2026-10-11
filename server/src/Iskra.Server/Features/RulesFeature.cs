@@ -21,6 +21,7 @@ public static class RulesFeature
         "voice.join", "sound.play", "call.start", "call.accept", "stage.hand", "stage.start",
         "forum.post.create", "forum.post.update", "event.create", "event.update", "event.interest",
         "watch.start", "watch.control", "watch.chat", "invite.create",
+        "docs.page.create", "docs.page.save", "docs.page.move", "docs.page.delete", "docs.page.restore",
     ];
 
     public static void Register(Router router)

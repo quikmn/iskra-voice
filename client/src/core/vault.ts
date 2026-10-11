@@ -29,8 +29,27 @@ export interface LockParams {
 export interface VaultRecord {
   v: 1
   wrap: WrapKind
+  /** The wrapped data key, the wrapped passphrase box (with `lock`), or '' when only passkeys open it. */
   data: string
   lock?: LockParams
+  /** Passkeys that open the app lock, each with its own wrapped copy of the data key. */
+  passkeys?: PasskeySlot[]
+  /** The WebAuthn user handle for this device's passkeys (random, so it says nothing about the account). */
+  passkeyUser?: string
+}
+
+/** One passkey: the data key under a key derived from that passkey's PRF output (see "Keys on the device"). */
+export interface PasskeySlot {
+  /** The credential id (b64u). */
+  id: string
+  name: string
+  /** The PRF input for this passkey, also the HKDF salt (32 random bytes, b64u). */
+  salt: string
+  /** wrap(nonce(24) || secretbox(dataKey, kek)), b64u. */
+  box: string
+  rpId: string
+  created: number
+  lastUsed?: number
 }
 
 export interface SealedValue {
@@ -120,4 +139,87 @@ export function browserWrapper(loadKey: () => Promise<CryptoKey | undefined>, sa
       return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: data.slice(0, 12) }, k, data.slice(12)))
     },
   }
+}
+
+// ── Passkeys (WebAuthn PRF) ─────────────────────────────────────────────────
+
+export const PASSKEY_CONTEXT = 'iskra/passkey-kek/v1'
+export const MAX_PASSKEYS = 10
+
+/** The key-encryption key: HKDF-SHA256(ikm = PRF output, salt = the slot's salt, info = context), 32 bytes. */
+export async function passkeyKek(prf: Uint8Array, salt: Uint8Array): Promise<Uint8Array> {
+  if (prf.length < 32) throw new Error('The passkey gave too short a secret.')
+  const ikm = await crypto.subtle.importKey('raw', prf as Uint8Array<ArrayBuffer>, 'HKDF', false, ['deriveBits'])
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'HKDF', hash: 'SHA-256', salt: salt as Uint8Array<ArrayBuffer>, info: new TextEncoder().encode(PASSKEY_CONTEXT) }, ikm, 256)
+  return new Uint8Array(bits)
+}
+
+/** Locked by a passphrase or by at least one passkey. */
+export const isLocked = (record: VaultRecord): boolean => !!record.lock || (record.passkeys?.length ?? 0) > 0
+
+/** A fresh PRF input / salt for a new passkey. */
+export const newPasskeySalt = (): Uint8Array => sodium.randombytes_buf(32)
+
+async function sealToKek(dataKey: Uint8Array, kek: Uint8Array, wrapper: KeyWrapper): Promise<string> {
+  const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES)
+  return b64u(await wrapper.wrap(new Uint8Array([...nonce, ...sodium.crypto_secretbox_easy(dataKey, nonce, kek)])))
+}
+
+/** Adds a passkey's slot. The data key must be open (the person is setting it up in Settings). */
+export async function addPasskeySlot(
+  record: VaultRecord, dataKey: Uint8Array, wrapper: KeyWrapper,
+  passkey: { id: string; name: string; salt: Uint8Array; prf: Uint8Array; rpId: string; now?: number },
+): Promise<VaultRecord> {
+  const slots = record.passkeys ?? []
+  if (slots.length >= MAX_PASSKEYS) throw new Error(`At most ${MAX_PASSKEYS} passkeys.`)
+  if (slots.some((s) => s.id === passkey.id)) throw new Error('That passkey is already set up.')
+  const kek = await passkeyKek(passkey.prf, passkey.salt)
+  const slot: PasskeySlot = {
+    id: passkey.id, name: passkey.name.slice(0, 64), salt: b64u(passkey.salt), box: await sealToKek(dataKey, kek, wrapper),
+    rpId: passkey.rpId, created: passkey.now ?? Date.now(),
+  }
+  sodium.memzero(kek)
+  // With only passkeys, nothing else may hold the data key.
+  const data = record.lock ? record.data : ''
+  return { ...record, data, passkeys: [...slots, slot] }
+}
+
+/** The data key from a passkey's PRF output, or null if this isn't one of ours or the output is wrong. */
+export async function openPasskeySlot(record: VaultRecord, wrapper: KeyWrapper, id: string, prf: Uint8Array): Promise<Uint8Array | null> {
+  const slot = record.passkeys?.find((s) => s.id === id)
+  if (!slot) return null
+  const kek = await passkeyKek(prf, fromB64u(slot.salt))
+  try {
+    const box = await wrapper.unwrap(fromB64u(slot.box))
+    const n = sodium.crypto_secretbox_NONCEBYTES
+    return sodium.crypto_secretbox_open_easy(box.slice(n), box.slice(0, n), kek)
+  } catch {
+    return null
+  } finally {
+    sodium.memzero(kek)
+  }
+}
+
+/** Removes a passkey's slot. Without any lock left, the data key goes back under the device wrap alone. */
+export async function removePasskeySlot(record: VaultRecord, id: string, dataKey: Uint8Array, wrapper: KeyWrapper): Promise<VaultRecord> {
+  const passkeys = (record.passkeys ?? []).filter((s) => s.id !== id)
+  const next: VaultRecord = { ...record, passkeys }
+  if (!passkeys.length) delete next.passkeys
+  if (!isLocked(next)) next.data = b64u(await wrapper.wrap(dataKey))
+  return next
+}
+
+/** Sets, changes or (null) removes the passphrase, keeping any passkeys. */
+export async function withPassphrase(record: VaultRecord, dataKey: Uint8Array, wrapper: KeyWrapper, passphrase: string | null, cost = DEFAULT_LOCK): Promise<VaultRecord> {
+  const next: VaultRecord = { ...record, wrap: wrapper.kind }
+  if (passphrase) {
+    const { box, params } = lockDataKey(dataKey, passphrase, cost)
+    next.data = b64u(await wrapper.wrap(box))
+    next.lock = params
+  } else {
+    delete next.lock
+    next.data = next.passkeys?.length ? '' : b64u(await wrapper.wrap(dataKey))
+  }
+  return next
 }

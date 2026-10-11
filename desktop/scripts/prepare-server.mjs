@@ -3,7 +3,7 @@
 // LiveKit comes from .tools/<rid>/ (scripts/get-livekit.sh <rid>), or .tools/ for this machine's own platform.
 // ISKRA_UNSIGNED=1 skips signing the Windows server binary.
 import { execFileSync } from 'node:child_process'
-import { chmodSync, copyFileSync, existsSync, mkdirSync, rmSync } from 'node:fs'
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -11,6 +11,8 @@ const here = dirname(fileURLToPath(import.meta.url))
 const root = resolve(here, '..', '..')
 const hostRid = `${process.platform === 'win32' ? 'win' : process.platform === 'darwin' ? 'osx' : 'linux'}-${process.arch === 'arm64' ? 'arm64' : 'x64'}`
 const rids = process.argv.length > 2 ? process.argv.slice(2) : [hostRid]
+// The server reports this version (/health, Settings → Updates) and compares it with new releases.
+const version = JSON.parse(readFileSync(resolve(here, '..', 'package.json'), 'utf8')).version
 
 for (const rid of rids) {
   const match = /^(win|osx|linux)-(x64|arm64)$/.exec(rid)
@@ -24,7 +26,7 @@ for (const rid of rids) {
   mkdirSync(out, { recursive: true })
   execFileSync('dotnet', [
     'publish', join(root, 'server', 'src', 'Iskra.Server'), '-c', 'Release', '-r', rid, '--self-contained',
-    '-p:PublishSingleFile=true', '-p:IncludeNativeLibrariesForSelfExtract=true', '-p:DebugType=none', '-o', out,
+    '-p:PublishSingleFile=true', '-p:IncludeNativeLibrariesForSelfExtract=true', '-p:DebugType=none', `-p:Version=${version}`, '-o', out,
   ], { stdio: 'inherit' })
 
   const livekit = [join(root, '.tools', rid, exe('livekit-server')), ...(rid === hostRid ? [join(root, '.tools', exe('livekit-server'))] : [])].find(existsSync)

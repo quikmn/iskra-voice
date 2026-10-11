@@ -7,9 +7,9 @@ import {
 import { PushToTalkHint, usePushToTalkStatus } from './VoiceSettings'
 import './hotkeys.css'
 
-const NAMES = { mute: 'settings.hotkeys.mute', deafen: 'settings.hotkeys.deafen' } as const satisfies Record<HotkeyAction, string>
+const NAMES = { mute: 'settings.hotkeys.mute', deafen: 'settings.hotkeys.deafen', clip: 'clips.hotkey' } as const satisfies Record<HotkeyAction, string>
 
-/** Mute and deafen keybinds: global on desktop (even in games), in-app shortcuts in the browser. */
+/** Mute, deafen and clip keybinds: global on desktop (even in games), in-app shortcuts in the browser. */
 export function HotkeySettingsSection() {
   const { t } = useTranslation()
   const global = globalHotkeys()

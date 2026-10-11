@@ -138,7 +138,8 @@ function open(wire: WireDm): Dm {
   const identity = useApp.getState().identity!
   try {
     // Messages sent to or from an earlier key of the same person (a checked rotation) belong to their current key.
-    const { text, header, call, forward, files, friend: rawFriend } = decryptDm(identity, wire.envelope, wire.from, wire.to, sameAccount)
+    const { text, header, call, forward, files, friend: rawFriend, kt } = decryptDm(identity, wire.envelope, wire.from, wire.to, sameAccount)
+    if (kt) gossip?.receive(wire.from, wire.to, kt)
     // A friend action must carry a good signature from the sender; never shown as plain text if it doesn't.
     const friend = rawFriend === undefined ? undefined : checkFriend(rawFriend, wire.from, wire.to, Date.now(), sameAccount)
     if (friend === null) throw new DmError("The sender's device couldn't be verified.")
@@ -344,13 +345,13 @@ export async function devicesOf(serverKey: string, accountKey: string): Promise<
  * Encrypts for everyone who should read it (their devices and ours), forward secret where the devices
  * have prekeys, never for revoked devices. Used for DMs and call invites.
  */
-export async function encryptFor(serverKey: string, peer: string, content: DmContent): Promise<DmEnvelope> {
+export async function encryptFor(serverKey: string, peer: string, content: DmContent, sentAt = Date.now()): Promise<DmEnvelope> {
   const identity = useApp.getState().identity
   if (!identity) throw new DmError(t('dms.errors.noAccount'))
   const mine = me()
   const [theirs, ours, ownRevoked] = await Promise.all([bundleOf(serverKey, peer), bundleOf(serverKey, mine), ownRevokedDevices(), ensurePrekeys()])
   const revokedDevices = [...revokedSet(peer, theirs.revoked), ...revokedSet(mine, ours.revoked), ...ownRevoked]
-  return encryptDm(identity, peer, theirs.devices, peer === mine ? [] : ours.devices, content, Date.now(), {
+  return encryptDm(identity, peer, theirs.devices, peer === mine ? [] : ours.devices, content, sentAt, {
     prekeys: [...(theirs.prekeys ?? []), ...(ours.prekeys ?? [])],
     revokedDevices,
   })
@@ -370,7 +371,8 @@ export async function sendDm(peer: string, text: string, extra: Pick<DmContent, 
   const isOurs = (m: Dm) => m.id === id && m.from === mine
   try {
     if (!identity || !route) throw new DmError(t('dms.errors.noSharedServer'))
-    const envelope = await encryptFor(route, peer, { text, ...extra })
+    const kt = await gossip?.attach(peer).catch(() => undefined)
+    const envelope = await encryptFor(route, peer, { text, ...extra, ...(kt ? { kt } : {}) })
     // The placeholder takes the real id before sending, so our own dm.message echo (which can arrive before the
     // request's result) merges into it instead of showing the message twice.
     const sent: Dm = { id: envelope.header.id, from: mine, to: peer, text, sentAt: envelope.header.sentAt, ...extra }
@@ -383,6 +385,12 @@ export async function sendDm(peer: string, text: string, extra: Pick<DmContent, 
       messages: c.messages.map((m) => (isOurs(m) ? { ...m, pending: 'failed' as const, error: dmErrorText(e) } : m)),
     }))
   }
+}
+
+/** Key transparency gossip rides along in DMs (state/kt.ts): a signed digest out, a checked one in. */
+let gossip: { attach(peer: string): Promise<Record<string, unknown> | undefined>; receive(from: string, to: string, raw: Record<string, unknown>): void } | null = null
+export function setDmGossip(handler: NonNullable<typeof gossip>): void {
+  gossip = handler
 }
 
 export function discardDm(peer: string, id: string): void {

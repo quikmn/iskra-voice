@@ -12,7 +12,7 @@ namespace Iskra.Server.Push;
 
 /// <summary>What one push says. <see cref="Tag"/> groups pushes about the same conversation (they replace each other).</summary>
 public sealed record PushNote(string Kind, string Tag, string Title, string Body, string FromName,
-    long? ChannelId = null, long? MessageId = null, string? Peer = null, bool Coalesce = true, int TtlSeconds = 24 * 3600, string? Group = null);
+    long? ChannelId = null, long? MessageId = null, string? Peer = null, bool Coalesce = true, int TtlSeconds = 24 * 3600, string? Group = null, long? Reminder = null);
 
 /// <summary>
 /// Web Push for members' devices that aren't looking at Iskra right now: mentions, replies, DMs (never their content)
@@ -353,6 +353,7 @@ public sealed partial class PushService
             messageId = note.MessageId,
             peer = note.Peer,
             group = note.Group,
+            reminder = note.Reminder,
             count,
             at = _time.GetUtcNow().ToUnixTimeMilliseconds(),
         };

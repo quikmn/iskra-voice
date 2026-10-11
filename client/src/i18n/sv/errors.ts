@@ -25,6 +25,11 @@ export const errors: Messages['errors'] = {
     timeout: 'Servern tog för lång tid på sig att svara.',
   },
   requests: {
+    update_install: {
+      bad_request: 'Servern kan inte installera den uppdateringen.',
+      conflict: 'En uppdatering installeras redan.',
+    },
+    update_settings: { bad_request: 'Den inställningen går inte att använda på den här servern.' },
     call_start: {
       busy: 'De är i ett annat samtal.',
       rate_limited: 'För många samtal på kort tid. Försök igen om en minut.',

@@ -61,7 +61,7 @@ export interface DesktopBridge {
   captureHotkey?(): Promise<{ code: number; mods: number; name: string } | null>
   cancelHotkeyCapture?(): Promise<void>
   /** Only the action ever arrives, never which keys were pressed. */
-  onHotkey?(callback: (action: 'mute' | 'deafen') => void): () => void
+  onHotkey?(callback: (action: 'mute' | 'deafen' | 'clip') => void): () => void
   /** macOS: opens a Privacy & Security page in System Settings. */
   openSystemSettings(pane: 'accessibility' | 'screen' | 'microphone' | 'camera'): Promise<void>
   /** Tells the shell the app's language, for the tray and native dialogs (older shells don't have it). */
@@ -75,6 +75,8 @@ export interface DesktopBridge {
   pickScreen(id: string | null): void
   /** An incoming call: flash the taskbar and bring the window up (without stealing focus). */
   callAlert?(on: boolean): Promise<void>
+  /** WebAuthn ceremonies for app lock passkeys, run by the main process on https://app.iskra.foo (desktop/src/passkeys.ts). */
+  passkey?: { run(op: 'create' | 'get', request: unknown): Promise<{ ok: boolean; name?: string; message?: string } & Record<string, unknown>> }
   /** The OS keychain (Electron safeStorage). basic: Linux without a keyring, which protects nothing. */
   keychain?: {
     status(): Promise<'keyring' | 'basic' | 'unavailable'>
