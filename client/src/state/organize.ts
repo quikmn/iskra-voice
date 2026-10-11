@@ -2,9 +2,9 @@
 // levels and mutes (kept by the server for your account, so every device and push follow them), and nicknames.
 import { create } from 'zustand'
 import type { Category, Events, Member, NotifyLevel, NotifySetting } from '../core/protocol'
-import { connectionFor, onServerEvent, onWelcomeHook, type ServerState } from './store'
+import { connectionFor, onServerEvent, onWelcomeHook } from './store'
 import { knownThread } from './threads'
-import { channelBadges, effectiveNotify, nextMuteEnd, notifyKey, type EffectiveNotify, type NotifyMap } from './organizeLogic'
+import { effectiveNotify, nextMuteEnd, notifyKey, type EffectiveNotify, type NotifyMap } from './organizeLogic'
 
 interface OrganizeState {
   categories: Record<string, Category[]>
@@ -91,19 +91,6 @@ export function useCategories(serverKey: string): Category[] {
   return useOrganize((s) => s.categories[serverKey]) ?? NONE
 }
 const NONE: Category[] = []
-
-/** The server icon's badge and dot: mentions where the level isn't "Nothing", unread only where nothing is muted. */
-export function serverBadges(server: ServerState): { pings: number; unread: number } {
-  let pings = 0
-  let unread = 0
-  const ids = new Set([...Object.keys(server.unread), ...Object.keys(server.mentions)].map(Number))
-  for (const id of ids) {
-    const shown = channelBadges(server.unread[id] ?? 0, server.mentions[id] ?? 0, notifyFor(server.key, id))
-    pings += shown.pings
-    if (shown.unread) unread += server.unread[id] ?? 0
-  }
-  return { pings, unread }
-}
 
 // ── Collapsing (this device) ────────────────────────────────────────────────
 

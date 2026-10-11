@@ -3,13 +3,15 @@
 import { create } from 'zustand'
 import { plainText } from '../ui/markdown'
 import { senderRules } from './senderRules'
-import { activeChannelId, onServerEvent, useApp } from './store'
-import { conversationLabel, isViewingThread } from './threads'
+import { onServerEvent, useApp } from './store'
+import { conversationLabel, useThreads } from './threads'
 import { jumpToMessage } from './jump'
 import { b64u } from '../core/crypto'
 import type { Events, WireDm } from '../core/protocol'
 import { isDoNotDisturb } from './presence'
-import { notifyFor, serverBadges, useOrganize } from './organize'
+import { notifyFor, useOrganize } from './organize'
+import { badgeTotal } from './unread'
+import { channelConv, dmConv, isOnScreen, useReads } from './readState'
 import { shouldNotify } from './organizeLogic'
 import { isBlocked, useBlocks } from './moderation'
 import { useAudio } from './audio'
@@ -142,8 +144,7 @@ onServerEvent((serverKey, type, body) => {
     // Blocked people never notify; then your notification level for the channel decides (all, mentions, nothing).
     if (message.author === myKey || senderRules.ignored(message.author) || isBlocked(useBlocks.getState().entries, message.author)) return
     if (!shouldNotify(notifyFor(serverKey, message.channelId), !message.forwarded && senderRules.mentionsMe(server, message))) return
-    const viewing = document.hasFocus() && state.activeServer === serverKey && activeChannelId(state) === message.channelId
-    if (viewing || isViewingThread(serverKey, message.channelId)) return
+    if (isOnScreen(channelConv(serverKey, message.channelId))) return
     const author = message.webhook?.name ?? server.members[message.author]?.name ?? 'Someone'
     show(serverKey, `${author} in ${conversationLabel(server, message.channelId)}`, plainText(message.text, { nameOf: (k) => server.members[k]?.name ?? null }), () => {
       void jumpToMessage(serverKey, message.channelId, message.id)
@@ -173,9 +174,7 @@ onServerEvent((serverKey, type, body) => {
     const myKey = me()
     if (message.from === myKey) return
     void import('./dms').then(({ useDms, nameOf, openConversation }) => {
-      const open = useDms.getState().open
-      const viewing = document.hasFocus() && useApp.getState().activeServer === null && open.kind === 'dm' && open.peer === message.from
-      if (viewing) return
+      if (isOnScreen(dmConv(message.from))) return
       // The text is end-to-end encrypted; read it from the decrypted conversation.
       const latest = useDms.getState().conversations[message.from]?.messages.at(-1)
       show(serverKey, nameOf(message.from), latest?.error ? 'New message' : (latest?.text ?? 'New message'), () => openConversation(message.from))
@@ -185,16 +184,10 @@ onServerEvent((serverKey, type, body) => {
 
 let lastBadge = -1
 
-/** Keeps "(3) Iskra" in the title for unread mentions and DMs. */
+/** Keeps "(3) Iskra" in the title for unread mentions and DMs (state/unread.ts counts them). */
 export function startTitleBadge(): () => void {
-  const update = async () => {
-    const { useDms } = await import('./dms')
-    const servers = Object.values(useApp.getState().servers)
-    const mentionCount = servers.reduce((n, s) => n + serverBadges(s).pings, 0)
-    const dmCount = Object.values(useDms.getState().conversations).reduce((n, c) => n + c.unread, 0)
-    const { useGroups } = await import('./groups')
-    const groupCount = Object.values(useGroups.getState().groups).reduce((n, g) => n + g.unread, 0)
-    const total = mentionCount + dmCount + groupCount
+  const update = () => {
+    const total = badgeTotal()
     document.title = total > 0 ? `(${total}) Iskra` : 'Iskra'
     // The desktop app also shows it on the taskbar / dock.
     if (desktop?.setBadge && total !== lastBadge) {
@@ -202,16 +195,7 @@ export function startTitleBadge(): () => void {
       void desktop.setBadge(total, overlayIcon(total)).catch(() => undefined)
     }
   }
-  const unsubscribe = useApp.subscribe(() => void update())
-  const unsubscribeOrganize = useOrganize.subscribe(() => void update())
-  let unsubscribeDms = () => {}
-  let unsubscribeGroups = () => {}
-  void import('./dms').then(({ useDms }) => (unsubscribeDms = useDms.subscribe(() => void update())))
-  void import('./groups').then(({ useGroups }) => (unsubscribeGroups = useGroups.subscribe(() => void update())))
-  return () => {
-    unsubscribe()
-    unsubscribeOrganize()
-    unsubscribeDms()
-    unsubscribeGroups()
-  }
+  const unsubscribe = [useReads.subscribe(update), useApp.subscribe(update), useOrganize.subscribe(update), useThreads.subscribe(update)]
+  update()
+  return () => unsubscribe.forEach((u) => u())
 }

@@ -2,14 +2,15 @@
 // right-click or press and hold for a menu. The layout syncs across your devices (state/rail.ts).
 import { useRef, useState, type DragEvent, type MouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { selectServer, useApp, type ServerState } from '../state/store'
-import { openFriends, useDms } from '../state/dms'
-import { useGroups } from '../state/groups'
+import { openFriends } from '../state/dms'
 import { initials } from './format'
 import { Plus } from './icons'
-import { serverBadges, useOrganize } from '../state/organize'
+import { useOrganize } from '../state/organize'
 import { newFolderId, setRail, useRail } from '../state/rail'
 import { moveFolder, moveServer, newFolder, stepServer, ungroup, updateFolder, visibleRail, type RailFolder } from '../state/railLogic'
-import { markServerRead } from '../state/unread'
+import { homeUnread, markServerRead, serverBadges } from '../state/unread'
+import { useReads } from '../state/readState'
+import { useThreads } from '../state/threads'
 import { MenuItem, MenuTitle, OrgMenu, type MenuAnchor } from './organize/OrgMenu'
 import { FolderDialog } from './organize/FolderDialog'
 import './organize/organize.css'
@@ -61,8 +62,9 @@ export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavig
   const layout = useRail((s) => s.layout)
   useOrganize((s) => s.notify) // badges follow notification settings
   useOrganize((s) => s.clock)
-  const dmUnread = useDms((s) => Object.values(s.conversations).reduce((n, c) => n + c.unread, 0))
-    + useGroups((s) => Object.values(s.groups).reduce((n, g) => n + g.unread, 0))
+  const dmUnread = useReads((s) => homeUnread(s.convs))
+  useReads((s) => s.convs) // server badges follow read state
+  useThreads((s) => s.threads) // (thread counts belong to their channel)
   const [drag, setDrag] = useState<Drag | null>(null)
   const [over, setOver] = useState<{ id: string; spot: Spot } | null>(null)
   const [menu, setMenu] = useState<{ kind: 'server' | 'folder'; id: string; anchor: MenuAnchor | null } | null>(null)

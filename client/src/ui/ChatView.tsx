@@ -34,11 +34,10 @@ import { BlockGate, ChannelSettingsButton, SlowmodeChip, TimedOutBar } from './m
 import { useSlowmodeWait, useTimedOut } from './moderation/hooks'
 import { ForwardDialog, ForwardedLine, ForwardIcon } from './organize/ForwardDialog'
 import { UnreadBar, UnreadDivider } from './organize/UnreadBits'
-import { useUnreadMarker } from '../state/unread'
+import { channelConv, dividerOf, dividerTarget, useRead } from '../state/readState'
 import { useRoleLookup, useServerRoles } from '../state/roles'
 import { canDeleteMessage, canMentionRole, canSendIn, has, nameColor } from '../state/permissions'
 import { draftKey, setDraft, useDraft } from '../state/drafts'
-import { useUnreadMarker as useMarkedUnread } from '../state/unreadMarker'
 import { MessageMoreButton } from './chat/MessageMore'
 import { StickerMessage } from './chat/Stickers'
 import { ExpressionPicker, GifMessage, type ExpressionTab } from './chat/ExpressionPicker'
@@ -148,7 +147,8 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
   const stickToBottom = useRef(true)
   const restore = useRef<{ height: number; top: number } | null>(null)
   const [editing, setEditing] = useState<number | null>(null)
-  const firstUnread = useUnreadMarker(server.key, channelId)?.firstId ?? null
+  const conv = channelConv(server.key, channelId)
+  const divider = dividerOf(useRead(conv))
 
   // Up-arrow in an empty composer edits your last message.
   useEffect(() => {
@@ -193,6 +193,10 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
       return { message, grouped }
     })
   }, [messages])
+  // The "New messages" divider goes above the first unread message, once it's loaded (older ones may still be on the server).
+  const firstUnread = divider && messages && (!hasMore || messages.some((m) => !m.tempId && m.id <= (divider.from.id as number)))
+    ? dividerTarget(messages, divider.from, (m) => (m.tempId ? null : { id: m.id, at: m.createdAt }))?.id ?? null
+    : null
 
   if (!rendered) {
     return (
@@ -205,7 +209,8 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
   return (
     <>
     <div className="messages" ref={scroller} onScroll={onScroll}>
-      {!thread && <UnreadBar server={server} channelId={channelId} scroller={scroller} onJump={() => (stickToBottom.current = false)} />}
+      <UnreadBar conv={conv} scroller={scroller} onJump={() => (stickToBottom.current = false)}
+        loadOlder={() => loadHistory(server.key, channelId, true).then(() => !!useApp.getState().servers[server.key]?.hasMore[channelId])} />
       {!hasMore && (header ?? (
         <div className="channel-start">
           <span className="channel-start-icon" aria-hidden><Hash size={32} /></span>
@@ -217,7 +222,7 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
         <PinNoteRow key={`pin-${note.messageId}-${note.at}`} server={server} channelId={channelId} note={note} />
       ) : (
         <Fragment key={message.tempId ?? message.id}>
-          {!thread && message.id === firstUnread && !message.tempId && <UnreadDivider />}
+          {message.id === firstUnread && !message.tempId && <UnreadDivider main={!thread} />}
           <BlockGate author={message.author}>
             <MessageRow
               server={server}
@@ -268,7 +273,6 @@ function MessageRow({
   const longPress = useLongPress(() => setSheet(true), !message.tempId && !editing)
   const [error, setError] = useState<string | null>(null)
   const emojiLookup = useEmojiLookup(server.key)
-  const unreadFrom = useMarkedUnread(server.key, message.channelId)
 
   function jumpTo(id: number) {
     void jumpToMessage(server.key, message.channelId, id)
@@ -285,7 +289,6 @@ function MessageRow({
 
   return (
     <>
-    {unreadFrom === message.id && <div className="new-divider" role="separator">New</div>}
     <div
       id={message.tempId ? undefined : `msg-${message.id}`}
       className={`message ${grouped && !message.replyTo ? 'grouped' : ''} ${message.pending ?? ''} ${sheet ? 'pressed' : ''}`}

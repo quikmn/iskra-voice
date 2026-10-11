@@ -1,10 +1,12 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, useLayoutEffect, useRef, useState } from 'react'
 import { b64u } from '../core/crypto'
 import { safetyNumber } from '../core/dm'
 import { useApp } from '../state/store'
 import {
-  discardDm, isOnline, markRead, nameOf, openConversation, openFriends, removeFriend, sendDm, sharedServers, useDms, type Dm,
+  discardDm, isOnline, nameOf, openConversation, openFriends, removeFriend, sendDm, sharedServers, useDms, type Dm,
 } from '../state/dms'
+import { dividerOf, dividerTarget, dmConv, useRead, useReads } from '../state/readState'
+import { UnreadBar, UnreadDivider } from './organize/UnreadBits'
 import { Avatar, Modal } from './bits'
 import { renderMarkdown } from './markdown'
 import { fingerprint } from '../core/connection'
@@ -44,6 +46,7 @@ function HomeMeBar() {
 export function HomeSidebar({ onNavigate }: { onNavigate: () => void }) {
   const conversations = useDms((s) => s.conversations)
   const open = useDms((s) => s.open)
+  const reads = useReads((s) => s.convs)
   useApp((s) => s.servers) // re-render when names or presence change
   const peers = Object.entries(conversations)
     .sort(([, a], [, b]) => (b.messages.at(-1)?.sentAt ?? 0) - (a.messages.at(-1)?.sentAt ?? 0))
@@ -67,10 +70,10 @@ export function HomeSidebar({ onNavigate }: { onNavigate: () => void }) {
         <GroupRows onNavigate={onNavigate} />
         <div className="channel-group"><span>Conversations</span></div>
         {peers.length === 0 && <p className="sidebar-hint">Your direct messages show up here. Start one from anyone's profile.</p>}
-        {peers.map(([peer, conversation]) => (
+        {peers.map(([peer]) => (
           <button
             key={peer}
-            className={`channel dm-row ${open.kind === 'dm' && open.peer === peer ? 'active' : ''} ${conversation.unread ? 'unread' : ''}`}
+            className={`channel dm-row ${open.kind === 'dm' && open.peer === peer ? 'active' : ''} ${reads[dmConv(peer)]?.unread ? 'unread' : ''}`}
             onClick={() => {
               openConversation(peer)
               onNavigate()
@@ -81,7 +84,7 @@ export function HomeSidebar({ onNavigate }: { onNavigate: () => void }) {
               <span className="channel-name">{nameOf(peer)}</span>
               <AccountStatusText accountKey={peer} className="dm-status" />
             </span>
-            {conversation.unread > 0 && <span className="badge">{conversation.unread}</span>}
+            {!!reads[dmConv(peer)]?.unread && <span className="badge">{reads[dmConv(peer)].unread}</span>}
           </button>
         ))}
       </div>
@@ -174,9 +177,8 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
     if (el) el.scrollTop = el.scrollHeight
   }, [messages.length])
 
-  useEffect(() => {
-    if (conversation?.unread) markRead(peer)
-  }, [conversation?.unread, peer])
+  const divider = dividerOf(useRead(dmConv(peer)))
+  const firstNew = divider && dividerTarget(messages, divider.from, (m) => (m.pending || m.notice || m.from === myKey ? null : { id: m.id, at: m.sentAt }))
 
   return (
     <div
@@ -210,6 +212,7 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
       <DmKeyWarning peer={peer} />
 
       <div className="messages" ref={scroller}>
+        <UnreadBar conv={dmConv(peer)} scroller={scroller} onJump={() => undefined} />
         <div className="channel-start">
           <Avatar name={nameOf(peer)} accountKey={peer} size={64} />
           <h2>{nameOf(peer)}</h2>
@@ -219,7 +222,12 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
           if (dm.notice) return <DmKeyNotice key={`${dm.from}:${dm.id}`} dm={dm} onVerify={() => setVerify(true)} />
           const prev = messages[i - 1]
           const grouped = !!prev && !prev.notice && prev.from === dm.from && dm.sentAt - prev.sentAt < GROUP_WINDOW_MS && !prev.pending && !prev.error
-          return <DmRow key={`${dm.from}:${dm.id}`} dm={dm} grouped={grouped} peer={peer} mine={dm.from === myKey} />
+          return (
+            <Fragment key={`${dm.from}:${dm.id}`}>
+              {dm === firstNew && <UnreadDivider />}
+              <DmRow dm={dm} grouped={grouped && dm !== firstNew} peer={peer} mine={dm.from === myKey} />
+            </Fragment>
+          )
         })}
       </div>
 

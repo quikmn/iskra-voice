@@ -3,7 +3,7 @@
 import { create } from 'zustand'
 import { roleRank, type Events, type ForumPost, type ForumSort, type ForumTag, type Thread } from '../core/protocol'
 import { connectionFor, onServerEvent, type ServerState } from './store'
-import { openThread, rememberThreads, useThreads } from './threads'
+import { openThread, rememberThreads } from './threads'
 import { trimSeen, upsertPost, type ForumSeen } from './forumLogic'
 
 export interface ForumView {
@@ -83,6 +83,14 @@ export function markPostSeen(serverKey: string, post: Pick<ForumPost, 'id' | 'ch
   saveSeen(key, next)
 }
 
+/** Marking a forum read: every post and reply so far counts as seen. */
+export function resetForumSeen(serverKey: string, forumId: number): void {
+  const key = forumKey(serverKey, forumId)
+  const next: ForumSeen = { since: Date.now(), posts: {} }
+  useForums.setState((s) => ({ seen: { ...s.seen, [key]: next } }))
+  saveSeen(key, next)
+}
+
 // ── Permissions (mirrors the server) ────────────────────────────────────────
 
 /** Trusted+ who can write in the forum: pin, lock, close any post, retag. Mirrors Permissions.CanModerateForum. */
@@ -105,16 +113,6 @@ export function canManagePost(server: ServerState, post: ForumPost): boolean {
 export function replyBlock(server: ServerState, post: ForumPost | undefined): string | null {
   if (!post || (!post.closed && !post.locked) || canModerateForum(server, post.channelId)) return null
   return post.locked ? 'This post is locked.' : 'This post is closed. Its author or a moderator can reopen it.'
-}
-
-/** New replies in a forum's posts that you haven't opened (for the sidebar's unread look). */
-export function forumReplies(server: ServerState, forumId: number): number {
-  const threads = useThreads.getState().threads[server.key] ?? {}
-  let total = 0
-  for (const [id, count] of Object.entries(server.unread)) {
-    if (count && threads[Number(id)]?.channelId === forumId) total += count
-  }
-  return total
 }
 
 // ── Loading ─────────────────────────────────────────────────────────────────

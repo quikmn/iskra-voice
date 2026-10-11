@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import type { Category, Channel, NotifyLevel } from '../../core/protocol'
 import type { ServerState } from '../../state/store'
-import { markChannelRead } from '../../state/unread'
+import { markChannelRead, useChannelCounts } from '../../state/unread'
 import {
   deleteCategory, moveCategory, moveChannel, muteFor, setNotifyLevel, toggleCollapsed, useCategories, useNotifyFor, useOrganize,
 } from '../../state/organize'
@@ -103,7 +103,8 @@ export function ChannelMenu({ server, channel, anchor, isAdmin, onEdit, onClose 
   const layout = layoutChannels(server.channels, categories)
   const up = stepChannel(layout, channel, -1)
   const down = stepChannel(layout, channel, 1)
-  const unread = (server.unread[channel.id] ?? 0) + (server.mentions[channel.id] ?? 0)
+  const counts = useChannelCounts(server.key, channel)
+  const unread = counts.unread + counts.mentions
   const label = channel.kind === 'voice' ? channel.name : `#${channel.name}`
 
   return (

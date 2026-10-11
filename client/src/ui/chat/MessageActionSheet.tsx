@@ -15,7 +15,7 @@ import { QUICK_REACTIONS, setReply } from './helpers'
 import { NewThreadDialog } from './PinThreadBits'
 import { pinThreadAbilities } from './abilities'
 import { copyMessageLink, ReactionsDialog } from './MessageMore'
-import { markUnread } from '../../state/unreadMarker'
+import { markUnread } from '../../state/unread'
 
 export function MessageActionSheet({ server, message, canEdit, canDelete, onEdit, onClose, onForward }: {
   server: ServerState

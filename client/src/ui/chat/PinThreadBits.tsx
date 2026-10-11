@@ -8,6 +8,7 @@ import { setPinned, type PinNote } from '../../state/pins'
 import { relativeTime } from './pinThreadHelpers'
 import { pinThreadAbilities } from './abilities'
 import { createThread, openThread } from '../../state/threads'
+import { channelConv, useRead } from '../../state/readState'
 import { jumpToMessage } from '../../state/jump'
 import { Modal } from '../bits'
 import { fullTime, messageTime } from '../format'
@@ -94,9 +95,8 @@ export function NewThreadDialog({ server, message, onClose }: { server: ServerSt
 /** Under a message that has a thread: its name, reply count and last activity. */
 export function ThreadSummary({ server, message }: { server: ServerState; message: Message }) {
   const thread = message.thread
+  const { unread, mentions: pings } = useRead(channelConv(server.key, thread?.id ?? -1))
   if (!thread) return null
-  const unread = server.unread[thread.id] ?? 0
-  const pings = server.mentions[thread.id] ?? 0
   const replies = thread.messageCount === 0 ? 'No replies yet' : `${thread.messageCount} ${thread.messageCount === 1 ? 'reply' : 'replies'}`
   return (
     <button className={`thread-summary ${unread ? 'unread' : ''}`} onClick={() => openThread(server.key, thread.id, thread)}>
