@@ -60,6 +60,7 @@ public sealed class Router
         GifFeature.Register(this);
         RulesFeature.Register(this);
         AutoModFeature.Register(this);
+        LeaveFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

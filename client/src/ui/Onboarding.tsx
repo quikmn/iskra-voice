@@ -7,13 +7,14 @@ import { hostOf } from './format'
 import { OpenInApp } from './OpenInApp'
 import { LinkJoin } from './LinkJoin'
 
-type Mode = 'new' | 'existing' | 'recovery' | 'link'
+// First the choice: new here, or already on another device (so people link instead of making a second account).
+type Mode = 'choose' | 'new' | 'existing' | 'recovery' | 'link'
 
 export function Onboarding() {
   const { t } = useTranslation()
   const pendingInvite = useApp((s) => s.pendingInvite)
   const pendingLink = usePendingLink((s) => s.code)
-  const [mode, setMode] = useState<Mode>(pendingLink ? 'link' : 'new')
+  const [mode, setMode] = useState<Mode>(pendingLink ? 'link' : 'choose')
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   const [recoveryKey, setRecoveryKey] = useState('')
@@ -48,6 +49,37 @@ export function Onboarding() {
     )
   }
 
+  const invited = pendingInvite && (
+    <>
+      <p className="lead">
+        <Trans i18nKey="app.onboarding.invited" values={{ host: hostOf(pendingInvite.serverUrl) }} components={{ b: <strong /> }} />
+      </p>
+      <OpenInApp invite={pendingInvite} />
+    </>
+  )
+
+  if (mode === 'choose') {
+    return (
+      <div className="onboarding">
+        <div className="onboarding-card">
+          {brand}
+          {invited || <p className="lead">{t('account.welcome.lead')}</p>}
+          <p className="onboarding-question">{t('account.welcome.question')}</p>
+          <div className="choice-list equal">
+            <button type="button" className="choice" onClick={() => setMode('new')}>
+              <strong>{t('account.welcome.new')}</strong>
+              <span className="muted">{t('account.welcome.newHint')}</span>
+            </button>
+            <button type="button" className="choice" onClick={() => setMode('existing')}>
+              <strong>{t('account.welcome.existing')}</strong>
+              <span className="muted">{t('account.welcome.existingHint')}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (mode === 'existing') {
     return (
       <div className="onboarding">
@@ -65,6 +97,8 @@ export function Onboarding() {
             </button>
           </div>
           <p className="fine-print">
+            <button type="button" className="link" onClick={() => setMode('choose')}>{t('account.welcome.back')}</button>
+            {' · '}
             <button type="button" className="link" onClick={() => setMode('new')}>{t('app.onboarding.imNew')}</button>
           </p>
         </div>
@@ -122,7 +156,7 @@ export function Onboarding() {
           ) : (
             <>
               {t('app.onboarding.noPassword')}{' '}
-              <button type="button" className="link" onClick={() => setMode('existing')}>{t('app.onboarding.haveIskra')}</button>
+              <button type="button" className="link" onClick={() => setMode('choose')}>{t('account.welcome.back')}</button>
             </>
           )}
         </p>

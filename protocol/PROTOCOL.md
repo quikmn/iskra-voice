@@ -14,7 +14,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Backups, moving and imports](#backups-moving-and-imports)
 - **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation) · [Roles and permissions](#roles-and-permissions) · [Reliable sends](#reliable-sends) · [AutoMod](#automod)
-- **Keys:** [Account key rotation](#account-key-rotation) · [Keys on the device](#keys-on-the-device)
+- **Keys:** [Account key rotation](#account-key-rotation) · [Keys on the device](#keys-on-the-device) · [Leaving a server and signing out](#leaving-a-server-and-signing-out)
 
 ---
 
@@ -1508,4 +1508,13 @@ DM content gains `friend`:
 - Blocking someone sends the matching quiet action first and ends the relation; actions from people you've blocked are ignored (and `dm.send` between them is `forbidden` anyway, see [Blocking](#blocking)).
 - If someone sends a request while you're already friends (they lost their list), your app answers with `accept`.
 - Friends lists from before requests existed (kept on one device) become requests, sent once you share a server with that person.
+
+## Leaving a server and signing out
+
+| type | body | result | who |
+|---|---|---|---|
+| `member.leave` | | | any member except the owner and bots (`forbidden`) |
+
+- Removes your membership (roles, nickname and the like go with it, as with a kick), sends `member.removed { accountKey }` to everyone, and closes all your sessions on this server right after the answer (close code 4403, "You left this server."). Coming back needs a new invite. Messages you wrote stay.
+- Apps use it when you sign out of a device and choose to leave your servers too. Signing out itself is local: the app deletes its keys, history and settings from the device (in the desktop app the stored keys are only readable through the OS keychain, and the wrapped key is deleted with the rest). Other devices of the account are not affected; they keep working, and so does the recovery key.
 

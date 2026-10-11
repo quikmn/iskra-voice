@@ -779,3 +779,16 @@ input.confirm-code::placeholder { color: var(--faint); }
 .link-progress progress::-webkit-progress-bar { background: var(--surface-2); }
 .link-progress progress::-webkit-progress-value { background: var(--accent); border-radius: 99px; transition: width 0.2s; }
 .link-progress progress::-moz-progress-bar { background: var(--accent); }
+
+/* ── First-run choice and signing out ─────────────────────────────── */
+.onboarding-question { margin: 4px 0 0; font-weight: 600; }
+.choice-list.equal .choice strong { font-size: 15px; }
+.sign-out-danger { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--red); border-radius: var(--radius); background: color-mix(in srgb, var(--red) 10%, transparent); }
+.sign-out-danger strong { color: var(--red); }
+.sign-out-danger p { margin: 0; }
+.sign-out-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.sign-out-row { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+.sign-out-row p { margin: 6px 0 0; font-size: 13px; }
+.sign-out-leave { margin-top: 14px; align-items: flex-start; }
+.sign-out-leave > span { display: grid; gap: 2px; }
+.sign-out-leave small { font-size: 12px; }

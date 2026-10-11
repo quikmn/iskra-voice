@@ -67,7 +67,7 @@ test('a linked device brings DM and group history; groups on a removed server ar
     await route.continue()
   })
   await phone.goto('/')
-  await phone.getByRole('button', { name: 'I already have Iskra' }).click()
+  await phone.getByRole('button', { name: /I already use Iskra/ }).click()
   await phone.getByRole('button', { name: /Link with my other device/ }).click()
   await phone.getByLabel('Or type the code').fill(code)
   await phone.getByRole('button', { name: 'Link this device' }).click()

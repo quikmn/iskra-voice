@@ -59,7 +59,7 @@ test('two friends join with invite links and chat', async ({ browser }) => {
 test('a fresh browser starts at onboarding', async ({ browser }) => {
   const host = await (await browser.newContext()).newPage()
   await host.goto('/')
-  await expect(host.getByLabel('Your name')).toBeVisible()
+  await expect(host.getByRole('button', { name: /I’m new to Iskra/ })).toBeVisible()
   await host.screenshot({ path: join(SHOTS, 'onboarding.png') })
 })
 
@@ -68,6 +68,7 @@ test('with no servers, you can find out how to start one and change your name', 
   const windows = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
   const page = await (await browser.newContext({ userAgent: windows })).newPage()
   await page.goto('/')
+  await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
   await page.getByLabel('Your name').fill('Newbie')
   await page.getByRole('button', { name: 'Continue' }).click()
 

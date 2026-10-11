@@ -22,6 +22,7 @@ import { stage } from './stage'
 import { watch } from './watch'
 import { expressions } from './expressions'
 import { friends } from './friends'
+import { account } from './account'
 
 export const en = {
   common,
@@ -47,4 +48,5 @@ export const en = {
   watch,
   expressions,
   friends,
+  account,
 } as const
