@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { contrast, loadThemeChoice, nameLightness, parseTheme, safeColor, solidUnderWhite, textOn, themeVariables, validateTheme } from './theme'
+import { contrast, loadThemeChoice, nameLightness, nameSurfacesOf, readableColor, parseTheme, safeColor, solidUnderWhite, textOn, themeVariables, validateTheme } from './theme'
 import { BUILT_IN_THEMES } from './themes'
 
 const valid = { meta: { name: 'Mine' }, colors: { accent: '#ff8800' } }
@@ -123,5 +123,50 @@ describe('contrast', () => {
   it('darkens a colour just enough for white text', () => {
     expect(contrast('#ffffff', solidUnderWhite('#f87171'))).toBeGreaterThanOrEqual(4.5)
     expect(solidUnderWhite('#b91c1c')).toBe('#b91c1c')
+  })
+})
+
+describe('readable role colours', () => {
+  const hue = (hex: string) => {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    const max = Math.max(r, g, b)
+    const d = max - Math.min(r, g, b)
+    const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4
+    return (h * 60 + 360) % 360
+  }
+
+  it('leaves a colour that already reads alone', () => {
+    expect(readableColor('#ffd166', ['#141424'])).toBe('#ffd166')
+  })
+
+  it('lightens a dark colour on a dark theme, keeping the hue', () => {
+    const out = readableColor('#1e3a8a', ['#141424', '#10101c'])
+    expect(out).not.toBe('#1e3a8a')
+    expect(contrast(out, '#141424')).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(out, '#10101c')).toBeGreaterThanOrEqual(4.5)
+    expect(Math.abs(hue(out) - hue('#1e3a8a'))).toBeLessThan(4)
+  })
+
+  it('darkens a light colour on a light theme', () => {
+    const out = readableColor('#facc15', ['#ffffff', '#f2f3f5'])
+    expect(contrast(out, '#ffffff')).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(out, '#f2f3f5')).toBeGreaterThanOrEqual(4.5)
+    expect(Math.abs(hue(out) - hue('#facc15'))).toBeLessThan(4)
+  })
+
+  it('reads on the name surfaces of every built-in theme', () => {
+    const picks = ['#000000', '#ff0000', '#0000ff', '#5865f2', '#99aab5', '#2ecc71', '#ffffff', '#ffff00', '#800080']
+    for (const { theme } of [{ theme: null }, ...BUILT_IN_THEMES]) {
+      const surfaces = nameSurfacesOf(theme)
+      for (const pick of picks) {
+        const out = readableColor(pick, surfaces)
+        for (const s of surfaces) expect(contrast(out, s), `${pick} on ${s}`).toBeGreaterThanOrEqual(4.5)
+      }
+    }
+  })
+
+  it('ignores what it cannot read', () => {
+    expect(readableColor('nonsense', ['#141424'])).toBe('nonsense')
+    expect(readableColor('#123456', ['transparent'])).toBe('#123456')
   })
 })

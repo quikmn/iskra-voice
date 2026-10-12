@@ -1,7 +1,7 @@
 // The channel list: uncategorized channels at the top (text, then voice), then categories you can collapse.
 // Admins drag channels and categories to arrange them on desktop; every row also has a menu (right click, or the
 // ⋯ button, which phones always show).
-import { useState, type DragEvent, type HTMLAttributes, type MouseEvent } from 'react'
+import { useState, type DragEvent, type HTMLAttributes, type KeyboardEvent, type MouseEvent } from 'react'
 import { LockBadge } from '../e2ee/E2ee'
 import { useTranslation } from 'react-i18next'
 import { levelName } from '../../state/permissions'
@@ -21,6 +21,7 @@ import { ChevronDown, Hash, HeadphonesOff, Lock, MicOff, Plus, Volume } from '..
 import { CategoryMenu, ChannelMenu } from './Menus'
 import { CategoryDialog, ChannelSettingsDialog } from './Dialogs'
 import type { MenuAnchor } from './OrgMenu'
+import { isMenuKey } from '../roving'
 import { has } from '../../state/permissions'
 import { useServerRoles } from '../../state/roles'
 import { showRules, useMustAgree } from '../../state/rules'
@@ -83,6 +84,15 @@ export function ChannelList({ server, isAdmin, onNavigate, onCreateChannel }: {
     setMenu({ kind, id, anchor: anchorOf(e) })
   }
 
+  /** The context-menu key (or Shift+F10) on a row: its menu, under the row. */
+  const menuKey = (kind: 'channel' | 'category', id: number) => (e: KeyboardEvent<HTMLElement>) => {
+    if (!isMenuKey(e)) return
+    e.preventDefault()
+    e.stopPropagation()
+    const rect = e.currentTarget.getBoundingClientRect()
+    setMenu({ kind, id, anchor: { x: rect.left + 8, y: rect.bottom + 4 } })
+  }
+
   const endDrag = () => {
     setDrag(null)
     setOver(null)
@@ -130,6 +140,7 @@ export function ChannelList({ server, isAdmin, onNavigate, onCreateChannel }: {
     ...source({ kind: 'channel', id: channel.id }),
     ...target({ kind: 'channel', id: channel.id }, (d) => d.kind === 'channel', onChannelDrop(channel)),
     onContextMenu: openMenu('channel', channel.id),
+    onKeyDown: menuKey('channel', channel.id),
     className: `org-row ${drag?.kind === 'channel' && drag.id === channel.id ? 'dragging' : ''} ${
       over?.kind === 'channel' && over.id === channel.id ? (over.after ? 'drop-after' : 'drop-before') : ''}`,
   })
@@ -202,6 +213,7 @@ export function ChannelList({ server, isAdmin, onNavigate, onCreateChannel }: {
                 if (move) void moveCategory(server.key, d.id, move.before).catch(() => undefined)
               })}
               onContextMenu={openMenu('category', category.id)}
+              onKeyDown={menuKey('category', category.id)}
               className={`channel-group org-category-head ${over?.kind === 'category' && over.id === category.id ? (drag?.kind === 'category' ? 'drop-before' : 'drop-into') : ''} ${drag?.kind === 'category' && drag.id === category.id ? 'dragging' : ''}`}
             >
               <button className="org-category-toggle" aria-expanded={!isCollapsed} onClick={() => toggleCollapsed(server.key, category.id)}>

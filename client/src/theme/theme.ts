@@ -254,6 +254,63 @@ export function solidUnderWhite(color: string): string {
   return '#000000'
 }
 
+function hslOf([r, g, b]: [number, number, number]): [number, number, number] {
+  const [x, y, z] = [r / 255, g / 255, b / 255]
+  const max = Math.max(x, y, z)
+  const min = Math.min(x, y, z)
+  const l = (max + min) / 2
+  if (max === min) return [0, 0, l * 100]
+  const d = max - min
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+  const h = max === x ? (y - z) / d + (y < z ? 6 : 0) : max === y ? (z - x) / d + 2 : (x - y) / d + 4
+  return [h * 60, s * 100, l * 100]
+}
+
+const readableCache = new Map<string, string>()
+
+/**
+ * A colour chosen by someone else (a role colour) as text that reads at 4.5:1 on every one of `backgrounds`:
+ * the same hue and saturation, lighter on dark themes and darker on light ones. Unchanged when it already reads.
+ */
+export function readableColor(color: string, backgrounds: readonly string[], min = 4.5): string {
+  const key = `${color}|${backgrounds.join(',')}|${min}`
+  const hit = readableCache.get(key)
+  if (hit) return hit
+  const rgb = rgbOf(color)
+  const bgs = backgrounds.filter((b) => rgbOf(b))
+  let out = color
+  if (rgb && bgs.length && !bgs.every((b) => contrast(color, b) >= min)) {
+    const [h, s, l0] = hslOf(rgb)
+    const dark = bgs.reduce((n, b) => n + luminance(rgbOf(b)!), 0) / bgs.length < 0.18
+    out = dark ? '#ffffff' : '#000000'
+    for (let l = Math.round(l0); dark ? l <= 100 : l >= 0; l += dark ? 1 : -1) {
+      const candidate = hslHex(h, s, l)
+      if (bgs.every((b) => contrast(candidate, b) >= min)) {
+        out = candidate
+        break
+      }
+    }
+  }
+  if (readableCache.size > 500) readableCache.clear()
+  readableCache.set(key, out)
+  return out
+}
+
+/** The backgrounds names sit on in the current theme: chat, sidebar (member list) and popovers. */
+export const DEFAULT_NAME_SURFACES = ['#141424', '#10101c', '#1b1b30'] as const
+let nameSurfaces: readonly string[] = DEFAULT_NAME_SURFACES
+const surfaceListeners = new Set<() => void>()
+export const getNameSurfaces = () => nameSurfaces
+export function onNameSurfaces(listener: () => void): () => void {
+  surfaceListeners.add(listener)
+  return () => surfaceListeners.delete(listener)
+}
+export function nameSurfacesOf(theme: ThemeFile | null): readonly string[] {
+  if (!theme) return DEFAULT_NAME_SURFACES
+  const c = theme.colors
+  return [c.bgChat ?? DEFAULT_NAME_SURFACES[0], c.bgSidebar ?? DEFAULT_NAME_SURFACES[1], c.bgFloat ?? c.bgButton ?? DEFAULT_NAME_SURFACES[2]]
+}
+
 // ── Applying ────────────────────────────────────────────────────────────────
 
 /** The CSS variables a theme sets (null for the default, which is plain styles.css). */
@@ -277,6 +334,11 @@ export function applyTheme(theme: ThemeFile | null, root: HTMLElement = document
   root.style.removeProperty('color-scheme')
   // Lets the stylesheet adjust what can't be a theme colour (name colours, shadows) for light themes.
   root.dataset.scheme = theme?.meta.scheme ?? 'dark'
+  const surfaces = nameSurfacesOf(theme)
+  if (surfaces.join() !== nameSurfaces.join()) {
+    nameSurfaces = surfaces
+    for (const listener of surfaceListeners) listener()
+  }
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme?.colors.bgDeep ?? '#0b0b14')
   if (!theme) return
   for (const [name, value] of Object.entries(themeVariables(theme))) root.style.setProperty(name, value)

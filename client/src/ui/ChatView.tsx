@@ -58,6 +58,7 @@ import { useSendLater } from './productivity/SendLater'
 import { ClipNoticeRow } from './clips/ClipNotice'
 import { conversationLabel } from '../state/threads'
 import { messageListKeys, useAnnounceNew } from './a11y'
+import { useReadableColor } from '../theme/useReadable'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -289,7 +290,8 @@ function MessageRow({
   const roles = useServerRoles(server.key)
   const roleOf = useRoleLookup(server.key, me)
   const canDelete = !message.tempId && canDeleteMessage(me, message, author, roles)
-  const authorColor = (!message.webhook && nameColor(author, roles)) || `hsl(${hueFor(message.author)} 70% var(--name-l))`
+  const roleColor = useReadableColor(message.webhook ? null : nameColor(author, roles))
+  const authorColor = roleColor || `hsl(${hueFor(message.author)} 70% var(--name-l))`
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [picking, setPicking] = useState(false)
   const [sheet, setSheet] = useState(false)
