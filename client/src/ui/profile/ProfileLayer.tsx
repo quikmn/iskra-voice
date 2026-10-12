@@ -60,6 +60,16 @@ export function ProfileLayer() {
 }
 
 const CARD_WIDTH = 320
+const GAP = 8
+
+/** Where a popover of this size goes next to `rect`: right of it (else left), top-aligned, shifted to fit the window. */
+export function cardPosition(rect: { top: number; left: number; right: number }, width: number, height: number, vw: number, vh: number) {
+  const fitsRight = rect.right + GAP + width <= vw - GAP
+  const left = fitsRight ? rect.right + GAP : Math.max(GAP, rect.left - GAP - width)
+  const top = Math.max(GAP, Math.min(rect.top, vh - height - GAP))
+  return { left: Math.min(left, Math.max(GAP, vw - width - GAP)), top }
+}
+
 const narrow = () => window.matchMedia('(max-width: 760px)').matches
 
 function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; member: Member; rect: DOMRect | null; onEdit: () => void }) {
@@ -73,14 +83,21 @@ function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; me
   const page = pagesOn ? pageUrl(server.url, member.page) : null
   const presence = useMemberPresence(member)
 
+  // Next to what was clicked, kept inside the window: re-placed whenever the card's size or the window changes
+  // (a friend request or late content can make it grow while open).
   useLayoutEffect(() => {
-    if (sheet || !rect || !ref.current) return
-    const height = ref.current.offsetHeight
-    const fitsRight = rect.right + 8 + CARD_WIDTH <= window.innerWidth - 8
-    const left = fitsRight ? rect.right + 8 : Math.max(8, rect.left - 8 - CARD_WIDTH)
-    const top = Math.min(Math.max(8, rect.top), window.innerHeight - height - 8)
-    setPosition({ left, top })
-  }, [rect, sheet, member])
+    const el = ref.current
+    if (sheet || !rect || !el) return
+    const place = () => setPosition(cardPosition(rect, el.offsetWidth || CARD_WIDTH, el.offsetHeight, window.innerWidth, window.innerHeight))
+    place()
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(place)
+    observer?.observe(el)
+    window.addEventListener('resize', place)
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener('resize', place)
+    }
+  }, [rect, sheet])
 
   useEscapeLayer(closeProfileCard)
   useFocusTrap(ref)
@@ -96,49 +113,52 @@ function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; me
         tabIndex={-1}
         style={sheet ? undefined : { width: CARD_WIDTH, left: position?.left ?? -9999, top: position?.top ?? 0 }}
       >
-        <div className="profile-banner" style={{ background: banner }}>
-          <button className="icon-button small profile-close" onClick={closeProfileCard} aria-label={t('common.close')}>
-            <Close />
-          </button>
-        </div>
-        <div className="profile-head">
-          <span className="profile-avatar-ring" style={{ background: 'var(--float)' }}>
-            <Avatar name={member.name} accountKey={member.accountKey} size={80} status={presence.status} />
-          </span>
-        </div>
-        <div className="profile-body">
-          <h2 className="profile-name">{member.name}</h2>
-          {member.nick && member.profileName && member.profileName !== member.name && <div className="profile-realname">{member.profileName}</div>}
-          <div className="profile-sub">
-            {member.pronouns && <span>{member.pronouns}</span>}
-            <span className={`role-chip role-${member.role}`}>{t(`common.roles.${member.role}`)}</span>
-            <span className="profile-status-label"><span className={`status-dot presence-${presence.status}`} aria-hidden />{STATUS_LABELS[presence.status]}</span>
+        <div className="profile-scroll">
+          <div className="profile-banner" style={{ background: banner }}>
+            <button className="icon-button small profile-close" onClick={closeProfileCard} aria-label={t('common.close')}>
+              <Close />
+            </button>
           </div>
-          {presence.custom && <div className="profile-status"><CustomStatusLine custom={presence.custom} /></div>}
-          <RoleChips server={server} member={member} />
-          {member.activity && <div className="profile-activity"><ActivityLine activity={member.activity} /></div>}
-          {member.bio && (
-            <div className="profile-bio">
-              {renderMarkdown(member.bio, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey })}
+          <div className="profile-head">
+            <span className="profile-avatar-ring" style={{ background: 'var(--float)' }}>
+              <Avatar name={member.name} accountKey={member.accountKey} size={80} status={presence.status} />
+            </span>
+          </div>
+          <div className="profile-body">
+            <h2 className="profile-name">{member.name}</h2>
+            {member.nick && member.profileName && member.profileName !== member.name && <div className="profile-realname">{member.profileName}</div>}
+            <div className="profile-sub">
+              {member.pronouns && <span>{member.pronouns}</span>}
+              <span className={`role-chip role-${member.role}`}>{t(`common.roles.${member.role}`)}</span>
+              <span className="profile-status-label"><span className={`status-dot presence-${presence.status}`} aria-hidden />{STATUS_LABELS[presence.status]}</span>
             </div>
-          )}
-          <div className="profile-id muted">{t('settings.member.id')} <code>{fingerprint(member.accountKey)}</code></div>
-          <div className="profile-actions">
-            {page && (
-              <button className="button primary" onClick={() => openProfilePage(server.key, member.accountKey)}>
-                {t('profile.openPage')}
-              </button>
+            {presence.custom && <div className="profile-status"><CustomStatusLine custom={presence.custom} /></div>}
+            <RoleChips server={server} member={member} />
+            {member.activity && <div className="profile-activity"><ActivityLine activity={member.activity} /></div>}
+            {member.bio && (
+              <div className="profile-bio">
+                {renderMarkdown(member.bio, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey })}
+              </div>
             )}
-            {!isSelf && (
-              <button className="button" onClick={() => { openConversation(member.accountKey); closeProfileCard() }}>{t('settings.member.message')}</button>
-            )}
-            {!isSelf && <FriendButtons accountKey={member.accountKey} />}
-            {isSelf ? (
-              <button className="button" onClick={onEdit}>{t('profile.edit')}</button>
-            ) : (
-              <button className="button" onClick={() => openMemberDetails(server.key, member.accountKey)}>{t('common.more')}</button>
-            )}
+            <div className="profile-id muted">{t('settings.member.id')} <code>{fingerprint(member.accountKey)}</code></div>
           </div>
+        </div>
+        {/* Outside the scrolling part, so the buttons are always in sight. */}
+        <div className="profile-actions">
+          {page && (
+            <button className="button primary" onClick={() => openProfilePage(server.key, member.accountKey)}>
+              {t('profile.openPage')}
+            </button>
+          )}
+          {!isSelf && (
+            <button className="button" onClick={() => { openConversation(member.accountKey); closeProfileCard() }}>{t('settings.member.message')}</button>
+          )}
+          {!isSelf && <FriendButtons accountKey={member.accountKey} />}
+          {isSelf ? (
+            <button className="button" onClick={onEdit}>{t('profile.edit')}</button>
+          ) : (
+            <button className="button" onClick={() => openMemberDetails(server.key, member.accountKey)}>{t('common.more')}</button>
+          )}
         </div>
       </div>
     </div>
