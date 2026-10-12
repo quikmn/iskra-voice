@@ -102,7 +102,7 @@ public static class ReminderFeature
         var body = "You asked to be reminded about a message.";
         long? channelId = null;
         if (r.MessageId is { } id && store.GetMessage(id) is { } message && store.GetChannel(message.ChannelId) is { } channel
-            && Permissions.CanRead(member, channel))
+            && Permissions.CanRead(member, channel) && !store.EitherBlocked(member.AccountKey, message.AuthorKey))
         {
             var author = store.GetMember(message.AuthorKey) is { } a ? store.DisplayName(a) : "Someone";
             var text = message.Text.ReplaceLineEndings(" ");
