@@ -32,6 +32,7 @@ table doesn't cover it, **stop and report**. Don't improvise fixes. Background a
 | "build iOS and upload to TestFlight" | [I. iOS app to TestFlight](#i-ios-app-to-testflight) |
 | an `outage` issue was opened / "is everything up?" | [J. Outage alert](#j-outage-alert) |
 | "build the Android app" | [K. Android app](#k-android-app) |
+| "put the Android app on Google Play" | [L. Google Play](#l-google-play-the-owner-in-the-browser): agents only do step L.3 (K); the rest is the human's |
 
 ## A. Full release
 
@@ -171,6 +172,51 @@ Releases build the APK in B (release-windows.ps1). On its own, on the Windows PC
 1. `git checkout <tag or main>`, then `pwsh -NoProfile -File mobile/scripts/build-android.ps1` (add `-ApkOnly` to skip the AAB).
 2. ✔ Ends with `Built ...\mobile\release\Iskra-V.apk (signed by the release key, 7c5941ba…)`.
 3. Never print or open the keystore or its password file.
+4. The AAB for Google Play is `mobile\release\Iskra-V.aab` (the script prints `Built ...\Iskra-V.aab` before the APK line),
+   signed with the same release key. Hand it to the human for [L](#l-google-play-the-owner-in-the-browser); never upload it.
+
+## L. Google Play (the owner, in the browser)
+
+For the human: agents never touch Play Console (Never, rule 4). Everything to paste is in
+[docs/store/play](store/play): listing text (`en-US/`, `sv-SE/`), [app-content.md](store/play/app-content.md) (every
+other form), [data-safety.md](store/play/data-safety.md), [content-rating.md](store/play/content-rating.md).
+
+**Signing, decided once.** Every Android build so far (the old app and the GitHub APKs) is signed with the release key
+in `devkeys\iskra-android.keystore`, and `client/public/.well-known/assetlinks.json` lists its fingerprint for App
+Links. Play App Signing re-signs what you upload with an *app signing key*; what you upload is signed with the *upload
+key*. Choose **"Use a key from Java keystore"** (upload the existing key, encrypted by Google's PEPK tool) so Play
+signs with the same key as before: copies installed from GitHub then update from Play and back, and App Links keep
+working without a new fingerprint. Keep using the same key as the upload key too, so `build-android.ps1` works as it
+is. (If you let Google generate a new key instead, Play and GitHub installs can't update each other, and you must add
+Play's SHA-256 from Setup → App signing to `assetlinks.json` and redeploy the web app, E.)
+
+1. **Create the app.** play.google.com/console → Create app: fields in app-content.md "Create app". Free.
+2. **Set up the app** (Dashboard → "Set up your app"; each item links to its form): privacy policy, app access
+   (create the review server's invite link first, see app-content.md), ads, content rating, target audience, news,
+   data safety, government apps, financial features, health, advertising ID. Then Store settings (category, email,
+   website) and Main store listing (text, icon, feature graphic, screenshots; Swedish under Translations).
+   Graphics: `cd server; dotnet build src/Iskra.Server`, then `cd client; $env:PLAY_SHOTS=1; $env:ISKRA_E2E_PORT=5299;
+   npx playwright test e2e/play-store.spec.ts` → `docs/store/play/screenshots/` and `graphics/`.
+3. **Build the AAB**: [K](#k-android-app) on the release tag (`mobile\release\Iskra-V.aab`).
+4. **Internal testing.** Test and release → Testing → Internal testing → Testers: create a list (`Friends & family`, the
+   testers' Google account emails) → Releases → Create new release. The first time it asks about app signing: Choose
+   signing key → **Use a key from Java keystore**, follow its PEPK steps on this PC (the tool reads the keystore
+   locally; upload only the encrypted zip it makes; alias `iskra`). Upload `Iskra-V.aab`, release name `V`, release
+   notes from `docs/releases/` (short; English and Swedish) → Next → Save and publish.
+5. **Foreground services.** Policy and programs → App content → Foreground service permissions: microphone and media
+   playback, texts in app-content.md, plus a short video of voice with the screen locked (record it on a phone from
+   the internal test).
+6. **Check on a phone** (from the testers' opt-in link): install over a GitHub APK (it must update, not fail with a
+   signature conflict), join a server, voice with the screen locked for 2 minutes, an invite link opens the app
+   (`adb shell pm get-app-links foo.iskra.app` → `verified`). Then answer the data safety question about encryption
+   in transit (data-safety.md, "to decide").
+7. **Closed testing, then production.** A personal developer account made after November 2023 needs a closed test
+   with at least 12 testers who stay opted in for 14 days before it can apply for production (Dashboard shows the
+   requirement if it applies). Create a closed testing track, promote the internal release to it, invite the testers,
+   wait the 14 days, then Apply for production → Production → Create release (promote the tested release), countries
+   per app-content.md, staged rollout 20% → 100%.
+8. **Every later release:** K for the new tag, then the track's Create new release → upload → Save and publish. The
+   version code rises with every version (scripts/mobile-version.mjs); Play refuses a code it has seen.
 
 ## Decision table
 

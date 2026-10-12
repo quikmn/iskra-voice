@@ -1,0 +1,37 @@
+Iskra är röst- och textchatt för kompisgäng, på en server som är din eller en väns. Det är gratis, utan reklam, spårning eller prenumerationer.
+
+DIN SERVER, DINA REGLER
+Någon i gänget startar en server med Iskras datorapp (Windows, Mac eller Linux) eller på vilken dator som helst. Alla andra går med via en inbjudningslänk. Era meddelanden, filer och samtal går till den servern, inte till oss. Det finns ingen central Iskra-databas.
+
+INGEN E-POST, INGET LÖSENORD
+Välj ett namn så är du inne. Ditt konto är en nyckel som skapas i din telefon och lagras krypterad där. Med en återställningsnyckel får du tillbaka det på en annan enhet, och du kan koppla ihop telefonen med datorn med en QR-kod.
+
+ALLT ETT KOMPISGÄNG BEHÖVER
+• Textkanaler med svar, reaktioner, omnämnanden, trådar, fästa meddelanden, sök, omröstningar, egna emoji och klistermärken, GIF:ar, röstmeddelanden och filer
+• Röstkanaler som flyter på även när många är med, där du kan stänga av mikrofonen eller ljudet, ställa volym per person och använda soundboarden
+• Slå på kameran i röstkanaler och samtal
+• Forum, evenemang med påminnelser och dokumentkanaler för husregler och guider
+• Scener för föredrag och lyssningsfester, och gemensamma visningar där alla ser samma bildruta
+• Roller, behörigheter och moderering: timeouts, långsamt läge, AutoMod, anmälningar och en aktivitetslogg
+• Profiler du formger själv, vänner, status och egen status
+• Bottar och webhooks
+
+PRIVAT DÄR DET SPELAR ROLL
+Direktmeddelanden, gruppchattar och deras röst- och videosamtal är totalsträckskrypterade med libsodium, ett beprövat bibliotek. Servern skickar bara vidare dem och kan inte läsa dem. Jämför säkerhetsnummer med en vän för att veta att det verkligen är hen.
+
+Serverkanaler är krypterade på vägen och kan läsas av den som kör servern. Det säger vi rakt ut. Vill du ha mer? Gör en liten privat kanal totalsträckskrypterad, text och röst.
+
+INGET LADDAS BAKOM DIN RYGG
+Telefonen pratar med servrarna du går med i. YouTube, Twitch och andra inbäddningar väntar tills du trycker på Spela. Appen har ingen analys, ingen reklam, ingen kraschrapportering och inga Google Play-tjänster.
+
+I TELEFONEN
+• Stanna kvar i röstkanalen med skärmen avstängd: en avisering visar att du är i röst och låter dig lämna
+• Aviseringar, ljud och olästa-markeringar kommer medan appen är öppen. Vill du ha aviseringar när den är stängd, använd datorappen eller Iskra i webbläsaren
+• Inbjudningslänkar öppnas direkt i appen
+• Skärmdelning och att starta en egen server gör du i datorappen
+
+Du behöver en inbjudningslänk till en server, eller datorappen för att starta en egen.
+
+Iskra är i tidig version och blir bättre för varje release. Källkoden finns på GitHub. Gjord i Sverige av From a Spark.
+
+Integritetspolicy: https://iskra.foo/privacy
