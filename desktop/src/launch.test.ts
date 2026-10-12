@@ -77,6 +77,6 @@ test('splash text: the heading, the step, and the update notice', () => {
   assert.deepEqual(splashView(s, null, t), { heading: 'Iskra', status: 'Starting your servers…', progress: launchProgress(s) })
   assert.equal(splashView(s, '2.0.0', t).heading, 'Updated to 2.0.0')
   assert.equal(splashView(at(s, { page: 'loaded', serversGaveUp: true }), null, t).status, 'Connecting…')
-  assert.deepEqual(updatingView('2.1.0', t), { heading: 'Updating Iskra to 2.1.0…', status: "It'll be back in a few seconds.", progress: null })
+  assert.deepEqual(updatingView('2.1.0', t), { heading: 'Updating Iskra to 2.1.0…', status: 'It’ll be back in a few seconds.', progress: null })
   assert.equal(splashView(initialLaunch(0), '2.0.0', DESKTOP_TEXT.sv.splash).heading, 'Uppdaterad till 2.0.0')
 })

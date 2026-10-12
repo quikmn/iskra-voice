@@ -7,7 +7,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test, type Page } from '@playwright/test'
 import { APP_PORT } from '../playwright.config'
-import { agreeToTerms, hasLiveKit, joinVia, SHOTS } from './helpers'
+import { appWindow, agreeToTerms, hasLiveKit, joinVia, SHOTS } from './helpers'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DESKTOP = resolve(HERE, '../../desktop')
@@ -39,7 +39,7 @@ test('from a fresh install to friends talking in voice, timed', async ({ browser
   })
   try {
     // 1. First start: who are you?
-    const host = await app.firstWindow()
+    const host = await appWindow(app)
     await agreeToTerms(host)
     await shot(host, '1-welcome')
     await host.getByRole('button', { name: /I’m new to Iskra/ }).click()

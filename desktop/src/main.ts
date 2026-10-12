@@ -69,7 +69,11 @@ if (!primaryInstance) app.quit()
 // ── Starting up: the splash window ───────────────────────────────────────
 // Shown at once on every start (not when started hidden in the tray), then fades into the main window once its page
 // is painted and the hosted servers starting with it are up (or we stopped waiting for them).
-const splash = new Splash(path.join(ASSETS, 'splash.html'), ICON)
+/** For the desktop e2e test: what the splash and the main window did, in order. */
+const launchLog = (event: string) => {
+  if (process.env.ISKRA_E2E) ((globalThis as { iskraLaunchLog?: string[] }).iskraLaunchLog ??= []).push(event)
+}
+const splash = new Splash(path.join(ASSETS, 'splash.html'), ICON, (event) => launchLog(`splash ${event}`))
 /** Non-null while the splash is up and the main window waits. */
 let launch: LaunchState | null = null
 /** "Updated to X" on the splash, once after an update. */
@@ -93,6 +97,7 @@ function finishLaunch(): void {
     if (!window) return
     window.show()
     window.focus()
+    launchLog('main shown')
   }, 150)
 }
 

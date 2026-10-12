@@ -71,7 +71,7 @@ const en = {
     ready: 'Ready',
     updatedTo: (version: string) => `Updated to ${version}`,
     updating: (version: string) => `Updating Iskra to ${version}…`,
-    updatingDetail: "It'll be back in a few seconds.",
+    updatingDetail: 'It’ll be back in a few seconds.',
   },
 }
 

@@ -13,7 +13,8 @@ export class Splash {
   private loaded = false
   private pending: (SplashView & { lang: string }) | null = null
 
-  constructor(private readonly file: string, private readonly icon: string) {}
+  /** log: what happened, for the desktop e2e test (ISKRA_E2E only). */
+  constructor(private readonly file: string, private readonly icon: string, private readonly log: (event: string) => void = () => undefined) {}
 
   get showing(): boolean {
     return !!this.win && !this.win.isDestroyed()
@@ -22,6 +23,7 @@ export class Splash {
   /** Opens the window (or redraws it if it's open). It shows as soon as its first frame is painted. */
   show(view: SplashView, lang: string): void {
     if (this.showing) return this.update(view, lang)
+    this.log(`view ${view.heading} | ${view.status}`)
     const ses = session.fromPartition('iskra-splash')
     ses.setPermissionRequestHandler((_c, _p, callback) => callback(false))
     ses.setPermissionCheckHandler(() => false)
@@ -36,13 +38,18 @@ export class Splash {
     this.pending = null
     win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
     win.webContents.on('will-navigate', (event) => event.preventDefault())
-    win.once('ready-to-show', () => !win.isDestroyed() && win.show())
+    win.once('ready-to-show', () => {
+      if (win.isDestroyed()) return
+      win.show()
+      this.log('shown')
+    })
     win.webContents.once('did-finish-load', () => {
       this.loaded = true
       if (this.pending) this.draw(this.pending)
       this.pending = null
     })
     win.on('closed', () => {
+      this.log('closed')
       if (this.win === win) this.win = null
     })
     void win.loadFile(this.file, { hash: encodeURIComponent(JSON.stringify({ ...view, lang })) }).catch(() => undefined)
@@ -50,6 +57,7 @@ export class Splash {
 
   update(view: SplashView, lang: string): void {
     if (!this.showing) return
+    this.log(`view ${view.heading} | ${view.status}`)
     if (this.loaded) this.draw({ ...view, lang })
     else this.pending = { ...view, lang }
   }
