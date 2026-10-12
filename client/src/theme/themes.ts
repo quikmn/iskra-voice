@@ -125,7 +125,7 @@ export const BUILT_IN_THEMES: BuiltInTheme[] = [
         bgSurface: '#001f27', bgDeep: '#002531', bgBody: '#002b36', bgFloat: '#003541',
         bgSidebar: '#002b36', bgSidebarHover: '#0a3a47', bgChat: '#073642',
         bgHover: '#156070', bgButton: '#0b394a', bgBorder: '#195060', bgActive: '#143943',
-        textHeading: '#fdf6e3', textNormal: '#93a1a1', textMuted: '#86a4ab', textSubtle: '#8a9ea5', textFaint: '#4e7085',
+        textHeading: '#fdf6e3', textNormal: '#93a1a1', textMuted: '#86a4ab', textSubtle: '#8fa3aa', textFaint: '#4e7085',
         accent: '#268bd2', accentHover: '#1e6fa6', success: '#90a600', successHover: '#6b7d00',
         danger: '#e87977', dangerHover: '#b22826', warning: '#ec7b4c', link: '#2fb1a8',
         statusOnline: '#859900', statusAway: '#b58900', statusDnd: '#dc322f',

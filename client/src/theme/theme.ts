@@ -233,13 +233,22 @@ function hslHex(h: number, s: number, l: number): string {
   return `#${f(0)}${f(8)}${f(4)}`
 }
 
-/** How light author names (hsl(hue 70% L)) must be to read at 4.5:1 on a dark chat background, whatever the hue. */
+/**
+ * How light author names (hsl(hue 70% L)) must be to read at 4.5:1 on the chat background, whatever the hue:
+ * lighter than 72% on dark backgrounds, darker than 40% on light ones.
+ */
 export function nameLightness(background: string): number {
-  for (let l = 72; l < 96; l++) {
-    let ok = true
-    for (let h = 0; h < 360 && ok; h += 15) ok = contrast(hslHex(h, 70, l), background) >= 4.5
-    if (ok) return l
+  const rgb = rgbOf(background)
+  const light = !!rgb && luminance(rgb) > 0.18
+  const reads = (l: number) => {
+    for (let h = 0; h < 360; h += 15) if (contrast(hslHex(h, 70, l), background) < 4.5) return false
+    return true
   }
+  if (light) {
+    for (let l = 40; l > 4; l--) if (reads(l)) return l
+    return 4
+  }
+  for (let l = 72; l < 96; l++) if (reads(l)) return l
   return 96
 }
 
@@ -366,8 +375,7 @@ export function themeVariables(theme: ThemeFile): Record<string, string> {
   for (const { name, key, fallback } of VARIABLES) vars[name] = theme.colors[key] ?? fallback
   if (!theme.colors.onAccent && theme.colors.accent) vars['--on-accent'] = textOn(theme.colors.accent)
   if (theme.colors.danger) vars['--danger-solid'] = solidUnderWhite(theme.colors.danger)
-  // Light themes keep the stylesheet's dark names.
-  if (theme.meta.scheme !== 'light' && theme.colors.bgChat) vars['--name-l'] = `${nameLightness(theme.colors.bgChat)}%`
+  if (theme.colors.bgChat) vars['--name-l'] = `${nameLightness(theme.colors.bgChat)}%`
   vars['--radius'] = `${theme.radius ?? 10}px`
   vars['--avatar-radius'] = AVATAR_SHAPES[theme.avatarShape ?? 'circle']
   vars['--font'] = BODY_FONTS[theme.fonts?.body ?? 'inter']

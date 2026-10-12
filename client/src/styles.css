@@ -61,7 +61,7 @@
 }
 
 /* Light themes: darker name colours, softer scrims and shadows. */
-:root[data-scheme='light'] { --name-l: 38%; --scrim: rgba(20, 20, 40, 0.38); --shadow-color: rgba(20, 20, 60, 0.18); }
+:root[data-scheme='light'] { --name-l: 26%; --scrim: rgba(20, 20, 40, 0.38); --shadow-color: rgba(20, 20, 60, 0.18); }
 
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }

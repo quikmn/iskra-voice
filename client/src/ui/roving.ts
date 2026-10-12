@@ -85,7 +85,7 @@ export function useRoving(ref: RefObject<HTMLElement | null>, options: RovingOpt
     }
     // Rows re-render on their own (unread counts, voice), and new ones can appear without this list re-rendering.
     const observer = new MutationObserver(() => sync.current())
-    observer.observe(root, { childList: true, subtree: true })
+    observer.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'disabled', 'aria-expanded'] })
     root.addEventListener('keydown', onKey)
     root.addEventListener('focusin', onFocus)
     sync.current()

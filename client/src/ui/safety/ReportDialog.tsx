@@ -123,7 +123,7 @@ function ReportDialog({ target }: { target: ReportTarget }) {
   return (
     <Modal title={title} onClose={closeReport} className="report-modal">
       {target.kind === 'message' && server && (
-        <blockquote className="report-quote">
+        <blockquote className="report-quote" tabIndex={0}>
           <strong>{name}</strong>
           <span>{plainText(target.message.text, { nameOf: (k) => server.members[k]?.name ?? null }) || t('safety.report.noText')}</span>
         </blockquote>
