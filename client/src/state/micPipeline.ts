@@ -8,7 +8,7 @@ import type { TrackProcessor, Track, AudioProcessorOptions } from 'livekit-clien
 import gateWorkletUrl from './micGate.worklet.ts?worker&url'
 import deepFilterWorkletUrl from './audio/deepfilter.worklet.ts?worker&url'
 import { AUTO_SPEAKING_DB, type AudioSettings } from './audio'
-import { loadDeepFilter, loadRnnoiseWasm, loadSilero } from './audio/assets'
+import { deepFilterBytes, loadDeepFilter, loadRnnoiseWasm, loadSilero } from './audio/assets'
 import { engineCaps, markBroken, plannedEngine, SlowWatch, type NoiseEngine } from './audio/engines'
 
 export type LevelListener = (db: number, open: boolean) => void
@@ -54,12 +54,18 @@ export function keepRunning(ctx: AudioContext): () => void {
   }
 }
 
-/** Waits for a worklet's first "ready" or "error". */
+/**
+ * How long DeepFilterNet may take to start once it's downloaded and compiled (loading the model). Longer means this
+ * device is too slow for it: the call goes ahead with RNNoise rather than keep your mic waiting.
+ */
+export const DEEPFILTER_START_MS = 6000
+
+/** Waits for a worklet's first "ready", "error" or "need-bytes". */
 function answer(node: AudioWorkletNode, ms: number): Promise<{ type: string; message?: string }> {
   return new Promise((resolve) => {
     const timer = setTimeout(() => resolve({ type: 'error', message: 'timed out' }), ms)
     node.port.onmessage = (e: MessageEvent<{ type: string; message?: string }>) => {
-      if (e.data?.type !== 'ready' && e.data?.type !== 'error') return
+      if (e.data?.type !== 'ready' && e.data?.type !== 'error' && e.data?.type !== 'need-bytes') return
       clearTimeout(timer)
       node.port.onmessage = null
       resolve(e.data)
@@ -73,10 +79,23 @@ async function startDeepFilter(ctx: AudioContext): Promise<AudioWorkletNode | nu
     const assets = await loadDeepFilter()
     await ctx.audioWorklet.addModule(deepFilterWorkletUrl)
     const node = new AudioWorkletNode(ctx, 'iskra-deepfilter', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] })
-    const ready = answer(node, 20000)
-    node.port.postMessage({ wasm: assets.wasm, model: assets.model })
-    const result = await ready
-    if (result.type !== 'ready') throw new Error(result.message)
+    const started = Date.now()
+    // The compiled engine goes over as is; a browser that can't send it to a worklet sends the bytes instead.
+    let reply = answer(node, DEEPFILTER_START_MS)
+    node.port.postMessage({ module: assets.module, model: assets.model })
+    let result = await reply
+    if (result.type === 'need-bytes') {
+      const wasm = await deepFilterBytes()
+      reply = answer(node, DEEPFILTER_START_MS)
+      node.port.postMessage({ wasm, model: assets.model })
+      result = await reply
+    }
+    if (result.type !== 'ready') {
+      node.port.postMessage('stop')
+      node.disconnect()
+      throw new Error(result.message)
+    }
+    console.info(`[iskra] AI noise removal started in ${Date.now() - started} ms`)
     return node
   } catch (e) {
     console.warn('[iskra] AI noise removal could not start; using RNNoise', e)

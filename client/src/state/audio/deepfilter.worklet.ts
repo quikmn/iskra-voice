@@ -13,15 +13,26 @@ const REPORT_FRAMES = 100 // 1 s
 
 class DeepFilterProcessor extends AudioWorkletProcessor {
   private framer: Framer | null = null
+  private stopped = false
 
   constructor() {
     super()
-    this.port.onmessage = (e: MessageEvent<{ wasm: ArrayBuffer; model: ArrayBuffer }>) => {
+    // The page sends the compiled engine ({ module, model }); if it didn't arrive as one (a browser that can't send
+    // modules to worklets), ask for the bytes ({ wasm, model }) and compile here.
+    this.port.onmessageerror = () => this.port.postMessage({ type: 'need-bytes' })
+    this.port.onmessage = (e: MessageEvent<{ module?: unknown; wasm?: ArrayBuffer; model: ArrayBuffer } | 'stop'>) => {
+      if (e.data === 'stop') {
+        this.stopped = true
+        return
+      }
+      const { module, wasm, model } = e.data
       try {
         if (sampleRate !== 48000) throw new Error(`DeepFilterNet needs 48 kHz, not ${sampleRate}`)
-        initSync({ module: e.data.wasm })
+        if (module instanceof WebAssembly.Module) initSync({ module })
+        else if (wasm) initSync({ module: wasm })
+        else return this.port.postMessage({ type: 'need-bytes' })
         // No attenuation limit: take out all the noise it finds.
-        const state = df_create(new Uint8Array(e.data.model), 100)
+        const state = df_create(new Uint8Array(model), 100)
         this.framer = new Framer(480, sampleRate, (frame) => df_process_frame(state, frame))
         this.port.postMessage({ type: 'ready', latency: this.framer.latency })
       } catch (err) {
@@ -31,6 +42,7 @@ class DeepFilterProcessor extends AudioWorkletProcessor {
   }
 
   process(inputs: Float32Array[][], outputs: Float32Array[][]): boolean {
+    if (this.stopped) return false
     const output = outputs[0]?.[0]
     if (!output) return true
     const input = inputs[0]?.[0]

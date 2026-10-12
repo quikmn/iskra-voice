@@ -4,7 +4,7 @@ import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { expect, type Locator, type Page } from '@playwright/test'
+import { expect, test, type BrowserContext, type Locator, type Page } from '@playwright/test'
 import { APP_PORT } from '../playwright.config'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -50,8 +50,34 @@ export interface TestServer {
   stop: () => Promise<void>
 }
 
+/**
+ * Browser contexts that joined a server, by the spec file that made them. Specs don't close their contexts, so
+ * without this every page of every earlier spec stays open in the worker's browser for the rest of the run, retrying
+ * its stopped server (and, after a call, running its voice processing until LiveKit gives up): a few hundred pages by
+ * the end, which starves the voice and screen-share specs that come late on a small CI machine.
+ */
+const opened: { context: BrowserContext; file: string }[] = []
+
+const currentFile = (): string | null => {
+  try {
+    return test.info().file
+  } catch {
+    return null
+  }
+}
+
+/** Closes the contexts earlier spec files left open (this worker runs one file at a time, so they're done). */
+async function closeEarlierContexts(): Promise<void> {
+  const file = currentFile()
+  if (!file) return
+  const done = opened.filter((o) => o.file !== file)
+  for (const o of done) opened.splice(opened.indexOf(o), 1)
+  await Promise.all(done.map((o) => o.context.close().catch(() => undefined)))
+}
+
 /** A real iskra-server on a fresh world; with voice if the LiveKit binary is in .tools. */
 export async function startServer(name: string, voice = false, env: Record<string, string> = {}): Promise<TestServer> {
+  await closeEarlierContexts()
   const world = mkdtempSync(join(tmpdir(), 'iskra-e2e-'))
   // Other workers pick ports too, so a port can be taken by the time the server binds it: then it exits, and
   // this tries again on new ports.
@@ -128,6 +154,8 @@ async function startIn(world: string, name: string, voice: boolean, env: Record<
 }
 
 export async function joinVia(page: Page, link: string, name: string) {
+  const file = currentFile()
+  if (file && !opened.some((o) => o.context === page.context())) opened.push({ context: page.context(), file })
   await page.goto(link)
   await expect(page.getByText("You've been invited")).toBeVisible()
   await agreeToTerms(page)

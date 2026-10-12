@@ -9,10 +9,8 @@ import dfModelUrl from '../../../vendor/deepfilternet/DeepFilterNet3_onnx.tar.gz
 import sileroUrl from '../../../vendor/silero-vad/silero_vad_16k_op15.onnx?url'
 
 export interface DeepFilterAssets {
-  /** The engine, compiled (workers take it as is). */
+  /** The engine, compiled once per page (off the main thread, and from the browser's code cache after the first time). */
   module: WebAssembly.Module
-  /** The engine's bytes (audio worklets compile their own copy: not every browser can send them a module). */
-  wasm: ArrayBuffer
   /** DeepFilterNet3_onnx.tar.gz. */
   model: ArrayBuffer
 }
@@ -31,14 +29,34 @@ async function gzipped(data: ArrayBuffer): Promise<ArrayBuffer> {
   return new Response(new Blob([data]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()
 }
 
+/** Compiles the engine while it downloads where the browser can (and then caches the compiled code). */
+async function compileDeepFilter(): Promise<WebAssembly.Module> {
+  if (typeof WebAssembly.compileStreaming === 'function') {
+    try {
+      return await WebAssembly.compileStreaming(fetch(dfWasmUrl))
+    } catch {
+      /* served without the WebAssembly type: compile the bytes instead */
+    }
+  }
+  return WebAssembly.compile(await deepFilterBytes())
+}
+
 let deepFilter: Promise<DeepFilterAssets> | null = null
 export function loadDeepFilter(): Promise<DeepFilterAssets> {
   deepFilter ??= (async () => {
-    const [wasm, model] = await Promise.all([bytes(dfWasmUrl), bytes(dfModelUrl).then(gzipped)])
-    return { wasm, model, module: await WebAssembly.compile(wasm) }
+    const [module, model] = await Promise.all([compileDeepFilter(), bytes(dfModelUrl).then(gzipped)])
+    return { module, model }
   })()
   deepFilter.catch(() => (deepFilter = null))
   return deepFilter
+}
+
+let dfBytes: Promise<ArrayBuffer> | null = null
+/** The engine's bytes, for an audio worklet that can't be handed a compiled module (it compiles its own). */
+export function deepFilterBytes(): Promise<ArrayBuffer> {
+  dfBytes ??= bytes(dfWasmUrl)
+  dfBytes.catch(() => (dfBytes = null))
+  return dfBytes
 }
 
 let silero: Promise<ArrayBuffer> | null = null
