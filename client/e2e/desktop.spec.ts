@@ -289,7 +289,7 @@ test('Desktop app settings, the unread badge, and iskra:// invite links', async 
     await expect(settings.getByRole('button', { name: 'Restart now' })).toBeVisible()
     await page.screenshot({ path: join(SHOTS, 'desktop-settings-app.png') })
     await expect.poll(() => existsSync(join(userData, 'desktop.json')) && JSON.parse(readFileSync(join(userData, 'desktop.json'), 'utf8')))
-      .toEqual({ openAtLogin: false, closeToTray: false, hardwareAcceleration: false, activity: false, customGames: [], language: 'en', keepRunning: [] })
+      .toEqual({ openAtLogin: false, closeToTray: false, hardwareAcceleration: false, activity: false, customGames: [], language: 'en', keepRunning: [], updateChecks: true })
     await settings.getByLabel(/Hardware acceleration/).check()
     await expect(settings.getByRole('button', { name: 'Restart now' })).toHaveCount(0)
 
@@ -307,7 +307,7 @@ test('Desktop app settings, the unread badge, and iskra:// invite links', async 
     // Only the game's name was stored, never the program list.
     const stored = JSON.parse(readFileSync(join(userData, 'desktop.json'), 'utf8'))
     expect(stored.activity).toBe(true)
-    expect(Object.keys(stored).sort()).toEqual(['activity', 'closeToTray', 'customGames', 'hardwareAcceleration', 'keepRunning', 'language', 'openAtLogin'])
+    expect(Object.keys(stored).sort()).toEqual(['activity', 'closeToTray', 'customGames', 'hardwareAcceleration', 'keepRunning', 'language', 'openAtLogin', 'updateChecks'])
     // Turning it off clears it for everyone.
     await page.locator('.me-bar').getByRole('button', { name: 'Settings' }).click()
     await settings.getByRole('button', { name: 'Desktop app', exact: true }).click()

@@ -1,6 +1,7 @@
 <!-- Release notes for the next version. Each change is its own line; the release step merges them. -->
 
 ### What's new
+- **Nothing talks to anyone behind your back.** Videos and posts from YouTube, Twitch, X and Reddit load only when you click (or for sites you choose to always allow), watch parties say where a video plays from first, GIFs come through your own server, and voice no longer asks Google's STUN servers for your address. My settings → Privacy & data lists every outside connection, with a way to turn it off.
 - **Restarts you barely notice.** When a server restarts or updates, the app says "<server> is restarting, hold on…" and is back within a second of the server: you're rejoined to voice with the same mute and deafen, and messages you wrote meanwhile are sent. Screen share and camera wait for you to turn them on again. If a server is shut down instead, the app says it went offline.
 - **Server settings get their own room.** Right-click a server (or press and hold on a phone) for everything you can do there: invite, create channels, roles, members, reports and more. Server settings open full-window with the server's name, picture and colour on top, so you always know which server you're changing. Your own settings are a separate place.
 - **Your profile follows you.** Change your name, picture or page on one device and your other devices pick it up right away. A phone or laptop that was offline can't bring an old name back.
