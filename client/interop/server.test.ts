@@ -11,6 +11,7 @@ import { ready } from '../src/core/crypto'
 import { b64u, fromB64u } from '../src/core/crypto'
 import { generatePrekey, revokedSet, signPrekey, signRevocation } from '../src/core/devices'
 import { decryptDm, encryptDm } from '../src/core/dm'
+import { encryptedSize, FileDecryptor, FileEncryptor } from '../src/core/dmFiles'
 import { createIdentity, type Identity } from '../src/core/identity'
 import {
   checkMac, confirmationCode, encodeLinkCode, ephemeralKey, linkKeys, macKey, newLinkSecret, openPayload, parseLinkCode,
@@ -153,6 +154,38 @@ describe('client ↔ server', () => {
     const received = await owner.event('chat.message', (b) => b.message.id === message.id)
     expect(received.message.text).toBe('hi from TypeScript 👋')
     expect(received.message.author).toBe(friend.welcome!.you.accountKey)
+  })
+
+  it('uploads an encrypted DM file in parts and the other person streams it back, intact', async () => {
+    const [owner, friend] = users
+    const size = 3 * 64 * 1024 + 5000
+    const plain = Uint8Array.from({ length: size }, (_, i) => (i * 7) % 256)
+    const encryptor = new FileEncryptor(size)
+    const begun = await friend.connection.request('dm.upload.begin', { accountKey: owner.welcome!.you.accountKey, size: encryptedSize(size) })
+    expect(begun.partBytes).toBe(16 * 1024 * 1024)
+    // Parts of 100 KB of plaintext (the app uses bigger ones; the server takes any split).
+    let sent = 0
+    let id: string | null = null
+    for (let at = 0; at < size; at += 100_000) {
+      const part = encryptor.push(plain.subarray(at, Math.min(size, at + 100_000)))
+      const response = await fetch(`${server.url}${begun.url}?offset=${sent}`, { method: 'PUT', body: part as Uint8Array<ArrayBuffer> })
+      expect(response.status).toBe(200)
+      const body = (await response.json()) as { received?: number; file?: { id: string } }
+      sent += part.length
+      if (body.file) id = body.file.id
+      else expect(body.received).toBe(sent)
+    }
+    const { key, hash } = encryptor.finish()
+    expect(id).not.toBeNull()
+
+    const { url } = await owner.connection.request('dm.file.url', { id: id! })
+    const response = await fetch(server.url + url)
+    const decryptor = new FileDecryptor({ key, hash, size })
+    const parts: Uint8Array[] = []
+    const reader = response.body!.getReader()
+    for (let r = await reader.read(); !r.done; r = await reader.read()) parts.push(...decryptor.push(r.value))
+    parts.push(decryptor.finish())
+    expect(Buffer.concat(parts).equals(Buffer.from(plain))).toBe(true)
   })
 
   it('refuses a server whose key does not match the invite', async () => {

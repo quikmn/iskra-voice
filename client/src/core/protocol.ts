@@ -127,7 +127,7 @@ export interface Requests {
   ping: [Record<string, never>, Record<string, never>]
   'chat.send': [{ channelId: number; text: string; attachments?: string[]; replyTo?: number; voice?: VoiceInfo; sticker?: string; gif?: string | DirectGif; nonce?: string }, { message: Message; nonce?: string | null }]
   'chat.react': [{ id: number; emoji: string; on: boolean }, Record<string, never>]
-  'upload.begin': [{ name: string; size: number }, { url: string; maxBytes: number }]
+  'upload.begin': [{ name: string; size: number }, { url: string; maxBytes: number; /** Upload in parts: the most one part may carry (missing on older servers). */ partBytes?: number }]
   'link.preview': [{ url: string }, { preview: LinkPreview | null }]
   'chat.edit': [{ id: number; text: string }, { message: Message }]
   'chat.delete': [{ id: number }, Record<string, never>]
@@ -1108,7 +1108,7 @@ export interface Requests {
 // ── encrypted DM attachments ──
 
 export interface Requests {
-  'dm.upload.begin': [{ accountKey?: string; groupId?: string; channelId?: number; size: number }, { url: string; maxBytes: number }]
+  'dm.upload.begin': [{ accountKey?: string; groupId?: string; channelId?: number; size: number }, { url: string; maxBytes: number; partBytes?: number }]
   'dm.file.url': [{ id: string }, { url: string; size: number }]
 }
 

@@ -101,8 +101,7 @@ export async function uploadDmFile(
   if (!server || !connection?.isOnline) throw new Error(t('errors.codes.disconnected'))
   const size = file.size
   const total = encryptedSize(size)
-  const begun = await connection.request('dm.upload.begin', { ...(typeof peer === 'string' ? { accountKey: peer } : peer), size: total }) as
-    { url: string; partBytes?: number }
+  const begun = await connection.request('dm.upload.begin', { ...(typeof peer === 'string' ? { accountKey: peer } : peer), size: total })
   const url = server.url + begun.url
   const encryptor = new FileEncryptor(size)
   // As much plaintext per part as fits the server's part limit (header included), at most PART_CHUNKS chunks.
@@ -159,7 +158,7 @@ async function streamDmFile(file: DmFile, sink: Sink, onProgress?: (fraction: nu
     const server = useApp.getState().servers[file.server]
     const connection = connectionFor(file.server)
     if (!server || !connection?.isOnline) throw new DmError(t('dms.files.serverOffline'))
-    const { url } = await connection.request('dm.file.url', { id: file.id }) as { url: string }
+    const { url } = await connection.request('dm.file.url', { id: file.id })
     const response = await fetch(server.url + url, { signal })
     if (!response.ok || !response.body) throw new DmError(t('dms.files.downloadFailed'))
     const decryptor = new FileDecryptor(file)
