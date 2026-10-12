@@ -116,7 +116,7 @@ export const hosting: Messages['hosting'] = {
     friendsTitle: 'Varje vän',
     friend1: 'Installerar Tailscale från <download>tailscale.com/download</download> (Windows, Mac, Linux, iPhone eller Android) och loggar in med sitt eget Google-, Microsoft-, Apple- eller GitHub-konto.',
     friend2: 'Öppnar din delningslänk och trycker på <b>Accept</b>. De ser bara din dator, inget annat.',
-    friend3: 'Har Tailscale på, öppnar din Iskra-inbjudan och går med. Chatt, röst och video fungerar som vanligt.',
+    friend3: 'Har Tailscale på, öppnar din Iskra-inbjudan i Iskra-appen och går med. Chatt, röst och video fungerar som vanligt.',
     trouble: 'Om vännerna inte kommer in: kolla att Tailscale är på hos er båda och att din dator är vaken. Windows kan fråga en gång om Iskra får använda nätverket: välj Tillåt.',
     via: 'Hur vännerna ansluter',
     viaNetwork: 'Nätverk eller internet',

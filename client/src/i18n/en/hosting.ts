@@ -116,7 +116,7 @@ export const hosting = {
     friendsTitle: 'Each friend',
     friend1: 'Installs Tailscale from <download>tailscale.com/download</download> (Windows, Mac, Linux, iPhone or Android) and signs in with their own Google, Microsoft, Apple or GitHub account.',
     friend2: 'Opens your share link and presses <b>Accept</b>. They only see your computer, nothing else.',
-    friend3: 'Keeps Tailscale on, opens your Iskra invite and joins. Chat, voice and video work as usual.',
+    friend3: 'Keeps Tailscale on, opens your Iskra invite in the Iskra app and joins. Chat, voice and video work as usual.',
     trouble: "If friends can't connect, check that Tailscale is on for both of you and that your computer is awake. Windows may ask once to allow Iskra on the network: choose Allow.",
     via: 'How friends connect',
     viaNetwork: 'Network or internet',
