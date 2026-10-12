@@ -6,8 +6,12 @@ import type { Channel, Message } from '../../core/protocol'
 import { t } from '../../i18n'
 import { en } from '../../i18n/en'
 import { errorMessage } from '../../i18n/errors'
-import { BEFORE_YOU_JOINED, encryptedChannel, rekeyChannel, shownOf, slotOf, useE2ee } from '../../state/e2eeChannels'
-import { findingsAbout, useKt } from '../../state/kt'
+import { BEFORE_YOU_JOINED, encryptedChannel, rekeyChannel, shownOf, slotOf, startOver, useE2ee, type ChannelCrypto } from '../../state/e2eeChannels'
+import { checkStartOver } from '../../state/e2eeStartOver'
+import { findingsAbout, useKt, type Finding } from '../../state/kt'
+import { resolveKey, sameAccount } from '../../state/keyMap'
+import { useDms } from '../../state/dms'
+import { formatDate } from '../../i18n/format'
 import type { ServerState } from '../../state/store'
 import { MAX_CHANNEL_MEMBERS } from '../../core/channelChain'
 import { DmAttachments } from '../dms/DmFiles'
@@ -77,7 +81,8 @@ function EncryptionDialog({ server, channel, onClose }: { server: ServerState; c
 
   return (
     <Modal title={t('e2ee.panel.title')} onClose={onClose} className="e2ee-dialog">
-      {state?.problem && <p className="error-text" role="alert">{t('e2ee.panel.problem', { problem: e2eeText(state.problem) })}</p>}
+      {state?.offer ? <StartOverSection server={server} channel={channel} state={state} findings={findings} onVerify={setVerify} />
+        : state?.problem && <p className="error-text" role="alert">{t('e2ee.panel.problem', { problem: e2eeText(state.problem) })}</p>}
       <p>{t('e2ee.panel.intro')}</p>
       <ul className="e2ee-members" data-testid="e2ee-members">
         {members.map((key) => {
@@ -102,8 +107,110 @@ function EncryptionDialog({ server, channel, onClose }: { server: ServerState; c
           {note && <p className="muted" role="status">{note}</p>}
         </div>
       )}
+      {!!state?.restarts.length && (
+        <div className="e2ee-history" data-testid="e2ee-history">
+          <h3>{t('e2ee.startOver.history')}</h3>
+          {state.restarts.map((at) => <p key={at} className="muted small-text">{restartRecord(at)}</p>)}
+        </div>
+      )}
       {verify && <SafetyNumberDialog me={myKey} peer={verify} onClose={() => setVerify(null)} />}
     </Modal>
+  )
+}
+
+const restartRecord = (at: number) => t('e2ee.startOver.record', { date: formatDate(at, { dateStyle: 'medium', timeStyle: 'short' }) })
+
+/**
+ * The server shows a different chain while you're in this one. Never taken by itself: who signed it and how well you
+ * know their keys, then an explicit "Start over" (with a safety-number confirmation when none of them is a known key).
+ */
+function StartOverSection({ server, channel, state, findings, onVerify }: {
+  server: ServerState; channel: Channel; state: ChannelCrypto; findings: Finding[]; onVerify: (key: string) => void
+}) {
+  const { t } = useTranslation()
+  const dms = useDms()
+  const [confirmed, setConfirmed] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState<string | null>(null)
+  const offer = state.offer!
+  const myKey = server.me?.accountKey ?? ''
+  const nameOf = (key: string) => server.members[key]?.name
+  const contacts = new Set([...Object.keys(dms.friends), ...Object.keys(dms.conversations)].map(resolveKey))
+  const check = checkStartOver(offer, state.members, myKey, {
+    same: sameAccount, isContact: (k) => contacts.has(resolveKey(k)), nameOf,
+    warned: (k) => findingsAbout(findings, k).some((f) => f.severity === 'high'),
+  })
+  const label = (key: string) => nameOf(key) ?? key.slice(0, 8)
+  const trustText = { 'old-chain': t('e2ee.startOver.trustOld'), contact: t('e2ee.startOver.trustContact'), new: t('e2ee.startOver.trustNew') }
+
+  async function go() {
+    setBusy(true)
+    setNote(null)
+    try {
+      await startOver(server.key, channel.id, offer.chain)
+      setNote(t('e2ee.startOver.done'))
+    } catch (e) {
+      setNote(e2eeText(errorMessage(e)))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="e2ee-start-over" data-testid="e2ee-start-over">
+      <p className="e2ee-start-over-warning" role="alert">{t('e2ee.startOver.warning')}</p>
+      <p className="muted small-text">{t('e2ee.startOver.explain')}</p>
+      <h3>{t('e2ee.startOver.signedBy')}</h3>
+      <ul className="e2ee-members" data-testid="e2ee-signers">
+        {check.signers.map((s) => (
+          <li key={s.key}>
+            <span className="e2ee-member-name">{label(s.key)}{s.created && <span className="muted"> ({t('e2ee.startOver.created')})</span>}</span>
+            <span className={`e2ee-trust ${s.trust}`}>{trustText[s.trust]}</span>
+            {s.warning && <span className="e2ee-warn" title={t('e2ee.panel.warning')}>⚠</span>}
+            <button className="link" onClick={() => onVerify(s.key)}>{t('e2ee.panel.safetyNumber')}</button>
+          </li>
+        ))}
+      </ul>
+      <p className="muted small-text">{t('e2ee.startOver.members', { names: offer.members.map((k) => (k === myKey ? t('e2ee.panel.you') : label(k))).join(', ') })}</p>
+      {check.lookalikes.map((k) => <p key={k} className="error-text">{t('e2ee.startOver.lookalike', { name: label(k) })}</p>)}
+      {check.blocked === 'not-listed' && <p className="muted">{t('e2ee.startOver.notListed')}</p>}
+      {check.blocked === 'key-warning' && <p className="error-text">{t('e2ee.startOver.keyWarning')}</p>}
+      {!check.blocked && (
+        <>
+          {check.confirm && (
+            <label className="e2ee-confirm">
+              <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
+              {t('e2ee.startOver.confirm')}
+            </label>
+          )}
+          <button className="button danger" disabled={busy || (check.confirm && !confirmed)} onClick={() => void go()}>{t('e2ee.startOver.button')}</button>
+          <p className="muted small-text">{t('e2ee.startOver.keepsOld')}</p>
+        </>
+      )}
+      {note && <p className="muted" role="status">{note}</p>}
+    </section>
+  )
+}
+
+/** In the channel: when you started its encryption over (so a later swap can't pass unnoticed). */
+export function StartOverRecordLine({ server, channelId }: { server: ServerState; channelId: number }) {
+  const channel = encryptedChannel(server.key, channelId)
+  const at = useE2ee((s) => (channel ? s.channels[slotOf(server.key, channel.id)]?.restarts.at(-1) : undefined))
+  if (!channel || !at) return null
+  return <div className="e2ee-record muted" data-testid="e2ee-record"><Lock size={12} /> {restartRecord(at)}</div>
+}
+
+/** The composer's place while sending is off; with a start-over offer, a way to look at it. */
+export function EncryptedWriteBlock({ server, channel, text }: { server: ServerState; channel: Channel; text: string }) {
+  const { t } = useTranslation()
+  const [open, setOpen] = useState(false)
+  const offer = useE2ee((s) => !!s.channels[slotOf(server.key, channel.id)]?.offer)
+  return (
+    <div className="composer read-only e2ee-waiting" data-testid="e2ee-waiting">
+      <span>{offer ? t('e2ee.startOver.warning') : text}</span>
+      {offer && <button className="button" onClick={() => setOpen(true)} data-testid="e2ee-review">{t('e2ee.startOver.review')}</button>}
+      {open && <EncryptionDialog server={server} channel={channel} onClose={() => setOpen(false)} />}
+    </div>
   )
 }
 
