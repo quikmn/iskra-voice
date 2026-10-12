@@ -20,7 +20,7 @@
 .e2ee-trust { font-size: 0.8rem; padding: 1px 6px; border-radius: 999px; background: var(--accent-subtle); white-space: nowrap; }
 .e2ee-trust.old-chain, .e2ee-trust.contact { color: var(--green); }
 .e2ee-trust.new { color: var(--amber); }
-.e2ee-confirm { display: flex; align-items: flex-start; gap: 8px; margin: 8px 0; }
+.e2ee-confirm { margin: 8px 0; }
 .e2ee-history { margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--border); }
 .e2ee-record { display: flex; align-items: center; gap: 6px; padding: 4px 16px; font-size: 0.8rem; }
 .composer.e2ee-waiting { flex-wrap: wrap; }

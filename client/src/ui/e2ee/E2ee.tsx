@@ -178,7 +178,7 @@ function StartOverSection({ server, channel, state, findings, onVerify }: {
       {!check.blocked && (
         <>
           {check.confirm && (
-            <label className="e2ee-confirm">
+            <label className="checkbox e2ee-confirm">
               <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
               {t('e2ee.startOver.confirm')}
             </label>
