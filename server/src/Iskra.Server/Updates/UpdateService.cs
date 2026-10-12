@@ -91,6 +91,9 @@ public sealed class UpdateService : BackgroundService
     /// <summary>How long members are warned before the restart.</summary>
     internal TimeSpan RestartNotice { get; set; } = TimeSpan.FromSeconds(5);
 
+    /// <summary>About how long the new version takes to start (systemd restarts it at once); a hint for apps.</summary>
+    internal static readonly TimeSpan ExpectedDowntime = TimeSpan.FromSeconds(20);
+
     public UpdateService(World world, Hub hub, IReleaseFeed feed, VoiceRegistry voice, IConfiguration config, IHostApplicationLifetime lifetime,
         TimeProvider time, ILogger<UpdateService> log)
     {
@@ -256,6 +259,7 @@ public sealed class UpdateService : BackgroundService
             _log.LogWarning("Iskra {Version} is installed; restarting into it.", version);
             _hub.Broadcast(Frames.Event("server.restarting", new { reason = "update", version }));
             await Task.Delay(RestartNotice, _time, cancel);
+            _hub.Restart.Expect("update", ExpectedDowntime);
             Restart();
         }
         catch (Exception ex) // runs on its own: anything that goes wrong ends as "failed", never as a stuck state

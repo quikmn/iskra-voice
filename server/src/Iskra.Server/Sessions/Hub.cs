@@ -17,6 +17,8 @@ public sealed class Hub(World world, TimeProvider time)
     public Features.SlowmodeTracker Slowmode { get; } = new();
     /// <summary>"Playing X" per online account (Features/ActivityFeature.cs).</summary>
     public Features.ActivityRegistry Activities { get; } = new(time);
+    /// <summary>What sessions are told when the server stops (close 1012, see RestartSignal).</summary>
+    public RestartSignal Restart { get; } = new();
 
     private readonly ConcurrentDictionary<Session, byte> _sessions = new();
 
