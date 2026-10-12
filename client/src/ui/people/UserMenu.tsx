@@ -20,7 +20,7 @@ import { openReport } from '../../state/reports'
 import { transferOwnership } from '../../state/accountDeletion'
 import { MenuItem, MenuTitle, OrgMenu } from '../organize/OrgMenu'
 import { VolumeControls } from '../VolumeMenu'
-import { openServerAction } from '../organize/ServerMenu'
+import { openServerSettings } from '../settings/open'
 import { canEditNickname, NicknameField } from '../organize/ServerSettings'
 import '../organize/organize.css'
 import './people.css'
@@ -143,6 +143,8 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
             <span className="org-item-text">{r.icon ? `${r.icon} ` : ''}{r.name}</span>
           </label>
         ))}
+        <div className="org-sep" role="separator" />
+        <MenuItem onClick={go(() => openServerSettings(server!.key, 'roles'))}>{t('friends.menu.manageRoles')}</MenuItem>
       </div>
     )
   } else {
@@ -188,7 +190,7 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
             {moveTargets.length > 0 && <MenuItem onClick={() => setView('move')}>{t('friends.menu.moveTo')}</MenuItem>}
             {canRoles && (roles.length > 0
               ? <MenuItem onClick={() => setView('roles')}>{t('friends.menu.roles')}</MenuItem>
-              : <MenuItem onClick={go(() => openServerAction(server!.key, { kind: 'settings', section: 'roles' }))}>{t('friends.menu.createRole')}</MenuItem>)}
+              : <MenuItem onClick={go(() => openServerSettings(server!.key, 'roles'))}>{t('friends.menu.createRole')}</MenuItem>)}
             {canTimeout && (timeoutActive(member)
               ? <MenuItem onClick={run(() => removeTimeout(server!.key, accountKey))}>{t('moderation.timeout.remove')}</MenuItem>
               : <MenuItem danger onClick={() => setView('timeout')}>{t('friends.menu.timeout')}</MenuItem>)}

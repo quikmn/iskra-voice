@@ -66,6 +66,7 @@ export const friends = {
     ban: 'Ban {{name}}',
     roles: 'Roles…',
     createRole: 'Create a role…',
+    manageRoles: 'Manage roles…',
     moveTo: 'Move to…',
     you: 'You',
   },

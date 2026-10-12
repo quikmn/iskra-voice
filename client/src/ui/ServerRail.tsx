@@ -1,5 +1,5 @@
 // The server rail: DMs, then your servers and folders. Drag to reorder (onto another server to make a folder);
-// right-click or press and hold for a menu. The layout syncs across your devices (state/rail.ts).
+// right-click or press and hold for a menu (organize/ServerMenu.tsx for a server's). The layout syncs across your devices (state/rail.ts).
 import { useRef, useState, type DragEvent, type MouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { selectServer, useApp, type ServerState } from '../state/store'
@@ -9,14 +9,13 @@ import { initials } from './format'
 import { Plus } from './icons'
 import { useOrganize } from '../state/organize'
 import { newFolderId, setRail, useRail } from '../state/rail'
-import { moveFolder, moveServer, newFolder, stepServer, ungroup, updateFolder, visibleRail, type RailFolder } from '../state/railLogic'
+import { moveFolder, moveServer, ungroup, updateFolder, visibleRail, type RailFolder } from '../state/railLogic'
 import { homeUnread, markServerRead, serverBadges } from '../state/unread'
 import { useReads } from '../state/readState'
 import { useThreads } from '../state/threads'
 import { MenuItem, MenuTitle, OrgMenu, type MenuAnchor } from './organize/OrgMenu'
-import { openServerAction, ServerMenuItems } from './organize/ServerMenu'
+import { ServerMenu } from './organize/ServerMenu'
 import { FolderDialog } from './organize/FolderDialog'
-import { ServerRulesItem } from './rules/Rules'
 import { InboxButton } from './productivity/InboxButton'
 import './organize/organize.css'
 
@@ -150,7 +149,6 @@ export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavig
   const menuServer = menu?.kind === 'server' ? servers[menu.id] : undefined
   const folders = items.filter((i): i is RailFolder => i.kind === 'folder')
   const menuFolder = menu?.kind === 'folder' ? folders.find((f) => f.id === menu.id) : undefined
-  const folderOfMenu = menuServer ? folders.find((f) => f.servers.includes(menuServer.key)) : undefined
   const close = () => setMenu(null)
   const act = (action: () => void) => () => {
     action()
@@ -185,39 +183,7 @@ export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavig
         <Plus size={22} />
       </button>
 
-      {menuServer && (
-        <OrgMenu anchor={menu!.anchor} label={t('app.rail.options', { name: menuServer.name })} onClose={close}>
-          <MenuTitle>{menuServer.name}</MenuTitle>
-          <div className="org-list" role="menu">
-            <MenuItem onClick={act(() => markServerRead(menuServer.key))}>{t('app.rail.markRead')}</MenuItem>
-            <ServerRulesItem serverKey={menuServer.key} onDone={close} />
-            <div className="org-sep" role="separator" />
-            <ServerMenuItems server={menuServer} onPick={(action) => { close(); openServerAction(menuServer.key, action) }} />
-            <div className="org-sep" role="separator" />
-            <MenuItem onClick={act(() => setRail(stepServer(layout, order, menuServer.key, -1)))}>{t('app.rail.moveUp')}</MenuItem>
-            <MenuItem onClick={act(() => setRail(stepServer(layout, order, menuServer.key, 1)))}>{t('app.rail.moveDown')}</MenuItem>
-            {folderOfMenu ? (
-              <MenuItem onClick={act(() => setRail(moveServer(layout, order, menuServer.key, { kind: 'after', target: folderOfMenu.id }, newFolderId)))}>
-                {t('app.rail.removeFromFolder')}
-              </MenuItem>
-            ) : (
-              <>
-                {folders.map((f) => (
-                  <MenuItem key={f.id} onClick={act(() => setRail(moveServer(layout, order, menuServer.key, { kind: 'into', folder: f.id }, newFolderId)))}>
-                    {f.name ? t('app.rail.addTo', { name: f.name }) : t('app.rail.addToFolder')}
-                  </MenuItem>
-                ))}
-                <MenuItem onClick={act(() => {
-                  const id = newFolderId()
-                  const next = newFolder(layout, order, menuServer.key, id)
-                  setRail(next)
-                  setEditing(next.find((i): i is RailFolder => i.kind === 'folder' && i.id === id) ?? null)
-                })}>{t('app.rail.newFolder')}</MenuItem>
-              </>
-            )}
-          </div>
-        </OrgMenu>
-      )}
+      {menuServer && <ServerMenu server={menuServer} anchor={menu!.anchor} onClose={close} />}
       {menuFolder && (
         <OrgMenu anchor={menu!.anchor} label={t('app.rail.options', { name: menuFolder.name || t('app.rail.folder') })} onClose={close}>
           <MenuTitle>{menuFolder.name || t('app.rail.folder')}</MenuTitle>

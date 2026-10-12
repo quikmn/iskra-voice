@@ -10,39 +10,24 @@ import { MeStatusButton } from './presence/Presence'
 import { ChannelList } from './organize/ChannelList'
 import { CreateChannelDialog } from './dialogs/CreateChannelDialog'
 import { InviteDialog } from './dialogs/InviteDialog'
-import { SettingsDialog } from './settings/SettingsDialog'
+import { openMySettings, openServerSettings } from './settings/open'
 import { ChevronDown, HeadphonesOff, MicOff, Settings, UserPlus } from './icons'
 import { useVoice } from '../state/voice'
-import type { SectionId } from './settings/sections'
 import { EventsButton } from './events/EventsLayer'
 import { RulesButton } from './rules/Rules'
 import { ReportsButton } from './safety/ReportsSection'
 import { errorMessage } from '../i18n/errors'
-import { MenuTitle, OrgMenu, type MenuAnchor } from './organize/OrgMenu'
-import { ServerMenuItems, type ServerAction } from './organize/ServerMenu'
+import type { MenuAnchor } from './organize/OrgMenu'
+import { ServerMenu } from './organize/ServerMenu'
 import './audio.css'
 
 export function ChannelSidebar({ server, onNavigate }: { server: ServerState; onNavigate: () => void }) {
   const { t } = useTranslation()
-  const [dialog, setDialog] = useState<'invite' | 'channel' | 'settings' | null>(null)
-  const [section, setSection] = useState<SectionId | undefined>(undefined)
-  const openSettings = (at?: SectionId) => {
-    setSection(at)
-    setDialog('settings')
-  }
+  const [dialog, setDialog] = useState<'invite' | 'channel' | null>(null)
   const isAdmin = has(server.me, useServerRoles(server.key), 'manageChannels') // may create channels
   const canInvite = server.me ? roleRank(server.me.role) >= roleRank('member') : false
   const [createIn, setCreateIn] = useState<number | null>(null)
   const [menu, setMenu] = useState<MenuAnchor | null>(null)
-  const pick = (action: ServerAction) => {
-    setMenu(null)
-    if (action.kind === 'settings') openSettings(action.section)
-    else if (action.kind === 'invite') setDialog('invite')
-    else {
-      setCreateIn(null)
-      setDialog('channel')
-    }
-  }
   useThreads((s) => s.threads[server.key]) // thread mentions count on their channel
 
   return (
@@ -64,17 +49,10 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
           <ChevronDown size={16} />
         </button>
       </header>
-      {menu && (
-        <OrgMenu anchor={menu} label={t('app.rail.options', { name: server.name })} onClose={() => setMenu(null)}>
-          <MenuTitle>{server.name}</MenuTitle>
-          <div className="org-list" role="menu">
-            <ServerMenuItems server={server} onPick={pick} />
-          </div>
-        </OrgMenu>
-      )}
+      {menu && <ServerMenu server={server} anchor={menu} onClose={() => setMenu(null)} />}
 
       <div className="channel-list">
-        <ReportsButton server={server} onOpen={() => openSettings('reports')} />
+        <ReportsButton server={server} onOpen={() => openServerSettings(server.key, 'reports')} />
         <RulesButton server={server} onNavigate={onNavigate} />
         <EventsButton server={server} onNavigate={onNavigate} />
         {canInvite && (
@@ -89,11 +67,10 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
       </div>
 
       <VoiceBar />
-      <MeBar server={server} onSettings={() => openSettings()} />
+      <MeBar server={server} onSettings={() => openMySettings()} />
 
       {dialog === 'invite' && <InviteDialog server={server} onClose={() => setDialog(null)} />}
       {dialog === 'channel' && <CreateChannelDialog server={server} categoryId={createIn} onClose={() => setDialog(null)} />}
-      {dialog === 'settings' && <SettingsDialog server={server} section={section} onClose={() => setDialog(null)} />}
     </div>
   )
 }
@@ -131,7 +108,7 @@ function MeBar({ server, onSettings }: { server: ServerState; onSettings: () => 
           <span>{t('app.sidebar.notJoined')}</span>
         </div>
       )}
-      <button className="icon-button" onClick={onSettings} aria-label={t('common.settings')} title={t('common.settings')}>
+      <button className="icon-button" onClick={onSettings} aria-label={t('common.settings')} title={t('settings.room.mine')}>
         <Settings />
       </button>
     </div>
