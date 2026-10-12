@@ -58,7 +58,7 @@ export const compliance: Messages['compliance'] = {
     hosting: {
       who: 'När du kör en server',
       when: 'Öppen mot internet: din router (UPnP eller NAT-PMP, i ditt eget nätverk), Let’s Encrypt för HTTPS-certifikatet och sslip.io för den gratis adressen om du inte har en egen domän. Textning: servern hämtar talmodellen en gång från Hugging Face. Serveruppdateringar: GitHub.',
-      off: 'De ser serverns adress, inte dina medlemmars. Allt kan stängas av i Serverinställningar.',
+      off: 'De ser serverns adress, inte dina medlemmars. Internetvärd och serveruppdateringar slår du av och på i Serverinställningar, textningsmodellen i server.json.',
     },
     nothingElse: 'Inget annat: ingen analys, inga annonser, inga kraschrapporter, inga typsnitt eller skript från andra webbplatser. Stavningskontrollen är datorns egen (av på Linux, där den skulle hämta ordlistor från Google).',
     sitesTitle: 'Webbplatser som laddas utan att fråga',

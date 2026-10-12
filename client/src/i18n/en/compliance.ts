@@ -56,7 +56,7 @@ export const compliance = {
     hosting: {
       who: 'When you run a server',
       when: "Open to the internet: your router (UPnP or NAT-PMP, on your own network), Let's Encrypt for the HTTPS certificate, and sslip.io for the free address if you have no domain. Captions: the server fetches the speech model once from Hugging Face. Server updates: GitHub.",
-      off: "They see the server's address, not your members'. Each can be turned off in Server settings.",
+      off: "They see the server's address, not your members'. Internet hosting and server updates are switched in Server settings, the captions model in server.json.",
     },
     nothingElse: "Nothing else: no analytics, no ads, no crash reports, no fonts or scripts from other sites. Spellcheck uses your computer's own (off on Linux, where it would download dictionaries from Google).",
     sitesTitle: 'Sites that load without asking',
