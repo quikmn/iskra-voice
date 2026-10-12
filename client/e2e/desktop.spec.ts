@@ -5,11 +5,13 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
 import { _electron as electron, expect, test } from '@playwright/test'
-import { agreeToTerms, SHOTS, startServer, type TestServer } from './helpers'
+import { appWindow, agreeToTerms, SHOTS, startServer, type TestServer } from './helpers'
+/** The bits of Electron's BrowserWindow these checks use (Electron's types aren't part of the client project). */type AppWin = { webContents: { getURL(): string; send(channel: string, ...args: unknown[]): void }; isVisible(): boolean }
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DESKTOP = resolve(HERE, '../../desktop')
 const built = existsSync(join(DESKTOP, 'dist', 'main.js')) && existsSync(resolve(HERE, '../dist/index.html'))
+const DESKTOP_VERSION = (JSON.parse(readFileSync(join(DESKTOP, 'package.json'), 'utf8')) as { version: string }).version
 
 test.skip(!built, 'build desktop/ (npm run build) and the client (npm run build) first')
 
@@ -29,7 +31,7 @@ test('the desktop app runs the web app on app:// and can join a server', async (
     env: { ...env, ISKRA_E2E: '1' },
   })
   try {
-    const page = await app.firstWindow()
+    const page = await appWindow(app)
     await expect(page.getByRole('button', { name: /I’m new to Iskra/ })).toBeVisible()
     expect(page.url()).toMatch(/^app:\/\/iskra\//)
 
@@ -133,7 +135,7 @@ test('the desktop app runs the web app on app:// and can join a server', async (
 
     // The shell's update notices show as a toast: restart when downloaded, a download link otherwise.
     const send = (status: object) =>
-      app.evaluate(({ BrowserWindow }, s) => BrowserWindow.getAllWindows()[0].webContents.send('iskra:update', s), status)
+      app.evaluate(({ BrowserWindow }, s) => BrowserWindow.getAllWindows().find((w: AppWin) => w.webContents.getURL().startsWith('app://'))!.webContents.send('iskra:update', s), status)
     await send({ state: 'ready', version: '9.9.9' })
     const toast = page.getByRole('status').filter({ hasText: 'Update ready' })
     await expect(toast).toContainText('Iskra 9.9.9 is downloaded')
@@ -164,7 +166,7 @@ test('the desktop app runs the web app on app:// and can join a server', async (
       d.onHotkey((a) => w.heard.push(a))
     })
     await app.evaluate(({ BrowserWindow }) => {
-      for (const action of ['mute', 'KeyA', 'deafen', 42]) BrowserWindow.getAllWindows()[0].webContents.send('iskra:hotkey', action)
+      for (const action of ['mute', 'KeyA', 'deafen', 42]) BrowserWindow.getAllWindows().find((w: AppWin) => w.webContents.getURL().startsWith('app://'))!.webContents.send('iskra:hotkey', action)
     })
     await expect.poll(() => page.evaluate(() => (window as unknown as { heard: string[] }).heard)).toEqual(['mute', 'deafen'])
     // "Set key" listens to the global hook; Cancel ends it with nothing.
@@ -209,7 +211,7 @@ test('creating a server from the desktop app makes you its owner', async () => {
     env: { ...env, ISKRA_HOST_ROOT: hostRoot, ISKRA_LOCAL_ONLY: "1" },
   })
   try {
-    const page = await app.firstWindow()
+    const page = await appWindow(app)
     await agreeToTerms(page)
     await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
     await page.getByLabel('Your name').fill('Host')
@@ -249,7 +251,7 @@ test('Desktop app settings, the unread badge, and iskra:// invite links', async 
   // Started by clicking an invite link: the app opens on that invite.
   const app = await electron.launch({ executablePath: electronExe, args: [DESKTOP, `--user-data-dir=${userData}`, '--lang=en-US', `iskra://join/${token}`], cwd: DESKTOP, env })
   try {
-    const page = await app.firstWindow()
+    const page = await appWindow(app)
     await expect(page.getByText("You've been invited")).toBeVisible()
     await agreeToTerms(page)
     await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
@@ -289,7 +291,7 @@ test('Desktop app settings, the unread badge, and iskra:// invite links', async 
     await expect(settings.getByRole('button', { name: 'Restart now' })).toBeVisible()
     await page.screenshot({ path: join(SHOTS, 'desktop-settings-app.png') })
     await expect.poll(() => existsSync(join(userData, 'desktop.json')) && JSON.parse(readFileSync(join(userData, 'desktop.json'), 'utf8')))
-      .toEqual({ openAtLogin: false, closeToTray: false, hardwareAcceleration: false, activity: false, customGames: [], language: 'en', keepRunning: [], updateChecks: true })
+      .toEqual({ openAtLogin: false, closeToTray: false, hardwareAcceleration: false, activity: false, customGames: [], language: 'en', keepRunning: [], updateChecks: true, lastRunVersion: DESKTOP_VERSION })
     await settings.getByLabel(/Hardware acceleration/).check()
     await expect(settings.getByRole('button', { name: 'Restart now' })).toHaveCount(0)
 
@@ -307,7 +309,7 @@ test('Desktop app settings, the unread badge, and iskra:// invite links', async 
     // Only the game's name was stored, never the program list.
     const stored = JSON.parse(readFileSync(join(userData, 'desktop.json'), 'utf8'))
     expect(stored.activity).toBe(true)
-    expect(Object.keys(stored).sort()).toEqual(['activity', 'closeToTray', 'customGames', 'hardwareAcceleration', 'keepRunning', 'language', 'openAtLogin', 'updateChecks'])
+    expect(Object.keys(stored).sort()).toEqual(['activity', 'closeToTray', 'customGames', 'hardwareAcceleration', 'keepRunning', 'language', 'lastRunVersion', 'openAtLogin', 'updateChecks'])
     // Turning it off clears it for everyone.
     await page.locator('.me-bar').getByRole('button', { name: 'Settings' }).click()
     await settings.getByRole('button', { name: 'Desktop app', exact: true }).click()
@@ -340,7 +342,7 @@ test('restoring a server from a backup in the desktop app', async () => {
       session.defaultSession.on('will-download', (_e: unknown, item: { setSavePath(path: string): void }) => item.setSavePath(file))
       dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [file] })) as typeof dialog.showOpenDialog
     }, saved)
-    const page = await app.firstWindow()
+    const page = await appWindow(app)
     await agreeToTerms(page)
     await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
     await page.getByLabel('Your name').fill('Host')

@@ -9,6 +9,7 @@ import gateWorkletUrl from './micGate.worklet.ts?worker&url'
 import deepFilterWorkletUrl from './audio/deepfilter.worklet.ts?worker&url'
 import { AUTO_SPEAKING_DB, type AudioSettings } from './audio'
 import { deepFilterBytes, loadDeepFilter, loadRnnoiseWasm, loadSilero } from './audio/assets'
+import { DF_STRENGTH_DB } from './audio/strength'
 import { engineCaps, markBroken, plannedEngine, SlowWatch, type NoiseEngine } from './audio/engines'
 
 export type LevelListener = (db: number, open: boolean) => void
@@ -26,7 +27,7 @@ export interface MicPipeline {
   readonly track: MediaStreamTrack
   /** The noise suppression that runs in this pipeline ('browser' or 'off' when none of ours does). */
   readonly engine: NoiseEngine
-  /** Input volume, sensitivity and push-to-talk apply right away; noise mode changes need a new pipeline. */
+  /** Input volume, sensitivity, AI strength and push-to-talk apply right away; noise mode changes need a new pipeline. */
   update(settings: AudioSettings, ptt: boolean): void
   destroy(): void
 }
@@ -74,7 +75,7 @@ function answer(node: AudioWorkletNode, ms: number): Promise<{ type: string; mes
 }
 
 /** DeepFilterNet3 in the context, running; null if it can't here. */
-async function startDeepFilter(ctx: AudioContext): Promise<AudioWorkletNode | null> {
+async function startDeepFilter(ctx: AudioContext, strength: number): Promise<AudioWorkletNode | null> {
   try {
     const assets = await loadDeepFilter()
     await ctx.audioWorklet.addModule(deepFilterWorkletUrl)
@@ -82,12 +83,12 @@ async function startDeepFilter(ctx: AudioContext): Promise<AudioWorkletNode | nu
     const started = Date.now()
     // The compiled engine goes over as is; a browser that can't send it to a worklet sends the bytes instead.
     let reply = answer(node, DEEPFILTER_START_MS)
-    node.port.postMessage({ module: assets.module, model: assets.model })
+    node.port.postMessage({ module: assets.module, model: assets.model, strength })
     let result = await reply
     if (result.type === 'need-bytes') {
       const wasm = await deepFilterBytes()
       reply = answer(node, DEEPFILTER_START_MS)
-      node.port.postMessage({ wasm, model: assets.model })
+      node.port.postMessage({ wasm, model: assets.model, strength })
       result = await reply
     }
     if (result.type !== 'ready') {
@@ -155,7 +156,7 @@ export async function createMicPipeline(source: MediaStreamTrack, settings: Audi
     markBroken('ai')
     markBroken('rnnoise')
   } else if (wanted === 'ai') {
-    deepFilter = await startDeepFilter(ctx)
+    deepFilter = await startDeepFilter(ctx, DF_STRENGTH_DB[settings.aiStrength])
     if (deepFilter) engine = 'ai'
   }
   if (wasm && !deepFilter && ctx.sampleRate === 48000) {
@@ -183,13 +184,13 @@ export async function createMicPipeline(source: MediaStreamTrack, settings: Audi
   if (deepFilter) {
     const watch = new SlowWatch()
     let lastLog = 0
-    deepFilter.port.onmessage = (e: MessageEvent<{ type: string; rtf?: number }>) => {
+    deepFilter.port.onmessage = (e: MessageEvent<{ type: string; rtf?: number; slowest?: number }>) => {
       if (!alive || e.data?.type !== 'rtf' || typeof e.data.rtf !== 'number') return
       const rtf = e.data.rtf
       callbacks.onLoad?.(rtf)
       if (Date.now() - lastLog > 10000) {
         lastLog = Date.now()
-        console.info(`[iskra] AI noise removal: realtime factor ${rtf.toFixed(3)} (${(rtf * 100).toFixed(1)}% of one core)`)
+        console.info(`[iskra] AI noise removal: realtime factor ${rtf.toFixed(3)} (${(rtf * 100).toFixed(1)}% of one core), slowest frame ${(e.data.slowest ?? 0).toFixed(1)} ms`)
       }
       if (watch.report(rtf)) {
         console.warn(`[iskra] AI noise removal is too slow here (realtime factor ${rtf.toFixed(2)}); switching to RNNoise`)
@@ -202,7 +203,10 @@ export async function createMicPipeline(source: MediaStreamTrack, settings: Audi
   return {
     track,
     engine,
-    update: (s, p) => gate.port.postMessage(gateParams(s, p)),
+    update: (s, p) => {
+      gate.port.postMessage(gateParams(s, p))
+      deepFilter?.port.postMessage({ strength: DF_STRENGTH_DB[s.aiStrength] })
+    },
     destroy: () => {
       if (!alive) return
       alive = false

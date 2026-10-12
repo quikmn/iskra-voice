@@ -49,6 +49,9 @@ public sealed partial class Store : IDisposable
     private void Migrate()
     {
         Exec("PRAGMA journal_mode = WAL;");
+        // SQLite's recommended pairing with WAL: never corrupts, and only a power cut can undo the last commits. FULL
+        // flushed the disk on every commit, under the write lock: slow on Windows and on slow disks.
+        Exec("PRAGMA synchronous = NORMAL;");
         Exec("PRAGMA foreign_keys = ON;");
         var version = Convert.ToInt32(Scalar("PRAGMA user_version;"));
         if (version > SchemaVersion)
@@ -303,6 +306,8 @@ public sealed partial class Store : IDisposable
         ("push-2", "DELETE FROM push_subscriptions WHERE endpoint LIKE 'https://push.iskra.foo/%';"),
         ("templates-1", TemplatesMigration),
         ("profilesync-1", ProfileSyncMigration),
+        // Docs keep an upload alive only while a kept revision still links to it (security review).
+        ("docs-2", ForgetUnshownDocFiles + ";"),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test, type Page } from '@playwright/test'
-import { agreeToTerms, createInviteLink, joinVia, SHOTS, startServer, type TestServer } from './helpers'
+import { appWindow, agreeToTerms, createInviteLink, joinVia, SHOTS, startServer, type TestServer } from './helpers'
 import { controlScript, probePage, SCRIPT_VECTORS, startAttacker, STATIC_VECTORS, type Attacker } from './leak-probe'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -65,6 +65,10 @@ test('browsers: other people\'s pages run without scripts, and nothing reaches t
   await controlLeaks(friend)
 
   const attacker = await startAttacker()
+  // Not the author's own editor preview: it runs their page with its scripts (as their own page view does), and the
+  // probe's srcdoc frame then reaches the attacker by WebRTC from the author's device. That once counted here (CI, when
+  // the preview lived long enough); this test is about what other people's pages can do to a viewer.
+  await host.route('**/page-preview.html', (route) => route.abort())
   await publish(host, probePage(attacker))
   await host.keyboard.press('Escape')
   await host.keyboard.press('Escape')
@@ -100,7 +104,7 @@ test('desktop: pages run their scripts behind a wall nothing gets through', asyn
     env: { ...env, ISKRA_E2E: '1', ISKRA_LOCAL_ONLY: '1' },
   })
   try {
-    const page = await app.firstWindow()
+    const page = await appWindow(app)
     await agreeToTerms(page)
     await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
     await page.getByLabel('Your name').fill('Desk')

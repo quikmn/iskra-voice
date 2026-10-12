@@ -3,7 +3,7 @@
 // Uses the bundled engines and the e2e speech fixture with noise added. Browsers run the same WebAssembly and
 // JavaScript, usually a little slower than Node; phones several times slower.
 import { readFileSync } from 'node:fs'
-import { df_create, df_process_frame, initSync } from '../vendor/deepfilternet/deepfilter.js'
+import { df_create, df_process_frame, df_set_thresholds, initSync } from '../vendor/deepfilternet/deepfilter.js'
 import { parseOnnxWeights, SileroVad } from '../src/state/audio/silero.ts'
 import { Leveler } from '../src/state/audio/leveler.ts'
 import { VadGate } from '../src/state/audio/vadGate.ts'
@@ -51,7 +51,8 @@ function bench(name, run) {
 // DeepFilterNet3: 480-sample frames at 48 kHz.
 initSync({ module: file('../vendor/deepfilternet/deepfilter.wasm') })
 let t = performance.now()
-const state = df_create(new Uint8Array(file('../vendor/deepfilternet/DeepFilterNet3_onnx.tar.gz.bin')), 100)
+const state = df_create(new Uint8Array(file('../vendor/deepfilternet/DeepFilterNet3_onnx.tar.gz.bin')), 30) // Normal
+df_set_thresholds(state, -15, 35, 35)
 console.log(`DeepFilterNet3 start-up: ${(performance.now() - t).toFixed(0)} ms`)
 bench('DeepFilterNet3 (mic or one incoming voice)', () => {
   for (let i = 0; i + 480 <= speech48.length; i += 480) df_process_frame(state, speech48.subarray(i, i + 480))

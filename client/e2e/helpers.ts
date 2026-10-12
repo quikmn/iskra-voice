@@ -4,7 +4,7 @@ import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { expect, test, type BrowserContext, type Locator, type Page } from '@playwright/test'
+import { expect, test, type BrowserContext, type ElectronApplication, type Locator, type Page } from '@playwright/test'
 import { APP_PORT } from '../playwright.config'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -252,4 +252,11 @@ export async function longPress(page: Page, target: Locator) {
   await target.dispatchEvent('pointerdown', at)
   await page.waitForTimeout(600)
   await target.dispatchEvent('pointerup', at)
+}
+
+/** The desktop app's main window (app://), not the splash window that opens first. */
+export async function appWindow(app: ElectronApplication): Promise<Page> {
+  const isApp = (p: Page) => p.url().startsWith('app://')
+  await expect.poll(() => app.windows().some(isApp), { timeout: 30_000 }).toBe(true)
+  return app.windows().find(isApp)!
 }

@@ -194,6 +194,13 @@ public static class ScheduledFeature
             Tell(s.Hub, me.AccountKey, Frames.Event("scheduled.deleted", new { id = m.Id, sent = true }));
             return result;
         }
+        catch (Exception ex) when (ex is not RequestException)
+        {
+            // Never left "sending" (which refuses edits and deletes until a restart): failed, so it can be retried.
+            store.FailScheduled(m.Id, "Something went wrong sending this. Try again.");
+            if (store.GetScheduled(m.Id) is { } failed) Tell(s.Hub, me.AccountKey, Frames.Event("scheduled.updated", new { scheduled = View(failed) }));
+            throw;
+        }
         catch (RequestException ex)
         {
             var reason = ex.Code switch
