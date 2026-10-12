@@ -1,7 +1,7 @@
 // UX audit tour: every screen and dialog a normal person meets, shot at 1280×800 and 390×844, in English and Swedish,
 // with a few automatic checks per shot (sideways overflow on phones, unnamed buttons, English left in Swedish).
 // Not part of the normal run: `AUDIT=1 npx playwright test e2e/audit-tour.spec.ts --workers=1`.
-// Screenshots and findings.json land in e2e/screenshots/audit (git-ignored).
+// Screenshots and findings-<time>.json land in e2e/screenshots/audit (git-ignored).
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -127,7 +127,11 @@ async function snap(page: Page, name: string, opts: { phone?: boolean; sv?: bool
   const sizes: ('desktop' | 'phone')[] = isPhoneCtx ? ['phone'] : opts.phone === false ? ['desktop'] : ['desktop', 'phone']
   const settle = async () => {
     await page.waitForTimeout(300)
-    await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => null)))).catch(() => undefined)
+    // Finite animations only (a spinner's never finishes), and never longer than a second.
+    await page.evaluate(() => Promise.race([
+      Promise.all(document.getAnimations().filter((a) => a.effect?.getComputedTiming().endTime !== Infinity).map((a) => a.finished.catch(() => null))),
+      new Promise((r) => setTimeout(r, 1000)),
+    ])).catch(() => undefined)
   }
   const langs: ('en' | 'sv')[] = opts.sv === false ? ['en'] : ['en', 'sv']
   let enTexts: string[] = []
@@ -210,9 +214,10 @@ test.afterAll(async () => {
   await server?.stop()
   await spare?.stop()
   rmSync(botDir, { recursive: true, force: true })
-  writeFileSync(join(OUT, 'findings.json'), JSON.stringify({ problems, findings }, null, 1))
+  // One file per worker run (a failed test starts a new worker, which would otherwise overwrite it).
+  if (problems.length || findings.length) writeFileSync(join(OUT, `findings-${Date.now()}.json`), JSON.stringify({ problems, findings }, null, 1))
   if (problems.length) console.log(`Tour problems:\n  ${problems.join('\n  ')}`)
-  console.log(`${findings.length} automatic findings in ${join(OUT, 'findings.json')}`)
+  console.log(`${findings.length} automatic findings in ${OUT}`)
 })
 
 test('UX audit tour (browser)', async ({ browser }) => {
@@ -556,6 +561,7 @@ test('UX audit tour (browser)', async ({ browser }) => {
 
   // ── 7. Phone: navigation by drawers ──
   await part('phone-nav', async () => {
+    await phone.screenshot({ path: join(OUT, '55-phone-before-phone-en.png') })
     await phone.getByRole('button', { name: /Open (channels|menu)/ }).first().click()
     await snap(phone, '55-phone-drawer')
     await phone.keyboard.press('Escape')
@@ -705,6 +711,8 @@ test('UX audit tour (browser)', async ({ browser }) => {
       await expect(ring).toBeVisible({ timeout: 15_000 })
       await snap(third, '77-group-call-ring')
       await ring.getByRole('button', { name: 'Join' }).click()
+      // Alice is rung too: she lets it ring out (the ring is modal, so it would block her page).
+      await member.getByRole('alertdialog').getByRole('button', { name: /Decline|Ignore|Not now/ }).first().click().catch(() => undefined)
       await owner.waitForTimeout(3000)
       await snap(owner, '77b-group-call')
       await owner.locator('.call-panel').getByRole('button', { name: /Hang up|Leave/ }).first().click()
@@ -762,6 +770,8 @@ test('UX audit tour (browser)', async ({ browser }) => {
     await snap(page, '83c-offline-send')
   })
   await part('errors-restart', async () => {
+    await owner.locator('.server-icon[title="Game Night"]').click()
+    await channel(owner, 'general').click()
     const restarting = server.restart(4000)
     await expect(owner.getByText(/restarting/i).first()).toBeVisible({ timeout: 15_000 })
     await snap(owner, '84-server-restarting', { phone: false, sv: false })
@@ -890,7 +900,6 @@ test('UX audit tour (desktop app)', async () => {
     await app.close().catch(() => undefined)
     rmSync(userData, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
     rmSync(hostRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 })
-    writeFileSync(join(OUT, 'findings.json'), JSON.stringify({ problems, findings }, null, 1))
   }
 })
 

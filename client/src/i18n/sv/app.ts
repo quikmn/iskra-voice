@@ -65,7 +65,7 @@ export const app: Messages['app'] = {
     getApp: 'Skaffa Iskra-appen',
     iosTitle: 'Lägg till Iskra på hemskärmen',
     iosSteps: 'Tryck på <icon/> <b>Dela</b> och sedan <b>Lägg till på hemskärmen</b>. Aviseringar på iPhone fungerar bara från hemskärmsappen.',
-    iosSignIn: 'Den har en egen inloggning: öppna den och tryck på ”Jag har redan Iskra”.',
+    iosSignIn: 'Den har en egen inloggning: öppna den och tryck på ”Jag använder redan Iskra”.',
     androidBody: 'Aviseringar, röst och video, direkt från hemskärmen.',
     android: 'Skaffa Android-appen',
     install: 'Installera',
@@ -122,7 +122,7 @@ export const app: Messages['app'] = {
     namePlaceholder: 'Vad ska dina vänner kalla dig?',
     restore: 'Återställ mitt konto',
     noPassword: 'Ingen e-post, inget lösenord. Ditt konto är en nyckel som stannar på dina enheter.',
-    haveIskra: 'Jag har redan Iskra',
+    haveIskra: 'Jag använder redan Iskra',
   },
   qr: {
     noCamera: 'Webbläsaren kan inte använda kameran här. Klistra in koden i stället.',

@@ -64,7 +64,7 @@ export const app = {
     getApp: 'Get the Iskra app',
     iosTitle: 'Add Iskra to your Home Screen',
     iosSteps: 'Tap <icon/> <b>Share</b>, then <b>Add to Home Screen</b>. Notifications on iPhone only work from the Home Screen app.',
-    iosSignIn: 'It signs in on its own: open it and tap "I already have Iskra".',
+    iosSignIn: 'It has its own sign-in: open it and tap “I already use Iskra”.',
     androidBody: 'Notifications, voice and video, right from your home screen.',
     android: 'Get the Android app',
     install: 'Install',
@@ -121,7 +121,7 @@ export const app = {
     namePlaceholder: 'What should friends call you?',
     restore: 'Restore my account',
     noPassword: 'No email, no password. Your account is a key that stays on your devices.',
-    haveIskra: 'I already have Iskra',
+    haveIskra: 'I already use Iskra',
   },
   qr: {
     noCamera: "This browser can't use the camera here. Paste the code instead.",

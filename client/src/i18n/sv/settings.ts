@@ -68,7 +68,7 @@ export const settings: Messages['settings'] = {
     removeHint: 'Döljer servern här. Du är kvar som medlem och kan komma tillbaka med valfri inbjudningslänk.',
   },
   pages: {
-    intro: 'Medlemmar kan göra en liten webbsida som öppnas från deras profilkort. Sidorna körs i en sandlåda: de kan inte se någons konto eller meddelanden, och deras skript körs bara när den som tittar tillåter det. Admins kan ta bort vilken sida som helst.',
+    intro: 'Medlemmar kan göra en liten webbsida som öppnas från deras profilkort. Sidorna körs i en sandlåda: de kan inte se någons konto eller meddelanden. Interaktiva sidor körs i skrivbordsappen, avskurna från nätverket; webbläsare och mobiler visar dem utan skript. Admins kan ta bort vilken sida som helst.',
   },
   recovery: {
     intro: 'Ditt konto finns på dina enheter, inte på en server. Med den här nyckeln får du tillbaka det på en ny enhet eller efter att du rensat webbläsaren.',
@@ -84,7 +84,7 @@ export const settings: Messages['settings'] = {
       title: 'Återställningsnyckel för Iskra',
       account: 'Konto: {{name}}',
       warning: 'Alla som har den här nyckeln kan använda ditt konto. Förvara den på ett säkert ställe (en lösenordshanterare är perfekt).',
-      howTo: 'Så återställer du: öppna Iskra på valfri enhet, välj ”Jag har redan Iskra”, sedan ”Använd min återställningsnyckel” och klistra in nyckeln.',
+      howTo: 'Så återställer du: öppna Iskra på valfri enhet, välj ”Jag använder redan Iskra”, sedan ”Använd min återställningsnyckel” och klistra in nyckeln.',
       servers: 'Dina servrar (öppna en länk efter återställningen för att komma tillbaka):',
     },
   },
@@ -107,7 +107,7 @@ export const settings: Messages['settings'] = {
     throughServer: 'Via server',
     bringHistory: 'Ta med min meddelandehistorik (direktmeddelanden och gruppchattar)',
     showCode: 'Visa kod',
-    scanHint: 'Öppna Iskra på den nya enheten, välj <b>Jag har redan Iskra</b> och skanna den här koden.',
+    scanHint: 'Öppna Iskra på den nya enheten, välj <b>Jag använder redan Iskra</b>, sedan <b>Koppla med min andra enhet</b> och skanna den här koden.',
     qrLabel: 'QR-kod för att koppla enhet',
     orType: 'Eller skriv den här koden:',
     copyCode: 'Kopiera koden',
@@ -309,7 +309,7 @@ export const settings: Messages['settings'] = {
   restore: {
     title: 'Återställ en server från säkerhetskopia',
     restore: 'Återställ',
-    intro: 'Flytta hit en server från en annan dator: välj dess säkerhetskopia (gjord under Inställningar → Säkerhetskopia och flytt, eller en daglig säkerhetskopia från dess mapp). Den körs på den här datorn när Iskra är öppen, med allt den hade.',
+    intro: 'Flytta hit en server från en annan dator: välj dess säkerhetskopia (gjord under Serverinställningar → Säkerhetskopia och flytt, eller en daglig säkerhetskopia från dess mapp). Den körs på den här datorn när Iskra är öppen, med allt den hade.',
     pickAnother: 'Välj en annan fil',
     choose: 'Välj säkerhetskopia…',
     passphrase: 'Lösenfras',

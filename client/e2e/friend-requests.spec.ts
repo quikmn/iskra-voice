@@ -26,7 +26,10 @@ test('friend requests: right-click to send, accept, friends on both sides, then 
   // The menu now offers to cancel it.
   await alice.locator('.member-list').getByRole('button', { name: /^Bob/ }).click({ button: 'right' })
   await expect(menu.getByRole('menuitem', { name: /Cancel friend request/ })).toBeVisible()
-  await alice.keyboard.press('Escape')
+  // Copying the ID says so before the menu closes (it used to close with no sign it worked).
+  await menu.getByRole('menuitem', { name: 'Copy user ID' }).click()
+  await expect(menu.getByRole('status')).toHaveText('User ID copied')
+  await expect(menu).toBeHidden()
 
   // Bob gets a badge, and the request waits on the Friends page.
   await expect(bob.locator('.server-icon.home .badge')).toHaveText('1')

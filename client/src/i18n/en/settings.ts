@@ -67,7 +67,7 @@ export const settings = {
     removeHint: 'Hides this server here. You stay a member and can come back with any invite link.',
   },
   pages: {
-    intro: "Members can make a small web page that opens from their profile card. Pages run in a sandbox: they can't see anyone's account or messages, and their scripts only run when the viewer allows it. Admins can remove any page.",
+    intro: "Members can make a small web page that opens from their profile card. Pages run in a sandbox: they can't see anyone's account or messages. Interactive pages run in the desktop app, cut off from the network; browsers and phones show them without scripts. Admins can remove any page.",
   },
   recovery: {
     intro: 'Your account lives on your devices, not on a server. This key is how you get it back on a new device or after clearing your browser.',
@@ -83,7 +83,7 @@ export const settings = {
       title: 'Iskra recovery key',
       account: 'Account: {{name}}',
       warning: 'Anyone with this key can use your account. Keep it somewhere safe (a password manager is ideal).',
-      howTo: 'To restore: open Iskra on any device, choose "I already have Iskra", then "Use my recovery key", and paste the key.',
+      howTo: 'To restore: open Iskra on any device, choose “I already use Iskra”, then “Use my recovery key”, and paste the key.',
       servers: 'Your servers (after restoring, open a link to get back in):',
     },
   },
@@ -106,7 +106,7 @@ export const settings = {
     throughServer: 'Through server',
     bringHistory: 'Bring my message history (direct messages and groups)',
     showCode: 'Show code',
-    scanHint: 'On the new device, open Iskra, choose <b>I already have Iskra</b>, and scan this code.',
+    scanHint: 'On the new device, open Iskra, choose <b>I already use Iskra</b>, then <b>Link with my other device</b>, and scan this code.',
     qrLabel: 'Device link QR code',
     orType: 'Or type this code:',
     copyCode: 'Copy code',
@@ -308,7 +308,7 @@ export const settings = {
   restore: {
     title: 'Restore a server from backup',
     restore: 'Restore',
-    intro: 'Bring a server here from another computer: pick its backup (made in Settings → Backup & move, or a daily backup from its folder). It runs on this computer while Iskra is open, with everything it had.',
+    intro: 'Bring a server here from another computer: pick its backup (made in Server settings → Backup & move, or a daily backup from its folder). It runs on this computer while Iskra is open, with everything it had.',
     pickAnother: 'Pick another file',
     choose: 'Choose backup file…',
     passphrase: 'Passphrase',
