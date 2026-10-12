@@ -1,6 +1,8 @@
 // Audio worklets get 128 samples at a time; DeepFilterNet wants 480 (10 ms at 48 kHz). The framer collects input
-// into frames, runs them, and plays the results back at a fixed delay that never runs dry. Allocation-free apart
-// from what the engine itself returns. Also measures how long the engine takes (the realtime factor).
+// into frames, runs them right there, and plays the results back at a fixed delay that never runs dry: how
+// DeepFilterNet ran inside the audio worklet before it moved to a worker (dfQueue.ts). The offline quality harness
+// still runs it this way; the worker path gives exactly the same output, a fixed time later (quality.test.ts).
+// Allocation-free apart from what the engine itself returns. Also measures how long the engine takes.
 
 export class Framer {
   private readonly frame: Float32Array
