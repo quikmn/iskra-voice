@@ -106,7 +106,7 @@ export const safety = {
     button: 'Delete my account…',
     moreInfo: 'What is deleted, and how to do it without the app:',
     intro: 'This deletes your Iskra account for good:',
-    removes: 'On every server you’re in: your profile, avatar, nickname, roles, settings and block list, and the server copies of your encrypted messages.',
+    removes: 'On every server you’re in: your profile, avatar, server nickname, roles, settings and block list, and the server copies of your encrypted messages.',
     devices: 'All your devices are signed out. Your other devices forget the account the next time they connect.',
     dms: 'Messages already on other people’s devices (like your DMs) stay there.',
     noUndo: 'This can’t be undone, not even with your recovery key.',

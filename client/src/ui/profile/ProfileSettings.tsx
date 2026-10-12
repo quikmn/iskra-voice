@@ -18,6 +18,8 @@ export function ProfileSection() {
   const { t } = useTranslation()
   const profile = useApp((s) => s.profile)
   const identity = useApp((s) => s.identity)
+  // Servers where a server nickname is shown instead of your name.
+  const nicknamed = useApp((s) => s.order.map((k) => s.servers[k]).filter((v) => v?.me?.nick).map((v) => v!.name).join(', '))
   const [name, setName] = useState(profile?.name ?? '')
   const [pronouns, setPronouns] = useState(profile?.pronouns ?? '')
   const [bio, setBio] = useState(profile?.bio ?? '')
@@ -46,7 +48,7 @@ export function ProfileSection() {
   async function save() {
     if (!dirty || !trimmed) return
     try {
-      report(await updateProfile(changes), t('common.saved'))
+      report(await updateProfile(changes), changes.name ? t('profile.nameSaved') : t('common.saved'))
     } catch (e) {
       setStatus({ kind: 'error', text: errorMessage(e) })
     }
@@ -85,9 +87,12 @@ export function ProfileSection() {
       </div>
 
       <label className="field">
-        <span>{t('profile.displayName')}</span>
-        <input value={name} maxLength={32} onChange={(e) => { setName(e.target.value); setStatus(null) }} />
+        <span>{t('profile.name')}</span>
+        <input value={name} maxLength={32} aria-describedby="profile-name-hint" onChange={(e) => { setName(e.target.value); setStatus(null) }} />
       </label>
+      <p id="profile-name-hint" className="muted field-note">
+        {t('profile.nameHint')}{nicknamed && ` ${t('profile.nicknamesHere', { servers: nicknamed })}`}
+      </p>
       <label className="field">
         <span>{t('profile.pronouns')}</span>
         <input value={pronouns} maxLength={MAX_PRONOUNS} placeholder={t('profile.optional')} onChange={(e) => { setPronouns(e.target.value); setStatus(null) }} />

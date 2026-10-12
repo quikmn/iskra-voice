@@ -120,10 +120,11 @@ export const organize = {
     hint: "Applies to this device's notifications and to push on all your devices. Muted channels and servers are dimmed and only badge for @mentions. Pick a level for a single channel from its ⋯ menu.",
   },
   nick: {
-    yours: 'Your nickname on this server',
-    theirs: 'Nickname on this server',
-    hintYours: 'Shown instead of your profile name everywhere on {{server}}. The profile card still shows the real name.',
-    hintTheirs: 'Shown instead of their profile name everywhere on {{server}}. The profile card still shows the real name.',
+    label: 'Server nickname',
+    hintYours: 'Server nickname on {{server}}. Only on this server. Leave empty to use your name ({{name}}).',
+    hintTheirs: 'Server nickname on {{server}}. Only on this server. Leave empty to use their name ({{name}}).',
+    useMine: 'Use my name',
+    useTheirs: 'Use their name',
     saved: 'Saved.',
   },
   shortcuts: {

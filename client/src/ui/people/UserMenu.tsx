@@ -11,7 +11,7 @@ import { useGroupCalls } from '../../state/groupCalls'
 import { removeTimeout, setBlocked, timeoutMember, useIsBlocked } from '../../state/moderation'
 import { durationLabel, timeoutActive, TIMEOUT_OPTIONS } from '../../state/moderationRules'
 import { has, isAbove, outranks } from '../../state/permissions'
-import { openMemberDetails, openProfileCard } from '../../state/profile'
+import { openProfileCard } from '../../state/profile'
 import { moveToChannel, serverMute, setMemberRoles, useServerRoles } from '../../state/roles'
 import { connectionFor, useApp, type ServerState } from '../../state/store'
 import { closeUserMenu, useUserMenu, type UserMenuTarget } from '../../state/userMenu'
@@ -21,6 +21,7 @@ import { transferOwnership } from '../../state/accountDeletion'
 import { MenuItem, MenuTitle, OrgMenu } from '../organize/OrgMenu'
 import { VolumeControls } from '../VolumeMenu'
 import { openServerAction } from '../organize/ServerMenu'
+import { canEditNickname, NicknameField } from '../organize/ServerSettings'
 import '../organize/organize.css'
 import './people.css'
 
@@ -30,7 +31,7 @@ export function UserMenuLayer() {
   return <UserMenu key={`${target.accountKey}:${target.serverKey}`} target={target} />
 }
 
-type View = 'main' | 'block' | 'remove' | 'kick' | 'ban' | 'timeout' | 'move' | 'roles' | 'transfer'
+type View = 'main' | 'nick' | 'block' | 'remove' | 'kick' | 'ban' | 'timeout' | 'move' | 'roles' | 'transfer'
 
 /** Whether you hear this person right now: a DM call, a group call or a voice channel you're both in. */
 function useHears(accountKey: string, server: ServerState | undefined): boolean {
@@ -109,6 +110,8 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
         </div>
       </div>
     )
+  } else if (view === 'nick' && server && member) {
+    body = <div className="user-menu-nick"><NicknameField server={server} member={member} onDone={closeUserMenu} /></div>
   } else if (view === 'timeout') {
     body = (
       <div className="org-list" role="menu">
@@ -149,7 +152,9 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
         {profileServer && <MenuItem onClick={go(() => openProfileCard(profileServer, accountKey, null))}>{t('friends.menu.profile')}</MenuItem>}
         {canMessage && <MenuItem onClick={go(() => openConversation(accountKey))}>{t('friends.menu.message')}</MenuItem>}
         {canCall && <MenuItem onClick={go(() => void startCall(accountKey, false))}>{t('friends.menu.call')}</MenuItem>}
-        {self && member && <MenuItem onClick={go(() => openMemberDetails(server!.key, accountKey))}>{t('friends.menu.nickname')}</MenuItem>}
+        {member && canEditNickname(me, member) && (
+          <MenuItem onClick={() => setView('nick')}>{self ? t('friends.menu.nickname') : t('friends.menu.nicknameFor', { name: member.profileName ?? member.name })}</MenuItem>
+        )}
         {!self && !blocked && (
           <>
             <div className="org-sep" />
@@ -203,7 +208,7 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
   }
 
   const titles: Partial<Record<View, string>> = {
-    timeout: t('moderation.timeout.title'), move: t('roles.moveLabel'), roles: t('roles.memberRoles'),
+    nick: t('organize.nick.label'), timeout: t('moderation.timeout.title'), move: t('roles.moveLabel'), roles: t('roles.memberRoles'),
   }
   return (
     <OrgMenu anchor={target.anchor} label={t('friends.menu.label', { name })} onClose={closeUserMenu}>

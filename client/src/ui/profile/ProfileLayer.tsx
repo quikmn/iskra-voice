@@ -126,7 +126,7 @@ function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; me
           </div>
           <div className="profile-body">
             <h2 className="profile-name">{member.name}</h2>
-            {member.nick && member.profileName && member.profileName !== member.name && <div className="profile-realname">{member.profileName}</div>}
+            {member.nick && member.profileName && member.profileName !== member.name && <div className="profile-realname">{t('profile.nameLine', { name: member.profileName })}</div>}
             <div className="profile-sub">
               {member.pronouns && <span>{member.pronouns}</span>}
               <span className={`role-chip role-${member.role}`}>{t(`common.roles.${member.role}`)}</span>

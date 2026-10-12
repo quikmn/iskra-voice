@@ -114,7 +114,7 @@ test('categories, notification levels and nicknames', async ({ browser }) => {
 
   // ── Nicknames ──
   await openSettings(friend, 'Overview')
-  await friend.getByLabel('Your nickname on this server').fill('Captain F')
+  await friend.getByLabel('Server nickname').fill('Captain F')
   await friend.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(friend.getByText('Saved.')).toBeVisible()
   await friend.keyboard.press('Escape')
@@ -122,17 +122,17 @@ test('categories, notification levels and nicknames', async ({ browser }) => {
   await expect(host.locator('.member-list')).toContainText('Captain F')
   await expect(host.locator('.message', { hasText: 'you there?' }).locator('.mention')).toHaveText('@Captain F')
 
-  // The profile card shows the real name too; admins can change or reset it.
+  // The profile card shows the name too; admins can change it or go back to the name.
   await host.locator('.member-list .member', { hasText: 'Captain F' }).click()
   const card = host.getByRole('dialog', { name: 'Profile of Captain F' })
-  await expect(card.locator('.profile-realname')).toHaveText('Friend')
+  await expect(card.locator('.profile-realname')).toHaveText('Name: Friend')
   await card.getByRole('button', { name: 'More' }).click()
   await expect(host.getByRole('dialog', { name: 'Captain F' })).toBeVisible()
-  const details = host.locator('.modal', { has: host.getByLabel('Nickname on this server') }) // its title follows the nickname
-  await details.getByLabel('Nickname on this server').fill('Freddie')
+  const details = host.locator('.modal', { has: host.getByLabel('Server nickname') }) // its title follows the nickname
+  await details.getByLabel('Server nickname').fill('Freddie')
   await details.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(friend.locator('.me-bar')).toContainText('Freddie')
-  await details.getByRole('button', { name: 'Reset' }).click()
+  await details.getByRole('button', { name: 'Use their name' }).click()
   await expect(friend.locator('.me-bar')).toContainText('Friend')
   await host.screenshot({ path: join(SHOTS, 'organize-nickname.png') })
 })

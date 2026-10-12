@@ -121,10 +121,11 @@ export const organize: Messages['organize'] = {
     hint: 'Gäller aviseringar på den här enheten och push på alla dina enheter. Tystade kanaler och servrar tonas ner och visar bara märken för @omnämnanden. Välj nivå för en enskild kanal i dess ⋯-meny.',
   },
   nick: {
-    yours: 'Ditt smeknamn på den här servern',
-    theirs: 'Smeknamn på den här servern',
-    hintYours: 'Visas i stället för ditt profilnamn överallt på {{server}}. Profilkortet visar fortfarande det riktiga namnet.',
-    hintTheirs: 'Visas i stället för deras profilnamn överallt på {{server}}. Profilkortet visar fortfarande det riktiga namnet.',
+    label: 'Smeknamn på servern',
+    hintYours: 'Smeknamn på {{server}}. Bara på den här servern. Lämna tomt för att använda ditt namn ({{name}}).',
+    hintTheirs: 'Smeknamn på {{server}}. Bara på den här servern. Lämna tomt för att använda deras namn ({{name}}).',
+    useMine: 'Använd mitt namn',
+    useTheirs: 'Använd deras namn',
     saved: 'Sparat.',
   },
   shortcuts: {

@@ -30,6 +30,9 @@
 .user-menu-roles input { margin: 0; }
 .user-menu-error { margin: 6px 8px 2px; font-size: 12px; }
 .org-sheet .user-menu-confirm { max-width: none; padding: 4px 4px 8px; }
+.user-menu-nick { padding: 4px 8px 8px; width: 270px; max-width: 100%; box-sizing: border-box; }
+.user-menu-nick .muted { font-size: 12px; margin: 8px 0 0; }
+.org-sheet .user-menu-nick { width: auto; padding: 4px 4px 8px; }
 @media (max-width: 760px) {
   .friends-header h1 { display: none; }
   .friend-line { margin-left: 16px; }
