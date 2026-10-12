@@ -17,6 +17,8 @@ const allowedBy = new Map<number, string>()
 let pending: string | null = null
 
 let pages: Session | null = null
+/** No page view opens before the proxy is in place. */
+let proxied = false
 
 function pagesSession(): Session {
   if (pages) return pages
@@ -27,7 +29,7 @@ function pagesSession(): Session {
   ses.setDisplayMediaRequestHandler((_request, callback) => callback({}))
   ses.setSpellCheckerEnabled(false)
   ses.on('will-download', (event) => event.preventDefault())
-  void ses.setProxy(NOWHERE)
+  void ses.setProxy(NOWHERE).then(() => (proxied = true))
 
   const allowed = (url: string, resourceType: string, method: string, contentsId?: number) => {
     const page = contentsId === undefined ? null : allowedBy.get(contentsId)
@@ -78,13 +80,14 @@ export function allowPageViews(window: BrowserWindow, isAppUrl: (url: string) =>
   pagesSession()
   window.webContents.on('will-attach-webview', (event, webPreferences, params) => {
     const source = isAppUrl(window.webContents.getURL()) ? pageViewSource(params.src) : null
-    if (!source) return event.preventDefault()
+    if (!source || !proxied) return event.preventDefault()
     delete webPreferences.preload
     delete webPreferences.enableBlinkFeatures
     Object.assign(webPreferences, {
       partition: PAGES_PARTITION, sandbox: true, contextIsolation: true, nodeIntegration: false, nodeIntegrationInSubFrames: false,
       nodeIntegrationInWorker: false, webSecurity: true, allowRunningInsecureContent: false, webviewTag: false, plugins: false,
-      experimentalFeatures: false, spellcheck: false, navigateOnDragDrop: false, disableDialogs: true, devTools: !app.isPackaged,
+      experimentalFeatures: false, spellcheck: false, navigateOnDragDrop: false, disableDialogs: true, autoplayPolicy: 'document-user-activation-required',
+      devTools: !app.isPackaged,
     } satisfies Electron.WebPreferences)
     for (const key of ['allowpopups', 'nodeintegration', 'nodeintegrationinsubframes', 'plugins', 'preload', 'disablewebsecurity', 'webpreferences', 'blinkfeatures', 'disableblinkfeatures', 'useragent', 'httpreferrer']) delete params[key]
     params.partition = PAGES_PARTITION
