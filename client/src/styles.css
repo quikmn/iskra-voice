@@ -7,12 +7,12 @@
   --surface-2: #1b1b30;
   --surface-3: #24243d;
   --border: rgba(120, 100, 255, 0.14);
-  --accent: #7c6fff;
-  --accent-strong: #6a5cff;
+  --accent: #695bff;
+  --accent-strong: #5a4bf0;
   --accent-2: #00cfff;
   --text: #e2e2f0;
   --text-2: #b4b4cc;
-  --muted: #7878a0;
+  --muted: #8484a8;
   --green: #4ade80;
   --red: #f87171;
   --amber: #fbbf24;
@@ -767,7 +767,7 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 /* In a call, the call panel says how it's encrypted; the header badge would repeat it. */
 .chat-header:has(+ .call-panel) .e2e-badge { display: none; }
 input.confirm-code { display: block; width: 100%; }
-input.confirm-code::placeholder { color: var(--faint); }
+input.confirm-code::placeholder { color: var(--muted); }
 
 /* ── Presence and custom status ─────────────────────────────────────── */
 .presence.idle { background: var(--amber); }
