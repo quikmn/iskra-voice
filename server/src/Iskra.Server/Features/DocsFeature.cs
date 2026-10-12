@@ -156,6 +156,18 @@ public static partial class DocsFeature
 
     private static string[] FileIds(string text) => FileLink().Matches(text).Select(m => m.Groups[1].Value).Distinct().ToArray();
 
+    /// <summary>
+    /// The uploads a save keeps alive: your own, or ones docs pages already keep (a picture copied from another page). Someone
+    /// else's upload (an attachment a moderator may delete, say) can be linked, but a page doesn't keep it on the server.
+    /// </summary>
+    private static string[] KeptFileIds(Store store, Member me, string text)
+    {
+        var ids = FileIds(text);
+        if (ids.Length == 0) return ids;
+        var kept = store.DocFileIds();
+        return ids.Where(id => kept.Contains(id) || store.GetFile(id)?.Uploader == me.AccountKey).ToArray();
+    }
+
     /// <summary>Sub-pages go one level deep: a parent must be a top-level page in the same channel.</summary>
     private static long? Parent(Session s, Channel channel, Body body, long? self = null)
     {
@@ -174,7 +186,8 @@ public static partial class DocsFeature
     private static object List(Session s, Member me, Body body)
     {
         var channel = ReadableDocs(s, me, body.Long("channelId"));
-        var home = s.World.Store.DocHome();
+        // The Start-here page only for those who can read it (as docs.home.get).
+        var home = HomeView(s.World.Store, me) is not null ? s.World.Store.DocHome() : null;
         return new { pages = s.World.Store.DocPages(channel.Id).Select(View), home };
     }
 
@@ -210,7 +223,7 @@ public static partial class DocsFeature
             throw RequestException.BadRequest($"A docs channel can have up to {MaxPagesPerChannel} pages. Delete some first.");
         AutoModFeature.Check(s, me, channel, title + "\n" + text, "page");
 
-        var page = store.CreateDocPage(channel.Id, parentId, title, text, FileIds(text), me.AccountKey, s.Now);
+        var page = store.CreateDocPage(channel.Id, parentId, title, text, KeptFileIds(store, me, text), me.AccountKey, s.Now);
         AuditPage(s, "docs.page.create", channel, page);
         Updated(s, channel, page);
         return new { page = FullView(page with { Text = text }) };
@@ -233,7 +246,7 @@ public static partial class DocsFeature
     private static object Commit(Session s, Member me, DocPage page, Channel channel, string title, string text, long baseVersion, long? restoredFrom)
     {
         var store = s.World.Store;
-        switch (store.SaveDocPage(page.Id, baseVersion, title, text, FileIds(text), me.AccountKey, s.Now, restoredFrom))
+        switch (store.SaveDocPage(page.Id, baseVersion, title, text, KeptFileIds(store, me, text), me.AccountKey, s.Now, restoredFrom))
         {
             case DocSaveResult.Missing: throw RequestException.NotFound("Page");
             case DocSaveResult.Conflict: throw Conflict();
@@ -272,6 +285,9 @@ public static partial class DocsFeature
         if (page.CreatedBy != me.AccountKey && !Permissions.CanPin(me, channel))
             throw RequestException.Forbidden("Only whoever made this page, or a moderator, can delete it.");
         var store = s.World.Store;
+        // Its sub-pages go with it: someone else's (anyone can move a page under yours) need a moderator.
+        if (!Permissions.CanPin(me, channel) && store.DocPages(channel.Id).Any(p => p.ParentId == page.Id && p.CreatedBy != me.AccountKey))
+            throw RequestException.Forbidden("This page has sub-pages other people made. Move them out first, or ask a moderator.");
         var wasHome = store.DocHome() is { } home && (home == page.Id || store.GetDocPage(home)?.ParentId == page.Id);
         AuditPage(s, "docs.page.delete", channel, page);
         var ids = store.DeleteDocPage(page.Id);
