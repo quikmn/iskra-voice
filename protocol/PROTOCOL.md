@@ -5,7 +5,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 
 ## Contents
 
-- **Basics:** [Encoding](#encoding) · [Identity](#identity) · [Connection](#connection) (handshake, errors and close codes, limits) · [Objects](#objects)
+- **Basics:** [Encoding](#encoding) · [Identity](#identity) · [Connection](#connection) (handshake, errors and close codes, limits, [restarts](#restarts-and-reconnecting)) · [Objects](#objects)
 - **Servers and channels:** [Requests and events](#requests-and-events) · [Invite links](#invite-links) · [Organizing a server](#organizing-a-server)
 - **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji) · [Stickers](#stickers) · [GIFs](#gifs) · [Saved messages, reminders, scheduled messages and the inbox](#saved-messages-reminders-scheduled-messages-and-the-inbox)
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties) · [Voice channel chat and clips](#voice-channel-chat-and-clips) · [Hi-fi voice channels](#hi-fi-voice-channels)
@@ -133,6 +133,8 @@ Close codes:
 | 4403 | Banned, kicked, no longer a member, or this device was revoked while connected (preceded by a `kicked` event) |
 | 4409 | The account moved to a new key (preceded by `account.rotated`) |
 | 4413 | Frame too large |
+| 1001 | The server stopped and doesn't expect to be back soon (reason `{"v":1,"reason":"stop"}`); see [Restarts and reconnecting](#restarts-and-reconnecting) |
+| 1012 | The server is restarting (an update, the desktop app restarting). The reason is JSON; see [Restarts and reconnecting](#restarts-and-reconnecting) |
 
 ### Limits
 
@@ -1703,7 +1705,7 @@ UpdateStatus {
 | `update.settings` | `mode?`, `channel?`, `window?` (`HH:mm`, exactly 5 chars), `requireAttestation?` | `{ status }` | owner; `bad_request` for unknown values, for any change on a desktop-hosted server, and for `auto` when `auto.possible` is false |
 | `update.install` | | `{ status }` (installing has started) | owner; `bad_request` when it can't install here or there's nothing newer (or no package for this system), `conflict` while an install runs |
 
-- **Events:** `update.status` `{ status }` goes to the owner's sessions whenever it changes (check results, download progress about every 2%, failures). `server.restarting` `{ reason: "update", version }` goes to every session about 5 seconds before the server restarts into a new version; apps tell members, then reconnect as usual.
+- **Events:** `update.status` `{ status }` goes to the owner's sessions whenever it changes (check results, download progress about every 2%, failures). `server.restarting` `{ reason: "update", version }` goes to every session about 5 seconds before the server restarts into a new version; apps tell members, then reconnect as after any restart ([Restarts and reconnecting](#restarts-and-reconnecting); the close reason says `update` with a downtime hint).
 - **Checks:** unauthenticated GitHub API (`GET /repos/quikmn/iskra-voice/releases`, `If-None-Match` with the last ETag), 2 minutes after start and then every 6 hours (not when `Mode` is `off`, except "Check now"). On a rate-limit answer the next check waits until GitHub's reset time. Drafts and tags that aren't `v<version>` are ignored. "stable" means releases GitHub doesn't mark as prerelease (alphas are published as normal releases).
 - **Packages:** `iskra-server-<v>-linux-x64.tar.gz`, `-osx-arm64.tar.gz`, `-osx-x64.tar.gz`, `-win-x64.zip`. Downloads only from `https://github.com/quikmn/iskra-voice/releases/download/`, HTTPS only (redirects to GitHub's storage), at most 512 MB.
 - **Verification before anything is replaced:** the package's SHA-256 must match its line in the release's `SHA256SUMS.txt` and GitHub's own `digest` for the file (when the API gives one), and its size must match. Then `GET /repos/quikmn/iskra-voice/attestations/sha256:<hash>` is asked whether a build-provenance attestation exists (`attested`); with `RequireAttestation` an install without one fails. The server doesn't check Sigstore signatures itself (see docs/hosting.md for what this does and doesn't protect against). The archive may only hold plain files at its top level with plain names (no folders, links, `..` or absolute paths) and must contain `iskra-server`. The unpacked `iskra-server version` must print the new version (so a package that can't run on this machine is never swapped in).
@@ -2098,3 +2100,38 @@ Limits: ordering trusts the devices' clocks, bounded by the rules above; an edit
 newer one (offline) loses to it if its clock is earlier. Fields aren't merged: the newest edit wins as a whole (fields
 it never set are kept). A server only knows the stamps it has seen, so a server that missed every edit applies the
 first stamped profile that arrives, which is the newest the connecting device knows.
+
+## Restarts and reconnecting
+
+When the server stops it closes every session with a JSON reason of at most 123 bytes:
+
+```jsonc
+{ "v": 1, "reason": "stop" | "restart" | "update", "etaMs": 20000 }   // etaMs only when the server can estimate it (0–600000)
+```
+
+- **1012 ("Service Restart")**, reason `update` or `restart`, only when the server knows it's coming back: an
+  automatic update (`etaMs` 20000), or the desktop app restarting (into an update, or a relaunch), which writes the line
+  `restart` to the server's stdin before closing it (`ISKRA_STOP_ON_STDIN_CLOSE`; `etaMs` 30000).
+- **1001 ("Going Away")**, reason `stop`, for every other stop: Ctrl+C, SIGTERM (including `systemctl restart`, which
+  the server can't tell apart), the desktop host quitting or stopping the server, or the app that started it going away.
+
+Even 1012 is a hint: the server may not come back. Unknown `reason` values and fields are ignored; a 1012 whose
+reason isn't this JSON still counts as a restart, and a 1001 without it (older servers) as an ordinary drop. A server
+that crashes or loses the network sends neither (the socket just drops, 1006).
+
+What apps do (the TS client and the bot SDK share it, `client/src/core/connection.ts`):
+
+- **On 1012:** status `restarting` (not `offline`), and reconnect about every second (0.75–1.25 s, jittered so a crowd
+  doesn't arrive at once) for 2 minutes, or `etaMs` plus a minute when that's longer. After that, the usual backoff.
+  Failed attempts during that window keep the fast pace.
+- **On 1001 `stop`:** status `offline` with `stopped: true` (apps say "<server> went offline"), kept until it's back,
+  with the usual backoff.
+- **Any other drop:** status `offline` with exponential backoff, 0.5 s doubling to 30 s, ±30% jitter.
+- **After every reconnect** (`welcome`), whatever the cause: messages missed in loaded channels are fetched with
+  `chat.history` `after` (and count as unread), sends cut off by the drop go again with their nonce ([Reliable sends](#reliable-sends)),
+  stages and watch parties are rebuilt from `welcome`, and someone who was in a voice or stage channel joins it again
+  with `voice.join` and reports the same `voice.state` flags. They don't rejoin when LiveKit removed them
+  (moved, kicked, the channel deleted), when the channel is gone or they can no longer connect to it, or when they
+  left meanwhile. On 1012 or 1001 `stop` apps leave the LiveKit room straight away (LiveKit stops with the server),
+  so the rejoin is a fresh one. Camera and screen share are never turned back on by themselves. DM and group calls live in the
+  server's memory and end with a restart; they aren't rejoined.

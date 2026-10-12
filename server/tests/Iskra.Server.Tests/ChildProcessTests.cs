@@ -48,4 +48,31 @@ public class ChildProcessTests
         Assert.True(watch.Join(5000));
         Assert.Equal(1, lifetime.StopCalls);
     }
+
+    [Fact]
+    public void A_restart_line_before_the_close_says_the_app_starts_us_again()
+    {
+        using var server = new AnonymousPipeServerStream(PipeDirection.Out);
+        var input = new AnonymousPipeClientStream(PipeDirection.In, server.ClientSafePipeHandle);
+        var lifetime = new Lifetime();
+        var restarts = 0;
+        var watch = ChildProcesses.StopWhenClosed(input, lifetime, NullLogger.Instance, () => restarts++);
+
+        server.Write("restart\n"u8);
+        server.Dispose();
+        Assert.True(watch.Join(5000));
+        Assert.Equal(1, restarts);
+        Assert.Equal(1, lifetime.StopCalls);
+    }
+
+    [Fact]
+    public void A_plain_close_is_a_stop()
+    {
+        var lifetime = new Lifetime();
+        var restarts = 0;
+        var watch = ChildProcesses.StopWhenClosed(new MemoryStream("restarting soon?\n"u8.ToArray()), lifetime, NullLogger.Instance, () => restarts++);
+        Assert.True(watch.Join(5000));
+        Assert.Equal(0, restarts);
+        Assert.Equal(1, lifetime.StopCalls);
+    }
 }

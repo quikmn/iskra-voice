@@ -489,6 +489,8 @@ public class UpdateTests
         Assert.Equal("update", restarting.GetProperty("reason").GetString());
         Assert.Equal("2.1.0", restarting.GetProperty("version").GetString());
         await restarted.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        // Sessions are closed with 1012 and this reason: apps know it's an update and about how long it takes.
+        Assert.Equal("""{"v":1,"reason":"update","etaMs":20000}""", server.Services.GetRequiredService<Iskra.Server.Sessions.Hub>().Restart.Reason);
 
         Assert.Equal(["iskra-server 2.1.0"], ran); // the new binary was asked for its version before the swap
         Assert.Equal("server new", File.ReadAllText(Path.Combine(app, "iskra-server")));

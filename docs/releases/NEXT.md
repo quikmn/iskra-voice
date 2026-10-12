@@ -1,6 +1,7 @@
 <!-- Release notes for the next version. Each change is its own line; the release step merges them. -->
 
 ### What's new
+- **Restarts you barely notice.** When a server restarts or updates, the app says "<server> is restarting, hold on…" and is back within a second of the server: you're rejoined to voice with the same mute and deafen, and messages you wrote meanwhile are sent. Screen share and camera wait for you to turn them on again. If a server is shut down instead, the app says it went offline.
 - **Server settings get their own room.** Right-click a server (or press and hold on a phone) for everything you can do there: invite, create channels, roles, members, reports and more. Server settings open full-window with the server's name, picture and colour on top, so you always know which server you're changing. Your own settings are a separate place.
 - **Your profile follows you.** Change your name, picture or page on one device and your other devices pick it up right away. A phone or laptop that was offline can't bring an old name back.
 - **Big files in DMs, still end-to-end encrypted.** Send a friend a file as big as your server allows (512 MB by default; the owner can raise it), not just 50 MB. It's encrypted and uploaded a piece at a time, with progress and cancel, and the desktop app, Chrome and Edge save it straight to disk.

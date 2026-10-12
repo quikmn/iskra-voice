@@ -21,6 +21,7 @@ import { VoiceChatButton } from './clips/VoiceRoom'
 import { ClipButton, ClipsMark, ClipsStrip } from './clips/ClipControls'
 import { setWatchedTile } from '../state/clips'
 import { BackgroundNotice, CaptionsButton, CaptionsOverlay } from './media/CallMedia'
+import { ResumeOffer } from './ResumeOffer'
 
 /** The call screen: video tiles (screen shares first) and everyone's avatar, with call controls. */
 export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle: (panel: Panel) => void }) {
@@ -154,6 +155,7 @@ export function CallControls({ onLeave, extra, nameOf }: { onLeave?: () => void;
     <BackgroundNotice />
     <CaptionsOverlay nameOf={nameOf ?? (() => translate('common.someone'))} />
     <ClipsStrip />
+    <ResumeOffer />
     <div className="call-controls" role="toolbar" aria-label={t('voice.stage.controls')}>
       {speak && (
         <button className={`call-button ${muted ? 'off' : ''} ${localSpeaking && !muted ? 'talking' : ''}`} onClick={() => void toggleMute()} aria-pressed={muted} aria-label={muted ? t('voice.unmute') : t('voice.mute')} title={muted ? t('voice.unmute') : t('voice.mute')}>

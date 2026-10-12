@@ -152,7 +152,7 @@ function ConnectionBanner({ server }: { server: ServerState }) {
   return (
     <div className="banner warn" role="status">
       <WifiOff size={16} />
-      <span>{t('chat.view.offline', { name: server.name })}</span>
+      <span>{t(status.stopped ? 'chat.view.stopped' : 'chat.view.offline', { name: server.name })}</span>
       <button className="button small" onClick={retryAll}>{t('chat.view.tryNow')}</button>
     </div>
   )
@@ -500,13 +500,15 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
   const replyTo = useReply((s) => s.replyTo[replyKey(server.key, channelId)] ?? null)
   const text = useDraft(draftKey.channel(server.key, channelId))
   const online = server.status.state === 'online'
+  // While the server restarts you can keep writing: sends wait as "sending" and go out once it's back.
+  const writable = online || server.status.state === 'restarting'
   const setText = (value: string) => setDraft(draftKey.channel(server.key, channelId), value)
   const uploading = uploads.some((u) => !u.result && !u.error)
   const ready = uploads.filter((u) => u.result).map((u) => u.result!)
   const slowmode = useSlowmodeWait(server, channelId)
   const timedOut = useTimedOut(server)
   const mustAgree = useMustAgree(server.key)
-  const canSend = online && !uploading && slowmode.wait === 0 && (text.trim().length > 0 || ready.length > 0)
+  const canSend = writable && !uploading && slowmode.wait === 0 && (text.trim().length > 0 || ready.length > 0)
 
   function startUpload(item: PendingUpload) {
     const update = (patch: Partial<PendingUpload>) =>
@@ -684,7 +686,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
         value={text}
         onCaret={setCaret}
         autoFocus
-        placeholder={online ? (placeholder ?? t('chat.composer.placeholder', { name: channelName })) : t('chat.composer.reconnecting')}
+        placeholder={writable ? (placeholder ?? t('chat.composer.placeholder', { name: channelName })) : t('chat.composer.reconnecting')}
         maxLength={4000}
         onChange={(value) => {
           setText(value)

@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -50,6 +50,12 @@ export interface TestServer {
   url: string
   ownerLink: () => string
   stop: () => Promise<void>
+  /**
+   * Stops the server cleanly and starts it again on the same port and world after `downMs`. `as: 'restart'` (the
+   * default) is a restart members are told about ("restarting, hold on"); `'stop'` is a plain stop ("went offline")
+   * that happens to come back. Needs `ISKRA_STOP_ON_STDIN_CLOSE: '1'` in the env given to startServer, like the desktop host.
+   */
+  restart: (downMs?: number, as?: 'restart' | 'stop') => Promise<void>
 }
 
 /**
@@ -107,36 +113,59 @@ async function startIn(world: string, name: string, voice: boolean, env: Record<
       Captions: { ModelSource: CAPTION_MODELS },
     }),
   )
-  const proc: ChildProcess = spawn('dotnet', [SERVER_DLL, world], { stdio: 'ignore', env: { ...process.env, ...env } })
-  let exited = false
-  proc.once('exit', () => (exited = true))
-  let stopping: Promise<void> | null = null
   const url = `http://localhost:${port}`
-  for (let i = 0; ; i++) {
-    if (exited) return null
-    try {
-      // This test's server, not another worker's that got the same port first.
-      const response = await fetch(url)
-      const body = (await response.json().catch(() => ({}))) as { iskra?: number; name?: string }
-      if (response.ok && body.iskra && body.name === name && !exited) break
-    } catch {
-      /* starting */
-    }
-    if (i > 300) throw new Error('server did not start')
-    await new Promise((r) => setTimeout(r, 100))
+  const launch = () => {
+    // stdin stays open: with ISKRA_STOP_ON_STDIN_CLOSE closing it is a clean stop (see restart).
+    const log = process.env.ISKRA_E2E_SERVER_LOG ? openSync(process.env.ISKRA_E2E_SERVER_LOG, 'a') : 'ignore'
+    const proc: ChildProcess = spawn('dotnet', [SERVER_DLL, world], { stdio: ['pipe', log, log], env: { ...process.env, ...env } })
+    const run = { proc, exited: false }
+    proc.once('exit', () => (run.exited = true))
+    return run
   }
-  if (voice) {
-    // LiveKit starts a moment after the server.
+  const ready = async (run: { exited: boolean }): Promise<boolean> => {
     for (let i = 0; ; i++) {
+      if (run.exited) return false
       try {
-        if ((await fetch(`http://127.0.0.1:${voicePort}`)).ok) break
+        // This test's server, not another worker's that got the same port first.
+        const response = await fetch(url)
+        const body = (await response.json().catch(() => ({}))) as { iskra?: number; name?: string }
+        if (response.ok && body.iskra && body.name === name && !run.exited) break
       } catch {
         /* starting */
       }
-      if (i > 300) throw new Error('LiveKit did not start')
+      if (i > 300) throw new Error('server did not start')
       await new Promise((r) => setTimeout(r, 100))
     }
+    if (voice) {
+      // LiveKit starts a moment after the server.
+      for (let i = 0; ; i++) {
+        try {
+          if ((await fetch(`http://127.0.0.1:${voicePort}`)).ok) break
+        } catch {
+          /* starting */
+        }
+        if (i > 300) throw new Error('LiveKit did not start')
+        await new Promise((r) => setTimeout(r, 100))
+      }
+    }
+    return true
   }
+  /** Ends the process: cleanly through stdin (saying "restart" first, as the desktop host does), or killed. */
+  const end = async (run: { proc: ChildProcess; exited: boolean }, how: 'restart' | 'stop' | 'kill') => {
+    if (run.exited) return
+    const done = new Promise((r) => run.proc.once('exit', r))
+    if (how === 'restart') run.proc.stdin?.end('restart' + String.fromCharCode(10))
+    else if (how === 'stop') run.proc.stdin?.end()
+    else run.proc.kill()
+    // A clean stop takes a moment; don't let a stuck one eat the hook timeout.
+    const force = setTimeout(() => run.proc.kill('SIGKILL'), 10_000)
+    await done
+    clearTimeout(force)
+  }
+
+  let current = launch()
+  if (!(await ready(current))) return null
+  let stopping: Promise<void> | null = null
   return {
     world,
     url,
@@ -144,16 +173,16 @@ async function startIn(world: string, name: string, voice: boolean, env: Record<
     // Idempotent: later calls share the first one. On Windows a killed process keeps exitCode null
     // (signalCode is set instead), so 'exit' is tracked from the start rather than read from exitCode.
     stop: () => (stopping ??= (async () => {
-      if (!exited) {
-        const done = new Promise((r) => proc.once('exit', r))
-        proc.kill()
-        // A clean stop takes a moment; don't let a stuck one eat the hook timeout.
-        const force = setTimeout(() => proc.kill('SIGKILL'), 10_000)
-        await done
-        clearTimeout(force)
-      }
+      await end(current, 'kill')
       rmSync(world, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
     })()),
+    restart: async (downMs = 0, as = 'restart') => {
+      if (env.ISKRA_STOP_ON_STDIN_CLOSE !== '1') throw new Error('restart needs ISKRA_STOP_ON_STDIN_CLOSE=1')
+      await end(current, as)
+      await new Promise((r) => setTimeout(r, downMs))
+      current = launch()
+      if (!(await ready(current))) throw new Error('server did not come back (port taken?)')
+    },
   }
 }
 

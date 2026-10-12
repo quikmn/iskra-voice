@@ -65,5 +65,12 @@ export const voice: Messages['voice'] = {
     camera: 'Kunde inte använda kameran. Kolla behörigheterna i webbläsaren.',
     screen: 'Kunde inte starta skärmdelningen.',
     join: 'Kunde inte gå med i röstkanalen.',
+    resumeGone: 'Kunde inte ta dig tillbaka in i röstkanalen: kanalen finns inte längre eller så kan du inte gå med i den.',
+  },
+  resume: {
+    note: 'Anslutningen bröts, så din kamera och skärmdelning stängdes av.',
+    shareAgain: 'Dela igen',
+    cameraAgain: 'Slå på kameran igen',
+    dismiss: 'Stäng',
   },
 }

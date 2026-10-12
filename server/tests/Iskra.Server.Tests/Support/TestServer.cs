@@ -240,6 +240,7 @@ public sealed class TestClient : IDisposable
     }
 
     public int? CloseStatus { get; private set; }
+    public string? CloseReason { get; private set; }
 
     private async Task PumpAsync()
     {
@@ -256,6 +257,7 @@ public sealed class TestClient : IDisposable
                     if (result.MessageType == WebSocketMessageType.Close)
                     {
                         CloseStatus = (int?)_ws.CloseStatus;
+                        CloseReason = _ws.CloseStatusDescription;
                         return;
                     }
                     message.Write(buffer, 0, result.Count);
