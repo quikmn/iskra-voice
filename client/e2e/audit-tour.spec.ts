@@ -2,7 +2,7 @@
 // with a few automatic checks per shot (sideways overflow on phones, unnamed buttons, English left in Swedish).
 // Not part of the normal run: `AUDIT=1 npx playwright test e2e/audit-tour.spec.ts --workers=1`.
 // Screenshots and findings.json land in e2e/screenshots/audit (git-ignored).
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -21,16 +21,6 @@ const FILM = resolve(HERE, 'fixtures', 'party.webm')
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAAEUlEQVR4nGNgYGD4z4AEMDgAHNoB/zrD+5kAAAAASUVORK5CYII=', 'base64')
 /** Only some shots: AUDIT_ONLY=onboarding,owner ... (part names start with these). */
 const ONLY = (process.env.AUDIT_ONLY ?? '').split(',').filter(Boolean)
-
-function wav(ms: number): Buffer {
-  const samples = 8 * ms
-  const b = Buffer.alloc(44 + samples)
-  b.write('RIFF', 0); b.writeUInt32LE(36 + samples, 4); b.write('WAVEfmt ', 8)
-  b.writeUInt32LE(16, 16); b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22); b.writeUInt32LE(8000, 24); b.writeUInt32LE(8000, 28)
-  b.writeUInt16LE(1, 32); b.writeUInt16LE(8, 34); b.write('data', 36); b.writeUInt32LE(samples, 40)
-  for (let i = 0; i < samples; i++) b[44 + i] = 128 + Math.round(60 * Math.sin(i / 4))
-  return b
-}
 
 // ── Findings ──
 
@@ -58,7 +48,8 @@ async function part(name: string, fn: () => Promise<void>) {
 /** Switches the app's language in place (the dev server's own i18n module, so no reload). */
 async function setLanguage(page: Page, language: 'en' | 'sv') {
   await page.evaluate(async (l) => {
-    const m = await import(/* @vite-ignore */ '/src/i18n/index.ts')
+    const path = '/src/i18n/index.ts' // the dev server's module, the same instance the app uses
+    const m = (await import(/* @vite-ignore */ path)) as { setLanguageChoice(l: string): void }
     m.setLanguageChoice(l)
   }, language)
   await expect(page.locator('html')).toHaveAttribute('lang', language)
@@ -264,7 +255,9 @@ test('UX audit tour (browser)', async ({ browser }) => {
     await page.getByLabel('Invite link').fill('not a link')
     await page.getByRole('button', { name: 'Join', exact: true }).click().catch(() => undefined)
     await snap(page, '08b-join-bad-link')
-    await page.getByLabel('Invite link').fill('http://localhost:1/#/join/abcdefabcdef')
+    // A well-formed link to a server that isn't there.
+    const dead = `${Buffer.from('http://localhost:1').toString('base64url')}.${'A'.repeat(43)}.abcdefgh12`
+    await page.getByLabel('Invite link').fill(`http://localhost:1/#/join/${dead}`)
     await page.getByRole('button', { name: 'Join', exact: true }).click().catch(() => undefined)
     await page.waitForTimeout(2500)
     await snap(page, '08c-join-unreachable')
@@ -302,7 +295,12 @@ test('UX audit tour (browser)', async ({ browser }) => {
         pickScreen: () => undefined,
         host: {
           available: async () => true, list: async () => [], create: async () => new Promise(() => undefined), start: async () => null, stop: async () => null,
-          templates: async () => [{ id: 'empty', name: 'Empty', description: 'Just #general and a voice channel.' }, { id: 'gaming', name: 'Gaming group', description: 'Channels for games, clips and voice.' }],
+          templates: async () => [
+            { id: 'empty', name: 'Empty', description: 'Just #general.', categories: [], channels: [{ name: 'general', kind: 'text', userLimit: 0 }], roles: [], rules: false },
+            { id: 'gaming', name: 'Gaming group', description: 'Channels for games, clips and voice.', roles: ['Mods'], rules: true, channels: [],
+              categories: [{ name: 'Text', channels: [{ name: 'general', kind: 'text', userLimit: 0 }, { name: 'clips', kind: 'text', userLimit: 0 }] },
+                { name: 'Voice', channels: [{ name: 'Lounge', kind: 'voice', userLimit: 0 }, { name: 'Duo', kind: 'voice', userLimit: 2 }] }] },
+          ],
         },
       }
     })
@@ -558,7 +556,7 @@ test('UX audit tour (browser)', async ({ browser }) => {
 
   // ── 7. Phone: navigation by drawers ──
   await part('phone-nav', async () => {
-    await phone.getByRole('button', { name: 'Open channels' }).first().click()
+    await phone.getByRole('button', { name: /Open (channels|menu)/ }).first().click()
     await snap(phone, '55-phone-drawer')
     await phone.keyboard.press('Escape')
     await phone.getByRole('button', { name: 'Members' }).first().click()
@@ -583,6 +581,8 @@ test('UX audit tour (browser)', async ({ browser }) => {
     await owner.keyboard.press('Escape')
     await member.getByRole('button', { name: 'Direct messages' }).click()
     await snap(member, '60b-friends-incoming')
+    await member.getByRole('tab', { name: /Pending/ }).click()
+    await snap(member, '60c-friends-pending-incoming')
     await member.getByRole('button', { name: /Accept friend request/ }).first().click()
     await owner.getByRole('button', { name: 'Direct messages' }).click()
     await owner.locator('.channel', { hasText: 'Friends' }).click()
@@ -725,6 +725,8 @@ test('UX audit tour (browser)', async ({ browser }) => {
     await snap(member, '80-rate-limited')
   })
   await part('errors-upload-too-big', async () => {
+    await member.locator('.server-icon[title="Game Night"]').click()
+    await channel(member, 'general').click()
     const room = await serverRoom(owner, 'Limits')
     await room.getByLabel('Largest upload').fill('1')
     await room.getByRole('button', { name: 'Save', exact: true }).click().catch(() => undefined)
@@ -753,8 +755,9 @@ test('UX audit tour (browser)', async ({ browser }) => {
     await page.locator('.server-header-button').click().catch(() => undefined)
     await snap(page, '83b-offline-menu', { phone: false })
     await page.keyboard.press('Escape')
-    await page.getByPlaceholder(/Message #general/).fill('anyone there?')
-    await page.getByPlaceholder(/Message #general/).press('Enter')
+    const box = page.locator('.composer textarea, textarea').last()
+    await box.fill('anyone there?').catch(() => undefined)
+    await box.press('Enter').catch(() => undefined)
     await page.waitForTimeout(800)
     await snap(page, '83c-offline-send')
   })
@@ -767,6 +770,7 @@ test('UX audit tour (browser)', async ({ browser }) => {
     await snap(owner, '84b-after-restart', { phone: false, sv: false })
   })
   await part('member-leave', async () => {
+    await member.locator('.server-icon[title="Game Night"]').click()
     await member.locator('.server-header-button').click()
     await member.getByRole('menuitem', { name: 'Leave server' }).click()
     await snap(member, '85-leave-confirm')
@@ -887,5 +891,142 @@ test('UX audit tour (desktop app)', async () => {
     rmSync(userData, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
     rmSync(hostRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 })
     writeFileSync(join(OUT, 'findings.json'), JSON.stringify({ problems, findings }, null, 1))
+  }
+})
+
+// ── Profile pages: a normal, styled page in the desktop app's walled page view, next to the browser and the editor ──
+test('UX audit: profile pages render styled (desktop app vs browser)', async ({ browser }) => {
+  test.skip(!built, 'build desktop/ and the client first')
+  test.setTimeout(400_000)
+  const server = await startServer('Page Gallery')
+  const userData = mkdtempSync(join(tmpdir(), 'iskra-audit-pages-'))
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'NODE_OPTIONS')) as Record<string, string>
+  const app = await electron.launch({
+    executablePath: join(DESKTOP_DIR, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron'),
+    args: [DESKTOP_DIR, `--user-data-dir=${userData}`, '--lang=en-US'],
+    cwd: DESKTOP_DIR,
+    env: { ...env, ISKRA_LOCAL_ONLY: '1' },
+  })
+  const report: Record<string, unknown> = {}
+  try {
+    // The browser person: owner, uploads a picture to the server, so a page can use it from /files/.
+    const web = await (await browser.newContext({ viewport: DESKTOP })).newPage()
+    await joinVia(web, server.ownerLink(), 'Webby')
+    const swatch = await web.screenshot({ clip: { x: 0, y: 0, width: 72, height: 72 } })
+    await web.locator('input[type=file]').first().setInputFiles({ name: 'swatch.png', mimeType: 'image/png', buffer: swatch })
+    await expect(web.locator('.pending-upload .muted')).toHaveText(/B$/, { timeout: 10_000 }) // Enter does nothing while it uploads
+    await web.getByPlaceholder('Message #general').press('Enter')
+    const uploaded = web.locator('.message img').last()
+    await expect(uploaded).toBeVisible({ timeout: 15_000 })
+    const fileUrl = new URL((await uploaded.getAttribute('src'))!, server.url).href
+    report.fileUrl = fileUrl
+    const font = readFileSync('C:/Windows/Fonts/marlett.ttf', { encoding: 'base64' })
+    const STYLED = `<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face { font-family: 'Probe'; src: url(data:font/ttf;base64,${font}) format('truetype'); }
+body { margin: 0; min-height: 100vh; font-family: Georgia, serif; color: #fff; background: linear-gradient(135deg, #0f766e, #7c3aed); }
+.card { margin: 24px; padding: 20px; border-radius: 16px; background: rgba(0,0,0,.35); box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+h1 { margin: 0 0 8px; font-size: 40px; letter-spacing: 2px; }
+.spin { display: inline-block; width: 40px; height: 40px; background: #facc15; border-radius: 8px; animation: spin 2s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.probe { font-family: 'Probe'; font-size: 24px; }
+img { width: 72px; height: 72px; border: 3px solid #fff; border-radius: 8px; margin-right: 8px; }
+</style></head><body><div class="card">
+<h1>Styled page</h1><p>Gradient, card, animation <span class="spin"></span></p>
+<p><img id="dataimg" alt="data image" src="data:image/png;base64,${swatch.toString('base64')}"><img id="fileimg" alt="server file" src="${fileUrl}"></p>
+<p class="probe">abc</p><p id="js">Scripts did not run</p>
+</div><script>document.getElementById('js').textContent = 'Scripts ran'; document.fonts.load("24px Probe").then((f) => { document.getElementById('js').textContent += ', font ' + (f.length ? 'loaded' : 'missing') })</script></body></html>`
+
+    const editPage = async (page: Page, html: string) => {
+      await page.locator('.me-bar').getByRole('button', { name: 'Settings', exact: true }).click()
+      await page.getByRole('button', { name: /Make a page|Edit page/ }).click()
+      if (html === 'template') await page.getByRole('button', { name: 'Start from the template' }).click()
+      else await page.getByLabel('Page HTML').fill(html)
+      await page.waitForTimeout(2500)
+    }
+    const publish = async (page: Page) => {
+      await page.getByRole('button', { name: 'Publish', exact: true }).click()
+      await expect(page.getByText('Published', { exact: true })).toBeVisible()
+      await page.keyboard.press('Escape')
+      await page.keyboard.press('Escape')
+    }
+    const openPageOf = async (page: Page, name: string) => {
+      await page.locator('.member-list').getByRole('button', { name: new RegExp(name) }).click()
+      await page.getByRole('button', { name: 'Open profile page' }).click()
+      await expect(page.getByRole('dialog', { name: `${name}'s page` })).toBeVisible()
+      await page.waitForTimeout(3000)
+    }
+    // What each desktop page view shows, read from inside the view.
+    type Guest = { getType(): string; getURL(): string; executeJavaScript(code: string): Promise<unknown> }
+    const inspect = () => app.evaluate(async ({ webContents }) => Promise.all((webContents.getAllWebContents() as unknown as Guest[])
+      .filter((w) => w.getType() === 'webview')
+      .map(async (w) => ({
+        url: w.getURL().slice(0, 50),
+        state: await w.executeJavaScript(`(() => { const b = getComputedStyle(document.body); const i = (id) => { const e = document.getElementById(id); return e ? e.complete && e.naturalWidth > 0 : null };
+          const spin = document.querySelector('.spin'); return { bodyBackground: b.backgroundImage.slice(0, 40) || b.backgroundColor, fontFamily: b.fontFamily,
+          styleSheets: document.styleSheets.length, js: document.getElementById('js')?.textContent ?? null, dataImg: i('dataimg'), fileImg: i('fileimg'),
+          animation: spin ? getComputedStyle(spin).animationName : null, h1: document.querySelector('h1')?.textContent,
+          viewport: innerWidth + 'x' + innerHeight, dpr: devicePixelRatio, zoom: visualViewport ? visualViewport.scale : null } })()`).catch((e: Error) => ({ error: e.message })),
+      }))))
+
+    // Browser author: the editor preview of the styled page, then published.
+    await editPage(web, STYLED)
+    await web.screenshot({ path: join(OUT, 'pg-01-browser-editor-styled.png') })
+    await publish(web)
+    await openPageOf(web, 'Webby')
+    await web.screenshot({ path: join(OUT, 'pg-02-browser-own-styled.png') })
+    await web.keyboard.press('Escape')
+
+    // The desktop person joins.
+    const desk = await app.firstWindow()
+    await app.evaluate(({ BrowserWindow }, sz) => BrowserWindow.getAllWindows()[0].setContentSize(sz.width, sz.height), DESKTOP)
+    await agreeToTerms(desk)
+    await desk.getByRole('button', { name: /I’m new to Iskra/ }).click()
+    await desk.getByLabel('Your name').fill('Desk')
+    await desk.getByRole('button', { name: 'Continue' }).click()
+    await desk.getByRole('button', { name: 'I have an invite link' }).click()
+    await desk.getByLabel('Invite link').fill(await createInviteLink(web))
+    await desk.getByRole('button', { name: 'Join', exact: true }).click()
+    await expect(desk.getByRole('heading', { name: 'general' })).toBeVisible()
+
+    // Desktop editor: the default page, then the styled one (both previews run in the walled view).
+    await editPage(desk, 'template')
+    report.deskEditorTemplate = await inspect()
+    await desk.screenshot({ path: join(OUT, 'pg-03-desktop-editor-template.png') })
+    await desk.getByLabel('Page HTML').fill(STYLED)
+    await desk.waitForTimeout(2500)
+    report.deskEditorStyled = await inspect()
+    await desk.screenshot({ path: join(OUT, 'pg-04-desktop-editor-styled.png') })
+    await desk.getByRole('button', { name: 'Start from the template' }).click()
+    await publish(desk)
+
+    // Desktop viewing someone else's styled page (scripts on, behind the wall), and its own default page.
+    await openPageOf(desk, 'Webby')
+    report.deskViewsStyled = await inspect()
+    await desk.screenshot({ path: join(OUT, 'pg-05-desktop-views-styled.png') })
+    report.deskFrameBox = await desk.locator('webview.page-frame').boundingBox()
+    report.deskDpr = await desk.evaluate(() => devicePixelRatio)
+    await desk.keyboard.press('Escape')
+    await openPageOf(desk, 'Desk')
+    report.deskViewsOwnTemplate = await inspect()
+    await desk.screenshot({ path: join(OUT, 'pg-06-desktop-own-template.png') })
+    // The window as Electron composites it (Playwright's page screenshot may place a <webview> differently).
+    const real = await app.evaluate(async ({ BrowserWindow }) => (await BrowserWindow.getAllWindows()[0].webContents.capturePage()).toPNG().toString('base64'))
+    writeFileSync(join(OUT, 'pg-06b-desktop-own-template-capturepage.png'), Buffer.from(real, 'base64'))
+    await desk.keyboard.press('Escape')
+
+    // The browser viewing the desktop person's default page (no scripts for other people's pages).
+    await openPageOf(web, 'Desk')
+    await web.screenshot({ path: join(OUT, 'pg-07-browser-views-template.png') })
+    await web.keyboard.press('Escape')
+    // And a second browser person viewing the styled page.
+    const other = await (await browser.newContext({ viewport: DESKTOP })).newPage()
+    await joinVia(other, await createInviteLink(web), 'Otto')
+    await openPageOf(other, 'Webby')
+    await other.screenshot({ path: join(OUT, 'pg-08-browser-views-styled.png') })
+  } finally {
+    writeFileSync(join(OUT, 'pages-report.json'), JSON.stringify(report, null, 1))
+    await app.close().catch(() => undefined)
+    await server.stop()
+    rmSync(userData, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
   }
 })
