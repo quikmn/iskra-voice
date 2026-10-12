@@ -485,11 +485,12 @@ function runPasskey(op: 'create' | 'get', request: CreateRequest | GetRequest): 
       ? new Response(passkeyPage(text().passkey.title, text().passkey.waiting), { headers: { 'content-type': 'text/html; charset=utf-8' } })
       : new Response('', { status: 404 }))
     ses.setPermissionRequestHandler((_c, _p, callback) => callback(false))
+    applySessionPrivacy(ses)
   }
   const ceremony = new BrowserWindow({
     parent: window ?? undefined, modal: !!window, width: 380, height: 180, resizable: false, minimizable: false, maximizable: false,
     title: text().passkey.title, icon: ICON, backgroundColor: '#0B0B14', autoHideMenuBar: true, show: false,
-    webPreferences: { session: ses, sandbox: true, contextIsolation: true, nodeIntegration: false, devTools: !app.isPackaged },
+    webPreferences: { session: ses, sandbox: true, contextIsolation: true, nodeIntegration: false, spellcheck: false, devTools: !app.isPackaged },
   })
   ceremony.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   ceremony.webContents.on('will-navigate', (e) => e.preventDefault())
