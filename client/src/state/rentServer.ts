@@ -4,6 +4,7 @@
 import sodium from 'libsodium-wrappers-sumo'
 import { b64u, fromB64u, ready } from '../core/crypto'
 import type { InviteLink } from '../core/invite'
+import { clearPendingRent, loadPendingRent, savePendingRent, type PendingRent } from '../core/storage'
 import { RELEASE_VERSION } from '../links'
 import { t } from '../i18n'
 
@@ -160,6 +161,32 @@ export function vpsPrompt(version = RELEASE_VERSION): string {
   })
 }
 
+// ── The pending claim ───────────────────────────────────────────────────────
+// Kept until the server is claimed, so closing the dialog while the server installs doesn't lose the owner key.
+// It's a secret: it lives in the encrypted store (sealed with the vault's key, which the OS keychain protects in the
+// desktop app), never in localStorage.
+
+const validClaim = (claim: unknown): claim is string => typeof claim === 'string' && /^[A-Za-z0-9_-]{43}$/.test(claim)
+
+export async function loadPending(): Promise<PendingRent | null> {
+  try {
+    const pending = await loadPendingRent()
+    return pending && validClaim(pending.claim) ? pending : null
+  } catch {
+    return null // locked, or no storage: start over with a new key
+  }
+}
+
+export async function rememberPending(pending: PendingRent): Promise<void> {
+  if (!validClaim(pending.claim)) return
+  await savePendingRent(pending).catch(() => undefined)
+}
+
+/** Once the server is claimed, or the user starts over: the key is of no use to anyone any more. */
+export async function forgetPending(): Promise<void> {
+  await clearPendingRent().catch(() => undefined)
+}
+
 export type ClaimProgress = 'waiting' | 'checking' | 'joining'
 
 export interface ClaimResult {
@@ -193,7 +220,9 @@ export async function waitForClaim(ip: string, claim: string, options: {
         const body = (await response.json()) as { key?: unknown; proof?: unknown }
         if (typeof body.key === 'string' && typeof body.proof === 'string' && (await checkClaimProof(claim, body.key, nonce, body.proof))) {
           onProgress?.('joining')
-          return { invite: { serverUrl: base, serverKey: body.key, code: await claimCode(claim) } }
+          const invite = { serverUrl: base, serverKey: body.key, code: await claimCode(claim) }
+          await forgetPending()
+          return { invite }
         }
         throw new Error(t('hosting.rent.wrongServer'))
       }

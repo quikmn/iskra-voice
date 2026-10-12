@@ -1,50 +1,26 @@
 // "Rent a small server": plain steps for a VPS, the setup text for its "User data" box, and claiming it as owner.
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { LINKS } from '../../links'
 import { acceptInvite } from '../../state/store'
-import { cloudInit, newClaim, vpsAddress, vpsPrompt, waitForClaim, type ClaimProgress } from '../../state/rentServer'
+import { cloudInit, forgetPending, loadPending, newClaim, rememberPending, vpsAddress, vpsPrompt, waitForClaim, type ClaimProgress } from '../../state/rentServer'
 import { Modal, Spinner } from '../bits'
 import { OwnershipNote } from './ReachabilityHelp'
 import './RentServerDialog.css'
 
 const TEMPLATES = ['gaming', 'friends', 'tabletop', 'empty'] as const
-// Kept until the server is claimed, so closing this dialog while the server installs doesn't lose the owner key.
-const SAVED = 'iskra.rentServer'
-
-interface Saved {
-  name: string
-  template: (typeof TEMPLATES)[number]
-  claim: string
-  ip: string
-}
-
-function load(): Partial<Saved> {
-  try {
-    return JSON.parse(localStorage.getItem(SAVED) ?? '{}') as Partial<Saved>
-  } catch {
-    return {}
-  }
-}
-
-function save(value: Saved | null): void {
-  try {
-    if (value) localStorage.setItem(SAVED, JSON.stringify(value))
-    else localStorage.removeItem(SAVED)
-  } catch {
-    /* private window: it just isn't remembered */
-  }
-}
+type TemplateId = (typeof TEMPLATES)[number]
+const isTemplate = (v: unknown): v is TemplateId => TEMPLATES.includes(v as TemplateId)
 
 const external = (href: string) => <a href={href} target="_blank" rel="noopener noreferrer" />
 
 export function RentServerDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
-  const saved = useMemo(load, [])
-  const [name, setName] = useState(saved.name ?? '')
-  const [template, setTemplate] = useState<Saved['template']>(saved.template && TEMPLATES.includes(saved.template) ? saved.template : 'gaming')
-  const [claim, setClaim] = useState<string | null>(saved.claim && /^[A-Za-z0-9_-]{43}$/.test(saved.claim) ? saved.claim : null)
-  const [ip, setIp] = useState(saved.ip ?? '')
+  const [loaded, setLoaded] = useState(false)
+  const [name, setName] = useState('')
+  const [template, setTemplate] = useState<TemplateId>('gaming')
+  const [claim, setClaim] = useState<string | null>(null)
+  const [ip, setIp] = useState('')
   const [copied, setCopied] = useState(false)
   const [progress, setProgress] = useState<ClaimProgress | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -53,13 +29,30 @@ export function RentServerDialog({ onClose }: { onClose: () => void }) {
   const [promptCopied, setPromptCopied] = useState(false)
   const abort = useRef<AbortController | null>(null)
 
+  // A server still waiting to be claimed (from the encrypted store), else a new owner key.
   useEffect(() => {
-    if (!claim) void newClaim().then(setClaim)
-  }, [claim])
+    let cancelled = false
+    void loadPending().then((pending) => {
+      if (cancelled) return
+      if (pending) {
+        setName(pending.name)
+        setTemplate(isTemplate(pending.template) ? pending.template : 'gaming')
+        setIp(pending.ip)
+        setClaim(pending.claim)
+      }
+      setLoaded(true)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+  useEffect(() => {
+    if (loaded && !claim) void newClaim().then(setClaim)
+  }, [loaded, claim])
   useEffect(() => () => abort.current?.abort(), [])
   useEffect(() => {
-    if (claim) save({ name, template, claim, ip })
-  }, [name, template, claim, ip])
+    if (loaded && claim) void rememberPending({ name, template, claim, ip })
+  }, [loaded, name, template, claim, ip])
 
   const setup = claim ? cloudInit({ name: name.trim() || t('settings.createServer.namePlaceholder'), template, claim }) : ''
 
@@ -80,7 +73,6 @@ export function RentServerDialog({ onClose }: { onClose: () => void }) {
     abort.current = controller
     try {
       const { invite } = await waitForClaim(ip, claim, { signal: controller.signal, onProgress: setProgress })
-      save(null)
       acceptInvite(invite)
       onClose()
     } catch (e) {
@@ -94,10 +86,11 @@ export function RentServerDialog({ onClose }: { onClose: () => void }) {
     setProgress(null)
   }
 
+  /** A new owner key; the old one is deleted (a server set up with it can't be claimed from here any more). */
   function startOver() {
     stop()
     setCopied(false)
-    setClaim(null)
+    void forgetPending().then(() => setClaim(null))
   }
 
   return (
@@ -116,7 +109,7 @@ export function RentServerDialog({ onClose }: { onClose: () => void }) {
             </label>
             <label className="field">
               <span>{t('hosting.rent.template')}</span>
-              <select value={template} onChange={(e) => { setTemplate(e.target.value as Saved['template']); setCopied(false) }}>
+              <select value={template} onChange={(e) => { setTemplate(isTemplate(e.target.value) ? e.target.value : 'gaming'); setCopied(false) }}>
                 {TEMPLATES.map((id) => <option key={id} value={id}>{t(`hosting.wizard.template.${id}.name`)}</option>)}
               </select>
             </label>

@@ -284,6 +284,18 @@ export async function saveIdentity(identity: Identity): Promise<void> {
   await setSecret('identity', stored)
 }
 
+/** "Rent a small server" waiting to be claimed: the one-time owner key is a secret, so it's sealed like the others. */
+export interface PendingRent {
+  name: string
+  template: string
+  claim: string
+  ip: string
+}
+
+export const loadPendingRent = () => getSecret<PendingRent>('rent-pending')
+export const savePendingRent = (pending: PendingRent) => setSecret('rent-pending', pending)
+export const clearPendingRent = () => remove('rent-pending')
+
 export const loadProfile = () => get<Profile>('profile')
 export const saveProfile = (profile: Profile) => set('profile', profile)
 
