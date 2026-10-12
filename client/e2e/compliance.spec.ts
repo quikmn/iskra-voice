@@ -100,7 +100,7 @@ test('the owner reads the security log, sets retention and exports the log', asy
 
   // Shorter retention asks first, then saves.
   const retention = owner.getByTestId('retention-section')
-  await expect(retention.getByRole('spinbutton', { name: 'Security log' })).toHaveValue('365')
+  await expect(retention.getByRole('spinbutton', { name: 'Sign-ins & security' })).toHaveValue('365')
   await retention.getByLabel('Messages, DMs and group messages').fill('30')
   await retention.getByRole('button', { name: 'Save' }).click()
   await expect(retention.getByRole('alert')).toContainText('deleted within the hour')

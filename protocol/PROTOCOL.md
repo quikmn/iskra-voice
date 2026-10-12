@@ -124,6 +124,8 @@ After the handshake, every request gets a `result` (body as listed, `{}` if none
 | `rules_required` | You haven't agreed to the [server rules](#server-rules) yet (writing, reacting, voice) |
 | `automod` | [AutoMod](#automod) blocked the message (or title, name, poll); `message` says why. Nothing was stored or sent |
 
+`message` is English, for bots, logs and as the fallback. Most messages a person can run into also carry `key` (`[a-z0-9_]`, ≤ 64 chars), a stable name for that text, and `args` (an object of strings and numbers) with the values in it: `{ "code": "bad_request", "message": "Channel names must be 1–32 characters.", "key": "channel_name", "args": { "max": 32 } }`. Apps show their own translation of `key` (with `args`) and fall back to a text for the `code`, then to `message`. A key keeps its meaning across versions (a new meaning gets a new key); messages about a malformed request carry none. AutoMod's keys are `automod_words`, `automod_mentions`, `automod_invites`, `automod_links`, `automod_flood` and `automod_duplicates`, with `args: { max, timeoutMs }` (the mention limit, and the timeout it gave, 0 if none); slowmode's is `slowmode` with `args: { seconds }`.
+
 Close codes:
 
 | Code | Meaning |
@@ -604,7 +606,8 @@ Each server sends Web Push messages to its members' devices that aren't looking 
 - `@everyone` (all members) and `@here` (members online now) only ping when the author is trusted or above; from anyone else the text is shown but nobody is pushed, and clients don't count it as a mention either.
 - Incoming-call pushes ring at once (no merging) but at most once per caller and callee per 15 s window.
 - No pushes to a device whose session reported `focused: true` (a new session starts unfocused), to the author, to people who can't read the channel, or to non-members. Per device and conversation the first push goes out at once; more within 15 s become one follow-up push with a `count`.
-- Payload (JSON, after decryption): `{ v: 1, kind: "mention"|"reply"|"dm"|"call"|"event", server, serverName, title, body, tag, from, channelId?, messageId?, peer?, count, at }` (`from`: the sender's display name). Mentions and replies carry a ≤ 140-character excerpt; **DMs never carry content**: "New message from X". Calls say "X is calling". Event reminders ([Scheduled events](#scheduled-events)) say "Starting soon: …" or "… is starting now". The `Topic` header is derived from `tag`, so a push service replaces undelivered pushes about the same conversation.
+- Payload (JSON, after decryption): `{ v: 1, kind: "mention"|"reply"|"dm"|"call"|"event", server, serverName, title, body, tag, from, channelId?, messageId?, peer?, count, at, text? }` (`from`: the sender's display name). Mentions and replies carry a ≤ 140-character excerpt; **DMs never carry content**: "New message from X". Calls say "X is calling". Event reminders ([Scheduled events](#scheduled-events)) say "Starting soon: …" or "… is starting now". The `Topic` header is derived from `tag`, so a push service replaces undelivered pushes about the same conversation.
+- `title` and `body` are English. `text: { title, body, args }` names them so the web worker can show them in the app's language (it's registered as `/push-sw.js?lang=<en|sv>`): titles `mention`, `reply`, `encrypted`, `dm`, `calling`, `groupCall`, `reminder`, `scheduledFailed`, `eventLive`, `eventSoon`; bodies `openToRead`, `groupOpenToRead`, `attachment`, `tapToAnswer`, `tapToJoin`, `reminderGeneric`, `happening` / `inMinutes` (each also with `Channel`, `Voice` or `At`); `body: null` means the body is content, shown as is. `args` holds `name`, `channel`, `title`, `minutes`, `place` as the text needs. A worker that doesn't know a name shows `title`/`body`.
 - **Phone apps** don't subscribe: they show notifications while the app is open, from the WebSocket. There is no push relay, so `kind: "native"` (sent by older phone apps) is refused with `bad_request`, and subscriptions stored at the old relay (`https://push.iskra.foo/…`) are deleted on upgrade.
 - Web client: one service worker registration of `/push-sw.js` per server (scope `/push/<serverKey>/`), since every server has its own VAPID key and a registration holds one subscription. A notification click focuses the app (message `{ type: "iskra.open", route }`) or opens `/#/open/<serverKey>/c/<channelId>` / `/#/open/<serverKey>/dm/<accountKey>`. The desktop app uses native notifications and doesn't subscribe.
 
@@ -2112,9 +2115,18 @@ When the server stops it closes every session with a JSON reason of at most 123 
 
 - **1012 ("Service Restart")**, reason `update` or `restart`, only when the server knows it's coming back: an
   automatic update (`etaMs` 20000), or the desktop app restarting (into an update, or a relaunch), which writes the line
-  `restart` to the server's stdin before closing it (`ISKRA_STOP_ON_STDIN_CLOSE`; `etaMs` 30000).
+  `restart` to the server's stdin before closing it (`ISKRA_STOP_ON_STDIN_CLOSE`; `etaMs` 30000), or a stop (SIGTERM,
+  `systemctl restart`) within 2 minutes of `iskra-server expect-restart <world> [--reason update|restart] [--eta <s>]`
+  (the reason and `etaMs` it was given; see below).
 - **1001 ("Going Away")**, reason `stop`, for every other stop: Ctrl+C, SIGTERM (including `systemctl restart`, which
-  the server can't tell apart), the desktop host quitting or stopping the server, or the app that started it going away.
+  the server can't tell apart without the marker), the desktop host quitting or stopping the server, or the app that
+  started it going away.
+
+**The restart marker.** `expect-restart` writes `<world>/restart-expected` atomically:
+`{"v":1,"reason":"update"|"restart","etaSeconds"?:0–600,"at":<unix ms>}` (at most 1 KB). The server reads it once as
+it stops and deletes it; it's ignored when it's older than 2 minutes or malformed (anything but these fields and
+values), and a server that starts deletes any marker it finds. Only the enum and the number reach the close reason.
+A restart the server already knows about (its own update) keeps its own reason.
 
 Even 1012 is a hint: the server may not come back. Unknown `reason` values and fields are ignored; a 1012 whose
 reason isn't this JSON still counts as a restart, and a 1001 without it (older servers) as an ordinary drop. A server

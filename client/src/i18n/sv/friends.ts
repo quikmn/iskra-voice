@@ -62,7 +62,7 @@ export const friends: Messages['friends'] = {
     copyId: 'Kopiera användar-ID',
     copied: 'Användar-ID kopierat',
     moderation: 'Moderering',
-    timeout: 'Timeout…',
+    timeout: 'Ge timeout…',
     kick: 'Sparka ut {{name}}',
     ban: 'Bannlys {{name}}',
     roles: 'Roller…',

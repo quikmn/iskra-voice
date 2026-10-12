@@ -82,7 +82,7 @@ public sealed class CallRegistry
         {
             if (_calls.ContainsKey(id)) throw RequestException.BadRequest("That call id is already in use.");
             if (_calls.Values.Any(c => c.Involves(callee) && !c.Involves(caller)))
-                throw new RequestException("busy", "They're in another call.");
+                throw new RequestException("busy", "They're in another call.", "callee_busy");
             // Starting a call ends whatever call you were in (or a stale one from a closed tab).
             replaced = _calls.Values.Where(c => c.Involves(caller)).ToList();
             foreach (var old in replaced) Remove(old);
@@ -115,8 +115,8 @@ public sealed class CallRegistry
         lock (_gate)
         {
             call = Get(id, callee);
-            if (call.Callee != callee) throw RequestException.Forbidden("Only the person being called can answer.");
-            if (call.State != "ringing") throw RequestException.BadRequest("This call was already answered.");
+            if (call.Callee != callee) throw RequestException.Forbidden("Only the person being called can answer.", "call_callee_answer");
+            if (call.State != "ringing") throw RequestException.BadRequest("This call was already answered.", "call_answered");
             call.State = "active";
             call.RingTimer?.Dispose();
             call.RingTimer = null;
@@ -134,8 +134,8 @@ public sealed class CallRegistry
         lock (_gate)
         {
             call = Get(id, callee);
-            if (call.Callee != callee) throw RequestException.Forbidden("Only the person being called can decline.");
-            if (call.State != "ringing") throw RequestException.BadRequest("This call was already answered.");
+            if (call.Callee != callee) throw RequestException.Forbidden("Only the person being called can decline.", "call_callee_decline");
+            if (call.State != "ringing") throw RequestException.BadRequest("This call was already answered.", "call_answered");
             Remove(call);
         }
         Ended(call, reason);

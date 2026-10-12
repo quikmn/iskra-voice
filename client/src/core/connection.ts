@@ -12,7 +12,7 @@ export type ConnectionStatus =
   /** The server said it's restarting (close 1012): we retry about every second for a while. `etaMs` is its own estimate. */
   | { state: 'restarting'; since: number; etaMs?: number }
   /** The server said no (no invite, banned, kicked, wrong server, key rotated). We don't retry. */
-  | { state: 'rejected'; code: string; message: string; detail?: Record<string, unknown> }
+  | { state: 'rejected'; code: string; message: string; detail?: Record<string, unknown>; key?: string }
 
 export interface ConnectionOptions {
   serverUrl: string
@@ -183,7 +183,7 @@ export class Connection {
           this.pending.delete(frame.id!)
           clearTimeout(pending.timer)
           if (frame.type === 'result') pending.resolve(body)
-          else pending.reject(new RequestError(body.code as RequestError['code'], String(body.message ?? 'Request failed.'), pending.type))
+          else pending.reject(new RequestError(body.code as RequestError['code'], String(body.message ?? 'Request failed.'), pending.type, ...errorKey(body)))
         } else if (frame.type === 'error' && !this.ready) {
           // Rejected during the handshake.
           this.reject(String(body.code ?? 'auth_failed'), String(body.message ?? 'The server refused the connection.'), body)
@@ -191,7 +191,7 @@ export class Connection {
         return
       }
       case 'kicked':
-        this.reject('kicked', String(body.reason ?? 'You were removed from this server.'))
+        this.reject('kicked', String(body.reason ?? 'You were removed from this server.'), undefined, errorKey(body)[0])
         this.options.onEvent('kicked', body as Events['kicked'])
         return
       default:
@@ -222,10 +222,10 @@ export class Connection {
     this.socket?.send(JSON.stringify({ type: 'auth', id: 'auth', body }))
   }
 
-  private reject(code: string, message: string, detail?: Record<string, unknown>): void {
+  private reject(code: string, message: string, detail?: Record<string, unknown>, key?: string): void {
     this.rejected = true
     this.ready = false
-    this.options.onStatus({ state: 'rejected', code, message, ...(detail ? { detail } : {}) })
+    this.options.onStatus({ state: 'rejected', code, message, ...(detail ? { detail } : {}), ...(key ? { key } : {}) })
     this.socket?.close(1000)
   }
 
@@ -311,3 +311,14 @@ export function fingerprint(key: string): string {
   return `${hex.slice(0, 4)}-${hex.slice(4, 8)}-${hex.slice(8, 12)}`
 }
 
+/** An error body's `key` and `args`, when they're well formed (anything else is ignored: the message still shows). */
+function errorKey(body: Record<string, unknown>): [string?, Record<string, string | number>?] {
+  if (typeof body.key !== 'string' || !/^[a-z0-9_]{1,64}$/.test(body.key)) return []
+  const args: Record<string, string | number> = {}
+  if (body.args && typeof body.args === 'object') {
+    for (const [name, value] of Object.entries(body.args as Record<string, unknown>)) {
+      if (typeof value === 'string' || (typeof value === 'number' && Number.isFinite(value))) args[name] = value
+    }
+  }
+  return [body.key, args]
+}

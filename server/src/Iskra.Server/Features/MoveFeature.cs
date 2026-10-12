@@ -97,16 +97,16 @@ public static class MoveFeature
 
     private static void RequireOwner(Member me)
     {
-        if (me.Role != Roles.Owner) throw RequestException.Forbidden("Only the owner can move this server.");
+        if (me.Role != Roles.Owner) throw RequestException.Forbidden("Only the owner can move this server.", "owner_move");
     }
 
     private static object Move(Session s, Member me, Body body)
     {
         RequireOwner(me);
         var url = CleanUrl(body.String("url", MaxUrlLength * 2))
-            ?? throw RequestException.BadRequest("Enter the new address, like https://chat.example.com or http://192.168.1.20:47070.");
+            ?? throw RequestException.BadRequest("Enter the new address, like https://chat.example.com or http://192.168.1.20:47070.", "move_address");
         var current = new[] { s.World.Settings.PublicUrl, s.World.InternetUrl, s.Origin }.Select(CleanUrl);
-        if (current.Contains(url)) throw RequestException.BadRequest("That's this server's current address. Enter where it runs now.");
+        if (current.Contains(url)) throw RequestException.BadRequest("That's this server's current address. Enter where it runs now.", "move_same_address");
         var notice = Publish(s.World, url, s.Now);
         SecurityLog.Record(s, "server.move", details: new { url });
         s.Hub.Broadcast(Frames.Event("server.moved", new { notice = View(notice) }));

@@ -101,13 +101,13 @@ public static class GroupChain
                 if (current is not null) throw RequestException.BadRequest("That group already exists.");
                 if (c.Version != 1 || c.Prev != "") throw RequestException.BadRequest("A new group starts at version 1.");
                 if (c.Targets.Length + 1 < MinCreateMembers || !Distinct([c.By, .. c.Targets]))
-                    throw RequestException.BadRequest($"A group needs {MinCreateMembers}–{MaxMembers} different people.");
+                    throw RequestException.BadRequest($"A group needs {MinCreateMembers}–{MaxMembers} different people.", "group_size", new { min = MinCreateMembers, max = MaxMembers });
                 expected = [c.By, .. c.Targets];
                 break;
             case "add" or "remove" or "leave":
                 if (current is null) throw RequestException.NotFound("Group");
                 if (c.Version != current.Version + 1 || c.Prev != current.Head)
-                    throw new RequestException("conflict", "The group changed in the meantime. Refresh and try again.");
+                    throw new RequestException("conflict", "The group changed in the meantime. Refresh and try again.", "group_changed");
                 if (!current.Members.Contains(c.By)) throw RequestException.NotFound("Group");
                 if (c.Action == "add")
                 {
@@ -122,14 +122,14 @@ public static class GroupChain
                     var target = c.Targets[0];
                     if (c.Action == "leave" && target != c.By) throw RequestException.BadRequest("You can only leave for yourself.");
                     if (c.Action == "remove" && (target == c.By || current.Members[0] != c.By))
-                        throw RequestException.Forbidden("Only the group's owner can remove people.");
+                        throw RequestException.Forbidden("Only the group's owner can remove people.", "group_owner_removes");
                     expected = current.Members.Where(m => m != target).ToArray();
                 }
                 break;
             default:
                 throw RequestException.BadRequest("Unknown group change.");
         }
-        if (expected.Length > MaxMembers) throw RequestException.BadRequest($"A group can have at most {MaxMembers} people.");
+        if (expected.Length > MaxMembers) throw RequestException.BadRequest($"A group can have at most {MaxMembers} people.", "group_max", new { max = MaxMembers });
         if (!expected.SequenceEqual(c.Members, StringComparer.Ordinal))
             throw RequestException.BadRequest("The change's member list doesn't match.");
         return expected;

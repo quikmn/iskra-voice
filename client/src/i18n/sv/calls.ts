@@ -1,7 +1,7 @@
 import type { Messages } from '../types'
 
 export const calls: Messages['calls'] = {
-  noSharedServer: 'Ni delar ingen server med samtal just nu',
+  noSharedServer: 'Ni har ingen gemensam server med samtal just nu',
   alreadyInCall: 'Du är redan i ett samtal',
   startVoiceTitle: 'Starta ett röstsamtal',
   startVideoTitle: 'Starta ett videosamtal',
@@ -48,7 +48,7 @@ export const calls: Messages['calls'] = {
     failed: 'Kunde inte koppla upp samtalet',
     ended: 'Samtalet avslutades',
   },
-  noServerWith: 'Du delar ingen server med samtal med {{name}} just nu.',
+  noServerWith: 'Du och {{name}} har ingen gemensam server med samtal just nu.',
   couldNotConnect: 'Kunde inte koppla upp samtalet.',
   noLongerAvailable: 'Samtalet är inte tillgängligt längre.',
   isCalling: '{{name}} ringer',

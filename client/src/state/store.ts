@@ -1,6 +1,7 @@
 // App state. Components read from here; all server traffic goes through the actions below.
 import { create } from 'zustand'
 import { t } from '../i18n'
+import { errorMessage } from '../i18n/errors'
 import { Connection, type ConnectionStatus } from '../core/connection'
 import { b64u, randomBytes, ready } from '../core/crypto'
 import { createIdentity, type Identity } from '../core/identity'
@@ -526,7 +527,7 @@ async function deliver(key: string, channelId: number, tempId: string, body: Sen
       messages: {
         ...s.messages,
         [channelId]: (s.messages[channelId] ?? []).map((m) => (m.tempId === tempId
-          ? { ...m, pending: 'failed' as const, blockedReason: (e as { code?: string }).code === 'automod' ? (e as Error).message : undefined }
+          ? { ...m, pending: 'failed' as const, blockedReason: (e as { code?: string }).code === 'automod' ? errorMessage(e) : undefined }
           : m)),
       },
     }))

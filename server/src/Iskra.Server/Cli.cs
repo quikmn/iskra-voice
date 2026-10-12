@@ -19,12 +19,13 @@ namespace Iskra.Server;
 ///   iskra-server import-discord &lt;world-folder&gt; &lt;export&gt; [--read-only]
 ///   iskra-server templates [name-or-file] [--json]         list starter templates, or check one
 ///   iskra-server install-autostart &lt;world-folder&gt;       start the server with the computer (remove-autostart undoes it)
+///   iskra-server expect-restart &lt;world-folder&gt; [--eta &lt;s&gt;] [--reason update|restart]   the next stop is a restart
 ///   iskra-server version                                   print the version
 /// The passphrase comes from --passphrase-stdin (one line), $ISKRA_BACKUP_PASSPHRASE, or a prompt.
 /// </summary>
 public static class Cli
 {
-    private static readonly string[] Commands = ["restore", "backup", "move", "import-discord", "templates", "install-autostart", "remove-autostart", "version", "--version", "help", "--help"];
+    private static readonly string[] Commands = ["restore", "backup", "move", "import-discord", "templates", "install-autostart", "remove-autostart", "expect-restart", "version", "--version", "help", "--help"];
 
     public static bool IsCommand(string? first) => first is not null && Commands.Contains(first);
 
@@ -43,6 +44,7 @@ public static class Cli
                 "templates" when rest.Length <= 2 => ListTemplates(rest.ElementAtOrDefault(1), flags.Contains("--json")),
                 "install-autostart" when rest.Length == 2 => InstallAutostart(rest[1], new RealAutostartSystem()),
                 "remove-autostart" when rest.Length == 2 => RemoveAutostart(rest[1], new RealAutostartSystem()),
+                "expect-restart" => ExpectRestart(args),
                 "version" when rest.Length == 1 => PrintVersion(),
                 null when flags.Contains("--version") && args.Length == 1 => PrintVersion(),
                 _ => Usage(),
@@ -58,6 +60,42 @@ public static class Cli
             Console.Error.WriteLine(ex.Message);
             return 1;
         }
+    }
+
+    /// <summary>
+    /// Writes the restart marker (Sessions/RestartMarker.cs) so the next stop, within two minutes, tells members the
+    /// server is restarting rather than going offline. For update scripts that restart the service.
+    /// </summary>
+    internal static int ExpectRestart(string[] args)
+    {
+        string? world = null;
+        var reason = "restart";
+        int? eta = null;
+        for (var i = 1; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--reason" when i + 1 < args.Length && Sessions.RestartMarker.IsReason(args[i + 1]):
+                    reason = args[++i];
+                    break;
+                case "--eta" when i + 1 < args.Length && int.TryParse(args[i + 1], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var seconds)
+                    && seconds <= Sessions.RestartMarker.MaxEtaSeconds:
+                    eta = seconds;
+                    i++;
+                    break;
+                case var arg when world is null && !arg.StartsWith("--", StringComparison.Ordinal):
+                    world = arg;
+                    break;
+                default:
+                    Console.Error.WriteLine($"expect-restart <world-folder> [--reason update|restart] [--eta <0-{Sessions.RestartMarker.MaxEtaSeconds} seconds>]");
+                    return 2;
+            }
+        }
+        if (world is null) return Usage();
+        if (!File.Exists(Path.Combine(world, "server.key"))) throw new IOException($"{world} isn't an Iskra server folder.");
+        Sessions.RestartMarker.Write(world, reason, eta, DateTimeOffset.UtcNow);
+        Console.WriteLine($"The next stop of {Path.GetFullPath(world)} in the next {Sessions.RestartMarker.FreshFor.TotalMinutes:0} minutes is a restart ({reason}).");
+        return 0;
     }
 
     /// <summary>Just the version (the updater runs a new package with this to check it works here).</summary>
@@ -82,6 +120,8 @@ public static class Cli
               iskra-server templates <name-or-file.json>               check a template and show what it sets up
               iskra-server install-autostart <world-folder>            start this server with the computer (no window)
               iskra-server remove-autostart <world-folder>             undo that
+              iskra-server expect-restart <world-folder>               say the next stop is a restart (run it just before
+                [--reason update|restart] [--eta <seconds>]           systemctl restart): members see "restarting"
               iskra-server version                                     print the version
             A new server can start from a template: iskra-server <world-folder> --template gaming
             Passphrases: --passphrase-stdin (one line), or $ISKRA_BACKUP_PASSPHRASE, or you're asked.

@@ -34,7 +34,7 @@ public static class ReminderFeature
     private static long DueAt(Session s, Body body)
     {
         var due = body.OptionalLong("dueAt", 0, 1L << 53) ?? throw RequestException.BadRequest("'dueAt' is required.");
-        if (due < s.Now - PastSlackMs || due > s.Now + MaxAheadMs) throw RequestException.BadRequest("Reminders can be set from now up to a year ahead.");
+        if (due < s.Now - PastSlackMs || due > s.Now + MaxAheadMs) throw RequestException.BadRequest("Reminders can be set from now up to a year ahead.", "reminder_year");
         return due;
     }
 
@@ -59,7 +59,7 @@ public static class ReminderFeature
             channelId = ChatFeature.ReadableChannel(s, me, message.ChannelId).Id;
         }
         if (store.CountReminders(me.AccountKey) >= MaxPerAccount)
-            throw RequestException.BadRequest($"You can have up to {MaxPerAccount} reminders here. Finish some first.");
+            throw RequestException.BadRequest($"You can have up to {MaxPerAccount} reminders here. Finish some first.", "reminders_max", new { max = MaxPerAccount });
         var reminder = store.AddReminder(me.AccountKey, due, data, channelId, messageId, s.Now);
         Tell(s, me.AccountKey, Frames.Event("reminder.updated", new { reminder = View(reminder) }));
         return new { reminder = View(reminder) };
@@ -109,7 +109,7 @@ public static class ReminderFeature
             body = $"{author} in #{channel.Name}: {(text.Length == 0 ? "an attachment" : text.Length <= 120 ? text : text[..120] + "…")}";
             channelId = channel.Id;
         }
-        push.Notify(r.AccountKey, new PushNote("reminder", $"reminder:{r.Id}", "Reminder", body, "Iskra",
+        push.Notify(r.AccountKey, new PushNote("reminder", $"reminder:{r.Id}", "Reminder", body, "Iskra", Text: new PushText("reminder", channelId is null ? "reminderGeneric" : null),
             ChannelId: channelId, MessageId: channelId is null ? null : r.MessageId, Coalesce: false, TtlSeconds: 12 * 3600, Reminder: r.Id));
     }
 }

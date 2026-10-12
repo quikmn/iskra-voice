@@ -22,9 +22,9 @@ public static class MemberFeature
     {
         if (perm is { } p ? !Permissions.Has(me, p) : !Permissions.IsAdmin(me)) throw RequestException.Forbidden();
         var key = body.String("accountKey", 64);
-        if (key == me.AccountKey) throw RequestException.BadRequest("You can't do that to yourself.");
+        if (key == me.AccountKey) throw RequestException.BadRequest("You can't do that to yourself.", "not_to_self");
         var target = s.World.Store.GetMember(key) ?? throw RequestException.NotFound("Member");
-        if (!Permissions.Outranks(me, target)) throw RequestException.Forbidden("You can only manage members ranked below you.");
+        if (!Permissions.Outranks(me, target)) throw RequestException.Forbidden("You can only manage members ranked below you.", "rank_members");
         return target;
     }
 
@@ -33,9 +33,9 @@ public static class MemberFeature
         var target = Target(s, me, body);
         var role = body.String("role", 16);
         if (!Roles.IsValid(role)) throw RequestException.BadRequest($"'role' must be one of: {string.Join(", ", Roles.All)}.");
-        if (!Permissions.CanGrant(me, role)) throw RequestException.Forbidden("You can only give roles below your own.");
+        if (!Permissions.CanGrant(me, role)) throw RequestException.Forbidden("You can only give roles below your own.", "rank_roles_below");
         if (s.World.Store.IsBot(target.AccountKey) && Roles.Rank(role) > Roles.Rank(BotFeature.MaxRole))
-            throw RequestException.BadRequest("Bots can be guest, member or trusted.");
+            throw RequestException.BadRequest("Bots can be guest, member or trusted.", "bot_roles");
 
         s.World.Store.SetMemberRole(target.AccountKey, role);
         if (role != target.Role) Audit.Record(s, "member.role", target.AccountKey, details: new { from = target.Role, to = role });
@@ -46,10 +46,10 @@ public static class MemberFeature
         return new { member };
     }
 
-    private static void Remove(Session s, Member target, string reason, int closeCode)
+    private static void Remove(Session s, Member target, string reason, string key, int closeCode)
     {
         s.World.Store.RemoveMember(target.AccountKey);
-        s.Hub.Disconnect(target.AccountKey, closeCode, reason);
+        s.Hub.Disconnect(target.AccountKey, closeCode, reason, key);
         s.Hub.Broadcast(Frames.Event("member.removed", new { accountKey = target.AccountKey }));
         s.Voice.EnforceAccess();
     }
@@ -58,7 +58,7 @@ public static class MemberFeature
     {
         var target = Target(s, me, body, Perm.KickMembers);
         Audit.Record(s, "member.kick", target.AccountKey);
-        Remove(s, target, "You were removed from this server.", CloseCodes.Forbidden);
+        Remove(s, target, "You were removed from this server.", "kicked_removed", CloseCodes.Forbidden);
         return null;
     }
 
@@ -68,7 +68,7 @@ public static class MemberFeature
         var reason = body.OptionalString("reason", MaxReasonLength) ?? "";
         s.World.Store.AddBan(target.AccountKey, reason, me.AccountKey, s.Now);
         Audit.Record(s, "member.ban", target.AccountKey, reason);
-        Remove(s, target, "You were banned from this server.", CloseCodes.Forbidden);
+        Remove(s, target, "You were banned from this server.", "kicked_banned", CloseCodes.Forbidden);
         return null;
     }
 

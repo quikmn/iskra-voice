@@ -70,7 +70,7 @@ public static class ModerationFeature
 
         var list = merged.Values.OrderBy(e => e.At).ToList();
         while (list.Count > MaxBlocks && list.FindIndex(e => !e.Blocked) is var i and >= 0) list.RemoveAt(i);
-        if (list.Count > MaxBlocks) throw RequestException.BadRequest($"You can block up to {MaxBlocks} people.");
+        if (list.Count > MaxBlocks) throw RequestException.BadRequest($"You can block up to {MaxBlocks} people.", "blocks_max", new { max = MaxBlocks });
 
         var changed = list.Count != stored.Count || list.Any(e => !stored.Contains(e));
         if (changed)
@@ -91,7 +91,7 @@ public static class ModerationFeature
         if (item.ValueKind != JsonValueKind.Object) throw RequestException.BadRequest("Each entry must be an object.");
         var key = entry.String("accountKey", 64);
         if (!Ed25519.TryFromB64u(key, out var bytes) || bytes.Length != 32) throw RequestException.BadRequest("'accountKey' must be an account key.");
-        if (key == me.AccountKey) throw RequestException.BadRequest("You can't block yourself.");
+        if (key == me.AccountKey) throw RequestException.BadRequest("You can't block yourself.", "block_self");
         var blocked = entry.OptionalBool("blocked") ?? throw RequestException.BadRequest("'blocked' is required.");
         var at = entry.OptionalLong("at", min: 0, max: s.Now + MaxClockSkewMs) ?? throw RequestException.BadRequest("'at' is required.");
         return new BlockEntry(key, blocked, at);
@@ -101,7 +101,7 @@ public static class ModerationFeature
     internal static void CheckNotBlocked(Session s, Member me, Member peer, string what)
     {
         if (peer.AccountKey != me.AccountKey && s.World.Store.EitherBlocked(me.AccountKey, peer.AccountKey))
-            throw RequestException.Forbidden($"You can't {what} this person.");
+            throw RequestException.Forbidden($"You can't {what} this person.", $"blocked_{what}");
     }
 
     // ── Timeouts ─────────────────────────────────────────────────────────────
@@ -110,14 +110,14 @@ public static class ModerationFeature
     internal static RequestException? Gate(Session s, Member me, string type)
     {
         if (!BlockedWhileTimedOut.Contains(type) || s.World.Store.TimedOutUntil(me.AccountKey, s.Now) is null) return null;
-        return RequestException.Forbidden("You're timed out on this server for now.");
+        return RequestException.Forbidden("You're timed out on this server for now.", "timed_out");
     }
 
     internal static bool IsTimedOut(Store store, string accountKey, long now) => store.TimedOutUntil(accountKey, now) is not null;
 
     private static string Reason(Body body) =>
         body.OptionalString("reason", MaxReasonLength * 2) is { } raw && raw.Trim().Length > 0
-            ? Text.Normalize(raw, MaxReasonLength, allowNewlines: false) ?? throw RequestException.BadRequest($"Reasons can be up to {MaxReasonLength} characters.")
+            ? Text.Normalize(raw, MaxReasonLength, allowNewlines: false) ?? throw RequestException.BadRequest($"Reasons can be up to {MaxReasonLength} characters.", "reason_length", new { max = MaxReasonLength })
             : "";
 
     private static object SetTimeout(Session s, Member me, Body body)
@@ -163,7 +163,7 @@ public static class ModerationFeature
         var seconds = s.World.Store.Slowmode(channel.Id);
         if (seconds <= 0) return;
         if (!s.Hub.Slowmode.TryTake(channel.Id, me.AccountKey, seconds * 1000L, s.Now, out var waitMs))
-            throw new RequestException("rate_limited", $"Slowmode is on. You can send again in {Wait(waitMs)}.");
+            throw new RequestException("rate_limited", $"Slowmode is on. You can send again in {Wait(waitMs)}.", "slowmode", new { seconds = (waitMs + 999) / 1000 });
     }
 
     private static string Wait(long ms)
@@ -184,7 +184,7 @@ public static class ModerationFeature
 
     private static object ListAudit(Session s, Member me, Body body)
     {
-        if (!Permissions.Has(me, Perm.ViewAuditLog)) throw RequestException.Forbidden("You can't read the audit log on this server.");
+        if (!Permissions.Has(me, Perm.ViewAuditLog)) throw RequestException.Forbidden("You can't read the activity log on this server.", "read_activity_log");
         var action = body.OptionalString("action", 40);
         var person = body.OptionalString("person", 64);
         var before = body.OptionalLong("before", min: 1);

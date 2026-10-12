@@ -121,7 +121,11 @@ public sealed class Session
     public async Task RunAsync(CancellationToken aborted, CancellationToken stopping = default)
     {
         using var _ = aborted.Register(() => _ws.Abort());
-        using var __ = stopping.Register(() => Close(_hub.Restart.Code, _hub.Restart.Reason));
+        using var __ = stopping.Register(() =>
+        {
+            _hub.Restart.Settle();
+            Close(_hub.Restart.Code, _hub.Restart.Reason);
+        });
         var writer = WriteLoopAsync();
         try
         {
@@ -439,9 +443,9 @@ public sealed class Session
     }
 
     /// <summary>Closes the session from outside (kick, ban, removal).</summary>
-    public void Kick(int code, string reason)
+    public void Kick(int code, string reason, string? key = null)
     {
-        Send(Frames.Event("kicked", new { reason }));
+        Send(Frames.Event("kicked", key is null ? new { reason } : new { reason, key }));
         Close(code, reason);
     }
 

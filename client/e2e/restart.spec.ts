@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { join } from 'node:path'
-import { createInviteLink, hasLiveKit, joinVia, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, hasLiveKit, joinVia, recordStatusBanners, SHOTS, startServer, type TestServer } from './helpers'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 
@@ -15,7 +15,7 @@ const lounge = (page: Page) => page.locator('.voice-channel', { hasText: 'lounge
 const composer = (page: Page) => page.getByPlaceholder('Message #general')
 
 test('a server restart: "hold on", then everyone is back in voice and nothing is lost', async ({ browser }) => {
-  test.setTimeout(120_000)
+  test.setTimeout(150_000)
   const host = await (await browser.newContext()).newPage()
   await joinVia(host, server.ownerLink(), 'Host')
   await host.getByRole('button', { name: 'Create voice channel' }).click()
@@ -37,6 +37,7 @@ test('a server restart: "hold on", then everyone is back in voice and nothing is
   for (const page of [host, friend]) await page.locator('.channel', { hasText: 'general' }).click()
   await composer(host).fill('a draft I have not sent')
 
+  const hostBanners = await recordStatusBanners(host)
   const restarting = server.restart(3_000)
 
   // A calm "hold on" instead of an error or a countdown.
@@ -67,8 +68,10 @@ test('a server restart: "hold on", then everyone is back in voice and nothing is
   // Still in the chat they were reading, not pulled into the call screen.
   await expect(host.getByRole('heading', { name: 'general' })).toBeVisible()
 
-  // "Back" for a moment, then the banner goes.
-  await expect(host.getByRole('status').filter({ hasText: 'Restart Test is back.' })).toBeVisible()
+  // "Back" for a moment (2.5 s from the reconnect, which the checks above can outlast), then the banner goes.
+  const backShown = async () => (await hostBanners()).find((b) => b.text === 'Restart Test is back.')
+  await expect.poll(async () => !!(await backShown())).toBe(true)
+  console.log(`"is back." appeared ${((Date.now() - (await backShown())!.at) / 1000).toFixed(1)} s before this check`)
   await expect(host.locator('.restart-banner')).toHaveCount(0, { timeout: 10_000 })
 
   // The message written during the restart reached everyone; the unsent draft is still there.
@@ -102,4 +105,12 @@ test('a server restart: "hold on", then everyone is back in voice and nothing is
   await stopped
   await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected', { timeout: 30_000 })
   await expect(lounge(friend).locator('li', { hasText: 'Friend' }).getByTitle('Deafened')).toBeVisible()
+
+  // A plain stop after `iskra-server expect-restart` (an update script before `systemctl restart`): "restarting", not offline.
+  const updating = server.restart(2_000, 'marker')
+  await expect(friend.getByRole('status').filter({ hasText: 'Restart Test is restarting, hold on…' })).toBeVisible({ timeout: 15_000 })
+  await expect(friend.getByText(/went offline/)).toHaveCount(0)
+  await friend.screenshot({ path: join(SHOTS, 'restart-marker.png') })
+  await updating
+  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected', { timeout: 15_000 })
 })

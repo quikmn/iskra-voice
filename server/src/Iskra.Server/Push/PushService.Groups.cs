@@ -13,7 +13,7 @@ public sealed partial class PushService
             if (_world.Store.EitherBlocked(accountKey, from.AccountKey)) continue; // still delivered, never pushed
             var name = _world.Store.DisplayName(from);
             Notify(accountKey, new PushNote("group", $"g:{groupId}", $"New message from {name}", "In a group. Open Iskra to read it.", name,
-                Group: groupId));
+                Group: groupId, Text: new PushText("dm", "groupOpenToRead", new { name })));
         }
     }
 
@@ -30,6 +30,6 @@ public sealed partial class PushService
         }
         var name = _world.Store.DisplayName(caller);
         Notify(calleeKey, new PushNote("call", $"gcall:{groupId}", $"{name} started a group call", "Tap to join.", name,
-            Coalesce: false, TtlSeconds: 30, Group: groupId));
+            Coalesce: false, TtlSeconds: 30, Group: groupId, Text: new PushText("groupCall", "tapToJoin", new { name })));
     }
 }

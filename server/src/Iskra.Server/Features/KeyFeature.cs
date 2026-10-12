@@ -263,7 +263,7 @@ public static class KeyFeature
         var applied = store.RotationFrom(oldKey);
         if (applied is not { Disputed: true } || store.GetMember(applied.Rotation.NewKey) is not { } holder) throw RequestException.NotFound("Dispute");
         if (holder.AccountKey == me.AccountKey) throw RequestException.BadRequest("You can't settle a dispute about your own account.");
-        if (!Permissions.Outranks(me, holder)) throw RequestException.Forbidden("You can only manage members ranked below you.");
+        if (!Permissions.Outranks(me, holder)) throw RequestException.Forbidden("You can only manage members ranked below you.", "rank_members");
         var keepContest = keep == applied.Contest!.NewKey;
         if (!keepContest && keep != applied.Rotation.NewKey) throw RequestException.BadRequest("'keep' must be one of the two keys in the dispute.");
         if (keepContest && store.KeyKnown(keep)) throw RequestException.BadRequest("That key is already in use here.");

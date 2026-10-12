@@ -55,7 +55,7 @@ public static class ThreadFeature
 
     private static string ThreadName(Body body) =>
         Text.Normalize(body.String("name", MaxNameLength * 2), MaxNameLength, allowNewlines: false)
-        ?? throw RequestException.BadRequest($"Thread names must be 1–{MaxNameLength} characters.");
+        ?? throw RequestException.BadRequest($"Thread names must be 1–{MaxNameLength} characters.", "thread_name", new { max = MaxNameLength });
 
     /// <summary>A thread the member can read; anything else is not found.</summary>
     private static (ThreadInfo Thread, Channel Channel) ReadableThread(Session s, Member me, long id)
@@ -70,15 +70,15 @@ public static class ThreadFeature
     {
         var root = s.World.Store.GetMessage(body.Long("messageId")) ?? throw RequestException.NotFound("Message");
         var channel = ChatFeature.ReadableChannel(s, me, root.ChannelId);
-        if (channel.Kind != "text") throw RequestException.BadRequest("Threads can only be started from messages in a text channel.");
-        if (!Permissions.CanWrite(me, channel)) throw RequestException.Forbidden("You can't start threads in this channel.");
+        if (channel.Kind != "text") throw RequestException.BadRequest("Threads can only be started from messages in a text channel.", "thread_text_only");
+        if (!Permissions.CanWrite(me, channel)) throw RequestException.Forbidden("You can't start threads in this channel.", "cant_start_threads");
         // Encrypted channels: the server can't keep a name secret, so their threads have none (apps show the first message).
         var name = E2eeChannelFeature.IsEncrypted(s.World.Store, channel) ? EncryptedThreadName : ThreadName(body);
-        if (s.World.Store.ThreadForRoot(root.Id) is not null) throw RequestException.BadRequest("That message already has a thread.");
+        if (s.World.Store.ThreadForRoot(root.Id) is not null) throw RequestException.BadRequest("That message already has a thread.", "thread_exists");
         if (s.World.Store.ThreadCount(channel.Id) >= MaxThreadsPerChannel)
-            throw RequestException.BadRequest("This channel has too many threads. Delete some old ones first.");
+            throw RequestException.BadRequest("This channel has too many threads. Delete some old ones first.", "threads_full");
         AutoModFeature.Check(s, me, channel, name, "thread");
-        if (!s.Hub.Limits.TryTake(me.AccountKey, "thread.create")) throw new RequestException("rate_limited", "Too many new threads. Try again in a minute.");
+        if (!s.Hub.Limits.TryTake(me.AccountKey, "thread.create")) throw new RequestException("rate_limited", "Too many new threads. Try again in a minute.", "too_many_threads");
 
         var thread = s.World.Store.CreateThread(channel, root.Id, name, me.AccountKey, s.Now);
         Broadcast(s, thread);
@@ -103,7 +103,7 @@ public static class ThreadFeature
     private static void RequireManager(Session s, Member me, ThreadInfo thread)
     {
         if (!Permissions.CanManageThread(me, thread.CreatedBy, s.World.Store.GetMember(thread.CreatedBy)))
-            throw RequestException.Forbidden("Only whoever started this thread, or an admin, can change it.");
+            throw RequestException.Forbidden("Only whoever started this thread, or an admin, can change it.", "thread_change_owner");
     }
 
     private static object Update(Session s, Member me, Body body)

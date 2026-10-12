@@ -82,7 +82,7 @@ public sealed class Router
     {
         if ((ModerationFeature.Gate(session, me, request.Type) ?? RulesFeature.Gate(session, me, request.Type)) is { } refused)
         {
-            session.Send(Frames.Error(request.Id, refused.Code, refused.Message));
+            session.Send(Frames.Error(request.Id, refused.Code, refused.Message, refused.Extra));
             return;
         }
         if (MoveFeature.Refuse(session, request)) return;
@@ -104,7 +104,7 @@ public sealed class Router
         }
         catch (RequestException ex)
         {
-            session.Send(Frames.Error(request.Id, ex.Code, ex.Message));
+            session.Send(Frames.Error(request.Id, ex.Code, ex.Message, ex.Extra));
         }
         catch (Exception ex)
         {
@@ -136,7 +136,7 @@ public sealed class Router
         }
         catch (RequestException ex)
         {
-            session.Send(Frames.Error(request.Id, ex.Code, ex.Message));
+            session.Send(Frames.Error(request.Id, ex.Code, ex.Message, ex.Extra));
         }
         catch (Exception ex)
         {

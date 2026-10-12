@@ -134,7 +134,7 @@ const sv: DesktopText = {
     key: (code) => `Tangent ${code}`,
   },
   passkey: {
-    title: 'Nyckel för Iskra',
+    title: 'Lösenordsnyckel för Iskra',
     waiting: 'Följ anvisningen från din enhet eller säkerhetsnyckel.',
   },
   splash: {

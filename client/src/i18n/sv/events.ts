@@ -64,7 +64,7 @@ export const events: Messages['events'] = {
     formerMember: 'en tidigare medlem',
     interested: 'Intresserad',
     imInterested: 'Jag är intresserad',
-    joinVoice: 'Gå med i röst',
+    joinVoice: 'Gå med i röstkanalen',
     addToCalendar: 'Lägg till i kalendern',
     cancelConfirm: 'Ställa in evenemanget?',
     cancelEvent: 'Ställ in',
