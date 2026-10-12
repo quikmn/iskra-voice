@@ -20,6 +20,7 @@
 .message:focus { outline: none; }
 .message:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; background: var(--surface-2); }
 .message:focus-within .message-actions { display: flex; }
+.message:focus-within .hover-time { opacity: 1; }
 
 /* Menu items and emoji cells get the same ring as everything else. */
 .org-item:focus-visible, .emoji-cell:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
