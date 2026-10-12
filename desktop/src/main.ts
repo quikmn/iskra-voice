@@ -8,6 +8,7 @@ import { APP_ORIGIN, configureAppSession, registerAppScheme } from './appSession
 import { Host, isTemplateId, type HostedServer } from './host'
 import { parseHotkeys } from './hotkeys'
 import { isBackupDownload, readBackupInfo } from './restore'
+import { SaveStreams, suggestedName } from './saveStreams'
 import {
   aboutDetail, badgeText, DEEP_LINK_SCHEME, deepLinkFromArgv, isAppPage, isWayland, MAC_SETTINGS, parseDeepLink, parseDesktopSettings,
   keychainKind, serversToStart, setKeepRunning, skipScreenPicker, trayMenu, type DesktopSettings, type SettingsPane, type TrayAction,
@@ -569,6 +570,29 @@ ipcMain.handle('iskra:download', (event, url: unknown) => {
   event.sender.downloadURL(url)
   return true
 })
+
+// Saving a big decrypted DM file: our own Save dialog picks the path; the page streams the bytes and says when they're checked.
+const saves = new SaveStreams()
+const watchedPages = new Set<number>()
+ipcMain.handle('iskra:save-begin', async (event, name: unknown) => {
+  if (!fromApp(event) || !window) return null
+  const picked = await dialog.showSaveDialog(window, { defaultPath: path.join(app.getPath('downloads'), suggestedName(name)) })
+  if (picked.canceled || !picked.filePath) return null
+  const owner = event.sender.id
+  if (!watchedPages.has(owner)) {
+    watchedPages.add(owner)
+    const drop = () => void saves.abortAll(owner)
+    event.sender.on('did-start-navigation', (details) => details.isMainFrame && !details.isSameDocument && drop())
+    event.sender.once('destroyed', () => {
+      watchedPages.delete(owner)
+      drop()
+    })
+  }
+  return saves.begin(picked.filePath, owner)
+})
+ipcMain.handle('iskra:save-write', (event, id: unknown, data: unknown) => fromApp(event) && saves.write(id, data, event.sender.id))
+ipcMain.handle('iskra:save-finish', (event, id: unknown) => fromApp(event) && saves.finish(id, event.sender.id))
+ipcMain.handle('iskra:save-abort', (event, id: unknown) => (fromApp(event) ? saves.abort(id, event.sender.id) : undefined))
 
 // Windows shows notifications (incoming calls, messages) under this id.
 if (process.platform === 'win32') app.setAppUserModelId('foo.iskra.desktop')
