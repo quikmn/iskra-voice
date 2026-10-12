@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { t as translate } from '../../i18n'
 import {
-  AUTO_SPEAKING_DB, canBoost, captureOptions, MIN_THRESHOLD, meterFraction, outputSelectable, updateAudio, useAudio,
-  type NoiseMode,
+  agcOn, AUTO_SPEAKING_DB, canBoost, captureOptions, MIN_THRESHOLD, meterFraction, outputSelectable, updateAudio, useAudio,
+  type AiStrength, type NoiseMode,
 } from '../../state/audio'
 import { engineCaps, engineHealth, fallbackReason, plannedEngine, retryAi, type NoiseEngine } from '../../state/audio/engines'
 import { createMicPipeline, type MicPipeline } from '../../state/micPipeline'
@@ -226,6 +226,12 @@ const NOISE: { id: NoiseMode; label: 'common.off' | 'settings.audio.standard' | 
   { id: 'ai', label: 'settings.audio.ai' },
 ]
 
+const AI_STRENGTH: { id: AiStrength; label: 'settings.audio.aiGentle' | 'settings.audio.aiNormal' | 'settings.audio.aiMax' }[] = [
+  { id: 'gentle', label: 'settings.audio.aiGentle' },
+  { id: 'normal', label: 'settings.audio.aiNormal' },
+  { id: 'max', label: 'settings.audio.aiMax' },
+]
+
 const ENGINE: Record<NoiseEngine, 'settings.audio.engineAi' | 'settings.audio.engineRnnoise' | 'settings.audio.engineBrowser' | 'settings.audio.engineOff'> = {
   ai: 'settings.audio.engineAi',
   rnnoise: 'settings.audio.engineRnnoise',
@@ -284,14 +290,31 @@ export function ProcessingSettingsSection() {
         {mode === 'ai' ? t('settings.audio.aiHint') : mode === 'strong' ? t('settings.audio.strongHint') : mode === 'standard' ? t('settings.audio.standardHint') : t('settings.audio.offHint')}
       </p>
       <EngineStatus />
+      {mode === 'ai' && (
+        <>
+          <h3 id="ai-strength">{t('settings.audio.aiStrength')}</h3>
+          <div className="segmented" role="radiogroup" aria-labelledby="ai-strength">
+            {AI_STRENGTH.map((n) => (
+              <button
+                key={n.id} role="radio" aria-checked={settings.aiStrength === n.id} className={settings.aiStrength === n.id ? 'on' : ''}
+                onClick={() => updateAudio({ aiStrength: n.id })}
+              >
+                {t(n.label)}
+              </button>
+            ))}
+          </div>
+          <p className="muted">{t('settings.audio.aiStrengthHint')}</p>
+        </>
+      )}
       <label className="checkbox">
         <input type="checkbox" checked={settings.echoCancellation} onChange={(e) => updateAudio({ echoCancellation: e.target.checked })} />
         {t('settings.audio.echo')}
       </label>
       <label className="checkbox">
-        <input type="checkbox" checked={settings.autoGainControl} onChange={(e) => updateAudio({ autoGainControl: e.target.checked })} />
+        <input type="checkbox" checked={agcOn(settings, plannedEngine(mode))} onChange={(e) => updateAudio({ autoGainControl: e.target.checked })} />
         {t('settings.audio.agc')}
       </label>
+      <p className="muted">{t('settings.audio.agcHint')}</p>
       <label className="checkbox">
         <input type="checkbox" checked={settings.hifi} onChange={(e) => updateAudio({ hifi: e.target.checked })} />
         {t('settings.audio.hifi')}

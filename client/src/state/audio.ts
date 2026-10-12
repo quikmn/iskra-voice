@@ -5,12 +5,20 @@ import { create } from 'zustand'
 import type { NoiseEngine } from './audio/engines'
 
 export type NoiseMode = 'off' | 'standard' | 'strong' | 'ai'
+/** How hard AI noise removal works: the most it may turn anything down (see audio/strength.ts). */
+export type AiStrength = 'gentle' | 'normal' | 'max'
 
 export interface AudioSettings {
   /** 'ai' runs DeepFilterNet3 on the mic, 'strong' RNNoise; 'standard' is the browser's own; 'off' none. */
   noise: NoiseMode
+  /** AI noise removal strength. */
+  aiStrength: AiStrength
   echoCancellation: boolean
-  autoGainControl: boolean
+  /**
+   * The browser's automatic gain. null = automatic: only when the browser's own noise suppression (or none) runs; it
+   * pumps the level under our noise removal and makes it work harder.
+   */
+  autoGainControl: boolean | null
   /** '' = the system default. */
   inputDevice: string
   outputDevice: string
@@ -32,8 +40,9 @@ export interface AudioSettings {
 
 export const DEFAULT_AUDIO: AudioSettings = {
   noise: 'ai',
+  aiStrength: 'normal',
   echoCancellation: true,
-  autoGainControl: true,
+  autoGainControl: null,
   inputDevice: '',
   outputDevice: '',
   inputVolume: 1,
@@ -50,6 +59,11 @@ export const MIN_THRESHOLD = -80
 export const AUTO_SPEAKING_DB = -50
 
 const KEY = 'iskra.audio'
+/**
+ * Stored with the settings. Before 2, automatic gain was a plain switch that was on by default; a stored `true` from
+ * then is that default, not a choice, so it becomes automatic once.
+ */
+const VERSION = 2
 
 const clamp = (n: unknown, lo: number, hi: number, fallback: number) =>
   typeof n === 'number' && Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : fallback
@@ -58,10 +72,12 @@ const clamp = (n: unknown, lo: number, hi: number, fallback: number) =>
 export function parseAudioSettings(raw: unknown): AudioSettings {
   const s = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
   const d = DEFAULT_AUDIO
+  const oldAgcDefault = s.v !== VERSION && s.autoGainControl === true
   return {
     noise: s.noise === 'off' || s.noise === 'standard' || s.noise === 'strong' || s.noise === 'ai' ? s.noise : d.noise,
     echoCancellation: typeof s.echoCancellation === 'boolean' ? s.echoCancellation : d.echoCancellation,
-    autoGainControl: typeof s.autoGainControl === 'boolean' ? s.autoGainControl : d.autoGainControl,
+    aiStrength: s.aiStrength === 'gentle' || s.aiStrength === 'normal' || s.aiStrength === 'max' ? s.aiStrength : d.aiStrength,
+    autoGainControl: typeof s.autoGainControl === 'boolean' && !oldAgcDefault ? s.autoGainControl : d.autoGainControl,
     inputDevice: typeof s.inputDevice === 'string' ? s.inputDevice.slice(0, 200) : d.inputDevice,
     outputDevice: typeof s.outputDevice === 'string' ? s.outputDevice.slice(0, 200) : d.outputDevice,
     inputVolume: clamp(s.inputVolume, 0, 2, d.inputVolume),
@@ -94,10 +110,10 @@ export function onAudioSettings(listener: Listener): () => void {
 
 export function updateAudio(patch: Partial<AudioSettings>): void {
   const prev = useAudio.getState()
-  const next = parseAudioSettings({ ...prev, ...patch })
+  const next = parseAudioSettings({ ...prev, ...patch, v: VERSION })
   useAudio.setState(next, true)
   try {
-    localStorage.setItem(KEY, JSON.stringify(next))
+    localStorage.setItem(KEY, JSON.stringify({ ...next, v: VERSION }))
   } catch {
     /* private mode: this session only */
   }
@@ -112,17 +128,20 @@ export const outputSelectable = () => typeof HTMLMediaElement !== 'undefined' &&
 /** Boosting people above 100% needs LiveKit's Web Audio mixing, which also needs AudioContext.setSinkId. */
 export const canBoost = () => typeof AudioContext === 'function' && 'setSinkId' in AudioContext.prototype
 
+/** Whether the browser's automatic gain runs, given the engine: automatic means only without ours. */
+export const agcOn = (s: AudioSettings, engine: NoiseEngine) => s.autoGainControl ?? (engine !== 'ai' && engine !== 'rnnoise')
+
 /**
  * Getting the mic: the browser's processing that's on, given the engine that runs on top of it. Ours do a better
- * job and doing both just muffles you, so the browser's only runs when it's the engine. Hi-fi turns all of it off
- * and captures stereo.
+ * job and doing both just muffles you, so the browser's only runs when it's the engine; its automatic gain pumps the
+ * level under ours, so by default that's off with ours too. Hi-fi turns all of it off and captures stereo.
  */
 export function captureOptions(s: AudioSettings, engine: NoiseEngine, hifi = false) {
   return {
     deviceId: s.inputDevice ? { exact: s.inputDevice } : undefined,
     echoCancellation: hifi ? false : s.echoCancellation,
     noiseSuppression: hifi ? false : engine === 'browser',
-    autoGainControl: hifi ? false : s.autoGainControl,
+    autoGainControl: hifi ? false : agcOn(s, engine),
     channelCount: hifi ? 2 : 1,
   }
 }

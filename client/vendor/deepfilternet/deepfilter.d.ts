@@ -53,6 +53,13 @@ export function df_set_atten_lim(st: number, lim_db: number): void;
  */
 export function df_set_post_filter_beta(st: number, beta: number): void;
 
+/**
+ * Set DeepFilterNet's local SNR thresholds (dB). Below `min_db` a frame counts as noise only; above
+ * `max_db_erb` the frame is left as it is; above `max_db_df` the deep filter stage is skipped. The
+ * `deep-filter` command line tool uses -15, 35, 35.
+ */
+export function df_set_thresholds(st: number, min_db: number, max_db_erb: number, max_db_df: number): void;
+
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
@@ -63,6 +70,7 @@ export interface InitOutput {
     readonly df_process_frame: (a: number, b: number, c: number) => any;
     readonly df_set_atten_lim: (a: number, b: number) => void;
     readonly df_set_post_filter_beta: (a: number, b: number) => void;
+    readonly df_set_thresholds: (a: number, b: number, c: number, d: number) => void;
     readonly __wbindgen_exn_store_command_export: (a: number) => void;
     readonly __externref_table_alloc_command_export: () => number;
     readonly __wbindgen_externrefs: WebAssembly.Table;

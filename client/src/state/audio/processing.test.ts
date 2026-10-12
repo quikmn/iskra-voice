@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fallbackReason, pickEngine, SlowWatch, SLOW_WINDOWS, type EngineCaps, type EngineHealth } from './engines'
-import { compressorGainDb, Leveler, LEVEL_MAX_DB, LEVEL_RATE_DB_PER_S, LEVEL_TARGET_DB } from './leveler'
+import { COMPRESSOR, compressorGainDb, Leveler, Limiter, LEVEL_MAX_DB, LEVEL_RATE_DB_PER_S, LEVEL_TARGET_DB, LIMIT } from './leveler'
 import { VadGate } from './vadGate'
 
 const RATE = 48000
@@ -77,7 +77,7 @@ describe('voice activity gate (Silero)', () => {
     const preRollBlocks = ms(gate.params.preRollMs)
     expect(sent[first]).toBeGreaterThan(0)
     expect(Math.round(sent[first + 5])).toBe(quiet + 5 + 1 - preRollBlocks)
-    expect(gate.latencyMs).toBeGreaterThanOrEqual(240)
+    expect(gate.latencyMs).toBeCloseTo(gate.params.preRollMs, -1)
   })
 
   it('stays open through short pauses (hangover) and closes after a longer one', () => {
@@ -102,18 +102,38 @@ describe('voice activity gate (Silero)', () => {
     expect(gate.open).toBe(true)
   })
 
-  it('catches up with live during gaps between words', () => {
+  it('never drops or repeats audio: stays one pre-roll behind while open, through pauses', () => {
     const gate = new VadGate(RATE)
-    run(gate, Array(ms(100)).fill(0.9))
-    const start = gate.latencyMs
-    expect(start).toBeGreaterThan(200)
-    // Talking with short pauses: the pauses are skipped until the voice is live again.
-    for (let i = 0; i < 3; i++) {
-      run(gate, Array(ms(400)).fill(0.9))
-      run(gate, Array(ms(300)).fill(0.1))
-    }
+    const probs = [...Array(ms(100)).fill(0.9)]
+    for (let i = 0; i < 3; i++) probs.push(...Array(ms(400)).fill(0.9), ...Array(ms(300)).fill(0.1))
+    const sent = run(gate, probs)
     expect(gate.open).toBe(true)
+    const delay = ms(gate.params.preRollMs)
+    // After the fade-in, every block is the one exactly `delay` blocks before it: in order, none skipped.
+    const first = sent.findIndex((x) => x !== 0) + 5
+    const wrong = sent.map((x, i) => [i, Math.round(x) - (i + 1 - delay)]).filter(([i, d]) => i >= first && d !== 0)
+    expect(wrong).toEqual([])
+    expect(gate.latencyMs).toBeCloseTo(gate.params.preRollMs, -1)
+  })
+
+  it('reopening while it fades out carries on without a jump', () => {
+    const gate = new VadGate(RATE)
+    run(gate, Array(ms(200)).fill(0.9))
+    run(gate, Array(ms(gate.params.hangoverMs)).fill(0.1)) // closes, starts fading
+    const before = gate.latencyMs
+    const sent = run(gate, [0.9, 0.9, 0.9])
+    expect(gate.latencyMs).toBe(before)
+    expect(Math.round(sent[2]) - Math.round(sent[1])).toBe(1)
+  })
+
+  it('starts over with the pre-roll once fully closed', () => {
+    const gate = new VadGate(RATE)
+    run(gate, Array(ms(200)).fill(0.9))
+    run(gate, Array(ms(gate.params.hangoverMs + 100)).fill(0.1))
+    expect(gate.open).toBe(false)
     expect(gate.latencyMs).toBe(0)
+    run(gate, [0.9])
+    expect(gate.latencyMs).toBeCloseTo(gate.params.preRollMs, -1)
   })
 
   it('never delays or gates push-to-talk, but still knows when you speak', () => {
@@ -141,10 +161,47 @@ describe('incoming loudness leveling', () => {
   const rmsDb = (x: Float32Array) => 10 * Math.log10(x.reduce((a, v) => a + v * v, 0) / x.length)
 
   it('compresses above the threshold with a soft knee', () => {
-    expect(compressorGainDb(-40)).toBe(0)
-    expect(compressorGainDb(-10)).toBeCloseTo(-10 * (1 - 1 / 3))
-    expect(compressorGainDb(-20)).toBeLessThan(0) // in the knee
-    expect(compressorGainDb(-20)).toBeGreaterThan(compressorGainDb(-17))
+    const { threshold, ratio, knee } = COMPRESSOR
+    expect(compressorGainDb(threshold - knee)).toBe(0)
+    expect(compressorGainDb(threshold + 10)).toBeCloseTo(-10 * (1 - 1 / ratio))
+    expect(compressorGainDb(threshold)).toBeLessThan(0) // in the knee
+    expect(compressorGainDb(threshold)).toBeGreaterThan(compressorGainDb(threshold + 3))
+  })
+
+  it('the limiter catches a sudden peak smoothly: no clipping, no gain steps', () => {
+    const limiter = new Limiter(RATE)
+    const n = RATE / 2
+    const out = new Float32Array(n)
+    const gains: number[] = []
+    for (let i = 0; i < n; i++) {
+      // Quiet tone, then a burst at +6 dBFS for 20 ms.
+      const amp = i > RATE / 10 && i < RATE / 10 + RATE / 50 ? 2 : 0.1
+      out[i] = limiter.step(amp * Math.sin((2 * Math.PI * 220 * i) / RATE))
+      gains.push(limiter.gain)
+    }
+    expect(Math.max(...out.map(Math.abs))).toBeLessThanOrEqual(LIMIT)
+    let steepest = 0
+    for (let i = 1; i < gains.length; i++) steepest = Math.max(steepest, Math.abs(gains[i] - gains[i - 1]))
+    // From 1 to about 0.45 over the 1.5 ms look-ahead at the least: never a jump within a sample.
+    expect(steepest).toBeLessThan(0.02)
+    // The tone before the burst is untouched (only delayed).
+    expect(out[limiter.lookahead + 100]).toBeCloseTo(0.1 * Math.sin((2 * Math.PI * 220 * 100) / RATE), 6)
+  })
+
+  it('moves its gain smoothly: no steps, only as fast as its attack allows', () => {
+    const leveler = new Leveler(RATE)
+    let prev = 1
+    let steepest = 0
+    const out = new Float32Array(BLOCK)
+    for (let b = 0; b < (3 * RATE) / BLOCK; b++) {
+      // Syllables: 150 ms loud, 100 ms quiet.
+      const amp = b % 94 < 56 ? 0.5 : 0.02
+      leveler.process(tone(amp, BLOCK, b * BLOCK), out)
+      steepest = Math.max(steepest, Math.abs(leveler.compressorGain - prev))
+      prev = leveler.compressorGain
+    }
+    // At most about 1 dB per 128-sample block (10 ms attack on a 14 dB jump), and only gradually after that.
+    expect(steepest).toBeLessThan(0.15)
   })
 
   it('brings a quiet talker up towards the target, no faster than the rate limit', () => {
