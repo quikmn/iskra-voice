@@ -9,7 +9,13 @@ import { sniff } from './sniff'
 
 beforeAll(ready)
 
-const bytes = (n: number) => sodium.randombytes_buf(n)
+// Test data only. libsodium's randombytes_buf is very slow for big buffers under Node (about 2 s per MB: it asks
+// for entropy a few bytes at a time), which put the 1.5 MB test over vitest's 5 s. getRandomValues takes 64 KiB a go.
+const bytes = (n: number) => {
+  const out = new Uint8Array(n)
+  for (let at = 0; at < n; at += 65_536) crypto.getRandomValues(out.subarray(at, Math.min(n, at + 65_536)))
+  return out
+}
 
 describe('encrypted DM files', () => {
   it.each([0, 1, 1000, FILE_CHUNK - 1, FILE_CHUNK, FILE_CHUNK + 1, 3 * FILE_CHUNK + 17])('round-trips %i bytes', (size) => {
