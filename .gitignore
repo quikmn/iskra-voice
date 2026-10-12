@@ -45,3 +45,6 @@ relay.json
 # The live-captions model: downloaded by scripts/get-models.mjs, never committed
 client/.models/
 client/vendor/whisper-base/
+
+# Gradle cache from the old Android build
+android/.gradle/
