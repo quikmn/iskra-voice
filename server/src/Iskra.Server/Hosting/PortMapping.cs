@@ -21,6 +21,9 @@ public interface INatRouter
     /// <summary>"UPnP" or "NAT-PMP", shown to the owner.</summary>
     string Kind { get; }
 
+    /// <summary>The router's make and model, when it tells us (UPnP does; NAT-PMP doesn't).</summary>
+    string? Model => null;
+
     /// <summary>The router's own internet-side address (may itself be private behind carrier-grade NAT).</summary>
     Task<IPAddress> ExternalAddressAsync(CancellationToken cancel);
 
@@ -119,6 +122,24 @@ public static class Networks
     }
 
     public static List<IPAddress> Gateways() => Interfaces().Select(i => i.Gateway).Distinct().ToList();
+
+    /// <summary>The router's address on this network: the gateway of the interface friends on the LAN reach us on.</summary>
+    public static IPAddress? LanGateway() =>
+        Interfaces().Where(i => IsLan(i.Local)).Select(i => i.Gateway).FirstOrDefault();
+
+    /// <summary>
+    /// What the router's internet-side address says about the connection: "public", "cgnat" (100.64.0.0/10: the
+    /// provider shares one address between customers) or "private" (another private range: a second router in
+    /// front, or the provider's NAT). Null when unknown.
+    /// </summary>
+    public static string? NatKind(IPAddress? external)
+    {
+        if (external is null) return null;
+        if (external.IsIPv4MappedToIPv6) external = external.MapToIPv4();
+        var b = external.GetAddressBytes();
+        if (external.AddressFamily == AddressFamily.InterNetwork && b[0] == 100 && b[1] >= 64 && b[1] <= 127) return "cgnat";
+        return external.Equals(IPAddress.Any) || IsNonPublic(external) ? "private" : "public";
+    }
 
     /// <summary>The address friends on the same network use: the private IPv4 of the interface with a gateway.</summary>
     public static IPAddress? LanAddress() =>

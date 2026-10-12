@@ -694,9 +694,14 @@ The message is a normal `chat.message` to channel readers, with `author: "webhoo
 HostStatus {
   "enabled": true,
   "lanUrl": "http://192.168.1.20:47070",          // null with your own HTTPS setup
-  "router": { "state": "off" | "searching" | "found" | "not_found" | "disabled", "kind": "UPnP" | "NAT-PMP" | null },
+  "router": { "state": "off" | "searching" | "found" | "not_found" | "disabled", "kind": "UPnP" | "NAT-PMP" | null,
+              "model": "AVM FRITZ!Box 7590" },     // make and model from the router's UPnP description (≤ 80 printable chars), or null
   "publicIp": "203.0.113.7",                       // the router's internet-side address, or null
   "cgnat": false,                                  // that address is private/shared (100.64.0.0/10 etc.): ports can't help
+  "nat": "public" | "cgnat" | "private" | null,    // public; cgnat = 100.64.0.0/10 (shared by the provider); private = another
+                                                   // private range (a second router in front, or the provider's NAT); null = unknown
+  "lanIp": "192.168.1.20",                         // this computer on the home network (where forwarded ports point), or null
+  "gateway": "192.168.1.1",                        // the router on the home network, or null
   "ports": [{ "name": "acme" | "web" | "voice-tcp" | "voice-udp", "protocol": "tcp" | "udp",
               "internal": 47070, "external": 80, "state": "open" | "failed" | "manual" | "skipped", "error": null }],
   "address": "203-0-113-7.sslip.io", "autoAddress": true,
@@ -712,6 +717,7 @@ HostStatus {
 | `host.status` | `{ status }` | admins, whenever the status changes |
 | `server.address` | `{ publicUrl }` | everyone, when the public address changes (invite links use it) |
 
+- Everything in `HostStatus` is found locally (the router's own UPnP / NAT-PMP answers and this computer's interfaces); no outside service is asked. It's only sent to admins.
 - `welcome.server` carries `publicUrl` (string or null).
 - Ports: outside TCP 80 (Let's Encrypt's HTTP-01 check) and 443 both lead to the server's one port, which speaks plain HTTP and HTTPS (TLS is detected from the first byte). If the router refuses 443, the server's own port is used outside too. Voice maps LiveKit's RTC TCP and UDP ports straight through. Leases are 1 hour, renewed at half-life and re-checked every 5 minutes (router restarts, new IPs); mappings are removed on shutdown.
 - Without a certificate (e.g. port 80 refused) `publicUrl` stays null: a plain HTTP address is never advertised or put in invites. The only exception is a `PublicUrl` the owner set by hand in server.json, which is then used as is (the panel warns when it's plain HTTP).

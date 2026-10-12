@@ -35,6 +35,34 @@ public class PortMappingTests
         """;
 
     [Fact]
+    public void Reads_the_router_model_as_plain_text()
+    {
+        const string described = """
+            <root xmlns="urn:schemas-upnp-org:device-1-0"><device>
+              <friendlyName>My router</friendlyName><manufacturer>TP-Link</manufacturer>
+              <modelName>Archer AX55</modelName><modelNumber>1.0</modelNumber>
+            </device></root>
+            """;
+        Assert.Equal("TP-Link Archer AX55 1.0", Upnp.ParseModel(described));
+        Assert.Equal("FRITZ!Box 7590", Upnp.ParseModel("""<root><device><manufacturer>FRITZ!Box</manufacturer><modelName>FRITZ!Box 7590</modelName></device></root>"""));
+        // Untrusted text: control and direction-override characters go, and it's capped.
+        Assert.Equal("Evil Box", Upnp.ParseModel("<root><device><modelName>Evil\u202e\t Box</modelName></device></root>"));
+        Assert.Equal(80, Upnp.ParseModel($"<root><device><modelName>{new string('x', 500)}</modelName></device></root>")!.Length);
+        Assert.Null(Upnp.ParseModel("<root><device/></root>"));
+        Assert.Null(Upnp.ParseModel("not xml"));
+    }
+
+    [Theory]
+    [InlineData("203.0.113.7", "public")]
+    [InlineData("100.64.0.1", "cgnat")]
+    [InlineData("100.127.255.254", "cgnat")]
+    [InlineData("192.168.1.1", "private")]
+    [InlineData("10.0.0.138", "private")]
+    [InlineData("0.0.0.0", "private")]
+    [InlineData("100.128.0.1", "public")]
+    public void Tells_carrier_grade_nat_from_double_nat(string ip, string kind) => Assert.Equal(kind, Networks.NatKind(IPAddress.Parse(ip)));
+
+    [Fact]
     public void Finds_the_wan_services_on_the_router_itself()
     {
         var services = Upnp.ParseServices(Description, new Uri("http://192.168.1.1:5000/rootDesc.xml"));

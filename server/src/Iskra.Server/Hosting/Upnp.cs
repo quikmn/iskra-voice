@@ -37,6 +37,9 @@ public sealed class Upnp : INatRouter
     /// <summary>This computer's address on the router's network (where mapped ports point).</summary>
     public IPAddress LocalAddress { get; }
 
+    /// <summary>The router's make and model from its UPnP description (e.g. "AVM FRITZ!Box 7590"), if it said.</summary>
+    public string? Model { get; init; }
+
     /// <summary>Whether it answered from the default gateway's address (any LAN device can answer a UPnP search).</summary>
     public bool AtGateway { get; init; }
 
@@ -130,7 +133,7 @@ public sealed class Upnp : INatRouter
         }
     }
 
-    private Upnp WithGateway(bool atGateway) => new(_http, ControlUrl, ServiceType, LocalAddress) { AtGateway = atGateway };
+    private Upnp WithGateway(bool atGateway) => new(_http, ControlUrl, ServiceType, LocalAddress) { AtGateway = atGateway, Model = Model };
 
     internal static Uri? ParseLocation(string response)
     {
@@ -150,9 +153,10 @@ public sealed class Upnp : INatRouter
         using var response = await http.GetAsync(location, HttpCompletionOption.ResponseHeadersRead, cancel);
         response.EnsureSuccessStatusCode();
         var xml = await ReadLimitedAsync(response, cancel);
+        var model = ParseModel(xml);
         foreach (var (type, control) in ParseServices(xml, location))
         {
-            var router = new Upnp(http, control, type, local);
+            var router = new Upnp(http, control, type, local) { Model = model };
             try
             {
                 await router.ExternalAddressAsync(cancel);
@@ -161,6 +165,34 @@ public sealed class Upnp : INatRouter
             catch (PortMappingException) { } // an unused WAN connection; try the next
         }
         return null;
+    }
+
+    /// <summary>
+    /// The root device's make and model, for the owner's port-forwarding help. Untrusted text from the network:
+    /// printable characters only (no direction overrides), at most 80.
+    /// </summary>
+    internal static string? ParseModel(string xml)
+    {
+        try
+        {
+            var device = ParseXml(xml).Descendants().FirstOrDefault(e => e.Name.LocalName == "device");
+            if (device is null) return null;
+            string? Field(string name) => device.Elements().FirstOrDefault(e => e.Name.LocalName == name)?.Value.Trim();
+            var maker = Field("manufacturer");
+            var model = Field("modelName");
+            if (string.IsNullOrEmpty(model)) model = Field("friendlyName");
+            var number = Field("modelNumber");
+            if (!string.IsNullOrEmpty(number) && !string.IsNullOrEmpty(model) && !model.Contains(number, StringComparison.OrdinalIgnoreCase)) model += " " + number;
+            var text = string.IsNullOrEmpty(maker) || (model?.StartsWith(maker, StringComparison.OrdinalIgnoreCase) ?? false) ? model : $"{maker} {model}";
+            if (string.IsNullOrWhiteSpace(text)) return null;
+            var clean = new string(text.Select(c => char.IsControl(c) || char.GetUnicodeCategory(c) == System.Globalization.UnicodeCategory.Format ? ' ' : c).ToArray());
+            clean = string.Join(' ', clean.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+            return clean.Length == 0 ? null : clean.Length > 80 ? clean[..80] : clean;
+        }
+        catch (XmlException)
+        {
+            return null;
+        }
     }
 
     /// <summary>The WAN connection services in a device description, best first, with absolute control URLs.</summary>

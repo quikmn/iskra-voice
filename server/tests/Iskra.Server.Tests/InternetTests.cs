@@ -19,6 +19,7 @@ public sealed class FakeRouter : IPortMapper, INatRouter
     public int MapCalls;
 
     public string Kind => "UPnP";
+    public string? Model { get; set; } = "AVM FRITZ!Box 7590";
 
     public Task<INatRouter?> FindRouterAsync(CancellationToken cancel) => Task.FromResult<INatRouter?>(Present ? this : null);
 
@@ -125,6 +126,10 @@ public class InternetTests : IDisposable
         Assert.Equal("UPnP", status.GetProperty("router").GetProperty("kind").GetString());
         Assert.Equal("203.0.113.7", status.GetProperty("publicIp").GetString());
         Assert.False(status.GetProperty("cgnat").GetBoolean());
+        Assert.Equal("public", status.GetProperty("nat").GetString());
+        Assert.Equal("AVM FRITZ!Box 7590", status.GetProperty("router").GetProperty("model").GetString());
+        Assert.True(status.TryGetProperty("lanIp", out _));
+        Assert.True(status.TryGetProperty("gateway", out _));
         Assert.Equal("203-0-113-7.sslip.io", status.GetProperty("address").GetString());
         Assert.True(status.GetProperty("autoAddress").GetBoolean());
 
@@ -168,6 +173,7 @@ public class InternetTests : IDisposable
 
         var status = await StatusUntil(owner, s => s.GetProperty("cgnat").GetBoolean(), "CGNAT");
         Assert.Equal("100.72.10.5", status.GetProperty("publicIp").GetString());
+        Assert.Equal("cgnat", status.GetProperty("nat").GetString());
         Assert.All(status.GetProperty("ports").EnumerateArray(), p => Assert.Equal("skipped", p.GetProperty("state").GetString()));
         Assert.Equal(JsonValueKind.Null, status.GetProperty("address").ValueKind);
         Assert.Equal(JsonValueKind.Null, status.GetProperty("publicUrl").ValueKind);

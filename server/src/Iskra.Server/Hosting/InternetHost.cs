@@ -12,7 +12,7 @@ namespace Iskra.Server.Hosting;
 /// <summary>One port the server needs from the router, and how that went.</summary>
 public sealed record PortStatus(string Name, string Protocol, int Internal, int External, string State, string? Error);
 
-public sealed record RouterStatus(string State, string? Kind);
+public sealed record RouterStatus(string State, string? Kind, string? Model = null);
 
 public sealed record HttpsStatus(string State, string? Domain, long? ExpiresAt, string? Error);
 
@@ -29,7 +29,15 @@ public sealed record HostStatus(
     HttpsStatus Https,
     string Reachable,
     string? PublicUrl,
-    long? CheckedAt);
+    long? CheckedAt)
+{
+    /// <summary>"public", "cgnat" or "private" (see <see cref="Networks.NatKind"/>); null when unknown.</summary>
+    public string? Nat { get; init; }
+    /// <summary>This computer's address on the home network (where forwarded ports point).</summary>
+    public string? LanIp { get; init; }
+    /// <summary>The router's address on the home network (where its settings page usually is).</summary>
+    public string? Gateway { get; init; }
+}
 
 /// <summary>
 /// "Open to the internet": asks the router to forward the ports (UPnP / NAT-PMP), keeps the leases fresh,
@@ -451,10 +459,11 @@ public sealed class InternetHost : BackgroundService
         var domain = Domain(s, v);
         var https = Https(s, v, domain);
         var lan = Networks.LanAddress();
+        var router = _router;
         return new HostStatus(
             Enabled: s.Internet.Enabled,
             LanUrl: lan is null || s.Https.Enabled ? null : $"http://{lan}:{s.Port}",
-            Router: new RouterStatus(s.Internet.Enabled ? _routerState : "off", _router?.Kind),
+            Router: new RouterStatus(s.Internet.Enabled ? _routerState : "off", router?.Kind, router?.Model),
             PublicIp: s.Internet.Enabled ? v.Ip?.ToString() : null,
             Cgnat: s.Internet.Enabled && v.Cgnat,
             Ports: s.Internet.Enabled ? v.Ports : [],
@@ -463,7 +472,12 @@ public sealed class InternetHost : BackgroundService
             Https: https,
             Reachable: s.Internet.Enabled ? Reachable(https) : "unknown",
             PublicUrl: PublicUrl(s, v, https, domain),
-            CheckedAt: s.Internet.Enabled ? _checkedAt : null);
+            CheckedAt: s.Internet.Enabled ? _checkedAt : null)
+        {
+            Nat = s.Internet.Enabled ? Networks.NatKind(v.Ip) : null,
+            LanIp = lan?.ToString(),
+            Gateway = Networks.LanGateway()?.ToString(),
+        };
     }
 
     /// <summary>Sends the status to admins when it changed, and the public address to everyone when that changed.</summary>

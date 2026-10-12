@@ -12,6 +12,9 @@ public sealed class TestRouter(string spec) : IPortMapper, INatRouter
 
     public string Kind => "UPnP";
 
+    /// <summary>",model=&lt;make and model&gt;" in the spec: what UPnP says the router is.</summary>
+    public string? Model => _parts.FirstOrDefault(p => p.StartsWith("model=", StringComparison.Ordinal))?["model=".Length..];
+
     public Task<INatRouter?> FindRouterAsync(CancellationToken cancel) =>
         Task.FromResult<INatRouter?>(_parts[0] == "none" ? null : this);
 
