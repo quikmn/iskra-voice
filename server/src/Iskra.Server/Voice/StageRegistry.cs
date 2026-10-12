@@ -167,7 +167,7 @@ public sealed class StageRegistry
             stage.Hands.RemoveAll(h => h.AccountKey == accountKey);
             if (!stage.Speakers.Contains(accountKey))
             {
-                if (stage.Speakers.Count >= MaxSpeakers) throw RequestException.BadRequest($"A stage can have up to {MaxSpeakers} speakers.");
+                if (stage.Speakers.Count >= MaxSpeakers) throw RequestException.BadRequest($"A stage can have up to {MaxSpeakers} speakers.", "stage_speakers_max", new { max = MaxSpeakers });
                 stage.Speakers.Add(accountKey);
             }
         }

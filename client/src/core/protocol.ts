@@ -266,10 +266,15 @@ export class RequestError extends Error {
   readonly code: ErrorCode | 'disconnected' | 'timeout'
   /** The request that failed, so the app can say what went wrong in the reader's language. */
   readonly type?: string
-  constructor(code: RequestError['code'], message: string, type?: string) {
+  /** The server's name for its message (see PROTOCOL.md, Errors), with the values it was written with. */
+  readonly key?: string
+  readonly args?: Record<string, string | number>
+  constructor(code: RequestError['code'], message: string, type?: string, key?: string, args?: Record<string, string | number>) {
     super(message)
     this.code = code
     this.type = type
+    this.key = key
+    this.args = args
   }
 }
 

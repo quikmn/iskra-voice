@@ -7,7 +7,7 @@ export const roles = {
     banMembers: { label: 'Ban members', hint: 'Remove people for good, and unban them' },
     manageChannels: { label: 'Manage channels', hint: 'Create, edit and delete channels, slowmode and channel permissions' },
     manageRoles: { label: 'Manage roles', hint: 'Create and give roles below their own highest role' },
-    viewAuditLog: { label: 'View audit log', hint: 'See who did what on this server' },
+    viewAuditLog: { label: 'View activity log', hint: 'See who did what on this server' },
     manageExpressions: { label: 'Manage emoji and sounds', hint: "Add, rename and delete anyone's emoji and sounds" },
     manageWebhooks: { label: 'Manage webhooks', hint: 'Create and change webhooks' },
     mentionEveryone: { label: 'Mention @everyone', hint: 'Notify everyone with @everyone and @here' },

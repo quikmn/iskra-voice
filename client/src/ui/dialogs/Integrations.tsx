@@ -281,7 +281,7 @@ function Bots({ server }: { server: ServerState }) {
               {copied ? t('settings.recovery.copied') : t('common.copy')}
             </button>
           </div>
-          <pre>{`cd bots && npm install\nISKRA_INVITE='${link}' npm run dice`}</pre>
+          <pre>{`cd bots && npm install\nISKRA_INVITE='${link}' npm run dice\n\n# PowerShell\n$env:ISKRA_INVITE='${link}'; npm run dice`}</pre>
         </div>
       )}
       {error && <p className="error-text">{error}</p>}

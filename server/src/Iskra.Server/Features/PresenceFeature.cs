@@ -79,14 +79,14 @@ public static class PresenceFeature
             {
                 emoji = Text.Normalize(rawEmoji, MaxEmojiLength, allowNewlines: false);
                 if (emoji is null || emoji.Any(char.IsWhiteSpace) || emoji.Contains('<'))
-                    throw RequestException.BadRequest("The status emoji must be a single emoji.");
+                    throw RequestException.BadRequest("The status emoji must be a single emoji.", "status_emoji");
             }
             var rawText = custom.OptionalString("text", MaxTextLength * 2);
             if (!string.IsNullOrWhiteSpace(rawText))
                 text = Text.Normalize(rawText, MaxTextLength, allowNewlines: false)
-                    ?? throw RequestException.BadRequest($"Custom statuses can be up to {MaxTextLength} characters, on one line.");
+                    ?? throw RequestException.BadRequest($"Custom statuses can be up to {MaxTextLength} characters, on one line.", "status_length", new { max = MaxTextLength });
             expiresAt = custom.OptionalLong("expiresAt", min: 1);
-            if (expiresAt > now + MaxLifetimeMs) throw RequestException.BadRequest("Custom statuses can last at most 31 days.");
+            if (expiresAt > now + MaxLifetimeMs) throw RequestException.BadRequest("Custom statuses can last at most 31 days.", "status_31_days");
             if (emoji is null && text is null) expiresAt = null;
         }
         return new PresenceRecord(status, emoji, text, expiresAt, updatedAt);

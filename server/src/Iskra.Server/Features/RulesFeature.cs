@@ -41,7 +41,7 @@ public static class RulesFeature
     /// <summary>The router asks before every request.</summary>
     internal static RequestException? Gate(Session s, Member me, string type) =>
         NeedsAgreement.Contains(type) && MustAgree(s.World.Store, me)
-            ? new RequestException("rules_required", "Agree to the server rules first.")
+            ? new RequestException("rules_required", "Agree to the server rules first.", "rules_agree_first")
             : null;
 
     /// <summary>The rules as this member sees them (admins can also get how many members agreed).</summary>
@@ -75,14 +75,14 @@ public static class RulesFeature
 
     private static object Update(Session s, Member me, Body body)
     {
-        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can change the server rules.");
+        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can change the server rules.", "admins_rules");
         var store = s.World.Store;
         var old = store.Rules();
         var text = Field(body, "text", MaxTextLength, old?.Text ?? "");
         var welcome = Field(body, "welcome", MaxWelcomeLength, old?.Welcome ?? "");
         var required = body.OptionalBool("required") ?? old?.Required ?? false;
         var reaccept = required && (body.OptionalBool("reaccept") ?? false);
-        if (required && text.Length == 0) throw RequestException.BadRequest("Write the rules before asking people to agree to them.");
+        if (required && text.Length == 0) throw RequestException.BadRequest("Write the rules before asking people to agree to them.", "rules_write_first");
 
         var version = old?.Version ?? 0;
         var turningOn = required && old is not { Required: true };
@@ -109,8 +109,8 @@ public static class RulesFeature
         var store = s.World.Store;
         var version = body.OptionalLong("version", min: 0, max: int.MaxValue) ?? throw RequestException.BadRequest("'version' is required.");
         var rules = store.Rules();
-        if (rules is not { Required: true }) throw RequestException.BadRequest("This server doesn't ask you to agree to rules.");
-        if (version != rules.Version) throw new RequestException("conflict", "The rules just changed. Have a look at them again.");
+        if (rules is not { Required: true }) throw RequestException.BadRequest("This server doesn't ask you to agree to rules.", "rules_none");
+        if (version != rules.Version) throw new RequestException("conflict", "The rules just changed. Have a look at them again.", "rules_changed");
         store.AcceptRules(me.AccountKey, rules.Version, s.Now);
         var view = View(store, me);
         s.Hub.SendToAccount(me.AccountKey, Frames.Event("rules", new { rules = view }));

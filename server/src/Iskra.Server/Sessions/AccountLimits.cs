@@ -22,6 +22,7 @@ public sealed class AccountLimits(TimeProvider time)
         ["gif.media"] = (200, 20),                 // GIF media proxy, per client address
         ["captions.model"] = (30, 0.2),            // the captions model's parts (6 a download), per client address
         ["report.create"] = (5, 1 / 120.0),        // 5 at once, then one every 2 minutes
+        ["data.export"] = (2, 1 / 600.0),          // "Download my data", whatever the number of connections
     };
 
     private const int PruneAbove = 10_000;

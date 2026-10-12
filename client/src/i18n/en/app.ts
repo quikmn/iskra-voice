@@ -37,7 +37,7 @@ export const app = {
     createChannel: 'Create channel…',
     more: 'More settings',
     nickname: 'Server nickname…',
-    nicknameTitle: 'Your nickname on {{name}}',
+    nicknameTitle: 'Server nickname on {{name}}',
     moveFolder: 'Move / Folder',
     leave: 'Leave server',
     leaveTitle: 'Leave {{name}}?',
@@ -179,6 +179,8 @@ export const app = {
     restart: 'Restart',
     later: 'Later',
     laterTitle: 'Later (installs when you quit)',
+    updating: 'Updating Iskra to {{version}}…',
+    updatingBody: 'It’ll be back in a few seconds.',
   },
   upload: {
     tooBig: 'That file is too big for this server.',

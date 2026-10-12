@@ -32,7 +32,7 @@ public static class LimitsFeature
 
     private static object Update(Session s, Member me, Body body)
     {
-        if (me.Role != Roles.Owner) throw RequestException.Forbidden("Only the owner can change this server's limits.");
+        if (me.Role != Roles.Owner) throw RequestException.Forbidden("Only the owner can change this server's limits.", "owner_limits");
         int? Get(string key, long min) => (int?)body.OptionalLong(key, min: min, max: MaxMb);
         var maxUploadMb = Get("maxUploadMb", 1);
         var memberMbPerDay = Get("memberMbPerDay", 0);

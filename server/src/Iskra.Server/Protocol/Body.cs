@@ -2,13 +2,22 @@ using System.Text.Json;
 
 namespace Iskra.Server.Protocol;
 
-/// <summary>Thrown by handlers; the router turns it into an error frame. The session stays open.</summary>
-public sealed class RequestException(string code, string message) : Exception(message)
+/// <summary>
+/// Thrown by handlers; the router turns it into an error frame. The session stays open. <paramref name="key"/> (with
+/// <paramref name="args"/>) names the English message so apps can show it in their language; the message stays for bots and logs.
+/// </summary>
+public sealed class RequestException(string code, string message, string? key = null, object? args = null) : Exception(message)
 {
     public string Code { get; } = code;
+    public string? Key { get; } = key;
+    public object? Args { get; } = args;
 
-    public static RequestException BadRequest(string message) => new("bad_request", message);
-    public static RequestException Forbidden(string message = "You don't have permission to do that.") => new("forbidden", message);
+    /// <summary>The error body's extra fields: <c>{ key, args? }</c>, or null without a key.</summary>
+    public object? Extra => Key is null ? null : Args is null ? new { key = Key } : new { key = Key, args = Args };
+
+    public static RequestException BadRequest(string message, string? key = null, object? args = null) => new("bad_request", message, key, args);
+    public static RequestException Forbidden(string message = "You don't have permission to do that.", string? key = null, object? args = null) =>
+        new("forbidden", message, key, args);
     public static RequestException NotFound(string what) => new("not_found", $"{what} not found.");
 }
 

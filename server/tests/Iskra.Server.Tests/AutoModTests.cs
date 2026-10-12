@@ -52,9 +52,15 @@ public class AutoModTests
         var matcher = new WordMatcher(blocked, ["w3xok"]);
         var text = FoldedText.Of(string.Join(' ', Enumerable.Range(0, 1300).Select(i => $"a{i % 7}")) + " w3xok");
         Assert.Empty(matcher.Find(text)); // warm up
-        var watch = System.Diagnostics.Stopwatch.StartNew();
-        for (var i = 0; i < 10; i++) Assert.Empty(matcher.Find(text));
-        Assert.True(watch.ElapsedMilliseconds < 500, $"{watch.ElapsedMilliseconds} ms for 10 checks");
+        // The best of a few rounds: a slow matcher is slow every round, a busy machine (parallel tests) only in some.
+        var best = long.MaxValue;
+        for (var round = 0; round < 5 && best >= 500; round++)
+        {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            for (var i = 0; i < 10; i++) Assert.Empty(matcher.Find(text));
+            best = Math.Min(best, watch.ElapsedMilliseconds);
+        }
+        Assert.True(best < 500, $"{best} ms for 10 checks");
         Assert.NotEmpty(matcher.Find(FoldedText.Of("ab W3Xyz")));
     }
 

@@ -1,7 +1,8 @@
 // Worker: DeepFilterNet3 for incoming voices ("Clean up others' audio"). One engine instance, one model state per
 // voice; each voice's audio worklet node talks to it over its own port (10 ms frames in, cleaned frames out).
 // Reports how busy it is (its realtime factor) every two seconds.
-import { df_create, df_process_frame, initSync } from '../../../vendor/deepfilternet/deepfilter.js'
+import { df_process_frame, initSync } from '../../../vendor/deepfilternet/deepfilter.js'
+import { createDeepFilter, DF_STRENGTH_DB, warmUp } from './strength'
 
 type Message =
   | { type: 'init'; module: WebAssembly.Module; model: ArrayBuffer }
@@ -32,12 +33,17 @@ self.onmessage = (e: MessageEvent<Message>) => {
         spare.push(voice.state)
       }
     } else if (m.type === 'voice' && model) {
-      const state = spare.pop() ?? df_create(model, 100)
+      let state = spare.pop()
+      if (state === undefined) {
+        state = createDeepFilter(model, DF_STRENGTH_DB.normal)
+        warmUp(state, df_process_frame)
+      }
+      const voiceState = state
       const port = m.port
-      voices.set(m.id, { state, port })
+      voices.set(m.id, { state: voiceState, port })
       port.onmessage = (f: MessageEvent<Float32Array>) => {
         const t = performance.now()
-        const out = df_process_frame(state, f.data)
+        const out = df_process_frame(voiceState, f.data)
         busyMs += performance.now() - t
         audioMs += 10
         port.postMessage(out, [out.buffer])

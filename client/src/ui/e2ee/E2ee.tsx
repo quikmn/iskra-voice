@@ -11,6 +11,7 @@ import { findingsAbout, useKt } from '../../state/kt'
 import type { ServerState } from '../../state/store'
 import { MAX_CHANNEL_MEMBERS } from '../../core/channelChain'
 import { DmAttachments } from '../dms/DmFiles'
+import { dmErrorText } from '../../state/dms'
 import { SafetyNumberDialog } from '../Home'
 import { Modal } from '../bits'
 import { Lock } from '../icons'
@@ -20,7 +21,8 @@ import './e2ee.css'
 export function e2eeText(text: string): string {
   if (text === 'waiting') return t('e2ee.waiting')
   for (const [id, english] of Object.entries(en.e2ee.errors)) if (english === text) return t(`e2ee.errors.${id as keyof typeof en.e2ee.errors}`)
-  return text
+  // The ones encrypted channels share with DMs (tampered, unverified sender, ...).
+  return dmErrorText({ message: text })
 }
 
 export function LockBadge({ channel, size = 12 }: { channel: Pick<Channel, 'e2ee'>; size?: number }) {

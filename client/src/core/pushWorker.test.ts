@@ -12,11 +12,11 @@ interface FakeClient {
   focus: ReturnType<typeof vi.fn>
 }
 
-function worker(windows: FakeClient[] = []) {
+function worker(windows: FakeClient[] = [], script = 'push-sw.js') {
   const listeners: Record<string, (event: unknown) => void> = {}
   const shown: { title: string; options: Record<string, unknown> }[] = []
   const self = {
-    location: new URL(`${ORIGIN}/push-sw.js`),
+    location: new URL(`${ORIGIN}/${script}`),
     registration: {
       scope: `${ORIGIN}/push/${SERVER}/`,
       showNotification: vi.fn(async (title: string, options: Record<string, unknown>) => void shown.push({ title, options })),
@@ -113,5 +113,31 @@ describe('push service worker', () => {
     const w = worker()
     await w.click(`/open/${SERVER}/dm/${PEER}`)
     expect(w.self.clients.openWindow).toHaveBeenCalledWith(`${ORIGIN}/#/open/${SERVER}/dm/${PEER}`)
+  })
+
+  it('shows pushes in Swedish when the app is in Swedish, from the names the server gives its texts', async () => {
+    const w = worker([], 'push-sw.js?lang=sv')
+    const text = (title: string, body: string | null, args: object = {}) => ({ title, body, args })
+    await w.push({ ...mention, text: text('mention', null, { name: 'Alice', channel: 'general' }) })
+    await w.push({ ...mention, kind: 'dm', title: 'New message from Alice', body: 'Open Iskra to read it.', text: text('dm', 'openToRead', { name: 'Alice' }) })
+    await w.push({ ...mention, kind: 'dm', title: '3 new messages from Alice', from: 'Alice', count: 3, text: text('dm', 'openToRead', { name: 'Alice' }) })
+    await w.push({ ...mention, body: 'hey (+2 more)', count: 3, text: text('mention', null, { name: 'Alice', channel: 'general' }) })
+    await w.push({ ...mention, kind: 'event', text: text('eventSoon', 'inMinutesChannel', { title: 'Raid', minutes: 15, channel: 'Lounge' }) })
+    // Something this worker doesn't know: the server's English.
+    await w.push({ ...mention, text: text('somethingNew', null) })
+    expect(w.shown.map((n) => [n.title, n.options.body])).toEqual([
+      ['Alice i #general', 'hey @Bob'],
+      ['Nytt meddelande från Alice', 'Öppna Iskra för att läsa det.'],
+      ['3 nya meddelanden från Alice', 'Öppna Iskra för att läsa det.'],
+      ['Alice i #general', 'hey (+2 till)'],
+      ['Snart: Raid', 'Om 15 min, i Lounge'],
+      ['Alice in #general', 'hey @Bob'],
+    ])
+  })
+
+  it('stays English with ?lang=en', async () => {
+    const w = worker([], 'push-sw.js?lang=en')
+    await w.push({ ...mention, text: { title: 'mention', body: null, args: { name: 'Alice', channel: 'general' } } })
+    expect(w.shown[0].title).toBe('Alice in #general')
   })
 })

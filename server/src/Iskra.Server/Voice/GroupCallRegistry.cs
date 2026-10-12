@@ -102,7 +102,7 @@ public sealed class GroupCallRegistry
         lock (_gate)
         {
             if (_calls.ContainsKey(id)) throw RequestException.BadRequest("That call id is already in use.");
-            if (_calls.Values.Any(c => c.GroupId == group.Id)) throw new RequestException("busy", "There's already a call in this group. Join it instead.");
+            if (_calls.Values.Any(c => c.GroupId == group.Id)) throw new RequestException("busy", "There's already a call in this group. Join it instead.", "group_call_exists");
             call = new GroupCall
             {
                 Id = id, GroupId = group.Id, Starter = starter, Video = video, Room = RoomName(group.Id, id),
@@ -158,7 +158,7 @@ public sealed class GroupCallRegistry
     {
         var call = Get(id, accountKey);
         var group = _world.Store.GetGroup(call.GroupId)!;
-        if (version != group.Version) throw new RequestException("conflict", "The group changed in the meantime. Refresh and try again.");
+        if (version != group.Version) throw new RequestException("conflict", "The group changed in the meantime. Refresh and try again.", "group_changed");
         lock (_gate)
         {
             if (!call.InRoom.Contains(accountKey) && call.Starter != accountKey)

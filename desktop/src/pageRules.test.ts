@@ -42,3 +42,10 @@ test("a page's session lets through only its own document and its server's image
   assert.equal(pageRequestAllowed(null, PAGE, 'mainFrame', 'GET'), false)
   assert.equal(pageRequestAllowed(null, 'http://127.0.0.1:1/x.png', 'image', 'GET'), false)
 })
+
+test('opaque origins never match each other (security review)', () => {
+  const preview = 'data:text/html;charset=utf-8;base64,PGgxPmhpPC9oMT4='
+  assert.equal(pageRequestAllowed(preview, 'file:///files/AAAAAAAAAAAAAAAAAAAA', 'image', 'GET'), false)
+  assert.equal(pageRequestAllowed(preview, 'app://iskra/files/AAAAAAAAAAAAAAAAAAAA', 'image', 'GET'), false)
+  assert.equal(pageRequestAllowed('app://iskra/x', 'app://iskra/files/AAAAAAAAAAAAAAAAAAAA', 'image', 'GET'), false)
+})

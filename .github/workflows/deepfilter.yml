@@ -1,0 +1,34 @@
+name: DeepFilterNet build check
+
+# Rebuilds client/vendor/deepfilternet/deepfilter.wasm from source (scripts/build-deepfilter.sh: pinned DeepFilterNet
+# commit, our patches, Cargo.lock, Rust, wasm-bindgen and binaryen) and fails if it isn't byte for byte what's
+# committed. Runs when any of that changes, or by hand.
+on:
+  push:
+    paths: ['client/vendor/deepfilternet/**', 'scripts/build-deepfilter.sh', '.github/workflows/deepfilter.yml']
+  pull_request:
+    paths: ['client/vendor/deepfilternet/**', 'scripts/build-deepfilter.sh', '.github/workflows/deepfilter.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rebuild:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Rust
+        run: rustup toolchain install 1.99.0 --profile minimal --target wasm32-unknown-unknown
+      - name: Rebuild
+        env:
+          CARGO_NET_GIT_FETCH_WITH_CLI: 'true'
+        run: |
+          git config --global core.longpaths true
+          bash scripts/build-deepfilter.sh "$RUNNER_TEMP/df"
+      - name: Same bytes as committed
+        run: git diff --stat --exit-code client/vendor/deepfilternet

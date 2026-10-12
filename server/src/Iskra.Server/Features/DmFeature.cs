@@ -53,7 +53,7 @@ public static class DmFeature
         var envelope = body.Element("envelope");
         if (envelope.ValueKind != JsonValueKind.Object) throw RequestException.BadRequest("'envelope' must be an object.");
         var raw = envelope.GetRawText();
-        if (raw.Length > MaxEnvelopeBytes) throw RequestException.BadRequest("Message is too large.");
+        if (raw.Length > MaxEnvelopeBytes) throw RequestException.BadRequest("Message is too large.", "message_too_large");
 
         var silent = body.OptionalBool("silent") == true;
         var files = DmFileFeature.CheckAttachments(s, me, peer, body);

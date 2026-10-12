@@ -63,4 +63,11 @@ describe('security log', () => {
     expect(securityEventLabel('auth.failed')).toBe('Sign-in failed')
     expect(securityEventLabel('something.new')).toBe('something.new')
   })
+
+  it('knows every event the server records', () => {
+    const sources = Object.values(import.meta.glob('../../../server/src/Iskra.Server/**/*.cs', { query: '?raw', import: 'default', eager: true })) as string[]
+    const recorded = new Set(sources.flatMap((source) => [...source.matchAll(/SecurityLog\.Record\([^;]*?"([a-z_]+(?:\.[a-z_]+)+)"/g)].map((m) => m[1])))
+    expect(recorded.size).toBeGreaterThan(10)
+    expect([...recorded].filter((event) => !(SECURITY_EVENTS as readonly string[]).includes(event))).toEqual([])
+  })
 })

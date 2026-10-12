@@ -15,6 +15,9 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    # A stuck test stops here, not at GitHub's six hours. (Test clients already give up on a frame after 5 s; the
+    # test platform's --timeout can't stop a test that ignores cancellation, this can.)
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: server

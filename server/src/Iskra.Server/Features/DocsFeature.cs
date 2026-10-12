@@ -97,12 +97,12 @@ public static partial class DocsFeature
 
     private static void RequireWriter(Member me, Channel channel)
     {
-        if (!Permissions.CanWrite(me, channel)) throw RequestException.Forbidden("You can't edit pages in this channel.");
+        if (!Permissions.CanWrite(me, channel)) throw RequestException.Forbidden("You can't edit pages in this channel.", "docs_edit");
     }
 
     private static string Title(string raw) =>
         Text.Normalize(raw, MaxTitleLength, allowNewlines: false)
-        ?? throw RequestException.BadRequest($"Page titles must be 1–{MaxTitleLength} characters.");
+        ?? throw RequestException.BadRequest($"Page titles must be 1–{MaxTitleLength} characters.", "page_title_length", new { max = MaxTitleLength });
 
     /// <summary>
     /// Page text as stored: line endings made "\n", control and invisible formatting characters (such as bidi overrides)
@@ -123,7 +123,7 @@ public static partial class DocsFeature
         try { cleaned = cleaned.Normalize(NormalizationForm.FormC); }
         catch (ArgumentException) { throw RequestException.BadRequest("Pages must be valid text."); }
         cleaned = cleaned.TrimEnd();
-        if (Encoding.UTF8.GetByteCount(cleaned) > MaxPageBytes) throw RequestException.BadRequest($"Pages can be up to {MaxPageBytes / 1024} KB.");
+        if (Encoding.UTF8.GetByteCount(cleaned) > MaxPageBytes) throw RequestException.BadRequest($"Pages can be up to {MaxPageBytes / 1024} KB.", "page_size", new { kb = MaxPageBytes / 1024 });
         return cleaned;
     }
 
@@ -135,11 +135,11 @@ public static partial class DocsFeature
             if (body.Has("text")) throw RequestException.BadRequest("Send the text or a file, not both.");
             var file = s.World.Store.GetFile(body.String("file", 64));
             if (file is null || file.Uploader != me.AccountKey) throw RequestException.BadRequest("Unknown page file.");
-            if (file.Size > MaxPageBytes) throw RequestException.BadRequest($"Pages can be up to {MaxPageBytes / 1024} KB.");
+            if (file.Size > MaxPageBytes) throw RequestException.BadRequest($"Pages can be up to {MaxPageBytes / 1024} KB.", "page_size", new { kb = MaxPageBytes / 1024 });
             try
             {
                 var bytes = File.ReadAllBytes(s.Uploads.PathFor(file.Sha256));
-                if (bytes.Length > MaxPageBytes) throw RequestException.BadRequest($"Pages can be up to {MaxPageBytes / 1024} KB.");
+                if (bytes.Length > MaxPageBytes) throw RequestException.BadRequest($"Pages can be up to {MaxPageBytes / 1024} KB.", "page_size", new { kb = MaxPageBytes / 1024 });
                 return CleanText(new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true).GetString(bytes));
             }
             catch (DecoderFallbackException)
@@ -156,13 +156,25 @@ public static partial class DocsFeature
 
     private static string[] FileIds(string text) => FileLink().Matches(text).Select(m => m.Groups[1].Value).Distinct().ToArray();
 
+    /// <summary>
+    /// The uploads a save keeps alive: your own, or ones docs pages already keep (a picture copied from another page). Someone
+    /// else's upload (an attachment a moderator may delete, say) can be linked, but a page doesn't keep it on the server.
+    /// </summary>
+    private static string[] KeptFileIds(Store store, Member me, string text)
+    {
+        var ids = FileIds(text);
+        if (ids.Length == 0) return ids;
+        var kept = store.DocFileIds();
+        return ids.Where(id => kept.Contains(id) || store.GetFile(id)?.Uploader == me.AccountKey).ToArray();
+    }
+
     /// <summary>Sub-pages go one level deep: a parent must be a top-level page in the same channel.</summary>
     private static long? Parent(Session s, Channel channel, Body body, long? self = null)
     {
         if (body.OptionalLong("parentId", min: 1) is not { } id) return null;
         if (id == self || s.World.Store.GetDocPage(id) is not { } parent || parent.ChannelId != channel.Id)
             throw RequestException.BadRequest("That parent page isn't in this channel.");
-        if (parent.ParentId is not null) throw RequestException.BadRequest("Sub-pages can't have sub-pages of their own.");
+        if (parent.ParentId is not null) throw RequestException.BadRequest("Sub-pages can't have sub-pages of their own.", "docs_nesting");
         return id;
     }
 
@@ -174,7 +186,8 @@ public static partial class DocsFeature
     private static object List(Session s, Member me, Body body)
     {
         var channel = ReadableDocs(s, me, body.Long("channelId"));
-        var home = s.World.Store.DocHome();
+        // The Start-here page only for those who can read it (as docs.home.get).
+        var home = HomeView(s.World.Store, me) is not null ? s.World.Store.DocHome() : null;
         return new { pages = s.World.Store.DocPages(channel.Id).Select(View), home };
     }
 
@@ -207,10 +220,10 @@ public static partial class DocsFeature
         var parentId = Parent(s, channel, body);
         var text = BodyText(s, me, body) ?? "";
         if (store.DocPageCount(channel.Id) >= MaxPagesPerChannel)
-            throw RequestException.BadRequest($"A docs channel can have up to {MaxPagesPerChannel} pages. Delete some first.");
+            throw RequestException.BadRequest($"A docs channel can have up to {MaxPagesPerChannel} pages. Delete some first.", "docs_pages_max", new { max = MaxPagesPerChannel });
         AutoModFeature.Check(s, me, channel, title + "\n" + text, "page");
 
-        var page = store.CreateDocPage(channel.Id, parentId, title, text, FileIds(text), me.AccountKey, s.Now);
+        var page = store.CreateDocPage(channel.Id, parentId, title, text, KeptFileIds(store, me, text), me.AccountKey, s.Now);
         AuditPage(s, "docs.page.create", channel, page);
         Updated(s, channel, page);
         return new { page = FullView(page with { Text = text }) };
@@ -233,7 +246,7 @@ public static partial class DocsFeature
     private static object Commit(Session s, Member me, DocPage page, Channel channel, string title, string text, long baseVersion, long? restoredFrom)
     {
         var store = s.World.Store;
-        switch (store.SaveDocPage(page.Id, baseVersion, title, text, FileIds(text), me.AccountKey, s.Now, restoredFrom))
+        switch (store.SaveDocPage(page.Id, baseVersion, title, text, KeptFileIds(store, me, text), me.AccountKey, s.Now, restoredFrom))
         {
             case DocSaveResult.Missing: throw RequestException.NotFound("Page");
             case DocSaveResult.Conflict: throw Conflict();
@@ -254,7 +267,7 @@ public static partial class DocsFeature
         var store = s.World.Store;
         var parentId = Parent(s, channel, body, self: page.Id);
         if (parentId is not null && store.DocHasChildren(page.Id))
-            throw RequestException.BadRequest("A page with sub-pages stays at the top level.");
+            throw RequestException.BadRequest("A page with sub-pages stays at the top level.", "docs_subpages_top");
         var before = body.OptionalLong("before", min: 1);
         if (before is { } b && (b == page.Id || store.GetDocPage(b) is not { } sibling || sibling.ChannelId != channel.Id || sibling.ParentId != parentId))
             throw RequestException.BadRequest("'before' must be another page at the same level.");
@@ -270,8 +283,11 @@ public static partial class DocsFeature
         var (page, channel) = ReadablePage(s, me, body.Long("id"));
         RequireWriter(me, channel);
         if (page.CreatedBy != me.AccountKey && !Permissions.CanPin(me, channel))
-            throw RequestException.Forbidden("Only whoever made this page, or a moderator, can delete it.");
+            throw RequestException.Forbidden("Only whoever made this page, or a moderator, can delete it.", "page_delete_owner");
         var store = s.World.Store;
+        // Its sub-pages go with it: someone else's (anyone can move a page under yours) need a moderator.
+        if (!Permissions.CanPin(me, channel) && store.DocPages(channel.Id).Any(p => p.ParentId == page.Id && p.CreatedBy != me.AccountKey))
+            throw RequestException.Forbidden("This page has sub-pages other people made. Move them out first, or ask a moderator.");
         var wasHome = store.DocHome() is { } home && (home == page.Id || store.GetDocPage(home)?.ParentId == page.Id);
         AuditPage(s, "docs.page.delete", channel, page);
         var ids = store.DeleteDocPage(page.Id);
@@ -294,7 +310,7 @@ public static partial class DocsFeature
         var version = body.OptionalLong("version", min: 1) ?? throw RequestException.BadRequest("'version' is required.");
         var revision = s.World.Store.GetDocRevision(page.Id, version) ?? throw RequestException.NotFound("Revision");
         if (baseVersion != page.Version) throw Conflict();
-        if (version == page.Version) throw RequestException.BadRequest("That's already the current version.");
+        if (version == page.Version) throw RequestException.BadRequest("That's already the current version.", "update_current");
         AutoModFeature.Check(s, me, channel, revision.Title + "\n" + revision.Text, "page");
         var result = Commit(s, me, page, channel, revision.Title, revision.Text!, baseVersion, version);
         AuditPage(s, "docs.page.restore", channel, page, new { version });
@@ -303,7 +319,7 @@ public static partial class DocsFeature
 
     private static object SetHome(Session s, Member me, Body body)
     {
-        if (!Permissions.Has(me, Perm.ManageChannels)) throw RequestException.Forbidden("You can't choose the Start here page.");
+        if (!Permissions.Has(me, Perm.ManageChannels)) throw RequestException.Forbidden("You can't choose the Start here page.", "docs_start_page");
         var store = s.World.Store;
         if (body.OptionalLong("pageId", min: 1) is { } id)
         {
@@ -324,7 +340,7 @@ public static partial class DocsFeature
     private static object Search(Session s, Member me, Body body)
     {
         var terms = SearchFeature.Terms(body.OptionalString("query", SearchFeature.MaxQueryLength * 2));
-        if (terms.Count == 0) throw RequestException.BadRequest("Type something to search for.");
+        if (terms.Count == 0) throw RequestException.BadRequest("Type something to search for.", "search_empty");
         var limit = (int)(body.OptionalLong("limit", min: 1, max: MaxSearchResults) ?? 10);
         var store = s.World.Store;
         var readable = store.AllChannels().Where(c => c.Kind == "docs" && Permissions.CanRead(me, c)).Select(c => c.Id).ToList();

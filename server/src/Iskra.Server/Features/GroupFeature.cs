@@ -63,13 +63,13 @@ public static class GroupFeature
         var (change, payload) = GroupChain.Parse(payloadText, sig);
         if (change.By != me.AccountKey) throw RequestException.BadRequest("Sign changes with your own account.");
         if (creating != (change.Action == "create")) throw RequestException.BadRequest(creating ? "Use a 'create' change." : "Use group.create for a new group.");
-        if (Math.Abs(change.At - s.Now) > GroupChain.MaxClockSkew.TotalMilliseconds) throw RequestException.BadRequest("The change's time is off. Check your clock.");
+        if (Math.Abs(change.At - s.Now) > GroupChain.MaxClockSkew.TotalMilliseconds) throw RequestException.BadRequest("The change's time is off. Check your clock.", "clock_off");
         if (change.Action is "create" or "add")
             foreach (var target in change.Targets)
                 if (s.World.Store.GetMember(target) is null || s.World.Store.IsBot(target))
-                    throw RequestException.BadRequest("Everyone in a group must be a person on this server.");
+                    throw RequestException.BadRequest("Everyone in a group must be a person on this server.", "group_members_here");
         if (!s.Hub.Limits.TryTake(me.AccountKey, "group.change"))
-            throw new RequestException("rate_limited", "Too many group changes in a short time. Try again in a minute.");
+            throw new RequestException("rate_limited", "Too many group changes in a short time. Try again in a minute.", "too_many_group_changes");
 
         GroupRecord? before;
         GroupRecord after;
@@ -77,7 +77,7 @@ public static class GroupFeature
         {
             before = s.World.Store.GetGroup(change.Group);
             if (creating && s.World.Store.GroupCount(me.AccountKey) >= MaxGroupsPerAccount)
-                throw RequestException.BadRequest($"You can be in at most {MaxGroupsPerAccount} groups on a server.");
+                throw RequestException.BadRequest($"You can be in at most {MaxGroupsPerAccount} groups on a server.", "groups_max", new { max = MaxGroupsPerAccount });
             var members = GroupChain.Apply(before, change);
             after = new GroupRecord(change.Group, before?.CreatedBy ?? me.AccountKey, before?.CreatedAt ?? s.Now, change.Version,
                 GroupChain.Head(payload), members);
@@ -111,11 +111,11 @@ public static class GroupFeature
         var group = Mine(s, me, body.String("groupId", GroupChain.IdLength));
         // Senders encrypt to the member list of a version; only the current one is accepted, so nobody keeps writing to people who left.
         var version = body.OptionalLong("version", 1) ?? throw RequestException.BadRequest("'version' is required.");
-        if (version != group.Version) throw new RequestException("conflict", "The group changed in the meantime. Refresh and try again.");
+        if (version != group.Version) throw new RequestException("conflict", "The group changed in the meantime. Refresh and try again.", "group_changed");
         var envelope = body.Element("envelope");
         if (envelope.ValueKind != JsonValueKind.Object) throw RequestException.BadRequest("'envelope' must be an object.");
         var raw = envelope.GetRawText();
-        if (raw.Length > MaxEnvelopeBytes) throw RequestException.BadRequest("Message is too large.");
+        if (raw.Length > MaxEnvelopeBytes) throw RequestException.BadRequest("Message is too large.", "message_too_large");
         var files = DmFileFeature.CheckGroupAttachments(s, me, group.Members, body);
 
         var message = s.World.Store.AddGroupMessage(group.Id, me.AccountKey, version, raw, s.Now);

@@ -46,10 +46,10 @@ public static class ActivityFeature
         var raw = body.OptionalString("name", MaxNameLength * 2);
         var name = string.IsNullOrWhiteSpace(raw) ? null
             : Text.Normalize(raw, MaxNameLength, allowNewlines: false)
-              ?? throw RequestException.BadRequest($"Activity names can be up to {MaxNameLength} characters, with no invisible characters.");
+              ?? throw RequestException.BadRequest($"Activity names can be up to {MaxNameLength} characters, with no invisible characters.", "activity_name", new { max = MaxNameLength });
         // Only real changes count against the limit: a client may repeat itself (e.g. after reconnecting).
         if (s.Hub.Activities.Get(me.AccountKey)?.Name != name && !s.TryTakeLimit("activity.change"))
-            throw new RequestException("rate_limited", "Your activity is changing too often.");
+            throw new RequestException("rate_limited", "Your activity is changing too often.", "activity_too_often");
         if (s.Hub.Activities.Set(me.AccountKey, name))
             s.Hub.Broadcast(Frames.Event("member.updated", new { member = s.Hub.PublicMember(s.World.Store.GetMember(me.AccountKey) ?? me) }));
         return new { activity = Public(s.Hub.Activities.Get(me.AccountKey)) };

@@ -59,10 +59,10 @@ public static class GroupCallFeature
         var id = CallId(body);
         var video = body.OptionalBool("video") ?? false;
         var version = body.OptionalLong("version", 1) ?? throw RequestException.BadRequest("'version' is required.");
-        if (version != group.Version) throw new RequestException("conflict", "The group changed in the meantime. Refresh and try again.");
+        if (version != group.Version) throw new RequestException("conflict", "The group changed in the meantime. Refresh and try again.", "group_changed");
         var envelope = Envelope(body);
         if (!s.Hub.Limits.TryTake(me.AccountKey, "call.start.callee", group.Id) || !s.Hub.Limits.TryTake(me.AccountKey, "call.start"))
-            throw new RequestException("rate_limited", "Too many calls in a short time. Try again in a minute.");
+            throw new RequestException("rate_limited", "Too many calls in a short time. Try again in a minute.", "too_many_calls");
 
         var call = s.Voice.GroupCalls.Start(group, me.AccountKey, id, video, envelope);
         foreach (var member in call.Ringing) s.Push.IncomingGroupCall(me, group.Id, member);

@@ -73,6 +73,11 @@ function lockGuest(contents: WebContents): void {
     if (!/^about:(blank|srcdoc)$/.test(event.url)) event.preventDefault()
   })
   contents.on('will-attach-webview', (event) => event.preventDefault())
+  // No device pickers: unhandled, Electron would pick the first Bluetooth device itself.
+  contents.on('select-bluetooth-device', (event, _devices, callback) => {
+    event.preventDefault()
+    callback('')
+  })
 }
 
 /** Lets the app window show page views, on the app page only and only with the settings here. */

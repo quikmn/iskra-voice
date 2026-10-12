@@ -100,6 +100,16 @@ public class AutostartTests : IDisposable
     }
 
     [Fact]
+    public void A_folder_name_cant_add_lines_to_the_systemd_unit()
+    {
+        // Security review: a world folder named with a line break must not smuggle in its own directives.
+        var unit = Autostart.SystemdUnit("/opt/iskra/iskra-server", [], "/home/ada/x\nExecStartPre=evil %h");
+        Assert.DoesNotContain("\nExecStartPre", unit);
+        Assert.Contains("ExecStart=\"/opt/iskra/iskra-server\" \"/home/ada/x\\nExecStartPre=evil %%h\"\n", unit);
+        Assert.Contains("Description=Iskra server (x?ExecStartPre=evil %%h)\n", unit);
+    }
+
+    [Fact]
     public void Linux_gets_a_systemd_user_service()
     {
         var unit = Autostart.SystemdUnit("/opt/iskra/iskra-server", [], "/home/ada/My Server 100%");

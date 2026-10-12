@@ -42,6 +42,12 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
       return () => ipcRenderer.off('iskra:update', listener)
     },
     restart: (): Promise<boolean> => ipcRenderer.invoke('iskra:update-restart'),
+    // "Updating Iskra to X…" just before the app quits into an update (null: it didn't happen after all).
+    onUpdating: (callback: (version: string | null) => void): (() => void) => {
+      const listener = (_e: IpcRendererEvent, version: unknown) => callback(typeof version === 'string' ? version : null)
+      ipcRenderer.on('iskra:updating', listener)
+      return () => ipcRenderer.off('iskra:updating', listener)
+    },
   },
 
   onPickScreen: (callback: (sources: ScreenSource[]) => void): (() => void) => {

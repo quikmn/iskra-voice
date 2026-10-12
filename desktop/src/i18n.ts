@@ -63,6 +63,16 @@ const en = {
     title: 'Iskra passkey',
     waiting: 'Follow the prompt from your device or security key.',
   },
+  splash: {
+    title: 'Iskra',
+    starting: 'Starting Iskra…',
+    servers: 'Starting your servers…',
+    connecting: 'Connecting…',
+    ready: 'Ready',
+    updatedTo: (version: string) => `Updated to ${version}`,
+    updating: (version: string) => `Updating Iskra to ${version}…`,
+    updatingDetail: 'It’ll be back in a few seconds.',
+  },
 }
 
 export type DesktopText = typeof en
@@ -124,8 +134,18 @@ const sv: DesktopText = {
     key: (code) => `Tangent ${code}`,
   },
   passkey: {
-    title: 'Nyckel för Iskra',
+    title: 'Lösenordsnyckel för Iskra',
     waiting: 'Följ anvisningen från din enhet eller säkerhetsnyckel.',
+  },
+  splash: {
+    title: 'Iskra',
+    starting: 'Startar Iskra…',
+    servers: 'Startar dina servrar…',
+    connecting: 'Ansluter…',
+    ready: 'Klart',
+    updatedTo: (version) => `Uppdaterad till ${version}`,
+    updating: (version) => `Uppdaterar Iskra till ${version}…`,
+    updatingDetail: 'Iskra är tillbaka om några sekunder.',
   },
 }
 
