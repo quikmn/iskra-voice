@@ -16,7 +16,12 @@ export interface VadGateParams {
   gating: boolean
 }
 
-export const VAD_DEFAULTS: VadGateParams = { enter: 0.5, exit: 0.35, preRollMs: 200, hangoverMs: 500, gating: true }
+/**
+ * Pre-roll: short, because it's also the delay while you talk. Silero notices a word 25–40 ms after its voiced part
+ * starts, and up to 145 ms after its faintest lead-in (a breath or soft consonant 20–30 dB down). 100 ms always
+ * covers the first and now and then softens the second (quality.test.ts measures both).
+ */
+export const VAD_DEFAULTS: VadGateParams = { enter: 0.5, exit: 0.35, preRollMs: 100, hangoverMs: 500, gating: true }
 
 /** Fade in and out over this long, so opening and closing never click. */
 const FADE_MS = 10

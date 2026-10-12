@@ -30,13 +30,16 @@ speech model kept on the device so it's only downloaded once.
   level under the noise removal), and on with Standard or Off. Settings → Voice & audio lets you choose either way.
 - **Voice activity.** With "Set automatically" on, Silero VAD (a small neural network, run in plain TypeScript in the
   same AudioWorklet) decides when you're speaking: the mic opens when it hears speech and stays open through pauses
-  for 500 ms (hangover). It keeps the last 200 ms and sends them when it opens (pre-roll), so the first syllable isn't
-  cut off: Silero notices speech 60–140 ms after it starts. That makes you 200 ms late for as long as you keep
-  talking; the gate never skips or squeezes audio to catch up (that sounds choppy and hurried). After a pause of
+  for 500 ms (hangover). It keeps the last 100 ms and sends them when it opens (pre-roll), so the start of a word
+  isn't cut off. That makes you 100 ms late for as long as you keep talking; the gate never skips or squeezes audio
+  to catch up (that sounds choppy and hurried). Silero notices a word 25–40 ms after its voiced part starts, so that
+  always gets through; it notices the faintest lead-in (a breath or soft consonant 20–30 dB down) up to 145 ms
+  after it starts, so that is now and then softened, by 15–30 ms typically and 45 ms at most on the test phrases
+  (a longer pre-roll of 200 ms would keep all of it, at twice the delay). After a pause of
   more than the hangover it closes, and the next time starts over. Turn "Set automatically" off for a manual volume
   threshold instead. Push-to-talk is never gated or delayed. Your own speaking ring follows the same detector.
 - **Latency added.** DeepFilterNet: about 10 ms of framing plus the model's own look-ahead (30 ms). RNNoise:
-  about 10 ms. Voice activity: 200 ms while you talk ("Set automatically" only; none with a manual threshold or
+  about 10 ms. Voice activity: 100 ms while you talk ("Set automatically" only; none with a manual threshold or
   push-to-talk).
 - **Hi-fi.** In voice channels where an admin allowed it, turning on "Hi-fi audio" sends your mic in stereo at
   128 kbps with no noise suppression, echo cancellation or automatic gain. Use headphones.
@@ -148,7 +151,10 @@ gain motion is how much that gain changes from one 10 ms to the next.
 | Quiet → whole chain | -5.9 / 13.2 | -5.7 / < -99 | 7.6 / > 99 | 7.9 / 8.3 | 4.0 / -7.0 | 0.51 / 3.0 |
 
 - **Audio dropped while talking** (spread of the delay along the run): before 112 ms (clean) and 128 ms (noisy)
-  through the gate; now 0. No clipped samples anywhere, before or after; input volume 200% is limited instead of
+  through the gate; now 0. The gate's delay: before 250 ms, catching up by dropping audio; now 100 ms, steady.
+- **Start of a word** (the fixture cut into 17 phrases, clean and noisy): the voiced start always gets through. The
+  faint lead-in is softened by (median / p95) 27 / 45 ms clean and 15 / 45 ms noisy with the 100 ms pre-roll;
+  measured alternatives: 60 ms 67 / 85, 80 ms 47 / 65, 120 ms 7 / 25, 200 ms none. No clipped samples anywhere, before or after; input volume 200% is limited instead of
   clipped. The gate opens once on the fixture and doesn't chatter, before and after.
 - **Noise removed** (fan and keyboard, in the pauses, AI noise removal alone): 25 dB at Normal (30 dB limit), 17 dB
   at Gentle (18 dB), 32 dB at Max; before, everything (frames muted completely, speech too).

@@ -53,20 +53,33 @@ describe('voice chain quality (offline, real audio)', { timeout: 60000 }, () => 
     expect(Math.abs(r.latencyMs - VAD_DEFAULTS.preRollMs)).toBeLessThan(5)
   })
 
-  it('the gate opens in time for every phrase, and its pre-roll covers the start', () => {
-    const { signal, onsets } = phrases(clean)
-    expect(onsets.length).toBeGreaterThan(10)
-    const run = runChain(signal, engines, { deepFilter: normal, gate: true, leveler: false })
-    let transitions = 0
-    for (let k = 1; k < run.open.length; k++) if (run.open[k] !== run.open[k - 1]) transitions++
-    expect(transitions).toBe(2 * onsets.length) // opens and closes once per phrase
-    const dfDelay = findLag(signal, runChain(signal, engines, { deepFilter: normal, gate: false, leveler: false }).sent).lag
-    for (const on of onsets) {
+  /** How late the gate opens after each onset (ms), with DeepFilterNet's own delay taken out. */
+  function lateness(signal: Float32Array, onsets: number[], input: Float32Array) {
+    const run = runChain(input, engines, { deepFilter: normal, gate: true, leveler: false })
+    const dfDelay = findLag(signal, runChain(input, engines, { deepFilter: normal, gate: false, leveler: false }).sent).lag
+    const late = onsets.map((on) => {
       let k = Math.floor(on / 128)
       while (k < run.open.length && !run.open[k]) k++
-      const lateMs = ((k * 128 - on - dfDelay) / RATE) * 1000
-      expect(lateMs).toBeLessThan(VAD_DEFAULTS.preRollMs - 30)
-    }
+      return ((k * 128 - on - dfDelay) / RATE) * 1000
+    })
+    let transitions = 0
+    for (let k = 1; k < run.open.length; k++) if (run.open[k] !== run.open[k - 1]) transitions++
+    return { late, transitions }
+  }
+
+  it.each(['clean', 'noisy'])('the gate opens in time for every phrase (%s): the pre-roll covers the voiced start', (which) => {
+    const voiced = phrases(clean, -30) // where the word gets loud
+    const faint = phrases(clean, -45) // its faintest lead-in, 20-30 dB down
+    const input = which === 'clean' ? voiced.signal : mix(voiced.signal, pinkNoise(voiced.signal.length, -42), keyboard(voiced.signal.length, RATE, -16))
+    expect(voiced.onsets.length).toBeGreaterThan(10)
+    const v = lateness(voiced.signal, voiced.onsets, input)
+    expect(v.transitions).toBe(2 * voiced.onsets.length) // opens and closes once per phrase
+    // Nothing voiced is ever lost.
+    for (const late of v.late) expect(late).toBeLessThan(VAD_DEFAULTS.preRollMs)
+    // A faint lead-in is softened by at most 50 ms, and usually not at all or barely.
+    const loss = lateness(faint.signal, faint.onsets, input).late.map((late) => Math.max(0, late - VAD_DEFAULTS.preRollMs)).sort((x, y) => x - y)
+    expect(loss[loss.length - 1]).toBeLessThanOrEqual(50)
+    expect(loss[Math.floor(loss.length / 2)]).toBeLessThanOrEqual(30)
   })
 
   it('leveling evens out a quiet talker smoothly, without clipping', () => {

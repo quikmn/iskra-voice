@@ -506,9 +506,10 @@ export function measure(clean: Float32Array, run: ChainRun, which: 'sent' | 'hea
 
 /**
  * The fixture cut into phrases (at quiet stretches) with 1.2 s of near-silence around them: a talk spurt per
- * phrase, so the gate opens and closes many times. Returns the signal and where each phrase's sound starts.
+ * phrase, so the gate opens and closes many times. Returns the signal and where each phrase first gets louder than
+ * `onsetDb` (dBFS over 10 ms).
  */
-export function phrases(clean: Float32Array): { signal: Float32Array; onsets: number[] } {
+export function phrases(clean: Float32Array, onsetDb = -45): { signal: Float32Array; onsets: number[] } {
   const fr = RATE / 100
   const level: number[] = []
   for (let f = 0; (f + 1) * fr <= clean.length; f++) level.push(rmsDb(clean, f * fr, (f + 1) * fr))
@@ -535,7 +536,7 @@ export function phrases(clean: Float32Array): { signal: Float32Array; onsets: nu
     length += gap.length
     const s = clean.subarray(Math.max(0, a * fr - 10 * fr), b * fr + 10 * fr)
     let on = 0
-    while (on < s.length && rmsDb(s, on, on + fr) < -45) on += fr / 10
+    while (on < s.length && rmsDb(s, on, on + fr) < onsetDb) on += fr / 10
     onsets.push(length + on)
     parts.push(s)
     length += s.length

@@ -71,7 +71,7 @@ describe('voice activity gate (Silero)', () => {
     const quiet = ms(500)
     const sent = run(gate, [...Array(quiet).fill(0.05), ...Array(ms(100)).fill(0.95)])
     expect(gate.open).toBe(true)
-    // The first block sent is from about 250 ms before speech was detected.
+    // The first block sent is from one pre-roll before speech was detected.
     const first = sent.findIndex((x) => x !== 0)
     expect(first).toBe(quiet)
     const preRollBlocks = ms(gate.params.preRollMs)
