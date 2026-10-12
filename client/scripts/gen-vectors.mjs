@@ -1,7 +1,7 @@
 // Regenerates protocol/vectors.json. Run from client/: node scripts/gen-vectors.mjs
 // Only rerun if the protocol itself changes; both test suites pin these values.
 import sodium from 'libsodium-wrappers-sumo'
-import { writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 await sodium.ready
 const V = sodium.base64_variants.URLSAFE_NO_PADDING
 const b64 = (b) => sodium.to_base64(b, V)
@@ -40,5 +40,28 @@ const rotation = {
     newSig: b64(sodium.crypto_sign_detached(rotationPayload, next.privateKey)),
   },
 }
-writeFileSync(new URL('../../protocol/vectors.json', import.meta.url), JSON.stringify({ v1, rotation }, null, 2) + '\n')
+// Encrypted DM files: secretstream headers are random, so these are made once and kept on later runs.
+// Plaintext byte i is i % 251. Two files: empty, and one chunk plus 3 bytes (a full chunk, then a short FINAL one).
+const out = new URL('../../protocol/vectors.json', import.meta.url)
+const previous = existsSync(out) ? JSON.parse(readFileSync(out, 'utf8')) : {}
+const CHUNK = 64 * 1024
+const AD = new TextEncoder().encode('iskra/dm-file/v1')
+const dmFileVector = (size) => {
+  const plain = Uint8Array.from({ length: size }, (_, i) => i % 251)
+  const key = sodium.crypto_secretstream_xchacha20poly1305_keygen()
+  const { state, header } = sodium.crypto_secretstream_xchacha20poly1305_init_push(key)
+  const parts = [header]
+  for (let at = 0; ; at += CHUNK) {
+    const last = at + CHUNK >= size
+    const tag = last ? sodium.crypto_secretstream_xchacha20poly1305_TAG_FINAL : sodium.crypto_secretstream_xchacha20poly1305_TAG_MESSAGE
+    parts.push(sodium.crypto_secretstream_xchacha20poly1305_push(state, plain.subarray(at, Math.min(size, at + CHUNK)), AD, tag))
+    if (last) break
+  }
+  const ciphertext = new Uint8Array(parts.reduce((n, p) => n + p.length, 0))
+  let o = 0
+  for (const p of parts) { ciphertext.set(p, o); o += p.length }
+  return { size, key: b64(key), hash: b64(sodium.crypto_generichash(32, ciphertext, null)), ciphertext: b64(ciphertext) }
+}
+const dmFile = previous.dmFile ?? { plaintext: 'byte i = i % 251', files: [dmFileVector(0), dmFileVector(CHUNK + 3)] }
+writeFileSync(out, JSON.stringify({ v1, rotation, dmFile }, null, 2) + '\n')
 console.log('wrote vectors.json')
