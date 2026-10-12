@@ -11,13 +11,14 @@ import { isBackupDownload, readBackupInfo } from './restore'
 import { SaveStreams, suggestedName } from './saveStreams'
 import {
   aboutDetail, badgeText, DEEP_LINK_SCHEME, deepLinkFromArgv, isAppPage, isWayland, MAC_SETTINGS, parseDeepLink, parseDesktopSettings,
-  keychainKind, serversToStart, setKeepRunning, skipScreenPicker, trayMenu, type DesktopSettings, type SettingsPane, type TrayAction,
+  keychainKind, serversToStart, setKeepRunning, skipScreenPicker, spellcheckDownloadsDictionaries, trayMenu, type DesktopSettings, type SettingsPane, type TrayAction,
 } from './platform'
 import { allowPageViews } from './pages'
 import { PushToTalk } from './ptt'
 import { ActivityDetector } from './activity'
 import { applyOpenAtLogin, loadDesktopSettings, saveDesktopSettings, startedHidden } from './settings'
 import { Updates, type UpdateStatus } from './updates'
+import { applyChromiumPrivacy, applySessionPrivacy } from './privacy'
 import { languageFromLocales, parseLanguage, setDesktopLanguage, text } from './i18n'
 import { ceremonyScript, parseCreate, parseGet, PASSKEY_ORIGIN, PASSKEY_PAGE, passkeyPage, type CreateRequest, type GetRequest } from './passkeys'
 
@@ -34,6 +35,9 @@ const CLIENT_DIR = app.isPackaged ? path.join(process.resourcesPath, 'client') :
 
 // Screen sharing on Wayland goes through PipeWire and the system's own picker.
 if (process.platform === 'linux') app.commandLine.appendSwitch('enable-features', 'WebRTCPipeWireCapturer')
+
+// No Chromium background connections (privacy.ts).
+applyChromiumPrivacy(app)
 
 // Desktop settings: hardware acceleration has to be turned off before the app is ready.
 let settings: DesktopSettings = loadDesktopSettings()
@@ -109,7 +113,8 @@ function createWindow(): void {
       sandbox: true,
       nodeIntegration: false,
       webSecurity: true,
-      spellcheck: true,
+      // The system's spellchecker (Windows, macOS); Linux would download dictionaries from Google, so none there.
+      spellcheck: !spellcheckDownloadsDictionaries(process.platform),
       // Only for profile pages, each locked in its own session (pages.ts).
       webviewTag: true,
     },
@@ -375,8 +380,10 @@ ipcMain.handle('iskra:set-desktop-settings', (event, patch: unknown) => {
   const next = parseDesktopSettings({ ...settings, ...patch })
   if (next.openAtLogin !== settings.openAtLogin) applyOpenAtLogin(next.openAtLogin)
   const activityChanged = next.activity !== settings.activity || JSON.stringify(next.customGames) !== JSON.stringify(settings.customGames)
+  const checksChanged = next.updateChecks !== settings.updateChecks
   settings = next
   if (activityChanged) activity.configure(settings.activity, settings.customGames)
+  if (checksChanged) updates.setAutomatic(settings.updateChecks)
   try {
     saveDesktopSettings(settings)
   } catch (error) {
@@ -605,13 +612,14 @@ app.whenReady().then(() => {
   // Until the page says otherwise: the OS's language.
   setDesktopLanguage(settings.language ?? languageFromLocales(app.getPreferredSystemLanguages()))
   setUpSession()
+  applySessionPrivacy(session.defaultSession)
   if (MAC) createMacMenu()
   createWindow()
   createTray()
   if (!MAC) ptt.start()
   // Started with the computer: only the servers kept running. Opened by hand: all of them, as before.
   void host.startAll(serversToStart(host.list().map((s) => s.id), settings, startedHidden()))
-  updates.start()
+  updates.start(settings.updateChecks)
   activity.configure(settings.activity, settings.customGames)
 })
 

@@ -20,6 +20,10 @@ export class Updates {
   private status: UpdateStatus = { state: 'none' }
   private readonly mode = updateMode(process.platform, app.isPackaged, process.env)
   private readonly onChange: (status: UpdateStatus) => void
+  /** Automatic checks (My settings → Privacy & data); "Check for updates" in the tray still works when they're off. */
+  private automatic = true
+  private timer: NodeJS.Timeout | null = null
+  private started = false
 
   constructor(onChange: (status: UpdateStatus) => void) {
     this.onChange = onChange
@@ -43,12 +47,23 @@ export class Updates {
     return this.status.state === 'none' ? 'up-to-date' : 'found'
   }
 
-  start(): void {
-    if (this.mode === 'off') return
+  start(automatic: boolean): void {
+    if (this.mode === 'off' || this.started) return
+    this.started = true
     if (this.mode === 'auto') this.setUpAutoUpdater()
-    const check = () => void (this.mode === 'auto' ? this.checkAuto() : this.checkManually())
-    setTimeout(check, FIRST_CHECK_MS)
-    setInterval(check, CHECK_EVERY_MS).unref()
+    this.setAutomatic(automatic)
+  }
+
+  /** Turns the automatic checks on or off (each one tells GitHub this computer's address and the app's version). */
+  setAutomatic(on: boolean): void {
+    this.automatic = on
+    if (this.timer) clearInterval(this.timer)
+    this.timer = null
+    if (this.mode === 'off' || !this.started || !on) return
+    const check = () => void (this.automatic && (this.mode === 'auto' ? this.checkAuto() : this.checkManually()))
+    setTimeout(check, FIRST_CHECK_MS).unref()
+    this.timer = setInterval(check, CHECK_EVERY_MS)
+    this.timer.unref()
   }
 
   /** Restarts into a downloaded update. Returns false if there's nothing to install. */
