@@ -1,7 +1,7 @@
 // Privacy pass: nothing loads from another site until you say so, and the app says who it talks to.
 import { expect, test, type BrowserContext, type Page } from '@playwright/test'
 import { join } from 'node:path'
-import { hasLiveKit, joinVia, openSettings, send, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, hasLiveKit, joinVia, openSettings, send, SHOTS, startServer, type TestServer } from './helpers'
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -103,7 +103,7 @@ async function recordPeerConfigs(page: Page): Promise<void> {
   })
 }
 
-test("voice asks no STUN server of anyone's: no Google, only the group's own server", async ({ browser }) => {
+test("voice asks no STUN server of anyone's, and a YouTube watch party says so before anything loads", async ({ browser }) => {
   test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
   const voiceServer = await startServer('Voice Privacy', true)
   const context = await browser.newContext()
@@ -115,13 +115,42 @@ test("voice asks no STUN server of anyone's: no Google, only the group's own ser
   await page.getByRole('radio', { name: 'Voice' }).click()
   await page.getByLabel('Name').fill('lounge')
   await page.getByRole('button', { name: 'Create', exact: true }).click()
-  await page.locator('.voice-channel', { hasText: 'lounge' }).getByRole('button').first().click()
+  const lounge = (p: Page) => p.locator('.voice-channel', { hasText: 'lounge' })
+  await lounge(page).getByRole('button').first().click()
   await expect(page.locator('.voice-status strong')).toHaveText('Voice connected')
+
+  // Voice: no STUN servers at all (LiveKit's default list is Google's), and no requests outside the server.
   const configs = await page.evaluate(() => (window as unknown as { __peerConfigs: { iceServers?: { urls: string | string[] }[] }[] }).__peerConfigs)
   expect(configs.length).toBeGreaterThan(0)
   const urls = configs.flatMap((c) => (c.iceServers ?? []).flatMap((s) => (Array.isArray(s.urls) ? s.urls : [s.urls])))
   expect(urls).toEqual([])
   expect(seen).toEqual([])
+
+  // A friend in the call; the host starts a YouTube watch party (and is told where it plays from).
+  const friendContext = await browser.newContext()
+  const friendSeen = await watchRequests(friendContext, voiceServer)
+  const friend = await friendContext.newPage()
+  await joinVia(friend, await createInviteLink(page), 'Friend')
+  await lounge(friend).getByRole('button').first().click()
+  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected')
+  await page.locator('.call-controls').getByRole('button', { name: 'Watch together' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Watch together' })
+  await dialog.getByLabel('Link').fill('https://www.youtube.com/watch?v=aqz-KE-bpKQ')
+  await expect(dialog.getByTestId('watch-start-note')).toContainText('Plays from YouTube: everyone who watches loads it from there')
+  await dialog.getByRole('button', { name: 'Start' }).click()
+
+  // The friend sees where it plays from, and nothing has asked YouTube anything yet.
+  const gate = friend.getByTestId('watch-gate')
+  await expect(gate).toContainText('This video plays from YouTube, which will see your IP address.')
+  await friend.waitForTimeout(1500)
+  expect(youTube(friendSeen)).toEqual([])
+  await expect(friend.locator('iframe.watch-video')).toHaveCount(0)
+  await friend.screenshot({ path: join(SHOTS, 'privacy-watch-gate.png') })
+  await friend.getByRole('button', { name: 'Watch from YouTube' }).click()
+  await expect(friend.locator('iframe.watch-video')).toHaveAttribute('src', /^https:\/\/www\.youtube-nocookie\.com\/embed\/aqz-KE-bpKQ/)
+  await expect.poll(() => youTube(friendSeen).length).toBeGreaterThan(0)
+
+  await friendContext.close()
   await context.close()
   await voiceServer.stop()
 })

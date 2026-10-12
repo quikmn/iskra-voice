@@ -44,6 +44,7 @@ async function startYouTubeParty(page: Page) {
   await page.locator('.call-controls').getByRole('button', { name: 'Watch together' }).click()
   const dialog = page.getByRole('dialog', { name: 'Watch together' })
   await dialog.getByLabel('Link').fill(VIDEO)
+  await expect(dialog.getByTestId('watch-start-note')).toContainText('Plays from YouTube')
   await dialog.getByRole('button', { name: 'Start' }).click()
   await expect(page.locator('.watch-party')).toBeVisible()
   await expect(youtube(page).locator('video')).toBeAttached({ timeout: 30_000 })
@@ -68,6 +69,9 @@ test('a YouTube watch party plays in step in the browser', async ({ browser }) =
   await joinCinema(friend)
 
   await startYouTubeParty(host)
+  // The friend is told where it plays from before anything loads from YouTube.
+  await expect(friend.getByTestId('watch-gate')).toContainText('This video plays from YouTube')
+  await friend.getByRole('button', { name: 'Watch from YouTube' }).click()
   await expect.poll(() => ytTime(friend), { timeout: 30_000 }).toBeGreaterThan(2)
   await host.waitForTimeout(3000)
   const [a, b] = await Promise.all([ytTime(host), ytTime(friend)])
