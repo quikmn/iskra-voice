@@ -20,7 +20,7 @@ import { formatNumber } from '../i18n/format'
 import type { Panel } from './Shell'
 import { Close, FileIcon, Hash, Menu, Paperclip, Pencil, Reply, Send, Smile, Trash, Users, Volume, WifiOff } from './icons'
 import { HeaderTools } from './chat/HeaderTools'
-import { EncryptedBits, EncryptionButton, LockBadge, e2eeText, useEncryptedWriteBlock } from './e2ee/E2ee'
+import { EncryptedBits, EncryptedWriteBlock, EncryptionButton, LockBadge, StartOverRecordLine, e2eeText, useEncryptedWriteBlock } from './e2ee/E2ee'
 import { editEncrypted, isEncrypted, uploadFor } from '../state/e2eeChannels'
 import { MessageActionSheet } from './chat/MessageActionSheet'
 import { useLongPress } from './chat/useLongPress'
@@ -118,10 +118,11 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
 
       {channel ? (
         <>
+          <StartOverRecordLine server={server} channelId={channel.id} />
           <MessageList key={channel.id} server={server} channelId={channel.id} />
           <TypingLine server={server} channelId={channel.id} />
           {canWrite && writeBlock ? (
-            <div className="composer read-only e2ee-waiting" data-testid="e2ee-waiting">{writeBlock}</div>
+            <EncryptedWriteBlock server={server} channel={channel} text={writeBlock} />
           ) : canWrite ? (
             <Composer server={server} channelId={channel.id} channelName={channel.name} />
           ) : (
