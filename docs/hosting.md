@@ -269,12 +269,14 @@ Voice channels, stages, DM and group calls and watch parties all use the same vo
 The GIF picker uses [KLIPY](https://docs.klipy.com) (Google closed Tenor's API in June 2026). It's off until an admin adds a key:
 
 1. Sign up at the KLIPY Partner Panel and create an API key for your server. Leave ads **off**.
-2. In Iskra: **Settings → Overview**, under GIFs, paste the key and click **Turn on**.
+2. In Iskra: **Server settings → Overview**, under GIFs, paste the key and click **Turn on**.
 
 There are two modes:
 
-- **Direct** (the default, and what KLIPY's standard terms allow): members' apps search KLIPY and load GIFs from KLIPY themselves, so KLIPY sees their IP addresses and searches. The key is shared with your members' apps, which is fine for a key made just for your server. GIFs in messages load when clicked, unless someone turned on auto-load for their device (Settings → Appearance).
-- **Through this server**: your server searches KLIPY and passes the GIFs along, so KLIPY only sees your server, and the key never leaves it. KLIPY's terms only allow this with their written approval (developers@klipy.com); turn it on once you have it. It uses your server's bandwidth for every GIF shown.
+- **Through this server** (the default): your server searches KLIPY and passes the GIFs along, so members' devices never contact KLIPY: it only sees your server, and the key never leaves it. It uses your server's bandwidth for every GIF shown. KLIPY's standard terms describe apps calling KLIPY directly; if you want their written OK for proxying, ask developers@klipy.com.
+- **Straight from KLIPY** (only if you pick it): members' apps search KLIPY and load GIFs from KLIPY themselves, so KLIPY sees their IP addresses and searches. The key is shared with your members' apps, which is fine for a key made just for your server. GIFs in messages load when clicked, unless someone turned on auto-load for their device (My settings → Appearance).
+
+Everything else Iskra and your server talk to is listed in [Who Iskra talks to](privacy-connections.md).
 
 To turn GIFs off, click **Turn off** there.
 

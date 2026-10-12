@@ -646,6 +646,13 @@
   }
 
   .showcase-body { height: 420px; overflow: hidden; }
+  .yt-load {
+    position: absolute; right: 10px; bottom: 10px; z-index: 6;
+    border: 1px solid rgba(255,255,255,0.25); border-radius: 999px; padding: 6px 12px;
+    background: rgba(0,0,0,0.55); color: #fff; font: 600 0.72rem 'Inter', sans-serif; cursor: pointer;
+  }
+  .yt-load span { font-weight: 400; opacity: 0.75; margin-left: 4px; }
+  .yt-load:hover { border-color: #fff; }
 
   /* PsychoK1LLr98_TTV */
   .sc-psycho { background: #04040e; position: relative; overflow: hidden; }
@@ -1827,12 +1834,14 @@
         <div class="browser-url">Profile page · PsychoK1LLr98_TTV</div>
       </div>
       <div class="showcase-body sc-psycho">
-        <iframe class="sp-iframe"
-          src="https://www.youtube.com/embed/rcp3tZ3XFyQ?si=FP_oGPNY8ClWPhQR&controls=0&autoplay=1&mute=1&loop=1&playlist=rcp3tZ3XFyQ&rel=0&modestbranding=1"
+        <!-- Nothing loads from YouTube until the visitor asks (button below). -->
+        <iframe class="sp-iframe" title="Background video"
+          data-src="https://www.youtube-nocookie.com/embed/rcp3tZ3XFyQ?controls=0&autoplay=1&mute=1&loop=1&playlist=rcp3tZ3XFyQ&rel=0&modestbranding=1"
           frameborder="0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           referrerpolicy="strict-origin-when-cross-origin"
           allowfullscreen></iframe>
+        <button class="yt-load" type="button">&#9654; Play the background video <span>loads from YouTube</span></button>
         <div class="sp-overlay"></div>
         <div class="sp-aura"></div>
         <div class="sp-flash"></div>
@@ -1873,12 +1882,13 @@
         <div class="browser-url">Profile page · v0idpilot</div>
       </div>
       <div class="showcase-body sc-space">
-        <iframe class="sv-iframe"
-          src="https://www.youtube.com/embed/pinoqCfpjik?autoplay=1&mute=1&controls=0&start=30&end=180&loop=1&playlist=pinoqCfpjik&rel=0&modestbranding=1"
+        <iframe class="sv-iframe" title="Background video"
+          data-src="https://www.youtube-nocookie.com/embed/pinoqCfpjik?autoplay=1&mute=1&controls=0&start=30&end=180&loop=1&playlist=pinoqCfpjik&rel=0&modestbranding=1"
           frameborder="0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           referrerpolicy="strict-origin-when-cross-origin"
           allowfullscreen></iframe>
+        <button class="yt-load" type="button">&#9654; Play the background video <span>loads from YouTube</span></button>
         <div class="sv-overlay"></div>
         <div class="sv-scan-line"></div>
         <div class="sv-content">
@@ -2350,6 +2360,7 @@
     <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/security.md" target="_blank" rel="noopener">Security</a>
     <a href="/terms">Terms</a>
     <a href="/privacy">Privacy</a>
+    <a href="/privacy#third">Who Iskra talks to</a>
     <a href="/support">Support</a>
     <a href="/delete-account">Delete account</a>
     <a href="https://ko-fi.com/vlundgren" target="_blank" rel="noopener">Ko-fi</a>
@@ -2358,6 +2369,15 @@
 </footer>
 
 <script>
+// Showcase background videos: loaded from YouTube (privacy-enhanced) only when the visitor asks.
+document.querySelectorAll('.yt-load').forEach((button) => {
+  button.addEventListener('click', () => {
+    const frame = button.parentElement.querySelector('iframe[data-src]');
+    if (frame) frame.src = frame.dataset.src;
+    button.remove();
+  });
+});
+
 // Electric spark canvas
 (function() {
   const canvas = document.getElementById('spark-canvas');

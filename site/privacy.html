@@ -44,6 +44,7 @@
     <div class="box-title">The short version</div>
     <ul>
       <li><strong>No ads, no analytics, no tracking.</strong> Not in the apps, not on the websites.</li>
+      <li><strong>Your devices talk to your own servers.</strong> Nothing loads from YouTube, Twitch, X, Reddit or anyone else until you click, and GIFs go through your server. <a href="#third">Who Iskra talks to</a> lists every exception.</li>
       <li><strong>No email, no phone number, no password.</strong> Your account is a key on your devices.</li>
       <li><strong>There's no central Iskra database.</strong> Each server you join stores your profile and what you post there, and is run by its owner.</li>
       <li><strong>Direct messages, group chats and their calls are end-to-end encrypted</strong>, and so are encrypted private channels. Servers only pass along ciphertext.</li>
@@ -60,7 +61,7 @@
     <li><a href="#voice">5. Voice and video</a></li>
     <li><a href="#reports">6. Reports and moderation</a></li>
     <li><a href="#push">7. Notifications</a></li>
-    <li><a href="#third">8. Other services the apps contact</a></li>
+    <li><a href="#third">8. Who Iskra talks to</a></li>
     <li><a href="#sites">9. The websites</a></li>
     <li><a href="#retention">10. How long things are kept</a></li>
     <li><a href="#delete">11. Deleting your data</a></li>
@@ -130,22 +131,24 @@
   </ul>
   <p>On phones, the Iskra apps (Android, iPhone and iPad) show notifications while the app is open, straight from your servers. They don't use any push service, so nobody else learns when you get one. For notifications while Iskra is closed, use the web app in your phone's browser.</p>
 
-  <h2 id="third">8. Other services the apps may contact</h2>
-  <p>The apps contact your servers, and these other services only in the situations listed:</p>
+  <h2 id="third">8. Who Iskra talks to</h2>
+  <p id="connections">Your devices talk to the servers you join. These are the only other services the apps and servers contact, and only in the situations listed. The apps show the same list in <span class="path">My settings → Privacy &amp; data</span>. The <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/privacy-connections.md" target="_blank" rel="noopener">technical version</a> has the details.</p>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Service</th><th>When</th><th>What it sees</th></tr></thead>
+      <thead><tr><th>Service</th><th>When</th><th>What it sees</th><th>How to turn it off</th></tr></thead>
       <tbody>
-        <tr><td><strong>KLIPY</strong> (GIFs)</td><td>Only if a server's owner turned GIFs on. By default your app searches KLIPY directly, and GIFs in messages load only after you click them (unless you turn on auto-load). An owner can instead route everything through the server.</td><td>Direct: your IP address, your search words, and a pseudonymous ID for you per server (not your account key). Through the server: only the server's address.</td></tr>
-        <tr><td><strong>YouTube, Twitch, X, Reddit</strong></td><td>Only when you press Play or Load on an embedded link, or join a watch party playing a YouTube video. YouTube uses its privacy-enhanced (youtube-nocookie.com) player.</td><td>Your IP address and what you play, under their own privacy policies.</td></tr>
-        <tr><td><strong>Watch-party sources</strong></td><td>When you join a watch party: everyone's app plays the video from its source (YouTube, a website, or the server).</td><td>Your IP address.</td></tr>
-        <tr><td><strong>GitHub</strong></td><td>The desktop app checks GitHub's releases for updates shortly after it starts and every few hours, and downloads updates from there. Downloads on iskra.foo come from GitHub too.</td><td>Your IP address and the app version.</td></tr>
-        <tr><td><strong>Google</strong> (spell checker)</td><td>The desktop app may download spell-checking dictionaries from Google's servers (standard behaviour of Electron, the framework the app is built on).</td><td>Your IP address and the dictionary language.</td></tr>
-        <tr><td><strong>Profile pages</strong></td><td>Only if you choose to run a profile page's scripts.</td><td>The page's author could learn your IP address. The app warns you first.</td></tr>
+        <tr><td><strong>YouTube, Twitch, X, Reddit</strong></td><td>Only when you press Play or Load on a link in chat. A link shows a placeholder that says where it loads from. You can tick "Always load from YouTube" (or another site) on a device; that's remembered on that device only. YouTube uses its privacy-enhanced player (youtube-nocookie.com).</td><td>Your IP address and what you play, under their own privacy policies.</td><td>Don't click, or forget the site in <span class="path">Privacy &amp; data</span>.</td></tr>
+        <tr><td><strong>Watch-party sources</strong></td><td>A watch party that plays from YouTube or another website says so first; your app loads it only when you press Watch. Videos uploaded to the server come from the server.</td><td>Your IP address.</td><td>Don't press Watch; you stay in the call.</td></tr>
+        <tr><td><strong>KLIPY</strong> (GIFs)</td><td>Normally never: if a server's owner turns GIFs on, search and GIFs go through the server. Only if the owner picks "Straight from KLIPY" does your app search KLIPY itself, and GIFs in messages then load only after a click (unless you turn on auto-load).</td><td>Through the server: only the server's address. Straight from KLIPY: your IP address, your search words, and a pseudonymous ID for you per server (not your account key).</td><td>The owner chooses, in Server settings.</td></tr>
+        <tr><td><strong>GitHub</strong> (desktop app updates)</td><td>The desktop app checks GitHub's releases for updates shortly after it starts and every 4 hours, and downloads updates from there. Downloads on iskra.foo come from GitHub too.</td><td>Your IP address and the app version.</td><td>On by default because updates fix security problems. Turn off in <span class="path">My settings → Privacy &amp; data</span>; "Check for updates" in the tray still works.</td></tr>
+        <tr><td><strong>Push services</strong></td><td>Only if you turn notifications on (see <a href="#push">Notifications</a>).</td><td>That a notification was sent to your device, and when; not its content.</td><td><span class="path">My settings → Notifications</span>.</td></tr>
+        <tr><td><strong>Cloudflare</strong> (app.iskra.foo)</td><td>Only the web app: Cloudflare delivers its files when you open it in a browser (see <a href="#sites">The websites</a>). The desktop and phone apps carry their own copy.</td><td>Your IP address, not your chats.</td><td>Use the desktop or phone app.</td></tr>
+        <tr><td><strong>Profile pages</strong></td><td>Only if you choose to run a profile page's scripts.</td><td>The page's author could learn your IP address. The app warns you first.</td><td>Don't run them.</td></tr>
       </tbody>
     </table>
   </div>
-  <p>If you <strong>run a server</strong> and turn on "Open to the internet", the server also talks to your router (UPnP or NAT-PMP, on your own network) to open ports, gets an HTTPS certificate from <strong>Let's Encrypt</strong>, and, if you haven't set your own domain, uses an address under <strong>sslip.io</strong> (a public DNS service that turns a name like <code>1-2-3-4.sslip.io</code> into the server's IP address). The server also fetches link previews from the linked websites and sends notifications to the push services above.</p>
+  <p>Voice and video connect straight to your server's own voice service; the apps use no STUN or relay servers of anyone else's. The desktop app turns off Chromium's background connections: spellcheck uses your computer's own spellchecker on Windows and macOS, and is off on Linux, where it would download dictionaries from Google.</p>
+  <p>If you <strong>run a server</strong> and turn on "Open to the internet", the server also talks to your router (UPnP or NAT-PMP, on your own network) to open ports, gets an HTTPS certificate from <strong>Let's Encrypt</strong>, and, if you haven't set your own domain, uses an address under <strong>sslip.io</strong> (a public DNS service that turns a name like <code>1-2-3-4.sslip.io</code> into the server's IP address; its name servers answer the lookups for that name). When such a server's address isn't known from the router, its voice service may ask a public STUN server (by default one run by Google) for the server's own public address; this reveals the server's address, not yours. The server also fetches link previews from the linked websites (text only, no images) and sends notifications to the push services above.</p>
   <p>Every server can also:</p>
   <ul>
     <li><strong>Fetch the live-captions model once from Hugging Face</strong> (at a fixed version, checked against a fingerprint built into Iskra), the first time a member turns captions on. Hugging Face sees only the server's address; members' apps then get the model from their own server. The owner can turn this off.</li>
@@ -157,6 +160,7 @@
   <h2 id="sites">9. The websites</h2>
   <p><strong>iskra.foo</strong> and <strong>app.iskra.foo</strong> are static sites hosted on <strong>Cloudflare Pages</strong>. Like any web host, Cloudflare processes your IP address and request details to deliver the pages and protect them from attacks, and keeps short-lived logs. We don't add analytics, cookies or trackers to either site.</p>
   <ul>
+    <li><strong>iskra.foo</strong> loads nothing from other sites. Its two showcase background videos come from YouTube only if you press their play button.</li>
     <li><strong>app.iskra.foo</strong> only delivers the web app's files. Once loaded, the app talks straight to the servers you join; Cloudflare doesn't see your chats.</li>
     <li>Links to Ko-fi, PayPal and GitHub take you to those sites, under their own privacy policies.</li>
   </ul>
@@ -206,6 +210,7 @@
     <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/security.md" target="_blank" rel="noopener">Security</a>
     <a href="/terms">Terms</a>
     <a href="/privacy" aria-current="page">Privacy</a>
+    <a href="/privacy#third">Who Iskra talks to</a>
     <a href="/support">Support</a>
     <a href="/delete-account">Delete account</a>
     <a href="https://ko-fi.com/vlundgren" target="_blank" rel="noopener">Ko-fi</a>
