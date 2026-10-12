@@ -481,7 +481,7 @@ public sealed class InternetHost : BackgroundService
             Nat = s.Internet.Enabled ? Networks.NatKind(v.Ip) : null,
             LanIp = lan?.ToString(),
             Gateway = Networks.LanGateway()?.ToString(),
-            TailscaleUrl = TailscaleUrl(s),
+            TailscaleUrl = _mapper is TestRouter { TailscaleAddress: { } fake } ? $"http://{fake}:{s.Port}" : TailscaleUrl(s),
         };
     }
 

@@ -58,6 +58,9 @@ async function startServer(name: string, router: string): Promise<Hosted> {
 }
 
 const servers: Hosted[] = []
+
+/** Lets dialogs finish fading in before a screenshot. */
+const settle = (page: Page) => page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))))
 test.afterAll(async () => Promise.all(servers.map((s) => s.stop())))
 
 async function openSettings(page: Page) {
@@ -135,7 +138,8 @@ test('owner opens the server to the internet; without port 80 nothing plain HTTP
 })
 
 test('carrier-grade NAT gets a clear explanation and a rented server as the quickest fix (on a phone)', async ({ browser }) => {
-  const server = await startServer('Behind CGNAT', '100.72.10.5')
+  // Tailscale "is on" too (a stand-in address; the server itself stays on localhost).
+  const server = await startServer('Behind CGNAT', '100.72.10.5,tailscale=100.101.102.103')
   servers.push(server)
   const owner = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })).newPage()
   await joinVia(owner, server.ownerLink(), 'Owner')
@@ -147,13 +151,14 @@ test('carrier-grade NAT gets a clear explanation and a rented server as the quic
   await expect(help.getByTestId('ownership-note')).toHaveText("Your server, your choice. Iskra gets nothing from this; it's just a guide.")
   await expect(help).toContainText("Port forwarding on your own router can't help")
   await expect(help).toContainText('only the person who hosts needs an open connection')
-  // Quickest first: rent a small server, check, ask the provider, let a friend host.
+  // Quickest first: rent a small server, check, ask the provider, Tailscale, let a friend host.
   const options = help.locator('.cgnat-options > li')
-  await expect(options).toHaveCount(4)
+  await expect(options).toHaveCount(5)
   await expect(options.nth(0)).toContainText('Rent a small server, ready in about 15 minutes')
   await expect(options.nth(1)).toContainText('Your router says 100.72.10.5, which is shared')
   await expect(options.nth(2)).toContainText('Ask your provider for a public IPv4 address')
-  await expect(options.nth(3)).toContainText('Let someone in your group with an open connection host')
+  await expect(options.nth(3)).toContainText('Use Tailscale (free).')
+  await expect(options.nth(4)).toContainText('Let someone in your group with an open connection host')
   await expect(help).not.toContainText('IPv6')
   await expect(step(owner, 'address')).toHaveAttribute('data-state', 'problem')
   await expect(owner.getByTestId('manual-forwards')).toHaveCount(0)
@@ -182,6 +187,39 @@ test('carrier-grade NAT gets a clear explanation and a rented server as the quic
   await owner.screenshot({ path: join(SHOTS, 'hosting-rent-phone.png') })
   const rentOverflow = await rent.evaluate((el) => el.scrollWidth - el.clientWidth)
   expect(rentOverflow).toBeLessThanOrEqual(0)
+  await rent.getByRole('button', { name: 'Close' }).click()
+
+  // Use Tailscale: why, what it sees, that it's free, the steps, and an invite with the Tailscale address.
+  await options.nth(3).getByRole('button', { name: 'Show me how' }).click()
+  const guide = owner.getByRole('dialog', { name: 'Use Tailscale (free)' })
+  await expect(guide.getByTestId('ownership-note')).toHaveText("Your server, your choice. Iskra gets nothing from this; it's just a guide.")
+  await expect(guide).toContainText('shares one internet address between many homes')
+  await expect(guide).toContainText('as if they were on the same network')
+  await expect(guide).toContainText('up to 6 people and as many devices as you like')
+  await expect(guide).toContainText('which devices connect to which')
+  await expect(guide).toContainText('sign in with Google, Microsoft, Apple or GitHub')
+  await expect(guide).toContainText('presses Accept')
+  const downloads = guide.getByRole('link', { name: 'tailscale.com/download' })
+  await expect(downloads).toHaveCount(2)
+  for (const link of await downloads.all()) await expect(link).toHaveAttribute('href', 'https://tailscale.com/download')
+  await expect(guide.getByTestId('tailscale-found')).toContainText(`http://100.101.102.103:${server.port}`)
+  const guideOverflow = await guide.evaluate((el) => el.scrollWidth - el.clientWidth)
+  expect(guideOverflow).toBeLessThanOrEqual(0)
+  await settle(owner)
+  await owner.screenshot({ path: join(SHOTS, 'hosting-tailscale-phone.png') })
+
+  await guide.getByRole('button', { name: 'Invite friends over Tailscale' }).click()
+  const invite = owner.getByRole('dialog', { name: /Invite friends to/ })
+  await expect(invite.getByRole('radio', { name: 'Over Tailscale' })).toHaveAttribute('aria-checked', 'true')
+  const input = invite.locator('.copy-row input')
+  await expect(input).toHaveValue(/#\/join\//)
+  const serverUrl = (value: string) => Buffer.from(value.split('/join/')[1].split('.')[0], 'base64url').toString()
+  expect(serverUrl(await input.inputValue())).toBe(`http://100.101.102.103:${server.port}`)
+  await settle(owner)
+  await owner.screenshot({ path: join(SHOTS, 'hosting-tailscale-invite-phone.png') })
+  // The usual invite is one tap away.
+  await invite.getByRole('radio', { name: 'Network or internet' }).click()
+  await expect.poll(async () => serverUrl(await input.inputValue())).not.toContain('100.101.102.103')
 })
 
 test('no router: every port listed to forward by hand', async ({ browser }) => {

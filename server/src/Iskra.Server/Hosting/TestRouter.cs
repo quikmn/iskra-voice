@@ -15,6 +15,11 @@ public sealed class TestRouter(string spec) : IPortMapper, INatRouter
     /// <summary>",model=&lt;make and model&gt;" in the spec: what UPnP says the router is.</summary>
     public string? Model => _parts.FirstOrDefault(p => p.StartsWith("model=", StringComparison.Ordinal))?["model=".Length..];
 
+    /// <summary>",tailscale=&lt;100.x address&gt;" in the spec: pretend Tailscale is on (the server itself stays localhost-only).</summary>
+    public IPAddress? TailscaleAddress =>
+        _parts.FirstOrDefault(p => p.StartsWith("tailscale=", StringComparison.Ordinal)) is { } part && IPAddress.TryParse(part["tailscale=".Length..], out var ip) && Tailscale.InRange(ip)
+            ? ip : null;
+
     public Task<INatRouter?> FindRouterAsync(CancellationToken cancel) =>
         Task.FromResult<INatRouter?>(_parts[0] == "none" ? null : this);
 
