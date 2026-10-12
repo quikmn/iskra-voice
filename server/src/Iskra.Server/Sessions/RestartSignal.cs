@@ -14,6 +14,19 @@ public sealed class RestartSignal
     public const int StopCode = 1001;
 
     private volatile Signal _signal = new(StopCode, Format("stop", null));
+    private readonly string? _worldPath;
+    private readonly TimeProvider _time = TimeProvider.System;
+    private readonly Lock _settleLock = new();
+    private bool _settled;
+
+    public RestartSignal() { }
+
+    /// <summary>A signal that, at stop time, also honours a <see cref="RestartMarker"/> in the world folder.</summary>
+    public RestartSignal(string worldPath, TimeProvider time)
+    {
+        _worldPath = worldPath;
+        _time = time;
+    }
 
     /// <summary>The close code sessions get: 1012 when a restart is expected, else 1001.</summary>
     public int Code => _signal.Code;
@@ -23,6 +36,23 @@ public sealed class RestartSignal
 
     /// <summary>The coming stop is a restart: says why and, when known, about how long it takes to come back.</summary>
     public void Expect(string reason, TimeSpan? eta) => _signal = new(RestartCode, Format(reason, eta));
+
+    /// <summary>
+    /// Called as the server stops (once matters; later calls do nothing): a recent restart marker (written by an update
+    /// script before a systemd restart) turns a plain stop into a restart. The marker is deleted either way.
+    /// </summary>
+    public void Settle()
+    {
+        if (_worldPath is null) return;
+        lock (_settleLock)
+        {
+            if (_settled) return;
+            _settled = true;
+            var marker = RestartMarker.Consume(_worldPath, _time.GetUtcNow());
+            // A restart the server already knows about (its own update) keeps its own reason.
+            if (marker is { } m && _signal.Code != RestartCode) Expect(m.Reason, m.Eta);
+        }
+    }
 
     private sealed record Signal(int Code, string Reason);
 

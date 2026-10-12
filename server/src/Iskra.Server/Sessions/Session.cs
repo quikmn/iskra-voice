@@ -121,7 +121,11 @@ public sealed class Session
     public async Task RunAsync(CancellationToken aborted, CancellationToken stopping = default)
     {
         using var _ = aborted.Register(() => _ws.Abort());
-        using var __ = stopping.Register(() => Close(_hub.Restart.Code, _hub.Restart.Reason));
+        using var __ = stopping.Register(() =>
+        {
+            _hub.Restart.Settle();
+            Close(_hub.Restart.Code, _hub.Restart.Reason);
+        });
         var writer = WriteLoopAsync();
         try
         {
