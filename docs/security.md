@@ -167,14 +167,18 @@ When an admin creates a text or voice channel they can tick **End-to-end encrypt
 
 ### Profile pages
 
-A profile page is HTML someone else wrote, so it's locked in a strict sandbox. It only loads when you click *Open profile page*, and then:
+A profile page is HTML someone else wrote, so it's locked in a strict sandbox. It only loads when you click *Open profile page*. The promise: **a page can't make your device contact anyone, so its author can't learn your IP address or anything else about you.** It can use HTML, CSS, JavaScript, canvas and animations, with pictures and sound from `data:` URLs. Everywhere:
 
-- **its scripts are off**: you see plain HTML and CSS. You can choose to run a page's scripts (the app warns that the author could then learn your IP address), and that choice is remembered for that version of the page;
 - it runs on an empty, throwaway origin: no cookies, no storage, no access to the app, your keys or the server;
-- it has no network: it can't fetch anything, load outside images, fonts, audio or video, open pop-ups, submit forms or navigate anywhere;
+- it has no network: it can't fetch anything, load outside images, fonts, styles, audio or video, open pop-ups, submit forms or navigate anywhere;
 - it gets no camera, microphone, autoplay or other device access.
 
-Admins can turn pages off for their server or remove a member's page.
+How each app keeps that promise:
+
+- **Desktop app: scripts run for everyone.** Pages (and the editor's preview) run in a separate, in-memory browser session used only for pages, inside a view the app checks before it opens. In that session no request reaches the network except the page itself, which the app fetches for it from its server; WebRTC can't use UDP, and everything else, including WebRTC over TCP, goes to a proxy on a closed local port with no direct fallback. The page view has no Node.js or preload, no permissions, no pop-ups, no downloads, and can't navigate.
+- **Browsers and the phone apps: other people's pages show without scripts.** Browsers can't fully block WebRTC: a page script can create a child frame with its own script, and that frame's WebRTC can reach any address. With scripts off, plain HTML and CSS can't reach anything (we test 41 ways, from images and fonts to preconnect hints and speculation rules). The app says interactive pages run in the desktop app. Your own page and the editor's preview keep their scripts, since they're your own code.
+
+We test this: the tests point a page at a fake attacker on the same machine with 70 different ways to reach it, check that a page without the wall *does* reach it, and require zero connections from a page in each app. Admins can turn pages off for their server or remove a member's page.
 
 ### GIFs
 
@@ -240,11 +244,11 @@ We'd rather tell you than have you find out:
 - **Calls use one key for the whole call**; in a group call the key changes only when the group does, so someone who leaves the call but stays in the group could still decrypt it (they could rejoin anyway).
 - **Group chats:** the server can't add people or read messages, but it can hold back a change for a while, and two devices that never compare notes could, in a rare race, be shown different (correctly signed) versions of a group's history. There's no group-wide safety number: compare each person's.
 - **Watch parties and GIFs** load from their sources (YouTube, a website, KLIPY), which then see your IP address. For GIFs, only "through the server" mode keeps it from KLIPY.
-- **Profile pages:** if you turn a page's scripts on, blocking WebRTC inside it is best effort, since browsers don't cover it with the usual policy, so its author could learn your IP address. A page may show images uploaded to its own server, and that server can see when they're loaded.
+- **Profile pages:** in browsers and the phone apps, other people's pages show without scripts (see [Profile pages](#profile-pages)); only the desktop app runs them. If you paste someone else's HTML into your own page, its scripts run in your browser's preview, where a script can reach the network through WebRTC. A page may show images uploaded to its own server, and that server can see when they're loaded. Browser and WebView engines we can't test (WebKit on iPhones) are covered by the same rules but not by our tests.
 
 ## The desktop app
 
-The desktop app is the same web app in a locked-down shell: sandboxed, no Node.js in the page, links open in your browser, and the page can only ask the app for push-to-talk, the screen picker, call alerts, updates, opening the system's privacy settings, hosting and restoring backups, its own settings, the taskbar badge, the keychain that protects your keys, passkey prompts for the app lock (in a separate window that can only show Iskra's own prompt page), and the game you're playing (when you turned that on).
+The desktop app is the same web app in a locked-down shell: sandboxed, no Node.js in the page, links open in your browser, and the page can only ask the app for push-to-talk, the screen picker, call alerts, updates, opening the system's privacy settings, hosting and restoring backups, its own settings, the taskbar badge, the keychain that protects your keys, passkey prompts for the app lock (in a separate window that can only show Iskra's own prompt page), profile page views (in their own walled session, see [Profile pages](#profile-pages)), and the game you're playing (when you turned that on).
 
 - `iskra://` links only ever open an invite: anything else in them is ignored.
 
