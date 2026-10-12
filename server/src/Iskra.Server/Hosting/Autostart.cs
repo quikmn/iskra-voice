@@ -103,7 +103,8 @@ public static class Autostart
     {
         static string Q(string s) => $"\"{s}\"";
         var server = string.Join(' ', new[] { exe }.Concat(prefixArgs).Concat([world]).Select(Q));
-        var log = Q(Path.Combine(world, "server.log"));
+        // A Windows path whatever OS builds it (Path.Combine would use '/' on Linux).
+        var log = Q(world.TrimEnd('\\', '/') + @"\server.log");
         // conhost --headless hosts the console without a window; cmd appends the output to server.log.
         var arguments = $"--headless cmd.exe /d /s /c \"{server} >> {log} 2>&1\"";
         var x = SecurityElement.Escape;

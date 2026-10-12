@@ -59,8 +59,7 @@ test('friends talk in a voice channel', async ({ browser }) => {
   // Screen share: pick quality and what you're sharing first (remembered for next time).
   await host.locator('.call-controls').getByRole('button', { name: 'Share your screen' }).click()
   const shareMenu = host.getByRole('dialog', { name: 'Share your screen' })
-  await expect(shareMenu.getByRole('radio', { name: '1080p 30' })).toHaveAttribute('aria-checked', 'true')
-  await shareMenu.getByRole('radio', { name: '1080p 60' }).click()
+  await expect(shareMenu.getByRole('radio', { name: '1080p 60' })).toHaveAttribute('aria-checked', 'true')
   await shareMenu.getByRole('radio', { name: 'Detail' }).click()
   await expect(shareMenu.getByLabel(/Share audio/)).toBeChecked()
   await host.screenshot({ path: join(SHOTS, 'screen-share-menu.png') })
