@@ -22,7 +22,7 @@ export const hosting = {
     inviteNow: 'Invite friends',
     connecting: 'Connecting…',
     finish: 'Done',
-    nextInternet: 'Friends outside your home network? Turn on <b>Open to the internet</b> in Settings afterwards.',
+    nextInternet: 'Friends outside your home network? Turn on <b>Let friends anywhere join</b> in Server settings → Internet access afterwards.',
     template: {
       gaming: { name: 'Gaming group', description: 'Chat, clips and looking for a group, plus a lobby, squads, a raid room and AFK.' },
       friends: { name: 'Friends hangout', description: 'A relaxed place for chatting, photos and plans, with rooms to hang out in.' },

@@ -547,7 +547,7 @@ export const settings: Messages['settings'] = {
     app3: 'Ange lösenfrasen. Servern startar direkt.',
     withCli: 'På en VPS eller via kommandoraden',
     checkPort: 'Kontrollera porten och <code>PublicUrl</code> i <code>server.json</code> om den nya datorns adress är en annan.',
-    internet: 'För vänner utanför ditt hemnätverk: slå på <b>Öppna mot internet</b> på den nya kopian (eller sätt upp HTTPS) innan du fortsätter.',
+    internet: 'För vänner utanför ditt hemnätverk: slå på <b>Låt vänner var som helst gå med</b> (Internetåtkomst) på den nya kopian (eller sätt upp HTTPS) innan du fortsätter.',
     where: 'Var körs den nya kopian? Använd adressen som vännerna ska ansluta till.',
     newAddress: 'Ny adress',
     check: 'Kontrollera',

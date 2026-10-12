@@ -546,7 +546,7 @@ export const settings = {
     app3: 'Enter the passphrase. The server starts right away.',
     withCli: 'On a VPS or with the command line',
     checkPort: "Check the port and <code>PublicUrl</code> in <code>server.json</code> if the new machine's address is different.",
-    internet: 'For friends outside your home network, turn on <b>Open to the internet</b> on the new copy (or set up HTTPS) before you continue.',
+    internet: 'For friends outside your home network, turn on <b>Let friends anywhere join</b> (Internet access) on the new copy (or set up HTTPS) before you continue.',
     where: 'Where does the new copy run? Use the address friends will connect to.',
     newAddress: 'New address',
     check: 'Check',

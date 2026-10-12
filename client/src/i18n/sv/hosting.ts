@@ -22,7 +22,7 @@ export const hosting: Messages['hosting'] = {
     inviteNow: 'Bjud in vänner',
     connecting: 'Ansluter…',
     finish: 'Klart',
-    nextInternet: 'Vänner utanför ditt hemnätverk? Slå på <b>Öppna mot internet</b> i Inställningar efteråt.',
+    nextInternet: 'Vänner utanför ditt hemnätverk? Slå på <b>Låt vänner var som helst gå med</b> under Serverinställningar → Internetåtkomst efteråt.',
     template: {
       gaming: { name: 'Spelgäng', description: 'Chatt, klipp och sök grupp, plus lobby, squads, ett raidrum och AFK.' },
       friends: { name: 'Kompishäng', description: 'En avslappnad plats för snack, bilder och planer, med rum att hänga i.' },
