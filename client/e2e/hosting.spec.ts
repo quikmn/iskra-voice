@@ -72,7 +72,7 @@ async function openSettings(page: Page) {
 const step = (page: Page, id: string) => page.locator(`.checklist [data-step="${id}"]`)
 
 test('owner opens the server to the internet; without port 80 nothing plain HTTP is advertised', async ({ browser }) => {
-  const server = await startServer('Open House', '203.0.113.7,refuse-low')
+  const server = await startServer('Open House', '203.0.113.7,refuse-low,model=AVM FRITZ!Box 7590')
   servers.push(server)
   const owner = await (await browser.newContext()).newPage()
   await joinVia(owner, server.ownerLink(), 'Owner')
@@ -100,6 +100,14 @@ test('owner opens the server to the internet; without port 80 nothing plain HTTP
   await expect(step(owner, 'https')).toContainText('port 80')
   await expect(step(owner, 'reachable')).toContainText('Not confirmed from outside')
   await expect(owner.locator('.internet-summary')).toHaveText(/^Waiting for HTTPS/)
+
+  // What Iskra found out, in plain words: a public address, and the router said no to port 80.
+  const findings = owner.getByTestId('host-findings')
+  await expect(findings).toHaveAttribute('data-nat', 'public')
+  await expect(findings).toContainText('Your router has its own public internet address (203.0.113.7)')
+  await expect(findings).toContainText('refused to open some ports')
+  await expect(findings).toContainText('Router: AVM FRITZ!Box 7590')
+  await expect(findings).toContainText('Voice uses')
 
   // Exact port to forward by hand.
   const forwards = owner.getByTestId('manual-forwards')
@@ -133,7 +141,19 @@ test('carrier-grade NAT gets a clear explanation and the VPS route (on a phone)'
   await joinVia(owner, server.ownerLink(), 'Owner')
   await openSettings(owner)
   await owner.getByRole('switch', { name: 'Open to the internet' }).click()
-  await expect(owner.getByText('Your provider shares one internet address between customers')).toBeVisible()
+  await expect(owner.getByText('Your connection is shared by your provider')).toBeVisible()
+  await expect(owner.getByTestId('host-findings')).toHaveAttribute('data-nat', 'cgnat')
+  const help = owner.getByTestId('cgnat-help')
+  await expect(help).toContainText("Port forwarding on your own router can't help here")
+  await expect(help).toContainText('only the person who hosts needs an open connection')
+  // Easiest first: check, ask the provider, let a friend host, a VPS of your own.
+  const options = help.locator('.cgnat-options > li')
+  await expect(options).toHaveCount(4)
+  await expect(options.nth(0)).toContainText('Your router says 100.72.10.5, which is shared')
+  await expect(options.nth(1)).toContainText('Ask your provider for a public IPv4 address')
+  await expect(options.nth(2)).toContainText('Let someone in your group with an open connection host')
+  await expect(options.nth(3)).toContainText('VPS')
+  await expect(help).not.toContainText('IPv6')
   await expect(owner.getByRole('link', { name: 'How to run it on a VPS' })).toHaveAttribute('href', /hosting\.md/)
   await expect(step(owner, 'address')).toHaveAttribute('data-state', 'problem')
   await expect(owner.getByTestId('manual-forwards')).toHaveCount(0)
@@ -156,4 +176,21 @@ test('no router: every port listed to forward by hand', async ({ browser }) => {
   await expect(rows.nth(0)).toContainText('80')
   await expect(rows.nth(1)).toContainText('443')
   await expect(rows.nth(3)).toContainText('UDP')
+  await expect(owner.getByTestId('manual-forwards')).toContainText('Find "Port forwarding"')
+
+  // A prompt for an AI assistant: shown first, editable, and never with the public address or invite links.
+  await owner.getByRole('button', { name: 'Copy a prompt for an AI assistant' }).click()
+  const prompt = owner.getByTestId('ai-prompt').getByLabel('Prompt')
+  await expect(prompt).toHaveValue(/outside port 7882 UDP|outside port \d+ UDP/)
+  await expect(prompt).toHaveValue(/Ports to forward to that computer/)
+  const text = await prompt.inputValue()
+  expect(text).not.toMatch(/#\/join|sslip|https:\/\//)
+  await prompt.fill(text + '\nMy router is in the hallway.')
+  await owner.getByRole('button', { name: 'Copy prompt' }).click()
+  await expect(owner.getByRole('button', { name: 'Copied' })).toBeVisible()
+  expect(await owner.evaluate(() => navigator.clipboard.readText())).toContain('My router is in the hallway.')
+  // Not reachable and no router: honest options in case the connection is shared.
+  await expect(owner.getByTestId('cgnat-help')).toContainText("Can't open the ports?")
+  await owner.getByTestId('ai-prompt').scrollIntoViewIfNeeded()
+  await owner.screenshot({ path: join(SHOTS, 'hosting-forward-help.png') })
 })

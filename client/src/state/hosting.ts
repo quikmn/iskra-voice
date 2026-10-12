@@ -4,6 +4,7 @@ import type { HostPort, HostStatus } from '../core/protocol'
 import { connectionFor, onServerEvent, useApp, type ServerState } from './store'
 import { t } from '../i18n'
 import { formatDate } from '../i18n/format'
+import { desktop, type HostedServer } from '../platform/desktop'
 
 interface HostingState {
   /** host.status per server key (admins only). */
@@ -43,9 +44,45 @@ export async function setInternet(key: string, enabled: boolean): Promise<void> 
   setStatus(key, status)
 }
 
-/** The server address to put in invite links: the public one when the server is open to the internet. */
-export function inviteServerUrl(server: Pick<ServerState, 'url' | 'publicUrl'>): string {
-  return server.publicUrl ?? server.url
+// ── Servers hosted on this computer (desktop app) ─────────────────────────
+
+interface HostedHere {
+  /** localUrl (how this app connects, http://localhost:<port>) → the desktop app's hosted server. */
+  byUrl: Record<string, HostedServer>
+}
+
+export const useHostedHere = create<HostedHere>(() => ({ byUrl: {} }))
+
+/** Asks the desktop app which servers run on this computer (nothing in a browser). */
+export async function refreshHostedHere(): Promise<void> {
+  if (!desktop) return
+  const list = await desktop.host.list().catch(() => [] as HostedServer[])
+  useHostedHere.setState({ byUrl: Object.fromEntries(list.map((h) => [h.localUrl, h])) })
+}
+
+export function noteHosted(server: HostedServer): void {
+  useHostedHere.setState((s) => ({ byUrl: { ...s.byUrl, [server.localUrl]: server } }))
+}
+
+/** The desktop app's hosted server behind this connection, if it runs on this computer. */
+export function hostedHere(server: Pick<ServerState, 'url'>, byUrl = useHostedHere.getState().byUrl): HostedServer | null {
+  return byUrl[server.url.replace(/\/$/, '')] ?? null
+}
+
+if (desktop) void refreshHostedHere()
+
+/**
+ * The server address to put in invite links: the public one when the server is open to the internet. A server on
+ * this computer is connected to over localhost, which means nothing to friends: they get its address on the network.
+ */
+export function inviteServerUrl(server: Pick<ServerState, 'url' | 'publicUrl'>, byUrl = useHostedHere.getState().byUrl): string {
+  return server.publicUrl ?? hostedHere(server, byUrl)?.lanUrl ?? server.url
+}
+
+/** "Keep my server running" for a server on this computer. */
+export async function setKeepRunning(id: string, on: boolean): Promise<void> {
+  const updated = await desktop?.host.keepRunning?.(id, on)
+  if (updated) noteHosted(updated)
 }
 
 // ── The checklist ────────────────────────────────────────────────────────────
@@ -180,4 +217,45 @@ export function hostSummary(s: HostStatus): { tone: 'ok' | 'warn' | 'busy' | 'of
   if (s.address && (s.https.state === 'requesting' || s.https.state === 'waiting')) return { tone: 'busy', text: t('settings.internet.summary.waitingHttps') }
   if (s.address && s.https.state !== 'valid') return { tone: 'warn', text: t('settings.internet.summary.waitingHttpsLocal') }
   return { tone: 'warn', text: t('settings.internet.summary.notReachable') }
+}
+
+// ── Port forwarding help ─────────────────────────────────────────────────────
+
+/** The rows to forward by hand: what the router didn't open, or every port when nothing could be opened. */
+export function forwardRows(s: HostStatus): Forward[] {
+  const manual = manualForwards(s)
+  if (manual.length > 0) return manual
+  return manualForwards({ ...s, ports: s.ports.map((p) => ({ ...p, state: 'manual' as const })) })
+}
+
+/** The router's settings page, from the gateway address (only a plain private IPv4 is turned into a link). */
+export function routerPage(s: HostStatus): string | null {
+  const ip = s.gateway
+  return ip && /^(10|172|192)\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ip) ? `http://${ip}` : null
+}
+
+/**
+ * A prompt to paste into an AI assistant: system, router make, local addresses and ports. Never the public IP,
+ * the server's address, keys or invite links.
+ */
+export function aiPrompt(s: HostStatus): string {
+  const unknown = t('hosting.forward.ai.unknown')
+  const ports = forwardRows(s)
+    .map((f) => t('hosting.forward.ai.portLine', { external: f.external, internal: f.internal, protocol: f.protocol, purpose: f.purpose }))
+    .join('\n')
+  return t('hosting.forward.ai.prompt', {
+    os: s.os ? t(`hosting.forward.ai.os.${s.os}`) : unknown,
+    router: s.router.model?.trim() || unknown,
+    gateway: s.gateway ?? unknown,
+    lanIp: s.lanIp ?? lanHost(s) ?? unknown,
+    ports,
+  })
+}
+
+/** Whether to explain what to do when ports can't be opened (and how sure we are that the connection is shared). */
+export function cgnatAdvice(s: HostStatus): 'shared' | 'maybe' | null {
+  if (!s.enabled) return null
+  if (s.cgnat || s.nat === 'cgnat') return 'shared'
+  if (s.nat === 'private' || s.router.state === 'not_found' || s.ports.some((p) => p.state === 'failed')) return 'maybe'
+  return null
 }

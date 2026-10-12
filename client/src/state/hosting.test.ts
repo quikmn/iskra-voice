@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { HostPort, HostStatus } from '../core/protocol'
-import { hostChecklist, hostSummary, inviteServerUrl, lanHost, manualForwards } from './hosting'
+import { aiPrompt, cgnatAdvice, forwardRows, hostChecklist, hostSummary, inviteServerUrl, lanHost, manualForwards, routerPage } from './hosting'
+import type { HostedServer } from '../platform/desktop'
 
 const port = (name: HostPort['name'], external: number, state: HostPort['state'], error: string | null = null): HostPort => ({
   name, protocol: name === 'voice-udp' ? 'udp' : 'tcp', internal: name.startsWith('voice') ? external : 47070, external, state, error,
@@ -90,5 +91,63 @@ describe('invite address', () => {
   it('prefers the public address', () => {
     expect(inviteServerUrl({ url: 'http://localhost:47070', publicUrl: 'https://203-0-113-7.sslip.io' })).toBe('https://203-0-113-7.sslip.io')
     expect(inviteServerUrl({ url: 'http://192.168.1.20:47070', publicUrl: null })).toBe('http://192.168.1.20:47070')
+  })
+})
+
+describe('a server hosted on this computer', () => {
+  it('invites friends to its address on the network, not localhost', () => {
+    const hosted = { id: 'game-night', localUrl: 'http://localhost:47071', lanUrl: 'http://192.168.1.20:47071' } as HostedServer
+    const byUrl = { [hosted.localUrl]: hosted }
+    expect(inviteServerUrl({ url: 'http://localhost:47071', publicUrl: null }, byUrl)).toBe('http://192.168.1.20:47071')
+    expect(inviteServerUrl({ url: 'http://localhost:47071', publicUrl: 'https://203-0-113-7.sslip.io' }, byUrl)).toBe('https://203-0-113-7.sslip.io')
+    expect(inviteServerUrl({ url: 'http://localhost:9999', publicUrl: null }, byUrl)).toBe('http://localhost:9999')
+  })
+})
+
+describe('port forwarding help', () => {
+  const noRouter = () => status({
+    router: { state: 'not_found', kind: null, model: null }, publicIp: null, nat: null, address: null, publicUrl: null, reachable: 'unknown',
+    ports: status().ports.map((p) => ({ ...p, state: 'manual' as const })),
+    lanIp: '192.168.1.20', gateway: '192.168.1.1', os: 'windows',
+    https: { state: 'waiting', domain: null, expiresAt: null, error: null },
+  })
+
+  it('lists every port with its protocol, voice included', () => {
+    expect(forwardRows(noRouter())).toEqual([
+      { external: 80, internal: 47070, protocol: 'TCP', purpose: 'certificate check' },
+      { external: 443, internal: 47070, protocol: 'TCP', purpose: 'the server' },
+      { external: 7881, internal: 7881, protocol: 'TCP', purpose: 'voice' },
+      { external: 7882, internal: 7882, protocol: 'UDP', purpose: 'voice' },
+    ])
+    // Everything open: still the full list (for "Show me how").
+    expect(forwardRows(status())).toHaveLength(4)
+  })
+
+  it('links only a private router address', () => {
+    expect(routerPage(noRouter())).toBe('http://192.168.1.1')
+    expect(routerPage(status({ gateway: '8.8.8.8' }))).toBe(null)
+    expect(routerPage(status({ gateway: 'javascript:alert(1)' }))).toBe(null)
+    expect(routerPage(status({ gateway: null }))).toBe(null)
+  })
+
+  it('builds an AI prompt with local details and never the public address', () => {
+    const s = status({ router: { state: 'found', kind: 'UPnP', model: 'TP-Link Archer AX55' }, ports: noRouter().ports, lanIp: '192.168.1.20', gateway: '192.168.1.1', os: 'windows' })
+    const prompt = aiPrompt(s)
+    expect(prompt).toContain('Server computer: Windows')
+    expect(prompt).toContain('Router: TP-Link Archer AX55')
+    expect(prompt).toContain('(gateway): 192.168.1.1')
+    expect(prompt).toContain('on my network: 192.168.1.20')
+    expect(prompt).toContain('- outside port 7882 UDP to port 7882 (voice)')
+    expect(prompt).toContain('- outside port 443 TCP to port 47070 (the server)')
+    for (const secret of ['203.0.113.7', '203-0-113-7', 'sslip', 'https://', '#/join']) expect(prompt).not.toContain(secret)
+    expect(aiPrompt(status({ router: { state: 'not_found', kind: null }, lanUrl: null, lanIp: null, gateway: null, os: undefined }))).toContain('Router: unknown')
+  })
+
+  it('knows when to explain a shared connection', () => {
+    expect(cgnatAdvice(status())).toBe(null)
+    expect(cgnatAdvice(status({ cgnat: true, nat: 'cgnat' }))).toBe('shared')
+    expect(cgnatAdvice(status({ nat: 'private' }))).toBe('maybe')
+    expect(cgnatAdvice(noRouter())).toBe('maybe')
+    expect(cgnatAdvice(status({ enabled: false, cgnat: true }))).toBe(null)
   })
 })

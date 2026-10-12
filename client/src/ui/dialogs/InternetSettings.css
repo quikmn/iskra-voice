@@ -75,3 +75,19 @@
 @media (max-width: 760px) {
   .forward-table th, .forward-table td { padding: 4px 3px; }
 }
+
+/* ── Reachability: findings, forwarding help, shared connections ─────── */
+.internet-findings { margin-top: 14px; font-size: 14px; }
+.internet-findings ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; color: var(--text-2); }
+.internet-findings li { overflow-wrap: anywhere; }
+.internet-findings li.good::marker { color: var(--green); }
+.internet-findings li.warn::marker { color: var(--amber); }
+.callout-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.forward-steps { margin: 8px 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; color: var(--text-2); }
+.forward-steps code, .forward-steps a { overflow-wrap: anywhere; }
+.forward-facts { margin: 6px 0; padding-left: 18px; font-size: 13px; color: var(--text-2); }
+.ai-prompt { margin-top: 10px; display: grid; gap: 6px; }
+.ai-prompt textarea { width: 100%; font-family: var(--mono); font-size: 12.5px; resize: vertical; }
+.ai-prompt .button { justify-self: start; }
+.cgnat-options { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; color: var(--text-2); }
+.internet-here { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }

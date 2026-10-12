@@ -85,7 +85,9 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
   host: {
     available: (): Promise<boolean> => ipcRenderer.invoke('iskra:host-available'),
     list: (): Promise<unknown[]> => ipcRenderer.invoke('iskra:host-list'),
-    create: (name: string, appUrl: string): Promise<unknown> => ipcRenderer.invoke('iskra:host-create', name, appUrl),
+    create: (name: string, appUrl: string, template?: string | null): Promise<unknown> => ipcRenderer.invoke('iskra:host-create', name, appUrl, template ?? null),
+    templates: (): Promise<unknown[]> => ipcRenderer.invoke('iskra:host-templates'),
+    keepRunning: (id: string, on: boolean): Promise<unknown> => ipcRenderer.invoke('iskra:host-keep-running', id, on),
     start: (id: string): Promise<unknown> => ipcRenderer.invoke('iskra:host-start', id),
     stop: (id: string): Promise<unknown> => ipcRenderer.invoke('iskra:host-stop', id),
     pickBackup: (): Promise<unknown> => ipcRenderer.invoke('iskra:host-pick-backup'),

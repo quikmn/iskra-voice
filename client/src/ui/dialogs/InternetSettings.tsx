@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
-import { LINKS } from '../../links'
-import { hostChecklist, hostSummary, lanHost, loadHostStatus, manualForwards, setInternet, useHosting, type Step } from '../../state/hosting'
+import { hostChecklist, hostedHere, hostSummary, loadHostStatus, manualForwards, setInternet, useHostedHere, useHosting, type Step } from '../../state/hosting'
+import { CgnatHelp, Findings, ForwardHelp } from './ReachabilityHelp'
+import { KeepRunning } from './CreateServerDialog'
 import type { ServerState } from '../../state/store'
 import { Spinner } from '../bits'
 import './InternetSettings.css'
@@ -20,6 +21,7 @@ export function InternetSection({ server }: { server: ServerState }) {
   const isOwner = server.me?.role === 'owner'
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const here = useHostedHere((s) => hostedHere(server, s.byUrl))
 
   useEffect(() => {
     loadHostStatus(server.key).catch((e: Error) => setError(errorMessage(e)))
@@ -49,7 +51,6 @@ export function InternetSection({ server }: { server: ServerState }) {
   const summary = hostSummary(status)
   const steps = hostChecklist(status)
   const forwards = status.enabled && !status.cgnat ? manualForwards(status) : []
-  const lan = lanHost(status)
 
   return (
     <section className="settings-section internet" data-testid="internet-section">
@@ -90,37 +91,11 @@ export function InternetSection({ server }: { server: ServerState }) {
         </ol>
       )}
 
-      {status.enabled && status.cgnat && (
-        <div className="internet-callout warn">
-          <strong>{t('settings.internet.cgnatTitle')}</strong>
-          <p>{t('settings.internet.cgnat')}</p>
-          <a href={`${LINKS.hostingGuide}#on-a-linux-vps-with-systemd`} target="_blank" rel="noopener noreferrer">{t('settings.internet.vps')}</a>
-        </div>
+      {status.enabled && status.router.state !== 'off' && <Findings status={status} />}
+      {status.enabled && !status.cgnat && status.nat !== 'cgnat' && (forwards.length > 0 || status.nat === 'private') && (
+        <ForwardHelp status={status} startOpen={forwards.length > 0} />
       )}
-
-      {forwards.length > 0 && (
-        <div className="internet-callout" data-testid="manual-forwards">
-          <strong>{t('settings.internet.forwardTitle')}</strong>
-          <p>
-            {lan
-              ? <Trans i18nKey="settings.internet.forwardLan" values={{ lan }} components={{ code: <code /> }} />
-              : <Trans i18nKey="settings.internet.forward" components={{ code: <code /> }} />}
-          </p>
-          <table className="forward-table">
-            <thead>
-              <tr><th>{t('settings.internet.outside')}</th><th>{t('settings.internet.toPort')}</th><th>{t('settings.internet.type')}</th><th>{t('settings.internet.for')}</th></tr>
-            </thead>
-            <tbody>
-              {forwards.map((f) => (
-                <tr key={`${f.protocol}-${f.external}`}>
-                  <td>{f.external}</td><td>{f.internal}</td><td>{f.protocol}</td><td>{f.purpose}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="muted">{t('settings.internet.upnp')}</p>
-        </div>
-      )}
+      {status.enabled && <CgnatHelp status={status} />}
 
       {status.enabled && status.publicUrl?.startsWith('http://') && (
         <div className="internet-callout" role="alert">
@@ -148,6 +123,13 @@ export function InternetSection({ server }: { server: ServerState }) {
         )}
         {status.lanUrl && <span className="muted"><Trans i18nKey="settings.internet.onNetwork" values={{ url: status.lanUrl }} components={{ code: <code /> }} /></span>}
       </div>
+
+      {here && isOwner && (
+        <div className="internet-here">
+          <strong>{t('hosting.keepRunning.title')}</strong>
+          <KeepRunning server={here} />
+        </div>
+      )}
     </section>
   )
 }

@@ -37,6 +37,8 @@ public sealed record HostStatus(
     public string? LanIp { get; init; }
     /// <summary>The router's address on the home network (where its settings page usually is).</summary>
     public string? Gateway { get; init; }
+    /// <summary>The server computer's system ("windows", "macos" or "linux"), for port-forwarding and firewall help.</summary>
+    public string Os { get; init; } = OperatingSystem.IsWindows() ? "windows" : OperatingSystem.IsMacOS() ? "macos" : "linux";
 }
 
 /// <summary>

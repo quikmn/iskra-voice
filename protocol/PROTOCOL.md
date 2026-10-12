@@ -702,6 +702,7 @@ HostStatus {
                                                    // private range (a second router in front, or the provider's NAT); null = unknown
   "lanIp": "192.168.1.20",                         // this computer on the home network (where forwarded ports point), or null
   "gateway": "192.168.1.1",                        // the router on the home network, or null
+  "os": "windows" | "macos" | "linux",             // the server computer's system (for port-forwarding and firewall help)
   "ports": [{ "name": "acme" | "web" | "voice-tcp" | "voice-udp", "protocol": "tcp" | "udp",
               "internal": 47070, "external": 80, "state": "open" | "failed" | "manual" | "skipped", "error": null }],
   "address": "203-0-113-7.sslip.io", "autoAddress": true,

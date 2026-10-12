@@ -1,0 +1,100 @@
+// Easy hosting (English): the setup wizard, "Keep my server running", reachability, port forwarding and
+// what to do behind a shared (CGNAT) connection. Keep in step with ../sv/hosting.ts.
+export const hosting = {
+  wizard: {
+    stepName: 'Name',
+    stepTemplate: 'Channels',
+    stepDone: 'Done',
+    steps: 'Setup steps',
+    next: 'Next',
+    back: 'Back',
+    templateTitle: 'Pick a starting point',
+    templateIntro: 'You get these channels, voice rooms, roles and rules right away. Change anything later.',
+    templates: 'Starter templates',
+    upTo: 'up to {{count}}',
+    roles: 'Roles: {{roles}}',
+    withRules: 'Comes with short server rules you can edit.',
+    starting: 'Starting your server…',
+    startingSlow: 'The first start takes a few seconds.',
+    doneTitle: '{{name}} is ready',
+    doneIntro: "Your server is running on this computer, with voice. You're its owner.",
+    inviteNow: 'Invite friends',
+    connecting: 'Connecting…',
+    finish: 'Done',
+    nextInternet: 'Friends outside your home network? Turn on <b>Open to the internet</b> in Settings afterwards.',
+    template: {
+      gaming: { name: 'Gaming group', description: 'Chat, clips and looking for a group, plus a lobby, squads, a raid room and AFK.' },
+      friends: { name: 'Friends hangout', description: 'A relaxed place for chatting, photos and plans, with rooms to hang out in.' },
+      tabletop: { name: 'Board games and tabletop', description: 'Plan game nights, keep campaign notes and play at separate tables.' },
+      empty: { name: 'Empty', description: 'Just #general and one voice room. Build the rest yourself.' },
+    },
+  },
+  keepRunning: {
+    label: 'Keep my server running',
+    hint: 'Iskra starts with your computer, hidden in the tray, and starts this server, so friends can join even when you are not around. Closing the window keeps it running.',
+    title: 'This computer',
+  },
+  reach: {
+    title: 'What Iskra found out',
+    natPublic: 'Your router has its own public internet address ({{ip}}). Good: friends can reach a server here once the ports are open.',
+    natCgnat: "Your router's internet address ({{ip}}) is shared by your provider with other customers (carrier-grade NAT, 100.64.0.0/10).",
+    natPrivate: "Your router's internet address ({{ip}}) is a private one: there's another router or your provider's NAT in front of it (double NAT).",
+    natUnknown: "Iskra couldn't ask your router for its internet address.",
+    router: 'Router: {{model}}',
+    routerRefused: 'Your router answered but refused to open some ports.',
+    ports: 'Ports friends need',
+    portsIntro: 'The server and voice both need these, all pointing at this computer:',
+    lanIp: 'This computer on your network: {{ip}}',
+    gateway: 'Your router: {{ip}}',
+    verified: "Let's Encrypt connected to your server from the internet, so the web ports work.",
+    voiceNote: 'Voice uses {{tcp}}/TCP and {{udp}}/UDP. Nothing tests those from outside; if chat works but voice stays silent, check those two.',
+  },
+  forward: {
+    title: 'Forward the ports yourself',
+    open: 'Show me how',
+    hide: 'Hide',
+    step1: 'Open your router\'s settings page: <page>{{url}}</page>. The login is often on a sticker on the router.',
+    step1NoGateway: "Open your router's settings page (often 192.168.1.1 or 192.168.0.1). The login is often on a sticker on the router.",
+    step2: 'Find "Port forwarding" (sometimes called "Virtual server", "NAT" or "Applications").',
+    step3: 'Add each row below, pointing at this computer, <code>{{ip}}</code>.',
+    step3NoIp: 'Add each row below, pointing at this computer.',
+    step4: 'Save, then press <b>Check again</b> here.',
+    doubleNat: 'With two routers, forward the same ports on the outer one too (pointing at the inner router), or set the inner one to bridge mode.',
+    firewall: {
+      windows: 'Windows may ask once to allow Iskra on your network: choose Allow.',
+      macos: 'macOS may ask once to accept incoming connections: choose Allow.',
+      linux: 'If this computer runs a firewall (like ufw), allow these ports there too.',
+    },
+    ai: {
+      button: 'Copy a prompt for an AI assistant',
+      title: 'Ask an AI assistant (ChatGPT, Gemini, Claude…)',
+      intro: 'Paste this into the assistant you like. Check and edit it first: it holds your local network details, never your public address, keys or invite links.',
+      label: 'Prompt',
+      copy: 'Copy prompt',
+      copied: 'Copied',
+      prompt:
+        "I want to host a voice and chat server (Iskra) on a computer at home so friends on the internet can connect. Please give me simple step-by-step instructions to set up port forwarding on my router.\n\n" +
+        'Server computer: {{os}}\n' +
+        "Router: {{router}}\n" +
+        "Router's address on my network (gateway): {{gateway}}\n" +
+        "Server computer's address on my network: {{lanIp}}\n" +
+        'Ports to forward to that computer:\n{{ports}}\n\n' +
+        "Please also tell me how to give the computer a fixed address on my network (DHCP reservation) so the forwarding keeps working, and what to check if it still doesn't work.",
+      portLine: '- outside port {{external}} {{protocol}} to port {{internal}} ({{purpose}})',
+      unknown: 'unknown',
+      os: { windows: 'Windows', macos: 'macOS', linux: 'Linux' },
+    },
+  },
+  cgnat: {
+    title: "Can't open the ports?",
+    titleShared: 'Your connection is shared by your provider',
+    explain: "Port forwarding on your own router can't help here: your provider's NAT sits in front of it, and nobody outside can reach your home through it. Friends behind such a connection can always join a server that is reachable; only the person who hosts needs an open connection. Your options, easiest first:",
+    explainMaybe: "If forwarding doesn't work out, your connection may be shared by your provider (carrier-grade NAT). Port forwarding on your own router can't help then. Friends behind such a connection can always join a server that is reachable; only the person who hosts needs an open connection. Your options, easiest first:",
+    check: '<b>Check whether you already have a public IPv4 address.</b> Many fiber connections do. The check above shows what your router says: a public address is good news.',
+    checkShared: "<b>Check whether you have a public IPv4 address.</b> Your router says {{ip}}, which is shared, so for now you don't.",
+    isp: '<b>Ask your provider for a public IPv4 address.</b> It is often free and done once, sometimes for a small fee. Mobile broadband (4G/5G) almost never gets one.',
+    friend: '<b>Let someone in your group with an open connection host.</b> The whole server is one folder: move it with Settings → Backup & move, and everything comes along.',
+    vps: '<b>Rent a small VPS of your own.</b> A few euros a month runs the server for everyone, all the time.',
+    vpsLink: 'How to run it on a VPS',
+  },
+}

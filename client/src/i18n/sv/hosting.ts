@@ -1,0 +1,100 @@
+import type { Messages } from '../types'
+
+export const hosting: Messages['hosting'] = {
+  wizard: {
+    stepName: 'Namn',
+    stepTemplate: 'Kanaler',
+    stepDone: 'Klart',
+    steps: 'Steg i inställningen',
+    next: 'Nästa',
+    back: 'Tillbaka',
+    templateTitle: 'Välj en startpunkt',
+    templateIntro: 'Du får de här kanalerna, röstrummen, rollerna och reglerna direkt. Du kan ändra allt efteråt.',
+    templates: 'Startmallar',
+    upTo: 'max {{count}}',
+    roles: 'Roller: {{roles}}',
+    withRules: 'Kommer med korta serverregler som du kan ändra.',
+    starting: 'Startar din server…',
+    startingSlow: 'Första starten tar några sekunder.',
+    doneTitle: '{{name}} är redo',
+    doneIntro: 'Din server körs på den här datorn, med röst. Du är ägare.',
+    inviteNow: 'Bjud in vänner',
+    connecting: 'Ansluter…',
+    finish: 'Klart',
+    nextInternet: 'Vänner utanför ditt hemnätverk? Slå på <b>Öppna mot internet</b> i Inställningar efteråt.',
+    template: {
+      gaming: { name: 'Spelgäng', description: 'Chatt, klipp och sök grupp, plus lobby, squads, ett raidrum och AFK.' },
+      friends: { name: 'Kompishäng', description: 'En avslappnad plats för snack, bilder och planer, med rum att hänga i.' },
+      tabletop: { name: 'Brädspel och rollspel', description: 'Planera spelkvällar, spara kampanjanteckningar och spela vid olika bord.' },
+      empty: { name: 'Tom', description: 'Bara #general och ett röstrum. Bygg resten själv.' },
+    },
+  },
+  keepRunning: {
+    label: 'Håll min server igång',
+    hint: 'Iskra startar med datorn, dold i systemfältet, och startar den här servern, så att vänner kan gå med även när du inte är där. Om du stänger fönstret fortsätter den att köra.',
+    title: 'Den här datorn',
+  },
+  reach: {
+    title: 'Det här tog Iskra reda på',
+    natPublic: 'Din router har en egen publik internetadress ({{ip}}). Bra: vänner kan nå en server här när portarna är öppna.',
+    natCgnat: 'Din routers internetadress ({{ip}}) delas av din leverantör med andra kunder (carrier-grade NAT, 100.64.0.0/10).',
+    natPrivate: 'Din routers internetadress ({{ip}}) är privat: det sitter en router till eller leverantörens NAT framför den (dubbel NAT).',
+    natUnknown: 'Iskra kunde inte fråga din router om dess internetadress.',
+    router: 'Router: {{model}}',
+    routerRefused: 'Din router svarade men vägrade öppna vissa portar.',
+    ports: 'Portar som vänner behöver',
+    portsIntro: 'Både servern och rösten behöver de här, alla riktade mot den här datorn:',
+    lanIp: 'Den här datorn i ditt nätverk: {{ip}}',
+    gateway: 'Din router: {{ip}}',
+    verified: "Let's Encrypt anslöt till din server från internet, så webbportarna fungerar.",
+    voiceNote: 'Rösten använder {{tcp}}/TCP och {{udp}}/UDP. Inget testar dem utifrån; om chatten fungerar men det är tyst i röstkanalerna, kolla de två.',
+  },
+  forward: {
+    title: 'Vidarebefordra portarna själv',
+    open: 'Visa hur',
+    hide: 'Dölj',
+    step1: 'Öppna routerns inställningssida: <page>{{url}}</page>. Inloggningen står ofta på en etikett på routern.',
+    step1NoGateway: 'Öppna routerns inställningssida (ofta 192.168.1.1 eller 192.168.0.1). Inloggningen står ofta på en etikett på routern.',
+    step2: 'Leta upp ”Port forwarding” (ibland ”Portvidarebefordran”, ”Virtuell server”, ”NAT” eller ”Applikationer”).',
+    step3: 'Lägg till varje rad nedan, riktad mot den här datorn, <code>{{ip}}</code>.',
+    step3NoIp: 'Lägg till varje rad nedan, riktad mot den här datorn.',
+    step4: 'Spara och tryck sedan på <b>Kontrollera igen</b> här.',
+    doubleNat: 'Med två routrar vidarebefordrar du samma portar i den yttre också (riktade mot den inre routern), eller sätter den inre i bryggläge.',
+    firewall: {
+      windows: 'Windows kan fråga en gång om Iskra får användas i ditt nätverk: välj Tillåt.',
+      macos: 'macOS kan fråga en gång om inkommande anslutningar: välj Tillåt.',
+      linux: 'Om datorn har en brandvägg (som ufw), tillåt portarna där också.',
+    },
+    ai: {
+      button: 'Kopiera en fråga till en AI-assistent',
+      title: 'Fråga en AI-assistent (ChatGPT, Gemini, Claude…)',
+      intro: 'Klistra in det här i den assistent du gillar. Läs igenom och ändra först: det innehåller uppgifter om ditt lokala nätverk, aldrig din publika adress, nycklar eller inbjudningslänkar.',
+      label: 'Fråga',
+      copy: 'Kopiera frågan',
+      copied: 'Kopierad',
+      prompt:
+        'Jag vill köra en röst- och chattserver (Iskra) på en dator hemma så att vänner på internet kan ansluta. Ge mig enkla steg-för-steg-instruktioner för att ställa in portvidarebefordran i min router.\n\n' +
+        'Serverdatorn: {{os}}\n' +
+        'Router: {{router}}\n' +
+        'Routerns adress i mitt nätverk (gateway): {{gateway}}\n' +
+        'Serverdatorns adress i mitt nätverk: {{lanIp}}\n' +
+        'Portar som ska vidarebefordras till den datorn:\n{{ports}}\n\n' +
+        'Berätta också hur jag ger datorn en fast adress i nätverket (DHCP-reservation) så att vidarebefordringen fortsätter att fungera, och vad jag ska kolla om det ändå inte fungerar.',
+      portLine: '- extern port {{external}} {{protocol}} till port {{internal}} ({{purpose}})',
+      unknown: 'okänd',
+      os: { windows: 'Windows', macos: 'macOS', linux: 'Linux' },
+    },
+  },
+  cgnat: {
+    title: 'Går det inte att öppna portarna?',
+    titleShared: 'Din anslutning delas av din leverantör',
+    explain: 'Portvidarebefordran i din egen router hjälper inte här: leverantörens NAT sitter framför den, och ingen utifrån kan nå ditt hem genom den. Vänner med en sådan anslutning kan alltid gå med i en server som går att nå; det är bara den som är värd som behöver en öppen anslutning. Dina alternativ, enklast först:',
+    explainMaybe: 'Om vidarebefordringen inte vill fungera kan din anslutning vara delad av leverantören (carrier-grade NAT). Då hjälper inte portvidarebefordran i din egen router. Vänner med en sådan anslutning kan alltid gå med i en server som går att nå; det är bara den som är värd som behöver en öppen anslutning. Dina alternativ, enklast först:',
+    check: '<b>Kolla om du redan har en publik IPv4-adress.</b> Många fiberanslutningar har det. Kontrollen ovan visar vad din router säger: en publik adress är goda nyheter.',
+    checkShared: '<b>Kolla om du har en publik IPv4-adress.</b> Din router säger {{ip}}, som är delad, så just nu har du inte det.',
+    isp: '<b>Be din leverantör om en publik IPv4-adress.</b> Det är ofta gratis och görs en gång, ibland mot en liten avgift. Mobilt bredband (4G/5G) får nästan aldrig en.',
+    friend: '<b>Låt någon i gänget med en öppen anslutning vara värd.</b> Hela servern är en mapp: flytta den med Inställningar → Säkerhetskopia och flytt, så följer allt med.',
+    vps: '<b>Hyr en egen liten VPS.</b> För några euro i månaden kör den servern åt alla, dygnet runt.',
+    vpsLink: 'Så kör du den på en VPS',
+  },
+}

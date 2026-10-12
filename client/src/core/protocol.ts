@@ -473,7 +473,8 @@ export interface HostPort {
 export interface HostStatus {
   enabled: boolean
   lanUrl: string | null
-  router: { state: 'off' | 'searching' | 'found' | 'not_found' | 'disabled'; kind: string | null }
+  /** model: the router's make and model from its UPnP description (untrusted text, rendered as text only). */
+  router: { state: 'off' | 'searching' | 'found' | 'not_found' | 'disabled'; kind: string | null; model?: string | null }
   publicIp: string | null
   cgnat: boolean
   ports: HostPort[]
@@ -483,6 +484,13 @@ export interface HostStatus {
   reachable: 'verified' | 'router' | 'unknown'
   publicUrl: string | null
   checkedAt: number | null
+  /** public; cgnat: 100.64.0.0/10, shared by the provider; private: another private range (double NAT); null: unknown. */
+  nat?: 'public' | 'cgnat' | 'private' | null
+  /** This computer on the home network, and the router there. */
+  lanIp?: string | null
+  gateway?: string | null
+  /** The server computer's system. */
+  os?: 'windows' | 'macos' | 'linux'
 }
 
 export interface Events {

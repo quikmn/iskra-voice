@@ -1,0 +1,54 @@
+/* ── Create a server: the setup wizard ─────────────────────────────── */
+.wizard-steps { list-style: none; display: flex; gap: 6px; margin: 0 0 14px; padding: 0; font-size: 12px; color: var(--muted); counter-reset: step; }
+.wizard-steps li { display: flex; align-items: center; gap: 6px; counter-increment: step; }
+.wizard-steps li::before {
+  content: counter(step);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  border: 1.5px solid var(--surface-3);
+}
+.wizard-steps li + li::after { order: -1; content: ''; width: 18px; height: 1.5px; background: var(--surface-3); }
+.wizard-steps li.current { color: var(--text); font-weight: 500; }
+.wizard-steps li.current::before { border-color: var(--accent); color: var(--accent); }
+.wizard-steps li.done::before { content: '✓'; border-color: var(--green); color: var(--green); }
+
+.wizard-starting { display: grid; justify-items: center; gap: 4px; padding: 18px 0 8px; text-align: center; }
+.wizard-starting p { margin: 4px 0 0; }
+
+.template-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; margin: 10px 0 4px; }
+.template-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  text-align: left;
+  padding: 12px;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  min-width: 0;
+}
+.template-card:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.template-card.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--surface-2)); }
+.template-card:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+.template-description { font-size: 13px; color: var(--text-2); line-height: 1.35; }
+.template-preview { display: grid; gap: 4px; font-size: 12.5px; color: var(--text-2); }
+.template-preview ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+.template-preview li { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.template-preview li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.template-preview li small { margin-left: auto; flex: none; }
+.template-category { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-top: 2px; }
+.template-card > small { font-size: 12px; }
+
+.keep-running { margin: 12px 0; }
+
+@media (max-width: 760px) {
+  .template-grid { grid-template-columns: 1fr; }
+}

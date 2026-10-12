@@ -256,13 +256,19 @@ export interface DesktopSettings {
   customGames: { name: string; process: string }[]
   /** The app's language as the page last reported it (null: not yet, follow the OS). */
   language: DesktopLanguage | null
+  /** Hosted servers (folder ids) to keep running: they start with the app, also when it starts with the computer. */
+  keepRunning: string[]
 }
 
 export const DEFAULT_DESKTOP_SETTINGS: DesktopSettings = {
-  openAtLogin: false, closeToTray: true, hardwareAcceleration: true, activity: false, customGames: [], language: null,
+  openAtLogin: false, closeToTray: true, hardwareAcceleration: true, activity: false, customGames: [], language: null, keepRunning: [],
 }
 
 export const MAX_CUSTOM_GAMES = 30
+export const MAX_KEEP_RUNNING = 50
+
+/** Hosted server ids are folder names made by the app (host.ts slug), nothing else. */
+export const isServerId = (v: unknown): v is string => typeof v === 'string' && /^[a-z0-9][a-z0-9-]{0,63}$/.test(v)
 
 /** Display names: 1–64 visible characters (the server checks again). */
 const cleanName = (v: unknown) =>
@@ -286,7 +292,25 @@ export function parseDesktopSettings(raw: unknown): DesktopSettings {
   return {
     openAtLogin: flag('openAtLogin'), closeToTray: flag('closeToTray'), hardwareAcceleration: flag('hardwareAcceleration'),
     activity: flag('activity'), customGames, language: parseLanguage(s.language),
+    keepRunning: Array.isArray(s.keepRunning) ? [...new Set(s.keepRunning.filter(isServerId))].slice(0, MAX_KEEP_RUNNING) : [],
   }
+}
+
+/**
+ * "Keep my server running" for one hosted server. On: Iskra starts with the computer (hidden in the tray), the close
+ * button keeps it in the tray, and this server starts with it. Off for the last such server: Iskra stops starting
+ * with the computer too (the tickbox put it there).
+ */
+export function setKeepRunning(settings: DesktopSettings, id: string, on: boolean): DesktopSettings {
+  if (!isServerId(id)) return settings
+  const others = settings.keepRunning.filter((k) => k !== id)
+  if (on) return { ...settings, keepRunning: [...others, id].slice(0, MAX_KEEP_RUNNING), openAtLogin: true, closeToTray: true }
+  return { ...settings, keepRunning: others, openAtLogin: others.length > 0 ? settings.openAtLogin : false }
+}
+
+/** Which hosted servers start with the app: all of them when you open it, only the kept-running ones at login. */
+export function serversToStart(all: string[], settings: DesktopSettings, startedAtLogin: boolean): string[] {
+  return startedAtLogin ? all.filter((id) => settings.keepRunning.includes(id)) : all
 }
 
 /** The flag a login-started app gets, so it stays in the tray. */

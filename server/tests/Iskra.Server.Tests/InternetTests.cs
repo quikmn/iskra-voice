@@ -130,6 +130,7 @@ public class InternetTests : IDisposable
         Assert.Equal("AVM FRITZ!Box 7590", status.GetProperty("router").GetProperty("model").GetString());
         Assert.True(status.TryGetProperty("lanIp", out _));
         Assert.True(status.TryGetProperty("gateway", out _));
+        Assert.Contains(status.GetProperty("os").GetString(), new[] { "windows", "macos", "linux" });
         Assert.Equal("203-0-113-7.sslip.io", status.GetProperty("address").GetString());
         Assert.True(status.GetProperty("autoAddress").GetBoolean());
 

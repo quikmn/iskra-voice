@@ -5,12 +5,12 @@ import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, Menu, nativeImage
 import { closeSync, existsSync, openSync, readSync } from 'node:fs'
 import path from 'node:path'
 import { APP_ORIGIN, configureAppSession, registerAppScheme } from './appSession'
-import { Host } from './host'
+import { Host, isTemplateId, type HostedServer } from './host'
 import { parseHotkeys } from './hotkeys'
 import { isBackupDownload, readBackupInfo } from './restore'
 import {
   aboutDetail, badgeText, DEEP_LINK_SCHEME, deepLinkFromArgv, isAppPage, isWayland, MAC_SETTINGS, parseDeepLink, parseDesktopSettings,
-  keychainKind, skipScreenPicker, trayMenu, type DesktopSettings, type SettingsPane, type TrayAction,
+  keychainKind, serversToStart, setKeepRunning, skipScreenPicker, trayMenu, type DesktopSettings, type SettingsPane, type TrayAction,
 } from './platform'
 import { PushToTalk } from './ptt'
 import { ActivityDetector } from './activity'
@@ -510,13 +510,30 @@ ipcMain.handle('iskra:passkey', async (event, op: unknown, raw: unknown) => {
 
 // Hosting servers from the app.
 ipcMain.handle('iskra:host-available', (event) => fromApp(event) && host.available())
-ipcMain.handle('iskra:host-list', (event) => (fromApp(event) ? host.list() : []))
-ipcMain.handle('iskra:host-create', (event, name: unknown, appUrl: unknown) => {
+const withKeep = (server: HostedServer): HostedServer => ({ ...server, keepRunning: settings.openAtLogin && settings.keepRunning.includes(server.id) })
+ipcMain.handle('iskra:host-list', (event) => (fromApp(event) ? host.list().map(withKeep) : []))
+ipcMain.handle('iskra:host-templates', (event) => (fromApp(event) ? host.templates() : []))
+ipcMain.handle('iskra:host-create', async (event, name: unknown, appUrl: unknown, template: unknown) => {
   if (!fromApp(event) || typeof name !== 'string' || typeof appUrl !== 'string' || !/^https?:\/\//.test(appUrl)) return null
-  return host.create(name, appUrl)
+  return withKeep(await host.create(name, appUrl, isTemplateId(template) ? template : null))
 })
-ipcMain.handle('iskra:host-start', (event, id: unknown) => (fromApp(event) && typeof id === 'string' ? host.start(id) : null))
-ipcMain.handle('iskra:host-stop', (event, id: unknown) => (fromApp(event) && typeof id === 'string' ? host.stop(id) : null))
+ipcMain.handle('iskra:host-start', async (event, id: unknown) => (fromApp(event) && typeof id === 'string' ? withKeep(await host.start(id)) : null))
+ipcMain.handle('iskra:host-stop', async (event, id: unknown) => (fromApp(event) && typeof id === 'string' ? withKeep(await host.stop(id)) : null))
+// "Keep my server running": Iskra starts with the computer, hidden in the tray, and starts this server.
+ipcMain.handle('iskra:host-keep-running', (event, id: unknown, on: unknown) => {
+  if (!fromApp(event) || typeof id !== 'string' || typeof on !== 'boolean') return null
+  const server = host.list().find((s) => s.id === id)
+  if (!server) return null
+  const next = setKeepRunning(settings, id, on)
+  if (next.openAtLogin !== settings.openAtLogin) applyOpenAtLogin(next.openAtLogin)
+  settings = next
+  try {
+    saveDesktopSettings(settings)
+  } catch (error) {
+    console.error('Saving settings:', error)
+  }
+  return withKeep(server)
+})
 
 // Restoring a server from a backup: the file comes from our own open dialog, never a path the page makes up.
 const pickedBackups = new Map<string, string | null>()
@@ -564,7 +581,8 @@ app.whenReady().then(() => {
   createWindow()
   createTray()
   if (!MAC) ptt.start()
-  void host.startAll()
+  // Started with the computer: only the servers kept running. Opened by hand: all of them, as before.
+  void host.startAll(serversToStart(host.list().map((s) => s.id), settings, startedHidden()))
   updates.start()
   activity.configure(settings.activity, settings.customGames)
 })

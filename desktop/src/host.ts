@@ -22,7 +22,23 @@ export interface HostedServer {
   localUrl: string
   /** Single-use link that makes you the owner (only until you've used it). */
   ownerInvite: string | null
+  /** "Keep my server running": starts with the computer (filled in by main.ts from the desktop settings). */
+  keepRunning?: boolean
 }
+
+/** A starter template as `iskra-server templates --json` describes it (for the setup wizard's preview). */
+export interface ServerTemplateInfo {
+  id: string
+  name: string
+  description: string
+  categories: { name: string; channels: { name: string; kind: string; userLimit: number }[] }[]
+  channels: { name: string; kind: string; userLimit: number }[]
+  roles: string[]
+  rules: boolean
+}
+
+/** Built-in template ids only: the page never names a file. */
+export const isTemplateId = (v: unknown): v is string => typeof v === 'string' && /^[a-z0-9-]{1,40}$/.test(v)
 
 const exe = (name: string) => exeName(name, process.platform)
 
@@ -143,7 +159,33 @@ export class Host {
     }
   }
 
-  async create(name: string, appUrl: string): Promise<HostedServer> {
+  private templateList: Promise<ServerTemplateInfo[]> | null = null
+
+  /** The server's built-in starter templates, asked once (iskra-server templates --json; it opens no ports). */
+  templates(): Promise<ServerTemplateInfo[]> {
+    const binary = serverBinary()
+    if (!binary) return Promise.resolve([])
+    this.templateList ??= new Promise<ServerTemplateInfo[]>((resolve) => {
+      const child = spawn(binary, ['templates', '--json'], { stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true })
+      let out = ''
+      child.stdout.on('data', (d: Buffer) => (out += d.toString()))
+      child.once('error', () => resolve([]))
+      child.once('exit', (code) => {
+        try {
+          const parsed = JSON.parse(out) as ServerTemplateInfo[]
+          resolve(code === 0 && Array.isArray(parsed) ? parsed.filter((t) => isTemplateId(t?.id)) : [])
+        } catch {
+          resolve([])
+        }
+      })
+    }).then((list) => {
+      if (list.length === 0) this.templateList = null // try again next time
+      return list
+    })
+    return this.templateList
+  }
+
+  async create(name: string, appUrl: string, template: string | null = null): Promise<HostedServer> {
     const clean = name.trim().slice(0, 60) || text().host.defaultName
     mkdirSync(this.root, { recursive: true })
     let id = slug(clean)
@@ -160,6 +202,8 @@ export class Host {
         {
           Name: clean,
           Port: port,
+          // Applied once by the server on its first start (channels, voice rooms, roles, rules).
+          ...(template && isTemplateId(template) ? { Template: template } : {}),
           AppUrl: appUrl,
           // Tests: localhost only, so Windows never asks about the firewall.
           ...(process.env.ISKRA_LOCAL_ONLY === '1'
@@ -304,7 +348,7 @@ export class Host {
     return Promise.race([done, new Promise<void>((resolve) => setTimeout(resolve, GRACEFUL_STOP_MS + 2000).unref())])
   }
 
-  async startAll(): Promise<void> {
-    await Promise.all(this.list().map((s) => this.start(s.id).catch(() => undefined)))
+  async startAll(ids: string[] = this.list().map((s) => s.id)): Promise<void> {
+    await Promise.all(ids.map((id) => this.start(id).catch(() => undefined)))
   }
 }

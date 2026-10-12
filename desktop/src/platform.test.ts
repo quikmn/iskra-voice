@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { aboutDetail, autostartEntry, badgeText, compareVersions, deepLinkFromArgv, DEFAULT_DESKTOP_SETTINGS, embedderHeaders, pageOrigin, parseDeepLink, parseDesktopSettings, defaultHostRoot, exeName, isAppPage, isWayland, keychainKind, newerRelease, serverRid, skipScreenPicker, trayMenu, updateMode, youTubeReferrer, YOUTUBE_REFERRER } from './platform'
+import { aboutDetail, autostartEntry, badgeText, compareVersions, deepLinkFromArgv, DEFAULT_DESKTOP_SETTINGS, embedderHeaders, pageOrigin, parseDeepLink, parseDesktopSettings, defaultHostRoot, serversToStart, setKeepRunning, exeName, isAppPage, isWayland, keychainKind, newerRelease, serverRid, skipScreenPicker, trayMenu, updateMode, youTubeReferrer, YOUTUBE_REFERRER } from './platform'
 
 test('server binaries and runtime ids per platform', () => {
   assert.equal(exeName('iskra-server', 'win32'), 'iskra-server.exe')
@@ -161,7 +161,7 @@ test('desktop settings: safe defaults, only booleans kept', () => {
   assert.equal(DEFAULT_DESKTOP_SETTINGS.openAtLogin, false)
   assert.equal(DEFAULT_DESKTOP_SETTINGS.closeToTray, true)
   assert.deepEqual(parseDesktopSettings({ openAtLogin: true, closeToTray: 'no', hardwareAcceleration: false, extra: 1 }), {
-    openAtLogin: true, closeToTray: true, hardwareAcceleration: false, activity: false, customGames: [], language: null,
+    openAtLogin: true, closeToTray: true, hardwareAcceleration: false, activity: false, customGames: [], language: null, keepRunning: [],
   })
   assert.equal(DEFAULT_DESKTOP_SETTINGS.activity, false) // opt-in
   const games = parseDesktopSettings({ customGames: [
@@ -174,6 +174,23 @@ test('desktop settings: safe defaults, only booleans kept', () => {
   ] }).customGames
   assert.deepEqual(games, [{ name: 'My Game', process: 'mygame.exe' }])
   assert.equal(parseDesktopSettings({ customGames: Array.from({ length: 50 }, (_, i) => ({ name: `G${i}`, process: `g${i}.exe` })) }).customGames.length, 30)
+})
+
+test('"Keep my server running" starts Iskra with the computer and only the chosen servers at login', () => {
+  assert.deepEqual(parseDesktopSettings({ keepRunning: ['game-night', 'game-night', '../x', 'A', 7, 'living-room'] }).keepRunning, ['game-night', 'living-room'])
+  let s = setKeepRunning({ ...DEFAULT_DESKTOP_SETTINGS, closeToTray: false }, 'game-night', true)
+  assert.deepEqual(s.keepRunning, ['game-night'])
+  assert.equal(s.openAtLogin, true)
+  assert.equal(s.closeToTray, true) // closing the window must not stop the server
+  s = setKeepRunning(s, 'living-room', true)
+  assert.deepEqual(serversToStart(['game-night', 'living-room', 'test'], s, true), ['game-night', 'living-room'])
+  assert.deepEqual(serversToStart(['game-night', 'living-room', 'test'], s, false), ['game-night', 'living-room', 'test'])
+  s = setKeepRunning(s, 'game-night', false)
+  assert.equal(s.openAtLogin, true) // another server still wants it
+  s = setKeepRunning(s, 'living-room', false)
+  assert.deepEqual(s.keepRunning, [])
+  assert.equal(s.openAtLogin, false)
+  assert.equal(setKeepRunning(s, '../evil', true), s)
 })
 
 test('Linux autostart entry starts hidden and quotes paths', () => {

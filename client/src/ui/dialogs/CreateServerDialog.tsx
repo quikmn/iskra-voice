@@ -1,13 +1,17 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { t } from '../../i18n'
 import { errorMessage } from '../../i18n/errors'
 import { parseInvite } from '../../core/invite'
-import { desktop } from '../../platform/desktop'
-import { acceptInvite } from '../../state/store'
+import { desktop, type HostedServer, type ServerTemplateInfo, type TemplateChannelInfo } from '../../platform/desktop'
+import { noteHosted, setKeepRunning } from '../../state/hosting'
+import { acceptInvite, useApp } from '../../state/store'
 import { RestoreServer } from './RestoreServer'
+import { InviteDialog } from './InviteDialog'
 import '../settings/backup.css'
+import './CreateServerDialog.css'
 import { Modal, Spinner } from '../bits'
+import { Hash, Volume } from '../icons'
 import { appUrl } from '../format'
 
 /** Where the desktop app keeps hosted servers (desktop/src/platform.ts). */
@@ -29,6 +33,18 @@ const ShieldIcon = () => (
   </svg>
 )
 
+const KNOWN = ['gaming', 'friends', 'tabletop', 'empty'] as const
+type Known = (typeof KNOWN)[number]
+const known = (id: string): Known | undefined => KNOWN.find((k) => k === id)
+
+/** The built-in templates in the app's language; your own ones as the server describes them. */
+export function templateText(template: ServerTemplateInfo): { name: string; description: string } {
+  const k = known(template.id)
+  return k
+    ? { name: t(`hosting.wizard.template.${k}.name`), description: t(`hosting.wizard.template.${k}.description`) }
+    : { name: template.name, description: template.description }
+}
+
 /** Desktop only: start a server on this computer and become its owner. */
 export function CreateServerDialog({ onClose }: { onClose: () => void }) {
   const [restoring, setRestoring] = useState(false)
@@ -36,28 +52,135 @@ export function CreateServerDialog({ onClose }: { onClose: () => void }) {
   return <NewServer onClose={onClose} onRestore={desktop?.host.pickBackup ? () => setRestoring(true) : undefined} />
 }
 
+type Step = 'name' | 'template' | 'starting' | 'done'
+
+/** The setup wizard: a name, a starting point, then it's running and you invite friends. */
 function NewServer({ onClose, onRestore }: { onClose: () => void; onRestore?: () => void }) {
   const { t } = useTranslation()
+  const [step, setStep] = useState<Step>('name')
   const [name, setName] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [templates, setTemplates] = useState<ServerTemplateInfo[]>([])
+  const [picked, setPicked] = useState<string | null>(null)
+  const [hosted, setHosted] = useState<HostedServer | null>(null)
+  const [serverKey, setServerKey] = useState<string | null>(null)
+  const [inviting, setInviting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const trimmed = name.trim()
+  const joined = useApp((s) => (serverKey ? s.servers[serverKey] : undefined))
+
+  useEffect(() => {
+    let cancelled = false
+    desktop?.host.templates?.().then((list) => {
+      if (cancelled || list.length === 0) return
+      setTemplates(list)
+      setPicked((p) => p ?? list[0].id)
+    }).catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   async function create() {
-    if (!desktop || !trimmed || busy) return
-    setBusy(true)
+    if (!desktop || !trimmed || step === 'starting') return
+    setStep('starting')
     setError(null)
     try {
-      const hosted = await desktop.host.create(trimmed, appUrl())
-      const invite = hosted?.ownerInvite ? parseInvite(hosted.ownerInvite) : null
-      if (!hosted || !invite) throw new Error(t('settings.createServer.noOwnerLink'))
+      const server = await desktop.host.create(trimmed, appUrl(), templates.length > 0 ? picked : null)
+      const invite = server?.ownerInvite ? parseInvite(server.ownerInvite) : null
+      if (!server || !invite) throw new Error(t('settings.createServer.noOwnerLink'))
+      noteHosted(server)
       // You're on the same computer, so connect over localhost (it never changes).
-      acceptInvite({ ...invite, serverUrl: hosted.localUrl })
-      onClose()
+      acceptInvite({ ...invite, serverUrl: server.localUrl })
+      setHosted(server)
+      setServerKey(invite.serverKey)
+      setStep('done')
     } catch (e) {
       setError(errorMessage(e))
-      setBusy(false)
+      setStep(templates.length > 0 ? 'template' : 'name')
     }
+  }
+
+  const next = () => {
+    if (!trimmed) return
+    if (templates.length > 0) setStep('template')
+    else void create()
+  }
+
+  if (inviting && joined?.me) return <InviteDialog server={joined} onClose={onClose} />
+
+  const steps: Step[] = templates.length > 0 ? ['name', 'template', 'done'] : ['name', 'done']
+  const current = step === 'starting' ? 'done' : step
+  const progress = (
+    <ol className="wizard-steps" aria-label={t('hosting.wizard.steps')}>
+      {steps.map((s, i) => (
+        <li key={s} className={s === current ? 'current' : steps.indexOf(current) > i ? 'done' : ''} aria-current={s === current ? 'step' : undefined}>
+          {t(s === 'name' ? 'hosting.wizard.stepName' : s === 'template' ? 'hosting.wizard.stepTemplate' : 'hosting.wizard.stepDone')}
+        </li>
+      ))}
+    </ol>
+  )
+
+  if (step === 'starting') {
+    return (
+      <Modal title={t('settings.createServer.title')} onClose={() => undefined}>
+        {progress}
+        <div className="wizard-starting" role="status">
+          <Spinner />
+          <p>{t('hosting.wizard.starting')}</p>
+          <p className="muted">{t('hosting.wizard.startingSlow')}</p>
+        </div>
+      </Modal>
+    )
+  }
+
+  if (step === 'done' && hosted) {
+    return (
+      <Modal
+        title={t('settings.createServer.title')}
+        heading={t('hosting.wizard.doneTitle', { name: hosted.name })}
+        onClose={onClose}
+        footer={
+          <>
+            <button className="button" onClick={onClose}>{t('hosting.wizard.finish')}</button>
+            <button className="button primary" disabled={!joined?.me} onClick={() => setInviting(true)}>
+              {joined?.me ? t('hosting.wizard.inviteNow') : t('hosting.wizard.connecting')}
+            </button>
+          </>
+        }
+      >
+        {progress}
+        <p>{t('hosting.wizard.doneIntro')}</p>
+        {desktop?.host.keepRunning && <KeepRunning server={hosted} onChange={setHosted} />}
+        <p className="muted"><Trans i18nKey="hosting.wizard.nextInternet" components={{ b: <strong /> }} /></p>
+      </Modal>
+    )
+  }
+
+  if (step === 'template') {
+    return (
+      <Modal
+        title={t('settings.createServer.title')}
+        heading={t('hosting.wizard.templateTitle')}
+        onBack={() => setStep('name')}
+        onClose={onClose}
+        wide
+        footer={
+          <>
+            <button className="button" onClick={() => setStep('name')}>{t('hosting.wizard.back')}</button>
+            <button className="button primary" disabled={!picked} onClick={() => void create()}>{t('common.create')}</button>
+          </>
+        }
+      >
+        {progress}
+        <p className="muted">{t('hosting.wizard.templateIntro')}</p>
+        <div className="template-grid" role="radiogroup" aria-label={t('hosting.wizard.templates')}>
+          {templates.map((template) => (
+            <TemplateCard key={template.id} template={template} selected={picked === template.id} onPick={() => setPicked(template.id)} />
+          ))}
+        </div>
+        {error && <p className="error-text">{error}</p>}
+      </Modal>
+    )
   }
 
   return (
@@ -67,20 +190,18 @@ function NewServer({ onClose, onRestore }: { onClose: () => void; onRestore?: ()
       footer={
         <>
           <button className="button" onClick={onClose}>{t('common.cancel')}</button>
-          <button className="button primary" disabled={!trimmed || busy} onClick={() => void create()}>
-            {busy ? <Spinner /> : t('common.create')}
+          <button className="button primary" disabled={!trimmed} onClick={next}>
+            {templates.length > 0 ? t('hosting.wizard.next') : t('common.create')}
           </button>
         </>
       }
     >
+      {templates.length > 0 && progress}
       <p className="muted">{t('settings.createServer.intro', { folder: hostFolder() })}</p>
       <label className="field">
         <span>{t('settings.createServer.name')}</span>
-        <input autoFocus value={name} maxLength={60} placeholder={t('settings.createServer.namePlaceholder')} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void create()} />
+        <input autoFocus value={name} maxLength={60} placeholder={t('settings.createServer.namePlaceholder')} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && next()} />
       </label>
-      <p className="muted">
-        <Trans i18nKey="settings.createServer.network" components={{ b: <strong /> }} />
-      </p>
       {firewallNote() && (
         <p className="dialog-note" role="note">
           <ShieldIcon />
@@ -94,5 +215,67 @@ function NewServer({ onClose, onRestore }: { onClose: () => void; onRestore?: ()
         </p>
       )}
     </Modal>
+  )
+}
+
+function ChannelPreview({ channel }: { channel: TemplateChannelInfo }) {
+  const { t } = useTranslation()
+  return (
+    <li>
+      {channel.kind === 'voice' ? <Volume size={13} /> : <Hash size={13} />}
+      <span>{channel.name}</span>
+      {channel.userLimit > 0 && <small className="muted">{t('hosting.wizard.upTo', { count: channel.userLimit })}</small>}
+    </li>
+  )
+}
+
+function TemplateCard({ template, selected, onPick }: { template: ServerTemplateInfo; selected: boolean; onPick: () => void }) {
+  const { t } = useTranslation()
+  const text = templateText(template)
+  const groups = [...(template.channels.length > 0 ? [{ name: null as string | null, channels: template.channels }] : []), ...template.categories]
+  return (
+    <button type="button" role="radio" aria-checked={selected} className={`template-card ${selected ? 'selected' : ''}`} onClick={onPick} data-template={template.id}>
+      <strong>{text.name}</strong>
+      <span className="template-description">{text.description}</span>
+      <div className="template-preview" aria-hidden>
+        {groups.map((group, i) => (
+          <div key={i}>
+            {group.name && <span className="template-category">{group.name}</span>}
+            <ul>{group.channels.map((c, j) => <ChannelPreview key={j} channel={c} />)}</ul>
+          </div>
+        ))}
+      </div>
+      {template.roles.length > 0 && <small className="muted">{t('hosting.wizard.roles', { roles: template.roles.join(', ') })}</small>}
+      {template.rules && <small className="muted">{t('hosting.wizard.withRules')}</small>}
+    </button>
+  )
+}
+
+/** "Keep my server running": one tickbox for a server on this computer. */
+export function KeepRunning({ server, onChange }: { server: HostedServer; onChange?: (server: HostedServer) => void }) {
+  const { t } = useTranslation()
+  const [on, setOn] = useState(!!server.keepRunning)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => setOn(!!server.keepRunning), [server.keepRunning])
+  async function change(value: boolean) {
+    setBusy(true)
+    setOn(value)
+    try {
+      await setKeepRunning(server.id, value)
+      onChange?.({ ...server, keepRunning: value })
+    } catch {
+      setOn(!value)
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <label className="checkbox keep-running">
+      <input type="checkbox" checked={on} disabled={busy} onChange={(e) => void change(e.target.checked)} />
+      <span>
+        {t('hosting.keepRunning.label')}
+        <br /><small className="muted">{t('hosting.keepRunning.hint')}</small>
+      </span>
+    </label>
   )
 }

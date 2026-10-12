@@ -17,6 +17,25 @@ export interface HostedServer {
   lanUrl: string
   localUrl: string
   ownerInvite: string | null
+  /** "Keep my server running" is on (missing in older desktop builds). */
+  keepRunning?: boolean
+}
+
+/** A starter template for a new server, as the bundled iskra-server describes it. */
+export interface ServerTemplateInfo {
+  id: string
+  name: string
+  description: string
+  categories: { name: string; channels: TemplateChannelInfo[] }[]
+  channels: TemplateChannelInfo[]
+  roles: string[]
+  rules: boolean
+}
+
+export interface TemplateChannelInfo {
+  name: string
+  kind: 'text' | 'voice'
+  userLimit: number
 }
 
 export interface PickedBackup {
@@ -44,6 +63,8 @@ export interface DesktopSettings {
   hardwareAcceleration: boolean
   activity: boolean
   customGames: { name: string; process: string }[]
+  /** Hosted servers kept running ("Keep my server running"). Missing in older desktop builds. */
+  keepRunning?: string[]
 }
 
 export type PushToTalkStatus = 'ready' | 'needs-permission' | 'limited' | 'unavailable'
@@ -102,7 +123,12 @@ export interface DesktopBridge {
   host: {
     available(): Promise<boolean>
     list(): Promise<HostedServer[]>
-    create(name: string, appUrl: string): Promise<HostedServer | null>
+    /** template: a starter template id from templates(), applied once on the server's first start. */
+    create(name: string, appUrl: string, template?: string | null): Promise<HostedServer | null>
+    /** The bundled server's starter templates (missing in older desktop builds). */
+    templates?(): Promise<ServerTemplateInfo[]>
+    /** "Keep my server running": Iskra starts with the computer, hidden, and starts this server. */
+    keepRunning?(id: string, on: boolean): Promise<HostedServer | null>
     start(id: string): Promise<HostedServer | null>
     stop(id: string): Promise<HostedServer | null>
     /** Asks for a backup file (.iskrabackup, or a daily .zip); null if cancelled. `encrypted` backups need the passphrase. */
