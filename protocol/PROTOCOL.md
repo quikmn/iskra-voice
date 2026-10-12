@@ -1931,6 +1931,15 @@ the server. The **server** also checks that changes follow the channel's read pe
 must list exactly the people who can read the channel (creator first), else `conflict`. If nobody left in the chain can
 read the channel, someone who can may start a new chain (a `create` with a new id); the old history stays unreadable to them.
 
+### Starting over
+
+No new messages or fields; this is what apps do around the `create` that starts a chain over.
+
+- **Who starts it:** an app whose account can read the channel but isn't in the chain, when `echan.get` shows that nobody in the chain can read it any more (every member is in `want.remove`, the app's own account is in `want.add`, and `full` is false). The first such reader who is online goes (the others wait a few seconds longer each, then find it done); the `create` lists exactly `want.add`. The server still refuses it (`bad_request`) while anyone in the chain can read.
+- **Following it:** an app whose account isn't in its verified chain (it was removed, or never in it) takes the new chain at once, verified from its `create`. It keeps the old chain and its epoch keys to decrypt messages whose envelope `header.chain` names it.
+- **Inside the chain: never automatic.** An app whose account is still in its verified chain never replaces it on the server's word (the server only restarts a chain when nobody in it can read, so from inside, a new chain is indistinguishable from a server-made one). It keeps the old chain and keys, refuses to send, and, if the new chain verifies from its `create`, offers it: the person sees everyone who signed one of its changes (each change signs `prev`, so the whole chain before it) and whether each key was in their old chain, is a friend's or DM contact's, or is new; a new key carrying the name of someone from the old chain is pointed out. **Start over** is an explicit action; it needs the person's own account in the new chain and no high-severity key-transparency finding about a signer, and a safety-number confirmation when no signer is a key they knew (or a lookalike is listed). Then the app keeps the old chain for old messages, records the start-over with the channel ("You started encryption over on …"), never accepts a chain it left again, and signs a `rekey` in the new chain.
+- Not required: a signature on the new chain from someone in the old one. A legitimate restart is usually made by someone who was never in the old chain (nobody in it could read the channel), and a forger would leave old members out; the key checks above are what tell the two apart.
+
 ### Epoch keys
 
 Every change starts an **epoch** (its version) with a new random 32-byte key, made by whoever made the change and sent with
