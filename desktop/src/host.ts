@@ -9,6 +9,7 @@ import path from 'node:path'
 import { defaultHostRoot, exeName } from './platform'
 import { text } from './i18n'
 import { adjustRestoredSettings } from './restore'
+import { tailscaleAddress, tailscaleUrl } from './tailscale'
 
 export interface HostedServer {
   id: string
@@ -20,6 +21,8 @@ export interface HostedServer {
   lanUrl: string
   /** How this computer reaches it (never changes, unlike the LAN address). */
   localUrl: string
+  /** How friends on Tailscale reach it (this computer's 100.x address), or null when Tailscale isn't on. */
+  tailscaleUrl: string | null
   /** Single-use link that makes you the owner (only until you've used it). */
   ownerInvite: string | null
   /** "Keep my server running": starts with the computer (filled in by main.ts from the desktop settings). */
@@ -145,7 +148,7 @@ export class Host {
 
   private describe(id: string): HostedServer {
     const folder = path.join(this.root, id)
-    const settings = JSON.parse(readFileSync(path.join(folder, 'server.json'), 'utf8')) as { Name?: string; Port?: number; PublicUrl?: string }
+    const settings = JSON.parse(readFileSync(path.join(folder, 'server.json'), 'utf8')) as { Name?: string; Port?: number; PublicUrl?: string; LocalOnly?: boolean }
     const invitePath = path.join(folder, 'owner-invite.txt')
     return {
       id,
@@ -155,6 +158,7 @@ export class Host {
       running: this.processes.has(id),
       lanUrl: settings.PublicUrl ?? `http://${lanAddress()}:${settings.Port ?? 47070}`,
       localUrl: `http://localhost:${settings.Port ?? 47070}`,
+      tailscaleUrl: tailscaleUrl(tailscaleAddress(networkInterfaces()), settings.Port ?? 47070, settings.LocalOnly === true),
       ownerInvite: existsSync(invitePath) ? readFileSync(invitePath, 'utf8').trim() : null,
     }
   }

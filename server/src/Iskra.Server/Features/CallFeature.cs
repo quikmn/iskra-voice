@@ -26,7 +26,7 @@ public static class CallFeature
     {
         var backend = s.Voice.Backend;
         var token = LiveKitTokens.ForRoom(backend.ApiKey, backend.ApiSecret, me.AccountKey, me.Name, call.Room, canPublish: true, s.Time.GetUtcNow());
-        return new { call = CallRegistry.Public(call), url = backend.ClientUrl, token, room = call.Room };
+        return new { call = CallRegistry.Public(call), url = LiveKitHost.ClientUrlFor(s.Origin, backend, s.World.Settings.Voice.ClientUrl), token, room = call.Room };
     }
 
     private static string CallId(Body body)

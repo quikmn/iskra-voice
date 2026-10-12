@@ -78,15 +78,25 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
     /// <summary>Where iskra-server reaches LiveKit locally (for the proxy and API calls).</summary>
     public string LocalUrl => $"http://127.0.0.1:{Settings.Port}";
 
-    /// <summary>On the internet LiveKit must advertise the public IP; on a LAN or localhost the local one.</summary>
+    /// <summary>
+    /// On the internet LiveKit must advertise the public IP; on a LAN, localhost or Tailscale (100.64.0.0/10 or a
+    /// .ts.net name) its interface addresses, or it would advertise the home's shared CGNAT address and voice breaks.
+    /// </summary>
     internal static bool IsLocalOnly(string publicUrl)
     {
         var host = new Uri(publicUrl).Host;
-        if (host is "localhost") return true;
-        if (!System.Net.IPAddress.TryParse(host, out var ip)) return false;
-        if (System.Net.IPAddress.IsLoopback(ip)) return true;
-        var b = ip.GetAddressBytes();
-        return b.Length == 4 && (b[0] == 10 || (b[0] == 172 && b[1] >= 16 && b[1] <= 31) || (b[0] == 192 && b[1] == 168));
+        if (host is "localhost" || Hosting.Tailscale.IsTailscaleHost(host)) return true;
+        return System.Net.IPAddress.TryParse(host, out var ip) && Hosting.Networks.IsNonPublic(ip);
+    }
+
+    /// <summary>
+    /// The voice URL for a client that connected through <paramref name="origin"/>: over HTTPS (internet hosting) or
+    /// Tailscale, voice goes through the address the client used; otherwise the server's own.
+    /// </summary>
+    internal static string ClientUrlFor(string? origin, IVoiceBackend backend, string? configured)
+    {
+        if (configured is not null || origin is null || !Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return backend.ClientUrl;
+        return uri.Scheme == "https" || Hosting.Tailscale.IsTailscaleHost(uri.Host) ? DefaultClientUrl(origin) : backend.ClientUrl;
     }
 
     private static (string, string) LoadOrCreateKeys(string worldPath)
