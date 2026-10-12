@@ -1,7 +1,5 @@
 // The server names its error messages with a key (PROTOCOL.md → Errors). Every key it can send must have a text in
 // every language, and the English text must say what the server says.
-import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { en } from './en'
 import { sv } from './sv'
@@ -9,17 +7,8 @@ import { i18next } from '.'
 import { errorMessage, translatedServerMessage } from './errors'
 import { RequestError } from '../core/protocol'
 
-const SERVER = join(__dirname, '../../../server/src/Iskra.Server')
-
-function sources(dir: string, out: string[] = []): string[] {
-  for (const name of readdirSync(dir)) {
-    const path = join(dir, name)
-    if (statSync(path).isDirectory()) {
-      if (name !== 'bin' && name !== 'obj') sources(path, out)
-    } else if (name.endsWith('.cs')) out.push(readFileSync(path, 'utf8'))
-  }
-  return out
-}
+/** The server's C# sources (bundled by Vite for the test). */
+const SOURCES = Object.values(import.meta.glob('../../../server/src/Iskra.Server/**/*.cs', { query: '?raw', import: 'default', eager: true })) as string[]
 
 /** Keys built from a variable, with every value the server passes. */
 const DYNAMIC: Record<string, string[]> = {
@@ -29,7 +18,7 @@ const DYNAMIC: Record<string, string[]> = {
 
 // `"message", "key"` or `$"message {x}", "key", new { ... }` inside a RequestException.
 const CALL = /RequestException(?:\.\w+|\("\w+",)\(?\s*(\$?)"((?:[^"\\]|\\.)*)",\s*(\$?)"([a-z0-9_{}]+)"/g
-const found = sources(SERVER).flatMap((source) => [...source.matchAll(CALL)].map((m) => ({ interpolated: !!m[1], message: m[2], key: m[4] })))
+const found = SOURCES.flatMap((source) => [...source.matchAll(CALL)].map((m) => ({ interpolated: !!m[1], message: m[2], key: m[4] })))
 const keys = new Set(found.flatMap(({ key }) => DYNAMIC[key] ?? [key]))
 const PLACEHOLDERS = /\{\{?[^{}]+\}?\}/g
 

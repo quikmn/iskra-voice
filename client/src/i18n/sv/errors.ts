@@ -2,6 +2,10 @@ import type { Messages } from '../types'
 
 export const errors: Messages['errors'] = {
   codes: {
+    kicked: 'Du togs bort från den här servern.',
+    account_deleted: 'Kontot har raderats.',
+    server_key_mismatch: 'Serverns identitet stämmer inte med inbjudningslänken. Det kan vara en bluff.',
+    insecure_server: 'Den här servern använder inte HTTPS, så webbläsare ansluter inte till den. Använd skrivbordsappen Iskra, eller be värden slå på HTTPS.',
     forbidden: 'Du har inte behörighet att göra det.',
     not_found: 'Det finns inte längre.',
     rate_limited: 'Ta det lite lugnt.',
@@ -62,6 +66,11 @@ export const errors: Messages['errors'] = {
     gif_trending: { unavailable: 'Kunde inte nå GIF-tjänsten.' },
   },
   server: {
+    kicked_removed: 'Du togs bort från den här servern.',
+    kicked_banned: 'Du har bannlysts från den här servern.',
+    kicked_left: 'Du lämnade den här servern.',
+    kicked_deleted: 'Ditt konto har raderats.',
+    kicked_device: 'Den här enheten togs bort från sitt konto.',
     guests_no_events: 'Gäster kan inte schemalägga evenemang.',
     admins_add_bots: 'Bara admins kan lägga till bottar.',
     admins_forum_tags: 'Bara admins kan ändra ett forums taggar.',

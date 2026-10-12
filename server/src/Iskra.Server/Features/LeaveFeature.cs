@@ -18,7 +18,7 @@ public static class LeaveFeature
         s.Hub.Broadcast(Frames.Event("member.removed", new { accountKey = me.AccountKey }));
         s.Voice.EnforceAccess();
         // Every session of the account closes, this one right after its answer.
-        s.AfterReply(() => s.Hub.Disconnect(me.AccountKey, CloseCodes.Forbidden, "You left this server."));
+        s.AfterReply(() => s.Hub.Disconnect(me.AccountKey, CloseCodes.Forbidden, "You left this server.", "kicked_left"));
         return null;
     }
 }

@@ -1,5 +1,3 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { buildDeviceExport, deletesMore, parseDays, securityEventLabel, SECURITY_EVENTS } from './compliance'
 import { en } from '../i18n/en'
@@ -67,17 +65,8 @@ describe('security log', () => {
   })
 
   it('knows every event the server records', () => {
-    const recorded = new Set<string>()
-    const walk = (dir: string) => {
-      for (const name of readdirSync(dir)) {
-        const path = join(dir, name)
-        if (statSync(path).isDirectory()) { if (name !== 'bin' && name !== 'obj') walk(path) }
-        else if (name.endsWith('.cs')) {
-          for (const m of readFileSync(path, 'utf8').matchAll(/SecurityLog\.Record\([^;]*?"([a-z_]+(?:\.[a-z_]+)+)"/g)) recorded.add(m[1])
-        }
-      }
-    }
-    walk(join(__dirname, '../../../server/src/Iskra.Server'))
+    const sources = Object.values(import.meta.glob('../../../server/src/Iskra.Server/**/*.cs', { query: '?raw', import: 'default', eager: true })) as string[]
+    const recorded = new Set(sources.flatMap((source) => [...source.matchAll(/SecurityLog\.Record\([^;]*?"([a-z_]+(?:\.[a-z_]+)+)"/g)].map((m) => m[1])))
     expect(recorded.size).toBeGreaterThan(10)
     expect([...recorded].filter((event) => !(SECURITY_EVENTS as readonly string[]).includes(event))).toEqual([])
   })

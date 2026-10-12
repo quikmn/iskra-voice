@@ -46,10 +46,10 @@ public static class MemberFeature
         return new { member };
     }
 
-    private static void Remove(Session s, Member target, string reason, int closeCode)
+    private static void Remove(Session s, Member target, string reason, string key, int closeCode)
     {
         s.World.Store.RemoveMember(target.AccountKey);
-        s.Hub.Disconnect(target.AccountKey, closeCode, reason);
+        s.Hub.Disconnect(target.AccountKey, closeCode, reason, key);
         s.Hub.Broadcast(Frames.Event("member.removed", new { accountKey = target.AccountKey }));
         s.Voice.EnforceAccess();
     }
@@ -58,7 +58,7 @@ public static class MemberFeature
     {
         var target = Target(s, me, body, Perm.KickMembers);
         Audit.Record(s, "member.kick", target.AccountKey);
-        Remove(s, target, "You were removed from this server.", CloseCodes.Forbidden);
+        Remove(s, target, "You were removed from this server.", "kicked_removed", CloseCodes.Forbidden);
         return null;
     }
 
@@ -68,7 +68,7 @@ public static class MemberFeature
         var reason = body.OptionalString("reason", MaxReasonLength) ?? "";
         s.World.Store.AddBan(target.AccountKey, reason, me.AccountKey, s.Now);
         Audit.Record(s, "member.ban", target.AccountKey, reason);
-        Remove(s, target, "You were banned from this server.", CloseCodes.Forbidden);
+        Remove(s, target, "You were banned from this server.", "kicked_banned", CloseCodes.Forbidden);
         return null;
     }
 

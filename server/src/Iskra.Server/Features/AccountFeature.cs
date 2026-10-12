@@ -77,7 +77,7 @@ public static class AccountFeature
             }
         }
         s.Voice.EnforceAccess();
-        s.AfterReply(() => s.Hub.Disconnect(me.AccountKey, CloseCodes.Forbidden, "Your account was deleted."));
+        s.AfterReply(() => s.Hub.Disconnect(me.AccountKey, CloseCodes.Forbidden, "Your account was deleted.", "kicked_deleted"));
         return null;
     }
 

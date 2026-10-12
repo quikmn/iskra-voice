@@ -2,6 +2,10 @@
 // other languages use these, then fall back to the server's English text where there's no translation.
 export const errors = {
   codes: {
+    kicked: 'You were removed from this server.',
+    account_deleted: 'This account was deleted.',
+    server_key_mismatch: "This server's identity doesn't match the invite link. It may be an impostor.",
+    insecure_server: "This server doesn't use HTTPS, so browsers won't connect to it. Use the Iskra desktop app, or ask the host to turn on HTTPS.",
     forbidden: "You don't have permission to do that.",
     not_found: "That doesn't exist anymore.",
     rate_limited: 'Slow down a little.',
@@ -64,6 +68,11 @@ export const errors = {
   },
   /** The server's own messages by their key (error body `key`, PROTOCOL.md → Errors), with its `args` as {{variables}}. */
   server: {
+    kicked_removed: 'You were removed from this server.',
+    kicked_banned: 'You were banned from this server.',
+    kicked_left: 'You left this server.',
+    kicked_deleted: 'Your account was deleted.',
+    kicked_device: 'This device was removed from its account.',
     guests_no_events: "Guests can't schedule events.",
     admins_add_bots: 'Only admins can add bots.',
     admins_forum_tags: "Only admins can change a forum's tags.",

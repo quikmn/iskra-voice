@@ -91,7 +91,7 @@ public static class DeviceFeature
         foreach (var session in s.Hub.Sessions.Where(x => x.AccountKey == me.AccountKey))
         {
             session.Send(notice);
-            if (session.DeviceKey == deviceKey) session.Kick(CloseCodes.Forbidden, "This device was removed from its account.");
+            if (session.DeviceKey == deviceKey) session.Kick(CloseCodes.Forbidden, "This device was removed from its account.", "kicked_device");
         }
         return new { };
     }
