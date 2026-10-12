@@ -1,13 +1,15 @@
 // Server load test: N clients (the app's own Connection, like the bot SDK) on a fresh local world: joins, chat,
 // typing, presence, history, uploads, then a reconnect storm. Prints latencies and the server's CPU and memory.
 //   cd bots && npm ci && node build.mjs ../client/perf/load.ts && node dist/load.js [clients] [steadySeconds]
-// The server listens on localhost only (LocalOnly). Set ISKRA_PERF_COUNTERS to a dotnet-counters exe for GC/lock stats.
+// The server listens on localhost only (LocalOnly). Set ISKRA_PERF_COUNTERS to a dotnet-counters exe for GC/lock stats,
+// ISKRA_PERF_TRACE to a dotnet-trace exe for a CPU profile of 30 s of the steady phase.
 import { spawn, execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { monitorEventLoopDelay } from 'node:perf_hooks'
 import { Connection } from '../src/core/connection'
 import { b64u, randomBytes, ready, signingKeyPairFromSeed } from '../src/core/crypto'
 import { certifyDevice, type Identity } from '../src/core/identity'
@@ -141,7 +143,7 @@ async function main() {
   first.conn.start()
   const w0 = await first.welcomed()
   const general = w0.channels.find((c) => c.name === 'general')!.id
-  const { invite } = await first.conn.request('invite.create', { maxUses: 100000 })
+  const { invite } = await first.conn.request('invite.create', {})
   const clients: (Client & { rearm: () => void })[] = [first as Client & { rearm: () => void }]
   const joinStart = performance.now()
   for (let i = 1; i < CLIENTS; i += 20) {
@@ -172,6 +174,13 @@ async function main() {
 
   // Steady chat: everyone sends every ~5 s, types every ~4 s, sets presence every ~20 s, reads history every ~30 s.
   let running = true
+  const lag = monitorEventLoopDelay({ resolution: 10 })
+  lag.enable()
+  const traceFile = join(tmpdir(), `iskra-load-${pid}.nettrace`)
+  const trace = process.env.ISKRA_PERF_TRACE
+    ? spawn(process.env.ISKRA_PERF_TRACE, ['collect', '-p', String(pid), '--profile', 'dotnet-sampled-thread-time', '--duration', '00:00:00:30', '-o', traceFile], { stdio: 'ignore' })
+    : null
+  const traced = trace ? new Promise((r) => trace.once('exit', r)) : null
   const loops = clients.map(async (c) => {
     await sleep(Math.random() * 5000)
     let n = 0
@@ -187,6 +196,12 @@ async function main() {
   })
   await sleep(STEADY_S * 1000)
   running = false
+  lag.disable()
+  console.log(`load script's own event loop delay: p50 ${(lag.percentile(50) / 1e6).toFixed(1)} ms, p99 ${(lag.percentile(99) / 1e6).toFixed(1)} ms, max ${(lag.max / 1e6).toFixed(1)} ms`)
+  if (trace) {
+    await traced
+    console.log(`trace: ${traceFile}`)
+  }
   await Promise.all(loops)
   await sleep(1000)
   delivered = frames

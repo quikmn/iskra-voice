@@ -49,11 +49,15 @@ public static partial class ProfileFeature
     public static bool PagesEnabled(Store store) => store.GetProfileOption("pages") != "off";
 
     /// <summary>The member as everyone sees it, profile included.</summary>
-    public static object Public(Store store, Member m, PresenceFeature.View presence, object? activity = null)
+    public static object Public(Store store, Member m, PresenceFeature.View presence, object? activity = null) =>
+        Public(m, store.GetPublicProfile(m.AccountKey), PagesEnabled(store), store.GetNickname(m.AccountKey), store.IsBot(m.AccountKey),
+            store.GetTimeout(m.AccountKey)?.Until, presence, activity);
+
+    /// <summary>The same from what's already loaded (the welcome's member list loads it for everyone at once).</summary>
+    public static object Public(Member m, PublicProfile p, bool pagesEnabled, string? nick, bool bot, long? timedOutUntil, PresenceFeature.View presence,
+        object? activity)
     {
-        var p = store.GetPublicProfile(m.AccountKey);
-        var page = p.PageId is not null && PagesEnabled(store);
-        var nick = store.GetNickname(m.AccountKey);
+        var page = p.PageId is not null && pagesEnabled;
         return new
         {
             accountKey = m.AccountKey,
@@ -64,7 +68,7 @@ public static partial class ProfileFeature
             online = presence.Online,
             status = presence.Status,
             customStatus = presence.Custom,
-            bot = store.IsBot(m.AccountKey),
+            bot,
             avatar = p.Avatar is { } a ? $"/files/{a.Id}/{Uri.EscapeDataString(a.Name)}" : null,
             avatarHash = p.Avatar?.Sha256,
             bio = p.Bio,
@@ -72,7 +76,7 @@ public static partial class ProfileFeature
             accent = p.Accent,
             page = page ? $"/pages/{p.PageId}" : null,
             pageHash = page ? p.PageSha256 : null,
-            timedOutUntil = store.GetTimeout(m.AccountKey)?.Until,
+            timedOutUntil,
             roles = m.RoleIds,
             activity, // ActivityFeature: { name, since } or null
         };

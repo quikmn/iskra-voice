@@ -199,12 +199,7 @@ public static class ChatFeature
         if (!Permissions.CanSend(me, channel)) throw RequestException.Forbidden();
         if (PresenceFeature.Invisible(s.World.Store, me.AccountKey)) return null; // typing would give an invisible member away
 
-        var frame = Frames.Event("chat.typing", new { channelId = channel.Id, accountKey = me.AccountKey });
-        foreach (var other in s.Hub.Sessions.Where(o => o.AccountKey != me.AccountKey))
-        {
-            var member = other.CurrentMember();
-            if (member is not null && Permissions.CanRead(member, channel)) other.Send(frame);
-        }
+        s.Hub.BroadcastToReaders(channel, Frames.Event("chat.typing", new { channelId = channel.Id, accountKey = me.AccountKey }), except: me.AccountKey);
         return null;
     }
 }
