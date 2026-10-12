@@ -132,7 +132,7 @@ test('app lock: a passphrase protects the keys and is asked for at startup', asy
   await page.getByRole('button', { name: 'Set a passphrase' }).click()
   await page.getByLabel('New passphrase').fill('purple otter lantern')
   await page.getByLabel('Repeat it').fill('purple otter lantern')
-  await page.getByRole('button', { name: 'Save' }).click()
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(page.getByText('App lock passphrase saved.')).toBeVisible()
   expect(await rawSlot(page, 'vault')).toHaveProperty('lock')
 
