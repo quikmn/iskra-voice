@@ -1,0 +1,31 @@
+**Iskra: alpha <N>.**
+
+<!-- Draft for the next release. Rename to docs/releases/<version>.md and fill in <N> and <version> before `npm run release`. -->
+
+### What's new
+- **Set up a server in minutes.** Create a server now starts from a template: *Gaming group*, *Friends hangout*, *Board games and tabletop* or *Empty*, with channels, voice rooms, roles and rules ready. Tick **Keep my server running** and Iskra starts with your computer, quietly in the tray, and keeps your server going.
+- **Help getting online.** Open to the internet now tells you what it found out about your connection, straight from your router, and walks you through port forwarding with your exact addresses and ports. Prefer to ask an AI assistant? Copy a ready-made prompt. Behind carrier-grade NAT, it explains what that means and lists your options.
+- **Rent a small server, ready in about 15 minutes.** The app gives you a setup text to paste at a VPS provider you pick; the server installs Iskra, sets up HTTPS, and you become its owner from the app. No terminal needed. Your server, your choice: Iskra gets nothing from it.
+- **Sound that just works.** AI noise removal (DeepFilterNet3) is the new default, voice detection doesn't cut off your first word, voices are evened out, and you can clean up a friend's noisy mic on your end. Calls ride out lost packets better, and admins can allow hi-fi stereo in a voice channel for music.
+- **Live captions and camera backgrounds,** on your device. Blur or replace your background, and turn on captions in calls (English and Swedish). Nothing you say or show is sent anywhere for processing; the captions model comes from your own server.
+- **Screen sharing at 1080p 60 fps** by default.
+- **Text chat in every voice channel,** and **clips:** save the last seconds of a call, recorded on your device. Everyone can see who has clips on.
+- **Encrypted private channels.** Admins can make a small private text or voice channel (up to 50 people) end-to-end encrypted.
+- **Saved messages, reminders and send later,** an **inbox** for your mentions and replies, **edit history**, and **Catch up**, a summary of what you missed, worked out on your device.
+- **Docs channels** for guides, FAQs and notes, with page history and search.
+- **Passkeys** unlock the app lock with your fingerprint, face or a security key, and **key transparency** lets your app notice if a server shows different people different keys.
+- **Your data:** Download my data (Settings → Privacy & data), a security log for owners, and retention settings for how long a server keeps things.
+- **Servers update themselves.** A standalone server tells its owner about new versions, and on Linux with systemd can install them itself, checked against the published checksums, with automatic rollback. `/health` for uptime monitors.
+
+<!-- ### Fixes: add a section here if fixes to alpha 10 behaviour land before the release. -->
+
+### Get started
+- **Windows:** `Iskra-Setup-<version>.exe`. **Mac:** the `.dmg`. **Linux:** AppImage, `.deb` or `.rpm`. **Android:** the `.apk`.
+- **In the browser:** [app.iskra.foo](https://app.iskra.foo).
+- **Your own server:** create one in the desktop app, rent one from the app, or run the `iskra-server` package: `iskra-server my-server`, then open the owner link it prints. The [hosting guide](https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md) has every step.
+
+### Good to know
+- Apps update themselves. Standalone servers from before this release don't: download the new `iskra-server` once and restart it. From then on Settings → Updates takes care of it. Most of what's new needs the new server.
+- The phone apps show notifications while they're open; for notifications while Iskra is closed, use the web app in your phone's browser or the desktop app.
+- Live captions download a 78 MB model from your server the first time you turn them on. Owners can turn this off (`Captions.ModelDownload` in `server.json`).
+- Verify downloads with `SHA256SUMS.txt`, and check where a file was built with `gh attestation verify <file> -R quikmn/iskra-voice`.
