@@ -81,5 +81,8 @@ export const compliance = {
     update_rolledback: 'Undid an update that didn’t start',
     captions_model_download: 'Downloaded the captions model',
     captions_model_rejected: 'Refused a captions model that didn’t match',
+    server_template: 'Set up from a starter template',
+    server_autostart_install: 'Set to start with the computer',
+    server_autostart_remove: 'No longer starts with the computer',
   },
 } as const

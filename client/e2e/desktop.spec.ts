@@ -216,7 +216,11 @@ test('creating a server from the desktop app makes you its owner', async () => {
     await page.getByRole('button', { name: 'Continue' }).click()
     await page.getByRole('button', { name: 'Create a server' }).click()
     await page.getByLabel('Server name').fill('Living Room')
+    await page.getByRole('button', { name: 'Next' }).click()
+    await page.locator('[data-template="empty"]').click()
     await page.getByRole('button', { name: 'Create', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Living Room is ready' })).toBeVisible({ timeout: 30_000 })
+    await page.getByRole('button', { name: 'Done', exact: true }).click()
 
     await expect(page.getByRole('heading', { name: 'general' })).toBeVisible({ timeout: 30_000 })
     await expect(page.locator('.sidebar-header .server-name')).toHaveText('Living Room')
@@ -285,7 +289,7 @@ test('Desktop app settings, the unread badge, and iskra:// invite links', async 
     await expect(settings.getByRole('button', { name: 'Restart now' })).toBeVisible()
     await page.screenshot({ path: join(SHOTS, 'desktop-settings-app.png') })
     await expect.poll(() => existsSync(join(userData, 'desktop.json')) && JSON.parse(readFileSync(join(userData, 'desktop.json'), 'utf8')))
-      .toEqual({ openAtLogin: false, closeToTray: false, hardwareAcceleration: false, activity: false, customGames: [], language: 'en' })
+      .toEqual({ openAtLogin: false, closeToTray: false, hardwareAcceleration: false, activity: false, customGames: [], language: 'en', keepRunning: [] })
     await settings.getByLabel(/Hardware acceleration/).check()
     await expect(settings.getByRole('button', { name: 'Restart now' })).toHaveCount(0)
 
@@ -303,7 +307,7 @@ test('Desktop app settings, the unread badge, and iskra:// invite links', async 
     // Only the game's name was stored, never the program list.
     const stored = JSON.parse(readFileSync(join(userData, 'desktop.json'), 'utf8'))
     expect(stored.activity).toBe(true)
-    expect(Object.keys(stored).sort()).toEqual(['activity', 'closeToTray', 'customGames', 'hardwareAcceleration', 'language', 'openAtLogin'])
+    expect(Object.keys(stored).sort()).toEqual(['activity', 'closeToTray', 'customGames', 'hardwareAcceleration', 'keepRunning', 'language', 'openAtLogin'])
     // Turning it off clears it for everyone.
     await page.locator('.me-bar').getByRole('button', { name: 'Settings' }).click()
     await settings.getByRole('button', { name: 'Desktop app', exact: true }).click()

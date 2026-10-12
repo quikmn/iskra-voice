@@ -142,6 +142,9 @@ export function ChannelList({ server, isAdmin, onNavigate, onCreateChannel }: {
 
   const topText = layout.uncategorized.filter((c) => !isVoiceLike(c))
   const topVoice = layout.uncategorized.filter(isVoiceLike)
+  // Everything sits in categories (e.g. a new server from a template): no empty "Text"/"Voice" headings above them,
+  // just the admin's buttons.
+  const bare = topText.length === 0 && topVoice.length === 0 && layout.groups.length > 0
   const toTop = (d: Drag) => void moveChannel(server.key, d.id, null, null).catch(() => undefined)
   const menuChannel = menu?.kind === 'channel' ? server.channels.find((c) => c.id === menu.id) : undefined
   const menuCategory = menu?.kind === 'category' ? categories.find((c) => c.id === menu.id) : undefined
@@ -152,7 +155,7 @@ export function ChannelList({ server, isAdmin, onNavigate, onCreateChannel }: {
       {(topText.length > 0 || isAdmin) && (
         <div className={`channel-group ${over?.kind === 'top' && over.id === 0 ? 'drop-into' : ''}`}
           {...target({ kind: 'top', id: 0 }, (d) => d.kind === 'channel', toTop)}>
-          <span>{t('organize.list.text')}</span>
+          <span>{bare ? '' : t('organize.list.text')}</span>
           {isAdmin && (
             <span className="org-group-actions">
               <button className="icon-button small" onClick={() => setDialog({ kind: 'category' })} aria-label={t('organize.list.createCategory')} title={t('organize.list.createCategory')}>
@@ -166,7 +169,7 @@ export function ChannelList({ server, isAdmin, onNavigate, onCreateChannel }: {
         </div>
       )}
       {topText.map(renderChannel)}
-      {(topVoice.length > 0 || isAdmin) && (
+      {(topVoice.length > 0 || (isAdmin && !bare)) && (
         <div className={`channel-group ${over?.kind === 'top' && over.id === 1 ? 'drop-into' : ''}`}
           {...target({ kind: 'top', id: 1 }, (d) => d.kind === 'channel', toTop)}>
           <span>{t('organize.list.voice')}</span>

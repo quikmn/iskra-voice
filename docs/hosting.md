@@ -12,11 +12,11 @@ There are three ways to run one:
 
 ## 1. From the desktop app
 
-Install Iskra, click **Create a server**, pick a name. Done: the server runs on your PC (voice included) while the app is open, and you're its owner. Click **Invite friends** to get a link.
+Install Iskra, click **Create a server**, pick a name and a starting point (a [starter template](#starter-templates): *Gaming group*, *Friends hangout*, *Board games and tabletop* or *Empty*). Done: the server runs on your PC (voice included) while the app is open, and you're its owner. Click **Invite friends** to get a link.
 
 - Its folder is `Documents\Iskra\Servers\<name>` (on macOS: `~/Library/Application Support/Iskra/Servers/<name>`).
 - Friends on the same network can join right away. For friends elsewhere, turn on **Settings → Open to the internet** (see [Reaching your server from the internet](#reaching-your-server-from-the-internet)).
-- The server stops when you quit the app. For a server that's always on, use the standalone server.
+- The server stops when you quit the app. Tick **Keep my server running** (when it's created, or in **Settings → Open to the internet**): Iskra then starts with your computer, hidden in the tray, and starts that server; closing the window keeps it running. Untick it on the last such server and Iskra stops starting with the computer too.
 
 ## 2. The standalone server
 
@@ -29,6 +29,59 @@ iskra-server my-server        # Windows: iskra-server.exe my-server
 - The folder `my-server` is created on first run.
 - The server prints a **one-time owner link** (also saved as `my-server/owner-invite.txt`). Open it in the Iskra app or at [app.iskra.foo](https://app.iskra.foo) to become the owner. The file disappears once used.
 - Stop the server with Ctrl+C. Start it again with the same command; everything is kept.
+- Start from a template: `iskra-server my-server --template gaming` (see [Starter templates](#starter-templates)).
+
+### Keep it running (start with the computer)
+
+```sh
+iskra-server install-autostart my-server     # and to undo it: iskra-server remove-autostart my-server
+```
+
+Nothing starts right away (stop the copy in your terminal first, then use the "start it now" command it prints). What it sets up:
+
+| System | What | When it starts |
+|---|---|---|
+| Windows | A scheduled task, *Iskra server &lt;folder&gt;-&lt;hash&gt;*, running without a window (`conhost --headless`), output appended to `server.log`, restarted if it crashes, no time limit | When you log in. Run from an **administrator** terminal and it starts with the computer instead, before anyone logs in (as you, without storing your password: "S4U"; never with administrator rights) |
+| Linux | A systemd **user** service, `~/.config/systemd/user/iskra-<folder>-<hash>.service`, enabled | When you log in. `loginctl enable-linger $USER` makes it start at boot. As root it refuses: use the system unit below |
+| macOS | A launchd agent, `~/Library/LaunchAgents/foo.iskra.server.<folder>-<hash>.plist`, output to `server.log`, restarted if it crashes | When you log in |
+
+Installing and removing are written to the server's security log.
+
+### Starter templates
+
+A new server can start with channels, voice rooms, roles and rules from a template. It's applied **once**, on the first start of a new server (nobody has joined, nothing has been set up yet). On a server that's already in use it's ignored, so a leftover setting never adds channels to it. Built in: `gaming`, `friends`, `tabletop`, `empty`. List them with `iskra-server templates`.
+
+- In the desktop app: the second step of **Create a server**.
+- Standalone: `iskra-server my-server --template gaming`, or `"Template": "gaming"` in `server.json` before the first start.
+- Your own: a `.json` file, by path (`--template ./book-club.json`). Check one with `iskra-server templates ./book-club.json`: it prints what it would set up, or exactly what's wrong. A bad template stops the server from starting, with that message.
+
+```jsonc
+{
+  "name": "Book club",                         // 1–60 characters
+  "description": "Reading together.",          // optional, up to 300
+  "channels": [                                // optional: outside any category, listed first
+    { "name": "Reading room", "kind": "voice", "userLimit": 8 }
+  ],
+  "categories": [                              // optional, up to 50
+    {
+      "name": "Books",                         // 1–32 characters
+      "channels": [
+        { "name": "now-reading" },             // "kind": "text" (default) or "voice"; names 1–32 characters
+        { "name": "announcements", "writeRole": "admin" }   // readRole/writeRole: guest, member (default), trusted, admin
+      ]
+    }
+  ],
+  "roles": [                                   // optional, up to 20, highest first
+    { "name": "Moderator", "color": "#3fa66b", "icon": "📚", "hoist": true, "mentionable": false,
+      "permissions": ["manageMessages", "timeoutMembers", "kickMembers", "muteMembers", "moveMembers", "viewAuditLog"] }
+  ],
+  "rules": { "text": "Be kind.", "welcome": "Welcome!", "required": false }   // optional; rules up to 6000, welcome up to 500 characters
+}
+```
+
+- `userLimit` (voice only): 0 (no limit) to 99. At most 100 channels in all.
+- Permissions: `manageMessages`, `timeoutMembers`, `kickMembers`, `banMembers`, `manageChannels`, `manageRoles`, `viewAuditLog`, `manageExpressions`, `manageWebhooks`, `mentionEveryone`, `moveMembers`, `muteMembers`, `manageAutoMod`.
+- The server's starting `#general` becomes the template's first text channel. Comments and trailing commas are fine; unknown fields are an error (so typos don't go unnoticed). Files can be up to 64 KB. Applying one is written to the security log.
 
 ### On a Linux VPS with systemd
 
@@ -109,11 +162,19 @@ As the owner, open **Settings** in the app and turn on **Open to the internet**.
 
 A checklist shows how each step went, in plain words. New invite links use the public address. Iskra re-checks every few minutes, so a router restart or a new IP from your provider is picked up by itself.
 
+Below it, **What Iskra found out**: whether your router has its own public address, a shared one (carrier-grade NAT, `100.64.0.0/10`) or another private one (a second router or your provider's NAT in front: double NAT), whether it refused some ports, its make and model when UPnP says, and the exact voice ports. All of this comes from your router's own answers and your computer; no outside service is asked.
+
+**Forward the ports yourself** lists, step by step, your router's settings page (its address on your network), this computer's address, and every port with its protocol. **Copy a prompt for an AI assistant** fills in a question for ChatGPT, Gemini, Claude or any other assistant with your system, router model, those two local addresses and the ports, and shows it in a box you can edit before copying. It never includes your public address, keys or invite links.
+
 **When it can't work, it says why:**
 
 - **Your router doesn't answer** (UPnP is off): turn on UPnP in the router's settings, or forward the ports it lists by hand, then press **Check again**.
 - **The router won't open port 80** (many only allow ports above 1024): forward port 80 by hand. Until then friends with the desktop app can join over plain HTTP; browsers need HTTPS.
-- **Carrier-grade NAT**: some providers share one public address between customers (your router's "public" address is then in `100.64.0.0/10` or another private range). No router setting helps; ask your provider for a public IPv4 address, or [run the server on a VPS](#on-a-linux-vps-with-systemd).
+- **Carrier-grade NAT**: some providers share one public address between customers (your router's "public" address is then in `100.64.0.0/10` or another private range). Port forwarding on your own router can't help: the provider's NAT sits in front of it. Friends behind such a connection can always *join* a reachable server; only the person hosting needs an open connection. The app lists the options, easiest first:
+  1. Check whether you already have a public IPv4 address (many fiber connections do): the check shows what your router says.
+  2. Ask your provider for a public IPv4 address. Often free and done once; mobile broadband (4G/5G) almost never gets one.
+  3. Let someone in your group with an open connection host: the server is one folder, so [move it](#moving-a-server-to-another-computer).
+  4. [Run it on a small VPS](#on-a-linux-vps-with-systemd) of your own.
 
 **What "reachable" means.** Iskra doesn't use outside services to test your server, so it only reports what it can actually prove: *verified* once Let's Encrypt has connected to your server from the internet, or *checked through your router* when the server can reach itself via your public address. Otherwise it says it hasn't been confirmed from outside; send a friend an invite to try.
 
@@ -247,6 +308,7 @@ iskra-server import-discord my-server export.zip              # add --read-only 
   "Port": 47070,                       // the server's port: HTTP, plus HTTPS when open to the internet (localhost-only with Https on)
   "PublicUrl": null,                   // how friends reach the server; default http://localhost:<Port>, or https://<Domain>
   "AppUrl": "https://app.iskra.foo",   // the web app invite links open
+  "Template": null,                    // starter template applied once to a new server: "gaming", "friends", "tabletop", "empty" or a .json path
   "MaxUploadMb": 512,                  // largest file a member may upload (also in the app: Settings → Limits)
   "UploadQuota": {                     // per account, over any 24 hours; 0 = no limit (admins and the owner have none)
     "MemberMbPerDay": 10240,           // members and trusted

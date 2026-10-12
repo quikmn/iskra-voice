@@ -83,5 +83,8 @@ export const compliance: Messages['compliance'] = {
     update_rolledback: 'Backade en uppdatering som inte startade',
     captions_model_download: 'Laddade ner modellen för textning',
     captions_model_rejected: 'Vägrade en modell för textning som inte stämde',
+    server_template: 'Satte upp servern från en startmall',
+    server_autostart_install: 'Ställde in start med datorn',
+    server_autostart_remove: 'Startar inte längre med datorn',
   },
 }
