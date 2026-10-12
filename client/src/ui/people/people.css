@@ -37,3 +37,10 @@
   .friends-header h1 { display: none; }
   .friend-line { margin-left: 16px; }
 }
+/* Narrow phones: a pending request's buttons get their own line (in the DM header and on the Friends page). */
+@media (max-width: 560px) {
+  .chat-header:has(> .dm-header-friend > .button) { height: auto; min-height: 52px; flex-wrap: wrap; padding-top: 6px; padding-bottom: 6px; row-gap: 6px; }
+  .chat-header > .dm-header-friend:has(> .button) { order: 10; flex-basis: 100%; justify-content: flex-end; }
+  .friend-row .friend-text { flex: 1 1 calc(100% - 64px); }
+  .friend-row > .button:first-of-type, .friend-row > .friend-chip:first-of-type { margin-left: auto; }
+}

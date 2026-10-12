@@ -69,6 +69,13 @@ async function syncNow(serverKey: string): Promise<void> {
 
 onWelcomeHook((serverKey, welcome) => {
   useProfiles.setState((s) => ({ pagesEnabled: { ...s.pagesEnabled, [serverKey]: welcome.server.profilePages ?? false } }))
+  // Restored from the recovery key: the account's name is the one this server knows (the synced copy, if any, wins next).
+  const current = useApp.getState().profile
+  if (current && !current.name && welcome.you.name) {
+    const named = { ...current, name: welcome.you.name }
+    useApp.setState({ profile: named }) // now, so catching up below starts from it
+    void storage.saveProfile(named)
+  }
   // Take a newer profile from your other devices first, so an old avatar or page isn't uploaded for nothing.
   void catchUp(serverKey).finally(() => syncProfile(serverKey).catch(() => undefined))
 })

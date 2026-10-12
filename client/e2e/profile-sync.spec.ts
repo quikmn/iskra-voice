@@ -135,7 +135,6 @@ test('a device restored from the recovery key takes the current profile, not the
     await restored.getByRole('button', { name: /I already use Iskra/ }).click()
     await restored.getByRole('button', { name: /Use my recovery key/ }).click()
     await restored.getByLabel('Recovery key').fill(recoveryKey)
-    await restored.getByLabel('Your name').fill('Bea')
     await restored.getByRole('button', { name: 'Restore my account' }).click()
     await expect(restored.getByRole('heading', { name: 'general' })).toBeVisible()
 

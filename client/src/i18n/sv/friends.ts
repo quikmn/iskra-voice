@@ -11,6 +11,7 @@ export const friends: Messages['friends'] = {
   onlineCount: 'Online — {{count}}',
   allCount: 'Alla vänner — {{count}}',
   incomingCount: 'Inkommande — {{count}}',
+  requestsCount: 'Vänförfrågningar — {{count}}',
   outgoingCount: 'Skickade — {{count}}',
   empty: {
     online: 'Ingen av dina vänner är online just nu.',
@@ -25,7 +26,7 @@ export const friends: Messages['friends'] = {
   pendingBadge_other: '{{count}} väntande vänförfrågningar',
   accept: 'Tacka ja',
   ignore: 'Ignorera',
-  cancel: 'Avbryt',
+  cancel: 'Avbryt förfrågan',
   message: 'Skicka meddelande',
   more: 'Fler val för {{name}}',
   add: 'Lägg till vän',

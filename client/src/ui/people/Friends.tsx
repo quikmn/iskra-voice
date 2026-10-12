@@ -63,7 +63,7 @@ export function FriendButtons({ accountKey, header }: { accountKey: string; head
       {relation === 'outgoing' && (
         <>
           <span className="friend-chip">{t('friends.requestSent')}</span>
-          <button className={`button ghost ${small}`} disabled={busy} onClick={run(() => cancelFriendRequest(accountKey))} aria-label={t('friends.cancelRequest')}>{t('friends.cancel')}</button>
+          <button className={`button ghost ${small}`} disabled={busy} onClick={run(() => cancelFriendRequest(accountKey))}>{t('friends.cancel')}</button>
         </>
       )}
       {relation === 'incoming' && (
@@ -148,12 +148,38 @@ export function FriendsView({ onToggle }: { onToggle: (panel: Panel) => void }) 
               {pendingOut.map(([k]) => <PersonRow key={k} accountKey={k} sub={unsent.includes(k) ? t('friends.notSentYet') : t('friends.outgoing')} />)}
             </>
           )
-        ) : (tab === 'online' ? online : friends).length === 0 ? (
-          tab === 'online' && friends.length > 0 ? <Empty title={t('friends.empty.online')} /> : <Empty title={t('friends.empty.all')} hint={t('friends.empty.allHint')} />
+        ) : tab === 'online' ? (
+          online.length === 0 ? (
+            friends.length > 0 ? <Empty title={t('friends.empty.online')} /> : <Empty title={t('friends.empty.all')} hint={t('friends.empty.allHint')} />
+          ) : (
+            <>
+              <h2 className="section-title">{t('friends.onlineCount', { count: online.length })}</h2>
+              {online.map(([k]) => <PersonRow key={k} accountKey={k} />)}
+            </>
+          )
         ) : (
           <>
-            <h2 className="section-title">{tab === 'online' ? t('friends.onlineCount', { count: online.length }) : t('friends.allCount', { count: friends.length })}</h2>
-            {(tab === 'online' ? online : friends).map(([k]) => <PersonRow key={k} accountKey={k} />)}
+            {/* All: requests first so nobody misses one, then the friends. */}
+            {pendingIn.length > 0 && (
+              <section className="friends-requests" aria-label={t('friends.requestsCount', { count: pendingIn.length })}>
+                <h2 className="section-title">{t('friends.requestsCount', { count: pendingIn.length })}</h2>
+                {pendingIn.map(([k]) => <PersonRow key={k} accountKey={k} sub={t('friends.incoming')} />)}
+              </section>
+            )}
+            {pendingOut.length > 0 && (
+              <section className="friends-sent" aria-label={t('friends.outgoingCount', { count: pendingOut.length })}>
+                <h2 className="section-title">{t('friends.outgoingCount', { count: pendingOut.length })}</h2>
+                {pendingOut.map(([k]) => <PersonRow key={k} accountKey={k} sub={unsent.includes(k) ? t('friends.notSentYet') : t('friends.outgoing')} />)}
+              </section>
+            )}
+            {friends.length === 0 ? (
+              pendingIn.length + pendingOut.length === 0 && <Empty title={t('friends.empty.all')} hint={t('friends.empty.allHint')} />
+            ) : (
+              <>
+                <h2 className="section-title">{t('friends.allCount', { count: friends.length })}</h2>
+                {friends.map(([k]) => <PersonRow key={k} accountKey={k} />)}
+              </>
+            )}
           </>
         )}
       </div>

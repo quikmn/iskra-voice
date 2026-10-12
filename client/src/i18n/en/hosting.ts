@@ -10,7 +10,7 @@ export const hosting = {
     next: 'Next',
     back: 'Back',
     templateTitle: 'Pick a starting point',
-    templateIntro: 'You get these channels, voice rooms, roles and rules right away. Change anything later.',
+    templateIntro: 'You get these channels, roles and rules right away. Change anything later.',
     templates: 'Starter templates',
     upTo: 'up to {{count}}',
     roles: 'Roles: {{roles}}',
@@ -22,12 +22,12 @@ export const hosting = {
     inviteNow: 'Invite friends',
     connecting: 'Connecting…',
     finish: 'Done',
-    nextInternet: 'Friends outside your home network? Turn on <b>Open to the internet</b> in Settings afterwards.',
+    nextInternet: 'Friends outside your home network? Turn on <b>Let friends anywhere join</b> in Server settings → Internet access afterwards.',
     template: {
       gaming: { name: 'Gaming group', description: 'Chat, clips and looking for a group, plus a lobby, squads, a raid room and AFK.' },
       friends: { name: 'Friends hangout', description: 'A relaxed place for chatting, photos and plans, with rooms to hang out in.' },
       tabletop: { name: 'Board games and tabletop', description: 'Plan game nights, keep campaign notes and play at separate tables.' },
-      empty: { name: 'Empty', description: 'Just #general and one voice room. Build the rest yourself.' },
+      empty: { name: 'Empty', description: 'Just #general and one voice channel. Build the rest yourself.' },
     },
   },
   keepRunning: {
@@ -98,7 +98,7 @@ export const hosting = {
     isp: '<b>Ask your provider for a public IPv4 address.</b> It is often free and done once, sometimes for a small fee. Mobile broadband (4G/5G) almost never gets one.',
     tailscale: "<b>Use Tailscale (free).</b> A free app that links your group's devices as if they were on one network. Everyone installs it once; no ports to open.",
     tailscaleButton: 'Show me how',
-    friend: '<b>Let someone in your group with an open connection host.</b> The whole server is one folder: move it with Settings → Backup & move, and everything comes along.',
+    friend: '<b>Let someone in your group with an open connection host.</b> The whole server is one folder: move it with Server settings → Backup & move, and everything comes along.',
   },
   tailscale: {
     title: 'Use Tailscale (free)',

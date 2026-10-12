@@ -60,13 +60,13 @@
   <details>
     <summary>How do I start my own server?</summary>
     <p>In the desktop app, click <strong>Create a server</strong>, pick a name and a starting point (a gaming group, a friends hangout, board games, or empty). The server runs on your computer, and you're its owner. Click <strong>Invite friends</strong> to get a link. Tick <strong>Keep my server running</strong> and Iskra starts with your computer and keeps the server going, even with the window closed.</p>
-    <p>Friends on your home network can join right away. For friends elsewhere, turn on <span class="path">Settings → Open to the internet</span>: it opens the ports on your router and sets up HTTPS for you. For a server that's always on without your PC, choose <strong>Rent a small server</strong> there, or run the standalone server on a spare computer.</p>
+    <p>Friends on your home network can join right away. For friends elsewhere, turn on <strong>Let friends anywhere join</strong> in <span class="path">Server settings → Internet access</span>: it opens the ports on your router and sets up HTTPS for you. For a server that's always on without your PC, choose <strong>Rent a small server</strong> there, or run the standalone server on a spare computer.</p>
     <p>Everything is explained in the <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md" target="_blank" rel="noopener">hosting guide</a>. Your server, your choice: Iskra gets nothing from any of it.</p>
   </details>
 
   <details>
     <summary>Friends can't reach my server</summary>
-    <p>Open <span class="path">Settings → Open to the internet</span> and look at <strong>What Iskra found out</strong>. It tells you, from your own router's answers, whether the ports could be opened and what kind of connection you have.</p>
+    <p>Open <span class="path">Server settings → Internet access</span> and look at <strong>What Iskra found out</strong>. It tells you, from your own router's answers, whether the ports could be opened and what kind of connection you have.</p>
     <ul>
       <li><strong>The router didn't open the ports:</strong> press <strong>Show me how</strong> for step-by-step port forwarding with your exact addresses and ports, or <strong>Copy a prompt for an AI assistant</strong> to get help for your router.</li>
       <li><strong>"You're behind CGNAT":</strong> your provider shares one internet address between customers, and port forwarding can't help. The app lists your options, quickest first: rent a small server, check for or ask your provider for a public IPv4 address, use Tailscale (free; the app shows you how), or let a friend with an open connection host (the whole server is one folder, so it moves easily).</li>
@@ -76,7 +76,7 @@
 
   <details>
     <summary>Can I use Iskra on my phone?</summary>
-    <p>Yes. On Android, install the app from the <a href="/#download">download section</a>. On any phone, open <a href="https://app.iskra.foo">app.iskra.foo</a> in the browser and add it to your home screen. On iPhone and iPad, tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>. The server you join needs HTTPS, which "Open to the internet" sets up.</p>
+    <p>Yes. On Android, install the app from the <a href="/#download">download section</a>. On any phone, open <a href="https://app.iskra.foo">app.iskra.foo</a> in the browser and add it to your home screen. On iPhone and iPad, tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>. The server you join needs HTTPS, which "Let friends anywhere join" sets up.</p>
     <p>The web app can notify you while it's closed (on iPhone and iPad, only from the Home Screen app). The Android app keeps voice going with the screen locked and shows notifications while it's open.</p>
   </details>
 
@@ -91,7 +91,7 @@
   <details>
     <summary>How do I use my account on a new phone or computer?</summary>
     <p>The easiest way is <strong>device linking</strong>: on a device where you're signed in, open <span class="path">Settings → Devices → Link a device</span>, then scan the QR code (or type the code) on the new device. Both devices show a six-digit number to compare before anything is sent. Your account goes straight from one device to the other, encrypted.</p>
-    <p>No other device at hand? On the new device choose <strong>I already have Iskra</strong>, then <strong>Use my recovery key</strong>, and paste your key. Then open an invite link to each of your servers to get back in.</p>
+    <p>No other device at hand? On the new device choose <strong>I already use Iskra on another device</strong>, then <strong>Use my recovery key</strong>, and paste your key. Then open an invite link to each of your servers to get back in.</p>
   </details>
 
   <details>
@@ -117,7 +117,7 @@
       <li>If it says notifications are blocked, allow them for Iskra in your browser's site settings (or your phone's settings), then try again.</li>
       <li>On iPhone and iPad, notifications only work in the app added to the Home Screen.</li>
       <li>The Android app shows notifications while it's open. To be notified while it's closed, use the web app in your phone's browser.</li>
-      <li>On phones, the server needs HTTPS ("Open to the internet" sets it up).</li>
+      <li>On phones, the server needs HTTPS ("Let friends anywhere join" sets it up).</li>
       <li>You won't get a notification on a device you're actively using, and a muted server or channel doesn't notify you (right-click it, or long-press on a phone, to check).</li>
     </ul>
   </details>
@@ -129,7 +129,7 @@
     <ul>
       <li>Check that Iskra may use your microphone (browser site settings, or your system's privacy settings), and pick the right devices in <span class="path">Settings → Voice &amp; audio</span>.</li>
       <li>Make sure you're not muted or deafened, and that push-to-talk isn't on by mistake.</li>
-      <li>If voice works at home but not for friends elsewhere, the server's voice ports need to be reachable: <code>7881/tcp</code> and <code>7882/udp</code>. "Open to the internet" opens them on most routers; otherwise forward them by hand (see the <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md#ports-at-a-glance" target="_blank" rel="noopener">ports in the hosting guide</a>).</li>
+      <li>If voice works at home but not for friends elsewhere, the server's voice ports need to be reachable: <code>7881/tcp</code> and <code>7882/udp</code>. "Let friends anywhere join" opens them on most routers; otherwise forward them by hand (see the <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md#ports-at-a-glance" target="_blank" rel="noopener">ports in the hosting guide</a>).</li>
       <li>Strict networks (some workplaces, schools and VPNs) can block voice. Try another network to check.</li>
     </ul>
   </details>

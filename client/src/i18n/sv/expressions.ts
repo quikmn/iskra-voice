@@ -75,7 +75,7 @@ export const expressions: Messages['expressions'] = {
     stopTitle: 'Stoppar ljuden som spelas för dig',
     stop: 'Stoppa ljud',
     search: 'Sök ljud',
-    empty: 'Inga ljud än. Betrodda medlemmar och admins kan lägga till några i Inställningar.',
+    empty: 'Inga ljud än. Betrodda medlemmar och admins kan lägga till några under Serverinställningar → Soundboard.',
     playTitle: 'Spela {{name}} för alla i samtalet',
     mutedNote: 'Du har stängt av soundboarden för dig själv i Inställningar, så du hör inte de här.',
     played: '<b>{{name}}</b> spelade {{sound}}',
