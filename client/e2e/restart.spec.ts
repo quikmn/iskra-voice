@@ -15,7 +15,7 @@ const lounge = (page: Page) => page.locator('.voice-channel', { hasText: 'lounge
 const composer = (page: Page) => page.getByPlaceholder('Message #general')
 
 test('a server restart: "hold on", then everyone is back in voice and nothing is lost', async ({ browser }) => {
-  test.setTimeout(120_000)
+  test.setTimeout(150_000)
   const host = await (await browser.newContext()).newPage()
   await joinVia(host, server.ownerLink(), 'Host')
   await host.getByRole('button', { name: 'Create voice channel' }).click()
@@ -102,4 +102,12 @@ test('a server restart: "hold on", then everyone is back in voice and nothing is
   await stopped
   await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected', { timeout: 30_000 })
   await expect(lounge(friend).locator('li', { hasText: 'Friend' }).getByTitle('Deafened')).toBeVisible()
+
+  // A plain stop after `iskra-server expect-restart` (an update script before `systemctl restart`): "restarting", not offline.
+  const updating = server.restart(2_000, 'marker')
+  await expect(friend.getByRole('status').filter({ hasText: 'Restart Test is restarting, hold on…' })).toBeVisible({ timeout: 15_000 })
+  await expect(friend.getByText(/went offline/)).toHaveCount(0)
+  await friend.screenshot({ path: join(SHOTS, 'restart-marker.png') })
+  await updating
+  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected', { timeout: 15_000 })
 })
