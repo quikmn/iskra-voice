@@ -55,6 +55,7 @@ public sealed class RateLimiter(TimeProvider time)
         ["data.export"] = (2, 1 / 600.0), // "Download my data": two, then one every 10 minutes
         ["security.log.list"] = (20, 2),
         ["profile.page.get"] = (5, 0.2), // up to 512 KB each
+        ["bot.commands.set"] = (5, 0.2),
         ["*"] = (40, 10),
     };
 

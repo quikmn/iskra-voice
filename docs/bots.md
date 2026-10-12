@@ -97,7 +97,17 @@ You need [Node.js](https://nodejs.org) 22 or newer, [Git](https://git-scm.com), 
 
    const bot = new Bot({ name: 'Greeter', invite: process.env.ISKRA_INVITE })
 
-   bot.command('hello', 'Says hello', ({ message, reply }) => reply(`Hi ${message.authorName}!`))
+   bot.commands([
+     { name: 'hello', description: 'Says hello', handler: ({ message, reply }) => reply(`Hi ${message.authorName}!`) },
+     {
+       name: 'score',
+       description: 'Shows a score card',
+       options: [{ name: 'team', description: 'Which team', type: 'string', required: true }],
+       handler: ({ args, reply }) => reply({
+         cards: [{ title: `Team ${args || 'nobody'}`, color: 0x57f287, fields: [{ name: 'Points', value: '12', inline: true }] }],
+       }),
+     },
+   ])
 
    bot.on('message', (message) => {
      if (message.text.includes('pizza')) void message.react('🍕')
@@ -115,7 +125,8 @@ You need [Node.js](https://nodejs.org) 22 or newer, [Git](https://git-scm.com), 
 
    In PowerShell: `$env:ISKRA_INVITE='<the bot invite link>'; node dist/my-bot.js`. It prints `[Greeter] Online in "<server>" as Greeter (member)`.
 
-5. **Try it.** Type `/hello` in a channel, or `/help` to see every command. Mention pizza and it reacts.
+5. **Try it.** Type `/` in a channel: the app lists Greeter's commands. Pick `/hello`, or `/score` (it shows the
+   `<team>` option as you type) and see the card. `/help` lists every command too. Mention pizza and it reacts.
 
 The bot saves its keys and the server's address in `greeter.bot.json`, so from now on `node dist/my-bot.js` is enough (no invite). Keep that file private: it *is* the bot. Run `node build.mjs my-bot.ts` again after each change. The build bundles the SDK, which reuses the Iskra app's own crypto and connection code.
 
@@ -123,8 +134,8 @@ The bot saves its keys and the server's address in `greeter.bot.json`, so from n
 
 | | Run it | What it shows |
 |---|---|---|
-| **Dice** ([`examples/dice.ts`](../bots/examples/dice.ts)) | `npm run dice` | `/roll 2d6`, `/coin`, `/pick pizza, tacos`, `/echo`; reacting to "good bot"; welcoming new members |
-| **Planner** ([`examples/planner.ts`](../bots/examples/planner.ts)) | `npm run planner` | `/poll Pizza or tacos? \| Pizza \| Tacos` (posts the result and a CSV file when it closes), `/remind 10m stretch`, `/event 2h Game night`, `/events`; edits, files, polls, events, an activity, and keeping state across restarts |
+| **Dice** ([`examples/dice.ts`](../bots/examples/dice.ts)) | `npm run dice` | `/roll 2d6` (answers with a card), `/coin`, `/pick pizza, tacos`, `/echo`; registering commands with options and choices; reacting to "good bot"; welcoming new members |
+| **Planner** ([`examples/planner.ts`](../bots/examples/planner.ts)) | `npm run planner` | `/poll Pizza or tacos? \| Pizza \| Tacos` (posts the result and a CSV file when it closes), `/remind 10m stretch`, `/event 2h Game night`, `/events` (a card); usage hints, edits, files, polls, events, an activity, and keeping state across restarts |
 
 Start either one the first time with `ISKRA_INVITE='<bot invite link>' npm run planner` (PowerShell: `$env:ISKRA_INVITE='<link>'; npm run planner`). Each needs its own bot invite.
 
@@ -133,12 +144,13 @@ Start either one the first time with `ISKRA_INVITE='<bot invite link>' npm run p
 | API | What it does |
 |---|---|
 | `new Bot({ name, invite?, stateFile?, hearBots?, log? })` | `invite` is only needed the first time. `stateFile` defaults to `<name>.bot.json` (lowercase, spaces become dashes). Bots ignore other bots and webhooks unless `hearBots` is true, so two bots can't chat forever. |
-| `bot.command(name, description, handler)` | Answers `/name args`. The handler gets `{ args, message, reply, command, bot }`. `/help` is built in and lists the descriptions. |
+| `bot.command(name, description, handler, { usage?, options? }?)` | Answers `/name args`. The handler gets `{ args, message, reply, command, bot }`. `/help` is built in and lists the descriptions. |
+| `bot.commands([{ name, description, usage?, options?, handler }, ...])` | Several commands at once. Every command is registered with the server when the bot connects, so the app suggests it when people type `/` (see [Commands](#commands)). |
 | `bot.on('message', m => ...)` | Every message the bot can see (not its own). `m.text`, `m.author`, `m.authorName`, `m.channel`, `m.attachments`, `m.reply(text)`, `m.react(emoji)`. |
 | `bot.on('messageEdited' \| 'messageDeleted' \| 'reactions' \| 'pollUpdated', ...)` | A message was edited or deleted; a message's reactions changed (the whole new list); someone voted or a poll closed. |
 | `bot.on('ready' \| 'memberJoined' \| 'event' \| 'status', ...)` | Connected (again); someone joined; any raw server event; connection state. |
-| `bot.send(channelId, text, { replyTo?, attachments? })` | Posts a message (up to 4000 characters; waits and retries if rate-limited). A thread's id works as a channel id. |
-| `bot.edit(messageId, text)`, `bot.delete(messageId)` | Edit the bot's own message; delete its own (or others', with *Manage messages* and a higher rank). |
+| `bot.send(channelId, text, { replyTo?, attachments?, cards? })` or `bot.send(channelId, { text?, cards?, attachments?, replyTo? })` | Posts a message (up to 4000 characters; waits and retries if rate-limited), optionally with [cards](#cards). A thread's id works as a channel id. `reply(...)` takes the same. |
+| `bot.edit(messageId, text)` or `bot.edit(messageId, { text?, cards? })`, `bot.delete(messageId)` | Edit the bot's own message (cards replace the old ones, `[]` removes them); delete its own (or others', with *Manage messages* and a higher rank). |
 | `bot.react(messageId, emoji, on?)` | Add a reaction (`on = false` takes it away). Server emoji as `<:name:id>` (ids from `emoji.list`). |
 | `bot.sendFile(channelId, { name, data }, { text?, replyTo? })`, `bot.upload({ name, data })` | Send a file (`data` is a string or bytes), or upload one to attach later with `send(..., { attachments: [file.id] })`. |
 | `bot.poll(channelId, question, answers, { multi?, durationMs? })` | Start a poll; votes arrive as `pollUpdated`. |
@@ -159,13 +171,58 @@ Commands are just messages, by convention:
 
 Everyone in the channel sees the command and the answer, like any message. A command that throws is logged on the bot's console (with the error code) and doesn't stop the bot.
 
+**Suggestions in the app.** The SDK tells the server which commands the bot has each time it connects (`bot.commands.set`
+in [PROTOCOL.md](../protocol/PROTOCOL.md#bot-commands-and-cards)). When someone types `/` at the start of a message, the
+app lists the commands of the bots that can read and post in that channel: the bot, the command and its description.
+Arrow keys move, Tab or Enter complete, Esc closes. After the name it shows the options as hints (`/roll <dice> [times]`)
+and an option's choices to pick from. Sending still posts the plain text (`/roll 2d6`), which the bot reads as before.
+Encrypted channels show no suggestions, because bots aren't there.
+
+```ts
+bot.commands([{
+  name: 'roll',
+  description: 'Rolls dice',                    // one line, up to 100 characters in the app (/help shows it all)
+  options: [                                    // up to 25; required ones first
+    { name: 'dice', description: 'Like 2d6', type: 'string', required: true,
+      choices: [{ name: 'Twenty-sided', value: 'd20' }] },   // up to 25, for string, integer and number options
+    { name: 'times', description: 'How often', type: 'integer' },
+  ],
+  handler: ({ args, reply }) => reply(`You asked for ${args}`),
+}])
+```
+
+Option types are `string`, `integer`, `number`, `boolean`, `user`, `channel` and `role`. They describe the command for the
+app; the bot still gets everything after the name as `args` and parses it itself. Or give a `usage` line instead
+(`usage: 'Pizza or tacos? | Pizza | Tacos'`). Limits: 50 commands per bot, names of 1–32 characters (`a–z`, `0–9`, `_`, `-`),
+16 KB for the whole list.
+
+### Cards
+
+Bots can attach cards to their messages, in the same format and with the same limits as [webhook embeds](#post-a-message):
+a title (with a link), a description, fields, a colour, an author, a footer and a time.
+
+```ts
+await message.reply({
+  text: 'Your roll',                            // optional when there are cards
+  cards: [{
+    title: '🎲 2d6', description: '**7**', color: 0x695bff,
+    fields: [{ name: 'Dice', value: '3, 4', inline: true }],
+    thumbnail: { url: picture.url },            // a file the bot uploaded: const picture = await bot.upload({ name, data })
+    footer: { text: 'Good luck' },
+  }],
+})
+```
+
+Unlike webhooks, cards can have a `thumbnail` and an `image`, but only from the server itself: a file the bot uploaded
+(`bot.upload`, then use its `url`) or a small `data:image/png|jpeg|gif|webp;base64,...` URL (up to 16 KB). Addresses on
+other sites are refused, so nobody's app ever loads something from a third party. Only bots can send cards.
+
 ### What bots can't do (yet)
 
 - **Voice:** bots can't join voice channels, so no music bots for now.
 - **DMs:** DMs are end-to-end encrypted to people's devices, so bots can't send or read them.
 - **Encrypted channels:** see above.
-- **Cards (embeds):** only webhooks can post them; a bot's messages are text, files, polls, stickers and GIFs.
-- **Private answers, buttons and menus:** there are no "only you can see this" replies or clickable message components yet; answers are ordinary messages.
+- **Private answers, buttons and menus:** there are no "only you can see this" replies or clickable message components yet; answers are ordinary messages, and a command is the text someone sent.
 
 ### When it won't start
 
@@ -176,6 +233,8 @@ Everyone in the channel sees the command and the answer, like any message. A com
 | `The server didn't accept this invite. A bot needs a bot invite …` | You used an invite for people, or a bot invite that was already used or expired. Make a new **bot** invite. |
 | `This bot is no longer a member of the server …` | An admin removed it. Make a new bot invite and start it with that (it keeps its keys). |
 | `forbidden` errors in the log | The bot's role can't do that there: check the channel's write level, or give the bot a role. |
+| `The server didn't take the command list (bad_request): …` | A command, option or choice breaks a [limit](#commands); the message says which. Commands still work as text. |
+| Its commands don't show up when typing `/` | The bot must be able to read **and** post in that channel, and the channel must not be encrypted. |
 | `rate_limited` | The SDK already waits and retries sends; slow down loops that call `bot.request` directly. |
 
 ### Other languages

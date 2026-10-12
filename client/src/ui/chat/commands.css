@@ -1,0 +1,21 @@
+/* ── Bot commands in the composer ─────────────────────────────────── */
+.command-suggest { max-height: min(360px, 50vh); overflow-y: auto; }
+.command-option {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 8px; border-radius: calc(var(--radius) * 0.6);
+  cursor: pointer; min-width: 0;
+}
+.command-option.active, .command-option:hover { background: var(--surface-3); }
+.command-main { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; flex: 1; min-width: 0; }
+.command-name { font-weight: 600; font-family: var(--mono); }
+.command-usage { font-family: var(--mono); font-size: 13px; color: var(--text-2); }
+.command-description { flex-basis: 100%; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.command-bot { flex: none; font-size: 12px; color: var(--muted); max-width: 30%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.command-hint { display: grid; gap: 4px; }
+.command-signature { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 4px 6px; }
+.command-param { font-family: var(--mono); font-size: 13px; color: var(--text-2); padding: 1px 4px; border-radius: 4px; }
+.command-param.current { background: var(--surface-3); color: var(--text); font-weight: 600; }
+.command-param-help { flex-basis: 100%; font-size: 13px; color: var(--muted); }
+@media (max-width: 600px) {
+  .command-bot { display: none; }
+}
+

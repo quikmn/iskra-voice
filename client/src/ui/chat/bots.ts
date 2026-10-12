@@ -44,3 +44,11 @@ export function safeUrl(url: string | undefined): string | null {
     return null
   }
 }
+
+/** A card picture's address: this server's own files or a small data: image; anything else is never loaded. */
+export function cardPictureUrl(serverUrl: string, url: string | undefined): string | null {
+  if (!url) return null
+  if (/^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(url)) return url
+  if (/^\/files\/[\w-]{16,64}\/[^?#]*$/.test(url) && !url.includes('..')) return serverUrl + url
+  return null
+}
