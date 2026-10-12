@@ -169,7 +169,7 @@ export function EmojiPicker({
         }}>
           {sections.map((section) => (
             <section key={section.id} data-section={section.id}>
-              <h4>{section.title}</h4>
+              <h3>{section.title}</h3>
               <div className="emoji-grid">
                 {section.items.map((item) => (
                   <button

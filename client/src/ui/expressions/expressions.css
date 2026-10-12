@@ -21,7 +21,7 @@
 .emoji-tabs button:hover { background: var(--surface-3); }
 .emoji-tabs .custom-emoji { width: 20px; height: 20px; }
 .emoji-scroll { flex: 1; overflow-y: auto; padding: 4px 8px 8px; overscroll-behavior: contain; }
-.emoji-scroll h4 {
+.emoji-scroll h3 {
   margin: 8px 2px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted);
   position: sticky; top: -4px; background: var(--float); padding: 2px 0; z-index: 1;
 }
