@@ -1,0 +1,56 @@
+/* ── Camera background and live captions ─────────────────────────────────── */
+.media-settings .checkbox { margin-bottom: 10px; }
+.media-settings .segmented { margin-bottom: 10px; }
+.media-settings .segmented button:disabled { opacity: 0.45; cursor: not-allowed; }
+.media-settings .copy-row { align-items: center; gap: 14px; flex-wrap: wrap; }
+
+.camera-preview { margin: 4px 0 12px; max-width: 420px; aspect-ratio: 16 / 9; border-radius: var(--radius); overflow: hidden; background: var(--stage); border: 1px solid var(--border); }
+.camera-preview video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block; }
+
+.backdrops { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 4px 0 10px; }
+.backdrop {
+  width: 96px; height: 56px; border-radius: 8px; border: 2px solid var(--border); padding: 0; display: flex; align-items: flex-end;
+  justify-content: flex-start; overflow: hidden; cursor: pointer; color: #fff; font-size: 12px; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+.backdrop span { padding: 3px 6px; }
+.backdrop.on { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+.backdrop:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+/* The same soft gradients the worker draws. */
+.backdrop-aurora {
+  background:
+    radial-gradient(circle at 23% 28%, rgba(46, 204, 160, 0.55), transparent 60%),
+    radial-gradient(circle at 70% 22%, rgba(90, 120, 255, 0.45), transparent 55%),
+    radial-gradient(circle at 86% 72%, rgba(170, 80, 220, 0.35), transparent 50%),
+    linear-gradient(#0b1026, #141a3a);
+}
+.backdrop-sunset {
+  background:
+    radial-gradient(circle at 64% 78%, rgba(255, 230, 170, 0.8), transparent 40%),
+    linear-gradient(#2a1b4a, #c2507a 45%, #f39a5b 75%, #f7c873);
+}
+.backdrop-color { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); }
+.backdrop-color input { width: 36px; height: 28px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: none; }
+
+/* Captions: above the call controls, over the bottom of the stage. */
+.captions-overlay {
+  position: relative; flex: none; align-self: center; width: min(720px, calc(100% - 24px)); margin: 8px auto 0;
+  padding: 10px 36px 10px 14px; border-radius: 12px; background: var(--scrim); color: #fff;
+  border: 1px solid color-mix(in srgb, #fff 12%, transparent);
+}
+.captions-lines { display: grid; gap: 4px; }
+.caption-line { margin: 0; font-size: 16px; line-height: 1.4; overflow-wrap: anywhere; }
+.caption-line strong { color: color-mix(in srgb, var(--accent-2) 70%, #fff); font-weight: 600; margin-right: 2px; }
+.caption-line.muted, .caption-line .muted { color: rgba(255, 255, 255, 0.65); }
+.caption-status { margin: 6px 0 0; font-size: 12.5px; color: rgba(255, 255, 255, 0.75); }
+.captions-close { position: absolute; top: 6px; right: 6px; color: rgba(255, 255, 255, 0.8); }
+.background-notice { display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap; color: var(--amber); }
+
+/* One more button in the call: let the row wrap on narrow phones rather than overflow. */
+.call-controls { flex-wrap: wrap; }
+
+@media (max-width: 760px) {
+  .caption-line { font-size: 14px; }
+  .captions-overlay { margin-top: 6px; }
+}
+.caption-actions { display: inline-flex; gap: 6px; margin-left: 4px; vertical-align: middle; }
+.caption-progress { width: 120px; height: 6px; vertical-align: middle; accent-color: var(--accent); }

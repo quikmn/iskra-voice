@@ -8,6 +8,7 @@ export const settings = {
     security: 'App lock',
     notifications: 'Notifications',
     voice: 'Voice & audio',
+    video: 'Camera',
     blocked: 'Blocked people',
     desktop: 'Desktop app',
     account: 'Account',

@@ -35,3 +35,10 @@
 /.well-known/security.txt
   Content-Type: text/plain; charset=utf-8
   Cache-Control: max-age=3600
+
+# The live-captions model (deploy.yml puts it here; scripts/get-models.mjs). The desktop and phone apps fetch it from
+# app://, capacitor:// and http://localhost pages, so any origin may read it; paths carry the model version.
+/models/*
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: application/octet-stream

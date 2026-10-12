@@ -40,6 +40,8 @@ import { settingsSections, type SectionId } from './sections'
 import { AboutSection, AccountSection } from '../safety/AccountSection'
 import { ReportsSection } from '../safety/ReportsSection'
 import { PrivacySection } from './PrivacySection'
+import { CameraSettingsSection } from '../media/CameraSettings'
+import { CaptionSettingsSection } from '../media/CaptionSettings'
 import { SecurityLogSection } from './SecurityLogSection'
 import './settings.css'
 
@@ -121,7 +123,8 @@ function Section({ id, server, onClose }: { id: SectionId; server: ServerState |
     case 'recovery': return <><RecoveryKeySection /><RotateKeySection /></>
     case 'security': return <><AppLockSection /><KeyTransparencySection /></>
     case 'notifications': return <NotificationSettingsSection server={server} />
-    case 'voice': return <><InputSettingsSection /><VoiceSettingsSection /><HotkeySettingsSection /><ClipSettingsSection /><ProcessingSettingsSection /><OutputSettingsSection /><SoundboardSettingsSection /></>
+    case 'voice': return <><InputSettingsSection /><VoiceSettingsSection /><HotkeySettingsSection /><ClipSettingsSection /><ProcessingSettingsSection /><OutputSettingsSection /><CaptionSettingsSection /><SoundboardSettingsSection /></>
+    case 'video': return <CameraSettingsSection />
     case 'blocked': return <BlockedSection />
     case 'desktop': return <DesktopSettingsSection />
     case 'account': return <AccountSection />

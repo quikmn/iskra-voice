@@ -41,3 +41,7 @@ relay.json
 # Local server folders and test data on the owner's PC
 /servers/
 /ISKRATESTING/
+
+# The live-captions model: downloaded by scripts/get-models.mjs, never committed
+client/.models/
+client/vendor/whisper-base/

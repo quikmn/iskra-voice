@@ -32,6 +32,7 @@ import { compliance } from './compliance'
 import { updates } from './updates'
 import { clips } from './clips'
 import { e2ee } from './e2ee'
+import { media } from './media'
 
 export const sv: Messages = {
   common,
@@ -66,4 +67,5 @@ export const sv: Messages = {
   updates,
   clips,
   e2ee,
+  media,
 }
