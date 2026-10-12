@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
-import { createInviteLink, hasLiveKit, joinVia, longPress, openSettings, send, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, hasLiveKit, joinVia, longPress, openServerSettings, openSettings, send, SHOTS, startServer, type TestServer } from './helpers'
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -62,7 +62,7 @@ test('polls, server emoji, reactions and the soundboard', async ({ browser }) =>
   await friend.screenshot({ path: join(SHOTS, 'poll-mobile.png') })
 
   // ── A server emoji ──
-  await openSettings(host, 'Emoji')
+  await openServerSettings(host, 'Emoji & stickers')
   await host.locator('input[aria-label="Emoji image"]').setInputFiles({ name: 'Blob Wave.png', mimeType: 'image/png', buffer: PNG })
   await expect(host.getByLabel('Emoji name')).toHaveValue('blob_wave')
   await host.getByLabel('Emoji name').fill('blob')
@@ -127,7 +127,7 @@ test('polls, server emoji, reactions and the soundboard', async ({ browser }) =>
   }
 
   // A trusted member (here the owner) adds a sound.
-  await openSettings(host, 'Soundboard')
+  await openServerSettings(host, 'Soundboard')
   await host.locator('input[aria-label="Sound file"]').setInputFiles({ name: 'airhorn.wav', mimeType: 'audio/wav', buffer: wav(800) })
   await host.getByLabel('Sound emoji').fill('📯')
   await host.getByRole('button', { name: 'Add', exact: true }).click()

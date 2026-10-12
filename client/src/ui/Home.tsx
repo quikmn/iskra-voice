@@ -15,7 +15,7 @@ import { renderMarkdown } from './markdown'
 import { fingerprint } from '../core/connection'
 import { clockTime, fullTime, hueFor, messageTime } from './format'
 import { Lock, Menu, Settings, Users } from './icons'
-import { SettingsDialog } from './settings/SettingsDialog'
+import { openMySettings } from './settings/open'
 import { ForwardedFiles, ForwardedLine } from './organize/ForwardDialog'
 import type { Panel } from './Shell'
 import { CallButtons, CallLogLine, CallPanel } from './calls/Calls'
@@ -38,15 +38,13 @@ function HomeMeBar() {
   const { t } = useTranslation()
   const profile = useApp((s) => s.profile)
   const identity = useApp((s) => s.identity)
-  const [open, setOpen] = useState(false)
   if (!profile || !identity) return null
   return (
     <div className="me-bar">
       <MeStatusButton name={profile.name} accountKey={b64u(identity.account.publicKey)} sub={t('common.you')} />
-      <button className="icon-button" onClick={() => setOpen(true)} aria-label={t('common.settings')} title={t('common.settings')}>
+      <button className="icon-button" onClick={() => openMySettings()} aria-label={t('common.settings')} title={t('settings.room.mine')}>
         <Settings />
       </button>
-      {open && <SettingsDialog onClose={() => setOpen(false)} />}
     </div>
   )
 }

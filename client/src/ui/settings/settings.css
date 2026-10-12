@@ -1,8 +1,4 @@
-/* ── Settings: sidebar of sections, or list → detail on phones ─────── */
-.modal.settings-modal { width: min(940px, 100%); height: min(760px, calc(100dvh - 32px)); }
-.settings-modal > .modal-header { border-bottom: 1px solid var(--border); padding-bottom: 12px; }
-.settings-modal > .modal-body { padding: 0; overflow: hidden; flex: 1; display: flex; min-height: 0; }
-.settings-layout { flex: 1; min-height: 0; display: grid; grid-template-columns: 224px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+/* ── Settings: sidebar of sections, or list → detail on phones (the frame is in room.css) ── */
 
 .settings-nav {
   overflow-y: auto; padding: 12px 8px 16px; background: var(--sidebar); border-right: 1px solid var(--border);
@@ -49,9 +45,6 @@
 .settings-danger p { margin: 2px 0 0; font-size: 14px; }
 
 @media (max-width: 760px) {
-  .modal-backdrop:has(.settings-modal) { padding: 0; }
-  .modal.settings-modal { width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0; border: 0; padding-top: env(safe-area-inset-top); }
-  .settings-layout { grid-template-columns: minmax(0, 1fr); }
   .settings-nav { border-right: 0; background: transparent; padding: 8px 12px 24px; gap: 18px; }
   .settings-nav-item { padding: 13px 14px; background: var(--surface-2); border-radius: 0; font-size: 16px; color: var(--text); }
   .settings-nav-group .settings-nav-item:first-of-type { border-top-left-radius: var(--radius); border-top-right-radius: var(--radius); }
@@ -59,7 +52,7 @@
   .settings-nav-item + .settings-nav-item { box-shadow: inset 0 1px 0 var(--border); }
   .settings-nav-item svg { color: var(--muted); flex: none; }
   .settings-pane { padding: 16px 16px calc(32px + env(safe-area-inset-bottom)); animation-name: pane-slide; }
-  .settings-pane > .settings-section > h3:first-child { display: none; } /* the header shows it */
+  .settings-pane > .settings-section > h3:first-child { display: none; } /* the slim band shows it */
   .settings-facts > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
 }
 @keyframes pane-slide { from { opacity: 0; transform: translateX(16px); } }

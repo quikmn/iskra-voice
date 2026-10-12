@@ -2,7 +2,7 @@
 // the Reports queue), and deleting an account.
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
-import { createInviteLink, joinVia, openSettings, send, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, joinVia, openServerSettings, openSettings, send, serverRoom, SHOTS, startServer, type TestServer } from './helpers'
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -101,7 +101,8 @@ test('a reported message reaches the moderators, who delete it and resolve the r
   await host.waitForTimeout(350) // let the dialog finish appearing
   await host.screenshot({ path: join(SHOTS, 'safety-reports-badge.png') })
   await badge.click()
-  const settings = host.getByRole('dialog', { name: 'Settings' })
+  const settings = serverRoom(host)
+  await expect(settings.getByRole('button', { name: /^Reports/ })).toHaveAttribute('aria-current', 'page')
   const card = settings.locator('.report-card').first()
   await expect(card).toContainText('you are all terrible people')
   await expect(card).toContainText('Harassment or bullying')
@@ -156,7 +157,7 @@ test('a reported message reaches the moderators, who delete it and resolve the r
   await host.keyboard.press('Escape')
 
   // The audit log says a report was handled, never by whom it was made.
-  await openSettings(host, 'Audit log')
+  await openServerSettings(host, 'Activity log')
   await expect(host.getByText(/Host handled a report about Troll: message deleted/)).toBeVisible()
   await host.keyboard.press('Escape')
 })

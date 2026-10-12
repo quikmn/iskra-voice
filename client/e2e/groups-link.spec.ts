@@ -107,10 +107,9 @@ test('a linked device brings DM and group history; groups on a removed server ar
   await expect(phone.locator('.message-text', { hasText: 'dm secret 8080' })).toBeVisible()
 
   // Carol removes the server from her list: the group is archived, read-only, and can be removed.
-  await carol.locator('.server-icon[title="Link History"]').click()
-  await openSettings(carol, 'Overview')
-  await carol.getByRole('button', { name: 'Remove server' }).click()
-  await carol.getByRole('button', { name: 'Remove', exact: true }).click()
+  await carol.locator('.server-icon[title="Link History"]').click({ button: 'right' })
+  await carol.getByRole('menuitem', { name: 'Leave server' }).click()
+  await carol.getByRole('dialog', { name: 'Leave Link History?' }).getByRole('button', { name: 'Leave server' }).click()
   await home(carol)
   const archived = carol.locator('.group-row', { hasText: 'History club' })
   await expect(archived).toContainText('Archived')

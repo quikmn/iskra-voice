@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { updateNotice, useServerUpdates } from '../state/serverUpdates'
 import type { ServerState } from '../state/store'
-import { SettingsDialog } from './settings/SettingsDialog'
+import { openServerSettings } from './settings/open'
 import './settings/updates.css'
 
 const dismissedKey = (serverKey: string) => `iskra.server-update-dismissed.${serverKey}`
@@ -21,7 +21,6 @@ export function ServerUpdateNotice({ server }: { server: ServerState }) {
   const status = useServerUpdates((s) => s.status[server.key])
   const restarting = useServerUpdates((s) => s.restarting[server.key])
   const [dismissed, setDismissed] = useState<Record<string, string | null>>({})
-  const [open, setOpen] = useState(false)
   const owner = server.me?.role === 'owner'
   const notice = owner ? updateNotice(status, server.key in dismissed ? dismissed[server.key] : readDismissed(server.key)) : null
 
@@ -51,10 +50,9 @@ export function ServerUpdateNotice({ server }: { server: ServerState }) {
           {t(notice.installing ? 'updates.notice.installing' : 'updates.notice.available', { server: server.name, version: notice.version })}{' '}
           <a href={notice.url} target="_blank" rel="noreferrer">{t('updates.whatsNew')}</a>
         </p>
-        <button className="button primary small" onClick={() => setOpen(true)}>{t('updates.notice.open')}</button>
+        <button className="button primary small" onClick={() => openServerSettings(server.key, 'updates')}>{t('updates.notice.open')}</button>
         {!notice.installing && <button className="button small" onClick={dismiss}>{t('updates.notice.later')}</button>}
       </div>
-      {open && <SettingsDialog server={server} section="updates" onClose={() => setOpen(false)} />}
     </>
   )
 }

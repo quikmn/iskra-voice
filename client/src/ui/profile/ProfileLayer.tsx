@@ -16,7 +16,7 @@ import { Avatar, Modal } from '../bits'
 import { useEscapeLayer, useFocusTrap } from '../layers'
 import { MemberDialog } from '../dialogs/MemberDialog'
 import { RoleChips } from '../roles/RoleSettings'
-import { SettingsDialog } from '../settings/SettingsDialog'
+import { openMySettings } from '../settings/open'
 import { hueFor } from '../format'
 import { Close } from '../icons'
 import { renderMarkdown } from '../markdown'
@@ -31,7 +31,6 @@ export function ProfileLayer() {
   const card = useProfiles((s) => s.card)
   const viewer = useProfiles((s) => s.viewer)
   const details = useProfiles((s) => s.details)
-  const [editing, setEditing] = useState(false)
   const cardServer = useApp((s) => (card ? s.servers[card.serverKey] : undefined))
   const viewerServer = useApp((s) => (viewer ? s.servers[viewer.serverKey] : undefined))
   const detailsServer = useApp((s) => (details ? s.servers[details.serverKey] : undefined))
@@ -49,13 +48,12 @@ export function ProfileLayer() {
           rect={card.rect}
           onEdit={() => {
             closeProfileCard()
-            setEditing(true)
+            openMySettings('profile')
           }}
         />
       )}
       {viewer && viewerServer && viewerMember && <PageViewer server={viewerServer} member={viewerMember} />}
       {details && detailsServer && detailsMember && <MemberDialog server={detailsServer} member={detailsMember} onClose={closeMemberDetails} />}
-      {editing && <SettingsDialog server={cardServer} section="profile" onClose={() => setEditing(false)} />}
     </>
   )
 }

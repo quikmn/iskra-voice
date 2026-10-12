@@ -1,64 +1,73 @@
-// Settings navigation: your account first, then the server you're looking at, limited to what your role allows.
+// Settings navigation, in two separate places: "My settings" (only about you, everywhere) and one server's
+// "Server settings" (only its shared config, grouped, limited to what your role and permissions allow).
 import { roleRank, type Permission, type Role } from '../../core/protocol'
 import { t } from '../../i18n'
 
-export type SectionId =
+export type MySectionId =
   | 'profile' | 'appearance' | 'devices' | 'recovery' | 'security' | 'notifications' | 'voice' | 'video' | 'blocked' | 'desktop' | 'account' | 'privacy' | 'about'
-  | 'overview' | 'reports' | 'roles' | 'automod' | 'emoji' | 'sounds' | 'integrations' | 'pages' | 'internet' | 'audit' | 'rules' | 'limits' | 'backup' | 'import'
-  | 'securityLog' | 'updates'
 
-export interface SectionInfo {
-  id: SectionId
+export type ServerSectionId =
+  | 'overview' | 'channels' | 'emoji' | 'sounds' | 'pages' | 'rules'
+  | 'members' | 'roles' | 'reports' | 'automod' | 'audit' | 'securityLog'
+  | 'integrations'
+  | 'internet' | 'limits' | 'backup' | 'import' | 'updates'
+
+export type SectionId = MySectionId | ServerSectionId
+
+export type ServerGroup = 'server' | 'safety' | 'apps' | 'hosting'
+
+export interface SectionInfo<Id extends SectionId = SectionId> {
+  id: Id
   label: string
-  group: 'account' | 'server'
 }
 
-type SectionEntry = Omit<SectionInfo, 'label'>
+export interface ServerSectionInfo extends SectionInfo<ServerSectionId> {
+  group: ServerGroup
+}
 
-const ACCOUNT: SectionEntry[] = [
-  { id: 'profile', group: 'account' },
-  { id: 'appearance', group: 'account' },
-  { id: 'devices', group: 'account' },
-  { id: 'recovery', group: 'account' },
-  { id: 'security', group: 'account' },
-  { id: 'notifications', group: 'account' },
-  { id: 'voice', group: 'account' },
-  { id: 'video', group: 'account' },
-  { id: 'blocked', group: 'account' },
-  { id: 'desktop', group: 'account' },
-  { id: 'account', group: 'account' },
-  { id: 'privacy', group: 'account' },
-  { id: 'about', group: 'account' },
-]
+const MINE: MySectionId[] = ['profile', 'appearance', 'devices', 'recovery', 'security', 'notifications', 'voice', 'video', 'blocked', 'desktop', 'account', 'privacy', 'about']
 
-/** Server sections: the lowest level that may open each, or a permission from a custom role that also opens it. */
-const SERVER: (SectionEntry & { min: Role; perm?: Permission; perms?: Permission[] })[] = [
-  { id: 'overview', group: 'server', min: 'guest' },
-  // Moderators: any of the permissions that act on reports.
-  { id: 'reports', group: 'server', min: 'admin', perms: ['manageMessages', 'timeoutMembers', 'kickMembers', 'banMembers'] },
-  { id: 'roles', group: 'server', min: 'admin', perm: 'manageRoles' },
-  { id: 'automod', group: 'server', min: 'admin', perm: 'manageAutoMod' },
-  { id: 'emoji', group: 'server', min: 'admin', perm: 'manageExpressions' },
-  { id: 'sounds', group: 'server', min: 'trusted', perm: 'manageExpressions' },
-  { id: 'integrations', group: 'server', min: 'admin', perm: 'manageWebhooks' },
+/** Any of these opens Members and Reports (the ones that act on people). */
+const MODERATION: Permission[] = ['manageMessages', 'timeoutMembers', 'kickMembers', 'banMembers']
+
+/** Server sections in nav order: the lowest level that may open each, or permissions (from a custom role) that also open it. */
+const SERVER: { id: ServerSectionId; group: ServerGroup; min: Role; perms?: Permission[] }[] = [
+  { id: 'overview', group: 'server', min: 'admin' },
+  { id: 'channels', group: 'server', min: 'admin', perms: ['manageChannels'] },
+  { id: 'emoji', group: 'server', min: 'admin', perms: ['manageExpressions'] },
+  { id: 'sounds', group: 'server', min: 'trusted', perms: ['manageExpressions'] },
   { id: 'pages', group: 'server', min: 'admin' },
-  { id: 'internet', group: 'server', min: 'admin' },
-  { id: 'audit', group: 'server', min: 'admin', perm: 'viewAuditLog' },
   { id: 'rules', group: 'server', min: 'admin' },
-  { id: 'limits', group: 'server', min: 'owner' },
-  { id: 'backup', group: 'server', min: 'owner' },
-  { id: 'import', group: 'server', min: 'owner' },
-  { id: 'securityLog', group: 'server', min: 'owner' },
-  { id: 'updates', group: 'server', min: 'owner' },
+  { id: 'members', group: 'safety', min: 'admin', perms: [...MODERATION, 'manageRoles'] },
+  { id: 'roles', group: 'safety', min: 'admin', perms: ['manageRoles'] },
+  { id: 'reports', group: 'safety', min: 'admin', perms: MODERATION },
+  { id: 'automod', group: 'safety', min: 'admin', perms: ['manageAutoMod'] },
+  { id: 'audit', group: 'safety', min: 'admin', perms: ['viewAuditLog'] },
+  { id: 'securityLog', group: 'safety', min: 'owner' },
+  { id: 'integrations', group: 'apps', min: 'admin', perms: ['manageWebhooks'] },
+  { id: 'internet', group: 'hosting', min: 'admin' },
+  { id: 'limits', group: 'hosting', min: 'owner' },
+  { id: 'backup', group: 'hosting', min: 'owner' },
+  { id: 'import', group: 'hosting', min: 'owner' },
+  { id: 'updates', group: 'hosting', min: 'owner' },
 ]
 
-/** The sections to show: account always (Desktop app only in the app); server ones only with a joined server, by level or permission. */
-export function settingsSections(role: Role | null | undefined, can: (perm: Permission) => boolean = () => false, desktopApp = false): SectionInfo[] {
-  const account = desktopApp ? ACCOUNT : ACCOUNT.filter((s) => s.id !== 'desktop')
-  const labelled = ({ id, group }: SectionEntry): SectionInfo => ({ id, group, label: t(`settings.sections.${id}`) })
-  if (!role) return account.map(labelled)
-  return [
-    ...account,
-    ...SERVER.filter((s) => roleRank(role) >= roleRank(s.min) || (s.perm && can(s.perm)) || s.perms?.some(can)),
-  ].map(labelled)
+export const SERVER_GROUPS: ServerGroup[] = ['server', 'safety', 'apps', 'hosting']
+
+export const isServerSection = (id: SectionId): id is ServerSectionId => SERVER.some((s) => s.id === id)
+
+/** My settings: about you on every server (Desktop app only in the app). Never anything about one server. */
+export function mySections(desktopApp = false): SectionInfo<MySectionId>[] {
+  return MINE.filter((id) => desktopApp || id !== 'desktop').map((id) => ({ id, label: t(`settings.sections.${id}`) }))
+}
+
+/**
+ * One server's settings for you: by level, or by a permission a custom role gives. Empty without a membership or
+ * without any admin rights (then there's no Server settings at all). The server still checks every request.
+ */
+export function serverSections(role: Role | null | undefined, can: (perm: Permission) => boolean = () => false): ServerSectionInfo[] {
+  if (!role) return []
+  return SERVER
+    .filter((s) => roleRank(role) >= roleRank(s.min) || s.perms?.some(can))
+    .map(({ id, group }) => ({ id, group, label: t(`settings.sections.${id}`) }))
 }

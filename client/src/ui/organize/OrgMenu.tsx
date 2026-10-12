@@ -3,7 +3,7 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { createPortal } from 'react-dom'
 import { useEscapeLayer, useFocusTrap } from '../layers'
-import { ChevronLeft } from '../icons'
+import { ChevronLeft, ChevronRight } from '../icons'
 
 export interface MenuAnchor {
   x: number
@@ -48,7 +48,7 @@ export function OrgMenu({ anchor, label, onClose, children }: { anchor: MenuAnch
 }
 
 /** One row of a menu. */
-export function MenuItem({ children, onClick, danger, checked, disabled, hint }: {
+export function MenuItem({ children, onClick, danger, checked, disabled, hint, submenu }: {
   children: ReactNode
   onClick: () => void
   danger?: boolean
@@ -56,6 +56,8 @@ export function MenuItem({ children, onClick, danger, checked, disabled, hint }:
   checked?: boolean
   disabled?: boolean
   hint?: string
+  /** Opens another page of the menu: a chevron at the end. */
+  submenu?: boolean
 }) {
   const radio = checked !== undefined
   return (
@@ -69,6 +71,7 @@ export function MenuItem({ children, onClick, danger, checked, disabled, hint }:
       {radio && <span className="org-radio" aria-hidden />}
       <span className="org-item-text">{children}</span>
       {hint && <span className="org-item-hint">{hint}</span>}
+      {submenu && <span className="org-item-hint" aria-hidden><ChevronRight size={14} /></span>}
     </button>
   )
 }

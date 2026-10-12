@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs'
 import { inflateRawSync } from 'node:zlib'
 import { expect, test } from '@playwright/test'
-import { createInviteLink, joinVia, openSettings, send, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, joinVia, openServerSettings, openSettings, send, SHOTS, startServer, type TestServer } from './helpers'
 
 const servers: TestServer[] = []
 test.afterAll(async () => {
@@ -86,10 +86,11 @@ test('the owner reads the security log, sets retention and exports the log', asy
   await joinVia(friend, await createInviteLink(owner), 'Friend')
 
   // Not for anyone but the owner.
-  await openSettings(friend)
-  await expect(friend.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Security log' })).toHaveCount(0)
+  await friend.locator('.server-header-button').click()
+  await expect(friend.getByRole('menuitem', { name: 'Server settings', exact: true })).toHaveCount(0)
+  await friend.keyboard.press('Escape')
 
-  await openSettings(owner, 'Security log')
+  await openServerSettings(owner, 'Sign-ins & security')
   const log = owner.getByTestId('security-log-section')
   await expect(log.locator('.audit-entry', { hasText: 'Friend' }).filter({ hasText: 'Joined' })).toBeVisible()
   await expect(log.locator('.audit-entry', { hasText: 'Owner' }).filter({ hasText: 'Joined' })).toBeVisible()

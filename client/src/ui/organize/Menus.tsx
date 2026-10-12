@@ -13,9 +13,9 @@ import {
 } from '../../state/organizeLogic'
 import { MenuItem, MenuTitle, OrgMenu, type MenuAnchor } from './OrgMenu'
 
-type Run = (action: () => Promise<unknown> | void) => () => void
+export type Run = (action: () => Promise<unknown> | void) => () => void
 
-function useRunner(onClose: () => void): [Run, string | null] {
+export function useRunner(onClose: () => void): [Run, string | null] {
   const [error, setError] = useState<string | null>(null)
   const run: Run = (action) => () => {
     void (async () => {
@@ -31,7 +31,7 @@ function useRunner(onClose: () => void): [Run, string | null] {
 }
 
 /** The level picker and mute choices for the server (channelId null) or one channel. */
-function NotifyViews({ server, channelId, view, setView, run }: {
+export function NotifyViews({ server, channelId, view, setView, run }: {
   server: ServerState
   channelId: number | null
   view: 'levels' | 'mute'
@@ -73,7 +73,7 @@ function NotifyViews({ server, channelId, view, setView, run }: {
 }
 
 /** Notification rows shared by the channel menu and the server's notification settings. */
-function NotifyRows({ server, channelId, setView, run }: { server: ServerState; channelId: number | null; setView: (v: 'levels' | 'mute') => void; run: Run }) {
+export function NotifyRows({ server, channelId, setView, run }: { server: ServerState; channelId: number | null; setView: (v: 'levels' | 'mute') => void; run: Run }) {
   const { t } = useTranslation()
   const notify = useNotifyFor(server.key, channelId)
   const own = useOrganize((s) => s.notify[server.key]?.[notifyKey(channelId)])
