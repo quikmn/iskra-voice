@@ -2115,9 +2115,18 @@ When the server stops it closes every session with a JSON reason of at most 123 
 
 - **1012 ("Service Restart")**, reason `update` or `restart`, only when the server knows it's coming back: an
   automatic update (`etaMs` 20000), or the desktop app restarting (into an update, or a relaunch), which writes the line
-  `restart` to the server's stdin before closing it (`ISKRA_STOP_ON_STDIN_CLOSE`; `etaMs` 30000).
+  `restart` to the server's stdin before closing it (`ISKRA_STOP_ON_STDIN_CLOSE`; `etaMs` 30000), or a stop (SIGTERM,
+  `systemctl restart`) within 2 minutes of `iskra-server expect-restart <world> [--reason update|restart] [--eta <s>]`
+  (the reason and `etaMs` it was given; see below).
 - **1001 ("Going Away")**, reason `stop`, for every other stop: Ctrl+C, SIGTERM (including `systemctl restart`, which
-  the server can't tell apart), the desktop host quitting or stopping the server, or the app that started it going away.
+  the server can't tell apart without the marker), the desktop host quitting or stopping the server, or the app that
+  started it going away.
+
+**The restart marker.** `expect-restart` writes `<world>/restart-expected` atomically:
+`{"v":1,"reason":"update"|"restart","etaSeconds"?:0–600,"at":<unix ms>}` (at most 1 KB). The server reads it once as
+it stops and deletes it; it's ignored when it's older than 2 minutes or malformed (anything but these fields and
+values), and a server that starts deletes any marker it finds. Only the enum and the number reach the close reason.
+A restart the server already knows about (its own update) keeps its own reason.
 
 Even 1012 is a hint: the server may not come back. Unknown `reason` values and fields are ignored; a 1012 whose
 reason isn't this JSON still counts as a restart, and a 1001 without it (older servers) as an ordinary drop. A server

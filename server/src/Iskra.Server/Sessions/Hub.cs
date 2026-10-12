@@ -18,7 +18,7 @@ public sealed class Hub(World world, TimeProvider time)
     /// <summary>"Playing X" per online account (Features/ActivityFeature.cs).</summary>
     public Features.ActivityRegistry Activities { get; } = new(time);
     /// <summary>What sessions are told when the server stops: a restart (1012) or a stop (1001), see RestartSignal.</summary>
-    public RestartSignal Restart { get; } = new();
+    public RestartSignal Restart { get; } = new(world.Path, time);
 
     private readonly ConcurrentDictionary<Session, byte> _sessions = new();
 
