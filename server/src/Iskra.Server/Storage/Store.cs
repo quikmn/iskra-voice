@@ -301,6 +301,7 @@ public sealed partial class Store : IDisposable
         ("hifi-1", HifiMigration),
         // Phone apps no longer get native push: forget their subscriptions at the old push relay.
         ("push-2", "DELETE FROM push_subscriptions WHERE endpoint LIKE 'https://push.iskra.foo/%';"),
+        ("templates-1", TemplatesMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

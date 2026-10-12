@@ -20,6 +20,11 @@
     <EmbeddedResource Include="..\..\..\client\src\state\captions\model.json" LogicalName="captions-model.json" />
   </ItemGroup>
 
+  <!-- Starter templates for new servers (the Template setting; docs/hosting.md). -->
+  <ItemGroup>
+    <EmbeddedResource Include="Templates\*.json" LogicalName="templates.%(Filename).json" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Certes" Version="3.0.4" />
     <PackageReference Include="Lib.Net.Http.WebPush" Version="3.3.1" />

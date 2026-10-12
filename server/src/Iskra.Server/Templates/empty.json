@@ -1,0 +1,8 @@
+{
+  "name": "Empty",
+  "description": "Just #general and one voice room. Add the rest yourself.",
+  "channels": [
+    { "name": "general" },
+    { "name": "Voice", "kind": "voice" }
+  ]
+}

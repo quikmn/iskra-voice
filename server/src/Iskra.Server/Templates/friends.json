@@ -1,0 +1,30 @@
+{
+  "name": "Friends hangout",
+  "description": "A relaxed place for chatting, photos and plans, with a couple of rooms to hang out in.",
+  "categories": [
+    {
+      "name": "Text channels",
+      "channels": [
+        { "name": "general" },
+        { "name": "photos" },
+        { "name": "memes" },
+        { "name": "plans" }
+      ]
+    },
+    {
+      "name": "Voice",
+      "channels": [
+        { "name": "Hangout", "kind": "voice" },
+        { "name": "Quiet corner", "kind": "voice", "userLimit": 4 },
+        { "name": "Movie night", "kind": "voice" }
+      ]
+    }
+  ],
+  "roles": [
+    { "name": "Moderator", "color": "#3fa66b", "hoist": true, "permissions": ["manageMessages", "timeoutMembers", "kickMembers", "muteMembers", "moveMembers", "viewAuditLog"] }
+  ],
+  "rules": {
+    "text": "1. Be kind. We're all friends here.\n2. Ask before sharing someone else's photos.\n3. Keep it legal and keep it fun.",
+    "welcome": "Welcome! Pull up a chair in #general."
+  }
+}

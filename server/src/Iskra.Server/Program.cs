@@ -23,6 +23,25 @@ var worldPath = builder.Configuration["World"] ?? worldArg ?? "world";
 var world = World.OpenOrCreate(worldPath);
 MoveFeature.Load(world);
 
+// A starter template (server.json "Template" or --template <name>), applied once to a new server.
+if ((builder.Configuration["Template"] ?? world.Settings.Template) is { Length: > 0 } template)
+{
+    try
+    {
+        var outcome = Iskra.Server.Templates.ServerTemplates.ApplyOnStart(world, template, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        if (outcome == Iskra.Server.Templates.ServerTemplates.Outcome.Applied) Console.WriteLine($"Set up from the '{template}' template.");
+        if (outcome == Iskra.Server.Templates.ServerTemplates.Outcome.NotNew)
+            Console.WriteLine($"Not applying the '{template}' template: this server is already set up. Templates only apply to a new server.");
+    }
+    catch (Iskra.Server.Templates.TemplateException ex)
+    {
+        Console.Error.WriteLine(ex.Message);
+        world.Dispose();
+        Environment.ExitCode = 1;
+        return;
+    }
+}
+
 builder.Services.AddSingleton(world);
 builder.Services.AddSingleton<Hub>();
 builder.Services.AddSingleton<Router>();

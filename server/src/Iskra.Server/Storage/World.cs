@@ -15,6 +15,9 @@ public sealed record WorldSettings
     /// <summary>Listen on localhost only (tests and local tools): nothing on the network can connect, and Windows never asks about the firewall.</summary>
     public bool LocalOnly { get; init; }
 
+    /// <summary>A starter template applied once to a new server (built-in name or a .json path; see docs/hosting.md).</summary>
+    public string? Template { get; init; }
+
     /// <summary>The web app that invite links open.</summary>
     public string AppUrl { get; init; } = "https://app.iskra.foo";
 

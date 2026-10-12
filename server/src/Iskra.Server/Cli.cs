@@ -3,6 +3,8 @@ using Iskra.Server.Backups;
 using Iskra.Server.Crypto;
 using Iskra.Server.Features;
 using Iskra.Server.Files;
+using Iskra.Server.Hosting;
+using Iskra.Server.Templates;
 using Iskra.Server.Import;
 using Iskra.Server.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -15,12 +17,14 @@ namespace Iskra.Server;
 ///   iskra-server backup &lt;world-folder&gt; &lt;file&gt;         make an encrypted backup
 ///   iskra-server move &lt;world-folder&gt; &lt;new-address&gt;   publish "this server moved" (or --cancel)
 ///   iskra-server import-discord &lt;world-folder&gt; &lt;export&gt; [--read-only]
+///   iskra-server templates [name-or-file] [--json]         list starter templates, or check one
+///   iskra-server install-autostart &lt;world-folder&gt;       start the server with the computer (remove-autostart undoes it)
 ///   iskra-server version                                   print the version
 /// The passphrase comes from --passphrase-stdin (one line), $ISKRA_BACKUP_PASSPHRASE, or a prompt.
 /// </summary>
 public static class Cli
 {
-    private static readonly string[] Commands = ["restore", "backup", "move", "import-discord", "version", "--version", "help", "--help"];
+    private static readonly string[] Commands = ["restore", "backup", "move", "import-discord", "templates", "install-autostart", "remove-autostart", "version", "--version", "help", "--help"];
 
     public static bool IsCommand(string? first) => first is not null && Commands.Contains(first);
 
@@ -36,10 +40,18 @@ public static class Cli
                 "backup" when rest.Length == 3 => Backup(rest[1], rest[2], flags),
                 "move" when rest.Length == 3 || (rest.Length == 2 && flags.Contains("--cancel")) => Move(rest[1], rest.ElementAtOrDefault(2), flags),
                 "import-discord" when rest.Length == 3 => ImportDiscord(rest[1], rest[2], flags),
+                "templates" when rest.Length <= 2 => ListTemplates(rest.ElementAtOrDefault(1), flags.Contains("--json")),
+                "install-autostart" when rest.Length == 2 => InstallAutostart(rest[1], new RealAutostartSystem()),
+                "remove-autostart" when rest.Length == 2 => RemoveAutostart(rest[1], new RealAutostartSystem()),
                 "version" when rest.Length == 1 => PrintVersion(),
                 null when flags.Contains("--version") && args.Length == 1 => PrintVersion(),
                 _ => Usage(),
             };
+        }
+        catch (Templates.TemplateException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 1;
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
         {
@@ -66,7 +78,12 @@ public static class Cli
               iskra-server move <world-folder> --cancel                take that notice down again
               iskra-server import-discord <world-folder> <export>      import DiscordChatExporter JSON (a .json or a .zip)
                                                                        add --read-only to make the channels an archive
+              iskra-server templates                                   list the starter templates (--json for the details)
+              iskra-server templates <name-or-file.json>               check a template and show what it sets up
+              iskra-server install-autostart <world-folder>            start this server with the computer (no window)
+              iskra-server remove-autostart <world-folder>             undo that
               iskra-server version                                     print the version
+            A new server can start from a template: iskra-server <world-folder> --template gaming
             Passphrases: --passphrase-stdin (one line), or $ISKRA_BACKUP_PASSPHRASE, or you're asked.
             Add --json to restore for a machine-readable result.
             """);
@@ -184,6 +201,74 @@ public static class Cli
         Console.WriteLine($"Imported {result.MessagesDone:N0} messages in {importer.Channels.Count} channels, {result.Files:N0} files" +
             (result.MissingFiles > 0 ? $" ({result.MissingFiles:N0} files weren't in the export)" : "") + ".");
         Console.WriteLine("Roles aren't part of DiscordChatExporter exports, so set them up here. Restart the server if it's running, so everyone sees the new channels.");
+        return 0;
+    }
+
+    /// <summary>The built-in templates (or one template, checked), for people and for the desktop app's setup wizard.</summary>
+    private static int ListTemplates(string? which, bool json)
+    {
+        var ids = which is null ? ServerTemplates.BuiltIn : [which];
+        var templates = ids.Select(id => (Id: ServerTemplates.IdOf(id), Template: ServerTemplates.Load(id))).ToList();
+        if (json)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(templates.Select(t => new
+            {
+                id = t.Id,
+                name = t.Template.Name,
+                description = t.Template.Description,
+                categories = t.Template.Categories.Select(c => new { name = c.Name, channels = c.Channels.Select(ChannelView) }),
+                channels = t.Template.Channels.Select(ChannelView),
+                roles = t.Template.Roles.Select(r => r.Name),
+                rules = t.Template.Rules is not null,
+            }), new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+            return 0;
+        }
+        foreach (var (id, template) in templates)
+        {
+            Console.WriteLine($"{id}: {template.Name}. {template.Description}");
+            foreach (var c in template.Channels) Console.WriteLine($"    {Describe(c)}");
+            foreach (var category in template.Categories)
+            {
+                Console.WriteLine($"    {category.Name}");
+                foreach (var c in category.Channels) Console.WriteLine($"      {Describe(c)}");
+            }
+            if (template.Roles.Length > 0) Console.WriteLine($"    Roles: {string.Join(", ", template.Roles.Select(r => r.Name))}");
+            if (template.Rules is not null) Console.WriteLine("    Rules: yes");
+        }
+        if (which is null) Console.WriteLine("Use one for a new server: iskra-server <world-folder> --template <name>, or \"Template\": \"<name>\" in server.json.");
+        return 0;
+
+        static object ChannelView(TemplateChannel c) => new { name = c.Name, kind = c.Kind, userLimit = c.UserLimit };
+        static string Describe(TemplateChannel c) =>
+            c.Kind == "voice" ? $"(voice) {c.Name}{(c.UserLimit > 0 ? $" (up to {c.UserLimit})" : "")}" : $"# {c.Name}";
+    }
+
+    private static int InstallAutostart(string worldPath, IAutostartSystem system)
+    {
+        if (!File.Exists(Path.Combine(worldPath, "server.key"))) throw new IOException($"{worldPath} isn't an Iskra server folder. Start it once first: iskra-server {worldPath}");
+        var (exe, prefix) = Autostart.ServerCommand();
+        var result = Autostart.Install(system, worldPath, exe, prefix);
+        using (var world = World.OpenOrCreate(worldPath))
+            SecurityLog.Record(world.Store, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), "server.autostart.install", details: new { os = system.Os, when = result.When });
+        Console.WriteLine($"Done: {result.Name}{(result.File is null ? "" : $" ({result.File})")}.");
+        foreach (var note in result.Notes) Console.WriteLine(note);
+        Console.WriteLine($"To undo: iskra-server remove-autostart {worldPath}");
+        return 0;
+    }
+
+    private static int RemoveAutostart(string worldPath, IAutostartSystem system)
+    {
+        if (!Autostart.Remove(system, worldPath))
+        {
+            Console.WriteLine("This server doesn't start by itself; nothing to remove.");
+            return 0;
+        }
+        if (File.Exists(Path.Combine(worldPath, "server.key")))
+        {
+            using var world = World.OpenOrCreate(worldPath);
+            SecurityLog.Record(world.Store, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), "server.autostart.remove", details: new { os = system.Os });
+        }
+        Console.WriteLine("Removed. The server no longer starts with the computer.");
         return 0;
     }
 }

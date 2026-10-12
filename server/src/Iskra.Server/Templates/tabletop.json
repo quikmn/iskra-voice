@@ -1,0 +1,31 @@
+{
+  "name": "Board games and tabletop",
+  "description": "Plan game nights, keep campaign notes and play at separate tables.",
+  "categories": [
+    {
+      "name": "Text channels",
+      "channels": [
+        { "name": "general" },
+        { "name": "game-night-plans" },
+        { "name": "rules-questions" },
+        { "name": "campaign-notes" }
+      ]
+    },
+    {
+      "name": "Tables",
+      "channels": [
+        { "name": "Table 1", "kind": "voice", "userLimit": 6 },
+        { "name": "Table 2", "kind": "voice", "userLimit": 6 },
+        { "name": "Lounge", "kind": "voice" }
+      ]
+    }
+  ],
+  "roles": [
+    { "name": "Moderator", "color": "#3fa66b", "hoist": true, "permissions": ["manageMessages", "timeoutMembers", "kickMembers", "muteMembers", "moveMembers", "viewAuditLog"] },
+    { "name": "Game master", "color": "#8e6be8", "icon": "🎲", "mentionable": true, "permissions": ["muteMembers", "moveMembers", "mentionEveryone"] }
+  ],
+  "rules": {
+    "text": "1. Be a good sport, win or lose.\n2. No spoilers for campaigns you're not running.\n3. Show up on time for game night, or say so in #game-night-plans.",
+    "welcome": "Welcome to the table! Check #game-night-plans for the next session."
+  }
+}
