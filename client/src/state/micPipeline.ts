@@ -1,5 +1,5 @@
-// The microphone's path before it's sent: noise suppression (DeepFilterNet3 or RNNoise, WebAssembly in an
-// AudioWorklet), input volume and the voice activity gate (Silero VAD), which also measures your level for the
+// The microphone's path before it's sent: noise suppression (DeepFilterNet3 in a worker fed by an AudioWorklet, or
+// RNNoise in an AudioWorklet, both WebAssembly), input volume and the voice activity gate (Silero VAD), which also measures your level for the
 // meter and your own "speaking" ring. Everything runs on this device and is bundled with the app (no CDN). If
 // AudioWorklet or WebAssembly isn't there, the mic is sent as it is (with the browser's own noise suppression).
 import type { RnnoiseWorkletNode } from '@sapphi-red/web-noise-suppressor'
@@ -8,9 +8,10 @@ import type { TrackProcessor, Track, AudioProcessorOptions } from 'livekit-clien
 import gateWorkletUrl from './micGate.worklet.ts?worker&url'
 import deepFilterWorkletUrl from './audio/deepfilter.worklet.ts?worker&url'
 import { AUTO_SPEAKING_DB, type AudioSettings } from './audio'
-import { deepFilterBytes, loadDeepFilter, loadRnnoiseWasm, loadSilero } from './audio/assets'
+import { loadRnnoiseWasm, loadSilero } from './audio/assets'
 import { DF_STRENGTH_DB } from './audio/strength'
-import { engineCaps, markBroken, plannedEngine, SlowWatch, type NoiseEngine } from './audio/engines'
+import { contextDelay, DeepFilterWorker, type WorkerLoad } from './audio/deepfilterHost'
+import { engineCaps, markBroken, OverrunWatch, plannedEngine, SlowWatch, type NoiseEngine } from './audio/engines'
 
 export type LevelListener = (db: number, open: boolean) => void
 
@@ -61,44 +62,31 @@ export function keepRunning(ctx: AudioContext): () => void {
  */
 export const DEEPFILTER_START_MS = 6000
 
-/** Waits for a worklet's first "ready", "error" or "need-bytes". */
-function answer(node: AudioWorkletNode, ms: number): Promise<{ type: string; message?: string }> {
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => resolve({ type: 'error', message: 'timed out' }), ms)
-    node.port.onmessage = (e: MessageEvent<{ type: string; message?: string }>) => {
-      if (e.data?.type !== 'ready' && e.data?.type !== 'error' && e.data?.type !== 'need-bytes') return
-      clearTimeout(timer)
-      node.port.onmessage = null
-      resolve(e.data)
-    }
-  })
+interface DeepFilter {
+  node: AudioWorkletNode
+  worker: DeepFilterWorker
+  id: string
 }
 
-/** DeepFilterNet3 in the context, running; null if it can't here. */
-async function startDeepFilter(ctx: AudioContext, strength: number): Promise<AudioWorkletNode | null> {
+/** DeepFilterNet3 in its own worker, linked to a worklet node in the context; null if it can't run here. */
+async function startDeepFilter(ctx: AudioContext, strength: number, onLoad: (load: WorkerLoad) => void): Promise<DeepFilter | null> {
+  let worker: DeepFilterWorker | null = null
   try {
-    const assets = await loadDeepFilter()
-    await ctx.audioWorklet.addModule(deepFilterWorkletUrl)
-    const node = new AudioWorkletNode(ctx, 'iskra-deepfilter', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] })
     const started = Date.now()
-    // The compiled engine goes over as is; a browser that can't send it to a worklet sends the bytes instead.
-    let reply = answer(node, DEEPFILTER_START_MS)
-    node.port.postMessage({ module: assets.module, model: assets.model, strength })
-    let result = await reply
-    if (result.type === 'need-bytes') {
-      const wasm = await deepFilterBytes()
-      reply = answer(node, DEEPFILTER_START_MS)
-      node.port.postMessage({ wasm, model: assets.model, strength })
-      result = await reply
-    }
-    if (result.type !== 'ready') {
+    await ctx.audioWorklet.addModule(deepFilterWorkletUrl)
+    worker = await DeepFilterWorker.start({ reportMs: 1000, ms: DEEPFILTER_START_MS, onLoad, onError: (m) => console.warn('[iskra] AI noise removal', m) })
+    if (!worker) throw new Error('the engine did not start')
+    const delay = contextDelay(ctx)
+    const node = new AudioWorkletNode(ctx, 'iskra-deepfilter', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1], processorOptions: { delay } })
+    const id = await worker.link(node, strength, DEEPFILTER_START_MS)
+    if (!id) {
       node.port.postMessage('stop')
-      node.disconnect()
-      throw new Error(result.message)
+      throw new Error('the model did not load')
     }
-    console.info(`[iskra] AI noise removal started in ${Date.now() - started} ms`)
-    return node
+    console.info(`[iskra] AI noise removal started in ${Date.now() - started} ms (delay ${((delay / ctx.sampleRate) * 1000).toFixed(1)} ms + 30 ms look-ahead)`)
+    return { node, worker, id }
   } catch (e) {
+    worker?.terminate()
     console.warn('[iskra] AI noise removal could not start; using RNNoise', e)
     markBroken('ai')
     return null
@@ -148,15 +136,37 @@ export async function createMicPipeline(source: MediaStreamTrack, settings: Audi
     return fail()
   }
 
+  let alive = true
+  // AI noise removal can't keep up: the worker takes too long on average, or its frames keep coming back late.
+  const slowWatch = new SlowWatch()
+  const overrunWatch = new OverrunWatch()
+  let gaveUp = false
+  const tooSlow = (why: string) => {
+    if (!alive || gaveUp) return
+    gaveUp = true
+    console.warn(`[iskra] AI noise removal is too slow here (${why}); switching to RNNoise`)
+    callbacks.onSlow?.()
+  }
+  let lastLog = 0
+  const onLoad = (load: WorkerLoad) => {
+    if (!alive) return
+    callbacks.onLoad?.(load.rtf)
+    if (Date.now() - lastLog > 10000) {
+      lastLog = Date.now()
+      console.info(`[iskra] AI noise removal: realtime factor ${load.rtf.toFixed(3)} (${(load.rtf * 100).toFixed(1)}% of one core), slowest frame ${load.slowest.toFixed(1)} ms`)
+    }
+    if (slowWatch.report(load.rtf)) tooSlow(`realtime factor ${load.rtf.toFixed(2)}`)
+  }
+
   let engine: NoiseEngine = wasm ? 'browser' : wanted
-  let deepFilter: AudioWorkletNode | null = null
+  let deepFilter: DeepFilter | null = null
   let rnnoise: RnnoiseWorkletNode | null = null
   if (wasm && ctx.sampleRate !== 48000) {
     // E.g. Firefox when the mic's sample rate isn't 48 kHz.
     markBroken('ai')
     markBroken('rnnoise')
   } else if (wanted === 'ai') {
-    deepFilter = await startDeepFilter(ctx, DF_STRENGTH_DB[settings.aiStrength])
+    deepFilter = await startDeepFilter(ctx, DF_STRENGTH_DB[settings.aiStrength], onLoad)
     if (deepFilter) engine = 'ai'
   }
   if (wasm && !deepFilter && ctx.sampleRate === 48000) {
@@ -165,12 +175,11 @@ export async function createMicPipeline(source: MediaStreamTrack, settings: Audi
   }
 
   const destination = ctx.createMediaStreamDestination()
-  const cleaner = deepFilter ?? rnnoise
+  const cleaner = deepFilter?.node ?? rnnoise
   if (cleaner) input.connect(cleaner).connect(gate)
   else input.connect(gate)
   gate.connect(destination)
 
-  let alive = true
   gate.port.onmessage = (e: MessageEvent<{ level: number; open: boolean } | { type: string; message?: string }>) => {
     if (!alive) return
     const m = e.data
@@ -182,37 +191,30 @@ export async function createMicPipeline(source: MediaStreamTrack, settings: Audi
   void loadSilero().then((model) => alive && gate.port.postMessage({ type: 'vad-model', model }), (e) => console.warn('[iskra] voice activity model', e))
 
   if (deepFilter) {
-    const watch = new SlowWatch()
-    let lastLog = 0
-    deepFilter.port.onmessage = (e: MessageEvent<{ type: string; rtf?: number; slowest?: number }>) => {
-      if (!alive || e.data?.type !== 'rtf' || typeof e.data.rtf !== 'number') return
-      const rtf = e.data.rtf
-      callbacks.onLoad?.(rtf)
-      if (Date.now() - lastLog > 10000) {
-        lastLog = Date.now()
-        console.info(`[iskra] AI noise removal: realtime factor ${rtf.toFixed(3)} (${(rtf * 100).toFixed(1)}% of one core), slowest frame ${(e.data.slowest ?? 0).toFixed(1)} ms`)
-      }
-      if (watch.report(rtf)) {
-        console.warn(`[iskra] AI noise removal is too slow here (realtime factor ${rtf.toFixed(2)}); switching to RNNoise`)
-        callbacks.onSlow?.()
-      }
+    deepFilter.node.port.onmessage = (e: MessageEvent<{ type: string; overruns?: number; dropped?: number }>) => {
+      if (e.data?.type !== 'overrun') return
+      console.info(`[iskra] AI noise removal: a frame was late, bridged with the unprocessed mic (${e.data.overruns} so far)`)
+      if (overrunWatch.report()) tooSlow('frames keep coming back late')
     }
   }
-
   const track = destination.stream.getAudioTracks()[0]
   return {
     track,
     engine,
     update: (s, p) => {
       gate.port.postMessage(gateParams(s, p))
-      deepFilter?.port.postMessage({ strength: DF_STRENGTH_DB[s.aiStrength] })
+      if (deepFilter) deepFilter.worker.strength(deepFilter.id, deepFilter.node, DF_STRENGTH_DB[s.aiStrength])
     },
     destroy: () => {
       if (!alive) return
       alive = false
       stopResuming()
       gate.port.onmessage = null
-      if (deepFilter) deepFilter.port.onmessage = null
+      if (deepFilter) {
+        deepFilter.node.port.onmessage = null
+        deepFilter.node.port.postMessage('stop')
+        deepFilter.worker.terminate()
+      }
       rnnoise?.destroy()
       input.disconnect()
       track.stop()
