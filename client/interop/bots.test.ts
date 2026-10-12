@@ -210,7 +210,7 @@ describe('bot SDK ↔ server', () => {
     const sent = await bot.send(general.id, 'draft')
     expect((await bot.edit(sent.id, 'final')).text).toBe('final')
     await waitFor(() => edits.find((m) => m.id === sent.id), 'chat.edited')
-    await owner.request('chat.react', { id: sent.id, emoji: '👍' })
+    await owner.request('chat.react', { id: sent.id, emoji: '👍', on: true })
     await waitFor(() => reactions.find((r) => r.id === sent.id), 'chat.reactions')
     await bot.delete(sent.id)
 
