@@ -51,8 +51,9 @@ async function main() {
   const account = signingKeyPairFromSeed(randomBytes(32))
   const device = signingKeyPairFromSeed(randomBytes(32))
   let welcome!: Welcome
+  let conn!: Connection
   const welcomed = new Promise<void>((done) => {
-    const conn = new Connection({
+    conn = new Connection({
       serverUrl: owner.serverUrl, expectedServerKey: owner.serverKey, invite: owner.code,
       identity: { account, device, cert: certifyDevice(account, device.publicKey, Date.now()) },
       name: () => 'Owner', onStatus: () => undefined, onEvent: () => undefined, requestTimeoutMs: 120_000,
@@ -62,9 +63,9 @@ async function main() {
       },
     })
     conn.start()
-    void welcomed.then(() => run(conn))
   })
   await welcomed
+  await run(conn)
 
   async function run(conn: Connection) {
     const general = welcome.channels.find((c) => c.name === 'general')!.id
@@ -101,6 +102,7 @@ async function main() {
     const measure = async (name: string, times: number, f: (i: number) => Promise<unknown>) => {
       const xs: number[] = []
       for (let i = 0; i < times; i++) {
+        await sleep(name.startsWith("search") ? 550 : 120) // under the rate limits (search: 2 a second)
         const t = performance.now()
         await f(i)
         xs.push(performance.now() - t)
@@ -109,19 +111,15 @@ async function main() {
     }
     await measure('history: latest 50', 20, () => conn.request('chat.history', { channelId: general, limit: 50 }))
     await measure('history: 100 before (deep)', 20, (i) => conn.request('chat.history', { channelId: general, before: first + 1000 + i * 100, limit: 100 }))
-    await measure('history: scroll back 50x100', 1, async () => {
-      let before: number | undefined
-      for (let i = 0; i < 50; i++) {
-        const page = await conn.request('chat.history', { channelId: general, before, limit: 100 })
-        before = page.messages[0].id
-      }
+    let before: number | undefined
+    await measure('history: scroll back, per 100', 50, async () => {
+      const page = await conn.request('chat.history', { channelId: general, before, limit: 100 })
+      before = page.messages[0].id
     })
-    await measure('catch-up: 5000 after, by 100', 1, async () => {
-      let after = last - 5000
-      for (let i = 0; i < 50; i++) {
-        const page = await conn.request('chat.history', { channelId: general, after, limit: 100 })
-        after = page.messages[page.messages.length - 1].id
-      }
+    let after = last - 5000
+    await measure('catch-up: 5000 after, per 100', 50, async () => {
+      const page = await conn.request('chat.history', { channelId: general, after, limit: 100 })
+      after = page.messages[page.messages.length - 1].id
     })
     await measure('jump: around (middle)', 20, (i) => conn.request('chat.history', { channelId: general, around: first + COUNT / 2 + i, limit: 50 }))
     await measure('search: common word', 10, () => conn.request('search', { query: 'pizza', limit: 25 }))
@@ -129,12 +127,10 @@ async function main() {
     await measure('search: two words', 10, () => conn.request('search', { query: 'raid tonight', limit: 25 }))
     await measure('search: has link', 10, () => conn.request('search', { has: ['link'], limit: 25 }))
     await measure('search: by author', 10, () => conn.request('search', { author: me, limit: 25 }))
-    await measure('search: common, page 20', 10, async () => {
-      let cursor: number | undefined
-      for (let i = 0; i < 20; i++) {
-        const r = await conn.request('search', { query: 'game', limit: 25, cursor })
-        cursor = r.results[r.results.length - 1]?.message.id
-      }
+    let cursor: number | undefined
+    await measure('search: common, next pages', 20, async () => {
+      const r = await conn.request('search', { query: 'game', limit: 25, cursor })
+      cursor = r.results[r.results.length - 1]?.message.id
     })
 
     console.log('\nTimings (request to reply):')

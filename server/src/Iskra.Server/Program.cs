@@ -20,7 +20,18 @@ var (worldArg, configArgs) = CommandLine.Split(args);
 var builder = WebApplication.CreateBuilder(configArgs);
 
 var worldPath = builder.Configuration["World"] ?? worldArg ?? "world";
-var world = World.OpenOrCreate(worldPath);
+World world;
+try
+{
+    world = World.OpenOrCreate(worldPath);
+}
+catch (Exception ex) when (WorldProblem.Describe(worldPath, ex) is { } problem)
+{
+    // One clear line (and an exit code the desktop app knows) instead of a stack trace; retrying won't help.
+    Console.Error.WriteLine(problem);
+    Environment.ExitCode = ex is IOException or UnauthorizedAccessException ? 1 : WorldProblem.ExitCode;
+    return;
+}
 MoveFeature.Load(world);
 
 // A starter template (server.json "Template" or --template <name>), applied once to a new server.
