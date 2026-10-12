@@ -115,3 +115,16 @@ export class SlowWatch {
     return this.over >= SLOW_WINDOWS
   }
 }
+
+/** More than this many times per 10 s that DeepFilterNet's frames weren't back in time and it can't keep up here. */
+export const MAX_OVERRUNS = 5
+
+/** Counts overruns (a frame not back from the worker in time) over the last 10 s; true once there were too many. */
+export class OverrunWatch {
+  private times: number[] = []
+  report(now = Date.now()): boolean {
+    this.times = this.times.filter((t) => now - t < 10000)
+    this.times.push(now)
+    return this.times.length > MAX_OVERRUNS
+  }
+}

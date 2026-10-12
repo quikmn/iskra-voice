@@ -1,5 +1,5 @@
 // Realtime factors of the voice processing, on this machine (time spent / length of audio processed; 0.05 = 5% of
-// one core). Run from client/: node scripts/bench-audio.mjs
+// one core), and what DeepFilterNet costs the audio thread per render call. Run from client/: node scripts/bench-audio.mjs
 // Uses the bundled engines and the e2e speech fixture with noise added. Browsers run the same WebAssembly and
 // JavaScript, usually a little slower than Node; phones several times slower.
 import { readFileSync } from 'node:fs'
@@ -77,3 +77,54 @@ bench('Voice activity gate', () => {
     gate.process(speech48.subarray(i, i + 128), out)
   }
 })
+
+// The audio thread's share of DeepFilterNet: time per 128-sample render call (2.67 ms of audio), with the network
+// inside the call (the framer, as it used to run) and off it (the queue: the worker processes frames between calls).
+const pct = (xs, p) => xs[Math.min(xs.length - 1, Math.floor(p * xs.length))]
+const summary = (times) => {
+  times.sort((a, b) => a - b)
+  const mean = times.reduce((a, b) => a + b, 0) / times.length
+  return `mean ${(mean * 1000).toFixed(1)} µs, p99 ${(pct(times, 0.99) * 1000).toFixed(1)} µs, max ${(times[times.length - 1] * 1000).toFixed(0)} µs`
+}
+function renderCalls(name, step, between = () => {}) {
+  const times = []
+  const out = new Float32Array(128)
+  for (let i = 0; i + 128 <= speech48.length; i += 128) {
+    const t0 = performance.now()
+    step(speech48.subarray(i, i + 128), out)
+    times.push(performance.now() - t0)
+    between(i / 128)
+  }
+  console.log(`${name.padEnd(42)} per render call: ${summary(times)} (budget 2667 µs)`)
+}
+const { Framer } = await import('../src/state/audio/framer.ts')
+const { FrameQueue, queueDelay } = await import('../src/state/audio/dfQueue.ts')
+const { createDeepFilter, warmUp } = await import('../src/state/audio/strength.ts')
+const fresh = () => {
+  const st = createDeepFilter(new Uint8Array(file('../vendor/deepfilternet/DeepFilterNet3_onnx.tar.gz.bin')), 30)
+  warmUp(st, df_process_frame)
+  return st
+}
+const inThread = fresh()
+const framer = new Framer(480, 48000, (frame) => df_process_frame(inThread, frame))
+renderCalls('Audio thread, DeepFilterNet in the call', (block, o) => framer.push(block, o))
+
+const offThread = fresh()
+const queue = new FrameQueue(queueDelay(512))
+const waiting = []
+const workerTimes = []
+queue.attach({
+  send: (index, frame) => (waiting.push([index, frame.slice()]), true),
+  poll: () => {},
+})
+renderCalls('Audio thread, DeepFilterNet in a worker', (block, o) => queue.process(block, o), (k) => {
+  // "The worker", after every fourth render call (a 10 ms device buffer), not on the audio thread's clock.
+  if (k % 4 !== 3) return
+  for (const [index, frame] of waiting.splice(0)) {
+    const t0 = performance.now()
+    frame.set(df_process_frame(offThread, frame))
+    workerTimes.push(performance.now() - t0)
+    queue.take(index, frame)
+  }
+})
+console.log(`${'Worker, DeepFilterNet per 10 ms frame'.padEnd(42)} ${summary(workerTimes)} (overruns ${queue.overruns})`)

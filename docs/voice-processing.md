@@ -11,14 +11,14 @@ speech model kept on the device so it's only downloaded once.
 
 | Setting (Settings → Voice & audio → Noise suppression) | What runs |
 |---|---|
-| **AI** (default) | DeepFilterNet3, a neural network, as WebAssembly in an AudioWorklet at 48 kHz |
+| **AI** (default) | DeepFilterNet3, a neural network, as WebAssembly in a Web Worker fed by an AudioWorklet at 48 kHz |
 | **Strong** | RNNoise, as WebAssembly in an AudioWorklet at 48 kHz |
 | **Standard** | The browser's own noise suppression |
 | **Off** | Nothing |
 
 - **Fallbacks.** AI needs AudioWorklet and WebAssembly with SIMD. If those are missing, the engine can't start, or it runs
-  slower than real time for three seconds in a row (realtime factor above 0.6), Iskra switches to RNNoise by itself and
-  remembers it on that device. Choosing AI again gives it another try. RNNoise falls back to the browser's suppression
+  slower than real time for three seconds in a row (realtime factor above 0.6), or its frames come back late more than
+  five times in ten seconds, Iskra switches to RNNoise by itself and remembers it on that device. Choosing AI again gives it another try. RNNoise falls back to the browser's suppression
   the same way. Settings always says which engine is active, why, and (in a call) how much CPU it takes.
 - **AI noise removal strength** (Settings → Voice & audio, with AI on): **Gentle**, **Normal** (default) or **Max**:
   the most DeepFilterNet may turn anything down (18 dB, 30 dB, no limit). With a limit, what it takes out is mixed
@@ -38,7 +38,18 @@ speech model kept on the device so it's only downloaded once.
   (a longer pre-roll of 200 ms would keep all of it, at twice the delay). After a pause of
   more than the hangover it closes, and the next time starts over. Turn "Set automatically" off for a manual volume
   threshold instead. Push-to-talk is never gated or delayed. Your own speaking ring follows the same detector.
-- **Latency added.** DeepFilterNet: about 10 ms of framing plus the model's own look-ahead (30 ms). RNNoise:
+- **Off the audio thread.** The audio worklet only moves samples: it cuts the mic into 10 ms frames for a worker that
+  runs DeepFilterNet, and plays what comes back at a fixed delay, the way DeepFilterNet's own LADSPA plugin uses a
+  processing thread. Frames travel in eight slots allocated once and reused (nothing is allocated per frame on the
+  audio thread): buffers transferred back and forth over a MessagePort, or shared memory with Atomics when the page
+  is cross-origin isolated (none of the apps are today: the web app, the desktop app's `app://` and the phone apps
+  all use the port; the choice is made at run time). If a frame isn't back in time, the worklet crossfades (2.7 ms)
+  to the mic as it is, lined up to the same delay, and back once frames arrive again: never silence, never a skip
+  or a repeat. A frame that couldn't be sent at all also takes the next three with it (the network's look-ahead
+  still held audio from before the gap).
+- **Latency added.** DeepFilterNet: 24 ms of framing and queue (one frame, plus one device buffer of headroom for the
+  worker: the delay follows the device's buffer size, 24 ms for the usual 10 ms) plus the model's own look-ahead
+  (30 ms), 54 ms in all; running inside the audio worklet it was 10.7 + 30 ms, with no room for a slow frame. RNNoise:
   about 10 ms. Voice activity: 100 ms while you talk ("Set automatically" only; none with a manual threshold or
   push-to-talk).
 - **Hi-fi.** In voice channels where an admin allowed it, turning on "Hi-fi audio" sends your mic in stereo at
@@ -54,7 +65,8 @@ goes through:
 
 1. **Clean up others' audio** (off by default): DeepFilterNet3 when you use AI noise removal and up to four people
    are talking, RNNoise otherwise or when the device can't keep up. DeepFilterNet runs in a Web Worker, so starting it
-   for someone who just joined never stalls the rest of the call; it adds about 20 ms on top of the model's look-ahead.
+   for someone who just joined never stalls the rest of the call; it uses the same queue as the mic (24 ms on top of the
+   model's look-ahead, crossfading to the voice as it is when the worker falls behind).
    It runs at the Normal strength.
    Clips record the cleaned voices while this is on.
 2. **Even out voices** (on by default): a slow gain that brings each person towards the same loudness (only while they
@@ -177,6 +189,18 @@ Realtime factor = time spent / length of audio (0.05 = 5% of one CPU core). `nod
 | Silero VAD | ~0.025 |
 | Leveling, per incoming voice | ~0.004 |
 | Voice activity gate | < 0.001 |
+
+What the audio thread pays (same script: time per 128-sample render call, which has 2.67 ms; the speech fixture
+with noise):
+
+| | Mean | p99 | Max |
+|---|---|---|---|
+| DeepFilterNet inside the render call (before) | 250 µs | 1.0–1.5 ms | 3.7–7.0 ms |
+| DeepFilterNet in a worker, the worklet only queues (now) | 4 µs | 10 µs | 0.5–1.3 ms (first calls) |
+| The worker, per 10 ms frame | 0.95–1.2 ms | 1.3–4.2 ms | 1.7–45 ms (the odd pause: garbage collection, the OS) |
+
+In Chromium (the e2e tests) the worker takes 1.2–1.6 ms per frame on average and 2.0–2.6 ms at the slowest, with
+no late frames, for your mic and incoming voices at once.
 
 DeepFilterNet's start-up takes about half a second (model loading); the first use downloads about 12 MB (16 MB
 WebAssembly and an 8 MB model, compressed). Phones are several times slower, which is what the automatic fallback is
