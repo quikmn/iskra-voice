@@ -36,7 +36,7 @@
 <main class="doc">
   <div class="doc-kicker">Privacy</div>
   <h1>Privacy <span class="grad">Policy</span></h1>
-  <p class="updated">Last updated 11 October 2026</p>
+  <p class="updated">Last updated 12 October 2026</p>
 
   <p class="lead">Iskra is built so that as little as possible about you ends up anywhere. This page explains what is stored, where, who can see it, and how to get rid of it.</p>
 
@@ -117,12 +117,12 @@
   </ul>
 
   <h2 id="push">7. Notifications</h2>
-  <p>If you turn on notifications (<span class="path">Settings → Notifications</span>, per device), each server sends them through <strong>your browser's push service</strong>: Google (Chrome, Edge on Android, the Android app), Mozilla (Firefox), Microsoft (Edge on Windows) or Apple (Safari, iPhone and iPad). This uses the Web Push standard: every notification is encrypted to your device, so the push service can't read it, but it does see that a notification was sent to your device, and when.</p>
+  <p>If you turn on notifications (<span class="path">Settings → Notifications</span>, per device), each server sends them through <strong>your browser's push service</strong>: Google (Chrome, Edge on Android), Mozilla (Firefox), Microsoft (Edge on Windows) or Apple (Safari, iPhone and iPad). This uses the Web Push standard: every notification is encrypted to your device, so the push service can't read it, but it does see that a notification was sent to your device, and when.</p>
   <ul>
     <li><strong>DM and group chat notifications never contain the message</strong>, just "New message from&nbsp;X".</li>
     <li>Mentions and replies in server channels include the sender's name, the channel and a short excerpt (up to 140 characters).</li>
   </ul>
-  <p>The Android app runs the web app in Chrome, so its notifications come through Google's push service as well. If we release native phone apps later, their notifications would go through Apple's (APNs) or Google's (FCM) notification services in the same content-free way for DMs; we'll update this page first.</p>
+  <p>On phones, the Iskra apps (Android, iPhone and iPad) show notifications while the app is open, straight from your servers. They don't use any push service, so nobody else learns when you get one. For notifications while Iskra is closed, use the web app in your phone's browser.</p>
 
   <h2 id="third">8. Other services the apps may contact</h2>
   <p>The apps contact your servers, and these other services only in the situations listed:</p>

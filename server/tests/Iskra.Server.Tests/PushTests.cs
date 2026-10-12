@@ -3,7 +3,9 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Iskra.Server.Crypto;
 using Iskra.Server.Push;
+using Iskra.Server.Storage;
 using Iskra.Server.Tests.Support;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -82,6 +84,63 @@ public class PushTests
         using var server = new IskraServer();
         using var alice = await server.JoinAsync("Alice");
         Assert.Equal("result", (await alice.RequestAsync("push.subscribe", Subscription(endpoint))).Type());
+    }
+
+    /// <summary>Phone apps no longer get native push (older ones subscribed with kind "native" through a push relay).</summary>
+    [Fact]
+    public async Task Only_web_subscriptions_are_accepted()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        var good = JsonSerializer.SerializeToElement(Subscription(Endpoint("a")));
+        var endpoint = good.GetProperty("endpoint").GetString();
+        var keys = good.GetProperty("keys");
+
+        var native = await alice.RequestAsync("push.subscribe", new { kind = "native", endpoint, keys });
+        Assert.Equal("bad_request", native.ErrorCode());
+        Assert.Contains("while the app is open", native.Body().GetProperty("message").GetString());
+        Assert.Equal("bad_request", (await alice.RequestAsync("push.subscribe", new { kind = "apns", endpoint, keys })).ErrorCode());
+        Assert.Equal("bad_request", (await alice.RequestAsync("push.subscribe", new { kind = 5, endpoint, keys })).ErrorCode());
+        // The old relay's endpoints aren't a push service either.
+        Assert.Equal("bad_request", (await alice.RequestAsync("push.subscribe",
+            new { kind = "native", endpoint = "https://push.iskra.foo/v1/push/" + new string('A', 40), keys })).ErrorCode());
+        Assert.Equal("bad_request", (await alice.RequestAsync("push.subscribe",
+            new { endpoint = "https://push.iskra.foo/v1/push/" + new string('A', 40), keys })).ErrorCode());
+        Assert.Equal(JsonValueKind.Null, (await alice.RequestAsync("push.status")).Body().GetProperty("endpoint").ValueKind);
+
+        Assert.Equal("result", (await alice.RequestAsync("push.subscribe", new { kind = "web", endpoint, keys })).Type());
+        Assert.Equal(endpoint, (await alice.RequestAsync("push.status")).Body().GetProperty("endpoint").GetString());
+    }
+
+    [Fact]
+    public void Stored_relay_subscriptions_are_dropped_on_upgrade()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"iskra-push-{Guid.NewGuid():N}.db");
+        try
+        {
+            using (var store = Store.Open(path))
+            {
+                store.SavePushSubscription("acct", "phone", "https://push.iskra.foo/v1/push/" + new string('A', 40), "p", "a", 1, 10);
+                store.SavePushSubscription("acct", "laptop", "https://fcm.googleapis.com/fcm/send/abc", "p", "a", 1, 10);
+            }
+            // A database from before push-2.
+            using (var db = new SqliteConnection($"Data Source={path};Pooling=False"))
+            {
+                db.Open();
+                using var cmd = db.CreateCommand();
+                cmd.CommandText = "DELETE FROM migrations WHERE name = 'push-2';";
+                cmd.ExecuteNonQuery();
+            }
+            using (var store = Store.Open(path))
+            {
+                Assert.Null(store.PushSubscriptionFor("phone"));
+                Assert.NotNull(store.PushSubscriptionFor("laptop"));
+            }
+        }
+        finally
+        {
+            foreach (var f in new[] { path, path + "-wal", path + "-shm" }) File.Delete(f);
+        }
     }
 
     [Fact]

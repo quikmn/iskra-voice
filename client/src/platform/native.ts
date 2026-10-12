@@ -3,41 +3,6 @@
 
 export type NativePlatform = 'ios' | 'android'
 
-/** What the app needs to get native push from a server through the Iskra push relay. */
-export interface NativePushRegistration {
-  platform: NativePlatform
-  /** APNs device token (hex) or FCM registration token. */
-  token: string
-  /** iOS: the PushKit token, so calls ring through CallKit. */
-  voip?: string
-  /** iOS development builds use APNs's sandbox. */
-  sandbox?: boolean
-  /** The app's own Web Push keys (P-256 public key, 16-byte auth secret; b64u). The private key stays in native code. */
-  p256dh: string
-  auth: string
-}
-
-export type NativePermission = 'granted' | 'denied' | 'prompt'
-
-/** Answer or decline pressed on the phone's own call screen (CallKit, Android's call notification). */
-export interface NativeCallAction {
-  action: 'answer' | 'decline'
-  server: string
-  peer?: string
-  group?: string
-}
-
-export interface NativePush {
-  permission(): Promise<NativePermission>
-  /** Asks for permission when needed (call it from a tap) and returns this device's tokens and keys. */
-  register(): Promise<NativePushRegistration>
-  /** The push token changed (the OS rotates them): register again. */
-  onTokenChange(callback: () => void): () => void
-  /** A notification was tapped (including the one that opened the app): an "#/open/…" route. */
-  onOpen(callback: (route: string) => void): () => void
-  onCallAction(callback: (action: NativeCallAction) => void): () => void
-}
-
 /** Keeps voice going with the screen off: iOS audio session + CallKit for calls, Android's foreground service. */
 export interface NativeVoice {
   start(options: { title: string; call: boolean; video: boolean }): Promise<void>
@@ -57,7 +22,6 @@ export interface NativeBridge {
   saveFile(blob: Blob, name: string): Promise<boolean>
   /** Status bar text that reads on the theme's background. */
   setStatusBar(scheme: 'dark' | 'light'): Promise<void>
-  push: NativePush
   voice: NativeVoice
 }
 
@@ -111,14 +75,9 @@ interface Listener {
 
 /** The app's own plugin (mobile/ios/App/App/IskraNative.swift, mobile/android/…/IskraNativePlugin.java). */
 interface IskraNativePlugin {
-  pushPermission(): Promise<{ permission: NativePermission }>
-  pushRegister(): Promise<NativePushRegistration>
   voiceStart(options: { title: string; call: boolean; video: boolean }): Promise<void>
   voiceUpdate(options: { title: string }): Promise<void>
   voiceStop(): Promise<void>
-  addListener(event: 'pushToken', callback: () => void): Promise<Listener>
-  addListener(event: 'pushOpened', callback: (data: { route?: unknown }) => void): Promise<Listener>
-  addListener(event: 'callAction', callback: (data: Record<string, unknown>) => void): Promise<Listener>
   addListener(event: 'voiceEnded', callback: () => void): Promise<Listener>
   addListener(event: 'voiceMuted', callback: (data: { muted?: unknown }) => void): Promise<Listener>
 }
@@ -141,18 +100,6 @@ function listen<T>(event: string, callback: (data: T) => void): () => void {
     stopped = true
     void handle?.remove()
   }
-}
-
-const KEY_RE = /^[A-Za-z0-9_-]{43}$/
-const GROUP_RE = /^[A-Za-z0-9_-]{22}$/
-
-/** Checks what the native side passes up from a call notification. */
-export function parseCallAction(data: Record<string, unknown>): NativeCallAction | null {
-  const { action, server, peer, group } = data
-  if ((action !== 'answer' && action !== 'decline') || typeof server !== 'string' || !KEY_RE.test(server)) return null
-  if (typeof peer === 'string' && KEY_RE.test(peer)) return { action, server, peer }
-  if (typeof group === 'string' && GROUP_RE.test(group)) return { action, server, group }
-  return null
 }
 
 function bridge(platform: NativePlatform): NativeBridge {
@@ -194,20 +141,6 @@ function bridge(platform: NativePlatform): NativeBridge {
       // Style.Dark is light text, for dark backgrounds.
       await StatusBar.setStyle({ style: scheme === 'light' ? Style.Light : Style.Dark })
     },
-    push: {
-      permission: async () => (await (await plugin()).pushPermission()).permission,
-      register: async () => (await plugin()).pushRegister(),
-      onTokenChange: (callback) => listen('pushToken', () => callback()),
-      onOpen: (callback) =>
-        listen<{ route?: unknown }>('pushOpened', (data) => {
-          if (typeof data.route === 'string') callback(data.route)
-        }),
-      onCallAction: (callback) =>
-        listen<Record<string, unknown>>('callAction', (data) => {
-          const action = parseCallAction(data)
-          if (action) callback(action)
-        }),
-    },
     voice: {
       start: async (options) => (await plugin()).voiceStart(options),
       update: async (options) => (await plugin()).voiceUpdate(options),
@@ -223,5 +156,5 @@ function bridge(platform: NativePlatform): NativeBridge {
 
 const platform = nativePlatform()
 export const native: NativeBridge | undefined = platform ? bridge(platform) : undefined
-/** The iPhone/iPad app: no screen sharing, no "Add to Home Screen" hints, native push instead of web push. */
+/** The iPhone/iPad app: no screen sharing, no "Add to Home Screen" hints. */
 export const iosApp = platform === 'ios'

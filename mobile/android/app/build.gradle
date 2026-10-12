@@ -38,20 +38,7 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
-    // Push through the Iskra push relay (data messages only; IskraMessagingService decrypts them).
-    implementation "com.google.firebase:firebase-messaging:$firebaseMessagingVersion"
-    testImplementation "junit:junit:$junitVersion"
-    testImplementation "org.json:json:$orgJsonVersion"
     implementation project(':capacitor-cordova-android-plugins')
 }
 
 apply from: 'capacitor.build.gradle'
-
-try {
-    def servicesJSON = file('google-services.json')
-    if (servicesJSON.text) {
-        apply plugin: 'com.google.gms.google-services'
-    }
-} catch(Exception e) {
-    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
-}

@@ -20,8 +20,6 @@ write a secret value here.
 | chat.iskra.foo world: `iskra.db`, `uploads/`, `server.key`, `livekit.key`, `vapid.json`, `certs/`, `backups/` | Confidential (members' data, server secrets) | Droplet `/opt/iskra/world`, `0600`/`0700` | Owner |
 | Downloaded encrypted backups of chat.iskra.foo | Confidential (encrypted) | Owner's chosen off-site location | Owner |
 | Signing and release keys (Apple Developer ID p12, Android keystore, CI SSH key) | Secret | `D:\Development_Projects\devkeys` + offline copy; GitHub secrets | Owner |
-| Push relay credentials (APNs auth key .p8, Firebase service account JSON, relay handle key) | Secret | GitHub environment `release` and the Worker's secrets; the .p8 also in `devkeys` + offline copy | Owner |
-| Firebase app config (`iskra-google-services.json`) | Internal (ships inside the APK) | `devkeys` | Owner |
 | Admin SSH key `~/.ssh/iskrapersonalvoip` | Secret | Owner's PC + offline copy | Owner |
 | Windows code-signing key | Secret | Certum cloud HSM (SimplySign) — not exportable | Owner |
 | Security reports, incident log, data-request emails | Confidential | spark@iskra.foo mailbox, private advisories | Owner |
@@ -34,10 +32,10 @@ encrypted at rest where possible), **Secret** (credentials; never leave their st
 | Service | Account / resource | Notes |
 |---|---|---|
 | GitHub | User `quikmn`, repo `quikmn/iskra-voice`, environment `release`, Actions secrets/variables | docs/ci-cd.md §4 "GitHub" |
-| Cloudflare | Zone `iskra.foo`; Pages `iskra-hero-page` (iskra.foo), `iskra-webclient` (app.iskra.foo); Worker `iskra-push` (push.iskra.foo, the push relay); Email Routing; API tokens `iskra-github-ci`, `iskra-deploy-cf` | docs/ci-cd.md §4 "Cloudflare", "Push relay" |
+| Cloudflare | Zone `iskra.foo`; Pages `iskra-hero-page` (iskra.foo), `iskra-webclient` (app.iskra.foo); Email Routing; API tokens `iskra-github-ci`, `iskra-deploy-cf` | docs/ci-cd.md §4 "Cloudflare" |
 | DigitalOcean | Droplet "Iskra-Voip-personal-ams3" (AMS3, Ubuntu 24.04, 146.190.236.187) | docs/ci-cd.md §4 "The server" |
-| Apple | Developer Program team BWX2M8XSNZ, App IDs `foo.iskra.app` and `foo.iskra.app.NotificationService`, App Store Connect app "Iskra", API key, APNs auth key | docs/ci-cd.md §4 "Apple", "iOS app", "Push relay" |
-| Google | Play Console "From a Spark" (not published yet); Firebase project "Iskra" (Cloud Messaging only, no Analytics) and its service account | docs/ci-cd.md §4 "Android", "Push relay" |
+| Apple | Developer Program team BWX2M8XSNZ, App ID `foo.iskra.app`, App Store Connect app "Iskra", API key | docs/ci-cd.md §4 "Apple", "iOS app" |
+| Google | Play Console "From a Spark" (not published yet) | docs/ci-cd.md §4 "Android" |
 | Certum | Open Source Code Signing certificate (2026-05-12 → 2027-05-12) | docs/ci-cd.md §4 |
 | Domain registrar | `iskra.foo` | Auto-renew checked yearly |
 | Email | spark@iskra.foo (Cloudflare Email Routing → owner's mailbox) | |
@@ -46,7 +44,7 @@ encrypted at rest where possible), **Secret** (credentials; never leave their st
 
 ## Domains and endpoints
 
-`iskra.foo`, `app.iskra.foo`, `chat.iskra.foo` (A 146.190.236.187, DNS only), `push.iskra.foo` (Worker custom domain), `send.iskra.foo` (Resend records).
+`iskra.foo`, `app.iskra.foo`, `chat.iskra.foo` (A 146.190.236.187, DNS only), `send.iskra.foo` (Resend records).
 Droplet ports: 22, 80, 443, 7881/tcp, 7882/udp (ufw).
 
 ## Hardware
@@ -69,3 +67,4 @@ binaries: LiveKit server v1.13.7 (`scripts/get-livekit.*`, checksum-verified), P
 |---|---|
 | 2026-10-11 | First version |
 | 2026-10-11 | Push relay (Worker, APNs key, Firebase) and the Capacitor Android app |
+| 2026-10-12 | Push relay retired: the phone apps notify while open. The owner deletes Worker `iskra-push`, `push.iskra.foo` and its secrets |

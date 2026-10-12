@@ -202,6 +202,7 @@ A theme is a JSON file of colours, sizes and font choices. Every value is checke
 - Notifications go from your server through your browser's push service (Google, Apple, Mozilla or Microsoft), encrypted so that service can't read them.
 - **DM notifications never contain the message**, just "New message from X". Mentions and replies carry a short excerpt from the channel.
 - Each server has its own push key, and a subscription belongs to one device. Your server only accepts addresses at known push services and doesn't notify a device you're actively using.
+- The phone apps don't use push at all: they show notifications while the app is open, straight from your servers. No Iskra-run service sits between your server and your phone.
 
 ### Webhooks and bots
 

@@ -13,7 +13,7 @@ Scale: likelihood and impact 1 (low) – 3 (high); score = L × I. Treatment: **
 |---|---|---|---|---|---|---|---|
 | R1 | **Single maintainer**: illness or loss of access stops fixes, releases and incident response; no segregation of duties | 2 | 3 | 6 | Reduce | Public code, documented pipeline (docs/ci-cd.md, playbook), self-hosted servers keep working without the owner; name a backup contact; long-term: a second maintainer | Open |
 | R2 | **Compromise of the owner's GitHub account** → malicious release to every desktop app via auto-update | 1 | 3 | 3 | Reduce | MFA (passkey), `release` environment reviewers, Windows signing key in an HSM needing a phone code, notarization, attestations; secret scanning | Partly done (owner actions) |
-| R3 | **Leak of a signing key or CI secret** (Apple p12, Android keystore, Cloudflare token, droplet CI key, APNs key, FCM service account, relay handle key) | 1 | 3 | 3 | Reduce | Secrets only in GitHub secrets/devkeys; gitleaks in CI; push protection; least-privilege tokens; forced-command SSH; rotation procedures in docs/ci-cd.md §4 | Open (move secrets to environment) |
+| R3 | **Leak of a signing key or CI secret** (Apple p12, Android keystore, Cloudflare token, droplet CI key) | 1 | 3 | 3 | Reduce | Secrets only in GitHub secrets/devkeys; gitleaks in CI; push protection; least-privilege tokens; forced-command SSH; rotation procedures in docs/ci-cd.md §4 | Open (move secrets to environment) |
 | R4 | **Loss of chat.iskra.foo data** (disk failure, droplet deleted, bad migration) | 2 | 2 | 4 | Reduce | Daily backups (same disk), encrypted downloadable backups, `iskra-update` rollback, restore drill in CI; needs off-site copies | Open (off-site backups) |
 | R5 | **Vulnerability in the server** (auth, permissions, file handling) exposes members' data | 2 | 3 | 6 | Reduce | Server-side checks on every request, tests, CodeQL, ASVS self-assessment, rate/size limits, security log, fix SLAs | Ongoing |
 | R6 | **Vulnerable or malicious dependency** (npm, NuGet, Electron, LiveKit) | 2 | 3 | 6 | Reduce | Lock files, Dependabot with a 7-day cooldown, pinned actions, SBOMs, Scorecard, few dependencies | Ongoing |
@@ -32,3 +32,4 @@ Scale: likelihood and impact 1 (low) – 3 (high); score = L × I. Treatment: **
 | Date | Change |
 |---|---|
 | 2026-10-11 | First version |
+| 2026-10-12 | R3: push relay credentials gone with the relay |

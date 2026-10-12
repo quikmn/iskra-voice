@@ -6,8 +6,7 @@
 #   .\mobile\scripts\build-android.ps1 -SkipWeb   # reuse client\dist as it is
 #
 # Overrides (environment): ISKRA_ANDROID_JDK (JDK 21+), ISKRA_ANDROID_SDK, ISKRA_ANDROID_KEYSTORE,
-# ISKRA_ANDROID_KEYSTORE_PASSWORD (or ISKRA_ANDROID_KEYSTORE_INFO, a text file with a "password=..." line),
-# ISKRA_ANDROID_GOOGLE_SERVICES (the Firebase app config; without it the app builds but gets no push).
+# ISKRA_ANDROID_KEYSTORE_PASSWORD (or ISKRA_ANDROID_KEYSTORE_INFO, a text file with a "password=..." line).
 param([switch]$ApkOnly, [switch]$SkipWeb)
 
 $ErrorActionPreference = 'Stop'
@@ -36,7 +35,6 @@ if (-not $jdk) { throw 'No JDK 21 found: install Temurin 21 into devtools\jdk-21
 $sdk = Setting 'ISKRA_ANDROID_SDK' (Join-Path $devRoot 'devtools\android-sdk')
 $keystore = Setting 'ISKRA_ANDROID_KEYSTORE' (Join-Path $devRoot 'devkeys\iskra-android.keystore')
 $keyInfo = Setting 'ISKRA_ANDROID_KEYSTORE_INFO' (Join-Path $devRoot 'devkeys\iskra-android-keystore.txt')
-$googleServices = Setting 'ISKRA_ANDROID_GOOGLE_SERVICES' (Join-Path $devRoot 'devkeys\iskra-google-services.json')
 $alias = 'iskra'
 $buildTools = Join-Path $sdk 'build-tools\36.1.0'
 
@@ -79,29 +77,17 @@ try {
   Run 'cap sync android' { npx cap sync android }
 } finally { Pop-Location }
 
-# Firebase's app config (not secret, but per project and outside git): without it the app has no push.
-$servicesTarget = Join-Path $project 'app\google-services.json'
-if (Test-Path $googleServices) {
-  Copy-Item -Force $googleServices $servicesTarget
-} else {
-  Remove-Item $servicesTarget -ErrorAction SilentlyContinue
-  Write-Warning "No $googleServices : this build gets NO push notifications (mobile/README.md, 'Firebase')."
-}
-
 $env:JAVA_HOME = $jdk
 $env:ANDROID_HOME = $sdk
 $env:ANDROID_SDK_ROOT = $sdk
 $env:Path = "$jdk\bin;$env:Path"
 
-$tasks = @('testReleaseUnitTest', 'assembleRelease')
+$tasks = @('assembleRelease')
 if (-not $ApkOnly) { $tasks += 'bundleRelease' }
 Push-Location $project
 try {
   Run 'Gradle' { & .\gradlew.bat @tasks --no-daemon --console=plain "-PiskraVersionCode=$versionCode" "-PiskraVersionName=$version" }
-} finally {
-  Pop-Location
-  Remove-Item $servicesTarget -ErrorAction SilentlyContinue
-}
+} finally { Pop-Location }
 
 $out = Join-Path $mobile 'release'
 New-Item -ItemType Directory -Force $out | Out-Null

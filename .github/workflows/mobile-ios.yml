@@ -1,7 +1,6 @@
 name: Mobile iOS
 
-# Builds the iPhone/iPad app (mobile/: Capacitor around client/dist, plus its Notification Service Extension) and
-# uploads it to TestFlight.
+# Builds the iPhone/iPad app (mobile/: Capacitor around client/dist) and uploads it to TestFlight.
 # Signing is automatic: Xcode's cloud signing with the App Store Connect API key (secrets APPSTORE_*), no
 # certificates or profiles stored here. See mobile/README.md and docs/ci-cd.md "iOS app".
 # Run by hand (Actions → Mobile iOS → Run workflow, or `gh workflow run mobile-ios.yml`); release-finalize.yml
@@ -68,12 +67,6 @@ jobs:
           sudo xcode-select -s "$xcode/Contents/Developer"
           xcodebuild -version
           xcrun --sdk iphoneos --show-sdk-version
-
-      # The push decryption the app and its Notification Service Extension share, against RFC 8291's example.
-      - name: Check push decryption
-        run: |
-          swiftc -O -o "$RUNNER_TEMP/push-check" mobile/ios/App/Shared/WebPushCrypto.swift mobile/ios/App/Shared/PushPayload.swift mobile/ios/Tests/main.swift
-          "$RUNNER_TEMP/push-check"
 
       - name: Version
         run: |
@@ -177,20 +170,11 @@ jobs:
           plutil -p entitlements.plist
           grep -q 'applinks:app.iskra.foo' entitlements.plist || { echo "::error::associated-domains entitlement missing"; exit 1; }
           grep -q "$TEAM_ID.$BUNDLE_ID" entitlements.plist
-          # Push: production APNs, the keychain group shared with the extension, background audio and VoIP.
-          /usr/libexec/PlistBuddy -c 'Print :aps-environment' entitlements.plist | grep -qx production || { echo "::error::aps-environment isn't production"; exit 1; }
-          grep -q "$TEAM_ID.$BUNDLE_ID.shared" entitlements.plist || { echo "::error::keychain-access-groups missing"; exit 1; }
-          /usr/libexec/PlistBuddy -c 'Print :UIBackgroundModes' "$plist" | grep -qx '    voip'
+          # Voice in the background: the audio mode only (no push, no VoIP, no extensions).
           /usr/libexec/PlistBuddy -c 'Print :UIBackgroundModes' "$plist" | grep -qx '    audio'
-          # The Notification Service Extension that decrypts pushes: embedded, same versions, signed, same keychain group.
-          appex="$app/PlugIns/NotificationService.appex"
-          test -d "$appex" || { echo "::error::NotificationService.appex missing"; exit 1; }
-          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$appex/Info.plist")" = "$BUNDLE_ID.NotificationService"
-          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$appex/Info.plist")" = "$MARKETING_VERSION"
-          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$appex/Info.plist")" = "$BUILD_NUMBER"
-          codesign --verify --strict "$appex"
-          codesign -d --entitlements - --xml "$appex" > appex-entitlements.plist
-          grep -q "$TEAM_ID.$BUNDLE_ID.shared" appex-entitlements.plist || { echo "::error::extension keychain group missing"; exit 1; }
+          if /usr/libexec/PlistBuddy -c 'Print :UIBackgroundModes' "$plist" | grep -qx '    voip'; then echo "::error::voip background mode is back"; exit 1; fi
+          if /usr/libexec/PlistBuddy -c 'Print :aps-environment' entitlements.plist >/dev/null 2>&1; then echo "::error::aps-environment is back"; exit 1; fi
+          test ! -d "$app/PlugIns" || { echo "::error::unexpected app extensions"; ls "$app/PlugIns"; exit 1; }
           echo "Iskra $APP_VERSION ($MARKETING_VERSION build $BUILD_NUMBER) is signed for the App Store"
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

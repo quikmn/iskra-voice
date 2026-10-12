@@ -147,7 +147,7 @@ Restart the server. It answers Let's Encrypt on port 80, stores the certificate 
 
 ### Push notifications
 
-Nothing to set up. On first start the server makes its push key (`vapid.json`) and sends notifications for mentions, replies, DMs, group chats, calls and event reminders through the browsers' own push services (an outgoing HTTPS connection). Members turn them on per device in **Settings → Notifications**; on phones that needs the web app over HTTPS, and on iPhone and iPad the app added to the Home Screen.
+Nothing to set up. On first start the server makes its push key (`vapid.json`) and sends notifications for mentions, replies, DMs, group chats, calls and event reminders through the browsers' own push services (an outgoing HTTPS connection). Members turn them on per device in **Settings → Notifications**; on phones that needs the web app over HTTPS, and on iPhone and iPad the app added to the Home Screen. The phone apps show notifications while they're open.
 
 ### Voice, stages and watch parties
 
