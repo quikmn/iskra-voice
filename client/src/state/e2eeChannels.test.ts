@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { MissingKeyError, type ChannelChange } from '../core/channelChain'
+import { MAX_CHANNEL_MEMBERS, MissingKeyError, type ChannelChange } from '../core/channelChain'
+import { en } from '../i18n/en'
 import { GroupBehindError, GroupError, setGroupKeyResolver } from '../core/group'
 import { BEFORE_YOU_JOINED, decryptFailure } from './e2eeChannels'
 
@@ -40,5 +41,11 @@ describe('a message that did not decrypt', () => {
   it('an unknown epoch or no identity is never "you were in"', () => {
     expect(decryptFailure(noKey(), view, 7, B, false)).toEqual({ state: 'error', error: BEFORE_YOU_JOINED })
     expect(decryptFailure(noKey(), view, 2, '', false)).toEqual({ state: 'error', error: BEFORE_YOU_JOINED })
+  })
+})
+
+describe('e2ee error texts', () => {
+  it('the translated "too many" error matches the limit the client enforces', () => {
+    expect(en.e2ee.errors.tooMany).toBe(`At most ${MAX_CHANNEL_MEMBERS} people can be in an encrypted channel.`)
   })
 })

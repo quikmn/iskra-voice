@@ -256,6 +256,32 @@ public class E2eeChannelTests
     }
 
     [Fact]
+    public async Task Permission_overrides_drive_membership_like_roles_do()
+    {
+        using var t = await CreateAsync();
+        async Task<long> Role(string name) =>
+            (await t.Owner.RequestAsync("role.create", new { name, permissions = Array.Empty<string>() })).Body().GetProperty("role").GetProperty("id").GetInt64();
+        var hidden = await Role("Hidden");
+        var guests = await Role("Guests");
+        Assert.Equal("result", (await t.Owner.RequestAsync("member.roles.set", new { accountKey = t.Carol.Key, roles = new[] { hidden } })).Type());
+        Assert.Equal("result", (await t.Owner.RequestAsync("member.roles.set", new { accountKey = t.Dave.Key, roles = new[] { guests } })).Type());
+
+        // Deny view for Carol's role: she stops getting anything at once, and the members are asked to remove her.
+        Assert.Equal("result", (await t.Owner.RequestAsync("channel.overrides.set", new { id = t.ChannelId, roleId = hidden, deny = new[] { "view" } })).Type());
+        Assert.Equal("not_found", (await t.Carol.RequestAsync("echan.get", new { channelId = t.ChannelId })).ErrorCode());
+        Assert.Equal("not_found", (await t.Carol.RequestAsync("echan.keys", new { channelId = t.ChannelId })).ErrorCode());
+        Assert.Equal("result", (await t.Owner.RequestAsync("chat.send", Send(t, t.Owner, 1, "while-carol-is-hidden"))).Type());
+        await t.Carol.NoEventAsync("chat.message");
+
+        // Allow view for Dave's role: the members are asked to add him.
+        Assert.Equal("result", (await t.Owner.RequestAsync("channel.overrides.set", new { id = t.ChannelId, roleId = guests, allow = new[] { "view" } })).Type());
+        var want = (await t.Bob.RequestAsync("echan.get", new { channelId = t.ChannelId })).Body().GetProperty("want");
+        Assert.Equal([t.Carol.Key], want.GetProperty("remove").EnumerateArray().Select(x => x.GetString()));
+        Assert.Equal([t.Dave.Key], want.GetProperty("add").EnumerateArray().Select(x => x.GetString()));
+        Assert.Equal("result", (await t.Dave.RequestAsync("echan.get", new { channelId = t.ChannelId })).Type());
+    }
+
+    [Fact]
     public async Task A_rekey_keeps_the_members_and_a_chain_can_restart_when_nobody_in_it_can_read()
     {
         using var t = await CreateAsync();

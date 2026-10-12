@@ -50,5 +50,9 @@ export const e2ee: Messages['e2ee'] = {
     noKey: 'Den här enheten har inte kanalens nyckel än.',
     stickers: 'Stickers och GIF:ar går inte att skicka i krypterade kanaler än.',
     missingFile: 'En bilaga saknas. Bifoga den igen.',
+    notReady: 'Kanalen är inte redo än.',
+    offline: 'Servern är inte ansluten just nu.',
+    tooMany: 'Högst 50 personer kan vara med i en krypterad kanal.',
+    notEncrypted: 'Det här är inte en krypterad kanal.',
   },
 }

@@ -49,5 +49,9 @@ export const e2ee = {
     noKey: "This device doesn't have this channel's key yet.",
     stickers: "Stickers and GIFs can't be sent in encrypted channels yet.",
     missingFile: 'An attachment is missing. Attach it again.',
+    notReady: 'This channel isn’t ready yet.',
+    offline: "This server isn't connected right now.",
+    tooMany: 'At most 50 people can be in an encrypted channel.',
+    notEncrypted: 'Not an encrypted channel.',
   },
 } as const
