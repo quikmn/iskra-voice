@@ -123,6 +123,7 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         Section("customRoles", $"SELECT mr.account_key, r.id, r.name FROM member_roles mr JOIN roles r ON r.id = mr.role_id WHERE mr.account_key {Mine};");
         Section("profile", $"SELECT account_key, bio, pronouns, accent, avatar_file FROM profiles WHERE account_key {Mine};");
         Section("profilePage", $"SELECT account_key, page_id, html, updated_at FROM profile_pages WHERE account_key {Mine};");
+        Section("profileStamp", $"SELECT account_key, updated_at, by FROM profile_stamps WHERE account_key {Mine};");
         Section("presence", $"SELECT account_key, status, emoji, text, expires_at, updated_at FROM presence WHERE account_key {Mine};");
         Section("syncedSettings", $"SELECT account_key, name, data, updated_at FROM account_prefs WHERE account_key {Mine};");
         Section("notificationSettings", $"SELECT account_key, channel_id, level, muted_until FROM notify_settings WHERE account_key {Mine};");

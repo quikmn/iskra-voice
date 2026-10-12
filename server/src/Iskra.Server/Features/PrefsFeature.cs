@@ -59,6 +59,8 @@ public static partial class PrefsFeature
         if (existing is null && store.CountPrefs(me.AccountKey) >= MaxPrefsPerAccount) throw RequestException.BadRequest("Too many settings.");
         // Last writer wins by the client's timestamp; an older copy never replaces a newer one.
         if (existing is { } e && e.UpdatedAt > updatedAt) return null;
+        // A copy from a clock far ahead would win forever: not taken (same rule as profile stamps).
+        if (updatedAt > s.Now + ProfileFeature.MaxStampAhead) return null;
         store.SetPref(me.AccountKey, name, data, updatedAt);
         var frame = Frames.Event("prefs.updated", new { name, updatedAt });
         foreach (var session in s.Hub.Sessions.Where(x => x.AccountKey == me.AccountKey && x != s)) session.Send(frame);

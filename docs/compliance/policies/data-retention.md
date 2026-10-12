@@ -35,7 +35,7 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Downloaded encrypted backups | Wherever the owner keeps them | The owner | — |
 | Data exports (`/export/{token}`) | 10 minutes (the link; files in `world/exports`, never in backups) | Export cleanup | No |
 | Presence, voice state, IP addresses of connected clients | In memory while connected (stored in the security log only if the owner turns on `Retention.SecurityLogIps`, off by default) | Process memory | No |
-| Profiles, memberships, roles, devices, push subscriptions | While the person is a member | Leaving, kick/ban, account deletion, device revocation | — |
+| Profiles (and the stamp of the newest profile edit, `profile_stamps`), memberships, roles, devices, push subscriptions | While the person is a member | Leaving, kick/ban, account deletion, device revocation | — |
 | Captions model (`models/`; no personal data) | Until the owner deletes it | The owner | `Captions.ModelDownload` (off: not fetched or served) |
 | Owner claim of a rented server (`owner-claim`) | Until the owner joins | `OwnerSetup` | — |
 

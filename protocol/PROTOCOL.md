@@ -10,7 +10,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji) · [Stickers](#stickers) · [GIFs](#gifs) · [Saved messages, reminders, scheduled messages and the inbox](#saved-messages-reminders-scheduled-messages-and-the-inbox)
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties) · [Voice channel chat and clips](#voice-channel-chat-and-clips) · [Hi-fi voice channels](#hi-fi-voice-channels)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Encrypted channels](#end-to-end-encrypted-channels) · [Friends](#friends)
-- **People and integrations:** [Profiles](#profiles) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Presence and voice messages](#presence-and-voice-messages)
+- **People and integrations:** [Profiles](#profiles) · [Profile sync](#profile-sync) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Presence and voice messages](#presence-and-voice-messages)
 - **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Live captions model](#live-captions-model) · [Owner claim (rented servers)](#owner-claim-rented-servers) · [Server updates and health](#server-updates-and-health) · [Backups, moving and imports](#backups-moving-and-imports)
 - **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation) · [Roles and permissions](#roles-and-permissions) · [Reliable sends](#reliable-sends) · [AutoMod](#automod) · [Security log, retention and your data](#security-log-retention-and-your-data)
@@ -524,7 +524,7 @@ A call between two members runs on a server they both belong to, through its Liv
 
 ## Profiles
 
-A profile lives on the user's device and is sent to every server they're on, so one edit updates them all. Every `Member` gains:
+A profile lives on the user's device and is sent to every server they're on, so one edit updates them all. It also follows the account to its other devices, newest edit first ([Profile sync](#profile-sync)). Every `Member` gains:
 
 ```jsonc
 { "avatar": "/files/<id>/avatar.webp" | null, "avatarHash": "<sha256 hex>" | null,
@@ -1155,7 +1155,7 @@ Small per-account settings that follow you across devices (today: `rail`, the se
 | type | body | result | who |
 |---|---|---|---|
 | `prefs.get` | `name` (`[a-z][a-z0-9-]{0,31}`) | `{ data \| null, updatedAt \| null }` | anyone (their own) |
-| `prefs.set` | `name`, `data` (base64url, ≥ 40 bytes, ≤ 16 KB), `updatedAt` (ms) | | anyone; ≤ 16 names per account; 1/s, burst 10. An older `updatedAt` than the stored one is ignored |
+| `prefs.set` | `name`, `data` (base64url, ≥ 40 bytes, ≤ 16 KB), `updatedAt` (ms) | | anyone; ≤ 16 names per account; 1/s, burst 10. An older `updatedAt` than the stored one is ignored, and so is one more than a day ahead of the server's clock |
 
 - Event `prefs.updated { name, updatedAt }` to the account's other sessions.
 - `data` is opaque to the server: clients seal it with XChaCha20-Poly1305 under `crypto_kdf_derive_from_key(32, 1, "iskrapre", accountSeed)`, with `"iskra/prefs/v1" || 0x00 || name` as associated data, as `nonce(24) || ciphertext`. So a server can't see which other servers you're on. Clients write to every connected server and keep the newest copy. Removed with the membership.
@@ -2045,3 +2045,56 @@ messages: plain HTTP on the server's port.
   (`Access-Control-Allow-Origin: *`, `Cache-Control: no-store`). `404` once there's an owner or no claim, `400` for a bad nonce.
 - The app checks `proof` with its own `C` and a fresh nonce before trusting `key` (no trust on first use), then joins
   with the invite `(https://<server>, key, code)`, the usual owner invite. Joining as owner deletes `owner-claim`.
+
+## Profile sync
+
+Your profile (name, bio, pronouns, accent, avatar, page) follows your account across your devices, and a device that
+hasn't caught up can't put an old one back on a server.
+
+**Stamps.** Every edit is stamped `updatedAt` (ms) and `by` (the device key of the device that made it, ≤ 64 chars).
+Stamps are ordered by `updatedAt`, then by `by` (byte order), so two devices editing in the same millisecond agree on
+the winner: last writer wins, deterministically, for the whole profile. A device stamps a new edit
+`max(now, newest stamp it knows + 1)` (just `now` if the known one is more than a day ahead of its clock), so an edit
+made after catching up wins even when this device's clock is behind.
+
+**On servers.** `auth.profile`, `profile.update`, `profile.page.set` and `profile.page.remove` (your own) may carry
+`updatedAt` (1 … 2^53) and `by`. Each server remembers the newest stamp it accepted per member and:
+
+- applies a profile whose stamp is the same or newer, and remembers that stamp;
+- ignores an older one: `auth` still succeeds, but the name and profile fields stay as they are and nothing is
+  broadcast; the requests answer `{ member, stale: true }` (`{ stale: true }` for `profile.page.remove`) without
+  changing anything;
+- treats a missing or malformed stamp as the oldest: it applies only while no stamped profile has arrived (bots and
+  older apps work as before);
+- ignores a stamp more than a day ahead of its own clock, so a device with a wrong clock can't freeze the profile.
+
+The stamp goes with the membership (leaving, kick, ban or account deletion forget it). Since requests come over an
+authenticated session of the account, the stamp needs no signature of its own; it only decides which of the account's
+own edits is newer.
+
+| type | body | result | who |
+|---|---|---|---|
+| `profile.page.get` | | `{ html, hash }` (`not_found` if you have none) | anyone, own page only; 1 per 5 s, burst 5 |
+
+**Between devices.** The account's copy is a [synced preference](#synced-preferences) named `profile`, sealed like
+the others (so servers can't read it):
+`{ "v": 1, "updatedAt", "by", "name", "bio"?, "pronouns"?, "accent"?, "avatar"?: { "hash", "type" } | null, "page"?: { "hash" } | null }`
+(a field left out was never set, `null` means removed; the prefs `updatedAt` is the stamp's). Apps:
+
+- after each edit, update every connected server first (the avatar and page are uploaded before the copy changes),
+  then write the copy everywhere;
+- on `welcome` and on `prefs.updated { name: "profile" }`, read the copy. If it's newer than theirs they take it,
+  fetching a changed avatar from `/files/` and a changed page with `profile.page.get` on a server whose `you` shows
+  that hash, and checking the bytes against the hash. Then they bring every server they're on up to date (servers
+  that were offline at the edit get it here or on their next `auth`) and write the copy to the servers that had an
+  older one. If theirs is newer, they write theirs;
+- until the bytes can be fetched, they keep their own (older) profile; servers ignore it, so nothing goes back.
+
+A newly linked device gets the profile and its stamp in the link payload ([Device linking carries the
+profile](#device-linking-carries-the-profile), which gains `updatedAt` and `by`); a device restored from the recovery
+key starts unstamped and takes the account's copy on its first `welcome`.
+
+Limits: ordering trusts the devices' clocks, bounded by the rules above; an edit made on a device that hasn't seen a
+newer one (offline) loses to it if its clock is earlier. Fields aren't merged: the newest edit wins as a whole (fields
+it never set are kept). A server only knows the stamps it has seen, so a server that missed every edit applies the
+first stamped profile that arrives, which is the newest the connecting device knows.

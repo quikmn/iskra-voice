@@ -6,6 +6,7 @@ import { b64u, randomBytes, ready } from '../core/crypto'
 import { createIdentity, type Identity } from '../core/identity'
 import { restoreIdentity } from '../core/recovery'
 import { authProfile } from '../core/profile'
+import { nextStamp, wireStamp } from '../core/profileSync'
 import { senderRules } from './senderRules'
 import type { InviteLink } from '../core/invite'
 import type { Channel, DirectGif, Events, FileInfo, Member, Message, MessageGif, Sticker, VoiceInfo, VoiceParticipant, Welcome } from '../core/protocol'
@@ -593,10 +594,11 @@ export function connectionFor(key: string): Connection | undefined {
 }
 
 export async function renameMe(name: string): Promise<void> {
-  const profile = { ...useApp.getState().profile, name }
+  const current = useApp.getState().profile
+  const profile = { ...current, name, ...nextStamp(current, useApp.getState().identity?.cert.deviceKey ?? '') }
   await storage.saveProfile(profile)
   useApp.setState({ profile })
   await Promise.all(
-    [...connections.values()].filter((c) => c.isOnline).map((c) => c.request('profile.update', { name }).catch(() => undefined)),
+    [...connections.values()].filter((c) => c.isOnline).map((c) => c.request('profile.update', { name, ...wireStamp(profile) }).catch(() => undefined)),
   )
 }
