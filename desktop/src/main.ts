@@ -12,6 +12,7 @@ import {
   aboutDetail, badgeText, DEEP_LINK_SCHEME, deepLinkFromArgv, isAppPage, isWayland, MAC_SETTINGS, parseDeepLink, parseDesktopSettings,
   keychainKind, serversToStart, setKeepRunning, skipScreenPicker, trayMenu, type DesktopSettings, type SettingsPane, type TrayAction,
 } from './platform'
+import { allowPageViews } from './pages'
 import { PushToTalk } from './ptt'
 import { ActivityDetector } from './activity'
 import { applyOpenAtLogin, loadDesktopSettings, saveDesktopSettings, startedHidden } from './settings'
@@ -108,8 +109,11 @@ function createWindow(): void {
       nodeIntegration: false,
       webSecurity: true,
       spellcheck: true,
+      // Only for profile pages, each locked in its own session (pages.ts).
+      webviewTag: true,
     },
   })
+  allowPageViews(window, isAppUrl)
 
   // Started with the computer: stay in the tray until opened.
   if (!startedHidden()) window.once('ready-to-show', () => window?.show())

@@ -1,13 +1,14 @@
 // The profile page editor: one HTML file on the left, a live preview on the right that runs in
-// the same sandbox as the published page (public/page-preview.html).
+// the same sandbox as the published page (public/page-preview.html; in the desktop app, its page wall).
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
 import { formatNumber } from '../../i18n/format'
-import { MAX_PAGE_BYTES, previewDocument, STARTER_PAGE, utf8Length } from '../../core/profile'
+import { MAX_PAGE_BYTES, previewDocument, previewSource, STARTER_PAGE, utf8Length } from '../../core/profile'
 import { publishPage, useProfiles } from '../../state/profile'
 import { useApp } from '../../state/store'
 import { Modal } from '../bits'
+import { PageWebview, pageWall } from './PageView'
 
 const PREVIEW_URL = `${import.meta.env.BASE_URL}page-preview.html`
 
@@ -24,9 +25,18 @@ export function PageEditor({ onClose }: { onClose: () => void }) {
   const servers = useApp((s) => s.servers)
   const pagesEnabled = useProfiles((s) => s.pagesEnabled)
   const closedOn = Object.values(servers).filter((s) => s.me && pagesEnabled[s.key] === false).map((s) => s.name)
+  const wall = pageWall()
+  const [draft, setDraft] = useState(html) // what the desktop preview shows, a moment behind the typing
+
+  useEffect(() => {
+    if (!wall) return
+    const timer = setTimeout(() => setDraft(html), 250)
+    return () => clearTimeout(timer)
+  }, [html, wall])
 
   // Push the draft to the preview (debounced while typing).
   useEffect(() => {
+    if (wall) return
     const send = () => frame.current?.contentWindow?.postMessage({ type: 'iskra:preview', html: previewDocument(html, null) }, '*')
     const onMessage = (e: MessageEvent) => {
       if (e.source === frame.current?.contentWindow && (e.data as { type?: string })?.type === 'iskra:preview-ready') {
@@ -40,7 +50,7 @@ export function PageEditor({ onClose }: { onClose: () => void }) {
       window.removeEventListener('message', onMessage)
       clearTimeout(timer)
     }
-  }, [html])
+  }, [html, wall])
 
   async function publish(next: string | null) {
     setBusy(true)
@@ -88,15 +98,19 @@ export function PageEditor({ onClose }: { onClose: () => void }) {
             <button className="link" onClick={() => setHtml(STARTER_PAGE)}>{t('profile.template')}</button>
           </div>
         </div>
-        <iframe
-          ref={frame}
-          className="page-preview"
-          title={t('profile.preview')}
-          src={PREVIEW_URL}
-          sandbox="allow-scripts"
-          referrerPolicy="no-referrer"
-          allow="camera 'none'; microphone 'none'; geolocation 'none'; autoplay 'none'"
-        />
+        {wall ? (
+          <PageWebview className="page-preview" src={previewSource(draft)} title={t('profile.preview')} />
+        ) : (
+          <iframe
+            ref={frame}
+            className="page-preview"
+            title={t('profile.preview')}
+            src={PREVIEW_URL}
+            sandbox="allow-scripts"
+            referrerPolicy="no-referrer"
+            allow="camera 'none'; microphone 'none'; geolocation 'none'; autoplay 'none'"
+          />
+        )}
       </div>
     </Modal>
   )

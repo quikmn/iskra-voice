@@ -4,7 +4,7 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
 import { fingerprint } from '../../core/connection'
-import { pageScriptsAllowed, pageUrl, setPageScripts, wrapperDocument } from '../../core/profile'
+import { pageUrl, wrapperDocument } from '../../core/profile'
 import { roleRank, type Member } from '../../core/protocol'
 import { openConversation } from '../../state/dms'
 import { FriendButtons } from '../people/Friends'
@@ -24,6 +24,7 @@ import { useMemberPresence } from '../../state/presence'
 import { STATUS_LABELS } from '../../state/presenceRules'
 import { CustomStatusLine } from '../presence/Presence'
 import { ActivityLine } from '../ActivityLine'
+import { PageWebview, pageWall } from './PageView'
 import './profile.css'
 
 export function ProfileLayer() {
@@ -166,8 +167,8 @@ function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; me
 }
 
 /**
- * A member's page, in a sandbox inside a wrapper that pins where it can go. Scripts stay off unless the
- * viewer turns them on for this version of the page.
+ * A member's page. In the desktop app it runs with scripts behind the app's wall; elsewhere it's static HTML and CSS
+ * in a sandbox inside a wrapper that pins where it can go (an author's own page keeps its scripts, as in the editor).
  */
 export function PageViewer({ server, member }: { server: ServerState; member: Member }) {
   const { t } = useTranslation()
@@ -176,38 +177,19 @@ export function PageViewer({ server, member }: { server: ServerState; member: Me
   const canRemove = !!me && me.accountKey !== member.accountKey && roleRank(me.role) >= roleRank('admin') && roleRank(me.role) > roleRank(member.role)
   const [error, setError] = useState<string | null>(null)
   const isSelf = me?.accountKey === member.accountKey
-  const [scripts, setScripts] = useState(() => isSelf || pageScriptsAllowed(member.pageHash))
-  const choose = (on: boolean) => {
-    if (member.pageHash) setPageScripts(member.pageHash, on)
-    setScripts(on)
-  }
+  const wall = pageWall()
+  const title = t('profile.frameTitle', { name: member.name })
 
   return (
     <Modal title={t('profile.viewerTitle', { name: member.name })} onClose={closeProfilePage} wide>
-      <p className="page-note muted">{t('profile.madeBy', { name: member.name })}</p>
-      {url && !isSelf && (
-        <div className="page-scripts">
-          {scripts ? (
-            <>
-              <span>{t('profile.scriptsOn')}</span>
-              <button className="button small" onClick={() => choose(false)}>{t('keys.appLock.turnOff')}</button>
-            </>
-          ) : (
-            <>
-              <span>{t('profile.runScriptsQuestion')}</span>
-              <button className="button small" onClick={() => choose(true)}>{t('profile.runScripts')}</button>
-            </>
-          )}
-        </div>
-      )}
-      {url ? (
-        <iframe
-          key={scripts ? 'scripts' : 'static'}
-          className="page-frame"
-          title={t('profile.frameTitle', { name: member.name })}
-          srcDoc={wrapperDocument(url, scripts)}
-          referrerPolicy="no-referrer"
-        />
+      <p className="page-note muted">
+        {t('profile.madeBy', { name: member.name })}
+        {url && !wall && !isSelf && ` ${t('profile.scriptsDesktop')}`}
+      </p>
+      {url && wall ? (
+        <PageWebview className="page-frame" src={`${url}?scripts=1`} title={title} />
+      ) : url ? (
+        <iframe className="page-frame" title={title} srcDoc={wrapperDocument(url, isSelf)} referrerPolicy="no-referrer" />
       ) : (
         <p className="muted">{t('profile.unavailable')}</p>
       )}

@@ -123,7 +123,7 @@ public class ProfileTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("text/html", response.Content.Headers.ContentType!.MediaType);
         var csp = response.Headers.GetValues("Content-Security-Policy").Single();
-        // Scripts are off unless the viewer turns them on.
+        // Scripts are off unless asked for (?scripts=1).
         Assert.StartsWith("sandbox; ", csp);
         Assert.DoesNotContain("allow-scripts", csp);
         Assert.Contains("script-src 'none'", csp);
@@ -133,6 +133,7 @@ public class ProfileTests
         foreach (var directive in new[] { "default-src 'none'", "connect-src 'none'", "form-action 'none'", "frame-src 'none'", "base-uri 'none'", "object-src 'none'" })
             Assert.Contains(directive, csp);
         Assert.Contains("img-src data: blob: http://localhost/files/;", csp);
+        Assert.Contains("media-src data: blob:;", csp); // sound and video only from the page itself
         Assert.Contains("frame-ancestors 'self' https://app.iskra.foo app://iskra", csp);
         Assert.Contains(" capacitor://localhost ", csp); // the iPhone/iPad app (mobile/)
         Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
