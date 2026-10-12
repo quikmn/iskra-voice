@@ -1,7 +1,7 @@
 // Settings → Appearance: pick a look (it applies right away), or import, edit and export theme JSON.
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { chooseTheme, loadThemeChoice, parseTheme, themeFor, type ThemeChoice, type ThemeFile } from '../../theme/theme'
+import { chooseTheme, contrastIssues, loadThemeChoice, parseTheme, themeFor, type ColorKey, type ContrastIssue, type ThemeChoice, type ThemeFile } from '../../theme/theme'
 import { BUILT_IN_THEMES, DEFAULT_THEME_ID } from '../../theme/themes'
 import './profile.css'
 
@@ -16,6 +16,18 @@ export function AppearanceSection() {
   const fileInput = useRef<HTMLInputElement>(null)
   const current = themeFor(choice) ?? BUILT_IN_THEMES[0].theme
   const custom = 'custom' in choice ? choice.custom : null
+  // Contrast of what's being written (once it's valid), or of the custom theme in use.
+  const draft = editing ? parseTheme(text) : null
+  const checked = draft ? (draft.ok ? draft.theme : null) : custom
+  const issues = checked ? contrastIssues(checked) : []
+
+  /** Puts a suggested colour into the editor, or straight into the custom theme in use. */
+  function fix(key: ColorKey, color: string) {
+    if (!checked) return
+    const next: ThemeFile = { ...checked, colors: { ...checked.colors, [key]: color } }
+    if (editing) setText(JSON.stringify(next, null, 2))
+    else pick({ custom: next })
+  }
 
   function pick(next: ThemeChoice) {
     chooseTheme(next)
@@ -98,11 +110,38 @@ export function AppearanceSection() {
           <button className="button primary small" onClick={() => applyText(text)}>{t('common.apply')}</button>
         </div>
       )}
+      {issues.length > 0 && <ContrastWarnings issues={issues} onFix={fix} />}
       {errors.length > 0 && (
         <ul className="error-text theme-errors">
           {errors.slice(0, 8).map((e) => <li key={e}>{e}</li>)}
         </ul>
       )}
     </section>
+  )
+}
+
+function ContrastWarnings({ issues, onFix }: { issues: ContrastIssue[]; onFix: (key: ColorKey, color: string) => void }) {
+  const { t } = useTranslation()
+  // One fix per text colour (it reads on all of that colour's backgrounds).
+  const fixes = new Map(issues.map((i) => [i.text, i.fix]))
+  return (
+    <div className="theme-contrast" role="status" data-testid="theme-contrast">
+      <p className="theme-contrast-title">{t('profile.theme.contrast.title')}</p>
+      <ul>
+        {issues.map((i) => (
+          <li key={`${i.text}-${i.background}`}>
+            {t('profile.theme.contrast.pair', { text: i.text, background: i.background, ratio: i.ratio.toFixed(2) })}
+          </li>
+        ))}
+      </ul>
+      <div className="theme-contrast-fixes">
+        {[...fixes].map(([key, color]) => (
+          <button key={key} className="button small" onClick={() => onFix(key, color)}>
+            <span className="theme-contrast-swatch" style={{ background: color }} aria-hidden />
+            {t('profile.theme.contrast.fix', { key, color })}
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }

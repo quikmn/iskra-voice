@@ -62,6 +62,11 @@ export const profile = {
     tooBig: 'That file is too big to be a theme.',
     json: 'Theme JSON',
     help: 'Colours are hex (#7c6fff) or rgb()/rgba(). Also: "radius" 0–24, "avatarShape" circle, rounded or square, and "fonts" body inter, system, rounded, serif or mono.',
+    contrast: {
+      title: 'Some text may be hard to read (it should be at least 4.5:1):',
+      pair: '{{text}} on {{background}}: {{ratio}}:1',
+      fix: 'Use {{color}} for {{key}}',
+    },
     errors: {
       notObject: 'A theme is a JSON object with "meta" and "colors".',
       unknownKey: 'Unknown key "{{key}}".',

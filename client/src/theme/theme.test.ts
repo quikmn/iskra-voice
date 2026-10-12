@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { contrast, loadThemeChoice, nameLightness, nameSurfacesOf, readableColor, parseTheme, safeColor, solidUnderWhite, textOn, themeVariables, validateTheme } from './theme'
+import { contrast, contrastIssues, effectiveColor, loadThemeChoice, nameLightness, nameSurfacesOf, readableColor, parseTheme, safeColor, solidUnderWhite, textOn, themeVariables, validateTheme } from './theme'
 import { BUILT_IN_THEMES } from './themes'
 
 const valid = { meta: { name: 'Mine' }, colors: { accent: '#ff8800' } }
@@ -168,5 +168,29 @@ describe('readable role colours', () => {
   it('ignores what it cannot read', () => {
     expect(readableColor('nonsense', ['#141424'])).toBe('nonsense')
     expect(readableColor('#123456', ['transparent'])).toBe('#123456')
+  })
+})
+
+describe('contrast warnings for custom themes', () => {
+  it('finds nothing in the built-in themes', () => {
+    for (const { theme } of BUILT_IN_THEMES) expect(contrastIssues(theme), theme.meta.name).toEqual([])
+  })
+
+  it('flags low-contrast text with its ratio and a fix that reads', () => {
+    const theme = { meta: { name: 'Murky' }, colors: { bgChat: '#202020', textMuted: '#444444' } }
+    const issues = contrastIssues(theme)
+    const chat = issues.find((i) => i.text === 'textMuted' && i.background === 'bgChat')!
+    expect(chat.ratio).toBeLessThan(4.5)
+    expect(chat.ratio).toBeCloseTo(contrast('#444444', '#202020'), 1)
+    expect(contrast(chat.fix, '#202020')).toBeGreaterThanOrEqual(4.5)
+    // Applying the fixes clears the warnings.
+    const fixed = { ...theme, colors: { ...theme.colors, ...Object.fromEntries(issues.map((i) => [i.text, i.fix])) } }
+    expect(contrastIssues(fixed)).toEqual([])
+  })
+
+  it('follows fallbacks and skips pairs the theme leaves to the defaults', () => {
+    expect(effectiveColor({ meta: { name: 'x' }, colors: { textNormal: '#123456' } }, 'textHeading')).toBe('#123456')
+    expect(contrastIssues({ meta: { name: 'x' }, colors: { accent: '#ffff00' } })).toEqual([])
+    expect(contrastIssues({ meta: { name: 'x' }, colors: { accent: '#ffff00', onAccent: '#ffffff' } }).map((i) => i.text)).toEqual(['onAccent'])
   })
 })

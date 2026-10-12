@@ -311,6 +311,53 @@ export function nameSurfacesOf(theme: ThemeFile | null): readonly string[] {
   return [c.bgChat ?? DEFAULT_NAME_SURFACES[0], c.bgSidebar ?? DEFAULT_NAME_SURFACES[1], c.bgFloat ?? c.bgButton ?? DEFAULT_NAME_SURFACES[2]]
 }
 
+/** A theme colour as it ends up on screen: its own value, or what it falls back to (followed through var(--x)). */
+export function effectiveColor(theme: ThemeFile, key: ColorKey): string {
+  let entry = VARIABLES.find((v) => v.key === key)
+  for (let hops = 0; entry && hops < 6; hops++) {
+    const own = theme.colors[entry.key]
+    if (own) return own
+    const ref = /^var\((--[\w-]+)\)$/.exec(entry.fallback)
+    if (!ref) return entry.fallback
+    entry = VARIABLES.find((v) => v.name === ref[1])
+  }
+  return '#000000'
+}
+
+export interface ContrastIssue { text: ColorKey; background: ColorKey; ratio: number; fix: string }
+
+/** Text tokens and the backgrounds they're read on. */
+const TEXT_PAIRS: [ColorKey, ColorKey[]][] = [
+  ['textNormal', ['bgChat', 'bgSidebar', 'bgFloat']],
+  ['textHeading', ['bgChat', 'bgSidebar', 'bgFloat']],
+  ['textMuted', ['bgChat', 'bgSidebar', 'bgFloat']],
+  ['textSubtle', ['bgChat', 'bgSidebar', 'bgFloat']],
+  ['link', ['bgChat', 'bgFloat']],
+  ['onAccent', ['accent']],
+]
+
+/**
+ * Text/background pairs in a custom theme that read below 4.5:1 (WCAG AA), each with a suggested text colour (same
+ * hue) that reads on all of that text's backgrounds. Pairs the theme leaves entirely to the defaults are skipped.
+ */
+export function contrastIssues(theme: ThemeFile, min = 4.5): ContrastIssue[] {
+  const issues: ContrastIssue[] = []
+  for (const [text, backgrounds] of TEXT_PAIRS) {
+    // Without its own value, the on-accent colour is picked to read (textOn).
+    if (text === 'onAccent' && !theme.colors.onAccent) continue
+    const fg = effectiveColor(theme, text)
+    const bgs = backgrounds.map((b) => effectiveColor(theme, b))
+    const fix = readableColor(fg, bgs, min)
+    backgrounds.forEach((background, i) => {
+      if (!theme.colors[text] && !theme.colors[background]) return
+      if (!rgbOf(fg) || !rgbOf(bgs[i])) return
+      const ratio = contrast(fg, bgs[i])
+      if (ratio < min) issues.push({ text, background, ratio: Math.floor(ratio * 100) / 100, fix })
+    })
+  }
+  return issues
+}
+
 // ── Applying ────────────────────────────────────────────────────────────────
 
 /** The CSS variables a theme sets (null for the default, which is plain styles.css). */
