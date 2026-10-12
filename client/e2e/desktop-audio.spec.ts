@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test } from '@playwright/test'
-import { agreeToTerms } from './helpers'
+import { appWindow, agreeToTerms } from './helpers'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DESKTOP = resolve(HERE, '../../desktop')
@@ -23,7 +23,7 @@ test("shared system audio leaves out Iskra's own sound", async () => {
   const app = await electron.launch({ executablePath: ELECTRON, args: [DESKTOP, `--user-data-dir=${userData}`, '--lang=en-US', '--autoplay-policy=no-user-gesture-required'], cwd: DESKTOP, env })
   let other: ChildProcess | null = null
   try {
-    const page = await app.firstWindow()
+    const page = await appWindow(app)
     await agreeToTerms(page)
     await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
     await page.getByLabel('Your name').fill('Sharer')
@@ -65,16 +65,20 @@ test("shared system audio leaves out Iskra's own sound", async () => {
       await new Promise((r) => setTimeout(r, 2500))
       let ownDb = -99
       let otherDb = -99
+      // The level around the tones (dBFS): other sound on this computer raises it and shrinks both margins.
+      let floorDb = -999
       for (let i = 0; i < 20; i++) {
         analyser.getFloatFrequencyData(bins)
         ownDb = Math.max(ownDb, strength(OWN))
         otherDb = Math.max(otherDb, strength(OTHER))
+        const near = [...bins.slice(Math.round(OTHER / hz) - 60, Math.round(OTHER / hz) - 10)].sort((x, y) => x - y)
+        floorDb = Math.max(floorDb, near[near.length >> 1])
         await new Promise((r) => setTimeout(r, 100))
       }
       stream.getTracks().forEach((t) => t.stop())
       void own.close()
       void ctx.close()
-      return { ownDb, otherDb }
+      return { ownDb, otherDb, floorDb }
     })
     // Iskra's own screen picker: pick the first screen.
     await page.locator('.source').first().click()

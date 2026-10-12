@@ -1876,12 +1876,12 @@ Home { "pageId": 12, "channelId": 7, "title": "Start here" }   // or null
 
 | type | body | result | who |
 |---|---|---|---|
-| `docs.pages` | `channelId` | `{ pages: [DocPage without text], home: pageId \| null }` | readers |
+| `docs.pages` | `channelId` | `{ pages: [DocPage without text], home: pageId \| null }` (`home` only when you can read that page) | readers |
 | `docs.page.get` | `id`, `version?` | `{ page }` with text; with `version`: `{ page (without text), revision: Revision + text }` | readers |
 | `docs.page.create` | `channelId, title` (1–100 chars, one line), `parentId?` (a top-level page in this channel), `text?` or `file?` | `{ page }` | writers; ≤ 500 pages per channel |
 | `docs.page.save` | `id, baseVersion`, `title?`, `text?` or `file?` (at least one) | `{ page }` | writers |
 | `docs.page.move` | `id, parentId?` (null: top level), `before?` (a page at the same level; null: last) | `{ page }` | writers; a page with sub-pages stays at the top level |
-| `docs.page.delete` | `id` | | whoever made the page (if they can write there), or a writer who can [pin](#pins) there (trusted+ or `manageMessages`). Its sub-pages go too |
+| `docs.page.delete` | `id` | | whoever made the page (if they can write there), or a writer who can [pin](#pins) there (trusted+ or `manageMessages`). Its sub-pages go too, so a page holding sub-pages someone else made needs a writer who can pin there (`forbidden` otherwise) |
 | `docs.page.history` | `id` | `{ page, revisions: [Revision] }` (newest first) | readers |
 | `docs.page.restore` | `id, version, baseVersion` | `{ page }` | writers |
 | `docs.home.get` | | `{ home }` | anyone |
@@ -1895,7 +1895,7 @@ Home { "pageId": 12, "channelId": 7, "title": "Start here" }   // or null
 - **Start here:** one page per server, shown at the top of everyone's channel list (when they can read its channel). Event `docs.home` `{ home }` goes to every session, each with its own view, when it's set, cleared, renamed or deleted.
 - **Events** to the channel's readers: `docs.page.updated` `{ page }` (without text) after a create, save, restore or move (a move sends one per page whose position changed), and `docs.page.deleted` `{ channelId, ids }`.
 - **Search:** SQLite FTS5 over titles and text (accents ignored, prefix matches), only in docs channels the requester can read right now. `snippet` is a piece of the page with the matches at `matches` (UTF-16 offsets).
-- **Safety:** AutoMod checks the title and text of every create, save and restore (`automod` with `what: "page"` in the audit entry); timed-out members get `forbidden`, and members who must still agree to the [rules](#server-rules) get `rules_required` for `docs.page.create`, `docs.page.save`, `docs.page.move`, `docs.page.delete` and `docs.page.restore`. Rate limits: `docs.page.create` 0.2/s (burst 5), `docs.page.save` 1/s (burst 10), `docs.search` 2/s (burst 10).
+- **Safety:** AutoMod checks the title and text of every create, save and restore (`automod` with `what: "page"` in the audit entry); timed-out members get `forbidden`, and members who must still agree to the [rules](#server-rules) get `rules_required` for `docs.page.create`, `docs.page.save`, `docs.page.move`, `docs.page.delete` and `docs.page.restore`. Rate limits: `docs.page.create` 0.2/s (burst 5), `docs.page.save` 1/s (burst 10), `docs.page.restore` 0.2/s (burst 5), `docs.page.move` 1/s (burst 10), `docs.search` 2/s (burst 10). A page keeps an upload on the server (past the unused-upload sweep) only if it's the saver's own upload or one docs pages already keep, and only while a kept revision still links to it.
 - **Audit:** `docs.page.create`, `docs.page.delete`, `docs.page.restore` `{ channelId, channelName, pageId, title, extra: { version } | null }` and `docs.home.set` (the same, or `{ pageId: null }` when cleared). Page text is never recorded.
 - **Your data:** `data.export` includes `docsPages` (pages you made or last edited) and `docsRevisions` (every kept version you wrote, with its text). **Retention:** with `messagesDays` set, revisions older than that go in the hourly sweep, except each page's current version; pages stay. **Deleting an account** keeps its pages and revisions under its key (like its messages); with `messages: true` its revisions go, except a page's current version, which keeps its text with `author` `""`, and `createdBy`/`updatedBy` become `""` (apps show "someone who left").
 - **Links:** apps link to a page with `#/open/<serverKey>/c/<channelId>/p/<pageId>` (like message links), which opens the page in the app.

@@ -167,6 +167,7 @@ public sealed partial class Store
                     (SELECT version FROM doc_revisions WHERE page_id = $id ORDER BY version DESC LIMIT $max);
                 """, [("$id", id), ("$max", MaxDocRevisions)]);
             foreach (var file in fileIds) run("INSERT OR IGNORE INTO doc_files (page_id, file_id) VALUES ($id, $file);", [("$id", id), ("$file", file)]);
+            run(ForgetUnshownDocFiles + " AND page_id = $id;", [("$id", id)]);
             return DocSaveResult.Saved;
         });
     }
@@ -231,6 +232,12 @@ public sealed partial class Store
         UPDATE doc_revisions SET author = '' WHERE author = $k;
         UPDATE doc_pages SET created_by = '' WHERE created_by = $k;
         UPDATE doc_pages SET updated_by = '' WHERE updated_by = $k;
+        """ + ForgetUnshownDocFiles + ";";
+
+    /// <summary>Forgets kept uploads that no kept revision of their page (the current text is one) links to any more.</summary>
+    private const string ForgetUnshownDocFiles = """
+        DELETE FROM doc_files WHERE NOT EXISTS (SELECT 1 FROM doc_revisions r
+            WHERE r.page_id = doc_files.page_id AND instr(r.text, '/files/' || doc_files.file_id) > 0)
         """;
 
     /// <summary>
@@ -245,7 +252,9 @@ public sealed partial class Store
                 DELETE FROM doc_revisions WHERE created_at < $cutoff
                     AND version < (SELECT p.version FROM doc_pages p WHERE p.id = doc_revisions.page_id);
                 """, [("$cutoff", cutoff)]);
-            return cmd.ExecuteNonQuery();
+            var pruned = cmd.ExecuteNonQuery();
+            if (pruned > 0) Exec(ForgetUnshownDocFiles + ";");
+            return pruned;
         }
     }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseUpdateStatus, updateNotice } from './updates'
+import { parseUpdateStatus, parseUpdatingVersion, updateNotice } from './updates'
 
 const url = 'https://github.com/quikmn/iskra-voice/releases/tag/v2.0.0-alpha.3'
 
@@ -25,5 +25,10 @@ describe('desktop updates', () => {
     expect(updateNotice({ state: 'ready', version: '2.0.1' }, '2.0.1')).toBeNull()
     expect(updateNotice({ state: 'available', version: '2.0.1', url }, '2.0.0')).toEqual({ kind: 'available', version: '2.0.1', url })
     expect(updateNotice({ state: 'available', version: '2.0.1', url }, '2.0.1')).toBeNull()
+  })
+
+  it('only shows "Updating Iskra to X" for a real version', () => {
+    expect(parseUpdatingVersion('2.0.0-alpha.13')).toBe('2.0.0-alpha.13')
+    for (const bad of [null, 7, '', 'v2.0.0', '<img src=x>', '2.0.0-' + 'x'.repeat(60)]) expect(parseUpdatingVersion(bad)).toBeNull()
   })
 })

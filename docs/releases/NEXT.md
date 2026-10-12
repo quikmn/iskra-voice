@@ -1,6 +1,7 @@
 <!-- Release notes for the next version. Each change is its own line; the release step merges them. -->
 
 ### What's new
+- **Updates you can see.** "Restart to update" shows what's happening, the Windows installer shows its progress, and Iskra opens with a small start screen and a progress bar ("Updated to …", "Starting your servers…") that fades into the app.
 - **Friends opens on All,** with people who are online first, then busy, away and offline. Online and Pending (requests you sent and ones waiting for you) are one click away.
 - **Nothing talks to anyone behind your back.** Videos and posts from YouTube, Twitch, X and Reddit load only when you click (or for sites you choose to always allow), watch parties say where a video plays from first, GIFs come through your own server, and voice no longer asks Google's STUN servers for your address. My settings → Privacy & data lists every outside connection, with a way to turn it off.
 - **Restarts you barely notice.** When a server restarts or updates, the app says "<server> is restarting, hold on…" and is back within a second of the server: you're rejoined to voice with the same mute and deafen, and messages you wrote meanwhile are sent. Screen share and camera wait for you to turn them on again. If a server is shut down instead, the app says it went offline.
