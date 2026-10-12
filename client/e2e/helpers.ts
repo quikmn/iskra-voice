@@ -20,21 +20,27 @@ export const FAKE_SPEECH_ARGS = [
   '--auto-select-desktop-capture-source=Entire screen', `--use-file-for-fake-audio-capture=${resolve(HERE, 'fixtures/speech.wav')}`,
 ]
 
-/** Ports already handed out in this test process: the OS can offer a just-released port again. */
+/** Ports already handed out in this test process. */
 const handedOut = new Set<number>()
+/** Each parallel worker has its own range (below the OSes' ephemeral ports), so two workers never pick the same port. */
+const RANGE = 1500
+const rangeStart = 20000 + (Number(process.env.TEST_PARALLEL_INDEX) || 0) * RANGE
+
+const isFree = (port: number) =>
+  new Promise<boolean>((done) => {
+    const probe = createServer()
+    probe.once('error', () => done(false))
+    probe.listen(port, () => probe.close(() => done(true)))
+  })
 
 export async function freePort(): Promise<number> {
-  for (;;) {
-    const port = await new Promise<number>((done) => {
-      const probe = createServer().listen(0, () => {
-        const found = (probe.address() as { port: number }).port
-        probe.close(() => done(found))
-      })
-    })
-    if (handedOut.has(port)) continue
+  for (let i = 0; i < RANGE * 2; i++) {
+    const port = rangeStart + Math.floor(Math.random() * RANGE)
+    if (handedOut.has(port) || !(await isFree(port))) continue
     handedOut.add(port)
     return port
   }
+  throw new Error('no free port')
 }
 
 export interface TestServer {
@@ -47,6 +53,16 @@ export interface TestServer {
 /** A real iskra-server on a fresh world; with voice if the LiveKit binary is in .tools. */
 export async function startServer(name: string, voice = false, env: Record<string, string> = {}): Promise<TestServer> {
   const world = mkdtempSync(join(tmpdir(), 'iskra-e2e-'))
+  // Other workers pick ports too, so a port can be taken by the time the server binds it: then it exits, and
+  // this tries again on new ports.
+  for (let attempt = 1; ; attempt++) {
+    const started = await startIn(world, name, voice, env)
+    if (started) return started
+    if (attempt === 5) throw new Error('server did not start')
+  }
+}
+
+async function startIn(world: string, name: string, voice: boolean, env: Record<string, string>): Promise<TestServer | null> {
   const port = await freePort()
   const voicePort = await freePort()
   const rtcTcp = await freePort()
@@ -67,10 +83,12 @@ export async function startServer(name: string, voice = false, env: Record<strin
   let stopping: Promise<void> | null = null
   const url = `http://localhost:${port}`
   for (let i = 0; ; i++) {
+    if (exited) return null
     try {
-      // Iskra itself, not something else that happens to answer on the port.
+      // This test's server, not another worker's that got the same port first.
       const response = await fetch(url)
-      if (response.ok && 'iskra' in ((await response.json().catch(() => ({}))) as object)) break
+      const body = (await response.json().catch(() => ({}))) as { iskra?: number; name?: string }
+      if (response.ok && body.iskra && body.name === name && !exited) break
     } catch {
       /* starting */
     }
