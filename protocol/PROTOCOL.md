@@ -623,6 +623,7 @@ A bot is an ordinary identity (account key, device certificate, signed handshake
 - The flag is stored by the server and can't be changed afterwards: `Member.bot` (boolean) everywhere members appear.
 - Bots can't join voice (`voice.join` → `forbidden`), create invites, or have a role above `trusted` (`member.setRole` → `bad_request`). They have the same rate limits as everyone else.
 - Bots can't send DMs or take part in calls (`dm.send`, `call.start`, `call.accept` → `forbidden`; calling a bot → `bad_request`): DMs and call keys are end-to-end encrypted to people's devices, which a bot can't read.
+- Bots can't be in group DMs or group calls, schedule messages (`scheduled.create` → `forbidden`), speak or moderate on stages, take part in [encrypted channels](#end-to-end-encrypted-channels), or leave on their own (`member.leave` → `forbidden`; an admin removes them). They can hold [roles](#roles-and-permissions) with permissions like anyone else.
 - Commands are a message convention, not a protocol feature: a message starting with `/name args` (or `/name@BotName args` to pick one bot) is a command. See `docs/bots.md`.
 
 ### Webhooks
