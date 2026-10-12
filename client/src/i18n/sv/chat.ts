@@ -27,6 +27,7 @@ export const chat: Messages['chat'] = {
     edited: '(redigerat)',
     discard: 'Släng',
     couldNotSend: 'Kunde inte skicka.',
+    tooFast: 'Du skickar för snabbt, vänta lite.',
     deleteConfirm: 'Radera?',
     addReaction: 'Lägg till reaktion',
     reply: 'Svara',

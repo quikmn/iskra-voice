@@ -142,3 +142,23 @@ test('restoring with the recovery key on a server the account is new to: it asks
   }
 })
 
+
+test('sending fast: messages past the rate limit wait their turn and arrive in order, none fail', async ({ browser }) => {
+  const home = await startServer('Fast')
+  try {
+    const page = await (await browser.newContext()).newPage()
+    await joinVia(page, home.ownerLink(), 'Quick')
+    const box = page.getByPlaceholder('Message #general')
+    for (let i = 1; i <= 16; i++) {
+      await box.fill(`spam ${i}`)
+      await box.press('Enter')
+    }
+    await expect(page.locator('.message-text', { hasText: /^spam 16$/ })).toBeVisible({ timeout: 20_000 })
+    await expect(page.locator('.message.sending, .message.failed')).toHaveCount(0, { timeout: 20_000 })
+    const texts = await page.locator('.message-text').filter({ hasText: /^spam \d+$/ }).allInnerTexts()
+    expect(texts).toEqual(Array.from({ length: 16 }, (_, i) => `spam ${i + 1}`))
+    await expect(page.getByText("Couldn't send.")).toHaveCount(0)
+  } finally {
+    await home.stop()
+  }
+})

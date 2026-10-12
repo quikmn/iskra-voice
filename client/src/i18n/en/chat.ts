@@ -26,6 +26,7 @@ export const chat = {
     edited: '(edited)',
     discard: 'Discard',
     couldNotSend: "Couldn't send.",
+    tooFast: "You're sending too fast, wait a moment.",
     deleteConfirm: 'Delete?',
     addReaction: 'Add reaction',
     reply: 'Reply',

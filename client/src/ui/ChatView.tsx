@@ -393,7 +393,7 @@ function MessageRow({
           </div>
         ) : message.pending === 'failed' && (
           <div className="message-failed">
-            {t('chat.message.couldNotSend')}{' '}
+            {t('chat.message.couldNotSend')}{message.failedCode === 'rate_limited' && <> {t('chat.message.tooFast')}</>}{' '}
             <button className="link" onClick={() => void retryFailed(server.key, message.channelId, message)}>{t('common.retry')}</button>
             {' · '}
             <button className="link" onClick={() => discardFailed(server.key, message.channelId, message.tempId!)}>{t('chat.message.discard')}</button>
