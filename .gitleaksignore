@@ -16,5 +16,7 @@ b408220b1449d8dde1d7ceda2a14c9b4edf63eb8:iskra_client/index.html:gcp-api-key:266
 820d3897f44b17561405442ca2e9de9413577324:servers/example-beta/server.json:generic-api-key:10
 820d3897f44b17561405442ca2e9de9413577324:servers/quikmn-main/server.json:generic-api-key:11
 499e1e67919ed10757a1f9b2e6d5b494dbbaf74e:iskra_client/iskra_client/Program.cs:generic-api-key:70
-# A Swift type annotation ("privateKey: P256.KeyAgreement.PrivateKey"), not a key.
+# A Swift type annotation in PushKeys.swift (a P256 key-agreement type name), not a key.
 fe5057668c5bbc5c9b013d5d2e4a29943503a8e9:mobile/ios/App/Shared/PushKeys.swift:generic-api-key:9
+# The comment above, as first written, quoted that annotation and matched the same rule.
+c0a8d8f6430c1ae3b03d9c87797b002793f5d374:.gitleaksignore:generic-api-key:19
