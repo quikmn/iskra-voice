@@ -8,6 +8,7 @@ import {
   acceptFriend, addFriend, cancelFriendRequest, ignoreFriend, useFriends, useIncomingCount, useRelation, type FriendPeer,
 } from '../../state/friends'
 import { useIsBlocked } from '../../state/moderation'
+import { bestStatus, statusOf } from '../../state/presenceRules'
 import { useApp } from '../../state/store'
 import { openUserMenu } from '../../state/userMenu'
 import { AccountAvatar, AccountStatusText } from '../presence/Presence'
@@ -96,15 +97,20 @@ export function FriendLine({ dm, mine }: { dm: Dm; mine: boolean }) {
 
 type Tab = 'online' | 'all' | 'pending'
 
+const STATUS_ORDER = ['online', 'dnd', 'idle', 'offline'] as const
+
 export function FriendsView({ onToggle }: { onToggle: (panel: Panel) => void }) {
   const { t } = useTranslation()
   const peers = useFriends((s) => s.peers)
   const unsent = useFriends((s) => s.unsent)
   const incoming = useIncomingCount()
   useApp((s) => s.servers) // presence and names
-  const [tab, setTab] = useState<Tab>(() => (incoming > 0 ? 'pending' : 'online'))
-  const byName = (a: [string, FriendPeer], b: [string, FriendPeer]) => nameOf(a[0]).localeCompare(nameOf(b[0]))
-  const entries = Object.entries(peers).sort(byName)
+  const [tab, setTab] = useState<Tab>('all')
+  const servers = useApp.getState().servers
+  // Online first, then busy, away and offline; by name within each.
+  const rank = (k: string) => STATUS_ORDER.indexOf(bestStatus(Object.values(servers).map((s) => statusOf(s.members[k]))))
+  const byStatus = (a: [string, FriendPeer], b: [string, FriendPeer]) => rank(a[0]) - rank(b[0]) || nameOf(a[0]).localeCompare(nameOf(b[0]))
+  const entries = Object.entries(peers).sort(byStatus)
   const friends = entries.filter(([, p]) => p.relation === 'friends')
   const online = friends.filter(([k]) => isOnline(k))
   const pendingIn = entries.filter(([, p]) => p.relation === 'incoming')
@@ -125,8 +131,8 @@ export function FriendsView({ onToggle }: { onToggle: (panel: Panel) => void }) 
         </button>
         <h1><span className="hash"><Users size={20} /></span>{t('friends.title')}</h1>
         <div className="friends-tabs" role="tablist" aria-label={t('friends.tabs.label')}>
-          {tabButton('online', t('friends.tabs.online'))}
           {tabButton('all', t('friends.tabs.all'))}
+          {tabButton('online', t('friends.tabs.online'))}
           {tabButton('pending', t('friends.tabs.pending'), incoming)}
         </div>
       </header>
