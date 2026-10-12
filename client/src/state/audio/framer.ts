@@ -15,6 +15,8 @@ export class Framer {
   private started = false
   private busyMs = 0
   private frames = 0
+  /** The longest a single frame took since the last takeRtf() (an audio thread has 2.7 ms per 128 samples). */
+  slowestMs = 0
   private readonly frameMs: number
   private readonly block: number
   private readonly process: (frame: Float32Array) => Float32Array
@@ -42,6 +44,7 @@ export class Framer {
     const rtf = this.busyMs / (this.frames * this.frameMs)
     this.busyMs = 0
     this.frames = 0
+    this.slowestMs = 0
     return rtf
   }
 
@@ -57,7 +60,9 @@ export class Framer {
         this.filled = 0
         const t = this.clock()
         const out = this.process(this.frame)
-        this.busyMs += this.clock() - t
+        const took = this.clock() - t
+        this.busyMs += took
+        if (took > this.slowestMs) this.slowestMs = took
         this.frames++
         for (let j = 0; j < out.length && this.count < this.fifo.length; j++) {
           this.fifo[this.write] = out[j]

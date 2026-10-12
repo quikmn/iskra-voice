@@ -95,6 +95,8 @@ export interface DesktopBridge {
     status(): Promise<unknown>
     onStatus(callback: (status: unknown) => void): () => void
     restart(): Promise<boolean>
+    /** "Updating Iskra to X…" right before the shell quits into an update; null if it didn't (older shells don't have it). */
+    onUpdating?(callback: (version: string | null) => void): () => void
   }
   onPickScreen(callback: (sources: ScreenSource[]) => void): () => void
   pickScreen(id: string | null): void

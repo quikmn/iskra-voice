@@ -19,7 +19,9 @@ import { ActivityDetector } from './activity'
 import { applyOpenAtLogin, loadDesktopSettings, saveDesktopSettings, startedHidden } from './settings'
 import { Updates, type UpdateStatus } from './updates'
 import { applyChromiumPrivacy, applySessionPrivacy } from './privacy'
-import { languageFromLocales, parseLanguage, setDesktopLanguage, text } from './i18n'
+import { desktopLanguage, languageFromLocales, parseLanguage, setDesktopLanguage, text } from './i18n'
+import { initialLaunch, readyToShow, SERVER_WAIT_MS, splashView, updatedTo, updatingView, type LaunchState } from './launch'
+import { Splash } from './splash'
 import { ceremonyScript, parseCreate, parseGet, PASSKEY_ORIGIN, PASSKEY_PAGE, passkeyPage, type CreateRequest, type GetRequest } from './passkeys'
 
 /** Chromium's media::AudioDeviceDescription::kLoopbackWithoutChromeId: system audio minus this app's own. */
@@ -60,7 +62,44 @@ const updates = new Updates((status: UpdateStatus) => {
   updateTray()
 })
 
-if (!app.requestSingleInstanceLock()) app.quit()
+// A second launch (e.g. an iskra:// link) hands over to this one and quits before showing anything.
+const primaryInstance = app.requestSingleInstanceLock()
+if (!primaryInstance) app.quit()
+
+// ── Starting up: the splash window ───────────────────────────────────────
+// Shown at once on every start (not when started hidden in the tray), then fades into the main window once its page
+// is painted and the hosted servers starting with it are up (or we stopped waiting for them).
+/** For the desktop e2e test: what the splash and the main window did, in order. */
+const launchLog = (event: string) => {
+  if (process.env.ISKRA_E2E) ((globalThis as { iskraLaunchLog?: string[] }).iskraLaunchLog ??= []).push(event)
+}
+const splash = new Splash(path.join(ASSETS, 'splash.html'), ICON, (event) => launchLog(`splash ${event}`))
+/** Non-null while the splash is up and the main window waits. */
+let launch: LaunchState | null = null
+/** "Updated to X" on the splash, once after an update. */
+let updatedVersion: string | null = null
+const LAUNCH_GIVE_UP_MS = 30_000
+
+function launchChanged(next: Partial<LaunchState>): void {
+  if (!launch) return
+  launch = { ...launch, ...next }
+  if (readyToShow(launch)) return void finishLaunch()
+  if (!updatingTo) splash.update(splashView(launch, updatedVersion, text().splash), desktopLanguage())
+}
+
+/** The bar fills, the main window appears, and the splash fades out on top of it. */
+function finishLaunch(): void {
+  if (!launch) return
+  splash.update(splashView({ ...launch, page: 'ready', serversGaveUp: true }, updatedVersion, text().splash), desktopLanguage())
+  launch = null
+  setTimeout(() => {
+    void splash.fadeOut()
+    if (!window) return
+    window.show()
+    window.focus()
+    launchLog('main shown')
+  }, 150)
+}
 
 // ── iskra:// invite links ────────────────────────────────────────────────
 // Only an invite token ever gets through (parseDeepLink); the page then shows its usual "You're invited" prompt.
@@ -91,6 +130,8 @@ app.on('open-url', (event, url) => {
 
 function showWindow(): void {
   if (!window) return
+  // Still starting: the window shows by itself in a moment.
+  if (launch) return splash.focus()
   if (window.isMinimized()) window.restore()
   window.show()
   window.focus()
@@ -123,8 +164,9 @@ function createWindow(): void {
   })
   allowPageViews(window, isAppUrl)
 
-  // Started with the computer: stay in the tray until opened.
-  if (!startedHidden()) window.once('ready-to-show', () => window?.show())
+  // Started with the computer: stay in the tray until opened. Otherwise the splash shows it when everything's ready.
+  window.webContents.once('dom-ready', () => launch?.page === 'loading' && launchChanged({ page: 'loaded' }))
+  window.once('ready-to-show', () => launchChanged({ page: 'ready' }))
   window.on('focus', () => window?.flashFrame(false))
   void window.loadURL(DEV_URL ?? `${APP_ORIGIN}/index.html`)
 
@@ -246,7 +288,7 @@ async function trayAction(action: TrayAction): Promise<void> {
   if (action === 'open') return showWindow()
   if (action === 'about') return showAbout()
   if (action === 'check') return checkForUpdates()
-  if (action === 'restart') return void updates.restart(() => (quitting = restarting = true))
+  if (action === 'restart') return void restartToUpdate()
   if (action === 'download') {
     const status = updates.current()
     if (status.state === 'available' && status.url.startsWith('https://github.com/')) void shell.openExternal(status.url)
@@ -379,7 +421,7 @@ ipcMain.handle('iskra:open-settings', (event, pane: unknown) => {
 ipcMain.handle('iskra:desktop-settings', (event) => (fromApp(event) ? settings : null))
 ipcMain.handle('iskra:set-desktop-settings', (event, patch: unknown) => {
   if (!fromApp(event) || !patch || typeof patch !== 'object') return settings
-  const next = parseDesktopSettings({ ...settings, ...patch })
+  const next = parseDesktopSettings({ ...settings, ...patch, lastRunVersion: settings.lastRunVersion })
   if (next.openAtLogin !== settings.openAtLogin) applyOpenAtLogin(next.openAtLogin)
   const activityChanged = next.activity !== settings.activity || JSON.stringify(next.customGames) !== JSON.stringify(settings.customGames)
   const checksChanged = next.updateChecks !== settings.updateChecks
@@ -443,7 +485,34 @@ ipcMain.handle('iskra:attention', (event) => {
 
 // Updates.
 ipcMain.handle('iskra:update-status', (event) => (fromApp(event) ? updates.current() : { state: 'none' }))
-ipcMain.handle('iskra:update-restart', (event) => fromApp(event) && updates.restart(() => (quitting = restarting = true)))
+ipcMain.handle('iskra:update-restart', (event) => fromApp(event) && restartToUpdate())
+
+/**
+ * Every "Restart to update" (tray, the app's notice) comes here. First a moment of "Updating Iskra to X…": over the app
+ * if it's on screen, else in the splash window. Then the installer takes over and starts the new version, whose splash
+ * says "Updated to X".
+ */
+const UPDATE_NOTICE_MS = 1200
+let updatingTo: string | null = null
+async function restartToUpdate(): Promise<boolean> {
+  const status = updates.current()
+  if (status.state !== 'ready') return false
+  if (updatingTo) return true
+  updatingTo = status.version
+  const view = updatingView(status.version, text().splash)
+  if (!launch && window?.isVisible() && !window.isMinimized()) {
+    showWindow()
+    window.webContents.send('iskra:updating', status.version)
+  } else {
+    splash.show(view, desktopLanguage())
+  }
+  await new Promise((resolve) => setTimeout(resolve, UPDATE_NOTICE_MS))
+  if (updates.restart(() => (quitting = restarting = true))) return true
+  updatingTo = null
+  window?.webContents.send('iskra:updating', null)
+  if (!launch) splash.close()
+  return false
+}
 
 // An incoming call: flash the taskbar and show the window if it's hidden in the tray, without stealing focus.
 ipcMain.handle('iskra:call-alert', (event, on: unknown) => {
@@ -485,11 +554,12 @@ function runPasskey(op: 'create' | 'get', request: CreateRequest | GetRequest): 
       ? new Response(passkeyPage(text().passkey.title, text().passkey.waiting), { headers: { 'content-type': 'text/html; charset=utf-8' } })
       : new Response('', { status: 404 }))
     ses.setPermissionRequestHandler((_c, _p, callback) => callback(false))
+    applySessionPrivacy(ses)
   }
   const ceremony = new BrowserWindow({
     parent: window ?? undefined, modal: !!window, width: 380, height: 180, resizable: false, minimizable: false, maximizable: false,
     title: text().passkey.title, icon: ICON, backgroundColor: '#0B0B14', autoHideMenuBar: true, show: false,
-    webPreferences: { session: ses, sandbox: true, contextIsolation: true, nodeIntegration: false, devTools: !app.isPackaged },
+    webPreferences: { session: ses, sandbox: true, contextIsolation: true, nodeIntegration: false, spellcheck: false, devTools: !app.isPackaged },
   })
   ceremony.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   ceremony.webContents.on('will-navigate', (e) => e.preventDefault())
@@ -611,8 +681,24 @@ ipcMain.handle('iskra:save-abort', (event, id: unknown) => (fromApp(event) ? sav
 if (process.platform === 'win32') app.setAppUserModelId('foo.iskra.desktop')
 
 app.whenReady().then(() => {
+  if (!primaryInstance) return
   // Until the page says otherwise: the OS's language.
   setDesktopLanguage(settings.language ?? languageFromLocales(app.getPreferredSystemLanguages()))
+  const hidden = startedHidden()
+  // The splash first, before anything slow. Remember this version for next time ("Updated to X" once).
+  updatedVersion = updatedTo(settings.lastRunVersion, app.getVersion())
+  if (!hidden) {
+    launch = initialLaunch(0)
+    splash.show(splashView(launch, updatedVersion, text().splash), desktopLanguage())
+  }
+  if (settings.lastRunVersion !== app.getVersion()) {
+    settings = { ...settings, lastRunVersion: app.getVersion() }
+    try {
+      saveDesktopSettings(settings)
+    } catch (error) {
+      console.error('Saving settings:', error)
+    }
+  }
   setUpSession()
   applySessionPrivacy(session.defaultSession)
   if (MAC) createMacMenu()
@@ -620,7 +706,14 @@ app.whenReady().then(() => {
   createTray()
   if (!MAC) ptt.start()
   // Started with the computer: only the servers kept running. Opened by hand: all of them, as before.
-  void host.startAll(serversToStart(host.list().map((s) => s.id), settings, startedHidden()))
+  const servers = serversToStart(host.list().map((s) => s.id), settings, hidden)
+  launchChanged({ servers: { total: servers.length, done: 0 } })
+  for (const id of servers) {
+    void host.start(id).catch(() => undefined).finally(() => launch && launchChanged({ servers: { ...launch.servers, done: launch.servers.done + 1 } }))
+  }
+  if (servers.length > 0) setTimeout(() => launchChanged({ serversGaveUp: true }), SERVER_WAIT_MS)
+  // A page that never paints still shows (with whatever it has) rather than leaving only the splash.
+  setTimeout(() => launchChanged({ page: 'ready', serversGaveUp: true }), LAUNCH_GIVE_UP_MS)
   updates.start(settings.updateChecks)
   activity.configure(settings.activity, settings.customGames)
 })

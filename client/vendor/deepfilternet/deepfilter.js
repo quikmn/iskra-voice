@@ -90,6 +90,19 @@ export function df_set_atten_lim(st, lim_db) {
 export function df_set_post_filter_beta(st, beta) {
     wasm.df_set_post_filter_beta(st, beta);
 }
+
+/**
+ * Set DeepFilterNet's local SNR thresholds (dB). Below `min_db` a frame counts as noise only; above
+ * `max_db_erb` the frame is left as it is; above `max_db_df` the deep filter stage is skipped. The
+ * `deep-filter` command line tool uses -15, 35, 35.
+ * @param {number} st
+ * @param {number} min_db
+ * @param {number} max_db_erb
+ * @param {number} max_db_df
+ */
+export function df_set_thresholds(st, min_db, max_db_erb, max_db_df) {
+    wasm.df_set_thresholds(st, min_db, max_db_erb, max_db_df);
+}
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,

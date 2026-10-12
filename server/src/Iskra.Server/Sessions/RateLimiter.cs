@@ -49,6 +49,8 @@ public sealed class RateLimiter(TimeProvider time)
         ["scheduled.create"] = (10, 1),
         ["docs.page.create"] = (5, 0.2),
         ["docs.page.save"] = (10, 1),
+        ["docs.page.restore"] = (5, 0.2),
+        ["docs.page.move"] = (10, 1),
         ["docs.search"] = (10, 2),
         ["data.export"] = (2, 1 / 600.0), // "Download my data": two, then one every 10 minutes
         ["security.log.list"] = (20, 2),

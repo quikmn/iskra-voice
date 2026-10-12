@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { MAX_CHANNEL_MEMBERS, MissingKeyError, type ChannelChange } from '../core/channelChain'
 import { en } from '../i18n/en'
 import { GroupBehindError, GroupError, setGroupKeyResolver } from '../core/group'
-import { BEFORE_YOU_JOINED, decryptFailure } from './e2eeChannels'
+import { BEFORE_YOU_JOINED, decryptFailure, mayReplaceChain } from './e2eeChannels'
 
 const A = 'a'.repeat(43)
 const B = 'b'.repeat(43)
@@ -47,5 +47,16 @@ describe('a message that did not decrypt', () => {
 describe('e2ee error texts', () => {
   it('the translated "too many" error matches the limit the client enforces', () => {
     expect(en.e2ee.errors.tooMany).toBe(`At most ${MAX_CHANNEL_MEMBERS} people can be in an encrypted channel.`)
+  })
+})
+
+describe('chain replacement (security review)', () => {
+  it('never lets the server swap the chain of a channel this account is still in', () => {
+    expect(mayReplaceChain({ chain: 'old', members: ['me', 'bob'] }, 'new', 'me')).toBe(false)
+  })
+  it('accepts the same chain, a first chain, and a restart after this account was out of it', () => {
+    expect(mayReplaceChain({ chain: 'old', members: ['me'] }, 'old', 'me')).toBe(true)
+    expect(mayReplaceChain({ chain: null, members: undefined }, 'new', 'me')).toBe(true)
+    expect(mayReplaceChain({ chain: 'old', members: ['alice'] }, 'new', 'me')).toBe(true)
   })
 })

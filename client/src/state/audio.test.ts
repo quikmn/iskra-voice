@@ -30,6 +30,32 @@ describe('audio settings', () => {
     expect(captureOptions({ ...strong, inputDevice: 'abc' }, 'rnnoise').deviceId).toEqual({ exact: 'abc' })
   })
 
+  it("turns the browser's automatic gain off under our noise removal unless you chose it", () => {
+    expect(DEFAULT_AUDIO.autoGainControl).toBeNull()
+    expect(captureOptions(DEFAULT_AUDIO, 'ai').autoGainControl).toBe(false)
+    expect(captureOptions(DEFAULT_AUDIO, 'rnnoise').autoGainControl).toBe(false)
+    expect(captureOptions(DEFAULT_AUDIO, 'browser').autoGainControl).toBe(true)
+    expect(captureOptions(DEFAULT_AUDIO, 'off').autoGainControl).toBe(true)
+    expect(captureOptions({ ...DEFAULT_AUDIO, autoGainControl: true }, 'ai').autoGainControl).toBe(true)
+    expect(captureOptions({ ...DEFAULT_AUDIO, autoGainControl: false }, 'browser').autoGainControl).toBe(false)
+  })
+
+  it('moves the old automatic gain default over once, and keeps real choices', () => {
+    // Saved before version 2: `true` was the default, not a choice.
+    expect(parseAudioSettings({ autoGainControl: true }).autoGainControl).toBeNull()
+    expect(parseAudioSettings({ autoGainControl: false }).autoGainControl).toBe(false)
+    // Saved since: what you chose.
+    expect(parseAudioSettings({ autoGainControl: true, v: 2 }).autoGainControl).toBe(true)
+    expect(parseAudioSettings({ autoGainControl: null, v: 2 }).autoGainControl).toBeNull()
+  })
+
+  it('keeps the AI noise removal strength, Normal by default', () => {
+    expect(DEFAULT_AUDIO.aiStrength).toBe('normal')
+    expect(parseAudioSettings({ aiStrength: 'gentle' }).aiStrength).toBe('gentle')
+    expect(parseAudioSettings({ aiStrength: 'max' }).aiStrength).toBe('max')
+    expect(parseAudioSettings({ aiStrength: 'loud' }).aiStrength).toBe('normal')
+  })
+
   it('captures hi-fi in stereo with none of the processing', () => {
     expect(captureOptions(DEFAULT_AUDIO, 'browser', true)).toMatchObject({ echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 2 })
     expect(captureOptions(DEFAULT_AUDIO, 'ai').channelCount).toBe(1)

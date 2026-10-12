@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test, type Page } from '@playwright/test'
-import { agreeToTerms, createInviteLink, joinVia, SHOTS, startServer, type TestServer } from './helpers'
+import { appWindow, agreeToTerms, createInviteLink, joinVia, SHOTS, startServer, type TestServer } from './helpers'
 import { controlScript, probePage, SCRIPT_VECTORS, startAttacker, STATIC_VECTORS, type Attacker } from './leak-probe'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -104,7 +104,7 @@ test('desktop: pages run their scripts behind a wall nothing gets through', asyn
     env: { ...env, ISKRA_E2E: '1', ISKRA_LOCAL_ONLY: '1' },
   })
   try {
-    const page = await app.firstWindow()
+    const page = await appWindow(app)
     await agreeToTerms(page)
     await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
     await page.getByLabel('Your name').fill('Desk')

@@ -1,0 +1,26 @@
+diff --git a/libDF/src/wasm.rs b/libDF/src/wasm.rs
+--- a/libDF/src/wasm.rs
++++ b/libDF/src/wasm.rs
+@@ -67,6 +67,22 @@ pub unsafe fn df_set_post_filter_beta(st: *mut DFState, beta: f32) {
+     state.0.set_pf_beta(beta)
+ }
+ 
++/// Set DeepFilterNet's local SNR thresholds (dB). Below `min_db` a frame counts as noise only; above
++/// `max_db_erb` the frame is left as it is; above `max_db_df` the deep filter stage is skipped. The
++/// `deep-filter` command line tool uses -15, 35, 35.
++#[wasm_bindgen]
++pub unsafe fn df_set_thresholds(
++    st: *mut DFState,
++    min_db: f32,
++    max_db_erb: f32,
++    max_db_df: f32,
++) {
++    let state = st.as_mut().expect("Invalid pointer");
++    state.0.min_db_thresh = min_db;
++    state.0.max_db_erb_thresh = max_db_erb;
++    state.0.max_db_df_thresh = max_db_df;
++}
++
+ /// Processes a chunk of samples.
+ ///
+ /// Args:

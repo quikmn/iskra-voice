@@ -51,7 +51,12 @@ test('mic test, noise suppression in a call, your own speaking ring and per-pers
   const settings = host.getByRole('dialog', { name: 'Settings' })
   await expect(settings.getByRole('radio', { name: 'AI' })).toHaveAttribute('aria-checked', 'true')
   await expect(settings.getByLabel('Echo cancellation')).toBeChecked()
-  await expect(settings.getByLabel('Automatic gain control')).toBeChecked()
+  // The browser's automatic gain is off under our noise removal, Normal strength by default.
+  await expect(settings.getByLabel('Automatic gain control')).not.toBeChecked()
+  await expect(settings.getByRole('radio', { name: 'Normal' })).toHaveAttribute('aria-checked', 'true')
+  await settings.getByRole('radio', { name: 'Gentle' }).click()
+  await expect(settings.getByRole('radio', { name: 'Gentle' })).toHaveAttribute('aria-checked', 'true')
+  await settings.getByRole('radio', { name: 'Normal' }).click()
   await expect(settings.getByLabel('Input device')).toBeVisible()
   await expect(settings.getByLabel('Output device')).toBeVisible() // Chromium can choose where sound plays
   await settings.getByRole('button', { name: 'Test microphone' }).click()
