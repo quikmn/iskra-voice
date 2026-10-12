@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_SHARE, parseShareSettings, screenShareOptions } from './screenShare'
 
 describe('screen share options', () => {
-  it('defaults to 1080p30 with sound, optimised for motion', () => {
+  it('defaults to 1080p60 with sound, optimised for motion', () => {
+    expect(DEFAULT_SHARE.quality).toBe('1080p60')
     expect(parseShareSettings(null)).toEqual(DEFAULT_SHARE)
     expect(parseShareSettings({ quality: '4k', audio: 'yes', hint: 'text' })).toEqual(DEFAULT_SHARE)
   })

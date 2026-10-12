@@ -12,7 +12,7 @@ export interface ScreenShareSettings {
   hint: 'motion' | 'detail'
 }
 
-export const DEFAULT_SHARE: ScreenShareSettings = { quality: '1080p30', audio: true, hint: 'motion' }
+export const DEFAULT_SHARE: ScreenShareSettings = { quality: '1080p60', audio: true, hint: 'motion' }
 
 export const QUALITIES: { id: ShareQuality; label: string }[] = [
   { id: '720p30', label: '720p 30' },
