@@ -120,7 +120,7 @@ test('categories, notification levels and nicknames', async ({ browser }) => {
   // ── Nicknames ──
   await friend.locator('.server-header-button').click()
   await serverMenu.getByRole('menuitem', { name: 'Server nickname…' }).click()
-  await friend.getByLabel('Server nickname').fill('Captain F')
+  await friend.getByLabel('Server nickname', { exact: true }).fill('Captain F')
   await friend.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(friend.getByText('Saved.')).toBeVisible()
   await friend.keyboard.press('Escape')
@@ -134,8 +134,8 @@ test('categories, notification levels and nicknames', async ({ browser }) => {
   await expect(card.locator('.profile-realname')).toHaveText('Name: Friend')
   await card.getByRole('button', { name: 'More' }).click()
   await expect(host.getByRole('dialog', { name: 'Captain F' })).toBeVisible()
-  const details = host.locator('.modal', { has: host.getByLabel('Server nickname') }) // its title follows the nickname
-  await details.getByLabel('Server nickname').fill('Freddie')
+  const details = host.locator('.modal', { has: host.getByLabel('Server nickname', { exact: true }) }) // its title follows the nickname
+  await details.getByLabel('Server nickname', { exact: true }).fill('Freddie')
   await details.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(friend.locator('.me-bar')).toContainText('Freddie')
   await details.getByRole('button', { name: 'Use their name' }).click()

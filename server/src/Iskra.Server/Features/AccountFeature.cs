@@ -47,7 +47,7 @@ public static class AccountFeature
         if (deletion.AccountKey != me.AccountKey) throw RequestException.Forbidden("You can only delete your own account.");
         if (!Verify(deletion)) throw RequestException.BadRequest("Invalid deletion signature.");
         if (me.Role == Roles.Owner)
-            throw RequestException.Forbidden("You own this server. Give it to someone else first (Transfer ownership), or shut it down.");
+            throw RequestException.Forbidden("You own this server. Give it to someone else first (Transfer ownership), or shut it down.", "owner_cant_delete");
         if (s.World.Store.IsBot(me.AccountKey)) throw RequestException.Forbidden("Bots are removed by their owner.");
 
         var store = s.World.Store;
@@ -77,17 +77,17 @@ public static class AccountFeature
             }
         }
         s.Voice.EnforceAccess();
-        s.AfterReply(() => s.Hub.Disconnect(me.AccountKey, CloseCodes.Forbidden, "Your account was deleted."));
+        s.AfterReply(() => s.Hub.Disconnect(me.AccountKey, CloseCodes.Forbidden, "Your account was deleted.", "kicked_deleted"));
         return null;
     }
 
     private static object? Transfer(Session s, Member me, Body body)
     {
-        if (me.Role != Roles.Owner) throw RequestException.Forbidden("Only the owner can hand over the server.");
+        if (me.Role != Roles.Owner) throw RequestException.Forbidden("Only the owner can hand over the server.", "owner_transfer");
         var key = body.String("accountKey", 64);
-        if (key == me.AccountKey) throw RequestException.BadRequest("You already own this server.");
+        if (key == me.AccountKey) throw RequestException.BadRequest("You already own this server.", "already_owner");
         var target = s.World.Store.GetMember(key) ?? throw RequestException.NotFound("Member");
-        if (s.World.Store.IsBot(key)) throw RequestException.BadRequest("Bots can't own a server.");
+        if (s.World.Store.IsBot(key)) throw RequestException.BadRequest("Bots can't own a server.", "bot_owner");
 
         Audit.Record(s, "owner.transfer", key, details: new { from = target.Role });
         s.World.Store.TransferOwnership(me.AccountKey, key);

@@ -64,9 +64,9 @@ public sealed class Hub(World world, TimeProvider time)
         foreach (var session in _sessions.Keys.Where(s => s.AccountKey == accountKey)) session.Send(frame);
     }
 
-    public void Disconnect(string accountKey, int closeCode, string reason)
+    public void Disconnect(string accountKey, int closeCode, string reason, string? key = null)
     {
-        foreach (var session in _sessions.Keys.Where(s => s.AccountKey == accountKey)) session.Kick(closeCode, reason);
+        foreach (var session in _sessions.Keys.Where(s => s.AccountKey == accountKey)) session.Kick(closeCode, reason, key);
     }
 
     public object PublicMember(Member m)

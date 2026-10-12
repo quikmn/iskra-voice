@@ -443,9 +443,9 @@ public sealed class Session
     }
 
     /// <summary>Closes the session from outside (kick, ban, removal).</summary>
-    public void Kick(int code, string reason)
+    public void Kick(int code, string reason, string? key = null)
     {
-        Send(Frames.Event("kicked", new { reason }));
+        Send(Frames.Event("kicked", key is null ? new { reason } : new { reason, key }));
         Close(code, reason);
     }
 

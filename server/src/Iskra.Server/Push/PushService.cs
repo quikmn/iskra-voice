@@ -12,7 +12,14 @@ namespace Iskra.Server.Push;
 
 /// <summary>What one push says. <see cref="Tag"/> groups pushes about the same conversation (they replace each other).</summary>
 public sealed record PushNote(string Kind, string Tag, string Title, string Body, string FromName,
-    long? ChannelId = null, long? MessageId = null, string? Peer = null, bool Coalesce = true, int TtlSeconds = 24 * 3600, string? Group = null, long? Reminder = null);
+    long? ChannelId = null, long? MessageId = null, string? Peer = null, bool Coalesce = true, int TtlSeconds = 24 * 3600, string? Group = null, long? Reminder = null,
+    PushText? Text = null);
+
+/// <summary>
+/// Names for a push's English title and body (and the values in them), so the app can show them in its own language.
+/// A null <paramref name="Body"/> means the body is content (an excerpt), shown as is.
+/// </summary>
+public sealed record PushText(string Title, string? Body, object? Args = null);
 
 /// <summary>
 /// Web Push for members' devices that aren't looking at Iskra right now: mentions, replies, DMs (never their content)
@@ -155,7 +162,9 @@ public sealed partial class PushService
             if (level == Features.NotifyFeature.Nothing || (kind == "message" && level != Features.NotifyFeature.All)) continue;
             var title = encrypted ? $"New message in #{channel.Name}"
                 : kind == "reply" ? $"{authorName} replied in #{channel.Name}" : $"{authorName} in #{channel.Name}";
-            Notify(accountKey, new PushNote(kind, $"c:{channel.Id}", title, body, authorName, ChannelId: channel.Id, MessageId: message.Id));
+            var names = new PushText(encrypted ? "encrypted" : kind == "reply" ? "reply" : "mention",
+                encrypted ? "openToRead" : message.Text.Length == 0 ? "attachment" : null, new { name = authorName, channel = channel.Name });
+            Notify(accountKey, new PushNote(kind, $"c:{channel.Id}", title, body, authorName, ChannelId: channel.Id, MessageId: message.Id, Text: names));
         }
     }
 
@@ -165,7 +174,7 @@ public sealed partial class PushService
         if (from.AccountKey == to.AccountKey) return;
         var name = _world.Store.DisplayName(from);
         Notify(to.AccountKey, new PushNote("dm", $"dm:{from.AccountKey}", $"New message from {name}", "Open Iskra to read it.", name,
-            Peer: from.AccountKey));
+            Peer: from.AccountKey, Text: new PushText("dm", "openToRead", new { name })));
     }
 
     /// <summary>
@@ -187,7 +196,7 @@ public sealed partial class PushService
         }
         var name = _world.Store.DisplayName(caller);
         Notify(calleeKey, new PushNote("call", $"call:{caller.AccountKey}", $"{name} is calling", "Tap to answer.", name,
-            ChannelId: channelId, Peer: caller.AccountKey, Coalesce: false, TtlSeconds: 30));
+            ChannelId: channelId, Peer: caller.AccountKey, Coalesce: false, TtlSeconds: 30, Text: new PushText("calling", "tapToAnswer", new { name })));
     }
 
     private static string Excerpt(string text, int max)
@@ -334,6 +343,7 @@ public sealed partial class PushService
             peer = note.Peer,
             group = note.Group,
             reminder = note.Reminder,
+            text = note.Text is null ? null : new { title = note.Text.Title, body = note.Text.Body, args = note.Text.Args },
             count,
             at = _time.GetUtcNow().ToUnixTimeMilliseconds(),
         };

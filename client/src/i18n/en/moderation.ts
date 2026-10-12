@@ -50,7 +50,7 @@ export const moderation = {
   },
   channelSettings: 'Channel settings',
   audit: {
-    title: 'Audit log',
+    title: 'Activity log',
     intro: 'Moderation and admin actions on this server from the last 90 days. Only admins can see this.',
     action: 'Action',
     allActions: 'All actions',

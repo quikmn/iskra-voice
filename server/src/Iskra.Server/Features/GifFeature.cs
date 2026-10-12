@@ -41,12 +41,12 @@ public static class GifFeature
 
     private static object? Configure(Session s, Member me, Body body)
     {
-        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can set up GIFs.");
+        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can set up GIFs.", "admins_gifs");
         var key = body.OptionalString("key", 256)?.Trim();
         var mode = body.OptionalString("mode", 16);
         if (key is null && mode is null) throw RequestException.BadRequest("Send 'key' (\"\" turns GIFs off) and/or 'mode'.");
         if (mode is not null and not ("direct" or "proxy")) throw RequestException.BadRequest("'mode' must be direct or proxy.");
-        if (key is { Length: > 0 } && !GifService.ValidKey(key)) throw RequestException.BadRequest("That doesn't look like a KLIPY API key.");
+        if (key is { Length: > 0 } && !GifService.ValidKey(key)) throw RequestException.BadRequest("That doesn't look like a KLIPY API key.", "klipy_key");
         if (key is not null) s.Gifs.Configure(key.Length == 0 ? null : key);
         if (mode is not null) s.Gifs.SetMode(mode);
         // Each member gets their own status (their customer id differs).
@@ -62,7 +62,7 @@ public static class GifFeature
         try
         {
             var result = await work();
-            return result is null ? throw new RequestException("unavailable", "Couldn't reach the GIF service.") : view(result);
+            return result is null ? throw new RequestException("unavailable", "Couldn't reach the GIF service.", "gif_unreachable") : view(result);
         }
         catch (GifUnavailable e)
         {
@@ -81,7 +81,7 @@ public static class GifFeature
     private static Task<object?> Search(Session s, Member me, Body body)
     {
         var query = Text.Normalize(body.String("q", GifService.MaxQueryLength * 2), GifService.MaxQueryLength, allowNewlines: false)
-            ?? throw RequestException.BadRequest($"Searches are 1–{GifService.MaxQueryLength} characters.");
+            ?? throw RequestException.BadRequest($"Searches are 1–{GifService.MaxQueryLength} characters.", "gif_search_length", new { max = GifService.MaxQueryLength });
         var page = Page(body);
         return Run(() => s.Gifs.SearchAsync(query, page), p => PageView(s, p));
     }
@@ -103,7 +103,7 @@ public static class GifFeature
     {
         if (body.OptionalElement("gif") is not { } element) return null;
         if (attachments.Length > 0 || text.Length > 0 || body.OptionalString("sticker", 64) is not null)
-            throw RequestException.BadRequest("A GIF is sent on its own.");
+            throw RequestException.BadRequest("A GIF is sent on its own.", "gif_alone");
         if (element.ValueKind == System.Text.Json.JsonValueKind.String)
             return s.Gifs.ReadToken(element.GetString()!) ?? throw RequestException.BadRequest("Unknown GIF.");
         if (element.ValueKind != System.Text.Json.JsonValueKind.Object) throw RequestException.BadRequest("'gif' must be a token or an object.");

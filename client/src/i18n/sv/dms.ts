@@ -27,7 +27,7 @@ export const dms: Messages['dms'] = {
     serverOffline: 'Servern som har filen är inte ansluten just nu.',
     downloadFailed: 'Kunde inte ladda ner filen.',
     openFailed: 'Kunde inte öppna filen.',
-    attachTitle: 'Bifoga filer (krypterade hela vägen)',
+    attachTitle: 'Bifoga filer (totalsträckskrypterade)',
     saveFailed: 'Kunde inte spara filen. Inget sparades.',
     saving: 'Sparar…',
     downloading: 'Laddar ner…',

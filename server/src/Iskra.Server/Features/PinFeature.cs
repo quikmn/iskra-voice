@@ -19,14 +19,14 @@ public static class PinFeature
     {
         var message = s.World.Store.GetMessage(body.Long("id")) ?? throw RequestException.NotFound("Message");
         var channel = ChatFeature.ReadableChannel(s, me, message.ChannelId);
-        if (!Permissions.CanPin(me, channel)) throw RequestException.Forbidden("Only trusted members who can write here can pin messages.");
+        if (!Permissions.CanPin(me, channel)) throw RequestException.Forbidden("Only trusted members who can write here can pin messages.", "pins_trusted");
         var on = body.OptionalBool("on") ?? true;
 
         bool changed;
         if (on)
         {
             if (!s.World.Store.IsPinned(message.Id) && s.World.Store.PinCount(channel.Id) >= MaxPins)
-                throw RequestException.BadRequest($"This channel already has {MaxPins} pins. Unpin one first.");
+                throw RequestException.BadRequest($"This channel already has {MaxPins} pins. Unpin one first.", "pins_max", new { max = MaxPins });
             changed = s.World.Store.AddPin(message.Id, channel.Id, me.AccountKey, s.Now);
         }
         else

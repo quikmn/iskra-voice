@@ -18,14 +18,14 @@ public static class ChannelFeature
 
     private static void RequireAdmin(Member me)
     {
-        if (!Permissions.Has(me, Perm.ManageChannels)) throw RequestException.Forbidden("You can't manage channels on this server.");
+        if (!Permissions.Has(me, Perm.ManageChannels)) throw RequestException.Forbidden("You can't manage channels on this server.", "manage_channels");
     }
 
     /// <summary>Channel names are lowercase with dashes, like "game-night".</summary>
     internal static string ChannelName(string raw)
     {
         var name = Text.Normalize(raw, MaxNameLength, allowNewlines: false)
-            ?? throw RequestException.BadRequest($"Channel names must be 1–{MaxNameLength} characters.");
+            ?? throw RequestException.BadRequest($"Channel names must be 1–{MaxNameLength} characters.", "channel_name", new { max = MaxNameLength });
         return string.Join('-', name.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries));
     }
 
@@ -39,7 +39,7 @@ public static class ChannelFeature
     private static void CheckRoles(string readRole, string writeRole)
     {
         if (Roles.Rank(writeRole) < Roles.Rank(readRole))
-            throw RequestException.BadRequest("Anyone who can write in a channel must also be able to read it.");
+            throw RequestException.BadRequest("Anyone who can write in a channel must also be able to read it.", "write_needs_read");
     }
 
     /// <summary>Everyone gets their own up-to-date channel list (what's visible depends on your role).</summary>

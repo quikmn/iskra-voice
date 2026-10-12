@@ -25,13 +25,13 @@ public static class SearchFeature
     {
         if (query is null || query.Trim().Length == 0) return [];
         var text = Text.Normalize(query, MaxQueryLength, allowNewlines: false)
-            ?? throw RequestException.BadRequest($"Searches must be up to {MaxQueryLength} characters.");
+            ?? throw RequestException.BadRequest($"Searches must be up to {MaxQueryLength} characters.", "search_length", new { max = MaxQueryLength });
         var terms = text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
             .Where(t => t.Any(char.IsLetterOrDigit))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-        if (terms.Count > MaxTerms) throw RequestException.BadRequest($"Use at most {MaxTerms} words.");
-        if (terms.Any(t => t.Length > MaxTermLength)) throw RequestException.BadRequest("One of those words is too long.");
+        if (terms.Count > MaxTerms) throw RequestException.BadRequest($"Use at most {MaxTerms} words.", "search_terms", new { max = MaxTerms });
+        if (terms.Any(t => t.Length > MaxTermLength)) throw RequestException.BadRequest("One of those words is too long.", "search_word_long");
         return terms;
     }
 
@@ -46,7 +46,7 @@ public static class SearchFeature
         var cursor = body.OptionalLong("cursor", min: 1);
         var limit = (int)(body.OptionalLong("limit", min: 1, max: MaxResults) ?? 25);
         if (terms.Count == 0 && author is null && has.Length == 0 && before is null && after is null)
-            throw RequestException.BadRequest("Type something to search for.");
+            throw RequestException.BadRequest("Type something to search for.", "search_empty");
 
         // What the requester may read right now; nothing else is ever looked at.
         var readable = s.World.Store.AllConversations().Where(c => Permissions.CanRead(me, c)).Select(c => c.Id).ToHashSet();

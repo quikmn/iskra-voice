@@ -87,7 +87,7 @@ test('a new name shows everywhere at once, for you and everyone else', async ({ 
   const editor = a.locator('.user-menu-nick')
   await expect(editor).toContainText('Server nickname on Hangout. Only on this server. Leave empty to use your name (Nineleven).')
   await expect(editor.getByRole('button', { name: 'Use my name' })).toHaveCount(0)
-  await editor.getByLabel('Server nickname').fill('Nine')
+  await editor.getByLabel('Server nickname', { exact: true }).fill('Nine')
   await editor.getByRole('button', { name: 'Save', exact: true }).click()
   for (const page of [a, b]) await expectNameEverywhere(page, 'Nine', 'Nineleven')
   await b.locator('.member-list .member', { hasText: 'Nine' }).click()

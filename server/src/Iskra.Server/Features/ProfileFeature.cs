@@ -26,10 +26,10 @@ public static partial class ProfileFeature
     /// <summary>Avatars (members' and webhooks'): a supported image of known size, at most 1 MB and 4096 px a side.</summary>
     public static void CheckAvatarImage(StoredFile file)
     {
-        if (!AvatarTypes.Contains(file.Type)) throw RequestException.BadRequest("Avatars must be PNG, JPEG, WebP or GIF images.");
-        if (file.Size > MaxAvatarBytes) throw RequestException.BadRequest($"Avatars can be up to {MaxAvatarBytes / 1024} KB.");
-        if (file.Width is not { } w || file.Height is not { } h || w < 1 || h < 1) throw RequestException.BadRequest("Couldn't read that image's size.");
-        if (w > MaxAvatarSide || h > MaxAvatarSide) throw RequestException.BadRequest("That image is too large.");
+        if (!AvatarTypes.Contains(file.Type)) throw RequestException.BadRequest("Avatars must be PNG, JPEG, WebP or GIF images.", "avatar_type");
+        if (file.Size > MaxAvatarBytes) throw RequestException.BadRequest($"Avatars can be up to {MaxAvatarBytes / 1024} KB.", "avatar_size", new { kb = MaxAvatarBytes / 1024 });
+        if (file.Width is not { } w || file.Height is not { } h || w < 1 || h < 1) throw RequestException.BadRequest("Couldn't read that image's size.", "image_size_unreadable");
+        if (w > MaxAvatarSide || h > MaxAvatarSide) throw RequestException.BadRequest("That image is too large.", "image_too_large");
     }
 
     [GeneratedRegex("^#[0-9a-fA-F]{6}$")]
@@ -91,13 +91,13 @@ public static partial class ProfileFeature
         raw is null ? null
         : raw.Trim().Length == 0 ? ""
         : Text.Normalize(raw, MaxBioLength, allowNewlines: true)
-          ?? throw RequestException.BadRequest($"Bios can be up to {MaxBioLength} characters, with no invisible characters.");
+          ?? throw RequestException.BadRequest($"Bios can be up to {MaxBioLength} characters, with no invisible characters.", "bio_length", new { max = MaxBioLength });
 
     private static string? Pronouns(string? raw) =>
         raw is null ? null
         : raw.Trim().Length == 0 ? ""
         : Text.Normalize(raw, MaxPronounsLength, allowNewlines: false)
-          ?? throw RequestException.BadRequest($"Pronouns can be up to {MaxPronounsLength} characters.");
+          ?? throw RequestException.BadRequest($"Pronouns can be up to {MaxPronounsLength} characters.", "pronouns_length", new { max = MaxPronounsLength });
 
     private static string? Accent(string? raw) =>
         raw is null ? null
@@ -171,7 +171,7 @@ public static partial class ProfileFeature
     {
         var rawName = body.OptionalString("name", 256);
         var name = rawName is null ? null : Names.Normalize(rawName)
-            ?? throw RequestException.BadRequest($"Names must be 1–{Names.MaxLength} characters, with no invisible characters.");
+            ?? throw RequestException.BadRequest($"Names must be 1–{Names.MaxLength} characters, with no invisible characters.", "name_length", new { max = Names.MaxLength });
         var bio = Bio(body.OptionalString("bio", MaxBioLength * 2));
         var pronouns = Pronouns(body.OptionalString("pronouns", MaxPronounsLength * 2));
         var accent = Accent(body.OptionalString("accent", 16));
@@ -194,16 +194,16 @@ public static partial class ProfileFeature
 
     private static object SetPage(Session s, Member me, Body body)
     {
-        if (!PagesEnabled(s.World.Store)) throw RequestException.Forbidden("Profile pages are turned off on this server.");
+        if (!PagesEnabled(s.World.Store)) throw RequestException.Forbidden("Profile pages are turned off on this server.", "pages_off");
         var file = s.World.Store.GetFile(body.String("file", 64));
         if (file is null || file.Uploader != me.AccountKey) throw RequestException.BadRequest("Unknown page file.");
-        if (file.Size > MaxPageBytes) throw RequestException.BadRequest($"Profile pages can be up to {MaxPageBytes / 1024} KB.");
+        if (file.Size > MaxPageBytes) throw RequestException.BadRequest($"Profile pages can be up to {MaxPageBytes / 1024} KB.", "profile_page_size", new { kb = MaxPageBytes / 1024 });
 
         string html;
         try
         {
             var bytes = File.ReadAllBytes(s.Uploads.PathFor(file.Sha256));
-            if (bytes.Length > MaxPageBytes) throw RequestException.BadRequest($"Profile pages can be up to {MaxPageBytes / 1024} KB.");
+            if (bytes.Length > MaxPageBytes) throw RequestException.BadRequest($"Profile pages can be up to {MaxPageBytes / 1024} KB.", "profile_page_size", new { kb = MaxPageBytes / 1024 });
             html = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true).GetString(bytes);
         }
         catch (DecoderFallbackException)
@@ -232,7 +232,7 @@ public static partial class ProfileFeature
         {
             var target = s.World.Store.GetMember(key) ?? throw RequestException.NotFound("Member");
             if (!Permissions.IsAdmin(me) || !Permissions.Outranks(me, target))
-                throw RequestException.Forbidden("You can only remove pages of members ranked below you.");
+                throw RequestException.Forbidden("You can only remove pages of members ranked below you.", "rank_pages");
         }
         else if (!AcceptStamp(s.World.Store, key, body, s.Now)) return new { stale = true };
         if (!s.World.Store.RemovePage(key)) throw RequestException.NotFound("Profile page");

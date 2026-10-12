@@ -47,12 +47,12 @@ public static class CallFeature
     {
         NotABot(s, me);
         var peerKey = body.String("accountKey", 64);
-        if (peerKey == me.AccountKey) throw RequestException.BadRequest("You can't call yourself.");
+        if (peerKey == me.AccountKey) throw RequestException.BadRequest("You can't call yourself.", "call_self");
         var peer = s.World.Store.GetMember(peerKey) ?? throw RequestException.NotFound("Member");
         if (s.World.Store.IsBot(peer.AccountKey)) throw RequestException.BadRequest("Bots can't take calls.");
         ModerationFeature.CheckNotBlocked(s, me, peer, "call");
         if (ModerationFeature.IsTimedOut(s.World.Store, peer.AccountKey, s.Now))
-            throw RequestException.Forbidden("They can't take calls on this server right now.");
+            throw RequestException.Forbidden("They can't take calls on this server right now.", "they_cant_call");
         var id = CallId(body);
         var video = body.OptionalBool("video") ?? false;
         var envelope = body.Element("envelope");
@@ -62,7 +62,7 @@ public static class CallFeature
         if (!s.Voice.Backend.Available) throw new RequestException("voice_unavailable", "Calls aren't available on this server right now.");
         // Per account, so more connections don't mean more ringing: 10 calls a minute, 3 to the same person.
         if (!s.Hub.Limits.TryTake(me.AccountKey, "call.start.callee", peer.AccountKey) || !s.Hub.Limits.TryTake(me.AccountKey, "call.start"))
-            throw new RequestException("rate_limited", "Too many calls in a short time. Try again in a minute.");
+            throw new RequestException("rate_limited", "Too many calls in a short time. Try again in a minute.", "too_many_calls");
 
         var call = s.Voice.Calls.Start(me.AccountKey, peer.AccountKey, id, video, raw);
         s.Push.IncomingCall(me, peer.AccountKey);
