@@ -103,6 +103,7 @@ export class Bot {
 
     let first = true
     await new Promise<void>((done, fail) => {
+      let restartLogged = 0
       this.connection = new Connection({
         serverUrl: server.url,
         expectedServerKey: server.key,
@@ -117,6 +118,9 @@ export class Bot {
             if (first) fail(new Error(status.message))
           } else if (status.state === 'offline') {
             this.log(`Disconnected; retrying in ${Math.round(status.retryInMs / 1000)}s`)
+          } else if (status.state === 'restarting' && status.since !== restartLogged) {
+            restartLogged = status.since // it's reported on every quick retry; say it once
+            this.log('The server is restarting; reconnecting as soon as it is back')
           }
         },
         onWelcome: (welcome) => {

@@ -305,8 +305,9 @@ function onWelcome(key: string, welcome: Welcome): void {
   // Catch up on anything we missed while disconnected.
   if (before) {
     for (const [channelId, list] of Object.entries(before.messages)) {
-      const lastId = list.filter((m) => !m.tempId).at(-1)?.id
-      if (lastId !== undefined) void catchUp(key, Number(channelId), lastId)
+      // A loaded channel that was empty catches up from the start (its first messages may have come meanwhile).
+      const lastId = list.filter((m) => !m.tempId).at(-1)?.id ?? 0
+      void catchUp(key, Number(channelId), lastId)
     }
   }
   // Sends cut off by the disconnect go again first (same nonce: the server answers with the stored message if it got it).
@@ -323,6 +324,7 @@ async function catchUp(key: string, channelId: number, after: number): Promise<v
     let cursor = after
     for (let page = 0; page < 10; page++) {
       const { messages, hasMore } = await connection.request('chat.history', { channelId, after: cursor, limit: 100 })
+      noteMissed(key, messages)
       patchServer(key, (s) => ({
         messages: { ...s.messages, [channelId]: messages.reduce(upsertMessage, s.messages[channelId]) },
       }))
@@ -331,6 +333,18 @@ async function catchUp(key: string, channelId: number, after: number): Promise<v
     }
   } catch {
     /* channel may be gone or we lost access; the channel list update handles that */
+  }
+}
+
+/** Messages that came in while we were away count as unread, like ones that arrive live (not ones we already had). */
+function noteMissed(key: string, messages: Message[]): void {
+  const s = useApp.getState().servers[key]
+  if (!s) return
+  for (const message of messages) {
+    if (message.author === s.me?.accountKey || senderRules.ignored(message.author)) continue
+    if (s.messages[message.channelId]?.some((m) => m.id === message.id && !m.tempId)) continue
+    noteMessage(channelConv(key, message.channelId), { id: message.id, at: message.createdAt },
+      !message.forwarded && senderRules.mentionsMe(s, message))
   }
 }
 

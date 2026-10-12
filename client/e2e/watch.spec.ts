@@ -19,6 +19,19 @@ const video = (page: Page) => page.locator('.watch-party video')
 const time = (page: Page) => video(page).evaluate((v: HTMLVideoElement) => v.currentTime)
 const paused = (page: Page) => video(page).evaluate((v: HTMLVideoElement) => v.paused)
 
+/**
+ * How far apart two players are at the same moment. Each page reads its position together with the clock (all pages
+ * share this machine's clock), and both are projected to the later reading, so the time between the two reads (long
+ * on a busy CI runner) doesn't count as drift.
+ */
+async function drift(a: Page, b: Page): Promise<number> {
+  const read = (page: Page) => video(page).evaluate((v: HTMLVideoElement) => ({ t: v.currentTime, at: Date.now(), rate: v.paused ? 0 : v.playbackRate }))
+  const [x, y] = await Promise.all([read(a), read(b)])
+  const at = Math.max(x.at, y.at)
+  const position = (r: typeof x) => r.t + ((at - r.at) / 1000) * r.rate
+  return Math.abs(position(x) - position(y))
+}
+
 async function joinCinema(page: Page) {
   await cinema(page).getByRole('button').first().click()
   await expect(page.locator('.voice-status strong')).toHaveText('Voice connected')
@@ -58,9 +71,8 @@ test('a watch party stays in step for everyone, late joiners included', async ({
   await host.locator('.watch-controls').getByRole('button', { name: 'Play' }).click()
   await expect.poll(() => paused(friend), { timeout: 10_000 }).toBe(false)
   await host.waitForTimeout(2500)
-  const [a, b] = await Promise.all([time(host), time(friend)])
-  expect(a).toBeGreaterThan(1)
-  expect(Math.abs(a - b)).toBeLessThan(0.6)
+  expect(await time(host)).toBeGreaterThan(1)
+  await expect.poll(() => drift(host, friend), { timeout: 5_000 }).toBeLessThan(0.6)
 
   // Someone joining later lands where everyone else is.
   const late = await (await browser.newContext()).newPage()
@@ -68,9 +80,8 @@ test('a watch party stays in step for everyone, late joiners included', async ({
   await joinCinema(late)
   await expect(party(late)).toBeVisible()
   await expect.poll(() => paused(late), { timeout: 10_000 }).toBe(false)
-  await late.waitForTimeout(1200)
-  const [h, l] = await Promise.all([time(host), time(late)])
-  expect(Math.abs(h - l)).toBeLessThan(1)
+  // Within a second of the host, measured at the same moment, once its first correction has had a chance to land.
+  await expect.poll(() => drift(host, late), { timeout: 10_000, intervals: [500] }).toBeLessThan(1)
 
   // Pause and seek: everyone stops at the same spot.
   await host.locator('.watch-controls').getByRole('button', { name: 'Pause' }).click()

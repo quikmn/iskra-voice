@@ -31,6 +31,7 @@ import { KtNotices } from './keys/KeyTransparency'
 import { Shortcuts } from './organize/Shortcuts'
 import { RulesLayer } from './rules/Rules'
 import { ServerUpdateNotice } from './ServerUpdateNotice'
+import { RestartBanner } from './RestartBanner'
 import { ProductivityLayer } from './productivity/InboxButton'
 import { VoiceRoom } from './clips/VoiceRoom'
 import { ClipLayer } from './clips/ClipControls'
@@ -63,6 +64,7 @@ export function Shell() {
         <RecoveryNudge />
         <DisputeNotices />
         {server && <ServerUpdateNotice server={server} />}
+        {server && <RestartBanner server={server} />}
         <KtNotices />
         {server && stage ? (
           <VoiceRoom server={server}>
