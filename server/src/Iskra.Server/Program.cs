@@ -37,6 +37,12 @@ builder.Services.AddHostedService<UploadSweeper>();
 builder.Services.AddSingleton<LinkPreviews>();
 builder.Services.AddSingleton<Iskra.Server.Gifs.GifService>();
 builder.Services.AddSingleton<Iskra.Server.Gifs.IGifUpstream, Iskra.Server.Gifs.GifUpstream>();
+// The live-captions model: fetched once from Hugging Face (or a local folder, Captions.ModelSource) into models/.
+builder.Services.AddSingleton<Iskra.Server.Captions.IModelUpstream>(_ => world.Settings.Captions.ModelSource is { Length: > 0 } folder
+    ? new Iskra.Server.Captions.FolderModelUpstream(folder)
+    : new Iskra.Server.Captions.HttpModelUpstream());
+builder.Services.AddSingleton(Iskra.Server.Captions.ModelManifest.Pinned);
+builder.Services.AddSingleton<Iskra.Server.Captions.CaptionModelService>();
 builder.Services.AddSingleton<WebhookIngress>();
 builder.Services.AddHostedService<PollCloser>();
 builder.Services.AddSingleton<EventScheduler>();
@@ -231,6 +237,8 @@ app.MapGet("/pages/{id}", (HttpContext context, string id, World w) => ProfilePa
 
 // Incoming webhooks: POST /hooks/{id}/{secret}.
 WebhookIngress.Map(app);
+// The live-captions model's parts: GET /models/{dir}/{part}.
+Iskra.Server.Captions.CaptionModelFeature.Map(app);
 // Device linking: a short-lived relay for a new device that has no account yet.
 LinkRelay.MapEndpoints(app);
 // Backups, moving to another computer, imports.

@@ -13,6 +13,8 @@ const LIVEKIT = resolve(HERE, '../../.tools', process.platform === 'win32' ? 'li
 export const SHOTS = resolve(HERE, 'screenshots')
 
 export const hasLiveKit = () => existsSync(LIVEKIT)
+/** The captions model as scripts/get-models.mjs writes it; test servers serve it from here. */
+export const CAPTION_MODELS = resolve(HERE, '../.models/models')
 
 /** Chromium's fake mic plays someone talking (e2e/fixtures/speech.wav, looped) instead of beeping. */
 export const FAKE_SPEECH_ARGS = [
@@ -101,6 +103,8 @@ async function startIn(world: string, name: string, voice: boolean, env: Record<
       AppUrl: `http://localhost:${APP_PORT}`,
       LocalOnly: true,
       Voice: { Enabled: voice, Port: voicePort, RtcTcpPort: rtcTcp, RtcUdpPort: rtcUdp, LiveKitPath: voice ? LIVEKIT : null },
+      // The captions model from the local copy (node scripts/get-models.mjs), never from the internet.
+      Captions: { ModelSource: CAPTION_MODELS },
     }),
   )
   const proc: ChildProcess = spawn('dotnet', [SERVER_DLL, world], { stdio: 'ignore', env: { ...process.env, ...env } })

@@ -31,6 +31,7 @@ import { compliance } from './compliance'
 import { updates } from './updates'
 import { clips } from './clips'
 import { e2ee } from './e2ee'
+import { media } from './media'
 
 export const en = {
   common,
@@ -65,4 +66,5 @@ export const en = {
   updates,
   clips,
   e2ee,
+  media,
 } as const

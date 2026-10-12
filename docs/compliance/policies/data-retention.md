@@ -51,6 +51,10 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 
 - Apps keep keys, decrypted DMs, settings and the server list on the device until the user signs out, deletes the
   account or removes the app. "Download data on this device" (Settings → Privacy & data) exports it.
+- Live captions and camera background effects run on the device only: audio, video and caption text are never sent
+  or stored; captions are dropped from memory seconds after they're shown. The speech model is downloaded once from
+  the member's own Iskra server (which fetched it once from Hugging Face) and kept with the settings on the device
+  (Cache Storage or IndexedDB) until the app or site data is removed ([voice-processing.md](../../voice-processing.md)).
 - iskra.foo and app.iskra.foo store nothing about visitors; Cloudflare's short-lived request logs follow
   Cloudflare's retention.
 - Emails to spark@iskra.foo (support, safety, security, data requests): kept as long as needed to handle them, and

@@ -81,5 +81,7 @@ export const compliance: Messages['compliance'] = {
     update_installed: 'Uppdaterade servern',
     update_failed: 'En uppdatering misslyckades',
     update_rolledback: 'Backade en uppdatering som inte startade',
+    captions_model_download: 'Laddade ner modellen för textning',
+    captions_model_rejected: 'Vägrade en modell för textning som inte stämde',
   },
 }

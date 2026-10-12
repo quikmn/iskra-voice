@@ -710,7 +710,9 @@ export async function toggleCamera(): Promise<void> {
   if (!room || !useVoice.getState().session?.canSpeak) return
   const next = !useVoice.getState().camera
   try {
-    await room.localParticipant.setCameraEnabled(next)
+    // The chosen camera, with its background effect in place before anything is sent.
+    const options = next ? (await import('./background')).cameraCaptureOptions() : undefined
+    await room.localParticipant.setCameraEnabled(next, options)
     useVoice.setState({ camera: next })
   } catch {
     useVoice.setState({ camera: false, error: t('voice.errors.camera') })

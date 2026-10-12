@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { settingsSections } from './sections'
 
 const ids = (role: Parameters<typeof settingsSections>[0]) => settingsSections(role).map((s) => s.id)
-const account = ['profile', 'appearance', 'devices', 'recovery', 'security', 'notifications', 'voice', 'blocked', 'account', 'privacy', 'about']
+const account = ['profile', 'appearance', 'devices', 'recovery', 'security', 'notifications', 'voice', 'video', 'blocked', 'account', 'privacy', 'about']
 
 describe('settings sections', () => {
   it('shows only your account without a server', () => {
@@ -24,9 +24,9 @@ describe('settings sections', () => {
   })
 
   it('shows Desktop app only in the desktop app', () => {
-    const withDesktop = [...account.slice(0, 8), 'desktop', ...account.slice(8)]
+    const withDesktop = [...account.slice(0, 9), 'desktop', ...account.slice(9)]
     expect(settingsSections(null, undefined, true).map((s) => s.id)).toEqual(withDesktop)
-    expect(settingsSections('admin', undefined, true).map((s) => s.id).indexOf('desktop')).toBe(8)
+    expect(settingsSections('admin', undefined, true).map((s) => s.id).indexOf('desktop')).toBe(9)
   })
 
   it('groups account before server', () => {

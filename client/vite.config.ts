@@ -13,6 +13,8 @@ const csp = (): Plugin => ({
 
 export default defineConfig({
   plugins: [react(), csp()],
+  // Only workers import these: bundle them up front, or the dev server reloads the page when it finds them.
+  optimizeDeps: { include: ['onnxruntime-web/wasm', '@mediapipe/tasks-vision'] },
   test: {
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     setupFiles: ['src/i18n/testSetup.ts'],

@@ -160,7 +160,7 @@ export function GroupCallPanel({ groupKey }: { groupKey: string }) {
       </div>
       {(voiceError || callError) && <p className="call-error" role="alert">{voiceError ?? groupText(callError!)}</p>}
       {inCall && session ? (
-        <CallControls onLeave={() => void leaveGroupCall()} />
+        <CallControls onLeave={() => void leaveGroupCall()} nameOf={knownName} />
       ) : (
         <div className="call-controls">
           <button className="call-button hang-up" onClick={() => void leaveGroupCall()} aria-label={t('calls.hangUp')} title={t('calls.hangUp')}><PhoneOff /></button>

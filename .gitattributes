@@ -6,3 +6,4 @@
 *.gz binary
 *.wav binary
 *.bin binary
+*.tflite binary

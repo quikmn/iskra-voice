@@ -105,7 +105,7 @@ export function CallPanel({ peer }: { peer: string }) {
 
       {error && inCall && <p className="call-error" role="alert">{error}</p>}
       {call.phase !== 'ended' && (inCall && session ? (
-        <CallControls onLeave={() => void hangUp()} />
+        <CallControls onLeave={() => void hangUp()} nameOf={nameOf} />
       ) : (
         <div className="call-controls">
           <button className="call-button hang-up" onClick={() => void hangUp()} aria-label={t('calls.hangUp')} title={t('calls.hangUp')}>

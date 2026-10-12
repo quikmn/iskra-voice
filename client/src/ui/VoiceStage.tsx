@@ -20,6 +20,7 @@ import { userMenuProps } from './people/userMenuProps'
 import { VoiceChatButton } from './clips/VoiceRoom'
 import { ClipButton, ClipsMark, ClipsStrip } from './clips/ClipControls'
 import { setWatchedTile } from '../state/clips'
+import { BackgroundNotice, CaptionsButton, CaptionsOverlay } from './media/CallMedia'
 
 /** The call screen: video tiles (screen shares first) and everyone's avatar, with call controls. */
 export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle: (panel: Panel) => void }) {
@@ -89,7 +90,7 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
         {participants.length === 0 && session.state !== 'connected' && <p className="muted stage-hint">{t('voice.bar.connecting')}</p>}
       </div>
 
-      <CallControls extra={channel && <WatchButton server={server} channel={channel} />} />
+      <CallControls extra={channel && <WatchButton server={server} channel={channel} />} nameOf={(key) => nameIn(server, key)} />
     </div>
   )
 }
@@ -138,8 +139,11 @@ export function VideoTile({ tile, name, big, speaking, onClick }: { tile: Tile; 
   )
 }
 
-/** Mute, deafen, camera, screen share and hang up. DM calls pass their own hang-up; stages add their own buttons. */
-export function CallControls({ onLeave, extra }: { onLeave?: () => void; extra?: ReactNode }) {
+/**
+ * Mute, deafen, camera, screen share, captions and hang up. DM calls pass their own hang-up; stages add their own
+ * buttons. `nameOf` names the people in the captions.
+ */
+export function CallControls({ onLeave, extra, nameOf }: { onLeave?: () => void; extra?: ReactNode; nameOf?: (accountKey: string) => string }) {
   const { t } = useTranslation()
   const session = useVoice((s) => s.session)!
   const { muted, deafened, camera, screen, localSpeaking } = useVoice()
@@ -147,6 +151,8 @@ export function CallControls({ onLeave, extra }: { onLeave?: () => void; extra?:
   const speak = session.canSpeak
   return (
     <>
+    <BackgroundNotice />
+    <CaptionsOverlay nameOf={nameOf ?? (() => translate('common.someone'))} />
     <ClipsStrip />
     <div className="call-controls" role="toolbar" aria-label={t('voice.stage.controls')}>
       {speak && (
@@ -174,6 +180,7 @@ export function CallControls({ onLeave, extra }: { onLeave?: () => void; extra?:
       {shareMenu && <ScreenShareMenu anchor={shareMenu} onClose={() => setShareMenu(null)} />}
       <SoundboardButton variant="call" />
       <ClipButton />
+      <CaptionsButton />
       <button className="call-button hang-up" onClick={() => (onLeave ? onLeave() : void leaveVoice())} aria-label={onLeave ? t('voice.hangUp') : t('voice.leaveCall')} title={onLeave ? t('voice.hangUp') : t('voice.leaveCall')}>
         <PhoneOff />
       </button>

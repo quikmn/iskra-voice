@@ -167,6 +167,17 @@ There are two modes:
 
 To turn GIFs off, click **Turn off** there.
 
+### Live captions
+
+Members can turn on live captions in calls. The speech recognition runs on their own devices, but the speech model
+(Whisper base, about 78 MB) comes from your server: the first time someone turns captions on, your server downloads
+it once from Hugging Face (at a pinned version, every byte checked against pinned SHA-256 hashes) into the `models/`
+folder, and serves it to members' apps from then on. So their devices only talk to your server, and Hugging Face only
+sees your server, once. It takes about **78 MB of disk space** (plan for 100 MB). The security log notes the
+download. To not offer captions at all, set `"Captions": { "ModelDownload":
+false }` in server.json and restart; the apps then say this server doesn't offer captions. Deleting `models/` is
+safe: it's fetched again the next time someone needs it.
+
 ## Backups, moving and importing
 
 ### Backups
@@ -290,6 +301,9 @@ iskra-server import-discord my-server export.zip              # add --read-only 
     "AuditDays": 90,                   // the audit log
     "SecurityLogDays": 365,            // the security log
     "SecurityLogIps": false            // also record IP addresses in the security log
+  },
+  "Captions": {                        // live captions (see Live captions)
+    "ModelDownload": true              // offer the speech model (~78 MB, fetched once from Hugging Face into models/)
   }
 }
 ```
@@ -310,6 +324,7 @@ iskra-server import-discord my-server export.zip              # add --read-only 
 | `moved.json` | The signed "this server moved" notice, after **Move this server** |
 | `server.log` | Output, when started from the desktop app |
 | `exports/` | "Download my data" files while their 10-minute link lasts (never in backups) |
+| `models/` | The live-captions speech model, once someone has used captions (about 78 MB; never in backups, fetched again when needed) |
 
 Profile pages, polls, threads, pins, forums, events, roles, groups (their encrypted messages), webhooks (only a hash of each secret) and push subscriptions are all in `iskra.db` too, so copying the folder takes everything along.
 

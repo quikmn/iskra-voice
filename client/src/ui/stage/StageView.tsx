@@ -185,7 +185,7 @@ export function StageView({ server, onToggle }: { server: ServerState; onToggle:
         {error && <p className="error-text stage-error" role="alert">{error}</p>}
       </div>
 
-      <CallControls extra={<>{stageButton}{live && channel && <WatchButton server={server} channel={channel} stage={state} />}</>} />
+      <CallControls extra={<>{stageButton}{live && channel && <WatchButton server={server} channel={channel} stage={state} />}</>} nameOf={(key) => nameIn(server, key)} />
 
       {person && channel && (
         <PersonSheet server={server} channel={channel} state={state} accountKey={person} onError={setError} onClose={() => setPerson(null)} />

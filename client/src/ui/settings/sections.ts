@@ -3,7 +3,7 @@ import { roleRank, type Permission, type Role } from '../../core/protocol'
 import { t } from '../../i18n'
 
 export type SectionId =
-  | 'profile' | 'appearance' | 'devices' | 'recovery' | 'security' | 'notifications' | 'voice' | 'blocked' | 'desktop' | 'account' | 'privacy' | 'about'
+  | 'profile' | 'appearance' | 'devices' | 'recovery' | 'security' | 'notifications' | 'voice' | 'video' | 'blocked' | 'desktop' | 'account' | 'privacy' | 'about'
   | 'overview' | 'reports' | 'roles' | 'automod' | 'emoji' | 'sounds' | 'integrations' | 'pages' | 'internet' | 'audit' | 'rules' | 'limits' | 'backup' | 'import'
   | 'securityLog' | 'updates'
 
@@ -23,6 +23,7 @@ const ACCOUNT: SectionEntry[] = [
   { id: 'security', group: 'account' },
   { id: 'notifications', group: 'account' },
   { id: 'voice', group: 'account' },
+  { id: 'video', group: 'account' },
   { id: 'blocked', group: 'account' },
   { id: 'desktop', group: 'account' },
   { id: 'account', group: 'account' },

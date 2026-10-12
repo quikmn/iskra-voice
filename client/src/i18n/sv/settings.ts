@@ -9,6 +9,7 @@ export const settings: Messages['settings'] = {
     security: 'Applås',
     notifications: 'Aviseringar',
     voice: 'Röst och ljud',
+    video: 'Kamera',
     blocked: 'Blockerade',
     desktop: 'Skrivbordsappen',
     account: 'Konto',
