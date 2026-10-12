@@ -10,7 +10,7 @@ exists.
 | English | Svenska | Notes |
 |---|---|---|
 | Name | Namn | Your Iskra name, everywhere unless a server nickname is set |
-| Server nickname | Smeknamn på servern | Optional, only on one server. Reset: "Use my name" / "Använd mitt namn" |
+| Server nickname | Smeknamn på servern ("Smeknamn på {{server}}" when the server is named) | Optional, only on one server. Reset: "Use my name" / "Använd mitt namn" |
 | Owner, Admin, Moderator, Trusted, Member, Guest | Ägare, Admin, Moderator, Betrodd, Medlem, Gäst | Roles; plural "admins" in running text |
 | Bot, bots | Bot, bottar | |
 | Server | Server | |
