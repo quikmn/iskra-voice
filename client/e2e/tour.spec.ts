@@ -256,6 +256,7 @@ test('screenshot tour', async ({ browser }) => {
   let botInvite = ''
   await part('integrations', async () => {
     await host.getByRole('button', { name: /server options/ }).click()
+    await host.getByRole('menuitem', { name: 'Server settings' }).click()
     await shot(host, '29-settings-server-overview-desktop')
     await host.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Bots & webhooks' }).click()
     await host.getByLabel('Name').fill('Deploys')

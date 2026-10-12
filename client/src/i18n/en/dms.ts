@@ -24,7 +24,7 @@ export const dms = {
     uploadFailed: 'Upload failed. Check your connection.',
     uploadCancelled: 'Upload cancelled.',
     tooBig: 'Files in direct messages can be up to {{mb}} MB.',
-    upTo: 'Up to {{mb}} MB in direct messages.',
+    tooBigEncrypted: 'Too big for an encrypted DM (max {{mb}} MB)',
     tooBigToOpen: 'This file is too big to open here.',
     serverOffline: "The server that has this file isn't connected right now.",
     downloadFailed: "Couldn't download this file.",

@@ -20,6 +20,7 @@ import { openReport } from '../../state/reports'
 import { transferOwnership } from '../../state/accountDeletion'
 import { MenuItem, MenuTitle, OrgMenu } from '../organize/OrgMenu'
 import { VolumeControls } from '../VolumeMenu'
+import { openServerAction } from '../organize/ServerMenu'
 import '../organize/organize.css'
 import './people.css'
 
@@ -68,7 +69,8 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
   const canTimeout = below && has(me, roles, 'timeoutMembers')
   const canKick = below && has(me, roles, 'kickMembers')
   const canBan = below && has(me, roles, 'banMembers')
-  const canRoles = !!member && (self || below) && has(me, roles, 'manageRoles') && roles.length > 0
+  // Anyone who manages roles sees the entry; with no roles yet it leads to making the first one.
+  const canRoles = !!member && (self || below) && has(me, roles, 'manageRoles')
   const canMute = !!participant && (self || below) && has(me, roles, 'muteMembers')
   const moveTargets = server && participant && (self || below) && has(me, roles, 'moveMembers')
     ? server.channels.filter((c) => c.kind === 'voice' && c.id !== Number(voiceChannel)) : []
@@ -179,7 +181,9 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
               </MenuItem>
             )}
             {moveTargets.length > 0 && <MenuItem onClick={() => setView('move')}>{t('friends.menu.moveTo')}</MenuItem>}
-            {canRoles && <MenuItem onClick={() => setView('roles')}>{t('friends.menu.roles')}</MenuItem>}
+            {canRoles && (roles.length > 0
+              ? <MenuItem onClick={() => setView('roles')}>{t('friends.menu.roles')}</MenuItem>
+              : <MenuItem onClick={go(() => openServerAction(server!.key, { kind: 'settings', section: 'roles' }))}>{t('friends.menu.createRole')}</MenuItem>)}
             {canTimeout && (timeoutActive(member)
               ? <MenuItem onClick={run(() => removeTimeout(server!.key, accountKey))}>{t('moderation.timeout.remove')}</MenuItem>
               : <MenuItem danger onClick={() => setView('timeout')}>{t('friends.menu.timeout')}</MenuItem>)}

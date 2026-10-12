@@ -256,11 +256,7 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
               {WATCH_RATES.map((r) => <option key={r} value={r}>{t('watch.rate', { rate: formatNumber(r) })}</option>)}
             </select>
           )}
-          <button className="icon-button" onClick={() => setMuted(!muted)} aria-label={muted ? t('watch.unmuteVideo') : t('watch.muteVideo')} title={muted ? t('watch.unmuteVideo') : t('watch.muteVideo')}>
-            {muted || volume === 0 ? <VolumeOffIcon /> : <VolumeOnIcon />}
-          </button>
-          <input type="range" className="watch-volume" aria-label={t('watch.videoVolume')} min={0} max={1} step={0.05} value={muted ? 0 : volume}
-            onChange={(e) => { setVolume(Number(e.target.value)); setMuted(false) }} />
+          <WatchVolume volume={volume} muted={muted} onVolume={(v) => { setVolume(v); setMuted(false) }} onMuted={setMuted} />
           <button className="icon-button" onClick={() => void frame.current?.requestFullscreen?.()} aria-label={t('watch.fullScreen')} title={t('watch.fullScreen')}><Expand size={16} /></button>
           <button className={`icon-button ${chatOpen ? 'on' : ''}`} onClick={onToggleChat} aria-pressed={chatOpen} aria-label={t('watch.partyChat')} title={t('watch.partyChat')}><ChatIcon /></button>
         </div>
@@ -380,3 +376,77 @@ function WatchChat({ server, channelId }: { server: ServerState; channelId: numb
 }
 
 const EMPTY: WatchChatLine[] = []
+
+/**
+ * This viewer's own volume (never anyone else's). Wide players show a mute button and a slider; narrow ones a
+ * speaker button that opens a small panel with a vertical slider and mute.
+ */
+export function WatchVolume({ volume, muted, onVolume, onMuted }: {
+  volume: number; muted: boolean; onVolume: (v: number) => void; onMuted: (m: boolean) => void
+}) {
+  const { t } = useTranslation()
+  const [open, setOpen] = useState(false)
+  const wrap = useRef<HTMLDivElement>(null)
+  const silent = muted || volume === 0
+  const muteLabel = muted ? t('watch.unmuteVideo') : t('watch.muteVideo')
+
+  useEffect(() => {
+    if (!open) return
+    const outside = (e: PointerEvent) => !wrap.current?.contains(e.target as Node) && setOpen(false)
+    document.addEventListener('pointerdown', outside)
+    return () => document.removeEventListener('pointerdown', outside)
+  }, [open])
+
+  const slider = (vertical: boolean) => (
+    <input
+      type="range"
+      className={vertical ? 'watch-volume-vertical' : 'watch-volume'}
+      aria-label={t('watch.videoVolume')}
+      aria-orientation={vertical ? 'vertical' : undefined}
+      aria-valuetext={`${Math.round((muted ? 0 : volume) * 100)}%`}
+      min={0}
+      max={1}
+      step={0.05}
+      value={muted ? 0 : volume}
+      onChange={(e) => onVolume(Number(e.target.value))}
+    />
+  )
+
+  return (
+    <div
+      className="watch-volume-group"
+      ref={wrap}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && open) {
+          e.stopPropagation()
+          setOpen(false)
+          wrap.current?.querySelector<HTMLElement>('.watch-volume-toggle')?.focus()
+        }
+      }}
+    >
+      <button className="icon-button watch-mute" onClick={() => onMuted(!muted)} aria-label={muteLabel} title={muteLabel}>
+        {silent ? <VolumeOffIcon /> : <VolumeOnIcon />}
+      </button>
+      {slider(false)}
+      <button
+        className={`icon-button watch-volume-toggle ${open ? 'on' : ''}`}
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-haspopup="true"
+        aria-label={t('watch.volume')}
+        title={t('watch.volume')}
+      >
+        {silent ? <VolumeOffIcon /> : <VolumeOnIcon />}
+      </button>
+      {open && (
+        <div className="watch-volume-pop" role="group" aria-label={t('watch.volume')}>
+          <span className="watch-volume-value" aria-hidden>{Math.round((muted ? 0 : volume) * 100)}</span>
+          {slider(true)}
+          <button className="icon-button small" onClick={() => onMuted(!muted)} aria-label={muteLabel} title={muteLabel}>
+            {silent ? <VolumeOffIcon size={16} /> : <VolumeOnIcon size={16} />}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}

@@ -32,6 +32,13 @@ export const app: Messages['app'] = {
     theirId: 'Deras ID:',
     yourId: 'Ditt ID:',
   },
+  serverMenu: {
+    settings: 'Serverinställningar',
+    editRules: 'Redigera regler',
+    createChannel: 'Skapa kanal',
+    notifications: 'Aviseringar',
+    groups: { server: 'Server', safety: 'Medlemmar & säkerhet', content: 'Innehåll', hosting: 'Drift & data' },
+  },
   sidebar: {
     serverOptions: 'Serveralternativ',
     serverOptionsLabel: '{{name}}: serveralternativ',

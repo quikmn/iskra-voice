@@ -18,8 +18,10 @@ button.author:hover { text-decoration: underline; }
 .profile-card {
   position: fixed; background: var(--float); border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.4);
   box-shadow: var(--shadow-pop); overflow: hidden; outline: none; animation: pop 0.14s var(--ease);
-  max-height: calc(100dvh - 16px); overflow-y: auto;
+  max-height: calc(100dvh - 16px); display: flex; flex-direction: column;
 }
+/* Everything but the buttons scrolls when the window is short; the buttons stay in sight. */
+.profile-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .profile-card-backdrop.sheet { background: var(--scrim); display: flex; align-items: flex-end; justify-content: center; animation: fade 0.12s ease-out; }
 .profile-card-backdrop.sheet .profile-card {
   position: relative; width: min(520px, 100%); border-radius: calc(var(--radius) * 1.6) calc(var(--radius) * 1.6) 0 0;
@@ -32,7 +34,7 @@ button.author:hover { text-decoration: underline; }
 .profile-head { padding: 0 16px; margin-top: -44px; }
 .profile-avatar-ring { display: inline-grid; padding: 5px; border-radius: var(--avatar-radius); }
 .profile-avatar-ring .presence { border-color: var(--float); }
-.profile-body { padding: 6px 16px 16px; }
+.profile-body { padding: 6px 16px 0; }
 .profile-name { margin: 0; font-size: 20px; color: var(--text-strong); overflow-wrap: anywhere; }
 .profile-sub { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; color: var(--text-2); font-size: 13px; margin-top: 2px; }
 .role-chip { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 1px 7px; border-radius: 99px; background: var(--surface-3); color: var(--text-2); }
@@ -42,7 +44,7 @@ button.author:hover { text-decoration: underline; }
   font-size: 14px; color: var(--text);
 }
 .profile-id { font-size: 12px; margin-top: 10px; }
-.profile-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.profile-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 16px 16px; flex: none; }
 .profile-actions .button { padding: 7px 12px; font-size: 14px; }
 .profile-actions .button.primary { flex-basis: 100%; }
 

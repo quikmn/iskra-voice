@@ -14,6 +14,7 @@ import { homeUnread, markServerRead, serverBadges } from '../state/unread'
 import { useReads } from '../state/readState'
 import { useThreads } from '../state/threads'
 import { MenuItem, MenuTitle, OrgMenu, type MenuAnchor } from './organize/OrgMenu'
+import { openServerAction, ServerMenuItems } from './organize/ServerMenu'
 import { FolderDialog } from './organize/FolderDialog'
 import { ServerRulesItem } from './rules/Rules'
 import { InboxButton } from './productivity/InboxButton'
@@ -190,6 +191,8 @@ export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavig
           <div className="org-list" role="menu">
             <MenuItem onClick={act(() => markServerRead(menuServer.key))}>{t('app.rail.markRead')}</MenuItem>
             <ServerRulesItem serverKey={menuServer.key} onDone={close} />
+            <div className="org-sep" role="separator" />
+            <ServerMenuItems server={menuServer} onPick={(action) => { close(); openServerAction(menuServer.key, action) }} />
             <div className="org-sep" role="separator" />
             <MenuItem onClick={act(() => setRail(stepServer(layout, order, menuServer.key, -1)))}>{t('app.rail.moveUp')}</MenuItem>
             <MenuItem onClick={act(() => setRail(stepServer(layout, order, menuServer.key, 1)))}>{t('app.rail.moveDown')}</MenuItem>

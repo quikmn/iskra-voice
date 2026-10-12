@@ -21,6 +21,7 @@ import { IncomingGroupCall } from './groups/GroupCall'
 import { SoundToasts } from './expressions/Soundboard'
 import { ProfileLayer } from './profile/ProfileLayer'
 import { UserMenuLayer } from './people/UserMenu'
+import { ServerActionLayer } from './organize/ServerMenu'
 import { QuickSwitcher } from './QuickSwitcher'
 import { useEscapeLayer } from './layers'
 import { EventsLayer } from './events/EventsLayer'
@@ -89,6 +90,7 @@ export function Shell() {
       <IncomingGroupCall />
       <ProfileLayer />
       <UserMenuLayer />
+      <ServerActionLayer />
       <QuickSwitcher />
       <EventsLayer />
       <Shortcuts />

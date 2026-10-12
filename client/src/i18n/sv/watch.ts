@@ -29,6 +29,7 @@ export const watch: Messages['watch'] = {
   muteVideo: 'Stäng av videons ljud',
   unmuteVideo: 'Slå på videons ljud',
   videoVolume: 'Videons volym',
+  volume: 'Volym',
   fullScreen: 'Helskärm',
   partyChat: 'Chatt',
   anyoneControls: 'Alla kan styra',

@@ -50,9 +50,19 @@ button.watch-overlay { cursor: pointer; }
 .watch-upload.disabled { opacity: 0.5; pointer-events: none; }
 .small-print { font-size: 12px; margin: 0; }
 
-/* A narrow player keeps its controls on one row: the volume slider goes (the mute button stays). */
+/* Volume: a mute button and a slider; a narrow player swaps them for a speaker button that opens a vertical slider. */
+.watch-volume-group { position: relative; display: flex; align-items: center; gap: 4px; flex: none; }
+.watch-volume-group .watch-volume-toggle { display: none; }
+.watch-volume-pop {
+  position: absolute; bottom: calc(100% + 6px); right: 0; z-index: 2; display: grid; justify-items: center; gap: 6px;
+  padding: 10px 6px 6px; background: var(--float); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow-pop); animation: pop 0.12s var(--ease);
+}
+.watch-volume-value { font-size: 11px; font-variant-numeric: tabular-nums; color: var(--text-2); }
+.watch-volume-vertical { writing-mode: vertical-lr; direction: rtl; width: 28px; height: 120px; margin: 0; padding: 0; accent-color: var(--accent); }
 @container (max-width: 480px) {
-  .watch-volume { display: none; }
+  .watch-volume-group .watch-volume, .watch-volume-group .watch-mute { display: none; }
+  .watch-volume-group .watch-volume-toggle { display: inline-grid; }
 }
 
 @media (max-width: 1100px) {

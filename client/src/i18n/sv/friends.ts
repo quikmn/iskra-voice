@@ -65,6 +65,7 @@ export const friends: Messages['friends'] = {
     kick: 'Sparka ut {{name}}',
     ban: 'Bannlys {{name}}',
     roles: 'Roller…',
+    createRole: 'Skapa en roll…',
     moveTo: 'Flytta till…',
     you: 'Du',
   },

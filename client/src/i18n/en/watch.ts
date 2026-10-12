@@ -28,6 +28,7 @@ export const watch = {
   muteVideo: 'Mute video',
   unmuteVideo: 'Unmute video',
   videoVolume: 'Video volume',
+  volume: 'Volume',
   fullScreen: 'Full screen',
   partyChat: 'Party chat',
   anyoneControls: 'Anyone can control',

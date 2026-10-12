@@ -62,7 +62,7 @@ export function DmComposer({ peer, placeholder, group }: {
     for (const file of files.slice(0, 10 - uploads.length)) {
       const item: PendingUpload = {
         localId: `${Date.now()}-${Math.random()}`, file, progress: 0, result: null, abort: new AbortController(),
-        error: file.size > MAX_DM_FILE_BYTES ? t('dms.files.upTo', { mb: MAX_DM_FILE_BYTES / 1024 / 1024 }) : null,
+        error: file.size > MAX_DM_FILE_BYTES ? t('dms.files.tooBigEncrypted', { mb: MAX_DM_FILE_BYTES / 1024 / 1024 }) : null,
         preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
       }
       setUploads((list) => [...list, item])
@@ -110,8 +110,10 @@ export function DmComposer({ peer, placeholder, group }: {
             <div key={u.localId} className={`pending-upload ${u.error ? 'failed' : ''}`} title={u.error ?? u.file.name}>
               {u.preview ? <img src={u.preview} alt="" /> : <span className="file-icon" aria-hidden><FileIcon size={20} /></span>}
               <span className="file-name">{u.file.name}</span>
-              <SpoilerToggle on={!!u.spoiler} onToggle={() => setUploads((list) => list.map((x) => (x.localId === u.localId ? { ...x, spoiler: !x.spoiler } : x)))} />
-              <span className="muted">{u.error ? t('chat.composer.failed') : u.result ? formatSize(u.file.size) : formatNumber(u.progress, { style: 'percent', maximumFractionDigits: 0 })}</span>
+              {!u.error && <SpoilerToggle on={!!u.spoiler} onToggle={() => setUploads((list) => list.map((x) => (x.localId === u.localId ? { ...x, spoiler: !x.spoiler } : x)))} />}
+              {u.error
+                ? <span className="upload-error" role="alert">{u.error}</span>
+                : <span className="muted">{u.result ? formatSize(u.file.size) : formatNumber(u.progress, { style: 'percent', maximumFractionDigits: 0 })}</span>}
               {!u.result && !u.error && <span className="upload-progress" style={{ width: `${u.progress * 100}%` }} />}
               <button className="icon-button small" onClick={() => removeUpload(u)} aria-label={t('chat.composer.removeFile', { name: u.file.name })}><Close size={14} /></button>
             </div>
