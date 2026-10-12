@@ -67,7 +67,7 @@ async function fakeKlipyInBrowser(context: BrowserContext): Promise<string[]> {
   return asked
 }
 
-test('GIFs: off until an admin adds a key, direct from KLIPY by default, or through the server', async ({ browser }) => {
+test('GIFs: off until an admin adds a key, through the server by default, or direct from KLIPY as a choice', async ({ browser }) => {
   const hostContext = await browser.newContext()
   const hostAsked = await fakeKlipyInBrowser(hostContext)
   const host = await hostContext.newPage()
@@ -83,48 +83,17 @@ test('GIFs: off until an admin adds a key, direct from KLIPY by default, or thro
   await expect(friend.getByRole('link', { name: 'How to set up GIFs' })).toHaveAttribute('href', /hosting\.md#gifs/)
   await friend.keyboard.press('Escape')
 
-  // The host pastes a key in Settings → Overview.
+  // The host pastes a key in Settings → Overview. Through this server is the default.
   await openServerSettings(host, 'Overview')
   await host.getByLabel('KLIPY API key').fill(KEY)
   await host.getByRole('button', { name: 'Turn on' }).click()
   await expect(host.locator('.gif-settings').getByRole('status')).toHaveText('GIFs are on.')
-  await expect(host.getByRole('radio', { name: /Direct/ })).toBeChecked()
+  await expect(host.getByRole('radio', { name: /Through this server/ })).toBeChecked()
+  await expect(host.getByRole('radio', { name: /Straight from KLIPY/ })).not.toBeChecked()
   await host.screenshot({ path: join(SHOTS, 'gifs-settings.png') })
   await host.keyboard.press('Escape')
 
-  // Direct (the default): the friend's app asks KLIPY itself, and says so.
-  await friend.getByRole('button', { name: 'GIFs', exact: true }).click()
-  const directPicker = friend.getByRole('dialog', { name: 'Emoji picker' })
-  await expect(directPicker.getByRole('button', { name: /^Send GIF:/ })).toHaveCount(2)
-  await expect(directPicker.locator('.gif-attribution')).toContainText('KLIPY sees your address and searches')
-  expect(friendAsked.some((a) => a.startsWith(`/api/v1/${KEY}/gifs/trending?`) && a.includes('customer_id='))).toBe(true)
-  await expect(directPicker.locator('iframe.klipy-frame').first()).toHaveAttribute('sandbox', '')
-  await directPicker.getByRole('button', { name: 'Send GIF: A dog-1 GIF' }).click()
-  // The host's app doesn't touch KLIPY until the host asks for it.
-  const load = host.getByRole('button', { name: /Load GIF from KLIPY/ })
-  await expect(load).toBeVisible()
-  expect(hostAsked.filter((a) => a.includes('klipy.com'))).toHaveLength(0)
-  await host.screenshot({ path: join(SHOTS, 'gifs-click-to-load.png') })
-  await load.click()
-  await expect(host.locator('.chat-gif.direct iframe.klipy-frame')).toBeVisible()
-  await expect.poll(() => hostAsked.some((a) => a.startsWith('https://static.klipy.com/ii/dog-1/'))).toBe(true)
-  // With auto-load on, the next one shows right away.
-  await openSettings(friend, 'Appearance')
-  await friend.getByLabel(/Load GIFs from KLIPY without asking/).check()
-  await friend.keyboard.press('Escape')
-  await expect(friend.locator('.chat-gif.direct iframe.klipy-frame')).toBeVisible()
-  expect(seen.filter((s) => s.startsWith('/api/'))).toHaveLength(0) // the server never called KLIPY
-
-  // Through this server (only with KLIPY's approval): the server searches and proxies the files.
-  await openServerSettings(host, 'Overview')
-  await host.getByRole('radio', { name: /Through this server/ }).click()
-  await expect(host.locator('.gif-settings').getByRole('status')).toHaveText('GIFs now go through this server.')
-  await host.keyboard.press('Escape')
-  // The direct GIF from before shows through the server too (once messages are fetched again).
-  await host.reload()
-  await expect(host.locator('.chat-gif img').first()).toHaveAttribute('src', new RegExp(`^${server.url}/gifs/media\\?u=`))
-
-  // Trending, a category, search, a favourite.
+  // Trending, a category, search, a favourite: all through the server.
   await friend.getByRole('button', { name: 'GIFs', exact: true }).click()
   const picker = friend.getByRole('dialog', { name: 'Emoji picker' })
   await expect(picker.getByRole('tab', { name: 'GIFs' })).toHaveAttribute('aria-selected', 'true')
@@ -146,11 +115,13 @@ test('GIFs: off until an admin adds a key, direct from KLIPY by default, or thro
   await expect(sent).toHaveAttribute('src', new RegExp(`^${server.url}/gifs/media\\?u=`))
   await expect.poll(() => sent.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(3)
 
-  // KLIPY only ever heard from the server: the key in the path, one customer id for everyone.
+  // KLIPY only ever heard from the server: the key in the path, one customer id for everyone. No member's app called it.
   const api = seen.filter((s) => s.startsWith('/api/'))
   expect(api.some((s) => s.includes('/gifs/search?') && s.includes('q=cat'))).toBe(true)
   expect(new Set(api.filter((s) => s.includes('customer_id=')).map((s) => new URL(s, 'http://x').searchParams.get('customer_id'))).size).toBe(1)
   expect(seen.some((s) => s.startsWith('/media/static.klipy.com/ii/cat-2/'))).toBe(true)
+  expect(friendAsked).toHaveLength(0)
+  expect(hostAsked).toHaveLength(0)
 
   // Favourites stay on the device; on a phone the picker is a sheet with the same tabs.
   await friend.setViewportSize({ width: 390, height: 844 })
@@ -160,4 +131,34 @@ test('GIFs: off until an admin adds a key, direct from KLIPY by default, or thro
   await expect(friend.getByRole('button', { name: 'Favourite GIFs (1)' })).toBeVisible()
   await friend.waitForTimeout(300)
   await friend.screenshot({ path: join(SHOTS, 'gifs-mobile.png') })
+  await friend.keyboard.press('Escape')
+  await friend.setViewportSize({ width: 1280, height: 800 })
+
+  // Straight from KLIPY, as the owner's explicit choice: the friend's app asks KLIPY itself, and says so.
+  await openServerSettings(host, 'Overview')
+  await host.getByRole('radio', { name: /Straight from KLIPY/ }).click()
+  await expect(host.locator('.gif-settings').getByRole('status')).toHaveText("Members' apps now load GIFs from KLIPY directly.")
+  await host.keyboard.press('Escape')
+  const apiBefore = seen.filter((s) => s.startsWith('/api/')).length
+  await friend.getByRole('button', { name: 'GIFs', exact: true }).click()
+  const directPicker = friend.getByRole('dialog', { name: 'Emoji picker' })
+  await expect(directPicker.locator('.gif-attribution')).toContainText('KLIPY sees your address and searches')
+  await expect.poll(() => friendAsked.some((a) => a.startsWith(`/api/v1/${KEY}/gifs/trending?`) && a.includes('customer_id='))).toBe(true)
+  await expect(directPicker.getByRole('button', { name: 'Send GIF: A dog-1 GIF' })).toBeVisible()
+  await expect(directPicker.locator('iframe.klipy-frame').first()).toHaveAttribute('sandbox', '')
+  await directPicker.getByRole('button', { name: 'Send GIF: A dog-1 GIF' }).click()
+  // The host's app doesn't touch KLIPY until the host asks for it.
+  const load = host.getByRole('button', { name: /Load GIF from KLIPY/ }).last()
+  await expect(load).toBeVisible()
+  expect(hostAsked.filter((a) => a.includes('klipy.com'))).toHaveLength(0)
+  await host.screenshot({ path: join(SHOTS, 'gifs-click-to-load.png') })
+  await load.click()
+  await expect(host.locator('.chat-gif.direct iframe.klipy-frame').last()).toBeVisible()
+  await expect.poll(() => hostAsked.some((a) => a.startsWith('https://static.klipy.com/ii/dog-1/'))).toBe(true)
+  // With auto-load on, the next one shows right away.
+  await openSettings(friend, 'Appearance')
+  await friend.getByLabel(/Load GIFs from KLIPY without asking/).check()
+  await friend.keyboard.press('Escape')
+  await expect(friend.locator('.chat-gif.direct iframe.klipy-frame').last()).toBeVisible()
+  expect(seen.filter((s) => s.startsWith('/api/'))).toHaveLength(apiBefore) // the server didn't call KLIPY for this
 })

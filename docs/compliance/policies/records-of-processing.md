@@ -47,7 +47,7 @@ recorded here.
 | Data subjects | Members (friends of the owner; 13+), people mentioned in content, reporters |
 | Personal data | Account and device public keys, display name, profile (avatar, bio, pronouns, colour, status, profile page), nickname, roles, join time, rules accepted; server channel messages, edits, files, reactions, polls, pins, threads, forum posts, events, emoji/stickers/sounds; per-server settings and block list; push subscriptions; DM and group chat ciphertext with sender/recipient/time/size metadata and group membership; call metadata; reports; audit log; security log (account key, event, time; IP address only if the owner turns on `Retention.SecurityLogIps`, off on chat.iskra.foo); presence and connection IPs in memory |
 | Special categories | Not sought. Members may write about anything in server channels; not processed for any purpose beyond storing and showing it |
-| Recipients | Other members per channel permissions; DigitalOcean (hosting); browsers' Web Push services (encrypted notifications); Let's Encrypt (certificate for the domain); websites fetched for link previews (see the server IP only); KLIPY only if GIFs are turned on |
+| Recipients | Other members per channel permissions; DigitalOcean (hosting); browsers' Web Push services (encrypted notifications); Let's Encrypt (certificate for the domain); websites fetched for link previews (see the server IP only); KLIPY only if GIFs are turned on (through the server by default, so KLIPY sees the server, not members) |
 | Transfers | DigitalOcean (US company, data in Amsterdam): DPF / SCCs. Push services (US): DPF / SCCs; payload end-to-end encrypted to the device |
 | Retention | [data-retention.md](data-retention.md) |
 | Security | [docs/security.md](../../security.md), [controls-matrix.md](../controls-matrix.md); E2EE for DMs/groups/calls; HTTPS with TLS 1.2+; firewall (ufw); automatic OS security updates; encrypted backup downloads |
@@ -70,7 +70,7 @@ recorded here.
 |---|---|
 | Purpose | Distributing and updating the apps |
 | Legal basis | Legitimate interest |
-| Personal data | IP address and app version seen by GitHub when the desktop app checks for and downloads updates; a standalone server's IP address when it checks for or downloads server updates, or a rented server downloads its first package |
+| Personal data | IP address and app version seen by GitHub when the desktop app checks for and downloads updates (on by default for security fixes; each user can turn automatic checks off in My settings → Privacy & data); a standalone server's IP address when it checks for or downloads server updates, or a rented server downloads its first package |
 | Recipients | GitHub (US): DPF / SCCs |
 | Note | The owner doesn't receive these logs |
 
@@ -81,3 +81,4 @@ recorded here.
 | 2026-10-11 | First version |
 | 2026-10-12 | No push relay, APNs or FCM: the phone apps notify while open |
 | 2026-10-12 | Server update checks and rented-server setup downloads in §5 |
+| 2026-10-12 | Privacy pass: desktop update checks can be turned off (§5); GIFs proxied by the server by default (§3); full list in [docs/privacy-connections.md](../../privacy-connections.md) |

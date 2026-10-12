@@ -95,18 +95,18 @@ public sealed class GifService(World world, IGifUpstream upstream, TimeProvider 
     public bool Enabled => world.Store.GetGifSetting(KeySetting) is not null;
 
     /// <summary>
-    /// "direct" (the default, what KLIPY's standard terms ask for): members' devices get the key and call KLIPY and load
-    /// GIFs themselves. "proxy": everything goes through this server (only with KLIPY's written approval).
+    /// "proxy" (the default): everything goes through this server, so members' devices never contact KLIPY.
+    /// "direct" (an owner's explicit choice): members' devices get the key and call KLIPY and load GIFs themselves.
     /// </summary>
-    public string Mode => world.Store.GetGifSetting("mode") == "proxy" ? "proxy" : "direct";
+    public string Mode => ModeOf(world.Store);
 
-    public static string ModeOf(Store store) => store.GetGifSetting("mode") == "proxy" ? "proxy" : "direct";
+    public static string ModeOf(Store store) => store.GetGifSetting("mode") == "direct" ? "direct" : "proxy";
 
     public bool Proxied => Mode == "proxy";
 
     public void SetMode(string mode)
     {
-        world.Store.SetGifSetting("mode", mode == "proxy" ? "proxy" : null);
+        world.Store.SetGifSetting("mode", mode == "direct" ? "direct" : null);
         _cache.Clear();
     }
 

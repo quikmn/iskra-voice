@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { aboutDetail, autostartEntry, badgeText, compareVersions, deepLinkFromArgv, DEFAULT_DESKTOP_SETTINGS, embedderHeaders, pageOrigin, parseDeepLink, parseDesktopSettings, defaultHostRoot, serversToStart, setKeepRunning, exeName, isAppPage, isWayland, keychainKind, newerRelease, serverRid, skipScreenPicker, trayMenu, updateMode, youTubeReferrer, YOUTUBE_REFERRER } from './platform'
+import { aboutDetail, autostartEntry, badgeText, compareVersions, deepLinkFromArgv, DEFAULT_DESKTOP_SETTINGS, embedderHeaders, pageOrigin, parseDeepLink, parseDesktopSettings, defaultHostRoot, serversToStart, setKeepRunning, exeName, isAppPage, isWayland, keychainKind, newerRelease, serverRid, skipScreenPicker, spellcheckDownloadsDictionaries, trayMenu, updateMode, youTubeReferrer, YOUTUBE_REFERRER } from './platform'
 
 test('server binaries and runtime ids per platform', () => {
   assert.equal(exeName('iskra-server', 'win32'), 'iskra-server.exe')
@@ -161,7 +161,7 @@ test('desktop settings: safe defaults, only booleans kept', () => {
   assert.equal(DEFAULT_DESKTOP_SETTINGS.openAtLogin, false)
   assert.equal(DEFAULT_DESKTOP_SETTINGS.closeToTray, true)
   assert.deepEqual(parseDesktopSettings({ openAtLogin: true, closeToTray: 'no', hardwareAcceleration: false, extra: 1 }), {
-    openAtLogin: true, closeToTray: true, hardwareAcceleration: false, activity: false, customGames: [], language: null, keepRunning: [],
+    openAtLogin: true, closeToTray: true, hardwareAcceleration: false, activity: false, customGames: [], language: null, keepRunning: [], updateChecks: true,
   })
   assert.equal(DEFAULT_DESKTOP_SETTINGS.activity, false) // opt-in
   const games = parseDesktopSettings({ customGames: [
@@ -204,4 +204,17 @@ test('dock badge text', () => {
   assert.equal(badgeText(3), '3')
   assert.equal(badgeText(150), '99+')
   assert.equal(badgeText(Number.NaN), '')
+})
+
+test('spellcheck never downloads dictionaries: system spellchecker on Windows and macOS, off on Linux', () => {
+  assert.equal(spellcheckDownloadsDictionaries('win32'), false)
+  assert.equal(spellcheckDownloadsDictionaries('darwin'), false)
+  assert.equal(spellcheckDownloadsDictionaries('linux'), true)
+})
+
+test('update checks are on unless turned off', () => {
+  assert.equal(DEFAULT_DESKTOP_SETTINGS.updateChecks, true)
+  assert.equal(parseDesktopSettings({}).updateChecks, true)
+  assert.equal(parseDesktopSettings({ updateChecks: false }).updateChecks, false)
+  assert.equal(parseDesktopSettings({ updateChecks: 'no' }).updateChecks, true)
 })

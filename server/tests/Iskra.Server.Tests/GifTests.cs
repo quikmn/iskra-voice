@@ -30,7 +30,8 @@ public class GifTests
         Assert.Equal("bad_request", (await admin.RequestAsync("gif.configure", new { key = "has spaces and ;" })).ErrorCode());
         Assert.Equal("bad_request", (await admin.RequestAsync("gif.configure", new { })).ErrorCode());
         Assert.Equal("bad_request", (await admin.RequestAsync("gif.configure", new { key = Key, mode = "sideways" })).ErrorCode());
-        Assert.Equal("result", (await admin.RequestAsync("gif.configure", new { key = Key, mode = "proxy" })).Type());
+        // Through the server is the default: no mode needed.
+        Assert.Equal("result", (await admin.RequestAsync("gif.configure", new { key = Key })).Type());
         var status = await bob.EventAsync("gif.status");
         Assert.True(status.Body().GetProperty("enabled").GetBoolean());
         Assert.Equal("proxy", status.Body().GetProperty("mode").GetString());
@@ -151,12 +152,12 @@ public class GifTests
     }
 
     [Fact]
-    public async Task Direct_mode_is_the_default_and_apps_talk_to_klipy_themselves()
+    public async Task Direct_mode_is_an_owner_choice_and_apps_then_talk_to_klipy_themselves()
     {
         using var server = new IskraServer();
         using var admin = await server.JoinAsync("Admin", "admin");
         using var bob = await server.JoinAsync("Bob");
-        Assert.Equal("result", (await admin.RequestAsync("gif.configure", new { key = Key })).Type());
+        Assert.Equal("result", (await admin.RequestAsync("gif.configure", new { key = Key, mode = "direct" })).Type());
         var status = (await bob.EventAsync("gif.status")).Body();
         Assert.Equal("direct", status.GetProperty("mode").GetString());
         Assert.Equal(Key, status.GetProperty("key").GetString()); // apps need it to call KLIPY

@@ -141,6 +141,7 @@ test('chat parity: rich text, images, spoilers, drafts, links, unread, reactions
   const embed = last(friend).locator('.embed-card')
   await expect(embed.getByRole('button', { name: /Play on YouTube/ })).toBeVisible()
   await expect(friend.locator('iframe')).toHaveCount(0)
+  await expect(embed.getByLabel('Always load from YouTube on this device')).not.toBeChecked()
   await embed.getByRole('button', { name: /Play on YouTube/ }).click()
   await expect(embed.locator('iframe')).toHaveAttribute('src', 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1')
 

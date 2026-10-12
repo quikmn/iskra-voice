@@ -966,10 +966,10 @@ Message links (client side, no protocol change): `<appUrl>/#/open/<serverKey>/c/
 
 ## GIFs
 
-The GIF picker uses [KLIPY](https://docs.klipy.com) (Google closed Tenor's API on 30 June 2026). An admin adds a KLIPY API key and picks how apps get GIFs:
+The GIF picker uses [KLIPY](https://docs.klipy.com) (Google closed Tenor's API on 30 June 2026). An admin adds a KLIPY API key and picks how apps get GIFs (servers that never stored a choice use the default, through this server):
 
-- **Direct** (the default, what KLIPY's standard terms require: requests and media loads from users' devices): members' apps get the key and their own `customerId` in `gif.status`, search KLIPY themselves and load GIFs from KLIPY's media hosts. **KLIPY sees their address and searches.** The key reaches every member's app, which is acceptable for a key made for one server. GIFs in messages are KLIPY addresses (`direct: true`); apps show them only after a click ("Load GIF from KLIPY"), unless the viewer turned on auto-load on their device. Apps load KLIPY images inside a sandboxed frame (`sandbox=""`, no scripts) whose own policy is `img-src https://static.klipy.com https://static1.klipy.com https://static2.klipy.com` and nothing else, after checking the address.
-- **Through this server** (`mode: "proxy"`; KLIPY's terms allow this only with their written approval, developers@klipy.com): the server searches and proxies the files, so KLIPY sees only the server's address; the key never leaves the server.
+- **Through this server** (`mode: "proxy"`, the default): the server searches and proxies the files, so members' devices never contact KLIPY and KLIPY sees only the server's address; the key never leaves the server. (KLIPY's standard terms describe requests from users' devices; an owner who wants to follow them to the letter picks Direct, or asks KLIPY for approval at developers@klipy.com.)
+- **Direct** (`mode: "direct"`, only when an admin picks it, labelled in the app as "KLIPY sees members' addresses"): members' apps get the key and their own `customerId` in `gif.status`, search KLIPY themselves and load GIFs from KLIPY's media hosts. **KLIPY sees their address and searches.** The key reaches every member's app, which is acceptable for a key made for one server. GIFs in messages are KLIPY addresses (`direct: true`); apps show them only after a click ("Load GIF from KLIPY"), unless the viewer turned on auto-load on their device. Apps load KLIPY images inside a sandboxed frame (`sandbox=""`, no scripts) whose own policy is `img-src https://static.klipy.com https://static1.klipy.com https://static2.klipy.com` and nothing else, after checking the address.
 
 | type | body | result | who |
 |---|---|---|---|

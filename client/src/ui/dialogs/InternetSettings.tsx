@@ -79,6 +79,7 @@ export function InternetSection({ server }: { server: ServerState }) {
       {!status.enabled && isOwner && (
         <p className="muted">{t('settings.internet.intro')}</p>
       )}
+      {isOwner && <p className="muted small-print" data-testid="internet-third-parties">{t('settings.internet.thirdParties')}</p>}
       {error && <p className="error-text">{error}</p>}
 
       {status.enabled && (

@@ -12,6 +12,7 @@ import { FileIcon } from '../icons'
 import { plainText } from '../markdown'
 import { ReactionsDialog } from './MessageMore'
 import { EMBED_FRAME, embedFor, type Embed } from './embeds'
+import { setAlwaysLoad, siteName, useAlwaysLoads } from '../../state/siteConsent'
 
 /** Images as a grid that opens the gallery; videos, audio, text previews and other files below. Spoilers stay covered until clicked. */
 export function Attachments({ server, files }: { server: ServerState; files: FileInfo[] }) {
@@ -166,11 +167,23 @@ export function LinkPreviewCard({ server, url }: { server: ServerState; url: str
   )
 }
 
-/** A YouTube/Twitch/X/Reddit link: the server's preview first; their player only loads when asked (it talks to them). */
+/**
+ * A YouTube/Twitch/X/Reddit link: the server's preview first; their player only loads when asked (it talks to them),
+ * or by itself on a device that ticked "Always load from <site>" (then without autoplay).
+ */
 function EmbedCard({ embed, url, preview }: { embed: Embed; url: string; preview: LinkPreview | null }) {
-  const [loaded, setLoaded] = useState(false)
+  const [clicked, setClicked] = useState(false)
+  const [remember, setRemember] = useState(false)
+  const always = useAlwaysLoads(embed.site)
   const { t } = useTranslation()
+  const loaded = clicked || always
+  const src = clicked ? embed.src : embedFor(url, window.location.hostname || 'localhost', false)?.src ?? embed.src
+  const site = siteName(embed.site)
   const action = embed.shape === 'video' ? t('chat.embed.play', { provider: embed.provider }) : t('chat.embed.load', { provider: embed.provider })
+  function load() {
+    if (remember) setAlwaysLoad(embed.site, true)
+    setClicked(true)
+  }
   return (
     <div className={`link-preview embed-card ${loaded ? 'loaded' : ''}`}>
       <div className="link-site">{preview?.siteName ?? embed.provider}</div>
@@ -179,7 +192,7 @@ function EmbedCard({ embed, url, preview }: { embed: Embed; url: string; preview
       {loaded ? (
         <iframe
           className={`embed-frame ${embed.shape}`}
-          src={embed.src}
+          src={src}
           title={`${embed.provider}: ${preview?.title ?? url}`}
           sandbox={EMBED_FRAME.sandbox}
           allow={EMBED_FRAME.allow}
@@ -187,11 +200,17 @@ function EmbedCard({ embed, url, preview }: { embed: Embed; url: string; preview
           allowFullScreen
         />
       ) : (
-        <button className={`embed-play ${embed.shape}`} onClick={() => setLoaded(true)}>
-          <span className="embed-play-icon" aria-hidden>▶</span>
-          <span>{action}</span>
-          <span className="muted embed-note">{t('chat.embed.note', { provider: embed.provider })}</span>
-        </button>
+        <div className="embed-gate" data-testid="embed-gate">
+          <button className={`embed-play ${embed.shape}`} onClick={load}>
+            <span className="embed-play-icon" aria-hidden>▶</span>
+            <span>{action}</span>
+            <span className="muted embed-note">{t('chat.embed.note', { provider: site })}</span>
+          </button>
+          <label className="checkbox embed-remember">
+            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+            {t('chat.embed.always', { site })}
+          </label>
+        </div>
       )}
     </div>
   )

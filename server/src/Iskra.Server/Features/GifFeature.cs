@@ -7,9 +7,9 @@ using Iskra.Server.Storage;
 namespace Iskra.Server.Features;
 
 /// <summary>
-/// The GIF picker (KLIPY). Two modes an admin picks: "direct" (default; members' apps get the key and talk to KLIPY
-/// themselves, as KLIPY's standard terms require) or "proxy" (search and media through this server, see
-/// <see cref="GifService"/>; only with KLIPY's written approval). Also GIF messages and the media proxy at GET /gifs/media.
+/// The GIF picker (KLIPY). Two modes an admin picks: "proxy" (the default: search and media through this server, see
+/// <see cref="GifService"/>, so members' devices never contact KLIPY) or "direct" (an explicit choice: members' apps
+/// get the key and talk to KLIPY themselves). Also GIF messages and the media proxy at GET /gifs/media.
 /// </summary>
 public static class GifFeature
 {

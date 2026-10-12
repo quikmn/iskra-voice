@@ -185,14 +185,14 @@ We test this: the tests point a page at a fake attacker on the same machine with
 
 The GIF picker uses KLIPY. An admin adds a KLIPY key and chooses how members' apps reach it:
 
-- **Directly** (the default, what KLIPY's terms ask for): your app searches KLIPY itself, so **KLIPY sees your IP address and what you search for**, under a per-member pseudonym rather than your account key. GIFs in messages don't load until you click them (you can turn on auto-load for your device), and they're shown in a sandboxed frame that can only load images from KLIPY's own image hosts.
-- **Through the server** (only with KLIPY's written approval): the server searches and fetches the GIFs, so KLIPY only sees the server. It only fetches from KLIPY's image hosts, only addresses it signed itself, and never stores the files.
+- **Through the server** (the default): the server searches and fetches the GIFs, so your device never contacts KLIPY and KLIPY only sees the server. It only fetches from KLIPY's image hosts, only addresses it signed itself, and never stores the files.
+- **Straight from KLIPY** (only if the owner picks it): your app searches KLIPY itself, so **KLIPY sees your IP address and what you search for**, under a per-member pseudonym rather than your account key. GIFs in messages don't load until you click them (you can turn on auto-load for your device), and they're shown in a sandboxed frame that can only load images from KLIPY's own image hosts.
 
 Ads stay off, and anything that isn't a GIF from KLIPY's own hosts is left out.
 
 ### Watch parties
 
-A watch party only shares a clock: each app plays the video itself, from its source. **Whoever hosts the video sees your IP address**: YouTube for a YouTube video, the website for a link, your server for an upload. YouTube plays in its privacy-enhanced (youtube-nocookie.com) player inside a sandboxed frame; no YouTube code runs inside the app itself, where it could reach your keys. The desktop app sends YouTube the web app's address as the referring page (YouTube requires one) and nothing else.
+A watch party only shares a clock: each app plays the video itself, from its source. **Whoever hosts the video sees your IP address**: YouTube for a YouTube video, the website for a link, your server for an upload. Before anything loads from YouTube or a website, the app says where it plays from and waits for you to press Watch (unless you ticked "Always load from <site>" on that device). YouTube plays in its privacy-enhanced (youtube-nocookie.com) player inside a sandboxed frame; no YouTube code runs inside the app itself, where it could reach your keys. The desktop app sends YouTube the web app's address as the referring page (YouTube requires one) and nothing else.
 
 ### Activity status
 
@@ -244,7 +244,7 @@ We'd rather tell you than have you find out:
 - **Safety numbers are opt-in.** Until you compare them, you trust that the server showed you the right person the first time. [Key transparency](#key-transparency) catches a server that shows different people different keys, but not a fake person everyone is shown.
 - **Calls use one key for the whole call**; in a group call the key changes only when the group does, so someone who leaves the call but stays in the group could still decrypt it (they could rejoin anyway).
 - **Group chats:** the server can't add people or read messages, but it can hold back a change for a while, and two devices that never compare notes could, in a rare race, be shown different (correctly signed) versions of a group's history. There's no group-wide safety number: compare each person's.
-- **Watch parties and GIFs** load from their sources (YouTube, a website, KLIPY), which then see your IP address. For GIFs, only "through the server" mode keeps it from KLIPY.
+- **Watch parties, link embeds and GIFs** load from their sources (YouTube, a website, KLIPY), which then see your IP address: only after you click (watch parties and embeds), or for GIFs only if the owner picked "Straight from KLIPY" (the default goes through the server). The full list is in [privacy-connections.md](privacy-connections.md).
 - **Profile pages:** in browsers and the phone apps, other people's pages show without scripts (see [Profile pages](#profile-pages)); only the desktop app runs them. If you paste someone else's HTML into your own page, its scripts run in your browser's preview, where a script can reach the network through WebRTC. A page may show images uploaded to its own server, and that server can see when they're loaded. Browser and WebView engines we can't test (WebKit on iPhones) are covered by the same rules but not by our tests.
 
 ## The desktop app

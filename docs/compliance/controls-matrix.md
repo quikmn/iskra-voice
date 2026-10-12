@@ -217,7 +217,7 @@ Hosted services run at Cloudflare and DigitalOcean, whose data-centre controls a
 | Art. 21 Objection | By email; no direct marketing or profiling | PRIV §13 | met |
 | Art. 22 Automated decisions | None with legal or similar effect | POL/dpia-screening | n/a |
 | Art. 24 Controller responsibility | Policies and this evidence pack | README | met |
-| Art. 25 Data protection by design and default | Keys instead of accounts, E2EE, opt-ins, no analytics, minimal logs | SEC, PRIV | met |
+| Art. 25 Data protection by design and default | Keys instead of accounts, E2EE, opt-ins, no analytics, minimal logs; no third-party connections by default (click-to-load embeds and watch parties, GIFs through the server, no STUN servers, no Chromium background connections, listed in-app and in [privacy-connections.md](../privacy-connections.md); `siteConsent.test.ts`, `e2e/privacy.spec.ts`, `desktop npm run test:network`) | SEC, PRIV | met |
 | Art. 28 Processors | Vendor register; DPAs to accept and file | POL/vendor-register, OA 12 | owner-action |
 | Art. 30 Records of processing | Kept | POL/records-of-processing | met |
 | Art. 32 Security of processing | Technical controls in this matrix; ASVS L2 self-assessment | this file, [asvs-l2-self-assessment.md](asvs-l2-self-assessment.md) | met |

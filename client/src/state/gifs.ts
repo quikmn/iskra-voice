@@ -1,5 +1,6 @@
-// GIFs (KLIPY), per server: in "direct" mode this device calls KLIPY with the server's key (KLIPY sees your address
-// and searches); "through this server" asks the server, which proxies search and media. Favourites live on this device.
+// GIFs (KLIPY), per server: "through this server" (the default) asks the server, which proxies search and media, so
+// this device never contacts KLIPY; in "direct" mode (an owner's choice) this device calls KLIPY with the server's key
+// (KLIPY sees your address and searches). Favourites live on this device.
 import { create } from 'zustand'
 import { t } from '../i18n'
 import { klipyUrl, parseKlipyCategories, parseKlipyPage, type KlipyGif } from '../core/klipy'
@@ -75,7 +76,7 @@ async function klipy(serverKey: string, kind: 'trending' | 'search' | 'categorie
   return response.json()
 }
 
-const direct = (serverKey: string) => useGifs.getState().status[serverKey]?.mode !== 'proxy'
+const direct = (serverKey: string) => useGifs.getState().status[serverKey]?.mode === 'direct'
 
 export async function trendingGifs(serverKey: string, page = 1): Promise<{ gifs: GifResult[]; hasNext: boolean }> {
   if (!direct(serverKey)) return connection(serverKey).request('gif.trending', { page })

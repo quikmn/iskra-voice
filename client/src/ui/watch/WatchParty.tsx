@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next'
 import { t as i18t } from '../../i18n'
 import { errorMessage } from '../../i18n/errors'
 import { formatNumber } from '../../i18n/format'
+import { setAlwaysLoad, siteName, useAlwaysLoads, watchSourceSite } from '../../state/siteConsent'
 
 const nameIn = (server: ServerState, accountKey: string) => server.members[accountKey]?.name ?? i18t('common.someone')
 const VOLUME_KEY = 'iskra.watchVolume'
@@ -52,6 +53,7 @@ function StartWatchDialog({ server, channelId, onClose }: { server: ServerState;
   const [progress, setProgress] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const parsed = parseWatchInput(link)
+  const startSite = (source: NonNullable<typeof parsed>) => watchSourceSite(source, server.url)
 
   async function start(source = parsed) {
     if (!source || busy) return
@@ -98,6 +100,7 @@ function StartWatchDialog({ server, channelId, onClose }: { server: ServerState;
         <input value={link} onChange={(e) => setLink(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void start()} placeholder={t('watch.linkPlaceholder')} autoFocus />
       </label>
       {link.trim() && !parsed && <p className="error-text">{t('watch.badLink')}</p>}
+      {parsed && startSite(parsed) && <p className="muted small-print" data-testid="watch-start-note">{t('watch.startNote', { site: siteName(startSite(parsed)!) })}</p>}
       <label className="field">
         <span>{t('watch.titleOptional')}</span>
         <input value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} placeholder={t('watch.titlePlaceholder')} />
@@ -146,6 +149,11 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
   const [error, setError] = useState<string | null>(null)
   const control = canControlWatch(server, channel, stage, party)
   const host = party.host === server.me?.accountKey
+  // Plays from another site: say so first (the host already did, by starting it), unless this device always allows it.
+  const site = watchSourceSite(party.source, server.url)
+  const always = useAlwaysLoads(site)
+  const [agreed, setAgreed] = useState(host)
+  const gated = !!site && !always && !agreed
   const moderator = isWatchModerator(server, channel, stage)
 
   /** Follows the shared clock: play/pause, speed, and drift (nudge or jump). */
@@ -200,7 +208,9 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
   return (
     <div className="watch-main">
       <div className="watch-frame" ref={frame}>
-        {party.source.kind === 'youtube' ? (
+        {gated ? (
+          <WatchGate site={site!} onWatch={() => setAgreed(true)} />
+        ) : party.source.kind === 'youtube' ? (
           <YouTubeFrame videoId={party.source.videoId!} onReady={(a) => { adapter.current = a; setReady(true) }} onError={setFailed} />
         ) : (
           <video
@@ -216,7 +226,7 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
           />
         )}
         {failed && <div className="watch-overlay"><p>{failed}</p></div>}
-        {!failed && blocked && (
+        {!failed && !gated && blocked && (
           <button className="watch-overlay" onClick={() => adapter.current?.play().then(() => setBlocked(false), () => undefined)}>
             <span className="watch-overlay-play"><PlayIcon size={28} /></span>
             <span>{t('watch.tapToWatch')}</span>
@@ -328,6 +338,28 @@ function YouTubeFrame({ videoId, onReady, onError }: { videoId: string; onReady:
       sandbox={YOUTUBE_FRAME.sandbox}
       allowFullScreen
     />
+  )
+}
+
+/** Before anything loads from another site: where it plays from, a button, and "Always load from <site>". */
+function WatchGate({ site, onWatch }: { site: string; onWatch: () => void }) {
+  const { t } = useTranslation()
+  const [remember, setRemember] = useState(false)
+  const name = siteName(site)
+  return (
+    <div className="watch-overlay watch-gate" data-testid="watch-gate">
+      <p>{t('watch.playsFrom', { site: name })}</p>
+      <button className="button primary" onClick={() => {
+        if (remember) setAlwaysLoad(site, true)
+        onWatch()
+      }}>
+        {t('watch.watchFrom', { site: name })}
+      </button>
+      <label className="checkbox">
+        <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+        {t('chat.embed.always', { site: name })}
+      </label>
+    </div>
   )
 }
 

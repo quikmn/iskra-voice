@@ -74,6 +74,11 @@ jobs:
         if: runner.os != 'Linux'
       - run: xvfb-run -a npm run test:electron -- --no-sandbox
         if: runner.os == 'Linux'
+      # Chromium makes no background connections of its own (spellcheck dictionaries, Cast discovery, ...).
+      - run: npm run test:network
+        if: runner.os != 'Linux'
+      - run: xvfb-run -a npm run test:network -- --no-sandbox
+        if: runner.os == 'Linux'
 
   end-to-end:
     runs-on: ubuntu-latest
