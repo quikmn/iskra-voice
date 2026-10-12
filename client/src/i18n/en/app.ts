@@ -3,6 +3,7 @@ export const app = {
   openMenu: 'Open menu',
   dismiss: 'Dismiss',
   loading: 'Loading',
+  skipToContent: 'Skip to main content',
   spoiler: 'Spoiler, click to reveal',
   openInApp: 'Have the Iskra app? <a>Open in the app</a>',
   home: {
@@ -44,6 +45,7 @@ export const app = {
   sidebar: {
     serverOptions: 'Server options',
     serverOptionsLabel: '{{name}}: server options',
+    channelsLabel: '{{name}} channels',
     inviteFriends: 'Invite friends',
     connecting: 'Connecting…',
     reconnectingIn: 'Reconnecting in {{seconds}}s',
@@ -156,6 +158,9 @@ export const app = {
     openFolder: 'Open folder',
     closeFolder: 'Close folder',
     ungroup: 'Ungroup',
+    serverMentions_one: '{{name}}, {{count}} mention',
+    serverMentions_other: '{{name}}, {{count}} mentions',
+    serverUnread: '{{name}}, unread messages',
   },
   empty: {
     title: 'No servers yet',

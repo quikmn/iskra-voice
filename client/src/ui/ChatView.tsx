@@ -57,6 +57,7 @@ import { EditedMark } from './productivity/EditHistory'
 import { useSendLater } from './productivity/SendLater'
 import { ClipNoticeRow } from './clips/ClipNotice'
 import { conversationLabel } from '../state/threads'
+import { messageListKeys, useAnnounceNew } from './a11y'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -194,6 +195,8 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
     }
   }, [messages, detached])
   useJumpTarget(server.key, channelId, scroller, () => (stickToBottom.current = false), messages)
+  useAnnounceNew(messages, (m) => (m.tempId ? null : String(m.id)), (m) => m.author === server.me?.accountKey ? null
+    : t('chat.a11y.newMessage', { name: authorOf(m, server.members).name, text: m.text ? decodeMentions(m.text, (k) => server.members[k]?.name ?? null).slice(0, 200) : t('chat.message.attachment') }), !thread)
 
   function onScroll() {
     const el = scroller.current
@@ -229,7 +232,8 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
 
   return (
     <>
-    <div className="messages" ref={scroller} onScroll={onScroll}>
+    <div className="messages" ref={scroller} onScroll={onScroll} onKeyDown={messageListKeys} tabIndex={0}
+      role="region" aria-label={t('chat.a11y.messages', { name: conversationLabel(server, channelId) })}>
       <UnreadBar conv={conv} scroller={scroller} onJump={() => (stickToBottom.current = false)}
         catchUp={{ spec: { kind: 'channel', serverKey: server.key, channelId }, title: conversationLabel(server, channelId) }}
         loadOlder={() => loadHistory(server.key, channelId, true).then(() => !!useApp.getState().servers[server.key]?.hasMore[channelId])} />
@@ -315,6 +319,9 @@ function MessageRow({
     <div
       id={message.tempId ? undefined : `msg-${message.id}`}
       className={`message ${grouped && !message.replyTo ? 'grouped' : ''} ${message.pending ?? ''} ${sheet ? 'pressed' : ''}`}
+      role="article"
+      tabIndex={-1}
+      aria-label={t('chat.a11y.message', { name, time: fullTime(message.createdAt) })}
       {...longPress}
     >
       <div className="message-gutter">
@@ -393,7 +400,7 @@ function MessageRow({
         {error && <div className="message-failed">{error}</div>}
       </div>
       {!editing && !message.tempId && (
-        <div className={`message-actions ${picking ? 'open' : ''}`}>
+        <div className={`message-actions ${picking ? 'open' : ''}`} role="toolbar" aria-label={t('chat.a11y.actions')}>
           {confirmDelete ? (
             <>
               <span>{t('chat.message.deleteConfirm')}</span>
@@ -823,3 +830,4 @@ export function TypingLine({ server, channelId }: { server: ServerState; channel
       : names.length <= 3 ? t('chat.typing.some', { names: names.join(', ') }) : t('chat.typing.many')
   return <div className="typing-line" aria-live="polite">{text}</div>
 }
+

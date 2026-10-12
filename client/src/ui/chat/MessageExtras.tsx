@@ -1,5 +1,5 @@
 // Everything around a message's text: attachments, the message it replies to, reactions.
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { FileInfo, LinkPreview, Message, ReplyPreview } from '../../core/protocol'
 import { formatSize, QUICK_REACTIONS } from './helpers'
@@ -8,6 +8,7 @@ import { ImageGrid, Lightbox, SpoilerCover, TextFilePreview, isSpoilerName, isTe
 import { EmojiGlyph, EmojiPicker } from '../expressions/EmojiPicker'
 import { SmilePlus } from '../expressions/icons'
 import { useEscapeLayer } from '../layers'
+import { focusFirstItem, useReturnFocus } from '../a11y'
 import { FileIcon } from '../icons'
 import { plainText } from '../markdown'
 import { ReactionsDialog } from './MessageMore'
@@ -110,11 +111,14 @@ export function ReactionPicker({ server, message, onClose }: { server: ServerSta
   const [full, setFull] = useState<HTMLElement | null>(null)
   const { t } = useTranslation()
   useEscapeLayer(onClose, !full)
+  const row = useRef<HTMLDivElement>(null)
+  useReturnFocus()
+  useEffect(() => focusFirstItem(row.current), [])
   if (full) {
     return <EmojiPicker serverKey={server.key} anchor={full} onClose={onClose} onPick={(emoji) => toggleReaction(server.key, message, emoji)} />
   }
   return (
-    <div className="reaction-picker" role="menu" onMouseLeave={onClose}>
+    <div className="reaction-picker" role="menu" aria-orientation="horizontal" aria-label={t('chat.message.addReaction')} ref={row} onMouseLeave={onClose}>
       {QUICK_REACTIONS.map((emoji) => (
         <button
           key={emoji}

@@ -35,6 +35,9 @@ export const voice: Messages['voice'] = {
     profileOf: 'Profil för {{name}}',
     screenOf: 'Skärmen för {{name}}',
     fullScreen: 'Helskärm',
+    showBig: 'Visa {{name}} stort',
+    muted: 'mikrofonen av',
+    deafened: 'ljudet av',
     controls: 'Samtalskontroller',
   },
   share: {

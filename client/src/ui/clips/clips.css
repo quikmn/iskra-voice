@@ -16,7 +16,7 @@
 }
 
 /* The chat button on a voice channel's row. */
-.voice-chat-row-button { position: relative; opacity: 0; }
+.voice-chat-row-button { position: relative; opacity: 0; min-width: 24px; min-height: 24px; }
 .voice-chat-row-button.has-unread, .voice-chat-row-button.active,
 .org-row:hover .voice-chat-row-button, .voice-chat-row-button:focus-visible { opacity: 1; }
 .voice-chat-row-button.has-unread { color: var(--text-strong); }
@@ -24,8 +24,8 @@
 .voice-chat-row-button .badge { position: absolute; top: -4px; right: -6px; min-width: 16px; height: 16px; font-size: 10px; padding: 0 4px; }
 @media (hover: none) { .voice-chat-row-button { opacity: 1; } }
 /* Room for the row's ⋯ button, which sits over the right edge when it shows. */
-.org-row:hover .voice-chat-row-button, .org-row:focus-within .voice-chat-row-button { margin-right: 26px; }
-@media (max-width: 760px) { .org-row .voice-chat-row-button { margin-right: 26px; } }
+.org-row:hover .voice-chat-row-button, .org-row:focus-within .voice-chat-row-button { margin-right: 30px; }
+@media (max-width: 760px) { .org-row .voice-chat-row-button { margin-right: 30px; } }
 
 /* ── Clips ────────────────────────────────────────────────────────────────── */
 .clip-button.idle { color: var(--muted); }

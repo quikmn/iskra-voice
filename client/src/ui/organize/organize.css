@@ -30,7 +30,7 @@
 .org-category-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .org-chevron { display: inline-grid; transition: transform 0.15s var(--ease); }
 .org-chevron.collapsed { transform: rotate(-90deg); }
-.org-empty { margin: 0 0 4px; padding: 6px 10px; font-size: 12px; color: var(--faint); border: 1px dashed var(--border); border-radius: calc(var(--radius) * 0.6); }
+.org-empty { margin: 0 0 4px; padding: 6px 10px; font-size: 12px; color: var(--muted); border: 1px dashed var(--border); border-radius: calc(var(--radius) * 0.6); }
 
 /* Menus: a popover at the pointer on desktop; on phones the sheet styles from styles.css. */
 .org-menu-backdrop { position: fixed; inset: 0; z-index: var(--z-popover); }
@@ -144,6 +144,6 @@ kbd {
 }
 
 /* Server menu: small group headings; long menus scroll on phones too. */
-.org-group-title { padding: 6px 10px 2px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--faint); }
+.org-group-title { padding: 6px 10px 2px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
 .org-sheet { max-height: 85dvh; overflow-y: auto; }
 .org-sheet .org-group-title { padding: 10px 6px 6px; background: var(--float); }

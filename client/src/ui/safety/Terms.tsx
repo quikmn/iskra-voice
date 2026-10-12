@@ -1,9 +1,10 @@
 // The Terms of Use and Community guidelines: a short summary with links to the full texts on iskra.foo.
 // Agreed on first run (both "I'm new" and "I already use Iskra") and again when TERMS_VERSION changes.
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { acceptTerms, LEGAL_LINKS, useTermsAccepted } from '../../state/terms'
 import { useApp } from '../../state/store'
+import { useFocusTrap } from '../layers'
 import './safety.css'
 
 /** The points people agree to, in a few lines. */
@@ -57,14 +58,20 @@ export function TermsFirst({ children }: { children: React.ReactNode }) {
 
 /** The terms changed since this device agreed (or it never did, from before they existed): agree to keep going. */
 export function TermsUpdateDialog() {
-  const { t } = useTranslation()
   const accepted = useTermsAccepted()
   const ready = useApp((s) => s.phase === 'ready')
-  const [agreed, setAgreed] = useState(false)
   if (accepted || !ready) return null
+  return <TermsUpdateModal />
+}
+
+function TermsUpdateModal() {
+  const { t } = useTranslation()
+  const [agreed, setAgreed] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useFocusTrap(ref)
   return (
     <div className="modal-backdrop terms-update-backdrop">
-      <div className="modal terms-update" role="dialog" aria-modal="true" aria-label={t('safety.terms.updatedTitle')}>
+      <div className="modal terms-update" role="dialog" aria-modal="true" aria-label={t('safety.terms.updatedTitle')} ref={ref} tabIndex={-1}>
         <header className="modal-header"><h2>{t('safety.terms.updatedTitle')}</h2></header>
         <div className="modal-body">
           <p>{t('safety.terms.updatedLead')}</p>

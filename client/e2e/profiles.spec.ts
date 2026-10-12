@@ -153,5 +153,5 @@ test('profiles: avatar, bio, profile card, sandboxed page and themes', async ({ 
   await host.getByRole('button', { name: 'Apply' }).click()
   await expect.poll(accent).toBe('#ff8800')
   await host.getByRole('radio', { name: /Iskra \(default\)/ }).click()
-  await expect.poll(accent).toBe('#7c6fff')
+  await expect.poll(accent).toBe('#695bff')
 })

@@ -6,7 +6,7 @@ import { useApp } from '../../state/store'
 import { useVoice } from '../../state/voice'
 import { SoundboardIcon } from './icons'
 import { usePopoverPosition } from './popover'
-import { useEscapeLayer } from '../layers'
+import { useEscapeLayer, useFocusTrap } from '../layers'
 import { Trans, useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
 
@@ -43,6 +43,7 @@ function SoundboardPanel({ serverKey, anchor, onClose }: { serverKey: string; an
   const panel = useRef<HTMLDivElement>(null)
   const { style, sheet } = usePopoverPosition(anchor, panel)
   useEscapeLayer(onClose)
+  useFocusTrap(panel)
   const q = query.trim().toLowerCase()
   const shown = q ? sounds.filter((s) => s.name.toLowerCase().includes(q) || s.emoji?.includes(q)) : sounds
 
@@ -66,6 +67,7 @@ function SoundboardPanel({ serverKey, anchor, onClose }: { serverKey: string; an
         style={style}
         role="dialog"
         aria-label={t('expressions.soundboard.title')}
+        tabIndex={-1}
       >
         <header className="soundboard-header">
           <strong>{t('expressions.soundboard.title')}</strong>

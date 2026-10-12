@@ -7,7 +7,7 @@ import { desktop } from '../platform/desktop'
 import { QUALITIES, updateShareSettings, useScreenShareSettings } from '../state/screenShare'
 import { toggleScreenShare } from '../state/voice'
 import { usePopoverPosition } from './expressions/popover'
-import { useEscapeLayer } from './layers'
+import { useEscapeLayer, useFocusTrap } from './layers'
 import './desktop.css'
 
 /** Whether "Share audio" can do anything here, and what it shares. */
@@ -26,11 +26,12 @@ export function ScreenShareMenu({ anchor, onClose }: { anchor: HTMLElement; onCl
   const panel = useRef<HTMLDivElement>(null)
   const { style, sheet } = usePopoverPosition(anchor, panel)
   useEscapeLayer(onClose)
+  useFocusTrap(panel)
   const audio = audioSupport()
 
   return createPortal(
     <div className={`emoji-picker-layer ${sheet ? 'sheet' : ''}`} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={panel} className="share-menu" style={style} role="dialog" aria-label={t('voice.share.title')}>
+      <div ref={panel} className="share-menu" style={style} role="dialog" aria-label={t('voice.share.title')} tabIndex={-1}>
         <strong>{t('voice.share.title')}</strong>
         <div className="field">
           <span>{t('voice.share.quality')}</span>
