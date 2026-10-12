@@ -10,7 +10,7 @@ export function NotificationSettingsSection({ server }: { server?: ServerState |
   const blocked = notificationsSupported() && Notification.permission === 'denied'
   return (
     <section className="settings-section">
-      <h3>{t('settings.sections.notifications')}</h3>
+      <h2>{t('settings.sections.notifications')}</h2>
       <label className="checkbox">
         <input
           type="checkbox"

@@ -308,6 +308,7 @@ public sealed partial class Store : IDisposable
         ("profilesync-1", ProfileSyncMigration),
         // Docs keep an upload alive only while a kept revision still links to it (security review).
         ("docs-2", ForgetUnshownDocFiles + ";"),
+        ("botcommands-1", BotCommandsMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

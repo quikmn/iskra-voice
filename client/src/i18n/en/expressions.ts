@@ -75,7 +75,7 @@ export const expressions = {
     stopTitle: 'Stops the sounds playing for you',
     stop: 'Stop sounds',
     search: 'Search sounds',
-    empty: 'No sounds yet. Trusted members and admins can add some in Settings.',
+    empty: 'No sounds yet. Trusted members and admins can add some in Server settings → Soundboard.',
     playTitle: 'Play {{name}} for everyone in the call',
     mutedNote: "You've muted the soundboard for yourself in Settings, so you won't hear these.",
     played: '<b>{{name}}</b> played {{sound}}',

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { aboutDetail, autostartEntry, badgeText, compareVersions, deepLinkFromArgv, DEFAULT_DESKTOP_SETTINGS, embedderHeaders, pageOrigin, parseDeepLink, parseDesktopSettings, defaultHostRoot, serversToStart, setKeepRunning, exeName, isAppPage, isWayland, keychainKind, newerRelease, serverRid, skipScreenPicker, spellcheckDownloadsDictionaries, trayMenu, updateMode, youTubeReferrer, YOUTUBE_REFERRER } from './platform'
+import { aboutDetail, autostartEntry, badgeText, compareVersions, macCanReplaceItself, macSigning, deepLinkFromArgv, DEFAULT_DESKTOP_SETTINGS, embedderHeaders, pageOrigin, parseDeepLink, parseDesktopSettings, defaultHostRoot, serversToStart, setKeepRunning, exeName, isAppPage, isWayland, keychainKind, newerRelease, serverRid, skipScreenPicker, spellcheckDownloadsDictionaries, trayMenu, updateMode, youTubeReferrer, YOUTUBE_REFERRER } from './platform'
 
 test('server binaries and runtime ids per platform', () => {
   assert.equal(exeName('iskra-server', 'win32'), 'iskra-server.exe')
@@ -38,7 +38,60 @@ test('update mode per package type', () => {
   assert.equal(updateMode('win32', true, { PORTABLE_EXECUTABLE_DIR: 'C:\\x' }), 'manual')
   assert.equal(updateMode('linux', true, { APPIMAGE: '/home/a/Iskra.AppImage' }), 'auto')
   assert.equal(updateMode('linux', true, {}), 'manual')
+  assert.equal(updateMode('linux', false, { APPIMAGE: '/home/a/Iskra.AppImage' }), 'off')
+  // macOS: before the signature is known, and for ad-hoc or unsigned builds, only a download link.
+  const app = '/Applications/Iskra.app'
   assert.equal(updateMode('darwin', true, {}), 'manual')
+  assert.equal(updateMode('darwin', true, {}, { signing: 'adhoc', bundlePath: app }), 'manual')
+  assert.equal(updateMode('darwin', true, {}, { signing: 'none', bundlePath: app }), 'manual')
+  assert.equal(updateMode('darwin', true, {}, { signing: 'developer-id', bundlePath: app }), 'auto')
+  assert.equal(updateMode('darwin', true, {}, { signing: 'developer-id', bundlePath: '/Users/a/Applications/Iskra.app' }), 'auto')
+  assert.equal(updateMode('darwin', true, {}, { signing: 'developer-id', bundlePath: '/Volumes/Iskra 2.0.0/Iskra.app' }), 'manual')
+  assert.equal(updateMode('darwin', true, {}, { signing: 'developer-id', bundlePath: '/private/var/folders/x/T/AppTranslocation/ABC/d/Iskra.app' }), 'manual')
+  assert.equal(updateMode('darwin', true, { ISKRA_NO_UPDATES: '1' }, { signing: 'developer-id', bundlePath: app }), 'off')
+  assert.equal(updateMode('darwin', false, {}, { signing: 'developer-id', bundlePath: app }), 'off')
+})
+
+test('macOS signature from codesign output', () => {
+  const developerId = [
+    'Executable=/Applications/Iskra.app/Contents/MacOS/Iskra',
+    'Identifier=foo.iskra.desktop',
+    'Format=app bundle with Mach-O thin (arm64)',
+    'CodeDirectory v=20500 size=1234 flags=0x10000(runtime) hashes=28+7 location=embedded',
+    'Signature size=9000',
+    'Authority=Developer ID Application: Viktor Lundgren (BWX2M8XSNZ)',
+    'Authority=Developer ID Certification Authority',
+    'Authority=Apple Root CA',
+    'Timestamp=12 Oct 2026 at 20:33:17',
+    'Notarization Ticket=stapled',
+    'TeamIdentifier=BWX2M8XSNZ',
+    'Runtime Version=15.0.0',
+  ].join('\n')
+  assert.equal(macSigning(developerId), 'developer-id')
+  assert.equal(macSigning(developerId.replaceAll('\n', '\r\n')), 'developer-id')
+  const adhoc = [
+    'Executable=/Applications/Iskra.app/Contents/MacOS/Iskra',
+    'Identifier=foo.iskra.desktop',
+    'Format=app bundle with Mach-O thin (x86_64)',
+    'CodeDirectory v=20400 size=1234 flags=0x2(adhoc) hashes=28+7 location=embedded',
+    'Signature=adhoc',
+    'TeamIdentifier=not set',
+  ].join('\n')
+  assert.equal(macSigning(adhoc), 'adhoc')
+  assert.equal(macSigning('/Applications/Iskra.app: code object is not signed at all'), 'none')
+  assert.equal(macSigning(''), 'none')
+  // An Apple Development (or other) certificate isn't enough, nor a Developer ID line without a team.
+  assert.equal(macSigning(developerId.replace('Developer ID Application:', 'Apple Development:')), 'adhoc')
+  assert.equal(macSigning(developerId.replace('TeamIdentifier=BWX2M8XSNZ', 'TeamIdentifier=not set')), 'adhoc')
+  assert.equal(macSigning(`${developerId}\nSignature=adhoc`), 'adhoc')
+})
+
+test('where Squirrel.Mac can replace the app', () => {
+  assert.ok(macCanReplaceItself('/Applications/Iskra.app'))
+  assert.ok(macCanReplaceItself('/Users/a/Desktop/Iskra.app'))
+  assert.ok(!macCanReplaceItself('/Volumes/Iskra/Iskra.app'))
+  assert.ok(!macCanReplaceItself('/private/var/folders/ab/T/AppTranslocation/1234/d/Iskra.app'))
+  assert.ok(!macCanReplaceItself('/Applications/Iskra.app/Contents/MacOS'))
 })
 
 test('version precedence follows semver', () => {

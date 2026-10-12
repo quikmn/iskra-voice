@@ -138,6 +138,142 @@ test('main screens have no serious accessibility problems', async ({ browser }) 
   expect(blocking, summary).toEqual([])
 })
 
+/** A light theme (there's no built-in one), to audit the light-scheme styles. */
+const DAYLIGHT = {
+  meta: { name: 'Daylight', scheme: 'light' },
+  colors: {
+    bgDeep: '#e3e5e8', bgSurface: '#e3e5e8', bgBody: '#ebedf0', bgSidebar: '#f2f3f5', bgSidebarHover: '#e6e8eb', bgChat: '#ffffff',
+    bgFloat: '#ffffff', bgButton: '#e9eaee', bgHover: '#eef0f3', bgActive: '#dfe1e6', bgBorder: 'rgba(20, 20, 60, 0.14)',
+    textHeading: '#060607', textNormal: '#2e3338', textMuted: '#4f5660', textSubtle: '#5c626b', textFaint: '#9aa0a8',
+    accent: '#4752c4', accentHover: '#3c45a5', success: '#1a7f37', danger: '#c62828', warning: '#8a5a00', link: '#0b62c4',
+  },
+}
+
+test('dialogs and a light theme have no serious accessibility problems', async ({ browser }) => {
+  test.setTimeout(240_000)
+  if (!ownerPage) await inviteFromOwner(browser)
+  const page = ownerPage!
+  const friend = await (await browser.newContext()).newPage()
+  await joinVia(friend, await createInviteLink(page), 'Robin')
+  await send(friend, 'something to report')
+  // Dialogs are audited on their own: what's behind the backdrop is covered (and checked on its own screen).
+  const opened = async (name: string | RegExp) => {
+    const dialog = page.getByRole('dialog', { name }).last()
+    await expect(dialog).toBeVisible()
+    await page.evaluate(() => document.querySelectorAll('[data-audit]').forEach((el) => el.removeAttribute('data-audit')))
+    await dialog.evaluate((el) => el.setAttribute('data-audit', ''))
+    return dialog
+  }
+  const inDialog = { include: '[data-audit]' }
+
+  // Invite.
+  await page.getByRole('button', { name: 'Invite friends' }).click()
+  await opened(/^Invite/)
+  await audit(page, 'dialog: invite', inDialog)
+  await page.keyboard.press('Escape')
+
+  // Create channel (a voice one, for the call below).
+  await page.getByRole('button', { name: 'Create voice channel' }).click()
+  await opened('Create channel')
+  await audit(page, 'dialog: create channel', inDialog)
+  await page.getByRole('radio', { name: 'Voice' }).click()
+  await page.getByLabel('Name').fill('hangout')
+  await page.getByRole('button', { name: 'Create', exact: true }).click()
+
+  // A category: its dialog, then left and right close and open it from the keyboard.
+  await page.getByRole('button', { name: 'Create category' }).click()
+  await opened('Create category')
+  await audit(page, 'dialog: create category', inDialog)
+  await page.getByLabel('Name').fill('Games')
+  await page.getByRole('button', { name: 'Create', exact: true }).click()
+  const toggle = page.locator('.org-category-toggle', { hasText: 'Games' })
+  await toggle.focus()
+  await page.keyboard.press('ArrowLeft')
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  await expect(toggle).toBeFocused()
+  await page.keyboard.press('ArrowRight')
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+
+  // Server nickname.
+  await page.locator('.server-header-button').click()
+  await page.getByRole('menuitem', { name: 'Server nickname…' }).click()
+  await expect(page.getByLabel('Server nickname', { exact: true })).toBeVisible()
+  await page.getByLabel('Server nickname', { exact: true }).evaluate((el) => el.closest('[role="dialog"]')?.setAttribute('data-audit-nick', ''))
+  await audit(page, 'dialog: server nickname', { include: '[data-audit-nick]' })
+  await page.keyboard.press('Escape')
+
+  // Report a message.
+  const message = page.locator('.message', { hasText: 'something to report' }).last()
+  await message.hover()
+  await message.getByRole('button', { name: 'More', exact: true }).click()
+  await page.getByRole('menu', { name: 'Message options' }).getByRole('menuitem', { name: 'Report message' }).click()
+  await opened('Report message')
+  await audit(page, 'dialog: report', inDialog)
+  await page.keyboard.press('Escape')
+
+  // The profile page editor.
+  await openSettings(page)
+  await page.getByRole('button', { name: /Make a page|Edit page/ }).click()
+  await expect(page.getByLabel('Page HTML')).toBeVisible()
+  await page.getByLabel('Page HTML').evaluate((el) => el.closest('[role="dialog"]')?.setAttribute('data-audit-page', ''))
+  await audit(page, 'dialog: profile page editor', { include: '[data-audit-page]' })
+  await page.keyboard.press('Escape')
+  await page.keyboard.press('Escape')
+
+  // In a call: the soundboard, the screen-share menu and the captions prompt.
+  if (hasLiveKit()) {
+    await page.locator('.voice-channel', { hasText: 'hangout' }).getByRole('button').first().click()
+    await expect(page.locator('.voice-status strong')).toHaveText('Voice connected', { timeout: 20_000 })
+    const controls = page.locator('.call-controls')
+    await controls.getByRole('button', { name: 'Soundboard' }).click()
+    await opened('Soundboard')
+    await audit(page, 'dialog: soundboard', inDialog)
+    await page.keyboard.press('Escape')
+    await controls.getByRole('button', { name: 'Share your screen' }).click()
+    await opened('Share your screen')
+    await audit(page, 'dialog: screen-share menu', inDialog)
+    await page.keyboard.press('Escape')
+    const captions = controls.getByRole('button', { name: 'Show captions' })
+    if (await captions.isVisible()) {
+      await captions.click()
+      await expect(page.getByRole('region', { name: 'Live captions' })).toBeVisible()
+      await audit(page, 'captions consent')
+      await controls.getByRole('button', { name: 'Hide captions' }).click()
+    }
+    await page.getByRole('button', { name: 'Leave voice' }).first().click()
+  }
+
+  // A light theme: contrast on a text channel and in settings.
+  await page.locator('.channel', { hasText: 'general' }).first().click()
+  await openSettings(page, 'Appearance')
+  await page.getByRole('button', { name: 'Write your own' }).click()
+  await page.getByLabel('Theme JSON').fill(JSON.stringify(DAYLIGHT))
+  await expect(page.getByTestId('theme-contrast')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Apply', exact: true }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-scheme', 'light')
+  await audit(page, 'light theme: appearance', { rules: ['color-contrast'] })
+  await page.keyboard.press('Escape')
+  await audit(page, 'light theme: text channel', { rules: ['color-contrast'] })
+  await page.screenshot({ path: join(SHOTS, 'a11y-light-theme.png') })
+
+  // The theme editor warns about text that's hard to read, with the ratio and a fix.
+  await openSettings(page, 'Appearance')
+  await page.getByRole('button', { name: 'Write your own' }).click()
+  await page.getByLabel('Theme JSON').fill(JSON.stringify({ ...DAYLIGHT, colors: { ...DAYLIGHT.colors, textSubtle: '#b0b4ba' } }))
+  const warning = page.getByTestId('theme-contrast')
+  await expect(warning).toContainText(/textSubtle on bgChat: 2\.\d\d:1/)
+  await page.screenshot({ path: join(SHOTS, 'a11y-theme-contrast.png') })
+  await warning.getByRole('button', { name: /for textSubtle/ }).click()
+  await expect(warning).toHaveCount(0)
+  // Back to the default look.
+  await page.getByRole('radio', { name: /\(default\)/ }).click()
+  await page.keyboard.press('Escape')
+
+  const blocking = found.filter((f) => (f.impact === 'serious' || f.impact === 'critical') && (f.screen.startsWith('dialog') || f.screen.startsWith('light') || f.screen.startsWith('captions')))
+  const summary = blocking.map((f) => `[${f.impact}] ${f.screen}: ${f.id} (${f.help})\n    ${f.nodes.join('\n    ')}`).join('\n')
+  expect(blocking, summary).toEqual([])
+})
+
 async function openSettingsSection(page: Page, section: string) {
   await page.getByRole('dialog', { name: 'Settings' }).getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: section, exact: true }).click()
 }
@@ -217,7 +353,43 @@ test('keyboard and screen reader basics', async ({ browser }) => {
   await expect(emojiButton).toBeFocused()
 
   // Server icons are named by the server, not its initials.
-  await expect(page.getByRole('navigation', { name: 'Servers' }).getByRole('button', { name: 'A11y Test' })).toBeVisible()
+  const rail = page.getByRole('navigation', { name: 'Servers' })
+  const serverIcon = rail.getByRole('button', { name: 'A11y Test' })
+  await expect(serverIcon).toBeVisible()
+
+  // The rail is one Tab stop (the open server, or the last icon used); arrows move, the context-menu key opens a
+  // server's menu.
+  await expect(rail.locator('button[tabindex="0"]')).toHaveCount(1)
+  await serverIcon.focus()
+  await expect(serverIcon).toHaveAttribute('tabindex', '0')
+  await expect(rail.getByRole('button', { name: 'Direct messages' })).toHaveAttribute('tabindex', '-1')
+  await page.keyboard.press('ArrowUp')
+  await expect(serverIcon).not.toBeFocused()
+  expect(await rail.evaluate((el) => el.contains(document.activeElement))).toBe(true)
+  await page.keyboard.press('ArrowDown')
+  await expect(serverIcon).toBeFocused()
+  await page.keyboard.press('Shift+F10')
+  await expect(page.getByRole('menuitem').first()).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(serverIcon).toBeFocused()
+
+  // The channel list too: one Tab stop (the open channel, or the last row used) plus that row's own ⋯ button;
+  // arrows move between rows.
+  const channels = page.getByRole('navigation', { name: 'A11y Test channels' })
+  const general = channels.locator('button.channel', { hasText: 'general' })
+  await expect(channels.locator('.channel-list [tabindex="0"]:is(.channel, .org-category-toggle, .invite-button, .reports-button)')).toHaveCount(1)
+  await general.focus()
+  await expect(general).toHaveAttribute('tabindex', '0')
+  await expect(channels.getByRole('button', { name: '#general options' })).toHaveAttribute('tabindex', '0')
+  await expect(channels.getByRole('button', { name: 'Invite friends' })).toHaveAttribute('tabindex', '-1')
+  await page.keyboard.press('ArrowUp')
+  await expect(general).not.toBeFocused()
+  await page.keyboard.press('ArrowDown')
+  await expect(general).toBeFocused()
+  await page.keyboard.press('Shift+F10')
+  await expect(page.getByRole('menuitem').first()).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(general).toBeFocused()
 
   // Less motion when asked: animations and transitions are effectively off.
   await page.emulateMedia({ reducedMotion: 'reduce' })

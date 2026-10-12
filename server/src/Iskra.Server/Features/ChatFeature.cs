@@ -54,8 +54,9 @@ public static class ChatFeature
             var file = s.World.Store.GetFile(id);
             if (file is null || file.Uploader != me.AccountKey) throw RequestException.BadRequest("Unknown attachment.");
         }
+        var cards = BotCommandFeature.Parse(s, me, body);
         var rawText = body.OptionalString("text", MaxMessageLength * 2) ?? "";
-        var text = rawText.Trim().Length == 0 && (attachments.Length > 0 || body.OptionalString("sticker", 64) is not null || body.OptionalElement("gif") is not null)
+        var text = rawText.Trim().Length == 0 && (attachments.Length > 0 || cards is { Json: not "[]" } || body.OptionalString("sticker", 64) is not null || body.OptionalElement("gif") is not null)
             ? ""
             : Text.Normalize(rawText, MaxMessageLength, allowNewlines: true)
               ?? throw RequestException.BadRequest($"Messages must be 1–{MaxMessageLength} characters.", "message_length", new { max = MaxMessageLength });
@@ -84,6 +85,7 @@ public static class ChatFeature
         VoiceMessageFeature.Saved(s.World.Store, message, voice);
         if (sticker is not null) s.World.Store.SetMessageSticker(message.Id, sticker);
         GifFeature.Saved(s.World.Store, message, gif);
+        BotCommandFeature.Saved(s.World.Store, message.Id, cards);
         var publicMessage = View(s, message);
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.message", new { message = publicMessage, nonce }));
         ThreadFeature.Touched(s, channel);
@@ -121,10 +123,14 @@ public static class ChatFeature
         if (s.World.Store.GetMessageSticker(message.Id) is not null) throw RequestException.BadRequest("Stickers can't be edited.", "sticker_no_edit");
         if (s.World.Store.GetMessageGif(message.Id) is not null) throw RequestException.BadRequest("GIFs can't be edited.", "gif_no_edit");
 
-        var text = MessageText(body);
+        // Bots may replace their cards; with cards the text may be empty.
+        var cards = BotCommandFeature.Parse(s, me, body);
+        var hasCards = cards is { Json: not "[]" } || (cards is null && s.World.Store.GetMessageCards(message.Id) is not null);
+        var text = hasCards && (body.OptionalString("text", MaxMessageLength * 2) ?? "").Trim().Length == 0 ? "" : MessageText(body);
         AutoModFeature.Check(s, me, channel, text, "edit");
         if (text != message.Text) EditHistoryFeature.Record(s.World.Store, message);
         s.World.Store.EditMessage(message.Id, text, s.Now);
+        if (cards is { } newCards) s.World.Store.SetMessageCards(message.Id, newCards.Json == "[]" ? null : newCards.Json, newCards.Files);
         var edited = View(s, message with { Text = text, EditedAt = s.Now });
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.edited", new { message = edited }));
         ForumFeature.Edited(s, channel, message);

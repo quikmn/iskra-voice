@@ -75,7 +75,7 @@ export function RecoveryKeySection() {
   if (!recoveryKey) return null
   return (
     <section className="settings-section">
-      <h3>{t('settings.sections.recovery')}</h3>
+      <h2>{t('settings.sections.recovery')}</h2>
       <p className="muted">{t('settings.recovery.intro')}</p>
       {shown ? (
         <>

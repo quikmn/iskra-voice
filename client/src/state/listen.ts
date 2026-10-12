@@ -7,7 +7,7 @@ import type { RnnoiseWorkletNode } from '@sapphi-red/web-noise-suppressor'
 import type { RemoteAudioTrack } from 'livekit-client'
 import remoteWorkletUrl from './audio/remote.worklet.ts?worker&url'
 import { contextDelay, DeepFilterWorker } from './audio/deepfilterHost'
-import { OverrunWatch, plannedEngine, SlowWatch } from './audio/engines'
+import { BridgeWatch, MAX_BRIDGED, plannedEngine, SLOW_WINDOWS, SlowWatch } from './audio/engines'
 import { DF_STRENGTH_DB } from './audio/strength'
 import type { AudioSettings } from './audio'
 import { startRnnoise } from './micPipeline'
@@ -44,7 +44,6 @@ export class Listener {
   private workerReady: Promise<boolean> | null = null
   private settings: AudioSettings
   private aiTooSlow = false
-  private readonly overruns = new OverrunWatch()
   private closed = false
   private readonly onChange: () => void
 
@@ -159,8 +158,11 @@ export class Listener {
     const node = new AudioWorkletNode(this.ctx, 'iskra-df-bridge', {
       numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1], processorOptions: { delay: contextDelay(this.ctx) },
     })
-    node.port.onmessage = (e: MessageEvent<{ type: string }>) => {
-      if (e.data?.type === 'overrun' && this.overruns.report()) this.tooSlow()
+    const watch = new BridgeWatch()
+    node.port.onmessage = (e: MessageEvent<{ type: string; share: number }>) => {
+      if (e.data?.type === 'late' && watch.report(e.data.share)) {
+        this.tooSlow(`its worker was late for more than ${MAX_BRIDGED * 100}% of each second, ${SLOW_WINDOWS} s in a row`)
+      }
     }
     // The voice passes through until it's linked.
     void this.worker.link(node, DF_STRENGTH_DB.normal).then((id) => {
@@ -179,24 +181,24 @@ export class Listener {
           ms: 20000,
           onLoad: (load) => {
             console.info(`[iskra] incoming AI noise removal: worker ${(load.busy * 100).toFixed(1)}% busy, realtime factor ${load.rtf.toFixed(3)} per voice, slowest frame ${load.slowest.toFixed(1)} ms`)
-            if (watch.report(load.busy)) this.tooSlow()
+            if (watch.report(load.busy)) this.tooSlow(`worker ${(load.busy * 100).toFixed(0)}% busy`)
           },
           onError: (message) => console.warn('[iskra] incoming AI noise removal', message),
         })
-        if (this.closed) worker?.terminate()
+        if (this.closed) worker.terminate()
         else this.worker = worker
-        return !!worker && !this.closed
+        return !this.closed
       } catch (e) {
-        console.warn('[iskra] incoming AI noise removal could not start', e)
+        console.warn(`[iskra] incoming AI noise removal could not start (${(e as Error)?.message ?? e}); using RNNoise`)
         return false
       }
     })()
     return this.workerReady
   }
 
-  private tooSlow(): void {
+  private tooSlow(why: string): void {
     if (this.aiTooSlow) return
-    console.warn('[iskra] incoming AI noise removal can\'t keep up here; using RNNoise for incoming voices')
+    console.warn(`[iskra] incoming AI noise removal can't keep up here (${why}); using RNNoise for incoming voices`)
     this.aiTooSlow = true
     void this.rebuild()
   }

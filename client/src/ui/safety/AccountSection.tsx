@@ -9,6 +9,7 @@ import { deleteAccount, deletionPlan, transferOwnership } from '../../state/acco
 import { leaveServer, useApp } from '../../state/store'
 import { LEGAL_LINKS, safetyMailto, SAFETY_EMAIL, useTerms } from '../../state/terms'
 import { Modal, Spinner } from '../bits'
+import { SignOutSection } from '../dialogs/SignOut'
 import { fullTime } from '../format'
 import './safety.css'
 
@@ -17,7 +18,8 @@ export function AccountSection() {
   const [open, setOpen] = useState(false)
   return (
     <section className="settings-section">
-      <h3>{t('settings.sections.account')}</h3>
+      <h2>{t('settings.sections.account')}</h2>
+      <SignOutSection />
       <div className="settings-danger">
         <div>
           <strong>{t('safety.deleteAccount.title')}</strong>
@@ -158,7 +160,7 @@ export function AboutSection() {
   const accepted = useTerms((s) => s.accepted)
   return (
     <section className="settings-section about-section">
-      <h3>{t('settings.sections.about')}</h3>
+      <h2>{t('settings.sections.about')}</h2>
       <p className="muted">{t('safety.about.version', { version: RELEASE_VERSION })}</p>
       <ul className="legal-links">
         <li><a href={LEGAL_LINKS.terms} target="_blank" rel="noreferrer">{t('safety.links.terms')}</a></li>

@@ -17,8 +17,9 @@ speech model kept on the device so it's only downloaded once.
 | **Off** | Nothing |
 
 - **Fallbacks.** AI needs AudioWorklet and WebAssembly with SIMD. If those are missing, the engine can't start, or it runs
-  slower than real time for three seconds in a row (realtime factor above 0.6), or its frames come back late more than
-  five times in ten seconds, Iskra switches to RNNoise by itself and remembers it on that device. Choosing AI again gives it another try. RNNoise falls back to the browser's suppression
+  slower than real time for three seconds in a row (realtime factor above 0.6), or its worker is late for more than a
+  quarter of each second three seconds in a row (a late frame now and then only costs a short crossfade), Iskra
+  switches to RNNoise by itself and remembers it on that device. The developer console says why. Choosing AI again gives it another try. RNNoise falls back to the browser's suppression
   the same way. Settings always says which engine is active, why, and (in a call) how much CPU it takes.
 - **AI noise removal strength** (Settings → Voice & audio, with AI on): **Gentle**, **Normal** (default) or **Max**:
   the most DeepFilterNet may turn anything down (18 dB, 30 dB, no limit). With a limit, what it takes out is mixed

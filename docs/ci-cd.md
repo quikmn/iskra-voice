@@ -172,6 +172,16 @@ Windows SmartScreen reputation builds per certificate, so expect warnings again 
 `release.yml` falls back to ad-hoc signing (no notarization) when the Apple secrets are missing, so a broken Apple
 setup gives unsigned Mac builds instead of failing; check the "Desktop app (signed and notarized)" step ran.
 
+**Mac updates depend on it.** Installed Mac apps update themselves (electron-updater + Squirrel.Mac) only when they
+are Developer ID signed, and only to an update signed by the same team (`BWX2M8XSNZ`). The updater reads
+`latest-mac.yml` and downloads the `.zip` for the Mac's CPU (`Iskra-X-mac-arm64.zip` or `-mac-x64.zip`, with its
+`.blockmap` for smaller downloads); the dmgs are only for first installs. The "Check the update files" step in
+release.yml unpacks both zips and fails the build if one isn't Developer ID signed by that team, isn't accepted by
+Gatekeeper, or isn't listed in `latest-mac.yml`; `release-assets.mjs check` (finalize) also fails if a `latest*.yml`
+doesn't list the files the updaters install from. An ad-hoc release (secrets missing, a warning in the log) isn't
+installed by signed apps: they show a download link instead. So is a **new Developer ID with a different team**: the
+release after a team change has to be installed by hand once. A renewed certificate with the same team is fine.
+
 **Renew the Developer ID** (before 2031-09-17, or when the key is compromised):
 1. New key and CSR: `openssl genrsa -out apple-developer-id.key 2048` and
    `openssl req -new -key apple-developer-id.key -out apple-developer-id.csr -subj "/emailAddress=<apple id>/CN=Viktor Lundgren/C=SE"`.

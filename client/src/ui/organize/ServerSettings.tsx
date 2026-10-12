@@ -22,7 +22,7 @@ export function ServerNotifySettings({ server }: { server: ServerState }) {
   }
   return (
     <div className="org-notify" role="group" aria-label={t('organize.notify.groupLabel', { server: server.name })}>
-      <h4>{t('organize.notify.heading', { server: server.name })}</h4>
+      <h3 className="h4">{t('organize.notify.heading', { server: server.name })}</h3>
       <div className="segmented" role="radiogroup" aria-label={t('organize.notify.label')}>
         {(['all', 'mentions', 'none'] as NotifyLevel[]).map((level) => (
           <button key={level} role="radio" aria-checked={notify.chosen === level} className={notify.chosen === level ? 'on' : ''}

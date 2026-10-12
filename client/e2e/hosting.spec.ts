@@ -4,7 +4,8 @@ import { closeSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, writ
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { expect, test, type Page } from '@playwright/test'
+import AxeBuilder from '@axe-core/playwright'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { APP_PORT } from '../playwright.config'
 import { createInviteLink, freePort, joinVia, openServerSettings, SHOTS } from './helpers'
 
@@ -71,6 +72,16 @@ async function openSettings(page: Page) {
   await expect(page.getByRole('heading', { name: 'Internet access' })).toBeVisible()
 }
 
+/** No serious or critical accessibility problems inside a dialog (axe, like a11y.spec.ts). */
+async function expectAccessible(page: Page, dialog: Locator) {
+  await settle(page)
+  await dialog.evaluate((el) => el.setAttribute('data-audit', ''))
+  const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice']).include('[data-audit]').analyze()
+  await dialog.evaluate((el) => el.removeAttribute('data-audit'))
+  const blocking = result.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')
+  expect(blocking.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([])
+}
+
 const step = (page: Page, id: string) => page.locator(`.checklist [data-step="${id}"]`)
 
 test('owner opens the server to the internet; without port 80 nothing plain HTTP is advertised', async ({ browser }) => {
@@ -91,7 +102,7 @@ test('owner opens the server to the internet; without port 80 nothing plain HTTP
   await friend.keyboard.press('Escape')
 
   await openSettings(owner)
-  const toggle = owner.getByRole('switch', { name: 'Open to the internet' })
+  const toggle = owner.getByRole('switch', { name: 'Let friends anywhere join' })
   await expect(toggle).toHaveAttribute('aria-checked', 'false')
   await expect(owner.getByText('Only people on your network can join.')).toBeVisible()
   await toggle.click()
@@ -134,7 +145,7 @@ test('owner opens the server to the internet; without port 80 nothing plain HTTP
 
   // Closing it again.
   await openSettings(owner)
-  await owner.getByRole('switch', { name: 'Open to the internet' }).click()
+  await owner.getByRole('switch', { name: 'Let friends anywhere join' }).click()
   await expect(owner.getByText('Only people on your network can join.')).toBeVisible()
   await expect(owner.locator('.checklist')).toHaveCount(0)
 })
@@ -146,7 +157,7 @@ test('carrier-grade NAT gets a clear explanation and a rented server as the quic
   const owner = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })).newPage()
   await joinVia(owner, server.ownerLink(), 'Owner')
   await openSettings(owner)
-  await owner.getByRole('switch', { name: 'Open to the internet' }).click()
+  await owner.getByRole('switch', { name: 'Let friends anywhere join' }).click()
   await expect(owner.getByText("You're behind CGNAT")).toBeVisible()
   await expect(owner.getByTestId('host-findings')).toHaveAttribute('data-nat', 'cgnat')
   const help = owner.getByTestId('cgnat-help')
@@ -174,6 +185,7 @@ test('carrier-grade NAT gets a clear explanation and a rented server as the quic
   const rent = owner.getByRole('dialog', { name: 'Rent a small server' })
   await expect(rent.getByTestId('ownership-note')).toBeVisible()
   await expect(rent.getByRole('link', { name: 'Hetzner' })).toHaveAttribute('href', 'https://www.hetzner.com/cloud')
+  await expectAccessible(owner, rent)
   await rent.getByLabel('Server name').fill('Game Night')
   const setup = rent.getByTestId('rent-setup')
   await expect(setup).toHaveValue(/^#!\/bin\/bash/)
@@ -205,6 +217,7 @@ test('carrier-grade NAT gets a clear explanation and a rented server as the quic
   await expect(downloads).toHaveCount(2)
   for (const link of await downloads.all()) await expect(link).toHaveAttribute('href', 'https://tailscale.com/download')
   await expect(guide.getByTestId('tailscale-found')).toContainText(`http://100.101.102.103:${server.port}`)
+  await expectAccessible(owner, guide)
   const guideOverflow = await guide.evaluate((el) => el.scrollWidth - el.clientWidth)
   expect(guideOverflow).toBeLessThanOrEqual(0)
   await settle(owner)
@@ -230,7 +243,7 @@ test('no router: every port listed to forward by hand', async ({ browser }) => {
   const owner = await (await browser.newContext()).newPage()
   await joinVia(owner, server.ownerLink(), 'Owner')
   await openSettings(owner)
-  await owner.getByRole('switch', { name: 'Open to the internet' }).click()
+  await owner.getByRole('switch', { name: 'Let friends anywhere join' }).click()
   await expect(step(owner, 'router')).toHaveAttribute('data-state', 'problem')
   const rows = owner.getByTestId('manual-forwards').locator('tbody tr')
   await expect(rows).toHaveCount(4)

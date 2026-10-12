@@ -66,12 +66,12 @@ export function KeyTransparencySection() {
   const [viewing, setViewing] = useState<string | null>(null)
   return (
     <section className="settings-section" data-testid="kt-section">
-      <h3>{t('keys.kt.title')}</h3>
+      <h2>{t('keys.kt.title')}</h2>
       <p className="muted">{t('keys.kt.intro')}</p>
       <p className="muted small-text">{t('keys.kt.limits')}</p>
-      <h4>{t('keys.kt.findings')}</h4>
+      <h3 className="h4">{t('keys.kt.findings')}</h3>
       {findings.length ? <><FindingList findings={findings} /><p className="muted small-text">{t('keys.kt.advice')}</p></> : <p className="success-text">{t('keys.kt.nothing')}</p>}
-      <h4>{t('keys.kt.servers')}</h4>
+      <h3 className="h4">{t('keys.kt.servers')}</h3>
       {order.length === 0 && <p className="muted">{t('keys.kt.noServers')}</p>}
       <ul className="kt-servers">
         {order.map((key) => {
@@ -223,7 +223,7 @@ export function KeyHistory({ peer }: { peer: string }) {
   const keys = keysOf(peer)
   return (
     <div className="kt-history">
-      <h4>{t('keys.kt.history.title')}</h4>
+      <h3 className="h4">{t('keys.kt.history.title')}</h3>
       <ul>
         {keys.map((key, i) => (
           <li key={key}>

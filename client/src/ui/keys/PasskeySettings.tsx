@@ -83,7 +83,7 @@ export function PasskeySettings() {
 
   return (
     <div className="passkeys" data-testid="passkeys">
-      <h4>{t('keys.passkeys.title')}</h4>
+      <h3 className="h4">{t('keys.passkeys.title')}</h3>
       <p className="muted">{t('keys.passkeys.intro')}</p>
       {!available && <p className="muted small-text">{t('keys.passkeys.unavailable')}</p>}
       {passkeys.length > 0 && (

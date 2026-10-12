@@ -87,7 +87,7 @@ function SecurityLogList({ server }: { server: ServerState }) {
 
   return (
     <section className="settings-section" data-testid="security-log-section">
-      <h3>{t('settings.sections.securityLog')}</h3>
+      <h2>{t('settings.sections.securityLog')}</h2>
       <p className="muted">{t('compliance.securityLog.intro')}</p>
       <div className="audit-filters">
         <label className="field">
@@ -189,7 +189,7 @@ function RetentionSettings({ server }: { server: ServerState }) {
   const dirty = DAY_FIELDS.some((f) => draft[f] !== undefined && draft[f] !== String(retention?.[f]))
   return (
     <section className="settings-section" data-testid="retention-section">
-      <h3>{t('compliance.retention.title')}</h3>
+      <h2>{t('compliance.retention.title')}</h2>
       <p className="muted">{t('compliance.retention.intro')}</p>
       {!retention ? (
         error ? <p className="error-text">{error}</p> : <Spinner />
@@ -261,7 +261,7 @@ function SubjectExport({ server }: { server: ServerState }) {
 
   return (
     <section className="settings-section">
-      <h3>{t('compliance.subjectExport.title')}</h3>
+      <h2>{t('compliance.subjectExport.title')}</h2>
       <p className="muted">{t('compliance.subjectExport.intro')}</p>
       <div className="audit-filters">
         <label className="field">

@@ -61,7 +61,7 @@ export function LinkJoin({ initialCode, onBack }: { initialCode?: string | null;
 
   return (
     <div className="link-join">
-      <p className="lead"><Trans i18nKey="app.link.howTo" components={{ b: <strong /> }} /></p>
+      <p className="lead link-howto"><Trans i18nKey="app.link.howTo" components={{ b: <strong /> }} /></p>
       {scanning ? (
         <QrScanner onResult={(text) => {
           setScanning(false)

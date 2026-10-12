@@ -81,36 +81,69 @@ test('the desktop app runs the web app on app:// and can join a server', async (
     }, rnnoise)
     expect(started).toBe(true)
 
-    // AI noise removal and voice activity: DeepFilterNet3 (WebAssembly and model) and Silero VAD load from app:// and
-    // start in their worklets under the app's CSP.
+    // AI noise removal and voice activity: DeepFilterNet3 (WebAssembly and model) starts in its module worker from
+    // app://, its worklet links to it and frames flow through it; Silero VAD starts in its worklet. All under the
+    // app's CSP.
     const ai = {
       worklet: assets.find((f) => /^deepfilter\.worklet-.*\.js$/.test(f)),
+      worker: assets.find((f) => /^deepfilter\.worker-.*\.js$/.test(f)),
       wasm: assets.find((f) => /^deepfilter-.*\.wasm$/.test(f)),
       model: assets.find((f) => /^DeepFilterNet3_onnx.*\.bin$/.test(f)),
       silero: assets.find((f) => /^silero_vad_16k_op15-.*\.onnx$/.test(f)),
       gate: rnnoise.gate,
     }
-    expect(ai.worklet && ai.wasm && ai.model && ai.silero).toBeTruthy()
-    const aiStarted = await page.evaluate(async ({ worklet, wasm, model, silero, gate }) => {
+    expect(ai.worklet && ai.worker && ai.wasm && ai.model && ai.silero).toBeTruthy()
+    const aiStarted = await page.evaluate(async ({ worklet, worker: workerFile, wasm, model, silero, gate }) => {
       const ctx = new AudioContext({ sampleRate: 48000 })
       await ctx.audioWorklet.addModule(`/assets/${worklet}`)
       await ctx.audioWorklet.addModule(`/assets/${gate}`)
       const [w, m, s] = await Promise.all([wasm, model, silero].map(async (f) => (await fetch(`/assets/${f}`)).arrayBuffer()))
-      const reply = (node: AudioWorkletNode) => new Promise<string>((done) => {
-        node.port.onmessage = (e: MessageEvent<{ type?: string }>) => e.data?.type && done(e.data.type)
-        setTimeout(() => done('timeout'), 20_000)
+      const within = <T,>(p: Promise<T>, what: string) => Promise.race([p, new Promise<string>((done) => setTimeout(() => done(`timeout (${what})`), 20_000))])
+      const said = (target: { onmessage: unknown }, type: string) => new Promise<string>((done) => {
+        (target as { onmessage: (e: MessageEvent<{ type?: string; message?: string }>) => void }).onmessage = (e) => {
+          if (e.data?.type === type) done(type)
+          else if (e.data?.type === 'error') done(`error ${e.data.message}`)
+        }
       })
-      const df = new AudioWorkletNode(ctx, 'iskra-deepfilter', { outputChannelCount: [1] })
-      const dfReady = reply(df)
-      df.port.postMessage({ wasm: w, model: m })
+      const t0 = performance.now()
+      const ms = () => Math.round(performance.now() - t0)
+      const times: string[] = []
+      const worker = new Worker(`/assets/${workerFile}`, { type: 'module' })
+      worker.onerror = (e) => console.warn('worker error', e.message)
+      let step = within(said(worker, 'ready'), 'engine')
+      worker.postMessage({ type: 'init', module: await WebAssembly.compile(w), model: m, reportMs: 500 })
+      let df = await step
+      times.push(`engine ${ms()} ms`)
+      if (df === 'ready') {
+        const channel = new MessageChannel()
+        step = within(said(worker, 'voice-ready'), 'model')
+        worker.postMessage({ type: 'voice', id: '1', strength: 30, port: channel.port2 }, [channel.port2])
+        df = await step
+        times.push(`model ${ms()} ms`)
+        if (df === 'voice-ready') {
+          const node = new AudioWorkletNode(ctx, 'iskra-deepfilter', { outputChannelCount: [1], processorOptions: { delay: 1152 } })
+          step = within(said(node.port, 'ready'), 'link')
+          node.port.postMessage({ port: channel.port1 }, [channel.port1])
+          df = await step
+          // Frames flow: a tone through the worklet (to a stream, not the speakers) until the worker reports its load.
+          const tone = ctx.createOscillator()
+          tone.connect(node).connect(ctx.createMediaStreamDestination())
+          tone.start()
+          times.push(`linked ${ms()} ms`)
+          if (df === 'ready') df = (await within(said(worker, 'load'), 'frames')) === 'load' ? 'ready' : 'no frames'
+          tone.stop()
+        }
+      }
+      worker.terminate()
       const vad = new AudioWorkletNode(ctx, 'iskra-mic-gate')
-      const vadReady = reply(vad)
+      const vadReady = within(said(vad.port, 'vad-ready'), 'vad')
       vad.port.postMessage({ type: 'vad-model', model: s })
-      const result = `${await dfReady} ${await vadReady}`
+      const result = `${df} ${await vadReady}`
       await ctx.close()
-      return result
+      return { result, times: times.join(', ') }
     }, ai)
-    expect(aiStarted).toBe('ready vad-ready')
+    console.log(`desktop app, AI noise removal from app://: ${aiStarted.times}`)
+    expect(aiStarted.result).toBe('ready vad-ready')
 
     // The tray menu: About, Check for updates (off in a development build), Quit.
     const trayLabels = () => app.evaluate(() =>

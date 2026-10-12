@@ -61,7 +61,7 @@
 }
 
 /* Light themes: darker name colours, softer scrims and shadows. */
-:root[data-scheme='light'] { --name-l: 38%; --scrim: rgba(20, 20, 40, 0.38); --shadow-color: rgba(20, 20, 60, 0.18); }
+:root[data-scheme='light'] { --name-l: 26%; --scrim: rgba(20, 20, 40, 0.38); --shadow-color: rgba(20, 20, 60, 0.18); }
 
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
@@ -592,7 +592,7 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 .settings-section { border-top: 1px solid var(--border); padding-top: 16px; margin-top: 16px; }
 .settings-section:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
 .settings-section > p.muted { font-size: 14px; }
-.settings-section h3 { margin: 0 0 12px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.settings-section h2, .settings-section h3:not(.h4) { margin: 0 0 12px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
 
 /* ── Phones and small windows ───────────────────────────────────────── */
 @media (max-width: 1100px) {
@@ -610,6 +610,9 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 }
 
 @media (max-width: 760px) {
+  /* Segmented choices wrap instead of pushing a dialog wider than the screen (Create channel has five). */
+  .segmented { flex-wrap: wrap; }
+  .segmented button { flex: 1 1 auto; }
   body { font-size: 16px; } /* 16px inputs stop iOS from zooming in */
   .shell { grid-template-columns: minmax(0, 1fr); }
   .mobile-only { display: inline-grid; }
@@ -686,6 +689,7 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 .choice .muted { font-size: 13px; }
 .link-join { display: grid; gap: 12px; }
 .link-join .lead { margin: 0; display: flex; align-items: center; gap: 10px; }
+.link-join .link-howto { display: block; } /* running text with <strong>: not a flex row */
 .link-join p { margin: 0; }
 .link-code-field { margin: 0; }
 .qr-scanner { border-radius: 12px; overflow: hidden; background: #000; }
@@ -794,3 +798,11 @@ input.confirm-code::placeholder { color: var(--muted); }
 .sign-out-leave { margin-top: 14px; align-items: flex-start; }
 .sign-out-leave > span { display: grid; gap: 2px; }
 .sign-out-leave small { font-size: 12px; }
+
+/* ── UX fixes: queued send while uploading ── */
+.queued-send { margin: 0 16px; padding: 6px 12px; background: var(--surface-2); border-top: 1px solid var(--border); font-size: 13px; color: var(--text-2); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.queued-send:first-child { border-top: 0; border-radius: 10px 10px 0 0; }
+
+/* ── UX fixes: a first join that couldn't reach its server ── */
+.join-failed-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.join-name { width: min(320px, 100%); text-align: left; }

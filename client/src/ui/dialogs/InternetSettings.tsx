@@ -45,7 +45,7 @@ export function InternetSection({ server }: { server: ServerState }) {
   if (!status) {
     return (
       <section className="settings-section internet">
-        <h3>{t('settings.sections.internet')}</h3>
+        <h2>{t('settings.sections.internet')}</h2>
         {error ? <p className="error-text">{error}</p> : <Spinner />}
       </section>
     )
@@ -58,7 +58,7 @@ export function InternetSection({ server }: { server: ServerState }) {
 
   return (
     <section className="settings-section internet" data-testid="internet-section">
-      <h3>{t('settings.sections.internet')}</h3>
+      <h2>{t('settings.sections.internet')}</h2>
       <div className="internet-head">
         <div>
           <strong>{t('settings.internet.letFriends')}</strong>

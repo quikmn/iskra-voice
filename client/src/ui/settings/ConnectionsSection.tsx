@@ -30,7 +30,7 @@ export function ConnectionsSection() {
 
   return (
     <section className="settings-section connections" data-testid="who-iskra-talks-to">
-      <h3>{t('compliance.connections.title')}</h3>
+      <h2>{t('compliance.connections.title')}</h2>
       <p className="muted">{t('compliance.connections.intro')}</p>
       <ul className="connection-list">
         {ITEMS.map((item) => (
@@ -52,7 +52,7 @@ export function ConnectionsSection() {
       </ul>
       <p className="muted">{t('compliance.connections.nothingElse')}</p>
 
-      <h4>{t('compliance.connections.sitesTitle')}</h4>
+      <h3 className="h4">{t('compliance.connections.sitesTitle')}</h3>
       <p className="muted">{t('compliance.connections.sitesHint')}</p>
       <div data-testid="always-load-sites">
         {sites.length === 0 ? (

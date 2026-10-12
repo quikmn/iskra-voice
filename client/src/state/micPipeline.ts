@@ -11,7 +11,7 @@ import { AUTO_SPEAKING_DB, type AudioSettings } from './audio'
 import { loadRnnoiseWasm, loadSilero } from './audio/assets'
 import { DF_STRENGTH_DB } from './audio/strength'
 import { contextDelay, DeepFilterWorker, type WorkerLoad } from './audio/deepfilterHost'
-import { engineCaps, markBroken, OverrunWatch, plannedEngine, SlowWatch, type NoiseEngine } from './audio/engines'
+import { BridgeWatch, engineCaps, markBroken, MAX_BRIDGED, plannedEngine, SLOW_WINDOWS, SlowWatch, type NoiseEngine } from './audio/engines'
 
 export type LevelListener = (db: number, open: boolean) => void
 
@@ -75,19 +75,18 @@ async function startDeepFilter(ctx: AudioContext, strength: number, onLoad: (loa
     const started = Date.now()
     await ctx.audioWorklet.addModule(deepFilterWorkletUrl)
     worker = await DeepFilterWorker.start({ reportMs: 1000, ms: DEEPFILTER_START_MS, onLoad, onError: (m) => console.warn('[iskra] AI noise removal', m) })
-    if (!worker) throw new Error('the engine did not start')
     const delay = contextDelay(ctx)
     const node = new AudioWorkletNode(ctx, 'iskra-deepfilter', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1], processorOptions: { delay } })
     const id = await worker.link(node, strength, DEEPFILTER_START_MS)
     if (!id) {
       node.port.postMessage('stop')
-      throw new Error('the model did not load')
+      throw new Error(`the model did not load within ${DEEPFILTER_START_MS} ms`)
     }
     console.info(`[iskra] AI noise removal started in ${Date.now() - started} ms (delay ${((delay / ctx.sampleRate) * 1000).toFixed(1)} ms + 30 ms look-ahead)`)
     return { node, worker, id }
   } catch (e) {
     worker?.terminate()
-    console.warn('[iskra] AI noise removal could not start; using RNNoise', e)
+    console.warn(`[iskra] AI noise removal could not start (${(e as Error)?.message ?? e}); using RNNoise`)
     markBroken('ai')
     return null
   }
@@ -139,7 +138,7 @@ export async function createMicPipeline(source: MediaStreamTrack, settings: Audi
   let alive = true
   // AI noise removal can't keep up: the worker takes too long on average, or its frames keep coming back late.
   const slowWatch = new SlowWatch()
-  const overrunWatch = new OverrunWatch()
+  const bridgeWatch = new BridgeWatch()
   let gaveUp = false
   const tooSlow = (why: string) => {
     if (!alive || gaveUp) return
@@ -191,10 +190,15 @@ export async function createMicPipeline(source: MediaStreamTrack, settings: Audi
   void loadSilero().then((model) => alive && gate.port.postMessage({ type: 'vad-model', model }), (e) => console.warn('[iskra] voice activity model', e))
 
   if (deepFilter) {
-    deepFilter.node.port.onmessage = (e: MessageEvent<{ type: string; overruns?: number; dropped?: number }>) => {
-      if (e.data?.type !== 'overrun') return
-      console.info(`[iskra] AI noise removal: a frame was late, bridged with the unprocessed mic (${e.data.overruns} so far)`)
-      if (overrunWatch.report()) tooSlow('frames keep coming back late')
+    let lastLate = 0
+    deepFilter.node.port.onmessage = (e: MessageEvent<{ type: string; overruns: number; dropped: number; share: number }>) => {
+      const m = e.data
+      if (m?.type !== 'late') return
+      if (m.overruns && Date.now() - lastLate > 10000) {
+        lastLate = Date.now()
+        console.info(`[iskra] AI noise removal: ${m.overruns} frame(s) came back late from the worker in the last second; ${(m.share * 100).toFixed(0)}% of it went out unprocessed (${m.dropped} not sent)`)
+      }
+      if (bridgeWatch.report(m.share)) tooSlow(`its worker was late for more than ${MAX_BRIDGED * 100}% of each second, ${SLOW_WINDOWS} s in a row`)
     }
   }
   const track = destination.stream.getAudioTracks()[0]

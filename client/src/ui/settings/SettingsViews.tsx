@@ -335,7 +335,7 @@ function OverviewSection({ server }: { server: ServerState }) {
   const { t } = useTranslation()
   return (
     <section className="settings-section">
-      <h3>{t('settings.sections.overview')}</h3>
+      <h2>{t('settings.sections.overview')}</h2>
       <dl className="settings-facts">
         <div><dt>{t('settings.overview.name')}</dt><dd>{server.name}</dd></div>
         <div><dt>{t('settings.overview.yourRole')}</dt><dd className="capitalize">{server.me?.role ? t(`common.roles.${server.me.role}`) : t('settings.overview.notJoined')}</dd></div>
@@ -351,7 +351,7 @@ function PagesSection({ server }: { server: ServerState }) {
   const { t } = useTranslation()
   return (
     <section className="settings-section">
-      <h3>{t('settings.sections.pages')}</h3>
+      <h2>{t('settings.sections.pages')}</h2>
       <p className="muted">{t('settings.pages.intro')}</p>
       <ServerPagesOption server={server} />
     </section>

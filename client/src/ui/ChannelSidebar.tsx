@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { roleRank } from '../core/protocol'
 import { has } from '../state/permissions'
 import { useServerRoles } from '../state/roles'
-import { useApp, type ServerState } from '../state/store'
+import { failedJoin, useApp, type ServerState } from '../state/store'
 import { useThreads } from '../state/threads'
 import { VoiceBar } from './VoiceBar'
 import { MeStatusButton } from './presence/Presence'
@@ -19,6 +19,7 @@ import { ReportsButton } from './safety/ReportsSection'
 import { errorMessage } from '../i18n/errors'
 import type { MenuAnchor } from './organize/OrgMenu'
 import { ServerMenu } from './organize/ServerMenu'
+import { treeKeys, useRoving } from './roving'
 import './audio.css'
 
 export function ChannelSidebar({ server, onNavigate }: { server: ServerState; onNavigate: () => void }) {
@@ -29,6 +30,14 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
   const [createIn, setCreateIn] = useState<number | null>(null)
   const [menu, setMenu] = useState<MenuAnchor | null>(null)
   useThreads((s) => s.threads[server.key]) // thread mentions count on their channel
+  // One Tab stop: up/down between channels and categories, left/right closes and opens categories.
+  const listRef = useRef<HTMLDivElement>(null)
+  useRoving(listRef, {
+    items: '.channel, .org-category-toggle, .reports-button, .invite-button',
+    current: '.channel.active',
+    row: '.org-row, .org-category-head',
+    onKey: treeKeys('.org-category', '.org-category-toggle'),
+  })
 
   return (
     <nav className="channel-sidebar" aria-label={t('app.sidebar.channelsLabel', { name: server.name })}>
@@ -51,7 +60,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
       </header>
       {menu && <ServerMenu server={server} anchor={menu} onClose={() => setMenu(null)} />}
 
-      <div className="channel-list">
+      <div className="channel-list" ref={listRef}>
         <ReportsButton server={server} onOpen={() => openServerSettings(server.key, 'reports')} />
         <RulesButton server={server} onNavigate={onNavigate} />
         <EventsButton server={server} onNavigate={onNavigate} />
@@ -81,6 +90,8 @@ function ConnectionPill({ server }: { server: ServerState }) {
   if (status.state === 'online') return null
   const label =
     status.state === 'connecting' ? t('app.sidebar.connecting')
+      : failedJoin(server) && status.state === 'offline' ? t('app.sidebar.notReached')
+      : status.state === 'rejected' && status.code === 'name_required' ? t('chat.view.pickNameTitle')
       : status.state === 'offline' ? t('app.sidebar.reconnectingIn', { seconds: Math.ceil(status.retryInMs / 1000) })
         : status.state === 'restarting' ? t('app.sidebar.restarting')
         : t('app.sidebar.noAccess')

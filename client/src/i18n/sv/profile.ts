@@ -63,6 +63,11 @@ export const profile: Messages['profile'] = {
     tooBig: 'Filen är för stor för att vara ett tema.',
     json: 'Temats JSON',
     help: 'Färger skrivs som hex (#7c6fff) eller rgb()/rgba(). Dessutom: "radius" 0–24, "avatarShape" circle, rounded eller square, och "fonts" body inter, system, rounded, serif eller mono.',
+    contrast: {
+      title: 'En del text kan vara svår att läsa (den bör ha minst 4,5:1 i kontrast):',
+      pair: '{{text}} på {{background}}: {{ratio}}:1',
+      fix: 'Använd {{color}} för {{key}}',
+    },
     errors: {
       notObject: 'Ett tema är ett JSON-objekt med "meta" och "colors".',
       unknownKey: 'Okänd nyckel "{{key}}".',

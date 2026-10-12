@@ -9,7 +9,7 @@ export function ClipSettingsSection() {
   const supported = canClip()
   return (
     <section className="settings-section clip-settings">
-      <h3>{t('clips.settings.title')}</h3>
+      <h2>{t('clips.settings.title')}</h2>
       <p className="muted">{t('clips.settings.about')}</p>
       <label className="checkbox">
         <input type="checkbox" checked={settings.enabled && supported} disabled={!supported} onChange={(e) => setClipSettings({ enabled: e.target.checked })} />

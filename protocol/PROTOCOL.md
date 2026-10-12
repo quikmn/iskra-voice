@@ -71,7 +71,7 @@ The connection is one WebSocket per server at `wss://<host>/ws`. It uses text fr
 3. **Server checks:**
    - the certificate signature
    - the auth signature
-   - the profile name (1–32 characters, no control characters)
+   - the profile name (1–32 characters, no control characters). A device that doesn't know the account's name yet (restored from the recovery key) leaves `name` out: a member keeps their name and profile (nothing else in `profile` is applied), an account that isn't a member yet is refused with `name_required` (its invite isn't used)
    - that the account isn't banned and the device isn't revoked
    - membership: accounts that aren't members yet need a valid `invite`, which also sets their role
 4. **Server sends `welcome`:**
@@ -190,7 +190,8 @@ Message { "id": 42, "channelId": 1, "author": "<accountKey>", "text": "hi", "cre
           "attachments": [File], "replyTo": ..., "reactions": [...],   // Files, replies and reactions
           "pinned": false, "thread": Thread | null,                     // Pins, search and threads
           "poll": Poll | null,                                          // Polls
-          "webhook": WebhookInfo | null }                               // Webhooks
+          "webhook": WebhookInfo | null,                                // Webhooks
+          "cards": [Card] | null }                                      // Bot commands and cards
 Invite  { "code": "<b64u 16>", "role": "member", "createdBy": "<accountKey>", "createdAt": 0, "expiresAt": 0, "maxUses": null, "uses": 0 }
 ```
 
@@ -627,7 +628,7 @@ A bot is an ordinary identity (account key, device certificate, signed handshake
 - Bots can't join voice (`voice.join` → `forbidden`), create invites, or have a role above `trusted` (`member.setRole` → `bad_request`). They have the same rate limits as everyone else.
 - Bots can't send DMs or take part in calls (`dm.send`, `call.start`, `call.accept` → `forbidden`; calling a bot → `bad_request`): DMs and call keys are end-to-end encrypted to people's devices, which a bot can't read.
 - Bots can't be in group DMs or group calls, schedule messages (`scheduled.create` → `forbidden`), speak or moderate on stages, take part in [encrypted channels](#end-to-end-encrypted-channels), or leave on their own (`member.leave` → `forbidden`; an admin removes them). They can hold [roles](#roles-and-permissions) with permissions like anyone else.
-- Commands are a message convention, not a protocol feature: a message starting with `/name args` (or `/name@BotName args` to pick one bot) is a command. See `docs/bots.md`.
+- Commands are a message convention, not a protocol feature: a message starting with `/name args` (or `/name@BotName args` to pick one bot) is a command. Bots can describe their commands so apps suggest them ([Bot commands and cards](#bot-commands-and-cards)); the message is still the command. See `docs/bots.md`.
 
 ### Webhooks
 
@@ -1931,6 +1932,15 @@ the server. The **server** also checks that changes follow the channel's read pe
 must list exactly the people who can read the channel (creator first), else `conflict`. If nobody left in the chain can
 read the channel, someone who can may start a new chain (a `create` with a new id); the old history stays unreadable to them.
 
+### Starting over
+
+No new messages or fields; this is what apps do around the `create` that starts a chain over.
+
+- **Who starts it:** an app whose account can read the channel but isn't in the chain, when `echan.get` shows that nobody in the chain can read it any more (every member is in `want.remove`, the app's own account is in `want.add`, and `full` is false). The first such reader who is online goes (the others wait a few seconds longer each, then find it done); the `create` lists exactly `want.add`. The server still refuses it (`bad_request`) while anyone in the chain can read.
+- **Following it:** an app whose account isn't in its verified chain (it was removed, or never in it) takes the new chain at once, verified from its `create`. It keeps the old chain and its epoch keys to decrypt messages whose envelope `header.chain` names it.
+- **Inside the chain: never automatic.** An app whose account is still in its verified chain never replaces it on the server's word (the server only restarts a chain when nobody in it can read, so from inside, a new chain is indistinguishable from a server-made one). It keeps the old chain and keys, refuses to send, and, if the new chain verifies from its `create`, offers it: the person sees everyone who signed one of its changes (each change signs `prev`, so the whole chain before it) and whether each key was in their old chain, is a friend's or DM contact's, or is new; a new key carrying the name of someone from the old chain is pointed out. **Start over** is an explicit action; it needs the person's own account in the new chain and no high-severity key-transparency finding about a signer, and a safety-number confirmation when no signer is a key they knew (or a lookalike is listed). Then the app keeps the old chain for old messages, records the start-over with the channel ("You started encryption over on …"), never accepts a chain it left again, and signs a `rekey` in the new chain.
+- Not required: a signature on the new chain from someone in the old one. A legitimate restart is usually made by someone who was never in the old chain (nobody in it could read the channel), and a forger would leave old members out; the key checks above are what tell the two apart.
+
 ### Epoch keys
 
 Every change starts an **epoch** (its version) with a new random 32-byte key, made by whoever made the change and sent with
@@ -2098,7 +2108,8 @@ the others (so servers can't read it):
 
 A newly linked device gets the profile and its stamp in the link payload ([Device linking carries the
 profile](#device-linking-carries-the-profile), which gains `updatedAt` and `by`); a device restored from the recovery
-key starts unstamped and takes the account's copy on its first `welcome`.
+key starts unstamped and without a name: it leaves `name` out of `auth` (see the handshake), takes the account's copy
+on its first `welcome`, or else the name in `welcome.you`, and asks the person only when it gets `name_required`.
 
 Limits: ordering trusts the devices' clocks, bounded by the rules above; an edit made on a device that hasn't seen a
 newer one (offline) loses to it if its clock is earlier. Fields aren't merged: the newest edit wins as a whole (fields
@@ -2148,3 +2159,56 @@ What apps do (the TS client and the bot SDK share it, `client/src/core/connectio
   left meanwhile. On 1012 or 1001 `stop` apps leave the LiveKit room straight away (LiveKit stops with the server),
   so the rejoin is a fresh one. Camera and screen share are never turned back on by themselves. DM and group calls live in the
   server's memory and end with a restart; they aren't rejoined.
+
+## Bot commands and cards
+
+Bots can tell the server which `/commands` they understand, so apps can suggest them as people type, and can attach
+cards to their messages. A command is still sent as an ordinary message (`/roll 2d6`, see [Bot accounts](#bot-accounts));
+the registry only describes it.
+
+### Command registry
+
+| type | body | result | who |
+|---|---|---|---|
+| `bot.commands.set` | `commands: [Command]` (replaces the bot's whole list; `[]` clears it) | `{ commands }` (as stored) | bots only (`forbidden` for people) |
+| `bot.commands.available` | `channelId` | `{ bots: [accountKey] }` | channel readers |
+
+```jsonc
+Command { "name": "roll", "description": "Rolls dice", "usage"?: "2d6+1",
+          "options"?: [{ "name": "dice", "description": "Like 2d6", "type": "string", "required"?: true,
+                         "choices"?: [{ "name": "Twenty-sided", "value": "d20" }] }] }
+```
+
+| field | rules |
+|---|---|
+| `commands` | ≤ 50; names unique; the stored list (JSON) ≤ 16 KB |
+| `name` (command and option) | 1–32 characters of `a–z`, `0–9`, `_`, `-`, starting with a letter or digit |
+| `description` | 1–100 characters, one line, no invisible control characters |
+| `usage` | optional, ≤ 100 characters, one line: a hint shown after the name (`2d6+1`) |
+| `options` | ≤ 25 per command, names unique; `type` is `string`, `integer`, `number`, `boolean`, `user`, `channel` or `role`; required ones come first |
+| `choices` | ≤ 25, only for `string`, `integer` and `number`; `name` 1–100; `value` matches the type (string 1–100, a safe integer, a finite number) |
+
+- Rate limit: 5, then one every 5 s.
+- `welcome.botCommands: [{ bot: accountKey, commands }]` lists every bot member with a non-empty list. Event
+  `bot.commands { bot, commands }` goes to everyone when a bot changes its list.
+- `bot.commands.available` answers which of those bots can read **and** post in the channel (threads follow their
+  parent), so apps suggest only commands that someone will answer. Always `[]` in [encrypted channels](#end-to-end-encrypted-channels)
+  (bots aren't there). Channels the caller can't read are `not_found`.
+- A bot's list is deleted when it stops being a member (kicked, banned, removed); apps drop it on `member.removed`.
+  A bot registers again each time it starts.
+
+### Cards
+
+`chat.send` from a bot may carry `cards: [Card]`; `text` may then be empty. `chat.edit` of a bot's own message may
+carry `cards` too (it replaces them; `[]` removes them; with cards `text` may be empty). People get `forbidden`.
+Cards use the [webhook embed](#webhooks) format, validator and limits (≤ 10 per message, ≤ 6000 characters in total,
+`title` 256, `description` 4096, `url` http(s), `color` 0–16777215, `timestamp` ISO 8601 → ms, `author`, `footer.text`
+2048, ≤ 25 `fields`), plus pictures:
+
+| field | rules |
+|---|---|
+| `thumbnail`, `image` | `{ "url": ... }`: either this server's own file (`/files/<id>/...`, an image the bot uploaded itself, not SVG), or a `data:image/png\|jpeg\|gif\|webp;base64,...` URL of ≤ 16 KB. Anything else (remote addresses) is `bad_request`: viewers never load third-party content. |
+
+Messages carry `cards: [Card] | null` (`null` for everything except a bot's message with cards). Stored cards keep
+only the fields above; a picture from `/files` is returned as that file's URL path, which apps resolve against the
+server's address. Card text is rendered as text and markdown by apps, never as HTML.

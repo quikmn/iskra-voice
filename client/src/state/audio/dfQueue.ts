@@ -229,6 +229,8 @@ export class FrameQueue {
   overruns = 0
   /** Frames that couldn't go out because every slot was busy. */
   dropped = 0
+  /** Samples played (partly) unprocessed because the worker was late. */
+  bridged = 0
 
   constructor(delay: number, model = MODEL_DELAY) {
     this.delay = delay
@@ -312,8 +314,11 @@ export class FrameQueue {
       const p = p0 + i
       if (this.mix !== target) this.mix = target > this.mix ? Math.min(1, this.mix + step) : Math.max(0, this.mix - step)
       if (this.mix === 1) output[i] = this.wetAt(p)
-      else if (this.mix === 0) output[i] = this.dryAt(p)
-      else {
+      else if (this.mix === 0) {
+        output[i] = this.dryAt(p)
+        if (p >= 0) this.bridged++
+      } else {
+        this.bridged++
         const dry = this.dryAt(p)
         output[i] = dry + (this.wetAt(p) - dry) * this.mix
       }
@@ -321,12 +326,16 @@ export class FrameQueue {
   }
 }
 
+/** Render calls between reports (1 s at 48 kHz). */
+const REPORT_CALLS = 375
+
 type PageMessage = { port: MessagePort } | { slots: SharedArrayBuffer } | { strength: number } | 'stop'
 
 /**
  * Both DeepFilterNet worklets (the mic's and each incoming voice's): take the link to the worker from the page and
  * run the queue. Before the link arrives the mic sends silence, an incoming voice passes through as it is. Says
- * "ready" (with the delay) once linked, and "overrun" whenever a frame wasn't back in time.
+ * "ready" (with the delay) once linked, and every second how it went: { type: 'late', overruns, dropped, share }
+ * (frames that weren't back in time, frames that couldn't be sent, and the share of that second played unprocessed).
  */
 export class WorkletQueue {
   stopped = false
@@ -336,6 +345,9 @@ export class WorkletQueue {
   private readonly before: 'silence' | 'input'
   private model = MODEL_DELAY
   private overruns = 0
+  private dropped = 0
+  private bridged = 0
+  private calls = 0
 
   constructor(port: MessagePort, delay: number, before: 'silence' | 'input') {
     this.port = port
@@ -360,6 +372,9 @@ export class WorkletQueue {
     else return
     this.queue = queue
     this.overruns = 0
+    this.dropped = 0
+    this.bridged = 0
+    this.calls = 0
     this.port.postMessage({ type: 'ready', latency: queue.delay, transport: 'slots' in data ? 'shared' : 'port' })
   }
 
@@ -371,9 +386,16 @@ export class WorkletQueue {
       return
     }
     queue.process(input, output)
-    if (queue.overruns !== this.overruns) {
-      this.overruns = queue.overruns
-      this.port.postMessage({ type: 'overrun', overruns: queue.overruns, dropped: queue.dropped })
-    }
+    if (++this.calls < REPORT_CALLS) return
+    this.port.postMessage({
+      type: 'late',
+      overruns: queue.overruns - this.overruns,
+      dropped: queue.dropped - this.dropped,
+      share: (queue.bridged - this.bridged) / (this.calls * output.length),
+    })
+    this.calls = 0
+    this.overruns = queue.overruns
+    this.dropped = queue.dropped
+    this.bridged = queue.bridged
   }
 }

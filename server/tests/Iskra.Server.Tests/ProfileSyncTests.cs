@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Iskra.Server.Features;
 using Iskra.Server.Tests.Support;
 
 namespace Iskra.Server.Tests;
@@ -175,5 +176,44 @@ public class ProfileSyncTests
         using var response = await server.CreateClient().PutAsync(ticket.GetProperty("url").GetString(), new ByteArrayContent(content));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("file").GetProperty("id").GetString()!;
+    }
+
+    [Fact]
+    public async Task A_restored_device_that_leaves_the_name_out_keeps_the_members_profile_and_a_new_member_must_name_themselves()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        using var bob = await server.JoinAsync("Bob");
+
+        // Alice's device restored from the recovery key doesn't know her name yet: no name, and nothing changes.
+        using var restored = new TestIdentity(alice.Identity.Account);
+        using var device = await server.ConnectAsync();
+        var hello = await device.ReceiveAsync();
+        var frame = restored.AuthFrame(hello);
+        frame["body"]!["profile"]!.AsObject().Remove("name");
+        await device.SendAsync(frame);
+        var welcome = await device.ReceiveAsync();
+        Assert.Equal("welcome", welcome.Type());
+        Assert.Equal("Alice", welcome.Body().GetProperty("you").GetProperty("name").GetString());
+        await bob.NoEventAsync("member.updated");
+        Assert.Equal("Alice", server.World.Store.GetMember(alice.Key)!.Name);
+
+        // Someone new without a name is asked for one, and their invite isn't used up.
+        var invite = server.World.Store.CreateInvite(InviteFeature.NewCode(), "test", "member", Now, null, 1).Code;
+        using var stranger = new TestIdentity();
+        using var c1 = await server.ConnectAsync();
+        frame = stranger.AuthFrame(await c1.ReceiveAsync(), invite: invite);
+        frame["body"]!["profile"]!.AsObject().Remove("name");
+        await c1.SendAsync(frame);
+        Assert.Equal("name_required", (await c1.ReceiveAsync()).ErrorCode());
+        Assert.Equal(0, server.World.Store.GetInvite(invite)!.Uses);
+        Assert.Null(server.World.Store.GetMember(stranger.AccountKey));
+        using var c2 = await server.ConnectAsync();
+        Assert.Equal("welcome", (await c2.LoginAsync(stranger, "Stranger", invite)).Type());
+
+        // A blank name is still refused.
+        using var c3 = await server.ConnectAsync();
+        await c3.SendAsync(restored.AuthFrame(await c3.ReceiveAsync(), "   "));
+        Assert.Equal("auth_failed", (await c3.ReceiveAsync()).ErrorCode());
     }
 }

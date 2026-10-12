@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { checkAssets, compareVersions, expectedAssets, formatSums, isValidVersion, parseUpdateYml, releaseTitle, replaceVersion } from './release-lib.mjs'
+import { checkAssets, compareVersions, expectedAssets, formatSums, isValidVersion, missingUpdaterFiles, parseUpdateYml, releaseTitle, replaceVersion } from './release-lib.mjs'
 
 test('accepts x.y.z and x.y.z-alpha.n only', () => {
   for (const v of ['2.0.0', '2.0.0-alpha.10', '10.20.30', '0.0.1-alpha.0']) assert.ok(isValidVersion(v), v)
@@ -63,6 +63,17 @@ test('reads latest.yml', () => {
   const yml = "version: 2.0.0-alpha.9\nfiles:\n  - url: Iskra-Setup-2.0.0-alpha.9.exe\n    sha512: abc+/=\n    size: 123\n  - url: b.zip\n    sha512: 'def'\n    size: 4\npath: Iskra-Setup-2.0.0-alpha.9.exe\nsha512: abc+/=\nreleaseDate: '2026-10-11T10:00:00.000Z'\n"
   assert.deepEqual(parseUpdateYml(yml), { version: '2.0.0-alpha.9', files: [{ url: 'Iskra-Setup-2.0.0-alpha.9.exe', sha512: 'abc+/=', size: 123 }, { url: 'b.zip', sha512: 'def', size: 4 }] })
   assert.deepEqual(parseUpdateYml(yml.replaceAll('\n', '\r\n')).files.length, 2)
+})
+
+test('update files list what each updater installs from', () => {
+  const v = '2.0.0-alpha.12'
+  // As published for alpha 12: both Mac zips (plus the dmgs, which the updater ignores).
+  const mac = ['Iskra-2.0.0-alpha.12-mac-x64.zip', 'Iskra-2.0.0-alpha.12-mac-arm64.zip', 'Iskra-2.0.0-alpha.12-mac-x64.dmg', 'Iskra-2.0.0-alpha.12-mac-arm64.dmg']
+  assert.deepEqual(missingUpdaterFiles('latest-mac.yml', v, mac), [])
+  assert.deepEqual(missingUpdaterFiles('latest-mac.yml', v, mac.filter((u) => !u.includes('arm64'))), ['Iskra-2.0.0-alpha.12-mac-arm64.zip'])
+  assert.deepEqual(missingUpdaterFiles('latest-linux.yml', v, ['Iskra-2.0.0-alpha.12-amd64.deb']), ['Iskra-2.0.0-alpha.12-x86_64.AppImage'])
+  assert.deepEqual(missingUpdaterFiles('latest.yml', v, ['Iskra-Setup-2.0.0-alpha.12.exe']), [])
+  assert.deepEqual(missingUpdaterFiles('other.yml', v, []), [])
 })
 
 test('SHA256SUMS format', () => {

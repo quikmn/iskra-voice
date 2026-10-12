@@ -116,15 +116,18 @@ export class SlowWatch {
   }
 }
 
-/** More than this many times per 10 s that DeepFilterNet's frames weren't back in time and it can't keep up here. */
-export const MAX_OVERRUNS = 5
+/**
+ * When DeepFilterNet's worker is late, that bit of audio goes out unprocessed (crossfaded). More than this share of
+ * each second, several seconds in a row, and it can't keep up here. A late frame now and then (a busy moment on a
+ * loaded machine) costs little and isn't a reason to give up on it.
+ */
+export const MAX_BRIDGED = 0.25
 
-/** Counts overruns (a frame not back from the worker in time) over the last 10 s; true once there were too many. */
-export class OverrunWatch {
-  private times: number[] = []
-  report(now = Date.now()): boolean {
-    this.times = this.times.filter((t) => now - t < 10000)
-    this.times.push(now)
-    return this.times.length > MAX_OVERRUNS
+/** Watches the share of each second played unprocessed; true once it was too much for SLOW_WINDOWS seconds in a row. */
+export class BridgeWatch {
+  private over = 0
+  report(share: number): boolean {
+    this.over = share > MAX_BRIDGED ? this.over + 1 : 0
+    return this.over >= SLOW_WINDOWS
   }
 }

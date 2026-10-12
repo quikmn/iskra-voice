@@ -39,3 +39,6 @@
 .tile-focus:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; }
 .video-tile .tile-fullscreen { z-index: 1; }
 .video-tile:focus-within .tile-fullscreen { opacity: 1; }
+
+/* Room for a 24px target around a checkbox that sits under other controls (WCAG 2.5.8). */
+.options-row + .checkbox { margin-top: 10px; }

@@ -14,6 +14,7 @@ import { Close, FileIcon, Lock, Paperclip, Send } from '../icons'
 import { VoicePlayer, VoiceRecordButton } from '../chat/voice/VoiceMessages'
 import { voiceRecordingSupported, type Recording } from '../chat/voice/recorder'
 import { useSendLater } from '../productivity/SendLater'
+import { useQueuedSend } from '../chat/QueuedSend'
 import './dm-files.css'
 
 /** Decrypted automatically when small enough; bigger files wait for a click. */
@@ -49,6 +50,8 @@ export function DmComposer({ peer, placeholder, group }: {
   const uploading = uploads.some((u) => !u.result && !u.error)
   const ready = uploads.filter((u) => u.result).map((u) => u.result!)
   const canSend = !!route && !uploading && (text.trim().length > 0 || ready.length > 0)
+  const canQueue = !!route && uploading
+  const queue = useQueuedSend(uploads.map((u) => ({ done: !!u.result, failed: !!u.error })), () => submit())
   const later = useSendLater({
     target: group ? { kind: 'group', key: group.key } : { kind: 'dm', peer },
     prepare: () => text.trim() || null,
@@ -86,7 +89,10 @@ export function DmComposer({ peer, placeholder, group }: {
   })
 
   function submit() {
-    if (!canSend) return
+    if (!canSend) {
+      if (canQueue) queue.queue()
+      return
+    }
     const files = uploads.filter((u) => u.result && u.result.server === ready[0]?.server)
       .map((u) => (u.spoiler && !isSpoilerName(u.result!.name) ? { ...u.result!, name: `SPOILER_${u.result!.name}` } : u.result!))
     for (const u of uploads) if (u.preview) URL.revokeObjectURL(u.preview)
@@ -119,6 +125,7 @@ export function DmComposer({ peer, placeholder, group }: {
           ))}
         </div>
       )}
+      {queue.bar}
       <div className="composer">
         <button className="icon-button attach-button" onClick={() => fileInput.current?.click()} aria-label={t('chat.composer.attach')} title={t('dms.files.attachTitle')}>
           <Paperclip />
@@ -161,7 +168,7 @@ export function DmComposer({ peer, placeholder, group }: {
         />
         {!text.trim() && uploads.length === 0 && voiceRecordingSupported() && <VoiceRecordButton onSend={sendVoice} disabled={!route} />}
         {later.button}
-        <button className="send-button" onClick={submit} disabled={!canSend} aria-label={t('common.send')} {...later.sendProps}>
+        <button className="send-button" onClick={submit} disabled={!canSend && !canQueue} aria-label={t('common.send')} {...later.sendProps}>
           <Send />
         </button>
       </div>
