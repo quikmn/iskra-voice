@@ -95,6 +95,8 @@ async function androidPhone(browser: Browser, lang: Lang): Promise<Page> {
   await context.addInitScript(() => {
     ;(window as { Capacitor?: unknown }).Capacitor = { isNativePlatform: () => true, getPlatform: () => 'android' }
     delete (window as { PushManager?: unknown }).PushManager
+    // Android's web view has no screen capture, so the app hides screen sharing.
+    delete (MediaDevices.prototype as { getDisplayMedia?: unknown }).getDisplayMedia
     try {
       localStorage.setItem('iskra.language', 'en')
     } catch {
@@ -120,7 +122,7 @@ async function friend(browser: Browser, invite: string, name: string): Promise<P
 
 /** Opens the phone's channel drawer if it's closed. */
 async function drawer(page: Page) {
-  const open = page.getByRole('button', { name: 'Open channels' }).first()
+  const open = page.getByRole('button', { name: /^Open (channels|menu)$/ }).first()
   if (await open.isVisible()) await open.click()
 }
 
@@ -150,6 +152,8 @@ for (const lang of ['en', 'sv'] as const) {
       await expect(linkInput).toHaveValue(/#\/join\//)
       const invite = await linkInput.inputValue()
       await closeAll(phone)
+      // The recovery key nudge is for real accounts; the screenshots don't need it.
+      await phone.locator('.nudge').getByRole('button', { name: 'Later' }).click()
 
       const friends = {
         Alex: await friend(browser, invite, 'Alex'),
@@ -188,7 +192,11 @@ for (const lang of ['en', 'sv'] as const) {
         await poll.getByRole('radio', { name: c.poll.answers[answer] }).click()
         await poll.getByRole('button', { name: 'Vote' }).click()
       }
-      await expect(phone.locator('.poll', { hasText: c.poll.question })).toBeVisible()
+      const phonePoll = phone.locator('.poll', { hasText: c.poll.question })
+      await phonePoll.getByRole('radio', { name: c.poll.answers[0] }).click()
+      await phonePoll.getByRole('button', { name: 'Vote' }).click()
+      await expect(phonePoll).toContainText('4')
+      await phonePoll.scrollIntoViewIfNeeded()
       await expect(phone.locator('.message', { hasText: 'Ashlands' }).locator('.reaction')).toHaveCount(1)
       await shot(phone, lang, '1-text-channel')
 
@@ -202,8 +210,11 @@ for (const lang of ['en', 'sv'] as const) {
       await drawer(phone)
       await phone.getByRole('button', { name: 'Direct messages' }).click()
       const row = phone.locator('.dm-row', { hasText: 'Noor' })
-      if (!(await row.isVisible())) await phone.getByRole('button', { name: 'Open menu' }).first().click()
+      const menu = phone.getByRole('button', { name: 'Open menu' }).first()
+      if (await menu.isVisible()) await menu.click()
       await row.click()
+      // Friends: accept Noor's request (the header is tidier without the request buttons).
+      await phone.getByRole('button', { name: /^Accept( friend request)?$/ }).first().click()
       const phoneBox = phone.getByPlaceholder('Message Noor')
       await phoneBox.fill(c.dm[1][1])
       await phoneBox.press('Enter')
@@ -221,7 +232,7 @@ for (const lang of ['en', 'sv'] as const) {
       await closeAll(phone)
       await phone.getByRole('button', { name: 'Members' }).first().click()
       await phone.locator('.member-list').getByRole('button', { name: /Noor/ }).click()
-      await expect(phone.getByText(c.pronouns)).toBeVisible()
+      await expect(phone.getByText(c.pronouns).last()).toBeVisible()
       await shot(phone, lang, '4-profile-card')
       await closeAll(phone)
 
@@ -239,7 +250,9 @@ for (const lang of ['en', 'sv'] as const) {
         await phone.getByRole('button', { name: 'Create voice channel' }).click()
         await phone.getByRole('radio', { name: 'Voice' }).click()
         await phone.getByLabel('Name').fill(c.lounge)
-        await phone.getByRole('button', { name: 'Create', exact: true }).click()
+        await phone.getByLabel('Name').press('Enter') // the Create button is below the fold at 640 px
+        await expect(phone.locator('.voice-channel', { hasText: c.lounge })).toHaveCount(1)
+        await closeAll(phone)
         for (const page of [alex, friends.Sam]) {
           await page.locator('.voice-channel', { hasText: c.lounge }).getByRole('button').first().click()
           await expect(page.locator('.stage')).toBeVisible({ timeout: 20_000 })
