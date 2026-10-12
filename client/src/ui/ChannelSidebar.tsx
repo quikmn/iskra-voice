@@ -105,6 +105,7 @@ function ConnectionPill({ server }: { server: ServerState }) {
   const label =
     status.state === 'connecting' ? t('app.sidebar.connecting')
       : status.state === 'offline' ? t('app.sidebar.reconnectingIn', { seconds: Math.ceil(status.retryInMs / 1000) })
+        : status.state === 'restarting' ? t('app.sidebar.restarting')
         : t('app.sidebar.noAccess')
   return <span className={`pill ${status.state}`} title={status.state === 'rejected' ? errorMessage(status) : undefined}>{label}</span>
 }

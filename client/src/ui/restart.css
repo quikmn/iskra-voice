@@ -1,0 +1,28 @@
+/* ── Server restarting banner ───────────────────────────────────────── */
+.restart-banner {
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--text);
+  animation: restart-in 0.2s ease-out;
+}
+.restart-banner.back { animation: restart-in 0.2s ease-out, restart-out 0.4s ease-in 2.1s forwards; }
+.restart-spinner {
+  flex: none; width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--accent) 25%, transparent); border-top-color: var(--accent);
+  animation: spin 1.1s linear infinite;
+}
+.restart-dot { flex: none; width: 8px; height: 8px; margin: 0 3px; border-radius: 50%; background: var(--green, var(--accent)); }
+@keyframes restart-in { from { opacity: 0; transform: translateY(-4px); } }
+@keyframes restart-out { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .restart-banner, .restart-banner.back { animation: none; }
+  .restart-spinner { animation-duration: 3s; }
+}
+
+/* After a drop: camera and screen share are offered again, never turned on by themselves. */
+.resume-offer {
+  display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px;
+  margin: 0 auto 8px; padding: 8px 12px; max-width: min(560px, calc(100% - 32px));
+  border-radius: 10px; background: var(--surface-2); color: var(--text); font-size: 13px;
+}
+.resume-offer p { margin: 0; flex: 1 1 220px; }

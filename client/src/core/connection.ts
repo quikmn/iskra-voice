@@ -8,6 +8,8 @@ export type ConnectionStatus =
   | { state: 'connecting' }
   | { state: 'online' }
   | { state: 'offline'; retryInMs: number }
+  /** The server said it's restarting (close 1012): we retry about every second for a while. `etaMs` is its own estimate. */
+  | { state: 'restarting'; since: number; etaMs?: number }
   /** The server said no (no invite, banned, kicked, wrong server, key rotated). We don't retry. */
   | { state: 'rejected'; code: string; message: string; detail?: Record<string, unknown> }
 
@@ -44,6 +46,20 @@ interface Pending {
 
 const MIN_BACKOFF_MS = 500
 const MAX_BACKOFF_MS = 30_000
+/** After a restart signal: retry about this often (±25%), for at least RESTART_WINDOW_MS. */
+export const RESTART_RETRY_MS = 1000
+export const RESTART_WINDOW_MS = 120_000
+
+/** The reason of a 1012 close: `{ v: 1, reason, etaMs? }`. Anything else still counts as a restart, without a hint. */
+export function restartHint(reason: string): { reason: string; etaMs?: number } {
+  try {
+    const body = JSON.parse(reason) as { reason?: unknown; etaMs?: unknown }
+    const etaMs = typeof body.etaMs === 'number' && body.etaMs >= 0 && body.etaMs <= 600_000 ? body.etaMs : undefined
+    return { reason: typeof body.reason === 'string' ? body.reason.slice(0, 32) : 'restart', ...(etaMs !== undefined ? { etaMs } : {}) }
+  } catch {
+    return { reason: 'restart' }
+  }
+}
 
 export class Connection {
   private readonly options: ConnectionOptions
@@ -56,6 +72,8 @@ export class Connection {
   private rejected = false
   private ready = false
   private invite: string | undefined
+  /** While the server is restarting: when it said so, its estimate, and until when we retry fast. */
+  private restart: { since: number; etaMs?: number; until: number } | null = null
 
   constructor(options: ConnectionOptions) {
     this.options = options
@@ -65,6 +83,7 @@ export class Connection {
   start(): void {
     this.stopped = false
     this.rejected = false
+    this.restart = null
     this.open()
   }
 
@@ -114,7 +133,7 @@ export class Connection {
       )
       return
     }
-    this.options.onStatus({ state: 'connecting' })
+    this.options.onStatus(this.restartStatus() ?? { state: 'connecting' })
     let socket: WebSocket
     try {
       socket = new Impl(socketUrl(this.options.serverUrl))
@@ -127,7 +146,7 @@ export class Connection {
       if (this.socket === socket) this.handleFrame(String(event.data))
     }
     socket.onclose = (event) => {
-      if (this.socket === socket) this.handleClose(event.code)
+      if (this.socket === socket) this.handleClose(event.code, event.reason)
     }
   }
 
@@ -147,6 +166,7 @@ export class Connection {
       case 'welcome':
         this.ready = true
         this.attempts = 0
+        this.restart = null
         this.invite = undefined // we're a member now
         this.options.onStatus({ state: 'online' })
         this.options.onWelcome(body as unknown as Welcome)
@@ -204,7 +224,7 @@ export class Connection {
     this.socket?.close(1000)
   }
 
-  private handleClose(code: number): void {
+  private handleClose(code: number, reason = ''): void {
     this.socket = null
     this.ready = false
     this.failPending('disconnected', 'Connection lost.')
@@ -217,14 +237,40 @@ export class Connection {
       this.reject('forbidden', 'You no longer have access to this server.')
       return
     }
+    if (code === CloseCodes.Restarting) {
+      const now = Date.now()
+      const { etaMs } = restartHint(reason)
+      // A second restart notice (it came back and went again) keeps the first one's start.
+      const since = this.restart?.since ?? now
+      this.restart = { since, ...(etaMs !== undefined ? { etaMs } : {}), until: now + Math.max(RESTART_WINDOW_MS, (etaMs ?? 0) + 60_000) }
+      this.attempts = 0
+    }
     this.scheduleReconnect()
   }
 
+  private restartStatus(): ConnectionStatus | null {
+    const restart = this.restart
+    if (!restart || Date.now() >= restart.until) return null
+    return { state: 'restarting', since: restart.since, ...(restart.etaMs !== undefined ? { etaMs: restart.etaMs } : {}) }
+  }
+
   private scheduleReconnect(): void {
+    const restarting = this.restartStatus()
+    if (restarting) {
+      // Fast and steady while the server comes back; jitter so everyone doesn't knock at the same moment.
+      this.schedule(Math.round(RESTART_RETRY_MS * (0.75 + Math.random() * 0.5)))
+      this.options.onStatus(restarting)
+      return
+    }
+    this.restart = null
     const base = Math.min(MAX_BACKOFF_MS, MIN_BACKOFF_MS * 2 ** this.attempts)
     const delay = Math.round(base * (0.7 + Math.random() * 0.6)) // jitter so clients don't stampede after a restart
     this.attempts++
     this.options.onStatus({ state: 'offline', retryInMs: delay })
+    this.schedule(delay)
+  }
+
+  private schedule(delay: number): void {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer)
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null

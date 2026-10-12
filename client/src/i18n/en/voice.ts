@@ -64,5 +64,12 @@ export const voice = {
     camera: "Couldn't use your camera. Check your browser's permissions.",
     screen: "Couldn't start screen sharing.",
     join: 'Could not join voice.',
+    resumeGone: "Couldn't get you back into voice: the channel is gone or you can't join it anymore.",
+  },
+  resume: {
+    note: 'The connection dropped, so your camera and screen share stopped.',
+    shareAgain: 'Share again',
+    cameraAgain: 'Turn camera on again',
+    dismiss: 'Dismiss',
   },
 } as const

@@ -1,6 +1,6 @@
 // Voice and video: one LiveKit room at a time. The server hands out the token; LiveKit carries the media.
 import {
-  AudioPresets, ConnectionState, createKeyMaterialFromBuffer, ExternalE2EEKeyProvider, LocalAudioTrack, RemoteAudioTrack, Room, RoomEvent,
+  AudioPresets, ConnectionState, createKeyMaterialFromBuffer, DisconnectReason, ExternalE2EEKeyProvider, LocalAudioTrack, RemoteAudioTrack, Room, RoomEvent,
   ScreenSharePresets, Track, VideoPresets,
   type LocalTrackPublication, type Participant, type RemoteParticipant, type RemoteTrack, type RemoteTrackPublication, type RoomOptions,
   type TrackPublishOptions,
@@ -77,6 +77,18 @@ interface VoiceState {
   processingIncoming: boolean
   /** You're sending hi-fi audio in this call. */
   hifi: boolean
+  /** Back in voice after a dropped connection: what was on before (never turned back on by itself). */
+  resumeOffer: { camera: boolean; screen: boolean } | null
+}
+
+/** A voice or stage channel to get back into after the connection dropped (state/resume.ts acts on it). */
+export interface VoiceResume {
+  serverKey: string
+  channelId: number
+  camera: boolean
+  screen: boolean
+  stageOpen: boolean
+  at: number
 }
 
 const VOLUME_KEY = 'iskra.volumes'
@@ -117,7 +129,66 @@ export const useVoice = create<VoiceState>(() => ({
   cleanEngine: null,
   processingIncoming: false,
   hifi: false,
+  resumeOffer: null,
 }))
+
+let pendingResume: VoiceResume | null = null
+const resumeListeners = new Set<(resume: VoiceResume) => void>()
+
+/** The voice channel to get back into, if the room dropped (not when you left, were moved or removed). */
+export const voiceResume = (): VoiceResume | null => pendingResume
+export function clearVoiceResume(): void {
+  pendingResume = null
+}
+/** Called when the room drops and there's somewhere to get back into. */
+export function onVoiceDropped(listener: (resume: VoiceResume) => void): () => void {
+  resumeListeners.add(listener)
+  return () => resumeListeners.delete(listener)
+}
+
+/** Where you are in voice right now, to get back to after a restart (null in calls or when not in voice). */
+export function currentVoice(): VoiceResume | null {
+  const { session, camera, screen, stageOpen } = useVoice.getState()
+  if (!session || session.call || session.group) return null
+  return { serverKey: session.serverKey, channelId: session.channelId, camera, screen, stageOpen, at: Date.now() }
+}
+
+/** The room is connected right now (not connecting, not reconnecting). */
+export const voiceConnected = (): boolean => !!room && room.state === ConnectionState.Connected
+
+// Leaving on purpose, being moved or removed, or joining somewhere else isn't a drop.
+const NOT_A_DROP = new Set<DisconnectReason>([
+  DisconnectReason.CLIENT_INITIATED, DisconnectReason.DUPLICATE_IDENTITY, DisconnectReason.PARTICIPANT_REMOVED,
+  DisconnectReason.ROOM_DELETED, DisconnectReason.ROOM_CLOSED,
+])
+
+function rememberDrop(reason: DisconnectReason | undefined): void {
+  const where = currentVoice()
+  if (!where || (reason !== undefined && NOT_A_DROP.has(reason))) return
+  pendingResume = where
+  for (const listener of resumeListeners) listener(where)
+}
+
+/**
+ * Gets back into a voice or stage channel after a drop: same mute and deafen (they're kept here), same view.
+ * Camera and screen share stay off; the call controls offer to turn them on again.
+ */
+export async function rejoinVoice(where: VoiceResume): Promise<boolean> {
+  pendingResume = null
+  await cleanup()
+  const ok = await joinChannel(where.serverKey, where.channelId, where.stageOpen)
+  if (ok && (where.camera || where.screen)) useVoice.setState({ resumeOffer: { camera: where.camera, screen: where.screen } })
+  return ok
+}
+
+/** Says your mute and deafen again (the server forgets them when it restarts). */
+export function resyncVoiceFlags(): void {
+  reportFlags()
+}
+
+export function dismissResumeOffer(): void {
+  useVoice.setState({ resumeOffer: null })
+}
 
 // Never in the iPhone/iPad app: iOS web views can't capture the screen.
 export const canShareScreen = () => !iosApp && typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia
@@ -321,19 +392,22 @@ export async function joinVoice(serverKey: string, channelId: number): Promise<v
     return
   }
   await leaveVoice()
+  await joinChannel(serverKey, channelId, true)
+}
 
+async function joinChannel(serverKey: string, channelId: number, stageOpen: boolean): Promise<boolean> {
   const connection = connectionFor(serverKey)
-  if (!connection) return
+  if (!connection) return false
   // Encrypted voice channels: media is end-to-end encrypted with a key from the channel's current epoch.
   let groupKey: { key: Uint8Array; index: number } | null = null
   try {
     groupKey = await channelVoiceKeys(serverKey, channelId)
   } catch (e) {
     useVoice.setState({ error: (e as Error).message })
-    return
+    return false
   }
-  await connect({ serverKey, channelId, state: 'connecting', canSpeak: false }, () => connection.request('voice.join', { channelId }),
-    groupKey ? { groupKey } : {})
+  return connect({ serverKey, channelId, state: 'connecting', canSpeak: false }, () => connection.request('voice.join', { channelId }),
+    { ...(groupKey ? { groupKey } : {}), stageOpen })
 }
 
 type ChannelVoiceKeys = (serverKey: string, channelId: number) => Promise<{ key: Uint8Array; index: number } | null>
@@ -382,10 +456,10 @@ export async function setCallKey(key: Uint8Array, index: number): Promise<void> 
 async function connect(
   session: VoiceSession,
   target: () => Promise<{ url: string; token: string; canSpeak: boolean }>,
-  options: { e2eeKey?: Uint8Array; groupKey?: { key: Uint8Array; index: number } | 'later'; camera?: boolean } = {},
+  options: { e2eeKey?: Uint8Array; groupKey?: { key: Uint8Array; index: number } | 'later'; camera?: boolean; stageOpen?: boolean } = {},
 ): Promise<boolean> {
   useVoice.setState({
-    session, error: null, speaking: {}, tiles: [], stageOpen: !session.call && !session.group, camera: false, screen: false,
+    session, error: null, speaking: {}, tiles: [], stageOpen: options.stageOpen ?? (!session.call && !session.group), camera: false, screen: false,
   })
 
   try {
@@ -528,8 +602,14 @@ async function connect(
         const mapped = state === ConnectionState.Connected ? 'connected' : state === ConnectionState.Reconnecting ? 'reconnecting' : null
         if (mapped) useVoice.setState((s) => ({ session: s.session && { ...s.session, state: mapped } }))
       })
-      .on(RoomEvent.Disconnected, () => {
-        if (room === next) void cleanup()
+      // LiveKit got its connection back by itself: the server may have restarted meanwhile, so say mute/deafen again.
+      .on(RoomEvent.Reconnected, () => {
+        if (room === next) reportFlags()
+      })
+      .on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
+        if (room !== next) return
+        rememberDrop(reason)
+        void cleanup()
       })
 
     if (encryption) await next.setE2EEEnabled(true)
@@ -665,13 +745,14 @@ async function cleanup(): Promise<void> {
   audioElements.clear()
   useVoice.setState({
     session: null, speaking: {}, tiles: [], stageOpen: false, camera: false, screen: false, localSpeaking: false,
-    micEngine: null, aiLoad: null, cleanEngine: null, processingIncoming: false, hifi: false,
+    micEngine: null, aiLoad: null, cleanEngine: null, processingIncoming: false, hifi: false, resumeOffer: null,
   })
   if (old && old.state !== ConnectionState.Disconnected) await old.disconnect()
   worker?.terminate()
 }
 
 export async function leaveVoice(): Promise<void> {
+  pendingResume = null // left (or went somewhere else) on purpose
   await cleanup()
 }
 
@@ -709,6 +790,7 @@ export async function toggleDeafen(): Promise<void> {
 export async function toggleCamera(): Promise<void> {
   if (!room || !useVoice.getState().session?.canSpeak) return
   const next = !useVoice.getState().camera
+  useVoice.setState((s) => ({ resumeOffer: s.resumeOffer && (s.resumeOffer.screen ? { ...s.resumeOffer, camera: false } : null) }))
   try {
     // The chosen camera, with its background effect in place before anything is sent.
     const options = next ? (await import('./background')).cameraCaptureOptions() : undefined
@@ -723,6 +805,7 @@ export async function toggleCamera(): Promise<void> {
 export async function toggleScreenShare(): Promise<void> {
   if (!room || !useVoice.getState().session?.canSpeak) return
   const next = !useVoice.getState().screen
+  useVoice.setState((s) => ({ resumeOffer: s.resumeOffer && (s.resumeOffer.camera ? { ...s.resumeOffer, screen: false } : null) }))
   try {
     // Quality, sound and motion-vs-detail come from the share menu (state/screenShare.ts).
     const { capture, publish } = screenShareOptions(useScreenShareSettings.getState())

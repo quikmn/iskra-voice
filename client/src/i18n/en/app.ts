@@ -44,6 +44,7 @@ export const app = {
     inviteFriends: 'Invite friends',
     connecting: 'Connecting…',
     reconnectingIn: 'Reconnecting in {{seconds}}s',
+    restarting: 'Restarting…',
     noAccess: 'No access',
     notJoined: 'not joined',
   },

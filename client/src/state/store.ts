@@ -322,6 +322,7 @@ async function catchUp(key: string, channelId: number, after: number): Promise<v
     let cursor = after
     for (let page = 0; page < 10; page++) {
       const { messages, hasMore } = await connection.request('chat.history', { channelId, after: cursor, limit: 100 })
+      noteMissed(key, messages)
       patchServer(key, (s) => ({
         messages: { ...s.messages, [channelId]: messages.reduce(upsertMessage, s.messages[channelId]) },
       }))
@@ -330,6 +331,18 @@ async function catchUp(key: string, channelId: number, after: number): Promise<v
     }
   } catch {
     /* channel may be gone or we lost access; the channel list update handles that */
+  }
+}
+
+/** Messages that came in while we were away count as unread, like ones that arrive live (not ones we already had). */
+function noteMissed(key: string, messages: Message[]): void {
+  const s = useApp.getState().servers[key]
+  if (!s) return
+  for (const message of messages) {
+    if (message.author === s.me?.accountKey || senderRules.ignored(message.author)) continue
+    if (s.messages[message.channelId]?.some((m) => m.id === message.id && !m.tempId)) continue
+    noteMessage(channelConv(key, message.channelId), { id: message.id, at: message.createdAt },
+      !message.forwarded && senderRules.mentionsMe(s, message))
   }
 }
 

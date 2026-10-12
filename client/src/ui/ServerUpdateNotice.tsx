@@ -26,6 +26,8 @@ export function ServerUpdateNotice({ server }: { server: ServerState }) {
   const notice = owner ? updateNotice(status, server.key in dismissed ? dismissed[server.key] : readDismissed(server.key)) : null
 
   if (restarting) {
+    // Once it's gone, the restart banner takes over.
+    if (server.status.state !== 'online') return null
     return (
       <div className="nudge update-nudge" role="status" aria-live="polite">
         <p>{t('updates.notice.restarting', { server: server.name, version: restarting })}</p>
