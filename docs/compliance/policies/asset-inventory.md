@@ -61,6 +61,12 @@ Each release's components are listed in its CycloneDX SBOMs (attached to the Git
 binaries: LiveKit server v1.13.7 (`scripts/get-livekit.*`, checksum-verified), Pebble for tests
 (`scripts/get-pebble.ps1`), wrangler (version in `deploy.yml`).
 
+On-device models (versions, hashes and licenses in [voice-processing.md](../../voice-processing.md#third-party-notices)):
+DeepFilterNet3, Silero VAD and the MediaPipe selfie segmenter are bundled in `client/vendor/`; Whisper base (captions)
+is never in git or the apps: each Iskra server fetches it once from Hugging Face at a pinned commit, checked against
+the SHA-256s in `client/src/state/captions/model.json`, into its `models/` folder (`scripts/get-models.mjs` for tests
+and CI).
+
 ## Change log
 
 | Date | Change |
@@ -68,3 +74,4 @@ binaries: LiveKit server v1.13.7 (`scripts/get-livekit.*`, checksum-verified), P
 | 2026-10-11 | First version |
 | 2026-10-11 | Push relay (Worker, APNs key, Firebase) and the Capacitor Android app |
 | 2026-10-12 | Push relay retired: the phone apps notify while open. The owner deletes Worker `iskra-push`, `push.iskra.foo` and its secrets |
+| 2026-10-12 | On-device models (bundled, and the captions model each server fetches from Hugging Face) |

@@ -70,7 +70,7 @@ recorded here.
 |---|---|
 | Purpose | Distributing and updating the apps |
 | Legal basis | Legitimate interest |
-| Personal data | IP address and app version seen by GitHub when the desktop app checks for and downloads updates |
+| Personal data | IP address and app version seen by GitHub when the desktop app checks for and downloads updates; a standalone server's IP address when it checks for or downloads server updates, or a rented server downloads its first package |
 | Recipients | GitHub (US): DPF / SCCs |
 | Note | The owner doesn't receive these logs |
 
@@ -80,3 +80,4 @@ recorded here.
 |---|---|
 | 2026-10-11 | First version |
 | 2026-10-12 | No push relay, APNs or FCM: the phone apps notify while open |
+| 2026-10-12 | Server update checks and rented-server setup downloads in §5 |
