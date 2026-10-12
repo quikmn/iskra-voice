@@ -353,10 +353,11 @@ test('restoring a server from a backup in the desktop app', async () => {
     await page.getByPlaceholder('Message #general').press('Enter')
     await expect(page.locator('.message', { hasText: 'packed and ready' })).toBeVisible()
 
-    // Back it up from Settings; the app saves the file.
-    await page.locator('.me-bar').getByRole('button', { name: 'Settings' }).click()
-    const settings = page.getByRole('dialog', { name: 'Settings' })
-    await settings.getByRole('button', { name: 'Backup & move', exact: true }).click()
+    // Back it up from the server's settings; the app saves the file.
+    await page.locator('.server-header-button').click()
+    await page.getByRole('menuitem', { name: 'More settings' }).click()
+    await page.getByRole('menuitem', { name: 'Backup & move' }).click()
+    const settings = page.getByRole('dialog', { name: /· Server settings$/ })
     await settings.getByLabel('Passphrase', { exact: true }).fill('correct horse battery staple')
     await settings.getByLabel('Passphrase again').fill('correct horse battery staple')
     await settings.getByRole('button', { name: 'Make backup' }).click()
