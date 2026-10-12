@@ -62,14 +62,14 @@ public static class ScheduledFeature
 
     private static string ChannelText(Body body) =>
         Text.Normalize(body.String("text", ChatFeature.MaxMessageLength * 2), ChatFeature.MaxMessageLength, allowNewlines: true)
-        ?? throw RequestException.BadRequest($"Messages must be 1–{ChatFeature.MaxMessageLength} characters.");
+        ?? throw RequestException.BadRequest($"Messages must be 1–{ChatFeature.MaxMessageLength} characters.", "message_length", new { max = ChatFeature.MaxMessageLength });
 
     private static string Envelope(Body body, int max)
     {
         var envelope = body.Element("envelope");
         if (envelope.ValueKind != JsonValueKind.Object) throw RequestException.BadRequest("'envelope' must be an object.");
         var raw = envelope.GetRawText();
-        return raw.Length <= max ? raw : throw RequestException.BadRequest("Message is too large.");
+        return raw.Length <= max ? raw : throw RequestException.BadRequest("Message is too large.", "message_too_large");
     }
 
     private static ScheduledMessage Mine(Session s, Member me, Body body) =>
@@ -88,9 +88,9 @@ public static class ScheduledFeature
         if (body.OptionalLong("channelId") is { } channelId)
         {
             var channel = ChatFeature.ReadableChannel(s, me, channelId);
-            if (channel.Kind is not ("text" or "thread")) throw RequestException.BadRequest("You can't send messages to that channel.");
+            if (channel.Kind is not ("text" or "thread")) throw RequestException.BadRequest("You can't send messages to that channel.", "cant_send_there");
             E2eeChannelFeature.RefusePlaintext(store, channel, "Scheduled messages");
-            if (!Permissions.CanWrite(me, channel)) throw RequestException.Forbidden("You can't send messages in this channel.");
+            if (!Permissions.CanWrite(me, channel)) throw RequestException.Forbidden("You can't send messages in this channel.", "cant_send_here");
             var replyTo = body.OptionalLong("replyTo", min: 1);
             if (replyTo is { } r && store.GetMessage(r)?.ChannelId != channel.Id)
                 throw RequestException.BadRequest("You can only reply to messages in the same channel.");
@@ -108,14 +108,14 @@ public static class ScheduledFeature
         {
             var group = GroupFeature.Mine(s, me, groupId);
             var version = body.OptionalLong("version", 1) ?? throw RequestException.BadRequest("'version' is required.");
-            if (version != group.Version) throw new RequestException("conflict", "The group changed in the meantime. Refresh and try again.");
+            if (version != group.Version) throw new RequestException("conflict", "The group changed in the meantime. Refresh and try again.", "group_changed");
             m = new ScheduledMessage(0, me.AccountKey, "group", null, null, group.Id, version, null, null,
                 Envelope(body, GroupFeature.MaxEnvelopeBytes), SendAt(s, body, "group", s.Now), s.Now, "pending", null);
         }
         else throw RequestException.BadRequest("Give a 'channelId', an 'accountKey' or a 'groupId'.");
 
         if (store.CountScheduled(me.AccountKey) >= MaxPerAccount)
-            throw RequestException.BadRequest($"You can have up to {MaxPerAccount} scheduled messages here.");
+            throw RequestException.BadRequest($"You can have up to {MaxPerAccount} scheduled messages here.", "scheduled_max", new { max = MaxPerAccount });
         var stored = store.AddScheduled(m);
         Tell(s.Hub, me.AccountKey, Frames.Event("scheduled.updated", new { scheduled = View(stored) }), s);
         return new { scheduled = View(stored) };
@@ -125,7 +125,7 @@ public static class ScheduledFeature
     private static object Update(Session s, Member me, Body body)
     {
         var m = Mine(s, me, body);
-        if (m.Status == "sending") throw new RequestException("conflict", "This message is being sent right now.");
+        if (m.Status == "sending") throw new RequestException("conflict", "This message is being sent right now.", "scheduled_sending");
         var sendAt = body.Has("sendAt") ? SendAt(s, body, m.Kind, body.Has("envelope") ? s.Now : m.CreatedAt) : m.SendAt;
         string? text = null, envelope = null;
         long? version = null;
@@ -137,7 +137,7 @@ public static class ScheduledFeature
             {
                 var group = GroupFeature.Mine(s, me, m.GroupId!);
                 version = body.OptionalLong("version", 1) ?? throw RequestException.BadRequest("'version' is required.");
-                if (version != group.Version) throw new RequestException("conflict", "The group changed in the meantime. Refresh and try again.");
+                if (version != group.Version) throw new RequestException("conflict", "The group changed in the meantime. Refresh and try again.", "group_changed");
             }
         }
         s.World.Store.UpdateScheduled(m.Id, sendAt, text, envelope, version, s.Now);
@@ -149,7 +149,7 @@ public static class ScheduledFeature
     private static object? Delete(Session s, Member me, Body body)
     {
         var m = Mine(s, me, body);
-        if (m.Status == "sending") throw new RequestException("conflict", "This message is being sent right now.");
+        if (m.Status == "sending") throw new RequestException("conflict", "This message is being sent right now.", "scheduled_sending");
         s.World.Store.DeleteScheduled(m.Id);
         Tell(s.Hub, me.AccountKey, Frames.Event("scheduled.deleted", new { id = m.Id, sent = false }), s);
         return null;
@@ -162,9 +162,9 @@ public static class ScheduledFeature
         if (!s.World.Store.ClaimScheduled(m.Id, m.SendAt))
         {
             // Failed ones can be retried: back to pending first.
-            if (m.Status != "failed") throw new RequestException("conflict", "This message is being sent right now.");
+            if (m.Status != "failed") throw new RequestException("conflict", "This message is being sent right now.", "scheduled_sending");
             s.World.Store.UpdateScheduled(m.Id, m.SendAt, null, null, null, s.Now);
-            if (!s.World.Store.ClaimScheduled(m.Id, m.SendAt)) throw new RequestException("conflict", "This message is being sent right now.");
+            if (!s.World.Store.ClaimScheduled(m.Id, m.SendAt)) throw new RequestException("conflict", "This message is being sent right now.", "scheduled_sending");
         }
         return Deliver(s, me, m, notify: false) ?? throw new RequestException("bad_request", s.World.Store.GetScheduled(m.Id)?.Error ?? "Couldn't send.");
     }
@@ -214,7 +214,7 @@ public static class ScheduledFeature
             var failed = store.GetScheduled(m.Id);
             if (failed is not null) Tell(s.Hub, me.AccountKey, Frames.Event("scheduled.updated", new { scheduled = View(failed) }));
             if (notify)
-                s.Push.Notify(me.AccountKey, new PushNote("scheduled", $"scheduled:{m.Id}", "Your scheduled message wasn't sent", reason, "Iskra",
+                s.Push.Notify(me.AccountKey, new PushNote("scheduled", $"scheduled:{m.Id}", "Your scheduled message wasn't sent", reason, "Iskra", Text: new PushText("scheduledFailed", null),
                     ChannelId: m.ChannelId, Peer: m.PeerKey, Group: m.GroupId, Coalesce: false));
             return null;
         }

@@ -36,7 +36,7 @@ export const app = {
     createChannel: 'Create channel…',
     more: 'More settings',
     nickname: 'Server nickname…',
-    nicknameTitle: 'Your nickname on {{name}}',
+    nicknameTitle: 'Server nickname on {{name}}',
     moveFolder: 'Move / Folder',
     leave: 'Leave server',
     leaveTitle: 'Leave {{name}}?',

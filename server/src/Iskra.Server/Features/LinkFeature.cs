@@ -122,8 +122,8 @@ public sealed class LinkRelay
         {
             Sweep();
             if (_entries.Values.Count(e => e.AccountKey == accountKey) >= Settings.MaxActivePerAccount)
-                throw new RequestException("rate_limited", "Too many device links in progress. Finish or cancel one first.");
-            if (_entries.Count >= Settings.MaxActive) throw new RequestException("rate_limited", "This server is busy linking devices. Try again in a minute.");
+                throw new RequestException("rate_limited", "Too many device links in progress. Finish or cancel one first.", "too_many_links");
+            if (_entries.Count >= Settings.MaxActive) throw new RequestException("rate_limited", "This server is busy linking devices. Try again in a minute.", "links_server_busy");
             var entry = new Entry
             {
                 Token = NewKey(10), AccountKey = accountKey, Creator = session, PutKey = NewKey(16), Expires = Now + Settings.TtlMs,
@@ -139,7 +139,7 @@ public sealed class LinkRelay
         {
             var entry = Find(token);
             if (entry is null || entry.AccountKey != accountKey) throw RequestException.NotFound("Link");
-            if (entry.State != State.Requested) throw RequestException.BadRequest("No device is waiting on this link.");
+            if (entry.State != State.Requested) throw RequestException.BadRequest("No device is waiting on this link.", "link_no_device");
             entry.ExistingEpk = epk;
             entry.ExistingMac = mac;
             entry.State = State.Answered;

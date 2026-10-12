@@ -94,19 +94,19 @@ public static partial class EventFeature
     internal static string TimeZone(string raw)
     {
         if (raw.Length > 64 || !ZonePattern().IsMatch(raw) || !TimeZoneInfo.TryFindSystemTimeZoneById(raw, out _))
-            throw RequestException.BadRequest("That isn't a time zone this server knows.");
+            throw RequestException.BadRequest("That isn't a time zone this server knows.", "time_zone");
         return raw;
     }
 
     private static string Title(string raw) =>
-        Text.Normalize(raw, MaxTitle, allowNewlines: false) ?? throw RequestException.BadRequest($"Titles must be 1–{MaxTitle} characters.");
+        Text.Normalize(raw, MaxTitle, allowNewlines: false) ?? throw RequestException.BadRequest($"Titles must be 1–{MaxTitle} characters.", "title_length", new { max = MaxTitle });
 
     /// <summary>Empty clears it.</summary>
     private static string? Description(string raw)
     {
         if (raw.Trim().Length == 0) return null;
         return Text.Normalize(raw, MaxDescription, allowNewlines: true)
-            ?? throw RequestException.BadRequest($"Descriptions can be up to {MaxDescription} characters.");
+            ?? throw RequestException.BadRequest($"Descriptions can be up to {MaxDescription} characters.", "description_length", new { max = MaxDescription });
     }
 
     /// <summary>{ channelId } for a voice channel you can see, or { text } for anywhere else.</summary>
@@ -117,11 +117,11 @@ public static partial class EventFeature
         if (location.OptionalLong("channelId", min: 1) is { } channelId)
         {
             var channel = ChatFeature.ReadableChannel(s, me, channelId);
-            if (channel.Kind is not ("voice" or "stage")) throw RequestException.BadRequest("Events can only be in a voice or stage channel.");
+            if (channel.Kind is not ("voice" or "stage")) throw RequestException.BadRequest("Events can only be in a voice or stage channel.", "event_channel");
             return ("voice", channel.Id, null);
         }
         var text = Text.Normalize(location.OptionalString("text", MaxLocation * 2), MaxLocation, allowNewlines: false)
-            ?? throw RequestException.BadRequest($"Say where it is: a voice channel, or a place (1–{MaxLocation} characters).");
+            ?? throw RequestException.BadRequest($"Say where it is: a voice channel, or a place (1–{MaxLocation} characters).", "event_location", new { max = MaxLocation });
         return ("place", null, text);
     }
 
@@ -133,17 +133,17 @@ public static partial class EventFeature
         var file = s.World.Store.GetFile(fileId);
         if (file is null || file.Uploader != me.AccountKey) throw RequestException.BadRequest("Unknown image file.");
         if (!ImageTypes.Contains(file.Type) || file.Width is not > 0 || file.Height is not > 0)
-            throw RequestException.BadRequest("Cover images must be PNG, JPEG, WebP or GIF.");
-        if (file.Size > MaxImageBytes) throw RequestException.BadRequest($"Cover images can be up to {MaxImageBytes / 1024 / 1024} MB.");
+            throw RequestException.BadRequest("Cover images must be PNG, JPEG, WebP or GIF.", "cover_type");
+        if (file.Size > MaxImageBytes) throw RequestException.BadRequest($"Cover images can be up to {MaxImageBytes / 1024 / 1024} MB.", "cover_size", new { mb = MaxImageBytes / 1024 / 1024 });
         return file.Id;
     }
 
     private static void CheckTimes(long start, long end, long now, bool startChanged)
     {
-        if (startChanged && start < now - StartSlackMs) throw RequestException.BadRequest("Events have to start in the future.");
-        if (start > now + MaxAheadMs) throw RequestException.BadRequest("Events can be scheduled up to a year ahead.");
-        if (end <= start) throw RequestException.BadRequest("The end has to be after the start.");
-        if (end - start > MaxDurationMs) throw RequestException.BadRequest("Events can last up to 7 days.");
+        if (startChanged && start < now - StartSlackMs) throw RequestException.BadRequest("Events have to start in the future.", "event_future");
+        if (start > now + MaxAheadMs) throw RequestException.BadRequest("Events can be scheduled up to a year ahead.", "event_year");
+        if (end <= start) throw RequestException.BadRequest("The end has to be after the start.", "event_end_after_start");
+        if (end - start > MaxDurationMs) throw RequestException.BadRequest("Events can last up to 7 days.", "event_7_days");
     }
 
     // ── Requests ─────────────────────────────────────────────────────────────
@@ -153,7 +153,7 @@ public static partial class EventFeature
 
     private static object Create(Session s, Member me, Body body)
     {
-        if (!Permissions.CanCreateEvent(me)) throw RequestException.Forbidden("Guests can't schedule events.");
+        if (!Permissions.CanCreateEvent(me)) throw RequestException.Forbidden("Guests can't schedule events.", "guests_no_events");
         var store = s.World.Store;
         var title = Title(body.String("title", MaxTitle * 2));
         var description = body.OptionalString("description", MaxDescription * 2) is { } rawDescription ? Description(rawDescription) : null;
@@ -164,8 +164,8 @@ public static partial class EventFeature
         var (kind, channelId, place) = Location(s, me, body.Element("location"));
         var image = body.OptionalString("image", 64) is { } fileId ? Image(s, me, fileId, null) : null;
         AutoModFeature.Check(s, me, null, title + "\n" + description, "event");
-        if (store.OpenEventCount() >= MaxOpenEvents) throw RequestException.BadRequest($"This server already has {MaxOpenEvents} upcoming events.");
-        if (!s.Hub.Limits.TryTake(me.AccountKey, "event.create")) throw new RequestException("rate_limited", "Too many new events. Try again in a few minutes.");
+        if (store.OpenEventCount() >= MaxOpenEvents) throw RequestException.BadRequest($"This server already has {MaxOpenEvents} upcoming events.", "events_max", new { max = MaxOpenEvents });
+        if (!s.Hub.Limits.TryTake(me.AccountKey, "event.create")) throw new RequestException("rate_limited", "Too many new events. Try again in a few minutes.", "too_many_events");
 
         var e = store.AddEvent(new ServerEvent(0, title, description, start, end, zone, kind, channelId, place, image, me.AccountKey, s.Now, "scheduled", null));
         store.SetInterest(e.Id, me.AccountKey, true, s.Now); // whoever plans it is going
@@ -177,8 +177,8 @@ public static partial class EventFeature
     {
         var e = VisibleEvent(s, me, body.Long("id"));
         if (!Permissions.CanManageEvent(me, e.CreatedBy, s.World.Store.GetMember(e.CreatedBy)))
-            throw RequestException.Forbidden("Only whoever created this event, or an admin, can change it.");
-        if (!e.IsOpen) throw RequestException.BadRequest("This event is over.");
+            throw RequestException.Forbidden("Only whoever created this event, or an admin, can change it.", "event_change_owner");
+        if (!e.IsOpen) throw RequestException.BadRequest("This event is over.", "event_over");
         return e;
     }
 
@@ -191,7 +191,7 @@ public static partial class EventFeature
         if (body.OptionalString("timeZone", 64) is { } zone) e = e with { TimeZone = TimeZone(zone) };
         var start = body.OptionalLong("startAt") ?? e.StartAt;
         var end = body.OptionalLong("endAt") ?? e.EndAt;
-        if (start != e.StartAt && e.Status == "live") throw RequestException.BadRequest("This event has already started.");
+        if (start != e.StartAt && e.Status == "live") throw RequestException.BadRequest("This event has already started.", "event_started");
         CheckTimes(start, end, s.Now, startChanged: start != e.StartAt);
         // A new start time gets a new reminder.
         e = e with { StartAt = start, EndAt = end, RemindedAt = start != before.StartAt ? null : e.RemindedAt };
@@ -219,7 +219,7 @@ public static partial class EventFeature
     private static object Interest(Session s, Member me, Body body)
     {
         var e = VisibleEvent(s, me, body.Long("id"));
-        if (!e.IsOpen) throw RequestException.BadRequest("This event is over.");
+        if (!e.IsOpen) throw RequestException.BadRequest("This event is over.", "event_over");
         var on = body.OptionalBool("on") ?? true;
         var was = s.World.Store.Interested(e.Id).Contains(me.AccountKey);
         if (was != on)
@@ -302,6 +302,10 @@ public sealed class EventScheduler(World world, Hub hub, PushService push, TimeP
         var (title, body) = kind == "live"
             ? ($"{e.Title} is starting now", place.Length > 0 ? $"Happening {place}" : "Happening now")
             : ($"Starting soon: {e.Title}", place.Length > 0 ? $"In {minutes} min, {place}" : $"In {minutes} min");
+        var channelName = e.LocationKind == "voice" && e.ChannelId is { } cid ? store.GetChannel(cid)?.Name : null;
+        var where = e.LocationKind == "voice" ? channelName is null ? "Voice" : "Channel" : place.Length > 0 ? "At" : "";
+        var text = new PushText(kind == "live" ? "eventLive" : "eventSoon", (kind == "live" ? "happening" : "inMinutes") + where,
+            new { title = e.Title, minutes, channel = channelName, place = e.LocationKind == "voice" ? null : e.Location });
         var creator = store.GetMember(e.CreatedBy)?.Name ?? "Iskra";
         foreach (var accountKey in store.Interested(e.Id))
         {
@@ -309,7 +313,7 @@ public sealed class EventScheduler(World world, Hub hub, PushService push, TimeP
             hub.SendToAccount(accountKey, frame);
             // No channelId: a click opens the server (a voice channel isn't somewhere to land).
             push.Notify(accountKey, new PushNote("event", $"event:{e.Id}", title, body, creator, Coalesce: false,
-                TtlSeconds: kind == "live" ? 3600 : (int)Math.Clamp((e.StartAt - now) / 1000, 60, 3600)));
+                TtlSeconds: kind == "live" ? 3600 : (int)Math.Clamp((e.StartAt - now) / 1000, 60, 3600), Text: text));
         }
     }
 }

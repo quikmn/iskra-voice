@@ -4,7 +4,7 @@ export const expressions: Messages['expressions'] = {
   picker: {
     thisServer: 'Den här servern',
     results: 'Resultat',
-    noResults: 'Inga emojis hittades',
+    noResults: 'Inga emoji hittades',
     recent: 'Senast använda',
     title: 'Emojiväljare',
     search: 'Sök emoji',
@@ -30,7 +30,7 @@ export const expressions: Messages['expressions'] = {
       h24: '24 timmar',
       d3: '3 dagar',
       w1: '1 vecka',
-      none: 'Inget slut',
+      none: 'Ingen sluttid',
     },
     lessThanMinute: 'mindre än en minut kvar',
     minutesLeft: '{{count}} min kvar',
@@ -85,7 +85,7 @@ export const expressions: Messages['expressions'] = {
     volume: 'Soundboardens volym · {{percent}} %',
     volumeLabel: 'Soundboardens volym',
     mute: 'Stäng av soundboarden (du hör inte ljud som andra spelar)',
-    emojiTitle: 'Serverns emojis · {{count}} / {{max}}',
+    emojiTitle: 'Serverns emoji · {{count}} / {{max}}',
     emojiIntro: 'Använd dem var som helst på servern som <code>:namn:</code>. PNG, GIF eller WebP; större stillbilder krymps till 128×128.',
     emojiImage: 'Emojibild',
     emojiName: 'Emojinamn',
@@ -109,9 +109,9 @@ export const expressions: Messages['expressions'] = {
   },
   errors: {
     notConnected: 'Inte ansluten.',
-    emojiType: 'Emojis måste vara PNG-, GIF- eller WebP-bilder.',
+    emojiType: 'Emoji måste vara PNG-, GIF- eller WebP-bilder.',
     cantReadImage: 'Kunde inte läsa bilden.',
-    animatedTooBig: 'Animerade emojis kan vara upp till {{side}}×{{side}} pixlar.',
+    animatedTooBig: 'Animerade emoji kan vara upp till {{side}}×{{side}} pixlar.',
     cantReadSound: 'Kunde inte läsa ljudet. Prova en MP3-, Ogg- eller WAV-fil.',
   },
 }

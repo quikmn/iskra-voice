@@ -119,14 +119,14 @@ public static class ForumFeature
 
     private static string Title(string raw) =>
         Text.Normalize(raw, ThreadFeature.MaxNameLength, allowNewlines: false)
-        ?? throw RequestException.BadRequest($"Titles must be 1–{ThreadFeature.MaxNameLength} characters.");
+        ?? throw RequestException.BadRequest($"Titles must be 1–{ThreadFeature.MaxNameLength} characters.", "title_length", new { max = ThreadFeature.MaxNameLength });
 
     /// <summary>Tag ids for a post: distinct, from this forum, at most <see cref="MaxTagsPerPost"/>.</summary>
     private static long[] PostTags(Store store, Channel forum, Body body)
     {
         var element = body.Element("tags");
         if (element.ValueKind != JsonValueKind.Array || element.GetArrayLength() > MaxTagsPerPost)
-            throw RequestException.BadRequest($"A post can have up to {MaxTagsPerPost} tags.");
+            throw RequestException.BadRequest($"A post can have up to {MaxTagsPerPost} tags.", "post_tags_max", new { max = MaxTagsPerPost });
         var known = store.ForumTags(forum.Id).Select(t => t.Id).ToHashSet();
         var tags = new List<long>();
         foreach (var item in element.EnumerateArray())
@@ -210,7 +210,7 @@ public static class ForumFeature
     private static object Create(Session s, Member me, Body body)
     {
         var forum = ReadableForum(s, me, body.Long("channelId"));
-        if (!Permissions.CanWrite(me, forum)) throw RequestException.Forbidden("You can't post in this forum.");
+        if (!Permissions.CanWrite(me, forum)) throw RequestException.Forbidden("You can't post in this forum.", "forum_cant_post");
         var store = s.World.Store;
         var title = Title(body.String("title", ThreadFeature.MaxNameLength * 2));
 
@@ -224,14 +224,14 @@ public static class ForumFeature
         var text = rawText.Trim().Length == 0 && attachments.Length > 0
             ? ""
             : Text.Normalize(rawText, ChatFeature.MaxMessageLength, allowNewlines: true)
-              ?? throw RequestException.BadRequest($"The first message must be 1–{ChatFeature.MaxMessageLength} characters.");
+              ?? throw RequestException.BadRequest($"The first message must be 1–{ChatFeature.MaxMessageLength} characters.", "first_message_length", new { max = ChatFeature.MaxMessageLength });
         var tags = HasField(body, "tags") ? PostTags(store, forum, body) : [];
 
         if (store.ThreadCount(forum.Id) >= ThreadFeature.MaxThreadsPerChannel)
-            throw RequestException.BadRequest("This forum has too many posts. Delete some old ones first.");
+            throw RequestException.BadRequest("This forum has too many posts. Delete some old ones first.", "forum_full");
         AutoModFeature.Check(s, me, forum, title + "\n" + text, "post");
         ModerationFeature.CheckSlowmode(s, me, forum);
-        if (!s.Hub.Limits.TryTake(me.AccountKey, "thread.create")) throw new RequestException("rate_limited", "Too many new posts. Try again in a minute.");
+        if (!s.Hub.Limits.TryTake(me.AccountKey, "thread.create")) throw new RequestException("rate_limited", "Too many new posts. Try again in a minute.", "too_many_posts");
 
         var thread = store.CreateForumPost(forum, me.AccountKey, title, text, attachments, tags, s.Now);
         var root = store.GetMessage(thread.RootId)!;
@@ -257,9 +257,9 @@ public static class ForumFeature
         var isAuthor = Permissions.CanManageThread(me, post.Thread.CreatedBy, store.GetMember(post.Thread.CreatedBy));
         var title = body.OptionalString("title", ThreadFeature.MaxNameLength * 2) is { } raw ? Title(raw) : null;
         var retag = HasField(body, "tags");
-        if (title is null && !retag) throw RequestException.BadRequest("Nothing to change.");
-        if (title is not null && !isAuthor) throw RequestException.Forbidden("Only whoever posted this, or an admin, can rename it.");
-        if (retag && !isAuthor && !Permissions.CanModerateForum(me, forum)) throw RequestException.Forbidden("You can't change this post's tags.");
+        if (title is null && !retag) throw RequestException.BadRequest("Nothing to change.", "nothing_to_change");
+        if (title is not null && !isAuthor) throw RequestException.Forbidden("Only whoever posted this, or an admin, can rename it.", "post_rename_owner");
+        if (retag && !isAuthor && !Permissions.CanModerateForum(me, forum)) throw RequestException.Forbidden("You can't change this post's tags.", "post_tags");
         var tags = retag ? PostTags(store, forum, body) : null;
         if (title is not null) AutoModFeature.Check(s, me, forum, title, "post");
 
@@ -280,14 +280,14 @@ public static class ForumFeature
         var pinned = body.OptionalBool("pinned");
         var closed = body.OptionalBool("closed");
         var locked = body.OptionalBool("locked");
-        if (pinned is null && closed is null && locked is null) throw RequestException.BadRequest("Nothing to change.");
-        if ((pinned is not null || locked is not null) && !mod) throw RequestException.Forbidden("Only moderators can pin or lock posts.");
+        if (pinned is null && closed is null && locked is null) throw RequestException.BadRequest("Nothing to change.", "nothing_to_change");
+        if ((pinned is not null || locked is not null) && !mod) throw RequestException.Forbidden("Only moderators can pin or lock posts.", "mods_pin_posts");
         if (closed is not null && !mod && (post.Thread.CreatedBy != me.AccountKey || post.Locked))
             throw RequestException.Forbidden(post.Locked ? "A moderator locked this post." : "Only whoever posted this, or a moderator, can close it.");
 
         var pinnedAt = pinned switch { true => post.PinnedAt ?? s.Now, false => null, null => post.PinnedAt };
         if (pinnedAt is not null && post.PinnedAt is null && store.PinnedPostCount(forum.Id) >= MaxPinnedPosts)
-            throw RequestException.BadRequest($"A forum can have up to {MaxPinnedPosts} pinned posts. Unpin one first.");
+            throw RequestException.BadRequest($"A forum can have up to {MaxPinnedPosts} pinned posts. Unpin one first.", "forum_pins_max", new { max = MaxPinnedPosts });
         store.SetPostState(post.Id, pinnedAt, closed ?? post.Closed, locked ?? post.Locked);
         var updated = store.GetForumPost(post.Id)!;
         Broadcast(s, forum, updated);
@@ -297,10 +297,10 @@ public static class ForumFeature
     private static object SetTags(Session s, Member me, Body body)
     {
         var forum = ReadableForum(s, me, body.Long("channelId"));
-        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can change a forum's tags.");
+        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can change a forum's tags.", "admins_forum_tags");
         var element = body.Element("tags");
         if (element.ValueKind != JsonValueKind.Array || element.GetArrayLength() > MaxTags)
-            throw RequestException.BadRequest($"A forum can have up to {MaxTags} tags.");
+            throw RequestException.BadRequest($"A forum can have up to {MaxTags} tags.", "forum_tags_max", new { max = MaxTags });
         var known = s.World.Store.ForumTags(forum.Id).Select(t => t.Id).ToHashSet();
         var tags = new List<(long? Id, string Name, string? Emoji)>();
         foreach (var item in element.EnumerateArray())
@@ -311,9 +311,9 @@ public static class ForumFeature
             if (id is { } existing && !known.Contains(existing)) throw RequestException.BadRequest("That tag doesn't exist in this forum.");
             if (id is not null && tags.Any(t => t.Id == id)) throw RequestException.BadRequest("Each tag can only be listed once.");
             var name = Text.Normalize(tag.String("name", MaxTagName * 2), MaxTagName, allowNewlines: false)
-                ?? throw RequestException.BadRequest($"Tag names must be 1–{MaxTagName} characters.");
+                ?? throw RequestException.BadRequest($"Tag names must be 1–{MaxTagName} characters.", "tag_name", new { max = MaxTagName });
             if (tags.Any(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase)))
-                throw RequestException.BadRequest("Tag names must be different from each other.");
+                throw RequestException.BadRequest("Tag names must be different from each other.", "forum_tags_unique");
             var emoji = tag.OptionalString("emoji", 64) is { Length: > 0 } rawEmoji
                 ? Text.Normalize(rawEmoji, 16, allowNewlines: false) is { } e && !e.Any(char.IsWhiteSpace)
                     ? e

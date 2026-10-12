@@ -39,13 +39,13 @@ public static partial class WatchFeature
     private static Channel VoiceChannel(Session s, Member me, Body body)
     {
         var channel = ChatFeature.ReadableChannel(s, me, body.Long("channelId"));
-        if (channel.Kind is not ("voice" or "stage")) throw RequestException.BadRequest("Watch parties happen in voice channels.");
+        if (channel.Kind is not ("voice" or "stage")) throw RequestException.BadRequest("Watch parties happen in voice channels.", "watch_voice_only");
         return channel;
     }
 
     private static void RequireInRoom(Session s, Member me, Channel channel)
     {
-        if (!s.Voice.Watch.InRoom(channel.Id, me.AccountKey)) throw RequestException.BadRequest("Join the voice channel first.");
+        if (!s.Voice.Watch.InRoom(channel.Id, me.AccountKey)) throw RequestException.BadRequest("Join the voice channel first.", "voice_join_first");
     }
 
     private static WatchParty Party(Session s, Channel channel, Body body)
@@ -81,16 +81,16 @@ public static partial class WatchFeature
         {
             case "url":
                 var url = ValidMediaUrl(source.String("url", MaxUrlLength))
-                    ?? throw RequestException.BadRequest("Use an https:// link to a video or audio file.");
+                    ?? throw RequestException.BadRequest("Use an https:// link to a video or audio file.", "watch_https");
                 return new WatchSource("url", url, null, null, title);
             case "file":
                 var file = s.World.Store.GetFile(source.String("fileId", 64)) ?? throw RequestException.NotFound("File");
                 if (!(file.Type.StartsWith("video/", StringComparison.Ordinal) || file.Type.StartsWith("audio/", StringComparison.Ordinal)))
-                    throw RequestException.BadRequest("That file isn't a video or audio file.");
+                    throw RequestException.BadRequest("That file isn't a video or audio file.", "watch_not_media");
                 return new WatchSource("file", Uploads.UrlOf(file), file.Id, null, title ?? file.Name);
             case "youtube":
                 var videoId = source.String("videoId", 16);
-                if (!YouTubeId().IsMatch(videoId)) throw RequestException.BadRequest("That isn't a YouTube video id.");
+                if (!YouTubeId().IsMatch(videoId)) throw RequestException.BadRequest("That isn't a YouTube video id.", "youtube_id");
                 return new WatchSource("youtube", null, null, videoId, title);
             default:
                 throw RequestException.BadRequest("'kind' must be url, file or youtube.");
@@ -107,7 +107,7 @@ public static partial class WatchFeature
         if (!watch.MayHost(me, channel))
             throw RequestException.Forbidden(channel.Kind == "stage" ? "Only speakers and moderators can start a watch party here." : "You can only listen in this channel.");
         if (watch.Get(channel.Id) is { } current && current.Host != me.AccountKey && !watch.IsModerator(me, channel))
-            throw RequestException.BadRequest("A watch party is already on here.");
+            throw RequestException.BadRequest("A watch party is already on here.", "watch_already");
 
         var source = Source(s, raw, title);
         var now = s.Now;
@@ -127,7 +127,7 @@ public static partial class WatchFeature
         var rate = OptionalDouble(body, "rate", 0.25, 2);
         if (rate is { } r && !Rates.Contains(r)) throw RequestException.BadRequest($"'rate' must be one of {string.Join(", ", Rates)}.");
         RequireInRoom(s, me, channel);
-        if (!s.Voice.Watch.CanControl(me, channel, party)) throw RequestException.Forbidden("Only the host controls this watch party.");
+        if (!s.Voice.Watch.CanControl(me, channel, party)) throw RequestException.Forbidden("Only the host controls this watch party.", "watch_host_only");
 
         var now = s.Now;
         var updated = s.Voice.Watch.Update(channel.Id, party.Id, p => p with
@@ -147,7 +147,7 @@ public static partial class WatchFeature
         var party = Party(s, channel, body);
         var anyone = body.OptionalBool("anyoneControls") ?? throw RequestException.BadRequest("'anyoneControls' is required.");
         if (party.Host != me.AccountKey && !s.Voice.Watch.IsModerator(me, channel))
-            throw RequestException.Forbidden("Only the host can change who controls the watch party.");
+            throw RequestException.Forbidden("Only the host can change who controls the watch party.", "watch_host_control");
         s.Voice.Watch.Update(channel.Id, party.Id, p => p with { AnyoneControls = anyone });
         return null;
     }
@@ -157,7 +157,7 @@ public static partial class WatchFeature
         var channel = VoiceChannel(s, me, body);
         var party = Party(s, channel, body);
         if (party.Host != me.AccountKey && !s.Voice.Watch.IsModerator(me, channel))
-            throw RequestException.Forbidden("Only the host can end the watch party.");
+            throw RequestException.Forbidden("Only the host can end the watch party.", "watch_host_end");
         s.Voice.Watch.Stop(channel.Id);
         return null;
     }
@@ -166,7 +166,7 @@ public static partial class WatchFeature
     {
         var channel = VoiceChannel(s, me, body);
         var text = Text.Normalize(body.String("text", MaxChatLength * 2), MaxChatLength, allowNewlines: false)
-            ?? throw RequestException.BadRequest($"Messages must be 1–{MaxChatLength} characters.");
+            ?? throw RequestException.BadRequest($"Messages must be 1–{MaxChatLength} characters.", "message_length", new { max = MaxChatLength });
         RequireInRoom(s, me, channel);
         if (s.Voice.Watch.Get(channel.Id) is null) throw RequestException.NotFound("Watch party");
         AutoModFeature.Check(s, me, channel, text, "watch");

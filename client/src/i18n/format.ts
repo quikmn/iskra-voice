@@ -45,3 +45,12 @@ export function formatBytes(bytes: number): string {
   const digits = value < 10 ? 1 : 0
   return `${formatNumber(value, { minimumFractionDigits: digits, maximumFractionDigits: digits })} ${units[unit]}`
 }
+
+/** "5 minutes", "1 day": a span in the largest whole unit, rounded up ("in 3 minutes" for a 2:10 wait). */
+export function formatSpan(seconds: number): string {
+  const units: [Intl.NumberFormatOptions['unit'], number][] = [['week', 604_800], ['day', 86_400], ['hour', 3600], ['minute', 60]]
+  const s = Math.max(1, Math.ceil(seconds))
+  const [unit, size] = units.find(([, size]) => s >= size && (s % size === 0 || size <= 3600)) ?? ['second', 1]
+  const options: Intl.NumberFormatOptions = { style: 'unit', unit, unitDisplay: 'long' }
+  return formatNumber(Math.ceil(s / size), options)
+}

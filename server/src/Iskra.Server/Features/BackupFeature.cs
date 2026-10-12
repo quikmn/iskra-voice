@@ -51,7 +51,7 @@ public static class BackupFeature
 
     private static void RequireOwner(Member me)
     {
-        if (me.Role != Roles.Owner) throw RequestException.Forbidden("Only the owner can back up this server.");
+        if (me.Role != Roles.Owner) throw RequestException.Forbidden("Only the owner can back up this server.", "owner_backup");
     }
 
     private static async Task<object?> Create(BackupService backups, Session s, Member me, Body body)
@@ -60,9 +60,9 @@ public static class BackupFeature
         if (body.OptionalString("passphrase", BackupFile.MaxPassphrase) is not null)
             throw RequestException.BadRequest("Send the passphrase sealed to the server key ('sealedPassphrase'), never in the clear.");
         var passphrase = OpenPassphrase(s.World, body.String("sealedPassphrase", MaxSealedLength))
-            ?? throw RequestException.BadRequest("The passphrase couldn't be read. Reconnect and try again.");
+            ?? throw RequestException.BadRequest("The passphrase couldn't be read. Reconnect and try again.", "passphrase_unreadable");
         if (passphrase.Trim().Length < BackupFile.MinPassphrase)
-            throw RequestException.BadRequest($"Use a passphrase of at least {BackupFile.MinPassphrase} characters.");
+            throw RequestException.BadRequest($"Use a passphrase of at least {BackupFile.MinPassphrase} characters.", "passphrase_length", new { min = BackupFile.MinPassphrase });
 
         long lastSent = 0;
         void Progress(long done, long total)
@@ -73,7 +73,7 @@ public static class BackupFeature
             s.Send(Frames.Event("backup.progress", new { done, total }));
         }
         var made = await backups.CreateDownloadAsync(passphrase, Progress, CancellationToken.None)
-            ?? throw new RequestException("rate_limited", "A backup is being made right now. Try again in a moment.");
+            ?? throw new RequestException("rate_limited", "A backup is being made right now. Try again in a moment.", "backup_busy");
         SecurityLog.Record(s, "backup.download", details: new { size = made.Size });
         return new
         {
