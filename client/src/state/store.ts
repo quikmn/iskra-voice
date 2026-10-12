@@ -129,6 +129,32 @@ export function upsertMessage(list: PendingMessage[] | undefined, message: Pendi
   return [...confirmed, ...pending]
 }
 
+/**
+ * Keeps a channel's loaded history to its newest `keep` messages once it holds more than `above` (pending ones
+ * stay), so a busy channel left open doesn't grow without end; scrolling up loads the older ones again.
+ */
+export function trimMessages(list: PendingMessage[], keep: number, above = keep): PendingMessage[] | null {
+  const confirmed = list.filter((m) => !m.tempId)
+  if (confirmed.length <= above) return null
+  return [...confirmed.slice(-keep), ...list.filter((m) => m.tempId)]
+}
+
+/** Live messages in channels you aren't looking at: keep the newest 100 once there are 200. */
+const HIDDEN_KEEP = 100
+const HIDDEN_ABOVE = 200
+/** The channel you're looking at, while you're at the bottom (MessageList): the newest 300 once there are 600. */
+export const SHOWN_KEEP = 300
+export const SHOWN_ABOVE = 600
+
+/** Drops a channel's oldest loaded messages (see trimMessages); older ones load again from the server on scroll. */
+export function trimChannel(key: string, channelId: number, keep = SHOWN_KEEP, above = SHOWN_ABOVE): void {
+  patchServer(key, (s) => {
+    const list = s.messages[channelId]
+    const trimmed = list && !s.detached?.[channelId] ? trimMessages(list, keep, above) : null
+    return trimmed ? { messages: { ...s.messages, [channelId]: trimmed }, hasMore: { ...s.hasMore, [channelId]: true } } : {}
+  })
+}
+
 export const activeServerState = (s: AppState): ServerState | null => (s.activeServer ? s.servers[s.activeServer] ?? null : null)
 
 export function activeChannelId(s: AppState): number | null {
@@ -370,8 +396,10 @@ function onEvent<K extends keyof Events>(key: string, type: K, body: Events[K]):
           typing: { ...s.typing, [message.channelId]: typing },
         }
       })
+      const app = useApp.getState()
+      if (app.activeServer !== key || app.activeChannel[key] !== message.channelId) trimChannel(key, message.channelId, HIDDEN_KEEP, HIDDEN_ABOVE)
       // Unread and mentions (state/readState.ts): not your own messages, nor ones from people you blocked.
-      const s = useApp.getState().servers[key]
+      const s = app.servers[key]
       if (s && message.author !== s.me?.accountKey && !senderRules.ignored(message.author)) {
         noteMessage(channelConv(key, message.channelId), { id: message.id, at: message.createdAt },
           !!s.me && !message.forwarded && senderRules.mentionsMe(s, message))
