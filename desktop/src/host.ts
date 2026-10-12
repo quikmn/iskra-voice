@@ -120,12 +120,14 @@ export const GRACEFUL_STOP_MS = 5000
 
 /**
  * Stops a server: closing its stdin asks it to shut down cleanly (ISKRA_STOP_ON_STDIN_CLOSE), and if it's
- * still around after a few seconds it's killed. Resolves once it's gone.
+ * still around after a few seconds it's killed. Resolves once it's gone. `restart`: the app starts it again right
+ * away (restarting into an update), so it tells members "restarting, hold on" instead of "offline".
  */
-function stopServer(child: ChildProcess): Promise<void> {
+function stopServer(child: ChildProcess, restart = false): Promise<void> {
   if (child.exitCode !== null || child.signalCode !== null || child.pid === undefined) return Promise.resolve()
   const exited = new Promise<void>((resolve) => child.once('exit', () => resolve()))
-  child.stdin?.end()
+  if (restart) child.stdin?.end('restart\n')
+  else child.stdin?.end()
   const timer = setTimeout(() => forceKill(child), GRACEFUL_STOP_MS)
   return exited.finally(() => clearTimeout(timer))
 }
@@ -344,11 +346,11 @@ export class Host {
     return this.processes.size > 0
   }
 
-  /** Stops every server; resolves when they've exited (a few seconds at most). */
-  stopAll(): Promise<void> {
+  /** Stops every server; resolves when they've exited (a few seconds at most). `restart`: the app is restarting. */
+  stopAll(restart = false): Promise<void> {
     const children = [...this.processes.values()]
     this.processes.clear()
-    const done = Promise.all(children.map(stopServer)).then(() => undefined)
+    const done = Promise.all(children.map((child) => stopServer(child, restart))).then(() => undefined)
     return Promise.race([done, new Promise<void>((resolve) => setTimeout(resolve, GRACEFUL_STOP_MS + 2000).unref())])
   }
 

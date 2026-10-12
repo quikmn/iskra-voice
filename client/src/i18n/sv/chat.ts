@@ -10,6 +10,7 @@ export const chat: Messages['chat'] = {
     noChannelsMember: 'En admin kan lägga till några. Titta in snart igen.',
     offline: 'Kan inte nå {{name}} just nu. Iskra fortsätter försöka i bakgrunden.',
     tryNow: 'Försök nu',
+    stopped: '{{name}} gick offline. Iskra ansluter igen när den är tillbaka.',
     restarting: '{{name}} startar om, vänta lite…',
     restartingVoice: '{{name}} startar om, vänta lite… Du kommer tillbaka in i röstkanalen av dig själv.',
     back: '{{name}} är tillbaka.',

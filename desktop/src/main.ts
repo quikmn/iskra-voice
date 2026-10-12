@@ -44,6 +44,8 @@ registerAppScheme()
 let window: BrowserWindow | null = null
 let tray: Tray | null = null
 let quitting = false
+/** Quitting to start again (an update, a relaunch): hosted servers say "restarting" rather than "stopped". */
+let restarting = false
 // Mute/deafen hotkeys: only the action's name reaches the page, never which keys were pressed.
 const ptt = new PushToTalk((down) => window?.webContents.send('iskra:ptt', down), (action) => window?.webContents.send('iskra:hotkey', action))
 const host = new Host()
@@ -239,7 +241,7 @@ async function trayAction(action: TrayAction): Promise<void> {
   if (action === 'open') return showWindow()
   if (action === 'about') return showAbout()
   if (action === 'check') return checkForUpdates()
-  if (action === 'restart') return void updates.restart(() => (quitting = true))
+  if (action === 'restart') return void updates.restart(() => (quitting = restarting = true))
   if (action === 'download') {
     const status = updates.current()
     if (status.state === 'available' && status.url.startsWith('https://github.com/')) void shell.openExternal(status.url)
@@ -400,7 +402,7 @@ ipcMain.handle('iskra:set-language', (event, value: unknown) => {
 })
 ipcMain.handle('iskra:relaunch', (event) => {
   if (!fromApp(event)) return
-  quitting = true
+  quitting = restarting = true
   app.relaunch()
   app.quit()
 })
@@ -434,7 +436,7 @@ ipcMain.handle('iskra:attention', (event) => {
 
 // Updates.
 ipcMain.handle('iskra:update-status', (event) => (fromApp(event) ? updates.current() : { state: 'none' }))
-ipcMain.handle('iskra:update-restart', (event) => fromApp(event) && updates.restart(() => (quitting = true)))
+ipcMain.handle('iskra:update-restart', (event) => fromApp(event) && updates.restart(() => (quitting = restarting = true)))
 
 // An incoming call: flash the taskbar and show the window if it's hidden in the tray, without stealing focus.
 ipcMain.handle('iskra:call-alert', (event, on: unknown) => {
@@ -622,7 +624,8 @@ let serversStopped: Promise<void> | null = null
 app.on('before-quit', () => {
   quitting = true
   ptt.stop()
-  if (host.running()) serversStopped ??= host.stopAll()
+  // Restarting (an update, a relaunch): hosted servers tell members "restarting", since they're back in a moment.
+  if (host.running()) serversStopped ??= host.stopAll(restarting)
 })
 
 // Give hosted servers a moment to shut down cleanly (they also stop by themselves once the app is gone).

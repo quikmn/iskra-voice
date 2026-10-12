@@ -51,10 +51,11 @@ export interface TestServer {
   ownerLink: () => string
   stop: () => Promise<void>
   /**
-   * Stops the server cleanly (it says "restarting" to everyone) and starts it again on the same port and world after
-   * `downMs`. Needs `ISKRA_STOP_ON_STDIN_CLOSE: '1'` in the env given to startServer (a clean stop on every OS).
+   * Stops the server cleanly and starts it again on the same port and world after `downMs`. `as: 'restart'` (the
+   * default) is a restart members are told about ("restarting, hold on"); `'stop'` is a plain stop ("went offline")
+   * that happens to come back. Needs `ISKRA_STOP_ON_STDIN_CLOSE: '1'` in the env given to startServer, like the desktop host.
    */
-  restart: (downMs?: number) => Promise<void>
+  restart: (downMs?: number, as?: 'restart' | 'stop') => Promise<void>
 }
 
 /**
@@ -149,11 +150,12 @@ async function startIn(world: string, name: string, voice: boolean, env: Record<
     }
     return true
   }
-  /** Ends the process: cleanly when it watches its stdin, else killed. */
-  const end = async (run: { proc: ChildProcess; exited: boolean }, clean: boolean) => {
+  /** Ends the process: cleanly through stdin (saying "restart" first, as the desktop host does), or killed. */
+  const end = async (run: { proc: ChildProcess; exited: boolean }, how: 'restart' | 'stop' | 'kill') => {
     if (run.exited) return
     const done = new Promise((r) => run.proc.once('exit', r))
-    if (clean) run.proc.stdin?.end()
+    if (how === 'restart') run.proc.stdin?.end('restart' + String.fromCharCode(10))
+    else if (how === 'stop') run.proc.stdin?.end()
     else run.proc.kill()
     // A clean stop takes a moment; don't let a stuck one eat the hook timeout.
     const force = setTimeout(() => run.proc.kill('SIGKILL'), 10_000)
@@ -171,12 +173,12 @@ async function startIn(world: string, name: string, voice: boolean, env: Record<
     // Idempotent: later calls share the first one. On Windows a killed process keeps exitCode null
     // (signalCode is set instead), so 'exit' is tracked from the start rather than read from exitCode.
     stop: () => (stopping ??= (async () => {
-      await end(current, false)
+      await end(current, 'kill')
       rmSync(world, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
     })()),
-    restart: async (downMs = 0) => {
+    restart: async (downMs = 0, as = 'restart') => {
       if (env.ISKRA_STOP_ON_STDIN_CLOSE !== '1') throw new Error('restart needs ISKRA_STOP_ON_STDIN_CLOSE=1')
-      await end(current, true)
+      await end(current, as)
       await new Promise((r) => setTimeout(r, downMs))
       current = launch()
       if (!(await ready(current))) throw new Error('server did not come back (port taken?)')

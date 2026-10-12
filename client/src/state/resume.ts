@@ -10,7 +10,7 @@ import {
   clearVoiceResume, currentVoice, leaveVoice, onVoiceDropped, pauseVoiceFor, rejoinVoice, resyncVoiceFlags, useVoice, voiceConnected, voiceResume, type VoiceResume,
 } from './voice'
 
-/** serverKey → the server went through "restarting" since it was last online. */
+/** serverKey → the server said it was restarting or stopping since it was last online. */
 const restarted = new Set<string>()
 /** serverKey → "Back" is showing (a moment after a restart). */
 export const useResume = create<{ back: Record<string, number> }>(() => ({ back: {} }))
@@ -21,11 +21,12 @@ useApp.subscribe((state, prev) => {
   if (state.servers === prev.servers) return
   for (const [key, server] of Object.entries(state.servers)) {
     const before = prev.servers[key]?.status.state
-    if (server.status.state === 'restarting') {
+    const status = server.status
+    // Restarting or stopped: its LiveKit goes too, so leave the room now and rejoin fresh once it's back.
+    if (status.state === 'restarting' || (status.state === 'offline' && status.stopped)) {
+      if (!restarted.has(key)) void pauseVoiceFor(key)
       restarted.add(key)
-      if (before !== 'restarting') void pauseVoiceFor(key)
-    }
-    else if (server.status.state === 'online' && before !== 'online' && restarted.has(key)) {
+    } else if (status.state === 'online' && before !== 'online' && restarted.has(key)) {
       // The restart banner says "Back" for a moment, then goes.
       const at = Date.now()
       useResume.setState((s) => ({ back: { ...s.back, [key]: at } }))

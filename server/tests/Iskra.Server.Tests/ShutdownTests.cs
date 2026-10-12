@@ -10,7 +10,7 @@ namespace Iskra.Server.Tests;
 public class ShutdownTests
 {
     [Fact]
-    public async Task Stopping_the_server_says_goodbye_to_connected_clients()
+    public async Task Stopping_the_server_for_good_says_so()
     {
         using var server = new IskraServer();
         using var ann = await server.JoinAsync("Ann");
@@ -18,12 +18,26 @@ public class ShutdownTests
         // Without this, open sockets held shutdown open until the host gave up (about 30 seconds on Linux).
         server.Services.GetRequiredService<IHostApplicationLifetime>().StopApplication();
 
+        // A plain stop (Ctrl+C, SIGTERM, the desktop host closing): 1001 "Going Away", so apps show it as offline.
+        Assert.Equal(1001, await ann.Client.ReceiveCloseAsync());
+        Assert.Equal("""{"v":1,"reason":"stop"}""", ann.Client.CloseReason);
+    }
+
+    [Fact]
+    public async Task A_restart_says_restarting()
+    {
+        using var server = new IskraServer();
+        using var ann = await server.JoinAsync("Ann");
+
+        server.Services.GetRequiredService<Hub>().Restart.Expect("restart", null);
+        server.Services.GetRequiredService<IHostApplicationLifetime>().StopApplication();
+
         // 1012 "Service Restart" with a machine-readable reason: apps say "restarting, hold on" and retry quickly.
         Assert.Equal(1012, await ann.Client.ReceiveCloseAsync());
         using var reason = JsonDocument.Parse(ann.Client.CloseReason!);
         Assert.Equal(1, reason.RootElement.GetProperty("v").GetInt32());
         Assert.Equal("restart", reason.RootElement.GetProperty("reason").GetString());
-        Assert.False(reason.RootElement.TryGetProperty("etaMs", out _)); // a plain stop doesn't know how long it takes
+        Assert.False(reason.RootElement.TryGetProperty("etaMs", out _));
     }
 
     [Fact]

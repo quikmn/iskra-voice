@@ -7,7 +7,8 @@ import { CloseCodes, RequestError, type Events, type Requests, type Welcome } fr
 export type ConnectionStatus =
   | { state: 'connecting' }
   | { state: 'online' }
-  | { state: 'offline'; retryInMs: number }
+  /** `stopped`: the server said it stopped for good (close 1001, reason "stop"), not a restart; the usual backoff. */
+  | { state: 'offline'; retryInMs: number; stopped?: boolean }
   /** The server said it's restarting (close 1012): we retry about every second for a while. `etaMs` is its own estimate. */
   | { state: 'restarting'; since: number; etaMs?: number }
   /** The server said no (no invite, banned, kicked, wrong server, key rotated). We don't retry. */
@@ -50,7 +51,7 @@ const MAX_BACKOFF_MS = 30_000
 export const RESTART_RETRY_MS = 1000
 export const RESTART_WINDOW_MS = 120_000
 
-/** The reason of a 1012 close: `{ v: 1, reason, etaMs? }`. Anything else still counts as a restart, without a hint. */
+/** The reason of a 1012 or 1001 close: `{ v: 1, reason, etaMs? }`. Anything else counts as `restart`, without a hint. */
 export function restartHint(reason: string): { reason: string; etaMs?: number } {
   try {
     const body = JSON.parse(reason) as { reason?: unknown; etaMs?: unknown }
@@ -74,6 +75,8 @@ export class Connection {
   private invite: string | undefined
   /** While the server is restarting: when it said so, its estimate, and until when we retry fast. */
   private restart: { since: number; etaMs?: number; until: number } | null = null
+  /** The server said it stopped (not restarting), until we're back. */
+  private serverStopped = false
 
   constructor(options: ConnectionOptions) {
     this.options = options
@@ -84,6 +87,7 @@ export class Connection {
     this.stopped = false
     this.rejected = false
     this.restart = null
+    this.serverStopped = false
     this.open()
   }
 
@@ -167,6 +171,7 @@ export class Connection {
         this.ready = true
         this.attempts = 0
         this.restart = null
+        this.serverStopped = false
         this.invite = undefined // we're a member now
         this.options.onStatus({ state: 'online' })
         this.options.onWelcome(body as unknown as Welcome)
@@ -244,6 +249,12 @@ export class Connection {
       const since = this.restart?.since ?? now
       this.restart = { since, ...(etaMs !== undefined ? { etaMs } : {}), until: now + Math.max(RESTART_WINDOW_MS, (etaMs ?? 0) + 60_000) }
       this.attempts = 0
+      this.serverStopped = false
+    } else if (code === CloseCodes.GoingAway && reason && restartHint(reason).reason === 'stop') {
+      // Stopped for good (or for a while): the usual backoff, and "went offline" rather than "restarting".
+      this.restart = null
+      this.serverStopped = true
+      this.attempts = 0
     }
     this.scheduleReconnect()
   }
@@ -266,7 +277,7 @@ export class Connection {
     const base = Math.min(MAX_BACKOFF_MS, MIN_BACKOFF_MS * 2 ** this.attempts)
     const delay = Math.round(base * (0.7 + Math.random() * 0.6)) // jitter so clients don't stampede after a restart
     this.attempts++
-    this.options.onStatus({ state: 'offline', retryInMs: delay })
+    this.options.onStatus({ state: 'offline', retryInMs: delay, ...(this.serverStopped ? { stopped: true } : {}) })
     this.schedule(delay)
   }
 

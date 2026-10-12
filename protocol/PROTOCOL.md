@@ -133,7 +133,8 @@ Close codes:
 | 4403 | Banned, kicked, no longer a member, or this device was revoked while connected (preceded by a `kicked` event) |
 | 4409 | The account moved to a new key (preceded by `account.rotated`) |
 | 4413 | Frame too large |
-| 1012 | The server is stopping, almost always to restart (an update, a restart, the host's app closing). The reason is JSON; see [Restarts and reconnecting](#restarts-and-reconnecting) |
+| 1001 | The server stopped and doesn't expect to be back soon (reason `{"v":1,"reason":"stop"}`); see [Restarts and reconnecting](#restarts-and-reconnecting) |
+| 1012 | The server is restarting (an update, the desktop app restarting). The reason is JSON; see [Restarts and reconnecting](#restarts-and-reconnecting) |
 
 ### Limits
 
@@ -2102,27 +2103,35 @@ first stamped profile that arrives, which is the newest the connecting device kn
 
 ## Restarts and reconnecting
 
-When the server stops (an update, a restart, a host closing the desktop app) it closes every session with **1012**
-("Service Restart") and a JSON reason of at most 123 bytes:
+When the server stops it closes every session with a JSON reason of at most 123 bytes:
 
 ```jsonc
-{ "v": 1, "reason": "restart" | "update", "etaMs": 20000 }   // etaMs only when the server can estimate it (0–600000)
+{ "v": 1, "reason": "stop" | "restart" | "update", "etaMs": 20000 }   // etaMs only when the server can estimate it (0–600000)
 ```
 
-The server can't know whether it will really come back, so the reason is a hint. Unknown `reason` values and fields
-are ignored; a reason that isn't this JSON still counts as a restart. A server that crashes or loses the network
-doesn't send 1012 (the socket just drops, 1006).
+- **1012 ("Service Restart")**, reason `update` or `restart`, only when the server knows it's coming back: an
+  automatic update (`etaMs` 20000), or the desktop app restarting (into an update, or a relaunch), which writes the line
+  `restart` to the server's stdin before closing it (`ISKRA_STOP_ON_STDIN_CLOSE`; `etaMs` 30000).
+- **1001 ("Going Away")**, reason `stop`, for every other stop: Ctrl+C, SIGTERM (including `systemctl restart`, which
+  the server can't tell apart), the desktop host quitting or stopping the server, or the app that started it going away.
+
+Even 1012 is a hint: the server may not come back. Unknown `reason` values and fields are ignored; a 1012 whose
+reason isn't this JSON still counts as a restart, and a 1001 without it (older servers) as an ordinary drop. A server
+that crashes or loses the network sends neither (the socket just drops, 1006).
 
 What apps do (the TS client and the bot SDK share it, `client/src/core/connection.ts`):
 
 - **On 1012:** status `restarting` (not `offline`), and reconnect about every second (0.75–1.25 s, jittered so a crowd
   doesn't arrive at once) for 2 minutes, or `etaMs` plus a minute when that's longer. After that, the usual backoff.
   Failed attempts during that window keep the fast pace.
+- **On 1001 `stop`:** status `offline` with `stopped: true` (apps say "<server> went offline"), kept until it's back,
+  with the usual backoff.
 - **Any other drop:** status `offline` with exponential backoff, 0.5 s doubling to 30 s, ±30% jitter.
 - **After every reconnect** (`welcome`), whatever the cause: messages missed in loaded channels are fetched with
   `chat.history` `after` (and count as unread), sends cut off by the drop go again with their nonce ([Reliable sends](#reliable-sends)),
   stages and watch parties are rebuilt from `welcome`, and someone who was in a voice or stage channel joins it again
   with `voice.join` and reports the same `voice.state` flags. They don't rejoin when LiveKit removed them
   (moved, kicked, the channel deleted), when the channel is gone or they can no longer connect to it, or when they
-  left meanwhile. Camera and screen share are never turned back on by themselves. DM and group calls live in the
+  left meanwhile. On 1012 or 1001 `stop` apps leave the LiveKit room straight away (LiveKit stops with the server),
+  so the rejoin is a fresh one. Camera and screen share are never turned back on by themselves. DM and group calls live in the
   server's memory and end with a restart; they aren't rejoined.

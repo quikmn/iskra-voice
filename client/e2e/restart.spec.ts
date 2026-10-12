@@ -90,4 +90,16 @@ test('a server restart: "hold on", then everyone is back in voice and nothing is
   await offer.getByRole('button', { name: 'Turn camera on again' }).click()
   await expect(host.locator('.call-controls').getByRole('button', { name: 'Turn camera off' })).toBeVisible()
   await expect(offer).toHaveCount(0)
+
+  // Stopped for good (the host quit the app): "went offline", not "restarting", and the usual backoff.
+  const stopped = server.restart(4_000, 'stop')
+  await expect(friend.getByRole('status').filter({ hasText: "Restart Test went offline. Iskra reconnects when it's back." }))
+    .toBeVisible({ timeout: 15_000 })
+  await expect(friend.locator('.restart-banner')).toHaveCount(0)
+  await expect(friend.getByText(/is restarting/)).toHaveCount(0)
+  await friend.screenshot({ path: join(SHOTS, 'restart-went-offline.png') })
+  // If it does come back, you're put back in voice all the same.
+  await stopped
+  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected', { timeout: 30_000 })
+  await expect(lounge(friend).locator('li', { hasText: 'Friend' }).getByTitle('Deafened')).toBeVisible()
 })

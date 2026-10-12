@@ -9,6 +9,7 @@ export const chat = {
     noChannelsMember: 'An admin can add some. Check back soon.',
     offline: "Can't reach {{name}} right now. Iskra keeps trying in the background.",
     tryNow: 'Try now',
+    stopped: "{{name}} went offline. Iskra reconnects when it's back.",
     restarting: '{{name}} is restarting, hold on…',
     restartingVoice: "{{name}} is restarting, hold on… You'll be back in voice automatically.",
     back: "{{name}} is back.",

@@ -276,6 +276,8 @@ export class RequestError extends Error {
 export const CloseCodes = {
   /** The server is stopping to restart (see "Restarts and reconnecting"). */
   Restarting: 1012,
+  /** The server stopped and isn't expected back soon (reason `{"v":1,"reason":"stop"}`). */
+  GoingAway: 1001,
   BadRequests: 4400,
   AuthFailed: 4401,
   Forbidden: 4403,

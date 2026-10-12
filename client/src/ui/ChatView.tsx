@@ -152,7 +152,7 @@ function ConnectionBanner({ server }: { server: ServerState }) {
   return (
     <div className="banner warn" role="status">
       <WifiOff size={16} />
-      <span>{t('chat.view.offline', { name: server.name })}</span>
+      <span>{t(status.stopped ? 'chat.view.stopped' : 'chat.view.offline', { name: server.name })}</span>
       <button className="button small" onClick={retryAll}>{t('chat.view.tryNow')}</button>
     </div>
   )

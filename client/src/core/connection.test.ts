@@ -142,6 +142,29 @@ describe('connection: reconnecting', () => {
     expect(last().state).toBe('offline')
   })
 
+  it('backs off as usual when the server stopped for good, and says so until it is back', async () => {
+    const { last, socket } = connect()
+    socket().welcome()
+    socket().drop(1001, JSON.stringify({ v: 1, reason: 'stop' }))
+    expect(last()).toMatchObject({ state: 'offline', stopped: true })
+    const tries = await attemptsWithin(30_000)
+    expect(tries).toBeLessThanOrEqual(7) // not the quick restart pace
+    expect(last()).toMatchObject({ state: 'offline', stopped: true }) // later failures don't forget why
+    await vi.advanceTimersByTimeAsync(31_000)
+    socket().welcome()
+    expect(last().state).toBe('online')
+    socket().drop(1006)
+    expect(last()).not.toHaveProperty('stopped')
+  })
+
+  it("treats an old server's plain 1001 as an ordinary drop", () => {
+    const { last, socket } = connect()
+    socket().welcome()
+    socket().drop(1001, 'Server is restarting')
+    expect(last()).toMatchObject({ state: 'offline' })
+    expect(last()).not.toHaveProperty('stopped')
+  })
+
   it('reads the restart reason defensively', () => {
     expect(restartHint('{"v":1,"reason":"update","etaMs":20000}')).toEqual({ reason: 'update', etaMs: 20000 })
     expect(restartHint('{"v":2,"reason":"restart","extra":true}')).toEqual({ reason: 'restart' })
