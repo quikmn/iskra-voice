@@ -115,3 +115,19 @@ export class SlowWatch {
     return this.over >= SLOW_WINDOWS
   }
 }
+
+/**
+ * When DeepFilterNet's worker is late, that bit of audio goes out unprocessed (crossfaded). More than this share of
+ * each second, several seconds in a row, and it can't keep up here. A late frame now and then (a busy moment on a
+ * loaded machine) costs little and isn't a reason to give up on it.
+ */
+export const MAX_BRIDGED = 0.25
+
+/** Watches the share of each second played unprocessed; true once it was too much for SLOW_WINDOWS seconds in a row. */
+export class BridgeWatch {
+  private over = 0
+  report(share: number): boolean {
+    this.over = share > MAX_BRIDGED ? this.over + 1 : 0
+    return this.over >= SLOW_WINDOWS
+  }
+}
