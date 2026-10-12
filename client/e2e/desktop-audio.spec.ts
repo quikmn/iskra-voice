@@ -16,6 +16,9 @@ const built = existsSync(join(DESKTOP, 'dist', 'main.js')) && existsSync(resolve
 
 test.skip(process.platform !== 'win32', 'system audio sharing is Windows-only')
 test.skip(!built, 'build desktop/ (npm run build) and the client (npm run build) first')
+// It plays two tones on the real speakers and measures them through system loopback, so it needs a quiet machine
+// (other sound bleeds into the measurement) and someone who expects the beeps. Opt in when that's the case.
+test.skip(process.env.ISKRA_E2E_SPEAKERS !== '1', 'plays tones on the speakers: set ISKRA_E2E_SPEAKERS=1 to run it')
 
 test("shared system audio leaves out Iskra's own sound", async () => {
   const userData = mkdtempSync(join(tmpdir(), 'iskra-desktop-'))
