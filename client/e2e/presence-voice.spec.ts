@@ -69,6 +69,8 @@ test('presence: do not disturb, custom status, invisible; encrypted DM attachmen
   await friend.waitForTimeout(1500)
   await friend.getByRole('button', { name: 'Send voice message' }).click()
 
+  // Without a save picker (Firefox, Safari, phones) a file is decrypted into memory, then saved from there.
+  await host.evaluate(() => { (window as { showSaveFilePicker?: unknown }).showSaveFilePicker = undefined })
   await host.getByRole('button', { name: 'Direct messages' }).click()
   await host.locator('.dm-row', { hasText: 'Friend' }).click()
   const picture = host.locator('.attachment-image img')

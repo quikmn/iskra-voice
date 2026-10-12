@@ -264,7 +264,12 @@ interface WritableFile {
   close(): Promise<void>
   abort(): Promise<void>
 }
-type SaveFilePicker = (options: { suggestedName?: string }) => Promise<{ createWritable(): Promise<WritableFile> }>
+interface SavedFileHandle {
+  createWritable(): Promise<WritableFile>
+  getFile(): Promise<Blob>
+  remove?(): Promise<void>
+}
+type SaveFilePicker = (options: { suggestedName?: string }) => Promise<SavedFileHandle>
 
 const savePicker = () => (globalThis as { showSaveFilePicker?: SaveFilePicker }).showSaveFilePicker
 
@@ -295,15 +300,25 @@ export async function saveDmFile(file: DmFile, name: string, onProgress: (fracti
       abort: () => bridge.abort(id),
     }
   } else if (picker) {
+    let handle: SavedFileHandle
     let writable: WritableFile
     try {
-      writable = await (await picker.call(globalThis, { suggestedName: name })).createWritable()
+      handle = await picker.call(globalThis, { suggestedName: name })
+      writable = await handle.createWritable()
     } catch (e) {
       if ((e as Error).name === 'AbortError') return 'cancelled'
       throw new DmError(t('dms.files.saveFailed'))
     }
-    // Chromium writes to a temporary file and only puts it in place on close; abort throws it away.
-    sink = { write: (data) => writable.write(data), close: () => writable.close(), abort: () => writable.abort() }
+    // Chromium writes to a temporary file and only puts it in place on close; abort throws that away. The picker made
+    // an empty file under the name (a file the user chose to replace stays as it was): remove it.
+    sink = {
+      write: (data) => writable.write(data),
+      close: () => writable.close(),
+      abort: async () => {
+        await writable.abort().catch(() => {})
+        if ((await handle.getFile()).size === 0) await handle.remove?.()
+      },
+    }
   } else {
     throw new DmError(t('dms.files.saveFailed'))
   }

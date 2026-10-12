@@ -87,7 +87,7 @@ test('an invite on a fresh device says a new account is a new person, and offers
   await own.stop()
 })
 
-test('a file too big for an encrypted DM says why on its chip, at once', async ({ browser }) => {
+test('a file too big for the server says why on its chip, at once', async ({ browser }) => {
   const own = await startServer('DM Files Test')
   const host = await (await browser.newContext()).newPage()
   await joinVia(host, own.ownerLink(), 'Host')
@@ -97,15 +97,15 @@ test('a file too big for an encrypted DM says why on its chip, at once', async (
   await friend.getByRole('dialog').getByRole('button', { name: 'Message', exact: true }).click()
   await expect(friend.getByPlaceholder('Message Host')).toBeVisible()
 
-  // 51 MB, sparse on disk.
+  // Encrypted DMs take anything the server does (512 MB by default); this is 600 MB, sparse on disk.
   const dir = mkdtempSync(join(tmpdir(), 'iskra-big-'))
   const path = join(dir, 'GoogleDriveSetup.exe')
   const fd = openSync(path, 'w')
-  ftruncateSync(fd, 51 * 1024 * 1024)
+  ftruncateSync(fd, 600 * 1024 * 1024)
   closeSync(fd)
   await friend.locator('.composer-wrap input[type=file]').setInputFiles(path)
   const chip = friend.locator('.pending-upload', { hasText: 'GoogleDriveSetup.exe' })
-  await expect(chip.getByRole('alert')).toHaveText('Too big for an encrypted DM (max 50 MB)')
+  await expect(chip.getByRole('alert')).toContainText('512 MB')
   await friend.screenshot({ path: join(SHOTS, 'dm-file-too-big.png') })
   rmSync(dir, { recursive: true, force: true })
   await own.stop()
