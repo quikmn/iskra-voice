@@ -257,4 +257,41 @@ public class ProfileTests
         Assert.Equal("result", (await admin.RequestAsync("profile.pages.configure", new { enabled = true })).Type());
         Assert.Equal(HttpStatusCode.OK, (await server.CreateClient().GetAsync(url)).StatusCode);
     }
+    private static async Task<JsonElement> UpdateOf(User user, string accountKey)
+    {
+        while (true)
+        {
+            var member = (await user.EventAsync("member.updated")).Body().GetProperty("member");
+            if (member.GetProperty("accountKey").GetString() == accountKey) return member;
+        }
+    }
+
+    [Fact]
+    public async Task A_name_sent_on_connect_reaches_everyone_even_while_another_device_is_online()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        using var bob = await server.JoinAsync("Bob");
+
+        // Another of Alice's sessions (a server that was offline when she renamed, or her other device) connects
+        // with her new name while she's still online here.
+        using var again = await server.ConnectAsync();
+        Assert.Equal("welcome", (await again.LoginAsync(alice.Identity, "Alicia")).Type());
+        Assert.Equal("Alicia", (await UpdateOf(bob, alice.Key)).GetProperty("name").GetString());
+        Assert.Equal("Alicia", (await UpdateOf(alice, alice.Key)).GetProperty("name").GetString());
+
+        // Nothing new: no event.
+        using var third = await server.ConnectAsync();
+        Assert.Equal("welcome", (await third.LoginAsync(alice.Identity, "Alicia")).Type());
+        await bob.NoEventAsync("member.updated");
+
+        // With a server nickname the nickname stays the name here, and the new name comes along as profileName.
+        Assert.Equal("result", (await alice.RequestAsync("member.nick", new { nick = "Al" })).Type());
+        Assert.Equal("Al", (await UpdateOf(bob, alice.Key)).GetProperty("name").GetString());
+        using var fourth = await server.ConnectAsync();
+        Assert.Equal("welcome", (await fourth.LoginAsync(alice.Identity, "Ally")).Type());
+        var seen = await UpdateOf(bob, alice.Key);
+        Assert.Equal("Al", seen.GetProperty("name").GetString());
+        Assert.Equal("Ally", seen.GetProperty("profileName").GetString());
+    }
 }

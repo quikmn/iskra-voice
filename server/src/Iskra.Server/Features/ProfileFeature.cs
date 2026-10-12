@@ -104,10 +104,13 @@ public static partial class ProfileFeature
         : AccentPattern().IsMatch(raw) ? raw.ToLowerInvariant()
         : throw RequestException.BadRequest("'accent' must be a colour like #7c6fff.");
 
-    /// <summary>Applies the optional profile fields sent with auth. Invalid ones are ignored, so an old value can't lock anyone out.</summary>
-    public static void ApplyFromAuth(Store store, string accountKey, JsonElement profile)
+    /// <summary>
+    /// Applies the optional profile fields sent with auth. Invalid ones are ignored, so an old value can't lock anyone out.
+    /// Returns whether anything changed.
+    /// </summary>
+    public static bool ApplyFromAuth(Store store, string accountKey, JsonElement profile)
     {
-        if (profile.ValueKind != JsonValueKind.Object) return;
+        if (profile.ValueKind != JsonValueKind.Object) return false;
         var body = new Body(profile);
         string? Try(Func<string?> read)
         {
@@ -117,7 +120,12 @@ public static partial class ProfileFeature
         var bio = Try(() => Bio(body.OptionalString("bio", MaxBioLength * 2)));
         var pronouns = Try(() => Pronouns(body.OptionalString("pronouns", MaxPronounsLength * 2)));
         var accent = Try(() => Accent(body.OptionalString("accent", 16)));
-        if (bio is not null || pronouns is not null || accent is not null) store.UpdateProfile(accountKey, bio, pronouns, accent);
+        if (bio is null && pronouns is null && accent is null) return false;
+        var before = store.GetPublicProfile(accountKey);
+        static bool Differs(string? sent, string? stored) => sent is not null && (sent.Length == 0 ? null : sent) != stored;
+        if (!Differs(bio, before.Bio) && !Differs(pronouns, before.Pronouns) && !Differs(accent, before.Accent)) return false;
+        store.UpdateProfile(accountKey, bio, pronouns, accent);
+        return true;
     }
 
     // ── Requests ─────────────────────────────────────────────────────────────

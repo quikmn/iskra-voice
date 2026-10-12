@@ -542,7 +542,7 @@ A profile lives on the user's device and is sent to every server they're on, so 
 | `profile.page.remove` | `accountKey?` (default: yourself) | | yourself, or an admin who outranks the owner |
 | `profile.pages.configure` | `enabled` | | admin+ |
 
-Text rules are the same as names: trimmed, NFC, no control or invisible formatting characters. Each change is broadcast as `member.updated`. Event `profile.pages { enabled }` goes to everyone when an admin switches pages on or off; while off, every member's `page` is `null` and pages answer 404 (they're kept, so switching back on restores them). Publishing gives the page a new id. Pages are stored in `iskra.db`.
+Text rules are the same as names: trimmed, NFC, no control or invisible formatting characters. Each change is broadcast as `member.updated`, including a name or profile fields that change with `auth` (a server that was offline at a rename, or another device) while the member is already online. Event `profile.pages { enabled }` goes to everyone when an admin switches pages on or off; while off, every member's `page` is `null` and pages answer 404 (they're kept, so switching back on restores them). Publishing gives the page a new id. Pages are stored in `iskra.db`.
 
 Themes are client-side only (a JSON file of colours, radius, avatar shape and fonts, validated value by value); nothing about them goes over the wire.
 
