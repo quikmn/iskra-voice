@@ -31,6 +31,7 @@ import { SavedRow } from './productivity/InboxButton'
 import { usePrivateMessageTools } from './productivity/MessageTools'
 import { dmTarget, privateRowId } from '../state/messageRefs'
 import { KeyHistory } from './keys/KeyTransparency'
+import { messageListKeys, useAnnounceNew } from './a11y'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -134,6 +135,8 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
 
   const divider = dividerOf(useRead(dmConv(peer)))
   const firstNew = divider && dividerTarget(messages, divider.from, (m) => (m.pending || m.notice || m.friend || m.from === myKey ? null : { id: m.id, at: m.sentAt }))
+  useAnnounceNew(conversation?.messages, (m) => (m.pending ? null : `${m.from}:${m.id}`),
+    (m) => (m.from === myKey || m.notice || m.friend || m.call ? null : t('chat.a11y.newMessage', { name: nameOf(m.from), text: m.text?.slice(0, 200) || t('chat.message.attachment') })))
 
   return (
     <div
@@ -169,7 +172,7 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
       <CallPanel peer={peer} />
       <DmKeyWarning peer={peer} />
 
-      <div className="messages" ref={scroller}>
+      <div className="messages" ref={scroller} onKeyDown={messageListKeys} tabIndex={0} role="region" aria-label={t('chat.a11y.messages', { name: nameOf(peer) })}>
         <UnreadBar conv={dmConv(peer)} scroller={scroller} onJump={() => undefined} catchUp={{ spec: { kind: 'dm', peer }, title: nameOf(peer) }} />
         <div className="channel-start">
           <Avatar name={nameOf(peer)} accountKey={peer} size={64} />
@@ -209,7 +212,8 @@ function DmRow({ dm, grouped, peer, mine }: { dm: Dm; grouped: boolean; peer: st
   const name = nameOf(dm.from)
   const tools = usePrivateMessageTools(dm.pending || dm.error || asLog(dm.call) ? null : dmTarget(peer, dm), dm.text)
   return (
-    <div id={privateRowId(dm.from, dm.id)} {...tools.rowProps} data-dm-id={dm.id} className={`message ${grouped ? 'grouped' : ''} ${dm.pending ?? ''} ${tools.rowProps.className ?? ''}`}>
+    <div id={privateRowId(dm.from, dm.id)} {...tools.rowProps} data-dm-id={dm.id} className={`message ${grouped ? 'grouped' : ''} ${dm.pending ?? ''} ${tools.rowProps.className ?? ''}`}
+      role="article" tabIndex={-1} aria-label={t('chat.a11y.message', { name, time: fullTime(dm.sentAt) })}>
       <div className="message-gutter">
         {grouped ? <time className="hover-time" title={fullTime(dm.sentAt)}>{clockTime(dm.sentAt)}</time> : <span {...userMenuProps(dm.from)}><Avatar name={name} accountKey={dm.from} /></span>}
       </div>

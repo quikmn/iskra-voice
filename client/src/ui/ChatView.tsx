@@ -57,7 +57,7 @@ import { EditedMark } from './productivity/EditHistory'
 import { useSendLater } from './productivity/SendLater'
 import { ClipNoticeRow } from './clips/ClipNotice'
 import { conversationLabel } from '../state/threads'
-import { announce } from './a11y'
+import { messageListKeys, useAnnounceNew } from './a11y'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -195,7 +195,8 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
     }
   }, [messages, detached])
   useJumpTarget(server.key, channelId, scroller, () => (stickToBottom.current = false), messages)
-  useAnnounceNew(server, messages, !thread)
+  useAnnounceNew(messages, (m) => (m.tempId ? null : String(m.id)), (m) => m.author === server.me?.accountKey ? null
+    : t('chat.a11y.newMessage', { name: authorOf(m, server.members).name, text: m.text ? decodeMentions(m.text, (k) => server.members[k]?.name ?? null).slice(0, 200) : t('chat.message.attachment') }), !thread)
 
   function onScroll() {
     const el = scroller.current
@@ -231,7 +232,7 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
 
   return (
     <>
-    <div className="messages" ref={scroller} onScroll={onScroll} onKeyDown={messageKeys} tabIndex={0}
+    <div className="messages" ref={scroller} onScroll={onScroll} onKeyDown={messageListKeys} tabIndex={0}
       role="region" aria-label={t('chat.a11y.messages', { name: conversationLabel(server, channelId) })}>
       <UnreadBar conv={conv} scroller={scroller} onJump={() => (stickToBottom.current = false)}
         catchUp={{ spec: { kind: 'channel', serverKey: server.key, channelId }, title: conversationLabel(server, channelId) }}
@@ -830,56 +831,3 @@ export function TypingLine({ server, channelId }: { server: ServerState; channel
   return <div className="typing-line" aria-live="polite">{text}</div>
 }
 
-/** Arrow keys in the message list: from the list to the newest message, then message to message; Home/End too. */
-function messageKeys(e: React.KeyboardEvent<HTMLDivElement>) {
-  if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key) || e.altKey || e.ctrlKey || e.metaKey) return
-  const list = e.currentTarget
-  const target = e.target as HTMLElement
-  // Only from the list itself or a message row, never from a field or button inside one.
-  if (target !== list && !target.matches('.message')) return
-  const rows = [...list.querySelectorAll<HTMLElement>(':scope .message[role="article"]')]
-  if (rows.length === 0) return
-  const at = rows.indexOf(target)
-  const to = at < 0 ? rows.length - 1
-    : e.key === 'ArrowUp' ? Math.max(0, at - 1)
-      : e.key === 'ArrowDown' ? Math.min(rows.length - 1, at + 1)
-        : e.key === 'Home' ? 0 : rows.length - 1
-  e.preventDefault()
-  rows[to].focus({ preventScroll: true })
-  rows[to].scrollIntoView({ block: 'nearest' })
-}
-
-/** Tells screen readers about new messages from others in the open conversation, a few at a time (not each one in a burst). */
-function useAnnounceNew(server: ServerState, messages: PendingMessage[] | undefined, enabled: boolean) {
-  const { t } = useTranslation()
-  // The newest message id already there (0: none yet); null until the list has loaded.
-  const lastSeen = useRef<number | null>(null)
-  const burst = useRef<{ texts: string[]; timer: ReturnType<typeof setTimeout> | null }>({ texts: [], timer: null })
-  useEffect(() => () => {
-    if (burst.current.timer) clearTimeout(burst.current.timer)
-  }, [])
-  useEffect(() => {
-    if (!messages) return
-    const sent = messages.filter((m) => !m.tempId)
-    const newest = sent.at(-1)?.id ?? 0
-    if (lastSeen.current === null || !enabled) {
-      lastSeen.current = newest
-      return
-    }
-    const since = lastSeen.current
-    const fresh = sent.filter((m) => m.id > since && m.author !== server.me?.accountKey)
-    if (newest > since) lastSeen.current = newest
-    if (fresh.length === 0) return
-    for (const m of fresh) {
-      const name = authorOf(m, server.members).name
-      const text = m.text ? decodeMentions(m.text, (k) => server.members[k]?.name ?? null).slice(0, 200) : t('chat.message.attachment')
-      burst.current.texts.push(t('chat.a11y.newMessage', { name, text }))
-    }
-    if (burst.current.timer) return
-    burst.current.timer = setTimeout(() => {
-      const { texts } = burst.current
-      announce(texts.length <= 2 ? texts.join('. ') : t('chat.a11y.newMessages', { count: texts.length }))
-      burst.current = { texts: [], timer: null }
-    }, 700)
-  }, [messages, enabled, server, t])
-}

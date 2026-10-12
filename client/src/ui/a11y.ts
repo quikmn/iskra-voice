@@ -1,5 +1,6 @@
 // Accessibility helpers: a polite announcer for screen readers, and arrow keys in menus and lists.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { t } from '../i18n'
 import './a11y.css'
 
 let region: HTMLElement | null = null
@@ -136,4 +137,67 @@ export function moveInGrid(cells: HTMLElement[], current: Element | null, key: s
 /** Focuses the first menu item inside `el` (for menus opened from the keyboard). */
 export function focusFirstItem(el: HTMLElement | null): void {
   el?.querySelector<HTMLElement>(`${ITEM}:not(:disabled)`)?.focus({ preventScroll: true })
+}
+
+/** Arrow keys in a message list: from the list to the newest message, then message to message; Home/End too. */
+export function messageListKeys(e: ReactKeyboardEvent<HTMLElement>): void {
+  if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key) || e.altKey || e.ctrlKey || e.metaKey) return
+  const list = e.currentTarget
+  const target = e.target as HTMLElement
+  // Only from the list itself or a message row, never from a field or button inside one.
+  if (target !== list && !target.matches('.message')) return
+  const rows = [...list.querySelectorAll<HTMLElement>('.message[role="article"]')]
+  if (rows.length === 0) return
+  const at = rows.indexOf(target)
+  const to = at < 0 ? rows.length - 1
+    : e.key === 'ArrowUp' ? Math.max(0, at - 1)
+      : e.key === 'ArrowDown' ? Math.min(rows.length - 1, at + 1)
+        : e.key === 'Home' ? 0 : rows.length - 1
+  e.preventDefault()
+  rows[to].focus({ preventScroll: true })
+  rows[to].scrollIntoView({ block: 'nearest' })
+}
+
+/**
+ * Tells screen readers about new messages in the open conversation: one or two read out, a burst summed up
+ * ("5 new messages"). `key` is null for messages still sending; `describe` is null for your own.
+ */
+export function useAnnounceNew<T>(items: readonly T[] | undefined, key: (item: T) => string | null, describe: (item: T) => string | null, enabled = true): void {
+  const seen = useRef<Set<string> | null>(null)
+  const burst = useRef<{ texts: string[]; timer: ReturnType<typeof setTimeout> | null }>({ texts: [], timer: null })
+  const latest = useRef({ key, describe })
+  useEffect(() => {
+    latest.current = { key, describe }
+  })
+  useEffect(() => () => {
+    if (burst.current.timer) clearTimeout(burst.current.timer)
+  }, [])
+  useEffect(() => {
+    if (!items) return
+    const keys = items.map((item) => latest.current.key(item))
+    // The first load (and anything while switched off) is what was already there.
+    if (seen.current === null || !enabled) {
+      seen.current = new Set(keys.filter((k): k is string => k !== null))
+      return
+    }
+    const known = seen.current
+    // Only what arrived after the newest message already seen: older history loading in above isn't news.
+    let lastKnown = -1
+    keys.forEach((k, i) => {
+      if (k !== null && known.has(k)) lastKnown = i
+    })
+    const fresh = items.filter((_, i) => i > lastKnown && keys[i] !== null)
+    for (const k of keys) if (k !== null) known.add(k)
+    // A whole new page (jumping back to the present) is navigation, not news.
+    if (fresh.length > 20) return
+    const texts = fresh.map((item) => latest.current.describe(item)).filter((x): x is string => !!x)
+    if (texts.length === 0) return
+    burst.current.texts.push(...texts)
+    if (burst.current.timer) return
+    burst.current.timer = setTimeout(() => {
+      const all = burst.current.texts
+      announce(all.length <= 2 ? all.join('. ') : t('chat.a11y.newMessages', { count: all.length }))
+      burst.current = { texts: [], timer: null }
+    }, 700)
+  }, [items, enabled])
 }
