@@ -31,6 +31,13 @@ export const app = {
     theirId: 'Their ID:',
     yourId: 'Your ID:',
   },
+  serverMenu: {
+    settings: 'Server settings',
+    editRules: 'Edit rules',
+    createChannel: 'Create channel',
+    notifications: 'Notification settings',
+    groups: { server: 'Server', safety: 'Members & safety', content: 'Content', hosting: 'Hosting & data' },
+  },
   sidebar: {
     serverOptions: 'Server options',
     serverOptionsLabel: '{{name}}: server options',

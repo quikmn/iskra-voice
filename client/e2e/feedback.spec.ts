@@ -110,3 +110,58 @@ test('a file too big for an encrypted DM says why on its chip, at once', async (
   rmSync(dir, { recursive: true, force: true })
   await own.stop()
 })
+
+test('server menus: the rail icon and the server name lead to its settings; the person menu offers roles', async ({ browser }) => {
+  const own = await startServer('Menu Test')
+  const host = await (await browser.newContext()).newPage()
+  await joinVia(host, own.ownerLink(), 'Host')
+  const friend = await (await browser.newContext()).newPage()
+  await joinVia(friend, await createInviteLink(host), 'Friend')
+  const settings = host.getByRole('dialog', { name: 'Settings' })
+  const current = settings.locator('.settings-nav-item[aria-current="page"]')
+
+  // Right-click the server in the rail: its config, grouped, for the owner.
+  await host.locator('.server-icon[title="Menu Test"]').click({ button: 'right' })
+  const menu = host.getByRole('dialog', { name: 'Menu Test options' })
+  for (const item of ['Server settings', 'Roles', 'Edit rules', 'Limits', 'Invite friends', 'Create channel', 'Reports', 'AutoMod', 'Audit log',
+    'Security log', 'Emoji', 'Soundboard', 'Bots & webhooks', 'Profile pages', 'Open to the internet', 'Backup & move', 'Import from Discord',
+    'Updates', 'Notification settings', 'Mark as read', 'New folder']) {
+    await expect(menu.getByRole('menuitem', { name: item, exact: true })).toBeVisible()
+  }
+  await host.screenshot({ path: join(SHOTS, 'server-menu-rail.png') })
+  await menu.getByRole('menuitem', { name: 'Roles', exact: true }).click()
+  await expect(current).toHaveText('Roles')
+  await host.keyboard.press('Escape')
+  await expect(settings).toHaveCount(0)
+
+  // The server name is a real dropdown with the same entries, keyboard included.
+  const header = host.getByRole('button', { name: /server options/ })
+  await header.focus()
+  await host.keyboard.press('Enter')
+  await expect(header).toHaveAttribute('aria-expanded', 'true')
+  const dropdown = host.getByRole('dialog', { name: 'Menu Test options' })
+  await expect(dropdown.getByRole('menuitem', { name: 'Updates' })).toBeVisible()
+  await host.keyboard.press('Escape')
+  await expect(dropdown).toHaveCount(0)
+  await header.click()
+  await dropdown.getByRole('menuitem', { name: 'Create channel' }).click()
+  await expect(host.getByRole('dialog', { name: /Create/ })).toBeVisible()
+  await host.keyboard.press('Escape')
+
+  // No roles yet: the person menu still shows the way to make one.
+  await host.locator('.member-list').getByRole('button', { name: 'Friend' }).click({ button: 'right' })
+  await host.getByRole('menuitem', { name: 'Create a role…' }).click()
+  await expect(current).toHaveText('Roles')
+  await host.keyboard.press('Escape')
+
+  // A member sees only what they may use.
+  await friend.locator('.server-icon[title="Menu Test"]').click({ button: 'right' })
+  const theirs = friend.getByRole('dialog', { name: 'Menu Test options' })
+  await expect(theirs.getByRole('menuitem', { name: 'Invite friends' })).toBeVisible()
+  await expect(theirs.getByRole('menuitem', { name: 'Server settings' })).toBeVisible()
+  for (const item of ['Roles', 'Create channel', 'Updates', 'Bots & webhooks', 'Backup & move']) {
+    await expect(theirs.getByRole('menuitem', { name: item, exact: true })).toHaveCount(0)
+  }
+  await friend.screenshot({ path: join(SHOTS, 'server-menu-member.png') })
+  await own.stop()
+})

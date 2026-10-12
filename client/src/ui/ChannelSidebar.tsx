@@ -18,6 +18,8 @@ import { EventsButton } from './events/EventsLayer'
 import { RulesButton } from './rules/Rules'
 import { ReportsButton } from './safety/ReportsSection'
 import { errorMessage } from '../i18n/errors'
+import { MenuTitle, OrgMenu, type MenuAnchor } from './organize/OrgMenu'
+import { ServerMenuItems, type ServerAction } from './organize/ServerMenu'
 import './audio.css'
 
 export function ChannelSidebar({ server, onNavigate }: { server: ServerState; onNavigate: () => void }) {
@@ -31,17 +33,45 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
   const isAdmin = has(server.me, useServerRoles(server.key), 'manageChannels') // may create channels
   const canInvite = server.me ? roleRank(server.me.role) >= roleRank('member') : false
   const [createIn, setCreateIn] = useState<number | null>(null)
+  const [menu, setMenu] = useState<MenuAnchor | null>(null)
+  const pick = (action: ServerAction) => {
+    setMenu(null)
+    if (action.kind === 'settings') openSettings(action.section)
+    else if (action.kind === 'invite') setDialog('invite')
+    else {
+      setCreateIn(null)
+      setDialog('channel')
+    }
+  }
   useThreads((s) => s.threads[server.key]) // thread mentions count on their channel
 
   return (
     <div className="channel-sidebar">
       <header className="sidebar-header">
-        <button className="server-header-button" onClick={() => openSettings('overview')} aria-label={t('app.sidebar.serverOptionsLabel', { name: server.name })} title={t('app.sidebar.serverOptions')}>
+        <button
+          className="server-header-button"
+          onClick={(e) => {
+            const r = e.currentTarget.getBoundingClientRect()
+            setMenu({ x: r.left + 8, y: r.bottom + 4 })
+          }}
+          aria-haspopup="menu"
+          aria-expanded={!!menu}
+          aria-label={t('app.sidebar.serverOptionsLabel', { name: server.name })}
+          title={t('app.sidebar.serverOptions')}
+        >
           <span className="server-name">{server.name}</span>
           <ConnectionPill server={server} />
           <ChevronDown size={16} />
         </button>
       </header>
+      {menu && (
+        <OrgMenu anchor={menu} label={t('app.rail.options', { name: server.name })} onClose={() => setMenu(null)}>
+          <MenuTitle>{server.name}</MenuTitle>
+          <div className="org-list" role="menu">
+            <ServerMenuItems server={server} onPick={pick} />
+          </div>
+        </OrgMenu>
+      )}
 
       <div className="channel-list">
         <ReportsButton server={server} onOpen={() => openSettings('reports')} />
