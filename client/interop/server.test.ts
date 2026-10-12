@@ -20,6 +20,10 @@ import {
 import { restoreIdentity, seedOf } from '../src/core/recovery'
 import { KeyMap, openHandover, prepareRotation, verifyRotation } from '../src/core/rotation'
 import { buildInviteLink, parseInvite, type InviteLink } from '../src/core/invite'
+import { openPrefs, prefsKey, sealPrefs } from '../src/core/prefs'
+import { authProfile } from '../src/core/profile'
+import { compareStamps, nextStamp, parseSynced, PROFILE_PREF, toSynced, wireStamp } from '../src/core/profileSync'
+import type { Profile } from '../src/core/storage'
 import type { Events, Welcome } from '../src/core/protocol'
 
 const SERVER_DLL = resolve(__dirname, '../../server/src/Iskra.Server/bin/Debug/net10.0/iskra-server.dll')
@@ -82,14 +86,15 @@ class TestUser {
   welcome: Welcome | null = null
   readonly connection: Connection
 
-  constructor(name: string, server: { url: string }, invite?: InviteLink, identity: Identity = createIdentity()) {
+  constructor(name: string, server: { url: string }, invite?: InviteLink, identity: Identity = createIdentity(), profile?: () => Profile) {
     this.identity = identity
     this.connection = new Connection({
       serverUrl: invite?.serverUrl ?? server.url,
       expectedServerKey: invite?.serverKey,
       invite: invite?.code,
       identity: this.identity,
-      name: () => name,
+      name: () => profile?.().name ?? name,
+      profile: profile && (() => authProfile(profile())),
       onStatus: (s) => this.statuses.push(s),
       onWelcome: (w) => (this.welcome = w),
       onEvent: (type, body) => this.events.push({ type, body }),
@@ -186,6 +191,49 @@ describe('client ↔ server', () => {
     for (let r = await reader.read(); !r.done; r = await reader.read()) parts.push(...decryptor.push(r.value))
     parts.push(decryptor.finish())
     expect(Buffer.concat(parts).equals(Buffer.from(plain))).toBe(true)
+  })
+
+  it('syncs a profile between two devices: the newest wins, an old device cannot put its profile back', async () => {
+    const [owner, friend] = users
+    const friendKey = friend.welcome!.you.accountKey
+    // The friend's second device, still on the profile it had before.
+    const laptopIdentity = restoreIdentity(seedOf(friend.identity))
+    let laptopProfile: Profile = { name: 'Friend', bio: 'old', ...nextStamp(undefined, laptopIdentity.cert.deviceKey, Date.now() - 60_000) }
+
+    // The phone renames: stamped on the server, sealed as the account's copy.
+    const phoneProfile: Profile = { name: 'Friendly', bio: 'new', ...nextStamp(undefined, friend.identity.cert.deviceKey) }
+    const updated = await friend.connection.request('profile.update', { name: phoneProfile.name, bio: phoneProfile.bio, ...wireStamp(phoneProfile) })
+    expect(updated.member.name).toBe('Friendly')
+    const key = prefsKey(friend.identity.account.secretKey)
+    const copy = toSynced(phoneProfile)!
+    await friend.connection.request('prefs.set', { name: PROFILE_PREF, data: sealPrefs(key, PROFILE_PREF, JSON.stringify(copy)), updatedAt: copy.updatedAt })
+
+    // The laptop connects with its older profile: the server keeps the new one and tells nobody otherwise.
+    const laptop = new TestUser('Friend', server, undefined, laptopIdentity, () => laptopProfile)
+    users.push(laptop)
+    await laptop.online()
+    expect(laptop.welcome?.you.name).toBe('Friendly')
+    expect(laptop.welcome?.you.bio).toBe('new')
+    const stale = await laptop.connection.request('profile.update', { bio: 'old', ...wireStamp(laptopProfile) })
+    expect(stale.stale).toBe(true)
+
+    // It reads the account's copy (sealed under a key only the account has), sees it's newer, and takes it.
+    const got = await laptop.connection.request('prefs.get', { name: PROFILE_PREF })
+    const remote = parseSynced(openPrefs(prefsKey(laptopIdentity.account.secretKey), PROFILE_PREF, got.data!)!)!
+    expect(compareStamps(remote, laptopProfile as { updatedAt: number; by: string })).toBe(1)
+    laptopProfile = { ...laptopProfile, name: remote.name, bio: remote.bio, updatedAt: remote.updatedAt, by: remote.by }
+
+    // Reconnecting now changes nothing, and an edit made after catching up wins everywhere.
+    laptop.connection.stop()
+    const again = new TestUser('Friend', server, undefined, laptopIdentity, () => laptopProfile)
+    users.push(again)
+    await again.online()
+    expect(again.welcome?.you.name).toBe('Friendly')
+    laptopProfile = { ...laptopProfile, name: 'Fred', ...nextStamp(laptopProfile, laptopIdentity.cert.deviceKey) }
+    const renamed = await again.connection.request('profile.update', { name: 'Fred', ...wireStamp(laptopProfile) })
+    expect(renamed.stale).toBeUndefined()
+    await owner.event('member.updated', (b) => b.member.accountKey === friendKey && b.member.name === 'Fred')
+    again.connection.stop()
   })
 
   it('refuses a server whose key does not match the invite', async () => {

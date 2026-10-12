@@ -136,9 +136,9 @@ export interface Requests {
   'channel.create': [{ name: string; kind?: 'text' | 'voice' | 'forum' | 'stage' | 'docs'; readRole?: Role; writeRole?: Role; slowmode?: number; categoryId?: number; userLimit?: number; hifi?: boolean }, { channel: Channel }]
   'channel.update': [{ id: number; name?: string; readRole?: Role; writeRole?: Role; slowmode?: number; userLimit?: number; hifi?: boolean }, { channel: Channel }]
   'channel.delete': [{ id: number }, Record<string, never>]
-  'profile.update': [ProfileUpdate, { member: Member }]
-  'profile.page.set': [{ file: string }, { member: Member }]
-  'profile.page.remove': [{ accountKey?: string }, Record<string, never>]
+  'profile.update': [ProfileUpdate & ProfileStamp, { member: Member; stale?: boolean }]
+  'profile.page.set': [{ file: string } & ProfileStamp, { member: Member; stale?: boolean }]
+  'profile.page.remove': [{ accountKey?: string } & ProfileStamp, { stale?: boolean }]
   'profile.pages.configure': [{ enabled: boolean }, Record<string, never>]
   'member.setRole': [{ accountKey: string; role: Role }, { member: Member }]
   'member.kick': [{ accountKey: string }, Record<string, never>]
@@ -1650,4 +1650,16 @@ export interface Requests {
 export interface Channel {
   /** Voice channels: people may send hi-fi audio here (stereo, 128 kbps, no processing). */
   hifi?: boolean
+}
+
+// ── profile sync ──
+
+/** When the profile was last edited and on which device (see Profile sync). The newest one wins. */
+export interface ProfileStamp {
+  updatedAt?: number
+  by?: string
+}
+
+export interface Requests {
+  'profile.page.get': [Record<string, never>, { html: string; hash: string }]
 }

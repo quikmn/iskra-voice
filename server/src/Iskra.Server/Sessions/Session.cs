@@ -384,8 +384,13 @@ public sealed class Session
         var existing = _world.Store.GetMember(cert.AccountKey);
         if (existing is not null)
         {
-            if (existing.Name != name) _world.Store.SetMemberName(existing.AccountKey, name);
-            _profileChanged = ProfileFeature.ApplyFromAuth(_world.Store, existing.AccountKey, profile) || existing.Name != name;
+            // A device whose profile is older than the one this server last accepted doesn't overwrite it (Profile sync).
+            if (!ProfileFeature.AcceptStamp(_world.Store, existing.AccountKey, new Body(profile), Now)) name = existing.Name;
+            else
+            {
+                if (existing.Name != name) _world.Store.SetMemberName(existing.AccountKey, name);
+                _profileChanged = ProfileFeature.ApplyFromAuth(_world.Store, existing.AccountKey, profile) || existing.Name != name;
+            }
             PresenceFeature.ApplyFromAuth(_world.Store, existing.AccountKey, body, Now);
             if (!_world.Store.HasDevice(cert.DeviceKey))
                 SecurityLog.Record(_world.Store, Now, "device.new", cert.AccountKey, LoggedIp, new { deviceKey = cert.DeviceKey });
@@ -400,6 +405,7 @@ public sealed class Session
         if (isBot) BotFeature.Joined(_world.Store, cert.AccountKey, invite!, Now);
         var member = _world.Store.AddMember(cert.AccountKey, name, role, Now);
         _world.Store.SaveDevice(cert, Now);
+        ProfileFeature.AcceptStamp(_world.Store, member.AccountKey, new Body(profile), Now);
         ProfileFeature.ApplyFromAuth(_world.Store, member.AccountKey, profile);
         PresenceFeature.ApplyFromAuth(_world.Store, member.AccountKey, body, Now);
         if (role == Roles.Owner) OwnerSetup.OwnerJoined(_world);

@@ -41,6 +41,7 @@ public static partial class ProfileFeature
         router.Add("profile.page.set", SetPage);
         router.Add("profile.page.remove", RemovePage);
         router.Add("profile.pages.configure", ConfigurePages);
+        router.Add("profile.page.get", GetOwnPage);
     }
 
     // ── Public view ──────────────────────────────────────────────────────────
@@ -128,6 +129,42 @@ public static partial class ProfileFeature
         return true;
     }
 
+    // ── Ordering across devices ──────────────────────────────────────────────
+
+    /// <summary>How far ahead of this server's clock a stamp may be (a device with a wildly wrong clock can't freeze the profile).</summary>
+    public const long MaxStampAhead = 24 * 60 * 60 * 1000;
+
+    /// <summary>
+    /// The account's devices stamp each profile edit with <c>updatedAt</c> (ms) and <c>by</c> (the device that made it).
+    /// The newest stamp this server accepted wins: an older one (another device that hasn't caught up) is ignored.
+    /// No stamp counts as the oldest, so it only applies while no stamped profile has arrived. Returns whether to apply.
+    /// </summary>
+    public static bool AcceptStamp(Store store, string accountKey, Body body, long now)
+    {
+        long? at;
+        string by;
+        try
+        {
+            at = body.OptionalLong("updatedAt", 1, 1L << 53);
+            by = body.OptionalString("by", 64) ?? "";
+        }
+        catch (RequestException)
+        {
+            at = null;
+            by = "";
+        }
+        if (at is not { } stamp) return store.GetProfileStamp(accountKey) is null;
+        if (stamp > now + MaxStampAhead) return false;
+        return store.TryAcceptProfileStamp(accountKey, stamp, by);
+    }
+
+    /// <summary>Your own page's HTML, so another of your devices can take it over (see Profile sync).</summary>
+    private static object GetOwnPage(Session s, Member me, Body body)
+    {
+        var page = s.World.Store.GetPageOf(me.AccountKey) ?? throw RequestException.NotFound("Profile page");
+        return new { html = page.Html, hash = page.Sha256 };
+    }
+
     // ── Requests ─────────────────────────────────────────────────────────────
 
     private static object Update(Session s, Member me, Body body)
@@ -145,6 +182,8 @@ public static partial class ProfileFeature
             if (file is null || file.Uploader != me.AccountKey) throw RequestException.BadRequest("Unknown avatar file.");
             CheckAvatarImage(file);
         }
+        if (!AcceptStamp(s.World.Store, me.AccountKey, body, s.Now))
+            return new { member = s.Hub.PublicMember(me), stale = true };
 
         if (name is not null) s.World.Store.SetMemberName(me.AccountKey, name);
         s.World.Store.UpdateProfile(me.AccountKey, bio, pronouns, accent, avatar);
@@ -176,6 +215,8 @@ public static partial class ProfileFeature
             throw RequestException.NotFound("Page file");
         }
         if (html.Contains('\0')) throw RequestException.BadRequest("Profile pages must be text.");
+        if (!AcceptStamp(s.World.Store, me.AccountKey, body, s.Now))
+            return new { member = s.Hub.PublicMember(me), stale = true };
 
         s.World.Store.SetPage(me.AccountKey, Ed25519.ToB64u(RandomNumberGenerator.GetBytes(16)), html, file.Sha256, s.Now);
         var member = s.Hub.PublicMember(me);
@@ -193,6 +234,7 @@ public static partial class ProfileFeature
             if (!Permissions.IsAdmin(me) || !Permissions.Outranks(me, target))
                 throw RequestException.Forbidden("You can only remove pages of members ranked below you.");
         }
+        else if (!AcceptStamp(s.World.Store, key, body, s.Now)) return new { stale = true };
         if (!s.World.Store.RemovePage(key)) throw RequestException.NotFound("Profile page");
         if (key != me.AccountKey) Audit.Record(s, "profile.page.remove", key);
         BroadcastMember(s, key);
