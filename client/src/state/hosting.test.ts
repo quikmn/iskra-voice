@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { HostPort, HostStatus } from '../core/protocol'
-import { aiPrompt, cgnatAdvice, forwardRows, hostChecklist, hostSummary, inviteServerUrl, lanHost, manualForwards, routerPage } from './hosting'
+import { aiPrompt, cgnatAdvice, forwardRows, hostChecklist, hostSummary, inviteServerUrl, lanHost, manualForwards, routerPage, tailscaleServerUrl } from './hosting'
 import type { HostedServer } from '../platform/desktop'
 
 const port = (name: HostPort['name'], external: number, state: HostPort['state'], error: string | null = null): HostPort => ({
@@ -101,6 +101,22 @@ describe('a server hosted on this computer', () => {
     expect(inviteServerUrl({ url: 'http://localhost:47071', publicUrl: null }, byUrl)).toBe('http://192.168.1.20:47071')
     expect(inviteServerUrl({ url: 'http://localhost:47071', publicUrl: 'https://203-0-113-7.sslip.io' }, byUrl)).toBe('https://203-0-113-7.sslip.io')
     expect(inviteServerUrl({ url: 'http://localhost:9999', publicUrl: null }, byUrl)).toBe('http://localhost:9999')
+  })
+})
+
+describe('invites over Tailscale', () => {
+  const server = { url: 'http://localhost:47071', key: 'k1' }
+  it("uses the desktop app's Tailscale address for a server on this computer", () => {
+    const hosted = { id: 'g', localUrl: 'http://localhost:47071', lanUrl: 'http://192.168.1.20:47071', tailscaleUrl: 'http://100.101.102.103:47071' } as HostedServer
+    expect(tailscaleServerUrl(server, { [hosted.localUrl]: hosted }, undefined)).toBe('http://100.101.102.103:47071')
+  })
+  it("falls back to the server's own answer (a server on another computer)", () => {
+    expect(tailscaleServerUrl({ url: 'http://192.168.1.30:47070', key: 'k2' }, {}, status({ tailscaleUrl: 'http://100.70.0.9:47070' }))).toBe('http://100.70.0.9:47070')
+  })
+  it('offers nothing without Tailscale', () => {
+    const hosted = { id: 'g', localUrl: 'http://localhost:47071', lanUrl: 'http://192.168.1.20:47071', tailscaleUrl: null } as HostedServer
+    expect(tailscaleServerUrl(server, { [hosted.localUrl]: hosted }, status())).toBeNull()
+    expect(tailscaleServerUrl(server, {}, undefined)).toBeNull()
   })
 })
 

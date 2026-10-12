@@ -4,7 +4,7 @@ import { errorMessage } from '../../i18n/errors'
 import { buildInviteLink } from '../../core/invite'
 import type { Invite } from '../../core/protocol'
 import { connectionFor, type ServerState } from '../../state/store'
-import { inviteServerUrl } from '../../state/hosting'
+import { inviteServerUrl, loadHostStatus, tailscaleServerUrl, useHostedHere, useHosting } from '../../state/hosting'
 import { Modal, Spinner } from '../bits'
 import { appUrl } from '../format'
 
@@ -15,8 +15,20 @@ const LIFETIMES = [
   { days: 30, ms: 30 * 24 * 3600_000 },
 ]
 
-export function InviteDialog({ server, onClose }: { server: ServerState; onClose: () => void }) {
+/** `via: 'tailscale'` starts on the invite for friends on Tailscale (when it's on where the server runs). */
+export function InviteDialog({ server, onClose, via: initialVia = 'network' }: { server: ServerState; onClose: () => void; via?: 'network' | 'tailscale' }) {
   const { t } = useTranslation()
+  const byUrl = useHostedHere((s) => s.byUrl)
+  const status = useHosting((s) => s.status[server.key])
+  const tailscaleUrl = tailscaleServerUrl(server, byUrl, status)
+  const [via, setVia] = useState(initialVia)
+  const overTailscale = via === 'tailscale' && tailscaleUrl !== null
+  const admin = server.me?.role === 'owner' || server.me?.role === 'admin'
+
+  // Admins: the server itself says whether Tailscale is on where it runs (for a server on another computer).
+  useEffect(() => {
+    if (admin && !status) loadHostStatus(server.key).catch(() => undefined)
+  }, [admin, status, server.key])
   const [lifetime, setLifetime] = useState(LIFETIMES[2].ms)
   const [singleUse, setSingleUse] = useState(false)
   // One invite per combination of options, created on demand.
@@ -39,7 +51,8 @@ export function InviteDialog({ server, onClose }: { server: ServerState; onClose
     }
   }, [server.key, lifetime, singleUse, optionsKey, invites])
 
-  const link = invite ? buildInviteLink(appUrl(server.appUrl), { serverUrl: inviteServerUrl(server), serverKey: server.key, code: invite.code }) : ''
+  const serverUrl = overTailscale ? tailscaleUrl : inviteServerUrl(server)
+  const link = invite ? buildInviteLink(appUrl(server.appUrl), { serverUrl, serverKey: server.key, code: invite.code }) : ''
 
   async function copy() {
     await navigator.clipboard.writeText(link)
@@ -49,6 +62,17 @@ export function InviteDialog({ server, onClose }: { server: ServerState; onClose
   return (
     <Modal title={t('settings.invite.title', { name: server.name })} onClose={onClose}>
       <p className="muted">{t('settings.invite.intro')}</p>
+      {tailscaleUrl && (
+        <div className="segmented" role="radiogroup" aria-label={t('hosting.tailscale.via')}>
+          <button role="radio" aria-checked={!overTailscale} className={overTailscale ? '' : 'on'} onClick={() => setVia('network')}>
+            {t('hosting.tailscale.viaNetwork')}
+          </button>
+          <button role="radio" aria-checked={overTailscale} className={overTailscale ? 'on' : ''} onClick={() => setVia('tailscale')} data-testid="invite-via-tailscale">
+            {t('hosting.tailscale.viaTailscale')}
+          </button>
+        </div>
+      )}
+      {overTailscale && <p className="muted">{t('hosting.tailscale.inviteNote')}</p>}
       <div className="copy-row">
         <input readOnly value={link} placeholder={t('settings.invite.creating')} onFocus={(e) => e.target.select()} />
         <button className="button primary" onClick={() => void copy()} disabled={!invite}>

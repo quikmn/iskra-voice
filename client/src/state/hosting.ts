@@ -79,6 +79,18 @@ export function inviteServerUrl(server: Pick<ServerState, 'url' | 'publicUrl'>, 
   return server.publicUrl ?? hostedHere(server, byUrl)?.lanUrl ?? server.url
 }
 
+/**
+ * The server address for an invite over Tailscale: from the desktop app when the server runs on this computer, else
+ * from the server's own host.status (admins). Null when Tailscale isn't on where the server runs.
+ */
+export function tailscaleServerUrl(
+  server: Pick<ServerState, 'url' | 'key'>,
+  byUrl = useHostedHere.getState().byUrl,
+  status: HostStatus | undefined = useHosting.getState().status[server.key],
+): string | null {
+  return hostedHere(server, byUrl)?.tailscaleUrl ?? status?.tailscaleUrl ?? null
+}
+
 /** "Keep my server running" for a server on this computer. */
 export async function setKeepRunning(id: string, on: boolean): Promise<void> {
   const updated = await desktop?.host.keepRunning?.(id, on)

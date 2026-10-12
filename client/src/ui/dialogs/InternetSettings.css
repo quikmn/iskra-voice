@@ -91,3 +91,7 @@
 .ai-prompt .button { justify-self: start; }
 .cgnat-options { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; color: var(--text-2); }
 .internet-here { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+
+/* ── Tailscale ─────────────────────────────────────────────────────── */
+.internet-tailscale { margin: 10px 0 0; font-size: 14px; }
+.internet-tailscale code { word-break: break-all; }

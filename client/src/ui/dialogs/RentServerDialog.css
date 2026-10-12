@@ -22,3 +22,9 @@
   .rent-fields { grid-template-columns: 1fr; }
   .rent-connect { flex-direction: column; align-items: stretch; }
 }
+
+/* ── Use Tailscale ─────────────────────────────────────────────────── */
+.tailscale-guide h4 { margin: 16px 0 0; font-size: 15px; }
+.tailscale-guide .internet-callout p { margin: 0 0 8px; }
+.tailscale-guide code { word-break: break-all; }
+.tailscale-facts { margin: 8px 0 12px; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; color: var(--text-2); }

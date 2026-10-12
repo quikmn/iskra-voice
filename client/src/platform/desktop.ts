@@ -19,6 +19,8 @@ export interface HostedServer {
   ownerInvite: string | null
   /** "Keep my server running" is on (missing in older desktop builds). */
   keepRunning?: boolean
+  /** How friends on Tailscale reach it, when Tailscale is on (missing in older desktop builds). */
+  tailscaleUrl?: string | null
 }
 
 /** A starter template for a new server, as the bundled iskra-server describes it. */
