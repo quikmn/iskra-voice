@@ -1,6 +1,7 @@
 // Easy hosting (English): the setup wizard, "Keep my server running", reachability, port forwarding and
 // what to do behind a shared (CGNAT) connection. Keep in step with ../sv/hosting.ts.
 export const hosting = {
+  ownership: "Your server, your choice. Iskra gets nothing from this; it's just a guide.",
   wizard: {
     stepName: 'Name',
     stepTemplate: 'Channels',
@@ -86,15 +87,57 @@ export const hosting = {
     },
   },
   cgnat: {
-    title: "Can't open the ports?",
-    titleShared: 'Your connection is shared by your provider',
-    explain: "Port forwarding on your own router can't help here: your provider's NAT sits in front of it, and nobody outside can reach your home through it. Friends behind such a connection can always join a server that is reachable; only the person who hosts needs an open connection. Your options, easiest first:",
-    explainMaybe: "If forwarding doesn't work out, your connection may be shared by your provider (carrier-grade NAT). Port forwarding on your own router can't help then. Friends behind such a connection can always join a server that is reachable; only the person who hosts needs an open connection. Your options, easiest first:",
+    title: "You're probably behind CGNAT",
+    titleShared: "You're behind CGNAT",
+    explain: "That means your provider shares one internet address between many customers, and its NAT sits in front of your router. Port forwarding on your own router can't help, and nobody outside can reach a server in your home. Friends behind CGNAT can always join a server that is reachable: only the person who hosts needs an open connection. Your options, quickest first:",
+    explainMaybe: "If forwarding doesn't work out, your provider probably shares one internet address between many customers (carrier-grade NAT, CGNAT). Then port forwarding on your own router can't help: the provider's NAT sits in front of it. Friends behind CGNAT can always join a server that is reachable: only the person who hosts needs an open connection. Your options, quickest first:",
+    rent: '<b>Rent a small server, ready in about 15 minutes.</b> A few euros a month, paid and owned by your group.',
+    rentButton: 'Rent a small server',
     check: '<b>Check whether you already have a public IPv4 address.</b> Many fiber connections do. The check above shows what your router says: a public address is good news.',
     checkShared: "<b>Check whether you have a public IPv4 address.</b> Your router says {{ip}}, which is shared, so for now you don't.",
     isp: '<b>Ask your provider for a public IPv4 address.</b> It is often free and done once, sometimes for a small fee. Mobile broadband (4G/5G) almost never gets one.',
     friend: '<b>Let someone in your group with an open connection host.</b> The whole server is one folder: move it with Settings → Backup & move, and everything comes along.',
-    vps: '<b>Rent a small VPS of your own.</b> A few euros a month runs the server for everyone, all the time.',
-    vpsLink: 'How to run it on a VPS',
+  },
+  rent: {
+    title: 'Rent a small server',
+    intro: 'A small virtual server (a "VPS") at a hosting company runs Iskra for your group all the time, reachable from anywhere. No terminal needed: the app gives you a setup text to paste, and you become the owner from here.',
+    step1: 'Make an account at a VPS provider. Two examples: <hetzner>Hetzner</hetzner> or <digitalocean>DigitalOcean</digitalocean>. Iskra has no deal with either.',
+    step2: 'Create a server: <b>Ubuntu 24.04</b> (or Debian 12), the cheapest plan (about €4–6 a month), in a location near your group.',
+    step3: 'Paste the setup text below into <b>User data</b> (Hetzner: "Cloud config"; DigitalOcean: "Advanced options → Add initialization scripts"), then create the server.',
+    step4: "Copy the server's IPv4 address from the provider's page, paste it here and press <b>Connect</b>. Setting itself up takes a few minutes.",
+    name: 'Server name',
+    template: 'Starting point',
+    setup: 'Setup text (User data)',
+    setupHint: 'It installs the latest Iskra server (checked against its published checksum), keeps it running and updated, opens only the ports it needs and gets a free HTTPS address. It carries a one-time owner key so only this app can claim the server: don’t share it.',
+    copy: 'Copy setup text',
+    copied: 'Copied',
+    ip: "The server's IPv4 address",
+    ipPlaceholder: '203.0.113.7',
+    connect: 'Connect',
+    cancel: 'Stop waiting',
+    waiting: 'Waiting for your server to install and start… This usually takes 3–10 minutes. You can leave this open.',
+    checking: 'Found it. Checking that it is really yours…',
+    joining: 'Making you the owner…',
+    badIp: "That doesn't look like a public IPv4 address (like 203.0.113.7).",
+    wrongServer: "A server answered at that address, but it isn't the one set up with this text. Check the address.",
+    alreadyClaimed: 'That server already has an owner.',
+    timeout: "The server didn't answer within 20 minutes. Check the address, and that the setup text was pasted into User data. Press Connect to keep waiting.",
+    bring: 'Already have a server on this computer? Moving it needs a terminal for now: see <move>moving a server</move>.',
+    newClaim: 'Start over with a new owner key',
+    ai: {
+      button: 'Copy a prompt for an AI assistant instead',
+      title: 'Rather use a terminal? Ask an AI assistant (Claude, ChatGPT…)',
+      intro: 'Paste this into the assistant you like. Edit it first if you want; it holds no keys or passwords.',
+      label: 'Prompt',
+      prompt:
+        'I want to run an Iskra server (a self-hosted voice and chat server for my friends) on a new Linux VPS (Ubuntu 24.04 LTS or Debian 12, x86-64). Please walk me through it step by step, explaining each command:\n\n' +
+        '1. Connect to the server over SSH.\n' +
+        '2. Download {{package}} and SHA256SUMS.txt from {{base}} and check the package against SHA256SUMS.txt with sha256sum before using it.\n' +
+        '3. Create a system user "iskra" with the home folder /opt/iskra and unpack the package there.\n' +
+        '4. Create /opt/iskra/world/server.json with HTTPS on: {"Https": {"Mode": "acme", "Domain": "<my IPv4 with dashes>.sslip.io"}} (for example 203-0-113-7.sslip.io).\n' +
+        '5. Make a systemd service that runs "/opt/iskra/iskra-server /opt/iskra/world" as the iskra user with AmbientCapabilities=CAP_NET_BIND_SERVICE, restarts on failure and starts at boot.\n' +
+        '6. Open only these ports with ufw: {{ports}}.\n' +
+        '7. Start it, then show me the one-time owner link from "journalctl -u iskra" (it is also in /opt/iskra/world/owner-invite.txt).',
+    },
   },
 }

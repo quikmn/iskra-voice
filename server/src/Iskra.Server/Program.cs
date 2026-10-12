@@ -200,6 +200,8 @@ else
 app.MapGet("/.well-known/acme-challenge/{token}", (string token, Certificates certificates) =>
     certificates.Challenge(token) is { } answer ? Results.Text(answer) : Results.NotFound());
 // Internet hosting asks itself through the router to see whether the ports lead here.
+// A rented server proves to the app that set it up that it holds the app's owner claim (see OwnerSetup).
+app.MapGet("/.well-known/iskra-claim", (HttpContext context, World w) => OwnerSetup.ClaimEndpoint(context, w));
 app.MapGet("/.well-known/iskra-probe/{token}", (string token, InternetHost internet) =>
     token == internet.ProbeToken ? Results.Text(token) : Results.NotFound());
 
@@ -290,7 +292,13 @@ app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice
 app.MapReverseProxy();
 
 app.Logger.LogInformation("World '{Name}' at {Path}, reachable at {Url}", world.Settings.Name, world.Path, world.Settings.EffectivePublicUrl);
-if (OwnerSetup.EnsureOwnerInvite(world, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()) is { } ownerLink)
+var ownerLink = OwnerSetup.EnsureOwnerInvite(world, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), out var claimed);
+if (ownerLink is not null && claimed)
+{
+    // Set up by the app with a one-time owner claim: the link is a secret between this server and that app.
+    app.Logger.LogWarning("This server has no owner yet. It's waiting for the Iskra app that set it up to claim it.");
+}
+else if (ownerLink is not null)
 {
     app.Logger.LogWarning("This server has no owner yet. Open this link to become the owner (single use, also saved in {File}):\n\n    {Link}\n",
         OwnerSetup.FileName, ownerLink);

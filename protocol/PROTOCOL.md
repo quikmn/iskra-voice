@@ -2013,3 +2013,18 @@ messages: plain HTTP on the server's port.
 - Security log: `captions.model.download` / `captions.model.rejected` ([Security log](#security-log)).
 - `Captions.ModelSource` (server.json, optional): a folder laid out like `scripts/get-models.mjs` writes it, used
   instead of `source` (development and tests; the same checks apply).
+
+## Owner claim (rented servers)
+
+"Rent a small server" sets up a server on a VPS from the app (docs/hosting.md). The app makes a one-time owner claim
+`C` (32 random bytes) and puts it in the server's setup as `server.json` `"OwnerClaim": "<C, base64url>"`.
+
+- On start, a server with no owner moves `C` out of server.json into `owner-claim` in its folder (owner-only, like
+  `server.key`) and makes the single-use owner invite with code `base64url(HMAC-SHA-256(C, "iskra-owner-invite-v1")[0..16])`.
+  A server that already has an owner drops the field. Neither `C` nor the code is ever logged; the owner link is not
+  printed (`owner-invite.txt` is still written, for the terminal route).
+- `GET /.well-known/iskra-claim?nonce=<16–64 base64url chars>`, while a claim is pending:
+  `{ "iskra": 1, "key": "<server public key>", "proof": base64url(HMAC-SHA-256(C, "iskra-owner-proof-v1\n" + key + "\n" + nonce)) }`
+  (`Access-Control-Allow-Origin: *`, `Cache-Control: no-store`). `404` once there's an owner or no claim, `400` for a bad nonce.
+- The app checks `proof` with its own `C` and a fresh nonce before trusting `key` (no trust on first use), then joins
+  with the invite `(https://<server>, key, code)`, the usual owner invite. Joining as owner deletes `owner-claim`.

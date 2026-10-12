@@ -1,5 +1,7 @@
 # Hosting an Iskra server
 
+> **Your server, your choice.** Iskra gets nothing from any of this; this is just a guide.
+
 An Iskra server is **a folder**. Everything lives in it: settings, members, messages, files and keys. Back it up from the app with one click and restore it on any machine (see [Backups, moving and importing](#backups-moving-and-importing)).
 
 There are three ways to run one:
@@ -8,7 +10,7 @@ There are three ways to run one:
 |---|---|---|
 | **The desktop app** (Windows, macOS and Linux) | Trying it out, LAN parties, friends at home or anywhere | Desktop app; any browser and phone once it's open to the internet |
 | **The standalone server** on your PC | Always-on server at home | Desktop app; any browser and phone once it's open to the internet |
-| **The standalone server on a VPS** (Linux) | Friends all over the place, 24/7 | Desktop app and any browser (with HTTPS) |
+| **The standalone server on a VPS** (Linux) | Friends all over the place, 24/7, or when your home connection can't host ([rent one from the app](#rent-a-small-server)) | Desktop app and any browser (with HTTPS) |
 
 ## 1. From the desktop app
 
@@ -82,6 +84,28 @@ A new server can start with channels, voice rooms, roles and rules from a templa
 - `userLimit` (voice only): 0 (no limit) to 99. At most 100 channels in all.
 - Permissions: `manageMessages`, `timeoutMembers`, `kickMembers`, `banMembers`, `manageChannels`, `manageRoles`, `viewAuditLog`, `manageExpressions`, `manageWebhooks`, `mentionEveryone`, `moveMembers`, `muteMembers`, `manageAutoMod`.
 - The server's starting `#general` becomes the template's first text channel. Comments and trailing commas are fine; unknown fields are an error (so typos don't go unnoticed). Files can be up to 64 KB. Applying one is written to the security log.
+
+### Rent a small server
+
+When your home connection can't host (carrier-grade NAT, or a router you can't change), a small virtual server at a hosting company runs Iskra for your group all the time. The app walks you through it: **Settings → Open to the internet → Rent a small server** (it's the first option when Iskra finds a shared connection). No terminal needed; about 15 minutes. Your group picks the provider, pays it and owns the server; nothing goes to Iskra, and Iskra has no deal with any provider.
+
+1. Make an account at a VPS provider, for example [Hetzner](https://www.hetzner.com/cloud) or [DigitalOcean](https://www.digitalocean.com/products/droplets).
+2. Create a server: **Ubuntu 24.04 LTS** (or **Debian 12**), x86-64, the cheapest plan (about €4–6 a month).
+3. Paste the app's **setup text** into the **User data** box (Hetzner: "Cloud config"; DigitalOcean: "Advanced options → Add initialization scripts") and create the server.
+4. Paste the server's IPv4 address into the app and press **Connect**. The app waits while the server installs (usually 3–10 minutes, at most 20), checks that it really is the server you set up, and makes you its owner.
+
+**What the setup text does** (a bash script that cloud-init runs once, as root, on first boot; its log is `/var/log/iskra-setup.log`):
+
+- downloads `iskra-server-<version>-linux-x64.tar.gz` (the version of your app) and `SHA256SUMS.txt` from the release on GitHub over HTTPS, and stops unless the package matches its checksum;
+- unpacks it into `/opt/iskra`, owned by a new system user `iskra`, and installs the systemd service shown below (restarts on failure, [automatic updates](#updating) on);
+- opens only `22/tcp` (SSH, so your provider's tools keep working), `80/tcp`, `443/tcp`, `7881/tcp` and `7882/udp` with ufw;
+- writes `server.json` with HTTPS on for `<your-ip-with-dashes>.sslip.io` (a free certificate from Let's Encrypt), your server's name and starting point, and a **one-time owner key**.
+
+**The owner key.** The app makes 32 random bytes, `OwnerClaim` in `server.json`. On its first start the server moves it out of `server.json` into `owner-claim` (readable by the server only) and makes the owner invite from it; the key and that invite are never written to a log. The app checks a proof made with the key before it trusts the server (so a different server at that address can't pretend), then joins as owner, and the key is deleted. Keep the setup text to yourself until then; afterwards it's useless. Your provider can see the setup text (like everything on a server you rent from them).
+
+**Rather use a terminal?** The same dialog has **Copy a prompt for an AI assistant** with these steps, and no keys in it. Without the app's key you become the owner the usual way: `journalctl -u iskra` shows the link (also in `/opt/iskra/world/owner-invite.txt`).
+
+**Moving an existing server there** takes a terminal for now: make a backup, copy it to the server, stop the service, [restore it](#restoring) into `/opt/iskra/world` (empty the new folder first), `chown -R iskra:iskra /opt/iskra`, start it again, then use [Move this server](#moving-a-server-to-another-computer) so everyone follows.
 
 ### On a Linux VPS with systemd
 
@@ -170,11 +194,11 @@ Below it, **What Iskra found out**: whether your router has its own public addre
 
 - **Your router doesn't answer** (UPnP is off): turn on UPnP in the router's settings, or forward the ports it lists by hand, then press **Check again**.
 - **The router won't open port 80** (many only allow ports above 1024): forward port 80 by hand. Until then friends with the desktop app can join over plain HTTP; browsers need HTTPS.
-- **Carrier-grade NAT**: some providers share one public address between customers (your router's "public" address is then in `100.64.0.0/10` or another private range). Port forwarding on your own router can't help: the provider's NAT sits in front of it. Friends behind such a connection can always *join* a reachable server; only the person hosting needs an open connection. The app lists the options, easiest first:
-  1. Check whether you already have a public IPv4 address (many fiber connections do): the check shows what your router says.
-  2. Ask your provider for a public IPv4 address. Often free and done once; mobile broadband (4G/5G) almost never gets one.
-  3. Let someone in your group with an open connection host: the server is one folder, so [move it](#moving-a-server-to-another-computer).
-  4. [Run it on a small VPS](#on-a-linux-vps-with-systemd) of your own.
+- **Carrier-grade NAT**: some providers share one public address between customers (your router's "public" address is then in `100.64.0.0/10` or another private range). Port forwarding on your own router can't help: the provider's NAT sits in front of it. Friends behind such a connection can always *join* a reachable server; only the person hosting needs an open connection. The app lists the options, quickest first:
+  1. [Rent a small server](#rent-a-small-server), ready in about 15 minutes, paid and owned by your group.
+  2. Check whether you already have a public IPv4 address (many fiber connections do): the check shows what your router says.
+  3. Ask your provider for a public IPv4 address. Often free and done once; mobile broadband (4G/5G) almost never gets one.
+  4. Let someone in your group with an open connection host: the server is one folder, so [move it](#moving-a-server-to-another-computer).
 
 **What "reachable" means.** Iskra doesn't use outside services to test your server, so it only reports what it can actually prove: *verified* once Let's Encrypt has connected to your server from the internet, or *checked through your router* when the server can reach itself via your public address. Otherwise it says it hasn't been confirmed from outside; send a friend an invite to try.
 
@@ -309,6 +333,7 @@ iskra-server import-discord my-server export.zip              # add --read-only 
   "PublicUrl": null,                   // how friends reach the server; default http://localhost:<Port>, or https://<Domain>
   "AppUrl": "https://app.iskra.foo",   // the web app invite links open
   "Template": null,                    // starter template applied once to a new server: "gaming", "friends", "tabletop", "empty" or a .json path
+  "OwnerClaim": null,                  // one-time owner key from "Rent a small server"; moved out of this file on first start
   "MaxUploadMb": 512,                  // largest file a member may upload (also in the app: Settings → Limits)
   "UploadQuota": {                     // per account, over any 24 hours; 0 = no limit (admins and the owner have none)
     "MemberMbPerDay": 10240,           // members and trusted
@@ -382,6 +407,7 @@ iskra-server import-discord my-server export.zip              # add --read-only 
 | `vapid.json` | The server's push-notification key. Keep it with the folder: if it's lost, a new one is made and members turn notifications on again. |
 | `certs/` | HTTPS certificates and the Let's Encrypt account (when HTTPS is on, or open to the internet) |
 | `owner-invite.txt` | The one-time owner link, until the owner has joined |
+| `owner-claim` | The one-time owner key from "Rent a small server", until the owner has joined |
 | `backups/` | Daily backups (`auto-YYYY-MM-DD.zip`, not encrypted) and, briefly, a backup being downloaded |
 | `moved.json` | The signed "this server moved" notice, after **Move this server** |
 | `server.log` | Output, when started from the desktop app |

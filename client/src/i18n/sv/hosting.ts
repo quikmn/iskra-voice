@@ -1,6 +1,7 @@
 import type { Messages } from '../types'
 
 export const hosting: Messages['hosting'] = {
+  ownership: 'Din server, ditt val. Iskra får ingenting av det här, det är bara en guide.',
   wizard: {
     stepName: 'Namn',
     stepTemplate: 'Kanaler',
@@ -86,15 +87,57 @@ export const hosting: Messages['hosting'] = {
     },
   },
   cgnat: {
-    title: 'Går det inte att öppna portarna?',
-    titleShared: 'Din anslutning delas av din leverantör',
-    explain: 'Portvidarebefordran i din egen router hjälper inte här: leverantörens NAT sitter framför den, och ingen utifrån kan nå ditt hem genom den. Vänner med en sådan anslutning kan alltid gå med i en server som går att nå; det är bara den som är värd som behöver en öppen anslutning. Dina alternativ, enklast först:',
-    explainMaybe: 'Om vidarebefordringen inte vill fungera kan din anslutning vara delad av leverantören (carrier-grade NAT). Då hjälper inte portvidarebefordran i din egen router. Vänner med en sådan anslutning kan alltid gå med i en server som går att nå; det är bara den som är värd som behöver en öppen anslutning. Dina alternativ, enklast först:',
+    title: 'Du sitter troligen bakom CGNAT',
+    titleShared: 'Du sitter bakom CGNAT',
+    explain: 'Det betyder att din leverantör delar en internetadress mellan många kunder, och att dess NAT sitter framför din router. Portvidarebefordran i din egen router hjälper inte, och ingen utifrån kan nå en server hemma hos dig. Vänner bakom CGNAT kan alltid gå med i en server som går att nå: det är bara den som är värd som behöver en öppen anslutning. Dina alternativ, snabbast först:',
+    explainMaybe: 'Om vidarebefordringen inte vill fungera delar din leverantör troligen en internetadress mellan många kunder (carrier-grade NAT, CGNAT). Då hjälper inte portvidarebefordran i din egen router: leverantörens NAT sitter framför den. Vänner bakom CGNAT kan alltid gå med i en server som går att nå: det är bara den som är värd som behöver en öppen anslutning. Dina alternativ, snabbast först:',
+    rent: '<b>Hyr en liten server, klar på ungefär 15 minuter.</b> Några euro i månaden, betald och ägd av ert gäng.',
+    rentButton: 'Hyr en liten server',
     check: '<b>Kolla om du redan har en publik IPv4-adress.</b> Många fiberanslutningar har det. Kontrollen ovan visar vad din router säger: en publik adress är goda nyheter.',
     checkShared: '<b>Kolla om du har en publik IPv4-adress.</b> Din router säger {{ip}}, som är delad, så just nu har du inte det.',
     isp: '<b>Be din leverantör om en publik IPv4-adress.</b> Det är ofta gratis och görs en gång, ibland mot en liten avgift. Mobilt bredband (4G/5G) får nästan aldrig en.',
     friend: '<b>Låt någon i gänget med en öppen anslutning vara värd.</b> Hela servern är en mapp: flytta den med Inställningar → Säkerhetskopia och flytt, så följer allt med.',
-    vps: '<b>Hyr en egen liten VPS.</b> För några euro i månaden kör den servern åt alla, dygnet runt.',
-    vpsLink: 'Så kör du den på en VPS',
+  },
+  rent: {
+    title: 'Hyr en liten server',
+    intro: 'En liten virtuell server (en ”VPS”) hos ett hostingföretag kör Iskra åt ert gäng hela tiden och går att nå var som helst ifrån. Ingen terminal behövs: appen ger dig en installationstext att klistra in, och du blir ägare härifrån.',
+    step1: 'Skapa ett konto hos en VPS-leverantör. Två exempel: <hetzner>Hetzner</hetzner> eller <digitalocean>DigitalOcean</digitalocean>. Iskra har inget avtal med någon av dem.',
+    step2: 'Skapa en server: <b>Ubuntu 24.04</b> (eller Debian 12), den billigaste planen (ungefär 4–6 euro i månaden), på en plats nära ert gäng.',
+    step3: 'Klistra in installationstexten nedan i <b>User data</b> (Hetzner: ”Cloud config”; DigitalOcean: ”Advanced options → Add initialization scripts”) och skapa servern.',
+    step4: 'Kopiera serverns IPv4-adress från leverantörens sida, klistra in den här och tryck på <b>Anslut</b>. Installationen tar några minuter.',
+    name: 'Serverns namn',
+    template: 'Startpunkt',
+    setup: 'Installationstext (User data)',
+    setupHint: 'Den installerar den senaste Iskra-servern (kontrollerad mot dess publicerade kontrollsumma), håller den igång och uppdaterad, öppnar bara de portar den behöver och skaffar en gratis HTTPS-adress. Den innehåller en engångsnyckel för ägarskap så att bara den här appen kan ta över servern: dela den inte.',
+    copy: 'Kopiera installationstexten',
+    copied: 'Kopierad',
+    ip: 'Serverns IPv4-adress',
+    ipPlaceholder: '203.0.113.7',
+    connect: 'Anslut',
+    cancel: 'Sluta vänta',
+    waiting: 'Väntar på att din server ska installeras och starta… Det brukar ta 3–10 minuter. Du kan låta det här stå öppet.',
+    checking: 'Hittade den. Kollar att den verkligen är din…',
+    joining: 'Gör dig till ägare…',
+    badIp: 'Det ser inte ut som en publik IPv4-adress (som 203.0.113.7).',
+    wrongServer: 'En server svarade på den adressen, men det är inte den som sattes upp med den här texten. Kolla adressen.',
+    alreadyClaimed: 'Den servern har redan en ägare.',
+    timeout: 'Servern svarade inte inom 20 minuter. Kolla adressen och att installationstexten klistrades in i User data. Tryck på Anslut för att vänta längre.',
+    bring: 'Har du redan en server på den här datorn? Att flytta den kräver en terminal än så länge: se <move>flytta en server</move>.',
+    newClaim: 'Börja om med en ny ägarnyckel',
+    ai: {
+      button: 'Kopiera en fråga till en AI-assistent i stället',
+      title: 'Hellre terminal? Fråga en AI-assistent (Claude, ChatGPT…)',
+      intro: 'Klistra in det här i den assistent du gillar. Ändra först om du vill; det innehåller inga nycklar eller lösenord.',
+      label: 'Fråga',
+      prompt:
+        'Jag vill köra en Iskra-server (en egen röst- och chattserver för mina vänner) på en ny Linux-VPS (Ubuntu 24.04 LTS eller Debian 12, x86-64). Guida mig steg för steg och förklara varje kommando:\n\n' +
+        '1. Anslut till servern med SSH.\n' +
+        '2. Ladda ner {{package}} och SHA256SUMS.txt från {{base}} och kontrollera paketet mot SHA256SUMS.txt med sha256sum innan det används.\n' +
+        '3. Skapa en systemanvändare ”iskra” med hemmappen /opt/iskra och packa upp paketet där.\n' +
+        '4. Skapa /opt/iskra/world/server.json med HTTPS på: {"Https": {"Mode": "acme", "Domain": "<min IPv4 med bindestreck>.sslip.io"}} (till exempel 203-0-113-7.sslip.io).\n' +
+        '5. Gör en systemd-tjänst som kör ”/opt/iskra/iskra-server /opt/iskra/world” som användaren iskra med AmbientCapabilities=CAP_NET_BIND_SERVICE, startar om vid fel och startar vid uppstart.\n' +
+        '6. Öppna bara de här portarna med ufw: {{ports}}.\n' +
+        '7. Starta den och visa mig engångslänken för ägarskap från ”journalctl -u iskra” (den finns också i /opt/iskra/world/owner-invite.txt).',
+    },
   },
 }

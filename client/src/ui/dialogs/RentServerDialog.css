@@ -1,0 +1,24 @@
+/* ── Rent a small server ───────────────────────────────────────────── */
+.ownership-note {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-2));
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 14px;
+}
+.rent-steps { margin: 10px 0 14px; padding-left: 20px; display: grid; gap: 14px; font-size: 14px; }
+.rent-steps > li > .button { margin-top: 6px; }
+.rent-fields { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; margin-top: 10px; }
+.rent-setup { width: 100%; font-family: var(--mono); font-size: 12px; resize: vertical; }
+.rent-connect { display: flex; gap: 10px; align-items: flex-end; margin-top: 8px; }
+.rent-connect .field { flex: 1; margin: 0; }
+.rent-progress { display: flex; align-items: center; gap: 8px; margin: 8px 0 0; color: var(--text-2); }
+.rent-server .small { font-size: 13px; }
+
+@media (max-width: 760px) {
+  .rent-fields { grid-template-columns: 1fr; }
+  .rent-connect { flex-direction: column; align-items: stretch; }
+}

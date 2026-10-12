@@ -18,6 +18,9 @@ public sealed record WorldSettings
     /// <summary>A starter template applied once to a new server (built-in name or a .json path; see docs/hosting.md).</summary>
     public string? Template { get; init; }
 
+    /// <summary>A one-time owner claim from the app that set up this server ("Rent a small server"). Moved out of server.json on first start.</summary>
+    public string? OwnerClaim { get; init; }
+
     /// <summary>The web app that invite links open.</summary>
     public string AppUrl { get; init; } = "https://app.iskra.foo";
 
@@ -273,7 +276,7 @@ internal static class AtomicFile
 
     /// <summary>Files in a world folder that hold keys or a one-time owner link (relative to the world).</summary>
     public static readonly string[] SecretFiles =
-        ["server.key", "vapid.json", "livekit.key", "owner-invite.txt", Path.Combine("certs", "acme-account.pem"), Path.Combine("certs", "key.pem")];
+        ["server.key", "vapid.json", "livekit.key", "owner-invite.txt", "owner-claim", Path.Combine("certs", "acme-account.pem"), Path.Combine("certs", "key.pem")];
 
     /// <summary>Write to a temp file, then rename over the target, so a crash never leaves a half-written file.
     /// On Linux and macOS the file is readable by its owner only (0600), from the moment it exists.</summary>

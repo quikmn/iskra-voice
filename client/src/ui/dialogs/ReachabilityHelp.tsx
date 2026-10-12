@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import type { HostStatus } from '../../core/protocol'
-import { LINKS } from '../../links'
+import { RentServerDialog } from './RentServerDialog'
 import { aiPrompt, cgnatAdvice, forwardRows, lanHost, routerPage } from '../../state/hosting'
 
 /** Plain-words findings, all from the router's own answers and this computer: no outside service is asked. */
@@ -58,6 +58,7 @@ export function ForwardHelp({ status, startOpen }: { status: HostStatus; startOp
 
   return (
     <div className="internet-callout" data-testid="manual-forwards">
+      <OwnershipNote />
       <div className="callout-head">
         <strong>{t('hosting.forward.title')}</strong>
         <button className="link" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? t('hosting.forward.hide') : t('hosting.forward.open')}</button>
@@ -116,30 +117,39 @@ export function ForwardHelp({ status, startOpen }: { status: HostStatus; startOp
   )
 }
 
+/** The one line on every hosting help panel: this is the group's own server, and this is only a guide. */
+export function OwnershipNote() {
+  const { t } = useTranslation()
+  return <p className="ownership-note" data-testid="ownership-note">{t('hosting.ownership')}</p>
+}
+
 /**
- * When ports can't help: what to do, easiest first. Room for one more option later ("connect without port
- * forwarding", a peer-to-peer tunnel being researched): it goes in OPTIONS, before the VPS.
+ * When ports can't help: what to do, quickest first. Room for one more option later ("connect without port
+ * forwarding", a peer-to-peer tunnel being researched): it goes in OPTIONS, right after renting a server.
  */
 export function CgnatHelp({ status }: { status: HostStatus }) {
   const { t } = useTranslation()
+  const [renting, setRenting] = useState(false)
   const advice = cgnatAdvice(status)
   if (!advice) return null
   const shared = advice === 'shared'
   const OPTIONS = [
+    <span key="rent">
+      <Trans i18nKey="hosting.cgnat.rent" components={{ b: <strong /> }} />{' '}
+      <button className="button small primary" onClick={() => setRenting(true)}>{t('hosting.cgnat.rentButton')}</button>
+    </span>,
     shared ? <Trans key="check" i18nKey="hosting.cgnat.checkShared" values={{ ip: status.publicIp ?? '' }} components={{ b: <strong /> }} />
       : <Trans key="check" i18nKey="hosting.cgnat.check" components={{ b: <strong /> }} />,
     <Trans key="isp" i18nKey="hosting.cgnat.isp" components={{ b: <strong /> }} />,
     <Trans key="friend" i18nKey="hosting.cgnat.friend" components={{ b: <strong /> }} />,
-    <span key="vps">
-      <Trans i18nKey="hosting.cgnat.vps" components={{ b: <strong /> }} />{' '}
-      <a href={`${LINKS.hostingGuide}#on-a-linux-vps-with-systemd`} target="_blank" rel="noopener noreferrer">{t('hosting.cgnat.vpsLink')}</a>
-    </span>,
   ]
   return (
     <div className={`internet-callout ${shared ? 'warn' : ''}`} data-testid="cgnat-help">
+      <OwnershipNote />
       <strong>{shared ? t('hosting.cgnat.titleShared') : t('hosting.cgnat.title')}</strong>
       <p>{shared ? t('hosting.cgnat.explain') : t('hosting.cgnat.explainMaybe')}</p>
       <ol className="cgnat-options">{OPTIONS.map((option, i) => <li key={i}>{option}</li>)}</ol>
+      {renting && <RentServerDialog onClose={() => setRenting(false)} />}
     </div>
   )
 }
