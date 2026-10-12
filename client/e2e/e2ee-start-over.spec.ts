@@ -103,6 +103,7 @@ test('encrypted channel started over: a returning member sees a warning, starts 
   await expect(channelRow(bob, 'vault')).toHaveCount(0)
   await membersInPanel(host, 2)
   await setRole(host, 'Carol', 'Away', true)
+  await expect(channelRow(carol, 'vault')).toHaveCount(0)
   await membersInPanel(host, 1)
   await setRole(host, 'Host', 'Away', true)
   await expect(channelRow(host, 'vault')).toHaveCount(0)
