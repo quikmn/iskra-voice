@@ -1,0 +1,79 @@
+<!doctype html>
+<!-- The window Iskra shows while it starts (and while it restarts into an update). A local file: no network, no preload. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>Iskra</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: #0b0b14; color: #e2e2f0; overflow: hidden; user-select: none; cursor: default;
+    font: 14px/1.4 "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Ubuntu, Cantarell, sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
+    border: 1px solid #23233a; box-sizing: border-box; -webkit-app-region: drag;
+  }
+  .mark { width: 64px; height: 64px; margin-bottom: 18px; filter: drop-shadow(0 6px 22px rgba(124, 111, 255, 0.35)); }
+  h1 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: 0.01em; text-align: center; padding: 0 24px; }
+  #status { margin: 6px 0 0; min-height: 20px; color: #b4b4cc; font-size: 13px; text-align: center; padding: 0 24px; }
+  .track { position: relative; width: 220px; height: 4px; margin-top: 20px; border-radius: 4px; background: #1d1d2e; overflow: hidden; }
+  .fill {
+    position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 4px;
+    background: linear-gradient(90deg, #7c6fff, #00cfff); transition: width 0.35s ease-out;
+  }
+  .track.indeterminate .fill { width: 38%; transition: none; animation: slide 1.15s ease-in-out infinite; }
+  @keyframes slide { from { left: -38%; } to { left: 100%; } }
+  @media (prefers-reduced-motion: reduce) {
+    .fill { transition: none; }
+    .track.indeterminate .fill { animation: none; width: 100%; opacity: 0.6; }
+  }
+</style>
+</head>
+<body>
+  <svg class="mark" viewBox="0 0 256 256" aria-hidden="true">
+    <defs>
+      <linearGradient id="bolt" x1="60" y1="28" x2="196" y2="228" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#7c6fff"/>
+        <stop offset="100%" stop-color="#00cfff"/>
+      </linearGradient>
+    </defs>
+    <path d="M129 28L33 148h88l-18 80 120-144H129L145 28z" fill="url(#bolt)"/>
+  </svg>
+  <h1 id="heading">Iskra</h1>
+  <p id="status" role="status" aria-live="polite"></p>
+  <div class="track" id="track" role="progressbar" aria-labelledby="status" aria-valuemin="0" aria-valuemax="100">
+    <div class="fill" id="fill"></div>
+  </div>
+<script>
+  // The main process draws with splash({ heading, status, progress, lang }); the first view comes in the URL's hash.
+  // Text only ever goes in through textContent.
+  window.splash = (view) => {
+    if (!view || typeof view !== 'object') return
+    if (typeof view.lang === 'string') document.documentElement.lang = view.lang
+    if (typeof view.heading === 'string') {
+      document.getElementById('heading').textContent = view.heading
+      document.title = view.heading
+    }
+    if (typeof view.status === 'string') document.getElementById('status').textContent = view.status
+    const track = document.getElementById('track')
+    const fill = document.getElementById('fill')
+    if (typeof view.progress === 'number') {
+      const percent = Math.round(Math.max(0, Math.min(1, view.progress)) * 100)
+      track.classList.remove('indeterminate')
+      track.setAttribute('aria-valuenow', String(percent))
+      fill.style.width = percent + '%'
+    } else {
+      track.classList.add('indeterminate')
+      track.removeAttribute('aria-valuenow')
+      fill.style.width = ''
+    }
+  }
+  try {
+    window.splash(JSON.parse(decodeURIComponent(location.hash.slice(1))))
+  } catch {
+    /* no first view: the main process sends one */
+  }
+</script>
+</body>
+</html>
