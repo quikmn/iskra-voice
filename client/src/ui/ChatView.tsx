@@ -3,7 +3,7 @@ import { Trans, useTranslation } from 'react-i18next'
 import { errorMessage } from '../i18n/errors'
 import type { FileInfo, Member } from '../core/protocol'
 import {
-  activeChannelId, connectionFor, discardFailed, loadHistory, notifyTyping, failedJoin, leaveServer, retryAll, retryFailed, retryServer, sendMessage, useApp,
+  activeChannelId, connectionFor, discardFailed, loadHistory, notifyTyping, failedJoin, retryAll, retryFailed, sendMessage, useApp,
   type PendingMessage, type ServerState,
 } from '../state/store'
 import { Attachments, LinkPreviewCard, Reactions, ReactionPicker, ReplyLine } from './chat/MessageExtras'
@@ -59,6 +59,7 @@ import { ClipNoticeRow } from './clips/ClipNotice'
 import { conversationLabel } from '../state/threads'
 import { messageListKeys, useAnnounceNew } from './a11y'
 import { useQueuedSend } from './chat/QueuedSend'
+import { JoinFailed } from './JoinFailed'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -139,27 +140,6 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
           ) : <Spinner />}
         </div>
       )}
-    </div>
-  )
-}
-
-/** A first join that didn't get through: say why, and offer to try again or remove it (it isn't kept otherwise). */
-function JoinFailed({ server }: { server: ServerState }) {
-  const { t } = useTranslation()
-  const { status } = server
-  let host = server.url
-  try {
-    host = new URL(server.url).host
-  } catch { /* shown as given */ }
-  return (
-    <div className="empty-state join-failed" role="alert">
-      <span className="empty-icon"><WifiOff size={32} /></span>
-      <h1>{t('chat.view.joinFailedTitle')}</h1>
-      <p>{status.state === 'rejected' ? errorMessage(status) : t('chat.view.joinFailed', { host })}</p>
-      <div className="join-failed-actions">
-        {status.state !== 'rejected' && <button className="button primary" onClick={() => retryServer(server.key)}>{t('common.tryAgain')}</button>}
-        <button className="button" onClick={() => leaveServer(server.key)}>{t('common.remove')}</button>
-      </div>
     </div>
   )
 }

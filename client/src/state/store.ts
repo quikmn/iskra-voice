@@ -176,10 +176,13 @@ export async function boot(): Promise<void> {
   if (saved.length) useApp.setState({ activeServer: saved[0].serverKey })
 }
 
-/** A new device for an existing account (from its recovery key). */
-export async function restoreAccount(seed: Uint8Array, name: string): Promise<void> {
+/**
+ * A new device for an existing account (from its recovery key). The name is left empty: it comes from the account's
+ * copy or the member's name on the first server that welcomes it (state/profile.ts), and auth leaves it out until then.
+ */
+export async function restoreAccount(seed: Uint8Array): Promise<void> {
   const identity = restoreIdentity(seed)
-  const profile = { name, recoverySaved: true }
+  const profile = { name: '', recoverySaved: true }
   await storage.saveIdentity(identity)
   await storage.saveProfile(profile)
   void storage.requestPersistence()
@@ -294,6 +297,15 @@ export function retryAll(): void {
 
 export function retryServer(key: string): void {
   connections.get(key)?.retryNow()
+}
+
+/** Connects a server that turned us away again (after picking a name), with the invite it was joined from. */
+export async function rejoinServer(key: string): Promise<void> {
+  const server = useApp.getState().servers[key]
+  if (!server) return
+  const invite = (await storage.loadServers()).find((s) => s.serverKey === key)?.invite
+  patchServer(key, () => ({ status: { state: 'connecting' } }))
+  connectServer(server.url, key, server.name, invite, server.joining)
 }
 
 /** A join that couldn't reach its server (or was turned away) shows its error while you look at it, and is gone once you go elsewhere. */

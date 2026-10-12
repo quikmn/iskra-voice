@@ -32,10 +32,14 @@ test('a recovery key brings your account back on a fresh device, owner role incl
   await second.getByRole('button', { name: /Use my recovery key/ }).click()
   await second.getByLabel('Recovery key').fill(` ${recoveryKey.toLowerCase().replace(/-/g, ' ')} `)
   await expect(second.getByText('Key looks right.')).toBeVisible()
-  await second.getByLabel('Your name').fill('Host')
+  // No name to type: a restored account is the same person, and its name comes back from the server (UX audit P1).
+  await expect(second.getByText('Welcome back. Paste your recovery key: your name and profile come back from your servers.')).toBeVisible()
+  await expect(second.getByLabel('Your name')).toHaveCount(0)
   await second.getByRole('button', { name: 'Restore my account' }).click()
 
   await expect(second.getByRole('heading', { name: 'general' })).toBeVisible()
+  await expect(second.locator('.me-bar')).toContainText('Host')
+  await expect(first.locator('.member-list .member-name', { hasText: /^Host$/ })).toHaveCount(1)
   await expect(second.locator('.me-text')).toContainText('owner')
   await expect(second.getByText('written on the first device')).toBeVisible()
   await expect(second.locator('.nudge')).toHaveCount(0) // restoring means you have the key

@@ -176,6 +176,7 @@ public sealed class Session
             {
                 AuthFailure.Banned => ("banned", "You are banned from this server.", CloseCodes.Forbidden),
                 AuthFailure.InviteRequired => ("invite_required", "You need a valid invite to join this server.", CloseCodes.AuthFailed),
+                AuthFailure.NameRequired => ("name_required", "Pick a name before joining this server.", CloseCodes.AuthFailed),
                 AuthFailure.DeviceRevoked => ("device_revoked", "This device was removed from its account.", CloseCodes.AuthFailed),
                 AuthFailure.KeyRotation => (_authError!.Value.Code, _authError.Value.Message, CloseCodes.AuthFailed),
                 _ => ("auth_failed", "Authentication failed.", CloseCodes.AuthFailed),
@@ -324,7 +325,7 @@ public sealed class Session
 
     // ── Auth ─────────────────────────────────────────────────────────────────
 
-    private enum AuthFailure { Invalid, Banned, InviteRequired, DeviceRevoked, KeyRotation }
+    private enum AuthFailure { Invalid, Banned, InviteRequired, DeviceRevoked, KeyRotation, NameRequired }
 
     /// <summary>Set when the handshake fails because the account was deleted or its key rotated (AccountFeature/KeyFeature.OnAuth).</summary>
     private (string Code, string Message, object Extra)? _authError;
@@ -357,6 +358,9 @@ public sealed class Session
         string? signature = null, name = null, invite = null;
         JsonElement profile = default;
         var isBot = false;
+        // A device that doesn't know the account's name yet (restored from the recovery key) leaves it out: an existing
+        // member keeps their profile, a new one is asked for a name (Profile sync).
+        var nameOmitted = false;
         try
         {
             var fields = new Body(body);
@@ -364,7 +368,8 @@ public sealed class Session
             invite = fields.OptionalString("invite", 64);
             if (body.TryGetProperty("profile", out profile))
             {
-                name = Names.Normalize(new Body(profile).OptionalString("name", 256));
+                nameOmitted = profile.ValueKind == JsonValueKind.Object && !profile.TryGetProperty("name", out _);
+                name = nameOmitted ? null : Names.Normalize(new Body(profile).OptionalString("name", 256));
                 isBot = new Body(profile).OptionalBool("bot") ?? false;
             }
         }
@@ -372,7 +377,7 @@ public sealed class Session
         {
             return (null, AuthFailure.Invalid);
         }
-        if (name is null) return (null, AuthFailure.Invalid);
+        if (name is null && !nameOmitted) return (null, AuthFailure.Invalid);
 
         if (!Identity.VerifyDeviceCert(cert)) return (null, AuthFailure.Invalid);
         if (!Identity.VerifyAuth(cert, _world.ServerPublicKey, nonce, signature)) return (null, AuthFailure.Invalid);
@@ -389,7 +394,7 @@ public sealed class Session
         if (existing is not null)
         {
             // A device whose profile is older than the one this server last accepted doesn't overwrite it (Profile sync).
-            if (!ProfileFeature.AcceptStamp(_world.Store, existing.AccountKey, new Body(profile), Now)) name = existing.Name;
+            if (name is null || !ProfileFeature.AcceptStamp(_world.Store, existing.AccountKey, new Body(profile), Now)) name = existing.Name;
             else
             {
                 if (existing.Name != name) _world.Store.SetMemberName(existing.AccountKey, name);
@@ -403,6 +408,7 @@ public sealed class Session
             return (existing with { Name = name }, AuthFailure.Invalid);
         }
 
+        if (name is null) return (null, AuthFailure.NameRequired);
         var role = invite is null || !BotFeature.InviteFits(_world.Store, invite, isBot) ? null : _world.Store.TryUseInvite(invite, Now);
         if (role is null) return (null, AuthFailure.InviteRequired);
 

@@ -2,7 +2,7 @@
 // reached says so instead of leaving a tile stuck on "Reconnecting".
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
-import { agreeToTerms, createInviteLink, joinVia, SHOTS, startServer, type TestServer } from './helpers'
+import { agreeToTerms, createInviteLink, joinVia, openSettings, SHOTS, startServer, type TestServer } from './helpers'
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -107,3 +107,38 @@ test('an invite to a server that is not running: a clear error, Try again and Re
   await page.getByRole('button', { name: 'Direct messages' }).click()
   await expect(page.locator('.server-rail').getByRole('button', { name: host })).toHaveCount(0)
 })
+
+test('restoring with the recovery key on a server the account is new to: it asks for the name only then, and says why', async ({ browser }) => {
+  const home = await startServer('Home')
+  const first = await (await browser.newContext()).newPage()
+  await joinVia(first, home.ownerLink(), 'Rhea')
+  await openSettings(first, 'Recovery key')
+  await first.getByRole('button', { name: 'Show recovery key' }).click()
+  const recoveryKey = (await first.locator('.recovery-key').innerText()).trim()
+  await first.keyboard.press('Escape')
+
+  const elsewhere = await startServer('Elsewhere')
+  try {
+    const restored = await (await browser.newContext()).newPage()
+    await restored.goto(elsewhere.ownerLink())
+    await agreeToTerms(restored)
+    await restored.getByRole('button', { name: /I already use Iskra/ }).click()
+    await restored.getByRole('button', { name: /Use my recovery key/ }).click()
+    await restored.getByLabel('Recovery key').fill(recoveryKey)
+    await expect(restored.getByLabel('Your name')).toHaveCount(0)
+    await restored.getByRole('button', { name: 'Restore my account' }).click()
+
+    // Nobody on this server knows the account yet: pick the name it shows.
+    await expect(restored.getByRole('heading', { name: 'Pick your name' })).toBeVisible({ timeout: 15_000 })
+    await expect(restored.getByText('This is your existing account; pick the name it shows.')).toBeVisible()
+    await restored.screenshot({ path: join(SHOTS, 'ux-restore-pick-name.png') })
+    await restored.getByLabel('Your name').fill('Rhea')
+    await restored.getByRole('button', { name: 'Join', exact: true }).click()
+    await expect(restored.getByRole('heading', { name: 'general' })).toBeVisible({ timeout: 15_000 })
+    await expect(restored.locator('.me-bar')).toContainText('Rhea')
+  } finally {
+    await elsewhere.stop()
+    await home.stop()
+  }
+})
+

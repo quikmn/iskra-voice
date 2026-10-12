@@ -36,9 +36,10 @@ export function Onboarding() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (!trimmed || busy || (restoring && !seed)) return
+    if (busy || (restoring ? !seed : !trimmed)) return
     setBusy(true)
-    if (restoring && seed) await restoreAccount(seed, trimmed)
+    // A restored account keeps its name: it comes from the account's servers, not from here.
+    if (restoring && seed) await restoreAccount(seed)
     else await completeOnboarding(trimmed)
     if (pendingInvite) acceptInvite(pendingInvite)
   }
@@ -131,17 +132,18 @@ export function Onboarding() {
             <p className="lead">
               <Trans i18nKey="app.onboarding.invited" values={{ host: hostOf(pendingInvite.serverUrl) }} components={{ b: <strong /> }} />
               <br />
-              {t('app.onboarding.pickNameInvited')}
+              {restoring ? t('app.onboarding.restoreIntro') : t('app.onboarding.pickNameInvited')}
             </p>
             <OpenInApp invite={pendingInvite} />
           </>
         ) : (
-          <p className="lead">{t('app.onboarding.intro')}</p>
+          <p className="lead">{restoring ? t('app.onboarding.restoreIntro') : t('app.onboarding.intro')}</p>
         )}
         {restoring && (
           <label className="field">
             <span>{t('app.onboarding.recoveryKey')}</span>
             <textarea
+              autoFocus
               rows={3}
               value={recoveryKey}
               onChange={(e) => setRecoveryKey(e.target.value)}
@@ -153,7 +155,7 @@ export function Onboarding() {
             {seed && <small className="success-text">{t('app.onboarding.keyOk')}</small>}
           </label>
         )}
-        <label className="field">
+        {!restoring && <label className="field">
           <span>{t('app.onboarding.yourName')}</span>
           <input
             autoFocus
@@ -162,8 +164,8 @@ export function Onboarding() {
             onChange={(e) => setName(e.target.value)}
             placeholder={t('app.onboarding.namePlaceholder')}
           />
-        </label>
-        <button className="button primary wide" disabled={!trimmed || busy || (restoring && !seed)}>
+        </label>}
+        <button className="button primary wide" disabled={busy || (restoring ? !seed : !trimmed)}>
           {restoring ? t('app.onboarding.restore') : pendingInvite ? t('common.join') : t('common.continue')}
         </button>
         <p className="fine-print">

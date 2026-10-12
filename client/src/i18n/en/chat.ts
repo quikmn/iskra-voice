@@ -11,6 +11,8 @@ export const chat = {
     tryNow: 'Try now',
     joinFailedTitle: "Couldn't join",
     joinFailed: "Couldn't reach {{host}}. Is the server running and open to the internet?",
+    pickNameTitle: 'Pick your name',
+    pickNameHint: 'This is your existing account; pick the name it shows.',
     stopped: "{{name}} went offline. Iskra reconnects when it's back.",
     restarting: '{{name}} is restarting, hold on…',
     restartingVoice: "{{name}} is restarting, hold on… You'll be back in voice automatically.",

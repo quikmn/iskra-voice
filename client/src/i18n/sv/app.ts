@@ -122,6 +122,7 @@ export const app: Messages['app'] = {
     yourName: 'Ditt namn',
     namePlaceholder: 'Vad ska dina vänner kalla dig?',
     restore: 'Återställ mitt konto',
+    restoreIntro: 'Välkommen tillbaka. Klistra in din återställningsnyckel: ditt namn och din profil kommer tillbaka från dina servrar.',
     noPassword: 'Ingen e-post, inget lösenord. Ditt konto är en nyckel som stannar på dina enheter.',
     haveIskra: 'Jag använder redan Iskra',
   },

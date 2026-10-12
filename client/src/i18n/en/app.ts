@@ -121,6 +121,7 @@ export const app = {
     yourName: 'Your name',
     namePlaceholder: 'What should friends call you?',
     restore: 'Restore my account',
+    restoreIntro: 'Welcome back. Paste your recovery key: your name and profile come back from your servers.',
     noPassword: 'No email, no password. Your account is a key that stays on your devices.',
     haveIskra: 'I already use Iskra',
   },

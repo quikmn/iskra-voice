@@ -82,6 +82,7 @@ function ConnectionPill({ server }: { server: ServerState }) {
   const label =
     status.state === 'connecting' ? t('app.sidebar.connecting')
       : failedJoin(server) && status.state === 'offline' ? t('app.sidebar.notReached')
+      : status.state === 'rejected' && status.code === 'name_required' ? t('chat.view.pickNameTitle')
       : status.state === 'offline' ? t('app.sidebar.reconnectingIn', { seconds: Math.ceil(status.retryInMs / 1000) })
         : status.state === 'restarting' ? t('app.sidebar.restarting')
         : t('app.sidebar.noAccess')

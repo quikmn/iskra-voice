@@ -257,7 +257,7 @@ export interface ProfileUpdate {
 
 export type ErrorCode =
   | 'bad_request' | 'forbidden' | 'not_found' | 'rate_limited' | 'unknown_type' | 'internal'
-  | 'auth_failed' | 'invite_required' | 'banned' | 'voice_unavailable' | 'busy' | 'device_revoked' | 'conflict' | 'moved'
+  | 'auth_failed' | 'invite_required' | 'name_required' | 'banned' | 'voice_unavailable' | 'busy' | 'device_revoked' | 'conflict' | 'moved'
   | 'account_rotated' | 'account_disputed' | 'rotation_conflict' | 'unavailable'
   | 'channel_full' | 'rules_required'
   | 'automod'

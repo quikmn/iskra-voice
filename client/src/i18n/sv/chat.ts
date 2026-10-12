@@ -12,6 +12,8 @@ export const chat: Messages['chat'] = {
     tryNow: 'Försök nu',
     joinFailedTitle: 'Det gick inte att gå med',
     joinFailed: 'Kunde inte nå {{host}}. Är servern igång och öppen mot internet?',
+    pickNameTitle: 'Välj ditt namn',
+    pickNameHint: 'Det här är ditt befintliga konto. Välj namnet som det ska visa.',
     stopped: '{{name}} gick offline. Iskra ansluter igen när den är tillbaka.',
     restarting: '{{name}} startar om, vänta lite…',
     restartingVoice: '{{name}} startar om, vänta lite… Du kommer tillbaka till röstkanalen automatiskt.',

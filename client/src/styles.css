@@ -805,3 +805,4 @@ input.confirm-code::placeholder { color: var(--muted); }
 
 /* ── UX fixes: a first join that couldn't reach its server ── */
 .join-failed-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.join-name { width: min(320px, 100%); text-align: left; }
