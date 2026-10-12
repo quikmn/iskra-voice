@@ -38,18 +38,47 @@ export const skipScreenPicker = (wayland: boolean, sourceCount: number) => wayla
 
 /**
  * How this copy of the app updates itself.
- * auto: download in the background and restart into it (Windows installer, Linux AppImage).
- * manual: tell the user and link to the download (portable exe, deb/rpm, unsigned macOS builds).
+ * auto: download in the background and restart into it (Windows installer, Linux AppImage, Developer ID signed macOS).
+ * manual: tell the user and link to the download (portable exe, deb/rpm, ad-hoc signed macOS builds, a Mac app run
+ * from the disk image or from Downloads before it was moved).
  * off: development builds.
  */
 export type UpdateMode = 'auto' | 'manual' | 'off'
 
-export function updateMode(platform: NodeJS.Platform, packaged: boolean, env: Env): UpdateMode {
+/** The running macOS app: how it's signed and where it is (the .app bundle). */
+export type MacApp = { signing: MacSigning; bundlePath: string }
+
+export function updateMode(platform: NodeJS.Platform, packaged: boolean, env: Env, mac?: MacApp): UpdateMode {
   if (!packaged || env.ISKRA_NO_UPDATES) return 'off'
   if (platform === 'win32') return env.PORTABLE_EXECUTABLE_DIR ? 'manual' : 'auto'
   if (platform === 'linux') return env.APPIMAGE ? 'auto' : 'manual'
-  return 'manual' // macOS: Squirrel.Mac only installs updates signed with a Developer ID
+  // Squirrel.Mac only installs an update whose signature satisfies the running app's (same Developer ID team), so an
+  // ad-hoc signed build can never update itself. It also needs to be able to replace the app where it is.
+  return mac?.signing === 'developer-id' && macCanReplaceItself(mac.bundlePath) ? 'auto' : 'manual'
 }
+
+/**
+ * How a macOS app is signed, read from `codesign -dv --verbose=2 <app>` (which prints to stderr).
+ * developer-id: a Developer ID Application certificate with a team (release builds from CI with the Apple secrets).
+ * adhoc: signed without a certificate (local builds, CI without the secrets). none: not signed, or codesign failed.
+ */
+export type MacSigning = 'developer-id' | 'adhoc' | 'none'
+
+export function macSigning(codesignOutput: string): MacSigning {
+  const lines = codesignOutput.split('\n').map((l) => l.trim())
+  if (lines.some((l) => /^Signature=adhoc$/i.test(l))) return 'adhoc'
+  const developerId = lines.some((l) => l.startsWith('Authority=Developer ID Application:'))
+  const team = lines.find((l) => l.startsWith('TeamIdentifier='))?.slice('TeamIdentifier='.length)
+  if (developerId && team && /^[A-Z0-9]{10}$/.test(team)) return 'developer-id'
+  return lines.some((l) => l.startsWith('Identifier=')) ? 'adhoc' : 'none'
+}
+
+/**
+ * Whether Squirrel.Mac can swap the app in place: not while it runs from the mounted disk image (read-only) or
+ * translocated (opened from Downloads without being moved, so macOS runs it from a read-only random path).
+ */
+export const macCanReplaceItself = (bundlePath: string) =>
+  bundlePath.endsWith('.app') && !bundlePath.startsWith('/Volumes/') && !bundlePath.includes('/AppTranslocation/')
 
 const VERSION = /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/
 
