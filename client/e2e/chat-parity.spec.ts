@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
-import { createInviteLink, joinVia, openSettings, send, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, joinVia, openServerSettings, send, SHOTS, startServer, type TestServer } from './helpers'
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -145,7 +145,7 @@ test('chat parity: rich text, images, spoilers, drafts, links, unread, reactions
   await expect(embed.locator('iframe')).toHaveAttribute('src', 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1')
 
   // ── Stickers: the host adds one, the friend sends it ──
-  await openSettings(host, 'Emoji')
+  await openServerSettings(host, 'Emoji & stickers')
   await host.locator('input[aria-label="Sticker image"]').setInputFiles({ name: 'hello.png', mimeType: 'image/png', buffer: png(9) })
   await host.getByLabel('Sticker name').fill('Hello there')
   await host.getByRole('button', { name: 'Add', exact: true }).click()

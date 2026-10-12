@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
-import { createInviteLink, joinVia, openSettings, send, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, joinVia, openServerSettings, openSettings, send, serverRoom, SHOTS, startServer, type TestServer } from './helpers'
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -96,29 +96,29 @@ test('block, timeout, slowmode and the audit log', async ({ browser }) => {
   await expect(host.locator('.slowmode-chip')).toHaveCount(0)
 
   // ── Audit log: admins see who did what.
-  await openSettings(host, 'Audit log')
+  await openServerSettings(host, 'Activity log')
   const log = host.locator('.audit-list')
   await expect(log).toContainText('Host edited #general: slowmode off → 10 s')
   await expect(log).toContainText("Host ended Friend's timeout")
   await expect(log).toContainText('Host timed out Friend for 5 minutes')
   await expect(log).toContainText('Reason: cool off')
   await host.screenshot({ path: join(SHOTS, 'moderation-audit.png') })
-  await host.getByRole('dialog', { name: 'Settings' }).getByLabel('Action').selectOption({ label: 'Timeouts' })
+  await serverRoom(host).getByLabel('Action').selectOption({ label: 'Timeouts' })
   await expect(log.locator('.audit-entry')).toHaveCount(1)
   await host.keyboard.press('Escape')
 
   // Members don't get the audit log at all.
-  await openSettings(friend)
-  await expect(friend.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Audit log' })).toHaveCount(0)
+  await friend.locator('.server-header-button').click()
+  await expect(friend.getByRole('menuitem', { name: 'Server settings', exact: true })).toHaveCount(0)
+  await expect(friend.getByRole('menuitem', { name: 'More settings' })).toHaveCount(0)
   await friend.keyboard.press('Escape')
 
   // Phone width: the audit log still reads well.
   await host.setViewportSize({ width: 390, height: 800 })
   await host.getByRole('button', { name: 'Open channels' }).click()
-  await openSettings(host)
-  const phoneSettings = host.getByRole('dialog', { name: 'Settings' })
-  // The last item is below the fold on a phone now: scroll to it first.
-  const auditItem = phoneSettings.getByRole('button', { name: 'Audit log' })
+  const phoneSettings = await openServerSettings(host)
+  // Below the fold on a phone: scroll to it first.
+  const auditItem = phoneSettings.getByRole('button', { name: 'Activity log' })
   await auditItem.scrollIntoViewIfNeeded()
   await host.waitForTimeout(300)
   await auditItem.click()

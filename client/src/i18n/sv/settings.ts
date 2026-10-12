@@ -37,6 +37,7 @@ export const settings: Messages['settings'] = {
   dialog: {
     sectionsLabel: 'Inställningsavsnitt',
   },
+  internetSwitch: 'Öppna mot internet',
   room: {
     mine: 'Mina inställningar',
     title: '{{name}} · Serverinställningar',

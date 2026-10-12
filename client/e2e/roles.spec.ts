@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
-import { createInviteLink, joinVia, openSettings, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, joinVia, openServerSettings, serverRoom, SHOTS, startServer, type TestServer } from './helpers'
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -27,8 +27,8 @@ test('custom roles: create, reorder, assign, moderate without admin, channel per
   await joinVia(member, await createInviteLink(host), 'Sam')
 
   // ── The owner makes a Moderator role from the preset.
-  await openSettings(host, 'Roles')
-  const settings = host.getByRole('dialog', { name: 'Settings' })
+  await openServerSettings(host, 'Roles')
+  const settings = serverRoom(host, 'Roles Test')
   await settings.getByRole('button', { name: 'Create role' }).click()
   let editor = settings.getByRole('group', { name: 'Edit New role' })
   await editor.getByLabel('Role name').fill('Moderator')
@@ -70,11 +70,11 @@ test('custom roles: create, reorder, assign, moderate without admin, channel per
   await host.keyboard.press('Escape')
 
   // ── Mira moderates without being an admin.
-  await openSettings(mod)
-  const nav = mod.getByRole('navigation', { name: 'Settings sections' })
+  const nav = (await openServerSettings(mod)).getByRole('navigation', { name: 'Settings sections' })
   await expect(nav.getByRole('button', { name: 'Roles' })).toBeVisible()
-  await expect(nav.getByRole('button', { name: 'Audit log' })).toBeVisible()
-  await expect(nav.getByRole('button', { name: 'Open to the internet' })).toHaveCount(0)
+  await expect(nav.getByRole('button', { name: 'Activity log' })).toBeVisible()
+  await expect(nav.getByRole('button', { name: 'Internet access' })).toHaveCount(0)
+  await expect(nav.getByRole('button', { name: 'Overview' })).toHaveCount(0)
   await mod.keyboard.press('Escape')
   dialog = await openMember(mod, 'Sam')
   await expect(dialog.getByRole('button', { name: 'Kick' })).toBeVisible()
@@ -99,7 +99,7 @@ test('custom roles: create, reorder, assign, moderate without admin, channel per
   await expect(member.getByText("You can't send messages in this channel.")).toBeVisible()
 
   // The audit log tells the story.
-  await openSettings(mod, 'Audit log')
+  await openServerSettings(mod, 'Activity log')
   const log = mod.locator('.audit-list')
   await expect(log).toContainText('Mira changed what Supporter can do in #general')
   await expect(log).toContainText('Host gave Mira Moderator')
@@ -123,8 +123,7 @@ test('custom roles: create, reorder, assign, moderate without admin, channel per
   // Phone width: the roles list still fits.
   await host.setViewportSize({ width: 390, height: 844 })
   await host.getByRole('button', { name: 'Open channels' }).click()
-  await openSettings(host)
-  await host.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Roles' }).click()
+  await openServerSettings(host, 'Roles')
   await host.locator('.role-pick', { hasText: 'Moderator' }).click()
   await expect(host.getByRole('group', { name: 'Edit Moderator' })).toBeVisible()
   await host.waitForTimeout(400)

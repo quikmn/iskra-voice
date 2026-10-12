@@ -47,7 +47,8 @@ export function ServerMenu({ server, anchor, onClose }: { server: ServerState; a
     onClose()
     openServerAction(server.key, action)
   }
-  const open = (section: ServerSectionId) => () => {
+  /** No section: the room's first page (the list on phones, its first section on wide screens). */
+  const open = (section?: ServerSectionId) => () => {
     onClose()
     openServerSettings(server.key, section)
   }
@@ -77,13 +78,13 @@ export function ServerMenu({ server, anchor, onClose }: { server: ServerState; a
               switch (row.kind) {
                 case 'invite': return <MenuItem key="invite" onClick={pick({ kind: 'invite' })}>{t('app.sidebar.inviteFriends')}</MenuItem>
                 case 'channel': return <MenuItem key="channel" onClick={pick({ kind: 'channel' })}>{t('app.serverMenu.createChannel')}</MenuItem>
-                case 'settings': return <MenuItem key="settings" onClick={open(row.section)}>{t('app.serverMenu.settings')}</MenuItem>
+                case 'settings': return <MenuItem key="settings" onClick={open()}>{t('app.serverMenu.settings')}</MenuItem>
                 case 'section': return (
                   <MenuItem key={row.section} onClick={open(row.section)} hint={row.section === 'reports' && reports > 0 ? String(reports) : undefined}>
                     {label.get(row.section)}
                   </MenuItem>
                 )
-                case 'more': return <MenuItem key="more" onClick={() => setView('more')} hint="›">{t('app.serverMenu.more')}</MenuItem>
+                case 'more': return <MenuItem key="more" onClick={() => setView('more')} submenu>{t('app.serverMenu.more')}</MenuItem>
               }
             })}
             <ServerRulesItem serverKey={server.key} onDone={onClose} />
@@ -91,7 +92,7 @@ export function ServerMenu({ server, anchor, onClose }: { server: ServerState; a
             {me && <NotifyRows server={server} channelId={null} setView={setView} run={run} />}
             {me && <MenuItem onClick={pick({ kind: 'nickname' })}>{t('app.serverMenu.nickname')}</MenuItem>}
             <MenuItem onClick={run(() => markServerRead(server.key))}>{t('app.rail.markRead')}</MenuItem>
-            <MenuItem onClick={() => setView('move')} hint="›">{t('app.serverMenu.moveFolder')}</MenuItem>
+            <MenuItem onClick={() => setView('move')} submenu>{t('app.serverMenu.moveFolder')}</MenuItem>
             <div className="org-sep" role="separator" />
             <MenuItem danger onClick={pick({ kind: 'leave' })}>{t('app.serverMenu.leave')}</MenuItem>
           </div>

@@ -36,6 +36,7 @@ export const settings = {
   dialog: {
     sectionsLabel: 'Settings sections',
   },
+  internetSwitch: 'Open to the internet',
   room: {
     mine: 'My settings',
     title: '{{name}} · Server settings',

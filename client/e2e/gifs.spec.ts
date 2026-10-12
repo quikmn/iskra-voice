@@ -1,7 +1,7 @@
 import { createServer, type Server } from 'node:http'
 import { join } from 'node:path'
 import { expect, test, type BrowserContext } from '@playwright/test'
-import { createInviteLink, freePort, joinVia, openSettings, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, freePort, joinVia, openServerSettings, openSettings, SHOTS, startServer, type TestServer } from './helpers'
 
 // A 3×2 PNG, served as every GIF.
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAAEUlEQVR4nGNgYGD4z4AEMDgAHNoB/zrD+5kAAAAASUVORK5CYII=', 'base64')
@@ -84,7 +84,7 @@ test('GIFs: off until an admin adds a key, direct from KLIPY by default, or thro
   await friend.keyboard.press('Escape')
 
   // The host pastes a key in Settings → Overview.
-  await openSettings(host, 'Overview')
+  await openServerSettings(host, 'Overview')
   await host.getByLabel('KLIPY API key').fill(KEY)
   await host.getByRole('button', { name: 'Turn on' }).click()
   await expect(host.locator('.gif-settings').getByRole('status')).toHaveText('GIFs are on.')
@@ -116,7 +116,7 @@ test('GIFs: off until an admin adds a key, direct from KLIPY by default, or thro
   expect(seen.filter((s) => s.startsWith('/api/'))).toHaveLength(0) // the server never called KLIPY
 
   // Through this server (only with KLIPY's approval): the server searches and proxies the files.
-  await openSettings(host, 'Overview')
+  await openServerSettings(host, 'Overview')
   await host.getByRole('radio', { name: /Through this server/ }).click()
   await expect(host.locator('.gif-settings').getByRole('status')).toHaveText('GIFs now go through this server.')
   await host.keyboard.press('Escape')

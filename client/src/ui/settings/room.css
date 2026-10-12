@@ -4,7 +4,8 @@
   background: var(--bg); color: var(--text); padding-top: env(safe-area-inset-top);
   animation: room-in 0.16s ease-out;
 }
-@keyframes room-in { from { opacity: 0; transform: scale(0.995); } }
+@keyframes room-in { from { transform: translateY(8px); } }
+@media (prefers-reduced-motion: reduce) { .settings-room { animation: none; } }
 .settings-room:focus { outline: none; }
 
 .room-band {

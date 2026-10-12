@@ -6,7 +6,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, test, type Page } from '@playwright/test'
 import { APP_PORT } from '../playwright.config'
-import { createInviteLink, freePort, joinVia, SHOTS } from './helpers'
+import { createInviteLink, freePort, joinVia, openServerSettings, SHOTS } from './helpers'
 
 const LOGS = resolve(dirname(fileURLToPath(import.meta.url)), '../test-results')
 const SERVER_DLL = resolve(dirname(fileURLToPath(import.meta.url)), '../../server/src/Iskra.Server/bin/Debug/net10.0/iskra-server.dll')
@@ -67,9 +67,8 @@ async function openSettings(page: Page) {
   // On a phone the settings button lives in the channels drawer.
   const drawer = page.getByRole('button', { name: 'Open channels' })
   if (await drawer.isVisible()) await drawer.click()
-  await page.getByRole('button', { name: 'Settings', exact: true }).click()
-  await page.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Open to the internet' }).click()
-  await expect(page.getByRole('heading', { name: 'Open to the internet' })).toBeVisible()
+  await openServerSettings(page, 'Internet access')
+  await expect(page.getByRole('heading', { name: 'Internet access' })).toBeVisible()
 }
 
 const step = (page: Page, id: string) => page.locator(`.checklist [data-step="${id}"]`)
@@ -85,8 +84,11 @@ test('owner opens the server to the internet; without port 80 nothing plain HTTP
   await joinVia(friend, await createInviteLink(owner), 'Friend')
   await friend.getByRole('button', { name: 'Settings', exact: true }).click()
   await expect(friend.getByRole('heading', { name: 'Profile' })).toBeVisible()
-  await expect(friend.getByRole('heading', { name: 'Open to the internet' })).toHaveCount(0)
-  await expect(friend.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Open to the internet' })).toHaveCount(0)
+  await expect(friend.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Internet access' })).toHaveCount(0)
+  await friend.keyboard.press('Escape')
+  await friend.locator('.server-header-button').click()
+  await expect(friend.getByRole('menuitem', { name: 'Server settings', exact: true })).toHaveCount(0)
+  await friend.keyboard.press('Escape')
 
   await openSettings(owner)
   const toggle = owner.getByRole('switch', { name: 'Open to the internet' })

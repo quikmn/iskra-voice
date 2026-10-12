@@ -191,12 +191,29 @@ export async function createInviteLink(page: Page): Promise<string> {
   return link
 }
 
-/** Opens Settings from the bar under the channel list, then a section by its name in the sidebar (or list, on phones). */
+/** Opens My settings (the gear by your name), then a section by its name in the sidebar (or list, on phones). */
 export async function openSettings(page: Page, section?: string) {
   await page.locator('.me-bar').getByRole('button', { name: 'Settings', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Settings' })
   await expect(dialog).toBeVisible()
   if (section) await dialog.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: section, exact: true }).click()
+}
+
+/** A server's settings room ("<name> · Server settings"), or any open one. */
+export const serverRoom = (page: Page, name?: string) =>
+  page.getByRole('dialog', { name: name ? `${name} · Server settings` : /· Server settings$/ })
+
+/**
+ * Opens the settings room of the server you're looking at (the server-name dropdown → Server settings), then a
+ * section by its name. On phones, open the channels drawer first.
+ */
+export async function openServerSettings(page: Page, section?: string): Promise<Locator> {
+  await page.locator('.server-header-button').click()
+  await page.getByRole('menuitem', { name: 'Server settings', exact: true }).click()
+  const room = serverRoom(page)
+  await expect(room).toBeVisible()
+  if (section) await room.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: section, exact: true }).click()
+  return room
 }
 
 /** Press and hold with a finger (pointer events), as on a phone. */

@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, test } from '@playwright/test'
-import { createInviteLink, freePort, joinVia, openSettings, send, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, freePort, joinVia, openServerSettings, send, serverRoom, SHOTS, startServer, type TestServer } from './helpers'
 
 const SERVER_DLL = resolve(dirname(fileURLToPath(import.meta.url)), '../../server/src/Iskra.Server/bin/Debug/net10.0/iskra-server.dll')
 
@@ -54,7 +54,7 @@ test('owner imports a Discord export; it reads like the original, marked as impo
   const friend = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })).newPage()
   await joinVia(friend, await createInviteLink(owner), 'Friend')
 
-  await openSettings(owner, 'Import from Discord')
+  await openServerSettings(owner, 'Import from Discord')
   const section = owner.getByTestId('import-section')
   await expect(section.getByRole('link', { name: 'DiscordChatExporter' })).toBeVisible()
   await section.locator('input[type=file]').setInputFiles({ name: 'Old Discord - Games - Game Night [100].json', mimeType: 'application/json', buffer: Buffer.from(discordExport()) })
@@ -108,7 +108,7 @@ test('owner backs up, restores the server elsewhere and moves everyone there', a
     await route.fulfill({ response })
   })
 
-  await openSettings(owner, 'Backup & move')
+  await openServerSettings(owner, 'Backup & move')
   const section = owner.getByTestId('backup-section')
   await section.getByLabel('Passphrase', { exact: true }).fill('correct horse battery staple')
   await section.getByLabel('Passphrase again').fill('correct horse battery staple')
@@ -163,8 +163,8 @@ test('owner backs up, restores the server elsewhere and moves everyone there', a
   // Both follow the signed notice to the new address, with the history intact, and keep chatting there.
   await owner.keyboard.press('Escape')
   await expect(friend.getByText('see you on the other side')).toBeVisible()
-  await openSettings(owner, 'Overview')
-  await expect(owner.getByRole('dialog', { name: 'Settings' }).getByText(newUrl)).toBeVisible({ timeout: 15_000 })
+  await openServerSettings(owner, 'Overview')
+  await expect(serverRoom(owner).getByText(newUrl)).toBeVisible({ timeout: 15_000 })
   await owner.keyboard.press('Escape')
   await send(owner, 'made it')
   await expect(friend.getByText('made it')).toBeVisible({ timeout: 15_000 })

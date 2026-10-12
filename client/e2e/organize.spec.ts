@@ -2,7 +2,7 @@
 // nicknames; plus the phone menu for moving channels.
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
-import { createInviteLink, joinVia, openSettings, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, joinVia, SHOTS, startServer, type TestServer } from './helpers'
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -100,20 +100,26 @@ test('categories, notification levels and nicknames', async ({ browser }) => {
   await menu.getByRole('menuitem', { name: /Unmute channel/ }).click()
   await expect(row(friend, 'minecraft').locator('.channel')).not.toHaveClass(/muted/)
 
-  // The server-wide level lives in Settings → Notifications, kept by the server (another device sees it).
-  await openSettings(friend, 'Notifications')
-  const group = friend.getByRole('group', { name: 'Notifications for Organize Test' })
-  await group.getByRole('radio', { name: 'All messages' }).click()
-  await expect(group.getByRole('radio', { name: 'All messages' })).toHaveAttribute('aria-checked', 'true')
-  await group.getByLabel('Mute server').selectOption({ label: 'For 8 hours' })
-  await expect(group.getByText(/Muted until/)).toBeVisible()
+  // The server-wide level lives in the server's menu, kept by the server (another device sees it).
+  const serverMenu = friend.getByRole('dialog', { name: 'Organize Test options' })
+  await friend.locator('.server-header-button').click()
+  await serverMenu.getByRole('menuitem', { name: /^Notifications/ }).click()
+  await serverMenu.getByRole('menuitemradio', { name: 'All messages' }).click()
+  await expect(serverMenu).toHaveCount(0)
+  await friend.locator('.server-header-button').click()
+  await expect(serverMenu.getByRole('menuitem', { name: /^Notifications/ })).toContainText('All messages')
+  await serverMenu.getByRole('menuitem', { name: 'Mute server' }).click()
+  await serverMenu.getByRole('menuitem', { name: 'For 8 hours' }).click()
+  await friend.locator('.server-header-button').click()
+  await expect(serverMenu.getByRole('menuitem', { name: /Unmute server/ })).toContainText(/Muted until/)
   await friend.keyboard.press('Escape')
   await expect(row(friend, 'general').locator('.channel')).toHaveClass(/muted/)
   await friend.reload()
   await expect(row(friend, 'general').locator('.channel')).toHaveClass(/muted/)
 
   // ── Nicknames ──
-  await openSettings(friend, 'Overview')
+  await friend.locator('.server-header-button').click()
+  await serverMenu.getByRole('menuitem', { name: 'Server nickname…' }).click()
   await friend.getByLabel('Server nickname').fill('Captain F')
   await friend.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(friend.getByText('Saved.')).toBeVisible()

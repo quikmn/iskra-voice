@@ -1,7 +1,7 @@
 // App-wide behaviour: settings navigation by role, Escape closing only the top layer, the quick switcher, and phone message actions.
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { createInviteLink, joinVia, longPress, openSettings, send, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, joinVia, longPress, openServerSettings, openSettings, send, SHOTS, startServer, type TestServer } from './helpers'
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -15,14 +15,25 @@ test('settings, Escape, quick switcher and phone message actions', async ({ brow
   const phone = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })).newPage()
   await joinVia(phone, await createInviteLink(host), 'Phone')
 
-  // Owners see every server section; Profile opens first on a wide screen.
+  // The owner's server room has every server section, grouped; Overview opens first on a wide screen.
+  const room = await openServerSettings(host)
+  const roomNav = room.getByRole('navigation', { name: 'Settings sections' })
+  await expect(roomNav.getByRole('button')).toHaveText([
+    'Overview', 'Channels', 'Emoji & stickers', 'Soundboard', 'Profile pages', 'Server rules',
+    'Members', 'Roles', 'Reports', 'AutoMod (auto-moderation)', 'Activity log', 'Sign-ins & security',
+    'Bots & webhooks',
+    'Internet access', 'Limits', 'Backup & move', 'Import from Discord', 'Server updates',
+  ])
+  await expect(roomNav.getByRole('button', { name: 'Overview', exact: true })).toHaveAttribute('aria-current', 'page')
+  await host.keyboard.press('Escape')
+  await expect(room).toHaveCount(0)
+
+  // My settings: only about you, Profile first.
   await openSettings(host)
   const settings = host.getByRole('dialog', { name: 'Settings' })
   const nav = settings.getByRole('navigation', { name: 'Settings sections' })
   await expect(nav.getByRole('button')).toHaveText([
     'Profile', 'Appearance', 'Devices', 'Recovery key', 'App lock', 'Notifications', 'Voice & audio', 'Camera', 'Blocked people', 'Account', 'Privacy & data', 'About & legal',
-    'Overview', 'Reports', 'Roles', 'AutoMod', 'Emoji', 'Soundboard', 'Bots & webhooks', 'Profile pages', 'Open to the internet', 'Audit log', 'Rules', 'Limits', 'Backup & move', 'Import from Discord',
-    'Security log', 'Updates',
   ])
   await expect(nav.getByRole('button', { name: 'Profile', exact: true })).toHaveAttribute('aria-current', 'page')
   await expect(settings.getByLabel('Name', { exact: true })).toBeVisible()
@@ -37,12 +48,12 @@ test('settings, Escape, quick switcher and phone message actions', async ({ brow
   await host.keyboard.press('Escape')
   await expect(settings).toHaveCount(0)
 
-  // Members only see the server's overview; on a phone it's a list, then a section with a back button.
+  // Members get the same My settings and no server sections; on a phone it's a list, then a section with a back button.
   await phone.getByRole('button', { name: 'Open channels' }).click()
   await openSettings(phone)
   const phoneSettings = phone.getByRole('dialog', { name: 'Settings' })
   const phoneNav = phoneSettings.getByRole('navigation', { name: 'Settings sections' })
-  await expect(phoneNav.getByRole('button')).toHaveText(['Profile', 'Appearance', 'Devices', 'Recovery key', 'App lock', 'Notifications', 'Voice & audio', 'Camera', 'Blocked people', 'Account', 'Privacy & data', 'About & legal', 'Overview'])
+  await expect(phoneNav.getByRole('button')).toHaveText(['Profile', 'Appearance', 'Devices', 'Recovery key', 'App lock', 'Notifications', 'Voice & audio', 'Camera', 'Blocked people', 'Account', 'Privacy & data', 'About & legal'])
   await phone.screenshot({ path: join(SHOTS, 'settings-phone-list.png') })
   await phoneNav.getByRole('button', { name: 'Appearance' }).click()
   await expect(phoneSettings.getByRole('heading', { name: 'Appearance' })).toBeVisible()

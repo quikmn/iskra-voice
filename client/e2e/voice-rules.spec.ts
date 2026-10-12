@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { createInviteLink, joinVia, openSettings, send, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, joinVia, openServerSettings, send, SHOTS, startServer, type TestServer } from './helpers'
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -14,7 +14,7 @@ test('server rules: new members agree first; voice channels show their user limi
   const invite = await createInviteLink(host)
 
   // ── The owner writes rules and asks new members to agree.
-  await openSettings(host, 'Rules')
+  await openServerSettings(host, 'Server rules')
   const section = host.getByTestId('rules-section')
   await section.getByLabel('Welcome message').fill('Welcome to the crew!')
   await section.getByLabel('Rules').fill('1. **Be kind.**\n2. No spam.\n3. Spoilers go in ||spoiler tags||.')
@@ -53,7 +53,7 @@ test('server rules: new members agree first; voice channels show their user limi
   await expect(host.locator('.message-text', { hasText: 'hi, I read the rules' })).toBeVisible()
 
   // ── Ask everyone again after a real change.
-  await openSettings(host, 'Rules')
+  await openServerSettings(host, 'Server rules')
   await section.getByRole('radio', { name: 'Write' }).click()
   await section.getByLabel('Rules').fill('1. **Be kind.**\n2. No spam.\n3. No spoilers at all.')
   await section.getByRole('checkbox', { name: /Ask everyone to agree again/ }).check()
