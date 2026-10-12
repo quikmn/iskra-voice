@@ -7,7 +7,7 @@ import type { Events } from '../core/protocol'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 import { planVoice, RESUME_MAX_TRIES } from './resumeLogic'
 import {
-  clearVoiceResume, currentVoice, leaveVoice, onVoiceDropped, rejoinVoice, resyncVoiceFlags, useVoice, voiceConnected, voiceResume, type VoiceResume,
+  clearVoiceResume, currentVoice, leaveVoice, onVoiceDropped, pauseVoiceFor, rejoinVoice, resyncVoiceFlags, useVoice, voiceConnected, voiceResume, type VoiceResume,
 } from './voice'
 
 /** serverKey → the server went through "restarting" since it was last online. */
@@ -21,7 +21,10 @@ useApp.subscribe((state, prev) => {
   if (state.servers === prev.servers) return
   for (const [key, server] of Object.entries(state.servers)) {
     const before = prev.servers[key]?.status.state
-    if (server.status.state === 'restarting') restarted.add(key)
+    if (server.status.state === 'restarting') {
+      restarted.add(key)
+      if (before !== 'restarting') void pauseVoiceFor(key)
+    }
     else if (server.status.state === 'online' && before !== 'online' && restarted.has(key)) {
       // The restart banner says "Back" for a moment, then goes.
       const at = Date.now()

@@ -304,8 +304,9 @@ function onWelcome(key: string, welcome: Welcome): void {
   // Catch up on anything we missed while disconnected.
   if (before) {
     for (const [channelId, list] of Object.entries(before.messages)) {
-      const lastId = list.filter((m) => !m.tempId).at(-1)?.id
-      if (lastId !== undefined) void catchUp(key, Number(channelId), lastId)
+      // A loaded channel that was empty catches up from the start (its first messages may have come meanwhile).
+      const lastId = list.filter((m) => !m.tempId).at(-1)?.id ?? 0
+      void catchUp(key, Number(channelId), lastId)
     }
   }
   // Sends cut off by the disconnect go again first (same nonce: the server answers with the stored message if it got it).

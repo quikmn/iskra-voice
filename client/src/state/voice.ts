@@ -181,6 +181,17 @@ export async function rejoinVoice(where: VoiceResume): Promise<boolean> {
   return ok
 }
 
+/**
+ * The server is restarting, and its LiveKit with it: leave the room now and remember it, so the rejoin after the
+ * restart is a fresh one (LiveKit reconnecting by itself would also bring camera and screen share back on).
+ */
+export async function pauseVoiceFor(serverKey: string): Promise<void> {
+  const where = currentVoice()
+  if (where?.serverKey !== serverKey) return
+  pendingResume = where
+  await cleanup()
+}
+
 /** Says your mute and deafen again (the server forgets them when it restarts). */
 export function resyncVoiceFlags(): void {
   reportFlags()
@@ -567,9 +578,12 @@ async function connect(
       .on(RoomEvent.TrackUnpublished, refreshTiles)
       .on(RoomEvent.LocalTrackPublished, refreshTiles)
       .on(RoomEvent.LocalTrackUnpublished, (pub: LocalTrackPublication) => {
-        // The browser's own "Stop sharing" button ends the share without going through us.
-        if (pub.source === Track.Source.ScreenShare) useVoice.setState({ screen: false })
-        if (pub.source === Track.Source.Camera) useVoice.setState({ camera: false })
+        // The browser's own "Stop sharing" button ends the share without going through us. While the room is
+        // dropping it's LiveKit tidying up: keep what was on, so a rejoin can offer it again.
+        if (next.state === ConnectionState.Connected) {
+          if (pub.source === Track.Source.ScreenShare) useVoice.setState({ screen: false })
+          if (pub.source === Track.Source.Camera) useVoice.setState({ camera: false })
+        }
         refreshTiles()
       })
       .on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => applyVolume(participant))
