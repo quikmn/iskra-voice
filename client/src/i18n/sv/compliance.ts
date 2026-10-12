@@ -138,5 +138,9 @@ export const compliance: Messages['compliance'] = {
     server_template: 'Satte upp servern från en startmall',
     server_autostart_install: 'Ställde in att starta med datorn',
     server_autostart_remove: 'Startar inte längre med datorn',
+    account_dispute_resolve: 'Avgjorde en tvist om en kontonyckel',
+    keylog_alert: 'En enhet rapporterade ett problem med nyckelloggen',
+    keylog_reloaded: 'Läste in nyckelloggen igen (databasen ändrades)',
+    keylog_broken: 'Nyckelloggen stämmer inte',
   },
 }

@@ -30,18 +30,84 @@ function routeFor(data) {
 
 const clip = (value, max) => (typeof value === 'string' ? value.slice(0, max) : '')
 
+// Pushes are written in English and name their texts (`text: { title, body, args }`); the app registers this worker
+// with `?lang=` so they show in its language. Only Swedish needs a table: anything unknown shows the server's English.
+const SV = {
+  title: {
+    mention: '{{name}} i #{{channel}}',
+    reply: '{{name}} svarade i #{{channel}}',
+    encrypted: 'Nytt meddelande i #{{channel}}',
+    dm: 'Nytt meddelande från {{name}}',
+    calling: '{{name}} ringer',
+    groupCall: '{{name}} startade ett gruppsamtal',
+    reminder: 'Påminnelse',
+    scheduledFailed: 'Ditt schemalagda meddelande skickades inte',
+    eventLive: '{{title}} börjar nu',
+    eventSoon: 'Snart: {{title}}',
+  },
+  body: {
+    openToRead: 'Öppna Iskra för att läsa det.',
+    groupOpenToRead: 'I en gruppchatt. Öppna Iskra för att läsa det.',
+    attachment: 'Skickade en bilaga',
+    tapToAnswer: 'Tryck för att svara.',
+    tapToJoin: 'Tryck för att gå med.',
+    reminderGeneric: 'Du bad om en påminnelse om ett meddelande.',
+    happeningChannel: 'Pågår i {{channel}}',
+    happeningVoice: 'Pågår i en röstkanal',
+    happeningAt: 'Pågår: {{place}}',
+    happening: 'Pågår nu',
+    inMinutesChannel: 'Om {{minutes}} min, i {{channel}}',
+    inMinutesVoice: 'Om {{minutes}} min, i en röstkanal',
+    inMinutesAt: 'Om {{minutes}} min, {{place}}',
+    inMinutes: 'Om {{minutes}} min',
+  },
+  dmCount: '{{count}} nya meddelanden från {{from}}',
+  groupCount: '{{count}} nya meddelanden i en gruppchatt',
+  more: ' (+{{n}} till)',
+}
+
+function language() {
+  const chosen = new URL(self.location.href).searchParams.get('lang')
+  if (chosen === 'sv' || chosen === 'en') return chosen
+  const preferred = (self.navigator && self.navigator.languages) || []
+  for (const tag of preferred) {
+    const base = String(tag).toLowerCase().split('-')[0]
+    if (base === 'sv' || base === 'en') return base
+  }
+  return 'en'
+}
+
+const fill = (text, args) => text.replace(/\{\{(\w+)\}\}/g, (_, name) => (args && args[name] != null ? String(args[name]) : ''))
+
+/** The push's title and body in Swedish, or null to show the server's English. */
+function swedish(data) {
+  const text = data.text
+  if (!text || typeof text !== 'object' || typeof text.title !== 'string' || !Object.hasOwn(SV.title, text.title)) return null
+  const args = text.args && typeof text.args === 'object' ? text.args : {}
+  const count = Number.isSafeInteger(data.count) ? data.count : 1
+  const own = typeof text.body === 'string' && Object.hasOwn(SV.body, text.body)
+  if (text.body != null && !own) return null
+  let title = fill(SV.title[text.title], args)
+  let body = own ? fill(SV.body[text.body], args) : String(data.body || '').replace(/ \(\+\d+ more\)$/, '')
+  if (count > 1 && data.kind === 'dm') title = fill(SV.dmCount, { count, from: data.from })
+  else if (count > 1 && data.kind === 'group') title = fill(SV.groupCount, { count })
+  else if (count > 1) body += fill(SV.more, { n: count - 1 })
+  return { title, body }
+}
+
 /** The notification for a push payload, or a generic one if the payload isn't something we understand. */
 function notificationFor(data, server) {
   const valid = data && data.v === 1 && typeof data.server === 'string' && KEY.test(data.server) && (!server || data.server === server)
     && typeof data.title === 'string' && data.title.length > 0
   if (!valid) {
-    return { title: 'Iskra', options: { body: 'You have new activity.', tag: 'iskra', icon: ICON, data: { route: '/' } } }
+    return { title: 'Iskra', options: { body: language() === 'sv' ? 'Du har ny aktivitet.' : 'You have new activity.', tag: 'iskra', icon: ICON, data: { route: '/' } } }
   }
   const call = data.kind === 'call'
+  const shown = (language() === 'sv' && swedish(data)) || data
   return {
-    title: clip(data.title, 120),
+    title: clip(shown.title, 120),
     options: {
-      body: clip(data.body, 300),
+      body: clip(shown.body, 300),
       tag: `${data.server}:${clip(data.tag, 80)}`,
       renotify: true,
       icon: ICON,

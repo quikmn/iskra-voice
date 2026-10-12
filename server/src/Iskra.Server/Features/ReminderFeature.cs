@@ -109,7 +109,7 @@ public static class ReminderFeature
             body = $"{author} in #{channel.Name}: {(text.Length == 0 ? "an attachment" : text.Length <= 120 ? text : text[..120] + "…")}";
             channelId = channel.Id;
         }
-        push.Notify(r.AccountKey, new PushNote("reminder", $"reminder:{r.Id}", "Reminder", body, "Iskra",
+        push.Notify(r.AccountKey, new PushNote("reminder", $"reminder:{r.Id}", "Reminder", body, "Iskra", Text: new PushText("reminder", channelId is null ? "reminderGeneric" : null),
             ChannelId: channelId, MessageId: channelId is null ? null : r.MessageId, Coalesce: false, TtlSeconds: 12 * 3600, Reminder: r.Id));
     }
 }

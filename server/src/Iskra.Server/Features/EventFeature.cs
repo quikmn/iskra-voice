@@ -302,6 +302,10 @@ public sealed class EventScheduler(World world, Hub hub, PushService push, TimeP
         var (title, body) = kind == "live"
             ? ($"{e.Title} is starting now", place.Length > 0 ? $"Happening {place}" : "Happening now")
             : ($"Starting soon: {e.Title}", place.Length > 0 ? $"In {minutes} min, {place}" : $"In {minutes} min");
+        var channelName = e.LocationKind == "voice" && e.ChannelId is { } cid ? store.GetChannel(cid)?.Name : null;
+        var where = e.LocationKind == "voice" ? channelName is null ? "Voice" : "Channel" : place.Length > 0 ? "At" : "";
+        var text = new PushText(kind == "live" ? "eventLive" : "eventSoon", (kind == "live" ? "happening" : "inMinutes") + where,
+            new { title = e.Title, minutes, channel = channelName, place = e.LocationKind == "voice" ? null : e.Location });
         var creator = store.GetMember(e.CreatedBy)?.Name ?? "Iskra";
         foreach (var accountKey in store.Interested(e.Id))
         {
@@ -309,7 +313,7 @@ public sealed class EventScheduler(World world, Hub hub, PushService push, TimeP
             hub.SendToAccount(accountKey, frame);
             // No channelId: a click opens the server (a voice channel isn't somewhere to land).
             push.Notify(accountKey, new PushNote("event", $"event:{e.Id}", title, body, creator, Coalesce: false,
-                TtlSeconds: kind == "live" ? 3600 : (int)Math.Clamp((e.StartAt - now) / 1000, 60, 3600)));
+                TtlSeconds: kind == "live" ? 3600 : (int)Math.Clamp((e.StartAt - now) / 1000, 60, 3600), Text: text));
         }
     }
 }

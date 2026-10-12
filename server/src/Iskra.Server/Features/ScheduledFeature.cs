@@ -207,7 +207,7 @@ public static class ScheduledFeature
             var failed = store.GetScheduled(m.Id);
             if (failed is not null) Tell(s.Hub, me.AccountKey, Frames.Event("scheduled.updated", new { scheduled = View(failed) }));
             if (notify)
-                s.Push.Notify(me.AccountKey, new PushNote("scheduled", $"scheduled:{m.Id}", "Your scheduled message wasn't sent", reason, "Iskra",
+                s.Push.Notify(me.AccountKey, new PushNote("scheduled", $"scheduled:{m.Id}", "Your scheduled message wasn't sent", reason, "Iskra", Text: new PushText("scheduledFailed", null),
                     ChannelId: m.ChannelId, Peer: m.PeerKey, Group: m.GroupId, Coalesce: false));
             return null;
         }

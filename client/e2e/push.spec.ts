@@ -86,7 +86,7 @@ test('turning on push registers a worker per server, subscribes, and reports foc
   const scopes = await page.evaluate(async () =>
     (await navigator.serviceWorker.getRegistrations()).map((r) => ({ scope: r.scope, script: r.active?.scriptURL ?? null })),
   )
-  expect(scopes).toContainEqual({ scope: `${new URL(page.url()).origin}/push/${serverKey}/`, script: `${new URL(page.url()).origin}/push-sw.js` })
+  expect(scopes).toContainEqual({ scope: `${new URL(page.url()).origin}/push/${serverKey}/`, script: `${new URL(page.url()).origin}/push-sw.js?lang=en` })
 
   // The server got the subscription and accepted it, then heard that this device is focused.
   const subscribe = frames.sent.find((f) => f.type === 'push.subscribe')!
