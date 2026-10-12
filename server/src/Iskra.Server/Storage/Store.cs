@@ -297,6 +297,7 @@ public sealed partial class Store : IDisposable
         ("clips-1", ClipsMigration),
         ("keylog-1", KeyLogMigration),
         ("docs-1", DocsMigration),
+        ("hifi-1", HifiMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

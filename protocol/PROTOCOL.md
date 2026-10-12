@@ -1897,3 +1897,15 @@ can't have. For a server this is ordinary [Web Push](#push-notifications-web-pus
 - **What each party sees.** The Iskra server: the handle, never the device token. The relay: the device token, the sending server's IP address, the time and the size of the encrypted body. Apple and Google: the token, the time and the encrypted body. Nobody but the phone can read the payload (and DMs and group messages never carry their content anyway). The app decrypts it on the device: an iOS Notification Service Extension, or the Android app's messaging service, then shows "Alex in #general: …" locally.
 - **Limits** (per relay location): 20 registrations per minute per IP; 600 pushes per minute per sending IP; 60 pushes per minute per device from all servers together.
 - Delivery to the phone: iOS gets an alert with `mutable-content` (`{ aps, e: <base64 body>, k: "note"|"call" }`, fallback text "New notification" if the extension can't decrypt), calls a VoIP push (`{ e, k: "call" }`, topic `foo.iskra.app.voip`) when the app registered a PushKit token; Android gets an FCM data message `{ e, k }` at high priority.
+
+## Hi-fi voice channels
+
+`Channel` gains `hifi` (bool; always false for text, forum, stage and docs channels). `channel.create` and `channel.update` take `hifi?` (true or false, anything else is `bad_request`), voice channels only: on any other kind it's `bad_request`. Only admins change it (as with every channel setting); an update that leaves it out keeps it.
+
+- In a hi-fi channel, members who turned hi-fi on in their audio settings publish their microphone in stereo at 128 kbps (LiveKit's `musicHighQualityStereo`) with RED, without DTX, and with no echo cancellation, noise suppression or automatic gain. Everyone else, and every other channel, sends voice as usual. DM and group calls are never hi-fi.
+- It's a setting clients honour, not something the server can enforce: LiveKit forwards whatever a client publishes within its own limits. The server stores and broadcasts it (`channels` event, `welcome.channels`, the `channel` in each answer).
+- Turning it off while people are in the channel makes their clients publish the usual way again.
+- Audit: `channel.create` details gain `hifi`; `channel.update` changes gain `hifi: { from, to }`.
+- Storage: `voice_hifi(channel_id)` (migration `hifi-1`), dropped with the channel.
+
+Voice resilience (no protocol change, for reference): clients publish the mic with Opus in-band FEC (`useinbandfec=1`, which livekit-client always sets), RED (`audio/red`, redundant audio: each packet also carries the previous ones) and DTX. LiveKit's default codec list, which `livekit.yaml` leaves as is, includes `audio/red`, so rooms negotiate it for every subscriber that supports it and fall back to plain Opus for the rest.
