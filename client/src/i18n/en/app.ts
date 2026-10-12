@@ -174,6 +174,8 @@ export const app = {
     restart: 'Restart',
     later: 'Later',
     laterTitle: 'Later (installs when you quit)',
+    updating: 'Updating Iskra to {{version}}…',
+    updatingBody: 'It’ll be back in a few seconds.',
   },
   upload: {
     tooBig: 'That file is too big for this server.',

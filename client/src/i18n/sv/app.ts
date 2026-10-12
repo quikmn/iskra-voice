@@ -175,6 +175,8 @@ export const app: Messages['app'] = {
     restart: 'Starta om',
     later: 'Senare',
     laterTitle: 'Senare (installeras när du avslutar)',
+    updating: 'Uppdaterar Iskra till {{version}}…',
+    updatingBody: 'Iskra är tillbaka om några sekunder.',
   },
   upload: {
     tooBig: 'Filen är för stor för den här servern.',
