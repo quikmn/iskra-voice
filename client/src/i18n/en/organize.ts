@@ -32,6 +32,8 @@ export const organize = {
     slowmodeOff: 'Slowmode · off',
     slowmodeLabel: 'Slowmode',
     slowmodeHint: "Members can send one message per interval here. Admins aren't limited.",
+    hifi: 'Allow hi-fi audio',
+    hifiHint: 'People who turn on hi-fi send stereo at 128 kbps with no processing here: for music, instruments and listening parties.',
     category: 'Category',
     noCategory: 'No category',
     deleteTitle: 'Delete channel',

@@ -15,7 +15,7 @@ import {
   type ClipSettings,
 } from './clipsLogic'
 import { connectionFor, onServerEvent, sendMessage, uploadFile, useApp } from './store'
-import { activeRoom, useVoice, videoTrackFor } from './voice'
+import { activeRoom, cleanedAudio, onIncomingAudio, useVoice, videoTrackFor } from './voice'
 import { sendDm } from './dms'
 import { uploadDmFile } from './dmFiles'
 import { sendGroupMessage, useGroups } from './groups'
@@ -116,7 +116,8 @@ function remoteAudio(room: Room): [string, MediaStreamTrack][] {
   const out: [string, MediaStreamTrack][] = []
   for (const p of room.remoteParticipants.values()) {
     for (const pub of p.audioTrackPublications.values()) {
-      if (pub.isSubscribed && pub.track) out.push([pub.trackSid, pub.track.mediaStreamTrack])
+      // With "Clean up others' audio" on, what you hear is the cleaned voice: record that.
+      if (pub.isSubscribed && pub.track) out.push([pub.trackSid, cleanedAudio(pub.trackSid) ?? pub.track.mediaStreamTrack])
     }
   }
   return out
@@ -138,7 +139,7 @@ async function publish(room: Room, data: ClipData, to?: string[]): Promise<void>
 
 function bindRoom(room: Room): () => void {
   const onSubscribed = (track: RemoteTrack, pub: RemoteTrackPublication) => {
-    if (track.kind === Track.Kind.Audio) recorder?.addAudio(pub.trackSid, track.mediaStreamTrack)
+    if (track.kind === Track.Kind.Audio) recorder?.addAudio(pub.trackSid, cleanedAudio(pub.trackSid) ?? track.mediaStreamTrack)
     updateVideo()
   }
   const onUnsubscribed = (track: RemoteTrack, pub: RemoteTrackPublication) => {
@@ -250,6 +251,14 @@ function sync(): void {
   syncFlag()
 }
 
+// Incoming clean-up turned on or off, or a voice's cleaned track is ready: record the voices as you hear them now.
+onIncomingAudio(() => {
+  if (!recorder || !bound) return
+  for (const [id, track] of remoteAudio(bound)) {
+    recorder.removeAudio(id)
+    recorder.addAudio(id, track)
+  }
+})
 useVoice.subscribe((state, prev) => {
   if (state.session !== prev.session) sync()
   if (state.tiles !== prev.tiles) updateVideo()

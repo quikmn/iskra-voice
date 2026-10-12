@@ -19,7 +19,7 @@ const en = {
     version: (version: string, os: string, arch: string) => `Version ${version} (${os}, ${arch})`,
     tagline: 'Voice and text chat for friends, on servers you own.',
     license: 'Iskra is source-available under the PolyForm Noncommercial License 1.0.0.',
-    builtOn: 'It builds on open source software, including Electron, Chromium, LiveKit, libsodium, React and RNNoise.',
+    builtOn: 'It builds on open source software, including Electron, Chromium, LiveKit, libsodium, React, RNNoise, DeepFilterNet and Silero VAD.',
     buttons: ['OK', 'Website', 'License', 'Open source licenses'],
   },
   updates: {
@@ -83,7 +83,7 @@ const sv: DesktopText = {
     version: (version, os, arch) => `Version ${version} (${os}, ${arch})`,
     tagline: 'Röst- och textchatt för vänner, på servrar du äger.',
     license: 'Iskras källkod är tillgänglig under PolyForm Noncommercial License 1.0.0.',
-    builtOn: 'Iskra bygger på öppen källkod, bland annat Electron, Chromium, LiveKit, libsodium, React och RNNoise.',
+    builtOn: 'Iskra bygger på öppen källkod, bland annat Electron, Chromium, LiveKit, libsodium, React, RNNoise, DeepFilterNet och Silero VAD.',
     buttons: ['OK', 'Webbplats', 'Licens', 'Licenser för öppen källkod'],
   },
   updates: {

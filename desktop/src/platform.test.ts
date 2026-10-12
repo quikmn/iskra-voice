@@ -91,7 +91,7 @@ test('the About box names the version and what Iskra is built on', () => {
   assert.match(text, /^Version 2\.0\.0 \(macOS, arm64\)/)
   assert.match(text, /Electron 44\.4\.5/)
   assert.match(text, /PolyForm Noncommercial/)
-  assert.match(text, /RNNoise/)
+  assert.match(text, /RNNoise, DeepFilterNet and Silero VAD/)
 })
 
 test('YouTube embeds get the web app as referrer, only from the app and only for youtube-nocookie.com', () => {

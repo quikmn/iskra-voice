@@ -79,6 +79,37 @@ test('the desktop app runs the web app on app:// and can join a server', async (
     }, rnnoise)
     expect(started).toBe(true)
 
+    // AI noise removal and voice activity: DeepFilterNet3 (WebAssembly and model) and Silero VAD load from app:// and
+    // start in their worklets under the app's CSP.
+    const ai = {
+      worklet: assets.find((f) => /^deepfilter\.worklet-.*\.js$/.test(f)),
+      wasm: assets.find((f) => /^deepfilter-.*\.wasm$/.test(f)),
+      model: assets.find((f) => /^DeepFilterNet3_onnx.*\.bin$/.test(f)),
+      silero: assets.find((f) => /^silero_vad_16k_op15-.*\.onnx$/.test(f)),
+      gate: rnnoise.gate,
+    }
+    expect(ai.worklet && ai.wasm && ai.model && ai.silero).toBeTruthy()
+    const aiStarted = await page.evaluate(async ({ worklet, wasm, model, silero, gate }) => {
+      const ctx = new AudioContext({ sampleRate: 48000 })
+      await ctx.audioWorklet.addModule(`/assets/${worklet}`)
+      await ctx.audioWorklet.addModule(`/assets/${gate}`)
+      const [w, m, s] = await Promise.all([wasm, model, silero].map(async (f) => (await fetch(`/assets/${f}`)).arrayBuffer()))
+      const reply = (node: AudioWorkletNode) => new Promise<string>((done) => {
+        node.port.onmessage = (e: MessageEvent<{ type?: string }>) => e.data?.type && done(e.data.type)
+        setTimeout(() => done('timeout'), 20_000)
+      })
+      const df = new AudioWorkletNode(ctx, 'iskra-deepfilter', { outputChannelCount: [1] })
+      const dfReady = reply(df)
+      df.port.postMessage({ wasm: w, model: m })
+      const vad = new AudioWorkletNode(ctx, 'iskra-mic-gate')
+      const vadReady = reply(vad)
+      vad.port.postMessage({ type: 'vad-model', model: s })
+      const result = `${await dfReady} ${await vadReady}`
+      await ctx.close()
+      return result
+    }, ai)
+    expect(aiStarted).toBe('ready vad-ready')
+
     // The tray menu: About, Check for updates (off in a development build), Quit.
     const trayLabels = () => app.evaluate(() =>
       ((globalThis as { iskraTrayMenu?: { label: string; action: string | null; enabled: boolean }[] }).iskraTrayMenu ?? [])

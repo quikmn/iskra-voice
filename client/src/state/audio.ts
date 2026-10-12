@@ -1,11 +1,13 @@
-// Your sound settings on this device: devices, volumes, noise suppression and the voice activity threshold.
-// The mic itself is processed in micPipeline.ts; voice.ts applies these to the call.
+// Your sound settings on this device: devices, volumes, noise suppression, the voice activity threshold and how
+// incoming voices are processed. The mic itself is processed in micPipeline.ts, incoming audio in listen.ts;
+// voice.ts applies these to the call.
 import { create } from 'zustand'
+import type { NoiseEngine } from './audio/engines'
 
-export type NoiseMode = 'off' | 'standard' | 'strong'
+export type NoiseMode = 'off' | 'standard' | 'strong' | 'ai'
 
 export interface AudioSettings {
-  /** 'strong' runs RNNoise on the mic; 'standard' is the browser's own; 'off' neither. */
+  /** 'ai' runs DeepFilterNet3 on the mic, 'strong' RNNoise; 'standard' is the browser's own; 'off' none. */
   noise: NoiseMode
   echoCancellation: boolean
   autoGainControl: boolean
@@ -20,10 +22,16 @@ export interface AudioSettings {
   threshold: number | null
   /** Join, leave, mute and deafen sounds. */
   voiceSounds: boolean
+  /** Run noise suppression on what you hear too ("Clean up others' audio"). */
+  cleanIncoming: boolean
+  /** Even out how loud each incoming voice is. */
+  leveling: boolean
+  /** Send stereo, 128 kbps, unprocessed sound in voice channels that allow hi-fi. */
+  hifi: boolean
 }
 
 export const DEFAULT_AUDIO: AudioSettings = {
-  noise: 'strong',
+  noise: 'ai',
   echoCancellation: true,
   autoGainControl: true,
   inputDevice: '',
@@ -32,6 +40,9 @@ export const DEFAULT_AUDIO: AudioSettings = {
   outputVolume: 1,
   threshold: null,
   voiceSounds: true,
+  cleanIncoming: false,
+  leveling: true,
+  hifi: false,
 }
 
 export const MIN_THRESHOLD = -80
@@ -48,7 +59,7 @@ export function parseAudioSettings(raw: unknown): AudioSettings {
   const s = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
   const d = DEFAULT_AUDIO
   return {
-    noise: s.noise === 'off' || s.noise === 'standard' || s.noise === 'strong' ? s.noise : d.noise,
+    noise: s.noise === 'off' || s.noise === 'standard' || s.noise === 'strong' || s.noise === 'ai' ? s.noise : d.noise,
     echoCancellation: typeof s.echoCancellation === 'boolean' ? s.echoCancellation : d.echoCancellation,
     autoGainControl: typeof s.autoGainControl === 'boolean' ? s.autoGainControl : d.autoGainControl,
     inputDevice: typeof s.inputDevice === 'string' ? s.inputDevice.slice(0, 200) : d.inputDevice,
@@ -57,6 +68,9 @@ export function parseAudioSettings(raw: unknown): AudioSettings {
     outputVolume: clamp(s.outputVolume, 0, 2, d.outputVolume),
     threshold: s.threshold === null || s.threshold === undefined ? null : clamp(s.threshold, MIN_THRESHOLD, 0, -50),
     voiceSounds: typeof s.voiceSounds === 'boolean' ? s.voiceSounds : d.voiceSounds,
+    cleanIncoming: typeof s.cleanIncoming === 'boolean' ? s.cleanIncoming : d.cleanIncoming,
+    leveling: typeof s.leveling === 'boolean' ? s.leveling : d.leveling,
+    hifi: typeof s.hifi === 'boolean' ? s.hifi : d.hifi,
   }
 }
 
@@ -92,27 +106,24 @@ export function updateAudio(patch: Partial<AudioSettings>): void {
 
 // ── What this browser can do ─────────────────────────────────────────────
 
-/** RNNoise needs AudioWorklet, WebAssembly and a way to turn the result back into a track. */
-export function strongSupported(): boolean {
-  return typeof AudioWorkletNode === 'function' && typeof WebAssembly === 'object' && typeof AudioContext === 'function' &&
-    'createMediaStreamDestination' in AudioContext.prototype
-}
-
 /** Choosing where sound plays (Chrome, Edge, Firefox, the desktop app; not Safari). */
 export const outputSelectable = () => typeof HTMLMediaElement !== 'undefined' && 'setSinkId' in HTMLMediaElement.prototype
 
 /** Boosting people above 100% needs LiveKit's Web Audio mixing, which also needs AudioContext.setSinkId. */
 export const canBoost = () => typeof AudioContext === 'function' && 'setSinkId' in AudioContext.prototype
 
-/** Getting the mic: the browser's processing that's on, given what runs on top of it. */
-export function captureOptions(s: AudioSettings, strongActive: boolean) {
+/**
+ * Getting the mic: the browser's processing that's on, given the engine that runs on top of it. Ours do a better
+ * job and doing both just muffles you, so the browser's only runs when it's the engine. Hi-fi turns all of it off
+ * and captures stereo.
+ */
+export function captureOptions(s: AudioSettings, engine: NoiseEngine, hifi = false) {
   return {
     deviceId: s.inputDevice ? { exact: s.inputDevice } : undefined,
-    echoCancellation: s.echoCancellation,
-    // RNNoise does a better job; doing both just muffles you. If RNNoise can't run, fall back to the browser's.
-    noiseSuppression: s.noise === 'standard' || (s.noise === 'strong' && !strongActive),
-    autoGainControl: s.autoGainControl,
-    channelCount: 1,
+    echoCancellation: hifi ? false : s.echoCancellation,
+    noiseSuppression: hifi ? false : engine === 'browser',
+    autoGainControl: hifi ? false : s.autoGainControl,
+    channelCount: hifi ? 2 : 1,
   }
 }
 
