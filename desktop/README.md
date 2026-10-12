@@ -21,10 +21,16 @@ Each build first runs `scripts/prepare-server.mjs <rid>`, which publishes a self
 
 The app checks GitHub releases of `quikmn/iskra-voice` shortly after launch and every 4 hours (prereleases included).
 
-- **Windows installer and Linux AppImage** download the update in the background, then show "Update ready, Restart".
+- **Windows installer, Linux AppImage and macOS** (release builds) download the update in the background, then show
+  "Update ready, Restart" and restart through the same "Updating Iskra" overlay and "Updated to X" splash.
   On Windows the downloaded installer must be signed by `Open Source Developer Viktor Lundgren` (`publisherName`),
-  otherwise it isn't installed.
-- **Portable exe, deb/rpm and macOS** can't replace themselves; they show "New version available" with a link to the release.
+  otherwise it isn't installed. On macOS the app reads its own signature at startup (`codesign`): only a Developer ID
+  signed app updates itself, from the release's `.zip` for its CPU (Squirrel.Mac checks the update is signed by the same
+  team). It also has to be somewhere it can be replaced: not running from the disk image, and not translocated (opened from
+  Downloads without being moved to Applications).
+- **Portable exe, deb/rpm, ad-hoc signed Mac builds** (local `dist:mac`, CI without the Apple secrets) and Mac apps in
+  those places can't replace themselves; they show "New version available" with a link to the release. A failed
+  download or signature check falls back to the same link.
 
 Upload these to each GitHub release (file names must stay exactly as built; the `.yml` files point at them):
 
