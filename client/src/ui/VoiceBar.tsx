@@ -39,7 +39,7 @@ export function VoiceBar() {
   return (
     <div className="voice-bar">
       <div className="voice-status">
-        <strong className={session.state}>{status}</strong>
+        <strong className={session.state} role="status">{status}</strong>
         <button
           className="link-like"
           title={t('voice.bar.openCall')}

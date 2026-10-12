@@ -1,5 +1,5 @@
 // The "More" menu on a message (copy link, copy text, mark unread, who reacted) and the reactions list.
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { messageLink } from '../../core/pushRoute'
@@ -12,6 +12,7 @@ import { appUrl } from '../format'
 import { EmojiGlyph } from '../expressions/EmojiPicker'
 import { usePopoverPosition } from '../expressions/popover'
 import { useEscapeLayer, useFocusTrap } from '../layers'
+import { focusFirstItem } from '../a11y'
 import { plainText } from '../markdown'
 import { ChannelSaveRemind } from '../productivity/MessageTools'
 import './more.css'
@@ -55,6 +56,7 @@ function MoreMenu({ server, message, anchor, onClose, onReactions }: {
   const { t } = useTranslation()
   useEscapeLayer(onClose)
   useFocusTrap(ref)
+  useEffect(() => focusFirstItem(ref.current), [])
   const text = plainText(message.text, { nameOf: (k) => server.members[k]?.name ?? null })
   const act = (label: string | null, action: () => unknown) => async () => {
     try {

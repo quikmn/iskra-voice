@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { contrast, loadThemeChoice, parseTheme, safeColor, solidUnderWhite, textOn, themeVariables, validateTheme } from './theme'
+import { contrast, loadThemeChoice, nameLightness, parseTheme, safeColor, solidUnderWhite, textOn, themeVariables, validateTheme } from './theme'
 import { BUILT_IN_THEMES } from './themes'
 
 const valid = { meta: { name: 'Mine' }, colors: { accent: '#ff8800' } }
@@ -107,13 +107,18 @@ describe('contrast', () => {
       for (const s of surfaces) {
         for (const t of ['textHeading', 'textNormal', 'textMuted', 'textSubtle', 'link', 'danger', 'success', 'warning', 'mentionText'] as const) check(c[t], c[s], `${t} on ${s}`)
       }
-      check(c.textNormal, c.bgButton, 'textNormal on bgButton')
+      for (const t of ['textNormal', 'textMuted', 'link'] as const) check(c[t], c.bgButton, `${t} on bgButton`)
       check(c.textNormal, c.bgActive, 'textNormal on bgActive')
       check(vars['--on-accent'], vars['--accent'], 'onAccent on accent')
       check('#ffffff', vars['--danger-solid'], 'white on danger-solid')
       expect(low).toEqual([])
     })
   }
+
+  it('makes author names light enough on every dark chat background', () => {
+    expect(nameLightness('#141424')).toBe(72)
+    expect(nameLightness('#3b4252')).toBeGreaterThan(72)
+  })
 
   it('darkens a colour just enough for white text', () => {
     expect(contrast('#ffffff', solidUnderWhite('#f87171'))).toBeGreaterThanOrEqual(4.5)

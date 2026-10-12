@@ -10,6 +10,7 @@ import { Spinner } from '../bits'
 import { ChevronLeft, Menu, Pencil, Plus, Users } from '../icons'
 import { SearchIcon } from '../chat/extraIcons'
 import { relativeTime } from '../chat/pinThreadHelpers'
+import { scrollBehavior } from '../a11y'
 import { fullTime } from '../format'
 import { errorMessage } from '../../i18n/errors'
 import type { Panel } from '../Shell'
@@ -282,7 +283,7 @@ function PageReader({ server, channel, page, pages, can }: {
   }
 
   function jumpToHeading(index: number) {
-    content.current?.querySelectorAll<HTMLElement>('.md-heading')[index]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    content.current?.querySelectorAll<HTMLElement>('.md-heading')[index]?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })
   }
 
   return (

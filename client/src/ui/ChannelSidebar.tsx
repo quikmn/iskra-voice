@@ -31,7 +31,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
   useThreads((s) => s.threads[server.key]) // thread mentions count on their channel
 
   return (
-    <div className="channel-sidebar">
+    <nav className="channel-sidebar" aria-label={t('app.sidebar.channelsLabel', { name: server.name })}>
       <header className="sidebar-header">
         <button
           className="server-header-button"
@@ -71,7 +71,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
 
       {dialog === 'invite' && <InviteDialog server={server} onClose={() => setDialog(null)} />}
       {dialog === 'channel' && <CreateChannelDialog server={server} categoryId={createIn} onClose={() => setDialog(null)} />}
-    </div>
+    </nav>
   )
 }
 

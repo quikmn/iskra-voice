@@ -322,4 +322,12 @@ export const chat: Messages['chat'] = {
     speedLabel: 'Uppspelningshastighet {{rate}}×',
     speed: 'Uppspelningshastighet',
   },
+  a11y: {
+    messages: 'Meddelanden i {{name}}',
+    message: '{{name}}, {{time}}',
+    newMessage: '{{name}}: {{text}}',
+    newMessages_one: '{{count}} nytt meddelande',
+    newMessages_other: '{{count}} nya meddelanden',
+    actions: 'Åtgärder för meddelandet',
+  },
 }

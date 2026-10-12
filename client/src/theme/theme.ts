@@ -74,7 +74,7 @@ const VARIABLES: { name: string; key: ColorKey; fallback: string }[] = [
   { name: '--accent-subtle', key: 'accentSubtle', fallback: 'color-mix(in srgb, var(--accent) 8%, transparent)' },
   { name: '--on-accent', key: 'onAccent', fallback: '#ffffff' },
 ]
-const OTHER_VARIABLES = ['--radius', '--avatar-radius', '--font', '--mono']
+const OTHER_VARIABLES = ['--radius', '--avatar-radius', '--font', '--mono', '--name-l']
 
 // ── Validation ──────────────────────────────────────────────────────────────
 
@@ -222,6 +222,27 @@ export function textOn(color: string): string {
   return contrast('#ffffff', color) >= 4.5 || contrast('#ffffff', color) >= contrast('#0b0b14', color) ? '#ffffff' : '#0b0b14'
 }
 
+/** An `hsl(h s% l%)` colour as #rrggbb. */
+function hslHex(h: number, s: number, l: number): string {
+  const a = (s / 100) * Math.min(l / 100, 1 - l / 100)
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12
+    const c = l / 100 - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))
+    return Math.round(c * 255).toString(16).padStart(2, '0')
+  }
+  return `#${f(0)}${f(8)}${f(4)}`
+}
+
+/** How light author names (hsl(hue 70% L)) must be to read at 4.5:1 on a dark chat background, whatever the hue. */
+export function nameLightness(background: string): number {
+  for (let l = 72; l < 96; l++) {
+    let ok = true
+    for (let h = 0; h < 360 && ok; h += 15) ok = contrast(hslHex(h, 70, l), background) >= 4.5
+    if (ok) return l
+  }
+  return 96
+}
+
 /** The colour, darkened just enough for white text on it to read at 4.5:1 (danger buttons). */
 export function solidUnderWhite(color: string): string {
   const rgb = rgbOf(color)
@@ -241,6 +262,8 @@ export function themeVariables(theme: ThemeFile): Record<string, string> {
   for (const { name, key, fallback } of VARIABLES) vars[name] = theme.colors[key] ?? fallback
   if (!theme.colors.onAccent && theme.colors.accent) vars['--on-accent'] = textOn(theme.colors.accent)
   if (theme.colors.danger) vars['--danger-solid'] = solidUnderWhite(theme.colors.danger)
+  // Light themes keep the stylesheet's dark names.
+  if (theme.meta.scheme !== 'light' && theme.colors.bgChat) vars['--name-l'] = `${nameLightness(theme.colors.bgChat)}%`
   vars['--radius'] = `${theme.radius ?? 10}px`
   vars['--avatar-radius'] = AVATAR_SHAPES[theme.avatarShape ?? 'circle']
   vars['--font'] = BODY_FONTS[theme.fonts?.body ?? 'inter']

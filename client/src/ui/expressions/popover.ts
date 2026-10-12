@@ -5,7 +5,8 @@ import { useLayoutEffect, useState, type CSSProperties, type RefObject } from 'r
  * On narrow screens (or without an anchor) it becomes a bottom sheet instead.
  */
 export function usePopoverPosition(anchor: HTMLElement | null, panel: RefObject<HTMLElement | null>): { style: CSSProperties; sheet: boolean } {
-  const [style, setStyle] = useState<CSSProperties>({ visibility: 'hidden' })
+  // Off screen (not hidden) until placed, so a field in it can take focus straight away.
+  const [style, setStyle] = useState<CSSProperties>({ left: -9999, top: 0 })
   const [sheet, setSheet] = useState(false)
 
   useLayoutEffect(() => {

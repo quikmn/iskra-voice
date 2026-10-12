@@ -74,9 +74,13 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
                 className={`person-tile ${speaking[p.accountKey] ? 'speaking' : ''}`}
                 role="button"
                 tabIndex={0}
-                aria-label={t('voice.stage.profileOf', { name })}
+                aria-label={[t('voice.stage.profileOf', { name }), p.deafened ? t('voice.stage.deafened') : p.muted ? t('voice.stage.muted') : null].filter(Boolean).join(', ')}
                 onClick={(e) => openProfileCard(server.key, p.accountKey, e.currentTarget)}
-                onKeyDown={(e) => e.key === 'Enter' && openProfileCard(server.key, p.accountKey, e.currentTarget)}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter' && e.key !== ' ') return
+                  e.preventDefault()
+                  openProfileCard(server.key, p.accountKey, e.currentTarget)
+                }}
               >
                 <Avatar name={name} accountKey={p.accountKey} size={72} />
                 <span className="tile-label">
@@ -117,14 +121,13 @@ export function VideoTile({ tile, name, big, speaking, onClick }: { tile: Tile; 
     <div
       ref={wrapper}
       className={`video-tile ${big ? 'big' : ''} ${speaking && tile.source === 'camera' ? 'speaking' : ''} ${tile.source}`}
-      onClick={onClick}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
     >
       <video ref={ref} autoPlay playsInline muted className={tile.isLocal && tile.source === 'camera' ? 'mirror' : ''} />
       <span className="tile-label">
         {tile.source === 'screen' ? t('voice.stage.screenOf', { name }) : name}
       </span>
+      {/* The whole tile is the button that puts it in the big spot (a real button, so keyboards and screen readers get it). */}
+      {onClick && <button className="tile-focus" onClick={onClick} aria-label={t('voice.stage.showBig', { name: tile.source === 'screen' ? t('voice.stage.screenOf', { name }) : name })} />}
       <button
         className="icon-button tile-fullscreen"
         aria-label={t('voice.stage.fullScreen')}

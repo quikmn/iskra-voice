@@ -35,7 +35,7 @@ export function MemberList({ server }: { server: ServerState }) {
         if (group.length === 0) return null
         return (
           <section key={`role-${role.id}`}>
-            <h3>{role.name} — {group.length}</h3>
+            <h2>{role.name} — {group.length}</h2>
             {group.map(row)}
           </section>
         )
@@ -45,16 +45,16 @@ export function MemberList({ server }: { server: ServerState }) {
         if (group.length === 0) return null
         return (
           <section key={role}>
-            <h3>
+            <h2>
               {roleTitle(role)} — {group.length}
-            </h3>
+            </h2>
             {group.map(row)}
           </section>
         )
       })}
       {offline.length > 0 && (
         <section className="offline">
-          <h3>{t('presence.status.offline')} — {offline.length}</h3>
+          <h2>{t('presence.status.offline')} — {offline.length}</h2>
           {offline.sort((a, b) => roleRank(b.role) - roleRank(a.role)).map(row)}
         </section>
       )}

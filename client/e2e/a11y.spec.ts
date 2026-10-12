@@ -43,6 +43,7 @@ test('main screens have no serious accessibility problems', async ({ browser }) 
   await audit(page, 'onboarding')
 
   await joinVia(page, server.ownerLink(), 'Host')
+  ownerPage = page
   const friend = await (await browser.newContext()).newPage()
   await joinVia(friend, await createInviteLink(page), 'Friend')
   await send(friend, 'hello there, **bold** and a link https://iskra.foo')
@@ -123,9 +124,9 @@ test('main screens have no serious accessibility problems', async ({ browser }) 
   // Colours in every built-in theme (contrast only), on a text channel.
   await page.getByRole('navigation', { name: 'Servers' }).getByRole('button', { name: /A11y Test/ }).first().click()
   await page.locator('.channel', { hasText: 'general' }).first().click()
-  for (const { theme } of BUILT_IN_THEMES) {
+  for (const { id, theme } of BUILT_IN_THEMES) {
     await openSettings(page, 'Appearance')
-    await page.getByRole('radio', { name: new RegExp(`^${theme.meta.name}`) }).click()
+    await page.getByRole('radio', { name: id === 'iskra' ? `${theme.meta.name} (default)` : theme.meta.name, exact: true }).click()
     await page.keyboard.press('Escape')
     await audit(page, `theme ${theme.meta.name}: text channel`, { rules: ['color-contrast'] })
   }
@@ -140,3 +141,96 @@ test('main screens have no serious accessibility problems', async ({ browser }) 
 async function openSettingsSection(page: Page, section: string) {
   await page.getByRole('dialog', { name: 'Settings' }).getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: section, exact: true }).click()
 }
+
+test('keyboard and screen reader basics', async ({ browser }) => {
+  const page = await (await browser.newContext()).newPage()
+  await joinVia(page, await inviteFromOwner(browser), 'Kim')
+  const friend = await (await browser.newContext()).newPage()
+  await joinVia(friend, await createInviteLink(page), 'Lee')
+
+  // The skip link comes first, before the server rail; it jumps to the main column.
+  await page.getByRole('navigation', { name: 'Servers' }).getByRole('button').first().focus()
+  await page.keyboard.press('Shift+Tab')
+  const skip = page.getByRole('button', { name: 'Skip to main content' })
+  await expect(skip).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(page.locator('#main-content')).toBeFocused()
+
+  // The server menu: Enter opens it on its first item, arrows move, Escape closes it and focus goes back.
+  const opener = page.locator('.server-header-button')
+  await opener.focus()
+  await page.keyboard.press('Enter')
+  const items = page.getByRole('menuitem')
+  await expect(items.first()).toBeFocused()
+  await page.keyboard.press('ArrowDown')
+  await expect(items.nth(1)).toBeFocused()
+  await page.keyboard.press('End')
+  await expect(items.last()).toBeFocused()
+  await page.keyboard.press('ArrowDown')
+  await expect(items.first()).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('menuitem')).toHaveCount(0)
+  await expect(opener).toBeFocused()
+
+  // New messages from others are announced politely, with who wrote them.
+  await send(friend, 'can you hear me now')
+  await expect(page.locator('[data-testid="announcer"]')).toHaveText('Lee: can you hear me now')
+  await expect(page.locator('[data-testid="announcer"]')).toHaveAttribute('aria-live', 'polite')
+
+  // The message list: arrows go from the list to the newest message and back up; Tab reaches its actions.
+  const list = page.getByRole('region', { name: 'Messages in #general' })
+  await list.focus()
+  await page.keyboard.press('ArrowUp')
+  const newest = page.getByRole('article', { name: /^Lee, / }).last()
+  await expect(newest).toBeFocused()
+  await expect(newest).toContainText('can you hear me now')
+  // Tab goes through the message (profile, name) to its actions, which show while it has focus.
+  const addReaction = newest.getByRole('toolbar', { name: 'Message actions' }).getByRole('button', { name: 'Add reaction' })
+  for (let i = 0; i < 4 && !(await addReaction.evaluate((el) => el === document.activeElement)); i++) await page.keyboard.press('Tab')
+  await expect(addReaction).toBeFocused()
+  await expect(addReaction).toBeVisible()
+  // The quick reactions are a row: focus starts on the first, Escape goes back to the button.
+  await page.keyboard.press('Enter')
+  const reactions = page.getByRole('menu', { name: 'Add reaction' })
+  await expect(reactions.getByRole('menuitem').first()).toBeFocused()
+  await page.keyboard.press('ArrowRight')
+  await expect(reactions.getByRole('menuitem').nth(1)).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(newest.getByRole('button', { name: 'Add reaction' })).toBeFocused()
+
+  // The emoji picker: down from the search into the grid, arrows across it, Escape back to the button.
+  const emojiButton = page.getByRole('button', { name: 'Emoji', exact: true })
+  await emojiButton.focus()
+  await page.keyboard.press('Enter')
+  const picker = page.getByRole('dialog', { name: 'Emoji picker' })
+  await expect(picker.getByLabel('Search emoji')).toBeFocused()
+  await page.keyboard.press('ArrowDown')
+  const cells = picker.locator('.emoji-cell')
+  await expect(cells.first()).toBeFocused()
+  await page.keyboard.press('ArrowRight')
+  await expect(cells.nth(1)).toBeFocused()
+  await page.keyboard.press('ArrowDown')
+  expect(await page.evaluate(() => document.activeElement?.getBoundingClientRect().top))
+    .toBeGreaterThan(await cells.nth(1).evaluate((el) => el.getBoundingClientRect().top))
+  await page.keyboard.press('Escape')
+  await expect(picker).toHaveCount(0)
+  await expect(emojiButton).toBeFocused()
+
+  // Server icons are named by the server, not its initials.
+  await expect(page.getByRole('navigation', { name: 'Servers' }).getByRole('button', { name: 'A11y Test' })).toBeVisible()
+
+  // Less motion when asked: animations and transitions are effectively off.
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  const duration = await page.locator('.message').first().evaluate((el) => getComputedStyle(el).transitionDuration)
+  expect(parseFloat(duration)).toBeLessThan(0.01)
+})
+
+/** A fresh invite link made by a new owner page (the owner link works once). */
+async function inviteFromOwner(browser: import('@playwright/test').Browser): Promise<string> {
+  if (!ownerPage) {
+    ownerPage = await (await browser.newContext()).newPage()
+    await joinVia(ownerPage, server.ownerLink(), 'Owner')
+  }
+  return createInviteLink(ownerPage)
+}
+let ownerPage: Page | null = null

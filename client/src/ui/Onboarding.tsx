@@ -44,8 +44,8 @@ export function Onboarding() {
   }
 
   const brand = (
-    <div className="brand">
-      <span className="brand-mark">⚡</span> Iskra
+    <div className="brand" role="heading" aria-level={1}>
+      <span className="brand-mark" aria-hidden>⚡</span> Iskra
     </div>
   )
 

@@ -63,7 +63,7 @@ export function HomeSidebar({ onNavigate }: { onNavigate: () => void }) {
     .sort(([, a], [, b]) => lastAt(b.messages) - lastAt(a.messages))
 
   return (
-    <div className="channel-sidebar">
+    <nav className="channel-sidebar" aria-label={t('app.home.directMessages')}>
       <header className="sidebar-header">
         <h2>{t('app.home.directMessages')}</h2>
       </header>
@@ -104,7 +104,7 @@ export function HomeSidebar({ onNavigate }: { onNavigate: () => void }) {
       </div>
       <VoiceBar />
       <HomeMeBar />
-    </div>
+    </nav>
   )
 }
 

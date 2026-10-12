@@ -548,8 +548,8 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 
 /* ── Members ────────────────────────────────────────────────────────── */
 .member-list { padding: 14px 8px; }
-.member-list h3 { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); margin: 12px 8px 6px; }
-.member-list section:first-child h3 { margin-top: 0; }
+.member-list h2 { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); margin: 12px 8px 6px; }
+.member-list section:first-child h2 { margin-top: 0; }
 .member {
   width: 100%; display: flex; align-items: center; gap: 10px; padding: 6px 8px; border: 0; border-radius: calc(var(--radius) * 0.6);
   background: transparent; text-align: left;
@@ -641,9 +641,7 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
   .message.pressed { background: color-mix(in srgb, var(--accent) 10%, transparent); }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  * { animation: none !important; transition: none !important; }
-}
+/* Reduced motion: see ui/a11y.css. */
 
 /* ── Installed app and push notifications ───────────────────────────── */
 /* Installed on a phone, the app runs edge to edge: keep clear of the notch and the status bar. */

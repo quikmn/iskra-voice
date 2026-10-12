@@ -4,6 +4,7 @@ export const app: Messages['app'] = {
   openMenu: 'Öppna menyn',
   dismiss: 'Stäng',
   loading: 'Laddar',
+  skipToContent: 'Hoppa till huvudinnehållet',
   spoiler: 'Spoiler, klicka för att visa',
   openInApp: 'Har du Iskra-appen? <a>Öppna i appen</a>',
   home: {
@@ -45,6 +46,7 @@ export const app: Messages['app'] = {
   sidebar: {
     serverOptions: 'Serveralternativ',
     serverOptionsLabel: '{{name}}: serveralternativ',
+    channelsLabel: 'Kanaler i {{name}}',
     inviteFriends: 'Bjud in vänner',
     connecting: 'Ansluter…',
     reconnectingIn: 'Ansluter igen om {{seconds}} s',
@@ -157,6 +159,9 @@ export const app: Messages['app'] = {
     openFolder: 'Öppna mappen',
     closeFolder: 'Stäng mappen',
     ungroup: 'Dela upp',
+    serverMentions_one: '{{name}}, {{count}} omnämnande',
+    serverMentions_other: '{{name}}, {{count}} omnämnanden',
+    serverUnread: '{{name}}, olästa meddelanden',
   },
   empty: {
     title: 'Inga servrar än',

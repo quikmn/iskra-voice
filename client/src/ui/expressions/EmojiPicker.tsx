@@ -7,7 +7,8 @@ import { useApp } from '../../state/store'
 import { parseCustomEmoji, searchEmoji, type EmojiResult } from './emoji'
 import { EMOJI_CATEGORIES } from './emojiData'
 import { usePopoverPosition } from './popover'
-import { useEscapeLayer } from '../layers'
+import { useEscapeLayer, useFocusTrap } from '../layers'
+import { moveInGrid } from '../a11y'
 import './expressions.css'
 import { useTranslation } from 'react-i18next'
 import type { en } from '../../i18n/en'
@@ -81,6 +82,7 @@ export function EmojiPicker({
   const { style, sheet } = usePopoverPosition(anchor, panel)
   const [recent] = useState(loadRecent)
   useEscapeLayer(onClose)
+  useFocusTrap(panel)
 
   const customItems: Item[] = emojis.map((e) => ({ value: token(e), label: `:${e.name}:`, custom: e }))
   const recentItems: Item[] = recent
@@ -124,6 +126,7 @@ export function EmojiPicker({
         style={style}
         role="dialog"
         aria-label={t('expressions.picker.title')}
+        tabIndex={-1}
       >
         {tabs}
         {body ?? <>
@@ -133,9 +136,15 @@ export function EmojiPicker({
           aria-label={t('expressions.picker.search')}
           value={query}
           autoFocus={!sheet}
+          data-autofocus
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && results?.[0]) pick(results[0], e.shiftKey)
+            // Down from the search goes into the grid.
+            if (e.key === 'ArrowDown') {
+              e.preventDefault()
+              scroller.current?.querySelector<HTMLElement>('.emoji-cell')?.focus()
+            }
           }}
         />
         {!results && (
@@ -154,7 +163,10 @@ export function EmojiPicker({
             ))}
           </nav>
         )}
-        <div className="emoji-scroll" ref={scroller}>
+        <div className="emoji-scroll" ref={scroller} onKeyDown={(e) => {
+          const cells = [...(scroller.current?.querySelectorAll<HTMLElement>('.emoji-cell') ?? [])]
+          if (moveInGrid(cells, document.activeElement, e.key)) e.preventDefault()
+        }}>
           {sections.map((section) => (
             <section key={section.id} data-section={section.id}>
               <h4>{section.title}</h4>
