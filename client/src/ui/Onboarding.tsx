@@ -91,6 +91,7 @@ export function Onboarding() {
               <span className="muted">{t('account.welcome.existingHint')}</span>
             </button>
           </div>
+          {!accepted && !agreed && <p className="onboarding-note muted terms-hint">{t('safety.terms.tickFirst')}</p>}
           {pendingInvite && <p className="onboarding-note muted">{t('account.welcome.invitedTwice')}</p>}
         </div>
       </div>

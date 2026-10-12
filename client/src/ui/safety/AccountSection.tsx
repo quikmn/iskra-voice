@@ -9,6 +9,7 @@ import { deleteAccount, deletionPlan, transferOwnership } from '../../state/acco
 import { leaveServer, useApp } from '../../state/store'
 import { LEGAL_LINKS, safetyMailto, SAFETY_EMAIL, useTerms } from '../../state/terms'
 import { Modal, Spinner } from '../bits'
+import { SignOutSection } from '../dialogs/SignOut'
 import { fullTime } from '../format'
 import './safety.css'
 
@@ -18,6 +19,7 @@ export function AccountSection() {
   return (
     <section className="settings-section">
       <h3>{t('settings.sections.account')}</h3>
+      <SignOutSection />
       <div className="settings-danger">
         <div>
           <strong>{t('safety.deleteAccount.title')}</strong>

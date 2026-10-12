@@ -26,7 +26,7 @@ export const friends: Messages['friends'] = {
   pendingBadge_other: '{{count}} väntande vänförfrågningar',
   accept: 'Tacka ja',
   ignore: 'Ignorera',
-  cancel: 'Avbryt',
+  cancel: 'Avbryt förfrågan',
   message: 'Skicka meddelande',
   more: 'Fler val för {{name}}',
   add: 'Lägg till vän',

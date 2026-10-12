@@ -7,6 +7,7 @@ export const safety = {
     pointReport: 'Report messages or people from their menu. Moderators can remove content and people.',
     pointAge: 'You must be 13 or older (or the minimum age in your country).',
     agree: 'I agree to the Terms of Use and Community guidelines',
+    tickFirst: 'Tick the box above to continue.',
     updatedTitle: 'Our terms have changed',
     updatedLead: 'Please read the updated Terms of Use and Community guidelines and agree to keep using Iskra.',
   },

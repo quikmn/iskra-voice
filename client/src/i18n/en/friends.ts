@@ -25,7 +25,7 @@ export const friends = {
   pendingBadge_other: '{{count}} pending friend requests',
   accept: 'Accept',
   ignore: 'Ignore',
-  cancel: 'Cancel',
+  cancel: 'Cancel request',
   message: 'Message',
   more: 'More options for {{name}}',
   add: 'Add friend',
