@@ -112,3 +112,39 @@ test('a rename on one device reaches the other, and the other coming back with i
   for (const page of [a, c]) await expect(listed(page, 'Ann')).toHaveCount(1)
   await c.screenshot({ path: join(SHOTS, 'profile-sync-others.png') })
 })
+
+test('a device restored from the recovery key takes the current profile, not the name typed in', async ({ browser }) => {
+  const other = await startServer('Restore Sync')
+  try {
+    const ownerLink = other.ownerLink()
+    const first = await (await browser.newContext()).newPage()
+    await joinVia(first, ownerLink, 'Bea')
+    const friend = await (await browser.newContext()).newPage()
+    await joinVia(friend, await createInviteLink(first), 'Finn')
+    await rename(first, 'Beatrix')
+    await expect(listed(friend, 'Beatrix')).toHaveCount(1)
+
+    await openSettings(first, 'Recovery key')
+    await first.getByRole('button', { name: 'Show recovery key' }).click()
+    const recoveryKey = (await first.locator('.recovery-key').innerText()).trim()
+    await first.keyboard.press('Escape')
+
+    const restored = await (await browser.newContext()).newPage()
+    await restored.goto(ownerLink)
+    await agreeToTerms(restored)
+    await restored.getByRole('button', { name: /I already use Iskra/ }).click()
+    await restored.getByRole('button', { name: /Use my recovery key/ }).click()
+    await restored.getByLabel('Recovery key').fill(recoveryKey)
+    await restored.getByLabel('Your name').fill('Bea')
+    await restored.getByRole('button', { name: 'Restore my account' }).click()
+    await expect(restored.getByRole('heading', { name: 'general' })).toBeVisible()
+
+    await expect(restored.locator('.me-bar')).toContainText('Beatrix')
+    for (const page of [first, friend, restored]) {
+      await expect(listed(page, 'Beatrix')).toHaveCount(1)
+      await expect(listed(page, 'Bea')).toHaveCount(0)
+    }
+  } finally {
+    await other.stop()
+  }
+})
