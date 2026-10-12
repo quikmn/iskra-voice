@@ -1,7 +1,6 @@
 name: Deploy
 
-# Deploys iskra.foo (site/), app.iskra.foo (client/), the push relay at push.iskra.foo (relay/) and updates the server
-# at chat.iskra.foo, then checks each one.
+# Deploys iskra.foo (site/) and app.iskra.foo (client/) and updates the server at chat.iskra.foo, then checks each one.
 # Release finalize calls it after publishing a release; run it by hand to redeploy without a release
 # (docs/ci-cd-playbook.md). Everything runs in the `release` environment, so its protection rules apply.
 on:
@@ -23,24 +22,15 @@ on:
         description: 'Update chat.iskra.foo to this released version (e.g. 2.0.0-alpha.10); empty = leave it'
         required: false
         default: ''
-      relay:
-        description: 'Deploy the push relay (push.iskra.foo) and its secrets'
-        type: boolean
-        default: false
   workflow_call:
     inputs:
       ref: { type: string, required: true }
       site: { type: boolean, default: false }
       webapp: { type: boolean, default: false }
       server_version: { type: string, default: '' }
-      relay: { type: boolean, default: false }
     secrets:
       CLOUDFLARE_API_TOKEN: { required: false }
       DROPLET_SSH_KEY: { required: false }
-      RELAY_HANDLE_KEYS: { required: false }
-      APNS_KEY_P8: { required: false }
-      APNS_KEY_ID: { required: false }
-      FCM_SERVICE_ACCOUNT_JSON: { required: false }
 
 permissions: {}
 
@@ -209,61 +199,3 @@ jobs:
             sleep 10
           done
           echo "::error::chat.iskra.foo doesn't answer as $VERSION after 2 minutes"; cat "$RUNNER_TEMP/health.json" 2>/dev/null; exit 1
-
-  # The push relay (relay/, a Cloudflare Worker): tests, deploy, then its secrets from the `release` environment
-  # (docs/ci-cd.md "Push relay"). Secrets that aren't set yet are left out; the relay then says which platform is off.
-  relay:
-    if: inputs.relay
-    runs-on: ubuntu-latest
-    environment: release
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          ref: ${{ inputs.ref }}
-          persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: '24'
-          cache: npm
-          cache-dependency-path: relay/package-lock.json
-      - run: npm ci
-        working-directory: relay
-      - run: npm test && npm run typecheck
-        working-directory: relay
-      - name: Deploy push.iskra.foo (Worker iskra-push)
-        working-directory: relay
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx --yes "$WRANGLER" deploy
-      - name: Relay secrets
-        working-directory: relay
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          HANDLE_KEYS: ${{ secrets.RELAY_HANDLE_KEYS }}
-          APNS_KEY: ${{ secrets.APNS_KEY_P8 }}
-          APNS_KEY_ID: ${{ secrets.APNS_KEY_ID }}
-          FCM_SERVICE_ACCOUNT: ${{ secrets.FCM_SERVICE_ACCOUNT_JSON }}
-        run: |
-          [ -n "$HANDLE_KEYS" ] || { echo "::error::RELAY_HANDLE_KEYS isn't set in the release environment"; exit 1; }
-          umask 077
-          file="$RUNNER_TEMP/relay-secrets.json"
-          node -e '
-            const names = ["HANDLE_KEYS", "APNS_KEY", "APNS_KEY_ID", "FCM_SERVICE_ACCOUNT"]
-            const out = {}
-            for (const n of names) if (process.env[n]) out[n] = process.env[n]
-            require("fs").writeFileSync(process.argv[1], JSON.stringify(out))
-            console.log("Setting: " + Object.keys(out).join(", "))
-          ' "$file"
-          npx --yes "$WRANGLER" secret bulk "$file"
-          rm -f "$file"
-      - name: Check push.iskra.foo
-        run: |
-          for i in $(seq 1 12); do
-            if body="$(curl -fsS --max-time 20 https://push.iskra.foo/v1/health)"; then echo "$body"; exit 0; fi
-            sleep 10
-          done
-          echo "::error::push.iskra.foo doesn't answer after 2 minutes"; exit 1

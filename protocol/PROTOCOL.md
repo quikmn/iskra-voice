@@ -10,7 +10,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji) · [Stickers](#stickers) · [GIFs](#gifs) · [Saved messages, reminders, scheduled messages and the inbox](#saved-messages-reminders-scheduled-messages-and-the-inbox)
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Encrypted channels](#end-to-end-encrypted-channels) · [Friends](#friends)
-- **People and integrations:** [Profiles](#profiles) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) ([phone apps](#native-push-phone-apps)) · [Bots and webhooks](#bots-and-webhooks) · [Presence and voice messages](#presence-and-voice-messages)
+- **People and integrations:** [Profiles](#profiles) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Presence and voice messages](#presence-and-voice-messages)
 - **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Live captions model](#live-captions-model) · [Backups, moving and imports](#backups-moving-and-imports)
 - **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation) · [Roles and permissions](#roles-and-permissions) · [Reliable sends](#reliable-sends) · [AutoMod](#automod)
@@ -586,7 +586,7 @@ Each server sends Web Push messages to its members' devices that aren't looking 
 | type | body | result | who |
 |---|---|---|---|
 | `push.status` | | `{ publicKey, endpoint }` (VAPID key, b64u 65 bytes; this device's endpoint or null) | anyone |
-| `push.subscribe` | `endpoint` (≤ 1024 chars), `keys: { p256dh, auth }` (b64u, 65 and 16 bytes) | | anyone; replaces this device's subscription |
+| `push.subscribe` | `endpoint` (≤ 1024 chars), `keys: { p256dh, auth }` (b64u, 65 and 16 bytes), `kind?` (only `"web"`) | | anyone; replaces this device's subscription |
 | `push.unsubscribe` | | | anyone (this device) |
 | `push.focus` | `focused` (boolean) | | anyone: is someone looking at Iskra on this device right now |
 
@@ -596,6 +596,7 @@ Each server sends Web Push messages to its members' devices that aren't looking 
 - Incoming-call pushes ring at once (no merging) but at most once per caller and callee per 15 s window.
 - No pushes to a device whose session reported `focused: true` (a new session starts unfocused), to the author, to people who can't read the channel, or to non-members. Per device and conversation the first push goes out at once; more within 15 s become one follow-up push with a `count`.
 - Payload (JSON, after decryption): `{ v: 1, kind: "mention"|"reply"|"dm"|"call"|"event", server, serverName, title, body, tag, from, channelId?, messageId?, peer?, count, at }` (`from`: the sender's display name). Mentions and replies carry a ≤ 140-character excerpt; **DMs never carry content**: "New message from X". Calls say "X is calling". Event reminders ([Scheduled events](#scheduled-events)) say "Starting soon: …" or "… is starting now". The `Topic` header is derived from `tag`, so a push service replaces undelivered pushes about the same conversation.
+- **Phone apps** don't subscribe: they show notifications while the app is open, from the WebSocket. There is no push relay, so `kind: "native"` (sent by older phone apps) is refused with `bad_request`, and subscriptions stored at the old relay (`https://push.iskra.foo/…`) are deleted on upgrade.
 - Web client: one service worker registration of `/push-sw.js` per server (scope `/push/<serverKey>/`), since every server has its own VAPID key and a registration holds one subscription. A notification click focuses the app (message `{ type: "iskra.open", route }`) or opens `/#/open/<serverKey>/c/<channelId>` / `/#/open/<serverKey>/dm/<accountKey>`. The desktop app uses native notifications and doesn't subscribe.
 
 ## Bots and webhooks
@@ -1871,34 +1872,6 @@ Home { "pageId": 12, "channelId": 7, "title": "Start here" }   // or null
 - **Audit:** `docs.page.create`, `docs.page.delete`, `docs.page.restore` `{ channelId, channelName, pageId, title, extra: { version } | null }` and `docs.home.set` (the same, or `{ pageId: null }` when cleared). Page text is never recorded.
 - **Your data:** `data.export` includes `docsPages` (pages you made or last edited) and `docsRevisions` (every kept version you wrote, with its text). **Retention:** with `messagesDays` set, revisions older than that go in the hourly sweep, except each page's current version; pages stay. **Deleting an account** keeps its pages and revisions under its key (like its messages); with `messages: true` its revisions go, except a page's current version, which keeps its text with `author` `""`, and `createdBy`/`updatedBy` become `""` (apps show "someone who left").
 - **Links:** apps link to a page with `#/open/<serverKey>/c/<channelId>/p/<pageId>` (like message links), which opens the page in the app.
-
-## Native push (phone apps)
-
-The phone apps (iOS, Android) can't use a browser's push service, so they get pushes through the **Iskra push relay**
-(`relay/` in the repo, `https://push.iskra.foo`), which holds the APNs and FCM credentials that self-hosted servers
-can't have. For a server this is ordinary [Web Push](#push-notifications-web-push) with one more subscription kind:
-
-| type | body | result | who |
-|---|---|---|---|
-| `push.subscribe` | as above, plus `kind?` (`"web"` (default) \| `"native"`) | | anyone; replaces this device's subscription |
-| `push.status` | | `{ publicKey, endpoint, kind }` (`kind`: `"web"`, `"native"` or null) | anyone |
-
-- A `native` endpoint must be `https://push.iskra.foo/v1/push/<handle>` (the handle is 20–1000 base64url characters, no query, default port; servers may add relay hosts with `Push:RelayHosts`). A `web` endpoint can't point at the relay. `keys` are the app's own P-256 key and auth secret, as in a browser.
-- The server sends exactly what it sends a browser: the payload encrypted to the app's key (RFC 8291 `aes128gcm`), VAPID-signed, with `TTL`, `Urgency` and `Topic` headers. Every rule above applies unchanged (focus, do not disturb, notification levels and mutes, blocks, coalescing, 404/410 removes the subscription).
-- **Incoming calls** (`kind: "call"`) go to `…/v1/call/<handle>` instead, so the relay can ring the phone (CallKit through a VoIP push on iOS, a full-screen call notification on Android).
-
-**Relay protocol** (for apps and servers; the server never talks to it except as a push service):
-
-| Request | Body | Answer |
-|---|---|---|
-| `POST /v1/register` (apps, once per server; CORS open) | `{ platform: "ios", token, voip?, sandbox?, vapidKey }` (hex APNs and PushKit tokens, 64–200 chars) or `{ platform: "android", token, vapidKey }` (FCM token, 32–400 chars); `vapidKey` is the server's `push.status` `publicKey`; ≤ 4 KB | `{ endpoint }`; 400 bad registration, 429, 503 platform not configured |
-| `POST /v1/push/<handle>`, `POST /v1/call/<handle>` (servers) | Web Push (RFC 8030): `Authorization: vapid t=…, k=…` (RFC 8292, required), `Content-Encoding: aes128gcm`, `TTL` (required, capped at 28 days), `Urgency?`, `Topic?`; body 86–3072 bytes | 201 sent; 404 unknown handle, 410 the device is gone (both: forget the subscription); 401 no VAPID, 403 not signed by the handle's server (`k`, signature, `aud` = the relay's origin, `exp` within 24 h); 413, 415, 400, 429 (`Retry-After`), 502 |
-| `GET /v1/health` | | `{ ok, apns, fcm }` |
-
-- **The handle** is the device's push token(s) and the server's VAPID public key, sealed with AES-256-GCM under a key only the relay has (versioned, so the key can rotate while old handles keep working). Each server gets its own handle, and the relay only takes pushes VAPID-signed by that server, so a leaked handle can't be used to buzz the phone. The relay stores nothing: no device list, no message log.
-- **What each party sees.** The Iskra server: the handle, never the device token. The relay: the device token, the sending server's IP address, the time and the size of the encrypted body. Apple and Google: the token, the time and the encrypted body. Nobody but the phone can read the payload (and DMs and group messages never carry their content anyway). The app decrypts it on the device: an iOS Notification Service Extension, or the Android app's messaging service, then shows "Alex in #general: …" locally.
-- **Limits** (per relay location): 20 registrations per minute per IP; 600 pushes per minute per sending IP; 60 pushes per minute per device from all servers together.
-- Delivery to the phone: iOS gets an alert with `mutable-content` (`{ aps, e: <base64 body>, k: "note"|"call" }`, fallback text "New notification" if the extension can't decrypt), calls a VoIP push (`{ e, k: "call" }`, topic `foo.iskra.app.voip`) when the app registered a PushKit token; Android gets an FCM data message `{ e, k }` at high priority.
 
 ## End-to-end encrypted channels
 

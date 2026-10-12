@@ -22,8 +22,6 @@ data is involved. DPA status "to accept" is an owner action ([owner-actions.md](
 | **GitHub** (Microsoft) | Subprocessor (releases, issues) / supplier (code, CI) | Source, CI, releases, update downloads, security advisories | Downloaders' IP addresses (desktop update checks hit GitHub); reporters' details in issues and advisories | US; DPF / SCCs | GitHub DPA (online); owner to confirm accepted |
 | **Apple** | Supplier / third party | Developer ID signing and notarization, App Store Connect and TestFlight; Web Push for Safari and iOS home-screen apps (`push.apple.com`) | Notarization: binaries only. Push: device push endpoint and timing (content encrypted) | US / Ireland | Apple Developer Program License Agreement |
 | **Google** | Third party / supplier | Web Push for Chrome and Android (`fcm.googleapis.com`); Play Console (Android, not published yet); default public STUN server used by LiveKit when the server is open to the internet; Electron spell-check dictionaries | Push: endpoint and timing (content encrypted); STUN: the server's IP only | US; DPF | Google's terms; Play Console DDA when publishing |
-| **Cloudflare Workers** (push relay) | Subprocessor | push.iskra.foo forwards encrypted pushes to APNs/FCM | Device push tokens and sending servers' IPs, in memory per request (nothing stored, observability off) | Global edge / DPF, SCCs | Cloudflare DPA (as above) |
-| **Apple APNs**, **Google FCM** (phone apps) | Third party | Deliver the phone apps' notifications (through the relay) | Device token, time, encrypted payload (content end-to-end encrypted to the phone) | US / DPF | Apple Developer Program License; Firebase terms + data processing terms |
 | **Mozilla**, **Microsoft** (WNS) | Third party | Web Push for Firefox and Edge on Windows | Endpoint and timing (content encrypted) | US / EU | Browser vendors' terms |
 | **KLIPY** | Third party (direct mode) / subprocessor (proxied mode, needs KLIPY's approval) | GIF search, only if a server's admin turns it on | Direct: users' IPs, search words, per-server pseudonymous id. Proxied: only the server's IP | Location not confirmed | KLIPY API terms; not enabled on chat.iskra.foo unless the owner turned it on |
 | **Let's Encrypt** (ISRG) | Supplier | HTTPS certificates for chat.iskra.foo and self-hosted servers | Certificate domain names (public by design in CT logs); account email if set | US non-profit | Subscriber agreement |
@@ -44,3 +42,4 @@ check accounts have MFA ([access-control.md](access-control.md)), and update thi
 | Date | Change |
 |---|---|
 | 2026-10-11 | First version |
+| 2026-10-12 | Removed Cloudflare Workers (push relay), Apple APNs and Google FCM: the phone apps notify while open |

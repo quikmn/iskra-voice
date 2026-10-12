@@ -177,6 +177,5 @@ export const app: Messages['app'] = {
   push: {
     workerFailed: 'Aviseringstjänsten startade inte.',
     noKeys: 'Webbläsaren gav inga push-nycklar.',
-    relayFailed: 'Push-reläet kunde inte registrera den här telefonen ({{error}})',
   },
 }

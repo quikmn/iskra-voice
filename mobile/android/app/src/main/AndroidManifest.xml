@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- No cloud backups: the app holds account keys (encrypted at rest) and its push keys. -->
+    <!-- No cloud backups: the app holds account keys (encrypted at rest). -->
     <application
         android:allowBackup="false"
         android:fullBackupContent="false"
@@ -45,31 +45,11 @@
             </intent-filter>
         </activity>
 
-        <!-- Pushes from the Iskra push relay (FCM data messages), decrypted on the phone. -->
-        <service
-            android:name=".IskraMessagingService"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
-            </intent-filter>
-        </service>
-
         <!-- Voice with the app in the background or the screen off. -->
         <service
             android:name=".VoiceService"
             android:exported="false"
             android:foregroundServiceType="microphone|mediaPlayback" />
-
-        <receiver
-            android:name=".CallActionReceiver"
-            android:exported="false" />
-
-        <meta-data
-            android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@drawable/ic_notification" />
-        <meta-data
-            android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="messages" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -92,9 +72,6 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
-    <uses-permission android:name="android.permission.VIBRATE" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
