@@ -29,6 +29,8 @@ public static partial class WebhookPayload
     public const int MaxEmbeds = 10;
     public const int MaxFields = 25;
     public const int MaxEmbedChars = 6000;
+    /// <summary>A card picture's URL; data: URLs up to 16 KB.</summary>
+    public const int MaxPictureChars = 16 * 1024;
 
     public static WebhookPostRequest Parse(JsonElement root)
     {
@@ -51,16 +53,7 @@ public static partial class WebhookPayload
         JsonArray? embeds = null;
         if (Field(root, "embeds") is { } embedList)
         {
-            if (embedList.ValueKind != JsonValueKind.Array) throw new PayloadException("'embeds' must be a list.");
-            if (embedList.GetArrayLength() > MaxEmbeds) throw new PayloadException($"At most {MaxEmbeds} embeds per message.");
-            var total = 0;
-            embeds = [];
-            foreach (var embed in embedList.EnumerateArray())
-            {
-                var parsed = ParseEmbed(embed, ref total);
-                if (parsed.Count > 0) embeds.Add(parsed);
-            }
-            if (total > MaxEmbedChars) throw new PayloadException($"Embeds can have at most {MaxEmbedChars} characters in total.");
+            embeds = ParseEmbeds(embedList, "embeds", picture: null);
             if (embeds.Count == 0) embeds = null;
         }
 
@@ -68,7 +61,26 @@ public static partial class WebhookPayload
         return new WebhookPostRequest(text ?? "", username, embeds, ParseMentions(root));
     }
 
-    private static JsonObject ParseEmbed(JsonElement embed, ref int total)
+    /// <summary>
+    /// A list of embeds (webhooks) or cards (bots): the same format and limits. <paramref name="picture"/> checks a
+    /// thumbnail or image URL and returns what to store; without it (webhooks) pictures are dropped.
+    /// </summary>
+    public static JsonArray ParseEmbeds(JsonElement list, string what, Func<string, string>? picture)
+    {
+        if (list.ValueKind != JsonValueKind.Array) throw new PayloadException($"'{what}' must be a list.");
+        if (list.GetArrayLength() > MaxEmbeds) throw new PayloadException($"At most {MaxEmbeds} {what} per message.");
+        var total = 0;
+        var output = new JsonArray();
+        foreach (var embed in list.EnumerateArray())
+        {
+            var parsed = ParseEmbed(embed, ref total, picture);
+            if (parsed.Count > 0) output.Add(parsed);
+        }
+        if (total > MaxEmbedChars) throw new PayloadException($"{char.ToUpperInvariant(what[0])}{what[1..]} can have at most {MaxEmbedChars} characters in total.");
+        return output;
+    }
+
+    private static JsonObject ParseEmbed(JsonElement embed, ref int total, Func<string, string>? picture)
     {
         if (embed.ValueKind != JsonValueKind.Object) throw new PayloadException("Each embed must be an object.");
         var output = new JsonObject();
@@ -132,7 +144,15 @@ public static partial class WebhookPayload
             }
             if (list.Count > 0) output["fields"] = list;
         }
-        // Images, thumbnails and videos are left out on purpose: no third-party content is loaded by viewers.
+        // Webhooks: images, thumbnails and videos are left out on purpose (no third-party content is loaded by viewers).
+        // Bots: only pictures from this server or data: URLs, checked by the caller.
+        if (picture is not null)
+            foreach (var key in new[] { "thumbnail", "image" })
+            {
+                if (Field(embed, key) is not { } pic) continue;
+                if (pic.ValueKind != JsonValueKind.Object) throw new PayloadException($"'{key}' must be an object with a 'url'.");
+                if (OptionalString(pic, "url", MaxPictureChars) is { } picUrl) output[key] = new JsonObject { ["url"] = picture(picUrl) };
+            }
         return output;
     }
 
