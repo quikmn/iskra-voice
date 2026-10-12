@@ -204,6 +204,22 @@ A theme is a JSON file of colours, sizes and font choices. Every value is checke
 - Each server has its own push key, and a subscription belongs to one device. Your server only accepts addresses at known push services and doesn't notify a device you're actively using.
 - The phone apps don't use push at all: they show notifications while the app is open, straight from your servers. No Iskra-run service sits between your server and your phone.
 
+### Voice, video and captions on your device
+
+AI noise removal, voice detection, evening out voices, cleaning up others' audio, camera background blur and replace, and live captions all run **on your own device**: no sound, picture or caption text is sent anywhere for processing, and captions are never stored or sent to the server. The models ship with the app, except the captions model, which the app downloads once from the server of the call you're in (the server fetched it once from Hugging Face). Both the server and the app check every part against SHA-256 hashes built into Iskra before using it, and the workers that run the models can't fetch anything. Details, models and licenses: [voice-processing.md](voice-processing.md).
+
+**Clips** are recorded on the device of the person who saves one, from what their app already plays. Turning clips on is shown to everyone in the call and saving one posts a notice, but that's a courtesy between honest apps: nothing can stop a modified app from recording what it receives, in any call.
+
+### Hosting help and rented servers
+
+- **What Iskra found out** about your connection comes from your own router's answers and your computer; no outside service is asked. The prompt for an AI assistant holds your local network details and the ports, never your public address, keys or invite links, and you see and can edit it before copying.
+- **Rent a small server:** the app makes a one-time owner key and puts it in the setup text. The new server keeps it in a file only it can read and never logs it. Before trusting the server, the app asks it to prove it holds the key (HMAC over a fresh nonce), so a different machine at that address can't pose as yours; then it joins as owner and the key is deleted. Until then the app keeps the key in its encrypted store. The setup text downloads the server from GitHub and checks it against the published `SHA256SUMS.txt` before installing, and opens only the ports Iskra needs. Your provider can see what's on a server you rent from them.
+- **Keep my server running / `install-autostart`** runs the server as you, never with administrator rights.
+
+### Server updates
+
+A standalone server can check GitHub for new versions and, on Linux with systemd, install them itself (the owner picks: off, tell me, or install automatically). A package is only used if its SHA-256 matches both `SHA256SUMS.txt` and the checksum GitHub lists for the file, the archive holds nothing but plain files, and the new version starts on that machine. If it doesn't start, the previous version is put back. Every check, install, failure and rollback goes into the security log. `/health` reports only the version, uptime and whether voice is up: no names, addresses or member counts.
+
 ### Webhooks and bots
 
 - A webhook URL contains a long random secret. The server only stores a hash of it and shows the URL once; an admin can replace it at any time. Treat it like a password, and use the `https://` address (a server without HTTPS can only take it in plain text): a server with HTTPS refuses webhooks sent to its plain `http://` address from other machines (with "use https"), rather than quietly forwarding them.
@@ -233,7 +249,7 @@ The desktop app is the same web app in a locked-down shell: sandboxed, no Node.j
 - `iskra://` links only ever open an invite: anything else in them is ignored.
 
 - **Windows:** every executable we ship is code-signed (Open Source Developer Viktor Lundgren, issued by Certum) and timestamped, so you can check it came from us and wasn't changed. The installer only installs updates signed with that same certificate.
-- **macOS and Linux:** the macOS app is ad-hoc signed but not yet notarized by Apple (the first time, right-click it and choose Open), and the Linux packages aren't signed. Download them only from the GitHub releases page.
+- **macOS and Linux:** the macOS app is signed with a Developer ID and notarized by Apple; the Linux packages aren't signed. Every release has `SHA256SUMS.txt` and build-provenance attestations (`gh attestation verify <file> -R quikmn/iskra-voice`). Download only from the GitHub releases page.
 - Servers you create in the app run on your computer and only open ports to the internet when you switch on **Open to the internet**.
 
 ## Found a problem?

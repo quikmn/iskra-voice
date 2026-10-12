@@ -72,6 +72,8 @@ A bot is an ordinary Iskra identity (its own account and device keys) that conne
 - doesn't let it join voice, create invites, or be made admin (guest, member or trusted only),
 - applies the same rate limits as everyone else (2 messages a second, bursts of 10).
 
+Bots and webhooks stay out of **end-to-end encrypted channels**: a bot holds no channel keys and never counts as a reader there, so it can't read or post in them, and webhooks can't post into them. A bot can read and post in a voice channel's text chat like in any channel it can see.
+
 ### Run the example bot
 
 The [`bots/`](../bots) folder has a small SDK and **Dice**, an example bot. You need [Node.js](https://nodejs.org) 22 or newer.

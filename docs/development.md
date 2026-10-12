@@ -5,14 +5,15 @@
 | Folder | What |
 |---|---|
 | `protocol/` | `PROTOCOL.md`, the wire protocol (source of truth for client and server), and `vectors.json`, shared crypto test vectors both sides check |
-| `server/` | C# / .NET 10 server: sessions, roles and permissions, storage (SQLite), voice, stages, watch parties and calls (LiveKit), uploads, HTTPS and internet hosting, push, webhooks, backups, Discord import, GIFs |
-| `client/` | TypeScript + React + Vite web app (also what the desktop app runs); installable as a PWA |
-| `desktop/` | Electron shell for Windows, macOS and Linux: push-to-talk, screen picker, tray, auto-update, one-click hosting and restore, keychain, `iskra://` links, game activity |
+| `server/` | C# / .NET 10 server: sessions, roles and permissions, storage (SQLite), voice, stages, watch parties and calls (LiveKit), uploads, HTTPS, internet hosting and reachability, autostart, starter templates, the captions model, self-updates, push, webhooks, backups, Discord import, GIFs |
+| `client/` | TypeScript + React + Vite web app (also what the desktop and phone apps run); installable as a PWA. On-device audio, video and captions in `src/state/audio`, `video`, `captions`; bundled models in `vendor/` ([voice-processing.md](voice-processing.md)) |
+| `desktop/` | Electron shell for Windows, macOS and Linux: push-to-talk and hotkeys, screen picker, tray, auto-update, one-click hosting (setup wizard, Keep my server running) and restore, keychain, passkeys, `iskra://` links, game activity |
+| `mobile/` | The phone apps: one Capacitor shell (iOS and Android) around the built client; see [mobile/README.md](../mobile/README.md) |
 | `bots/` | Node SDK for bots (reuses the client's core) and the Dice example bot; see [bots.md](bots.md) |
-| `scripts/` | Downloads pinned tools (LiveKit, Pebble) into `.tools/` with checksum checks; `dev-firewall.ps1` (see below) |
+| `scripts/` | Pinned tools (LiveKit, Pebble) into `.tools/` with checksum checks; `get-models.mjs` (the captions model, never committed); `build-deepfilter.sh`; the release scripts; `dev-firewall.ps1` (see below) |
 | `site/` | The iskra.foo website |
 
-Inside the server, each feature lives in `Features/<Feature>Feature.cs` (registered with one line in `Router.cs`) and keeps its store methods in `Storage/Store.<Feature>.cs`. Background work (event reminders, poll expiry, timeouts, the upload sweep, daily backups) runs in hosted services next to the features. In the client, `src/core/` holds protocol, crypto and connection code shared with the bot SDK, `src/state/` holds app state, one file per feature (rules that need no React or store are in separate `*Logic.ts`/`*Rules.ts` files with unit tests), and `src/ui/` holds components grouped by area (`forums/`, `events/`, `stage/`, `watch/`, `groups/`, `roles/`, `moderation/`, `organize/`, ...).
+Inside the server, each feature lives in `Features/<Feature>Feature.cs` (registered with one line in `Router.cs`) and keeps its store methods in `Storage/Store.<Feature>.cs`. Background work (event reminders, poll expiry, timeouts, retention, reminders and scheduled messages, the upload sweep, daily backups, updates) runs in hosted services next to the features. In the client, `src/core/` holds protocol, crypto and connection code shared with the bot SDK, `src/state/` holds app state, one file per feature (rules that need no React or store are in separate `*Logic.ts`/`*Rules.ts` files with unit tests), and `src/ui/` holds components grouped by area (`forums/`, `events/`, `stage/`, `watch/`, `groups/`, `roles/`, `moderation/`, `organize/`, ...).
 
 ## Prerequisites
 
@@ -47,7 +48,7 @@ cd desktop; npm test                 # desktop unit tests (per-platform helpers)
 cd bots;    npm run typecheck        # bot SDK and examples
 ```
 
-Run one e2e spec on its own port (useful with several checkouts): `$env:ISKRA_E2E_PORT=5299; npx playwright test e2e/calls.spec.ts`. Screenshots go to `client/e2e/screenshots`. Specs that talk to the internet (YouTube watch parties) only run with `ISKRA_E2E_NETWORK=1`; the desktop specs need `npm run build` in `desktop/` and `client/` first.
+Run one e2e spec on its own port (useful with several checkouts): `$env:ISKRA_E2E_PORT=5299; npx playwright test e2e/calls.spec.ts`. Screenshots go to `client/e2e/screenshots`. Specs that talk to the internet (YouTube watch parties) only run with `ISKRA_E2E_NETWORK=1`; the desktop specs need `npm run build` in `desktop/` and `client/` first. The Whisper unit test and the captions e2e test need the captions model: run `node scripts/get-models.mjs` from the repo root once (it goes into `client/.models/`, ignored by git); without it they're skipped. `node scripts/bench-audio.mjs` and `bench-captions.mjs` in `client/` measure CPU use.
 
 CI (`.github/workflows/ci.yml`):
 
@@ -56,6 +57,7 @@ CI (`.github/workflows/ci.yml`):
 | Server (`dotnet test`) | ✓ | ✓ | |
 | Client (`npm test`, `npm run build`) | ✓ | ✓ | |
 | Desktop unit tests | ✓ | ✓ | ✓ |
+| Backup restore drill, release-script tests, Android build | | ✓ | |
 | Interop and e2e | | ✓ | |
 
 ## Database changes
@@ -126,6 +128,6 @@ The web client uses i18next. English (`client/src/i18n/en/`) is the source of tr
   4. Desktop: add a dictionary to `DESKTOP_TEXT` in `desktop/src/i18n.ts`, and the code to `DesktopLanguage`, `parseLanguage` and `languageFromLocales`.
   5. Run `npm test` in `client` and `desktop`.
 
-## Android app
+## Phone apps
 
-`android/` is a Trusted Web Activity around app.iskra.foo (see `android/README.md`). `.\android\build.ps1` builds the signed APK into `android/release/Iskra-<version>.apk`, using the version in `desktop/package.json`. The release key lives outside the repo; every update must be signed with the same key, and its fingerprint is in `client/public/.well-known/assetlinks.json`.
+`mobile/` is one Capacitor shell around the built client for iOS and Android ([mobile/README.md](../mobile/README.md)). `mobile/scripts/build-android.ps1` builds the signed APK into `mobile/release/Iskra-<version>.apk`; the release key lives outside the repo, every update must be signed with the same key, and its fingerprint is in `client/public/.well-known/assetlinks.json`. The iPhone app is built, signed and uploaded to TestFlight by `.github/workflows/mobile-ios.yml`. The phone apps have no push: they notify while open. (`android/` only holds a README; the old Trusted Web Activity is in git history.)
