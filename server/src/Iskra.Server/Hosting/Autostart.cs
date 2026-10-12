@@ -222,7 +222,8 @@ public static class Autostart
         var process = Environment.ProcessPath ?? throw new IOException("Can't tell where iskra-server is.");
         var name = Path.GetFileNameWithoutExtension(process);
         if (name.Equals("dotnet", StringComparison.OrdinalIgnoreCase))
-            return (process, [typeof(Autostart).Assembly.Location]);
+            // Assembly.Location is empty in a single-file publish (and an error there), so build the path instead.
+            return (process, [Path.Combine(AppContext.BaseDirectory, typeof(Autostart).Assembly.GetName().Name + ".dll")]);
         return (process, []);
     }
 

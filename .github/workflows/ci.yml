@@ -24,6 +24,11 @@ jobs:
         with:
           dotnet-version: '10.0.x'
       - run: dotnet test --configuration Release
+      # Built the way releases build it (desktop/scripts/prepare-server.mjs): single-file analyzers turn some APIs
+      # into errors that a normal build never shows.
+      - name: Single-file publish, as the release does
+        shell: bash
+        run: dotnet publish src/Iskra.Server -c Release -r ${{ matrix.os == 'windows-latest' && 'win-x64' || 'linux-x64' }} --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -o "$RUNNER_TEMP/server-publish"
 
   client:
     strategy:
