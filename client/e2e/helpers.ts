@@ -204,6 +204,36 @@ export async function joinVia(page: Page, link: string, name: string) {
   await expect(page.getByRole('heading', { name: 'general' })).toBeVisible({ timeout: 15_000 })
 }
 
+/**
+ * Records every status banner (`role="status"`) the page shows from now on, with when it appeared. For banners that
+ * are only up for a moment (the restart banner's "<Server> is back." shows for 2.5 s): asserting on them live races
+ * whatever the test waits for first, so check the record instead.
+ */
+export async function recordStatusBanners(page: Page): Promise<() => Promise<{ text: string; at: number }[]>> {
+  await page.evaluate(() => {
+    const w = window as unknown as { __statusSeen?: { text: string; at: number }[]; __statusObserver?: MutationObserver }
+    w.__statusObserver?.disconnect()
+    const seen: { text: string; at: number }[] = []
+    const showing = new Set<string>()
+    w.__statusSeen = seen
+    const look = () => {
+      const now = new Set<string>()
+      for (const el of document.querySelectorAll('[role="status"]')) {
+        const text = (el.textContent ?? '').trim()
+        if (!text) continue
+        now.add(text)
+        if (!showing.has(text)) seen.push({ text, at: Date.now() })
+      }
+      showing.clear()
+      for (const text of now) showing.add(text)
+    }
+    w.__statusObserver = new MutationObserver(look)
+    w.__statusObserver.observe(document.body, { childList: true, subtree: true, characterData: true })
+    look()
+  })
+  return () => page.evaluate(() => (window as unknown as { __statusSeen?: { text: string; at: number }[] }).__statusSeen ?? [])
+}
+
 /** The first-run screen asks to agree to the terms before either choice (once per device and terms version). */
 export async function agreeToTerms(page: Page) {
   await expect(page.getByRole('button', { name: /I’m new to Iskra/ })).toBeVisible({ timeout: 15_000 })
