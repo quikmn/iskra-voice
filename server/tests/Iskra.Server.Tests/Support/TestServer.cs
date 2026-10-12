@@ -41,6 +41,9 @@ public sealed class IskraServer : WebApplicationFactory<Program>
     /// <summary>Stands in for the GIF provider (KLIPY).</summary>
     public FakeGifUpstream Gifs { get; } = new();
 
+    /// <summary>Stands in for Hugging Face (the captions model), with a tiny model of its own.</summary>
+    public FakeModelUpstream Models { get; } = new();
+
     /// <summary>Stands in for GitHub's releases (server updates).</summary>
     public FakeReleaseFeed Releases { get; } = new();
 
@@ -58,6 +61,8 @@ public sealed class IskraServer : WebApplicationFactory<Program>
             services.AddSingleton<Iskra.Server.Push.IPushSender>(Push);
             services.AddSingleton<Iskra.Server.Gifs.IGifUpstream>(Gifs);
             services.AddSingleton<Iskra.Server.Updates.IReleaseFeed>(Releases);
+            services.AddSingleton<Iskra.Server.Captions.IModelUpstream>(Models);
+            services.AddSingleton(Models.Manifest);
             if (PortMapper is not null) services.AddSingleton(PortMapper);
         });
         foreach (var (key, value) in Settings) builder.UseSetting(key, value);

@@ -1,14 +1,25 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import manifest from './captions/model.json'
-import { captionParts, loadCaptionModel, ModelError, MODEL_HOST, modelBase, sha256Hex } from './models'
+import { captionParts, captionsOffered, loadCaptionModel, ModelError, sha256Hex } from './models'
 
 describe('where the captions model comes from', () => {
-  it("is the app's own address on the web, app.iskra.foo in the desktop and phone apps", () => {
-    expect(modelBase({ protocol: 'https:', origin: 'https://app.iskra.foo' }, true)).toBe('https://app.iskra.foo')
-    expect(modelBase({ protocol: 'http:', origin: 'http://localhost:5183' }, true)).toBe('http://localhost:5183')
-    expect(modelBase({ protocol: 'app:', origin: 'app://iskra' }, false)).toBe(MODEL_HOST)
-    expect(modelBase({ protocol: 'capacitor:', origin: 'capacitor://localhost' }, false)).toBe(MODEL_HOST)
-    expect(MODEL_HOST).toBe('https://app.iskra.foo')
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it("asks the call's own server, without making it fetch anything", async () => {
+    const answers: Record<string, number> = { 'https://on.test': 200, 'https://off.test': 404, 'https://broken.test': 502 }
+    const fetch = vi.fn(async (url: string, init?: RequestInit) => {
+      expect(init?.method).toBe('HEAD')
+      expect(url).toContain(`/models/${manifest.dir}/vocab.json.part0.bin`)
+      return new Response(null, { status: answers[new URL(url).origin] })
+    })
+    vi.stubGlobal('fetch', fetch)
+    expect(await captionsOffered('https://on.test')).toBe('yes')
+    expect(await captionsOffered('https://off.test')).toBe('no')
+    expect(await captionsOffered('https://broken.test')).toBe('unreachable')
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('offline') }))
+    expect(await captionsOffered('https://on.test')).toBe('unreachable')
   })
 
   it('asks for every part of the pinned version, each with its own hash, under 20 MiB', () => {
@@ -44,15 +55,17 @@ describe('downloading it', () => {
 
   it('refuses a part whose SHA-256 is not the one compiled into the app', async () => {
     serve(() => new Uint8Array(10))
-    const error = await loadCaptionModel().catch((e: unknown) => e)
+    const error = await loadCaptionModel('https://srv.test').catch((e: unknown) => e)
     expect(error).toBeInstanceOf(ModelError)
     expect((error as ModelError).kind).toBe('corrupt')
   })
 
-  it('says the download failed when the host is down', async () => {
+  it('says the download failed when the server is down, and not offered when it says 404', async () => {
     serve(() => null)
-    const error = await loadCaptionModel().catch((e: unknown) => e)
+    const error = await loadCaptionModel('https://srv.test').catch((e: unknown) => e)
     expect((error as ModelError).kind).toBe('download')
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response('', { status: url.includes('/models/') ? 404 : 200 })))
+    expect(((await loadCaptionModel('https://srv.test').catch((e: unknown) => e)) as ModelError).kind).toBe('notOffered')
   })
 
   it('can be cancelled', async () => {
@@ -63,7 +76,7 @@ describe('downloading it', () => {
       init?.signal?.addEventListener('abort', abort)
     })))
     const controller = new AbortController()
-    const loading = loadCaptionModel(undefined, controller.signal).catch((e: unknown) => e)
+    const loading = loadCaptionModel('https://srv.test', undefined, controller.signal).catch((e: unknown) => e)
     controller.abort()
     expect(((await loading) as ModelError).kind).toBe('cancelled')
   })

@@ -1,9 +1,11 @@
 // Fetches the live-captions model (Whisper base, pinned by commit and SHA-256 in client/src/state/captions/model.json)
-// and writes it as parts of at most 20 MiB (Cloudflare Pages serves files up to 25 MiB), exactly as the app asks for
-// them: <out>/models/<dir>/<file>.part<n>.bin. The model is never committed to git.
-//   node scripts/get-models.mjs                    → client/.models (ignored; Vite serves it in development and tests)
-//   node scripts/get-models.mjs --out client/dist  → into the web build, so app.iskra.foo publishes it (deploy.yml)
-//   node scripts/get-models.mjs --blur             → also re-fetch the vendored Selfie Segmenter to check it
+// and writes it as parts of at most 20 MiB, exactly as Iskra servers serve it: <out>/models/<dir>/<file>.part<n>.bin.
+// For development and tests only: real servers fetch the model themselves (server/src/Iskra.Server/Captions/), and
+// it's never committed to git.
+//   node scripts/get-models.mjs          → client/.models (ignored; test servers use it via Captions.ModelSource, and
+//                                          the Whisper unit test and scripts/bench-captions.mjs read it)
+//   node scripts/get-models.mjs --out X  → somewhere else
+//   node scripts/get-models.mjs --blur   → also re-fetch the vendored Selfie Segmenter to check it
 // Parts already there with the right hash are kept, so it's cheap to run again.
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'

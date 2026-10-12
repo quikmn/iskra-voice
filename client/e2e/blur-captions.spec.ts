@@ -1,8 +1,9 @@
 // Camera background effects and live captions, all on the device. The fake camera is Chromium's test pattern (no
 // person in it, so the whole picture counts as background), the fake mic plays someone talking (speech.wav).
 // Pages run under the app's Content-Security-Policy; no request may leave for anywhere but this machine.
-// The captions model isn't in git: `node scripts/get-models.mjs` downloads it into client/.models, which the dev server
-// serves at /models/ like app.iskra.foo does (CI caches it). Without it the captions test is skipped.
+// The captions model isn't in git: `node scripts/get-models.mjs` downloads it into client/.models (CI caches it), and
+// the test servers fetch it from there instead of Hugging Face (Captions.ModelSource). Without it the captions test is
+// skipped.
 import { expect, test, type Browser, type Locator, type Page } from '@playwright/test'
 import { existsSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
@@ -194,7 +195,7 @@ test('live captions of what people say, with the model downloaded once and check
     await expect(overlay).toContainText(/Captions need a one-time [\d.,]+ MB download/)
     await friend.screenshot({ path: join(SHOTS, 'captions-download.png') })
     await overlay.getByRole('button', { name: 'Download' }).click()
-    await expect(overlay).toContainText("Couldn't download the speech model", { timeout: 20_000 })
+    await expect(overlay).toContainText("Couldn't get the speech model from this server", { timeout: 20_000 })
     await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected')
     // A file that isn't the pinned one is refused.
     await friend.unroute('**/models/**')
@@ -203,6 +204,7 @@ test('live captions of what people say, with the model downloaded once and check
     await expect(overlay).toContainText("wasn't the right file", { timeout: 60_000 })
     await friend.unroute('**/models/**/vocab.json.part0.bin')
     await overlay.getByRole('button', { name: 'Try again' }).click()
+    // The parts came from the call's own server, which fetched the model once into its world folder.
     await expect(overlay.locator('[aria-live="polite"]')).toHaveCount(1)
     await expect(overlay.locator('.caption-line', { hasText: 'Host' })).toContainText(/Donald|Trump|Sarah|Palin|endorsement|encore/i, { timeout: 120_000 })
     await friend.screenshot({ path: join(SHOTS, 'captions-call.png') })

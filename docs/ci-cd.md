@@ -46,7 +46,7 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
               │           publish as Latest (not prerelease) with docs/releases/X.md
               └─► deploy.yml (reusable, environment "release")
                     ├─ site ....... wrangler → Pages iskra-hero-page → https://iskra.foo  (checks the new links and every page)
-                    ├─ webapp ..... client build + captions model → Pages iskra-webclient → https://app.iskra.foo (checks the new index asset and the model)
+                    ├─ webapp ..... client build → Pages iskra-webclient → https://app.iskra.foo (checks the new index asset)
                     └─ server ..... ssh root@DROPLET_HOST X → iskra-update X → https://chat.iskra.foo (checks it answers)
 
  DEPLOY ONLY: deploy.yml by hand (workflow_dispatch: ref, site, webapp, server_version, relay)
@@ -128,7 +128,7 @@ attestations, so every release needs SHA256SUMS.txt (finalize makes it) and the 
 |---|---|
 | `ref` | Tag or branch the site and web app are built from (`main` for a site text fix, the release tag to redeploy a release) |
 | `site` | iskra.foo from `site/`: every `*.html` page (index, terms, privacy, support, delete-account), `*.css` (site.css, fonts.css), the `fonts/` folder (self-hosted Inter and JetBrains Mono), `.well-known/` (security.txt), worker.js and .assetsignore; never wrangler.toml or .wrangler/. Pages serves `terms.html` at `/terms` (and redirects `/terms.html` there). Fails if index.html doesn't link to the version in desktop/package.json at that ref, or if a page isn't served at `https://iskra.foo/<page>` afterwards (checked by its `<link rel="canonical">`, so every new page needs one), or `/.well-known/security.txt` isn't |
-| `webapp` | Builds `client/`, adds the live-captions model to `client/dist/models/` (`node scripts/get-models.mjs`: Whisper base at the commit and SHA-256 pinned in `client/src/state/captions/model.json`, parts ≤ 20 MiB, cached with actions/cache on that file; it isn't in git) and deploys `client/dist` to app.iskra.foo (branch main = production), then checks the new bundle, that `/models/…/vocab.json.part0.bin` has the pinned hash and `Access-Control-Allow-Origin: *` (the desktop and phone apps download it from there), and `/.well-known/security.txt`. Changing the model = new pins in model.json and a web deploy before the apps that expect it ship |
+| `webapp` | Builds `client/` and deploys `client/dist` to app.iskra.foo (branch main = production), then checks the new bundle and `/.well-known/security.txt` |
 | `server_version` | Runs `iskra-update <version>` on the droplet. The version must be a published release (it downloads from GitHub and checks SHA256SUMS.txt) |
 | `relay` | Tests and deploys `relay/` (Worker `iskra-push`, custom domain push.iskra.foo), sets its secrets from the `release` environment, checks `/v1/health` |
 

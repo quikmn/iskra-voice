@@ -2,7 +2,8 @@
 // own, if you ask for it) is tapped in an AudioContext of its own, turned into 16 kHz audio and sent to the captions
 // worker, where Silero VAD finds the phrases and Whisper transcribes them. The text is shown under each speaker's
 // name and forgotten a few seconds later: never sent to the server, never stored. The model (78 MB) isn't part of the
-// app: the first time, you're asked before it's downloaded (models.ts), and it's kept on the device after that.
+// app: the first time, you're asked before it's downloaded from the server of the call (models.ts), and it's kept on
+// the device after that.
 import { RoomEvent, Track, type RemoteParticipant, type RemoteTrack, type RemoteTrackPublication, type Room } from 'livekit-client'
 import { create } from 'zustand'
 import tapWorkletUrl from './captions/tap.worklet.ts?worker&url'
@@ -11,7 +12,8 @@ import { keepRunning } from './micPipeline'
 import { engineCaps } from './audio/engines'
 import { CAPTION_TTL_MS, rollCaption } from './captions/segments'
 import type { CaptionLanguage } from './captions/whisper'
-import { captionModelCached, loadCaptionModel, ModelError, WHISPER_CONFIG } from './models'
+import { captionModelCached, captionsOffered, loadCaptionModel, ModelError, WHISPER_CONFIG } from './models'
+import { useApp } from './store'
 import { activeRoom, cleanedAudio, onIncomingAudio, useVoice } from './voice'
 
 export type CaptionChoice = CaptionLanguage | 'auto'
@@ -42,6 +44,8 @@ export type CaptionStatus =
   | 'downloadFailed'
   /** What arrived wasn't the model this app expects (its SHA-256 didn't match). */
   | 'corrupt'
+  /** The call's server doesn't offer the model (its owner turned it off). */
+  | 'notOffered'
   | 'error'
   | 'unsupported'
 
@@ -162,17 +166,27 @@ async function start(current: Room): Promise<void> {
   const mine = ++generation
   const began = performance.now()
   room = current
+  // The model comes from the server this call runs on (DM and group calls too).
+  const base = useApp.getState().servers[useVoice.getState().session?.serverKey ?? '']?.url ?? ''
   const cached = await captionModelCached()
   if (mine !== generation) return
   useCaptions.setState({ cached })
-  if (!cached && !approved) {
-    useCaptions.setState({ status: 'needsDownload', progress: 0, lines: {} })
-    return
+  if (!cached) {
+    const offered = await captionsOffered(base)
+    if (mine !== generation) return
+    if (offered === 'no') {
+      useCaptions.setState({ status: 'notOffered', progress: 0, lines: {} })
+      return
+    }
+    if (!approved) {
+      useCaptions.setState({ status: 'needsDownload', progress: 0, lines: {} })
+      return
+    }
   }
   useCaptions.setState({ status: 'loading', progress: 0, lines: {} })
   download = new AbortController()
   try {
-    const [files, silero] = await Promise.all([loadCaptionModel((progress) => useCaptions.setState({ progress }), download.signal), loadSilero()])
+    const [files, silero] = await Promise.all([loadCaptionModel(base, (progress) => useCaptions.setState({ progress }), download.signal), loadSilero()])
     download = null
     if (mine !== generation) return
     useCaptions.setState({ cached: true })
@@ -212,7 +226,7 @@ async function start(current: Room): Promise<void> {
     stop()
     room = current
     const kind = e instanceof ModelError ? e.kind : null
-    useCaptions.setState({ status: kind === 'download' ? 'downloadFailed' : kind === 'corrupt' ? 'corrupt' : 'error' })
+    useCaptions.setState({ status: kind === 'download' ? 'downloadFailed' : kind === 'corrupt' ? 'corrupt' : kind === 'notOffered' ? 'notOffered' : 'error' })
   }
 }
 

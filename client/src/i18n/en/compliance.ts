@@ -79,5 +79,7 @@ export const compliance = {
     update_installed: 'Updated the server',
     update_failed: 'An update failed',
     update_rolledback: 'Undid an update that didn’t start',
+    captions_model_download: 'Downloaded the captions model',
+    captions_model_rejected: 'Refused a captions model that didn’t match',
   },
 } as const

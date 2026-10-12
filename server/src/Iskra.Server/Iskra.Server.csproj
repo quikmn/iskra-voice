@@ -15,6 +15,11 @@
     <InternalsVisibleTo Include="Iskra.Server.Tests" />
   </ItemGroup>
 
+  <!-- The live-captions model's pins, shared with the app (one source of truth; CaptionModelTests checks it). -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\..\client\src\state\captions\model.json" LogicalName="captions-model.json" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Certes" Version="3.0.4" />
     <PackageReference Include="Lib.Net.Http.WebPush" Version="3.3.1" />

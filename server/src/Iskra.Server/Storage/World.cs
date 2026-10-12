@@ -45,6 +45,21 @@ public sealed record WorldSettings
 
     /// <summary>How long data is kept (Settings → Security in the app, or here). 0 days means keep.</summary>
     public RetentionSettings Retention { get; init; } = new();
+
+    /// <summary>Live captions: whether members' apps may get the speech model from this server.</summary>
+    public CaptionsSettings Captions { get; init; } = new();
+}
+
+/// <summary>
+/// Live captions run on members' devices; the speech model (Whisper base, about 78 MB) comes from this server, which
+/// fetches it once from Hugging Face into models/ and serves it from there (docs/hosting.md).
+/// </summary>
+public sealed record CaptionsSettings
+{
+    /// <summary>Offer the model. Off: GET /models/... answers 404 and the apps say captions aren't offered here.</summary>
+    public bool ModelDownload { get; init; } = true;
+    /// <summary>Where to fetch it from instead of Hugging Face: a folder laid out like scripts/get-models.mjs writes it.</summary>
+    public string? ModelSource { get; init; }
 }
 
 /// <summary>"off": never look; "notify": tell the owner; "auto": also install in the daily window (Linux with systemd).</summary>

@@ -44,6 +44,7 @@ export function CaptionStatusText() {
       </>
     )
   }
+  if (status === 'notOffered') return <>{t('media.captions.notOffered')}</>
   if (status === 'slow') return <>{t('media.captions.slow')}</>
   if (status === 'error') return <>{t('media.captions.error')}</>
   if (status === 'unsupported') return <>{t('media.captions.unsupported')}</>

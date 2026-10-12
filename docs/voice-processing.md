@@ -94,22 +94,24 @@ readers as a polite live region); the × or the button turns them off again.
   this device is too slow right now" and then tries again.
 - **Privacy.** The text exists only in this page's memory: it's shown, kept for 8 seconds after the last words, and
   dropped. It is never sent to the server or to anyone, never stored, never logged, and not part of clips.
-- **Where the model comes from.** Whisper base (78 MB: encoder, decoder and vocabulary) is not part of the app and
-  not in git. The first time captions turn on in a call, the app says "Captions need a one-time 92 MB download"
-  (78 MB in the desktop and phone apps, which already have ONNX Runtime's 14 MB) and waits for **Download**; progress
-  shows with a **Cancel** button. The web app downloads it from its own address (`/models/whisper-base-1846881b/`);
-  the desktop app (`app://`) and the phone apps (`capacitor://`, `http://localhost`) from `https://app.iskra.foo`,
-  where the web deploy publishes it (`deploy.yml`, CORS open for those pages). The files are parts of at most 20 MiB,
-  so Cloudflare Pages serves them.
-- **Hash check.** Every part is checked against the SHA-256 compiled into the app
-  (`client/src/state/captions/model.json`) before it's used or kept, and again when read back. A part that doesn't
-  match is refused ("wasn't the right file"); a failed download (offline, app.iskra.foo down) says so with **Try
-  again**. Either way the call itself goes on untouched.
+- **Where the model comes from: your own server.** Whisper base (78 MB: encoder, decoder and vocabulary) is not part
+  of the app and not in git. The first time captions turn on in a call, the app says "Captions need a one-time 78 MB
+  download from this server" and waits for **Download**; progress shows with a **Cancel** button. The parts come from
+  the Iskra server the call runs on (`GET /models/whisper-base-1846881b/<part>`, on the web, in the desktop app and
+  in the phone apps alike). That server fetched the model once from Hugging Face, at the pinned commit, the first
+  time anyone asked, and keeps it in its world folder (`models/`). So members' devices only ever talk to their own
+  server; Hugging Face only sees the server's address, once. An owner can turn this off (`Captions.ModelDownload`
+  in server.json, [hosting.md](hosting.md)); the app then says "This server doesn't offer captions".
+- **Hash check, twice.** The server checks every file and part against the SHA-256s pinned in
+  `client/src/state/captions/model.json` (compiled into both the server and the app) before keeping anything, and the
+  app checks every part again before it's used or kept, and when it's read back. A part that doesn't match is
+  refused ("wasn't the right file"); a failed download says so with **Try again**. Either way the call goes on
+  untouched.
 - **Kept on the device** in Cache Storage (`iskra-models`), or IndexedDB where Cache Storage can't keep it (the
-  desktop app's `app://`), so it's never downloaded again; files from an older version are removed.
-- **What the download tells anyone.** Only that this address fetched the model: Cloudflare (which hosts
-  app.iskra.foo) sees an ordinary file request. No audio, text or anything about the call goes with it, and the
-  workers that run the models can't fetch anything at all from elsewhere.
+  desktop app's `app://`), under a key that doesn't depend on the server: one download per device, whichever server
+  it came from. Files from an older version are removed.
+- **Privacy.** Getting the model is an ordinary file request to your own server. No audio, text or anything about
+  the call goes with it, and the workers that run the models can't fetch anything at all.
 
 ## CPU
 
@@ -146,7 +148,7 @@ phones are slower, which is what the fallback is for.
 | [tract](https://github.com/sonos/tract) (runs the DeepFilterNet model) | 0.23.3 | compiled into `deepfilter.wasm` | MIT OR Apache-2.0 |
 | [Silero VAD](https://github.com/snakers4/silero-vad) (model) | v6, `silero_vad_16k_op15.onnx` (sha256 `7ed98ddb…`) | `client/vendor/silero-vad/` | MIT (`LICENSE`) |
 | [RNNoise](https://github.com/xiph/rnnoise) via [@sapphi-red/web-noise-suppressor](https://github.com/sapphi-red/web-noise-suppressor) | 0.4.1 | npm | BSD-3-Clause / MIT |
-| [Whisper](https://github.com/openai/whisper) base (model), ONNX export by [onnx-community](https://huggingface.co/onnx-community/whisper-base) | commit `1846881b`; `encoder_model_quantized.onnx` (sha256 `58629933…`), `decoder_model_merged_quantized.onnx` (`fa3ef990…`), `vocab.json` (`50d6a919…`) | downloaded on first use (`/models/` on app.iskra.foo), not in git | MIT ([LICENSE](https://github.com/openai/whisper/blob/main/LICENSE)) |
+| [Whisper](https://github.com/openai/whisper) base (model), ONNX export by [onnx-community](https://huggingface.co/onnx-community/whisper-base) | commit `1846881b`; `encoder_model_quantized.onnx` (sha256 `58629933…`), `decoder_model_merged_quantized.onnx` (`fa3ef990…`), `vocab.json` (`50d6a919…`) | fetched once by each Iskra server into its `models/` folder, then by apps from there; not in git | MIT ([LICENSE](https://github.com/openai/whisper/blob/main/LICENSE)) |
 | [ONNX Runtime Web](https://github.com/microsoft/onnxruntime) (runs Whisper) | 1.30.0, `ort-wasm-simd-threaded.wasm` (sha256 `3398c10d…`) | npm | MIT |
 | [MediaPipe Tasks Vision](https://github.com/google-ai-edge/mediapipe) (runs the segmenter) | 0.10.35, `vision_wasm_module_internal.wasm` (sha256 `617b8e02…`) | npm | Apache-2.0 |
 | [MediaPipe Selfie Segmenter](https://ai.google.dev/edge/mediapipe/solutions/vision/image_segmenter) (model, general, float16) | version 1, `selfie_segmenter.tflite` (sha256 `191ac952…`) | `client/vendor/mediapipe/` | Apache-2.0 (`LICENSE`; per its model card) |
@@ -157,7 +159,7 @@ pinned sources and `client/vendor/deepfilternet/Cargo.lock`. Silero VAD's networ
 `client/src/state/audio/silero.ts` and reads the official model file; its output matches ONNX Runtime to within 1e-6.
 
 `node scripts/get-models.mjs` (from the repo root) fetches Whisper at the pinned commit, checks its SHA-256 and
-writes the parts the app asks for into `client/.models/` (ignored by git), which the Vite dev and preview servers serve
-at `/models/`; CI caches it for the e2e tests, and the web deploy copies it into the build. Without it, the Whisper
-unit test and the captions e2e test are skipped. `--blur` also re-checks the committed Selfie Segmenter. The
+writes the parts into `client/.models/` (ignored by git). The e2e test servers serve the model from there
+(`Captions.ModelSource`) instead of fetching it from Hugging Face, and CI caches it. Without it, the Whisper unit test
+and the captions e2e test are skipped. `--blur` also re-checks the committed Selfie Segmenter. The
 background pictures are drawn in code; there are no image assets.

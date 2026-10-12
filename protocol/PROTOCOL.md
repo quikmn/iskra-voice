@@ -12,7 +12,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Encrypted channels](#end-to-end-encrypted-channels) · [Friends](#friends)
 - **People and integrations:** [Profiles](#profiles) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) ([phone apps](#native-push-phone-apps)) · [Bots and webhooks](#bots-and-webhooks) · [Presence and voice messages](#presence-and-voice-messages)
 - **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels)
-- **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Backups, moving and imports](#backups-moving-and-imports)
+- **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Live captions model](#live-captions-model) · [Backups, moving and imports](#backups-moving-and-imports)
 - **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation) · [Roles and permissions](#roles-and-permissions) · [Reliable sends](#reliable-sends) · [AutoMod](#automod)
 - **Keys:** [Account key rotation](#account-key-rotation) · [Keys on the device](#keys-on-the-device) · [Leaving a server and signing out](#leaving-a-server-and-signing-out) · [Reports, deleting an account and handing over a server](#reports-deleting-an-account-and-handing-over-a-server) · [Passkeys and key transparency](#passkeys-and-key-transparency)
 
@@ -744,6 +744,7 @@ Everything else a server answers over HTTP(S), on the same port as `/ws`:
 | `/livekit` | LiveKit signaling, proxied ([Voice](#voice)) |
 | `POST /internal/livekit-webhook` | LiveKit's signed webhooks, loopback only |
 | `GET /.well-known/acme-challenge/<token>`, `GET /.well-known/iskra-probe/<token>` | Let's Encrypt and the reachability probe ([Internet hosting](#internet-hosting)) |
+| `GET`, `HEAD /models/<dir>/<part>` | The live-captions model ([Live captions model](#live-captions-model)) |
 
 ## Forum channels
 
@@ -1603,6 +1604,7 @@ SecurityEvent { "id": 12, "at": 1760000000000, "event": "auth.failed", "account"
 | `retention.update` | the owner | `{ from, to }` (Retention below) |
 | `data.export` | whose data | `{ by }` when the owner exported someone else's |
 | `security.log.export` | the owner | |
+| `captions.model.download`, `captions.model.rejected` | none | `{ model, bytes }`: the server fetched the [captions model](#live-captions-model) / `{ model, file, reason: "hash" }`: what upstream sent wasn't the pinned file, so nothing was kept |
 
 - Never in it: message text, invite codes, passphrases, secrets of any kind.
 - **IP addresses** are recorded only if the owner turns on `securityLogIps` (off by default). Without it `ip` is null.
@@ -2003,3 +2005,31 @@ it. It is wrapped for every valid, unrevoked device of every member of the new m
 - Storage: `voice_hifi(channel_id)` (migration `hifi-1`), dropped with the channel.
 
 Voice resilience (no protocol change, for reference): clients publish the mic with Opus in-band FEC (`useinbandfec=1`, which livekit-client always sets), RED (`audio/red`, redundant audio: each packet also carries the previous ones) and DTX. LiveKit's default codec list, which `livekit.yaml` leaves as is, includes `audio/red`, so rooms negotiate it for every subscriber that supports it and fall back to plain Opus for the rest.
+
+## Live captions model
+
+Live captions run on members' devices (Whisper base, [docs/voice-processing.md](../docs/voice-processing.md)); the
+speech model comes from the group's own server, so members' devices never contact anyone else for it. No WebSocket
+messages: plain HTTP on the server's port.
+
+- **Pins.** `client/src/state/captions/model.json` (compiled into the app and the server): the model `dir`
+  (`whisper-base-1846881b`: name and Hugging Face commit), the upstream `source`, and for each file (`encoder.q8.onnx`
+  23.2 MB, `decoder.q8.onnx` 53.7 MB, `vocab.json` 1.0 MB) its SHA-256, size and parts (at most 20 MiB each), each
+  with its own SHA-256 and size.
+- **`GET /models/<dir>/<part>`**, where `part` is `<file>.part<n>.bin`. Anything else (another `dir`, another name,
+  encoded slashes, `..`) is `404`, as is everything when the owner turned it off (`Captions.ModelDownload: false` in
+  server.json). The first request makes the server fetch the whole model once from `source` (HTTPS, at most the
+  pinned size per file, redirects only to HTTPS); concurrent requests wait for that same download. Each file and each
+  part must match its SHA-256 before anything is written (atomically, to `models/<dir>/` in the world folder);
+  otherwise nothing is kept, the answer is `502`, and a later request tries again. Then `200`,
+  `application/octet-stream`, `Cache-Control: public, max-age=31536000, immutable`, byte ranges allowed.
+- **`HEAD`** on the same path: `200` when the server offers the model (without fetching anything), `404` when not.
+- `Access-Control-Allow-Origin: *` (the apps' pages are `app://`, `capacitor://` and the web app's own origin; the
+  model is public and there are no credentials), with an `OPTIONS` preflight answer.
+- **Limits.** 30 requests at once per client address, then one every 5 seconds (`429`); the whole model is 6 parts.
+- **Apps.** They ask only after the person agreed to the one-time download, check every part's size and SHA-256
+  against their own copy of the pins (a mismatch is refused, never used or kept), and keep the parts on the device
+  under a key that doesn't depend on the server, so the model is downloaded once per device.
+- Security log: `captions.model.download` / `captions.model.rejected` ([Security log](#security-log)).
+- `Captions.ModelSource` (server.json, optional): a folder laid out like `scripts/get-models.mjs` writes it, used
+  instead of `source` (development and tests; the same checks apply).

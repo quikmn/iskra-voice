@@ -1,22 +1,18 @@
 // The on-device models.
 // Background effects: MediaPipe and the Selfie Segmenter are bundled with the app (about 12 MB, no CDN).
 // Live captions: Whisper base (78 MB) isn't bundled or in git. It's downloaded once, when you turn captions on, from
-// the app's own address on the web and from https://app.iskra.foo in the desktop and phone apps (deploy.yml puts it
-// there, scripts/get-models.mjs). Every part is checked against the SHA-256 compiled in below (model.json) before
-// it's used or kept, then kept in Cache Storage (IndexedDB where Cache Storage can't, as on the desktop app's app://).
-// The download only tells the host that someone fetched the model: no audio or text ever leaves the device.
+// the Iskra server of the call you're in (GET /models/..., which fetched it once from Hugging Face), so members'
+// devices only ever talk to their own server. Every part is checked against the SHA-256 compiled in below
+// (model.json, shared with the server) before it's used or kept, then kept in Cache Storage (IndexedDB where Cache
+// Storage can't, as on the desktop app's app://), whichever server it came from. No audio or text goes anywhere.
 import ortWasmUrl from 'onnxruntime-web/ort-wasm-simd-threaded.wasm?url'
 import visionLoaderUrl from '@mediapipe/tasks-vision/vision_wasm_module_internal.js?url'
 import visionWasmUrl from '@mediapipe/tasks-vision/vision_wasm_module_internal.wasm?url'
 import segmenterUrl from '../../vendor/mediapipe/selfie_segmenter.tflite?url'
 import manifest from './captions/model.json'
-import { nativePlatform } from '../platform/native'
 
 /** Background effects: MediaPipe fetches these itself from the app (the browser's cache keeps them). */
 export const BLUR_FILES = { loader: visionLoaderUrl, wasm: visionWasmUrl, model: segmenterUrl }
-
-/** Where the desktop and phone apps get the captions model (their own pages aren't on the web). */
-export const MODEL_HOST = 'https://app.iskra.foo'
 
 /** Whisper base's shape (from its config.json). */
 export const WHISPER_CONFIG = { decoder_attention_heads: 8, d_model: 512, decoder_layers: 6, vocab_size: 51865 }
@@ -24,20 +20,14 @@ export const WHISPER_CONFIG = { decoder_attention_heads: 8, d_model: 512, decode
 /** ONNX Runtime's WebAssembly, bundled with the app. */
 const RUNTIME = { url: ortWasmUrl, bytes: 14_239_897 }
 
-const onTheWeb = (loc: { protocol: string } = location) => (loc.protocol === 'http:' || loc.protocol === 'https:') && !nativePlatform()
-
-/** The address the captions model comes from: this app's own on the web, app.iskra.foo in the apps. */
-export function modelBase(loc: { protocol: string; origin: string } = location, web = onTheWeb(loc)): string {
-  return web ? loc.origin : MODEL_HOST
-}
-
 export interface ModelPart {
   url: string
   sha256: string
   bytes: number
 }
 
-export function captionParts(base = modelBase()): Record<'encoder' | 'decoder' | 'vocab', ModelPart[]> {
+/** The model's parts on a server (`base` is its address, e.g. https://chat.example.org). */
+export function captionParts(base: string): Record<'encoder' | 'decoder' | 'vocab', ModelPart[]> {
   const parts = (name: string) => {
     const file = manifest.files.find((f) => f.name === name)!
     return file.parts.map((p, i) => ({ url: `${base}/models/${manifest.dir}/${name}.part${i}.bin`, sha256: p.sha256, bytes: p.bytes }))
@@ -47,10 +37,13 @@ export function captionParts(base = modelBase()): Record<'encoder' | 'decoder' |
 
 const MODEL_BYTES = manifest.files.reduce((n, f) => n + f.bytes, 0)
 
-/** What turning captions on downloads the first time (on the web the runtime comes along; the apps have it). */
-export const captionDownloadBytes = () => MODEL_BYTES + (onTheWeb() ? RUNTIME.bytes : 0)
+/** What turning captions on downloads from the server the first time. */
+export const captionDownloadBytes = () => MODEL_BYTES
 
-export type ModelErrorKind = 'download' | 'corrupt' | 'cancelled'
+/** Kept under one address whichever server it came from (a key only: nothing is ever fetched from it). */
+const keyOf = (p: ModelPart) => `https://models.iskra.invalid${p.url.slice(p.url.lastIndexOf('/models/'))}`
+
+export type ModelErrorKind = 'download' | 'corrupt' | 'cancelled' | 'notOffered'
 
 export class ModelError extends Error {
   readonly kind: ModelErrorKind
@@ -114,7 +107,7 @@ function openStore(): Promise<Store | null> {
       if (typeof caches === 'undefined') throw new Error('no Cache Storage')
       const cache = await caches.open(CACHE)
       // app:// and capacitor:// pages may not be able to keep anything here: find out before trusting it.
-      const probe = `${modelBase()}/models/.probe`
+      const probe = 'https://models.iskra.invalid/.probe'
       await cache.put(probe, new Response('ok'))
       await cache.delete(probe)
       return cacheStore(cache)
@@ -134,8 +127,8 @@ let pruned = false
 async function prune(s: Store): Promise<void> {
   if (pruned) return
   pruned = true
-  const keep = new Set(Object.values(captionParts()).flat().map((p) => p.url))
-  for (const url of await s.keys()) if (url.includes('/models/') && !keep.has(url)) await s.remove(url).catch(() => undefined)
+  const keep = new Set(Object.values(captionParts('https://any')).flat().map(keyOf))
+  for (const url of await s.keys()) if (!keep.has(url)) await s.remove(url).catch(() => undefined)
 }
 
 export async function sha256Hex(data: Uint8Array): Promise<string> {
@@ -171,7 +164,7 @@ async function body(response: Response, onBytes: (n: number) => void): Promise<U
 
 /** One checked part: from the store when it's there (and still right), otherwise downloaded, checked and kept. */
 async function part(p: ModelPart, s: Store | null, onBytes: (n: number) => void, signal?: AbortSignal): Promise<Uint8Array> {
-  const kept = await s?.get(p.url).catch(() => null)
+  const kept = await s?.get(keyOf(p)).catch(() => null)
   if (kept && (await sha256Hex(kept)) === p.sha256) {
     onBytes(kept.length)
     return kept
@@ -183,6 +176,7 @@ async function part(p: ModelPart, s: Store | null, onBytes: (n: number) => void,
     if (signal?.aborted) throw new ModelError('cancelled', 'cancelled')
     throw new ModelError('download', `${p.url}: ${(e as Error).message}`)
   }
+  if (response.status === 404) throw new ModelError('notOffered', `${p.url}: 404`)
   if (!response.ok) throw new ModelError('download', `${p.url}: ${response.status}`)
   let data: Uint8Array
   try {
@@ -192,7 +186,7 @@ async function part(p: ModelPart, s: Store | null, onBytes: (n: number) => void,
     throw new ModelError('download', `${p.url}: ${(e as Error).message}`)
   }
   if (data.length !== p.bytes || (await sha256Hex(data)) !== p.sha256) throw new ModelError('corrupt', `${p.url} isn't the expected file`)
-  await s?.put(p.url, data).catch(() => undefined)
+  await s?.put(keyOf(p), data).catch(() => undefined)
   return data
 }
 
@@ -213,11 +207,11 @@ export interface CaptionModel {
   vocab: Uint8Array
 }
 
-/** The runtime and the checked model, calling `onProgress` with the share done so far (0–1). */
-export async function loadCaptionModel(onProgress?: (done: number) => void, signal?: AbortSignal): Promise<CaptionModel> {
+/** The runtime and the checked model from server `base`, calling `onProgress` with the share done so far (0–1). */
+export async function loadCaptionModel(base: string, onProgress?: (done: number) => void, signal?: AbortSignal): Promise<CaptionModel> {
   const s = await openStore()
   if (s) void prune(s).catch(() => undefined)
-  const files = captionParts()
+  const files = captionParts(base)
   const total = MODEL_BYTES + RUNTIME.bytes
   let received = 0
   const onBytes = (n: number) => {
@@ -242,8 +236,18 @@ export async function captionModelCached(): Promise<boolean> {
   if (!s) return false
   try {
     const keys = new Set(await s.keys())
-    return Object.values(captionParts()).flat().every((p) => keys.has(p.url))
+    return Object.values(captionParts('https://any')).flat().every((p) => keys.has(keyOf(p)))
   } catch {
     return false
+  }
+}
+
+/** Whether server `base` offers the model (HEAD: answers without making the server fetch anything). */
+export async function captionsOffered(base: string, signal?: AbortSignal): Promise<'yes' | 'no' | 'unreachable'> {
+  try {
+    const response = await fetch(captionParts(base).vocab[0].url, { method: 'HEAD', signal, cache: 'no-store' })
+    return response.ok ? 'yes' : response.status === 404 ? 'no' : 'unreachable'
+  } catch {
+    return 'unreachable'
   }
 }
