@@ -58,7 +58,7 @@ public static class DmFileFeature
         var token = s.Uploads.Issue(me.AccountKey, me.Role, "dm-file", size, readers.Distinct().ToArray())
             ?? throw new RequestException("rate_limited",
                 $"You've reached today's upload limit on this server ({s.Uploads.DailyQuota(me.Role)!.Value / 1024 / 1024} MB a day). Try again later.");
-        return new { url = $"/upload/{token}", maxBytes = s.Uploads.MaxBytes };
+        return new { url = $"/upload/{token}", maxBytes = s.Uploads.MaxBytes, partBytes = Uploads.PartBytes };
     }
 
     private static object Link(Session s, Member me, Body body)

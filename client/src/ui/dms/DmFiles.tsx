@@ -6,7 +6,7 @@ import { formatNumber } from '../../i18n/format'
 import type { DmFile } from '../../core/dmFiles'
 import { dmErrorText, sendDm, sharedServers } from '../../state/dms'
 import { sendGroupMessage } from '../../state/groups'
-import { MAX_DM_FILE_BYTES, openDmFile, uploadDmFile, type OpenedFile } from '../../state/dmFiles'
+import { canStreamToDisk, IN_MEMORY_NOTE_BYTES, openDmFile, saveDmFile, uploadDmFile, type OpenedFile } from '../../state/dmFiles'
 import { draftKey, setDraft, useDraft } from '../../state/drafts'
 import { ImageGrid, Lightbox, SpoilerCover, SpoilerToggle, isSpoilerName, longTextFile, shownName } from '../chat/media'
 import { formatSize } from '../chat/helpers'
@@ -62,11 +62,10 @@ export function DmComposer({ peer, placeholder, group }: {
     for (const file of files.slice(0, 10 - uploads.length)) {
       const item: PendingUpload = {
         localId: `${Date.now()}-${Math.random()}`, file, progress: 0, result: null, abort: new AbortController(),
-        error: file.size > MAX_DM_FILE_BYTES ? t('dms.files.tooBigEncrypted', { mb: MAX_DM_FILE_BYTES / 1024 / 1024 }) : null,
+        error: null,
         preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
       }
       setUploads((list) => [...list, item])
-      if (item.error) continue
       const update = (patch: Partial<PendingUpload>) => setUploads((list) => list.map((u) => (u.localId === item.localId ? { ...u, ...patch } : u)))
       uploadDmFile(route, target, file, (progress) => update({ progress }), item.abort.signal)
         .then((result) => update({ result, progress: 1 }))
@@ -183,12 +182,13 @@ export function DmAttachments({ files }: { files: DmFile[] | undefined }) {
 }
 
 function useOpened(file: DmFile, auto: boolean) {
-  const [state, setState] = useState<{ opened: OpenedFile | null; error: string | null; busy: boolean }>({ opened: null, error: null, busy: false })
+  const [state, setState] = useState<{ opened: OpenedFile | null; error: string | null; busy: boolean; progress: number }>(
+    { opened: null, error: null, busy: false, progress: 0 })
   const open = () => {
-    setState((s) => ({ ...s, busy: true, error: null }))
-    openDmFile(file).then(
-      (opened) => setState({ opened, error: null, busy: false }),
-      (e: Error) => setState({ opened: null, error: e.message ? dmErrorText(e) : translate('dms.files.openFailed'), busy: false }),
+    setState((s) => ({ ...s, busy: true, error: null, progress: 0 }))
+    openDmFile(file, (progress) => setState((s) => ({ ...s, progress }))).then(
+      (opened) => setState({ opened, error: null, busy: false, progress: 1 }),
+      (e: Error) => setState({ opened: null, error: e.message ? dmErrorText(e) : translate('dms.files.openFailed'), busy: false, progress: 0 }),
     )
   }
   useEffect(() => {
@@ -198,9 +198,30 @@ function useOpened(file: DmFile, auto: boolean) {
   return { ...state, open }
 }
 
+/** Saving straight to disk (desktop app, or a browser with a save picker): progress, cancel, and only "Saved" once checked. */
+function useSave(file: DmFile) {
+  const [state, setState] = useState<{ busy: boolean; progress: number; saved: boolean; error: string | null }>(
+    { busy: false, progress: 0, saved: false, error: null })
+  const abort = useRef<AbortController | null>(null)
+  useEffect(() => () => abort.current?.abort(), [])
+  const save = () => {
+    const controller = new AbortController()
+    abort.current = controller
+    setState({ busy: true, progress: 0, saved: false, error: null })
+    saveDmFile(file, shownName(file.name), (progress) => setState((s) => ({ ...s, progress })), controller.signal).then(
+      (result) => setState({ busy: false, progress: 0, saved: result === 'saved', error: null }),
+      (e: Error) => setState({ busy: false, progress: 0, saved: false, error: e.name === 'AbortError' ? null : e.message ? dmErrorText(e) : translate('dms.files.saveFailed') }),
+    )
+  }
+  return { ...state, save, cancel: () => abort.current?.abort() }
+}
+
+const percent = (fraction: number) => formatNumber(fraction, { style: 'percent', maximumFractionDigits: 0 })
+
 function DmAttachment({ file }: { file: DmFile }) {
   const media = file.voice || /^(image|video|audio)\//.test(file.type)
-  const { opened, error, busy, open } = useOpened(file, !!media && file.size <= AUTO_OPEN_BYTES)
+  const { opened, error, busy, progress, open } = useOpened(file, !!media && file.size <= AUTO_OPEN_BYTES)
+  const saving = useSave(file)
   const [zoom, setZoom] = useState(false)
   const { t } = useTranslation()
 
@@ -229,18 +250,34 @@ function DmAttachment({ file }: { file: DmFile }) {
     )
   }
 
-  // Anything else (or not opened yet): a file row that decrypts on demand and saves under its name.
+  // Anything else (or not opened yet): a file row. Where the platform allows, Save streams it to disk; elsewhere it is
+  // decrypted into memory first and then saved under its name.
+  const toDisk = canStreamToDisk()
+  const working = busy || saving.busy
   return (
-    <div className="attachment-file dm-file">
+    <div className={`attachment-file dm-file ${working ? 'working' : ''}`}>
       <span className="file-icon" aria-hidden><FileIcon size={22} /></span>
       <span className="file-name">{shownName(file.name)}</span>
-      <span className="muted">{formatSize(file.size)}</span>
-      {opened ? (
-        <a className="button small" href={opened.url} download={shownName(file.name)}>{t('common.save')}</a>
+      <span className="muted">
+        {saving.busy ? `${t('dms.files.saving')} ${percent(saving.progress)}`
+          : busy ? `${t('dms.files.decrypting')} ${percent(progress)}`
+            : saving.saved ? t('dms.files.saved') : formatSize(file.size)}
+      </span>
+      {saving.busy ? (
+        <button className="button small" onClick={saving.cancel}>{t('common.cancel')}</button>
       ) : (
-        <button className="button small" disabled={busy} onClick={open}>{busy ? t('dms.files.decrypting') : t('common.download')}</button>
+        <>
+          {opened ? (
+            <a className="button small" href={opened.url} download={shownName(file.name)}>{t('common.save')}</a>
+          ) : (!toDisk || media) && (
+            <button className="button small" disabled={busy} onClick={open}>{toDisk ? t('common.open') : t('common.download')}</button>
+          )}
+          {toDisk && !opened && <button className="button small" disabled={busy} onClick={saving.save}>{t('common.save')}</button>}
+        </>
       )}
-      {error && <span className="error-text dm-file-error">{error}</span>}
+      {working && <span className="upload-progress" style={{ width: `${(saving.busy ? saving.progress : progress) * 100}%` }} />}
+      {!toDisk && !opened && file.size > IN_MEMORY_NOTE_BYTES && <span className="muted dm-file-note">{t('dms.files.inMemory')}</span>}
+      {(error || saving.error) && <span className="error-text dm-file-error" role="alert">{saving.error ?? error}</span>}
     </div>
   )
 }

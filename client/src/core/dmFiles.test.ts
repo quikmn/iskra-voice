@@ -1,8 +1,9 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import sodium from 'libsodium-wrappers-sumo'
-import { b64u, ready } from './crypto'
+import vectors from '../../../protocol/vectors.json'
+import { b64u, fromB64u, ready } from './crypto'
 import { decryptDm, DmError, encryptDm } from './dm'
-import { checkFiles, cleanName, decryptFile, encryptedSize, encryptFile, FILE_CHUNK, type DmFile } from './dmFiles'
+import { checkFiles, cleanName, decryptFile, encryptedSize, encryptFile, FILE_CHUNK, FileDecryptor, FileEncryptor, type DmFile } from './dmFiles'
 import { createIdentity } from './identity'
 import { sniff } from './sniff'
 
@@ -45,6 +46,98 @@ describe('encrypted DM files', () => {
 
     expect(() => decryptFile(ciphertext, { key: encryptFile(plain).key, hash, size })).toThrow(DmError)
     expect(() => decryptFile(ciphertext, { key, hash, size: size - 1 })).toThrow(DmError)
+  })
+
+  const pieces = (data: Uint8Array, sizes: number[]) => {
+    const out: Uint8Array[] = []
+    for (let at = 0, i = 0; at < data.length; i++) {
+      const n = sizes[i % sizes.length]
+      out.push(data.subarray(at, at + n))
+      at += n
+    }
+    return out
+  }
+  const concat = (parts: Uint8Array[]) => {
+    const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0))
+    let at = 0
+    for (const p of parts) {
+      out.set(p, at)
+      at += p.length
+    }
+    return out
+  }
+  // toEqual on megabytes is slow; compare digests.
+  const digest = (b: Uint8Array) => `${b.length}:${b64u(sodium.crypto_generichash(32, b, null))}`
+  const streamDecrypt = (ciphertext: Uint8Array, file: { key: string; hash: string; size: number }, sizes = [7, 70_000, 65_553, 1]) => {
+    const decryptor = new FileDecryptor(file)
+    const parts = pieces(ciphertext, sizes).flatMap((p) => decryptor.push(p))
+    return concat([...parts, decryptor.finish()])
+  }
+
+  it.each([0, 1, FILE_CHUNK - 1, FILE_CHUNK, FILE_CHUNK + 1, 2 * FILE_CHUNK, 5 * FILE_CHUNK + 123])(
+    'streams %i bytes in odd-sized pieces both ways', (size) => {
+      const plain = bytes(size)
+      const encryptor = new FileEncryptor(size)
+      const ciphertext = concat(size === 0 ? [encryptor.push(plain)] : pieces(plain, [1, 100_000, FILE_CHUNK, 3]).map((p) => encryptor.push(p)))
+      const { key, hash } = encryptor.finish()
+      expect(ciphertext.length).toBe(encryptedSize(size))
+      expect(digest(decryptFile(ciphertext, { key, hash, size }))).toBe(digest(plain))
+      expect(digest(streamDecrypt(ciphertext, { key, hash, size }))).toBe(digest(plain))
+    })
+
+  it('streams the way the app uploads: whole parts of many chunks', () => {
+    const size = 3 * 8 * FILE_CHUNK + 999
+    const plain = bytes(size)
+    const encryptor = new FileEncryptor(size)
+    const ciphertext = concat(pieces(plain, [8 * FILE_CHUNK]).map((p) => encryptor.push(p)))
+    expect(digest(streamDecrypt(ciphertext, { ...encryptor.finish(), size }, [8 * (FILE_CHUNK + 17) + 24]))).toBe(digest(plain))
+  })
+
+  it('never takes more than the announced size, and needs all of it before finishing', () => {
+    const encryptor = new FileEncryptor(10)
+    expect(() => encryptor.push(bytes(11))).toThrow(RangeError)
+    encryptor.push(bytes(4))
+    expect(() => encryptor.finish()).toThrow(RangeError)
+  })
+
+  it('refuses reordered, repeated, dropped or extra chunks while streaming', () => {
+    const size = 3 * FILE_CHUNK + 10
+    const { ciphertext, key, hash } = encryptFile(bytes(size))
+    const rehash = (c: Uint8Array) => b64u(sodium.crypto_generichash(32, c, null))
+    const header = ciphertext.subarray(0, 24)
+    const chunk = (i: number) => ciphertext.subarray(24 + i * (FILE_CHUNK + 17), Math.min(ciphertext.length, 24 + (i + 1) * (FILE_CHUNK + 17)))
+    const attempts = {
+      reordered: concat([header, chunk(1), chunk(0), chunk(2), chunk(3)]),
+      repeated: concat([header, chunk(0), chunk(0), chunk(1), chunk(2), chunk(3)]),
+      dropped: concat([header, chunk(0), chunk(2), chunk(3)]),
+      noFinal: concat([header, chunk(0), chunk(1), chunk(2)]),
+      extra: concat([ciphertext, chunk(3)]),
+    }
+    for (const [what, bad] of Object.entries(attempts)) {
+      // Even with a matching hash (a sender lying about their own file), the stream itself refuses it.
+      expect(() => streamDecrypt(bad, { key, hash: rehash(bad), size }), what).toThrow(DmError)
+      expect(() => streamDecrypt(bad, { key, hash, size }), what).toThrow(DmError)
+    }
+    // A flipped bit fails in the chunk it is in, before the rest arrives.
+    const flipped = ciphertext.slice()
+    flipped[24 + 5] ^= 1
+    const decryptor = new FileDecryptor({ key, hash, size })
+    expect(() => decryptor.push(flipped.subarray(0, 24 + FILE_CHUNK + 17))).toThrow(DmError)
+    expect(() => decryptor.push(new Uint8Array(1))).toThrow(DmError) // and stays failed
+    // The right chunks with the wrong hash: decrypts fine, but finish refuses it.
+    const wrongHash = new FileDecryptor({ key, hash: rehash(new Uint8Array([1])), size })
+    wrongHash.push(ciphertext)
+    expect(() => wrongHash.finish()).toThrow(DmError)
+  })
+
+  it('opens the files in protocol/vectors.json (every file ever sent stays readable)', () => {
+    for (const v of vectors.dmFile.files) {
+      const plain = Uint8Array.from({ length: v.size }, (_, i) => i % 251)
+      const ciphertext = fromB64u(v.ciphertext)
+      expect(ciphertext.length).toBe(encryptedSize(v.size))
+      expect(digest(decryptFile(ciphertext, v))).toBe(digest(plain))
+      expect(digest(streamDecrypt(ciphertext, v, [1000]))).toBe(digest(plain))
+    }
   })
 
   it('travels inside the DM envelope, checked on the way out', () => {

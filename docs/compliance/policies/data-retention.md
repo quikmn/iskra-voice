@@ -26,6 +26,7 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Key log (account keys shown, names, key changes; key transparency) | As long as the server: append-only by design, so members' apps can check it | — | No |
 | Uploaded files still in use | Until their message/avatar/etc. is deleted, or the retention period (files used by avatars, emoji, stickers, sounds, events and webhooks are kept) | `RetentionSweeper` | `Retention.UploadsDays` (0 = keep) |
 | Uploads nothing uses | 24 hours | `UploadSweeper` | No |
+| Unfinished uploads in parts (part of a file, often encrypted DM ciphertext) | 10 minutes after the last part arrived, deleted with the next upload or the hourly sweep | `Uploads`, `UploadSweeper` | No |
 | Audit log (moderation and admin actions) | 90 days | `ModerationSweeper` | `Retention.AuditDays` (0 = keep) |
 | Security log (auth failures, rate-limit hits, joins, sign-ins from new devices, key rotations, deletions, backups, moves, exports, settings changes) | 365 days | `RetentionSweeper` | `Retention.SecurityLogDays` |
 | Resolved reports | 90 days after resolution | Report sweep (`ReportFeature`) | No |

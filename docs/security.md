@@ -108,6 +108,7 @@ Server channels trust the server, because a server is run by you or your friend;
 ### Pictures, files and voice messages in DMs and group chats
 
 - Each file is encrypted on your device with its own random key (libsodium `crypto_secretstream`, in 64 KB chunks, so a changed, reordered or cut-off file is caught). The key, the name and the type travel inside the encrypted message; the server only stores ciphertext.
+- Files can be as big as the server allows for any upload (512 MB by default). Your app encrypts a big file a piece at a time while it uploads it, and decrypts it a piece at a time while it downloads, so it never holds the whole file in memory. In the desktop app and in Chrome or Edge, saving writes straight to disk; the file only appears under its name once every chunk, the end marker and the hash of the whole file have checked out, and a file that fails any check is deleted. Other browsers and phones decrypt into memory first, with the same checks before you can save it.
 - The server hands a file only to the people in the conversation (for a group: its members when the file was shared), through short-lived signed links, and never shows it as a web page or image.
 - Your app decides how to show a file from its **decrypted bytes**, with the same rules as channel uploads: only real pictures, video and audio play inline; anything else is a download.
 - The server sees how many files you send, when, to whom and roughly how big they are; not what's in them, their names or whether one is a voice message.

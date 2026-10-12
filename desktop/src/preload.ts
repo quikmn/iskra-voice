@@ -1,5 +1,5 @@
 // The only bridge between the web app and the desktop shell. Small on purpose:
-// push-to-talk and hotkeys, the screen picker, hosting (and restoring backups), update notices, saving backups and the OS keychain, nothing else.
+// push-to-talk and hotkeys, the screen picker, hosting (and restoring backups), update notices, saving backups and big files, and the OS keychain, nothing else.
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 
 export interface ScreenSource {
@@ -94,4 +94,11 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
     restore: (path: string, passphrase: string): Promise<unknown> => ipcRenderer.invoke('iskra:host-restore', path, passphrase),
   },
   download: (url: string): Promise<boolean> => ipcRenderer.invoke('iskra:download', url),
+  // Big decrypted DM files: a Save dialog, then the bytes a piece at a time; finish only once they're checked.
+  saveFile: {
+    begin: (name: string): Promise<string | null> => ipcRenderer.invoke('iskra:save-begin', name),
+    write: (id: string, data: Uint8Array): Promise<boolean> => ipcRenderer.invoke('iskra:save-write', id, data),
+    finish: (id: string): Promise<boolean> => ipcRenderer.invoke('iskra:save-finish', id),
+    abort: (id: string): Promise<void> => ipcRenderer.invoke('iskra:save-abort', id),
+  },
 })

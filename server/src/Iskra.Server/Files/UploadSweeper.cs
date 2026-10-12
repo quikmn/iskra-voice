@@ -24,6 +24,8 @@ public sealed partial class Uploads
         if (removed.Count > 0) world.Store.ForgetDeletedDmFiles();
         DeleteContent(removed);
 
+        lock (_quotaLock) DropExpired(now); // uploads in parts nobody finished
+
         // Leftovers of uploads cut off by a crash.
         foreach (var temp in Directory.EnumerateFiles(Path.Combine(world.Path, "uploads"), ".incoming-*"))
         {
