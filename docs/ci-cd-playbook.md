@@ -61,6 +61,9 @@ table doesn't cover it, **stop and report**. Don't improvise fixes. Background a
    ✔ The newest run's branch is `vV`. Note its id, then check every few minutes:
    `gh run view <id> --json status,conclusion` until status is `completed`.
    ✔ conclusion `success`. You may continue with step 7 while it runs.
+   ✔ In the mac job, "Desktop app (signed and notarized)" and "Check the update files" ran (not skipped):
+   `gh run view <id> --log | grep -E "notarization successful|TeamIdentifier="` shows two of each. Without them,
+   installed Mac apps won't update themselves to this release (they show a download link).
 7. **Ask the human:** "Please log in to SimplySign Desktop (6-digit code from the SimplySign app) and tell me when done."
    Wait for the answer.
 8. **Windows step:** do [B](#b-windows-step) steps 1–4. It finishes by starting finalize.

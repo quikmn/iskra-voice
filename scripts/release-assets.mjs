@@ -8,7 +8,7 @@
 import { createHash } from 'node:crypto'
 import { createReadStream, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { checkAssets, expectedAssets, formatSums, isValidVersion, parseUpdateYml } from './release-lib.mjs'
+import { checkAssets, expectedAssets, formatSums, isValidVersion, missingUpdaterFiles, parseUpdateYml } from './release-lib.mjs'
 
 const [cmd, ...args] = process.argv.slice(2)
 const fail = (msg) => { console.error(`error: ${msg}`); process.exit(1) }
@@ -50,6 +50,7 @@ if (cmd === 'list') {
     const { version: v, files } = parseUpdateYml(readFileSync(join(dir, yml), 'utf8'))
     if (v !== version) { console.error(`${yml} says version ${v}, expected ${version}`); ok = false }
     if (!files.length) { console.error(`${yml} lists no files`); ok = false }
+    for (const m of missingUpdaterFiles(yml, version, files.map((f) => f.url))) { console.error(`${yml} doesn't list ${m}, so the app won't update from it`); ok = false }
     for (const f of files) {
       if (!names.includes(f.url)) { console.error(`${yml} points at ${f.url}, which isn't in the release`); ok = false; continue }
       const size = statSync(join(dir, f.url)).size

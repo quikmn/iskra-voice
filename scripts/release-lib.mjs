@@ -70,6 +70,21 @@ export function parseUpdateYml(text) {
   return { version, files }
 }
 
+/**
+ * The files each latest*.yml must list for electron-updater to find an update: the Windows installer, the AppImage, and
+ * a zip per Mac architecture (Squirrel.Mac installs from the zip; the updater picks the one matching the Mac's CPU).
+ */
+export const UPDATER_FILES = {
+  'latest.yml': ['Iskra-Setup-{v}.exe'],
+  'latest-linux.yml': ['Iskra-{v}-x86_64.AppImage'],
+  'latest-mac.yml': ['Iskra-{v}-mac-arm64.zip', 'Iskra-{v}-mac-x64.zip'],
+}
+
+/** The updater files `yml` should list but doesn't (urls from parseUpdateYml). */
+export function missingUpdaterFiles(yml, version, urls) {
+  return (UPDATER_FILES[yml] ?? []).map((n) => n.replaceAll('{v}', version)).filter((n) => !urls.includes(n))
+}
+
 /** SHA256SUMS.txt in the `sha256sum` format: "hash  name", LF line endings, sorted by name. */
 export function formatSums(entries) {
   return [...entries].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)).map((e) => `${e.sha256}  ${e.name}\n`).join('')
