@@ -6,6 +6,8 @@ import { useDevices } from './state/devices'
 import { usePendingLink } from './state/link'
 import { AlreadySignedInNotice, RevokedScreen } from './ui/DeviceNotices'
 import { startPushToTalk } from './state/voice'
+import { loadLiveKit } from './state/livekit'
+import { loadSettings } from './ui/settings/LazySettings'
 import { startHotkeys } from './state/hotkeys'
 import { startTitleBadge } from './state/notify'
 import { startPush } from './state/push'
@@ -43,6 +45,12 @@ function readInviteFromHash(): void {
 
 let booted = false
 
+/** Code left out of the first load (LiveKit, settings) comes in once the app has settled, so using it doesn't wait. */
+function whenIdle(work: () => void): void {
+  if ('requestIdleCallback' in window) window.requestIdleCallback(work, { timeout: 15_000 })
+  else setTimeout(work, 5_000)
+}
+
 export function App() {
   const phase = useApp((s) => s.phase)
   const pendingInvite = useApp((s) => s.pendingInvite)
@@ -54,6 +62,10 @@ export function App() {
     if (!booted) {
       booted = true
       void boot().then(loadFriends)
+      whenIdle(() => {
+        void loadLiveKit().catch(() => undefined)
+        void loadSettings().catch(() => undefined)
+      })
     }
     window.addEventListener('hashchange', readInviteFromHash)
     window.addEventListener('online', retryAll)

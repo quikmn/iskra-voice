@@ -4,7 +4,8 @@
 // name and forgotten a few seconds later: never sent to the server, never stored. The model (78 MB) isn't part of the
 // app: the first time, you're asked before it's downloaded from the server of the call (models.ts), and it's kept on
 // the device after that.
-import { RoomEvent, Track, type RemoteParticipant, type RemoteTrack, type RemoteTrackPublication, type Room } from 'livekit-client'
+import type { RemoteParticipant, RemoteTrack, RemoteTrackPublication, Room } from 'livekit-client'
+import { lk } from './livekit'
 import { create } from 'zustand'
 import tapWorkletUrl from './captions/tap.worklet.ts?worker&url'
 import { loadSilero } from './audio/assets'
@@ -253,6 +254,7 @@ function stop(): void {
 
 /** Taps everyone's mic as they come and go (and yours, if you want that). */
 function watchRoom(current: Room): void {
+  const { Track, RoomEvent } = lk()
   const refresh = () => {
     if (room !== current) return
     const wanted = new Map<string, MediaStreamTrack>()
