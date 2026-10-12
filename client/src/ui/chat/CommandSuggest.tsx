@@ -28,6 +28,8 @@ export function useCommandSuggest(
   const query = commandQueryAt(text, caret)
   const entries = useChannelCommands(serverKey, channelId, query !== null, encrypted)
   const closed = dismissed === text
+  // Esc closes the list for this text only: once the text changes, typing "/" again opens it again.
+  if (dismissed !== null && dismissed !== text) setDismissed(null)
 
   // Name mode: matching commands. Args mode: the command's signature, plus its choices for the option being typed.
   const names = query?.kind === 'name' && !closed ? matchCommands(entries, query.query, query.target) : []

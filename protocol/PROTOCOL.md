@@ -190,7 +190,8 @@ Message { "id": 42, "channelId": 1, "author": "<accountKey>", "text": "hi", "cre
           "attachments": [File], "replyTo": ..., "reactions": [...],   // Files, replies and reactions
           "pinned": false, "thread": Thread | null,                     // Pins, search and threads
           "poll": Poll | null,                                          // Polls
-          "webhook": WebhookInfo | null }                               // Webhooks
+          "webhook": WebhookInfo | null,                                // Webhooks
+          "cards": [Card] | null }                                      // Bot commands and cards
 Invite  { "code": "<b64u 16>", "role": "member", "createdBy": "<accountKey>", "createdAt": 0, "expiresAt": 0, "maxUses": null, "uses": 0 }
 ```
 
@@ -627,7 +628,7 @@ A bot is an ordinary identity (account key, device certificate, signed handshake
 - Bots can't join voice (`voice.join` → `forbidden`), create invites, or have a role above `trusted` (`member.setRole` → `bad_request`). They have the same rate limits as everyone else.
 - Bots can't send DMs or take part in calls (`dm.send`, `call.start`, `call.accept` → `forbidden`; calling a bot → `bad_request`): DMs and call keys are end-to-end encrypted to people's devices, which a bot can't read.
 - Bots can't be in group DMs or group calls, schedule messages (`scheduled.create` → `forbidden`), speak or moderate on stages, take part in [encrypted channels](#end-to-end-encrypted-channels), or leave on their own (`member.leave` → `forbidden`; an admin removes them). They can hold [roles](#roles-and-permissions) with permissions like anyone else.
-- Commands are a message convention, not a protocol feature: a message starting with `/name args` (or `/name@BotName args` to pick one bot) is a command. See `docs/bots.md`.
+- Commands are a message convention, not a protocol feature: a message starting with `/name args` (or `/name@BotName args` to pick one bot) is a command. Bots can describe their commands so apps suggest them ([Bot commands and cards](#bot-commands-and-cards)); the message is still the command. See `docs/bots.md`.
 
 ### Webhooks
 
