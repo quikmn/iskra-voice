@@ -25,7 +25,7 @@ test('settings, Escape, quick switcher and phone message actions', async ({ brow
     'Security log', 'Updates',
   ])
   await expect(nav.getByRole('button', { name: 'Profile', exact: true })).toHaveAttribute('aria-current', 'page')
-  await expect(settings.getByLabel('Display name')).toBeVisible()
+  await expect(settings.getByLabel('Name', { exact: true })).toBeVisible()
 
   // A dialog inside Settings: Escape closes just that one, then Settings.
   await nav.getByRole('button', { name: 'Devices', exact: true }).click()

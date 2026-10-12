@@ -108,7 +108,7 @@ export const safety: Messages['safety'] = {
     button: 'Radera mitt konto…',
     moreInfo: 'Vad som raderas, och hur du gör utan appen:',
     intro: 'Det här raderar ditt Iskra-konto för gott:',
-    removes: 'På alla servrar du är med på: din profil, profilbild, ditt smeknamn, dina roller, inställningar och din blockeringslista, och serverns kopior av dina krypterade meddelanden.',
+    removes: 'På alla servrar du är med på: din profil, profilbild, ditt smeknamn på servern, dina roller, inställningar och din blockeringslista, och serverns kopior av dina krypterade meddelanden.',
     devices: 'Alla dina enheter loggas ut. Dina andra enheter glömmer kontot nästa gång de ansluter.',
     dms: 'Meddelanden som redan finns på andras enheter (som dina direktmeddelanden) stannar där.',
     noUndo: 'Det går inte att ångra, inte ens med din återställningsnyckel.',

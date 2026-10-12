@@ -103,3 +103,6 @@ button.author:hover { text-decoration: underline; }
   .page-frame { height: 65dvh; }
   .modal.wide .modal-body { padding: 12px; }
 }
+
+/* The note under the Name field. */
+.field-note { margin: -8px 0 14px; font-size: 12.5px; }

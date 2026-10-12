@@ -53,13 +53,18 @@ export function ServerNotifySettings({ server }: { server: ServerState }) {
   )
 }
 
-/** Your nickname on a server, or (admins, for members ranked below them) someone else's. */
-export function NicknameField({ server, member: given }: { server: ServerState; member: Member }) {
+/** Your own, or (admins) the nickname of someone ranked below you: the server checks the same. */
+export function canEditNickname(me: Member | null | undefined, member: Member): boolean {
+  return !!me && (me.accountKey === member.accountKey || (roleRank(me.role) >= roleRank('admin') && roleRank(me.role) > roleRank(member.role)))
+}
+
+/** Your server nickname, or (admins, for members ranked below them) someone else's. Empty means their name. */
+export function NicknameField({ server, member: given, onDone }: { server: ServerState; member: Member; onDone?: () => void }) {
   const { t } = useTranslation()
   const member = server.members[given.accountKey] ?? given // the latest copy
   const me = server.me
   const isSelf = me?.accountKey === member.accountKey
-  const canEdit = !!me && (isSelf || (roleRank(me.role) >= roleRank('admin') && roleRank(me.role) > roleRank(member.role)))
+  const canEdit = canEditNickname(me, member)
   const [value, setValue] = useState(member.nick ?? '')
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -74,6 +79,7 @@ export function NicknameField({ server, member: given }: { server: ServerState; 
       await setNickname(server.key, nick, isSelf ? undefined : member.accountKey)
       setValue(nick)
       setSaved(true)
+      onDone?.()
     } catch (e) {
       setError(errorMessage(e))
     }
@@ -83,16 +89,16 @@ export function NicknameField({ server, member: given }: { server: ServerState; 
     <div className="org-nick">
       <div className="org-nick-row">
         <label className="field">
-          <span>{isSelf ? t('organize.nick.yours') : t('organize.nick.theirs')}</span>
+          <span>{t('organize.nick.label')}</span>
           <input value={value} maxLength={32} placeholder={member.profileName ?? member.name}
             onChange={(e) => { setValue(e.target.value); setSaved(false) }}
             onKeyDown={(e) => e.key === 'Enter' && changed && void save(trimmed)} />
         </label>
         <button className="button primary" disabled={!changed} onClick={() => void save(trimmed)}>{t('common.save')}</button>
-        {member.nick && <button className="button" onClick={() => void save('')}>{t('common.reset')}</button>}
+        {member.nick && <button className="button" onClick={() => void save('')}>{t(isSelf ? 'organize.nick.useMine' : 'organize.nick.useTheirs')}</button>}
       </div>
       <p className="muted">
-        {saved ? t('organize.nick.saved') : t(isSelf ? 'organize.nick.hintYours' : 'organize.nick.hintTheirs', { server: server.name })}
+        {saved ? t('organize.nick.saved') : t(isSelf ? 'organize.nick.hintYours' : 'organize.nick.hintTheirs', { server: server.name, name: member.profileName ?? member.name })}
       </p>
       {error && <p className="error-text">{error}</p>}
     </div>

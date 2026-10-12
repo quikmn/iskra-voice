@@ -209,7 +209,8 @@ public sealed class Session
             foreach (var frame in _early!) SendNow(frame);
             _early = null;
         }
-        if (cameOnline)
+        // A new name or profile from this connect reaches everyone, even when another of their devices was already online.
+        if (cameOnline || _profileChanged)
         {
             var update = Frames.Event("member.updated", new { member = _hub.PublicMember(member) });
             foreach (var other in _hub.Sessions.Where(s => s != this)) other.Send(update);
@@ -384,7 +385,7 @@ public sealed class Session
         if (existing is not null)
         {
             if (existing.Name != name) _world.Store.SetMemberName(existing.AccountKey, name);
-            ProfileFeature.ApplyFromAuth(_world.Store, existing.AccountKey, profile);
+            _profileChanged = ProfileFeature.ApplyFromAuth(_world.Store, existing.AccountKey, profile) || existing.Name != name;
             PresenceFeature.ApplyFromAuth(_world.Store, existing.AccountKey, body, Now);
             if (!_world.Store.HasDevice(cert.DeviceKey))
                 SecurityLog.Record(_world.Store, Now, "device.new", cert.AccountKey, LoggedIp, new { deviceKey = cert.DeviceKey });
@@ -437,6 +438,9 @@ public sealed class Session
         Send(Frames.Event("kicked", new { reason }));
         Close(code, reason);
     }
+
+    /// <summary>Whether this connect changed the member's name or profile (sent with auth).</summary>
+    private bool _profileChanged;
 
     private Action? _afterReply;
 
