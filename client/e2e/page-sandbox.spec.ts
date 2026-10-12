@@ -65,6 +65,10 @@ test('browsers: other people\'s pages run without scripts, and nothing reaches t
   await controlLeaks(friend)
 
   const attacker = await startAttacker()
+  // Not the author's own editor preview: it runs their page with its scripts (as their own page view does), and the
+  // probe's srcdoc frame then reaches the attacker by WebRTC from the author's device. That once counted here (CI, when
+  // the preview lived long enough); this test is about what other people's pages can do to a viewer.
+  await host.route('**/page-preview.html', (route) => route.abort())
   await publish(host, probePage(attacker))
   await host.keyboard.press('Escape')
   await host.keyboard.press('Escape')
