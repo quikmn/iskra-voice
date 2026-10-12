@@ -1,6 +1,7 @@
 // The queue between the audio worklet and the DeepFilterNet worker (dfQueue.ts), with a stand-in for the network:
 // fixed delay, nothing dropped or repeated, and a smooth bridge over a worker that falls behind.
 import { describe, expect, it } from 'vitest'
+import { BridgeWatch, MAX_BRIDGED, SLOW_WINDOWS } from './engines'
 import { BLOCK, FRAME, FrameQueue, MODEL_DELAY, PortLink, queueDelay, SLOTS, type FrameLink } from './dfQueue'
 
 const DELAY = queueDelay(512)
@@ -67,6 +68,7 @@ describe('DeepFilterNet frame queue', () => {
     for (let i = 0; i < output.length; i++) expect(output[i]).toBe(i < DELAY ? 0 : -input[i - DELAY])
     expect(queue.overruns).toBe(0)
     expect(queue.dropped).toBe(0)
+    expect(queue.bridged).toBe(0)
   })
 
   it('a worker that falls behind: bridges with the unprocessed audio, lined up, so nothing is dropped or repeated', () => {
@@ -77,6 +79,7 @@ describe('DeepFilterNet frame queue', () => {
     const { queue, output } = run(input, () => undefined, 0, stuck)
     expect(queue.overruns).toBeGreaterThan(2)
     expect(queue.dropped).toBeGreaterThan(0) // every slot was out while it was stuck for long
+    expect(queue.bridged).toBeGreaterThan(200 * BLOCK) // at least the long stall went out unprocessed
     for (let i = DELAY; i < output.length; i++) expect(output[i]).toBeCloseTo(input[i - DELAY], 6)
   })
 
@@ -137,5 +140,14 @@ describe('DeepFilterNet frame queue', () => {
     expect(frames).toBe(Math.floor(input.length / FRAME))
     expect(queue.overruns).toBe(0)
     for (let i = DELAY; i < output.length; i++) expect(output[i]).toBe(Math.fround(2 * input[i - DELAY]))
+  })
+
+  it('gives up on the worker only when it is late for a good part of several seconds in a row', () => {
+    const watch = new BridgeWatch()
+    for (let i = 0; i < 20; i++) expect(watch.report(0.05)).toBe(false) // late now and then: fine
+    for (let i = 0; i < SLOW_WINDOWS - 1; i++) expect(watch.report(MAX_BRIDGED + 0.1)).toBe(false)
+    expect(watch.report(0)).toBe(false) // a good second starts over
+    for (let i = 0; i < SLOW_WINDOWS - 1; i++) expect(watch.report(0.9)).toBe(false)
+    expect(watch.report(0.9)).toBe(true)
   })
 })

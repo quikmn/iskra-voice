@@ -231,7 +231,7 @@ describe('DeepFilterNet off the audio thread: worklet and worker, simulated', { 
     let mismatches = 0
     for (let i = 0; i < output.length; i++) if (output[i] !== (i < DELAY ? 0 : input[i - DELAY])) mismatches++
     expect(mismatches).toBe(0)
-    expect(said.filter((m) => m.type === 'overrun')).toEqual([])
+    expect(said.filter((m) => m.type === 'late' && (m as { overruns?: number }).overruns)).toEqual([])
   })
 
   it.each([['a port', false], ['shared slots', true]] as const)('speech.wav end to end (%s): exactly what the in-thread framer gave, a fixed time later', async (_, shared) => {
@@ -253,7 +253,7 @@ describe('DeepFilterNet off the audio thread: worklet and worker, simulated', { 
     let mismatches = 0
     for (let i = 0; i < output.length; i++) if (output[i] !== (i < shift ? 0 : reference[i - shift])) mismatches++
     expect(mismatches).toBe(0)
-    expect(said.filter((m) => m.type === 'overrun')).toEqual([])
+    expect(said.filter((m) => m.type === 'late' && (m as { overruns?: number }).overruns)).toEqual([])
     expect(clipped(output)).toBe(0)
     const spread = lagSpread(input, output, voicedFrames(input, -45))
     expect(spread.windows).toBeGreaterThan(50)

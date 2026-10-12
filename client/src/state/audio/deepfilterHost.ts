@@ -34,46 +34,51 @@ export class DeepFilterWorker {
     }
   }
 
-  /** Starts the engine in a new worker; null if it can't (or took longer than `ms`). */
-  static async start(opts: { reportMs: number; ms: number; onLoad: (load: WorkerLoad) => void; onError: (message: string) => void }): Promise<DeepFilterWorker | null> {
+  /** Starts the engine in a new worker; throws why it couldn't (an error, or it took longer than `ms`). */
+  static async start(opts: { reportMs: number; ms: number; onLoad: (load: WorkerLoad) => void; onError: (message: string) => void }): Promise<DeepFilterWorker> {
     const assets = await loadDeepFilter()
     const worker = new Worker(new URL('./deepfilter.worker.ts', import.meta.url), { type: 'module' })
-    const ok = await new Promise<boolean>((resolve) => {
-      const timer = setTimeout(() => resolve(false), opts.ms)
-      const done = (ok: boolean) => {
+    const started = Date.now()
+    const failure = await new Promise<string | null>((resolve) => {
+      const timer = setTimeout(() => resolve(`the engine took longer than ${opts.ms} ms to start in its worker`), opts.ms)
+      const done = (why: string | null) => {
         clearTimeout(timer)
-        resolve(ok)
+        resolve(why)
       }
       worker.onmessage = (e: MessageEvent<{ type: string; message?: string }>) => {
-        if (e.data.type === 'ready') done(true)
-        else if (e.data.type === 'error') {
-          opts.onError(e.data.message ?? 'error')
-          done(false)
-        } else if (e.data.type === 'need-bytes') {
+        if (e.data.type === 'ready') done(null)
+        else if (e.data.type === 'error') done(`the engine failed in its worker: ${e.data.message}`)
+        else if (e.data.type === 'need-bytes') {
           // This browser can't send it the compiled engine: send the bytes.
-          void deepFilterBytes().then((wasm) => worker.postMessage({ type: 'init', wasm, model: assets.model, reportMs: opts.reportMs }), () => done(false))
+          void deepFilterBytes().then((wasm) => worker.postMessage({ type: 'init', wasm, model: assets.model, reportMs: opts.reportMs }),
+            (e) => done(`couldn't get the engine's bytes: ${e}`))
         }
       }
-      worker.onerror = () => done(false)
+      worker.onerror = (e) => done(`the worker couldn't run: ${e.message || 'error'}`)
       worker.postMessage({ type: 'init', module: assets.module, model: assets.model, reportMs: opts.reportMs })
     })
-    if (!ok) {
+    if (failure) {
       worker.terminate()
-      return null
+      throw new Error(`${failure} (after ${Date.now() - started} ms)`)
     }
     return new DeepFilterWorker(worker, opts.onLoad, opts.onError)
   }
 
   /**
    * Gives a voice a model state in the worker and links `node` (an iskra-deepfilter or iskra-df-bridge worklet) to
-   * it; resolves to the voice's id once frames can flow, or null.
+   * it; resolves to the voice's id once frames can flow, or null (with a warning saying why).
    */
   async link(node: AudioWorkletNode, strength: number, ms = 6000): Promise<string | null> {
     const id = String(++this.nextId)
+    const started = Date.now()
     const ready = new Promise<boolean>((resolve) => {
-      const timer = setTimeout(() => this.settle(id, false), ms)
+      const timer = setTimeout(() => {
+        console.warn(`[iskra] DeepFilterNet: the model took longer than ${ms} ms to load in its worker`)
+        this.settle(id, false)
+      }, ms)
       this.waiting.set(id, (ok) => {
         clearTimeout(timer)
+        if (ok) console.info(`[iskra] DeepFilterNet: model loaded in ${Date.now() - started} ms`)
         resolve(ok)
       })
     })
