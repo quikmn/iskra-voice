@@ -145,12 +145,14 @@ export async function collectDeviceExport(now = Date.now()) {
     storage.loadProfile(), storage.loadServers(), storage.loadFriends(), storage.loadBlocks(), storage.loadDmHistory(), storage.loadGroups(),
     storage.loadPrivate<unknown[]>('saved').catch(() => undefined),
   ])
+  // The saved list gets a server's name a moment after joining; the live one is newer.
+  const live = useApp.getState().servers
   return buildDeviceExport({
     now,
     accountKey: identity ? b64u(identity.account.publicKey) : null,
     deviceKey: identity ? b64u(identity.device.publicKey) : null,
     profile: profile ?? null,
-    servers,
+    servers: servers.map((s) => ({ ...s, name: live[s.serverKey]?.name || s.name })),
     friends,
     blocks,
     dms,
