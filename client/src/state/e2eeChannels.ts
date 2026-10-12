@@ -16,7 +16,7 @@ import type { DmFile } from '../core/dmFiles'
 import {
   decryptChannelMessage, encryptChannelMessage, MAX_CHANNEL_MEMBERS, MissingKeyError, newChainId, newEpochKey, openEpochKey, sealEpochKey,
   signChannelChange, verifyChannelChain, voiceKey, voiceKeyIndex,
-  type ChannelAction, type ChannelContent, type ChannelKeyEnvelope, type ChannelView, type MemberDevices,
+  type ChannelAction, type ChannelChange, type ChannelContent, type ChannelEnvelope, type ChannelKeyEnvelope, type ChannelView, type MemberDevices,
 } from '../core/channelChain'
 import { GroupBehindError, GroupError, sameKey, type GroupChange } from '../core/group'
 import { RequestError, roleRank, type Channel, type Events, type FileInfo, type Message, type Requests, type Role, type SearchRequest, type SearchResult } from '../core/protocol'
@@ -27,6 +27,7 @@ import { uploadDmFile } from './dmFiles'
 import { notifyChannelMessage } from './notify'
 import { knownThread } from './threads'
 import { connectionFor, onServerEvent, onWelcomeHook, patchServer, setChannelSender, uploadFile, useApp, type PendingMessage } from './store'
+import { acceptStartOver, CHAIN_REPLACED, chainFor, receiveChain, type ChainState, type PastChain } from './e2eeStartOver'
 import { setChannelVoiceKeys, setCallKey, useVoice } from './voice'
 
 /** What the UI shows about an encrypted channel. */
@@ -39,6 +40,10 @@ export interface ChannelCrypto {
   problem?: string
   /** More people can read the channel than fit (the server keeps the rest waiting). */
   full?: boolean
+  /** A different chain the server showed while you're in this one: you may start over by hand (see e2eeStartOver.ts). */
+  offer?: { chain: string; members: string[]; changes: ChannelChange[] }
+  /** When you started this channel's encryption over (newest last). */
+  restarts: number[]
 }
 
 export const useE2ee = create<{ channels: Record<string, ChannelCrypto> }>(() => ({ channels: {} }))
@@ -52,24 +57,33 @@ export interface LocalMessage {
   at: number
 }
 
+interface StoredPast {
+  chain: string
+  changes: GroupChange[]
+  keys: Record<number, string>
+  endedAt: number
+  startedOver: boolean
+}
+
 interface Stored {
   chain: string
   changes: GroupChange[]
   keys: Record<number, string>
   messages: LocalMessage[]
+  /** Chains used before a start-over (or before this account was out of the channel), for old messages. */
+  past?: StoredPast[]
+  restarts?: ChainState['restarts']
 }
 
-interface Rec {
+interface Rec extends ChainState {
   slot: string
   serverKey: string
   channelId: number
-  chain: string | null
-  changes: GroupChange[]
-  view: ChannelView | null
-  keys: Map<number, Uint8Array>
   messages: Map<number, LocalMessage>
-  problem?: string
 }
+
+const keysIn = (stored: Record<number, string> | undefined) => new Map(Object.entries(stored ?? {}).map(([v, k]) => [Number(v), fromB64u(k)] as const))
+const keysOut = (keys: Map<number, Uint8Array>) => Object.fromEntries([...keys].map(([v, k]) => [v, b64u(k)]))
 
 const MAX_LOCAL = 5000
 const records = new Map<string, Rec>()
@@ -103,6 +117,8 @@ function publish(rec: Rec, full?: boolean): void {
       [rec.slot]: {
         members: view?.members ?? [], version: view?.version ?? 0, hasKey: !!view && rec.keys.has(view.version), problem: rec.problem,
         full: full ?? s.channels[rec.slot]?.full,
+        ...(rec.offer ? { offer: { chain: rec.offer.chain, members: rec.offer.view.members, changes: rec.offer.view.changes } } : {}),
+        restarts: rec.restarts.map((r) => r.at),
       },
     },
   }))
@@ -115,15 +131,23 @@ async function load(serverKey: string, channelId: number): Promise<Rec> {
   let running = loading.get(slot)
   if (!running) {
     running = (async () => {
-      const rec: Rec = { slot, serverKey, channelId, chain: null, changes: [], view: null, keys: new Map(), messages: new Map() }
+      const rec: Rec = { slot, serverKey, channelId, chain: null, changes: [], view: null, keys: new Map(), messages: new Map(), past: [], offer: null, restarts: [] }
       const stored = await storage.loadE2ee<Stored>(slot).catch(() => undefined)
       if (stored?.chain) {
         try {
           rec.view = verifyChannelChain(stored.chain, stored.changes)
           rec.chain = stored.chain
           rec.changes = stored.changes
-          for (const [v, k] of Object.entries(stored.keys ?? {})) rec.keys.set(Number(v), fromB64u(k))
+          rec.keys = keysIn(stored.keys)
           for (const m of stored.messages ?? []) rec.messages.set(m.id, m)
+          rec.restarts = stored.restarts ?? []
+          for (const p of stored.past ?? []) {
+            try {
+              rec.past.push({ ...p, view: verifyChannelChain(p.chain, p.changes), keys: keysIn(p.keys) } satisfies PastChain)
+            } catch {
+              /* a damaged old chain: its messages stay unreadable */
+            }
+          }
         } catch {
           /* a damaged copy: start again from the server */
         }
@@ -150,7 +174,8 @@ function persist(rec: Rec): void {
       if (!r?.chain) continue
       const messages = [...r.messages.values()].sort((a, b) => a.id - b.id).slice(-MAX_LOCAL)
       const stored: Stored = {
-        chain: r.chain, changes: r.changes, keys: Object.fromEntries([...r.keys].map(([v, k]) => [v, b64u(k)])), messages,
+        chain: r.chain, changes: r.changes, keys: keysOut(r.keys), messages, restarts: r.restarts,
+        past: r.past.map((p) => ({ chain: p.chain, changes: p.changes, keys: keysOut(p.keys), endedAt: p.endedAt, startedOver: p.startedOver })),
       }
       void storage.saveE2ee(slot, stored).catch(() => undefined)
     }
@@ -159,36 +184,14 @@ function persist(rec: Rec): void {
 
 // ── Chain and keys ─────────────────────────────────────────────────────────
 
-export const CHAIN_REPLACED = "This channel's encryption was replaced by the server while you were still in it. Messages stay locked until this is sorted out."
+export { CHAIN_REPLACED, mayReplaceChain } from './e2eeStartOver'
 
 /**
- * Whether a new chain id may replace the one we verified. The server only starts a chain over when nobody in the old one
- * can read the channel any more, so a device whose account is still in its verified chain never accepts a replacement
- * (that would hand the channel to whoever signed the new `create`).
+ * Adds verified changes. A different chain id means the channel was started over (everyone before lost access); while
+ * this account is still in its verified chain that is only ever an offer (see e2eeStartOver.ts).
  */
-export function mayReplaceChain(current: { chain: string | null; members: readonly string[] | undefined }, next: string, mine: string): boolean {
-  return !current.chain || current.chain === next || !mine || !(current.members ?? []).includes(mine)
-}
-
-/** Adds verified changes. A different chain id means the channel was started over (everyone before lost access). */
 function applyChanges(rec: Rec, chain: string, changes: GroupChange[]): void {
-  if (!mayReplaceChain({ chain: rec.chain, members: rec.view?.members }, chain, me())) {
-    rec.problem = CHAIN_REPLACED // keep the verified chain and its keys
-    return
-  }
-  if (rec.chain !== chain) {
-    rec.chain = chain
-    rec.changes = []
-    rec.view = null
-    rec.keys.clear()
-  }
-  try {
-    rec.view = verifyChannelChain(chain, changes, rec.view)
-    rec.changes = [...rec.changes, ...changes.map(({ payload, sig }) => ({ payload, sig }))]
-    rec.problem = undefined
-  } catch (e) {
-    rec.problem = (e as Error).message
-  }
+  receiveChain(rec, chain, changes, me())
 }
 
 function openKeys(rec: Rec, envelopes: ChannelKeyEnvelope[]): boolean {
@@ -231,13 +234,14 @@ export function syncChannel(serverKey: string, channelId: number): Promise<void>
       }
       if (!rec.view || reply.e2ee.chain !== rec.chain || reply.e2ee.version > rec.view.version) applyChanges(rec, reply.e2ee.chain, reply.changes)
       const view = rec.view
-      if (view && view.version === reply.e2ee.version && (view.head !== reply.e2ee.head || view.members.join() !== reply.e2ee.members.join()))
+      if (view && view.chain === reply.e2ee.chain && view.version === reply.e2ee.version && (view.head !== reply.e2ee.head || view.members.join() !== reply.e2ee.members.join()))
         rec.problem = "The server's member list doesn't match the channel's signed history."
       await fetchKeys(rec)
       publish(rec, reply.want.full)
       persist(rec)
       redecrypt(serverKey)
       maybeMaintain(rec, reply.want)
+      maybeRestart(rec, reply.want)
     })().finally(() => syncing.delete(slot))
     syncing.set(slot, running)
   }
@@ -365,6 +369,82 @@ export async function rekeyChannel(serverKey: string, channelId: number): Promis
   await change(rec, 'rekey', [])
 }
 
+// ── Starting over ──────────────────────────────────────────────────────────
+
+const restarting = new Set<string>()
+
+/**
+ * Nobody in the chain can read the channel any more (they all lost access or left), so nobody can add the people who
+ * can: one of them starts a new chain (a `create` with a new id). The first online reader goes; the others find it done.
+ * Never from a device whose account is in the verified chain: the server refuses that anyway while any member can read.
+ */
+function maybeRestart(rec: Rec, want: { add: string[]; remove: string[]; full: boolean }): void {
+  const mine = me()
+  const view = rec.view
+  if (!view || rec.problem || rec.offer || want.full || restarting.has(rec.slot)) return
+  if (view.members.some((m) => sameKey(m, mine)) || !want.add.includes(mine) || !view.members.every((m) => want.remove.includes(m))) return
+  const server = useApp.getState().servers[rec.serverKey]
+  const online = want.add.filter((k) => k === mine || server?.members[k]?.online)
+  const delay = 500 + Math.max(0, online.indexOf(mine)) * 2500 + Math.random() * 500
+  restarting.add(rec.slot)
+  setTimeout(() => {
+    void (async () => {
+      try {
+        const connection = connectionFor(rec.serverKey)
+        const identity = useApp.getState().identity
+        if (!connection || !identity) return
+        const fresh = await connection.request('echan.get', { channelId: rec.channelId, since: 0 })
+        if (fresh.e2ee.chain !== rec.chain) return // someone else started it over meanwhile
+        const { add, remove, full } = fresh.want
+        if (full || !add.includes(mine) || !fresh.e2ee.members.every((m) => remove.includes(m))) return
+        const chain = newChainId()
+        const signed = signChannelChange(identity, null, chain, 'create', add.filter((k) => k !== mine))
+        const next = verifyChannelChain(chain, [signed])
+        const key = newEpochKey()
+        const { bundles, prekeys, revoked } = await devicesOf(rec.serverKey, next.members)
+        await ensurePrekeys()
+        const envelopes = sealEpochKey(identity, next, key, bundles, Date.now(), { prekeys, revokedDevices: revoked })
+        await connection.request('echan.change', { channelId: rec.channelId, change: signed, keys: envelopes.slice(0, 1) })
+        applyChanges(rec, chain, [signed])
+        rec.keys.set(1, key)
+        for (const extra of envelopes.slice(1)) await connection.request('echan.keys.add', { channelId: rec.channelId, version: 1, keys: [extra] })
+        publish(rec)
+        persist(rec)
+      } catch {
+        /* someone else was quicker, or it's no longer needed: the next sync shows */
+      } finally {
+        restarting.delete(rec.slot)
+        void syncChannel(rec.serverKey, rec.channelId)
+      }
+    })()
+  }, delay)
+}
+
+/**
+ * The person chose to start over with the chain the server offers (after the warning and the signer check in the
+ * encryption panel). The old chain and its keys stay for old messages; the choice is recorded with the channel. Then
+ * this device signs a new key in the new chain, so the others see that you joined it and later restarts list you as a
+ * signer they know.
+ */
+export async function startOver(serverKey: string, channelId: number, offeredChain: string): Promise<void> {
+  const rec = await load(serverKey, channelId)
+  if (!rec.offer || rec.offer.chain !== offeredChain) throw new GroupError('This channel’s encryption changed again. Look at it once more.')
+  if (!rec.offer.view.members.some((m) => sameKey(m, me()))) throw new GroupError("You're not in this channel's encryption.")
+  acceptStartOver(rec)
+  publish(rec)
+  persist(rec)
+  await syncChannel(serverKey, channelId)
+  await fetchKeys(rec)
+  try {
+    await change(rec, 'rekey', [])
+  } catch {
+    /* the old key works too; a later sync hands out a new one if needed */
+  }
+  publish(rec)
+  persist(rec)
+  redecrypt(serverKey)
+}
+
 // ── Creating ───────────────────────────────────────────────────────────────
 
 export interface NewChannel {
@@ -443,8 +523,22 @@ function decryptOne(serverKey: string, message: Shownable): Shownable {
     requestSync(serverKey, channel.id)
     return { ...message, e2eeShown: { state: 'pending' } }
   }
+  // The chain it was sent under: the current one, or one kept from before a start-over.
+  const header = (env.envelope as Partial<ChannelEnvelope> | undefined)?.header
+  const sentIn = typeof header?.chain === 'string' ? header.chain : rec.view.chain
+  const found = chainFor(rec, sentIn)
+  if (!found) {
+    // A chain you could start over to (tried again once you do), one this device hasn't caught up with, or an old one.
+    if (rec.offer?.chain === sentIn) return { ...message, e2eeShown: { state: 'error', error: CHAIN_REPLACED, retry: true } }
+    if (!waitingSync.has(rec.slot)) {
+      requestSync(serverKey, channel.id)
+      return { ...message, e2eeShown: { state: 'pending' } }
+    }
+    live.delete(`${serverKey}:${message.id}`)
+    return { ...message, e2eeShown: { state: 'error', error: BEFORE_YOU_JOINED } }
+  }
   try {
-    const content = decryptChannelMessage(env.envelope, { from: message.author, version: env.version }, rec.view, (v) => rec.keys.get(v))
+    const content = decryptChannelMessage(env.envelope, { from: message.author, version: env.version }, found.view, (v) => found.keys.get(v))
     rec.messages.set(message.id, { id: message.id, channelId: message.channelId, author: message.author, text: content.text, at: message.createdAt })
     persist(rec)
     const reply = message.replyTo && 'author' in message.replyTo && !message.replyTo.text ? rec.messages.get(message.replyTo.id) : undefined
@@ -456,7 +550,7 @@ function decryptOne(serverKey: string, message: Shownable): Shownable {
     if (live.delete(tag)) notifyChannelMessage(serverKey, out)
     return out
   } catch (e) {
-    const failure = decryptFailure(e, rec.view, env.version, me(), waitingSync.has(rec.slot))
+    const failure = decryptFailure(e, found.view, env.version, me(), waitingSync.has(rec.slot))
     if (failure === 'sync') {
       requestSync(serverKey, channel.id)
       return { ...message, e2eeShown: { state: 'pending' } }

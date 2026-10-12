@@ -138,10 +138,34 @@ jobs:
           MAC_IDENTITY: ${{ vars.MAC_IDENTITY }}
       - name: Desktop app (ad-hoc signed)
         if: env.MAC_SIGNED != '1'
-        run: npm run dist:mac
+        run: |
+          echo "::warning::Ad-hoc signed Mac build: installed Mac apps can't update to it by themselves (they show a download link)."
+          npm run dist:mac
         working-directory: desktop
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      # The Mac app updates itself from these zips (Squirrel.Mac): each must hold a Developer ID signed, notarized app,
+      # and latest-mac.yml must list both, or installed apps fall back to a download link.
+      - name: Check the update files
+        if: env.MAC_SIGNED == '1'
+        working-directory: desktop/release
+        run: |
+          v="${TAG#v}"
+          team="$(echo "$MAC_IDENTITY" | sed -E 's/.*\(([A-Z0-9]{10})\)$/\1/')"
+          for arch in arm64 x64; do
+            zip="Iskra-$v-mac-$arch.zip"
+            grep -q "url: $zip" latest-mac.yml || { echo "::error::latest-mac.yml doesn't list $zip"; exit 1; }
+            test -f "$zip.blockmap" || { echo "::error::$zip.blockmap is missing"; exit 1; }
+            dir="$RUNNER_TEMP/check-$arch"
+            rm -rf "$dir" && mkdir -p "$dir" && ditto -x -k "$zip" "$dir"
+            codesign --verify --deep --strict "$dir/Iskra.app"
+            codesign -dv --verbose=2 "$dir/Iskra.app" 2>&1 | grep -E '^(Authority=Developer ID Application|TeamIdentifier)'
+            codesign -dv "$dir/Iskra.app" 2>&1 | grep -qx "TeamIdentifier=$team" || { echo "::error::$zip isn't signed by team $team"; exit 1; }
+            xcrun stapler validate "$dir/Iskra.app" || echo "::warning::$zip: no stapled notarization ticket (Gatekeeper checks online instead)"
+            spctl --assess --type execute -vv "$dir/Iskra.app"
+          done
+        env:
+          MAC_IDENTITY: ${{ vars.MAC_IDENTITY }}
       - name: Server bundles
         run: |
           v="${TAG#v}"

@@ -14,3 +14,13 @@
 .e2ee-create-note p { margin: 4px 0; }
 .composer.e2ee-waiting { display: flex; align-items: center; gap: 8px; color: var(--muted); }
 .search-local-note { display: flex; align-items: center; gap: 6px; margin: 6px 0; font-size: 0.85rem; color: var(--muted); }
+.e2ee-start-over { margin: 0 0 12px; padding: 10px 12px; border-radius: var(--radius); border: 1px solid var(--amber); }
+.e2ee-start-over h3, .e2ee-history h3 { margin: 10px 0 4px; font-size: 0.9rem; }
+.e2ee-start-over-warning { margin: 0 0 6px; font-weight: 600; color: var(--amber); }
+.e2ee-trust { font-size: 0.8rem; padding: 1px 6px; border-radius: 999px; background: var(--accent-subtle); white-space: nowrap; }
+.e2ee-trust.old-chain, .e2ee-trust.contact { color: var(--green); }
+.e2ee-trust.new { color: var(--amber); }
+.e2ee-confirm { margin: 8px 0; }
+.e2ee-history { margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--border); }
+.e2ee-record { display: flex; align-items: center; gap: 6px; padding: 4px 16px; font-size: 0.8rem; }
+.composer.e2ee-waiting { flex-wrap: wrap; }

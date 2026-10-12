@@ -1,0 +1,37 @@
+Iskra is voice and text chat for friend groups, on a server that belongs to you or a friend. It's free, with no ads, no tracking and no subscriptions.
+
+YOUR SERVER, YOUR RULES
+Someone in your group starts a server with the Iskra desktop app (Windows, Mac or Linux) or on any computer they like. Everyone else joins with an invite link. Your messages, files and voice go to that server, not to us. There's no central Iskra database.
+
+NO EMAIL, NO PASSWORD
+Pick a name and you're in. Your account is a key made on your phone and stored encrypted on it. A recovery key brings it back on another device, and you can link your phone to your computer with a QR code.
+
+EVERYTHING A FRIEND GROUP NEEDS
+• Text channels with replies, reactions, mentions, threads, pins, search, polls, custom emoji and stickers, GIFs, voice messages and file uploads
+• Voice channels that stay smooth with many people, with mute, deafen, per-person volume and a soundboard
+• Turn on your camera in voice and calls
+• Forums, events with reminders, and docs channels for house rules and guides
+• Stages for talks and listening parties, and watch parties that keep everyone on the same frame
+• Roles, permissions and moderation tools: timeouts, slow mode, AutoMod, reports and an activity log
+• Profiles you design yourself, friends, status and custom status
+• Bots and webhooks
+
+PRIVATE WHERE IT MATTERS
+Direct messages, group chats and their voice and video calls are end-to-end encrypted with libsodium, a proven library. The server only passes them along and can't read them. Compare safety numbers with a friend to be sure it's really them.
+
+Server channels are encrypted on the way and readable by whoever runs the server. We say that plainly. Want more? Make a small private channel end-to-end encrypted, text and voice.
+
+NOTHING LOADS BEHIND YOUR BACK
+Your phone talks to the servers you join. YouTube, Twitch and other embeds wait until you press Play. The app has no analytics, no ads, no crash reporting and no Google Play services.
+
+ON YOUR PHONE
+• Stay in voice with the screen off: a notification shows you're in voice and lets you leave
+• Notifications, sounds and unread markers arrive while the app is open. For notifications while it's closed, use the desktop app or Iskra in your browser
+• Invite links open straight in the app
+• Screen sharing and starting your own server are on the desktop app
+
+You need an invite link to a server, or the desktop app to start your own.
+
+Iskra is in early access and gets better with every release. Source available on GitHub. Made in Sweden by From a Spark.
+
+Privacy policy: https://iskra.foo/privacy
