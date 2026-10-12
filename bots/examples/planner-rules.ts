@@ -18,6 +18,7 @@ export function parseDuration(text: string): number | null {
 /** 5400000 → "1 h 30 min". */
 export function formatDuration(ms: number): string {
   const units: [number, string][] = [[86_400_000, 'd'], [3_600_000, 'h'], [60_000, 'min'], [1000, 's']]
+  if (ms >= 3_600_000) ms = Math.round(ms / 60_000) * 60_000 // "2 h", not "2 h 35 s"
   const out: string[] = []
   for (const [size, name] of units) {
     if (ms >= size) {
