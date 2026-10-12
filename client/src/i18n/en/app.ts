@@ -33,10 +33,13 @@ export const app = {
   },
   serverMenu: {
     settings: 'Server settings',
-    editRules: 'Edit rules',
-    createChannel: 'Create channel',
-    notifications: 'Notification settings',
-    groups: { server: 'Server', safety: 'Members & safety', content: 'Content', hosting: 'Hosting & data' },
+    createChannel: 'Create channel…',
+    more: 'More settings',
+    nickname: 'Server nickname…',
+    nicknameTitle: 'Your nickname on {{name}}',
+    moveFolder: 'Move / Folder',
+    leave: 'Leave server',
+    leaveTitle: 'Leave {{name}}?',
   },
   sidebar: {
     serverOptions: 'Server options',

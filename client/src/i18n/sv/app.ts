@@ -34,10 +34,13 @@ export const app: Messages['app'] = {
   },
   serverMenu: {
     settings: 'Serverinställningar',
-    editRules: 'Redigera regler',
-    createChannel: 'Skapa kanal',
-    notifications: 'Aviseringar',
-    groups: { server: 'Server', safety: 'Medlemmar & säkerhet', content: 'Innehåll', hosting: 'Drift & data' },
+    createChannel: 'Skapa kanal…',
+    more: 'Fler inställningar',
+    nickname: 'Smeknamn på servern…',
+    nicknameTitle: 'Ditt smeknamn på {{name}}',
+    moveFolder: 'Flytta / mapp',
+    leave: 'Lämna servern',
+    leaveTitle: 'Lämna {{name}}?',
   },
   sidebar: {
     serverOptions: 'Serveralternativ',

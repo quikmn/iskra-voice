@@ -68,7 +68,7 @@ export function InternetSection({ server }: { server: ServerState }) {
           className={`switch ${status.enabled ? 'on' : ''}`}
           role="switch"
           aria-checked={status.enabled}
-          aria-label={t('settings.sections.internet')}
+          aria-label={t('settings.internetSwitch')}
           disabled={!isOwner || busy}
           onClick={() => void change(!status.enabled)}
         >

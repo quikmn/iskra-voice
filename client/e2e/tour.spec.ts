@@ -80,6 +80,17 @@ async function settings(page: Page, section?: string) {
   if (section) await dialog.getByRole('button', { name: section, exact: true }).click({ timeout: 2000 }).catch(() => undefined)
 }
 
+/** The server room of the server you're looking at (its name above the channels → Server settings). */
+async function serverSettings(page: Page, section?: string) {
+  const drawer = page.getByRole('button', { name: /Open (channels|menu)/ }).first()
+  if (await drawer.isVisible()) await drawer.click()
+  await page.locator('.server-header-button').click()
+  await page.getByRole('menuitem', { name: 'Server settings', exact: true }).click()
+  const room = page.getByRole('dialog', { name: /· Server settings$/ })
+  await expect(room).toBeVisible()
+  if (section) await room.getByRole('button', { name: section, exact: true }).click({ timeout: 2000 }).catch(() => undefined)
+}
+
 let server: TestServer
 let offline: TestServer | null
 let botDir: string
@@ -234,7 +245,7 @@ test('screenshot tour', async ({ browser }) => {
 
   // ── Custom emoji and sounds (settings) ──
   await part('emoji settings', async () => {
-    await settings(host, 'Emoji')
+    await serverSettings(host, 'Emoji & stickers')
     await host.locator('input[aria-label="Emoji image"]').setInputFiles({ name: 'party.png', mimeType: 'image/png', buffer: PNG })
     await host.getByRole('button', { name: 'Add', exact: true }).click()
     await expect(host.locator('.expression-row')).toHaveCount(1)
@@ -243,7 +254,7 @@ test('screenshot tour', async ({ browser }) => {
     await send(host, 'party time :party:')
   })
   await part('sound settings', async () => {
-    await settings(host, 'Soundboard')
+    await serverSettings(host, 'Soundboard')
     await host.locator('input[aria-label="Sound file"]').setInputFiles({ name: 'airhorn.wav', mimeType: 'audio/wav', buffer: wav(600) })
     await host.getByLabel('Sound emoji').fill('📯')
     await host.getByRole('button', { name: 'Add', exact: true }).click()
@@ -258,7 +269,7 @@ test('screenshot tour', async ({ browser }) => {
     await host.getByRole('button', { name: /server options/ }).click()
     await host.getByRole('menuitem', { name: 'Server settings' }).click()
     await shot(host, '29-settings-server-overview-desktop')
-    await host.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Bots & webhooks' }).click()
+    await host.getByRole('dialog', { name: /· Server settings$/ }).getByRole('button', { name: 'Bots & webhooks' }).click()
     await host.getByLabel('Name').fill('Deploys')
     await host.getByRole('button', { name: 'Create webhook' }).click()
     const urlBox = host.getByLabel('Webhook URL')
@@ -365,8 +376,7 @@ test('screenshot tour', async ({ browser }) => {
     await shot(host, '40-settings-profile-desktop')
     for (const [section, file] of [
       ['Appearance', '41-settings-appearance'], ['Devices', '42-settings-devices'], ['Recovery key', '43-settings-recovery'],
-      ['Notifications', '44-settings-notifications'], ['Voice & audio', '45-settings-voice'], ['Overview', '46-settings-server-overview'],
-      ['Profile pages', '47-settings-profile-pages'], ['Open to the internet', '48-settings-internet'],
+      ['Notifications', '44-settings-notifications'], ['Voice & audio', '45-settings-voice'],
     ] as const) {
       await part(`settings ${section}`, async () => {
         await host.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: section, exact: true }).click()
@@ -383,6 +393,19 @@ test('screenshot tour', async ({ browser }) => {
       await host.keyboard.press('Escape')
       await expect(host.getByRole('dialog', { name: 'Settings' })).toBeVisible()
     })
+    await host.keyboard.press('Escape')
+
+    // The server room: only the server's own settings, under its band.
+    await serverSettings(host)
+    for (const [section, file] of [
+      ['Overview', '46-settings-server-overview'], ['Profile pages', '47-settings-profile-pages'], ['Internet access', '48-settings-internet'],
+      ['Members', '50-settings-members'], ['Channels', '51-settings-channels'],
+    ] as const) {
+      await part(`server settings ${section}`, async () => {
+        await host.getByRole('dialog', { name: /· Server settings$/ }).getByRole('button', { name: section, exact: true }).click()
+        await shot(host, `${file}-desktop`)
+      })
+    }
     await host.keyboard.press('Escape')
 
     await settings(phone)

@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { createInviteLink, joinVia, openSettings, send, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, joinVia, openServerSettings, send, serverRoom, SHOTS, startServer, type TestServer } from './helpers'
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -15,7 +15,7 @@ test('AutoMod blocks a word, tells the sender why, alerts and audits', async ({ 
   await joinVia(friend, await createInviteLink(host), 'Friend')
 
   // ── Settings → AutoMod: off at first, then words with an alert in #general.
-  await openSettings(host, 'AutoMod')
+  await openServerSettings(host, 'AutoMod (auto-moderation)')
   const section = host.getByTestId('automod-section')
   await expect(section).toContainText('AutoMod is off')
   await expect(section).toContainText("the server can't read them")
@@ -57,16 +57,15 @@ test('AutoMod blocks a word, tells the sender why, alerts and audits', async ({ 
   await host.screenshot({ path: join(SHOTS, 'automod-alert.png') })
 
   // ── The audit log has it.
-  await openSettings(host, 'Audit log')
-  await expect(host.getByRole('dialog', { name: 'Settings' })).toContainText('AutoMod blocked a message by Friend in #general (blocked word)')
-  await expect(host.getByRole('dialog', { name: 'Settings' })).toContainText('Host changed the AutoMod settings')
+  await openServerSettings(host, 'Activity log')
+  await expect(serverRoom(host)).toContainText('AutoMod blocked a message by Friend in #general (blocked word)')
+  await expect(serverRoom(host)).toContainText('Host changed the AutoMod settings')
   await host.keyboard.press('Escape')
 
   // ── Phone width: the settings stay usable.
   await host.setViewportSize({ width: 390, height: 844 })
   await host.getByRole('button', { name: 'Open channels' }).click()
-  await openSettings(host)
-  await host.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'AutoMod', exact: true }).click()
+  await openServerSettings(host, 'AutoMod (auto-moderation)')
   await expect(host.getByTestId('automod-section')).toContainText('AutoMod is on')
   await host.screenshot({ path: join(SHOTS, 'automod-settings-phone.png') })
 })

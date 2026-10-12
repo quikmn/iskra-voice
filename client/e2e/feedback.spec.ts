@@ -117,18 +117,23 @@ test('server menus: the rail icon and the server name lead to its settings; the 
   await joinVia(host, own.ownerLink(), 'Host')
   const friend = await (await browser.newContext()).newPage()
   await joinVia(friend, await createInviteLink(host), 'Friend')
-  const settings = host.getByRole('dialog', { name: 'Settings' })
+  const settings = host.getByRole('dialog', { name: 'Menu Test · Server settings' })
   const current = settings.locator('.settings-nav-item[aria-current="page"]')
 
-  // Right-click the server in the rail: its config, grouped, for the owner.
+  // Right-click the server in the rail: the common things flat, the rest one level down, for the owner.
   await host.locator('.server-icon[title="Menu Test"]').click({ button: 'right' })
   const menu = host.getByRole('dialog', { name: 'Menu Test options' })
-  for (const item of ['Server settings', 'Roles', 'Edit rules', 'Limits', 'Invite friends', 'Create channel', 'Reports', 'AutoMod', 'Audit log',
-    'Security log', 'Emoji', 'Soundboard', 'Bots & webhooks', 'Profile pages', 'Open to the internet', 'Backup & move', 'Import from Discord',
-    'Updates', 'Notification settings', 'Mark as read', 'New folder']) {
+  for (const item of ['Invite friends', 'Create channel…', 'Server settings', 'Members', 'Roles', 'Reports', 'More settings', 'Server nickname…',
+    'Mark as read', 'Move / Folder', 'Leave server']) {
+    await expect(menu.getByRole('menuitem', { name: item, exact: true })).toBeVisible()
+  }
+  await menu.getByRole('menuitem', { name: 'More settings' }).click()
+  for (const item of ['Channels', 'Emoji & stickers', 'Soundboard', 'Profile pages', 'Server rules', 'AutoMod (auto-moderation)', 'Activity log',
+    'Sign-ins & security', 'Bots & webhooks', 'Internet access', 'Limits', 'Backup & move', 'Import from Discord', 'Server updates']) {
     await expect(menu.getByRole('menuitem', { name: item, exact: true })).toBeVisible()
   }
   await host.screenshot({ path: join(SHOTS, 'server-menu-rail.png') })
+  await menu.getByRole('button', { name: 'Back' }).click()
   await menu.getByRole('menuitem', { name: 'Roles', exact: true }).click()
   await expect(current).toHaveText('Roles')
   await host.keyboard.press('Escape')
@@ -140,11 +145,11 @@ test('server menus: the rail icon and the server name lead to its settings; the 
   await host.keyboard.press('Enter')
   await expect(header).toHaveAttribute('aria-expanded', 'true')
   const dropdown = host.getByRole('dialog', { name: 'Menu Test options' })
-  await expect(dropdown.getByRole('menuitem', { name: 'Updates' })).toBeVisible()
+  await expect(dropdown.getByRole('menuitem', { name: 'More settings' })).toBeVisible()
   await host.keyboard.press('Escape')
   await expect(dropdown).toHaveCount(0)
   await header.click()
-  await dropdown.getByRole('menuitem', { name: 'Create channel' }).click()
+  await dropdown.getByRole('menuitem', { name: 'Create channel…' }).click()
   await expect(host.getByRole('dialog', { name: /Create/ })).toBeVisible()
   await host.keyboard.press('Escape')
 
@@ -158,8 +163,8 @@ test('server menus: the rail icon and the server name lead to its settings; the 
   await friend.locator('.server-icon[title="Menu Test"]').click({ button: 'right' })
   const theirs = friend.getByRole('dialog', { name: 'Menu Test options' })
   await expect(theirs.getByRole('menuitem', { name: 'Invite friends' })).toBeVisible()
-  await expect(theirs.getByRole('menuitem', { name: 'Server settings' })).toBeVisible()
-  for (const item of ['Roles', 'Create channel', 'Updates', 'Bots & webhooks', 'Backup & move']) {
+  await expect(theirs.getByRole('menuitem', { name: 'Leave server' })).toBeVisible()
+  for (const item of ['Server settings', 'More settings', 'Roles', 'Create channel…', 'Server updates', 'Bots & webhooks', 'Backup & move']) {
     await expect(theirs.getByRole('menuitem', { name: item, exact: true })).toHaveCount(0)
   }
   await friend.screenshot({ path: join(SHOTS, 'server-menu-member.png') })

@@ -170,6 +170,7 @@ test('server folders on the rail, synced through the servers', async ({ browser 
     await longPress(phone, phone.locator('.server-rail').getByTitle('Third Base', { exact: true }))
     const sheet = phone.getByRole('dialog', { name: 'Third Base options' })
     await expect(sheet.getByRole('menuitem', { name: 'Mark as read' })).toBeVisible()
+    await sheet.getByRole('menuitem', { name: 'Move / Folder' }).click()
     await sheet.getByRole('menuitem', { name: 'New folder' }).click()
     const settings = phone.getByRole('dialog', { name: 'Folder settings' })
     await settings.getByLabel('Folder name').fill('Mine')

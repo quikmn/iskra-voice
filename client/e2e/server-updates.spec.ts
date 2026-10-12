@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { createInviteLink, joinVia, openSettings, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, joinVia, openServerSettings, SHOTS, startServer, type TestServer } from './helpers'
 
 const servers: TestServer[] = []
 const folders: string[] = []
@@ -39,7 +39,7 @@ test('the owner checks for updates, sees what is new and picks how updates happe
   const friend = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })).newPage()
   await joinVia(friend, await createInviteLink(owner), 'Friend')
 
-  await openSettings(owner, 'Updates')
+  await openServerSettings(owner, 'Server updates')
   const section = owner.getByTestId('updates-section')
   await expect(section.getByText('Iskra 2.0.0-alpha.11')).toBeVisible()
   await section.getByRole('button', { name: 'Check now' }).click()
@@ -71,7 +71,7 @@ test('the owner checks for updates, sees what is new and picks how updates happe
   await expect(owner.locator('.update-nudge')).toHaveCount(0)
 
   // Turning checks off.
-  await openSettings(owner, 'Updates')
+  await openServerSettings(owner, 'Server updates')
   await owner.getByTestId('updates-section').getByRole('radio', { name: 'Off' }).click()
   await expect(owner.getByTestId('updates-section').getByRole('radio', { name: 'Off' })).toHaveAttribute('aria-checked', 'true')
   await expect(owner.getByText('Never looks for new versions.')).toBeVisible()
@@ -83,7 +83,7 @@ test('Settings → Updates fits a phone', async ({ browser }) => {
   const owner = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })).newPage()
   await joinVia(owner, server.ownerLink(), 'Owner')
   await owner.getByRole('button', { name: 'Open channels' }).click() // phones: the channel list (and Settings) live in a drawer
-  await openSettings(owner, 'Updates')
+  await openServerSettings(owner, 'Server updates')
   const section = owner.getByTestId('updates-section')
   await section.getByRole('button', { name: 'Check now' }).click()
   await expect(section.getByText('Update available: 2.0.0-alpha.12')).toBeVisible()

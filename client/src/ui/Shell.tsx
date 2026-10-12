@@ -22,6 +22,7 @@ import { SoundToasts } from './expressions/Soundboard'
 import { ProfileLayer } from './profile/ProfileLayer'
 import { UserMenuLayer } from './people/UserMenu'
 import { ServerActionLayer } from './organize/ServerMenu'
+import { SettingsLayer } from './settings/SettingsViews'
 import { QuickSwitcher } from './QuickSwitcher'
 import { useEscapeLayer } from './layers'
 import { EventsLayer } from './events/EventsLayer'
@@ -93,6 +94,7 @@ export function Shell() {
       <ProfileLayer />
       <UserMenuLayer />
       <ServerActionLayer />
+      <SettingsLayer />
       <QuickSwitcher />
       <EventsLayer />
       <Shortcuts />
