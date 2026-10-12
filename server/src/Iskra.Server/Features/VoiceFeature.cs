@@ -32,10 +32,8 @@ public static class VoiceFeature
         var canSpeak = channel.Kind == "voice" && Permissions.CanWrite(me, channel) && !s.Voice.IsServerMuted(me.AccountKey);
         var token = LiveKitTokens.ForRoom(backend.ApiKey, backend.ApiSecret, me.AccountKey, me.Name, room,
             canPublish: canSpeak, s.Time.GetUtcNow());
-        // Over HTTPS (internet hosting) voice goes through the same address the client used.
-        var url = s.Origin is { } origin && origin.StartsWith("https://", StringComparison.Ordinal) && s.World.Settings.Voice.ClientUrl is null
-            ? LiveKitHost.DefaultClientUrl(origin)
-            : backend.ClientUrl;
+        // Over HTTPS (internet hosting) or Tailscale voice goes through the same address the client used.
+        var url = LiveKitHost.ClientUrlFor(s.Origin, backend, s.World.Settings.Voice.ClientUrl);
         return new { url, token, room, canSpeak };
     }
 

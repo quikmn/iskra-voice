@@ -4,7 +4,9 @@ import { useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import type { HostStatus } from '../../core/protocol'
 import { RentServerDialog } from './RentServerDialog'
-import { aiPrompt, cgnatAdvice, forwardRows, lanHost, routerPage } from '../../state/hosting'
+import { TailscaleDialog } from './TailscaleDialog'
+import { aiPrompt, cgnatAdvice, forwardRows, lanHost, routerPage, tailscaleServerUrl, useHostedHere } from '../../state/hosting'
+import type { ServerState } from '../../state/store'
 
 /** Plain-words findings, all from the router's own answers and this computer: no outside service is asked. */
 export function Findings({ status }: { status: HostStatus }) {
@@ -126,10 +128,14 @@ export function OwnershipNote() {
 /**
  * When ports can't help: what to do, quickest first. Room for one more option later ("connect without port
  * forwarding", a peer-to-peer tunnel being researched): it goes in OPTIONS, right after renting a server.
+ * Tailscale (the one recommended "gaming VPN") comes after the ISP: it asks every friend to install an app.
  */
-export function CgnatHelp({ status }: { status: HostStatus }) {
+export function CgnatHelp({ status, server }: { status: HostStatus; server?: ServerState }) {
   const { t } = useTranslation()
   const [renting, setRenting] = useState(false)
+  const [tailscale, setTailscale] = useState(false)
+  const byUrl = useHostedHere((s) => s.byUrl)
+  const tailscaleUrl = server ? tailscaleServerUrl(server, byUrl, status) : (status.tailscaleUrl ?? null)
   const advice = cgnatAdvice(status)
   if (!advice) return null
   const shared = advice === 'shared'
@@ -141,6 +147,10 @@ export function CgnatHelp({ status }: { status: HostStatus }) {
     shared ? <Trans key="check" i18nKey="hosting.cgnat.checkShared" values={{ ip: status.publicIp ?? '' }} components={{ b: <strong /> }} />
       : <Trans key="check" i18nKey="hosting.cgnat.check" components={{ b: <strong /> }} />,
     <Trans key="isp" i18nKey="hosting.cgnat.isp" components={{ b: <strong /> }} />,
+    <span key="tailscale" data-testid="cgnat-tailscale">
+      <Trans i18nKey="hosting.cgnat.tailscale" components={{ b: <strong /> }} />{' '}
+      <button className="button small" onClick={() => setTailscale(true)}>{t('hosting.cgnat.tailscaleButton')}</button>
+    </span>,
     <Trans key="friend" i18nKey="hosting.cgnat.friend" components={{ b: <strong /> }} />,
   ]
   return (
@@ -150,6 +160,7 @@ export function CgnatHelp({ status }: { status: HostStatus }) {
       <p>{shared ? t('hosting.cgnat.explain') : t('hosting.cgnat.explainMaybe')}</p>
       <ol className="cgnat-options">{OPTIONS.map((option, i) => <li key={i}>{option}</li>)}</ol>
       {renting && <RentServerDialog onClose={() => setRenting(false)} />}
+      {tailscale && <TailscaleDialog server={server} tailscaleUrl={tailscaleUrl} onClose={() => setTailscale(false)} />}
     </div>
   )
 }

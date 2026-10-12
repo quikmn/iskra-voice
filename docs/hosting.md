@@ -198,13 +198,39 @@ Below it, **What Iskra found out**: whether your router has its own public addre
   1. [Rent a small server](#rent-a-small-server), ready in about 15 minutes, paid and owned by your group.
   2. Check whether you already have a public IPv4 address (many fiber connections do): the check shows what your router says.
   3. Ask your provider for a public IPv4 address. Often free and done once; mobile broadband (4G/5G) almost never gets one.
-  4. Let someone in your group with an open connection host: the server is one folder, so [move it](#moving-a-server-to-another-computer).
+  4. [Use Tailscale (free)](#use-tailscale-free): a free app that links your group's devices as if they were on one network. Everyone installs it once; no ports to open.
+  5. Let someone in your group with an open connection host: the server is one folder, so [move it](#moving-a-server-to-another-computer).
 
 **What "reachable" means.** Iskra doesn't use outside services to test your server, so it only reports what it can actually prove: *verified* once Let's Encrypt has connected to your server from the internet, or *checked through your router* when the server can reach itself via your public address. Otherwise it says it hasn't been confirmed from outside; send a friend an invite to try.
 
 **Why sslip.io.** [sslip.io](https://sslip.io) (and its twin nip.io) is a long-running free wildcard DNS service: `1-2-3-4.sslip.io` resolves to `1.2.3.4`, with nothing to sign up for. Let's Encrypt issues certificates for its names and has granted it a very large rate limit (sslip.io isn't on the Public Suffix List, so all its users share the per-domain limit; the operators have had it raised to 250,000 certificates a week). The address follows your IP, so if your provider changes it, the address and certificate change too and older invite links stop working. For stable links, use your own domain (a free dynamic-DNS name works) and set it as `Internet.Domain`.
 
 Prefer to forward ports yourself? Set `"PortMapping": false` and your `Domain` in the `Internet` section, and forward `80/tcp` and `443/tcp` to the server's port plus the two voice ports.
+
+### Use Tailscale (free)
+
+> **Your server, your choice.** Iskra gets nothing from this; it's just a guide.
+
+**Why you need this.** Your internet provider shares one internet address between many homes (this is called CGNAT). That's normal, but it means nobody outside can reach a server on your computer, and opening ports can't fix it. [Tailscale](https://tailscale.com) is a free app that connects your group's computers and phones as if they were on the same network, so your friends can reach your Iskra server directly.
+
+**What it costs and what it sees.** Tailscale's Personal plan is free for personal, non-commercial use: up to 6 people and as many devices as you like. You share only the computer that runs your server, and each friend uses their own free Tailscale account (terms checked 2026-10-12 on [tailscale.com/pricing](https://tailscale.com/pricing); they can change). Tailscale sees which devices connect to which, and when, not what you say, write or share: that travels encrypted (WireGuard). It tries a direct connection first and falls back to Tailscale's relays, so it works even when everyone is behind CGNAT. Tailscale is a separate company's service: Iskra doesn't run it, isn't part of your account and never sees it, and you can remove it any time.
+
+**You (on the computer that runs the server):**
+
+1. Install Tailscale from [tailscale.com/download](https://tailscale.com/download).
+2. Open Tailscale and sign in with Google, Microsoft, Apple or GitHub. The free Personal plan is picked for you.
+3. Share this computer with one link: on Tailscale's **Machines** page (login.tailscale.com), find this computer, choose **Share…** and copy the share link (let it be used more than once). Send it to your friends.
+4. In Iskra, open **Invite friends** and choose **Over Tailscale** (it appears once Tailscale is on), then send that invite. It points at your computer's Tailscale address, like `http://100.101.102.103:47070`. **Settings → Open to the internet** shows the same address.
+
+**Each friend:**
+
+1. Installs Tailscale from [tailscale.com/download](https://tailscale.com/download) (Windows, Mac, Linux, iPhone or Android) and signs in with their own Google, Microsoft, Apple or GitHub account.
+2. Opens your share link and presses **Accept**. They only see your computer, nothing else.
+3. Keeps Tailscale on, opens your Iskra invite in the Iskra app and joins. Chat, voice and video work as usual.
+
+**How Iskra handles it.** Iskra finds Tailscale on its own computer only from the network interfaces (an address in `100.64.0.0/10` on Tailscale's adapter: `Tailscale` on Windows, `tailscale0` on Linux, a `utun` interface on macOS); it never asks Tailscale's service or app. Friends who connect over a Tailscale address (or a MagicDNS name ending in `.ts.net`) get voice through that same address, and voice advertises this computer's own addresses, Tailscale's included, so voice and video work over it. Friends on your home network keep using the usual invite. The link is plain HTTP, which is fine here: Tailscale encrypts the whole path, and Iskra's own end-to-end encryption for DMs and private channels works as always. Browsers need HTTPS, so friends join with the Iskra app.
+
+**If friends can't connect:** check that Tailscale is on for both of you, that your share link was accepted, and that your computer is awake. Windows may ask once to allow Iskra on the network: choose **Allow**. You can also put the address in `server.json` yourself, `"PublicUrl": "http://100.101.102.103:47070"` (your address, or your `.ts.net` name): then every invite uses it, and voice still works.
 
 ### Your own domain and HTTPS setup
 

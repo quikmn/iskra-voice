@@ -37,6 +37,8 @@ public sealed record HostStatus(
     public string? LanIp { get; init; }
     /// <summary>The router's address on the home network (where its settings page usually is).</summary>
     public string? Gateway { get; init; }
+    /// <summary>How friends reach this server over Tailscale (http://&lt;100.x address&gt;:port), when it runs here. Null otherwise.</summary>
+    public string? TailscaleUrl { get; init; }
     /// <summary>The server computer's system ("windows", "macos" or "linux"), for port-forwarding and firewall help.</summary>
     public string Os { get; init; } = OperatingSystem.IsWindows() ? "windows" : OperatingSystem.IsMacOS() ? "macos" : "linux";
 }
@@ -479,8 +481,13 @@ public sealed class InternetHost : BackgroundService
             Nat = s.Internet.Enabled ? Networks.NatKind(v.Ip) : null,
             LanIp = lan?.ToString(),
             Gateway = Networks.LanGateway()?.ToString(),
+            TailscaleUrl = _mapper is TestRouter { TailscaleAddress: { } fake } ? $"http://{fake}:{s.Port}" : TailscaleUrl(s),
         };
     }
+
+    /// <summary>Not on a localhost-only server, or with your own HTTPS setup (its plain port is localhost only).</summary>
+    internal static string? TailscaleUrl(WorldSettings s) =>
+        s.LocalOnly || s.Https.Enabled || Tailscale.LocalAddress() is not { } ip ? null : $"http://{ip}:{s.Port}";
 
     /// <summary>Sends the status to admins when it changed, and the public address to everyone when that changed.</summary>
     private void Publish()

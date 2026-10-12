@@ -491,6 +491,8 @@ export interface HostStatus {
   gateway?: string | null
   /** The server computer's system. */
   os?: 'windows' | 'macos' | 'linux'
+  /** How friends reach the server over Tailscale (http://<100.x address>:port), when it's on there. */
+  tailscaleUrl?: string | null
 }
 
 export interface Events {

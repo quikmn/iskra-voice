@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
-import { hostChecklist, hostedHere, hostSummary, loadHostStatus, manualForwards, setInternet, useHostedHere, useHosting, type Step } from '../../state/hosting'
+import { hostChecklist, hostedHere, hostSummary, loadHostStatus, manualForwards, setInternet, tailscaleServerUrl, useHostedHere, useHosting, type Step } from '../../state/hosting'
+import { InviteDialog } from './InviteDialog'
 import { CgnatHelp, Findings, ForwardHelp } from './ReachabilityHelp'
 import { KeepRunning } from './CreateServerDialog'
 import type { ServerState } from '../../state/store'
@@ -22,6 +23,8 @@ export function InternetSection({ server }: { server: ServerState }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const here = useHostedHere((s) => hostedHere(server, s.byUrl))
+  const byUrl = useHostedHere((s) => s.byUrl)
+  const [tailscaleOpen, setTailscaleOpen] = useState(false)
 
   useEffect(() => {
     loadHostStatus(server.key).catch((e: Error) => setError(errorMessage(e)))
@@ -48,6 +51,7 @@ export function InternetSection({ server }: { server: ServerState }) {
     )
   }
 
+  const tailscaleUrl = tailscaleServerUrl(server, byUrl, status)
   const summary = hostSummary(status)
   const steps = hostChecklist(status)
   const forwards = status.enabled && !status.cgnat ? manualForwards(status) : []
@@ -95,7 +99,7 @@ export function InternetSection({ server }: { server: ServerState }) {
       {status.enabled && !status.cgnat && status.nat !== 'cgnat' && (forwards.length > 0 || status.nat === 'private') && (
         <ForwardHelp status={status} startOpen={forwards.length > 0} />
       )}
-      {status.enabled && <CgnatHelp status={status} />}
+      {status.enabled && <CgnatHelp status={status} server={server} />}
 
       {status.enabled && status.publicUrl?.startsWith('http://') && (
         <div className="internet-callout" role="alert">
@@ -123,6 +127,14 @@ export function InternetSection({ server }: { server: ServerState }) {
         )}
         {status.lanUrl && <span className="muted"><Trans i18nKey="settings.internet.onNetwork" values={{ url: status.lanUrl }} components={{ code: <code /> }} /></span>}
       </div>
+
+      {tailscaleUrl && (
+        <p className="internet-tailscale" data-testid="internet-tailscale">
+          <Trans i18nKey="hosting.tailscale.found" values={{ url: tailscaleUrl }} components={{ code: <code /> }} />{' '}
+          <button className="link" onClick={() => setTailscaleOpen(true)}>{t('hosting.tailscale.invite')}</button>
+        </p>
+      )}
+      {tailscaleOpen && <InviteDialog server={server} via="tailscale" onClose={() => setTailscaleOpen(false)} />}
 
       {here && isOwner && (
         <div className="internet-here">

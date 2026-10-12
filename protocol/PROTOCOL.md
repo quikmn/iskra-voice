@@ -703,6 +703,7 @@ HostStatus {
   "lanIp": "192.168.1.20",                         // this computer on the home network (where forwarded ports point), or null
   "gateway": "192.168.1.1",                        // the router on the home network, or null
   "os": "windows" | "macos" | "linux",             // the server computer's system (for port-forwarding and firewall help)
+  "tailscaleUrl": "http://100.101.102.103:47070",  // how friends reach this server over Tailscale (see below), or null
   "ports": [{ "name": "acme" | "web" | "voice-tcp" | "voice-udp", "protocol": "tcp" | "udp",
               "internal": 47070, "external": 80, "state": "open" | "failed" | "manual" | "skipped", "error": null }],
   "address": "203-0-113-7.sslip.io", "autoAddress": true,
@@ -724,6 +725,7 @@ HostStatus {
 - Without a certificate (e.g. port 80 refused) `publicUrl` stays null: a plain HTTP address is never advertised or put in invites. The only exception is a `PublicUrl` the owner set by hand in server.json, which is then used as is (the panel warns when it's plain HTTP).
 - With a certificate, plain HTTP from public addresses is redirected to `publicUrl` (except `/.well-known/`); LAN and localhost are served as before. Webhooks (`/hooks/…`) that would be redirected (plain HTTP to the HTTPS-only port from anywhere but loopback, or from the internet) get `403` "use https" instead: their secret has already crossed the network in the clear, and a redirect would hide that. Clients that connected over HTTPS get `wss://<that host>/livekit` from `voice.join`.
 - LiveKit advertises the public IP (`node_ip`) and keeps the LAN one (`advertise_internal_ip`), restarting when it changes.
+- Tailscale (the recommended "gaming VPN" behind CGNAT): `tailscaleUrl` is `http://<this computer's Tailscale address>:<Port>`, found from the local network interfaces only (an address in `100.64.0.0/10` on an interface without a default gateway, named like Tailscale's adapter: `Tailscale` on Windows, `tailscale0` on Linux, `utunN` on macOS). Never on a `LocalOnly` server or with your own HTTPS setup. Iskra never asks Tailscale's API or daemon. A `PublicUrl` on a `100.64.0.0/10` address or a `.ts.net` name counts as local for LiveKit (it advertises its interface addresses, not the home's shared address), and clients that connected over such an address get `ws://<that host>/livekit` from `voice.join`, `call.*` and group calls.
 - `GET /.well-known/acme-challenge/<token>` answers Let's Encrypt; `GET /.well-known/iskra-probe/<token>` answers only the server's own random token (for the through-the-router check).
 
 ```jsonc
