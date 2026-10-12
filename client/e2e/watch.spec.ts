@@ -96,12 +96,39 @@ test('a watch party stays in step for everyone, late joiners included', async ({
   await expect(late.locator('.watch-chat')).toContainText('popcorn ready?')
   await host.screenshot({ path: join(SHOTS, 'watch-party.png') })
 
+  // A wide player shows mute and the volume slider right in the bar.
+  await friend.setViewportSize({ width: 1920, height: 1080 })
+  const bar = friend.getByRole('toolbar', { name: 'Watch party controls' })
+  await expect(bar.getByRole('slider', { name: 'Video volume' })).toBeVisible()
+  await expect(bar.getByRole('button', { name: 'Mute video' })).toBeVisible()
+  await expect(bar.getByRole('button', { name: 'Volume', exact: true })).toBeHidden()
+
   // Phones: the video on top, controls and chat below.
   await friend.setViewportSize({ width: 390, height: 844 })
   await friend.waitForTimeout(500)
   await expect(video(friend)).toBeVisible()
   await expect(friend.locator('.watch-chat')).toBeVisible()
   await friend.screenshot({ path: join(SHOTS, 'watch-party-phone.png') })
+
+  // Volume on a narrow player: the speaker button opens a vertical slider (arrow keys work), only for this viewer.
+  const controls = bar
+  await expect(controls.getByRole('slider', { name: 'Video volume' })).toBeHidden()
+  await expect(controls.getByRole('button', { name: 'Mute video' })).toBeHidden()
+  const speaker = controls.getByRole('button', { name: 'Volume', exact: true })
+  await speaker.click()
+  await expect(speaker).toHaveAttribute('aria-expanded', 'true')
+  const slider = controls.locator('.watch-volume-vertical')
+  await expect(slider).toBeVisible()
+  await slider.fill('0.5')
+  await slider.press('ArrowDown')
+  await expect.poll(() => video(friend).evaluate((v: HTMLVideoElement) => v.volume)).toBeCloseTo(0.45, 2)
+  await expect.poll(() => video(host).evaluate((v: HTMLVideoElement) => v.volume)).toBe(1) // never anyone else's
+  await friend.screenshot({ path: join(SHOTS, 'watch-party-phone-volume.png') })
+  await slider.press('Escape')
+  await expect(slider).toHaveCount(0)
+  await expect(speaker).toBeFocused()
+  // Remembered on this device.
+  expect(await friend.evaluate(() => localStorage.getItem('iskra.watchVolume'))).toBe('0.45')
 
   // The host ends it for everyone.
   await host.getByRole('button', { name: 'End watch party' }).click()
