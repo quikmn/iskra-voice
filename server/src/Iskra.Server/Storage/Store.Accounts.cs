@@ -49,6 +49,7 @@ public sealed partial class Store
                 DELETE FROM timeouts WHERE account_key = $k;
                 DELETE FROM rules_accepted WHERE account_key = $k;
                 DELETE FROM send_nonces WHERE account_key = $k;
+                DELETE FROM envelope_send_nonces WHERE account_key = $k;
                 DELETE FROM blocks WHERE account_key = $k;
                 DELETE FROM event_interest WHERE account_key = $k;
                 DELETE FROM stage_moderators WHERE account_key = $k;

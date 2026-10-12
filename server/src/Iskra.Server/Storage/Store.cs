@@ -309,6 +309,7 @@ public sealed partial class Store : IDisposable
         // Docs keep an upload alive only while a kept revision still links to it (security review).
         ("docs-2", ForgetUnshownDocFiles + ";"),
         ("botcommands-1", BotCommandsMigration),
+        ("sends-2", EnvelopeSendsMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────
