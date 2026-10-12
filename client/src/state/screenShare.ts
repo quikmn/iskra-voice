@@ -12,13 +12,13 @@ export interface ScreenShareSettings {
   hint: 'motion' | 'detail'
 }
 
-export const DEFAULT_SHARE: ScreenShareSettings = { quality: '1080p60', audio: true, hint: 'motion' }
+export const DEFAULT_SHARE: ScreenShareSettings = { quality: 'source', audio: true, hint: 'motion' }
 
 export const QUALITIES: { id: ShareQuality; label: string }[] = [
   { id: '720p30', label: '720p 30' },
   { id: '1080p30', label: '1080p 30' },
   { id: '1080p60', label: '1080p 60' },
-  { id: 'source', label: 'Source' },
+  { id: 'source', label: 'Source 60' },
 ]
 
 /** Capture size and frame rate (0 × 0 = the screen's own size) with the bitrate to send it at. */
@@ -26,13 +26,17 @@ const PRESETS: Record<ShareQuality, VideoPreset> = {
   '720p30': new VideoPreset(1280, 720, 2_500_000, 30),
   '1080p30': new VideoPreset(1920, 1080, 5_000_000, 30),
   '1080p60': new VideoPreset(1920, 1080, 8_000_000, 60),
-  source: new VideoPreset(0, 0, 10_000_000, 30),
+  source: new VideoPreset(0, 0, 12_000_000, 60),
 }
+
+/** Saved settings carry this; older ones that still hold the old default (1080p 30) get the new default once. */
+const VERSION = 2
 
 export function parseShareSettings(raw: unknown): ScreenShareSettings {
   const s = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+  const oldDefault = s.v !== VERSION && s.quality === '1080p30'
   return {
-    quality: QUALITIES.some((q) => q.id === s.quality) ? (s.quality as ShareQuality) : DEFAULT_SHARE.quality,
+    quality: !oldDefault && QUALITIES.some((q) => q.id === s.quality) ? (s.quality as ShareQuality) : DEFAULT_SHARE.quality,
     audio: typeof s.audio === 'boolean' ? s.audio : DEFAULT_SHARE.audio,
     hint: s.hint === 'detail' || s.hint === 'motion' ? s.hint : DEFAULT_SHARE.hint,
   }
@@ -72,10 +76,10 @@ export const useScreenShareSettings = create<ScreenShareSettings>(() => {
 })
 
 export function updateShareSettings(patch: Partial<ScreenShareSettings>): void {
-  const next = parseShareSettings({ ...useScreenShareSettings.getState(), ...patch })
+  const next = parseShareSettings({ ...useScreenShareSettings.getState(), ...patch, v: VERSION })
   useScreenShareSettings.setState(next, true)
   try {
-    localStorage.setItem(KEY, JSON.stringify(next))
+    localStorage.setItem(KEY, JSON.stringify({ ...next, v: VERSION }))
   } catch {
     /* private mode */
   }

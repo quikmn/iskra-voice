@@ -42,7 +42,7 @@ export const voice: Messages['voice'] = {
     screens: 'Skärmar',
     windows: 'Fönster',
     quality: 'Kvalitet',
-    source: 'Original',
+    source: 'Original 60',
     optimiseFor: 'Optimera för',
     motion: 'Rörelse',
     detail: 'Detaljer',

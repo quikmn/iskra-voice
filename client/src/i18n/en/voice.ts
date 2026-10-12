@@ -41,7 +41,7 @@ export const voice = {
     screens: 'Screens',
     windows: 'Windows',
     quality: 'Quality',
-    source: 'Source',
+    source: 'Source 60',
     optimiseFor: 'Optimise for',
     motion: 'Motion',
     detail: 'Detail',

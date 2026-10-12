@@ -1,11 +1,24 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_SHARE, parseShareSettings, screenShareOptions } from './screenShare'
+import { DEFAULT_SHARE, parseShareSettings, screenShareOptions, updateShareSettings, useScreenShareSettings } from './screenShare'
 
 describe('screen share options', () => {
-  it('defaults to 1080p60 with sound, optimised for motion', () => {
-    expect(DEFAULT_SHARE.quality).toBe('1080p60')
+  it('defaults to Source at 60 fps with sound, optimised for motion', () => {
+    expect(DEFAULT_SHARE.quality).toBe('source')
+    expect(screenShareOptions(DEFAULT_SHARE).capture.resolution).toMatchObject({ width: 0, height: 0, frameRate: 60 })
+    expect(screenShareOptions(DEFAULT_SHARE).publish.screenShareEncoding).toMatchObject({ maxFramerate: 60 })
     expect(parseShareSettings(null)).toEqual(DEFAULT_SHARE)
     expect(parseShareSettings({ quality: '4k', audio: 'yes', hint: 'text' })).toEqual(DEFAULT_SHARE)
+  })
+
+  it('moves a saved old default (1080p 30) to the new default once, but keeps a choice made since', () => {
+    expect(parseShareSettings({ quality: '1080p30', audio: false, hint: 'detail' })).toEqual({ quality: 'source', audio: false, hint: 'detail' })
+    expect(parseShareSettings({ quality: '1080p30', audio: true, hint: 'motion', v: 2 }).quality).toBe('1080p30')
+    expect(parseShareSettings({ quality: '720p30' }).quality).toBe('720p30')
+  })
+
+  it('remembers a deliberate 1080p 30 pick', () => {
+    updateShareSettings({ quality: '1080p30' })
+    expect(useScreenShareSettings.getState().quality).toBe('1080p30')
   })
 
   it('turns each quality into a capture size, frame rate and bitrate', () => {
