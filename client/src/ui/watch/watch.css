@@ -14,6 +14,9 @@ iframe.watch-video { pointer-events: none; }
   border: 0; background: rgba(0, 0, 0, 0.6); color: #fff; text-align: center; font-size: 15px;
 }
 button.watch-overlay { cursor: pointer; }
+.watch-gate p { margin: 0; max-width: 42ch; }
+.watch-gate .checkbox { font-size: 13px; color: #ddd; align-items: center; }
+.watch-gate .checkbox input { margin: 0; }
 .watch-overlay-play { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; background: var(--accent); color: var(--on-accent); }
 
 .watch-bar { display: grid; gap: 8px; padding: 10px 12px 12px; }

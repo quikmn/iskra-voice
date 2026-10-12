@@ -37,4 +37,7 @@ export const watch: Messages['watch'] = {
   chatEmpty: 'Säg hej. Meddelanden här sparas inte.',
   messageParty: 'Skriv till alla som tittar',
   notConnected: 'Inte ansluten.',
+  playsFrom: 'Videon spelas upp från {{site}}, som då ser din IP-adress.',
+  watchFrom: 'Titta från {{site}}',
+  startNote: 'Spelas upp från {{site}}: alla som tittar hämtar den därifrån, och {{site}} ser deras IP-adresser.',
 }

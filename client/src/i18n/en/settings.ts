@@ -347,6 +347,7 @@ export const settings = {
     letFriends: 'Let friends anywhere join',
     ownerOnly: 'Only the owner can change this.',
     intro: 'Iskra asks your router to open the ports, gives your server a free address and a real HTTPS certificate, so invite links work for friends anywhere. You can turn it off any time.',
+    thirdParties: "Who's involved: your router (UPnP or NAT-PMP, on your own network), Let's Encrypt for the certificate, and sslip.io, a public name service that turns the free address back into your IP. They see your server's address, never your members'.",
     progress: 'Progress',
     outside: 'Outside port',
     toPort: 'To port',

@@ -67,6 +67,8 @@ export interface DesktopSettings {
   customGames: { name: string; process: string }[]
   /** Hosted servers kept running ("Keep my server running"). Missing in older desktop builds. */
   keepRunning?: string[]
+  /** Looks for new versions on GitHub by itself (default on). Missing in older desktop builds. */
+  updateChecks?: boolean
 }
 
 export type PushToTalkStatus = 'ready' | 'needs-permission' | 'limited' | 'unavailable'

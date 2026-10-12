@@ -348,6 +348,7 @@ export const settings: Messages['settings'] = {
     letFriends: 'Låt vänner var som helst gå med',
     ownerOnly: 'Bara ägaren kan ändra det här.',
     intro: 'Iskra ber din router att öppna portarna och ger din server en gratis adress och ett riktigt HTTPS-certifikat, så att inbjudningslänkar fungerar för vänner var som helst. Du kan stänga av det när du vill.',
+    thirdParties: 'Inblandade: din router (UPnP eller NAT-PMP, i ditt eget nätverk), Let’s Encrypt för certifikatet och sslip.io, en offentlig namntjänst som gör om den gratis adressen till din IP-adress. De ser serverns adress, aldrig dina medlemmars.',
     progress: 'Förlopp',
     outside: 'Extern port',
     toPort: 'Till port',

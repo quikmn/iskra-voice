@@ -13,6 +13,58 @@ export const compliance = {
     deviceDone: 'Saved {{name}}.',
     deleteHint: 'To delete your account and what servers keep about you, use Settings → Account.',
   },
+  connections: {
+    title: 'Who Iskra talks to',
+    intro: 'Your devices talk to your own servers. Anything else is listed here: when it happens, what they see, and how to turn it off.',
+    servers: {
+      who: 'Your servers',
+      when: 'Always: messages, voice, files, link previews, GIFs (normally) and the captions model all come from the servers you join.',
+      off: "Each server sees your IP address while you're connected. Leave a server to stop.",
+    },
+    embeds: {
+      who: 'YouTube, Twitch, X and Reddit',
+      when: 'Only when you press Play or Load on a link in chat, or for a site you told this device to always load.',
+      off: 'They see your IP address. Nothing loads until you click; forget a site below to be asked again.',
+    },
+    watch: {
+      who: 'Watch-party videos',
+      when: 'When you press Watch in a watch party that plays from YouTube or another website (not for videos uploaded to the server).',
+      off: 'That site sees your IP address. You can skip it and stay in the call.',
+    },
+    gifs: {
+      who: 'KLIPY (GIFs)',
+      when: 'Normally never: GIF search and GIFs go through your server. Only if a server\'s owner picked "Straight from KLIPY" does your app ask KLIPY itself, and GIFs in chat then wait for a click.',
+      off: 'Then KLIPY sees your IP address and searches. The owner chooses this in Server settings → Overview.',
+    },
+    updates: {
+      who: 'GitHub (app updates)',
+      when: 'The desktop app checks GitHub for a new version shortly after it starts and every 4 hours, and downloads updates from there.',
+      off: "GitHub sees your IP address and the app version. Updates fix security problems, so it's on unless you turn it off here (desktop app).",
+    },
+    updateChecks: 'Check for updates automatically',
+    updateChecksHint: '"Check for updates" in the tray menu still works when this is off.',
+    push: {
+      who: 'Push services (notifications)',
+      when: "Only if you turn on notifications on a device: your servers send them through your browser's push service (Google, Mozilla, Microsoft or Apple).",
+      off: "Encrypted, so the push service can't read them, but it sees that one arrived. Turn off in My settings → Notifications.",
+    },
+    webApp: {
+      who: 'app.iskra.foo (Cloudflare)',
+      when: "Only the web app: Cloudflare delivers the app's files when you open it in a browser. The desktop and phone apps carry their own copy.",
+      off: 'Cloudflare sees your IP address, never your chats. Use the desktop app to skip it.',
+    },
+    hosting: {
+      who: 'When you run a server',
+      when: "Open to the internet: your router (UPnP or NAT-PMP, on your own network), Let's Encrypt for the HTTPS certificate, and sslip.io for the free address if you have no domain. Captions: the server fetches the speech model once from Hugging Face. Server updates: GitHub.",
+      off: "They see the server's address, not your members'. Each can be turned off in Server settings.",
+    },
+    nothingElse: "Nothing else: no analytics, no ads, no crash reports, no fonts or scripts from other sites. Spellcheck uses your computer's own (off on Linux, where it would download dictionaries from Google).",
+    sitesTitle: 'Sites that load without asking',
+    sitesHint: 'Sites you ticked "Always load from …" for, on this device only.',
+    noSites: 'No sites yet. Players and posts from other sites wait for a click.',
+    forget: 'Forget',
+    forgetSite: 'Forget {{site}}',
+  },
   securityLog: {
     intro: "Sign-in failures, new members and devices, account key changes, backups and data downloads on this server. Moderators' actions are in the audit log. Only you, the owner, can see this.",
     event: 'Event',

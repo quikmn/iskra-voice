@@ -533,7 +533,9 @@ async function connect(
       })
 
     if (encryption) await next.setE2EEEnabled(true)
-    await next.connect(url, token)
+    // No STUN servers: the app connects straight to the server's own voice ports, so nobody else (LiveKit's default
+    // list is Google's) learns your address. Overrides whatever list the voice server would hand out.
+    await next.connect(url, token, { rtcConfig: { iceServers: [] } })
     if (room !== next) {
       await next.disconnect()
       return false

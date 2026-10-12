@@ -29,6 +29,17 @@ describe('link embeds', () => {
     expect(e('https://www.reddit.com/r/aww/')).toBeNull()
   })
 
+  it('says which site each loads from, and only autoplays after a click', () => {
+    expect(e('https://youtu.be/dQw4w9WgXcQ')?.site).toBe('youtube.com')
+    expect(e('https://www.twitch.tv/somestreamer')?.site).toBe('twitch.tv')
+    expect(e('https://twitter.com/someone/status/1234567890')?.site).toBe('x.com')
+    expect(e('https://old.reddit.com/r/aww/comments/abc123/')?.site).toBe('reddit.com')
+    // Loaded by itself (a remembered site): no autoplay.
+    expect(embedFor('https://youtu.be/dQw4w9WgXcQ', 'app.iskra.foo', false)?.src).toBe('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ')
+    expect(embedFor('https://youtu.be/dQw4w9WgXcQ?t=5', 'app.iskra.foo', false)?.src).toBe('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?start=5')
+    expect(embedFor('https://www.twitch.tv/somestreamer', 'app.iskra.foo', false)?.src).toBe('https://player.twitch.tv/?channel=somestreamer&parent=app.iskra.foo&autoplay=false')
+  })
+
   it('never builds an iframe address from untrusted parts', () => {
     expect(e('https://evil.example/watch?v=dQw4w9WgXcQ')).toBeNull()
     expect(e('https://youtube.com.evil.example/watch?v=dQw4w9WgXcQ')).toBeNull()

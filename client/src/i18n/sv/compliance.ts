@@ -15,6 +15,58 @@ export const compliance: Messages['compliance'] = {
     deviceDone: 'Sparade {{name}}.',
     deleteHint: 'Vill du radera ditt konto och det servrarna sparar om dig? Gå till Inställningar → Konto.',
   },
+  connections: {
+    title: 'Vem Iskra pratar med',
+    intro: 'Dina enheter pratar med dina egna servrar. Allt annat står här: när det händer, vad de ser och hur du stänger av det.',
+    servers: {
+      who: 'Dina servrar',
+      when: 'Alltid: meddelanden, röst, filer, länkförhandsvisningar, GIF:ar (normalt) och textningsmodellen kommer från servrarna du är med i.',
+      off: 'Varje server ser din IP-adress medan du är ansluten. Lämna en server för att sluta.',
+    },
+    embeds: {
+      who: 'YouTube, Twitch, X och Reddit',
+      when: 'Bara när du trycker på Spela upp eller Ladda på en länk i chatten, eller för en webbplats du sagt att den här enheten alltid ska ladda.',
+      off: 'De ser din IP-adress. Inget laddas förrän du klickar; glöm en webbplats nedan för att bli tillfrågad igen.',
+    },
+    watch: {
+      who: 'Videor i watch party',
+      when: 'När du trycker på Titta i en watch party som spelas upp från YouTube eller en annan webbplats (inte för videor som laddats upp till servern).',
+      off: 'Den webbplatsen ser din IP-adress. Du kan hoppa över den och stanna kvar i samtalet.',
+    },
+    gifs: {
+      who: 'KLIPY (GIF:ar)',
+      when: 'Normalt aldrig: GIF-sökning och GIF:ar går via din server. Bara om serverns ägare valt "Direkt från KLIPY" frågar din app KLIPY själv, och då väntar GIF:ar i chatten på ett klick.',
+      off: 'Då ser KLIPY din IP-adress och dina sökningar. Ägaren väljer det i Serverinställningar → Översikt.',
+    },
+    updates: {
+      who: 'GitHub (appuppdateringar)',
+      when: 'Skrivbordsappen kollar efter en ny version hos GitHub strax efter start och var fjärde timme, och hämtar uppdateringar därifrån.',
+      off: 'GitHub ser din IP-adress och appens version. Uppdateringar täpper till säkerhetshål, så det är på om du inte stänger av det här (skrivbordsappen).',
+    },
+    updateChecks: 'Leta efter uppdateringar automatiskt',
+    updateChecksHint: '"Leta efter uppdateringar" i menyn i aktivitetsfältet fungerar fortfarande när det här är av.',
+    push: {
+      who: 'Pushtjänster (aviseringar)',
+      when: 'Bara om du slår på aviseringar på en enhet: dina servrar skickar dem via webbläsarens pushtjänst (Google, Mozilla, Microsoft eller Apple).',
+      off: 'Krypterade, så pushtjänsten kan inte läsa dem, men den ser att en kom fram. Stäng av i Mina inställningar → Aviseringar.',
+    },
+    webApp: {
+      who: 'app.iskra.foo (Cloudflare)',
+      when: 'Bara webbappen: Cloudflare levererar appens filer när du öppnar den i en webbläsare. Skrivbords- och mobilapparna har en egen kopia.',
+      off: 'Cloudflare ser din IP-adress, aldrig dina chattar. Använd skrivbordsappen för att slippa det.',
+    },
+    hosting: {
+      who: 'När du kör en server',
+      when: 'Öppen mot internet: din router (UPnP eller NAT-PMP, i ditt eget nätverk), Let’s Encrypt för HTTPS-certifikatet och sslip.io för den gratis adressen om du inte har en egen domän. Textning: servern hämtar talmodellen en gång från Hugging Face. Serveruppdateringar: GitHub.',
+      off: 'De ser serverns adress, inte dina medlemmars. Allt kan stängas av i Serverinställningar.',
+    },
+    nothingElse: 'Inget annat: ingen analys, inga annonser, inga kraschrapporter, inga typsnitt eller skript från andra webbplatser. Stavningskontrollen är datorns egen (av på Linux, där den skulle hämta ordlistor från Google).',
+    sitesTitle: 'Webbplatser som laddas utan att fråga',
+    sitesHint: 'Webbplatser du kryssat i "Ladda alltid från …" för, bara på den här enheten.',
+    noSites: 'Inga än. Spelare och inlägg från andra webbplatser väntar på ett klick.',
+    forget: 'Glöm',
+    forgetSite: 'Glöm {{site}}',
+  },
   securityLog: {
     intro: 'Misslyckade inloggningar, nya medlemmar och enheter, bytta kontonycklar, säkerhetskopior och nedladdad data på den här servern. Moderatorernas åtgärder finns i granskningsloggen. Bara du som ägare ser det här.',
     event: 'Händelse',

@@ -1,4 +1,5 @@
-// Settings → Privacy & data: download what each server keeps about you, and what this device keeps.
+// Settings → Privacy & data: download what each server keeps about you, and what this device keeps; then who Iskra
+// talks to besides your servers (ConnectionsSection).
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
@@ -7,6 +8,7 @@ import { downloadFile } from '../../state/backups'
 import { collectDeviceExport, dateStamp, requestDataExport, saveJson } from '../../state/compliance'
 import { useApp, type ServerState } from '../../state/store'
 import { Spinner } from '../bits'
+import { ConnectionsSection } from './ConnectionsSection'
 import './compliance.css'
 
 export function PrivacySection() {
@@ -49,6 +51,7 @@ export function PrivacySection() {
   }
 
   return (
+    <>
     <section className="settings-section" data-testid="privacy-section">
       <h3>{t('settings.sections.privacy')}</h3>
       <p className="muted">{t('compliance.privacy.intro')}</p>
@@ -80,5 +83,7 @@ export function PrivacySection() {
       {error && <p className="error-text" role="alert">{error}</p>}
       <p className="muted data-export-note">{t('compliance.privacy.deleteHint')}</p>
     </section>
+    <ConnectionsSection />
+    </>
   )
 }

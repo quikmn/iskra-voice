@@ -36,4 +36,7 @@ export const watch = {
   chatEmpty: "Say hi. Messages here aren't saved.",
   messageParty: 'Message the party',
   notConnected: 'Not connected.',
+  playsFrom: 'This video plays from {{site}}, which will see your IP address.',
+  watchFrom: 'Watch from {{site}}',
+  startNote: 'Plays from {{site}}: everyone who watches loads it from there, and {{site}} sees their IP addresses.',
 } as const

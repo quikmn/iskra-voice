@@ -16,7 +16,7 @@ export function GifSettings({ server }: { server: ServerState }) {
   const { t } = useTranslation()
   if (!server.me || roleRank(server.me.role) < roleRank('admin')) return null
   const enabled = !!status?.enabled
-  const mode: GifMode = status?.mode ?? 'direct'
+  const mode: GifMode = status?.mode ?? 'proxy'
 
   async function save(change: { key?: string; mode?: GifMode }, done: string) {
     setBusy(true)
@@ -56,20 +56,20 @@ export function GifSettings({ server }: { server: ServerState }) {
       <fieldset className="gif-mode" disabled={busy}>
         <legend>{t('chat.gifSettings.modeLegend')}</legend>
         <label className="radio">
-          <input type="radio" name={`gif-mode-${server.key}`} checked={mode === 'direct'} onChange={() => void save({ mode: 'direct' }, t('chat.gifSettings.directDone'))} />
-          <span>
-            <span><Trans i18nKey="chat.gifSettings.directTitle" components={{ b: <strong /> }} /></span>
-            <span className="muted">
-              <Trans i18nKey="chat.gifSettings.directBody" components={{ b: <strong /> }} />
-            </span>
-          </span>
-        </label>
-        <label className="radio">
           <input type="radio" name={`gif-mode-${server.key}`} checked={mode === 'proxy'} onChange={() => void save({ mode: 'proxy' }, t('chat.gifSettings.proxyDone'))} />
           <span>
             <span><Trans i18nKey="chat.gifSettings.proxyTitle" components={{ b: <strong /> }} /></span>
             <span className="muted">
               {t('chat.gifSettings.proxyBody')}
+            </span>
+          </span>
+        </label>
+        <label className="radio">
+          <input type="radio" name={`gif-mode-${server.key}`} checked={mode === 'direct'} onChange={() => void save({ mode: 'direct' }, t('chat.gifSettings.directDone'))} />
+          <span>
+            <span><Trans i18nKey="chat.gifSettings.directTitle" components={{ b: <strong /> }} /></span>
+            <span className="muted">
+              <Trans i18nKey="chat.gifSettings.directBody" components={{ b: <strong /> }} />
             </span>
           </span>
         </label>

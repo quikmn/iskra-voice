@@ -11,6 +11,12 @@
 .retention-ips { display: flex; gap: 10px; align-items: flex-start; margin-top: 16px; }
 .retention-ips > span { display: grid; gap: 2px; }
 .settings-section > .limits-grid + .button { margin-top: 12px; }
+.connection-list { list-style: none; margin: 10px 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.connection { display: grid; gap: 2px; padding: 10px 14px; font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+.connection + .connection { border-top: 1px solid var(--border); }
+.connection .muted { font-size: 13px; }
+.connection-switch { margin-top: 8px; }
 @media (max-width: 760px) {
   .data-export-list li { flex-wrap: wrap; }
+  .connection { padding: 10px 12px; }
 }
