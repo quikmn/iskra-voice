@@ -13,7 +13,7 @@ public static class HifiFeature
     internal static bool? Field(Body body, string kind)
     {
         if (body.OptionalBool("hifi") is not { } value) return null;
-        if (kind != "voice") throw RequestException.BadRequest("Only voice channels can allow hi-fi audio.");
+        if (kind != "voice") throw RequestException.BadRequest("Only voice channels can allow hi-fi audio.", "hifi_voice_only");
         return value;
     }
 }

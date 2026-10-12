@@ -21,3 +21,5 @@ b408220b1449d8dde1d7ceda2a14c9b4edf63eb8:iskra_client/index.html:gcp-api-key:266
 fe5057668c5bbc5c9b013d5d2e4a29943503a8e9:mobile/ios/App/Shared/PushKeys.swift:generic-api-key:9
 # The comment above, as first written, quoted that annotation and matched the same rule.
 c0a8d8f6430c1ae3b03d9c87797b002793f5d374:.gitleaksignore:generic-api-key:19
+# A made-up server public key (a public identifier, not a secret) used to test the server colour.
+db01296868ad012bf3a96d1b12694faa855a3450:client/src/ui/serverColor.test.ts:generic-api-key:4

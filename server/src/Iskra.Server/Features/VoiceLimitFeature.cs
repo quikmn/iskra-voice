@@ -20,8 +20,8 @@ public static class VoiceLimitFeature
     internal static int? Field(Body body, string kind)
     {
         if (body.OptionalLong("userLimit", min: 0, max: MaxUserLimit) is not { } value) return null;
-        if (kind == "stage") throw RequestException.BadRequest("Stages don't have a user limit: anyone who can see one can listen in.");
-        if (kind != "voice") throw RequestException.BadRequest("Only voice channels have a user limit.");
+        if (kind == "stage") throw RequestException.BadRequest("Stages don't have a user limit: anyone who can see one can listen in.", "limit_stage");
+        if (kind != "voice") throw RequestException.BadRequest("Only voice channels have a user limit.", "limit_voice_only");
         return (int)value;
     }
 
@@ -40,6 +40,6 @@ public static class VoiceLimitFeature
     {
         if (HasRoom(s.World.Store, s.Voice, me, channel, s.Now)) return;
         var limit = s.World.Store.UserLimit(channel.Id);
-        throw new RequestException("channel_full", $"{channel.Name} is full ({limit}/{limit}). Try again when someone leaves.");
+        throw new RequestException("channel_full", $"{channel.Name} is full ({limit}/{limit}). Try again when someone leaves.", "channel_full", new { name = channel.Name, limit });
     }
 }

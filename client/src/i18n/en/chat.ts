@@ -321,4 +321,12 @@ export const chat = {
     speedLabel: 'Playback speed {{rate}}×',
     speed: 'Playback speed',
   },
+  a11y: {
+    messages: 'Messages in {{name}}',
+    message: '{{name}}, {{time}}',
+    newMessage: '{{name}}: {{text}}',
+    newMessages_one: '{{count}} new message',
+    newMessages_other: '{{count}} new messages',
+    actions: 'Message actions',
+  },
 } as const

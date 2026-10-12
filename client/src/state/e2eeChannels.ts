@@ -159,8 +159,23 @@ function persist(rec: Rec): void {
 
 // ── Chain and keys ─────────────────────────────────────────────────────────
 
+export const CHAIN_REPLACED = "This channel's encryption was replaced by the server while you were still in it. Messages stay locked until this is sorted out."
+
+/**
+ * Whether a new chain id may replace the one we verified. The server only starts a chain over when nobody in the old one
+ * can read the channel any more, so a device whose account is still in its verified chain never accepts a replacement
+ * (that would hand the channel to whoever signed the new `create`).
+ */
+export function mayReplaceChain(current: { chain: string | null; members: readonly string[] | undefined }, next: string, mine: string): boolean {
+  return !current.chain || current.chain === next || !mine || !(current.members ?? []).includes(mine)
+}
+
 /** Adds verified changes. A different chain id means the channel was started over (everyone before lost access). */
 function applyChanges(rec: Rec, chain: string, changes: GroupChange[]): void {
+  if (!mayReplaceChain({ chain: rec.chain, members: rec.view?.members }, chain, me())) {
+    rec.problem = CHAIN_REPLACED // keep the verified chain and its keys
+    return
+  }
   if (rec.chain !== chain) {
     rec.chain = chain
     rec.changes = []

@@ -1,10 +1,10 @@
-import { spawn, type ChildProcess } from 'node:child_process'
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { expect, test, type BrowserContext, type Locator, type Page } from '@playwright/test'
+import { expect, test, type BrowserContext, type ElectronApplication, type Locator, type Page } from '@playwright/test'
 import { APP_PORT } from '../playwright.config'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -53,9 +53,11 @@ export interface TestServer {
   /**
    * Stops the server cleanly and starts it again on the same port and world after `downMs`. `as: 'restart'` (the
    * default) is a restart members are told about ("restarting, hold on"); `'stop'` is a plain stop ("went offline")
-   * that happens to come back. Needs `ISKRA_STOP_ON_STDIN_CLOSE: '1'` in the env given to startServer, like the desktop host.
+   * that happens to come back; `'marker'` is a plain stop after `iskra-server expect-restart` (what an update script
+   * does before `systemctl restart`), so members hear "restarting". Needs `ISKRA_STOP_ON_STDIN_CLOSE: '1'` in the env
+   * given to startServer, like the desktop host.
    */
-  restart: (downMs?: number, as?: 'restart' | 'stop') => Promise<void>
+  restart: (downMs?: number, as?: 'restart' | 'stop' | 'marker') => Promise<void>
 }
 
 /**
@@ -178,7 +180,11 @@ async function startIn(world: string, name: string, voice: boolean, env: Record<
     })()),
     restart: async (downMs = 0, as = 'restart') => {
       if (env.ISKRA_STOP_ON_STDIN_CLOSE !== '1') throw new Error('restart needs ISKRA_STOP_ON_STDIN_CLOSE=1')
-      await end(current, as)
+      if (as === 'marker') {
+        const cli = spawnSync('dotnet', [SERVER_DLL, 'expect-restart', world, '--reason', 'update', '--eta', '30'], { encoding: 'utf8' })
+        if (cli.status !== 0) throw new Error(`expect-restart failed: ${cli.stderr}`)
+      }
+      await end(current, as === 'marker' ? 'stop' : as)
       await new Promise((r) => setTimeout(r, downMs))
       current = launch()
       if (!(await ready(current))) throw new Error('server did not come back (port taken?)')
@@ -196,6 +202,36 @@ export async function joinVia(page: Page, link: string, name: string) {
   await page.getByLabel('Your name').fill(name)
   await page.getByRole('button', { name: 'Join' }).click()
   await expect(page.getByRole('heading', { name: 'general' })).toBeVisible({ timeout: 15_000 })
+}
+
+/**
+ * Records every status banner (`role="status"`) the page shows from now on, with when it appeared. For banners that
+ * are only up for a moment (the restart banner's "<Server> is back." shows for 2.5 s): asserting on them live races
+ * whatever the test waits for first, so check the record instead.
+ */
+export async function recordStatusBanners(page: Page): Promise<() => Promise<{ text: string; at: number }[]>> {
+  await page.evaluate(() => {
+    const w = window as unknown as { __statusSeen?: { text: string; at: number }[]; __statusObserver?: MutationObserver }
+    w.__statusObserver?.disconnect()
+    const seen: { text: string; at: number }[] = []
+    const showing = new Set<string>()
+    w.__statusSeen = seen
+    const look = () => {
+      const now = new Set<string>()
+      for (const el of document.querySelectorAll('[role="status"]')) {
+        const text = (el.textContent ?? '').trim()
+        if (!text) continue
+        now.add(text)
+        if (!showing.has(text)) seen.push({ text, at: Date.now() })
+      }
+      showing.clear()
+      for (const text of now) showing.add(text)
+    }
+    w.__statusObserver = new MutationObserver(look)
+    w.__statusObserver.observe(document.body, { childList: true, subtree: true, characterData: true })
+    look()
+  })
+  return () => page.evaluate(() => (window as unknown as { __statusSeen?: { text: string; at: number }[] }).__statusSeen ?? [])
 }
 
 /** The first-run screen asks to agree to the terms before either choice (once per device and terms version). */
@@ -252,4 +288,11 @@ export async function longPress(page: Page, target: Locator) {
   await target.dispatchEvent('pointerdown', at)
   await page.waitForTimeout(600)
   await target.dispatchEvent('pointerup', at)
+}
+
+/** The desktop app's main window (app://), not the splash window that opens first. */
+export async function appWindow(app: ElectronApplication): Promise<Page> {
+  const isApp = (p: Page) => p.url().startsWith('app://')
+  await expect.poll(() => app.windows().some(isApp), { timeout: 30_000 }).toBe(true)
+  return app.windows().find(isApp)!
 }

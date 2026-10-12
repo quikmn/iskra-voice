@@ -351,7 +351,7 @@ onAudioSettings((next, prev) => {
   } else if (next.noise !== prev.noise || next.echoCancellation !== prev.echoCancellation || next.autoGainControl !== prev.autoGainControl ||
     next.inputDevice !== prev.inputDevice) {
     void recapture(next)
-  } else if (next.inputVolume !== prev.inputVolume || next.threshold !== prev.threshold) {
+  } else if (next.inputVolume !== prev.inputVolume || next.threshold !== prev.threshold || next.aiStrength !== prev.aiStrength) {
     processor?.active?.update(next, pttMode())
   }
   void listener?.apply(next)

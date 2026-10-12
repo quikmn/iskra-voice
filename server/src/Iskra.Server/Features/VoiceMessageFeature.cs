@@ -30,8 +30,8 @@ public static class VoiceMessageFeature
         if (attachments.Length != 1) throw RequestException.BadRequest("A voice message is exactly one audio file.");
         if (text.Length > 0) throw RequestException.BadRequest("Voice messages can't have text.");
         var file = s.World.Store.GetFile(attachments[0]) ?? throw RequestException.BadRequest("Unknown attachment.");
-        if (!Types.Contains(file.Type)) throw RequestException.BadRequest("Voice messages must be Ogg, WebM or MP4 audio.");
-        if (file.Size > MaxBytes) throw RequestException.BadRequest($"Voice messages can be up to {MaxBytes / 1024 / 1024} MB.");
+        if (!Types.Contains(file.Type)) throw RequestException.BadRequest("Voice messages must be Ogg, WebM or MP4 audio.", "voice_message_type");
+        if (file.Size > MaxBytes) throw RequestException.BadRequest($"Voice messages can be up to {MaxBytes / 1024 / 1024} MB.", "voice_message_size", new { mb = MaxBytes / 1024 / 1024 });
 
         var voice = new Body(element);
         var duration = (int)(voice.OptionalLong("duration", min: 1, max: MaxDurationMs)
@@ -50,8 +50,8 @@ public static class VoiceMessageFeature
             {
                 throw RequestException.NotFound("Voice file");
             }
-            var measured = AudioProbe.DurationMs(bytes, file.Type) ?? throw RequestException.BadRequest("Couldn't read that recording.");
-            if (measured > MaxDurationMs + 1000) throw RequestException.BadRequest("Voice messages can be up to 5 minutes.");
+            var measured = AudioProbe.DurationMs(bytes, file.Type) ?? throw RequestException.BadRequest("Couldn't read that recording.", "recording_unreadable");
+            if (measured > MaxDurationMs + 1000) throw RequestException.BadRequest("Voice messages can be up to 5 minutes.", "voice_message_5_min");
             duration = Math.Clamp(measured, 1, MaxDurationMs);
         }
         return new Voice(duration, waveform);

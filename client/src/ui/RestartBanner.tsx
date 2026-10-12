@@ -3,14 +3,19 @@ import { useTranslation } from 'react-i18next'
 import { useResume } from '../state/resume'
 import type { ServerState } from '../state/store'
 import { useVoice, voiceResume } from '../state/voice'
+import { useAnnounce } from './a11y'
 import './restart.css'
 
 export function RestartBanner({ server }: { server: ServerState }) {
   const { t } = useTranslation()
   const back = useResume((s) => !!s.back[server.key])
   const inVoiceHere = useVoice((s) => !!s.session && !s.session.call && !s.session.group && s.session.serverKey === server.key)
-  if (server.status.state === 'restarting') {
-    const voice = inVoiceHere || voiceResume()?.serverKey === server.key
+  const restarting = server.status.state === 'restarting'
+  const voice = restarting && (inVoiceHere || voiceResume()?.serverKey === server.key)
+  // Mounted with its text, a status region isn't always read: say it too.
+  useAnnounce(restarting ? t(voice ? 'chat.view.restartingVoice' : 'chat.view.restarting', { name: server.name })
+    : back && server.status.state === 'online' ? t('chat.view.back', { name: server.name }) : null)
+  if (restarting) {
     return (
       <div className="banner restart-banner" role="status" aria-live="polite">
         <span className="restart-spinner" aria-hidden="true" />

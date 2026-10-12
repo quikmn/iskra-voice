@@ -55,6 +55,15 @@ async function attemptsWithin(ms: number, failWith = 1006): Promise<number> {
   return FakeSocket.all.length - before
 }
 
+/** Waits for the next attempt, however the jitter fell: at most the longest backoff (30 s + 30%). */
+async function nextAttempt(): Promise<FakeSocket> {
+  const count = FakeSocket.all.length
+  const end = Date.now() + 39_000
+  while (FakeSocket.all.length === count && Date.now() <= end) await vi.advanceTimersByTimeAsync(100)
+  expect(FakeSocket.all.length).toBe(count + 1)
+  return FakeSocket.all.at(-1)!
+}
+
 describe('connection: reconnecting', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -62,6 +71,7 @@ describe('connection: reconnecting', () => {
   })
   afterEach(() => {
     vi.useRealTimers()
+    vi.restoreAllMocks()
   })
 
   it('backs off on an ordinary drop', async () => {
@@ -142,7 +152,15 @@ describe('connection: reconnecting', () => {
     expect(last().state).toBe('offline')
   })
 
-  it('backs off as usual when the server stopped for good, and says so until it is back', async () => {
+  // Whatever the jitter draws. CI once drew short delays and then a long one (the 7th attempt, 39 s away at
+  // 22 s), and a fixed 31 s wait fell short.
+  it.each([
+    ['short', () => 0],
+    ['long', () => 0.999],
+    ['short, then long', (n: number) => (n < 6 ? 0 : 0.999)],
+  ])('backs off as usual when the server stopped for good, and says so until it is back (jitter: %s)', async (_, jitter) => {
+    let n = 0
+    vi.spyOn(Math, 'random').mockImplementation(() => jitter(n++))
     const { last, socket } = connect()
     socket().welcome()
     socket().drop(1001, JSON.stringify({ v: 1, reason: 'stop' }))
@@ -150,10 +168,11 @@ describe('connection: reconnecting', () => {
     const tries = await attemptsWithin(30_000)
     expect(tries).toBeLessThanOrEqual(7) // not the quick restart pace
     expect(last()).toMatchObject({ state: 'offline', stopped: true }) // later failures don't forget why
-    await vi.advanceTimersByTimeAsync(31_000)
-    socket().welcome()
+    // The next attempt can be up to 39 s away (30 s cap, +30% jitter); a fixed 31 s wait sometimes fell short.
+    const back = await nextAttempt()
+    back.welcome()
     expect(last().state).toBe('online')
-    socket().drop(1006)
+    back.drop(1006)
     expect(last()).not.toHaveProperty('stopped')
   })
 

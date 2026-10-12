@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 # Rebuilds client/vendor/deepfilternet/ (DeepFilterNet3 noise suppression as WebAssembly) from source.
-# Only needed to change versions: the result is committed. Needs git, curl, a Rust toolchain (rustup) with the
-# wasm32-unknown-unknown target, and Node. Works in Git Bash on Windows, Linux and macOS.
+# Only needed to change versions: the result is committed. Needs git, curl, rustup (it builds with Rust 1.99.0 and
+# its wasm32-unknown-unknown target: rustup toolchain install 1.99.0 --target
+# wasm32-unknown-unknown), and Node. Works in Git Bash on Windows, Linux and macOS.
 #   scripts/build-deepfilter.sh [work dir]      (default: a temporary directory)
 # Pinned: DeepFilterNet (libDF, MIT OR Apache-2.0) at its last commit, moved to tract 0.23.3 by
 # client/vendor/deepfilternet/tract-0.23.patch (tract 0.23 runs the model about twice as fast in WebAssembly as the
-# 0.21 in DeepFilterNet's own lockfile), every crate pinned by client/vendor/deepfilternet/Cargo.lock;
+# 0.21 in DeepFilterNet's own lockfile; same output to within 16-bit rounding), plus wasm-thresholds.patch (lets
+# the app set the local SNR thresholds the command line tool uses), every crate pinned by client/vendor/deepfilternet/Cargo.lock;
 # wasm-bindgen 0.2.129, binaryen version_131. The model is the official DeepFilterNet3_onnx.tar.gz from the same commit.
 set -euo pipefail
 commit=d375b2d8309e0935d165700c91da9de862a99c31
+toolchain=1.99.0
 bindgen=0.2.129
 binaryen=version_131
 model_sha=c94d91f70911001c946e0fabb4aa9adc37045f45a03b56008cb0c8244cb63616
@@ -18,6 +21,7 @@ out="$root/client/vendor/deepfilternet"
 work="${1:-$(mktemp -d)}"
 mkdir -p "$work" "$out"
 cd "$work"
+work="$(pwd)"
 
 sha256() { if command -v sha256sum >/dev/null; then sha256sum "$1"; else shasum -a 256 "$1"; fi | cut -d' ' -f1; }
 case "$(uname -s)-$(uname -m)" in
@@ -32,10 +36,14 @@ if [ ! -d DeepFilterNet ]; then git clone --quiet https://github.com/Rikorose/De
 git -C DeepFilterNet -c advice.detachedHead=false checkout --quiet "$commit"
 git -C DeepFilterNet checkout --quiet -- .
 git -C DeepFilterNet apply "$out/tract-0.23.patch"
+git -C DeepFilterNet apply "$out/wasm-thresholds.patch"
 cp "$out/Cargo.lock" DeepFilterNet/Cargo.lock
 
-(cd DeepFilterNet && RUSTFLAGS="-C target-feature=+simd128" CARGO_TARGET_DIR="$work/target" \
-  cargo build --locked --release -p deep_filter --lib --target wasm32-unknown-unknown --no-default-features --features wasm)
+# Paths end up in the binary (panic messages): map this machine's away, so every machine builds the same bytes.
+native() { if command -v cygpath >/dev/null; then cygpath -w "$1"; else echo "$1"; fi; }
+remap="--remap-path-prefix=$(native "${CARGO_HOME:-$HOME/.cargo}")=/cargo --remap-path-prefix=$(native "$work")=/work"
+(cd DeepFilterNet && RUSTFLAGS="-C target-feature=+simd128 $remap" CARGO_TARGET_DIR="$work/target" \
+  cargo "+$toolchain" build --locked --release -p deep_filter --lib --target wasm32-unknown-unknown --no-default-features --features wasm)
 
 [ -x "wasm-bindgen-$bindgen-$triple/wasm-bindgen$exe" ] || \
   curl -sSfL "https://github.com/wasm-bindgen/wasm-bindgen/releases/download/$bindgen/wasm-bindgen-$bindgen-$triple.tar.gz" | tar xz

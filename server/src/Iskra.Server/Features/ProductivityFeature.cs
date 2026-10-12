@@ -53,7 +53,7 @@ public static class EditHistoryFeature
     {
         var message = s.World.Store.GetMessage(body.Long("id")) ?? throw RequestException.NotFound("Message");
         ChatFeature.ReadableChannel(s, me, message.ChannelId);
-        if (!CanSee(me, message)) throw RequestException.Forbidden("Only the author and moderators can see earlier versions.");
+        if (!CanSee(me, message)) throw RequestException.Forbidden("Only the author and moderators can see earlier versions.", "history_author_mods");
         return new
         {
             versions = s.World.Store.MessageVersions(message.Id).Select(v => new { text = v.Text, at = v.WrittenAt }),

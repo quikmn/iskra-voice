@@ -34,17 +34,17 @@ public static class StageFeature
 
     private static void RequireModerator(Session s, Member me, Channel channel)
     {
-        if (!s.Voice.Stages.IsModerator(me, channel)) throw RequestException.Forbidden("Only stage moderators can do that.");
+        if (!s.Voice.Stages.IsModerator(me, channel)) throw RequestException.Forbidden("Only stage moderators can do that.", "stage_mods_only");
     }
 
     private static void RequireLive(Session s, Channel channel)
     {
-        if (!s.Voice.Stages.IsLive(channel.Id)) throw RequestException.BadRequest("This stage isn't live.");
+        if (!s.Voice.Stages.IsLive(channel.Id)) throw RequestException.BadRequest("This stage isn't live.", "stage_not_live");
     }
 
     private static string Topic(Body body) =>
         Text.Normalize(body.String("topic", StageRegistry.MaxTopicLength * 4), StageRegistry.MaxTopicLength, allowNewlines: false)
-        ?? throw RequestException.BadRequest($"The topic must be 1–{StageRegistry.MaxTopicLength} characters.");
+        ?? throw RequestException.BadRequest($"The topic must be 1–{StageRegistry.MaxTopicLength} characters.", "stage_topic_length", new { max = StageRegistry.MaxTopicLength });
 
     /// <summary>Someone in the room right now (as LiveKit reports it).</summary>
     private static Member Present(Session s, Channel channel, Body body)
@@ -61,7 +61,7 @@ public static class StageFeature
         RequireModerator(s, me, channel);
         if (target.AccountKey != me.AccountKey && s.Voice.Stages.IsModerator(target, channel)
             && !(Permissions.IsAdmin(me) && Permissions.Outranks(me, target)))
-            throw RequestException.Forbidden("You can't do that to another moderator.");
+            throw RequestException.Forbidden("You can't do that to another moderator.", "not_to_moderator");
     }
 
     private static RequestException Unavailable() => new("voice_unavailable", "Voice isn't available on this server right now.");
@@ -72,8 +72,8 @@ public static class StageFeature
         var topic = Topic(body);
         RequireModerator(s, me, channel);
         var stages = s.Voice.Stages;
-        if (!stages.InRoom(channel.Id, me.AccountKey)) throw RequestException.BadRequest("Join the stage first.");
-        if (!stages.Start(channel.Id, me.AccountKey, topic, s.Now)) throw RequestException.BadRequest("This stage is already live.");
+        if (!stages.InRoom(channel.Id, me.AccountKey)) throw RequestException.BadRequest("Join the stage first.", "stage_join_first");
+        if (!stages.Start(channel.Id, me.AccountKey, topic, s.Now)) throw RequestException.BadRequest("This stage is already live.", "stage_live");
         if (!await stages.AddSpeakerAsync(channel.Id, me.AccountKey))
         {
             stages.Cancel(channel.Id);
@@ -108,10 +108,10 @@ public static class StageFeature
         var raised = body.OptionalBool("raised") ?? throw RequestException.BadRequest("'raised' is required.");
         var stages = s.Voice.Stages;
         RequireLive(s, channel);
-        if (!stages.InRoom(channel.Id, me.AccountKey)) throw RequestException.BadRequest("Join the stage first.");
-        if (raised && !stages.MaySpeak(me, channel)) throw RequestException.Forbidden("You can only listen on this stage.");
-        if (raised && stages.IsSpeaker(channel.Id, me.AccountKey)) throw RequestException.BadRequest("You're already speaking.");
-        if (!stages.SetHand(channel.Id, me.AccountKey, raised, s.Now)) throw RequestException.BadRequest("Too many hands are up right now.");
+        if (!stages.InRoom(channel.Id, me.AccountKey)) throw RequestException.BadRequest("Join the stage first.", "stage_join_first");
+        if (raised && !stages.MaySpeak(me, channel)) throw RequestException.Forbidden("You can only listen on this stage.", "stage_listen_only");
+        if (raised && stages.IsSpeaker(channel.Id, me.AccountKey)) throw RequestException.BadRequest("You're already speaking.", "stage_already_speaking");
+        if (!stages.SetHand(channel.Id, me.AccountKey, raised, s.Now)) throw RequestException.BadRequest("Too many hands are up right now.", "stage_hands_full");
         return null;
     }
 
@@ -122,7 +122,7 @@ public static class StageFeature
         RequireModerator(s, me, channel);
         RequireLive(s, channel);
         var target = Present(s, channel, body);
-        if (!s.Voice.Stages.MaySpeak(target, channel)) throw RequestException.Forbidden("They can only listen on this stage.");
+        if (!s.Voice.Stages.MaySpeak(target, channel)) throw RequestException.Forbidden("They can only listen on this stage.", "stage_they_listen");
         if (s.World.Store.IsBot(target.AccountKey)) throw RequestException.Forbidden("Bots can't speak.");
         if (!await s.Voice.Stages.AddSpeakerAsync(channel.Id, target.AccountKey)) throw Unavailable();
         return null;
@@ -156,7 +156,7 @@ public static class StageFeature
         var channel = StageChannel(s, me, body);
         var target = Present(s, channel, body);
         RequireCanActOn(s, me, channel, target);
-        if (!s.Voice.Stages.IsSpeaker(channel.Id, target.AccountKey)) throw RequestException.BadRequest("They aren't speaking.");
+        if (!s.Voice.Stages.IsSpeaker(channel.Id, target.AccountKey)) throw RequestException.BadRequest("They aren't speaking.", "they_not_speaking");
         _ = s.Voice.Backend.MuteMicrophoneAsync(VoiceRegistry.RoomName(channel.Id), target.AccountKey);
         return null;
     }
@@ -166,7 +166,7 @@ public static class StageFeature
     {
         var channel = StageChannel(s, me, body);
         var target = Present(s, channel, body);
-        if (target.AccountKey == me.AccountKey) throw RequestException.BadRequest("Leave the stage instead.");
+        if (target.AccountKey == me.AccountKey) throw RequestException.BadRequest("Leave the stage instead.", "stage_leave_instead");
         RequireCanActOn(s, me, channel, target);
         _ = s.Voice.Backend.RemoveParticipantAsync(VoiceRegistry.RoomName(channel.Id), target.AccountKey);
         return null;
@@ -177,16 +177,16 @@ public static class StageFeature
     {
         var channel = StageChannel(s, me, body);
         var on = body.OptionalBool("on") ?? throw RequestException.BadRequest("'on' is required.");
-        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can choose stage moderators.");
+        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can choose stage moderators.", "admins_stage_mods");
         var key = body.String("accountKey", 64);
         if (on)
         {
             var target = s.World.Store.GetMember(key) ?? throw RequestException.NotFound("Member");
             if (s.World.Store.IsBot(key)) throw RequestException.BadRequest("Bots can't moderate stages.");
-            if (!Permissions.CanRead(target, channel)) throw RequestException.BadRequest("They can't see this stage.");
+            if (!Permissions.CanRead(target, channel)) throw RequestException.BadRequest("They can't see this stage.", "they_cant_see_stage");
         }
         if (!s.World.Store.SetStageModerator(channel.Id, key, on, me.AccountKey, s.Now))
-            throw RequestException.BadRequest($"A stage can have up to {Store.MaxStageModerators} moderators.");
+            throw RequestException.BadRequest($"A stage can have up to {Store.MaxStageModerators} moderators.", "stage_mods_max", new { max = Store.MaxStageModerators });
         s.Voice.Stages.Publish(channel.Id);
         s.Voice.Stages.Sync(channel.Id); // a former moderator who can't otherwise speak steps down
         return null;

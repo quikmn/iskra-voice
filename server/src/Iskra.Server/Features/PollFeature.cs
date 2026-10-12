@@ -41,18 +41,18 @@ public static class PollFeature
     private static object Create(Session s, Member me, Body body)
     {
         var channel = ChatFeature.ReadableChannel(s, me, body.Long("channelId"));
-        if (channel.Kind != "text") throw RequestException.BadRequest("You can't post polls in that channel.");
+        if (channel.Kind != "text") throw RequestException.BadRequest("You can't post polls in that channel.", "poll_channel");
         E2eeChannelFeature.RefusePlaintext(s.World.Store, channel, "Polls");
-        if (!Permissions.CanWrite(me, channel)) throw RequestException.Forbidden("You can't send messages in this channel.");
+        if (!Permissions.CanWrite(me, channel)) throw RequestException.Forbidden("You can't send messages in this channel.", "cant_send_here");
 
         var question = Text.Normalize(body.String("question", MaxQuestion * 2), MaxQuestion, allowNewlines: false)
-            ?? throw RequestException.BadRequest($"The question must be 1–{MaxQuestion} characters.");
+            ?? throw RequestException.BadRequest($"The question must be 1–{MaxQuestion} characters.", "poll_question_length", new { max = MaxQuestion });
         var raw = body.OptionalStringArray("options", MaxOptions, MaxOption * 2);
         var options = raw.Select(o => Text.Normalize(o, MaxOption, allowNewlines: false)
-            ?? throw RequestException.BadRequest($"Each answer must be 1–{MaxOption} characters.")).ToArray();
-        if (options.Length < MinOptions) throw RequestException.BadRequest($"A poll needs {MinOptions}–{MaxOptions} answers.");
+            ?? throw RequestException.BadRequest($"Each answer must be 1–{MaxOption} characters.", "poll_answer_length", new { max = MaxOption })).ToArray();
+        if (options.Length < MinOptions) throw RequestException.BadRequest($"A poll needs {MinOptions}–{MaxOptions} answers.", "poll_answers", new { min = MinOptions, max = MaxOptions });
         if (options.Distinct(StringComparer.OrdinalIgnoreCase).Count() != options.Length)
-            throw RequestException.BadRequest("Answers must be different from each other.");
+            throw RequestException.BadRequest("Answers must be different from each other.", "poll_answers_unique");
 
         var multi = body.OptionalBool("multi") ?? false;
         var duration = body.OptionalLong("durationMs", MinDurationMs, MaxDurationMs);
@@ -76,7 +76,7 @@ public static class PollFeature
     private static object? Vote(Session s, Member me, Body body)
     {
         var (message, channel, poll) = Find(s, me, body);
-        if (poll.IsClosed(s.Now)) throw RequestException.BadRequest("This poll has ended.");
+        if (poll.IsClosed(s.Now)) throw RequestException.BadRequest("This poll has ended.", "poll_ended");
 
         var element = body.Element("options");
         if (element.ValueKind != JsonValueKind.Array || element.GetArrayLength() > MaxOptions)
@@ -88,7 +88,7 @@ public static class PollFeature
                 throw RequestException.BadRequest("That answer doesn't exist.");
             if (!choices.Add(index)) throw RequestException.BadRequest("Each answer can only be picked once.");
         }
-        if (!poll.Multi && choices.Count > 1) throw RequestException.BadRequest("This poll allows only one answer.");
+        if (!poll.Multi && choices.Count > 1) throw RequestException.BadRequest("This poll allows only one answer.", "poll_one_answer");
 
         s.World.Store.SetVote(message.Id, me.AccountKey, choices, s.Now);
         Publish(s.Hub, s.World.Store, channel, message.Id);
@@ -99,7 +99,7 @@ public static class PollFeature
     {
         var (message, channel, poll) = Find(s, me, body);
         var author = s.World.Store.GetMember(message.AuthorKey);
-        if (!Permissions.CanDeleteMessage(me, message, author)) throw RequestException.Forbidden("Only the author or an admin can end this poll.");
+        if (!Permissions.CanDeleteMessage(me, message, author)) throw RequestException.Forbidden("Only the author or an admin can end this poll.", "poll_end_author");
         if (poll.IsClosed(s.Now)) return null;
         if (s.World.Store.ClosePoll(message.Id, s.Now)) Publish(s.Hub, s.World.Store, channel, message.Id);
         return null;

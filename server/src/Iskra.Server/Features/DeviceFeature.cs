@@ -82,7 +82,7 @@ public static class DeviceFeature
         if (!s.World.Store.IsDeviceRevoked(me.AccountKey, deviceKey))
         {
             if (s.World.Store.CountRevocations(me.AccountKey) >= MaxRevocations) throw RequestException.BadRequest("Too many revoked devices.");
-            if (!s.TryTakeLimit("device.revoke.new")) throw new RequestException("rate_limited", "Too many devices removed in a short time. Try again later.");
+            if (!s.TryTakeLimit("device.revoke.new")) throw new RequestException("rate_limited", "Too many devices removed in a short time. Try again later.", "too_many_devices_removed");
             s.World.Store.AddRevocation(new DeviceRevocation(me.AccountKey, deviceKey, revokedAt, sig));
             SecurityLog.Record(s, "device.revoke", details: new { deviceKey });
         }
@@ -91,7 +91,7 @@ public static class DeviceFeature
         foreach (var session in s.Hub.Sessions.Where(x => x.AccountKey == me.AccountKey))
         {
             session.Send(notice);
-            if (session.DeviceKey == deviceKey) session.Kick(CloseCodes.Forbidden, "This device was removed from its account.");
+            if (session.DeviceKey == deviceKey) session.Kick(CloseCodes.Forbidden, "This device was removed from its account.", "kicked_device");
         }
         return new { };
     }

@@ -1,2 +1,4 @@
 # A bot's keys live here; never commit them.
 *.bot.json
+*.data.json
+*.tmp

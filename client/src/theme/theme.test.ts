@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { loadThemeChoice, parseTheme, safeColor, textOn, themeVariables, validateTheme } from './theme'
+import { contrast, loadThemeChoice, nameLightness, parseTheme, safeColor, solidUnderWhite, textOn, themeVariables, validateTheme } from './theme'
 import { BUILT_IN_THEMES } from './themes'
 
 const valid = { meta: { name: 'Mine' }, colors: { accent: '#ff8800' } }
@@ -78,7 +78,8 @@ describe('applying themes', () => {
     expect(vars['--bg']).toBe('#0b0b14')
     expect(vars['--radius']).toBe('4px')
     expect(vars['--avatar-radius']).toBe('50%')
-    expect(textOn('#7c6fff')).toBe('#ffffff')
+    expect(textOn('#695bff')).toBe('#ffffff')
+    expect(textOn('#7c6fff')).toBe('#0b0b14') // white is only 3.8:1 there
     for (const value of Object.values(vars)) expect(value).not.toMatch(/[;{}]/)
   })
 
@@ -89,5 +90,38 @@ describe('applying themes', () => {
     expect(loadThemeChoice(stored('{"custom":{"meta":{"name":"x"},"colors":{"bgDeep":"url(x)"}}}'))).toEqual({ id: 'iskra' })
     expect(loadThemeChoice(stored('garbage'))).toEqual({ id: 'iskra' })
     expect(loadThemeChoice(stored(JSON.stringify({ custom: valid })))).toEqual({ custom: valid })
+  })
+})
+
+// WCAG AA in every built-in look: 4.5:1 for text on the surfaces it sits on, white on danger buttons.
+describe('contrast', () => {
+  const surfaces = ['bgChat', 'bgSidebar', 'bgFloat', 'bgDeep'] as const
+  for (const { id, theme } of BUILT_IN_THEMES) {
+    it(`${id} reads at AA`, () => {
+      const vars = themeVariables(theme)
+      const c = theme.colors
+      const low: string[] = []
+      const check = (fg: string | undefined, bg: string | undefined, what: string) => {
+        if (fg && bg && contrast(fg, bg) < 4.5) low.push(`${what} ${contrast(fg, bg).toFixed(2)}`)
+      }
+      for (const s of surfaces) {
+        for (const t of ['textHeading', 'textNormal', 'textMuted', 'textSubtle', 'link', 'danger', 'success', 'warning', 'mentionText'] as const) check(c[t], c[s], `${t} on ${s}`)
+      }
+      for (const t of ['textNormal', 'textMuted', 'link'] as const) check(c[t], c.bgButton, `${t} on bgButton`)
+      check(c.textNormal, c.bgActive, 'textNormal on bgActive')
+      check(vars['--on-accent'], vars['--accent'], 'onAccent on accent')
+      check('#ffffff', vars['--danger-solid'], 'white on danger-solid')
+      expect(low).toEqual([])
+    })
+  }
+
+  it('makes author names light enough on every dark chat background', () => {
+    expect(nameLightness('#141424')).toBe(72)
+    expect(nameLightness('#3b4252')).toBeGreaterThan(72)
+  })
+
+  it('darkens a colour just enough for white text', () => {
+    expect(contrast('#ffffff', solidUnderWhite('#f87171'))).toBeGreaterThanOrEqual(4.5)
+    expect(solidUnderWhite('#b91c1c')).toBe('#b91c1c')
   })
 })

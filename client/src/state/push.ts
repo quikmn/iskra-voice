@@ -3,7 +3,7 @@
 // The server skips devices that are looking at Iskra, so this reports focus to every server we're subscribed on.
 // The desktop app has native notifications and doesn't use any of this; the phone apps notify while they're open.
 import { create } from 'zustand'
-import { t } from '../i18n'
+import { currentLanguage, onLanguage, t } from '../i18n'
 import { errorMessage } from '../i18n/errors'
 import { b64u, fromB64u } from '../core/crypto'
 import { parseOpenRoute, pushScope, pushSupport, serverOfScope, type OpenTarget, type PushSupport } from '../core/pushRoute'
@@ -76,6 +76,9 @@ export async function disablePush(): Promise<void> {
   for (const key of Object.keys(usePush.getState().servers)) setServer(key, null)
 }
 
+/** The worker shows pushes in the app's language, so it's registered with it. */
+const workerUrl = () => `/push-sw.js?lang=${currentLanguage()}`
+
 async function pushRegistrations(): Promise<ServiceWorkerRegistration[]> {
   if (!('serviceWorker' in navigator)) return []
   return (await navigator.serviceWorker.getRegistrations()).filter((r) => serverOfScope(r.scope) !== null)
@@ -113,7 +116,7 @@ async function doSync(key: string): Promise<void> {
   if (!connection?.isOnline) return
   try {
     const { publicKey, endpoint } = await connection.request('push.status', {})
-    const reg = await navigator.serviceWorker.register('/push-sw.js', { scope: pushScope(key) })
+    const reg = await navigator.serviceWorker.register(workerUrl(), { scope: pushScope(key) })
     await activated(reg)
     let sub = await reg.pushManager.getSubscription()
     const subKey = sub?.options.applicationServerKey
@@ -263,6 +266,16 @@ export function startPush(): () => void {
     for (const key of removed) setServer(key, null)
   })
 
+  // A new language: update the workers (their subscriptions stay).
+  let language = currentLanguage()
+  const stopLanguage = onLanguage((next) => {
+    if (next === language) return
+    language = next
+    void pushRegistrations().then((regs) => {
+      for (const reg of regs) void navigator.serviceWorker.register(workerUrl(), { scope: reg.scope }).catch(() => undefined)
+    })
+  })
+
   window.addEventListener('hashchange', readOpenHash)
   window.addEventListener('focus', onFocusChange)
   window.addEventListener('blur', onFocusChange)
@@ -271,6 +284,7 @@ export function startPush(): () => void {
   return () => {
     clearTimeout(timer)
     stopOrder()
+    stopLanguage()
     window.removeEventListener('hashchange', readOpenHash)
     window.removeEventListener('focus', onFocusChange)
     window.removeEventListener('blur', onFocusChange)

@@ -114,7 +114,7 @@ test('the server room belongs to one server; My settings has no server sections'
   await settled(friend)
   await friend.screenshot({ path: join(SHOTS, 'server-room-member-menu.png') })
   await theirs.getByRole('menuitem', { name: 'Server nickname…' }).click()
-  await friend.getByLabel('Server nickname').fill('Pal')
+  await friend.getByLabel('Server nickname', { exact: true }).fill('Pal')
   await friend.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(friend.locator('.me-bar')).toContainText('Pal')
   await friend.keyboard.press('Escape')

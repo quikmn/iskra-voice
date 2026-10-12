@@ -34,6 +34,9 @@ export const voice = {
     profileOf: 'Profile of {{name}}',
     screenOf: "{{name}}'s screen",
     fullScreen: 'Full screen',
+    showBig: 'Show {{name}} big',
+    muted: 'muted',
+    deafened: 'deafened',
     controls: 'Call controls',
   },
   share: {

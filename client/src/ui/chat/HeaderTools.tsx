@@ -15,7 +15,7 @@ import { fullTime, messageTime } from '../format'
 import { renderMarkdown } from '../markdown'
 import { relativeTime } from './pinThreadHelpers'
 import { PinIcon, SearchIcon, ThreadIcon } from './extraIcons'
-import { useEscapeLayer } from '../layers'
+import { useEscapeLayer, useFocusTrap } from '../layers'
 import './chat-extras.css'
 import { resolveKey } from '../../state/keyMap'
 
@@ -77,6 +77,7 @@ export function HeaderTools({ server, channel }: { server: ServerState; channel:
 export function Popover({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
   useEscapeLayer(onClose)
+  useFocusTrap(ref)
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
       const target = e.target as Element
@@ -89,7 +90,7 @@ export function Popover({ title, onClose, children }: { title: string; onClose: 
     }
   }, [onClose])
   return (
-    <div className="header-popover" role="dialog" aria-label={title} ref={ref}>
+    <div className="header-popover" role="dialog" aria-label={title} ref={ref} tabIndex={-1}>
       <header>{title}</header>
       <div className="header-popover-body">{children}</div>
     </div>

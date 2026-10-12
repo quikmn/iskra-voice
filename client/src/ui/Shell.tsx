@@ -40,6 +40,7 @@ export type Panel = 'none' | 'nav' | 'members'
 
 /** The main three-column layout. On phones the side columns become drawers. */
 export function Shell() {
+  const { t } = useTranslation()
   const server = useApp(activeServerState)
   const [panel, setPanel] = useState<Panel>('none')
   const [joining, setJoining] = useState(false)
@@ -55,12 +56,13 @@ export function Shell() {
 
   return (
     <div className={`shell panel-${panel} ${server ? '' : 'no-members'}`}>
+      <button className="skip-link" onClick={() => document.getElementById('main-content')?.focus()}>{t('app.skipToContent')}</button>
       <div className="nav-column">
         <ServerRail onJoin={() => setJoining(true)} onNavigate={() => setPanel('none')} />
         {server ? <ChannelSidebar server={server} onNavigate={() => setPanel('none')} /> : <HomeSidebar onNavigate={() => setPanel('none')} />}
       </div>
 
-      <main className="main-column">
+      <main className="main-column" id="main-content" tabIndex={-1}>
         <RecoveryNudge />
         <DisputeNotices />
         {server && <ServerUpdateNotice server={server} />}

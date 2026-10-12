@@ -170,6 +170,9 @@ public class PushTests
         var push = (await server.Push.WaitForAsync(bobEndpoint)).Single();
         Assert.Equal("mention", push.GetProperty("kind").GetString());
         Assert.Equal("Alice in #general", push.GetProperty("title").GetString());
+        Assert.Equal("mention", push.GetProperty("text").GetProperty("title").GetString());
+        Assert.Equal(JsonValueKind.Null, push.GetProperty("text").GetProperty("body").ValueKind); // the excerpt shows as is
+        Assert.Equal("general", push.GetProperty("text").GetProperty("args").GetProperty("channel").GetString());
         Assert.Equal("hey @Bob and @Alice, game at 8?", push.GetProperty("body").GetString());
         Assert.Equal(server.General, push.GetProperty("channelId").GetInt64());
         Assert.Equal(Ed25519.ToB64u(server.World.ServerPublicKey), push.GetProperty("server").GetString());
@@ -293,6 +296,11 @@ public class PushTests
         var delivery = (await server.Push.WaitForAsync(bobEndpoint)).Single();
         Assert.Equal("dm", delivery.GetProperty("kind").GetString());
         Assert.Equal("New message from Alice", delivery.GetProperty("title").GetString());
+        // The texts' names, so the app can show them in its language.
+        var text = delivery.GetProperty("text");
+        Assert.Equal("dm", text.GetProperty("title").GetString());
+        Assert.Equal("openToRead", text.GetProperty("body").GetString());
+        Assert.Equal("Alice", text.GetProperty("args").GetProperty("name").GetString());
         Assert.Equal(alice.Key, delivery.GetProperty("peer").GetString());
         var raw = server.Push.SentTo(bobEndpoint).Single().Payload;
         Assert.DoesNotContain("SECRET", raw);

@@ -212,18 +212,23 @@ function ServerIcon({ server, active, className, dnd, onClick, onContextMenu, on
   const hold = useHold(onHold)
   const { unread, pings } = serverBadges(server)
   const offline = server.status.state !== 'online'
+  const { t } = useTranslation()
+  const label = active ? server.name : pings > 0 ? t('app.rail.serverMentions', { name: server.name, count: pings })
+    : unread > 0 ? t('app.rail.serverUnread', { name: server.name }) : server.name
   return (
     <button
       className={`server-icon ${active ? 'active' : ''} ${offline ? 'offline' : ''} ${className}`}
       title={server.name}
+      aria-label={label}
+      aria-current={active ? 'page' : undefined}
       onClick={onClick}
       onContextMenu={onContextMenu}
       {...hold}
       {...dnd}
     >
       {initials(server.name)}
-      {pings > 0 && !active && <span className="badge">{pings > 99 ? '99+' : pings}</span>}
-      {pings === 0 && unread > 0 && !active && <span className="unread-dot" />}
+      {pings > 0 && !active && <span className="badge" aria-hidden>{pings > 99 ? '99+' : pings}</span>}
+      {pings === 0 && unread > 0 && !active && <span className="unread-dot" aria-hidden />}
     </button>
   )
 }
@@ -262,7 +267,7 @@ function Folder({ folder, servers, active, className, dnd, onToggle, onContextMe
           </svg>
         )}
         {folder.collapsed && pings > 0 && <span className="badge">{pings > 99 ? '99+' : pings}</span>}
-        {folder.collapsed && pings === 0 && unread > 0 && <span className="unread-dot" />}
+        {folder.collapsed && pings === 0 && unread > 0 && <span className="unread-dot" aria-hidden />}
       </button>
       {!folder.collapsed && children}
     </div>

@@ -7,6 +7,7 @@ import { join, resolve } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Bot, loadState } from '../../bots/sdk/src/index'
 import { describe as describeRoll, pick, roll } from '../../bots/examples/dice-rules'
+import { formatDuration, parseDuration, parseEvent, parsePoll, parseReminder, pollCsv, pollSummary } from '../../bots/examples/planner-rules'
 import { Connection, type ConnectionStatus } from '../src/core/connection'
 import { ready } from '../src/core/crypto'
 import { createIdentity } from '../src/core/identity'
@@ -51,6 +52,39 @@ describe('dice rules', () => {
     expect(pick('pizza, tacos, sushi', fixed(0.5))).toBe('tacos')
     expect(pick('this or that', fixed(0))).toBe('this')
     expect(pick('only one')).toBeNull()
+  })
+})
+
+describe('planner rules', () => {
+  it('reads durations', () => {
+    expect(parseDuration('10m')).toBe(600_000)
+    expect(parseDuration('1h30m')).toBe(5_400_000)
+    expect(parseDuration('15min')).toBe(900_000)
+    expect(parseDuration('2d')).toBe(172_800_000)
+    expect(parseDuration('soon')).toBeNull()
+    expect(parseDuration('10')).toBeNull()
+    expect(parseDuration('0m')).toBeNull()
+    expect(formatDuration(5_400_000)).toBe('1 h 30 min')
+    expect(formatDuration(90_061_000)).toBe('1 d 1 h')
+  })
+
+  it('reads polls, reminders and events', () => {
+    expect(parsePoll('Pizza or tacos? | Pizza | Tacos')).toMatchObject({ question: 'Pizza or tacos?', answers: ['Pizza', 'Tacos'], durationMs: 86_400_000 })
+    expect(parsePoll('2h Movie tonight?')).toMatchObject({ question: 'Movie tonight?', answers: ['Yes', 'No'], durationMs: 7_200_000 })
+    expect(parsePoll('Only one | answer')).toMatch(/at least two/)
+    expect(parsePoll('')).toMatch(/Try/)
+    expect(parseReminder('10m stretch your legs')).toEqual({ inMs: 600_000, text: 'stretch your legs' })
+    expect(parseReminder('stretch')).toMatch(/Try/)
+    expect(parseEvent('1d Movie night @ Lounge')).toEqual({ inMs: 86_400_000, title: 'Movie night', place: 'Lounge' })
+    expect(parseEvent('2h Game night')).toEqual({ inMs: 7_200_000, title: 'Game night', place: null })
+  })
+
+  it('summarizes a poll, as text and as CSV', () => {
+    const poll = { question: 'Food?', multi: false, expiresAt: 1, closedAt: 1,
+      options: [{ text: 'Pizza', votes: ['a'] }, { text: 'Tacos, "spicy"', votes: ['b', 'c'] }] }
+    expect(pollSummary(poll)).toBe('📊 **Food?**\nTacos, "spicy": **2** (67 %)\nPizza: **1** (33 %)')
+    const names: Record<string, string> = { a: 'Ann', b: '=cmd()', c: 'Cy' }
+    expect(pollCsv(poll, (k) => names[k])).toBe(`answer,voter\r\nPizza,Ann\r\n"Tacos, ""spicy""",'=cmd()\r\n"Tacos, ""spicy""",Cy\r\n`)
   })
 })
 
@@ -150,12 +184,49 @@ describe('bot SDK ↔ server', () => {
     expect(again.me?.accountKey).toBe(bot.me?.accountKey)
   })
 
-  it('a bot that is not invited as a bot is turned away', async () => {
+  it('a bot that is not invited as a bot is turned away, and told why', async () => {
     const { invite } = await owner.request('invite.create', {})
     const link = buildInviteLink('http://localhost:5173', { serverUrl: url, serverKey: welcome!.server.key, code: invite.code })
     const bot = new Bot({ name: 'Sneaky', invite: link, stateFile: join(world, 'sneaky.bot.json'), log: () => undefined })
     bots.push(bot)
-    await expect(bot.start()).rejects.toThrow(/invite/)
+    await expect(bot.start()).rejects.toThrow(/needs a bot invite/)
+    await expect(new Bot({ name: 'Lost', stateFile: join(world, 'lost.bot.json'), log: () => undefined }).start()).rejects.toThrow(/No server yet/)
+    await expect(new Bot({ name: 'Typo', invite: 'hello', stateFile: join(world, 'typo.bot.json'), log: () => undefined }).start())
+      .rejects.toThrow(/doesn't look like an Iskra invite/)
+  })
+
+  it('a bot edits, deletes, sends files, starts polls and threads, and hears edits, reactions and votes', async () => {
+    const { invite } = await owner.request('bot.invite', {})
+    const link = buildInviteLink('http://localhost:5173', { serverUrl: url, serverKey: welcome!.server.key, code: invite.code })
+    const bot = new Bot({ name: 'Helper', invite: link, stateFile: join(world, 'helper.bot.json'), log: () => undefined })
+    bots.push(bot)
+    const edits: Message[] = []
+    const reactions: Events['chat.reactions'][] = []
+    const votes: Events['poll.updated'][] = []
+    bot.on('messageEdited', (m) => edits.push(m)).on('reactions', (r) => reactions.push(r)).on('pollUpdated', (p) => votes.push(p))
+    await bot.start()
+    const general = welcome!.channels.find((c) => c.name === 'general')!
+
+    const sent = await bot.send(general.id, 'draft')
+    expect((await bot.edit(sent.id, 'final')).text).toBe('final')
+    await waitFor(() => edits.find((m) => m.id === sent.id), 'chat.edited')
+    await owner.request('chat.react', { id: sent.id, emoji: '👍', on: true })
+    await waitFor(() => reactions.find((r) => r.id === sent.id), 'chat.reactions')
+    await bot.delete(sent.id)
+
+    const withFile = await bot.sendFile(general.id, { name: 'notes.txt', data: 'hello' }, { text: 'here you go' })
+    expect(withFile).toMatchObject({ text: 'here you go', attachments: [{ name: 'notes.txt', size: 5 }] })
+    expect(await (await fetch(url + withFile.attachments[0].url)).text()).toBe('hello')
+    await expect(bot.upload({ name: 'empty.txt', data: '' })).rejects.toThrow(/empty/)
+
+    const poll = await bot.poll(general.id, 'Pizza?', ['Yes', 'No'])
+    await owner.request('poll.vote', { id: poll.id, options: [0] })
+    const voted = await waitFor(() => votes.find((v) => v.id === poll.id), 'poll.updated')
+    expect(voted.poll.options[0].votes).toEqual([welcome!.you.accountKey])
+
+    const thread = await bot.thread(withFile.id, 'Notes')
+    expect((await bot.send(thread.id, 'in the thread')).channelId).toBe(thread.id)
+    await bot.setActivity('testing')
   })
 
   it('a webhook posts with its own name, and the owner sees it live', async () => {

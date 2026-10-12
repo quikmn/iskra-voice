@@ -1,6 +1,8 @@
 // Audio worklets get 128 samples at a time; DeepFilterNet wants 480 (10 ms at 48 kHz). The framer collects input
-// into frames, runs them, and plays the results back at a fixed delay that never runs dry. Allocation-free apart
-// from what the engine itself returns. Also measures how long the engine takes (the realtime factor).
+// into frames, runs them right there, and plays the results back at a fixed delay that never runs dry: how
+// DeepFilterNet ran inside the audio worklet before it moved to a worker (dfQueue.ts). The offline quality harness
+// still runs it this way; the worker path gives exactly the same output, a fixed time later (quality.test.ts).
+// Allocation-free apart from what the engine itself returns. Also measures how long the engine takes.
 
 export class Framer {
   private readonly frame: Float32Array
@@ -15,6 +17,8 @@ export class Framer {
   private started = false
   private busyMs = 0
   private frames = 0
+  /** The longest a single frame took since the last takeRtf() (an audio thread has 2.7 ms per 128 samples). */
+  slowestMs = 0
   private readonly frameMs: number
   private readonly block: number
   private readonly process: (frame: Float32Array) => Float32Array
@@ -42,6 +46,7 @@ export class Framer {
     const rtf = this.busyMs / (this.frames * this.frameMs)
     this.busyMs = 0
     this.frames = 0
+    this.slowestMs = 0
     return rtf
   }
 
@@ -57,7 +62,9 @@ export class Framer {
         this.filled = 0
         const t = this.clock()
         const out = this.process(this.frame)
-        this.busyMs += this.clock() - t
+        const took = this.clock() - t
+        this.busyMs += took
+        if (took > this.slowestMs) this.slowestMs = took
         this.frames++
         for (let j = 0; j < out.length && this.count < this.fifo.length; j++) {
           this.fifo[this.write] = out[j]

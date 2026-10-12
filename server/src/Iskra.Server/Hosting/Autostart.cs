@@ -157,8 +157,12 @@ public static class Autostart
             """;
     }
 
-    /// <summary>systemd's quoting: each argument in double quotes, with \, " and % escaped.</summary>
-    private static string SystemdQuote(string s) => "\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("%", "%%") + "\"";
+    /// <summary>systemd's quoting: each argument in double quotes, with \, ", % and line breaks escaped (a folder name can't add lines).</summary>
+    private static string SystemdQuote(string s) =>
+        "\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("%", "%%").Replace("\n", "\\n").Replace("\r", "\\r") + "\"";
+
+    /// <summary>Free text in a unit file (the description): one line, no specifiers.</summary>
+    private static string SystemdText(string s) => new string(s.Select(c => char.IsControl(c) ? '?' : c).ToArray()).Replace("%", "%%");
 
     /// <summary>The systemd user service: starts with the user's session (and at boot with lingering on), restarts on failure.</summary>
     public static string SystemdUnit(string exe, string[] prefixArgs, string world)
@@ -166,7 +170,7 @@ public static class Autostart
         var command = string.Join(' ', new[] { exe }.Concat(prefixArgs).Concat([world]).Select(SystemdQuote));
         return $"""
             [Unit]
-            Description=Iskra server ({Path.GetFileName(world.TrimEnd('/'))})
+            Description=Iskra server ({SystemdText(Path.GetFileName(world.TrimEnd('/')))})
             After=network-online.target
 
             [Service]

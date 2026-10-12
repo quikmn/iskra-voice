@@ -124,6 +124,8 @@ After the handshake, every request gets a `result` (body as listed, `{}` if none
 | `rules_required` | You haven't agreed to the [server rules](#server-rules) yet (writing, reacting, voice) |
 | `automod` | [AutoMod](#automod) blocked the message (or title, name, poll); `message` says why. Nothing was stored or sent |
 
+`message` is English, for bots, logs and as the fallback. Most messages a person can run into also carry `key` (`[a-z0-9_]`, ≤ 64 chars), a stable name for that text, and `args` (an object of strings and numbers) with the values in it: `{ "code": "bad_request", "message": "Channel names must be 1–32 characters.", "key": "channel_name", "args": { "max": 32 } }`. Apps show their own translation of `key` (with `args`) and fall back to a text for the `code`, then to `message`. A key keeps its meaning across versions (a new meaning gets a new key); messages about a malformed request carry none. AutoMod's keys are `automod_words`, `automod_mentions`, `automod_invites`, `automod_links`, `automod_flood` and `automod_duplicates`, with `args: { max, timeoutMs }` (the mention limit, and the timeout it gave, 0 if none); slowmode's is `slowmode` with `args: { seconds }`.
+
 Close codes:
 
 | Code | Meaning |
@@ -604,7 +606,8 @@ Each server sends Web Push messages to its members' devices that aren't looking 
 - `@everyone` (all members) and `@here` (members online now) only ping when the author is trusted or above; from anyone else the text is shown but nobody is pushed, and clients don't count it as a mention either.
 - Incoming-call pushes ring at once (no merging) but at most once per caller and callee per 15 s window.
 - No pushes to a device whose session reported `focused: true` (a new session starts unfocused), to the author, to people who can't read the channel, or to non-members. Per device and conversation the first push goes out at once; more within 15 s become one follow-up push with a `count`.
-- Payload (JSON, after decryption): `{ v: 1, kind: "mention"|"reply"|"dm"|"call"|"event", server, serverName, title, body, tag, from, channelId?, messageId?, peer?, count, at }` (`from`: the sender's display name). Mentions and replies carry a ≤ 140-character excerpt; **DMs never carry content**: "New message from X". Calls say "X is calling". Event reminders ([Scheduled events](#scheduled-events)) say "Starting soon: …" or "… is starting now". The `Topic` header is derived from `tag`, so a push service replaces undelivered pushes about the same conversation.
+- Payload (JSON, after decryption): `{ v: 1, kind: "mention"|"reply"|"dm"|"call"|"event", server, serverName, title, body, tag, from, channelId?, messageId?, peer?, count, at, text? }` (`from`: the sender's display name). Mentions and replies carry a ≤ 140-character excerpt; **DMs never carry content**: "New message from X". Calls say "X is calling". Event reminders ([Scheduled events](#scheduled-events)) say "Starting soon: …" or "… is starting now". The `Topic` header is derived from `tag`, so a push service replaces undelivered pushes about the same conversation.
+- `title` and `body` are English. `text: { title, body, args }` names them so the web worker can show them in the app's language (it's registered as `/push-sw.js?lang=<en|sv>`): titles `mention`, `reply`, `encrypted`, `dm`, `calling`, `groupCall`, `reminder`, `scheduledFailed`, `eventLive`, `eventSoon`; bodies `openToRead`, `groupOpenToRead`, `attachment`, `tapToAnswer`, `tapToJoin`, `reminderGeneric`, `happening` / `inMinutes` (each also with `Channel`, `Voice` or `At`); `body: null` means the body is content, shown as is. `args` holds `name`, `channel`, `title`, `minutes`, `place` as the text needs. A worker that doesn't know a name shows `title`/`body`.
 - **Phone apps** don't subscribe: they show notifications while the app is open, from the WebSocket. There is no push relay, so `kind: "native"` (sent by older phone apps) is refused with `bad_request`, and subscriptions stored at the old relay (`https://push.iskra.foo/…`) are deleted on upgrade.
 - Web client: one service worker registration of `/push-sw.js` per server (scope `/push/<serverKey>/`), since every server has its own VAPID key and a registration holds one subscription. A notification click focuses the app (message `{ type: "iskra.open", route }`) or opens `/#/open/<serverKey>/c/<channelId>` / `/#/open/<serverKey>/dm/<accountKey>`. The desktop app uses native notifications and doesn't subscribe.
 
@@ -623,6 +626,7 @@ A bot is an ordinary identity (account key, device certificate, signed handshake
 - The flag is stored by the server and can't be changed afterwards: `Member.bot` (boolean) everywhere members appear.
 - Bots can't join voice (`voice.join` → `forbidden`), create invites, or have a role above `trusted` (`member.setRole` → `bad_request`). They have the same rate limits as everyone else.
 - Bots can't send DMs or take part in calls (`dm.send`, `call.start`, `call.accept` → `forbidden`; calling a bot → `bad_request`): DMs and call keys are end-to-end encrypted to people's devices, which a bot can't read.
+- Bots can't be in group DMs or group calls, schedule messages (`scheduled.create` → `forbidden`), speak or moderate on stages, take part in [encrypted channels](#end-to-end-encrypted-channels), or leave on their own (`member.leave` → `forbidden`; an admin removes them). They can hold [roles](#roles-and-permissions) with permissions like anyone else.
 - Commands are a message convention, not a protocol feature: a message starting with `/name args` (or `/name@BotName args` to pick one bot) is a command. See `docs/bots.md`.
 
 ### Webhooks
@@ -1875,12 +1879,12 @@ Home { "pageId": 12, "channelId": 7, "title": "Start here" }   // or null
 
 | type | body | result | who |
 |---|---|---|---|
-| `docs.pages` | `channelId` | `{ pages: [DocPage without text], home: pageId \| null }` | readers |
+| `docs.pages` | `channelId` | `{ pages: [DocPage without text], home: pageId \| null }` (`home` only when you can read that page) | readers |
 | `docs.page.get` | `id`, `version?` | `{ page }` with text; with `version`: `{ page (without text), revision: Revision + text }` | readers |
 | `docs.page.create` | `channelId, title` (1–100 chars, one line), `parentId?` (a top-level page in this channel), `text?` or `file?` | `{ page }` | writers; ≤ 500 pages per channel |
 | `docs.page.save` | `id, baseVersion`, `title?`, `text?` or `file?` (at least one) | `{ page }` | writers |
 | `docs.page.move` | `id, parentId?` (null: top level), `before?` (a page at the same level; null: last) | `{ page }` | writers; a page with sub-pages stays at the top level |
-| `docs.page.delete` | `id` | | whoever made the page (if they can write there), or a writer who can [pin](#pins) there (trusted+ or `manageMessages`). Its sub-pages go too |
+| `docs.page.delete` | `id` | | whoever made the page (if they can write there), or a writer who can [pin](#pins) there (trusted+ or `manageMessages`). Its sub-pages go too, so a page holding sub-pages someone else made needs a writer who can pin there (`forbidden` otherwise) |
 | `docs.page.history` | `id` | `{ page, revisions: [Revision] }` (newest first) | readers |
 | `docs.page.restore` | `id, version, baseVersion` | `{ page }` | writers |
 | `docs.home.get` | | `{ home }` | anyone |
@@ -1894,7 +1898,7 @@ Home { "pageId": 12, "channelId": 7, "title": "Start here" }   // or null
 - **Start here:** one page per server, shown at the top of everyone's channel list (when they can read its channel). Event `docs.home` `{ home }` goes to every session, each with its own view, when it's set, cleared, renamed or deleted.
 - **Events** to the channel's readers: `docs.page.updated` `{ page }` (without text) after a create, save, restore or move (a move sends one per page whose position changed), and `docs.page.deleted` `{ channelId, ids }`.
 - **Search:** SQLite FTS5 over titles and text (accents ignored, prefix matches), only in docs channels the requester can read right now. `snippet` is a piece of the page with the matches at `matches` (UTF-16 offsets).
-- **Safety:** AutoMod checks the title and text of every create, save and restore (`automod` with `what: "page"` in the audit entry); timed-out members get `forbidden`, and members who must still agree to the [rules](#server-rules) get `rules_required` for `docs.page.create`, `docs.page.save`, `docs.page.move`, `docs.page.delete` and `docs.page.restore`. Rate limits: `docs.page.create` 0.2/s (burst 5), `docs.page.save` 1/s (burst 10), `docs.search` 2/s (burst 10).
+- **Safety:** AutoMod checks the title and text of every create, save and restore (`automod` with `what: "page"` in the audit entry); timed-out members get `forbidden`, and members who must still agree to the [rules](#server-rules) get `rules_required` for `docs.page.create`, `docs.page.save`, `docs.page.move`, `docs.page.delete` and `docs.page.restore`. Rate limits: `docs.page.create` 0.2/s (burst 5), `docs.page.save` 1/s (burst 10), `docs.page.restore` 0.2/s (burst 5), `docs.page.move` 1/s (burst 10), `docs.search` 2/s (burst 10). A page keeps an upload on the server (past the unused-upload sweep) only if it's the saver's own upload or one docs pages already keep, and only while a kept revision still links to it.
 - **Audit:** `docs.page.create`, `docs.page.delete`, `docs.page.restore` `{ channelId, channelName, pageId, title, extra: { version } | null }` and `docs.home.set` (the same, or `{ pageId: null }` when cleared). Page text is never recorded.
 - **Your data:** `data.export` includes `docsPages` (pages you made or last edited) and `docsRevisions` (every kept version you wrote, with its text). **Retention:** with `messagesDays` set, revisions older than that go in the hourly sweep, except each page's current version; pages stay. **Deleting an account** keeps its pages and revisions under its key (like its messages); with `messages: true` its revisions go, except a page's current version, which keeps its text with `author` `""`, and `createdBy`/`updatedBy` become `""` (apps show "someone who left").
 - **Links:** apps link to a page with `#/open/<serverKey>/c/<channelId>/p/<pageId>` (like message links), which opens the page in the app.
@@ -2111,9 +2115,18 @@ When the server stops it closes every session with a JSON reason of at most 123 
 
 - **1012 ("Service Restart")**, reason `update` or `restart`, only when the server knows it's coming back: an
   automatic update (`etaMs` 20000), or the desktop app restarting (into an update, or a relaunch), which writes the line
-  `restart` to the server's stdin before closing it (`ISKRA_STOP_ON_STDIN_CLOSE`; `etaMs` 30000).
+  `restart` to the server's stdin before closing it (`ISKRA_STOP_ON_STDIN_CLOSE`; `etaMs` 30000), or a stop (SIGTERM,
+  `systemctl restart`) within 2 minutes of `iskra-server expect-restart <world> [--reason update|restart] [--eta <s>]`
+  (the reason and `etaMs` it was given; see below).
 - **1001 ("Going Away")**, reason `stop`, for every other stop: Ctrl+C, SIGTERM (including `systemctl restart`, which
-  the server can't tell apart), the desktop host quitting or stopping the server, or the app that started it going away.
+  the server can't tell apart without the marker), the desktop host quitting or stopping the server, or the app that
+  started it going away.
+
+**The restart marker.** `expect-restart` writes `<world>/restart-expected` atomically:
+`{"v":1,"reason":"update"|"restart","etaSeconds"?:0–600,"at":<unix ms>}` (at most 1 KB). The server reads it once as
+it stops and deletes it; it's ignored when it's older than 2 minutes or malformed (anything but these fields and
+values), and a server that starts deletes any marker it finds. Only the enum and the number reach the close reason.
+A restart the server already knows about (its own update) keeps its own reason.
 
 Even 1012 is a hint: the server may not come back. Unknown `reason` values and fields are ignored; a 1012 whose
 reason isn't this JSON still counts as a restart, and a 1001 without it (older servers) as an ordinary drop. A server

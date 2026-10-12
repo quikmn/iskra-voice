@@ -33,6 +33,8 @@ catch (Exception ex) when (WorldProblem.Describe(worldPath, ex) is { } problem)
     return;
 }
 MoveFeature.Load(world);
+// A restart marker from before this start was for the server that stopped (see RestartMarker).
+RestartMarker.Discard(world.Path);
 
 // A starter template (server.json "Template" or --template <name>), applied once to a new server.
 if ((builder.Configuration["Template"] ?? world.Settings.Template) is { Length: > 0 } template)
@@ -163,6 +165,8 @@ else
 
 var app = builder.Build();
 app.Lifetime.ApplicationStopped.Register(world.Dispose);
+// Read the restart marker as the server stops, even with nobody connected, so it never outlives this run.
+app.Lifetime.ApplicationStopping.Register(() => app.Services.GetRequiredService<Hub>().Restart.Settle());
 ChildProcesses.StopWhenParentExits(app.Lifetime, app.Logger);
 ChildProcesses.StopWhenStdinCloses(app.Lifetime, app.Logger,
     () => app.Services.GetRequiredService<Hub>().Restart.Expect("restart", ChildProcesses.DesktopRestartEta));

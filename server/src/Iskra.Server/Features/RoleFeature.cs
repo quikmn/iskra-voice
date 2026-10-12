@@ -67,13 +67,13 @@ public static partial class RoleFeature
 
     private static void RequireManager(Member me)
     {
-        if (!Permissions.Has(me, Perm.ManageRoles)) throw RequestException.Forbidden("You can't manage roles on this server.");
+        if (!Permissions.Has(me, Perm.ManageRoles)) throw RequestException.Forbidden("You can't manage roles on this server.", "manage_roles");
     }
 
     private static CustomRole ManageableRole(Session s, Member me, long id)
     {
         var role = s.World.Store.GetRole(id) ?? throw RequestException.NotFound("Role");
-        if (!Permissions.IsAbove(me, role.Position)) throw RequestException.Forbidden("You can only manage roles below your own highest role.");
+        if (!Permissions.IsAbove(me, role.Position)) throw RequestException.Forbidden("You can only manage roles below your own highest role.", "rank_manage_roles");
         return role;
     }
 
@@ -85,12 +85,12 @@ public static partial class RoleFeature
             perms |= PermNames.TryGetValue(name, out var p) ? p : throw RequestException.BadRequest($"Unknown permission '{name}'.");
         // You can only hand out what you have yourself.
         if (!Permissions.IsAdmin(me) && (perms & ~me.Perms & ~fallback) != Perm.None)
-            throw RequestException.Forbidden("You can only give permissions you have yourself.");
+            throw RequestException.Forbidden("You can only give permissions you have yourself.", "rank_permissions");
         return perms;
     }
 
     private static string RoleName(string raw) =>
-        Names.Normalize(raw) ?? throw RequestException.BadRequest($"Role names must be 1–{Sessions.Names.MaxLength} characters.");
+        Names.Normalize(raw) ?? throw RequestException.BadRequest($"Role names must be 1–{Sessions.Names.MaxLength} characters.", "role_name", new { max = Sessions.Names.MaxLength });
 
     /// <summary>"" or absent clears; otherwise #rrggbb.</summary>
     private static string? Color(Body body, string? fallback)
@@ -131,7 +131,7 @@ public static partial class RoleFeature
     private static object Create(Session s, Member me, Body body)
     {
         RequireManager(me);
-        if (s.World.Store.RoleCount() >= MaxRoles) throw RequestException.BadRequest($"A server can have up to {MaxRoles} roles.");
+        if (s.World.Store.RoleCount() >= MaxRoles) throw RequestException.BadRequest($"A server can have up to {MaxRoles} roles.", "roles_max", new { max = MaxRoles });
         var name = RoleName(body.String("name", 128));
         var role = s.World.Store.CreateRole(name, Color(body, null), Icon(body, null), body.OptionalBool("hoist") ?? false,
             ParsePerms(body, me, Perm.None), s.Now);
@@ -192,7 +192,7 @@ public static partial class RoleFeature
         {
             var newPosition = roles.Count - ids.IndexOf(role.Id);
             if (newPosition != role.Position && (!Permissions.IsAbove(me, role.Position) || !Permissions.IsAbove(me, newPosition)))
-                throw RequestException.Forbidden("You can only move roles below your own highest role.");
+                throw RequestException.Forbidden("You can only move roles below your own highest role.", "rank_move_roles");
         }
         s.World.Store.ReorderRoles(ids);
         Audit.Record(s, "role.reorder");
@@ -217,14 +217,14 @@ public static partial class RoleFeature
         RequireManager(me);
         var target = s.World.Store.GetMember(body.String("accountKey", 64)) ?? throw RequestException.NotFound("Member");
         if (target.AccountKey != me.AccountKey && !Permissions.Outranks(me, target))
-            throw RequestException.Forbidden("You can only manage members ranked below you.");
+            throw RequestException.Forbidden("You can only manage members ranked below you.", "rank_members");
         var wanted = LongArray(body, "roles").Distinct().ToList();
         var all = s.World.Store.AllRoles().ToDictionary(r => r.Id);
         if (wanted.Any(id => !all.ContainsKey(id))) throw RequestException.BadRequest("Unknown role.");
         var added = wanted.Except(target.RoleIds).ToList();
         var removed = target.RoleIds.Except(wanted).ToList();
         if (added.Concat(removed).Any(id => !Permissions.IsAbove(me, all[id].Position)))
-            throw RequestException.Forbidden("You can only give or take roles below your own highest role.");
+            throw RequestException.Forbidden("You can only give or take roles below your own highest role.", "rank_give_roles");
 
         if (added.Count + removed.Count > 0)
         {
@@ -251,12 +251,12 @@ public static partial class RoleFeature
     /// <summary>`allow` and `deny` both empty removes the override.</summary>
     private static object SetOverride(Session s, Member me, Body body)
     {
-        if (!Permissions.Has(me, Perm.ManageChannels)) throw RequestException.Forbidden("You can't manage channels on this server.");
+        if (!Permissions.Has(me, Perm.ManageChannels)) throw RequestException.Forbidden("You can't manage channels on this server.", "manage_channels");
         var channel = ChannelFeature.ManagedChannel(s, me, body);
         var role = ManageableRole(s, me, body.Long("roleId"));
         var allow = ParseChannelPerms(body, "allow");
         var deny = ParseChannelPerms(body, "deny");
-        if ((allow & deny) != ChannelPerm.None) throw RequestException.BadRequest("A permission can't be both allowed and denied.");
+        if ((allow & deny) != ChannelPerm.None) throw RequestException.BadRequest("A permission can't be both allowed and denied.", "perm_both");
         E2eeChannelFeature.CheckCapacity(s.World.Store, channel with
         {
             Overrides = [.. channel.Overrides.Where(o => o.RoleId != role.Id), .. (allow | deny) == ChannelPerm.None ? [] : new[] { new ChannelOverride(role.Id, allow, deny) }],
@@ -280,10 +280,10 @@ public static partial class RoleFeature
         if (!Permissions.Has(me, perm)) throw RequestException.Forbidden();
         var target = s.World.Store.GetMember(body.String("accountKey", 64)) ?? throw RequestException.NotFound("Member");
         if (target.AccountKey != me.AccountKey && !Permissions.Outranks(me, target))
-            throw RequestException.Forbidden("You can only manage members ranked below you.");
+            throw RequestException.Forbidden("You can only manage members ranked below you.", "rank_members");
         if (s.Voice.ChannelOfMember(target.AccountKey) is not { } channelId || s.World.Store.GetChannel(channelId) is not { } channel
             || !Permissions.CanRead(me, channel))
-            throw RequestException.BadRequest("They aren't in a voice channel.");
+            throw RequestException.BadRequest("They aren't in a voice channel.", "they_not_in_voice");
         return (target, channel);
     }
 
@@ -303,7 +303,7 @@ public static partial class RoleFeature
         var to = s.World.Store.GetChannel(body.Long("channelId"));
         if (to is null || to.Kind != "voice" || !Permissions.CanRead(me, to)) throw RequestException.NotFound("Channel");
         if (to.Id == from.Id) return null;
-        if (!Permissions.CanConnect(target, to)) throw RequestException.Forbidden("They can't join that channel.");
+        if (!Permissions.CanConnect(target, to)) throw RequestException.Forbidden("They can't join that channel.", "they_cant_join");
 
         s.Voice.GrantMovePass(target.AccountKey, to.Id, s.Now + VoiceLimitFeature.MovePassMs); // moving fills a full channel too
         s.Hub.SendToAccount(target.AccountKey, Frames.Event("voice.moved", new { channelId = to.Id }));

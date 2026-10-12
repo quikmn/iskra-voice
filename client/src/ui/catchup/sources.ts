@@ -3,6 +3,7 @@
 import type { Message } from '../../core/protocol'
 import { prepareChannel, readable } from '../../state/e2eeChannels'
 import { b64u } from '../../core/crypto'
+import { scrollBehavior } from '../a11y'
 import type { CatchUpMessage } from '../../state/catchupLogic'
 import type { MessageRef } from '../../state/readState'
 import { connectionFor, useApp } from '../../state/store'
@@ -117,6 +118,6 @@ export function jumpTo(spec: CatchUpSpec, id: number | string): void {
   }
   const row = document.querySelector(`[data-dm-id="${CSS.escape(String(id))}"]`)
   if (!row) return
-  row.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  row.scrollIntoView({ block: 'center', behavior: scrollBehavior() })
   flash(row)
 }

@@ -22,7 +22,7 @@ public static class HostFeature
 
     private static object SetInternet(Session s, InternetHost internet, Member me, Body body)
     {
-        if (me.Role != Roles.Owner) throw RequestException.Forbidden("Only the owner can open the server to the internet.");
+        if (me.Role != Roles.Owner) throw RequestException.Forbidden("Only the owner can open the server to the internet.", "owner_internet");
         var enabled = body.OptionalBool("enabled") ?? throw RequestException.BadRequest("'enabled' must be true or false.");
         internet.SetEnabled(enabled);
         Audit.Record(s, "server.internet", details: new { enabled });

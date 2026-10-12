@@ -3,7 +3,7 @@ import type { Messages } from '../types'
 
 export const compliance: Messages['compliance'] = {
   privacy: {
-    intro: 'Se vad Iskra sparar om dig. Varje server sparar det du gör där. Dina direktmeddelanden och gruppchattar är krypterade hela vägen, så innehållet finns bara på dina enheter.',
+    intro: 'Se vad Iskra sparar om dig. Varje server sparar det du gör där. Dina direktmeddelanden och gruppchattar är totalsträckskrypterade, så innehållet finns bara på dina enheter.',
     serversTitle: 'Det servrarna sparar',
     serversHint: 'En zip-fil med din profil, dina meddelanden, reaktioner, uppladdningar (namn och storlek), enheter och det som finns registrerat om dig på servern. Nedladdningslänken fungerar i 10 minuter.',
     download: 'Ladda ner min data',
@@ -29,8 +29,8 @@ export const compliance: Messages['compliance'] = {
       off: 'De ser din IP-adress. Inget laddas förrän du klickar; glöm en webbplats nedan för att bli tillfrågad igen.',
     },
     watch: {
-      who: 'Videor i watch party',
-      when: 'När du trycker på Titta i en watch party som spelas upp från YouTube eller en annan webbplats (inte för videor som laddats upp till servern).',
+      who: 'Videor i gemensamma visningar',
+      when: 'När du trycker på Titta i en gemensam visning som spelas upp från YouTube eller en annan webbplats (inte för videor som laddats upp till servern).',
       off: 'Den webbplatsen ser din IP-adress. Du kan hoppa över den och stanna kvar i samtalet.',
     },
     gifs: {
@@ -68,7 +68,7 @@ export const compliance: Messages['compliance'] = {
     forgetSite: 'Glöm {{site}}',
   },
   securityLog: {
-    intro: 'Misslyckade inloggningar, nya medlemmar och enheter, bytta kontonycklar, säkerhetskopior och nedladdad data på den här servern. Moderatorernas åtgärder finns i granskningsloggen. Bara du som ägare ser det här.',
+    intro: 'Misslyckade inloggningar, nya medlemmar och enheter, bytta kontonycklar, säkerhetskopior och nedladdad data på den här servern. Moderatorernas åtgärder finns i aktivitetsloggen. Bara du som ägare ser det här.',
     event: 'Händelse',
     allEvents: 'Alla händelser',
     refresh: 'Uppdatera',
@@ -89,8 +89,8 @@ export const compliance: Messages['compliance'] = {
     intro: 'Hur länge den här servern sparar saker. 0 betyder för alltid. Äldre data raderas varje timme, för alla, och går inte att få tillbaka.',
     messagesDays: 'Meddelanden, DM och gruppmeddelanden',
     uploadsDays: 'Filer i meddelanden och DM',
-    auditDays: 'Granskningslogg',
-    securityLogDays: 'Säkerhetslogg',
+    auditDays: 'Aktivitetslogg',
+    securityLogDays: 'Inloggningar och säkerhet',
     days: 'dagar',
     forever: 'Sparas för alltid',
     ips: 'Spara IP-adresser i säkerhetsloggen',
@@ -132,11 +132,15 @@ export const compliance: Messages['compliance'] = {
     update_install: 'Startade en uppdatering',
     update_installed: 'Uppdaterade servern',
     update_failed: 'En uppdatering misslyckades',
-    update_rolledback: 'Backade en uppdatering som inte startade',
+    update_rolledback: 'Ångrade en uppdatering som inte startade',
     captions_model_download: 'Laddade ner modellen för textning',
-    captions_model_rejected: 'Vägrade en modell för textning som inte stämde',
+    captions_model_rejected: 'Avvisade en textningsmodell som inte stämde',
     server_template: 'Satte upp servern från en startmall',
-    server_autostart_install: 'Ställde in start med datorn',
+    server_autostart_install: 'Ställde in att starta med datorn',
     server_autostart_remove: 'Startar inte längre med datorn',
+    account_dispute_resolve: 'Avgjorde en tvist om en kontonyckel',
+    keylog_alert: 'En enhet rapporterade ett problem med nyckelloggen',
+    keylog_reloaded: 'Läste in nyckelloggen igen (databasen ändrades)',
+    keylog_broken: 'Nyckelloggen stämmer inte',
   },
 }

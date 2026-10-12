@@ -100,7 +100,9 @@ export function App() {
   if (phase === 'onboarding') {
     return (
       <>
-        <Onboarding />
+        <main className="landmark">
+          <Onboarding />
+        </main>
         <InstallHint signedIn={false} />
       </>
     )

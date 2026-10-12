@@ -43,7 +43,7 @@ public static class SoundboardFeature
 
     private static string Name(Body body) =>
         Text.Normalize(body.String("name", 64), Names.MaxLength, allowNewlines: false)
-        ?? throw RequestException.BadRequest($"Sound names are 1–{Names.MaxLength} characters.");
+        ?? throw RequestException.BadRequest($"Sound names are 1–{Names.MaxLength} characters.", "sound_name", new { max = Names.MaxLength });
 
     private static string? Emoji(Body body)
     {
@@ -56,24 +56,24 @@ public static class SoundboardFeature
 
     private static object Create(Session s, Member me, Body body)
     {
-        if (!CanUpload(me)) throw RequestException.Forbidden("Only trusted members and admins can add sounds.");
+        if (!CanUpload(me)) throw RequestException.Forbidden("Only trusted members and admins can add sounds.", "sounds_trusted");
         var store = s.World.Store;
         var name = Name(body);
         var emoji = Emoji(body);
-        if (store.SoundCount() >= MaxSounds) throw RequestException.BadRequest($"This server already has {MaxSounds} sounds.");
+        if (store.SoundCount() >= MaxSounds) throw RequestException.BadRequest($"This server already has {MaxSounds} sounds.", "sounds_max", new { max = MaxSounds });
 
         var file = store.GetFile(body.String("fileId", 64));
         if (file is null || file.Uploader != me.AccountKey) throw RequestException.BadRequest("Unknown file.");
-        if (!Types.Contains(file.Type)) throw RequestException.BadRequest("Sounds must be MP3, Ogg or WAV files.");
+        if (!Types.Contains(file.Type)) throw RequestException.BadRequest("Sounds must be MP3, Ogg or WAV files.", "sound_type");
         // No limits unless the owner sets some (Limits in server.json); listeners can always stop a sound.
         var limits = s.World.Settings.Limits;
         if (limits.SoundMaxMb > 0 && file.Size > limits.SoundMaxMb * 1024L * 1024)
-            throw RequestException.BadRequest($"Sounds can be up to {limits.SoundMaxMb} MB on this server.");
+            throw RequestException.BadRequest($"Sounds can be up to {limits.SoundMaxMb} MB on this server.", "sound_size", new { mb = limits.SoundMaxMb });
         var path = s.Uploads.PathFor(file.Sha256);
         var duration = File.Exists(path) ? AudioProbe.DurationMs(File.ReadAllBytes(path), file.Type) : null;
-        if (duration is null) throw RequestException.BadRequest("Couldn't read that sound. Try an MP3, Ogg or WAV file.");
+        if (duration is null) throw RequestException.BadRequest("Couldn't read that sound. Try an MP3, Ogg or WAV file.", "sound_unreadable");
         if (limits.SoundMaxSeconds > 0 && duration > limits.SoundMaxSeconds * 1000L + 150) // encoders pad a few frames
-            throw RequestException.BadRequest($"Sounds can be up to {limits.SoundMaxSeconds} seconds long on this server.");
+            throw RequestException.BadRequest($"Sounds can be up to {limits.SoundMaxSeconds} seconds long on this server.", "sound_seconds", new { seconds = limits.SoundMaxSeconds });
 
         var sound = new Sound(Ed25519.ToB64u(RandomNumberGenerator.GetBytes(9)), name, emoji, file.Id, duration.Value,
             me.AccountKey, s.Now);
@@ -87,7 +87,7 @@ public static class SoundboardFeature
     {
         var store = s.World.Store;
         var sound = store.GetSound(body.String("id", 64)) ?? throw RequestException.NotFound("Sound");
-        if (!CanManage(me, sound)) throw RequestException.Forbidden("Only the person who added this sound or an admin can change it.");
+        if (!CanManage(me, sound)) throw RequestException.Forbidden("Only the person who added this sound or an admin can change it.", "sound_change_owner");
         var updated = sound with { Name = Name(body), Emoji = Emoji(body) };
         store.UpdateSound(sound.Id, updated.Name, updated.Emoji);
         Audit.Record(s, "sound.update", sound.CreatedBy, details: new { id = sound.Id, from = sound.Name, to = updated.Name });
@@ -98,7 +98,7 @@ public static class SoundboardFeature
     private static object? Delete(Session s, Member me, Body body)
     {
         var sound = s.World.Store.GetSound(body.String("id", 64)) ?? throw RequestException.NotFound("Sound");
-        if (!CanManage(me, sound)) throw RequestException.Forbidden("Only the person who added this sound or an admin can delete it.");
+        if (!CanManage(me, sound)) throw RequestException.Forbidden("Only the person who added this sound or an admin can delete it.", "sound_delete_owner");
         s.World.Store.DeleteSound(sound.Id);
         Audit.Record(s, "sound.delete", sound.CreatedBy, details: new { id = sound.Id, name = sound.Name });
         Changed(s);
@@ -113,11 +113,11 @@ public static class SoundboardFeature
     {
         var store = s.World.Store;
         var sound = store.GetSound(body.String("id", 64)) ?? throw RequestException.NotFound("Sound");
-        if (s.Voice.ChannelOfMember(me.AccountKey) is not { } channelId) throw RequestException.BadRequest("Join a voice channel to use the soundboard.");
+        if (s.Voice.ChannelOfMember(me.AccountKey) is not { } channelId) throw RequestException.BadRequest("Join a voice channel to use the soundboard.", "sounds_join_voice");
         var channel = store.GetChannel(channelId);
-        if (channel is null || !Permissions.CanRead(me, channel)) throw RequestException.BadRequest("Join a voice channel to use the soundboard.");
-        if (!Permissions.CanWrite(me, channel)) throw RequestException.Forbidden("You can only listen in this channel.");
-        if (channel.Kind == "stage" && !s.Voice.Stages.IsSpeaker(channelId, me.AccountKey)) throw RequestException.Forbidden("Only speakers can play sounds on a stage.");
+        if (channel is null || !Permissions.CanRead(me, channel)) throw RequestException.BadRequest("Join a voice channel to use the soundboard.", "sounds_join_voice");
+        if (!Permissions.CanWrite(me, channel)) throw RequestException.Forbidden("You can only listen in this channel.", "voice_listen_only");
+        if (channel.Kind == "stage" && !s.Voice.Stages.IsSpeaker(channelId, me.AccountKey)) throw RequestException.Forbidden("Only speakers can play sounds on a stage.", "stage_speakers_sounds");
 
         var listeners = s.Voice.Participants(channelId).Select(p => p.AccountKey).ToHashSet();
         var frame = Frames.Event("sound.played", new { channelId, accountKey = me.AccountKey, sound = Public(sound, store.GetFile(sound.FileId)) });

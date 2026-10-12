@@ -3,6 +3,7 @@ export const app = {
   openMenu: 'Open menu',
   dismiss: 'Dismiss',
   loading: 'Loading',
+  skipToContent: 'Skip to main content',
   spoiler: 'Spoiler, click to reveal',
   openInApp: 'Have the Iskra app? <a>Open in the app</a>',
   home: {
@@ -36,7 +37,7 @@ export const app = {
     createChannel: 'Create channel…',
     more: 'More settings',
     nickname: 'Server nickname…',
-    nicknameTitle: 'Your nickname on {{name}}',
+    nicknameTitle: 'Server nickname on {{name}}',
     moveFolder: 'Move / Folder',
     leave: 'Leave server',
     leaveTitle: 'Leave {{name}}?',
@@ -44,6 +45,7 @@ export const app = {
   sidebar: {
     serverOptions: 'Server options',
     serverOptionsLabel: '{{name}}: server options',
+    channelsLabel: '{{name}} channels',
     inviteFriends: 'Invite friends',
     connecting: 'Connecting…',
     reconnectingIn: 'Reconnecting in {{seconds}}s',
@@ -156,6 +158,9 @@ export const app = {
     openFolder: 'Open folder',
     closeFolder: 'Close folder',
     ungroup: 'Ungroup',
+    serverMentions_one: '{{name}}, {{count}} mention',
+    serverMentions_other: '{{name}}, {{count}} mentions',
+    serverUnread: '{{name}}, unread messages',
   },
   empty: {
     title: 'No servers yet',
@@ -174,6 +179,8 @@ export const app = {
     restart: 'Restart',
     later: 'Later',
     laterTitle: 'Later (installs when you quit)',
+    updating: 'Updating Iskra to {{version}}…',
+    updatingBody: 'It’ll be back in a few seconds.',
   },
   upload: {
     tooBig: 'That file is too big for this server.',
