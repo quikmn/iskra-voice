@@ -6,7 +6,7 @@ namespace Iskra.Server.Features;
 /// <summary>
 /// Serves members' profile pages: one self-contained HTML file each, locked in a sandbox.
 /// The page gets an opaque origin (no storage, no cookies, nothing of the app's), inline styles (and
-/// inline scripts only if the viewer turns them on), data: images and this server's files, and can't
+/// inline scripts only with ?scripts=1), data: images and media and this server's files, and can't
 /// fetch, submit, frame, open windows or navigate the app. See PROTOCOL.md, "Profiles", for the full model.
 /// </summary>
 public static partial class ProfilePages
@@ -21,10 +21,11 @@ public static partial class ProfilePages
     private static partial Regex Doctype();
 
     /// <summary>
-    /// Runs before the page's own code when the viewer turned its scripts on. WebRTC isn't covered by CSP in
+    /// Runs before the page's own code when scripts are on (?scripts=1). WebRTC isn't covered by CSP in
     /// today's browsers, so take it away, and keep the page out of child frames (a same-origin about:blank
-    /// frame would have its own, untouched RTCPeerConnection). Best effort: scripts are off by default.
-    /// The client's PAGE_PRELUDE is the same string.
+    /// frame would have its own, untouched RTCPeerConnection). Defence in depth only: a srcdoc child frame's own
+    /// script still has WebRTC, so browsers show other people's pages without scripts; the desktop app runs them
+    /// in a session where WebRTC and every other request can't reach the network. The client's PAGE_PRELUDE is the same string.
     /// </summary>
     public const string Prelude = """<script>(()=>{const W=window,d=(o,k,v)=>{try{Object.defineProperty(o,k,{...v,configurable:false})}catch{}},no=()=>null;for(const k of["RTCPeerConnection","webkitRTCPeerConnection","RTCDataChannel","RTCIceTransport","RTCRtpSender","RTCRtpReceiver","RTCRtpTransceiver","WebTransport"])d(W,k,{value:undefined,writable:false});for(const C of[W.HTMLIFrameElement,W.HTMLFrameElement,W.HTMLObjectElement,W.HTMLEmbedElement])if(C){d(C.prototype,"contentWindow",{get:no});d(C.prototype,"contentDocument",{get:no});d(C.prototype,"getSVGDocument",{value:no,writable:false})}d(W,"frames",{get:no});d(W,"length",{get:()=>0});const bad=/^(?:.*:)?(?:i?frame|object|embed)$/i,D=Document.prototype,ce=D.createElement,cn=D.createElementNS,stop=()=>{throw new DOMException("Frames are off","NotSupportedError")};d(D,"createElement",{value:function(n,o){if(bad.test(String(n)))stop();return ce.call(this,n,o)},writable:false});d(D,"createElementNS",{value:function(s,n,o){if(bad.test(String(n)))stop();return cn.call(this,s,n,o)},writable:false})})()</script>""";
 
@@ -44,7 +45,7 @@ public static partial class ProfilePages
     public static string Policy(World world, string? selfOrigin, bool scripts = false) =>
         (scripts ? "sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; " : "sandbox; default-src 'none'; script-src 'none'; ") +
         "style-src 'unsafe-inline'; " +
-        $"img-src data: blob:{(selfOrigin is null ? "" : $" {selfOrigin}/files/")}; font-src data:; media-src 'none'; " +
+        $"img-src data: blob:{(selfOrigin is null ? "" : $" {selfOrigin}/files/")}; font-src data:; media-src data: blob:; " +
         "connect-src 'none'; form-action 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; " +
         $"manifest-src 'none'; base-uri 'none'; frame-ancestors {FrameAncestors(world)}";
 
@@ -69,7 +70,7 @@ public static partial class ProfilePages
         var host = context.Request.Host.Value;
         var self = host is not null && HostPattern().IsMatch(host) ? $"{(context.Request.IsHttps ? "https" : "http")}://{host}" : null;
         var headers = context.Response.Headers;
-        // Scripts only when the viewer opted in (?scripts=1); the frame's own sandbox attribute matches.
+        // Scripts only with ?scripts=1: the desktop app's walled page view, or the author viewing their own page.
         var scripts = context.Request.Query["scripts"] == "1";
         headers.ContentSecurityPolicy = Policy(world, self, scripts);
         headers["Permissions-Policy"] = PermissionsPolicy;

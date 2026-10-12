@@ -1,7 +1,7 @@
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { ready } from './crypto'
 import serverPages from '../../../server/src/Iskra.Server/Features/ProfilePages.cs?raw'
-import { authProfile, MAX_PAGE_BYTES, PAGE_PRELUDE, pageScriptsAllowed, pageUrl, previewDocument, profileForLink, profileFromLink, setPageScripts, sha256Hex, wrapperDocument } from './profile'
+import { authProfile, MAX_PAGE_BYTES, PAGE_PRELUDE, pageUrl, previewDocument, previewSource, PREVIEW_PREFIX, profileForLink, profileFromLink, sha256Hex, wrapperDocument } from './profile'
 
 beforeAll(ready)
 
@@ -39,19 +39,13 @@ describe('profiles', () => {
     expect(on).toContain('frame-src http://localhost:1/pages/abc;')
   })
 
-  it('remembers the scripts choice per page version', () => {
-    const data = new Map<string, string>()
-    vi.stubGlobal('localStorage', { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => data.set(k, v) })
-    expect(pageScriptsAllowed('h1')).toBe(false)
-    setPageScripts('h1', true)
-    expect(pageScriptsAllowed('h1')).toBe(true)
-    expect(pageScriptsAllowed('h2')).toBe(false)
-    expect(pageScriptsAllowed(null)).toBe(false)
-    setPageScripts('h1', false)
-    expect(pageScriptsAllowed('h1')).toBe(false)
-    data.set('iskra.pageScripts', '{bad json')
-    expect(pageScriptsAllowed('h1')).toBe(false)
-    vi.unstubAllGlobals()
+  it('hands the desktop preview one base64 data: URL with the policy inside', () => {
+    const src = previewSource('<!doctype html><p>hej ✨</p>')
+    expect(src.startsWith(PREVIEW_PREFIX)).toBe(true)
+    expect(/^[A-Za-z0-9+/]*={0,2}$/.test(src.slice(PREVIEW_PREFIX.length))).toBe(true)
+    const html = new TextDecoder().decode(Uint8Array.from(atob(src.slice(PREVIEW_PREFIX.length)), (c) => c.charCodeAt(0)))
+    expect(html).toBe(previewDocument('<!doctype html><p>hej ✨</p>', null))
+    expect(html).toContain("connect-src 'none'")
   })
 
   it('uses the same prelude as the server', () => {

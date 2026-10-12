@@ -21,7 +21,7 @@ services the owner operates, and be able to show how.
    ([site/privacy.html](../../../site/privacy.html)). Logs never contain message content, invite codes,
    passphrases or keys.
 3. **Secure by default.** Defaults are the safe choice (localhost-only test servers, encrypted backup downloads,
-   GIFs off until an admin turns them on, profile page scripts off).
+   GIFs off until an admin turns them on, profile page scripts only behind the desktop app's network wall).
 4. **Everything through the pipeline.** Production changes are made by the release and deploy workflows, not by hand
    ([change-management.md](change-management.md)).
 5. **Evidence over promises.** A control counts when there is a test, a workflow run or a file that shows it

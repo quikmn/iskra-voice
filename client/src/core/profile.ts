@@ -40,7 +40,9 @@ const escapeAttribute = (text: string) =>
 
 /**
  * Same lock as the server's prelude (ProfilePages.Prelude, kept identical): no WebRTC (CSP doesn't cover
- * it) and no reaching into child frames, which would have their own WebRTC. Best effort.
+ * it) and no reaching into child frames, which would have their own WebRTC. Defence in depth only: a child
+ * frame's own script still has WebRTC, so in browsers other people's pages run without scripts, and the
+ * desktop app runs them behind a real wall (desktop/src/pages.ts).
  */
 export const PAGE_PRELUDE =
   `<script>(()=>{const W=window,d=(o,k,v)=>{try{Object.defineProperty(o,k,{...v,configurable:false})}catch{}},no=()=>null;for(const k of["RTCPeerConnection","webkitRTCPeerConnection","RTCDataChannel","RTCIceTransport","RTCRtpSender","RTCRtpReceiver","RTCRtpTransceiver","WebTransport"])d(W,k,{value:undefined,writable:false});for(const C of[W.HTMLIFrameElement,W.HTMLFrameElement,W.HTMLObjectElement,W.HTMLEmbedElement])if(C){d(C.prototype,"contentWindow",{get:no});d(C.prototype,"contentDocument",{get:no});d(C.prototype,"getSVGDocument",{value:no,writable:false})}d(W,"frames",{get:no});d(W,"length",{get:()=>0});const bad=/^(?:.*:)?(?:i?frame|object|embed)$/i,D=Document.prototype,ce=D.createElement,cn=D.createElementNS,stop=()=>{throw new DOMException("Frames are off","NotSupportedError")};d(D,"createElement",{value:function(n,o){if(bad.test(String(n)))stop();return ce.call(this,n,o)},writable:false});d(D,"createElementNS",{value:function(s,n,o){if(bad.test(String(n)))stop();return cn.call(this,s,n,o)},writable:false})})()</script>`
@@ -49,7 +51,7 @@ export const PAGE_PRELUDE =
 export function pagePolicy(imageOrigin: string | null): string {
   return (
     "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; " +
-    `img-src data: blob:${imageOrigin ? ` ${imageOrigin}/files/` : ''}; font-src data:; media-src 'none'; ` +
+    `img-src data: blob:${imageOrigin ? ` ${imageOrigin}/files/` : ''}; font-src data:; media-src data: blob:; ` +
     "connect-src 'none'; form-action 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; base-uri 'none'"
   )
 }
@@ -89,30 +91,10 @@ export function wrapperDocument(page: string | null, scripts = false): string {
   )
 }
 
-// A viewer's choice to run a page's scripts, remembered per page version (its hash), on this device.
-const SCRIPTS_KEY = 'iskra.pageScripts'
-const MAX_REMEMBERED = 200
-
-function scriptChoices(): string[] {
-  try {
-    const list: unknown = JSON.parse(localStorage.getItem(SCRIPTS_KEY) ?? '[]')
-    return Array.isArray(list) ? list.filter((h): h is string => typeof h === 'string') : []
-  } catch {
-    return []
-  }
-}
-
-export function pageScriptsAllowed(hash: string | null | undefined): boolean {
-  return !!hash && scriptChoices().includes(hash)
-}
-
-export function setPageScripts(hash: string, allowed: boolean) {
-  const rest = scriptChoices().filter((h) => h !== hash)
-  try {
-    localStorage.setItem(SCRIPTS_KEY, JSON.stringify(allowed ? [...rest, hash].slice(-MAX_REMEMBERED) : rest))
-  } catch {
-    /* storage unavailable: the choice lasts until the page closes */
-  }
+/** The editor's preview as the desktop app's page view takes it: one base64 HTML data: URL (desktop/src/pageRules.ts). */
+export const PREVIEW_PREFIX = 'data:text/html;charset=utf-8;base64,'
+export function previewSource(html: string): string {
+  return PREVIEW_PREFIX + sodium.to_base64(new TextEncoder().encode(previewDocument(html, null)), sodium.base64_variants.ORIGINAL)
 }
 
 /** Address of a published page, if it is a well-formed /pages/<id> path on that server. */

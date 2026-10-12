@@ -87,7 +87,7 @@ Gap: write a short STRIDE-style threat model per component (server, client, desk
 | Area | Evidence | Verdict |
 |---|---|---|
 | 5.1 Input validation | Typed accessors with maximum lengths and ranges for every field (`Body`), text normalisation that rejects control/format characters (`Text.Normalize`); frame size limits (64 KB) | met |
-| 5.2 Sanitization, 5.3 output encoding | React renders all user content; no `dangerouslySetInnerHTML` on user content (CLAUDE.md rule, CodeQL); themes validated value by value; profile pages only in a sandboxed, scriptless-by-default frame with CSP | met |
+| 5.2 Sanitization, 5.3 output encoding | React renders all user content; no `dangerouslySetInnerHTML` on user content (CLAUDE.md rule, CodeQL); themes validated value by value; profile pages only in a sandboxed frame with CSP (scripts only in the desktop app's walled page session, `desktop/src/pages.ts`) | met |
 | 5.2.6 SSRF | Link previews refuse private/internal addresses on every connection including redirects ([LinkPreviews.cs](../../server/src/Iskra.Server/Features/LinkPreviews.cs)); GIF proxy only fetches signed KLIPY URLs | met |
 | 5.3.4 Injection | SQLite through parameterised commands only ([Store.cs](../../server/src/Iskra.Server/Storage/Store.cs)) | met |
 | 5.5 Deserialization | JSON only, `System.Text.Json` with explicit types; zip imports validated (entries can't escape the export) | met |

@@ -72,7 +72,7 @@ security log (`security_log` table, `security.log.list`, Settings → Security l
 | Control | How Iskra meets it | Evidence | Status |
 |---|---|---|---|
 | P1 Notice | Privacy policy covering apps, servers, websites | PRIV | met |
-| P2 Choice and consent | No consent-based processing; opt-ins for activity status, GIF auto-load, profile page scripts, notifications | PRIV §2, §7–8 | met |
+| P2 Choice and consent | No consent-based processing; opt-ins for activity status, GIF auto-load, notifications (profile page scripts need no opt-in: they run only where they can't reach the network) | PRIV §2, §7–8 | met |
 | P3 Collection | Minimal: no email/phone/password/analytics | PRIV "short version" | met |
 | P4 Use, retention, disposal | Retention table and sweepers | POL/data-retention | met |
 | P5 Access | Download my data (`data.export`), edit profile and messages | [DataExports.cs][export], PRIV §13 | met |

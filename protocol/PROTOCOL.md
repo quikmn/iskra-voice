@@ -548,15 +548,15 @@ Themes are client-side only (a JSON file of colours, radius, avatar shape and fo
 
 ### Profile pages: the safety model
 
-A page is one HTML file the member wrote. Viewers only load it when they click "Open profile page". It must not be able to touch the viewer's account, the app, or the network.
+A page is one HTML file the member wrote. Viewers only load it when they click "Open profile page". It must not be able to touch the viewer's account, the app, or the network: the viewer's device contacts nobody but the page's own server because of it.
 
-**Scripts are off by default.** `GET /pages/<id>` serves the page as static HTML and CSS: `sandbox` without `allow-scripts` and `script-src 'none'`. A viewer can turn scripts on for one page ("Run this page's scripts? The author could learn your IP address."); the client remembers that per `pageHash` on the device and then loads `GET /pages/<id>?scripts=1`, which differs only in `sandbox allow-scripts`, `script-src 'unsafe-inline'` and the prelude below.
+**Scripts run only where that holds.** `GET /pages/<id>` serves the page as static HTML and CSS: `sandbox` without `allow-scripts` and `script-src 'none'`. `GET /pages/<id>?scripts=1` differs only in `sandbox allow-scripts`, `script-src 'unsafe-inline'` and the prelude below. The desktop app loads `?scripts=1` for every page, inside its walled page view (below). Browsers and the phone apps load other people's pages without scripts, and say that interactive pages run in the desktop app; an author's own page loads with scripts. There is no prompt to turn scripts on.
 
 **Served** (unguessable id, `no-store`) with:
 
 ```
 Content-Security-Policy: sandbox [allow-scripts]; default-src 'none'; script-src 'none' | 'unsafe-inline'; style-src 'unsafe-inline';
-  img-src data: blob: <this server>/files/; font-src data:; media-src 'none'; connect-src 'none'; form-action 'none';
+  img-src data: blob: <this server>/files/; font-src data:; media-src data: blob:; connect-src 'none'; form-action 'none';
   frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none'; base-uri 'none';
   frame-ancestors 'self' https://app.iskra.foo app://iskra capacitor://localhost http://localhost:* http://127.0.0.1:* <AppUrl>
 Permissions-Policy: camera=(), microphone=(), geolocation=(), autoplay=(), display-capture=(), fullscreen=(), payment=(), usb=(), …
@@ -565,15 +565,21 @@ Cross-Origin-Opener-Policy: same-origin · Cache-Control: no-store
 ```
 
 - **Opaque origin** (`sandbox` without `allow-same-origin`): no cookies, storage or IndexedDB, and no access to the app or the server's origin. No `allow-popups`, `allow-top-navigation`, `allow-forms` or `allow-modals`.
-- **No network**: no fetch, XHR, WebSocket, EventSource, beacons, workers, frames, forms or external images, fonts or media. Images may be `data:`/`blob:` or files uploaded to the same server. Audio and video are blocked entirely (`media-src 'none'`).
-- **WebRTC** isn't covered by CSP in today's browsers. With scripts on, the server inserts a small script before the page (right after its doctype) that removes `RTCPeerConnection` and friends, and keeps the page out of child frames (which would have their own copy): `contentWindow`/`contentDocument` of frame elements, `window.frames`/`length`, and `createElement` for `iframe`, `frame`, `object` and `embed`. This is best effort: a determined script can still find a way (for example `window[0]` on a frame made from markup), which is why scripts are off by default.
+- **No network**: no fetch, XHR, WebSocket, EventSource, beacons, workers, frames, forms or external images, fonts or media. Images may be `data:`/`blob:` or files uploaded to the same server; audio and video only `data:`/`blob:`.
+- **WebRTC** isn't covered by CSP in today's browsers. With scripts on, the server inserts a small script before the page (right after its doctype) that removes `RTCPeerConnection` and friends, and keeps the page out of child frames (which would have their own copy): `contentWindow`/`contentDocument` of frame elements, `window.frames`/`length`, and `createElement` for `iframe`, `frame`, `object` and `embed`. This is defence in depth only, and can't be made watertight in a browser: `frame-src 'none'` doesn't stop `<iframe srcdoc>`, and a srcdoc frame's own inline script has a fresh `RTCPeerConnection` that reaches any STUN or TURN server (measured in `client/e2e/page-sandbox.spec.ts`). No Permissions-Policy feature or sandbox flag turns WebRTC off. That's why browsers don't run other people's page scripts.
 - **No sound or devices**: autoplay, camera, microphone and the rest are denied by Permissions-Policy and by the frame's `allow` attribute.
 
-**Shown** by the client in a modal, labelled with the author's name, as `<iframe sandbox="" referrerpolicy="no-referrer">` (`sandbox="allow-scripts"` once the viewer turned scripts on) inside a script-free `srcdoc` wrapper whose own policy is `frame-src <exactly this page's URL>`. Since a parent's `frame-src` governs every navigation of its child frames, the page can't navigate itself (and the viewer's IP) to another site; it can't navigate the wrapper (sandboxed navigation flag) or the app (no top navigation).
+**Shown in browsers and the phone apps** in a modal, labelled with the author's name, as `<iframe sandbox="" referrerpolicy="no-referrer">` (`sandbox="allow-scripts"` for the author's own page) inside a script-free `srcdoc` wrapper whose own policy is `frame-src <exactly this page's URL>`. Since a parent's `frame-src` governs every navigation of its child frames, the page can't navigate itself (and the viewer's IP) to another site; it can't navigate the wrapper (sandboxed navigation flag) or the app (no top navigation).
 
-**Editor preview** runs the draft in the same sandbox: `page-preview.html` (a static file in the app with its own no-network policy) is loaded in `<iframe sandbox="allow-scripts">` and puts the draft, received by `postMessage` from its parent only, in a second `sandbox="allow-scripts"` frame.
+**Shown in the desktop app** as an Electron `<webview>` in the in-memory session `iskra-pages`, used for nothing else (`desktop/src/pages.ts`, rules in `pageRules.ts`). The main process checks each view as it attaches: only from the app page, only `http(s)://<host>/pages/<id>?scripts=1` or an editor preview (`data:text/html;charset=utf-8;base64,…`, ≤ 800 000 characters), and it forces the session, no preload, sandbox, context isolation, no Node, no nested webviews, no dialogs. In that session:
 
-Known limits: a page can load images from its own server's `/files/`, so that server sees when it's viewed. With scripts on, the author may be able to learn a viewer's IP address through WebRTC despite the prelude. Admins can remove any page of a member ranked below them, or turn pages off.
+- `http`/`https` are handled by the app: the view's own page URL (and its server's `/files/<id>` images) are fetched through the app's session, everything else is a 404; `webRequest` also cancels every other request, WebSockets included;
+- the WebRTC IP handling policy is `disable_non_proxied_udp` (no UDP at all), and the session's proxy is `http://127.0.0.1:9` with `<-loopback>` and no direct fallback, so WebRTC over TCP, preconnects and anything else Chromium sends straight to the network go nowhere. Measured: either one alone still leaks (TURN over TCP without the proxy, STUN without the policy);
+- every permission is denied, pop-ups, downloads, navigations, redirects and frame navigations (other than `about:blank`/`about:srcdoc`) are refused.
+
+**Editor preview**: in the desktop app, the draft runs in the same walled view, as a data: URL with the page policy and prelude in front. In browsers, `page-preview.html` (a static file in the app with its own no-network policy) is loaded in `<iframe sandbox="allow-scripts">` and puts the draft, received by `postMessage` from its parent only, in a second `sandbox="allow-scripts"` frame; that preview, and an author's own page, can reach the network through WebRTC (the author's own code, on the author's own device).
+
+Known limits: a page can load images from its own server's `/files/`, so that server sees when it's viewed (it's the server the viewer is connected to anyway). Admins can remove any page of a member ranked below them, or turn pages off.
 
 ### Device linking carries the profile
 

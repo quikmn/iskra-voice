@@ -95,12 +95,22 @@ test('profiles: avatar, bio, profile card, sandboxed page and themes', async ({ 
   await expect(pageFrame!.locator('h1')).toHaveText("Host's corner")
   await expect(pageFrame!.locator('#fetch')).toHaveText('fetching…')
   await expect(pageFrame!.parentFrame()!.locator('iframe')).toHaveAttribute('sandbox', '')
-  await expect(viewer).toContainText("Run this page's scripts? The author could learn your IP address.")
+  // Browsers never run someone else's page scripts (only the desktop app's walled view does): no prompt to.
+  await expect(viewer).toContainText('Interactive pages run in the desktop app.')
+  await expect(viewer.getByRole('button', { name: /Run scripts/ })).toHaveCount(0)
   await friend.screenshot({ path: join(SHOTS, 'profile-page-static.png') })
+  await friend.waitForTimeout(1000)
+  expect(requests.filter((u) => u.includes('exfil-check') || u.includes('example.com'))).toEqual([])
+  expect(blocked).toContain('https://example.com/track.png csp')
+  await friend.keyboard.press('Escape')
 
-  // With scripts on: still an opaque origin, no storage, no fetch, no WebRTC, can't navigate away.
-  await viewer.getByRole('button', { name: 'Run scripts' }).click()
-  await expect.poll(() => (pageFrame = friend.frames().find((f) => f.url().includes('/pages/') && f.url().includes('scripts=1'))) !== undefined).toBe(true)
+  // The author's own page keeps its scripts: still an opaque origin, no storage, no fetch, no WebRTC, can't navigate away.
+  const hostRequests: string[] = []
+  host.on('requestfinished', (r) => hostRequests.push(r.url()))
+  await host.locator('.member-list').getByRole('button', { name: /Host/ }).click()
+  await host.getByRole('dialog', { name: 'Profile of Host' }).getByRole('button', { name: 'Open profile page' }).click()
+  await expect(host.getByRole('dialog', { name: "Host's page" })).toBeVisible()
+  await expect.poll(() => (pageFrame = host.frames().find((f) => f.url().includes('/pages/') && f.url().includes('scripts=1'))) !== undefined).toBe(true)
   await expect(pageFrame!.locator('#fetch')).toHaveText('fetch: blocked')
   await expect(pageFrame!.locator('#rtc')).toHaveText('rtc: blocked')
   await expect(pageFrame!.locator('#origin')).toHaveText('origin: null')
@@ -108,13 +118,12 @@ test('profiles: avatar, bio, profile card, sandboxed page and themes', async ({ 
   const wrapper = pageFrame!.parentFrame()!
   await expect(wrapper.locator('iframe')).toHaveAttribute('sandbox', 'allow-scripts')
   await expect(wrapper.locator('iframe')).toHaveAttribute('referrerpolicy', 'no-referrer')
-  await friend.waitForTimeout(1000) // the page tries to navigate after 400 ms
-  // Nothing left the sandbox: the tracking image was stopped by CSP, the navigation never happened.
-  expect(requests.filter((u) => u.includes('exfil-check') || u.includes('example.com'))).toEqual([])
-  expect(blocked).toContain('https://example.com/track.png csp')
-  expect(friend.url()).toContain('localhost')
-  await friend.screenshot({ path: join(SHOTS, 'profile-page.png') })
-  await friend.keyboard.press('Escape')
+  await host.waitForTimeout(1000) // the page tries to navigate after 400 ms
+  // Nothing left the sandbox: the navigation never happened.
+  expect(hostRequests.filter((u) => u.includes('exfil-check') || u.includes('example.com'))).toEqual([])
+  expect(host.url()).toContain('localhost')
+  await host.screenshot({ path: join(SHOTS, 'profile-page.png') })
+  await host.keyboard.press('Escape')
 
   // On a phone, the card is a bottom sheet.
   await friend.setViewportSize({ width: 390, height: 844 })
