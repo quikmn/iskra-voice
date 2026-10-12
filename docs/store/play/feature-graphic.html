@@ -1,0 +1,57 @@
+<!doctype html>
+<!-- Google Play feature graphic (1024×500). Rendered to graphics/feature-graphic-<lang>.png by
+     client/e2e/play-store.spec.ts; open with ?lang=sv for Swedish. Keep the text clear of the edges: Play may crop. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Iskra feature graphic</title>
+<style>
+  @font-face { font-family: 'Inter'; font-weight: 300 900; src: url(../../../site/fonts/Inter-latin.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; }
+  @font-face { font-family: 'Inter'; font-weight: 300 900; src: url(../../../site/fonts/Inter-latin-ext.woff2) format('woff2'); unicode-range: U+0100-02BA; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1024px; height: 500px; overflow: hidden; background: #0b0b14; }
+  body {
+    font-family: 'Inter', sans-serif; color: #e2e2f0; -webkit-font-smoothing: antialiased;
+    display: flex; align-items: center; gap: 56px; padding: 0 96px;
+    background:
+      radial-gradient(520px 360px at 210px 250px, rgba(124, 111, 255, 0.30), transparent 70%),
+      radial-gradient(420px 300px at 900px 470px, rgba(0, 207, 255, 0.16), transparent 70%),
+      #0b0b14;
+  }
+  .mark { width: 230px; height: 230px; flex: none; filter: drop-shadow(0 0 40px rgba(124, 111, 255, 0.55)); }
+  .text { display: flex; flex-direction: column; gap: 22px; }
+  h1 { font-size: 96px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+  p { font-size: 34px; font-weight: 600; line-height: 1.25; letter-spacing: -0.015em; max-width: 560px; }
+  p span { color: #a89fff; }
+  .chips { display: flex; gap: 10px; font-size: 18px; font-weight: 600; color: #b8b8d4; }
+  .chips div { padding: 7px 14px; border-radius: 999px; border: 1px solid rgba(124, 111, 255, 0.35); background: rgba(124, 111, 255, 0.08); }
+</style>
+</head>
+<body>
+  <svg class="mark" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M16 2L4 16h10l-2 10 14-16H16L18 2z" fill="url(#bolt)"/>
+    <defs>
+      <linearGradient id="bolt" x1="4" y1="2" x2="22" y2="26" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#7c6fff"/>
+        <stop offset="100%" stop-color="#00cfff"/>
+      </linearGradient>
+    </defs>
+  </svg>
+  <div class="text">
+    <h1>Iskra</h1>
+    <p id="tagline">Voice &amp; text chat for your friends. <span>On a server you run.</span></p>
+    <div class="chips" id="chips"><div>Free</div><div>No ads</div><div>No tracking</div></div>
+  </div>
+<script>
+  // Swedish: ?lang=sv. Static text only.
+  if (new URLSearchParams(location.search).get('lang') === 'sv') {
+    document.documentElement.lang = 'sv'
+    const tagline = document.getElementById('tagline')
+    tagline.firstChild.textContent = 'Röst- och textchatt för dina vänner. '
+    tagline.querySelector('span').textContent = 'På en server ni kör själva.'
+    const chips = document.querySelectorAll('#chips div')
+    ;['Gratis', 'Ingen reklam', 'Ingen spårning'].forEach((t, i) => (chips[i].textContent = t))
+  }
+</script>
+</body>
+</html>

@@ -190,7 +190,8 @@ Message { "id": 42, "channelId": 1, "author": "<accountKey>", "text": "hi", "cre
           "attachments": [File], "replyTo": ..., "reactions": [...],   // Files, replies and reactions
           "pinned": false, "thread": Thread | null,                     // Pins, search and threads
           "poll": Poll | null,                                          // Polls
-          "webhook": WebhookInfo | null }                               // Webhooks
+          "webhook": WebhookInfo | null,                                // Webhooks
+          "cards": [Card] | null }                                      // Bot commands and cards
 Invite  { "code": "<b64u 16>", "role": "member", "createdBy": "<accountKey>", "createdAt": 0, "expiresAt": 0, "maxUses": null, "uses": 0 }
 ```
 
@@ -627,7 +628,7 @@ A bot is an ordinary identity (account key, device certificate, signed handshake
 - Bots can't join voice (`voice.join` → `forbidden`), create invites, or have a role above `trusted` (`member.setRole` → `bad_request`). They have the same rate limits as everyone else.
 - Bots can't send DMs or take part in calls (`dm.send`, `call.start`, `call.accept` → `forbidden`; calling a bot → `bad_request`): DMs and call keys are end-to-end encrypted to people's devices, which a bot can't read.
 - Bots can't be in group DMs or group calls, schedule messages (`scheduled.create` → `forbidden`), speak or moderate on stages, take part in [encrypted channels](#end-to-end-encrypted-channels), or leave on their own (`member.leave` → `forbidden`; an admin removes them). They can hold [roles](#roles-and-permissions) with permissions like anyone else.
-- Commands are a message convention, not a protocol feature: a message starting with `/name args` (or `/name@BotName args` to pick one bot) is a command. See `docs/bots.md`.
+- Commands are a message convention, not a protocol feature: a message starting with `/name args` (or `/name@BotName args` to pick one bot) is a command. Bots can describe their commands so apps suggest them ([Bot commands and cards](#bot-commands-and-cards)); the message is still the command. See `docs/bots.md`.
 
 ### Webhooks
 
@@ -2148,3 +2149,56 @@ What apps do (the TS client and the bot SDK share it, `client/src/core/connectio
   left meanwhile. On 1012 or 1001 `stop` apps leave the LiveKit room straight away (LiveKit stops with the server),
   so the rejoin is a fresh one. Camera and screen share are never turned back on by themselves. DM and group calls live in the
   server's memory and end with a restart; they aren't rejoined.
+
+## Bot commands and cards
+
+Bots can tell the server which `/commands` they understand, so apps can suggest them as people type, and can attach
+cards to their messages. A command is still sent as an ordinary message (`/roll 2d6`, see [Bot accounts](#bot-accounts));
+the registry only describes it.
+
+### Command registry
+
+| type | body | result | who |
+|---|---|---|---|
+| `bot.commands.set` | `commands: [Command]` (replaces the bot's whole list; `[]` clears it) | `{ commands }` (as stored) | bots only (`forbidden` for people) |
+| `bot.commands.available` | `channelId` | `{ bots: [accountKey] }` | channel readers |
+
+```jsonc
+Command { "name": "roll", "description": "Rolls dice", "usage"?: "2d6+1",
+          "options"?: [{ "name": "dice", "description": "Like 2d6", "type": "string", "required"?: true,
+                         "choices"?: [{ "name": "Twenty-sided", "value": "d20" }] }] }
+```
+
+| field | rules |
+|---|---|
+| `commands` | ≤ 50; names unique; the stored list (JSON) ≤ 16 KB |
+| `name` (command and option) | 1–32 characters of `a–z`, `0–9`, `_`, `-`, starting with a letter or digit |
+| `description` | 1–100 characters, one line, no invisible control characters |
+| `usage` | optional, ≤ 100 characters, one line: a hint shown after the name (`2d6+1`) |
+| `options` | ≤ 25 per command, names unique; `type` is `string`, `integer`, `number`, `boolean`, `user`, `channel` or `role`; required ones come first |
+| `choices` | ≤ 25, only for `string`, `integer` and `number`; `name` 1–100; `value` matches the type (string 1–100, a safe integer, a finite number) |
+
+- Rate limit: 5, then one every 5 s.
+- `welcome.botCommands: [{ bot: accountKey, commands }]` lists every bot member with a non-empty list. Event
+  `bot.commands { bot, commands }` goes to everyone when a bot changes its list.
+- `bot.commands.available` answers which of those bots can read **and** post in the channel (threads follow their
+  parent), so apps suggest only commands that someone will answer. Always `[]` in [encrypted channels](#end-to-end-encrypted-channels)
+  (bots aren't there). Channels the caller can't read are `not_found`.
+- A bot's list is deleted when it stops being a member (kicked, banned, removed); apps drop it on `member.removed`.
+  A bot registers again each time it starts.
+
+### Cards
+
+`chat.send` from a bot may carry `cards: [Card]`; `text` may then be empty. `chat.edit` of a bot's own message may
+carry `cards` too (it replaces them; `[]` removes them; with cards `text` may be empty). People get `forbidden`.
+Cards use the [webhook embed](#webhooks) format, validator and limits (≤ 10 per message, ≤ 6000 characters in total,
+`title` 256, `description` 4096, `url` http(s), `color` 0–16777215, `timestamp` ISO 8601 → ms, `author`, `footer.text`
+2048, ≤ 25 `fields`), plus pictures:
+
+| field | rules |
+|---|---|
+| `thumbnail`, `image` | `{ "url": ... }`: either this server's own file (`/files/<id>/...`, an image the bot uploaded itself, not SVG), or a `data:image/png\|jpeg\|gif\|webp;base64,...` URL of ≤ 16 KB. Anything else (remote addresses) is `bad_request`: viewers never load third-party content. |
+
+Messages carry `cards: [Card] | null` (`null` for everything except a bot's message with cards). Stored cards keep
+only the fields above; a picture from `/files` is returned as that file's URL path, which apps resolve against the
+server's address. Card text is rendered as text and markdown by apps, never as HTML.

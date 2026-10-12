@@ -142,9 +142,9 @@ export function FriendsView({ onToggle }: { onToggle: (panel: Panel) => void }) 
             <Empty title={t('friends.empty.pending')} />
           ) : (
             <>
-              {pendingIn.length > 0 && <h3 className="section-title">{t('friends.incomingCount', { count: pendingIn.length })}</h3>}
+              {pendingIn.length > 0 && <h2 className="section-title">{t('friends.incomingCount', { count: pendingIn.length })}</h2>}
               {pendingIn.map(([k]) => <PersonRow key={k} accountKey={k} sub={t('friends.incoming')} />)}
-              {pendingOut.length > 0 && <h3 className="section-title">{t('friends.outgoingCount', { count: pendingOut.length })}</h3>}
+              {pendingOut.length > 0 && <h2 className="section-title">{t('friends.outgoingCount', { count: pendingOut.length })}</h2>}
               {pendingOut.map(([k]) => <PersonRow key={k} accountKey={k} sub={unsent.includes(k) ? t('friends.notSentYet') : t('friends.outgoing')} />)}
             </>
           )
@@ -152,7 +152,7 @@ export function FriendsView({ onToggle }: { onToggle: (panel: Panel) => void }) 
           tab === 'online' && friends.length > 0 ? <Empty title={t('friends.empty.online')} /> : <Empty title={t('friends.empty.all')} hint={t('friends.empty.allHint')} />
         ) : (
           <>
-            <h3 className="section-title">{tab === 'online' ? t('friends.onlineCount', { count: online.length }) : t('friends.allCount', { count: friends.length })}</h3>
+            <h2 className="section-title">{tab === 'online' ? t('friends.onlineCount', { count: online.length }) : t('friends.allCount', { count: friends.length })}</h2>
             {(tab === 'online' ? online : friends).map(([k]) => <PersonRow key={k} accountKey={k} />)}
           </>
         )}

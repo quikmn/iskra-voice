@@ -19,7 +19,7 @@
 .room-sub { margin: 6px 0 0; font-size: 14px; opacity: 0.85; }
 .room-mine .room-sub { color: var(--muted); opacity: 1; }
 .room-esc {
-  flex: none; padding: 2px 7px; border: 1px solid currentColor; border-radius: 6px; font: 600 11px/1.4 inherit; opacity: 0.6;
+  flex: none; padding: 2px 7px; border: 1px solid currentColor; border-radius: 6px; font: 600 11px/1.4 inherit; opacity: 0.85;
 }
 .room-band .icon-button, .room-slim .icon-button { color: inherit; flex: none; }
 .room-band .icon-button:hover, .room-slim .icon-button:hover { background: color-mix(in srgb, currentColor 16%, transparent); }

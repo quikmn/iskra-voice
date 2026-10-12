@@ -8,6 +8,7 @@ import {
 } from '../state/store'
 import { Attachments, LinkPreviewCard, Reactions, ReactionPicker, ReplyLine } from './chat/MessageExtras'
 import { AuthorAvatar, BotBadge, Embeds } from './chat/BotBits'
+import { useCommandSuggest } from './chat/CommandSuggest'
 import { authorOf, sameSender } from './chat/bots'
 import { ImportedBadge, ImportedExtras } from './chat/ImportedBits'
 import { firstLink, formatSize, replyKey, setReply, useReply } from './chat/helpers'
@@ -57,6 +58,7 @@ import { EditedMark } from './productivity/EditHistory'
 import { useSendLater } from './productivity/SendLater'
 import { ClipNoticeRow } from './clips/ClipNotice'
 import { conversationLabel } from '../state/threads'
+import { messageListKeys, useAnnounceNew } from './a11y'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -194,6 +196,8 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
     }
   }, [messages, detached])
   useJumpTarget(server.key, channelId, scroller, () => (stickToBottom.current = false), messages)
+  useAnnounceNew(messages, (m) => (m.tempId ? null : String(m.id)), (m) => m.author === server.me?.accountKey ? null
+    : t('chat.a11y.newMessage', { name: authorOf(m, server.members).name, text: m.text ? decodeMentions(m.text, (k) => server.members[k]?.name ?? null).slice(0, 200) : t('chat.message.attachment') }), !thread)
 
   function onScroll() {
     const el = scroller.current
@@ -229,7 +233,8 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
 
   return (
     <>
-    <div className="messages" ref={scroller} onScroll={onScroll}>
+    <div className="messages" ref={scroller} onScroll={onScroll} onKeyDown={messageListKeys} tabIndex={0}
+      role="region" aria-label={t('chat.a11y.messages', { name: conversationLabel(server, channelId) })}>
       <UnreadBar conv={conv} scroller={scroller} onJump={() => (stickToBottom.current = false)}
         catchUp={{ spec: { kind: 'channel', serverKey: server.key, channelId }, title: conversationLabel(server, channelId) }}
         loadOlder={() => loadHistory(server.key, channelId, true).then(() => !!useApp.getState().servers[server.key]?.hasMore[channelId])} />
@@ -315,6 +320,9 @@ function MessageRow({
     <div
       id={message.tempId ? undefined : `msg-${message.id}`}
       className={`message ${grouped && !message.replyTo ? 'grouped' : ''} ${message.pending ?? ''} ${sheet ? 'pressed' : ''}`}
+      role="article"
+      tabIndex={-1}
+      aria-label={t('chat.a11y.message', { name, time: fullTime(message.createdAt) })}
       {...longPress}
     >
       <div className="message-gutter">
@@ -367,6 +375,7 @@ function MessageRow({
         {message.voice ? <VoiceMessage server={server} message={message} /> : <Attachments server={server} files={message.attachments} />}
         <EncryptedBits message={message} />
         {message.webhook && <Embeds server={server} embeds={message.webhook.embeds} />}
+        {message.cards && message.cards.length > 0 && <Embeds server={server} embeds={message.cards} authorName={name} />}
         {!message.tempId && !message.e2ee && firstLink(message.text) && <LinkPreviewCard server={server} url={firstLink(message.text)!} />}
         <ImportedExtras server={server} message={message} />
         <Reactions server={server} message={message} />
@@ -393,7 +402,7 @@ function MessageRow({
         {error && <div className="message-failed">{error}</div>}
       </div>
       {!editing && !message.tempId && (
-        <div className={`message-actions ${picking ? 'open' : ''}`}>
+        <div className={`message-actions ${picking ? 'open' : ''}`} role="toolbar" aria-label={t('chat.a11y.actions')}>
           {confirmDelete ? (
             <>
               <span>{t('chat.message.deleteConfirm')}</span>
@@ -584,6 +593,10 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
     setText(next.text)
     setCaret(next.caret)
   })
+  const commandSuggest = useCommandSuggest(server.key, channelId, isEncrypted(server.key, channelId), text, caret, (next) => {
+    setText(next.text)
+    setCaret(next.caret)
+  })
 
   function insertMention(name: string) {
     const before = text.slice(0, caret).replace(/@([^\s@]{0,32})$/u, `@${name} `)
@@ -659,6 +672,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
         }}
       />
       {emojiSuggest.popup}
+      {commandSuggest.popup}
       {suggestions.length > 0 && (
         <div className="mention-popup" role="listbox" aria-label={t('chat.composer.mention')}>
           {suggestions.map((m, i) => (
@@ -685,6 +699,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
         key={channelId}
         value={text}
         onCaret={setCaret}
+        aria={commandSuggest.inputProps}
         autoFocus
         placeholder={writable ? (placeholder ?? t('chat.composer.placeholder', { name: channelName })) : t('chat.composer.reconnecting')}
         maxLength={4000}
@@ -708,6 +723,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
         }}
         onKeyDown={(e) => {
           if (emojiSuggest.onKeyDown(e)) return
+          if (commandSuggest.onKeyDown(e)) return
           if (suggestions.length > 0 && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
             e.preventDefault()
             setPick((p) => (p + (e.key === 'ArrowDown' ? 1 : suggestions.length - 1)) % suggestions.length)
@@ -768,9 +784,10 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
 }
 
 function AutoTextarea({
-  value, onChange, onKeyDown, onPaste, onCaret, placeholder, autoFocus, maxLength,
+  value, onChange, onKeyDown, onPaste, onCaret, placeholder, autoFocus, maxLength, aria,
 }: {
   value: string
+  aria?: React.AriaAttributes
   onChange: (v: string) => void
   onCaret?: (position: number) => void
   onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void
@@ -801,6 +818,7 @@ function AutoTextarea({
       onSelect={(e) => onCaret?.(e.currentTarget.selectionStart)}
       onKeyDown={onKeyDown}
       onPaste={onPaste}
+      {...aria}
     />
   )
 }
@@ -823,3 +841,4 @@ export function TypingLine({ server, channelId }: { server: ServerState; channel
       : names.length <= 3 ? t('chat.typing.some', { names: names.join(', ') }) : t('chat.typing.many')
   return <div className="typing-line" aria-live="polite">{text}</div>
 }
+

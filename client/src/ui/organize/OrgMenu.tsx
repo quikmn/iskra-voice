@@ -1,8 +1,9 @@
 // A small menu: a popover at the pointer on desktop, a sheet from the bottom on phones.
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { createPortal } from 'react-dom'
 import { useEscapeLayer, useFocusTrap } from '../layers'
+import { focusFirstItem } from '../a11y'
 import { ChevronLeft, ChevronRight } from '../icons'
 
 export interface MenuAnchor {
@@ -19,6 +20,14 @@ export function OrgMenu({ anchor, label, onClose, children }: { anchor: MenuAnch
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null)
   useEscapeLayer(onClose)
   useFocusTrap(ref)
+  // Keyboards start on the first item (arrow keys move on); touch screens keep focus on the sheet.
+  useEffect(() => {
+    if (!window.matchMedia('(pointer: coarse)').matches) focusFirstItem(ref.current)
+  }, [])
+  // Another page of the menu replaced the focused item: carry on from the first one.
+  useLayoutEffect(() => {
+    if (document.activeElement === document.body || !document.activeElement) focusFirstItem(ref.current)
+  })
 
   useLayoutEffect(() => {
     if (sheet || !anchor || !ref.current) return

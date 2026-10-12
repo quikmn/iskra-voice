@@ -1,5 +1,5 @@
 // Escape closes only the top layer (modal, popover, sheet), however many are open.
-import { useEffect, useRef, type RefObject } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 
 const stack: { close: () => void }[] = []
 
@@ -38,15 +38,17 @@ const FOCUSABLE = 'a[href], button:not(:disabled), input:not(:disabled):not([typ
 
 /** Keeps Tab inside a dialog and puts focus back where it was when the dialog closes. */
 export function useFocusTrap(ref: RefObject<HTMLElement | null>) {
+  // Who had focus when this first rendered: before a field in it autofocuses, and kept across StrictMode remounts.
+  const [opener] = useState(() => (typeof document === 'undefined' ? null : document.activeElement as HTMLElement | null))
   useEffect(() => {
     const el = ref.current
     if (!el) return
-    const before = document.activeElement as HTMLElement | null
-    // Prefer the first field in the body; the dialog itself otherwise (never the close button).
+    const before = opener && !el.contains(opener) ? opener : null
+    // Prefer a field marked data-autofocus or the first field in the body; the dialog itself otherwise (never the close button).
     // Touch screens get the dialog itself, so the keyboard doesn't pop up uninvited.
     if (!el.contains(document.activeElement)) {
       const touch = window.matchMedia('(pointer: coarse)').matches
-      const first = touch ? null : el.querySelector<HTMLElement>('.modal-body :is(input, textarea):not(:disabled):not([type=hidden]):not([type=file]):not([type=checkbox]):not([type=range]):not([type=color])')
+      const first = touch ? null : el.querySelector<HTMLElement>('[data-autofocus], .modal-body :is(input, textarea):not(:disabled):not([type=hidden]):not([type=file]):not([type=checkbox]):not([type=range]):not([type=color])')
       ;(first ?? el).focus({ preventScroll: true })
     }
     const onKey = (e: KeyboardEvent) => {
@@ -68,5 +70,5 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>) {
       el.removeEventListener('keydown', onKey)
       if (before?.isConnected) before.focus({ preventScroll: true })
     }
-  }, [ref])
+  }, [ref, opener])
 }

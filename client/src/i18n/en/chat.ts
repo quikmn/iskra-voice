@@ -75,6 +75,20 @@ export const chat = {
   bot: {
     title: 'Bot',
     badge: 'BOT',
+    commands: 'Bot commands',
+    choices: 'Choices for {{name}}',
+    required: 'required',
+    optional: 'optional',
+    type: {
+      string: 'text',
+      integer: 'whole number',
+      number: 'number',
+      boolean: 'yes or no',
+      user: 'person',
+      channel: 'channel',
+      role: 'role',
+    },
+    cardImage: 'Picture from {{name}}',
   },
   search: {
     noChannel: 'No channel called #{{name}}.',
@@ -320,5 +334,13 @@ export const chat = {
     cantPlay: "Can't play",
     speedLabel: 'Playback speed {{rate}}×',
     speed: 'Playback speed',
+  },
+  a11y: {
+    messages: 'Messages in {{name}}',
+    message: '{{name}}, {{time}}',
+    newMessage: '{{name}}: {{text}}',
+    newMessages_one: '{{count}} new message',
+    newMessages_other: '{{count}} new messages',
+    actions: 'Message actions',
   },
 } as const

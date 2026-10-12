@@ -27,6 +27,7 @@ import { Trans, useTranslation } from 'react-i18next'
 import { groupText } from './groupText'
 import { errorMessage } from '../../i18n/errors'
 import { userMenuProps } from '../people/userMenuProps'
+import { messageListKeys, useAnnounceNew } from '../a11y'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -364,6 +365,8 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
 
   const divider = dividerOf(useRead(groupConv(groupKey)))
   const firstNew = divider && dividerTarget(g?.messages ?? [], divider.from, (m) => (m.pending || m.from === me ? null : { id: m.id, at: m.sentAt }))
+  useAnnounceNew(g?.messages, (m) => (m.pending ? null : `${m.from}:${m.id}`),
+    (m) => (m.from === me || m.group || m.call || m.error ? null : t('chat.a11y.newMessage', { name: knownName(m.from), text: m.text?.slice(0, 200) || t('chat.message.attachment') })))
 
   if (!g?.view) {
     return (
@@ -425,7 +428,7 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
         </div>
       )}
 
-      <div className="messages" ref={scroller}>
+      <div className="messages" ref={scroller} onKeyDown={messageListKeys} tabIndex={0} role="region" aria-label={t('chat.a11y.messages', { name: title })}>
         <UnreadBar conv={groupConv(groupKey)} scroller={scroller} onJump={() => undefined} catchUp={{ spec: { kind: 'group', key: groupKey }, title }} />
         <div className="channel-start">
           <GroupAvatar members={g.view.members} size={64} />
@@ -473,7 +476,8 @@ function GroupRow({ m, grouped, groupKey, mine }: { m: GroupMsg; grouped: boolea
   const name = knownName(m.from)
   const tools = usePrivateMessageTools(m.pending || m.error || m.call ? null : groupTarget(groupKey, m), m.text)
   return (
-    <div id={privateRowId(m.from, m.id)} {...tools.rowProps} data-dm-id={m.id} className={`message ${grouped ? 'grouped' : ''} ${m.pending ?? ''} ${tools.rowProps.className ?? ''}`}>
+    <div id={privateRowId(m.from, m.id)} {...tools.rowProps} data-dm-id={m.id} className={`message ${grouped ? 'grouped' : ''} ${m.pending ?? ''} ${tools.rowProps.className ?? ''}`}
+      role="article" tabIndex={-1} aria-label={t('chat.a11y.message', { name, time: fullTime(m.sentAt) })}>
       <div className="message-gutter">
         {grouped ? <time className="hover-time" title={fullTime(m.sentAt)}>{clockTime(m.sentAt)}</time> : <Avatar name={name} accountKey={m.from} />}
       </div>
