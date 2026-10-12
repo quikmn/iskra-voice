@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
 import { _electron as electron, expect, test } from '@playwright/test'
 import { appWindow, agreeToTerms, SHOTS, startServer, type TestServer } from './helpers'
+/** The bits of Electron's BrowserWindow these checks use (Electron's types aren't part of the client project). */type AppWin = { webContents: { getURL(): string; send(channel: string, ...args: unknown[]): void }; isVisible(): boolean }
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DESKTOP = resolve(HERE, '../../desktop')
@@ -134,7 +135,7 @@ test('the desktop app runs the web app on app:// and can join a server', async (
 
     // The shell's update notices show as a toast: restart when downloaded, a download link otherwise.
     const send = (status: object) =>
-      app.evaluate(({ BrowserWindow }, s) => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().startsWith('app://'))!.webContents.send('iskra:update', s), status)
+      app.evaluate(({ BrowserWindow }, s) => BrowserWindow.getAllWindows().find((w: AppWin) => w.webContents.getURL().startsWith('app://'))!.webContents.send('iskra:update', s), status)
     await send({ state: 'ready', version: '9.9.9' })
     const toast = page.getByRole('status').filter({ hasText: 'Update ready' })
     await expect(toast).toContainText('Iskra 9.9.9 is downloaded')
@@ -165,7 +166,7 @@ test('the desktop app runs the web app on app:// and can join a server', async (
       d.onHotkey((a) => w.heard.push(a))
     })
     await app.evaluate(({ BrowserWindow }) => {
-      for (const action of ['mute', 'KeyA', 'deafen', 42]) BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().startsWith('app://'))!.webContents.send('iskra:hotkey', action)
+      for (const action of ['mute', 'KeyA', 'deafen', 42]) BrowserWindow.getAllWindows().find((w: AppWin) => w.webContents.getURL().startsWith('app://'))!.webContents.send('iskra:hotkey', action)
     })
     await expect.poll(() => page.evaluate(() => (window as unknown as { heard: string[] }).heard)).toEqual(['mute', 'deafen'])
     // "Set key" listens to the global hook; Cancel ends it with nothing.

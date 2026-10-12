@@ -6,6 +6,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { _electron as electron, expect, test, type ElectronApplication } from '@playwright/test'
 import { appWindow, SHOTS } from './helpers'
+/** The bits of Electron's BrowserWindow these checks use (Electron's types aren't part of the client project). */type AppWin = { webContents: { getURL(): string; send(channel: string, ...args: unknown[]): void }; isVisible(): boolean }
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DESKTOP = resolve(HERE, '../../desktop')
@@ -28,7 +29,7 @@ async function launch(userData: string, extra: string[] = []): Promise<ElectronA
 
 const launchLog = (app: ElectronApplication) => app.evaluate(() => (globalThis as { iskraLaunchLog?: string[] }).iskraLaunchLog ?? [])
 const mainVisible = (app: ElectronApplication) =>
-  app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().some((w) => w.webContents.getURL().startsWith('app://') && w.isVisible()))
+  app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().some((w: AppWin) => w.webContents.getURL().startsWith('app://') && w.isVisible()))
 
 test('the splash shows first, then fades into the app', async () => {
   const userData = mkdtempSync(join(tmpdir(), 'iskra-launch-'))
@@ -52,7 +53,7 @@ test('the splash shows first, then fades into the app', async () => {
     expect(await page.evaluate(() => (window as unknown as { iskraDesktop: { updates: { restart(): Promise<boolean> } } }).iskraDesktop.updates.restart())).toBe(false)
     await expect(page.getByRole('alertdialog')).toHaveCount(0)
     const updating = (version: unknown) => app.evaluate(({ BrowserWindow }, v) =>
-      BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().startsWith('app://'))!.webContents.send('iskra:updating', v), version)
+      BrowserWindow.getAllWindows().find((w: AppWin) => w.webContents.getURL().startsWith('app://'))!.webContents.send('iskra:updating', v), version)
     await updating('<b>nope</b>') // not a version: ignored
     await expect(page.getByRole('alertdialog')).toHaveCount(0)
     await updating('9.9.9')
