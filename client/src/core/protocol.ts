@@ -133,8 +133,8 @@ export interface Requests {
   'chat.delete': [{ id: number }, Record<string, never>]
   'chat.history': [{ channelId: number; before?: number; after?: number; around?: number; limit?: number }, { messages: Message[]; hasMore: boolean; hasNewer?: boolean }]
   'chat.typing': [{ channelId: number }, Record<string, never>]
-  'channel.create': [{ name: string; kind?: 'text' | 'voice' | 'forum' | 'stage' | 'docs'; readRole?: Role; writeRole?: Role; slowmode?: number; categoryId?: number; userLimit?: number }, { channel: Channel }]
-  'channel.update': [{ id: number; name?: string; readRole?: Role; writeRole?: Role; slowmode?: number; userLimit?: number }, { channel: Channel }]
+  'channel.create': [{ name: string; kind?: 'text' | 'voice' | 'forum' | 'stage' | 'docs'; readRole?: Role; writeRole?: Role; slowmode?: number; categoryId?: number; userLimit?: number; hifi?: boolean }, { channel: Channel }]
+  'channel.update': [{ id: number; name?: string; readRole?: Role; writeRole?: Role; slowmode?: number; userLimit?: number; hifi?: boolean }, { channel: Channel }]
   'channel.delete': [{ id: number }, Record<string, never>]
   'profile.update': [ProfileUpdate, { member: Member }]
   'profile.page.set': [{ file: string }, { member: Member }]
@@ -1635,4 +1635,11 @@ export interface Requests {
   'echan.change': [{ channelId: number; change: import('./group').GroupChange; keys: import('./channelChain').ChannelKeyEnvelope[] }, { e2ee: WireChannelChain }]
   'echan.keys.add': [{ channelId: number; version: number; keys: import('./channelChain').ChannelKeyEnvelope[] }, Record<string, never>]
   'echan.keys': [{ channelId: number; since?: number }, { keys: { version: number; from: string; envelope: import('./channelChain').ChannelKeyEnvelope }[]; hasMore: boolean }]
+}
+
+// ── hi-fi voice channels ──
+
+export interface Channel {
+  /** Voice channels: people may send hi-fi audio here (stereo, 128 kbps, no processing). */
+  hifi?: boolean
 }

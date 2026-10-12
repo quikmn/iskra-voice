@@ -1,15 +1,19 @@
 // Voice and video: one LiveKit room at a time. The server hands out the token; LiveKit carries the media.
 import {
-  ConnectionState, createKeyMaterialFromBuffer, ExternalE2EEKeyProvider, LocalAudioTrack, Room, RoomEvent, ScreenSharePresets, Track, VideoPresets,
+  AudioPresets, ConnectionState, createKeyMaterialFromBuffer, ExternalE2EEKeyProvider, LocalAudioTrack, RemoteAudioTrack, Room, RoomEvent,
+  ScreenSharePresets, Track, VideoPresets,
   type LocalTrackPublication, type Participant, type RemoteParticipant, type RemoteTrack, type RemoteTrackPublication, type RoomOptions,
+  type TrackPublishOptions,
 } from 'livekit-client'
 import { create } from 'zustand'
 import { t } from '../i18n'
 import { errorMessage } from '../i18n/errors'
 import { desktop } from '../platform/desktop'
-import { connectionFor } from './store'
+import { connectionFor, useApp } from './store'
 import { canBoost, captureOptions, effectiveVolume, onAudioSettings, useAudio, type AudioSettings } from './audio'
-import { MicProcessor, strongWorks } from './micPipeline'
+import { markSlow, plannedEngine, type NoiseEngine } from './audio/engines'
+import { MicProcessor } from './micPipeline'
+import { Listener, type CleanEngine } from './listen'
 import { playTone } from './notify'
 import { screenShareOptions, useScreenShareSettings } from './screenShare'
 import { iosApp } from '../platform/native'
@@ -63,8 +67,16 @@ interface VoiceState {
   pttDown: boolean
   /** Your own mic is above the voice activity threshold (measured here, so it shows instantly). */
   localSpeaking: boolean
-  /** RNNoise is cleaning up your mic in this call (null: not in a call or not known yet). */
-  strongActive: boolean | null
+  /** The noise suppression on your mic in this call (null: not in a call, no mic path, or not known yet). */
+  micEngine: NoiseEngine | null
+  /** How much of one core AI noise removal takes on your mic (its realtime factor), while it runs. */
+  aiLoad: number | null
+  /** What cleans up incoming voices in this call (null: off or not available). */
+  cleanEngine: CleanEngine | null
+  /** Incoming voices go through our processing (leveling, clean-up) in this call. */
+  processingIncoming: boolean
+  /** You're sending hi-fi audio in this call. */
+  hifi: boolean
 }
 
 const VOLUME_KEY = 'iskra.volumes'
@@ -100,7 +112,11 @@ export const useVoice = create<VoiceState>(() => ({
   settings: loadSettings(),
   pttDown: false,
   localSpeaking: false,
-  strongActive: null,
+  micEngine: null,
+  aiLoad: null,
+  cleanEngine: null,
+  processingIncoming: false,
+  hifi: false,
 }))
 
 // Never in the iPhone/iPad app: iOS web views can't capture the screen.
@@ -108,6 +124,23 @@ export const canShareScreen = () => !iosApp && typeof navigator !== 'undefined' 
 
 let room: Room | null = null
 let e2eeWorker: Worker | null = null
+/** Incoming voices' processing (leveling, clean-up), where the call mixes with Web Audio. */
+let listener: Listener | null = null
+const incomingListeners = new Set<() => void>()
+
+/** Clips listen: the incoming voices' processed tracks changed. */
+export function onIncomingAudio(listener: () => void): () => void {
+  incomingListeners.add(listener)
+  return () => incomingListeners.delete(listener)
+}
+
+/** An incoming voice as you hear it when "Clean up others' audio" is on (null: use the track itself). */
+export const cleanedAudio = (trackSid: string): MediaStreamTrack | null => listener?.cleanedTrack(trackSid) ?? null
+
+function incomingChanged(): void {
+  useVoice.setState({ cleanEngine: listener?.engine ?? null })
+  for (const l of incomingListeners) l()
+}
 
 /** The LiveKit room of the call you're in (clips listen to it). */
 export const activeRoom = (): Room | null => room
@@ -150,13 +183,13 @@ let boosting = false
 let processor: MicProcessor | null = null
 /** Whether the mic was captured with the browser's noise suppression on. */
 let capturedWithBrowserNs: boolean | null = null
-const levelListeners = new Set<(db: number) => void>()
+const levelListeners = new Set<(db: number, open: boolean) => void>()
 
 /** The highest volume a person can be set to on this device. */
 export const maxVolume = () => (canBoost() ? 2 : 1)
 
-/** Your mic level in dBFS while in a call (the settings meter listens). */
-export function onMicLevel(listener: (db: number) => void): () => void {
+/** Your mic level in dBFS while in a call, and whether voice activity has it open (the settings meter listens). */
+export function onMicLevel(listener: (db: number, open: boolean) => void): () => void {
   levelListeners.add(listener)
   return () => levelListeners.delete(listener)
 }
@@ -164,7 +197,7 @@ export function onMicLevel(listener: (db: number) => void): () => void {
 export const micPipelineActive = () => !!processor?.active
 
 function onLevel(db: number, open: boolean): void {
-  for (const l of levelListeners) l(db)
+  for (const l of levelListeners) l(db, open)
   const { muted, pttDown, settings, localSpeaking } = useVoice.getState()
   const talking = open && !muted && (settings.mode === 'voice' || pttDown)
   if (talking !== localSpeaking) setLocalSpeaking(talking)
@@ -180,15 +213,31 @@ function setLocalSpeaking(on: boolean): void {
   })
 }
 
-/** RNNoise turned out not to run here: capture again with the browser's noise suppression instead. */
-function onStrong(strong: boolean | null): void {
-  useVoice.setState({ strongActive: strong })
+/**
+ * The mic path is up with `engine`. If our engines turned out not to run here, capture again with the browser's
+ * noise suppression instead (only when that changes what we ask the browser for, so this can't loop).
+ */
+function onEngine(engine: NoiseEngine | null): void {
+  useVoice.setState({ micEngine: engine, aiLoad: null })
   const settings = useAudio.getState()
-  // Only when that changes what we ask the browser for (strongWorks() is false from now on), so this can't loop.
-  if (settings.noise === 'strong' && !strong && capturedWithBrowserNs === false && captureOptions(settings, strongWorks()).noiseSuppression) {
+  const wanted = settings.noise === 'ai' || settings.noise === 'strong'
+  if (wanted && engine !== 'ai' && engine !== 'rnnoise' && capturedWithBrowserNs === false && captureOptions(settings, plannedEngine(settings.noise)).noiseSuppression) {
     setTimeout(() => void recapture(settings), 0)
   }
 }
+
+/** AI noise removal can't keep up here: remember that, and rebuild the mic path (it picks RNNoise now). */
+function onSlow(): void {
+  markSlow(true)
+  void recapture(useAudio.getState())
+}
+
+const micCallbacks = {
+  onLevel,
+  onLoad: (rtf: number) => useVoice.setState({ aiLoad: rtf }),
+  onSlow,
+}
+const pttMode = () => useVoice.getState().settings.mode === 'ptt'
 
 function micTrack(): LocalAudioTrack | null {
   const track = room?.localParticipant.getTrackPublication(Track.Source.Microphone)?.track
@@ -199,7 +248,8 @@ function micTrack(): LocalAudioTrack | null {
 async function recapture(settings: AudioSettings): Promise<void> {
   const track = micTrack()
   if (!track) return
-  const options = captureOptions(settings, strongWorks())
+  if (useVoice.getState().hifi !== hifiAllowed()) return republishMic()
+  const options = captureOptions(settings, plannedEngine(settings.noise), useVoice.getState().hifi)
   capturedWithBrowserNs = options.noiseSuppression
   try {
     await track.restartTrack(options)
@@ -212,12 +262,15 @@ async function recapture(settings: AudioSettings): Promise<void> {
 
 onAudioSettings((next, prev) => {
   if (!room) return
-  if (next.noise !== prev.noise || next.echoCancellation !== prev.echoCancellation || next.autoGainControl !== prev.autoGainControl ||
+  if (next.hifi !== prev.hifi) {
+    void republishMic()
+  } else if (next.noise !== prev.noise || next.echoCancellation !== prev.echoCancellation || next.autoGainControl !== prev.autoGainControl ||
     next.inputDevice !== prev.inputDevice) {
     void recapture(next)
   } else if (next.inputVolume !== prev.inputVolume || next.threshold !== prev.threshold) {
-    processor?.active?.update(next)
+    processor?.active?.update(next, pttMode())
   }
+  void listener?.apply(next)
   if (next.outputDevice !== prev.outputDevice) void room.switchActiveDevice('audiooutput', next.outputDevice || 'default').catch(() => undefined)
   if (next.outputVolume !== prev.outputVolume) room.remoteParticipants.forEach(applyVolume)
 })
@@ -357,18 +410,34 @@ async function connect(
     const audio = useAudio.getState()
     boosting = canBoost()
     keyProvider = provider
+    // Web Audio mixing lets people be turned up past 100% and runs incoming voices through leveling and clean-up
+    // (only where it can also pick the output device).
+    listener?.destroy()
+    listener = null
+    if (boosting && typeof AudioWorkletNode === 'function') {
+      try {
+        listener = new Listener(audio, incomingChanged)
+      } catch {
+        listener = null
+      }
+    }
+    useVoice.setState({ processingIncoming: !!listener, cleanEngine: null, hifi: false })
     const next = new Room({
       adaptiveStream: true,
       dynacast: true,
-      // Web Audio mixing lets people be turned up past 100% (only where it can also pick the output device).
-      webAudioMix: boosting,
+      webAudioMix: listener ? { audioContext: listener.ctx } : boosting,
       audioOutput: audio.outputDevice ? { deviceId: audio.outputDevice } : undefined,
-      audioCaptureDefaults: captureOptions(audio, strongWorks()),
+      audioCaptureDefaults: captureOptions(audio, plannedEngine(audio.noise)),
       videoCaptureDefaults: { resolution: VideoPresets.h720.resolution },
-      publishDefaults: { simulcast: true, screenShareEncoding: ScreenSharePresets.h1080fps30.encoding },
+      // Voice survives packet loss: Opus in-band FEC (LiveKit always asks for it), RED (each packet also carries the
+      // previous ones) and DTX (next to nothing is sent while you're quiet).
+      publishDefaults: { simulcast: true, screenShareEncoding: ScreenSharePresets.h1080fps30.encoding, dtx: true, red: true },
       encryption,
     })
     room = next
+    if (listener && audio.outputDevice && 'setSinkId' in listener.ctx) {
+      void (listener.ctx as AudioContext & { setSinkId(id: string): Promise<void> }).setSinkId(audio.outputDevice).catch(() => undefined)
+    }
 
     // A few frames fail while a new key goes round (someone left, the key changed): only failures that keep
     // coming are worth showing, and the notice goes away once they stop.
@@ -392,6 +461,7 @@ async function connect(
           audioElements.set(participant.identity + track.sid, element)
           container().appendChild(element)
           applyVolume(participant)
+          if (listener && track instanceof RemoteAudioTrack && track.sid) void listener.attach(track.sid, track).then(incomingChanged)
         } else {
           // The sender's capture ended (they stopped sharing): drop the tile even if the room hasn't said so yet.
           track.mediaStreamTrack.addEventListener('ended', refreshTiles)
@@ -400,6 +470,7 @@ async function connect(
       })
       .on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack, _pub, participant: RemoteParticipant) => {
         const key = participant.identity + track.sid
+        if (track.sid) listener?.detach(track.sid)
         audioElements.get(key)?.remove()
         audioElements.delete(key)
         track.detach()
@@ -470,42 +541,7 @@ async function connect(
     useVoice.setState((s) => ({ session: s.session && { ...s.session, state: 'connected', canSpeak } }))
 
     if (canSpeak) {
-      try {
-        // Publish the mic once; muting and push-to-talk just pause it (instant, no new permission prompts).
-        const options = captureOptions(useAudio.getState(), strongWorks())
-        capturedWithBrowserNs = options.noiseSuppression
-        let tracks
-        try {
-          tracks = await next.localParticipant.createTracks({ audio: options })
-        } catch (e) {
-          // A remembered device that's gone: use the default one.
-          if (!options.deviceId) throw e
-          tracks = await next.localParticipant.createTracks({ audio: { ...options, deviceId: undefined } })
-        }
-        const track = tracks.find((t): t is LocalAudioTrack => t instanceof LocalAudioTrack)
-        if (!track) throw new Error('no microphone')
-        if (room !== next) {
-          track.stop()
-          return false
-        }
-        // The processed mic is what gets published: nothing leaves before noise suppression is on.
-        if (typeof AudioWorkletNode === 'function') {
-          const mic = new MicProcessor(() => useAudio.getState(), onLevel, onStrong)
-          try {
-            await track.setProcessor(mic)
-            processor = mic
-          } catch {
-            // Send the mic as it is, with the browser's own noise suppression if you want any.
-            const noiseSuppression = useAudio.getState().noise !== 'off'
-            capturedWithBrowserNs = noiseSuppression
-            if (noiseSuppression !== options.noiseSuppression) await track.restartTrack({ ...options, noiseSuppression }).catch(() => undefined)
-          }
-        }
-        await next.localParticipant.publishTrack(track, { source: Track.Source.Microphone })
-        await applyMic()
-      } catch {
-        useVoice.setState({ muted: true, error: t('voice.errors.mic') })
-      }
+      if (!(await publishMic(next))) return false
       if (options.camera) await toggleCamera()
     }
     refreshTiles()
@@ -517,6 +553,84 @@ async function connect(
     return false
   }
 }
+
+/** Hi-fi: you turned it on and this voice channel allows it (never in DM or group calls). */
+function hifiAllowed(): boolean {
+  const { session } = useVoice.getState()
+  if (!session || session.call || session.group || !useAudio.getState().hifi) return false
+  return !!useApp.getState().servers[session.serverKey]?.channels.find((c) => c.id === session.channelId)?.hifi
+}
+
+/**
+ * Captures and publishes the mic. Normally through our mic path (noise suppression, voice activity); in hi-fi
+ * stereo at 128 kbps with no processing at all. Muting and push-to-talk just pause it afterwards (instant, no new
+ * permission prompts). False if the call ended meanwhile.
+ */
+async function publishMic(current: Room): Promise<boolean> {
+  const hifi = hifiAllowed()
+  useVoice.setState({ hifi })
+  try {
+    const settings = useAudio.getState()
+    const options = captureOptions(settings, plannedEngine(settings.noise), hifi)
+    capturedWithBrowserNs = options.noiseSuppression
+    let tracks
+    try {
+      tracks = await current.localParticipant.createTracks({ audio: options })
+    } catch (e) {
+      // A remembered device that's gone: use the default one.
+      if (!options.deviceId) throw e
+      tracks = await current.localParticipant.createTracks({ audio: { ...options, deviceId: undefined } })
+    }
+    const track = tracks.find((t): t is LocalAudioTrack => t instanceof LocalAudioTrack)
+    if (!track) throw new Error('no microphone')
+    if (room !== current) {
+      track.stop()
+      return false
+    }
+    let publish: TrackPublishOptions = { source: Track.Source.Microphone }
+    if (hifi) {
+      publish = { ...publish, audioPreset: AudioPresets.musicHighQualityStereo, forceStereo: true, dtx: false, red: true }
+      useVoice.setState({ micEngine: 'off', aiLoad: null })
+    } else if (typeof AudioWorkletNode === 'function') {
+      // The processed mic is what gets published: nothing leaves before noise suppression is on.
+      const mic = new MicProcessor(() => useAudio.getState(), pttMode, micCallbacks, onEngine)
+      try {
+        await track.setProcessor(mic)
+        processor = mic
+      } catch {
+        // Send the mic as it is, with the browser's own noise suppression if you want any.
+        const noiseSuppression = useAudio.getState().noise !== 'off'
+        capturedWithBrowserNs = noiseSuppression
+        useVoice.setState({ micEngine: noiseSuppression ? 'browser' : 'off' })
+        if (noiseSuppression !== options.noiseSuppression) await track.restartTrack({ ...options, noiseSuppression }).catch(() => undefined)
+      }
+    }
+    await current.localParticipant.publishTrack(track, publish)
+    await applyMic()
+  } catch {
+    useVoice.setState({ muted: true, error: t('voice.errors.mic') })
+  }
+  return room === current
+}
+
+/** Hi-fi turned on or off (by you or the channel): publish the mic again the new way. */
+async function republishMic(): Promise<void> {
+  const current = room
+  const { session } = useVoice.getState()
+  if (!current || !session?.canSpeak) return
+  const publication = current.localParticipant.getTrackPublication(Track.Source.Microphone)
+  if (!publication?.track) return // not published yet (a stage speaker who hasn't opened their mic)
+  processor = null
+  await current.localParticipant.unpublishTrack(publication.track).catch(() => undefined)
+  if (room === current) await publishMic(current)
+}
+
+/** The channel's hi-fi setting changed: follow it. */
+useApp.subscribe((state, prev) => {
+  const { session, hifi } = useVoice.getState()
+  if (!room || !session || session.call || session.group || state.servers === prev.servers) return
+  if (hifiAllowed() !== hifi) void republishMic()
+})
 
 /** Stages: the server brought us up to speak or sent us back (through LiveKit, so this is what we may really do). */
 async function permissionsChanged(current: Room): Promise<void> {
@@ -545,10 +659,13 @@ async function cleanup(): Promise<void> {
   processor = null // LiveKit destroys it with the track
   capturedWithBrowserNs = null
   keyProvider = null
+  listener?.destroy()
+  listener = null
   for (const element of audioElements.values()) element.remove()
   audioElements.clear()
   useVoice.setState({
-    session: null, speaking: {}, tiles: [], stageOpen: false, camera: false, screen: false, localSpeaking: false, strongActive: null,
+    session: null, speaking: {}, tiles: [], stageOpen: false, camera: false, screen: false, localSpeaking: false,
+    micEngine: null, aiLoad: null, cleanEngine: null, processingIncoming: false, hifi: false,
   })
   if (old && old.state !== ConnectionState.Disconnected) await old.disconnect()
   worker?.terminate()
@@ -639,12 +756,8 @@ async function applyMic(): Promise<void> {
   if (!publication?.track) {
     if (!open || !micDeferred) return
     micDeferred = false
-    try {
-      await current.localParticipant.setMicrophoneEnabled(true)
-    } catch {
-      micDeferred = true // try again next time
-      useVoice.setState({ muted: true, error: t('voice.errors.mic') })
-    }
+    await publishMic(current)
+    if (!current.localParticipant.getTrackPublication(Track.Source.Microphone)?.track) micDeferred = true // try again next time
     return
   }
   if (!open && useVoice.getState().localSpeaking) setLocalSpeaking(false)
@@ -672,6 +785,7 @@ export function updateVoiceSettings(patch: Partial<VoiceSettings>): void {
     /* private mode */
   }
   void desktop?.setPushToTalkKey(settings.mode === 'ptt' ? (settings.desktopKey?.code ?? null) : null)
+  processor?.active?.update(useAudio.getState(), settings.mode === 'ptt')
   void applyMic()
 }
 

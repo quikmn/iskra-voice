@@ -3,26 +3,36 @@ import { captureOptions, DEFAULT_AUDIO, effectiveVolume, meterFraction, parseAud
 import { Gate, HOLD_MS } from './micGate'
 
 describe('audio settings', () => {
-  it('defaults to strong noise suppression and keeps only valid stored values', () => {
+  it('defaults to AI noise removal and leveling, and keeps only valid stored values', () => {
     expect(parseAudioSettings(undefined)).toEqual(DEFAULT_AUDIO)
-    expect(DEFAULT_AUDIO.noise).toBe('strong')
+    expect(DEFAULT_AUDIO).toMatchObject({ noise: 'ai', leveling: true, cleanIncoming: false, hifi: false })
     const parsed = parseAudioSettings({
       noise: 'loud', echoCancellation: 'yes', inputVolume: 9, outputVolume: -1, threshold: -500, inputDevice: 42, voiceSounds: false,
+      leveling: 'no', cleanIncoming: true, hifi: 1,
     })
-    expect(parsed).toMatchObject({ noise: 'strong', echoCancellation: true, inputVolume: 2, outputVolume: 0, threshold: -80, inputDevice: '', voiceSounds: false })
+    expect(parsed).toMatchObject({
+      noise: 'ai', echoCancellation: true, inputVolume: 2, outputVolume: 0, threshold: -80, inputDevice: '', voiceSounds: false,
+      leveling: true, cleanIncoming: true, hifi: false,
+    })
+    expect(parseAudioSettings({ noise: 'strong' }).noise).toBe('strong') // RNNoise stays a choice
     expect(parseAudioSettings({ threshold: null }).threshold).toBeNull()
     expect(parseAudioSettings({ inputVolume: Number.NaN }).inputVolume).toBe(1)
   })
 
-  it("never runs the browser's noise suppression under RNNoise, but falls back to it", () => {
+  it("only runs the browser's noise suppression when it's the engine", () => {
     const strong = { ...DEFAULT_AUDIO, noise: 'strong' as const }
-    expect(captureOptions(strong, true).noiseSuppression).toBe(false)
-    expect(captureOptions(strong, false).noiseSuppression).toBe(true)
-    expect(captureOptions({ ...strong, noise: 'standard' }, true).noiseSuppression).toBe(true)
-    expect(captureOptions({ ...strong, noise: 'off' }, false).noiseSuppression).toBe(false)
-    expect(captureOptions({ ...strong, echoCancellation: false, autoGainControl: false }, true)).toMatchObject({ echoCancellation: false, autoGainControl: false })
-    expect(captureOptions(strong, true).deviceId).toBeUndefined()
-    expect(captureOptions({ ...strong, inputDevice: 'abc' }, true).deviceId).toEqual({ exact: 'abc' })
+    expect(captureOptions(strong, 'rnnoise').noiseSuppression).toBe(false)
+    expect(captureOptions(strong, 'ai').noiseSuppression).toBe(false)
+    expect(captureOptions(strong, 'browser').noiseSuppression).toBe(true)
+    expect(captureOptions({ ...strong, noise: 'off' }, 'off').noiseSuppression).toBe(false)
+    expect(captureOptions({ ...strong, echoCancellation: false, autoGainControl: false }, 'rnnoise')).toMatchObject({ echoCancellation: false, autoGainControl: false })
+    expect(captureOptions(strong, 'rnnoise').deviceId).toBeUndefined()
+    expect(captureOptions({ ...strong, inputDevice: 'abc' }, 'rnnoise').deviceId).toEqual({ exact: 'abc' })
+  })
+
+  it('captures hi-fi in stereo with none of the processing', () => {
+    expect(captureOptions(DEFAULT_AUDIO, 'browser', true)).toMatchObject({ echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 2 })
+    expect(captureOptions(DEFAULT_AUDIO, 'ai').channelCount).toBe(1)
   })
 
   it('mixes personal and output volume within what the device can play', () => {

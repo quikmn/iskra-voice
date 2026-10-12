@@ -14,6 +14,12 @@ export const SHOTS = resolve(HERE, 'screenshots')
 
 export const hasLiveKit = () => existsSync(LIVEKIT)
 
+/** Chromium's fake mic plays someone talking (e2e/fixtures/speech.wav, looped) instead of beeping. */
+export const FAKE_SPEECH_ARGS = [
+  '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required',
+  '--auto-select-desktop-capture-source=Entire screen', `--use-file-for-fake-audio-capture=${resolve(HERE, 'fixtures/speech.wav')}`,
+]
+
 /** Ports already handed out in this test process: the OS can offer a just-released port again. */
 const handedOut = new Set<number>()
 

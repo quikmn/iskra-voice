@@ -1,12 +1,14 @@
-// Settings → Voice & audio: devices, mic test with a live meter, sensitivity, noise suppression, output and sounds.
+// Settings → Voice & audio: devices, mic test with a live meter, sensitivity, noise suppression, hi-fi, output,
+// incoming voices (leveling, clean-up) and sounds.
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { t as translate } from '../../i18n'
 import {
-  AUTO_SPEAKING_DB, captureOptions, MIN_THRESHOLD, meterFraction, outputSelectable, strongSupported, updateAudio, useAudio,
+  AUTO_SPEAKING_DB, canBoost, captureOptions, MIN_THRESHOLD, meterFraction, outputSelectable, updateAudio, useAudio,
   type NoiseMode,
 } from '../../state/audio'
-import { createMicPipeline, strongWorks, type MicPipeline } from '../../state/micPipeline'
+import { engineCaps, engineHealth, fallbackReason, plannedEngine, retryAi, type NoiseEngine } from '../../state/audio/engines'
+import { createMicPipeline, type MicPipeline } from '../../state/micPipeline'
 import { maxVolume, micPipelineActive, onMicLevel, useVoice } from '../../state/voice'
 import { playTone } from '../../state/notify'
 import '../audio.css'
@@ -54,11 +56,12 @@ function DevicePicker({ label, kind, value, devices, onChange }: {
 // ── Mic test ─────────────────────────────────────────────────────────────
 
 /** Your live mic level: from the call if you're in one, otherwise from a test capture while `testing`. */
-function useMicLevel(testing: boolean, hearSelf: boolean, onMeter: (db: number) => void, onError: (message: string | null) => void) {
+function useMicLevel(testing: boolean, hearSelf: boolean, onMeter: (db: number, open: boolean) => void, onError: (message: string | null) => void) {
   const settings = useAudio()
+  const ptt = useVoice((s) => s.settings.mode === 'ptt')
   const inCall = useVoice((s) => !!s.session?.canSpeak && s.session.state === 'connected')
-  // strongActive is set once the call's mic path is up (null without one).
-  const pipelineUp = useVoice((s) => s.strongActive !== null)
+  // micEngine is set once the call's mic path is up (null without one).
+  const pipelineUp = useVoice((s) => s.micEngine !== null)
   const fromCall = inCall && pipelineUp && micPipelineActive()
   const pipeline = useRef<MicPipeline | null>(null)
   const meter = useRef(onMeter)
@@ -68,7 +71,7 @@ function useMicLevel(testing: boolean, hearSelf: boolean, onMeter: (db: number) 
 
   useEffect(() => {
     if (!fromCall) return
-    return onMicLevel((db) => meter.current(db))
+    return onMicLevel((db, open) => meter.current(db, open))
   }, [fromCall])
 
   // A new capture when the device or the processing changes; volume and threshold apply live.
@@ -82,7 +85,7 @@ function useMicLevel(testing: boolean, hearSelf: boolean, onMeter: (db: number) 
       try {
         if (!navigator.mediaDevices?.getUserMedia) throw new Error(translate('settings.audio.noMicApi'))
         const s = useAudio.getState()
-        const options = captureOptions(s, strongWorks())
+        const options = captureOptions(s, plannedEngine(s.noise))
         try {
           stream = await navigator.mediaDevices.getUserMedia({ audio: options })
         } catch (e) {
@@ -90,7 +93,9 @@ function useMicLevel(testing: boolean, hearSelf: boolean, onMeter: (db: number) 
           stream = await navigator.mediaDevices.getUserMedia({ audio: { ...options, deviceId: undefined } })
         }
         if (!alive) return
-        const next = await createMicPipeline(stream.getAudioTracks()[0], s, (db) => meter.current(db))
+        const next = await createMicPipeline(stream.getAudioTracks()[0], s, useVoice.getState().settings.mode === 'ptt', {
+          onLevel: (db, open) => meter.current(db, open),
+        })
         if (!alive) return next?.destroy()
         pipeline.current = next
         onError(next ? null : translate('settings.audio.noMeter'))
@@ -113,18 +118,21 @@ function useMicLevel(testing: boolean, hearSelf: boolean, onMeter: (db: number) 
       player?.pause()
       if (player) player.srcObject = null
       stream?.getTracks().forEach((t) => t.stop())
-      meter.current(-160)
+      meter.current(-160, false)
     }
   }, [testing, fromCall, hearSelf, inputDevice, noise, echoCancellation, autoGainControl, onError])
 
   useEffect(() => {
-    pipeline.current?.update(settings)
-  }, [settings])
+    pipeline.current?.update(settings, ptt)
+  }, [settings, ptt])
 
   return { fromCall }
 }
 
-/** Level bar with the threshold marked on it; in manual mode the slider sets the threshold. */
+/**
+ * Level bar. Automatic: it lights up when voice activity detection hears you. Manual: the threshold is marked on
+ * it and the slider sets it.
+ */
 function LevelMeter({ testing, hearSelf, onError }: { testing: boolean; hearSelf: boolean; onError: (m: string | null) => void }) {
   const { t } = useTranslation()
   const threshold = useAudio((s) => s.threshold)
@@ -135,9 +143,10 @@ function LevelMeter({ testing, hearSelf, onError }: { testing: boolean; hearSelf
   useEffect(() => {
     thresholdRef.current = shownThreshold
   }, [shownThreshold])
-  const { fromCall } = useMicLevel(testing, hearSelf, (db) => {
+  const manual = threshold !== null
+  const { fromCall } = useMicLevel(testing, hearSelf, (db, gateOpen) => {
     if (fill.current) fill.current.style.transform = `scaleX(${meterFraction(db)})`
-    const above = db >= thresholdRef.current
+    const above = manual ? db >= thresholdRef.current : gateOpen && db > -160
     setOpen((o) => (o === above ? o : above))
   }, onError)
 
@@ -145,7 +154,7 @@ function LevelMeter({ testing, hearSelf, onError }: { testing: boolean; hearSelf
     <div className="mic-meter-wrap">
       <div className={`mic-meter ${open ? 'open' : ''}`} role="presentation">
         <div ref={fill} className="mic-meter-fill" />
-        <div className="mic-meter-mark" style={{ left: `${meterFraction(shownThreshold) * 100}%` }} />
+        {manual && <div className="mic-meter-mark" style={{ left: `${meterFraction(shownThreshold) * 100}%` }} />}
       </div>
       {threshold !== null && (
         <input
@@ -210,19 +219,49 @@ export function InputSettingsSection() {
   )
 }
 
-const NOISE: { id: NoiseMode; label: 'common.off' | 'settings.audio.standard' | 'settings.audio.strong' }[] = [
+const NOISE: { id: NoiseMode; label: 'common.off' | 'settings.audio.standard' | 'settings.audio.strong' | 'settings.audio.ai' }[] = [
   { id: 'off', label: 'common.off' },
   { id: 'standard', label: 'settings.audio.standard' },
   { id: 'strong', label: 'settings.audio.strong' },
+  { id: 'ai', label: 'settings.audio.ai' },
 ]
 
-/** Noise suppression, echo cancellation and automatic gain. */
+const ENGINE: Record<NoiseEngine, 'settings.audio.engineAi' | 'settings.audio.engineRnnoise' | 'settings.audio.engineBrowser' | 'settings.audio.engineOff'> = {
+  ai: 'settings.audio.engineAi',
+  rnnoise: 'settings.audio.engineRnnoise',
+  browser: 'settings.audio.engineBrowser',
+  off: 'settings.audio.engineOff',
+}
+
+/** Which engine is cleaning up your mic (in the call, or what would run), why it isn't the one you chose, and its CPU. */
+function EngineStatus() {
+  const { t } = useTranslation()
+  const noise = useAudio((s) => s.noise)
+  const inCall = useVoice((s) => s.session?.state === 'connected' && s.session.canSpeak)
+  const callEngine = useVoice((s) => s.micEngine)
+  const hifi = useVoice((s) => s.hifi)
+  const load = useVoice((s) => s.aiLoad)
+  if (inCall && hifi) return <p className="muted engine-status" role="status">{t('settings.audio.hifiActive')}</p>
+  const engine = inCall && callEngine ? callEngine : plannedEngine(noise)
+  const reason = fallbackReason(noise, engineCaps(), engineHealth())
+  return (
+    <p className="muted engine-status" role="status" data-engine={engine}>
+      <strong>{t('settings.audio.engineActive', { engine: t(ENGINE[engine]) })}</strong>
+      {reason === 'slow' && ` ${t('settings.audio.aiSlow')}`}
+      {reason === 'unsupported' && noise === 'ai' && ` ${t('settings.audio.aiUnsupported')}`}
+      {reason === 'unsupported' && noise === 'strong' && ` ${t('settings.audio.strongUnsupported')}`}
+      {reason === 'failed' && ` ${t(noise === 'ai' ? 'settings.audio.aiFailed' : 'settings.audio.strongFailed')}`}
+      {inCall && engine === 'ai' && load !== null && ` ${t('settings.audio.aiLoad', { percent: Math.max(1, Math.round(load * 100)) })}`}
+    </p>
+  )
+}
+
+/** Noise suppression, echo cancellation, automatic gain and hi-fi. */
 export function ProcessingSettingsSection() {
   const { t } = useTranslation()
   const settings = useAudio()
-  const strongActive = useVoice((s) => s.strongActive)
-  const supported = strongSupported()
-  const mode = settings.noise === 'strong' && !supported ? 'standard' : settings.noise
+  const caps = engineCaps()
+  const mode = settings.noise
 
   return (
     <section className="settings-section audio-settings">
@@ -231,18 +270,20 @@ export function ProcessingSettingsSection() {
         {NOISE.map((n) => (
           <button
             key={n.id} role="radio" aria-checked={mode === n.id} className={mode === n.id ? 'on' : ''}
-            disabled={n.id === 'strong' && !supported}
-            onClick={() => updateAudio({ noise: n.id })}
+            disabled={(n.id === 'strong' || n.id === 'ai') && !caps.worklet}
+            onClick={() => {
+              if (n.id === 'ai') retryAi() // choosing it again gives it another try
+              updateAudio({ noise: n.id })
+            }}
           >
             {t(n.label)}
           </button>
         ))}
       </div>
       <p className="muted">
-        {mode === 'strong' ? t('settings.audio.strongHint') : mode === 'standard' ? t('settings.audio.standardHint') : t('settings.audio.offHint')}
-        {!supported && ` ${t('settings.audio.strongUnsupported')}`}
-        {supported && mode === 'strong' && strongActive === false && ` ${t('settings.audio.strongFailed')}`}
+        {mode === 'ai' ? t('settings.audio.aiHint') : mode === 'strong' ? t('settings.audio.strongHint') : mode === 'standard' ? t('settings.audio.standardHint') : t('settings.audio.offHint')}
       </p>
+      <EngineStatus />
       <label className="checkbox">
         <input type="checkbox" checked={settings.echoCancellation} onChange={(e) => updateAudio({ echoCancellation: e.target.checked })} />
         {t('settings.audio.echo')}
@@ -251,7 +292,41 @@ export function ProcessingSettingsSection() {
         <input type="checkbox" checked={settings.autoGainControl} onChange={(e) => updateAudio({ autoGainControl: e.target.checked })} />
         {t('settings.audio.agc')}
       </label>
+      <label className="checkbox">
+        <input type="checkbox" checked={settings.hifi} onChange={(e) => updateAudio({ hifi: e.target.checked })} />
+        {t('settings.audio.hifi')}
+      </label>
+      <p className="muted">{t('settings.audio.hifiHint')}</p>
+      {settings.hifi && <p className="audio-warning" role="note">{t('settings.audio.headphones')}</p>}
     </section>
+  )
+}
+
+/** Incoming voices: leveling and clean-up, where the app mixes with Web Audio. */
+function IncomingSettings() {
+  const { t } = useTranslation()
+  const settings = useAudio()
+  const inCall = useVoice((s) => s.session?.state === 'connected')
+  const processing = useVoice((s) => s.processingIncoming)
+  const cleaning = useVoice((s) => s.cleanEngine)
+  const available = engineCaps().worklet && canBoost()
+  return (
+    <>
+      <label className="checkbox">
+        <input type="checkbox" checked={settings.leveling} disabled={!available} onChange={(e) => updateAudio({ leveling: e.target.checked })} />
+        {t('settings.audio.leveling')}
+      </label>
+      <p className="muted">{t('settings.audio.levelingHint')}</p>
+      <label className="checkbox">
+        <input type="checkbox" checked={settings.cleanIncoming} disabled={!available} onChange={(e) => updateAudio({ cleanIncoming: e.target.checked })} />
+        {t('settings.audio.cleanIncoming')}
+      </label>
+      <p className="muted">
+        {t('settings.audio.cleanIncomingHint')}
+        {inCall && processing && settings.cleanIncoming && cleaning && ` ${t('settings.audio.cleaningWith', { engine: t(ENGINE[cleaning === 'ai' ? 'ai' : 'rnnoise']) })}`}
+      </p>
+      {!available && <p className="muted">{t('settings.audio.incomingUnsupported')}</p>}
+    </>
   )
 }
 
@@ -273,6 +348,7 @@ export function OutputSettingsSection() {
           onChange={(e) => updateAudio({ outputVolume: Number(e.target.value) })} />
       </label>
       <p className="muted">{t('settings.audio.perPerson')}</p>
+      <IncomingSettings />
       <label className="checkbox">
         <input type="checkbox" checked={settings.voiceSounds} onChange={(e) => {
           updateAudio({ voiceSounds: e.target.checked })

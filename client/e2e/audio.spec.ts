@@ -1,9 +1,11 @@
-// Voice & audio: the mic test and meter, RNNoise on the mic in a real call, your own speaking ring, per-person volume.
+// Voice & audio: the mic test and meter, noise suppression on the mic in a real call, your own speaking ring (Silero VAD
+// hears the fake mic talking: it plays e2e/fixtures/speech.wav), per-person volume.
 import { expect, test, type Page } from '@playwright/test'
 import { join } from 'node:path'
-import { createInviteLink, hasLiveKit, joinVia, longPress, openSettings, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, FAKE_SPEECH_ARGS, hasLiveKit, joinVia, longPress, openSettings, SHOTS, startServer, type TestServer } from './helpers'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
+test.use({ launchOptions: { args: FAKE_SPEECH_ARGS } })
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -39,24 +41,22 @@ const receivedLevel = (page: Page) =>
       done(peak)
     }, 1500)
   }))
-const loadedRnnoise = (page: Page) =>
-  page.evaluate(() => performance.getEntriesByType('resource').some((e) => /rnnoise(_simd)?.*\.wasm/.test(e.name)))
 
-test('mic test, strong noise suppression in a call, your own speaking ring and per-person volume', async ({ browser }) => {
+test('mic test, noise suppression in a call, your own speaking ring and per-person volume', async ({ browser }) => {
   const host = await (await browser.newContext()).newPage()
   await joinVia(host, server.ownerLink(), 'Host')
 
-  // Settings: strong noise suppression by default, and the mic test shows a live level.
+  // Settings: AI noise suppression by default, and the mic test shows a live level.
   await openSettings(host, 'Voice & audio')
   const settings = host.getByRole('dialog', { name: 'Settings' })
-  await expect(settings.getByRole('radio', { name: 'Strong' })).toHaveAttribute('aria-checked', 'true')
+  await expect(settings.getByRole('radio', { name: 'AI' })).toHaveAttribute('aria-checked', 'true')
   await expect(settings.getByLabel('Echo cancellation')).toBeChecked()
   await expect(settings.getByLabel('Automatic gain control')).toBeChecked()
   await expect(settings.getByLabel('Input device')).toBeVisible()
   await expect(settings.getByLabel('Output device')).toBeVisible() // Chromium can choose where sound plays
   await settings.getByRole('button', { name: 'Test microphone' }).click()
-  await expect.poll(() => meterLevel(host), { timeout: 15_000 }).toBeGreaterThan(0.1) // the fake mic beeps
-  expect(await loadedRnnoise(host)).toBe(true)
+  await expect.poll(() => meterLevel(host), { timeout: 15_000 }).toBeGreaterThan(0.1) // the fake mic talks
+  await expect(settings.getByText('Active: AI noise removal (DeepFilterNet3).')).toBeVisible()
 
   // Manual sensitivity puts a threshold on the meter.
   await settings.getByLabel('Set automatically').uncheck()

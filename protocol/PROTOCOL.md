@@ -1991,3 +1991,15 @@ it. It is wrapped for every valid, unrevoked device of every member of the new m
 - **Voice:** the LiveKit key is `crypto_kdf_derive_from_key(32, 1, "iskra-vc", epochKey)` in key slot `version mod 16`; on a new epoch everyone in the room switches (frames under the previous key still decrypt during the switch).
 - **Your data:** `data.export` lists `encryptedChannelMessages` (channel, time, version, envelope size) and `encryptedChannels` (the changes you signed), never content. Retention and message deletion delete the envelopes with the messages.
 - **New members** read from the epoch they were added in. Older history isn't shared with them (as in Signal); this version has no way to hand it over.
+
+## Hi-fi voice channels
+
+`Channel` gains `hifi` (bool; always false for text, forum, stage and docs channels). `channel.create` and `channel.update` take `hifi?` (true or false, anything else is `bad_request`), voice channels only: on any other kind it's `bad_request`. Only admins change it (as with every channel setting); an update that leaves it out keeps it.
+
+- In a hi-fi channel, members who turned hi-fi on in their audio settings publish their microphone in stereo at 128 kbps (LiveKit's `musicHighQualityStereo`) with RED, without DTX, and with no echo cancellation, noise suppression or automatic gain. Everyone else, and every other channel, sends voice as usual. DM and group calls are never hi-fi.
+- It's a setting clients honour, not something the server can enforce: LiveKit forwards whatever a client publishes within its own limits. The server stores and broadcasts it (`channels` event, `welcome.channels`, the `channel` in each answer).
+- Turning it off while people are in the channel makes their clients publish the usual way again.
+- Audit: `channel.create` details gain `hifi`; `channel.update` changes gain `hifi: { from, to }`.
+- Storage: `voice_hifi(channel_id)` (migration `hifi-1`), dropped with the channel.
+
+Voice resilience (no protocol change, for reference): clients publish the mic with Opus in-band FEC (`useinbandfec=1`, which livekit-client always sets), RED (`audio/red`, redundant audio: each packet also carries the previous ones) and DTX. LiveKit's default codec list, which `livekit.yaml` leaves as is, includes `audio/red`, so rooms negotiate it for every subscriber that supports it and fall back to plain Opus for the rest.

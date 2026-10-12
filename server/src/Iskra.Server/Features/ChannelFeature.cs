@@ -69,6 +69,7 @@ public static class ChannelFeature
 
         var slowmode = ModerationFeature.SlowmodeField(body) ?? 0;
         var userLimit = VoiceLimitFeature.Field(body, kind) ?? 0;
+        var hifi = HifiFeature.Field(body, kind) ?? false;
         var categoryId = OrganizeFeature.OptionalCategory(s, body);
         var e2ee = E2eeChannelFeature.CheckCreate(s, me, body, kind, readRole, writeRole);
         var channel = s.World.Store.CreateChannel(ChannelName(body.String("name", 256)), kind, readRole, writeRole, s.Now);
@@ -86,14 +87,15 @@ public static class ChannelFeature
         }
         if (slowmode > 0) s.World.Store.SetSlowmode(channel.Id, slowmode);
         if (userLimit > 0) s.World.Store.SetUserLimit(channel.Id, userLimit);
+        if (hifi) s.World.Store.SetHifi(channel.Id, true);
         if (categoryId is not null)
         {
             s.World.Store.SetChannelCategory(channel.Id, categoryId);
             channel = channel with { CategoryId = categoryId };
         }
-        Audit.Record(s, "channel.create", details: new { channelId = channel.Id, name = channel.Name, kind, readRole, writeRole, slowmode, userLimit, encrypted = e2ee is not null });
+        Audit.Record(s, "channel.create", details: new { channelId = channel.Id, name = channel.Name, kind, readRole, writeRole, slowmode, userLimit, encrypted = e2ee is not null, hifi });
         BroadcastChannels(s);
-        return new { channel = Hub.PublicChannel(channel, slowmode, userLimit, E2eeChannelFeature.Info(s.World.Store, channel.Id)) };
+        return new { channel = Hub.PublicChannel(channel, slowmode, userLimit, E2eeChannelFeature.Info(s.World.Store, channel.Id), hifi) };
     }
 
     private static object Update(Session s, Member me, Body body)
@@ -113,20 +115,24 @@ public static class ChannelFeature
         var slowmode = ModerationFeature.SlowmodeField(body) ?? oldSlowmode;
         var oldLimit = s.World.Store.UserLimit(channel.Id);
         var userLimit = VoiceLimitFeature.Field(body, channel.Kind) ?? oldLimit;
+        var oldHifi = s.World.Store.IsHifi(channel.Id);
+        var hifi = HifiFeature.Field(body, channel.Kind) ?? oldHifi;
 
         s.World.Store.UpdateChannel(updated);
         if (slowmode != oldSlowmode) s.World.Store.SetSlowmode(channel.Id, slowmode);
         if (userLimit != oldLimit) s.World.Store.SetUserLimit(channel.Id, userLimit);
+        if (hifi != oldHifi) s.World.Store.SetHifi(channel.Id, hifi);
         var changes = new Dictionary<string, object>();
         if (updated.Name != channel.Name) changes["name"] = new { from = channel.Name, to = updated.Name };
         if (updated.ReadRole != channel.ReadRole) changes["readRole"] = new { from = channel.ReadRole, to = updated.ReadRole };
         if (updated.WriteRole != channel.WriteRole) changes["writeRole"] = new { from = channel.WriteRole, to = updated.WriteRole };
         if (slowmode != oldSlowmode) changes["slowmode"] = new { from = oldSlowmode, to = slowmode };
         if (userLimit != oldLimit) changes["userLimit"] = new { from = oldLimit, to = userLimit };
+        if (hifi != oldHifi) changes["hifi"] = new { from = oldHifi, to = hifi };
         if (changes.Count > 0) Audit.Record(s, "channel.update", details: new { channelId = channel.Id, name = updated.Name, changes });
         BroadcastChannels(s);
         s.Voice.EnforceAccess();
-        return new { channel = Hub.PublicChannel(updated, slowmode, userLimit, E2eeChannelFeature.Info(s.World.Store, channel.Id)) };
+        return new { channel = Hub.PublicChannel(updated, slowmode, userLimit, E2eeChannelFeature.Info(s.World.Store, channel.Id), hifi) };
     }
 
     private static object? Delete(Session s, Member me, Body body)

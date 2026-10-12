@@ -64,6 +64,7 @@ export function ChannelSettingsDialog({ server, channel, onClose }: { server: Se
   const [categoryId, setCategoryId] = useState<number | null>(channel.categoryId ?? null)
   const [slowmode, setSlowmode] = useState(channel.slowmode ?? 0)
   const [userLimit, setUserLimit] = useState(channel.userLimit ?? 0)
+  const [hifi, setHifi] = useState(channel.hifi ?? false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -88,6 +89,7 @@ export function ChannelSettingsDialog({ server, channel, onClose }: { server: Se
     await connection.request('channel.update', {
       id: channel.id, name: slug, readRole, writeRole: write, slowmode,
       userLimit: channel.kind === 'voice' ? userLimit : undefined,
+      hifi: channel.kind === 'voice' && hifi !== (channel.hifi ?? false) ? hifi : undefined,
     })
     if (categoryId !== (channel.categoryId ?? null)) await moveChannel(server.key, channel.id, categoryId, null)
   })
@@ -123,6 +125,15 @@ export function ChannelSettingsDialog({ server, channel, onClose }: { server: Se
         <small className="muted">{t('organize.channelSettings.slowmodeHint')}</small>
       </label>
       {channel.kind === 'voice' && <UserLimitField value={userLimit} onChange={setUserLimit} />}
+      {channel.kind === 'voice' && (
+        <div className="field">
+          <label className="checkbox">
+            <input type="checkbox" checked={hifi} onChange={(e) => setHifi(e.target.checked)} />
+            {t('organize.channelSettings.hifi')}
+          </label>
+          <small className="muted">{t('organize.channelSettings.hifiHint')}</small>
+        </div>
+      )}
       <ChannelOverrides server={server} channel={channel} />
       <label className="field inline">
         <span>{t('organize.channelSettings.category')}</span>

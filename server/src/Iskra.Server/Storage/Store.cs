@@ -298,6 +298,7 @@ public sealed partial class Store : IDisposable
         ("keylog-1", KeyLogMigration),
         ("docs-1", DocsMigration),
         ("e2ee-channels-1", E2eeMigration),
+        ("hifi-1", HifiMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

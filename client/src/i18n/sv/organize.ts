@@ -33,6 +33,8 @@ export const organize: Messages['organize'] = {
     slowmodeOff: 'Långsamt läge · av',
     slowmodeLabel: 'Långsamt läge',
     slowmodeHint: 'Medlemmar kan skicka ett meddelande per intervall här. Admins begränsas inte.',
+    hifi: 'Tillåt hi-fi-ljud',
+    hifiHint: 'Den som slår på hi-fi skickar stereo i 128 kbit/s utan bearbetning här: för musik, instrument och lyssningsfester.',
     category: 'Kategori',
     noCategory: 'Ingen kategori',
     deleteTitle: 'Radera kanal',

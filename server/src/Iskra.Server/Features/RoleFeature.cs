@@ -269,7 +269,7 @@ public static partial class RoleFeature
         });
         AccessChanged(s, []);
         var updated = s.World.Store.GetChannel(channel.Id)!;
-        return new { channel = Hub.PublicChannel(updated, s.World.Store.Slowmode(channel.Id), s.World.Store.UserLimit(channel.Id), E2eeChannelFeature.Info(s.World.Store, channel.Id)) };
+        return new { channel = Hub.PublicChannel(updated, s.World.Store.Slowmode(channel.Id), s.World.Store.UserLimit(channel.Id), E2eeChannelFeature.Info(s.World.Store, channel.Id), s.World.Store.IsHifi(channel.Id)) };
     }
 
     // ── Voice moderation ─────────────────────────────────────────────────────
