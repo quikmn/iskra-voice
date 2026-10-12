@@ -20,25 +20,33 @@ function save(): void {
 
 const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
-bot.command('poll', 'Starts a poll: `/poll Pizza or tacos? | Pizza | Tacos`, `/poll 2h Movie tonight?` (closes after a day unless you say)',
+// The usage hints show in the app when someone types "/" (the bot still reads the whole line itself).
+bot.command('poll', 'Starts a poll (closes after a day unless you give a time)',
   async ({ args, message, reply }) => {
     const request = parsePoll(args)
     if (typeof request === 'string') return reply(request)
     const poll = await bot.poll(message.channelId, request.question, request.answers, { durationMs: request.durationMs })
     saved.polls.push(poll.id)
     save()
-  })
+  }, { usage: '[2h] Pizza or tacos? | Pizza | Tacos' })
 
-bot.command('remind', 'Reminds you: `/remind 10m stretch your legs`, `/remind 1h30m pizza is ready`', async ({ args, message, reply }) => {
+bot.command('remind', 'Reminds you after a while', async ({ args, message, reply }) => {
   const request = parseReminder(args)
   if (typeof request === 'string') return reply(request)
   const dueAt = Date.now() + request.inMs
   const confirm = await reply(`⏰ Okay, in ${formatDuration(request.inMs)} (at ${clock(dueAt)}).`)
   saved.reminders.push({ dueAt, channelId: message.channelId, messageId: message.id, confirmId: confirm.id, who: message.author, text: request.text })
   save()
+}, {
+  options: [
+    { name: 'in', description: 'When: 10m, 1h30m, 2d', type: 'string', required: true, choices: [
+      { name: '10 minutes', value: '10m' }, { name: 'An hour', value: '1h' }, { name: 'Tomorrow', value: '1d' },
+    ] },
+    { name: 'what', description: 'What to remind you of', type: 'string', required: true },
+  ],
 })
 
-bot.command('event', 'Plans an event: `/event 2h Game night`, `/event 1d Movie night @ Lounge`', async ({ args, message, reply }) => {
+bot.command('event', 'Plans an event (add "@ Lounge" for a place or voice channel)', async ({ args, message, reply }) => {
   const request = parseEvent(args)
   if (typeof request === 'string') return reply(request)
   const startAt = Math.ceil((Date.now() + request.inMs) / 60_000) * 60_000
@@ -55,14 +63,24 @@ bot.command('event', 'Plans an event: `/event 2h Game night`, `/event 1d Movie n
   })
   await message.react('📅')
   await reply(`📅 **${event.title}** is on, in ${formatDuration(startAt - Date.now())}. Mark yourself interested under Events to get a reminder.`)
-})
+}, { usage: '2h Game night @ Lounge' })
 
 bot.command('events', 'Lists what is coming up', async ({ reply }) => {
   const { events } = await bot.request('event.list', {})
   if (!events.length) return reply('Nothing planned yet. Try `/event 2h Game night`.')
-  const lines = events.slice(0, 10).map((e) =>
-    `• **${e.title}**: ${e.status === 'live' ? 'happening now' : `in ${formatDuration(e.startAt - Date.now())}`} (${e.interested.length} interested)`)
-  return reply(lines.join('\n'))
+  // A card with one field per event.
+  return reply({
+    cards: [{
+      title: '📅 Coming up',
+      color: 0x695bff,
+      fields: events.slice(0, 10).map((e) => ({
+        name: e.title,
+        value: `${e.status === 'live' ? 'Happening now' : `In ${formatDuration(e.startAt - Date.now())}`} · ${e.interested.length} interested`,
+        inline: false,
+      })),
+      footer: { text: 'Mark yourself interested under Events to get a reminder' },
+    }],
+  })
 })
 
 // When one of the bot's polls closes: post the result, with who voted for what as a CSV file.

@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Bot, loadState } from '../../bots/sdk/src/index'
-import { describe as describeRoll, pick, roll } from '../../bots/examples/dice-rules'
+import { describe as describeRoll, pick, roll, rollCard } from '../../bots/examples/dice-rules'
 import { formatDuration, parseDuration, parseEvent, parsePoll, parseReminder, pollCsv, pollSummary } from '../../bots/examples/planner-rules'
 import { Connection, type ConnectionStatus } from '../src/core/connection'
 import { ready } from '../src/core/crypto'
@@ -227,6 +227,48 @@ describe('bot SDK ↔ server', () => {
     const thread = await bot.thread(withFile.id, 'Notes')
     expect((await bot.send(thread.id, 'in the thread')).channelId).toBe(thread.id)
     await bot.setActivity('testing')
+  })
+
+  it('a bot registers its commands, a member sees them, and the bot answers /roll with a card', async () => {
+    const { invite } = await owner.request('bot.invite', {})
+    const link = buildInviteLink('http://localhost:5173', { serverUrl: url, serverKey: welcome!.server.key, code: invite.code })
+    const general = welcome!.channels.find((c) => c.name === 'general')!
+    const bot = new Bot({ name: 'Cards', invite: link, stateFile: join(world, 'cards.bot.json'), log: () => undefined })
+    bots.push(bot)
+    bot.commands([{
+      name: 'roll',
+      description: 'Rolls dice',
+      options: [{ name: 'dice', description: 'Like 2d6', type: 'string', choices: [{ name: 'Two dice', value: '2d6' }] }],
+      handler: async ({ args, reply }) => {
+        const result = roll(args, () => 0.5)!
+        await reply({ text: `rolled **${result.total}**`, cards: [rollCard(result)] })
+      },
+    }])
+    await bot.start()
+
+    // The member hears the list (help is registered too), and the bot answers in #general.
+    const listed = await waitFor(() => events.map((e) => e.type === 'bot.commands' ? e.body as Events['bot.commands'] : null)
+      .find((b) => b?.bot === bot.me!.accountKey && b.commands.length > 0), 'bot.commands')
+    expect(listed.commands.map((c) => c.name).sort()).toEqual(['help', 'roll'])
+    expect(listed.commands.find((c) => c.name === 'roll')?.options?.[0]).toMatchObject({ name: 'dice', choices: [{ value: '2d6' }] })
+    const { bots: here } = await owner.request('bot.commands.available', { channelId: general.id })
+    expect(here).toContain(bot.me!.accountKey)
+
+    const { message: sent } = await owner.request('chat.send', { channelId: general.id, text: '/roll 2d6' })
+    const answer = await message((m) => m.author === bot.me!.accountKey && m.replyTo?.id === sent.id)
+    expect(answer.text).toBe('rolled **8**')
+    expect(answer.cards?.[0]).toMatchObject({ title: '🎲 2d6', description: '**8**', fields: [{ name: 'Dice', value: '4, 4' }] })
+
+    // Cards with a picture the bot uploaded, and an edit that replaces them.
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
+    const picture = await bot.upload({ name: 'die.png', data: new Uint8Array(png) })
+    const withPicture = await bot.send(general.id, { cards: [{ title: 'Pic', thumbnail: { url: picture.url } }] })
+    expect(withPicture.cards?.[0].thumbnail?.url).toBe(picture.url)
+    const edited = await bot.edit(withPicture.id, { cards: [{ title: 'Changed' }] })
+    expect(edited.cards).toEqual([{ title: 'Changed' }])
+    await expect(bot.send(general.id, { cards: [{ title: 'x', image: { url: 'https://example.com/a.png' } }] })).rejects.toMatchObject({ code: 'bad_request' })
+    // People can't send cards.
+    await expect(owner.request('chat.send', { channelId: general.id, text: 'x', cards: [{ title: 'x' }] })).rejects.toMatchObject({ code: 'forbidden' })
   })
 
   it('a webhook posts with its own name, and the owner sees it live', async () => {
