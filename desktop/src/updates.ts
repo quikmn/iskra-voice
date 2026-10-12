@@ -70,7 +70,9 @@ export class Updates {
   restart(beforeQuit: () => void): boolean {
     if (this.status.state !== 'ready') return false
     beforeQuit()
-    autoUpdater.quitAndInstall(true, true) // silent install, then start the new version
+    // Not silent: on Windows the one-click installer shows its own small "Installing" window, then starts the new
+    // version (runAfterFinish). The AppImage is swapped and started again either way.
+    autoUpdater.quitAndInstall(false, true)
     return true
   }
 

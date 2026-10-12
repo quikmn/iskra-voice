@@ -25,3 +25,6 @@ export function updateNotice(status: UpdateStatus, dismissed: string | null): Up
   if (status.state === 'available' && dismissed !== status.version) return { kind: 'available', version: status.version, url: status.url }
   return null
 }
+
+/** The version the shell is about to restart into ("Updating Iskra to X…"), or null. */
+export const parseUpdatingVersion = (value: unknown): string | null => (typeof value === 'string' && VERSION.test(value) ? value : null)
