@@ -162,16 +162,16 @@ export function BackupSection({ server }: { server: ServerState }) {
   return (
     <>
       <section className="settings-section backup" data-testid="backup-section">
-        <h3>{t('settings.sections.backup')}</h3>
+        <h2>{t('settings.sections.backup')}</h2>
         <p className="muted">{t('settings.backup.intro')}</p>
         <BackupMaker server={server} />
       </section>
       <section className="settings-section backup">
-        <h3>{t('settings.backup.dailyTitle')}</h3>
+        <h2>{t('settings.backup.dailyTitle')}</h2>
         <AutoBackups server={server} />
       </section>
       <section className="settings-section backup">
-        <h3>{t('settings.backup.moveTitle')}</h3>
+        <h2>{t('settings.backup.moveTitle')}</h2>
         <p className="muted">{t('settings.backup.moveHint')}</p>
         <button className="button" onClick={() => setMoving(true)}>{t('settings.backup.moveButton')}</button>
       </section>

@@ -77,7 +77,7 @@ export function Modal({ title, heading, onBack, onClose, children, footer, wide,
   return createPortal(
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className={`modal ${wide ? 'wide' : ''} ${className ?? ''}`} role="dialog" aria-modal="true" aria-label={title} ref={ref} tabIndex={-1}>
-        <header className="modal-header">
+        <div className="modal-header">
           {onBack && (
             <button className="icon-button modal-back" onClick={onBack} aria-label={t('common.back')}>
               <ChevronLeft />
@@ -87,7 +87,7 @@ export function Modal({ title, heading, onBack, onClose, children, footer, wide,
           <button className="icon-button modal-close" onClick={onClose} aria-label={t('common.close')}>
             <Close />
           </button>
-        </header>
+        </div>
         <div className="modal-body">{children}</div>
         {footer && <footer className="modal-footer">{footer}</footer>}
       </div>

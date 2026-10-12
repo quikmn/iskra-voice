@@ -19,7 +19,7 @@ export function IntegrationsSection({ server }: { server: ServerState }) {
   const [tab, setTab] = useState<Tab>('webhooks')
   return (
     <section className="settings-section integrations">
-      <h3>{t('settings.sections.integrations')}</h3>
+      <h2>{t('settings.sections.integrations')}</h2>
       <div className="segmented" role="tablist" aria-label={t('settings.integrations.tabs')}>
         <button role="tab" aria-selected={tab === 'webhooks'} className={tab === 'webhooks' ? 'on' : ''} onClick={() => setTab('webhooks')}>{t('settings.integrations.webhooks')}</button>
         <button role="tab" aria-selected={tab === 'bots'} className={tab === 'bots' ? 'on' : ''} onClick={() => setTab('bots')}>{t('settings.integrations.bots')}</button>

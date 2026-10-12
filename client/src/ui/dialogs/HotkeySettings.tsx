@@ -65,7 +65,7 @@ export function HotkeySettingsSection() {
 
   return (
     <section className="settings-section">
-      <h3>{t('settings.hotkeys.title')}</h3>
+      <h2>{t('settings.hotkeys.title')}</h2>
       <div className="hotkey-list">
         {HOTKEY_ACTIONS.map((action) => {
           const label = binds[action]?.label

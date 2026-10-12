@@ -6,6 +6,8 @@ import { senderRules } from './senderRules'
 import { canPingGroups, mentionsMyRole } from './permissions'
 import { mentions } from '../ui/markdown'
 import { t } from '../i18n'
+import { useSyncExternalStore } from 'react'
+import { getNameSurfaces, onNameSurfaces, readableColor } from '../theme/theme'
 
 export const useRoles = create<Record<string, ServerRole[]>>(() => ({}))
 
@@ -89,9 +91,10 @@ senderRules.mentionsMe = (server, message) =>
 /** For rendering: a role mention's name, colour, and whether I have it. */
 export function useRoleLookup(serverKey: string, me: { roles?: number[] } | null | undefined) {
   const roles = useServerRoles(serverKey)
+  const surfaces = useSyncExternalStore(onNameSurfaces, getNameSurfaces, getNameSurfaces)
   return (id: number) => {
     const role = roles.find((r) => r.id === id)
-    return role ? { name: role.name, color: role.color, mine: !!me?.roles?.includes(id) } : null
+    return role ? { name: role.name, color: role.color && readableColor(role.color, surfaces), mine: !!me?.roles?.includes(id) } : null
   }
 }
 

@@ -31,7 +31,7 @@ export function DesktopSettingsSection() {
   return (
     <>
     <section className="settings-section">
-      <h3>{t('settings.sections.desktop')}</h3>
+      <h2>{t('settings.sections.desktop')}</h2>
       <label className="checkbox">
         <input type="checkbox" checked={settings.openAtLogin} onChange={(e) => void update({ openAtLogin: e.target.checked })} />
         <span>
@@ -85,7 +85,7 @@ function ActivitySettings({ settings, update }: { settings: DesktopSettings; upd
 
   return (
     <section className="settings-section">
-      <h3>{t('settings.desktop.activityTitle')}</h3>
+      <h2>{t('settings.desktop.activityTitle')}</h2>
       <label className="checkbox">
         <input type="checkbox" checked={settings.activity} onChange={(e) => void update({ activity: e.target.checked })} />
         <span>

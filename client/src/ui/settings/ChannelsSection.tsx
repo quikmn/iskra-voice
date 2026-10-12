@@ -31,7 +31,7 @@ export function ChannelsSection({ server }: { server: ServerState }) {
   )
   return (
     <section className="settings-section">
-      <h3>{t('settings.sections.channels')}</h3>
+      <h2>{t('settings.sections.channels')}</h2>
       <p className="muted">{t('settings.channels.intro')}</p>
       <div className="copy-row">
         <button className="button primary" onClick={() => setOpen({ kind: 'new', categoryId: null })}><Plus size={16} /> {t('organize.list.createChannel')}</button>

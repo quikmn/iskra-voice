@@ -65,7 +65,7 @@ export function ProfileSection() {
 
   return (
     <section className="settings-section">
-      <h3>{t('settings.sections.profile')}</h3>
+      <h2>{t('settings.sections.profile')}</h2>
       <div className="avatar-row">
         <Avatar name={trimmed || '?'} accountKey={accountKey} size={72} src={avatarUrl} />
         <div className="copy-row">

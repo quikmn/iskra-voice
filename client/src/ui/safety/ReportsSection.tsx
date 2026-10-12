@@ -61,7 +61,7 @@ export function ReportsSection({ server, onClose }: { server: ServerState; onClo
 
   return (
     <section className="settings-section reports-section">
-      <h3>{t('settings.sections.reports')}</h3>
+      <h2>{t('settings.sections.reports')}</h2>
       <p className="muted">{t('safety.queue.intro')}</p>
       <div className="segmented" role="tablist">
         <button role="tab" aria-selected={status === 'open'} className={status === 'open' ? 'on' : ''} onClick={() => { setReports(null); setStatus('open') }}>

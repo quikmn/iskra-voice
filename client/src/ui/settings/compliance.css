@@ -1,5 +1,5 @@
 /* Settings → Privacy & data and Security log */
-.settings-section h4 { margin: 18px 0 4px; font-size: 14px; }
+.settings-section h4, .settings-section .h4 { margin: 18px 0 4px; font-size: 14px; }
 .data-export-list { list-style: none; margin: 10px 0 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
 .data-export-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; }
 .data-export-list li + li { border-top: 1px solid var(--border); }

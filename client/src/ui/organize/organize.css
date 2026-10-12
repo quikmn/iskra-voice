@@ -75,7 +75,7 @@
 
 /* Notification settings for a server, and nickname fields. */
 .org-notify { display: grid; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
-.org-notify h4 { margin: 0; font-size: 14px; }
+.org-notify .h4 { margin: 0; font-size: 14px; }
 .org-notify .segmented { flex-wrap: wrap; }
 .org-notify-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .org-nick-row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }

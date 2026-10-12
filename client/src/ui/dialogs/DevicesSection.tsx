@@ -77,7 +77,7 @@ export function DevicesSection() {
 
   return (
     <section className="settings-section">
-      <h3>{t('settings.sections.devices')}</h3>
+      <h2>{t('settings.sections.devices')}</h2>
       <p className="muted">{t('settings.devices.intro')}</p>
       {!loaded ? <Spinner /> : devices.length === 0 ? (
         <p className="muted">{t('settings.devices.empty')}</p>

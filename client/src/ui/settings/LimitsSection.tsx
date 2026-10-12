@@ -54,7 +54,7 @@ export function LimitsSection({ server }: { server: ServerState }) {
 
   return (
     <section className="settings-section limits" data-testid="limits-section">
-      <h3>{t('settings.sections.limits')}</h3>
+      <h2>{t('settings.sections.limits')}</h2>
       <p className="muted">{t('settings.limits.intro')}</p>
       {!limits ? (
         error ? <p className="error-text">{error}</p> : <Spinner />

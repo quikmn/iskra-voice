@@ -182,7 +182,7 @@ export function InputSettingsSection() {
 
   return (
     <section className="settings-section audio-settings">
-      <h3>{t('settings.audio.microphone')}</h3>
+      <h2>{t('settings.audio.microphone')}</h2>
       <DevicePicker label={t('settings.audio.inputDevice')} kind="audioinput" value={settings.inputDevice} devices={devices} onChange={(id) => updateAudio({ inputDevice: id })} />
       <label className="field">
         <span>{t('settings.audio.inputVolumeValue', { percent: Math.round(settings.inputVolume * 100) })}</span>
@@ -271,7 +271,7 @@ export function ProcessingSettingsSection() {
 
   return (
     <section className="settings-section audio-settings">
-      <h3>{t('settings.audio.noise')}</h3>
+      <h2>{t('settings.audio.noise')}</h2>
       <div className="segmented" role="radiogroup" aria-label={t('settings.audio.noise')}>
         {NOISE.map((n) => (
           <button
@@ -361,7 +361,7 @@ export function OutputSettingsSection() {
   const max = maxVolume()
   return (
     <section className="settings-section audio-settings">
-      <h3>{t('settings.audio.sound')}</h3>
+      <h2>{t('settings.audio.sound')}</h2>
       {outputSelectable() && (
         <DevicePicker label={t('settings.audio.outputDevice')} kind="audiooutput" value={settings.outputDevice} devices={devices} onChange={(id) => updateAudio({ outputDevice: id })} />
       )}

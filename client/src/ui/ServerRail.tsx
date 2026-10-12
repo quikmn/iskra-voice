@@ -1,6 +1,6 @@
 // The server rail: DMs, then your servers and folders. Drag to reorder (onto another server to make a folder);
 // right-click or press and hold for a menu (organize/ServerMenu.tsx for a server's). The layout syncs across your devices (state/rail.ts).
-import { useRef, useState, type DragEvent, type MouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { selectServer, useApp, type ServerState } from '../state/store'
 import { openFriends } from '../state/dms'
@@ -17,6 +17,7 @@ import { MenuItem, MenuTitle, OrgMenu, type MenuAnchor } from './organize/OrgMen
 import { ServerMenu } from './organize/ServerMenu'
 import { FolderDialog } from './organize/FolderDialog'
 import { InboxButton } from './productivity/InboxButton'
+import { isMenuKey, treeKeys, useRoving } from './roving'
 import './organize/organize.css'
 
 type Drag = { kind: 'server' | 'folder'; id: string }
@@ -76,6 +77,9 @@ export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavig
   const [editing, setEditing] = useState<RailFolder | null>(null)
   const items = visibleRail(layout, order)
   const touch = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
+  // One Tab stop: up/down between servers and folders, left/right closes and opens folders.
+  const railRef = useRef<HTMLElement>(null)
+  useRoving(railRef, { items: '.server-icon', current: '.server-icon.active', onKey: treeKeys('.rail-folder', '.folder-icon') })
 
   const endDrag = () => {
     setDrag(null)
@@ -132,13 +136,20 @@ export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavig
     e.preventDefault()
     setMenu({ kind, id, anchor: { x: e.clientX, y: e.clientY } })
   }
+  /** The context-menu key (or Shift+F10) on an icon: its menu, next to it. */
+  const menuKey = (kind: 'server' | 'folder', id: string) => (e: KeyboardEvent<HTMLElement>) => {
+    if (!isMenuKey(e)) return
+    e.preventDefault()
+    const rect = e.currentTarget.getBoundingClientRect()
+    setMenu({ kind, id, anchor: { x: rect.right + 4, y: rect.top } })
+  }
 
   const icon = (key: string, insideFolder: boolean) => {
     const server = servers[key]
     if (!server) return null
     return (
       <ServerIcon key={key} server={server} active={key === active} className={dropClass(key)} dnd={dnd({ kind: 'server', id: key }, false, insideFolder)}
-        onContextMenu={openMenu('server', key)} onHold={(anchor) => setMenu({ kind: 'server', id: key, anchor })}
+        onContextMenu={openMenu('server', key)} onKeyDown={menuKey('server', key)} onHold={(anchor) => setMenu({ kind: 'server', id: key, anchor })}
         onClick={() => {
           selectServer(key)
           onNavigate()
@@ -156,7 +167,7 @@ export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavig
   }
 
   return (
-    <nav className="server-rail" aria-label={t('app.rail.servers')}>
+    <nav className="server-rail" ref={railRef} aria-label={t('app.rail.servers')}>
       <button
         className={`server-icon home ${active === null ? 'active' : ''}`}
         title={t('app.home.directMessages')}
@@ -174,7 +185,7 @@ export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavig
       {items.map((item) => item.kind === 'server' ? icon(item.key, false) : (
         <Folder key={item.id} folder={item} servers={servers} active={active} className={dropClass(item.id)}
           dnd={dnd({ kind: 'folder', id: item.id }, true, false)}
-          onContextMenu={openMenu('folder', item.id)} onHold={(anchor) => setMenu({ kind: 'folder', id: item.id, anchor })}
+          onContextMenu={openMenu('folder', item.id)} onKeyDown={menuKey('folder', item.id)} onHold={(anchor) => setMenu({ kind: 'folder', id: item.id, anchor })}
           onToggle={() => setRail(updateFolder(layout, item.id, { collapsed: !item.collapsed }))}>
           {item.servers.map((key) => icon(key, true))}
         </Folder>
@@ -205,9 +216,9 @@ export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavig
   )
 }
 
-function ServerIcon({ server, active, className, dnd, onClick, onContextMenu, onHold }: {
+function ServerIcon({ server, active, className, dnd, onClick, onContextMenu, onKeyDown, onHold }: {
   server: ServerState; active: boolean; className: string; dnd: Dnd
-  onClick: () => void; onContextMenu: (e: MouseEvent<HTMLElement>) => void; onHold: (a: MenuAnchor) => void
+  onClick: () => void; onContextMenu: (e: MouseEvent<HTMLElement>) => void; onKeyDown: (e: KeyboardEvent<HTMLElement>) => void; onHold: (a: MenuAnchor) => void
 }) {
   const hold = useHold(onHold)
   const { unread, pings } = serverBadges(server)
@@ -223,6 +234,7 @@ function ServerIcon({ server, active, className, dnd, onClick, onContextMenu, on
       aria-current={active ? 'page' : undefined}
       onClick={onClick}
       onContextMenu={onContextMenu}
+      onKeyDown={onKeyDown}
       {...hold}
       {...dnd}
     >
@@ -233,9 +245,9 @@ function ServerIcon({ server, active, className, dnd, onClick, onContextMenu, on
   )
 }
 
-function Folder({ folder, servers, active, className, dnd, onToggle, onContextMenu, onHold, children }: {
+function Folder({ folder, servers, active, className, dnd, onToggle, onContextMenu, onKeyDown, onHold, children }: {
   folder: RailFolder; servers: Record<string, ServerState>; active: string | null; className: string; dnd: Dnd
-  onToggle: () => void; onContextMenu: (e: MouseEvent<HTMLElement>) => void; onHold: (a: MenuAnchor) => void; children: ReactNode
+  onToggle: () => void; onContextMenu: (e: MouseEvent<HTMLElement>) => void; onKeyDown: (e: KeyboardEvent<HTMLElement>) => void; onHold: (a: MenuAnchor) => void; children: ReactNode
 }) {
   const { t } = useTranslation()
   const hold = useHold(onHold)
@@ -254,6 +266,7 @@ function Folder({ folder, servers, active, className, dnd, onToggle, onContextMe
         aria-expanded={!folder.collapsed}
         onClick={onToggle}
         onContextMenu={onContextMenu}
+        onKeyDown={onKeyDown}
         {...hold}
         {...dnd}
       >

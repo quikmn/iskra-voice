@@ -123,17 +123,17 @@ export const STARTER_PAGE = `<!doctype html>
          background: linear-gradient(135deg, #1b1b30, #3a2a6a); color: #f0eefe; }
   .card { text-align: center; padding: 32px; }
   h1 { margin: 0 0 8px; font-size: 2.4rem; }
-  button { font: inherit; border: 0; border-radius: 99px; padding: 10px 20px; background: #7c6fff; color: #fff; cursor: pointer; }
+  button { font: inherit; border: 0; border-radius: 99px; padding: 10px 20px; background: #695bff; color: #fff; cursor: pointer; }
   .sparks { font-size: 2rem; min-height: 2.5rem; }
 </style>
 </head>
 <body>
-  <div class="card">
+  <main class="card">
     <h1>Hi, I'm new here</h1>
     <p>This is my corner of the server. Edit me in Settings, Profile page.</p>
     <div class="sparks" id="sparks"></div>
     <button id="spark">Make a spark</button>
-  </div>
+  </main>
   <script>
     const sparks = ['✨', '⚡', '🔥', '🌟', '💜']
     document.getElementById('spark').onclick = () => {

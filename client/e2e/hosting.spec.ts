@@ -4,7 +4,8 @@ import { closeSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, writ
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { expect, test, type Page } from '@playwright/test'
+import AxeBuilder from '@axe-core/playwright'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { APP_PORT } from '../playwright.config'
 import { createInviteLink, freePort, joinVia, openServerSettings, SHOTS } from './helpers'
 
@@ -69,6 +70,16 @@ async function openSettings(page: Page) {
   if (await drawer.isVisible()) await drawer.click()
   await openServerSettings(page, 'Internet access')
   await expect(page.getByRole('heading', { name: 'Internet access' })).toBeVisible()
+}
+
+/** No serious or critical accessibility problems inside a dialog (axe, like a11y.spec.ts). */
+async function expectAccessible(page: Page, dialog: Locator) {
+  await settle(page)
+  await dialog.evaluate((el) => el.setAttribute('data-audit', ''))
+  const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice']).include('[data-audit]').analyze()
+  await dialog.evaluate((el) => el.removeAttribute('data-audit'))
+  const blocking = result.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')
+  expect(blocking.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([])
 }
 
 const step = (page: Page, id: string) => page.locator(`.checklist [data-step="${id}"]`)
@@ -174,6 +185,7 @@ test('carrier-grade NAT gets a clear explanation and a rented server as the quic
   const rent = owner.getByRole('dialog', { name: 'Rent a small server' })
   await expect(rent.getByTestId('ownership-note')).toBeVisible()
   await expect(rent.getByRole('link', { name: 'Hetzner' })).toHaveAttribute('href', 'https://www.hetzner.com/cloud')
+  await expectAccessible(owner, rent)
   await rent.getByLabel('Server name').fill('Game Night')
   const setup = rent.getByTestId('rent-setup')
   await expect(setup).toHaveValue(/^#!\/bin\/bash/)
@@ -205,6 +217,7 @@ test('carrier-grade NAT gets a clear explanation and a rented server as the quic
   await expect(downloads).toHaveCount(2)
   for (const link of await downloads.all()) await expect(link).toHaveAttribute('href', 'https://tailscale.com/download')
   await expect(guide.getByTestId('tailscale-found')).toContainText(`http://100.101.102.103:${server.port}`)
+  await expectAccessible(owner, guide)
   const guideOverflow = await guide.evaluate((el) => el.scrollWidth - el.clientWidth)
   expect(guideOverflow).toBeLessThanOrEqual(0)
   await settle(owner)
