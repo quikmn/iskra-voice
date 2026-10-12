@@ -52,7 +52,10 @@ export class FileEncryptor {
   private fed = 0
   private done = false
 
-  constructor(readonly size: number) {
+  readonly size: number
+
+  constructor(size: number) {
+    this.size = size
     if (!Number.isSafeInteger(size) || size < 0) throw new RangeError('size')
     const { state, header } = sodium.crypto_secretstream_xchacha20poly1305_init_push(this.key)
     this.state = state
@@ -121,7 +124,10 @@ export class FileDecryptor {
   /** Ciphertext bytes this file must have. */
   readonly total: number
 
-  constructor(private readonly file: Pick<DmFile, 'key' | 'hash' | 'size'>) {
+  private readonly file: Pick<DmFile, 'key' | 'hash' | 'size'>
+
+  constructor(file: Pick<DmFile, 'key' | 'hash' | 'size'>) {
+    this.file = file
     this.key = fromB64u(file.key)
     this.expected = fromB64u(file.hash)
     if (this.key.length !== 32 || this.expected.length !== 32 || !Number.isSafeInteger(file.size) || file.size < 0) throw mismatch()
@@ -168,7 +174,7 @@ export class FileDecryptor {
   finish(): Uint8Array {
     if (this.over) throw damaged()
     try {
-      let last = new Uint8Array(0)
+      let last: Uint8Array = new Uint8Array(0)
       if (this.buffer.length) {
         if (!this.state) throw damaged()
         last = this.open(this.buffer)

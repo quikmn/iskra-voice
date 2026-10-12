@@ -140,6 +140,13 @@ export interface DesktopBridge {
   }
   /** Saves a file from a server URL (asks where). */
   download?(url: string): Promise<boolean>
+  /** Big decrypted files straight to disk: a Save dialog (null if cancelled), then the bytes; `finish` only once they're checked. */
+  saveFile?: {
+    begin(name: string): Promise<string | null>
+    write(id: string, data: Uint8Array): Promise<boolean>
+    finish(id: string): Promise<boolean>
+    abort(id: string): Promise<void>
+  }
 }
 
 export const desktop: DesktopBridge | undefined = (globalThis as { iskraDesktop?: DesktopBridge }).iskraDesktop
