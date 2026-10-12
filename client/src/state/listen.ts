@@ -6,15 +6,14 @@
 import type { RnnoiseWorkletNode } from '@sapphi-red/web-noise-suppressor'
 import type { RemoteAudioTrack } from 'livekit-client'
 import remoteWorkletUrl from './audio/remote.worklet.ts?worker&url'
-import { loadDeepFilter } from './audio/assets'
-import { plannedEngine, SlowWatch } from './audio/engines'
+import { contextDelay, DeepFilterWorker } from './audio/deepfilterHost'
+import { BridgeWatch, MAX_BRIDGED, plannedEngine, SLOW_WINDOWS, SlowWatch } from './audio/engines'
+import { DF_STRENGTH_DB } from './audio/strength'
 import type { AudioSettings } from './audio'
 import { startRnnoise } from './micPipeline'
 
 /** More voices than this at once and incoming noise removal uses RNNoise (DeepFilterNet costs ~5% of a core each). */
 export const MAX_AI_VOICES = 4
-/** The worker falling behind this often (per 10 s) means it can't keep up. */
-const MAX_UNDERRUNS = 5
 
 export type CleanEngine = 'ai' | 'rnnoise'
 
@@ -41,12 +40,10 @@ export class Listener {
   engine: CleanEngine | null = null
   private readonly voices = new Map<string, Voice>()
   private readonly modules: Promise<boolean>
-  private worker: Worker | null = null
+  private worker: DeepFilterWorker | null = null
   private workerReady: Promise<boolean> | null = null
   private settings: AudioSettings
   private aiTooSlow = false
-  private underruns: number[] = []
-  private nextId = 0
   private closed = false
   private readonly onChange: () => void
 
@@ -115,7 +112,7 @@ export class Listener {
       if (node instanceof AudioWorkletNode && node !== voice.rnnoise) node.port.postMessage('stop')
     }
     voice.rnnoise?.destroy()
-    if (voice.workerId) this.worker?.postMessage({ type: 'drop', id: voice.workerId })
+    if (voice.workerId) this.worker?.drop(voice.workerId)
     voice.tap?.stream.getTracks().forEach((t) => t.stop())
     voice.nodes = []
     voice.rnnoise = null
@@ -158,64 +155,50 @@ export class Listener {
   /** A worklet node that hands this voice to the DeepFilterNet worker; null if the worker can't run. */
   private async bridge(voice: Voice): Promise<AudioWorkletNode | null> {
     if (!(await this.startWorker()) || !this.worker) return null
-    const node = new AudioWorkletNode(this.ctx, 'iskra-df-bridge', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] })
-    const channel = new MessageChannel()
-    const id = String(++this.nextId)
-    voice.workerId = id
-    this.worker.postMessage({ type: 'voice', id, port: channel.port2 }, [channel.port2])
-    node.port.postMessage({ port: channel.port1 }, [channel.port1])
-    node.port.onmessage = (e: MessageEvent<{ type: string }>) => {
-      if (e.data?.type === 'underrun') this.underrun()
+    const node = new AudioWorkletNode(this.ctx, 'iskra-df-bridge', {
+      numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1], processorOptions: { delay: contextDelay(this.ctx) },
+    })
+    const watch = new BridgeWatch()
+    node.port.onmessage = (e: MessageEvent<{ type: string; share: number }>) => {
+      if (e.data?.type === 'late' && watch.report(e.data.share)) {
+        this.tooSlow(`its worker was late for more than ${MAX_BRIDGED * 100}% of each second, ${SLOW_WINDOWS} s in a row`)
+      }
     }
+    // The voice passes through until it's linked.
+    void this.worker.link(node, DF_STRENGTH_DB.normal).then((id) => {
+      if (id && voice.nodes.includes(node)) voice.workerId = id
+      else if (id) this.worker?.drop(id)
+    })
     return node
   }
 
   private startWorker(): Promise<boolean> {
     this.workerReady ??= (async () => {
       try {
-        const assets = await loadDeepFilter()
-        const worker = new Worker(new URL('./audio/deepfilter.worker.ts', import.meta.url), { type: 'module' })
         const watch = new SlowWatch()
-        const ready = new Promise<boolean>((resolve) => {
-          worker.onmessage = (e: MessageEvent<{ type: string; rtf?: number; busy?: number; message?: string }>) => {
-            const m = e.data
-            if (m.type === 'ready') resolve(true)
-            else if (m.type === 'error') {
-              console.warn('[iskra] incoming AI noise removal', m.message)
-              resolve(false)
-            } else if (m.type === 'load' && typeof m.busy === 'number') {
-              console.info(`[iskra] incoming AI noise removal: worker ${(m.busy * 100).toFixed(1)}% busy, realtime factor ${m.rtf?.toFixed(3)} per voice`)
-              if (watch.report(m.busy)) this.tooSlow()
-            }
-          }
-          worker.onerror = () => resolve(false)
+        const worker = await DeepFilterWorker.start({
+          reportMs: 2000,
+          ms: 20000,
+          onLoad: (load) => {
+            console.info(`[iskra] incoming AI noise removal: worker ${(load.busy * 100).toFixed(1)}% busy, realtime factor ${load.rtf.toFixed(3)} per voice, slowest frame ${load.slowest.toFixed(1)} ms`)
+            if (watch.report(load.busy)) this.tooSlow(`worker ${(load.busy * 100).toFixed(0)}% busy`)
+          },
+          onError: (message) => console.warn('[iskra] incoming AI noise removal', message),
         })
-        worker.postMessage({ type: 'init', module: assets.module, model: assets.model })
-        this.worker = worker
-        const ok = await ready
-        if (!ok) {
-          worker.terminate()
-          this.worker = null
-        }
-        return ok
+        if (this.closed) worker.terminate()
+        else this.worker = worker
+        return !this.closed
       } catch (e) {
-        console.warn('[iskra] incoming AI noise removal could not start', e)
+        console.warn(`[iskra] incoming AI noise removal could not start (${(e as Error)?.message ?? e}); using RNNoise`)
         return false
       }
     })()
     return this.workerReady
   }
 
-  private underrun(): void {
-    const now = Date.now()
-    this.underruns = this.underruns.filter((t) => now - t < 10000)
-    this.underruns.push(now)
-    if (this.underruns.length > MAX_UNDERRUNS) this.tooSlow()
-  }
-
-  private tooSlow(): void {
+  private tooSlow(why: string): void {
     if (this.aiTooSlow) return
-    console.warn('[iskra] incoming AI noise removal can\'t keep up here; using RNNoise for incoming voices')
+    console.warn(`[iskra] incoming AI noise removal can't keep up here (${why}); using RNNoise for incoming voices`)
     this.aiTooSlow = true
     void this.rebuild()
   }

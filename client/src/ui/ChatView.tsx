@@ -8,6 +8,7 @@ import {
 } from '../state/store'
 import { Attachments, LinkPreviewCard, Reactions, ReactionPicker, ReplyLine } from './chat/MessageExtras'
 import { AuthorAvatar, BotBadge, Embeds } from './chat/BotBits'
+import { useCommandSuggest } from './chat/CommandSuggest'
 import { authorOf, sameSender } from './chat/bots'
 import { ImportedBadge, ImportedExtras } from './chat/ImportedBits'
 import { firstLink, formatSize, replyKey, setReply, useReply } from './chat/helpers'
@@ -19,7 +20,7 @@ import { formatNumber } from '../i18n/format'
 import type { Panel } from './Shell'
 import { Close, FileIcon, Hash, Menu, Paperclip, Pencil, Reply, Send, Smile, Trash, Users, Volume, WifiOff } from './icons'
 import { HeaderTools } from './chat/HeaderTools'
-import { EncryptedBits, EncryptionButton, LockBadge, e2eeText, useEncryptedWriteBlock } from './e2ee/E2ee'
+import { EncryptedBits, EncryptedWriteBlock, EncryptionButton, LockBadge, StartOverRecordLine, e2eeText, useEncryptedWriteBlock } from './e2ee/E2ee'
 import { editEncrypted, isEncrypted, uploadFor } from '../state/e2eeChannels'
 import { MessageActionSheet } from './chat/MessageActionSheet'
 import { useLongPress } from './chat/useLongPress'
@@ -60,6 +61,7 @@ import { conversationLabel } from '../state/threads'
 import { messageListKeys, useAnnounceNew } from './a11y'
 import { useQueuedSend } from './chat/QueuedSend'
 import { JoinFailed } from './JoinFailed'
+import { useReadableColor } from '../theme/useReadable'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -119,10 +121,11 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
 
       {failedJoin(server) ? null : channel ? (
         <>
+          <StartOverRecordLine server={server} channelId={channel.id} />
           <MessageList key={channel.id} server={server} channelId={channel.id} />
           <TypingLine server={server} channelId={channel.id} />
           {canWrite && writeBlock ? (
-            <div className="composer read-only e2ee-waiting" data-testid="e2ee-waiting">{writeBlock}</div>
+            <EncryptedWriteBlock server={server} channel={channel} text={writeBlock} />
           ) : canWrite ? (
             <Composer server={server} channelId={channel.id} channelName={channel.name} />
           ) : (
@@ -291,7 +294,8 @@ function MessageRow({
   const roles = useServerRoles(server.key)
   const roleOf = useRoleLookup(server.key, me)
   const canDelete = !message.tempId && canDeleteMessage(me, message, author, roles)
-  const authorColor = (!message.webhook && nameColor(author, roles)) || `hsl(${hueFor(message.author)} 70% var(--name-l))`
+  const roleColor = useReadableColor(message.webhook ? null : nameColor(author, roles))
+  const authorColor = roleColor || `hsl(${hueFor(message.author)} 70% var(--name-l))`
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [picking, setPicking] = useState(false)
   const [sheet, setSheet] = useState(false)
@@ -376,6 +380,7 @@ function MessageRow({
         {message.voice ? <VoiceMessage server={server} message={message} /> : <Attachments server={server} files={message.attachments} />}
         <EncryptedBits message={message} />
         {message.webhook && <Embeds server={server} embeds={message.webhook.embeds} />}
+        {message.cards && message.cards.length > 0 && <Embeds server={server} embeds={message.cards} authorName={name} />}
         {!message.tempId && !message.e2ee && firstLink(message.text) && <LinkPreviewCard server={server} url={firstLink(message.text)!} />}
         <ImportedExtras server={server} message={message} />
         <Reactions server={server} message={message} />
@@ -596,6 +601,10 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
     setText(next.text)
     setCaret(next.caret)
   })
+  const commandSuggest = useCommandSuggest(server.key, channelId, isEncrypted(server.key, channelId), text, caret, (next) => {
+    setText(next.text)
+    setCaret(next.caret)
+  })
 
   function insertMention(name: string) {
     const before = text.slice(0, caret).replace(/@([^\s@]{0,32})$/u, `@${name} `)
@@ -675,6 +684,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
         }}
       />
       {emojiSuggest.popup}
+      {commandSuggest.popup}
       {suggestions.length > 0 && (
         <div className="mention-popup" role="listbox" aria-label={t('chat.composer.mention')}>
           {suggestions.map((m, i) => (
@@ -701,6 +711,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
         key={channelId}
         value={text}
         onCaret={setCaret}
+        aria={commandSuggest.inputProps}
         autoFocus
         placeholder={writable ? (placeholder ?? t('chat.composer.placeholder', { name: channelName })) : t('chat.composer.reconnecting')}
         maxLength={4000}
@@ -724,6 +735,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
         }}
         onKeyDown={(e) => {
           if (emojiSuggest.onKeyDown(e)) return
+          if (commandSuggest.onKeyDown(e)) return
           if (suggestions.length > 0 && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
             e.preventDefault()
             setPick((p) => (p + (e.key === 'ArrowDown' ? 1 : suggestions.length - 1)) % suggestions.length)
@@ -784,9 +796,10 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
 }
 
 function AutoTextarea({
-  value, onChange, onKeyDown, onPaste, onCaret, placeholder, autoFocus, maxLength,
+  value, onChange, onKeyDown, onPaste, onCaret, placeholder, autoFocus, maxLength, aria,
 }: {
   value: string
+  aria?: React.AriaAttributes
   onChange: (v: string) => void
   onCaret?: (position: number) => void
   onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void
@@ -817,6 +830,7 @@ function AutoTextarea({
       onSelect={(e) => onCaret?.(e.currentTarget.selectionStart)}
       onKeyDown={onKeyDown}
       onPaste={onPaste}
+      {...aria}
     />
   )
 }

@@ -83,6 +83,20 @@ export const chat: Messages['chat'] = {
   bot: {
     title: 'Bot',
     badge: 'BOT',
+    commands: 'Botkommandon',
+    choices: 'Val för {{name}}',
+    required: 'måste anges',
+    optional: 'valfritt',
+    type: {
+      string: 'text',
+      integer: 'heltal',
+      number: 'tal',
+      boolean: 'ja eller nej',
+      user: 'person',
+      channel: 'kanal',
+      role: 'roll',
+    },
+    cardImage: 'Bild från {{name}}',
   },
   search: {
     noChannel: 'Det finns ingen kanal som heter #{{name}}.',

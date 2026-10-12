@@ -6,7 +6,8 @@ import { Connection, type ConnectionStatus } from '../../../client/src/core/conn
 import { ready } from '../../../client/src/core/crypto'
 import { parseInvite } from '../../../client/src/core/invite'
 import {
-  RequestError, type Channel, type Events, type FileInfo, type Member, type Message, type Poll, type Requests, type Thread,
+  RequestError, type BotCommand, type Card, type Channel, type CommandOption, type Events, type FileInfo, type Member, type Message, type Poll,
+  type Requests, type Thread,
 } from '../../../client/src/core/protocol'
 import { identityOf, loadState, newState, saveState, type BotState } from './state'
 
@@ -28,7 +29,7 @@ export interface IncomingMessage extends Message {
   /** The author's display name (a webhook's name for webhook posts). */
   authorName: string
   channel: Channel | undefined
-  reply: (text: string, options?: Omit<SendOptions, 'replyTo'>) => Promise<Message>
+  reply: (content: string | MessageContent, options?: Omit<SendOptions, 'replyTo'>) => Promise<Message>
   react: (emoji: string) => Promise<void>
 }
 
@@ -37,7 +38,7 @@ export interface CommandContext {
   /** Everything after the command name. */
   args: string
   message: IncomingMessage
-  reply: (text: string, options?: Omit<SendOptions, 'replyTo'>) => Promise<Message>
+  reply: (content: string | MessageContent, options?: Omit<SendOptions, 'replyTo'>) => Promise<Message>
   bot: Bot
 }
 
@@ -48,6 +49,26 @@ export interface SendOptions {
   replyTo?: number
   /** Ids of files uploaded with `bot.upload` (up to 10). The text may then be empty. */
   attachments?: string[]
+  /** Up to 10 cards (title, description, fields, colour, pictures...). The text may then be empty. */
+  cards?: Card[]
+}
+
+/** What a message says: text, cards, or both. */
+export interface MessageContent extends SendOptions {
+  text?: string
+}
+
+/** A command for `bot.commands([...])`: what the app shows when people type "/", and what answers it. */
+export interface CommandSpec {
+  /** 1-32 characters: letters, digits, "_" and "-" (case-insensitive). */
+  name: string
+  /** 1-100 characters, one line. */
+  description: string
+  /** A hint shown after the name in the app, like "2d6+1". */
+  usage?: string
+  /** Up to 25 options, required ones first. The app shows them as hints; the bot still gets the text in `args`. */
+  options?: CommandOption[]
+  handler: CommandHandler
 }
 
 /** A file to send: a name and its bytes (a string is sent as UTF-8). */
@@ -105,7 +126,8 @@ export class Bot {
 
   private readonly options: BotOptions
   private readonly stateFile: string
-  private readonly commands = new Map<string, { description: string; handler: CommandHandler }>()
+  private readonly registry = new Map<string, { spec: BotCommand; help: string; handler: CommandHandler }>()
+  private syncTimer: ReturnType<typeof setTimeout> | null = null
   private readonly listeners: { [K in keyof Listeners]: Listeners[K][] } = {
     ready: [], message: [], memberJoined: [], messageEdited: [], messageDeleted: [], reactions: [], pollUpdated: [], event: [], status: [],
   }
@@ -125,17 +147,57 @@ export class Bot {
     return this
   }
 
-  /** Answers "/name args". Names are case-insensitive; a later registration replaces an earlier one. */
-  command(name: string, description: string, handler: CommandHandler): this {
+  /**
+   * Answers "/name args". Names are case-insensitive; a later registration replaces an earlier one. The server is
+   * told about every command (so the app can suggest it when people type "/") each time the bot connects.
+   */
+  command(name: string, description: string, handler: CommandHandler, details: { usage?: string; options?: CommandOption[] } = {}): this {
     const key = name.toLowerCase()
     if (!/^[a-z0-9][\w-]{0,31}$/.test(key))
       throw new Error(`Invalid command name "${name}": use 1–32 letters, digits, "_" or "-", starting with a letter or digit, no slash.`)
-    this.commands.set(key, { description, handler })
+    // The app shows one line of up to 100 characters; /help shows the description as written.
+    const line = description.replace(/\s+/g, ' ').trim() || key
+    const spec: BotCommand = { name: key, description: line.length > 100 ? `${line.slice(0, 99)}…` : line }
+    if (details.usage) spec.usage = details.usage
+    if (details.options?.length) spec.options = details.options
+    this.registry.set(key, { spec, help: description, handler })
+    this.scheduleSync()
     return this
   }
 
+  /** Several commands at once, with their options: `bot.commands([{ name, description, options, handler }, ...])`. */
+  commands(list: CommandSpec[]): this {
+    for (const c of list) this.command(c.name, c.description, c.handler, { usage: c.usage, options: c.options })
+    return this
+  }
+
+  /** The commands as the server knows them. */
+  get commandList(): BotCommand[] {
+    return [...this.registry.values()].map((c) => c.spec)
+  }
+
+  /** Tells the server the commands (done by itself on connect and after changes). */
+  async syncCommands(): Promise<void> {
+    if (!this.connection || !this.me) return
+    try {
+      await this.request('bot.commands.set', { commands: this.commandList })
+    } catch (e) {
+      if (e instanceof RequestError && e.code === 'unknown_type') return // an older server: commands still work as text
+      const code = e instanceof RequestError ? ` (${e.code})` : ''
+      this.log(`The server didn't take the command list${code}: ${(e as Error).message}`)
+    }
+  }
+
+  private scheduleSync(): void {
+    if (!this.me || this.syncTimer) return
+    this.syncTimer = setTimeout(() => {
+      this.syncTimer = null
+      void this.syncCommands()
+    }, 200)
+  }
+
   helpText(): string {
-    const lines = [...this.commands].map(([name, c]) => `\`/${name}\` ${c.description}`)
+    const lines = [...this.registry].map(([name, c]) => `\`/${name}${c.spec.usage ? ` ${c.spec.usage}` : ''}\` ${c.help}`)
     return `**${this.name}** can do:\n${lines.join('\n')}`
   }
 
@@ -187,6 +249,7 @@ export class Bot {
             saveState(this.stateFile, this.state!)
           }
           this.log(`Online in "${welcome.server.name}" as ${welcome.you.name} (${welcome.you.role})`)
+          void this.syncCommands()
           for (const l of this.listeners.ready) l(this)
           if (first) {
             first = false
@@ -200,6 +263,8 @@ export class Bot {
   }
 
   stop(): void {
+    if (this.syncTimer) clearTimeout(this.syncTimer)
+    this.syncTimer = null
     this.connection?.stop()
     this.connection = null
   }
@@ -210,16 +275,24 @@ export class Bot {
     return this.connection.request(type, body)
   }
 
-  /** Sends a message (up to 4000 characters; longer text is cut), waiting and retrying politely if the server says to slow down. */
-  send(channelId: number, text: string, options: SendOptions = {}): Promise<Message> {
+  /**
+   * Sends a message: text (up to 4000 characters; longer text is cut), or `{ text?, cards?, attachments?, replyTo? }`.
+   * Waits and retries politely if the server says to slow down.
+   */
+  send(channelId: number, content: string | MessageContent, options: SendOptions = {}): Promise<Message> {
+    const { text = '', ...rest } = typeof content === 'string' ? { text: content } : content
+    const merged: SendOptions = { ...options, ...rest }
     if (text.length > MAX_TEXT) this.log(`A message had ${text.length} characters; only the first ${MAX_TEXT} were sent.`)
     return this.retrying(async () =>
-      (await this.request('chat.send', { channelId, text: text.slice(0, MAX_TEXT), replyTo: options.replyTo, attachments: options.attachments })).message)
+      (await this.request('chat.send', {
+        channelId, text: text.slice(0, MAX_TEXT), replyTo: merged.replyTo, attachments: merged.attachments, cards: merged.cards,
+      })).message)
   }
 
-  /** Changes the text of one of the bot's own messages. */
-  async edit(messageId: number, text: string): Promise<Message> {
-    return (await this.request('chat.edit', { id: messageId, text: text.slice(0, MAX_TEXT) })).message
+  /** Changes one of the bot's own messages: new text, or `{ text?, cards? }` (cards replace the old ones; `[]` removes them). */
+  async edit(messageId: number, content: string | { text?: string; cards?: Card[] }): Promise<Message> {
+    const { text, cards } = typeof content === 'string' ? { text: content, cards: undefined } : content
+    return (await this.request('chat.edit', { id: messageId, text: text?.slice(0, MAX_TEXT), cards })).message
   }
 
   /** Deletes a message: the bot's own, or someone else's if its role allows (manage messages, ranked above the author). */
@@ -343,7 +416,8 @@ export class Bot {
     const author = this.members.get(message.author)
     if (!this.options.hearBots && (message.webhook || author?.bot)) return
 
-    const reply = (text: string, options?: Omit<SendOptions, 'replyTo'>) => this.send(message.channelId, text, { ...options, replyTo: message.id })
+    const reply = (content: string | MessageContent, options?: Omit<SendOptions, 'replyTo'>) =>
+      this.send(message.channelId, content, { ...options, replyTo: message.id })
     const incoming: IncomingMessage = {
       ...message,
       authorName: message.webhook?.name ?? author?.name ?? 'someone',
@@ -357,7 +431,7 @@ export class Bot {
     if (!command) return
     // "/roll@Dice" is only for the bot called Dice (spaces in its name may be left out).
     if (command.target && command.target.toLowerCase() !== this.name.replace(/\s+/g, '').toLowerCase()) return
-    const entry = this.commands.get(command.name)
+    const entry = this.registry.get(command.name)
     if (!entry) return
     try {
       await entry.handler({ command, args: command.args, message: incoming, reply, bot: this })

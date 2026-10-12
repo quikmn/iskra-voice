@@ -82,6 +82,20 @@ export const chat = {
   bot: {
     title: 'Bot',
     badge: 'BOT',
+    commands: 'Bot commands',
+    choices: 'Choices for {{name}}',
+    required: 'required',
+    optional: 'optional',
+    type: {
+      string: 'text',
+      integer: 'whole number',
+      number: 'number',
+      boolean: 'yes or no',
+      user: 'person',
+      channel: 'channel',
+      role: 'role',
+    },
+    cardImage: 'Picture from {{name}}',
   },
   search: {
     noChannel: 'No channel called #{{name}}.',

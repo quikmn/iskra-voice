@@ -233,13 +233,22 @@ function hslHex(h: number, s: number, l: number): string {
   return `#${f(0)}${f(8)}${f(4)}`
 }
 
-/** How light author names (hsl(hue 70% L)) must be to read at 4.5:1 on a dark chat background, whatever the hue. */
+/**
+ * How light author names (hsl(hue 70% L)) must be to read at 4.5:1 on the chat background, whatever the hue:
+ * lighter than 72% on dark backgrounds, darker than 40% on light ones.
+ */
 export function nameLightness(background: string): number {
-  for (let l = 72; l < 96; l++) {
-    let ok = true
-    for (let h = 0; h < 360 && ok; h += 15) ok = contrast(hslHex(h, 70, l), background) >= 4.5
-    if (ok) return l
+  const rgb = rgbOf(background)
+  const light = !!rgb && luminance(rgb) > 0.18
+  const reads = (l: number) => {
+    for (let h = 0; h < 360; h += 15) if (contrast(hslHex(h, 70, l), background) < 4.5) return false
+    return true
   }
+  if (light) {
+    for (let l = 40; l > 4; l--) if (reads(l)) return l
+    return 4
+  }
+  for (let l = 72; l < 96; l++) if (reads(l)) return l
   return 96
 }
 
@@ -254,6 +263,110 @@ export function solidUnderWhite(color: string): string {
   return '#000000'
 }
 
+function hslOf([r, g, b]: [number, number, number]): [number, number, number] {
+  const [x, y, z] = [r / 255, g / 255, b / 255]
+  const max = Math.max(x, y, z)
+  const min = Math.min(x, y, z)
+  const l = (max + min) / 2
+  if (max === min) return [0, 0, l * 100]
+  const d = max - min
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+  const h = max === x ? (y - z) / d + (y < z ? 6 : 0) : max === y ? (z - x) / d + 2 : (x - y) / d + 4
+  return [h * 60, s * 100, l * 100]
+}
+
+const readableCache = new Map<string, string>()
+
+/**
+ * A colour chosen by someone else (a role colour) as text that reads at 4.5:1 on every one of `backgrounds`:
+ * the same hue and saturation, lighter on dark themes and darker on light ones. Unchanged when it already reads.
+ */
+export function readableColor(color: string, backgrounds: readonly string[], min = 4.5): string {
+  const key = `${color}|${backgrounds.join(',')}|${min}`
+  const hit = readableCache.get(key)
+  if (hit) return hit
+  const rgb = rgbOf(color)
+  const bgs = backgrounds.filter((b) => rgbOf(b))
+  let out = color
+  if (rgb && bgs.length && !bgs.every((b) => contrast(color, b) >= min)) {
+    const [h, s, l0] = hslOf(rgb)
+    const dark = bgs.reduce((n, b) => n + luminance(rgbOf(b)!), 0) / bgs.length < 0.18
+    out = dark ? '#ffffff' : '#000000'
+    for (let l = Math.round(l0); dark ? l <= 100 : l >= 0; l += dark ? 1 : -1) {
+      const candidate = hslHex(h, s, l)
+      if (bgs.every((b) => contrast(candidate, b) >= min)) {
+        out = candidate
+        break
+      }
+    }
+  }
+  if (readableCache.size > 500) readableCache.clear()
+  readableCache.set(key, out)
+  return out
+}
+
+/** The backgrounds names sit on in the current theme: chat, sidebar (member list) and popovers. */
+export const DEFAULT_NAME_SURFACES = ['#141424', '#10101c', '#1b1b30'] as const
+let nameSurfaces: readonly string[] = DEFAULT_NAME_SURFACES
+const surfaceListeners = new Set<() => void>()
+export const getNameSurfaces = () => nameSurfaces
+export function onNameSurfaces(listener: () => void): () => void {
+  surfaceListeners.add(listener)
+  return () => surfaceListeners.delete(listener)
+}
+export function nameSurfacesOf(theme: ThemeFile | null): readonly string[] {
+  if (!theme) return DEFAULT_NAME_SURFACES
+  const c = theme.colors
+  return [c.bgChat ?? DEFAULT_NAME_SURFACES[0], c.bgSidebar ?? DEFAULT_NAME_SURFACES[1], c.bgFloat ?? c.bgButton ?? DEFAULT_NAME_SURFACES[2]]
+}
+
+/** A theme colour as it ends up on screen: its own value, or what it falls back to (followed through var(--x)). */
+export function effectiveColor(theme: ThemeFile, key: ColorKey): string {
+  let entry = VARIABLES.find((v) => v.key === key)
+  for (let hops = 0; entry && hops < 6; hops++) {
+    const own = theme.colors[entry.key]
+    if (own) return own
+    const ref = /^var\((--[\w-]+)\)$/.exec(entry.fallback)
+    if (!ref) return entry.fallback
+    entry = VARIABLES.find((v) => v.name === ref[1])
+  }
+  return '#000000'
+}
+
+export interface ContrastIssue { text: ColorKey; background: ColorKey; ratio: number; fix: string }
+
+/** Text tokens and the backgrounds they're read on. */
+const TEXT_PAIRS: [ColorKey, ColorKey[]][] = [
+  ['textNormal', ['bgChat', 'bgSidebar', 'bgFloat']],
+  ['textHeading', ['bgChat', 'bgSidebar', 'bgFloat']],
+  ['textMuted', ['bgChat', 'bgSidebar', 'bgFloat']],
+  ['textSubtle', ['bgChat', 'bgSidebar', 'bgFloat']],
+  ['link', ['bgChat', 'bgFloat']],
+  ['onAccent', ['accent']],
+]
+
+/**
+ * Text/background pairs in a custom theme that read below 4.5:1 (WCAG AA), each with a suggested text colour (same
+ * hue) that reads on all of that text's backgrounds. Pairs the theme leaves entirely to the defaults are skipped.
+ */
+export function contrastIssues(theme: ThemeFile, min = 4.5): ContrastIssue[] {
+  const issues: ContrastIssue[] = []
+  for (const [text, backgrounds] of TEXT_PAIRS) {
+    // Without its own value, the on-accent colour is picked to read (textOn).
+    if (text === 'onAccent' && !theme.colors.onAccent) continue
+    const fg = effectiveColor(theme, text)
+    const bgs = backgrounds.map((b) => effectiveColor(theme, b))
+    const fix = readableColor(fg, bgs, min)
+    backgrounds.forEach((background, i) => {
+      if (!theme.colors[text] && !theme.colors[background]) return
+      if (!rgbOf(fg) || !rgbOf(bgs[i])) return
+      const ratio = contrast(fg, bgs[i])
+      if (ratio < min) issues.push({ text, background, ratio: Math.floor(ratio * 100) / 100, fix })
+    })
+  }
+  return issues
+}
+
 // ── Applying ────────────────────────────────────────────────────────────────
 
 /** The CSS variables a theme sets (null for the default, which is plain styles.css). */
@@ -262,8 +375,7 @@ export function themeVariables(theme: ThemeFile): Record<string, string> {
   for (const { name, key, fallback } of VARIABLES) vars[name] = theme.colors[key] ?? fallback
   if (!theme.colors.onAccent && theme.colors.accent) vars['--on-accent'] = textOn(theme.colors.accent)
   if (theme.colors.danger) vars['--danger-solid'] = solidUnderWhite(theme.colors.danger)
-  // Light themes keep the stylesheet's dark names.
-  if (theme.meta.scheme !== 'light' && theme.colors.bgChat) vars['--name-l'] = `${nameLightness(theme.colors.bgChat)}%`
+  if (theme.colors.bgChat) vars['--name-l'] = `${nameLightness(theme.colors.bgChat)}%`
   vars['--radius'] = `${theme.radius ?? 10}px`
   vars['--avatar-radius'] = AVATAR_SHAPES[theme.avatarShape ?? 'circle']
   vars['--font'] = BODY_FONTS[theme.fonts?.body ?? 'inter']
@@ -277,6 +389,11 @@ export function applyTheme(theme: ThemeFile | null, root: HTMLElement = document
   root.style.removeProperty('color-scheme')
   // Lets the stylesheet adjust what can't be a theme colour (name colours, shadows) for light themes.
   root.dataset.scheme = theme?.meta.scheme ?? 'dark'
+  const surfaces = nameSurfacesOf(theme)
+  if (surfaces.join() !== nameSurfaces.join()) {
+    nameSurfaces = surfaces
+    for (const listener of surfaceListeners) listener()
+  }
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme?.colors.bgDeep ?? '#0b0b14')
   if (!theme) return
   for (const [name, value] of Object.entries(themeVariables(theme))) root.style.setProperty(name, value)

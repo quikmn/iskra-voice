@@ -2,7 +2,10 @@
 // the same code the worklets run. Thresholds: clean speech comes out near-transparent, noise goes, nothing is dropped,
 // chattered or clipped. scripts/audio-quality.mjs prints the full table (docs/voice-processing.md).
 import { describe, expect, it } from 'vitest'
-import { DF_STRENGTH_DB } from './strength'
+import { df_process_frame } from '../../../vendor/deepfilternet/deepfilter.js'
+import { createDeepFilter, DF_STRENGTH_DB, warmUp } from './strength'
+import { createSlots, queueDelay, serveSlots, servePort } from './dfQueue'
+import { Framer } from './framer'
 import { VAD_DEFAULTS } from './vadGate'
 import {
   clipped, findLag, gain, goldenInputs, keyboard, lagSpread, loadEngines, measure, mix, phrases, pinkNoise, RATE, readWav, rmsDb, runChain,
@@ -147,65 +150,124 @@ describe("DeepFilterNet matches DeepFilterNet's own command line tool (golden fi
   })
 })
 
-describe('DeepFilterNet worklet in a simulated audio thread', { timeout: 120000 }, () => {
+describe('DeepFilterNet off the audio thread: worklet and worker, simulated', { timeout: 240000 }, () => {
   interface Port { onmessage: ((e: { data: unknown }) => void) | null; postMessage(m: unknown): void }
   interface Processor { port: Port; process(i: Float32Array[][], o: Float32Array[][]): boolean }
-  let Ctor: (new () => Processor) | null = null
-  const said: unknown[] = []
+  let Ctor: (new (options: { processorOptions: { delay: number } }) => Processor) | null = null
+  const said: { type: string; latency?: number }[] = []
+  const DELAY = queueDelay(512) // render calls in bursts of four (10 ms device buffers)
+  const tick = () => new Promise<void>((resolve) => (globalThis as unknown as { setImmediate(f: () => void): void }).setImmediate(resolve))
 
-  async function worklet(): Promise<Processor> {
+  async function worklet(strength: number): Promise<Processor> {
     if (!Ctor) {
       const g = globalThis as Record<string, unknown>
       g.sampleRate = RATE
       g.AudioWorkletProcessor = class {
-        port: Port = { onmessage: null, postMessage: (m: unknown) => said.push(m) }
+        port: Port = { onmessage: null, postMessage: (m: unknown) => said.push(m as { type: string }) }
       }
-      g.registerProcessor = (_: string, c: new () => Processor) => (Ctor = c)
+      g.registerProcessor = (_: string, c: typeof Ctor) => (Ctor = c)
       await import('./deepfilter.worklet')
     }
     if (!Ctor) throw new Error('not registered')
     said.length = 0
-    return new Ctor()
+    const node = new Ctor({ processorOptions: { delay: DELAY } })
+    node.port.onmessage!({ data: { strength } })
+    return node
   }
 
-  /** `seconds` of the fixture over and over, in 128-sample render quanta. */
-  function play(node: Processor, seconds: number): { input: Float32Array; output: Float32Array } {
-    const n = Math.floor((seconds * RATE) / 128) * 128
-    const input = new Float32Array(n)
-    for (let i = 0; i < n; i++) input[i] = clean[i % clean.length]
-    const output = new Float32Array(n)
+  /** DeepFilterNet3 the way the worker runs it (fresh state, warmed up), counting the frames it processed. */
+  function engine(strength: number) {
+    const state = createDeepFilter(new Uint8Array(model), strength)
+    warmUp(state, df_process_frame)
+    const counter = { frames: 0 }
+    return { counter, process: (frame: Float32Array) => { frame.set(df_process_frame(state, frame)); counter.frames++ }, ref: (frame: Float32Array) => df_process_frame(state, frame) }
+  }
+
+  /** Links the worklet to "the worker" (this thread) over a port or shared slots, as the page does. */
+  function link(node: Processor, process: (frame: Float32Array) => void, shared: boolean): () => void {
+    if (shared) {
+      const slots = createSlots()
+      const stop = serveSlots(slots, process)
+      node.port.onmessage!({ data: { slots } })
+      return stop
+    }
+    const channel = new MessageChannel()
+    const stop = servePort(channel.port2, process)
+    node.port.onmessage!({ data: { port: channel.port1 } })
+    return stop
+  }
+
+  /** Plays `input` in 128-sample render calls, four back to back and then a pause in which the worker catches up. */
+  async function play(node: Processor, input: Float32Array, counter: { frames: number }): Promise<Float32Array> {
+    const output = new Float32Array(input.length)
     const out = [[new Float32Array(128)]]
-    for (let k = 0; k < n; k += 128) {
+    for (let k = 0; k < input.length; k += 128) {
       node.process([[input.subarray(k, k + 128)]], out)
       output.set(out[0][0], k)
+      if ((k / 128) % 4 === 3) {
+        for (let i = 0; i < 50 && counter.frames < Math.floor((k + 128) / 480); i++) await tick()
+        await tick()
+        await tick()
+      }
     }
-    return { input, output }
+    return output
   }
 
-  it('keeps every sample in order for minutes: no drift, drops or repeats at the 128/480 boundaries', async () => {
-    const node = await worklet()
-    node.port.onmessage!({ data: { module: new WebAssembly.Module(wasm), model, strength: 0 } })
-    expect(said[0]).toMatchObject({ type: 'ready' })
-    const latency = (said[0] as { latency: number }).latency
-    // At 0 dB DeepFilterNet passes its input through, so this checks the framing and the worklet glue exactly.
-    const { input, output } = play(node, 180)
+  const loop = (seconds: number) => {
+    const n = Math.floor((seconds * RATE) / 128) * 128
+    const x = new Float32Array(n)
+    for (let i = 0; i < n; i++) x[i] = clean[i % clean.length]
+    return x
+  }
+
+  it.each([['a port', false], ['shared slots', true]] as const)('keeps every sample in order for minutes (%s): no drift, drops or repeats', async (_, shared) => {
+    const node = await worklet(0)
+    const dfn = engine(0) // at 0 dB DeepFilterNet passes its input through: this checks the queue and the glue exactly
+    const stop = link(node, dfn.process, shared)
+    expect(said[0]).toMatchObject({ type: 'ready', latency: DELAY })
+    const input = loop(shared ? 60 : 180)
+    const output = await play(node, input, dfn.counter)
+    stop()
     let mismatches = 0
-    for (let i = latency; i < output.length; i++) if (output[i] !== input[i - latency]) mismatches++
+    for (let i = 0; i < output.length; i++) if (output[i] !== (i < DELAY ? 0 : input[i - DELAY])) mismatches++
     expect(mismatches).toBe(0)
+    expect(said.filter((m) => m.type === 'late' && (m as { overruns?: number }).overruns)).toEqual([])
   })
 
-  it('at the default strength holds the same delay throughout and never clips', async () => {
-    const node = await worklet()
-    node.port.onmessage!({ data: { module: new WebAssembly.Module(wasm), model, strength: normal } })
-    expect(said[0]).toMatchObject({ type: 'ready' })
-    const { input, output } = play(node, 30)
+  it.each([['a port', false], ['shared slots', true]] as const)('speech.wav end to end (%s): exactly what the in-thread framer gave, a fixed time later', async (_, shared) => {
+    const input = loop(30) // the fixture, over and over
+    // The in-thread path as it was: the framer running DeepFilterNet inside the render call.
+    const inThread = new Framer(480, RATE, engine(normal).ref)
+    const reference = new Float32Array(input.length)
+    const block = new Float32Array(128)
+    for (let k = 0; k < input.length; k += 128) {
+      inThread.push(input.subarray(k, k + 128), block)
+      reference.set(block, k)
+    }
+    const node = await worklet(normal)
+    const dfn = engine(normal)
+    const stop = link(node, dfn.process, shared)
+    const output = await play(node, input, dfn.counter)
+    stop()
+    const shift = DELAY - inThread.latency
+    let mismatches = 0
+    for (let i = 0; i < output.length; i++) if (output[i] !== (i < shift ? 0 : reference[i - shift])) mismatches++
+    expect(mismatches).toBe(0)
+    expect(said.filter((m) => m.type === 'late' && (m as { overruns?: number }).overruns)).toEqual([])
+    expect(clipped(output)).toBe(0)
     const spread = lagSpread(input, output, voicedFrames(input, -45))
     expect(spread.windows).toBeGreaterThan(50)
     expect(spread.max - spread.min).toBe(0)
-    expect(clipped(output)).toBe(0)
     expect(Math.abs(rmsDb(output) - rmsDb(input))).toBeLessThan(3)
-    // The strength can change while it runs.
+  })
+
+  it('the strength can change while it runs', async () => {
+    const node = await worklet(normal)
+    const dfn = engine(normal)
+    const stop = link(node, dfn.process, false)
+    await play(node, loop(2), dfn.counter)
     node.port.onmessage!({ data: { strength: DF_STRENGTH_DB.max } })
-    expect(clipped(play(node, 2).output)).toBe(0)
+    expect(clipped(await play(node, loop(2), dfn.counter))).toBe(0)
+    stop()
   })
 })

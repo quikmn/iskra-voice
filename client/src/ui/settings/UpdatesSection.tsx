@@ -56,7 +56,7 @@ export function UpdatesSection({ server }: { server: ServerState }) {
 
   return (
     <section className="settings-section updates" data-testid="updates-section">
-      <h3>{t('updates.title')}</h3>
+      <h2>{t('updates.title')}</h2>
       {!status ? (
         error ? <p className="error-text">{error}</p> : <Spinner />
       ) : (
@@ -153,7 +153,7 @@ function UpdateSettings({ status, onChange }: { status: ServerUpdateStatus; onCh
 
   return (
     <div className="update-settings">
-      <h4>{t('updates.whenTitle')}</h4>
+      <h3 className="h4">{t('updates.whenTitle')}</h3>
       <div className="segmented" role="radiogroup" aria-label={t('updates.whenTitle')}>
         {MODES.map((m) => (
           <button key={m} role="radio" aria-checked={status.mode === m} className={status.mode === m ? 'on' : ''}

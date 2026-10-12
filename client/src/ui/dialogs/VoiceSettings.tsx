@@ -33,7 +33,7 @@ export function VoiceSettingsSection() {
 
   return (
     <section className="settings-section">
-      <h3>{t('settings.voice.inputMode')}</h3>
+      <h2>{t('settings.voice.inputMode')}</h2>
       <div className="segmented" role="radiogroup" aria-label={t('settings.voice.inputMode')}>
         <button role="radio" aria-checked={settings.mode === 'voice'} className={settings.mode === 'voice' ? 'on' : ''} onClick={() => updateVoiceSettings({ mode: 'voice' })}>
           {t('settings.voice.voiceActivity')}

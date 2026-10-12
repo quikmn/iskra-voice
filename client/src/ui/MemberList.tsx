@@ -13,6 +13,7 @@ import { TimeoutBadge } from './moderation/Moderation'
 import { useServerRoles } from '../state/roles'
 import { hoistedRole, nameColor, rolesOf } from '../state/permissions'
 import { userMenuProps } from './people/userMenuProps'
+import { useReadableColor } from '../theme/useReadable'
 
 export function MemberList({ server }: { server: ServerState }) {
   const { t } = useTranslation()
@@ -70,12 +71,13 @@ function MemberRow({ serverKey, member, color, icon, onClick }: {
   onClick: (e: MouseEvent<HTMLElement>) => void
 }) {
   useTranslation()
+  const shown = useReadableColor(color)
   const { status, custom } = useMemberPresence(member)
   return (
     <button className="member" onClick={onClick} {...userMenuProps(member.accountKey, serverKey)} aria-label={`${member.name}, ${STATUS_LABELS[status]}`}>
       <Avatar name={member.name} accountKey={member.accountKey} size={32} status={status} />
       <span className="member-text">
-        <span className="member-name" style={color ? { color } : undefined}>{member.name}</span>
+        <span className="member-name" style={shown ? { color: shown } : undefined}>{member.name}</span>
         {member.activity ? <ActivityLine activity={member.activity} withTime={false} />
           : custom ? <CustomStatusLine custom={custom} className="member-status" />
           : member.pronouns && <span className="member-pronouns">{member.pronouns}</span>}

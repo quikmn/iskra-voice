@@ -208,6 +208,7 @@ public sealed class Session
             rotations = KeyFeature.Recent(_world.Store),
             keyLog = KeyLogFeature.Head(_world, Now),
             rules = RulesFeature.View(_world.Store, member),
+            botCommands = BotCommandFeature.All(_world.Store),
         }));
         lock (_earlyGate)
         {

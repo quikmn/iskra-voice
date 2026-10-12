@@ -53,7 +53,7 @@
 
 .gif-settings .copy-row input { flex: 1; min-width: 0; }
 .gif-settings { margin: 18px 0; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); }
-.gif-settings h4 { margin: 0 0 6px; }
+.gif-settings .h4 { margin: 0 0 6px; }
 .gif-settings p { margin: 0 0 8px; font-size: 13px; }
 .gif-button { font-size: 11px; font-weight: 800; letter-spacing: 0.04em; width: auto; padding: 0 6px; }
 @media (max-width: 480px) { .gif-button { display: none; } }

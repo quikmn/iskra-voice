@@ -61,7 +61,7 @@
 }
 
 /* Light themes: darker name colours, softer scrims and shadows. */
-:root[data-scheme='light'] { --name-l: 38%; --scrim: rgba(20, 20, 40, 0.38); --shadow-color: rgba(20, 20, 60, 0.18); }
+:root[data-scheme='light'] { --name-l: 26%; --scrim: rgba(20, 20, 40, 0.38); --shadow-color: rgba(20, 20, 60, 0.18); }
 
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
@@ -592,7 +592,7 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 .settings-section { border-top: 1px solid var(--border); padding-top: 16px; margin-top: 16px; }
 .settings-section:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
 .settings-section > p.muted { font-size: 14px; }
-.settings-section h3 { margin: 0 0 12px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.settings-section h2, .settings-section h3:not(.h4) { margin: 0 0 12px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
 
 /* ── Phones and small windows ───────────────────────────────────────── */
 @media (max-width: 1100px) {

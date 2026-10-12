@@ -21,13 +21,13 @@
 .settings-pane { overflow-y: auto; padding: 20px 28px 32px; animation: pane-in 0.14s ease-out; overscroll-behavior: contain; }
 @keyframes pane-in { from { opacity: 0; transform: translateY(4px); } }
 /* The section's own heading is the page title. */
-.settings-pane > .settings-section > h3:first-child {
+.settings-pane > .settings-section > h2:first-child {
   margin: 0 0 6px; font-size: 20px; text-transform: none; letter-spacing: -0.01em; color: var(--text-strong);
 }
-.settings-pane > .settings-section > h3:first-child + p { margin-top: 0; }
+.settings-pane > .settings-section > h2:first-child + p { margin-top: 0; }
 .settings-pane > .settings-section { border-top: 0; margin-top: 0; padding-top: 0; max-width: 640px; }
 .settings-pane > .settings-section + .settings-section { border-top: 1px solid var(--border); padding-top: 20px; margin-top: 24px; }
-.settings-pane > .settings-section + .settings-section > h3:first-child { font-size: 16px; }
+.settings-pane > .settings-section + .settings-section > h2:first-child { font-size: 16px; }
 /* Sub-sections inside a section. */
 .settings-pane .settings-section .settings-section { margin-top: 20px; padding-top: 16px; }
 .settings-pane .settings-section .settings-section h3 { font-size: 12px; }
@@ -52,7 +52,7 @@
   .settings-nav-item + .settings-nav-item { box-shadow: inset 0 1px 0 var(--border); }
   .settings-nav-item svg { color: var(--muted); flex: none; }
   .settings-pane { padding: 16px 16px calc(32px + env(safe-area-inset-bottom)); animation-name: pane-slide; }
-  .settings-pane > .settings-section > h3:first-child { display: none; } /* the slim band shows it */
+  .settings-pane > .settings-section > h2:first-child { display: none; } /* the slim band shows it */
   .settings-facts > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
 }
 @keyframes pane-slide { from { opacity: 0; transform: translateX(16px); } }

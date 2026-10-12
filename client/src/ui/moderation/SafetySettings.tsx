@@ -30,7 +30,7 @@ export function BlockedSection() {
 
   return (
     <section className="settings-section">
-      <h3>{t('moderation.blocked.title')}</h3>
+      <h2>{t('moderation.blocked.title')}</h2>
       <p className="muted">{t('moderation.blocked.intro')}</p>
       {blocked.length === 0 ? (
         <p className="empty-note">{t('moderation.blocked.empty')}</p>
@@ -98,7 +98,7 @@ export function AuditLogSection({ server }: { server: ServerState }) {
 
   return (
     <section className="settings-section">
-      <h3>{t('moderation.audit.title')}</h3>
+      <h2>{t('moderation.audit.title')}</h2>
       <p className="muted">{t('moderation.audit.intro')}</p>
       <div className="audit-filters">
         <label className="field">

@@ -7,7 +7,7 @@ export function LanguageSection() {
   const choice = useLanguageChoice((s) => s.choice)
   return (
     <section className="settings-section">
-      <h3>{t('common.language.title')}</h3>
+      <h2>{t('common.language.title')}</h2>
       <label className="field">
         <select value={choice} aria-label={t('common.language.title')} onChange={(e) => setLanguageChoice(e.target.value as LanguageChoice)}>
           <option value="auto">{t('common.language.auto')}</option>

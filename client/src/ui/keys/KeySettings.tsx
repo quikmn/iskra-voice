@@ -19,7 +19,7 @@ export function RotateKeySection() {
   if (!identity) return null
   return (
     <section className="settings-section">
-      <h3>{t('keys.rotate.title')}</h3>
+      <h2>{t('keys.rotate.title')}</h2>
       <p className="muted">
         <Trans i18nKey="keys.rotate.intro" values={{ id: fingerprint(b64u(identity.account.publicKey)) }}
           components={{ code: <code data-testid="account-id" /> }} />
@@ -137,7 +137,7 @@ export function AppLockSection() {
 
   return (
     <section className="settings-section">
-      <h3>{t('settings.sections.security')}</h3>
+      <h2>{t('settings.sections.security')}</h2>
       {protection && <p className="muted" data-testid="key-protection">{t(PROTECTION[protection as keyof typeof PROTECTION])}</p>}
       <p className="muted">{t('keys.appLock.intro')}</p>
       {done && mode === 'idle' && <p className="success-text">{done}</p>}

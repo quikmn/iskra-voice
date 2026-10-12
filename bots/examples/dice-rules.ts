@@ -1,4 +1,5 @@
 // The dice bot's rules, kept apart from the bot so they're easy to test.
+import type { Card } from '../sdk/src/index'
 
 export interface Roll {
   count: number
@@ -31,4 +32,19 @@ export function describe(r: Roll): string {
 export function pick(options: string, random: () => number = Math.random): string | null {
   const items = options.split(/,|\bor\b/).map((s) => s.trim()).filter(Boolean)
   return items.length < 2 ? null : items[Math.floor(random() * items.length)]
+}
+
+/** A roll as a card: the notation and total, every die in a field (up to 25 shown). */
+export function rollCard(r: Roll): Card {
+  const notation = `${r.count}d${r.sides}${r.modifier ? (r.modifier > 0 ? '+' : '') + r.modifier : ''}`
+  const shown = r.rolls.length > 25 ? `${r.rolls.slice(0, 25).join(', ')}, …` : r.rolls.join(', ')
+  return {
+    title: `🎲 ${notation}`,
+    description: `**${r.total}**`,
+    color: r.rolls.every((x) => x === r.sides) ? 0x57f287 : r.rolls.every((x) => x === 1) ? 0xed4245 : 0x695bff,
+    fields: [
+      { name: r.count === 1 ? 'Die' : 'Dice', value: shown, inline: true },
+      ...(r.modifier ? [{ name: 'Modifier', value: `${r.modifier > 0 ? '+' : ''}${r.modifier}`, inline: true }] : []),
+    ],
+  }
 }

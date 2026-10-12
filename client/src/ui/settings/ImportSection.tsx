@@ -98,7 +98,7 @@ export function ImportSection({ server }: { server: ServerState }) {
   const fraction = job ? importFraction(job) : null
   return (
     <section className="settings-section import" data-testid="import-section">
-      <h3>{t('settings.sections.import')}</h3>
+      <h2>{t('settings.sections.import')}</h2>
       <p className="muted">{t('settings.import.intro')}</p>
       <ol className="import-how">
         <li>

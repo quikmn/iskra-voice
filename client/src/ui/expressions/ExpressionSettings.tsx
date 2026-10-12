@@ -19,7 +19,7 @@ export function SoundboardSettingsSection() {
   const { volume, muted } = useExpressions((s) => s.settings)
   return (
     <section className="settings-section">
-      <h3>{t('expressions.settings.soundboard')}</h3>
+      <h2>{t('expressions.settings.soundboard')}</h2>
       <label className="field">
         <span>{t('expressions.settings.volume', { percent: Math.round(volume * 100) })}</span>
         <input
@@ -80,7 +80,7 @@ export function EmojiSection({ server }: { server: ServerState }) {
 
   return (
     <section className="settings-section">
-      <h3>{t('expressions.settings.emojiTitle', { count: emojis.length, max: MAX_EMOJIS })}</h3>
+      <h2>{t('expressions.settings.emojiTitle', { count: emojis.length, max: MAX_EMOJIS })}</h2>
       <p className="muted"><Trans i18nKey="expressions.settings.emojiIntro" components={{ code: <code /> }} /></p>
       <input ref={input} type="file" hidden accept="image/png,image/gif,image/webp,image/jpeg" aria-label={t('expressions.settings.emojiImage')} onChange={(e) => { choose(e.target.files?.[0]); e.target.value = '' }} />
       {pending ? (
@@ -173,7 +173,7 @@ export function SoundsSection({ server }: { server: ServerState }) {
 
   return (
     <section className="settings-section">
-      <h3>{t('expressions.settings.soundsTitle', { count: sounds.length })}</h3>
+      <h2>{t('expressions.settings.soundsTitle', { count: sounds.length })}</h2>
       <p className="muted">{t('expressions.settings.soundsIntro')}</p>
       <input ref={input} type="file" hidden accept="audio/mpeg,audio/ogg,audio/wav,audio/x-wav,.mp3,.ogg,.wav" aria-label={t('expressions.settings.soundFile')}
         onChange={(e) => {

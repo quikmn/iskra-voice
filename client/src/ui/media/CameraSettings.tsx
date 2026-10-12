@@ -113,7 +113,7 @@ export function CameraSettingsSection() {
   return (
     <>
       <section className="settings-section media-settings">
-        <h3>{t('media.background.camera')}</h3>
+        <h2>{t('media.background.camera')}</h2>
         <label className="field">
           <span>{t('media.background.camera')}</span>
           <select value={known ? settings.camera : ''} onChange={(e) => void switchCamera(e.target.value)}>
@@ -132,7 +132,7 @@ export function CameraSettingsSection() {
       </section>
 
       <section className="settings-section media-settings">
-        <h3>{t('media.background.title')}</h3>
+        <h2>{t('media.background.title')}</h2>
         <p className="muted">{t('media.background.hint')}</p>
         <div className="segmented" role="radiogroup" aria-label={t('media.background.title')}>
           {MODES.map((m) => (

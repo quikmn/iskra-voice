@@ -125,11 +125,11 @@ export interface WireDm {
 /** Client → server requests: [body, result]. */
 export interface Requests {
   ping: [Record<string, never>, Record<string, never>]
-  'chat.send': [{ channelId: number; text: string; attachments?: string[]; replyTo?: number; voice?: VoiceInfo; sticker?: string; gif?: string | DirectGif; nonce?: string }, { message: Message; nonce?: string | null }]
+  'chat.send': [{ channelId: number; text: string; attachments?: string[]; replyTo?: number; voice?: VoiceInfo; sticker?: string; gif?: string | DirectGif; nonce?: string; cards?: Card[] }, { message: Message; nonce?: string | null }]
   'chat.react': [{ id: number; emoji: string; on: boolean }, Record<string, never>]
   'upload.begin': [{ name: string; size: number }, { url: string; maxBytes: number; /** Upload in parts: the most one part may carry (missing on older servers). */ partBytes?: number }]
   'link.preview': [{ url: string }, { preview: LinkPreview | null }]
-  'chat.edit': [{ id: number; text: string }, { message: Message }]
+  'chat.edit': [{ id: number; text?: string; cards?: Card[] }, { message: Message }]
   'chat.delete': [{ id: number }, Record<string, never>]
   'chat.history': [{ channelId: number; before?: number; after?: number; around?: number; limit?: number }, { messages: Message[]; hasMore: boolean; hasNewer?: boolean }]
   'chat.typing': [{ channelId: number }, Record<string, never>]
@@ -1669,4 +1669,58 @@ export interface ProfileStamp {
 
 export interface Requests {
   'profile.page.get': [Record<string, never>, { html: string; hash: string }]
+}
+
+// ── bot commands and cards ──
+
+export type CommandOptionType = 'string' | 'integer' | 'number' | 'boolean' | 'user' | 'channel' | 'role'
+
+export interface CommandOption {
+  /** 1–32 characters of a–z, 0–9, _ and -. */
+  name: string
+  /** 1–100 characters, one line. */
+  description: string
+  type: CommandOptionType
+  required?: boolean
+  /** Up to 25, for string, integer and number options. */
+  choices?: { name: string; value: string | number }[]
+}
+
+/** A /command a bot answers (it's still sent as an ordinary message). */
+export interface BotCommand {
+  name: string
+  description: string
+  /** A hint shown after the name, like "2d6+1". */
+  usage?: string
+  /** Up to 25; required ones first. */
+  options?: CommandOption[]
+}
+
+export interface BotCommandList {
+  bot: string
+  commands: BotCommand[]
+}
+
+/** A card on a bot's message: the webhook embed format plus pictures from this server or data: URLs. */
+export interface Card extends Embed {
+  thumbnail?: { url: string }
+  image?: { url: string }
+}
+
+export interface Message {
+  /** Cards a bot attached (null for everything else). */
+  cards?: Card[] | null
+}
+
+export interface Welcome {
+  botCommands?: BotCommandList[]
+}
+
+export interface Events {
+  'bot.commands': BotCommandList
+}
+
+export interface Requests {
+  'bot.commands.set': [{ commands: BotCommand[] }, { commands: BotCommand[] }]
+  'bot.commands.available': [{ channelId: number }, { bots: string[] }]
 }
