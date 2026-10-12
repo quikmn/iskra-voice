@@ -45,6 +45,7 @@ public static class ChatFeature
         if (channel.Kind is not ("text" or "thread" or "voice" or "stage")) throw RequestException.BadRequest("You can't send messages to that channel.");
         if (!Permissions.CanSend(me, channel)) throw RequestException.Forbidden("You can't send messages in this channel.");
         ForumFeature.CheckReply(s, me, channel);
+        if (E2eeChannelFeature.Sealed(s, me, channel, body) is { } sealedMsg) return E2eeChannelFeature.Send(s, me, channel, body, sealedMsg);
 
         // Files must be ones you uploaded yourself.
         var attachments = body.OptionalStringArray("attachments", MaxAttachments, 64);
@@ -94,7 +95,7 @@ public static class ChatFeature
     public const int MinNonceLength = 8;
     public const int MaxNonceLength = 64;
 
-    private static string? Nonce(Body body)
+    internal static string? Nonce(Body body)
     {
         var nonce = body.OptionalString("nonce", MaxNonceLength);
         if (nonce is null) return null;
@@ -103,7 +104,7 @@ public static class ChatFeature
         return nonce;
     }
 
-    private static object Repeat(Session s, Member me, string nonce) =>
+    internal static object Repeat(Session s, Member me, string nonce) =>
         s.World.Store.MessageForNonce(me.AccountKey, nonce) is { } earlier
             ? new { message = View(s, earlier), nonce }
             : throw RequestException.NotFound("Message"); // sent, then deleted
@@ -113,6 +114,7 @@ public static class ChatFeature
         var message = s.World.Store.GetMessage(body.Long("id")) ?? throw RequestException.NotFound("Message");
         var channel = ReadableChannel(s, me, message.ChannelId);
         if (message.AuthorKey != me.AccountKey) throw RequestException.Forbidden("You can only edit your own messages.");
+        if (E2eeChannelFeature.Sealed(s, me, channel, body) is { } sealedMsg) return E2eeChannelFeature.Edit(s, channel, message, sealedMsg);
         if (s.World.Store.GetPoll(message.Id) is not null) throw RequestException.BadRequest("Polls can't be edited.");
         if (VoiceMessageFeature.IsVoice(s.World.Store, message.Id)) throw RequestException.BadRequest("Voice messages can't be edited.");
         ClipFeature.CheckEdit(s.World.Store, message);

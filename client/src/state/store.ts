@@ -485,11 +485,18 @@ type SendBody = { channelId: number; text: string; attachments: string[]; replyT
 /** Sends that lost their connection, by tempId: sent again when the server is back. */
 const unsentSends = new Map<string, { key: string; channelId: number; body: SendBody }>()
 
+type ChannelSender = (key: string, channelId: number, body: SendBody) => Promise<{ message: Message }> | null
+let channelSender: ChannelSender = () => null
+/** state/e2eeChannels.ts sends in encrypted channels itself (it returns null for other channels). */
+export function setChannelSender(sender: ChannelSender): void {
+  channelSender = sender
+}
+
 async function deliver(key: string, channelId: number, tempId: string, body: SendBody): Promise<void> {
   try {
     const connection = connections.get(key)
     if (!connection) throw new Error(t('errors.codes.disconnected'))
-    const { message } = await connection.request('chat.send', body)
+    const { message } = await (channelSender(key, channelId, body) ?? connection.request('chat.send', body))
     unsentSends.delete(tempId)
     patchServer(key, (s) => ({
       messages: { ...s.messages, [channelId]: upsertMessage((s.messages[channelId] ?? []).filter((m) => m.tempId !== tempId), message) },

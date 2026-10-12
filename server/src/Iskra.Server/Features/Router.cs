@@ -70,6 +70,7 @@ public sealed class Router
         ComplianceFeature.Register(this, exports);
         ClipFeature.Register(this);
         KeyLogFeature.Register(this);
+        E2eeChannelFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

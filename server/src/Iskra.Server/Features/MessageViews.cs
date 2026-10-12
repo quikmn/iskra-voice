@@ -39,6 +39,7 @@ public static class MessageViews
             gif = GifFeature.View(store, m.Id),
             automod = AutoModFeature.MessageView(store, m),
             clip = ClipFeature.View(store, m.Id),
+            e2ee = E2eeChannelFeature.MessageView(store, m.Id),
         };
     }
 

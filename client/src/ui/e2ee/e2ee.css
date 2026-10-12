@@ -1,0 +1,16 @@
+/* ── End-to-end encrypted channels ── */
+.e2ee-lock { display: inline-flex; align-items: center; color: var(--green); margin-left: 4px; flex-shrink: 0; }
+.chat-header h1 .e2ee-lock { margin-left: 6px; }
+.e2ee-header { color: var(--green); }
+.e2ee-header.warn { color: var(--amber); }
+.e2ee-note { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-style: italic; }
+.e2ee-members { list-style: none; margin: 8px 0 12px; padding: 0; max-height: 40vh; overflow-y: auto; }
+.e2ee-members li { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.e2ee-members li:last-child { border-bottom: none; }
+.e2ee-member-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.e2ee-warn { color: var(--amber); }
+.e2ee-rekey { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.e2ee-create-note { margin-top: 4px; padding: 10px 12px; border-radius: var(--radius); background: var(--accent-subtle); }
+.e2ee-create-note p { margin: 4px 0; }
+.composer.e2ee-waiting { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.search-local-note { display: flex; align-items: center; gap: 6px; margin: 6px 0; font-size: 0.85rem; color: var(--muted); }

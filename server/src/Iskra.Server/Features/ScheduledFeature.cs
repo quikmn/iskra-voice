@@ -89,6 +89,7 @@ public static class ScheduledFeature
         {
             var channel = ChatFeature.ReadableChannel(s, me, channelId);
             if (channel.Kind is not ("text" or "thread")) throw RequestException.BadRequest("You can't send messages to that channel.");
+            E2eeChannelFeature.RefusePlaintext(store, channel, "Scheduled messages");
             if (!Permissions.CanWrite(me, channel)) throw RequestException.Forbidden("You can't send messages in this channel.");
             var replyTo = body.OptionalLong("replyTo", min: 1);
             if (replyTo is { } r && store.GetMessage(r)?.ChannelId != channel.Id)

@@ -24,7 +24,7 @@ export function ForwardDialog({ server, message, onClose }: { server: ServerStat
   const me = server.me
 
   const channels: Target[] = server.channels
-    .filter((c) => c.kind === 'text' && me && roleRank(me.role) >= roleRank(c.writeRole))
+    .filter((c) => c.kind === 'text' && !c.e2ee && me && roleRank(me.role) >= roleRank(c.writeRole))
     .sort((a, b) => a.position - b.position)
     .map((c) => ({ kind: 'channel', id: c.id, label: c.name }))
   const people = new Map<string, string>()

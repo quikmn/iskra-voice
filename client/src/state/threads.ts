@@ -22,7 +22,10 @@ export const isThreadId = (server: ServerState, channelId: number) => !server.ch
 
 export function rememberThreads(key: string, list: Thread[]): void {
   if (list.length === 0) return
-  useThreads.setState((s) => ({ threads: { ...s.threads, [key]: { ...s.threads[key], ...Object.fromEntries(list.map((t) => [t.id, t])) } } }))
+  // Threads in encrypted channels have no name on the server: they're just "Thread".
+  const sealed = new Set(useApp.getState().servers[key]?.channels.filter((c) => c.e2ee).map((c) => c.id))
+  const named = list.map((th) => (sealed.has(th.channelId) ? { ...th, name: t('e2ee.thread.title') } : th))
+  useThreads.setState((s) => ({ threads: { ...s.threads, [key]: { ...s.threads[key], ...Object.fromEntries(named.map((th) => [th.id, th])) } } }))
 }
 
 function forget(key: string, id: number): void {

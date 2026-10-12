@@ -91,9 +91,10 @@ Iskra's version is deliberately light: servers are small and many, so a full log
 | Server channels, voice channels, files, profiles | The server's permissions | Members allowed in that channel, and whoever runs the server |
 | Direct messages, with their pictures, files and voice messages | **End-to-end encryption** | Only the two of you |
 | Group chats, with their files | **End-to-end encryption** | Only the people in the group |
+| **Encrypted channels** (an option for small private text and voice channels), with their files, threads and voice | **End-to-end encryption** | Only the people who can see the channel, on their own devices |
 | Calls in DMs and group calls (voice and video) | **End-to-end encryption** | Only the people in the call |
 
-Server channels trust the server, because a server is run by you or your friend; the app always tells you which server you're on. Direct messages, group chats and calls don't trust anyone: servers only pass encrypted envelopes and encrypted media along.
+Server channels trust the server, because a server is run by you or your friend; the app always tells you which server you're on. Direct messages, group chats, calls and encrypted channels don't trust anyone: servers only pass encrypted envelopes and encrypted media along.
 
 ### Direct messages in detail
 
@@ -118,6 +119,21 @@ Server channels trust the server, because a server is run by you or your friend;
 - A message names the exact member list it was encrypted for, so it can't be passed off as sent to different people. New members only read what's sent after they joined.
 - Group calls work like DM calls: a fresh key per call sent inside the encrypted group chat, and a new one when the group changes during the call.
 - The server knows who is in which group and when people write; it doesn't know the group's name or anything said in it. Notifications only say "New message from X".
+
+### Encrypted channels in detail
+
+When an admin creates a text or voice channel they can tick **End-to-end encrypted**. It's meant for small private channels (up to 50 people) and can't be turned off later. A lock marks it everywhere.
+
+- **Who's in it follows the channel's permissions**, but the permissions don't decide alone. Membership is a chain of signed changes, like a group chat's: every add, removal or new key is signed by the member who made it and linked to the one before. When roles or channel settings change, the server says who should be added or removed, and the first member whose app is online signs that change. Your app checks every link itself, so **the server can't add anyone**: it would need a member's signature. The server also refuses changes that don't match the permissions, and only ever delivers the channel's (encrypted) messages to people who can read it right now.
+- **Every change brings a new key.** Each change starts a new *epoch* with a fresh random key, made on the device of the member who signed the change and sealed to every device of every member (the same forward-secret envelopes as DMs). Someone who loses access never gets the next key: what's written after they're removed is unreadable to them even if they kept a copy of everything the server stores. Keys of different epochs are unrelated, so an old key says nothing about a new one.
+- **Messages** are encrypted with the epoch's key (XChaCha20-Poly1305) and **signed by the sender's device**, because everyone in the channel shares the key: without the signature one member could write as another. The channel, the exact member list and the sender are bound into each message.
+- **New members** read from when they were added. Older messages stay unreadable to them, as in Signal; there's no way (yet) for an admin to share older history.
+- **Your devices:** a device linked later gets the key automatically (it asks for a new one if nobody included it), and when you remove a device, one of your other devices hands out a new key in each encrypted channel you're in.
+- **Files, voice notes and threads** are encrypted the same way. **Voice** in an encrypted voice channel uses LiveKit's end-to-end encryption with a key derived from the channel's current key, and switches when it changes.
+- **Safety:** the encryption panel (the lock in the channel's header) lists exactly who holds the key, with each person's safety number and any key-transparency warnings about them.
+- **What doesn't work there**, because the server would have to read or write the text: webhooks, bots, polls, scheduled messages, forwarding, clips, stickers, GIFs, AutoMod and link previews. Search runs on your device, over the messages it has decrypted. Notifications only say "New message in #channel". A report can include what the message says, but only if the reporter shares it, and moderators are told the server can't check it.
+
+**What the server still sees** in an encrypted channel: who is in it and when that changes; who writes, when, how often and how big each message is; who replied to which message, reactions (which emoji on which message), pins, deletions and edits (that one happened, not what changed); thread structure (threads have no name); who joins its voice channel and when; the channel's name and settings. It can delay or withhold messages and membership changes, but not read, forge or reorder them.
 
 ### Calls in detail
 
@@ -197,7 +213,8 @@ A theme is a JSON file of colours, sizes and font choices. Every value is checke
 
 We'd rather tell you than have you find out:
 
-- **Server channels, voice channels and files are not end-to-end encrypted.** Whoever runs the server can read them.
+- **Server channels, voice channels and files are not end-to-end encrypted,** unless the channel was made an encrypted channel. Whoever runs the server can read them.
+- **Encrypted channels:** the people who can see the channel decide who gets the key, so whoever controls the permissions (admins, and whoever runs the server, through the permissions) can add a reader; that reader's app is added by a member's app, signed and visible in the encryption panel, and only reads what is written from then on. A member who is removed keeps what they already read. A device's stored epoch keys let it read the channel's history, so a stolen unlocked device reads it too (as with DMs kept on the device). Membership changes need a member's app online; until then, someone who just lost access can't receive anything (the server stops delivering at once), and someone who just gained it waits. Two members' apps that never compare notes could, in a rare race, see different (correctly signed) membership histories.
 - **Metadata.** Servers see who messages and calls whom, when, and for how long. Your push service sees when you get a notification.
 - **Replacing a stolen account key is a race.** Whoever holds your old key can replace it too. On each server the first valid replacement wins; a second claim within 30 days makes the account disputed until an admin decides, and after 30 days the old key is dead. A thief who acts first on a server where you don't (or that has no other admin) keeps the account there until an admin steps in. Your friends see "safety number changed" either way: verify before trusting.
 - **Keys on your device are only as safe as the device while Iskra is running.** Encryption at rest protects copies of the stored data, not a device someone can use as you. In the browser, without an app lock, anyone who can open your browser profile can open Iskra. Malware running as you can read keys from memory. Lock your devices, and use an app lock on shared computers.

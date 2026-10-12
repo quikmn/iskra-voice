@@ -31,6 +31,7 @@ import { catchup } from './catchup'
 import { compliance } from './compliance'
 import { updates } from './updates'
 import { clips } from './clips'
+import { e2ee } from './e2ee'
 
 export const sv: Messages = {
   common,
@@ -64,4 +65,5 @@ export const sv: Messages = {
   compliance,
   updates,
   clips,
+  e2ee,
 }

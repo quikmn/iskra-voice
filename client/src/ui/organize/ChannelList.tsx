@@ -2,6 +2,7 @@
 // Admins drag channels and categories to arrange them on desktop; every row also has a menu (right click, or the
 // ⋯ button, which phones always show).
 import { useState, type DragEvent, type HTMLAttributes, type MouseEvent } from 'react'
+import { LockBadge } from '../e2ee/E2ee'
 import { useTranslation } from 'react-i18next'
 import { levelName } from '../../state/permissions'
 import type { Category, Channel } from '../../core/protocol'
@@ -257,7 +258,8 @@ function TextRow({ server, channel, active, rowProps, onMenu, onNavigate }: {
       >
         <span className="hash">{channel.kind === 'forum' ? <ForumIcon size={16} /> : channel.kind === 'docs' ? <DocsIcon size={16} /> : <Hash size={16} />}</span>
         <span className="channel-name">{channel.name}</span>
-        {channel.readRole !== 'member' && channel.readRole !== 'guest' && <span className="lock" title={t('organize.list.only', { role: levelName(channel.readRole) })}><Lock size={12} /></span>}
+        {channel.e2ee ? <LockBadge channel={channel} />
+          : channel.readRole !== 'member' && channel.readRole !== 'guest' && <span className="lock" title={t('organize.list.only', { role: levelName(channel.readRole) })}><Lock size={12} /></span>}
         {shown.pings > 0 && !active && <span className="badge" title={t('organize.list.mentions')}>{shown.pings}</span>}
       </button>
       <button className="icon-button small org-more" onClick={onMenu} aria-label={t('organize.list.options', { name: `#${channel.name}` })} title={t('organize.list.channelOptions')}>
@@ -294,6 +296,7 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
         >
           <span className="hash"><Volume size={16} /></span>
           <span className="channel-name">{channel.name}</span>
+          <LockBadge channel={channel} />
           {here && voiceSession.state !== 'connected' && <span className="pill">…</span>}
           {limit && (
             <span className={`voice-limit ${full ? 'full' : ''}`} aria-label={t(full ? 'organize.list.countFull' : 'organize.list.count', { people: participants.length, limit: channel.userLimit ?? 0 })}>{limit}</span>

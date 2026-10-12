@@ -69,13 +69,18 @@ export const newGroupId = () => b64u(randomBytes(16))
 export const ownerOf = (view: Pick<GroupView, 'members'>) => view.members[0]
 
 /** The head of a change: SHA-256 of its exact payload bytes. */
-const headOf = (payload: Uint8Array) => b64u(sodium.crypto_hash_sha256(payload))
+export const headOf = (payload: Uint8Array) => b64u(sodium.crypto_hash_sha256(payload))
 
-const isKeyList = (x: unknown): x is string[] => Array.isArray(x) && x.length <= MAX_GROUP_MEMBERS && x.every((k) => typeof k === 'string' && KEY.test(k))
-const isCount = (x: unknown): x is number => typeof x === 'number' && Number.isSafeInteger(x) && x >= 0
+const isKeyList = (x: unknown, max: number): x is string[] => Array.isArray(x) && x.length <= max && x.every((k) => typeof k === 'string' && KEY.test(k))
+export const isCount = (x: unknown): x is number => typeof x === 'number' && Number.isSafeInteger(x) && x >= 0
 
 /** Decodes a change and checks its format and signature (by its own `by`). */
 export function parseChange(change: GroupChange): { body: ChangeBody; head: string } {
+  return parseSignedChange(change, GROUP_CHANGE_CONTEXT, MAX_GROUP_MEMBERS, ACTIONS) as { body: ChangeBody; head: string }
+}
+
+/** The same signed-change format for other chains (encrypted channels), with their own context, size and actions. */
+export function parseSignedChange(change: GroupChange, context: string, maxMembers: number, actions: readonly string[]): { body: Omit<ChangeBody, 'action'> & { action: string }; head: string } {
   let bytes: Uint8Array
   let body: Partial<ChangeBody>
   try {
@@ -85,12 +90,12 @@ export function parseChange(change: GroupChange): { body: ChangeBody; head: stri
     throw new GroupError("A change to this group couldn't be read.")
   }
   if (!body || body.v !== 1 || typeof body.group !== 'string' || !ID.test(body.group) || !isCount(body.version) || typeof body.prev !== 'string'
-    || typeof body.by !== 'string' || !KEY.test(body.by) || !ACTIONS.includes(body.action as GroupAction) || !isKeyList(body.targets)
-    || !isKeyList(body.members) || !isCount(body.at))
+    || typeof body.by !== 'string' || !KEY.test(body.by) || !actions.includes(body.action as string) || !isKeyList(body.targets, maxMembers)
+    || !isKeyList(body.members, maxMembers) || !isCount(body.at))
     throw new GroupError("A change to this group isn't valid.")
   let signed = false
   try {
-    signed = verify(fromB64u(change.sig), signedPayload(GROUP_CHANGE_CONTEXT, bytes), fromB64u(body.by))
+    signed = verify(fromB64u(change.sig), signedPayload(context, bytes), fromB64u(body.by))
   } catch {
     signed = false
   }
@@ -109,7 +114,10 @@ export function setGroupKeyResolver(resolve: (accountKey: string) => string): vo
   currentKey = resolve
 }
 
-const sameKey = (a: string, b: string) => a === b || currentKey(a) === currentKey(b)
+export const sameKey = (a: string, b: string) => a === b || currentKey(a) === currentKey(b)
+
+/** An account key as the member it is now (after verified rotations). */
+export const resolveKey = (accountKey: string) => currentKey(accountKey)
 
 /** The member list a change must produce (null view: a new group). Throws if the change breaks the rules. */
 export function expectedMembers(view: GroupView | null, change: Pick<ChangeBody, 'action' | 'by' | 'targets' | 'version' | 'prev'>): string[] {

@@ -30,9 +30,12 @@ public static class GroupChain
     private static bool IsAccountKey(string? key) => key is { Length: 43 } && Ed25519.TryFromB64u(key, out var bytes) && bytes.Length == 32;
 
     /// <summary>Decodes and checks a change's format and signature (by its own <c>by</c>). Throws bad_request.</summary>
-    public static (GroupChange Change, byte[] Payload) Parse(string payload, string sig)
+    public static (GroupChange Change, byte[] Payload) Parse(string payload, string sig) => Parse(payload, sig, Context, MaxMembers, MaxPayloadChars);
+
+    /// <summary>The same format for other chains (encrypted channels), with their own signing context and size limits.</summary>
+    public static (GroupChange Change, byte[] Payload) Parse(string payload, string sig, string context, int maxMembers, int maxPayloadChars)
     {
-        if (payload.Length > MaxPayloadChars) throw RequestException.BadRequest("'change' is too large.");
+        if (payload.Length > maxPayloadChars) throw RequestException.BadRequest("'change' is too large.");
         byte[] bytes;
         try
         {
@@ -56,7 +59,7 @@ public static class GroupChain
                 root.TryGetProperty(name, out var e) && e.ValueKind == JsonValueKind.Number && e.TryGetInt64(out var n) && n >= 0
                     ? n : throw RequestException.BadRequest($"'change.{name}' is missing or invalid.");
             string[] Keys(string name) =>
-                root.TryGetProperty(name, out var e) && e.ValueKind == JsonValueKind.Array && e.GetArrayLength() <= MaxMembers
+                root.TryGetProperty(name, out var e) && e.ValueKind == JsonValueKind.Array && e.GetArrayLength() <= maxMembers
                     ? e.EnumerateArray().Select(k => k.ValueKind == JsonValueKind.String && IsAccountKey(k.GetString()) ? k.GetString()!
                         : throw RequestException.BadRequest($"'change.{name}' must be a list of account keys.")).ToArray()
                     : throw RequestException.BadRequest($"'change.{name}' is missing or invalid.");
@@ -78,7 +81,7 @@ public static class GroupChain
         if (!IsId(change.Group)) throw RequestException.BadRequest("'change.group' must be 16 random bytes (base64url).");
         if (!IsAccountKey(change.By)) throw RequestException.BadRequest("'change.by' must be an account key.");
         if (!Ed25519.TryFromB64u(sig, out var sigBytes) || !Ed25519.TryFromB64u(change.By, out var byKey)
-            || !Ed25519.Verify(byKey, Ed25519.Payload(Context, bytes), sigBytes))
+            || !Ed25519.Verify(byKey, Ed25519.Payload(context, bytes), sigBytes))
             throw RequestException.BadRequest("The change's signature doesn't check out.");
         return (change, bytes);
     }

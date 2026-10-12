@@ -70,7 +70,20 @@ public static class ChannelFeature
         var slowmode = ModerationFeature.SlowmodeField(body) ?? 0;
         var userLimit = VoiceLimitFeature.Field(body, kind) ?? 0;
         var categoryId = OrganizeFeature.OptionalCategory(s, body);
+        var e2ee = E2eeChannelFeature.CheckCreate(s, me, body, kind, readRole, writeRole);
         var channel = s.World.Store.CreateChannel(ChannelName(body.String("name", 256)), kind, readRole, writeRole, s.Now);
+        if (e2ee is not null)
+        {
+            try
+            {
+                E2eeChannelFeature.Created(s, channel, e2ee);
+            }
+            catch
+            {
+                s.World.Store.DeleteChannel(channel.Id);
+                throw;
+            }
+        }
         if (slowmode > 0) s.World.Store.SetSlowmode(channel.Id, slowmode);
         if (userLimit > 0) s.World.Store.SetUserLimit(channel.Id, userLimit);
         if (categoryId is not null)
@@ -78,9 +91,9 @@ public static class ChannelFeature
             s.World.Store.SetChannelCategory(channel.Id, categoryId);
             channel = channel with { CategoryId = categoryId };
         }
-        Audit.Record(s, "channel.create", details: new { channelId = channel.Id, name = channel.Name, kind, readRole, writeRole, slowmode, userLimit });
+        Audit.Record(s, "channel.create", details: new { channelId = channel.Id, name = channel.Name, kind, readRole, writeRole, slowmode, userLimit, encrypted = e2ee is not null });
         BroadcastChannels(s);
-        return new { channel = Hub.PublicChannel(channel, slowmode, userLimit) };
+        return new { channel = Hub.PublicChannel(channel, slowmode, userLimit, E2eeChannelFeature.Info(s.World.Store, channel.Id)) };
     }
 
     private static object Update(Session s, Member me, Body body)
@@ -95,6 +108,7 @@ public static class ChannelFeature
             WriteRole = Role(body, "writeRole", channel.WriteRole),
         };
         CheckRoles(updated.ReadRole, updated.WriteRole);
+        E2eeChannelFeature.CheckCapacity(s.World.Store, updated);
         var oldSlowmode = s.World.Store.Slowmode(channel.Id);
         var slowmode = ModerationFeature.SlowmodeField(body) ?? oldSlowmode;
         var oldLimit = s.World.Store.UserLimit(channel.Id);
@@ -112,7 +126,7 @@ public static class ChannelFeature
         if (changes.Count > 0) Audit.Record(s, "channel.update", details: new { channelId = channel.Id, name = updated.Name, changes });
         BroadcastChannels(s);
         s.Voice.EnforceAccess();
-        return new { channel = Hub.PublicChannel(updated, slowmode, userLimit) };
+        return new { channel = Hub.PublicChannel(updated, slowmode, userLimit, E2eeChannelFeature.Info(s.World.Store, channel.Id)) };
     }
 
     private static object? Delete(Session s, Member me, Body body)

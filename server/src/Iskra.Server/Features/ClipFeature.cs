@@ -25,6 +25,7 @@ public static class ClipFeature
         var channelId = body.Long("channelId");
         var channel = ChatFeature.ReadableChannel(s, me, channelId);
         if (channel.Kind is not ("voice" or "stage")) throw RequestException.BadRequest("That isn't a voice channel.");
+        E2eeChannelFeature.RefusePlaintext(s.World.Store, channel, "Clips");
         var here = s.Voice.Participant(channel.Id, me.AccountKey) ?? throw RequestException.Forbidden("You're not in that voice channel.");
         if (!here.Clips) throw RequestException.BadRequest("Turn clips on first, so everyone in the call can see it.");
 

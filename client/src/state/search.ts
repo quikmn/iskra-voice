@@ -6,6 +6,7 @@ import type { SearchResult } from '../core/protocol'
 import { parseSearch } from '../ui/chat/searchQuery'
 import { connectionFor, useApp } from './store'
 import { closeThread, rememberThreads } from './threads'
+import { localSearchResults } from './e2eeChannels'
 
 interface SearchState {
   /** The server the panel belongs to, or null when closed. */
@@ -63,11 +64,13 @@ export async function runSearch(key: string, more = false): Promise<void> {
   useSearch.setState({ loading: true, error: null, ...(more ? {} : { searched: text, results: [], total: 0 }) })
   try {
     const reply = await connection.request('search', { ...parsed.request, cursor, limit: 25 })
+    // Encrypted channels are searched on this device (the server has only ciphertext): their matches come first.
+    const local = more ? [] : await localSearchResults(key, parsed.request).catch(() => [])
     if (mine !== generation) return
     rememberThreads(key, reply.threads)
     useSearch.setState((s) => ({
-      results: more ? [...s.results, ...reply.results] : reply.results,
-      total: reply.total,
+      results: more ? [...s.results, ...reply.results] : [...local, ...reply.results],
+      total: reply.total + local.length,
       totalCapped: !!reply.totalCapped,
       hasMore: reply.hasMore,
       loading: false,

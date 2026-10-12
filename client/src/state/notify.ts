@@ -8,7 +8,7 @@ import { onServerEvent, useApp } from './store'
 import { conversationLabel, useThreads } from './threads'
 import { jumpToMessage } from './jump'
 import { b64u } from '../core/crypto'
-import type { Events, WireDm } from '../core/protocol'
+import type { Events, Message, WireDm } from '../core/protocol'
 import { isDoNotDisturb } from './presence'
 import { notifyFor, useOrganize } from './organize'
 import { badgeTotal } from './unread'
@@ -134,23 +134,28 @@ const me = () => {
 
 const lastVoice = new Map<string, Set<string>>()
 
+/** A desktop notification for a new channel message, if your settings want one. */
+export function notifyChannelMessage(serverKey: string, message: Message): void {
+  const server = useApp.getState().servers[serverKey]
+  if (!server) return
+  const myKey = me()
+  // Blocked people never notify; then your notification level for the channel decides (all, mentions, nothing).
+  if (message.author === myKey || senderRules.ignored(message.author) || isBlocked(useBlocks.getState().entries, message.author)) return
+  if (!shouldNotify(notifyFor(serverKey, message.channelId), !message.forwarded && senderRules.mentionsMe(server, message))) return
+  if (isOnScreen(channelConv(serverKey, message.channelId))) return
+  const author = message.webhook?.name ?? server.members[message.author]?.name ?? t('common.someone')
+  show(serverKey, t('app.notify.authorIn', { author, where: conversationLabel(server, message.channelId) }), plainText(message.text, { nameOf: (k) => server.members[k]?.name ?? null }), () => {
+    void jumpToMessage(serverKey, message.channelId, message.id)
+  })
+}
+
 onServerEvent((serverKey, type, body) => {
   const state = useApp.getState()
   const server = state.servers[serverKey]
   if (!server) return
 
-  if (type === 'chat.message') {
-    const { message } = body as Events['chat.message']
-    const myKey = me()
-    // Blocked people never notify; then your notification level for the channel decides (all, mentions, nothing).
-    if (message.author === myKey || senderRules.ignored(message.author) || isBlocked(useBlocks.getState().entries, message.author)) return
-    if (!shouldNotify(notifyFor(serverKey, message.channelId), !message.forwarded && senderRules.mentionsMe(server, message))) return
-    if (isOnScreen(channelConv(serverKey, message.channelId))) return
-    const author = message.webhook?.name ?? server.members[message.author]?.name ?? t('common.someone')
-    show(serverKey, t('app.notify.authorIn', { author, where: conversationLabel(server, message.channelId) }), plainText(message.text, { nameOf: (k) => server.members[k]?.name ?? null }), () => {
-      void jumpToMessage(serverKey, message.channelId, message.id)
-    })
-  }
+  // Encrypted channels notify once decrypted (state/e2eeChannels.ts).
+  if (type === 'chat.message' && !(body as Events['chat.message']).message.e2ee) notifyChannelMessage(serverKey, (body as Events['chat.message']).message)
 
   if (type === 'voice.state') {
     // Little chimes when people join or leave the voice channel you're in.

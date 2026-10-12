@@ -73,9 +73,11 @@ public static class ReportFeature
         Report report;
         if (messageId is { } id)
         {
-            if (body.Has("messages")) throw RequestException.BadRequest("'messages' goes with 'accountKey'.");
             var message = store.GetMessage(id) ?? throw RequestException.NotFound("Message");
             var channel = ChatFeature.ReadableChannel(s, me, message.ChannelId);
+            // An encrypted channel's message: the reporter may share what they read (moderators are told it can't be checked).
+            var encrypted = E2eeChannelFeature.IsEncrypted(store, channel);
+            if (body.Has("messages") && !encrypted) throw RequestException.BadRequest("'messages' goes with 'accountKey'.");
             if (message.AuthorKey == me.AccountKey) throw RequestException.BadRequest("You can't report your own message.");
             if (message.AuthorKey.StartsWith(AutoModFeature.Author, StringComparison.Ordinal))
                 throw RequestException.BadRequest("AutoMod alerts can't be reported.");
@@ -83,6 +85,7 @@ public static class ReportFeature
             {
                 MessageId = message.Id, ChannelId = channel.Id, ChannelName = channel.Name, Text = message.Text,
                 Attachments = message.Attachments, MessageAt = message.CreatedAt,
+                Dm = encrypted ? SharedMessages(s, me, message.AuthorKey, body) : null,
             };
         }
         else
