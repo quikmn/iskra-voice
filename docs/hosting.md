@@ -142,6 +142,26 @@ sudo systemctl enable --now iskra
 sudo journalctl -u iskra -f        # shows the owner link on first start
 ```
 
+**Restarting without friends seeing "went offline".** systemd stops the server the same way for a restart as for a
+stop, so by default members see *"<server> went offline"*. Say it's a restart first, and they see *"restarting, hold
+on"* and are back within seconds:
+
+```sh
+sudo -u iskra /opt/iskra/iskra-server expect-restart /opt/iskra/world --reason update --eta 30
+sudo systemctl restart iskra
+```
+
+`expect-restart` leaves a small marker (`restart-expected`) in the server folder holding only the reason (`update`
+or `restart`, the default) and the expected downtime in seconds (`--eta`, 0–600, optional). The server reads it as it
+stops and deletes it; a marker older than 2 minutes is ignored, so a restart that didn't happen doesn't turn a later
+stop into "restarting". Put it in your own update scripts just before the restart. Or make `systemctl reload iskra`
+the friendly restart by adding this to the unit:
+
+```ini
+ExecReload=/opt/iskra/iskra-server expect-restart /opt/iskra/world
+ExecReload=+/bin/systemctl --no-block restart %n
+```
+
 ### Updating
 
 As the owner, open **Settings → Updates**. It shows the version the server runs and whether a newer one is out (the owner also gets a short notice above the chat). Choose what happens when one is:
