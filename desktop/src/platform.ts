@@ -53,6 +53,9 @@ export function updateMode(platform: NodeJS.Platform, packaged: boolean, env: En
 
 const VERSION = /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/
 
+/** A plain version like 2.0.0-alpha.12 (no "v"). */
+export const isVersion = (v: unknown): v is string => typeof v === 'string' && v.length <= 64 && !v.startsWith('v') && VERSION.test(v)
+
 /** Semver precedence (a < b → negative). Versions that don't parse sort below everything. */
 export function compareVersions(a: string, b: string): number {
   const x = VERSION.exec(a)
@@ -266,10 +269,12 @@ export interface DesktopSettings {
   keepRunning: string[]
   /** Look for new versions on GitHub by itself (on by default: updates fix security problems). */
   updateChecks: boolean
+  /** The version that ran last time, so the splash can say "Updated to X" once. */
+  lastRunVersion: string | null
 }
 
 export const DEFAULT_DESKTOP_SETTINGS: DesktopSettings = {
-  openAtLogin: false, closeToTray: true, hardwareAcceleration: true, activity: false, customGames: [], language: null, keepRunning: [], updateChecks: true,
+  openAtLogin: false, closeToTray: true, hardwareAcceleration: true, activity: false, customGames: [], language: null, keepRunning: [], updateChecks: true, lastRunVersion: null,
 }
 
 export const MAX_CUSTOM_GAMES = 30
@@ -301,6 +306,7 @@ export function parseDesktopSettings(raw: unknown): DesktopSettings {
     openAtLogin: flag('openAtLogin'), closeToTray: flag('closeToTray'), hardwareAcceleration: flag('hardwareAcceleration'),
     activity: flag('activity'), customGames, language: parseLanguage(s.language), updateChecks: flag('updateChecks'),
     keepRunning: Array.isArray(s.keepRunning) ? [...new Set(s.keepRunning.filter(isServerId))].slice(0, MAX_KEEP_RUNNING) : [],
+    lastRunVersion: isVersion(s.lastRunVersion) ? s.lastRunVersion : null,
   }
 }
 
