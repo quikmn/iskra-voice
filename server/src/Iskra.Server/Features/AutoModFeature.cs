@@ -150,6 +150,8 @@ public static class AutoModFeature
         var alertChannel = body.OptionalLong("alertChannelId", min: 1);
         if (alertChannel is { } alertId && (store.GetChannel(alertId) is not { Kind: "text" } alert || !Permissions.CanRead(me, alert)))
             throw RequestException.BadRequest("Alerts can only go to a text channel you can see.");
+        if (alertChannel is { } alertChannelId && store.GetE2ee(alertChannelId) is not null)
+            throw RequestException.BadRequest("Alerts can't go to an end-to-end encrypted channel.");
 
         return new AutoModConfig(
             body.OptionalBool("enabled") ?? false,

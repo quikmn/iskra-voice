@@ -9,6 +9,9 @@ import { Hash, Volume } from '../icons'
 import { StageIcon } from '../stage/stageIcons'
 import { ForumIcon } from '../forums/icons'
 import { DocsIcon } from '../docs/icons'
+import { createEncryptedChannel, readersFor } from '../../state/e2eeChannels'
+import { MAX_CHANNEL_MEMBERS } from '../../core/channelChain'
+import { EncryptedCreateNote, e2eeText } from '../e2ee/E2ee'
 
 export function CreateChannelDialog({ server, categoryId: initialCategory = null, onClose }: { server: ServerState; categoryId?: number | null; onClose: () => void }) {
   const { t } = useTranslation()
@@ -18,22 +21,28 @@ export function CreateChannelDialog({ server, categoryId: initialCategory = null
   const [kind, setKind] = useState<'text' | 'voice' | 'forum' | 'stage' | 'docs'>('text')
   const [readRole, setReadRole] = useState<Role>('member')
   const [writeRole, setWriteRole] = useState<Role>('member')
+  const [encrypted, setEncrypted] = useState(false)
+  const canEncrypt = kind === 'text' || kind === 'voice'
+  const readers = encrypted && canEncrypt ? readersFor(server.key, readRole).length : 0
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const slug = name.trim().toLowerCase().split(/\s+/).filter(Boolean).join('-')
 
   async function create() {
-    if (!slug || busy) return
+    if (!slug || busy || readers > MAX_CHANNEL_MEMBERS) return
     setBusy(true)
     try {
-      const { channel } = await connectionFor(server.key)!.request('channel.create', {
+      const spec = {
         name: slug, kind, readRole, writeRole: ROLES.indexOf(writeRole) < ROLES.indexOf(readRole) ? readRole : writeRole,
         categoryId: categoryId ?? undefined,
-      })
+      }
+      const channel = encrypted && (kind === 'text' || kind === 'voice')
+        ? await createEncryptedChannel(server.key, { ...spec, kind })
+        : (await connectionFor(server.key)!.request('channel.create', spec)).channel
       if (channel.kind === 'text' || channel.kind === 'forum' || channel.kind === 'docs') selectChannel(server.key, channel.id)
       onClose()
     } catch (e) {
-      setError(errorMessage(e))
+      setError(e2eeText(errorMessage(e)))
       setBusy(false)
     }
   }
@@ -45,7 +54,7 @@ export function CreateChannelDialog({ server, categoryId: initialCategory = null
       footer={
         <>
           <button className="button" onClick={onClose}>{t('common.cancel')}</button>
-          <button className="button primary" disabled={!slug || busy} onClick={() => void create()}>{t('common.create')}</button>
+          <button className="button primary" disabled={!slug || busy || readers > MAX_CHANNEL_MEMBERS} onClick={() => void create()}>{t('common.create')}</button>
         </>
       }
     >
@@ -72,6 +81,12 @@ export function CreateChannelDialog({ server, categoryId: initialCategory = null
         <RolePicker label={t('settings.channel.whoCanSee')} value={readRole} onChange={setReadRole} />
         <RolePicker label={kind === 'voice' ? t('settings.channel.whoCanSpeak') : kind === 'stage' ? t('settings.channel.whoCanAsk') : kind === 'docs' ? t('docs.channel.whoCanEdit') : t('settings.channel.whoCanPost')} value={writeRole} onChange={setWriteRole} min={readRole} />
       </div>
+      <label className="checkbox">
+        <input type="checkbox" checked={encrypted && canEncrypt} disabled={!canEncrypt} onChange={(e) => setEncrypted(e.target.checked)} data-testid="e2ee-toggle" />
+        {t('e2ee.create.toggle')}
+      </label>
+      {!canEncrypt && encrypted && <p className="muted small-text">{t('e2ee.create.kinds')}</p>}
+      {encrypted && canEncrypt && <EncryptedCreateNote count={readers} />}
       {categories.length > 0 && (
         <label className="field inline">
           <span>{t('settings.channel.category')}</span>

@@ -469,3 +469,8 @@ export const saveBlocks = (blocks: import('./protocol').BlockEntry[]) => set('bl
 /** A private value kept encrypted at rest (it may quote DMs). */
 export const loadPrivate = <T>(name: string) => getSecret<T>(`productivity:${name}`)
 export const savePrivate = (name: string, value: unknown) => setSecret(`productivity:${name}`, value)
+
+// ── Encrypted channels (see state/e2eeChannels.ts): verified chains, epoch keys and decrypted messages, sealed at rest ──
+export const loadE2ee = <T>(slot: string) => getSecret<T>(`e2ee:${slot}`)
+export const saveE2ee = (slot: string, value: unknown) => setSecret(`e2ee:${slot}`, value)
+export const deleteE2ee = (slot: string) => remove(`e2ee:${slot}`)

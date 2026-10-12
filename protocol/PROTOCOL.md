@@ -9,7 +9,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Servers and channels:** [Requests and events](#requests-and-events) · [Invite links](#invite-links) · [Organizing a server](#organizing-a-server)
 - **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji) · [Stickers](#stickers) · [GIFs](#gifs) · [Saved messages, reminders, scheduled messages and the inbox](#saved-messages-reminders-scheduled-messages-and-the-inbox)
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties)
-- **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Friends](#friends)
+- **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Encrypted channels](#end-to-end-encrypted-channels) · [Friends](#friends)
 - **People and integrations:** [Profiles](#profiles) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) ([phone apps](#native-push-phone-apps)) · [Bots and webhooks](#bots-and-webhooks) · [Presence and voice messages](#presence-and-voice-messages)
 - **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Backups, moving and imports](#backups-moving-and-imports)
@@ -1897,6 +1897,100 @@ can't have. For a server this is ordinary [Web Push](#push-notifications-web-pus
 - **What each party sees.** The Iskra server: the handle, never the device token. The relay: the device token, the sending server's IP address, the time and the size of the encrypted body. Apple and Google: the token, the time and the encrypted body. Nobody but the phone can read the payload (and DMs and group messages never carry their content anyway). The app decrypts it on the device: an iOS Notification Service Extension, or the Android app's messaging service, then shows "Alex in #general: …" locally.
 - **Limits** (per relay location): 20 registrations per minute per IP; 600 pushes per minute per sending IP; 60 pushes per minute per device from all servers together.
 - Delivery to the phone: iOS gets an alert with `mutable-content` (`{ aps, e: <base64 body>, k: "note"|"call" }`, fallback text "New notification" if the extension can't decrypt), calls a VoIP push (`{ e, k: "call" }`, topic `foo.iskra.app.voip`) when the app registered a PushKit token; Android gets an FCM data message `{ e, k }` at high priority.
+
+## End-to-end encrypted channels
+
+A text or voice channel can be made **end-to-end encrypted** when it is created (never later, and never undone). It is
+meant for small private channels: at most **50** people (not bots) may be able to read it. The server stores only
+ciphertext and delivers it only to people who can read the channel; members' apps hold the keys. It reuses the
+[group DM](#group-dms-and-group-calls-end-to-end-encrypted) pieces: a signed membership chain, DM envelopes v2 for
+handing out keys, encrypted attachments, and LiveKit end-to-end encryption for voice.
+
+`Channel` gains `e2ee: { chain, version } | null`. `Message` gains `e2ee: { version, envelope } | null`; in encrypted
+channels `text` is always `""` and `attachments` empty (files travel encrypted inside the envelope).
+
+### The membership chain
+
+The same signed change format as a group's (`payload` + `sig`, `head = b64u(SHA-256(payload))`, `prev`, the full `members`
+after each change), with its own context **`iskra/channel-change/v1`**, `group` = the chain id (16 random bytes, made by
+the creator), up to 50 members, `payload` ≤ 8192 characters, and these actions:
+
+- `create`: version 1, `members = [by, ...targets]`.
+- `add`: by a member; `targets` (≥ 1) not in the chain; `members = old + targets`.
+- `remove`: by a member; `targets` (≥ 1) in the chain, not `by`; `members = old − targets` (order kept).
+- `rekey`: by a member; no targets; same members.
+
+Clients verify every change (signature, `prev`, version, member list, `by` a member) and never take a member list from
+the server. The **server** also checks that changes follow the channel's read permission ([roles and overrides](#roles-and-permissions)):
+`add` only people (not bots) who can read the channel now, `remove` only people who can't (or left the server). A `create`
+must list exactly the people who can read the channel (creator first), else `conflict`. If nobody left in the chain can
+read the channel, someone who can may start a new chain (a `create` with a new id); the old history stays unreadable to them.
+
+### Epoch keys
+
+Every change starts an **epoch** (its version) with a new random 32-byte key, made by whoever made the change and sent with
+it. It is wrapped for every valid, unrevoked device of every member of the new member list (the author's own included) in
+**key envelopes**: [envelope v2](#forward-secrecy-envelope-v2) with
+
+```jsonc
+{ "v": 2, "kind": "channel-key",
+  "header": { "from": "<accountKey>", "chain": "<chain id>", "version": 3, "head": "<head of version 3>", "sentAt": 1760000000000, "id": "<b64u 12>" },
+  "sender": DeviceCert, "nonce": "…", "ct": "…", "keys": [ /* slots as in v2, ≤ 150 per envelope */ ] }
+```
+
+- Associated data: `JSON.stringify(["iskra/channel-key/v1", from, chain, version, head, sentAt, id])`; content `{ "text": "", "group": { "kind": "channel-key", "key": "<b64u 32>" } }`.
+- Receivers accept a key only for a version they verified (with that `head`), only from the member who made that change, with a valid device certificate of theirs.
+- More than 150 devices: several envelopes (the first with the change, the rest with `echan.keys.add`).
+- Keys of different epochs are independent: someone removed at version n never receives the key of n or later, and nobody can derive one epoch's key from another's.
+
+### Messages
+
+```jsonc
+{ "v": 1, "kind": "channel",
+  "header": { "from": "<accountKey>", "chain": "<chain id>", "version": 3, "sentAt": 1760000000000, "id": "<b64u 12>" },
+  "sender": DeviceCert, "nonce": "<b64u 24>", "ct": "<b64u>", "sig": "<b64u 64>" }
+```
+
+- `ad = JSON.stringify(["iskra/channel-msg/v1", from, chain, version, head, sentAt, id])` (`head` of that version, from the verified chain); `ct = XChaCha20-Poly1305(epochKey, nonce, content, ad)`.
+- `sig = Ed25519.sign(deviceSecret, "iskra/channel-msg/v1" || 0x00 || u64be(len(ad)) || ad || u64be(24) || nonce || ct)`: every member holds the epoch key, so the device signature is what proves who wrote it.
+- Content: `{ "text": "…" (≤ 4000), "files"?: [DmFile] }` ([encrypted attachments](#encrypted-dm-attachments); a voice note is a file with `voice`).
+- Receivers check: the header's `from` and `version` equal the message's `author` and `e2ee.version`; the version is in their verified chain and `from` was a member then; the certificate and signature; then decrypt. A message from before this device had a key shows as unreadable, never as text.
+
+### Requests and events
+
+| type | body | result | who |
+|---|---|---|---|
+| `channel.create` | adds `e2ee?: { change, keys: [KeyEnvelope] }` (`kind` text or voice; a `create` change by you; ≥ 1 key envelope for version 1) | | `manageChannels`, and you must be able to read it; > 50 readers: `bad_request`; the readers changed meanwhile: `conflict` |
+| `echan.get` | `channelId, since?` | `{ e2ee: { chain, version, head, members }, changes: [GroupChange + version] (after since), want: { add, remove, full } }` | channel readers |
+| `echan.change` | `channelId, change, keys` (1–64 key envelopes for the new version, ≤ 52 KB each) | `{ e2ee }` | readers who are in the chain (not bots), by the rules above; `conflict` if it changed meanwhile; shares the 10-a-minute `group.change` limit |
+| `echan.keys.add` | `channelId, version` (the current one), `keys` | | whoever made that change; ≤ 64 envelopes per version |
+| `echan.keys` | `channelId, since?` (version, default 1) | `{ keys: [{ version, from, envelope }], hasMore }` (≤ 200; only envelopes with a slot for **this session's device**) | channel readers |
+| `chat.send` | in an encrypted channel (or a thread of one): `channelId, version` (the current one, else `conflict`), `envelope` (≤ 32 KB), `files?` (≤ 10 encrypted uploads), `replyTo?`, `nonce?`; no `text`, `attachments`, `sticker`, `gif`, `voice` | `{ message, nonce }` | writers who are in the chain (`forbidden` otherwise) |
+| `chat.edit` | in an encrypted channel: `id, version, envelope` | `{ message }` | the author |
+| `dm.upload.begin` | adds `channelId` (an encrypted channel whose chain you're in): the file's access list is the chain's members now | | |
+
+| event | body | sent to |
+|---|---|---|
+| `echan.changed` | `{ channelId, e2ee, change }` | the channel's readers |
+| `echan.keys` | `{ channelId, version }` (more key envelopes arrived) | the channel's readers |
+
+- `want` is what the server's permissions say: readers missing from the chain (`add`, at most enough to reach 50; `full` if more are waiting) and chain members who can't read it any more (`remove`). Apps of chain members fix it on `channels`, `member.*` and `roles` events and on connect: the first chain member who is online acts at once, the others a few seconds later (and find nothing left to do). Removals come first.
+- `channel.update` and `channel.overrides.set` are refused (`bad_request`) if more than 50 people could then read an encrypted channel. New members joining and role changes never are: the extra people wait (`full`).
+- A device that has no key for the current version (one linked later, say) makes a `rekey` after a few seconds. When you remove one of your devices, one of your other devices makes a `rekey` in each encrypted channel you're in.
+
+### How other features behave
+
+- **Not available** (refused with `bad_request`, so no plaintext ever reaches the server): webhooks, polls, scheduled messages, forwarding to or from the channel, clips, AutoMod alerts posted there, stickers and GIFs. Bots never count as readers and can't send there (they hold no keys). Docs, forum and stage channels can't be encrypted.
+- **Threads** work, encrypted under the parent channel's chain and epoch keys; their name is always `"thread"` (`thread.update` is refused).
+- **Reactions, pins, replies, deletes and read state** work as usual; they are metadata the server sees (which emoji on which message, which message is pinned or replied to).
+- **Search:** the server leaves encrypted channels out; apps search the messages they decrypted, on the device.
+- **AutoMod and link previews** don't apply: the server can't read the text, and apps never ask for previews of encrypted messages.
+- **Push:** `"New message in #channel"` / `"Open Iskra to read it."`, never content. Replies still push; mentions can't (the server can't see them): apps notify for mentions once they decrypt a message that arrives while they're open.
+- **Reports:** a message report may carry `messages: [{ author, text, at }]`: the reported message's decrypted text, shared by the reporter. Moderators are told it can't be checked.
+- **Edit history** isn't kept for encrypted messages.
+- **Voice:** the LiveKit key is `crypto_kdf_derive_from_key(32, 1, "iskra-vc", epochKey)` in key slot `version mod 16`; on a new epoch everyone in the room switches (frames under the previous key still decrypt during the switch).
+- **Your data:** `data.export` lists `encryptedChannelMessages` (channel, time, version, envelope size) and `encryptedChannels` (the changes you signed), never content. Retention and message deletion delete the envelopes with the messages.
+- **New members** read from the epoch they were added in. Older history isn't shared with them (as in Signal); this version has no way to hand it over.
 
 ## Hi-fi voice channels
 

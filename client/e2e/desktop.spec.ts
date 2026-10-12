@@ -37,7 +37,7 @@ test('the desktop app runs the web app on app:// and can join a server', async (
     const bridge = await page.evaluate(() => Object.keys((window as unknown as { iskraDesktop: object }).iskraDesktop).sort())
     expect(bridge).toEqual([
       'activity', 'attention', 'callAlert', 'cancelHotkeyCapture', 'captureHotkey', 'capturePushToTalkKey', 'download', 'host', 'keychain', 'onActivity', 'onDeepLink',
-      'onHotkey', 'onPickScreen', 'onPushToTalk', 'openSystemSettings', 'pickScreen', 'platform', 'pushToTalkStatus', 'setBadge', 'setHotkeys', 'setLanguage', 'setPushToTalkKey', 'settings',
+      'onHotkey', 'onPickScreen', 'onPushToTalk', 'openSystemSettings', 'passkey', 'pickScreen', 'platform', 'pushToTalkStatus', 'setBadge', 'setHotkeys', 'setLanguage', 'setPushToTalkKey', 'settings',
       'takeDeepLink', 'updates',
     ])
     expect(await page.evaluate(() => typeof (window as unknown as { require?: unknown }).require)).toBe('undefined')

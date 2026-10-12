@@ -13,6 +13,7 @@ public static class ThreadFeature
 {
     public const int MaxNameLength = 100;
     public const int MaxThreadsPerChannel = 1000;
+    public const string EncryptedThreadName = "thread";
     public const int MaxList = 100;
 
     public static void Register(Router router)
@@ -71,7 +72,8 @@ public static class ThreadFeature
         var channel = ChatFeature.ReadableChannel(s, me, root.ChannelId);
         if (channel.Kind != "text") throw RequestException.BadRequest("Threads can only be started from messages in a text channel.");
         if (!Permissions.CanWrite(me, channel)) throw RequestException.Forbidden("You can't start threads in this channel.");
-        var name = ThreadName(body);
+        // Encrypted channels: the server can't keep a name secret, so their threads have none (apps show the first message).
+        var name = E2eeChannelFeature.IsEncrypted(s.World.Store, channel) ? EncryptedThreadName : ThreadName(body);
         if (s.World.Store.ThreadForRoot(root.Id) is not null) throw RequestException.BadRequest("That message already has a thread.");
         if (s.World.Store.ThreadCount(channel.Id) >= MaxThreadsPerChannel)
             throw RequestException.BadRequest("This channel has too many threads. Delete some old ones first.");
@@ -108,6 +110,7 @@ public static class ThreadFeature
     {
         var (thread, _) = ReadableThread(s, me, body.Long("id"));
         RequireManager(s, me, thread);
+        if (s.World.Store.GetE2ee(thread.ParentId) is not null) throw RequestException.BadRequest("Threads in encrypted channels have no name.");
         var name = ThreadName(body);
         AutoModFeature.Check(s, me, s.World.Store.GetChannel(thread.ParentId), name, "thread");
         s.World.Store.RenameThread(thread.Id, name);

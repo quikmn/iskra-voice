@@ -26,7 +26,7 @@ function put(url: string, body: Uint8Array, onProgress: (fraction: number) => vo
 
 /** Encrypts a file for a DM with `peer` (or a group DM: `{ groupId }`) and uploads the ciphertext to `serverKey`. */
 export async function uploadDmFile(
-  serverKey: string, peer: string | { groupId: string }, file: File, onProgress: (fraction: number) => void,
+  serverKey: string, peer: string | { groupId: string } | { channelId: number }, file: File, onProgress: (fraction: number) => void,
   signal?: AbortSignal, voice?: DmFile['voice'],
 ): Promise<DmFile> {
   if (file.size > MAX_DM_FILE_BYTES) throw new Error(t('dms.files.tooBig', { mb: MAX_DM_FILE_BYTES / 1024 / 1024 }))

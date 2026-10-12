@@ -70,6 +70,7 @@ public static class WebhookFeature
     {
         var channel = ChatFeature.ReadableChannel(s, me, id);
         if (channel.Kind != "text") throw RequestException.BadRequest("Webhooks can only post in text channels.");
+        E2eeChannelFeature.RefusePlaintext(s.World.Store, channel, "Webhooks");
         return channel;
     }
 

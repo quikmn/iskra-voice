@@ -1,6 +1,7 @@
 // Pin and thread pieces inside the message list: action buttons, the "N replies" line under a message,
 // the "X pinned a message" note, and the bar shown while looking at older messages.
 import { useState } from 'react'
+import { isEncrypted } from '../../state/e2eeChannels'
 import { createPortal } from 'react-dom'
 import { Trans, useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
@@ -59,6 +60,8 @@ export function NewThreadDialog({ server, message, onClose }: { server: ServerSt
   const suggested = plainText(message.text, { nameOf: (k) => server.members[k]?.name ?? null }).replace(/\s+/g, ' ').trim().slice(0, 40)
   const { t } = useTranslation()
   const [name, setName] = useState(suggested || t('chat.threads.newThread'))
+  // Encrypted channels: the server can't keep a name secret, so their threads have none.
+  const sealed = isEncrypted(server.key, message.channelId)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -66,7 +69,7 @@ export function NewThreadDialog({ server, message, onClose }: { server: ServerSt
     if (!name.trim() || busy) return
     setBusy(true)
     try {
-      const thread = await createThread(server.key, message, name.trim())
+      const thread = await createThread(server.key, message, sealed ? 'thread' : name.trim())
       onClose()
       openThread(server.key, thread.id)
     } catch (e) {
@@ -87,10 +90,12 @@ export function NewThreadDialog({ server, message, onClose }: { server: ServerSt
       }
     >
       <form onSubmit={(e) => { e.preventDefault(); void create() }}>
-        <label className="field">
-          <span>{t('chat.threads.name')}</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={100} autoFocus onFocus={(e) => e.target.select()} />
-        </label>
+        {sealed ? <p className="muted">{t('e2ee.thread.noName')}</p> : (
+          <label className="field">
+            <span>{t('chat.threads.name')}</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} maxLength={100} autoFocus onFocus={(e) => e.target.select()} />
+          </label>
+        )}
         {error && <p className="error-text">{error}</p>}
       </form>
     </Modal>
@@ -107,7 +112,7 @@ export function ThreadSummary({ server, message }: { server: ServerState; messag
   return (
     <button className={`thread-summary ${unread ? 'unread' : ''}`} onClick={() => openThread(server.key, thread.id, thread)}>
       <ThreadIcon size={15} />
-      <span className="thread-name">{thread.name}</span>
+      <span className="thread-name">{isEncrypted(server.key, message.channelId) ? t('e2ee.thread.title') : thread.name}</span>
       <span className="thread-count">{replies}</span>
       {thread.lastMessageAt && <span className="muted" title={fullTime(thread.lastMessageAt)}>· {t('chat.threads.lastReply', { when: relativeTime(thread.lastMessageAt) })}</span>}
       {pings > 0 ? <span className="badge">{pings}</span> : unread > 0 ? <span className="thread-unread-dot" aria-label={t('chat.threads.newReplies')} /> : null}

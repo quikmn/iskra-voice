@@ -42,6 +42,7 @@ public static class PollFeature
     {
         var channel = ChatFeature.ReadableChannel(s, me, body.Long("channelId"));
         if (channel.Kind != "text") throw RequestException.BadRequest("You can't post polls in that channel.");
+        E2eeChannelFeature.RefusePlaintext(s.World.Store, channel, "Polls");
         if (!Permissions.CanWrite(me, channel)) throw RequestException.Forbidden("You can't send messages in this channel.");
 
         var question = Text.Normalize(body.String("question", MaxQuestion * 2), MaxQuestion, allowNewlines: false)

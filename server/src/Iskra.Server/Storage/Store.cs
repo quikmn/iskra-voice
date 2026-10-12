@@ -297,6 +297,7 @@ public sealed partial class Store : IDisposable
         ("clips-1", ClipsMigration),
         ("keylog-1", KeyLogMigration),
         ("docs-1", DocsMigration),
+        ("e2ee-channels-1", E2eeMigration),
         ("hifi-1", HifiMigration),
     ];
 

@@ -3,7 +3,7 @@ import { Trans, useTranslation } from 'react-i18next'
 import { errorMessage } from '../i18n/errors'
 import type { FileInfo, Member } from '../core/protocol'
 import {
-  activeChannelId, connectionFor, discardFailed, loadHistory, notifyTyping, retryAll, retryFailed, sendMessage, uploadFile, useApp,
+  activeChannelId, connectionFor, discardFailed, loadHistory, notifyTyping, retryAll, retryFailed, sendMessage, useApp,
   type PendingMessage, type ServerState,
 } from '../state/store'
 import { Attachments, LinkPreviewCard, Reactions, ReactionPicker, ReplyLine } from './chat/MessageExtras'
@@ -19,6 +19,8 @@ import { formatNumber } from '../i18n/format'
 import type { Panel } from './Shell'
 import { Close, FileIcon, Hash, Menu, Paperclip, Pencil, Reply, Send, Smile, Trash, Users, Volume, WifiOff } from './icons'
 import { HeaderTools } from './chat/HeaderTools'
+import { EncryptedBits, EncryptionButton, LockBadge, e2eeText, useEncryptedWriteBlock } from './e2ee/E2ee'
+import { editEncrypted, isEncrypted, uploadFor } from '../state/e2eeChannels'
 import { MessageActionSheet } from './chat/MessageActionSheet'
 import { useLongPress } from './chat/useLongPress'
 import { JumpToPresent, MessageMenuExtras, PinnedMark, PinNoteRow, ThreadSummary } from './chat/PinThreadBits'
@@ -63,6 +65,7 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
   const channel = server.channels.find((c) => c.id === channelId)
   const roles = useServerRoles(server.key)
   const canWrite = !!channel && canSendIn(server.me, channel, roles)
+  const writeBlock = useEncryptedWriteBlock(server, channel?.id ?? -1)
   const { t } = useTranslation()
 
   useEffect(() => {
@@ -95,12 +98,14 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
           <h1>
             <span className="hash">{channel.kind === 'voice' || channel.kind === 'stage' ? <Volume size={20} /> : <Hash size={20} />}</span>
             {channel.name}
+            <LockBadge channel={channel} size={14} />
           </h1>
         ) : (
           <h1>{server.name}</h1>
         )}
         <span className="spacer" />
         <HeaderTools key={channel?.id} server={server} channel={channel} />
+        <EncryptionButton server={server} channel={channel} />
         <ChannelSettingsButton server={server} channel={channel} />
         <button className="icon-button members-toggle" onClick={() => onToggle('members')} aria-label={t('chat.view.members')} title={t('chat.view.members')}>
           <Users />
@@ -113,7 +118,9 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
         <>
           <MessageList key={channel.id} server={server} channelId={channel.id} />
           <TypingLine server={server} channelId={channel.id} />
-          {canWrite ? (
+          {canWrite && writeBlock ? (
+            <div className="composer read-only e2ee-waiting" data-testid="e2ee-waiting">{writeBlock}</div>
+          ) : canWrite ? (
             <Composer server={server} channelId={channel.id} channelName={channel.name} />
           ) : (
             <div className="composer read-only">{t('chat.view.readOnly')}</div>
@@ -283,7 +290,7 @@ function MessageRow({
   const [picking, setPicking] = useState(false)
   const [sheet, setSheet] = useState(false)
   const [forwarding, setForwarding] = useState(false)
-  const canForward = !message.tempId && !message.poll && (!!message.text || message.attachments.length > 0)
+  const canForward = !message.tempId && !message.poll && !message.e2ee && (!!message.text || message.attachments.length > 0)
   const canEdit = mine && !!message.text && !message.poll
   const longPress = useLongPress(() => setSheet(true), !message.tempId && !editing)
   const [error, setError] = useState<string | null>(null)
@@ -358,8 +365,9 @@ function MessageRow({
         {message.sticker && <StickerMessage server={server} sticker={message.sticker} />}
         {message.gif && <GifMessage server={server} gif={message.gif} />}
         {message.voice ? <VoiceMessage server={server} message={message} /> : <Attachments server={server} files={message.attachments} />}
+        <EncryptedBits message={message} />
         {message.webhook && <Embeds server={server} embeds={message.webhook.embeds} />}
-        {!message.tempId && firstLink(message.text) && <LinkPreviewCard server={server} url={firstLink(message.text)!} />}
+        {!message.tempId && !message.e2ee && firstLink(message.text) && <LinkPreviewCard server={server} url={firstLink(message.text)!} />}
         <ImportedExtras server={server} message={message} />
         <Reactions server={server} message={message} />
         <ThreadSummary server={server} message={message} />
@@ -428,10 +436,12 @@ function EditBox({ server, message, onDone }: { server: ServerState; message: Pe
     const trimmed = text.trim()
     if (!trimmed || trimmed === original) return onDone()
     try {
-      await connectionFor(server.key)?.request('chat.edit', { id: message.id, text: encodeEmoji(encodeMentions(trimmed, Object.values(server.members), roles.filter((r) => canMentionRole(server.me ?? undefined, r, roles))), emojis) })
+      const encoded = encodeEmoji(encodeMentions(trimmed, Object.values(server.members), roles.filter((r) => canMentionRole(server.me ?? undefined, r, roles))), emojis)
+      if (message.e2ee) await editEncrypted(server.key, message, encoded)
+      else await connectionFor(server.key)?.request('chat.edit', { id: message.id, text: encoded })
       onDone()
     } catch (e) {
-      setError(errorMessage(e))
+      setError(e2eeText(errorMessage(e)))
     }
   }
 
@@ -501,7 +511,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
   function startUpload(item: PendingUpload) {
     const update = (patch: Partial<PendingUpload>) =>
       setUploads((list) => list.map((u) => (u.localId === item.localId ? { ...u, ...patch } : u)))
-    uploadFile(server.key, item.file, (progress) => update({ progress }), item.abort.signal)
+    uploadFor(server.key, channelId, item.file, (progress) => update({ progress }), item.abort.signal)
       .then((result) => update({ result, progress: 1 }))
       .catch((e: Error) => e.name !== 'AbortError' && update({ error: errorMessage(e) }))
   }
@@ -581,7 +591,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
   }
 
   async function sendVoice(recording: Recording) {
-    const file = await uploadFile(server.key, recording.file, () => {})
+    const file = await uploadFor(server.key, channelId, recording.file, () => {})
     setReply(server.key, channelId, null)
     if (server.detached?.[channelId]) await jumpToPresent(server.key, channelId)
     await sendMessage(server.key, channelId, '', { attachments: [file], replyTo, voice: { duration: recording.duration, waveform: recording.waveform } })
@@ -629,9 +639,11 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
       <button className="icon-button attach-button" onClick={() => fileInput.current?.click()} aria-label={t('chat.composer.attach')} title={t('chat.composer.attach')} disabled={!online}>
         <Paperclip />
       </button>
-      <button className="icon-button attach-button" onClick={() => setPollOpen(true)} aria-label={t('chat.composer.poll')} title={t('chat.composer.poll')} disabled={!online}>
-        <PollIcon />
-      </button>
+      {!isEncrypted(server.key, channelId) && (
+        <button className="icon-button attach-button" onClick={() => setPollOpen(true)} aria-label={t('chat.composer.poll')} title={t('chat.composer.poll')} disabled={!online}>
+          <PollIcon />
+        </button>
+      )}
       <input
         ref={fileInput}
         type="file"

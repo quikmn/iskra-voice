@@ -88,7 +88,7 @@ test('block, timeout, slowmode and the audit log', async ({ browser }) => {
   await send(friend, 'slow and steady')
   await expect(friend.locator('[id^="msg-"] .message-text', { hasText: 'slow and steady' })).toBeVisible()
   await expect(friend.locator('.slowmode-chip.waiting')).toHaveText(/0:\d\d/)
-  await expect(friend.getByRole('button', { name: 'Send' })).toBeDisabled()
+  await expect(friend.getByRole('button', { name: 'Send', exact: true })).toBeDisabled()
   await friend.screenshot({ path: join(SHOTS, 'moderation-slowmode.png') })
   await send(host, 'admin one')
   await send(host, 'admin two')

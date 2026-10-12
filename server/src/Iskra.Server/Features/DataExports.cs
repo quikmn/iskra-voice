@@ -137,6 +137,17 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
             SELECT m.id, m.channel_id, c.name AS channel_name, m.author_key, m.text, m.created_at, m.edited_at, m.attachments, m.reply_to
             FROM messages m LEFT JOIN channels c ON c.id = m.channel_id WHERE m.author_key {Mine} ORDER BY m.id;
             """);
+        // Encrypted channels: the server only has ciphertext, so only which channel, when, which key version and how big.
+        Section("encryptedChannelMessages", $"""
+            SELECT m.id, m.channel_id, c.name AS channel_name, e.version, length(e.envelope) AS envelope_bytes, m.created_at, m.edited_at
+            FROM messages m JOIN e2ee_messages e ON e.message_id = m.id LEFT JOIN channels c ON c.id = m.channel_id
+            WHERE m.author_key {Mine} ORDER BY m.id;
+            """);
+        Section("encryptedChannels", $"""
+            SELECT e.channel_id, c.name AS channel_name, e.version, x.version AS changed_at_version, x.created_at
+            FROM e2ee_changes x JOIN e2ee_channels e ON e.channel_id = x.channel_id LEFT JOIN channels c ON c.id = e.channel_id
+            WHERE x.by_key {Mine} ORDER BY x.channel_id, x.version;
+            """);
         Section("editHistory", $"""
             SELECT e.message_id, e.text, e.written_at FROM message_edits e JOIN messages m ON m.id = e.message_id
             WHERE m.author_key {Mine} ORDER BY e.id;
@@ -191,6 +202,9 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         - messages, editHistory, reactions, pollVotes, eventInterest, uploads, invitesCreated: what you wrote and shared in server
           channels (editHistory: earlier versions of your edited messages).
           Uploaded files are listed by name, size and type; open them in the app or ask the owner for a full backup.
+        - encryptedChannelMessages, encryptedChannels: messages in end-to-end encrypted channels are listed without their
+          (unreadable) content: channel, time, key version and size. encryptedChannels lists the membership changes your
+          app signed there. Their content is on your devices.
         - docsPages, docsRevisions: docs pages you made or last edited, and every saved version of a page you wrote
           (older versions may have gone: the server keeps 50 per page).
         - directMessages, groups, groupMessagesSent: your direct messages and group chats are end-to-end encrypted, so the

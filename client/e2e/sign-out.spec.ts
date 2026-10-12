@@ -29,8 +29,8 @@ test('signing out of the only device warns first, can leave the servers, and lan
   await dialog.getByLabel('I understand this account will be gone for good').check()
   await confirm.click()
 
-  // A fresh start: both choices, side by side.
-  await expect(temp.getByRole('button', { name: /I’m new to Iskra/ })).toBeVisible()
+  // A fresh start: both choices, side by side (leaving, wiping and reloading can be slow on a busy CI runner).
+  await expect(temp.getByRole('button', { name: /I’m new to Iskra/ })).toBeVisible({ timeout: 20_000 })
   await expect(temp.getByRole('button', { name: /I already use Iskra on another device/ })).toBeVisible()
   await temp.screenshot({ path: join(SHOTS, 'onboarding-choice.png') })
   // Temp left the server.

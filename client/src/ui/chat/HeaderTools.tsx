@@ -1,5 +1,6 @@
 // Channel header tools: threads and pinned messages (popovers) and the search box.
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { prepareChannel, readable } from '../../state/e2eeChannels'
 import { useTranslation } from 'react-i18next'
 import type { Channel, Pin, Thread } from '../../core/protocol'
 import { errorMessage } from '../../i18n/errors'
@@ -105,8 +106,9 @@ export function PinList({ server, channelId, onJump }: { server: ServerState; ch
 
   useEffect(() => {
     let alive = true
-    loadPins(server.key, channelId)
-      .then((list) => alive && setPins(list))
+    // Encrypted channels: the chain and keys are loaded first, so pinned messages decrypt on the device right away.
+    Promise.all([loadPins(server.key, channelId), prepareChannel(server.key, channelId).catch(() => {})])
+      .then(([list]) => alive && setPins(list.map((p) => ({ ...p, message: readable(server.key, p.message) }))))
       .catch((e: Error) => alive && setError(errorMessage(e)))
     return () => {
       alive = false

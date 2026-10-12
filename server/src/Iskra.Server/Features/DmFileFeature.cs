@@ -40,6 +40,11 @@ public static class DmFileFeature
             var group = GroupFeature.Mine(s, me, groupId);
             readers = [.. group.Members];
         }
+        else if (body.OptionalLong("channelId") is { } channelId)
+        {
+            // An encrypted channel: everyone in its chain now.
+            readers = E2eeChannelFeature.UploadReaders(s, me, channelId);
+        }
         else
         {
             var key = body.String("accountKey", 64);

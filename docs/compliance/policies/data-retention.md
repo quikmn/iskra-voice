@@ -16,6 +16,7 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 |---|---|---|---|
 | Server channel messages (with reactions, pins, threads' messages) | Until deleted by the author, a moderator, account deletion, or the retention period | `RetentionSweeper` (hourly) | `server.json` → `Retention.MessagesDays` (0 = keep), Settings → Security log → Data retention (owner) |
 | DM and group chat envelopes (end-to-end encrypted) | Same as messages; deleted with the account | `RetentionSweeper`; account deletion | `Retention.MessagesDays` |
+| Encrypted channel envelopes, signed membership changes and channel key envelopes (end-to-end encrypted) | Envelopes: same as the message they belong to; membership changes and key envelopes: as long as the channel | `RetentionSweeper` and message deletion (envelopes go with their message); channel deletion | `Retention.MessagesDays` |
 | Keys protecting DM envelopes (prekeys) | Replaced weekly, deleted 30 days later (≈5 weeks); afterwards old envelopes can't be decrypted | Client and server prekey rotation | No |
 | Uploaded files still in use | Until their message/avatar/etc. is deleted, or the retention period (files used by avatars, emoji, stickers, sounds, events and webhooks are kept) | `RetentionSweeper` | `Retention.UploadsDays` (0 = keep) |
 | Uploads nothing uses | 24 hours | `UploadSweeper` | No |

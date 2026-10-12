@@ -257,6 +257,10 @@ public static partial class RoleFeature
         var allow = ParseChannelPerms(body, "allow");
         var deny = ParseChannelPerms(body, "deny");
         if ((allow & deny) != ChannelPerm.None) throw RequestException.BadRequest("A permission can't be both allowed and denied.");
+        E2eeChannelFeature.CheckCapacity(s.World.Store, channel with
+        {
+            Overrides = [.. channel.Overrides.Where(o => o.RoleId != role.Id), .. (allow | deny) == ChannelPerm.None ? [] : new[] { new ChannelOverride(role.Id, allow, deny) }],
+        });
 
         s.World.Store.SetOverride(channel.Id, role.Id, allow, deny);
         Audit.Record(s, "channel.overrides", details: new
@@ -265,7 +269,7 @@ public static partial class RoleFeature
         });
         AccessChanged(s, []);
         var updated = s.World.Store.GetChannel(channel.Id)!;
-        return new { channel = Hub.PublicChannel(updated, s.World.Store.Slowmode(channel.Id), s.World.Store.UserLimit(channel.Id), s.World.Store.IsHifi(channel.Id)) };
+        return new { channel = Hub.PublicChannel(updated, s.World.Store.Slowmode(channel.Id), s.World.Store.UserLimit(channel.Id), E2eeChannelFeature.Info(s.World.Store, channel.Id), s.World.Store.IsHifi(channel.Id)) };
     }
 
     // ── Voice moderation ─────────────────────────────────────────────────────

@@ -1102,7 +1102,7 @@ export interface Requests {
 // ── encrypted DM attachments ──
 
 export interface Requests {
-  'dm.upload.begin': [{ accountKey?: string; groupId?: string; size: number }, { url: string; maxBytes: number }]
+  'dm.upload.begin': [{ accountKey?: string; groupId?: string; channelId?: number; size: number }, { url: string; maxBytes: number }]
   'dm.file.url': [{ id: string }, { url: string; size: number }]
 }
 
@@ -1595,6 +1595,46 @@ export interface Requests {
   'keylog.head': [Record<string, never>, { head: KeyLogHead }]
   'keylog.entries': [{ after?: number; limit?: number }, { entries: { seq: number; data: string }[]; head: KeyLogHead }]
   'keylog.alert': [{ kind: string; seq?: number }, Record<string, never>]
+}
+
+// ── encrypted channels ──
+
+/** On a Channel: set when the channel is end-to-end encrypted (its chain id and current version). */
+export interface ChannelE2ee {
+  chain: string
+  version: number
+}
+
+export interface Channel {
+  e2ee?: ChannelE2ee | null
+}
+
+export interface Message {
+  /** Encrypted channels: the envelope (core/channelChain.ts) and the chain version it was encrypted for; `text` is "". */
+  e2ee?: { version: number; envelope: import('./channelChain').ChannelEnvelope } | null
+}
+
+export interface WireChannelChain {
+  chain: string
+  version: number
+  head: string
+  members: string[]
+}
+
+export interface Events {
+  'echan.changed': { channelId: number; e2ee: WireChannelChain; change: import('./group').GroupChange & { version: number } }
+  'echan.keys': { channelId: number; version: number }
+}
+
+export interface Requests {
+  'echan.get': [{ channelId: number; since?: number }, {
+    e2ee: WireChannelChain
+    changes: (import('./group').GroupChange & { version: number })[]
+    want: { add: string[]; remove: string[]; full: boolean }
+  }]
+  'echan.change': [{ channelId: number; change: import('./group').GroupChange; keys: import('./channelChain').ChannelKeyEnvelope[] }, { e2ee: WireChannelChain }]
+  'echan.keys.add': [{ channelId: number; version: number; keys: import('./channelChain').ChannelKeyEnvelope[] }, Record<string, never>]
+  'echan.keys': [{ channelId: number; since?: number }, { keys: { version: number; from: string; envelope: import('./channelChain').ChannelKeyEnvelope }[]; hasMore: boolean }]
 }
 
 // ── hi-fi voice channels ──

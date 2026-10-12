@@ -1,6 +1,7 @@
 // Where catch-up gets its messages: a channel, thread or forum post (fetched from the server from the first unread
 // message on), or a DM or group DM (already decrypted on this device; nothing is sent anywhere).
 import type { Message } from '../../core/protocol'
+import { prepareChannel, readable } from '../../state/e2eeChannels'
 import { b64u } from '../../core/crypto'
 import type { CatchUpMessage } from '../../state/catchupLogic'
 import type { MessageRef } from '../../state/readState'
@@ -60,7 +61,10 @@ async function loadChannel(serverKey: string, channelId: number, from: MessageRe
   for (let page = 0; page < MAX_SPAN / PAGE; page++) {
     if (signal.aborted) throw new DOMException('Cancelled', 'AbortError')
     const { messages, hasMore } = await connection.request('chat.history', { channelId, after, limit: PAGE })
-    for (const m of messages) {
+    // Encrypted channels: decrypted here, on the device (catch-up never leaves it).
+    if (page === 0) await prepareChannel(serverKey, channelId).catch(() => {})
+    for (const raw of messages) {
+      const m = readable(serverKey, raw)
       const author = server.members[m.author]
       const webhook = !!m.webhook
       const mentioned = !!server.me && (mentions(m.text, me, canPingGroups(author, roles, webhook)) || mentionsMyRole(m.text, server.me, author, roles, webhook))

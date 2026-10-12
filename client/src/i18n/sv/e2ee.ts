@@ -1,0 +1,58 @@
+import type { Messages } from '../types'
+
+export const e2ee: Messages['e2ee'] = {
+  badge: 'Krypterad från ände till ände',
+  create: {
+    toggle: 'Krypterad från ände till ände',
+    hint: 'Bara de som kan se kanalen kan läsa den, på sina egna enheter. Servern sparar meddelanden som den inte kan läsa.',
+    limits: 'Gjord för små privata kanaler (upp till {{max}} personer). Nya medlemmar kan inte läsa meddelanden från innan de gick med, sökning fungerar bara på din enhet, och webhooks, bottar, omröstningar, stickers, GIF:ar och vidarebefordran går inte att använda. Det går inte att stänga av i efterhand.',
+    kinds: 'Bara text- och röstkanaler kan krypteras.',
+    count_one: '{{count}} person kommer att kunna läsa den.',
+    count_other: '{{count}} personer kommer att kunna läsa den.',
+    tooMany: '{{count}} personer skulle kunna se kanalen, och en krypterad kanal rymmer {{max}}. Välj en högre nivå för vem som kan se den.',
+  },
+  panel: {
+    open: 'Kryptering',
+    title: 'Kryptering',
+    intro: 'Meddelanden här krypteras på din enhet. Bara de här personernas enheter har nyckeln:',
+    you: 'du',
+    version: 'Nyckelversion {{version}}',
+    safetyNumber: 'Säkerhetsnummer',
+    warning: 'Nyckelvarning',
+    full: 'Fler kan se kanalen än vad som får plats. Resten väntar tills det finns plats.',
+    rekey: 'Dela ut en ny nyckel',
+    rekeyHint: 'Gör det här om en enhet som kunde läsa kanalen har kommit bort. Alla i kanalen får den nya nyckeln automatiskt.',
+    rekeyDone: 'En ny nyckel har delats ut.',
+    metadata: 'Servern ser fortfarande vilka som är med i kanalen, vem som skriver och när, hur stora meddelandena är, reaktioner, fästa meddelanden och svar.',
+    problem: 'Kanalens kryptering gick inte att kontrollera: {{problem}}',
+  },
+  waiting: 'Väntar på att någon i kanalen delar nyckeln med dig. Det sker automatiskt när någon av dem är online.',
+  message: {
+    pending: 'Avkrypterar …',
+    noKey: 'Krypterat innan du kunde läsa kanalen (eller innan den här enheten lades till), så det går inte att läsa här.',
+    error: 'Meddelandet gick inte att avkryptera.',
+  },
+  search: {
+    local: 'Krypterade kanaler söks bara på den här enheten, i de meddelanden den har avkrypterat.',
+  },
+  report: {
+    share: 'Dela vad meddelandet säger med moderatorerna',
+    shareHint: 'Bara medlemmar kan läsa kanalen, så moderatorerna ser texten du delar och kan inte kontrollera den mot servern.',
+  },
+  thread: {
+    title: 'Tråd',
+    noName: 'Trådar i krypterade kanaler har inget namn, så servern får inte veta något om dem.',
+  },
+  voice: {
+    noKey: 'Du kan inte gå med än: den här enheten har inte kanalens nyckel.',
+  },
+  errors: {
+    noKey: 'Den här enheten har inte kanalens nyckel än.',
+    stickers: 'Stickers och GIF:ar går inte att skicka i krypterade kanaler än.',
+    missingFile: 'En bilaga saknas. Bifoga den igen.',
+    notReady: 'Kanalen är inte redo än.',
+    offline: 'Servern är inte ansluten just nu.',
+    tooMany: 'Högst 50 personer kan vara med i en krypterad kanal.',
+    notEncrypted: 'Det här är inte en krypterad kanal.',
+  },
+}
