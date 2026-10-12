@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { roleRank } from '../core/protocol'
 import { has } from '../state/permissions'
 import { useServerRoles } from '../state/roles'
-import { useApp, type ServerState } from '../state/store'
+import { failedJoin, useApp, type ServerState } from '../state/store'
 import { useThreads } from '../state/threads'
 import { VoiceBar } from './VoiceBar'
 import { MeStatusButton } from './presence/Presence'
@@ -81,6 +81,7 @@ function ConnectionPill({ server }: { server: ServerState }) {
   if (status.state === 'online') return null
   const label =
     status.state === 'connecting' ? t('app.sidebar.connecting')
+      : failedJoin(server) && status.state === 'offline' ? t('app.sidebar.notReached')
       : status.state === 'offline' ? t('app.sidebar.reconnectingIn', { seconds: Math.ceil(status.retryInMs / 1000) })
         : status.state === 'restarting' ? t('app.sidebar.restarting')
         : t('app.sidebar.noAccess')

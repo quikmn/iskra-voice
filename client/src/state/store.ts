@@ -48,6 +48,8 @@ export interface ServerState {
   publicUrl: string | null
   /** Channels showing an older stretch of history after a jump; new messages wait until you return to the present. */
   detached?: Record<number, boolean>
+  /** Added from an invite and never connected yet: if it can't be reached it isn't kept (see dropFailedJoins). */
+  joining?: boolean
 }
 
 interface AppState {
@@ -170,7 +172,7 @@ export async function boot(): Promise<void> {
     return
   }
   useApp.setState({ phase: 'ready', identity, profile })
-  for (const server of saved) connectServer(server.url, server.serverKey, server.name, server.invite)
+  for (const server of saved) connectServer(server.url, server.serverKey, server.name, server.invite, !!server.invite)
   if (saved.length) useApp.setState({ activeServer: saved[0].serverKey })
 }
 
@@ -210,7 +212,7 @@ export function acceptInvite(invite: InviteLink): void {
     useApp.setState({ activeServer: invite.serverKey })
     return
   }
-  connectServer(invite.serverUrl, invite.serverKey, invite.serverUrl.replace(/^https?:\/\//, ''), invite.code)
+  connectServer(invite.serverUrl, invite.serverKey, invite.serverUrl.replace(/^https?:\/\//, ''), invite.code, true)
   useApp.setState({ activeServer: invite.serverKey })
   void persistServers().then(async () => {
     // Remember the invite until the first successful join, in case the tab closes mid-way.
@@ -245,7 +247,7 @@ export function moveServer(key: string, url: string, name?: string): void {
   void persistServers()
 }
 
-function connectServer(url: string, key: string, name: string, invite?: string): void {
+function connectServer(url: string, key: string, name: string, invite?: string, joining = false): void {
   const { identity } = useApp.getState()
   if (!identity) return
   connections.get(key)?.stop()
@@ -257,6 +259,7 @@ function connectServer(url: string, key: string, name: string, invite?: string):
       [key]: state.servers[key] ?? {
         key, url, name, status: { state: 'connecting' }, me: null, channels: [], members: {},
         messages: {}, hasMore: {}, typing: {}, voice: {}, voiceAvailable: false, appUrl: null, publicUrl: null,
+        ...(joining ? { joining } : {}),
       },
     },
   }))
@@ -289,10 +292,24 @@ export function retryAll(): void {
   for (const connection of connections.values()) connection.retryNow()
 }
 
+export function retryServer(key: string): void {
+  connections.get(key)?.retryNow()
+}
+
+/** A join that couldn't reach its server (or was turned away) shows its error while you look at it, and is gone once you go elsewhere. */
+export const failedJoin = (server: ServerState | undefined): boolean =>
+  !!server?.joining && (server.status.state === 'offline' || server.status.state === 'rejected')
+
+function dropFailedJoins(state: AppState): void {
+  for (const [key, server] of Object.entries(state.servers)) if (failedJoin(server) && state.activeServer !== key) leaveServer(key)
+}
+useApp.subscribe(dropFailedJoins)
+
 function onWelcome(key: string, welcome: Welcome): void {
   const before = useApp.getState().servers[key]
   patchServer(key, () => ({
     name: welcome.server.name,
+    joining: false,
     me: welcome.you,
     channels: welcome.channels,
     members: Object.fromEntries(welcome.members.map((m) => [m.accountKey, m])),

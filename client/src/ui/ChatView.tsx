@@ -3,7 +3,7 @@ import { Trans, useTranslation } from 'react-i18next'
 import { errorMessage } from '../i18n/errors'
 import type { FileInfo, Member } from '../core/protocol'
 import {
-  activeChannelId, connectionFor, discardFailed, loadHistory, notifyTyping, retryAll, retryFailed, sendMessage, useApp,
+  activeChannelId, connectionFor, discardFailed, loadHistory, notifyTyping, failedJoin, leaveServer, retryAll, retryFailed, retryServer, sendMessage, useApp,
   type PendingMessage, type ServerState,
 } from '../state/store'
 import { Attachments, LinkPreviewCard, Reactions, ReactionPicker, ReplyLine } from './chat/MessageExtras'
@@ -58,6 +58,7 @@ import { useSendLater } from './productivity/SendLater'
 import { ClipNoticeRow } from './clips/ClipNotice'
 import { conversationLabel } from '../state/threads'
 import { messageListKeys, useAnnounceNew } from './a11y'
+import { useQueuedSend } from './chat/QueuedSend'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -113,9 +114,9 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
         </button>
       </header>
 
-      <ConnectionBanner server={server} />
+      {failedJoin(server) ? <JoinFailed server={server} /> : <ConnectionBanner server={server} />}
 
-      {channel ? (
+      {failedJoin(server) ? null : channel ? (
         <>
           <MessageList key={channel.id} server={server} channelId={channel.id} />
           <TypingLine server={server} channelId={channel.id} />
@@ -138,6 +139,27 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
           ) : <Spinner />}
         </div>
       )}
+    </div>
+  )
+}
+
+/** A first join that didn't get through: say why, and offer to try again or remove it (it isn't kept otherwise). */
+function JoinFailed({ server }: { server: ServerState }) {
+  const { t } = useTranslation()
+  const { status } = server
+  let host = server.url
+  try {
+    host = new URL(server.url).host
+  } catch { /* shown as given */ }
+  return (
+    <div className="empty-state join-failed" role="alert">
+      <span className="empty-icon"><WifiOff size={32} /></span>
+      <h1>{t('chat.view.joinFailedTitle')}</h1>
+      <p>{status.state === 'rejected' ? errorMessage(status) : t('chat.view.joinFailed', { host })}</p>
+      <div className="join-failed-actions">
+        {status.state !== 'rejected' && <button className="button primary" onClick={() => retryServer(server.key)}>{t('common.tryAgain')}</button>}
+        <button className="button" onClick={() => leaveServer(server.key)}>{t('common.remove')}</button>
+      </div>
     </div>
   )
 }
@@ -516,6 +538,9 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
   const timedOut = useTimedOut(server)
   const mustAgree = useMustAgree(server.key)
   const canSend = writable && !uploading && slowmode.wait === 0 && (text.trim().length > 0 || ready.length > 0)
+  // Enter during an upload waits for it instead of doing nothing.
+  const canQueue = writable && uploading && slowmode.wait === 0
+  const queue = useQueuedSend(uploads.map((u) => ({ done: !!u.result, failed: !!u.error })), () => submit())
 
   function startUpload(item: PendingUpload) {
     const update = (patch: Partial<PendingUpload>) =>
@@ -607,7 +632,10 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
   }
 
   function submit() {
-    if (!canSend) return
+    if (!canSend) {
+      if (canQueue) queue.queue()
+      return
+    }
     const trimmed = encodeEmoji(encodeMentions(text.trim(), Object.values(server.members), mentionableRoles), emojis)
     setText('')
     for (const u of uploads) if (u.preview) URL.revokeObjectURL(u.preview)
@@ -646,6 +674,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
           ))}
         </div>
       )}
+      {queue.bar}
     <div className="composer">
       <button className="icon-button attach-button" onClick={() => fileInput.current?.click()} aria-label={t('chat.composer.attach')} title={t('chat.composer.attach')} disabled={!online}>
         <Paperclip />
@@ -742,7 +771,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
       {!text.trim() && uploads.length === 0 && voiceRecordingSupported() && <VoiceRecordButton onSend={sendVoice} disabled={!online} />}
       <SlowmodeChip seconds={slowmode.seconds} wait={slowmode.wait} />
       {later.button}
-      <button className="send-button" onClick={submit} disabled={!canSend} aria-label={t('common.send')} {...later.sendProps}>
+      <button className="send-button" onClick={submit} disabled={!canSend && !canQueue} aria-label={t('common.send')} {...later.sendProps}>
         <Send />
       </button>
     </div>

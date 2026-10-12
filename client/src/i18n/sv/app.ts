@@ -50,6 +50,7 @@ export const app: Messages['app'] = {
     inviteFriends: 'Bjud in vänner',
     connecting: 'Ansluter…',
     reconnectingIn: 'Ansluter igen om {{seconds}} s',
+    notReached: 'Kunde inte nås',
     restarting: 'Startar om…',
     noAccess: 'Ingen åtkomst',
     notJoined: 'inte med',

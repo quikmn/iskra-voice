@@ -49,6 +49,7 @@ export const app = {
     inviteFriends: 'Invite friends',
     connecting: 'Connecting…',
     reconnectingIn: 'Reconnecting in {{seconds}}s',
+    notReached: "Couldn't reach it",
     restarting: 'Restarting…',
     noAccess: 'No access',
     notJoined: 'not joined',

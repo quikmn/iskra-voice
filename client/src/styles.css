@@ -798,3 +798,10 @@ input.confirm-code::placeholder { color: var(--muted); }
 .sign-out-leave { margin-top: 14px; align-items: flex-start; }
 .sign-out-leave > span { display: grid; gap: 2px; }
 .sign-out-leave small { font-size: 12px; }
+
+/* ── UX fixes: queued send while uploading ── */
+.queued-send { margin: 0 16px; padding: 6px 12px; background: var(--surface-2); border-top: 1px solid var(--border); font-size: 13px; color: var(--text-2); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.queued-send:first-child { border-top: 0; border-radius: 10px 10px 0 0; }
+
+/* ── UX fixes: a first join that couldn't reach its server ── */
+.join-failed-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
