@@ -17,7 +17,7 @@ Free, no ads, no tracking, no paywalls. Your server is a folder you can copy.</p
 
 ## Why Iskra
 
-- **Free, for real.** Nothing is behind a paywall: big file uploads, screen sharing at 1080p 60 fps, the soundboard, profiles and themes are there for everyone. No ads, no tracking, no tiers.
+- **Free, for real.** Nothing is behind a paywall: big file uploads, screen sharing at full resolution and 60 fps, the soundboard, profiles and themes are there for everyone. No ads, no tracking, no tiers.
 - **Your server, your data.** Your group's server runs on a computer you choose, and everything lives in one folder you can back up, move or delete. Members' apps talk to their own server, not to us.
 - **Donations only.** If you like it, you can [buy me a coffee](https://ko-fi.com/vlundgren) or [donate with PayPal](https://paypal.me/iskrafoo). You never have to.
 
@@ -38,7 +38,7 @@ Everything step by step, including port forwarding and carrier-grade NAT: the [h
 - **Forums, events and docs:** forum channels with tags, search and "new" markers; scheduled events with reminders, "Interested" and add to calendar; docs channels for guides, FAQs and notes, with page history and search.
 - **Threads, pins and search:** side conversations off any message, pinned messages per channel, and fast search with filters that jumps straight to the result.
 - **Polls, custom emoji, stickers, GIFs and a soundboard:** server emoji and stickers, a GIF picker (KLIPY), quick polls, and a soundboard with sounds of any length.
-- **Voice channels:** low-latency voice for big groups (LiveKit) with a text chat in every voice channel, push-to-talk and mute/deafen keybinds that work while a game has focus, per-person volume, user limits per channel, and camera and screen sharing with sound, at 1080p 60 fps by default. Save a **clip** of the last seconds of a call; it's recorded on your own device, and everyone can see who has clips on.
+- **Voice channels:** low-latency voice for big groups (LiveKit) with a text chat in every voice channel, push-to-talk and mute/deafen keybinds that work while a game has focus, per-person volume, user limits per channel, and camera and screen sharing with sound, at your screen's own resolution and 60 fps by default. Save a **clip** of the last seconds of a call; it's recorded on your own device, and everyone can see who has clips on.
 - **Sound that just works:** AI noise removal (DeepFilterNet3), voice detection that doesn't cut off your first word (Silero VAD), voices evened out so nobody is too loud or too quiet, optional clean-up of other people's noisy mics, and audio that rides out lost packets. Admins can allow **hi-fi** (stereo, 128 kbps, unprocessed) in a channel for music and instruments.
 - **Camera and captions, on your device:** blur your background or replace it with a picture or a colour, and turn on **live captions** in calls (English and Swedish). It all runs on your own device: no sound, picture or text is sent anywhere. The captions model comes from your own server, which fetches it once.
 - **Stages and watch parties:** listen-only rooms where moderators bring people up to speak, and video links, uploads or YouTube watched in step by everyone in voice.
