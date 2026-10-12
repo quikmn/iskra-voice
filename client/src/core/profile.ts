@@ -16,8 +16,18 @@ export function sha256Hex(bytes: Uint8Array): string {
 
 export const utf8Length = (text: string) => new TextEncoder().encode(text).length
 
-/** The text fields sent with auth on every connect (only the ones set on this device). */
-export function authProfile(profile: Profile | null | undefined): { bio?: string; pronouns?: string; accent?: string } {
+/** The text fields sent with auth on every connect (only the ones set on this device), with the profile's stamp. */
+export function authProfile(profile: Profile | null | undefined): { bio?: string; pronouns?: string; accent?: string; updatedAt?: number; by?: string } {
+  const out: { bio?: string; pronouns?: string; accent?: string; updatedAt?: number; by?: string } = textFields(profile)
+  // Servers keep a newer profile than this one (see Profile sync in PROTOCOL.md).
+  if (profile?.updatedAt) {
+    out.updatedAt = profile.updatedAt
+    out.by = profile.by ?? ''
+  }
+  return out
+}
+
+function textFields(profile: Profile | null | undefined): { bio?: string; pronouns?: string; accent?: string } {
   const out: { bio?: string; pronouns?: string; accent?: string } = {}
   if (profile?.bio !== undefined) out.bio = profile.bio
   if (profile?.pronouns !== undefined) out.pronouns = profile.pronouns
@@ -146,6 +156,9 @@ export interface LinkedProfile {
   accent?: string
   avatar?: { data: string; type: string } | null
   page?: { html: string } | null
+  /** The profile's stamp, so the new device knows how new it is (Profile sync). */
+  updatedAt?: number
+  by?: string
 }
 
 export function profileForLink(profile: Profile | null | undefined): LinkedProfile {
@@ -165,6 +178,10 @@ export function profileFromLink(raw: unknown): Partial<Profile> {
   if (typeof r.bio === 'string' && r.bio.length <= MAX_BIO) out.bio = r.bio
   if (typeof r.pronouns === 'string' && r.pronouns.length <= MAX_PRONOUNS) out.pronouns = r.pronouns
   if (typeof r.accent === 'string' && (r.accent === '' || ACCENT_PATTERN.test(r.accent))) out.accent = r.accent
+  if (Number.isSafeInteger(r.updatedAt) && (r.updatedAt as number) > 0 && typeof r.by === 'string' && r.by.length <= 64) {
+    out.updatedAt = r.updatedAt as number
+    out.by = r.by
+  }
   if (r.avatar === null) out.avatar = null
   else if (typeof r.avatar === 'object') {
     const a = r.avatar as Record<string, unknown>

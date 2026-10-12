@@ -252,6 +252,9 @@ export interface Profile {
   /** null: removed on purpose. */
   avatar?: { bytes: ArrayBuffer; type: string; hash: string } | null
   page?: { html: string; hash: string } | null
+  /** When this profile was last edited (ms) and by which device: the newest wins across devices (core/profileSync.ts). */
+  updatedAt?: number
+  by?: string
 }
 
 export interface SavedServer {
