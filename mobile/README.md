@@ -171,5 +171,6 @@ the App Store availability for the public release (TestFlight isn't a store list
 - **Swift package versions.** Capacitor's packages are pinned, but `ion-ios-filesystem` resolves "from 1.1.1" on each
   build; commit `Package.resolved` once a CI run produces one.
 - Swedish permission texts on iOS (an `sv.lproj/InfoPlist.strings`); Android's notification channel names are translated.
-- Google Play listing: the AAB is built; a Play listing needs the owner (Play App Signing, then add its fingerprint to
-  assetlinks.json; Play's foreground-service declaration for voice).
+- Google Play listing: the AAB is built; listing text, graphics, and the data safety, content rating and other form
+  answers are in `docs/store/play/`, and the owner's steps (Play App Signing with the existing key, internal testing,
+  the foreground-service declaration for voice) in docs/ci-cd-playbook.md, section L.
