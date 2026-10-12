@@ -9,7 +9,7 @@ export const roles: Messages['roles'] = {
     manageChannels: { label: 'Hantera kanaler', hint: 'Skapa, redigera och radera kanaler, långsamt läge och kanalbehörigheter' },
     manageRoles: { label: 'Hantera roller', hint: 'Skapa och dela ut roller under sin egen högsta roll' },
     viewAuditLog: { label: 'Visa aktivitetsloggen', hint: 'Se vem som gjort vad på servern' },
-    manageExpressions: { label: 'Hantera emojis och ljud', hint: 'Lägg till, döp om och radera allas emojis och ljud' },
+    manageExpressions: { label: 'Hantera emoji och ljud', hint: 'Lägg till, döp om och radera allas emoji och ljud' },
     manageWebhooks: { label: 'Hantera webhooks', hint: 'Skapa och ändra webhooks' },
     mentionEveryone: { label: 'Nämna @everyone', hint: 'Avisera alla med @everyone och @here' },
     moveMembers: { label: 'Flytta medlemmar', hint: 'Flytta folk mellan röstkanaler' },

@@ -114,7 +114,7 @@ export const errors = {
     stage_they_listen: 'They can only listen on this stage.',
     they_cant_join: "They can't join that channel.",
     they_cant_call: "They can't take calls on this server right now.",
-    rank_nicknames: 'You can only change nicknames of members ranked below you.',
+    rank_nicknames: 'You can only change server nicknames of members ranked below you.',
     own_messages_edit: 'You can only edit your own messages.',
     rank_give_roles: 'You can only give or take roles below your own highest role.',
     rank_permissions: 'You can only give permissions you have yourself.',

@@ -46,7 +46,7 @@ export const settings = {
     groups: { server: 'Server', safety: 'Members & safety', apps: 'Apps', hosting: 'Hosting & data' },
   },
   members: {
-    intro: 'Everyone on {{server}}. Pick someone to change their roles, nickname or level, or to time them out, kick or ban them.',
+    intro: 'Everyone on {{server}}. Pick someone to change their roles, server nickname or level, or to time them out, kick or ban them.',
     search: 'Search members',
     searchPlaceholder: 'Name',
     none: 'No one matches.',

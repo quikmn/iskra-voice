@@ -37,7 +37,7 @@ export const app: Messages['app'] = {
     createChannel: 'Skapa kanal…',
     more: 'Fler inställningar',
     nickname: 'Smeknamn på servern…',
-    nicknameTitle: 'Ditt smeknamn på {{name}}',
+    nicknameTitle: 'Ditt smeknamn på servern {{name}}',
     moveFolder: 'Flytta / mapp',
     leave: 'Lämna servern',
     leaveTitle: 'Lämna {{name}}?',

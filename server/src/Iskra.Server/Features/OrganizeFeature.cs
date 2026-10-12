@@ -145,7 +145,7 @@ public static class OrganizeFeature
         var key = body.OptionalString("accountKey", 64) ?? me.AccountKey;
         var target = key == me.AccountKey ? me : s.World.Store.GetMember(key) ?? throw RequestException.NotFound("Member");
         if (target.AccountKey != me.AccountKey && !(Permissions.IsAdmin(me) && Permissions.Outranks(me, target)))
-            throw RequestException.Forbidden("You can only change nicknames of members ranked below you.", "rank_nicknames");
+            throw RequestException.Forbidden("You can only change server nicknames of members ranked below you.", "rank_nicknames");
 
         var raw = body.OptionalString("nick", 256) ?? throw RequestException.BadRequest("'nick' is required.");
         var nick = raw.Trim().Length == 0 ? null : Names.Normalize(raw)

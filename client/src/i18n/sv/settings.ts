@@ -47,7 +47,7 @@ export const settings: Messages['settings'] = {
     groups: { server: 'Server', safety: 'Medlemmar och säkerhet', apps: 'Appar', hosting: 'Drift och data' },
   },
   members: {
-    intro: 'Alla på {{server}}. Välj någon för att ändra roller, smeknamn eller nivå, eller för att ge timeout, sparka ut eller bannlysa.',
+    intro: 'Alla på {{server}}. Välj någon för att ändra roller, smeknamn på servern eller nivå, eller för att ge timeout, sparka ut eller bannlysa.',
     search: 'Sök medlemmar',
     searchPlaceholder: 'Namn',
     none: 'Ingen matchar.',
@@ -434,7 +434,7 @@ export const settings: Messages['settings'] = {
     noBots: 'Inga bottar än.',
   },
   limits: {
-    intro: 'Hur stora uppladdningar, emojis, klistermärken och ljud får vara på den här servern. Ändringar gäller direkt och sparas i server.json.',
+    intro: 'Hur stora uppladdningar, emoji, klistermärken och ljud får vara på den här servern. Ändringar gäller direkt och sparas i server.json.',
     maxUploadMb: 'Största uppladdning',
     maxUploadMbHint: 'Alla filer som någon skickar.',
     memberMbPerDay: 'Dagliga uppladdningar per medlem',
