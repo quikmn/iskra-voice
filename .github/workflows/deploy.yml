@@ -140,6 +140,19 @@ jobs:
         working-directory: client
       - run: npm run build
         working-directory: client
+      # The live-captions model isn't in git: scripts/get-models.mjs fetches it (pinned, SHA-256 checked) into
+      # client/.models; cached on the pins in model.json.
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: client/.models
+          key: captions-model-${{ hashFiles('client/src/state/captions/model.json') }}
+      # Published next to the app at /models/ (parts of at most 20 MiB): the web app downloads it from here, and the
+      # desktop and phone apps from https://app.iskra.foo, when someone turns captions on (docs/voice-processing.md).
+      - name: Captions model
+        run: |
+          node scripts/get-models.mjs
+          cp -r client/.models/models client/dist/
+          du -sh client/dist/models
       - name: Index asset
         run: |
           asset="$(grep -oE '/assets/index-[A-Za-z0-9_-]+\.js' client/dist/index.html | head -n1)"
@@ -161,6 +174,20 @@ jobs:
             sleep 15
           done
           echo "::error::app.iskra.foo doesn't serve $ASSET after 5 minutes"; exit 1
+      - name: Check the captions model
+        run: |
+          # The smallest part, by the hash the app checks (model.json), with the CORS header the apps need.
+          url="$(node -p "const m=require('./client/src/state/captions/model.json'); 'https://app.iskra.foo/models/'+m.dir+'/vocab.json.part0.bin'")"
+          want="$(node -p "require('./client/src/state/captions/model.json').files.find(f=>f.name==='vocab.json').parts[0].sha256")"
+          for i in $(seq 1 8); do
+            curl -fsS --max-time 60 -D "$RUNNER_TEMP/model-headers" -o "$RUNNER_TEMP/vocab.bin" "$url" || { sleep 15; continue; }
+            got="$(sha256sum "$RUNNER_TEMP/vocab.bin" | cut -d' ' -f1)"
+            if [ "$got" = "$want" ] && grep -qi '^access-control-allow-origin: \*' "$RUNNER_TEMP/model-headers"; then
+              echo "app.iskra.foo serves the captions model"; exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::app.iskra.foo doesn't serve the captions model ($url) after 2 minutes"; exit 1
       - name: Check security.txt
         run: |
           for i in $(seq 1 8); do
