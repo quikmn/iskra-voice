@@ -51,17 +51,17 @@ public static class StickerFeature
     {
         var id = body.OptionalString("sticker", 64);
         if (id is null) return null;
-        if (attachments.Length > 0 || text.Length > 0) throw RequestException.BadRequest("A sticker is sent on its own.");
+        if (attachments.Length > 0 || text.Length > 0) throw RequestException.BadRequest("A sticker is sent on its own.", "sticker_alone");
         return s.World.Store.GetSticker(id) ?? throw RequestException.BadRequest("Unknown sticker.");
     }
 
     private static string Name(Body body) =>
         Text.Normalize(body.String("name", MaxNameLength * 2), MaxNameLength, allowNewlines: false)
-        ?? throw RequestException.BadRequest($"Sticker names are 1–{MaxNameLength} characters.");
+        ?? throw RequestException.BadRequest($"Sticker names are 1–{MaxNameLength} characters.", "sticker_name", new { max = MaxNameLength });
 
     private static void RequireAdmin(Member me)
     {
-        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can manage stickers.");
+        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can manage stickers.", "admins_stickers");
     }
 
     private static object Create(Session s, Member me, Body body)
@@ -69,15 +69,15 @@ public static class StickerFeature
         RequireAdmin(me);
         var store = s.World.Store;
         var name = Name(body);
-        if (store.StickerCount() >= MaxStickers) throw RequestException.BadRequest($"This server already has {MaxStickers} stickers.");
+        if (store.StickerCount() >= MaxStickers) throw RequestException.BadRequest($"This server already has {MaxStickers} stickers.", "stickers_max", new { max = MaxStickers });
         var file = store.GetFile(body.String("fileId", 64));
         if (file is null || file.Uploader != me.AccountKey || store.GetDmFile(file.Id) is not null) throw RequestException.BadRequest("Unknown file.");
-        if (!Types.Contains(file.Type)) throw RequestException.BadRequest("Stickers must be PNG, GIF or WebP images.");
+        if (!Types.Contains(file.Type)) throw RequestException.BadRequest("Stickers must be PNG, GIF or WebP images.", "sticker_type");
         var maxKb = s.World.Settings.Limits.StickerMaxKb;
-        if (maxKb > 0 && file.Size > maxKb * 1024L) throw RequestException.BadRequest($"Stickers can be up to {maxKb} KB on this server.");
+        if (maxKb > 0 && file.Size > maxKb * 1024L) throw RequestException.BadRequest($"Stickers can be up to {maxKb} KB on this server.", "sticker_kb", new { kb = maxKb });
         if (file.Width is not { } w || file.Height is not { } h || w < 1 || h < 1)
-            throw RequestException.BadRequest("Couldn't read that image's size.");
-        if (w > MaxSide || h > MaxSide) throw RequestException.BadRequest($"Stickers can be up to {MaxSide}×{MaxSide} pixels.");
+            throw RequestException.BadRequest("Couldn't read that image's size.", "image_size_unreadable");
+        if (w > MaxSide || h > MaxSide) throw RequestException.BadRequest($"Stickers can be up to {MaxSide}×{MaxSide} pixels.", "sticker_pixels", new { side = MaxSide });
 
         var sticker = new Sticker(Ed25519.ToB64u(RandomNumberGenerator.GetBytes(9)), name, file.Id, me.AccountKey, s.Now);
         store.AddSticker(sticker);

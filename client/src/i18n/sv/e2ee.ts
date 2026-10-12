@@ -1,11 +1,11 @@
 import type { Messages } from '../types'
 
 export const e2ee: Messages['e2ee'] = {
-  badge: 'Krypterad från ände till ände',
+  badge: 'Totalsträckskrypterad',
   create: {
-    toggle: 'Krypterad från ände till ände',
+    toggle: 'Totalsträckskrypterad',
     hint: 'Bara de som kan se kanalen kan läsa den, på sina egna enheter. Servern sparar meddelanden som den inte kan läsa.',
-    limits: 'Gjord för små privata kanaler (upp till {{max}} personer). Nya medlemmar kan inte läsa meddelanden från innan de gick med, sökning fungerar bara på din enhet, och webhooks, bottar, omröstningar, stickers, GIF:ar och vidarebefordran går inte att använda. Det går inte att stänga av i efterhand.',
+    limits: 'Gjord för små privata kanaler (upp till {{max}} personer). Nya medlemmar kan inte läsa meddelanden från innan de gick med, sökning fungerar bara på din enhet, och webhooks, bottar, omröstningar, klistermärken, GIF:ar och vidarebefordran går inte att använda. Det går inte att stänga av i efterhand.',
     kinds: 'Bara text- och röstkanaler kan krypteras.',
     count_one: '{{count}} person kommer att kunna läsa den.',
     count_other: '{{count}} personer kommer att kunna läsa den.',
@@ -28,12 +28,12 @@ export const e2ee: Messages['e2ee'] = {
   },
   waiting: 'Väntar på att någon i kanalen delar nyckeln med dig. Det sker automatiskt när någon av dem är online.',
   message: {
-    pending: 'Avkrypterar …',
+    pending: 'Dekrypterar…',
     noKey: 'Krypterat innan du kunde läsa kanalen (eller innan den här enheten lades till), så det går inte att läsa här.',
-    error: 'Meddelandet gick inte att avkryptera.',
+    error: 'Meddelandet gick inte att dekryptera.',
   },
   search: {
-    local: 'Krypterade kanaler söks bara på den här enheten, i de meddelanden den har avkrypterat.',
+    local: 'Krypterade kanaler söks bara på den här enheten, i de meddelanden den har dekrypterat.',
   },
   report: {
     share: 'Dela vad meddelandet säger med moderatorerna',
@@ -48,7 +48,7 @@ export const e2ee: Messages['e2ee'] = {
   },
   errors: {
     noKey: 'Den här enheten har inte kanalens nyckel än.',
-    stickers: 'Stickers och GIF:ar går inte att skicka i krypterade kanaler än.',
+    stickers: 'Klistermärken och GIF:ar går inte att skicka i krypterade kanaler än.',
     missingFile: 'En bilaga saknas. Bifoga den igen.',
     notReady: 'Kanalen är inte redo än.',
     offline: 'Servern är inte ansluten just nu.',

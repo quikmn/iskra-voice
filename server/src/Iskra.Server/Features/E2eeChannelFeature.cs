@@ -62,7 +62,7 @@ public static class E2eeChannelFeature
     {
         if (!IsEncrypted(store, channel)) return;
         if (Readers(store, channel).Count > MaxMembers)
-            throw RequestException.BadRequest($"At most {MaxMembers} people can read an end-to-end encrypted channel.");
+            throw RequestException.BadRequest($"At most {MaxMembers} people can read an end-to-end encrypted channel.", "e2ee_readers_max", new { max = MaxMembers });
     }
 
     // ── Creating ───────────────────────────────────────────────────────────────
@@ -77,18 +77,18 @@ public static class E2eeChannelFeature
     {
         if (body.OptionalElement("e2ee") is not { } raw) return null;
         if (raw.ValueKind != JsonValueKind.Object) throw RequestException.BadRequest("'e2ee' must be an object.");
-        if (kind is not ("text" or "voice")) throw RequestException.BadRequest("Only text and voice channels can be end-to-end encrypted.");
+        if (kind is not ("text" or "voice")) throw RequestException.BadRequest("Only text and voice channels can be end-to-end encrypted.", "e2ee_kinds");
         NotABot(s, me);
         var e2ee = new Body(raw);
         var (change, payloadText, sig, payload) = ParseChange(s, me, e2ee);
         if (change.Action != "create") throw RequestException.BadRequest("Use a 'create' change.");
         var draft = new Channel(0, "", kind, 0, readRole, writeRole);
-        if (!Permissions.CanRead(me, draft)) throw RequestException.BadRequest("You must be able to read an encrypted channel you create.");
+        if (!Permissions.CanRead(me, draft)) throw RequestException.BadRequest("You must be able to read an encrypted channel you create.", "e2ee_must_read");
         CheckCreateMembers(s.World.Store, draft, change);
         ChannelChain.Apply(null, change);
         var keys = KeyEnvelopes(e2ee, change, me, required: true);
         if (!s.Hub.Limits.TryTake(me.AccountKey, "group.change"))
-            throw new RequestException("rate_limited", "Too many changes in a short time. Try again in a minute.");
+            throw new RequestException("rate_limited", "Too many changes in a short time. Try again in a minute.", "too_many_changes");
         return new Prepared(change, payloadText, sig, payload, keys);
     }
 
@@ -107,9 +107,9 @@ public static class E2eeChannelFeature
     {
         var readers = Readers(store, channel);
         if (readers.Count > MaxMembers)
-            throw RequestException.BadRequest($"At most {MaxMembers} people can read an end-to-end encrypted channel. Choose who can read it more narrowly.");
+            throw RequestException.BadRequest($"At most {MaxMembers} people can read an end-to-end encrypted channel. Choose who can read it more narrowly.", "e2ee_readers_narrow", new { max = MaxMembers });
         if (!readers.ToHashSet(StringComparer.Ordinal).SetEquals(change.Members) || change.Members.Length != readers.Count)
-            throw new RequestException("conflict", "Who can read this channel changed in the meantime. Try again.");
+            throw new RequestException("conflict", "Who can read this channel changed in the meantime. Try again.", "e2ee_readers_changed");
     }
 
     // ── Requests ───────────────────────────────────────────────────────────────
@@ -164,7 +164,7 @@ public static class E2eeChannelFeature
         var sig = changeBody.String("sig", 128);
         var (change, payload) = GroupChain.Parse(payloadText, sig, Context, MaxMembers, MaxPayloadChars);
         if (change.By != me.AccountKey) throw RequestException.BadRequest("Sign changes with your own account.");
-        if (Math.Abs(change.At - s.Now) > GroupChain.MaxClockSkew.TotalMilliseconds) throw RequestException.BadRequest("The change's time is off. Check your clock.");
+        if (Math.Abs(change.At - s.Now) > GroupChain.MaxClockSkew.TotalMilliseconds) throw RequestException.BadRequest("The change's time is off. Check your clock.", "clock_off");
         return (change, payloadText, sig, payload);
     }
 
@@ -181,7 +181,7 @@ public static class E2eeChannelFeature
         var (change, payloadText, sig, payload) = ParseChange(s, me, body);
         var keys = KeyEnvelopes(body, change, me, required: true);
         if (!s.Hub.Limits.TryTake(me.AccountKey, "group.change"))
-            throw new RequestException("rate_limited", "Too many changes in a short time. Try again in a minute.");
+            throw new RequestException("rate_limited", "Too many changes in a short time. Try again in a minute.", "too_many_changes");
 
         E2eeChannel after;
         var fresh = false;
@@ -319,16 +319,16 @@ public static class E2eeChannelFeature
         }
         NotABot(s, me);
         if (body.OptionalElement("envelope") is not { ValueKind: JsonValueKind.Object } envelope)
-            throw RequestException.BadRequest("This channel is end-to-end encrypted: messages must be encrypted by the app (update Iskra).");
+            throw RequestException.BadRequest("This channel is end-to-end encrypted: messages must be encrypted by the app (update Iskra).", "e2ee_update_app");
         if ((body.OptionalString("text", 16) ?? "") != "" || body.OptionalStringArray("attachments", ChatFeature.MaxAttachments, 64).Length > 0
             || body.Has("sticker") || body.Has("gif") || body.Has("voice"))
             throw RequestException.BadRequest("Encrypted channels carry everything inside the envelope.");
         var version = body.OptionalLong("version", 1) ?? throw RequestException.BadRequest("'version' is required.");
         // Only the current epoch: nobody keeps writing with a key people who lost access still hold.
-        if (version != e.Version) throw new RequestException("conflict", "Who's in this channel changed in the meantime. Refresh and try again.");
+        if (version != e.Version) throw new RequestException("conflict", "Who's in this channel changed in the meantime. Refresh and try again.", "e2ee_members_changed");
         if (!e.Members.Contains(me.AccountKey)) throw RequestException.Forbidden("You don't have this channel's key yet.");
         var raw = envelope.GetRawText();
-        if (raw.Length > MaxMessageEnvelopeBytes) throw RequestException.BadRequest("Message is too large.");
+        if (raw.Length > MaxMessageEnvelopeBytes) throw RequestException.BadRequest("Message is too large.", "message_too_large");
         var header = envelope.TryGetProperty("header", out var h) && h.ValueKind == JsonValueKind.Object ? new Body(h) : throw RequestException.BadRequest("Envelope without a header.");
         if (header.OptionalString("from", 64) != me.AccountKey || header.OptionalLong("version") != version || header.OptionalString("chain", 32) != e.ChainId)
             throw RequestException.BadRequest("The envelope doesn't match this send.");
@@ -372,7 +372,7 @@ public static class E2eeChannelFeature
     internal static object Edit(Session s, Channel channel, Message message, (E2eeChannel E2ee, long Version, string Envelope) sealedMsg)
     {
         var store = s.World.Store;
-        if (store.GetE2eeMessage(message.Id) is null) throw RequestException.BadRequest("That message can't be edited.");
+        if (store.GetE2eeMessage(message.Id) is null) throw RequestException.BadRequest("That message can't be edited.", "message_no_edit");
         store.SaveE2eeMessage(message.Id, sealedMsg.Version, sealedMsg.Envelope);
         store.EditMessage(message.Id, "", s.Now);
         var edited = MessageViews.Public(store, message with { Text = "", EditedAt = s.Now });
@@ -403,7 +403,7 @@ public static class ChannelChain
         {
             if (current is null) throw RequestException.NotFound("Channel");
             if (c.Version != current.Version + 1 || c.Prev != current.Head)
-                throw new RequestException("conflict", "Who's in this channel changed in the meantime. Refresh and try again.");
+                throw new RequestException("conflict", "Who's in this channel changed in the meantime. Refresh and try again.", "e2ee_members_changed");
             if (!current.Members.Contains(c.By)) throw RequestException.Forbidden("You aren't in this channel's encryption.");
             switch (c.Action)
             {
@@ -426,7 +426,7 @@ public static class ChannelChain
             }
         }
         if (expected.Length > E2eeChannelFeature.MaxMembers)
-            throw RequestException.BadRequest($"At most {E2eeChannelFeature.MaxMembers} people can be in an encrypted channel.");
+            throw RequestException.BadRequest($"At most {E2eeChannelFeature.MaxMembers} people can be in an encrypted channel.", "e2ee_members_max", new { max = E2eeChannelFeature.MaxMembers });
         if (!expected.SequenceEqual(c.Members, StringComparer.Ordinal)) throw RequestException.BadRequest("The change's member list doesn't match.");
         return expected;
     }

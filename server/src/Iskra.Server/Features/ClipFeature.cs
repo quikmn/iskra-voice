@@ -26,8 +26,8 @@ public static class ClipFeature
         var channel = ChatFeature.ReadableChannel(s, me, channelId);
         if (channel.Kind is not ("voice" or "stage")) throw RequestException.BadRequest("That isn't a voice channel.");
         E2eeChannelFeature.RefusePlaintext(s.World.Store, channel, "Clips");
-        var here = s.Voice.Participant(channel.Id, me.AccountKey) ?? throw RequestException.Forbidden("You're not in that voice channel.");
-        if (!here.Clips) throw RequestException.BadRequest("Turn clips on first, so everyone in the call can see it.");
+        var here = s.Voice.Participant(channel.Id, me.AccountKey) ?? throw RequestException.Forbidden("You're not in that voice channel.", "not_in_voice_channel");
+        if (!here.Clips) throw RequestException.BadRequest("Turn clips on first, so everyone in the call can see it.", "clips_turn_on");
 
         var message = s.World.Store.AddClipNotice(channel.Id, me.AccountKey, s.Now);
         var view = MessageViews.Public(s.World.Store, message);
@@ -47,6 +47,6 @@ public static class ClipFeature
     public static void CheckDelete(Store store, Member me, Message message)
     {
         if (message.AuthorKey == me.AccountKey && store.IsClipNotice(message.Id))
-            throw RequestException.Forbidden("You can't delete the notice that you saved a clip.");
+            throw RequestException.Forbidden("You can't delete the notice that you saved a clip.", "clip_notice_delete");
     }
 }

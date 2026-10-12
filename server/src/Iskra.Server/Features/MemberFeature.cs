@@ -22,9 +22,9 @@ public static class MemberFeature
     {
         if (perm is { } p ? !Permissions.Has(me, p) : !Permissions.IsAdmin(me)) throw RequestException.Forbidden();
         var key = body.String("accountKey", 64);
-        if (key == me.AccountKey) throw RequestException.BadRequest("You can't do that to yourself.");
+        if (key == me.AccountKey) throw RequestException.BadRequest("You can't do that to yourself.", "not_to_self");
         var target = s.World.Store.GetMember(key) ?? throw RequestException.NotFound("Member");
-        if (!Permissions.Outranks(me, target)) throw RequestException.Forbidden("You can only manage members ranked below you.");
+        if (!Permissions.Outranks(me, target)) throw RequestException.Forbidden("You can only manage members ranked below you.", "rank_members");
         return target;
     }
 
@@ -33,9 +33,9 @@ public static class MemberFeature
         var target = Target(s, me, body);
         var role = body.String("role", 16);
         if (!Roles.IsValid(role)) throw RequestException.BadRequest($"'role' must be one of: {string.Join(", ", Roles.All)}.");
-        if (!Permissions.CanGrant(me, role)) throw RequestException.Forbidden("You can only give roles below your own.");
+        if (!Permissions.CanGrant(me, role)) throw RequestException.Forbidden("You can only give roles below your own.", "rank_roles_below");
         if (s.World.Store.IsBot(target.AccountKey) && Roles.Rank(role) > Roles.Rank(BotFeature.MaxRole))
-            throw RequestException.BadRequest("Bots can be guest, member or trusted.");
+            throw RequestException.BadRequest("Bots can be guest, member or trusted.", "bot_roles");
 
         s.World.Store.SetMemberRole(target.AccountKey, role);
         if (role != target.Role) Audit.Record(s, "member.role", target.AccountKey, details: new { from = target.Role, to = role });

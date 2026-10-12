@@ -56,7 +56,7 @@ public static class AutoModFeature
 
     private static void RequireManager(Member me)
     {
-        if (!Permissions.Has(me, Perm.ManageAutoMod)) throw RequestException.Forbidden("You can't manage AutoMod on this server.");
+        if (!Permissions.Has(me, Perm.ManageAutoMod)) throw RequestException.Forbidden("You can't manage AutoMod on this server.", "manage_automod");
     }
 
     private static object Get(Session s, Member me, Body body)
@@ -119,7 +119,7 @@ public static class AutoModFeature
             if (timeout != 0 && !ModerationFeature.TimeoutDurations.Contains(timeout))
                 throw RequestException.BadRequest("'timeoutMs' must be 0 or one of the timeout lengths (60 s, 5 min, 1 hour, 1 day, 1 week).");
             if (timeout != 0 && !Permissions.Has(me, Perm.TimeoutMembers))
-                throw RequestException.Forbidden("You can't time members out, so AutoMod can't either.");
+                throw RequestException.Forbidden("You can't time members out, so AutoMod can't either.", "automod_timeout_perm");
             return new AutoModAction(timeout, section.OptionalBool("alert") ?? false);
         }
 
@@ -149,9 +149,9 @@ public static class AutoModFeature
                 throw RequestException.BadRequest("Unknown channel in 'exemptChannels'.");
         var alertChannel = body.OptionalLong("alertChannelId", min: 1);
         if (alertChannel is { } alertId && (store.GetChannel(alertId) is not { Kind: "text" } alert || !Permissions.CanRead(me, alert)))
-            throw RequestException.BadRequest("Alerts can only go to a text channel you can see.");
+            throw RequestException.BadRequest("Alerts can only go to a text channel you can see.", "automod_alert_channel");
         if (alertChannel is { } alertChannelId && store.GetE2ee(alertChannelId) is not null)
-            throw RequestException.BadRequest("Alerts can't go to an end-to-end encrypted channel.");
+            throw RequestException.BadRequest("Alerts can't go to an end-to-end encrypted channel.", "automod_alert_e2ee");
 
         return new AutoModConfig(
             body.OptionalBool("enabled") ?? false,
@@ -177,8 +177,8 @@ public static class AutoModFeature
         foreach (var entry in raw.Select(x => x.Trim()).Where(x => x.Length > 0))
         {
             if (entry.Length > MaxWordLength || entry.Any(char.IsControl))
-                throw RequestException.BadRequest($"Words and phrases can be up to {MaxWordLength} characters.");
-            if (entry.Count(c => c == '*') > MaxWildcards) throw RequestException.BadRequest($"Use at most {MaxWildcards} * in one entry.");
+                throw RequestException.BadRequest($"Words and phrases can be up to {MaxWordLength} characters.", "automod_word_length", new { max = MaxWordLength });
+            if (entry.Count(c => c == '*') > MaxWildcards) throw RequestException.BadRequest($"Use at most {MaxWildcards} * in one entry.", "automod_wildcards", new { max = MaxWildcards });
             var pattern = WordMatcher.Pattern(entry);
             if (pattern.Length == 0) throw RequestException.BadRequest($"\"{AutoModRules.Cut(entry, 20)}\" needs at least one letter or digit.");
             if (seen.Add(string.Join(' ', pattern))) list.Add(entry);
@@ -240,7 +240,9 @@ public static class AutoModFeature
         snippet ??= AutoModRules.Cut(text, SnippetLength);
         var timeout = Enforce(s, engine, config, me, channel, rule, action!, snippet, what);
         var suffix = timeout > 0 ? $" You're timed out for {Duration(timeout)}." : "";
-        throw new RequestException("automod", $"Blocked by AutoMod: {reason}.{suffix}");
+        var key = rule == "links" && config.Links.Mode == "invites" ? "automod_invites" : $"automod_{rule}";
+        throw new RequestException("automod", $"Blocked by AutoMod: {reason}.{suffix}", key,
+            new { max = config.Mentions.Max, timeoutMs = timeout });
     }
 
     private static bool Exempt(Store store, Compiled c, Member me, Channel? channel)

@@ -51,7 +51,7 @@ export const moderation: Messages['moderation'] = {
   },
   channelSettings: 'Kanalinställningar',
   audit: {
-    title: 'Granskningslogg',
+    title: 'Aktivitetslogg',
     intro: 'Moderering och admin-åtgärder på den här servern de senaste 90 dagarna. Bara admins kan se det här.',
     action: 'Åtgärd',
     allActions: 'Alla åtgärder',
@@ -65,7 +65,7 @@ export const moderation: Messages['moderation'] = {
     filters: {
       member_kick: 'Utsparkningar',
       member_ban: 'Bannlysningar',
-      member_unban: 'Hävda bannlysningar',
+      member_unban: 'Upphävda bannlysningar',
       member_timeout: 'Timeouter',
       member_timeout_remove: 'Borttagna timeouter',
       member_role: 'Rolländringar',
@@ -189,7 +189,7 @@ export const moderation: Messages['moderation'] = {
       post: 'ett foruminlägg',
       thread: 'ett trådnamn',
       event: 'ett evenemang',
-      watch: 'ett meddelande i ett watch party',
+      watch: 'ett meddelande i en gemensam visning',
       page: 'en dokumentsida',
     },
     other: '{{actor}}: {{action}}',

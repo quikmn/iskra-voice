@@ -14,7 +14,7 @@ export const clips: Messages['clips'] = {
   mark: 'Klipp på',
   saved: '{{name}} sparade ett klipp',
   notice: '<b>{{name}}</b> sparade ett klipp från samtalet',
-  removeNotice: 'Ta bort meddelandet',
+  removeNotice: 'Ta bort notisen',
   dialog: {
     title: 'Ditt klipp',
     preview: 'Förhandsvisning av klippet',

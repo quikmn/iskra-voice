@@ -124,6 +124,8 @@ After the handshake, every request gets a `result` (body as listed, `{}` if none
 | `rules_required` | You haven't agreed to the [server rules](#server-rules) yet (writing, reacting, voice) |
 | `automod` | [AutoMod](#automod) blocked the message (or title, name, poll); `message` says why. Nothing was stored or sent |
 
+`message` is English, for bots, logs and as the fallback. Most messages a person can run into also carry `key` (`[a-z0-9_]`, ≤ 64 chars), a stable name for that text, and `args` (an object of strings and numbers) with the values in it: `{ "code": "bad_request", "message": "Channel names must be 1–32 characters.", "key": "channel_name", "args": { "max": 32 } }`. Apps show their own translation of `key` (with `args`) and fall back to a text for the `code`, then to `message`. A key keeps its meaning across versions (a new meaning gets a new key); messages about a malformed request carry none. AutoMod's keys are `automod_words`, `automod_mentions`, `automod_invites`, `automod_links`, `automod_flood` and `automod_duplicates`, with `args: { max, timeoutMs }` (the mention limit, and the timeout it gave, 0 if none); slowmode's is `slowmode` with `args: { seconds }`.
+
 Close codes:
 
 | Code | Meaning |

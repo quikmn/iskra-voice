@@ -78,9 +78,9 @@ public static class ReportFeature
             // An encrypted channel's message: the reporter may share what they read (moderators are told it can't be checked).
             var encrypted = E2eeChannelFeature.IsEncrypted(store, channel);
             if (body.Has("messages") && !encrypted) throw RequestException.BadRequest("'messages' goes with 'accountKey'.");
-            if (message.AuthorKey == me.AccountKey) throw RequestException.BadRequest("You can't report your own message.");
+            if (message.AuthorKey == me.AccountKey) throw RequestException.BadRequest("You can't report your own message.", "report_own_message");
             if (message.AuthorKey.StartsWith(AutoModFeature.Author, StringComparison.Ordinal))
-                throw RequestException.BadRequest("AutoMod alerts can't be reported.");
+                throw RequestException.BadRequest("AutoMod alerts can't be reported.", "report_automod");
             report = New(s, me, "message", reason, note, message.AuthorKey) with
             {
                 MessageId = message.Id, ChannelId = channel.Id, ChannelName = channel.Name, Text = message.Text,
@@ -90,7 +90,7 @@ public static class ReportFeature
         }
         else
         {
-            if (accountKey == me.AccountKey) throw RequestException.BadRequest("You can't report yourself.");
+            if (accountKey == me.AccountKey) throw RequestException.BadRequest("You can't report yourself.", "report_self");
             if (store.GetMember(accountKey!) is null) throw RequestException.NotFound("Member");
             var shared = SharedMessages(s, me, accountKey!, body);
             report = New(s, me, shared is null ? "member" : "dm", reason, note, accountKey!) with { Dm = shared };
@@ -100,11 +100,11 @@ public static class ReportFeature
         if (store.OpenReportBy(me.AccountKey, report.Kind, report.TargetKey, report.MessageId) is { } existing)
             return new { id = existing, already = true };
         if (store.OpenReportsBy(me.AccountKey) >= MaxOpenPerReporter)
-            throw new RequestException("rate_limited", "You have a lot of open reports here. Wait for the moderators to look at them.");
+            throw new RequestException("rate_limited", "You have a lot of open reports here. Wait for the moderators to look at them.", "reports_many_open");
         if (store.OpenReportCount() >= MaxOpen)
-            throw new RequestException("rate_limited", "This server has too many open reports right now. Try again later.");
+            throw new RequestException("rate_limited", "This server has too many open reports right now. Try again later.", "reports_server_full");
         if (!s.Hub.Limits.TryTake(me.AccountKey, "report.create"))
-            throw new RequestException("rate_limited", "You're reporting very fast. Wait a few minutes and try again.");
+            throw new RequestException("rate_limited", "You're reporting very fast. Wait a few minutes and try again.", "reports_too_fast");
 
         store.PruneReports(s.Now - (long)Retention.TotalMilliseconds);
         var reportId = store.AddReport(report);
@@ -134,9 +134,9 @@ public static class ReportFeature
             if (item.ValueKind != JsonValueKind.Object) throw RequestException.BadRequest("Each message must be an object.");
             var m = new Body(item);
             var author = m.String("author", 64);
-            if (author != me.AccountKey && author != target) throw RequestException.BadRequest("Shared messages must be from you or the person you report.");
+            if (author != me.AccountKey && author != target) throw RequestException.BadRequest("Shared messages must be from you or the person you report.", "report_shared");
             var text = Text.Normalize(m.OptionalString("text", MaxSharedText * 2), MaxSharedText, allowNewlines: true)
-                ?? throw RequestException.BadRequest($"Shared messages must be 1–{MaxSharedText} characters.");
+                ?? throw RequestException.BadRequest($"Shared messages must be 1–{MaxSharedText} characters.", "report_shared_length", new { max = MaxSharedText });
             var at = m.OptionalLong("at", 0, s.Now + ClockSkew) ?? throw RequestException.BadRequest("'at' is required.");
             list.Add(new { author, text, at });
         }
@@ -145,7 +145,7 @@ public static class ReportFeature
 
     private static object List(Session s, Member me, Body body)
     {
-        if (!IsModerator(me)) throw RequestException.Forbidden("Only moderators can see reports.");
+        if (!IsModerator(me)) throw RequestException.Forbidden("Only moderators can see reports.", "mods_reports");
         var status = body.OptionalString("status", 16) ?? "open";
         if (status is not ("open" or "resolved")) throw RequestException.BadRequest("'status' must be open or resolved.");
         var before = body.OptionalLong("before", min: 1);
@@ -160,7 +160,7 @@ public static class ReportFeature
         var store = s.World.Store;
         var report = store.GetReport(body.Long("id"));
         if (report is null || !CanSee(store, me, report)) throw RequestException.NotFound("Report");
-        if (report.Status != "open") throw new RequestException("conflict", "Someone already handled this report.");
+        if (report.Status != "open") throw new RequestException("conflict", "Someone already handled this report.", "report_handled");
         var outcome = body.String("outcome", 16);
         if (!Outcomes.Contains(outcome)) throw RequestException.BadRequest($"'outcome' must be one of: {string.Join(", ", Outcomes)}.");
         var note = Note(body, "note", MaxResolutionNote);

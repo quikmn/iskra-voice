@@ -60,14 +60,14 @@ public static partial class EmojiFeature
 
     private static void RequireAdmin(Member me)
     {
-        if (!Permissions.Has(me, Perm.ManageExpressions)) throw RequestException.Forbidden("You can't manage emoji on this server.");
+        if (!Permissions.Has(me, Perm.ManageExpressions)) throw RequestException.Forbidden("You can't manage emoji on this server.", "manage_emoji");
     }
 
     private static string Name(Body body, Store store, string? exceptId = null)
     {
         var name = body.String("name", 64).Trim().ToLowerInvariant();
-        if (!IsValidName(name)) throw RequestException.BadRequest("Emoji names are 2–32 characters: a–z, 0–9 and _.");
-        if (store.EmojiNameTaken(name, exceptId)) throw RequestException.BadRequest($"There's already an emoji called :{name}:.");
+        if (!IsValidName(name)) throw RequestException.BadRequest("Emoji names are 2–32 characters: a–z, 0–9 and _.", "emoji_name");
+        if (store.EmojiNameTaken(name, exceptId)) throw RequestException.BadRequest($"There's already an emoji called :{name}:.", "emoji_exists", new { name });
         return name;
     }
 
@@ -76,16 +76,16 @@ public static partial class EmojiFeature
         RequireAdmin(me);
         var store = s.World.Store;
         var name = Name(body, store);
-        if (store.EmojiCount() >= MaxEmojis) throw RequestException.BadRequest($"This server already has {MaxEmojis} emoji.");
+        if (store.EmojiCount() >= MaxEmojis) throw RequestException.BadRequest($"This server already has {MaxEmojis} emoji.", "emoji_max", new { max = MaxEmojis });
 
         var file = store.GetFile(body.String("fileId", 64));
         if (file is null || file.Uploader != me.AccountKey) throw RequestException.BadRequest("Unknown file.");
-        if (!Types.Contains(file.Type)) throw RequestException.BadRequest("Emoji must be PNG, GIF or WebP images.");
+        if (!Types.Contains(file.Type)) throw RequestException.BadRequest("Emoji must be PNG, GIF or WebP images.", "emoji_type");
         var maxKb = s.World.Settings.Limits.EmojiMaxKb;
-        if (maxKb > 0 && file.Size > maxKb * 1024L) throw RequestException.BadRequest($"Emoji can be up to {maxKb} KB on this server.");
+        if (maxKb > 0 && file.Size > maxKb * 1024L) throw RequestException.BadRequest($"Emoji can be up to {maxKb} KB on this server.", "emoji_kb", new { kb = maxKb });
         if (file.Width is not { } w || file.Height is not { } h || w < 1 || h < 1)
-            throw RequestException.BadRequest("Couldn't read that image's size.");
-        if (w > MaxSide || h > MaxSide) throw RequestException.BadRequest($"Emoji can be up to {MaxSide}×{MaxSide} pixels.");
+            throw RequestException.BadRequest("Couldn't read that image's size.", "image_size_unreadable");
+        if (w > MaxSide || h > MaxSide) throw RequestException.BadRequest($"Emoji can be up to {MaxSide}×{MaxSide} pixels.", "emoji_pixels", new { side = MaxSide });
 
         var emoji = new CustomEmoji(Ed25519.ToB64u(RandomNumberGenerator.GetBytes(9)), name, file.Id, me.AccountKey, s.Now);
         store.AddEmoji(emoji);

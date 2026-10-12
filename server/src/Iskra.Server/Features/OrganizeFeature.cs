@@ -43,7 +43,7 @@ public static class OrganizeFeature
 
     private static void RequireAdmin(Member me)
     {
-        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can organize channels.");
+        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can organize channels.", "admins_organize");
     }
 
     /// <summary>
@@ -64,7 +64,7 @@ public static class OrganizeFeature
 
     private static string CategoryName(string raw) =>
         Text.Normalize(raw, MaxCategoryNameLength, allowNewlines: false)
-        ?? throw RequestException.BadRequest($"Category names must be 1–{MaxCategoryNameLength} characters, with no invisible characters.");
+        ?? throw RequestException.BadRequest($"Category names must be 1–{MaxCategoryNameLength} characters, with no invisible characters.", "category_name", new { max = MaxCategoryNameLength });
 
     private static Category ExistingCategory(Session s, long id) =>
         s.World.Store.GetCategory(id) ?? throw RequestException.NotFound("Category");
@@ -77,7 +77,7 @@ public static class OrganizeFeature
     {
         RequireAdmin(me);
         var name = CategoryName(body.String("name", 256));
-        if (s.World.Store.CountCategories() >= MaxCategories) throw RequestException.BadRequest($"A server can have up to {MaxCategories} categories.");
+        if (s.World.Store.CountCategories() >= MaxCategories) throw RequestException.BadRequest($"A server can have up to {MaxCategories} categories.", "categories_max", new { max = MaxCategories });
         var category = s.World.Store.CreateCategory(name);
         ChannelFeature.BroadcastChannels(s);
         return new { category = PublicCategory(category) };
@@ -145,11 +145,11 @@ public static class OrganizeFeature
         var key = body.OptionalString("accountKey", 64) ?? me.AccountKey;
         var target = key == me.AccountKey ? me : s.World.Store.GetMember(key) ?? throw RequestException.NotFound("Member");
         if (target.AccountKey != me.AccountKey && !(Permissions.IsAdmin(me) && Permissions.Outranks(me, target)))
-            throw RequestException.Forbidden("You can only change nicknames of members ranked below you.");
+            throw RequestException.Forbidden("You can only change nicknames of members ranked below you.", "rank_nicknames");
 
         var raw = body.OptionalString("nick", 256) ?? throw RequestException.BadRequest("'nick' is required.");
         var nick = raw.Trim().Length == 0 ? null : Names.Normalize(raw)
-            ?? throw RequestException.BadRequest($"Nicknames must be 1–{Names.MaxLength} characters, with no invisible characters.");
+            ?? throw RequestException.BadRequest($"Server nicknames must be 1–{Names.MaxLength} characters, with no invisible characters.", "nickname_length", new { max = Names.MaxLength });
         s.World.Store.SetNickname(target.AccountKey, nick);
         var member = s.Hub.PublicMember(target);
         s.Hub.Broadcast(Frames.Event("member.updated", new { member }));

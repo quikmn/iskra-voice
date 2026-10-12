@@ -35,15 +35,15 @@ public static class ChatFeature
 
     private static string MessageText(Body body) =>
         Text.Normalize(body.String("text", MaxMessageLength * 2), MaxMessageLength, allowNewlines: true)
-        ?? throw RequestException.BadRequest($"Messages must be 1–{MaxMessageLength} characters.");
+        ?? throw RequestException.BadRequest($"Messages must be 1–{MaxMessageLength} characters.", "message_length", new { max = MaxMessageLength });
 
     private static object View(Session s, Message m) => MessageViews.Public(s.World.Store, m);
 
     private static object Send(Session s, Member me, Body body)
     {
         var channel = ReadableChannel(s, me, body.Long("channelId"));
-        if (channel.Kind is not ("text" or "thread" or "voice" or "stage")) throw RequestException.BadRequest("You can't send messages to that channel.");
-        if (!Permissions.CanSend(me, channel)) throw RequestException.Forbidden("You can't send messages in this channel.");
+        if (channel.Kind is not ("text" or "thread" or "voice" or "stage")) throw RequestException.BadRequest("You can't send messages to that channel.", "cant_send_there");
+        if (!Permissions.CanSend(me, channel)) throw RequestException.Forbidden("You can't send messages in this channel.", "cant_send_here");
         ForumFeature.CheckReply(s, me, channel);
         if (E2eeChannelFeature.Sealed(s, me, channel, body) is { } sealedMsg) return E2eeChannelFeature.Send(s, me, channel, body, sealedMsg);
 
@@ -58,7 +58,7 @@ public static class ChatFeature
         var text = rawText.Trim().Length == 0 && (attachments.Length > 0 || body.OptionalString("sticker", 64) is not null || body.OptionalElement("gif") is not null)
             ? ""
             : Text.Normalize(rawText, MaxMessageLength, allowNewlines: true)
-              ?? throw RequestException.BadRequest($"Messages must be 1–{MaxMessageLength} characters.");
+              ?? throw RequestException.BadRequest($"Messages must be 1–{MaxMessageLength} characters.", "message_length", new { max = MaxMessageLength });
         var voice = VoiceMessageFeature.Parse(s, body, attachments, text);
         var sticker = StickerFeature.Parse(s, body, attachments, text);
         var gif = GifFeature.Parse(s, body, attachments, text);
@@ -113,13 +113,13 @@ public static class ChatFeature
     {
         var message = s.World.Store.GetMessage(body.Long("id")) ?? throw RequestException.NotFound("Message");
         var channel = ReadableChannel(s, me, message.ChannelId);
-        if (message.AuthorKey != me.AccountKey) throw RequestException.Forbidden("You can only edit your own messages.");
+        if (message.AuthorKey != me.AccountKey) throw RequestException.Forbidden("You can only edit your own messages.", "own_messages_edit");
         if (E2eeChannelFeature.Sealed(s, me, channel, body) is { } sealedMsg) return E2eeChannelFeature.Edit(s, channel, message, sealedMsg);
-        if (s.World.Store.GetPoll(message.Id) is not null) throw RequestException.BadRequest("Polls can't be edited.");
+        if (s.World.Store.GetPoll(message.Id) is not null) throw RequestException.BadRequest("Polls can't be edited.", "poll_no_edit");
         if (VoiceMessageFeature.IsVoice(s.World.Store, message.Id)) throw RequestException.BadRequest("Voice messages can't be edited.");
         ClipFeature.CheckEdit(s.World.Store, message);
-        if (s.World.Store.GetMessageSticker(message.Id) is not null) throw RequestException.BadRequest("Stickers can't be edited.");
-        if (s.World.Store.GetMessageGif(message.Id) is not null) throw RequestException.BadRequest("GIFs can't be edited.");
+        if (s.World.Store.GetMessageSticker(message.Id) is not null) throw RequestException.BadRequest("Stickers can't be edited.", "sticker_no_edit");
+        if (s.World.Store.GetMessageGif(message.Id) is not null) throw RequestException.BadRequest("GIFs can't be edited.", "gif_no_edit");
 
         var text = MessageText(body);
         AutoModFeature.Check(s, me, channel, text, "edit");
@@ -174,7 +174,7 @@ public static class ChatFeature
 
         var reactions = s.World.Store.Reactions(message.Id);
         if (on && !reactions.Any(r => r.Emoji == emoji) && reactions.Count >= MaxReactionsPerMessage)
-            throw RequestException.BadRequest("This message has too many different reactions.");
+            throw RequestException.BadRequest("This message has too many different reactions.", "reactions_full");
         s.World.Store.SetReaction(message.Id, me.AccountKey, emoji, on, s.Now);
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.reactions",
             new { id = message.Id, channelId = channel.Id, reactions = MessageViews.Reactions(s.World.Store, message.Id) }));
@@ -185,11 +185,12 @@ public static class ChatFeature
     {
         var size = body.OptionalLong("size", min: 1) ?? throw RequestException.BadRequest("'size' is required.");
         if (size > s.Uploads.MaxBytes)
-            throw RequestException.BadRequest($"Files can be up to {s.Uploads.MaxBytes / 1024 / 1024} MB on this server.");
+            throw RequestException.BadRequest($"Files can be up to {s.Uploads.MaxBytes / 1024 / 1024} MB on this server.", "file_size", new { mb = s.Uploads.MaxBytes / 1024 / 1024 });
         if (!s.Hub.Limits.TryTake(me.AccountKey, "upload.begin")) throw new RequestException("rate_limited", "Slow down a little.");
         var token = s.Uploads.Issue(me.AccountKey, me.Role, body.OptionalString("name", 512) ?? "file", size)
             ?? throw new RequestException("rate_limited",
-                $"You've reached today's upload limit on this server ({s.Uploads.DailyQuota(me.Role)!.Value / 1024 / 1024} MB a day). Try again later.");
+                $"You've reached today's upload limit on this server ({s.Uploads.DailyQuota(me.Role)!.Value / 1024 / 1024} MB a day). Try again later.",
+                "upload_quota", new { mb = s.Uploads.DailyQuota(me.Role)!.Value / 1024 / 1024 });
         return new { url = $"/upload/{token}", maxBytes = s.Uploads.MaxBytes, partBytes = Files.Uploads.PartBytes };
     }
 

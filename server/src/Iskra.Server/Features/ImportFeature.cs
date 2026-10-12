@@ -42,7 +42,7 @@ public static class ImportFeature
 
     private static void RequireOwner(Member me)
     {
-        if (me.Role != Roles.Owner) throw RequestException.Forbidden("Only the owner can import.");
+        if (me.Role != Roles.Owner) throw RequestException.Forbidden("Only the owner can import.", "owner_import");
     }
 
     private static object Begin(ImportService imports, Member me, Body body)
@@ -50,10 +50,10 @@ public static class ImportFeature
         RequireOwner(me);
         var size = body.OptionalLong("size", min: 1) ?? throw RequestException.BadRequest("'size' is required.");
         if (size > imports.MaxBytes)
-            throw RequestException.BadRequest($"Exports can be up to {imports.MaxBytes / 1024 / 1024} MB on this server (Import.MaxMb in server.json).");
+            throw RequestException.BadRequest($"Exports can be up to {imports.MaxBytes / 1024 / 1024} MB on this server (Import.MaxMb in server.json).", "import_size", new { mb = imports.MaxBytes / 1024 / 1024 });
         var readOnly = body.OptionalBool("readOnly") ?? false;
         var token = imports.Begin(me.AccountKey, size, readOnly)
-            ?? throw new RequestException("rate_limited", "An import is already running. Wait for it to finish.");
+            ?? throw new RequestException("rate_limited", "An import is already running. Wait for it to finish.", "import_running");
         return new { url = $"/import/{token}", maxBytes = imports.MaxBytes };
     }
 

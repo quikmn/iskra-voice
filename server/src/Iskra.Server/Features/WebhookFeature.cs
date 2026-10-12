@@ -63,13 +63,13 @@ public static class WebhookFeature
 
     private static void RequireAdmin(Member me)
     {
-        if (!Permissions.Has(me, Perm.ManageWebhooks)) throw RequestException.Forbidden("You can't manage webhooks on this server.");
+        if (!Permissions.Has(me, Perm.ManageWebhooks)) throw RequestException.Forbidden("You can't manage webhooks on this server.", "manage_webhooks");
     }
 
     private static Channel TextChannel(Session s, Member me, long id)
     {
         var channel = ChatFeature.ReadableChannel(s, me, id);
-        if (channel.Kind != "text") throw RequestException.BadRequest("Webhooks can only post in text channels.");
+        if (channel.Kind != "text") throw RequestException.BadRequest("Webhooks can only post in text channels.", "webhook_text_only");
         E2eeChannelFeature.RefusePlaintext(s.World.Store, channel, "Webhooks");
         return channel;
     }
@@ -85,7 +85,7 @@ public static class WebhookFeature
 
     private static string Name(Body body) =>
         Names.Normalize(body.String("name", 256))
-        ?? throw RequestException.BadRequest($"Names must be 1–{Names.MaxLength} characters, with no invisible characters.");
+        ?? throw RequestException.BadRequest($"Names must be 1–{Names.MaxLength} characters, with no invisible characters.", "name_length", new { max = Names.MaxLength });
 
     /// <summary>An avatar must be an image you uploaded yourself. Empty string means none.</summary>
     private static string? Avatar(Session s, Member me, string fileId)
@@ -120,7 +120,7 @@ public static class WebhookFeature
         var name = Name(body);
         var avatar = body.OptionalString("avatar", 64) is { } fileId ? Avatar(s, me, fileId) : null;
         if (s.World.Store.CountWebhooks(channel.Id) >= MaxPerChannel)
-            throw RequestException.BadRequest($"A channel can have at most {MaxPerChannel} webhooks.");
+            throw RequestException.BadRequest($"A channel can have at most {MaxPerChannel} webhooks.", "webhooks_max", new { max = MaxPerChannel });
 
         var (secret, hash) = NewSecret();
         var hook = new Webhook(Ed25519.ToB64u(RandomNumberGenerator.GetBytes(16)), channel.Id, name, avatar, hash,
@@ -141,7 +141,7 @@ public static class WebhookFeature
         {
             var channel = TextChannel(s, me, channelId);
             if (channel.Id != hook.ChannelId && s.World.Store.CountWebhooks(channel.Id) >= MaxPerChannel)
-                throw RequestException.BadRequest($"A channel can have at most {MaxPerChannel} webhooks.");
+                throw RequestException.BadRequest($"A channel can have at most {MaxPerChannel} webhooks.", "webhooks_max", new { max = MaxPerChannel });
             hook = hook with { ChannelId = channel.Id };
         }
         s.World.Store.UpdateWebhook(hook);
