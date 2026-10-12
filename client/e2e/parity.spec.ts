@@ -78,7 +78,7 @@ test('forwarding, unread navigation and shortcuts', async ({ browser }) => {
   const dm = friend.locator('.message', { hasText: 'pizza at 8?' })
   await expect(dm.locator('.forwarded-line')).toHaveText('Forwarded from #general on Parity Test')
   await friend.screenshot({ path: join(SHOTS, 'parity-forward-dm.png') })
-  await friend.getByRole('button', { name: 'PT', exact: true }).click()
+  await friend.locator('.server-rail').getByTitle('Parity Test', { exact: true }).click()
 
   // ── Unread: Alt+↓ goes to the next unread channel, with a divider and a jump bar ──
   await channelRow(friend, 'general').locator('.channel').click()
@@ -128,7 +128,7 @@ test('server folders on the rail, synced through the servers', async ({ browser 
     await joinVia(other, another.ownerLink(), 'Other')
     await page.goto(await createInviteLink(other))
     await page.getByRole('button', { name: 'Join server' }).click()
-    await expect(page.getByRole('button', { name: 'TB', exact: true })).toBeVisible()
+    await expect(page.locator('.server-rail').getByTitle('Third Base', { exact: true })).toBeVisible()
 
     // Drag Third Base onto Second Place: a folder.
     const icon = (name: string) => page.locator('.server-rail').getByTitle(name, { exact: true })

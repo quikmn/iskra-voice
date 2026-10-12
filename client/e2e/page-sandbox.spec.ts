@@ -79,7 +79,10 @@ test('browsers: other people\'s pages run without scripts, and nothing reaches t
   await expect(viewer).toContainText('Interactive pages run in the desktop app.')
   await expect(viewer.getByRole('button', { name: /Run scripts/ })).toHaveCount(0)
   await expect(viewer).not.toContainText('IP address')
-  const frame = friend.frames().find((f) => f.url().includes('/pages/'))!
+  // The page's frame is attached a moment after the viewer's text shows: wait for it rather than look once.
+  const pageFrame = () => friend.frames().find((f) => f.url().includes('/pages/'))
+  await expect.poll(() => !!pageFrame()).toBe(true)
+  const frame = pageFrame()!
   await expect(frame.locator('h1')).toHaveText('Probe')
   await expect(frame.parentFrame()!.locator('iframe')).toHaveAttribute('sandbox', '')
   expect(frame.url()).not.toContain('scripts=1')
