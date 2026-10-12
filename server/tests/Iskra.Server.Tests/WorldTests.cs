@@ -29,6 +29,21 @@ public class WorldTests : IDisposable
     }
 
     [Fact]
+    public void The_database_uses_wal_without_a_disk_flush_per_commit()
+    {
+        // Regression: synchronous=FULL flushed the disk on every commit under the write lock, which made the Windows CI
+        // run several times slower than Linux and starved logins past their timeouts.
+        using var world = World.OpenOrCreate(_path);
+        var db = (Microsoft.Data.Sqlite.SqliteConnection)typeof(Store)
+            .GetField("_db", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(world.Store)!;
+        using var cmd = db.CreateCommand();
+        cmd.CommandText = "PRAGMA journal_mode;";
+        Assert.Equal("wal", cmd.ExecuteScalar());
+        cmd.CommandText = "PRAGMA synchronous;";
+        Assert.Equal(1L, cmd.ExecuteScalar()); // NORMAL
+    }
+
+    [Fact]
     public void A_missing_folder_is_created_with_defaults()
     {
         using var world = World.OpenOrCreate(_path);
