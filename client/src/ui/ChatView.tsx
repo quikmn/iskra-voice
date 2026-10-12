@@ -627,8 +627,10 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
             <div key={u.localId} className={`pending-upload ${u.error ? 'failed' : ''}`} title={u.error ?? u.file.name}>
               {u.preview ? <img src={u.preview} alt="" className={isSpoilerName(u.file.name) ? 'spoiler-preview' : undefined} /> : <span className="file-icon" aria-hidden><FileIcon size={20} /></span>}
               <span className="file-name">{u.file.name}</span>
-              <SpoilerToggle on={isSpoilerName(u.file.name)} onToggle={() => toggleSpoiler(u)} />
-              <span className="muted">{u.error ? t('chat.composer.failed') : u.result ? formatSize(u.file.size) : formatNumber(u.progress, { style: 'percent', maximumFractionDigits: 0 })}</span>
+              {!u.error && <SpoilerToggle on={isSpoilerName(u.file.name)} onToggle={() => toggleSpoiler(u)} />}
+              {u.error
+                ? <span className="upload-error" role="alert">{u.error}</span>
+                : <span className="muted">{u.result ? formatSize(u.file.size) : formatNumber(u.progress, { style: 'percent', maximumFractionDigits: 0 })}</span>}
               {!u.result && !u.error && <span className="upload-progress" style={{ width: `${u.progress * 100}%` }} />}
               <button className="icon-button small" onClick={() => removeUpload(u)} aria-label={t('chat.composer.removeFile', { name: u.file.name })}><Close size={14} /></button>
             </div>

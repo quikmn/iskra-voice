@@ -25,7 +25,7 @@ export const dms: Messages['dms'] = {
     uploadFailed: 'Uppladdningen misslyckades. Kolla din anslutning.',
     uploadCancelled: 'Uppladdningen avbröts.',
     tooBig: 'Filer i direktmeddelanden får vara högst {{mb}} MB.',
-    upTo: 'Högst {{mb}} MB i direktmeddelanden.',
+    tooBigEncrypted: 'För stor för ett krypterat DM (max {{mb}} MB)',
     tooBigToOpen: 'Filen är för stor för att öppnas här.',
     serverOffline: 'Servern som har filen är inte ansluten just nu.',
     downloadFailed: 'Kunde inte ladda ner filen.',

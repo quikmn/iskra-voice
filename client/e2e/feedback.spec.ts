@@ -1,3 +1,5 @@
+import { closeSync, ftruncateSync, mkdtempSync, openSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 import { createInviteLink, hasLiveKit, joinVia, openSettings, SHOTS, startServer, type TestServer } from './helpers'
@@ -82,5 +84,29 @@ test('an invite on a fresh device says a new account is a new person, and offers
   await expect(fresh.getByText(/A new account shows up as a new person on the server/)).toBeVisible()
   await expect(fresh.getByRole('button', { name: /I already use Iskra on another device/ })).toBeVisible()
   await fresh.screenshot({ path: join(SHOTS, 'invite-fresh-device.png') })
+  await own.stop()
+})
+
+test('a file too big for an encrypted DM says why on its chip, at once', async ({ browser }) => {
+  const own = await startServer('DM Files Test')
+  const host = await (await browser.newContext()).newPage()
+  await joinVia(host, own.ownerLink(), 'Host')
+  const friend = await (await browser.newContext()).newPage()
+  await joinVia(friend, await createInviteLink(host), 'Friend')
+  await friend.locator('.member-list').getByRole('button', { name: 'Host' }).click()
+  await friend.getByRole('dialog').getByRole('button', { name: 'Message', exact: true }).click()
+  await expect(friend.getByPlaceholder('Message Host')).toBeVisible()
+
+  // 51 MB, sparse on disk.
+  const dir = mkdtempSync(join(tmpdir(), 'iskra-big-'))
+  const path = join(dir, 'GoogleDriveSetup.exe')
+  const fd = openSync(path, 'w')
+  ftruncateSync(fd, 51 * 1024 * 1024)
+  closeSync(fd)
+  await friend.locator('.composer-wrap input[type=file]').setInputFiles(path)
+  const chip = friend.locator('.pending-upload', { hasText: 'GoogleDriveSetup.exe' })
+  await expect(chip.getByRole('alert')).toHaveText('Too big for an encrypted DM (max 50 MB)')
+  await friend.screenshot({ path: join(SHOTS, 'dm-file-too-big.png') })
+  rmSync(dir, { recursive: true, force: true })
   await own.stop()
 })
