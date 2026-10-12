@@ -782,6 +782,7 @@ input.confirm-code::placeholder { color: var(--faint); }
 
 /* ── First-run choice and signing out ─────────────────────────────── */
 .onboarding-question { margin: 4px 0 0; font-weight: 600; }
+.onboarding-note { margin: 12px 0 0; font-size: 13px; line-height: 1.45; }
 .choice-list.equal .choice strong { font-size: 15px; }
 .sign-out-danger { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--red); border-radius: var(--radius); background: color-mix(in srgb, var(--red) 10%, transparent); }
 .sign-out-danger strong { color: var(--red); }

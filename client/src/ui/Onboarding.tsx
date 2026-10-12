@@ -90,6 +90,7 @@ export function Onboarding() {
               <span className="muted">{t('account.welcome.existingHint')}</span>
             </button>
           </div>
+          {pendingInvite && <p className="onboarding-note muted">{t('account.welcome.invitedTwice')}</p>}
         </div>
       </div>
     )

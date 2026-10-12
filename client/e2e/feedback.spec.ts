@@ -70,3 +70,17 @@ test('the profile card from a voice tile stays inside the window', async ({ brow
     await expect(friend.locator('.profile-card')).toHaveCount(0)
   }
 })
+
+test('an invite on a fresh device says a new account is a new person, and offers linking instead', async ({ browser }) => {
+  const own = await startServer('Invite Test')
+  const owner = await (await browser.newContext()).newPage()
+  await joinVia(owner, own.ownerLink(), 'Owner')
+  const link = await createInviteLink(owner)
+  const fresh = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage()
+  await fresh.goto(link)
+  await expect(fresh.getByText("You've been invited")).toBeVisible()
+  await expect(fresh.getByText(/A new account shows up as a new person on the server/)).toBeVisible()
+  await expect(fresh.getByRole('button', { name: /I already use Iskra on another device/ })).toBeVisible()
+  await fresh.screenshot({ path: join(SHOTS, 'invite-fresh-device.png') })
+  await own.stop()
+})

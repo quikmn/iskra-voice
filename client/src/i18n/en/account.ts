@@ -8,6 +8,7 @@ export const account = {
     existing: 'I already use Iskra on another device',
     existingHint: 'Link this device to your account, or use your recovery key. Your servers, friends and messages come along.',
     back: 'Back',
+    invitedTwice: 'Joined from another device or browser before? Pick “I already use Iskra”. A new account shows up as a new person on the server.',
   },
   signOut: {
     button: 'Sign out of this device',

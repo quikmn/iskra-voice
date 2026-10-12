@@ -10,6 +10,7 @@ export const account: Messages['account'] = {
     existing: 'Jag använder redan Iskra på en annan enhet',
     existingHint: 'Koppla den här enheten till ditt konto, eller använd din återställningsnyckel. Dina servrar, vänner och meddelanden följer med.',
     back: 'Tillbaka',
+    invitedTwice: 'Har du gått med från en annan enhet eller webbläsare förut? Välj ”Jag använder redan Iskra”. Ett nytt konto syns som en ny person på servern.',
   },
   signOut: {
     button: 'Logga ut från den här enheten',
