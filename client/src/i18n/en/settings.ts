@@ -36,7 +36,7 @@ export const settings = {
   dialog: {
     sectionsLabel: 'Settings sections',
   },
-  internetSwitch: 'Open to the internet',
+  internetSwitch: 'Let friends anywhere join',
   room: {
     mine: 'My settings',
     title: '{{name}} · Server settings',
@@ -301,7 +301,7 @@ export const settings = {
     intro: 'Your server runs on this computer while Iskra is open. Everything stays in a folder you own ({{folder}}), with voice included.',
     name: 'Server name',
     namePlaceholder: 'Game Night',
-    network: "Friends on your network can join right away with an invite link. For friends anywhere, turn on <b>Open to the internet</b> in the server's settings afterwards.",
+    network: "Friends on your network can join right away with an invite link. For friends anywhere, turn on <b>Let friends anywhere join</b> in Server settings → Internet access afterwards.",
     moving: 'Moving a server here?',
     restore: 'Restore from a backup',
   },

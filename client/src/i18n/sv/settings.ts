@@ -37,7 +37,7 @@ export const settings: Messages['settings'] = {
   dialog: {
     sectionsLabel: 'Inställningsavsnitt',
   },
-  internetSwitch: 'Öppna mot internet',
+  internetSwitch: 'Låt vänner var som helst gå med',
   room: {
     mine: 'Mina inställningar',
     title: '{{name}} · Serverinställningar',
@@ -302,7 +302,7 @@ export const settings: Messages['settings'] = {
     intro: 'Din server körs på den här datorn när Iskra är öppen. Allt sparas i en mapp som du äger ({{folder}}), och röst ingår.',
     name: 'Serverns namn',
     namePlaceholder: 'Spelkväll',
-    network: 'Vänner i ditt nätverk kan gå med direkt via en inbjudningslänk. För vänner var som helst slår du på <b>Öppna mot internet</b> i serverns inställningar efteråt.',
+    network: 'Vänner i ditt nätverk kan gå med direkt via en inbjudningslänk. För vänner var som helst slår du på <b>Låt vänner var som helst gå med</b> under Serverinställningar → Internetåtkomst efteråt.',
     moving: 'Ska du flytta en server hit?',
     restore: 'Återställ från en säkerhetskopia',
   },
