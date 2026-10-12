@@ -66,7 +66,7 @@ export function AutoModSection({ server }: { server: ServerState }) {
   if (!draft || !saved) {
     return (
       <section className="settings-section automod" data-testid="automod-section">
-        <h3>{t('automod.title')}</h3>
+        <h2>{t('automod.title')}</h2>
         {error ? <p className="error-text">{error}</p> : <Spinner />}
       </section>
     )
@@ -110,7 +110,7 @@ export function AutoModSection({ server }: { server: ServerState }) {
 
   return (
     <section className="settings-section automod" data-testid="automod-section">
-      <h3>{t('automod.title')}</h3>
+      <h2>{t('automod.title')}</h2>
       <p className="muted">{t('automod.intro')}</p>
 
       <div className="internet-head automod-master">
@@ -207,7 +207,7 @@ export function AutoModSection({ server }: { server: ServerState }) {
       </Rule>
 
       <div className="automod-group">
-        <h4>{t('automod.alerts.title')}</h4>
+        <h3 className="h4">{t('automod.alerts.title')}</h3>
         <label className="field">
           <span>{t('automod.alerts.postIn')}</span>
           <select value={c.alertChannelId ?? ''} aria-label={t('automod.alerts.channelLabel')}
@@ -220,7 +220,7 @@ export function AutoModSection({ server }: { server: ServerState }) {
       </div>
 
       <div className="automod-group">
-        <h4>{t('automod.exemptions.title')}</h4>
+        <h3 className="h4">{t('automod.exemptions.title')}</h3>
         <p className="muted">{t('automod.exemptions.always')}</p>
         {roles.length > 0 && (
           <fieldset className="automod-chips">

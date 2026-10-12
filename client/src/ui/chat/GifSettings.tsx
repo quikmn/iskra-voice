@@ -34,7 +34,7 @@ export function GifSettings({ server }: { server: ServerState }) {
 
   return (
     <div className="settings-subsection gif-settings">
-      <h4>{t('chat.gifSettings.title')}</h4>
+      <h3 className="h4">{t('chat.gifSettings.title')}</h3>
       <p className="muted">
         {t('chat.gifSettings.intro')} <a href={LINKS.gifsGuide} target="_blank" rel="noopener noreferrer">{t('chat.gifSettings.howToGetKey')}</a>
       </p>
@@ -85,7 +85,7 @@ export function GifViewerSettings() {
   const { t } = useTranslation()
   return (
     <section className="settings-section">
-      <h3>{t('chat.gifSettings.viewerTitle')}</h3>
+      <h2>{t('chat.gifSettings.viewerTitle')}</h2>
       <label className="checkbox">
         <input type="checkbox" checked={autoLoad} onChange={(e) => setGifAutoLoad(e.target.checked)} />
         {t('chat.gifSettings.autoLoad')}

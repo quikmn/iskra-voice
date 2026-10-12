@@ -53,10 +53,10 @@ export function PrivacySection() {
   return (
     <>
     <section className="settings-section" data-testid="privacy-section">
-      <h3>{t('settings.sections.privacy')}</h3>
+      <h2>{t('settings.sections.privacy')}</h2>
       <p className="muted">{t('compliance.privacy.intro')}</p>
 
-      <h4>{t('compliance.privacy.serversTitle')}</h4>
+      <h3 className="h4">{t('compliance.privacy.serversTitle')}</h3>
       <p className="muted">{t('compliance.privacy.serversHint')}</p>
       {servers.length === 0 ? (
         <p className="empty-note">{t('compliance.privacy.noServers')}</p>
@@ -73,7 +73,7 @@ export function PrivacySection() {
         </ul>
       )}
 
-      <h4>{t('compliance.privacy.deviceTitle')}</h4>
+      <h3 className="h4">{t('compliance.privacy.deviceTitle')}</h3>
       <p className="muted">{t('compliance.privacy.deviceHint')}</p>
       <button className="button" disabled={busy !== null} onClick={() => void fromDevice()}>
         {busy === 'device' ? <Spinner /> : t('compliance.privacy.deviceDownload')}

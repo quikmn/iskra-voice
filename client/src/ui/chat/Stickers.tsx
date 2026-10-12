@@ -76,7 +76,7 @@ export function StickerSection({ server }: { server: ServerState }) {
 
   return (
     <section className="settings-section">
-      <h3>{t('chat.stickers.title')} · {stickers.length} / {MAX_STICKERS}</h3>
+      <h2>{t('chat.stickers.title')} · {stickers.length} / {MAX_STICKERS}</h2>
       <p className="muted">{t('chat.stickers.intro')}</p>
       <input ref={input} type="file" hidden accept="image/png,image/gif,image/webp,image/jpeg" aria-label={t('chat.stickers.image')}
         onChange={(e) => {

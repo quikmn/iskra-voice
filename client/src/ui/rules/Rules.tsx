@@ -137,7 +137,7 @@ export function RulesSection({ server }: { server: ServerState }) {
     if (rules && !draft) setDraft({ text: rules.text, welcome: rules.welcome, required: rules.required, askEveryone: !rules.required })
   }, [rules, draft])
 
-  if (!draft) return <section className="settings-section"><h3>{t('rules.settings.title')}</h3>{error ? <p className="error-text">{error}</p> : <Spinner />}</section>
+  if (!draft) return <section className="settings-section"><h2>{t('rules.settings.title')}</h2>{error ? <p className="error-text">{error}</p> : <Spinner />}</section>
 
   const { body, question } = rulesUpdate(rules, draft)
   const problem = rulesProblem(draft)
@@ -164,7 +164,7 @@ export function RulesSection({ server }: { server: ServerState }) {
 
   return (
     <section className="settings-section rules-settings" data-testid="rules-section">
-      <h3>{t('rules.settings.title')}</h3>
+      <h2>{t('rules.settings.title')}</h2>
       <p className="muted">{t('rules.settings.intro')}</p>
       <label className="field">
         <span>{t('rules.settings.welcome')}</span>

@@ -20,7 +20,7 @@ export function MembersSection({ server }: { server: ServerState }) {
     .sort((a, b) => roleRank(b.role) - roleRank(a.role) || a.name.localeCompare(b.name))
   return (
     <section className="settings-section">
-      <h3>{t('settings.sections.members')}</h3>
+      <h2>{t('settings.sections.members')}</h2>
       <p className="muted">{t('settings.members.intro', { server: server.name })}</p>
       <label className="field">
         <span>{t('settings.members.search')}</span>

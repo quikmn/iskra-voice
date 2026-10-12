@@ -75,7 +75,7 @@ export function RolesSection({ server }: { server: ServerState }) {
 
   return (
     <section className="settings-section">
-      <h3>{t('roles.title')}</h3>
+      <h2>{t('roles.title')}</h2>
       <p className="muted">{t('roles.intro')}</p>
       <button className="button primary" onClick={() => void add()}>{t('roles.create')}</button>
       {error && <p className="error-text">{error}</p>}

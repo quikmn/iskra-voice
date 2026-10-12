@@ -46,7 +46,7 @@ export function AppearanceSection() {
 
   return (
     <section className="settings-section">
-      <h3>{t('settings.sections.appearance')}</h3>
+      <h2>{t('settings.sections.appearance')}</h2>
       <div className="theme-grid" role="radiogroup" aria-label={t('profile.theme.label')}>
         {BUILT_IN_THEMES.map(({ id, theme }) => {
           const active = 'id' in choice && choice.id === id

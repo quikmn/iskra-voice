@@ -62,7 +62,7 @@ export function CaptionSettingsSection() {
 
   return (
     <section className="settings-section media-settings">
-      <h3>{t('media.captions.title')}</h3>
+      <h2>{t('media.captions.title')}</h2>
       <label className="checkbox">
         <input type="checkbox" checked={settings.enabled} disabled={!supported} onChange={(e) => updateCaptions({ enabled: e.target.checked })} />
         {t('media.captions.show')}
