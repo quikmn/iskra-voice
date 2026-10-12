@@ -11,6 +11,7 @@ export const friends: Messages['friends'] = {
   onlineCount: 'Online — {{count}}',
   allCount: 'Alla vänner — {{count}}',
   incomingCount: 'Inkommande — {{count}}',
+  requestsCount: 'Vänförfrågningar — {{count}}',
   outgoingCount: 'Skickade — {{count}}',
   empty: {
     online: 'Ingen av dina vänner är online just nu.',

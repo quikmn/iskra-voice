@@ -36,6 +36,17 @@ test('friend requests: right-click to send, accept, friends on both sides, then 
   await bob.getByRole('button', { name: 'Direct messages' }).click()
   await expect(bob.locator('.channel', { hasText: 'Friends' }).locator('.badge')).toHaveText('1')
   await bob.locator('.channel', { hasText: 'Friends' }).click()
+  // All (the default tab) shows the request on top instead of "No friends yet" (UX audit P1).
+  await expect(bob.getByRole('tab', { name: 'All' })).toHaveAttribute('aria-selected', 'true')
+  const requests = bob.getByRole('region', { name: 'Friend requests — 1' })
+  await expect(requests.locator('.friend-row', { hasText: 'Alice' })).toContainText('Incoming friend request')
+  await expect(requests.getByRole('button', { name: 'Accept friend request' })).toBeVisible()
+  await expect(bob.getByText('No friends yet')).toHaveCount(0)
+  await bob.screenshot({ path: join(SHOTS, 'friends-all-request.png') })
+  // Alice sees hers under Sent.
+  await alice.getByRole('button', { name: 'Direct messages' }).click()
+  await alice.locator('.channel', { hasText: 'Friends' }).click()
+  await expect(alice.getByRole('region', { name: 'Sent — 1' }).locator('.friend-row', { hasText: 'Bob' })).toBeVisible()
   await bob.getByRole('tab', { name: /Pending/ }).click()
   const request = bob.locator('.friend-row', { hasText: 'Alice' })
   await expect(request).toContainText('Incoming friend request')
@@ -82,4 +93,31 @@ test('friend requests: right-click to send, accept, friends on both sides, then 
   await expect(bob.locator('.action-sheet.org-sheet')).toBeVisible()
   await expect(bob.getByRole('dialog', { name: 'Options for Alice' }).getByRole('menuitem', { name: 'Add friend' })).toBeVisible()
   await bob.screenshot({ path: join(SHOTS, 'friends-menu-phone.png') })
+
+  // A narrow phone (360 px): Bob asks again; Alice's Accept/Ignore stay on screen, in the DM header and on Friends.
+  await bob.getByRole('dialog', { name: 'Options for Alice' }).getByRole('menuitem', { name: 'Add friend' }).click()
+  await alice.setViewportSize({ width: 360, height: 740 })
+  const noSpill = async (button: ReturnType<typeof alice.locator>, other?: ReturnType<typeof alice.locator>) => {
+    const box = (await button.boundingBox())!
+    expect(box.x).toBeGreaterThanOrEqual(0)
+    expect(box.x + box.width).toBeLessThanOrEqual(360)
+    if (other) {
+      const o = (await other.boundingBox())!
+      const overlap = box.x < o.x + o.width && o.x < box.x + box.width && box.y < o.y + o.height && o.y < box.y + box.height
+      expect(overlap).toBe(false)
+    }
+  }
+  const header = alice.locator('.chat-header')
+  await expect(header.getByRole('button', { name: 'Accept friend request' })).toBeVisible()
+  await noSpill(header.getByRole('button', { name: 'Accept friend request' }), header.getByRole('button', { name: 'Verify' }))
+  await noSpill(header.getByRole('button', { name: 'Ignore friend request' }), header.getByRole('button', { name: 'Verify' }))
+  await alice.screenshot({ path: join(SHOTS, 'friends-dm-header-360.png') })
+  await alice.getByRole('button', { name: 'Open menu' }).first().click()
+  await alice.locator('.channel', { hasText: 'Friends' }).click()
+  const narrow = alice.getByRole('region', { name: 'Friend requests — 1' })
+  await expect(narrow.locator('.section-title')).toBeInViewport({ ratio: 1 })
+  await noSpill(narrow.getByRole('button', { name: 'Accept friend request' }))
+  await noSpill(narrow.getByRole('button', { name: 'Ignore friend request' }))
+  expect(await alice.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360)
+  await alice.screenshot({ path: join(SHOTS, 'friends-all-request-360.png') })
 })

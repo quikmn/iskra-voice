@@ -10,6 +10,7 @@ export const friends = {
   onlineCount: 'Online — {{count}}',
   allCount: 'All friends — {{count}}',
   incomingCount: 'Incoming — {{count}}',
+  requestsCount: 'Friend requests — {{count}}',
   outgoingCount: 'Sent — {{count}}',
   empty: {
     online: 'None of your friends are online right now.',
