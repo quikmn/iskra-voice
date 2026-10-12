@@ -303,6 +303,8 @@ public sealed partial class Store : IDisposable
         ("push-2", "DELETE FROM push_subscriptions WHERE endpoint LIKE 'https://push.iskra.foo/%';"),
         ("templates-1", TemplatesMigration),
         ("profilesync-1", ProfileSyncMigration),
+        // Docs keep an upload alive only while a kept revision still links to it (security review).
+        ("docs-2", ForgetUnshownDocFiles + ";"),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

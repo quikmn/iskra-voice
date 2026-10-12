@@ -46,5 +46,7 @@ export function pageRequestAllowed(allowed: string | null, url: string, resource
     return false
   }
   const page = new URL(allowed)
+  // Only http(s) pages have a real origin: data:, file: and app: URLs all share the opaque "null".
+  if (page.origin === 'null' || !/^https?:$/.test(page.protocol) || !/^https?:$/.test(target.protocol)) return false
   return target.origin === page.origin && !target.username && !target.password && /^\/files\/[A-Za-z0-9_-]{16,64}(?:\/[^/]*)?$/.test(target.pathname)
 }

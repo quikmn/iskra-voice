@@ -322,6 +322,51 @@ public class DocsTests
     }
 
     [Fact]
+    public async Task A_page_cant_keep_someone_elses_upload_alive_or_keep_one_after_the_link_is_gone()
+    {
+        // Security review: doc_files only takes your own uploads, and forgets what no kept revision shows any more.
+        using var server = new IskraServer();
+        var wiki = Docs(server);
+        using var bob = await server.JoinAsync("Bob");
+        using var tess = await server.JoinAsync("Tess", "trusted");
+        var bobs = await Upload(server, bob, [1, 2, 3, 4], "secret.bin");
+        var tessFile = await Upload(server, tess, [5, 6, 7, 8], "mine.bin");
+        await Create(tess, wiki, "Pinned", $"![x](/files/{bobs}/secret.bin)");
+        var id = Id(await Create(tess, wiki, "Mine", $"![x](/files/{tessFile}/mine.bin)"));
+        // A different editor saves without the picture, then the revisions with it age out.
+        using var tom = await server.JoinAsync("Tom", "trusted");
+        Assert.Equal("result", (await tom.RequestAsync("docs.page.save", new { id, baseVersion = 1, text = "no picture now" })).Type());
+        server.World.Store.PruneDocRevisions(DateTimeOffset.UtcNow.AddDays(1).ToUnixTimeMilliseconds());
+
+        server.Services.GetRequiredService<Uploads>().Sweep(DateTimeOffset.UtcNow.AddHours(25));
+        var http = server.CreateClient();
+        Assert.Equal(HttpStatusCode.NotFound, (await http.GetAsync($"/files/{bobs}/x")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await http.GetAsync($"/files/{tessFile}/x")).StatusCode);
+    }
+
+    [Fact]
+    public async Task A_writer_cant_delete_other_peoples_pages_by_moving_them_under_their_own()
+    {
+        // Security review: deleting a page takes its sub-pages, so only a moderator deletes one that holds other people's.
+        using var server = new IskraServer();
+        var wiki = Docs(server, write: "member");
+        using var mal = await server.JoinAsync("Mal");
+        using var bob = await server.JoinAsync("Bob");
+        var bobs = Id(await Create(bob, wiki, "Bob's page", "important"));
+        var mine = Id(await Create(mal, wiki, "Mine"));
+        Assert.Equal("result", (await mal.RequestAsync("docs.page.move", new { id = bobs, parentId = mine })).Type());
+        Assert.Equal("forbidden", (await mal.RequestAsync("docs.page.delete", new { id = mine })).ErrorCode());
+        Assert.Equal("result", (await bob.RequestAsync("docs.page.get", new { id = bobs })).Type());
+
+        // A moderator still can, and a page with only your own sub-pages is yours to delete.
+        using var mod = await server.JoinAsync("Mod", "trusted");
+        var own = Id(await Create(mal, wiki, "Own"));
+        Id(await Create(mal, wiki, "Own child", parentId: own));
+        Assert.Equal("result", (await mal.RequestAsync("docs.page.delete", new { id = own })).Type());
+        Assert.Equal("result", (await mod.RequestAsync("docs.page.delete", new { id = mine })).Type());
+    }
+
+    [Fact]
     public async Task Pages_are_in_the_data_export_follow_retention_and_lose_a_deleted_authors_name()
     {
         using var server = new IskraServer();

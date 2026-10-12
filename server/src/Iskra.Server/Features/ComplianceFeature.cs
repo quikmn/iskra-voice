@@ -97,6 +97,9 @@ public static class ComplianceFeature
             if (me.Role != Roles.Owner) throw RequestException.Forbidden("Only the owner can export someone else's data.");
             if (!s.World.Store.KnowsAccount(subject)) throw RequestException.NotFound("Account");
         }
+        // Per account too: each export is a zip on disk, and a new connection would otherwise bring a fresh allowance.
+        if (!s.Hub.Limits.TryTake(me.AccountKey, "data.export"))
+            throw new RequestException("rate_limited", "You've asked for your data a lot just now. Try again in a few minutes.");
         var made = await exports.CreateAsync(s.World, subject, me.AccountKey, s.Now)
             ?? throw new RequestException("rate_limited", "An export is being made right now. Try again in a moment.");
         SecurityLog.Record(s, "data.export", subject, subject == me.AccountKey ? null : new { by = me.AccountKey });

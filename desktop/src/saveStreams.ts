@@ -13,6 +13,11 @@ interface Save {
   target: string
   temp: string
   handle: FileHandle
+  /** Where the next write goes, and the writes so far, in order (the page may not wait between them). */
+  offset: number
+  chain: Promise<unknown>
+  done: boolean
+  failed: boolean
 }
 
 export class SaveStreams {
@@ -20,18 +25,35 @@ export class SaveStreams {
 
   /** Starts writing toward `target` for the page `owner`; returns the save's id. */
   async begin(target: string, owner: number): Promise<string> {
-    const temp = `${target}.iskra-part`
-    const handle = await open(temp, 'w')
+    // A new part file of our own: never follow or truncate something already there.
+    let temp = `${target}.iskra-part`
+    let handle: FileHandle
+    try {
+      handle = await open(temp, 'wx')
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e
+      temp = `${target}.${randomBytes(4).toString('hex')}.iskra-part`
+      handle = await open(temp, 'wx')
+    }
     const id = randomBytes(16).toString('hex')
-    this.saves.set(id, { owner, target, temp, handle })
+    this.saves.set(id, { owner, target, temp, handle, offset: 0, chain: Promise.resolve(), done: false, failed: false })
     return id
   }
 
   async write(id: unknown, data: unknown, owner: number): Promise<boolean> {
     const save = this.find(id, owner)
-    if (!save || !(data instanceof Uint8Array) || data.length > MAX_WRITE) return false
+    if (!save || save.done || !(data instanceof Uint8Array) || data.length > MAX_WRITE) return false
+    const at = save.offset
+    save.offset += data.length
+    const written = save.chain.then(async () => {
+      const { bytesWritten } = await save.handle.write(data, 0, data.length, at)
+      if (bytesWritten !== data.length) throw new Error('short write')
+    })
+    save.chain = written.catch(() => {
+      save.failed = true
+    })
     try {
-      await save.handle.write(data)
+      await written
       return true
     } catch {
       await this.abort(id, owner)
@@ -42,13 +64,17 @@ export class SaveStreams {
   /** Closes the part file and gives it its real name (replacing a file the user chose to overwrite). */
   async finish(id: unknown, owner: number): Promise<boolean> {
     const save = this.find(id, owner)
-    if (!save) return false
-    this.saves.delete(id as string)
+    if (!save || save.done) return false
+    save.done = true
     try {
+      await save.chain // every write the page sent first
+      this.saves.delete(id as string)
+      if (save.failed) throw new Error('a write failed')
       await save.handle.close()
       await rename(save.temp, save.target)
       return true
     } catch {
+      await save.handle.close().catch(() => {})
       await rm(save.temp, { force: true }).catch(() => {})
       return false
     }
@@ -58,6 +84,8 @@ export class SaveStreams {
     const save = this.find(id, owner)
     if (!save) return
     this.saves.delete(id as string)
+    save.done = true
+    await save.chain
     await save.handle.close().catch(() => {})
     await rm(save.temp, { force: true }).catch(() => {})
   }
