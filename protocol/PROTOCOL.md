@@ -2215,3 +2215,70 @@ Cards use the [webhook embed](#webhooks) format, validator and limits (≤ 10 pe
 Messages carry `cards: [Card] | null` (`null` for everything except a bot's message with cards). Stored cards keep
 only the fields above; a picture from `/files` is returned as that file's URL path, which apps resolve against the
 server's address. Card text is rendered as text and markdown by apps, never as HTML.
+
+## Connecting without port forwarding (peer to peer, experimental)
+
+Many home connections share one internet address between customers (carrier-grade NAT), so friends can't reach a
+server at home and no port can be forwarded. The owner may let friends connect through a peer-to-peer tunnel instead:
+the host's Iskra desktop app announces a key on the public [HyperDHT](https://github.com/holepunchto/hyperdht) network
+and friends' desktop apps find it there, hole-punch a UDP path and carry the server's protocol inside a
+Noise-encrypted stream (UDX). Nothing of Iskra's sits on the path. Off by default; an explicit opt-in by the owner.
+
+```jsonc
+"P2p": {
+  "Enabled": false,
+  "TunnelPort": 0        // the tunnel listener on 127.0.0.1 (0 = any free port; the bound port is written to p2p.port)
+}
+```
+
+- `p2p.key` in the world folder holds the **p2p secret** (32 random bytes, b64u, owner-only), created when the
+  owner turns the feature on and replaced by `p2p.rotate`. Everything else is derived from it, with keyed BLAKE2b and
+  a context string per key: the host's DHT key pair from seed `BLAKE2b-256(key = secret, message = "iskra/p2p/v1/host-seed")`
+  and the friend key pair from `"iskra/p2p/v1/friend-seed"` (both Ed25519 from the 32-byte seed). The host's public
+  key is announced on the DHT, so it isn't secret; the host accepts a connection only from the friend key pair,
+  which proves knowledge of the secret, before any byte reaches the server. Iskra's own signed handshake and the
+  invite code still decide membership.
+- **Invite links** get an optional fourth field: `<appUrl>/#/join/<b64u(serverUrl)>.<serverKey>.<code>.<p2p>`, where
+  `p2p` is the secret (43 b64u characters). Three-field links keep working. Apps add the field when the server has
+  the feature on; a friend's app tries `serverUrl` first and uses the tunnel when it can't be reached. The server key
+  in the link still pins the server end to end, whichever way the bytes travel.
+- `welcome.server.p2p` carries the secret (b64u) to every member while the feature is on (members make invites), else
+  `null`. Event `server.p2p { p2p }` goes to everyone when it changes (turned on, off, or rotated). Rotating locks out
+  people who only had old links; members learn the new secret from the server.
+
+| type | body | result | who |
+|---|---|---|---|
+| `p2p.status` | | `{ status: P2pStatus }` | owner |
+| `p2p.set` | `enabled` (boolean) | `{ status }` | owner. Turning on creates `p2p.key` if needed and restarts voice with its TURN server; turning off keeps the key |
+| `p2p.rotate` | | `{ status }` | owner. A new secret; old links stop working |
+
+```jsonc
+P2pStatus {
+  "enabled": true,
+  "hostKey": "<64 hex>",     // the host's DHT public key (what friends look up), or null
+  "tunnelPort": 51234,       // the tunnel listener on 127.0.0.1
+  "since": 1760000000000,    // when the current secret was made, or null
+  "connected": 2             // sessions online through the tunnel right now
+}
+```
+
+- **The tunnel listener.** The server always listens on `127.0.0.1:<TunnelPort>` as well. Every connection there must
+  start with a [PROXY protocol v2](https://www.haproxy.org/download/2.9/doc/proxy-protocol.txt) header
+  (`PROXY`, TCP over IPv4 or IPv6) that names the friend's address as the tunnel saw it: the friend's public UDP
+  address after the hole punch (or the relay's, when one carried the connection). A connection without a valid header
+  within 10 s is closed. Tunnelled connections count as **remote**, never as localhost: the loopback-only endpoints
+  (`/internal/livekit-webhook`) answer 404, plain-HTTP webhooks are refused as from anywhere else, they're never
+  redirected to the public HTTPS address (the tunnel is already encrypted end to end), and per-address rate limits
+  and the security log (`LoggedIp`, only when the owner records addresses) use the friend's address from the header.
+  The listener is local only, so nothing on the network can reach it; the tunnel in the host's desktop app is the
+  only thing that connects to it.
+- **Voice.** With the feature on, LiveKit's embedded TURN server listens on UDP `Voice.TurnUdpPort` (default
+  `RtcUdpPort + 1`) with relay ports `Voice.TurnRelayStart`–`Voice.TurnRelayEnd` (default 40000–40200), and may relay
+  only to this computer's own addresses. The tunnel carries TURN as unreliable datagrams (no head-of-line blocking).
+  `voice.join`, `call.*` and group calls answer a tunnelled session with the voice URL through the address it used
+  (`ws://127.0.0.1:<its tunnel port>/livekit`); the friend's app points LiveKit's TURN at its local tunnel port and
+  sends media relay-only. The same works for every room: voice channels, stages, watch parties, DM and group calls.
+- **What the DHT sees.** The nodes near the host's key (anyone can run one) learn the host's public address and key
+  and the addresses of friends who look it up, while the feature is on and the secret stays the same; never what the
+  server is, who its members are, or anything of the content. Rotating the secret changes the key. The apps say so
+  plainly in "Who Iskra talks to" and next to the switch.
