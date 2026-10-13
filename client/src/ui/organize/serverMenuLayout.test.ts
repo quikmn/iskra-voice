@@ -10,7 +10,7 @@ describe('server menu', () => {
   it('owner: the common things flat, the rest under More settings', () => {
     const layout = serverMenuLayout(sectionsFor('owner'), { invite: true, createChannel: true })
     expect(rowsOf(layout)).toEqual(['invite', 'channel', 'settings:overview', 'section:members', 'section:roles', 'section:reports', 'more'])
-    expect(layout.more).toEqual(['channels', 'emoji', 'sounds', 'pages', 'rules', 'automod', 'audit', 'securityLog', 'integrations', 'internet', 'limits', 'backup', 'import', 'updates'])
+    expect(layout.more).toEqual(['channels', 'emoji', 'gifs', 'sounds', 'pages', 'rules', 'automod', 'audit', 'securityLog', 'integrations', 'internet', 'limits', 'backup', 'import', 'updates'])
   })
 
   it('admin: the same shape without the owner-only sections', () => {

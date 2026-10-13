@@ -7,7 +7,7 @@ export type Messages = Widen<typeof en>
 
 export const LANGUAGES = ['en', 'sv'] as const
 export type Language = (typeof LANGUAGES)[number]
-/** What Settings → Appearance stores: a language, or follow the system. */
+/** What My settings → Language stores: a language, or follow the system. */
 export type LanguageChoice = Language | 'auto'
 
 /** Each language's own name, shown in the picker as is. */

@@ -53,7 +53,10 @@ test('voice channels have their own chat, and clips save the last seconds with a
 
   // Clips are opt in: off, the button says so and offers to turn them on.
   await host.locator('.call-controls').getByRole('button', { name: 'Clips are off' }).click()
-  await expect(host.getByRole('alert').filter({ hasText: 'Clips are off' })).toBeVisible()
+  const clipsOff = host.getByRole('alert').filter({ hasText: 'Clips are off' })
+  await expect(clipsOff).toBeVisible()
+  // Down by the controls, not over the header.
+  expect((await clipsOff.boundingBox())!.y).toBeGreaterThan(400)
   await openSettings(host, 'Voice & audio')
   const settings = host.getByRole('dialog', { name: 'Settings' })
   await settings.getByRole('checkbox', { name: 'Let me save clips' }).check()

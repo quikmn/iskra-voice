@@ -114,6 +114,7 @@ export const app: Messages['app'] = {
     useRecoveryKeyHint: 'ISKRA-…-nyckeln du sparade.',
     imNew: 'Jag är ny här',
     invited: 'Du har blivit inbjuden till en server på <b>{{host}}</b>.',
+    invitedTo: 'Du har blivit inbjuden till <b>{{server}}</b>.',
     pickNameInvited: 'Välj ett namn så är du med.',
     intro: 'Röst- och textchatt med dina vänner, på en server du äger. Välj ett namn för att komma igång.',
     recoveryKey: 'Återställningsnyckel',

@@ -10,7 +10,9 @@ import { canStreamToDisk, IN_MEMORY_NOTE_BYTES, openDmFile, saveDmFile, uploadDm
 import { draftKey, setDraft, useDraft } from '../../state/drafts'
 import { ImageGrid, Lightbox, SpoilerCover, SpoilerToggle, isSpoilerName, longTextFile, shownName } from '../chat/media'
 import { formatSize } from '../chat/helpers'
-import { Close, FileIcon, Lock, Paperclip, Send } from '../icons'
+import { Close, FileIcon, Lock, Paperclip, Send, Smile } from '../icons'
+import { EmojiPicker } from '../expressions/EmojiPicker'
+import { insertAt } from '../expressions/emoji'
 import { VoicePlayer, VoiceRecordButton } from '../chat/voice/VoiceMessages'
 import { voiceRecordingSupported, type Recording } from '../chat/voice/recorder'
 import { useSendLater } from '../productivity/SendLater'
@@ -42,6 +44,9 @@ export function DmComposer({ peer, placeholder, group }: {
   const setText = (value: string) => setDraft(draft, value)
   const [uploads, setUploads] = useState<PendingUpload[]>([])
   const fileInput = useRef<HTMLInputElement>(null)
+  const box = useRef<HTMLTextAreaElement>(null)
+  const caret = useRef<number | null>(null)
+  const [picker, setPicker] = useState<HTMLElement | null>(null)
   const { t } = useTranslation()
   const route = group ? group.serverKey : sharedServers(peer)[0]
   const target = group ? { groupId: group.id } : peer
@@ -141,11 +146,13 @@ export function DmComposer({ peer, placeholder, group }: {
           }}
         />
         <textarea
+          ref={box}
           rows={1}
           value={text}
           maxLength={4000}
           placeholder={placeholder}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => { setText(e.target.value); caret.current = e.target.selectionStart }}
+          onSelect={(e) => { caret.current = e.currentTarget.selectionStart }}
           onPaste={(e) => {
             const files = [...e.clipboardData.files]
             if (files.length) {
@@ -166,6 +173,10 @@ export function DmComposer({ peer, placeholder, group }: {
             }
           }}
         />
+        {/* Standard emoji only: custom ones belong to a server, and the other side may not share it. */}
+        <button className="icon-button attach-button" onClick={(e) => setPicker(e.currentTarget)} aria-label={t('chat.composer.emoji')} title={t('chat.composer.emoji')}>
+          <Smile />
+        </button>
         {!text.trim() && uploads.length === 0 && voiceRecordingSupported() && <VoiceRecordButton onSend={sendVoice} disabled={!route} />}
         {later.button}
         <button className="send-button" onClick={submit} disabled={!canSend && !canQueue} aria-label={t('common.send')} {...later.sendProps}>
@@ -173,6 +184,26 @@ export function DmComposer({ peer, placeholder, group }: {
         </button>
       </div>
       {later.dialog}
+      {picker && (
+        <EmojiPicker
+          serverKey=""
+          anchor={picker}
+          keepOpen
+          onClose={() => {
+            setPicker(null)
+            const el = box.current
+            if (!el) return
+            el.focus()
+            const at = caret.current ?? el.value.length
+            el.setSelectionRange(at, at)
+          }}
+          onPick={(value) => {
+            const next = insertAt(text, caret.current ?? text.length, value)
+            setText(next.text)
+            caret.current = next.caret
+          }}
+        />
+      )}
     </div>
   )
 }

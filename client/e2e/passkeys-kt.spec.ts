@@ -87,8 +87,8 @@ test('key transparency: the log checks out, and a key the server never logged is
   await joinVia(host, server.ownerLink(), 'Host')
   const invite = await createInviteLink(host)
 
-  // Settings → App lock shows each server's log; the log itself is checked entry by entry.
-  await openSettings(host, 'App lock')
+  // Settings → Recovery key shows each server's log; the log itself is checked entry by entry.
+  await openSettings(host, 'Recovery key')
   const section = host.getByTestId('kt-section')
   await expect(section.getByTestId('kt-status')).toContainText(/entr(y|ies) · checked/)
   await expect(section.getByText('Nothing suspicious found.')).toBeVisible()

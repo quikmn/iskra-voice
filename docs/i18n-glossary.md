@@ -28,18 +28,20 @@ exists.
 | English | Svenska |
 |---|---|
 | My settings | Mina inställningar |
+| Language (section) | Språk |
 | Server settings | Serverinställningar |
 | Server, Members & safety, Apps, Hosting & data (groups) | Server, Medlemmar och säkerhet, Appar, Drift och data |
 | Overview | Översikt |
 | Channels | Kanaler |
 | Emoji & stickers | Emoji och klistermärken |
+| GIFs | GIF:ar |
 | Soundboard | Soundboard |
 | Profile pages | Profilsidor |
 | Server rules | Serverregler |
 | Members | Medlemmar |
 | Roles | Roller |
 | Reports | Anmälningar |
-| AutoMod (auto-moderation) | AutoMod (automatisk moderering) |
+| AutoMod (nav and heading) | AutoMod |
 | Activity log (who changed what; never "audit log") | Aktivitetslogg |
 | Sign-ins & security (never "security log" as a name) | Inloggningar och säkerhet |
 | Bots & webhooks | Bottar och webhooks |

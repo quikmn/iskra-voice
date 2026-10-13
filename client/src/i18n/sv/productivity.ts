@@ -88,6 +88,12 @@ export const productivity: Messages['productivity'] = {
     buttonCount_one: 'Inkorg, {{count}} ny',
     buttonCount_other: 'Inkorg, {{count}} nya',
     title: 'Inkorg',
+    titles: {
+      inbox: 'Inkorg',
+      saved: 'Sparade meddelanden',
+      reminders: 'Påminnelser',
+      scheduled: 'Schemalagda meddelanden',
+    },
     tabs: {
       inbox: 'Inkorg',
       saved: 'Sparat',

@@ -14,6 +14,7 @@ export const groups: Messages['groups'] = {
   nobodyElse: 'Ingen annan är på den här servern än.',
   creating: 'Skapar…',
   createGroup: 'Skapa gruppchatt',
+  joinFirst: 'En gruppchatt finns på en server som du delar med alla i den. Gå med i en väns server först och starta sedan en grupp där.',
   connectFirst: 'Anslut till en server först: en gruppchatt finns på en server som du delar med alla i den.',
   pickIntro: 'Välj 2 till {{max}} personer från en server ni delar. Meddelanden och samtal är totalsträckskrypterade.',
   server: 'Server',

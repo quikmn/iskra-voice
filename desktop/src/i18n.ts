@@ -1,5 +1,5 @@
 // The desktop shell's own text (tray, About, native dialogs, update notices) in the app's language.
-// The page tells us its language (Settings → Appearance → Language, or the system's); until it has, the OS decides.
+// The page tells us its language (My settings → Language, or the system's); until it has, the OS decides.
 
 export type DesktopLanguage = 'en' | 'sv'
 

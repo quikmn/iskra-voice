@@ -4,6 +4,7 @@ export const settings: Messages['settings'] = {
   sections: {
     profile: 'Profil',
     appearance: 'Utseende',
+    language: 'Språk',
     devices: 'Enheter',
     recovery: 'Återställningsnyckel',
     security: 'Applås',
@@ -17,8 +18,9 @@ export const settings: Messages['settings'] = {
     reports: 'Anmälningar',
     overview: 'Översikt',
     roles: 'Roller',
-    automod: 'AutoMod (automatisk moderering)',
+    automod: 'AutoMod',
     emoji: 'Emoji och klistermärken',
+    gifs: 'GIF:ar',
     sounds: 'Soundboard',
     integrations: 'Bottar och webhooks',
     pages: 'Profilsidor',
@@ -274,6 +276,7 @@ export const settings: Messages['settings'] = {
     notNow: 'Inte nu',
     joinServer: 'Gå med i servern',
     server: 'Server',
+    address: 'Adress',
     noHttps: 'Den här servern använder inte HTTPS, så din anslutning till den är inte krypterad.',
   },
   channel: {
@@ -317,6 +320,7 @@ export const settings: Messages['settings'] = {
   },
   start: {
     downloadFor: 'Ladda ner Iskra för {{os}}',
+    needsComputer: 'En server körs på en dator som står på, inte på en telefon. Öppna den här sidan på den Windows-, Mac- eller Linuxdator som ska vara värd för den. När den är igång kan du chatta från telefonen.',
     otherOs: 'Appen körs på den Windows-, Mac- eller Linuxdator som ska vara värd för din server.',
     allDownloads: 'Alla nedladdningar',
     signed: 'Signerad av Open Source Developer Viktor Lundgren. Medan appen är ny kan Windows fråga en gång innan den körs.',

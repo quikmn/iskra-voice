@@ -1,6 +1,6 @@
-// Server updates: Settings → Updates (owner) and the notices above the chat.
+// Server updates: Server settings → Server updates (owner) and the notices above the chat.
 export const updates = {
-  title: 'Updates',
+  title: 'Server updates',
   runs: 'This server runs',
   version: 'Iskra {{version}}',
   checkNow: 'Check now',
@@ -63,7 +63,7 @@ export const updates = {
   notice: {
     available: 'Update available for {{server}}: Iskra {{version}}.',
     installing: 'Updating {{server}} to Iskra {{version}}…',
-    open: 'Open Updates',
+    open: 'Open server updates',
     later: 'Later',
     restarting: '{{server}} is restarting for an update to Iskra {{version}}. It’ll be back in a moment.',
   },

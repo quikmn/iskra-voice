@@ -36,6 +36,7 @@ export const profile = {
   pageHtml: 'Page HTML',
   template: 'Start from the template',
   preview: 'Preview',
+  previewFiles: 'Pictures from the server (/files/…) show on the published page, not in this preview.',
   notPicture: "That file doesn't look like a picture.",
   cantProcess: "Couldn't process that picture.",
   crop: 'Crop your picture',

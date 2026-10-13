@@ -4,10 +4,10 @@ import { roleRank, type Permission, type Role } from '../../core/protocol'
 import { t } from '../../i18n'
 
 export type MySectionId =
-  | 'profile' | 'appearance' | 'devices' | 'recovery' | 'security' | 'notifications' | 'voice' | 'video' | 'blocked' | 'desktop' | 'account' | 'privacy' | 'about'
+  | 'profile' | 'appearance' | 'language' | 'devices' | 'recovery' | 'security' | 'notifications' | 'voice' | 'video' | 'blocked' | 'desktop' | 'account' | 'privacy' | 'about'
 
 export type ServerSectionId =
-  | 'overview' | 'channels' | 'emoji' | 'sounds' | 'pages' | 'rules'
+  | 'overview' | 'channels' | 'emoji' | 'gifs' | 'sounds' | 'pages' | 'rules'
   | 'members' | 'roles' | 'reports' | 'automod' | 'audit' | 'securityLog'
   | 'integrations'
   | 'internet' | 'limits' | 'backup' | 'import' | 'updates'
@@ -25,7 +25,7 @@ export interface ServerSectionInfo extends SectionInfo<ServerSectionId> {
   group: ServerGroup
 }
 
-const MINE: MySectionId[] = ['profile', 'appearance', 'devices', 'recovery', 'security', 'notifications', 'voice', 'video', 'blocked', 'desktop', 'account', 'privacy', 'about']
+const MINE: MySectionId[] = ['profile', 'appearance', 'language', 'devices', 'recovery', 'security', 'notifications', 'voice', 'video', 'blocked', 'desktop', 'account', 'privacy', 'about']
 
 /** Any of these opens Members and Reports (the ones that act on people). */
 const MODERATION: Permission[] = ['manageMessages', 'timeoutMembers', 'kickMembers', 'banMembers']
@@ -35,6 +35,7 @@ const SERVER: { id: ServerSectionId; group: ServerGroup; min: Role; perms?: Perm
   { id: 'overview', group: 'server', min: 'admin' },
   { id: 'channels', group: 'server', min: 'admin', perms: ['manageChannels'] },
   { id: 'emoji', group: 'server', min: 'admin', perms: ['manageExpressions'] },
+  { id: 'gifs', group: 'server', min: 'admin' },
   { id: 'sounds', group: 'server', min: 'trusted', perms: ['manageExpressions'] },
   { id: 'pages', group: 'server', min: 'admin' },
   { id: 'rules', group: 'server', min: 'admin' },

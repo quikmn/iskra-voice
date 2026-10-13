@@ -42,8 +42,9 @@
 }
 .clips-mark { width: 7px; height: 7px; margin-left: 6px; vertical-align: middle; }
 
+/* Above the composer and call controls, not over the channel header; dialogs cover them. */
 .clip-toasts {
-  position: fixed; top: calc(72px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: var(--z-notice);
+  position: fixed; bottom: calc(96px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: var(--z-toast);
   display: grid; gap: 6px; width: max-content; max-width: calc(100vw - 24px);
 }
 .clip-toast {
@@ -52,9 +53,6 @@
 }
 .clip-toast.error { border-radius: 12px; padding: 8px 8px 8px 14px; }
 @keyframes clip-toast-in { from { opacity: 0; transform: translateY(-6px); } }
-@media (max-width: 760px) {
-  .clip-toasts { top: auto; bottom: calc(96px + env(safe-area-inset-bottom)); }
-}
 
 .clip-dialog .clip-preview { width: 100%; max-height: 50vh; border-radius: 10px; background: #000; display: block; }
 .clip-dialog .clip-preview.audio-only { height: 54px; background: var(--surface-2); }

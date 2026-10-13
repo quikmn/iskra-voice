@@ -19,8 +19,8 @@ test('settings, Escape, quick switcher and phone message actions', async ({ brow
   const room = await openServerSettings(host)
   const roomNav = room.getByRole('navigation', { name: 'Settings sections' })
   await expect(roomNav.getByRole('button')).toHaveText([
-    'Overview', 'Channels', 'Emoji & stickers', 'Soundboard', 'Profile pages', 'Server rules',
-    'Members', 'Roles', 'Reports', 'AutoMod (auto-moderation)', 'Activity log', 'Sign-ins & security',
+    'Overview', 'Channels', 'Emoji & stickers', 'GIFs', 'Soundboard', 'Profile pages', 'Server rules',
+    'Members', 'Roles', 'Reports', 'AutoMod', 'Activity log', 'Sign-ins & security',
     'Bots & webhooks',
     'Internet access', 'Limits', 'Backup & move', 'Import from Discord', 'Server updates',
   ])
@@ -33,7 +33,7 @@ test('settings, Escape, quick switcher and phone message actions', async ({ brow
   const settings = host.getByRole('dialog', { name: 'Settings' })
   const nav = settings.getByRole('navigation', { name: 'Settings sections' })
   await expect(nav.getByRole('button')).toHaveText([
-    'Profile', 'Appearance', 'Devices', 'Recovery key', 'App lock', 'Notifications', 'Voice & audio', 'Camera', 'Blocked people', 'Account', 'Privacy & data', 'About & legal',
+    'Profile', 'Appearance', 'Language', 'Devices', 'Recovery key', 'App lock', 'Notifications', 'Voice & audio', 'Camera', 'Blocked people', 'Account', 'Privacy & data', 'About & legal',
   ])
   await expect(nav.getByRole('button', { name: 'Profile', exact: true })).toHaveAttribute('aria-current', 'page')
   await expect(settings.getByLabel('Name', { exact: true })).toBeVisible()
@@ -53,7 +53,7 @@ test('settings, Escape, quick switcher and phone message actions', async ({ brow
   await openSettings(phone)
   const phoneSettings = phone.getByRole('dialog', { name: 'Settings' })
   const phoneNav = phoneSettings.getByRole('navigation', { name: 'Settings sections' })
-  await expect(phoneNav.getByRole('button')).toHaveText(['Profile', 'Appearance', 'Devices', 'Recovery key', 'App lock', 'Notifications', 'Voice & audio', 'Camera', 'Blocked people', 'Account', 'Privacy & data', 'About & legal'])
+  await expect(phoneNav.getByRole('button')).toHaveText(['Profile', 'Appearance', 'Language', 'Devices', 'Recovery key', 'App lock', 'Notifications', 'Voice & audio', 'Camera', 'Blocked people', 'Account', 'Privacy & data', 'About & legal'])
   await phone.screenshot({ path: join(SHOTS, 'settings-phone-list.png') })
   await phoneNav.getByRole('button', { name: 'Appearance' }).click()
   await expect(phoneSettings.getByRole('heading', { name: 'Appearance' })).toBeVisible()

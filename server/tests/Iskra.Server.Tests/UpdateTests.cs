@@ -446,6 +446,20 @@ public class UpdateTests
     }
 
     [Fact]
+    public void Only_the_desktop_app_counts_as_managing_updates()
+    {
+        static bool Managed(Dictionary<string, string?> config, Dictionary<string, string> env) =>
+            UpdateEnvironment.Detect(Microsoft.Extensions.Configuration.MemoryConfigurationBuilderExtensions.AddInMemoryCollection(new Microsoft.Extensions.Configuration.ConfigurationBuilder(), config).Build(),
+                name => env.GetValueOrDefault(name)).ManagedByDesktop;
+
+        // A standalone server under a supervisor (or a test harness) that stops it by closing stdin updates on its own.
+        Assert.False(Managed([], new() { ["ISKRA_STOP_ON_STDIN_CLOSE"] = "1" }));
+        Assert.False(Managed([], []));
+        Assert.True(Managed([], new() { ["ISKRA_PARENT_PID"] = "1234", ["ISKRA_STOP_ON_STDIN_CLOSE"] = "1" }));
+        Assert.True(Managed(new() { ["Updates:ManagedBy"] = "desktop" }, []));
+    }
+
+    [Fact]
     public async Task Development_builds_never_check()
     {
         using var server = new IskraServer();

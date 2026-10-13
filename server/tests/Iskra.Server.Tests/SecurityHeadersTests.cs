@@ -30,6 +30,23 @@ public class SecurityHeadersTests
     }
 
     [Fact]
+    public async Task The_root_says_its_name_to_any_origin_and_nothing_more()
+    {
+        using var server = new IskraServer();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/");
+        request.Headers.Add("Origin", "https://app.iskra.foo");
+        using var response = await server.CreateClient().SendAsync(request);
+        Assert.Equal("*", Header(response, "Access-Control-Allow-Origin"));
+        Assert.Equal("", Header(response, "Access-Control-Allow-Credentials"));
+        var body = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
+        Assert.Equal(["iskra", "name"], body.EnumerateObject().Select(p => p.Name).ToArray());
+
+        // Only the root.
+        using var health = await server.CreateClient().GetAsync("/health");
+        Assert.Equal("", Header(health, "Access-Control-Allow-Origin"));
+    }
+
+    [Fact]
     public async Task A_handlers_own_policy_is_kept_and_gains_frame_ancestors()
     {
         using var server = new IskraServer();

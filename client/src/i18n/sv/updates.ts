@@ -2,7 +2,7 @@
 import type { Messages } from '../types'
 
 export const updates: Messages['updates'] = {
-  title: 'Uppdateringar',
+  title: 'Serveruppdateringar',
   runs: 'Den här servern kör',
   version: 'Iskra {{version}}',
   checkNow: 'Sök nu',
@@ -65,7 +65,7 @@ export const updates: Messages['updates'] = {
   notice: {
     available: 'Ny version för {{server}}: Iskra {{version}}.',
     installing: 'Uppdaterar {{server}} till Iskra {{version}}…',
-    open: 'Öppna Uppdateringar',
+    open: 'Öppna serveruppdateringar',
     later: 'Senare',
     restarting: '{{server}} startar om för att uppdateras till Iskra {{version}}. Den är tillbaka strax.',
   },

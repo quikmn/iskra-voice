@@ -73,11 +73,26 @@ test('with no servers, you can find out how to start one and change your name', 
   await page.getByLabel('Your name').fill('Newbie')
   await page.getByRole('button', { name: 'Continue' }).click()
 
+  // Home is the Friends page, led by how to join or start a server (the Friends row is really where you are).
+  await expect(page.getByRole('heading', { name: 'No servers yet' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Friends', level: 1 })).toBeVisible()
+  await expect(page.getByText('No friends yet')).toHaveCount(0)
+  await expect(page.locator('.channel-sidebar .channel.active')).toHaveText('Friends')
+
   await page.getByRole('button', { name: 'Start your own server' }).click()
   const guide = page.getByRole('dialog', { name: 'Start your own server' })
+  await expect(guide.getByRole('note')).toHaveCount(0)
   await expect(guide.getByRole('link', { name: 'Download Iskra for Windows' })).toHaveAttribute('href', /Iskra-Setup-.*\.exe$/)
   await expect(guide.getByRole('link', { name: 'Linux', exact: true })).toHaveAttribute('href', /linux-x64\.tar\.gz$/)
   await expect(guide.getByRole('link', { name: 'Mac (Apple silicon)' })).toHaveAttribute('href', /-mac-arm64\.dmg$/)
+  await page.keyboard.press('Escape')
+
+  // A group needs a server: New group leads to joining one instead of a dead end.
+  await page.getByRole('button', { name: 'New group' }).first().click()
+  const group = page.getByRole('dialog', { name: 'New group' })
+  await expect(group).toContainText("Join a friend's server first")
+  await group.getByRole('button', { name: 'Join a server' }).click()
+  await expect(page.getByRole('dialog', { name: 'Join a server' })).toBeVisible()
   await page.keyboard.press('Escape')
 
   // Settings are reachable from Home too.
@@ -87,4 +102,23 @@ test('with no servers, you can find out how to start one and change your name', 
   await page.getByRole('button', { name: 'Save profile' }).click()
   await page.keyboard.press('Escape')
   await expect(page.locator('.me-text strong')).toHaveText('Veteran')
+})
+
+test('on a phone, starting a server says it needs a computer', async ({ browser }) => {
+  const iphone = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'
+  const page = await (await browser.newContext({ userAgent: iphone, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })).newPage()
+  await page.goto('/')
+  await agreeToTerms(page)
+  await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
+  await page.getByLabel('Your name').fill('Phone')
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page.getByRole('heading', { name: 'No servers yet' })).toBeVisible()
+  await page.screenshot({ path: join(SHOTS, 'no-servers-phone.png') })
+  await page.getByRole('button', { name: 'Start your own server' }).click()
+  const guide = page.getByRole('dialog', { name: 'Start your own server' })
+  await expect(guide.getByRole('note')).toContainText('A server runs on a computer')
+  await expect(guide.getByRole('link', { name: /^Download Iskra for/ })).toHaveCount(0)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+  await expect(guide).toBeInViewport()
+  await page.screenshot({ path: join(SHOTS, 'start-server-phone.png') })
 })

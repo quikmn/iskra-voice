@@ -112,6 +112,8 @@ export function PageEditor({ onClose }: { onClose: () => void }) {
           />
         )}
       </div>
+      {/* The preview has no server to load them from (it runs walled off, like the page itself). */}
+      {html.includes('/files/') && <p className="muted small-text page-preview-note" role="note">{t('profile.previewFiles')}</p>}
     </Modal>
   )
 }

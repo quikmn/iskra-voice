@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { fingerprint } from '../../core/connection'
 import { parseInvite, type InviteLink } from '../../core/invite'
@@ -6,6 +6,22 @@ import { acceptInvite, useApp } from '../../state/store'
 import { Modal } from '../bits'
 import { OpenInApp } from '../OpenInApp'
 import { hostOf } from '../format'
+import { useServerName } from '../../state/serverName'
+
+const OPEN_JOIN_EVENT = 'iskra:open-join'
+
+/** Opens "Join a server" from anywhere (the Shell owns the dialog). */
+export function openJoinDialog() {
+  window.dispatchEvent(new Event(OPEN_JOIN_EVENT))
+}
+
+/** For the Shell: calls `open` when something asks for the join dialog. */
+export function useOpenJoinRequests(open: () => void) {
+  useEffect(() => {
+    window.addEventListener(OPEN_JOIN_EVENT, open)
+    return () => window.removeEventListener(OPEN_JOIN_EVENT, open)
+  }, [open])
+}
 
 /** Paste an invite link. */
 export function JoinDialog({ onClose, onCreate }: { onClose: () => void; onCreate?: () => void }) {
@@ -73,10 +89,17 @@ export function JoinPrompt({ invite }: { invite: InviteLink }) {
 
 function InviteSummary({ invite }: { invite: InviteLink }) {
   const { t } = useTranslation()
+  const name = useServerName(invite.serverUrl)
   return (
     <div className="invite-summary">
+      {name && (
+        <div>
+          <span className="label">{t('settings.join.server')}</span>
+          <strong className="invite-server-name">{name}</strong>
+        </div>
+      )}
       <div>
-        <span className="label">{t('settings.join.server')}</span>
+        <span className="label">{name ? t('settings.join.address') : t('settings.join.server')}</span>
         <strong>{hostOf(invite.serverUrl)}</strong>
       </div>
       <div>

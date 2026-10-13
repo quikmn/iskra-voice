@@ -350,6 +350,8 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 .empty-state p { margin: 0; color: var(--text-2); max-width: 400px; }
 .empty-state .copy-row { justify-content: center; margin-top: 8px; }
 .empty-icon { width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); color: var(--accent); margin-bottom: 4px; }
+.empty-state.start-card { height: auto; flex: none; padding: 32px 16px 20px; border-bottom: 1px solid var(--border); }
+.empty-state.start-card h2 { margin: 0; font-size: 22px; }
 .code-hint { font-family: var(--mono); color: var(--muted); background: var(--bg); padding: 8px 14px; border-radius: calc(var(--radius) * 0.8); margin: 8px 0 0; }
 .menu-button { position: absolute; left: 12px; top: 8px; }
 
@@ -591,6 +593,7 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 .invite-summary > div { display: flex; justify-content: space-between; gap: 12px; }
 .invite-summary .label { color: var(--muted); }
 .invite-summary p { margin: 0; }
+.invite-summary .invite-server-name { min-width: 0; overflow-wrap: anywhere; text-align: right; }
 .settings-section { border-top: 1px solid var(--border); padding-top: 16px; margin-top: 16px; }
 .settings-section:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
 .settings-section > p.muted { font-size: 14px; }
@@ -808,3 +811,17 @@ input.confirm-code::placeholder { color: var(--muted); }
 /* ── UX fixes: a first join that couldn't reach its server ── */
 .join-failed-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .join-name { width: min(320px, 100%); text-align: left; }
+
+/* ── UX fixes: call controls say what they do on phones (no hover tooltips there) ── */
+@media (max-width: 760px) {
+  .call-controls { gap: 6px 16px; flex-wrap: wrap; }
+  .call-controls .call-button { position: relative; margin-bottom: 26px; }
+  .call-controls .call-button::after {
+    content: attr(aria-label); position: absolute; top: calc(100% + 4px); left: 50%; transform: translateX(-50%); width: 64px;
+    font-size: 10.5px; line-height: 1.15; color: var(--muted); text-align: center; pointer-events: none;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+}
+
+/* ── UX fixes: a hovered or focused message keeps its time readable (the row's tint lowers the muted colour's contrast) ── */
+.message:hover .message-meta time, .message:focus-within .message-meta time { color: var(--text-2); }

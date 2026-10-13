@@ -36,7 +36,7 @@ export const compliance: Messages['compliance'] = {
     gifs: {
       who: 'KLIPY (GIF:ar)',
       when: 'Normalt aldrig: GIF-sökning och GIF:ar går via din server. Bara om serverns ägare valt "Direkt från KLIPY" frågar din app KLIPY själv, och då väntar GIF:ar i chatten på ett klick.',
-      off: 'Då ser KLIPY din IP-adress och dina sökningar. Ägaren väljer det i Serverinställningar → Översikt.',
+      off: 'Då ser KLIPY din IP-adress och dina sökningar. Ägaren väljer det i Serverinställningar → GIF:ar.',
     },
     updates: {
       who: 'GitHub (appuppdateringar)',

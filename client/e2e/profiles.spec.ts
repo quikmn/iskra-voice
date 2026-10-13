@@ -59,7 +59,12 @@ test('profiles: avatar, bio, profile card, sandboxed page and themes', async ({ 
   // And publishes a page that tries to misbehave.
   await host.getByRole('button', { name: 'Make a page' }).click()
   const exfil = `${server.url}/exfil-check`
+  // Pictures from the server can't show in the preview, and it says so.
+  const filesNote = host.getByRole('note').filter({ hasText: 'show on the published page' })
+  await host.getByLabel('Page HTML').fill('<img src="/files/AAAAAAAAAAAAAAAAAAAAAA/cat.png" alt="cat">')
+  await expect(filesNote).toBeVisible()
   await host.getByLabel('Page HTML').fill(PAGE(exfil))
+  await expect(filesNote).toHaveCount(0)
   // The live preview runs it in the same sandbox.
   await expect.poll(async () => {
     const preview = host.frames().find((f) => f.url().startsWith('about:srcdoc') && f.parentFrame()?.url().includes('page-preview.html'))

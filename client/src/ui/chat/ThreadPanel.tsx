@@ -133,7 +133,7 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
         )}
         <span className="spacer" />
         {thread && (
-          <button className={`icon-button ${pinsOpen ? 'on' : ''}`} onClick={() => setPinsOpen((v) => !v)} aria-label={t('chat.threads.pinnedHere')} title={t('chat.header.pins')}>
+          <button className={`icon-button ${pinsOpen ? 'on' : ''}`} onClick={() => setPinsOpen((v) => !v)} aria-label={isPost ? t('chat.threads.pinnedInPost') : t('chat.threads.pinnedHere')} title={isPost ? t('chat.threads.pinnedInPost') : t('chat.header.pins')}>
             <PinIcon />
           </button>
         )}

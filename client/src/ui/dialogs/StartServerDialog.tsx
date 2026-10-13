@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
-import { desktopOs, LINKS, type DesktopOs } from '../../links'
+import { desktopOs, isPhoneOrTablet, LINKS, type DesktopOs } from '../../links'
 import { Modal } from '../bits'
 
 const OS_NAME: Record<Exclude<DesktopOs, 'other'>, string> = { windows: 'Windows', mac: 'Mac', linux: 'Linux' }
@@ -58,8 +58,10 @@ function DesktopDownload({ os }: { os: DesktopOs }) {
 export function StartServerDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const [os] = useState(visitorOs)
+  const [phone] = useState(() => typeof navigator !== 'undefined' && isPhoneOrTablet(navigator.userAgent, navigator.platform, navigator.maxTouchPoints))
   return (
     <Modal title={t('settings.start.title')} onClose={onClose}>
+      {phone && <p className="dialog-note" role="note">{t('settings.start.needsComputer')}</p>}
       <section className="guide-option">
         <h3>{os !== 'other' ? t('settings.start.easiestFor', { os: OS_NAME[os] }) : t('settings.start.easiest')}</h3>
         <ol>

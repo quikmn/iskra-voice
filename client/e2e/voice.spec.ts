@@ -76,6 +76,19 @@ test('friends talk in a voice channel', async ({ browser }) => {
   await host.locator('.call-controls').getByRole('button', { name: 'Mute', exact: true }).click()
   await expect(lounge(friend).locator('li', { hasText: 'Host' }).getByTitle('Muted')).toBeVisible()
 
+  // On a phone the round buttons say what they do underneath (there are no hover tooltips), and nothing overflows.
+  await friend.setViewportSize({ width: 390, height: 844 })
+  const labels = await friend.locator('.call-controls .call-button').evaluateAll((buttons) =>
+    buttons.map((b) => getComputedStyle(b, '::after').content.replace(/^"|"$/g, '')))
+  expect(labels).toContain('Mute')
+  expect(labels).toContain('Leave call')
+  expect(await friend.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+  const tops = await friend.locator('.call-controls .call-button').evaluateAll((buttons) => buttons.map((b) => b.getBoundingClientRect().bottom))
+  expect(Math.max(...tops)).toBeLessThanOrEqual(844)
+  await friend.waitForTimeout(400) // the side columns slide away
+  await friend.screenshot({ path: join(SHOTS, 'call-controls-phone.png') })
+  await friend.setViewportSize({ width: 1280, height: 720 })
+
   await host.locator('.channel', { hasText: 'general' }).click()
   await host.screenshot({ path: join(SHOTS, 'voice-host.png') })
 

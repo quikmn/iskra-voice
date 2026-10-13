@@ -3,6 +3,7 @@ export const settings = {
   sections: {
     profile: 'Profile',
     appearance: 'Appearance',
+    language: 'Language',
     devices: 'Devices',
     recovery: 'Recovery key',
     security: 'App lock',
@@ -16,8 +17,9 @@ export const settings = {
     reports: 'Reports',
     overview: 'Overview',
     roles: 'Roles',
-    automod: 'AutoMod (auto-moderation)',
+    automod: 'AutoMod',
     emoji: 'Emoji & stickers',
+    gifs: 'GIFs',
     sounds: 'Soundboard',
     integrations: 'Bots & webhooks',
     pages: 'Profile pages',
@@ -273,6 +275,7 @@ export const settings = {
     notNow: 'Not now',
     joinServer: 'Join server',
     server: 'Server',
+    address: 'Address',
     noHttps: "This server doesn't use HTTPS, so your connection to it isn't encrypted.",
   },
   channel: {
@@ -316,6 +319,7 @@ export const settings = {
   },
   start: {
     downloadFor: 'Download Iskra for {{os}}',
+    needsComputer: "A server runs on a computer that stays on, not on a phone. Open this page on the Windows, Mac or Linux computer that will host it. You can chat from your phone once it's running.",
     otherOs: 'The app runs on the Windows, Mac or Linux computer that will host your server.',
     allDownloads: 'All downloads',
     signed: 'Signed by Open Source Developer Viktor Lundgren. While the app is new, Windows may still ask once before running it.',

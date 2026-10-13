@@ -1,4 +1,4 @@
-// Settings → Appearance → Language: follow the system, or pick one. It applies right away.
+// My settings → Language: follow the system, or pick one. It applies right away.
 import { useTranslation } from 'react-i18next'
 import { LANGUAGE_NAMES, LANGUAGES, setLanguageChoice, useLanguageChoice, type LanguageChoice } from '../../i18n'
 

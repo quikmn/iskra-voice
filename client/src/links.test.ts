@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { desktopOs, LINKS, RELEASE_VERSION } from './links'
+import { desktopOs, isPhoneOrTablet, LINKS, RELEASE_VERSION } from './links'
 
 describe('desktop downloads', () => {
   it('picks the app for the visitor', () => {
@@ -14,6 +14,15 @@ describe('desktop downloads', () => {
     expect(desktopOs('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148', 'iPhone')).toBe('other')
     // iPadOS pretends to be a Mac, but has a touch screen.
     expect(desktopOs('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15', 'MacIntel', 5)).toBe('other')
+  })
+
+  it('tells phones and tablets from computers', () => {
+    expect(isPhoneOrTablet('Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 Chrome/140.0 Mobile Safari/537.36', 'Linux armv81')).toBe(true)
+    expect(isPhoneOrTablet('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148', 'iPhone')).toBe(true)
+    expect(isPhoneOrTablet('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15', 'MacIntel', 5)).toBe(true)
+    expect(isPhoneOrTablet('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15', 'MacIntel')).toBe(false)
+    expect(isPhoneOrTablet('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36', 'Win32')).toBe(false)
+    expect(isPhoneOrTablet('Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 Chrome/140.0 Safari/537.36', 'Linux x86_64')).toBe(false)
   })
 
   it('links the files the release builds', () => {

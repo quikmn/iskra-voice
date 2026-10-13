@@ -1,4 +1,4 @@
-// GIF settings: the admin's KLIPY key and mode (Settings → Overview), and each viewer's auto-load choice (Appearance).
+// GIF settings: the admin's KLIPY key and mode (Server settings → GIFs), and each viewer's auto-load choice (Appearance).
 import { useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
@@ -8,7 +8,8 @@ import type { ServerState } from '../../state/store'
 import { LINKS } from '../../links'
 import './gifs.css'
 
-export function GifSettings({ server }: { server: ServerState }) {
+/** `heading: false` when the section around it already says GIFs. */
+export function GifSettings({ server, heading = true }: { server: ServerState; heading?: boolean }) {
   const status = useGifStatus(server.key)
   const [key, setKey] = useState('')
   const [busy, setBusy] = useState(false)
@@ -34,7 +35,7 @@ export function GifSettings({ server }: { server: ServerState }) {
 
   return (
     <div className="settings-subsection gif-settings">
-      <h3 className="h4">{t('chat.gifSettings.title')}</h3>
+      {heading && <h3 className="h4">{t('chat.gifSettings.title')}</h3>}
       <p className="muted">
         {t('chat.gifSettings.intro')} <a href={LINKS.gifsGuide} target="_blank" rel="noopener noreferrer">{t('chat.gifSettings.howToGetKey')}</a>
       </p>
