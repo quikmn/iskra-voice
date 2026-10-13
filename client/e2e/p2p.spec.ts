@@ -63,6 +63,8 @@ test('a friend joins a home-hosted server through the peer-to-peer tunnel and ta
 
   let hostApp: ElectronApplication | null = null
   let friendApp: ElectronApplication | null = null
+  const friendConsole: string[] = []
+  let friendPage: Page | null = null
   try {
     // ── The host: a fresh desktop app, a new server, the switch on ──
     hostApp = await launch(hostData, { ISKRA_HOST_ROOT: hostRoot })
@@ -92,7 +94,8 @@ test('a friend joins a home-hosted server through the peer-to-peer tunnel and ta
     await p2p.getByRole('switch', { name: 'Let friends connect without port forwarding' }).click()
     // The server made a secret and started its TURN; the app's tunnel announced the host key on the (test) DHT.
     await expect(p2p).toHaveAttribute('data-state', 'ready', { timeout: 30_000 })
-    await expect(p2p.getByTestId('p2p-facts')).toHaveAttribute('data-nat', 'open', { timeout: 15_000 }) // loopback: no NAT at all
+    // Loopback: no NAT at all, though the DHT may still call the node firewalled until its first unsolicited probe lands.
+    await expect(p2p.locator('[data-nat]')).toHaveAttribute('data-nat', /^(open|easy)$/, { timeout: 15_000 })
     await expect(p2p.getByText(/0 friends are connected this way/)).toBeVisible()
     const world = JSON.parse(readFileSync(join(hostRoot, 'behind-cgnat', 'server.json'), 'utf8')) as { P2p?: { Enabled?: boolean } }
     expect(world.P2p?.Enabled).toBe(true)
@@ -116,6 +119,7 @@ test('a friend joins a home-hosted server through the peer-to-peer tunnel and ta
     friendApp = await launch(friendData)
     const friend = await appWindow(friendApp)
     await recordPeerConnections(friend)
+    friend.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') friendConsole.push(`${m.type()}: ${m.text().slice(0, 300)}`) })
     await agreeToTerms(friend)
     await friend.getByRole('button', { name: /I’m new to Iskra/ }).click()
     await friend.getByLabel('Your name').fill('Grace')
@@ -136,13 +140,13 @@ test('a friend joins a home-hosted server through the peer-to-peer tunnel and ta
     await expect(friend.locator('.message', { hasText: 'welcome, no ports were opened' })).toBeVisible({ timeout: 15_000 })
     lap('chat')
 
-    // The friend's app says how it's connected; the host's settings count the friend.
+    // The friend's own invites still name the server's address (never the tunnel's local port) and carry the key;
+    // the host's settings count the friend.
     await friend.locator('.server-header-button').click()
-    await friend.getByRole('menuitem', { name: 'Server settings', exact: true }).click()
-    const friendRoom = friend.getByRole('dialog', { name: /· Server settings$/ })
-    await expect(friendRoom.getByTestId('overview-p2p')).toContainText('Peer to peer')
-    await expect(friendRoom.locator('.settings-facts code').first()).toHaveText('http://127.0.0.1:1')
-    await friend.screenshot({ path: join(SHOTS, 'p2p-friend-overview.png'), animations: 'disabled' })
+    await friend.getByRole('menuitem', { name: 'Invite friends' }).click()
+    await expect(friend.getByTestId('invite-p2p-note')).toBeVisible()
+    await expect(friend.locator('.copy-row input')).toHaveValue(new RegExp(`#/join/${b64u('http://127.0.0.1:1')}\.${serverKey}\.[A-Za-z0-9_-]+\.${secret}$`))
+    await friend.screenshot({ path: join(SHOTS, 'p2p-friend-invite.png'), animations: 'disabled' })
     await friend.keyboard.press('Escape')
     await host.locator('.server-header-button').click()
     await host.getByRole('menuitem', { name: 'Server settings', exact: true }).click()
@@ -159,6 +163,7 @@ test('a friend joins a home-hosted server through the peer-to-peer tunnel and ta
     await expect(lounge(friend)).toBeVisible({ timeout: 15_000 })
     await lounge(host).getByRole('button').first().click()
     await expect(host.locator('.voice-status strong')).toHaveText('Voice connected', { timeout: 30_000 })
+    friendPage = friend
     await lounge(friend).getByRole('button').first().click()
     await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected', { timeout: 45_000 })
     for (const page of [host, friend]) {
@@ -215,11 +220,20 @@ test('a friend joins a home-hosted server through the peer-to-peer tunnel and ta
 
     console.log(`p2p walkthrough:\n${timings.map(([what, ms]) => `  ${what.padEnd(60)} ${(ms / 1000).toFixed(1)} s`).join('\n')}`)
   } finally {
+    // When voice fails, say what the friend's app was told (ICE servers) and what it logged.
+    if (friendPage) {
+      const configs = await friendPage.evaluate(() => JSON.stringify((window as unknown as { __peerConfigs?: unknown[] }).__peerConfigs ?? [])).catch(() => 'n/a')
+      console.log(`friend peer configs: ${configs.slice(0, 1500)}`)
+    }
+    if (friendConsole.length) console.log(`--- friend console ---\n${friendConsole.slice(-30).join('\n')}`)
     await friendApp?.close()
     await hostApp?.close()
     await testnet.destroy()
     const log = join(hostRoot, 'behind-cgnat', 'server.log')
-    if (existsSync(log)) console.log(`--- hosted server.log ---\n${readFileSync(log, 'utf8').slice(-2500)}`)
+    if (existsSync(log)) {
+      const lines = readFileSync(log, 'utf8').split(/\r?\n/).filter((l) => /livekit|turn|p2p|voice|warn|fail|error/i.test(l) && !/livekit-webhook/.test(l))
+      console.log(`--- hosted server.log (voice and p2p lines) ---\n${lines.slice(-40).join('\n')}`)
+    }
     for (const dir of [hostData, friendData, hostRoot]) rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 })
   }
 })

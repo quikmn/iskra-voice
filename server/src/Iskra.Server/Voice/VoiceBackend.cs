@@ -151,10 +151,22 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
             """;
     }
 
+    /// <summary>Every IPv4 address of this computer (LiveKit advertises one of them as its node IP, gateway or not).</summary>
     private static IEnumerable<System.Net.IPAddress> OwnAddresses()
     {
-        foreach (var (local, _) in Hosting.Networks.Interfaces()) yield return local;
-        if (Hosting.Tailscale.LocalAddress() is { } tailscale) yield return tailscale;
+        var found = new List<System.Net.IPAddress>();
+        try
+        {
+            foreach (var nic in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (nic.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up) continue;
+                foreach (var unicast in nic.GetIPProperties().UnicastAddresses)
+                    if (unicast.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork && !System.Net.IPAddress.IsLoopback(unicast.Address))
+                        found.Add(unicast.Address);
+            }
+        }
+        catch (System.Net.NetworkInformation.NetworkInformationException) { }
+        return found;
     }
 
     /// <summary>The public IP changed, or hosting or the p2p tunnel was switched: restart LiveKit with a new config.</summary>
