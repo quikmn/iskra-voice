@@ -74,6 +74,7 @@ public sealed class Router
         BotCommandFeature.Register(this);
         Captions.CaptionModelFeature.Register(this, captions);
         OutgoingWebhookFeature.Register(this);
+        BuiltinBotFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

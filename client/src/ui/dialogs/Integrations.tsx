@@ -11,6 +11,7 @@ import { AuthorAvatar, BotBadge } from '../chat/BotBits'
 import { appUrl, messageTime } from '../format'
 import '../bots.css'
 import { OutgoingWebhooks } from './OutgoingWebhooks'
+import { BuiltinBotsSection } from '../settings/BuiltinBotsSection'
 
 type Tab = 'webhooks' | 'outgoing' | 'bots'
 
@@ -238,7 +239,7 @@ function Bots({ server }: { server: ServerState }) {
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null)
-  const bots = Object.values(server.members).filter((m) => m.bot).sort((a, b) => a.name.localeCompare(b.name))
+  const bots = Object.values(server.members).filter((m) => m.bot && !m.builtin).sort((a, b) => a.name.localeCompare(b.name))
 
   async function createInvite() {
     try {
@@ -262,6 +263,7 @@ function Bots({ server }: { server: ServerState }) {
 
   return (
     <>
+      <BuiltinBotsSection server={server} />
       <p className="muted">
         <Trans i18nKey="settings.integrations.botsIntro" components={{ code: <code />, badge: <BotBadge /> }} />
       </p>

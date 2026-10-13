@@ -61,6 +61,11 @@ public sealed class RateLimiter(TimeProvider time)
         ["security.log.list"] = (20, 2),
         ["profile.page.get"] = (5, 0.2), // up to 512 KB each
         ["bot.commands.set"] = (5, 0.2),
+        // Built-in bots (checked by BuiltinBotFeature): answers per sender, on top of chat.send's own limit.
+        ["builtin.dice"] = (10, 1),
+        ["builtin.polls"] = (5, 0.2),
+        ["builtin.reminders"] = (10, 1),
+        ["builtin.bots.set"] = (10, 1),
         ["*"] = (40, 10),
     };
 

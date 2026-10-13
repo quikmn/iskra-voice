@@ -2319,3 +2319,64 @@ Iskra-Webhook-Signature: v1=<hex HMAC-SHA256(secret, "iskra-webhook-v1\n" + time
 - The log keeps the last 50 attempts per webhook: time, event, attempt, HTTP status, outcome and duration, never the
   payload. It goes with the webhook.
 - Apps list every server's `outhook.hosts` under "Who Iskra talks to", so members see where their server sends things.
+
+## Built-in bots
+
+The server itself can run three small bots, each turned on or off by an admin: **Dice** (`/roll`), **Polls** (`/poll`)
+and **Reminders** (`/remind`). While on, each is a bot member like any other (`bot: true`, plus `builtin`): it has a
+role (member when turned on; admins can change it, up to trusted), channel permissions decide where it answers, and it
+registers its command in the [command registry](#command-registry) so apps suggest it. It never connects: when someone
+sends a plain channel message that starts with its command, the server answers right after the sender's own reply. No
+external process is involved.
+
+| type | body | result | who |
+|---|---|---|---|
+| `builtin.bots.set` | `bot: "dice" \| "polls" \| "reminders"`, `enabled: bool` | `{ bots: [BuiltinBot] }` | admins (`forbidden`, key `builtin_bots_admin`) |
+
+```jsonc
+BuiltinBot { "id": "dice", "accountKey": "<b64u>" | null, "enabled": true }
+```
+
+- `welcome.builtinBots: [BuiltinBot]` lists all three, in that order. `accountKey` is null until the bot is first turned
+  on; from then on it stays the same (turned off and on again, it's the same member, so its old messages keep their
+  author). Event `builtin.bots { bots }` goes to everyone on a change, next to the usual `member.joined` and
+  `bot.commands` (on) or `member.removed` (off). Turning on a bot that's on (or off one that's off) changes nothing.
+- The bot's key is a fresh Ed25519 public key whose private key is never kept, so nobody can sign in as it.
+- Members carry `builtin: "dice" | "polls" | "reminders" | null`; built-in bots always show as online. Kicking one is
+  the same as turning it off. Rate limit: 10, then one a second.
+
+### Commands
+
+A command is the message text `/name args` or `/name@Handle args` (the handle is the bot's shown name without spaces;
+another handle means another bot). The command name is matched case-insensitively. A bot answers only when all hold:
+it's on, the channel is a `text`, `thread`, `voice` or `stage` channel, the bot can read **and** post there (its role
+and the channel's overrides; threads follow their parent), it isn't timed out, the channel isn't
+[encrypted](#end-to-end-encrypted-channels), and the sender isn't a bot (bots never answer bots). Per sender, answers
+are limited (Dice 10 then 1/s, Polls 5 then one per 5 s, Reminders 10 then 1/s) on top of `chat.send`'s own limit;
+over it, the bot stays quiet.
+
+| command | does |
+|---|---|
+| `/roll [dice]` | Dice notation: terms `NdM` (N 1–999, M 2–1000, `d%` = d100, N defaults to 1) and whole numbers ≤ 100000, joined by `+` or `-` (spaces only around them); ≤ 10 terms, ≤ 100 dice in all; empty means `1d6`. Rolled with the system's secure random generator. |
+| `/poll Question \| Answer \| Answer ...` | A native [poll](#polls) (also `"Question" "Answer" "Answer"`), made by the Polls bot through `poll.create`, with all its checks and limits: text channels only, 2–10 different answers. Votes and closing work as for any poll (admins and moderators can end it). |
+| `/remind [me] [in] <time> [to\|about\|:] [note]` | An ordinary [reminder](#reminders) for the sender about the command message, due after `<time>`: one or more `<number><unit>` (`m`/`min`/`minutes`, `h`/`hours`, `d`/`days`, `w`/`weeks`, also Swedish `minuter`, `timmar`, `dagar`, `veckor`, `mig om`), from 1 minute up to 365 days; the note ≤ 300 characters. It shows in the sender's reminders (`reminder.updated`), fires like any reminder (`reminder.due`, push) and can be snoozed or cancelled there. Its `data` is not sealed (the command was plain text already): `"bot." + base64url(JSON { note, where, at })`, which `reminder.create`/`reminder.update` never accept from apps. Per-person limit as for reminders. |
+
+Each answer is a message from the bot that everyone who can read the channel sees, with plain English `text` for any
+app, and `builtin` with what it means, so apps can word it in their own language:
+
+```jsonc
+// every answer: { "bot": "dice", "kind": "...", "for": "<sender's accountKey>", ... }
+{ "kind": "roll", "expression": "2d6+3", "groups": [{ "sign": 1, "count": 2, "sides": 6, "rolls": [4, 2] }], "modifier": 3, "total": 9 }
+{ "kind": "roll.invalid", "input": "banana" }      // ≤ 60 characters of what was sent
+{ "kind": "poll.usage" }                            // a successful /poll answers with the poll itself (no `builtin`)
+{ "kind": "remind", "dueAt": 1760000000000 }
+{ "kind": "remind.usage" }
+{ "kind": "error", "error": { "code": "bad_request", "message": "...", "key": "poll_channel", "args": null } }
+```
+
+Messages carry `builtin: {...} | null` (`null` for everything except a built-in bot's answer). Answers are kept and
+deleted like other messages; "Download my data" lists the answers to your own commands (`builtinBotAnswers`).
+
+**Encrypted channels.** The server can't read messages there, so it can't see a command or its arguments: built-in
+bots never answer in encrypted channels (or their threads), `bot.commands.available` is `[]` there, and apps say so
+when someone types `/` instead of suggesting commands nobody will answer.

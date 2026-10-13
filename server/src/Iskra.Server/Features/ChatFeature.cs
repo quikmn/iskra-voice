@@ -92,6 +92,7 @@ public static class ChatFeature
         s.Push.ChatMessage(channel, message);
         s.Hub.Outhooks?.MessageCreated(channel, message);
         InboxFeature.Record(s, channel, message);
+        BuiltinBotFeature.Heard(s, me, channel, message);
         return new { message = publicMessage, nonce };
     }
 

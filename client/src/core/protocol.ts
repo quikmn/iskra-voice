@@ -1790,3 +1790,45 @@ export interface Requests {
   'outhook.test': [{ id: string }, { delivery: OutHookDelivery }]
   'outhook.hosts': [Record<string, never>, { hooks: { name: string; host: string; events: OutHookEvent[] }[] }]
 }
+
+// ── built-in bots ──
+
+export type BuiltinBotId = 'dice' | 'polls' | 'reminders'
+
+export interface BuiltinBot {
+  id: BuiltinBotId
+  /** Null until it's first turned on (then it keeps this key). */
+  accountKey: string | null
+  enabled: boolean
+}
+
+/** What a built-in bot's answer means, for showing it in the app's language (the message text is plain English). */
+export type BuiltinReply = { bot: BuiltinBotId; for: string } & (
+  | { kind: 'roll'; expression: string; groups: { sign: 1 | -1; count: number; sides: number; rolls: number[] }[]; modifier: number; total: number }
+  | { kind: 'roll.invalid'; input: string }
+  | { kind: 'poll.usage' }
+  | { kind: 'remind'; dueAt: number }
+  | { kind: 'remind.usage' }
+  | { kind: 'error'; error: { code: string; message: string; key?: string | null; args?: Record<string, unknown> | null } }
+)
+
+export interface Member {
+  /** Which built-in bot this member is (they're run by the server). */
+  builtin?: BuiltinBotId | null
+}
+
+export interface Message {
+  builtin?: BuiltinReply | null
+}
+
+export interface Welcome {
+  builtinBots?: BuiltinBot[]
+}
+
+export interface Events {
+  'builtin.bots': { bots: BuiltinBot[] }
+}
+
+export interface Requests {
+  'builtin.bots.set': [{ bot: BuiltinBotId; enabled: boolean }, { bots: BuiltinBot[] }]
+}

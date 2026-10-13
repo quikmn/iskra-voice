@@ -216,6 +216,7 @@ public sealed class Session
             keyLog = KeyLogFeature.Head(_world, Now),
             rules = RulesFeature.View(_world.Store, member),
             botCommands = BotCommandFeature.All(_world.Store),
+            builtinBots = BuiltinBotFeature.All(_world.Store),
         }));
         lock (_earlyGate)
         {

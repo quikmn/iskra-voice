@@ -50,3 +50,20 @@
 .bot-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
 .bot-row .member-name { flex: 1; min-width: 0; }
 .integrations > .segmented { max-width: 360px; }
+
+/* ── Built-in bots ───────────────────────────────────────────────────── */
+.bot-badge.builtin { background: var(--surface-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--accent); }
+.builtin-roll { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.dice-line { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.dice-term, .dice-group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.die {
+  display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 4px; border-radius: 6px;
+  background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border); font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.die.max { box-shadow: inset 0 0 0 2px var(--green); }
+.die.min { box-shadow: inset 0 0 0 2px var(--red); }
+.dice-op { color: var(--muted); }
+.dice-modifier { font-weight: 600; }
+.dice-total { font-size: 1.15em; min-width: 24px; text-align: center; }
+.builtin-bot-row .member-name { display: grid; gap: 2px; }
+.builtin-bot-about { font-size: 13px; overflow-wrap: anywhere; }

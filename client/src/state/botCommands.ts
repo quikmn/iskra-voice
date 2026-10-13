@@ -5,6 +5,8 @@ import { create } from 'zustand'
 import type { BotCommand, BotCommandList, Events } from '../core/protocol'
 import type { CommandEntry } from '../ui/chat/commandMatch'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
+import { t } from '../i18n'
+import { localizeCommand } from './builtinBotsLogic'
 
 interface BotCommandsState {
   /** serverKey → bot account key → its commands. */
@@ -89,8 +91,10 @@ export function useChannelCommands(serverKey: string, channelId: number, active:
   return useMemo(() => {
     if (encrypted || !lists || !bots) return NONE
     return bots.flatMap((bot) => {
-      const name = members?.[bot]?.name
-      return name ? (lists[bot] ?? []).map((command) => ({ bot, botName: name, command })) : []
+      const member = members?.[bot]
+      if (!member) return []
+      // Built-in bots' hints in the app's language.
+      return (lists[bot] ?? []).map((command) => ({ bot, botName: member.name, command: member.builtin ? localizeCommand(command, (key) => t(key as never)) : command }))
     })
   }, [encrypted, lists, bots, members])
 }

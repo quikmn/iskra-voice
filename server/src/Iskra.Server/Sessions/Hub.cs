@@ -94,7 +94,7 @@ public sealed class Hub(World world, TimeProvider time)
             return Features.ProfileFeature.Public(m, views.Profiles.GetValueOrDefault(m.AccountKey) ?? store.GetPublicProfile(m.AccountKey), pages,
                 views.Nicknames.GetValueOrDefault(m.AccountKey), store.IsBot(m.AccountKey),
                 views.Timeouts.TryGetValue(m.AccountKey, out var until) ? until : null, presence,
-                presence.Online ? Features.ActivityFeature.Public(Activities.Get(m.AccountKey)) : null);
+                presence.Online ? Features.ActivityFeature.Public(Activities.Get(m.AccountKey)) : null, store.BuiltinIdOf(m.AccountKey));
         }).ToList();
     }
 

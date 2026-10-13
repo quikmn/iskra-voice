@@ -74,6 +74,7 @@ export const errors: Messages['errors'] = {
     kicked_device: 'Den här enheten togs bort från sitt konto.',
     guests_no_events: 'Gäster kan inte schemalägga evenemang.',
     admins_add_bots: 'Bara admins kan lägga till bottar.',
+    builtin_bots_admin: 'Bara admins kan slå på eller av inbyggda bottar.',
     admins_forum_tags: 'Bara admins kan ändra ett forums taggar.',
     admins_rules: 'Bara admins kan ändra serverreglerna.',
     admins_stage_mods: 'Bara admins kan välja scenmoderatorer.',
