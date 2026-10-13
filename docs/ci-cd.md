@@ -245,6 +245,9 @@ Wiring it into releases later: add a job to `release-finalize.yml` after `publis
 ### The server (chat.iskra.foo)
 
 DigitalOcean droplet "Iskra-Voip-personal-ams3" (AMS3, Ubuntu 24.04, 146.190.236.187), the owner's friend server "Hangout".
+It also runs **Iskra Review** (for app store reviewers, nothing else): world `/opt/iskra/review-world`, service
+`iskra-review` on the same binary as Hangout, `https://chat.iskra.foo:8443` with Hangout's certificate (`Https.Mode` "files";
+a nightly `iskra-review-restart.timer` picks up renewals and new versions), voice on 7891/tcp and 7892/udp (ufw), updates off.
 
 | Item | Where | Notes |
 |---|---|---|

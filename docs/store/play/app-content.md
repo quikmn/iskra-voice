@@ -35,7 +35,7 @@ recommendation but are the owner's call.
 
 ### App access: instructions for reviewers
 
-Phones can't host a server, so a reviewer needs an invite to one. **Owner action:** make a review server (a server the
+Phones can't host a server, so a reviewer needs an invite to one. The review server exists since 2026-10-13: **Iskra Review** at `https://chat.iskra.foo:8443` on the droplet (docs/ci-cd.md). Before each review, create a fresh member invite there. How it was made: a review server (a server the
 owner runs, e.g. chat.iskra.foo, or a separate "Iskra Review" server open to the internet) with a sample text channel
 and voice channel, then create an invite link with **Server settings → Invite friends**, role Member, no use limit,
 the longest expiry (30 days). Invites expire after at most 30 days, so renew the link in the console before every
@@ -50,8 +50,8 @@ invite link to a server.
 1. Open the app, tick "I agree to the Terms of Use" and choose "I'm new to Iskra".
 2. Tap "I have an invite link" and paste: <INVITE LINK>
    (Or open the link on the phone; it opens the app.)
-3. Pick any name and tap Join. You're in the server's #general channel. A voice channel ("lounge") is in the
-   channel list (tap the menu button at the top left to see the channels and your direct messages).
+3. Pick any name and tap Join. You're in the server's #general channel. Voice channels ("Hangout", "Quiet corner")
+   are in the channel list (tap the menu button at the top left to see the channels and your direct messages).
 
 No username or password is needed. Screen sharing and starting your own server are only in the desktop app.
 Notifications arrive while the app is open (no push while it's closed).
