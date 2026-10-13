@@ -11,7 +11,7 @@
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc -p .",
-    "test": "tsc -p . && node --test dist/launch.test.js dist/platform.test.js dist/restore.test.js dist/games.test.js dist/hotkeys.test.js dist/i18n.test.js dist/passkeys.test.js dist/tailscale.test.js dist/pageRules.test.js dist/saveStreams.test.js dist/p2p/keys.test.js dist/p2p/proxy.test.js dist/p2p/network.test.js dist/p2p/hostTunnel.test.js dist/p2p/webrtcPolicy.test.js dist/p2p/tunnel.test.js",
+    "test": "tsc -p . && node --test dist/launch.test.js dist/platform.test.js dist/restore.test.js dist/games.test.js dist/hotkeys.test.js dist/i18n.test.js dist/passkeys.test.js dist/tailscale.test.js dist/pageRules.test.js dist/saveStreams.test.js dist/digitalocean.test.js dist/doOAuth.test.js dist/p2p/keys.test.js dist/p2p/proxy.test.js dist/p2p/network.test.js dist/p2p/hostTunnel.test.js dist/p2p/webrtcPolicy.test.js dist/p2p/tunnel.test.js",
     "test:electron": "tsc -p . && electron dist/embeds.check.js",
     "test:network": "tsc -p . && node dist/network.check.js",
     "start": "npm run build && electron .",

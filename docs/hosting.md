@@ -87,7 +87,7 @@ A new server can start with channels, voice rooms, roles and rules from a templa
 
 ### Rent a small server
 
-When your home connection can't host (carrier-grade NAT, or a router you can't change), a small virtual server at a hosting company runs Iskra for your group all the time. The app walks you through it: **Server settings → Internet access → Rent a small server** (it's the first option when Iskra finds a shared connection). No terminal needed; about 15 minutes. Your group picks the provider, pays it and owns the server; nothing goes to Iskra, and Iskra has no deal with any provider.
+When your home connection can't host (carrier-grade NAT, or a router you can't change), a small virtual server at a hosting company runs Iskra for your group all the time. The app walks you through it: **Server settings → Internet access → Rent a small server** (it's the first option when Iskra finds a shared connection). No terminal needed; about 15 minutes. Your group picks the provider, pays it and owns the server; nothing goes to Iskra. The desktop app can also do all of it on DigitalOcean for you: see [Rent a server on DigitalOcean](#rent-a-server-on-digitalocean-one-click).
 
 1. Make an account at a VPS provider, for example [Hetzner](https://www.hetzner.com/cloud) or [DigitalOcean](https://www.digitalocean.com/products/droplets).
 2. Create a server: **Ubuntu 24.04 LTS** (or **Debian 12**), x86-64, the cheapest plan (about €4–6 a month).
@@ -106,6 +106,29 @@ When your home connection can't host (carrier-grade NAT, or a router you can't c
 **Rather use a terminal?** The same dialog has **Copy a prompt for an AI assistant** with these steps, and no keys in it. Without the app's key you become the owner the usual way: `journalctl -u iskra` shows the link (also in `/opt/iskra/world/owner-invite.txt`).
 
 **Moving an existing server there** takes a terminal for now: make a backup, copy it to the server, stop the service, [restore it](#restoring) into `/opt/iskra/world` (empty the new folder first), `chown -R iskra:iskra /opt/iskra`, start it again, then use [Move this server](#moving-a-server-to-another-computer) so everyone follows.
+
+### Rent a server on DigitalOcean (one click)
+
+The desktop app can rent and set up the server in **your own DigitalOcean account**: **Create a server → Rent one on DigitalOcean** (also offered in Rent a small server). You pay DigitalOcean directly, about $6 a month for their smallest server that fits Iskra (1 GB memory; the app shows the exact price from DigitalOcean's size list before anything is created). Iskra charges nothing, runs nothing for your server and never sees it, your token or your card. The account link is Iskra's DigitalOcean referral link, and the app says so: Iskra gets some DigitalOcean credit, which helps pay for its own server, and new DigitalOcean accounts get signup credit.
+
+1. **Account.** Make a DigitalOcean account, or use the one you have.
+2. **Access.** **Connect to DigitalOcean** opens your browser: sign in and allow Iskra. The app uses OAuth for a desktop app (authorization code with PKCE, no client secret): your browser comes back to a one-time listener on `127.0.0.1` (this computer only, a random port, closed right after), and the app swaps the code for a key that works for one hour. It asks only for `droplet:create droplet:read droplet:delete firewall:create firewall:read firewall:delete regions:read sizes:read tag:create`.
+   **Or use an API token:** in DigitalOcean, API → Tokens → Generate New Token, the shortest expiration (30 days, or Custom), **Custom Scopes** with only *droplet* (create, read, delete), *firewall* (create, read, delete), *regions* (read), *sizes* (read) and *tag* (create), and paste it into the app.
+3. **Server.** Pick a location (the app guesses the nearest from your time zone), a name and a starting point. SSH stays closed unless you tick **Also allow SSH**.
+4. **Create.** The app creates, through DigitalOcean's API (`api.digitalocean.com`, HTTPS):
+   - a droplet `iskra-<name>`: Ubuntu 24.04, the cheapest basic size with at least 1 GB, tag `iskra`, monitoring and DigitalOcean's paid backups off, with the same [setup text](#rent-a-small-server) as user data (it carries the one-time owner key, turns on automatic updates and daily backups);
+   - a cloud firewall `iskra-<name>-firewall` for that droplet only: in `80/tcp`, `443/tcp`, `7881/tcp`, `7882/udp` (plus `22/tcp` only if you asked), out everything.
+
+   Then it waits for the droplet's IPv4 address (up to 5 minutes) and for `https://<ip-with-dashes>.sslip.io/health` to answer with a valid Let's Encrypt certificate (up to 25 minutes), checks the owner proof and joins you as owner.
+5. **Your server document.** **Save your server document** saves a Markdown file (in your language) with the address, how friends join, where your keys and recovery live, the monthly cost and how to cancel, how updates, backups and moving work, what Iskra can and can't see, and a ready-to-copy prompt for an AI assistant that describes the setup exactly (Ubuntu version, the `iskra` service, `/opt/iskra`, ports, logs). It holds no token, keys or passwords.
+
+**The key stays on your computer.** The OAuth key or pasted token lives only in the desktop app's main process memory: it's sent only to `api.digitalocean.com`, never shown back to the page, logged or written to disk, and forgotten when setup finishes, the dialog closes, the page reloads, or after two hours at most. You can also delete a pasted token in DigitalOcean afterwards.
+
+**If something fails** the app says what went wrong (in DigitalOcean's own words too) and, if a droplet was already created, offers **Delete it at DigitalOcean** (the firewall, then the droplet). Closing the dialog during setup asks whether to delete or keep what was made; nothing paid is left behind without asking. If the server is slow to answer, **Keep waiting** tries for another 20 minutes.
+
+**SSH.** Closed by default: nobody needs to log in to run Iskra. To use SSH or DigitalOcean's Droplet Console, add an inbound rule for TCP 22 to the droplet's firewall (Networking → Firewalls); ufw on the droplet already allows it.
+
+**Cancelling.** Destroy the droplet in DigitalOcean (Droplets → the droplet → Destroy); a switched-off droplet still costs money. Then delete its firewall. Make a [backup](#backups) first if you want to keep the history.
 
 ### On a Linux VPS with systemd
 

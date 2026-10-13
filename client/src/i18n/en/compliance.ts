@@ -58,6 +58,11 @@ export const compliance = {
       when: "Open to the internet: your router (UPnP or NAT-PMP, on your own network), Let's Encrypt for the HTTPS certificate, and sslip.io for the free address if you have no domain. Captions: the server fetches the speech model once from Hugging Face. Server updates: GitHub.",
       off: "They see the server's address, not your members'. Internet hosting and server updates are switched in Server settings, the captions model in server.json.",
     },
+    digitalOcean: {
+      who: 'DigitalOcean (cloud.digitalocean.com, api.digitalocean.com)',
+      when: 'Only while you rent a server on DigitalOcean from the desktop app: you sign in there in your browser (or paste a token), and the app creates the server and its firewall, and deletes them if setup fails.',
+      off: 'DigitalOcean sees your IP address and what the app creates in your account. The app keeps its key in memory only and forgets it after setup. Nothing happens unless you start it.',
+    },
     p2p: {
       who: 'HyperDHT (a public peer-to-peer network), only for "Connect without port forwarding"',
       when: "Only if a server's owner turned it on in the desktop app, and when you join such a server with the desktop app and its address can't be reached: the app talks to nodes of the public HyperDHT network (first the three bootstrap nodes Holepunch runs, then any node) to announce the server or find it, and then straight to the other computer.",

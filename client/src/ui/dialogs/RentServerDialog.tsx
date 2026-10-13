@@ -2,10 +2,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { LINKS } from '../../links'
+import { desktop } from '../../platform/desktop'
 import { acceptInvite } from '../../state/store'
 import { cloudInit, forgetPending, loadPending, newClaim, rememberPending, vpsAddress, vpsPrompt, waitForClaim, type ClaimProgress } from '../../state/rentServer'
 import { Modal, Spinner } from '../bits'
 import { OwnershipNote } from './ReachabilityHelp'
+import { DigitalOceanDialog } from './DigitalOceanDialog'
 import './RentServerDialog.css'
 
 const TEMPLATES = ['gaming', 'friends', 'tabletop', 'empty'] as const
@@ -28,6 +30,7 @@ export function RentServerDialog({ onClose }: { onClose: () => void }) {
   const [prompt, setPrompt] = useState('')
   const [promptCopied, setPromptCopied] = useState(false)
   const abort = useRef<AbortController | null>(null)
+  const [oneClick, setOneClick] = useState(false)
 
   // A server still waiting to be claimed (from the encrypted store), else a new owner key.
   useEffect(() => {
@@ -93,9 +96,18 @@ export function RentServerDialog({ onClose }: { onClose: () => void }) {
     void forgetPending().then(() => setClaim(null))
   }
 
+  if (oneClick) return <DigitalOceanDialog onClose={onClose} />
+
   return (
     <Modal title={t('hosting.rent.title')} onClose={onClose} wide className="rent-server">
       <OwnershipNote />
+      {desktop?.digitalOcean && (
+        <div className="rent-do-entry" data-testid="rent-do-entry">
+          <strong>{t('rental.entry.title')}</strong>
+          <p className="muted">{t('rental.entry.text')}</p>
+          <button className="button primary" onClick={() => { stop(); setOneClick(true) }}>{t('rental.entry.button')}</button>
+        </div>
+      )}
       <p className="muted">{t('hosting.rent.intro')}</p>
       <ol className="rent-steps">
         <li><Trans i18nKey="hosting.rent.step1" components={{ hetzner: external('https://www.hetzner.com/cloud'), digitalocean: external('https://www.digitalocean.com/products/droplets') }} /></li>

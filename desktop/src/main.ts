@@ -13,6 +13,8 @@ import { p2pNetwork } from './p2p/network'
 import { P2pNode } from './p2p/node'
 import { TunnelledVoice } from './p2p/webrtcPolicy'
 import { isBackupDownload, readBackupInfo } from './restore'
+import { DoRental, errorReply, testOverrides } from './digitalocean'
+import { DO_OAUTH_CLIENT_ID, oauthConfigured, oauthTestOverrides, oauthToken } from './doOAuth'
 import { SaveStreams, suggestedName } from './saveStreams'
 import {
   aboutDetail, badgeText, DEEP_LINK_SCHEME, deepLinkFromArgv, isAppPage, isKey43, isServerId, isWayland, MAC_SETTINGS, parseDeepLink, parseDesktopSettings,
@@ -710,6 +712,87 @@ ipcMain.handle('iskra:save-begin', async (event, name: unknown) => {
 ipcMain.handle('iskra:save-write', (event, id: unknown, data: unknown) => fromApp(event) && saves.write(id, data, event.sender.id))
 ipcMain.handle('iskra:save-finish', (event, id: unknown) => fromApp(event) && saves.finish(id, event.sender.id))
 ipcMain.handle('iskra:save-abort', (event, id: unknown) => (fromApp(event) ? saves.abort(id, event.sender.id) : undefined))
+
+// Rent a server on DigitalOcean: the token stays in this process (desktop/src/digitalocean.ts), forgotten when the page goes.
+const rental = new DoRental(testOverrides(process.env, app.isPackaged))
+const oauthTest = oauthTestOverrides(process.env, app.isPackaged)
+const oauthClientId = oauthTest.clientId ?? DO_OAUTH_CLIENT_ID
+let oauthAbort: AbortController | null = null
+const rentalPages = new Set<number>()
+function watchRentalPage(page: Electron.WebContents): void {
+  if (rentalPages.has(page.id)) return
+  rentalPages.add(page.id)
+  const drop = () => {
+    oauthAbort?.abort()
+    rental.forget()
+  }
+  page.on('did-start-navigation', (details) => details.isMainFrame && !details.isSameDocument && drop())
+  page.once('destroyed', drop)
+}
+/** The system browser; tests (a fake DigitalOcean on loopback) use a hidden window of their own instead. */
+async function openAuthorize(url: string): Promise<void> {
+  if (!oauthTest.authorizeBase) return shell.openExternal(url)
+  const probe = new BrowserWindow({ show: false, webPreferences: { partition: 'do-oauth-test', sandbox: true } })
+  void probe.loadURL(url).catch(() => undefined).finally(() => setTimeout(() => probe.destroy(), 2000))
+}
+ipcMain.handle('iskra:do-connect', async (event, token: unknown) => {
+  if (!fromApp(event)) return null
+  watchRentalPage(event.sender)
+  try {
+    return { ok: true, regions: await rental.connect(token) }
+  } catch (e) {
+    return errorReply(e)
+  }
+})
+ipcMain.handle('iskra:do-oauth-available', (event) => fromApp(event) && oauthConfigured(oauthClientId))
+// Connect to DigitalOcean: the browser signs in and comes back to a one-shot listener on 127.0.0.1 (desktop/src/doOAuth.ts).
+ipcMain.handle('iskra:do-oauth', async (event) => {
+  if (!fromApp(event)) return null
+  watchRentalPage(event.sender)
+  oauthAbort?.abort()
+  const abort = new AbortController()
+  oauthAbort = abort
+  try {
+    const token = await oauthToken({
+      clientId: oauthClientId, pages: text().digitalOcean, open: openAuthorize, authorizeBase: oauthTest.authorizeBase, tokenUrl: oauthTest.tokenUrl, signal: abort.signal,
+    })
+    showWindow()
+    return { ok: true, regions: await rental.connect(token) }
+  } catch (e) {
+    return errorReply(e)
+  } finally {
+    if (oauthAbort === abort) oauthAbort = null
+  }
+})
+ipcMain.handle('iskra:do-create', async (event, raw: unknown) => {
+  if (!fromApp(event) || !raw || typeof raw !== 'object') return null
+  const o = raw as Record<string, unknown>
+  if (typeof o.name !== 'string' || typeof o.region !== 'string' || typeof o.size !== 'string' || typeof o.userData !== 'string') return null
+  try {
+    const options = { name: o.name.slice(0, 60), region: o.region, size: o.size, userData: o.userData, ssh: o.ssh === true }
+    return { ok: true, server: await rental.create(options, (p) => !event.sender.isDestroyed() && event.sender.send('iskra:do-progress', p)) }
+  } catch (e) {
+    return { ...errorReply(e), created: rental.created }
+  }
+})
+ipcMain.handle('iskra:do-cancel', (event) => {
+  if (!fromApp(event)) return
+  oauthAbort?.abort()
+  rental.cancel()
+})
+ipcMain.handle('iskra:do-clean-up', async (event) => {
+  if (!fromApp(event)) return null
+  try {
+    return { ok: true, ...(await rental.cleanUp()) }
+  } catch (e) {
+    return { ...errorReply(e), created: rental.created }
+  }
+})
+ipcMain.handle('iskra:do-forget', (event) => {
+  if (!fromApp(event)) return
+  oauthAbort?.abort()
+  rental.forget()
+})
 
 // Windows shows notifications (incoming calls, messages) under this id.
 if (process.platform === 'win32') app.setAppUserModelId('foo.iskra.desktop')

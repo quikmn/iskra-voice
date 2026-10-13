@@ -1,5 +1,6 @@
 // The only bridge between the web app and the desktop shell. Small on purpose:
-// push-to-talk and hotkeys, the screen picker, hosting (and restoring backups), update notices, saving backups and big files, and the OS keychain, nothing else.
+// push-to-talk and hotkeys, the screen picker, hosting (and restoring backups), renting a server on DigitalOcean, update notices,
+// saving backups and big files, and the OS keychain, nothing else.
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 
 export interface ScreenSource {
@@ -112,6 +113,22 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
     close: (serverKey: string): Promise<void> => ipcRenderer.invoke('iskra:p2p-close', serverKey),
     // Voice is about to go through a tunnel (before the room connects), or just left it.
     voice: (on: boolean): Promise<void> => ipcRenderer.invoke('iskra:p2p-voice', on === true),
+  },
+  // Rent a server on DigitalOcean: the token goes to the main process once and never comes back.
+  digitalOcean: {
+    connect: (token: string): Promise<unknown> => ipcRenderer.invoke('iskra:do-connect', token),
+    // "Connect to DigitalOcean" in the browser (OAuth); false until Iskra's OAuth app is registered.
+    oauthAvailable: (): Promise<boolean> => ipcRenderer.invoke('iskra:do-oauth-available'),
+    oauth: (): Promise<unknown> => ipcRenderer.invoke('iskra:do-oauth'),
+    create: (options: unknown): Promise<unknown> => ipcRenderer.invoke('iskra:do-create', options),
+    cancel: (): Promise<void> => ipcRenderer.invoke('iskra:do-cancel'),
+    cleanUp: (): Promise<unknown> => ipcRenderer.invoke('iskra:do-clean-up'),
+    forget: (): Promise<void> => ipcRenderer.invoke('iskra:do-forget'),
+    onProgress: (callback: (progress: unknown) => void): (() => void) => {
+      const listener = (_e: IpcRendererEvent, progress: unknown) => callback(progress)
+      ipcRenderer.on('iskra:do-progress', listener)
+      return () => ipcRenderer.off('iskra:do-progress', listener)
+    },
   },
   download: (url: string): Promise<boolean> => ipcRenderer.invoke('iskra:download', url),
   // Big decrypted DM files: a Save dialog, then the bytes a piece at a time; finish only once they're checked.

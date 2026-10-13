@@ -23,6 +23,13 @@ export const LINKS = {
   gifsGuide: 'https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md#gifs',
   // KLIPY's Partner Panel, where an admin makes the free API key for their server's GIF picker.
   klipy: 'https://partner.klipy.com',
+  // Rent a server on DigitalOcean. The sign-up link is Iskra's referral link (the app says so): Iskra gets some
+  // DigitalOcean credit when someone pays there, nothing else.
+  digitalOceanReferral: 'https://m.do.co/c/5ed476bab2ca',
+  digitalOceanTokens: 'https://cloud.digitalocean.com/account/api/tokens',
+  digitalOceanDroplets: 'https://cloud.digitalocean.com/droplets',
+  digitalOceanFirewalls: 'https://cloud.digitalocean.com/networking/firewalls',
+  digitalOceanBilling: 'https://cloud.digitalocean.com/account/billing',
 }
 
 export type DesktopOs = 'windows' | 'mac' | 'linux' | 'other'
