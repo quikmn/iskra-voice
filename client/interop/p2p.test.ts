@@ -28,7 +28,8 @@ const LOCAL = '127.0.0.1'
 const desktopRequire = createRequire(resolve(__dirname, '../../desktop/package.json'))
 const HyperDHT = desktopRequire('hyperdht') as typeof DHT
 const createTestnet = desktopRequire('hyperdht/testnet.js') as (size: number, opts: { host: string }) => Promise<Testnet>
-const { chromium } = createRequire(resolve(__dirname, '../package.json'))('playwright') as typeof import('playwright')
+const { chromium, _electron } = createRequire(resolve(__dirname, '../package.json'))('playwright') as typeof import('playwright')
+type Page = import('playwright').Page
 
 const freePort = () =>
   new Promise<number>((done) => {
@@ -230,38 +231,44 @@ describe('Iskra through the peer-to-peer tunnel', () => {
     expect(told.p2p).toHaveLength(43)
   }, 60_000)
 
-  it.skipIf(!hasLiveKit)('voice goes through the tunnel: LiveKit media relay-only over its TURN, as the desktop app does it', async () => {
-    // The owner (front door) makes a voice channel; the friend (through the tunnel) gets its ticket, which points
-    // voice at the address the friend used.
-    const { channel } = await owner.connection.request('channel.create', { name: 'lounge', kind: 'voice' })
+  /**
+   * Voice as the desktop app does it (client/src/state/p2pVoice.ts): a page with the real livekit-client (the ESM
+   * build the app bundles), reaching LiveKit only through the friend's tunnel ports; the TURN address from the join
+   * answer is rewritten to the tunnel, relay only. `open` provides the browser: Playwright's Chromium, or Electron's.
+   */
+  async function voiceThroughTunnel(label: string, open: (pageUrl: string) => Promise<{ page: Page; close(): Promise<void> }>) {
+    // The owner (front door) makes a voice channel; the friend (through the tunnel) asks to join it.
+    const { channel } = await owner.connection.request('channel.create', { name: `lounge-${label}`, kind: 'voice' })
     await waitFor(() => friendUser.welcome?.voiceAvailable || friendUser.events.some((e) => e.type === 'voice.available'), 'voice available')
     const joined = await friendUser.connection.request('voice.join', { channelId: channel.id })
     expect(joined.url).toBe(`${tunnelUrl.replace('http', 'ws')}/livekit`)
 
-    // A page with the real livekit-client, on 127.0.0.1, that reaches LiveKit only through the friend's tunnel ports.
-    const umd = readFileSync(resolve(__dirname, '../node_modules/livekit-client/dist/livekit-client.umd.js'))
+    const esm = readFileSync(resolve(__dirname, '../node_modules/livekit-client/dist/livekit-client.esm.mjs'))
     const web = http.createServer((req, res) => {
-      if (req.url === '/lk.js') return res.end(umd)
+      if (req.url === '/lk.mjs') {
+        res.setHeader('content-type', 'text/javascript')
+        return res.end(esm)
+      }
       res.setHeader('content-type', 'text/html')
       res.end(`<!doctype html><title>lk</title><script>
         const Original = RTCPeerConnection; window.pcs = []; window.configs = []
         window.RTCPeerConnection = class extends Original { constructor(c) { window.configs.push(JSON.parse(JSON.stringify(c ?? {}))); super(c); window.pcs.push(this) } }
-      </script><script src="/lk.js"></script>`)
+      </script><script type="module">import * as LK from '/lk.mjs'; window.LivekitClient = LK</script>`)
     })
     await new Promise<void>((r) => web.listen(0, LOCAL, r))
-    const browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] })
     const pageLog: string[] = []
+    const before = { out: friend.stats.datagramsOut, in: friend.stats.datagramsIn }
+    const opened = await open(`http://${LOCAL}:${(web.address() as AddressInfo).port}/`)
     try {
-      const page = await browser.newPage()
+      const { page } = opened
       page.on('console', (m) => { if (m.type() === 'warning' || m.type() === 'error') pageLog.push(`${m.type()}: ${m.text().slice(0, 300)}`) })
-      await page.goto(`http://${LOCAL}:${(web.address() as AddressInfo).port}/`)
+      await page.waitForFunction(() => 'LivekitClient' in window)
       type Result = { error?: string; connectMs?: number; pairs?: { type?: string; rttMs: number }[]; bytesSent?: number; offered?: string[][]; configs: RTCConfiguration[] }
       const result = await page.evaluate(async ({ url, token, turnPort }) => {
         type Engine = { makeRTCConfiguration: (r?: unknown) => RTCConfiguration; latestJoinResponse?: { iceServers?: { urls: string[] }[] } }
         type W = Window & { LivekitClient: { Room: new (o: object) => { engine: Engine; connect(u: string, t: string, o: object): Promise<void>; localParticipant: { setMicrophoneEnabled(on: boolean): Promise<unknown> } } }; pcs: RTCPeerConnection[]; configs: RTCConfiguration[] }
         const w = window as unknown as W
         const room = new w.LivekitClient.Room({ adaptiveStream: false, dynacast: false })
-        // What the app does (client/src/state/p2pVoice.ts): TURN from the join answer at the tunnel's address, relay only.
         const engine = room.engine
         const original = engine.makeRTCConfiguration.bind(engine)
         engine.makeRTCConfiguration = (response?: unknown) => {
@@ -296,8 +303,9 @@ describe('Iskra through the peer-to-peer tunnel', () => {
         }
         return { connectMs, pairs, bytesSent, offered: engine.latestJoinResponse?.iceServers?.map((s) => s.urls), configs: w.configs }
       }, { url: joined.url, token: joined.token, turnPort: friend.ports.turn }) as Result
-      report.voice = { ...result, configs: undefined, tunnel: { friend: friend.stats, host: host.stats }, pageLog }
-      if (result.error) console.log(`voice through the tunnel failed: ${result.error}\n${JSON.stringify({ offered: result.offered, configs: result.configs, pageLog, friend: friend.stats, host: host.stats })}`)
+      const datagrams = { out: friend.stats.datagramsOut - before.out, in: friend.stats.datagramsIn - before.in }
+      report[`voice-${label}`] = { ...result, configs: undefined, datagrams, pageLog }
+      if (result.error) console.log(`voice through the tunnel (${label}) failed: ${result.error}\n${JSON.stringify({ offered: result.offered, configs: result.configs, pageLog, datagrams, host: host.stats })}`)
       expect(result.error).toBeUndefined()
       // LiveKit offered its own TURN on the host's TURN port; the page was told only about the tunnel's address, relay only.
       expect(result.offered!.flat()).toContainEqual(expect.stringMatching(new RegExp(`:${turnPort}\\?transport=udp$`)))
@@ -310,13 +318,48 @@ describe('Iskra through the peer-to-peer tunnel', () => {
       expect(result.pairs!.length).toBeGreaterThan(0)
       for (const pair of result.pairs!) expect(pair.type).toBe('relay')
       expect(result.bytesSent).toBeGreaterThan(0)
-      expect(friend.stats.datagramsOut).toBeGreaterThan(0)
-      expect(friend.stats.datagramsIn).toBeGreaterThan(0)
+      expect(datagrams.out).toBeGreaterThan(0)
+      expect(datagrams.in).toBeGreaterThan(0)
     } finally {
-      await browser.close()
+      await opened.close()
       web.close()
     }
+  }
+
+  it.skipIf(!hasLiveKit)('voice goes through the tunnel: LiveKit media relay-only over its TURN, as the desktop app does it', async () => {
+    await voiceThroughTunnel('chromium', async (pageUrl) => {
+      const browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] })
+      const page = await browser.newPage()
+      await page.goto(pageUrl)
+      return { page, close: () => browser.close() }
+    })
   }, 90_000)
+
+  // The same in Electron's own Chromium (the desktop app's engine), with the app's WebRTC policy. Needs a display, so
+  // it runs by hand with ISKRA_INTEROP_ELECTRON=1 (WEBRTC_POLICY=default shows the failure the policy fixes).
+  it.skipIf(!hasLiveKit || !process.env.ISKRA_INTEROP_ELECTRON)("voice goes through the tunnel in Electron's Chromium too", async () => {
+    const electronExe = resolve(__dirname, '../../desktop/node_modules/electron/dist', process.platform === 'win32' ? 'electron.exe' : 'electron')
+    const dir = mkdtempSync(join(tmpdir(), 'iskra-p2p-electron-'))
+    writeFileSync(join(dir, 'main.cjs'), `const { app, BrowserWindow } = require('electron')
+app.whenReady().then(() => {
+  const w = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } })
+  // As the desktop app does (desktop/src/main.ts): with the default policy Chromium binds a socket per adapter, and on
+  // Windows a LAN-bound socket can't reach the tunnel's TURN on 127.0.0.1.
+  w.webContents.setWebRTCIPHandlingPolicy(process.env.WEBRTC_POLICY || 'default_public_interface_only')
+  void w.loadURL(process.env.PAGE_URL)
+})`)
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'p2p-electron-check', main: 'main.cjs' }))
+    try {
+      await voiceThroughTunnel('electron', async (pageUrl) => {
+        const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'NODE_OPTIONS')) as Record<string, string>
+        const app = await _electron.launch({ executablePath: electronExe, args: [dir, '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'], env: { ...env, PAGE_URL: pageUrl } })
+        const page = await app.firstWindow()
+        return { page, close: () => app.close() }
+      })
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }, 120_000)
 
   it('refuses a DHT peer that knows the host key but not the secret', async () => {
     const stream = strangerDht.connect(host.publicKey) // its own random key pair

@@ -173,6 +173,11 @@ function createWindow(): void {
     },
   })
   allowPageViews(window, isAppUrl)
+  // WebRTC sends from one any-address socket instead of one socket per network adapter. Needed for voice through the
+  // peer-to-peer tunnel: its TURN server is on 127.0.0.1, and on Windows a socket bound to the LAN address can't reach
+  // loopback (Electron's Chromium never got a single TURN packet out that way). It also exposes only the default
+  // route's address in ICE candidates, never every adapter's. Direct voice keeps working the same.
+  window.webContents.setWebRTCIPHandlingPolicy('default_public_interface_only')
 
   // Started with the computer: stay in the tray until opened. Otherwise the splash shows it when everything's ready.
   window.webContents.once('dom-ready', () => launch?.page === 'loading' && launchChanged({ page: 'loaded' }))

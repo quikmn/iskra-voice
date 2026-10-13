@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
+import { SignalResponse } from '@livekit/protocol'
 import { appWindow, agreeToTerms, hasLiveKit, SHOTS } from './helpers'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -45,9 +46,10 @@ async function recordPeerConnections(page: Page): Promise<void> {
     const Original = window.RTCPeerConnection
     const configs: unknown[] = []
     const pcs: RTCPeerConnection[] = []
-    const w = window as unknown as { __peerConfigs: unknown[]; __pcs: RTCPeerConnection[] }
+    const w = window as unknown as { __peerConfigs: unknown[]; __pcs: RTCPeerConnection[]; __signal: string[] }
     w.__peerConfigs = configs
     w.__pcs = pcs
+    w.__signal = []
     window.RTCPeerConnection = class extends Original {
       constructor(config?: RTCConfiguration) {
         configs.push(JSON.parse(JSON.stringify(config ?? {})))
@@ -55,6 +57,24 @@ async function recordPeerConnections(page: Page): Promise<void> {
         pcs.push(this)
       }
     } as typeof RTCPeerConnection
+    // The first frame of each LiveKit signalling socket (the join answer), base64, to see what LiveKit offered.
+    const OriginalSocket = window.WebSocket
+    window.WebSocket = class extends OriginalSocket {
+      constructor(url: string | URL, protocols?: string | string[]) {
+        super(url, protocols)
+        if (String(url).includes('/livekit/rtc/')) {
+          let first = true
+          this.addEventListener('message', (e: MessageEvent) => {
+            if (!first) return
+            first = false
+            const data = e.data as ArrayBuffer | Blob | string
+            if (data instanceof ArrayBuffer) w.__signal.push(btoa(String.fromCharCode(...new Uint8Array(data))))
+            else if (data instanceof Blob) void data.arrayBuffer().then((b) => w.__signal.push(btoa(String.fromCharCode(...new Uint8Array(b)))))
+            else w.__signal.push(`text:${String(data).slice(0, 200)}`)
+          })
+        }
+      }
+    } as typeof WebSocket
   })
 }
 
@@ -239,6 +259,16 @@ test('a friend joins a home-hosted server through the peer-to-peer tunnel and ta
     if (friendPage) {
       const configs = await friendPage.evaluate(() => JSON.stringify((window as unknown as { __peerConfigs?: unknown[] }).__peerConfigs ?? [])).catch(() => 'n/a')
       console.log(`friend peer configs: ${configs.slice(0, 1500)}`)
+      const signal = await friendPage.evaluate(() => (window as unknown as { __signal?: string[] }).__signal ?? []).catch(() => [] as string[])
+      for (const frame of signal) {
+        if (frame.startsWith('text:')) { console.log(`friend LiveKit first frame: ${frame}`); continue }
+        try {
+          const response = SignalResponse.fromBinary(Buffer.from(frame, 'base64'))
+          console.log(`friend LiveKit first frame: ${response.message.case} ${response.message.case === 'join' ? JSON.stringify(response.message.value.iceServers) : ''}`)
+        } catch (e) {
+          console.log(`friend LiveKit first frame: undecodable (${(e as Error).message}), ${frame.length} chars`)
+        }
+      }
     }
     if (friendConsole.length) console.log(`--- friend console ---\n${friendConsole.slice(-60).join('\n')}`)
     for (const [name, app] of [['friend', friendApp], ['host', hostApp]] as const) {
