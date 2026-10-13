@@ -21,7 +21,9 @@ test.skip(!built, 'build desktop/ (npm run build) and the client (npm run build)
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 
 type Testnet = { bootstrap: { host: string; port: number }[]; destroy(): Promise<void> }
-const createTestnet = createRequire(join(DESKTOP, 'package.json'))('hyperdht/testnet.js') as (size: number, opts: { host: string }) => Promise<Testnet>
+// Loaded when a test runs, so the file still skips cleanly where desktop/ has no node_modules.
+const createTestnet = (size: number, opts: { host: string }): Promise<Testnet> =>
+  (createRequire(join(DESKTOP, 'package.json'))('hyperdht/testnet.js') as (size: number, opts: { host: string }) => Promise<Testnet>)(size, opts)
 
 const b64u = (text: string) => Buffer.from(text, 'utf8').toString('base64url')
 const electronExe = join(DESKTOP, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron')
