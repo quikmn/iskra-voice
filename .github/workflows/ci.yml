@@ -125,9 +125,13 @@ jobs:
           cache-dependency-path: |
             client/package-lock.json
             desktop/package-lock.json
+            bots/package-lock.json
       # The p2p spec runs the desktop app's tunnel on a private testnet; no Electron download.
       - run: npm ci --ignore-scripts
         working-directory: desktop
+      # The voice-bots spec runs the Jukebox example bot (bots/: LiveKit's Node SDK and the decoders).
+      - run: npm ci
+        working-directory: bots
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       # LiveKit (pinned and SHA-256 checked by get-livekit.sh), cached on that script.
@@ -191,6 +195,8 @@ jobs:
         run: bash ../scripts/get-livekit.sh
       - run: npm ci && npm run typecheck
         working-directory: bots
+      # The p2p interop test checks voice through the tunnel in a real Chromium.
+      - run: npx playwright install --with-deps chromium
       - run: npm run test:interop
 
   # The check to require for end-to-end (branch protection): green only when every shard and interop passed.
