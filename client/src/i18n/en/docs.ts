@@ -17,7 +17,6 @@ export const docs = {
     newPage: 'New page',
     inText: 'Found in the text',
     noMatches: 'No pages match.',
-    empty: 'No pages yet.',
   },
   overview: {
     title: 'Pages in {{channel}}',

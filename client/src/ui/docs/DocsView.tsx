@@ -20,6 +20,7 @@ import { DocsIcon, FlagIcon, HistoryIcon, PageIcon } from './icons'
 import { PageEditor } from './PageEditor'
 import { HistoryDialog, PageMenu, type MenuAnchor } from './DocDialogs'
 import './docs.css'
+import { stripMarkdownPieces } from '../plainMarkdown'
 
 const NO_PAGES: DocPage[] = []
 
@@ -45,9 +46,12 @@ export function DocsView({ server, channel, onToggle }: { server: ServerState; c
 
   const editing = !!draft && (draft.pageId === null || draft.pageId === openId)
   const showingPage = editing || !!page
+  const loading = !list || (list.loading && pages.length === 0)
+  // No pages yet: just the overview's "Write the first page", no empty tree beside it.
+  const noPages = !loading && pages.length === 0
 
   return (
-    <div className={`chat docs ${showingPage ? 'docs-has-page' : ''} ${editing ? 'docs-editing' : ''}`}>
+    <div className={`chat docs ${showingPage ? 'docs-has-page' : ''} ${editing ? 'docs-editing' : ''} ${noPages ? 'docs-no-pages' : ''}`}>
       <header className="chat-header">
         <button className="icon-button mobile-only" onClick={() => onToggle('nav')} aria-label={t('docs.view.openChannels')}>
           <Menu />
@@ -68,14 +72,14 @@ export function DocsView({ server, channel, onToggle }: { server: ServerState; c
       </header>
 
       <div className="docs-body">
-        <PageTree server={server} channel={channel} pages={pages} openId={openId} canEdit={can.edit} loading={!list || (list.loading && pages.length === 0)} />
+        {!noPages && <PageTree server={server} channel={channel} pages={pages} openId={openId} canEdit={can.edit} loading={loading} />}
         <main className="docs-main">
           {list?.error && <div className="banner error"><span>{list.error}</span></div>}
           {editing ? (
             <PageEditor key={draft.pageId ?? 'new'} server={server} channel={channel} draft={draft} pages={pages} />
           ) : page ? (
             <PageReader key={page.id} server={server} channel={channel} page={page} pages={pages} can={can} />
-          ) : !list || (list.loading && pages.length === 0) ? (
+          ) : loading ? (
             <div className="docs-empty"><Spinner /></div>
           ) : (
             <Overview server={server} channel={channel} pages={pages} canEdit={can.edit} />
@@ -164,8 +168,6 @@ function PageTree({ server, channel, pages, openId, canEdit, loading }: {
           )}
           {hits !== null && titleMatches.length === 0 && textHits.length === 0 && <p className="docs-tree-note">{t('docs.tree.noMatches')}</p>}
         </div>
-      ) : pages.length === 0 ? (
-        <p className="docs-tree-note">{t('docs.tree.empty')}</p>
       ) : (
         <ul className="docs-tree-list">
           {tree.map((node) => (
@@ -184,15 +186,16 @@ function PageTree({ server, channel, pages, openId, canEdit, loading }: {
 
 /** A search snippet with its matches marked (React elements, never HTML). */
 export function highlighted(hit: Pick<DocSearchResult, 'snippet' | 'matches'>) {
-  const parts: ReactNode[] = []
+  const pieces: { text: string; hit: boolean }[] = []
   let pos = 0
-  hit.matches.forEach(([start, length], i) => {
-    if (start < pos || start + length > hit.snippet.length) return
-    parts.push(hit.snippet.slice(pos, start), <mark key={i}>{hit.snippet.slice(start, start + length)}</mark>)
+  for (const [start, length] of hit.matches) {
+    if (start < pos || start + length > hit.snippet.length) continue
+    pieces.push({ text: hit.snippet.slice(pos, start), hit: false }, { text: hit.snippet.slice(start, start + length), hit: true })
     pos = start + length
-  })
-  parts.push(hit.snippet.slice(pos))
-  return parts
+  }
+  pieces.push({ text: hit.snippet.slice(pos), hit: false })
+  // Markdown markers out ("**", "| a | b |"), the marks staying on the same words.
+  return stripMarkdownPieces(pieces).map((p, i): ReactNode => (p.hit ? <mark key={i}>{p.text}</mark> : p.text))
 }
 
 // ── The overview (no page open) ─────────────────────────────────────────────

@@ -3,6 +3,7 @@
 import { create } from 'zustand'
 import { t } from '../i18n'
 import { plainText } from '../ui/markdown'
+import { stripMarkdown } from '../ui/plainMarkdown'
 import { senderRules } from './senderRules'
 import { onServerEvent, useApp } from './store'
 import { conversationLabel, useThreads } from './threads'
@@ -144,7 +145,7 @@ export function notifyChannelMessage(serverKey: string, message: Message): void 
   if (!shouldNotify(notifyFor(serverKey, message.channelId), !message.forwarded && senderRules.mentionsMe(server, message))) return
   if (isOnScreen(channelConv(serverKey, message.channelId))) return
   const author = message.webhook?.name ?? server.members[message.author]?.name ?? t('common.someone')
-  show(serverKey, t('app.notify.authorIn', { author, where: conversationLabel(server, message.channelId) }), plainText(message.text, { nameOf: (k) => server.members[k]?.name ?? null }), () => {
+  show(serverKey, t('app.notify.authorIn', { author, where: conversationLabel(server, message.channelId) }), stripMarkdown(plainText(message.text, { nameOf: (k) => server.members[k]?.name ?? null })), () => {
     void jumpToMessage(serverKey, message.channelId, message.id)
   })
 }

@@ -9,6 +9,7 @@ import { errorMessage } from '../../i18n/errors'
 import { Avatar, Modal, Spinner } from '../bits'
 import { clockTime, fullTime, messageTime } from '../format'
 import { plainText } from '../markdown'
+import { stripMarkdown } from '../plainMarkdown'
 import { SparkIcon } from '../docs/icons'
 import { jumpTo, loadSpan, nameFor, type CatchUpSpec } from './sources'
 import './catchup.css'
@@ -72,7 +73,7 @@ export function CatchUpPanel({ spec, from, title, onClose }: { spec: CatchUpSpec
             <strong>{name(item.author)}</strong>
             <time title={fullTime(item.at)}>{messageTime(item.at)}</time>
           </span>
-          <span className="catchup-excerpt">{item.excerpt ? plainText(item.excerpt, nameCtx) : t('catchup.attachmentOnly')}</span>
+          <span className="catchup-excerpt">{item.excerpt ? stripMarkdown(plainText(item.excerpt, nameCtx)) : t('catchup.attachmentOnly')}</span>
           <span className="catchup-reasons">
             {REASON_ORDER.filter((r) => item.reasons.includes(r) && !(r === 'replyToYou' && item.reasons.includes('mention')))
               .map((r) => <span key={r} className={`catchup-chip ${r}`}>{reasonText(item, r)}</span>)}

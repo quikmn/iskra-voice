@@ -29,6 +29,7 @@ import { Lock } from '../icons'
 import { AlarmClock, Bookmark, CheckAll, Clock } from './icons'
 import { WhenPicker, whenText } from './WhenPicker'
 import './productivity.css'
+import { stripMarkdown } from '../plainMarkdown'
 
 const TABS: InboxTab[] = ['inbox', 'saved', 'reminders', 'scheduled']
 const FILTERS: InboxFilter[] = ['all', 'mentions', 'replies', 'reminders', 'requests']
@@ -201,7 +202,7 @@ function SavedRow({ entry }: { entry: SavedEntry }) {
   return (
     <Row icon={snap ? <Avatar name={snap.authorName} accountKey={snap.author || entry.key} size={32} /> : <Bookmark filled />}
       title={<strong>{snap?.authorName ?? t('common.someone')}</strong>} sub={snap?.where} at={snap?.at}
-      body={gone ? <em className="muted">{t('productivity.saved.gone')}</em> : snap?.preview}
+      body={gone ? <em className="muted">{t('productivity.saved.gone')}</em> : snap && stripMarkdown(snap.preview)}
       onOpen={() => void open()}
       actions={<button className="button small" onClick={() => void unsaveMessage(entry.key)}>{t('productivity.saved.remove')}</button>} />
   )
@@ -237,7 +238,7 @@ function ReminderRow({ reminder: r }: { reminder: Reminder }) {
         title={<><strong>{t('productivity.inbox.reminder')}</strong>{c?.note ? <> · {c.note}</> : null}</>}
         sub={c ? `${c.snap.authorName} · ${c.snap.where}` : t('productivity.reminders.unreadable')}
         body={gone ? <em className="muted">{t('productivity.saved.gone')}</em> : error ? <span className="error-text">{error}</span>
-          : <>{c?.snap.preview}<span className="inbox-when">{fired ? t('productivity.reminders.firedAt', { when: whenText(r.firedAt!) }) : t('productivity.reminders.at', { when: whenText(r.dueAt) })}</span></>}
+          : <>{c && stripMarkdown(c.snap.preview)}<span className="inbox-when">{fired ? t('productivity.reminders.firedAt', { when: whenText(r.firedAt!) }) : t('productivity.reminders.at', { when: whenText(r.dueAt) })}</span></>}
         onOpen={c ? () => void openReminder(r.server, r.id).then((ok) => (ok ? closeInbox() : setGone(true))) : undefined}
         actions={(
           <>

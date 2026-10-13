@@ -177,6 +177,9 @@
 .doc-hits { border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 6px; }
 .doc-hit-icon { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; background: var(--accent-subtle); color: var(--accent); flex: none; }
 
+/* No pages yet: the overview's "Write the first page" fills the space (no empty tree). */
+.docs.docs-no-pages .docs-body { grid-template-columns: minmax(0, 1fr); }
+
 /* While editing on a narrower desktop, the page tree steps aside for room. */
 @media (max-width: 1400px) {
   .docs.docs-editing .docs-body { grid-template-columns: minmax(0, 1fr); }
@@ -188,7 +191,7 @@
   .docs-body { grid-template-columns: minmax(0, 1fr); }
   .docs-tree { border-right: 0; background: transparent; }
   .docs.docs-has-page .docs-tree { display: none; }
-  .docs:not(.docs-has-page) .docs-main { display: none; }
+  .docs:not(.docs-has-page):not(.docs-no-pages) .docs-main { display: none; }
   .docs.docs-has-page .chat-header .docs-back { display: inline-grid; }
   .docs-tree-item { min-height: 42px; font-size: 15px; }
   .docs-reader, .docs-overview { padding: 16px 16px 40px; }

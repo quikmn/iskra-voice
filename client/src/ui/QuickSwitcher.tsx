@@ -6,7 +6,8 @@ import { selectChannel, selectServer, useApp } from '../state/store'
 import { channelConv, dmConv, useReads } from '../state/readState'
 import { setStageOpen } from '../state/voice'
 import { Avatar } from './bits'
-import { Hash, Search, Users } from './icons'
+import { Search, Users } from './icons'
+import { ChannelKindIcon } from './ChannelKindIcon'
 import { useEscapeLayer, useFocusTrap } from './layers'
 import { rankItems, type SwitchItem } from './quickSwitch'
 
@@ -47,8 +48,8 @@ function SwitcherDialog({ onClose }: { onClose: () => void }) {
       const server = servers[key]
       if (!server) continue
       for (const channel of server.channels) {
-        if (channel.kind !== 'text' && channel.kind !== 'docs') continue
-        list.push({ id: `ch:${key}:${channel.id}`, kind: 'channel', label: channel.name, context: server.name, unread: reads[channelConv(key, channel.id)]?.unread ?? 0 })
+        if (channel.kind !== 'text' && channel.kind !== 'docs' && channel.kind !== 'forum') continue
+        list.push({ id: `ch:${key}:${channel.id}`, kind: 'channel', channelKind: channel.kind, label: channel.name, context: server.name, unread: reads[channelConv(key, channel.id)]?.unread ?? 0 })
       }
     }
     list.push({ id: 'friends', kind: 'friends', label: t('app.home.friends'), context: t('app.home.directMessages'), unread: 0 })
@@ -106,7 +107,7 @@ function SwitcherDialog({ onClose }: { onClose: () => void }) {
               onClick={() => go(item)}
             >
               <span className="switcher-icon">
-                {item.kind === 'channel' ? <Hash size={16} /> : item.kind === 'dm' ? <Avatar name={item.label} accountKey={item.id.slice(3)} size={20} /> : <Users size={16} />}
+                {item.kind === 'channel' ? <ChannelKindIcon kind={item.channelKind ?? 'text'} /> : item.kind === 'dm' ? <Avatar name={item.label} accountKey={item.id.slice(3)} size={20} /> : <Users size={16} />}
               </span>
               <span className="switcher-label">{item.label}</span>
               <span className="switcher-context">{item.context}</span>
