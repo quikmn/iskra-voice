@@ -1,10 +1,9 @@
 // Voice and video: one LiveKit room at a time. The server hands out the token; LiveKit carries the media.
-import {
-  AudioPresets, ConnectionState, createKeyMaterialFromBuffer, DisconnectReason, ExternalE2EEKeyProvider, LocalAudioTrack, RemoteAudioTrack, Room, RoomEvent,
-  ScreenSharePresets, Track, VideoPresets,
-  type LocalTrackPublication, type Participant, type RemoteParticipant, type RemoteTrack, type RemoteTrackPublication, type RoomOptions,
-  type TrackPublishOptions,
+import type {
+  ConnectionState, DisconnectReason, LocalAudioTrack, LocalTrackPublication, Participant, RemoteParticipant, RemoteTrack, RemoteTrackPublication,
+  Room, RoomOptions, Track, TrackPublishOptions,
 } from 'livekit-client'
+import { lk, loadLiveKit } from './livekit'
 import { create } from 'zustand'
 import { t } from '../i18n'
 import { errorMessage } from '../i18n/errors'
@@ -154,17 +153,14 @@ export function currentVoice(): VoiceResume | null {
 }
 
 /** The room is connected right now (not connecting, not reconnecting). */
-export const voiceConnected = (): boolean => !!room && room.state === ConnectionState.Connected
-
-// Leaving on purpose, being moved or removed, or joining somewhere else isn't a drop.
-const NOT_A_DROP = new Set<DisconnectReason>([
-  DisconnectReason.CLIENT_INITIATED, DisconnectReason.DUPLICATE_IDENTITY, DisconnectReason.PARTICIPANT_REMOVED,
-  DisconnectReason.ROOM_DELETED, DisconnectReason.ROOM_CLOSED,
-])
+export const voiceConnected = (): boolean => !!room && room.state === lk().ConnectionState.Connected
 
 function rememberDrop(reason: DisconnectReason | undefined): void {
+  // Leaving on purpose, being moved or removed, or joining somewhere else isn't a drop.
+  const { DisconnectReason: R } = lk()
+  const notADrop = [R.CLIENT_INITIATED, R.DUPLICATE_IDENTITY, R.PARTICIPANT_REMOVED, R.ROOM_DELETED, R.ROOM_CLOSED]
   const where = currentVoice()
-  if (!where || (reason !== undefined && NOT_A_DROP.has(reason))) return
+  if (!where || (reason !== undefined && notADrop.includes(reason))) return
   pendingResume = where
   for (const listener of resumeListeners) listener(where)
 }
@@ -228,11 +224,15 @@ function incomingChanged(): void {
 export const activeRoom = (): Room | null => room
 
 /** A shared-key provider that also takes keys at a given index, so a group call can switch keys without a gap. */
-class CallKeyProvider extends ExternalE2EEKeyProvider {
-  async setIndexedKey(key: Uint8Array, index: number): Promise<void> {
-    this.onSetEncryptionKey(await createKeyMaterialFromBuffer(key.slice().buffer), undefined, index)
-  }
+function newCallKeyProvider() {
+  const { ExternalE2EEKeyProvider, createKeyMaterialFromBuffer } = lk()
+  return new (class extends ExternalE2EEKeyProvider {
+    async setIndexedKey(key: Uint8Array, index: number): Promise<void> {
+      this.onSetEncryptionKey(await createKeyMaterialFromBuffer(key.slice().buffer), undefined, index)
+    }
+  })()
 }
+type CallKeyProvider = ReturnType<typeof newCallKeyProvider>
 let keyProvider: CallKeyProvider | null = null
 let mutedBeforeDeafen = false
 /** A stage speaker's mic is published the first time they open it (not the moment they're brought up). */
@@ -255,7 +255,7 @@ function applyVolume(participant: RemoteParticipant): void {
   const { volumes, deafened } = useVoice.getState()
   const volume = effectiveVolume(volumes[participant.identity] ?? 1, useAudio.getState().outputVolume, deafened, boosting)
   participant.setVolume(volume)
-  participant.setVolume(volume, Track.Source.ScreenShareAudio)
+  participant.setVolume(volume, lk().Track.Source.ScreenShareAudio)
 }
 
 // ── Your own mic: processing, level and speaking ─────────────────────────
@@ -322,7 +322,9 @@ const micCallbacks = {
 const pttMode = () => useVoice.getState().settings.mode === 'ptt'
 
 function micTrack(): LocalAudioTrack | null {
-  const track = room?.localParticipant.getTrackPublication(Track.Source.Microphone)?.track
+  if (!room) return null
+  const { Track, LocalAudioTrack } = lk()
+  const track = room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track
   return track instanceof LocalAudioTrack ? track : null
 }
 
@@ -371,6 +373,7 @@ function reportFlags(): void {
 /** Rebuilds the list of video tiles from the room. Screen shares first: they're what people came to see. */
 function refreshTiles(): void {
   if (!room) return
+  const { Track } = lk()
   const tiles: Tile[] = []
   const collect = (participant: Participant, isLocal: boolean) => {
     for (const pub of participant.trackPublications.values()) {
@@ -474,13 +477,14 @@ async function connect(
   })
 
   try {
-    const { url, token, canSpeak } = await target()
+    const [{ url, token, canSpeak }, { Room, RoomEvent, Track, ConnectionState, RemoteAudioTrack, VideoPresets, ScreenSharePresets }] =
+      await Promise.all([target(), loadLiveKit()])
     let encryption: RoomOptions['encryption']
     let worker: Worker | null = null
     let provider: CallKeyProvider | null = null
     if (options.e2eeKey || options.groupKey) {
       const { default: E2EEWorker } = await import('livekit-client/e2ee-worker?worker')
-      provider = new CallKeyProvider()
+      provider = newCallKeyProvider()
       // A random 32-byte key: LiveKit derives the frame key from it with HKDF.
       if (options.e2eeKey) await provider.setKey(options.e2eeKey.slice().buffer)
       else if (options.groupKey !== 'later' && options.groupKey) await provider.setIndexedKey(options.groupKey.key, options.groupKey.index)
@@ -665,6 +669,7 @@ function hifiAllowed(): boolean {
 async function publishMic(current: Room): Promise<boolean> {
   const hifi = hifiAllowed()
   useVoice.setState({ hifi })
+  const { Track, LocalAudioTrack, AudioPresets } = lk()
   try {
     const settings = useAudio.getState()
     const options = captureOptions(settings, plannedEngine(settings.noise), hifi)
@@ -714,7 +719,7 @@ async function republishMic(): Promise<void> {
   const current = room
   const { session } = useVoice.getState()
   if (!current || !session?.canSpeak) return
-  const publication = current.localParticipant.getTrackPublication(Track.Source.Microphone)
+  const publication = current.localParticipant.getTrackPublication(lk().Track.Source.Microphone)
   if (!publication?.track) return // not published yet (a stage speaker who hasn't opened their mic)
   processor = null
   await current.localParticipant.unpublishTrack(publication.track).catch(() => undefined)
@@ -763,7 +768,7 @@ async function cleanup(): Promise<void> {
     session: null, speaking: {}, tiles: [], stageOpen: false, camera: false, screen: false, localSpeaking: false,
     micEngine: null, aiLoad: null, cleanEngine: null, processingIncoming: false, hifi: false, resumeOffer: null,
   })
-  if (old && old.state !== ConnectionState.Disconnected) await old.disconnect()
+  if (old && old.state !== lk().ConnectionState.Disconnected) await old.disconnect()
   worker?.terminate()
 }
 
@@ -852,6 +857,7 @@ async function applyMic(): Promise<void> {
   const { muted, settings, pttDown, session } = useVoice.getState()
   const current = room
   if (!current || !session?.canSpeak) return
+  const { Track } = lk()
   const publication = current.localParticipant.getTrackPublication(Track.Source.Microphone)
   const open = !muted && (settings.mode === 'voice' || pttDown)
   if (!publication?.track) {

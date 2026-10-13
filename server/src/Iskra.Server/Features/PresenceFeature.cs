@@ -33,8 +33,13 @@ public static class PresenceFeature
     public static View Of(Store store, Hub hub, string accountKey, long now)
     {
         var sessions = hub.Sessions.Where(s => s.AccountKey == accountKey).ToList();
-        if (sessions.Count == 0) return new(false, "offline", null);
-        var presence = store.GetPresence(accountKey);
+        return sessions.Count == 0 ? new(false, "offline", null) : Of(store.GetPresence(accountKey), sessions, now);
+    }
+
+    /// <summary>The same from what's already loaded: the stored choice and the account's sessions (none: offline).</summary>
+    public static View Of(PresenceRecord? presence, IReadOnlyCollection<Session>? sessions, long now)
+    {
+        if (sessions is null || sessions.Count == 0) return new(false, "offline", null);
         var chosen = presence?.Status ?? "online";
         if (chosen == "invisible") return new(false, "offline", null);
         var status = chosen is "dnd" or "idle" ? chosen : sessions.All(s => s.Idle) ? "idle" : "online";

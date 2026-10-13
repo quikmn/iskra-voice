@@ -3,7 +3,7 @@ import { Trans, useTranslation } from 'react-i18next'
 import { errorMessage } from '../i18n/errors'
 import type { FileInfo, Member } from '../core/protocol'
 import {
-  activeChannelId, connectionFor, discardFailed, loadHistory, notifyTyping, failedJoin, retryAll, retryFailed, sendMessage, useApp,
+  activeChannelId, connectionFor, discardFailed, loadHistory, notifyTyping, failedJoin, retryAll, retryFailed, sendMessage, SHOWN_ABOVE, trimChannel, useApp,
   type PendingMessage, type ServerState,
 } from '../state/store'
 import { Attachments, LinkPreviewCard, Reactions, ReactionPicker, ReplyLine } from './chat/MessageExtras'
@@ -197,8 +197,10 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
       restore.current = null
     } else if (stickToBottom.current && !detached) {
       el.scrollTop = el.scrollHeight
+      // Reading along at the bottom of a busy channel: let the oldest loaded messages go (they load again on scroll).
+      if (messages && messages.length > SHOWN_ABOVE) trimChannel(server.key, channelId)
     }
-  }, [messages, detached])
+  }, [messages, detached, server.key, channelId])
   useJumpTarget(server.key, channelId, scroller, () => (stickToBottom.current = false), messages)
   useAnnounceNew(messages, (m) => (m.tempId ? null : String(m.id)), (m) => m.author === server.me?.accountKey ? null
     : t('chat.a11y.newMessage', { name: authorOf(m, server.members).name, text: m.text ? decodeMentions(m.text, (k) => server.members[k]?.name ?? null).slice(0, 200) : t('chat.message.attachment') }), !thread)
