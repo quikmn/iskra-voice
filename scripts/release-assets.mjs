@@ -5,10 +5,14 @@
 //   node scripts/release-assets.mjs check <version> <dir>       all expected files present, latest*.yml match the files
 //   node scripts/release-assets.mjs names <version> <file>      expected files present in a list of names (one per line)
 //   node scripts/release-assets.mjs sums <dir>                  writes <dir>/SHA256SUMS.txt for every other file in <dir>
+//   node scripts/release-assets.mjs merge-yml <version> <dir> <out> <part> <part>...
+//                                     merges per-architecture update files (release.yml: latest-mac.yml from the x64 and
+//                                     arm64 builds) into <dir>/<out>, checks it against the files and removes the parts
 import { createHash } from 'node:crypto'
 import { createReadStream, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { checkAssets, expectedAssets, formatSums, isValidVersion, missingUpdaterFiles, parseUpdateYml } from './release-lib.mjs'
+import { rmSync } from 'node:fs'
+import { checkAssets, expectedAssets, formatSums, isValidVersion, mergeUpdateYml, missingUpdaterFiles, parseUpdateYml } from './release-lib.mjs'
 
 const [cmd, ...args] = process.argv.slice(2)
 const fail = (msg) => { console.error(`error: ${msg}`); process.exit(1) }
@@ -67,6 +71,26 @@ if (cmd === 'list') {
   for (const name of filesIn(dir).filter((n) => n !== 'SHA256SUMS.txt')) entries.push({ name, sha256: await hash(join(dir, name), 'sha256', 'hex') })
   writeFileSync(join(dir, 'SHA256SUMS.txt'), formatSums(entries))
   process.stdout.write(formatSums(entries))
+} else if (cmd === 'merge-yml') {
+  const [version, dir, out, ...parts] = args
+  needVersion(version)
+  if (!dir || !out || parts.length < 2) fail('usage: merge-yml <version> <dir> <out> <part> <part>...')
+  let merged
+  try { merged = mergeUpdateYml(parts.map((p) => readFileSync(join(dir, p), 'utf8'))) } catch (e) { fail(`${out}: ${e.message}`) }
+  const { version: v, files } = parseUpdateYml(merged)
+  if (v !== version) fail(`${out} would say version ${v}, expected ${version}`)
+  const missing = missingUpdaterFiles(out, version, files.map((f) => f.url))
+  if (missing.length) fail(`${out} wouldn't list ${missing.join(', ')}, so the app won't update from it`)
+  for (const f of files) {
+    const file = join(dir, f.url)
+    let size
+    try { size = statSync(file).size } catch { fail(`${out} lists ${f.url}, which isn't in ${dir}`) }
+    if (size !== f.size || (await hash(file, 'sha512', 'base64')) !== f.sha512) fail(`${out}: ${f.url} doesn't match its build's update file`)
+  }
+  writeFileSync(join(dir, out), merged)
+  for (const p of parts) rmSync(join(dir, p))
+  process.stdout.write(merged)
+  console.log(`Wrote ${out} with ${files.length} files from ${parts.join(', ')}.`)
 } else {
-  fail('usage: release-assets.mjs list|names|check|sums ... (see the top of the file)')
+  fail('usage: release-assets.mjs list|names|check|sums|merge-yml ... (see the top of the file)')
 }

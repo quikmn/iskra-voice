@@ -26,5 +26,7 @@ dist-ssr
 # Playwright
 test-results/
 playwright-report/
+blob-report/
+all-blob-reports/
 e2e/screenshots/
 .listening-kit/

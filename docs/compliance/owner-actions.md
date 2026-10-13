@@ -76,7 +76,7 @@ Repo → Settings → Rules → Rulesets → New ruleset → New branch ruleset:
 the default branch. Turn on:
 
 - **Restrict deletions** and **Block force pushes**.
-- **Require status checks to pass**: add the CI jobs (`server`, `client`, `desktop`, `end-to-end`,
+- **Require status checks to pass**: add the CI jobs (`server`, `client`, `desktop`, `end-to-end` (green only when all four e2e shards and `interop` passed),
   `release-scripts`, `backup-restore-drill`, the CodeQL `analyze` jobs, `gitleaks`) once they've run on a PR.
 - **Require a pull request before merging**: recommended once there's a second person. For a solo maintainer it
   slows releases (`npm run release` commits to main and pushes atomically with the tag); if you turn it on, add

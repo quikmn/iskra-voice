@@ -36,6 +36,29 @@ table doesn't cover it, **stop and report**. Don't improvise fixes. Background a
 
 ## A. Full release
 
+One script does the whole release: `scripts/release-all.ps1`. Agents (release-runner) only step in when it stops.
+
+1. **Notes.** The notes for V are the lines in `docs/releases/NEXT.md` (the script turns them into `docs/releases/V.md`),
+   or a hand-written `docs/releases/V.md`. Check one of them has V's changes; if neither does, **stop and ask** for the
+   notes (suggest a draft from `git log --oneline v<previous>..main`).
+2. **Dry run.** `pwsh -NoProfile -File scripts/release-all.ps1 V -DryRun`
+   ✔ Ends with `Dry run done: a real run would go ahead. Nothing was changed.` Otherwise each `DRY RUN would stop [case]`
+   line is a decision-table row: do what it says, then dry-run again.
+3. **Ask the human:** "Please log in to SimplySign Desktop (6-digit code from the SimplySign app) and tell me when done."
+   Wait for the answer.
+4. **Release.** Run in the background (20–30 min; it waits for the builds and for finalize):
+   `pwsh -NoProfile -File scripts/release-all.ps1 V`
+   It checks, writes the notes, bumps and tags, pushes (no waiting for CI: finalize refuses to publish until CI is green
+   on the tag), builds and uploads the Windows files, waits for release.yml, starts finalize (tell the human to approve
+   it if it prints `approve it at <url>`) and checks the result.
+   ✔ Ends with `Result: done` and the report lines (Release, Runs, Checks).
+5. **A `STOP [case] ...` line:** find the case in the decision table and do exactly that. Once the tag is pushed, continue
+   with `pwsh -NoProfile -File scripts/release-all.ps1 V -Resume` (it skips what's done). Never rerun more than once
+   without the human.
+6. `git checkout main`, then report (format at the end).
+
+### A.M Manual release (only if release-all.ps1 can't run)
+
 1. **Preflight.**
    ```
    git checkout main
@@ -46,7 +69,8 @@ table doesn't cover it, **stop and report**. Don't improvise fixes. Background a
    ✔ `git status --porcelain` prints nothing (or only `docs/releases/V.md`). ✔ gh says "Logged in".
 2. **Release notes.** Check `docs/releases/V.md` exists: `Test-Path docs/releases/V.md`.
    - True → read it, check it mentions V and not the old version. Go on.
-   - False → if the human gave you notes, write them to `docs/releases/V.md` following `docs/releases/README.md`
+   - False → if `docs/releases/NEXT.md` has the notes: `node scripts/release-notes.mjs V` (writes V.md, empties NEXT.md).
+     Otherwise, if the human gave you notes, write them to `docs/releases/V.md` following `docs/releases/README.md`
      and the previous file in that folder. If not, **stop and ask** for the notes (suggest a draft from
      `git log --oneline v<previous>..main`).
 3. **Dry run.** `npm run release -- V --dry-run`
@@ -55,15 +79,15 @@ table doesn't cover it, **stop and report**. Don't improvise fixes. Background a
    ✔ Ends with `Committed "Version V" and tagged vV.` and prints a `git push` command.
 5. **Push.** `git push --atomic origin main vV`
    ✔ Output lists `main -> main` and `[new tag] vV -> vV`.
-6. **Watch the Linux/macOS build** (20–40 min).
+6. **Watch the Linux/macOS build** (~10–15 min).
    ```
    gh run list --workflow release.yml -L 1
    ```
    ✔ The newest run's branch is `vV`. Note its id, then check every few minutes:
    `gh run view <id> --json status,conclusion` until status is `completed`.
    ✔ conclusion `success`. You may continue with step 7 while it runs.
-   ✔ In the mac job, "Desktop app (signed and notarized)" and "Check the update files" ran (not skipped):
-   `gh run view <id> --log | grep -E "notarization successful|TeamIdentifier="` shows two of each. Without them,
+   ✔ In both Mac jobs (`mac (arm64)`, `mac (x64)`), "Desktop app (signed and notarized)" and "Check the update files" ran
+   (not skipped): `gh run view <id> --log | grep -E "notarization successful|TeamIdentifier="` shows two of each. Without them,
    installed Mac apps won't update themselves to this release (they show a download link).
 7. **Ask the human:** "Please log in to SimplySign Desktop (6-digit code from the SimplySign app) and tell me when done."
    Wait for the answer.
@@ -222,6 +246,13 @@ Play's SHA-256 from Setup → App signing to `assetlinks.json` and redeploy the 
 
 | You see | Do |
 |---|---|
+| `STOP [<case>]` from release-all.ps1 | The row below whose text matches the case; then `-Resume` once the cause is fixed (if the tag is pushed) |
+| `CI failed on main` | Stop. Report the failing run (`gh run view <id> --log-failed`). Release after main is green |
+| `CI didn't pass on vV` / finalize `no green CI run` | Nothing was published. Report the CI run. The human decides: a flake → `gh run rerun <id> --failed`, then `-Resume`; a real failure → fix main, release the next version (never move the tag) |
+| `Mac builds not notarized` | Stop and report. Don't finalize |
+| `release.yml still running` / `finalize still running` | Wait, then `-Resume` |
+| `final checks failed` | A site/web app check: rerun that deploy once (D/E). Anything else: report |
+| `nothing to resume` | Run without `-Resume` (the tag isn't pushed yet) |
 | `Release stopped: you're on <branch>` / `working tree has changes` | Stop. Report the branch or the changed files. Don't discard anything |
 | `main is N commit(s) behind origin/main` | `git pull --ff-only`, then retry once |
 | `tag vV already exists` | Stop. Ask the human for the next version. Never move tags |
@@ -236,7 +267,7 @@ Play's SHA-256 from Setup → App signing to `assetlinks.json` and redeploy the 
 | `tag vV isn't on GitHub yet` | Do A.5, then rerun |
 | `HEAD isn't the vV commit` | Do B.1, then rerun |
 | `build-android.ps1 didn't produce` / `Missing ...android-sdk` / `No JDK 21` / `fingerprint isn't in assetlinks.json` | Stop and report (never try another keystore) |
-| `still missing files after 60 minutes` | Check release.yml (A.6). If it succeeded since, do C. If it failed, report |
+| `still missing files after 60 minutes` / `files missing on the release` | Check release.yml (A.6). If it succeeded since, do C. If it failed, report |
 | Finalize waiting for approval | Tell the human to approve at the run url. Wait |
 | Finalize `missing (...)` | Stop and report the missing names |
 | Finalize `doesn't match (re-upload ...)` | Stop and report. The human decides which build to upload |

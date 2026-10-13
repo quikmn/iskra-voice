@@ -38,7 +38,7 @@
 | Server tests (xUnit, real server + WebSocket clients) | `.github/workflows/ci.yml` job `server`, Windows + Linux | Every push and PR |
 | Client tests (vitest) and type-checked build | `ci.yml` job `client` | Every push and PR |
 | Desktop unit tests | `ci.yml` job `desktop`, Windows + Linux + macOS | Every push and PR |
-| Interop (TS client ↔ .NET server) and Playwright end-to-end | `ci.yml` job `end-to-end` | Every push and PR |
+| Interop (TS client ↔ .NET server) and Playwright end-to-end | `ci.yml` jobs `interop` and `end-to-end shard 1/4`…`4/4`, summed up by the job `end-to-end` | Every branch push and PR |
 | Release-script tests | `ci.yml` job `release-scripts` | Every push and PR |
 | Backup → restore drill with integrity checks | `ci.yml` job `backup-restore-drill` (artifact `restore-drill-report`) | Every push and PR |
 | Static analysis (CodeQL: C#, JS/TS, workflows) | `.github/workflows/codeql.yml` | Push to main, PRs, weekly |

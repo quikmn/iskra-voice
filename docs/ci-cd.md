@@ -21,8 +21,9 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
 ## 1. Overview
 
 ```
- every push / PR ──► ci.yml ............ server, client, desktop tests (Win/Linux/macOS), interop + e2e, release-script tests,
-                                         backup-restore drill (report kept as an artifact)
+ every branch push / PR ──► ci.yml ..... server, client, desktop tests (Win/Linux/macOS), interop, e2e in 4 shards
+                                         (+ the `end-to-end` check over them), release-script tests, backup-restore drill
+                                         (report kept as an artifact); on main also keeps the macOS LiveKit builds cached
  every push / PR / weekly ──► secrets.yml .. gitleaks over the whole git history
  push to main / PR / weekly ──► codeql.yml ... code scanning: JS/TS, C#, workflows
  push to main / weekly ──► scorecard.yml ..... OpenSSF Scorecard → code scanning + scorecard.dev
@@ -30,19 +31,22 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
  every 15 min ──► uptime.yml ....... iskra.foo, app.iskra.foo, chat.iskra.foo (+ /health), voice port, TLS expiry
                                      ──► GitHub issue labelled "outage" on a change of state (section 8)
 
- RELEASE
- ① npm run release -- X        (any OS)   bump version in desktop/package.json(+lock), client/src/links.ts,
-                                          site/index.html; commit "Version X" with docs/releases/X.md; tag vX
- ② git push --atomic origin main vX
-        └─► release.yml (on the tag) ...... Linux AppImage/deb/rpm, macOS dmg/zip (signed + notarized),
-                                            server tarballs; attestations; creates the DRAFT release vX
- ③ scripts/release-windows.ps1 X  (this Windows PC, SimplySign logged in)
+ RELEASE = scripts/release-all.ps1 X (this Windows PC, SimplySign logged in) runs ①–④ and the final checks
+ ① release-notes.mjs + release.mjs  notes from docs/releases/NEXT.md into docs/releases/X.md; bump version in
+                                    desktop/package.json(+lock), client/src/links.ts, site/index.html; commit "Version X"; tag vX
+ ② git push --atomic origin main vX   (no waiting for CI: CI on main and the release builds run side by side)
+        ├─► ci.yml (on main) ............. the tests; finalize refuses to publish until this run is green
+        └─► release.yml (on the tag) ...... Linux AppImage/deb/rpm, macOS dmg/zip (x64 and arm64 in parallel jobs,
+                                            each signed + notarized; latest-mac.yml merged), server tarballs;
+                                            attestations; creates the DRAFT release vX
+ ③ scripts/release-windows.ps1 X -NoFinalize
         ├─ npm run dist ................... signed Setup + Portable exe, latest.yml, signed iskra-server.exe
         ├─ server zip, build-android.ps1 .. iskra-server-X-win-x64.zip, Iskra-X.apk (mobile/, signed locally)
-        ├─ gh release upload ............... onto the draft
-        ├─ waits until all 22 files are on the release
+        └─ gh release upload ............... onto the draft
+ ④ waits for release.yml and all 22 files, then starts
         └─► release-finalize.yml (workflow_dispatch, environment "release")
-              ├─ publish: check files + latest*.yml hashes, CycloneDX SBOMs, SHA256SUMS.txt, attestations,
+              ├─ publish: CI gate (ci.yml green on the tagged commit, waits up to 45 min), check files +
+              │           latest*.yml hashes, CycloneDX SBOMs, SHA256SUMS.txt, attestations,
               │           publish as Latest (not prerelease) with docs/releases/X.md
               └─► deploy.yml (reusable, environment "release")
                     ├─ site ....... wrangler → Pages iskra-hero-page → https://iskra.foo  (checks the new links and every page)
@@ -56,11 +60,14 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
 | File | What it does |
 |---|---|
 | `package.json` (repo root) | `npm run release`, `npm test` (release-script tests) |
+| `scripts/release-all.ps1` | The whole release (①–④ plus final checks). `-DryRun` checks everything and changes nothing; `-Resume` continues after a stop once the tag is pushed |
+| `scripts/release-notes.mjs` | Writes docs/releases/X.md from docs/releases/NEXT.md (headline, sections, "Get started" from the previous notes) and empties NEXT.md; refuses lines that already shipped |
 | `scripts/release.mjs` | Step ①. `--dry-run` shows the changes, `--push` pushes too |
-| `scripts/release-lib.mjs`, `release-lib.test.mjs` | Version checks, version replacement, asset list, latest.yml parsing (unit-tested, run in CI) |
+| `scripts/ci-gate.mjs` | Exits 0 only when a push run of ci.yml concluded success on the given commit (waits up to `--wait-minutes`). Used by finalize |
+| `scripts/release-lib.mjs`, `release-lib.test.mjs` | Version checks, version replacement, asset list, latest.yml parsing and merging, notes from NEXT.md, the CI verdict (unit-tested, run in CI) |
 | `scripts/release-assets.json` | The files every release must have. One list for the PowerShell script and the workflows |
-| `scripts/release-assets.mjs` | `list`, `names`, `check` (files + latest*.yml sha512), `sums` (SHA256SUMS.txt) |
-| `scripts/release-windows.ps1` | Step ③ |
+| `scripts/release-assets.mjs` | `list`, `names`, `check` (files + latest*.yml sha512), `sums` (SHA256SUMS.txt), `merge-yml` (release.yml: one latest-mac.yml from the two Mac jobs) |
+| `scripts/release-windows.ps1` | Step ③ (on its own it also waits for the other files and starts finalize) |
 | `.github/workflows/release.yml` | Linux and macOS builds on a `v*` tag |
 | `.github/workflows/release-finalize.yml` | Publish + deploy |
 | `.github/workflows/deploy.yml` | Site, web app and server deploys with checks; called by finalize or run by hand |
@@ -103,20 +110,36 @@ Versions are `x.y.z` or `x.y.z-alpha.n`; tags are `v` + version. Alphas are publ
 Latest (a prerelease never becomes GitHub's Latest, and people are told to "get the latest release"). The desktop
 apps update themselves from the release (`latest*.yml`), with `allowPrerelease` on during the alpha.
 
-1. **Notes.** Write `docs/releases/<version>.md` ([format](releases/README.md)). It may stay uncommitted.
-2. **Bump and tag.** On an up-to-date, clean `main`: `npm run release -- <version>`. It refuses if the branch isn't
+**One command:** `.\scripts\release-all.ps1 <version>` on the Windows PC, from an up-to-date, clean `main`, with
+SimplySign Desktop logged in. `-DryRun` first: it runs every check (git state, version, notes, links.ts/site, CI on main,
+signing certificate, workflows) and prints every step without changing anything. On a problem it prints one
+`STOP [case] what to do` line (the cases of the playbook's decision table) and ends; once the tag is pushed,
+`-Resume` picks up where it stopped. What it does, step by step:
+
+1. **Notes.** `scripts/release-notes.mjs` turns `docs/releases/NEXT.md` (bullets under `### What's new`, `### Fixes`,
+   `### Good to know`; each change one line) into `docs/releases/<version>.md`: the headline, the non-empty sections and
+   `### Get started` from the previous notes with the new version; NEXT.md goes back to empty sections. It refuses
+   lines that already shipped in the previous notes and breaks of the public wording rules ("Iskra 2", "rebuilt", v1).
+   A hand-written `docs/releases/<version>.md` ([format](releases/README.md)) wins: NEXT.md is then left alone.
+2. **Bump and tag.** `npm run release -- <version>`. It refuses if the branch isn't
    main, the tree has other changes, main is behind origin, the tag exists, the version isn't newer, the notes are
-   missing, or links.ts/site don't mention the current version. Result: one commit "Version X" and an annotated tag vX.
-3. **Push.** `git push --atomic origin main vX` (printed by the script). CI runs on main; `release.yml` starts on the tag
-   (~20–30 min, macOS notarization is the slow part) and creates the draft release.
-4. **Windows + Android.** On the Windows PC, log in to SimplySign Desktop, `git checkout vX`, then
-   `.\scripts\release-windows.ps1 X` (PowerShell 7). It test-signs a scratch file first, builds, checks every
-   signature (valid, right publisher, timestamped), builds the server zip and APK, prints SHA256s, uploads, checks
-   sizes on GitHub, waits for the Linux/macOS files (up to `-WaitMinutes`, default 60) and starts finalize.
-   `-SkipBuild` re-uploads existing files; `-NoFinalize` stops after uploading.
-5. **Finalize.** `release-finalize.yml` (approve it if the environment has reviewers). Done when all its jobs are
-   green; its checks are the verification: iskra.foo links to vX, app.iskra.foo serves the new bundle,
-   chat.iskra.foo answers, GitHub's Latest is vX, the downloads resolve.
+   missing, or links.ts/site don't mention the current version. Result: one commit "Version X" (with the notes and
+   NEXT.md) and an annotated tag vX.
+3. **Push.** `git push --atomic origin main vX`. Nothing waits for CI here: CI runs on main while `release.yml` builds
+   from the tag (Linux, Mac x64 and Mac arm64 in parallel jobs) and creates the draft release. CI doesn't run on tags
+   (`branches: ['**']`): the tag's commit is main's, tested once.
+4. **Windows + Android.** `.\scripts\release-windows.ps1 X -NoFinalize` (PowerShell 7). It test-signs a scratch file
+   first, builds, checks every signature (valid, right publisher, timestamped), builds the server zip and APK, prints
+   SHA256s, uploads and checks sizes on GitHub. Run on its own (without `-NoFinalize`) it also waits for the Linux/macOS
+   files (up to `-WaitMinutes`, default 60) and starts finalize; `-SkipBuild` re-uploads existing files.
+5. **Finalize.** release-all.ps1 waits for `release.yml` (and checks both Macs were notarized), checks all 22 files are
+   there and starts `release-finalize.yml` (approve it if the environment has reviewers). Its first step is the **CI
+   gate**: `scripts/ci-gate.mjs` waits (up to 45 min) for a push run of `ci.yml` on exactly the tagged commit and fails,
+   before anything is uploaded or published, unless one concluded success. Then the checks, SBOMs, sums, attestations,
+   publishing and the deploys. Done when all its jobs are green; its checks are the verification: iskra.foo links to vX,
+   app.iskra.foo serves the new bundle, chat.iskra.foo answers, GitHub's Latest is vX, the downloads resolve.
+   release-all.ps1 then checks them once more itself (Latest, every file and SHA256SUMS.txt, iskra.foo links,
+   app.iskra.foo's bundle has the version, chat.iskra.foo/health reports it).
 6. Afterwards: `git checkout main`.
 
 The user's own server updates through finalize. Other standalone servers look for new releases themselves (owner
@@ -184,8 +207,8 @@ setup gives unsigned Mac builds instead of failing; check the "Desktop app (sign
 are Developer ID signed, and only to an update signed by the same team (`BWX2M8XSNZ`). The updater reads
 `latest-mac.yml` and downloads the `.zip` for the Mac's CPU (`Iskra-X-mac-arm64.zip` or `-mac-x64.zip`, with its
 `.blockmap` for smaller downloads); the dmgs are only for first installs. The "Check the update files" step in
-release.yml unpacks both zips and fails the build if one isn't Developer ID signed by that team, isn't accepted by
-Gatekeeper, or isn't listed in `latest-mac.yml`; `release-assets.mjs check` (finalize) also fails if a `latest*.yml`
+release.yml (one job per architecture) unpacks its zip and fails the build if it isn't Developer ID signed by that team, isn't accepted by
+Gatekeeper, or isn't listed in `latest-mac.yml`; the publish job merges the two jobs' `latest-mac.yml` into one that lists both zips (`release-assets.mjs merge-yml`, checked against every file's sha512 and size); `release-assets.mjs check` (finalize) also fails if a `latest*.yml`
 doesn't list the files the updaters install from. An ad-hoc release (secrets missing, a warning in the log) isn't
 installed by signed apps: they show a download link instead. So is a **new Developer ID with a different team**: the
 release after a team change has to be installed by hand once. A renewed certificate with the same team is fine.
@@ -357,12 +380,21 @@ many of them (branch protection, review) are owner settings too. Click-by-click 
 **Read a failing run:** `gh run list -L 5`, then `gh run view <id> --log-failed`. CI failures email the owner: fix
 or revert quickly.
 
+**End-to-end in CI** runs in four jobs, `end-to-end shard 1/4` … `4/4` (Playwright `--shard`, split by spec file), plus
+`interop` (the TS client and bot SDK against the server, not sharded). The job `end-to-end` waits for all of them and is
+green only when every one passed: it's the check to require in branch protection. When a shard fails it merges the
+shards' blob reports into one HTML report, the artifact `playwright-report` (open `index.html`; traces included);
+each failing shard also keeps its `playwright-results-<n>` folder. Run one shard locally the same way:
+`npx playwright test --shard=2/4`. LiveKit (`.tools/livekit-server`) and the captions model are cached on their pins.
+
 | Symptom | Cause and fix |
 |---|---|
 | `release-windows.ps1` stops at "SimplySign isn't logged in", or the build log shows "No provider was specified", "SignTool Error" | SimplySign Desktop is logged out (it times out). Log in with the phone code, rerun. If it happened mid-build, rerun without `-SkipBuild` |
 | sign.ps1 found no certificate in PowerShell 7 although it's installed | Fixed: `-CodeSigningCert` is missing when PSModulePath points at PowerShell 7's modules, so sign.ps1 filters on the code-signing EKU (1.3.6.1.5.5.7.3.3) itself. Keep that filter if you touch it |
 | macOS: `security: SecKeychainItemImport` / codesign "errSecInternalComponent" / keychain won't unlock | Fixed in release.yml: we import the p12 into our own keychain and run `set-key-partition-list` (electron-builder's temporary keychain fails on current runners). Keep that step |
 | Notarization failed or hangs | The electron-builder log shows the submission id. On a Mac with the .p8: `xcrun notarytool log <id> --key AuthKey.p8 --key-id <id> --issuer <issuer>` (or `notarytool history`) lists the rejected files. Common: an unsigned nested binary, missing hardened runtime, expired membership or agreement waiting in App Store Connect |
+| Finalize: "no green CI run on …" / "CI concluded failure on this commit" | The CI gate: nothing was published. A flake: rerun CI's failed jobs (`gh run rerun <id> --failed`), then start finalize again (or `release-all.ps1 X -Resume`). A real failure: fix main and release the next version; never move the tag |
+| release.yml publish: "latest-mac.yml: … doesn't match its build's update file" / "the parts …" | The two Mac jobs' update files don't fit their zips or each other. Rerun release.yml's failed jobs; if it repeats, report |
 | Finalize: "missing (…)" | A build didn't upload. Check `release.yml`'s run for the tag, rerun it (`gh workflow run release.yml -f tag=vX`) or rerun release-windows.ps1 with `-SkipBuild` |
 | Finalize: "latest.yml: … doesn't match" | A file was re-uploaded without the latest*.yml from the same build (or the other way round). Upload both from the same build |
 | Checksums wrong after re-uploading assets | Rerun finalize with `deploy` off: it regenerates SHA256SUMS.txt and the attestations |

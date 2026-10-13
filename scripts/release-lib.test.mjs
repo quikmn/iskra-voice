@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { checkAssets, compareVersions, expectedAssets, formatSums, isValidVersion, missingUpdaterFiles, parseUpdateYml, releaseTitle, replaceVersion } from './release-lib.mjs'
+import { checkAssets, ciVerdict, compareVersions, EMPTY_NEXT, expectedAssets, formatSums, isValidVersion, mergeUpdateYml, missingUpdaterFiles, notesFromNext, notesHeadline, parseUpdateYml, publicWordingProblems, releaseTitle, repeatedNotes, replaceVersion } from './release-lib.mjs'
 
 test('accepts x.y.z and x.y.z-alpha.n only', () => {
   for (const v of ['2.0.0', '2.0.0-alpha.10', '10.20.30', '0.0.1-alpha.0']) assert.ok(isValidVersion(v), v)
@@ -78,4 +78,124 @@ test('update files list what each updater installs from', () => {
 
 test('SHA256SUMS format', () => {
   assert.equal(formatSums([{ name: 'b', sha256: '22' }, { name: 'B', sha256: '11' }]), '11  B\n22  b\n')
+})
+
+// latest-mac.yml as one electron-builder run writes it for both architectures (2.0.0-alpha.12, shortened hashes).
+const MAC_BOTH = `version: 2.0.0-alpha.12
+files:
+  - url: Iskra-2.0.0-alpha.12-mac-x64.zip
+    sha512: AAAx
+    size: 225004649
+  - url: Iskra-2.0.0-alpha.12-mac-arm64.zip
+    sha512: BBBa
+    size: 213032090
+  - url: Iskra-2.0.0-alpha.12-mac-x64.dmg
+    sha512: CCCx
+    size: 225359687
+  - url: Iskra-2.0.0-alpha.12-mac-arm64.dmg
+    sha512: DDDa
+    size: 213436995
+path: Iskra-2.0.0-alpha.12-mac-x64.zip
+sha512: AAAx
+releaseDate: '2026-10-12T18:41:40.404Z'
+`
+const MAC_X64 = `version: 2.0.0-alpha.12
+files:
+  - url: Iskra-2.0.0-alpha.12-mac-x64.zip
+    sha512: AAAx
+    size: 225004649
+  - url: Iskra-2.0.0-alpha.12-mac-x64.dmg
+    sha512: CCCx
+    size: 225359687
+path: Iskra-2.0.0-alpha.12-mac-x64.zip
+sha512: AAAx
+releaseDate: '2026-10-12T18:41:40.404Z'
+`
+const MAC_ARM64 = `version: 2.0.0-alpha.12
+files:
+  - url: Iskra-2.0.0-alpha.12-mac-arm64.zip
+    sha512: BBBa
+    size: 213032090
+  - url: Iskra-2.0.0-alpha.12-mac-arm64.dmg
+    sha512: DDDa
+    size: 213436995
+path: Iskra-2.0.0-alpha.12-mac-arm64.zip
+sha512: BBBa
+releaseDate: '2026-10-12T18:39:02.001Z'
+`
+
+test('merges per-architecture latest-mac.yml into the two-architecture one', () => {
+  assert.equal(mergeUpdateYml([MAC_X64, MAC_ARM64]), MAC_BOTH)
+  assert.equal(mergeUpdateYml([MAC_X64.replaceAll('\n', '\r\n'), MAC_ARM64]), MAC_BOTH)
+  const merged = parseUpdateYml(mergeUpdateYml([MAC_X64, MAC_ARM64]))
+  assert.deepEqual(missingUpdaterFiles('latest-mac.yml', '2.0.0-alpha.12', merged.files.map((f) => f.url)), [])
+})
+
+test('keeps extra file fields and takes the latest release date', () => {
+  const later = MAC_ARM64.replace("'2026-10-12T18:39:02.001Z'", "'2026-10-12T19:00:00.000Z'").replace('    size: 213436995', '    size: 213436995\n    blockMapSize: 1234')
+  const merged = mergeUpdateYml([MAC_X64, later])
+  assert.ok(merged.includes("releaseDate: '2026-10-12T19:00:00.000Z'"))
+  assert.ok(merged.includes('    size: 213436995\n    blockMapSize: 1234\n'))
+  assert.ok(merged.includes('path: Iskra-2.0.0-alpha.12-mac-x64.zip\nsha512: AAAx\n'))
+})
+
+test('refuses parts that disagree', () => {
+  assert.throws(() => mergeUpdateYml([MAC_X64]), /at least two/)
+  assert.throws(() => mergeUpdateYml([MAC_X64, MAC_ARM64.replaceAll('alpha.12', 'alpha.13')]), /different versions/)
+  assert.throws(() => mergeUpdateYml([MAC_X64, MAC_X64]), /more than one part/)
+  assert.throws(() => mergeUpdateYml([MAC_X64, MAC_ARM64.replace('path:', 'minimumSystemVersion: 12.0\npath:')]), /differ/)
+  assert.throws(() => mergeUpdateYml([MAC_X64, 'version: 2.0.0-alpha.12\nfiles:\n  - nope\n']), /unexpected/)
+})
+
+const PREVIOUS = `**Iskra: alpha 12.**
+
+### What's new
+- Old things.
+
+### Get started
+- **Windows:** \`Iskra-Setup-2.0.0-alpha.12.exe\`. Not 2.0.0-alpha.120.
+
+### Good to know
+- Old notes.
+`
+
+test('writes the notes from NEXT.md like the release step', () => {
+  const next = "<!-- comment -->\n\n### What's new\n- **A.** One.\n- **B.** Two.\n\n### Fixes\n\n### Good to know\n- Careful.\n"
+  assert.equal(notesFromNext(next, '2.0.0-alpha.13', PREVIOUS, '2.0.0-alpha.12'),
+    "**Iskra: alpha 13.**\n\n### What's new\n- **A.** One.\n- **B.** Two.\n\n### Get started\n- **Windows:** `Iskra-Setup-2.0.0-alpha.13.exe`. Not 2.0.0-alpha.120.\n\n### Good to know\n- Careful.\n")
+  // No "Good to know": Get started goes last.
+  assert.ok(notesFromNext("### What's new\n- A.\n", '2.0.0-alpha.13', PREVIOUS, '2.0.0-alpha.12').endsWith('### Get started\n- **Windows:** `Iskra-Setup-2.0.0-alpha.13.exe`. Not 2.0.0-alpha.120.\n'))
+  assert.throws(() => notesFromNext(EMPTY_NEXT, '2.0.0-alpha.13', PREVIOUS, '2.0.0-alpha.12'), /no notes/)
+  assert.throws(() => notesFromNext("### What's new\n- A.\n", '2.0.0-alpha.13', '**x**\n', '2.0.0-alpha.12'), /Get started/)
+})
+
+test('headlines and public wording', () => {
+  assert.equal(notesHeadline('2.0.0-alpha.14'), '**Iskra: alpha 14.**')
+  assert.equal(notesHeadline('2.1.0'), '**Iskra 2.1.0.**')
+  assert.deepEqual(publicWordingProblems('Iskra 2.1.0 is out. LiveKit v1.13.7 inside.'), [])
+  assert.equal(publicWordingProblems('Iskra 2 is here').length, 1)
+  assert.equal(publicWordingProblems('We rebuilt it').length, 1)
+  assert.equal(publicWordingProblems('unlike v1, ').length, 1)
+})
+
+test('CI gate verdicts', () => {
+  const run = (status, conclusion, event = 'push', n = 1) => ({ status, conclusion, event, html_url: `https://x/runs/${n}` })
+  assert.equal(ciVerdict([]).state, 'wait')
+  assert.equal(ciVerdict([run('in_progress', null)]).state, 'wait')
+  assert.equal(ciVerdict([run('queued', null)]).state, 'wait')
+  assert.equal(ciVerdict([run('completed', 'success')]).state, 'pass')
+  assert.equal(ciVerdict([run('completed', 'failure', 'push', 2), run('completed', 'success')]).state, 'pass')
+  const failed = ciVerdict([run('completed', 'failure', 'push', 2), run('completed', 'cancelled', 'push', 1)])
+  assert.equal(failed.state, 'fail')
+  assert.match(failed.message, /failure.*runs\/2/)
+  // A rerun after a failure: wait for it instead of failing.
+  assert.equal(ciVerdict([run('in_progress', null, 'push', 2), run('completed', 'failure')]).state, 'wait')
+  // Pull-request runs never count, green or not.
+  assert.equal(ciVerdict([run('completed', 'success', 'pull_request')]).state, 'wait')
+  assert.equal(ciVerdict([run('completed', 'skipped')]).state, 'fail')
+})
+
+test('finds notes that already shipped', () => {
+  assert.deepEqual(repeatedNotes("### What's new\n- Old things.\n- New things.\n", PREVIOUS), ['- Old things.'])
+  assert.deepEqual(repeatedNotes(EMPTY_NEXT, PREVIOUS), [])
 })

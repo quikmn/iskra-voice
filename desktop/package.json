@@ -19,7 +19,9 @@
     "dist": "npm --prefix ../client run build && node scripts/prepare-server.mjs win-x64 && npm run build && electron-builder --win portable nsis --publish never",
     "dist:unsigned": "npm --prefix ../client run build && cross-env ISKRA_UNSIGNED=1 node scripts/prepare-server.mjs win-x64 && npm run build && electron-builder --win portable nsis --publish never -c.win.signtoolOptions.sign=./scripts/no-sign.cjs",
     "dist:linux": "npm --prefix ../client run build && node scripts/prepare-server.mjs linux-x64 && npm run build && electron-builder --linux AppImage deb rpm --x64 --publish never",
-    "dist:mac": "npm --prefix ../client run build && node scripts/prepare-server.mjs osx-arm64 osx-x64 && npm run build && electron-builder --mac dmg zip --arm64 --x64 --publish never"
+    "dist:mac": "npm --prefix ../client run build && node scripts/prepare-server.mjs osx-arm64 osx-x64 && npm run build && electron-builder --mac dmg zip --arm64 --x64 --publish never",
+    "dist:mac-arm64": "npm --prefix ../client run build && node scripts/prepare-server.mjs osx-arm64 && npm run build && electron-builder --mac dmg zip --arm64 --publish never",
+    "dist:mac-x64": "npm --prefix ../client run build && node scripts/prepare-server.mjs osx-x64 && npm run build && electron-builder --mac dmg zip --x64 --publish never"
   },
   "dependencies": {
     "b4a": "1.9.0",
