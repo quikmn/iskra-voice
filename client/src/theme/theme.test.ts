@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { contrast, contrastIssues, effectiveColor, INPUT_BACKGROUNDS, placeholderColor, loadThemeChoice, nameLightness, nameSurfacesOf, readableColor, parseTheme, safeColor, solidUnderWhite, textOn, themeVariables, validateTheme } from './theme'
 import { BUILT_IN_THEMES } from './themes'
+import type { ThemeFile } from './theme'
+
+/** hsl(h 70% l) as #rrggbb, like the stylesheet's author names. */
+function hslOf70(h: number, l: number): string {
+  const a = 0.7 * Math.min(l / 100, 1 - l / 100)
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12
+    return Math.round((l / 100 - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))) * 255).toString(16).padStart(2, '0')
+  }
+  return `#${f(0)}${f(8)}${f(4)}`
+}
 
 const valid = { meta: { name: 'Mine' }, colors: { accent: '#ff8800' } }
 
@@ -120,6 +131,16 @@ describe('contrast', () => {
     expect(nameLightness('#3b4252')).toBeGreaterThan(72)
   })
 
+  it('makes author names readable on every name surface, a hovered message too', () => {
+    // The stylesheet's default (--name-l: 72%) is what no theme gets.
+    expect(nameLightness(nameSurfacesOf(null))).toBeLessThanOrEqual(72)
+    for (const theme of [null, ...BUILT_IN_THEMES.map((t) => t.theme), { meta: { name: 'Daylight', scheme: 'light' }, colors: { bgChat: '#ffffff', bgSidebar: '#f2f3f5', bgFloat: '#ffffff', textNormal: '#2e3338' } } as ThemeFile]) {
+      const surfaces = nameSurfacesOf(theme)
+      const l = nameLightness(surfaces)
+      for (let h = 0; h < 360; h += 15) for (const s of surfaces) expect(contrast(hslOf70(h, l), s), `${theme?.meta.name} h${h} on ${s}`).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
   it('darkens a colour just enough for white text', () => {
     expect(contrast('#ffffff', solidUnderWhite('#f87171'))).toBeGreaterThanOrEqual(4.5)
     expect(solidUnderWhite('#b91c1c')).toBe('#b91c1c')
@@ -163,6 +184,13 @@ describe('readable role colours', () => {
         for (const s of surfaces) expect(contrast(out, s), `${pick} on ${s}`).toBeGreaterThanOrEqual(4.5)
       }
     }
+  })
+
+  it('includes a hovered message, so a name stays readable under the mouse', () => {
+    const iskraDark = BUILT_IN_THEMES.find((t) => t.theme.meta.name === 'Iskra Dark')!.theme
+    // What CI's axe run saw: the owner colour on a hovered message read 4.3:1.
+    expect(nameSurfacesOf(iskraDark)).toContain('#36383d')
+    expect(contrast(readableColor('#9793ec', nameSurfacesOf(iskraDark)), '#36383d')).toBeGreaterThanOrEqual(4.5)
   })
 
   it('ignores what it cannot read', () => {

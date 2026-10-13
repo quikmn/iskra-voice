@@ -6,6 +6,12 @@ export const app = {
   skipToContent: 'Skip to main content',
   spoiler: 'Spoiler, click to reveal',
   openInApp: 'Have the Iskra app? <a>Open in the app</a>',
+  crash: {
+    title: 'Something went wrong here',
+    appText: 'Iskra hit a problem it couldn’t get past. Reloading usually fixes it; your messages and settings are safe.',
+    paneText: 'This part of the app hit a problem. Try again, open another channel, or reload.',
+    reload: 'Reload',
+  },
   home: {
     directMessages: 'Direct messages',
     friends: 'Friends',
@@ -125,7 +131,7 @@ export const app = {
     invited: "You've been invited to a server at <b>{{host}}</b>.",
     invitedTo: "You've been invited to <b>{{server}}</b>.",
     pickNameInvited: "Pick a name and you're in.",
-    intro: 'Voice and text chat with your friends, on a server you own. Pick a name to get started.',
+    intro: 'Voice and text chat with your friends, on servers you own. Pick a name to get started.',
     recoveryKey: 'Recovery key',
     keyProblem: "That key doesn't check out. Look for a typo.",
     keyOk: 'Key looks right.',
@@ -134,7 +140,6 @@ export const app = {
     restore: 'Restore my account',
     restoreIntro: 'Welcome back. Paste your recovery key: your name and profile come back from your servers.',
     noPassword: 'No email, no password. Your account is a key that stays on your devices.',
-    haveIskra: 'I already use Iskra',
   },
   qr: {
     noCamera: "This browser can't use the camera here. Paste the code instead.",

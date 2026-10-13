@@ -22,6 +22,8 @@ public interface IVoiceBackend
     Task<bool> SetCanPublishAsync(string room, string identity, bool canPublish);
     /// <summary>Mutes someone's microphone track (they can unmute themselves if they may still publish).</summary>
     Task MuteMicrophoneAsync(string room, string identity);
+    /// <summary>The same for a bot: keeps its narrower grants (audio only, never subscribing).</summary>
+    Task<bool> SetBotCanPublishAsync(string room, string identity, bool canPublish) => SetCanPublishAsync(room, identity, canPublish);
 }
 
 /// <summary>
@@ -332,15 +334,16 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
         }
     }
 
-    public async Task<bool> SetCanPublishAsync(string room, string identity, bool canPublish)
-    {
+    public Task<bool> SetCanPublishAsync(string room, string identity, bool canPublish) =>
         // The permission replaces the old one as a whole, so subscribing is spelled out too.
-        using var response = await RoomServiceAsync("UpdateParticipant", room, new
-        {
-            room,
-            identity,
-            permission = new { canSubscribe = true, canPublish, canPublishData = canPublish },
-        });
+        UpdatePermissionAsync(room, identity, new { canSubscribe = true, canPublish, canPublishData = canPublish });
+
+    public Task<bool> SetBotCanPublishAsync(string room, string identity, bool canPublish) =>
+        UpdatePermissionAsync(room, identity, new { canSubscribe = false, canPublish, canPublishData = false, canPublishSources = new[] { "MICROPHONE" } });
+
+    private async Task<bool> UpdatePermissionAsync(string room, string identity, object permission)
+    {
+        using var response = await RoomServiceAsync("UpdateParticipant", room, new { room, identity, permission });
         if (response is null) return false;
         if (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.NotFound) return true;
         _log.LogWarning("Changing {Identity}'s permissions in {Room} failed: {Status}", identity[..Math.Min(8, identity.Length)], room, response.StatusCode);

@@ -12,7 +12,6 @@ export const calls = {
   call: 'Call',
   onlyTwoOfYou: 'Only the two of you can hear and see this call',
   e2e: 'End-to-end encrypted',
-  encryptedCall: 'Encrypted call',
   safetyNumber: 'Safety number',
   you: 'You',
   hangUp: 'Hang up',

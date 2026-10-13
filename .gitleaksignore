@@ -23,3 +23,5 @@ fe5057668c5bbc5c9b013d5d2e4a29943503a8e9:mobile/ios/App/Shared/PushKeys.swift:ge
 c0a8d8f6430c1ae3b03d9c87797b002793f5d374:.gitleaksignore:generic-api-key:19
 # A made-up server public key (a public identifier, not a secret) used to test the server colour.
 db01296868ad012bf3a96d1b12694faa855a3450:client/src/ui/serverColor.test.ts:generic-api-key:4
+# P2P test: a public host key derived from a fixed test secret
+62b72a6280a4e000b3088cf28299a1d05208b0e3:desktop/src/p2p/hostTunnel.test.ts:generic-api-key:40

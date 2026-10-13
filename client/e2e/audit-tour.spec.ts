@@ -168,7 +168,7 @@ async function context(browser: Browser, options: Parameters<Browser['newContext
 async function mySettings(page: Page, section?: string) {
   const drawer = page.getByRole('button', { name: /Open (channels|menu)/ }).first()
   if (await drawer.isVisible()) await drawer.click()
-  await page.locator('.me-bar').getByRole('button', { name: 'Settings', exact: true }).click()
+  await page.locator('.me-bar').getByRole('button', { name: 'My settings', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Settings' })
   await expect(dialog).toBeVisible()
   if (section) await dialog.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: section, exact: true }).click()
@@ -872,7 +872,7 @@ test('UX audit tour (desktop app)', async () => {
       await page.keyboard.press('Escape')
     })
     await part('desktop-mine', async () => {
-      await page.locator('.me-bar').getByRole('button', { name: 'Settings', exact: true }).click()
+      await page.locator('.me-bar').getByRole('button', { name: 'My settings', exact: true }).click()
       const settings = page.getByRole('dialog', { name: 'Settings' })
       await settings.getByRole('button', { name: 'Desktop app', exact: true }).click()
       await shoot(page, '96-desktop-app-settings')
@@ -946,7 +946,7 @@ img { width: 72px; height: 72px; border: 3px solid #fff; border-radius: 8px; mar
 </div><script>document.getElementById('js').textContent = 'Scripts ran'; document.fonts.load("24px Probe").then((f) => { document.getElementById('js').textContent += ', font ' + (f.length ? 'loaded' : 'missing') })</script></body></html>`
 
     const editPage = async (page: Page, html: string) => {
-      await page.locator('.me-bar').getByRole('button', { name: 'Settings', exact: true }).click()
+      await page.locator('.me-bar').getByRole('button', { name: 'My settings', exact: true }).click()
       await page.getByRole('button', { name: /Make a page|Edit page/ }).click()
       if (html === 'template') await page.getByRole('button', { name: 'Start from the template' }).click()
       else await page.getByLabel('Page HTML').fill(html)

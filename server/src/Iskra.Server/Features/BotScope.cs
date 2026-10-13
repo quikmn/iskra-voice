@@ -12,11 +12,15 @@ namespace Iskra.Server.Features;
 /// </summary>
 public static class BotScope
 {
-    /// <summary>Requests that hand out message content, refused to bots that can't read all messages.</summary>
+    /// <summary>
+    /// Requests that hand out message content, refused to bots that can't read all messages. Some only answer with it
+    /// (saving a docs page returns its text, moderating a forum post its excerpt, Web Push carries message text).
+    /// </summary>
     private static readonly HashSet<string> ReadRequests =
     [
         "chat.history", "chat.edits", "search", "pin.list", "thread.get", "forum.posts", "forum.post.get",
         "docs.pages", "docs.page.get", "docs.page.history", "docs.search", "docs.home.get", "chat.forward", "inbox.list",
+        "docs.page.save", "docs.page.restore", "docs.home.set", "forum.post.update", "forum.post.set", "report.list", "push.subscribe",
     ];
 
     /// <summary>Events that carry other people's content and that such a bot never needs.</summary>
@@ -24,6 +28,21 @@ public static class BotScope
         ["chat.typing", "docs.page.updated", "docs.home", "forum.post.updated", "watch.chat"];
 
     public static void Register(Router router) => router.Add("bot.scope.set", Set);
+
+    /// <summary>A bot that may only read what's meant for it (people and bots that read everything: false).</summary>
+    public static bool Restricted(Store store, string accountKey) => store.IsBot(accountKey) && !store.BotReadsAll(accountKey);
+
+    /// <summary>
+    /// Whether this account may see <paramref name="message"/>'s content by way of something else (a reply's quote): always,
+    /// except for a restricted bot, which sees only messages meant for it (the same rules as its live events).
+    /// </summary>
+    public static bool MaySee(Store store, string accountKey, Message message)
+    {
+        if (!Restricted(store, accountKey) || message.AuthorKey == accountKey) return true;
+        if (message.Text.Contains($"<@{accountKey}>", StringComparison.Ordinal)) return true;
+        if (message.ReplyTo is { } id && store.GetMessage(id)?.AuthorKey == accountKey) return true;
+        return IsCommandFor(store, accountKey, message.Text);
+    }
 
     /// <summary>The router asks before every request.</summary>
     internal static RequestException? Gate(Session s, Member me, string type) =>
@@ -39,6 +58,8 @@ public static class BotScope
         if (bot is null || !s.World.Store.IsBot(key)) throw RequestException.NotFound("Bot");
         var readAll = body.OptionalBool("readAll") ?? throw RequestException.BadRequest("'readAll' is required.");
         s.World.Store.SetBotReadAll(key, readAll);
+        // Web Push carries message text: a bot that may no longer read everything loses any subscription it made.
+        if (!readAll) foreach (var sub in s.World.Store.PushSubscriptions(key)) s.World.Store.DeletePushSubscription(sub.DeviceKey);
         foreach (var session in s.Hub.Sessions.Where(x => x.AccountKey == key)) session.ReadFilter = Filter(s.World.Store, key);
         Audit.Record(s, "bot.scope", key, details: new { readAll });
         var member = s.Hub.PublicMember(bot);
@@ -84,22 +105,22 @@ public static class BotScope
             if (text.Contains($"<@{me}>", StringComparison.Ordinal)) return true;
             if (message.TryGetProperty("replyTo", out var reply) && reply.ValueKind == JsonValueKind.Object
                 && reply.TryGetProperty("author", out var replied) && replied.ValueKind == JsonValueKind.String && replied.GetString() == me) return true;
-            return IsMyCommand(text);
+            return IsCommandFor(store, me, text);
         }
+    }
 
-        /// <summary>"/name …" or "/name@Bot …" for one of this bot's registered commands.</summary>
-        private bool IsMyCommand(string text)
-        {
-            if (!text.StartsWith('/')) return false;
-            var head = text[1..].Split([' ', '\n', '\t'], 2)[0];
-            var parts = head.Split('@', 2);
-            var name = parts[0].ToLowerInvariant();
-            if (name.Length == 0 || store.GetBotCommands(me) is not { } list) return false;
-            // "/roll@Dice" is for the bot called Dice only (spaces in its name may be left out).
-            if (parts.Length == 2 && !string.Equals(parts[1], (store.GetMember(me)?.Name ?? "").Replace(" ", ""), StringComparison.OrdinalIgnoreCase))
-                return false;
-            using var doc = JsonDocument.Parse(list.Commands);
-            return doc.RootElement.EnumerateArray().Any(c => c.GetProperty("name").GetString() == name);
-        }
+    /// <summary>"/name …" or "/name@Bot …" for one of this bot's registered commands.</summary>
+    private static bool IsCommandFor(Store store, string me, string text)
+    {
+        if (!text.StartsWith('/')) return false;
+        var head = text[1..].Split([' ', '\n', '\t'], 2)[0];
+        var parts = head.Split('@', 2);
+        var name = parts[0].ToLowerInvariant();
+        if (name.Length == 0 || store.GetBotCommands(me) is not { } list) return false;
+        // "/roll@Dice" is for the bot called Dice only (spaces in its name may be left out).
+        if (parts.Length == 2 && !string.Equals(parts[1], (store.GetMember(me)?.Name ?? "").Replace(" ", ""), StringComparison.OrdinalIgnoreCase))
+            return false;
+        using var doc = JsonDocument.Parse(list.Commands);
+        return doc.RootElement.EnumerateArray().Any(c => c.GetProperty("name").GetString() == name);
     }
 }

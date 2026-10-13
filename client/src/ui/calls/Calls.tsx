@@ -14,6 +14,9 @@ import './calls.css'
 import { useTranslation } from 'react-i18next'
 import { userMenuProps } from '../people/userMenuProps'
 
+/** Phones show a ringing call full screen and focus Accept; elsewhere it's a card in the corner that leaves the app usable. */
+export const ringsFullScreen = () => window.matchMedia('(max-width: 760px)').matches
+
 const myKey = () => {
   const identity = useApp.getState().identity
   return identity ? b64u(identity.account.publicKey) : ''
@@ -79,10 +82,15 @@ export function CallPanel({ peer }: { peer: string }) {
   return (
     <section className={`call-panel ${tiles.length ? 'has-video' : ''} ${call.phase}`} aria-label={t('calls.call')}>
       <div className="call-top">
-        <span className={`e2e-badge ${encrypted ? '' : 'pending'}`} title={t('calls.onlyTwoOfYou')}>
-          <Lock size={13} /> {encrypted ? t('calls.e2e') : t('calls.encryptedCall')}
-        </span>
-        <button className="link call-verify" onClick={() => setVerify(true)}>{t('calls.safetyNumber')}</button>
+        {/* One label all call long (greyed until the keys are in); an ended call just says it ended. */}
+        {call.phase !== 'ended' && (
+          <>
+            <span className={`e2e-badge ${encrypted ? '' : 'pending'}`} title={t('calls.onlyTwoOfYou')}>
+              <Lock size={13} /> {t('calls.e2e')}
+            </span>
+            <button className="link call-verify" onClick={() => setVerify(true)}>{t('calls.safetyNumber')}</button>
+          </>
+        )}
         <span className="spacer" />
         <span className={`call-status ${call.phase}`} role="status">{status}</span>
       </div>
@@ -142,7 +150,7 @@ export function IncomingCall() {
             <span>{t('calls.decline')}</span>
           </label>
           <label className="incoming-action">
-            <button className="call-button accept" onClick={() => void acceptCall()} aria-label={t('calls.accept')} autoFocus>
+            <button className="call-button accept" onClick={() => void acceptCall()} aria-label={t('calls.accept')} autoFocus={ringsFullScreen()}>
               {call.video ? <Video /> : <Phone />}
             </button>
             <span>{t('calls.accept')}</span>

@@ -359,7 +359,7 @@ public static class InteractionFeature
     public static void PrivateNote(Session s, string bot, string user, long channelId, string text, JsonObject builtin)
     {
         var registry = s.Hub.Interactions;
-        var pending = registry.Start(bot, user, channelId, "command", null, null, null, isPrivate: true);
+        var pending = registry.Start(bot, user, channelId, "command", null, null, null, isPrivate: true, capped: false);
         var content = new JsonObject { ["text"] = text, ["cards"] = new JsonArray(), ["components"] = new JsonArray(), ["builtin"] = builtin };
         s.Hub.SendToAccount(user, AnswerFrame(registry.AddAnswer(pending, content, s.Now), updated: false));
     }
@@ -450,6 +450,8 @@ public sealed class InteractionRegistry(TimeProvider time)
     public const long LifetimeMs = 15 * 60_000;
     public const int MaxLive = 10_000;
     public const int MaxAnswersPerUser = 50;
+    /// <summary>Open interactions per person, so one member can't use up <see cref="MaxLive"/> for everyone.</summary>
+    public const int MaxPendingPerUser = 100;
 
     private readonly ConcurrentDictionary<string, Pending> _pending = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, PrivateAnswer> _answers = new(StringComparer.Ordinal);
@@ -459,10 +461,15 @@ public sealed class InteractionRegistry(TimeProvider time)
 
     private static string NewId() => Ed25519.ToB64u(RandomNumberGenerator.GetBytes(16));
 
-    public Pending Start(string bot, string user, long channelId, string kind, string? command, long? messageId, string? responseId, bool isPrivate)
+    /// <param name="capped">False for a built-in bot's own note (the person's command was limited already).</param>
+    public Pending Start(string bot, string user, long channelId, string kind, string? command, long? messageId, string? responseId, bool isPrivate,
+        bool capped = true)
     {
         Prune(_pending, p => p.ExpiresAt);
         if (_pending.Count >= MaxLive) throw new RequestException("rate_limited", "Too many interactions right now; try again in a moment.");
+        var now = Now;
+        if (capped && _pending.Values.Count(p => p.User == user && p.ExpiresAt > now) >= MaxPendingPerUser)
+            throw new RequestException("rate_limited", "You've used a lot of bot commands just now; try again in a few minutes.");
         var pending = new Pending(NewId(), bot, user, channelId, kind, command, messageId, responseId, isPrivate, Now + LifetimeMs);
         _pending[pending.Id] = pending;
         return pending;

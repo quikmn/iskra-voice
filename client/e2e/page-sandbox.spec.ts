@@ -2,6 +2,9 @@
 // vector, plus STUN on UDP) and a page tries every way we know to reach it (e2e/leak-probe.ts). WebRTC is allowed to
 // use loopback here (--allow-loopback-in-peer-connection), so a leak to "the internet" shows up on localhost.
 // Each test first proves the probe can see a leak from a page without the wall.
+// Screenshots: Playwright's page.screenshot of the Electron window paints a <webview> shifted by its frame's offset,
+// so pages look cut off on the right and bottom there. They aren't: Electron's own capturePage() of the same moment
+// is correct. Don't "fix" page layout from these shots.
 import { mkdtempSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -34,7 +37,7 @@ const newServer = async () => {
 }
 
 async function publish(page: Page, html: string) {
-  await page.locator('.me-bar').getByRole('button', { name: 'Settings', exact: true }).click()
+  await page.locator('.me-bar').getByRole('button', { name: 'My settings', exact: true }).click()
   await page.getByRole('button', { name: /Make a page|Edit page/ }).click()
   await page.getByLabel('Page HTML').fill(html)
   await page.getByRole('button', { name: 'Publish', exact: true }).click()

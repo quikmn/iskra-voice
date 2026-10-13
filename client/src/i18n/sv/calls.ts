@@ -13,7 +13,6 @@ export const calls: Messages['calls'] = {
   call: 'Samtal',
   onlyTwoOfYou: 'Bara ni två kan höra och se det här samtalet',
   e2e: 'Totalsträckskrypterat',
-  encryptedCall: 'Krypterat samtal',
   safetyNumber: 'Säkerhetsnummer',
   you: 'Du',
   hangUp: 'Lägg på',

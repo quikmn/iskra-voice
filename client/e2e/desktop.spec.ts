@@ -182,7 +182,7 @@ test('the desktop app runs the web app on app:// and can join a server', async (
     await expect(page.getByText('New version available')).toBeHidden()
 
     // Push-to-talk settings are available.
-    await page.getByRole('button', { name: 'Settings', exact: true }).click()
+    await page.getByRole('button', { name: 'My settings', exact: true }).click()
     await page.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Voice & audio' }).click()
     await page.getByRole('radio', { name: 'Push to talk' }).click()
     await expect(page.getByText('Works everywhere, even while a game has focus').first()).toBeVisible()
@@ -300,9 +300,9 @@ test('Desktop app settings, the unread badge, and iskra:// invite links', async 
     })
     await second(`iskra://link/${token}`)
     await page.waitForTimeout(500)
-    await expect(page.getByRole('dialog', { name: "You're invited" })).toHaveCount(0)
+    await expect(page.getByRole('dialog', { name: "You've been invited" })).toHaveCount(0)
     await second(`iskra://join/${token}`)
-    await expect(page.getByRole('dialog', { name: "You're invited" })).toBeVisible()
+    await expect(page.getByRole('dialog', { name: "You've been invited" })).toBeVisible()
     await page.getByRole('button', { name: 'Not now' }).click()
 
     // The unread count reaches the taskbar (Windows: an overlay icon drawn by the page).
@@ -315,7 +315,7 @@ test('Desktop app settings, the unread badge, and iskra:// invite links', async 
     expect(badge).toBe('ok')
 
     // Settings → Desktop app: off/on switches, kept by the app itself.
-    await page.locator('.me-bar').getByRole('button', { name: 'Settings' }).click()
+    await page.locator('.me-bar').getByRole('button', { name: 'My settings' }).click()
     const settings = page.getByRole('dialog', { name: 'Settings' })
     await settings.getByRole('button', { name: 'Desktop app', exact: true }).click()
     await expect(settings.getByLabel(/Start Iskra with your computer/)).not.toBeChecked()
@@ -347,7 +347,7 @@ test('Desktop app settings, the unread badge, and iskra:// invite links', async 
     expect(stored.activity).toBe(true)
     expect(Object.keys(stored).sort()).toEqual(['activity', 'closeToTray', 'customGames', 'hardwareAcceleration', 'keepRunning', 'language', 'lastRunVersion', 'openAtLogin', 'updateChecks'])
     // Turning it off clears it for everyone.
-    await page.locator('.me-bar').getByRole('button', { name: 'Settings' }).click()
+    await page.locator('.me-bar').getByRole('button', { name: 'My settings' }).click()
     await settings.getByRole('button', { name: 'Desktop app', exact: true }).click()
     await settings.getByLabel(/Show the game you're playing/).uncheck()
     await page.keyboard.press('Escape')

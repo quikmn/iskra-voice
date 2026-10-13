@@ -29,6 +29,19 @@ export function commandQueryAt(text: string, caret: number): CommandQuery | null
   return { kind: 'args', name: head[1].toLowerCase(), target: head[2] ?? null, args: text.slice(head[0].length).replace(/^\s+/u, '') }
 }
 
+/**
+ * Which bot a typed command goes to instead of being posted (null: post it as a message). `listed` is the command from
+ * this channel's suggestions, `unlisted` finds one before they've loaded. In an encrypted channel a command leaves the
+ * encryption, so only one whose suggestion (with that note) is on screen goes to a bot: never an unlisted one, and not
+ * after Esc closed it; otherwise it stays an encrypted message.
+ */
+export function commandTarget(
+  listed: CommandEntry | null, encrypted: boolean, closed: boolean, unlisted: () => CommandEntry | null,
+): CommandEntry | null {
+  if (listed) return listed.interactions && !(encrypted && closed) ? listed : null
+  return encrypted ? null : unlisted()
+}
+
 /** A bot's name as it can follow "@" (no spaces). */
 export const botHandle = (name: string) => name.replace(/\s+/gu, '')
 

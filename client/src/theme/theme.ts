@@ -234,14 +234,15 @@ function hslHex(h: number, s: number, l: number): string {
 }
 
 /**
- * How light author names (hsl(hue 70% L)) must be to read at 4.5:1 on the chat background, whatever the hue:
+ * How light author names (hsl(hue 70% L)) must be to read at 4.5:1 on the background(s), whatever the hue:
  * lighter than 72% on dark backgrounds, darker than 40% on light ones.
  */
-export function nameLightness(background: string): number {
-  const rgb = rgbOf(background)
+export function nameLightness(background: string | readonly string[]): number {
+  const backgrounds = typeof background === 'string' ? [background] : background
+  const rgb = rgbOf(backgrounds[0])
   const light = !!rgb && luminance(rgb) > 0.18
   const reads = (l: number) => {
-    for (let h = 0; h < 360; h += 15) if (contrast(hslHex(h, 70, l), background) < 4.5) return false
+    for (let h = 0; h < 360; h += 15) for (const b of backgrounds) if (contrast(hslHex(h, 70, l), b) < 4.5) return false
     return true
   }
   if (light) {
@@ -341,9 +342,20 @@ export function onNameSurfaces(listener: () => void): () => void {
   return () => surfaceListeners.delete(listener)
 }
 export function nameSurfacesOf(theme: ThemeFile | null): readonly string[] {
-  if (!theme) return DEFAULT_NAME_SURFACES
-  const c = theme.colors
-  return [c.bgChat ?? DEFAULT_NAME_SURFACES[0], c.bgSidebar ?? DEFAULT_NAME_SURFACES[1], c.bgFloat ?? c.bgButton ?? DEFAULT_NAME_SURFACES[2]]
+  const c = theme?.colors ?? {}
+  const chat = c.bgChat ?? DEFAULT_NAME_SURFACES[0]
+  const surfaces = [chat, c.bgSidebar ?? DEFAULT_NAME_SURFACES[1], c.bgFloat ?? c.bgButton ?? DEFAULT_NAME_SURFACES[2]]
+  // A hovered message (styles.css: .message:hover mixes 3% of the text colour into the chat background).
+  const hover = mixHex(chat, c.textNormal ?? textOn(chat), 0.03)
+  return hover ? [...surfaces, hover] : surfaces
+}
+
+/** `a` with `t` of `b` mixed in (sRGB, like color-mix), as #rrggbb; null if either isn't a plain colour. */
+function mixHex(a: string, b: string, t: number): string | null {
+  const x = rgbOf(a)
+  const y = rgbOf(b)
+  if (!x || !y) return null
+  return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('')
 }
 
 /** A theme colour as it ends up on screen: its own value, or what it falls back to (followed through var(--x)). */
@@ -401,7 +413,8 @@ export function themeVariables(theme: ThemeFile): Record<string, string> {
   for (const { name, key, fallback } of VARIABLES) vars[name] = theme.colors[key] ?? fallback
   if (!theme.colors.onAccent && theme.colors.accent) vars['--on-accent'] = textOn(theme.colors.accent)
   if (theme.colors.danger) vars['--danger-solid'] = solidUnderWhite(theme.colors.danger)
-  if (theme.colors.bgChat) vars['--name-l'] = `${nameLightness(theme.colors.bgChat)}%`
+  // Names sit on the chat, a hovered message, the member list and popovers.
+  if (theme.colors.bgChat) vars['--name-l'] = `${nameLightness(nameSurfacesOf(theme))}%`
   vars['--placeholder'] = placeholderColor(effectiveColor(theme, 'textNormal'), INPUT_BACKGROUNDS.map((k) => effectiveColor(theme, k)), effectiveColor(theme, 'textSubtle'))
   vars['--radius'] = `${theme.radius ?? 10}px`
   vars['--avatar-radius'] = AVATAR_SHAPES[theme.avatarShape ?? 'circle']

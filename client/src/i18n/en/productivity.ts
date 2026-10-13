@@ -3,7 +3,7 @@ export const productivity = {
   actions: {
     save: 'Save message',
     unsave: 'Remove from saved',
-    saved: 'Saved',
+    saved: 'Saved to Saved messages',
     removed: 'Removed from saved',
     remind: 'Remind me about this',
     more: 'More',

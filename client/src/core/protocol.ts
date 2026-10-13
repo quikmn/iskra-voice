@@ -397,7 +397,7 @@ export interface Webhook {
 }
 
 export interface Requests {
-  'bot.invite': [{ role?: Role; expiresInMs?: number; readAll?: boolean }, { invite: Invite }]
+  'bot.invite': [{ role?: Role; expiresInMs?: number; readAll?: boolean; voice?: boolean }, { invite: Invite }]
   'webhook.list': [{ channelId?: number }, { webhooks: Webhook[] }]
   'webhook.create': [{ channelId: number; name: string; avatar?: string; mentions?: boolean }, { webhook: Webhook; secret: string; path: string }]
   'webhook.update': [{ id: string; name?: string; avatar?: string; mentions?: boolean; channelId?: number }, { webhook: Webhook }]
@@ -2004,4 +2004,21 @@ export interface Requests {
     { message?: Message; responseId?: string },
   ]
   'bot.scope.set': [{ accountKey: string; readAll: boolean }, { member: Member }]
+}
+
+// ── voice bots ──
+
+export interface Member {
+  /** Bots: whether an admin lets them join voice (null for people). */
+  joinsVoice?: boolean | null
+}
+
+export interface Events {
+  /** A moderator took you out of voice (or an admin turned voice off for a bot). */
+  'voice.disconnected': { channelId: number }
+}
+
+export interface Requests {
+  'bot.voice.set': [{ accountKey: string; voice: boolean }, { member: Member }]
+  'voice.disconnect': [{ accountKey: string }, Record<string, never>]
 }

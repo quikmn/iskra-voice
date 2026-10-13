@@ -29,7 +29,6 @@ export const dms = {
     attachTitle: 'Attach files (end-to-end encrypted)',
     saveFailed: "Couldn't save this file. Nothing was kept.",
     saving: 'Saving…',
-    downloading: 'Downloading…',
     saved: 'Saved',
     inMemory: 'Big file: this browser holds all of it in memory while it decrypts. The desktop app, Chrome and Edge save it straight to disk.',
     decrypting: 'Decrypting…',

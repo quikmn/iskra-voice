@@ -1,11 +1,29 @@
 import { describe, expect, it } from 'vitest'
 import type { ServerEvent } from '../core/protocol'
-import { creatorTime, eventIcs, icsFileName, icsFold, icsText, openEvents, startsIn, utcToZoned, zonedToUtc, zoneOffset } from './eventTime'
+import { creatorTime, defaultEventStart, eventIcs, icsFileName, icsFold, icsText, openEvents, startsIn, utcToZoned, zonedToUtc, zoneOffset } from './eventTime'
 
 const event = (patch: Partial<ServerEvent> = {}): ServerEvent => ({
   id: 5, title: 'Game night', description: null, startAt: Date.UTC(2026, 9, 24, 17, 30), endAt: Date.UTC(2026, 9, 24, 19, 30),
   timeZone: 'Europe/Stockholm', location: { kind: 'place', text: 'Here' }, image: null, createdBy: 'k', createdAt: 0,
   status: 'scheduled', interested: [], ...patch,
+})
+
+describe("a new event's start", () => {
+  const at = (h: number, m = 0, day = 13) => new Date(2026, 9, day, h, m)
+  it('is this evening at 19:00 while that is an hour away', () => {
+    expect(defaultEventStart(at(1, 30))).toBe(at(19).getTime())
+    expect(defaultEventStart(at(10, 5))).toBe(at(19).getTime())
+    expect(defaultEventStart(at(18, 0))).toBe(at(19).getTime())
+  })
+  it('then the next full hour after an hour from now, until 22:00', () => {
+    expect(defaultEventStart(at(18, 1))).toBe(at(20).getTime())
+    expect(defaultEventStart(at(20, 0))).toBe(at(21).getTime())
+    expect(defaultEventStart(at(20, 40))).toBe(at(22).getTime())
+  })
+  it('later than that: tomorrow evening', () => {
+    expect(defaultEventStart(at(21, 1))).toBe(at(19, 0, 14).getTime())
+    expect(defaultEventStart(at(23, 50))).toBe(at(19, 0, 14).getTime())
+  })
 })
 
 describe('time zones', () => {

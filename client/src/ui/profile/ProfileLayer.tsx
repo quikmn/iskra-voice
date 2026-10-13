@@ -24,7 +24,7 @@ import { useMemberPresence } from '../../state/presence'
 import { STATUS_LABELS } from '../../state/presenceRules'
 import { CustomStatusLine } from '../presence/Presence'
 import { ActivityLine } from '../ActivityLine'
-import { PageWebview, pageWall } from './PageView'
+import { PageWebview, pageWall, useLoading } from './PageView'
 import './profile.css'
 
 export function ProfileLayer() {
@@ -177,6 +177,7 @@ export function PageViewer({ server, member }: { server: ServerState; member: Me
   const isSelf = me?.accountKey === member.accountKey
   const wall = pageWall()
   const title = t('profile.frameTitle', { name: member.name })
+  const [loading, loaded] = useLoading(url ?? '')
 
   return (
     <Modal title={t('profile.viewerTitle', { name: member.name })} onClose={closeProfilePage} wide>
@@ -187,7 +188,7 @@ export function PageViewer({ server, member }: { server: ServerState; member: Me
       {url && wall ? (
         <PageWebview className="page-frame" src={`${url}?scripts=1`} title={title} />
       ) : url ? (
-        <iframe className="page-frame" title={title} srcDoc={wrapperDocument(url, isSelf)} referrerPolicy="no-referrer" />
+        <iframe key={url} className={`page-frame ${loading}`} title={title} srcDoc={wrapperDocument(url, isSelf)} referrerPolicy="no-referrer" onLoad={loaded} />
       ) : (
         <p className="muted">{t('profile.unavailable')}</p>
       )}

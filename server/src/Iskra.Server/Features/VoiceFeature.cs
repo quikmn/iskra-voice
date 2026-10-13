@@ -21,7 +21,8 @@ public static class VoiceFeature
     {
         var channel = ChatFeature.ReadableChannel(s, me, body.Long("channelId"));
         if (channel.Kind is not ("voice" or "stage")) throw RequestException.BadRequest("That isn't a voice channel.");
-        if (s.World.Store.IsBot(me.AccountKey)) throw RequestException.Forbidden("Bots can't join voice.");
+        var bot = s.World.Store.IsBot(me.AccountKey);
+        if (bot) VoiceBotFeature.CheckJoin(s.World.Store, me, channel);
         if (!Permissions.CanConnect(me, channel)) throw RequestException.Forbidden("You can't join this voice channel.", "voice_cant_join");
         VoiceLimitFeature.CheckJoin(s, me, channel);
         var backend = s.Voice.Backend;
@@ -30,8 +31,9 @@ public static class VoiceFeature
         var room = VoiceRegistry.RoomName(channel.Id);
         // Everyone joins a stage listening; speaking is granted later through LiveKit's API (StageRegistry).
         var canSpeak = channel.Kind == "voice" && Permissions.CanWrite(me, channel) && !s.Voice.IsServerMuted(me.AccountKey);
-        var token = LiveKitTokens.ForRoom(backend.ApiKey, backend.ApiSecret, me.AccountKey, me.Name, room,
-            canPublish: canSpeak, s.Time.GetUtcNow());
+        var token = bot
+            ? LiveKitTokens.ForBot(backend.ApiKey, backend.ApiSecret, me.AccountKey, me.Name, room, canPublish: canSpeak, s.Time.GetUtcNow())
+            : LiveKitTokens.ForRoom(backend.ApiKey, backend.ApiSecret, me.AccountKey, me.Name, room, canPublish: canSpeak, s.Time.GetUtcNow());
         // Over HTTPS (internet hosting) or Tailscale voice goes through the same address the client used.
         var url = LiveKitHost.ClientUrlFor(s.Origin, backend, s.World.Settings.Voice.ClientUrl, s.Tunnelled);
         return new { url, token, room, canSpeak };

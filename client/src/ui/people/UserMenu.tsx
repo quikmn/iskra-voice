@@ -16,6 +16,7 @@ import { moveToChannel, serverMute, setMemberRoles, useServerRoles } from '../..
 import { connectionFor, useApp, type ServerState } from '../../state/store'
 import { closeUserMenu, useUserMenu, type UserMenuTarget } from '../../state/userMenu'
 import { useVoice } from '../../state/voice'
+import { disconnectFromVoice } from '../../state/voiceBots'
 import { openReport } from '../../state/reports'
 import { transferOwnership } from '../../state/accountDeletion'
 import { MenuItem, MenuTitle, OrgMenu } from '../organize/OrgMenu'
@@ -76,6 +77,7 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
   const canMute = !!participant && (self || below) && has(me, roles, 'muteMembers')
   const moveTargets = server && participant && (self || below) && has(me, roles, 'moveMembers')
     ? server.channels.filter((c) => c.kind === 'voice' && c.id !== Number(voiceChannel)) : []
+  const canDisconnect = !!participant && below && has(me, roles, 'moveMembers')
   const canCall = !self && !blocked && callServers(accountKey).length > 0
   const canTransfer = !!member && !self && !member.bot && me?.role === 'owner'
   const canMessage = !self && (sharedServers(accountKey).length > 0 || !!useDms.getState().conversations[accountKey])
@@ -159,7 +161,7 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
       </div>
     )
   } else {
-    const moderation = canTimeout || canKick || canBan || canRoles || canMute || moveTargets.length > 0
+    const moderation = canTimeout || canKick || canBan || canRoles || canMute || moveTargets.length > 0 || canDisconnect
     body = (
       <div className="org-list" role="menu">
         {profileServer && <MenuItem onClick={go(() => openProfileCard(profileServer, accountKey, null))}>{t('friends.menu.profile')}</MenuItem>}
@@ -199,14 +201,15 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
               </MenuItem>
             )}
             {moveTargets.length > 0 && <MenuItem onClick={() => setView('move')}>{t('friends.menu.moveTo')}</MenuItem>}
+            {canDisconnect && <MenuItem onClick={run(() => disconnectFromVoice(server!.key, accountKey))}>{t('friends.menu.disconnect')}</MenuItem>}
             {canRoles && (roles.length > 0
               ? <MenuItem onClick={() => setView('roles')}>{t('friends.menu.roles')}</MenuItem>
               : <MenuItem onClick={go(() => openServerSettings(server!.key, 'roles'))}>{t('friends.menu.createRole')}</MenuItem>)}
             {canTimeout && (timeoutActive(member)
               ? <MenuItem onClick={run(() => removeTimeout(server!.key, accountKey))}>{t('moderation.timeout.remove')}</MenuItem>
               : <MenuItem danger onClick={() => setView('timeout')}>{t('friends.menu.timeout')}</MenuItem>)}
-            {canKick && <MenuItem danger onClick={() => setView('kick')}>{t('friends.menu.kick', { name })}</MenuItem>}
-            {canBan && <MenuItem danger onClick={() => setView('ban')}>{t('friends.menu.ban', { name })}</MenuItem>}
+            {canKick && <MenuItem danger onClick={() => setView('kick')}>{t('friends.menu.kick')}</MenuItem>}
+            {canBan && <MenuItem danger onClick={() => setView('ban')}>{t('friends.menu.ban')}</MenuItem>}
           </>
         )}
         {canTransfer && <MenuItem danger onClick={() => setView('transfer')}>{t('safety.transfer.menu')}</MenuItem>}

@@ -11,6 +11,7 @@ import { useJump } from '../../state/jump'
 import { Avatar, Spinner } from '../bits'
 import { Lock, Menu, Plus, Users } from '../icons'
 import { plainText } from '../markdown'
+import { stripMarkdown } from '../plainMarkdown'
 import { relativeTime } from '../chat/pinThreadHelpers'
 import { PinIcon, SearchIcon } from '../chat/extraIcons'
 import type { Panel } from '../Shell'
@@ -185,7 +186,7 @@ function PostCard({ server, post, tagById, active, unread }: {
   const { t } = useTranslation()
   const author = server.members[post.author]
   const name = author?.name ?? t('forums.card.formerMember')
-  const excerpt = post.excerpt ? plainText(post.excerpt, { nameOf: (k) => server.members[k]?.name ?? null }) : ''
+  const excerpt = post.excerpt ? stripMarkdown(plainText(post.excerpt, { nameOf: (k) => server.members[k]?.name ?? null })) : ''
   const label = [post.title, post.pinned && t('forums.card.pinnedFlag'), post.locked ? t('forums.card.lockedFlag') : post.closed && t('forums.card.closedFlag'),
     unread?.kind === 'new' ? t('forums.card.newFlag') : unread ? t('forums.card.newReplies', { count: unread.count }) : null].filter(Boolean).join(', ')
   return (
