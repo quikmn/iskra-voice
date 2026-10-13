@@ -48,7 +48,7 @@ cd desktop; npm test                 # desktop unit tests (per-platform helpers)
 cd bots;    npm run typecheck        # bot SDK and examples
 ```
 
-Run one e2e spec on its own port (useful with several checkouts): `$env:ISKRA_E2E_PORT=5299; npx playwright test e2e/calls.spec.ts`. Screenshots go to `client/e2e/screenshots`. Specs that talk to the internet (YouTube watch parties) only run with `ISKRA_E2E_NETWORK=1`; the desktop specs need `npm run build` in `desktop/` and `client/` first. The Whisper unit test and the captions e2e test need the captions model: run `node scripts/get-models.mjs` from the repo root once (it goes into `client/.models/`, ignored by git); without it they're skipped. `node scripts/bench-audio.mjs` and `bench-captions.mjs` in `client/` measure CPU use.
+Run one e2e spec on its own port (useful with several checkouts): `$env:ISKRA_E2E_PORT=5299; npx playwright test e2e/calls.spec.ts`. Screenshots go to `client/e2e/screenshots`. Specs that talk to the internet (YouTube watch parties) only run with `ISKRA_E2E_NETWORK=1`, and `desktop-audio.spec` (it plays test tones through the real speakers and needs a quiet machine) only with `ISKRA_E2E_SPEAKERS=1`; the desktop specs need `npm run build` in `desktop/` and `client/` first. The Whisper unit test and the captions e2e test need the captions model: run `node scripts/get-models.mjs` from the repo root once (it goes into `client/.models/`, ignored by git); without it they're skipped. `node scripts/bench-audio.mjs` and `bench-captions.mjs` in `client/` measure CPU use.
 
 CI (`.github/workflows/ci.yml`):
 
