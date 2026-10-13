@@ -312,7 +312,7 @@ export function speechFrames(x: Float32Array, rangeDb = 30, widen = 0): Uint8Arr
 
 /** Phrases: runs of speech split at pauses of at least `pauseMs` (each one opens the gate anew when long enough). */
 export function phrasesOf(x: Float32Array, pauseMs = 300): [number, number][] {
-  const frames = speechFrames(x, 40)
+  const frames = speechFrames(x, 35)
   const out: [number, number][] = []
   let start = -1
   let quiet = 0
@@ -322,7 +322,8 @@ export function phrasesOf(x: Float32Array, pauseMs = 300): [number, number][] {
       if (start < 0) start = f
       quiet = 0
     } else if (start >= 0 && (++quiet >= need || f === frames.length)) {
-      out.push([start * FRAME, (f - quiet + 1) * FRAME])
+      // Shorter than 150 ms is a breath or a click, not a phrase.
+      if (f - quiet + 1 - start >= 15) out.push([start * FRAME, (f - quiet + 1) * FRAME])
       start = -1
       quiet = 0
     }
@@ -387,11 +388,44 @@ export function alignTo(ref: Float32Array, y: Float32Array, from: number, to: nu
       coarse = l * hop
     }
   }
-  const end = Math.min(to, from + 3 * KIT_RATE)
-  let lag = coarse
+  // Then 1 ms envelopes (a phase-shifted voice still lines up, and a voice's pitch periods can't fool it), then
+  // sample by sample within 2 ms (less than a voice's pitch period), over 3 s from where the voice gets loud.
+  let top = -Infinity
+  for (const v of a) top = Math.max(top, v)
+  const k0 = Math.max(0, a.findIndex((v) => v > top - 20))
+  const start = from + k0 * hop
+  const end = Math.min(to, start + 3 * KIT_RATE)
+  const fineEnv = (x: Float32Array, at: number) => {
+    const m = Math.floor((end - start) / 48)
+    const out = new Float64Array(m)
+    for (let k = 0; k < m; k++) out[k] = Math.max(-60, rmsDb(x, at + k * 48 - 48, at + k * 48 + 48))
+    return out
+  }
+  const ea = fineEnv(ref, start)
+  let medium = coarse
+  let mBest = -Infinity
+  for (let l = Math.max(0, coarse - 2 * hop); l <= coarse + 2 * hop; l += 12) {
+    const eb = fineEnv(y, start + l)
+    let c = 0
+    let va = 0
+    let vb = 0
+    const ma2 = ea.reduce((p, v) => p + v, 0) / ea.length
+    const mb2 = eb.reduce((p, v) => p + v, 0) / eb.length
+    for (let k = 0; k < ea.length; k++) {
+      c += (ea[k] - ma2) * (eb[k] - mb2)
+      va += (ea[k] - ma2) ** 2
+      vb += (eb[k] - mb2) ** 2
+    }
+    const r = c / Math.sqrt(Math.max(1e-20, va * vb))
+    if (r > mBest) {
+      mBest = r
+      medium = l
+    }
+  }
+  let lag = medium
   let corr = -Infinity
-  for (let l = Math.max(0, coarse - 2 * hop); l <= coarse + 2 * hop; l++) {
-    const c = correlation(ref, y, from, end, l)
+  for (let l = Math.max(0, medium - 96); l <= medium + 96; l++) {
+    const c = correlation(ref, y, start, end, l)
     if (c > corr) {
       corr = c
       lag = l
@@ -519,13 +553,14 @@ export function measureClip(clean: Float32Array, out: Float32Array, phrases: [nu
   let end = Infinity
   let cut = 0
   for (const [a, b] of phrases) {
-    // Where the phrase really starts and ends: 5 ms steps within 40 dB of its loudest 10 ms.
+    // Where the phrase really starts and ends: 5 ms steps within 35 dB of its loudest 10 ms (a breath or room
+    // noise before it isn't speech, and the gate rightly doesn't open for it).
     let peak = -200
     for (let i = a; i + FRAME <= b; i += FRAME / 2) peak = Math.max(peak, rmsDb(clean, i, i + FRAME))
     let s = a
-    while (s + ms(5) < b && rmsDb(clean, s, s + ms(5)) < peak - 40) s += ms(5)
+    while (s + ms(5) < b && rmsDb(clean, s, s + ms(5)) < peak - 35) s += ms(5)
     let e = b
-    while (e - ms(5) > s && rmsDb(clean, e - ms(5), e) < peak - 40) e -= ms(5)
+    while (e - ms(5) > s && rmsDb(clean, e - ms(5), e) < peak - 35) e -= ms(5)
     onset = Math.min(onset, part(s, Math.min(e, s + ms(50))))
     let t = s
     while (t + ms(5) < e && part(t, t + ms(5)) < -10) t += ms(5)

@@ -35,7 +35,7 @@ const OUT = resolve(opt('out', join(CLIENT, '.listening-kit')))
 const ZIP = opt('zip', null)
 const ONLY = opt('only', null)?.split(',')
 const SNRS = (opt('snr', '15,5')).split(',').map(Number)
-const JOBS = Number(opt('jobs', '4'))
+const JOBS = Number(opt('jobs', '3'))
 /** Keeps the browser recordings (in <out>/.work) and uses them again next time: for working on the kit itself. */
 const REUSE = argv.includes('--reuse')
 /** Speech goes in at this active level (dBFS): a mic set up the usual way. */
@@ -140,7 +140,13 @@ try {
         if (meta.key !== job.group.key || meta.length !== job.input.played.length) throw new Error('stale')
         result = { pcm: new Float32Array(file(`${cached}.f32`)), settings: meta.settings, gaps: meta.gaps }
       } catch {
-        result = await capture(job.input.wav, job.group.capture, seconds)
+        // A busy machine can make the fake mic skip; the track's frame times show it. Then record again.
+        for (let attempt = 1; ; attempt++) {
+          result = await capture(job.input.wav, job.group.capture, seconds)
+          if (Math.abs(result.gaps) <= 16) break
+          if (attempt === 3) throw new Error(`${job.input.id}: the browser's capture kept skipping (${result.gaps} samples)`)
+          log(`  ${job.input.id}: the capture skipped ${result.gaps} samples; recording again`)
+        }
         if (REUSE) {
           writeFileSync(`${cached}.f32`, Buffer.from(result.pcm.buffer))
           writeFileSync(`${cached}.json`, JSON.stringify({ key: job.group.key, length: job.input.played.length, settings: result.settings, gaps: result.gaps }))
@@ -170,7 +176,8 @@ try {
     references[input.voice.id] = {}
     for (const group of groups) {
       const c = input.captures[group.key].pcm
-      const { lag } = align(input, c)
+      const { lag, corr } = align(input, c)
+      if (process.env.KIT_DEBUG) log(`  reference ${input.voice.id} ${group.ids[0]}: lag ${lag}, corr ${corr.toFixed(2)}`)
       references[input.voice.id][group.key] = window(c, lag + input.T, input.T)
     }
   }
@@ -194,7 +201,7 @@ try {
         const { lag, corr } = align(input, c.pcm)
         captureLag[group.key] = lag
         // Did the fake mic play without a gap? (The track's frames carry their times.)
-        if (c.gaps) log(`  ! ${input.id}, capture ${group.ids.join('/')}: ${c.gaps} samples missing or repeated in the browser's capture`)
+        if (Math.abs(c.gaps) > 16) log(`  ! ${input.id}, capture ${group.ids.join('/')}: ${c.gaps} samples missing or repeated in the browser's capture`)
         if (corr < 0.2) log(`  ! ${input.id}, capture ${group.ids.join('/')}: weak alignment (${corr.toFixed(2)})`)
         c.settingsNote = `${c.settings.sampleRate} Hz, echo cancellation ${c.settings.echoCancellation}, noise suppression ${c.settings.noiseSuppression}, auto gain ${c.settings.autoGainControl}`
       }
@@ -204,7 +211,11 @@ try {
         const sent = await kit.micStage(captured, cond, engines)
         const { pcm: received, kbps } = await opus.roundTrip(sent, kit.KIT_OPUS)
         const heard = kit.listenerStage(received, cond)
-        const { lag, corr } = align(input, heard)
+        // Lined up through its own capture: the chain's delay against what it was given, then the capture's.
+        const at = captureLag[group.key]
+        const chain = kit.alignTo(captured.subarray(at), heard.subarray(at), T, 2 * T, 400)
+        const lag = at + chain.lag
+        const corr = chain.corr
         if (corr < 0.2) log(`  ! ${input.id} / ${cond.id}: weak alignment (${corr.toFixed(2)})`)
         const out = window(heard, lag + T, T)
         input.clips[cond.id] = out

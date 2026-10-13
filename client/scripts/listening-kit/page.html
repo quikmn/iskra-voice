@@ -25,7 +25,7 @@ h2 { font-size: 16px; margin: 0 0 10px; }
 h3 { font-size: 14px; margin: 16px 0 6px; }
 p { margin: 0 0 8px; }
 .muted { color: var(--muted); }
-main { max-width: 1180px; margin: 0 auto; padding: 8px 24px 48px; display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 20px; }
+main { max-width: 1180px; margin: 0 auto; padding: 8px 24px 48px; display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 20px; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
 nav.panel { padding: 8px; align-self: start; position: sticky; top: 12px; }
 .tabs { display: flex; gap: 4px; margin-bottom: 8px; }
@@ -57,11 +57,13 @@ table { border-collapse: collapse; width: 100%; }
 th, td { padding: 6px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
 th { font-size: 12px; font-weight: 600; color: var(--muted); }
 .score { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
-.score button { border: 0; border-right: 1px solid var(--line); background: var(--panel); width: 28px; height: 30px; cursor: pointer; font-variant-numeric: tabular-nums; }
+.score button { border: 0; border-right: 1px solid var(--line); background: var(--panel); width: 25px; height: 30px; cursor: pointer; font-variant-numeric: tabular-nums; }
 .score button:last-child { border-right: 0; }
 .score button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
-td input[type="text"] { width: 100%; min-width: 120px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+td input[type="text"] { width: 100%; min-width: 160px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
 .letter .btn { font-weight: 700; white-space: nowrap; }
+tr.note-row td { border-bottom: 1px solid var(--line); padding-top: 0; }
+tr.score-row td { border-bottom: 0; }
 .scroll { overflow-x: auto; }
 .legend { font-size: 13px; color: var(--muted); margin-top: 8px; }
 label.field { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
@@ -73,7 +75,7 @@ label.field input, label.field textarea, select { padding: 6px 8px; border: 1px 
 .hidden { display: none !important; }
 .status { min-height: 1.5em; font-size: 13px; color: var(--muted); }
 @media (max-width: 860px) {
-  main { grid-template-columns: 1fr; padding: 8px 16px 40px; }
+  main { grid-template-columns: minmax(0, 1fr); padding: 8px 16px 40px; }
   header { padding: 16px 16px 4px; }
   nav.panel { position: static; }
   .grid2 { grid-template-columns: 1fr; }
@@ -385,7 +387,7 @@ function renderSheet() {
   const t = $('sheet')
   t.textContent = ''
   const head = t.insertRow()
-  for (const h of ['', ...CRITERIA.map((c) => c[1]), 'Note']) {
+  for (const h of ['', ...CRITERIA.map((c) => c[1])]) {
     const th = document.createElement('th')
     th.textContent = h
     head.appendChild(th)
@@ -393,6 +395,7 @@ function renderSheet() {
   const scores = state.scores[current.id]
   LETTERS.forEach((l, i) => {
     const tr = t.insertRow()
+    tr.className = 'score-row'
     const td = tr.insertCell()
     td.className = 'letter'
     const b = document.createElement('button')
@@ -424,8 +427,13 @@ function renderSheet() {
       }
       cell.appendChild(group)
     }
-    const note = tr.insertCell()
+    const noteRow = t.insertRow()
+    noteRow.className = 'note-row'
+    noteRow.insertCell()
+    const note = noteRow.insertCell()
+    note.colSpan = CRITERIA.length
     const input = document.createElement('input')
+    input.placeholder = `Note on ${l} (optional)`
     input.type = 'text'
     input.value = scores[l]?.note || ''
     input.setAttribute('aria-label', `${l}: note`)
