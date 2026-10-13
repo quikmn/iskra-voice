@@ -98,6 +98,18 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
     stop: (id: string): Promise<unknown> => ipcRenderer.invoke('iskra:host-stop', id),
     pickBackup: (): Promise<unknown> => ipcRenderer.invoke('iskra:host-pick-backup'),
     restore: (path: string, passphrase: string): Promise<unknown> => ipcRenderer.invoke('iskra:host-restore', path, passphrase),
+    // "Let friends connect without port forwarding" changed on a server hosted here: the tunnel follows.
+    p2pSync: (id: string): Promise<unknown> => ipcRenderer.invoke('iskra:host-p2p-sync', id),
+    onP2p: (callback: (update: unknown) => void): (() => void) => {
+      const listener = (_e: IpcRendererEvent, update: unknown) => callback(update)
+      ipcRenderer.on('iskra:host-p2p', listener)
+      return () => ipcRenderer.off('iskra:host-p2p', listener)
+    },
+  },
+  // A server behind a shared connection: a local address that leads to it through the peer-to-peer tunnel.
+  p2p: {
+    open: (serverKey: string, secret: string): Promise<unknown> => ipcRenderer.invoke('iskra:p2p-open', serverKey, secret),
+    close: (serverKey: string): Promise<void> => ipcRenderer.invoke('iskra:p2p-close', serverKey),
   },
   download: (url: string): Promise<boolean> => ipcRenderer.invoke('iskra:download', url),
   // Big decrypted DM files: a Save dialog, then the bytes a piece at a time; finish only once they're checked.

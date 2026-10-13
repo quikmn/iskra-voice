@@ -10,6 +10,7 @@ import { defaultHostRoot, exeName } from './platform'
 import { text } from './i18n'
 import { adjustRestoredSettings } from './restore'
 import { tailscaleAddress, tailscaleUrl } from './tailscale'
+import type { HostTunnels, P2pHostStatus } from './p2p/hostTunnel'
 
 export interface HostedServer {
   id: string
@@ -27,6 +28,8 @@ export interface HostedServer {
   ownerInvite: string | null
   /** "Keep my server running": starts with the computer (filled in by main.ts from the desktop settings). */
   keepRunning?: boolean
+  /** The peer-to-peer tunnel for friends without port forwarding (Server settings → Internet access), when the world has it on. */
+  p2p: P2pHostStatus | null
 }
 
 /** A starter template as `iskra-server templates --json` describes it (for the setup wizard's preview). */
@@ -140,6 +143,9 @@ export class Host {
     process.env.ISKRA_HOST_ROOT || defaultHostRoot(process.platform, { documents: app.getPath('documents'), userData: app.getPath('userData') })
   private readonly processes = new Map<string, ChildProcess>()
 
+  /** `p2p`: the tunnels for worlds that let friends connect without port forwarding (none in tests without a testnet). */
+  constructor(private readonly p2p?: HostTunnels) {}
+
   available(): boolean {
     return serverBinary() !== null
   }
@@ -165,7 +171,14 @@ export class Host {
       localUrl: `http://localhost:${settings.Port ?? 47070}`,
       tailscaleUrl: tailscaleUrl(tailscaleAddress(networkInterfaces()), settings.Port ?? 47070, settings.LocalOnly === true),
       ownerInvite: existsSync(invitePath) ? readFileSync(invitePath, 'utf8').trim() : null,
+      p2p: this.p2p?.status(id) ?? null,
     }
+  }
+
+  /** The owner switched "Let friends connect without port forwarding" (or rotated its key): follow the world's files. */
+  async syncP2p(id: string): Promise<HostedServer> {
+    if (this.processes.has(id)) await this.p2p?.sync(id, path.join(this.root, id))
+    return this.describe(id)
   }
 
   private templateList: Promise<ServerTemplateInfo[]> | null = null
@@ -298,6 +311,8 @@ export class Host {
       }
       await new Promise((r) => setTimeout(r, 100))
     }
+    // The tunnel listener's port is written once the server listens; the tunnel follows (and later changes, see syncP2p).
+    if (!failure) void this.p2p?.sync(id, folder)
     return this.describe(id)
   }
 
@@ -315,6 +330,7 @@ export class Host {
   async stop(id: string): Promise<HostedServer> {
     const child = this.processes.get(id)
     this.processes.delete(id)
+    await this.p2p?.stop(id)
     if (child) await stopServer(child)
     return this.describe(id)
   }
@@ -375,7 +391,7 @@ export class Host {
   stopAll(restart = false): Promise<void> {
     const children = [...this.processes.values()]
     this.processes.clear()
-    const done = Promise.all(children.map((child) => stopServer(child, restart))).then(() => undefined)
+    const done = Promise.all([...children.map((child) => stopServer(child, restart)), this.p2p?.stopAll()]).then(() => undefined)
     return Promise.race([done, new Promise<void>((resolve) => setTimeout(resolve, GRACEFUL_STOP_MS + 2000).unref())])
   }
 

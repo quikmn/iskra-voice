@@ -190,6 +190,9 @@ test('iskra:// links only ever carry an invite', () => {
   assert.equal(parseDeepLink(`iskra://join/${token}`), token)
   assert.equal(parseDeepLink(`iskra://invite/${token}/`), token)
   assert.equal(parseDeepLink(`ISKRA://join/${token}`), token)
+  // With the p2p secret as the fourth field (friends without port forwarding).
+  assert.equal(parseDeepLink(`iskra://join/${token}.${'B'.repeat(43)}`), `${token}.${'B'.repeat(43)}`)
+  assert.equal(parseDeepLink(`iskra://join/${token}.${'B'.repeat(42)}`), null)
   for (const bad of [
     `iskra://link/${token}`, // device linking is never started from outside
     `iskra://join/${token}?x=1`,
