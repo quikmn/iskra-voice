@@ -452,6 +452,11 @@ export const settings: Messages['settings'] = {
     botReadsAll: 'Läser alla meddelanden',
     botReadsMentions: 'Bara kommandon och omnämnanden',
     botScopeOf: 'Vad {{name}} kan läsa',
+    botVoice: 'Kan gå med i röstkanaler',
+    botVoiceHint: 'Låter boten spela musik och ljud i röstkanaler (aldrig på scener eller i krypterade kanaler). Den hör aldrig någon.',
+    botVoiceShort: 'Röst',
+    botVoiceOf: '{{name}} kan gå med i röstkanaler',
+    botJoinsVoice: 'går med i röst',
   },
   limits: {
     intro: 'Hur stora uppladdningar, emoji, klistermärken och ljud får vara på den här servern. Ändringar gäller direkt och sparas i server.json.',

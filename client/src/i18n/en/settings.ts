@@ -451,6 +451,11 @@ export const settings = {
     botReadsAll: 'Reads all messages',
     botReadsMentions: 'Commands and mentions only',
     botScopeOf: 'What {{name}} can read',
+    botVoice: 'Can join voice channels',
+    botVoiceHint: 'Lets the bot play music and sounds in voice channels (never on stages or in encrypted channels). It never hears anyone.',
+    botVoiceShort: 'Voice',
+    botVoiceOf: '{{name}} can join voice channels',
+    botJoinsVoice: 'joins voice',
   },
   limits: {
     intro: 'How big uploads and expressions can be on this server. Changes apply right away and are saved in server.json.',

@@ -2,3 +2,5 @@
 *.bot.json
 *.data.json
 *.tmp
+# Jukebox's music folder: your own files, never committed.
+music/

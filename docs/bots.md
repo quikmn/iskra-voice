@@ -156,7 +156,7 @@ A bot is an ordinary Iskra identity (its own account and device keys) that conne
 
 - shows it with a **BOT** badge,
 - only lets it in with a **bot invite** (made by an admin; single use), and never lets a bot invite be used by a person,
-- keeps it out of voice, DMs, group DMs and calls, and doesn't let it create invites, schedule messages or be made admin (guest, member or trusted only),
+- keeps it out of voice unless an admin allows it ([Voice bots](#voice-bots)), out of DMs, group DMs and calls, and doesn't let it create invites, schedule messages or be made admin (guest, member or trusted only),
 - applies the same rate limits as everyone else (2 messages a second, bursts of 10).
 
 **What a bot can read** is the admin's choice when making the bot invite (**Can read all messages**, off by default),
@@ -240,6 +240,7 @@ The bot saves its keys and the server's address in `greeter.bot.json`, so from n
 | | Run it | What it shows |
 |---|---|---|
 | **Dice** ([`examples/dice.ts`](../bots/examples/dice.ts)) | `npm run dice` | `/roll 2d6` (answers with a card and a **Roll again** button; `/roll d20 yes` answers only you), `/coin`, `/pick pizza, tacos`, `/echo`; commands with options; a button handler; reacting to "good bot" when mentioned; welcoming new members |
+| **Jukebox** ([`examples/jukebox.ts`](../bots/examples/jukebox.ts)) | `npm run jukebox` | A [voice bot](#voice-bots): `/play [song]` joins your voice channel and plays the files in a folder (and radio streams you list), `/skip`, `/stop`, `/songs`; a "Now playing" card with **Pause**, **Skip** and **Stop** buttons that it keeps up to date |
 | **Planner** ([`examples/planner.ts`](../bots/examples/planner.ts)) | `npm run planner` | `/poll Pizza or tacos? \| Pizza \| Tacos` (posts the result and a CSV file when it closes), `/remind 10m stretch`, `/event 2h Game night`, `/events` (a card); usage hints, edits, files, polls, events, an activity, and keeping state across restarts |
 
 Start either one the first time with `ISKRA_INVITE='<bot invite link>' npm run planner` (PowerShell: `$env:ISKRA_INVITE='<link>'; npm run planner`). Each needs its own bot invite.
@@ -266,6 +267,8 @@ Start either one the first time with `ISKRA_INVITE='<bot invite link>' npm run p
 | `bot.setActivity(text \| null)` | Show an activity under the bot's name. |
 | `bot.mention(accountKey)` | A mention token that shows as @Name and notifies them. |
 | `bot.channels`, `bot.members`, `bot.me`, `bot.channelByName(name)` | What the bot can see right now (kept up to date). |
+| `bot.joinVoice(channelId)`, `bot.voice`, `bot.voiceChannelOf(accountKey)` | Join a voice channel to play audio (see [Voice bots](#voice-bots)); the connection the bot has now, or null; the voice channel someone is in. |
+| `bot.fileUrl(file)` | The full address of a file on the server (an attachment), e.g. to play it. |
 | `bot.request(type, body)` | Any request in [PROTOCOL.md](../protocol/PROTOCOL.md), typed: events (`event.create`), pins (`chat.pin`), roles (`member.roles.set`), search and so on. Errors are `RequestError`s with a `code` (`forbidden`, `not_found`, `rate_limited`, …). |
 | `bot.stop()` | Disconnects. The bot reconnects by itself after network trouble or a server restart until you stop it. |
 
@@ -394,9 +397,45 @@ Unlike webhooks, cards can have a `thumbnail` and an `image`, but only from the 
 (`bot.upload`, then use its `url`) or a small `data:image/png|jpeg|gif|webp;base64,...` URL (up to 16 KB). Addresses on
 other sites are refused, so nobody's app ever loads something from a third party. Only bots can send cards.
 
+### Voice bots
+
+A bot can join a voice channel and play audio into it: music from files, sounds, or a radio stream. An admin decides:
+tick **Can join voice channels** when making the bot invite, or turn **Voice** on for a bot in **Bots & webhooks →
+Bots** (off by default; everyone can see it, `joinsVoice` on the member). Then:
+
+```ts
+const voice = await bot.joinVoice(channelId)          // e.g. bot.voiceChannelOf(user): where the person who asked is
+voice.on('trackEnd', ({ track, reason, error }) => console.log(track.title, reason))  // finished, stopped, replaced, error, left
+await voice.play('music/song.mp3')                     // resolves when it ends
+voice.play('https://radio.example.org/stream.mp3', { title: 'Lo-fi radio' })
+voice.play(bot.fileUrl(message.attachments[0]))       // a file someone uploaded to the server
+voice.pause(); voice.resume(); voice.setVolume(0.5)    // 0 to 2
+voice.stop()                                           // stays in the channel
+voice.on('kicked', () => console.log('a moderator disconnected me'))  // it doesn't rejoin by itself
+await voice.leave()
+```
+
+| | |
+|---|---|
+| What it plays | A file path, an `http(s)://` address the bot fetches itself (a file or an internet radio stream), a server file (`/files/…` or `bot.fileUrl(file)`), bytes, or any stream of bytes. Formats: **MP3, Ogg Opus, Ogg Vorbis, FLAC and WAV**, recognized from their first bytes. AAC/M4A isn't supported (most internet radios also offer MP3). `encodeWav(channels, rate)` makes WAV bytes from samples the bot made itself. |
+| How it sounds | 48 kHz stereo, 96 kbps (128 kbps in [hi-fi channels](../protocol/PROTOCOL.md#hi-fi-voice-channels)), with redundancy against packet loss. Other sample rates are resampled. |
+| Where | Voice channels it can post in (it needs that to be heard). Never stages, never end-to-end encrypted voice channels (it holds no keys). User limits, timeouts and server mutes apply as for people. |
+| What it can't do | Hear anyone: its voice token can't subscribe to other people's audio, and it can publish one audio track, no camera, screen or data. |
+| For people | The bot shows in the channel with the **BOT** badge. Anyone can mute it for themselves (right-click it → volume → **Mute for me**). Moderators can server-mute it and **Disconnect from voice** it (*Move members*), as for people. |
+
+**No YouTube, Spotify or other streaming services, by design.** The SDK has no extractors for them and never will:
+taking audio out of those services breaks their terms of service and usually copyright, and it's what got popular
+Discord music bots shut down. Play files you have the right to play, and streams whose operators let you (many internet
+radios do). Only let people pick from what the bot's operator chose: Jukebox plays the files in its folder and the
+stations in its `stations.json`, never an address someone types (a bot that fetched any address it's given could be
+pointed at other computers on its owner's network).
+
+Voice needs the packages in `bots/` (`npm install`): `@livekit/rtc-node` (LiveKit's SDK for Node, native, prebuilt for
+Windows x64, macOS and Linux x64/arm64) and the WebAssembly decoders; see the [third-party notices](voice-processing.md#voice-bots-sdk).
+The audio goes from the bot's computer straight to the server's voice service, like an app's.
+
 ### What bots can't do (yet)
 
-- **Voice:** bots can't join voice channels, so no music bots for now.
 - **DMs:** DMs are end-to-end encrypted to people's devices, so bots can't send or read them.
 - **Encrypted channels:** bots can't read or post there; commands work, with private answers (see above).
 
@@ -413,6 +452,9 @@ other sites are refused, so nobody's app ever loads something from a third party
 | Its commands don't show up when typing `/` | The bot must be able to read **and** post in that channel (in an encrypted channel: read it). Commands with a `role` or `permission` show only for people who have it. |
 | `forbidden` with `bot_no_read` | The bot was invited without **Can read all messages**, so it gets its commands and mentions only. An admin can change that in **Bots & webhooks → Bots**. |
 | `Nothing answers the button "…"` in the log | Add a `bot.onComponent(...)` for that `customId` (or a pattern that matches it). |
+| `forbidden` with `bot_no_voice` | An admin hasn't let the bot join voice: **Bots & webhooks → Bots → Voice**. |
+| `Voice needs @livekit/rtc-node: run "npm install" in the bots folder.` | As it says: voice uses packages the rest of the SDK doesn't. |
+| `Can't play AAC …` / `… is a web page, not an audio file or stream` | Use MP3, Ogg, FLAC or WAV; for a radio, use its direct stream address (often ending in `.mp3`), not its web page. |
 | `rate_limited` | The SDK already waits and retries sends; slow down loops that call `bot.request` directly. |
 
 ### Other languages

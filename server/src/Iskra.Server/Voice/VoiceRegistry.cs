@@ -58,7 +58,9 @@ public sealed class VoiceRegistry
         if (muted) _serverMuted[accountKey] = 0;
         else _serverMuted.TryRemove(accountKey, out _);
         if (ChannelOfMember(accountKey) is not { } channelId) return;
-        _ = backend.SetCanPublishAsync(RoomName(channelId), accountKey, canPublish: !muted && canSpeak);
+        _ = world.Store.IsBot(accountKey)
+            ? backend.SetBotCanPublishAsync(RoomName(channelId), accountKey, canPublish: !muted && canSpeak)
+            : backend.SetCanPublishAsync(RoomName(channelId), accountKey, canPublish: !muted && canSpeak);
         Publish(channelId);
     }
 
@@ -158,7 +160,8 @@ public sealed class VoiceRegistry
             foreach (var accountKey in room.Keys)
             {
                 var member = world.Store.GetMember(accountKey);
-                if (channel is not null && member is not null && Permissions.CanConnect(member, channel)) continue;
+                if (channel is not null && member is not null && Permissions.CanConnect(member, channel)
+                    && Features.VoiceBotFeature.MayBeIn(world.Store, member, channel)) continue;
                 room.TryRemove(accountKey, out _);
                 _ = backend.RemoveParticipantAsync(RoomName(channelId), accountKey);
                 Publish(channelId);
@@ -213,6 +216,7 @@ public sealed class VoiceRegistry
                 var member = world.Store.GetMember(identity);
                 var channel = world.Store.GetChannel(channelId);
                 if (member is null || channel is null || !Permissions.CanConnect(member, channel)
+                    || !Features.VoiceBotFeature.MayBeIn(world.Store, member, channel)
                     || Features.ModerationFeature.IsTimedOut(world.Store, identity, now)
                     || Features.RulesFeature.MustAgree(world.Store, member)
                     || !Features.VoiceLimitFeature.HasRoom(world.Store, this, member, channel, now))

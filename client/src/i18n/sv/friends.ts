@@ -67,6 +67,7 @@ export const friends: Messages['friends'] = {
     createRole: 'Skapa en roll…',
     manageRoles: 'Hantera roller…',
     moveTo: 'Flytta till…',
+    disconnect: 'Koppla bort från röstkanalen',
     you: 'Du',
   },
 }

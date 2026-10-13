@@ -238,6 +238,8 @@ function Bots({ server }: { server: ServerState }) {
   const [role, setRole] = useState<Role>('member')
   // "Can read all messages" is the admin's explicit choice; by default a bot gets its commands and mentions only.
   const [readAll, setReadAll] = useState(false)
+  // Joining voice (to play audio) is off unless the admin allows it.
+  const [voice, setVoice] = useState(false)
   const [link, setLink] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -246,7 +248,7 @@ function Bots({ server }: { server: ServerState }) {
 
   async function createInvite() {
     try {
-      const { invite } = await connection!.request('bot.invite', { role, readAll })
+      const { invite } = await connection!.request('bot.invite', { role, readAll, voice })
       setLink(buildInviteLink(appUrl(server.appUrl), { serverUrl: server.url, serverKey: server.key, code: invite.code }))
       setCopied(false)
       setError(null)
@@ -258,6 +260,15 @@ function Bots({ server }: { server: ServerState }) {
   async function setScope(accountKey: string, all: boolean) {
     try {
       await connection!.request('bot.scope.set', { accountKey, readAll: all })
+      setError(null)
+    } catch (e) {
+      setError(errorMessage(e))
+    }
+  }
+
+  async function setJoinsVoice(accountKey: string, on: boolean) {
+    try {
+      await connection!.request('bot.voice.set', { accountKey, voice: on })
       setError(null)
     } catch (e) {
       setError(errorMessage(e))
@@ -292,6 +303,10 @@ function Bots({ server }: { server: ServerState }) {
         <input type="checkbox" checked={readAll} onChange={(e) => setReadAll(e.target.checked)} />
         <span>{t('settings.integrations.botReadAll')}<br /><span className="muted bot-scope-hint">{t('settings.integrations.botReadAllHint')}</span></span>
       </label>
+      <label className="checkbox">
+        <input type="checkbox" checked={voice} onChange={(e) => setVoice(e.target.checked)} />
+        <span>{t('settings.integrations.botVoice')}<br /><span className="muted bot-scope-hint">{t('settings.integrations.botVoiceHint')}</span></span>
+      </label>
       {link && (
         <div className="secret-box" style={{ marginTop: 12 }}>
           <p>{t('settings.integrations.botInviteHint')}</p>
@@ -313,8 +328,18 @@ function Bots({ server }: { server: ServerState }) {
             <Avatar name={bot.name} accountKey={bot.accountKey} size={32} online={bot.online} />
             <span className="member-name">
               {bot.name} <BotBadge />
-              <span className="bot-scope muted">{t(bot.readsMessages ? 'settings.integrations.botReadsAll' : 'settings.integrations.botReadsMentions')}</span>
+              <span className="bot-scope muted">
+                {t(bot.readsMessages ? 'settings.integrations.botReadsAll' : 'settings.integrations.botReadsMentions')}
+                {bot.joinsVoice ? ` · ${t('settings.integrations.botJoinsVoice')}` : ''}
+              </span>
             </span>
+            {me && roleRank(me.role) >= roleRank('admin') && (
+              <label className="checkbox bot-voice-toggle">
+                <input type="checkbox" checked={!!bot.joinsVoice} onChange={(e) => void setJoinsVoice(bot.accountKey, e.target.checked)}
+                  aria-label={t('settings.integrations.botVoiceOf', { name: bot.name })} />
+                <span aria-hidden>{t('settings.integrations.botVoiceShort')}</span>
+              </label>
+            )}
             {me && roleRank(me.role) >= roleRank('admin') && (
               <select className="bot-scope-select" value={bot.readsMessages ? 'all' : 'mentions'} aria-label={t('settings.integrations.botScopeOf', { name: bot.name })}
                 onChange={(e) => void setScope(bot.accountKey, e.target.value === 'all')}>

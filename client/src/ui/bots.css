@@ -71,3 +71,8 @@
 .bot-row .bot-scope { display: block; font-size: 12px; }
 .bot-scope-hint { font-size: 12px; }
 .bot-scope-select { max-width: 46%; }
+
+/* Voice bots: the badge right after the name in the voice channel list; the admin's voice toggle per bot. */
+.voice-participants li .member-name:has(+ .bot-badge) { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.voice-participants li .member-name + .bot-badge { margin-right: auto; }
+.bot-voice-toggle { margin: 0; white-space: nowrap; }

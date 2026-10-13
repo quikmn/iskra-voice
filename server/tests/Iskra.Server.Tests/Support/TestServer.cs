@@ -142,6 +142,15 @@ public sealed class FakeVoiceBackend : IVoiceBackend
         return Task.FromResult(true);
     }
 
+    /// <summary>Publish permission changes for bots (which keep their audio-only grants).</summary>
+    public List<(string Room, string Identity, bool CanPublish)> BotPermissions { get; } = [];
+
+    public Task<bool> SetBotCanPublishAsync(string room, string identity, bool canPublish)
+    {
+        lock (BotPermissions) BotPermissions.Add((room, identity, canPublish));
+        return Task.FromResult(true);
+    }
+
     public Task MuteMicrophoneAsync(string room, string identity)
     {
         lock (Muted) Muted.Add((room, identity));
