@@ -2220,3 +2220,88 @@ Cards use the [webhook embed](#webhooks) format, validator and limits (≤ 10 pe
 Messages carry `cards: [Card] | null` (`null` for everything except a bot's message with cards). Stored cards keep
 only the fields above; a picture from `/files` is returned as that file's URL path, which apps resolve against the
 server's address. Card text is rendered as text and markdown by apps, never as HTML.
+
+## Outgoing webhooks
+
+The server POSTs chosen events as signed JSON to addresses that admins pick (a Minecraft bridge, Home Assistant, IFTTT).
+Requests over the WebSocket; managing needs `manageWebhooks` (admins and the owner always); others get `forbidden`.
+
+| type | body | result | who |
+|---|---|---|---|
+| `outhook.list` | | `{ hooks: [OutHook] }` | managers |
+| `outhook.create` | `name` (1–32), `url` (≤ 512), `events: [EventType]` (≥ 1), `channelIds?: [id]` (≤ 50), `allowLocal?` (default false) | `{ hook, secret }` | managers; `allowLocal: true` only the owner |
+| `outhook.update` | `id`, any of `name`, `url`, `events`, `channelIds`, `allowLocal`, `enabled` | `{ hook }` | managers |
+| `outhook.regenerate` | `id` | `{ hook, secret }`; the old secret stops working at once | managers |
+| `outhook.delete` | `id` | | managers |
+| `outhook.log` | `id` | `{ deliveries: [Delivery] }` (newest first, the last 50) | managers |
+| `outhook.test` | `id` | `{ delivery }`: sends `ping` once, now (no retries; doesn't count towards turning off) | managers |
+| `outhook.hosts` | | `{ hooks: [{ name, host, events }] }`, turned-on webhooks only, never the full address | every member |
+
+```jsonc
+OutHook { "id": "<b64u 16>", "name": "Minecraft", "url": "https://mc.example.com/iskra", "host": "mc.example.com",
+          "events": ["message.created"], "channelIds": [1], "allowLocal": false, "enabled": true,
+          "disabledReason": null | "failures", "failures": 0, "createdBy": accountKey, "createdAt": ms,
+          "lastDeliveryAt": ms | null, "lastOutcome": Outcome | null }
+Delivery { "delivery": "<b64u 16>", "event": "message.created", "attempt": 1, "at": ms, "status": 200 | null,
+           "outcome": Outcome, "ms": 120 }
+Outcome = "ok" | "http" | "timeout" | "network" | "blocked" | "redirect" | "rate_limited" | "queue_full" | "too_large"
+```
+
+**Events** (`EventType`):
+
+| type | `data` | sent for |
+|---|---|---|
+| `message.created` | `{ message: { id, channel: { id, name, kind, parentId }, author: { accountKey, name, bot }, text, createdAt, replyTo, attachments: [{ name, size, type }] } }` | messages in the chosen channels and their threads (voice and stage channel chat, forum post replies too) |
+| `reaction.added` | `{ messageId, channel, emoji, member: { accountKey, name, bot } }` | the same channels; removing a reaction sends nothing |
+| `member.joined` | `{ member: { accountKey, name, role, bot } }` | the whole server |
+| `member.left` | `{ member: { accountKey, name }, reason: "left" \| "kicked" \| "banned" \| "deleted" }` | the whole server |
+| `event.started` | `{ event: { id, title, description, startAt, endAt, channel \| null, location } }` | events without a channel, or in a chosen channel |
+| `ping` | `{ hook: { id, name } }` | `outhook.test` only |
+
+- Managers only see (list, update, regenerate, delete, log, test) webhooks whose channels they can all read; others are
+  `not_found`, so nobody can point a webhook for a channel they can't read at their own address.
+- `channelIds` are text, voice, stage or forum channels you can read, never [end-to-end encrypted](#end-to-end-encrypted-channels)
+  ones (`bad_request`). `message.created` and `reaction.added` need at least one. Messages in a channel that becomes
+  encrypted are never sent (the server can't read them anyway). Direct messages and group chats never are. Messages
+  posted by incoming webhooks aren't sent (no loops).
+- At most 10 outgoing webhooks per server. Rate limits: `outhook.create` 10, then one every 2 s; `outhook.update` 10,
+  then 1/s; `outhook.test` 3, then one every 5 s; `outhook.hosts` 10, then 1/s.
+
+**Addresses.** `https://` only; no user name or password in the URL. Each connection resolves the name and connects
+only to an allowed address (checked after DNS, every time, so a name that later points somewhere private gets
+`blocked`): public addresses, the same list as link previews (no loopback, private, link-local, CGNAT, multicast or
+cloud metadata ranges). Redirects are never followed (`redirect`), no proxy is used. With `allowLocal` (only the owner can
+turn it on; an admin who changes the URL turns it off) the webhook may also reach the server's own network: loopback,
+10/8, 172.16/12, 192.168/16, 100.64/10 (Tailscale) and IPv6 unique-local, and plain `http://` is then accepted for
+those addresses only. Link-local (169.254/16, fe80::/10), unspecified and multicast addresses are never reached. When
+the name resolves at create/update time, a URL with no allowed address is refused (`outhook_address_private`,
+`outhook_address_reserved`).
+
+**The request.**
+
+```http
+POST <url>
+Content-Type: application/json; charset=utf-8
+User-Agent: Iskra-Webhook/1
+Iskra-Webhook-Id: <delivery id, the same on every retry>
+Iskra-Webhook-Event: message.created
+Iskra-Webhook-Timestamp: <unix seconds, this attempt>
+Iskra-Webhook-Signature: v1=<hex HMAC-SHA256(secret, "iskra-webhook-v1\n" + timestamp + "\n" + id + "\n" + body)>
+
+{ "id": "<delivery id>", "type": "message.created", "timestamp": ms, "server": { "name": "..." }, "data": { ... } }
+```
+
+- The secret (`whs_` + 43 characters) is per webhook, shown when made or regenerated, and stored on the server to sign
+  with. The HMAC key is the secret's UTF-8 bytes. Receivers check the signature in constant time, refuse timestamps
+  more than 5 minutes away from their clock, and may drop delivery ids they've already seen (see `docs/bots.md`).
+- Body ≤ 64 KB. Each attempt times out after 10 s (connect 5 s); the response body is never read.
+- `2xx` is success. `408`, `429`, `5xx`, timeouts and network errors are retried after 5 s, 30 s, 2 min and 10 min
+  (`Retry-After` is honoured up to 10 min); other answers, `blocked` and `redirect` are not. Deliveries aren't ordered.
+- Per webhook: 30 events at once, then 5/s, and at most 100 waiting or retrying; more are dropped and logged
+  (`rate_limited`, `queue_full`).
+- A delivery that still fails after its retries counts one failure; a success resets the count. At 10 the webhook is
+  turned off (`enabled: false`, `disabledReason: "failures"`) and online managers get the event
+  `outhook.disabled { hook: OutHook }`. Turning it on again (`enabled: true`) clears the count.
+- The log keeps the last 50 attempts per webhook: time, event, attempt, HTTP status, outcome and duration, never the
+  payload. It goes with the webhook.
+- Apps list every server's `outhook.hosts` under "Who Iskra talks to", so members see where their server sends things.

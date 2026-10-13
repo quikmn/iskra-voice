@@ -10,8 +10,9 @@ import { Avatar, Spinner } from '../bits'
 import { AuthorAvatar, BotBadge } from '../chat/BotBits'
 import { appUrl, messageTime } from '../format'
 import '../bots.css'
+import { OutgoingWebhooks } from './OutgoingWebhooks'
 
-type Tab = 'webhooks' | 'bots'
+type Tab = 'webhooks' | 'outgoing' | 'bots'
 
 /** Settings → Bots & webhooks (admins). */
 export function IntegrationsSection({ server }: { server: ServerState }) {
@@ -22,9 +23,10 @@ export function IntegrationsSection({ server }: { server: ServerState }) {
       <h2>{t('settings.sections.integrations')}</h2>
       <div className="segmented" role="tablist" aria-label={t('settings.integrations.tabs')}>
         <button role="tab" aria-selected={tab === 'webhooks'} className={tab === 'webhooks' ? 'on' : ''} onClick={() => setTab('webhooks')}>{t('settings.integrations.webhooks')}</button>
+        <button role="tab" aria-selected={tab === 'outgoing'} className={tab === 'outgoing' ? 'on' : ''} onClick={() => setTab('outgoing')}>{t('outhooks.tab')}</button>
         <button role="tab" aria-selected={tab === 'bots'} className={tab === 'bots' ? 'on' : ''} onClick={() => setTab('bots')}>{t('settings.integrations.bots')}</button>
       </div>
-      {tab === 'webhooks' ? <Webhooks server={server} /> : <Bots server={server} />}
+      {tab === 'webhooks' ? <Webhooks server={server} /> : tab === 'outgoing' ? <OutgoingWebhooks server={server} /> : <Bots server={server} />}
     </section>
   )
 }

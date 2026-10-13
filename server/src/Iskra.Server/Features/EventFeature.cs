@@ -269,6 +269,7 @@ public sealed class EventScheduler(World world, Hub hub, PushService push, TimeP
                     if (!store.SetEventStatus(e.Id, ["scheduled"], "live")) continue;
                     var live = e with { Status = "live" };
                     EventFeature.Broadcast(hub, store, live);
+                    hub.Outhooks?.EventStarted(live);
                     Remind(live, "live", now);
                 }
                 // Reminders only for events planned further ahead than the lead (otherwise "live" is the reminder).

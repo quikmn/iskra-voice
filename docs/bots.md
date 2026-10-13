@@ -63,6 +63,74 @@ What's left out on purpose: images, thumbnails and avatar URLs from the payload.
 
 Nobody can edit a webhook's message; admins can delete it like any other.
 
+## Outgoing webhooks
+
+The other way round: your server POSTs to a web address when something happens, for things that don't want to hold a
+connection open (a Minecraft chat bridge, Home Assistant, IFTTT, a small script).
+
+In **Server settings → Bots & webhooks → Outgoing**, pick a name, the `https://` address, the events and (for messages
+and reactions) the channels. Events: a new message, a reaction added, a member joined or left, a scheduled event started.
+Copy the **signing secret** shown once (**New secret** makes another). **Send a test** posts a `ping`, and **Log** shows
+the last 50 attempts (status only, never what was sent). Every member can see the webhook's host under
+**My settings → Privacy & data → Who Iskra talks to**.
+
+Each request is JSON (the shape is in [PROTOCOL.md](../protocol/PROTOCOL.md#outgoing-webhooks)):
+
+```json
+{ "id": "3q2-7wAAAQ...", "type": "message.created", "timestamp": 1760000000000, "server": { "name": "Friends" },
+  "data": { "message": { "id": 42, "channel": { "id": 1, "name": "general", "kind": "text", "parentId": null },
+            "author": { "accountKey": "...", "name": "Alice", "bot": false }, "text": "hello", "createdAt": 1760000000000,
+            "replyTo": null, "attachments": [] } } }
+```
+
+### Check the signature
+
+Every request carries `Iskra-Webhook-Id`, `Iskra-Webhook-Timestamp` (Unix seconds) and
+`Iskra-Webhook-Signature: v1=<hex>`, the HMAC-SHA256 of `iskra-webhook-v1\n<timestamp>\n<id>\n<raw body>` (`\n` is a newline) keyed with
+the secret's UTF-8 bytes. Check it on the raw body (before parsing), compare in constant time, and refuse timestamps more than five
+minutes off. Retries keep the same id, so you can skip ids you've already handled.
+
+```js
+// Node 18+
+import { createHmac, timingSafeEqual } from 'node:crypto'
+
+export function verify(secret, headers, rawBody) {
+  const id = headers['iskra-webhook-id'], ts = headers['iskra-webhook-timestamp'], sig = headers['iskra-webhook-signature'] ?? ''
+  if (!id || !ts || Math.abs(Date.now() / 1000 - Number(ts)) > 300) return false
+  const expected = 'v1=' + createHmac('sha256', secret).update(`iskra-webhook-v1\n${ts}\n${id}\n${rawBody}`).digest('hex')
+  return sig.length === expected.length && timingSafeEqual(Buffer.from(sig), Buffer.from(expected))
+}
+```
+
+```python
+# Python 3
+import hashlib, hmac, time
+
+def verify(secret: str, headers, raw_body: bytes) -> bool:
+    msg_id, ts = headers.get("Iskra-Webhook-Id", ""), headers.get("Iskra-Webhook-Timestamp", "")
+    if not msg_id or not ts.isdigit() or abs(time.time() - int(ts)) > 300:
+        return False
+    signed = f"iskra-webhook-v1\n{ts}\n{msg_id}\n".encode() + raw_body
+    expected = "v1=" + hmac.new(secret.encode(), signed, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(headers.get("Iskra-Webhook-Signature", ""), expected)
+```
+
+Check: with the secret `whs_test`, timestamp `1760000000`, id `abc` and the body `{"type":"ping"}`, the signature is
+`v1=61117e1080d5aed00a4e39e279580b31eabbedd00eda8331228b580fb2308c28` (the server tests check this vector).
+
+### Delivery and safety
+
+| | |
+|---|---|
+| Addresses | `https://` only, and only public addresses: the server checks the address after looking up the name, on every connection, and never follows redirects. Private, loopback, link-local and cloud metadata addresses are refused. |
+| Your own network | For a receiver at home (Home Assistant on `192.168.x.x`, something on the same PC or on Tailscale), the **owner** can tick **Allow addresses on my own network** for that webhook; plain `http://` then works for those addresses only. Link-local and metadata addresses stay blocked. |
+| Answer | Any `2xx` within 10 seconds. The body of your answer is ignored. |
+| Retries | `408`, `429`, `5xx`, timeouts and network errors: again after 5 s, 30 s, 2 min and 10 min (with the same id). Other answers aren't retried. Order isn't guaranteed. |
+| Turning off | After 10 deliveries in a row that failed (after their retries), the webhook turns itself off and admins are told. Turn it on again in its settings. |
+| Rate | Per webhook: 30 events at once, then 5 a second, 100 waiting at most; more are skipped (and logged). |
+| Never sent | Anything from end-to-end encrypted channels, direct messages and group chats (the server can't read them), and messages posted by incoming webhooks. |
+| Per server | 10 outgoing webhooks |
+
 ## Bots
 
 A bot is an ordinary Iskra identity (its own account and device keys) that connects with the same protocol as the app and says it's a bot. The server remembers that, and:

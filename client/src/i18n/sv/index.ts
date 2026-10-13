@@ -34,6 +34,7 @@ import { clips } from './clips'
 import { e2ee } from './e2ee'
 import { media } from './media'
 import { hosting } from './hosting'
+import { outhooks } from './outhooks'
 
 export const sv: Messages = {
   common,
@@ -70,4 +71,5 @@ export const sv: Messages = {
   e2ee,
   media,
   hosting,
+  outhooks,
 }

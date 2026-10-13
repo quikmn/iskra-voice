@@ -195,7 +195,7 @@ public sealed class WebhookIngress(World world, Hub hub, TimeProvider time, ILog
     }
 
     /// <summary>A small thread-safe token bucket.</summary>
-    private sealed class TokenBucket(double capacity, double perSecond, TimeProvider time)
+    internal sealed class TokenBucket(double capacity, double perSecond, TimeProvider time)
     {
         private readonly Lock _gate = new();
         private readonly double _capacity = capacity;

@@ -73,6 +73,7 @@ public sealed class Router
         E2eeChannelFeature.Register(this);
         BotCommandFeature.Register(this);
         Captions.CaptionModelFeature.Register(this, captions);
+        OutgoingWebhookFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);
