@@ -31,6 +31,7 @@ import './organize.css'
 import { userMenuProps } from '../people/userMenuProps'
 import { VoiceChatRowButton } from '../clips/VoiceChatRowButton'
 import { ClipsMark } from '../clips/ClipControls'
+import { BotBadge } from '../chat/BotBits'
 
 type Drag = { kind: 'channel' | 'category'; id: number }
 type Over = { kind: 'channel' | 'category' | 'top'; id: number; after?: boolean }
@@ -341,6 +342,7 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
                 <button className="participant" onClick={(e) => openProfileCard(server.key, p.accountKey, e.currentTarget)}>
                   <Avatar name={member?.name ?? '?'} accountKey={p.accountKey} size={22} />
                   <span className="member-name">{member?.name ?? t('common.someone')}</span>
+                  {member?.bot && <BotBadge />}
                   <ClipsMark on={p.clips} />
                 </button>
                 {p.serverMuted ? <span className="voice-flag server-muted" title={t('organize.list.serverMuted')}><MicOff size={14} /></span> : p.deafened ? <span className="voice-flag" title={t('organize.list.deafened')}><HeadphonesOff size={14} /></span> : p.muted ? <span className="voice-flag" title={t('organize.list.muted')}><MicOff size={14} /></span> : null}

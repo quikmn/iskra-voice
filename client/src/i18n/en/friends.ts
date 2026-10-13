@@ -69,6 +69,7 @@ export const friends = {
     createRole: 'Create a role…',
     manageRoles: 'Manage roles…',
     moveTo: 'Move to…',
+    disconnect: 'Disconnect from voice',
     you: 'You',
   },
 } as const

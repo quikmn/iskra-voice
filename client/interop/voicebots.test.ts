@@ -9,7 +9,7 @@ import { join, resolve } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Bot, encodeWav, type TrackEnd, type VoiceGone } from '../../bots/sdk/src/index'
 import { applyVolume, createDecoder, Framer, FRAME, sniff, toStereo, WavDecoder } from '../../bots/sdk/src/voice/audio'
-import { loadRtc } from '../../bots/sdk/src/voice/modules'
+import { loadRtc, type Decoded } from '../../bots/sdk/src/voice/modules'
 import { Connection } from '../src/core/connection'
 import { ready } from '../src/core/crypto'
 import { createIdentity } from '../src/core/identity'
@@ -59,7 +59,7 @@ describe('voice bot audio', () => {
     const right = tone(0.1, 660, 44_100)[0]
     const wav = encodeWav([left, right], 44_100)
     const decoder = new WavDecoder()
-    const decoded = []
+    const decoded: Decoded[] = []
     for (let at = 0; at < wav.length; at += 7) decoded.push(...(await decoder.push(wav.slice(at, at + 7)))) // a header split anywhere
     await decoder.end()
     const samples = decoded.reduce((n, d) => n + d.samplesDecoded, 0)
@@ -99,7 +99,7 @@ describe('voice bot audio', () => {
     const bytes = new Uint8Array(readFileSync(join(__dirname, 'fixtures', file)))
     expect(sniff(bytes)).toBe(format)
     const decoder = await createDecoder(format)
-    const decoded = []
+    const decoded: Decoded[] = []
     for (let at = 0; at < bytes.length; at += 1000) decoded.push(...(await decoder.push(bytes.slice(at, at + 1000))))
     decoded.push(...(await decoder.end()))
     decoder.free()
