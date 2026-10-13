@@ -1759,6 +1759,8 @@ export interface Requests {
   'p2p.status': [Record<string, never>, { status: P2pStatus }]
   'p2p.set': [{ enabled: boolean }, { status: P2pStatus }]
   'p2p.rotate': [Record<string, never>, { status: P2pStatus }]
+}
+
 // ── captions model ──
 
 /** A short-lived link to the live-captions model on this server (members only; PROTOCOL.md "Live captions model"). */

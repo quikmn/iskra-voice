@@ -2301,6 +2301,7 @@ P2pStatus {
   and the addresses of friends who look it up, while the feature is on and the secret stays the same; never what the
   server is, who its members are, or anything of the content. Rotating the secret changes the key. The apps say so
   plainly in "Who Iskra talks to" and next to the switch.
+
 ## Outgoing webhooks
 
 The server POSTs chosen events as signed JSON to addresses that admins pick (a Minecraft bridge, Home Assistant, IFTTT).
