@@ -65,6 +65,7 @@ public static class AccountFeature
         }
 
         s.Voice.RemoveEverywhere(me.AccountKey);
+        s.Hub.Outhooks?.MemberLeft(me.AccountKey, "", "deleted"); // no name: they asked to be forgotten
         var own = Frames.Event("account.deleted", new { deletion = View(deletion) });
         var others = Frames.Event("member.deleted", new { accountKey = me.AccountKey, messages = deletion.Messages });
         foreach (var session in s.Hub.Sessions)

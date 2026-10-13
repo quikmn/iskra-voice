@@ -314,6 +314,53 @@ public class OrganizeTests
         Assert.Equal("all", Level(1, S(1, "all", 5_000)));             // mute over
         Assert.Equal("none", Level(1, S(1, "none", -1)));
         Assert.Equal("all", Level(2, S(0, "all"), S(1, "none")));
+
+        // With nothing chosen, the server's size decides; a choice always wins.
+        Assert.Equal("all", Features.NotifyFeature.DefaultFor(14));
+        Assert.Equal("mentions", Features.NotifyFeature.DefaultFor(15));
+        Assert.Equal("all", Features.NotifyFeature.EffectiveLevel([], 1, 10_000, "all"));
+        Assert.Equal("mentions", Features.NotifyFeature.EffectiveLevel([S(0, "mentions")], 1, 10_000, "all"));
+        Assert.Equal("mentions", Features.NotifyFeature.EffectiveLevel([S(0, null, -1)], 1, 10_000, "all")); // muted
+    }
+
+    [Fact]
+    public async Task Small_servers_push_every_message_by_default_until_they_grow()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        using var bob = await server.JoinAsync("Bob");
+        var endpoint = await SubscribeAsync(bob);
+
+        // Two people: every message, with nothing chosen.
+        await Say(alice, server.General, "hi all");
+        Assert.Equal("message", (await server.Push.WaitForAsync(endpoint)).Single().GetProperty("kind").GetString());
+
+        // Bob's own choice wins.
+        await bob.RequestAsync("notify.set", new { level = "mentions" });
+        await Task.Delay(700); // past the merge window
+        await Say(alice, server.General, "still there?");
+        await server.Push.NoneAsync(endpoint, already: 1);
+        await bob.RequestAsync("notify.set", new { level = "default" });
+
+        // Bots don't count toward the size: 2 people + 13 bots is still small.
+        for (var i = 0; i < 13; i++)
+        {
+            var key = Ed25519.ToB64u(RandomNumberGenerator.GetBytes(32));
+            server.World.Store.AddMember(key, $"Bot {i}", "member", 0);
+            server.World.Store.AddBot(key, alice.Key, 0);
+        }
+        await Task.Delay(700);
+        await Say(alice, server.General, "bots joined");
+        Assert.Equal(2, (await server.Push.WaitForAsync(endpoint, 2)).Count);
+
+        // 15 people: only mentions and replies by default.
+        for (var i = 0; i < 13; i++) server.World.Store.AddMember(Ed25519.ToB64u(RandomNumberGenerator.GetBytes(32)), $"P{i}", "member", 0);
+        await Task.Delay(700);
+        await Say(alice, server.General, "we're many now");
+        await server.Push.NoneAsync(endpoint, already: 2);
+        await Task.Delay(700);
+        await Say(alice, server.General, $"<@{bob.Key}> but you still hear this");
+        Assert.Equal("mention", (await server.Push.WaitForAsync(endpoint, 3))[2].GetProperty("kind").GetString());
     }
 
     [Fact]
@@ -328,7 +375,8 @@ public class OrganizeTests
         var games = server.World.Store.CreateChannel("games", "text", "member", "member", 0).Id;
         var news = server.World.Store.CreateChannel("news", "text", "member", "member", 0).Id;
 
-        // Bob wants everything in #games; Carol wants nothing from this server.
+        // Bob wants only mentions from the server but everything in #games; Carol wants nothing from this server.
+        await bob.RequestAsync("notify.set", new { level = "mentions" });
         await bob.RequestAsync("notify.set", new { channelId = games, level = "all" });
         await carol.RequestAsync("notify.set", new { level = "none" });
         await Say(alice, games, $"anyone? <@{carol.Key}>");
@@ -337,7 +385,7 @@ public class OrganizeTests
         Assert.Equal("Alice in #games", push.GetProperty("title").GetString());
         await server.Push.NoneAsync(carolEndpoint);
 
-        // Plain messages elsewhere still don't push by default.
+        // Plain messages elsewhere don't push at only mentions.
         await Say(alice, news, "patch notes");
         await server.Push.NoneAsync(bobEndpoint, already: 1);
 
@@ -366,6 +414,7 @@ public class OrganizeTests
         using var alice = await server.JoinAsync("Alice");
         using var bob = await server.JoinAsync("Bob");
         var endpoint = await SubscribeAsync(bob);
+        await bob.RequestAsync("notify.set", new { level = "mentions" }); // not every message, as on a small server
         var root = (await Say(alice, server.General, "plans")).Body().GetProperty("message").GetProperty("id").GetInt64();
         var thread = (await alice.RequestAsync("thread.create", new { messageId = root, name = "plans" })).Body().GetProperty("thread").GetProperty("id").GetInt64();
         Assert.Equal("not_found", (await bob.RequestAsync("notify.set", new { channelId = thread, level = "all" })).ErrorCode());

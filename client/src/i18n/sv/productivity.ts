@@ -26,7 +26,7 @@ export const productivity: Messages['productivity'] = {
     title: 'Påminn mig',
     about: 'Om det här meddelandet från {{name}}',
     note: 'Anteckning (valfri, bara du ser den)',
-    notePlaceholder: 'Svara på det här, ring tillbaka…',
+    notePlaceholder: 't.ex. Svara på det här, ring tillbaka',
     set: 'Lägg till påminnelse',
     done: 'Du blir påmind {{when}}',
   },

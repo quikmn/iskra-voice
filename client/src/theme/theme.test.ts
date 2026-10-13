@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { contrast, contrastIssues, effectiveColor, loadThemeChoice, nameLightness, nameSurfacesOf, readableColor, parseTheme, safeColor, solidUnderWhite, textOn, themeVariables, validateTheme } from './theme'
+import { contrast, contrastIssues, effectiveColor, INPUT_BACKGROUNDS, placeholderColor, loadThemeChoice, nameLightness, nameSurfacesOf, readableColor, parseTheme, safeColor, solidUnderWhite, textOn, themeVariables, validateTheme } from './theme'
 import { BUILT_IN_THEMES } from './themes'
 
 const valid = { meta: { name: 'Mine' }, colors: { accent: '#ff8800' } }
@@ -168,6 +168,31 @@ describe('readable role colours', () => {
   it('ignores what it cannot read', () => {
     expect(readableColor('nonsense', ['#141424'])).toBe('nonsense')
     expect(readableColor('#123456', ['transparent'])).toBe('#123456')
+  })
+})
+
+describe('input placeholders', () => {
+  const custom = { meta: { name: 'Light' }, colors: { bgDeep: '#ffffff', bgChat: '#f6f6f8', bgFloat: '#ffffff', bgButton: '#eeeef2', textNormal: '#1a1a1a', textSubtle: '#55555f' } }
+  const looks = [...BUILT_IN_THEMES.map((b) => b.theme), { meta: { name: 'Default' }, colors: {} }, custom]
+
+  it('are visibly dimmer than typed text yet stay at 4.5:1 in every theme', () => {
+    for (const theme of looks) {
+      const text = effectiveColor(theme, 'textNormal')
+      const bgs = INPUT_BACKGROUNDS.map((k) => effectiveColor(theme, k))
+      const placeholder = themeVariables(theme)['--placeholder']
+      const worst = (c: string) => Math.min(...bgs.map((b) => contrast(c, b)))
+      expect(worst(placeholder), theme.meta.name).toBeGreaterThanOrEqual(4.5)
+      // Dimmer wherever the text leaves room above 4.5.
+      if (worst(text) >= 4.5 / 0.55) expect(worst(placeholder) / worst(text), theme.meta.name).toBeLessThanOrEqual(0.6)
+      expect(placeholder, theme.meta.name).not.toBe(text)
+    }
+  })
+
+  it('keeps text that is already at the limit as it is', () => {
+    expect(placeholderColor('#777777', ['#ffffff'])).toBe('#777777')
+    expect(placeholderColor('#ffffff', ['#000000'], '#888888')).toBe('#888888') // the theme's own grey fits
+    expect(placeholderColor('#ffffff', ['#000000'], '#222222')).not.toBe('#222222') // too dim to read
+    expect(placeholderColor('nope', ['#ffffff'])).toBe('nope')
   })
 })
 

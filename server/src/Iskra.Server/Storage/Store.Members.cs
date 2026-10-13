@@ -15,6 +15,9 @@ public sealed partial class Store
 
     public int CountMembers() => Convert.ToInt32(Scalar("SELECT COUNT(*) FROM members;"));
 
+    /// <summary>Members who are people (bots left out).</summary>
+    public int CountPeople() => Convert.ToInt32(Scalar("SELECT COUNT(*) FROM members WHERE account_key NOT IN (SELECT account_key FROM bots);"));
+
     public bool HasOwner() => Convert.ToInt32(Scalar("SELECT COUNT(*) FROM members WHERE role = 'owner';")) > 0;
 
     public Member AddMember(string accountKey, string name, string role, long now)

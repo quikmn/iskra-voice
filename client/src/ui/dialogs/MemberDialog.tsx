@@ -55,7 +55,7 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
       <div className="member-card">
         <Avatar name={member.name} accountKey={member.accountKey} size={64} status={presence.status} />
         <div>
-          <strong className="member-card-name">{member.name}</strong> {member.bot && <BotBadge />}
+          <strong className="member-card-name">{member.name}</strong> {member.bot && <BotBadge builtin={!!member.builtin} />}
           {member.nick && member.profileName && member.profileName !== member.name && <div className="muted">{t('profile.nameLine', { name: member.profileName })}</div>}
           <div className="muted">{[member.pronouns, t(`common.roles.${member.role}`), STATUS_LABELS[presence.status].toLowerCase()].filter(Boolean).join(' · ')}</div>
           <div className="muted">{t('settings.member.id')} <code>{fingerprint(member.accountKey)}</code></div>
@@ -92,7 +92,7 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
         <section className="settings-section">
           <h3>{t('settings.member.moderation')}</h3>
           {canModerate && <label className="field inline">
-            <span>{t('settings.member.level')}</span>
+            <span>{t('settings.member.baseRole')}</span>
             <select
               value={member.role}
               onChange={(e) => void run(() => connection.request('member.setRole', { accountKey: member.accountKey, role: e.target.value as Role }))}

@@ -9,8 +9,10 @@ import type { AuthorInfo } from './bots'
 import { cardPictureUrl, embedColor, safeUrl } from './bots'
 import '../bots.css'
 
-export function BotBadge() {
+export function BotBadge({ builtin = false }: { builtin?: boolean }) {
   const { t } = useTranslation()
+  // Built-in bots run inside the server: their own badge says so.
+  if (builtin) return <span className="bot-badge builtin" title={t('builtinBots.badgeTitle')}>{t('builtinBots.badge')}</span>
   return <span className="bot-badge" title={t('chat.bot.title')}>{t('chat.bot.badge')}</span>
 }
 

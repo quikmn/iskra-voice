@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { desktop, type DesktopSettings } from '../../platform/desktop'
 import { setAlwaysLoad, siteName, useSiteConsent } from '../../state/siteConsent'
+import { OutgoingHosts } from './OutgoingHosts'
 
-type Item = 'servers' | 'embeds' | 'watch' | 'gifs' | 'updates' | 'push' | 'webApp' | 'hosting'
+type Item = 'servers' | 'embeds' | 'watch' | 'gifs' | 'updates' | 'push' | 'webApp' | 'hosting' | 'outgoing'
 
-const ITEMS: Item[] = ['servers', 'embeds', 'watch', 'gifs', 'updates', 'push', 'webApp', 'hosting']
+const ITEMS: Item[] = ['servers', 'embeds', 'watch', 'gifs', 'updates', 'push', 'webApp', 'hosting', 'outgoing']
 
 export function ConnectionsSection() {
   const { t } = useTranslation()
@@ -38,6 +39,7 @@ export function ConnectionsSection() {
             <strong>{t(`compliance.connections.${item}.who`)}</strong>
             <span>{t(`compliance.connections.${item}.when`)}</span>
             <span className="muted">{t(`compliance.connections.${item}.off`)}</span>
+            {item === 'outgoing' && <OutgoingHosts />}
             {item === 'updates' && desktop && desktopSettings && (
               <label className="checkbox connection-switch">
                 <input type="checkbox" checked={desktopSettings.updateChecks !== false} onChange={(e) => void setUpdateChecks(e.target.checked)} />

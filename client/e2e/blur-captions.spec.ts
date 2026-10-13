@@ -14,7 +14,8 @@ import { createInviteLink, FAKE_SPEECH_ARGS, hasLiveKit, joinVia, openSettings, 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 test.use({ launchOptions: { args: [...FAKE_SPEECH_ARGS, '--disable-features=LocalNetworkAccessChecks'] } })
 
-const MODEL = resolve(dirname(fileURLToPath(import.meta.url)), '../.models/models/whisper-base-1846881b/decoder.q8.onnx.part2.bin')
+const MODEL_DIR = 'whisper-base-1846881b'
+const MODEL = resolve(dirname(fileURLToPath(import.meta.url)), `../.models/models/${MODEL_DIR}/decoder.q8.onnx.part2.bin`)
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -199,10 +200,10 @@ test('live captions of what people say, with the model downloaded once and check
     await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected')
     // A file that isn't the pinned one is refused.
     await friend.unroute('**/models/**')
-    await friend.route('**/models/**/vocab.json.part0.bin', (route) => route.fulfill({ status: 200, body: 'not the vocabulary' }))
+    await friend.route('**/models/**/vocab.json.part0.bin?*', (route) => route.fulfill({ status: 200, body: 'not the vocabulary' }))
     await overlay.getByRole('button', { name: 'Try again' }).click()
     await expect(overlay).toContainText("wasn't the right file", { timeout: 60_000 })
-    await friend.unroute('**/models/**/vocab.json.part0.bin')
+    await friend.unroute('**/models/**/vocab.json.part0.bin?*')
     await overlay.getByRole('button', { name: 'Try again' }).click()
     // The parts came from the call's own server, which fetched the model once into its world folder.
     await expect(overlay.locator('[aria-live="polite"]')).toHaveCount(1)
@@ -217,6 +218,9 @@ test('live captions of what people say, with the model downloaded once and check
     await expect(friendSettings.getByLabel('Show captions in calls')).toBeChecked()
     await expect(friendSettings.getByText('The speech model is on this device.')).toBeVisible()
     expect(await friend.evaluate(async () => (await (await caches.open('iskra-models')).keys()).length)).toBe(6)
+    // Members only: without the link the app got over its connection, the server refuses the model.
+    const anonymous = await friend.request.get(`${captionsServer.url}/models/${MODEL_DIR}/vocab.json.part0.bin`)
+    expect(anonymous.status()).toBe(403)
     await friendSettings.getByLabel('Caption language').selectOption('sv')
     await friend.keyboard.press('Escape')
 

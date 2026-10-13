@@ -221,9 +221,22 @@ export function EncryptedBits({ message }: { message: Message }) {
   if (!shown || shown.state === 'pending') return <div className="e2ee-note muted">{t('e2ee.message.pending')}</div>
   if (shown.state === 'error') {
     const noKey = shown.error === "This device doesn't have the key for this message." || shown.error === BEFORE_YOU_JOINED
+    // Moved, replayed or rolled back by the server: said plainly.
+    const tampering = ([en.e2ee.errors.moved, en.e2ee.errors.replayed, en.e2ee.errors.rolledBack] as string[]).includes(shown.error ?? '')
+    if (tampering) return <div className="e2ee-note e2ee-flag" data-testid="e2ee-unreadable" role="note"><Lock size={12} /> {e2eeText(shown.error!)}</div>
     return <div className="e2ee-note muted" data-testid="e2ee-unreadable"><Lock size={12} /> {noKey ? t('e2ee.message.noKey') : t('e2ee.message.error')}</div>
   }
-  return shown.files?.length ? <DmAttachments files={shown.files} /> : null
+  return (
+    <>
+      {shown.afterRemoval !== undefined && (
+        <div className="e2ee-note e2ee-flag" data-testid="e2ee-after-removal" role="note">
+          ⚠ {t('e2ee.message.afterRemoval', { date: formatDate(shown.afterRemoval, { dateStyle: 'medium', timeStyle: 'short' }) })}
+        </div>
+      )}
+      {shown.files?.length ? <DmAttachments files={shown.files} /> : null}
+      {shown.legacy && <div className="e2ee-older muted" data-testid="e2ee-older" title={t('e2ee.message.olderFormatHint')}>{t('e2ee.message.olderFormat')}</div>}
+    </>
+  )
 }
 
 /** The composer's place in an encrypted channel this device can't write in yet. */

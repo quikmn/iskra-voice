@@ -283,6 +283,7 @@ public class PresenceTests
                 endpoint,
                 keys = new { p256dh = Ed25519.ToB64u([4, .. q.X!, .. q.Y!]), auth = Ed25519.ToB64u(RandomNumberGenerator.GetBytes(16)) },
             });
+            await user.RequestAsync("notify.set", new { level = "mentions" }); // only mentions: a small server would push every message by default
             return endpoint;
         }
         var bobEndpoint = await Subscribe(bob);

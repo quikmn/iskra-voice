@@ -74,7 +74,7 @@ const VARIABLES: { name: string; key: ColorKey; fallback: string }[] = [
   { name: '--accent-subtle', key: 'accentSubtle', fallback: 'color-mix(in srgb, var(--accent) 8%, transparent)' },
   { name: '--on-accent', key: 'onAccent', fallback: '#ffffff' },
 ]
-const OTHER_VARIABLES = ['--radius', '--avatar-radius', '--font', '--mono', '--name-l']
+const OTHER_VARIABLES = ['--radius', '--avatar-radius', '--font', '--mono', '--name-l', '--placeholder']
 
 // ── Validation ──────────────────────────────────────────────────────────────
 
@@ -252,6 +252,32 @@ export function nameLightness(background: string): number {
   return 96
 }
 
+/** Where inputs sit: their own background first (--bg), then the surfaces around them (composer, dialogs, buttons). */
+export const INPUT_BACKGROUNDS = ['bgDeep', 'bgChat', 'bgFloat', 'bgButton'] as const
+
+/**
+ * Placeholder text: visibly dimmer than what people type (at most about 60% of the text's contrast), but never
+ * under `min` on any of `backgrounds`, so it stays legible. The theme's own subtle grey when that fits, else the
+ * text colour mixed toward the first background.
+ */
+export function placeholderColor(text: string, backgrounds: readonly string[], subtle?: string, min = 4.5): string {
+  const fg = rgbOf(text)
+  const bgs = backgrounds.filter((b) => rgbOf(b))
+  if (!fg || !bgs.length) return text
+  const toward = rgbOf(bgs[0])!
+  const worst = (c: string) => Math.min(...bgs.map((b) => contrast(c, b)))
+  if (subtle && rgbOf(subtle) && worst(subtle) >= min && worst(subtle) <= worst(text) * 0.6) return subtle
+  const target = Math.max(min, worst(text) * 0.55)
+  let out = text
+  for (let step = 1; step <= 50; step++) {
+    const f = step / 50
+    const candidate = `#${fg.map((c, i) => Math.round(c + (toward[i] - c) * f).toString(16).padStart(2, '0')).join('')}`
+    if (worst(candidate) < target) break
+    out = candidate
+  }
+  return out
+}
+
 /** The colour, darkened just enough for white text on it to read at 4.5:1 (danger buttons). */
 export function solidUnderWhite(color: string): string {
   const rgb = rgbOf(color)
@@ -376,6 +402,7 @@ export function themeVariables(theme: ThemeFile): Record<string, string> {
   if (!theme.colors.onAccent && theme.colors.accent) vars['--on-accent'] = textOn(theme.colors.accent)
   if (theme.colors.danger) vars['--danger-solid'] = solidUnderWhite(theme.colors.danger)
   if (theme.colors.bgChat) vars['--name-l'] = `${nameLightness(theme.colors.bgChat)}%`
+  vars['--placeholder'] = placeholderColor(effectiveColor(theme, 'textNormal'), INPUT_BACKGROUNDS.map((k) => effectiveColor(theme, k)), effectiveColor(theme, 'textSubtle'))
   vars['--radius'] = `${theme.radius ?? 10}px`
   vars['--avatar-radius'] = AVATAR_SHAPES[theme.avatarShape ?? 'circle']
   vars['--font'] = BODY_FONTS[theme.fonts?.body ?? 'inter']

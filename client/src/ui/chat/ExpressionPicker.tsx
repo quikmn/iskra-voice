@@ -2,12 +2,13 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
-import type { GifCategory, GifResult, MessageGif, Sticker } from '../../core/protocol'
+import { roleRank, type GifCategory, type GifResult, type MessageGif, type Sticker } from '../../core/protocol'
 import { serverFileUrl } from '../../state/expressions'
 import { gifCategories, isFavourite, searchGifs, toggleFavourite, trendingGifs, useGifs, useGifStatus } from '../../state/gifs'
 import { klipyFrameDocument } from '../../core/klipy'
 import type { ServerState } from '../../state/store'
 import { LINKS } from '../../links'
+import { openServerSettings } from '../settings/open'
 import { Spinner } from '../bits'
 import { EmojiPicker } from '../expressions/EmojiPicker'
 import { Lightbox } from './media'
@@ -42,7 +43,7 @@ export function ExpressionPicker({ server, anchor, initialTab = 'emoji', onEmoji
     </div>
   )
   const body = tab === 'gifs'
-    ? <GifPanel server={server} onPick={(gif) => { onGif(gif); onClose() }} />
+    ? <GifPanel server={server} onPick={(gif) => { onGif(gif); onClose() }} onClose={onClose} />
     : tab === 'stickers'
       ? <StickerPanel server={server} onPick={(sticker) => { onSticker(sticker); onClose() }} />
       : undefined
@@ -51,7 +52,7 @@ export function ExpressionPicker({ server, anchor, initialTab = 'emoji', onEmoji
 
 // ── GIFs ────────────────────────────────────────────────────────────────────
 
-function GifPanel({ server, onPick }: { server: ServerState; onPick: (gif: GifResult) => void }) {
+function GifPanel({ server, onPick, onClose }: { server: ServerState; onPick: (gif: GifResult) => void; onClose: () => void }) {
   const status = useGifStatus(server.key)
   const enabled = status?.enabled
   const isDirect = status?.mode !== 'proxy'
@@ -103,13 +104,23 @@ function GifPanel({ server, onPick }: { server: ServerState; onPick: (gif: GifRe
     }
   }
 
+  const admin = !!server.me && roleRank(server.me.role) >= roleRank('admin')
   if (enabled === undefined) return <div className="gif-panel gif-center"><Spinner /></div>
   if (!enabled) {
     return (
       <div className="gif-panel gif-center gif-off">
         <strong>{t('chat.picker.offTitle')}</strong>
-        <p className="muted">{t('chat.picker.offHint')}</p>
-        <a className="button small" href={LINKS.gifsGuide} target="_blank" rel="noopener noreferrer">{t('chat.picker.setUp')}</a>
+        {admin ? (
+          <>
+            <p className="muted">{t('chat.picker.offHintAdmin')}</p>
+            <button type="button" className="button small primary" onClick={() => { onClose(); openServerSettings(server.key, 'gifs') }}>{t('chat.picker.openGifSettings')}</button>
+          </>
+        ) : (
+          <>
+            <p className="muted">{t('chat.picker.offHint')}</p>
+            <a className="button small" href={LINKS.gifsGuide} target="_blank" rel="noopener noreferrer">{t('chat.picker.setUp')}</a>
+          </>
+        )}
       </div>
     )
   }

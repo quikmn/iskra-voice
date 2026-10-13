@@ -1142,7 +1142,7 @@ NotifySetting { "channelId": 1 | null /* null = whole server */, "level": "all" 
 | `notify.set` | `channelId?` (a channel you can read, not a thread; absent = the server), `level?` (`all` \| `mentions` \| `none` \| `default`), `muteMinutes?` (0 = unmute, −1 = until turned back on, 1–43200) | `{ setting }` | anyone |
 
 - `welcome.notify` lists your settings (expired mutes read as not muted). Event `notify.updated { setting }` goes to all of your sessions.
-- **The effective level** for a channel: the channel's level, else the server's, else `mentions`. A thread follows its channel. While the channel or the server is muted, `all` counts as `mentions`.
+- **The effective level** for a channel: the channel's level, else the server's, else the default: `all` on a server with fewer than 15 members (bots not counted), `mentions` from 15 on. The default follows the server's size as it changes; any level a member picked wins. A thread follows its channel. While the channel or the server is muted, `all` counts as `mentions`.
 - **Push:** `all` pushes every message (`kind: "message"`), `mentions` pushes mentions and replies, `none` pushes nothing from that channel. DMs and calls aren't affected.
 - **Clients:** muted channels are dimmed and show no unread marker; mention badges stay unless the level is `none`.
 
@@ -1684,12 +1684,12 @@ Every HTTP response gets `X-Content-Type-Options: nosniff` and `Referrer-Policy:
 
 ## Server updates and health
 
-The standalone server can check GitHub releases for new versions, tell the owner, and (on Linux under systemd) install them itself. A server run by the desktop app updates together with the app and never checks. Settings live in `server.json` → `Updates` (`Mode`: `off` | `notify` (default) | `auto`; `Channel`: `stable` | `prerelease`; `Window`: `HH:mm`, local time; `RequireAttestation`: bool).
+The standalone server can check GitHub releases for new versions, tell the owner, and (on Linux under systemd) install them itself. A server run by the desktop app updates together with the app and never checks. Settings live in `server.json` → `Updates` (`Mode`: `off` | `notify` (default) | `auto`; `Channel`: `stable` | `prerelease`; `Window`: `HH:mm`, local time; `VerifyAttestation`: bool, default `true`. Older versions wrote `RequireAttestation: false` into every server.json; it's no longer read, so those servers verify too, and `VerifyAttestation: false` is the owner's explicit choice).
 
 ```jsonc
 UpdateStatus {
   "current": "2.0.0-alpha.10",          // "0.0.0-dev" for development builds (they never check)
-  "mode": "off" | "notify" | "auto", "channel": "stable" | "prerelease", "window": "04:00", "requireAttestation": false,
+  "mode": "off" | "notify" | "auto", "channel": "stable" | "prerelease", "window": "04:00", "requireAttestation": true,   // server.json VerifyAttestation
   "managed": "desktop" | null,          // "desktop": updates with the desktop app; mode is "off" and can't change
   "canCheck": true,
   "auto": { "possible": false, "reason": "desktop" | "development" | "platform" | "guard" | "readonly" | null },
@@ -1699,9 +1699,9 @@ UpdateStatus {
   "progress": { "done": 1048576, "total": 66350346 } | null,   // while downloading (bytes)
   "checkedAt": 1760000000000 | null, "error": "Couldn't reach GitHub to check for updates." | null,
   "errorCode": "rate_limited" | "unreachable" | "download" | "install" | "sums" | "size" | "checksum" | "github_checksum"
-             | "package" | "wont_run" | "attestation_missing" | "attestation_unknown" | null,   // apps show their own text for it
+             | "package" | "wont_run" | "attestation_missing" | "attestation_invalid" | "attestation_unknown" | null,   // apps show their own text for it
   "lastUpdate": { "from": "2.0.0-alpha.10", "to": "2.0.0-alpha.11", "ok": true } | null,  // ok false: it didn't start and was undone
-  "attested": true | false | null       // whether GitHub has a build attestation for the package being installed
+  "attested": true | false | null       // the package being installed: true verified, false missing or not verifying, null GitHub not asked
 }
 ```
 
@@ -1715,8 +1715,8 @@ UpdateStatus {
 - **Events:** `update.status` `{ status }` goes to the owner's sessions whenever it changes (check results, download progress about every 2%, failures). `server.restarting` `{ reason: "update", version }` goes to every session about 5 seconds before the server restarts into a new version; apps tell members, then reconnect as after any restart ([Restarts and reconnecting](#restarts-and-reconnecting); the close reason says `update` with a downtime hint).
 - **Checks:** unauthenticated GitHub API (`GET /repos/quikmn/iskra-voice/releases`, `If-None-Match` with the last ETag), 2 minutes after start and then every 6 hours (not when `Mode` is `off`, except "Check now"). On a rate-limit answer the next check waits until GitHub's reset time. Drafts and tags that aren't `v<version>` are ignored. "stable" means releases GitHub doesn't mark as prerelease (alphas are published as normal releases).
 - **Packages:** `iskra-server-<v>-linux-x64.tar.gz`, `-osx-arm64.tar.gz`, `-osx-x64.tar.gz`, `-win-x64.zip`. Downloads only from `https://github.com/quikmn/iskra-voice/releases/download/`, HTTPS only (redirects to GitHub's storage), at most 512 MB.
-- **Verification before anything is replaced:** the package's SHA-256 must match its line in the release's `SHA256SUMS.txt` and GitHub's own `digest` for the file (when the API gives one), and its size must match. Then `GET /repos/quikmn/iskra-voice/attestations/sha256:<hash>` is asked whether a build-provenance attestation exists (`attested`); with `RequireAttestation` an install without one fails. The server doesn't check Sigstore signatures itself (see docs/hosting.md for what this does and doesn't protect against). The archive may only hold plain files at its top level with plain names (no folders, links, `..` or absolute paths) and must contain `iskra-server`. The unpacked `iskra-server version` must print the new version (so a package that can't run on this machine is never swapped in).
-- **Automatic install** (`Mode: "auto"`): only when `auto.possible`: Linux x64, a release build, not desktop-hosted, the folder iskra-server runs from is writable, and `iskra-update-guard` ran just before this start (systemd `ExecStartPre`). It starts in the hour after `Window` when nobody is in a voice channel; a version that failed or was undone isn't retried automatically.
+- **Verification before anything is replaced:** the package's SHA-256 must match its line in the release's `SHA256SUMS.txt` and GitHub's own `digest` for the file (when the API gives one), and its size must match. Then the build-provenance attestations come from `GET /repos/quikmn/iskra-voice/attestations/sha256:<hash>` (at most 4 MB, 20 bundles) and are verified on the server, offline, against Sigstore's public-good trusted root compiled into it (`Updates/sigstore-trusted-root.json`, refreshed for each release): certificate chain to Fulcio, SCT, transparency log entry, DSSE signature (the `Sigstore` NuGet library); a certificate from `https://token.actions.githubusercontent.com` for repository id `1227290412` on a GitHub-hosted runner whose SAN is exactly `https://github.com/quikmn/iskra-voice/.github/workflows/release.yml@refs/tags/v<version>` or `.../release-finalize.yml@refs/heads/main`; and an in-toto statement (`https://slsa.dev/provenance/v1`) whose subjects include the package's file name with its SHA-256. With `VerifyAttestation` (the default) an install fails without one: `attestation_missing` (none, e.g. an old release; install by hand), `attestation_invalid` (none verifies), `attestation_unknown` (GitHub couldn't be asked; auto mode tries again in a later window). Off, the result is still shown (`attested`). The archive may only hold plain files at its top level with plain names (no folders, links, `..` or absolute paths) and must contain `iskra-server`. The unpacked `iskra-server version` must print the new version (so a package that can't run on this machine is never swapped in).
+- **Automatic install** (`Mode: "auto"`): only when `auto.possible`: Linux x64, a release build, not desktop-hosted, the folder iskra-server runs from is writable, and `iskra-update-guard` ran just before this start (systemd `ExecStartPre`). It starts in the hour after `Window` when nobody is in a voice channel; a version that failed or was undone isn't retried automatically (except after `attestation_unknown`).
 - **Security log** (see "Security log" above): `update.check` (the owner, `{ latest }`), `update.settings` (the owner, `{ from, to }`), `update.install` (the owner `{ from, to }`, or no account with `{ from, to, auto: true }`), and with no account: `update.failed` `{ version, code }`, `update.installed` `{ from, to }` (confirmed), `update.rolledback` `{ from, to }`.
 - **Swap and rollback:** files are renamed into place inside the server's folder; the replaced ones go to `.update/previous/`. The server writes `.update/pending` and exits with code 75 (systemd's `Restart=on-failure` starts the new version). The new version confirms itself after running for 60 s. If it fails to start three times before that, `iskra-update-guard` puts the previous files back (`.update/rolled-back`), and the owner sees `lastUpdate.ok: false`.
 
@@ -1964,15 +1964,29 @@ it. It is wrapped for every valid, unrevoked device of every member of the new m
 ### Messages
 
 ```jsonc
-{ "v": 1, "kind": "channel",
-  "header": { "from": "<accountKey>", "chain": "<chain id>", "version": 3, "sentAt": 1760000000000, "id": "<b64u 12>" },
+{ "v": 2, "kind": "channel",
+  "header": { "from": "<accountKey>", "chain": "<chain id>", "version": 3, "sentAt": 1760000000000, "id": "<b64u 12>",
+              "channel": 12, "thread"?: 34, "edit"?: "<id of the message's first envelope, ≤ 32 chars>" },
   "sender": DeviceCert, "nonce": "<b64u 24>", "ct": "<b64u>", "sig": "<b64u 64>" }
 ```
 
-- `ad = JSON.stringify(["iskra/channel-msg/v1", from, chain, version, head, sentAt, id])` (`head` of that version, from the verified chain); `ct = XChaCha20-Poly1305(epochKey, nonce, content, ad)`.
-- `sig = Ed25519.sign(deviceSecret, "iskra/channel-msg/v1" || 0x00 || u64be(len(ad)) || ad || u64be(24) || nonce || ct)`: every member holds the epoch key, so the device signature is what proves who wrote it.
+- `channel` is the encrypted channel's id (a thread's parent), `thread` the thread's id when the message is in one (left out otherwise), `edit` (on `chat.edit` only) the `id` of the message's first envelope.
+- `ad = JSON.stringify(["iskra/channel-msg/v2", from, chain, version, head, sentAt, id, channel, thread ?? 0, edit ?? ""])` (`head` of that version, from the verified chain); `ct = XChaCha20-Poly1305(epochKey, nonce, content, ad)`.
+- `sig = Ed25519.sign(deviceSecret, "iskra/channel-msg/v2" || 0x00 || u64be(len(ad)) || ad || u64be(24) || nonce || ct)`: every member holds the epoch key, so the device signature is what proves who wrote it.
 - Content: `{ "text": "…" (≤ 4000), "files"?: [DmFile] }` ([encrypted attachments](#encrypted-dm-attachments); a voice note is a file with `voice`).
-- Receivers check: the header's `from` and `version` equal the message's `author` and `e2ee.version`; the version is in their verified chain and `from` was a member then; the certificate and signature; then decrypt. A message from before this device had a key shows as unreadable, never as text.
+- Receivers check: the header's `from` and `version` equal the message's `author` and `e2ee.version`; `channel` and `thread` equal where the message arrived (its `channelId`: the channel itself, or a thread of it); the version is in their verified chain and `from` was a member then; the certificate and signature; then decrypt. A message from before this device had a key shows as unreadable, never as text. A message moved to another channel or thread (or between a parent and its threads) is shown as moved, never as text.
+- **The server** checks a v2 envelope's `channel` and `thread` against the send (`bad_request`), like `from`, `chain` and `version`; it reads nothing else.
+- **What apps remember.** Each app keeps, per message, the envelope ids it showed (first envelope and edits) and the newest one's `sentAt`. It refuses an envelope whose `id` (or, for v2, whose `edit` or first `id`) belongs to another message (a replay or a moved edit), and an envelope older than the newest it showed for that message (an original after an edit, an edit older than one it showed, by `sentAt`): an edit can't be rolled back on a device that saw it. Copies kept elsewhere (pins, a thread's first message) may lag behind an edit and aren't refused for that.
+- **The older format (v1)**, sent before this version: no `channel`, `thread` or `edit`; `ad = JSON.stringify(["iskra/channel-msg/v1", from, chain, version, head, sentAt, id])` and the signature under `iskra/channel-msg/v1`. Apps still open v1 messages and mark them "older format" (a server could have moved them between a channel and its threads), and only send v2. The two contexts differ, so a v2 message can't be passed off as v1 (or back). Test vectors for both: `channel` in [vectors.json](vectors.json).
+
+#### Messages from people who were removed
+
+Someone removed at version n keeps the epoch keys of the versions before n and their device key, so they can still sign a message "at version n − 1", and a server could slip it in. Nothing about the message itself can tell it apart from one they really sent then, so apps judge it by time:
+
+- **When they lost access** comes from the verified chain: the `at` of the first later change whose `members` leave them out. That `at` is signed by the member who made the change, and the server refuses changes more than 10 minutes off its clock, so neither the removed person nor the server can move it. For a chain kept after a [start-over](#starting-over), its end is also bounded by when this device saw it replaced.
+- **When the message claims it was sent:** its signed `sentAt` (the sender's clock) and the server's `createdAt`. The server only takes messages for the current version, so an honest message at version n − 1 was stored before change n, at most 10 minutes past its `at`.
+- If either time is more than **10 minutes** after they lost access, the app shows the message with a warning ("sent after its writer lost access … may not really be from them") and never notifies for it. Being added back later doesn't help: new messages go to the new epoch, so an old epoch's message after the removal still gets the warning.
+- **Limits:** a removed member and the server working together can still backdate a message into the time the member was in (both clocks then lie in step). Neither can make it look sent after anyone else's removal, nor into another channel or thread. A sender whose clock runs more than 10 minutes fast may see a message sent just before their removal flagged.
 
 ### Requests and events
 
@@ -2025,27 +2039,32 @@ Voice resilience (no protocol change, for reference): clients publish the mic wi
 ## Live captions model
 
 Live captions run on members' devices (Whisper base, [docs/voice-processing.md](../docs/voice-processing.md)); the
-speech model comes from the group's own server, so members' devices never contact anyone else for it. No WebSocket
-messages: plain HTTP on the server's port.
+speech model comes from the group's own server, so members' devices never contact anyone else for it, and only
+members get it: the app asks for a short-lived link over its session, then downloads over plain HTTP on the server's port.
 
 - **Pins.** `client/src/state/captions/model.json` (compiled into the app and the server): the model `dir`
   (`whisper-base-1846881b`: name and Hugging Face commit), the upstream `source`, and for each file (`encoder.q8.onnx`
   23.2 MB, `decoder.q8.onnx` 53.7 MB, `vocab.json` 1.0 MB) its SHA-256, size and parts (at most 20 MiB each), each
   with its own SHA-256 and size.
-- **`GET /models/<dir>/<part>`**, where `part` is `<file>.part<n>.bin`. Anything else (another `dir`, another name,
+- **`captions.model.link`** (request, any member, empty body; limit 10, then one a second) → `{ offered: false }` when the
+  owner turned it off, else `{ offered: true, path: "/models/<dir>", query: "a=<accountKey>&exp=<ms>&sig=<b64u>", expires }`.
+  `sig` = HMAC-SHA-256 with a random per-process key over `"iskra/captions-model-link/v1\0<dir>\0<accountKey>\0<exp>"`;
+  valid for an hour (links stop working on restart; the app asks again for each download).
+- **`GET /models/<dir>/<part>?<query>`**, where `part` is `<file>.part<n>.bin`. Anything else (another `dir`, another name,
   encoded slashes, `..`) is `404`, as is everything when the owner turned it off (`Captions.ModelDownload: false` in
-  server.json). The first request makes the server fetch the whole model once from `source` (HTTPS, at most the
+  server.json). Without a valid link (missing, wrong signature, expired, another `dir`, or for an account that is no
+  longer a member) the answer is `403` and nothing is fetched. The first linked request makes the server fetch the whole model once from `source` (HTTPS, at most the
   pinned size per file, redirects only to HTTPS); concurrent requests wait for that same download. Each file and each
   part must match its SHA-256 before anything is written (atomically, to `models/<dir>/` in the world folder);
   otherwise nothing is kept, the answer is `502`, and a later request tries again. Then `200`,
-  `application/octet-stream`, `Cache-Control: public, max-age=31536000, immutable`, byte ranges allowed.
-- **`HEAD`** on the same path: `200` when the server offers the model (without fetching anything), `404` when not.
+  `application/octet-stream`, `Cache-Control: private, max-age=31536000, immutable`, byte ranges allowed.
+- **`HEAD`** on the same path (with a link): `200` when the server offers the model (without fetching anything), `404` when not.
 - `Access-Control-Allow-Origin: *` (the apps' pages are `app://`, `capacitor://` and the web app's own origin; the
-  model is public and there are no credentials), with an `OPTIONS` preflight answer.
+  link in the address is the only credential, no cookies), with an `OPTIONS` preflight answer.
 - **Limits.** 30 requests at once per client address, then one every 5 seconds (`429`); the whole model is 6 parts.
-- **Apps.** They ask only after the person agreed to the one-time download, check every part's size and SHA-256
+- **Apps.** They ask for the link when captions start, and download only after the person agreed to the one-time download, check every part's size and SHA-256
   against their own copy of the pins (a mismatch is refused, never used or kept), and keep the parts on the device
-  under a key that doesn't depend on the server, so the model is downloaded once per device.
+  under a key that doesn't depend on the server or the link, so the model is downloaded once per device.
 - Security log: `captions.model.download` / `captions.model.rejected` ([Security log](#security-log)).
 - `Captions.ModelSource` (server.json, optional): a folder laid out like `scripts/get-models.mjs` writes it, used
   instead of `source` (development and tests; the same checks apply).
@@ -2215,3 +2234,149 @@ Cards use the [webhook embed](#webhooks) format, validator and limits (≤ 10 pe
 Messages carry `cards: [Card] | null` (`null` for everything except a bot's message with cards). Stored cards keep
 only the fields above; a picture from `/files` is returned as that file's URL path, which apps resolve against the
 server's address. Card text is rendered as text and markdown by apps, never as HTML.
+
+## Outgoing webhooks
+
+The server POSTs chosen events as signed JSON to addresses that admins pick (a Minecraft bridge, Home Assistant, IFTTT).
+Requests over the WebSocket; managing needs `manageWebhooks` (admins and the owner always); others get `forbidden`.
+
+| type | body | result | who |
+|---|---|---|---|
+| `outhook.list` | | `{ hooks: [OutHook] }` | managers |
+| `outhook.create` | `name` (1–32), `url` (≤ 512), `events: [EventType]` (≥ 1), `channelIds?: [id]` (≤ 50), `allowLocal?` (default false) | `{ hook, secret }` | managers; `allowLocal: true` only the owner |
+| `outhook.update` | `id`, any of `name`, `url`, `events`, `channelIds`, `allowLocal`, `enabled` | `{ hook }` | managers |
+| `outhook.regenerate` | `id` | `{ hook, secret }`; the old secret stops working at once | managers |
+| `outhook.delete` | `id` | | managers |
+| `outhook.log` | `id` | `{ deliveries: [Delivery] }` (newest first, the last 50) | managers |
+| `outhook.test` | `id` | `{ delivery }`: sends `ping` once, now (no retries; doesn't count towards turning off) | managers |
+| `outhook.hosts` | | `{ hooks: [{ name, host, events }] }`, turned-on webhooks only, never the full address | every member |
+
+```jsonc
+OutHook { "id": "<b64u 16>", "name": "Minecraft", "url": "https://mc.example.com/iskra", "host": "mc.example.com",
+          "events": ["message.created"], "channelIds": [1], "allowLocal": false, "enabled": true,
+          "disabledReason": null | "failures", "failures": 0, "createdBy": accountKey, "createdAt": ms,
+          "lastDeliveryAt": ms | null, "lastOutcome": Outcome | null }
+Delivery { "delivery": "<b64u 16>", "event": "message.created", "attempt": 1, "at": ms, "status": 200 | null,
+           "outcome": Outcome, "ms": 120 }
+Outcome = "ok" | "http" | "timeout" | "network" | "blocked" | "redirect" | "rate_limited" | "queue_full" | "too_large"
+```
+
+**Events** (`EventType`):
+
+| type | `data` | sent for |
+|---|---|---|
+| `message.created` | `{ message: { id, channel: { id, name, kind, parentId }, author: { accountKey, name, bot }, text, createdAt, replyTo, attachments: [{ name, size, type }] } }` | messages in the chosen channels and their threads (voice and stage channel chat, forum post replies too) |
+| `reaction.added` | `{ messageId, channel, emoji, member: { accountKey, name, bot } }` | the same channels; removing a reaction sends nothing |
+| `member.joined` | `{ member: { accountKey, name, role, bot } }` | the whole server |
+| `member.left` | `{ member: { accountKey, name }, reason: "left" \| "kicked" \| "banned" \| "deleted" }` | the whole server |
+| `event.started` | `{ event: { id, title, description, startAt, endAt, channel \| null, location } }` | events without a channel, or in a chosen channel |
+| `ping` | `{ hook: { id, name } }` | `outhook.test` only |
+
+- Managers only see (list, update, regenerate, delete, log, test) webhooks whose channels they can all read; others are
+  `not_found`, so nobody can point a webhook for a channel they can't read at their own address.
+- `channelIds` are text, voice, stage or forum channels you can read, never [end-to-end encrypted](#end-to-end-encrypted-channels)
+  ones (`bad_request`). `message.created` and `reaction.added` need at least one. Messages in a channel that becomes
+  encrypted are never sent (the server can't read them anyway). Direct messages and group chats never are. Messages
+  posted by incoming webhooks aren't sent (no loops).
+- At most 10 outgoing webhooks per server. Rate limits: `outhook.create` 10, then one every 2 s; `outhook.update` 10,
+  then 1/s; `outhook.test` 3, then one every 5 s; `outhook.hosts` 10, then 1/s.
+
+**Addresses.** `https://` only; no user name or password in the URL. Each connection resolves the name and connects
+only to an allowed address (checked after DNS, every time, so a name that later points somewhere private gets
+`blocked`): public addresses, the same list as link previews (no loopback, private, link-local, CGNAT, multicast or
+cloud metadata ranges). Redirects are never followed (`redirect`), no proxy is used. With `allowLocal` (only the owner can
+turn it on; an admin who changes the URL turns it off) the webhook may also reach the server's own network: loopback,
+10/8, 172.16/12, 192.168/16, 100.64/10 (Tailscale) and IPv6 unique-local, and plain `http://` is then accepted for
+those addresses only. Link-local (169.254/16, fe80::/10), unspecified and multicast addresses are never reached. When
+the name resolves at create/update time, a URL with no allowed address is refused (`outhook_address_private`,
+`outhook_address_reserved`).
+
+**The request.**
+
+```http
+POST <url>
+Content-Type: application/json; charset=utf-8
+User-Agent: Iskra-Webhook/1
+Iskra-Webhook-Id: <delivery id, the same on every retry>
+Iskra-Webhook-Event: message.created
+Iskra-Webhook-Timestamp: <unix seconds, this attempt>
+Iskra-Webhook-Signature: v1=<hex HMAC-SHA256(secret, "iskra-webhook-v1\n" + timestamp + "\n" + id + "\n" + body)>
+
+{ "id": "<delivery id>", "type": "message.created", "timestamp": ms, "server": { "name": "..." }, "data": { ... } }
+```
+
+- The secret (`whs_` + 43 characters) is per webhook, shown when made or regenerated, and stored on the server to sign
+  with. The HMAC key is the secret's UTF-8 bytes. Receivers check the signature in constant time, refuse timestamps
+  more than 5 minutes away from their clock, and may drop delivery ids they've already seen (see `docs/bots.md`).
+- Body ≤ 64 KB. Each attempt times out after 10 s (connect 5 s); the response body is never read.
+- `2xx` is success. `408`, `429`, `5xx`, timeouts and network errors are retried after 5 s, 30 s, 2 min and 10 min
+  (`Retry-After` is honoured up to 10 min); other answers, `blocked` and `redirect` are not. Deliveries aren't ordered.
+- Per webhook: 30 events at once, then 5/s, and at most 100 waiting or retrying; more are dropped and logged
+  (`rate_limited`, `queue_full`).
+- A delivery that still fails after its retries counts one failure; a success resets the count. At 10 the webhook is
+  turned off (`enabled: false`, `disabledReason: "failures"`) and online managers get the event
+  `outhook.disabled { hook: OutHook }`. Turning it on again (`enabled: true`) clears the count.
+- The log keeps the last 50 attempts per webhook: time, event, attempt, HTTP status, outcome and duration, never the
+  payload. It goes with the webhook.
+- Apps list every server's `outhook.hosts` under "Who Iskra talks to", so members see where their server sends things.
+
+## Built-in bots
+
+The server itself can run three small bots, each turned on or off by an admin: **Dice** (`/roll`), **Polls** (`/poll`)
+and **Reminders** (`/remind`). While on, each is a bot member like any other (`bot: true`, plus `builtin`): it has a
+role (member when turned on; admins can change it, up to trusted), channel permissions decide where it answers, and it
+registers its command in the [command registry](#command-registry) so apps suggest it. It never connects: when someone
+sends a plain channel message that starts with its command, the server answers right after the sender's own reply. No
+external process is involved.
+
+| type | body | result | who |
+|---|---|---|---|
+| `builtin.bots.set` | `bot: "dice" \| "polls" \| "reminders"`, `enabled: bool` | `{ bots: [BuiltinBot] }` | admins (`forbidden`, key `builtin_bots_admin`) |
+
+```jsonc
+BuiltinBot { "id": "dice", "accountKey": "<b64u>" | null, "enabled": true }
+```
+
+- `welcome.builtinBots: [BuiltinBot]` lists all three, in that order. `accountKey` is null until the bot is first turned
+  on; from then on it stays the same (turned off and on again, it's the same member, so its old messages keep their
+  author). Event `builtin.bots { bots }` goes to everyone on a change, next to the usual `member.joined` and
+  `bot.commands` (on) or `member.removed` (off). Turning on a bot that's on (or off one that's off) changes nothing.
+- The bot's key is a fresh Ed25519 public key whose private key is never kept, so nobody can sign in as it.
+- Members carry `builtin: "dice" | "polls" | "reminders" | null`; built-in bots always show as online. Kicking one is
+  the same as turning it off. Rate limit: 10, then one a second.
+
+### Commands
+
+A command is the message text `/name args` or `/name@Handle args` (the handle is the bot's shown name without spaces;
+another handle means another bot). The command name is matched case-insensitively. A bot answers only when all hold:
+it's on, the channel is a `text`, `thread`, `voice` or `stage` channel, the bot can read **and** post there (its role
+and the channel's overrides; threads follow their parent), it isn't timed out, the channel isn't
+[encrypted](#end-to-end-encrypted-channels), and the sender isn't a bot (bots never answer bots). Per sender, answers
+are limited (Dice 10 then 1/s, Polls 5 then one per 5 s, Reminders 10 then 1/s) on top of `chat.send`'s own limit;
+over it, the bot stays quiet.
+
+| command | does |
+|---|---|
+| `/roll [dice]` | Dice notation: terms `NdM` (N 1–999, M 2–1000, `d%` = d100, N defaults to 1) and whole numbers ≤ 100000, joined by `+` or `-` (spaces only around them); ≤ 10 terms, ≤ 100 dice in all; empty means `1d6`. Rolled with the system's secure random generator. |
+| `/poll Question \| Answer \| Answer ...` | A native [poll](#polls) (also `"Question" "Answer" "Answer"`), made by the Polls bot through `poll.create`, with all its checks and limits: text channels only, 2–10 different answers. Votes and closing work as for any poll (admins and moderators can end it). |
+| `/remind [me] [in] <time> [to\|about\|:] [note]` | An ordinary [reminder](#reminders) for the sender about the command message, due after `<time>`: one or more `<number><unit>` (`m`/`min`/`minutes`, `h`/`hours`, `d`/`days`, `w`/`weeks`, also Swedish `minuter`, `timmar`, `dagar`, `veckor`, `mig om`), from 1 minute up to 365 days; the note ≤ 300 characters. It shows in the sender's reminders (`reminder.updated`), fires like any reminder (`reminder.due`, push) and can be snoozed or cancelled there. Its `data` is not sealed (the command was plain text already): `"bot." + base64url(JSON { note, where, at })`, which `reminder.create`/`reminder.update` never accept from apps. Per-person limit as for reminders. |
+
+Each answer is a message from the bot that everyone who can read the channel sees, with plain English `text` for any
+app, and `builtin` with what it means, so apps can word it in their own language:
+
+```jsonc
+// every answer: { "bot": "dice", "kind": "...", "for": "<sender's accountKey>", ... }
+{ "kind": "roll", "expression": "2d6+3", "groups": [{ "sign": 1, "count": 2, "sides": 6, "rolls": [4, 2] }], "modifier": 3, "total": 9 }
+{ "kind": "roll.invalid", "input": "banana" }      // ≤ 60 characters of what was sent
+{ "kind": "poll.usage" }                            // a successful /poll answers with the poll itself (no `builtin`)
+{ "kind": "remind", "dueAt": 1760000000000 }
+{ "kind": "remind.usage" }
+{ "kind": "error", "error": { "code": "bad_request", "message": "...", "key": "poll_channel", "args": null } }
+```
+
+Messages carry `builtin: {...} | null` (`null` for everything except a built-in bot's answer). Answers are kept and
+deleted like other messages; "Download my data" lists the answers to your own commands (`builtinBotAnswers`).
+
+**Encrypted channels.** The server can't read messages there, so it can't see a command or its arguments: built-in
+bots never answer in encrypted channels (or their threads), `bot.commands.available` is `[]` there, and apps say so
+when someone types `/` instead of suggesting commands nobody will answer.

@@ -10,6 +10,8 @@ export const common = {
   edit: 'Edit',
   done: 'Done',
   ok: 'OK',
+  /** An input's placeholder that shows an example value. */
+  example: 'e.g. {{value}}',
   back: 'Back',
   next: 'Next',
   continue: 'Continue',

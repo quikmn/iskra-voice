@@ -33,7 +33,7 @@ export const presence: Messages['presence'] = {
     label: 'Vad händer?',
     changeEmoji: 'Emoji {{emoji}}, byt',
     pickEmoji: 'Välj en emoji',
-    placeholder: 'Ute på lunch',
+    placeholder: 't.ex. Ute på lunch',
     clearInput: 'Rensa text och emoji',
     clearAfter: 'Rensa efter',
   },

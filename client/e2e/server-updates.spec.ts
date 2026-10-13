@@ -58,6 +58,18 @@ test('the owner checks for updates, sees what is new and picks how updates happe
   await section.getByRole('checkbox', { name: /Include test versions/ }).click()
   await expect(section.getByText('Update available: 2.0.0-alpha.12')).toBeVisible()
 
+  // The signed build attestation is checked by default; turning that off warns why it matters.
+  const attestation = section.getByRole('checkbox', { name: /Check the signed build attestation/ })
+  await expect(attestation).toBeChecked()
+  await expect(section.locator('.update-attestation-off')).toHaveCount(0)
+  await attestation.click()
+  await expect(attestation).not.toBeChecked()
+  await expect(section.locator('.update-attestation-off')).toContainText('anyone who got into that account could ship an update')
+  await owner.screenshot({ path: join(SHOTS, 'server-updates-attestation-off.png') })
+  await attestation.click()
+  await expect(attestation).toBeChecked()
+  await expect(section.locator('.update-attestation-off')).toHaveCount(0)
+
   // The notice above the chat, for the owner only.
   await owner.keyboard.press('Escape')
   const notice = owner.locator('.update-nudge')

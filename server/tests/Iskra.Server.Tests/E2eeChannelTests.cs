@@ -42,6 +42,47 @@ public class E2eeChannelTests
         ["nonce"] = "n", ["ct"] = ct, ["sig"] = "s",
     };
 
+    /// <summary>A v2 message envelope: it names the channel (and thread) it was sent to.</summary>
+    private static JsonObject BoundEnvelope(User from, string chain, long version, string ct, long channel, long? thread = null)
+    {
+        var envelope = MessageEnvelope(from, chain, version, ct);
+        envelope["v"] = 2;
+        var header = (JsonObject)envelope["header"]!;
+        header["channel"] = channel;
+        if (thread is { } t) header["thread"] = t;
+        return envelope;
+    }
+
+    [Fact]
+    public async Task Bound_envelopes_must_name_the_channel_and_thread_they_are_sent_to()
+    {
+        using var t = await CreateAsync();
+        var sent = await t.Bob.RequestAsync("chat.send", new { channelId = t.ChannelId, version = 1, envelope = BoundEnvelope(t.Bob, t.Chain, 1, "parent", t.ChannelId) });
+        Assert.Equal("result", sent.Type());
+        var messageId = sent.Body().GetProperty("message").GetProperty("id").GetInt64();
+        // Stored and relayed as sent (the server never reads more than the routing fields).
+        Assert.Equal(t.ChannelId, sent.Body().GetProperty("message").GetProperty("e2ee").GetProperty("envelope").GetProperty("header").GetProperty("channel").GetInt64());
+
+        var threadId = (await t.Bob.RequestAsync("thread.create", new { messageId, name = "x" })).Body().GetProperty("thread").GetProperty("id").GetInt64();
+        Assert.Equal("result", (await t.Carol.RequestAsync("chat.send",
+            new { channelId = threadId, version = 1, envelope = BoundEnvelope(t.Carol, t.Chain, 1, "thread", t.ChannelId, threadId) })).Type());
+        // Named for the parent but sent to the thread, the other way round, another thread, another channel: refused.
+        Assert.Equal("bad_request", (await t.Carol.RequestAsync("chat.send",
+            new { channelId = threadId, version = 1, envelope = BoundEnvelope(t.Carol, t.Chain, 1, "x", t.ChannelId) })).ErrorCode());
+        Assert.Equal("bad_request", (await t.Carol.RequestAsync("chat.send",
+            new { channelId = t.ChannelId, version = 1, envelope = BoundEnvelope(t.Carol, t.Chain, 1, "x", t.ChannelId, threadId) })).ErrorCode());
+        Assert.Equal("bad_request", (await t.Carol.RequestAsync("chat.send",
+            new { channelId = threadId, version = 1, envelope = BoundEnvelope(t.Carol, t.Chain, 1, "x", t.ChannelId, threadId + 1000) })).ErrorCode());
+        Assert.Equal("bad_request", (await t.Carol.RequestAsync("chat.send",
+            new { channelId = t.ChannelId, version = 1, envelope = BoundEnvelope(t.Carol, t.Chain, 1, "x", t.Server.General) })).ErrorCode());
+        // Edits too; older (v1) envelopes are still taken.
+        Assert.Equal("bad_request", (await t.Bob.RequestAsync("chat.edit",
+            new { id = messageId, version = 1, envelope = BoundEnvelope(t.Bob, t.Chain, 1, "edit", t.ChannelId, threadId) })).ErrorCode());
+        Assert.Equal("result", (await t.Bob.RequestAsync("chat.edit",
+            new { id = messageId, version = 1, envelope = BoundEnvelope(t.Bob, t.Chain, 1, "edit", t.ChannelId) })).Type());
+        Assert.Equal("result", (await t.Bob.RequestAsync("chat.send", Send(t, t.Bob, 1, "older format"))).Type());
+    }
+
     private sealed record Setup(IskraServer Server, User Owner, User Bob, User Carol, User Dave, long ChannelId, string Chain, string Head) : IDisposable
     {
         public void Dispose()

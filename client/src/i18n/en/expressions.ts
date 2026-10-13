@@ -62,7 +62,7 @@ export const expressions = {
     create: 'Create a poll',
     post: 'Post poll',
     question: 'Question',
-    questionPlaceholder: 'What should we play tonight?',
+    questionPlaceholder: 'e.g. What should we play tonight?',
     answers: 'Answers',
     answer: 'Answer {{n}}',
     removeAnswer: 'Remove answer {{n}}',

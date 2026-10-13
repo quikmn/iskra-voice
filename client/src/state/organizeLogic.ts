@@ -105,7 +105,11 @@ export type NotifyMap = Record<string, NotifySetting>
 
 export const notifyKey = (channelId: number | null) => (channelId === null ? 'server' : String(channelId))
 
-export const DEFAULT_LEVEL: NotifyLevel = 'mentions'
+/** Below this many people (bots not counted) the default is every message. Same as the server (NotifyFeature). */
+export const SMALL_SERVER = 15
+
+/** The level when you chose nothing: all messages in a small friend group, only @mentions on a bigger server. */
+export const defaultLevel = (people: number): NotifyLevel => (people < SMALL_SERVER ? 'all' : 'mentions')
 
 export const muteActive = (setting: NotifySetting | undefined, now: number) =>
   !!setting && setting.mutedUntil !== null && (setting.mutedUntil === -1 || setting.mutedUntil > now)
@@ -113,16 +117,16 @@ export const muteActive = (setting: NotifySetting | undefined, now: number) =>
 export interface EffectiveNotify {
   /** What you're notified about: "all" drops to "mentions" while muted. */
   level: NotifyLevel
-  /** The level as chosen (channel, else server, else the default), before muting. */
+  /** The level as chosen (channel, else server, else the default for the server's size), before muting. */
   chosen: NotifyLevel
   muted: boolean
 }
 
 /** Same rules as the server (NotifyFeature.EffectiveLevel): channel, else server, else default; muting caps at mentions. */
-export function effectiveNotify(map: NotifyMap | undefined, channelId: number | null, now: number): EffectiveNotify {
+export function effectiveNotify(map: NotifyMap | undefined, channelId: number | null, now: number, fallback: NotifyLevel = 'mentions'): EffectiveNotify {
   const channel = channelId === null ? undefined : map?.[notifyKey(channelId)]
   const server = map?.server
-  const chosen = channel?.level ?? server?.level ?? DEFAULT_LEVEL
+  const chosen = channel?.level ?? server?.level ?? fallback
   const muted = muteActive(channel, now) || muteActive(server, now)
   return { level: muted && chosen === 'all' ? 'mentions' : chosen, chosen, muted }
 }

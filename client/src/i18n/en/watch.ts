@@ -7,7 +7,7 @@ export const watch = {
   linkPlaceholder: 'https://youtu.be/… or https://…/video.mp4',
   badLink: 'That needs to be a YouTube link or an https:// link.',
   titleOptional: 'Title (optional)',
-  titlePlaceholder: 'Movie night',
+  titlePlaceholder: 'e.g. Movie night',
   uploading: 'Uploading… {{percent}}%',
   uploadVideo: 'Upload a video',
   screenInstead: 'Anything else? Share your screen with audio instead.',

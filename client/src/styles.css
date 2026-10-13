@@ -13,6 +13,7 @@
   --text: #e2e2f0;
   --text-2: #b4b4cc;
   --muted: #8484a8;
+  --placeholder: #8484a8; /* dimmer than --text, 4.5:1 on inputs (theme.ts placeholderColor) */
   --green: #4ade80;
   --red: #f87171;
   --amber: #fbbf24;
@@ -124,7 +125,7 @@ kbd {
 input, textarea, select {
   background: var(--bg); border: 1px solid var(--border); border-radius: calc(var(--radius) * 0.8); padding: 10px 12px; outline: none; width: 100%;
 }
-input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
+input::placeholder, textarea::placeholder { color: var(--placeholder); opacity: 1; }
 input[type='file'] { padding: 6px; font-size: 14px; color: var(--text-2); }
 input[type='file']::file-selector-button {
   font: inherit; font-weight: 600; font-size: 13px; color: var(--text); margin-right: 10px; padding: 6px 12px; cursor: pointer;
@@ -775,7 +776,7 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 /* In a call, the call panel says how it's encrypted; the header badge would repeat it. */
 .chat-header:has(+ .call-panel) .e2e-badge { display: none; }
 input.confirm-code { display: block; width: 100%; }
-input.confirm-code::placeholder { color: var(--muted); }
+input.confirm-code::placeholder { color: var(--placeholder); }
 
 /* ── Presence and custom status ─────────────────────────────────────── */
 .presence.idle { background: var(--amber); }

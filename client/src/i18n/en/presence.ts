@@ -32,7 +32,7 @@ export const presence = {
     label: "What's happening?",
     changeEmoji: 'Emoji {{emoji}}, change',
     pickEmoji: 'Pick an emoji',
-    placeholder: 'Out for lunch',
+    placeholder: 'e.g. Out for lunch',
     clearInput: 'Clear text and emoji',
     clearAfter: 'Clear after',
   },

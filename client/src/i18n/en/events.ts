@@ -27,7 +27,7 @@ export const events = {
     schedule: 'Schedule an event',
     scheduleButton: 'Schedule',
     title: 'Title',
-    titlePlaceholder: 'Game night',
+    titlePlaceholder: 'e.g. Game night',
     description: 'Description',
     descriptionPlaceholder: "What's the plan? (optional)",
     starts: 'Starts',

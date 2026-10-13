@@ -28,6 +28,7 @@ import { notifyChannelMessage } from './notify'
 import { knownThread } from './threads'
 import { connectionFor, onServerEvent, onWelcomeHook, patchServer, setChannelSender, uploadFile, useApp, type PendingMessage } from './store'
 import { acceptStartOver, CHAIN_REPLACED, chainFor, receiveChain, type ChainState, type PastChain } from './e2eeStartOver'
+import { checkSeen, noteSeen, ROLLED_BACK, seenIndex, type Seen } from './e2eeIntegrity'
 import { setChannelVoiceKeys, setCallKey, useVoice } from './voice'
 
 /** What the UI shows about an encrypted channel. */
@@ -48,8 +49,8 @@ export interface ChannelCrypto {
 
 export const useE2ee = create<{ channels: Record<string, ChannelCrypto> }>(() => ({ channels: {} }))
 
-/** A decrypted message as kept on this device, for search and catch-up. */
-export interface LocalMessage {
+/** A decrypted message as kept on this device, for search and catch-up, with what its envelopes said (e2eeIntegrity.ts). */
+export interface LocalMessage extends Seen {
   id: number
   channelId: number
   author: string
@@ -80,6 +81,8 @@ interface Rec extends ChainState {
   serverKey: string
   channelId: number
   messages: Map<number, LocalMessage>
+  /** Which message each envelope id belongs to (built from `messages` when first needed). */
+  envelopeIds?: Map<string, number>
 }
 
 const keysIn = (stored: Record<number, string> | undefined) => new Map(Object.entries(stored ?? {}).map(([v, k]) => [Number(v), fromB64u(k)] as const))
@@ -499,6 +502,12 @@ export interface Shown {
   error?: string
   /** No key yet for an epoch this account was in: tried again when keys arrive. */
   retry?: boolean
+  /** Sent in the older format, not bound to its channel or thread. */
+  legacy?: boolean
+  /** It claims a time after its sender lost access to the channel (then): not shown as really theirs. */
+  afterRemoval?: number
+  /** The channel's chain version it was checked against (a later removal means checking it again). */
+  checked?: number
 }
 
 type Shownable = PendingMessage & { e2eeShown?: Shown }
@@ -510,7 +519,11 @@ const waitingSync = new Set<string>()
 /** Messages that arrived live (not from history), so they may notify once they're readable. */
 const live = new Set<string>()
 
-function decryptOne(serverKey: string, message: Shownable): Shownable {
+/** Where the server put a message: the encrypted channel, and the thread if it's in one. */
+const placeOf = (channel: Channel, channelId: number) => ({ channel: channel.id, ...(channelId !== channel.id ? { thread: channelId } : {}) })
+
+/** `lenient`: a copy kept elsewhere (pins, a thread's root) may be older than the newest edit this device saw. */
+function decryptOne(serverKey: string, message: Shownable, lenient = false): Shownable {
   const env = message.e2ee
   if (!env) return message
   const channel = encryptedChannel(serverKey, message.channelId)
@@ -538,16 +551,29 @@ function decryptOne(serverKey: string, message: Shownable): Shownable {
     return { ...message, e2eeShown: { state: 'error', error: BEFORE_YOU_JOINED } }
   }
   try {
-    const content = decryptChannelMessage(env.envelope, { from: message.author, version: env.version }, found.view, (v) => found.keys.get(v))
-    rec.messages.set(message.id, { id: message.id, channelId: message.channelId, author: message.author, text: content.text, at: message.createdAt })
-    persist(rec)
+    const routed = { from: message.author, version: env.version, ...placeOf(channel, message.channelId), at: message.createdAt }
+    const content = decryptChannelMessage(env.envelope, routed, found.view, (v) => found.keys.get(v), found.endedAt)
+    // Replayed under another message, an edit moved to another message, or an edit rolled back (security review L13).
+    const seen = rec.messages.get(message.id)
+    rec.envelopeIds ??= seenIndex(rec.messages.values())
+    const problem = checkSeen(seen, (hid) => rec.envelopeIds!.get(hid), message.id, content.header, content.legacy)
+    if (problem && !(lenient && problem === ROLLED_BACK)) throw new DmError(problem)
+    if (!problem) {
+      const noted = noteSeen(seen, content.header, content.legacy)
+      for (const h of noted.hids ?? []) rec.envelopeIds.set(h, message.id)
+      if (noted.origin) rec.envelopeIds.set(noted.origin, message.id)
+      rec.messages.set(message.id, { ...noted, id: message.id, channelId: message.channelId, author: message.author, text: content.text, at: message.createdAt })
+      persist(rec)
+    }
     const reply = message.replyTo && 'author' in message.replyTo && !message.replyTo.text ? rec.messages.get(message.replyTo.id) : undefined
+    const flags = { ...(content.legacy ? { legacy: true } : {}), ...(content.afterRemoval !== undefined ? { afterRemoval: content.afterRemoval } : {}) }
     const out: Shownable = {
-      ...message, text: content.text, e2eeShown: { state: 'ok', ...(content.files ? { files: content.files } : {}) },
+      ...message, text: content.text, e2eeShown: { state: 'ok', ...(content.files ? { files: content.files } : {}), ...flags, checked: rec.view.version },
       ...(reply && message.replyTo && 'author' in message.replyTo ? { replyTo: { ...message.replyTo, text: reply.text.slice(0, 140) } } : {}),
     }
     const tag = `${serverKey}:${message.id}`
-    if (live.delete(tag)) notifyChannelMessage(serverKey, out)
+    // Never a notification for a message that isn't shown as really from its sender.
+    if (live.delete(tag) && content.afterRemoval === undefined) notifyChannelMessage(serverKey, out)
     return out
   } catch (e) {
     const failure = decryptFailure(e, found.view, env.version, me(), waitingSync.has(rec.slot))
@@ -585,7 +611,7 @@ export async function prepareChannel(serverKey: string, channelId: number): Prom
 }
 
 /** A message as this device can show it (decrypted if it can be), for lists outside the chat (pins, a thread's root). */
-export const readable = (serverKey: string, message: Message): Message => (message.e2ee ? decryptOne(serverKey, message as Shownable) : message)
+export const readable = (serverKey: string, message: Message): Message => (message.e2ee ? decryptOne(serverKey, message as Shownable, true) : message)
 
 function requestSync(serverKey: string, channelId: number): void {
   const slot = slotOf(serverKey, channelId)
@@ -598,7 +624,16 @@ function requestSync(serverKey: string, channelId: number): void {
   })
 }
 
-const needsWork = (m: Shownable) => !!m.e2ee && (!m.e2eeShown || m.e2eeShown.state === 'pending' || !!m.e2eeShown.retry)
+/** Shown, but checked against an older version of the chain (one that may not have had the sender's removal yet). */
+function stale(serverKey: string, m: Shownable): boolean {
+  if (m.e2eeShown?.state !== 'ok' || m.e2eeShown.checked === undefined) return false
+  const channel = encryptedChannel(serverKey, m.channelId)
+  const version = channel ? records.get(slotOf(serverKey, channel.id))?.view?.version : undefined
+  return version !== undefined && version !== m.e2eeShown.checked
+}
+
+const needsWork = (serverKey: string, m: Shownable) =>
+  !!m.e2ee && (!m.e2eeShown || m.e2eeShown.state === 'pending' || !!m.e2eeShown.retry || stale(serverKey, m))
 
 /** Decrypts what's waiting in a server's loaded channels (pending ones are tried again). */
 function redecrypt(serverKey: string, onlyNew = false): void {
@@ -606,8 +641,8 @@ function redecrypt(serverKey: string, onlyNew = false): void {
   if (!server) return
   const changed: Record<number, PendingMessage[]> = {}
   for (const [id, list] of Object.entries(server.messages)) {
-    if (!list.some((m) => (onlyNew ? !!m.e2ee && !(m as Shownable).e2eeShown : needsWork(m)))) continue
-    changed[Number(id)] = list.map((m) => (needsWork(m) && (!onlyNew || !(m as Shownable).e2eeShown) ? decryptOne(serverKey, m) : m))
+    if (!list.some((m) => (onlyNew ? !!m.e2ee && !(m as Shownable).e2eeShown : needsWork(serverKey, m)))) continue
+    changed[Number(id)] = list.map((m) => (needsWork(serverKey, m) && (!onlyNew || !(m as Shownable).e2eeShown) ? decryptOne(serverKey, m) : m))
   }
   if (Object.keys(changed).length === 0) return
   for (const list of Object.values(changed)) processed.add(list)
@@ -719,7 +754,7 @@ async function sendSealed(serverKey: string, channelId: number, body: { text: st
     const rec = await readyRec(serverKey, channel.id)
     const view = rec.view!
     const content = contentOf(body)
-    const envelope = encryptChannelMessage(identity, view, rec.keys.get(view.version)!, content)
+    const envelope = encryptChannelMessage(identity, view, rec.keys.get(view.version)!, content, placeOf(channel, channelId))
     try {
       const reply = await connection.request('chat.send', {
         channelId, version: view.version, envelope, replyTo: body.replyTo, nonce: body.nonce,
@@ -743,10 +778,13 @@ export async function editEncrypted(serverKey: string, message: Message, text: s
   const channel = encryptedChannel(serverKey, message.channelId)
   if (!channel) throw new DmError('Not an encrypted channel.')
   const identity = useApp.getState().identity!
+  // An edit names the message's first envelope (v2), so a server can't show it under another message.
+  const header = (message.e2ee?.envelope as Partial<ChannelEnvelope> | undefined)?.header
+  const first = header?.edit ?? header?.id
   for (let attempt = 0; ; attempt++) {
     const rec = await readyRec(serverKey, channel.id)
     const view = rec.view!
-    const envelope = encryptChannelMessage(identity, view, rec.keys.get(view.version)!, contentOf({ text }, shownOf(message)?.files))
+    const envelope = encryptChannelMessage(identity, view, rec.keys.get(view.version)!, contentOf({ text }, shownOf(message)?.files), placeOf(channel, message.channelId), Date.now(), first)
     try {
       await connectionFor(serverKey)!.request('chat.edit', { id: message.id, version: view.version, envelope } as never)
       return

@@ -18,6 +18,7 @@ import { RecoveryNudge } from './dialogs/RecoveryKey'
 import { IncomingCall } from './calls/Calls'
 import { IncomingGroupCall } from './groups/GroupCall'
 import { SoundToasts } from './expressions/Soundboard'
+import { OuthookToast } from './OuthookToast'
 import { ProfileLayer } from './profile/ProfileLayer'
 import { UserMenuLayer } from './people/UserMenu'
 import { ServerActionLayer } from './organize/ServerMenu'
@@ -93,6 +94,7 @@ export function Shell() {
       )}
 
       <SoundToasts />
+      <OuthookToast />
       {panel !== 'none' && <div className="scrim" onClick={() => setPanel('none')} />}
       <IncomingCall />
       <IncomingGroupCall />

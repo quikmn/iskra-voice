@@ -11,8 +11,10 @@ import { FilePick } from '../FilePick'
 import { AuthorAvatar, BotBadge } from '../chat/BotBits'
 import { appUrl, messageTime } from '../format'
 import '../bots.css'
+import { OutgoingWebhooks } from './OutgoingWebhooks'
+import { BuiltinBotsSection } from '../settings/BuiltinBotsSection'
 
-type Tab = 'webhooks' | 'bots'
+type Tab = 'webhooks' | 'outgoing' | 'bots'
 
 /** Settings → Bots & webhooks (admins). */
 export function IntegrationsSection({ server }: { server: ServerState }) {
@@ -23,9 +25,10 @@ export function IntegrationsSection({ server }: { server: ServerState }) {
       <h2>{t('settings.sections.integrations')}</h2>
       <div className="segmented" role="tablist" aria-label={t('settings.integrations.tabs')}>
         <button role="tab" aria-selected={tab === 'webhooks'} className={tab === 'webhooks' ? 'on' : ''} onClick={() => setTab('webhooks')}>{t('settings.integrations.webhooks')}</button>
+        <button role="tab" aria-selected={tab === 'outgoing'} className={tab === 'outgoing' ? 'on' : ''} onClick={() => setTab('outgoing')}>{t('outhooks.tab')}</button>
         <button role="tab" aria-selected={tab === 'bots'} className={tab === 'bots' ? 'on' : ''} onClick={() => setTab('bots')}>{t('settings.integrations.bots')}</button>
       </div>
-      {tab === 'webhooks' ? <Webhooks server={server} /> : <Bots server={server} />}
+      {tab === 'webhooks' ? <Webhooks server={server} /> : tab === 'outgoing' ? <OutgoingWebhooks server={server} /> : <Bots server={server} />}
     </section>
   )
 }
@@ -195,7 +198,7 @@ function WebhookForm({ server, initial, submitLabel, onSubmit, onCancel }: {
     <div style={{ width: '100%' }}>
       <label className="field">
         <span>{t('settings.overview.name')}</span>
-        <input value={name} maxLength={32} placeholder="GitHub" onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void submit()} />
+        <input value={name} maxLength={32} placeholder={t('common.example', { value: 'GitHub' })} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void submit()} />
       </label>
       <div className="options-row" style={{ marginTop: 0 }}>
         <label className="field inline">
@@ -237,7 +240,7 @@ function Bots({ server }: { server: ServerState }) {
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null)
-  const bots = Object.values(server.members).filter((m) => m.bot).sort((a, b) => a.name.localeCompare(b.name))
+  const bots = Object.values(server.members).filter((m) => m.bot && !m.builtin).sort((a, b) => a.name.localeCompare(b.name))
 
   async function createInvite() {
     try {
@@ -261,6 +264,7 @@ function Bots({ server }: { server: ServerState }) {
 
   return (
     <>
+      <BuiltinBotsSection server={server} />
       <p className="muted">
         <Trans i18nKey="settings.integrations.botsIntro" components={{ code: <code />, badge: <BotBadge /> }} />
       </p>

@@ -8,6 +8,7 @@ import {
 } from '../state/store'
 import { Attachments, LinkPreviewCard, Reactions, ReactionPicker, ReplyLine } from './chat/MessageExtras'
 import { AuthorAvatar, BotBadge, Embeds } from './chat/BotBits'
+import { BuiltinReply } from './chat/BuiltinReply'
 import { useCommandSuggest } from './chat/CommandSuggest'
 import { authorOf, sameSender } from './chat/bots'
 import { patchUpload } from './chat/uploads'
@@ -353,7 +354,7 @@ function MessageRow({
             ) : (
               <span className="author" style={{ color: authorColor }}>{name}</span>
             )}
-            {shown.bot && <BotBadge />}
+            {shown.bot && <BotBadge builtin={shown.builtin} />}
             {message.imported && <ImportedBadge />}
             <time title={fullTime(message.createdAt)}>{messageTime(message.createdAt)}</time>
             {message.pinned && <PinnedMark />}
@@ -369,13 +370,14 @@ function MessageRow({
         {editing ? (
           <EditBox server={server} message={message} onDone={() => onEdit(false)} />
         ) : (
-          (message.text || message.editedAt) && !message.poll && (
+          (message.text || message.editedAt) && !message.poll && !message.builtin && (
             <div className="message-text">
               {renderMarkdown(message.text, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey, emoji: emojiLookup, roleOf, serverKey: server.key })}
               <EditedMark server={server} message={message} />
             </div>
           )
         )}
+        {message.builtin && <BuiltinReply server={server} reply={message.builtin} />}
         {message.poll && <PollCard server={server} message={message} />}
         {message.automod && <AutoModAlertCard server={server} alert={message.automod} />}
         {message.sticker && <StickerMessage server={server} sticker={message.sticker} />}
