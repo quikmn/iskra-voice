@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { activeServerState, useApp } from '../state/store'
 import { ChannelSidebar } from './ChannelSidebar'
 import { ChatArea } from './chat/ChatArea'
-import { JoinDialog } from './dialogs/JoinDialog'
+import { JoinDialog, useOpenJoinRequests } from './dialogs/JoinDialog'
 import { CreateServerDialog } from './dialogs/CreateServerDialog'
 import { StartServerDialog } from './dialogs/StartServerDialog'
 import { desktop } from '../platform/desktop'
@@ -42,6 +42,7 @@ export function Shell() {
   const server = useApp(activeServerState)
   const [panel, setPanel] = useState<Panel>('none')
   const [joining, setJoining] = useState(false)
+  useOpenJoinRequests(useCallback(() => setJoining(true), []))
   const [creating, setCreating] = useState(false)
   const stage = useVoice((s) => s.stageOpen && s.session?.serverKey === server?.key && !s.session?.call && !s.session?.group)
   const stageChannel = useVoice((s) => s.session?.channelId)

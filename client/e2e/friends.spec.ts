@@ -87,6 +87,14 @@ test('with no servers, you can find out how to start one and change your name', 
   await expect(guide.getByRole('link', { name: 'Mac (Apple silicon)' })).toHaveAttribute('href', /-mac-arm64\.dmg$/)
   await page.keyboard.press('Escape')
 
+  // A group needs a server: New group leads to joining one instead of a dead end.
+  await page.getByRole('button', { name: 'New group' }).first().click()
+  const group = page.getByRole('dialog', { name: 'New group' })
+  await expect(group).toContainText("Join a friend's server first")
+  await group.getByRole('button', { name: 'Join a server' }).click()
+  await expect(page.getByRole('dialog', { name: 'Join a server' })).toBeVisible()
+  await page.keyboard.press('Escape')
+
   // Settings are reachable from Home too.
   await page.getByRole('button', { name: 'Settings', exact: true }).click()
   const name = page.getByRole('dialog', { name: 'Settings' }).getByLabel('Name', { exact: true })

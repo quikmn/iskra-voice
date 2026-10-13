@@ -13,6 +13,7 @@ export const groups = {
   nobodyElse: 'Nobody else is on this server yet.',
   creating: 'Creating…',
   createGroup: 'Create group',
+  joinFirst: "A group lives on a server you share with everyone in it. Join a friend's server first, then start a group there.",
   connectFirst: 'Connect to a server first: a group lives on a server you share with everyone in it.',
   pickIntro: 'Pick 2 to {{max}} people from a server you share. Messages and calls are end-to-end encrypted.',
   server: 'Server',

@@ -22,6 +22,7 @@ import { usePrivateMessageTools } from '../productivity/MessageTools'
 import { groupTarget, privateRowId } from '../../state/messageRefs'
 import type { Panel } from '../Shell'
 import { GroupCallButtons, GroupCallPanel, OngoingCallBanner } from './GroupCall'
+import { openJoinDialog } from '../dialogs/JoinDialog'
 import './groups.css'
 import { Trans, useTranslation } from 'react-i18next'
 import { groupText } from './groupText'
@@ -147,6 +148,7 @@ export function NewGroupDialog({ onClose, onCreated }: { onClose: () => void; on
   const servers = useApp((s) => s.servers)
   const order = useApp((s) => s.order)
   const online = order.filter((k) => servers[k]?.status.state === 'online')
+  const noServers = order.length === 0
   const [serverKey, setServerKey] = useState(online[0] ?? '')
   const [picked, setPicked] = useState<string[]>([])
   const [name, setName] = useState('')
@@ -176,13 +178,20 @@ export function NewGroupDialog({ onClose, onCreated }: { onClose: () => void; on
       footer={
         <>
           <button className="button" onClick={onClose}>{t('common.cancel')}</button>
-          <button className="button primary" disabled={!enough || busy} onClick={() => void create()}>
-            {busy ? t('groups.creating') : t('groups.createGroup')}
-          </button>
+          {noServers ? (
+            // No server to hold a group yet: the way forward is joining one.
+            <button className="button primary" onClick={() => { onClose(); openJoinDialog() }}>{t('settings.join.title')}</button>
+          ) : (
+            <button className="button primary" disabled={!enough || busy} onClick={() => void create()}>
+              {busy ? t('groups.creating') : t('groups.createGroup')}
+            </button>
+          )}
         </>
       }
     >
-      {online.length === 0 ? (
+      {noServers ? (
+        <p className="muted">{t('groups.joinFirst')}</p>
+      ) : online.length === 0 ? (
         <p className="muted">{t('groups.connectFirst')}</p>
       ) : (
         <>
