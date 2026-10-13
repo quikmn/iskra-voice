@@ -47,7 +47,7 @@
 
 ## Testing
 
-- **Every CI run:** the `backup-restore-drill` job in `.github/workflows/ci.yml` makes a backup of a seeded test
+- **Every CI run:** the restore drill in `.github/workflows/ci.yml` (job `scripts-and-drill`) makes a backup of a seeded test
   world, restores it into a new folder and checks integrity (SQLite `PRAGMA integrity_check`, row counts per table,
   upload file hashes, the server key). Its report is uploaded as the `restore-drill-report` artifact. Plus the
   backup tests in `server/tests/Iskra.Server.Tests/BackupTests.cs`.

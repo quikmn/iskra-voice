@@ -213,7 +213,9 @@ export function ciVerdict(runs) {
   if (running) return { state: 'wait', run: running, message: `CI is still running (${running.status}): ${running.html_url}` }
   if (!push.length) return { state: 'wait', run: null, message: 'no CI run for this commit yet' }
   const last = push[0]
-  return { state: 'fail', run: last, message: `CI concluded ${last.conclusion} on this commit: ${last.html_url}` }
+  // ci.yml cancels a branch's run when a newer push supersedes it (never a "Version X" commit's): rerun it to gate on it.
+  const hint = last.conclusion === 'cancelled' ? ' (cancelled, probably by a newer push: rerun it with gh run rerun)' : ''
+  return { state: 'fail', run: last, message: `CI concluded ${last.conclusion} on this commit${hint}: ${last.html_url}` }
 }
 
 /** The "- " lines of `next` that are already in the previous release's notes (NEXT.md not emptied after a release). */

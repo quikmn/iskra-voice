@@ -77,7 +77,8 @@ the default branch. Turn on:
 
 - **Restrict deletions** and **Block force pushes**.
 - **Require status checks to pass**: add the CI jobs (`server`, `client`, `desktop`, `end-to-end` (green only when all four e2e shards and `interop` passed),
-  `release-scripts`, `backup-restore-drill`, the CodeQL `analyze` jobs, `gitleaks`) once they've run on a PR.
+  `release scripts and restore drill`, the CodeQL `analyze` jobs, `gitleaks`) once they've run on a PR. Pushes to main
+  skip CodeQL and desktop on macOS (they run on PRs and on a schedule), so require those only for pull requests.
 - **Require a pull request before merging**: recommended once there's a second person. For a solo maintainer it
   slows releases (`npm run release` commits to main and pushes atomically with the tag); if you turn it on, add
   yourself to the bypass list and use it only for the release commit. Record the choice in the risk register (R1).

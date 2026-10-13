@@ -3,9 +3,10 @@ name: Scorecard
 # OpenSSF Scorecard: checks the repository's supply-chain practices (pinned actions, branch protection, code review,
 # token permissions, ...) and uploads the findings to code scanning (Security tab). With publish_results the score is
 # public at https://scorecard.dev/viewer/?uri=github.com/quikmn/iskra-voice. Scorecard only allows a few actions in
-# this job, and no top-level env or defaults.
+# this job, and no top-level env or defaults. Weekly on main (that run publishes), on PRs (no publishing: only the
+# default branch can) and by hand; not on every push.
 on:
-  push:
+  pull_request:
     branches: [main]
   schedule:
     - cron: '27 5 * * 1'
@@ -30,7 +31,7 @@ jobs:
         with:
           results_file: results.sarif
           results_format: sarif
-          publish_results: true
+          publish_results: ${{ github.event_name != 'pull_request' }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: scorecard-results

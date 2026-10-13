@@ -2,14 +2,26 @@ name: CI
 
 on:
   # Branches only: a release tag points at a commit main's CI already tested (release-finalize.yml checks that run).
+  # Not Dependabot's branches: their pull requests run CI already (no second run per update).
   push:
-    branches: ['**']
+    branches: ['**', '!dependabot/**']
     paths-ignore: ['site/**', '**.md']
   pull_request:
     paths-ignore: ['site/**', '**.md']
+  # Nightly on main: everything, including what pushes skip (desktop on macOS, the macOS LiveKit cache for releases).
+  schedule:
+    - cron: '37 2 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+# A newer push to the same branch (or PR) cancels the older run: only the newest commit's result matters. Never a
+# "Version X" commit's run: it gets a group of its own, because release-finalize publishes only after CI passed on
+# exactly that commit (scripts/ci-gate.mjs). Tags don't run CI. Scheduled and manual runs are never cancelled.
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}${{ (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'Version ')) && format('-{0}', github.sha) || '' }}
+  cancel-in-progress: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
 
 jobs:
   server:
@@ -68,10 +80,11 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  # macOS only on PRs, nightly and by hand (pushes keep Windows and Linux); release.yml runs the tests on macOS too.
   desktop:
     strategy:
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
+        os: ${{ fromJSON(github.event_name == 'push' && '["windows-latest", "ubuntu-latest"]' || '["windows-latest", "ubuntu-latest", "macos-latest"]') }}
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -99,9 +112,10 @@ jobs:
       - run: xvfb-run -a npm run test:network -- --no-sandbox
         if: runner.os == 'Linux'
 
-  # Playwright end-to-end, split over four runners by spec file (--shard). Each shard keeps a blob report; the
-  # `end-to-end` job below is the one check to require: it fails unless every shard and interop passed, and on a
-  # failure merges the shards' blob reports into one HTML report (artifact playwright-report).
+  # Playwright end-to-end, split over four runners by spec file, balanced by measured duration (scripts/e2e-shards.mjs,
+  # client/e2e/durations.json; a new spec counts as the median). Each shard keeps a blob report; the `end-to-end` job
+  # below is the one check to require: it fails unless every shard and interop passed, and on a failure merges the
+  # shards' blob reports into one HTML report (artifact playwright-report).
   e2e-shard:
     name: end-to-end shard ${{ matrix.shard }}/4
     runs-on: ubuntu-latest
@@ -133,6 +147,14 @@ jobs:
       - run: npm ci
         working-directory: bots
       - run: npm ci
+      - name: This shard's specs
+        run: node ../scripts/e2e-shards.mjs list ${{ matrix.shard }} 4 "$RUNNER_TEMP/e2e-shard.txt"
+      # The split must hold every spec Playwright finds, each once (scripts/e2e-shards.test.mjs checks the same offline).
+      - name: Every spec is in exactly one shard
+        if: matrix.shard == 1
+        run: |
+          npx playwright test --list --reporter=json > "$RUNNER_TEMP/e2e-list.json"
+          node ../scripts/e2e-shards.mjs check "$RUNNER_TEMP/e2e-list.json" 4
       - run: npx playwright install --with-deps chromium
       # LiveKit (pinned and SHA-256 checked by get-livekit.sh), cached on that script.
       - id: livekit
@@ -149,7 +171,9 @@ jobs:
           path: client/.models
           key: captions-model-${{ hashFiles('client/src/state/captions/model.json') }}
       - run: node ../scripts/get-models.mjs
-      - run: npm run test:e2e -- --shard=${{ matrix.shard }}/4 --reporter=list,blob
+      - run: npm run test:e2e -- --test-list "$RUNNER_TEMP/e2e-shard.txt" --reporter=list,blob
+        env:
+          PLAYWRIGHT_BLOB_OUTPUT_NAME: report-${{ matrix.shard }}.zip # one name per shard, for merge-reports
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ !cancelled() }}
         with:
@@ -250,19 +274,28 @@ jobs:
       - if: steps.result.outputs.failed == '1'
         run: exit 1
 
-  # Availability evidence: backs up a server with members, messages and files, restores it into a new folder and checks
-  # nothing was lost or changed (server/tests/Iskra.Server.Tests/RestoreDrillTests.cs). The JSON report is kept as an artifact.
-  backup-restore-drill:
+  # Two small checks on one runner (fewer jobs per push): the release-script tests (scripts/*.test.mjs, also the e2e
+  # shard split), then the backup-restore drill, availability evidence: backs up a server with members, messages and
+  # files, restores it into a new folder and checks nothing was lost or changed
+  # (server/tests/Iskra.Server.Tests/RestoreDrillTests.cs). The JSON report is kept as an artifact.
+  scripts-and-drill:
+    name: release scripts and restore drill
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: server
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           dotnet-version: '10.0.x'
-      - run: dotnet test --configuration Release --filter-class Iskra.Server.Tests.RestoreDrillTests
+      - name: Release-script tests
+        run: npm test
+      # Runs even when the script tests failed: two independent results.
+      - name: Backup-restore drill
+        if: ${{ !cancelled() }}
+        working-directory: server
+        run: dotnet test --configuration Release --filter-class Iskra.Server.Tests.RestoreDrillTests
         env:
           ISKRA_DRILL_REPORT: ${{ runner.temp }}/restore-drill.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -274,9 +307,10 @@ jobs:
           retention-days: 90
 
   # Keeps the macOS LiveKit builds (get-livekit.sh builds them from source, ~3 min) in main's cache, where release tags
-  # can read them (a tag's own cache entries aren't visible to the next tag). Only builds when the pin changed.
+  # can read them (a tag's own cache entries aren't visible to the next tag). Only builds when the pin changed. Runs
+  # nightly on main (and by hand there) to keep main's entry; on PRs it checks a changed pin still builds on macOS.
   livekit-mac:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name != 'push'
     continue-on-error: true # a cache warmer: a miss only costs the release ~3 min
     runs-on: macos-latest
     strategy:
@@ -304,15 +338,6 @@ jobs:
         with:
           path: .tools/osx-${{ matrix.arch }}/livekit-server
           key: livekit-osx-${{ matrix.arch }}-${{ hashFiles('scripts/get-livekit.sh') }}
-
-  release-scripts:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: '24'
-      - run: npm test
 
   # The Android app (mobile/android): an unsigned release build.
   # Release APKs are signed on the owner's PC (mobile/scripts/build-android.ps1); the key never comes to CI.
