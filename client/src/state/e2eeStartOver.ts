@@ -6,7 +6,9 @@
 // server only starts a chain over when nobody in the old one can read the channel, so from inside the chain a new one
 // looks exactly like a malicious server handing the channel to an account it controls. When the new chain verifies, it
 // is kept as an offer; the person may start over by hand after looking at who signed it.
-import { decryptChannelMessage, verifyChannelChain, type ChannelChange, type ChannelContent, type ChannelEnvelope, type ChannelHeader, type ChannelView } from '../core/channelChain'
+import {
+  decryptChannelMessage, verifyChannelChain, type ChannelChange, type ChannelContent, type ChannelEnvelope, type ChannelMessageInfo, type ChannelRouting, type ChannelView,
+} from '../core/channelChain'
 import { sameKey, type GroupChange } from '../core/group'
 
 export const CHAIN_REPLACED = "This channel's encryption was replaced by the server while you were still in it. Messages stay locked until this is sorted out."
@@ -122,19 +124,22 @@ export function acceptStartOver(rec: ChainState, now = Date.now()): StartOverRec
   return record
 }
 
-/** The chain (current or kept) a message's envelope was sent under, with the keys this device has for it. */
-export function chainFor(rec: ChainState, chain: string): { view: ChannelView; keys: Map<number, Uint8Array> } | null {
+/**
+ * The chain (current or kept) a message's envelope was sent under, with the keys this device has for it, and for a kept
+ * one when this device saw it end (nobody could write in it after that).
+ */
+export function chainFor(rec: ChainState, chain: string): { view: ChannelView; keys: Map<number, Uint8Array>; endedAt?: number } | null {
   if (rec.view && rec.view.chain === chain) return { view: rec.view, keys: rec.keys }
   const past = rec.past.find((p) => p.chain === chain)
-  return past ? { view: past.view, keys: past.keys } : null
+  return past ? { view: past.view, keys: past.keys, endedAt: past.endedAt } : null
 }
 
 /** Decrypts a message with whichever chain it was sent under (old messages keep working after a start-over). */
-export function decryptInChain(rec: ChainState, envelope: ChannelEnvelope, routed: { from: string; version: number }): (ChannelContent & { header: ChannelHeader }) | null {
+export function decryptInChain(rec: ChainState, envelope: ChannelEnvelope, routed: ChannelRouting): (ChannelContent & ChannelMessageInfo) | null {
   const chain = typeof envelope?.header?.chain === 'string' ? envelope.header.chain : rec.view?.chain ?? ''
   const found = chainFor(rec, chain)
   if (!found) return null
-  return decryptChannelMessage(envelope, routed, found.view, (v) => found.keys.get(v))
+  return decryptChannelMessage(envelope, routed, found.view, (v) => found.keys.get(v), found.endedAt)
 }
 
 // ── What the person sees before starting over ──────────────────────────────

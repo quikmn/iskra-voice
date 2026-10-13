@@ -1964,15 +1964,29 @@ it. It is wrapped for every valid, unrevoked device of every member of the new m
 ### Messages
 
 ```jsonc
-{ "v": 1, "kind": "channel",
-  "header": { "from": "<accountKey>", "chain": "<chain id>", "version": 3, "sentAt": 1760000000000, "id": "<b64u 12>" },
+{ "v": 2, "kind": "channel",
+  "header": { "from": "<accountKey>", "chain": "<chain id>", "version": 3, "sentAt": 1760000000000, "id": "<b64u 12>",
+              "channel": 12, "thread"?: 34, "edit"?: "<id of the message's first envelope, ≤ 32 chars>" },
   "sender": DeviceCert, "nonce": "<b64u 24>", "ct": "<b64u>", "sig": "<b64u 64>" }
 ```
 
-- `ad = JSON.stringify(["iskra/channel-msg/v1", from, chain, version, head, sentAt, id])` (`head` of that version, from the verified chain); `ct = XChaCha20-Poly1305(epochKey, nonce, content, ad)`.
-- `sig = Ed25519.sign(deviceSecret, "iskra/channel-msg/v1" || 0x00 || u64be(len(ad)) || ad || u64be(24) || nonce || ct)`: every member holds the epoch key, so the device signature is what proves who wrote it.
+- `channel` is the encrypted channel's id (a thread's parent), `thread` the thread's id when the message is in one (left out otherwise), `edit` (on `chat.edit` only) the `id` of the message's first envelope.
+- `ad = JSON.stringify(["iskra/channel-msg/v2", from, chain, version, head, sentAt, id, channel, thread ?? 0, edit ?? ""])` (`head` of that version, from the verified chain); `ct = XChaCha20-Poly1305(epochKey, nonce, content, ad)`.
+- `sig = Ed25519.sign(deviceSecret, "iskra/channel-msg/v2" || 0x00 || u64be(len(ad)) || ad || u64be(24) || nonce || ct)`: every member holds the epoch key, so the device signature is what proves who wrote it.
 - Content: `{ "text": "…" (≤ 4000), "files"?: [DmFile] }` ([encrypted attachments](#encrypted-dm-attachments); a voice note is a file with `voice`).
-- Receivers check: the header's `from` and `version` equal the message's `author` and `e2ee.version`; the version is in their verified chain and `from` was a member then; the certificate and signature; then decrypt. A message from before this device had a key shows as unreadable, never as text.
+- Receivers check: the header's `from` and `version` equal the message's `author` and `e2ee.version`; `channel` and `thread` equal where the message arrived (its `channelId`: the channel itself, or a thread of it); the version is in their verified chain and `from` was a member then; the certificate and signature; then decrypt. A message from before this device had a key shows as unreadable, never as text. A message moved to another channel or thread (or between a parent and its threads) is shown as moved, never as text.
+- **The server** checks a v2 envelope's `channel` and `thread` against the send (`bad_request`), like `from`, `chain` and `version`; it reads nothing else.
+- **What apps remember.** Each app keeps, per message, the envelope ids it showed (first envelope and edits) and the newest one's `sentAt`. It refuses an envelope whose `id` (or, for v2, whose `edit` or first `id`) belongs to another message (a replay or a moved edit), and an envelope older than the newest it showed for that message (an original after an edit, an edit older than one it showed, by `sentAt`): an edit can't be rolled back on a device that saw it. Copies kept elsewhere (pins, a thread's first message) may lag behind an edit and aren't refused for that.
+- **The older format (v1)**, sent before this version: no `channel`, `thread` or `edit`; `ad = JSON.stringify(["iskra/channel-msg/v1", from, chain, version, head, sentAt, id])` and the signature under `iskra/channel-msg/v1`. Apps still open v1 messages and mark them "older format" (a server could have moved them between a channel and its threads), and only send v2. The two contexts differ, so a v2 message can't be passed off as v1 (or back). Test vectors for both: `channel` in [vectors.json](vectors.json).
+
+#### Messages from people who were removed
+
+Someone removed at version n keeps the epoch keys of the versions before n and their device key, so they can still sign a message "at version n − 1", and a server could slip it in. Nothing about the message itself can tell it apart from one they really sent then, so apps judge it by time:
+
+- **When they lost access** comes from the verified chain: the `at` of the first later change whose `members` leave them out. That `at` is signed by the member who made the change, and the server refuses changes more than 10 minutes off its clock, so neither the removed person nor the server can move it. For a chain kept after a [start-over](#starting-over), its end is also bounded by when this device saw it replaced.
+- **When the message claims it was sent:** its signed `sentAt` (the sender's clock) and the server's `createdAt`. The server only takes messages for the current version, so an honest message at version n − 1 was stored before change n, at most 10 minutes past its `at`.
+- If either time is more than **10 minutes** after they lost access, the app shows the message with a warning ("sent after its writer lost access … may not really be from them") and never notifies for it. Being added back later doesn't help: new messages go to the new epoch, so an old epoch's message after the removal still gets the warning.
+- **Limits:** a removed member and the server working together can still backdate a message into the time the member was in (both clocks then lie in step). Neither can make it look sent after anyone else's removal, nor into another channel or thread. A sender whose clock runs more than 10 minutes fast may see a message sent just before their removal flagged.
 
 ### Requests and events
 
