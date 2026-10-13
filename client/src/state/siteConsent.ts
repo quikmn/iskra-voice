@@ -39,6 +39,23 @@ export function watchSourceSite(source: { kind: string; url?: string | null }, s
   return site && site !== siteOfUrl(serverUrl) ? site : null
 }
 
+/**
+ * The address a watch party's video plays from, or null when it can't be read safely: a `url` source must be an
+ * absolute http(s) link, a `file` source a path on the group's own server. Servers check this too, but a link that
+ * slips past (only a malicious server could send one) must never play without the consent gate, so it doesn't play.
+ */
+export function watchVideoSrc(source: { kind: string; url?: string | null }, serverUrl: string): string | null {
+  if (!source.url) return null
+  if (source.kind === 'url') return siteOfUrl(source.url) ? source.url : null
+  if (source.kind !== 'file' || !source.url.startsWith('/') || source.url.startsWith('//') || source.url.includes('\\')) return null
+  try {
+    const src = new URL(serverUrl + source.url)
+    return src.origin === new URL(serverUrl).origin ? src.href : null
+  } catch {
+    return null
+  }
+}
+
 /** A stored list, cleaned: valid sites only, no repeats, at most MAX_SITES. */
 export function parseSites(raw: unknown): string[] {
   if (!Array.isArray(raw)) return []

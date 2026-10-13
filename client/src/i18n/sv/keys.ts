@@ -156,6 +156,8 @@ export const keys: Messages['keys'] = {
       newest: 'Senaste post {{hash}}',
       join: '{{name}} gick med',
       name: 'Heter nu {{name}}',
+      joinErased: 'Någon gick med (kontot är borttaget)',
+      nameErased: 'Ett namnbyte (kontot är borttaget)',
       rotate: 'Kontonyckeln byttes',
       contest: 'Ett andra anspråk på en gammal nyckel (omtvistat)',
       resolve: 'Tvisten avgjordes',

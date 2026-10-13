@@ -23,7 +23,7 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Reminders (due time; channel and message for server channels; what it's about and the note sealed) | Until 30 days after they fire, or until cancelled | `ProductivityScheduler` (hourly) | No |
 | Scheduled messages | Until sent (then deleted) or deleted by the author; failed ones stay until the author edits or deletes them | `ScheduledFeature` | No |
 | Inbox items (mentions and replies) | 60 days, at most 500 per account | `ProductivityScheduler` (hourly) | No |
-| Key log (account keys shown, names, key changes; key transparency) | As long as the server: append-only by design, so members' apps can check it | — | No |
+| Key log (account keys shown, salted name hashes, key changes; key transparency) | Entries as long as the server: append-only and hash-chained by design, so members' apps can check it. The names beside them (and their salts) until the account is deleted; then only the key and an unopenable salted hash stay. Entries logged before name hashes (until 2026-10-13) keep the name inside the hashed entry | Account deletion (names) | No |
 | Uploaded files still in use | Until their message/avatar/etc. is deleted, or the retention period (files used by avatars, emoji, stickers, sounds, events and webhooks are kept) | `RetentionSweeper` | `Retention.UploadsDays` (0 = keep) |
 | Uploads nothing uses | 24 hours | `UploadSweeper` | No |
 | Unfinished uploads in parts (part of a file, often encrypted DM ciphertext) | 10 minutes after the last part arrived, deleted with the next upload or the hourly sweep | `Uploads`, `UploadSweeper` | No |
@@ -80,3 +80,4 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 | 2026-10-11 | Encrypted channel envelopes, membership changes and key envelopes |
 | 2026-10-12 | Live captions and camera effects on the device; the captions model from the member's own server |
 | 2026-10-12 | Edit history, docs revisions, reminders, scheduled messages, inbox, key log, captions model folder, owner claim, clips |
+| 2026-10-13 | Key log: names are logged as salted hashes and erased on account deletion |

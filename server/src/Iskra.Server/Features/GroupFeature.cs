@@ -109,6 +109,11 @@ public static class GroupFeature
     {
         NotABot(s, me);
         var group = Mine(s, me, body.String("groupId", GroupChain.IdLength));
+        // A nonce makes a retried send (or a scheduled one after a restart) return the stored message instead of a second
+        // one, even if the group changed in between.
+        var nonce = ChatFeature.Nonce(body);
+        if (nonce is not null && s.World.Store.EnvelopeForNonce(me.AccountKey, "group", nonce) is (true, var earlier))
+            return Repeat(earlier as GroupMessage);
         // Senders encrypt to the member list of a version; only the current one is accepted, so nobody keeps writing to people who left.
         var version = body.OptionalLong("version", 1) ?? throw RequestException.BadRequest("'version' is required.");
         if (version != group.Version) throw new RequestException("conflict", "The group changed in the meantime. Refresh and try again.", "group_changed");
@@ -118,13 +123,23 @@ public static class GroupFeature
         if (raw.Length > MaxEnvelopeBytes) throw RequestException.BadRequest("Message is too large.", "message_too_large");
         var files = DmFileFeature.CheckGroupAttachments(s, me, group.Members, body);
 
-        var message = s.World.Store.AddGroupMessage(group.Id, me.AccountKey, version, raw, s.Now);
+        GroupMessage message;
+        if (nonce is null) message = s.World.Store.AddGroupMessage(group.Id, me.AccountKey, version, raw, s.Now);
+        else
+        {
+            var (stored, created) = s.World.Store.AddGroupMessageOnce(nonce, group.Id, me.AccountKey, version, raw, s.Now);
+            if (!created) return Repeat(stored);
+            message = stored!;
+        }
         if (files.Length > 0) s.World.Store.LinkDmFiles(message.Id, files);
         var frame = Frames.Event("group.message", new { message = PublicMessage(message) });
         foreach (var account in group.Members) s.Hub.SendToAccount(account, frame);
         s.Push.GroupMessage(me, group.Id, Reachable(s, group));
         return new { message = PublicMessage(message) };
     }
+
+    private static object Repeat(GroupMessage? earlier) =>
+        earlier is not null ? new { message = PublicMessage(earlier) } : throw RequestException.NotFound("Message"); // sent, then deleted
 
     private static object History(Session s, Member me, Body body)
     {

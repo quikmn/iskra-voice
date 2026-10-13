@@ -155,6 +155,8 @@ export const keys = {
       newest: 'Newest entry {{hash}}',
       join: '{{name}} joined',
       name: 'Now called {{name}}',
+      joinErased: 'Someone joined (account since deleted)',
+      nameErased: 'A name change (account since deleted)',
       rotate: 'Account key replaced',
       contest: 'A second claim on an old key (disputed)',
       resolve: 'Dispute settled',

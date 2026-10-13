@@ -20,6 +20,8 @@ public static class KeyLogFeature
 {
     public const string EntryContext = "iskra/keylog-entry/v1";
     public const string HeadContext = "iskra/keylog-head/v1";
+    public const string NameContext = "iskra/keylog-name/v1";
+    public const int NameSaltBytes = 16;
     public const int MaxEntries = 100;
 
     public static void Register(Router router)
@@ -50,6 +52,9 @@ public static class KeyLogFeature
     public static byte[] EntryHash(byte[] prev, long seq, string data) =>
         SHA256.HashData(Ed25519.Payload(EntryContext, prev, Ed25519.U64BigEndian(seq), Encoding.UTF8.GetBytes(data)));
 
+    /// <summary>What a join/name entry logs instead of the name: SHA-256 of the name with a random salt.</summary>
+    public static byte[] NameHash(byte[] salt, string name) => SHA256.HashData(Ed25519.Payload(NameContext, salt, Encoding.UTF8.GetBytes(name)));
+
     public static byte[] HeadPayload(byte[] serverKey, long seq, byte[] hash, long at) =>
         Ed25519.Payload(HeadContext, serverKey, Ed25519.U64BigEndian(seq), hash, Ed25519.U64BigEndian(at));
 
@@ -70,7 +75,11 @@ public static class KeyLogFeature
         var after = body.OptionalLong("after", 0) ?? 0;
         var limit = (int)(body.OptionalLong("limit", 1, MaxEntries) ?? MaxEntries);
         var head = Head(s.World, s.Now);
-        var entries = s.World.Store.KeyLogEntries(after, limit).Select(e => new { seq = e.Seq, data = e.Data });
+        // Names travel beside the hashed data (which only commits to them), until the account is deleted.
+        var entries = s.World.Store.KeyLogEntries(after, limit).Select(e => new
+        {
+            seq = e.Seq, data = e.Data, name = e.Name, nameSalt = e.NameSalt is null ? null : Ed25519.ToB64u(e.NameSalt),
+        });
         return new { entries, head };
     }
 
@@ -129,21 +138,29 @@ public static class KeyLogFeature
             }
             foreach (var m in store.AllMembers())
             {
-                if (!state.Names.TryGetValue(m.AccountKey, out var name))
-                    Append(world, state, now, new { kind = "join", at = now, key = m.AccountKey, name = m.Name });
-                else if (name != m.Name)
-                    Append(world, state, now, new { kind = "name", at = now, key = m.AccountKey, name = m.Name });
+                if (!state.Names.TryGetValue(m.AccountKey, out var name)) AppendName(world, state, now, "join", m);
+                else if (name != m.Name) AppendName(world, state, now, "name", m);
             }
         }
     }
 
-    private static void Append(World world, State state, long now, object entry)
+    /// <summary>
+    /// A join or name change. The hashed data has an empty <c>name</c> (older apps expect the field) and the salted
+    /// <c>nameHash</c>; the name and salt are stored beside it, so deleting the account erases the name, not the entry.
+    /// </summary>
+    private static void AppendName(World world, State state, long now, string kind, Member m)
+    {
+        var salt = RandomNumberGenerator.GetBytes(NameSaltBytes);
+        Append(world, state, now, new { kind, at = now, key = m.AccountKey, name = "", nameHash = Ed25519.ToB64u(NameHash(salt, m.Name)) }, m.Name, salt);
+    }
+
+    private static void Append(World world, State state, long now, object entry, string? name = null, byte[]? salt = null)
     {
         var data = JsonSerializer.Serialize(entry);
         var seq = state.Seq + 1;
         var hash = EntryHash(state.Hash, seq, data);
-        world.Store.KeyLogAppend(new KeyLogEntry(seq, now, data, hash, SignHead(world, seq, hash, now)));
-        Apply(state, data);
+        world.Store.KeyLogAppend(new KeyLogEntry(seq, now, data, hash, SignHead(world, seq, hash, now), name, salt));
+        Apply(state, data, name);
         state.Seq = seq;
         state.Hash = hash;
     }
@@ -161,7 +178,7 @@ public static class KeyLogFeature
             foreach (var e in page)
             {
                 if (broken is null && (e.Seq != state.Seq + 1 || !EntryHash(state.Hash, e.Seq, e.Data).AsSpan().SequenceEqual(e.Hash))) broken = e.Seq;
-                Apply(state, e.Data);
+                Apply(state, e.Data, e.Name);
                 state.Seq = e.Seq;
                 state.Hash = e.Hash;
             }
@@ -169,8 +186,11 @@ public static class KeyLogFeature
         return broken;
     }
 
-    /// <summary>Folds one entry into the state (the same rules clients use to read the log).</summary>
-    private static void Apply(State state, string data)
+    /// <summary>
+    /// Folds one entry into the state (the same rules clients use to read the log). <paramref name="loggedName"/>: the name a
+    /// join/name entry commits to (null once erased, or for legacy entries, which have it in the data).
+    /// </summary>
+    private static void Apply(State state, string data, string? loggedName = null)
     {
         using var doc = JsonDocument.Parse(data);
         var e = doc.RootElement;
@@ -179,7 +199,7 @@ public static class KeyLogFeature
         {
             case "join":
             case "name":
-                state.Names[Str(e, "key")] = Str(e, "name");
+                state.Names[Str(e, "key")] = loggedName ?? Str(e, "name");
                 break;
             case "rotate":
             {

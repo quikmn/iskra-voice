@@ -14,6 +14,7 @@ export const watch = {
   watchParty: 'Watch party',
   youtubeVideo: 'YouTube video',
   video: 'Video',
+  unplayableLink: "This video's link isn't a normal web address, so it won't play.",
   cantPlay: "This video can't be played here. Check the link, or share your screen instead.",
   youtubeRefused: "YouTube won't play this video here (it may not allow embedding).",
   tapToWatch: 'Tap to watch along',

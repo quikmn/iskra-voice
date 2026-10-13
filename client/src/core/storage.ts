@@ -70,11 +70,29 @@ const browserWrap = browserWrapper(() => get<CryptoKey>('vault-wrap-key'), (key)
 /** Slots holding secrets. Anything else (server list, friends, profile) stays readable before unlock. */
 const SECRET_SLOTS = ['identity', 'prekeys', 'dm-peers']
 
+/** Set once this device's clear-text secrets were encrypted (also stored, as `vault-migrated`). */
+let migrated = false
+
+/** A secret slot holds a value that isn't encrypted, after the migration that encrypted them all. */
+export class UnsealedSecretError extends Error {
+  constructor(slot: string) {
+    // The slot's kind only (no peer or group keys in messages).
+    super(`Iskra found unencrypted data where its encrypted "${slot.split(':')[0]}" data belongs, and won't use it.`)
+    this.name = 'UnsealedSecretError'
+  }
+}
+
 async function getSecret<T>(slot: string): Promise<T | undefined> {
   const raw = await get<unknown>(slot)
   if (raw === undefined) return undefined
-  if (!isSealed(raw)) return raw as T // stored before encryption at rest; migrated on open
   if (!dataKey) throw new Error('Iskra is locked.')
+  if (!isSealed(raw)) {
+    // Only data from before encryption at rest is in the clear, and migrateSecrets seals it on open. After that, an
+    // unsealed secret wasn't written by Iskra (something else wrote to its storage): never trust or return it.
+    if (migrated || await get('vault-migrated')) throw new UnsealedSecretError(slot)
+    await setSecret(slot, raw)
+    return raw as T
+  }
   return openValue<T>(dataKey, slot, raw)
 }
 
@@ -85,7 +103,10 @@ async function setSecret(slot: string, value: unknown): Promise<void> {
 
 /** Encrypts anything still stored in the clear (data from before encryption at rest). Safe to repeat. */
 async function migrateSecrets(): Promise<void> {
-  if (await get('vault-migrated')) return
+  if (await get('vault-migrated')) {
+    migrated = true
+    return
+  }
   const peers = (await getSecret<string[]>('dm-peers')) ?? []
   const groups = (await getSecret<string[]>('group-keys')) ?? []
   for (const slot of [...SECRET_SLOTS, 'group-keys', ...peers.map((p) => `dm:${p}`), ...groups.map((g) => `group:${g}`)]) {
@@ -93,6 +114,7 @@ async function migrateSecrets(): Promise<void> {
     if (raw !== undefined && !isSealed(raw)) await setSecret(slot, raw)
   }
   await set('vault-migrated', 1)
+  migrated = true
 }
 
 /**

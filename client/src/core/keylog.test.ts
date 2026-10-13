@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { b64u, generateSigningKeyPair, ready, sign, type SigningKeyPair } from './crypto'
 import { createIdentity } from './identity'
 import {
-  checkGossip, compareGossip, emptyView, entryHash, extendView, headPayload, LogError, lookalikes, signGossip, splitViews, unloggedKeys,
+  checkGossip, compareGossip, emptyView, entryHash, extendView, headPayload, LogError, lookalikes, nameHash, readEntry, signGossip, splitViews, unloggedKeys,
   type LogHead, type LogView, type WireLogEntry,
 } from './keylog'
 import { KeyMap, signRotation } from './rotation'
@@ -27,6 +27,13 @@ class FakeLog {
     return this
   }
   join(key: string, name: string) { return this.append({ kind: 'join', key, name }) }
+  /** A join as servers log them now: a salted hash of the name in the data, the name and salt beside it. */
+  committedJoin(key: string, name: string) {
+    const salt = crypto.getRandomValues(new Uint8Array(16))
+    this.append({ kind: 'join', key, name: '', nameHash: b64u(nameHash(salt, name)) })
+    Object.assign(this.entries.at(-1)!, { name, nameSalt: b64u(salt) })
+    return this
+  }
   head(): LogHead {
     const head = { seq: this.entries.length, hash: b64u(this.hash), at: this.at }
     return { ...head, sig: b64u(sign(headPayload(this.server.publicKey, head), this.server.secretKey)) }
@@ -47,6 +54,27 @@ const sync = (view: LogView, log: FakeLog) => extendView(view, log.head(), log.e
 describe('key log', () => {
   it('hashes entries exactly like the server (KeyLogTests has the same vector)', () => {
     expect(b64u(entryHash(new Uint8Array(32), 1, '{"kind":"join","at":1,"key":"x","name":"Åsa"}'))).toBe('HDAGcWbJZWJdv3SdvbSOkFgjcLtQ23ByiJ6Ws9qM9_4')
+  })
+
+  it('hashes names exactly like the server (KeyLogTests has the same vector)', () => {
+    expect(b64u(nameHash(new Uint8Array(16), 'Åsa'))).toBe('SkLYStTn3vsiY2oSS8g54MUXthy8xRwxPZd_rKYXEgY')
+  })
+
+  it("opens committed names, and keeps checking the chain once a deleted account's name is gone", () => {
+    const [alice, bob] = [key(), key()]
+    const log = new FakeLog().committedJoin(alice, 'Alice').committedJoin(bob, 'Bob')
+    expect(sync(emptyView(log.serverKey), log).names).toEqual({ [alice]: 'Alice', [bob]: 'Bob' })
+    expect(readEntry(log.entries[1])).toMatchObject({ kind: 'join', key: bob, name: 'Bob' })
+    // Bob deleted his account: the server drops his name and salt, the entry (and so every hash) stays.
+    const erased = log.entries.map((e, i) => (i === 1 ? { seq: e.seq, data: e.data, name: null, nameSalt: null } : e))
+    const view = extendView(emptyView(log.serverKey), log.head(), erased).view
+    expect(view.names).toEqual({ [alice]: 'Alice', [bob]: '' })
+    expect(unloggedKeys(view, [alice, bob])).toEqual([])
+    // A name that doesn't match the commitment is a bad entry.
+    const swapped = log.entries.map((e, i) => (i === 1 ? { ...e, name: 'Mallory' } : e))
+    expect(() => extendView(emptyView(log.serverKey), log.head(), swapped)).toThrow(LogError)
+    // Entries from before commitments still read as they did.
+    expect(readEntry({ seq: 1, data: '{"kind":"join","at":1,"key":"' + alice + '","name":"Åsa"}' })).toMatchObject({ name: 'Åsa' })
   })
 
   it('follows a correctly signed chain and remembers who joined and moved', () => {
