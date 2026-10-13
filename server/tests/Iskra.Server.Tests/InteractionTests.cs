@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Iskra.Server.Crypto;
 using Iskra.Server.Features;
+using Iskra.Server.Protocol;
 using Iskra.Server.Tests.Support;
 
 namespace Iskra.Server.Tests;
@@ -131,6 +132,60 @@ public class InteractionTests
         await bot.NoEventAsync("chat.message");
         Assert.Equal("forbidden", (await bot.RequestAsync("chat.history", new { channelId = server.General })).ErrorCode());
         Assert.Contains(server.World.Store.Audit("bot.scope", null, null, 10), e => e.Action == "bot.scope");
+    }
+
+    // Security review W6: a commands-only bot read other messages through a reply's quote, Web Push (the small-server
+    // default pushes every message, text included), docs saves and moderation answers.
+    [Fact]
+    public async Task A_bot_that_reads_only_its_messages_cant_read_others_another_way()
+    {
+        using var server = new IskraServer();
+        using var admin = await server.JoinAsync("Admin", "admin");
+        using var bot = await JoinBot(server, admin, role: "trusted");
+        await Register(bot);
+        using var alice = await server.JoinAsync("Alice");
+
+        var secret = (await alice.RequestAsync("chat.send", new { channelId = server.General, text = "the secret plan" })).Body().GetProperty("message").GetProperty("id").GetInt64();
+        var quoted = await bot.RequestAsync("chat.send", new { channelId = server.General, text = "what?", replyTo = secret });
+        Assert.Equal("forbidden", quoted.ErrorCode());
+        Assert.Equal("bot_no_read", Key(quoted));
+        // Answering what was meant for it still works.
+        var command = (await alice.RequestAsync("chat.send", new { channelId = server.General, text = "/roll d6" })).Body().GetProperty("message").GetProperty("id").GetInt64();
+        Assert.Equal("result", (await bot.RequestAsync("chat.send", new { channelId = server.General, text = "4", replyTo = command })).Type());
+
+        foreach (var (type, body) in new (string, object)[]
+        {
+            ("push.subscribe", new { endpoint = "https://fcm.googleapis.com/fcm/send/bot", keys = new { p256dh = "x", auth = "y" } }),
+            ("docs.page.save", new { id = 1, baseVersion = 1, title = "x" }), ("docs.page.restore", new { id = 1, baseVersion = 1, version = 1 }),
+            ("docs.home.set", new { }), ("forum.post.set", new { id = 1 }), ("forum.post.update", new { id = 1 }), ("report.list", new { }),
+        })
+        {
+            var reply = await bot.RequestAsync(type, body);
+            Assert.Equal("bot_no_read", Key(reply));
+        }
+
+        // A bot that read everything and made a push subscription loses it when it may no longer, and pushes skip it anyway.
+        using var reader = await JoinBot(server, admin, name: "Reader", readAll: true);
+        server.World.Store.SavePushSubscription(reader.Key, "reader-device", "https://fcm.googleapis.com/fcm/send/reader", "p", "a", 1, 10);
+        Assert.Equal("result", (await admin.RequestAsync("bot.scope.set", new { accountKey = reader.Key, readAll = false })).Type());
+        Assert.Empty(server.World.Store.PushSubscriptions(reader.Key));
+        using var p256 = System.Security.Cryptography.ECDsa.Create(System.Security.Cryptography.ECCurve.NamedCurves.nistP256);
+        var q = p256.ExportParameters(false).Q;
+        server.World.Store.SavePushSubscription(bot.Key, "bot-device", "https://fcm.googleapis.com/fcm/send/bot", Ed25519.ToB64u([4, .. q.X!, .. q.Y!]),
+            Ed25519.ToB64u(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16)), 1, 10);
+        await alice.RequestAsync("chat.send", new { channelId = server.General, text = "everyone hears this on a small server" });
+        await server.Push.NoneAsync("https://fcm.googleapis.com/fcm/send/bot");
+    }
+
+    [Fact]
+    public void One_person_cant_use_up_everyones_interactions()
+    {
+        var registry = new InteractionRegistry(TimeProvider.System);
+        for (var i = 0; i < InteractionRegistry.MaxPendingPerUser; i++) registry.Start("bot", "mallory", 1, "command", "roll", null, null, false);
+        var refused = Assert.Throws<RequestException>(() => registry.Start("bot", "mallory", 1, "command", "roll", null, null, false));
+        Assert.Equal("rate_limited", refused.Code);
+        registry.Start("bot", "alice", 1, "command", "roll", null, null, false);
+        registry.Start("bot", "mallory", 1, "command", null, null, null, true, capped: false); // a built-in bot's own note
     }
 
     // ── Commands ─────────────────────────────────────────────────────────────

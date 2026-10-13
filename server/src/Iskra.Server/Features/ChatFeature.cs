@@ -69,6 +69,9 @@ public static class ChatFeature
         long? replyTo = body.OptionalLong("replyTo", min: 1);
         if (replyTo is { } replyId && s.World.Store.GetMessage(replyId)?.ChannelId != channel.Id)
             throw RequestException.BadRequest("You can only reply to messages in the same channel.");
+        // A reply quotes the message it answers: a bot that can't read everything may only answer what was meant for it.
+        if (replyTo is { } quoted && !BotScope.MaySee(s.World.Store, me.AccountKey, s.World.Store.GetMessage(quoted)!))
+            throw RequestException.Forbidden("This bot can only read messages meant for it. An admin can let it read all messages.", "bot_no_read");
 
         // A retry of a send that already went through (the reply was lost with the connection): same answer, nothing new.
         var nonce = Nonce(body);

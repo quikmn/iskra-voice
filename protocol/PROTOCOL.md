@@ -2410,7 +2410,11 @@ interactions and the messages meant for it.
   `docs.page.updated`, `docs.home`, `forum.post.updated` or `watch.chat`. These requests are `forbidden`
   (key `bot_no_read`): `chat.history`, `chat.edits`, `search`, `pin.list`, `thread.get`, `forum.posts`,
   `forum.post.get`, `docs.pages`, `docs.page.get`, `docs.page.history`, `docs.search`, `docs.home.get`, `chat.forward`,
-  `inbox.list`. Reply previews in messages it does get still quote the replied-to message (≤ 140 characters).
+  `inbox.list`, and the ones whose answers carry content: `docs.page.save`, `docs.page.restore`, `docs.home.set`,
+  `forum.post.update`, `forum.post.set`, `report.list`, `push.subscribe` (Web Push carries message text; turning
+  `readAll` off also deletes the bot's push subscriptions, and channel-message pushes skip such bots). Its `chat.send`
+  (and scheduled sends) may only reply to a message meant for it (else `forbidden`, `bot_no_read`), since a reply quotes
+  the original. Reply previews in messages it does get still quote the replied-to message (≤ 140 characters).
 
 ### Commands that take interactions
 
@@ -2477,7 +2481,8 @@ The bot's sessions get event `interaction`:
 ```
 
 `id` is the interaction token: 16 random bytes, valid for 15 minutes, only for the bot it was sent to, and only for
-answering this one interaction (at most 5 answers). Tokens live in the server's memory and end with a restart.
+answering this one interaction (at most 5 answers). Tokens live in the server's memory and end with a restart. A person
+has at most 100 interactions open (started in the last 15 minutes); more are `rate_limited`.
 
 ### Answering
 
