@@ -41,7 +41,8 @@ interface ClipState {
   notices: ClipNotice[]
   /** The screen share the call screen shows big (its tile id): the video a clip keeps. */
   watched: string | null
-  error: string | null
+  /** A text key for the app's own messages (so it follows a language switch), or a server's error as text. */
+  error: ClipError | null
 }
 
 function loadSettings(): ClipSettings {
@@ -79,6 +80,8 @@ export function setClipSettings(patch: Partial<ClipSettings>): void {
 export const setWatchedTile = (id: string | null): void => {
   if (useClips.getState().watched !== id) useClips.setState({ watched: id })
 }
+
+export type ClipError = string | { key: 'clips.unsupported' | 'clips.turnOnFirst' | 'clips.notReady' }
 
 export const clearClipError = (): void => useClips.setState({ error: null })
 
@@ -292,9 +295,9 @@ export async function saveClip(): Promise<void> {
   const { session } = useVoice.getState()
   const state = useClips.getState()
   if (!session || state.busy || state.draft) return
-  if (!clipsSupported()) return useClips.setState({ error: t('clips.unsupported') })
-  if (!state.settings.enabled) return useClips.setState({ error: t('clips.turnOnFirst') })
-  if (!recorder) return useClips.setState({ error: t('clips.notReady') })
+  if (!clipsSupported()) return useClips.setState({ error: { key: 'clips.unsupported' } })
+  if (!state.settings.enabled) return useClips.setState({ error: { key: 'clips.turnOnFirst' } })
+  if (!recorder) return useClips.setState({ error: { key: 'clips.notReady' } })
   useClips.setState({ busy: true, error: null })
   try {
     const clip = await recorder.snapshot(state.settings.seconds)

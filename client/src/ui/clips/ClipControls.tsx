@@ -90,7 +90,7 @@ export function ClipLayer() {
           ))}
           {error && (
             <div className="clip-toast error" role="alert">
-              <span>{error}</span>
+              <span>{typeof error === 'string' ? error : t(error.key)}</span>
               {!enabled && inCall && canClip() && (
                 <button className="button small primary" onClick={() => setClipSettings({ enabled: true })}>{t('clips.turnOn')}</button>
               )}
