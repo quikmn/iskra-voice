@@ -288,10 +288,17 @@ try {
   Step 'Final checks'
   $site = Get-Text 'https://iskra.foo/'
   $siteVersion = if ($site) { ([regex]::Matches($site, 'releases/download/v([0-9A-Za-z.\-]+)/') | ForEach-Object { $_.Groups[1].Value } | Select-Object -First 1) } else { $null }
-  $app = Get-Text 'https://app.iskra.foo/'
-  $asset = if ($app) { ([regex]::Match($app, '/assets/index-[A-Za-z0-9_-]+\.js')).Value } else { $null }
-  $appJs = if ($asset) { Get-Text "https://app.iskra.foo$asset" } else { $null }
-  $appHas = [bool]($appJs -and ($appJs.Contains("'$Version'") -or $appJs.Contains("`"$Version`"")))
+  # The bundler may quote the version with ', " or a backtick. Cloudflare can take a few minutes to serve the new
+  # bundle, so a real run asks again for up to 5 minutes.
+  $appHas = $false
+  for ($try = 0; $try -lt 10 -and -not $appHas; $try++) {
+    if ($try) { Start-Sleep -Seconds 30 }
+    $app = Get-Text 'https://app.iskra.foo/'
+    $asset = if ($app) { ([regex]::Match($app, '/assets/index-[A-Za-z0-9_-]+\.js')).Value } else { $null }
+    $appJs = if ($asset) { Get-Text "https://app.iskra.foo$asset" } else { $null }
+    $appHas = [bool]($appJs -and (@("'", '"', [string][char]96) | Where-Object { $appJs.Contains("$_$Version$_") }))
+    if ($DryRun) { break }
+  }
   $health = Get-Text 'https://chat.iskra.foo/health'
   $chatVersion = if ($health) { try { ($health | ConvertFrom-Json).version } catch { $null } } else { $null }
   if ($DryRun) {
