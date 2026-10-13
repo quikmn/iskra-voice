@@ -23,7 +23,7 @@
     "ogg-opus-decoder": "1.7.5"
   },
   "devDependencies": {
-    "@types/libsodium-wrappers-sumo": "^0.7.8",
+    "@types/libsodium-wrappers-sumo": "^0.8.2",
     "@types/node": "^24.13.3",
     "esbuild": "^0.28.1",
     "typescript": "~6.0.2"
