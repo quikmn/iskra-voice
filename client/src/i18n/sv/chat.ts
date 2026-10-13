@@ -166,6 +166,7 @@ export const chat: Messages['chat'] = {
     backToChannel: 'Tillbaka till kanalen',
     inChannel: 'i #{{name}}',
     pinnedHere: 'Fäst i den här tråden',
+    pinnedInPost: 'Fästa meddelanden i inlägget',
     pinnedIn: 'Fäst i {{name}}',
     rename: 'Byt namn',
     renamePost: 'Byt namn på inlägget',

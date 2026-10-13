@@ -165,6 +165,7 @@ export const chat = {
     backToChannel: 'Back to channel',
     inChannel: 'in #{{name}}',
     pinnedHere: 'Pinned in this thread',
+    pinnedInPost: 'Pinned messages in this post',
     pinnedIn: 'Pinned in {{name}}',
     rename: 'Rename',
     renamePost: 'Rename post',

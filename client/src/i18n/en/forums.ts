@@ -71,8 +71,8 @@ export const forums = {
   },
   bar: {
     tags: 'Tags',
-    unpin: 'Unpin',
-    pin: 'Pin',
+    unpin: 'Unpin post',
+    pin: 'Pin post',
     reopen: 'Reopen post',
     close: 'Close post',
     unlock: 'Unlock',

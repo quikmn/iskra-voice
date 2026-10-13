@@ -75,7 +75,9 @@ test('a forum with tags, posts, replies, unread markers and moderation', async (
   await expect(friendCard.locator('.post-replies')).toContainText('1')
 
   // The owner pins and locks it; the friend can't reply any more.
-  await hostPanel.getByRole('button', { name: 'Pin', exact: true }).click()
+  await expect(hostPanel.getByRole('button', { name: 'Pinned messages in this post' })).toBeVisible()
+  await hostPanel.getByRole('button', { name: 'Pin post', exact: true }).click()
+  await expect(hostPanel.getByRole('button', { name: 'Unpin post', exact: true })).toBeVisible()
   await hostPanel.getByRole('button', { name: 'Lock', exact: true }).click()
   await expect(friendCard.locator('.post-state')).toContainText('Locked')
   await friendCard.click()
