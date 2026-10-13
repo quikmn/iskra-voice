@@ -33,6 +33,18 @@ class TestLink implements FrameLink {
   }
 }
 
+/**
+ * The first sample (from `from` on) that isn't what `want` says, within `tolerance`, or null. One check per test, not
+ * one expect per sample: a quarter of a million expects took about 2 s of a 5 s timeout on a CI runner.
+ */
+function firstWrong(output: Float32Array, from: number, want: (i: number) => number, tolerance = 0): string | null {
+  for (let i = from; i < output.length; i++) {
+    const w = want(i)
+    if (tolerance === 0 ? output[i] !== w : !(Math.abs(output[i] - w) < tolerance)) return `sample ${i}: ${output[i]}, wanted ${w}`
+  }
+  return null
+}
+
 /** A tone with a slow sweep: every sample distinct enough to spot a drop or a repeat. */
 const signal = (n: number) => Float32Array.from({ length: n }, (_, i) => 0.5 * Math.sin(i * (0.01 + i * 1e-7)) + 0.1)
 
@@ -65,7 +77,7 @@ describe('DeepFilterNet frame queue', () => {
   it('plays what the worker sends back at a fixed delay, sample for sample', () => {
     const input = signal(48000 * 5)
     const { queue, output } = run(input, (f) => f.forEach((x, i) => (f[i] = -x)), 0, () => false)
-    for (let i = 0; i < output.length; i++) expect(output[i]).toBe(i < DELAY ? 0 : -input[i - DELAY])
+    expect(firstWrong(output, 0, (i) => (i < DELAY ? 0 : -input[i - DELAY]))).toBeNull()
     expect(queue.overruns).toBe(0)
     expect(queue.dropped).toBe(0)
     expect(queue.bridged).toBe(0)
@@ -80,7 +92,7 @@ describe('DeepFilterNet frame queue', () => {
     expect(queue.overruns).toBeGreaterThan(2)
     expect(queue.dropped).toBeGreaterThan(0) // every slot was out while it was stuck for long
     expect(queue.bridged).toBeGreaterThan(200 * BLOCK) // at least the long stall went out unprocessed
-    for (let i = DELAY; i < output.length; i++) expect(output[i]).toBeCloseTo(input[i - DELAY], 6)
+    expect(firstWrong(output, DELAY, (i) => input[i - DELAY], 5e-7)).toBeNull() // toBeCloseTo(x, 6)
   })
 
   it('crossfades smoothly both ways, and never goes silent', () => {
@@ -125,7 +137,11 @@ describe('DeepFilterNet frame queue', () => {
       for (let i = 0; i < f.length; i++) f[i] *= 2
       channel.port2.postMessage(f, [f.buffer])
     }
-    queue.attach(new PortLink(channel.port1, queue.take))
+    let returned = 0
+    queue.attach(new PortLink(channel.port1, (index, frame) => {
+      returned++
+      queue.take(index, frame)
+    }))
     const input = signal(48000)
     const out = new Float32Array(BLOCK)
     const output = new Float32Array(input.length)
@@ -133,13 +149,15 @@ describe('DeepFilterNet frame queue', () => {
     for (let k = 0; k * BLOCK < input.length; k++) {
       queue.process(input.subarray(k * BLOCK, (k + 1) * BLOCK), out)
       output.set(out, k * BLOCK)
-      if (k % 4 === 3) for (let i = 0; i < 4; i++) await tick()
+      // Between bursts the audio thread waits a device period, which leaves the worker time to answer: wait for its
+      // answers here (a fixed number of event-loop turns wasn't always enough for a MessagePort on a busy machine).
+      if (k % 4 === 3) while (returned < Math.floor(((k + 1) * BLOCK) / FRAME)) await tick()
     }
-    for (let i = 0; i < 4; i++) await tick()
+    while (returned < Math.floor(input.length / FRAME)) await tick()
     channel.port1.close()
     expect(frames).toBe(Math.floor(input.length / FRAME))
     expect(queue.overruns).toBe(0)
-    for (let i = DELAY; i < output.length; i++) expect(output[i]).toBe(Math.fround(2 * input[i - DELAY]))
+    expect(firstWrong(output, DELAY, (i) => Math.fround(2 * input[i - DELAY]))).toBeNull()
   })
 
   it('gives up on the worker only when it is late for a good part of several seconds in a row', () => {

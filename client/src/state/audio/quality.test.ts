@@ -56,10 +56,17 @@ describe('voice chain quality (offline, real audio)', { timeout: 60000 }, () => 
     expect(Math.abs(r.latencyMs - VAD_DEFAULTS.preRollMs)).toBeLessThan(5)
   })
 
+  /** The input through DeepFilterNet with and without the gate: run once, measured against both sets of onsets. */
+  function chains(input: Float32Array) {
+    return {
+      gated: runChain(input, engines, { deepFilter: normal, gate: true, leveler: false }),
+      ungated: runChain(input, engines, { deepFilter: normal, gate: false, leveler: false }).sent,
+    }
+  }
+
   /** How late the gate opens after each onset (ms), with DeepFilterNet's own delay taken out. */
-  function lateness(signal: Float32Array, onsets: number[], input: Float32Array) {
-    const run = runChain(input, engines, { deepFilter: normal, gate: true, leveler: false })
-    const dfDelay = findLag(signal, runChain(input, engines, { deepFilter: normal, gate: false, leveler: false }).sent).lag
+  function lateness(signal: Float32Array, onsets: number[], { gated: run, ungated }: ReturnType<typeof chains>) {
+    const dfDelay = findLag(signal, ungated).lag
     const late = onsets.map((on) => {
       let k = Math.floor(on / 128)
       while (k < run.open.length && !run.open[k]) k++
@@ -75,12 +82,14 @@ describe('voice chain quality (offline, real audio)', { timeout: 60000 }, () => 
     const faint = phrases(clean, -45) // its faintest lead-in, 20-30 dB down
     const input = which === 'clean' ? voiced.signal : mix(voiced.signal, pinkNoise(voiced.signal.length, -42), keyboard(voiced.signal.length, RATE, -16))
     expect(voiced.onsets.length).toBeGreaterThan(10)
-    const v = lateness(voiced.signal, voiced.onsets, input)
+    // Both chains once (they're most of this test's time, which neared its timeout on a busy machine).
+    const runs = chains(input)
+    const v = lateness(voiced.signal, voiced.onsets, runs)
     expect(v.transitions).toBe(2 * voiced.onsets.length) // opens and closes once per phrase
     // Nothing voiced is ever lost.
     for (const late of v.late) expect(late).toBeLessThan(VAD_DEFAULTS.preRollMs)
     // A faint lead-in is softened by at most 50 ms, and usually not at all or barely.
-    const loss = lateness(faint.signal, faint.onsets, input).late.map((late) => Math.max(0, late - VAD_DEFAULTS.preRollMs)).sort((x, y) => x - y)
+    const loss = lateness(faint.signal, faint.onsets, runs).late.map((late) => Math.max(0, late - VAD_DEFAULTS.preRollMs)).sort((x, y) => x - y)
     expect(loss[loss.length - 1]).toBeLessThanOrEqual(50)
     expect(loss[Math.floor(loss.length / 2)]).toBeLessThanOrEqual(30)
   })
