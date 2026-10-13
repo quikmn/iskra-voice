@@ -249,7 +249,7 @@ function Bots({ server }: { server: ServerState }) {
   async function createInvite() {
     try {
       const { invite } = await connection!.request('bot.invite', { role, readAll, voice })
-      setLink(buildInviteLink(appUrl(server.appUrl), { serverUrl: server.url, serverKey: server.key, code: invite.code }))
+      setLink(buildInviteLink(appUrl(server.appUrl), { serverUrl: server.directUrl, serverKey: server.key, code: invite.code }))
       setCopied(false)
       setError(null)
     } catch (e) {

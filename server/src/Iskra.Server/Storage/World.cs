@@ -73,6 +73,20 @@ public sealed record WorldSettings
 
     /// <summary>Live captions: whether members' apps may get the speech model from this server.</summary>
     public CaptionsSettings Captions { get; init; } = new();
+
+    /// <summary>Friends connecting without port forwarding, through a peer-to-peer tunnel (see PROTOCOL.md).</summary>
+    public P2pSettings P2p { get; init; } = new();
+}
+
+/// <summary>
+/// "Let friends connect without port forwarding": the owner's opt-in. The secret lives in p2p.key; the tunnel in
+/// the host's desktop app reaches the server on the localhost tunnel listener.
+/// </summary>
+public sealed record P2pSettings
+{
+    public bool Enabled { get; init; }
+    /// <summary>The tunnel listener on 127.0.0.1. 0 = any free port (the bound one is written to p2p.port).</summary>
+    public int TunnelPort { get; init; }
 }
 
 /// <summary>
@@ -199,6 +213,15 @@ public sealed record VoiceSettings
 
     /// <summary>The ws(s):// URL clients use for voice. Default: the server's host on <see cref="Port"/>.</summary>
     public string? ClientUrl { get; init; }
+
+    /// <summary>LiveKit's embedded TURN server (only with P2p on), UDP. 0 = <see cref="RtcUdpPort"/> + 1.</summary>
+    public int TurnUdpPort { get; init; }
+    /// <summary>The ports TURN relays through (one per friend in voice).</summary>
+    public int TurnRelayStart { get; init; } = 40000;
+    public int TurnRelayEnd { get; init; } = 40200;
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int EffectiveTurnUdpPort => TurnUdpPort > 0 ? TurnUdpPort : RtcUdpPort + 1;
 }
 
 /// <summary>
@@ -299,7 +322,7 @@ internal static class AtomicFile
 
     /// <summary>Files in a world folder that hold keys or a one-time owner link (relative to the world).</summary>
     public static readonly string[] SecretFiles =
-        ["server.key", "vapid.json", "livekit.key", "owner-invite.txt", "owner-claim", Path.Combine("certs", "acme-account.pem"), Path.Combine("certs", "key.pem")];
+        ["server.key", "vapid.json", "livekit.key", "owner-invite.txt", "owner-claim", "p2p.key", Path.Combine("certs", "acme-account.pem"), Path.Combine("certs", "key.pem")];
 
     /// <summary>Write to a temp file, then rename over the target, so a crash never leaves a half-written file.
     /// On Linux and macOS the file is readable by its owner only (0600), from the moment it exists.</summary>

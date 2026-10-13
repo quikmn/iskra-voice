@@ -215,17 +215,45 @@ Below it, **What Iskra found out**: whether your router has its own public addre
 - **Your router doesn't answer** (UPnP is off): turn on UPnP in the router's settings, or forward the ports it lists by hand, then press **Check again**.
 - **The router won't open port 80** (many only allow ports above 1024): forward port 80 by hand. Until then friends with the desktop app can join over plain HTTP; browsers need HTTPS.
 - **Carrier-grade NAT**: some providers share one public address between customers (your router's "public" address is then in `100.64.0.0/10` or another private range). Port forwarding on your own router can't help: the provider's NAT sits in front of it. Friends behind such a connection can always *join* a reachable server; only the person hosting needs an open connection. The app lists the options, quickest first:
-  1. [Rent a small server](#rent-a-small-server), ready in about 15 minutes, paid and owned by your group.
-  2. Check whether you already have a public IPv4 address (many fiber connections do): the check shows what your router says.
-  3. Ask your provider for a public IPv4 address. Often free and done once; mobile broadband (4G/5G) almost never gets one.
-  4. [Use Tailscale (free)](#use-tailscale-free): a free app that links your group's devices as if they were on one network. Everyone installs it once; no ports to open.
-  5. Let someone in your group with an open connection host: the server is one folder, so [move it](#moving-a-server-to-another-computer).
+  1. For a server in the desktop app: [let friends connect without port forwarding](#let-friends-connect-without-port-forwarding-experimental) (experimental), nothing to open and nothing to install.
+  2. [Rent a small server](#rent-a-small-server), ready in about 15 minutes, paid and owned by your group.
+  3. Check whether you already have a public IPv4 address (many fiber connections do): the check shows what your router says.
+  4. Ask your provider for a public IPv4 address. Often free and done once; mobile broadband (4G/5G) almost never gets one.
+  5. [Use Tailscale (free)](#use-tailscale-free): a free app that links your group's devices as if they were on one network. Everyone installs it once; no ports to open.
+  6. Let someone in your group with an open connection host: the server is one folder, so [move it](#moving-a-server-to-another-computer).
 
 **What "reachable" means.** Iskra doesn't use outside services to test your server, so it only reports what it can actually prove: *verified* once Let's Encrypt has connected to your server from the internet, or *checked through your router* when the server can reach itself via your public address. Otherwise it says it hasn't been confirmed from outside; send a friend an invite to try.
 
 **Why sslip.io.** [sslip.io](https://sslip.io) (and its twin nip.io) is a long-running free wildcard DNS service: `1-2-3-4.sslip.io` resolves to `1.2.3.4`, with nothing to sign up for. Let's Encrypt issues certificates for its names and has granted it a very large rate limit (sslip.io isn't on the Public Suffix List, so all its users share the per-domain limit; the operators have had it raised to 250,000 certificates a week). The address follows your IP, so if your provider changes it, the address and certificate change too and older invite links stop working. For stable links, use your own domain (a free dynamic-DNS name works) and set it as `Internet.Domain`.
 
 Prefer to forward ports yourself? Set `"PortMapping": false` and your `Domain` in the `Internet` section, and forward `80/tcp` and `443/tcp` to the server's port plus the two voice ports.
+
+### Let friends connect without port forwarding (experimental)
+
+For a server hosted in the desktop app, **Server settings → Internet access → Connect without port forwarding** lets friends in even when your connection is shared (CGNAT) or your router won't open ports. It's off until the owner turns it on, and marked experimental until it has been tried on more connections.
+
+**How it works.** Your desktop app announces a key on [HyperDHT](https://github.com/holepunchto/hyperdht), the public peer-to-peer network that Keet and other Pear apps use (the same idea as BitTorrent's DHT). A friend's desktop app gets the key from your invite link, looks your computer up there, and the two apps punch a path straight to each other through both routers (UDP hole punching, as game consoles and video calls do). Everything then travels inside an encrypted connection ([Noise](https://noiseprotocol.org/) over UDX) directly between your computers: chat, files, and voice through the server's own TURN relay. Nothing of Iskra's is in between; the only fixed points are HyperDHT's three bootstrap nodes (run by Holepunch), used once to find other nodes. Iskra's own signed handshake and the invite code still decide who may join, and the server key in the link still pins your server end to end.
+
+**What to expect.** From a home connection (a usual router, or a provider's shared address that follows the rules) friends can connect straight to you, including friends on mobile data. When *both* ends give every destination a new port (some mobile networks and strict corporate NATs), the hole punch fails and the friend can't connect yet; the switch's panel says which kind of connection you have. A relay run by a group member is planned for that case.
+
+**What it shows others.** The nodes near your key on the network (anyone can run one) see your internet address and the addresses of friends who look you up, for as long as the feature is on and the key stays the same. They don't see what you host, who your members are, or anything you say. **New key** changes the key: old invite links then stop working this way, and members get the new one from the server by themselves. "Who Iskra talks to" in My settings lists this too.
+
+**Invite links** get a fourth part, the connection key. Old three-part links keep working. Friends' apps try your address first and use the tunnel only when it can't be reached; browsers and phones can't do this yet and need a reachable address.
+
+**Under the hood.** The server listens on a second port on `127.0.0.1` only (written to `p2p.port` in the folder), where the app's tunnel delivers friends with their real address (PROXY protocol v2), so they count as remote visitors in every way: rate limits, the security log, never the trust the server gives its own machine. Voice uses LiveKit's embedded TURN server on `Voice.TurnUdpPort` (default `RtcUdpPort + 1`) with relay ports 40000–40200, allowed to relay only to this computer; the friend's app reaches it at `127.0.0.1` through the tunnel and sends media relay-only. While your voice goes through a tunnel, the desktop app runs WebRTC with Chromium's `default_public_interface_only` policy (one any-address socket; with a socket per network adapter, Windows can't reach loopback) and switches back when you leave, so voice to a server on another local network (Tailscale, ZeroTier, a second router) keeps using the right adapter. The secret is in `p2p.key` (owner-only). Development builds and `LocalOnly` servers never touch the public network; tests use a private DHT on `127.0.0.1`.
+
+**Third-party notices (the peer-to-peer stack, bundled with the desktop app):**
+
+| Component | Version | License |
+|---|---|---|
+| [hyperdht](https://github.com/holepunchto/hyperdht) (Holepunch) | 6.34.1 | MIT |
+| [dht-rpc](https://github.com/holepunchto/dht-rpc) | 6.27.0 | MIT |
+| [@hyperswarm/secret-stream](https://github.com/holepunchto/hyperswarm-secret-stream) (Noise over UDX) | 6.9.2 | Apache-2.0 |
+| [noise-handshake](https://github.com/holepunchto/noise-handshake), [noise-curve-ed](https://github.com/chm-diederichs/noise-curve-ed) | 4.2.0, 2.1.0 | Apache-2.0, ISC |
+| [udx-native](https://github.com/holepunchto/udx-native) (UDX streams over UDP; native addon) | 1.21.3 | Apache-2.0 |
+| [sodium-native](https://github.com/holepunchto/sodium-native), [sodium-universal](https://github.com/holepunchto/sodium-universal) (libsodium; native addon) | 5.1.0, 5.0.1 | MIT |
+| [blind-relay](https://github.com/holepunchto/blind-relay) | 1.6.1 | Apache-2.0 |
+| [protomux](https://github.com/holepunchto/protomux), [compact-encoding](https://github.com/holepunchto/compact-encoding), [b4a](https://github.com/holepunchto/b4a), [streamx](https://github.com/mafintosh/streamx) and the other small Holepunch libraries they pull in | as in `desktop/package-lock.json` | MIT and Apache-2.0 |
 
 ### Use Tailscale (free)
 
@@ -431,7 +459,13 @@ iskra-server import-discord my-server export.zip              # add --read-only 
     "Port": 7880,                      // LiveKit's local API (not exposed; voice signaling goes through the server port)
     "RtcTcpPort": 7881,
     "RtcUdpPort": 7882,
-    "ClientUrl": null                  // override the voice URL clients use (default <PublicUrl>/livekit)
+    "ClientUrl": null,                 // override the voice URL clients use (default <PublicUrl>/livekit)
+    "TurnUdpPort": 0,                  // LiveKit's TURN for friends through the p2p tunnel; 0 = RtcUdpPort + 1
+    "TurnRelayStart": 40000, "TurnRelayEnd": 40200
+  },
+  "P2p": {                             // "Connect without port forwarding" (desktop app; Server settings → Internet access)
+    "Enabled": false,
+    "TunnelPort": 0                    // the tunnel's listener on 127.0.0.1; 0 = any free port, written to p2p.port
   },
   "Https": {
     "Mode": "off",                     // "off" | "acme" (Let's Encrypt) | "files"
@@ -487,6 +521,7 @@ iskra-server import-discord my-server export.zip              # add --read-only 
 | `certs/` | HTTPS certificates and the Let's Encrypt account (when HTTPS is on, or open to the internet) |
 | `owner-invite.txt` | The one-time owner link, until the owner has joined |
 | `owner-claim` | The one-time owner key from "Rent a small server", until the owner has joined |
+| `p2p.key`, `p2p.port` | The key friends' invites carry for "Connect without port forwarding" (owner-only), and the port of the tunnel's listener on 127.0.0.1 (written at each start) |
 | `backups/` | Daily backups (`auto-YYYY-MM-DD.zip`, not encrypted) and, briefly, a backup being downloaded |
 | `moved.json` | The signed "this server moved" notice, after **Move this server** |
 | `server.log` | Output, when started from the desktop app |

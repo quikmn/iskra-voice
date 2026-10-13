@@ -18,12 +18,12 @@ function useLocalCopy(server: ServerState): HostedServer | null {
   useEffect(() => {
     let port = ''
     try {
-      port = new URL(server.url).port
+      port = new URL(server.directUrl).port
     } catch {
       return
     }
     desktop?.host.list().then((list) => setHosted((prev) => prev ?? list.find((h) => h.running && String(h.port) === port) ?? null)).catch(() => undefined)
-  }, [server.url])
+  }, [server.directUrl])
   return hosted
 }
 

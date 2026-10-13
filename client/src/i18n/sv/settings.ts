@@ -72,6 +72,7 @@ export const settings: Messages['settings'] = {
     yourRole: 'Din roll',
     notJoined: 'inte med',
     address: 'Adress',
+    connection: 'Anslutning',
     serverId: 'Server-ID',
   },
   pages: {

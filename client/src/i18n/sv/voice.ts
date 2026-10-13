@@ -68,6 +68,7 @@ export const voice: Messages['voice'] = {
     camera: 'Kunde inte använda kameran. Kolla behörigheterna i webbläsaren.',
     screen: 'Kunde inte starta skärmdelningen.',
     join: 'Kunde inte gå med i röstkanalen.',
+    tunnel: 'Röst genom peer-to-peer-tunneln finns inte i den här versionen av appen.',
     resumeGone: 'Kunde inte ta dig tillbaka in i röstkanalen: kanalen finns inte längre eller så kan du inte gå med i den.',
   },
   resume: {

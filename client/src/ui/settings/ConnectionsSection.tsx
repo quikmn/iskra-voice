@@ -6,9 +6,9 @@ import { desktop, type DesktopSettings } from '../../platform/desktop'
 import { setAlwaysLoad, siteName, useSiteConsent } from '../../state/siteConsent'
 import { OutgoingHosts } from './OutgoingHosts'
 
-type Item = 'servers' | 'embeds' | 'watch' | 'gifs' | 'updates' | 'push' | 'webApp' | 'hosting' | 'outgoing'
+type Item = 'servers' | 'embeds' | 'watch' | 'gifs' | 'updates' | 'push' | 'webApp' | 'hosting' | 'outgoing' | 'p2p'
 
-const ITEMS: Item[] = ['servers', 'embeds', 'watch', 'gifs', 'updates', 'push', 'webApp', 'hosting', 'outgoing']
+const ITEMS: Item[] = ['servers', 'embeds', 'watch', 'gifs', 'updates', 'push', 'webApp', 'hosting', 'outgoing', 'p2p']
 
 export function ConnectionsSection() {
   const { t } = useTranslation()

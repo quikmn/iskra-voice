@@ -99,6 +99,7 @@ export const errors: Messages['errors'] = {
     owner_updates: 'Bara ägaren kan hantera uppdateringar.',
     owner_move: 'Bara ägaren kan flytta servern.',
     owner_internet: 'Bara ägaren kan öppna servern mot internet.',
+    owner_p2p: 'Bara ägaren kan ändra hur vänner ansluter.',
     call_callee_answer: 'Bara den som blir uppringd kan svara.',
     call_callee_decline: 'Bara den som blir uppringd kan avvisa samtalet.',
     sound_change_owner: 'Bara den som lade till ljudet eller en admin kan ändra det.',

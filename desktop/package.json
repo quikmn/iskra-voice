@@ -11,7 +11,7 @@
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc -p .",
-    "test": "tsc -p . && node --test dist/launch.test.js dist/platform.test.js dist/restore.test.js dist/games.test.js dist/hotkeys.test.js dist/i18n.test.js dist/passkeys.test.js dist/tailscale.test.js dist/pageRules.test.js dist/saveStreams.test.js",
+    "test": "tsc -p . && node --test dist/launch.test.js dist/platform.test.js dist/restore.test.js dist/games.test.js dist/hotkeys.test.js dist/i18n.test.js dist/passkeys.test.js dist/tailscale.test.js dist/pageRules.test.js dist/saveStreams.test.js dist/p2p/keys.test.js dist/p2p/proxy.test.js dist/p2p/network.test.js dist/p2p/hostTunnel.test.js dist/p2p/webrtcPolicy.test.js dist/p2p/tunnel.test.js",
     "test:electron": "tsc -p . && electron dist/embeds.check.js",
     "test:network": "tsc -p . && node dist/network.check.js",
     "start": "npm run build && electron .",
@@ -22,7 +22,10 @@
     "dist:mac": "npm --prefix ../client run build && node scripts/prepare-server.mjs osx-arm64 osx-x64 && npm run build && electron-builder --mac dmg zip --arm64 --x64 --publish never"
   },
   "dependencies": {
+    "b4a": "1.9.0",
     "electron-updater": "6.8.9",
+    "hyperdht": "6.34.1",
+    "sodium-universal": "5.0.1",
     "uiohook-napi": "1.5.5"
   },
   "devDependencies": {
@@ -52,6 +55,10 @@
       "!dist/**/*.check.js",
       "assets/**",
       "package.json"
+    ],
+    "asarUnpack": [
+      "**/node_modules/udx-native/**",
+      "**/node_modules/sodium-native/**"
     ],
     "extraResources": [
       {

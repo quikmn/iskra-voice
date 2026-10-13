@@ -65,8 +65,8 @@ export function noteHosted(server: HostedServer): void {
 }
 
 /** The desktop app's hosted server behind this connection, if it runs on this computer. */
-export function hostedHere(server: Pick<ServerState, 'url'>, byUrl = useHostedHere.getState().byUrl): HostedServer | null {
-  return byUrl[server.url.replace(/\/$/, '')] ?? null
+export function hostedHere(server: Pick<ServerState, 'url'> & Partial<Pick<ServerState, 'directUrl'>>, byUrl = useHostedHere.getState().byUrl): HostedServer | null {
+  return byUrl[(server.directUrl ?? server.url).replace(/\/$/, '')] ?? null
 }
 
 if (desktop) void refreshHostedHere()
@@ -75,8 +75,8 @@ if (desktop) void refreshHostedHere()
  * The server address to put in invite links: the public one when the server is open to the internet. A server on
  * this computer is connected to over localhost, which means nothing to friends: they get its address on the network.
  */
-export function inviteServerUrl(server: Pick<ServerState, 'url' | 'publicUrl'>, byUrl = useHostedHere.getState().byUrl): string {
-  return server.publicUrl ?? hostedHere(server, byUrl)?.lanUrl ?? server.url
+export function inviteServerUrl(server: Pick<ServerState, 'url' | 'publicUrl'> & Partial<Pick<ServerState, 'directUrl'>>, byUrl = useHostedHere.getState().byUrl): string {
+  return server.publicUrl ?? hostedHere(server, byUrl)?.lanUrl ?? server.directUrl ?? server.url
 }
 
 /**
@@ -84,7 +84,7 @@ export function inviteServerUrl(server: Pick<ServerState, 'url' | 'publicUrl'>, 
  * from the server's own host.status (admins). Null when Tailscale isn't on where the server runs.
  */
 export function tailscaleServerUrl(
-  server: Pick<ServerState, 'url' | 'key'>,
+  server: Pick<ServerState, 'url' | 'key'> & Partial<Pick<ServerState, 'directUrl'>>,
   byUrl = useHostedHere.getState().byUrl,
   status: HostStatus | undefined = useHosting.getState().status[server.key],
 ): string | null {

@@ -58,6 +58,11 @@ export const compliance = {
       when: "Open to the internet: your router (UPnP or NAT-PMP, on your own network), Let's Encrypt for the HTTPS certificate, and sslip.io for the free address if you have no domain. Captions: the server fetches the speech model once from Hugging Face. Server updates: GitHub.",
       off: "They see the server's address, not your members'. Internet hosting and server updates are switched in Server settings, the captions model in server.json.",
     },
+    p2p: {
+      who: 'HyperDHT (a public peer-to-peer network), only for "Connect without port forwarding"',
+      when: "Only if a server's owner turned it on in the desktop app, and when you join such a server with the desktop app and its address can't be reached: the app talks to nodes of the public HyperDHT network (first the three bootstrap nodes Holepunch runs, then any node) to announce the server or find it, and then straight to the other computer.",
+      off: 'Those nodes see your internet address and the key you announce or look up, never what it is or what you say. The owner switches it in Server settings → Internet access; leave the server to stop.',
+    },
     outgoing: {
       who: 'Outgoing webhooks',
       when: 'Only if an admin set one up: your server sends chosen events (like new messages in some channels, or people joining) to another app or site. Never encrypted channels, direct messages or group chats.',

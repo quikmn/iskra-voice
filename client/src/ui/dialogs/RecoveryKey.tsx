@@ -18,7 +18,7 @@ function serverLines(): string[] {
   const lines = order
     .map((key) => servers[key])
     .filter((s) => s?.me)
-    .map((s) => `  ${s.name}: ${buildInviteLink(appUrl(s.appUrl), { serverUrl: s.url, serverKey: s.key, code: 'returning' })}`)
+    .map((s) => `  ${s.name}: ${buildInviteLink(appUrl(s.appUrl), { serverUrl: s.directUrl, serverKey: s.key, code: 'returning' })}`)
   return lines.length ? ['', t('settings.recovery.file.servers'), ...lines] : []
 }
 

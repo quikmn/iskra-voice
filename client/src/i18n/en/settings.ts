@@ -71,6 +71,7 @@ export const settings = {
     yourRole: 'Your role',
     notJoined: 'not joined',
     address: 'Address',
+    connection: 'Connection',
     serverId: 'Server ID',
   },
   pages: {

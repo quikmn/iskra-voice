@@ -9,7 +9,7 @@ import {
 import { t } from '../i18n'
 import { errorMessage } from '../i18n/errors'
 import type { LinkRequest } from '../core/protocol'
-import { normalizeServerUrl } from '../core/invite'
+import { KEY43, normalizeServerUrl } from '../core/invite'
 import { profileForLink, profileFromLink, type LinkedProfile } from '../core/profile'
 import { restoreIdentity, seedOf } from '../core/recovery'
 import * as storage from '../core/storage'
@@ -29,7 +29,7 @@ export interface LinkPayload {
   seed: string
   name: string
   recoverySaved: boolean
-  servers: { url: string; serverKey: string; name: string }[]
+  servers: { url: string; serverKey: string; name: string; p2p?: string }[]
   friends: storage.StoredFriend[]
   /** Friends and friend requests (state/friends.ts). Older apps only know `friends`. */
   friendState?: storage.StoredFriendState
@@ -117,7 +117,7 @@ export async function startLinkOffer(serverKey: string, includeHistory: boolean)
   useLinkOffer.setState({ phase: 'creating' }, true)
   try {
     const { token, putKey, expiresAt } = await connection.request('link.create', {})
-    const code: LinkCode = { serverUrl: server.url, token, secret: newLinkSecret() }
+    const code: LinkCode = { serverUrl: server.directUrl, token, secret: newLinkSecret() }
     offer = { serverKey, code, keys: linkKeys(code), putKey, includeHistory }
     useLinkOffer.setState({
       phase: 'waiting', text: encodeLinkCode(code), url: linkAppUrl(appUrl(server.appUrl), code), serverName: server.name, expiresAt,
@@ -153,7 +153,7 @@ async function buildPayload(): Promise<LinkPayload> {
     seed: b64u(seedOf(identity!)),
     name: profile?.name ?? 'Someone',
     recoverySaved: !!profile?.recoverySaved,
-    servers: saved.filter((s) => !s.invite).map((s) => ({ url: s.url, serverKey: s.serverKey, name: s.name })),
+    servers: saved.filter((s) => !s.invite).map((s) => ({ url: s.url, serverKey: s.serverKey, name: s.name, ...(s.p2p ? { p2p: s.p2p } : {}) })),
     friends: await storage.loadFriends(),
     friendState: await storage.loadFriendState().catch(() => undefined),
     profile: profileForLink(profile),
@@ -324,7 +324,7 @@ async function adopt(payload: LinkPayload): Promise<void> {
   await storage.saveServers(servers
     .filter((s) => typeof s?.url === 'string' && normalizeServerUrl(s.url) && typeof s.serverKey === 'string')
     .slice(0, 100)
-    .map((s) => ({ url: normalizeServerUrl(s.url)!, serverKey: s.serverKey, name: String(s.name ?? '').slice(0, 100) })))
+    .map((s) => ({ url: normalizeServerUrl(s.url)!, serverKey: s.serverKey, name: String(s.name ?? '').slice(0, 100), ...(KEY43.test(String(s.p2p)) ? { p2p: String(s.p2p) } : {}) })))
   if (Array.isArray(payload.friends)) await storage.saveFriends(payload.friends.slice(0, 1000))
   const friendState = cleanFriendState(payload.friendState)
   if (friendState) await storage.saveFriendState(friendState)

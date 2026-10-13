@@ -92,13 +92,13 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
     }
 
     /// <summary>
-    /// The voice URL for a client that connected through <paramref name="origin"/>: over HTTPS (internet hosting) or
-    /// Tailscale, voice goes through the address the client used; otherwise the server's own.
+    /// The voice URL for a client that connected through <paramref name="origin"/>: over HTTPS (internet hosting),
+    /// Tailscale or the peer-to-peer tunnel, voice goes through the address the client used; otherwise the server's own.
     /// </summary>
-    internal static string ClientUrlFor(string? origin, IVoiceBackend backend, string? configured)
+    internal static string ClientUrlFor(string? origin, IVoiceBackend backend, string? configured, bool tunnelled = false)
     {
         if (configured is not null || origin is null || !Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return backend.ClientUrl;
-        return uri.Scheme == "https" || Hosting.Tailscale.IsTailscaleHost(uri.Host) ? DefaultClientUrl(origin) : backend.ClientUrl;
+        return tunnelled || uri.Scheme == "https" || Hosting.Tailscale.IsTailscaleHost(uri.Host) ? DefaultClientUrl(origin) : backend.ClientUrl;
     }
 
     private static (string, string) LoadOrCreateKeys(string worldPath)
@@ -134,13 +134,50 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
         ? $"use_external_ip: false\n  node_ip: {publicIp}\n  advertise_internal_ip: true"
         : $"use_external_ip: {(IsLocalOnly(publicUrl) ? "false" : "true")}";
 
-    /// <summary>The public IP changed (or hosting was switched): restart LiveKit with the new address.</summary>
-    private void Restart()
+    /// <summary>
+    /// Friends through the peer-to-peer tunnel reach voice through LiveKit's embedded TURN server, which may only relay
+    /// to this computer's own addresses (the SFU next to it), never anywhere else.
+    /// </summary>
+    internal static string TurnYaml(VoiceSettings voice, IEnumerable<System.Net.IPAddress> ownAddresses)
+    {
+        var allowed = new List<string> { "127.0.0.0/8" };
+        allowed.AddRange(ownAddresses.Where(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork).Select(a => $"{a}/32").Distinct());
+        return $"""
+            turn:
+              enabled: true
+              domain: turn.iskra.invalid
+              udp_port: {voice.EffectiveTurnUdpPort}
+              relay_range_start: {voice.TurnRelayStart}
+              relay_range_end: {voice.TurnRelayEnd}
+              allow_restricted_peer_cidrs: [{string.Join(", ", allowed)}]
+            """;
+    }
+
+    /// <summary>Every IPv4 address of this computer (LiveKit advertises one of them as its node IP, gateway or not).</summary>
+    private static IEnumerable<System.Net.IPAddress> OwnAddresses()
+    {
+        var found = new List<System.Net.IPAddress>();
+        try
+        {
+            foreach (var nic in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (nic.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up) continue;
+                foreach (var unicast in nic.GetIPProperties().UnicastAddresses)
+                    if (unicast.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork && !System.Net.IPAddress.IsLoopback(unicast.Address))
+                        found.Add(unicast.Address);
+            }
+        }
+        catch (System.Net.NetworkInformation.NetworkInformationException) { }
+        return found;
+    }
+
+    /// <summary>The public IP changed, or hosting or the p2p tunnel was switched: restart LiveKit with a new config.</summary>
+    internal void Restart()
     {
         try
         {
             if (_process is not { HasExited: false } process) return;
-            _log.LogInformation("Restarting voice for the new public address");
+            _log.LogInformation("Restarting voice for its new settings");
             _restarting = true;
             process.Kill(entireProcessTree: true);
         }
@@ -149,7 +186,7 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
 
     // LiveKit's API only listens on localhost: clients reach it through the server's /livekit proxy. Media ports stay open.
     // No enabled_codecs: LiveKit's defaults include audio/red, which clients publish voice with (redundant audio).
-    private string ConfigYaml(int iskraPort) => $"""
+    internal string ConfigYaml(int iskraPort) => $"""
         port: {Settings.Port}
         bind_addresses: [127.0.0.1]
         rtc:
@@ -166,6 +203,7 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
           empty_timeout: 30
         logging:
           level: warn
+        {(_world.Settings.P2p.Enabled ? TurnYaml(Settings, OwnAddresses()) : "")}
         """;
 
     protected override async Task ExecuteAsync(CancellationToken stopping)

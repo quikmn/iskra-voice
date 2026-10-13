@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { b64u } from '../../core/crypto'
 import { fingerprint } from '../../core/connection'
 import { useApp, type ServerState } from '../../state/store'
+import { useP2p } from '../../state/p2p'
 import { useServerRoles } from '../../state/roles'
 import { has } from '../../state/permissions'
 import { useReports } from '../../state/reports'
@@ -337,13 +338,15 @@ function ServerSection({ id, server, onClose }: { id: ServerSectionId; server: S
 
 function OverviewSection({ server }: { server: ServerState }) {
   const { t } = useTranslation()
+  const tunnel = useP2p((s) => s.via[server.key])
   return (
     <section className="settings-section">
       <h2>{t('settings.sections.overview')}</h2>
       <dl className="settings-facts">
         <div><dt>{t('settings.overview.name')}</dt><dd>{server.name}</dd></div>
         <div><dt>{t('settings.overview.yourRole')}</dt><dd className="capitalize">{server.me?.role ? t(`common.roles.${server.me.role}`) : t('settings.overview.notJoined')}</dd></div>
-        <div><dt>{t('settings.overview.address')}</dt><dd><code>{server.url}</code></dd></div>
+        <div><dt>{t('settings.overview.address')}</dt><dd><code>{server.directUrl}</code></dd></div>
+        {tunnel && <div data-testid="overview-p2p"><dt>{t('settings.overview.connection')}</dt><dd>{t('hosting.p2p.via')}</dd></div>}
         <div><dt>{t('settings.overview.serverId')}</dt><dd><code>{fingerprint(server.key)}</code></dd></div>
       </dl>
     </section>

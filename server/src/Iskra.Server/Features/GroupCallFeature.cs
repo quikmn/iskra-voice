@@ -49,7 +49,7 @@ public static class GroupCallFeature
     {
         var backend = s.Voice.Backend;
         var token = LiveKitTokens.ForRoom(backend.ApiKey, backend.ApiSecret, me.AccountKey, me.Name, call.Room, canPublish: true, s.Time.GetUtcNow());
-        return new { url = LiveKitHost.ClientUrlFor(s.Origin, backend, s.World.Settings.Voice.ClientUrl), token, room = call.Room };
+        return new { url = LiveKitHost.ClientUrlFor(s.Origin, backend, s.World.Settings.Voice.ClientUrl, s.Tunnelled), token, room = call.Room };
     }
 
     private static object Start(Session s, Member me, Body body)

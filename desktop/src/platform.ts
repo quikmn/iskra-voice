@@ -256,8 +256,11 @@ export function keychainKind(platform: NodeJS.Platform, available: boolean, linu
 // ── iskra:// links ───────────────────────────────────────────────────────
 
 export const DEEP_LINK_SCHEME = 'iskra'
-/** <b64u(server url)>.<server key>.<code>, as in web invite links (#/join/...). */
-const INVITE_TOKEN = /^[A-Za-z0-9_-]{4,600}\.[A-Za-z0-9_-]{43}\.[A-Za-z0-9_-]{8,64}$/
+/** <b64u(server url)>.<server key>.<code>[.<p2p secret>], as in web invite links (#/join/...). */
+const INVITE_TOKEN = /^[A-Za-z0-9_-]{4,600}\.[A-Za-z0-9_-]{43}\.[A-Za-z0-9_-]{8,64}(\.[A-Za-z0-9_-]{43})?$/
+
+/** A 32-byte key as the page sends it (b64u): a server key, or a server's p2p secret. */
+export const isKey43 = (v: unknown): v is string => typeof v === 'string' && /^[A-Za-z0-9_-]{43}$/.test(v)
 
 /**
  * The invite token in an iskra://join/<token> (or iskra://invite/<token>) link, or null. Nothing else is

@@ -7,10 +7,15 @@ import path from 'node:path'
 import { APP_ORIGIN, configureAppSession, registerAppScheme } from './appSession'
 import { Host, isTemplateId, type HostedServer } from './host'
 import { parseHotkeys } from './hotkeys'
+import { ClientTunnels } from './p2p/clientTunnel'
+import { HostTunnels } from './p2p/hostTunnel'
+import { p2pNetwork } from './p2p/network'
+import { P2pNode } from './p2p/node'
+import { TunnelledVoice } from './p2p/webrtcPolicy'
 import { isBackupDownload, readBackupInfo } from './restore'
 import { SaveStreams, suggestedName } from './saveStreams'
 import {
-  aboutDetail, badgeText, DEEP_LINK_SCHEME, deepLinkFromArgv, isAppPage, isWayland, MAC_SETTINGS, parseDeepLink, parseDesktopSettings,
+  aboutDetail, badgeText, DEEP_LINK_SCHEME, deepLinkFromArgv, isAppPage, isKey43, isServerId, isWayland, MAC_SETTINGS, parseDeepLink, parseDesktopSettings,
   keychainKind, serversToStart, setKeepRunning, skipScreenPicker, spellcheckDownloadsDictionaries, trayMenu, type DesktopSettings, type SettingsPane, type TrayAction,
 } from './platform'
 import { allowPageViews } from './pages'
@@ -54,7 +59,15 @@ let quitting = false
 let restarting = false
 // Mute/deafen hotkeys: only the action's name reaches the page, never which keys were pressed.
 const ptt = new PushToTalk((down) => window?.webContents.send('iskra:ptt', down), (action) => window?.webContents.send('iskra:hotkey', action))
-const host = new Host()
+// Friends without port forwarding: one DHT node for the app; tunnels for the servers hosted here and the ones you join.
+// Development builds and ISKRA_LOCAL_ONLY runs bind 127.0.0.1 and only join a testnet named by ISKRA_P2P_BOOTSTRAP.
+const p2pNode = new P2pNode(p2pNetwork(process.env, app.isPackaged))
+const hostTunnels = new HostTunnels(p2pNode, (id, p2p) => window?.webContents.send('iskra:host-p2p', { id, p2p }))
+const clientTunnels = new ClientTunnels(p2pNode)
+const host = new Host(hostTunnels)
+// While the page's voice goes through a tunnel, WebRTC uses one any-address socket (see p2p/webrtcPolicy.ts).
+const tunnelledVoice = new TunnelledVoice()
+if (process.env.ISKRA_E2E) Object.assign(globalThis, { iskraP2pDebug: () => ({ host: hostTunnels.debug(), client: clientTunnels.debug(), nat: p2pNode.nat() }) }) // for the desktop e2e test
 // "Playing X": only the matched game's name ever reaches the page.
 const activity = new ActivityDetector((game) => window?.webContents.send('iskra:activity', game))
 const updates = new Updates((status: UpdateStatus) => {
@@ -163,6 +176,7 @@ function createWindow(): void {
     },
   })
   allowPageViews(window, isAppUrl)
+  window.webContents.setWebRTCIPHandlingPolicy(tunnelledVoice.policy) // 'default', unless voice is already through the tunnel
 
   // Started with the computer: stay in the tray until opened. Otherwise the splash shows it when everything's ready.
   window.webContents.once('dom-ready', () => launch?.page === 'loading' && launchChanged({ page: 'loaded' }))
@@ -602,6 +616,26 @@ ipcMain.handle('iskra:host-create', async (event, name: unknown, appUrl: unknown
   return withKeep(await host.create(name, appUrl, isTemplateId(template) ? template : null))
 })
 ipcMain.handle('iskra:host-start', async (event, id: unknown) => (fromApp(event) && typeof id === 'string' ? withKeep(await host.start(id)) : null))
+// The owner switched "Let friends connect without port forwarding" on a server hosted here: the tunnel follows the world's files.
+ipcMain.handle('iskra:host-p2p-sync', async (event, id: unknown) => (fromApp(event) && isServerId(id) ? withKeep(await host.syncP2p(id)) : null))
+// Joining a server through its tunnel: a local address for the page, by server key and the secret from the invite.
+ipcMain.handle('iskra:p2p-open', async (event, serverKey: unknown, secret: unknown) => {
+  if (!fromApp(event) || !isKey43(serverKey) || !isKey43(secret)) return null
+  try {
+    return await clientTunnels.get(serverKey, secret)
+  } catch (error) {
+    return { error: (error as Error).message }
+  }
+})
+ipcMain.handle('iskra:p2p-close', (event, serverKey: unknown) => {
+  if (fromApp(event) && isKey43(serverKey)) void clientTunnels.close(serverKey)
+})
+// The page's voice is about to connect through a tunnel (true), or left it (false): only new peer connections see it.
+ipcMain.handle('iskra:p2p-voice', (event, on: unknown) => {
+  if (!fromApp(event)) return
+  const policy = tunnelledVoice.set(on)
+  if (policy) window?.webContents.setWebRTCIPHandlingPolicy(policy)
+})
 ipcMain.handle('iskra:host-stop', async (event, id: unknown) => (fromApp(event) && typeof id === 'string' ? withKeep(await host.stop(id)) : null))
 // "Keep my server running": Iskra starts with the computer, hidden in the tray, and starts this server.
 ipcMain.handle('iskra:host-keep-running', (event, id: unknown, on: unknown) => {
@@ -725,8 +759,10 @@ let serversStopped: Promise<void> | null = null
 app.on('before-quit', () => {
   quitting = true
   ptt.stop()
+  void clientTunnels.closeAll()
   // Restarting (an update, a relaunch): hosted servers tell members "restarting", since they're back in a moment.
-  if (host.running()) serversStopped ??= host.stopAll(restarting)
+  if (host.running()) serversStopped ??= host.stopAll(restarting).finally(() => p2pNode.destroy())
+  else void p2pNode.destroy()
 })
 
 // Give hosted servers a moment to shut down cleanly (they also stop by themselves once the app is gone).

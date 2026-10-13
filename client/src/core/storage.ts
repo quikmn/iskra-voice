@@ -285,6 +285,8 @@ export interface SavedServer {
   name: string
   /** Kept until the first successful join, then cleared. */
   invite?: string
+  /** The server's p2p secret (from the invite, then from the server): the desktop app reaches it through the tunnel when `url` can't be reached. */
+  p2p?: string
 }
 
 export async function loadIdentity(): Promise<Identity | null> {

@@ -31,6 +31,11 @@ export interface ConnectionOptions {
   bot?: boolean
   /** Account key rotations that led to this identity, for servers that missed them (see "Account key rotation"). */
   rotations?: () => unknown[]
+  /**
+   * Asked before every attempt for the address to use this time: `serverUrl`, or another way to the same server (the
+   * desktop app's peer-to-peer tunnel when the address can't be reached). Null means try `serverUrl`.
+   */
+  resolveUrl?: () => Promise<string | null>
   onStatus: (status: ConnectionStatus) => void
   onWelcome: (welcome: Welcome) => void
   onEvent: <K extends keyof Events>(type: K, body: Events[K]) => void
@@ -127,8 +132,10 @@ export class Connection {
     })
   }
 
+  /** Counts attempts, so an address resolved for an attempt that was stopped or superseded meanwhile is dropped. */
+  private attempt = 0
+
   private open(): void {
-    const Impl = this.options.WebSocketImpl ?? WebSocket
     this.ready = false
     if (blockedAsInsecure(this.options.serverUrl)) {
       this.reject(
@@ -138,9 +145,20 @@ export class Connection {
       return
     }
     this.options.onStatus(this.restartStatus() ?? { state: 'connecting' })
+    const attempt = ++this.attempt
+    if (!this.options.resolveUrl) return this.openSocket(this.options.serverUrl)
+    const stillWanted = () => attempt === this.attempt && !this.stopped && !this.rejected
+    this.options.resolveUrl().then(
+      (url) => stillWanted() && this.openSocket(url ?? this.options.serverUrl),
+      () => stillWanted() && this.openSocket(this.options.serverUrl),
+    )
+  }
+
+  private openSocket(url: string): void {
+    const Impl = this.options.WebSocketImpl ?? WebSocket
     let socket: WebSocket
     try {
-      socket = new Impl(socketUrl(this.options.serverUrl))
+      socket = new Impl(socketUrl(url))
     } catch {
       this.scheduleReconnect()
       return
