@@ -33,7 +33,7 @@ public static class VoiceFeature
         var token = LiveKitTokens.ForRoom(backend.ApiKey, backend.ApiSecret, me.AccountKey, me.Name, room,
             canPublish: canSpeak, s.Time.GetUtcNow());
         // Over HTTPS (internet hosting) or Tailscale voice goes through the same address the client used.
-        var url = LiveKitHost.ClientUrlFor(s.Origin, backend, s.World.Settings.Voice.ClientUrl);
+        var url = LiveKitHost.ClientUrlFor(s.Origin, backend, s.World.Settings.Voice.ClientUrl, s.Tunnelled);
         return new { url, token, room, canSpeak };
     }
 

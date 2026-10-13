@@ -35,6 +35,8 @@ catch (Exception ex) when (WorldProblem.Describe(worldPath, ex) is { } problem)
 MoveFeature.Load(world);
 // A restart marker from before this start was for the server that stopped (see RestartMarker).
 RestartMarker.Discard(world.Path);
+// Friends connecting without port forwarding: the secret their invites carry (see P2pFeature).
+if (world.Settings.P2p.Enabled) P2pFeature.EnsureSecret(world);
 
 // A starter template (server.json "Template" or --template <name>), applied once to a new server.
 if ((builder.Configuration["Template"] ?? world.Settings.Template) is { Length: > 0 } template)
@@ -113,6 +115,7 @@ builder.Services.AddSingleton<IPortMapper>(sp => builder.Configuration["Internet
     : ActivatorUtilities.CreateInstance<PortMapper>(sp));
 builder.Services.AddSingleton<InternetHost>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<InternetHost>());
+builder.Services.AddSingleton<TunnelListener>();
 builder.Services.AddSingleton<Iskra.Server.Backups.BackupService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<Iskra.Server.Backups.BackupService>());
 builder.Services.AddSingleton<Iskra.Server.Import.ImportService>();
@@ -126,6 +129,16 @@ builder.Services.AddSingleton<DataExports>();
 builder.Services.AddHostedService<RetentionSweeper>();
 
 var https = world.Settings.Https;
+// The peer-to-peer tunnel in the host's desktop app reaches us here (localhost only; see TunnelListener).
+void ListenForTunnel(Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerOptions kestrel)
+{
+    var tunnel = kestrel.ApplicationServices.GetRequiredService<TunnelListener>();
+    kestrel.Listen(System.Net.IPAddress.Loopback, world.Settings.P2p.TunnelPort, listen =>
+    {
+        listen.Use(TunnelListener.Middleware);
+        tunnel.Options = listen;
+    });
+}
 if (https.Enabled)
 {
     builder.WebHost.ConfigureKestrel(kestrel =>
@@ -133,6 +146,7 @@ if (https.Enabled)
         var certificates = kestrel.ApplicationServices.GetRequiredService<Certificates>();
         certificates.LoadExisting();
         kestrel.ListenLocalhost(world.Settings.Port); // internal: LiveKit webhooks and local tools
+        ListenForTunnel(kestrel);
         void Listen(int port, Action<Microsoft.AspNetCore.Server.Kestrel.Core.ListenOptions>? configure = null)
         {
             if (world.Settings.LocalOnly) kestrel.ListenLocalhost(port, configure ?? (_ => { }));
@@ -160,11 +174,13 @@ else
         void Dual(Microsoft.AspNetCore.Server.Kestrel.Core.ListenOptions listen) => listen.Use(DualProtocol.Middleware(() => certificates.Context));
         if (world.Settings.LocalOnly) kestrel.ListenLocalhost(world.Settings.Port, Dual);
         else kestrel.ListenAnyIP(world.Settings.Port, Dual);
+        ListenForTunnel(kestrel);
     });
 }
 
 var app = builder.Build();
 app.Lifetime.ApplicationStopped.Register(world.Dispose);
+app.Lifetime.ApplicationStarted.Register(() => app.Services.GetRequiredService<TunnelListener>().Started(world.Path));
 // Read the restart marker as the server stops, even with nobody connected, so it never outlives this run.
 app.Lifetime.ApplicationStopping.Register(() => app.Services.GetRequiredService<Hub>().Restart.Settle());
 ChildProcesses.StopWhenParentExits(app.Lifetime, app.Logger);
@@ -197,11 +213,13 @@ if (https.Enabled)
 }
 else
 {
-    // Internet hosting with a certificate: plain HTTP from the internet goes to HTTPS. LAN and localhost stay as they are.
+    // Internet hosting with a certificate: plain HTTP from the internet goes to HTTPS. LAN and localhost stay as they
+    // are, and so does the peer-to-peer tunnel (encrypted end to end already; its friends can't reach the public address).
     app.Use(async (context, next) =>
     {
         if (!context.Request.IsHttps && world.InternetUrl is { } publicUrl && publicUrl.StartsWith("https://", StringComparison.Ordinal)
             && context.Connection.RemoteIpAddress is { } remote && !Networks.IsNonPublic(remote)
+            && context.Features.Get<TunnelPeer>() is null
             && !context.Request.Path.StartsWithSegments("/.well-known"))
         {
             if (WebhookIngress.RefuseOverPlainHttp(context)) await WebhookIngress.WriteUseHttpsAsync(context);
@@ -308,6 +326,7 @@ app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice
         Gifs = context.RequestServices.GetRequiredService<Iskra.Server.Gifs.GifService>(),
         Origin = $"{context.Request.Scheme}://{context.Request.Host}",
         RemoteIp = context.Connection.RemoteIpAddress is { } ip ? (ip.IsIPv4MappedToIPv6 ? ip.MapToIPv4() : ip).ToString() : null,
+        Tunnelled = context.Features.Get<TunnelPeer>() is not null,
     }.RunAsync(context.RequestAborted, context.RequestServices.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping);
 });
 

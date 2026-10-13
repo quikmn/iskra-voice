@@ -15,10 +15,11 @@ public sealed class Router
     private readonly ILogger<Router> _log;
 
     public Router(ILogger<Router> log, Hosting.InternetHost internet, Backups.BackupService backups, Import.ImportService imports,
-        DataExports exports, Updates.UpdateService updates)
+        DataExports exports, Updates.UpdateService updates, Hosting.TunnelListener tunnel, Voice.LiveKitHost livekit)
     {
         _log = log;
         Add("ping", (_, _, _) => new { });
+        P2pFeature.Register(this, tunnel, livekit);
         ChatFeature.Register(this);
         ChannelFeature.Register(this);
         MemberFeature.Register(this);

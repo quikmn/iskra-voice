@@ -66,6 +66,9 @@ public sealed class Session
     /// <summary><see cref="RemoteIp"/> if the security log records addresses (Retention.SecurityLogIps), else null.</summary>
     public string? LoggedIp => _world.Settings.Retention.SecurityLogIps ? RemoteIp : null;
 
+    /// <summary>Came through the peer-to-peer tunnel (the tunnel listener): a friend, never this machine itself.</summary>
+    public bool Tunnelled { get; init; }
+
     /// <summary>The authenticated account, or null before the handshake completes.</summary>
     public string? AccountKey { get; private set; }
 
@@ -202,7 +205,8 @@ public sealed class Session
             you = _hub.PublicMember(member),
             server = new { name = _world.Settings.Name, key = Ed25519.ToB64u(_world.ServerPublicKey), appUrl = _world.Settings.AppUrl, publicUrl = _world.InternetUrl,
                 profilePages = ProfileFeature.PagesEnabled(_world.Store),
-                moved = _world.Moved is { } moved ? MoveFeature.View(moved) : null },
+                moved = _world.Moved is { } moved ? MoveFeature.View(moved) : null,
+                p2p = P2pFeature.SecretForMembers(_world) },
             presence = PresenceFeature.Mine(_world.Store, member.AccountKey, Now),
             channels = _hub.VisibleChannels(member),
             categories = _hub.VisibleCategories(member),
