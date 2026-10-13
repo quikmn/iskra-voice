@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { buildNumber, marketingVersion, versionCode } from './mobile-version.mjs'
+import { androidVersionCode, buildNumber, marketingVersion, versionCode } from './mobile-version.mjs'
 
 test('version codes match the Android app', () => {
   assert.equal(versionCode('2.0.0-alpha.7'), 20000107)
@@ -37,5 +37,16 @@ test('the Android build reads its version code from the CLI', async () => {
   const { fileURLToPath } = await import('node:url')
   const version = JSON.parse(readFileSync(new URL('../desktop/package.json', import.meta.url), 'utf8')).version
   const out = execFileSync(process.execPath, [fileURLToPath(new URL('./mobile-version.mjs', import.meta.url)), '--android'], { encoding: 'utf8' })
-  assert.equal(out, `APP_VERSION=${version}\nVERSION_CODE=${versionCode(version)}\n`)
+  assert.equal(out, `APP_VERSION=${version}\nVERSION_CODE=${androidVersionCode(version)}\n`)
+  const rebuilt = execFileSync(process.execPath, [fileURLToPath(new URL('./mobile-version.mjs', import.meta.url)), '--android', '2'], { encoding: 'utf8' })
+  assert.equal(rebuilt, `APP_VERSION=${version}\nVERSION_CODE=${androidVersionCode(version, 2)}\n`)
+})
+
+test('Android version codes have a rebuild digit and stay above every older plain code', () => {
+  assert.equal(androidVersionCode('2.0.0-alpha.13'), 200001130)
+  assert.equal(androidVersionCode('2.0.0-alpha.13', 1), 200001131)
+  assert.ok(androidVersionCode('2.0.0-alpha.13') > versionCode('2.0.0-alpha.13'))
+  assert.ok(androidVersionCode('2.0.0-alpha.14') > androidVersionCode('2.0.0-alpha.13', 9))
+  assert.ok(androidVersionCode('20.99.99', 9) < 2100000000) // Play's limit (major versions up to 20)
+  for (const r of [-1, 10, 1.5, 'x']) assert.throws(() => androidVersionCode('2.0.0', r), String(r))
 })

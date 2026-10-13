@@ -1,7 +1,7 @@
 // Version numbers for the phone app, from desktop/package.json (the one app version).
 //   node scripts/mobile-version.mjs [run_number] [run_attempt]
 // prints MARKETING_VERSION=2.0.0 and BUILD_NUMBER=20000109.<run>.<attempt> lines (for $GITHUB_ENV).
-//   node scripts/mobile-version.mjs --android
+//   node scripts/mobile-version.mjs --android [rebuild 0-9]
 // prints APP_VERSION and VERSION_CODE (mobile/scripts/build-android.ps1).
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -22,6 +22,16 @@ export function versionCode(version) {
   if (stage && Number(n) >= 100) throw new Error(`Prerelease number too large for the version code: ${version}`)
   const pre = stage ? STAGE[stage] + Number(n) : 900
   return (Number(major) * 10000 + Number(minor) * 100 + Number(patch)) * 1000 + pre
+}
+
+/**
+ * Android's version code on Google Play and GitHub: the version code with one more digit, a rebuild number 0-9, so a
+ * version can be uploaded again (Play never takes a code twice, not even from a release that was never published).
+ * Every code is above the plain codes earlier builds used, so those installs still update in place.
+ */
+export function androidVersionCode(version, rebuild = 0) {
+  if (!Number.isInteger(Number(rebuild)) || Number(rebuild) < 0 || Number(rebuild) > 9) throw new Error(`Rebuild must be 0-9: ${rebuild}`)
+  return versionCode(version) * 10 + Number(rebuild)
 }
 
 /** CFBundleShortVersionString: Apple takes only up to three integers, so 2.0.0-alpha.9 ships as 2.0.0. */
@@ -45,7 +55,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const args = process.argv.slice(2)
   console.log(`APP_VERSION=${pkg.version}`)
   if (args[0] === '--android') {
-    console.log(`VERSION_CODE=${versionCode(pkg.version)}`)
+    console.log(`VERSION_CODE=${androidVersionCode(pkg.version, args[1] ?? 0)}`)
     process.exit(0)
   }
   const [run = '0', attempt = '1'] = args

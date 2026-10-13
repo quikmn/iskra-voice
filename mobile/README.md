@@ -82,7 +82,7 @@ every push.
   `CFBundleVersion` = `<code>.<run>.<attempt>`.
 - Android: `versionName` = the version, `versionCode` = `(major*10000 + minor*100 + patch)*1000` + 100+n (alpha.n),
   200+n (beta.n), 300+n (rc.n) or 900 (final): the same scheme as the old app (last: 2.0.0-alpha.7 = 20000107), so
-  every release updates the one before.
+  every release updates the one before. Since 2.0.0-alpha.13 the code has one more digit, a rebuild number (`-Rebuild 0-9`: 2.0.0-alpha.13 = 200001130), so a version can be uploaded to Google Play again; every such code is above the older ones.
 
 ## How the web client runs inside the app
 

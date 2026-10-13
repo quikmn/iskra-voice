@@ -4,10 +4,11 @@
 #   .\mobile\scripts\build-android.ps1            # APK + AAB
 #   .\mobile\scripts\build-android.ps1 -ApkOnly
 #   .\mobile\scripts\build-android.ps1 -SkipWeb   # reuse client\dist as it is
+#   .\mobile\scripts\build-android.ps1 -Rebuild 1   # the same version again for Google Play (it never takes a version code twice)
 #
 # Overrides (environment): ISKRA_ANDROID_JDK (JDK 21+), ISKRA_ANDROID_SDK, ISKRA_ANDROID_KEYSTORE,
 # ISKRA_ANDROID_KEYSTORE_PASSWORD (or ISKRA_ANDROID_KEYSTORE_INFO, a text file with a "password=..." line).
-param([switch]$ApkOnly, [switch]$SkipWeb)
+param([switch]$ApkOnly, [switch]$SkipWeb, [ValidateRange(0, 9)][int]$Rebuild = 0)
 
 $ErrorActionPreference = 'Stop'
 $mobile = Split-Path $PSScriptRoot -Parent
@@ -50,9 +51,9 @@ if (-not $password) {
   $password = $line.Substring('password='.Length).Trim()
 }
 
-# Version name and code (the same scheme as the earlier Android app, so installed copies update in place).
+# Version name and code (scripts/mobile-version.mjs: above every earlier code, so installed copies update in place).
 $versionInfo = @{}
-foreach ($l in (node (Join-Path $repo 'scripts\mobile-version.mjs') --android)) { $k, $v = $l -split '=', 2; $versionInfo[$k] = $v }
+foreach ($l in (node (Join-Path $repo 'scripts\mobile-version.mjs') --android $Rebuild)) { $k, $v = $l -split '=', 2; $versionInfo[$k] = $v }
 $version = $versionInfo.APP_VERSION
 $versionCode = $versionInfo.VERSION_CODE
 if (-not $version -or -not $versionCode) { throw 'scripts/mobile-version.mjs gave no version' }
