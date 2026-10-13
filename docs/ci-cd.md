@@ -250,8 +250,9 @@ unit `iskra` (+ drop-in `quiet.conf`), HTTPS by the server's built-in Let's Encr
 `iskra-update X` downloads the X server bundle, verifies it against SHA256SUMS.txt, swaps it in, restarts, and
 rolls back to the previous bundle if the server doesn't come up.
 
-**So friends see "restarting", not "went offline", during a deploy** (owner's change on the droplet, not made yet):
-in `/usr/local/bin/iskra-update`, insert this line right before its `systemctl restart iskra`:
+**So friends see "restarting", not "went offline", during a deploy** (on the droplet since 2026-10-13):
+`/usr/local/bin/iskra-update` runs this line right before its first `systemctl stop iskra` (while the old bundle is
+still in `/opt/iskra/app`):
 
 ```sh
 /opt/iskra/app/iskra-server expect-restart /opt/iskra/world --reason update --eta 30 || true
