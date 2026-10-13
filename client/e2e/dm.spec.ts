@@ -38,6 +38,17 @@ test('friends send end-to-end encrypted DMs the server cannot read', async ({ br
   await host.getByPlaceholder('Message Friend').press('Enter')
   await expect(friend.locator('.message-text', { hasText: 'see you there' })).toBeVisible()
 
+  // Emoji in a DM: the picker has the standard ones (no server needed).
+  await host.getByPlaceholder('Message Friend').fill('great')
+  await host.locator('.composer').getByRole('button', { name: 'Emoji' }).click()
+  const picker = host.getByRole('dialog', { name: 'Emoji picker' })
+  await picker.getByLabel('Search emoji').fill('tada')
+  await picker.getByRole('button', { name: ':tada:' }).first().click()
+  await expect(picker).toHaveCount(0)
+  await expect(host.getByPlaceholder('Message Friend')).toHaveValue('great 🎉')
+  await host.getByPlaceholder('Message Friend').press('Enter')
+  await expect(friend.locator('.message-text', { hasText: 'great 🎉' })).toBeVisible()
+
   // Both see the same safety number.
   await host.getByRole('button', { name: 'Verify' }).click()
   await friend.getByRole('button', { name: 'Verify' }).click()
