@@ -13,9 +13,7 @@ import { useVoice } from '../state/voice'
 import { VoiceStage } from './VoiceStage'
 import { StageView } from './stage/StageView'
 import { HomeMain, HomeSidebar } from './Home'
-import { useDms } from '../state/dms'
 import { RecoveryNudge } from './dialogs/RecoveryKey'
-import { Menu } from './icons'
 import { IncomingCall } from './calls/Calls'
 import { IncomingGroupCall } from './groups/GroupCall'
 import { SoundToasts } from './expressions/Soundboard'
@@ -49,8 +47,6 @@ export function Shell() {
   const stageChannel = useVoice((s) => s.session?.channelId)
   const isStageChannel = !!server?.channels.some((c) => c.id === stageChannel && c.kind === 'stage')
   const hasServers = useApp((s) => s.order.length > 0)
-  // A conversation stays readable after its server is gone (archived groups, DM history).
-  const openConversation = useDms((s) => s.open.kind !== 'friends')
   // Escape closes an open drawer (phones and narrow windows).
   useEscapeLayer(() => setPanel('none'), panel !== 'none')
 
@@ -76,10 +72,12 @@ export function Shell() {
           </VoiceRoom>
         ) : server ? (
           <ChatArea server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
-        ) : hasServers || openConversation ? (
-          <HomeMain onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
         ) : (
-          <EmptyState onJoin={() => setJoining(true)} onCreate={() => setCreating(true)} onMenu={() => setPanel('nav')} />
+          // With no servers yet, the Friends page leads with how to join or start one.
+          <HomeMain
+            onToggle={(p) => setPanel(panel === p ? 'none' : p)}
+            start={hasServers ? undefined : <StartCard onJoin={() => setJoining(true)} onCreate={() => setCreating(true)} />}
+          />
         )}
       </main>
 
@@ -109,17 +107,14 @@ export function Shell() {
   )
 }
 
-function EmptyState({ onJoin, onCreate, onMenu }: { onJoin: () => void; onCreate: () => void; onMenu: () => void }) {
+function StartCard({ onJoin, onCreate }: { onJoin: () => void; onCreate: () => void }) {
   const { t } = useTranslation()
   return (
-    <div className="empty-state">
-      <button className="icon-button mobile-only menu-button" onClick={onMenu} aria-label={t('app.openMenu')}>
-        <Menu />
-      </button>
+    <section className="empty-state start-card" aria-labelledby="start-card-title">
       <span className="empty-icon" aria-hidden>
         <svg width="34" height="34" viewBox="0 0 24 24" aria-hidden><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" fill="currentColor" /></svg>
       </span>
-      <h1>{t('app.empty.title')}</h1>
+      <h2 id="start-card-title">{t('app.empty.title')}</h2>
       {desktop ? (
         <>
           <p>{t('app.empty.desktop')}</p>
@@ -137,6 +132,6 @@ function EmptyState({ onJoin, onCreate, onMenu }: { onJoin: () => void; onCreate
           </div>
         </>
       )}
-    </div>
+    </section>
   )
 }

@@ -348,6 +348,8 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 .empty-state p { margin: 0; color: var(--text-2); max-width: 400px; }
 .empty-state .copy-row { justify-content: center; margin-top: 8px; }
 .empty-icon { width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); color: var(--accent); margin-bottom: 4px; }
+.empty-state.start-card { height: auto; flex: none; padding: 32px 16px 20px; border-bottom: 1px solid var(--border); }
+.empty-state.start-card h2 { margin: 0; font-size: 22px; }
 .code-hint { font-family: var(--mono); color: var(--muted); background: var(--bg); padding: 8px 14px; border-radius: calc(var(--radius) * 0.8); margin: 8px 0 0; }
 .menu-button { position: absolute; left: 12px; top: 8px; }
 

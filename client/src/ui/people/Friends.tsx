@@ -1,6 +1,6 @@
 // The Friends page (Online, All, Pending), friend buttons for profiles and the DM header, and the small
 // "sent you a friend request" line in a DM.
-import { useState, type MouseEvent } from 'react'
+import { useState, type MouseEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
 import { isOnline, nameOf, openConversation, sharedServers, type Dm } from '../../state/dms'
@@ -99,7 +99,7 @@ type Tab = 'online' | 'all' | 'pending'
 
 const STATUS_ORDER = ['online', 'dnd', 'idle', 'offline'] as const
 
-export function FriendsView({ onToggle }: { onToggle: (panel: Panel) => void }) {
+export function FriendsView({ onToggle, start }: { onToggle: (panel: Panel) => void; start?: ReactNode }) {
   const { t } = useTranslation()
   const peers = useFriends((s) => s.peers)
   const unsent = useFriends((s) => s.unsent)
@@ -136,6 +136,7 @@ export function FriendsView({ onToggle }: { onToggle: (panel: Panel) => void }) 
           {tabButton('pending', t('friends.tabs.pending'), incoming)}
         </div>
       </header>
+      {start}
       <div className="friends" role="tabpanel">
         {tab === 'pending' ? (
           pendingIn.length + pendingOut.length === 0 ? (
@@ -173,7 +174,7 @@ export function FriendsView({ onToggle }: { onToggle: (panel: Panel) => void }) 
               </section>
             )}
             {friends.length === 0 ? (
-              pendingIn.length + pendingOut.length === 0 && <Empty title={t('friends.empty.all')} hint={t('friends.empty.allHint')} />
+              pendingIn.length + pendingOut.length === 0 && !start && <Empty title={t('friends.empty.all')} hint={t('friends.empty.allHint')} />
             ) : (
               <>
                 <h2 className="section-title">{t('friends.allCount', { count: friends.length })}</h2>

@@ -1,4 +1,4 @@
-import { Fragment, useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { b64u } from '../core/crypto'
 import { safetyNumber } from '../core/dm'
@@ -109,10 +109,11 @@ export function HomeSidebar({ onNavigate }: { onNavigate: () => void }) {
   )
 }
 
-export function HomeMain({ onToggle }: { onToggle: (panel: Panel) => void }) {
+/** `start`: shown on the Friends page while there are no servers yet (how to join or start one). */
+export function HomeMain({ onToggle, start }: { onToggle: (panel: Panel) => void; start?: ReactNode }) {
   const open = useDms((s) => s.open)
   if (open.kind === 'group') return <GroupChat key={open.key} groupKey={open.key} onToggle={onToggle} />
-  return open.kind === 'dm' ? <DmView peer={open.peer} onToggle={onToggle} /> : <FriendsView onToggle={onToggle} />
+  return open.kind === 'dm' ? <DmView peer={open.peer} onToggle={onToggle} /> : <FriendsView onToggle={onToggle} start={start} />
 }
 
 function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => void }) {

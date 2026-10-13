@@ -25,6 +25,13 @@ export const LINKS = {
 
 export type DesktopOs = 'windows' | 'mac' | 'linux' | 'other'
 
+/** Phones and tablets: a server needs a computer, so the start guide says so first. */
+export function isPhoneOrTablet(userAgent: string, platform = '', touchPoints = 0): boolean {
+  const ua = userAgent.toLowerCase()
+  if (/android|iphone|ipad|ipod|mobile/.test(ua)) return true
+  return (platform.toLowerCase().startsWith('mac') || ua.includes('macintosh')) && touchPoints > 1
+}
+
 /** Which desktop app to offer first. Phones and tablets get 'other' (there's no app for them; the web app works). */
 export function desktopOs(userAgent: string, platform = '', touchPoints = 0): DesktopOs {
   const ua = userAgent.toLowerCase()

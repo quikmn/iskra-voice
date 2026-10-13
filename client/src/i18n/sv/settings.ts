@@ -318,6 +318,7 @@ export const settings: Messages['settings'] = {
   },
   start: {
     downloadFor: 'Ladda ner Iskra för {{os}}',
+    needsComputer: 'En server körs på en dator som står på, inte på en telefon. Öppna den här sidan på den Windows-, Mac- eller Linuxdator som ska vara värd för den. När den är igång kan du chatta från telefonen.',
     otherOs: 'Appen körs på den Windows-, Mac- eller Linuxdator som ska vara värd för din server.',
     allDownloads: 'Alla nedladdningar',
     signed: 'Signerad av Open Source Developer Viktor Lundgren. Medan appen är ny kan Windows fråga en gång innan den körs.',

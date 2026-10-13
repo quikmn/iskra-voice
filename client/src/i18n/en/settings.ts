@@ -317,6 +317,7 @@ export const settings = {
   },
   start: {
     downloadFor: 'Download Iskra for {{os}}',
+    needsComputer: "A server runs on a computer that stays on, not on a phone. Open this page on the Windows, Mac or Linux computer that will host it. You can chat from your phone once it's running.",
     otherOs: 'The app runs on the Windows, Mac or Linux computer that will host your server.',
     allDownloads: 'All downloads',
     signed: 'Signed by Open Source Developer Viktor Lundgren. While the app is new, Windows may still ask once before running it.',
