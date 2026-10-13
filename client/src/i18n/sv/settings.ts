@@ -277,7 +277,7 @@ export const settings: Messages['settings'] = {
     inviteLink: 'Inbjudningslänk',
     invalid: 'Det där ser inte ut som en inbjudningslänk till Iskra.',
     orCreate: 'Eller <a>starta en egen server</a>.',
-    invited: 'Du är inbjuden',
+    invited: 'Du har blivit inbjuden',
     notNow: 'Inte nu',
     joinServer: 'Gå med i servern',
     server: 'Server',

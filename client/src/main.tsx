@@ -6,6 +6,7 @@ import { UpdatingOverlay } from './ui/UpdatingOverlay'
 import './styles.css'
 import { applySavedTheme } from './theme/theme'
 import { installMenuKeys } from './ui/a11y'
+import { ErrorBoundary } from './ui/ErrorBoundary'
 
 applySavedTheme()
 installMenuKeys()
@@ -14,7 +15,9 @@ installMenuKeys()
 void i18nReady.catch(() => undefined).then(() =>
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
-      <App />
+      <ErrorBoundary variant="app">
+        <App />
+      </ErrorBoundary>
       <UpdatingOverlay />
     </StrictMode>,
   ),

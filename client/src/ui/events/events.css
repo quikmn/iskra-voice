@@ -1,6 +1,7 @@
 /* ── Scheduled events ───────────────────────────────────────────────── */
 .events-button { margin-bottom: 8px; }
-.events-button .event-badge { background: var(--accent); }
+/* A count of upcoming events, not something unread: a quiet number, not a badge. */
+.events-button .event-badge { background: none; color: var(--muted); font-weight: 600; }
 .live-pill {
   font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 7px; border-radius: 99px;
   background: var(--green-strong); color: #04210f; flex: none;

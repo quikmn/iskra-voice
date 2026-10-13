@@ -30,7 +30,6 @@ export const dms: Messages['dms'] = {
     attachTitle: 'Bifoga filer (totalsträckskrypterade)',
     saveFailed: 'Kunde inte spara filen. Inget sparades.',
     saving: 'Sparar…',
-    downloading: 'Laddar ner…',
     saved: 'Sparad',
     inMemory: 'Stor fil: webbläsaren håller hela filen i minnet medan den dekrypteras. Skrivbordsappen, Chrome och Edge sparar den direkt på disken.',
     decrypting: 'Dekrypterar…',

@@ -13,6 +13,7 @@ import { ArrowLeft, SearchIcon } from './extraIcons'
 import { useEscapeLayer } from '../layers'
 import { resolveKey } from '../../state/keyMap'
 import { DocSearchHits } from '../docs/DocSearchHits'
+import { stripMarkdownPieces } from '../plainMarkdown'
 
 const HINTS = [
   ['from:', 'chat.search.hints.from'],
@@ -100,7 +101,7 @@ function ResultCard({ server, result }: { server: ServerState; result: SearchRes
   const { t } = useTranslation()
   const name = message.imported?.name ?? (server.members[message.author] ?? server.members[resolveKey(message.author)])?.name ?? t('chat.author.formerMember')
   const nameOf = (k: string) => server.members[k]?.name ?? null
-  const segments = highlightSegments(message.text, matches)
+  const segments = stripMarkdownPieces(highlightSegments(message.text, matches))
   return (
     <li>
       <button

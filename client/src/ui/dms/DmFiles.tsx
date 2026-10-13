@@ -56,6 +56,7 @@ export function DmComposer({ peer, placeholder, group }: {
   const ready = uploads.filter((u) => u.result).map((u) => u.result!)
   const canSend = !!route && !uploading && (text.trim().length > 0 || ready.length > 0)
   const canQueue = !!route && uploading
+  const micInstead = !text.trim() && uploads.length === 0 && voiceRecordingSupported()
   const queue = useQueuedSend(uploads.map((u) => ({ done: !!u.result, failed: !!u.error })), () => submit())
   const later = useSendLater({
     target: group ? { kind: 'group', key: group.key } : { kind: 'dm', peer },
@@ -177,9 +178,9 @@ export function DmComposer({ peer, placeholder, group }: {
         <button className="icon-button attach-button" onClick={(e) => setPicker(e.currentTarget)} aria-label={t('chat.composer.emoji')} title={t('chat.composer.emoji')}>
           <Smile />
         </button>
-        {!text.trim() && uploads.length === 0 && voiceRecordingSupported() && <VoiceRecordButton onSend={sendVoice} disabled={!route} />}
+        {micInstead && <VoiceRecordButton onSend={sendVoice} disabled={!route} />}
         {later.button}
-        <button className="send-button" onClick={submit} disabled={!canSend && !canQueue} aria-label={t('common.send')} {...later.sendProps}>
+        <button className={`send-button ${micInstead ? 'idle' : ''}`} onClick={submit} disabled={!canSend && !canQueue} aria-label={t('common.send')} {...later.sendProps}>
           <Send />
         </button>
       </div>

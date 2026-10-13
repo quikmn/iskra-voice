@@ -49,9 +49,20 @@
 .incoming-action { display: grid; justify-items: center; gap: 6px; font-size: 13px; color: var(--text-2); }
 .incoming-action .call-button { width: 60px; height: 60px; }
 
+/* An ended call shrinks to its status line for the moment it stays. */
+.call-panel.ended .call-stage { display: none; }
+
 .call-log { display: inline-flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 14px; }
 .call-log svg { color: var(--green); }
 .call-log.missed svg { color: var(--red); }
+
+/* Desktop: a ringing call is a card in the corner; the rest of the app stays usable while it rings. */
+@media (min-width: 761px) {
+  .incoming-call { inset: 16px 16px auto auto; padding: 0; display: block; background: none; backdrop-filter: none; pointer-events: none; }
+  .incoming-card { pointer-events: auto; width: 300px; padding: 20px 20px 18px; }
+  .incoming-card h2 { font-size: 19px; }
+  .incoming-actions { gap: 40px; margin-top: 12px; }
+}
 
 @media (max-width: 760px) {
   .call-panel, .call-panel.has-video { max-height: 58vh; }

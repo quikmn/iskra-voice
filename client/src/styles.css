@@ -233,7 +233,8 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); box-sha
 .me-bar { display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--rail); flex: none; }
 .me-text { display: grid; min-width: 0; flex: 1; line-height: 1.2; }
 .me-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
-.me-text span { font-size: 12px; color: var(--muted); text-transform: capitalize; }
+.me-text span { font-size: 12px; color: var(--muted); }
+.me-text span::first-letter { text-transform: uppercase; } /* "Not joined", not "Not Joined" */
 
 .avatar {
   position: relative; border-radius: var(--avatar-radius); display: inline-grid; place-items: center; flex: none;
@@ -826,3 +827,19 @@ input.confirm-code::placeholder { color: var(--placeholder); }
 
 /* ── UX fixes: a hovered or focused message keeps its time readable (the row's tint lowers the muted colour's contrast) ── */
 .message:hover .message-meta time, .message:focus-within .message-meta time { color: var(--text-2); }
+
+/* ── UX polish (P3): phone composer room, long sheets, file choosers, crash note ── */
+@media (max-width: 760px) {
+  /* Nothing typed yet: the mic stands in for the send button, so "Message #channel" isn't cut short. */
+  .composer .send-button.idle { display: none; }
+}
+.sheet-more {
+  position: sticky; bottom: 0; display: block; height: 44px; margin-top: -44px; pointer-events: none;
+  background: linear-gradient(transparent, var(--float));
+}
+.file-pick { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 38px; }
+.file-pick-name { font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crash-note { display: grid; gap: 8px; place-content: center; justify-items: center; text-align: center; padding: 32px 16px; flex: 1; }
+.crash-note h2 { margin: 0; font-size: 20px; }
+.crash-note p { margin: 0 0 6px; max-width: 420px; }
+.crash-note.crash-app { min-height: 100dvh; background: var(--bg); color: var(--text); }

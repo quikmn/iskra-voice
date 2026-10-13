@@ -205,8 +205,8 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
             {canTimeout && (timeoutActive(member)
               ? <MenuItem onClick={run(() => removeTimeout(server!.key, accountKey))}>{t('moderation.timeout.remove')}</MenuItem>
               : <MenuItem danger onClick={() => setView('timeout')}>{t('friends.menu.timeout')}</MenuItem>)}
-            {canKick && <MenuItem danger onClick={() => setView('kick')}>{t('friends.menu.kick', { name })}</MenuItem>}
-            {canBan && <MenuItem danger onClick={() => setView('ban')}>{t('friends.menu.ban', { name })}</MenuItem>}
+            {canKick && <MenuItem danger onClick={() => setView('kick')}>{t('friends.menu.kick')}</MenuItem>}
+            {canBan && <MenuItem danger onClick={() => setView('ban')}>{t('friends.menu.ban')}</MenuItem>}
           </>
         )}
         {canTransfer && <MenuItem danger onClick={() => setView('transfer')}>{t('safety.transfer.menu')}</MenuItem>}

@@ -120,7 +120,7 @@ function MeBar({ server, onSettings }: { server: ServerState; onSettings: () => 
           <span>{t('app.sidebar.notJoined')}</span>
         </div>
       )}
-      <button className="icon-button" onClick={onSettings} aria-label={t('common.settings')} title={t('settings.room.mine')}>
+      <button className="icon-button" onClick={onSettings} aria-label={t('settings.room.mine')} title={t('settings.room.mine')}>
         <Settings />
       </button>
     </div>

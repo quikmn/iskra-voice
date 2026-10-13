@@ -4,7 +4,7 @@ export const productivity: Messages['productivity'] = {
   actions: {
     save: 'Spara meddelandet',
     unsave: 'Ta bort från sparade',
-    saved: 'Sparat',
+    saved: 'Sparat i Sparade meddelanden',
     removed: 'Borttaget från sparade',
     remind: 'Påminn mig om det här',
     more: 'Mer',

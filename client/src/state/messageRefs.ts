@@ -3,6 +3,7 @@
 import { t } from '../i18n'
 import type { Message } from '../core/protocol'
 import { plainText } from '../ui/markdown'
+import { stripMarkdown } from '../ui/plainMarkdown'
 import { useApp, type ServerState } from './store'
 import { conversationLabel } from './threads'
 import { jumpToMessage, flash } from './jump'
@@ -13,7 +14,7 @@ import { shorten, type MessageRef, type MessageSnap } from './productivityLogic'
 
 export function channelTarget(server: ServerState, message: Message): { ref: MessageRef; snap: MessageSnap } {
   const authorName = message.webhook?.name ?? server.members[message.author]?.name ?? t('common.someone')
-  const text = plainText(message.text, { nameOf: (k) => server.members[k]?.name ?? null })
+  const text = stripMarkdown(plainText(message.text, { nameOf: (k) => server.members[k]?.name ?? null }))
   return {
     ref: { kind: 'channel', server: server.key, channelId: message.channelId, messageId: message.id },
     snap: {
@@ -29,7 +30,7 @@ export function dmTarget(peer: string, dm: Dm): { ref: MessageRef; snap: Message
     ref: { kind: 'dm', peer, from: dm.from, id: dm.id },
     snap: {
       author: dm.from, authorName: nameOf(dm.from), at: dm.sentAt,
-      preview: shorten(plainText(dm.text, { nameOf: (k) => nameOf(k) }) || (dm.files?.length ? t('chat.message.attachment') : '')),
+      preview: shorten(stripMarkdown(plainText(dm.text, { nameOf: (k) => nameOf(k) })) || (dm.files?.length ? t('chat.message.attachment') : '')),
       where: nameOf(peer),
     },
   }
@@ -41,7 +42,7 @@ export function groupTarget(key: string, m: GroupMsg): { ref: MessageRef; snap: 
     ref: { kind: 'group', group: key, from: m.from, id: m.id },
     snap: {
       author: m.from, authorName: knownName(m.from), at: m.sentAt,
-      preview: shorten(plainText(m.text, { nameOf: (k) => knownName(k) }) || (m.files?.length ? t('chat.message.attachment') : '')),
+      preview: shorten(stripMarkdown(plainText(m.text, { nameOf: (k) => knownName(k) })) || (m.files?.length ? t('chat.message.attachment') : '')),
       where: g ? titleOf(g) : t('groups.notify.aGroup'),
     },
   }
