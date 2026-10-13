@@ -10,6 +10,7 @@ import { Attachments, LinkPreviewCard, Reactions, ReactionPicker, ReplyLine } fr
 import { AuthorAvatar, BotBadge, Embeds } from './chat/BotBits'
 import { useCommandSuggest } from './chat/CommandSuggest'
 import { authorOf, sameSender } from './chat/bots'
+import { patchUpload } from './chat/uploads'
 import { ImportedBadge, ImportedExtras } from './chat/ImportedBits'
 import { firstLink, formatSize, replyKey, setReply, useReply } from './chat/helpers'
 import { Avatar, Spinner } from './bits'
@@ -530,8 +531,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
   const queue = useQueuedSend(uploads.map((u) => ({ done: !!u.result, failed: !!u.error })), () => submit())
 
   function startUpload(item: PendingUpload) {
-    const update = (patch: Partial<PendingUpload>) =>
-      setUploads((list) => list.map((u) => (u.localId === item.localId ? { ...u, ...patch } : u)))
+    const update = (patch: Partial<PendingUpload>) => setUploads((list) => patchUpload(list, item.abort, patch))
     uploadFor(server.key, channelId, item.file, (progress) => update({ progress }), item.abort.signal)
       .then((result) => update({ result, progress: 1 }))
       .catch((e: Error) => e.name !== 'AbortError' && update({ error: errorMessage(e) }))
