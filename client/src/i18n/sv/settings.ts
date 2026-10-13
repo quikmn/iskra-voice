@@ -442,6 +442,11 @@ export const settings: Messages['settings'] = {
     botInviteLink: 'Botinbjudningslänk',
     botsHere: 'Bottar på den här servern — {{n}}',
     noBots: 'Inga bottar än.',
+    botReadAll: 'Kan läsa alla meddelanden',
+    botReadAllHint: 'Av: boten får bara sina kommandon, knapptryck och meddelanden som nämner den eller svarar på den. Slå bara på det här för bottar som behöver läsa chatten.',
+    botReadsAll: 'Läser alla meddelanden',
+    botReadsMentions: 'Bara kommandon och omnämnanden',
+    botScopeOf: 'Vad {{name}} kan läsa',
   },
   limits: {
     intro: 'Hur stora uppladdningar, emoji, klistermärken och ljud får vara på den här servern. Ändringar gäller direkt och sparas i server.json.',

@@ -441,6 +441,11 @@ export const settings = {
     botInviteLink: 'Bot invite link',
     botsHere: 'Bots on this server — {{n}}',
     noBots: 'No bots yet.',
+    botReadAll: 'Can read all messages',
+    botReadAllHint: 'Off: the bot only gets its commands, button clicks, and messages that mention it or reply to it. Turn this on only for bots that need to read the chat.',
+    botReadsAll: 'Reads all messages',
+    botReadsMentions: 'Commands and mentions only',
+    botScopeOf: 'What {{name}} can read',
   },
   limits: {
     intro: 'How big uploads and expressions can be on this server. Changes apply right away and are saved in server.json.',

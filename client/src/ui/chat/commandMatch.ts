@@ -7,6 +7,8 @@ export interface CommandEntry {
   bot: string
   botName: string
   command: BotCommand
+  /** The bot takes it as an interaction (sent with `interaction.invoke`, not as a message). */
+  interactions?: boolean
 }
 
 /** What the composer text means for suggestions. */

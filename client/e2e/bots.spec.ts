@@ -68,11 +68,10 @@ test('a webhook posts a card, and a bot answers a /command', async ({ browser })
   await expect(webhookMessage.locator('.message-text')).not.toHaveText(/(^|\s)@everyone\b/)
 
   bot = new Bot({ name: 'Dice', invite, stateFile: join(botDir, 'dice.bot.json'), log: () => undefined })
-  bot.command('roll', 'Rolls dice', async ({ args, message, reply }) => {
+  bot.command('roll', 'Rolls dice', async ({ args, userName, reply }) => {
     const result = roll(args)
     if (!result) return
-    await message.react('🎲')
-    await reply(`${message.authorName} rolled ${describeRoll(result)}`)
+    await reply(`${userName} rolled ${describeRoll(result)}`)
   })
   await bot.start()
   await expect(host.locator('.member', { hasText: 'Dice' }).locator('.bot-badge')).toBeVisible()
@@ -82,7 +81,9 @@ test('a webhook posts a card, and a bot answers a /command', async ({ browser })
   await expect(answer.locator('.author')).toHaveText('Dice')
   await expect(answer.locator('.bot-badge')).toBeVisible()
   await expect(answer.locator('strong')).toHaveText(/^[1-6]$/)
-  await expect(host.locator('.message', { hasText: '/roll d6' }).locator('.reaction')).toContainText('🎲')
+  // The app sent the command to the bot (it isn't posted); the answer says who asked.
+  await expect(answer.locator('.interaction-line')).toHaveText('Host used /roll')
+  await expect(host.locator('.message-text', { hasText: '/roll d6' })).toHaveCount(0)
   await host.screenshot({ path: join(SHOTS, 'bots-chat.png') })
 
   // A friend on a phone: cards and badges fit the screen.

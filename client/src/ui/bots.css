@@ -50,3 +50,6 @@
 .bot-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
 .bot-row .member-name { flex: 1; min-width: 0; }
 .integrations > .segmented { max-width: 360px; }
+.bot-row .bot-scope { display: block; font-size: 12px; }
+.bot-scope-hint { font-size: 12px; }
+.bot-scope-select { max-width: 46%; }
