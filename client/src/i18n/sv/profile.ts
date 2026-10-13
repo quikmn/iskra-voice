@@ -37,6 +37,7 @@ export const profile: Messages['profile'] = {
   pageHtml: 'Sidans HTML',
   template: 'Börja från mallen',
   preview: 'Förhandsvisning',
+  previewFiles: 'Bilder från servern (/files/…) syns på den publicerade sidan, men inte i förhandsvisningen.',
   notPicture: 'Den filen ser inte ut som en bild.',
   cantProcess: 'Kunde inte bearbeta bilden.',
   crop: 'Beskär din bild',
