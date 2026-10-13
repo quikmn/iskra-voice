@@ -74,9 +74,11 @@ test('AI noise removal, Silero voice activity, cleaning up and leveling what you
   const host = await page(browser, log)
   await joinVia(host, server.ownerLink(), 'Host')
 
-  // ── Settings: AI by default, and it really runs (the engine says which one is active).
+  // ── Settings: RNNoise (Strong) by default; AI chosen here, and it really runs (the engine says which one is active).
   await openSettings(host, 'Voice & audio')
   const settings = host.getByRole('dialog', { name: 'Settings' })
+  await expect(settings.getByRole('radio', { name: 'Strong' })).toHaveAttribute('aria-checked', 'true')
+  await settings.getByRole('radio', { name: 'AI' }).click()
   await expect(settings.getByRole('radio', { name: 'AI' })).toHaveAttribute('aria-checked', 'true')
   for (const name of ['Off', 'Standard', 'Strong']) await expect(settings.getByRole('radio', { name })).toBeEnabled()
   await expect(settings.getByLabel('Even out voices')).toBeChecked()
@@ -136,6 +138,8 @@ test('AI noise removal, Silero voice activity, cleaning up and leveling what you
   // ── The friend cleans up what they hear: DeepFilterNet in a worker, and they still hear the host.
   await openSettings(friend, 'Voice & audio')
   const friendSettings = friend.getByRole('dialog', { name: 'Settings' })
+  // Cleaning up what you hear uses your own engine: the friend picks AI (the default is Strong).
+  await friendSettings.getByRole('radio', { name: 'AI' }).click()
   await friendSettings.getByLabel("Clean up others' audio").check()
   // A shared CI runner can be too slow for a second DeepFilterNet (this one, on what the friend hears, next to the
   // host's): falling back to RNNoise is the designed answer there, so CI accepts either; a dev machine must run AI.

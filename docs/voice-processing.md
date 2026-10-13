@@ -11,8 +11,8 @@ speech model kept on the device so it's only downloaded once.
 
 | Setting (Settings → Voice & audio → Noise suppression) | What runs |
 |---|---|
-| **AI** (default) | DeepFilterNet3, a neural network, as WebAssembly in a Web Worker fed by an AudioWorklet at 48 kHz |
-| **Strong** | RNNoise, as WebAssembly in an AudioWorklet at 48 kHz |
+| **AI** | DeepFilterNet3, a neural network, as WebAssembly in a Web Worker fed by an AudioWorklet at 48 kHz |
+| **Strong** (default) | RNNoise, as WebAssembly in an AudioWorklet at 48 kHz |
 | **Standard** | The browser's own noise suppression |
 | **Off** | Nothing |
 

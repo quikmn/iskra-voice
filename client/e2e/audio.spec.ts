@@ -46,9 +46,11 @@ test('mic test, noise suppression in a call, your own speaking ring and per-pers
   const host = await (await browser.newContext()).newPage()
   await joinVia(host, server.ownerLink(), 'Host')
 
-  // Settings: AI noise suppression by default, and the mic test shows a live level.
+  // Settings: RNNoise (Strong) by default; AI noise removal is a choice, and the mic test shows a live level.
   await openSettings(host, 'Voice & audio')
   const settings = host.getByRole('dialog', { name: 'Settings' })
+  await expect(settings.getByRole('radio', { name: 'Strong' })).toHaveAttribute('aria-checked', 'true')
+  await settings.getByRole('radio', { name: 'AI' }).click()
   await expect(settings.getByRole('radio', { name: 'AI' })).toHaveAttribute('aria-checked', 'true')
   await expect(settings.getByLabel('Echo cancellation')).toBeChecked()
   // The browser's automatic gain is off under our noise removal, Normal strength by default.

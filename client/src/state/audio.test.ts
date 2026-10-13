@@ -3,18 +3,23 @@ import { captureOptions, DEFAULT_AUDIO, effectiveVolume, meterFraction, parseAud
 import { Gate, HOLD_MS } from './micGate'
 
 describe('audio settings', () => {
-  it('defaults to AI noise removal and leveling, and keeps only valid stored values', () => {
+  it('defaults to RNNoise and leveling, and keeps only valid stored values', () => {
     expect(parseAudioSettings(undefined)).toEqual(DEFAULT_AUDIO)
-    expect(DEFAULT_AUDIO).toMatchObject({ noise: 'ai', leveling: true, cleanIncoming: false, hifi: false })
+    expect(DEFAULT_AUDIO).toMatchObject({ noise: 'strong', leveling: true, cleanIncoming: false, hifi: false })
     const parsed = parseAudioSettings({
       noise: 'loud', echoCancellation: 'yes', inputVolume: 9, outputVolume: -1, threshold: -500, inputDevice: 42, voiceSounds: false,
       leveling: 'no', cleanIncoming: true, hifi: 1,
     })
     expect(parsed).toMatchObject({
-      noise: 'ai', echoCancellation: true, inputVolume: 2, outputVolume: 0, threshold: -80, inputDevice: '', voiceSounds: false,
+      noise: 'strong', echoCancellation: true, inputVolume: 2, outputVolume: 0, threshold: -80, inputDevice: '', voiceSounds: false,
       leveling: true, cleanIncoming: true, hifi: false,
     })
-    expect(parseAudioSettings({ noise: 'strong' }).noise).toBe('strong') // RNNoise stays a choice
+    expect(parseAudioSettings({ noise: 'off', v: 3 }).noise).toBe('off')
+    // AI was the default before version 3: a stored `ai` from then is that default, a later one is a choice.
+    expect(parseAudioSettings({ noise: 'ai' }).noise).toBe('strong')
+    expect(parseAudioSettings({ noise: 'ai', v: 2 }).noise).toBe('strong')
+    expect(parseAudioSettings({ noise: 'ai', v: 3 }).noise).toBe('ai')
+    expect(parseAudioSettings({ noise: 'standard', v: 2 }).noise).toBe('standard')
     expect(parseAudioSettings({ threshold: null }).threshold).toBeNull()
     expect(parseAudioSettings({ inputVolume: Number.NaN }).inputVolume).toBe(1)
   })

@@ -39,7 +39,8 @@ export interface AudioSettings {
 }
 
 export const DEFAULT_AUDIO: AudioSettings = {
-  noise: 'ai',
+  // RNNoise until AI noise removal has passed a listening check; AI is one click away (Settings → Voice & audio).
+  noise: 'strong',
   aiStrength: 'normal',
   echoCancellation: true,
   autoGainControl: null,
@@ -61,9 +62,10 @@ export const AUTO_SPEAKING_DB = -50
 const KEY = 'iskra.audio'
 /**
  * Stored with the settings. Before 2, automatic gain was a plain switch that was on by default; a stored `true` from
- * then is that default, not a choice, so it becomes automatic once.
+ * then is that default, not a choice, so it becomes automatic once. Before 3, AI noise removal was the default; a stored
+ * `ai` from then is that default, so it becomes the new default once.
  */
-const VERSION = 2
+const VERSION = 3
 
 const clamp = (n: unknown, lo: number, hi: number, fallback: number) =>
   typeof n === 'number' && Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : fallback
@@ -72,9 +74,11 @@ const clamp = (n: unknown, lo: number, hi: number, fallback: number) =>
 export function parseAudioSettings(raw: unknown): AudioSettings {
   const s = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
   const d = DEFAULT_AUDIO
-  const oldAgcDefault = s.v !== VERSION && s.autoGainControl === true
+  const v = typeof s.v === 'number' ? s.v : 0
+  const oldAgcDefault = v < 2 && s.autoGainControl === true
+  const oldAiDefault = v < 3 && s.noise === 'ai'
   return {
-    noise: s.noise === 'off' || s.noise === 'standard' || s.noise === 'strong' || s.noise === 'ai' ? s.noise : d.noise,
+    noise: !oldAiDefault && (s.noise === 'off' || s.noise === 'standard' || s.noise === 'strong' || s.noise === 'ai') ? s.noise : d.noise,
     echoCancellation: typeof s.echoCancellation === 'boolean' ? s.echoCancellation : d.echoCancellation,
     aiStrength: s.aiStrength === 'gentle' || s.aiStrength === 'normal' || s.aiStrength === 'max' ? s.aiStrength : d.aiStrength,
     autoGainControl: typeof s.autoGainControl === 'boolean' && !oldAgcDefault ? s.autoGainControl : d.autoGainControl,
