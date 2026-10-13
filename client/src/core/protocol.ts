@@ -257,7 +257,7 @@ export interface ProfileUpdate {
 
 export type ErrorCode =
   | 'bad_request' | 'forbidden' | 'not_found' | 'rate_limited' | 'unknown_type' | 'internal'
-  | 'auth_failed' | 'invite_required' | 'banned' | 'voice_unavailable' | 'busy' | 'device_revoked' | 'conflict' | 'moved'
+  | 'auth_failed' | 'invite_required' | 'name_required' | 'banned' | 'voice_unavailable' | 'busy' | 'device_revoked' | 'conflict' | 'moved'
   | 'account_rotated' | 'account_disputed' | 'rotation_conflict' | 'unavailable'
   | 'channel_full' | 'rules_required'
   | 'automod'
@@ -1608,7 +1608,7 @@ export interface Welcome {
 
 export interface Requests {
   'keylog.head': [Record<string, never>, { head: KeyLogHead }]
-  'keylog.entries': [{ after?: number; limit?: number }, { entries: { seq: number; data: string }[]; head: KeyLogHead }]
+  'keylog.entries': [{ after?: number; limit?: number }, { entries: { seq: number; data: string; name?: string | null; nameSalt?: string | null }[]; head: KeyLogHead }]
   'keylog.alert': [{ kind: string; seq?: number }, Record<string, never>]
 }
 

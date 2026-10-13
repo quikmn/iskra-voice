@@ -17,8 +17,8 @@ There are three ways to run one:
 Install Iskra, click **Create a server**, pick a name and a starting point (a [starter template](#starter-templates): *Gaming group*, *Friends hangout*, *Board games and tabletop* or *Empty*). Done: the server runs on your PC (voice included) while the app is open, and you're its owner. Click **Invite friends** to get a link.
 
 - Its folder is `Documents\Iskra\Servers\<name>` (on macOS: `~/Library/Application Support/Iskra/Servers/<name>`).
-- Friends on the same network can join right away. For friends elsewhere, turn on **Settings → Open to the internet** (see [Reaching your server from the internet](#reaching-your-server-from-the-internet)).
-- The server stops when you quit the app. Tick **Keep my server running** (when it's created, or in **Settings → Open to the internet**): Iskra then starts with your computer, hidden in the tray, and starts that server; closing the window keeps it running. Untick it on the last such server and Iskra stops starting with the computer too.
+- Friends on the same network can join right away. For friends elsewhere, turn on **Let friends anywhere join** in **Server settings → Internet access** (see [Reaching your server from the internet](#reaching-your-server-from-the-internet)).
+- The server stops when you quit the app. Tick **Keep my server running** (when it's created, or in **Server settings → Internet access**): Iskra then starts with your computer, hidden in the tray, and starts that server; closing the window keeps it running. Untick it on the last such server and Iskra stops starting with the computer too.
 
 ## 2. The standalone server
 
@@ -87,7 +87,7 @@ A new server can start with channels, voice rooms, roles and rules from a templa
 
 ### Rent a small server
 
-When your home connection can't host (carrier-grade NAT, or a router you can't change), a small virtual server at a hosting company runs Iskra for your group all the time. The app walks you through it: **Settings → Open to the internet → Rent a small server** (it's the first option when Iskra finds a shared connection). No terminal needed; about 15 minutes. Your group picks the provider, pays it and owns the server; nothing goes to Iskra, and Iskra has no deal with any provider.
+When your home connection can't host (carrier-grade NAT, or a router you can't change), a small virtual server at a hosting company runs Iskra for your group all the time. The app walks you through it: **Server settings → Internet access → Rent a small server** (it's the first option when Iskra finds a shared connection). No terminal needed; about 15 minutes. Your group picks the provider, pays it and owns the server; nothing goes to Iskra, and Iskra has no deal with any provider.
 
 1. Make an account at a VPS provider, for example [Hetzner](https://www.hetzner.com/cloud) or [DigitalOcean](https://www.digitalocean.com/products/droplets).
 2. Create a server: **Ubuntu 24.04 LTS** (or **Debian 12**), x86-64, the cheapest plan (about €4–6 a month).
@@ -195,9 +195,9 @@ The server only asks GitHub's public API (no account; 60 requests an hour per IP
 
 ## Reaching your server from the internet
 
-### One switch: Open to the internet
+### One switch: Let friends anywhere join
 
-As the owner, open **Settings** in the app and turn on **Open to the internet**. This works the same for a server in the desktop app and for the standalone server at home. Iskra then:
+As the owner, open **Server settings → Internet access** in the app and turn on **Let friends anywhere join**. This works the same for a server in the desktop app and for the standalone server at home. Iskra then:
 
 1. **Asks your router to open the ports** (UPnP or NAT-PMP): outside `80/tcp` and `443/tcp` to the server's port, and voice `7881/tcp` and `7882/udp` (your `Voice` ports). It keeps them open while the server runs and closes them when it stops.
 2. **Gives your server a free address** that points at your public IP, like `203-0-113-7.sslip.io`.
@@ -240,7 +240,7 @@ Prefer to forward ports yourself? Set `"PortMapping": false` and your `Domain` i
 1. Install Tailscale from [tailscale.com/download](https://tailscale.com/download).
 2. Open Tailscale and sign in with Google, Microsoft, Apple or GitHub. The free Personal plan is picked for you.
 3. Share this computer with one link: on Tailscale's **Machines** page (login.tailscale.com), find this computer, choose **Share…** and copy the share link (let it be used more than once). Send it to your friends.
-4. In Iskra, open **Invite friends** and choose **Over Tailscale** (it appears once Tailscale is on), then send that invite. It points at your computer's Tailscale address, like `http://100.101.102.103:47070`. **Settings → Open to the internet** shows the same address.
+4. In Iskra, open **Invite friends** and choose **Over Tailscale** (it appears once Tailscale is on), then send that invite. It points at your computer's Tailscale address, like `http://100.101.102.103:47070`. **Server settings → Internet access** shows the same address.
 
 **Each friend:**
 
@@ -271,8 +271,8 @@ Restart the server. It answers Let's Encrypt on port 80, stores the certificate 
 | Port | What | When |
 |---|---|---|
 | `47070/tcp` (`Port`) | The server: app, invites, uploads, voice signaling, webhooks. Speaks HTTP and HTTPS on the same port. | Always |
-| `80/tcp` → server port | Let's Encrypt's check, and redirects to HTTPS | Open to the internet, or `Https` on |
-| `443/tcp` → server port | HTTPS for friends | Open to the internet, or `Https` on |
+| `80/tcp` → server port | Let's Encrypt's check, and redirects to HTTPS | Let friends anywhere join, or `Https` on |
+| `443/tcp` → server port | HTTPS for friends | Let friends anywhere join, or `Https` on |
 | `7881/tcp`, `7882/udp` | Voice and video media (`RtcTcpPort`, `RtcUdpPort`) | Always, for voice from outside your network |
 | `7880` | LiveKit's local API | Never exposed |
 
@@ -346,7 +346,7 @@ For scripts, `--passphrase-stdin` reads the passphrase from standard input (or s
 Use **Settings → Backup & move → Move this server**. It walks you through it:
 
 1. **Back up** this server.
-2. **Restore** the backup on the new computer (as above) and start it there. If friends join from outside your home, turn on **Open to the internet** there, or set up HTTPS.
+2. **Restore** the backup on the new computer (as above) and start it there. If friends join from outside your home, turn on **Let friends anywhere join** there, or set up HTTPS.
 3. **Enter the new address.** Iskra connects to it and checks that it really is this server (it has the same key).
 4. **Move everyone.** The old copy publishes a notice, *"this server moved to &lt;new address&gt;"*, signed with the server's key. Everyone's app checks the signature against the key it already trusts and switches to the new address by itself; people who are offline get it the next time they connect. From then on the old copy refuses new messages, so nothing gets lost in it.
 
@@ -410,7 +410,7 @@ iskra-server import-discord my-server export.zip              # add --read-only 
     "Port": 443,
     "HttpPort": 80
   },
-  "Internet": {                        // "Open to the internet" (the switch in Settings)
+  "Internet": {                        // "Let friends anywhere join" (Server settings → Internet access)
     "Enabled": false,
     "Domain": null,                    // your own domain pointing at your network; default <ip>.sslip.io
     "DnsSuffix": "sslip.io",

@@ -23,6 +23,7 @@ public sealed class AccountLimits(TimeProvider time)
         ["captions.model"] = (30, 0.2),            // the captions model's parts (6 a download), per client address
         ["report.create"] = (5, 1 / 120.0),        // 5 at once, then one every 2 minutes
         ["data.export"] = (2, 1 / 600.0),          // "Download my data", whatever the number of connections
+        ["scheduled.deliver"] = (10, 2),           // scheduled messages going out: chat.send's burst, so 50 at one time trickle out
     };
 
     private const int PruneAbove = 10_000;

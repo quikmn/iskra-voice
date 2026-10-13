@@ -102,7 +102,7 @@ test('owner opens the server to the internet; without port 80 nothing plain HTTP
   await friend.keyboard.press('Escape')
 
   await openSettings(owner)
-  const toggle = owner.getByRole('switch', { name: 'Open to the internet' })
+  const toggle = owner.getByRole('switch', { name: 'Let friends anywhere join' })
   await expect(toggle).toHaveAttribute('aria-checked', 'false')
   await expect(owner.getByText('Only people on your network can join.')).toBeVisible()
   await toggle.click()
@@ -145,7 +145,7 @@ test('owner opens the server to the internet; without port 80 nothing plain HTTP
 
   // Closing it again.
   await openSettings(owner)
-  await owner.getByRole('switch', { name: 'Open to the internet' }).click()
+  await owner.getByRole('switch', { name: 'Let friends anywhere join' }).click()
   await expect(owner.getByText('Only people on your network can join.')).toBeVisible()
   await expect(owner.locator('.checklist')).toHaveCount(0)
 })
@@ -157,7 +157,7 @@ test('carrier-grade NAT gets a clear explanation and a rented server as the quic
   const owner = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })).newPage()
   await joinVia(owner, server.ownerLink(), 'Owner')
   await openSettings(owner)
-  await owner.getByRole('switch', { name: 'Open to the internet' }).click()
+  await owner.getByRole('switch', { name: 'Let friends anywhere join' }).click()
   await expect(owner.getByText("You're behind CGNAT")).toBeVisible()
   await expect(owner.getByTestId('host-findings')).toHaveAttribute('data-nat', 'cgnat')
   const help = owner.getByTestId('cgnat-help')
@@ -243,7 +243,7 @@ test('no router: every port listed to forward by hand', async ({ browser }) => {
   const owner = await (await browser.newContext()).newPage()
   await joinVia(owner, server.ownerLink(), 'Owner')
   await openSettings(owner)
-  await owner.getByRole('switch', { name: 'Open to the internet' }).click()
+  await owner.getByRole('switch', { name: 'Let friends anywhere join' }).click()
   await expect(step(owner, 'router')).toHaveAttribute('data-state', 'problem')
   const rows = owner.getByTestId('manual-forwards').locator('tbody tr')
   await expect(rows).toHaveCount(4)

@@ -208,6 +208,37 @@ public class ProductivityTests
     }
 
     [Fact]
+    public async Task Scheduled_messages_due_at_once_go_out_at_chat_sends_pace()
+    {
+        // Security review L10: 50 with the same time used to post in one tick, around chat.send's burst of 10.
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        var at = Now + 1500;
+        for (var i = 0; i < 16; i++)
+            server.World.Store.AddScheduled(new(0, alice.Key, "channel", server.General, null, null, null, $"burst {i}", null, null, at, Now, "pending", null));
+        int Sent() => server.World.Store.MessagesBy(alice.Key).Count;
+
+        await alice.EventAsync("scheduled.deleted");
+        await Task.Delay(400); // the rest of that tick
+        Assert.InRange(Sent(), 1, 12); // the burst (plus at most a tick's refill), not all 16
+        // None are lost: the rest follow on the next ticks.
+        for (var waited = 0; Sent() < 16 && waited < 10_000; waited += 100) await Task.Delay(100);
+        Assert.Equal(16, Sent());
+        Assert.Equal(0, server.World.Store.CountScheduled(alice.Key));
+
+        // "Send now" shares the allowance.
+        for (var i = 0; i < 12; i++)
+            server.World.Store.AddScheduled(new(0, alice.Key, "channel", server.General, null, null, null, $"later {i}", null, null, Now + 3_600_000, Now, "pending", null));
+        var codes = new List<string>();
+        foreach (var m in server.World.Store.ScheduledOf(alice.Key))
+        {
+            var reply = await alice.RequestAsync("scheduled.send", new { id = m.Id });
+            codes.Add(reply.Type() == "result" ? "result" : reply.ErrorCode()!);
+        }
+        Assert.Contains("rate_limited", codes);
+    }
+
+    [Fact]
     public async Task Scheduled_messages_can_be_edited_rescheduled_and_deleted_by_their_author_only()
     {
         using var server = new IskraServer();
@@ -245,6 +276,59 @@ public class ProductivityTests
         Assert.Equal(alice.Key, dm.GetProperty("from").GetString());
         Assert.Equal("sealed-for-bob", dm.GetProperty("envelope").GetProperty("ct").GetString());
         Assert.True((await alice.EventAsync("scheduled.deleted")).Body().GetProperty("sent").GetBoolean());
+    }
+
+    [Fact]
+    public async Task A_scheduled_dm_or_group_message_interrupted_by_a_crash_is_not_sent_twice()
+    {
+        // Security review L11: a crash between the send and removing the row resent it after the restart.
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        using var bob = await server.JoinAsync("Bob");
+        using var carol = await server.JoinAsync("Carol");
+        using var dave = await server.JoinAsync("Dave");
+        var groupId = GroupTests.NewId();
+        var group = await GroupTests.CreateAsync(alice, groupId, bob, carol);
+        var dm = (await alice.RequestAsync("scheduled.create", new { accountKey = bob.Key, envelope = new { v = 2, ct = "once" }, sendAt = Now + 1200 }))
+            .Body().GetProperty("scheduled");
+        var inGroup = (await alice.RequestAsync("scheduled.create", new { groupId, version = 1, envelope = new { v = 2, kind = "group", ct = "once" }, sendAt = Now + 1200 }))
+            .Body().GetProperty("scheduled");
+        await bob.EventAsync("dm.message");
+        await carol.EventAsync("group.message");
+        for (var i = 0; i < 2; i++) await alice.EventAsync("scheduled.deleted");
+
+        // As if the server stopped right after sending, before the rows were removed (and the group changed meanwhile).
+        Assert.Equal("result", (await bob.RequestAsync("group.change",
+            GroupTests.Change(bob, groupId, 2, group.GetProperty("head").GetString()!, "add", [dave.Key], [alice.Key, bob.Key, carol.Key, dave.Key]))).Type());
+        using (var db = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = Path.Combine(server.WorldPath, "iskra.db"), Pooling = false }.ToString()))
+        {
+            db.Open();
+            foreach (var row in new[] { dm, inGroup })
+            {
+                using var cmd = db.CreateCommand();
+                cmd.CommandText = """
+                    INSERT INTO scheduled_messages (id, account_key, kind, peer_key, group_id, group_version, envelope, send_at, created_at, status)
+                    VALUES ($id, $a, $kind, $p, $g, $gv, $e, $at, $at, 'sending');
+                    """;
+                cmd.Parameters.AddWithValue("$id", row.GetProperty("id").GetInt64());
+                cmd.Parameters.AddWithValue("$a", alice.Key);
+                cmd.Parameters.AddWithValue("$kind", row.GetProperty("kind").GetString());
+                cmd.Parameters.AddWithValue("$p", (object?)(row.GetProperty("accountKey").GetString()) ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("$g", (object?)(row.GetProperty("groupId").GetString()) ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("$gv", row.GetProperty("version").ValueKind == JsonValueKind.Number ? row.GetProperty("version").GetInt64() : DBNull.Value);
+                cmd.Parameters.AddWithValue("$e", row.GetProperty("envelope").GetRawText());
+                cmd.Parameters.AddWithValue("$at", row.GetProperty("sendAt").GetInt64());
+                cmd.ExecuteNonQuery();
+            }
+        }
+        server.World.Store.ResetSendingScheduled(); // what the scheduler does when it starts
+
+        for (var i = 0; i < 2; i++) Assert.True((await alice.EventAsync("scheduled.deleted")).Body().GetProperty("sent").GetBoolean());
+        await bob.NoEventAsync("dm.message");
+        await carol.NoEventAsync("group.message");
+        Assert.Single(server.World.Store.DmHistory(alice.Key, bob.Key, null, 10));
+        Assert.Single(server.World.Store.GroupHistory(groupId, null, 10));
+        Assert.Equal(0, server.World.Store.CountScheduled(alice.Key));
     }
 
     [Fact]

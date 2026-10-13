@@ -20,7 +20,18 @@ var (worldArg, configArgs) = CommandLine.Split(args);
 var builder = WebApplication.CreateBuilder(configArgs);
 
 var worldPath = builder.Configuration["World"] ?? worldArg ?? "world";
-var world = World.OpenOrCreate(worldPath);
+World world;
+try
+{
+    world = World.OpenOrCreate(worldPath);
+}
+catch (Exception ex) when (WorldProblem.Describe(worldPath, ex) is { } problem)
+{
+    // One clear line (and an exit code the desktop app knows) instead of a stack trace; retrying won't help.
+    Console.Error.WriteLine(problem);
+    Environment.ExitCode = ex is IOException or UnauthorizedAccessException ? 1 : WorldProblem.ExitCode;
+    return;
+}
 MoveFeature.Load(world);
 // A restart marker from before this start was for the server that stopped (see RestartMarker).
 RestartMarker.Discard(world.Path);
@@ -210,7 +221,9 @@ app.MapGet("/.well-known/iskra-claim", (HttpContext context, World w) => OwnerSe
 app.MapGet("/.well-known/iskra-probe/{token}", (string token, InternetHost internet) =>
     token == internet.ProbeToken ? Results.Text(token) : Results.NotFound());
 
-app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(20) });
+// A ping every 20 s; a client that doesn't answer within 30 s (a connection that died without closing) is dropped,
+// so it stops collecting frames on the server.
+app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(20), KeepAliveTimeout = TimeSpan.FromSeconds(30) });
 
 app.MapGet("/", (World w) => Results.Json(new { iskra = 1, name = w.Settings.Name }));
 // For uptime monitors: up, version, how long it's been running, whether voice is up. Nothing secret.

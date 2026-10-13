@@ -52,6 +52,7 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
   useFriends((s) => s.peers)
   const [view, setView] = useState<View>('main')
   const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState<string | null>(null)
   const relation = useRelation(accountKey)
   const blocked = useIsBlocked(accountKey)
   const myKey = identity ? b64u(identity.account.publicKey) : ''
@@ -83,6 +84,16 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
     try {
       await action()
       closeUserMenu()
+    } catch (e) {
+      setError(errorMessage(e))
+    }
+  }
+  /** Says it worked for a moment before closing (copying has nothing else to show). */
+  const confirm = (label: string, action: () => unknown) => async () => {
+    try {
+      await action()
+      setDone(label)
+      setTimeout(closeUserMenu, 700)
     } catch (e) {
       setError(errorMessage(e))
     }
@@ -204,7 +215,7 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
         {!self && (blocked
           ? <MenuItem onClick={run(() => setBlocked(accountKey, false))}>{t('moderation.blocked.unblock')}</MenuItem>
           : <MenuItem danger onClick={() => setView('block')}>{t('moderation.blocked.block')}</MenuItem>)}
-        <MenuItem onClick={run(() => navigator.clipboard.writeText(accountKey))}>{t('friends.menu.copyId')}</MenuItem>
+        <MenuItem onClick={confirm(t('friends.menu.copied'), () => navigator.clipboard.writeText(accountKey))}>{t('friends.menu.copyId')}</MenuItem>
       </div>
     )
   }
@@ -219,6 +230,7 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
       </MenuTitle>
       {body}
       {error && <p className="error-text user-menu-error" role="alert">{error}</p>}
+      {done && <p className="success-text user-menu-error" role="status">{done}</p>}
     </OrgMenu>
   )
 }

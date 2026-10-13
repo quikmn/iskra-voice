@@ -1,11 +1,10 @@
-// Translations: i18next with the catalogs bundled in (no loading), English as the fallback.
+// Translations: i18next with English bundled in (it's also the fallback); other languages load when picked.
 // Components use `useTranslation()` from react-i18next, so they re-render when the language changes;
 // code outside React (notifications, state helpers) uses `t` from here.
-import i18next from 'i18next'
+import i18next, { type BackendModule } from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import { create } from 'zustand'
 import { en } from './en'
-import { sv } from './sv'
 import { LANGUAGES, type Language, type LanguageChoice } from './types'
 
 export { LANGUAGES, LANGUAGE_NAMES, type Language, type LanguageChoice } from './types'
@@ -82,8 +81,20 @@ export function intlLocale(language: Language = currentLanguage(), languages: re
   return language === 'sv' ? 'sv-SE' : 'en-US'
 }
 
-void i18next.use(initReactI18next).init({
-  resources: { en: { translation: en }, sv: { translation: sv } },
+/** Fetches a language's catalog the first time it's used (each is about 100 KB of code). */
+const lazyCatalogs: BackendModule = {
+  type: 'backend',
+  init: () => undefined,
+  read: (language, _namespace, done) => {
+    if (language !== 'sv') return done(null, {})
+    import('./sv').then(({ sv }) => done(null, sv), (e: Error) => done(e, false))
+  },
+}
+
+/** Settles once the starting language is in (right away for English): render after this, so there's no flash of English. */
+export const i18nReady: Promise<unknown> = i18next.use(lazyCatalogs).use(initReactI18next).init({
+  resources: { en: { translation: en } },
+  partialBundledLanguages: true,
   lng: resolveLanguage(useLanguageChoice.getState().choice),
   fallbackLng: 'en',
   supportedLngs: [...LANGUAGES],

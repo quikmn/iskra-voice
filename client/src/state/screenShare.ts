@@ -1,5 +1,5 @@
 // Screen share quality, sound and content hint: remembered on this device, turned into LiveKit options here.
-import { VideoPreset, type AudioCaptureOptions, type ScreenShareCaptureOptions, type TrackPublishOptions } from 'livekit-client'
+import type { AudioCaptureOptions, ScreenShareCaptureOptions, TrackPublishOptions, VideoEncoding, VideoResolution } from 'livekit-client'
 import { create } from 'zustand'
 
 export type ShareQuality = '720p30' | '1080p30' | '1080p60' | 'source'
@@ -22,11 +22,16 @@ export const QUALITIES: { id: ShareQuality; label: string }[] = [
 ]
 
 /** Capture size and frame rate (0 × 0 = the screen's own size) with the bitrate to send it at. */
-const PRESETS: Record<ShareQuality, VideoPreset> = {
-  '720p30': new VideoPreset(1280, 720, 2_500_000, 30),
-  '1080p30': new VideoPreset(1920, 1080, 5_000_000, 30),
-  '1080p60': new VideoPreset(1920, 1080, 8_000_000, 60),
-  source: new VideoPreset(0, 0, 12_000_000, 60),
+// What LiveKit's VideoPreset(width, height, bitrate, fps) gives, without loading LiveKit for it.
+const preset = (width: number, height: number, maxBitrate: number, maxFramerate: number): { resolution: VideoResolution; encoding: VideoEncoding } => ({
+  resolution: { width, height, frameRate: maxFramerate, aspectRatio: width / height },
+  encoding: { maxBitrate, maxFramerate },
+})
+const PRESETS: Record<ShareQuality, ReturnType<typeof preset>> = {
+  '720p30': preset(1280, 720, 2_500_000, 30),
+  '1080p30': preset(1920, 1080, 5_000_000, 30),
+  '1080p60': preset(1920, 1080, 8_000_000, 60),
+  source: preset(0, 0, 12_000_000, 60),
 }
 
 /** Saved settings carry this; older ones that still hold the old default (1080p 30) get the new default once. */

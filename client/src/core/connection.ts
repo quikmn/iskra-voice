@@ -212,7 +212,9 @@ export class Connection {
       this.reject('auth_failed', 'The server sent an invalid handshake.')
       return
     }
-    const profile = { ...this.options.profile?.(), name: this.options.name(), ...(this.options.bot ? { bot: true } : {}) }
+    // No name yet (restored from the recovery key): the server keeps the member's own, or answers name_required.
+    const name = this.options.name()
+    const profile = { ...this.options.profile?.(), ...(name ? { name } : {}), ...(this.options.bot ? { bot: true } : {}) }
     const body: Record<string, unknown> = { cert: identity.cert, sig, profile }
     if (this.invite) body.invite = this.invite
     const presence = this.options.presence?.()

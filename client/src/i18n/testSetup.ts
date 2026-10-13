@@ -7,4 +7,6 @@ try {
 } catch {
   // No navigator: intlLocale falls back to en-US anyway.
 }
-void i18next.changeLanguage('en')
+await i18next.changeLanguage('en')
+// The app fetches Swedish when it's picked; tests read it directly (getFixedT('sv')), so have it in.
+await i18next.loadLanguages('sv')

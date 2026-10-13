@@ -3,7 +3,7 @@ import { Trans, useTranslation } from 'react-i18next'
 import { errorMessage } from '../i18n/errors'
 import type { FileInfo, Member } from '../core/protocol'
 import {
-  activeChannelId, connectionFor, discardFailed, loadHistory, notifyTyping, retryAll, retryFailed, sendMessage, useApp,
+  activeChannelId, connectionFor, discardFailed, loadHistory, notifyTyping, failedJoin, retryAll, retryFailed, sendMessage, SHOWN_ABOVE, trimChannel, useApp,
   type PendingMessage, type ServerState,
 } from '../state/store'
 import { Attachments, LinkPreviewCard, Reactions, ReactionPicker, ReplyLine } from './chat/MessageExtras'
@@ -59,6 +59,8 @@ import { useSendLater } from './productivity/SendLater'
 import { ClipNoticeRow } from './clips/ClipNotice'
 import { conversationLabel } from '../state/threads'
 import { messageListKeys, useAnnounceNew } from './a11y'
+import { useQueuedSend } from './chat/QueuedSend'
+import { JoinFailed } from './JoinFailed'
 import { useReadableColor } from '../theme/useReadable'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
@@ -115,9 +117,9 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
         </button>
       </header>
 
-      <ConnectionBanner server={server} />
+      {failedJoin(server) ? <JoinFailed server={server} /> : <ConnectionBanner server={server} />}
 
-      {channel ? (
+      {failedJoin(server) ? null : channel ? (
         <>
           <StartOverRecordLine server={server} channelId={channel.id} />
           <MessageList key={channel.id} server={server} channelId={channel.id} />
@@ -195,8 +197,10 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
       restore.current = null
     } else if (stickToBottom.current && !detached) {
       el.scrollTop = el.scrollHeight
+      // Reading along at the bottom of a busy channel: let the oldest loaded messages go (they load again on scroll).
+      if (messages && messages.length > SHOWN_ABOVE) trimChannel(server.key, channelId)
     }
-  }, [messages, detached])
+  }, [messages, detached, server.key, channelId])
   useJumpTarget(server.key, channelId, scroller, () => (stickToBottom.current = false), messages)
   useAnnounceNew(messages, (m) => (m.tempId ? null : String(m.id)), (m) => m.author === server.me?.accountKey ? null
     : t('chat.a11y.newMessage', { name: authorOf(m, server.members).name, text: m.text ? decodeMentions(m.text, (k) => server.members[k]?.name ?? null).slice(0, 200) : t('chat.message.attachment') }), !thread)
@@ -396,7 +400,7 @@ function MessageRow({
           </div>
         ) : message.pending === 'failed' && (
           <div className="message-failed">
-            {t('chat.message.couldNotSend')}{' '}
+            {t('chat.message.couldNotSend')}{message.failedCode === 'rate_limited' && <> {t('chat.message.tooFast')}</>}{' '}
             <button className="link" onClick={() => void retryFailed(server.key, message.channelId, message)}>{t('common.retry')}</button>
             {' · '}
             <button className="link" onClick={() => discardFailed(server.key, message.channelId, message.tempId!)}>{t('chat.message.discard')}</button>
@@ -521,6 +525,9 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
   const timedOut = useTimedOut(server)
   const mustAgree = useMustAgree(server.key)
   const canSend = writable && !uploading && slowmode.wait === 0 && (text.trim().length > 0 || ready.length > 0)
+  // Enter during an upload waits for it instead of doing nothing.
+  const canQueue = writable && uploading && slowmode.wait === 0
+  const queue = useQueuedSend(uploads.map((u) => ({ done: !!u.result, failed: !!u.error })), () => submit())
 
   function startUpload(item: PendingUpload) {
     const update = (patch: Partial<PendingUpload>) =>
@@ -616,7 +623,10 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
   }
 
   function submit() {
-    if (!canSend) return
+    if (!canSend) {
+      if (canQueue) queue.queue()
+      return
+    }
     const trimmed = encodeEmoji(encodeMentions(text.trim(), Object.values(server.members), mentionableRoles), emojis)
     setText('')
     for (const u of uploads) if (u.preview) URL.revokeObjectURL(u.preview)
@@ -655,6 +665,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
           ))}
         </div>
       )}
+      {queue.bar}
     <div className="composer">
       <button className="icon-button attach-button" onClick={() => fileInput.current?.click()} aria-label={t('chat.composer.attach')} title={t('chat.composer.attach')} disabled={!online}>
         <Paperclip />
@@ -754,7 +765,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
       {!text.trim() && uploads.length === 0 && voiceRecordingSupported() && <VoiceRecordButton onSend={sendVoice} disabled={!online} />}
       <SlowmodeChip seconds={slowmode.seconds} wait={slowmode.wait} />
       {later.button}
-      <button className="send-button" onClick={submit} disabled={!canSend} aria-label={t('common.send')} {...later.sendProps}>
+      <button className="send-button" onClick={submit} disabled={!canSend && !canQueue} aria-label={t('common.send')} {...later.sendProps}>
         <Send />
       </button>
     </div>

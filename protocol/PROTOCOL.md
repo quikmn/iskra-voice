@@ -71,7 +71,7 @@ The connection is one WebSocket per server at `wss://<host>/ws`. It uses text fr
 3. **Server checks:**
    - the certificate signature
    - the auth signature
-   - the profile name (1–32 characters, no control characters)
+   - the profile name (1–32 characters, no control characters). A device that doesn't know the account's name yet (restored from the recovery key) leaves `name` out: a member keeps their name and profile (nothing else in `profile` is applied), an account that isn't a member yet is refused with `name_required` (its invite isn't used)
    - that the account isn't banned and the device isn't revoked
    - membership: accounts that aren't members yet need a valid `invite`, which also sets their role
 4. **Server sends `welcome`:**
@@ -1091,6 +1091,8 @@ Role { "id": 3, "name": "Moderator", "color": "#3ba55c" | null, "icon": "🛡️
 
 `chat.send` takes `nonce?` (8–64 characters of `A–Z a–z 0–9 - _`, random per message). The server stores at most one message per account and nonce (remembered for a day): a send that repeats a nonce gets `{ message, nonce }` with the message already stored, and nothing is posted or broadcast again (slowmode doesn't count it again; `not_found` if that message was deleted since). The result and the `chat.message` event carry the `nonce` (null without one), so the sender's app can replace its placeholder whichever arrives first.
 
+`dm.send` and `group.send` take the same `nonce?`, remembered per account and kind (DM or group) for a day: a repeat gets `{ message }` with the message already stored and nothing is relayed or pushed again (`not_found` if it was deleted since). For `group.send` the repeat is answered before the `version` check, so a retry still finds its message after the group changed.
+
 Clients make a nonce per message and, when the connection drops before the reply, send the same request again after reconnecting (before catching up on history). A retry from the "Couldn't send" state reuses the nonce too.
 
 ## Organizing a server
@@ -1426,7 +1428,7 @@ Local storage only; nothing here goes over the wire.
   - **browser:** with a non-extractable AES-GCM `CryptoKey` kept in IndexedDB (`wrap = AES-GCM(key, iv(12), dataKey)`).
   - **app lock (optional):** the data key is additionally wrapped with `crypto_pwhash` (Argon2id13, opslimit 3, memlimit 64 MiB, random 16-byte salt) of the passphrase and `crypto_secretbox`, and the app asks for the passphrase at startup.
   - **passkeys (optional):** each passkey's PRF output wraps another copy of the data key; see [Passkeys for the app lock](#passkeys-for-the-app-lock).
-- Data stored before this existed is encrypted on first start. Device linking and recovery keys work as before (the app has the keys in memory once unlocked).
+- Data stored before this existed is encrypted on first start, after which the app records that it did (`vault-migrated`). From then on a secret slot holding a value that isn't sealed is refused with an error, never returned: only something else writing to the app's storage could have put it there. Device linking and recovery keys work as before (the app has the keys in memory once unlocked).
 
 ## Activity status
 
@@ -1767,7 +1769,7 @@ Scheduled { "id": 7, "kind": "channel" | "dm" | "group", "channelId": 1 | null, 
 | `scheduled.send` | `id` | the send's result (`{ message }`) | the owner: sends it now (a failed one too); a refusal is `bad_request` with the reason, and it stays failed |
 
 - `sendAt`: from now − 1 min to now + 90 days for channel messages; encrypted ones at most 30 days after they were encrypted (prekeys are kept at least that long, see [forward secrecy](#forward-secrecy-envelope-v2)).
-- **Sending** happens at `sendAt` (checked every second) exactly as if the author sent it then: the server runs `chat.send`, `dm.send` or `group.send` for the author, through the same gates (timeouts, [rules](#server-rules), a moved server) and checks (permissions, [slowmode](#slowmode), [AutoMod](#automod), blocking, the group's current version). Channel sends use the nonce `scheduled-<id>`, so a send interrupted by a restart never posts twice. Sent: `scheduled.deleted { id, sent: true }` to the author's sessions. Refused: status `failed` with `error`, `scheduled.updated { scheduled }` to the author's sessions, and a push `{ kind: "scheduled", title: "Your scheduled message wasn't sent", body: <reason> }`. An author who left is dropped silently.
+- **Sending** happens at `sendAt` (checked every second) exactly as if the author sent it then: the server runs `chat.send`, `dm.send` or `group.send` for the author, through the same gates (timeouts, [rules](#server-rules), a moved server) and checks (permissions, [slowmode](#slowmode), [AutoMod](#automod), blocking, the group's current version). Every send uses the nonce `scheduled-<id>` ([Reliable sends](#reliable-sends)): a message is marked as being sent before it goes out, a restart puts what was mid-send back to pending, and the repeat finds the message already stored, so it never posts twice (DMs and groups included). Each author's sends go out at `chat.send`'s pace (2/s, burst 10, per account, shared with `scheduled.send`): more due at the same moment stay pending and follow over the next seconds; `scheduled.send` beyond that is `rate_limited`. Sent: `scheduled.deleted { id, sent: true }` to the author's sessions. Refused: status `failed` with `error`, `scheduled.updated { scheduled }` to the author's sessions, and a push `{ kind: "scheduled", title: "Your scheduled message wasn't sent", body: <reason> }`. An author who left is dropped silently.
 - **End-to-end encryption:** the server can't encrypt for you, so apps encrypt DMs and group messages when they're scheduled, with the send time as the envelope's `sentAt`, and the server stores only the envelope. The trade-offs: devices the recipients add before it's sent can't read it; a group that changed in the meantime refuses it (`conflict`, so it fails; apps encrypt it again for the current members on "Send now"); and it's limited to 30 days ahead. Changing the time or the text means encrypting again. In exchange it goes out while all your apps are closed, and the server never sees the text.
 - Events `scheduled.updated { scheduled }` and `scheduled.deleted { id, sent }` go to the author's other sessions. No attachments yet.
 
@@ -1830,18 +1832,19 @@ A server can't forge a signature, but it decides which key it shows as which per
 
 ```jsonc
 KeyLogHead  { "seq": 12, "hash": "<b64u 32>", "at": 1760000000000, "sig": "<b64u 64>" }
-KeyLogEntry { "seq": 12, "data": "<JSON text, exactly as hashed>" }
+KeyLogEntry { "seq": 12, "data": "<JSON text, exactly as hashed>", "name": "Viktor" | null, "nameSalt": "<b64u 16>" | null }
 // data is one of:
-{ "kind": "join",    "at": 1760000000000, "key": "<accountKey>", "name": "Viktor" }   // a key first shown here
-{ "kind": "name",    "at": ..., "key": "<accountKey>", "name": "Vik" }                  // its name changed
+{ "kind": "join",    "at": 1760000000000, "key": "<accountKey>", "name": "", "nameHash": "<b64u 32>" }   // a key first shown here
+{ "kind": "name",    "at": ..., "key": "<accountKey>", "name": "", "nameHash": "<b64u 32>" }              // its name changed
 { "kind": "rotate",  "at": ..., "rotation": Rotation }                                  // applied (Account key rotation)
 { "kind": "contest", "at": ..., "rotation": Rotation }                                  // a second claim: disputed
 { "kind": "resolve", "at": ..., "rotation": Rotation, "previousKey": "<accountKey>" }   // an admin settled it (rotation = the winner)
 ```
 
+- **Names are committed, not logged.** `nameHash = SHA-256("iskra/keylog-name/v1" || 0x00 || salt(16) || utf8(name))` with a fresh random salt per entry; `data.name` is `""` (older apps read the field). The entry's `name` and `nameSalt` (outside `data`, not hashed) open it: clients check `nameHash` and treat a mismatch as `bad-entry`. When an account is deleted the server erases them for its entries (and the keys it rotated away from), so they come back `null` and apps show "someone (account since deleted)"; the entry, its key and every hash stay, so the log still checks out. Entries written before commitments carry the name in `data` itself (no `nameHash`) and can't be erased without breaking the chain.
 - `hash(seq) = SHA-256("iskra/keylog-entry/v1" || 0x00 || hash(seq-1) || u64be(seq) || utf8(data))`, with `hash(0)` = 32 zero bytes. Clients hash the `data` string exactly as received.
 - `sig = Ed25519.sign(serverSecret, "iskra/keylog-head/v1" || 0x00 || serverKey(32) || u64be(seq) || hash(seq) || u64be(at))`, with the server key clients pinned when joining. An empty log has `seq: 0`, zero hash, `at: 0`.
-- The server brings the log up to date from its members and rotations before it hands out a head (welcome, the requests below) and right after it applies a rotation, contest or resolution, so every key it shows, and every account move, is in the log. Entries never change: account moves rewrite account keys everywhere else, not here.
+- The server brings the log up to date from its members and rotations before it hands out a head (welcome, the requests below) and right after it applies a rotation, contest or resolution, so every key it shows, and every account move, is in the log. Entries never change: account moves rewrite account keys everywhere else, not here (only the names beside them are erased, on account deletion).
 
 | type | body | result | who |
 |---|---|---|---|
@@ -2108,7 +2111,8 @@ the others (so servers can't read it):
 
 A newly linked device gets the profile and its stamp in the link payload ([Device linking carries the
 profile](#device-linking-carries-the-profile), which gains `updatedAt` and `by`); a device restored from the recovery
-key starts unstamped and takes the account's copy on its first `welcome`.
+key starts unstamped and without a name: it leaves `name` out of `auth` (see the handshake), takes the account's copy
+on its first `welcome`, or else the name in `welcome.you`, and asks the person only when it gets `name_required`.
 
 Limits: ordering trusts the devices' clocks, bounded by the rules above; an edit made on a device that hasn't seen a
 newer one (offline) loses to it if its clock is earlier. Fields aren't merged: the newest edit wins as a whole (fields

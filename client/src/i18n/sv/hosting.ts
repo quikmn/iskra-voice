@@ -10,7 +10,7 @@ export const hosting: Messages['hosting'] = {
     next: 'Nästa',
     back: 'Tillbaka',
     templateTitle: 'Välj en startpunkt',
-    templateIntro: 'Du får de här kanalerna, röstrummen, rollerna och reglerna direkt. Du kan ändra allt efteråt.',
+    templateIntro: 'Du får de här kanalerna, rollerna och reglerna direkt. Du kan ändra allt efteråt.',
     templates: 'Startmallar',
     upTo: 'max {{count}}',
     roles: 'Roller: {{roles}}',
@@ -22,12 +22,12 @@ export const hosting: Messages['hosting'] = {
     inviteNow: 'Bjud in vänner',
     connecting: 'Ansluter…',
     finish: 'Klart',
-    nextInternet: 'Vänner utanför ditt hemnätverk? Slå på <b>Öppna mot internet</b> i Inställningar efteråt.',
+    nextInternet: 'Vänner utanför ditt hemnätverk? Slå på <b>Låt vänner var som helst gå med</b> under Serverinställningar → Internetåtkomst efteråt.',
     template: {
       gaming: { name: 'Spelgäng', description: 'Chatt, klipp och sök grupp, plus lobby, squads, ett raidrum och AFK.' },
       friends: { name: 'Kompishäng', description: 'En avslappnad plats för snack, bilder och planer, med rum att hänga i.' },
       tabletop: { name: 'Brädspel och rollspel', description: 'Planera spelkvällar, spara kampanjanteckningar och spela vid olika bord.' },
-      empty: { name: 'Tom', description: 'Bara #general och ett röstrum. Bygg resten själv.' },
+      empty: { name: 'Tom', description: 'Bara #general och en röstkanal. Bygg resten själv.' },
     },
   },
   keepRunning: {
@@ -98,7 +98,7 @@ export const hosting: Messages['hosting'] = {
     isp: '<b>Be din leverantör om en publik IPv4-adress.</b> Det är ofta gratis och görs en gång, ibland mot en liten avgift. Mobilt bredband (4G/5G) får nästan aldrig en.',
     tailscale: '<b>Använd Tailscale (gratis).</b> En gratis app som kopplar ihop gängets enheter som om ni satt på samma nätverk. Alla installerar den en gång, inga portar att öppna.',
     tailscaleButton: 'Visa hur',
-    friend: '<b>Låt någon i gänget med en öppen anslutning vara värd.</b> Hela servern är en mapp: flytta den med Inställningar → Säkerhetskopia och flytt, så följer allt med.',
+    friend: '<b>Låt någon i gänget med en öppen anslutning vara värd.</b> Hela servern är en mapp: flytta den med Serverinställningar → Säkerhetskopia och flytt, så följer allt med.',
   },
   tailscale: {
     title: 'Använd Tailscale (gratis)',

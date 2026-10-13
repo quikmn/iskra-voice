@@ -30,10 +30,19 @@ public class KeyLogTests
         return new JsonObject { ["accountKey"] = KeyOf(account), ["deviceKey"] = Ed25519.ToB64u(devicePub), ["created"] = device.Created, ["sig"] = Ed25519.ToB64u(sig) };
     }
 
-    private sealed record Entry(long Seq, string Data)
+    private sealed record Entry(long Seq, string Data, string? Name = null, string? NameSalt = null)
     {
         public JsonElement Json => JsonDocument.Parse(Data).RootElement;
         public string Kind => Json.GetProperty("kind").GetString()!;
+
+        /// <summary>The name a join/name entry logged, checked against its salted hash like a client does.</summary>
+        public string? CheckedName()
+        {
+            if (Name is null) return null;
+            Assert.True(Ed25519.TryFromB64u(NameSalt, out var salt));
+            Assert.Equal(Json.GetProperty("nameHash").GetString(), Ed25519.ToB64u(KeyLogFeature.NameHash(salt, Name)));
+            return Name;
+        }
     }
 
     /// <summary>Reads the whole log page by page, checking every link and the head's signature like a client does.</summary>
@@ -46,7 +55,8 @@ public class KeyLogTests
         {
             var body = (await user.RequestAsync("keylog.entries", new { after = entries.Count, limit = 2 })).Body();
             head = body.GetProperty("head");
-            var page = body.GetProperty("entries").EnumerateArray().Select(e => new Entry(e.GetProperty("seq").GetInt64(), e.GetProperty("data").GetString()!)).ToList();
+            var page = body.GetProperty("entries").EnumerateArray().Select(e => new Entry(e.GetProperty("seq").GetInt64(), e.GetProperty("data").GetString()!,
+                e.GetProperty("name").GetString(), e.GetProperty("nameSalt").GetString())).ToList();
             foreach (var e in page)
             {
                 Assert.Equal(entries.Count + 1, e.Seq);
@@ -75,6 +85,10 @@ public class KeyLogTests
         Assert.Equal("HDAGcWbJZWJdv3SdvbSOkFgjcLtQ23ByiJ6Ws9qM9_4", Ed25519.ToB64u(KeyLogFeature.EntryHash(new byte[32], 1, "{\"kind\":\"join\",\"at\":1,\"key\":\"x\",\"name\":\"Åsa\"}")));
 
     [Fact]
+    public void Names_hash_exactly_like_the_client() =>
+        Assert.Equal("SkLYStTn3vsiY2oSS8g54MUXthy8xRwxPZd_rKYXEgY", Ed25519.ToB64u(KeyLogFeature.NameHash(new byte[16], "Åsa")));
+
+    [Fact]
     public async Task Welcome_carries_a_signed_head_and_every_member_is_in_the_log()
     {
         using var server = new IskraServer();
@@ -88,7 +102,10 @@ public class KeyLogTests
         var entries = await ReadLogAsync(server, alice);
         Assert.Equal(["join", "join"], entries.Select(e => e.Kind));
         Assert.Equal(alice.Key, entries[0].Json.GetProperty("key").GetString());
-        Assert.Equal("Bob", entries[1].Json.GetProperty("name").GetString());
+        Assert.Equal("Bob", entries[1].CheckedName());
+        // The hashed data only commits to the name (older apps read an empty one).
+        Assert.Equal("", entries[1].Json.GetProperty("name").GetString());
+        Assert.DoesNotContain("Bob", entries[1].Data);
 
         // keylog.head is the same signed head; a forged signature wouldn't check out.
         var again = (await bob.RequestAsync("keylog.head")).Body().GetProperty("head");
@@ -125,6 +142,41 @@ public class KeyLogTests
 
         // Nothing changed: reading again appends nothing.
         Assert.Equal(after.Count, (await ReadLogAsync(server, bob)).Count);
+    }
+
+    [Fact]
+    public async Task Deleting_an_account_erases_its_names_from_the_log_and_keeps_the_chain()
+    {
+        // Security review L18: the log kept the names of deleted accounts forever.
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        using var bob = await server.JoinAsync("Bobby Tables");
+        await bob.RequestAsync("profile.update", new { name = "Robert" });
+        using var next = Ed25519.KeyFromSeed(Ed25519.NewSeed());
+        Assert.Equal("applied", (await bob.RequestAsync("account.rotate",
+            new { rotation = Rotation(bob.Identity.Account, next, Now), certs = new[] { Recertify(bob.Identity, next) } })).Body().GetProperty("status").GetString());
+        await alice.EventAsync("member.rotated");
+        var moved = new TestIdentity(next);
+        using var again = await server.ConnectAsync();
+        Assert.Equal("welcome", (await again.LoginAsync(moved, "Robert")).Type());
+        await again.RequestAsync("profile.update", new { name = "Rob" });
+        var before = await ReadLogAsync(server, alice);
+        Assert.Equal(["Bobby Tables", "Robert", "Rob"], before.Where(e => e.Kind != "rotate" && e.Json.GetProperty("key").GetString() != alice.Key).Select(e => e.CheckedName()));
+
+        // Bob (now on his new key) deletes his account.
+        Assert.Equal("result", (await again.RequestAsync("account.delete", new { deletion = AccountDeletionTests.Deletion(moved, messages: false) })).Type());
+
+        var after = await ReadLogAsync(server, alice); // still verifies link by link, against a signed head
+        Assert.Equal(before.Select(e => (e.Seq, e.Data)), after.Take(before.Count).Select(e => (e.Seq, e.Data)));
+        Assert.Equal("Alice", after[0].CheckedName());
+        foreach (var e in after.Skip(1).Where(e => e.Kind is "join" or "name"))
+        {
+            Assert.Null(e.Name);
+            Assert.Null(e.NameSalt);
+        }
+        // Nowhere in the server's log any more.
+        foreach (var name in new[] { "Bobby Tables", "Robert", "Rob" })
+            Assert.DoesNotContain(server.World.Store.KeyLogEntries(0, 100), e => e.Name == name || e.Data.Contains(name));
     }
 
     [Fact]

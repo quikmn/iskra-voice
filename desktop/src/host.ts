@@ -276,7 +276,8 @@ export class Host {
       if (this.processes.get(id) === child) this.processes.delete(id)
       closeSync(log)
     }
-    child.once('exit', () => ended(new StoppedEarly(text().host.stoppedEarly)))
+    // Exit code 3: the server can't open its files (WorldProblem in the server); its reason is in server.log.
+    child.once('exit', (code) => ended(code === 3 ? new Error(text().host.damaged) : new StoppedEarly(text().host.stoppedEarly)))
     // e.g. the binary can't be executed (missing, or blocked by the OS).
     child.once('error', (error) => ended(new Error(text().host.couldntStart(error.message))))
 

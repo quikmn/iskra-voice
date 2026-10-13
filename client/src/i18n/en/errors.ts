@@ -13,6 +13,7 @@ export const errors = {
     internal: 'Something went wrong on the server.',
     auth_failed: 'Authentication failed.',
     invite_required: 'You need a valid invite to join this server.',
+    name_required: 'Pick a name before joining this server.',
     banned: 'You are banned from this server.',
     voice_unavailable: "Voice isn't available on this server right now.",
     busy: "They're busy right now.",

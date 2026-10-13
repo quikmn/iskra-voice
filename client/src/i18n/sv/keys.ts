@@ -14,7 +14,7 @@ export const keys: Messages['keys'] = {
   },
   reset: {
     button: 'Rensa Iskra från den här enheten',
-    warning: 'Det här raderar ditt konto och dina meddelanden från den här enheten. Du kan komma tillbaka med din återställningsnyckel eller genom att koppla från en annan enhet.',
+    warning: 'Det här raderar ditt konto och dina meddelanden från den här enheten. Du kan komma tillbaka med din återställningsnyckel eller genom att koppla ihop den med en annan av dina enheter.',
     confirm: 'Rensa enheten',
   },
   lock: {
@@ -25,7 +25,7 @@ export const keys: Messages['keys'] = {
     unlocking: 'Låser upp…',
     unlock: 'Lås upp',
     forgot: 'Glömt den?',
-    forgotHint: 'Lösenfrasen går inte att återställa: det är den som krypterar dina nycklar på den här enheten. Rensa Iskra från enheten och logga sedan in igen med din återställningsnyckel eller genom att koppla från en annan av dina enheter.',
+    forgotHint: 'Lösenfrasen går inte att återställa: det är den som krypterar dina nycklar på den här enheten. Rensa Iskra från enheten och logga sedan in igen med din återställningsnyckel eller genom att koppla ihop den med en annan av dina enheter.',
   },
   retired: {
     title: 'Din kontonyckel har bytts ut',
@@ -104,7 +104,7 @@ export const keys: Messages['keys'] = {
     unlock: 'Lås upp med en lösenordsnyckel',
     or: 'eller',
     wrong: 'Den lösenordsnyckeln är inte inställd för den här enheten.',
-    lostHint: 'Utan någon av dina lösenordsnycklar (eller din lösenfras) kan Iskra inte öppna sina nycklar på den här enheten. Rensa Iskra från enheten och logga sedan in igen med din återställningsnyckel eller genom att koppla från en annan av dina enheter.',
+    lostHint: 'Utan någon av dina lösenordsnycklar (eller din lösenfras) kan Iskra inte öppna sina nycklar på den här enheten. Rensa Iskra från enheten och logga sedan in igen med din återställningsnyckel eller genom att koppla ihop den med en annan av dina enheter.',
     problems: {
       unsupported: 'Den här webbläsaren eller appen kan inte använda lösenordsnycklar här. Använd en lösenfras i stället.',
       noPrf: 'Den här lösenordsnyckeln kan inte skydda dina nycklar eftersom den saknar stöd för PRF-tillägget. Prova en annan (till exempel din telefon, Windows Hello, iCloud-nyckelringen, Googles lösenordshanterare eller en nyare säkerhetsnyckel) eller använd en lösenfras.',
@@ -156,6 +156,8 @@ export const keys: Messages['keys'] = {
       newest: 'Senaste post {{hash}}',
       join: '{{name}} gick med',
       name: 'Heter nu {{name}}',
+      joinErased: 'Någon gick med (kontot är borttaget)',
+      nameErased: 'Ett namnbyte (kontot är borttaget)',
       rotate: 'Kontonyckeln byttes',
       contest: 'Ett andra anspråk på en gammal nyckel (omtvistat)',
       resolve: 'Tvisten avgjordes',

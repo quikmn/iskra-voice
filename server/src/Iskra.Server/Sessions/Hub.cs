@@ -49,15 +49,23 @@ public sealed class Hub(World world, TimeProvider time)
         foreach (var session in _sessions.Keys) session.Send(frame);
     }
 
-    /// <summary>Sends only to members who can read the channel right now.</summary>
-    public void BroadcastToReaders(Channel channel, string frame)
+    /// <summary>Sends only to members who can read the channel right now (but not to <paramref name="except"/>'s sessions).</summary>
+    public void BroadcastToReaders(Channel channel, string frame, string? except = null)
     {
+        var members = OnlineMembers();
         foreach (var session in _sessions.Keys)
         {
-            var member = session.CurrentMember();
-            if (member is not null && Permissions.CanRead(member, channel)) session.Send(frame);
+            if (session.AccountKey is null || session.AccountKey == except) continue;
+            if (members.TryGetValue(session.AccountKey, out var member) && Permissions.CanRead(member, channel)) session.Send(frame);
         }
     }
+
+    /// <summary>
+    /// The member record of everyone connected, as it is right now. One query for a whole broadcast: a lookup per
+    /// session made busy servers queue on the database lock.
+    /// </summary>
+    public Dictionary<string, Member> OnlineMembers() =>
+        world.Store.GetMembers(_sessions.Keys.Select(s => s.AccountKey).OfType<string>().Distinct().ToList());
 
     public void SendToAccount(string accountKey, string frame)
     {
@@ -67,6 +75,25 @@ public sealed class Hub(World world, TimeProvider time)
     public void Disconnect(string accountKey, int closeCode, string reason, string? key = null)
     {
         foreach (var session in _sessions.Keys.Where(s => s.AccountKey == accountKey)) session.Kick(closeCode, reason, key);
+    }
+
+    /// <summary>Every member as <see cref="PublicMember"/> shows them, in join order: a few queries in all, not several per member.</summary>
+    public List<object> PublicMembers()
+    {
+        var store = world.Store;
+        var now = time.GetUtcNow().ToUnixTimeMilliseconds();
+        var members = store.AllMembers();
+        var views = store.MemberViews();
+        var pages = Features.ProfileFeature.PagesEnabled(store);
+        var sessions = _sessions.Keys.Where(s => s.AccountKey is not null).GroupBy(s => s.AccountKey!).ToDictionary(g => g.Key, g => g.ToList());
+        return members.Select(m =>
+        {
+            var presence = Features.PresenceFeature.Of(views.Presence.GetValueOrDefault(m.AccountKey), sessions.GetValueOrDefault(m.AccountKey), now);
+            return Features.ProfileFeature.Public(m, views.Profiles.GetValueOrDefault(m.AccountKey) ?? store.GetPublicProfile(m.AccountKey), pages,
+                views.Nicknames.GetValueOrDefault(m.AccountKey), store.IsBot(m.AccountKey),
+                views.Timeouts.TryGetValue(m.AccountKey, out var until) ? until : null, presence,
+                presence.Online ? Features.ActivityFeature.Public(Activities.Get(m.AccountKey)) : null);
+        }).ToList();
     }
 
     public object PublicMember(Member m)

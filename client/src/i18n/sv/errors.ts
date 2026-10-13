@@ -13,6 +13,7 @@ export const errors: Messages['errors'] = {
     internal: 'Något gick fel på servern.',
     auth_failed: 'Inloggningen misslyckades.',
     invite_required: 'Du behöver en giltig inbjudan för att gå med i den här servern.',
+    name_required: 'Välj ett namn innan du går med i servern.',
     banned: 'Du är bannlyst från den här servern.',
     voice_unavailable: 'Röst är inte tillgängligt på den här servern just nu.',
     busy: 'De är upptagna just nu.',

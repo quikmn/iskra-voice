@@ -45,6 +45,21 @@ public class DmTests
     }
 
     [Fact]
+    public async Task A_send_retried_with_its_nonce_is_stored_once()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        using var bob = await server.JoinAsync("Bob");
+        var first = (await alice.RequestAsync("dm.send", new { accountKey = bob.Key, envelope = Envelope("once"), nonce = "retry-me-1" })).Body();
+        await bob.EventAsync("dm.message");
+        var again = (await alice.RequestAsync("dm.send", new { accountKey = bob.Key, envelope = Envelope("once"), nonce = "retry-me-1" })).Body();
+        Assert.Equal(first.GetProperty("message").GetProperty("id").GetInt64(), again.GetProperty("message").GetProperty("id").GetInt64());
+        await bob.NoEventAsync("dm.message");
+        Assert.Single((await bob.RequestAsync("dm.history", new { accountKey = alice.Key })).Body().GetProperty("messages").EnumerateArray());
+        Assert.Equal("bad_request", (await alice.RequestAsync("dm.send", new { accountKey = bob.Key, envelope = Envelope("x"), nonce = "short" })).ErrorCode());
+    }
+
+    [Fact]
     public async Task Third_parties_cannot_read_or_see_others_DMs()
     {
         using var server = new IskraServer();

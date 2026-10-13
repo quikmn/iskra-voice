@@ -43,9 +43,22 @@ public sealed class ProductivityScheduler(World world, Hub hub, PushService push
             var now = time.GetUtcNow().ToUnixTimeMilliseconds();
             var store = world.Store;
             foreach (var reminder in store.DueReminders(now, Batch)) ReminderFeature.Fire(world, hub, push, reminder, now);
-            foreach (var due in store.DueScheduled(now, Batch))
+            // Each author's sends share chat.send's burst (AccountLimits "scheduled.deliver"): the rest stay pending and go
+            // out on the next ticks, a little late rather than all at once. Looking further than one batch keeps one
+            // author's queue from holding up everyone else's.
+            var sent = 0;
+            var throttled = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var due in store.DueScheduled(now, Batch * 10))
             {
+                if (sent >= Batch) break;
+                if (throttled.Contains(due.AccountKey)) continue;
+                if (!hub.Limits.TryTake(due.AccountKey, "scheduled.deliver"))
+                {
+                    throttled.Add(due.AccountKey);
+                    continue;
+                }
                 if (!store.ClaimScheduled(due.Id, due.SendAt)) continue;
+                sent++;
                 if (store.GetMember(due.AccountKey) is not { } author)
                 {
                     store.DeleteScheduled(due.Id); // the author left (or was removed): nothing to send as them

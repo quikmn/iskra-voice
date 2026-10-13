@@ -159,6 +159,8 @@ public static class ScheduledFeature
     private static object? SendNow(Session s, Member me, Body body)
     {
         var m = Mine(s, me, body);
+        // The same allowance as the scheduler's sends (and chat.send's burst): "Send now" on 50 isn't 50 at once.
+        if (!s.Hub.Limits.TryTake(me.AccountKey, "scheduled.deliver")) throw new RequestException("rate_limited", "Slow down a little.");
         if (!s.World.Store.ClaimScheduled(m.Id, m.SendAt))
         {
             // Failed ones can be retried: back to pending first.
@@ -183,8 +185,13 @@ public static class ScheduledFeature
                 ["channelId"] = m.ChannelId, ["text"] = m.Text, ["replyTo"] = m.ReplyTo,
                 ["nonce"] = $"scheduled-{m.Id}", // a send retried after a restart never posts twice
             }),
-            "dm" => ("dm.send", new JsonObject { ["accountKey"] = m.PeerKey, ["envelope"] = JsonNode.Parse(m.Envelope!) }),
-            _ => ("group.send", new JsonObject { ["groupId"] = m.GroupId, ["version"] = m.GroupVersion, ["envelope"] = JsonNode.Parse(m.Envelope!) }),
+            // DMs and groups too: claimed ("sending") before the send, so a crash before it's deleted resends after the
+            // restart with the same nonce, and the server answers with the message it already stored.
+            "dm" => ("dm.send", new JsonObject { ["accountKey"] = m.PeerKey, ["envelope"] = JsonNode.Parse(m.Envelope!), ["nonce"] = $"scheduled-{m.Id}" }),
+            _ => ("group.send", new JsonObject
+            {
+                ["groupId"] = m.GroupId, ["version"] = m.GroupVersion, ["envelope"] = JsonNode.Parse(m.Envelope!), ["nonce"] = $"scheduled-{m.Id}",
+            }),
         };
         try
         {

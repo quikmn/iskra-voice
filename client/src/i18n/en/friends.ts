@@ -10,6 +10,7 @@ export const friends = {
   onlineCount: 'Online — {{count}}',
   allCount: 'All friends — {{count}}',
   incomingCount: 'Incoming — {{count}}',
+  requestsCount: 'Friend requests — {{count}}',
   outgoingCount: 'Sent — {{count}}',
   empty: {
     online: 'None of your friends are online right now.',
@@ -24,7 +25,7 @@ export const friends = {
   pendingBadge_other: '{{count}} pending friend requests',
   accept: 'Accept',
   ignore: 'Ignore',
-  cancel: 'Cancel',
+  cancel: 'Cancel request',
   message: 'Message',
   more: 'More options for {{name}}',
   add: 'Add friend',

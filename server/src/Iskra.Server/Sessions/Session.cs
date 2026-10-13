@@ -21,6 +21,11 @@ public sealed class SessionLimits
     public int MaxFrameBytes { get; set; } = 64 * 1024;
     public int MaxConsecutiveBadFrames { get; set; } = 10;
     public int CloseGraceMs { get; set; } = 2_000;
+    /// <summary>
+    /// Text waiting to go out to one client (in chars). A client that stops reading (a dead connection, a stalled
+    /// phone) is dropped past this instead of growing the server's memory; it reconnects and catches up.
+    /// </summary>
+    public int MaxQueuedChars { get; set; } = 8 * 1024 * 1024;
 }
 
 /// <summary>
@@ -49,6 +54,8 @@ public sealed class Session
     /// <summary>Frames from other sessions that arrive before our welcome; sent right after it, in order.</summary>
     private List<string>? _early = [];
     private volatile bool _closing;
+    /// <summary>Chars queued in <see cref="_outbox"/> and not yet sent.</summary>
+    private long _queuedChars;
 
     /// <summary>The scheme and host this client connected through (e.g. https://1-2-3-4.sslip.io), when known.</summary>
     public string? Origin { get; init; }
@@ -176,6 +183,7 @@ public sealed class Session
             {
                 AuthFailure.Banned => ("banned", "You are banned from this server.", CloseCodes.Forbidden),
                 AuthFailure.InviteRequired => ("invite_required", "You need a valid invite to join this server.", CloseCodes.AuthFailed),
+                AuthFailure.NameRequired => ("name_required", "Pick a name before joining this server.", CloseCodes.AuthFailed),
                 AuthFailure.DeviceRevoked => ("device_revoked", "This device was removed from its account.", CloseCodes.AuthFailed),
                 AuthFailure.KeyRotation => (_authError!.Value.Code, _authError.Value.Message, CloseCodes.AuthFailed),
                 _ => ("auth_failed", "Authentication failed.", CloseCodes.AuthFailed),
@@ -199,7 +207,7 @@ public sealed class Session
             channels = _hub.VisibleChannels(member),
             categories = _hub.VisibleCategories(member),
             notify = NotifyFeature.Settings(_world.Store, member.AccountKey, Now),
-            members = _world.Store.AllMembers().Select(_hub.PublicMember),
+            members = _hub.PublicMembers(),
             voice = _voice.Snapshot(member),
             voiceAvailable = _voice.Backend.Available,
             stages = _voice.Stages.Snapshot(member),
@@ -325,7 +333,7 @@ public sealed class Session
 
     // ── Auth ─────────────────────────────────────────────────────────────────
 
-    private enum AuthFailure { Invalid, Banned, InviteRequired, DeviceRevoked, KeyRotation }
+    private enum AuthFailure { Invalid, Banned, InviteRequired, DeviceRevoked, KeyRotation, NameRequired }
 
     /// <summary>Set when the handshake fails because the account was deleted or its key rotated (AccountFeature/KeyFeature.OnAuth).</summary>
     private (string Code, string Message, object Extra)? _authError;
@@ -358,6 +366,9 @@ public sealed class Session
         string? signature = null, name = null, invite = null;
         JsonElement profile = default;
         var isBot = false;
+        // A device that doesn't know the account's name yet (restored from the recovery key) leaves it out: an existing
+        // member keeps their profile, a new one is asked for a name (Profile sync).
+        var nameOmitted = false;
         try
         {
             var fields = new Body(body);
@@ -365,7 +376,8 @@ public sealed class Session
             invite = fields.OptionalString("invite", 64);
             if (body.TryGetProperty("profile", out profile))
             {
-                name = Names.Normalize(new Body(profile).OptionalString("name", 256));
+                nameOmitted = profile.ValueKind == JsonValueKind.Object && !profile.TryGetProperty("name", out _);
+                name = nameOmitted ? null : Names.Normalize(new Body(profile).OptionalString("name", 256));
                 isBot = new Body(profile).OptionalBool("bot") ?? false;
             }
         }
@@ -373,7 +385,7 @@ public sealed class Session
         {
             return (null, AuthFailure.Invalid);
         }
-        if (name is null) return (null, AuthFailure.Invalid);
+        if (name is null && !nameOmitted) return (null, AuthFailure.Invalid);
 
         if (!Identity.VerifyDeviceCert(cert)) return (null, AuthFailure.Invalid);
         if (!Identity.VerifyAuth(cert, _world.ServerPublicKey, nonce, signature)) return (null, AuthFailure.Invalid);
@@ -390,7 +402,7 @@ public sealed class Session
         if (existing is not null)
         {
             // A device whose profile is older than the one this server last accepted doesn't overwrite it (Profile sync).
-            if (!ProfileFeature.AcceptStamp(_world.Store, existing.AccountKey, new Body(profile), Now)) name = existing.Name;
+            if (name is null || !ProfileFeature.AcceptStamp(_world.Store, existing.AccountKey, new Body(profile), Now)) name = existing.Name;
             else
             {
                 if (existing.Name != name) _world.Store.SetMemberName(existing.AccountKey, name);
@@ -404,6 +416,7 @@ public sealed class Session
             return (existing with { Name = name }, AuthFailure.Invalid);
         }
 
+        if (name is null) return (null, AuthFailure.NameRequired);
         var role = invite is null || !BotFeature.InviteFits(_world.Store, invite, isBot) ? null : _world.Store.TryUseInvite(invite, Now);
         if (role is null) return (null, AuthFailure.InviteRequired);
 
@@ -440,7 +453,26 @@ public sealed class Session
 
     private void SendNow(string json)
     {
-        if (!_closing) _outbox.Writer.TryWrite(new Outbound(json, null, null));
+        if (_closing) return;
+        if (Interlocked.Add(ref _queuedChars, json.Length) > _limits.MaxQueuedChars)
+        {
+            Overflowed();
+            return;
+        }
+        if (!_outbox.Writer.TryWrite(new Outbound(json, null, null))) Interlocked.Add(ref _queuedChars, -json.Length);
+    }
+
+    /// <summary>The client stopped reading: drop it now (a close frame would wait behind everything queued).</summary>
+    private void Overflowed()
+    {
+        lock (_earlyGate)
+        {
+            if (_closing) return;
+            _closing = true;
+        }
+        _log.LogWarning("Dropped {Key}: it stopped reading ({Chars} chars queued)", AccountKey?[..Math.Min(8, AccountKey.Length)], Interlocked.Read(ref _queuedChars));
+        _outbox.Writer.TryComplete();
+        _ws.Abort();
     }
 
     /// <summary>Closes the session from outside (kick, ban, removal).</summary>
@@ -491,9 +523,11 @@ public sealed class Session
                     break;
                 }
                 await _ws.SendAsync(Encoding.UTF8.GetBytes(item.Json!), WebSocketMessageType.Text, true, CancellationToken.None);
+                Interlocked.Add(ref _queuedChars, -item.Json!.Length);
             }
         }
         catch (WebSocketException) { /* client went away */ }
+        catch (OperationCanceledException) when (_ws.State == WebSocketState.Aborted) { /* dropped (see Overflowed) */ }
     }
 
     private async Task AwaitCloseAckAsync()

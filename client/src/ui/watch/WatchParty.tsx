@@ -15,7 +15,7 @@ import { useTranslation } from 'react-i18next'
 import { t as i18t } from '../../i18n'
 import { errorMessage } from '../../i18n/errors'
 import { formatNumber } from '../../i18n/format'
-import { setAlwaysLoad, siteName, useAlwaysLoads, watchSourceSite } from '../../state/siteConsent'
+import { setAlwaysLoad, siteName, useAlwaysLoads, watchSourceSite, watchVideoSrc } from '../../state/siteConsent'
 
 const nameIn = (server: ServerState, accountKey: string) => server.members[accountKey]?.name ?? i18t('common.someone')
 const VOLUME_KEY = 'iskra.watchVolume'
@@ -154,6 +154,9 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
   const always = useAlwaysLoads(site)
   const [agreed, setAgreed] = useState(host)
   const gated = !!site && !always && !agreed
+  // A link that isn't a plain web address (or a file elsewhere than this server) never plays: it would skip the gate.
+  const src = party.source.kind === 'youtube' ? null : watchVideoSrc(party.source, server.url)
+  const badLink = party.source.kind !== 'youtube' && !src
   const moderator = isWatchModerator(server, channel, stage)
 
   /** Follows the shared clock: play/pause, speed, and drift (nudge or jump). */
@@ -208,7 +211,9 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
   return (
     <div className="watch-main">
       <div className="watch-frame" ref={frame}>
-        {gated ? (
+        {badLink ? (
+          <div className="watch-overlay" data-testid="watch-bad-link"><p>{t('watch.unplayableLink')}</p></div>
+        ) : gated ? (
           <WatchGate site={site!} onWatch={() => setAgreed(true)} />
         ) : party.source.kind === 'youtube' ? (
           <YouTubeFrame videoId={party.source.videoId!} onReady={(a) => { adapter.current = a; setReady(true) }} onError={setFailed} />
@@ -218,15 +223,15 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
               if (v && !adapter.current) adapter.current = videoAdapter(v)
             }}
             className="watch-video"
-            src={party.source.kind === 'file' ? server.url + party.source.url : party.source.url!}
+            src={src!}
             playsInline
             preload="auto"
             onLoadedMetadata={() => setReady(true)}
             onError={() => setFailed(t('watch.cantPlay'))}
           />
         )}
-        {failed && <div className="watch-overlay"><p>{failed}</p></div>}
-        {!failed && !gated && blocked && (
+        {failed && !badLink && <div className="watch-overlay"><p>{failed}</p></div>}
+        {!failed && !gated && !badLink && blocked && (
           <button className="watch-overlay" onClick={() => adapter.current?.play().then(() => setBlocked(false), () => undefined)}>
             <span className="watch-overlay-play"><PlayIcon size={28} /></span>
             <span>{t('watch.tapToWatch')}</span>
