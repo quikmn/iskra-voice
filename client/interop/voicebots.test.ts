@@ -1,13 +1,14 @@
 // Voice bots: the SDK's audio pipeline, and a bot that joins a voice channel on a real server with LiveKit and plays
 // audio that a member receives. Run with `npm run test:interop` (LiveKit from .tools: scripts/get-livekit.*).
 import { spawn } from 'node:child_process'
+import { createServer as createHttpServer, type Server } from 'node:http'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Bot, encodeWav, type TrackEnd, type VoiceGone } from '../../bots/sdk/src/index'
-import { applyVolume, Framer, FRAME, sniff, toStereo, WavDecoder } from '../../bots/sdk/src/voice/audio'
+import { applyVolume, createDecoder, Framer, FRAME, sniff, toStereo, WavDecoder } from '../../bots/sdk/src/voice/audio'
 import { loadRtc } from '../../bots/sdk/src/voice/modules'
 import { Connection } from '../src/core/connection'
 import { ready } from '../src/core/crypto'
@@ -88,6 +89,28 @@ describe('voice bot audio', () => {
     await expect(new WavDecoder().push(adpcm)).rejects.toThrow(/Only PCM/)
   })
 
+  // Half a second of 440 Hz made with ffmpeg: fixtures/tone.{mp3,opus,ogg,flac}.
+  it.each([
+    ['tone.mp3', 'mp3', 44_100],
+    ['tone.opus', 'opus', 48_000],
+    ['tone.ogg', 'vorbis', 44_100],
+    ['tone.flac', 'flac', 22_050],
+  ] as const)('decodes %s with the WebAssembly decoders, streamed', async (file, format, rate) => {
+    const bytes = new Uint8Array(readFileSync(join(__dirname, 'fixtures', file)))
+    expect(sniff(bytes)).toBe(format)
+    const decoder = await createDecoder(format)
+    const decoded = []
+    for (let at = 0; at < bytes.length; at += 1000) decoded.push(...(await decoder.push(bytes.slice(at, at + 1000))))
+    decoded.push(...(await decoder.end()))
+    decoder.free()
+    const samples = decoded.reduce((n, d) => n + d.samplesDecoded, 0)
+    expect(decoded[0].sampleRate).toBe(rate)
+    expect(samples / rate).toBeGreaterThan(0.45)
+    expect(samples / rate).toBeLessThan(0.6)
+    const peak = Math.max(...decoded.flatMap((d) => Array.from(d.channelData[0]).map(Math.abs)))
+    expect(peak).toBeGreaterThan(0.05)
+  })
+
   it('mixes to stereo, sets the volume and cuts 10 ms frames', () => {
     const mono = toStereo({ channelData: [Float32Array.of(0.5, -1)], samplesDecoded: 2, sampleRate: 48_000 })
     expect(Array.from(mono)).toEqual([16384, 16384, -32767, -32767])
@@ -117,6 +140,8 @@ describe.skipIf(!existsSync(LIVEKIT))('voice bot ↔ server ↔ LiveKit', () => 
   let stop: () => Promise<void>
   let owner: Connection
   let welcome: Welcome | null = null
+  let files: Server
+  let filesUrl = ''
   const events: { type: keyof Events; body: unknown }[] = []
   const bots: Bot[] = []
 
@@ -146,6 +171,13 @@ describe.skipIf(!existsSync(LIVEKIT))('voice bot ↔ server ↔ LiveKit', () => 
         }
       }
     }
+    // A web server on this computer, standing in for an internet radio and an ordinary web page.
+    files = createHttpServer((req, res) => {
+      if (req.url === '/radio.mp3') res.writeHead(200, { 'content-type': 'audio/mpeg' }).end(readFileSync(join(__dirname, 'fixtures', 'tone.mp3')))
+      else res.writeHead(200, { 'content-type': 'text/html' }).end('<!doctype html><title>Not audio</title>')
+    })
+    await new Promise<void>((done) => files.listen(0, '127.0.0.1', done))
+    filesUrl = `http://127.0.0.1:${(files.address() as { port: number }).port}`
     const link = parseInvite(readFileSync(join(world, 'owner-invite.txt'), 'utf8'))!
     owner = new Connection({
       serverUrl: link.serverUrl, expectedServerKey: link.serverKey, invite: link.code, identity: createIdentity(),
@@ -164,6 +196,7 @@ describe.skipIf(!existsSync(LIVEKIT))('voice bot ↔ server ↔ LiveKit', () => 
       b.stop()
     }
     owner?.stop()
+    files?.close()
     await stop?.()
     rmSync(world, { recursive: true, force: true })
   })
@@ -208,6 +241,13 @@ describe.skipIf(!existsSync(LIVEKIT))('voice bot ↔ server ↔ LiveKit', () => 
     await waitFor(() => peak > -20 && from === bot.me!.accountKey, 'the member hearing the bot', 20_000)
     expect((await played).reason).toBe('finished')
     expect(ends.map((e) => e.reason)).toEqual(['finished'])
+
+    // A stream from an address (the bot fetches it itself), and a web page that isn't audio.
+    const radio = await voice.play(`${filesUrl}/radio.mp3`)
+    expect(radio).toMatchObject({ reason: 'finished', track: { title: 'radio.mp3' } })
+    const page = await voice.play(`${filesUrl}/watch?v=x`)
+    expect(page.reason).toBe('error')
+    expect(page.error?.message).toMatch(/web page, not an audio file or stream/)
 
     // Formats it can't play end the track with a clear error.
     const bad = await voice.play(new TextEncoder().encode('<!doctype html><html></html>'.padEnd(80)))
