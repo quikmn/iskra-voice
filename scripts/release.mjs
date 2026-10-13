@@ -41,7 +41,9 @@ if (compareVersions(version, previous) <= 0) fail(`${version} must be newer than
 const problems = []
 const branch = git('rev-parse', '--abbrev-ref', 'HEAD')
 if (branch !== 'main') problems.push(`you're on ${branch}; releases are made from main`)
-const dirty = git('status', '--porcelain', '--untracked-files=all').split('\n').filter(Boolean).filter((l) => ![notes, next].includes(rel(l.slice(3))))
+// The path follows the status letters; git() trims, so the first line may have lost its leading space (" M x" -> "M x").
+const statusPath = (line) => rel(line.replace(/^\s*\S{1,2}\s+/, ''))
+const dirty = git('status', '--porcelain', '--untracked-files=all').split('\n').filter(Boolean).filter((l) => ![notes, next].includes(statusPath(l)))
 if (dirty.length) problems.push(`the working tree has changes; commit or discard them first:\n  ${dirty.join('\n  ')}`)
 try {
   git('fetch', '--quiet', 'origin', 'main', '--tags')
