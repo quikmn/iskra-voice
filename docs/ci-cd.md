@@ -88,6 +88,14 @@ scanner (`grype sbom:iskra-sbom-server-X.cdx.json`). They aren't in `release-ass
 `release-assets.mjs check` lists them as "unexpected file", which is fine.
 For Linux/macOS files they come from the build workflow; for Windows and Android files (built locally) they only
 prove the file is the one the finalize run published, not how it was built.
+Standalone servers **require** these attestations before updating themselves (Updates/Attestations.cs): signed by
+`release.yml` at the tag `vX` or by `release-finalize.yml` on `main` (dispatch finalize from `main`, or servers refuse the
+update), for repository id 1227290412, naming the package file with its SHA-256. They check it offline against the
+Sigstore trusted root compiled into the server, `server/src/Iskra.Server/Updates/sigstore-trusted-root.json`. CI warns when
+it differs from Sigstore's current one; refresh it before tagging with
+`gh attestation trusted-root | head -n 1 > server/src/Iskra.Server/Updates/sigstore-trusted-root.json` and run the server tests
+(AttestationTests verify a real release against it). A server built with an older root refuses an update signed with a
+newer Sigstore key until its owner updates it by hand once.
 
 ## 2. Releasing
 
@@ -250,8 +258,9 @@ unit `iskra` (+ drop-in `quiet.conf`), HTTPS by the server's built-in Let's Encr
 `iskra-update X` downloads the X server bundle, verifies it against SHA256SUMS.txt, swaps it in, restarts, and
 rolls back to the previous bundle if the server doesn't come up.
 
-**So friends see "restarting", not "went offline", during a deploy** (owner's change on the droplet, not made yet):
-in `/usr/local/bin/iskra-update`, insert this line right before its `systemctl restart iskra`:
+**So friends see "restarting", not "went offline", during a deploy** (on the droplet since 2026-10-13):
+`/usr/local/bin/iskra-update` runs this line right before its first `systemctl stop iskra` (while the old bundle is
+still in `/opt/iskra/app`):
 
 ```sh
 /opt/iskra/app/iskra-server expect-restart /opt/iskra/world --reason update --eta 30 || true

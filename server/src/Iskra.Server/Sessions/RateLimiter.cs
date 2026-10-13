@@ -38,6 +38,7 @@ public sealed class RateLimiter(TimeProvider time)
         ["presence.set"] = (10, 1),
         ["dm.upload.begin"] = (10, 2),
         ["dm.file.url"] = (40, 10),
+        ["captions.model.link"] = (10, 1),
         ["gif.search"] = (10, 1),
         ["gif.trending"] = (10, 1),
         ["gif.categories"] = (5, 0.2),
@@ -53,9 +54,18 @@ public sealed class RateLimiter(TimeProvider time)
         ["docs.page.move"] = (10, 1),
         ["docs.search"] = (10, 2),
         ["data.export"] = (2, 1 / 600.0), // "Download my data": two, then one every 10 minutes
+        ["outhook.create"] = (10, 0.5),
+        ["outhook.update"] = (10, 1),
+        ["outhook.test"] = (3, 0.2),
+        ["outhook.hosts"] = (10, 1),
         ["security.log.list"] = (20, 2),
         ["profile.page.get"] = (5, 0.2), // up to 512 KB each
         ["bot.commands.set"] = (5, 0.2),
+        // Built-in bots (checked by BuiltinBotFeature): answers per sender, on top of chat.send's own limit.
+        ["builtin.dice"] = (10, 1),
+        ["builtin.polls"] = (5, 0.2),
+        ["builtin.reminders"] = (10, 1),
+        ["builtin.bots.set"] = (10, 1),
         ["interaction.invoke"] = (5, 2),
         ["interaction.respond"] = (20, 5),
         ["*"] = (40, 10),

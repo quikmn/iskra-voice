@@ -2,10 +2,10 @@
 // levels and mutes (kept by the server for your account, so every device and push follow them), and nicknames.
 import { create } from 'zustand'
 import type { Category, Events, Member, NotifyLevel, NotifySetting } from '../core/protocol'
-import { connectionFor, onServerEvent, onWelcomeHook } from './store'
+import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 import { knownThread } from './threads'
 import { t } from '../i18n'
-import { effectiveNotify, nextMuteEnd, notifyKey, type EffectiveNotify, type NotifyMap } from './organizeLogic'
+import { defaultLevel, effectiveNotify, nextMuteEnd, notifyKey, type EffectiveNotify, type NotifyMap } from './organizeLogic'
 
 interface OrganizeState {
   categories: Record<string, Category[]>
@@ -78,11 +78,18 @@ export function settingsChannel(serverKey: string, channelId: number): number {
 
 export function notifyFor(serverKey: string, channelId: number | null): EffectiveNotify {
   const map = useOrganize.getState().notify[serverKey]
-  return effectiveNotify(map, channelId === null ? null : settingsChannel(serverKey, channelId), Date.now())
+  return effectiveNotify(map, channelId === null ? null : settingsChannel(serverKey, channelId), Date.now(), serverDefaultLevel(serverKey))
 }
 
-/** Re-renders when settings change or a mute runs out. */
+/** The level for this server when you chose nothing, by how many people are on it. */
+export function serverDefaultLevel(serverKey: string): NotifyLevel {
+  const members = useApp.getState().servers[serverKey]?.members ?? {}
+  return defaultLevel(Object.values(members).filter((m) => !m.bot).length)
+}
+
+/** Re-renders when settings change, a mute runs out, or the server's size crosses the default's line. */
 export function useNotifyFor(serverKey: string, channelId: number | null): EffectiveNotify {
+  useApp((s) => s.servers[serverKey]?.members)
   useOrganize((s) => s.notify[serverKey])
   useOrganize((s) => s.clock)
   return notifyFor(serverKey, channelId)

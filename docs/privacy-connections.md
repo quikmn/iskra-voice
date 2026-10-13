@@ -49,6 +49,7 @@ OS updates), which Iskra doesn't control.
 | **Link previews** | Server → linked sites | See above | The server's IP | On | — |
 | **KLIPY** | Server → KLIPY | See above | The server's IP | Only with a key | Remove the key |
 | **Push services** | Server → each subscribed device's push service | Notifications | Encrypted payload, timing | Only for subscribed devices | — |
+| **Outgoing webhooks** | Server → the address an admin picked (HTTPS; plain HTTP only on the owner's own network) | When a chosen event happens: a new message or reaction in chosen channels, a member joining or leaving, an event starting | What the event contains (message text and author's name, member names); never encrypted channels, DMs or group chats | None until an admin adds one; every member sees the hosts in My settings → Privacy & data → Who Iskra talks to | Server settings → Bots & webhooks → Outgoing (turn off or delete) |
 
 ## The websites
 

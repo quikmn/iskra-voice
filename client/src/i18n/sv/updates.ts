@@ -31,8 +31,9 @@ export const updates: Messages['updates'] = {
   installBetweenHint: 'och en timme senare (serverns tid)',
   windowInvalid: 'Välj en tid som 04:00.',
   prereleases: 'Ta med testversioner (förhandsversioner)',
-  requireAttestation: 'Installera bara versioner som har ett byggintyg på GitHub',
-  verifyNote: 'Varje nedladdning kontrolleras mot versionens SHA256SUMS.txt och GitHubs egen kontrollsumma innan något byts ut.',
+  requireAttestation: 'Kontrollera det signerade byggintyget (rekommenderas)',
+  attestationOff: 'Av: servern installerar det som publiceras på Iskras GitHub, så den som tog sig in på det kontot skulle kunna skicka en uppdatering till din server. Slå på det igen om du inte granskar varje version själv.',
+  verifyNote: 'Varje nedladdning kontrolleras mot versionens SHA256SUMS.txt, GitHubs egen kontrollsumma och dess byggintyg (signerat av Iskras releaseflöde och kontrollerat på den här servern) innan något byts ut.',
   blocked: {
     desktop: 'Den här servern körs i Iskras skrivbordsapp och uppdateras tillsammans med den.',
     development: 'Det här är en utvecklingsversion; den uppdateras inte.',
@@ -59,8 +60,9 @@ export const updates: Messages['updates'] = {
     github_checksum: 'Nedladdningen stämmer inte med GitHubs kontrollsumma för den.',
     package: 'Paketet innehåller något det inte borde.',
     wont_run: 'Den nya versionen går inte att köra på den här datorn.',
-    attestation_missing: 'GitHub har inget byggintyg för det här paketet.',
-    attestation_unknown: 'Kunde inte fråga GitHub om paketets byggintyg.',
+    attestation_missing: 'Den här versionen har inget byggintyg, så den installeras inte automatiskt. Installera den för hand eller stäng av kontrollen av byggintyg.',
+    attestation_invalid: 'Paketets byggintyg gick inte att verifiera, så det installerades inte.',
+    attestation_unknown: 'Kunde inte hämta paketets byggintyg från GitHub. Det görs ett nytt försök senare.',
   },
   notice: {
     available: 'Ny version för {{server}}: Iskra {{version}}.',

@@ -76,6 +76,8 @@ builder.Services.AddSingleton<Iskra.Server.Captions.IModelUpstream>(_ => world.S
 builder.Services.AddSingleton(Iskra.Server.Captions.ModelManifest.Pinned);
 builder.Services.AddSingleton<Iskra.Server.Captions.CaptionModelService>();
 builder.Services.AddSingleton<WebhookIngress>();
+builder.Services.AddSingleton<OutgoingWebhooks>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<OutgoingWebhooks>());
 builder.Services.AddHostedService<PollCloser>();
 builder.Services.AddSingleton<EventScheduler>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<EventScheduler>());

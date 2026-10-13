@@ -32,7 +32,7 @@ export function MembersSection({ server }: { server: ServerState }) {
             <button className="room-member" onClick={() => openMemberDetails(server.key, m.accountKey)} {...userMenuProps(m.accountKey, server.key)}>
               <Avatar name={m.name} accountKey={m.accountKey} size={32} />
               <span className="room-member-text">
-                <span className="room-member-name">{m.name} {m.bot && <BotBadge />} <TimeoutBadge member={m} /></span>
+                <span className="room-member-name">{m.name} {m.bot && <BotBadge builtin={!!m.builtin} />} <TimeoutBadge member={m} /></span>
                 <span className="muted capitalize">{t(`common.roles.${m.role}`)}</span>
               </span>
               <RoleChips server={server} member={m} />

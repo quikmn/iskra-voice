@@ -1731,6 +1731,114 @@ export interface Requests {
   'bot.commands.available': [{ channelId: number }, { bots: string[] }]
 }
 
+// ── captions model ──
+
+/** A short-lived link to the live-captions model on this server (members only; PROTOCOL.md "Live captions model"). */
+export type CaptionModelLink = { offered: false } | { offered: true; path: string; query: string; expires: number }
+
+export interface Requests {
+  'captions.model.link': [Record<string, never>, CaptionModelLink]
+}
+
+// ── outgoing webhooks ──
+// See "Outgoing webhooks" in PROTOCOL.md.
+
+export type OutHookEvent = 'message.created' | 'reaction.added' | 'member.joined' | 'member.left' | 'event.started'
+
+export type OutHookOutcome = 'ok' | 'http' | 'timeout' | 'network' | 'blocked' | 'redirect' | 'rate_limited' | 'queue_full' | 'too_large'
+
+export interface OutHook {
+  id: string
+  name: string
+  url: string
+  host: string
+  events: OutHookEvent[]
+  channelIds: number[]
+  allowLocal: boolean
+  enabled: boolean
+  disabledReason: 'failures' | null
+  failures: number
+  createdBy: string
+  createdAt: number
+  lastDeliveryAt: number | null
+  lastOutcome: OutHookOutcome | null
+}
+
+export interface OutHookDelivery {
+  delivery: string
+  event: OutHookEvent | 'ping'
+  attempt: number
+  at: number
+  status: number | null
+  outcome: OutHookOutcome
+  ms: number
+}
+
+export interface OutHookInput {
+  name: string
+  url: string
+  events: OutHookEvent[]
+  channelIds: number[]
+  allowLocal?: boolean
+}
+
+export interface Events {
+  'outhook.disabled': { hook: OutHook }
+}
+
+export interface Requests {
+  'outhook.list': [Record<string, never>, { hooks: OutHook[] }]
+  'outhook.create': [OutHookInput, { hook: OutHook; secret: string }]
+  'outhook.update': [Partial<OutHookInput> & { id: string; enabled?: boolean }, { hook: OutHook }]
+  'outhook.regenerate': [{ id: string }, { hook: OutHook; secret: string }]
+  'outhook.delete': [{ id: string }, Record<string, never>]
+  'outhook.log': [{ id: string }, { deliveries: OutHookDelivery[] }]
+  'outhook.test': [{ id: string }, { delivery: OutHookDelivery }]
+  'outhook.hosts': [Record<string, never>, { hooks: { name: string; host: string; events: OutHookEvent[] }[] }]
+}
+
+// ── built-in bots ──
+
+export type BuiltinBotId = 'dice' | 'polls' | 'reminders'
+
+export interface BuiltinBot {
+  id: BuiltinBotId
+  /** Null until it's first turned on (then it keeps this key). */
+  accountKey: string | null
+  enabled: boolean
+}
+
+/** What a built-in bot's answer means, for showing it in the app's language (the message text is plain English). */
+export type BuiltinReply = { bot: BuiltinBotId; for: string } & (
+  | { kind: 'roll'; expression: string; groups: { sign: 1 | -1; count: number; sides: number; rolls: number[] }[]; modifier: number; total: number }
+  | { kind: 'roll.invalid'; input: string }
+  | { kind: 'poll.usage' }
+  | { kind: 'remind'; dueAt: number }
+  | { kind: 'remind.usage' }
+  | { kind: 'error'; error: { code: string; message: string; key?: string | null; args?: Record<string, unknown> | null } }
+)
+
+export interface Member {
+  /** Which built-in bot this member is (they're run by the server). */
+  builtin?: BuiltinBotId | null
+}
+
+export interface Message {
+  builtin?: BuiltinReply | null
+}
+
+export interface Welcome {
+  builtinBots?: BuiltinBot[]
+}
+
+export interface Events {
+  'builtin.bots': { bots: BuiltinBot[] }
+}
+
+export interface Requests {
+  'builtin.bots.set': [{ bot: BuiltinBotId; enabled: boolean }, { bots: BuiltinBot[] }]
+}
+
 // ── bot interactions ──
 
 export type ButtonStyle = 'primary' | 'secondary' | 'success' | 'danger' | 'link'
@@ -1822,6 +1930,8 @@ export interface InteractionResponse {
   components: ComponentRow[]
   createdAt: number
   updated?: boolean
+  /** A built-in bot's hint or error, for apps to show in their own language. */
+  builtin?: BuiltinReply
 }
 
 export interface InteractionAnswer {

@@ -21,6 +21,7 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Earlier versions of edited messages (edit history) | Up to 20 per message; go with the message | `RetentionSweeper` and message deletion | `Retention.MessagesDays` |
 | Docs pages and their revisions | Pages until deleted; the last 50 revisions per page, older revisions also by the retention period | Docs edits; `RetentionSweeper` | `Retention.MessagesDays` |
 | Reminders (due time; channel and message for server channels; what it's about and the note sealed) | Until 30 days after they fire, or until cancelled | `ProductivityScheduler` (hourly) | No |
+| Built-in bots' answers (Dice rolls, Polls and Reminders replies: the bot, who asked, what it meant) and their reminders (set with /remind: the note readable by the server, as the command was) | Answers: same as messages; reminders: as other reminders | `RetentionSweeper` and message deletion (answers go with their message); `ProductivityScheduler` | `Retention.MessagesDays` |
 | Scheduled messages | Until sent (then deleted) or deleted by the author; failed ones stay until the author edits or deletes them | `ScheduledFeature` | No |
 | Bot commands you used (who asked, on the bot's public answer) | With the answer message | `RetentionSweeper` and message deletion | `Retention.MessagesDays` |
 | Bot interactions in progress, private bot answers and open bot forms | 15 minutes, in memory only (never stored; gone with a restart) | `InteractionRegistry` | No |
@@ -32,6 +33,7 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Audit log (moderation and admin actions) | 90 days | `ModerationSweeper` | `Retention.AuditDays` (0 = keep) |
 | Security log (auth failures, rate-limit hits, joins, sign-ins from new devices, key rotations, deletions, backups, moves, exports, settings changes) | 365 days | `RetentionSweeper` | `Retention.SecurityLogDays` |
 | Resolved reports | 90 days after resolution | Report sweep (`ReportFeature`) | No |
+| Outgoing webhooks (name, address, events, who made it) and their delivery log (time, event, attempt, HTTP status, outcome; never the payload) | Webhooks until an admin deletes them; the last 50 log entries per webhook, deleted with it | Admins; each new log entry | No |
 | Ended or cancelled events | 30 days | `EventScheduler` | No |
 | Daily backups (`backups/auto-*.zip`) | Last 7 | `BackupService` | `Backups.Keep` (1–30) |
 | Downloaded encrypted backups | Wherever the owner keeps them | The owner | — |
@@ -83,3 +85,4 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 | 2026-10-12 | Live captions and camera effects on the device; the captions model from the member's own server |
 | 2026-10-12 | Edit history, docs revisions, reminders, scheduled messages, inbox, key log, captions model folder, owner claim, clips |
 | 2026-10-13 | Key log: names are logged as salted hashes and erased on account deletion |
+| 2026-10-13 | Built-in bots (Dice, Polls, Reminders): their answers and /remind reminders |

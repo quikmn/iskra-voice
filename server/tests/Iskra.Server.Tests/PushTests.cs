@@ -31,6 +31,8 @@ public class PushTests
     {
         var endpoint = Endpoint(user.Welcome.Body().GetProperty("you").GetProperty("name").GetString()!);
         Assert.Equal("result", (await user.RequestAsync("push.subscribe", Subscription(endpoint))).Type());
+        // These tests are about mentions and replies: a small server would otherwise push every message by default.
+        Assert.Equal("result", (await user.RequestAsync("notify.set", new { level = "mentions" })).Type());
         return endpoint;
     }
 

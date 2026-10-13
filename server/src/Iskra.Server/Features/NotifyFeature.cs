@@ -13,8 +13,8 @@ public static class NotifyFeature
     public const string All = "all";
     public const string Mentions = "mentions";
     public const string Nothing = "none";
-    /// <summary>The level when nothing is set: mentions and replies (what Iskra always did).</summary>
-    public const string DefaultLevel = Mentions;
+    /// <summary>Below this many people (bots not counted) the level when nothing is set is "all messages".</summary>
+    public const int SmallServer = 15;
     public const long Forever = -1;
     public const int MaxMuteMinutes = 30 * 24 * 60;
 
@@ -37,14 +37,20 @@ public static class NotifyFeature
         store.NotifySettings(accountKey).Where(n => n.Level is not null || Active(n, now)).Select(n => Public(n, now)).ToList();
 
     /// <summary>
+    /// The level when nothing is set: every message on a small server (a friend group, where that's what people
+    /// expect), only mentions and replies on a bigger one. Any choice of the member's wins.
+    /// </summary>
+    public static string DefaultFor(int people) => people < SmallServer ? All : Mentions;
+
+    /// <summary>
     /// What a member hears about messages in a channel: the channel's level, else the server's, else the default.
     /// Muting (the channel or the server) lowers "all" to mentions: a muted place stays quiet unless you're pinged.
     /// </summary>
-    public static string EffectiveLevel(IReadOnlyList<NotifySetting> settings, long channelId, long now)
+    public static string EffectiveLevel(IReadOnlyList<NotifySetting> settings, long channelId, long now, string defaultLevel = Mentions)
     {
         var channel = settings.FirstOrDefault(n => n.ChannelId == channelId);
         var server = settings.FirstOrDefault(n => n.ChannelId == 0);
-        var level = channel?.Level ?? server?.Level ?? DefaultLevel;
+        var level = channel?.Level ?? server?.Level ?? defaultLevel;
         var muted = (channel is not null && Active(channel, now)) || (server is not null && Active(server, now));
         return muted && level == All ? Mentions : level;
     }

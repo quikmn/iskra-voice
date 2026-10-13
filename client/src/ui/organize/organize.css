@@ -147,3 +147,4 @@ kbd {
 .org-group-title { padding: 6px 10px 2px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
 .org-sheet { max-height: 85dvh; overflow-y: auto; }
 .org-sheet .org-group-title { padding: 10px 6px 6px; background: var(--float); }
+.org-notify-default { margin: 0; font-size: 13px; }

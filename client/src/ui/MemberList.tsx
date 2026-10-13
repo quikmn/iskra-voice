@@ -84,7 +84,7 @@ function MemberRow({ serverKey, member, color, icon, onClick }: {
       </span>
       {icon && <span className="member-role-icon" aria-hidden>{icon}</span>}
       <TimeoutBadge member={member} />
-      {member.bot && <BotBadge />}
+      {member.bot && <BotBadge builtin={!!member.builtin} />}
     </button>
   )
 }

@@ -4,6 +4,8 @@
 .e2ee-header { color: var(--green); }
 .e2ee-header.warn { color: var(--amber); }
 .e2ee-note { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-style: italic; }
+.e2ee-note.e2ee-flag { color: var(--amber); font-style: normal; }
+.e2ee-older { font-size: 0.75rem; cursor: help; width: fit-content; }
 .e2ee-members { list-style: none; margin: 8px 0 12px; padding: 0; max-height: 40vh; overflow-y: auto; }
 .e2ee-members li { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); }
 .e2ee-members li:last-child { border-bottom: none; }

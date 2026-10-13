@@ -21,6 +21,8 @@ public sealed class Hub(World world, TimeProvider time)
     public Features.InteractionRegistry Interactions { get; } = new(time);
     /// <summary>What sessions are told when the server stops: a restart (1012) or a stop (1001), see RestartSignal.</summary>
     public RestartSignal Restart { get; } = new(world.Path, time);
+    /// <summary>Outgoing webhooks (Features/OutgoingWebhooks.cs); set when that service starts.</summary>
+    public Features.OutgoingWebhooks? Outhooks { get; set; }
 
     private readonly ConcurrentDictionary<Session, byte> _sessions = new();
 
@@ -94,7 +96,8 @@ public sealed class Hub(World world, TimeProvider time)
             return Features.ProfileFeature.Public(m, views.Profiles.GetValueOrDefault(m.AccountKey) ?? store.GetPublicProfile(m.AccountKey), pages,
                 views.Nicknames.GetValueOrDefault(m.AccountKey), store.IsBot(m.AccountKey),
                 views.Timeouts.TryGetValue(m.AccountKey, out var until) ? until : null, presence,
-                presence.Online ? Features.ActivityFeature.Public(Activities.Get(m.AccountKey)) : null, Features.ProfileFeature.BotReads(store, m.AccountKey));
+                presence.Online ? Features.ActivityFeature.Public(Activities.Get(m.AccountKey)) : null, store.BuiltinIdOf(m.AccountKey),
+                Features.ProfileFeature.BotReads(store, m.AccountKey));
         }).ToList();
     }
 

@@ -4,7 +4,7 @@
 import { useId, useState, type AriaAttributes, type KeyboardEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
-import { interactiveCommand, useChannelCommands } from '../../state/botCommands'
+import { interactiveCommand, useBotCommands, useChannelCommands } from '../../state/botCommands'
 import { invoke } from '../../state/interactions'
 import { useServerRoles } from '../../state/roles'
 import { useApp } from '../../state/store'
@@ -39,6 +39,7 @@ export function useCommandSuggest(
   const [dismissed, setDismissed] = useState<string | null>(null)
   const query = commandQueryAt(text, caret)
   const entries = useChannelCommands(serverKey, channelId, query !== null, encrypted)
+  const hasBots = useBotCommands((s) => Object.keys(s.lists[serverKey] ?? {}).length > 0)
   const closed = dismissed === text
   const members = useApp((s) => s.servers[serverKey]?.members)
   const channels = useApp((s) => s.servers[serverKey]?.channels)
@@ -46,6 +47,8 @@ export function useCommandSuggest(
   // Why the last command couldn't be sent, shown until the text changes.
   const [failure, setFailure] = useState<{ text: string; message: string } | null>(null)
   if (failure && failure.text !== text) setFailure(null)
+  // Encrypted channels where no bot can answer (only bots that take interactions can, privately): say why nothing is suggested.
+  const encryptedHint = encrypted && hasBots && query?.kind === 'name' && !closed && entries.length === 0
   // Esc closes the list for this text only: once the text changes, typing "/" again opens it again.
   if (dismissed !== null && dismissed !== text) setDismissed(null)
 
@@ -72,7 +75,7 @@ export function useCommandSuggest(
   }
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>): boolean => {
-    if (e.key === 'Escape' && (count > 0 || (command && !closed))) {
+    if (e.key === 'Escape' && (count > 0 || (command && !closed) || encryptedHint)) {
       e.preventDefault()
       setDismissed(text)
       return true
@@ -195,8 +198,16 @@ export function useCommandSuggest(
     )
   }
 
+  if (!popup && encryptedHint) {
+    popup = (
+      <div className="mention-popup command-hint" id={hintId}>
+        <div className="command-signature"><span className="command-param-help">{t('builtinBots.encryptedHint')}</span></div>
+      </div>
+    )
+  }
+
   const inputProps: AriaAttributes = count > 0
     ? { 'aria-autocomplete': 'list', 'aria-controls': listId, 'aria-activedescendant': optionId(current), 'aria-describedby': command ? hintId : undefined }
-    : command && !closed ? { 'aria-describedby': hintId } : {}
+    : (command && !closed) || encryptedHint ? { 'aria-describedby': hintId } : {}
   return { open: popup !== null, onKeyDown, popup, inputProps, trySend }
 }

@@ -124,6 +124,7 @@ public class ForwardTests
                 keys = new { p256dh = Ed25519.ToB64u([4, .. q.X!, .. q.Y!]), auth = Ed25519.ToB64u(new byte[16]) },
             });
         }
+        await bob.RequestAsync("notify.set", new { level = "mentions" }); // only mentions: a small server would push every message by default
         var games = server.World.Store.CreateChannel("games", "text", "member", "member", 0).Id;
         var original = await Say(alice, games, $"<@{bob.Key}> hi");
         await server.Push.WaitForAsync(endpoint);

@@ -94,7 +94,9 @@ public static class ChatFeature
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.message", new { message = publicMessage, nonce }));
         ThreadFeature.Touched(s, channel);
         s.Push.ChatMessage(channel, message);
+        s.Hub.Outhooks?.MessageCreated(channel, message);
         InboxFeature.Record(s, channel, message);
+        BuiltinBotFeature.Heard(s, me, channel, message);
         return new { message = publicMessage, nonce };
     }
 
@@ -188,7 +190,9 @@ public static class ChatFeature
         var reactions = s.World.Store.Reactions(message.Id);
         if (on && !reactions.Any(r => r.Emoji == emoji) && reactions.Count >= MaxReactionsPerMessage)
             throw RequestException.BadRequest("This message has too many different reactions.", "reactions_full");
+        var had = reactions.Any(r => r.Emoji == emoji && r.Accounts.Contains(me.AccountKey));
         s.World.Store.SetReaction(message.Id, me.AccountKey, emoji, on, s.Now);
+        if (on && !had) s.Hub.Outhooks?.ReactionAdded(channel, message, me.AccountKey, emoji);
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.reactions",
             new { id = message.Id, channelId = channel.Id, reactions = MessageViews.Reactions(s.World.Store, message.Id) }));
         return null;

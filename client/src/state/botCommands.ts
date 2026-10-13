@@ -8,11 +8,13 @@ import { mayUse } from '../ui/chat/commandInvoke'
 import { has } from './permissions'
 import { useServerRoles } from './roles'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
+import { t } from '../i18n'
+import { localizeCommand } from './builtinBotsLogic'
 
 interface BotCommandsState {
   /** serverKey → bot account key → its commands. */
   lists: Record<string, Record<string, BotCommand[]>>
-  /** serverKey â†’ bot account key â†’ it takes commands as interactions. */
+  /** serverKey → bot account key → it takes commands as interactions. */
   interactive: Record<string, Record<string, boolean>>
   /** "serverKey:channelId" → bots that can read and post there. */
   available: Record<string, string[]>
@@ -106,10 +108,13 @@ export function useChannelCommands(serverKey: string, channelId: number, active:
     if (!lists || !bots) return NONE
     const allowed = (command: BotCommand) => mayUse(command, me, (p) => has(me, roles, p as Parameters<typeof has>[2]))
     return bots.flatMap((bot) => {
-      const name = members?.[bot]?.name
+      const member = members?.[bot]
       const takes = !!interactive?.[bot]
-      if (!name || (encrypted && !takes)) return []
-      return (lists[bot] ?? []).filter(allowed).map((command) => ({ bot, botName: name, command, interactions: takes }))
+      if (!member || (encrypted && !takes)) return []
+      // Built-in bots' hints in the app's language.
+      return (lists[bot] ?? []).filter(allowed).map((command) => ({
+        bot, botName: member.name, command: member.builtin ? localizeCommand(command, (key) => t(key as never)) : command, interactions: takes,
+      }))
     })
   }, [encrypted, lists, interactive, bots, members, me, roles])
 }

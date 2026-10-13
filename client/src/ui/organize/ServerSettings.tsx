@@ -5,7 +5,7 @@ import { errorMessage } from '../../i18n/errors'
 import { roleRank, type Member, type NotifyLevel } from '../../core/protocol'
 import type { ServerState } from '../../state/store'
 import { muteFor, setNickname, setNotifyLevel, useNotifyFor, useOrganize } from '../../state/organize'
-import { levelLabel, MUTE_CHOICES, muteChoiceLabel, muteLabel } from '../../state/organizeLogic'
+import { levelLabel, MUTE_CHOICES, muteChoiceLabel, muteLabel, SMALL_SERVER } from '../../state/organizeLogic'
 import './organize.css'
 
 /** Level and mute for a whole server. Channels can override the level from their own menu. */
@@ -31,6 +31,11 @@ export function ServerNotifySettings({ server }: { server: ServerState }) {
           </button>
         ))}
       </div>
+      {!own?.level && (
+        <p className="muted org-notify-default">
+          {t(notify.chosen === 'all' ? 'organize.notify.defaultSmall' : 'organize.notify.defaultBig', { server: server.name, max: SMALL_SERVER })}
+        </p>
+      )}
       <div className="org-notify-row">
         {muted ? (
           <>

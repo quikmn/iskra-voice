@@ -11,6 +11,7 @@ import type { PendingMessage, ServerState } from '../../state/store'
 import { Avatar, Modal, Spinner } from '../bits'
 import { renderMarkdown } from '../markdown'
 import { BotBadge, Embeds } from './BotBits'
+import { BuiltinReply } from './BuiltinReply'
 import { safeUrl } from './bots'
 import './interactions.css'
 
@@ -142,7 +143,9 @@ export function InteractionTray({ server, channelId }: { server: ServerState; ch
             <span className="private-label">{t('chat.interaction.onlyYou')}</span>
             <button type="button" className="link" onClick={() => dismissAnswer(server.key, channelId, answer.responseId)}>{t('chat.interaction.dismiss')}</button>
           </header>
-          {answer.text && <div className="message-text">{renderMarkdown(answer.text, ctx)}</div>}
+          {answer.builtin
+            ? <BuiltinReply server={server} reply={answer.builtin} />
+            : answer.text && <div className="message-text">{renderMarkdown(answer.text, ctx)}</div>}
           {answer.cards.length > 0 && <Embeds server={server} embeds={answer.cards} authorName={nameOf(answer.bot)} />}
           {answer.components.length > 0 && (
             <ComponentRows server={server} channelId={channelId} bot={answer.bot} rows={answer.components} target={{ responseId: answer.responseId }} />

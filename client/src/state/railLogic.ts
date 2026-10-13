@@ -15,6 +15,8 @@ export type RailItem = { kind: 'server'; key: string } | RailFolder
 
 export interface RailLayout {
   items: RailItem[]
+  /** Servers hidden from the rail ("Hide server"): still saved and joined, just not shown. */
+  hidden?: string[]
   updatedAt: number
 }
 
@@ -28,8 +30,9 @@ const COLOR = /^#[0-9a-f]{6}$/i
 /** Accepts only a well-formed layout (it comes from storage or another device). */
 export function parseLayout(raw: unknown): RailLayout | null {
   if (!raw || typeof raw !== 'object') return null
-  const { items, updatedAt } = raw as Record<string, unknown>
+  const { items, updatedAt, hidden } = raw as Record<string, unknown>
   if (!Array.isArray(items) || items.length > 500 || typeof updatedAt !== 'number') return null
+  if (hidden !== undefined && (!Array.isArray(hidden) || hidden.length > 500)) return null
   const seen = new Set<string>()
   const out: RailItem[] = []
   for (const item of items) {
@@ -52,12 +55,26 @@ export function parseLayout(raw: unknown): RailLayout | null {
       })
     } else return null
   }
-  return { items: out, updatedAt }
+  const hiddenKeys = [...new Set((hidden as unknown[] | undefined ?? []).filter((k): k is string => typeof k === 'string' && KEY.test(k)))]
+  return hiddenKeys.length ? { items: out, hidden: hiddenKeys, updatedAt } : { items: out, updatedAt }
 }
 
-/** What the rail shows: only servers on this device, every one of them (new ones at the end), no empty folders. */
+/** Hidden servers this device has. */
+export function hiddenServers(layout: RailLayout, order: string[]): string[] {
+  const hidden = new Set(layout.hidden ?? [])
+  return order.filter((k) => hidden.has(k))
+}
+
+/** The hidden list with a server hidden or shown again. */
+export function withHidden(layout: RailLayout, key: string, hide: boolean): string[] {
+  const rest = (layout.hidden ?? []).filter((k) => k !== key)
+  return hide ? [...rest, key] : rest
+}
+
+/** What the rail shows: only servers on this device, every one not hidden (new ones at the end), no empty folders. */
 export function visibleRail(layout: RailLayout, order: string[]): RailItem[] {
-  const known = new Set(order)
+  const hidden = new Set(layout.hidden ?? [])
+  const known = new Set(order.filter((k) => !hidden.has(k)))
   const placed = new Set<string>()
   const items: RailItem[] = []
   for (const item of layout.items) {
@@ -72,7 +89,7 @@ export function visibleRail(layout: RailLayout, order: string[]): RailItem[] {
       if (servers.length) items.push({ ...item, servers })
     }
   }
-  for (const key of order) if (!placed.has(key)) items.push({ kind: 'server', key })
+  for (const key of order) if (known.has(key) && !placed.has(key)) items.push({ kind: 'server', key })
   return items
 }
 

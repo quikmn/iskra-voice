@@ -4,7 +4,7 @@ import { create } from 'zustand'
 import { t } from '../i18n'
 import { plainText } from '../ui/markdown'
 import { senderRules } from './senderRules'
-import { onServerEvent, useApp } from './store'
+import { onServerEvent, railHooks, useApp } from './store'
 import { conversationLabel, useThreads } from './threads'
 import { jumpToMessage } from './jump'
 import { b64u } from '../core/crypto'
@@ -137,7 +137,7 @@ const lastVoice = new Map<string, Set<string>>()
 /** A desktop notification for a new channel message, if your settings want one. */
 export function notifyChannelMessage(serverKey: string, message: Message): void {
   const server = useApp.getState().servers[serverKey]
-  if (!server) return
+  if (!server || railHooks.isHidden(serverKey)) return // a hidden server stays quiet
   const myKey = me()
   // Blocked people never notify; then your notification level for the channel decides (all, mentions, nothing).
   if (message.author === myKey || senderRules.ignored(message.author) || isBlocked(useBlocks.getState().entries, message.author)) return
