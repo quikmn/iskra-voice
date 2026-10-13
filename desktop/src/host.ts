@@ -246,6 +246,8 @@ export class Host {
         ...process.env,
         ISKRA_PARENT_PID: String(process.pid),
         ISKRA_STOP_ON_STDIN_CLOSE: '1',
+        // Updates come with the app, not from the server itself.
+        Updates__ManagedBy: 'desktop',
         ...(livekit ? { ISKRA_LIVEKIT: livekit } : {}),
       },
     })

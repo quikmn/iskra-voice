@@ -11,13 +11,14 @@ namespace Iskra.Server.Updates;
 /// <summary>Facts about how this server runs that decide what updating can do.</summary>
 public sealed record UpdateEnvironment(string Current, string? Rid, bool ManagedByDesktop, bool AssumeGuard, string AppDir)
 {
-    public static UpdateEnvironment Detect(IConfiguration config) => new(
+    public static UpdateEnvironment Detect(IConfiguration config) => Detect(config, Environment.GetEnvironmentVariable);
+
+    public static UpdateEnvironment Detect(IConfiguration config, Func<string, string?> env) => new(
         Versions.IsValid(config["Updates:Version"]) ? config["Updates:Version"]! : Versions.Current,
         config["Updates:Rid"] is { Length: > 0 } rid ? rid : UpdatePicker.CurrentRid,
-        // The desktop app starts its servers with these; they update together with the app.
-        !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ISKRA_PARENT_PID"))
-            || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ISKRA_STOP_ON_STDIN_CLOSE"))
-            || config["Updates:ManagedBy"] == "desktop",
+        // The desktop app says so (Updates__ManagedBy) and watches its servers (ISKRA_PARENT_PID); they update together
+        // with the app. ISKRA_STOP_ON_STDIN_CLOSE alone doesn't count: any supervisor or test harness may use it.
+        !string.IsNullOrEmpty(env("ISKRA_PARENT_PID")) || config["Updates:ManagedBy"] == "desktop",
         config.GetValue<bool>("Updates:AssumeGuard"),
         config["Updates:AppDir"] is { Length: > 0 } dir ? dir : AppContext.BaseDirectory);
 }
