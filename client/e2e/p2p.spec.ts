@@ -239,6 +239,13 @@ test('a friend joins a home-hosted server through the peer-to-peer tunnel and ta
         return types
       }), { timeout: 20_000 })
       .toContain('relay')
+    // WebRTC's any-address policy is on in the friend's window only while its voice goes through the tunnel; the host
+    // (direct voice) keeps the default, a socket per adapter.
+    type AppWin = { webContents: { getURL(): string; getWebRTCIPHandlingPolicy(): string } }
+    const policyOf = (app: ElectronApplication) => app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows().find((w: AppWin) => w.webContents.getURL().startsWith('app://'))!.webContents.getWebRTCIPHandlingPolicy())
+    expect(await policyOf(friendApp!)).toBe('default_public_interface_only')
+    expect(await policyOf(hostApp!)).toBe('default')
     // ...and the TURN datagrams really went through the friend's tunnel (counted in the app's main process).
     type Debug = { client: Record<string, { stats: { datagramsOut: number; datagramsIn: number } }> }
     const debug = await friendApp.evaluate(() => (globalThis as unknown as { iskraP2pDebug: () => Debug }).iskraP2pDebug())
@@ -246,6 +253,11 @@ test('a friend joins a home-hosted server through the peer-to-peer tunnel and ta
     expect(tunnelStats?.datagramsOut).toBeGreaterThan(0)
     expect(tunnelStats?.datagramsIn).toBeGreaterThan(0)
     await friend.screenshot({ path: join(SHOTS, 'p2p-friend-voice.png'), animations: 'disabled' })
+    // Leaving voice puts the friend's window back on the default policy.
+    await friend.getByRole('button', { name: 'Leave voice' }).click()
+    await expect(friend.locator('.voice-bar')).toHaveCount(0)
+    await expect.poll(() => policyOf(friendApp!)).toBe('default')
+    await expect(lounge(host).locator('.voice-participants li')).toHaveCount(1, { timeout: 15_000 })
 
     // A new key: the host's next invite carries a different secret.
     await host.locator('.server-header-button').click()

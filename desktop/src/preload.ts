@@ -110,6 +110,8 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
   p2p: {
     open: (serverKey: string, secret: string): Promise<unknown> => ipcRenderer.invoke('iskra:p2p-open', serverKey, secret),
     close: (serverKey: string): Promise<void> => ipcRenderer.invoke('iskra:p2p-close', serverKey),
+    // Voice is about to go through a tunnel (before the room connects), or just left it.
+    voice: (on: boolean): Promise<void> => ipcRenderer.invoke('iskra:p2p-voice', on === true),
   },
   download: (url: string): Promise<boolean> => ipcRenderer.invoke('iskra:download', url),
   // Big decrypted DM files: a Save dialog, then the bytes a piece at a time; finish only once they're checked.

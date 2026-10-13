@@ -177,6 +177,8 @@ export interface DesktopBridge {
   p2p?: {
     open(serverKey: string, secret: string): Promise<TunnelEndpoint | { error: string } | null>
     close(serverKey: string): Promise<void>
+    /** Say so before a room connects through a tunnel (WebRTC then uses one any-address socket) and again on leaving. */
+    voice?(on: boolean): Promise<void>
   }
   /** Saves a file from a server URL (asks where). */
   download?(url: string): Promise<boolean>

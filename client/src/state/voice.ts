@@ -637,7 +637,11 @@ async function connect(
     // list is Google's) learns your address. Overrides whatever list the voice server would hand out. A server reached
     // through the peer-to-peer tunnel instead gets its own TURN server through the tunnel, relay only (p2pVoice.ts).
     const tunnel = tunnelFor(session.serverKey)
-    if (tunnel) routeVoiceThroughTunnel(next, tunnel.turnPort)
+    if (tunnel) {
+      routeVoiceThroughTunnel(next, tunnel.turnPort)
+      // The desktop app switches WebRTC to one any-address socket for the tunnel's TURN on 127.0.0.1 (cleanup switches back).
+      await desktop?.p2p?.voice?.(true).catch(() => undefined)
+    }
     await next.connect(url, token, { rtcConfig: tunnel ? { iceTransportPolicy: 'relay' } : { iceServers: [] } })
     if (room !== next) {
       await next.disconnect()
@@ -760,6 +764,7 @@ async function cleanup(): Promise<void> {
   const old = room
   const worker = e2eeWorker
   room = null
+  void desktop?.p2p?.voice?.(false).catch(() => undefined) // back to a socket per adapter (a no-op unless voice was through a tunnel)
   e2eeWorker = null
   micDeferred = false
   processor = null // LiveKit destroys it with the track

@@ -11,6 +11,7 @@ import { ClientTunnels } from './p2p/clientTunnel'
 import { HostTunnels } from './p2p/hostTunnel'
 import { p2pNetwork } from './p2p/network'
 import { P2pNode } from './p2p/node'
+import { TunnelledVoice } from './p2p/webrtcPolicy'
 import { isBackupDownload, readBackupInfo } from './restore'
 import { SaveStreams, suggestedName } from './saveStreams'
 import {
@@ -64,6 +65,8 @@ const p2pNode = new P2pNode(p2pNetwork(process.env, app.isPackaged))
 const hostTunnels = new HostTunnels(p2pNode, (id, p2p) => window?.webContents.send('iskra:host-p2p', { id, p2p }))
 const clientTunnels = new ClientTunnels(p2pNode)
 const host = new Host(hostTunnels)
+// While the page's voice goes through a tunnel, WebRTC uses one any-address socket (see p2p/webrtcPolicy.ts).
+const tunnelledVoice = new TunnelledVoice()
 if (process.env.ISKRA_E2E) Object.assign(globalThis, { iskraP2pDebug: () => ({ host: hostTunnels.debug(), client: clientTunnels.debug(), nat: p2pNode.nat() }) }) // for the desktop e2e test
 // "Playing X": only the matched game's name ever reaches the page.
 const activity = new ActivityDetector((game) => window?.webContents.send('iskra:activity', game))
@@ -173,11 +176,7 @@ function createWindow(): void {
     },
   })
   allowPageViews(window, isAppUrl)
-  // WebRTC sends from one any-address socket instead of one socket per network adapter. Needed for voice through the
-  // peer-to-peer tunnel: its TURN server is on 127.0.0.1, and on Windows a socket bound to the LAN address can't reach
-  // loopback (Electron's Chromium never got a single TURN packet out that way). It also exposes only the default
-  // route's address in ICE candidates, never every adapter's. Direct voice keeps working the same.
-  window.webContents.setWebRTCIPHandlingPolicy('default_public_interface_only')
+  window.webContents.setWebRTCIPHandlingPolicy(tunnelledVoice.policy) // 'default', unless voice is already through the tunnel
 
   // Started with the computer: stay in the tray until opened. Otherwise the splash shows it when everything's ready.
   window.webContents.once('dom-ready', () => launch?.page === 'loading' && launchChanged({ page: 'loaded' }))
@@ -630,6 +629,12 @@ ipcMain.handle('iskra:p2p-open', async (event, serverKey: unknown, secret: unkno
 })
 ipcMain.handle('iskra:p2p-close', (event, serverKey: unknown) => {
   if (fromApp(event) && isKey43(serverKey)) void clientTunnels.close(serverKey)
+})
+// The page's voice is about to connect through a tunnel (true), or left it (false): only new peer connections see it.
+ipcMain.handle('iskra:p2p-voice', (event, on: unknown) => {
+  if (!fromApp(event)) return
+  const policy = tunnelledVoice.set(on)
+  if (policy) window?.webContents.setWebRTCIPHandlingPolicy(policy)
 })
 ipcMain.handle('iskra:host-stop', async (event, id: unknown) => (fromApp(event) && typeof id === 'string' ? withKeep(await host.stop(id)) : null))
 // "Keep my server running": Iskra starts with the computer, hidden in the tray, and starts this server.

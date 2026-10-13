@@ -112,6 +112,11 @@ test('from a fresh install to friends talking in voice, timed', async ({ browser
       await expect(lobby(page)).toContainText('Grace')
     }
     lap('both in voice')
+    // Direct voice from the desktop app keeps Chromium's default WebRTC policy (a socket per adapter): the any-address
+    // policy is only for voice through the peer-to-peer tunnel.
+    type AppWin = { webContents: { getURL(): string; getWebRTCIPHandlingPolicy(): string } }
+    expect(await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows().find((w: AppWin) => w.webContents.getURL().startsWith('app://'))!.webContents.getWebRTCIPHandlingPolicy())).toBe('default')
     await shot(host, '6-voice-host')
     await friend.screenshot({ path: join(SHOTS, 'walkthrough-6-voice-friend.png'), animations: 'disabled' })
 
