@@ -43,6 +43,24 @@ test('categories, notification levels and nicknames', async ({ browser }) => {
   await row(host, 'general').dragTo(row(host, 'minecraft'), { targetPosition: { x: 40, y: 4 } })
   await expect(category(host, 'Games').locator('.channel-name')).toHaveText(['general', 'minecraft'])
 
+  // Everything is in categories now: no empty heading row above them; "Create category" sits on the first one.
+  await expect(host.locator('.channel-list > .channel-group')).toHaveCount(0)
+  await expect(host.locator('.org-category-head', { hasText: 'Games' }).getByRole('button', { name: 'Create category' })).toBeVisible()
+  // Dragging a channel shows the top row to drop it out of its category; then it goes back.
+  const general = row(host, 'general')
+  await general.hover()
+  await host.mouse.down()
+  const from = (await general.boundingBox())!
+  await host.mouse.move(from.x + 20, from.y - 6, { steps: 4 })
+  const top = host.locator('.channel-list > .channel-group', { hasText: 'Text channels' })
+  await expect(top).toBeVisible()
+  await top.hover()
+  await host.mouse.up()
+  await expect(host.locator('.channel-list > .org-row .channel-name')).toHaveText(['general'])
+  await row(host, 'general').dragTo(row(host, 'minecraft'), { targetPosition: { x: 40, y: 4 } })
+  await expect(category(host, 'Games').locator('.channel-name')).toHaveText(['general', 'minecraft'])
+  await expect(host.locator('.channel-list > .channel-group')).toHaveCount(0)
+
   // A category of admin-only channels doesn't exist for the friend.
   await createCategory(host, 'Staff room')
   await createChannel(host, 'Create channel in Staff room', 'staff', 'admin')
