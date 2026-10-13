@@ -35,10 +35,18 @@ export interface HostTunnelOptions {
   forceRelay?: boolean
 }
 
+export interface TunnelStats {
+  /** Connections right now, and in total. */
+  open: number
+  total: number
+  /** TURN datagrams carried each way. */
+  datagramsIn: number
+  datagramsOut: number
+}
+
 export interface HostTunnel {
   readonly publicKey: Buffer
-  /** Connections right now, and in total. */
-  readonly stats: { open: number; total: number }
+  readonly stats: TunnelStats
   close(): Promise<void>
 }
 
@@ -63,7 +71,7 @@ function splice(stream: NoiseStream, sock: net.Socket): void {
 
 export async function serveTunnel(dht: DHT, keyPair: KeyPair, services: HostServices, opts: HostTunnelOptions): Promise<HostTunnel> {
   const log = opts.log ?? (() => undefined)
-  const stats = { open: 0, total: 0 }
+  const stats: TunnelStats = { open: 0, total: 0, datagramsIn: 0, datagramsOut: 0 }
   const server = dht.createServer(
     {
       firewall: (remotePublicKey) => !opts.allow(remotePublicKey),
@@ -82,7 +90,7 @@ export async function serveTunnel(dht: DHT, keyPair: KeyPair, services: HostServ
             forwardTcp(stream, services.web, rest)
             return
           case SERVICE.turn:
-            if (services.turn) forwardDatagrams(stream, services.turn, log)
+            if (services.turn) forwardDatagrams(stream, services.turn, stats, log)
             else stream.destroy()
             return
           default:
@@ -109,10 +117,11 @@ function forwardTcp(stream: NoiseStream, port: number, rest: Buffer): void {
 }
 
 /** The TURN service: one local UDP socket per friend flow, so LiveKit sees a distinct 5-tuple per flow. */
-function forwardDatagrams(stream: NoiseStream, port: number, log: (...args: unknown[]) => void): void {
+function forwardDatagrams(stream: NoiseStream, port: number, stats: TunnelStats, log: (...args: unknown[]) => void): void {
   const flows = new Map<number, dgram.Socket>()
   stream.on('message', (message: Buffer) => {
     if (message.length < 2) return
+    stats.datagramsIn++
     const id = message.readUInt16BE(0)
     let sock = flows.get(id)
     if (!sock) {
@@ -124,6 +133,7 @@ function forwardDatagrams(stream: NoiseStream, port: number, log: (...args: unkn
         const out = Buffer.allocUnsafe(data.length + 2)
         out.writeUInt16BE(id, 0)
         data.copy(out, 2)
+        stats.datagramsOut++
         stream.trySend(out)
       })
       flows.set(id, sock)
@@ -153,13 +163,17 @@ export interface FriendTunnel {
   readonly ports: { web: number; turn: number | null }
   /** Milliseconds each DHT connection took to open, newest last (for the status line). */
   readonly timings: number[]
+  readonly stats: TunnelStats
   close(): void
 }
 
 export async function openTunnel(dht: DHT, hostPublicKey: Buffer, ports: FriendPorts, opts: FriendTunnelOptions): Promise<FriendTunnel> {
   const log = opts.log ?? (() => undefined)
   const timings: number[] = []
+  const stats: TunnelStats = { open: 0, total: 0, datagramsIn: 0, datagramsOut: 0 }
   const connect = (service: number): NoiseStream => {
+    stats.total++
+    stats.open++
     const started = performance.now()
     const stream = dht.connect(hostPublicKey, {
       keyPair: opts.keyPair,
@@ -170,6 +184,7 @@ export async function openTunnel(dht: DHT, hostPublicKey: Buffer, ports: FriendP
       timings.push(performance.now() - started)
       if (timings.length > 20) timings.shift()
     })
+    stream.once('close', () => stats.open--)
     stream.write(Buffer.from([service]))
     return stream
   }
@@ -187,7 +202,7 @@ export async function openTunnel(dht: DHT, hostPublicKey: Buffer, ports: FriendP
   let turn: { port: number; close(): void } | null = null
   if (ports.turn !== undefined) {
     try {
-      turn = await datagramFriend(connect, ports.turn, log)
+      turn = await datagramFriend(connect, ports.turn, stats, log)
     } catch (e) {
       web.close()
       throw e
@@ -197,6 +212,7 @@ export async function openTunnel(dht: DHT, hostPublicKey: Buffer, ports: FriendP
   return {
     ports: { web: webPort, turn: turn?.port ?? null },
     timings,
+    stats,
     close: () => {
       web.close()
       turn?.close()
@@ -208,7 +224,7 @@ export async function openTunnel(dht: DHT, hostPublicKey: Buffer, ports: FriendP
  * The friend's TURN socket: LiveKit (in the renderer) sends TURN to 127.0.0.1:<port>; every sender address becomes a
  * flow over ONE long-lived DHT connection, remade if it drops.
  */
-async function datagramFriend(connect: (service: number) => NoiseStream, port: number, log: (...args: unknown[]) => void) {
+async function datagramFriend(connect: (service: number) => NoiseStream, port: number, stats: TunnelStats, log: (...args: unknown[]) => void) {
   const sock = dgram.createSocket('udp4')
   await new Promise<void>((resolve, reject) => {
     sock.once('error', reject)
@@ -232,6 +248,7 @@ async function datagramFriend(connect: (service: number) => NoiseStream, port: n
     })
     next.on('message', (message: Buffer) => {
       if (message.length < 2) return
+      stats.datagramsIn++
       const to = back.get(message.readUInt16BE(0))
       if (to) sock.send(message.subarray(2), to.port, to.address)
     })
@@ -250,6 +267,7 @@ async function datagramFriend(connect: (service: number) => NoiseStream, port: n
     const out = Buffer.allocUnsafe(data.length + 2)
     out.writeUInt16BE(id, 0)
     data.copy(out, 2)
+    stats.datagramsOut++
     if (open) s.trySend(out)
     else s.once('open', () => s.trySend(out))
   })

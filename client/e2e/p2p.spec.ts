@@ -24,9 +24,9 @@ const createTestnet = createRequire(join(DESKTOP, 'package.json'))('hyperdht/tes
 const b64u = (text: string) => Buffer.from(text, 'utf8').toString('base64url')
 const electronExe = join(DESKTOP, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron')
 
-/** What each RTCPeerConnection was made with, and the connections themselves (for getStats), recorded before the app's code runs. */
+/** What each RTCPeerConnection was made with, and the connections themselves (for getStats). The page is already loaded (the app never navigates), so the hook goes in now; LiveKit only creates connections when voice starts. */
 async function recordPeerConnections(page: Page): Promise<void> {
-  await page.addInitScript(() => {
+  await page.evaluate(() => {
     const Original = window.RTCPeerConnection
     const configs: unknown[] = []
     const pcs: RTCPeerConnection[] = []
@@ -53,7 +53,7 @@ test('a friend joins a home-hosted server through the peer-to-peer tunnel and ta
   const env = { ...base, ISKRA_LOCAL_ONLY: '1', ISKRA_P2P_BIND: '127.0.0.1', ISKRA_P2P_BOOTSTRAP: `127.0.0.1:${testnet.bootstrap[0].port}` }
   const media = ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required']
   const launch = (userData: string, extra: Record<string, string> = {}) =>
-    electron.launch({ executablePath: electronExe, args: [DESKTOP, `--user-data-dir=${userData}`, '--lang=en-US', ...media], cwd: DESKTOP, env: { ...env, ...extra } })
+    electron.launch({ executablePath: electronExe, args: [DESKTOP, `--user-data-dir=${userData}`, '--lang=en-US', ...media], cwd: DESKTOP, env: { ...env, ISKRA_E2E: '1', ...extra } })
   const timings: [string, number][] = []
   let last = Date.now()
   const lap = (what: string) => {
@@ -119,7 +119,7 @@ test('a friend joins a home-hosted server through the peer-to-peer tunnel and ta
     friendApp = await launch(friendData)
     const friend = await appWindow(friendApp)
     await recordPeerConnections(friend)
-    friend.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') friendConsole.push(`${m.type()}: ${m.text().slice(0, 300)}`) })
+    friend.on('console', (m) => friendConsole.push(`${m.type()}: ${m.text().slice(0, 300)}`))
     await agreeToTerms(friend)
     await friend.getByRole('button', { name: /I’m new to Iskra/ }).click()
     await friend.getByLabel('Your name').fill('Grace')
@@ -225,7 +225,11 @@ test('a friend joins a home-hosted server through the peer-to-peer tunnel and ta
       const configs = await friendPage.evaluate(() => JSON.stringify((window as unknown as { __peerConfigs?: unknown[] }).__peerConfigs ?? [])).catch(() => 'n/a')
       console.log(`friend peer configs: ${configs.slice(0, 1500)}`)
     }
-    if (friendConsole.length) console.log(`--- friend console ---\n${friendConsole.slice(-30).join('\n')}`)
+    if (friendConsole.length) console.log(`--- friend console ---\n${friendConsole.slice(-60).join('\n')}`)
+    for (const [name, app] of [['friend', friendApp], ['host', hostApp]] as const) {
+      const debug = await app?.evaluate(() => JSON.stringify((globalThis as unknown as { iskraP2pDebug?: () => unknown }).iskraP2pDebug?.() ?? null)).catch((e: Error) => `n/a: ${e.message}`)
+      console.log(`${name} app tunnels: ${debug}`)
+    }
     await friendApp?.close()
     await hostApp?.close()
     await testnet.destroy()

@@ -64,6 +64,7 @@ const p2pNode = new P2pNode(p2pNetwork(process.env, app.isPackaged))
 const hostTunnels = new HostTunnels(p2pNode, (id, p2p) => window?.webContents.send('iskra:host-p2p', { id, p2p }))
 const clientTunnels = new ClientTunnels(p2pNode)
 const host = new Host(hostTunnels)
+if (process.env.ISKRA_E2E) Object.assign(globalThis, { iskraP2pDebug: () => ({ host: hostTunnels.debug(), client: clientTunnels.debug(), nat: p2pNode.nat() }) }) // for the desktop e2e test
 // "Playing X": only the matched game's name ever reaches the page.
 const activity = new ActivityDetector((game) => window?.webContents.send('iskra:activity', game))
 const updates = new Updates((status: UpdateStatus) => {

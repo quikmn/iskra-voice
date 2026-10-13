@@ -105,6 +105,11 @@ export class HostTunnels {
     return this.status(id)
   }
 
+  /** Each running tunnel's status and counters (shown by the desktop e2e test when voice fails). */
+  debug(): Record<string, { status: P2pHostStatus; stats: HostTunnel['stats'] | null }> {
+    return Object.fromEntries([...this.running].map(([id, run]) => [id, { status: run.status, stats: run.tunnel?.stats ?? null }]))
+  }
+
   async stop(id: string): Promise<void> {
     const run = this.running.get(id)
     if (!run) return

@@ -4,7 +4,8 @@
 /// <reference path="../../desktop/src/p2p/modules.d.ts" />
 import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { createServer } from 'node:net'
+import http from 'node:http'
+import { createServer, type AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { createRequire } from 'node:module'
@@ -20,11 +21,14 @@ import { buildInviteLink, parseInvite, type InviteLink } from '../src/core/invit
 import type { Events, Welcome } from '../src/core/protocol'
 
 const SERVER_DLL = resolve(__dirname, '../../server/src/Iskra.Server/bin/Debug/net10.0/iskra-server.dll')
+const LIVEKIT = resolve(__dirname, '../../.tools', process.platform === 'win32' ? 'livekit-server.exe' : 'livekit-server')
+const hasLiveKit = existsSync(LIVEKIT)
 const LOCAL = '127.0.0.1'
 // The DHT stack lives in the desktop app's dependencies.
 const desktopRequire = createRequire(resolve(__dirname, '../../desktop/package.json'))
 const HyperDHT = desktopRequire('hyperdht') as typeof DHT
 const createTestnet = desktopRequire('hyperdht/testnet.js') as (size: number, opts: { host: string }) => Promise<Testnet>
+const { chromium } = createRequire(resolve(__dirname, '../package.json'))('playwright') as typeof import('playwright')
 
 const freePort = () =>
   new Promise<number>((done) => {
@@ -80,15 +84,26 @@ describe('Iskra through the peer-to-peer tunnel', () => {
   let host: HostTunnel
   let friend: FriendTunnel
   let secret: Buffer
+  let voicePort = 0
+  let turnPort = 0
+  /** The owner (front door) and the friend (through the tunnel), from the first test on. */
+  let owner: User
+  let friendUser: User
   const report: Record<string, unknown> = {}
 
   beforeAll(async () => {
     await ready()
     world = mkdtempSync(join(tmpdir(), 'iskra-p2p-interop-'))
     const port = await freePort()
-    // Started with P2p on: the server makes p2p.key and writes the tunnel listener's port to p2p.port.
+    voicePort = await freePort()
+    const rtcTcp = await freePort()
+    const rtcUdp = 40000 + Math.floor(Math.random() * 20000)
+    turnPort = rtcUdp + 1
+    // Started with P2p on: the server makes p2p.key and writes the tunnel listener's port to p2p.port. With LiveKit
+    // (when .tools has it, localhost API), its embedded TURN comes up for the tunnel.
     writeFileSync(join(world, 'server.json'), JSON.stringify({
-      Name: 'P2P interop', Port: port, LocalOnly: true, P2p: { Enabled: true }, Voice: { Enabled: false }, Retention: { SecurityLogIps: true },
+      Name: 'P2P interop', Port: port, LocalOnly: true, P2p: { Enabled: true }, Retention: { SecurityLogIps: true },
+      Voice: { Enabled: hasLiveKit, LiveKitPath: hasLiveKit ? LIVEKIT : null, Port: voicePort, RtcTcpPort: rtcTcp, RtcUdpPort: rtcUdp },
     }))
     proc = spawn('dotnet', [SERVER_DLL, world], { stdio: 'ignore' })
     directUrl = `http://${LOCAL}:${port}`
@@ -102,6 +117,15 @@ describe('Iskra through the peer-to-peer tunnel', () => {
     }
     const portFile = join(world, 'p2p.port')
     await waitFor(() => existsSync(portFile), 'p2p.port')
+    if (hasLiveKit) {
+      for (let i = 0; ; i++) {
+        try {
+          if ((await fetch(`http://${LOCAL}:${voicePort}/`)).ok) break
+        } catch { /* starting */ }
+        if (i > 300) throw new Error('LiveKit did not start')
+        await new Promise((r) => setTimeout(r, 100))
+      }
+    }
     const tunnelPort = Number(readFileSync(portFile, 'utf8').trim())
     secret = parseSecret(readFileSync(join(world, 'p2p.key'), 'utf8').trim())!
     expect(secret).toBeTruthy()
@@ -112,14 +136,16 @@ describe('Iskra through the peer-to-peer tunnel', () => {
     friendDht = node()
     strangerDht = node()
     // The host side as the desktop app runs it for a hosted world; the friend side as it runs it for a joined server.
-    host = await serveTunnel(hostDht, hostKeyPair(secret), { web: tunnelPort }, { allow: onlyFriends(secret) })
+    host = await serveTunnel(hostDht, hostKeyPair(secret), { web: tunnelPort, ...(hasLiveKit ? { turn: turnPort } : {}) }, { allow: onlyFriends(secret) })
     const t0 = performance.now()
-    friend = await openTunnel(friendDht, host.publicKey, { web: 0 }, { keyPair: friendKeyPair(secret) })
+    friend = await openTunnel(friendDht, host.publicKey, { web: 0, turn: 0 }, { keyPair: friendKeyPair(secret) })
     report.openTunnelMs = +(performance.now() - t0).toFixed(1)
     tunnelUrl = `http://${LOCAL}:${friend.ports.web}`
   }, 120_000)
 
   afterAll(async () => {
+    owner?.connection.stop()
+    friendUser?.connection.stop()
     friend?.close()
     await host?.close()
     await Promise.all([hostDht?.destroy(), friendDht?.destroy(), strangerDht?.destroy()])
@@ -142,7 +168,7 @@ describe('Iskra through the peer-to-peer tunnel', () => {
 
     // The owner comes in the front door and learns the secret in welcome.
     const ownerLink = parseInvite(readFileSync(join(world, 'owner-invite.txt'), 'utf8'))!
-    const owner = new User('Host', ownerLink)
+    owner = new User('Host', ownerLink)
     await owner.online()
     expect(owner.welcome?.you.role).toBe('owner')
     expect(owner.welcome?.server.p2p).toBe(secret.toString('base64url'))
@@ -155,7 +181,7 @@ describe('Iskra through the peer-to-peer tunnel', () => {
     expect(parsed.p2p).toBe(secret.toString('base64url'))
     expect(hostKeyPair(parseSecret(parsed.p2p)!).publicKey.equals(host.publicKey)).toBe(true)
     const t1 = performance.now()
-    const friendUser = new User('Friend', { ...parsed, serverUrl: tunnelUrl })
+    friendUser = new User('Friend', { ...parsed, serverUrl: tunnelUrl })
     await friendUser.online()
     report.friendOnlineMs = +(performance.now() - t1).toFixed(1)
     expect(friendUser.welcome?.server.p2p).toBe(secret.toString('base64url'))
@@ -202,10 +228,95 @@ describe('Iskra through the peer-to-peer tunnel', () => {
     expect(rotated.hostKey).not.toBe(status.hostKey)
     const told = await friendUser.event('server.p2p', (b) => b.p2p !== secret.toString('base64url'))
     expect(told.p2p).toHaveLength(43)
-
-    owner.connection.stop()
-    friendUser.connection.stop()
   }, 60_000)
+
+  it.skipIf(!hasLiveKit)('voice goes through the tunnel: LiveKit media relay-only over its TURN, as the desktop app does it', async () => {
+    // The owner (front door) makes a voice channel; the friend (through the tunnel) gets its ticket, which points
+    // voice at the address the friend used.
+    const { channel } = await owner.connection.request('channel.create', { name: 'lounge', kind: 'voice' })
+    await waitFor(() => friendUser.welcome?.voiceAvailable || friendUser.events.some((e) => e.type === 'voice.available'), 'voice available')
+    const joined = await friendUser.connection.request('voice.join', { channelId: channel.id })
+    expect(joined.url).toBe(`${tunnelUrl.replace('http', 'ws')}/livekit`)
+
+    // A page with the real livekit-client, on 127.0.0.1, that reaches LiveKit only through the friend's tunnel ports.
+    const umd = readFileSync(resolve(__dirname, '../node_modules/livekit-client/dist/livekit-client.umd.js'))
+    const web = http.createServer((req, res) => {
+      if (req.url === '/lk.js') return res.end(umd)
+      res.setHeader('content-type', 'text/html')
+      res.end(`<!doctype html><title>lk</title><script>
+        const Original = RTCPeerConnection; window.pcs = []; window.configs = []
+        window.RTCPeerConnection = class extends Original { constructor(c) { window.configs.push(JSON.parse(JSON.stringify(c ?? {}))); super(c); window.pcs.push(this) } }
+      </script><script src="/lk.js"></script>`)
+    })
+    await new Promise<void>((r) => web.listen(0, LOCAL, r))
+    const browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] })
+    const pageLog: string[] = []
+    try {
+      const page = await browser.newPage()
+      page.on('console', (m) => { if (m.type() === 'warning' || m.type() === 'error') pageLog.push(`${m.type()}: ${m.text().slice(0, 300)}`) })
+      await page.goto(`http://${LOCAL}:${(web.address() as AddressInfo).port}/`)
+      type Result = { error?: string; connectMs?: number; pairs?: { type?: string; rttMs: number }[]; bytesSent?: number; offered?: string[][]; configs: RTCConfiguration[] }
+      const result = await page.evaluate(async ({ url, token, turnPort }) => {
+        type Engine = { makeRTCConfiguration: (r?: unknown) => RTCConfiguration; latestJoinResponse?: { iceServers?: { urls: string[] }[] } }
+        type W = Window & { LivekitClient: { Room: new (o: object) => { engine: Engine; connect(u: string, t: string, o: object): Promise<void>; localParticipant: { setMicrophoneEnabled(on: boolean): Promise<unknown> } } }; pcs: RTCPeerConnection[]; configs: RTCConfiguration[] }
+        const w = window as unknown as W
+        const room = new w.LivekitClient.Room({ adaptiveStream: false, dynacast: false })
+        // What the app does (client/src/state/p2pVoice.ts): TURN from the join answer at the tunnel's address, relay only.
+        const engine = room.engine
+        const original = engine.makeRTCConfiguration.bind(engine)
+        engine.makeRTCConfiguration = (response?: unknown) => {
+          const config = original(response)
+          const turn = (config.iceServers ?? []).filter((s) => (Array.isArray(s.urls) ? s.urls : [s.urls]).some((u) => u.startsWith('turn:')))
+          return { ...config, iceServers: turn.map((s) => ({ urls: [`turn:127.0.0.1:${turnPort}?transport=udp`], username: s.username, credential: s.credential })), iceTransportPolicy: 'relay' as RTCIceTransportPolicy }
+        }
+        const t0 = performance.now()
+        try {
+          await room.connect(url, token, { rtcConfig: { iceTransportPolicy: 'relay' } })
+        } catch (e) {
+          return { error: String(e), configs: w.configs, offered: engine.latestJoinResponse?.iceServers?.map((s) => s.urls) }
+        }
+        const connectMs = performance.now() - t0
+        await room.localParticipant.setMicrophoneEnabled(true)
+        await new Promise((r) => setTimeout(r, 3000))
+        const pairs: { type?: string; rttMs: number }[] = []
+        let bytesSent = 0
+        for (const pc of w.pcs) {
+          const report = await pc.getStats()
+          const byId = new Map<string, RTCStats>()
+          report.forEach((st) => byId.set(st.id, st))
+          report.forEach((st) => {
+            const pair = st as RTCIceCandidatePairStats
+            if (st.type === 'candidate-pair' && pair.nominated && pair.state === 'succeeded') {
+              const local = byId.get(pair.localCandidateId) as (RTCStats & { candidateType?: string }) | undefined
+              pairs.push({ type: local?.candidateType, rttMs: (pair.currentRoundTripTime ?? 0) * 1000 })
+            }
+            const out = st as RTCOutboundRtpStreamStats
+            if (st.type === 'outbound-rtp' && out.kind === 'audio') bytesSent += out.bytesSent ?? 0
+          })
+        }
+        return { connectMs, pairs, bytesSent, offered: engine.latestJoinResponse?.iceServers?.map((s) => s.urls), configs: w.configs }
+      }, { url: joined.url, token: joined.token, turnPort: friend.ports.turn }) as Result
+      report.voice = { ...result, configs: undefined, tunnel: { friend: friend.stats, host: host.stats }, pageLog }
+      if (result.error) console.log(`voice through the tunnel failed: ${result.error}\n${JSON.stringify({ offered: result.offered, configs: result.configs, pageLog, friend: friend.stats, host: host.stats })}`)
+      expect(result.error).toBeUndefined()
+      // LiveKit offered its own TURN on the host's TURN port; the page was told only about the tunnel's address, relay only.
+      expect(result.offered!.flat()).toContainEqual(expect.stringMatching(new RegExp(`:${turnPort}\\?transport=udp$`)))
+      expect(result.configs.length).toBeGreaterThan(0)
+      for (const c of result.configs) {
+        expect(c.iceTransportPolicy).toBe('relay')
+        for (const ice of c.iceServers ?? []) for (const u of Array.isArray(ice.urls) ? ice.urls : [ice.urls]) expect(u).toBe(`turn:127.0.0.1:${friend.ports.turn}?transport=udp`)
+      }
+      // The media path in use is a relay candidate, audio is being sent, and the datagrams went through the tunnel.
+      expect(result.pairs!.length).toBeGreaterThan(0)
+      for (const pair of result.pairs!) expect(pair.type).toBe('relay')
+      expect(result.bytesSent).toBeGreaterThan(0)
+      expect(friend.stats.datagramsOut).toBeGreaterThan(0)
+      expect(friend.stats.datagramsIn).toBeGreaterThan(0)
+    } finally {
+      await browser.close()
+      web.close()
+    }
+  }, 90_000)
 
   it('refuses a DHT peer that knows the host key but not the secret', async () => {
     const stream = strangerDht.connect(host.publicKey) // its own random key pair

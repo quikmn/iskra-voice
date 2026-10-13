@@ -55,6 +55,11 @@ export class ClientTunnels {
     return endpoint
   }
 
+  /** Each open tunnel's ports and counters (shown by the desktop e2e test when voice fails). */
+  debug(): Record<string, { endpoint: TunnelEndpoint; stats: FriendTunnel['stats']; timings: number[] }> {
+    return Object.fromEntries([...this.open].map(([key, o]) => [key.slice(0, 8), { endpoint: o.endpoint, stats: o.tunnel.stats, timings: o.tunnel.timings }]))
+  }
+
   async close(serverKey: string): Promise<void> {
     const open = this.open.get(serverKey)
     if (!open) return
