@@ -289,7 +289,7 @@ Voice channels, stages, DM and group calls and watch parties all use the same vo
 The GIF picker uses [KLIPY](https://docs.klipy.com) (Google closed Tenor's API in June 2026). It's off until an admin adds a key:
 
 1. Sign up at the KLIPY Partner Panel and create an API key for your server. Leave ads **off**.
-2. In Iskra: **Server settings → Overview**, under GIFs, paste the key and click **Turn on**.
+2. In Iskra: **Server settings → GIFs**, paste the key and click **Turn on**.
 
 There are two modes:
 
