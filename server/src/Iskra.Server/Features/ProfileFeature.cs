@@ -51,11 +51,14 @@ public static partial class ProfileFeature
     /// <summary>The member as everyone sees it, profile included.</summary>
     public static object Public(Store store, Member m, PresenceFeature.View presence, object? activity = null) =>
         Public(m, store.GetPublicProfile(m.AccountKey), PagesEnabled(store), store.GetNickname(m.AccountKey), store.IsBot(m.AccountKey),
-            store.GetTimeout(m.AccountKey)?.Until, presence, activity);
+            store.GetTimeout(m.AccountKey)?.Until, presence, activity, BotReads(store, m.AccountKey));
+
+    /// <summary>For bots: whether they can read all messages (BotScope); null for people.</summary>
+    public static bool? BotReads(Store store, string accountKey) => store.IsBot(accountKey) ? store.BotReadsAll(accountKey) : null;
 
     /// <summary>The same from what's already loaded (the welcome's member list loads it for everyone at once).</summary>
     public static object Public(Member m, PublicProfile p, bool pagesEnabled, string? nick, bool bot, long? timedOutUntil, PresenceFeature.View presence,
-        object? activity)
+        object? activity, bool? readsMessages = null)
     {
         var page = p.PageId is not null && pagesEnabled;
         return new
@@ -79,6 +82,7 @@ public static partial class ProfileFeature
             timedOutUntil,
             roles = m.RoleIds,
             activity, // ActivityFeature: { name, since } or null
+            readsMessages, // bots: can read all messages (BotScope); null for people
         };
     }
 

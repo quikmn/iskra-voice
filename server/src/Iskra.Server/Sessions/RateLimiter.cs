@@ -56,6 +56,8 @@ public sealed class RateLimiter(TimeProvider time)
         ["security.log.list"] = (20, 2),
         ["profile.page.get"] = (5, 0.2), // up to 512 KB each
         ["bot.commands.set"] = (5, 0.2),
+        ["interaction.invoke"] = (5, 2),
+        ["interaction.respond"] = (20, 5),
         ["*"] = (40, 10),
     };
 

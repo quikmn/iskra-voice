@@ -10,7 +10,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji) · [Stickers](#stickers) · [GIFs](#gifs) · [Saved messages, reminders, scheduled messages and the inbox](#saved-messages-reminders-scheduled-messages-and-the-inbox)
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties) · [Voice channel chat and clips](#voice-channel-chat-and-clips) · [Hi-fi voice channels](#hi-fi-voice-channels)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Encrypted channels](#end-to-end-encrypted-channels) · [Friends](#friends)
-- **People and integrations:** [Profiles](#profiles) · [Profile sync](#profile-sync) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Presence and voice messages](#presence-and-voice-messages)
+- **People and integrations:** [Profiles](#profiles) · [Profile sync](#profile-sync) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Bot interactions](#bot-interactions) · [Presence and voice messages](#presence-and-voice-messages)
 - **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Live captions model](#live-captions-model) · [Owner claim (rented servers)](#owner-claim-rented-servers) · [Server updates and health](#server-updates-and-health) · [Backups, moving and imports](#backups-moving-and-imports)
 - **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation) · [Roles and permissions](#roles-and-permissions) · [Reliable sends](#reliable-sends) · [AutoMod](#automod) · [Security log, retention and your data](#security-log-retention-and-your-data)
@@ -628,7 +628,7 @@ A bot is an ordinary identity (account key, device certificate, signed handshake
 - Bots can't join voice (`voice.join` → `forbidden`), create invites, or have a role above `trusted` (`member.setRole` → `bad_request`). They have the same rate limits as everyone else.
 - Bots can't send DMs or take part in calls (`dm.send`, `call.start`, `call.accept` → `forbidden`; calling a bot → `bad_request`): DMs and call keys are end-to-end encrypted to people's devices, which a bot can't read.
 - Bots can't be in group DMs or group calls, schedule messages (`scheduled.create` → `forbidden`), speak or moderate on stages, take part in [encrypted channels](#end-to-end-encrypted-channels), or leave on their own (`member.leave` → `forbidden`; an admin removes them). They can hold [roles](#roles-and-permissions) with permissions like anyone else.
-- Commands are a message convention, not a protocol feature: a message starting with `/name args` (or `/name@BotName args` to pick one bot) is a command. Bots can describe their commands so apps suggest them ([Bot commands and cards](#bot-commands-and-cards)); the message is still the command. See `docs/bots.md`.
+- Commands: a message starting with `/name args` (or `/name@BotName args` to pick one bot) is a command by convention. Bots can describe their commands so apps suggest them ([Bot commands and cards](#bot-commands-and-cards)), and take them as [interactions](#bot-interactions) instead of messages. See `docs/bots.md`.
 
 ### Webhooks
 
@@ -1043,7 +1043,7 @@ AuditEntry { "id": 7, "at": 1760000000000, "action": "member.timeout", "actor": 
 ```
 
 - Names are recorded with the entry, so it stays readable after people leave. Entries older than 90 days are deleted.
-- Actions and their `details`: `member.kick`, `member.ban`, `member.unban`, `member.role` `{ from, to }`, `member.timeout` `{ durationMs, until }`, `member.timeout.remove`, `channel.create` `{ channelId, name, kind, readRole, writeRole, slowmode }`, `channel.update` `{ channelId, name, changes: { name?, readRole?, writeRole?, slowmode?: { from, to } } }`, `channel.delete` `{ channelId, name, kind }`, `message.delete` (by someone other than the author; the target is the author) `{ channelId, channelName, messageId, author }`, `thread.delete` (by someone other than its creator), `message.pin` / `message.unpin` `{ channelId, channelName, messageId }`, `webhook.create` / `webhook.update` / `webhook.regenerate` / `webhook.delete` `{ id, name, channelId }`, `bot.invite` `{ role, expiresAt }`, `emoji.create` / `emoji.rename` / `emoji.delete`, `sound.create` / `sound.update` / `sound.delete`, `invite.create` `{ role, maxUses, expiresAt }`, `invite.revoke` `{ role, uses }`, `profile.page.remove` (someone else's), `server.pages` `{ enabled }`, `server.internet` `{ enabled }`. Invite codes and message text are never recorded.
+- Actions and their `details`: `member.kick`, `member.ban`, `member.unban`, `member.role` `{ from, to }`, `member.timeout` `{ durationMs, until }`, `member.timeout.remove`, `channel.create` `{ channelId, name, kind, readRole, writeRole, slowmode }`, `channel.update` `{ channelId, name, changes: { name?, readRole?, writeRole?, slowmode?: { from, to } } }`, `channel.delete` `{ channelId, name, kind }`, `message.delete` (by someone other than the author; the target is the author) `{ channelId, channelName, messageId, author }`, `thread.delete` (by someone other than its creator), `message.pin` / `message.unpin` `{ channelId, channelName, messageId }`, `webhook.create` / `webhook.update` / `webhook.regenerate` / `webhook.delete` `{ id, name, channelId }`, `bot.invite` `{ role, expiresAt, readAll }`, `bot.scope` (target: the bot) `{ readAll }`, `emoji.create` / `emoji.rename` / `emoji.delete`, `sound.create` / `sound.update` / `sound.delete`, `invite.create` `{ role, maxUses, expiresAt }`, `invite.revoke` `{ role, uses }`, `profile.page.remove` (someone else's), `server.pages` `{ enabled }`, `server.internet` `{ enabled }`. Invite codes and message text are never recorded.
 
 ## Roles and permissions
 
@@ -2195,8 +2195,8 @@ Command { "name": "roll", "description": "Rolls dice", "usage"?: "2d6+1",
 - `welcome.botCommands: [{ bot: accountKey, commands }]` lists every bot member with a non-empty list. Event
   `bot.commands { bot, commands }` goes to everyone when a bot changes its list.
 - `bot.commands.available` answers which of those bots can read **and** post in the channel (threads follow their
-  parent), so apps suggest only commands that someone will answer. Always `[]` in [encrypted channels](#end-to-end-encrypted-channels)
-  (bots aren't there). Channels the caller can't read are `not_found`.
+  parent), so apps suggest only commands that someone will answer. In [encrypted channels](#end-to-end-encrypted-channels) only bots that take [interactions](#bot-interactions) and can read the channel
+  (bots aren't in the chain; see there). Channels the caller can't read are `not_found`.
 - A bot's list is deleted when it stops being a member (kicked, banned, removed); apps drop it on `member.removed`.
   A bot registers again each time it starts.
 
@@ -2215,3 +2215,168 @@ Cards use the [webhook embed](#webhooks) format, validator and limits (≤ 10 pe
 Messages carry `cards: [Card] | null` (`null` for everything except a bot's message with cards). Stored cards keep
 only the fields above; a picture from `/files` is returned as that file's URL path, which apps resolve against the
 server's address. Card text is rendered as text and markdown by apps, never as HTML.
+
+## Bot interactions
+
+A registered command can be **invoked**: the app sends it to the bot as an *interaction* (checked by the server
+against the command's declared options) instead of posting the text. The bot answers in public (a message in the
+channel), in private (only the person who asked sees it, never stored), defers and follows up, shows a form, or
+updates the message a button was on. Bot messages can carry **components** (buttons and select menus); clicks are
+interactions too. The text convention (`/roll 2d6` as a message) keeps working for bots that don't take interactions.
+
+### What a bot can read
+
+An admin chooses, when inviting a bot, whether it **can read all messages**. By default it can't: it gets only its
+interactions and the messages meant for it.
+
+| type | body | result | who |
+|---|---|---|---|
+| `bot.invite` | gains `readAll?` (bool, default `false`) | | admin+ |
+| `bot.scope.set` | `accountKey` (a bot member), `readAll` (bool) | `{ member }` | admin+; `member.updated` goes to everyone |
+
+- `Member.readsMessages`: `true`/`false` for bots, `null` for people. Bots that joined before this existed keep reading
+  everything (`true`); `readAll` from the invite is copied to the bot when it joins.
+- A bot that can't read all messages gets `chat.message` and `chat.edited` only for messages that: it wrote; mention it
+  (`<@key>`); reply to one of its messages; or start with `/name` or `/name@Bot` where `name` is one of its registered
+  commands (the text convention). It doesn't get `chat.typing`, `poll.updated` (except for its own polls),
+  `docs.page.updated`, `docs.home`, `forum.post.updated` or `watch.chat`. These requests are `forbidden`
+  (key `bot_no_read`): `chat.history`, `chat.edits`, `search`, `pin.list`, `thread.get`, `forum.posts`,
+  `forum.post.get`, `docs.pages`, `docs.page.get`, `docs.page.history`, `docs.search`, `docs.home.get`, `chat.forward`,
+  `inbox.list`. Reply previews in messages it does get still quote the replied-to message (≤ 140 characters).
+
+### Commands that take interactions
+
+`bot.commands.set` gains `interactions?: bool`: the bot answers `interaction` events (the SDK always says `true`).
+Lists carry it: `welcome.botCommands: [{ bot, commands, interactions }]`, event `bot.commands { bot, commands, interactions }`.
+Apps send a typed command to such a bot as `interaction.invoke`, and post the text as before to bots without it.
+
+`Command` gains two optional fields, enforced by the server on every invocation:
+
+| field | rules |
+|---|---|
+| `role` | `member`, `trusted` or `admin`: the lowest level that may use the command (default: anyone who can post there) |
+| `permission` | a [permission](#roles-and-permissions) name (`manageMessages`, `kickMembers`, ...) the invoker must have (admins have all) |
+
+`bot.commands.available` also lists bots with `interactions` in [encrypted channels](#end-to-end-encrypted-channels)
+when they can read the channel (see below). Apps hide commands whose `role`/`permission` the person doesn't have.
+
+### Invoking
+
+| type | body | result | who |
+|---|---|---|---|
+| `interaction.invoke` | one of the shapes below | `{ id, expiresAt, private }` | people (bots: `forbidden`); see the checks |
+
+```jsonc
+// a command
+{ "bot": "<accountKey>", "channelId": 1, "command": "roll", "options"?: { "dice": "2d6", "secret": true }, "args"?: "2d6 secret" }
+// a component on a bot's message, or on a private answer
+{ "messageId": 42, "customId": "roll:2d6", "values"?: ["d20"] }
+{ "responseId": "<b64u 16>", "customId": "again" }
+// a form (modal) the bot showed you
+{ "modalId": "<b64u 16>", "fields": { "title": "Game night", "notes": "Bring snacks" } }
+```
+
+Checks (each failure is the error shown):
+
+- The channel (or the message's channel) is one the invoker can read and is a `text`, `thread`, `voice` or `stage`
+  channel (`not_found`); they can post there (`forbidden`, key `cant_send_here`); not while timed out (`timed_out`)
+  or before agreeing to the [rules](#server-rules).
+- The bot is a member and a bot, said `interactions` and has the command in its list (`not_found`); it can post in the
+  channel, or in an encrypted channel read it (`bad_request`, key `bot_cant_post`, `args: { name }`); it is connected
+  (`bad_request`, key `bot_offline`, `args: { name }`).
+- The command's `role` and `permission` (`forbidden`, key `command_not_allowed`).
+- `options` (an object, ≤ 25 keys): only declared names; every required one present; values of the declared type:
+  `string` 1–1000 characters, one line; `integer` a safe integer; `number` finite; `boolean`; `user` the account key of
+  a member; `channel` the id of a channel the invoker can read; `role` the id of a custom role. With `choices`, the value
+  must be one of them. Otherwise `bad_request` (key `command_option`, `args: { name }`). `args` (≤ 4000 characters,
+  one line) is the text as typed, for bots that read it themselves.
+- Components: the message is a bot's message with a component of that `customId` that isn't disabled and isn't a link;
+  `values` (select menus only) ≤ 25, each one of the menu's option values, at least `minValues` and at most
+  `maxValues`. Private answers: the answer must be yours and not expired (`not_found`).
+- Forms: the modal must be yours, unexpired and unused (each is single use); `fields` only its fields, required ones
+  non-empty, each ≤ its `maxLength`; `short` fields are one line.
+- Rate limit: 5, then 2 a second. A command, a click and a form submit all count.
+
+The bot's sessions get event `interaction`:
+
+```jsonc
+{ "id": "<b64u 16>", "kind": "command" | "component" | "modal", "channelId": 1, "user": "<accountKey>",
+  "private": false,           // true: every answer will be private (encrypted channels)
+  "expiresAt": 0,
+  "command"?: "roll", "options"?: { }, "args"?: "2d6",                              // kind command
+  "messageId"?: 42, "responseId"?: "...", "customId"?: "...", "values"?: ["..."],   // kind component
+  "fields"?: { "title": "..." } }                                                  // kind modal (customId: the modal's)
+```
+
+`id` is the interaction token: 16 random bytes, valid for 15 minutes, only for the bot it was sent to, and only for
+answering this one interaction (at most 5 answers). Tokens live in the server's memory and end with a restart.
+
+### Answering
+
+| type | body | result | who |
+|---|---|---|---|
+| `interaction.respond` | `id`, `type?` (`reply`, the default, `defer`, `update` or `modal`); `reply`/`update`: `text?`, `cards?`, `components?`, `private?` (bool); `modal`: `modal` | `{ message?, responseId? }` | the bot the interaction went to |
+
+- `reply`: a public reply is posted as the bot's message (the same checks as `chat.send`: posting rights, AutoMod,
+  slowmode, cards) with `interaction: { id, user, command }` (`command` null for clicks and forms); apps show
+  "Viktor used /roll". A private reply goes only to the invoker's sessions as event `interaction.response` and is never
+  stored. In encrypted channels every reply is private.
+- `defer`: only as the first answer; the invoker's sessions get `interaction.state { id, bot, state: "deferred" }` and
+  apps show "Dice is thinking…" until a reply (or the token expires). Without any answer apps give up after 15 s.
+- `update`: only for component interactions; replaces the text, cards and components of the message the component is
+  on (the bot's own message, like `chat.edit`; `chat.edited` follows) or of the private answer (a new
+  `interaction.response` with the same `responseId` and `updated: true`).
+- `modal`: only as the first answer, and not for forms; the invoker's sessions get `interaction.modal`.
+- After any answer except `defer`, the invoker's sessions get `interaction.state { id, bot, state: "done" }`.
+- Errors: an unknown or expired token, or another bot's: `not_found`; the wrong `type` for this interaction or more
+  than 5 answers: `bad_request`. Rate limit: 20, then 5 a second.
+
+```jsonc
+// event interaction.response (the invoker's sessions only; kept in the server's memory 15 minutes for clicks)
+{ "responseId": "<b64u 16>", "interaction": "<id>", "bot": "<accountKey>", "channelId": 1,
+  "text": "...", "cards": [Card], "components": [Row], "createdAt": 0, "updated"?: true }
+// event interaction.modal (the invoker's sessions only)
+{ "modalId": "<b64u 16>", "interaction": "<id>", "bot": "<accountKey>", "channelId": 1, "modal": Modal }
+```
+
+### Components
+
+`chat.send` and `chat.edit` from a bot (and `interaction.respond`) may carry `components: [Row]` (`[]` removes them on
+an edit); people get `forbidden`. With components the text may be empty. Messages carry `components: [Row] | null` and
+`interaction: { id, user, command } | null`.
+
+```jsonc
+Row    { "type": "row", "items": [Button] | [Select] }
+Button { "type": "button", "customId": "roll:2d6", "label": "Roll again",
+         "style"?: "primary" | "secondary" | "success" | "danger" | "link", "url"?: "https://...", "disabled"?: true }
+Select { "type": "select", "customId": "dice", "placeholder"?: "Pick dice",
+         "options": [{ "label": "d20", "value": "d20", "description"?: "...", "default"?: true }],
+         "minValues"?: 1, "maxValues"?: 1, "disabled"?: true }
+Modal  { "customId": "plan", "title": "Plan a game night",
+         "fields": [{ "customId": "title", "label": "Title", "style": "short" | "paragraph",
+                      "required"?: true, "placeholder"?: "...", "maxLength"?: 200, "value"?: "..." }] }
+```
+
+| field | rules |
+|---|---|
+| rows | ≤ 5; a row has 1–5 buttons or exactly one select menu; the components JSON ≤ 8 KB |
+| `customId` | 1–100 characters of printable ASCII, unique in the message or modal (link buttons have none) |
+| `label` | 1–80 characters, one line; `placeholder` ≤ 100 |
+| link buttons | `style: "link"` and `url` (http/https, ≤ 512); apps show the address and never open it by themselves; clicks don't reach the bot |
+| select `options` | 1–25; `label` and `value` 1–100, `description` ≤ 100; values unique; `0 ≤ minValues ≤ maxValues ≤ options`, `maxValues ≥ 1` (defaults 1 and 1) |
+| modal | `title` 1–45; 1–5 `fields`; `label` 1–45; `required` defaults to true; `maxLength` `paragraph` 1–4000 (default 4000), `short` 1–1000 (default 200); `value` ≤ `maxLength` |
+
+Labels, options and form text are rendered as text by apps, never as HTML.
+
+### Encrypted channels
+
+The server never sees an [encrypted channel](#end-to-end-encrypted-channels)'s messages, and bots are never in its
+chain. A command there still works without leaking the channel:
+
+- The invocation (the command name, its options and `args`) is **not** part of the encrypted stream: it goes from the
+  app to the server and the bot in the clear, like any request. Apps say so before sending it ("This command goes to
+  Dice unencrypted. Only you will see the answer.").
+- The bot must be able to read the channel by its roles (it still can't post there); it never gets the channel's
+  messages, keys or chain.
+- Every answer is private (`private: true` in the interaction): only the person who asked sees it; it is never stored
+  or posted, so nothing unencrypted lands in the channel. Components on those answers work the same way.

@@ -17,6 +17,8 @@ public sealed class Hub(World world, TimeProvider time)
     public Features.SlowmodeTracker Slowmode { get; } = new();
     /// <summary>"Playing X" per online account (Features/ActivityFeature.cs).</summary>
     public Features.ActivityRegistry Activities { get; } = new(time);
+    /// <summary>Bot interaction tokens, private answers and open forms (Features/InteractionFeature.cs).</summary>
+    public Features.InteractionRegistry Interactions { get; } = new(time);
     /// <summary>What sessions are told when the server stops: a restart (1012) or a stop (1001), see RestartSignal.</summary>
     public RestartSignal Restart { get; } = new(world.Path, time);
 
@@ -92,7 +94,7 @@ public sealed class Hub(World world, TimeProvider time)
             return Features.ProfileFeature.Public(m, views.Profiles.GetValueOrDefault(m.AccountKey) ?? store.GetPublicProfile(m.AccountKey), pages,
                 views.Nicknames.GetValueOrDefault(m.AccountKey), store.IsBot(m.AccountKey),
                 views.Timeouts.TryGetValue(m.AccountKey, out var until) ? until : null, presence,
-                presence.Online ? Features.ActivityFeature.Public(Activities.Get(m.AccountKey)) : null);
+                presence.Online ? Features.ActivityFeature.Public(Activities.Get(m.AccountKey)) : null, Features.ProfileFeature.BotReads(store, m.AccountKey));
         }).ToList();
     }
 

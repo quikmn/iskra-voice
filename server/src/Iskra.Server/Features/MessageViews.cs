@@ -41,6 +41,8 @@ public static class MessageViews
             clip = ClipFeature.View(store, m.Id),
             e2ee = E2eeChannelFeature.MessageView(store, m.Id),
             cards = BotCommandFeature.View(store, m.Id),
+            components = BotComponents.View(store, m.Id),
+            interaction = InteractionFeature.MessageView(store, m.Id),
         };
     }
 

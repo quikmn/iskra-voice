@@ -23,7 +23,7 @@ public static class BotFeature
     public static bool InviteFits(Store store, string code, bool isBot) => store.IsBotInvite(code) == isBot;
 
     public static void Joined(Store store, string accountKey, string code, long now) =>
-        store.AddBot(accountKey, store.GetInvite(code)?.CreatedBy ?? "", now);
+        store.AddBot(accountKey, store.GetInvite(code)?.CreatedBy ?? "", now, store.BotInviteReadsAll(code));
 
     /// <summary>Single use: one invite per bot.</summary>
     private static object CreateInvite(Session s, Member me, Body body)
@@ -36,8 +36,10 @@ public static class BotFeature
             ?? (long)InviteFeature.DefaultLifetime.TotalMilliseconds;
 
         var invite = s.World.Store.CreateInvite(InviteFeature.NewCode(), me.AccountKey, role, s.Now, s.Now + lifetimeMs, maxUses: 1);
-        s.World.Store.MarkBotInvite(invite.Code);
-        Audit.Record(s, "bot.invite", details: new { role, expiresAt = invite.ExpiresAt });
+        // "Can read all messages" is the admin's explicit choice; by default a bot gets its commands and mentions only.
+        var readAll = body.OptionalBool("readAll") ?? false;
+        s.World.Store.MarkBotInvite(invite.Code, readAll);
+        Audit.Record(s, "bot.invite", details: new { role, expiresAt = invite.ExpiresAt, readAll });
         return new { invite = InviteFeature.PublicInvite(invite) };
     }
 }

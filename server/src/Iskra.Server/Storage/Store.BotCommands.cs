@@ -1,7 +1,7 @@
 namespace Iskra.Server.Storage;
 
 /// <summary>A bot's registered commands (validated JSON), and the cards on bots' messages.</summary>
-public sealed record BotCommandList(string AccountKey, string Commands, long UpdatedAt);
+public sealed record BotCommandList(string AccountKey, string Commands, long UpdatedAt, bool Interactions = false);
 
 public sealed partial class Store
 {
@@ -20,20 +20,24 @@ public sealed partial class Store
 
     // ── Commands ─────────────────────────────────────────────────────────────
 
-    public void SetBotCommands(string accountKey, string? commands, long now)
+    public void SetBotCommands(string accountKey, string? commands, long now, bool interactions = false)
     {
         if (commands is null) Exec("DELETE FROM bot_commands WHERE account_key = $key;", ("$key", accountKey));
         else
             Exec("""
-                INSERT INTO bot_commands (account_key, commands, updated_at) VALUES ($key, $commands, $now)
-                ON CONFLICT(account_key) DO UPDATE SET commands = excluded.commands, updated_at = excluded.updated_at;
-                """, ("$key", accountKey), ("$commands", commands), ("$now", now));
+                INSERT INTO bot_commands (account_key, commands, updated_at, interactions) VALUES ($key, $commands, $now, $i)
+                ON CONFLICT(account_key) DO UPDATE SET commands = excluded.commands, updated_at = excluded.updated_at, interactions = excluded.interactions;
+                """, ("$key", accountKey), ("$commands", commands), ("$now", now), ("$i", interactions ? 1 : 0));
     }
+
+    public BotCommandList? GetBotCommands(string accountKey) =>
+        Query("SELECT account_key, commands, updated_at, interactions FROM bot_commands WHERE account_key = $key;",
+            r => new BotCommandList(r.GetString(0), r.GetString(1), r.GetInt64(2), r.GetInt64(3) != 0), ("$key", accountKey)).FirstOrDefault();
 
     /// <summary>Every member bot's list (bots that left are gone with their member row).</summary>
     public List<BotCommandList> AllBotCommands() =>
-        Query("SELECT b.account_key, b.commands, b.updated_at FROM bot_commands b JOIN members m ON m.account_key = b.account_key ORDER BY m.name;",
-            r => new BotCommandList(r.GetString(0), r.GetString(1), r.GetInt64(2)));
+        Query("SELECT b.account_key, b.commands, b.updated_at, b.interactions FROM bot_commands b JOIN members m ON m.account_key = b.account_key ORDER BY m.name;",
+            r => new BotCommandList(r.GetString(0), r.GetString(1), r.GetInt64(2), r.GetInt64(3) != 0));
 
     // ── Cards ────────────────────────────────────────────────────────────────
 
