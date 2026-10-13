@@ -100,6 +100,7 @@ test('a friend joins a home-hosted server through the peer-to-peer tunnel and ta
   let friendApp: ElectronApplication | null = null
   const friendConsole: string[] = []
   let friendPage: Page | null = null
+  let passed = false
   try {
     // ── The host: a fresh desktop app, a new server, the switch on ──
     hostApp = await launch(hostData, { ISKRA_HOST_ROOT: hostRoot })
@@ -212,13 +213,13 @@ test('a friend joins a home-hosted server through the peer-to-peer tunnel and ta
       .toBe(true)
     lap('both in voice')
 
-    // The friend's peer connections were told only about TURN on its own tunnel port, relay only; and the pair in use is a relay candidate.
+    // The friend's peer connections are relay-only. (livekit-client makes them before the join answer and sets the
+    // TURN server afterwards, so their constructor configs name no server; the path in use below is what counts.)
     const configs = await friend.evaluate(() => (window as unknown as { __peerConfigs: RTCConfiguration[] }).__peerConfigs)
     expect(configs.length).toBeGreaterThan(0)
-    const urls = configs.flatMap((c) => (c.iceServers ?? []).flatMap((s) => (Array.isArray(s.urls) ? s.urls : [s.urls])))
-    expect(urls.length).toBeGreaterThan(0)
-    for (const url of urls) expect(url).toMatch(/^turn:127\.0\.0\.1:\d+\?transport=udp$/)
     for (const c of configs) expect(c.iceTransportPolicy).toBe('relay')
+    const urls = configs.flatMap((c) => (c.iceServers ?? []).flatMap((s) => (Array.isArray(s.urls) ? s.urls : [s.urls])))
+    for (const url of urls) expect(url).toMatch(/^turn:127\.0\.0\.1:\d+\?transport=udp$/)
     await expect
       .poll(async () => friend.evaluate(async () => {
         const pcs = (window as unknown as { __pcs: RTCPeerConnection[] }).__pcs
@@ -238,6 +239,12 @@ test('a friend joins a home-hosted server through the peer-to-peer tunnel and ta
         return types
       }), { timeout: 20_000 })
       .toContain('relay')
+    // ...and the TURN datagrams really went through the friend's tunnel (counted in the app's main process).
+    type Debug = { client: Record<string, { stats: { datagramsOut: number; datagramsIn: number } }> }
+    const debug = await friendApp.evaluate(() => (globalThis as unknown as { iskraP2pDebug: () => Debug }).iskraP2pDebug())
+    const tunnelStats = Object.values(debug.client)[0]?.stats
+    expect(tunnelStats?.datagramsOut).toBeGreaterThan(0)
+    expect(tunnelStats?.datagramsIn).toBeGreaterThan(0)
     await friend.screenshot({ path: join(SHOTS, 'p2p-friend-voice.png'), animations: 'disabled' })
 
     // A new key: the host's next invite carries a different secret.
@@ -254,9 +261,10 @@ test('a friend joins a home-hosted server through the peer-to-peer tunnel and ta
     await host.keyboard.press('Escape')
 
     console.log(`p2p walkthrough:\n${timings.map(([what, ms]) => `  ${what.padEnd(60)} ${(ms / 1000).toFixed(1)} s`).join('\n')}`)
+    passed = true
   } finally {
-    // When voice fails, say what the friend's app was told (ICE servers) and what it logged.
-    if (friendPage) {
+    // When something failed, say what the friend's app was told (ICE servers, LiveKit's join answer) and what it logged.
+    if (friendPage && !passed) {
       const configs = await friendPage.evaluate(() => JSON.stringify((window as unknown as { __peerConfigs?: unknown[] }).__peerConfigs ?? [])).catch(() => 'n/a')
       console.log(`friend peer configs: ${configs.slice(0, 1500)}`)
       const signal = await friendPage.evaluate(() => (window as unknown as { __signal?: string[] }).__signal ?? []).catch(() => [] as string[])
@@ -270,12 +278,14 @@ test('a friend joins a home-hosted server through the peer-to-peer tunnel and ta
         }
       }
     }
-    if (friendConsole.length) console.log(`--- friend console ---\n${friendConsole.slice(-60).join('\n')}`)
-    for (const [name, app] of [['friend', friendApp], ['host', hostApp]] as const) {
+    if (friendConsole.length && !passed) console.log(`--- friend console ---
+${friendConsole.slice(-60).join('
+')}`)
+    for (const [name, app] of passed ? [] : ([['friend', friendApp], ['host', hostApp]] as const)) {
       const debug = await app?.evaluate(() => JSON.stringify((globalThis as unknown as { iskraP2pDebug?: () => unknown }).iskraP2pDebug?.() ?? null)).catch((e: Error) => `n/a: ${e.message}`)
       console.log(`${name} app tunnels: ${debug}`)
     }
-    try {
+    if (!passed) try {
       const settings = JSON.parse(readFileSync(join(hostRoot, 'behind-cgnat', 'server.json'), 'utf8')) as { P2p?: { Enabled?: boolean }; Voice?: { RtcUdpPort?: number; TurnUdpPort?: number } }
       const turnPort = settings.Voice?.TurnUdpPort || (settings.Voice?.RtcUdpPort ?? 7882) + 1
       console.log(`host server.json P2p.Enabled=${settings.P2p?.Enabled}; TURN on ${turnPort} answers STUN: ${await stunAnswers(turnPort)}`)
@@ -286,7 +296,7 @@ test('a friend joins a home-hosted server through the peer-to-peer tunnel and ta
     await hostApp?.close()
     await testnet.destroy()
     const log = join(hostRoot, 'behind-cgnat', 'server.log')
-    if (existsSync(log)) {
+    if (existsSync(log) && !passed) {
       const lines = readFileSync(log, 'utf8').split(/\r?\n/).filter((l) => /Restarting voice|Voice ready|TURN|turn\b|p2p|P2p|warn:|fail:|error/i.test(l) && !/livekit-webhook|\/livekit\/rtc/.test(l))
       console.log(`--- hosted server.log (voice and p2p lines) ---\n${lines.slice(-60).join('\n')}`)
     }
