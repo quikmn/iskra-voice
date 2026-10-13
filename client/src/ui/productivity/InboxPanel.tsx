@@ -36,7 +36,7 @@ const FILTERS: InboxFilter[] = ['all', 'mentions', 'replies', 'reminders', 'requ
 export function InboxPanel({ tab }: { tab: InboxTab }) {
   const { t } = useTranslation()
   return (
-    <Modal title={t('productivity.inbox.title')} onClose={closeInbox} wide className="inbox-dialog">
+    <Modal title={t(`productivity.inbox.titles.${tab}`)} onClose={closeInbox} wide className="inbox-dialog">
       <div className="segmented inbox-tabs" role="tablist">
         {TABS.map((x) => (
           <button key={x} role="tab" aria-selected={tab === x} className={tab === x ? 'on' : ''} onClick={() => useInbox.setState({ open: x })}>

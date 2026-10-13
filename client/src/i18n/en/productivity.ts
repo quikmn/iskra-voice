@@ -87,6 +87,12 @@ export const productivity = {
     buttonCount_one: 'Inbox, {{count}} new',
     buttonCount_other: 'Inbox, {{count}} new',
     title: 'Inbox',
+    titles: {
+      inbox: 'Inbox',
+      saved: 'Saved messages',
+      reminders: 'Reminders',
+      scheduled: 'Scheduled messages',
+    },
     tabs: {
       inbox: 'Inbox',
       saved: 'Saved',
