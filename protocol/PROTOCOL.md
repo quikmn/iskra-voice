@@ -71,7 +71,7 @@ The connection is one WebSocket per server at `wss://<host>/ws`. It uses text fr
 3. **Server checks:**
    - the certificate signature
    - the auth signature
-   - the profile name (1–32 characters, no control characters)
+   - the profile name (1–32 characters, no control characters). A device that doesn't know the account's name yet (restored from the recovery key) leaves `name` out: a member keeps their name and profile (nothing else in `profile` is applied), an account that isn't a member yet is refused with `name_required` (its invite isn't used)
    - that the account isn't banned and the device isn't revoked
    - membership: accounts that aren't members yet need a valid `invite`, which also sets their role
 4. **Server sends `welcome`:**
@@ -2111,7 +2111,8 @@ the others (so servers can't read it):
 
 A newly linked device gets the profile and its stamp in the link payload ([Device linking carries the
 profile](#device-linking-carries-the-profile), which gains `updatedAt` and `by`); a device restored from the recovery
-key starts unstamped and takes the account's copy on its first `welcome`.
+key starts unstamped and without a name: it leaves `name` out of `auth` (see the handshake), takes the account's copy
+on its first `welcome`, or else the name in `welcome.you`, and asks the person only when it gets `name_required`.
 
 Limits: ordering trusts the devices' clocks, bounded by the rules above; an edit made on a device that hasn't seen a
 newer one (offline) loses to it if its clock is earlier. Fields aren't merged: the newest edit wins as a whole (fields

@@ -9,6 +9,7 @@ export const safety: Messages['safety'] = {
     pointReport: 'Anmäl meddelanden eller personer från deras meny. Moderatorer kan ta bort innehåll och personer.',
     pointAge: 'Du måste vara minst 13 år (eller den lägsta åldern i ditt land).',
     agree: 'Jag godkänner användarvillkoren och gemenskapens riktlinjer',
+    tickFirst: 'Kryssa i rutan ovan för att fortsätta.',
     updatedTitle: 'Våra villkor har ändrats',
     updatedLead: 'Läs de uppdaterade användarvillkoren och gemenskapens riktlinjer och godkänn dem för att fortsätta använda Iskra.',
   },

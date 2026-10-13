@@ -25,6 +25,8 @@ export interface PendingMessage extends Message {
   gifToken?: string | DirectGif
   /** Why AutoMod blocked it (retrying wouldn't help). */
   blockedReason?: string
+  /** Why a send failed, when it's worth saying (sending too fast); the message can be retried. Translated when shown. */
+  failedCode?: 'rate_limited'
 }
 
 export interface ServerState {
@@ -48,6 +50,8 @@ export interface ServerState {
   publicUrl: string | null
   /** Channels showing an older stretch of history after a jump; new messages wait until you return to the present. */
   detached?: Record<number, boolean>
+  /** Added from an invite and never connected yet: if it can't be reached it isn't kept (see dropFailedJoins). */
+  joining?: boolean
 }
 
 interface AppState {
@@ -170,14 +174,17 @@ export async function boot(): Promise<void> {
     return
   }
   useApp.setState({ phase: 'ready', identity, profile })
-  for (const server of saved) connectServer(server.url, server.serverKey, server.name, server.invite)
+  for (const server of saved) connectServer(server.url, server.serverKey, server.name, server.invite, !!server.invite)
   if (saved.length) useApp.setState({ activeServer: saved[0].serverKey })
 }
 
-/** A new device for an existing account (from its recovery key). */
-export async function restoreAccount(seed: Uint8Array, name: string): Promise<void> {
+/**
+ * A new device for an existing account (from its recovery key). The name is left empty: it comes from the account's
+ * copy or the member's name on the first server that welcomes it (state/profile.ts), and auth leaves it out until then.
+ */
+export async function restoreAccount(seed: Uint8Array): Promise<void> {
   const identity = restoreIdentity(seed)
-  const profile = { name, recoverySaved: true }
+  const profile = { name: '', recoverySaved: true }
   await storage.saveIdentity(identity)
   await storage.saveProfile(profile)
   void storage.requestPersistence()
@@ -210,7 +217,7 @@ export function acceptInvite(invite: InviteLink): void {
     useApp.setState({ activeServer: invite.serverKey })
     return
   }
-  connectServer(invite.serverUrl, invite.serverKey, invite.serverUrl.replace(/^https?:\/\//, ''), invite.code)
+  connectServer(invite.serverUrl, invite.serverKey, invite.serverUrl.replace(/^https?:\/\//, ''), invite.code, true)
   useApp.setState({ activeServer: invite.serverKey })
   void persistServers().then(async () => {
     // Remember the invite until the first successful join, in case the tab closes mid-way.
@@ -245,7 +252,7 @@ export function moveServer(key: string, url: string, name?: string): void {
   void persistServers()
 }
 
-function connectServer(url: string, key: string, name: string, invite?: string): void {
+function connectServer(url: string, key: string, name: string, invite?: string, joining = false): void {
   const { identity } = useApp.getState()
   if (!identity) return
   connections.get(key)?.stop()
@@ -257,6 +264,7 @@ function connectServer(url: string, key: string, name: string, invite?: string):
       [key]: state.servers[key] ?? {
         key, url, name, status: { state: 'connecting' }, me: null, channels: [], members: {},
         messages: {}, hasMore: {}, typing: {}, voice: {}, voiceAvailable: false, appUrl: null, publicUrl: null,
+        ...(joining ? { joining } : {}),
       },
     },
   }))
@@ -289,10 +297,33 @@ export function retryAll(): void {
   for (const connection of connections.values()) connection.retryNow()
 }
 
+export function retryServer(key: string): void {
+  connections.get(key)?.retryNow()
+}
+
+/** Connects a server that turned us away again (after picking a name), with the invite it was joined from. */
+export async function rejoinServer(key: string): Promise<void> {
+  const server = useApp.getState().servers[key]
+  if (!server) return
+  const invite = (await storage.loadServers()).find((s) => s.serverKey === key)?.invite
+  patchServer(key, () => ({ status: { state: 'connecting' } }))
+  connectServer(server.url, key, server.name, invite, server.joining)
+}
+
+/** A join that couldn't reach its server (or was turned away) shows its error while you look at it, and is gone once you go elsewhere. */
+export const failedJoin = (server: ServerState | undefined): boolean =>
+  !!server?.joining && (server.status.state === 'offline' || server.status.state === 'rejected')
+
+function dropFailedJoins(state: AppState): void {
+  for (const [key, server] of Object.entries(state.servers)) if (failedJoin(server) && state.activeServer !== key) leaveServer(key)
+}
+useApp.subscribe(dropFailedJoins)
+
 function onWelcome(key: string, welcome: Welcome): void {
   const before = useApp.getState().servers[key]
   patchServer(key, () => ({
     name: welcome.server.name,
+    joining: false,
     me: welcome.you,
     channels: welcome.channels,
     members: Object.fromEntries(welcome.members.map((m) => [m.accountKey, m])),
@@ -508,11 +539,36 @@ export function setChannelSender(sender: ChannelSender): void {
   channelSender = sender
 }
 
-async function deliver(key: string, channelId: number, tempId: string, body: SendBody): Promise<void> {
+/** Sends in one channel go out one after another, so they arrive in the order they were written. */
+const sendQueues = new Map<string, Promise<void>>()
+/** Waits before trying a rate-limited send again (the server allows 2 a second, 10 at once). */
+const RATE_RETRY_MS = [600, 1200, 2400, 4000]
+const pause = (ms: number) => new Promise((done) => setTimeout(done, ms))
+
+function deliver(key: string, channelId: number, tempId: string, body: SendBody): Promise<void> {
+  const queue = `${key}:${channelId}`
+  const run = (sendQueues.get(queue) ?? Promise.resolve()).then(() => deliverNow(key, channelId, tempId, body))
+  sendQueues.set(queue, run)
+  void run.finally(() => sendQueues.get(queue) === run && sendQueues.delete(queue))
+  return run
+}
+
+async function deliverNow(key: string, channelId: number, tempId: string, body: SendBody): Promise<void> {
   try {
     const connection = connections.get(key)
     if (!connection) throw new Error(t('errors.codes.disconnected'))
-    const { message } = await (channelSender(key, channelId, body) ?? connection.request('chat.send', body))
+    const send = () => channelSender(key, channelId, body) ?? connection.request('chat.send', body)
+    let result: Awaited<ReturnType<typeof send>> | null = null
+    for (let attempt = 0; !result; attempt++) {
+      try {
+        result = await send()
+      } catch (e) {
+        // Too fast: wait and try again (same nonce, so it's never sent twice), keeping later sends behind it.
+        if ((e as { code?: string }).code !== 'rate_limited' || attempt >= RATE_RETRY_MS.length) throw e
+        await pause(RATE_RETRY_MS[attempt])
+      }
+    }
+    const { message } = result
     unsentSends.delete(tempId)
     patchServer(key, (s) => ({
       messages: { ...s.messages, [channelId]: upsertMessage((s.messages[channelId] ?? []).filter((m) => m.tempId !== tempId), message) },
@@ -527,7 +583,11 @@ async function deliver(key: string, channelId: number, tempId: string, body: Sen
       messages: {
         ...s.messages,
         [channelId]: (s.messages[channelId] ?? []).map((m) => (m.tempId === tempId
-          ? { ...m, pending: 'failed' as const, blockedReason: (e as { code?: string }).code === 'automod' ? errorMessage(e) : undefined }
+          ? {
+            ...m, pending: 'failed' as const,
+            blockedReason: (e as { code?: string }).code === 'automod' ? errorMessage(e) : undefined,
+            failedCode: (e as { code?: string }).code === 'rate_limited' ? 'rate_limited' as const : undefined,
+          }
           : m)),
       },
     }))

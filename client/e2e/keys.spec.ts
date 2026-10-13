@@ -16,13 +16,12 @@ async function recoveryKeyOf(page: Page): Promise<string> {
   return key
 }
 
-async function restore(page: Page, link: string, recoveryKey: string, name: string) {
+async function restore(page: Page, link: string, recoveryKey: string) {
   await page.goto(link)
   await agreeToTerms(page)
   await page.getByRole('button', { name: /I already use Iskra/ }).click()
   await page.getByRole('button', { name: /Use my recovery key/ }).click()
   await page.getByLabel('Recovery key').fill(recoveryKey)
-  await page.getByLabel('Your name').fill(name)
   await page.getByRole('button', { name: 'Restore my account' }).click()
 }
 
@@ -58,7 +57,7 @@ test('replacing the account key: your other device and your friends follow, the 
 
   // A second device of the same account.
   const phone = await (await browser.newContext()).newPage()
-  await restore(phone, ownerLink, oldRecoveryKey, 'Host')
+  await restore(phone, ownerLink, oldRecoveryKey)
   await expect(phone.getByRole('heading', { name: 'general' })).toBeVisible()
 
   // A DM before the change.
@@ -113,7 +112,7 @@ test('replacing the account key: your other device and your friends follow, the 
 
   // Someone with the old recovery key gets nowhere, and is told so.
   const thief = await (await browser.newContext()).newPage()
-  await restore(thief, ownerLink, oldRecoveryKey, 'Host')
+  await restore(thief, ownerLink, oldRecoveryKey)
   await expect(thief.getByText('Your account key was replaced')).toBeVisible()
   await thief.screenshot({ path: join(SHOTS, 'keys-retired.png') })
 })

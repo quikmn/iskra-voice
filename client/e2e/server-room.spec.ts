@@ -169,5 +169,17 @@ test('phone: the server room is a page stack under the server band', async ({ br
   await phone.screenshot({ path: join(SHOTS, 'my-settings-phone.png') })
   await phone.keyboard.press('Escape')
   await expect(mine).toHaveCount(0)
+
+  // Create channel fits the phone: its five channel types wrap instead of pushing Create off the screen.
+  // The channels drawer is still open from My settings.
+  await phone.locator('.nav-column').getByRole('button', { name: 'Create channel' }).first().click()
+  const create = phone.getByRole('dialog', { name: 'Create channel' })
+  await expect(create.getByRole('radio', { name: 'Docs' })).toBeVisible()
+  await phone.waitForTimeout(400) // the dialog pops in
+  for (const part of [create, create.getByRole('radio', { name: 'Docs' }), create.getByRole('button', { name: 'Create', exact: true })]) {
+    const box = (await part.boundingBox())!
+    expect(box.x + box.width).toBeLessThanOrEqual(390)
+  }
+  await phone.keyboard.press('Escape')
   await own.stop()
 })

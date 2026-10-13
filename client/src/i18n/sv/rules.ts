@@ -28,7 +28,7 @@ export const rules: Messages['rules'] = {
     read: 'Läs reglerna',
   },
   settings: {
-    title: 'Regler',
+    title: 'Serverregler',
     intro: 'Visas för nya medlemmar när de går med, och under Regler i kanallistan. Formatering fungerar som i meddelanden (**fetstil**, listor, länkar).',
     welcome: 'Välkomstmeddelande (valfritt)',
     welcomePlaceholder: 'Välkommen till {{server}}!',

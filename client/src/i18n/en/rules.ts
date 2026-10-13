@@ -27,7 +27,7 @@ export const rules = {
     read: 'Read the rules',
   },
   settings: {
-    title: 'Rules',
+    title: 'Server rules',
     intro: 'Shown to new members when they join, and from Rules in the channel list. Formatting works like in messages (**bold**, lists, links).',
     welcome: 'Welcome message (optional)',
     welcomePlaceholder: 'Welcome to {{server}}!',
