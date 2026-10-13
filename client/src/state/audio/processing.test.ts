@@ -95,10 +95,23 @@ describe('voice activity gate (Silero)', () => {
 
   it('in between the thresholds keeps the current state (no flapping)', () => {
     const gate = new VadGate(RATE)
+    // Opens early, isn't confirmed within confirmMs, closes, and doesn't try again until it drops below `early`.
     run(gate, Array(ms(100)).fill(0.4))
+    expect(gate.open).toBe(true)
+    run(gate, Array(ms(gate.params.confirmMs + 200)).fill(0.4))
     expect(gate.open).toBe(false)
     run(gate, Array(ms(50)).fill(0.9))
     run(gate, Array(ms(2000)).fill(0.4))
+    expect(gate.open).toBe(true)
+  })
+
+  it('opens early on a likely start and stays open once Silero confirms it', () => {
+    const gate = new VadGate(RATE)
+    run(gate, Array(ms(100)).fill(0.1))
+    expect(gate.open).toBe(false)
+    run(gate, Array(ms(60)).fill(gate.params.early!))
+    expect(gate.open).toBe(true)
+    run(gate, [...Array(ms(60)).fill(0.9), ...Array(ms(gate.params.confirmMs + 100)).fill(0.4)])
     expect(gate.open).toBe(true)
   })
 
