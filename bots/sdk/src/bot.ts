@@ -11,6 +11,7 @@ import {
   type Member, type Message, type Modal, type OptionValue, type Poll, type Requests, type Thread,
 } from '../../../client/src/core/protocol'
 import { identityOf, loadState, newState, saveState, type BotState } from './state'
+import { VoiceConnection } from './voice/connection'
 
 export interface BotOptions {
   /** Display name (1–32 characters). */
@@ -192,6 +193,7 @@ export class Bot {
     ready: [], message: [], memberJoined: [], messageEdited: [], messageDeleted: [], reactions: [], pollUpdated: [], event: [], status: [],
   }
   private connection: Connection | null = null
+  private voiceConnection: VoiceConnection | null = null
   private state: BotState | null = null
   private serverUrl = ''
 
@@ -342,6 +344,7 @@ export class Bot {
   }
 
   stop(): void {
+    void this.voiceConnection?.leave()
     if (this.syncTimer) clearTimeout(this.syncTimer)
     this.syncTimer = null
     this.connection?.stop()
@@ -426,6 +429,42 @@ export class Bot {
     await this.request('activity.set', { name })
   }
 
+  // ── Voice ────────────────────────────────────────────────────────────────
+
+  /**
+   * Joins a voice channel to play audio (`voice.play(...)`). An admin must let the bot join voice (Bots & webhooks),
+   * and it needs to be able to post in the channel to be heard. Leaves the channel it was in before, if any.
+   * Never in stage or end-to-end encrypted channels. The bot never hears anyone: its token can't subscribe.
+   */
+  async joinVoice(channelId: number): Promise<VoiceConnection> {
+    await this.voiceConnection?.leave()
+    const joined = await this.request('voice.join', { channelId })
+    const connection: VoiceConnection = new VoiceConnection(channelId, this.me!.accountKey, this.serverUrl,
+      () => this.channels.find((c) => c.id === channelId), (line) => this.log(line),
+      () => {
+        if (this.voiceConnection === connection) this.voiceConnection = null
+      })
+    this.voiceConnection = connection
+    try {
+      await connection.connect(joined)
+    } catch (e) {
+      await connection.leave()
+      throw e
+    }
+    return connection
+  }
+
+  /** The voice channel the bot is in, or null. */
+  get voice(): VoiceConnection | null {
+    return this.voiceConnection
+  }
+
+  /** The full address of a file on the server (an attachment, `/files/<id>/<name>`), e.g. for `voice.play`. */
+  fileUrl(file: FileInfo | string): string {
+    const path = typeof file === 'string' ? file : file.url
+    return /^https?:\/\//i.test(path) ? path : this.serverUrl + path
+  }
+
   /** A mention token that shows as @Name and notifies that member. */
   mention(accountKey: string): string {
     return `<@${accountKey}>`
@@ -488,6 +527,13 @@ export class Bot {
         return
       case 'kicked':
         this.log(`Removed from the server: ${(body as Events['kicked']).reason}`)
+        this.voiceConnection?.removed()
+        return
+      case 'voice.state':
+        this.voiceConnection?.voiceState(body as Events['voice.state'])
+        return
+      case 'voice.disconnected':
+        if ((body as Events['voice.disconnected']).channelId === this.voiceConnection?.channelId) this.voiceConnection.removed()
         return
     }
   }

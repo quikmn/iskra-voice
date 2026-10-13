@@ -5,6 +5,11 @@ export {
   type CommandHandler, type IncomingMessage, type ModalContext, type ModalHandler, type OutgoingFile, type PollOptions, type ReplyOptions,
   type SendOptions,
 } from './bot'
+export {
+  VoiceConnection, type PlayOptions, type Track, type TrackEnd, type TrackEndReason, type VoiceGone, type VoiceState,
+} from './voice/connection'
+export type { AudioInput } from './voice/source'
+export { encodeWav } from './voice/audio'
 export { identityOf, loadState, newState, saveState, type BotState } from './state'
 export { parseCommand, type Command } from '../../../client/src/core/commands'
 export type {
