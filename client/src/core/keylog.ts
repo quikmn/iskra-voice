@@ -11,6 +11,7 @@ import { verifyRotation, type Rotation } from './rotation'
 
 export const KEYLOG_ENTRY_CONTEXT = 'iskra/keylog-entry/v1'
 export const KEYLOG_HEAD_CONTEXT = 'iskra/keylog-head/v1'
+export const KEYLOG_NAME_CONTEXT = 'iskra/keylog-name/v1'
 export const GOSSIP_CONTEXT = 'iskra/kt-gossip/v1'
 export const MAX_GOSSIP_HEADS = 16
 export const MAX_GOSSIP_ROTATIONS = 16
@@ -28,10 +29,14 @@ export interface LogHead {
 export interface WireLogEntry {
   seq: number
   data: string
+  /** The name a join/name entry's `nameHash` commits to, and its salt; null once the account was deleted. */
+  name?: string | null
+  nameSalt?: string | null
 }
 
 export type LogEntry =
-  | { kind: 'join' | 'name'; at: number; key: string; name: string }
+  /** `name` is "" when the account was deleted (only the salted `nameHash` is left in the log). */
+  | { kind: 'join' | 'name'; at: number; key: string; name: string; nameHash?: string }
   | { kind: 'rotate' | 'contest'; at: number; rotation: Rotation }
   | { kind: 'resolve'; at: number; rotation: Rotation; previousKey: string }
 
@@ -94,8 +99,11 @@ export function parseEntry(data: string): LogEntry | null {
   const at = e.at as number
   switch (e.kind) {
     case 'join':
-    case 'name':
-      return isKey(e.key) && typeof e.name === 'string' && e.name.length <= 64 ? { kind: e.kind, at, key: e.key, name: e.name } : null
+    case 'name': {
+      if (!isKey(e.key) || typeof e.name !== 'string' || e.name.length > 64) return null
+      if (e.nameHash === undefined) return { kind: e.kind, at, key: e.key, name: e.name }
+      return typeof e.nameHash === 'string' && isHash(e.nameHash) ? { kind: e.kind, at, key: e.key, name: e.name, nameHash: e.nameHash } : null
+    }
     case 'rotate':
     case 'contest':
       return verifyRotation(e.rotation as Rotation) ? { kind: e.kind, at, rotation: e.rotation as Rotation } : null
@@ -104,6 +112,35 @@ export function parseEntry(data: string): LogEntry | null {
         ? { kind: 'resolve', at, rotation: e.rotation as Rotation, previousKey: e.previousKey } : null
     default:
       return null
+  }
+}
+
+const isHash = (value: string) => {
+  try {
+    return fromB64u(value).length === 32
+  } catch {
+    return false
+  }
+}
+
+/** SHA-256 of the name with its salt: what join/name entries log instead of the name itself. */
+export function nameHash(salt: Uint8Array, name: string): Uint8Array {
+  return sodium.crypto_hash_sha256(signedPayload(KEYLOG_NAME_CONTEXT, salt, new TextEncoder().encode(name)))
+}
+
+/**
+ * Parses an entry as sent, with the name that travels beside it: it must match the entry's `nameHash`. Without one
+ * (the account was deleted), the name is "". Null if anything is malformed or the name doesn't match.
+ */
+export function readEntry(wire: WireLogEntry): LogEntry | null {
+  const entry = parseEntry(wire.data)
+  if (!entry || !('nameHash' in entry) || entry.nameHash === undefined) return entry
+  if (wire.name == null || wire.nameSalt == null) return { ...entry, name: '' }
+  if (typeof wire.name !== 'string' || wire.name.length > 64 || typeof wire.nameSalt !== 'string') return null
+  try {
+    return b64u(nameHash(fromB64u(wire.nameSalt), wire.name)) === entry.nameHash ? { ...entry, name: wire.name } : null
+  } catch {
+    return null
   }
 }
 
@@ -164,7 +201,7 @@ export function extendView(view: LogView, head: LogHead, entries: WireLogEntry[]
   for (const wire of entries) {
     if (wire.seq <= seq) continue
     if (wire.seq !== seq + 1 || typeof wire.data !== 'string') throw new LogError('gap')
-    const entry = parseEntry(wire.data)
+    const entry = readEntry(wire)
     if (!entry) throw new LogError('bad-entry')
     hash = entryHash(hash, wire.seq, wire.data)
     seq = wire.seq

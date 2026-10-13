@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { fingerprint } from '../../core/connection'
 import { b64u } from '../../core/crypto'
-import { emptyView, entryHash, extendView, LogError, parseEntry, verifyHead, type LogEntry } from '../../core/keylog'
+import { emptyView, entryHash, extendView, LogError, readEntry, verifyHead, type LogEntry, type WireLogEntry } from '../../core/keylog'
 import { nameOf } from '../../state/dms'
 import { keysOf } from '../../state/keyMap'
 import { dismissFinding, findingsAbout, storedHead, useKt, type Finding, type FindingKind } from '../../state/kt'
@@ -113,7 +113,7 @@ export function KeyLogDialog({ serverKey, onClose }: { serverKey: string; onClos
       const conn = connectionFor(serverKey)
       if (!conn) return
       try {
-        const entries: { seq: number; data: string }[] = []
+        const entries: WireLogEntry[] = []
         let head = null
         for (let page = 0; page < 200; page++) {
           const result = await conn.request('keylog.entries', { after: entries.at(-1)?.seq ?? 0, limit: 100 })
@@ -126,7 +126,7 @@ export function KeyLogDialog({ serverKey, onClose }: { serverKey: string; onClos
         let hash: Uint8Array = new Uint8Array(32)
         const list: Row[] = entries.map((e) => {
           hash = entryHash(hash, e.seq, e.data)
-          return { seq: e.seq, entry: parseEntry(e.data)!, hash: b64u(hash) }
+          return { seq: e.seq, entry: readEntry(e)!, hash: b64u(hash) }
         })
         // What this device stored before must be part of this history.
         const stored = storedHead(serverKey)
@@ -145,8 +145,9 @@ export function KeyLogDialog({ serverKey, onClose }: { serverKey: string; onClos
 
   const describe = (e: LogEntry) => {
     switch (e.kind) {
-      case 'join': return t('keys.kt.log.join', { name: e.name })
-      case 'name': return t('keys.kt.log.name', { name: e.name })
+      // An empty name: the account was deleted, and the server forgot the name (the log keeps only its salted hash).
+      case 'join': return e.name ? t('keys.kt.log.join', { name: e.name }) : t('keys.kt.log.joinErased')
+      case 'name': return e.name ? t('keys.kt.log.name', { name: e.name }) : t('keys.kt.log.nameErased')
       case 'rotate': return t('keys.kt.log.rotate')
       case 'contest': return t('keys.kt.log.contest')
       case 'resolve': return t('keys.kt.log.resolve')

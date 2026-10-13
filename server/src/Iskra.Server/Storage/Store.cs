@@ -310,6 +310,7 @@ public sealed partial class Store : IDisposable
         ("docs-2", ForgetUnshownDocFiles + ";"),
         ("botcommands-1", BotCommandsMigration),
         ("sends-2", EnvelopeSendsMigration),
+        ("keylog-2", KeyLog2Migration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

@@ -60,7 +60,7 @@ Data stored before this existed is encrypted the first time the app starts. Link
 
 A server can't forge anyone's signature, but it does decide which key it shows you as "Alice". Key transparency makes it hard for a server to show different people different keys, or to rewrite what it showed, without being caught.
 
-- **Each server keeps a key log**: every account key it has shown (with the name it showed), every key replacement and every dispute, in order. Each entry is linked to the one before it by a hash, and the server signs the newest one with its own key. Entries are only ever added.
+- **Each server keeps a key log**: every account key it has shown (with a salted hash of the name it showed; the name itself is kept beside it and erased when the account is deleted), every key replacement and every dispute, in order. Each entry is linked to the one before it by a hash, and the server signs the newest one with its own key. Entries are only ever added.
 - **Your app checks it every time it connects**: the log must carry on from the point your app saw last (never shorter, never different), every member the server shows must be in it, and every key replacement it announces too.
 - **Your servers are compared with each other**: if two servers say someone's old key moved to different new keys, you're told.
 - **Your friends' apps compare notes with yours**: now and then a DM carries a small signed summary (inside the end-to-end encryption) of the logs you both see and the key replacements you know. If a server signed one log for you and a different one for your friend, the two signatures prove it, and both apps say so. It also shows when a server lists a device for a friend that their own app doesn't know.

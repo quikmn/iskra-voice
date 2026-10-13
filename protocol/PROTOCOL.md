@@ -1832,18 +1832,19 @@ A server can't forge a signature, but it decides which key it shows as which per
 
 ```jsonc
 KeyLogHead  { "seq": 12, "hash": "<b64u 32>", "at": 1760000000000, "sig": "<b64u 64>" }
-KeyLogEntry { "seq": 12, "data": "<JSON text, exactly as hashed>" }
+KeyLogEntry { "seq": 12, "data": "<JSON text, exactly as hashed>", "name": "Viktor" | null, "nameSalt": "<b64u 16>" | null }
 // data is one of:
-{ "kind": "join",    "at": 1760000000000, "key": "<accountKey>", "name": "Viktor" }   // a key first shown here
-{ "kind": "name",    "at": ..., "key": "<accountKey>", "name": "Vik" }                  // its name changed
+{ "kind": "join",    "at": 1760000000000, "key": "<accountKey>", "name": "", "nameHash": "<b64u 32>" }   // a key first shown here
+{ "kind": "name",    "at": ..., "key": "<accountKey>", "name": "", "nameHash": "<b64u 32>" }              // its name changed
 { "kind": "rotate",  "at": ..., "rotation": Rotation }                                  // applied (Account key rotation)
 { "kind": "contest", "at": ..., "rotation": Rotation }                                  // a second claim: disputed
 { "kind": "resolve", "at": ..., "rotation": Rotation, "previousKey": "<accountKey>" }   // an admin settled it (rotation = the winner)
 ```
 
+- **Names are committed, not logged.** `nameHash = SHA-256("iskra/keylog-name/v1" || 0x00 || salt(16) || utf8(name))` with a fresh random salt per entry; `data.name` is `""` (older apps read the field). The entry's `name` and `nameSalt` (outside `data`, not hashed) open it: clients check `nameHash` and treat a mismatch as `bad-entry`. When an account is deleted the server erases them for its entries (and the keys it rotated away from), so they come back `null` and apps show "someone (account since deleted)"; the entry, its key and every hash stay, so the log still checks out. Entries written before commitments carry the name in `data` itself (no `nameHash`) and can't be erased without breaking the chain.
 - `hash(seq) = SHA-256("iskra/keylog-entry/v1" || 0x00 || hash(seq-1) || u64be(seq) || utf8(data))`, with `hash(0)` = 32 zero bytes. Clients hash the `data` string exactly as received.
 - `sig = Ed25519.sign(serverSecret, "iskra/keylog-head/v1" || 0x00 || serverKey(32) || u64be(seq) || hash(seq) || u64be(at))`, with the server key clients pinned when joining. An empty log has `seq: 0`, zero hash, `at: 0`.
-- The server brings the log up to date from its members and rotations before it hands out a head (welcome, the requests below) and right after it applies a rotation, contest or resolution, so every key it shows, and every account move, is in the log. Entries never change: account moves rewrite account keys everywhere else, not here.
+- The server brings the log up to date from its members and rotations before it hands out a head (welcome, the requests below) and right after it applies a rotation, contest or resolution, so every key it shows, and every account move, is in the log. Entries never change: account moves rewrite account keys everywhere else, not here (only the names beside them are erased, on account deletion).
 
 | type | body | result | who |
 |---|---|---|---|
