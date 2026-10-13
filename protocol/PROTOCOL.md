@@ -1142,7 +1142,7 @@ NotifySetting { "channelId": 1 | null /* null = whole server */, "level": "all" 
 | `notify.set` | `channelId?` (a channel you can read, not a thread; absent = the server), `level?` (`all` \| `mentions` \| `none` \| `default`), `muteMinutes?` (0 = unmute, −1 = until turned back on, 1–43200) | `{ setting }` | anyone |
 
 - `welcome.notify` lists your settings (expired mutes read as not muted). Event `notify.updated { setting }` goes to all of your sessions.
-- **The effective level** for a channel: the channel's level, else the server's, else `mentions`. A thread follows its channel. While the channel or the server is muted, `all` counts as `mentions`.
+- **The effective level** for a channel: the channel's level, else the server's, else the default: `all` on a server with fewer than 15 members (bots not counted), `mentions` from 15 on. The default follows the server's size as it changes; any level a member picked wins. A thread follows its channel. While the channel or the server is muted, `all` counts as `mentions`.
 - **Push:** `all` pushes every message (`kind: "message"`), `mentions` pushes mentions and replies, `none` pushes nothing from that channel. DMs and calls aren't affected.
 - **Clients:** muted channels are dimmed and show no unread marker; mention badges stay unless the level is `none`.
 

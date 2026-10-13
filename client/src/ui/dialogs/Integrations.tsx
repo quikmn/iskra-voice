@@ -196,7 +196,7 @@ function WebhookForm({ server, initial, submitLabel, onSubmit, onCancel }: {
     <div style={{ width: '100%' }}>
       <label className="field">
         <span>{t('settings.overview.name')}</span>
-        <input value={name} maxLength={32} placeholder="GitHub" onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void submit()} />
+        <input value={name} maxLength={32} placeholder={t('common.example', { value: 'GitHub' })} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void submit()} />
       </label>
       <div className="options-row" style={{ marginTop: 0 }}>
         <label className="field inline">

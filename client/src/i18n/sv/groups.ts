@@ -19,7 +19,7 @@ export const groups: Messages['groups'] = {
   pickIntro: 'Välj 2 till {{max}} personer från en server ni delar. Meddelanden och samtal är totalsträckskrypterade.',
   server: 'Server',
   nameOptional: 'Gruppnamn (valfritt)',
-  namePlaceholder: 'Helggänget',
+  namePlaceholder: 't.ex. Helggänget',
   nobodyPicked: 'Ingen vald än',
   picked_one: '{{count}} vald',
   picked_other: '{{count}} valda',

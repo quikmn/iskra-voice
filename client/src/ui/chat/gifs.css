@@ -74,3 +74,8 @@
 .gif-click-to-load .muted { font-size: 12px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gif-click-to-load .gif-note { font-size: 11px; }
 .gif-mode .radio input { width: auto; flex: none; margin: 3px 0 0; }
+.gif-steps { margin: 4px 0 0; padding-left: 20px; display: grid; gap: 12px; font-size: 13px; }
+.gif-steps > li > .copy-row, .gif-steps > li > .gif-mode { margin-top: 8px; }
+.gif-mode-more { margin-top: 8px; font-size: 13px; }
+.gif-mode-more summary { cursor: pointer; color: var(--text-2); }
+.gif-mode-more p { margin: 6px 0 0; }

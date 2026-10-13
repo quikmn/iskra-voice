@@ -17,7 +17,7 @@ export const roles = {
   },
   chips: 'Roles',
   title: 'Roles',
-  intro: 'Roles give people names, colours and powers on top of their level. Higher roles come first: people can only manage roles and members below their own highest role. Drag to reorder.',
+  intro: 'Roles give people names, colours and powers on top of their base role (Owner, Admin, Trusted, Member or Guest). Higher roles come first: people can only manage roles and members below their own highest role. Drag to reorder.',
   create: 'Create role',
   newRole: 'New role',
   empty: 'No roles yet. Create one, for example a Moderator.',

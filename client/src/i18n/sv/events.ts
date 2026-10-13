@@ -28,7 +28,7 @@ export const events: Messages['events'] = {
     schedule: 'Planera ett evenemang',
     scheduleButton: 'Planera',
     title: 'Titel',
-    titlePlaceholder: 'Spelkväll',
+    titlePlaceholder: 't.ex. Spelkväll',
     description: 'Beskrivning',
     descriptionPlaceholder: 'Vad är planen? (valfritt)',
     starts: 'Börjar',

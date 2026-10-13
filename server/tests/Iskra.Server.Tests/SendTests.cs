@@ -77,6 +77,7 @@ public class SendTests
                 endpoint, keys = new { p256dh = Ed25519.ToB64u([4, .. q.X!, .. q.Y!]), auth = Ed25519.ToB64u(RandomNumberGenerator.GetBytes(16)) },
             });
         }
+        await mod.RequestAsync("notify.set", new { level = "mentions" }); // only mentions: a small server would push every message by default
 
         // Not mentionable, and a plain member can't mention everyone: no push.
         await member.RequestAsync("chat.send", new { channelId = server.General, text = $"help <@&{id}>" });
