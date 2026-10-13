@@ -79,6 +79,9 @@ public sealed class Session
 
     public required Gifs.GifService Gifs { get; init; }
 
+    /// <summary>For bots that can't read all messages: which outgoing frames they may get (see BotScope).</summary>
+    public Func<string, bool>? ReadFilter { get; set; }
+
     /// <summary>This session reported no activity for a while (see PresenceFeature).</summary>
     public bool Idle { get; set; }
 
@@ -199,6 +202,7 @@ public sealed class Session
 
         AccountKey = member.AccountKey;
         DeviceKey = deviceKey;
+        ReadFilter = BotScope.Filter(_world.Store, member.AccountKey);
         var cameOnline = _hub.Add(this);
         SendNow(Frames.Event("welcome", new
         {
@@ -220,6 +224,7 @@ public sealed class Session
             keyLog = KeyLogFeature.Head(_world, Now),
             rules = RulesFeature.View(_world.Store, member),
             botCommands = BotCommandFeature.All(_world.Store),
+            builtinBots = BuiltinBotFeature.All(_world.Store),
         }));
         lock (_earlyGate)
         {
@@ -433,6 +438,7 @@ public sealed class Session
         if (role == Roles.Owner) OwnerSetup.OwnerJoined(_world);
         SecurityLog.Record(_world.Store, Now, "member.joined", member.AccountKey, LoggedIp, new { role, bot = isBot });
         _hub.Broadcast(Frames.Event("member.joined", new { member = _hub.PublicMember(member) }));
+        _hub.Outhooks?.MemberJoined(member);
         return (member, AuthFailure.Invalid);
     }
 
@@ -444,6 +450,7 @@ public sealed class Session
     /// </summary>
     public void Send(string json)
     {
+        if (ReadFilter is { } allows && !allows(json)) return;
         lock (_earlyGate)
         {
             if (_early is not null)

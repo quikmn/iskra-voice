@@ -331,7 +331,9 @@ public class UpdateTests
         var settings = new Dictionary<string, string> { ["Updates:Version"] = version, ["Updates:Rid"] = rid, ["Updates:AssumeGuard"] = guard.ToString() };
         settings["Updates:AppDir"] = appDir ?? AppDir(); // never the test binaries' folder
         if (managedBy is not null) settings["Updates:ManagedBy"] = managedBy;
-        return new IskraServer { Settings = settings };
+        var server = new IskraServer { Settings = settings };
+        server.Services.GetRequiredService<UpdateService>().VerifyAttestations = FakeReleaseFeed.Verify;
+        return server;
     }
 
     [Fact]
@@ -405,11 +407,15 @@ public class UpdateTests
         Assert.Equal("bad_request", (await owner.RequestAsync("update.settings", new { channel = "nightly" })).ErrorCode());
         Assert.Equal("bad_request", (await owner.RequestAsync("update.settings", new { window = "25:00" })).ErrorCode());
         Assert.Equal("bad_request", (await owner.RequestAsync("update.settings", new { window = "4:00" })).ErrorCode());
-        var status = (await owner.RequestAsync("update.settings", new { mode = "auto", window = "03:30", requireAttestation = true })).Body().GetProperty("status");
+        // Attestations are checked by default; the owner can turn that off (and it's logged).
+        Assert.True((await owner.RequestAsync("update.status")).Body().GetProperty("status").GetProperty("requireAttestation").GetBoolean());
+        var status = (await owner.RequestAsync("update.settings", new { mode = "auto", window = "03:30", requireAttestation = false })).Body().GetProperty("status");
         Assert.Equal("auto", status.GetProperty("mode").GetString());
         Assert.Equal("03:30", status.GetProperty("window").GetString());
-        Assert.True(status.GetProperty("requireAttestation").GetBoolean());
+        Assert.False(status.GetProperty("requireAttestation").GetBoolean());
         Assert.Equal("03:30", server.World.Settings.Updates.Window);
+        Assert.False(server.World.Settings.Updates.VerifyAttestation);
+        Assert.Contains("\"verifyAttestation\":false", server.World.Store.SecurityEvents("update.settings", null, null, 10).First().Details);
     }
 
     [Theory]
@@ -528,14 +534,13 @@ public class UpdateTests
         var package = ServerPackage();
         server.Releases.Publish("2.1.0", package,
             sums: failure == "checksum" ? $"{new string('b', 64)}  {UpdatePicker.PackageName("2.1.0", "linux-x64")}\n" : null,
-            digest: failure == "digest" ? new string('c', 64) : null);
+            digest: failure == "digest" ? new string('c', 64) : null, attested: failure != "attestation");
         var updates = server.Services.GetRequiredService<UpdateService>();
         var restarted = false;
         updates.Restart = () => restarted = true;
         updates.CheckRuns = (_, _, _) => failure == "binary" ? throw new UpdateVerificationException("The new version doesn't run on this machine.", "wont_run") : Task.CompletedTask;
         using var owner = await server.JoinAsync("Owner", "owner");
         using var member = await server.JoinAsync("Member");
-        if (failure == "attestation") await owner.RequestAsync("update.settings", new { requireAttestation = true });
 
         await owner.RequestAsync("update.check");
         await owner.RequestAsync("update.install");
@@ -568,24 +573,92 @@ public class UpdateTests
     }
 
     [Fact]
-    public async Task An_attested_package_passes_when_attestation_is_required()
+    public async Task An_attested_package_passes_by_default()
     {
         var app = AppDir();
         using var server = Server(appDir: app);
-        var package = ServerPackage();
-        server.Releases.Publish("2.1.0", package);
-        server.Releases.Attested.Add(Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(package)));
+        server.Releases.Publish("2.1.0", ServerPackage());
         var updates = server.Services.GetRequiredService<UpdateService>();
         var restarted = new TaskCompletionSource();
         updates.Restart = () => restarted.TrySetResult();
         updates.RestartNotice = TimeSpan.Zero;
         updates.CheckRuns = (_, _, _) => Task.CompletedTask;
         using var owner = await server.JoinAsync("Owner", "owner");
-        await owner.RequestAsync("update.settings", new { requireAttestation = true });
         await owner.RequestAsync("update.check");
         await owner.RequestAsync("update.install");
         await restarted.Task.WaitAsync(TimeSpan.FromSeconds(10));
         Assert.True(updates.Status().Attested);
+        Assert.True(updates.Status().RequireAttestation);
+    }
+
+    [Theory]
+    [InlineData("foreign", "attestation_invalid")] // real Sigstore bundles, but for another file
+    [InlineData("junk", "attestation_invalid")]
+    [InlineData("unreachable", "attestation_unknown")]
+    public async Task Attestations_that_dont_verify_stop_the_update_and_turning_the_check_off_lets_it_through(string kind, string code)
+    {
+        var app = AppDir();
+        using var server = Server(appDir: app);
+        var package = ServerPackage();
+        server.Releases.Publish("2.1.0", package, attested: false);
+        var sha = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(package));
+        if (kind == "foreign") server.Releases.Bundles[sha] = AttestationTests.RealBundles();
+        if (kind == "junk") server.Releases.Bundles[sha] = ["{}", "not json", """{"mediaType":"application/vnd.dev.sigstore.bundle.v0.3+json"}"""];
+        server.Releases.AttestationsUnreachable = kind == "unreachable";
+        var updates = server.Services.GetRequiredService<UpdateService>();
+        var restarted = new TaskCompletionSource();
+        updates.Restart = () => restarted.TrySetResult();
+        updates.RestartNotice = TimeSpan.Zero;
+        updates.CheckRuns = (_, _, _) => Task.CompletedTask;
+        using var owner = await server.JoinAsync("Owner", "owner");
+        await owner.RequestAsync("update.check");
+        await owner.RequestAsync("update.install");
+        var status = await WaitForState(owner, "failed");
+        Assert.Equal(code, status.GetProperty("errorCode").GetString());
+        Assert.Equal("server old", File.ReadAllText(Path.Combine(app, "iskra-server")));
+        Assert.Contains(code, server.World.Store.SecurityEvents("update.failed", null, null, 10).Single().Details);
+
+        // The owner's explicit choice: install without it (the status still says it isn't attested).
+        await owner.RequestAsync("update.settings", new { requireAttestation = false });
+        await owner.RequestAsync("update.install");
+        await restarted.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Equal("server new", File.ReadAllText(Path.Combine(app, "iskra-server")));
+        Assert.Equal(kind == "unreachable" ? null : false, updates.Status().Attested);
+    }
+
+    [Fact]
+    public void Older_server_json_files_verify_attestations_and_an_explicit_off_stays_off()
+    {
+        // Older versions wrote "RequireAttestation": false into every server.json: that's no longer read.
+        foreach (var (json, expected) in new[]
+        {
+            ("""{ "Updates": { "Mode": "auto", "RequireAttestation": false } }""", true),
+            ("""{ "Updates": { "Mode": "auto", "RequireAttestation": true } }""", true),
+            ("""{ "Name": "x" }""", true),
+            ("""{ "Updates": { "Mode": "auto", "VerifyAttestation": false } }""", false),
+        })
+        {
+            var dir = Path.Combine(Path.GetTempPath(), "iskra-world-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                File.WriteAllText(Path.Combine(dir, "server.json"), json);
+                using (var world = Iskra.Server.Storage.World.OpenOrCreate(dir))
+                {
+                    Assert.Equal(expected, world.Settings.Updates.VerifyAttestation);
+                    // The next save writes the new name and drops the old one.
+                    world.UpdateSettings(s => s with { Updates = s.Updates with { Window = "05:00" } });
+                }
+                var saved = JsonNode.Parse(File.ReadAllText(Path.Combine(dir, "server.json")))!["Updates"]!.AsObject();
+                Assert.Equal(expected, saved["VerifyAttestation"]!.GetValue<bool>());
+                Assert.False(saved.ContainsKey("RequireAttestation"));
+            }
+            finally
+            {
+                Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+                try { Directory.Delete(dir, recursive: true); } catch (IOException) { }
+            }
+        }
     }
 
     [Fact]

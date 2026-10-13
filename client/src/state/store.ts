@@ -223,7 +223,15 @@ export async function boot(): Promise<void> {
   }
   useApp.setState({ phase: 'ready', identity, profile })
   for (const server of saved) connectServer(server.url, server.serverKey, server.name, server.invite, !!server.invite, server.p2p)
-  if (saved.length) useApp.setState({ activeServer: saved[0].serverKey })
+  const first = saved.find((s) => !railHooks.isHidden(s.serverKey)) ?? null
+  if (first) useApp.setState({ activeServer: first.serverKey })
+}
+
+/** Hidden servers (rail.ts fills these in; the store can't import it). */
+export const railHooks = {
+  isHidden: (_key: string): boolean => false,
+  /** Brings a hidden server back: an invite to it, or opening it from a link or notification. */
+  show: (_key: string): void => {},
 }
 
 /**
@@ -260,6 +268,7 @@ export async function completeOnboarding(name: string): Promise<void> {
 
 export function acceptInvite(invite: InviteLink): void {
   useApp.setState({ pendingInvite: null })
+  railHooks.show(invite.serverKey)
   if (useApp.getState().servers[invite.serverKey]?.me) {
     // Already a member: just go there.
     useApp.setState({ activeServer: invite.serverKey })
@@ -544,6 +553,7 @@ export function selectChannel(key: string, channelId: number): void {
 }
 
 export function selectServer(key: string): void {
+  railHooks.show(key)
   useApp.setState({ activeServer: key })
   const channel = activeChannelId(useApp.getState())
   if (channel !== null) selectChannel(key, channel)

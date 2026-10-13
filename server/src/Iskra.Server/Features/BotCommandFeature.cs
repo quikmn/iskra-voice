@@ -36,9 +36,9 @@ public static partial class BotCommandFeature
 
     /// <summary>For <c>welcome.botCommands</c>: every member bot with a non-empty list.</summary>
     public static List<object> All(Store store) =>
-        store.AllBotCommands().Select(c => (object)new { bot = c.AccountKey, commands = Json(c.Commands) }).ToList();
+        store.AllBotCommands().Select(c => (object)new { bot = c.AccountKey, commands = Json(c.Commands), interactions = c.Interactions }).ToList();
 
-    private static JsonElement Json(string raw)
+    internal static JsonElement Json(string raw)
     {
         using var doc = JsonDocument.Parse(raw);
         return doc.RootElement.Clone();
@@ -51,10 +51,11 @@ public static partial class BotCommandFeature
         var raw = list.ToJsonString();
         if (Encoding.UTF8.GetByteCount(raw) > MaxListBytes)
             throw RequestException.BadRequest($"The command list can be at most {MaxListBytes / 1024} KB.");
-        s.World.Store.SetBotCommands(me.AccountKey, list.Count == 0 ? null : raw, s.Now);
+        var interactions = body.OptionalBool("interactions") ?? false;
+        s.World.Store.SetBotCommands(me.AccountKey, list.Count == 0 ? null : raw, s.Now, interactions);
         var commands = Json(raw);
-        s.Hub.Broadcast(Frames.Event("bot.commands", new { bot = me.AccountKey, commands }));
-        return new { commands };
+        s.Hub.Broadcast(Frames.Event("bot.commands", new { bot = me.AccountKey, commands, interactions }));
+        return new { commands, interactions };
     }
 
     /// <summary>Bots with commands that can read and post here: the ones worth suggesting.</summary>
@@ -63,11 +64,13 @@ public static partial class BotCommandFeature
         var store = s.World.Store;
         var channel = ChatFeature.ReadableChannel(s, me, body.Long("channelId"));
         var parent = channel.Kind == "thread" && store.GetThread(channel.Id) is { } thread ? store.GetChannel(thread.ParentId) : channel;
-        if (parent is null || E2eeChannelFeature.IsEncrypted(store, parent) || channel.Kind is not ("text" or "thread" or "voice" or "stage"))
-            return new { bots = Array.Empty<string>() };
+        if (parent is null || channel.Kind is not ("text" or "thread" or "voice" or "stage")) return new { bots = Array.Empty<string>() };
+        // Encrypted channels: bots are never in the chain, but ones that take interactions can answer privately.
+        var encrypted = E2eeChannelFeature.IsEncrypted(store, parent);
         var bots = store.AllBotCommands()
+            .Where(c => !encrypted || c.Interactions)
             .Select(c => store.GetMember(c.AccountKey))
-            .Where(m => m is not null && Permissions.CanSend(m, channel))
+            .Where(m => m is not null && (encrypted ? Permissions.CanRead(m, channel) : Permissions.CanSend(m, channel)))
             .Select(m => m!.AccountKey)
             .ToList();
         return new { bots };
@@ -88,6 +91,16 @@ public static partial class BotCommandFeature
             if (!names.Add(name)) throw RequestException.BadRequest($"The command '{name}' is listed twice.");
             var item = new JsonObject { ["name"] = name, ["description"] = Line(command, "description", MaxDescription, $"/{name}")! };
             if (Line(command, "usage", MaxDescription, $"/{name}", required: false) is { } usage) item["usage"] = usage;
+            if (Line(command, "role", 16, $"/{name}", required: false) is { } role)
+            {
+                if (role is not (Roles.Member or Roles.Trusted or Roles.Admin)) throw RequestException.BadRequest($"/{name}: 'role' must be member, trusted or admin.");
+                item["role"] = role;
+            }
+            if (Line(command, "permission", 32, $"/{name}", required: false) is { } permission)
+            {
+                if (!RoleFeature.PermNames.ContainsKey(permission)) throw RequestException.BadRequest($"/{name}: unknown permission '{permission}'.");
+                item["permission"] = permission;
+            }
             if (Get(command, "options") is { } options)
             {
                 var parsed = Options(options, name);

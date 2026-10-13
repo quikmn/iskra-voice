@@ -107,7 +107,7 @@ function ActivitySettings({ settings, update }: { settings: DesktopSettings; upd
       )}
       <form className="custom-game-add" onSubmit={(e) => { e.preventDefault(); add() }}>
         <input aria-label={t('settings.desktop.gameName')} placeholder={t('settings.desktop.gameName')} maxLength={64} value={name} onChange={(e) => setName(e.target.value)} />
-        <input aria-label={t('settings.desktop.programFile')} placeholder="mygame.exe" maxLength={100} value={program} onChange={(e) => setProgram(e.target.value)} />
+        <input aria-label={t('settings.desktop.programFile')} placeholder={t('common.example', { value: 'mygame.exe' })} maxLength={100} value={program} onChange={(e) => setProgram(e.target.value)} />
         <button className="button" disabled={!name.trim() || !program.trim() || settings.customGames.length >= 30}>{t('common.add')}</button>
       </form>
     </section>

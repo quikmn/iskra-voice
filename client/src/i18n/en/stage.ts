@@ -33,7 +33,7 @@ export const stage = {
   lobby: {
     start: 'Start the stage',
     intro: "Pick a topic. You'll speak first; others join as listeners and can ask to speak.",
-    placeholder: 'Friday game night',
+    placeholder: 'e.g. Friday game night',
     goLive: 'Go live',
     notLive: "This stage isn't live yet",
     waiting: "You'll hear the speakers as soon as a moderator starts it.",

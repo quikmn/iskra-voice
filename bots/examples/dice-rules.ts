@@ -1,5 +1,5 @@
 // The dice bot's rules, kept apart from the bot so they're easy to test.
-import type { Card } from '../sdk/src/index'
+import type { Card, ComponentRow } from '../sdk/src/index'
 
 export interface Roll {
   count: number
@@ -47,4 +47,12 @@ export function rollCard(r: Roll): Card {
       ...(r.modifier ? [{ name: 'Modifier', value: `${r.modifier > 0 ? '+' : ''}${r.modifier}`, inline: true }] : []),
     ],
   }
+}
+
+/** "2d6+1": what was rolled, as dice notation. */
+export const notation = (r: Roll) => `${r.count}d${r.sides}${r.modifier ? (r.modifier > 0 ? '+' : '') + r.modifier : ''}`
+
+/** The "Roll again" button under a roll: its customId says what to roll ("roll:2d6"). */
+export function rollAgain(r: Roll): ComponentRow[] {
+  return [{ type: 'row', items: [{ type: 'button', customId: `roll:${notation(r)}`, label: 'Roll again', style: 'primary' }] }]
 }

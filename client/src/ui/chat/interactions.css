@@ -1,0 +1,45 @@
+/* ── Bot interactions: buttons, menus, the tray above the composer ──── */
+.bot-components { display: grid; gap: 6px; margin-top: 6px; max-width: 520px; }
+.bot-component-row { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.bot-button {
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+  padding: 6px 12px; border-radius: calc(var(--radius) * 0.7); font-weight: 600; font-size: 14px;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-height: 32px;
+  display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+}
+.bot-button:hover:not(:disabled) { background: var(--surface-3); }
+.bot-button:disabled { opacity: 0.5; cursor: default; }
+.bot-button.primary { background: var(--accent); border-color: transparent; color: var(--on-accent); }
+.bot-button.primary:hover:not(:disabled) { background: var(--accent-strong); }
+.bot-button.success { border-color: color-mix(in srgb, var(--green) 55%, transparent); background: color-mix(in srgb, var(--green) 14%, var(--surface-2)); }
+.bot-button.danger { border-color: color-mix(in srgb, var(--red) 55%, transparent); background: color-mix(in srgb, var(--red) 12%, var(--surface-2)); }
+.bot-button.link { color: var(--accent-2); }
+.bot-button-host { font-weight: 400; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+.bot-select { max-width: 100%; min-height: 32px; }
+.bot-multiselect { display: grid; gap: 4px; border: 1px solid var(--border); border-radius: calc(var(--radius) * 0.7); padding: 6px 10px 10px; margin: 0; min-width: 0; }
+.bot-multiselect legend { font-size: 13px; color: var(--text-2); padding: 0 4px; }
+.bot-multiselect .button { justify-self: start; padding: 6px 12px; }
+
+.interaction-line { font-size: 12px; color: var(--muted); margin: 0 0 2px; }
+
+.interaction-tray { display: grid; gap: 6px; padding: 0 16px 6px; max-height: 45vh; overflow-y: auto; }
+.private-answer {
+  border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--border)); border-radius: var(--radius);
+  background: var(--surface-2); padding: 8px 12px; min-width: 0; overflow-wrap: anywhere;
+}
+.private-answer header { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 14px; }
+.private-answer .private-label { font-size: 12px; color: var(--muted); }
+.private-answer header .link { margin-left: auto; font-size: 12px; }
+.private-answer .message-text { margin-top: 4px; }
+.interaction-pending { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); }
+.interaction-pending.failed { color: var(--red); }
+.interaction-pending .link { margin-left: auto; }
+.bot-form { display: grid; gap: 10px; }
+.bot-form .field { display: grid; gap: 4px; }
+.bot-form textarea, .bot-form input { width: 100%; }
+.command-e2ee-note { font-size: 12px; color: var(--amber); padding: 6px 10px 2px; }
+
+@media (max-width: 600px) {
+  .interaction-tray { padding: 0 8px 6px; }
+  .bot-button { min-height: 40px; }
+}

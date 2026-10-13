@@ -34,7 +34,7 @@ export const stage: Messages['stage'] = {
   lobby: {
     start: 'Starta scenen',
     intro: 'Välj ett ämne. Du talar först; andra går med som lyssnare och kan be om att få tala.',
-    placeholder: 'Spelkväll på fredag',
+    placeholder: 't.ex. Spelkväll på fredag',
     goLive: 'Sänd live',
     notLive: 'Scenen är inte live än',
     waiting: 'Du hör talarna så fort en moderator startar den.',

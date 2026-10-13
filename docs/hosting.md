@@ -177,7 +177,7 @@ As the owner, open **Settings → Updates**. It shows the version the server run
 **How an automatic update works:**
 
 1. The server downloads the package for its system (`iskra-server-<version>-linux-x64.tar.gz`) and the release's `SHA256SUMS.txt`, from `github.com/quikmn/iskra-voice` over HTTPS only.
-2. It checks the package's SHA-256 against `SHA256SUMS.txt` **and** against the checksum GitHub lists for the file, and that the archive holds nothing but plain files at its top level. It runs the new `iskra-server version` to make sure it starts on this machine. Anything that doesn't match stops the update; nothing has been replaced yet.
+2. It checks the package's SHA-256 against `SHA256SUMS.txt` **and** against the checksum GitHub lists for the file, verifies its signed build attestation (see the trust model below), and that the archive holds nothing but plain files at its top level. It runs the new `iskra-server version` to make sure it starts on this machine. Anything that doesn't match stops the update; nothing has been replaced yet.
 3. It swaps the new files in (the old ones go to `.update/previous/` next to `iskra-server`), tells everyone *"restarting for an update"*, and exits; systemd starts the new version a few seconds later. Members' apps reconnect by themselves.
 4. The new version confirms itself after running for a minute. If it fails to start three times before that, `iskra-update-guard` puts the previous version back and the owner sees *"the update didn't start"*; that version isn't tried again automatically.
 
@@ -185,7 +185,7 @@ Every check you start, change of setting, install, failure, finished update and 
 
 Automatic updates need: the systemd unit above with the `ExecStartPre` line (Settings → Updates says so if it's missing; `iskra-update-guard` comes in the Linux package), and the server's user owning the folder `iskra-server` is in (`chown -R iskra:iskra /opt/iskra`). Updates never touch the world folder. Database changes in new versions are forward-only, so a rolled-back version runs on a database the new one may already have migrated; that's why a version only confirms after it has started cleanly, and why daily backups exist.
 
-**What the checks prove (trust model).** The download comes over TLS from GitHub, and the checksums come from the same GitHub release. That catches corrupted or truncated downloads and anyone tampering between GitHub and you. It does *not* protect against someone who can publish releases on the Iskra repository, since they could replace the package and `SHA256SUMS.txt` together. For that, releases carry [build-provenance attestations](https://docs.github.com/actions/security-for-github-actions/using-artifact-attestations): the server asks GitHub whether one exists for the exact file and shows it, and **Only install releases with a GitHub build attestation** makes it required. The server doesn't verify the attestation's Sigstore signature itself; to do that, run `gh attestation verify <file> -R quikmn/iskra-voice` before updating by hand. If you'd rather review every release first, use **Tell me**.
+**What the checks prove (trust model).** The download comes over TLS from GitHub, and the checksums come from the same GitHub release. That catches corrupted or truncated downloads and anyone tampering between GitHub and you. It does *not* protect against someone who can publish releases on the Iskra repository, since they could replace the package and `SHA256SUMS.txt` together. For that, releases carry [build-provenance attestations](https://docs.github.com/actions/security-for-github-actions/using-artifact-attestations), and the server verifies them itself before installing (on by default: **Check the signed build attestation**). It gets the Sigstore bundles for the exact file from GitHub and checks them on the server, with Sigstore's root built into Iskra: the signature must come from Iskra's release workflow running on GitHub's own runners for this version (not from a person's account), be in Sigstore's public transparency log, and name this file with its SHA-256. Someone who only gets into the GitHub account can still publish a release, but can't make a matching attestation for a changed file without also changing the release workflow, which shows in the public log. A release without an attestation (or one that doesn't verify) is never installed automatically; **Settings → Updates** says why, and you can install it by hand. Turning the check off (in Settings → Updates, or `"VerifyAttestation": false` in server.json) is logged and shows a warning. Sigstore adds new signing keys now and then; a server too old to know a new one refuses that update with *"doesn't verify"* until you update it by hand once. To check a file yourself: `gh attestation verify <file> -R quikmn/iskra-voice`. If you'd rather review every release first, use **Tell me**.
 
 The server only asks GitHub's public API (no account; 60 requests an hour per IP, and an unchanged list doesn't count), and tells GitHub nothing beyond what any request does (its IP address) and its version in the `User-Agent`.
 
@@ -289,7 +289,7 @@ Voice channels, stages, DM and group calls and watch parties all use the same vo
 The GIF picker uses [KLIPY](https://docs.klipy.com) (Google closed Tenor's API in June 2026). It's off until an admin adds a key:
 
 1. Sign up at the KLIPY Partner Panel and create an API key for your server. Leave ads **off**.
-2. In Iskra: **Server settings → Overview**, under GIFs, paste the key and click **Turn on**.
+2. In Iskra: **Server settings → GIFs**, paste the key and click **Turn on**.
 
 There are two modes:
 
@@ -306,7 +306,8 @@ Members can turn on live captions in calls. The speech recognition runs on their
 (Whisper base, about 78 MB) comes from your server: the first time someone turns captions on, your server downloads
 it once from Hugging Face (at a pinned version, every byte checked against pinned SHA-256 hashes) into the `models/`
 folder, and serves it to members' apps from then on. So their devices only talk to your server, and Hugging Face only
-sees your server, once. It takes about **78 MB of disk space** (plan for 100 MB). The security log notes the
+sees your server, once. Only members get it: their app asks your server for a short-lived link first, so nobody else
+can download it from your server or make it fetch the model. It takes about **78 MB of disk space** (plan for 100 MB). The security log notes the
 download. To not offer captions at all, set `"Captions": { "ModelDownload":
 false }` in server.json and restart; the apps then say this server doesn't offer captions. Deleting `models/` is
 safe: it's fetched again the next time someone needs it.
@@ -428,7 +429,7 @@ iskra-server import-discord my-server export.zip              # add --read-only 
     "Mode": "notify",                  // "off" | "notify" (tell the owner) | "auto" (also install; Linux with systemd)
     "Channel": "stable",               // "stable" | "prerelease" (also test versions)
     "Window": "04:00",                 // automatic installs start within the hour after this (server time)
-    "RequireAttestation": false        // only install releases with a GitHub build attestation
+    "VerifyAttestation": true          // only install releases whose build attestation verifies (older "RequireAttestation" is ignored)
   },
   "Retention": {                       // how long data is kept, in days; 0 = forever (Settings → Security log)
     "MessagesDays": 0,                 // channel messages, and encrypted DM and group envelopes

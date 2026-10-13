@@ -11,7 +11,7 @@ public static class ChatFeature
 
     public static void Register(Router router)
     {
-        router.Add("chat.send", Send);
+        router.Add("chat.send", (s, me, body) => Send(s, me, body));
         router.Add("chat.edit", Edit);
         router.Add("chat.delete", Delete);
         router.Add("chat.history", History);
@@ -39,7 +39,8 @@ public static class ChatFeature
 
     private static object View(Session s, Message m) => MessageViews.Public(s.World.Store, m);
 
-    private static object Send(Session s, Member me, Body body)
+    /// <param name="saved">Runs once the message is stored, before anyone hears of it (interaction answers stamp it).</param>
+    internal static object Send(Session s, Member me, Body body, Action<Message>? saved = null)
     {
         var channel = ReadableChannel(s, me, body.Long("channelId"));
         if (channel.Kind is not ("text" or "thread" or "voice" or "stage")) throw RequestException.BadRequest("You can't send messages to that channel.", "cant_send_there");
@@ -55,8 +56,9 @@ public static class ChatFeature
             if (file is null || file.Uploader != me.AccountKey) throw RequestException.BadRequest("Unknown attachment.");
         }
         var cards = BotCommandFeature.Parse(s, me, body);
+        var components = BotComponents.Parse(s, me, body);
         var rawText = body.OptionalString("text", MaxMessageLength * 2) ?? "";
-        var text = rawText.Trim().Length == 0 && (attachments.Length > 0 || cards is { Json: not "[]" } || body.OptionalString("sticker", 64) is not null || body.OptionalElement("gif") is not null)
+        var text = rawText.Trim().Length == 0 && (attachments.Length > 0 || cards is { Json: not "[]" } || components is { Count: > 0 } || body.OptionalString("sticker", 64) is not null || body.OptionalElement("gif") is not null)
             ? ""
             : Text.Normalize(rawText, MaxMessageLength, allowNewlines: true)
               ?? throw RequestException.BadRequest($"Messages must be 1–{MaxMessageLength} characters.", "message_length", new { max = MaxMessageLength });
@@ -86,11 +88,15 @@ public static class ChatFeature
         if (sticker is not null) s.World.Store.SetMessageSticker(message.Id, sticker);
         GifFeature.Saved(s.World.Store, message, gif);
         BotCommandFeature.Saved(s.World.Store, message.Id, cards);
+        if (components is { Count: > 0 }) s.World.Store.SetMessageComponents(message.Id, components.ToJsonString());
+        saved?.Invoke(message);
         var publicMessage = View(s, message);
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.message", new { message = publicMessage, nonce }));
         ThreadFeature.Touched(s, channel);
         s.Push.ChatMessage(channel, message);
+        s.Hub.Outhooks?.MessageCreated(channel, message);
         InboxFeature.Record(s, channel, message);
+        BuiltinBotFeature.Heard(s, me, channel, message);
         return new { message = publicMessage, nonce };
     }
 
@@ -125,12 +131,15 @@ public static class ChatFeature
 
         // Bots may replace their cards; with cards the text may be empty.
         var cards = BotCommandFeature.Parse(s, me, body);
-        var hasCards = cards is { Json: not "[]" } || (cards is null && s.World.Store.GetMessageCards(message.Id) is not null);
+        var components = BotComponents.Parse(s, me, body);
+        var hasCards = cards is { Json: not "[]" } || (cards is null && s.World.Store.GetMessageCards(message.Id) is not null)
+            || components is { Count: > 0 } || (components is null && s.World.Store.GetMessageComponents(message.Id) is not null);
         var text = hasCards && (body.OptionalString("text", MaxMessageLength * 2) ?? "").Trim().Length == 0 ? "" : MessageText(body);
         AutoModFeature.Check(s, me, channel, text, "edit");
         if (text != message.Text) EditHistoryFeature.Record(s.World.Store, message);
         s.World.Store.EditMessage(message.Id, text, s.Now);
         if (cards is { } newCards) s.World.Store.SetMessageCards(message.Id, newCards.Json == "[]" ? null : newCards.Json, newCards.Files);
+        if (components is not null) s.World.Store.SetMessageComponents(message.Id, components.Count == 0 ? null : components.ToJsonString());
         var edited = View(s, message with { Text = text, EditedAt = s.Now });
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.edited", new { message = edited }));
         ForumFeature.Edited(s, channel, message);
@@ -181,7 +190,9 @@ public static class ChatFeature
         var reactions = s.World.Store.Reactions(message.Id);
         if (on && !reactions.Any(r => r.Emoji == emoji) && reactions.Count >= MaxReactionsPerMessage)
             throw RequestException.BadRequest("This message has too many different reactions.", "reactions_full");
+        var had = reactions.Any(r => r.Emoji == emoji && r.Accounts.Contains(me.AccountKey));
         s.World.Store.SetReaction(message.Id, me.AccountKey, emoji, on, s.Now);
+        if (on && !had) s.Hub.Outhooks?.ReactionAdded(channel, message, me.AccountKey, emoji);
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.reactions",
             new { id = message.Id, channelId = channel.Id, reactions = MessageViews.Reactions(s.World.Store, message.Id) }));
         return null;

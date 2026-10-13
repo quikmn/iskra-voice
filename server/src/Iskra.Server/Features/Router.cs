@@ -15,7 +15,8 @@ public sealed class Router
     private readonly ILogger<Router> _log;
 
     public Router(ILogger<Router> log, Hosting.InternetHost internet, Backups.BackupService backups, Import.ImportService imports,
-        DataExports exports, Updates.UpdateService updates, Hosting.TunnelListener tunnel, Voice.LiveKitHost livekit)
+        DataExports exports, Updates.UpdateService updates, Captions.CaptionModelService captions,
+        Hosting.TunnelListener tunnel, Voice.LiveKitHost livekit)
     {
         _log = log;
         Add("ping", (_, _, _) => new { });
@@ -73,6 +74,11 @@ public sealed class Router
         KeyLogFeature.Register(this);
         E2eeChannelFeature.Register(this);
         BotCommandFeature.Register(this);
+        Captions.CaptionModelFeature.Register(this, captions);
+        OutgoingWebhookFeature.Register(this);
+        BuiltinBotFeature.Register(this);
+        BotScope.Register(this);
+        InteractionFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);
@@ -82,7 +88,7 @@ public sealed class Router
 
     public void Handle(Session session, Member me, Envelope request)
     {
-        if ((ModerationFeature.Gate(session, me, request.Type) ?? RulesFeature.Gate(session, me, request.Type)) is { } refused)
+        if ((ModerationFeature.Gate(session, me, request.Type) ?? RulesFeature.Gate(session, me, request.Type) ?? BotScope.Gate(session, me, request.Type)) is { } refused)
         {
             session.Send(Frames.Error(request.Id, refused.Code, refused.Message, refused.Extra));
             return;
@@ -121,7 +127,7 @@ public sealed class Router
     /// </summary>
     public object? Invoke(Session session, Member me, string type, System.Text.Json.JsonElement body)
     {
-        if ((ModerationFeature.Gate(session, me, type) ?? RulesFeature.Gate(session, me, type)) is { } refused) throw refused;
+        if ((ModerationFeature.Gate(session, me, type) ?? RulesFeature.Gate(session, me, type) ?? BotScope.Gate(session, me, type)) is { } refused) throw refused;
         if (session.World.Moved is { } moved) throw new RequestException("moved", $"This server has moved to {moved.Url}.");
         if (!_handlers.TryGetValue(type, out var handler)) throw new RequestException("unknown_type", $"Unknown type '{Truncate(type, 64)}'.");
         var result = handler(session, me, new Body(body));

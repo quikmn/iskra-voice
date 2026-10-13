@@ -29,8 +29,9 @@ export const updates = {
   installBetweenHint: 'and an hour later (server time)',
   windowInvalid: 'Pick a time like 04:00.',
   prereleases: 'Include test versions (prereleases)',
-  requireAttestation: 'Only install releases with a GitHub build attestation',
-  verifyNote: 'Every download is checked against the release’s SHA256SUMS.txt and GitHub’s own checksum before anything is replaced.',
+  requireAttestation: 'Check the signed build attestation (recommended)',
+  attestationOff: 'Off: the server installs whatever is published on Iskra’s GitHub, so anyone who got into that account could ship an update to your server. Turn it back on unless you check each release yourself.',
+  verifyNote: 'Every download is checked against the release’s SHA256SUMS.txt, GitHub’s own checksum and its build attestation (signed by Iskra’s release workflow, checked on this server) before anything is replaced.',
   blocked: {
     desktop: 'This server runs in the Iskra desktop app and updates together with it.',
     development: 'This is a development build; it doesn’t update.',
@@ -57,8 +58,9 @@ export const updates = {
     github_checksum: 'The download doesn’t match GitHub’s checksum for it.',
     package: 'The package contains something it shouldn’t.',
     wont_run: 'The new version doesn’t run on this machine.',
-    attestation_missing: 'GitHub has no build attestation for this package.',
-    attestation_unknown: 'Couldn’t ask GitHub about the package’s build attestation.',
+    attestation_missing: 'This release has no build attestation, so it isn’t installed automatically. Install it by hand, or turn off the attestation check.',
+    attestation_invalid: 'The package’s build attestation doesn’t verify, so it wasn’t installed.',
+    attestation_unknown: 'Couldn’t get the package’s build attestation from GitHub. It’s tried again later.',
   },
   notice: {
     available: 'Update available for {{server}}: Iskra {{version}}.',

@@ -46,7 +46,7 @@ export const automod = {
     hint: 'Whole words, ignoring case, accents and look-alike letters. Use * for any letters: bad* also blocks badly.',
     blocked: 'Blocked words and phrases (one per line) · {{count}}/{{max}}',
     blockedLabel: 'Blocked words and phrases',
-    blockedPlaceholder: 'badword\nbad*\nsome phrase',
+    blockedPlaceholder: 'For example:\nbadword\nbad*\nsome phrase',
     allowed: 'Allowed anyway (optional)',
     allowedLabel: 'Allowed words',
     allowedPlaceholder: "Words a wildcard shouldn't catch",
@@ -84,7 +84,7 @@ export const automod = {
     all: 'All links',
     allowed: 'Allowed sites (one per line)',
     allowedLabel: 'Allowed sites',
-    allowedPlaceholder: 'youtube.com\ngithub.com',
+    allowedPlaceholder: 'For example:\nyoutube.com\ngithub.com',
   },
   alerts: {
     title: 'Alerts',

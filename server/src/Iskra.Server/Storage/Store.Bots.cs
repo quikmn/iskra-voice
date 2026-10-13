@@ -40,29 +40,50 @@ public sealed partial class Store
 
     // ── Bot accounts ─────────────────────────────────────────────────────────
 
-    private HashSet<string>? _bots;
+    /// <summary>Bot account → whether it may read all messages (see BotScope).</summary>
+    private Dictionary<string, bool>? _bots;
+
+    private Dictionary<string, bool> Bots() =>
+        _bots ??= Query("SELECT account_key, read_all FROM bots;", r => (Key: r.GetString(0), ReadAll: r.GetInt64(1) != 0))
+            .ToDictionary(b => b.Key, b => b.ReadAll, StringComparer.Ordinal);
 
     /// <summary>Asked for every member on every broadcast, so it's cached in memory.</summary>
     public bool IsBot(string accountKey)
     {
-        lock (_gate)
-        {
-            _bots ??= Query("SELECT account_key FROM bots;", r => r.GetString(0)).ToHashSet(StringComparer.Ordinal);
-            return _bots.Contains(accountKey);
-        }
+        lock (_gate) return Bots().ContainsKey(accountKey);
     }
 
-    public void AddBot(string accountKey, string invitedBy, long now)
+    /// <summary>A bot that may read every message in the channels it can see (people: false).</summary>
+    public bool BotReadsAll(string accountKey)
+    {
+        lock (_gate) return Bots().TryGetValue(accountKey, out var all) && all;
+    }
+
+    public void AddBot(string accountKey, string invitedBy, long now, bool readAll = true)
     {
         lock (_gate)
         {
             Exec("INSERT OR IGNORE INTO bots (account_key, invited_by, created_at) VALUES ($key, $by, $now);",
                 ("$key", accountKey), ("$by", invitedBy), ("$now", now));
-            _bots?.Add(accountKey);
+            Exec("UPDATE bots SET read_all = $all WHERE account_key = $key;", ("$key", accountKey), ("$all", readAll ? 1 : 0));
+            _bots = null;
         }
     }
 
-    public void MarkBotInvite(string code) => Exec("INSERT OR IGNORE INTO bot_invites (code) VALUES ($code);", ("$code", code));
+    public void SetBotReadAll(string accountKey, bool readAll)
+    {
+        lock (_gate)
+        {
+            Exec("UPDATE bots SET read_all = $all WHERE account_key = $key;", ("$key", accountKey), ("$all", readAll ? 1 : 0));
+            _bots = null;
+        }
+    }
+
+    public void MarkBotInvite(string code, bool readAll = false) =>
+        Exec("INSERT OR IGNORE INTO bot_invites (code, read_all) VALUES ($code, $all);", ("$code", code), ("$all", readAll ? 1 : 0));
+
+    public bool BotInviteReadsAll(string code) =>
+        Scalar("SELECT read_all FROM bot_invites WHERE code = $code;", ("$code", code)) is long all && all != 0;
 
     public bool IsBotInvite(string code) => Scalar("SELECT 1 FROM bot_invites WHERE code = $code;", ("$code", code)) is not null;
 

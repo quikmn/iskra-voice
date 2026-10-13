@@ -19,7 +19,7 @@ export const organize: Messages['organize'] = {
     rename: 'Byt namn på kategori',
     create: 'Skapa kategori',
     name: 'Namn',
-    placeholder: 'Spel',
+    placeholder: 't.ex. Spel',
     hint: 'Dra in kanaler i den, eller flytta dit dem från kanalens meny. Alla ser bara de kanaler de kan öppna.',
   },
   channelSettings: {
@@ -43,7 +43,7 @@ export const organize: Messages['organize'] = {
   folder: {
     title: 'Mappinställningar',
     name: 'Mappnamn',
-    placeholder: 'Gaming',
+    placeholder: 't.ex. Gaming',
     colour: 'Färg',
     colourLabel: 'Mappfärg',
     colourOption: 'Färg {{color}}',
@@ -117,6 +117,8 @@ export const organize: Messages['organize'] = {
     label: 'Avisera mig om',
     unmuteServer: 'Sluta tysta servern',
     muteServer: 'Tysta servern',
+    defaultSmall: 'Du har inte valt något, så det blir alla meddelanden: {{server}} har färre än {{max}} personer.',
+    defaultBig: 'Du har inte valt något, så det blir bara @omnämnanden: {{server}} har {{max}} personer eller fler.',
     notMuted: 'Inte tystad',
     hint: 'Gäller aviseringar på den här enheten och push på alla dina enheter. Tystade kanaler och servrar tonas ner och visar bara märken för @omnämnanden. Välj nivå för en enskild kanal i dess ⋯-meny.',
   },

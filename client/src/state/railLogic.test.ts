@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { moveFolder, moveServer, newFolder, parseLayout, stepServer, ungroup, updateFolder, visibleRail, type RailItem, type RailLayout } from './railLogic'
+import { hiddenServers, moveFolder, moveServer, newFolder, parseLayout, withHidden, stepServer, ungroup, updateFolder, visibleRail, type RailItem, type RailLayout } from './railLogic'
 
 const k = (c: string) => c.repeat(43)
 const [A, B, C, D] = ['a', 'b', 'c', 'd'].map(k)
@@ -11,6 +11,23 @@ const fid = () => `f-${++n}`
 const folderId = (items: RailItem[]) => (items.find((i) => i.kind === 'folder') as { id: string }).id
 
 describe('rail layout', () => {
+  it('leaves hidden servers off the rail, in folders too, and shows them again', () => {
+    const layout: RailLayout = { items: [{ kind: 'folder', id: 'f-1', name: '', color: '#7c6fff', servers: [A, B], collapsed: false }], hidden: [B, D], updatedAt: 1 }
+    expect(ids(visibleRail(layout, order))).toBe('[a] c')
+    expect(hiddenServers(layout, order).map((x) => x[0])).toEqual(['b', 'd'])
+    expect(withHidden(layout, D, false)).toEqual([B])
+    expect(withHidden(layout, C, true)).toEqual([B, D, C])
+    // Moving a server keeps the others hidden; stepping skips hidden ones.
+    expect(ids(stepServer(layout, order, C, -1))).toContain('c')
+    expect(visibleRail({ ...layout, items: moveServer(layout, order, C, { kind: 'before', target: A }, fid) }, order).some((i) => i.kind === 'server' && i.key === D)).toBe(false)
+  })
+
+  it('reads the hidden list from another device carefully', () => {
+    expect(parseLayout({ items: [], updatedAt: 2, hidden: [A, A, 'nope', 5] })).toEqual({ items: [], hidden: [A], updatedAt: 2 })
+    expect(parseLayout({ items: [], updatedAt: 2, hidden: 'x' })).toBeNull()
+    expect(parseLayout({ items: [], updatedAt: 2 })).toEqual({ items: [], updatedAt: 2 })
+  })
+
   it('shows every server on this device, new ones last, and hides others', () => {
     const layout = L([{ kind: 'server', key: k('z') }, { kind: 'server', key: C }, { kind: 'folder', id: 'f-1', name: '', color: '#7c6fff', servers: [k('y'), B], collapsed: false }])
     expect(ids(visibleRail(layout, order))).toBe('c [b] a d')

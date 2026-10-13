@@ -89,6 +89,10 @@ public sealed class UpdateService : BackgroundService
     /// <summary>Runs the unpacked binary to check it works here. Tests replace it.</summary>
     internal Func<string, string, CancellationToken, Task> CheckRuns { get; set; } = UpdateInstaller.CheckRunsAsync;
 
+    /// <summary>Verifies the attestations GitHub gave for a package (bundles, name, SHA-256, version). Tests wrap it.</summary>
+    internal Func<IReadOnlyList<string>?, string, string, string, CancellationToken, Task<AttestationResult>> VerifyAttestations { get; set; } =
+        (bundles, name, sha, version, cancel) => Attestations.VerifyAsync(bundles, name, sha, version, Attestations.PinnedRoot, cancel);
+
     /// <summary>How long members are warned before the restart.</summary>
     internal TimeSpan RestartNotice { get; set; } = TimeSpan.FromSeconds(5);
 
@@ -142,7 +146,7 @@ public sealed class UpdateService : BackgroundService
         {
             var newest = CanCheck ? Newest() : null;
             return new UpdateStatus(
-                Env.Current, Env.ManagedByDesktop ? "off" : settings.Mode, settings.Channel, settings.Window, settings.RequireAttestation,
+                Env.Current, Env.ManagedByDesktop ? "off" : settings.Mode, settings.Channel, settings.Window, settings.VerifyAttestation,
                 Env.ManagedByDesktop ? "desktop" : null, CanCheck, Auto(),
                 newest is null ? null : new LatestRelease(newest.Version, newest.PageUrl, newest.PublishedAt, newest.Prerelease,
                     UpdatePicker.Candidate(newest, Env.Rid) is not null),
@@ -242,12 +246,20 @@ public sealed class UpdateService : BackgroundService
 
             Step("verifying");
             var sha = UpdateVerifier.Verify(download, candidate.Package, sums);
-            var attested = await _feed.HasAttestationAsync(sha, cancel);
-            lock (_gate) _attested = attested;
-            if (Settings.RequireAttestation && attested != true)
-                throw new UpdateVerificationException(attested == false
-                    ? "GitHub has no build attestation for this package."
-                    : "Couldn't ask GitHub about the package's build attestation.", attested == false ? "attestation_missing" : "attestation_unknown");
+            // Signed build provenance: checked (and shown) always, required unless the owner turned it off.
+            var attestation = await VerifyAttestations(await _feed.AttestationsAsync(sha, cancel), candidate.Package.Name, sha, version, cancel);
+            lock (_gate) _attested = attestation switch { AttestationResult.Verified => true, AttestationResult.Unknown => null, _ => false };
+            if (Settings.VerifyAttestation && attestation != AttestationResult.Verified)
+                throw attestation switch
+                {
+                    AttestationResult.Missing => new UpdateVerificationException(
+                        $"Iskra {version} has no build attestation on GitHub, so it isn't installed automatically. Install it by hand, or turn off the attestation check.",
+                        "attestation_missing"),
+                    AttestationResult.Invalid => new UpdateVerificationException(
+                        "The package's build attestation doesn't verify (it isn't signed by Iskra's release workflow for this file), so it wasn't installed.",
+                        "attestation_invalid"),
+                    _ => new UpdateVerificationException("Couldn't get the package's build attestation from GitHub. It's tried again later.", "attestation_unknown"),
+                };
 
             Step("installing");
             var exe = Env.Rid!.StartsWith("win-", StringComparison.Ordinal) ? "iskra-server.exe" : "iskra-server";
@@ -277,7 +289,8 @@ public sealed class UpdateService : BackgroundService
                     HttpRequestException or TaskCanceledException => ("The download failed. Try again later.", "download"),
                     _ => ($"Couldn't install the update: {ex.Message}", "install"),
                 };
-                _failedVersion = version;
+                // GitHub not answering about attestations is passing: the next window tries again.
+                if (_errorCode != "attestation_unknown") _failedVersion = version;
             }
             Log("update.failed", new { version, code = _errorCode });
             TryDelete(download);
@@ -394,7 +407,7 @@ public sealed class UpdateService : BackgroundService
                 Mode = mode ?? w.Updates.Mode,
                 Channel = channel ?? w.Updates.Channel,
                 Window = window ?? w.Updates.Window,
-                RequireAttestation = requireAttestation ?? w.Updates.RequireAttestation,
+                VerifyAttestation = requireAttestation ?? w.Updates.VerifyAttestation,
             },
         });
         if (checkNow && _checkedAt is null) _nextCheck = _time.GetUtcNow();

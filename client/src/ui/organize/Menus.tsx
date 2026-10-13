@@ -52,7 +52,7 @@ export function NotifyViews({ server, channelId, view, setView, run }: {
             <MenuItem checked={current === 'default'} onClick={pick('default')} hint={levelLabel(serverLevel)}>{t('organize.menu.serverDefault')}</MenuItem>
           )}
           {(['all', 'mentions', 'none'] as const).map((level) => (
-            <MenuItem key={level} checked={current === level || (channelId === null && current === 'default' && level === 'mentions')} onClick={pick(level)}>
+            <MenuItem key={level} checked={current === level || (channelId === null && current === 'default' && level === serverLevel)} onClick={pick(level)}>
               {levelLabel(level)}
             </MenuItem>
           ))}

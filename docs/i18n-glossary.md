@@ -12,9 +12,10 @@ exists.
 | Name | Namn | Your Iskra name, everywhere unless a server nickname is set |
 | Server nickname | Smeknamn på servern ("Smeknamn på {{server}}" when the server is named) | Optional, only on one server. Reset: "Use my name" / "Använd mitt namn" |
 | Owner, Admin, Moderator, Trusted, Member, Guest | Ägare, Admin, Moderator, Betrodd, Medlem, Gäst | Roles; plural "admins" in running text |
+| Role, base role | Roll, grundroll | Always "role", never "level"/"nivå". "Base role" only where the built-in one (Owner … Guest) must be told apart from custom roles |
 | Bot, bots | Bot, bottar | |
 | Server | Server | |
-| Channel, text channel, voice channel | Kanal, textkanal, röstkanal | |
+| Channel, text channel, voice channel | Kanal, textkanal, röstkanal | Never "room"/"rum" for a voice channel |
 | Stage | Scen | |
 | Thread | Tråd | |
 | Forum post | Inlägg | |
@@ -35,7 +36,7 @@ exists.
 | Channels | Kanaler |
 | Emoji & stickers | Emoji och klistermärken |
 | GIFs | GIF:ar |
-| Soundboard | Soundboard |
+| Soundboard | Ljudbräda |
 | Profile pages | Profilsidor |
 | Server rules | Serverregler |
 | Members | Medlemmar |
@@ -60,7 +61,8 @@ exists.
 |---|---|
 | Invite friends | Bjud in vänner |
 | Invite link | Inbjudningslänk |
-| Leave server | Lämna servern |
+| Hide server (only off your list) | Dölj servern |
+| Leave server (really leaves) | Lämna servern |
 | Sign out | Logga ut |
 | Kick | Sparka ut |
 | Ban, unban | Bannlysa, häva bannlysningen |
@@ -75,6 +77,7 @@ exists.
 | Preview | Förhandsvisa |
 | Delete / Remove | Radera / Ta bort |
 | Optional | Valfritt |
+| e.g. (example placeholders: "e.g. game-night") | t.ex. ("t.ex. spelkväll") |
 
 ## Features
 
@@ -85,7 +88,7 @@ exists.
 | Event | Evenemang |
 | Sticker | Klistermärke |
 | Emoji | Emoji (no plural ending) |
-| Watch party | Gemensam visning (the button: "Titta tillsammans") |
+| Watch party | Titta tillsammans (as a name, also in running text: "i Titta tillsammans") |
 | Clip | Klipp |
 | Catch up | Kom ikapp |
 | Passkey | Lösenordsnyckel |

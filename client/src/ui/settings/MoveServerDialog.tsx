@@ -120,7 +120,7 @@ export function MoveServerDialog({ server, onClose }: { server: ServerState; onC
           <label className="field">
             <span>{t('settings.move.newAddress')}</span>
             <div className="copy-row">
-              <input value={address} placeholder="https://chat.example.com" autoFocus inputMode="url" autoCapitalize="off" spellCheck={false}
+              <input value={address} placeholder={t('common.example', { value: 'https://chat.example.com' })} autoFocus inputMode="url" autoCapitalize="off" spellCheck={false}
                 onChange={(e) => { setAddress(e.target.value); setChecked('idle') }}
                 onKeyDown={(e) => e.key === 'Enter' && void check()} />
               <button className="button" disabled={!url || checked === 'checking'} onClick={() => void check()}>

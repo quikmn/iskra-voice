@@ -29,8 +29,8 @@ export const compliance: Messages['compliance'] = {
       off: 'De ser din IP-adress. Inget laddas förrän du klickar; glöm en webbplats nedan för att bli tillfrågad igen.',
     },
     watch: {
-      who: 'Videor i gemensamma visningar',
-      when: 'När du trycker på Titta i en gemensam visning som spelas upp från YouTube eller en annan webbplats (inte för videor som laddats upp till servern).',
+      who: 'Videor i Titta tillsammans',
+      when: 'När du trycker på Titta medan Titta tillsammans spelar upp från YouTube eller en annan webbplats (inte för videor som laddats upp till servern).',
       off: 'Den webbplatsen ser din IP-adress. Du kan hoppa över den och stanna kvar i samtalet.',
     },
     gifs: {
@@ -65,6 +65,14 @@ export const compliance: Messages['compliance'] = {
       when: 'Bara om en servers ägare slagit på det i datorappen, och när du går med i en sådan server med datorappen och dess adress inte går att nå: appen pratar med noder i det publika HyperDHT-nätverket (först de tre bootstrap-noderna som Holepunch kör, sedan vilka noder som helst) för att annonsera servern eller hitta den, och sedan direkt med den andra datorn.',
       off: 'De noderna ser din internetadress och nyckeln du annonserar eller slår upp, aldrig vad den är eller vad du säger. Ägaren slår av och på det i Serverinställningar → Internetåtkomst; lämna servern för att sluta.',
     },
+    outgoing: {
+      who: 'Utgående webhooks',
+      when: 'Bara om en admin har lagt till en: din server skickar valda händelser (som nya meddelanden i vissa kanaler, eller folk som går med) till en annan app eller webbplats. Aldrig krypterade kanaler, direktmeddelanden eller gruppchattar.',
+      off: 'Den webbplatsen får det händelsen innehåller (meddelandetext, folks namn), från serverns adress, inte din. Admins hanterar dem i Serverinställningar → Bottar och webhooks.',
+    },
+    outgoingNone: 'Ingen av dina servrar skickar något till andra webbplatser.',
+    outgoingServer: '{{server}} skickar till',
+    outgoingHook: '{{host}} ({{name}}): {{events}}',
     nothingElse: 'Inget annat: ingen analys, inga annonser, inga kraschrapporter, inga typsnitt eller skript från andra webbplatser. Stavningskontrollen är datorns egen (av på Linux, där den skulle hämta ordlistor från Google).',
     sitesTitle: 'Webbplatser som laddas utan att fråga',
     sitesHint: 'Webbplatser du kryssat i "Ladda alltid från …" för, bara på den här enheten.',

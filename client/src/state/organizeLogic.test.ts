@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Category, Channel, NotifySetting } from '../core/protocol'
 import {
-  channelBadges, dropOnCategory, dropOnChannel, effectiveNotify, layoutChannels, muteLabel, nextMuteEnd, shouldNotify, stepCategory, stepChannel,
+  channelBadges, defaultLevel, dropOnCategory, dropOnChannel, effectiveNotify, layoutChannels, muteLabel, nextMuteEnd, shouldNotify, stepCategory, stepChannel,
   type NotifyMap,
 } from './organizeLogic'
 
@@ -86,6 +86,20 @@ describe('notification settings', () => {
     expect(effectiveNotify(map(set(null, null, -1), set(1, 'all')), 1, now).muted).toBe(true)
     expect(effectiveNotify(map(set(1, 'all', 5_000)), 1, now).muted).toBe(false) // over
     expect(effectiveNotify(map(set(1, 'all', -1)), null, now).muted).toBe(false) // the server itself isn't muted
+  })
+
+  it('defaults to all messages below 15 people and only @mentions from 15 on; a choice always wins', () => {
+    expect(defaultLevel(1)).toBe('all')
+    expect(defaultLevel(14)).toBe('all')
+    expect(defaultLevel(15)).toBe('mentions')
+    expect(defaultLevel(400)).toBe('mentions')
+    expect(effectiveNotify(undefined, 1, now, defaultLevel(5))).toEqual({ level: 'all', chosen: 'all', muted: false })
+    expect(effectiveNotify(undefined, 1, now, defaultLevel(50)).chosen).toBe('mentions')
+    expect(effectiveNotify(map(set(null, 'mentions')), 1, now, defaultLevel(5)).chosen).toBe('mentions')
+    expect(effectiveNotify(map(set(1, 'none')), 1, now, defaultLevel(5)).chosen).toBe('none')
+    expect(effectiveNotify(map(set(null, 'all')), 1, now, defaultLevel(50)).chosen).toBe('all')
+    // A muted small server is still quiet.
+    expect(effectiveNotify(map(set(null, null, -1)), 1, now, defaultLevel(5)).level).toBe('mentions')
   })
 
   it('dims muted channels, hides their unread marker, and drops mention badges at Nothing', () => {
