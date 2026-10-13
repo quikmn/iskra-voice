@@ -66,6 +66,7 @@ export const settings: Messages['settings'] = {
     yourRole: 'Din roll',
     notJoined: 'inte med',
     address: 'Adress',
+    connection: 'Anslutning',
     serverId: 'Server-ID',
     removeHint: 'Döljer servern här. Du är kvar som medlem och kan komma tillbaka med valfri inbjudningslänk.',
   },

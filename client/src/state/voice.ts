@@ -16,6 +16,8 @@ import { Listener, type CleanEngine } from './listen'
 import { playTone } from './notify'
 import { screenShareOptions, useScreenShareSettings } from './screenShare'
 import { iosApp } from '../platform/native'
+import { tunnelFor } from './p2p'
+import { routeVoiceThroughTunnel } from './p2pVoice'
 
 export interface VoiceSession {
   serverKey: string
@@ -632,8 +634,11 @@ async function connect(
 
     if (encryption) await next.setE2EEEnabled(true)
     // No STUN servers: the app connects straight to the server's own voice ports, so nobody else (LiveKit's default
-    // list is Google's) learns your address. Overrides whatever list the voice server would hand out.
-    await next.connect(url, token, { rtcConfig: { iceServers: [] } })
+    // list is Google's) learns your address. Overrides whatever list the voice server would hand out. A server reached
+    // through the peer-to-peer tunnel instead gets its own TURN server through the tunnel, relay only (p2pVoice.ts).
+    const tunnel = tunnelFor(session.serverKey)
+    if (tunnel) routeVoiceThroughTunnel(next, tunnel.turnPort)
+    await next.connect(url, token, { rtcConfig: tunnel ? { iceTransportPolicy: 'relay' } : { iceServers: [] } })
     if (room !== next) {
       await next.disconnect()
       return false

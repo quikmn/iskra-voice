@@ -100,6 +100,7 @@ export const errors = {
     owner_updates: 'Only the owner can manage updates.',
     owner_move: 'Only the owner can move this server.',
     owner_internet: 'Only the owner can open the server to the internet.',
+    owner_p2p: 'Only the owner can change how friends connect.',
     call_callee_answer: 'Only the person being called can answer.',
     call_callee_decline: 'Only the person being called can decline.',
     sound_change_owner: 'Only the person who added this sound or an admin can change it.',

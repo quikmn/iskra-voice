@@ -95,3 +95,23 @@
 /* ── Tailscale ─────────────────────────────────────────────────────── */
 .internet-tailscale { margin: 10px 0 0; font-size: 14px; }
 .internet-tailscale code { word-break: break-all; }
+
+/* ── Connect without port forwarding (peer to peer, experimental) ────── */
+.p2p-chip {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  vertical-align: 2px;
+  color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 14%, transparent);
+}
+.p2p-facts { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; font-size: 14px; }
+.p2p-facts li { display: flex; align-items: center; gap: 8px; overflow-wrap: anywhere; }
+.p2p-facts li.good { color: var(--green); }
+.p2p-facts li.warn { color: var(--amber); }
+.p2p-facts code { font-size: 12px; }

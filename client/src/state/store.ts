@@ -31,7 +31,10 @@ export interface PendingMessage extends Message {
 
 export interface ServerState {
   key: string
+  /** Where the app talks to the server right now: `directUrl`, or the desktop app's tunnel to it (state/p2p.ts). */
   url: string
+  /** The server's address as saved and as invite links name it. */
+  directUrl: string
   name: string
   status: ConnectionStatus
   me: Member | null
@@ -48,6 +51,8 @@ export interface ServerState {
   appUrl: string | null
   /** How friends on the internet reach this server (internet hosting), if it's open. */
   publicUrl: string | null
+  /** The server's p2p secret for invite links and the tunnel (from the invite, then the server), while friends may connect without port forwarding. */
+  p2p: string | null
   /** Channels showing an older stretch of history after a jump; new messages wait until you return to the present. */
   detached?: Record<number, boolean>
   /** Added from an invite and never connected yet: if it can't be reached it isn't kept (see dropFailedJoins). */
@@ -84,6 +89,12 @@ const connections = new Map<string, Connection>()
 let authRotations: () => unknown[] = () => []
 export function setAuthRotations(source: () => unknown[]): void {
   authRotations = source
+}
+
+/** Where to connect to a server for the next attempt (state/p2p.ts: its address, or the desktop app's tunnel to it). */
+let urlResolver: (key: string) => Promise<string | null> = async () => null
+export function setUrlResolver(resolver: (key: string) => Promise<string | null>): void {
+  urlResolver = resolver
 }
 
 type ServerEventListener = (serverKey: string, type: keyof Events, body: unknown) => void
@@ -188,10 +199,11 @@ async function persistServers(): Promise<void> {
     order
       .filter((key) => servers[key])
       .map((key) => ({
-        url: servers[key].url,
+        url: servers[key].directUrl,
         serverKey: key,
         name: servers[key].name,
         invite: servers[key].me ? undefined : byKey.get(key)?.invite,
+        p2p: servers[key].p2p ?? byKey.get(key)?.p2p,
       })),
   )
 }
@@ -210,7 +222,7 @@ export async function boot(): Promise<void> {
     return
   }
   useApp.setState({ phase: 'ready', identity, profile })
-  for (const server of saved) connectServer(server.url, server.serverKey, server.name, server.invite, !!server.invite)
+  for (const server of saved) connectServer(server.url, server.serverKey, server.name, server.invite, !!server.invite, server.p2p)
   if (saved.length) useApp.setState({ activeServer: saved[0].serverKey })
 }
 
@@ -253,7 +265,7 @@ export function acceptInvite(invite: InviteLink): void {
     useApp.setState({ activeServer: invite.serverKey })
     return
   }
-  connectServer(invite.serverUrl, invite.serverKey, invite.serverUrl.replace(/^https?:\/\//, ''), invite.code, true)
+  connectServer(invite.serverUrl, invite.serverKey, invite.serverUrl.replace(/^https?:\/\//, ''), invite.code, true, invite.p2p)
   useApp.setState({ activeServer: invite.serverKey })
   void persistServers().then(async () => {
     // Remember the invite until the first successful join, in case the tab closes mid-way.
@@ -283,12 +295,12 @@ export function moveServer(key: string, url: string, name?: string): void {
   if (existing?.url === url) return
   connections.get(key)?.stop()
   connections.delete(key)
-  if (existing) patchServer(key, () => ({ url, publicUrl: null }))
-  connectServer(url, key, existing?.name ?? name ?? url.replace(/^https?:\/\//, ''))
+  if (existing) patchServer(key, () => ({ url, directUrl: url, publicUrl: null }))
+  connectServer(url, key, existing?.name ?? name ?? url.replace(/^https?:\/\//, ''), undefined, false, existing?.p2p ?? undefined)
   void persistServers()
 }
 
-function connectServer(url: string, key: string, name: string, invite?: string, joining = false): void {
+function connectServer(url: string, key: string, name: string, invite?: string, joining = false, p2p?: string): void {
   const { identity } = useApp.getState()
   if (!identity) return
   connections.get(key)?.stop()
@@ -297,16 +309,19 @@ function connectServer(url: string, key: string, name: string, invite?: string, 
     order: state.order.includes(key) ? state.order : [...state.order, key],
     servers: {
       ...state.servers,
-      [key]: state.servers[key] ?? {
-        key, url, name, status: { state: 'connecting' }, me: null, channels: [], members: {},
-        messages: {}, hasMore: {}, typing: {}, voice: {}, voiceAvailable: false, appUrl: null, publicUrl: null,
-        ...(joining ? { joining } : {}),
-      },
+      [key]: state.servers[key]
+        ? { ...state.servers[key], ...(p2p ? { p2p } : {}) }
+        : {
+          key, url, directUrl: url, name, status: { state: 'connecting' }, me: null, channels: [], members: {},
+          messages: {}, hasMore: {}, typing: {}, voice: {}, voiceAvailable: false, appUrl: null, publicUrl: null, p2p: p2p ?? null,
+          ...(joining ? { joining } : {}),
+        },
     },
   }))
 
   const connection = new Connection({
     serverUrl: url,
+    resolveUrl: () => urlResolver(key),
     expectedServerKey: key,
     invite,
     identity,
@@ -325,7 +340,7 @@ function connectServer(url: string, key: string, name: string, invite?: string, 
 /** Reconnects every server with the current identity (after an account key rotation). */
 export function reconnectAll(): void {
   const { servers, order } = useApp.getState()
-  for (const key of order) if (servers[key]) connectServer(servers[key].url, key, servers[key].name)
+  for (const key of order) if (servers[key]) connectServer(servers[key].directUrl, key, servers[key].name)
 }
 
 /** Retry servers that are waiting to reconnect (e.g. the network came back). */
@@ -343,7 +358,7 @@ export async function rejoinServer(key: string): Promise<void> {
   if (!server) return
   const invite = (await storage.loadServers()).find((s) => s.serverKey === key)?.invite
   patchServer(key, () => ({ status: { state: 'connecting' } }))
-  connectServer(server.url, key, server.name, invite, server.joining)
+  connectServer(server.directUrl, key, server.name, invite, server.joining)
 }
 
 /** A join that couldn't reach its server (or was turned away) shows its error while you look at it, and is gone once you go elsewhere. */
@@ -367,6 +382,7 @@ function onWelcome(key: string, welcome: Welcome): void {
     voiceAvailable: welcome.voiceAvailable,
     appUrl: welcome.server.appUrl ?? null,
     publicUrl: welcome.server.publicUrl ?? null,
+    p2p: welcome.server.p2p ?? null,
   }))
   void persistServers()
 
@@ -498,6 +514,13 @@ function onEvent<K extends keyof Events>(key: string, type: K, body: Events[K]):
     case 'voice.available': {
       const { available } = body as Events['voice.available']
       patchServer(key, () => ({ voiceAvailable: available }))
+      return
+    }
+    case 'server.p2p': {
+      // The owner turned the tunnel on, off, or made a new key: invite links made here follow.
+      const { p2p } = body as Events['server.p2p']
+      patchServer(key, () => ({ p2p: p2p ?? null }))
+      void persistServers()
       return
     }
     case 'member.removed': {

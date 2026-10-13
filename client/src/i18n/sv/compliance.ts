@@ -60,6 +60,11 @@ export const compliance: Messages['compliance'] = {
       when: 'Öppen mot internet: din router (UPnP eller NAT-PMP, i ditt eget nätverk), Let’s Encrypt för HTTPS-certifikatet och sslip.io för den gratis adressen om du inte har en egen domän. Textning: servern hämtar talmodellen en gång från Hugging Face. Serveruppdateringar: GitHub.',
       off: 'De ser serverns adress, inte dina medlemmars. Internetvärd och serveruppdateringar slår du av och på i Serverinställningar, textningsmodellen i server.json.',
     },
+    p2p: {
+      who: 'HyperDHT (ett publikt peer-to-peer-nätverk), bara för "Anslut utan portvidarebefordran"',
+      when: 'Bara om en servers ägare slagit på det i datorappen, och när du går med i en sådan server med datorappen och dess adress inte går att nå: appen pratar med noder i det publika HyperDHT-nätverket (först de tre bootstrap-noderna som Holepunch kör, sedan vilka noder som helst) för att annonsera servern eller hitta den, och sedan direkt med den andra datorn.',
+      off: 'De noderna ser din internetadress och nyckeln du annonserar eller slår upp, aldrig vad den är eller vad du säger. Ägaren slår av och på det i Serverinställningar → Internetåtkomst; lämna servern för att sluta.',
+    },
     nothingElse: 'Inget annat: ingen analys, inga annonser, inga kraschrapporter, inga typsnitt eller skript från andra webbplatser. Stavningskontrollen är datorns egen (av på Linux, där den skulle hämta ordlistor från Google).',
     sitesTitle: 'Webbplatser som laddas utan att fråga',
     sitesHint: 'Webbplatser du kryssat i "Ladda alltid från …" för, bara på den här enheten.',

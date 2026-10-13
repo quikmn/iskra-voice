@@ -20,8 +20,8 @@ export function followNotice(serverKey: string, notice: unknown, delayMs = 0): b
   const server = useApp.getState().servers[serverKey]
   if (!server || !verifyMoveNotice(notice, serverKey)) return false
   const { url } = notice as MoveNotice
-  if (sameServerUrl(url, server.url)) return false
-  useMoves.setState((s) => ({ followed: { ...s.followed, [serverKey]: { from: server.url, to: url, at: Date.now() } } }))
+  if (sameServerUrl(url, server.directUrl)) return false
+  useMoves.setState((s) => ({ followed: { ...s.followed, [serverKey]: { from: server.directUrl, to: url, at: Date.now() } } }))
   if (delayMs > 0) setTimeout(() => moveServer(serverKey, url), delayMs)
   else moveServer(serverKey, url)
   return true
@@ -58,6 +58,6 @@ onServerEvent((serverKey, type, body) => {
 useApp.subscribe((state, previous) => {
   for (const [key, server] of Object.entries(state.servers)) {
     const before = previous.servers[key]
-    if (server.status.state === 'offline' && before?.status.state !== 'offline' && server.me) void checkUnreachable(key, server.url)
+    if (server.status.state === 'offline' && before?.status.state !== 'offline' && server.me) void checkUnreachable(key, server.directUrl)
   }
 })

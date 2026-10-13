@@ -52,7 +52,8 @@ export function InviteDialog({ server, onClose, via: initialVia = 'network' }: {
   }, [server.key, lifetime, singleUse, optionsKey, invites])
 
   const serverUrl = overTailscale ? tailscaleUrl : inviteServerUrl(server)
-  const link = invite ? buildInviteLink(appUrl(server.appUrl), { serverUrl, serverKey: server.key, code: invite.code }) : ''
+  // With the p2p secret while the server lets friends connect without port forwarding (their desktop app uses it when the address can't be reached).
+  const link = invite ? buildInviteLink(appUrl(server.appUrl), { serverUrl, serverKey: server.key, code: invite.code, ...(server.p2p ? { p2p: server.p2p } : {}) }) : ''
 
   async function copy() {
     await navigator.clipboard.writeText(link)
@@ -73,6 +74,7 @@ export function InviteDialog({ server, onClose, via: initialVia = 'network' }: {
         </div>
       )}
       {overTailscale && <p className="muted">{t('hosting.tailscale.inviteNote')}</p>}
+      {server.p2p && !overTailscale && <p className="muted" data-testid="invite-p2p-note">{t('hosting.p2p.inviteNote')}</p>}
       <div className="copy-row">
         <input readOnly value={link} placeholder={t('settings.invite.creating')} onFocus={(e) => e.target.select()} />
         <button className="button primary" onClick={() => void copy()} disabled={!invite}>

@@ -12,9 +12,9 @@ export function JoinFailed({ server }: { server: ServerState }) {
   const { status } = server
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
-  let host = server.url
+  let host = server.directUrl
   try {
-    host = new URL(server.url).host
+    host = new URL(server.directUrl).host
   } catch { /* shown as given */ }
 
   if (status.state === 'rejected' && status.code === 'name_required') {

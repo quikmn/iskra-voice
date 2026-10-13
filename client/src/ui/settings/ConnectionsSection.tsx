@@ -5,9 +5,9 @@ import { useTranslation } from 'react-i18next'
 import { desktop, type DesktopSettings } from '../../platform/desktop'
 import { setAlwaysLoad, siteName, useSiteConsent } from '../../state/siteConsent'
 
-type Item = 'servers' | 'embeds' | 'watch' | 'gifs' | 'updates' | 'push' | 'webApp' | 'hosting'
+type Item = 'servers' | 'embeds' | 'watch' | 'gifs' | 'updates' | 'push' | 'webApp' | 'hosting' | 'p2p'
 
-const ITEMS: Item[] = ['servers', 'embeds', 'watch', 'gifs', 'updates', 'push', 'webApp', 'hosting']
+const ITEMS: Item[] = ['servers', 'embeds', 'watch', 'gifs', 'updates', 'push', 'webApp', 'hosting', 'p2p']
 
 export function ConnectionsSection() {
   const { t } = useTranslation()

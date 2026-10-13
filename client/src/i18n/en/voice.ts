@@ -67,6 +67,7 @@ export const voice = {
     camera: "Couldn't use your camera. Check your browser's permissions.",
     screen: "Couldn't start screen sharing.",
     join: 'Could not join voice.',
+    tunnel: "Voice through the peer-to-peer tunnel isn't available in this version of the app.",
     resumeGone: "Couldn't get you back into voice: the channel is gone or you can't join it anymore.",
   },
   resume: {

@@ -184,6 +184,48 @@ describe('connection: reconnecting', () => {
     expect(last()).not.toHaveProperty('stopped')
   })
 
+  it('asks where to connect before every attempt, and drops an answer for an attempt that was stopped', async () => {
+    const statuses: ConnectionStatus[] = []
+    let answer: () => Promise<string | null> = async () => 'http://127.0.0.1:51234'
+    const connection = new Connection({
+      serverUrl: 'http://192.168.1.20:47070',
+      identity: {} as Identity,
+      name: () => 'Ann',
+      resolveUrl: () => answer(),
+      onStatus: (s) => statuses.push(s),
+      onWelcome: () => undefined,
+      onEvent: () => undefined,
+      WebSocketImpl: FakeSocket as unknown as typeof WebSocket,
+    })
+    connection.start()
+    expect(statuses.at(-1)?.state).toBe('connecting')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(FakeSocket.all.at(-1)!.url).toBe('ws://127.0.0.1:51234/ws') // the tunnel, not the saved address
+    FakeSocket.all.at(-1)!.welcome()
+    expect(statuses.at(-1)?.state).toBe('online')
+
+    // Null (or a failure) means the saved address.
+    answer = async () => null
+    FakeSocket.all.at(-1)!.drop(1006)
+    await nextAttempt()
+    expect(FakeSocket.all.at(-1)!.url).toBe('ws://192.168.1.20:47070/ws')
+    answer = () => Promise.reject(new Error('no tunnel'))
+    FakeSocket.all.at(-1)!.drop(1006)
+    await nextAttempt()
+    expect(FakeSocket.all.at(-1)!.url).toBe('ws://192.168.1.20:47070/ws')
+
+    // Stopped while the address was still being worked out: no socket is opened afterwards.
+    let release: (url: string) => void = () => undefined
+    answer = () => new Promise((r) => (release = r))
+    FakeSocket.all.at(-1)!.drop(1006)
+    const count = FakeSocket.all.length
+    await vi.advanceTimersByTimeAsync(40_000)
+    connection.stop()
+    release('http://127.0.0.1:51234')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(FakeSocket.all.length).toBe(count)
+  })
+
   it('reads the restart reason defensively', () => {
     expect(restartHint('{"v":1,"reason":"update","etaMs":20000}')).toEqual({ reason: 'update', etaMs: 20000 })
     expect(restartHint('{"v":2,"reason":"restart","extra":true}')).toEqual({ reason: 'restart' })

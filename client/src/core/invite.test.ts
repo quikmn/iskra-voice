@@ -19,6 +19,23 @@ describe('invite links', () => {
     expect(parseInvite(hash.replace('#/join/', ''))?.code).toBe('code12345')
   })
 
+  it('carries the p2p secret as an optional fourth field, and old links still parse', () => {
+    const p2p = 'AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA'
+    const invite = { serverUrl: 'http://192.168.1.20:47070', serverKey, code: 'abcdefghijklmnop', p2p }
+    const link = buildInviteLink('https://app.iskra.foo', invite)
+    expect(link.endsWith(`.abcdefghijklmnop.${p2p}`)).toBe(true)
+    expect(parseInvite(link)).toEqual(invite)
+    expect(parseInvite(appInviteLink(invite))).toEqual(invite)
+    // Without it: exactly as before, no p2p key at all.
+    expect(parseInvite(buildInviteLink('https://app.iskra.foo', { serverUrl: 'http://192.168.1.20:47070', serverKey, code: 'abcdefghijklmnop' }))).toEqual({
+      serverUrl: 'http://192.168.1.20:47070', serverKey, code: 'abcdefghijklmnop',
+    })
+    // A fourth field that isn't a 32-byte secret, or a fifth field, is junk.
+    expect(parseInvite(link.slice(0, -1))).toBeNull()
+    expect(parseInvite(`${link}.extra`)).toBeNull()
+    expect(buildInviteLink('x', { ...invite, p2p: 'short' })).not.toContain('short')
+  })
+
   it('matches what the server writes in owner-invite.txt', () => {
     // b64u("http://localhost:7070") as produced by the C# OwnerSetup.InviteLink
     const parsed = parseInvite(`http://localhost:5173/#/join/aHR0cDovL2xvY2FsaG9zdDo3MDcw.${serverKey}.AAAAAAAAAAAAAAAAAAAAAA`)

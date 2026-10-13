@@ -21,6 +21,33 @@ export interface HostedServer {
   keepRunning?: boolean
   /** How friends on Tailscale reach it, when Tailscale is on (missing in older desktop builds). */
   tailscaleUrl?: string | null
+  /** The peer-to-peer tunnel for friends without port forwarding, when the world has it on (missing in older desktop builds). */
+  p2p?: P2pHostStatus | null
+}
+
+/** The desktop app's side of "Let friends connect without port forwarding" for a server it hosts. */
+export interface P2pHostStatus {
+  /** unavailable: this build or mode has no peer-to-peer network (development builds and local-only runs without a testnet). */
+  state: 'off' | 'unavailable' | 'starting' | 'ready' | 'failed'
+  /** The host's DHT public key (hex), what friends look up. */
+  hostKey: string | null
+  nat: {
+    /** Behind a NAT or firewall (nearly every home). */
+    firewalled: boolean
+    /** The NAT gives each destination a new port: hard to punch, so friends on such NATs too may fail to connect. */
+    randomized: boolean
+    publicAddress: string | null
+  } | null
+  /** Tunnel connections open right now. */
+  connections: number
+  error?: string
+}
+
+/** A local address that leads to a server through the tunnel (desktop.p2p.open). */
+export interface TunnelEndpoint {
+  url: string
+  /** LiveKit's TURN through the tunnel: turn:127.0.0.1:<turnPort>. */
+  turnPort: number
 }
 
 /** A starter template for a new server, as the bundled iskra-server describes it. */
@@ -141,6 +168,15 @@ export interface DesktopBridge {
     pickBackup?(): Promise<PickedBackup | null>
     /** Restores a picked backup into a new server folder here and starts it. Rejects with a readable message. */
     restore?(path: string, passphrase: string): Promise<RestoredServer>
+    /** "Let friends connect without port forwarding" changed on a server hosted here: the tunnel follows the world's files. */
+    p2pSync?(id: string): Promise<HostedServer | null>
+    /** The tunnel's status for a hosted server changed (it started, found its NAT type, failed). */
+    onP2p?(callback: (update: { id: string; p2p: P2pHostStatus }) => void): () => void
+  }
+  /** A server behind a shared connection (missing in older desktop builds): open returns the local address, or `{ error }`. */
+  p2p?: {
+    open(serverKey: string, secret: string): Promise<TunnelEndpoint | { error: string } | null>
+    close(serverKey: string): Promise<void>
   }
   /** Saves a file from a server URL (asks where). */
   download?(url: string): Promise<boolean>

@@ -65,6 +65,7 @@ export const settings = {
     yourRole: 'Your role',
     notJoined: 'not joined',
     address: 'Address',
+    connection: 'Connection',
     serverId: 'Server ID',
     removeHint: 'Hides this server here. You stay a member and can come back with any invite link.',
   },

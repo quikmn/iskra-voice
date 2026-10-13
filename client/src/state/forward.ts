@@ -19,7 +19,7 @@ export function forwardLabel(server: ServerState, source: Channel | undefined, p
 }
 
 export function dmForward(server: ServerState, message: Message, peerKey: string): { text: string; forward: DmForward } {
-  const base = server.publicUrl ?? server.url
+  const base = server.publicUrl ?? server.directUrl
   const source = server.channels.find((c) => c.id === message.channelId)
   const files = message.attachments.map((f) => ({ name: f.name, url: base + f.url, size: f.size, type: f.type }))
   // Mentions read as names: the recipient may not know these people.

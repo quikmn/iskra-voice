@@ -82,7 +82,11 @@ export interface VoiceChannelState {
 
 export interface Welcome {
   you: Member
-  server: { name: string; key: string; appUrl: string; publicUrl?: string | null; profilePages?: boolean; moved?: MoveNotice | null }
+  server: {
+    name: string; key: string; appUrl: string; publicUrl?: string | null; profilePages?: boolean; moved?: MoveNotice | null
+    /** The p2p secret members put in invite links while friends may connect without port forwarding (see "p2p" below). */
+    p2p?: string | null
+  }
   channels: Channel[]
   members: Member[]
   voice: VoiceChannelState[]
@@ -1723,4 +1727,30 @@ export interface Events {
 export interface Requests {
   'bot.commands.set': [{ commands: BotCommand[] }, { commands: BotCommand[] }]
   'bot.commands.available': [{ channelId: number }, { bots: string[] }]
+}
+
+// ── p2p: connecting without port forwarding ──
+// See "Connecting without port forwarding (peer to peer, experimental)" in PROTOCOL.md.
+
+export interface P2pStatus {
+  enabled: boolean
+  /** The host's DHT public key (hex), what friends look up; null while off. */
+  hostKey: string | null
+  /** The tunnel listener on the server's own machine. */
+  tunnelPort: number
+  /** When the current secret was made, or null. */
+  since: number | null
+  /** Sessions online through the tunnel right now. */
+  connected: number
+}
+
+export interface Events {
+  /** The secret changed (turned on, off, or rotated): invite links use the new one. */
+  'server.p2p': { p2p: string | null }
+}
+
+export interface Requests {
+  'p2p.status': [Record<string, never>, { status: P2pStatus }]
+  'p2p.set': [{ enabled: boolean }, { status: P2pStatus }]
+  'p2p.rotate': [Record<string, never>, { status: P2pStatus }]
 }

@@ -5,7 +5,7 @@ import { Trans, useTranslation } from 'react-i18next'
 import type { HostStatus } from '../../core/protocol'
 import { RentServerDialog } from './RentServerDialog'
 import { TailscaleDialog } from './TailscaleDialog'
-import { aiPrompt, cgnatAdvice, forwardRows, lanHost, routerPage, tailscaleServerUrl, useHostedHere } from '../../state/hosting'
+import { aiPrompt, cgnatAdvice, forwardRows, hostedHere, lanHost, routerPage, tailscaleServerUrl, useHostedHere } from '../../state/hosting'
 import type { ServerState } from '../../state/store'
 
 /** Plain-words findings, all from the router's own answers and this computer: no outside service is asked. */
@@ -126,9 +126,9 @@ export function OwnershipNote() {
 }
 
 /**
- * When ports can't help: what to do, quickest first. Room for one more option later ("connect without port
- * forwarding", a peer-to-peer tunnel being researched): it goes in OPTIONS, right after renting a server.
- * Tailscale (the one recommended "gaming VPN") comes after the ISP: it asks every friend to install an app.
+ * When ports can't help: what to do, quickest first. For a server hosted in this desktop app, the peer-to-peer
+ * tunnel ("Connect without port forwarding", the switch above this panel) comes first: nothing to open, nothing to
+ * install. Tailscale (the one recommended "gaming VPN") comes after the ISP: it asks every friend to install an app.
  */
 export function CgnatHelp({ status, server }: { status: HostStatus; server?: ServerState }) {
   const { t } = useTranslation()
@@ -136,10 +136,12 @@ export function CgnatHelp({ status, server }: { status: HostStatus; server?: Ser
   const [tailscale, setTailscale] = useState(false)
   const byUrl = useHostedHere((s) => s.byUrl)
   const tailscaleUrl = server ? tailscaleServerUrl(server, byUrl, status) : (status.tailscaleUrl ?? null)
+  const hostedInApp = !!server && !!hostedHere(server, byUrl)
   const advice = cgnatAdvice(status)
   if (!advice) return null
   const shared = advice === 'shared'
   const OPTIONS = [
+    ...(hostedInApp ? [<Trans key="p2p" i18nKey="hosting.cgnat.p2p" components={{ b: <strong /> }} />] : []),
     <span key="rent">
       <Trans i18nKey="hosting.cgnat.rent" components={{ b: <strong /> }} />{' '}
       <button className="button small primary" onClick={() => setRenting(true)}>{t('hosting.cgnat.rentButton')}</button>
