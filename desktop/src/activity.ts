@@ -5,11 +5,13 @@ import { readdir, readFile } from 'node:fs/promises'
 import { matchGame, parseTasklist } from './games'
 
 const POLL_MS = 30_000
+/** tasklist took 17 to 42 s on a heavily loaded test machine (median 0.5 s); a slow answer still counts, up to the next poll. */
+const LIST_TIMEOUT_MS = 25_000
 
 /** The program's output, or null if it failed or took too long. */
 function run(file: string, args: string[]): Promise<string | null> {
   return new Promise((resolve) => {
-    execFile(file, args, { windowsHide: true, maxBuffer: 4 * 1024 * 1024, timeout: 10_000 }, (error, stdout) => resolve(error ? null : stdout))
+    execFile(file, args, { windowsHide: true, maxBuffer: 4 * 1024 * 1024, timeout: LIST_TIMEOUT_MS }, (error, stdout) => resolve(error ? null : stdout))
   })
 }
 

@@ -276,6 +276,7 @@ test('creating a server from the desktop app makes you its owner', async () => {
 })
 
 test('Desktop app settings, the unread badge, and iskra:// invite links', async () => {
+  test.setTimeout(120_000) // room for a slow tasklist below
   const userData = mkdtempSync(join(tmpdir(), 'iskra-desktop-'))
   const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'NODE_OPTIONS')) as Record<string, string>
   const electronExe = join(DESKTOP, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron')
@@ -334,7 +335,9 @@ test('Desktop app settings, the unread badge, and iskra:// invite links', async 
     await settings.getByLabel('Program file').fill(process.platform === 'win32' ? 'electron.exe' : 'electron')
     await settings.getByRole('button', { name: 'Add', exact: true }).click()
     await settings.getByLabel(/Show the game you're playing/).check()
-    await expect(settings.getByText('Now: Playing Test Game')).toBeVisible()
+    // The app lists programs with tasklist, which took 17 to 42 s while the whole suite ran (median 0.5 s); a list
+    // that times out (25 s) is tried again at the next 30 s poll.
+    await expect(settings.getByText('Now: Playing Test Game')).toBeVisible({ timeout: 60_000 })
     await page.screenshot({ path: join(SHOTS, 'desktop-activity-settings.png') })
     await page.keyboard.press('Escape')
     const meInList = page.locator('.member', { hasText: 'Linked' })
