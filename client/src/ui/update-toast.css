@@ -1,6 +1,6 @@
 /* ── Desktop update toast ──────────────────────────────────────────── */
 .update-toast {
-  position: fixed; right: 16px; bottom: 84px; z-index: var(--z-toast); /* clear of the message box; under dialogs and calls */
+  position: fixed; right: 16px; bottom: calc(84px + var(--safe-bottom)); z-index: var(--z-toast); /* clear of the message box; under dialogs and calls */
   display: flex; align-items: center; gap: 12px;
   width: min(420px, calc(100vw - 32px));
   padding: 12px 10px 12px 12px;
@@ -23,7 +23,7 @@
   to { opacity: 1; transform: none; }
 }
 @media (max-width: 760px) {
-  .update-toast { right: 16px; left: 16px; width: auto; bottom: calc(76px + env(safe-area-inset-bottom)); }
+  .update-toast { right: 16px; left: 16px; width: auto; bottom: calc(76px + var(--safe-bottom)); }
 }
 
 /* ── "Updating Iskra to X…" (just before the desktop app quits into an update) ── */

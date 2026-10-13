@@ -29,6 +29,10 @@ const config: CapacitorConfig = {
     Keyboard: { resize: 'native' },
     // Light text on the dark default theme; the client switches it for light themes (platform/native.ts).
     StatusBar: { style: 'DARK', overlaysWebView: true },
+    // Android draws the page edge to edge (MainActivity; Android 15+ enforces it). "css" sets the status bar, navigation
+    // bar and cutout insets on <html> as --safe-area-inset-* (0 at the bottom while the keyboard is open), right on every
+    // WebView version; the client's --safe-* variables use them. The page is viewport-fit=cover.
+    SystemBars: { insetsHandling: 'css', initialViewportFitValueHint: 'cover', style: 'DARK' },
   },
 }
 

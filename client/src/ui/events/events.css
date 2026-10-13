@@ -61,7 +61,7 @@
 
 /* Reminder toasts */
 .event-toasts {
-  position: fixed; right: 16px; bottom: 16px; z-index: var(--z-toast); display: grid; gap: 8px; width: min(380px, calc(100vw - 32px));
+  position: fixed; right: 16px; bottom: calc(16px + var(--safe-bottom)); z-index: var(--z-toast); display: grid; gap: 8px; width: min(380px, calc(100vw - 32px));
 }
 .event-toast {
   display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 12px; background: var(--float); border: 1px solid var(--border);
@@ -74,6 +74,6 @@
 
 @media (max-width: 760px) {
   .event-times { grid-template-columns: 1fr; gap: 0; }
-  .event-toasts { left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); width: auto; }
+  .event-toasts { left: 8px; right: 8px; bottom: calc(8px + var(--safe-bottom)); width: auto; }
   .event-actions .button.small { padding: 7px 10px; }
 }

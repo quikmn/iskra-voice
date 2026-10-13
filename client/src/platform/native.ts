@@ -137,6 +137,12 @@ function bridge(platform: NativePlatform): NativeBridge {
       }
     },
     async setStatusBar(scheme) {
+      if (platform === 'android') {
+        // Edge to edge, the navigation bar's buttons sit on the page too: both bars follow the theme.
+        const { SystemBars, SystemBarsStyle } = await import('@capacitor/core')
+        await SystemBars.setStyle({ style: scheme === 'light' ? SystemBarsStyle.Light : SystemBarsStyle.Dark })
+        return
+      }
       const { StatusBar, Style } = await import('@capacitor/status-bar')
       // Style.Dark is light text, for dark backgrounds.
       await StatusBar.setStyle({ style: scheme === 'light' ? Style.Light : Style.Dark })

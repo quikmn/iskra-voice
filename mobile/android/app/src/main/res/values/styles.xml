@@ -13,6 +13,8 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
+        <!-- Behind the system bars until the page draws (the app's dark background, not white). -->
+        <item name="android:windowBackground">@color/iskraBackground</item>
     </style>
 
 

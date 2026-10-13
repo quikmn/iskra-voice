@@ -10,7 +10,7 @@
 .share-menu .segmented button { padding: 7px 4px; font-size: 13px; }
 .share-menu .checkbox small { font-size: 12.5px; }
 .emoji-picker-layer.sheet .share-menu {
-  left: 0; right: 0; bottom: 0; top: auto; width: 100%; max-width: none; padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  left: 0; right: 0; bottom: 0; top: auto; width: 100%; max-width: none; padding: 16px 16px calc(16px + var(--safe-bottom));
   border-radius: calc(var(--radius) * 1.6) calc(var(--radius) * 1.6) 0 0; animation: sheet-up 0.2s var(--ease);
 }
 

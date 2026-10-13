@@ -61,6 +61,16 @@
   color-scheme: dark;
 }
 
+/* Safe areas (notch, status bar, navigation bar, home indicator): use these, never env(safe-area-inset-*) directly.
+   The Android app sets --safe-area-inset-* on <html> (Capacitor SystemBars, insetsHandling "css"), which is right on
+   every WebView version and with the keyboard open; iOS and browsers fall back to env(), then 0. */
+:root {
+  --safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --safe-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+  --safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --safe-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+}
+
 /* Light themes: darker name colours, softer scrims and shadows. */
 :root[data-scheme='light'] { --name-l: 26%; --scrim: rgba(20, 20, 40, 0.38); --shadow-color: rgba(20, 20, 60, 0.18); }
 
@@ -384,7 +394,7 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 .video-tile:hover .tile-fullscreen, .tile-fullscreen:focus-visible { opacity: 1; }
 .video-tile:fullscreen { border: 0; border-radius: 0; }
 .call-controls {
-  display: flex; justify-content: center; gap: 12px; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); flex: none;
+  display: flex; justify-content: center; gap: 12px; padding: 14px 16px; flex: none;
 }
 .call-button {
   width: 52px; height: 52px; border-radius: 50%; border: 0; background: var(--surface-3); color: var(--text);
@@ -568,11 +578,12 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 
 /* ── Modals ─────────────────────────────────────────────────────────── */
 .modal-backdrop {
-  position: fixed; inset: 0; background: var(--scrim); display: grid; place-items: center; padding: 16px; z-index: var(--z-modal);
+  position: fixed; inset: 0; background: var(--scrim); display: grid; place-items: center; z-index: var(--z-modal);
+  padding: calc(16px + var(--safe-top)) calc(16px + var(--safe-right)) calc(16px + var(--safe-bottom)) calc(16px + var(--safe-left));
   animation: fade 0.14s ease-out;
 }
 .modal {
-  width: min(480px, 100%); max-height: calc(100dvh - 32px); display: flex; flex-direction: column; outline: none;
+  width: min(480px, 100%); max-height: calc(100dvh - 32px - var(--safe-top) - var(--safe-bottom)); display: flex; flex-direction: column; outline: none;
   background: var(--surface); border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.4); box-shadow: var(--shadow-modal);
   animation: pop 0.16s var(--ease);
 }
@@ -632,7 +643,7 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
   .chat-header { padding-left: 6px; }
   .message { padding-left: 10px; padding-right: 10px; gap: 10px; }
   .message-actions { right: 10px; }
-  .composer { margin: 0 8px calc(8px + env(safe-area-inset-bottom)); }
+  .composer { margin: 0 8px 8px; }
   .modal { border-radius: calc(var(--radius) * 1.4); }
   .stage-body { padding: 8px; gap: 8px; }
   .stage-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
@@ -655,9 +666,14 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 
 /* ── Installed app and push notifications ───────────────────────────── */
 /* Installed on a phone, the app runs edge to edge: keep clear of the notch and the status bar. */
-#root { padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left); }
-.shell { height: calc(100dvh - env(safe-area-inset-top)); }
-.nav-column, .members-column { padding-top: env(safe-area-inset-top); }
+/* The page draws under the system bars (viewport-fit=cover; Android 15+ always). #root keeps the top and sides clear;
+   the columns keep the bottom clear (navigation bar, home indicator), so nothing in them needs its own inset. */
+#root { padding: var(--safe-top) var(--safe-right) 0 var(--safe-left); }
+.shell { height: calc(100dvh - var(--safe-top)); }
+.main-column { padding-bottom: var(--safe-bottom); }
+.nav-column, .members-column { padding-top: var(--safe-top); padding-bottom: var(--safe-bottom); }
+@media (max-width: 760px) { .nav-column { padding-left: var(--safe-left); } }
+@media (max-width: 1100px) { .members-column { padding-right: var(--safe-right); } }
 @media (max-width: 760px) { .nav-column { background: var(--rail); } }
 @media (min-width: 761px) { .nav-column { padding-top: 0; } }
 @media (min-width: 1101px) { .members-column { padding-top: 0; } }
@@ -715,7 +731,7 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 }
 .action-sheet {
   width: min(520px, 100%); background: var(--float); border: 1px solid var(--border); border-bottom: 0; outline: none;
-  border-radius: calc(var(--radius) * 1.6) calc(var(--radius) * 1.6) 0 0; padding: 8px 12px calc(12px + env(safe-area-inset-bottom));
+  border-radius: calc(var(--radius) * 1.6) calc(var(--radius) * 1.6) 0 0; padding: 8px 12px calc(12px + var(--safe-bottom));
   box-shadow: var(--shadow-modal); animation: sheet-up 0.2s var(--ease);
 }
 .sheet-grabber { display: block; width: 36px; height: 4px; border-radius: 2px; background: var(--surface-3); margin: 0 auto 10px; }
@@ -753,7 +769,7 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 .switcher-empty { padding: 18px 10px; text-align: center; }
 .switcher-hint { display: flex; gap: 16px; padding: 10px 16px; font-size: 12px; border-top: 1px solid var(--border); background: var(--sidebar); }
 @media (max-width: 760px) {
-  .switcher-backdrop { padding-top: calc(12px + env(safe-area-inset-top)); }
+  .switcher-backdrop { padding-top: calc(12px + var(--safe-top)); }
   .switcher-hint { display: none; }
 }
 

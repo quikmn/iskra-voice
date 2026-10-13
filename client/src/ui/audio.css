@@ -40,7 +40,7 @@
 .volume-menu-actions { display: flex; gap: 8px; }
 .volume-menu-note { margin: 0; font-size: 12.5px; }
 .emoji-picker-layer.sheet .volume-menu {
-  left: 0; right: 0; bottom: 0; top: auto; width: 100%; max-width: none; padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  left: 0; right: 0; bottom: 0; top: auto; width: 100%; max-width: none; padding: 16px 16px calc(16px + var(--safe-bottom));
   border-radius: calc(var(--radius) * 1.6) calc(var(--radius) * 1.6) 0 0; animation: sheet-up 0.2s var(--ease);
 }
 

@@ -86,7 +86,7 @@ button.tag-chip:disabled { opacity: 0.45; cursor: default; }
   .forum-sort { flex: 1; height: 40px; }
   .forum-new { height: 40px; }
   .forum-tags { padding: 0 10px 8px; }
-  .forum-posts { padding: 4px 10px calc(16px + env(safe-area-inset-bottom)); }
+  .forum-posts { padding: 4px 10px 16px; }
   .post-card { padding: 12px; gap: 10px; }
   .post-thumb { width: 64px; height: 64px; }
   .post-last { display: none; }
