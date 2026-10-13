@@ -1,10 +1,11 @@
 /* ── Settings: sidebar of sections, or list → detail on phones (the frame is in room.css) ── */
 
+/* One column that never grows past the sidebar: long names end in "…", no sideways scrollbar. */
 .settings-nav {
-  overflow-y: auto; padding: 12px 8px 16px; background: var(--sidebar); border-right: 1px solid var(--border);
-  display: grid; align-content: start; gap: 14px;
+  overflow-y: auto; overflow-x: hidden; padding: 12px 8px 16px; background: var(--sidebar); border-right: 1px solid var(--border);
+  display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 14px;
 }
-.settings-nav-group { display: grid; gap: 1px; }
+.settings-nav-group { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; }
 .settings-nav-title {
   padding: 4px 10px 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;

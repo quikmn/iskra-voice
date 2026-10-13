@@ -7,6 +7,7 @@ import { roleRank, type Role, type Webhook } from '../../core/protocol'
 import { connectionFor, uploadFile, type ServerState } from '../../state/store'
 import { inviteServerUrl } from '../../state/hosting'
 import { Avatar, Spinner } from '../bits'
+import { FilePick } from '../FilePick'
 import { AuthorAvatar, BotBadge } from '../chat/BotBits'
 import { appUrl, messageTime } from '../format'
 import '../bots.css'
@@ -203,10 +204,10 @@ function WebhookForm({ server, initial, submitLabel, onSubmit, onCancel }: {
             {textChannels.map((c) => <option key={c.id} value={c.id}>#{c.name}</option>)}
           </select>
         </label>
-        <label className="field inline">
+        <div className="field inline">
           <span>{t('settings.integrations.picture')}</span>
-          <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={(e) => setAvatar(e.target.files?.[0] ?? null)} />
-        </label>
+          <FilePick label={t('settings.integrations.picture')} accept="image/png,image/jpeg,image/gif,image/webp" file={avatar} onPick={setAvatar} />
+        </div>
       </div>
       {initial?.avatar && !avatar && (
         <label className="checkbox">

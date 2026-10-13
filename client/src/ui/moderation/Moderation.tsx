@@ -8,7 +8,7 @@ import { removeTimeout, setBlocked, timeoutMember, useIsBlocked, useMyTimeouts }
 import { countdown, durationLabel, slowmodeLabel, timeoutActive, TIMEOUT_OPTIONS, untilText } from '../../state/moderationRules'
 import type { ServerState } from '../../state/store'
 import { ChannelSettingsDialog } from '../organize/Dialogs'
-import { Settings } from '../icons'
+import { Sliders } from '../icons'
 import { useServerRoles } from '../../state/roles'
 import { has } from '../../state/permissions'
 import { useNow } from './hooks'
@@ -182,7 +182,7 @@ export function ChannelSettingsButton({ server, channel }: { server: ServerState
   return (
     <>
       <button className="icon-button" onClick={() => setOpen(true)} aria-label={t('moderation.channelSettings')} title={t('moderation.channelSettings')}>
-        <Settings size={18} />
+        <Sliders size={18} />
       </button>
       {open && <ChannelSettingsDialog server={server} channel={channel} onClose={() => setOpen(false)} />}
     </>

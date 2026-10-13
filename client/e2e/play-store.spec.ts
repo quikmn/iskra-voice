@@ -163,7 +163,7 @@ for (const lang of ['en', 'sv'] as const) {
 
       // Noor's profile: pronouns and a line about her.
       const noor = friends.Noor
-      await noor.locator('.me-bar').getByRole('button', { name: 'Settings', exact: true }).click()
+      await noor.locator('.me-bar').getByRole('button', { name: 'My settings', exact: true }).click()
       const settings = noor.getByRole('dialog', { name: 'Settings' })
       await settings.getByLabel('Pronouns').fill(c.pronouns)
       await settings.getByLabel(/About me/).fill(c.bio)

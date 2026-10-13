@@ -74,7 +74,7 @@ async function context(browser: Browser, options: Parameters<Browser['newContext
 async function settings(page: Page, section?: string) {
   const drawer = page.getByRole('button', { name: /Open (channels|menu)/ }).first()
   if (await drawer.isVisible()) await drawer.click()
-  await page.locator('.me-bar').getByRole('button', { name: 'Settings', exact: true }).click()
+  await page.locator('.me-bar').getByRole('button', { name: 'My settings', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Settings' })
   await expect(dialog).toBeVisible()
   if (section) await dialog.getByRole('button', { name: section, exact: true }).click({ timeout: 2000 }).catch(() => undefined)

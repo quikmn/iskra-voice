@@ -7,6 +7,12 @@ export const app: Messages['app'] = {
   skipToContent: 'Hoppa till huvudinnehållet',
   spoiler: 'Spoiler, klicka för att visa',
   openInApp: 'Har du Iskra-appen? <a>Öppna i appen</a>',
+  crash: {
+    title: 'Något gick fel här',
+    appText: 'Iskra stötte på ett problem den inte kom förbi. Oftast hjälper det att ladda om; dina meddelanden och inställningar är kvar.',
+    paneText: 'Den här delen av appen stötte på ett problem. Försök igen, öppna en annan kanal eller ladda om.',
+    reload: 'Ladda om',
+  },
   home: {
     directMessages: 'Direktmeddelanden',
     friends: 'Vänner',
@@ -116,7 +122,7 @@ export const app: Messages['app'] = {
     invited: 'Du har blivit inbjuden till en server på <b>{{host}}</b>.',
     invitedTo: 'Du har blivit inbjuden till <b>{{server}}</b>.',
     pickNameInvited: 'Välj ett namn så är du med.',
-    intro: 'Röst- och textchatt med dina vänner, på en server du äger. Välj ett namn för att komma igång.',
+    intro: 'Röst- och textchatt med dina vänner, på servrar du själv äger. Välj ett namn för att komma igång.',
     recoveryKey: 'Återställningsnyckel',
     keyProblem: 'Nyckeln stämmer inte. Leta efter ett stavfel.',
     keyOk: 'Nyckeln ser rätt ut.',
@@ -125,7 +131,6 @@ export const app: Messages['app'] = {
     restore: 'Återställ mitt konto',
     restoreIntro: 'Välkommen tillbaka. Klistra in din återställningsnyckel: ditt namn och din profil kommer tillbaka från dina servrar.',
     noPassword: 'Ingen e-post, inget lösenord. Ditt konto är en nyckel som stannar på dina enheter.',
-    haveIskra: 'Jag använder redan Iskra',
   },
   qr: {
     noCamera: 'Webbläsaren kan inte använda kameran här. Klistra in koden i stället.',

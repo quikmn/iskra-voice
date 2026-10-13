@@ -93,7 +93,7 @@ test('owner opens the server to the internet; without port 80 nothing plain HTTP
   // Members don't see the panel.
   const friend = await (await browser.newContext()).newPage()
   await joinVia(friend, await createInviteLink(owner), 'Friend')
-  await friend.getByRole('button', { name: 'Settings', exact: true }).click()
+  await friend.getByRole('button', { name: 'My settings', exact: true }).click()
   await expect(friend.getByRole('heading', { name: 'Profile' })).toBeVisible()
   await expect(friend.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Internet access' })).toHaveCount(0)
   await friend.keyboard.press('Escape')

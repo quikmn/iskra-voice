@@ -24,7 +24,6 @@ export const chat: Messages['chat'] = {
   },
   message: {
     profileOf: 'Profil för {{name}}',
-    edited: '(redigerat)',
     discard: 'Släng',
     couldNotSend: 'Kunde inte skicka.',
     tooFast: 'Du skickar för snabbt, vänta lite.',
@@ -40,7 +39,6 @@ export const chat: Messages['chat'] = {
     replyingTo: 'Svarar <b>{{name}}</b>',
     someone: 'någon',
     cancelReply: 'Avbryt svar',
-    failed: 'Misslyckades',
     removeFile: 'Ta bort {{name}}',
     attach: 'Bifoga filer',
     poll: 'Skapa en omröstning',

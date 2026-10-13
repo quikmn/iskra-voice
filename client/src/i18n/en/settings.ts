@@ -271,7 +271,7 @@ export const settings = {
     inviteLink: 'Invite link',
     invalid: "That doesn't look like an Iskra invite link.",
     orCreate: 'Or <a>start your own server</a>.',
-    invited: "You're invited",
+    invited: "You've been invited",
     notNow: 'Not now',
     joinServer: 'Join server',
     server: 'Server',

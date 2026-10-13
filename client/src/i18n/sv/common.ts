@@ -35,6 +35,8 @@ export const common: Messages['common'] = {
   undo: 'Ångra',
   more: 'Mer',
   download: 'Ladda ner',
+  chooseFile: 'Välj en fil',
+  noFileChosen: 'Ingen fil vald',
   upload: 'Ladda upp',
   settings: 'Inställningar',
   on: 'På',

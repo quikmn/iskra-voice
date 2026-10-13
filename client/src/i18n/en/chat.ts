@@ -23,7 +23,6 @@ export const chat = {
   },
   message: {
     profileOf: 'Profile of {{name}}',
-    edited: '(edited)',
     discard: 'Discard',
     couldNotSend: "Couldn't send.",
     tooFast: "You're sending too fast, wait a moment.",
@@ -39,7 +38,6 @@ export const chat = {
     replyingTo: 'Replying to <b>{{name}}</b>',
     someone: 'someone',
     cancelReply: 'Cancel reply',
-    failed: 'Failed',
     removeFile: 'Remove {{name}}',
     attach: 'Attach files',
     poll: 'Create a poll',

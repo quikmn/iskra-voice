@@ -43,7 +43,7 @@ function HomeMeBar() {
   return (
     <div className="me-bar">
       <MeStatusButton name={profile.name} accountKey={b64u(identity.account.publicKey)} sub={t('common.you')} />
-      <button className="icon-button" onClick={() => openMySettings()} aria-label={t('common.settings')} title={t('settings.room.mine')}>
+      <button className="icon-button" onClick={() => openMySettings()} aria-label={t('settings.room.mine')} title={t('settings.room.mine')}>
         <Settings />
       </button>
     </div>

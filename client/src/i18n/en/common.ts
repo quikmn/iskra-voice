@@ -35,6 +35,8 @@ export const common = {
   more: 'More',
   download: 'Download',
   upload: 'Upload',
+  chooseFile: 'Choose a file',
+  noFileChosen: 'No file chosen',
   settings: 'Settings',
   on: 'On',
   off: 'Off',

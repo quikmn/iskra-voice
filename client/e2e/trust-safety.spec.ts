@@ -42,9 +42,9 @@ test('the terms are agreed on first run, and again when they change', async ({ b
   await isNew.click()
   await page.getByLabel('Your name').fill('Reader')
   await page.getByRole('button', { name: 'Continue' }).click()
-  await expect(page.locator('.me-bar').getByRole('button', { name: 'Settings', exact: true })).toBeVisible()
+  await expect(page.locator('.me-bar').getByRole('button', { name: 'My settings', exact: true })).toBeVisible()
   await page.reload()
-  await expect(page.locator('.me-bar').getByRole('button', { name: 'Settings', exact: true })).toBeVisible()
+  await expect(page.locator('.me-bar').getByRole('button', { name: 'My settings', exact: true })).toBeVisible()
   await expect(page.getByRole('dialog', { name: 'Our terms have changed' })).toHaveCount(0)
 
   // A device that agreed to an older version is asked again.

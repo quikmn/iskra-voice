@@ -36,9 +36,7 @@ export const friends = {
   remove: 'Remove friend',
   removeConfirm: 'Remove {{name}} as a friend? You’ll both stop seeing each other as friends. They aren’t notified.',
   removeName: 'Remove',
-  keep: 'Keep',
   isFriend: 'Friends',
-  wantsToBeFriends: '{{name}} sent you a friend request',
   line: {
     requestMine: 'You sent {{name}} a friend request.',
     requestTheirs: '{{name}} sent you a friend request.',
@@ -61,7 +59,6 @@ export const friends = {
     volume: 'User volume',
     copyId: 'Copy user ID',
     copied: 'User ID copied',
-    moderation: 'Moderation',
     timeout: 'Time out…',
     kick: 'Kick…',
     ban: 'Ban…',

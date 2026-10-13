@@ -18,6 +18,13 @@ export function OrgMenu({ anchor, label, onClose, children }: { anchor: MenuAnch
   const ref = useRef<HTMLDivElement>(null)
   const sheet = !anchor || phoneLike()
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null)
+  // A long sheet on a phone: a fade at the bottom says there's more below.
+  const [moreBelow, setMoreBelow] = useState(false)
+  const checkMore = () => {
+    const el = ref.current
+    setMoreBelow(!!el && sheet && el.scrollHeight - el.scrollTop - el.clientHeight > 4)
+  }
+  useLayoutEffect(checkMore)
   useEscapeLayer(onClose)
   useFocusTrap(ref)
   // Keyboards start on the first item (arrow keys move on); touch screens keep focus on the sheet.
@@ -47,9 +54,11 @@ export function OrgMenu({ anchor, label, onClose, children }: { anchor: MenuAnch
         aria-label={label}
         tabIndex={-1}
         style={sheet ? undefined : { left: position?.left ?? -9999, top: position?.top ?? 0 }}
+        onScroll={sheet ? checkMore : undefined}
       >
         {sheet && <span className="sheet-grabber" aria-hidden />}
         {children}
+        {moreBelow && <span className="sheet-more" aria-hidden />}
       </div>
     </div>,
     document.body,

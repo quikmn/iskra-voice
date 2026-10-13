@@ -529,6 +529,8 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
   const canSend = writable && !uploading && slowmode.wait === 0 && (text.trim().length > 0 || ready.length > 0)
   // Enter during an upload waits for it instead of doing nothing.
   const canQueue = writable && uploading && slowmode.wait === 0
+  // Nothing to send yet: the mic takes the send button's place on phones (styles.css), so the box has room.
+  const micInstead = !text.trim() && uploads.length === 0 && voiceRecordingSupported()
   const queue = useQueuedSend(uploads.map((u) => ({ done: !!u.result, failed: !!u.error })), () => submit())
 
   function startUpload(item: PendingUpload) {
@@ -764,10 +766,10 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
       <button className="icon-button attach-button" onClick={(e) => openPicker(e.currentTarget, 'emoji')} aria-label={t('chat.composer.emoji')} title={t('chat.composer.emojiTitle')}>
         <Smile />
       </button>
-      {!text.trim() && uploads.length === 0 && voiceRecordingSupported() && <VoiceRecordButton onSend={sendVoice} disabled={!online} />}
+      {micInstead && <VoiceRecordButton onSend={sendVoice} disabled={!online} />}
       <SlowmodeChip seconds={slowmode.seconds} wait={slowmode.wait} />
       {later.button}
-      <button className="send-button" onClick={submit} disabled={!canSend && !canQueue} aria-label={t('common.send')} {...later.sendProps}>
+      <button className={`send-button ${micInstead ? 'idle' : ''}`} onClick={submit} disabled={!canSend && !canQueue} aria-label={t('common.send')} {...later.sendProps}>
         <Send />
       </button>
     </div>
