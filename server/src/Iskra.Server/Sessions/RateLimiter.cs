@@ -53,6 +53,10 @@ public sealed class RateLimiter(TimeProvider time)
         ["docs.page.move"] = (10, 1),
         ["docs.search"] = (10, 2),
         ["data.export"] = (2, 1 / 600.0), // "Download my data": two, then one every 10 minutes
+        ["outhook.create"] = (10, 0.5),
+        ["outhook.update"] = (10, 1),
+        ["outhook.test"] = (3, 0.2),
+        ["outhook.hosts"] = (10, 1),
         ["security.log.list"] = (20, 2),
         ["profile.page.get"] = (5, 0.2), // up to 512 KB each
         ["bot.commands.set"] = (5, 0.2),

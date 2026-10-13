@@ -429,6 +429,7 @@ public sealed class Session
         if (role == Roles.Owner) OwnerSetup.OwnerJoined(_world);
         SecurityLog.Record(_world.Store, Now, "member.joined", member.AccountKey, LoggedIp, new { role, bot = isBot });
         _hub.Broadcast(Frames.Event("member.joined", new { member = _hub.PublicMember(member) }));
+        _hub.Outhooks?.MemberJoined(member);
         return (member, AuthFailure.Invalid);
     }
 

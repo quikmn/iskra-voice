@@ -177,6 +177,7 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
             """);
         Section("inbox", $"SELECT account_key, message_id, channel_id, kind, created_at FROM inbox_items WHERE account_key {Mine} ORDER BY message_id;");
         Section("invitesCreated", $"SELECT created_by, created_at, expires_at, max_uses, uses, role, revoked FROM invites WHERE created_by {Mine};");
+        Section("outgoingWebhooksCreated", $"SELECT id, name, url, events, created_by, created_at FROM outgoing_webhooks WHERE created_by {Mine};");
         Section("timeouts", $"SELECT account_key, until, reason, at FROM timeouts WHERE account_key {Mine};");
         Section("bans", $"SELECT account_key, reason, banned_at FROM bans WHERE account_key {Mine};");
         Section("reportsMade", $"""

@@ -19,6 +19,8 @@ public sealed class Hub(World world, TimeProvider time)
     public Features.ActivityRegistry Activities { get; } = new(time);
     /// <summary>What sessions are told when the server stops: a restart (1012) or a stop (1001), see RestartSignal.</summary>
     public RestartSignal Restart { get; } = new(world.Path, time);
+    /// <summary>Outgoing webhooks (Features/OutgoingWebhooks.cs); set when that service starts.</summary>
+    public Features.OutgoingWebhooks? Outhooks { get; set; }
 
     private readonly ConcurrentDictionary<Session, byte> _sessions = new();
 

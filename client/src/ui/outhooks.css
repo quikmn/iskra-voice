@@ -1,0 +1,33 @@
+/* ── Outgoing webhooks (Settings → Bots & webhooks → Outgoing) ─────────── */
+.outhook { grid-template-columns: auto 1fr; }
+.outhook-dot { grid-row: span 2; width: 10px; height: 10px; border-radius: 50%; margin: 0 4px; }
+.outhook-dot.on { background: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 25%, transparent); }
+.outhook-dot.off { background: var(--muted); }
+.outhook.off .hook-name { color: var(--text-2); }
+.outhook-host { font-weight: 400; font-size: 13px; color: var(--muted); margin-left: 6px; overflow-wrap: anywhere; }
+.outhook .hook-name { white-space: normal; }
+.outhook-off-text { color: var(--amber); }
+.outhook-test { grid-column: 1 / -1; margin: 4px 0 0; font-size: 13px; }
+.outhook-test.ok { color: var(--green); }
+.outhook-test.bad { color: var(--red); }
+.outhook-form { width: 100%; grid-column: 1 / -1; }
+.outhook-choices { border: 0; margin: 0 0 10px; padding: 0; display: grid; gap: 2px; }
+.outhook-choices legend { font-size: 13px; font-weight: 600; margin-bottom: 4px; color: var(--text-2); }
+.outhook-choices .checkbox { margin: 2px 0; }
+.outhook-channels { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0 12px; max-height: 180px; overflow-y: auto; }
+.outhook-log { grid-column: 1 / -1; margin-top: 8px; }
+.outhook-log ol { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 2px; font-size: 12px; }
+.outhook-log li {
+  display: grid; grid-template-columns: auto 1fr 2fr auto; gap: 8px; align-items: baseline;
+  padding: 4px 8px; border-radius: 6px; background: var(--surface-2, var(--bg));
+}
+.outhook-log-when { color: var(--muted); white-space: nowrap; }
+.outhook-log-state { font-weight: 600; }
+.outhook-log li.ok .outhook-log-state { color: var(--green); }
+.outhook-log li.retry .outhook-log-state { color: var(--amber); }
+.outhook-log li.failed .outhook-log-state { color: var(--red); }
+.outgoing-hosts ul { margin: 2px 0 6px; padding-left: 18px; font-size: 13px; overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .outhook-log li { grid-template-columns: 1fr auto; }
+  .outhook-log li > span:nth-child(2), .outhook-log li > span:nth-child(3) { grid-column: 1 / -1; }
+}

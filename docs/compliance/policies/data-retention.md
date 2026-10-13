@@ -30,6 +30,7 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Audit log (moderation and admin actions) | 90 days | `ModerationSweeper` | `Retention.AuditDays` (0 = keep) |
 | Security log (auth failures, rate-limit hits, joins, sign-ins from new devices, key rotations, deletions, backups, moves, exports, settings changes) | 365 days | `RetentionSweeper` | `Retention.SecurityLogDays` |
 | Resolved reports | 90 days after resolution | Report sweep (`ReportFeature`) | No |
+| Outgoing webhooks (name, address, events, who made it) and their delivery log (time, event, attempt, HTTP status, outcome; never the payload) | Webhooks until an admin deletes them; the last 50 log entries per webhook, deleted with it | Admins; each new log entry | No |
 | Ended or cancelled events | 30 days | `EventScheduler` | No |
 | Daily backups (`backups/auto-*.zip`) | Last 7 | `BackupService` | `Backups.Keep` (1–30) |
 | Downloaded encrypted backups | Wherever the owner keeps them | The owner | — |

@@ -16,6 +16,7 @@ public static class LeaveFeature
         if (s.World.Store.IsBot(me.AccountKey)) throw RequestException.Forbidden("Bots can't leave on their own.");
         s.World.Store.RemoveMember(me.AccountKey);
         s.Hub.Broadcast(Frames.Event("member.removed", new { accountKey = me.AccountKey }));
+        s.Hub.Outhooks?.MemberLeft(me.AccountKey, me.Name, "left");
         s.Voice.EnforceAccess();
         // Every session of the account closes, this one right after its answer.
         s.AfterReply(() => s.Hub.Disconnect(me.AccountKey, CloseCodes.Forbidden, "You left this server.", "kicked_left"));

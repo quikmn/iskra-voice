@@ -1724,3 +1724,60 @@ export interface Requests {
   'bot.commands.set': [{ commands: BotCommand[] }, { commands: BotCommand[] }]
   'bot.commands.available': [{ channelId: number }, { bots: string[] }]
 }
+
+// ── outgoing webhooks ──
+// See "Outgoing webhooks" in PROTOCOL.md.
+
+export type OutHookEvent = 'message.created' | 'reaction.added' | 'member.joined' | 'member.left' | 'event.started'
+
+export type OutHookOutcome = 'ok' | 'http' | 'timeout' | 'network' | 'blocked' | 'redirect' | 'rate_limited' | 'queue_full' | 'too_large'
+
+export interface OutHook {
+  id: string
+  name: string
+  url: string
+  host: string
+  events: OutHookEvent[]
+  channelIds: number[]
+  allowLocal: boolean
+  enabled: boolean
+  disabledReason: 'failures' | null
+  failures: number
+  createdBy: string
+  createdAt: number
+  lastDeliveryAt: number | null
+  lastOutcome: OutHookOutcome | null
+}
+
+export interface OutHookDelivery {
+  delivery: string
+  event: OutHookEvent | 'ping'
+  attempt: number
+  at: number
+  status: number | null
+  outcome: OutHookOutcome
+  ms: number
+}
+
+export interface OutHookInput {
+  name: string
+  url: string
+  events: OutHookEvent[]
+  channelIds: number[]
+  allowLocal?: boolean
+}
+
+export interface Events {
+  'outhook.disabled': { hook: OutHook }
+}
+
+export interface Requests {
+  'outhook.list': [Record<string, never>, { hooks: OutHook[] }]
+  'outhook.create': [OutHookInput, { hook: OutHook; secret: string }]
+  'outhook.update': [Partial<OutHookInput> & { id: string; enabled?: boolean }, { hook: OutHook }]
+  'outhook.regenerate': [{ id: string }, { hook: OutHook; secret: string }]
+  'outhook.delete': [{ id: string }, Record<string, never>]
+  'outhook.log': [{ id: string }, { deliveries: OutHookDelivery[] }]
+  'outhook.test': [{ id: string }, { delivery: OutHookDelivery }]
+  'outhook.hosts': [Record<string, never>, { hooks: { name: string; host: string; events: OutHookEvent[] }[] }]
+}
