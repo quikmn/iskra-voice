@@ -37,6 +37,21 @@ public static class LiveKitTokens
             ["canPublishData"] = canPublish,
         }, TimeSpan.FromHours(6), now);
 
+    /// <summary>
+    /// A bot's token for one voice room: it may publish audio only (no camera, screen or data) and never subscribes,
+    /// so it can't hear anyone (VoiceBotFeature).
+    /// </summary>
+    public static string ForBot(string apiKey, string apiSecret, string identity, string name, string room, bool canPublish, DateTimeOffset now) =>
+        Create(apiKey, apiSecret, identity, name, new JsonObject
+        {
+            ["room"] = room,
+            ["roomJoin"] = true,
+            ["canSubscribe"] = false,
+            ["canPublish"] = canPublish,
+            ["canPublishData"] = false,
+            ["canPublishSources"] = new JsonArray("microphone"),
+        }, TimeSpan.FromHours(6), now);
+
     /// <summary>A short-lived token for server-to-LiveKit API calls on one room.</summary>
     public static string Admin(string apiKey, string apiSecret, string room, DateTimeOffset now) =>
         Create(apiKey, apiSecret, "iskra-server", "Iskra", new JsonObject { ["room"] = room, ["roomAdmin"] = true }, TimeSpan.FromMinutes(5), now);

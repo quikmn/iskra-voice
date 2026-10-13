@@ -8,7 +8,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Basics:** [Encoding](#encoding) · [Identity](#identity) · [Connection](#connection) (handshake, errors and close codes, limits, [restarts](#restarts-and-reconnecting)) · [Objects](#objects)
 - **Servers and channels:** [Requests and events](#requests-and-events) · [Invite links](#invite-links) · [Organizing a server](#organizing-a-server)
 - **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji) · [Stickers](#stickers) · [GIFs](#gifs) · [Saved messages, reminders, scheduled messages and the inbox](#saved-messages-reminders-scheduled-messages-and-the-inbox)
-- **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties) · [Voice channel chat and clips](#voice-channel-chat-and-clips) · [Hi-fi voice channels](#hi-fi-voice-channels)
+- **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties) · [Voice channel chat and clips](#voice-channel-chat-and-clips) · [Hi-fi voice channels](#hi-fi-voice-channels) · [Voice bots](#voice-bots)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Encrypted channels](#end-to-end-encrypted-channels) · [Friends](#friends)
 - **People and integrations:** [Profiles](#profiles) · [Profile sync](#profile-sync) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Bot interactions](#bot-interactions) · [Presence and voice messages](#presence-and-voice-messages)
 - **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels)
@@ -347,7 +347,7 @@ Voice runs on a LiveKit server that `iskra-server` starts next to itself (config
 
 | type | body | result | who |
 |---|---|---|---|
-| `voice.join` | `channelId` (a `voice` or `stage` channel) | `{ url, token, room, canSpeak }` | channel readers (not bots); `canSpeak` = channel writers |
+| `voice.join` | `channelId` (a `voice` or `stage` channel) | `{ url, token, room, canSpeak }` | channel readers ([bots](#voice-bots) only when allowed); `canSpeak` = channel writers |
 | `voice.state` | `muted, deafened` (booleans) | | anyone in voice (cosmetic flags shown to others) |
 
 - `token` is a LiveKit JWT for exactly one room (`voice-<channelId>`) with `canPublish = canSpeak`. The client connects to `url` with it.
@@ -625,7 +625,7 @@ A bot is an ordinary identity (account key, device certificate, signed handshake
 
 - A bot can only join with a bot invite, and a bot invite only works for a client that says `bot: true`. Anything else gets `invite_required` (and the invite isn't used up).
 - The flag is stored by the server and can't be changed afterwards: `Member.bot` (boolean) everywhere members appear.
-- Bots can't join voice (`voice.join` → `forbidden`), create invites, or have a role above `trusted` (`member.setRole` → `bad_request`). They have the same rate limits as everyone else.
+- Bots can't join voice unless an admin allows it ([Voice bots](#voice-bots); otherwise `voice.join` → `forbidden`), create invites, or have a role above `trusted` (`member.setRole` → `bad_request`). They have the same rate limits as everyone else.
 - Bots can't send DMs or take part in calls (`dm.send`, `call.start`, `call.accept` → `forbidden`; calling a bot → `bad_request`): DMs and call keys are end-to-end encrypted to people's devices, which a bot can't read.
 - Bots can't be in group DMs or group calls, schedule messages (`scheduled.create` → `forbidden`), speak or moderate on stages, take part in [encrypted channels](#end-to-end-encrypted-channels), or leave on their own (`member.leave` → `forbidden`; an admin removes them). They can hold [roles](#roles-and-permissions) with permissions like anyone else.
 - Commands: a message starting with `/name args` (or `/name@BotName args` to pick one bot) is a command by convention. Bots can describe their commands so apps suggest them ([Bot commands and cards](#bot-commands-and-cards)), and take them as [interactions](#bot-interactions) instead of messages. See `docs/bots.md`.
@@ -2548,3 +2548,33 @@ chain. A command there still works without leaking the channel:
   messages, keys or chain.
 - Every answer is private (`private: true` in the interaction): only the person who asked sees it; it is never stored
   or posted, so nothing unencrypted lands in the channel. Components on those answers work the same way.
+
+## Voice bots
+
+A bot can join a voice channel and play audio into it (music from files, or a stream its operator provides). An admin
+decides per bot; by default a bot can't join voice. The server issues the bot's LiveKit token like anyone's, with
+tighter grants; the audio itself goes from the bot straight to LiveKit, as for people.
+
+| type | body | result | who |
+|---|---|---|---|
+| `bot.invite` | gains `voice?` (bool, default `false`): the bot may join voice | | admin+ |
+| `bot.voice.set` | `accountKey` (a bot member), `voice` (bool) | `{ member }` | admin+; `member.updated` goes to everyone |
+| `voice.join` | as before; bots only with `voice` (see below) | `{ url, token, room, canSpeak }` | |
+| `voice.disconnect` | `accountKey` | | `moveMembers`, someone below you (or yourself) who is in a voice channel you can see |
+
+- `Member.joinsVoice`: `true`/`false` for bots, `null` for people. `voice` from the invite is copied to the bot when it
+  joins (migration `voicebots-1`: `bots.voice`, `bot_invites.voice`). Built-in bots never join voice.
+- `voice.join` by a bot: without `voice`: `forbidden` (key `bot_no_voice`); a stage channel: `bad_request` (key
+  `bot_stage`); an [encrypted](#end-to-end-encrypted-channels) voice channel: `bad_request` (key `bot_e2ee_voice`,
+  bots are never in the chain, so they couldn't hear or be heard). Everything else is as for people: `connect` on the
+  channel, [user limits](#voice-user-limits), timeouts, server mutes; `canSpeak` = channel writers and not server-muted.
+- A bot's token grants `canSubscribe: false` (a bot never receives anyone's audio), `canPublishData: false` and
+  `canPublishSources: ["microphone"]`: it can publish one kind of track, audio, and no camera or screen share.
+  Server mutes keep these grants (`UpdateParticipant` sends the bot's permission, not a person's).
+- The LiveKit webhook check also applies these rules: a bot that joins without `voice`, or a stage or encrypted
+  channel, is removed. Turning `voice` off (`bot.voice.set`) or removing the bot takes it out of voice at once.
+- `voice.disconnect` takes someone out of the voice channel they're in (people and bots): LiveKit removes them and
+  their sessions get event `voice.disconnected { channelId }`; apps don't rejoin by themselves. Audit `voice.disconnect`
+  (`{ channelId, channelName }`).
+- Apps show bots in voice like everyone, with the bot badge. Muting a bot for yourself is the usual per-person volume
+  (on your device only); server mute and disconnect are the usual moderation.
