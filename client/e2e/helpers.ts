@@ -234,6 +234,26 @@ export async function recordStatusBanners(page: Page): Promise<() => Promise<{ t
   return () => page.evaluate(() => (window as unknown as { __statusSeen?: { text: string; at: number }[] }).__statusSeen ?? [])
 }
 
+/**
+ * Notes whether an element matching `selector` ever shows on the page from now on (a progress bar that may come and go
+ * before a live check gets to it). Returns a check for `expect.poll`.
+ */
+export async function recordSeen(page: Page, selector: string): Promise<() => Promise<boolean>> {
+  await page.evaluate((selector) => {
+    const w = window as unknown as { __seen?: Record<string, boolean> }
+    const seen = (w.__seen ??= {})
+    seen[selector] = !!document.querySelector(selector)
+    if (seen[selector]) return
+    const observer = new MutationObserver(() => {
+      if (!document.querySelector(selector)) return
+      seen[selector] = true
+      observer.disconnect()
+    })
+    observer.observe(document.body, { childList: true, subtree: true })
+  }, selector)
+  return () => page.evaluate((selector) => !!(window as unknown as { __seen?: Record<string, boolean> }).__seen?.[selector], selector)
+}
+
 /** The first-run screen asks to agree to the terms before either choice (once per device and terms version). */
 export async function agreeToTerms(page: Page) {
   await expect(page.getByRole('button', { name: /I’m new to Iskra/ })).toBeVisible({ timeout: 15_000 })

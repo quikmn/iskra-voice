@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { devices, expect, test, type Page } from '@playwright/test'
-import { agreeToTerms, createInviteLink, joinVia, openSettings, SHOTS, startServer, type TestServer } from './helpers'
+import { agreeToTerms, createInviteLink, joinVia, openSettings, recordSeen, SHOTS, startServer, type TestServer } from './helpers'
 
 let server: TestServer
 test.beforeEach(async () => {
@@ -73,10 +73,12 @@ test('a linked device brings DM and group history; groups on a removed server ar
   await phone.getByLabel('Or type the code').fill(code)
   await phone.getByRole('button', { name: 'Link this device' }).click()
   await host.getByLabel('Number on the new device').fill(await phone.getByTestId('link-confirm').innerText())
+  // The host's bar is up only until the relay holds the rest (a few parts), which can be over before a live check.
+  const hostShowedProgress = await recordSeen(host, 'progress[aria-label="History sent"]')
   await host.getByRole('button', { name: 'Link it', exact: true }).click()
   // Both sides show progress while the parts move.
   await expect(phone.getByRole('progressbar', { name: 'History received' })).toBeVisible()
-  await expect(host.getByRole('progressbar', { name: 'History sent' })).toBeVisible()
+  await expect.poll(hostShowedProgress).toBe(true)
   expect(await host.evaluate(async () => {
     const { buildHistory } = await import('/src/state/link.ts' as string)
     const { PART_BYTES } = await import('/src/core/link.ts' as string)

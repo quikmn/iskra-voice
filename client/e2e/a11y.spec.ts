@@ -128,6 +128,9 @@ test('main screens have no serious accessibility problems', async ({ browser }) 
     await openSettings(page, 'Appearance')
     await page.getByRole('radio', { name: id === 'iskra' ? `${theme.meta.name} (default)` : theme.meta.name, exact: true }).click()
     await page.keyboard.press('Escape')
+    // The mouse would otherwise rest wherever the theme's radio button was, over a message for some themes and not
+    // others; hovering the first message always measures its hover colours (time stamp on the hover tint) the same way.
+    await page.locator('.message').first().hover()
     await audit(page, `theme ${theme.meta.name}: text channel`, { rules: ['color-contrast'] })
   }
   await page.screenshot({ path: join(SHOTS, 'a11y-last-theme.png') })
