@@ -180,6 +180,21 @@ export interface DesktopBridge {
     /** Say so before a room connects through a tunnel (WebRTC then uses one any-address socket) and again on leaving. */
     voice?(on: boolean): Promise<void>
   }
+  /**
+   * Rent a server on DigitalOcean (missing in older desktop builds). The token goes to the main process once and stays
+   * there; replies carry an error code (DigitalOceanError) and DigitalOcean's own words, never the token.
+   */
+  digitalOcean?: {
+    connect(token: string): Promise<{ ok: true; regions: DoRegionChoice[] } | DoFailure | null>
+    /** "Connect to DigitalOcean" in the browser (OAuth); false until Iskra's OAuth app is registered. */
+    oauthAvailable?(): Promise<boolean>
+    oauth?(): Promise<{ ok: true; regions: DoRegionChoice[] } | DoFailure | null>
+    create(options: { name: string; region: string; size: string; userData: string; ssh: boolean }): Promise<{ ok: true; server: DoRented } | (DoFailure & { created: DoCreated }) | null>
+    cancel(): Promise<void>
+    cleanUp(): Promise<{ ok: true; droplet: boolean; firewall: boolean } | (DoFailure & { created: DoCreated }) | null>
+    forget(): Promise<void>
+    onProgress(callback: (progress: DoProgress) => void): () => void
+  }
   /** Saves a file from a server URL (asks where). */
   download?(url: string): Promise<boolean>
   /** Big decrypted files straight to disk: a Save dialog (null if cancelled), then the bytes; `finish` only once they're checked. */
@@ -189,6 +204,39 @@ export interface DesktopBridge {
     finish(id: string): Promise<boolean>
     abort(id: string): Promise<void>
   }
+}
+
+// ── Rent a server on DigitalOcean (desktop/src/digitalocean.ts) ──
+export type DigitalOceanError = 'token' | 'scope' | 'limit' | 'rate' | 'network' | 'server' | 'invalid' | 'timeout' | 'cancelled' | 'busy' | 'denied' | 'unavailable'
+export interface DoFailure {
+  ok: false
+  error: DigitalOceanError
+  /** DigitalOcean's own words (English), if any. */
+  detail: string
+}
+export interface DoRegionChoice {
+  slug: string
+  name: string
+  size: { slug: string; memoryMb: number; vcpus: number; diskGb: number; priceMonthly: number }
+}
+export interface DoCreated {
+  dropletId?: number
+  dropletName?: string
+  firewallId?: string
+}
+export type DoStep = 'droplet' | 'firewall' | 'booting' | 'installing' | 'ready'
+export interface DoProgress {
+  step: DoStep
+  ip?: string
+  url?: string
+}
+export interface DoRented {
+  ip: string
+  url: string
+  dropletId: number
+  dropletName: string
+  region: string
+  size: string
 }
 
 export const desktop: DesktopBridge | undefined = (globalThis as { iskraDesktop?: DesktopBridge }).iskraDesktop

@@ -68,7 +68,7 @@ describe('rent a small server: the setup text', () => {
     const settings = JSON.parse(json.replace('__DOMAIN__', '203-0-113-7.sslip.io'))
     expect(settings).toEqual({
       Name: 'It\'s "$(rm -rf /)" `night`', Template: 'friends', OwnerClaim: claim,
-      Https: { Mode: 'acme', Domain: '203-0-113-7.sslip.io' }, Voice: { Enabled: true, RtcTcpPort: 7881, RtcUdpPort: 7882 }, Updates: { Mode: 'auto' },
+      Https: { Mode: 'acme', Domain: '203-0-113-7.sslip.io' }, Voice: { Enabled: true, RtcTcpPort: 7881, RtcUdpPort: 7882 }, Updates: { Mode: 'auto' }, Backups: { Enabled: true, Keep: 7 },
     })
     // The claim appears once; nothing else in the text looks like a key.
     expect(script.split(claim)).toHaveLength(2)

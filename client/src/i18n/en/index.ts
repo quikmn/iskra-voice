@@ -35,6 +35,7 @@ import { media } from './media'
 import { hosting } from './hosting'
 import { outhooks } from './outhooks'
 import { builtinBots } from './builtinBots'
+import { rental } from './rental'
 
 export const en = {
   common,
@@ -73,4 +74,5 @@ export const en = {
   hosting,
   outhooks,
   builtinBots,
+  rental,
 } as const

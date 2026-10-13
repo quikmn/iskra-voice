@@ -60,6 +60,11 @@ export const compliance: Messages['compliance'] = {
       when: 'Öppen mot internet: din router (UPnP eller NAT-PMP, i ditt eget nätverk), Let’s Encrypt för HTTPS-certifikatet och sslip.io för den gratis adressen om du inte har en egen domän. Textning: servern hämtar talmodellen en gång från Hugging Face. Serveruppdateringar: GitHub.',
       off: 'De ser serverns adress, inte dina medlemmars. Internetvärd och serveruppdateringar slår du av och på i Serverinställningar, textningsmodellen i server.json.',
     },
+    digitalOcean: {
+      who: 'DigitalOcean (cloud.digitalocean.com, api.digitalocean.com)',
+      when: 'Bara medan du hyr en server hos DigitalOcean från skrivbordsappen: du loggar in där i webbläsaren (eller klistrar in en token), och appen skapar servern och dess brandvägg, och tar bort dem om uppsättningen misslyckas.',
+      off: 'DigitalOcean ser din IP-adress och vad appen skapar i ditt konto. Appen håller sin nyckel bara i minnet och glömmer den efter uppsättningen. Inget händer om du inte startar det själv.',
+    },
     p2p: {
       who: 'HyperDHT (ett publikt peer-to-peer-nätverk), bara för "Anslut utan portvidarebefordran"',
       when: 'Bara om en servers ägare slagit på det i datorappen, och när du går med i en sådan server med datorappen och dess adress inte går att nå: appen pratar med noder i det publika HyperDHT-nätverket (först de tre bootstrap-noderna som Holepunch kör, sedan vilka noder som helst) för att annonsera servern eller hitta den, och sedan direkt med den andra datorn.',

@@ -7,6 +7,7 @@ import { desktop, type HostedServer, type ServerTemplateInfo, type TemplateChann
 import { noteHosted, setKeepRunning } from '../../state/hosting'
 import { acceptInvite, useApp } from '../../state/store'
 import { RestoreServer } from './RestoreServer'
+import { DigitalOceanDialog } from './DigitalOceanDialog'
 import { InviteDialog } from './InviteDialog'
 import '../settings/backup.css'
 import './CreateServerDialog.css'
@@ -48,14 +49,16 @@ export function templateText(template: ServerTemplateInfo): { name: string; desc
 /** Desktop only: start a server on this computer and become its owner. */
 export function CreateServerDialog({ onClose }: { onClose: () => void }) {
   const [restoring, setRestoring] = useState(false)
+  const [renting, setRenting] = useState(false)
   if (restoring) return <RestoreServer onBack={() => setRestoring(false)} onClose={onClose} />
-  return <NewServer onClose={onClose} onRestore={desktop?.host.pickBackup ? () => setRestoring(true) : undefined} />
+  if (renting) return <DigitalOceanDialog onClose={onClose} />
+  return <NewServer onClose={onClose} onRestore={desktop?.host.pickBackup ? () => setRestoring(true) : undefined} onRent={desktop?.digitalOcean ? () => setRenting(true) : undefined} />
 }
 
 type Step = 'name' | 'template' | 'starting' | 'done'
 
 /** The setup wizard: a name, a starting point, then it's running and you invite friends. */
-function NewServer({ onClose, onRestore }: { onClose: () => void; onRestore?: () => void }) {
+function NewServer({ onClose, onRestore, onRent }: { onClose: () => void; onRestore?: () => void; onRent?: () => void }) {
   const { t } = useTranslation()
   const [step, setStep] = useState<Step>('name')
   const [name, setName] = useState('')
@@ -212,6 +215,11 @@ function NewServer({ onClose, onRestore }: { onClose: () => void; onRestore?: ()
       {onRestore && (
         <p className="muted restore-link">
           {t('settings.createServer.moving')} <button className="link" onClick={onRestore}>{t('settings.createServer.restore')}</button>
+        </p>
+      )}
+      {onRent && (
+        <p className="muted restore-link">
+          {t('rental.createLink')} <button className="link" onClick={onRent}>{t('rental.createButton')}</button>
         </p>
       )}
     </Modal>

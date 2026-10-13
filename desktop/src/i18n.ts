@@ -74,6 +74,10 @@ const en = {
     updating: (version: string) => `Updating Iskra to ${version}…`,
     updatingDetail: 'It’ll be back in a few seconds.',
   },
+  digitalOcean: {
+    done: 'Connected to DigitalOcean. You can close this tab and go back to Iskra.',
+    denied: 'Iskra wasn’t connected to DigitalOcean. You can close this tab and go back to Iskra.',
+  },
 }
 
 export type DesktopText = typeof en
@@ -148,6 +152,10 @@ const sv: DesktopText = {
     updatedTo: (version) => `Uppdaterad till ${version}`,
     updating: (version) => `Uppdaterar Iskra till ${version}…`,
     updatingDetail: 'Iskra är tillbaka om några sekunder.',
+  },
+  digitalOcean: {
+    done: 'Ansluten till DigitalOcean. Du kan stänga fliken och gå tillbaka till Iskra.',
+    denied: 'Iskra anslöts inte till DigitalOcean. Du kan stänga fliken och gå tillbaka till Iskra.',
   },
 }
 

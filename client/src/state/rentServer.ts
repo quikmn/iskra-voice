@@ -81,6 +81,7 @@ export function cloudInit({ name, template, claim, version = RELEASE_VERSION }: 
     Https: { Mode: 'acme', Domain: '__DOMAIN__' },
     Voice: { Enabled: true, RtcTcpPort: 7881, RtcUdpPort: 7882 },
     Updates: { Mode: 'auto' },
+    Backups: { Enabled: true, Keep: 7 },
   }
   const ufw = VPS_PORTS.map((p) => `ufw allow ${p.port}/${p.protocol}`).join('\n')
   return `#!/bin/bash
@@ -206,6 +207,17 @@ export async function waitForClaim(ip: string, claim: string, options: {
 } = {}): Promise<ClaimResult> {
   const base = vpsAddress(ip)
   if (!base) throw new Error(t('hosting.rent.badIp'))
+  return waitForClaimAt(base, claim, options)
+}
+
+/** waitForClaim at a known address (the DigitalOcean flow already knows it, and tests use a local server). */
+export async function waitForClaimAt(base: string, claim: string, options: {
+  timeoutMs?: number
+  intervalMs?: number
+  signal?: AbortSignal
+  onProgress?: (p: ClaimProgress) => void
+  fetcher?: typeof fetch
+} = {}): Promise<ClaimResult> {
   const { timeoutMs = 20 * 60_000, intervalMs = 5000, signal, onProgress, fetcher = fetch } = options
   const deadline = Date.now() + timeoutMs
   await ready()
