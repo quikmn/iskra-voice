@@ -194,6 +194,8 @@ export class Bot {
   }
   private connection: Connection | null = null
   private voiceConnection: VoiceConnection | null = null
+  /** Who is in which voice channel (the channels the bot can see), from the server. */
+  private readonly inVoice = new Map<number, string[]>()
   private state: BotState | null = null
   private serverUrl = ''
 
@@ -325,6 +327,8 @@ export class Bot {
           this.channels = welcome.channels
           this.members.clear()
           for (const m of welcome.members) this.members.set(m.accountKey, m)
+          this.inVoice.clear()
+          for (const v of welcome.voice ?? []) this.inVoice.set(v.channelId, v.participants.map((p) => p.accountKey))
           if (!this.state!.server) {
             this.state!.server = server
             saveState(this.stateFile, this.state!)
@@ -454,6 +458,12 @@ export class Bot {
     return connection
   }
 
+  /** The voice channel someone is in (of those the bot can see), or null: e.g. to join the person who asked. */
+  voiceChannelOf(accountKey: string): number | null {
+    for (const [channelId, people] of this.inVoice) if (people.includes(accountKey)) return channelId
+    return null
+  }
+
   /** The voice channel the bot is in, or null. */
   get voice(): VoiceConnection | null {
     return this.voiceConnection
@@ -529,9 +539,12 @@ export class Bot {
         this.log(`Removed from the server: ${(body as Events['kicked']).reason}`)
         this.voiceConnection?.removed()
         return
-      case 'voice.state':
-        this.voiceConnection?.voiceState(body as Events['voice.state'])
+      case 'voice.state': {
+        const state = body as Events['voice.state']
+        this.inVoice.set(state.channelId, state.participants.map((p) => p.accountKey))
+        this.voiceConnection?.voiceState(state)
         return
+      }
       case 'voice.disconnected':
         if ((body as Events['voice.disconnected']).channelId === this.voiceConnection?.channelId) this.voiceConnection.removed()
         return
