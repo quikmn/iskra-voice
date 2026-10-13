@@ -139,7 +139,7 @@ export const BUILT_IN_THEMES: BuiltInTheme[] = [
   {
     id: 'default',
     theme: {
-      meta: { name: 'Graphite', desc: 'Calm greys with a blurple accent', scheme: 'dark' },
+      meta: { name: 'Iskra Dark', desc: 'Calm greys with a blurple accent', scheme: 'dark' },
       colors: {
         bgSurface: '#111214', bgDeep: '#1e1f22', bgBody: '#202225', bgFloat: '#232428',
         bgSidebar: '#2b2d31', bgSidebarHover: '#25272b', bgChat: '#313338',
