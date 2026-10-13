@@ -27,8 +27,11 @@ public interface IReleaseFeed
     /// <summary>Downloads a release file to <paramref name="path"/>, refusing anything larger than <paramref name="maxBytes"/>.</summary>
     Task DownloadAsync(ReleaseAsset asset, string path, long maxBytes, Action<long>? progress, CancellationToken cancel);
 
-    /// <summary>Whether GitHub has a build-provenance attestation for this SHA-256 in the repo; null if it couldn't be asked.</summary>
-    Task<bool?> HasAttestationAsync(string sha256, CancellationToken cancel);
+    /// <summary>
+    /// GitHub's build-provenance attestations for this SHA-256 in the repo, as Sigstore bundle JSON (unverified: see
+    /// <see cref="Attestations"/>); empty when there are none, null if GitHub couldn't be asked.
+    /// </summary>
+    Task<IReadOnlyList<string>?> AttestationsAsync(string sha256, CancellationToken cancel);
 }
 
 /// <summary>
@@ -98,18 +101,31 @@ public sealed class GitHubReleaseFeed : IReleaseFeed, IDisposable
         }
     }
 
-    public async Task<bool?> HasAttestationAsync(string sha256, CancellationToken cancel)
+    public async Task<IReadOnlyList<string>?> AttestationsAsync(string sha256, CancellationToken cancel)
     {
         try
         {
-            using var request = Api($"https://api.github.com/repos/{Repo}/attestations/sha256:{sha256}");
+            using var request = Api($"https://api.github.com/repos/{Repo}/attestations/sha256:{sha256}?per_page=20");
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancel);
             timeout.CancelAfter(TimeSpan.FromSeconds(30));
-            using var response = await _http.SendAsync(request, timeout.Token);
-            if (response.StatusCode == HttpStatusCode.NotFound) return false;
+            using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
+            if (response.StatusCode == HttpStatusCode.NotFound) return [];
             if (!response.IsSuccessStatusCode) return null;
-            using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(timeout.Token), cancellationToken: timeout.Token);
-            return doc.RootElement.TryGetProperty("attestations", out var list) && list.ValueKind == JsonValueKind.Array && list.GetArrayLength() > 0;
+            if (response.Content.Headers.ContentLength > Attestations.MaxResponseBytes) return null;
+            using var buffer = new MemoryStream();
+            await using (var body = await response.Content.ReadAsStreamAsync(timeout.Token))
+            {
+                var chunk = new byte[81920];
+                int read;
+                while ((read = await body.ReadAsync(chunk, timeout.Token)) > 0)
+                {
+                    if (buffer.Length + read > Attestations.MaxResponseBytes) return null;
+                    buffer.Write(chunk, 0, read);
+                }
+            }
+            buffer.Position = 0;
+            using var doc = await JsonDocument.ParseAsync(buffer, cancellationToken: timeout.Token);
+            return Attestations.ParseList(doc);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
@@ -184,5 +200,5 @@ public sealed class FileReleaseFeed(string path) : IReleaseFeed
     public Task DownloadAsync(ReleaseAsset asset, string path, long maxBytes, Action<long>? progress, CancellationToken cancel) =>
         throw new IOException("This feed can't download.");
 
-    public Task<bool?> HasAttestationAsync(string sha256, CancellationToken cancel) => Task.FromResult<bool?>(null);
+    public Task<IReadOnlyList<string>?> AttestationsAsync(string sha256, CancellationToken cancel) => Task.FromResult<IReadOnlyList<string>?>(null);
 }

@@ -2,14 +2,16 @@
 // Background effects: MediaPipe and the Selfie Segmenter are bundled with the app (about 12 MB, no CDN).
 // Live captions: Whisper base (78 MB) isn't bundled or in git. It's downloaded once, when you turn captions on, from
 // the Iskra server of the call you're in (GET /models/..., which fetched it once from Hugging Face), so members'
-// devices only ever talk to their own server. Every part is checked against the SHA-256 compiled in below
-// (model.json, shared with the server) before it's used or kept, then kept in Cache Storage (IndexedDB where Cache
-// Storage can't, as on the desktop app's app://), whichever server it came from. No audio or text goes anywhere.
+// devices only ever talk to their own server; only members get it (the app asks for a short-lived link over its
+// connection first). Every part is checked against the SHA-256 compiled in below (model.json, shared with the server)
+// before it's used or kept, then kept in Cache Storage (IndexedDB where Cache Storage can't, as on the desktop app's
+// app://), whichever server it came from. No audio or text goes anywhere.
 import ortWasmUrl from 'onnxruntime-web/ort-wasm-simd-threaded.wasm?url'
 import visionLoaderUrl from '@mediapipe/tasks-vision/vision_wasm_module_internal.js?url'
 import visionWasmUrl from '@mediapipe/tasks-vision/vision_wasm_module_internal.wasm?url'
 import segmenterUrl from '../../vendor/mediapipe/selfie_segmenter.tflite?url'
 import manifest from './captions/model.json'
+import type { CaptionModelLink } from '../core/protocol'
 
 /** Background effects: MediaPipe fetches these itself from the app (the browser's cache keeps them). */
 export const BLUR_FILES = { loader: visionLoaderUrl, wasm: visionWasmUrl, model: segmenterUrl }
@@ -26,22 +28,33 @@ export interface ModelPart {
   bytes: number
 }
 
-/** The model's parts on a server (`base` is its address, e.g. https://chat.example.org). */
-export function captionParts(base: string): Record<'encoder' | 'decoder' | 'vocab', ModelPart[]> {
+/** Where to get the model: a server's address (e.g. https://chat.example.org) and the member's link to it. */
+export interface CaptionSource {
+  base: string
+  /** The signed query from captions.model.link ("a=…&exp=…&sig=…"). */
+  query: string
+}
+
+/** The model's parts on a server. */
+export function captionParts(source: CaptionSource): Record<'encoder' | 'decoder' | 'vocab', ModelPart[]> {
+  const query = source.query ? `?${source.query}` : ''
   const parts = (name: string) => {
     const file = manifest.files.find((f) => f.name === name)!
-    return file.parts.map((p, i) => ({ url: `${base}/models/${manifest.dir}/${name}.part${i}.bin`, sha256: p.sha256, bytes: p.bytes }))
+    return file.parts.map((p, i) => ({ url: `${source.base}/models/${manifest.dir}/${name}.part${i}.bin${query}`, sha256: p.sha256, bytes: p.bytes }))
   }
   return { encoder: parts('encoder.q8.onnx'), decoder: parts('decoder.q8.onnx'), vocab: parts('vocab.json') }
 }
 
 const MODEL_BYTES = manifest.files.reduce((n, f) => n + f.bytes, 0)
 
+/** For the parts' names only. */
+const ANY: CaptionSource = { base: 'https://any', query: '' }
+
 /** What turning captions on downloads from the server the first time. */
 export const captionDownloadBytes = () => MODEL_BYTES
 
-/** Kept under one address whichever server it came from (a key only: nothing is ever fetched from it). */
-const keyOf = (p: ModelPart) => `https://models.iskra.invalid${p.url.slice(p.url.lastIndexOf('/models/'))}`
+/** Kept under one address whichever server (and link) it came from (a key only: nothing is ever fetched from it). */
+const keyOf = (p: ModelPart) => `https://models.iskra.invalid${p.url.slice(p.url.lastIndexOf('/models/')).split('?')[0]}`
 
 export type ModelErrorKind = 'download' | 'corrupt' | 'cancelled' | 'notOffered'
 
@@ -127,7 +140,7 @@ let pruned = false
 async function prune(s: Store): Promise<void> {
   if (pruned) return
   pruned = true
-  const keep = new Set(Object.values(captionParts('https://any')).flat().map(keyOf))
+  const keep = new Set(Object.values(captionParts(ANY)).flat().map(keyOf))
   for (const url of await s.keys()) if (!keep.has(url)) await s.remove(url).catch(() => undefined)
 }
 
@@ -207,11 +220,11 @@ export interface CaptionModel {
   vocab: Uint8Array
 }
 
-/** The runtime and the checked model from server `base`, calling `onProgress` with the share done so far (0–1). */
-export async function loadCaptionModel(base: string, onProgress?: (done: number) => void, signal?: AbortSignal): Promise<CaptionModel> {
+/** The runtime and the checked model from `source`, calling `onProgress` with the share done so far (0–1). */
+export async function loadCaptionModel(source: CaptionSource, onProgress?: (done: number) => void, signal?: AbortSignal): Promise<CaptionModel> {
   const s = await openStore()
   if (s) void prune(s).catch(() => undefined)
-  const files = captionParts(base)
+  const files = captionParts(source)
   const total = MODEL_BYTES + RUNTIME.bytes
   let received = 0
   const onBytes = (n: number) => {
@@ -236,17 +249,20 @@ export async function captionModelCached(): Promise<boolean> {
   if (!s) return false
   try {
     const keys = new Set(await s.keys())
-    return Object.values(captionParts('https://any')).flat().every((p) => keys.has(keyOf(p)))
+    return Object.values(captionParts(ANY)).flat().every((p) => keys.has(keyOf(p)))
   } catch {
     return false
   }
 }
 
-/** Whether server `base` offers the model (HEAD: answers without making the server fetch anything). */
-export async function captionsOffered(base: string, signal?: AbortSignal): Promise<'yes' | 'no' | 'unreachable'> {
+/**
+ * Whether server `base` offers the model, and the member's link to it: `ask` is the server's answer to
+ * captions.model.link (only members get one; the server fetches nothing for it).
+ */
+export async function captionSource(base: string, ask: () => Promise<CaptionModelLink>): Promise<CaptionSource | 'no' | 'unreachable'> {
   try {
-    const response = await fetch(captionParts(base).vocab[0].url, { method: 'HEAD', signal, cache: 'no-store' })
-    return response.ok ? 'yes' : response.status === 404 ? 'no' : 'unreachable'
+    const link = await ask()
+    return link.offered ? { base, query: link.query } : 'no'
   } catch {
     return 'unreachable'
   }

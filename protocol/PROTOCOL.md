@@ -1684,12 +1684,12 @@ Every HTTP response gets `X-Content-Type-Options: nosniff` and `Referrer-Policy:
 
 ## Server updates and health
 
-The standalone server can check GitHub releases for new versions, tell the owner, and (on Linux under systemd) install them itself. A server run by the desktop app updates together with the app and never checks. Settings live in `server.json` → `Updates` (`Mode`: `off` | `notify` (default) | `auto`; `Channel`: `stable` | `prerelease`; `Window`: `HH:mm`, local time; `RequireAttestation`: bool).
+The standalone server can check GitHub releases for new versions, tell the owner, and (on Linux under systemd) install them itself. A server run by the desktop app updates together with the app and never checks. Settings live in `server.json` → `Updates` (`Mode`: `off` | `notify` (default) | `auto`; `Channel`: `stable` | `prerelease`; `Window`: `HH:mm`, local time; `VerifyAttestation`: bool, default `true`. Older versions wrote `RequireAttestation: false` into every server.json; it's no longer read, so those servers verify too, and `VerifyAttestation: false` is the owner's explicit choice).
 
 ```jsonc
 UpdateStatus {
   "current": "2.0.0-alpha.10",          // "0.0.0-dev" for development builds (they never check)
-  "mode": "off" | "notify" | "auto", "channel": "stable" | "prerelease", "window": "04:00", "requireAttestation": false,
+  "mode": "off" | "notify" | "auto", "channel": "stable" | "prerelease", "window": "04:00", "requireAttestation": true,   // server.json VerifyAttestation
   "managed": "desktop" | null,          // "desktop": updates with the desktop app; mode is "off" and can't change
   "canCheck": true,
   "auto": { "possible": false, "reason": "desktop" | "development" | "platform" | "guard" | "readonly" | null },
@@ -1699,9 +1699,9 @@ UpdateStatus {
   "progress": { "done": 1048576, "total": 66350346 } | null,   // while downloading (bytes)
   "checkedAt": 1760000000000 | null, "error": "Couldn't reach GitHub to check for updates." | null,
   "errorCode": "rate_limited" | "unreachable" | "download" | "install" | "sums" | "size" | "checksum" | "github_checksum"
-             | "package" | "wont_run" | "attestation_missing" | "attestation_unknown" | null,   // apps show their own text for it
+             | "package" | "wont_run" | "attestation_missing" | "attestation_invalid" | "attestation_unknown" | null,   // apps show their own text for it
   "lastUpdate": { "from": "2.0.0-alpha.10", "to": "2.0.0-alpha.11", "ok": true } | null,  // ok false: it didn't start and was undone
-  "attested": true | false | null       // whether GitHub has a build attestation for the package being installed
+  "attested": true | false | null       // the package being installed: true verified, false missing or not verifying, null GitHub not asked
 }
 ```
 
@@ -1715,8 +1715,8 @@ UpdateStatus {
 - **Events:** `update.status` `{ status }` goes to the owner's sessions whenever it changes (check results, download progress about every 2%, failures). `server.restarting` `{ reason: "update", version }` goes to every session about 5 seconds before the server restarts into a new version; apps tell members, then reconnect as after any restart ([Restarts and reconnecting](#restarts-and-reconnecting); the close reason says `update` with a downtime hint).
 - **Checks:** unauthenticated GitHub API (`GET /repos/quikmn/iskra-voice/releases`, `If-None-Match` with the last ETag), 2 minutes after start and then every 6 hours (not when `Mode` is `off`, except "Check now"). On a rate-limit answer the next check waits until GitHub's reset time. Drafts and tags that aren't `v<version>` are ignored. "stable" means releases GitHub doesn't mark as prerelease (alphas are published as normal releases).
 - **Packages:** `iskra-server-<v>-linux-x64.tar.gz`, `-osx-arm64.tar.gz`, `-osx-x64.tar.gz`, `-win-x64.zip`. Downloads only from `https://github.com/quikmn/iskra-voice/releases/download/`, HTTPS only (redirects to GitHub's storage), at most 512 MB.
-- **Verification before anything is replaced:** the package's SHA-256 must match its line in the release's `SHA256SUMS.txt` and GitHub's own `digest` for the file (when the API gives one), and its size must match. Then `GET /repos/quikmn/iskra-voice/attestations/sha256:<hash>` is asked whether a build-provenance attestation exists (`attested`); with `RequireAttestation` an install without one fails. The server doesn't check Sigstore signatures itself (see docs/hosting.md for what this does and doesn't protect against). The archive may only hold plain files at its top level with plain names (no folders, links, `..` or absolute paths) and must contain `iskra-server`. The unpacked `iskra-server version` must print the new version (so a package that can't run on this machine is never swapped in).
-- **Automatic install** (`Mode: "auto"`): only when `auto.possible`: Linux x64, a release build, not desktop-hosted, the folder iskra-server runs from is writable, and `iskra-update-guard` ran just before this start (systemd `ExecStartPre`). It starts in the hour after `Window` when nobody is in a voice channel; a version that failed or was undone isn't retried automatically.
+- **Verification before anything is replaced:** the package's SHA-256 must match its line in the release's `SHA256SUMS.txt` and GitHub's own `digest` for the file (when the API gives one), and its size must match. Then the build-provenance attestations come from `GET /repos/quikmn/iskra-voice/attestations/sha256:<hash>` (at most 4 MB, 20 bundles) and are verified on the server, offline, against Sigstore's public-good trusted root compiled into it (`Updates/sigstore-trusted-root.json`, refreshed for each release): certificate chain to Fulcio, SCT, transparency log entry, DSSE signature (the `Sigstore` NuGet library); a certificate from `https://token.actions.githubusercontent.com` for repository id `1227290412` on a GitHub-hosted runner whose SAN is exactly `https://github.com/quikmn/iskra-voice/.github/workflows/release.yml@refs/tags/v<version>` or `.../release-finalize.yml@refs/heads/main`; and an in-toto statement (`https://slsa.dev/provenance/v1`) whose subjects include the package's file name with its SHA-256. With `VerifyAttestation` (the default) an install fails without one: `attestation_missing` (none, e.g. an old release; install by hand), `attestation_invalid` (none verifies), `attestation_unknown` (GitHub couldn't be asked; auto mode tries again in a later window). Off, the result is still shown (`attested`). The archive may only hold plain files at its top level with plain names (no folders, links, `..` or absolute paths) and must contain `iskra-server`. The unpacked `iskra-server version` must print the new version (so a package that can't run on this machine is never swapped in).
+- **Automatic install** (`Mode: "auto"`): only when `auto.possible`: Linux x64, a release build, not desktop-hosted, the folder iskra-server runs from is writable, and `iskra-update-guard` ran just before this start (systemd `ExecStartPre`). It starts in the hour after `Window` when nobody is in a voice channel; a version that failed or was undone isn't retried automatically (except after `attestation_unknown`).
 - **Security log** (see "Security log" above): `update.check` (the owner, `{ latest }`), `update.settings` (the owner, `{ from, to }`), `update.install` (the owner `{ from, to }`, or no account with `{ from, to, auto: true }`), and with no account: `update.failed` `{ version, code }`, `update.installed` `{ from, to }` (confirmed), `update.rolledback` `{ from, to }`.
 - **Swap and rollback:** files are renamed into place inside the server's folder; the replaced ones go to `.update/previous/`. The server writes `.update/pending` and exits with code 75 (systemd's `Restart=on-failure` starts the new version). The new version confirms itself after running for 60 s. If it fails to start three times before that, `iskra-update-guard` puts the previous files back (`.update/rolled-back`), and the owner sees `lastUpdate.ok: false`.
 
@@ -2025,27 +2025,32 @@ Voice resilience (no protocol change, for reference): clients publish the mic wi
 ## Live captions model
 
 Live captions run on members' devices (Whisper base, [docs/voice-processing.md](../docs/voice-processing.md)); the
-speech model comes from the group's own server, so members' devices never contact anyone else for it. No WebSocket
-messages: plain HTTP on the server's port.
+speech model comes from the group's own server, so members' devices never contact anyone else for it, and only
+members get it: the app asks for a short-lived link over its session, then downloads over plain HTTP on the server's port.
 
 - **Pins.** `client/src/state/captions/model.json` (compiled into the app and the server): the model `dir`
   (`whisper-base-1846881b`: name and Hugging Face commit), the upstream `source`, and for each file (`encoder.q8.onnx`
   23.2 MB, `decoder.q8.onnx` 53.7 MB, `vocab.json` 1.0 MB) its SHA-256, size and parts (at most 20 MiB each), each
   with its own SHA-256 and size.
-- **`GET /models/<dir>/<part>`**, where `part` is `<file>.part<n>.bin`. Anything else (another `dir`, another name,
+- **`captions.model.link`** (request, any member, empty body; limit 10, then one a second) → `{ offered: false }` when the
+  owner turned it off, else `{ offered: true, path: "/models/<dir>", query: "a=<accountKey>&exp=<ms>&sig=<b64u>", expires }`.
+  `sig` = HMAC-SHA-256 with a random per-process key over `"iskra/captions-model-link/v1\0<dir>\0<accountKey>\0<exp>"`;
+  valid for an hour (links stop working on restart; the app asks again for each download).
+- **`GET /models/<dir>/<part>?<query>`**, where `part` is `<file>.part<n>.bin`. Anything else (another `dir`, another name,
   encoded slashes, `..`) is `404`, as is everything when the owner turned it off (`Captions.ModelDownload: false` in
-  server.json). The first request makes the server fetch the whole model once from `source` (HTTPS, at most the
+  server.json). Without a valid link (missing, wrong signature, expired, another `dir`, or for an account that is no
+  longer a member) the answer is `403` and nothing is fetched. The first linked request makes the server fetch the whole model once from `source` (HTTPS, at most the
   pinned size per file, redirects only to HTTPS); concurrent requests wait for that same download. Each file and each
   part must match its SHA-256 before anything is written (atomically, to `models/<dir>/` in the world folder);
   otherwise nothing is kept, the answer is `502`, and a later request tries again. Then `200`,
-  `application/octet-stream`, `Cache-Control: public, max-age=31536000, immutable`, byte ranges allowed.
-- **`HEAD`** on the same path: `200` when the server offers the model (without fetching anything), `404` when not.
+  `application/octet-stream`, `Cache-Control: private, max-age=31536000, immutable`, byte ranges allowed.
+- **`HEAD`** on the same path (with a link): `200` when the server offers the model (without fetching anything), `404` when not.
 - `Access-Control-Allow-Origin: *` (the apps' pages are `app://`, `capacitor://` and the web app's own origin; the
-  model is public and there are no credentials), with an `OPTIONS` preflight answer.
+  link in the address is the only credential, no cookies), with an `OPTIONS` preflight answer.
 - **Limits.** 30 requests at once per client address, then one every 5 seconds (`429`); the whole model is 6 parts.
-- **Apps.** They ask only after the person agreed to the one-time download, check every part's size and SHA-256
+- **Apps.** They ask for the link when captions start, and download only after the person agreed to the one-time download, check every part's size and SHA-256
   against their own copy of the pins (a mismatch is refused, never used or kept), and keep the parts on the device
-  under a key that doesn't depend on the server, so the model is downloaded once per device.
+  under a key that doesn't depend on the server or the link, so the model is downloaded once per device.
 - Security log: `captions.model.download` / `captions.model.rejected` ([Security log](#security-log)).
 - `Captions.ModelSource` (server.json, optional): a folder laid out like `scripts/get-models.mjs` writes it, used
   instead of `source` (development and tests; the same checks apply).

@@ -1724,3 +1724,12 @@ export interface Requests {
   'bot.commands.set': [{ commands: BotCommand[] }, { commands: BotCommand[] }]
   'bot.commands.available': [{ channelId: number }, { bots: string[] }]
 }
+
+// ── captions model ──
+
+/** A short-lived link to the live-captions model on this server (members only; PROTOCOL.md "Live captions model"). */
+export type CaptionModelLink = { offered: false } | { offered: true; path: string; query: string; expires: number }
+
+export interface Requests {
+  'captions.model.link': [Record<string, never>, CaptionModelLink]
+}

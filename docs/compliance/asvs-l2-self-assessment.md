@@ -134,7 +134,7 @@ Gap: write a short STRIDE-style threat model per component (server, client, desk
 | Area | Evidence | Verdict |
 |---|---|---|
 | 10.2 Malicious code search | CodeQL on C#, JS/TS and workflows; no telemetry or analytics; the app loads no third-party scripts | met |
-| 10.3 Application integrity | Desktop updates: Windows code signature with matching publisher checked by electron-updater; macOS Developer ID + notarization; release SHA256SUMS and build-provenance attestations; `iskra-update` checks SHA256SUMS | met |
+| 10.3 Application integrity | Desktop updates: Windows code signature with matching publisher checked by electron-updater; macOS Developer ID + notarization; release SHA256SUMS and build-provenance attestations; server self-update verifies the Sigstore attestation by default (`Updates/Attestations.cs`); `iskra-update` checks SHA256SUMS | met |
 
 ## V11 Business logic — met
 

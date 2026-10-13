@@ -13,8 +13,8 @@ import { keepRunning } from './micPipeline'
 import { engineCaps } from './audio/engines'
 import { CAPTION_TTL_MS, rollCaption } from './captions/segments'
 import type { CaptionLanguage } from './captions/whisper'
-import { captionModelCached, captionsOffered, loadCaptionModel, ModelError, WHISPER_CONFIG } from './models'
-import { useApp } from './store'
+import { captionModelCached, captionSource, loadCaptionModel, ModelError, WHISPER_CONFIG, type CaptionSource } from './models'
+import { connectionFor, useApp } from './store'
 import { activeRoom, cleanedAudio, onIncomingAudio, useVoice } from './voice'
 
 export type CaptionChoice = CaptionLanguage | 'auto'
@@ -167,15 +167,20 @@ async function start(current: Room): Promise<void> {
   const mine = ++generation
   const began = performance.now()
   room = current
-  // The model comes from the server this call runs on (DM and group calls too).
-  const base = useApp.getState().servers[useVoice.getState().session?.serverKey ?? '']?.url ?? ''
-  const cached = await captionModelCached()
+  // The model comes from the server this call runs on (DM and group calls too), with a members-only link.
+  const serverKey = useVoice.getState().session?.serverKey ?? ''
+  let source: CaptionSource = { base: useApp.getState().servers[serverKey]?.url ?? '', query: '' }
+  // Asked even when the model is on this device: a kept part that went bad is downloaded again.
+  const [cached, found] = await Promise.all([captionModelCached(), captionSource(source.base, async () => {
+    const connection = connectionFor(serverKey)
+    if (!connection) throw new Error('not connected')
+    return connection.request('captions.model.link', {})
+  })])
   if (mine !== generation) return
+  if (typeof found === 'object') source = found
   useCaptions.setState({ cached })
   if (!cached) {
-    const offered = await captionsOffered(base)
-    if (mine !== generation) return
-    if (offered === 'no') {
+    if (found === 'no') {
       useCaptions.setState({ status: 'notOffered', progress: 0, lines: {} })
       return
     }
@@ -187,7 +192,7 @@ async function start(current: Room): Promise<void> {
   useCaptions.setState({ status: 'loading', progress: 0, lines: {} })
   download = new AbortController()
   try {
-    const [files, silero] = await Promise.all([loadCaptionModel(base, (progress) => useCaptions.setState({ progress }), download.signal), loadSilero()])
+    const [files, silero] = await Promise.all([loadCaptionModel(source, (progress) => useCaptions.setState({ progress }), download.signal), loadSilero()])
     download = null
     if (mine !== generation) return
     useCaptions.setState({ cached: true })

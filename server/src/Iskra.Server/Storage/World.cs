@@ -95,8 +95,12 @@ public sealed record UpdateSettings
     public string Channel { get; init; } = "stable";
     /// <summary>Local time (HH:mm) when automatic updates may start; they start within the hour after it.</summary>
     public string Window { get; init; } = "04:00";
-    /// <summary>Only install releases that GitHub has a build-provenance attestation for.</summary>
-    public bool RequireAttestation { get; init; }
+    /// <summary>
+    /// Only install a release whose build-provenance attestation verifies (Sigstore, signed by this repository's release
+    /// workflows). On by default. It replaces RequireAttestation, which older versions wrote as false into every
+    /// server.json and is no longer read, so those servers verify too; an owner turns it off here or in Settings → Updates.
+    /// </summary>
+    public bool VerifyAttestation { get; init; } = true;
 }
 
 /// <summary>Retention in days, enforced hourly by the RetentionSweeper. 0 keeps forever.</summary>
