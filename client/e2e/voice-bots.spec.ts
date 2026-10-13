@@ -104,7 +104,7 @@ test('a member plays music with Jukebox in a voice channel and hears it', async 
   await host.getByRole('button', { name: 'general', exact: true }).click() // back to the chat; voice stays on
   await box.fill('/play ')
   await box.press('Enter')
-  const card = host.locator('.message', { hasText: 'Now playing' })
+  const card = host.locator('.message').filter({ has: host.locator('.embed-title') }) // the bot's card, edited in place
   await expect(card.locator('.embed-title')).toHaveText('🎵 Now playing')
   await expect(card).toContainText('A tone')
   await expect(card).toContainText('B beep') // up next
@@ -139,7 +139,7 @@ test('a member plays music with Jukebox in a voice channel and hears it', async 
   await expect(lounge(host).locator('.voice-participants li', { hasText: 'Jukebox' })).toHaveCount(0, { timeout: 15_000 })
   await expect(card.locator('.embed-title')).toHaveText('⏹ Stopped', { timeout: 15_000 })
   await expect(card).toContainText('A moderator disconnected me.')
-  await expect(card.getByRole('button')).toHaveCount(0)
+  await expect(card.locator('.bot-components button')).toHaveCount(0)
 
   // Phone width: the card and the voice list fit.
   await host.setViewportSize({ width: 390, height: 844 })
