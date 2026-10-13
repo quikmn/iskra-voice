@@ -135,6 +135,16 @@ export function upsertMessage(list: PendingMessage[] | undefined, message: Pendi
 }
 
 /**
+ * Our send confirmed: the placeholder goes and the message takes its place. The reply is the message as it was when
+ * stored; its chat.message event comes first and may already be followed by newer state (a bot's reaction, an edit),
+ * so a copy that's already here wins.
+ */
+export function confirmSent(list: PendingMessage[] | undefined, tempId: string, message: PendingMessage): PendingMessage[] {
+  const rest = (list ?? []).filter((m) => m.tempId !== tempId)
+  return rest.some((m) => m.id === message.id && !m.tempId) ? rest : upsertMessage(rest, message)
+}
+
+/**
  * Keeps a channel's loaded history to its newest `keep` messages once it holds more than `above` (pending ones
  * stay), so a busy channel left open doesn't grow without end; scrolling up loads the older ones again.
  */
@@ -599,7 +609,7 @@ async function deliverNow(key: string, channelId: number, tempId: string, body: 
     const { message } = result
     unsentSends.delete(tempId)
     patchServer(key, (s) => ({
-      messages: { ...s.messages, [channelId]: upsertMessage((s.messages[channelId] ?? []).filter((m) => m.tempId !== tempId), message) },
+      messages: { ...s.messages, [channelId]: confirmSent(s.messages[channelId], tempId, message) },
     }))
   } catch (e) {
     if ((e as { code?: string }).code === 'disconnected') {

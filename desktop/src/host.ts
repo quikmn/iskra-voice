@@ -2,7 +2,7 @@
 // run with the bundled iskra-server (and LiveKit for voice) while the app is open.
 import { app } from 'electron'
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
-import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { connect, createServer } from 'node:net'
 import { networkInterfaces } from 'node:os'
 import path from 'node:path'
@@ -102,6 +102,9 @@ function slug(name: string): string {
 
 const POSIX = process.platform !== 'win32'
 
+/** The server process ended while starting (most often: its port was taken just before it could bind it). */
+class StoppedEarly extends Error {}
+
 /** Force-stops a server and everything it started (LiveKit): taskkill /T on Windows, the process group elsewhere. */
 function forceKill(child: ChildProcess): void {
   if (!POSIX) {
@@ -200,8 +203,25 @@ export class Host {
     mkdirSync(folder, { recursive: true })
 
     const taken = new Set(this.list().flatMap((s) => [s.port]))
-    const port = await pickPort(taken, 47070)
-    const voicePort = await pickPort(new Set([...taken, port]), 7880)
+    // A port can be taken by another program between picking it and the server binding it; the server then stops
+    // right away. Start over in a fresh folder on other ports a few times.
+    for (let attempt = 1; ; attempt++) {
+      const port = await pickPort(taken, 47070)
+      const voicePort = await pickPort(new Set([...taken, port]), 7880)
+      this.writeNewServer(folder, clean, port, voicePort, appUrl, template)
+      try {
+        await this.start(id)
+        return this.describe(id)
+      } catch (error) {
+        if (!(error instanceof StoppedEarly) || attempt === 3) throw error
+        taken.add(port).add(voicePort)
+        rmSync(folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
+        mkdirSync(folder, { recursive: true })
+      }
+    }
+  }
+
+  private writeNewServer(folder: string, clean: string, port: number, voicePort: number, appUrl: string, template: string | null): void {
     writeFileSync(
       path.join(folder, 'server.json'),
       JSON.stringify(
@@ -221,8 +241,6 @@ export class Host {
         2,
       ),
     )
-    await this.start(id)
-    return this.describe(id)
   }
 
   async start(id: string): Promise<HostedServer> {
@@ -259,16 +277,20 @@ export class Host {
       closeSync(log)
     }
     // Exit code 3: the server can't open its files (WorldProblem in the server); its reason is in server.log.
-    child.once('exit', (code) => ended(new Error(code === 3 ? text().host.damaged : text().host.stoppedEarly)))
+    child.once('exit', (code) => ended(code === 3 ? new Error(text().host.damaged) : new StoppedEarly(text().host.stoppedEarly)))
     // e.g. the binary can't be executed (missing, or blocked by the OS).
     child.once('error', (error) => ended(new Error(text().host.couldntStart(error.message))))
 
-    // Ready when it answers HTTP (and has written its owner invite on first run).
+    // Ready when it answers HTTP (and has written its owner invite on first run). It must be this server: if another
+    // one got the port first, this one stops (and is reported) rather than the app joining a stranger's server.
     const { port } = this.describe(id)
+    const name = (JSON.parse(readFileSync(path.join(folder, 'server.json'), 'utf8')) as { Name?: string }).Name
     for (let i = 0; i < 150; i++) {
       if (failure) throw failure
       try {
-        if ((await fetch(`http://127.0.0.1:${port}/`)).ok) break
+        const response = await fetch(`http://127.0.0.1:${port}/`)
+        const body = (await response.json().catch(() => null)) as { name?: string } | null
+        if (response.ok && (name === undefined || body?.name === name) && !failure) break
       } catch {
         /* starting */
       }

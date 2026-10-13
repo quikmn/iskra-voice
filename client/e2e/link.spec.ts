@@ -94,7 +94,8 @@ test('link a phone with the text code, read DMs on both devices, then remove it'
   // It went out as a forward-secret (v2) envelope, sealed to each device's prekey.
   const db = readdirSync(server.world).filter((f) => f.startsWith('iskra.db')).map((f) => readFileSync(join(server.world, f)))
   expect(db.some((bytes) => bytes.includes(Buffer.from('"seal"')))).toBe(true)
-  expect(db.some((bytes) => bytes.includes(Buffer.from('4242')))).toBe(false)
+  // The whole phrase: four digits alone turn up by chance in a database full of base64 ciphertext (CI once found '4242').
+  expect(db.some((bytes) => bytes.includes(Buffer.from('hello both of you')))).toBe(false)
 
   // The host sees both devices and removes the phone.
   await host.getByRole('button', { name: 'Settings', exact: true }).click()

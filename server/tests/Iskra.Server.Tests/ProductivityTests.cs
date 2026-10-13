@@ -143,7 +143,10 @@ public class ProductivityTests
         using var server = new IskraServer();
         using var alice = await server.JoinAsync("Alice");
         server.World.Store.AddReminder("x" + alice.Key[1..], Now - 1, Sealed(), null, null, Now);
-        await Task.Delay(1500);
+        // A scheduler pass run here, not a fixed 1.5 s wait for the once-a-second timer (a busy Windows runner missed
+        // it). The timer may be firing it at this very moment (marked fired, not yet deleted), so allow it to finish.
+        server.Services.GetServices<IHostedService>().OfType<ProductivityScheduler>().Single().Tick();
+        for (var i = 0; i < 100 && server.World.Store.Reminders("x" + alice.Key[1..]).Count > 0; i++) await Task.Delay(50);
         Assert.Empty(server.World.Store.Reminders("x" + alice.Key[1..]));
     }
 

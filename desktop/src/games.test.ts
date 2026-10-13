@@ -46,3 +46,16 @@ test('the detector reports changes only, and nothing once turned off', async () 
   await detector.check()
   assert.deepEqual(reports, ['Factorio', null])
 })
+
+test("the detector keeps what it shows when the programs can't be listed (tasklist failed or timed out)", async () => {
+  let running: string[] | null = ['factorio.exe']
+  const reports: (string | null)[] = []
+  const detector = new ActivityDetector((g) => reports.push(g), async () => running)
+  detector.configure(true, [])
+  await detector.check()
+  running = null
+  await detector.check()
+  assert.equal(detector.game, 'Factorio')
+  assert.deepEqual(reports, ['Factorio'])
+  detector.configure(false, [])
+})
