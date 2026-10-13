@@ -1,0 +1,36 @@
+export const builtinBots = {
+  badge: 'BUILT-IN',
+  badgeTitle: 'Run by this server: no setup needed',
+  names: {
+    dice: 'Dice',
+    polls: 'Polls',
+    reminders: 'Reminders',
+  },
+  about: {
+    dice: 'Rolls dice for games: /roll 2d6+3',
+    polls: 'Starts a poll: /poll Pizza or tacos? | Pizza | Tacos',
+    reminders: 'Reminds you later: /remind me in 10m take the pizza out',
+  },
+  commands: {
+    roll: { description: 'Roll dice, like 2d6+3', usage: '2d6+3' },
+    poll: { description: 'Start a poll', usage: 'Question | Answer | Answer' },
+    remind: { description: 'Get a reminder later', usage: 'me in 10m what' },
+  },
+  settings: {
+    title: 'Built-in bots',
+    intro: 'These run inside your server, so there\'s nothing to install. Turn one on and everyone can use its command in the channels it can see. They can\'t read encrypted channels.',
+    toggle: 'Turn {{name}} on',
+    on: 'On',
+    off: 'Off',
+  },
+  reply: {
+    roll: '🎲 {{name}} rolled {{expression}}',
+    rollInvalid: '🎲 {{name}}, "{{input}}" isn\'t dice notation. Try /roll 2d6+3 or /roll d20.',
+    pollUsage: '📊 {{name}}, start a poll like this: /poll Pizza or tacos? | Pizza | Tacos',
+    remind: '⏰ OK {{name}}, I\'ll remind you: {{when}}.',
+    remindUsage: '⏰ {{name}}, set a reminder like this: /remind me in 10m take the pizza out (from 1 minute up to a year).',
+    error: '{{name}}: {{message}}',
+    total: 'Total',
+  },
+  encryptedHint: 'Bots can\'t read encrypted channels, so /commands don\'t work here.',
+}

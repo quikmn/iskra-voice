@@ -275,7 +275,7 @@ public static partial class RoleFeature
     // ── Voice moderation ─────────────────────────────────────────────────────
 
     /// <summary>The person and the voice channel they're in (which you must be able to see).</summary>
-    private static (Member Target, Channel Channel) InVoice(Session s, Member me, Body body, Perm perm)
+    internal static (Member Target, Channel Channel) InVoice(Session s, Member me, Body body, Perm perm)
     {
         if (!Permissions.Has(me, perm)) throw RequestException.Forbidden();
         var target = s.World.Store.GetMember(body.String("accountKey", 64)) ?? throw RequestException.NotFound("Member");

@@ -125,7 +125,10 @@ public sealed partial class PushService
         var store = _world.Store;
         if (store.GetMember(message.AuthorKey) is not { } author) return;
         var kinds = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var key in store.AccountsWithLevel(Features.NotifyFeature.All)) kinds[key] = "message";
+        // On a small server everyone hears about every message unless they chose less; each person's settings decide below.
+        var defaultLevel = Features.NotifyFeature.DefaultFor(store.CountPeople());
+        var everyone = defaultLevel == Features.NotifyFeature.All ? store.AllMembers().Select(m => m.AccountKey) : [];
+        foreach (var key in store.AccountsWithLevel(Features.NotifyFeature.All).Concat(everyone)) kinds[key] = "message";
         if (pings && message.ReplyTo is { } replyId && store.GetMessage(replyId) is { } original) kinds[original.AuthorKey] = "reply";
         var groups = GroupMention().Matches(message.Text).Select(m => m.Groups[2].Value).ToHashSet();
         if (pings && groups.Count > 0 && CanPingGroups(author))
@@ -157,8 +160,9 @@ public sealed partial class PushService
         {
             var target = store.GetMember(accountKey);
             if (target is null || !Permissions.CanRead(target, channel)) continue;
+            if (Features.BotScope.Restricted(store, accountKey)) continue; // a push carries the text; such bots get their messages live
             if (store.EitherBlocked(accountKey, author.AccountKey)) continue; // blocked people never buzz your phone
-            var level = Features.NotifyFeature.EffectiveLevel(store.NotifySettings(accountKey), settingsChannel, now);
+            var level = Features.NotifyFeature.EffectiveLevel(store.NotifySettings(accountKey), settingsChannel, now, defaultLevel);
             if (level == Features.NotifyFeature.Nothing || (kind == "message" && level != Features.NotifyFeature.All)) continue;
             var title = encrypted ? $"New message in #{channel.Name}"
                 : kind == "reply" ? $"{authorName} replied in #{channel.Name}" : $"{authorName} in #{channel.Name}";

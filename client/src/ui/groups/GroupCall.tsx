@@ -5,6 +5,7 @@ import { formatDuration, isBusy } from '../../state/callMachine'
 import { useCalls } from '../../state/calls'
 import { callColumns } from '../../state/groupLogic'
 import { declineGroupCall, joinOngoingCall, leaveGroupCall, startGroupCall, useGroupCalls } from '../../state/groupCalls'
+import { ringsFullScreen } from '../calls/Calls'
 import { cannotSend, knownName, openGroup, titleOf, useGroups } from '../../state/groups'
 import { useApp } from '../../state/store'
 import { useVoice, type Tile } from '../../state/voice'
@@ -132,7 +133,7 @@ export function GroupCallPanel({ groupKey }: { groupKey: string }) {
     <section className={`call-panel group-call ${tiles.length ? 'has-video' : ''} ${focused ? 'has-focus' : ''}`} aria-label={t('groups.call.groupCall')} data-key-version={call?.keyVersion}>
       <div className="call-top">
         <span className={`e2e-badge ${inCall && session.encrypted ? '' : 'pending'}`} title={t('groups.call.onlyPeople')}>
-          <Lock size={13} /> {inCall && session.encrypted ? t('calls.e2e') : t('calls.encryptedCall')}
+          <Lock size={13} /> {t('calls.e2e')}
         </span>
         <span className="spacer" />
         <span className="muted call-count">{t('groups.call.inCall', { count: people.length })}</span>
@@ -192,7 +193,7 @@ export function IncomingGroupCall() {
             <span>{t('calls.decline')}</span>
           </label>
           <label className="incoming-action">
-            <button className="call-button accept" onClick={() => { openGroup(ringing.key); void joinOngoingCall(ringing.key, ringing.video) }} aria-label={t('common.join')} autoFocus>
+            <button className="call-button accept" onClick={() => { openGroup(ringing.key); void joinOngoingCall(ringing.key, ringing.video) }} aria-label={t('common.join')} autoFocus={ringsFullScreen()}>
               {ringing.video ? <Video /> : <Phone />}
             </button>
             <span>{t('common.join')}</span>

@@ -8,7 +8,8 @@
 //   device of every member in DM envelopes v2 (forward secret through signed prekeys), bound to the chain id, version and
 //   head. Receivers only accept an epoch key from the member who made that change.
 // - Messages are XChaCha20-Poly1305 under the epoch key, the header bound as associated data, and signed by the
-//   sender's device key (a shared key alone would let any member write as another).
+//   sender's device key (a shared key alone would let any member write as another). v2 also binds the channel, thread
+//   and (for edits) the message, so a server can't move an envelope; v1 messages still open, marked as older.
 // - Epoch keys are independent random keys: someone removed at version n never gets the key of version n or later.
 import sodium from 'libsodium-wrappers-sumo'
 import { b64u, fromB64u, randomBytes, sign, signedPayload, u64be, verify } from './crypto'
@@ -23,6 +24,8 @@ import { verifyDeviceCert, type DeviceCert, type Identity } from './identity'
 
 export const CHANNEL_CHANGE_CONTEXT = 'iskra/channel-change/v1'
 export const CHANNEL_MESSAGE_CONTEXT = 'iskra/channel-msg/v1'
+/** Messages bound to their channel, thread and (for edits) message. Apps send only this one. */
+export const CHANNEL_MESSAGE_CONTEXT_V2 = 'iskra/channel-msg/v2'
 export const CHANNEL_KEY_CONTEXT = 'iskra/channel-key/v1'
 export const MAX_CHANNEL_MEMBERS = 50
 /** Key slots per key envelope, so each stays well under the server's 52 KB limit. */
@@ -203,16 +206,32 @@ export const slotDevices = (envelopes: ChannelKeyEnvelope[]) => new Set(envelope
 
 // ── Messages ────────────────────────────────────────────────────────────────
 
+/**
+ * Where a message was sent (v2 binds it): the encrypted channel, and the thread inside it if any. A server that moves
+ * an envelope to another channel or thread, or between a message and its edit, is caught.
+ */
+export interface ChannelPlace {
+  channel: number
+  thread?: number
+}
+
 export interface ChannelHeader {
   from: string
   chain: string
   version: number
   sentAt: number
   id: string
+  /** v2: the encrypted channel's id (a thread's parent). */
+  channel?: number
+  /** v2: the thread's id, when sent in a thread. */
+  thread?: number
+  /** v2: an edit names the `id` of the message's first envelope. */
+  edit?: string
 }
 
 export interface ChannelEnvelope {
-  v: 1
+  /** 1: the older format (not bound to a channel); apps only send 2. */
+  v: 1 | 2
   kind: 'channel'
   header: ChannelHeader
   sender: DeviceCert
@@ -227,49 +246,110 @@ export interface ChannelContent {
   files?: DmFile[]
 }
 
-const messageAd = (h: ChannelHeader, head: string) =>
-  new TextEncoder().encode(JSON.stringify([CHANNEL_MESSAGE_CONTEXT, h.from, h.chain, h.version, head, h.sentAt, h.id]))
-
-/** What the sender's device signs: the associated data, nonce and ciphertext, each length-prefixed. */
-function signedPart(ad: Uint8Array, nonce: Uint8Array, ct: Uint8Array): Uint8Array {
-  return signedPayload(CHANNEL_MESSAGE_CONTEXT, u64be(ad.length), ad, u64be(nonce.length), nonce, ct)
+/** What decrypting tells about a message besides its content. */
+export interface ChannelMessageInfo {
+  header: ChannelHeader
+  /** Sent in the older format: not bound to its channel, thread or message (shown with a note). */
+  legacy: boolean
+  /**
+   * When the sender lost access (a later change in the verified chain that left them out, or the end of the chain), if
+   * the message claims a later time, by its own signed `sentAt` or the server's `createdAt`: not shown as authentic.
+   */
+  afterRemoval?: number
 }
 
-export function encryptChannelMessage(identity: Identity, view: ChannelView, epochKey: Uint8Array, content: ChannelContent, now = Date.now()): ChannelEnvelope {
+/** How far the signed times of different people's clocks may be apart (the server refuses changes further off). */
+export const CLOCK_SKEW_MS = 10 * 60_000
+
+/** A v2 message arrived somewhere other than where it was sent (another channel or thread). */
+export const MOVED = 'This message was moved here from somewhere else.'
+
+const isId = (n: unknown): n is number => typeof n === 'number' && Number.isSafeInteger(n) && n > 0
+const MAX_HEADER_ID = 32
+
+/** The associated data of a message (the head of its version comes from the verified chain, never the envelope). */
+export function channelMessageAd(v: 1 | 2, h: ChannelHeader, head: string): Uint8Array {
+  const fields = v === 1
+    ? [CHANNEL_MESSAGE_CONTEXT, h.from, h.chain, h.version, head, h.sentAt, h.id]
+    : [CHANNEL_MESSAGE_CONTEXT_V2, h.from, h.chain, h.version, head, h.sentAt, h.id, h.channel, h.thread ?? 0, h.edit ?? '']
+  return new TextEncoder().encode(JSON.stringify(fields))
+}
+
+/** What the sender's device signs: the associated data, nonce and ciphertext, each length-prefixed, under the format's context. */
+export function channelMessageSigned(v: 1 | 2, ad: Uint8Array, nonce: Uint8Array, ct: Uint8Array): Uint8Array {
+  return signedPayload(v === 1 ? CHANNEL_MESSAGE_CONTEXT : CHANNEL_MESSAGE_CONTEXT_V2, u64be(ad.length), ad, u64be(nonce.length), nonce, ct)
+}
+
+/** Encrypts a message (always v2) for `place`; `edit` is the first envelope's `id` when it replaces a message's text. */
+export function encryptChannelMessage(
+  identity: Identity, view: ChannelView, epochKey: Uint8Array, content: ChannelContent, place: ChannelPlace, now = Date.now(), edit?: string,
+): ChannelEnvelope {
   const from = b64u(identity.account.publicKey)
   if (!view.members.some((m) => sameKey(m, from))) throw new GroupError("You're not in this channel's encryption.")
   const hasFiles = (content.files?.length ?? 0) > 0
   if ((content.text.length === 0 && !hasFiles) || content.text.length > MAX_TEXT) throw new DmError(`Messages must be 1–${MAX_TEXT} characters.`)
-  const header: ChannelHeader = { from, chain: view.chain, version: view.version, sentAt: now, id: b64u(randomBytes(12)) }
-  const ad = messageAd(header, view.head)
+  if (!isId(place.channel) || (place.thread !== undefined && (!isId(place.thread) || place.thread === place.channel))) throw new DmError('Unsupported message format.')
+  if (edit !== undefined && (typeof edit !== 'string' || edit.length === 0 || edit.length > MAX_HEADER_ID)) throw new DmError('Unsupported message format.')
+  const header: ChannelHeader = {
+    from, chain: view.chain, version: view.version, sentAt: now, id: b64u(randomBytes(12)),
+    channel: place.channel, ...(place.thread !== undefined ? { thread: place.thread } : {}), ...(edit !== undefined ? { edit } : {}),
+  }
+  const ad = channelMessageAd(2, header, view.head)
   const nonce = randomBytes(sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES)
   const plain = new TextEncoder().encode(JSON.stringify({ text: content.text, ...(hasFiles ? { files: content.files } : {}) }))
   const ct = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(plain, ad, null, nonce, epochKey)
-  const sig = sign(signedPart(ad, nonce, ct), identity.device.secretKey)
-  return { v: 1, kind: 'channel', header, sender: identity.cert, nonce: b64u(nonce), ct: b64u(ct), sig: b64u(sig) }
+  const sig = sign(channelMessageSigned(2, ad, nonce, ct), identity.device.secretKey)
+  return { v: 2, kind: 'channel', header, sender: identity.cert, nonce: b64u(nonce), ct: b64u(ct), sig: b64u(sig) }
 }
 
 /**
- * Decrypts a channel message. `routed` is what the server says (author and version); it must match the header. The
- * version must be one this device verified, the sender a member then, the signature by a device certified for them,
- * and `keyFor(version)` the epoch key this device received for it.
+ * When `from` lost access after `version` in the verified chain: the `at` of the first later change that leaves them out
+ * (signed by the member who made it; the server refuses changes more than 10 minutes off its clock), or `endedAt` (when
+ * this device saw the chain replaced) if that comes first. Null while they're still in.
+ */
+export function accessEnd(view: Pick<ChannelView, 'changes'>, from: string, version: number, endedAt?: number): number | null {
+  const out = view.changes.find((c) => c.version > version && !c.members.some((m) => sameKey(m, from)))
+  const ends = [out?.at, endedAt].filter((t): t is number => typeof t === 'number' && Number.isFinite(t))
+  return ends.length ? Math.min(...ends) : null
+}
+
+/** Where the server delivered a message: its author and version, the channel and thread it's in, and its `createdAt`. */
+export interface ChannelRouting {
+  from: string
+  version: number
+  channel: number
+  thread?: number
+  at?: number
+}
+
+/**
+ * Decrypts a channel message. `routed` is what the server says; it must match the header. The version must be one this
+ * device verified, the sender a member then, the signature by a device certified for them, and `keyFor(version)` the
+ * epoch key this device received for it. A v2 message must have been sent to exactly `routed.channel` and
+ * `routed.thread`. `endedAt`: when this device saw the chain replaced (a kept old chain).
  */
 export function decryptChannelMessage(
-  envelope: ChannelEnvelope, routed: { from: string; version: number }, view: ChannelView, keyFor: (version: number) => Uint8Array | undefined,
-): ChannelContent & { header: ChannelHeader } {
-  if (!envelope || envelope.v !== 1 || envelope.kind !== 'channel' || !envelope.header || !envelope.sender
+  envelope: ChannelEnvelope, routed: ChannelRouting, view: ChannelView, keyFor: (version: number) => Uint8Array | undefined, endedAt?: number,
+): ChannelContent & ChannelMessageInfo {
+  if (!envelope || (envelope.v !== 1 && envelope.v !== 2) || envelope.kind !== 'channel' || !envelope.header || !envelope.sender
     || typeof envelope.nonce !== 'string' || typeof envelope.ct !== 'string' || typeof envelope.sig !== 'string')
     throw new DmError('Unsupported message format.')
-  const { header, sender } = envelope
+  const { header, sender, v } = envelope
   if (header.chain !== view.chain) throw new DmError('This message belongs to another channel.')
-  if (!isCount(header.version) || !isCount(header.sentAt) || typeof header.id !== 'string') throw new DmError('Unsupported message format.')
+  if (!isCount(header.version) || !isCount(header.sentAt) || typeof header.id !== 'string' || header.id.length > MAX_HEADER_ID) throw new DmError('Unsupported message format.')
+  if (v === 2) {
+    if (!isId(header.channel) || (header.thread !== undefined && !isId(header.thread))
+      || (header.edit !== undefined && (typeof header.edit !== 'string' || header.edit.length === 0 || header.edit.length > MAX_HEADER_ID)))
+      throw new DmError('Unsupported message format.')
+    if (header.channel !== routed.channel || (header.thread ?? 0) !== (routed.thread ?? 0)) throw new DmError(MOVED)
+  }
   if (!sameKey(header.from, routed.from) || header.version !== routed.version) throw new DmError("This message's sender or version doesn't match.")
   if (header.version > view.version) throw new GroupBehindError('This message is for a newer version of the channel.')
   const at = membersAt(view, header.version)
   if (!at) throw new DmError('This message was sent before you could read this channel.')
   if (!at.members.some((m) => sameKey(m, header.from))) throw new DmError("This message is from someone who wasn't in the channel.")
   if (!sameKey(sender.accountKey, header.from) || !verifyDeviceCert(sender)) throw new DmError("The sender's device couldn't be verified.")
-  const ad = messageAd(header, at.head)
+  const ad = channelMessageAd(v, header, at.head)
   let nonce: Uint8Array
   let ct: Uint8Array
   try {
@@ -280,7 +360,7 @@ export function decryptChannelMessage(
   }
   let signed = false
   try {
-    signed = verify(fromB64u(envelope.sig), signedPart(ad, nonce, ct), fromB64u(sender.deviceKey))
+    signed = verify(fromB64u(envelope.sig), channelMessageSigned(v, ad, nonce, ct), fromB64u(sender.deviceKey))
   } catch {
     signed = false
   }
@@ -296,7 +376,11 @@ export function decryptChannelMessage(
   const content = JSON.parse(new TextDecoder().decode(plain)) as Partial<ChannelContent>
   if (typeof content.text !== 'string' || content.text.length > MAX_TEXT) throw new DmError('Unsupported message content.')
   const files = checkFiles(content.files)
-  return { text: content.text, ...(files.length ? { files } : {}), header }
+  // A removed member still holds the keys of the epochs they were in: a message claiming a time after they lost access
+  // isn't shown as theirs. Both clocks count (theirs, signed, and the server's); together the two could still backdate.
+  const end = accessEnd(view, header.from, header.version, endedAt)
+  const late = end !== null && Math.max(header.sentAt, routed.at ?? 0) > end + CLOCK_SKEW_MS
+  return { text: content.text, ...(files.length ? { files } : {}), header, legacy: v === 1, ...(late ? { afterRemoval: end } : {}) }
 }
 
 /** The message is fine, but this device didn't (yet) get the key of its epoch. */

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { BotCommand } from '../../core/protocol'
 import {
-  activeOption, commandQueryAt, completeChoice, completeCommand, findCommand, matchChoices, matchCommands, signature, type CommandEntry,
+  activeOption, commandQueryAt, commandTarget, completeChoice, completeCommand, findCommand, matchChoices, matchCommands, signature, type CommandEntry,
 } from './commandMatch'
 
 const roll: BotCommand = {
@@ -80,5 +80,22 @@ describe('option hints', () => {
     expect(matchChoices(roll.options![0], 'd').map((c) => c.value)).toEqual(['d20'])
     expect(matchChoices(roll.options![0], 'two').map((c) => c.value)).toEqual(['2d6'])
     expect(completeChoice('/roll tw', 'tw', '2d6')).toBe('/roll 2d6 ')
+  })
+})
+
+// Security review W6: in an encrypted channel a command matched before the suggestions loaded (or after Esc) went to the
+// bot unencrypted without the note being on screen; a bot could register common words to collect such messages.
+describe('commandTarget', () => {
+  const interactive: CommandEntry = { bot: 'b', botName: 'Dice', command: roll, interactions: true }
+  const textOnly: CommandEntry = { bot: 'b', botName: 'Dice', command: roll }
+  it('sends listed interactive commands, and unlisted ones only outside encrypted channels', () => {
+    expect(commandTarget(interactive, false, false, () => null)).toBe(interactive)
+    expect(commandTarget(textOnly, false, false, () => interactive)).toBeNull()
+    expect(commandTarget(null, false, false, () => interactive)).toBe(interactive)
+  })
+  it('in an encrypted channel, only with the suggestion on screen', () => {
+    expect(commandTarget(interactive, true, false, () => null)).toBe(interactive)
+    expect(commandTarget(interactive, true, true, () => null)).toBeNull()
+    expect(commandTarget(null, true, false, () => interactive)).toBeNull()
   })
 })

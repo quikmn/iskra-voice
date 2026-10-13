@@ -3,7 +3,7 @@ export const productivity = {
   actions: {
     save: 'Save message',
     unsave: 'Remove from saved',
-    saved: 'Saved',
+    saved: 'Saved to Saved messages',
     removed: 'Removed from saved',
     remind: 'Remind me about this',
     more: 'More',
@@ -25,7 +25,7 @@ export const productivity = {
     title: 'Remind me',
     about: 'About this message from {{name}}',
     note: 'Note (optional, only you can see it)',
-    notePlaceholder: 'Reply to this, call them back…',
+    notePlaceholder: 'e.g. Reply to this, call them back',
     set: 'Set reminder',
     done: 'Reminder set for {{when}}',
   },

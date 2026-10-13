@@ -31,7 +31,7 @@ test("shared system audio leaves out Iskra's own sound", async () => {
     await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
     await page.getByLabel('Your name').fill('Sharer')
     await page.getByRole('button', { name: 'Continue' }).click()
-    await expect(page.getByRole('button', { name: 'Settings' })).toBeVisible() // past onboarding: the screen picker is mounted
+    await expect(page.getByRole('button', { name: 'My settings' })).toBeVisible() // past onboarding: the screen picker is mounted
     other = spawn(ELECTRON, [join(HERE, 'fixtures', 'tone')], { env, stdio: 'ignore' })
 
     const measured = page.evaluate(async () => {

@@ -51,6 +51,7 @@ public static class MemberFeature
         s.World.Store.RemoveMember(target.AccountKey);
         s.Hub.Disconnect(target.AccountKey, closeCode, reason, key);
         s.Hub.Broadcast(Frames.Event("member.removed", new { accountKey = target.AccountKey }));
+        s.Hub.Outhooks?.MemberLeft(target.AccountKey, target.Name, key == "kicked_banned" ? "banned" : "kicked");
         s.Voice.EnforceAccess();
     }
 

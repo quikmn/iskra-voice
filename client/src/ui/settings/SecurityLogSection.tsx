@@ -31,7 +31,10 @@ function detailText(e: SecurityEvent, t: TFunction): string | null {
   const d = e.details ?? {}
   if (e.event === 'auth.failed' && typeof d.reason === 'string') return t('compliance.securityLog.reason', { reason: d.reason })
   if (e.event === 'rate_limited' && typeof d.type === 'string') return d.type
-  if (e.event === 'member.joined' && typeof d.role === 'string') return ROLES.includes(d.role as Role) ? t(`common.roles.${d.role as Role}`) : d.role
+  if (e.event === 'member.joined' && typeof d.role === 'string') {
+    const role = ROLES.includes(d.role as Role) ? t(`common.roles.${d.role as Role}`) : d.role
+    return role.charAt(0).toLocaleUpperCase() + role.slice(1) // on a line of its own: "Member", not "member"
+  }
   if (e.event === 'server.move' && typeof d.url === 'string') return d.url
   if (e.event.startsWith('update.') && typeof d.to === 'string') return typeof d.from === 'string' ? `${d.from} → ${d.to}` : d.to
   if (e.event === 'update.failed' && typeof d.version === 'string') return d.version

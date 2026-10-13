@@ -8,7 +8,9 @@ import {
 } from '../state/store'
 import { Attachments, LinkPreviewCard, Reactions, ReactionPicker, ReplyLine } from './chat/MessageExtras'
 import { AuthorAvatar, BotBadge, Embeds } from './chat/BotBits'
+import { BuiltinReply } from './chat/BuiltinReply'
 import { useCommandSuggest } from './chat/CommandSuggest'
+import { InteractionLine, InteractionTray, MessageComponents } from './chat/BotInteractions'
 import { authorOf, sameSender } from './chat/bots'
 import { patchUpload } from './chat/uploads'
 import { ImportedBadge, ImportedExtras } from './chat/ImportedBits'
@@ -353,12 +355,13 @@ function MessageRow({
             ) : (
               <span className="author" style={{ color: authorColor }}>{name}</span>
             )}
-            {shown.bot && <BotBadge />}
+            {shown.bot && <BotBadge builtin={shown.builtin} />}
             {message.imported && <ImportedBadge />}
             <time title={fullTime(message.createdAt)}>{messageTime(message.createdAt)}</time>
             {message.pinned && <PinnedMark />}
           </div>
         )}
+        {message.interaction && <InteractionLine server={server} message={message} />}
         {message.forwarded && (
           <ForwardedLine
             label={message.forwarded.channelName ? `#${message.forwarded.channelName}` : null}
@@ -369,13 +372,14 @@ function MessageRow({
         {editing ? (
           <EditBox server={server} message={message} onDone={() => onEdit(false)} />
         ) : (
-          (message.text || message.editedAt) && !message.poll && (
+          (message.text || message.editedAt) && !message.poll && !message.builtin && (
             <div className="message-text">
               {renderMarkdown(message.text, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey, emoji: emojiLookup, roleOf, serverKey: server.key })}
               <EditedMark server={server} message={message} />
             </div>
           )
         )}
+        {message.builtin && <BuiltinReply server={server} reply={message.builtin} />}
         {message.poll && <PollCard server={server} message={message} />}
         {message.automod && <AutoModAlertCard server={server} alert={message.automod} />}
         {message.sticker && <StickerMessage server={server} sticker={message.sticker} />}
@@ -384,6 +388,7 @@ function MessageRow({
         <EncryptedBits message={message} />
         {message.webhook && <Embeds server={server} embeds={message.webhook.embeds} />}
         {message.cards && message.cards.length > 0 && <Embeds server={server} embeds={message.cards} authorName={name} />}
+        <MessageComponents server={server} message={message} />
         {!message.tempId && !message.e2ee && firstLink(message.text) && <LinkPreviewCard server={server} url={firstLink(message.text)!} />}
         <ImportedExtras server={server} message={message} />
         <Reactions server={server} message={message} />
@@ -529,6 +534,8 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
   const canSend = writable && !uploading && slowmode.wait === 0 && (text.trim().length > 0 || ready.length > 0)
   // Enter during an upload waits for it instead of doing nothing.
   const canQueue = writable && uploading && slowmode.wait === 0
+  // Nothing to send yet: the mic takes the send button's place on phones (styles.css), so the box has room.
+  const micInstead = !text.trim() && uploads.length === 0 && voiceRecordingSupported()
   const queue = useQueuedSend(uploads.map((u) => ({ done: !!u.result, failed: !!u.error })), () => submit())
 
   function startUpload(item: PendingUpload) {
@@ -628,6 +635,12 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
       if (canQueue) queue.queue()
       return
     }
+    // A command for a bot that takes interactions goes to the bot, not into the channel.
+    if (uploads.length === 0) {
+      const command = commandSuggest.trySend(text.trim())
+      if (command === 'blocked') return
+      if (command === 'sent') return setText('')
+    }
     const trimmed = encodeEmoji(encodeMentions(text.trim(), Object.values(server.members), mentionableRoles), emojis)
     setText('')
     for (const u of uploads) if (u.preview) URL.revokeObjectURL(u.preview)
@@ -644,6 +657,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
 
   return (
     <div className="composer-wrap">
+      <InteractionTray server={server} channelId={channelId} />
       {replyTo && (
         <div className="reply-bar">
           <span><Trans i18nKey="chat.composer.replyingTo" values={{ name: replyTo.imported?.name ?? server.members[replyTo.author]?.name ?? t('chat.composer.someone') }} components={{ b: <strong /> }} /></span>
@@ -764,10 +778,10 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
       <button className="icon-button attach-button" onClick={(e) => openPicker(e.currentTarget, 'emoji')} aria-label={t('chat.composer.emoji')} title={t('chat.composer.emojiTitle')}>
         <Smile />
       </button>
-      {!text.trim() && uploads.length === 0 && voiceRecordingSupported() && <VoiceRecordButton onSend={sendVoice} disabled={!online} />}
+      {micInstead && <VoiceRecordButton onSend={sendVoice} disabled={!online} />}
       <SlowmodeChip seconds={slowmode.seconds} wait={slowmode.wait} />
       {later.button}
-      <button className="send-button" onClick={submit} disabled={!canSend && !canQueue} aria-label={t('common.send')} {...later.sendProps}>
+      <button className={`send-button ${micInstead ? 'idle' : ''}`} onClick={submit} disabled={!canSend && !canQueue} aria-label={t('common.send')} {...later.sendProps}>
         <Send />
       </button>
     </div>

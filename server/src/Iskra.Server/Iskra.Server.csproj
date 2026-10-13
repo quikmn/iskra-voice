@@ -25,11 +25,17 @@
     <EmbeddedResource Include="Templates\*.json" LogicalName="templates.%(Filename).json" />
   </ItemGroup>
 
+  <!-- Sigstore's public-good trusted root, for verifying release attestations offline (Updates/Attestations.cs). -->
+  <ItemGroup>
+    <EmbeddedResource Include="Updates\sigstore-trusted-root.json" LogicalName="sigstore-trusted-root.json" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Certes" Version="3.0.4" />
     <PackageReference Include="Lib.Net.Http.WebPush" Version="3.3.1" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
     <PackageReference Include="NSec.Cryptography" Version="26.4.0" />
+    <PackageReference Include="Sigstore" Version="1.1.1" />
     <PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
   </ItemGroup>
 

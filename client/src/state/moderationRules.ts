@@ -101,7 +101,7 @@ export function countdown(ms: number): string {
 /** Filter choices in the audit log viewer. */
 export const AUDIT_ACTIONS = [
   'member.kick', 'member.ban', 'member.unban', 'member.timeout', 'member.timeout.remove', 'member.role', 'member.roles',
-  'role.create', 'role.update', 'role.delete', 'role.reorder', 'channel.overrides', 'voice.mute', 'voice.move',
+  'role.create', 'role.update', 'role.delete', 'role.reorder', 'channel.overrides', 'voice.mute', 'voice.move', 'voice.disconnect',
   'channel.create', 'channel.update', 'channel.delete', 'message.delete', 'thread.delete', 'message.pin', 'message.unpin',
   'invite.create', 'invite.revoke', 'webhook.create', 'webhook.update', 'webhook.regenerate', 'webhook.delete', 'bot.invite',
   'emoji.create', 'emoji.rename', 'emoji.delete', 'sound.create', 'sound.update', 'sound.delete',
@@ -152,6 +152,8 @@ export function auditText(e: AuditEntry): string {
     case 'voice.mute': return t('moderation.audit.voiceMute', { actor, target, channel: channel(d.channelName) })
     case 'voice.unmute': return t('moderation.audit.voiceUnmute', { actor, target, channel: channel(d.channelName) })
     case 'voice.move': return t('moderation.audit.voiceMove', { actor, target, channel: channel(d.to) })
+    case 'voice.disconnect': return t('moderation.audit.voiceDisconnect', { actor, target, channel: channel(d.channelName) })
+    case 'bot.voice': return t(d.voice ? 'moderation.audit.botVoiceOn' : 'moderation.audit.botVoiceOff', { actor, target })
     case 'channel.create': return t('moderation.audit.channelCreate', { actor, channel: channel(d.name) })
     case 'channel.delete': return t('moderation.audit.channelDelete', { actor, channel: channel(d.name) })
     case 'channel.update': {
@@ -191,7 +193,8 @@ export function auditText(e: AuditEntry): string {
     case 'webhook.update': return t('moderation.audit.webhookUpdate', { actor, name: str(d.name) })
     case 'webhook.regenerate': return t('moderation.audit.webhookRegenerate', { actor, name: str(d.name) })
     case 'webhook.delete': return t('moderation.audit.webhookDelete', { actor, name: str(d.name) })
-    case 'bot.invite': return t('moderation.audit.botInvite', { actor, role: level(d.role) })
+    case 'bot.invite': return t(d.readAll ? 'moderation.audit.botInviteReadAll' : 'moderation.audit.botInvite', { actor, role: level(d.role) })
+    case 'bot.scope': return t(d.readAll ? 'moderation.audit.botScopeAll' : 'moderation.audit.botScopeMentions', { actor, target })
     case 'emoji.create': return t('moderation.audit.emojiCreate', { actor, name: str(d.name) })
     case 'emoji.rename': return t('moderation.audit.emojiRename', { actor, from: str(d.from), to: str(d.to) })
     case 'emoji.delete': return t('moderation.audit.emojiDelete', { actor, name: str(d.name) })

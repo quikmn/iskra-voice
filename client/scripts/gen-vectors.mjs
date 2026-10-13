@@ -63,5 +63,30 @@ const dmFileVector = (size) => {
   return { size, key: b64(key), hash: b64(sodium.crypto_generichash(32, ciphertext, null)), ciphertext: b64(ciphertext) }
 }
 const dmFile = previous.dmFile ?? { plaintext: 'byte i = i % 251', files: [dmFileVector(0), dmFileVector(CHUNK + 3)] }
-writeFileSync(out, JSON.stringify({ v1, rotation, dmFile }, null, 2) + '\n')
+// Encrypted channel messages, signed by the device above: the older format (v1) and v2, which binds the channel, the
+// thread and (for an edit) the message's first envelope. Fixed key and nonce, so these are deterministic.
+const epochKey = new Uint8Array(32).fill(7)
+const msgNonce = new Uint8Array(24).fill(8)
+const chain = b64(new Uint8Array(16).fill(6))
+const head = b64(sodium.crypto_hash_sha256(new TextEncoder().encode('iskra vector head')))
+const plain = new TextEncoder().encode(JSON.stringify({ text: 'hej' }))
+const channelMessage = (v, header) => {
+  const fields = v === 1
+    ? ['iskra/channel-msg/v1', header.from, header.chain, header.version, head, header.sentAt, header.id]
+    : ['iskra/channel-msg/v2', header.from, header.chain, header.version, head, header.sentAt, header.id, header.channel, header.thread ?? 0, header.edit ?? '']
+  const ad = new TextEncoder().encode(JSON.stringify(fields))
+  const ct = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(plain, ad, null, msgNonce, epochKey)
+  const sig = sodium.crypto_sign_detached(payload(`iskra/channel-msg/v${v}`, u64be(ad.length), ad, u64be(msgNonce.length), msgNonce, ct), device.privateKey)
+  return { ad: b64(ad), envelope: { v, kind: 'channel', header, sender: v1.cert, nonce: b64(msgNonce), ct: b64(ct), sig: b64(sig) } }
+}
+const base = { from: b64(account.publicKey), chain, version: 3, sentAt: 1760000000000, id: 'AAECAwQFBgcICQoL' }
+const channel = {
+  epochKey: b64(epochKey), head, text: 'hej',
+  messages: [
+    { place: { channel: 42 }, ...channelMessage(1, base) },
+    { place: { channel: 42 }, ...channelMessage(2, { ...base, channel: 42 }) },
+    { place: { channel: 42, thread: 43 }, ...channelMessage(2, { ...base, id: 'DA0ODxAREhMUFRYX', channel: 42, thread: 43, edit: 'AAECAwQFBgcICQoL' }) },
+  ],
+}
+writeFileSync(out, JSON.stringify({ v1, rotation, dmFile, channel }, null, 2) + '\n')
 console.log('wrote vectors.json')

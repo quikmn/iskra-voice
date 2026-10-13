@@ -21,6 +21,8 @@ export const LINKS = {
   paypal: 'https://paypal.me/iskrafoo',
   hostingGuide: 'https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md',
   gifsGuide: 'https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md#gifs',
+  // KLIPY's Partner Panel, where an admin makes the free API key for their server's GIF picker.
+  klipy: 'https://partner.klipy.com',
 }
 
 export type DesktopOs = 'windows' | 'mac' | 'linux' | 'other'

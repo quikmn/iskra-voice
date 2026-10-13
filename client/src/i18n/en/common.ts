@@ -10,6 +10,8 @@ export const common = {
   edit: 'Edit',
   done: 'Done',
   ok: 'OK',
+  /** An input's placeholder that shows an example value. */
+  example: 'e.g. {{value}}',
   back: 'Back',
   next: 'Next',
   continue: 'Continue',
@@ -35,6 +37,8 @@ export const common = {
   more: 'More',
   download: 'Download',
   upload: 'Upload',
+  chooseFile: 'Choose a file',
+  noFileChosen: 'No file chosen',
   settings: 'Settings',
   on: 'On',
   off: 'Off',

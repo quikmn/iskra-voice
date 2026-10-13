@@ -9,7 +9,8 @@ import { layoutChannels } from '../../state/organizeLogic'
 import type { ServerState } from '../../state/store'
 import { CreateChannelDialog } from '../dialogs/CreateChannelDialog'
 import { CategoryDialog, ChannelSettingsDialog } from '../organize/Dialogs'
-import { Hash, Plus, Volume } from '../icons'
+import { Plus } from '../icons'
+import { ChannelKindIcon } from '../ChannelKindIcon'
 
 type Open = { kind: 'channel'; channel: Channel } | { kind: 'category'; category?: Category } | { kind: 'new'; categoryId: number | null }
 
@@ -23,7 +24,7 @@ export function ChannelsSection({ server }: { server: ServerState }) {
     <li key={channel.id}>
       <button className="room-channel" onClick={() => setOpen({ kind: 'channel', channel })}
         aria-label={t('settings.channels.edit', { name: channel.name })}>
-        <span className="room-channel-icon" aria-hidden>{channel.kind === 'voice' || channel.kind === 'stage' ? <Volume size={16} /> : <Hash size={16} />}</span>
+        <span className="room-channel-icon" aria-hidden><ChannelKindIcon kind={channel.kind} /></span>
         <span className="room-channel-name">{channel.name}</span>
         <span className="muted">{t(`settings.channels.kinds.${channel.kind}`)}</span>
       </button>

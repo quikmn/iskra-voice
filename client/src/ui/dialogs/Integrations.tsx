@@ -7,11 +7,14 @@ import { roleRank, type Role, type Webhook } from '../../core/protocol'
 import { connectionFor, uploadFile, type ServerState } from '../../state/store'
 import { inviteServerUrl } from '../../state/hosting'
 import { Avatar, Spinner } from '../bits'
+import { FilePick } from '../FilePick'
 import { AuthorAvatar, BotBadge } from '../chat/BotBits'
 import { appUrl, messageTime } from '../format'
 import '../bots.css'
+import { OutgoingWebhooks } from './OutgoingWebhooks'
+import { BuiltinBotsSection } from '../settings/BuiltinBotsSection'
 
-type Tab = 'webhooks' | 'bots'
+type Tab = 'webhooks' | 'outgoing' | 'bots'
 
 /** Settings → Bots & webhooks (admins). */
 export function IntegrationsSection({ server }: { server: ServerState }) {
@@ -22,9 +25,10 @@ export function IntegrationsSection({ server }: { server: ServerState }) {
       <h2>{t('settings.sections.integrations')}</h2>
       <div className="segmented" role="tablist" aria-label={t('settings.integrations.tabs')}>
         <button role="tab" aria-selected={tab === 'webhooks'} className={tab === 'webhooks' ? 'on' : ''} onClick={() => setTab('webhooks')}>{t('settings.integrations.webhooks')}</button>
+        <button role="tab" aria-selected={tab === 'outgoing'} className={tab === 'outgoing' ? 'on' : ''} onClick={() => setTab('outgoing')}>{t('outhooks.tab')}</button>
         <button role="tab" aria-selected={tab === 'bots'} className={tab === 'bots' ? 'on' : ''} onClick={() => setTab('bots')}>{t('settings.integrations.bots')}</button>
       </div>
-      {tab === 'webhooks' ? <Webhooks server={server} /> : <Bots server={server} />}
+      {tab === 'webhooks' ? <Webhooks server={server} /> : tab === 'outgoing' ? <OutgoingWebhooks server={server} /> : <Bots server={server} />}
     </section>
   )
 }
@@ -194,7 +198,7 @@ function WebhookForm({ server, initial, submitLabel, onSubmit, onCancel }: {
     <div style={{ width: '100%' }}>
       <label className="field">
         <span>{t('settings.overview.name')}</span>
-        <input value={name} maxLength={32} placeholder="GitHub" onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void submit()} />
+        <input value={name} maxLength={32} placeholder={t('common.example', { value: 'GitHub' })} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void submit()} />
       </label>
       <div className="options-row" style={{ marginTop: 0 }}>
         <label className="field inline">
@@ -203,10 +207,10 @@ function WebhookForm({ server, initial, submitLabel, onSubmit, onCancel }: {
             {textChannels.map((c) => <option key={c.id} value={c.id}>#{c.name}</option>)}
           </select>
         </label>
-        <label className="field inline">
+        <div className="field inline">
           <span>{t('settings.integrations.picture')}</span>
-          <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={(e) => setAvatar(e.target.files?.[0] ?? null)} />
-        </label>
+          <FilePick label={t('settings.integrations.picture')} accept="image/png,image/jpeg,image/gif,image/webp" file={avatar} onPick={setAvatar} />
+        </div>
       </div>
       {initial?.avatar && !avatar && (
         <label className="checkbox">
@@ -232,17 +236,39 @@ function Bots({ server }: { server: ServerState }) {
   const connection = connectionFor(server.key)
   const me = server.me
   const [role, setRole] = useState<Role>('member')
+  // "Can read all messages" is the admin's explicit choice; by default a bot gets its commands and mentions only.
+  const [readAll, setReadAll] = useState(false)
+  // Joining voice (to play audio) is off unless the admin allows it.
+  const [voice, setVoice] = useState(false)
   const [link, setLink] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null)
-  const bots = Object.values(server.members).filter((m) => m.bot).sort((a, b) => a.name.localeCompare(b.name))
+  const bots = Object.values(server.members).filter((m) => m.bot && !m.builtin).sort((a, b) => a.name.localeCompare(b.name))
 
   async function createInvite() {
     try {
-      const { invite } = await connection!.request('bot.invite', { role })
+      const { invite } = await connection!.request('bot.invite', { role, readAll, voice })
       setLink(buildInviteLink(appUrl(server.appUrl), { serverUrl: server.url, serverKey: server.key, code: invite.code }))
       setCopied(false)
+      setError(null)
+    } catch (e) {
+      setError(errorMessage(e))
+    }
+  }
+
+  async function setScope(accountKey: string, all: boolean) {
+    try {
+      await connection!.request('bot.scope.set', { accountKey, readAll: all })
+      setError(null)
+    } catch (e) {
+      setError(errorMessage(e))
+    }
+  }
+
+  async function setJoinsVoice(accountKey: string, on: boolean) {
+    try {
+      await connection!.request('bot.voice.set', { accountKey, voice: on })
       setError(null)
     } catch (e) {
       setError(errorMessage(e))
@@ -260,6 +286,7 @@ function Bots({ server }: { server: ServerState }) {
 
   return (
     <>
+      <BuiltinBotsSection server={server} />
       <p className="muted">
         <Trans i18nKey="settings.integrations.botsIntro" components={{ code: <code />, badge: <BotBadge /> }} />
       </p>
@@ -272,6 +299,14 @@ function Bots({ server }: { server: ServerState }) {
         </label>
         <button className="button primary" onClick={() => void createInvite()}>{t('settings.integrations.createBotInvite')}</button>
       </div>
+      <label className="checkbox">
+        <input type="checkbox" checked={readAll} onChange={(e) => setReadAll(e.target.checked)} />
+        <span>{t('settings.integrations.botReadAll')}<br /><span className="muted bot-scope-hint">{t('settings.integrations.botReadAllHint')}</span></span>
+      </label>
+      <label className="checkbox">
+        <input type="checkbox" checked={voice} onChange={(e) => setVoice(e.target.checked)} />
+        <span>{t('settings.integrations.botVoice')}<br /><span className="muted bot-scope-hint">{t('settings.integrations.botVoiceHint')}</span></span>
+      </label>
       {link && (
         <div className="secret-box" style={{ marginTop: 12 }}>
           <p>{t('settings.integrations.botInviteHint')}</p>
@@ -291,7 +326,27 @@ function Bots({ server }: { server: ServerState }) {
         {bots.map((bot) => (
           <div key={bot.accountKey} className="bot-row">
             <Avatar name={bot.name} accountKey={bot.accountKey} size={32} online={bot.online} />
-            <span className="member-name">{bot.name} <BotBadge /></span>
+            <span className="member-name">
+              {bot.name} <BotBadge />
+              <span className="bot-scope muted">
+                {t(bot.readsMessages ? 'settings.integrations.botReadsAll' : 'settings.integrations.botReadsMentions')}
+                {bot.joinsVoice ? ` · ${t('settings.integrations.botJoinsVoice')}` : ''}
+              </span>
+            </span>
+            {me && roleRank(me.role) >= roleRank('admin') && (
+              <label className="checkbox bot-voice-toggle">
+                <input type="checkbox" checked={!!bot.joinsVoice} onChange={(e) => void setJoinsVoice(bot.accountKey, e.target.checked)}
+                  aria-label={t('settings.integrations.botVoiceOf', { name: bot.name })} />
+                <span aria-hidden>{t('settings.integrations.botVoiceShort')}</span>
+              </label>
+            )}
+            {me && roleRank(me.role) >= roleRank('admin') && (
+              <select className="bot-scope-select" value={bot.readsMessages ? 'all' : 'mentions'} aria-label={t('settings.integrations.botScopeOf', { name: bot.name })}
+                onChange={(e) => void setScope(bot.accountKey, e.target.value === 'all')}>
+                <option value="mentions">{t('settings.integrations.botReadsMentions')}</option>
+                <option value="all">{t('settings.integrations.botReadsAll')}</option>
+              </select>
+            )}
             {me && roleRank(me.role) > roleRank(bot.role) && (confirmRemove === bot.accountKey ? (
               <>
                 <button className="button danger" onClick={() => void remove(bot.accountKey)}>{t('common.remove')}</button>

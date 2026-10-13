@@ -1,32 +1,27 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import manifest from './captions/model.json'
-import { captionParts, captionsOffered, loadCaptionModel, ModelError, sha256Hex } from './models'
+import { captionParts, captionSource, loadCaptionModel, ModelError, sha256Hex } from './models'
 
 describe('where the captions model comes from', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
   })
 
-  it("asks the call's own server, without making it fetch anything", async () => {
-    const answers: Record<string, number> = { 'https://on.test': 200, 'https://off.test': 404, 'https://broken.test': 502 }
-    const fetch = vi.fn(async (url: string, init?: RequestInit) => {
-      expect(init?.method).toBe('HEAD')
-      expect(url).toContain(`/models/${manifest.dir}/vocab.json.part0.bin`)
-      return new Response(null, { status: answers[new URL(url).origin] })
-    })
+  it("asks the call's own server for a members-only link, without anything being downloaded", async () => {
+    const fetch = vi.fn()
     vi.stubGlobal('fetch', fetch)
-    expect(await captionsOffered('https://on.test')).toBe('yes')
-    expect(await captionsOffered('https://off.test')).toBe('no')
-    expect(await captionsOffered('https://broken.test')).toBe('unreachable')
-    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('offline') }))
-    expect(await captionsOffered('https://on.test')).toBe('unreachable')
+    const link = { offered: true as const, path: `/models/${manifest.dir}`, query: 'a=k&exp=1&sig=s', expires: 1 }
+    expect(await captionSource('https://on.test', async () => link)).toEqual({ base: 'https://on.test', query: 'a=k&exp=1&sig=s' })
+    expect(await captionSource('https://off.test', async () => ({ offered: false }))).toBe('no')
+    expect(await captionSource('https://down.test', async () => { throw new Error('not connected') })).toBe('unreachable')
+    expect(fetch).not.toHaveBeenCalled()
   })
 
-  it('asks for every part of the pinned version, each with its own hash, under 20 MiB', () => {
-    const parts = captionParts('https://x.test')
+  it('asks for every part of the pinned version with the link, each with its own hash, under 20 MiB', () => {
+    const parts = captionParts({ base: 'https://x.test', query: 'a=k&exp=1&sig=s' })
     expect(parts.encoder.map((p) => p.url)).toEqual([
-      `https://x.test/models/${manifest.dir}/encoder.q8.onnx.part0.bin`,
-      `https://x.test/models/${manifest.dir}/encoder.q8.onnx.part1.bin`,
+      `https://x.test/models/${manifest.dir}/encoder.q8.onnx.part0.bin?a=k&exp=1&sig=s`,
+      `https://x.test/models/${manifest.dir}/encoder.q8.onnx.part1.bin?a=k&exp=1&sig=s`,
     ])
     expect(parts.decoder).toHaveLength(3)
     expect(parts.vocab).toHaveLength(1)
@@ -37,6 +32,8 @@ describe('where the captions model comes from', () => {
     for (const f of manifest.files) expect(f.parts.reduce((n, p) => n + p.bytes, 0)).toBe(f.bytes)
   })
 })
+
+const SRV = { base: 'https://srv.test', query: 'a=k&exp=1&sig=s' }
 
 describe('downloading it', () => {
   afterEach(() => {
@@ -55,17 +52,17 @@ describe('downloading it', () => {
 
   it('refuses a part whose SHA-256 is not the one compiled into the app', async () => {
     serve(() => new Uint8Array(10))
-    const error = await loadCaptionModel('https://srv.test').catch((e: unknown) => e)
+    const error = await loadCaptionModel(SRV).catch((e: unknown) => e)
     expect(error).toBeInstanceOf(ModelError)
     expect((error as ModelError).kind).toBe('corrupt')
   })
 
   it('says the download failed when the server is down, and not offered when it says 404', async () => {
     serve(() => null)
-    const error = await loadCaptionModel('https://srv.test').catch((e: unknown) => e)
+    const error = await loadCaptionModel(SRV).catch((e: unknown) => e)
     expect((error as ModelError).kind).toBe('download')
     vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response('', { status: url.includes('/models/') ? 404 : 200 })))
-    expect(((await loadCaptionModel('https://srv.test').catch((e: unknown) => e)) as ModelError).kind).toBe('notOffered')
+    expect(((await loadCaptionModel(SRV).catch((e: unknown) => e)) as ModelError).kind).toBe('notOffered')
   })
 
   it('can be cancelled', async () => {
@@ -76,7 +73,7 @@ describe('downloading it', () => {
       init?.signal?.addEventListener('abort', abort)
     })))
     const controller = new AbortController()
-    const loading = loadCaptionModel('https://srv.test', undefined, controller.signal).catch((e: unknown) => e)
+    const loading = loadCaptionModel(SRV, undefined, controller.signal).catch((e: unknown) => e)
     controller.abort()
     expect(((await loading) as ModelError).kind).toBe('cancelled')
   })

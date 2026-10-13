@@ -80,7 +80,7 @@ test('custom roles: create, reorder, assign, moderate without admin, channel per
   await expect(dialog.getByRole('button', { name: 'Kick' })).toBeVisible()
   await expect(dialog.getByRole('checkbox', { name: 'Supporter' })).toBeEnabled()
   await expect(dialog.getByRole('checkbox', { name: 'Moderator' })).toBeDisabled() // her own role
-  await expect(dialog.getByLabel('Level')).toHaveCount(0) // levels stay with admins
+  await expect(dialog.getByLabel('Base role')).toHaveCount(0) // base roles stay with admins
   await mod.screenshot({ path: join(SHOTS, 'roles-moderator-dialog.png') })
   await mod.keyboard.press('Escape')
   dialog = await openMember(mod, 'Host')

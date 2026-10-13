@@ -79,7 +79,7 @@ test('from a fresh install to friends talking in voice, timed', async ({ browser
       .toMatchObject({ keepRunning: ['game-night'], openAtLogin: true, closeToTray: true })
     await shot(host, '4-ready')
 
-    // 3. The template's channels, voice rooms and roles are there.
+    // 3. The template's channels, voice channels and roles are there.
     for (const name of ['general', 'clips', 'looking-for-group']) await expect(host.locator('.channel', { hasText: name }).first()).toBeVisible()
     for (const name of ['Lobby', 'Squad 1', 'Squad 2', 'Raid', 'AFK']) await expect(host.locator('.voice-channel', { hasText: name })).toBeVisible()
     const settings = JSON.parse(readFileSync(join(hostRoot, 'game-night', 'server.json'), 'utf8')) as { Template: string; LocalOnly: boolean }

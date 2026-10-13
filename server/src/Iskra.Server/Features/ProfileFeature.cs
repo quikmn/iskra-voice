@@ -51,13 +51,22 @@ public static partial class ProfileFeature
     /// <summary>The member as everyone sees it, profile included.</summary>
     public static object Public(Store store, Member m, PresenceFeature.View presence, object? activity = null) =>
         Public(m, store.GetPublicProfile(m.AccountKey), PagesEnabled(store), store.GetNickname(m.AccountKey), store.IsBot(m.AccountKey),
-            store.GetTimeout(m.AccountKey)?.Until, presence, activity);
+            store.GetTimeout(m.AccountKey)?.Until, presence, activity, store.BuiltinIdOf(m.AccountKey), BotReads(store, m.AccountKey),
+            BotVoice(store, m.AccountKey));
+
+    /// <summary>For bots: whether they can read all messages (BotScope); null for people. Built-in bots read only their commands.</summary>
+    public static bool? BotReads(Store store, string accountKey) => store.IsBot(accountKey) ? store.BotReadsAll(accountKey) : null;
+
+    /// <summary>For bots: whether an admin lets them join voice (VoiceBotFeature); null for people.</summary>
+    public static bool? BotVoice(Store store, string accountKey) => store.IsBot(accountKey) ? store.BotJoinsVoice(accountKey) : null;
 
     /// <summary>The same from what's already loaded (the welcome's member list loads it for everyone at once).</summary>
     public static object Public(Member m, PublicProfile p, bool pagesEnabled, string? nick, bool bot, long? timedOutUntil, PresenceFeature.View presence,
-        object? activity)
+        object? activity, string? builtin = null, bool? readsMessages = null, bool? joinsVoice = null)
     {
         var page = p.PageId is not null && pagesEnabled;
+        // Built-in bots run inside the server: always there while they're on.
+        if (builtin is not null) presence = new PresenceFeature.View(true, "online", null);
         return new
         {
             accountKey = m.AccountKey,
@@ -69,6 +78,7 @@ public static partial class ProfileFeature
             status = presence.Status,
             customStatus = presence.Custom,
             bot,
+            builtin, // BuiltinBotFeature: "dice", "polls", "reminders" or null
             avatar = p.Avatar is { } a ? $"/files/{a.Id}/{Uri.EscapeDataString(a.Name)}" : null,
             avatarHash = p.Avatar?.Sha256,
             bio = p.Bio,
@@ -79,6 +89,8 @@ public static partial class ProfileFeature
             timedOutUntil,
             roles = m.RoleIds,
             activity, // ActivityFeature: { name, since } or null
+            readsMessages, // bots: can read all messages (BotScope); null for people
+            joinsVoice, // bots: may join voice (VoiceBotFeature); null for people
         };
     }
 

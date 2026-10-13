@@ -32,6 +32,20 @@ jobs:
       - name: Single-file publish, as the release does
         shell: bash
         run: dotnet publish src/Iskra.Server -c Release -r ${{ matrix.os == 'windows-latest' && 'win-x64' || 'linux-x64' }} --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -o "$RUNNER_TEMP/server-publish"
+      # Servers verify release attestations against the Sigstore root compiled into them (Updates/Attestations.cs).
+      # When Sigstore adds keys, refresh it before the next release (docs/ci-cd.md); until then this only warns.
+      - name: Sigstore trusted root is current
+        if: matrix.os == 'ubuntu-latest'
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The whole output first: "| head" would end gh with SIGPIPE (exit 141).
+          gh attestation trusted-root > "$RUNNER_TEMP/sigstore-roots.jsonl"
+          head -n 1 "$RUNNER_TEMP/sigstore-roots.jsonl" | jq -S . > "$RUNNER_TEMP/sigstore-root.json"
+          jq -S . src/Iskra.Server/Updates/sigstore-trusted-root.json | diff -q - "$RUNNER_TEMP/sigstore-root.json" > /dev/null \
+            || echo "::warning::server/src/Iskra.Server/Updates/sigstore-trusted-root.json isn't Sigstore's current trusted root: refresh it before the next release (docs/ci-cd.md)"
 
   client:
     strategy:

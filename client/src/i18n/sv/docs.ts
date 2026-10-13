@@ -18,7 +18,6 @@ export const docs: Messages['docs'] = {
     newPage: 'Ny sida',
     inText: 'Hittat i texten',
     noMatches: 'Inga sidor matchar.',
-    empty: 'Inga sidor än.',
   },
   overview: {
     title: 'Sidor i {{channel}}',

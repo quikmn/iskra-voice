@@ -7,7 +7,7 @@ import { formatDate } from '../../i18n/format'
 import type { FileInfo, ServerEvent } from '../../core/protocol'
 import { uploadFile, type ServerState } from '../../state/store'
 import { createEvent, updateEvent } from '../../state/events'
-import { localZone, utcToZoned, zonedToUtc, zoneList } from '../../state/eventTime'
+import { defaultEventStart, localZone, utcToZoned, zonedToUtc, zoneList } from '../../state/eventTime'
 import { Modal } from '../bits'
 import { Close, Volume } from '../icons'
 import { ImageIcon, MapPin } from '../forums/icons'
@@ -15,17 +15,10 @@ import { ImageIcon, MapPin } from '../forums/icons'
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
 
-/** The next full hour, an hour from now: a sensible default start. */
-function defaultStart(): number {
-  const d = new Date(Date.now() + 3_600_000)
-  d.setMinutes(0, 0, 0)
-  return d.getTime() + 3_600_000
-}
-
 export function EventForm({ server, event, onBack, onClose }: { server: ServerState; event?: ServerEvent; onBack: () => void; onClose: () => void }) {
   const { t } = useTranslation()
   const initialZone = event?.timeZone ?? localZone()
-  const initialStart = event?.startAt ?? defaultStart()
+  const initialStart = event?.startAt ?? defaultEventStart()
   const initialEnd = event?.endAt ?? initialStart + 2 * 3_600_000
   const voiceChannels = server.channels.filter((c) => c.kind === 'voice' || c.kind === 'stage')
   const live = event?.status === 'live'

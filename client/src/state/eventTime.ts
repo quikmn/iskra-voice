@@ -23,6 +23,20 @@ export function zoneList(current: string): string[] {
   return zones.includes(current) ? zones : [current, ...zones]
 }
 
+/**
+ * A sensible start for a new event, in local time: this evening at 19:00 while that's an hour or more away, else the
+ * next full hour after an hour from now up to 22:00, else tomorrow at 19:00. Never the middle of the night.
+ */
+export function defaultEventStart(now: Date = new Date()): number {
+  const at = (days: number, hour: number) => new Date(now.getFullYear(), now.getMonth(), now.getDate() + days, hour).getTime()
+  const soonest = now.getTime() + 3_600_000
+  if (at(0, 19) >= soonest) return at(0, 19)
+  const next = new Date(soonest)
+  next.setMinutes(0, 0, 0)
+  const hour = next.getTime() < soonest ? next.getTime() + 3_600_000 : next.getTime()
+  return hour <= at(0, 22) ? hour : at(1, 19)
+}
+
 export function isValidZone(zone: string): boolean {
   try {
     new Intl.DateTimeFormat('en-US', { timeZone: zone })

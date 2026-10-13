@@ -84,6 +84,7 @@ public class ProductivityTests
         using var bob = await server.JoinAsync("Bob");
         var endpoint = $"https://fcm.googleapis.com/fcm/send/alice-{Guid.NewGuid():N}";
         Assert.Equal("result", (await alice.RequestAsync("push.subscribe", Subscription(endpoint))).Type());
+        await alice.RequestAsync("notify.set", new { level = "mentions" }); // only mentions: a small server would push every message by default
         var id = await SayAsync(bob, server.General, "don't forget the pizza");
 
         var created = await alice.RequestAsync("reminder.create", new { dueAt = Now + 1200, data = Sealed(), messageId = id });

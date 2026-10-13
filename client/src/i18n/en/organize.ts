@@ -18,7 +18,7 @@ export const organize = {
     rename: 'Rename category',
     create: 'Create category',
     name: 'Name',
-    placeholder: 'Games',
+    placeholder: 'e.g. Games',
     hint: "Drag channels into it, or use a channel's menu to move it there. Everyone only sees the channels they can open.",
   },
   channelSettings: {
@@ -42,7 +42,7 @@ export const organize = {
   folder: {
     title: 'Folder settings',
     name: 'Folder name',
-    placeholder: 'Gaming',
+    placeholder: 'e.g. Gaming',
     colour: 'Colour',
     colourLabel: 'Folder colour',
     colourOption: 'Colour {{color}}',
@@ -117,6 +117,8 @@ export const organize = {
     unmuteServer: 'Unmute server',
     muteServer: 'Mute server',
     notMuted: 'Not muted',
+    defaultSmall: "You haven't picked one, so it's all messages: {{server}} has fewer than {{max}} people.",
+    defaultBig: "You haven't picked one, so it's only @mentions: {{server}} has {{max}} people or more.",
     hint: "Applies to this device's notifications and to push on all your devices. Muted channels and servers are dimmed and only badge for @mentions. Pick a level for a single channel from its ⋯ menu.",
   },
   nick: {

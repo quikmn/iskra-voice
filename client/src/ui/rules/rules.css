@@ -18,7 +18,8 @@
 .rules-bar span { flex: 1; min-width: 180px; }
 
 .rules-settings .rules-editor-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
-.rules-settings .rules-editor-head > span { font-size: 13px; color: var(--muted); font-weight: 600; }
+/* Styled like the other field labels (.field > span). */
+.rules-settings .rules-editor-head > span { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
 .rules-input {
   width: 100%; min-height: 180px; margin-top: 8px; resize: vertical; font: inherit; line-height: 1.5;
   background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px;

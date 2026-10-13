@@ -1,5 +1,5 @@
 // Settings → Import from Discord (owner): upload a DiscordChatExporter export and watch it come in.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { t } from '../../i18n'
 import { errorMessage } from '../../i18n/errors'
@@ -8,6 +8,7 @@ import type { ImportJob } from '../../core/protocol'
 import { cancelImport, formatBytes, importFraction, loadImportStatus, startImport, useBackups } from '../../state/backups'
 import { selectChannel, useApp, type ServerState } from '../../state/store'
 import { Spinner } from '../bits'
+import { FilePick } from '../FilePick'
 import './backup.css'
 
 const EXPORTER = 'https://github.com/Tyrrrz/DiscordChatExporter'
@@ -73,7 +74,6 @@ export function ImportSection({ server }: { server: ServerState }) {
   const [readOnly, setReadOnly] = useState(false)
   const [upload, setUpload] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const input = useRef<HTMLInputElement>(null)
   const running = !!job && (job.phase === 'reading' || job.phase === 'importing')
 
   useEffect(() => {
@@ -87,7 +87,6 @@ export function ImportSection({ server }: { server: ServerState }) {
     try {
       await startImport(server.key, file, readOnly, setUpload)
       setFile(null)
-      if (input.current) input.current.value = ''
     } catch (e) {
       setError(errorMessage(e))
     } finally {
@@ -110,12 +109,11 @@ export function ImportSection({ server }: { server: ServerState }) {
 
       {!running && upload === null && (
         <div className="import-form">
-          <label className="field">
+          <div className="field">
             <span>{t('settings.import.export')}</span>
-            <input ref={input} type="file" accept=".zip,.json,application/zip,application/json"
-              onChange={(e) => { setFile(e.target.files?.[0] ?? null); setError(null) }} />
-          </label>
-          {file && <p className="muted">{file.name} · {formatBytes(file.size)}</p>}
+            <FilePick label={t('settings.import.export')} accept=".zip,.json,application/zip,application/json" file={file}
+              describe={(f) => `${f.name} · ${formatBytes(f.size)}`} onPick={(f) => { setFile(f); setError(null) }} />
+          </div>
           <label className="checkbox">
             <input type="checkbox" checked={readOnly} onChange={(e) => setReadOnly(e.target.checked)} />
             {t('settings.import.readOnly')}

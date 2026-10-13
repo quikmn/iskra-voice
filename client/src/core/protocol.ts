@@ -125,11 +125,11 @@ export interface WireDm {
 /** Client → server requests: [body, result]. */
 export interface Requests {
   ping: [Record<string, never>, Record<string, never>]
-  'chat.send': [{ channelId: number; text: string; attachments?: string[]; replyTo?: number; voice?: VoiceInfo; sticker?: string; gif?: string | DirectGif; nonce?: string; cards?: Card[] }, { message: Message; nonce?: string | null }]
+  'chat.send': [{ channelId: number; text: string; attachments?: string[]; replyTo?: number; voice?: VoiceInfo; sticker?: string; gif?: string | DirectGif; nonce?: string; cards?: Card[]; components?: ComponentRow[] }, { message: Message; nonce?: string | null }]
   'chat.react': [{ id: number; emoji: string; on: boolean }, Record<string, never>]
   'upload.begin': [{ name: string; size: number }, { url: string; maxBytes: number; /** Upload in parts: the most one part may carry (missing on older servers). */ partBytes?: number }]
   'link.preview': [{ url: string }, { preview: LinkPreview | null }]
-  'chat.edit': [{ id: number; text?: string; cards?: Card[] }, { message: Message }]
+  'chat.edit': [{ id: number; text?: string; cards?: Card[]; components?: ComponentRow[] }, { message: Message }]
   'chat.delete': [{ id: number }, Record<string, never>]
   'chat.history': [{ channelId: number; before?: number; after?: number; around?: number; limit?: number }, { messages: Message[]; hasMore: boolean; hasNewer?: boolean }]
   'chat.typing': [{ channelId: number }, Record<string, never>]
@@ -393,7 +393,7 @@ export interface Webhook {
 }
 
 export interface Requests {
-  'bot.invite': [{ role?: Role; expiresInMs?: number }, { invite: Invite }]
+  'bot.invite': [{ role?: Role; expiresInMs?: number; readAll?: boolean; voice?: boolean }, { invite: Invite }]
   'webhook.list': [{ channelId?: number }, { webhooks: Webhook[] }]
   'webhook.create': [{ channelId: number; name: string; avatar?: string; mentions?: boolean }, { webhook: Webhook; secret: string; path: string }]
   'webhook.update': [{ id: string; name?: string; avatar?: string; mentions?: boolean; channelId?: number }, { webhook: Webhook }]
@@ -1694,11 +1694,17 @@ export interface BotCommand {
   usage?: string
   /** Up to 25; required ones first. */
   options?: CommandOption[]
+  /** The lowest level that may use it (Bot interactions). */
+  role?: 'member' | 'trusted' | 'admin'
+  /** A permission the invoker needs (admins have all). */
+  permission?: string
 }
 
 export interface BotCommandList {
   bot: string
   commands: BotCommand[]
+  /** The bot takes commands as interactions (apps send `interaction.invoke` instead of the text). */
+  interactions?: boolean
 }
 
 /** A card on a bot's message: the webhook embed format plus pictures from this server or data: URLs. */
@@ -1721,6 +1727,268 @@ export interface Events {
 }
 
 export interface Requests {
-  'bot.commands.set': [{ commands: BotCommand[] }, { commands: BotCommand[] }]
+  'bot.commands.set': [{ commands: BotCommand[]; interactions?: boolean }, { commands: BotCommand[]; interactions?: boolean }]
   'bot.commands.available': [{ channelId: number }, { bots: string[] }]
+}
+
+// ── captions model ──
+
+/** A short-lived link to the live-captions model on this server (members only; PROTOCOL.md "Live captions model"). */
+export type CaptionModelLink = { offered: false } | { offered: true; path: string; query: string; expires: number }
+
+export interface Requests {
+  'captions.model.link': [Record<string, never>, CaptionModelLink]
+}
+
+// ── outgoing webhooks ──
+// See "Outgoing webhooks" in PROTOCOL.md.
+
+export type OutHookEvent = 'message.created' | 'reaction.added' | 'member.joined' | 'member.left' | 'event.started'
+
+export type OutHookOutcome = 'ok' | 'http' | 'timeout' | 'network' | 'blocked' | 'redirect' | 'rate_limited' | 'queue_full' | 'too_large'
+
+export interface OutHook {
+  id: string
+  name: string
+  url: string
+  host: string
+  events: OutHookEvent[]
+  channelIds: number[]
+  allowLocal: boolean
+  enabled: boolean
+  disabledReason: 'failures' | null
+  failures: number
+  createdBy: string
+  createdAt: number
+  lastDeliveryAt: number | null
+  lastOutcome: OutHookOutcome | null
+}
+
+export interface OutHookDelivery {
+  delivery: string
+  event: OutHookEvent | 'ping'
+  attempt: number
+  at: number
+  status: number | null
+  outcome: OutHookOutcome
+  ms: number
+}
+
+export interface OutHookInput {
+  name: string
+  url: string
+  events: OutHookEvent[]
+  channelIds: number[]
+  allowLocal?: boolean
+}
+
+export interface Events {
+  'outhook.disabled': { hook: OutHook }
+}
+
+export interface Requests {
+  'outhook.list': [Record<string, never>, { hooks: OutHook[] }]
+  'outhook.create': [OutHookInput, { hook: OutHook; secret: string }]
+  'outhook.update': [Partial<OutHookInput> & { id: string; enabled?: boolean }, { hook: OutHook }]
+  'outhook.regenerate': [{ id: string }, { hook: OutHook; secret: string }]
+  'outhook.delete': [{ id: string }, Record<string, never>]
+  'outhook.log': [{ id: string }, { deliveries: OutHookDelivery[] }]
+  'outhook.test': [{ id: string }, { delivery: OutHookDelivery }]
+  'outhook.hosts': [Record<string, never>, { hooks: { name: string; host: string; events: OutHookEvent[] }[] }]
+}
+
+// ── built-in bots ──
+
+export type BuiltinBotId = 'dice' | 'polls' | 'reminders'
+
+export interface BuiltinBot {
+  id: BuiltinBotId
+  /** Null until it's first turned on (then it keeps this key). */
+  accountKey: string | null
+  enabled: boolean
+}
+
+/** What a built-in bot's answer means, for showing it in the app's language (the message text is plain English). */
+export type BuiltinReply = { bot: BuiltinBotId; for: string } & (
+  | { kind: 'roll'; expression: string; groups: { sign: 1 | -1; count: number; sides: number; rolls: number[] }[]; modifier: number; total: number }
+  | { kind: 'roll.invalid'; input: string }
+  | { kind: 'poll.usage' }
+  | { kind: 'remind'; dueAt: number }
+  | { kind: 'remind.usage' }
+  | { kind: 'error'; error: { code: string; message: string; key?: string | null; args?: Record<string, unknown> | null } }
+)
+
+export interface Member {
+  /** Which built-in bot this member is (they're run by the server). */
+  builtin?: BuiltinBotId | null
+}
+
+export interface Message {
+  builtin?: BuiltinReply | null
+}
+
+export interface Welcome {
+  builtinBots?: BuiltinBot[]
+}
+
+export interface Events {
+  'builtin.bots': { bots: BuiltinBot[] }
+}
+
+export interface Requests {
+  'builtin.bots.set': [{ bot: BuiltinBotId; enabled: boolean }, { bots: BuiltinBot[] }]
+}
+
+// ── bot interactions ──
+
+export type ButtonStyle = 'primary' | 'secondary' | 'success' | 'danger' | 'link'
+
+export interface ComponentButton {
+  type: 'button'
+  /** 1–100 printable ASCII; link buttons have none. */
+  customId?: string
+  /** 1–80 characters, one line. */
+  label: string
+  style?: ButtonStyle
+  /** Link buttons only: http(s), shown with the address and never opened by itself. */
+  url?: string
+  disabled?: boolean
+}
+
+export interface SelectOption {
+  label: string
+  value: string
+  description?: string
+  default?: boolean
+}
+
+export interface ComponentSelect {
+  type: 'select'
+  customId: string
+  placeholder?: string
+  /** 1–25. */
+  options: SelectOption[]
+  /** Default 1 and 1. */
+  minValues?: number
+  maxValues?: number
+  disabled?: boolean
+}
+
+/** Up to 5 rows; a row has 1–5 buttons or exactly one select menu. */
+export interface ComponentRow {
+  type: 'row'
+  items: ComponentButton[] | [ComponentSelect]
+}
+
+export interface ModalField {
+  customId: string
+  label: string
+  style?: 'short' | 'paragraph'
+  required?: boolean
+  placeholder?: string
+  maxLength?: number
+  value?: string
+}
+
+/** A form a bot shows the person who used its command or button. */
+export interface Modal {
+  customId: string
+  title: string
+  fields: ModalField[]
+}
+
+export type OptionValue = string | number | boolean
+
+/** What the bot gets. */
+export interface Interaction {
+  id: string
+  kind: 'command' | 'component' | 'modal'
+  channelId: number
+  /** Who asked. */
+  user: string
+  /** Every answer will be private (encrypted channels). */
+  private: boolean
+  expiresAt: number
+  command?: string
+  options?: Record<string, OptionValue>
+  args?: string
+  messageId?: number
+  responseId?: string
+  customId?: string
+  values?: string[]
+  fields?: Record<string, string>
+}
+
+/** A private answer: only the person who asked sees it; never stored. */
+export interface InteractionResponse {
+  responseId: string
+  interaction: string
+  bot: string
+  channelId: number
+  text: string
+  cards: Card[]
+  components: ComponentRow[]
+  createdAt: number
+  updated?: boolean
+  /** A built-in bot's hint or error, for apps to show in their own language. */
+  builtin?: BuiltinReply
+}
+
+export interface InteractionAnswer {
+  text?: string
+  cards?: Card[]
+  components?: ComponentRow[]
+  /** Only the person who asked sees it (always so in encrypted channels). */
+  private?: boolean
+}
+
+export type InteractionInvoke =
+  | { bot: string; channelId: number; command: string; options?: Record<string, OptionValue>; args?: string }
+  | { messageId: number; customId: string; values?: string[] }
+  | { responseId: string; customId: string; values?: string[] }
+  | { modalId: string; fields: Record<string, string> }
+
+export interface Member {
+  /** Bots: whether they can read all messages (null for people). */
+  readsMessages?: boolean | null
+}
+
+export interface Message {
+  /** Buttons and select menus a bot added (null for everything else). */
+  components?: ComponentRow[] | null
+  /** A bot's public answer: who used which command (null for clicks and forms). */
+  interaction?: { id: string; user: string; command: string | null } | null
+}
+
+export interface Events {
+  interaction: Interaction
+  'interaction.response': InteractionResponse
+  'interaction.modal': { modalId: string; interaction: string; bot: string; channelId: number; modal: Modal }
+  'interaction.state': { id: string; bot: string; state: 'deferred' | 'done' }
+}
+
+export interface Requests {
+  'interaction.invoke': [InteractionInvoke, { id: string; expiresAt: number; private: boolean }]
+  'interaction.respond': [
+    { id: string; type?: 'reply' | 'defer' | 'update' | 'modal'; modal?: Modal } & InteractionAnswer,
+    { message?: Message; responseId?: string },
+  ]
+  'bot.scope.set': [{ accountKey: string; readAll: boolean }, { member: Member }]
+}
+
+// ── voice bots ──
+
+export interface Member {
+  /** Bots: whether an admin lets them join voice (null for people). */
+  joinsVoice?: boolean | null
+}
+
+export interface Events {
+  /** A moderator took you out of voice (or an admin turned voice off for a bot). */
+  'voice.disconnected': { channelId: number }
+}
+
+export interface Requests {
+  'bot.voice.set': [{ accountKey: string; voice: boolean }, { member: Member }]
+  'voice.disconnect': [{ accountKey: string }, Record<string, never>]
 }

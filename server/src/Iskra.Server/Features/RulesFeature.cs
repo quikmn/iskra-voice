@@ -20,7 +20,7 @@ public static class RulesFeature
         "thread.create", "thread.update", "poll.create", "poll.vote", "poll.end",
         "voice.join", "sound.play", "call.start", "call.accept", "stage.hand", "stage.start",
         "forum.post.create", "forum.post.update", "event.create", "event.update", "event.interest",
-        "watch.start", "watch.control", "watch.chat", "invite.create",
+        "watch.start", "watch.control", "watch.chat", "invite.create", "interaction.invoke",
         "docs.page.create", "docs.page.save", "docs.page.move", "docs.page.delete", "docs.page.restore",
     ];
 

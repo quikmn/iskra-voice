@@ -3,7 +3,7 @@
 // The read state itself lives in readState.ts.
 import type { Channel } from '../core/protocol'
 import type { ServerState } from './store'
-import { activeChannelId, selectChannel, useApp } from './store'
+import { activeChannelId, railHooks, selectChannel, useApp } from './store'
 import { useThreads } from './threads'
 import { useDms } from './dms'
 import { notifyFor, useOrganize } from './organize'
@@ -94,7 +94,8 @@ export function homeUnread(convs: Record<string, ConversationRead> = useReads.ge
 
 /** The title and taskbar count: the mention badges on server icons, plus unread DMs and group DMs. */
 export function badgeTotal(): number {
-  return Object.values(useApp.getState().servers).reduce((n, s) => n + serverBadges(s).pings, 0) + homeUnread()
+  // Hidden servers stay quiet.
+  return Object.values(useApp.getState().servers).reduce((n, s) => n + (railHooks.isHidden(s.key) ? 0 : serverBadges(s).pings), 0) + homeUnread()
 }
 
 // ── Marking read and unread ─────────────────────────────────────────────────

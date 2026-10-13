@@ -50,6 +50,9 @@ export const e2ee = {
     pending: 'Decrypting…',
     noKey: "Encrypted before you could read this channel (or before this device was added), so it can't be read here.",
     error: "This message couldn't be decrypted.",
+    olderFormat: 'Older format',
+    olderFormatHint: "Sent by an older version of Iskra: encrypted and signed, but not tied to this channel or thread.",
+    afterRemoval: 'Sent after its writer lost access to this channel ({{date}}), so it may not really be from them.',
   },
   search: {
     local: 'Encrypted channels are searched on this device only, in the messages it has decrypted.',
@@ -66,6 +69,9 @@ export const e2ee = {
     noKey: "You can't join yet: this device doesn't have the channel's key.",
   },
   errors: {
+    moved: 'This message was moved here from somewhere else.',
+    replayed: 'This message is a copy of an earlier one.',
+    rolledBack: 'The server showed an older version of this message.',
     chainReplaced: "This channel's encryption was replaced by the server while you were still in it. Messages stay locked until this is sorted out.",
     setupTwice: 'This channel’s encryption was set up twice.',
     historyStart: "This channel's history doesn't start at its creation.",

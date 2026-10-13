@@ -4,7 +4,7 @@ export const productivity: Messages['productivity'] = {
   actions: {
     save: 'Spara meddelandet',
     unsave: 'Ta bort från sparade',
-    saved: 'Sparat',
+    saved: 'Sparat i Sparade meddelanden',
     removed: 'Borttaget från sparade',
     remind: 'Påminn mig om det här',
     more: 'Mer',
@@ -26,7 +26,7 @@ export const productivity: Messages['productivity'] = {
     title: 'Påminn mig',
     about: 'Om det här meddelandet från {{name}}',
     note: 'Anteckning (valfri, bara du ser den)',
-    notePlaceholder: 'Svara på det här, ring tillbaka…',
+    notePlaceholder: 't.ex. Svara på det här, ring tillbaka',
     set: 'Lägg till påminnelse',
     done: 'Du blir påmind {{when}}',
   },

@@ -25,7 +25,7 @@ public static class ModerationFeature
     /// <summary>What a timed-out member can't do: write, react, make threads or polls, use voice, calls and the soundboard.</summary>
     private static readonly HashSet<string> BlockedWhileTimedOut =
     [
-        "chat.send", "chat.edit", "chat.react", "chat.typing", "chat.pin", "upload.begin",
+        "chat.send", "chat.edit", "chat.react", "chat.typing", "chat.pin", "upload.begin", "interaction.invoke",
         "thread.create", "thread.update", "poll.create", "poll.vote", "poll.end",
         "voice.join", "sound.play", "call.start", "call.accept",
         "forum.post.create", "forum.post.update", "event.create", "event.update",

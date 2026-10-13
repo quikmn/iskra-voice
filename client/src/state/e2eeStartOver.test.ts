@@ -11,6 +11,7 @@ import {
 beforeAll(ready)
 
 const key = (id: Identity) => b64u(id.account.publicKey)
+const HERE = { channel: 7 }
 const empty = (): ChainState => ({ chain: null, changes: [], view: null, keys: new Map(), past: [], offer: null, restarts: [] })
 
 /**
@@ -25,7 +26,7 @@ function world() {
   const bobs = empty()
   receiveChain(bobs, old, oldChanges, key(bob), 1000)
   bobs.keys.set(1, oldKey)
-  const oldMessage = encryptChannelMessage(alice, bobs.view!, oldKey, { text: 'from before' })
+  const oldMessage = encryptChannelMessage(alice, bobs.view!, oldKey, { text: 'from before' }, HERE)
 
   const fresh = newChainId()
   const create = signChannelChange(dave, null, fresh, 'create', [])
@@ -75,13 +76,13 @@ describe('starting an encrypted channel over', () => {
     const w = world()
     receiveChain(w.bobs, w.fresh, w.freshChanges, key(w.bob))
     acceptStartOver(w.bobs)
-    const routed = { from: key(w.alice), version: 1 }
+    const routed = { from: key(w.alice), version: 1, ...HERE }
     expect(decryptInChain(w.bobs, w.oldMessage, routed)?.text).toBe('from before')
     // New messages use the new chain (with its key once it arrives).
     const newKey = newEpochKey()
     w.bobs.keys.set(2, newKey)
-    const fresh = encryptChannelMessage(w.dave, w.bobs.view!, newKey, { text: 'hello again' })
-    expect(decryptInChain(w.bobs, fresh, { from: key(w.dave), version: 2 })?.text).toBe('hello again')
+    const fresh = encryptChannelMessage(w.dave, w.bobs.view!, newKey, { text: 'hello again' }, HERE)
+    expect(decryptInChain(w.bobs, fresh, { from: key(w.dave), version: 2, ...HERE })?.text).toBe('hello again')
     // A chain this device never had: nothing to decrypt with.
     const stranger = { ...w.oldMessage, header: { ...w.oldMessage.header, chain: newChainId() } }
     expect(decryptInChain(w.bobs, stranger, routed)).toBeNull()

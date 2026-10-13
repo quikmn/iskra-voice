@@ -27,7 +27,7 @@ If you find a connection that isn't on this page, it's a bug: please report it (
 | **Spellcheck** | Windows/macOS: the system's own spellchecker (no network). Linux: off, because Chromium would download Hunspell dictionaries from Google | — | — | No third party | — |
 | **Chromium background services** | Electron has no Safe Browsing, component updater, field trials or Google sign-in. The app also turns off Cast discovery (`MediaRouter`, `DialMediaRouteProvider`), the autofill server and `<a ping>` | — | — | Off | — |
 | **Passkeys for the app lock** | Desktop: a local window on `https://app.iskra.foo` served from memory (no request leaves the computer); the OS handles the passkey. Choosing "use a phone" uses the OS's own hybrid transport | When you set up or use the app lock | — (OS-level for phone passkeys) | Off until you set it up | — |
-| **Profile pages with scripts** | Your device → whatever the page's author made it load (blocked by the page's CSP: no network) | Only if you choose to run a page's scripts | The page can't load anything from elsewhere (`connect-src 'none'`, images only from the server) | Off: asks first | Don't run scripts |
+| **Profile pages** | none: in the desktop app a page's scripts run in a walled-off session that can't reach the network (it shows only pictures uploaded to its own server); browsers and the phone apps show other people's pages without scripts | — | Nothing: a page can't load anything from elsewhere (images only from its own server) | — | — |
 | **Links you click** | Your browser | When you click | What any website learns | — | — |
 | **QR scanner** | none: the decoder (ZXing WebAssembly) ships with the app, never a CDN | — | — | — | — |
 | **Fonts, icons, scripts, analytics, crash reports** | none: everything ships with the app; no analytics, ads or crash reporting | — | — | — | — |
@@ -40,15 +40,16 @@ OS updates), which Iskra doesn't control.
 
 | Connection | Who contacts whom | When | What they learn | Default | How to turn it off |
 |---|---|---|---|---|---|
-| **Your router (UPnP / NAT-PMP)** | Server → the router on your own network | "Open to the internet" | — (local network) | Off until the owner turns it on | Server settings → Internet |
-| **Let's Encrypt** | Server → `acme-v02.api.letsencrypt.org`; Let's Encrypt → server (HTTP check) | Getting and renewing the HTTPS certificate | The server's domain name (public in Certificate Transparency logs) and IP | With "Open to the internet" or `Https.Mode: acme` | Use your own certificate or none |
+| **Your router (UPnP / NAT-PMP)** | Server → the router on your own network | "Let friends anywhere join" | — (local network) | Off until the owner turns it on | Server settings → Internet access |
+| **Let's Encrypt** | Server → `acme-v02.api.letsencrypt.org`; Let's Encrypt → server (HTTP check) | Getting and renewing the HTTPS certificate | The server's domain name (public in Certificate Transparency logs) and IP | With "Let friends anywhere join" or `Https.Mode: acme` | Use your own certificate or none |
 | **sslip.io** | Members' DNS resolvers → sslip.io's name servers | Resolving `1-2-3-4.sslip.io`, when there's no own domain | The lookups for that name (usually from members' ISPs' resolvers) | Only without a domain | Set your own domain |
 | **Google STUN (via LiveKit)** | Server's LiveKit → a public STUN server (Google's by default) | Starting voice when open to the internet and the router didn't report the public IP | The server's IP only | Only in that case | Give the server a known address (router with UPnP/NAT-PMP) |
 | **Hugging Face** | Server → `huggingface.co` (pinned commit, SHA-256-checked) | Once, the first time a member turns captions on | The server's IP | On demand | `server.json`: `"Captions": { "ModelDownload": false }`, or `ModelSource` for a local copy |
-| **GitHub (server updates)** | Server → `api.github.com`, GitHub release storage | 2 min after start, then every 6 h; standalone servers only (desktop-hosted servers update with the app) | The server's IP and version | Notify | Server settings → Updates → Off |
+| **GitHub (server updates)** | Server → `api.github.com`, GitHub release storage | 2 min after start, then every 6 h; standalone servers only (desktop-hosted servers update with the app) | The server's IP and version | Notify | Server settings → Server updates → Off |
 | **Link previews** | Server → linked sites | See above | The server's IP | On | — |
 | **KLIPY** | Server → KLIPY | See above | The server's IP | Only with a key | Remove the key |
 | **Push services** | Server → each subscribed device's push service | Notifications | Encrypted payload, timing | Only for subscribed devices | — |
+| **Outgoing webhooks** | Server → the address an admin picked (HTTPS; plain HTTP only on the owner's own network) | When a chosen event happens: a new message or reaction in chosen channels, a member joining or leaving, an event starting | What the event contains (message text and author's name, member names); never encrypted channels, DMs or group chats | None until an admin adds one; every member sees the hosts in My settings → Privacy & data → Who Iskra talks to | Server settings → Bots & webhooks → Outgoing (turn off or delete) |
 
 ## The websites
 

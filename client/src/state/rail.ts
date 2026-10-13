@@ -3,8 +3,8 @@
 import { create } from 'zustand'
 import { b64u } from '../core/crypto'
 import { openPrefs, prefsKey, sealPrefs } from '../core/prefs'
-import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
-import { emptyLayout, parseLayout, type RailItem, type RailLayout } from './railLogic'
+import { connectionFor, onServerEvent, onWelcomeHook, railHooks, useApp } from './store'
+import { emptyLayout, parseLayout, visibleRail, withHidden, type RailItem, type RailLayout } from './railLogic'
 
 const STORAGE_KEY = 'iskra.rail'
 const PREF = 'rail'
@@ -41,10 +41,34 @@ async function pushTo(serverKey: string, layout: RailLayout): Promise<void> {
 }
 
 /** Changes the layout here and on every connected server. */
-export function setRail(items: RailItem[]): void {
-  const layout = { items, updatedAt: Math.max(Date.now(), useRail.getState().layout.updatedAt + 1) }
+export function setRail(items: RailItem[], hidden = useRail.getState().layout.hidden): void {
+  const current = useRail.getState().layout
+  const layout: RailLayout = { items, ...(hidden?.length ? { hidden } : {}), updatedAt: Math.max(Date.now(), current.updatedAt + 1) }
   keep(layout)
   for (const serverKey of useApp.getState().order) void pushTo(serverKey, layout)
+}
+
+/**
+ * "Hide server": takes it off your server list on every device of your account, nothing more. You stay a member,
+ * it stays connected (quietly: no notifications from it), and My settings → Appearance shows it again.
+ */
+export function setServerHidden(serverKey: string, hide: boolean): void {
+  const layout = useRail.getState().layout
+  const hidden = withHidden(layout, serverKey, hide)
+  setRail(layout.items, hidden)
+  const { activeServer, order } = useApp.getState()
+  if (hide && activeServer === serverKey) {
+    const next = visibleRail({ ...layout, hidden }, order).flatMap((i) => (i.kind === 'server' ? [i.key] : i.servers))[0] ?? null
+    useApp.setState({ activeServer: next })
+  }
+}
+
+/** Is this server hidden from the rail? */
+export const isServerHidden = (serverKey: string): boolean => useRail.getState().layout.hidden?.includes(serverKey) ?? false
+
+railHooks.isHidden = isServerHidden
+railHooks.show = (serverKey) => {
+  if (isServerHidden(serverKey)) setServerHidden(serverKey, false)
 }
 
 /** Reads the server's copy; takes it if newer, or sends ours if that is. */

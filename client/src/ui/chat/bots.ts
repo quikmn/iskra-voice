@@ -7,12 +7,14 @@ export interface AuthorInfo {
   name: string
   /** Bots and webhooks get a BOT badge. */
   bot: boolean
+  /** One of the server's built-in bots (a BUILT-IN badge instead). */
+  builtin?: boolean
   /** A webhook's avatar image, if it has one. */
   avatar: FileInfo | null
 }
 
 /** Who wrote a message, as shown above it: a webhook's name, a member, or a former member. */
-export function authorOf(message: Pick<Message, 'author' | 'webhook' | 'imported'>, members: Record<string, Member>): AuthorInfo {
+export function authorOf(message: Pick<Message, 'author' | 'webhook' | 'imported' | 'builtin'>, members: Record<string, Member>): AuthorInfo {
   if (message.webhook) return { name: message.webhook.name, bot: true, avatar: message.webhook.avatar }
   if (message.author === 'automod:') return { name: 'AutoMod', bot: true, avatar: null }
   // Imported from Discord: the name and avatar it had there (not an account here).
@@ -20,7 +22,9 @@ export function authorOf(message: Pick<Message, 'author' | 'webhook' | 'imported
   // A message from before its author replaced their account key: the server moved it, our cached copy may not have.
   const member = members[message.author] ?? members[resolveKey(message.author)]
   if (message.author.startsWith('webhook:')) return { name: t('chat.author.webhook'), bot: true, avatar: null }
-  return { name: member?.name ?? t('chat.author.formerMember'), bot: !!member?.bot, avatar: null }
+  // A built-in bot that's been turned off still signs its old answers.
+  if (!member && message.builtin) return { name: t(`builtinBots.names.${message.builtin.bot}`), bot: true, builtin: true, avatar: null }
+  return { name: member?.name ?? t('chat.author.formerMember'), bot: !!member?.bot, builtin: !!member?.builtin, avatar: null }
 }
 
 /** Messages group under one header only when the same author posted them under the same name. */

@@ -127,10 +127,11 @@ readers as a polite live region); the × or the button turns them off again.
   of the app and not in git. The first time captions turn on in a call, the app says "Captions need a one-time 78 MB
   download from this server" and waits for **Download**; progress shows with a **Cancel** button. The parts come from
   the Iskra server the call runs on (`GET /models/whisper-base-1846881b/<part>`, on the web, in the desktop app and
-  in the phone apps alike). That server fetched the model once from Hugging Face, at the pinned commit, the first
+  in the phone apps alike), with a short-lived link the app gets from the server first, so only members can
+  download it ([PROTOCOL.md](../protocol/PROTOCOL.md#live-captions-model)). That server fetched the model once from Hugging Face, at the pinned commit, the first
   time anyone asked, and keeps it in its world folder (`models/`). So members' devices only ever talk to their own
   server; Hugging Face only sees the server's address, once. An owner can turn this off (`Captions.ModelDownload`
-  in server.json, [hosting.md](hosting.md)); the app then says "This server doesn't offer captions".
+  in server.json, [hosting.md](hosting.md#live-captions)); the app then says "This server doesn't offer captions".
 - **Hash check, twice.** The server checks every file and part against the SHA-256s pinned in
   `client/src/state/captions/model.json` (compiled into both the server and the app) before keeping anything, and the
   app checks every part again before it's used or kept, and when it's read back. A part that doesn't match is
@@ -245,3 +246,21 @@ writes the parts into `client/.models/` (ignored by git). The e2e test servers s
 (`Captions.ModelSource`) instead of fetching it from Hugging Face, and CI caches it. Without it, the Whisper unit test
 and the captions e2e test are skipped. `--blur` also re-checks the committed Selfie Segmenter. The
 background pictures are drawn in code; there are no image assets.
+
+### Voice bots (SDK)
+
+The [bot SDK](bots.md#voice-bots) plays audio into voice channels with these packages. They're installed by
+`npm install` in `bots/` (exact versions in `bots/package-lock.json`), loaded only when a bot uses voice, and never
+part of the app or the server.
+
+| Component | Version | Used for | License |
+|---|---|---|---|
+| [@livekit/rtc-node](https://github.com/livekit/node-sdks) with [@livekit/rtc-ffi-bindings](https://github.com/livekit/rust-sdks) (native, prebuilt for Windows x64, macOS x64/arm64, Linux x64/arm64; includes libwebrtc) | 1.1.0 / 0.12.73 | connecting to the server's LiveKit and publishing the audio track; resampling (`AudioResampler`) | Apache-2.0 (libwebrtc: BSD-3-Clause) |
+| [mpg123-decoder](https://github.com/eshaz/wasm-audio-decoders) (mpg123 in WebAssembly) | 1.0.3 | MP3 | MIT; contains [mpg123](https://www.mpg123.de/), LGPL-2.1 |
+| [ogg-opus-decoder](https://github.com/eshaz/wasm-audio-decoders) (libopus in WebAssembly) | 1.7.5 | Ogg Opus | MIT; contains libopus, BSD-3-Clause |
+| [@wasm-audio-decoders/ogg-vorbis](https://github.com/eshaz/wasm-audio-decoders) (libvorbis in WebAssembly) | 0.1.20 | Ogg Vorbis | MIT; contains libvorbis and libogg, BSD-3-Clause |
+| [@wasm-audio-decoders/flac](https://github.com/eshaz/wasm-audio-decoders) (libFLAC in WebAssembly) | 0.2.11 | FLAC | MIT; contains libFLAC, BSD-3-Clause |
+| [codec-parser](https://github.com/eshaz/codec-parser) (used by the Ogg and FLAC decoders) | 2.5.0 | finding frames in Ogg and FLAC streams | LGPL-3.0-or-later |
+
+WAV is read by the SDK itself (`bots/sdk/src/voice/audio.ts`). The LGPL parts are used unmodified, as the separate
+npm packages they ship in.

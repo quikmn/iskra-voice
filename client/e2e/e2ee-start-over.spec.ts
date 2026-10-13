@@ -18,8 +18,8 @@ async function openMember(page: Page, name: string) {
 
 async function setLevel(page: Page, name: string, level: string) {
   const dialog = await openMember(page, name)
-  await dialog.getByLabel('Level').selectOption(level)
-  await expect(dialog.getByLabel('Level')).toHaveValue(level)
+  await dialog.getByLabel('Base role').selectOption(level)
+  await expect(dialog.getByLabel('Base role')).toHaveValue(level)
   await page.keyboard.press('Escape')
   await page.keyboard.press('Escape')
 }

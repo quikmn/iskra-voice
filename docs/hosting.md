@@ -164,7 +164,7 @@ ExecReload=+/bin/systemctl --no-block restart %n
 
 ### Updating
 
-As the owner, open **Settings → Updates**. It shows the version the server runs and whether a newer one is out (the owner also gets a short notice above the chat). Choose what happens when one is:
+As the owner, open **Server settings → Server updates**. It shows the version the server runs and whether a newer one is out (the owner also gets a short notice above the chat). Choose what happens when one is:
 
 | | What it does | Where |
 |---|---|---|
@@ -177,15 +177,15 @@ As the owner, open **Settings → Updates**. It shows the version the server run
 **How an automatic update works:**
 
 1. The server downloads the package for its system (`iskra-server-<version>-linux-x64.tar.gz`) and the release's `SHA256SUMS.txt`, from `github.com/quikmn/iskra-voice` over HTTPS only.
-2. It checks the package's SHA-256 against `SHA256SUMS.txt` **and** against the checksum GitHub lists for the file, and that the archive holds nothing but plain files at its top level. It runs the new `iskra-server version` to make sure it starts on this machine. Anything that doesn't match stops the update; nothing has been replaced yet.
+2. It checks the package's SHA-256 against `SHA256SUMS.txt` **and** against the checksum GitHub lists for the file, verifies its signed build attestation (see the trust model below), and that the archive holds nothing but plain files at its top level. It runs the new `iskra-server version` to make sure it starts on this machine. Anything that doesn't match stops the update; nothing has been replaced yet.
 3. It swaps the new files in (the old ones go to `.update/previous/` next to `iskra-server`), tells everyone *"restarting for an update"*, and exits; systemd starts the new version a few seconds later. Members' apps reconnect by themselves.
 4. The new version confirms itself after running for a minute. If it fails to start three times before that, `iskra-update-guard` puts the previous version back and the owner sees *"the update didn't start"*; that version isn't tried again automatically.
 
-Every check you start, change of setting, install, failure, finished update and rollback is written to the security log (**Settings → Security log**).
+Every check you start, change of setting, install, failure, finished update and rollback is written to the security log (**Server settings → Sign-ins & security**).
 
-Automatic updates need: the systemd unit above with the `ExecStartPre` line (Settings → Updates says so if it's missing; `iskra-update-guard` comes in the Linux package), and the server's user owning the folder `iskra-server` is in (`chown -R iskra:iskra /opt/iskra`). Updates never touch the world folder. Database changes in new versions are forward-only, so a rolled-back version runs on a database the new one may already have migrated; that's why a version only confirms after it has started cleanly, and why daily backups exist.
+Automatic updates need: the systemd unit above with the `ExecStartPre` line (Server settings → Server updates says so if it's missing; `iskra-update-guard` comes in the Linux package), and the server's user owning the folder `iskra-server` is in (`chown -R iskra:iskra /opt/iskra`). Updates never touch the world folder. Database changes in new versions are forward-only, so a rolled-back version runs on a database the new one may already have migrated; that's why a version only confirms after it has started cleanly, and why daily backups exist.
 
-**What the checks prove (trust model).** The download comes over TLS from GitHub, and the checksums come from the same GitHub release. That catches corrupted or truncated downloads and anyone tampering between GitHub and you. It does *not* protect against someone who can publish releases on the Iskra repository, since they could replace the package and `SHA256SUMS.txt` together. For that, releases carry [build-provenance attestations](https://docs.github.com/actions/security-for-github-actions/using-artifact-attestations): the server asks GitHub whether one exists for the exact file and shows it, and **Only install releases with a GitHub build attestation** makes it required. The server doesn't verify the attestation's Sigstore signature itself; to do that, run `gh attestation verify <file> -R quikmn/iskra-voice` before updating by hand. If you'd rather review every release first, use **Tell me**.
+**What the checks prove (trust model).** The download comes over TLS from GitHub, and the checksums come from the same GitHub release. That catches corrupted or truncated downloads and anyone tampering between GitHub and you. It does *not* protect against someone who can publish releases on the Iskra repository, since they could replace the package and `SHA256SUMS.txt` together. For that, releases carry [build-provenance attestations](https://docs.github.com/actions/security-for-github-actions/using-artifact-attestations), and the server verifies them itself before installing (on by default: **Check the signed build attestation**). It gets the Sigstore bundles for the exact file from GitHub and checks them on the server, with Sigstore's root built into Iskra: the signature must come from Iskra's release workflow running on GitHub's own runners for this version (not from a person's account), be in Sigstore's public transparency log, and name this file with its SHA-256. Someone who only gets into the GitHub account can still publish a release, but can't make a matching attestation for a changed file without also changing the release workflow, which shows in the public log. A release without an attestation (or one that doesn't verify) is never installed automatically; **Server settings → Server updates** says why, and you can install it by hand. Turning the check off (in Server settings → Server updates, or `"VerifyAttestation": false` in server.json) is logged and shows a warning. Sigstore adds new signing keys now and then; a server too old to know a new one refuses that update with *"doesn't verify"* until you update it by hand once. To check a file yourself: `gh attestation verify <file> -R quikmn/iskra-voice`. If you'd rather review every release first, use **Tell me**.
 
 The server only asks GitHub's public API (no account; 60 requests an hour per IP, and an unchanged list doesn't count), and tells GitHub nothing beyond what any request does (its IP address) and its version in the `User-Agent`.
 
@@ -278,7 +278,7 @@ Restart the server. It answers Let's Encrypt on port 80, stores the certificate 
 
 ### Push notifications
 
-Nothing to set up. On first start the server makes its push key (`vapid.json`) and sends notifications for mentions, replies, DMs, group chats, calls and event reminders through the browsers' own push services (an outgoing HTTPS connection). Members turn them on per device in **Settings → Notifications**; on phones that needs the web app over HTTPS, and on iPhone and iPad the app added to the Home Screen. The phone apps show notifications while they're open.
+Nothing to set up. On first start the server makes its push key (`vapid.json`) and sends notifications for mentions, replies, DMs, group chats, calls and event reminders through the browsers' own push services (an outgoing HTTPS connection). Members turn them on per device in **My settings → Notifications**; on phones that needs the web app over HTTPS, and on iPhone and iPad the app added to the Home Screen. The phone apps show notifications while they're open.
 
 ### Voice, stages and watch parties
 
@@ -289,7 +289,7 @@ Voice channels, stages, DM and group calls and watch parties all use the same vo
 The GIF picker uses [KLIPY](https://docs.klipy.com) (Google closed Tenor's API in June 2026). It's off until an admin adds a key:
 
 1. Sign up at the KLIPY Partner Panel and create an API key for your server. Leave ads **off**.
-2. In Iskra: **Server settings → Overview**, under GIFs, paste the key and click **Turn on**.
+2. In Iskra: **Server settings → GIFs**, paste the key and click **Turn on**.
 
 There are two modes:
 
@@ -306,20 +306,51 @@ Members can turn on live captions in calls. The speech recognition runs on their
 (Whisper base, about 78 MB) comes from your server: the first time someone turns captions on, your server downloads
 it once from Hugging Face (at a pinned version, every byte checked against pinned SHA-256 hashes) into the `models/`
 folder, and serves it to members' apps from then on. So their devices only talk to your server, and Hugging Face only
-sees your server, once. It takes about **78 MB of disk space** (plan for 100 MB). The security log notes the
+sees your server, once. Only members get it: their app asks your server for a short-lived link first, so nobody else
+can download it from your server or make it fetch the model. It takes about **78 MB of disk space** (plan for 100 MB). The security log notes the
 download. To not offer captions at all, set `"Captions": { "ModelDownload":
 false }` in server.json and restart; the apps then say this server doesn't offer captions. Deleting `models/` is
 safe: it's fetched again the next time someone needs it.
+
+The link is valid for an hour and only for that member; the app asks for a new one whenever it needs it. Apps from
+before 2.0.0-alpha.13 download the model without a link, so an updated server refuses them: members who want captions
+need an up-to-date app. How the link works: [PROTOCOL.md](../protocol/PROTOCOL.md#live-captions-model); what runs on
+members' devices: [voice-processing.md](voice-processing.md).
+
+### Bots and webhooks
+
+Everything here is in **Server settings → Bots & webhooks**, for admins. Nothing runs or connects until an admin turns
+it on. The details, and how to write your own bot: [bots.md](bots.md).
+
+- **Built-in bots** (the **Bots** tab): **Dice** (`/roll 2d6+3`), **Polls** (`/poll Question | Answer | Answer`) and
+  **Reminders** (`/remind me in 10m …`) run inside your server, so there's nothing to install or keep running. Turn
+  one on and it joins as a bot member; change its role or the channel's overrides to choose
+  where it answers. They read only their own commands and don't answer in encrypted channels.
+- **Your own bots** (the **Bots** tab): make a single-use bot invite and start the bot with it. Leave **Can read all
+  messages** off unless the bot needs to read along: then it gets only its commands, button clicks and forms, and
+  messages that mention it or reply to it. You can change this later. Bots that joined before this choice existed
+  keep reading everything until you turn it off.
+- **Webhooks** (incoming): a secret URL that posts into one channel, for anything that can post to Discord, and GitHub.
+- **Outgoing webhooks** (the **Outgoing** tab): your server sends chosen events (new messages or reactions in the
+  channels you pick, people joining or leaving, events starting) as signed JSON to an `https://` address you choose,
+  such as a Minecraft bridge or Home Assistant. Each one has its own signing secret (shown once; **New secret** makes
+  another), a log of the last 50 deliveries and **Send a test**. Your server makes these requests, so the address
+  sees your server's IP address and what the event contains (message text and names); nothing from encrypted
+  channels, DMs or group chats is ever sent. Addresses on your own network (`http://` allowed there) are refused
+  unless the owner ticks **Allow addresses on my own network** for that webhook. A webhook that keeps failing is
+  turned off, and admins who are online are told. At most 10 per server. Every member sees where their server sends things under
+  **My settings → Privacy & data → Who Iskra talks to**. The secrets are stored in the server's database, so they're
+  in its backups too: keep backups private, and make a new secret if one leaks.
 
 ## Backups, moving and importing
 
 ### Backups
 
-**Download one:** as the owner, open **Settings → Backup & move**, choose a passphrase and click **Make backup**. You get one file (`<name>-<date>.iskrabackup`) with everything: messages, channels, members, roles, files, settings and the server's key. It's made while the server keeps running.
+**Download one:** as the owner, open **Server settings → Backup & move**, choose a passphrase and click **Make backup**. You get one file (`<name>-<date>.iskrabackup`) with everything: messages, channels, members, roles, files, settings and the server's key. It's made while the server keeps running.
 
 Because the file holds the server's key, it's always encrypted with your passphrase (Argon2id and XChaCha20-Poly1305 from libsodium). Keep the file and the passphrase in different places: without the passphrase nobody can open it, and nobody can recover it for you either.
 
-**Daily backups:** every day the server also keeps a copy of the database, settings and keys in its own `backups/` folder (the last 7), so a bad disk write or a mistake can be undone. These aren't encrypted, since they sit next to the keys anyway (owner-only file permissions on Linux and macOS). Uploaded files stay in `uploads/`; turn on **Include uploaded files** if you want them copied too. Change this in **Settings → Backup & move** or in `server.json` → `Backups`. A daily backup only helps while that disk is fine, so download one now and then as well.
+**Daily backups:** every day the server also keeps a copy of the database, settings and keys in its own `backups/` folder (the last 7), so a bad disk write or a mistake can be undone. These aren't encrypted, since they sit next to the keys anyway (owner-only file permissions on Linux and macOS). Uploaded files stay in `uploads/`; turn on **Include uploaded files** if you want them copied too. Change this in **Server settings → Backup & move** or in `server.json` → `Backups`. A daily backup only helps while that disk is fine, so download one now and then as well.
 
 From the command line (this works while the server runs, too):
 
@@ -343,7 +374,7 @@ For scripts, `--passphrase-stdin` reads the passphrase from standard input (or s
 
 ### Moving a server to another computer
 
-Use **Settings → Backup & move → Move this server**. It walks you through it:
+Use **Server settings → Backup & move → Move this server**. It walks you through it:
 
 1. **Back up** this server.
 2. **Restore** the backup on the new computer (as above) and start it there. If friends join from outside your home, turn on **Let friends anywhere join** there, or set up HTTPS.
@@ -360,7 +391,7 @@ Bring your Discord server's history along with [DiscordChatExporter](https://git
 
 1. Export the channels you want in the **JSON** format. Turn on **Download assets** (`--media` on the command line) to include files and profile pictures.
 2. Zip the folder it made, or use a single `.json` file.
-3. As the owner, open **Settings → Import from Discord** and upload it. A progress bar shows how it's going, and you can keep chatting meanwhile.
+3. As the owner, open **Server settings → Import from Discord** and upload it. A progress bar shows how it's going, and you can keep chatting meanwhile.
 
 Each Discord channel becomes a channel here (threads become threads), with its messages in order, their dates, replies, pins, files and reaction counts. Messages show their authors' Discord names and pictures with an **Imported from Discord** label: those people aren't accounts here, and nobody can edit those messages. Tick **read-only archive** to keep the imported channels for reading only. Each channel's Discord category is kept with it.
 
@@ -382,7 +413,7 @@ iskra-server import-discord my-server export.zip              # add --read-only 
   "AppUrl": "https://app.iskra.foo",   // the web app invite links open
   "Template": null,                    // starter template applied once to a new server: "gaming", "friends", "tabletop", "empty" or a .json path
   "OwnerClaim": null,                  // one-time owner key from "Rent a small server"; moved out of this file on first start
-  "MaxUploadMb": 512,                  // largest file a member may upload (also in the app: Settings → Limits)
+  "MaxUploadMb": 512,                  // largest file a member may upload (also in the app: Server settings → Limits)
   "UploadQuota": {                     // per account, over any 24 hours; 0 = no limit (admins and the owner have none)
     "MemberMbPerDay": 10240,           // members and trusted
     "GuestMbPerDay": 1024
@@ -416,7 +447,7 @@ iskra-server import-discord my-server export.zip              # add --read-only 
     "DnsSuffix": "sslip.io",
     "PortMapping": true                // ask the router to open ports (UPnP / NAT-PMP); false to forward them yourself
   },
-  "Backups": {                         // daily backups in backups/ (Settings → Backup & move)
+  "Backups": {                         // daily backups in backups/ (Server settings → Backup & move)
     "Enabled": true,
     "Keep": 7,                         // how many days to keep (1–30)
     "IncludeUploads": false            // also copy uploads/ into each one
@@ -424,13 +455,13 @@ iskra-server import-discord my-server export.zip              # add --read-only 
   "Import": {
     "MaxMb": 4096                      // largest Discord export the owner may upload
   },
-  "Updates": {                         // Settings → Updates (see Updating)
+  "Updates": {                         // Server settings → Server updates (see Updating)
     "Mode": "notify",                  // "off" | "notify" (tell the owner) | "auto" (also install; Linux with systemd)
     "Channel": "stable",               // "stable" | "prerelease" (also test versions)
     "Window": "04:00",                 // automatic installs start within the hour after this (server time)
-    "RequireAttestation": false        // only install releases with a GitHub build attestation
+    "VerifyAttestation": true          // only install releases whose build attestation verifies (older "RequireAttestation" is ignored)
   },
-  "Retention": {                       // how long data is kept, in days; 0 = forever (Settings → Security log)
+  "Retention": {                       // how long data is kept, in days; 0 = forever (Server settings → Sign-ins & security)
     "MessagesDays": 0,                 // channel messages, and encrypted DM and group envelopes
     "UploadsDays": 0,                  // files in messages and DMs (avatars, emoji, stickers, sounds and event covers stay)
     "AuditDays": 90,                   // the audit log
@@ -462,18 +493,18 @@ iskra-server import-discord my-server export.zip              # add --read-only 
 | `exports/` | "Download my data" files while their 10-minute link lasts (never in backups) |
 | `models/` | The live-captions speech model, once someone has used captions (about 78 MB; never in backups, fetched again when needed) |
 
-Profile pages, polls, threads, pins, forums, events, roles, groups (their encrypted messages), webhooks (only a hash of each secret) and push subscriptions are all in `iskra.db` too, so copying the folder takes everything along.
+Profile pages, polls, threads, pins, forums, events, roles, groups (their encrypted messages), webhooks (only a hash of each secret), outgoing webhooks (with their signing secrets), built-in bots and push subscriptions are all in `iskra.db` too, so copying the folder takes everything along.
 
 On Linux and macOS the server creates the folder (and `certs/`) readable by its own user only, writes secrets as `0600`, and tightens older secret files to `0600` when it starts.
 
 Uploads that nothing uses (no message, DM, avatar, emoji, sticker, sound, webhook, event cover, profile page or running watch party) are deleted after a day.
 
-**Security log and retention:** the owner reads the server's security log in **Settings → Security log** (failed sign-ins, new members and devices, key changes, account deletions, backups, moves, data downloads; IP addresses only if you turn that on) and sets how long messages, files, the audit log and the security log are kept. Deleting happens every hour and can't be undone. Members download what the server keeps about them in **Settings → Privacy & data**; if someone asks you instead, use **Someone's data** in Settings → Security log.
+**Security log and retention:** the owner reads the server's security log in **Server settings → Sign-ins & security** (failed sign-ins, new members and devices, key changes, account deletions, backups, moves, data downloads; IP addresses only if you turn that on) and sets how long messages, files, the audit log and the security log are kept. Deleting happens every hour and can't be undone. Members download what the server keeps about them in **Settings → Privacy & data**; if someone asks you instead, use **Someone's data** in Server settings → Sign-ins & security.
 
 **Backups and moving:** see [Backups, moving and importing](#backups-moving-and-importing). Copying the stopped server's folder works too; it holds secrets (`server.key`, `vapid.json`, `livekit.key`, `certs/`, `backups/`), so keep copies private. **Updating:** see [Updating](#updating). Automatic updates keep their state in `.update/` next to `iskra-server`, not in the world folder.
 
 ## Roles and moderation
 
-`guest < member < trusted < admin < owner`. Each channel has a level needed to see it and a level needed to post (or speak, in voice). Admins can kick and ban people ranked below them and hand out levels below their own; the owner can do everything. Invite links can carry a level and expire after 1 hour to 30 days, optionally single use.
+Everyone has a **base role**: `Guest < Member < Trusted < Admin < Owner`. Each channel has a base role needed to see it and one needed to post (or speak, in voice). Admins can kick and ban people ranked below them and hand out base roles below their own; the owner can do everything. Invite links can carry a base role and expire after 1 hour to 30 days, optionally single use.
 
-On top of the levels, admins can make **custom roles** (Settings → Roles) with a name, colour and icon, and give them permissions such as managing messages, timing people out, kicking, banning, managing channels or roles, muting and moving people in voice, or mentioning everyone. Roles can also change what a channel allows (**per-channel overrides**), and roles can be made mentionable. Moderators have **timeouts**, **slowmode** per channel, **server mute** and **move** in voice, and an **audit log** of moderation actions (kept 90 days).
+On top of the base roles, admins can make **custom roles** (Server settings → Roles) with a name, colour and icon, and give them permissions such as managing messages, timing people out, kicking, banning, managing channels or roles, muting and moving people in voice, or mentioning everyone. Roles can also change what a channel allows (**per-channel overrides**), and roles can be made mentionable. Moderators have **timeouts**, **slowmode** per channel, **server mute** and **move** in voice, and an **audit log** of moderation actions (kept 90 days).

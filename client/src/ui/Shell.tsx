@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { activeServerState, useApp } from '../state/store'
+import { activeChannelId, activeServerState, useApp } from '../state/store'
+import { ErrorBoundary } from './ErrorBoundary'
 import { ChannelSidebar } from './ChannelSidebar'
 import { ChatArea } from './chat/ChatArea'
 import { JoinDialog, useOpenJoinRequests } from './dialogs/JoinDialog'
@@ -17,6 +18,7 @@ import { RecoveryNudge } from './dialogs/RecoveryKey'
 import { IncomingCall } from './calls/Calls'
 import { IncomingGroupCall } from './groups/GroupCall'
 import { SoundToasts } from './expressions/Soundboard'
+import { OuthookToast } from './OuthookToast'
 import { ProfileLayer } from './profile/ProfileLayer'
 import { UserMenuLayer } from './people/UserMenu'
 import { ServerActionLayer } from './organize/ServerMenu'
@@ -48,6 +50,7 @@ export function Shell() {
   const stageChannel = useVoice((s) => s.session?.channelId)
   const isStageChannel = !!server?.channels.some((c) => c.id === stageChannel && c.kind === 'stage')
   const hasServers = useApp((s) => s.order.length > 0)
+  const channelId = useApp(activeChannelId)
   // Escape closes an open drawer (phones and narrow windows).
   useEscapeLayer(() => setPanel('none'), panel !== 'none')
 
@@ -65,21 +68,23 @@ export function Shell() {
         {server && <ServerUpdateNotice server={server} />}
         {server && <RestartBanner server={server} />}
         <KtNotices />
-        {server && stage ? (
-          <VoiceRoom server={server}>
-            {isStageChannel
-              ? <StageView server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
-              : <VoiceStage server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />}
-          </VoiceRoom>
-        ) : server ? (
-          <ChatArea server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
-        ) : (
-          // With no servers yet, the Friends page leads with how to join or start one.
-          <HomeMain
-            onToggle={(p) => setPanel(panel === p ? 'none' : p)}
-            start={hasServers ? undefined : <StartCard onJoin={() => setJoining(true)} onCreate={() => setCreating(true)} />}
-          />
-        )}
+        <ErrorBoundary variant="pane" resetKey={`${server?.key ?? ''}:${channelId ?? ''}:${stage}`}>
+          {server && stage ? (
+            <VoiceRoom server={server}>
+              {isStageChannel
+                ? <StageView server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
+                : <VoiceStage server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />}
+            </VoiceRoom>
+          ) : server ? (
+            <ChatArea server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
+          ) : (
+            // With no servers yet, the Friends page leads with how to join or start one.
+            <HomeMain
+              onToggle={(p) => setPanel(panel === p ? 'none' : p)}
+              start={hasServers ? undefined : <StartCard onJoin={() => setJoining(true)} onCreate={() => setCreating(true)} />}
+            />
+          )}
+        </ErrorBoundary>
       </main>
 
       {server && (
@@ -89,6 +94,7 @@ export function Shell() {
       )}
 
       <SoundToasts />
+      <OuthookToast />
       {panel !== 'none' && <div className="scrim" onClick={() => setPanel('none')} />}
       <IncomingCall />
       <IncomingGroupCall />

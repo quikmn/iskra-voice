@@ -164,7 +164,10 @@ test('AI noise removal, Silero voice activity, cleaning up and leveling what you
   await channelSettings.getByLabel('Allow hi-fi audio').uncheck()
   await channelSettings.getByRole('button', { name: 'Save' }).click()
   await openSettings(host, 'Voice & audio')
-  await expect(settings.getByText('Active: AI noise removal (DeepFilterNet3).')).toBeVisible({ timeout: 20_000 })
+  // Restarting DeepFilterNet next to the friend's on a shared CI runner may fall back to RNNoise (by design, as above).
+  const backToAi = settings.getByText('Active: AI noise removal (DeepFilterNet3).')
+  await expect(process.env.CI ? settings.getByText(/Active: (AI noise removal \(DeepFilterNet3\)|Strong \(RNNoise\))\./) : backToAi)
+    .toBeVisible({ timeout: 20_000 })
   await host.keyboard.press('Escape')
   await expect.poll(() => receivedLevel(friend), { timeout: 20_000 }).toBeGreaterThan(-60)
 

@@ -1,8 +1,11 @@
 // Ctrl/Cmd+K: what you can jump to, and how a typed query ranks them.
+import type { Channel } from '../core/protocol'
 
 export interface SwitchItem {
   id: string
   kind: 'channel' | 'dm' | 'friends'
+  /** For channels: text, forum or docs (for the icon). */
+  channelKind?: Channel['kind']
   label: string
   /** Where it is, e.g. the server's name. */
   context: string

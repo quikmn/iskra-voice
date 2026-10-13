@@ -162,6 +162,7 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
             FROM doc_revisions r LEFT JOIN doc_pages p ON p.id = r.page_id WHERE r.author {Mine} ORDER BY r.page_id, r.version;
             """);
         Section("reactions", $"SELECT message_id, account_key, emoji, created_at FROM reactions WHERE account_key {Mine} ORDER BY created_at;");
+        Section("botCommandsUsed", $"SELECT message_id, interaction_id, user_key, command FROM bot_interaction_messages WHERE user_key {Mine} ORDER BY message_id;");
         Section("pollVotes", $"SELECT message_id, account_key, option, created_at FROM poll_votes WHERE account_key {Mine};");
         Section("eventInterest", $"SELECT event_id, account_key, created_at FROM event_interest WHERE account_key {Mine};");
         Section("uploads", $"SELECT id, name, size, type, sha256, uploader, created_at FROM files WHERE uploader {Mine} ORDER BY created_at;");
@@ -170,6 +171,11 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         Section("groupMessagesSent", $"SELECT id, group_id, from_key, created_at FROM group_messages WHERE from_key {Mine} ORDER BY id;");
         // Reminders' data is sealed by your devices (what they're about and your note); the server only knows the rest.
         Section("reminders", $"SELECT id, account_key, due_at, channel_id, message_id, data, created_at, fired_at FROM reminders WHERE account_key {Mine} ORDER BY id;");
+        // Built-in bots' answers to your commands (dice rolls, poll hints, reminder confirmations): what they meant, as JSON.
+        Section("builtinBotAnswers", $"""
+            SELECT r.message_id, m.channel_id, m.created_at, r.reply FROM builtin_replies r JOIN messages m ON m.id = r.message_id
+            WHERE json_extract(r.reply, '$.for') {Mine} ORDER BY r.message_id;
+            """);
         // Encrypted scheduled DMs and group messages are left out (the server can't read them); channel ones include their text.
         Section("scheduledMessages", $"""
             SELECT id, account_key, kind, channel_id, peer_key, group_id, text, reply_to, send_at, created_at, status, error
@@ -177,6 +183,7 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
             """);
         Section("inbox", $"SELECT account_key, message_id, channel_id, kind, created_at FROM inbox_items WHERE account_key {Mine} ORDER BY message_id;");
         Section("invitesCreated", $"SELECT created_by, created_at, expires_at, max_uses, uses, role, revoked FROM invites WHERE created_by {Mine};");
+        Section("outgoingWebhooksCreated", $"SELECT id, name, url, events, created_by, created_at FROM outgoing_webhooks WHERE created_by {Mine};");
         Section("timeouts", $"SELECT account_key, until, reason, at FROM timeouts WHERE account_key {Mine};");
         Section("bans", $"SELECT account_key, reason, banned_at FROM bans WHERE account_key {Mine};");
         Section("reportsMade", $"""
@@ -213,6 +220,8 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
           Settings -> Privacy & data -> Download data on this device.
         - reminders, scheduledMessages, inbox: your reminders (what each is about is sealed by your devices: "data"), messages
           waiting to be sent later (encrypted DMs and group messages only by time and recipient), and messages that mentioned you.
+          Reminders set with the built-in Reminders bot (/remind) aren't sealed: their "data" starts with "bot." and holds the note.
+        - builtinBotAnswers: what the built-in bots (Dice, Polls, Reminders) answered to your commands.
         - timeouts, bans, reportsMade, reportsAboutYou, auditLog, securityLog: moderation and security records about you.
           Reports about you don't say who made them.
 
