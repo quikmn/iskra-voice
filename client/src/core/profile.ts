@@ -130,7 +130,7 @@ export const STARTER_PAGE = `<!doctype html>
 <body>
   <main class="card">
     <h1>Hi, I'm new here</h1>
-    <p>This is my corner of the server. Edit me in Settings, Profile page.</p>
+    <p>This is my corner of the server. Edit me in My settings → Profile → Profile page.</p>
     <div class="sparks" id="sparks"></div>
     <button id="spark">Make a spark</button>
   </main>

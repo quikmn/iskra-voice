@@ -232,7 +232,8 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); box-sha
 .me-bar { display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--rail); flex: none; }
 .me-text { display: grid; min-width: 0; flex: 1; line-height: 1.2; }
 .me-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
-.me-text span { font-size: 12px; color: var(--muted); text-transform: capitalize; }
+.me-text span { font-size: 12px; color: var(--muted); }
+.me-text span::first-letter { text-transform: uppercase; } /* "Not joined", not "Not Joined" */
 
 .avatar {
   position: relative; border-radius: var(--avatar-radius); display: inline-grid; place-items: center; flex: none;

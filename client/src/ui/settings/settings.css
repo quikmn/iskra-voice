@@ -37,7 +37,8 @@
 .settings-facts > div + div { border-top: 1px solid var(--border); }
 .settings-facts dt { color: var(--muted); font-size: 14px; }
 .settings-facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
-.capitalize { text-transform: capitalize; }
+.capitalize { display: inline-block; }
+.capitalize::first-letter { text-transform: uppercase; }
 .settings-danger {
   display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 14px 16px;
   border: 1px solid color-mix(in srgb, var(--red) 35%, transparent); border-radius: var(--radius);
