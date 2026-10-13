@@ -67,3 +67,7 @@
 .dice-total { font-size: 1.15em; min-width: 24px; text-align: center; }
 .builtin-bot-row .member-name { display: grid; gap: 2px; }
 .builtin-bot-about { font-size: 13px; overflow-wrap: anywhere; }
+
+.bot-row .bot-scope { display: block; font-size: 12px; }
+.bot-scope-hint { font-size: 12px; }
+.bot-scope-select { max-width: 46%; }

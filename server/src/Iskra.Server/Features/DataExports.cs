@@ -162,6 +162,7 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
             FROM doc_revisions r LEFT JOIN doc_pages p ON p.id = r.page_id WHERE r.author {Mine} ORDER BY r.page_id, r.version;
             """);
         Section("reactions", $"SELECT message_id, account_key, emoji, created_at FROM reactions WHERE account_key {Mine} ORDER BY created_at;");
+        Section("botCommandsUsed", $"SELECT message_id, interaction_id, user_key, command FROM bot_interaction_messages WHERE user_key {Mine} ORDER BY message_id;");
         Section("pollVotes", $"SELECT message_id, account_key, option, created_at FROM poll_votes WHERE account_key {Mine};");
         Section("eventInterest", $"SELECT event_id, account_key, created_at FROM event_interest WHERE account_key {Mine};");
         Section("uploads", $"SELECT id, name, size, type, sha256, uploader, created_at FROM files WHERE uploader {Mine} ORDER BY created_at;");

@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Bot, loadState } from '../../bots/sdk/src/index'
-import { describe as describeRoll, pick, roll, rollCard } from '../../bots/examples/dice-rules'
+import { describe as describeRoll, pick, roll, rollAgain, rollCard } from '../../bots/examples/dice-rules'
 import { formatDuration, parseDuration, parseEvent, parsePoll, parseReminder, pollCsv, pollSummary } from '../../bots/examples/planner-rules'
 import { Connection, type ConnectionStatus } from '../src/core/connection'
 import { ready } from '../src/core/crypto'
@@ -146,8 +146,8 @@ describe('bot SDK ↔ server', () => {
     const logs: string[] = []
 
     const bot = new Bot({ name: 'Dice', invite: link, stateFile, log: (l) => logs.push(l) })
-    bot.command('roll', 'Rolls dice', async ({ args, message: m, reply }) => {
-      await m.react('🎲')
+    bot.command('roll', 'Rolls dice', async ({ args, react, reply }) => {
+      await react('🎲')
       await reply(`rolled ${args}`)
     })
     bots.push(bot)
@@ -269,6 +269,66 @@ describe('bot SDK ↔ server', () => {
     await expect(bot.send(general.id, { cards: [{ title: 'x', image: { url: 'https://example.com/a.png' } }] })).rejects.toMatchObject({ code: 'bad_request' })
     // People can't send cards.
     await expect(owner.request('chat.send', { channelId: general.id, text: 'x', cards: [{ title: 'x' }] })).rejects.toMatchObject({ code: 'forbidden' })
+  })
+
+  it('commands from the app reach the bot as interactions: public and private answers, a button and a form', async () => {
+    const { invite } = await owner.request('bot.invite', {})
+    const link = buildInviteLink('http://localhost:5173', { serverUrl: url, serverKey: welcome!.server.key, code: invite.code })
+    const general = welcome!.channels.find((c) => c.name === 'general')!
+    const bot = new Bot({ name: 'Clicky', invite: link, stateFile: join(world, 'clicky.bot.json'), log: () => undefined })
+    bots.push(bot)
+    const heard: string[] = []
+    bot.on('message', (m) => heard.push(m.text))
+    bot.commands([
+      {
+        name: 'roll',
+        description: 'Rolls dice',
+        options: [{ name: 'dice', description: 'Like 2d6', type: 'string' }, { name: 'secret', description: 'Only you', type: 'boolean' }],
+        handler: async ({ options, userName, reply }) => {
+          const result = roll(String(options.dice ?? 'd6'), () => 0.5)!
+          await reply({ text: `${userName} rolled ${result.total}`, components: rollAgain(result) }, { private: options.secret === true })
+        },
+      },
+      {
+        name: 'plan',
+        description: 'Plans a game night',
+        handler: ({ showModal }) => showModal({ customId: 'plan', title: 'Plan', fields: [{ customId: 'title', label: 'Title' }] }),
+      },
+    ])
+    bot.onComponent(/^roll:/, ({ customId, update }) => update({ text: `again ${customId}` }))
+    bot.onModalSubmit('plan', ({ fields, reply }) => reply(`planned ${fields.title}`))
+    await bot.start()
+    const key = bot.me!.accountKey
+    await waitFor(() => events.find((e) => e.type === 'bot.commands' && (e.body as Events['bot.commands']).bot === key
+      && (e.body as Events['bot.commands']).interactions), 'the registry with interactions')
+
+    // A bot invited without "can read all messages" doesn't hear plain chat.
+    await owner.request('chat.send', { channelId: general.id, text: 'just chatting' })
+
+    const { id } = await owner.request('interaction.invoke', { bot: key, channelId: general.id, command: 'roll', options: { dice: '2d6' } })
+    const answer = await message((m) => m.interaction?.id === id)
+    expect(answer.text).toBe('Host rolled 8')
+    expect(answer.interaction).toMatchObject({ user: welcome!.you.accountKey, command: 'roll' })
+    expect(answer.components?.[0].items[0]).toMatchObject({ customId: 'roll:2d6', label: 'Roll again' })
+
+    // The button: the bot updates the message.
+    await owner.request('interaction.invoke', { messageId: answer.id, customId: 'roll:2d6' })
+    await waitFor(() => events.find((e) => e.type === 'chat.edited' && (e.body as Events['chat.edited']).message.id === answer.id
+      && (e.body as Events['chat.edited']).message.text === 'again roll:2d6'), 'the updated message')
+
+    // A private answer comes only as an event, never as a message.
+    const secret = await owner.request('interaction.invoke', { bot: key, channelId: general.id, command: 'roll', options: { secret: true } })
+    const only = await waitFor(() => events.find((e) => e.type === 'interaction.response'
+      && (e.body as Events['interaction.response']).interaction === secret.id)?.body as Events['interaction.response'] | undefined, 'the private answer')
+    expect(only.text).toBe('Host rolled 4')
+
+    // A form: shown to the asker, filled in, answered.
+    const plan = await owner.request('interaction.invoke', { bot: key, channelId: general.id, command: 'plan' })
+    const modal = await waitFor(() => events.find((e) => e.type === 'interaction.modal'
+      && (e.body as Events['interaction.modal']).interaction === plan.id)?.body as Events['interaction.modal'] | undefined, 'the form')
+    await owner.request('interaction.invoke', { modalId: modal.modalId, fields: { title: 'Game night' } })
+    await message((m) => m.text === 'planned Game night')
+    expect(heard).not.toContain('just chatting')
   })
 
   it('a webhook posts with its own name, and the owner sees it live', async () => {

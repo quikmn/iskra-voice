@@ -22,33 +22,33 @@ const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: '2-dig
 
 // The usage hints show in the app when someone types "/" (the bot still reads the whole line itself).
 bot.command('poll', 'Starts a poll (closes after a day unless you give a time)',
-  async ({ args, message, reply }) => {
+  async ({ args, channelId, reply }) => {
     const request = parsePoll(args)
-    if (typeof request === 'string') return reply(request)
-    const poll = await bot.poll(message.channelId, request.question, request.answers, { durationMs: request.durationMs })
+    if (typeof request === 'string') return reply(request, { private: true })
+    const poll = await bot.poll(channelId, request.question, request.answers, { durationMs: request.durationMs })
     saved.polls.push(poll.id)
     save()
   }, { usage: '[2h] Pizza or tacos? | Pizza | Tacos' })
 
-bot.command('remind', 'Reminds you after a while', async ({ args, message, reply }) => {
+bot.command('remind', 'Reminds you after a while', async ({ args, channelId, user, message, reply }) => {
   const request = parseReminder(args)
-  if (typeof request === 'string') return reply(request)
+  if (typeof request === 'string') return reply(request, { private: true })
   const dueAt = Date.now() + request.inMs
   const confirm = await reply(`⏰ Okay, in ${formatDuration(request.inMs)} (at ${clock(dueAt)}).`)
-  saved.reminders.push({ dueAt, channelId: message.channelId, messageId: message.id, confirmId: confirm.id, who: message.author, text: request.text })
+  if (!confirm) return
+  // From the app there's no command message: the reminder answers the confirmation instead.
+  saved.reminders.push({ dueAt, channelId, messageId: message?.id ?? confirm.id, confirmId: confirm.id, who: user, text: request.text })
   save()
 }, {
   options: [
-    { name: 'in', description: 'When: 10m, 1h30m, 2d', type: 'string', required: true, choices: [
-      { name: '10 minutes', value: '10m' }, { name: 'An hour', value: '1h' }, { name: 'Tomorrow', value: '1d' },
-    ] },
+    { name: 'in', description: 'When: 10m, 1h30m, 2d', type: 'string', required: true },
     { name: 'what', description: 'What to remind you of', type: 'string', required: true },
   ],
 })
 
-bot.command('event', 'Plans an event (add "@ Lounge" for a place or voice channel)', async ({ args, message, reply }) => {
+bot.command('event', 'Plans an event (add "@ Lounge" for a place or voice channel)', async ({ args, channelId, react, reply }) => {
   const request = parseEvent(args)
-  if (typeof request === 'string') return reply(request)
+  if (typeof request === 'string') return reply(request, { private: true })
   const startAt = Math.ceil((Date.now() + request.inMs) / 60_000) * 60_000
   // "@ Lounge" names a voice channel if there is one, else it's just a place.
   const voice = request.place
@@ -59,9 +59,9 @@ bot.command('event', 'Plans an event (add "@ Lounge" for a place or voice channe
     startAt,
     endAt: startAt + 2 * 3_600_000,
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-    location: voice ? { channelId: voice.id } : { text: request.place ?? `#${message.channel?.name ?? 'here'}` },
+    location: voice ? { channelId: voice.id } : { text: request.place ?? `#${bot.channels.find((c) => c.id === channelId)?.name ?? 'here'}` },
   })
-  await message.react('📅')
+  await react('📅')
   await reply(`📅 **${event.title}** is on, in ${formatDuration(startAt - Date.now())}. Mark yourself interested under Events to get a reminder.`)
 }, { usage: '2h Game night @ Lounge' })
 

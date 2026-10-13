@@ -1,13 +1,14 @@
-// An Iskra bot: a normal identity that connects with the regular protocol, says it's a bot, and reacts to messages
-// and /commands. Reuses the web client's core, so the handshake and crypto are exactly the app's.
+// An Iskra bot: a normal identity that connects with the regular protocol, says it's a bot, and answers /commands
+// (as interactions from the app, or typed as text), button clicks and forms, and messages meant for it.
+// Reuses the web client's core, so the handshake and crypto are exactly the app's.
 import { resolve } from 'node:path'
 import { parseCommand, type Command } from '../../../client/src/core/commands'
 import { Connection, type ConnectionStatus } from '../../../client/src/core/connection'
 import { ready } from '../../../client/src/core/crypto'
 import { parseInvite } from '../../../client/src/core/invite'
 import {
-  RequestError, type BotCommand, type Card, type Channel, type CommandOption, type Events, type FileInfo, type Member, type Message, type Poll,
-  type Requests, type Thread,
+  RequestError, type BotCommand, type Card, type Channel, type CommandOption, type ComponentRow, type Events, type FileInfo, type Interaction,
+  type Member, type Message, type Modal, type OptionValue, type Poll, type Requests, type Thread,
 } from '../../../client/src/core/protocol'
 import { identityOf, loadState, newState, saveState, type BotState } from './state'
 
@@ -33,14 +34,65 @@ export interface IncomingMessage extends Message {
   react: (emoji: string) => Promise<void>
 }
 
-export interface CommandContext {
-  command: Command
-  /** Everything after the command name. */
-  args: string
-  message: IncomingMessage
-  reply: (content: string | MessageContent, options?: Omit<SendOptions, 'replyTo'>) => Promise<Message>
+/** How to answer: in public (a message in the channel), or `private: true` so only the person who asked sees it. */
+export interface ReplyOptions extends Omit<SendOptions, 'replyTo' | 'attachments'> {
+  /** Only the person who asked sees it; never stored (always so in encrypted channels). Ignored for commands typed as text. */
+  private?: boolean
+}
+
+/** What every answerable context has: who asked, where, and how to answer. */
+export interface AnswerContext {
+  /** Who asked (account key) and their name. */
+  user: string
+  userName: string
+  channelId: number
+  /** The interaction, when it came from the app (null for commands typed as text). */
+  interaction: Interaction | null
+  /**
+   * Answers. Returns the posted message, or null for a private answer. Up to 5 answers per interaction, within 15
+   * minutes; the first should come within 3 seconds or the app shows "thinking" (call `defer()` for slow work).
+   */
+  reply: (content: string | MessageContent, options?: ReplyOptions) => Promise<Message | null>
+  /** "I'm working on it": the app shows "<bot> is thinking…" until you reply (up to 15 minutes). */
+  defer: () => Promise<void>
+  /** Shows a form to the person who asked; its answer arrives at `bot.onModalSubmit(modal.customId, ...)`. */
+  showModal: (modal: Modal) => Promise<void>
   bot: Bot
 }
+
+export interface CommandContext extends AnswerContext {
+  command: Command
+  /** Everything after the command name, as typed. */
+  args: string
+  /** The command's options, checked by the server against what you declared (empty for commands typed as text). */
+  options: Record<string, OptionValue>
+  /** The message, for commands typed as text (undefined when the app sent the command as an interaction). */
+  message?: IncomingMessage
+  /** Reacts to the command's message (does nothing for interactions, which have no message). */
+  react: (emoji: string) => Promise<void>
+}
+
+/** A click on one of the bot's buttons or select menus. */
+export interface ComponentContext extends AnswerContext {
+  customId: string
+  /** The picked values (select menus). */
+  values: string[]
+  /** The message the component is on (or the private answer's id). */
+  messageId?: number
+  responseId?: string
+  /** Replaces the text, cards and components of the message (or private answer) the click came from. */
+  update: (content: string | MessageContent) => Promise<void>
+}
+
+/** A form the bot showed, filled in. */
+export interface ModalContext extends AnswerContext {
+  customId: string
+  /** Field customId → what was typed ("" for empty optional fields). */
+  fields: Record<string, string>
+}
+
+export type ComponentHandler = (ctx: ComponentContext) => unknown | Promise<unknown>
+export type ModalHandler = (ctx: ModalContext) => unknown | Promise<unknown>
 
 export type CommandHandler = (ctx: CommandContext) => unknown | Promise<unknown>
 
@@ -51,6 +103,8 @@ export interface SendOptions {
   attachments?: string[]
   /** Up to 10 cards (title, description, fields, colour, pictures...). The text may then be empty. */
   cards?: Card[]
+  /** Up to 5 rows of buttons or a select menu; clicks arrive at `bot.onComponent`. The text may then be empty. */
+  components?: ComponentRow[]
 }
 
 /** What a message says: text, cards, or both. */
@@ -66,8 +120,12 @@ export interface CommandSpec {
   description: string
   /** A hint shown after the name in the app, like "2d6+1". */
   usage?: string
-  /** Up to 25 options, required ones first. The app shows them as hints; the bot still gets the text in `args`. */
+  /** Up to 25 options, required ones first. The app checks them and the server too; you get them in `options` (and the text in `args`). */
   options?: CommandOption[]
+  /** The lowest level that may use it (enforced by the server). */
+  role?: 'member' | 'trusted' | 'admin'
+  /** A permission the person needs, like 'manageMessages' (enforced by the server; admins have all). */
+  permission?: string
   handler: CommandHandler
 }
 
@@ -127,6 +185,8 @@ export class Bot {
   private readonly options: BotOptions
   private readonly stateFile: string
   private readonly registry = new Map<string, { spec: BotCommand; help: string; handler: CommandHandler }>()
+  private readonly componentHandlers: { match: string | RegExp; handler: ComponentHandler }[] = []
+  private readonly modalHandlers: { match: string | RegExp; handler: ModalHandler }[] = []
   private syncTimer: ReturnType<typeof setTimeout> | null = null
   private readonly listeners: { [K in keyof Listeners]: Listeners[K][] } = {
     ready: [], message: [], memberJoined: [], messageEdited: [], messageDeleted: [], reactions: [], pollUpdated: [], event: [], status: [],
@@ -139,7 +199,7 @@ export class Bot {
     this.options = options
     this.name = options.name
     this.stateFile = resolve(options.stateFile ?? `${options.name.replace(/[^\w-]+/g, '-').toLowerCase()}.bot.json`)
-    this.command('help', 'Lists what this bot can do', ({ reply }) => reply(this.helpText()))
+    this.command('help', 'Lists what this bot can do', ({ reply }) => reply(this.helpText(), { private: true }))
   }
 
   on<K extends keyof Listeners>(event: K, listener: Listeners[K]): this {
@@ -151,7 +211,8 @@ export class Bot {
    * Answers "/name args". Names are case-insensitive; a later registration replaces an earlier one. The server is
    * told about every command (so the app can suggest it when people type "/") each time the bot connects.
    */
-  command(name: string, description: string, handler: CommandHandler, details: { usage?: string; options?: CommandOption[] } = {}): this {
+  command(name: string, description: string, handler: CommandHandler,
+    details: { usage?: string; options?: CommandOption[]; role?: CommandSpec['role']; permission?: string } = {}): this {
     const key = name.toLowerCase()
     if (!/^[a-z0-9][\w-]{0,31}$/.test(key))
       throw new Error(`Invalid command name "${name}": use 1–32 letters, digits, "_" or "-", starting with a letter or digit, no slash.`)
@@ -160,6 +221,8 @@ export class Bot {
     const spec: BotCommand = { name: key, description: line.length > 100 ? `${line.slice(0, 99)}…` : line }
     if (details.usage) spec.usage = details.usage
     if (details.options?.length) spec.options = details.options
+    if (details.role) spec.role = details.role
+    if (details.permission) spec.permission = details.permission
     this.registry.set(key, { spec, help: description, handler })
     this.scheduleSync()
     return this
@@ -167,7 +230,22 @@ export class Bot {
 
   /** Several commands at once, with their options: `bot.commands([{ name, description, options, handler }, ...])`. */
   commands(list: CommandSpec[]): this {
-    for (const c of list) this.command(c.name, c.description, c.handler, { usage: c.usage, options: c.options })
+    for (const c of list) this.command(c.name, c.description, c.handler, { usage: c.usage, options: c.options, role: c.role, permission: c.permission })
+    return this
+  }
+
+  /**
+   * Answers clicks on the bot's buttons and select menus: `customId` exactly, or a pattern (`/^roll:/` for
+   * "roll:d6", "roll:2d6"...). The first match answers.
+   */
+  onComponent(customId: string | RegExp, handler: ComponentHandler): this {
+    this.componentHandlers.push({ match: customId, handler })
+    return this
+  }
+
+  /** Answers forms the bot showed with `showModal({ customId, ... })`. */
+  onModalSubmit(customId: string | RegExp, handler: ModalHandler): this {
+    this.modalHandlers.push({ match: customId, handler })
     return this
   }
 
@@ -180,7 +258,8 @@ export class Bot {
   async syncCommands(): Promise<void> {
     if (!this.connection || !this.me) return
     try {
-      await this.request('bot.commands.set', { commands: this.commandList })
+      // interactions: the app sends commands (with checked options) straight to the bot instead of posting the text.
+      await this.request('bot.commands.set', { commands: this.commandList, interactions: true })
     } catch (e) {
       if (e instanceof RequestError && e.code === 'unknown_type') return // an older server: commands still work as text
       const code = e instanceof RequestError ? ` (${e.code})` : ''
@@ -286,13 +365,14 @@ export class Bot {
     return this.retrying(async () =>
       (await this.request('chat.send', {
         channelId, text: text.slice(0, MAX_TEXT), replyTo: merged.replyTo, attachments: merged.attachments, cards: merged.cards,
+        components: merged.components,
       })).message)
   }
 
-  /** Changes one of the bot's own messages: new text, or `{ text?, cards? }` (cards replace the old ones; `[]` removes them). */
-  async edit(messageId: number, content: string | { text?: string; cards?: Card[] }): Promise<Message> {
-    const { text, cards } = typeof content === 'string' ? { text: content, cards: undefined } : content
-    return (await this.request('chat.edit', { id: messageId, text: text?.slice(0, MAX_TEXT), cards })).message
+  /** Changes one of the bot's own messages: new text, or `{ text?, cards?, components? }` (these replace the old ones; `[]` removes them). */
+  async edit(messageId: number, content: string | { text?: string; cards?: Card[]; components?: ComponentRow[] }): Promise<Message> {
+    const { text, cards, components } = typeof content === 'string' ? { text: content, cards: undefined, components: undefined } : content
+    return (await this.request('chat.edit', { id: messageId, text: text?.slice(0, MAX_TEXT), cards, components })).message
   }
 
   /** Deletes a message: the bot's own, or someone else's if its role allows (manage messages, ranked above the author). */
@@ -377,6 +457,9 @@ export class Bot {
       case 'chat.message':
         void this.handleMessage((body as Events['chat.message']).message)
         return
+      case 'interaction':
+        void this.handleInteraction(body as Events['interaction'])
+        return
       case 'chat.edited':
         for (const l of this.listeners.messageEdited) l((body as Events['chat.edited']).message)
         return
@@ -433,11 +516,84 @@ export class Bot {
     if (command.target && command.target.toLowerCase() !== this.name.replace(/\s+/g, '').toLowerCase()) return
     const entry = this.registry.get(command.name)
     if (!entry) return
+    // Typed as text (an older app, or a bot that reads everything): answers are always messages.
+    await this.run(`/${command.name}`, () => entry.handler({
+      command, args: command.args, options: {}, message: incoming, user: message.author, userName: incoming.authorName,
+      channelId: message.channelId, interaction: null,
+      reply: (content, options) => reply(content, options && { cards: options.cards, components: options.components }),
+      defer: async () => undefined,
+      showModal: () => Promise.reject(new Error('Forms only work for commands sent from the app, not typed as text.')),
+      react: (emoji) => this.react(message.id, emoji),
+      bot: this,
+    }))
+  }
+
+  // ── Interactions ─────────────────────────────────────────────────────────
+
+  /** Answers an interaction, waiting and retrying politely when rate limited. */
+  private respond(id: string, body: Omit<Requests['interaction.respond'][0], 'id'>): Promise<Requests['interaction.respond'][1]> {
+    if (body.text && body.text.length > MAX_TEXT) body = { ...body, text: body.text.slice(0, MAX_TEXT) }
+    return this.retrying(() => this.request('interaction.respond', { id, ...body }))
+  }
+
+  /** What every interaction handler gets: who asked, where, and how to answer. */
+  private answering(i: Interaction): AnswerContext {
+    return {
+      user: i.user,
+      userName: this.members.get(i.user)?.name ?? 'someone',
+      channelId: i.channelId,
+      interaction: i,
+      reply: async (content, options = {}) => {
+        const { text, cards, components } = { ...(typeof content === 'string' ? { text: content } : content), ...options }
+        const answer = await this.respond(i.id, { text, cards, components, private: options.private || i.private || undefined })
+        return answer.message ?? null
+      },
+      defer: async () => {
+        await this.respond(i.id, { type: 'defer' })
+      },
+      showModal: async (modal) => {
+        await this.respond(i.id, { type: 'modal', modal })
+      },
+      bot: this,
+    }
+  }
+
+  private async handleInteraction(i: Interaction): Promise<void> {
+    const base = this.answering(i)
+    const matches = (match: string | RegExp, id: string) => (typeof match === 'string' ? match === id : match.test(id))
+    if (i.kind === 'command' && i.command) {
+      const name = i.command
+      const entry = this.registry.get(name)
+      if (!entry) return
+      const args = i.args ?? ''
+      await this.run(`/${name}`, () => entry.handler({
+        ...base, command: { name, target: null, args }, args, options: i.options ?? {}, react: async () => undefined,
+      }))
+    } else if (i.kind === 'component' && i.customId) {
+      const customId = i.customId
+      const found = this.componentHandlers.find((h) => matches(h.match, customId))
+      if (!found) return this.log(`Nothing answers the button "${customId}" (bot.onComponent).`)
+      await this.run(`Button ${customId}`, () => found.handler({
+        ...base, customId, values: i.values ?? [], messageId: i.messageId, responseId: i.responseId,
+        update: async (content) => {
+          const { text, cards, components } = typeof content === 'string' ? { text: content } as MessageContent : content
+          await this.respond(i.id, { type: 'update', text, cards, components })
+        },
+      }))
+    } else if (i.kind === 'modal' && i.customId) {
+      const customId = i.customId
+      const found = this.modalHandlers.find((h) => matches(h.match, customId))
+      if (!found) return this.log(`Nothing answers the form "${customId}" (bot.onModalSubmit).`)
+      await this.run(`Form ${customId}`, () => found.handler({ ...base, customId, fields: i.fields ?? {} }))
+    }
+  }
+
+  private async run(what: string, handler: () => unknown): Promise<void> {
     try {
-      await entry.handler({ command, args: command.args, message: incoming, reply, bot: this })
+      await handler()
     } catch (e) {
       const code = e instanceof RequestError ? ` (${e.code})` : ''
-      this.log(`/${command.name} failed${code}: ${(e as Error).message}`)
+      this.log(`${what} failed${code}: ${(e as Error).message}`)
     }
   }
 }

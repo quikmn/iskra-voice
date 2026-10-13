@@ -69,7 +69,7 @@ public static partial class BuiltinBotFeature
         {
             store.RemoveBan(key); // turning it on is an admin's explicit choice
             member = store.AddMember(key, kind.Name, Roles.Member, s.Now);
-            store.AddBot(key, me.AccountKey, s.Now);
+            store.AddBot(key, me.AccountKey, s.Now, readAll: false); // server-run: it only ever sees its own command
             var commands = new JsonArray(new JsonObject { ["name"] = kind.Command, ["description"] = kind.Description, ["usage"] = kind.Usage });
             store.SetBotCommands(key, commands.ToJsonString(), s.Now);
             Audit.Record(s, "builtin.bot.on", key, details: new { bot = kind.Id });
@@ -143,7 +143,7 @@ public static partial class BuiltinBotFeature
             }
             catch (RequestException e)
             {
-                Post(s, bot, channel, $"{kind.Name}: {e.Message}", Reply(kind, "error", me, new { error = new { code = e.Code, message = e.Message, key = e.Key, args = e.Args } }));
+                Private(s, bot, me, channel, $"{kind.Name}: {e.Message}", Reply(kind, "error", me, new { error = new { code = e.Code, message = e.Message, key = e.Key, args = e.Args } }));
             }
             catch (Exception e) when (e is not OperationCanceledException and not ObjectDisposedException)
             {
@@ -174,7 +174,7 @@ public static partial class BuiltinBotFeature
         if (roll is null)
         {
             var input = args.Length <= 60 ? args : args[..59] + "…";
-            Post(s, bot, channel, $"🎲 {who}: that isn't dice notation. Try /roll 2d6+3 (up to {BuiltinCommands.MaxDice} dice with up to {BuiltinCommands.MaxSides} sides).",
+            Private(s, bot, me, channel, $"🎲 {who}: that isn't dice notation. Try /roll 2d6+3 (up to {BuiltinCommands.MaxDice} dice with up to {BuiltinCommands.MaxSides} sides).",
                 Reply(Bots[0], "roll.invalid", me, new { input }));
             return;
         }
@@ -191,7 +191,7 @@ public static partial class BuiltinBotFeature
     {
         if (BuiltinCommands.ParsePoll(args) is not var (question, answers))
         {
-            Post(s, bot, channel, "📊 Start a poll like this: /poll Pizza or tacos? | Pizza | Tacos", Reply(Bots[1], "poll.usage", me));
+            Private(s, bot, me, channel, "📊 Start a poll like this: /poll Pizza or tacos? | Pizza | Tacos", Reply(Bots[1], "poll.usage", me));
             return;
         }
         // Checked here too, so a long answer gets the friendly message instead of a size error.
@@ -215,7 +215,7 @@ public static partial class BuiltinBotFeature
         var who = store.DisplayName(me);
         if (BuiltinCommands.ParseRemind(args) is not { } remind)
         {
-            Post(s, bot, channel, "⏰ Set a reminder like this: /remind me in 10m take the pizza out (from 1 minute up to 365 days).", Reply(Bots[2], "remind.usage", me));
+            Private(s, bot, me, channel, "⏰ Set a reminder like this: /remind me in 10m take the pizza out (from 1 minute up to 365 days).", Reply(Bots[2], "remind.usage", me));
             return;
         }
         if (store.CountReminders(me.AccountKey) >= ReminderFeature.MaxPerAccount)
@@ -244,6 +244,11 @@ public static partial class BuiltinBotFeature
         Part(minutes % 60, "minute");
         return string.Join(' ', parts);
     }
+
+    /// <summary>Hints and errors go only to the person who asked (a private answer, never stored), not into the channel.</summary>
+    private static void Private(Session s, Member bot, Member asker, Channel channel, string text, JsonObject reply) =>
+        InteractionFeature.PrivateNote(s, bot.AccountKey, asker.AccountKey, channel.Id,
+            Text.Normalize(text, ChatFeature.MaxMessageLength, allowNewlines: false) ?? "…", reply);
 
     /// <summary>Posts the bot's answer like any message (everyone who can read the channel sees it), with what it means attached.</summary>
     private static void Post(Session s, Member bot, Channel channel, string text, JsonObject reply)

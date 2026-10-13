@@ -5,7 +5,7 @@ Iskra has two ways to bring other programs into your server:
 | | What it is | Good for |
 |---|---|---|
 | **Webhook** | A secret URL that posts messages into one channel | Build results, alerts, game-server stats, anything that can send an HTTP request |
-| **Bot** | A program that joins like a person: it reads channels, answers and reacts | Dice, polls, reminders, `/commands` |
+| **Bot** | A program that joins like a person: it answers `/commands`, buttons and forms, and posts | Dice, polls, reminders, games, role pickers |
 
 Both show a **BOT** badge, so everyone can tell them apart from people. Admins manage both in **Bots & webhooks** (in the channel list).
 
@@ -140,9 +140,21 @@ A bot is an ordinary Iskra identity (its own account and device keys) that conne
 - keeps it out of voice, DMs, group DMs and calls, and doesn't let it create invites, schedule messages or be made admin (guest, member or trusted only),
 - applies the same rate limits as everyone else (2 messages a second, bursts of 10).
 
+**What a bot can read** is the admin's choice when making the bot invite (**Can read all messages**, off by default),
+and can be changed later in **Bots & webhooks → Bots**; everyone can see it (`readsMessages` on the member). By default
+a bot gets only:
+
+- its commands, button clicks and forms ([interactions](#commands)),
+- messages that mention it, reply to one of its messages, or start with one of its commands (`/roll …`),
+- its own messages.
+
+It doesn't get the rest of the chat, and requests that read it (history, search, pins, threads, forum posts, docs) are
+refused with `bot_no_read`. Most bots never need more; turn it on for a bot that has to read along (a logger, a
+translator). Bots that joined before this choice existed keep reading everything until an admin changes it.
+
 A bot can be given [roles](../protocol/PROTOCOL.md#roles-and-permissions) like anyone else, so a moderation bot can get *Manage messages* or *Kick members*. As for people, it can only act on members ranked below it, and a bot is never ranked above trusted.
 
-Bots and webhooks stay out of **end-to-end encrypted channels**: a bot holds no channel keys and never counts as a reader there, so it can't read or post in them (the SDK skips their messages), and webhooks can't post into them. A bot can read and post in a voice channel's text chat like in any channel it can see.
+Bots and webhooks stay out of **end-to-end encrypted channels**: a bot holds no channel keys and never counts as a reader there, so it can't read or post in them (the SDK skips their messages), and webhooks can't post into them. Commands still work there, privately: see [Commands in encrypted channels](#commands-in-encrypted-channels). A bot can read and post in a voice channel's text chat like in any channel it can see.
 
 ### Your first bot in 5 minutes
 
@@ -156,7 +168,7 @@ You need [Node.js](https://nodejs.org) 22 or newer, [Git](https://git-scm.com), 
    npm install
    ```
 
-2. **Make a bot invite.** In Iskra, open **Bots & webhooks** → **Bots**, choose **Member** as the bot's role (a guest usually can't post) and click **Create bot invite**. Copy the link. It works once, for 7 days.
+2. **Make a bot invite.** In Iskra, open **Bots & webhooks** → **Bots**, choose **Member** as the bot's role (a guest usually can't post), leave **Can read all messages** off (this bot doesn't need it) and click **Create bot invite**. Copy the link. It works once, for 7 days.
 
 3. **Write the bot.** Save this as `bots/my-bot.ts`:
 
@@ -166,17 +178,22 @@ You need [Node.js](https://nodejs.org) 22 or newer, [Git](https://git-scm.com), 
    const bot = new Bot({ name: 'Greeter', invite: process.env.ISKRA_INVITE })
 
    bot.commands([
-     { name: 'hello', description: 'Says hello', handler: ({ message, reply }) => reply(`Hi ${message.authorName}!`) },
+     { name: 'hello', description: 'Says hello', handler: ({ userName, reply }) => reply(`Hi ${userName}!`) },
      {
        name: 'score',
        description: 'Shows a score card',
        options: [{ name: 'team', description: 'Which team', type: 'string', required: true }],
-       handler: ({ args, reply }) => reply({
-         cards: [{ title: `Team ${args || 'nobody'}`, color: 0x57f287, fields: [{ name: 'Points', value: '12', inline: true }] }],
+       handler: ({ options, reply }) => reply({
+         cards: [{ title: `Team ${options.team}`, color: 0x57f287, fields: [{ name: 'Points', value: '12', inline: true }] }],
+         components: [{ type: 'row', items: [{ type: 'button', customId: 'cheer', label: 'Cheer 🎉' }] }],
        }),
      },
    ])
 
+   // Someone clicked the button: answer only them.
+   bot.onComponent('cheer', ({ userName, reply }) => reply(`${userName} cheers!`, { private: true }))
+
+   // Messages that mention the bot (it doesn't read the rest of the chat).
    bot.on('message', (message) => {
      if (message.text.includes('pizza')) void message.react('🍕')
    })
@@ -194,7 +211,8 @@ You need [Node.js](https://nodejs.org) 22 or newer, [Git](https://git-scm.com), 
    In PowerShell: `$env:ISKRA_INVITE='<the bot invite link>'; node dist/my-bot.js`. It prints `[Greeter] Online in "<server>" as Greeter (member)`.
 
 5. **Try it.** Type `/` in a channel: the app lists Greeter's commands. Pick `/hello`, or `/score` (it shows the
-   `<team>` option as you type) and see the card. `/help` lists every command too. Mention pizza and it reacts.
+   `<team>` option as you type) and see the card; click **Cheer 🎉**. `/help` lists every command (only you see that
+   answer). Mention `@Greeter` with the word pizza and it reacts.
 
 The bot saves its keys and the server's address in `greeter.bot.json`, so from now on `node dist/my-bot.js` is enough (no invite). Keep that file private: it *is* the bot. Run `node build.mjs my-bot.ts` again after each change. The build bundles the SDK, which reuses the Iskra app's own crypto and connection code.
 
@@ -202,7 +220,7 @@ The bot saves its keys and the server's address in `greeter.bot.json`, so from n
 
 | | Run it | What it shows |
 |---|---|---|
-| **Dice** ([`examples/dice.ts`](../bots/examples/dice.ts)) | `npm run dice` | `/roll 2d6` (answers with a card), `/coin`, `/pick pizza, tacos`, `/echo`; registering commands with options and choices; reacting to "good bot"; welcoming new members |
+| **Dice** ([`examples/dice.ts`](../bots/examples/dice.ts)) | `npm run dice` | `/roll 2d6` (answers with a card and a **Roll again** button; `/roll d20 yes` answers only you), `/coin`, `/pick pizza, tacos`, `/echo`; commands with options; a button handler; reacting to "good bot" when mentioned; welcoming new members |
 | **Planner** ([`examples/planner.ts`](../bots/examples/planner.ts)) | `npm run planner` | `/poll Pizza or tacos? \| Pizza \| Tacos` (posts the result and a CSV file when it closes), `/remind 10m stretch`, `/event 2h Game night`, `/events` (a card); usage hints, edits, files, polls, events, an activity, and keeping state across restarts |
 
 Start either one the first time with `ISKRA_INVITE='<bot invite link>' npm run planner` (PowerShell: `$env:ISKRA_INVITE='<link>'; npm run planner`). Each needs its own bot invite.
@@ -212,13 +230,16 @@ Start either one the first time with `ISKRA_INVITE='<bot invite link>' npm run p
 | API | What it does |
 |---|---|
 | `new Bot({ name, invite?, stateFile?, hearBots?, log? })` | `invite` is only needed the first time. `stateFile` defaults to `<name>.bot.json` (lowercase, spaces become dashes). Bots ignore other bots and webhooks unless `hearBots` is true, so two bots can't chat forever. |
-| `bot.command(name, description, handler, { usage?, options? }?)` | Answers `/name args`. The handler gets `{ args, message, reply, command, bot }`. `/help` is built in and lists the descriptions. |
-| `bot.commands([{ name, description, usage?, options?, handler }, ...])` | Several commands at once. Every command is registered with the server when the bot connects, so the app suggests it when people type `/` (see [Commands](#commands)). |
-| `bot.on('message', m => ...)` | Every message the bot can see (not its own). `m.text`, `m.author`, `m.authorName`, `m.channel`, `m.attachments`, `m.reply(text)`, `m.react(emoji)`. |
+| `bot.command(name, description, handler, { usage?, options?, role?, permission? }?)` | Answers `/name`. The handler gets `{ options, args, user, userName, channelId, reply, defer, showModal, react, interaction, message?, command, bot }` (see [Commands](#commands)). `/help` is built in and lists the descriptions. |
+| `bot.commands([{ name, description, usage?, options?, role?, permission?, handler }, ...])` | Several commands at once. Every command is registered with the server when the bot connects, so the app suggests it when people type `/` and sends it straight to the bot. |
+| `reply(content, { private? })`, `defer()`, `showModal(modal)` | In command, button and form handlers: answer in public (a message that says who asked) or only to the asker; "thinking…" for slow work; show a [form](#buttons-menus-and-forms). Up to 5 answers per interaction, within 15 minutes. |
+| `bot.onComponent(customId or /pattern/, ctx => ...)` | A click on one of the bot's buttons or select menus: `{ customId, values, user, userName, messageId?, reply, update, defer, showModal }`. `update(content)` replaces the message the button is on. |
+| `bot.onModalSubmit(customId or /pattern/, ctx => ...)` | A form the bot showed, filled in: `{ customId, fields, user, userName, reply, defer }`. |
+| `bot.on('message', m => ...)` | Messages the bot may read (not its own): by default those that mention it, reply to it or start with one of its commands; every message it can see if an admin let it [read all messages](#bots). `m.text`, `m.author`, `m.authorName`, `m.channel`, `m.attachments`, `m.reply(text)`, `m.react(emoji)`. |
 | `bot.on('messageEdited' \| 'messageDeleted' \| 'reactions' \| 'pollUpdated', ...)` | A message was edited or deleted; a message's reactions changed (the whole new list); someone voted or a poll closed. |
 | `bot.on('ready' \| 'memberJoined' \| 'event' \| 'status', ...)` | Connected (again); someone joined; any raw server event; connection state. |
-| `bot.send(channelId, text, { replyTo?, attachments?, cards? })` or `bot.send(channelId, { text?, cards?, attachments?, replyTo? })` | Posts a message (up to 4000 characters; waits and retries if rate-limited), optionally with [cards](#cards). A thread's id works as a channel id. `reply(...)` takes the same. |
-| `bot.edit(messageId, text)` or `bot.edit(messageId, { text?, cards? })`, `bot.delete(messageId)` | Edit the bot's own message (cards replace the old ones, `[]` removes them); delete its own (or others', with *Manage messages* and a higher rank). |
+| `bot.send(channelId, text, { replyTo?, attachments?, cards?, components? })` or `bot.send(channelId, { text?, cards?, components?, attachments?, replyTo? })` | Posts a message (up to 4000 characters; waits and retries if rate-limited), optionally with [cards](#cards) and [buttons or a menu](#buttons-menus-and-forms). A thread's id works as a channel id. `reply(...)` takes the same. |
+| `bot.edit(messageId, text)` or `bot.edit(messageId, { text?, cards?, components? })`, `bot.delete(messageId)` | Edit the bot's own message (cards and components replace the old ones, `[]` removes them); delete its own (or others', with *Manage messages* and a higher rank). |
 | `bot.react(messageId, emoji, on?)` | Add a reaction (`on = false` takes it away). Server emoji as `<:name:id>` (ids from `emoji.list`). |
 | `bot.sendFile(channelId, { name, data }, { text?, replyTo? })`, `bot.upload({ name, data })` | Send a file (`data` is a string or bytes), or upload one to attach later with `send(..., { attachments: [file.id] })`. |
 | `bot.poll(channelId, question, answers, { multi?, durationMs? })` | Start a poll; votes arrive as `pollUpdated`. |
@@ -231,38 +252,107 @@ Start either one the first time with `ISKRA_INVITE='<bot invite link>' npm run p
 
 ### Commands
 
-Commands are just messages, by convention:
+A bot describes its commands; the SDK does it each time the bot connects (`bot.commands.set` in
+[PROTOCOL.md](../protocol/PROTOCOL.md#bot-interactions)). When someone types `/` at the start of a message, the app
+lists the commands of the bots that can answer in that channel: the bot, the command and its description. Arrow keys
+move, Tab or Enter complete, Esc closes. After the name it shows the options as hints (`/roll <dice> [times]`) and an
+option's choices to pick from.
 
-- `/name args`: every bot that knows `name` may answer.
-- `/name@BotName args`: only the bot called `BotName` answers (leave out spaces in its name).
-- Bots ignore commands they don't know, so several bots can share a channel.
-
-Everyone in the channel sees the command and the answer, like any message. A command that throws is logged on the bot's console (with the error code) and doesn't stop the bot.
-
-**Suggestions in the app.** The SDK tells the server which commands the bot has each time it connects (`bot.commands.set`
-in [PROTOCOL.md](../protocol/PROTOCOL.md#bot-commands-and-cards)). When someone types `/` at the start of a message, the
-app lists the commands of the bots that can read and post in that channel: the bot, the command and its description.
-Arrow keys move, Tab or Enter complete, Esc closes. After the name it shows the options as hints (`/roll <dice> [times]`)
-and an option's choices to pick from. Sending still posts the plain text (`/roll 2d6`), which the bot reads as before.
-Encrypted channels show no suggestions, because bots aren't there.
+**Sending a command doesn't post it.** The app checks the options and sends the command straight to the bot as an
+*interaction*; the server checks them again, and who may use the command where. The channel only shows the bot's
+answer, with "Viktor used /roll" above it. The rest of the channel never sees the command, and the bot doesn't need to
+read the chat to get it.
 
 ```ts
 bot.commands([{
   name: 'roll',
   description: 'Rolls dice',                    // one line, up to 100 characters in the app (/help shows it all)
   options: [                                    // up to 25; required ones first
-    { name: 'dice', description: 'Like 2d6', type: 'string', required: true,
-      choices: [{ name: 'Twenty-sided', value: 'd20' }] },   // up to 25, for string, integer and number options
+    { name: 'dice', description: 'Like 2d6', type: 'string', required: true },
     { name: 'times', description: 'How often', type: 'integer' },
+    { name: 'secret', description: 'Only you see it', type: 'boolean' },
   ],
-  handler: ({ args, reply }) => reply(`You asked for ${args}`),
+  role: 'member',                               // optional: the lowest level that may use it
+  handler: async ({ options, userName, reply }) => {
+    // options: { dice: '2d6', times: 3, secret: true }, checked by the server
+    await reply(`${userName} asked for ${options.dice}`, { private: options.secret === true })
+  },
 }])
 ```
 
-Option types are `string`, `integer`, `number`, `boolean`, `user`, `channel` and `role`. They describe the command for the
-app; the bot still gets everything after the name as `args` and parses it itself. Or give a `usage` line instead
-(`usage: 'Pizza or tacos? | Pizza | Tacos'`). Limits: 50 commands per bot, names of 1–32 characters (`a–z`, `0–9`, `_`, `-`),
-16 KB for the whole list.
+- **Options** are typed: `string` (1–1000 characters, one line), `integer`, `number`, `boolean` (yes/no), `user` (an
+  account key), `channel` (a channel id) and `role` (a role id). People type them in order, one word each; the last
+  text option takes the rest of the line (`/say #general hello there`). With `choices` (up to 25) only those values are
+  accepted, so leave choices out when any value should work and put examples in the description. `args` holds the
+  text as typed, for bots that parse it themselves (or give a `usage` line instead of options:
+  `usage: 'Pizza or tacos? | Pizza | Tacos'`).
+- **Who may use it**: `role` (`member`, `trusted` or `admin`) and `permission` (like `manageMessages`) are enforced by
+  the server, and the app doesn't list commands someone can't use. Which channels a bot answers in follows its own
+  roles: it must be able to post there, so admins limit a bot with roles and channel permissions like anyone else.
+- **Answers**: `reply(...)` posts a message, or with `{ private: true }` shows it only to the person who asked (never
+  stored; they can dismiss it). Answer within about 3 seconds, or call `defer()` first: the app shows "Dice is
+  thinking…" until you reply. An interaction takes up to 5 answers within 15 minutes; its token works only for this
+  bot and this one interaction.
+- An offline bot can't be asked (the app says so). A handler that throws is logged on the bot's console (with the error
+  code) and doesn't stop the bot.
+
+Typing a command as plain text still works, for bots that don't take interactions and from older apps: a message
+`/name args` (or `/name@BotName args` to pick one bot) reaches the bot as a message, and the handler gets the same
+context with `message` set and empty `options`. Bots ignore commands they don't know, so several bots can share a
+channel. Limits: 50 commands per bot, names of 1–32 characters (`a–z`, `0–9`, `_`, `-`), 16 KB for the whole list.
+
+#### Commands in encrypted channels
+
+In an [end-to-end encrypted channel](../protocol/PROTOCOL.md#end-to-end-encrypted-channels) the server can't read the
+messages and bots aren't in the channel's chain. Commands still work there, without leaking anything:
+
+- The app lists commands of bots that take interactions and can read the channel by their roles, and says before you
+  send: "Commands go to the bot unencrypted, not through this channel. Only you will see the answer." The command and
+  its options go to the bot like any request; the channel's messages and keys never do.
+- Every answer is private: shown only to you, never stored, so nothing unencrypted lands in the channel.
+
+### Buttons, menus and forms
+
+Bot messages (and private answers) can carry up to 5 rows of **components**: up to 5 buttons per row, or one select
+menu. A click goes to the bot as an interaction; the bot answers like a command, or `update`s the message.
+
+```ts
+await reply({
+  text: 'Game night: who is in?',
+  components: [
+    { type: 'row', items: [
+      { type: 'button', customId: 'rsvp:yes', label: "I'm in", style: 'success' },
+      { type: 'button', customId: 'rsvp:no', label: "Can't", style: 'danger' },
+      { type: 'button', label: 'Rules', style: 'link', url: 'https://example.com/rules' },
+    ] },
+    { type: 'row', items: [{ type: 'select', customId: 'game', placeholder: 'Pick a game', maxValues: 2, options: [
+      { label: 'Catan', value: 'catan' }, { label: 'Codenames', value: 'codenames' }, { label: 'Uno', value: 'uno' },
+    ] }] },
+  ],
+})
+
+bot.onComponent(/^rsvp:/, ({ customId, userName, update }) => update(`${userName} said ${customId.slice(5)}`))
+bot.onComponent('game', ({ values, reply }) => reply(`You picked ${values.join(' and ')}`, { private: true }))
+
+// A form, shown to the person who used the command (or clicked).
+bot.command('plan', 'Plans a game night', ({ showModal }) => showModal({
+  customId: 'plan', title: 'Plan a game night',
+  fields: [{ customId: 'title', label: 'Title', maxLength: 60 }, { customId: 'notes', label: 'Notes', style: 'paragraph', required: false }],
+}))
+bot.onModalSubmit('plan', ({ fields, reply }) => reply(`📅 ${fields.title} is planned`))
+```
+
+| | Limits |
+|---|---|
+| Rows | Up to 5; a row has 1–5 buttons or one select menu |
+| `customId` | 1–100 printable ASCII characters, unique in the message |
+| Buttons | `label` 1–80 characters; `style` `primary`, `secondary` (default), `success`, `danger` or `link`. A link button has a `url` (http/https) instead of a `customId`: the app shows the address and opens it only when clicked, and the bot never hears of it |
+| Select menus | 1–25 options (`label`, `value`, `description?`, `default?`); `minValues` 0–25 and `maxValues` 1–25 (default 1) |
+| Forms | A `title` (up to 45 characters) and 1–5 fields (`short`: one line, up to 1000 characters, default 200; `paragraph`: up to 4000); each form can be sent once |
+| All components | 8 KB per message |
+
+Only bots can add components, and only to their own messages. The server checks every click before the bot hears of
+it: the button must really be on the message and enabled, and picked values must be the menu's own.
 
 ### Cards
 
@@ -289,8 +379,7 @@ other sites are refused, so nobody's app ever loads something from a third party
 
 - **Voice:** bots can't join voice channels, so no music bots for now.
 - **DMs:** DMs are end-to-end encrypted to people's devices, so bots can't send or read them.
-- **Encrypted channels:** see above.
-- **Private answers, buttons and menus:** there are no "only you can see this" replies or clickable message components yet; answers are ordinary messages, and a command is the text someone sent.
+- **Encrypted channels:** bots can't read or post there; commands work, with private answers (see above).
 
 ### When it won't start
 
@@ -302,7 +391,9 @@ other sites are refused, so nobody's app ever loads something from a third party
 | `This bot is no longer a member of the server …` | An admin removed it. Make a new bot invite and start it with that (it keeps its keys). |
 | `forbidden` errors in the log | The bot's role can't do that there: check the channel's write level, or give the bot a role. |
 | `The server didn't take the command list (bad_request): …` | A command, option or choice breaks a [limit](#commands); the message says which. Commands still work as text. |
-| Its commands don't show up when typing `/` | The bot must be able to read **and** post in that channel, and the channel must not be encrypted. |
+| Its commands don't show up when typing `/` | The bot must be able to read **and** post in that channel (in an encrypted channel: read it). Commands with a `role` or `permission` show only for people who have it. |
+| `forbidden` with `bot_no_read` | The bot was invited without **Can read all messages**, so it gets its commands and mentions only. An admin can change that in **Bots & webhooks → Bots**. |
+| `Nothing answers the button "…"` in the log | Add a `bot.onComponent(...)` for that `customId` (or a pattern that matches it). |
 | `rate_limited` | The SDK already waits and retries sends; slow down loops that call `bot.request` directly. |
 
 ### Other languages

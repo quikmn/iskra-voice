@@ -66,6 +66,8 @@ public sealed class RateLimiter(TimeProvider time)
         ["builtin.polls"] = (5, 0.2),
         ["builtin.reminders"] = (10, 1),
         ["builtin.bots.set"] = (10, 1),
+        ["interaction.invoke"] = (5, 2),
+        ["interaction.respond"] = (20, 5),
         ["*"] = (40, 10),
     };
 

@@ -313,6 +313,7 @@ public sealed partial class Store : IDisposable
         ("keylog-2", KeyLog2Migration),
         ("outhooks-1", OutgoingWebhooksMigration),
         ("builtinbots-1", BuiltinBotsMigration),
+        ("interactions-1", InteractionsMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

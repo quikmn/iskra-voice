@@ -47,10 +47,10 @@ test('typing "/" suggests bot commands, and the bot answers with a card', async 
       options: [{ name: 'dice', description: 'Like 2d6', type: 'string', required: true, choices: [
         { name: 'Twenty-sided', value: 'd20' }, { name: 'Two dice', value: '2d6' },
       ] }],
-      handler: async ({ args, message, reply }) => {
-        const result = roll(args, () => 0.5)
+      handler: async ({ options, userName, reply }) => {
+        const result = roll(String(options.dice), () => 0.5)
         if (!result) return
-        await reply({ text: `${message.authorName} rolled **${result.total}**`, cards: [{ ...rollCard(result), thumbnail: { url: DOT } }] })
+        await reply({ text: `${userName} rolled **${result.total}**`, cards: [{ ...rollCard(result), thumbnail: { url: DOT } }] })
       },
     },
     { name: 'coin', description: 'Flips a coin', handler: ({ reply }) => reply('Heads!') },
@@ -91,10 +91,10 @@ test('typing "/" suggests bot commands, and the bot answers with a card', async 
   await expect(box).toHaveValue('/roll 2d6 ')
   await host.screenshot({ path: join(SHOTS, 'bot-commands-hint.png') })
 
-  // Enter sends it as a normal message; the bot answers with a card.
+  // Enter sends it to the bot (an interaction, not a message); the bot answers with a card.
   await box.press('Enter')
-  await expect(host.locator('.message-text', { hasText: '/roll 2d6' })).toBeVisible()
   const answer = host.locator('.message', { hasText: 'Host rolled 8' })
+  await expect(answer.locator('.interaction-line')).toHaveText('Host used /roll')
   await expect(answer.locator('.embed-title')).toHaveText('🎲 2d6')
   await expect(answer.locator('.embed-field-value')).toHaveText('4, 4')
   await expect(answer.locator('.embed-thumbnail')).toHaveAttribute('src', /^data:image\/png;base64,/)

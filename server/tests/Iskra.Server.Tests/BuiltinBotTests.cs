@@ -41,6 +41,16 @@ public class BuiltinBotTests
         }
     }
 
+    /// <summary>A hint or error from <paramref name="bot"/>: a private answer only <paramref name="asker"/> gets (never a message).</summary>
+    private static async Task<JsonElement> Hint(User asker, string bot)
+    {
+        while (true)
+        {
+            var answer = (await asker.EventAsync("interaction.response")).Body();
+            if (answer.GetProperty("bot").GetString() == bot) return answer;
+        }
+    }
+
     /// <summary>Sends <paramref name="text"/> and checks the bot stays quiet (a ping from the watcher marks the end).</summary>
     private static async Task Quiet(User sender, User watcher, long channelId, string text, string bot)
     {
@@ -179,16 +189,18 @@ public class BuiltinBotTests
         await Quiet(alice, admin, server.General, "/rolling d20", dice);
         await Quiet(alice, admin, server.General, "roll d20", dice);
 
-        // Nonsense gets a hint, not silence.
+        // Nonsense gets a hint, not silence: only for the sender, not in the channel.
         await Say(alice, server.General, "/roll banana");
-        var hint = (await From(admin, dice)).GetProperty("builtin");
+        var hint = (await Hint(alice, dice)).GetProperty("builtin");
+        await admin.NoEventAsync("interaction.response");
+        Assert.False(server.World.Store.BotReadsAll(dice)); // server-run: commands only
         Assert.Equal("roll.invalid", hint.GetProperty("kind").GetString());
         Assert.Equal("banana", hint.GetProperty("input").GetString());
 
         // "Download my data" lists the answers to your own commands.
         var export = await ComplianceTests.Download(server, (await alice.RequestAsync("data.export")).Body());
         var answers = export.GetProperty("builtinBotAnswers").EnumerateArray().ToList();
-        Assert.Equal(4, answers.Count);
+        Assert.Equal(3, answers.Count); // the hint was private, so it isn't kept
         Assert.Contains("\"kind\":\"roll\"", answers[0].GetProperty("reply").GetString());
         Assert.Empty((await ComplianceTests.Download(server, (await admin.RequestAsync("data.export")).Body())).GetProperty("builtinBotAnswers").EnumerateArray());
 
@@ -254,15 +266,15 @@ public class BuiltinBotTests
         Assert.Equal("Movie night?", (await From(admin, polls)).GetProperty("poll").GetProperty("question").GetString());
 
         await Say(alice, server.General, "/poll Just a question");
-        Assert.Equal("poll.usage", (await From(admin, polls)).GetProperty("builtin").GetProperty("kind").GetString());
+        Assert.Equal("poll.usage", (await Hint(alice, polls)).GetProperty("builtin").GetProperty("kind").GetString());
 
         await Say(alice, server.General, "/poll Q | " + string.Join(" | ", Enumerable.Range(1, 11)));
-        var tooMany = (await From(admin, polls)).GetProperty("builtin");
+        var tooMany = (await Hint(alice, polls)).GetProperty("builtin");
         Assert.Equal("error", tooMany.GetProperty("kind").GetString());
         Assert.Equal("poll_answers", tooMany.GetProperty("error").GetProperty("key").GetString());
 
         await Say(alice, server.General, "/poll Q | Same | same");
-        Assert.Equal("poll_answers_unique", (await From(admin, polls)).GetProperty("builtin").GetProperty("error").GetProperty("key").GetString());
+        Assert.Equal("poll_answers_unique", (await Hint(alice, polls)).GetProperty("builtin").GetProperty("error").GetProperty("key").GetString());
     }
 
     [Fact]
@@ -275,7 +287,7 @@ public class BuiltinBotTests
         var thread = (await admin.RequestAsync("thread.create", new { messageId = root, name = "side" })).Body().GetProperty("thread").GetProperty("id").GetInt64();
 
         await Say(admin, thread, "/poll Q | A | B");
-        var answer = await From(admin, polls);
+        var answer = await Hint(admin, polls);
         Assert.Equal(thread, answer.GetProperty("channelId").GetInt64());
         Assert.Equal("poll_channel", answer.GetProperty("builtin").GetProperty("error").GetProperty("key").GetString());
     }
@@ -321,7 +333,7 @@ public class BuiltinBotTests
         Assert.Equal("bad_request", (await alice.RequestAsync("reminder.create", new { dueAt = Now + 60_000, data })).ErrorCode());
 
         await Say(alice, server.General, "/remind me pizza");
-        Assert.Equal("remind.usage", (await From(admin, reminders)).GetProperty("builtin").GetProperty("kind").GetString());
+        Assert.Equal("remind.usage", (await Hint(alice, reminders)).GetProperty("builtin").GetProperty("kind").GetString());
     }
 
     [Fact]
@@ -333,7 +345,7 @@ public class BuiltinBotTests
         var reminders = await TurnOn(admin, "reminders");
         for (var i = 0; i < ReminderFeature.MaxPerAccount; i++) server.World.Store.AddReminder(alice.Key, Now + 60_000, "x", null, null, Now);
         await Say(alice, server.General, "/remind me in 10m tea");
-        Assert.Equal("reminders_max", (await From(admin, reminders)).GetProperty("builtin").GetProperty("error").GetProperty("key").GetString());
+        Assert.Equal("reminders_max", (await Hint(alice, reminders)).GetProperty("builtin").GetProperty("error").GetProperty("key").GetString());
         Assert.Equal(ReminderFeature.MaxPerAccount, server.World.Store.CountReminders(alice.Key));
     }
 

@@ -235,6 +235,8 @@ function Bots({ server }: { server: ServerState }) {
   const connection = connectionFor(server.key)
   const me = server.me
   const [role, setRole] = useState<Role>('member')
+  // "Can read all messages" is the admin's explicit choice; by default a bot gets its commands and mentions only.
+  const [readAll, setReadAll] = useState(false)
   const [link, setLink] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -243,9 +245,18 @@ function Bots({ server }: { server: ServerState }) {
 
   async function createInvite() {
     try {
-      const { invite } = await connection!.request('bot.invite', { role })
+      const { invite } = await connection!.request('bot.invite', { role, readAll })
       setLink(buildInviteLink(appUrl(server.appUrl), { serverUrl: server.url, serverKey: server.key, code: invite.code }))
       setCopied(false)
+      setError(null)
+    } catch (e) {
+      setError(errorMessage(e))
+    }
+  }
+
+  async function setScope(accountKey: string, all: boolean) {
+    try {
+      await connection!.request('bot.scope.set', { accountKey, readAll: all })
       setError(null)
     } catch (e) {
       setError(errorMessage(e))
@@ -276,6 +287,10 @@ function Bots({ server }: { server: ServerState }) {
         </label>
         <button className="button primary" onClick={() => void createInvite()}>{t('settings.integrations.createBotInvite')}</button>
       </div>
+      <label className="checkbox">
+        <input type="checkbox" checked={readAll} onChange={(e) => setReadAll(e.target.checked)} />
+        <span>{t('settings.integrations.botReadAll')}<br /><span className="muted bot-scope-hint">{t('settings.integrations.botReadAllHint')}</span></span>
+      </label>
       {link && (
         <div className="secret-box" style={{ marginTop: 12 }}>
           <p>{t('settings.integrations.botInviteHint')}</p>
@@ -295,7 +310,17 @@ function Bots({ server }: { server: ServerState }) {
         {bots.map((bot) => (
           <div key={bot.accountKey} className="bot-row">
             <Avatar name={bot.name} accountKey={bot.accountKey} size={32} online={bot.online} />
-            <span className="member-name">{bot.name} <BotBadge /></span>
+            <span className="member-name">
+              {bot.name} <BotBadge />
+              <span className="bot-scope muted">{t(bot.readsMessages ? 'settings.integrations.botReadsAll' : 'settings.integrations.botReadsMentions')}</span>
+            </span>
+            {me && roleRank(me.role) >= roleRank('admin') && (
+              <select className="bot-scope-select" value={bot.readsMessages ? 'all' : 'mentions'} aria-label={t('settings.integrations.botScopeOf', { name: bot.name })}
+                onChange={(e) => void setScope(bot.accountKey, e.target.value === 'all')}>
+                <option value="mentions">{t('settings.integrations.botReadsMentions')}</option>
+                <option value="all">{t('settings.integrations.botReadsAll')}</option>
+              </select>
+            )}
             {me && roleRank(me.role) > roleRank(bot.role) && (confirmRemove === bot.accountKey ? (
               <>
                 <button className="button danger" onClick={() => void remove(bot.accountKey)}>{t('common.remove')}</button>

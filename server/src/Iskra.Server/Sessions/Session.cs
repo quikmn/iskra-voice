@@ -76,6 +76,9 @@ public sealed class Session
 
     public required Gifs.GifService Gifs { get; init; }
 
+    /// <summary>For bots that can't read all messages: which outgoing frames they may get (see BotScope).</summary>
+    public Func<string, bool>? ReadFilter { get; set; }
+
     /// <summary>This session reported no activity for a while (see PresenceFeature).</summary>
     public bool Idle { get; set; }
 
@@ -196,6 +199,7 @@ public sealed class Session
 
         AccountKey = member.AccountKey;
         DeviceKey = deviceKey;
+        ReadFilter = BotScope.Filter(_world.Store, member.AccountKey);
         var cameOnline = _hub.Add(this);
         SendNow(Frames.Event("welcome", new
         {
@@ -442,6 +446,7 @@ public sealed class Session
     /// </summary>
     public void Send(string json)
     {
+        if (ReadFilter is { } allows && !allows(json)) return;
         lock (_earlyGate)
         {
             if (_early is not null)
