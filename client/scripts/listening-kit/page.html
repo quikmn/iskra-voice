@@ -1,0 +1,697 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Iskra listening test</title>
+<style>
+:root {
+  --bg: #f6f5f2; --panel: #ffffff; --ink: #1d1f22; --muted: #5f646c; --line: #dcdad5; --soft: #eeece7;
+  --accent: #c2410c; --accent-ink: #ffffff; --ok: #15803d; --ref: #334155;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15171a; --panel: #1d2024; --ink: #e8e6e1; --muted: #9aa0a8; --line: #33373d; --soft: #262a2f;
+    --accent: #f97316; --accent-ink: #15171a; --ok: #4ade80; --ref: #94a3b8;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { padding: 20px 24px 8px; max-width: 1180px; margin: 0 auto; }
+h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.01em; }
+h2 { font-size: 16px; margin: 0 0 10px; }
+h3 { font-size: 14px; margin: 16px 0 6px; }
+p { margin: 0 0 8px; }
+.muted { color: var(--muted); }
+main { max-width: 1180px; margin: 0 auto; padding: 8px 24px 48px; display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 20px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+nav.panel { padding: 8px; align-self: start; position: sticky; top: 12px; }
+.tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+.tabs button { flex: 1; }
+.clip-list { list-style: none; margin: 0; padding: 0; }
+.clip-list button { width: 100%; text-align: left; display: flex; gap: 8px; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 6px; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.clip-list button:hover { background: var(--soft); }
+.clip-list button[aria-current="true"] { background: var(--soft); font-weight: 600; }
+.progress { font-size: 12px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.progress.done { color: var(--ok); }
+button, select, input, textarea { font: inherit; color: inherit; }
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.btn[aria-pressed="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.transport { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; margin: 12px 0; }
+.play { width: 44px; height: 44px; border-radius: 50%; font-size: 16px; padding: 0; }
+.bar { position: relative; height: 34px; background: var(--soft); border-radius: 6px; cursor: pointer; overflow: hidden; }
+.bar .fill { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--accent) 22%, transparent); pointer-events: none; }
+.bar .head { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--accent); pointer-events: none; }
+.time { font-variant-numeric: tabular-nums; color: var(--muted); min-width: 92px; text-align: right; }
+.switcher { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+.switcher .btn { min-width: 52px; padding: 10px 14px; font-weight: 600; font-size: 16px; }
+.switcher .btn.ref { font-weight: 500; font-size: 14px; }
+.switcher .btn[aria-pressed="true"].ref { background: var(--ref); border-color: var(--ref); }
+.text { font-style: italic; color: var(--muted); }
+table { border-collapse: collapse; width: 100%; }
+th, td { padding: 6px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+th { font-size: 12px; font-weight: 600; color: var(--muted); }
+.score { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.score button { border: 0; border-right: 1px solid var(--line); background: var(--panel); width: 28px; height: 30px; cursor: pointer; font-variant-numeric: tabular-nums; }
+.score button:last-child { border-right: 0; }
+.score button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+td input[type="text"] { width: 100%; min-width: 120px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+.letter .btn { font-weight: 700; white-space: nowrap; }
+.scroll { overflow-x: auto; }
+.legend { font-size: 13px; color: var(--muted); margin-top: 8px; }
+label.field { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+label.field input, label.field textarea, select { padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.stack > * + * { margin-top: 16px; }
+.kbd { font: 12px ui-monospace, monospace; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; }
+.numbers td, .numbers th { font-variant-numeric: tabular-nums; font-size: 12px; white-space: nowrap; }
+.hidden { display: none !important; }
+.status { min-height: 1.5em; font-size: 13px; color: var(--muted); }
+@media (max-width: 860px) {
+  main { grid-template-columns: 1fr; padding: 8px 16px 40px; }
+  header { padding: 16px 16px 4px; }
+  nav.panel { position: static; }
+  .grid2 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Iskra listening test</h1>
+  <p class="muted">A blind comparison of Iskra's voice processing. Everything is in this one file and nothing is sent anywhere. README.txt explains the setup.</p>
+</header>
+<main>
+  <nav class="panel" aria-label="Clips">
+    <div class="tabs">
+      <button class="btn" id="tab-score" aria-pressed="true">Score</button>
+      <button class="btn" id="tab-abx" aria-pressed="false">ABX</button>
+      <button class="btn" id="tab-send" aria-pressed="false">Send</button>
+    </div>
+    <ul class="clip-list" id="clips"></ul>
+  </nav>
+
+  <section class="stack">
+    <div class="panel">
+      <div class="row" style="justify-content: space-between">
+        <div>
+          <h2 id="clip-title">Loading…</h2>
+          <div class="text" id="clip-text"></div>
+        </div>
+        <div class="row">
+          <label class="row" style="gap: 6px"><input type="checkbox" id="levelmatch" checked> Level-matched</label>
+          <label class="row" style="gap: 6px">Volume <input type="range" id="volume" min="-30" max="6" step="1" value="0" style="width: 110px"></label>
+        </div>
+      </div>
+      <div class="transport">
+        <button class="btn primary play" id="play" aria-label="Play">▶</button>
+        <div class="bar" id="bar" title="Click to jump"><div class="fill" id="fill"></div><div class="head" id="head"></div></div>
+        <div class="time" id="time">0.0 / 0.0 s</div>
+      </div>
+      <div id="switcher" class="switcher" role="group" aria-label="What you hear"></div>
+      <div class="status" id="status"></div>
+      <p class="legend">Keys: <span class="kbd">Space</span> play/pause, <span class="kbd">0</span> original, <span class="kbd">1</span>–<span class="kbd">6</span> A–F (A, B, X in ABX), <span class="kbd">←</span> <span class="kbd">→</span> 2 s back/ahead, <span class="kbd">Home</span> to the start. All versions play in sync: switching is instant and keeps your place. It loops.</p>
+    </div>
+
+    <div class="panel" id="view-score">
+      <h2>Score this clip</h2>
+      <p class="muted">Each letter is one of six settings, shuffled for every clip. Compare each with the original as often as you like. 5 = as good as the original (for artefacts: none at all), 1 = bad.</p>
+      <div class="scroll"><table id="sheet"></table></div>
+      <p class="legend"><b>Consonants</b>: s, t, k, f, sh crisp and natural. <b>Word ends</b>: endings kept, not swallowed or chopped. <b>Pacing</b>: natural timing, nothing hurried, stretched or skipped. <b>Steady level</b>: no pumping, dips or jumps. <b>Artefacts</b>: 5 = none; watery, metallic or robotic sound, gating, breathing noise floor and the like bring it down.</p>
+      <label class="field">Anything else about this clip <input type="text" id="clip-note"></label>
+    </div>
+
+    <div class="panel hidden" id="view-abx">
+      <h2>ABX: can you hear a difference?</h2>
+      <p class="muted">Pick two settings. X is secretly one of them, picked anew for every trial. Listen to A, B and X (switch as often as you like) and say which one X is. 10 trials; 9 or more right means a real difference (less than 1 in 100 by guessing), 8 is likely one.</p>
+      <div class="row">
+        <label class="field">A <select id="abx-a"></select></label>
+        <label class="field">B <select id="abx-b"></select></label>
+        <button class="btn" id="abx-start">Start 10 trials on this clip</button>
+      </div>
+      <div class="row" style="margin-top: 8px">
+        <span class="muted">Suggested:</span>
+        <button class="btn" data-abx="ai-normal,off">AI Normal vs Off</button>
+        <button class="btn" data-abx="ai-gentle,ai-max">AI Gentle vs AI Max</button>
+        <button class="btn" data-abx="ai-normal,strong">AI Normal vs Strong</button>
+      </div>
+      <div id="abx-run" class="hidden" style="margin-top: 16px">
+        <p id="abx-trial" class="muted"></p>
+        <div class="row">
+          <button class="btn primary" id="abx-isa">X is A</button>
+          <button class="btn primary" id="abx-isb">X is B</button>
+        </div>
+      </div>
+      <div id="abx-results" style="margin-top: 16px"></div>
+    </div>
+
+    <div class="panel hidden" id="view-send">
+      <h2>Send your results</h2>
+      <p id="summary" class="muted"></p>
+      <div class="grid2">
+        <label class="field">Your name <input type="text" id="who"></label>
+        <label class="field">What you listened on (headphones or monitors, interface) <input type="text" id="setup"></label>
+      </div>
+      <label class="field" style="margin-top: 12px">Overall: what did you hear? What would you change? <textarea id="overall" rows="5"></textarea></label>
+      <div class="row" style="margin-top: 12px">
+        <button class="btn primary" id="save">Save results file</button>
+        <button class="btn" id="copy">Copy results as text</button>
+        <span class="status" id="send-status"></span>
+      </div>
+      <p class="muted" style="margin-top: 8px">Send the file (or the copied text) back. Your scores are also kept in this browser, so you can close the page and carry on later.</p>
+      <h3>Which was which</h3>
+      <p class="muted">Only once you've scored everything: this shows the settings behind the letters, with the measurements.</p>
+      <button class="btn" id="reveal">Reveal</button>
+      <div id="revealed" class="hidden"></div>
+    </div>
+  </section>
+</main>
+
+<script id="kit" type="application/json">/*KIT_MANIFEST*/null</script>
+<!--KIT_AUDIO-->
+<script>
+'use strict'
+const KIT = JSON.parse(document.getElementById('kit').textContent)
+const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F']
+const CRITERIA = [['consonants', 'Consonants'], ['wordEnds', 'Word ends'], ['pacing', 'Pacing'], ['steadyLevel', 'Steady level'], ['artefacts', 'Artefacts']]
+const COND = Object.fromEntries(KIT.conditions.map((c) => [c.id, c]))
+const STORE = 'iskra-listening-' + KIT.kitId
+const $ = (id) => document.getElementById(id)
+
+// ── What you've done so far (kept in this browser) ──────────────────────
+function load() {
+  try { return JSON.parse(localStorage.getItem(STORE) || 'null') } catch { return null }
+}
+function save() {
+  try { localStorage.setItem(STORE, JSON.stringify(state)) } catch { /* private window: this session only */ }
+}
+function shuffle(ids) {
+  const a = ids.slice()
+  const r = new Uint32Array(a.length)
+  crypto.getRandomValues(r)
+  for (let i = a.length - 1; i > 0; i--) { const j = r[i] % (i + 1); [a[i], a[j]] = [a[j], a[i]] }
+  return a
+}
+const state = load() || { letters: {}, scores: {}, notes: {}, abx: [], who: '', setup: '', overall: '' }
+for (const input of KIT.inputs) {
+  if (!state.letters[input.id]) state.letters[input.id] = Object.fromEntries(shuffle(KIT.conditions.map((c) => c.id)).map((id, i) => [LETTERS[i], id]))
+  state.scores[input.id] ??= {}
+}
+save()
+
+// ── Audio ──────────────────────────────────────────────────────────────
+let ctx = null
+let master = null
+const decoded = new Map()
+const recent = []
+// Level matching never pushes a peak above -1 dBFS: everything comes down together if it would.
+const trim = Math.min(0, ...KIT.inputs.flatMap((i) => Object.values(i.clips).map((c) => -1 - (c.numbers.peakDb + c.gainDb))))
+function audio() {
+  if (!ctx) {
+    ctx = new AudioContext({ sampleRate: 48000 })
+    master = ctx.createGain()
+    master.connect(ctx.destination)
+    setVolume()
+  }
+  return ctx
+}
+function bytes(b64) {
+  const bin = atob(b64)
+  const out = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
+  return out.buffer
+}
+async function buffers(input) {
+  if (decoded.has(input.id)) return decoded.get(input.id)
+  const out = {}
+  await Promise.all(Object.keys(input.clips).map(async (id) => {
+    const el = document.querySelector(`script[data-clip="${input.id}/${id}"]`)
+    out[id] = await audio().decodeAudioData(bytes(el.textContent))
+  }))
+  decoded.set(input.id, out)
+  recent.push(input.id)
+  while (recent.length > 3) decoded.delete(recent.shift())
+  return out
+}
+
+/** All versions of a clip play together, in sync; only the one you chose is up. */
+const player = { input: null, bufs: null, sources: [], gains: {}, playing: false, startedAt: 0, offset: 0, active: 'original', duration: 0 }
+function gainFor(id) {
+  const clips = player.input.clips
+  if ($('levelmatch').checked) return Math.pow(10, (clips[id].gainDb + trim) / 20)
+  return Math.pow(10, Math.min(0, -1 - Math.max(...Object.values(clips).map((c) => c.numbers.peakDb))) / 20)
+}
+function position() {
+  if (!player.playing) return player.offset
+  return (player.offset + Math.max(0, ctx.currentTime - player.startedAt)) % player.duration
+}
+function stopSources() {
+  for (const s of player.sources) {
+    try { s.stop() } catch { /* not started */ }
+    s.disconnect()
+  }
+  player.sources = []
+}
+function start(at) {
+  stopSources()
+  const c = audio()
+  player.gains = {}
+  const when = c.currentTime + 0.03
+  for (const [id, buf] of Object.entries(player.bufs)) {
+    const src = c.createBufferSource()
+    src.buffer = buf
+    src.loop = true
+    const g = c.createGain()
+    g.gain.value = id === player.active ? gainFor(id) : 0
+    src.connect(g).connect(master)
+    src.start(when, at)
+    player.sources.push(src)
+    player.gains[id] = g
+  }
+  player.startedAt = when
+  player.offset = at
+  player.playing = true
+}
+function showPlaying() {
+  $('play').textContent = player.playing ? '❚❚' : '▶'
+  $('play').setAttribute('aria-label', player.playing ? 'Pause' : 'Play')
+}
+function play() {
+  if (!player.bufs) return
+  audio().resume()
+  if (player.playing) {
+    player.offset = position()
+    player.playing = false
+    stopSources()
+  } else start(player.offset)
+  showPlaying()
+}
+function seek(t) {
+  if (!player.bufs) return
+  t = ((t % player.duration) + player.duration) % player.duration
+  if (player.playing) start(t)
+  else player.offset = t
+}
+function choose(id) {
+  player.active = id
+  if (player.playing) {
+    const t = ctx.currentTime
+    for (const [cid, g] of Object.entries(player.gains)) {
+      g.gain.cancelScheduledValues(t)
+      g.gain.setTargetAtTime(cid === id ? gainFor(cid) : 0, t, 0.003)
+    }
+  }
+}
+function setVolume() {
+  if (master) master.gain.value = Math.pow(10, Number($('volume').value) / 20)
+}
+function tick() {
+  if (player.bufs) {
+    const t = position()
+    $('fill').style.width = `${(t / player.duration) * 100}%`
+    $('head').style.left = `${(t / player.duration) * 100}%`
+    $('time').textContent = `${t.toFixed(1)} / ${player.duration.toFixed(1)} s`
+  }
+  requestAnimationFrame(tick)
+}
+
+// ── Views ──────────────────────────────────────────────────────────────
+let view = 'score'
+let current = KIT.inputs[0]
+let abx = null
+let slotActive = 'Original'
+
+/** The switch buttons after "Original": A–F, or A, B and X while an ABX test runs. */
+function slots() {
+  if (view === 'abx' && abx && !abx.done) {
+    const last = abx.trials[abx.trials.length - 1]
+    return [['A', abx.a], ['B', abx.b], ['X', last.x === 'A' ? abx.a : abx.b]]
+  }
+  return LETTERS.map((l) => [l, state.letters[current.id][l]])
+}
+function select(label) {
+  const slot = label === 'Original' ? ['Original', 'original'] : slots().find(([l]) => l === label)
+  if (!slot) return select('Original')
+  slotActive = slot[0]
+  if (player.bufs) choose(slot[1])
+  else player.active = slot[1]
+  renderSwitcher()
+}
+function renderSwitcher() {
+  const box = $('switcher')
+  box.textContent = ''
+  const add = (label, key) => {
+    const b = document.createElement('button')
+    b.className = 'btn' + (label === 'Original' ? ' ref' : '')
+    b.textContent = label
+    b.title = `Key ${key}`
+    b.setAttribute('aria-pressed', String(slotActive === label))
+    b.onclick = () => select(label)
+    box.appendChild(b)
+  }
+  add('Original', '0')
+  slots().forEach(([l], i) => add(l, String(i + 1)))
+}
+function progressOf(input) {
+  const s = state.scores[input.id] || {}
+  return LETTERS.filter((l) => CRITERIA.every(([k]) => s[l]?.[k])).length
+}
+function renderList() {
+  const ul = $('clips')
+  ul.textContent = ''
+  for (const input of KIT.inputs) {
+    const li = document.createElement('li')
+    const b = document.createElement('button')
+    b.setAttribute('aria-current', String(input === current))
+    const name = document.createElement('span')
+    name.textContent = input.label
+    const p = document.createElement('span')
+    const n = progressOf(input)
+    p.className = 'progress' + (n === 6 ? ' done' : '')
+    p.textContent = n === 6 ? '✓' : `${n}/6`
+    b.append(name, p)
+    b.onclick = () => open(input)
+    li.appendChild(b)
+    ul.appendChild(li)
+  }
+  const done = KIT.inputs.filter((i) => progressOf(i) === 6).length
+  $('summary').textContent = `${done} of ${KIT.inputs.length} clips fully scored; ${state.abx.length} ABX test${state.abx.length === 1 ? '' : 's'}.`
+}
+function renderSheet() {
+  const t = $('sheet')
+  t.textContent = ''
+  const head = t.insertRow()
+  for (const h of ['', ...CRITERIA.map((c) => c[1]), 'Note']) {
+    const th = document.createElement('th')
+    th.textContent = h
+    head.appendChild(th)
+  }
+  const scores = state.scores[current.id]
+  LETTERS.forEach((l, i) => {
+    const tr = t.insertRow()
+    const td = tr.insertCell()
+    td.className = 'letter'
+    const b = document.createElement('button')
+    b.className = 'btn'
+    b.textContent = `${l} ▶`
+    b.title = `Listen to ${l} (key ${i + 1})`
+    b.onclick = () => {
+      select(l)
+      if (!player.playing) play()
+    }
+    td.appendChild(b)
+    for (const [key, name] of CRITERIA) {
+      const cell = tr.insertCell()
+      const group = document.createElement('div')
+      group.className = 'score'
+      group.setAttribute('role', 'group')
+      group.setAttribute('aria-label', `${l}: ${name}`)
+      for (let v = 1; v <= 5; v++) {
+        const sb = document.createElement('button')
+        sb.textContent = String(v)
+        sb.setAttribute('aria-pressed', String(scores[l]?.[key] === v))
+        sb.onclick = () => {
+          scores[l] = { ...scores[l], [key]: v }
+          save()
+          renderSheet()
+          renderList()
+        }
+        group.appendChild(sb)
+      }
+      cell.appendChild(group)
+    }
+    const note = tr.insertCell()
+    const input = document.createElement('input')
+    input.type = 'text'
+    input.value = scores[l]?.note || ''
+    input.setAttribute('aria-label', `${l}: note`)
+    input.oninput = () => {
+      scores[l] = { ...scores[l], note: input.value }
+      save()
+    }
+    note.appendChild(input)
+  })
+  $('clip-note').value = state.notes[current.id] || ''
+}
+async function open(input) {
+  const wasPlaying = player.playing
+  const at = position()
+  if (player.playing) play()
+  current = input
+  if (abx && !abx.done) abx = null
+  $('abx-run').classList.add('hidden')
+  $('clip-title').textContent = input.label
+  $('clip-text').textContent = input.text && input.text.length ? `“${input.text.join(' … ')}”` : ''
+  renderList()
+  renderSheet()
+  $('status').textContent = 'Loading…'
+  player.bufs = null
+  const bufs = await buffers(input)
+  if (current !== input) return
+  player.input = input
+  player.bufs = bufs
+  player.duration = bufs.original.duration
+  player.offset = Math.min(at, player.duration - 0.01)
+  $('status').textContent = ''
+  select(slotActive)
+  if (wasPlaying) play()
+}
+function setView(v) {
+  view = v
+  for (const name of ['score', 'abx', 'send']) {
+    $(`view-${name}`).classList.toggle('hidden', name !== v)
+    $(`tab-${name}`).setAttribute('aria-pressed', String(name === v))
+  }
+  select(slots().some(([l]) => l === slotActive) ? slotActive : 'Original')
+}
+
+// ── ABX ────────────────────────────────────────────────────────────────
+const TRIALS = 10
+function fillSelects() {
+  for (const sel of [$('abx-a'), $('abx-b')]) {
+    sel.textContent = ''
+    for (const c of KIT.conditions) {
+      const o = document.createElement('option')
+      o.value = c.id
+      o.textContent = c.label
+      sel.appendChild(o)
+    }
+  }
+  $('abx-a').value = 'ai-normal'
+  $('abx-b').value = 'off'
+}
+function newTrial() {
+  const r = new Uint8Array(1)
+  crypto.getRandomValues(r)
+  abx.trials.push({ x: r[0] & 1 ? 'A' : 'B', answer: null })
+  $('abx-trial').textContent = `Trial ${abx.trials.length} of ${TRIALS} on “${current.label}”: ${COND[abx.a].label} (A) vs ${COND[abx.b].label} (B). Listen to A, B and X, then answer.`
+  select('X')
+}
+function binomialP(k, n) {
+  let p = 0
+  for (let i = k; i <= n; i++) {
+    let c = 1
+    for (let j = 0; j < i; j++) c = (c * (n - j)) / (j + 1)
+    p += c / 2 ** n
+  }
+  return p
+}
+function answer(which) {
+  const t = abx.trials[abx.trials.length - 1]
+  t.answer = which
+  t.correct = which === t.x
+  if (abx.trials.length < TRIALS) return newTrial()
+  abx.done = true
+  const correct = abx.trials.filter((x) => x.correct).length
+  state.abx.push({ clip: current.id, a: abx.a, b: abx.b, trials: abx.trials, correct, total: TRIALS, p: binomialP(correct, TRIALS), at: new Date().toISOString() })
+  save()
+  $('abx-run').classList.add('hidden')
+  select('Original')
+  renderAbx()
+  renderList()
+}
+function renderAbx() {
+  const box = $('abx-results')
+  box.textContent = ''
+  if (!state.abx.length) return
+  const h = document.createElement('h3')
+  h.textContent = 'Your ABX results'
+  box.appendChild(h)
+  const t = document.createElement('table')
+  const head = t.insertRow()
+  for (const x of ['Clip', 'A', 'B', 'Right', 'Chance of doing that well by guessing']) {
+    const th = document.createElement('th')
+    th.textContent = x
+    head.appendChild(th)
+  }
+  for (const r of state.abx) {
+    const tr = t.insertRow()
+    const clip = KIT.inputs.find((i) => i.id === r.clip)
+    for (const v of [clip ? clip.label : r.clip, COND[r.a].label, COND[r.b].label, `${r.correct}/${r.total}`, `${(r.p * 100).toFixed(1)}%${r.p < 0.05 ? ': a real difference' : ''}`]) tr.insertCell().textContent = v
+  }
+  box.appendChild(t)
+}
+
+// ── Results ────────────────────────────────────────────────────────────
+function results() {
+  return {
+    kit: KIT.kitId,
+    kitCreated: KIT.created,
+    sent: new Date().toISOString(),
+    who: state.who,
+    setup: state.setup,
+    overall: state.overall,
+    levelMatched: $('levelmatch').checked,
+    browser: navigator.userAgent,
+    scale: '1-5 (5 = as good as the original; artefacts 5 = none)',
+    clips: KIT.inputs.map((input) => ({
+      id: input.id,
+      label: input.label,
+      note: state.notes[input.id] || '',
+      scores: LETTERS.map((l) => ({ letter: l, setting: state.letters[input.id][l], ...(state.scores[input.id][l] || {}) })),
+    })),
+    abx: state.abx,
+  }
+}
+function asText(r) {
+  const lines = [`Iskra listening test, kit ${r.kit} (${r.kitCreated.slice(0, 10)})`, `From: ${r.who || '?'}. Listened on: ${r.setup || '?'}. Level-matched: ${r.levelMatched ? 'yes' : 'no'}.`, '']
+  if (r.overall) lines.push('Overall:', r.overall, '')
+  lines.push('Scores 1-5: consonants / word ends / pacing / steady level / artefacts')
+  for (const c of r.clips) {
+    lines.push('', c.label + (c.note ? `: ${c.note}` : ''))
+    for (const s of c.scores) {
+      const v = CRITERIA.map(([k]) => s[k] || '-').join(' / ')
+      lines.push(`  ${s.letter} = ${COND[s.setting].label.padEnd(17)} ${v}${s.note ? '   ' + s.note : ''}`)
+    }
+  }
+  if (r.abx.length) {
+    lines.push('', 'ABX:')
+    for (const a of r.abx) lines.push(`  ${a.clip}: ${COND[a.a].label} vs ${COND[a.b].label}: ${a.correct}/${a.total} right (p = ${a.p.toFixed(3)})`)
+  }
+  return lines.join('\n')
+}
+function reveal() {
+  const box = $('revealed')
+  box.textContent = ''
+  const fmt = (x, d = 1) => (x === undefined || x === null ? '–' : Math.abs(x) >= 99.95 ? (x > 0 ? '>99' : '<-99') : Number(x).toFixed(d))
+  const cols = [
+    ['SI-SDR dB', (n) => fmt(n.siSdrDb)], ['Spectral dist. dB', (n) => fmt(n.spectralDistanceDb)], ['Dips dB', (n) => fmt(n.speechDipDb)],
+    ['Gain motion dB', (n) => fmt(n.gainMotionDb, 2)], ['Level wander dB', (n) => fmt(n.levelWanderDb, 2)], ['Start cut ms', (n) => fmt(n.startCutMs, 0)],
+    ['Word ends dB', (n) => fmt(n.endDb)], ['Pause noise dB below voice', (n) => fmt(n.pauseBelowVoiceDb)], ['Delay ms', (n) => fmt(n.latencyMs, 0)],
+  ]
+  for (const input of KIT.inputs) {
+    const h = document.createElement('h3')
+    h.textContent = input.label
+    box.appendChild(h)
+    const wrap = document.createElement('div')
+    wrap.className = 'scroll'
+    const t = document.createElement('table')
+    t.className = 'numbers'
+    const head = t.insertRow()
+    for (const x of ['', 'Setting', ...cols.map((c) => c[0])]) {
+      const th = document.createElement('th')
+      th.textContent = x
+      head.appendChild(th)
+    }
+    for (const [l, id] of [['', 'original'], ...LETTERS.map((l) => [l, state.letters[input.id][l]])]) {
+      const tr = t.insertRow()
+      tr.insertCell().textContent = l
+      tr.insertCell().textContent = id === 'original' ? 'Original' : COND[id].label
+      for (const [, f] of cols) tr.insertCell().textContent = f(input.clips[id].numbers)
+    }
+    wrap.appendChild(t)
+    box.appendChild(wrap)
+  }
+  const n = document.createElement('p')
+  n.className = 'muted'
+  n.textContent = 'numbers.txt, next to this page, explains each measurement.'
+  box.appendChild(n)
+  box.classList.remove('hidden')
+}
+
+// ── Wiring ─────────────────────────────────────────────────────────────
+$('play').onclick = play
+$('bar').onclick = (e) => {
+  const r = $('bar').getBoundingClientRect()
+  seek(((e.clientX - r.left) / r.width) * player.duration)
+}
+$('levelmatch').onchange = () => player.bufs && choose(player.active)
+$('volume').oninput = setVolume
+$('clip-note').oninput = () => {
+  state.notes[current.id] = $('clip-note').value
+  save()
+}
+$('tab-score').onclick = () => setView('score')
+$('tab-abx').onclick = () => setView('abx')
+$('tab-send').onclick = () => setView('send')
+for (const b of document.querySelectorAll('[data-abx]')) {
+  b.onclick = () => {
+    const [a, c] = b.dataset.abx.split(',')
+    $('abx-a').value = a
+    $('abx-b').value = c
+  }
+}
+$('abx-start').onclick = () => {
+  const a = $('abx-a').value
+  const b = $('abx-b').value
+  $('abx-run').classList.remove('hidden')
+  if (a === b) {
+    $('abx-trial').textContent = 'Pick two different settings.'
+    return
+  }
+  abx = { a, b, trials: [], done: false }
+  newTrial()
+}
+$('abx-isa').onclick = () => abx && !abx.done && answer('A')
+$('abx-isb').onclick = () => abx && !abx.done && answer('B')
+for (const key of ['who', 'setup', 'overall']) {
+  $(key).value = state[key] || ''
+  $(key).oninput = () => {
+    state[key] = $(key).value
+    save()
+  }
+}
+$('save').onclick = () => {
+  const blob = new Blob([JSON.stringify(results(), null, 2)], { type: 'application/json' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = `iskra-listening-results-${(state.who || 'listener').replace(/[^\w-]+/g, '_')}.json`
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000)
+  $('send-status').textContent = 'Saved to your downloads.'
+}
+$('copy').onclick = async () => {
+  try {
+    await navigator.clipboard.writeText(asText(results()))
+    $('send-status').textContent = 'Copied.'
+  } catch {
+    $('send-status').textContent = "This browser didn't allow copying here: use Save instead."
+  }
+}
+$('reveal').onclick = () => {
+  if (confirm('Show which setting is behind each letter? Best only once you have scored everything.')) reveal()
+}
+document.addEventListener('keydown', (e) => {
+  if (e.target.matches('input, textarea, select') || e.ctrlKey || e.metaKey || e.altKey) return
+  if (e.key === ' ') {
+    e.preventDefault()
+    play()
+  } else if (e.key === '0') select('Original')
+  else if (/^[1-6]$/.test(e.key)) {
+    const s = slots()[Number(e.key) - 1]
+    if (s) select(s[0])
+  } else if (e.key === 'ArrowLeft') seek(position() - 2)
+  else if (e.key === 'ArrowRight') seek(position() + 2)
+  else if (e.key === 'Home') seek(0)
+})
+fillSelects()
+renderAbx()
+open(current)
+requestAnimationFrame(tick)
+</script>
+</body>
+</html>
