@@ -4,6 +4,25 @@ using Key = NSec.Cryptography.Key;
 
 namespace Iskra.Server.Storage;
 
+/// <summary>A world folder the server can't open: what's wrong and what to do, for the console and server.log.</summary>
+public static class WorldProblem
+{
+    /// <summary>The exit code for damaged files (the desktop app shows its own message for it); other problems exit with 1.</summary>
+    public const int ExitCode = 3;
+
+    /// <summary>A one-line explanation, or null if <paramref name="ex"/> isn't a problem with the world's files.</summary>
+    public static string? Describe(string worldPath, Exception ex) => ex switch
+    {
+        System.Text.Json.JsonException json =>
+            $"Can't start: {Path.Combine(worldPath, "server.json")} isn't valid JSON ({json.Message}). Fix it, or move it away to start with the defaults.",
+        Microsoft.Data.Sqlite.SqliteException sql =>
+            $"Can't start: the database {Path.Combine(worldPath, "iskra.db")} is damaged or unreadable ({sql.Message}). " +
+            "Restore a backup into a new folder with: iskra-server restore <backup> <new-folder>",
+        InvalidDataException or UnauthorizedAccessException or IOException => $"Can't start: {ex.Message}",
+        _ => null,
+    };
+}
+
 public sealed record WorldSettings
 {
     public string Name { get; init; } = "My Iskra server";

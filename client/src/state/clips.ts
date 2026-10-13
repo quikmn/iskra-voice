@@ -3,7 +3,8 @@
 // posts a notice in the call first (the voice channel's chat, or the call's data channel), then opens the clip dialog.
 // Nothing is ever uploaded unless you share the file.
 import { create } from 'zustand'
-import { RoomEvent, Track, type RemoteParticipant, type RemoteTrack, type RemoteTrackPublication, type Room } from 'livekit-client'
+import type { RemoteParticipant, RemoteTrack, RemoteTrackPublication, Room } from 'livekit-client'
+import { lk } from './livekit'
 import { t } from '../i18n'
 import { errorMessage } from '../i18n/errors'
 import { native } from '../platform/native'
@@ -141,6 +142,7 @@ async function publish(room: Room, data: ClipData, to?: string[]): Promise<void>
 }
 
 function bindRoom(room: Room): () => void {
+  const { Track, RoomEvent } = lk()
   const onSubscribed = (track: RemoteTrack, pub: RemoteTrackPublication) => {
     if (track.kind === Track.Kind.Audio) recorder?.addAudio(pub.trackSid, cleanedAudio(pub.trackSid) ?? track.mediaStreamTrack)
     updateVideo()

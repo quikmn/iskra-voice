@@ -6,7 +6,7 @@ vi.stubGlobal('localStorage', {
   removeItem: (k: string) => void local.delete(k), clear: () => local.clear(), key: () => null, get length() { return local.size },
 })
 
-const { MAX_SITES, normalizeSite, parseSites, setAlwaysLoad, siteName, siteOfUrl, useSiteConsent, watchSourceSite, withSite } = await import('./siteConsent')
+const { MAX_SITES, normalizeSite, parseSites, setAlwaysLoad, siteName, siteOfUrl, useSiteConsent, watchSourceSite, watchVideoSrc, withSite } = await import('./siteConsent')
 
 describe('sites that load without a click', () => {
   beforeEach(() => {
@@ -36,6 +36,20 @@ describe('sites that load without a click', () => {
     expect(watchSourceSite({ kind: 'url', url: 'https://videos.example.net/a.mp4' }, server)).toBe('videos.example.net')
     expect(watchSourceSite({ kind: 'url', url: 'https://chat.example.org/files/x.mp4' }, server)).toBeNull()
     expect(watchSourceSite({ kind: 'file', url: '/files/abc' }, server)).toBeNull()
+  })
+
+  it("never plays a watch link whose site can't be read (it would skip the consent gate)", () => {
+    // Security review L14: `//evil.com/v.mp4` had no site, so no gate, and the browser loaded it from evil.com.
+    const server = 'https://chat.example.org'
+    expect(watchSourceSite({ kind: 'url', url: '//evil.example/v.mp4' }, server)).toBeNull()
+    for (const url of ['//evil.example/v.mp4', '/files/x.mp4', 'ftp://evil.example/v.mp4', 'javascript:alert(1)', 'not a url', ''])
+      expect(watchVideoSrc({ kind: 'url', url }, server)).toBeNull()
+    expect(watchVideoSrc({ kind: 'url', url: 'https://videos.example.net/a.mp4' }, server)).toBe('https://videos.example.net/a.mp4')
+    // Files must be on the group's own server.
+    expect(watchVideoSrc({ kind: 'file', url: '/files/abc' }, server)).toBe('https://chat.example.org/files/abc')
+    for (const url of ['.evil.example/x', '@evil.example/x', '//evil.example/x', '/\\evil.example/x', 'https://evil.example/x', null])
+      expect(watchVideoSrc({ kind: 'file', url }, server)).toBeNull()
+    expect(watchVideoSrc({ kind: 'youtube', url: null }, server)).toBeNull()
   })
 
   it('names the sites it knows', () => {

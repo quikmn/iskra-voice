@@ -285,10 +285,24 @@ public sealed partial class Uploads(World world, TimeProvider time, ILogger<Uplo
         lock (_diskLock)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            var moved = false;
             if (File.Exists(target)) File.Delete(temp); // same content uploaded before: keep one copy
-            else File.Move(temp, target);
-            world.Store.AddFile(file);
-            if (ticket.DmAccess is not null) world.Store.AddDmFile(file.Id, ticket.Uploader, ticket.DmAccess);
+            else
+            {
+                File.Move(temp, target);
+                moved = true;
+            }
+            try
+            {
+                world.Store.AddFile(file);
+                if (ticket.DmAccess is not null) world.Store.AddDmFile(file.Id, ticket.Uploader, ticket.DmAccess);
+            }
+            catch when (moved)
+            {
+                // Not recorded (e.g. the disk filled up): don't leave content behind that nothing refers to.
+                File.Delete(target);
+                throw;
+            }
         }
         await context.Response.WriteAsJsonAsync(new { file = Public(file) });
     }

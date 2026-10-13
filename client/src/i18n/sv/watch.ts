@@ -15,6 +15,7 @@ export const watch: Messages['watch'] = {
   watchParty: 'Gemensam visning',
   youtubeVideo: 'YouTube-video',
   video: 'Video',
+  unplayableLink: 'Videons länk är ingen vanlig webbadress, så den spelas inte upp.',
   cantPlay: 'Videon kan inte spelas här. Kolla länken, eller dela skärmen i stället.',
   youtubeRefused: 'YouTube vill inte spela videon här (den kanske inte får bäddas in).',
   tapToWatch: 'Tryck för att titta med',

@@ -1608,7 +1608,7 @@ export interface Welcome {
 
 export interface Requests {
   'keylog.head': [Record<string, never>, { head: KeyLogHead }]
-  'keylog.entries': [{ after?: number; limit?: number }, { entries: { seq: number; data: string }[]; head: KeyLogHead }]
+  'keylog.entries': [{ after?: number; limit?: number }, { entries: { seq: number; data: string; name?: string | null; nameSalt?: string | null }[]; head: KeyLogHead }]
   'keylog.alert': [{ kind: string; seq?: number }, Record<string, never>]
 }
 

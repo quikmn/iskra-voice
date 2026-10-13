@@ -56,8 +56,19 @@ public static class DmFeature
         if (raw.Length > MaxEnvelopeBytes) throw RequestException.BadRequest("Message is too large.", "message_too_large");
 
         var silent = body.OptionalBool("silent") == true;
+        // A nonce makes a retried send (or a scheduled one after a restart) return the stored DM instead of a second one.
+        var nonce = ChatFeature.Nonce(body);
+        if (nonce is not null && s.World.Store.EnvelopeForNonce(me.AccountKey, "dm", nonce) is (true, var earlier))
+            return Repeat(earlier as DirectMessage);
         var files = DmFileFeature.CheckAttachments(s, me, peer, body);
-        var message = s.World.Store.AddDm(me.AccountKey, peer.AccountKey, raw, s.Now);
+        DirectMessage message;
+        if (nonce is null) message = s.World.Store.AddDm(me.AccountKey, peer.AccountKey, raw, s.Now);
+        else
+        {
+            var (stored, created) = s.World.Store.AddDmOnce(nonce, me.AccountKey, peer.AccountKey, raw, s.Now);
+            if (!created) return Repeat(stored);
+            message = stored!;
+        }
         s.World.Store.LinkDmFiles(message.Id, files);
         var frame = Frames.Event("dm.message", new { message = PublicDm(message) });
         s.Hub.SendToAccount(peer.AccountKey, frame);
@@ -66,6 +77,9 @@ public static class DmFeature
         if (!silent) s.Push.DirectMessage(me, peer);
         return new { message = PublicDm(message) };
     }
+
+    private static object Repeat(DirectMessage? earlier) =>
+        earlier is not null ? new { message = PublicDm(earlier) } : throw RequestException.NotFound("Message"); // sent, then deleted
 
     private static object History(Session s, Member me, Body body)
     {

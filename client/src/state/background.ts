@@ -1,7 +1,8 @@
 // Your camera's background in calls: off, blurred or replaced (a built-in picture or a solid colour). Everything
 // runs on this device (state/video/); the setting is remembered on this device. If the device can't keep up, or the
 // effect can't start here, it turns itself off with a notice and remembers that until you choose it again.
-import { LocalVideoTrack, Track, type VideoCaptureOptions } from 'livekit-client'
+import type { LocalVideoTrack, VideoCaptureOptions } from 'livekit-client'
+import { lk } from './livekit'
 import { create } from 'zustand'
 import { parseBackgroundSettings, type BackgroundSettings, type EffectWindow } from './video/effects'
 import { BackgroundProcessor, effectsSupported, type Look } from './video/processor'
@@ -109,7 +110,10 @@ export function cameraCaptureOptions(): VideoCaptureOptions {
 }
 
 function cameraTrack(): LocalVideoTrack | null {
-  const track = activeRoom()?.localParticipant.getTrackPublication(Track.Source.Camera)?.track
+  const room = activeRoom()
+  if (!room) return null
+  const { Track, LocalVideoTrack } = lk()
+  const track = room.localParticipant.getTrackPublication(Track.Source.Camera)?.track
   return track instanceof LocalVideoTrack ? track : null
 }
 
