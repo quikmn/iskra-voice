@@ -29,8 +29,8 @@ export const compliance: Messages['compliance'] = {
       off: 'De ser din IP-adress. Inget laddas förrän du klickar; glöm en webbplats nedan för att bli tillfrågad igen.',
     },
     watch: {
-      who: 'Videor i gemensamma visningar',
-      when: 'När du trycker på Titta i en gemensam visning som spelas upp från YouTube eller en annan webbplats (inte för videor som laddats upp till servern).',
+      who: 'Videor i Titta tillsammans',
+      when: 'När du trycker på Titta medan Titta tillsammans spelar upp från YouTube eller en annan webbplats (inte för videor som laddats upp till servern).',
       off: 'Den webbplatsen ser din IP-adress. Du kan hoppa över den och stanna kvar i samtalet.',
     },
     gifs: {

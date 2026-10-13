@@ -25,7 +25,7 @@ export const productivity = {
     title: 'Remind me',
     about: 'About this message from {{name}}',
     note: 'Note (optional, only you can see it)',
-    notePlaceholder: 'Reply to this, call them back…',
+    notePlaceholder: 'e.g. Reply to this, call them back',
     set: 'Set reminder',
     done: 'Reminder set for {{when}}',
   },

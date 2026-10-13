@@ -18,7 +18,7 @@ export const roles: Messages['roles'] = {
   },
   chips: 'Roller',
   title: 'Roller',
-  intro: 'Roller ger folk namn, färger och befogenheter utöver deras nivå. Högre roller kommer först: man kan bara hantera roller och medlemmar under sin egen högsta roll. Dra för att ändra ordning.',
+  intro: 'Roller ger folk namn, färger och befogenheter utöver deras grundroll (Ägare, Admin, Betrodd, Medlem eller Gäst). Högre roller kommer först: man kan bara hantera roller och medlemmar under sin egen högsta roll. Dra för att ändra ordning.',
   create: 'Skapa roll',
   newRole: 'Ny roll',
   empty: 'Inga roller än. Skapa en, till exempel Moderator.',

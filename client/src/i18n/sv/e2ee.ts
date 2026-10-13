@@ -9,7 +9,7 @@ export const e2ee: Messages['e2ee'] = {
     kinds: 'Bara text- och röstkanaler kan krypteras.',
     count_one: '{{count}} person kommer att kunna läsa den.',
     count_other: '{{count}} personer kommer att kunna läsa den.',
-    tooMany: '{{count}} personer skulle kunna se kanalen, och en krypterad kanal rymmer {{max}}. Välj en högre nivå för vem som kan se den.',
+    tooMany: '{{count}} personer skulle kunna se kanalen, och en krypterad kanal rymmer {{max}}. Välj en högre roll under ”Vem kan se den”.',
   },
   panel: {
     open: 'Kryptering',

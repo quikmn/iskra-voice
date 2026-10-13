@@ -18,7 +18,7 @@ export const groups = {
   pickIntro: 'Pick 2 to {{max}} people from a server you share. Messages and calls are end-to-end encrypted.',
   server: 'Server',
   nameOptional: 'Group name (optional)',
-  namePlaceholder: 'Weekend crew',
+  namePlaceholder: 'e.g. Weekend crew',
   nobodyPicked: 'Nobody picked yet',
   picked_one: '{{count}} picked',
   picked_other: '{{count}} picked',

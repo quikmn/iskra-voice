@@ -33,48 +33,75 @@ export function GifSettings({ server, heading = true }: { server: ServerState; h
     }
   }
 
+  const keyRow = (
+    <div className="copy-row">
+      <input
+        type="password"
+        autoComplete="off"
+        value={key}
+        placeholder={enabled ? t('chat.gifSettings.replacePlaceholder') : t('chat.gifSettings.pastePlaceholder')}
+        aria-label={t('chat.gifSettings.keyLabel')}
+        onChange={(e) => setKey(e.target.value.trim())}
+        onKeyDown={(e) => e.key === 'Enter' && key && void save({ key }, t('chat.gifSettings.on'))}
+      />
+      <button className="button primary" disabled={busy || !key} onClick={() => void save({ key }, t('chat.gifSettings.on'))}>{enabled ? t('chat.gifSettings.replaceKey') : t('chat.gifSettings.turnOn')}</button>
+      {enabled && <button className="button" disabled={busy} onClick={() => void save({ key: '' }, t('chat.gifSettings.off'))}>{t('chat.gifSettings.turnOff')}</button>}
+    </div>
+  )
+  const modes = (
+    <fieldset className="gif-mode" disabled={busy}>
+      <legend>{t('chat.gifSettings.modeLegend')}</legend>
+      <label className="radio">
+        <input type="radio" name={`gif-mode-${server.key}`} checked={mode === 'proxy'} onChange={() => void save({ mode: 'proxy' }, t('chat.gifSettings.proxyDone'))} />
+        <span>
+          <span><Trans i18nKey="chat.gifSettings.proxyTitle" components={{ b: <strong /> }} /></span>
+          <span className="muted">{t('chat.gifSettings.proxyLine')}</span>
+        </span>
+      </label>
+      <label className="radio">
+        <input type="radio" name={`gif-mode-${server.key}`} checked={mode === 'direct'} onChange={() => void save({ mode: 'direct' }, t('chat.gifSettings.directDone'))} />
+        <span>
+          <span><Trans i18nKey="chat.gifSettings.directTitle" components={{ b: <strong /> }} /></span>
+          <span className="muted">{t('chat.gifSettings.directLine')}</span>
+        </span>
+      </label>
+      <details className="gif-mode-more">
+        <summary>{t('chat.gifSettings.moreAbout')}</summary>
+        <p className="muted">{t('chat.gifSettings.proxyBody')}</p>
+        <p className="muted"><Trans i18nKey="chat.gifSettings.directBody" components={{ b: <strong /> }} /></p>
+      </details>
+    </fieldset>
+  )
+
   return (
     <div className="settings-subsection gif-settings">
       {heading && <h3 className="h4">{t('chat.gifSettings.title')}</h3>}
-      <p className="muted">
-        {t('chat.gifSettings.intro')} <a href={LINKS.gifsGuide} target="_blank" rel="noopener noreferrer">{t('chat.gifSettings.howToGetKey')}</a>
-      </p>
+      <p className="muted">{t('chat.gifSettings.intro')}</p>
       <p><Trans i18nKey="chat.gifSettings.status" values={{ state: enabled ? t('common.on') : t('common.off') }} components={{ b: <strong /> }} /></p>
-      <div className="copy-row">
-        <input
-          type="password"
-          autoComplete="off"
-          value={key}
-          placeholder={enabled ? t('chat.gifSettings.replacePlaceholder') : t('chat.gifSettings.keyLabel')}
-          aria-label={t('chat.gifSettings.keyLabel')}
-          onChange={(e) => setKey(e.target.value.trim())}
-          onKeyDown={(e) => e.key === 'Enter' && key && void save({ key }, t('chat.gifSettings.on'))}
-        />
-        <button className="button primary" disabled={busy || !key} onClick={() => void save({ key }, t('chat.gifSettings.on'))}>{enabled ? t('chat.gifSettings.replaceKey') : t('chat.gifSettings.turnOn')}</button>
-        {enabled && <button className="button" disabled={busy} onClick={() => void save({ key: '' }, t('chat.gifSettings.off'))}>{t('chat.gifSettings.turnOff')}</button>}
-      </div>
-
-      <fieldset className="gif-mode" disabled={busy}>
-        <legend>{t('chat.gifSettings.modeLegend')}</legend>
-        <label className="radio">
-          <input type="radio" name={`gif-mode-${server.key}`} checked={mode === 'proxy'} onChange={() => void save({ mode: 'proxy' }, t('chat.gifSettings.proxyDone'))} />
-          <span>
-            <span><Trans i18nKey="chat.gifSettings.proxyTitle" components={{ b: <strong /> }} /></span>
-            <span className="muted">
-              {t('chat.gifSettings.proxyBody')}
-            </span>
-          </span>
-        </label>
-        <label className="radio">
-          <input type="radio" name={`gif-mode-${server.key}`} checked={mode === 'direct'} onChange={() => void save({ mode: 'direct' }, t('chat.gifSettings.directDone'))} />
-          <span>
-            <span><Trans i18nKey="chat.gifSettings.directTitle" components={{ b: <strong /> }} /></span>
-            <span className="muted">
-              <Trans i18nKey="chat.gifSettings.directBody" components={{ b: <strong /> }} />
-            </span>
-          </span>
-        </label>
-      </fieldset>
+      {enabled ? (
+        <>
+          {keyRow}
+          {modes}
+        </>
+      ) : (
+        // Not on yet: the three steps, in order.
+        <ol className="gif-steps">
+          <li>
+            <Trans i18nKey="chat.gifSettings.step1" components={{ b: <strong /> }} />{' '}
+            <a href={LINKS.klipy} target="_blank" rel="noopener noreferrer">{t('chat.gifSettings.openKlipy')}</a>
+            {' · '}
+            <a href={LINKS.gifsGuide} target="_blank" rel="noopener noreferrer">{t('chat.gifSettings.howToGetKey')}</a>
+          </li>
+          <li>
+            <Trans i18nKey="chat.gifSettings.step2" components={{ b: <strong /> }} />
+            {keyRow}
+          </li>
+          <li>
+            <Trans i18nKey="chat.gifSettings.step3" components={{ b: <strong /> }} />
+            {modes}
+          </li>
+        </ol>
+      )}
       {message && <p className={message.error ? 'error-text' : 'muted'} role="status">{message.text}</p>}
     </div>
   )

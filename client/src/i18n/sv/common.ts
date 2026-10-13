@@ -11,6 +11,7 @@ export const common: Messages['common'] = {
   edit: 'Redigera',
   done: 'Klar',
   ok: 'OK',
+  example: 't.ex. {{value}}',
   back: 'Tillbaka',
   next: 'Nästa',
   continue: 'Fortsätt',

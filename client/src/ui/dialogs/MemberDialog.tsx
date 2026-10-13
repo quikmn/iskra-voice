@@ -92,7 +92,7 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
         <section className="settings-section">
           <h3>{t('settings.member.moderation')}</h3>
           {canModerate && <label className="field inline">
-            <span>{t('settings.member.level')}</span>
+            <span>{t('settings.member.baseRole')}</span>
             <select
               value={member.role}
               onChange={(e) => void run(() => connection.request('member.setRole', { accountKey: member.accountKey, role: e.target.value as Role }))}
