@@ -33,6 +33,7 @@ import { clips } from './clips'
 import { e2ee } from './e2ee'
 import { media } from './media'
 import { hosting } from './hosting'
+import { builtinBots } from './builtinBots'
 
 export const en = {
   common,
@@ -69,4 +70,5 @@ export const en = {
   e2ee,
   media,
   hosting,
+  builtinBots,
 } as const

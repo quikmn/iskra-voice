@@ -9,6 +9,7 @@ import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 import { show } from './notify'
 import { openRef, serverFor } from './messageRefs'
 import { checkRef, checkSnap, type MessageRef, type MessageSnap } from './productivityLogic'
+import { botReminderAbout } from './builtinBotsLogic'
 
 const PURPOSE = 'reminder'
 
@@ -40,7 +41,20 @@ function keyNow(): Uint8Array | null {
   return identity ? privateKey(identity.account.secretKey) : null
 }
 
+/** A reminder set with the Reminders bot (/remind): not sealed, it's about your own command message. */
+function fromBot(server: string, wire: WireReminder): ReminderContent | null {
+  const about = botReminderAbout(wire.data)
+  if (!about || wire.channelId === null || wire.messageId === null) return null
+  const me = useApp.getState().servers[server]?.me
+  return {
+    ref: { kind: 'channel', server, channelId: wire.channelId, messageId: wire.messageId },
+    snap: { author: me?.accountKey ?? '', authorName: me?.name ?? '', preview: about.note || '/remind', at: about.at, where: about.where },
+    note: about.note,
+  }
+}
+
 function open(server: string, wire: WireReminder): Reminder {
+  if (wire.data.startsWith('bot.')) return { ...wire, server, content: fromBot(server, wire) }
   const key = keyNow()
   const raw = key ? openPrivate(key, PURPOSE, wire.data) as Record<string, unknown> | null : null
   const ref = checkRef(raw?.ref)

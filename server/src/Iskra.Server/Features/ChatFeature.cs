@@ -91,6 +91,7 @@ public static class ChatFeature
         ThreadFeature.Touched(s, channel);
         s.Push.ChatMessage(channel, message);
         InboxFeature.Record(s, channel, message);
+        BuiltinBotFeature.Heard(s, me, channel, message);
         return new { message = publicMessage, nonce };
     }
 

@@ -72,6 +72,7 @@ public sealed class Router
         KeyLogFeature.Register(this);
         E2eeChannelFeature.Register(this);
         BotCommandFeature.Register(this);
+        BuiltinBotFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

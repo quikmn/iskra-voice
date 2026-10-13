@@ -76,6 +76,7 @@ export const errors = {
     kicked_device: 'This device was removed from its account.',
     guests_no_events: "Guests can't schedule events.",
     admins_add_bots: 'Only admins can add bots.',
+    builtin_bots_admin: 'Only admins can turn built-in bots on or off.',
     admins_forum_tags: "Only admins can change a forum's tags.",
     admins_rules: 'Only admins can change the server rules.',
     admins_stage_mods: 'Only admins can choose stage moderators.',

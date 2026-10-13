@@ -2,7 +2,7 @@
 // then hints for its options as you type. Arrows move, Tab/Enter complete, Esc closes. Sending still posts plain text.
 import { useId, useState, type AriaAttributes, type KeyboardEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useChannelCommands } from '../../state/botCommands'
+import { useBotCommands, useChannelCommands } from '../../state/botCommands'
 import { Avatar } from '../bits'
 import {
   activeOption, commandQueryAt, completeChoice, completeCommand, findCommand, matchChoices, matchCommands, signature,
@@ -27,7 +27,10 @@ export function useCommandSuggest(
   const [dismissed, setDismissed] = useState<string | null>(null)
   const query = commandQueryAt(text, caret)
   const entries = useChannelCommands(serverKey, channelId, query !== null, encrypted)
+  const hasBots = useBotCommands((s) => Object.keys(s.lists[serverKey] ?? {}).length > 0)
   const closed = dismissed === text
+  // Encrypted channels: no bot can read them (the server can't either), so say why nothing is suggested.
+  const encryptedHint = encrypted && hasBots && query?.kind === 'name' && !closed
   // Esc closes the list for this text only: once the text changes, typing "/" again opens it again.
   if (dismissed !== null && dismissed !== text) setDismissed(null)
 
@@ -54,7 +57,7 @@ export function useCommandSuggest(
   }
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>): boolean => {
-    if (e.key === 'Escape' && (count > 0 || (command && !closed))) {
+    if (e.key === 'Escape' && (count > 0 || (command && !closed) || encryptedHint)) {
       e.preventDefault()
       setDismissed(text)
       return true
@@ -143,8 +146,16 @@ export function useCommandSuggest(
     )
   }
 
+  if (!popup && encryptedHint) {
+    popup = (
+      <div className="mention-popup command-hint" id={hintId}>
+        <div className="command-signature"><span className="command-param-help">{t('builtinBots.encryptedHint')}</span></div>
+      </div>
+    )
+  }
+
   const inputProps: AriaAttributes = count > 0
     ? { 'aria-autocomplete': 'list', 'aria-controls': listId, 'aria-activedescendant': optionId(current), 'aria-describedby': command ? hintId : undefined }
-    : command && !closed ? { 'aria-describedby': hintId } : {}
+    : (command && !closed) || encryptedHint ? { 'aria-describedby': hintId } : {}
   return { open: popup !== null, onKeyDown, popup, inputProps }
 }
