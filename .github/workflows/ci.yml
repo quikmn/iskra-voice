@@ -223,7 +223,7 @@ jobs:
       # Best effort (a shard may have failed before writing a report): the job fails at the end either way.
       - if: steps.result.outputs.failed == '1' && needs.e2e-shard.result != 'skipped'
         continue-on-error: true
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: blob-report-*
           path: client/all-blob-reports
