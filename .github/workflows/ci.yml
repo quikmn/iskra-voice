@@ -36,11 +36,14 @@ jobs:
       # When Sigstore adds keys, refresh it before the next release (docs/ci-cd.md); until then this only warns.
       - name: Sigstore trusted root is current
         if: matrix.os == 'ubuntu-latest'
+        continue-on-error: true
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh attestation trusted-root | head -n 1 | jq -S . > "$RUNNER_TEMP/sigstore-root.json"
+          # The whole output first: "| head" would end gh with SIGPIPE (exit 141).
+          gh attestation trusted-root > "$RUNNER_TEMP/sigstore-roots.jsonl"
+          head -n 1 "$RUNNER_TEMP/sigstore-roots.jsonl" | jq -S . > "$RUNNER_TEMP/sigstore-root.json"
           jq -S . src/Iskra.Server/Updates/sigstore-trusted-root.json | diff -q - "$RUNNER_TEMP/sigstore-root.json" > /dev/null \
             || echo "::warning::server/src/Iskra.Server/Updates/sigstore-trusted-root.json isn't Sigstore's current trusted root: refresh it before the next release (docs/ci-cd.md)"
 

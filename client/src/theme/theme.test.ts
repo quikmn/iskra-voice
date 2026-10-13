@@ -165,6 +165,13 @@ describe('readable role colours', () => {
     }
   })
 
+  it('includes a hovered message, so a name stays readable under the mouse', () => {
+    const iskraDark = BUILT_IN_THEMES.find((t) => t.theme.meta.name === 'Iskra Dark')!.theme
+    // What CI's axe run saw: the owner colour on a hovered message read 4.3:1.
+    expect(nameSurfacesOf(iskraDark)).toContain('#36383d')
+    expect(contrast(readableColor('#9793ec', nameSurfacesOf(iskraDark)), '#36383d')).toBeGreaterThanOrEqual(4.5)
+  })
+
   it('ignores what it cannot read', () => {
     expect(readableColor('nonsense', ['#141424'])).toBe('nonsense')
     expect(readableColor('#123456', ['transparent'])).toBe('#123456')

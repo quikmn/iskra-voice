@@ -341,9 +341,20 @@ export function onNameSurfaces(listener: () => void): () => void {
   return () => surfaceListeners.delete(listener)
 }
 export function nameSurfacesOf(theme: ThemeFile | null): readonly string[] {
-  if (!theme) return DEFAULT_NAME_SURFACES
-  const c = theme.colors
-  return [c.bgChat ?? DEFAULT_NAME_SURFACES[0], c.bgSidebar ?? DEFAULT_NAME_SURFACES[1], c.bgFloat ?? c.bgButton ?? DEFAULT_NAME_SURFACES[2]]
+  const c = theme?.colors ?? {}
+  const chat = c.bgChat ?? DEFAULT_NAME_SURFACES[0]
+  const surfaces = [chat, c.bgSidebar ?? DEFAULT_NAME_SURFACES[1], c.bgFloat ?? c.bgButton ?? DEFAULT_NAME_SURFACES[2]]
+  // A hovered message (styles.css: .message:hover mixes 3% of the text colour into the chat background).
+  const hover = mixHex(chat, c.textNormal ?? textOn(chat), 0.03)
+  return hover ? [...surfaces, hover] : surfaces
+}
+
+/** `a` with `t` of `b` mixed in (sRGB, like color-mix), as #rrggbb; null if either isn't a plain colour. */
+function mixHex(a: string, b: string, t: number): string | null {
+  const x = rgbOf(a)
+  const y = rgbOf(b)
+  if (!x || !y) return null
+  return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('')
 }
 
 /** A theme colour as it ends up on screen: its own value, or what it falls back to (followed through var(--x)). */
