@@ -589,6 +589,7 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 .invite-summary > div { display: flex; justify-content: space-between; gap: 12px; }
 .invite-summary .label { color: var(--muted); }
 .invite-summary p { margin: 0; }
+.invite-summary .invite-server-name { min-width: 0; overflow-wrap: anywhere; text-align: right; }
 .settings-section { border-top: 1px solid var(--border); padding-top: 16px; margin-top: 16px; }
 .settings-section:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
 .settings-section > p.muted { font-size: 14px; }

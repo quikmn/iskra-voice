@@ -13,6 +13,9 @@ test.afterAll(async () => server?.stop())
 
 test('switch to Svenska and back', async ({ browser }) => {
   const page = await (await browser.newContext({ viewport: { width: 1280, height: 800 } })).newPage()
+  // The invite names the server, not just its address.
+  await page.goto(server.ownerLink())
+  await expect(page.locator('.onboarding .lead')).toHaveText("You've been invited to Språkserver.")
   await joinVia(page, server.ownerLink(), 'Viktor')
   await expect(page.locator('html')).toHaveAttribute('lang', 'en')
   await send(page, 'Hej allihop! 👋')

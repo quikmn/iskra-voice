@@ -6,6 +6,7 @@ import { acceptInvite, useApp } from '../../state/store'
 import { Modal } from '../bits'
 import { OpenInApp } from '../OpenInApp'
 import { hostOf } from '../format'
+import { useServerName } from '../../state/serverName'
 
 /** Paste an invite link. */
 export function JoinDialog({ onClose, onCreate }: { onClose: () => void; onCreate?: () => void }) {
@@ -73,10 +74,17 @@ export function JoinPrompt({ invite }: { invite: InviteLink }) {
 
 function InviteSummary({ invite }: { invite: InviteLink }) {
   const { t } = useTranslation()
+  const name = useServerName(invite.serverUrl)
   return (
     <div className="invite-summary">
+      {name && (
+        <div>
+          <span className="label">{t('settings.join.server')}</span>
+          <strong className="invite-server-name">{name}</strong>
+        </div>
+      )}
       <div>
-        <span className="label">{t('settings.join.server')}</span>
+        <span className="label">{name ? t('settings.join.address') : t('settings.join.server')}</span>
         <strong>{hostOf(invite.serverUrl)}</strong>
       </div>
       <div>

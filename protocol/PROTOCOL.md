@@ -757,7 +757,7 @@ Everything else a server answers over HTTP(S), on the same port as `/ws`:
 
 | Endpoint | What it is |
 |---|---|
-| `GET /` | `{ iskra: 1, name }`: identifies an Iskra server |
+| `GET /` | `{ iskra: 1, name }`: identifies an Iskra server. Any origin may read it (`Access-Control-Allow-Origin: *`): invite landings show the name |
 | `GET /health` | Version, uptime and voice status for uptime monitors ([Health](#health)) |
 | `GET /ws` | The WebSocket ([Connection](#connection)) |
 | `PUT /upload/<ticket>` | Upload bytes for an `upload.begin` ticket ([Files](#files-replies-and-reactions)) |

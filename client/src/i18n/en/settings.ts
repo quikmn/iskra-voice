@@ -273,6 +273,7 @@ export const settings = {
     notNow: 'Not now',
     joinServer: 'Join server',
     server: 'Server',
+    address: 'Address',
     noHttps: "This server doesn't use HTTPS, so your connection to it isn't encrypted.",
   },
   channel: {

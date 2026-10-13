@@ -212,7 +212,12 @@ app.MapGet("/.well-known/iskra-probe/{token}", (string token, InternetHost inter
 
 app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(20) });
 
-app.MapGet("/", (World w) => Results.Json(new { iskra = 1, name = w.Settings.Name }));
+// Readable from any page: the invite landing shows the server's name before joining.
+app.MapGet("/", (HttpContext context, World w) =>
+{
+    context.Response.Headers.AccessControlAllowOrigin = "*";
+    return Results.Json(new { iskra = 1, name = w.Settings.Name });
+});
 // For uptime monitors: up, version, how long it's been running, whether voice is up. Nothing secret.
 app.MapGet("/health", (IVoiceBackend voice, World w, Iskra.Server.Updates.UpdateService updates) => HealthFeature.Report(w, voice, updates.Env.Current));
 

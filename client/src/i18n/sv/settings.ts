@@ -274,6 +274,7 @@ export const settings: Messages['settings'] = {
     notNow: 'Inte nu',
     joinServer: 'Gå med i servern',
     server: 'Server',
+    address: 'Adress',
     noHttps: 'Den här servern använder inte HTTPS, så din anslutning till den är inte krypterad.',
   },
   channel: {

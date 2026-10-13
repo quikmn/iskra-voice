@@ -4,6 +4,7 @@ import { decodeRecoveryKey } from '../core/recovery'
 import { usePendingLink } from '../state/link'
 import { acceptInvite, completeOnboarding, restoreAccount, useApp } from '../state/store'
 import { hostOf } from './format'
+import { useServerName } from '../state/serverName'
 import { OpenInApp } from './OpenInApp'
 import { LinkJoin } from './LinkJoin'
 import { acceptTerms, useTermsAccepted } from '../state/terms'
@@ -16,6 +17,7 @@ type Mode = 'choose' | 'new' | 'existing' | 'recovery' | 'link'
 export function Onboarding() {
   const { t } = useTranslation()
   const pendingInvite = useApp((s) => s.pendingInvite)
+  const serverName = useServerName(pendingInvite?.serverUrl)
   const pendingLink = usePendingLink((s) => s.code)
   const [mode, setMode] = useState<Mode>(pendingLink ? 'link' : 'choose')
   const [name, setName] = useState('')
@@ -63,10 +65,14 @@ export function Onboarding() {
     )
   }
 
+  const invitedLine = pendingInvite && (serverName
+    ? <Trans i18nKey="app.onboarding.invitedTo" values={{ server: serverName }} components={{ b: <strong /> }} />
+    : <Trans i18nKey="app.onboarding.invited" values={{ host: hostOf(pendingInvite.serverUrl) }} components={{ b: <strong /> }} />)
+
   const invited = pendingInvite && (
     <>
       <p className="lead">
-        <Trans i18nKey="app.onboarding.invited" values={{ host: hostOf(pendingInvite.serverUrl) }} components={{ b: <strong /> }} />
+        {invitedLine}
       </p>
       <OpenInApp invite={pendingInvite} />
     </>
@@ -131,7 +137,7 @@ export function Onboarding() {
         {pendingInvite ? (
           <>
             <p className="lead">
-              <Trans i18nKey="app.onboarding.invited" values={{ host: hostOf(pendingInvite.serverUrl) }} components={{ b: <strong /> }} />
+              {invitedLine}
               <br />
               {restoring ? t('app.onboarding.restoreIntro') : t('app.onboarding.pickNameInvited')}
             </p>
