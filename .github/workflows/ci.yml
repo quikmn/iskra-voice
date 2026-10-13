@@ -62,9 +62,6 @@ jobs:
           node-version: '24'
           cache: npm
           cache-dependency-path: client/package-lock.json
-      # The interop tests type-check against the desktop app's p2p tunnel (desktop/src/p2p); no Electron download.
-      - run: npm ci --ignore-scripts
-        working-directory: desktop
       - run: npm ci
       - run: npm test
       - run: npm run build
