@@ -18,6 +18,7 @@ export const settings = {
     roles: 'Roles',
     automod: 'AutoMod',
     emoji: 'Emoji & stickers',
+    gifs: 'GIFs',
     sounds: 'Soundboard',
     integrations: 'Bots & webhooks',
     pages: 'Profile pages',

@@ -272,7 +272,7 @@ export const chat = {
     gifs: 'GIFs',
     stickers: 'Stickers',
     offTitle: "GIFs aren't on for this server yet",
-    offHint: 'An admin can turn them on in Server settings → Overview with a free API key from KLIPY.',
+    offHint: 'An admin can turn them on in Server settings → GIFs with a free API key from KLIPY.',
     setUp: 'How to set up GIFs',
     searchGifs: 'Search GIFs',
     favourites: 'Favourites',

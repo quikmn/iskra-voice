@@ -83,8 +83,8 @@ test('GIFs: off until an admin adds a key, through the server by default, or dir
   await expect(friend.getByRole('link', { name: 'How to set up GIFs' })).toHaveAttribute('href', /hosting\.md#gifs/)
   await friend.keyboard.press('Escape')
 
-  // The host pastes a key in Settings → Overview. Through this server is the default.
-  await openServerSettings(host, 'Overview')
+  // The host pastes a key in Server settings → GIFs. Through this server is the default.
+  await openServerSettings(host, 'GIFs')
   await host.getByLabel('KLIPY API key').fill(KEY)
   await host.getByRole('button', { name: 'Turn on' }).click()
   await expect(host.locator('.gif-settings').getByRole('status')).toHaveText('GIFs are on.')
@@ -135,7 +135,7 @@ test('GIFs: off until an admin adds a key, through the server by default, or dir
   await friend.setViewportSize({ width: 1280, height: 800 })
 
   // Straight from KLIPY, as the owner's explicit choice: the friend's app asks KLIPY itself, and says so.
-  await openServerSettings(host, 'Overview')
+  await openServerSettings(host, 'GIFs')
   await host.getByRole('radio', { name: /Straight from KLIPY/ }).click()
   await expect(host.locator('.gif-settings').getByRole('status')).toHaveText("Members' apps now load GIFs from KLIPY directly.")
   await host.keyboard.press('Escape')

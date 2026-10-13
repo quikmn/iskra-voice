@@ -33,6 +33,7 @@ exists.
 | Overview | Översikt |
 | Channels | Kanaler |
 | Emoji & stickers | Emoji och klistermärken |
+| GIFs | GIF:ar |
 | Soundboard | Soundboard |
 | Profile pages | Profilsidor |
 | Server rules | Serverregler |

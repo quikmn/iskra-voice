@@ -34,7 +34,7 @@ export const compliance = {
     gifs: {
       who: 'KLIPY (GIFs)',
       when: 'Normally never: GIF search and GIFs go through your server. Only if a server\'s owner picked "Straight from KLIPY" does your app ask KLIPY itself, and GIFs in chat then wait for a click.',
-      off: 'Then KLIPY sees your IP address and searches. The owner chooses this in Server settings → Overview.',
+      off: 'Then KLIPY sees your IP address and searches. The owner chooses this in Server settings → GIFs.',
     },
     updates: {
       who: 'GitHub (app updates)',

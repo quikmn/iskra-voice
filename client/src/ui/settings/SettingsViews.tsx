@@ -313,6 +313,7 @@ function ServerSection({ id, server, onClose }: { id: ServerSectionId; server: S
     case 'overview': return <OverviewSection server={server} />
     case 'channels': return <ChannelsSection server={server} />
     case 'emoji': return <><EmojiSection server={server} /><StickerSection server={server} /></>
+    case 'gifs': return <GifsSection server={server} />
     case 'sounds': return <SoundsSection server={server} />
     case 'pages': return <PagesSection server={server} />
     case 'rules': return <RulesSection server={server} />
@@ -342,7 +343,16 @@ function OverviewSection({ server }: { server: ServerState }) {
         <div><dt>{t('settings.overview.address')}</dt><dd><code>{server.url}</code></dd></div>
         <div><dt>{t('settings.overview.serverId')}</dt><dd><code>{fingerprint(server.key)}</code></dd></div>
       </dl>
-      <GifSettings server={server} />
+    </section>
+  )
+}
+
+function GifsSection({ server }: { server: ServerState }) {
+  const { t } = useTranslation()
+  return (
+    <section className="settings-section">
+      <h2>{t('settings.sections.gifs')}</h2>
+      <GifSettings server={server} heading={false} />
     </section>
   )
 }

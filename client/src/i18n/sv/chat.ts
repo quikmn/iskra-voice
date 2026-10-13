@@ -273,7 +273,7 @@ export const chat: Messages['chat'] = {
     gifs: 'GIF:ar',
     stickers: 'Klistermärken',
     offTitle: 'GIF:ar är inte på för den här servern än',
-    offHint: 'En admin kan slå på dem under Serverinställningar → Översikt med en gratis API-nyckel från KLIPY.',
+    offHint: 'En admin kan slå på dem under Serverinställningar → GIF:ar med en gratis API-nyckel från KLIPY.',
     setUp: 'Så kommer du igång med GIF:ar',
     searchGifs: 'Sök GIF:ar',
     favourites: 'Favoriter',

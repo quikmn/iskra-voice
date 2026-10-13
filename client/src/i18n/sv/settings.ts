@@ -19,6 +19,7 @@ export const settings: Messages['settings'] = {
     roles: 'Roller',
     automod: 'AutoMod',
     emoji: 'Emoji och klistermärken',
+    gifs: 'GIF:ar',
     sounds: 'Soundboard',
     integrations: 'Bottar och webhooks',
     pages: 'Profilsidor',
