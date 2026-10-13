@@ -1,0 +1,65 @@
+{
+  "about": "Test audio for scripts/listening-kit.mjs. Every file has a clear licence; the kit's README repeats these credits.",
+  "speech": [
+    {
+      "file": "audio/speech-female.wav",
+      "label": "Female voice",
+      "text": ["Six spoons of fresh snow peas, five thick slabs of blue cheese, and maybe a snack for her brother Bob.", "People look, but no one ever finds it."],
+      "segments": [[19200, 383431], [426631, 581491]],
+      "source": "CSTR VCTK Corpus 0.92, speaker p225 (female, 23, Southern England), utterances 003 and 010, mic1 (DPA 4035)",
+      "authors": "Junichi Yamagishi, Christophe Veaux, Kirsten MacDonald; The Centre for Speech Technology Research, University of Edinburgh",
+      "url": "https://doi.org/10.7488/ds/2645",
+      "license": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
+      "changes": "80 Hz high-pass (2nd-order Butterworth, the corpus has low rumble), 4 ms fades, joined with pauses, scaled"
+    },
+    {
+      "file": "audio/speech-male.wav",
+      "label": "Male voice",
+      "text": ["She can scoop these things into three red bags, and we will go meet her Wednesday at the train station.", "Others have tried to explain the phenomenon physically."],
+      "segments": [[19200, 389934], [433134, 625531]],
+      "source": "CSTR VCTK Corpus 0.92, speaker p226 (male, 22, Surrey), utterances 005 and 017, mic1 (DPA 4035)",
+      "authors": "Junichi Yamagishi, Christophe Veaux, Kirsten MacDonald; The Centre for Speech Technology Research, University of Edinburgh",
+      "url": "https://doi.org/10.7488/ds/2645",
+      "license": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
+      "changes": "80 Hz high-pass (2nd-order Butterworth, the corpus has low rumble), 4 ms fades, joined with pauses, scaled"
+    }
+  ],
+  "noise": [
+    {
+      "id": "keyboard",
+      "file": "audio/keyboard.wav",
+      "label": "Keyboard typing",
+      "source": "\"Typing medium speed.ogg\" by teto_yasha (PDSounds), seconds 5-11",
+      "url": "https://commons.wikimedia.org/wiki/File:Typing_medium_speed.ogg",
+      "license": "Public domain",
+      "changes": "excerpt, 48 kHz mono, 10 ms fades, scaled"
+    },
+    {
+      "id": "fan",
+      "file": "audio/fan.wav",
+      "label": "Air-conditioning fan",
+      "source": "\"Resident air-conditioned out door unit.ogg\" by Ranch9613, seconds 5-10",
+      "url": "https://commons.wikimedia.org/wiki/File:Resident_air-conditioned_out_door_unit.ogg",
+      "license": "CC0 1.0",
+      "changes": "excerpt, 48 kHz mono, 10 ms fades, scaled"
+    },
+    {
+      "id": "cafe",
+      "file": "audio/cafe.wav",
+      "label": "Café chatter",
+      "source": "\"Cafe ambiance.ogg\" by Marble Toast, seconds 30-36",
+      "url": "https://commons.wikimedia.org/wiki/File:Cafe_ambiance.ogg",
+      "license": "CC0 1.0",
+      "changes": "excerpt, stereo to mono, 48 kHz, 10 ms fades, scaled"
+    },
+    {
+      "id": "music",
+      "file": "audio/music.wav",
+      "label": "Music in the room",
+      "source": "\"Mellow Cafe Vibe\" by John Bartmann, seconds 20-30",
+      "url": "https://commons.wikimedia.org/wiki/File:John_Bartmann_-_Mellow_Cafe_Vibe.ogg",
+      "license": "CC0 1.0",
+      "changes": "excerpt, stereo to mono, 48 kHz, 10 ms fades, scaled"
+    }
+  ]
+}

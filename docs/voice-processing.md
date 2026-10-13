@@ -37,7 +37,9 @@ speech model kept on the device so it's only downloaded once.
   always gets through; it notices the faintest lead-in (a breath or soft consonant 20–30 dB down) up to 145 ms
   after it starts, so that is now and then softened, by 15–30 ms typically and 45 ms at most on the test phrases
   (a longer pre-roll of 200 ms would keep all of it, at twice the delay). After a pause of
-  more than the hangover it closes, and the next time starts over. Turn "Set automatically" off for a manual volume
+  more than the hangover it closes, and the next time starts over. In noise Silero is sure of a soft first sound later, so the gate already opens at a
+  probability of 0.2 and closes again if Silero doesn't reach 0.5 within 200 ms (no added delay; noise alone hardly
+  ever opens it). Turn "Set automatically" off for a manual volume
   threshold instead. Push-to-talk is never gated or delayed. Your own speaking ring follows the same detector.
 - **Off the audio thread.** The audio worklet only moves samples: it cuts the mic into 10 ms frames for a worker that
   runs DeepFilterNet, and plays what comes back at a fixed delay, the way DeepFilterNet's own LADSPA plugin uses a

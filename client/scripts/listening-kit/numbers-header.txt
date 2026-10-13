@@ -1,0 +1,15 @@
+ISKRA LISTENING KIT: MEASUREMENTS
+Each clip against the clean voice (time-aligned; the kept second pass).
+- SI-SDR dB: scale-invariant signal-to-distortion ratio over the speech, re-aligned every 20 ms (within 1 ms). For
+  processed clips the reference is the clean voice through the same browser capture, so Chrome's own band
+  splitting isn't counted. Higher is closer to the voice.
+- Spectral dist. dB: log-spectral distance to the clean voice (100 Hz-7.5 kHz), over speech. Lower is closer.
+- Voice gain dB / Dips dB: median gain on speech, and the 5th percentile relative to it (syllables turned down most).
+- Gain motion dB/10ms: how much the gain jumps from one 10 ms to the next while talking (RMS). Lower is steadier.
+- Level wander dB: spread of the gain over 200 ms stretches of speech. Lower is steadier.
+- Phrase starts dB / Start cut ms: the first 50 ms of each phrase vs the clean voice (-60 = gone), and how much of
+  the start is missing until it comes within 10 dB. The worst phrase.
+- Word ends dB: the last 80 ms of each phrase, the same way. The worst phrase.
+- Pause noise dB below voice: how far the noise in the pauses is below the voice. Higher is quieter.
+- Clipped / Peak dBFS: samples at full scale, and the peak.
+- Added delay ms: from the browser's capture to what's heard (gate pre-roll, noise suppression, Opus, leveling).

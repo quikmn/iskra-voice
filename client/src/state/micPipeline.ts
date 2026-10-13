@@ -7,7 +7,8 @@ import rnnoiseWorkletUrl from '@sapphi-red/web-noise-suppressor/rnnoiseWorklet.j
 import type { TrackProcessor, Track, AudioProcessorOptions } from 'livekit-client'
 import gateWorkletUrl from './micGate.worklet.ts?worker&url'
 import deepFilterWorkletUrl from './audio/deepfilter.worklet.ts?worker&url'
-import { AUTO_SPEAKING_DB, type AudioSettings } from './audio'
+import type { AudioSettings } from './audio'
+import { gateParams } from './audio/micParams'
 import { loadRnnoiseWasm, loadSilero } from './audio/assets'
 import { DF_STRENGTH_DB } from './audio/strength'
 import { contextDelay, DeepFilterWorker, type WorkerLoad } from './audio/deepfilterHost'
@@ -32,14 +33,6 @@ export interface MicPipeline {
   update(settings: AudioSettings, ptt: boolean): void
   destroy(): void
 }
-
-const gateParams = (s: AudioSettings, ptt: boolean) => ({
-  gain: s.inputVolume,
-  threshold: s.threshold ?? AUTO_SPEAKING_DB,
-  gating: s.threshold !== null,
-  vad: s.threshold === null,
-  ptt,
-})
 
 /** Resumes a suspended context (iOS starts them that way) on the next tap or key press. */
 export function keepRunning(ctx: AudioContext): () => void {
