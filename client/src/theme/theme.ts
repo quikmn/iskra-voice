@@ -234,14 +234,15 @@ function hslHex(h: number, s: number, l: number): string {
 }
 
 /**
- * How light author names (hsl(hue 70% L)) must be to read at 4.5:1 on the chat background, whatever the hue:
+ * How light author names (hsl(hue 70% L)) must be to read at 4.5:1 on the background(s), whatever the hue:
  * lighter than 72% on dark backgrounds, darker than 40% on light ones.
  */
-export function nameLightness(background: string): number {
-  const rgb = rgbOf(background)
+export function nameLightness(background: string | readonly string[]): number {
+  const backgrounds = typeof background === 'string' ? [background] : background
+  const rgb = rgbOf(backgrounds[0])
   const light = !!rgb && luminance(rgb) > 0.18
   const reads = (l: number) => {
-    for (let h = 0; h < 360; h += 15) if (contrast(hslHex(h, 70, l), background) < 4.5) return false
+    for (let h = 0; h < 360; h += 15) for (const b of backgrounds) if (contrast(hslHex(h, 70, l), b) < 4.5) return false
     return true
   }
   if (light) {
@@ -412,7 +413,8 @@ export function themeVariables(theme: ThemeFile): Record<string, string> {
   for (const { name, key, fallback } of VARIABLES) vars[name] = theme.colors[key] ?? fallback
   if (!theme.colors.onAccent && theme.colors.accent) vars['--on-accent'] = textOn(theme.colors.accent)
   if (theme.colors.danger) vars['--danger-solid'] = solidUnderWhite(theme.colors.danger)
-  if (theme.colors.bgChat) vars['--name-l'] = `${nameLightness(theme.colors.bgChat)}%`
+  // Names sit on the chat, a hovered message, the member list and popovers.
+  if (theme.colors.bgChat) vars['--name-l'] = `${nameLightness(nameSurfacesOf(theme))}%`
   vars['--placeholder'] = placeholderColor(effectiveColor(theme, 'textNormal'), INPUT_BACKGROUNDS.map((k) => effectiveColor(theme, k)), effectiveColor(theme, 'textSubtle'))
   vars['--radius'] = `${theme.radius ?? 10}px`
   vars['--avatar-radius'] = AVATAR_SHAPES[theme.avatarShape ?? 'circle']

@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { contrast, contrastIssues, effectiveColor, INPUT_BACKGROUNDS, placeholderColor, loadThemeChoice, nameLightness, nameSurfacesOf, readableColor, parseTheme, safeColor, solidUnderWhite, textOn, themeVariables, validateTheme } from './theme'
 import { BUILT_IN_THEMES } from './themes'
+import type { ThemeFile } from './theme'
+
+/** hsl(h 70% l) as #rrggbb, like the stylesheet's author names. */
+function hslOf70(h: number, l: number): string {
+  const a = 0.7 * Math.min(l / 100, 1 - l / 100)
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12
+    return Math.round((l / 100 - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))) * 255).toString(16).padStart(2, '0')
+  }
+  return `#${f(0)}${f(8)}${f(4)}`
+}
 
 const valid = { meta: { name: 'Mine' }, colors: { accent: '#ff8800' } }
 
@@ -118,6 +129,16 @@ describe('contrast', () => {
   it('makes author names light enough on every dark chat background', () => {
     expect(nameLightness('#141424')).toBe(72)
     expect(nameLightness('#3b4252')).toBeGreaterThan(72)
+  })
+
+  it('makes author names readable on every name surface, a hovered message too', () => {
+    // The stylesheet's default (--name-l: 72%) is what no theme gets.
+    expect(nameLightness(nameSurfacesOf(null))).toBeLessThanOrEqual(72)
+    for (const theme of [null, ...BUILT_IN_THEMES.map((t) => t.theme), { meta: { name: 'Daylight', scheme: 'light' }, colors: { bgChat: '#ffffff', bgSidebar: '#f2f3f5', bgFloat: '#ffffff', textNormal: '#2e3338' } } as ThemeFile]) {
+      const surfaces = nameSurfacesOf(theme)
+      const l = nameLightness(surfaces)
+      for (let h = 0; h < 360; h += 15) for (const s of surfaces) expect(contrast(hslOf70(h, l), s), `${theme?.meta.name} h${h} on ${s}`).toBeGreaterThanOrEqual(4.5)
+    }
   })
 
   it('darkens a colour just enough for white text', () => {
