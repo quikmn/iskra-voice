@@ -248,17 +248,19 @@ export function MySettings({ section, onClose }: { section?: MySectionId; onClos
 function MySection({ id }: { id: MySectionId }) {
   switch (id) {
     case 'profile': return <ProfileSection />
-    case 'appearance': return <><AppearanceSection /><LanguageSection /><GifViewerSettings /></>
+    case 'appearance': return <AppearanceSection />
+    case 'language': return <LanguageSection />
     case 'devices': return <DevicesSection />
-    case 'recovery': return <><RecoveryKeySection /><RotateKeySection /></>
-    case 'security': return <><AppLockSection /><KeyTransparencySection /></>
+    // Everything about your account key together: the recovery key, rotating the key, and checking the key logs.
+    case 'recovery': return <><RecoveryKeySection /><RotateKeySection /><KeyTransparencySection /></>
+    case 'security': return <AppLockSection />
     case 'notifications': return <NotificationSettingsSection server={null} />
     case 'voice': return <><InputSettingsSection /><VoiceSettingsSection /><HotkeySettingsSection /><ClipSettingsSection /><ProcessingSettingsSection /><OutputSettingsSection /><CaptionSettingsSection /><SoundboardSettingsSection /></>
     case 'video': return <CameraSettingsSection />
     case 'blocked': return <BlockedSection />
     case 'desktop': return <DesktopSettingsSection />
     case 'account': return <AccountSection />
-    case 'privacy': return <PrivacySection />
+    case 'privacy': return <><PrivacySection /><GifViewerSettings /></>
     case 'about': return <AboutSection />
   }
 }

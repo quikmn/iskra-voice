@@ -28,6 +28,7 @@ exists.
 | English | Svenska |
 |---|---|
 | My settings | Mina inställningar |
+| Language (section) | Språk |
 | Server settings | Serverinställningar |
 | Server, Members & safety, Apps, Hosting & data (groups) | Server, Medlemmar och säkerhet, Appar, Drift och data |
 | Overview | Översikt |

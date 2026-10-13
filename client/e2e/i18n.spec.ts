@@ -1,4 +1,4 @@
-// Languages: switch to Svenska in Settings → Appearance, look around (chat, settings, voice), then back to English.
+// Languages: switch to Svenska in My settings → Language, look around (chat, settings, voice), then back to English.
 // "Automatic" follows the browser: a Swedish browser gets Swedish without asking.
 import { expect, test } from '@playwright/test'
 import { join } from 'node:path'
@@ -27,8 +27,8 @@ test('switch to Svenska and back', async ({ browser }) => {
     await page.getByRole('button', { name: 'Create', exact: true }).click()
   }
 
-  // Settings → Appearance → Language: Svenska applies right away, no reload.
-  await openSettings(page, 'Appearance')
+  // My settings → Language: Svenska applies right away, no reload.
+  await openSettings(page, 'Language')
   await page.getByRole('combobox', { name: 'Language' }).selectOption('sv')
   await expect(page.locator('html')).toHaveAttribute('lang', 'sv')
   const dialog = page.getByRole('dialog', { name: sv.common.settings })
@@ -58,7 +58,7 @@ test('switch to Svenska and back', async ({ browser }) => {
   // And back to English.
   await page.locator('.me-bar').getByRole('button', { name: sv.common.settings, exact: true }).click()
   const settings = page.getByRole('dialog', { name: sv.common.settings })
-  await settings.getByRole('navigation').getByRole('button', { name: sv.settings.sections.appearance, exact: true }).click()
+  await settings.getByRole('navigation').getByRole('button', { name: sv.settings.sections.language, exact: true }).click()
   await settings.getByRole('combobox', { name: sv.common.language.title }).selectOption('en')
   await expect(page.locator('html')).toHaveAttribute('lang', 'en')
   await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible()

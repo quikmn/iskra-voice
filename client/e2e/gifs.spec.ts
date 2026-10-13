@@ -156,7 +156,7 @@ test('GIFs: off until an admin adds a key, through the server by default, or dir
   await expect(host.locator('.chat-gif.direct iframe.klipy-frame').last()).toBeVisible()
   await expect.poll(() => hostAsked.some((a) => a.startsWith('https://static.klipy.com/ii/dog-1/'))).toBe(true)
   // With auto-load on, the next one shows right away.
-  await openSettings(friend, 'Appearance')
+  await openSettings(friend, 'Privacy & data')
   await friend.getByLabel(/Load GIFs from KLIPY without asking/).check()
   await friend.keyboard.press('Escape')
   await expect(friend.locator('.chat-gif.direct iframe.klipy-frame').last()).toBeVisible()

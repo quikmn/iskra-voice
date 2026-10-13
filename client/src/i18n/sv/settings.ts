@@ -4,6 +4,7 @@ export const settings: Messages['settings'] = {
   sections: {
     profile: 'Profil',
     appearance: 'Utseende',
+    language: 'Språk',
     devices: 'Enheter',
     recovery: 'Återställningsnyckel',
     security: 'Applås',

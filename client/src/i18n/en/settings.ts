@@ -3,6 +3,7 @@ export const settings = {
   sections: {
     profile: 'Profile',
     appearance: 'Appearance',
+    language: 'Language',
     devices: 'Devices',
     recovery: 'Recovery key',
     security: 'App lock',
