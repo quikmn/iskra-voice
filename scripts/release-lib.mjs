@@ -89,3 +89,135 @@ export function missingUpdaterFiles(yml, version, urls) {
 export function formatSums(entries) {
   return [...entries].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)).map((e) => `${e.sha256}  ${e.name}\n`).join('')
 }
+
+/**
+ * Splits an electron-builder latest*.yml into its top-level lines and its file entries (each "  - url: ..." block with
+ * its indented lines, kept verbatim so fields like blockMapSize survive).
+ */
+function splitUpdateYml(text) {
+  const top = [], files = []
+  let inFiles = false
+  for (const line of text.replace(/\r\n/g, '\n').split('\n')) {
+    if (line === '') continue
+    if (/^\S/.test(line)) {
+      inFiles = /^files:\s*$/.test(line)
+      top.push(inFiles ? 'files:' : line)
+    } else if (inFiles && /^\s*-\s/.test(line)) {
+      const url = /^\s*-\s*url:\s*['"]?([^'"\n]+?)['"]?\s*$/.exec(line)?.[1]
+      if (!url) throw new Error(`unexpected file entry: ${line}`)
+      files.push({ url, lines: [line] })
+    } else if (inFiles && files.length) {
+      files.at(-1).lines.push(line)
+    } else {
+      throw new Error(`unexpected line: ${line}`)
+    }
+  }
+  return { top, files }
+}
+
+const topKey = (line) => /^([A-Za-z0-9_]+):/.exec(line)?.[1]
+
+/**
+ * Merges the latest-mac.yml of single-architecture builds into the one electron-builder writes when it builds them
+ * together: every file of every part (grouped by extension in the first part's order: zips, then dmgs; parts in the
+ * given order inside each group), `path`/`sha512` from the first part, the latest `releaseDate`. Throws when the parts
+ * disagree on the version (or any other field) or list the same file twice.
+ */
+export function mergeUpdateYml(parts) {
+  if (parts.length < 2) throw new Error('give at least two parts to merge')
+  const split = parts.map(splitUpdateYml)
+  const versions = new Set(parts.map((p) => parseUpdateYml(p).version))
+  if (versions.size !== 1 || versions.has(null)) throw new Error(`the parts are for different versions: ${[...versions].join(', ')}`)
+  const ext = (url) => /\.([^.]+)$/.exec(url)?.[1] ?? ''
+  const order = [...new Set(split[0].files.map((f) => ext(f.url)))]
+  for (const s of split.slice(1)) for (const f of s.files) if (!order.includes(ext(f.url))) order.push(ext(f.url))
+  const files = order.flatMap((e) => split.flatMap((s) => s.files.filter((f) => ext(f.url) === e)))
+  const urls = files.map((f) => f.url)
+  const dup = urls.find((u, i) => urls.indexOf(u) !== i)
+  if (dup) throw new Error(`${dup} is in more than one part`)
+  if (!files.length) throw new Error('the parts list no files')
+  // Fields other than files/path/sha512/releaseDate must be the same in every part.
+  const own = new Set(['files', 'path', 'sha512', 'releaseDate'])
+  for (const s of split.slice(1)) {
+    const a = split[0].top.filter((l) => !own.has(topKey(l))), b = s.top.filter((l) => !own.has(topKey(l)))
+    if (a.join('\n') !== b.join('\n')) throw new Error(`the parts differ: ${a.join(' | ')} vs ${b.join(' | ')}`)
+  }
+  const dates = split.map((s) => s.top.find((l) => topKey(l) === 'releaseDate')).filter(Boolean)
+  const latestDate = dates.sort((x, y) => (x.replace(/[^0-9TZ:.-]/g, '') < y.replace(/[^0-9TZ:.-]/g, '') ? -1 : 1)).at(-1)
+  const out = []
+  for (const line of split[0].top) {
+    if (line === 'files:') out.push(line, ...files.flatMap((f) => f.lines))
+    else if (topKey(line) === 'releaseDate') out.push(latestDate)
+    else out.push(line)
+  }
+  return out.join('\n') + '\n'
+}
+
+/** "**Iskra: alpha 14.**" for 2.0.0-alpha.14, "**Iskra 2.1.0.**" for a final release (headline of the notes). */
+export function notesHeadline(version) {
+  const v = parseVersion(version)
+  if (!v) throw new Error(`Not a release version: ${version}`)
+  return v.alpha === null ? `**Iskra ${version}.**` : `**Iskra: alpha ${v.alpha}.**`
+}
+
+/** The "### <title>" sections of a notes file, in order: [{ title, body }] (body without the heading line). */
+export function notesSections(text) {
+  const sections = []
+  for (const line of text.replace(/\r\n/g, '\n').split('\n')) {
+    const h = /^###\s+(.+?)\s*$/.exec(line)
+    if (h) sections.push({ title: h[1], lines: [] })
+    else if (sections.length) sections.at(-1).lines.push(line)
+  }
+  return sections.map((s) => ({ title: s.title, body: s.lines.join('\n').trim() }))
+}
+
+/** Words that must never appear in public text (CLAUDE.md: the product is just "Iskra"). */
+export function publicWordingProblems(text) {
+  const problems = []
+  if (/Iskra\s*2\b(?![.\d])/i.test(text)) problems.push('says "Iskra 2"')
+  if (/\brebuilt\b/i.test(text)) problems.push('says "rebuilt"')
+  if (/\bv1\b(?!\.\d)/i.test(text)) problems.push('mentions v1')
+  return problems
+}
+
+/**
+ * The release notes for `version` from docs/releases/NEXT.md (bullets under ### headings), the way the release step
+ * writes them: the headline, NEXT's non-empty sections in order, and "### Get started" from the previous release's
+ * notes with its version replaced (placed before "### Good to know", or last). Throws when NEXT has no bullets.
+ */
+export function notesFromNext(next, version, previousNotes, previousVersion) {
+  const sections = notesSections(next).filter((s) => /^\s*-\s+\S/m.test(s.body))
+  if (!sections.length) throw new Error('docs/releases/NEXT.md has no notes (no "- " lines under a ### heading)')
+  const start = notesSections(previousNotes).find((s) => s.title === 'Get started')
+  if (!start || !start.body) throw new Error(`the previous notes (${previousVersion}) have no "### Get started" section to copy`)
+  const { text: startBody, count } = replaceVersion(start.body, previousVersion, version)
+  if (/Iskra-Setup-/.test(start.body) && count === 0) throw new Error(`"### Get started" in the previous notes doesn't mention ${previousVersion}`)
+  const out = sections.filter((s) => s.title !== 'Get started')
+  const at = out.findIndex((s) => s.title === 'Good to know')
+  out.splice(at === -1 ? out.length : at, 0, { title: 'Get started', body: startBody })
+  return [notesHeadline(version), '', ...out.flatMap((s) => [`### ${s.title}`, s.body, ''])].join('\n')
+}
+
+/** What NEXT.md goes back to after a release: the comment line and empty sections. */
+export const EMPTY_NEXT = "<!-- Release notes for the next version. Each change is its own line; the release step merges them. -->\n\n### What's new\n\n### Fixes\n\n### Good to know\n"
+
+/**
+ * Whether CI passed on a commit, from its CI workflow runs (GitHub's workflow_runs: status, conclusion, event, html_url).
+ * Only push runs count. pass: one concluded success. wait: none yet, or one still running. fail: all finished, none green.
+ */
+export function ciVerdict(runs) {
+  const push = runs.filter((r) => r.event === 'push')
+  const green = push.find((r) => r.status === 'completed' && r.conclusion === 'success')
+  if (green) return { state: 'pass', run: green, message: `CI passed: ${green.html_url}` }
+  const running = push.find((r) => r.status !== 'completed')
+  if (running) return { state: 'wait', run: running, message: `CI is still running (${running.status}): ${running.html_url}` }
+  if (!push.length) return { state: 'wait', run: null, message: 'no CI run for this commit yet' }
+  const last = push[0]
+  return { state: 'fail', run: last, message: `CI concluded ${last.conclusion} on this commit: ${last.html_url}` }
+}
+
+/** The "- " lines of `next` that are already in the previous release's notes (NEXT.md not emptied after a release). */
+export function repeatedNotes(next, previousNotes) {
+  const shipped = new Set(previousNotes.replace(/\r\n/g, '\n').split('\n').map((l) => l.trim()).filter((l) => l.startsWith('- ')))
+  return next.replace(/\r\n/g, '\n').split('\n').map((l) => l.trim()).filter((l) => l.startsWith('- ') && shipped.has(l))
+}

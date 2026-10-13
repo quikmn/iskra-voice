@@ -1,7 +1,9 @@
 name: CI
 
 on:
+  # Branches only: a release tag points at a commit main's CI already tested (release-finalize.yml checks that run).
   push:
+    branches: ['**']
     paths-ignore: ['site/**', '**.md']
   pull_request:
     paths-ignore: ['site/**', '**.md']
@@ -97,8 +99,17 @@ jobs:
       - run: xvfb-run -a npm run test:network -- --no-sandbox
         if: runner.os == 'Linux'
 
-  end-to-end:
+  # Playwright end-to-end, split over four runners by spec file (--shard). Each shard keeps a blob report; the
+  # `end-to-end` job below is the one check to require: it fails unless every shard and interop passed, and on a
+  # failure merges the shards' blob reports into one HTML report (artifact playwright-report).
+  e2e-shard:
+    name: end-to-end shard ${{ matrix.shard }}/4
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     defaults:
       run:
         working-directory: client
@@ -111,13 +122,22 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-          cache-dependency-path: client/package-lock.json
-      # The p2p interop test runs the desktop app's tunnel on a private testnet; no Electron download.
+          cache-dependency-path: |
+            client/package-lock.json
+            desktop/package-lock.json
+      # The p2p spec runs the desktop app's tunnel on a private testnet; no Electron download.
       - run: npm ci --ignore-scripts
         working-directory: desktop
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: bash ../scripts/get-livekit.sh
+      # LiveKit (pinned and SHA-256 checked by get-livekit.sh), cached on that script.
+      - id: livekit
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .tools/livekit-server
+          key: livekit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/get-livekit.sh') }}
+      - if: steps.livekit.outputs.cache-hit != 'true'
+        run: bash ../scripts/get-livekit.sh
       # The live-captions model isn't in git: scripts/get-models.mjs fetches it (pinned, SHA-256 checked) into
       # client/.models; cached on the pins in model.json.
       - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -125,15 +145,104 @@ jobs:
           path: client/.models
           key: captions-model-${{ hashFiles('client/src/state/captions/model.json') }}
       - run: node ../scripts/get-models.mjs
-      - run: npm ci && npm run typecheck
-        working-directory: bots
-      - run: npm run test:interop
-      - run: npm run test:e2e
+      - run: npm run test:e2e -- --shard=${{ matrix.shard }}/4 --reporter=list,blob
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ !cancelled() }}
+        with:
+          name: blob-report-${{ matrix.shard }}
+          path: client/blob-report
+          retention-days: 7
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()
         with:
-          name: playwright-results
+          name: playwright-results-${{ matrix.shard }}
           path: client/test-results
+
+  # The TS client and the bot SDK against the real .NET server (one runner; not sharded).
+  interop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            desktop/package-lock.json
+            bots/package-lock.json
+      # The p2p interop test runs the desktop app's tunnel on a private testnet; no Electron download.
+      - run: npm ci --ignore-scripts
+        working-directory: desktop
+      - run: npm ci
+      - id: livekit
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .tools/livekit-server
+          key: livekit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/get-livekit.sh') }}
+      - if: steps.livekit.outputs.cache-hit != 'true'
+        run: bash ../scripts/get-livekit.sh
+      - run: npm ci && npm run typecheck
+        working-directory: bots
+      - run: npm run test:interop
+
+  # The check to require for end-to-end (branch protection): green only when every shard and interop passed.
+  end-to-end:
+    needs: [e2e-shard, interop]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every shard and interop passed
+        id: result
+        env:
+          SHARDS: ${{ needs.e2e-shard.result }}
+          INTEROP: ${{ needs.interop.result }}
+        run: |
+          echo "end-to-end shards: $SHARDS, interop: $INTEROP"
+          if [ "$SHARDS" = success ] && [ "$INTEROP" = success ]; then exit 0; fi
+          echo "failed=1" >> "$GITHUB_OUTPUT"
+          echo "::error::end-to-end shards: $SHARDS, interop: $INTEROP (see the failing job; the merged report is the playwright-report artifact)"
+      # One HTML report from every shard's blob report, the standard Playwright way.
+      - if: steps.result.outputs.failed == '1' && needs.e2e-shard.result != 'skipped'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - if: steps.result.outputs.failed == '1' && needs.e2e-shard.result != 'skipped'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      # Best effort (a shard may have failed before writing a report): the job fails at the end either way.
+      - if: steps.result.outputs.failed == '1' && needs.e2e-shard.result != 'skipped'
+        continue-on-error: true
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: blob-report-*
+          path: client/all-blob-reports
+          merge-multiple: true
+      - if: steps.result.outputs.failed == '1' && needs.e2e-shard.result != 'skipped'
+        continue-on-error: true
+        working-directory: client
+        run: |
+          npm ci --ignore-scripts
+          npx playwright merge-reports --reporter html ./all-blob-reports
+      - if: steps.result.outputs.failed == '1' && needs.e2e-shard.result != 'skipped'
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: playwright-report
+          path: client/playwright-report
+          retention-days: 14
+      - if: steps.result.outputs.failed == '1'
+        run: exit 1
 
   # Availability evidence: backs up a server with members, messages and files, restores it into a new folder and checks
   # nothing was lost or changed (server/tests/Iskra.Server.Tests/RestoreDrillTests.cs). The JSON report is kept as an artifact.
@@ -157,6 +266,38 @@ jobs:
           path: ${{ runner.temp }}/restore-drill.json
           if-no-files-found: error
           retention-days: 90
+
+  # Keeps the macOS LiveKit builds (get-livekit.sh builds them from source, ~3 min) in main's cache, where release tags
+  # can read them (a tag's own cache entries aren't visible to the next tag). Only builds when the pin changed.
+  livekit-mac:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    continue-on-error: true # a cache warmer: a miss only costs the release ~3 min
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        arch: [arm64, x64]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - id: livekit
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .tools/osx-${{ matrix.arch }}/livekit-server
+          key: livekit-osx-${{ matrix.arch }}-${{ hashFiles('scripts/get-livekit.sh') }}
+          lookup-only: true
+      - if: steps.livekit.outputs.cache-hit != 'true'
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: '1.26'
+          cache: false
+      - if: steps.livekit.outputs.cache-hit != 'true'
+        run: bash scripts/get-livekit.sh "osx-${{ matrix.arch }}"
+      - if: steps.livekit.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .tools/osx-${{ matrix.arch }}/livekit-server
+          key: livekit-osx-${{ matrix.arch }}-${{ hashFiles('scripts/get-livekit.sh') }}
 
   release-scripts:
     runs-on: ubuntu-latest

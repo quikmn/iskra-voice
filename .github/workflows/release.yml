@@ -43,7 +43,15 @@ jobs:
       - name: Check the tag matches the app version
         run: test "v$(node -p "require('./desktop/package.json').version")" = "$TAG"
       - run: sudo apt-get update && sudo apt-get install -y rpm libx11-dev libxtst-dev libxt-dev libxinerama-dev libx11-xcb-dev libxkbcommon-dev libxkbcommon-x11-dev libxkbfile-dev libxrandr-dev libxi-dev libxext-dev libxfixes-dev # uiohook-napi builds from source on Linux
-      - run: bash scripts/get-livekit.sh linux-x64
+      # LiveKit (pinned and SHA-256 checked by get-livekit.sh), from the cache CI keeps on main (prepare-server.mjs
+      # takes .tools/livekit-server for the runner's own platform).
+      - id: livekit
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .tools/livekit-server
+          key: livekit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/get-livekit.sh') }}
+      - if: steps.livekit.outputs.cache-hit != 'true'
+        run: bash scripts/get-livekit.sh
       - run: npm ci
         working-directory: client
       - run: npm ci
@@ -69,8 +77,17 @@ jobs:
             desktop/release/latest-linux.yml
             desktop/release/iskra-server-*.tar.gz
 
+  # One job per architecture, side by side: each builds, signs and notarizes its own dmg and zip. Their latest-mac.yml
+  # files (one architecture each) are merged in `publish` into the one a two-architecture build writes.
   mac:
-    runs-on: macos-latest # Apple silicon; builds both architectures
+    name: mac (${{ matrix.arch }})
+    runs-on: macos-latest # Apple silicon; cross-builds x64
+    strategy:
+      fail-fast: false # a rerun of failed jobs then rebuilds only the broken architecture
+      matrix:
+        arch: [arm64, x64]
+    env:
+      ARCH: ${{ matrix.arch }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -86,19 +103,28 @@ jobs:
           cache-dependency-path: |
             client/package-lock.json
             desktop/package-lock.json
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+      - name: Check the tag matches the app version
+        run: test "v$(node -p "require('./desktop/package.json').version")" = "$TAG"
+      # LiveKit has no official macOS builds: get-livekit.sh builds the pinned release from source. Cached on that
+      # script (it holds the pinned version and commit); CI's livekit-mac job keeps the entry on main, where tags read it.
+      - id: livekit
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .tools/osx-${{ matrix.arch }}/livekit-server
+          key: livekit-osx-${{ matrix.arch }}-${{ hashFiles('scripts/get-livekit.sh') }}
+      - if: steps.livekit.outputs.cache-hit != 'true'
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version: '1.26'
           cache: false
-      - name: Check the tag matches the app version
-        run: test "v$(node -p "require('./desktop/package.json').version")" = "$TAG"
-      # LiveKit has no official macOS builds: build the pinned release from source.
-      - run: bash scripts/get-livekit.sh osx-arm64 && bash scripts/get-livekit.sh osx-x64
+      - if: steps.livekit.outputs.cache-hit != 'true'
+        run: bash scripts/get-livekit.sh "osx-$ARCH"
       - run: npm ci
         working-directory: client
       - run: npm ci
         working-directory: desktop
       - run: npm test
+        if: matrix.arch == 'arm64'
         working-directory: desktop
       # Signed with the Developer ID and notarized by Apple when the secrets are set; otherwise ad-hoc signed as before.
       - name: Apple signing and notarization keys
@@ -130,7 +156,7 @@ jobs:
           fi
       - name: Desktop app (signed and notarized)
         if: env.MAC_SIGNED == '1'
-        run: npm run dist:mac -- "-c.mac.identity=$MAC_IDENTITY" -c.mac.hardenedRuntime=true -c.mac.notarize=true
+        run: npm run "dist:mac-$ARCH" -- "-c.mac.identity=$MAC_IDENTITY" -c.mac.hardenedRuntime=true -c.mac.notarize=true
         working-directory: desktop
         env:
           APPLE_API_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
@@ -140,47 +166,50 @@ jobs:
         if: env.MAC_SIGNED != '1'
         run: |
           echo "::warning::Ad-hoc signed Mac build: installed Mac apps can't update to it by themselves (they show a download link)."
-          npm run dist:mac
+          npm run "dist:mac-$ARCH"
         working-directory: desktop
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       # The Mac app updates itself from these zips (Squirrel.Mac): each must hold a Developer ID signed, notarized app,
-      # and latest-mac.yml must list both, or installed apps fall back to a download link.
+      # and latest-mac.yml must list both (publish merges and checks the two jobs' files), or installed apps fall back
+      # to a download link.
       - name: Check the update files
         if: env.MAC_SIGNED == '1'
         working-directory: desktop/release
         run: |
           v="${TAG#v}"
           team="$(echo "$MAC_IDENTITY" | sed -E 's/.*\(([A-Z0-9]{10})\)$/\1/')"
-          for arch in arm64 x64; do
-            zip="Iskra-$v-mac-$arch.zip"
-            grep -q "url: $zip" latest-mac.yml || { echo "::error::latest-mac.yml doesn't list $zip"; exit 1; }
-            test -f "$zip.blockmap" || { echo "::error::$zip.blockmap is missing"; exit 1; }
-            dir="$RUNNER_TEMP/check-$arch"
-            rm -rf "$dir" && mkdir -p "$dir" && ditto -x -k "$zip" "$dir"
-            codesign --verify --deep --strict "$dir/Iskra.app"
-            codesign -dv --verbose=2 "$dir/Iskra.app" 2>&1 | grep -E '^(Authority=Developer ID Application|TeamIdentifier)'
-            codesign -dv "$dir/Iskra.app" 2>&1 | grep -qx "TeamIdentifier=$team" || { echo "::error::$zip isn't signed by team $team"; exit 1; }
-            xcrun stapler validate "$dir/Iskra.app" || echo "::warning::$zip: no stapled notarization ticket (Gatekeeper checks online instead)"
-            spctl --assess --type execute -vv "$dir/Iskra.app"
-          done
+          zip="Iskra-$v-mac-$ARCH.zip"
+          grep -q "url: $zip" latest-mac.yml || { echo "::error::latest-mac.yml doesn't list $zip"; exit 1; }
+          test -f "$zip.blockmap" || { echo "::error::$zip.blockmap is missing"; exit 1; }
+          dir="$RUNNER_TEMP/check-$ARCH"
+          rm -rf "$dir" && mkdir -p "$dir" && ditto -x -k "$zip" "$dir"
+          codesign --verify --deep --strict "$dir/Iskra.app"
+          codesign -dv --verbose=2 "$dir/Iskra.app" 2>&1 | grep -E '^(Authority=Developer ID Application|TeamIdentifier)'
+          codesign -dv "$dir/Iskra.app" 2>&1 | grep -qx "TeamIdentifier=$team" || { echo "::error::$zip isn't signed by team $team"; exit 1; }
+          xcrun stapler validate "$dir/Iskra.app" || echo "::warning::$zip: no stapled notarization ticket (Gatekeeper checks online instead)"
+          spctl --assess --type execute -vv "$dir/Iskra.app"
         env:
           MAC_IDENTITY: ${{ vars.MAC_IDENTITY }}
-      - name: Server bundles
+      - name: Server bundle
         run: |
           v="${TAG#v}"
-          for arch in arm64 x64; do
-            tar -czf "desktop/release/iskra-server-$v-osx-$arch.tar.gz" -C "desktop/build/server-mac-$arch" .
-          done
+          tar -czf "desktop/release/iskra-server-$v-osx-$ARCH.tar.gz" -C "desktop/build/server-mac-$ARCH" .
+      # This job's latest-mac.yml lists only its own architecture: renamed so publish can merge the two.
+      - name: Update file part
+        run: |
+          v="${TAG#v}"
+          grep -qx "version: $v" desktop/release/latest-mac.yml || { echo "::error::latest-mac.yml isn't for $v"; exit 1; }
+          mv desktop/release/latest-mac.yml "desktop/release/latest-mac-$ARCH.part.yml"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: mac
+          name: mac-${{ matrix.arch }}
           if-no-files-found: error
           path: |
             desktop/release/*.dmg
             desktop/release/*.zip
             desktop/release/*.blockmap
-            desktop/release/latest-mac.yml
+            desktop/release/latest-mac-*.part.yml
             desktop/release/iskra-server-*.tar.gz
 
   publish:
@@ -195,6 +224,18 @@ jobs:
         with:
           path: assets
           merge-multiple: true
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ env.REF }}
+          path: src
+          sparse-checkout: scripts
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      # One latest-mac.yml listing both architectures, checked against the zips and dmgs (sha512, size); the parts go.
+      - name: Merge latest-mac.yml
+        run: node src/scripts/release-assets.mjs merge-yml "${TAG#v}" assets latest-mac.yml latest-mac-x64.part.yml latest-mac-arm64.part.yml
       # Provenance for the Linux and macOS files: gh attestation verify <file> -R quikmn/iskra-voice
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:

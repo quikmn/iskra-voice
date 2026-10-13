@@ -4,6 +4,8 @@ name: Release finalize
 # checks the release files, adds CycloneDX SBOMs, SHA256SUMS.txt and build-provenance attestations, publishes the release as
 # Latest with docs/releases/<version>.md as notes, then deploys iskra.foo and app.iskra.foo and updates chat.iskra.foo.
 # Runs in the `release` environment: add required reviewers there to approve each release by hand.
+# Release builds start on the tag without waiting for CI, so this is the gate: nothing is uploaded or published until the
+# CI workflow concluded success on the tagged commit (scripts/ci-gate.mjs; waits up to CI_WAIT_MINUTES, then fails).
 on:
   workflow_dispatch:
     inputs:
@@ -29,12 +31,15 @@ jobs:
       contents: write # upload SHA256SUMS.txt, publish the release
       id-token: write # sign the attestations (Sigstore)
       attestations: write
+      actions: read # the CI runs of the tagged commit
     outputs:
       version: ${{ steps.version.outputs.version }}
     env:
       TAG: ${{ inputs.tag }}
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
+      CI_WAIT_MINUTES: '45'
+    timeout-minutes: 90
     steps:
       - name: Check the tag
         id: version
@@ -49,6 +54,9 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24'
+      # Before anything changes on the release: a push run of ci.yml must have concluded success on exactly this commit.
+      - name: CI passed on the tagged commit
+        run: node scripts/ci-gate.mjs "$(git rev-parse HEAD)" --repo "$GH_REPO" --wait-minutes "$CI_WAIT_MINUTES"
       - name: Check the version and release notes
         run: |
           test "$(node -p "require('./desktop/package.json').version")" = "$VERSION" || { echo "::error::desktop/package.json at $TAG isn't $VERSION"; exit 1; }

@@ -5,7 +5,8 @@
 //   npm run release -- 2.0.0-alpha.10 --push     # pushes main and the tag too
 //   npm run release -- 2.0.0-alpha.10 --dry-run  # shows what would change; writes nothing, skips the git checks
 //
-// Needs docs/releases/<version>.md (the release notes). It may be uncommitted: it goes into the version commit.
+// Needs docs/releases/<version>.md (the release notes; scripts/release-notes.mjs writes it from NEXT.md). It and
+// docs/releases/NEXT.md may be uncommitted: they go into the version commit. scripts/release-all.ps1 runs the whole release.
 import { execFileSync, execSync } from 'node:child_process'
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -31,15 +32,16 @@ if (!isValidVersion(version)) fail(`"${version}" isn't a release version: use x.
 
 const tag = `v${version}`
 const notes = `docs/releases/${version}.md`
+const next = 'docs/releases/NEXT.md'
 const pkgPath = join(root, 'desktop/package.json')
 const previous = JSON.parse(readFileSync(pkgPath, 'utf8')).version
 if (compareVersions(version, previous) <= 0) fail(`${version} must be newer than the current version ${previous}`)
 
-// Git state: on main, clean (apart from the notes file), not behind origin, tag unused.
+// Git state: on main, clean (apart from the notes files), not behind origin, tag unused.
 const problems = []
 const branch = git('rev-parse', '--abbrev-ref', 'HEAD')
 if (branch !== 'main') problems.push(`you're on ${branch}; releases are made from main`)
-const dirty = git('status', '--porcelain', '--untracked-files=all').split('\n').filter(Boolean).filter((l) => rel(l.slice(3)) !== notes)
+const dirty = git('status', '--porcelain', '--untracked-files=all').split('\n').filter(Boolean).filter((l) => ![notes, next].includes(rel(l.slice(3))))
 if (dirty.length) problems.push(`the working tree has changes; commit or discard them first:\n  ${dirty.join('\n  ')}`)
 try {
   git('fetch', '--quiet', 'origin', 'main', '--tags')
@@ -74,6 +76,7 @@ console.log(`Iskra ${previous} -> ${version}`)
 for (const e of edits) console.log(`  ${e.file}: ${e.count} occurrence(s)`)
 console.log('  desktop/package.json, desktop/package-lock.json (npm version)')
 console.log(`  notes: ${notes}`)
+if (git('status', '--porcelain', '--', next)) console.log(`  ${next} (emptied for the next release)`)
 if (dryRun) { console.log('\nDry run: nothing written.'); process.exit(0) }
 
 for (const e of edits) writeFileSync(join(root, e.file), e.text)
@@ -82,7 +85,8 @@ execSync(`npm version ${version} --no-git-tag-version`, { cwd: join(root, 'deskt
 const lock = JSON.parse(readFileSync(join(root, 'desktop/package-lock.json'), 'utf8'))
 if (JSON.parse(readFileSync(pkgPath, 'utf8')).version !== version || lock.version !== version) fail('npm version did not update desktop/package.json and its lock file')
 
-git('add', '--', 'desktop/package.json', 'desktop/package-lock.json', ...edits.map((e) => e.file), notes)
+const nextChanged = git('status', '--porcelain', '--', next) !== ''
+git('add', '--', 'desktop/package.json', 'desktop/package-lock.json', ...edits.map((e) => e.file), notes, ...(nextChanged ? [next] : []))
 git('commit', '--quiet', '-m', `Version ${version}`, '-m', TRAILER)
 git('tag', '-a', tag, '-m', `Iskra ${version}`)
 console.log(`\nCommitted "Version ${version}" and tagged ${tag}.`)
