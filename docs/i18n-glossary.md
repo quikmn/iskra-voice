@@ -39,7 +39,7 @@ exists.
 | Members | Medlemmar |
 | Roles | Roller |
 | Reports | Anmälningar |
-| AutoMod (auto-moderation) | AutoMod (automatisk moderering) |
+| AutoMod (nav and heading) | AutoMod |
 | Activity log (who changed what; never "audit log") | Aktivitetslogg |
 | Sign-ins & security (never "security log" as a name) | Inloggningar och säkerhet |
 | Bots & webhooks | Bottar och webhooks |

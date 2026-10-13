@@ -20,7 +20,7 @@ test('settings, Escape, quick switcher and phone message actions', async ({ brow
   const roomNav = room.getByRole('navigation', { name: 'Settings sections' })
   await expect(roomNav.getByRole('button')).toHaveText([
     'Overview', 'Channels', 'Emoji & stickers', 'Soundboard', 'Profile pages', 'Server rules',
-    'Members', 'Roles', 'Reports', 'AutoMod (auto-moderation)', 'Activity log', 'Sign-ins & security',
+    'Members', 'Roles', 'Reports', 'AutoMod', 'Activity log', 'Sign-ins & security',
     'Bots & webhooks',
     'Internet access', 'Limits', 'Backup & move', 'Import from Discord', 'Server updates',
   ])

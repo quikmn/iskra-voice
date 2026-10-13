@@ -64,7 +64,7 @@ test('the owner checks for updates, sees what is new and picks how updates happe
   await expect(notice).toContainText('Update available for Update Night: Iskra 2.0.0-alpha.12')
   await owner.screenshot({ path: join(SHOTS, 'server-updates-notice.png') })
   await expect(friend.locator('.update-nudge')).toHaveCount(0)
-  await notice.getByRole('button', { name: 'Open Updates' }).click()
+  await notice.getByRole('button', { name: 'Open server updates' }).click()
   await expect(owner.getByTestId('updates-section')).toBeVisible()
   await owner.keyboard.press('Escape')
   await notice.getByRole('button', { name: 'Later' }).click()

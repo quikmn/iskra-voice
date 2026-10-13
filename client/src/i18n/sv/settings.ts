@@ -17,7 +17,7 @@ export const settings: Messages['settings'] = {
     reports: 'Anmälningar',
     overview: 'Översikt',
     roles: 'Roller',
-    automod: 'AutoMod (automatisk moderering)',
+    automod: 'AutoMod',
     emoji: 'Emoji och klistermärken',
     sounds: 'Soundboard',
     integrations: 'Bottar och webhooks',

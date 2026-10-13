@@ -16,7 +16,7 @@ export const settings = {
     reports: 'Reports',
     overview: 'Overview',
     roles: 'Roles',
-    automod: 'AutoMod (auto-moderation)',
+    automod: 'AutoMod',
     emoji: 'Emoji & stickers',
     sounds: 'Soundboard',
     integrations: 'Bots & webhooks',

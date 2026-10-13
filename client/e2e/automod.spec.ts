@@ -15,7 +15,7 @@ test('AutoMod blocks a word, tells the sender why, alerts and audits', async ({ 
   await joinVia(friend, await createInviteLink(host), 'Friend')
 
   // ── Settings → AutoMod: off at first, then words with an alert in #general.
-  await openServerSettings(host, 'AutoMod (auto-moderation)')
+  await openServerSettings(host, 'AutoMod')
   const section = host.getByTestId('automod-section')
   await expect(section).toContainText('AutoMod is off')
   await expect(section).toContainText("the server can't read them")
@@ -65,7 +65,7 @@ test('AutoMod blocks a word, tells the sender why, alerts and audits', async ({ 
   // ── Phone width: the settings stay usable.
   await host.setViewportSize({ width: 390, height: 844 })
   await host.getByRole('button', { name: 'Open channels' }).click()
-  await openServerSettings(host, 'AutoMod (auto-moderation)')
+  await openServerSettings(host, 'AutoMod')
   await expect(host.getByTestId('automod-section')).toContainText('AutoMod is on')
   await host.screenshot({ path: join(SHOTS, 'automod-settings-phone.png') })
 })

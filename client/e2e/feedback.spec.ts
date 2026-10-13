@@ -128,7 +128,7 @@ test('server menus: the rail icon and the server name lead to its settings; the 
     await expect(menu.getByRole('menuitem', { name: item, exact: true })).toBeVisible()
   }
   await menu.getByRole('menuitem', { name: 'More settings' }).click()
-  for (const item of ['Channels', 'Emoji & stickers', 'Soundboard', 'Profile pages', 'Server rules', 'AutoMod (auto-moderation)', 'Activity log',
+  for (const item of ['Channels', 'Emoji & stickers', 'Soundboard', 'Profile pages', 'Server rules', 'AutoMod', 'Activity log',
     'Sign-ins & security', 'Bots & webhooks', 'Internet access', 'Limits', 'Backup & move', 'Import from Discord', 'Server updates']) {
     await expect(menu.getByRole('menuitem', { name: item, exact: true })).toBeVisible()
   }
