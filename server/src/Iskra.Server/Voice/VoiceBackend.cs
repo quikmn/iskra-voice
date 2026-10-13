@@ -184,7 +184,7 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
 
     // LiveKit's API only listens on localhost: clients reach it through the server's /livekit proxy. Media ports stay open.
     // No enabled_codecs: LiveKit's defaults include audio/red, which clients publish voice with (redundant audio).
-    private string ConfigYaml(int iskraPort) => $"""
+    internal string ConfigYaml(int iskraPort) => $"""
         port: {Settings.Port}
         bind_addresses: [127.0.0.1]
         rtc:

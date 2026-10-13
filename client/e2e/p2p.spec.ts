@@ -3,6 +3,7 @@
 // and joins through the peer-to-peer tunnel instead: chat both ways, then voice relay-only through the tunnel.
 // Everything on this machine binds 127.0.0.1: a private HyperDHT testnet stands in for the public one
 // (ISKRA_P2P_BOOTSTRAP), the servers are localhost only (ISKRA_LOCAL_ONLY=1), nothing on the network is touched.
+import dgram from 'node:dgram'
 import { createRequire } from 'node:module'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -23,6 +24,20 @@ const createTestnet = createRequire(join(DESKTOP, 'package.json'))('hyperdht/tes
 
 const b64u = (text: string) => Buffer.from(text, 'utf8').toString('base64url')
 const electronExe = join(DESKTOP, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron')
+
+/** Whether a STUN/TURN server answers a Binding request on 127.0.0.1:<port> (LiveKit's TURN does), for diagnostics. */
+function stunAnswers(port: number): Promise<boolean> {
+  return new Promise((done) => {
+    const sock = dgram.createSocket('udp4')
+    const request = Buffer.alloc(20)
+    request[1] = 0x01
+    request.writeUInt32BE(0x2112a442, 4)
+    const timer = setTimeout(() => { sock.close(); done(false) }, 2000)
+    sock.on('message', (m) => { clearTimeout(timer); sock.close(); done(m.length >= 20 && m[0] === 0x01 && m[1] === 0x01) })
+    sock.on('error', () => { clearTimeout(timer); sock.close(); done(false) })
+    sock.bind(0, '127.0.0.1', () => sock.send(request, port, '127.0.0.1'))
+  })
+}
 
 /** What each RTCPeerConnection was made with, and the connections themselves (for getStats). The page is already loaded (the app never navigates), so the hook goes in now; LiveKit only creates connections when voice starts. */
 async function recordPeerConnections(page: Page): Promise<void> {
@@ -230,13 +245,20 @@ test('a friend joins a home-hosted server through the peer-to-peer tunnel and ta
       const debug = await app?.evaluate(() => JSON.stringify((globalThis as unknown as { iskraP2pDebug?: () => unknown }).iskraP2pDebug?.() ?? null)).catch((e: Error) => `n/a: ${e.message}`)
       console.log(`${name} app tunnels: ${debug}`)
     }
+    try {
+      const settings = JSON.parse(readFileSync(join(hostRoot, 'behind-cgnat', 'server.json'), 'utf8')) as { P2p?: { Enabled?: boolean }; Voice?: { RtcUdpPort?: number; TurnUdpPort?: number } }
+      const turnPort = settings.Voice?.TurnUdpPort || (settings.Voice?.RtcUdpPort ?? 7882) + 1
+      console.log(`host server.json P2p.Enabled=${settings.P2p?.Enabled}; TURN on ${turnPort} answers STUN: ${await stunAnswers(turnPort)}`)
+    } catch (e) {
+      console.log(`host server.json: ${(e as Error).message}`)
+    }
     await friendApp?.close()
     await hostApp?.close()
     await testnet.destroy()
     const log = join(hostRoot, 'behind-cgnat', 'server.log')
     if (existsSync(log)) {
-      const lines = readFileSync(log, 'utf8').split(/\r?\n/).filter((l) => /livekit|turn|p2p|voice|warn|fail|error/i.test(l) && !/livekit-webhook/.test(l))
-      console.log(`--- hosted server.log (voice and p2p lines) ---\n${lines.slice(-40).join('\n')}`)
+      const lines = readFileSync(log, 'utf8').split(/\r?\n/).filter((l) => /Restarting voice|Voice ready|TURN|turn\b|p2p|P2p|warn:|fail:|error/i.test(l) && !/livekit-webhook|\/livekit\/rtc/.test(l))
+      console.log(`--- hosted server.log (voice and p2p lines) ---\n${lines.slice(-60).join('\n')}`)
     }
     for (const dir of [hostData, friendData, hostRoot]) rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 })
   }

@@ -26,6 +26,96 @@ public class P2pTunnelTests : IDisposable
         return ((IPEndPoint)listener.LocalEndpoint).Port;
     }
 
+    /// <summary>The pinned livekit-server in .tools (scripts/get-livekit), or null.</summary>
+    private static string? LiveKit()
+    {
+        var name = OperatingSystem.IsWindows() ? "livekit-server.exe" : "livekit-server";
+        for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
+        {
+            var candidate = Path.Combine(dir.FullName, ".tools", name);
+            if (File.Exists(candidate)) return candidate;
+        }
+        return null;
+    }
+
+    private Process StartServer(string world)
+    {
+        var dll = Path.Combine(AppContext.BaseDirectory, "iskra-server.dll");
+        var info = new ProcessStartInfo("dotnet", $"\"{dll}\" \"{world}\"") { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
+        var process = Process.Start(info)!;
+        process.OutputDataReceived += (_, e) => { if (e.Data is not null) _log.Enqueue(e.Data); };
+        process.ErrorDataReceived += (_, e) => { if (e.Data is not null) _log.Enqueue(e.Data); };
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
+        _processes.Add(process);
+        return process;
+    }
+
+    private async Task WaitForServerAsync(Process process, int port)
+    {
+        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+        for (var i = 0; ; i++)
+        {
+            try
+            {
+                if ((await http.GetAsync($"http://127.0.0.1:{port}/")).IsSuccessStatusCode) return;
+            }
+            catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { }
+            Assert.False(process.HasExited, $"The server stopped: {string.Join("\n", _log)}");
+            if (i > 300) throw new Xunit.Sdk.XunitException("The server didn't start.");
+            await Task.Delay(100);
+        }
+    }
+
+    /// <summary>How many log lines so far contain <paramref name="text"/>.</summary>
+    private int LinesWith(string text) => _log.Count(l => l.Contains(text, StringComparison.Ordinal));
+
+    private async Task<bool> WaitForLineAsync(string text, int atLeast, int ms)
+    {
+        for (var waited = 0; waited < ms; waited += 100)
+        {
+            if (LinesWith(text) >= atLeast) return true;
+            await Task.Delay(100);
+        }
+        return LinesWith(text) >= atLeast;
+    }
+
+    /// <summary>Whether a STUN/TURN server answers a Binding request on <paramref name="port"/> (LiveKit's TURN does).</summary>
+    private static async Task<bool> StunAnswersAsync(int port)
+    {
+        using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var request = new byte[20];
+        request[1] = 0x01; // Binding Request, length 0
+        request[4] = 0x21; request[5] = 0x12; request[6] = 0xA4; request[7] = 0x42; // magic cookie
+        RandomNumberGenerator.Fill(request.AsSpan(8, 12));
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            await udp.SendAsync(request, request.Length, new IPEndPoint(IPAddress.Loopback, port));
+            using var timeout = new CancellationTokenSource(1000);
+            try
+            {
+                var answer = await udp.ReceiveAsync(timeout.Token);
+                if (answer.Buffer.Length >= 20 && answer.Buffer[0] == 0x01 && answer.Buffer[1] == 0x01) return true; // Binding Success
+            }
+            catch (OperationCanceledException) { }
+            catch (SocketException) { } // nothing listens (ICMP port unreachable)
+        }
+        return false;
+    }
+
+    /// <summary>The owner's session through the front door, from the owner invite the server wrote.</summary>
+    private static async Task<(TestClient Client, TestIdentity Identity)> OwnerAsync(string world, int port)
+    {
+        var ownerLink = File.ReadAllText(Path.Combine(world, "owner-invite.txt")).Trim();
+        var ownerCode = ownerLink[(ownerLink.LastIndexOf('.') + 1)..];
+        var socket = new ClientWebSocket();
+        await socket.ConnectAsync(new Uri($"ws://127.0.0.1:{port}/ws"), CancellationToken.None);
+        var identity = new TestIdentity();
+        var client = new TestClient(socket);
+        Assert.Equal("welcome", (await client.LoginAsync(identity, "Owner", ownerCode)).GetProperty("type").GetString());
+        return (client, identity);
+    }
+
     private static byte[] ProxyHeader(IPAddress source, int sourcePort)
     {
         var header = new List<byte> { 0x0D, 0x0A, 0x0D, 0x0A, 0x00, 0x0D, 0x0A, 0x51, 0x55, 0x49, 0x54, 0x0A, 0x21, 0x11, 0x00, 12 };
@@ -99,27 +189,9 @@ public class P2pTunnelTests : IDisposable
             P2p = new { Enabled = true },
             Retention = new { SecurityLogIps = true },
         }));
-        var dll = Path.Combine(AppContext.BaseDirectory, "iskra-server.dll");
-        var info = new ProcessStartInfo("dotnet", $"\"{dll}\" \"{world}\"") { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
-        var process = Process.Start(info)!;
-        process.OutputDataReceived += (_, e) => { if (e.Data is not null) _log.Enqueue(e.Data); };
-        process.ErrorDataReceived += (_, e) => { if (e.Data is not null) _log.Enqueue(e.Data); };
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
-        _processes.Add(process);
-
+        var process = StartServer(world);
+        await WaitForServerAsync(process, port);
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
-        for (var i = 0; ; i++)
-        {
-            try
-            {
-                if ((await http.GetAsync($"http://127.0.0.1:{port}/")).IsSuccessStatusCode) break;
-            }
-            catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { }
-            Assert.False(process.HasExited, $"The server stopped: {string.Join("\n", _log)}");
-            if (i > 300) throw new Xunit.Sdk.XunitException("The server didn't start.");
-            await Task.Delay(100);
-        }
         // Started with P2p on: the secret and the tunnel's port are in the folder for the desktop app.
         var portFile = Path.Combine(world, "p2p.port");
         for (var i = 0; i < 100 && !File.Exists(portFile); i++) await Task.Delay(50);
@@ -144,13 +216,9 @@ public class P2pTunnelTests : IDisposable
         Assert.Equal("", body);
 
         // The owner comes in the front door; a stranger knocks through the tunnel and fails the handshake.
-        var ownerLink = File.ReadAllText(Path.Combine(world, "owner-invite.txt")).Trim();
-        var ownerCode = ownerLink[(ownerLink.LastIndexOf('.') + 1)..];
-        var ownerSocket = new ClientWebSocket();
-        await ownerSocket.ConnectAsync(new Uri($"ws://127.0.0.1:{port}/ws"), CancellationToken.None);
-        using var ownerIdentity = new TestIdentity();
-        using var owner = new TestClient(ownerSocket);
-        Assert.Equal("welcome", (await owner.LoginAsync(ownerIdentity, "Owner", ownerCode)).GetProperty("type").GetString());
+        var (owner, ownerIdentity) = await OwnerAsync(world, port);
+        using var _owner = owner;
+        using var _ownerIdentity = ownerIdentity;
 
         using var strangerIdentity = new TestIdentity();
         using var stranger = await TunnelSocketAsync(tunnelPort, friend);
@@ -174,6 +242,49 @@ public class P2pTunnelTests : IDisposable
         Assert.Equal("203.0.113.9", failed.GetProperty("ip").GetString());
         var joined = log.Single(e => e.GetProperty("event").GetString() == "member.joined" && e.GetProperty("account").GetString() == friendIdentity.AccountKey);
         Assert.Equal("198.51.100.4", joined.GetProperty("ip").GetString());
+    }
+
+    /// <summary>
+    /// Voice through the tunnel needs LiveKit's embedded TURN server, which only runs while the feature is on: turning
+    /// it on (and off) restarts LiveKit with (and without) it. Skipped without the pinned livekit-server in .tools.
+    /// </summary>
+    [Fact]
+    public async Task Turning_p2p_on_restarts_voice_with_its_turn_server()
+    {
+        var livekit = LiveKit();
+        Assert.SkipWhen(livekit is null, "livekit-server isn't in .tools");
+        int port = FreePort(), voicePort = FreePort(), rtcTcp = FreePort();
+        var rtcUdp = 40000 + Random.Shared.Next(20000);
+        var world = Path.Combine(_dir, "voice");
+        Directory.CreateDirectory(world);
+        File.WriteAllText(Path.Combine(world, "server.json"), JsonSerializer.Serialize(new
+        {
+            Name = "Voice",
+            Port = port,
+            LocalOnly = true,
+            Voice = new { Enabled = true, LiveKitPath = livekit, Port = voicePort, RtcTcpPort = rtcTcp, RtcUdpPort = rtcUdp },
+        }));
+        var process = StartServer(world);
+        await WaitForServerAsync(process, port);
+        Assert.True(await WaitForLineAsync("Voice ready", 1, 30_000), $"LiveKit didn't come up:\n{string.Join("\n", _log)}");
+        var turnPort = rtcUdp + 1;
+        Assert.False(await StunAnswersAsync(turnPort)); // off: no TURN
+
+        var (owner, identity) = await OwnerAsync(world, port);
+        using var _owner = owner;
+        using var _identity = identity;
+        var on = await owner.RequestAsync("p2p.set", new { enabled = true });
+        Assert.Equal("result", on.GetProperty("type").GetString());
+        // LiveKit restarts with TURN on RtcUdpPort + 1.
+        Assert.True(await WaitForLineAsync("Restarting voice", 1, 10_000));
+        Assert.True(await WaitForLineAsync("Voice ready", 2, 30_000), $"LiveKit didn't come back:\n{string.Join("\n", _log.TakeLast(60))}");
+        Assert.True(await StunAnswersAsync(turnPort), $"No TURN after turning p2p on:\n{string.Join("\n", _log.TakeLast(60))}");
+
+        // Off again: LiveKit restarts without it.
+        var off = await owner.RequestAsync("p2p.set", new { enabled = false });
+        Assert.Equal("result", off.GetProperty("type").GetString());
+        Assert.True(await WaitForLineAsync("Voice ready", 3, 30_000));
+        Assert.False(await StunAnswersAsync(turnPort));
     }
 
     public void Dispose()
