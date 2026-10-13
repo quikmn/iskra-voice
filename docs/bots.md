@@ -7,7 +7,9 @@ Iskra has two ways to bring other programs into your server:
 | **Webhook** | A secret URL that posts messages into one channel | Build results, alerts, game-server stats, anything that can send an HTTP request |
 | **Bot** | A program that joins like a person: it answers `/commands`, buttons and forms, and posts | Dice, polls, reminders, games, role pickers |
 
-Both show a **BOT** badge, so everyone can tell them apart from people. Admins manage both in **Bots & webhooks** (in the channel list).
+Both show a **BOT** badge, so everyone can tell them apart from people. Admins manage both in **Server settings → Bots & webhooks**. No programming needed? Turn on a [built-in bot](#built-in-bots).
+
+For server owners: [hosting.md → Bots and webhooks](hosting.md#bots-and-webhooks). How bots and webhooks are kept in check: [security.md → Webhooks and bots](security.md#webhooks-and-bots). Where your server sends things: [Who Iskra talks to](privacy-connections.md).
 
 ## Webhooks
 
@@ -130,6 +132,23 @@ Check: with the secret `whs_test`, timestamp `1760000000`, id `abc` and the body
 | Rate | Per webhook: 30 events at once, then 5 a second, 100 waiting at most; more are skipped (and logged). |
 | Never sent | Anything from end-to-end encrypted channels, direct messages and group chats (the server can't read them), and messages posted by incoming webhooks. |
 | Per server | 10 outgoing webhooks |
+| The secret | The server keeps each signing secret to sign with, so it's in the server's database and its backups. Keep backups private, and make a **New secret** if one may have leaked. |
+
+## Built-in bots
+
+Three small bots come with every server and run inside it, so there's nothing to install, host or keep running. An
+admin turns each one on in **Server settings → Bots & webhooks → Bots**:
+
+| Bot | Command | Does |
+|---|---|---|
+| **Dice** | `/roll 2d6+3`, `/roll d20` | Rolls dice (up to 100 dice and 10 terms; `/roll` alone is `1d6`). |
+| **Polls** | `/poll Pizza or tacos? \| Pizza \| Tacos` | Starts a normal poll in a text channel (2–10 answers). |
+| **Reminders** | `/remind me in 10m take the pizza out` | Reminds you about that message later (1 minute up to a year), like any reminder. |
+
+Turned on, each is a bot member like any other: give it a role or channel overrides to choose where it answers. It
+reads only its own commands, answers mistakes privately to the person who typed them, and stays out of encrypted
+channels. Turning it off removes it; turning it on again brings back the same member. Details:
+[PROTOCOL.md → Built-in bots](../protocol/PROTOCOL.md#built-in-bots).
 
 ## Bots
 

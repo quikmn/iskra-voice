@@ -36,7 +36,7 @@
 <main class="doc">
   <div class="doc-kicker">Privacy</div>
   <h1>Privacy <span class="grad">Policy</span></h1>
-  <p class="updated">Last updated 12 October 2026</p>
+  <p class="updated">Last updated 13 October 2026</p>
 
   <p class="lead">Iskra is built so that as little as possible about you ends up anywhere. This page explains what is stored, where, who can see it, and how to get rid of it.</p>
 
@@ -105,6 +105,7 @@
   <p>Server channels, voice channels and files are <strong>not</strong> end-to-end encrypted, unless the channel is an encrypted channel (see below): whoever runs the server can read them, and so can the members allowed into each channel. Servers use HTTPS when the owner has turned it on (it's automatic with "Let friends anywhere join").</p>
   <p>A server sees your <strong>IP address</strong> while you're connected, because it needs it to talk to you. Iskra's server doesn't store IP addresses in its database and doesn't log requests by default. Each server keeps a <strong>security log</strong> that only its owner can read: failed sign-ins, new members and devices, account key changes, account deletions, backups and data downloads, with the account key and time (never message text). It records IP addresses only if the owner turns that on. Servers also keep <strong>daily backups</strong> (the last 7 days by default) so the owner can undo mistakes.</p>
   <p>Links in messages get a preview (title and description) that <strong>the server fetches</strong>, not your device, so the website sees the server's address instead of yours.</p>
+  <p><strong>Bots</strong> on a server are programs an admin added; they show a BOT badge. A bot gets only its commands, button clicks and forms, and messages that mention it or reply to it, unless an admin lets it read all messages (you can see which bots can). The built-in bots (Dice, Polls, Reminders) run inside the server and read only their own commands. In an encrypted channel, a command you send to a bot goes to the server and the bot <strong>unencrypted</strong>; the app tells you before you send it, and the answer is shown only to you.</p>
 
   <h2 id="e2ee">4. Direct messages, group chats and calls</h2>
   <p>Direct messages and group chats, including their pictures, files and voice messages, are <strong>end-to-end encrypted</strong>: only the people in the conversation can read them. Voice and video calls in DMs and group chats are end-to-end encrypted too, and so are <strong>encrypted channels</strong> (an option for small private channels, text and voice), which only the people who can see the channel can read. You can read the details in our <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/security.md" target="_blank" rel="noopener">security notes</a>.</p>
@@ -143,7 +144,7 @@
         <tr><td><strong>GitHub</strong> (desktop app updates)</td><td>The desktop app checks GitHub's releases for updates shortly after it starts and every 4 hours, and downloads updates from there. Downloads on iskra.foo come from GitHub too.</td><td>Your IP address and the app version.</td><td>On by default because updates fix security problems. Turn off in <span class="path">My settings → Privacy &amp; data</span>; "Check for updates" in the tray still works.</td></tr>
         <tr><td><strong>Push services</strong></td><td>Only if you turn notifications on (see <a href="#push">Notifications</a>).</td><td>That a notification was sent to your device, and when; not its content.</td><td><span class="path">My settings → Notifications</span>.</td></tr>
         <tr><td><strong>Cloudflare</strong> (app.iskra.foo)</td><td>Only the web app: Cloudflare delivers its files when you open it in a browser (see <a href="#sites">The websites</a>). The desktop and phone apps carry their own copy.</td><td>Your IP address, not your chats.</td><td>Use the desktop or phone app.</td></tr>
-        <tr><td><strong>Profile pages</strong></td><td>Only if you choose to run a profile page's scripts.</td><td>The page's author could learn your IP address. The app warns you first.</td><td>Don't run them.</td></tr>
+        <tr><td><strong>Profile pages</strong></td><td>Never. In the desktop app, a page's scripts run behind a wall where they can't reach the network (a page shows only pictures uploaded to its own server). Browsers and the phone apps show other people's pages without scripts.</td><td>Nothing: a page can't load anything from elsewhere, so its author can't learn your IP address.</td><td>Nothing to turn off.</td></tr>
       </tbody>
     </table>
   </div>
@@ -152,6 +153,7 @@
   <p>Every server can also:</p>
   <ul>
     <li><strong>Fetch the live-captions model once from Hugging Face</strong> (at a fixed version, checked against a fingerprint built into Iskra), the first time a member turns captions on. Hugging Face sees only the server's address; members' apps then get the model from their own server. The owner can turn this off.</li>
+    <li><strong>Send events to addresses its admins choose</strong> (outgoing webhooks), for example to a game server or home automation: new messages and reactions in chosen channels, people joining or leaving, events starting. That site gets what the event contains, such as message text and names, from the server's address, never yours. Nothing from encrypted channels, DMs or group chats is ever sent. Every member can see where their servers send things in <span class="path">My settings → Privacy &amp; data</span>.</li>
     <li><strong>Check GitHub for new server versions</strong> (standalone servers; the owner can turn it off, or let the server install updates by itself). GitHub sees the server's address. Servers started by the desktop app update with the app and never check by themselves.</li>
   </ul>
   <p>If you <strong>rent a server</strong> with the app's setup text, the provider you pick runs that computer and can see what's on it, like any server you rent. The setup downloads Iskra from GitHub. Iskra has no deal with any provider and gets nothing from it.</p>

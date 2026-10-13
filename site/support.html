@@ -84,26 +84,27 @@
 
   <details>
     <summary>What's the recovery key, and why does it matter?</summary>
-    <p>Your account lives on your devices, not on a server, and there's no password. The <strong>recovery key</strong> is how you get your account back on a new device, or after clearing your browser or losing your phone. Find it in <span class="path">Settings → Recovery key</span> and keep it somewhere safe, like a password manager.</p>
+    <p>Your account lives on your devices, not on a server, and there's no password. The <strong>recovery key</strong> is how you get your account back on a new device, or after clearing your browser or losing your phone. Find it in <span class="path">My settings → Recovery key</span> and keep it somewhere safe, like a password manager.</p>
     <p><strong>Nobody can recover it for you</strong>, not us and not a server owner. And anyone who has it can use your account, so never share it. Nobody from Iskra or a server will ever ask you for it.</p>
   </details>
 
   <details>
     <summary>How do I use my account on a new phone or computer?</summary>
-    <p>The easiest way is <strong>device linking</strong>: on a device where you're signed in, open <span class="path">Settings → Devices → Link a device</span>, then scan the QR code (or type the code) on the new device. Both devices show a six-digit number to compare before anything is sent. Your account goes straight from one device to the other, encrypted.</p>
+    <p>The easiest way is <strong>device linking</strong>: on a device where you're signed in, open <span class="path">My settings → Devices → Link a device</span>, then scan the QR code (or type the code) on the new device. Both devices show a six-digit number to compare before anything is sent. Your account goes straight from one device to the other, encrypted.</p>
     <p>No other device at hand? On the new device choose <strong>I already use Iskra on another device</strong>, then <strong>Use my recovery key</strong>, and paste your key. Then open an invite link to each of your servers to get back in.</p>
   </details>
 
   <details>
     <summary>I lost a device. What should I do?</summary>
-    <p>On another device, open <span class="path">Settings → Devices</span> and remove the lost one. It's signed out for good. If you're worried someone has your recovery key, you can replace your account key in the app; your friends will see that your safety number changed.</p>
+    <p>On another device, open <span class="path">My settings → Devices</span> and remove the lost one. It's signed out for good. If you're worried someone has your recovery key, you can replace your account key in the app; your friends will see that your safety number changed.</p>
   </details>
 
   <details>
     <summary>How do I leave a server or sign out?</summary>
     <ul>
-      <li><strong>Hide a server</strong> from your list: open the server's settings, <span class="path">Overview → Remove server</span>. You stay a member and can come back with any invite link.</li>
-      <li><strong>Sign out of this device</strong>: <span class="path">Settings → Devices → Sign out of this device</span>. Tick <strong>Also leave my servers</strong> to leave them on every device. Make sure you've saved your recovery key if this is your only device.</li>
+      <li><strong>Hide a server</strong> from your list: right-click its icon (or press and hold it on a phone) and pick <span class="path">Hide server</span>. You stay a member, it stays quiet, and you can show it again in <span class="path">My settings → Appearance → Hidden servers</span>.</li>
+      <li><strong>Leave a server</strong> for real: pick <span class="path">Leave server</span> in the same menu. You're taken off its member list and your roles there go; your messages stay. To come back you need a new invite. An owner first makes someone else the owner.</li>
+      <li><strong>Sign out of this device</strong>: <span class="path">My settings → Devices → Sign out of this device</span>. Tick <strong>Also leave my servers</strong> to leave them on every device. Make sure you've saved your recovery key if this is your only device.</li>
       <li><strong>Leave Iskra completely</strong>: <a href="/delete-account">delete your account</a>.</li>
     </ul>
   </details>
@@ -113,12 +114,13 @@
   <details>
     <summary>I don't get notifications</summary>
     <ul>
-      <li>Turn them on for each device in <span class="path">Settings → Notifications</span>, and allow them when your browser or system asks.</li>
+      <li>Turn them on for each device in <span class="path">My settings → Notifications</span>, and allow them when your browser or system asks.</li>
       <li>If it says notifications are blocked, allow them for Iskra in your browser's site settings (or your phone's settings), then try again.</li>
       <li>On iPhone and iPad, notifications only work in the app added to the Home Screen.</li>
       <li>The Android app shows notifications while it's open. To be notified while it's closed, use the web app in your phone's browser.</li>
       <li>On phones, the server needs HTTPS ("Let friends anywhere join" sets it up).</li>
       <li>You won't get a notification on a device you're actively using, and a muted server or channel doesn't notify you (right-click it, or long-press on a phone, to check).</li>
+      <li>Until you pick a level for a server, one with fewer than 15 people notifies you about every message, and a bigger one only about @mentions. Change it from the server's menu (right-click its icon, or press and hold it on a phone): <span class="path">Notifications</span>.</li>
     </ul>
   </details>
 
@@ -127,7 +129,7 @@
   <details>
     <summary>Nobody can hear me, or I can't hear anyone</summary>
     <ul>
-      <li>Check that Iskra may use your microphone (browser site settings, or your system's privacy settings), and pick the right devices in <span class="path">Settings → Voice &amp; audio</span>.</li>
+      <li>Check that Iskra may use your microphone (browser site settings, or your system's privacy settings), and pick the right devices in <span class="path">My settings → Voice &amp; audio</span>.</li>
       <li>Make sure you're not muted or deafened, and that push-to-talk isn't on by mistake.</li>
       <li>If voice works at home but not for friends elsewhere, the server's voice ports need to be reachable: <code>7881/tcp</code> and <code>7882/udp</code>. "Let friends anywhere join" opens them on most routers; otherwise forward them by hand (see the <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md#ports-at-a-glance" target="_blank" rel="noopener">ports in the hosting guide</a>).</li>
       <li>Strict networks (some workplaces, schools and VPNs) can block voice. Try another network to check.</li>
@@ -137,7 +139,7 @@
   <details>
     <summary>Background noise, or my voice sounds cut off</summary>
     <ul>
-      <li><span class="path">Settings → Voice &amp; audio → Noise suppression</span>: <strong>AI</strong> (the default) removes the most noise. On a slow computer Iskra switches to <strong>Strong</strong> by itself and says so.</li>
+      <li><span class="path">My settings → Voice &amp; audio → Noise suppression</span>: <strong>AI</strong> (the default) removes the most noise. On a slow computer Iskra switches to <strong>Strong</strong> by itself and says so. If your voice sounds squashed, set <span class="path">AI noise removal strength</span> to <strong>Gentle</strong>.</li>
       <li>If the start of what you say gets lost, turn off <strong>Set automatically</strong> and set the sensitivity by hand, or use push-to-talk.</li>
       <li>Someone else is noisy? Turn on <strong>Clean up others' audio</strong> for your end of the call.</li>
     </ul>
@@ -152,7 +154,7 @@
   <ul>
     <li><strong>Report a message or a person:</strong> open the message's menu, or the person's menu, and choose <strong>Report</strong>. It goes to that server's moderators, who can delete it, time the person out, kick or ban them. The reported person never sees who reported them.</li>
     <li><strong>In DMs and group chats</strong> (end-to-end encrypted), you can choose messages to share with the moderators of a server you both are on.</li>
-    <li><strong>Block someone:</strong> from their menu, choose <strong>Block</strong>. It stops their DMs and calls to you on every server you share, and their messages stop notifying you. Manage your list in <span class="path">Settings → Blocked people</span>.</li>
+    <li><strong>Block someone:</strong> from their menu, choose <strong>Block</strong>. It stops their DMs and calls to you on every server you share, and their messages stop notifying you. Manage your list in <span class="path">My settings → Blocked people</span>.</li>
   </ul>
 
   <div class="box warn">
