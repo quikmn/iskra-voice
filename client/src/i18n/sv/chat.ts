@@ -123,9 +123,9 @@ export const chat: Messages['chat'] = {
     more: 'Visa fler resultat',
     attachments_one: '{{count}} bilaga',
     attachments_other: '{{count}} bilagor',
-    resultCount_one: '{{count}} resultat',
-    resultCount_other: '{{count}} resultat',
-    resultCountCapped: '{{n}}+ resultat',
+    resultCount_one: '{{count}} meddelande',
+    resultCount_other: '{{count}} meddelanden',
+    resultCountCapped: '{{n}}+ meddelanden',
     typeSomething: 'Skriv något att söka efter.',
   },
   header: {

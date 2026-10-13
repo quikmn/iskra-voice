@@ -25,20 +25,24 @@ interface SearchState {
 
 const initial = { text: '', searched: '', results: [], total: 0, totalCapped: false, hasMore: false, loading: false, error: null }
 
-/** "1 result", "12 results", "1000+ results". */
+/** "1 message", "12 messages", "1000+ messages" (docs pages are listed apart). */
 export const resultCount = (total: number, capped: boolean) => (capped ? t('chat.search.resultCountCapped', { n: total }) : t('chat.search.resultCount', { count: total }))
 
 export const useSearch = create<SearchState>(() => ({ key: null, ...initial }))
 
 export const setSearchText = (text: string) => useSearch.setState({ text })
 
+/** Opens the panel for a server; what's typed in the box stays. */
 export function openSearch(key: string): void {
-  if (useSearch.getState().key !== key) useSearch.setState({ ...initial, key })
+  const state = useSearch.getState()
+  if (state.key !== key) useSearch.setState({ ...initial, key, text: state.text })
   closeThread()
 }
 
+/** Closes the panel and empties the box, so the next search starts fresh. */
 export function closeSearch(): void {
-  useSearch.setState({ key: null })
+  generation++
+  useSearch.setState({ key: null, ...initial })
 }
 
 let generation = 0

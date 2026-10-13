@@ -63,7 +63,7 @@ test('pin a message, talk in a thread, and search for it', async ({ browser }) =
   await box.fill('flou')
   await box.press('Enter')
   const results = host.locator('.search-panel')
-  await expect(results.getByRole('heading', { name: '1 result' })).toBeVisible()
+  await expect(results.getByRole('heading', { name: '1 message' })).toBeVisible()
   await expect(results.locator('.result-where')).toHaveText('#general › Baking plans')
   await expect(results.locator('mark')).toHaveText('flour')
   await host.screenshot({ path: join(SHOTS, 'search.png') })
@@ -76,6 +76,10 @@ test('pin a message, talk in a thread, and search for it', async ({ browser }) =
   await expect(host.locator('.search-panel .result-card')).toHaveCount(1)
   await host.locator('.search-panel .result-card').click()
   await expect(host.locator('.messages .message', { hasText: 'apple pie' })).toBeVisible()
+  // Closing the results empties the box: the next search starts fresh.
+  await host.locator('.search-panel .panel-close').click()
+  await expect(host.locator('.search-panel')).toHaveCount(0)
+  await expect(box).toHaveValue('')
 
   // Phones: search is a full-screen view.
   await friend.setViewportSize({ width: 390, height: 844 })

@@ -122,9 +122,9 @@ export const chat = {
     more: 'Show more results',
     attachments_one: '{{count}} attachment',
     attachments_other: '{{count}} attachments',
-    resultCount_one: '{{count}} result',
-    resultCount_other: '{{count}} results',
-    resultCountCapped: '{{n}}+ results',
+    resultCount_one: '{{count}} message',
+    resultCount_other: '{{count}} messages',
+    resultCountCapped: '{{n}}+ messages',
     typeSomething: 'Type something to search for.',
   },
   header: {
