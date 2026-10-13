@@ -4,7 +4,9 @@ name: DeepFilterNet build check
 # commit, our patches, Cargo.lock, Rust, wasm-bindgen and binaryen) and fails if it isn't byte for byte what's
 # committed. Runs when any of that changes, or by hand.
 on:
+  # Branches only (a release tag would rebuild for nothing); Dependabot's run as pull requests.
   push:
+    branches: ['**', '!dependabot/**']
     paths: ['client/vendor/deepfilternet/**', 'scripts/build-deepfilter.sh', '.github/workflows/deepfilter.yml']
   pull_request:
     paths: ['client/vendor/deepfilternet/**', 'scripts/build-deepfilter.sh', '.github/workflows/deepfilter.yml']
@@ -12,6 +14,11 @@ on:
 
 permissions:
   contents: read
+
+# A newer push to the same branch or PR cancels the older rebuild.
+concurrency:
+  group: deepfilter-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 jobs:
   rebuild:

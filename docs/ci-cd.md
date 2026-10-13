@@ -21,12 +21,14 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
 ## 1. Overview
 
 ```
- every branch push / PR ──► ci.yml ..... server, client, desktop tests (Win/Linux/macOS), interop, e2e in 4 shards
-                                         (+ the `end-to-end` check over them), release-script tests, backup-restore drill
-                                         (report kept as an artifact); on main also keeps the macOS LiveKit builds cached
+ every branch push ──► ci.yml ..... server, client, desktop tests (Windows, Linux), interop, e2e in 4 shards
+                                    (+ the `end-to-end` check over them), release-script tests + backup-restore drill
+                                    (one job; report kept as an artifact). A newer push to the branch cancels the older
+                                    run, except a "Version X" commit's (the release gate needs it)
+ PR / nightly on main ──► ci.yml ... the same plus desktop tests on macOS and the macOS LiveKit cache for releases
  every push / PR / weekly ──► secrets.yml .. gitleaks over the whole git history
- push to main / PR / weekly ──► codeql.yml ... code scanning: JS/TS, C#, workflows
- push to main / weekly ──► scorecard.yml ..... OpenSSF Scorecard → code scanning + scorecard.dev
+ PR / weekly / by hand ──► codeql.yml ... code scanning: JS/TS, C#, workflows
+ PR / weekly / by hand ──► scorecard.yml ..... OpenSSF Scorecard → code scanning + scorecard.dev (the weekly run publishes)
  weekly ──► Dependabot ............ grouped PRs for npm (client, desktop, bots), NuGet (server), GitHub Actions
  every 15 min ──► uptime.yml ....... iskra.foo, app.iskra.foo, chat.iskra.foo (+ /health), voice port, TLS expiry
                                      ──► GitHub issue labelled "outage" on a change of state (section 8)
@@ -380,12 +382,25 @@ many of them (branch protection, review) are owner settings too. Click-by-click 
 **Read a failing run:** `gh run list -L 5`, then `gh run view <id> --log-failed`. CI failures email the owner: fix
 or revert quickly.
 
-**End-to-end in CI** runs in four jobs, `end-to-end shard 1/4` … `4/4` (Playwright `--shard`, split by spec file), plus
-`interop` (the TS client and bot SDK against the server, not sharded). The job `end-to-end` waits for all of them and is
-green only when every one passed: it's the check to require in branch protection. When a shard fails it merges the
-shards' blob reports into one HTML report, the artifact `playwright-report` (open `index.html`; traces included);
-each failing shard also keeps its `playwright-results-<n>` folder. Run one shard locally the same way:
-`npx playwright test --shard=2/4`. LiveKit (`.tools/livekit-server`) and the captions model are cached on their pins.
+**End-to-end in CI** runs in four jobs, `end-to-end shard 1/4` … `4/4`, plus `interop` (the TS client and bot SDK
+against the server, not sharded). The shards split the spec files by measured duration so they finish together:
+`scripts/e2e-shards.mjs` (greedy, longest first) over `client/e2e/durations.json`; a spec not in that file counts as the
+median, so a new spec always runs somewhere. Shard 1 checks that the split holds every spec Playwright lists, once
+(`npm test` at the root checks the same offline). When the shards drift apart (new or slower specs), refresh the
+durations from a green run: `gh run view <id> --log > ci.log`, `node scripts/e2e-shards.mjs measure ci.log` (several logs
+are averaged), commit `durations.json`; `node scripts/e2e-shards.mjs show` prints the split. The job `end-to-end` waits
+for all of them and is green only when every one passed: it's the check to require in branch protection. When a shard
+fails it merges the shards' blob reports into one HTML report, the artifact `playwright-report` (open `index.html`;
+traces included); each failing shard also keeps its `playwright-results-<n>` folder. Run one shard locally the same
+way: `node ../scripts/e2e-shards.mjs list 2 4 shard.txt`, then `npx playwright test --test-list shard.txt` (in
+`client/`). LiveKit (`.tools/livekit-server`) and the captions model are cached on their pins.
+
+**Fewer jobs per push.** GitHub runs 20 jobs at once on this plan (40 on Pro); one push to main starts 16 (14 CI + the
+secrets scan; pushes skip macOS, CodeQL and Scorecard, which run on PRs, nightly or weekly). A newer push to the same
+branch cancels the older CI run (`concurrency` in ci.yml), so a burst of pushes doesn't queue. Never cancelled: the
+"Version X" commit's run (its own group: release finalize waits for CI to pass on exactly that commit; if one was
+cancelled anyway, `gh run rerun <id>` it), tag runs, release, finalize, deploy and iOS workflows. Dependabot's branches
+run CI as pull requests only.
 
 | Symptom | Cause and fix |
 |---|---|
@@ -393,7 +408,7 @@ each failing shard also keeps its `playwright-results-<n>` folder. Run one shard
 | sign.ps1 found no certificate in PowerShell 7 although it's installed | Fixed: `-CodeSigningCert` is missing when PSModulePath points at PowerShell 7's modules, so sign.ps1 filters on the code-signing EKU (1.3.6.1.5.5.7.3.3) itself. Keep that filter if you touch it |
 | macOS: `security: SecKeychainItemImport` / codesign "errSecInternalComponent" / keychain won't unlock | Fixed in release.yml: we import the p12 into our own keychain and run `set-key-partition-list` (electron-builder's temporary keychain fails on current runners). Keep that step |
 | Notarization failed or hangs | The electron-builder log shows the submission id. On a Mac with the .p8: `xcrun notarytool log <id> --key AuthKey.p8 --key-id <id> --issuer <issuer>` (or `notarytool history`) lists the rejected files. Common: an unsigned nested binary, missing hardened runtime, expired membership or agreement waiting in App Store Connect |
-| Finalize: "no green CI run on …" / "CI concluded failure on this commit" | The CI gate: nothing was published. A flake: rerun CI's failed jobs (`gh run rerun <id> --failed`), then start finalize again (or `release-all.ps1 X -Resume`). A real failure: fix main and release the next version; never move the tag |
+| Finalize: "no green CI run on …" / "CI concluded failure on this commit" | The CI gate: nothing was published. A flake: rerun CI's failed jobs (`gh run rerun <id> --failed`), then start finalize again (or `release-all.ps1 X -Resume`). "CI concluded cancelled": a newer push cancelled it (shouldn't happen to a "Version X" commit): `gh run rerun <id>`, then finalize again. A real failure: fix main and release the next version; never move the tag |
 | release.yml publish: "latest-mac.yml: … doesn't match its build's update file" / "the parts …" | The two Mac jobs' update files don't fit their zips or each other. Rerun release.yml's failed jobs; if it repeats, report |
 | Finalize: "missing (…)" | A build didn't upload. Check `release.yml`'s run for the tag, rerun it (`gh workflow run release.yml -f tag=vX`) or rerun release-windows.ps1 with `-SkipBuild` |
 | Finalize: "latest.yml: … doesn't match" | A file was re-uploaded without the latest*.yml from the same build (or the other way round). Upload both from the same build |
@@ -405,7 +420,7 @@ each failing shard also keeps its `playwright-results-<n>` folder. Run one shard
 | Windows Firewall prompts during tests | Something listened on all interfaces. Tests must be localhost-only (`LocalOnly: true`, `ISKRA_LOCAL_ONLY=1`); `scripts/dev-firewall.ps1` adds block rules for new exe paths |
 | Secrets scan fails | gitleaks found something that looks like a secret (the log shows file, commit and rule, value redacted). A real one: revoke/rotate it at the service **first** (it's public the moment it's pushed), then remove it from the tree. A false positive: add its fingerprint (`commit:file:rule:line`, printed in the log) to `.gitleaksignore` with a comment why, or a path to `.gitleaks.toml` for test data |
 | SBOM step fails in finalize | Usually npm or NuGet being unreachable, or a lock file out of step with package.json at the tag: rerun. Nothing is published before it passes |
-| `backup-restore-drill` fails | A backup didn't restore to the same data: treat it as a real bug in Backups/ (the report artifact `restore-drill-report` says what differed) |
+| `scripts-and-drill` fails at the restore drill | A backup didn't restore to the same data: treat it as a real bug in Backups/ (the report artifact `restore-drill-report` says what differed) |
 | CodeQL C# job fails to build | Needs .NET 10 (setup-dotnet in codeql.yml); same build as CI |
 | iOS: "Cloud signing permission error" / "doesn't have permission to … cloud-managed distribution certificates" | The API key isn't Admin. New Admin key, replace the three `APPSTORE_*` secrets ([iOS app](#ios-app), mobile/README.md step 3) |
 | iOS: "No profiles for 'foo.iskra.app'" / "No Account for Team" | The App ID isn't registered, or a developer agreement is pending (developer.apple.com and App Store Connect → Business). Owner fixes it, rerun |

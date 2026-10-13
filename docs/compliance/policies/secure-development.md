@@ -37,13 +37,13 @@
 |---|---|---|
 | Server tests (xUnit, real server + WebSocket clients) | `.github/workflows/ci.yml` job `server`, Windows + Linux | Every push and PR |
 | Client tests (vitest) and type-checked build | `ci.yml` job `client` | Every push and PR |
-| Desktop unit tests | `ci.yml` job `desktop`, Windows + Linux + macOS | Every push and PR |
+| Desktop unit tests | `ci.yml` job `desktop`, Windows + Linux (+ macOS on PRs, nightly and in release builds) | Every push and PR |
 | Interop (TS client ↔ .NET server) and Playwright end-to-end | `ci.yml` jobs `interop` and `end-to-end shard 1/4`…`4/4`, summed up by the job `end-to-end` | Every branch push and PR |
-| Release-script tests | `ci.yml` job `release-scripts` | Every push and PR |
-| Backup → restore drill with integrity checks | `ci.yml` job `backup-restore-drill` (artifact `restore-drill-report`) | Every push and PR |
-| Static analysis (CodeQL: C#, JS/TS, workflows) | `.github/workflows/codeql.yml` | Push to main, PRs, weekly |
+| Release-script tests | `ci.yml` job `scripts-and-drill` | Every push and PR |
+| Backup → restore drill with integrity checks | `ci.yml` job `scripts-and-drill` (artifact `restore-drill-report`) | Every push and PR |
+| Static analysis (CodeQL: C#, JS/TS, workflows) | `.github/workflows/codeql.yml` | PRs, weekly on main |
 | Secret scanning (gitleaks) | `.github/workflows/secrets.yml`, `.gitleaks.toml` | Every push and PR |
-| Supply-chain posture (OpenSSF Scorecard) | `.github/workflows/scorecard.yml` → code scanning | Weekly and on main |
+| Supply-chain posture (OpenSSF Scorecard) | `.github/workflows/scorecard.yml` → code scanning | PRs, weekly on main |
 | Dependency updates (npm, NuGet, Actions) with a 7-day cooldown | `.github/dependabot.yml` | Weekly |
 
 Every bug gets a regression test. A change is done when all of CI is green.

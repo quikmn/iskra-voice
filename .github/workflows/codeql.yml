@@ -1,17 +1,21 @@
 name: CodeQL
 
+# Weekly on main, on PRs and by hand; not on every push (three analyses per push mostly queued CI behind them).
 on:
-  push:
-    branches: [main]
-    paths-ignore: ['site/**', '**.md']
   pull_request:
     branches: [main]
     paths-ignore: ['site/**', '**.md']
   schedule:
     - cron: '23 4 * * 1' # Mondays
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+# A newer push to a PR cancels its older analysis.
+concurrency:
+  group: codeql-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   analyze:

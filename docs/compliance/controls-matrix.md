@@ -49,7 +49,7 @@ security log (`security_log` table, `security.log.list`, Settings → Security l
 | CC7.4 Incident response | Plan with containment steps, evidence, notification templates | POL/incident-response | met |
 | CC7.5 Recovery from incidents | Rollback, restore procedure, post-incident review | POL/backup-and-recovery, POL/incident-response | met |
 | CC8.1 Change management | Release pipeline with tests, approvals, attestations; ruleset on main pending | POL/change-management, CICD §2, OA 6–7 | owner-action |
-| CC9.1 Business disruption risk mitigation | RPO/RTO, backups, restore drill | POL/backup-and-recovery, CI job `backup-restore-drill` | partial |
+| CC9.1 Business disruption risk mitigation | RPO/RTO, backups, restore drill | POL/backup-and-recovery, CI job `scripts-and-drill` | partial |
 | CC9.2 Vendor and partner risk | Vendor register; DPAs to confirm | POL/vendor-register, OA 12 | owner-action |
 
 ### Availability
@@ -58,7 +58,7 @@ security log (`security_log` table, `security.log.list`, Settings → Security l
 |---|---|---|---|
 | A1.1 Capacity | Upload quotas, size limits, rate limits; droplet with swap; no capacity monitoring | HOST `server.json` reference, OA 10 | partial |
 | A1.2 Backups and recovery infrastructure | Daily backups (same disk), encrypted downloads; off-site copies pending | [BackupService.cs][backupsvc], OA 8–9 | owner-action |
-| A1.3 Recovery testing | Automated backup → restore drill on every CI run; yearly real restore pending | CI `backup-restore-drill` (artifact `restore-drill-report`), [RestoreDrillTests.cs][drill], OA 11 | partial |
+| A1.3 Recovery testing | Automated backup → restore drill on every CI run; yearly real restore pending | CI `scripts-and-drill` (artifact `restore-drill-report`), [RestoreDrillTests.cs][drill], OA 11 | partial |
 
 ### Confidentiality
 

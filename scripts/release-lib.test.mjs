@@ -193,6 +193,10 @@ test('CI gate verdicts', () => {
   // Pull-request runs never count, green or not.
   assert.equal(ciVerdict([run('completed', 'success', 'pull_request')]).state, 'wait')
   assert.equal(ciVerdict([run('completed', 'skipped')]).state, 'fail')
+  // A run cancelled by a newer push: fails, with how to get a green run on this commit.
+  const cancelled = ciVerdict([run('completed', 'cancelled')])
+  assert.equal(cancelled.state, 'fail')
+  assert.match(cancelled.message, /cancelled.*gh run rerun/)
 })
 
 test('finds notes that already shipped', () => {
