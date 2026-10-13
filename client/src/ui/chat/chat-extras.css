@@ -148,9 +148,9 @@ label.header-search.panel-search input, label.header-search.panel-search input:f
   .mobile-count { display: block; text-align: left; }
   .side-panel {
     position: fixed; inset: 0; z-index: var(--z-panel); width: auto; border-left: 0;
-    padding-top: env(safe-area-inset-top); animation: slide-in 0.16s ease-out;
+    padding-top: var(--safe-top); padding-bottom: var(--safe-bottom); animation: slide-in 0.16s ease-out;
   }
-  .header-popover { position: fixed; top: 56px; left: 8px; right: 8px; width: auto; }
+  .header-popover { position: fixed; top: calc(56px + var(--safe-top)); left: 8px; right: 8px; width: auto; }
   .pin-note { padding-left: 16px; }
   .jump-present { margin: 0 8px 4px; }
 }

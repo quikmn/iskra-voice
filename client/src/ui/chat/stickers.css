@@ -13,7 +13,7 @@
 .sticker-layer.sheet { background: var(--scrim); animation: fade 0.14s ease-out; }
 .sticker-layer.sheet .sticker-picker {
   left: 0; right: 0; bottom: 0; top: auto; width: 100%; max-width: none; height: min(70dvh, 480px);
-  border-radius: calc(var(--radius) * 1.6) calc(var(--radius) * 1.6) 0 0; padding-bottom: env(safe-area-inset-bottom); animation: sheet-up 0.2s var(--ease);
+  border-radius: calc(var(--radius) * 1.6) calc(var(--radius) * 1.6) 0 0; padding-bottom: var(--safe-bottom); animation: sheet-up 0.2s var(--ease);
 }
 img.sticker { display: block; width: 160px; height: 160px; object-fit: contain; margin-top: 4px; user-select: none; }
 img.sticker.small { width: 48px; height: 48px; margin: 0; }

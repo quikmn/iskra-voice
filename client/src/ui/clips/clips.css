@@ -44,7 +44,7 @@
 
 /* Above the composer and call controls, not over the channel header; dialogs cover them. */
 .clip-toasts {
-  position: fixed; bottom: calc(96px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: var(--z-toast);
+  position: fixed; bottom: calc(96px + var(--safe-bottom)); left: 50%; transform: translateX(-50%); z-index: var(--z-toast);
   display: grid; gap: 6px; width: max-content; max-width: calc(100vw - 24px);
 }
 .clip-toast {

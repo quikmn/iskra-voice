@@ -35,7 +35,7 @@
 .emoji-picker-layer.sheet { background: var(--scrim); animation: fade 0.14s ease-out; }
 .emoji-picker-layer.sheet .emoji-picker, .emoji-picker-layer.sheet .soundboard {
   left: 0; right: 0; bottom: 0; top: auto; width: 100%; max-width: none; border-radius: calc(var(--radius) * 1.6) calc(var(--radius) * 1.6) 0 0;
-  padding-bottom: env(safe-area-inset-bottom); animation: sheet-up 0.2s var(--ease);
+  padding-bottom: var(--safe-bottom); animation: sheet-up 0.2s var(--ease);
 }
 .emoji-picker-layer.sheet .emoji-picker { height: min(70dvh, 480px); }
 .emoji-picker-layer.sheet .emoji-cell { height: 44px; }
@@ -92,7 +92,7 @@
 .soundboard-empty, .soundboard-note { margin: 4px 12px 12px; font-size: 13px; }
 .voice-controls .icon-button.on, .call-button.on { color: var(--accent-2); }
 .sound-toasts {
-  position: fixed; top: calc(72px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: var(--z-notice);
+  position: fixed; top: calc(72px + var(--safe-top)); left: 50%; transform: translateX(-50%); z-index: var(--z-notice);
   display: grid; gap: 6px; pointer-events: none; width: max-content; max-width: calc(100vw - 24px);
 }
 .sound-toast {
@@ -102,7 +102,7 @@
 @keyframes toast-in { from { opacity: 0; transform: translateY(-6px); } }
 /* Phones: the header is where your thumb and eyes go, so toasts sit above the composer / call controls instead. */
 @media (max-width: 760px) {
-  .sound-toasts { top: auto; bottom: calc(96px + env(safe-area-inset-bottom)); }
+  .sound-toasts { top: auto; bottom: calc(96px + var(--safe-bottom)); }
   .sound-toast { animation-name: toast-up; }
 }
 @keyframes toast-up { from { opacity: 0; transform: translateY(6px); } }

@@ -74,7 +74,7 @@
   .incoming-call { padding: 0; place-items: stretch; }
   .incoming-card {
     width: 100%; border-radius: 0; border: 0; align-content: center;
-    padding: 24px 16px calc(32px + env(safe-area-inset-bottom));
+    padding: 24px 16px calc(32px + var(--safe-bottom));
   }
   .incoming-actions { padding-top: 40px; }
 }

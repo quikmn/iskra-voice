@@ -53,7 +53,7 @@
   .settings-nav-group .settings-nav-item:last-child { border-bottom-left-radius: var(--radius); border-bottom-right-radius: var(--radius); }
   .settings-nav-item + .settings-nav-item { box-shadow: inset 0 1px 0 var(--border); }
   .settings-nav-item svg { color: var(--muted); flex: none; }
-  .settings-pane { padding: 16px 16px calc(32px + env(safe-area-inset-bottom)); animation-name: pane-slide; }
+  .settings-pane { padding: 16px 16px calc(32px + var(--safe-bottom)); animation-name: pane-slide; }
   .settings-pane > .settings-section > h2:first-child { display: none; } /* the slim band shows it */
   .settings-facts > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
 }

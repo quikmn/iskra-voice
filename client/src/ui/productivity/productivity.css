@@ -31,7 +31,7 @@
 
 /* A short confirmation */
 .productivity-done {
-  position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: var(--z-toast); padding: 10px 16px; border-radius: 999px;
+  position: fixed; left: 50%; bottom: calc(96px + var(--safe-bottom)); transform: translateX(-50%); z-index: var(--z-toast); padding: 10px 16px; border-radius: 999px;
   background: var(--float); border: 1px solid var(--border); box-shadow: var(--shadow-pop); font-size: 14px; animation: pop 0.16s var(--ease);
   max-width: calc(100vw - 32px);
 }
@@ -87,7 +87,7 @@ button.inbox-row-main:hover { background: var(--hover); }
 @media (max-width: 760px) {
   .inbox-row { flex-wrap: wrap; }
   .inbox-row-actions { max-width: none; width: 100%; padding: 0 8px 8px 50px; justify-content: flex-start; }
-  .productivity-done { bottom: calc(88px + env(safe-area-inset-bottom)); }
+  .productivity-done { bottom: calc(88px + var(--safe-bottom)); }
 }
 
 /* Narrow phones: the composer keeps its room; press and hold the send button to send later. */
