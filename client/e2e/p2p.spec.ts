@@ -278,9 +278,7 @@ test('a friend joins a home-hosted server through the peer-to-peer tunnel and ta
         }
       }
     }
-    if (friendConsole.length && !passed) console.log(`--- friend console ---
-${friendConsole.slice(-60).join('
-')}`)
+    if (friendConsole.length && !passed) console.log(`--- friend console ---\n${friendConsole.slice(-60).join('\n')}`)
     for (const [name, app] of passed ? [] : ([['friend', friendApp], ['host', hostApp]] as const)) {
       const debug = await app?.evaluate(() => JSON.stringify((globalThis as unknown as { iskraP2pDebug?: () => unknown }).iskraP2pDebug?.() ?? null)).catch((e: Error) => `n/a: ${e.message}`)
       console.log(`${name} app tunnels: ${debug}`)
