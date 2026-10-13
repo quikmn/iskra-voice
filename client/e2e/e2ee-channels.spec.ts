@@ -116,6 +116,7 @@ test('encrypted channels: members chat, a removed member gets a new key cut off,
   // The server's database holds only ciphertext: none of what was said.
   for (const file of readdirSync(server.world).filter((f) => f.startsWith('iskra.db'))) {
     const bytes = readFileSync(join(server.world, file))
-    for (const text of ['7781', 'see you at 8', 'bringing snacks', '9902']) expect(bytes.includes(Buffer.from(text))).toBe(false)
+    // Whole phrases: four digits alone can turn up by chance in base64 ciphertext (link.spec once found '4242' that way).
+    for (const text of [secret, 'see you at 8', 'bringing snacks', after]) expect(bytes.includes(Buffer.from(text))).toBe(false)
   }
 })

@@ -6,16 +6,23 @@ import { matchGame, parseTasklist } from './games'
 
 const POLL_MS = 30_000
 
-function run(file: string, args: string[]): Promise<string> {
+/** The program's output, or null if it failed or took too long. */
+function run(file: string, args: string[]): Promise<string | null> {
   return new Promise((resolve) => {
-    execFile(file, args, { windowsHide: true, maxBuffer: 4 * 1024 * 1024, timeout: 10_000 }, (error, stdout) => resolve(error ? '' : stdout))
+    execFile(file, args, { windowsHide: true, maxBuffer: 4 * 1024 * 1024, timeout: 10_000 }, (error, stdout) => resolve(error ? null : stdout))
   })
 }
 
-/** Names of running programs (Windows: image names; Linux: the program from each command line; macOS: ps). */
-export async function runningPrograms(): Promise<string[]> {
-  if (process.platform === 'win32') return parseTasklist(await run('tasklist', ['/fo', 'csv', '/nh']))
-  if (process.platform === 'darwin') return (await run('ps', ['-axo', 'comm='])).split('\n')
+/**
+ * Names of running programs (Windows: image names; Linux: the program from each command line; macOS: ps), or null
+ * when they couldn't be listed this time (tasklist can take several seconds on a busy computer, say while gaming).
+ */
+export async function runningPrograms(): Promise<string[] | null> {
+  if (process.platform === 'win32') {
+    const out = await run('tasklist', ['/fo', 'csv', '/nh'])
+    return out === null ? null : parseTasklist(out)
+  }
+  if (process.platform === 'darwin') return (await run('ps', ['-axo', 'comm=']))?.split('\n') ?? null
   // Linux: /proc/<pid>/cmdline's first part (comm is cut at 15 characters); games under Proton show as their .exe.
   const names: string[] = []
   for (const pid of await readdir('/proc').catch(() => [] as string[])) {
@@ -32,9 +39,9 @@ export class ActivityDetector {
   private current: string | null = null
   private custom: { name: string; process: string }[] = []
   private readonly onChange: (game: string | null) => void
-  private readonly list: () => Promise<string[]>
+  private readonly list: () => Promise<string[] | null>
 
-  constructor(onChange: (game: string | null) => void, list: () => Promise<string[]> = runningPrograms) {
+  constructor(onChange: (game: string | null) => void, list: () => Promise<string[] | null> = runningPrograms) {
     this.onChange = onChange
     this.list = list
   }
@@ -57,8 +64,10 @@ export class ActivityDetector {
   }
 
   async check(): Promise<void> {
-    const game = matchGame(await this.list(), this.custom)
-    if (this.timer) this.report(game) // still on
+    const programs = await this.list()
+    // Turned off meanwhile, or the programs couldn't be listed this time: keep what's shown (not "no game").
+    if (!this.timer || programs === null) return
+    this.report(matchGame(programs, this.custom))
   }
 
   private report(game: string | null): void {
