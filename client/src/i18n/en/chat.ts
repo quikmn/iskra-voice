@@ -48,6 +48,7 @@ export const chat = {
     placeholder: 'Message #{{name}}',
     reconnecting: 'Reconnecting…',
     queued: 'Sends when the upload finishes',
+    whenBack: 'You can keep writing: messages send when {{name}} is back.',
     queuedCancel: 'Don’t send when the upload finishes',
     gifs: 'GIFs',
     emoji: 'Emoji',

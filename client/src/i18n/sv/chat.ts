@@ -49,6 +49,7 @@ export const chat: Messages['chat'] = {
     placeholder: 'Skriv i #{{name}}',
     reconnecting: 'Ansluter igen…',
     queued: 'Skickas när uppladdningen är klar',
+    whenBack: 'Du kan fortsätta skriva: meddelandena skickas när {{name}} är tillbaka.',
     queuedCancel: 'Skicka inte när uppladdningen är klar',
     gifs: 'GIF:ar',
     emoji: 'Emoji',

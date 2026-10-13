@@ -514,8 +514,9 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
   const replyTo = useReply((s) => s.replyTo[replyKey(server.key, channelId)] ?? null)
   const text = useDraft(draftKey.channel(server.key, channelId))
   const online = server.status.state === 'online'
-  // While the server restarts you can keep writing: sends wait as "sending" and go out once it's back.
-  const writable = online || server.status.state === 'restarting'
+  // While the server restarts or can't be reached you can keep writing: sends wait as "sending" and go out once it's back.
+  const away = !!server.me && server.status.state === 'offline'
+  const writable = online || server.status.state === 'restarting' || away
   const setText = (value: string) => setDraft(draftKey.channel(server.key, channelId), value)
   const uploading = uploads.some((u) => !u.result && !u.error)
   const ready = uploads.filter((u) => u.result).map((u) => u.result!)
@@ -664,6 +665,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
         </div>
       )}
       {queue.bar}
+      {away && <div className="queued-send" role="status">{t('chat.composer.whenBack', { name: server.name })}</div>}
     <div className="composer">
       <button className="icon-button attach-button" onClick={() => fileInput.current?.click()} aria-label={t('chat.composer.attach')} title={t('chat.composer.attach')} disabled={!online}>
         <Paperclip />
