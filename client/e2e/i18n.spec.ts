@@ -56,7 +56,7 @@ test('switch to Svenska and back', async ({ browser }) => {
   }
 
   // And back to English.
-  await page.locator('.me-bar').getByRole('button', { name: sv.common.settings, exact: true }).click()
+  await page.locator('.me-bar').getByRole('button', { name: sv.settings.room.mine, exact: true }).click()
   const settings = page.getByRole('dialog', { name: sv.common.settings })
   await settings.getByRole('navigation').getByRole('button', { name: sv.settings.sections.language, exact: true }).click()
   await settings.getByRole('combobox', { name: sv.common.language.title }).selectOption('en')
