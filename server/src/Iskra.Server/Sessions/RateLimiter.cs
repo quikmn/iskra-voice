@@ -38,6 +38,7 @@ public sealed class RateLimiter(TimeProvider time)
         ["presence.set"] = (10, 1),
         ["dm.upload.begin"] = (10, 2),
         ["dm.file.url"] = (40, 10),
+        ["captions.model.link"] = (10, 1),
         ["gif.search"] = (10, 1),
         ["gif.trending"] = (10, 1),
         ["gif.categories"] = (5, 0.2),

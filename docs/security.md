@@ -212,7 +212,7 @@ A theme is a JSON file of colours, sizes and font choices. Every value is checke
 
 ### Voice, video and captions on your device
 
-AI noise removal, voice detection, evening out voices, cleaning up others' audio, camera background blur and replace, and live captions all run **on your own device**: no sound, picture or caption text is sent anywhere for processing, and captions are never stored or sent to the server. The models ship with the app, except the captions model, which the app downloads once from the server of the call you're in (the server fetched it once from Hugging Face). Both the server and the app check every part against SHA-256 hashes built into Iskra before using it, and the workers that run the models can't fetch anything. Details, models and licenses: [voice-processing.md](voice-processing.md).
+AI noise removal, voice detection, evening out voices, cleaning up others' audio, camera background blur and replace, and live captions all run **on your own device**: no sound, picture or caption text is sent anywhere for processing, and captions are never stored or sent to the server. The models ship with the app, except the captions model, which the app downloads once from the server of the call you're in (the server fetched it once from Hugging Face; only members get a link to it). Both the server and the app check every part against SHA-256 hashes built into Iskra before using it, and the workers that run the models can't fetch anything. Details, models and licenses: [voice-processing.md](voice-processing.md).
 
 **Clips** are recorded on the device of the person who saves one, from what their app already plays. Turning clips on is shown to everyone in the call and saving one posts a notice, but that's a courtesy between honest apps: nothing can stop a modified app from recording what it receives, in any call.
 
@@ -224,7 +224,7 @@ AI noise removal, voice detection, evening out voices, cleaning up others' audio
 
 ### Server updates
 
-A standalone server can check GitHub for new versions and, on Linux with systemd, install them itself (the owner picks: off, tell me, or install automatically). A package is only used if its SHA-256 matches both `SHA256SUMS.txt` and the checksum GitHub lists for the file, the archive holds nothing but plain files, and the new version starts on that machine. If it doesn't start, the previous version is put back. Every check, install, failure and rollback goes into the security log. `/health` reports only the version, uptime and whether voice is up: no names, addresses or member counts.
+A standalone server can check GitHub for new versions and, on Linux with systemd, install them itself (the owner picks: off, tell me, or install automatically). A package is only used if its SHA-256 matches both `SHA256SUMS.txt` and the checksum GitHub lists for the file, its build-provenance attestation verifies on the server (Sigstore, signed by Iskra's release workflow on GitHub's runners for that file; on by default, the owner can turn it off with a warning), the archive holds nothing but plain files, and the new version starts on that machine. If it doesn't start, the previous version is put back. Every check, install, failure and rollback goes into the security log. `/health` reports only the version, uptime and whether voice is up: no names, addresses or member counts.
 
 ### Webhooks and bots
 

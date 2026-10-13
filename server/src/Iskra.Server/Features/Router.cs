@@ -15,7 +15,7 @@ public sealed class Router
     private readonly ILogger<Router> _log;
 
     public Router(ILogger<Router> log, Hosting.InternetHost internet, Backups.BackupService backups, Import.ImportService imports,
-        DataExports exports, Updates.UpdateService updates)
+        DataExports exports, Updates.UpdateService updates, Captions.CaptionModelService captions)
     {
         _log = log;
         Add("ping", (_, _, _) => new { });
@@ -72,6 +72,7 @@ public sealed class Router
         KeyLogFeature.Register(this);
         E2eeChannelFeature.Register(this);
         BotCommandFeature.Register(this);
+        Captions.CaptionModelFeature.Register(this, captions);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

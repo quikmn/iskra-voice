@@ -186,6 +186,7 @@ function UpdateSettings({ status, onChange }: { status: ServerUpdateStatus; onCh
             <input type="checkbox" checked={status.requireAttestation} onChange={(e) => onChange({ requireAttestation: e.target.checked })} />
             {t('updates.requireAttestation')}
           </label>
+          {!status.requireAttestation && <p className="warning-text update-attestation-off" role="note">{t('updates.attestationOff')}</p>}
         </>
       )}
       <p className="muted update-note">{t('updates.verifyNote')}</p>
