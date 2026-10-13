@@ -2558,7 +2558,7 @@ tighter grants; the audio itself goes from the bot straight to LiveKit, as for p
 | type | body | result | who |
 |---|---|---|---|
 | `bot.invite` | gains `voice?` (bool, default `false`): the bot may join voice | | admin+ |
-| `bot.voice.set` | `accountKey` (a bot member), `voice` (bool) | `{ member }` | admin+; `member.updated` goes to everyone |
+| `bot.voice.set` | `accountKey` (a bot member), `voice` (bool) | `{ member }` | admin+ (others: `forbidden`, key `admins_bot_voice`); built-in bots: `bad_request` (key `bot_builtin_voice`); `member.updated` goes to everyone |
 | `voice.join` | as before; bots only with `voice` (see below) | `{ url, token, room, canSpeak }` | |
 | `voice.disconnect` | `accountKey` | | `moveMembers`, someone below you (or yourself) who is in a voice channel you can see |
 
