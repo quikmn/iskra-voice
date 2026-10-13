@@ -51,6 +51,9 @@ export const e2ee: Messages['e2ee'] = {
     pending: 'Dekrypterar…',
     noKey: 'Krypterat innan du kunde läsa kanalen (eller innan den här enheten lades till), så det går inte att läsa här.',
     error: 'Meddelandet gick inte att dekryptera.',
+    olderFormat: 'Äldre format',
+    olderFormatHint: 'Skickat från en äldre version av Iskra: krypterat och signerat, men inte knutet till den här kanalen eller tråden.',
+    afterRemoval: 'Skickat efter att avsändaren förlorade åtkomsten till kanalen ({{date}}), så det kanske inte kommer från hen.',
   },
   search: {
     local: 'Krypterade kanaler söks bara på den här enheten, i de meddelanden den har dekrypterat.',
@@ -67,6 +70,9 @@ export const e2ee: Messages['e2ee'] = {
     noKey: 'Du kan inte gå med än: den här enheten har inte kanalens nyckel.',
   },
   errors: {
+    moved: 'Meddelandet har flyttats hit från ett annat ställe.',
+    replayed: 'Meddelandet är en kopia av ett tidigare.',
+    rolledBack: 'Servern visade en äldre version av meddelandet.',
     chainReplaced: 'Kanalens kryptering byttes ut av servern medan du fortfarande var med i den. Meddelandena förblir låsta tills det är löst.',
     setupTwice: 'Kanalens kryptering sattes upp två gånger.',
     historyStart: 'Kanalens historik börjar inte när den skapades.',

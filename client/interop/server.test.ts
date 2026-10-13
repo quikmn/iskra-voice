@@ -12,6 +12,9 @@ import { b64u, fromB64u } from '../src/core/crypto'
 import { generatePrekey, revokedSet, signPrekey, signRevocation } from '../src/core/devices'
 import { decryptDm, encryptDm } from '../src/core/dm'
 import { encryptedSize, FileDecryptor, FileEncryptor } from '../src/core/dmFiles'
+import {
+  decryptChannelMessage, encryptChannelMessage, MOVED, newChainId, newEpochKey, openEpochKey, sealEpochKey, signChannelChange, verifyChannelChain,
+} from '../src/core/channelChain'
 import { createIdentity, type Identity } from '../src/core/identity'
 import {
   checkMac, confirmationCode, encodeLinkCode, ephemeralKey, linkKeys, macKey, newLinkSecret, openPayload, parseLinkCode,
@@ -24,7 +27,7 @@ import { openPrefs, prefsKey, sealPrefs } from '../src/core/prefs'
 import { authProfile } from '../src/core/profile'
 import { compareStamps, nextStamp, parseSynced, PROFILE_PREF, toSynced, wireStamp } from '../src/core/profileSync'
 import type { Profile } from '../src/core/storage'
-import type { Events, Welcome } from '../src/core/protocol'
+import type { Events, Message, Welcome } from '../src/core/protocol'
 
 const SERVER_DLL = resolve(__dirname, '../../server/src/Iskra.Server/bin/Debug/net10.0/iskra-server.dll')
 
@@ -191,6 +194,46 @@ describe('client ↔ server', () => {
     for (let r = await reader.read(); !r.done; r = await reader.read()) parts.push(...decryptor.push(r.value))
     parts.push(decryptor.finish())
     expect(Buffer.concat(parts).equals(Buffer.from(plain))).toBe(true)
+  })
+
+  it('encrypted channel: bound messages open where they were sent, never moved between a channel and its thread', async () => {
+    const [owner, friend] = users
+    const ownerKey = owner.welcome!.you.accountKey
+    const friendKey = friend.welcome!.you.accountKey
+    const chain = newChainId()
+    const create = signChannelChange(owner.identity, null, chain, 'create', [friendKey])
+    const view = verifyChannelChain(chain, [create])
+    const epochKey = newEpochKey()
+    const keys = sealEpochKey(owner.identity, view, epochKey, [
+      { accountKey: ownerKey, devices: [owner.identity.cert] }, { accountKey: friendKey, devices: [friend.identity.cert] },
+    ])
+    const { channel } = await owner.connection.request('channel.create', { name: 'secret', kind: 'text', e2ee: { change: create, keys } } as never)
+
+    // The friend verifies the chain from the server and opens their key.
+    const got = await friend.connection.request('echan.get', { channelId: channel.id })
+    const friendView = verifyChannelChain(got.e2ee.chain, got.changes)
+    const opened = (await friend.connection.request('echan.keys', { channelId: channel.id })).keys.map((k) => openEpochKey(friend.identity, k.envelope, friendView))
+    expect(opened.map((k) => k.version)).toEqual([1])
+    const friendKeyFor = (v: number) => opened.find((k) => k.version === v)?.key
+
+    // A message in the channel, read by the friend where it arrived.
+    const envelope = encryptChannelMessage(owner.identity, view, epochKey, { text: 'in the channel' }, { channel: channel.id })
+    const { message } = await owner.connection.request('chat.send', { channelId: channel.id, version: 1, envelope } as never) as { message: Message }
+    const received = (await friend.event('chat.message', (b) => b.message.id === message.id)).message
+    const routed = (m: Message, place: { channel: number; thread?: number }) => ({ from: m.author, version: m.e2ee!.version, ...place, at: m.createdAt })
+    const read = decryptChannelMessage(received.e2ee!.envelope, routed(received, { channel: channel.id }), friendView, friendKeyFor)
+    expect(read.text).toBe('in the channel')
+    expect(read.legacy).toBe(false)
+
+    // A thread on it: its messages name the thread.
+    const { thread } = await friend.connection.request('thread.create', { messageId: message.id, name: 'x' })
+    const inThread = encryptChannelMessage(friend.identity, friendView, friendKeyFor(1)!, { text: 'in the thread' }, { channel: channel.id, thread: thread.id })
+    const { message: threadMessage } = await friend.connection.request('chat.send', { channelId: thread.id, version: 1, envelope: inThread } as never) as { message: Message }
+    expect(decryptChannelMessage(threadMessage.e2ee!.envelope, routed(threadMessage, { channel: channel.id, thread: thread.id }), view, () => epochKey).text).toBe('in the thread')
+    // Shown in the parent (a server moving it) it's refused, and the server itself refuses one named for elsewhere.
+    expect(() => decryptChannelMessage(threadMessage.e2ee!.envelope, routed(threadMessage, { channel: channel.id }), view, () => epochKey)).toThrow(MOVED)
+    const misnamed = encryptChannelMessage(friend.identity, friendView, friendKeyFor(1)!, { text: 'x' }, { channel: channel.id })
+    await expect(friend.connection.request('chat.send', { channelId: thread.id, version: 1, envelope: misnamed } as never)).rejects.toMatchObject({ code: 'bad_request' })
   })
 
   it('syncs a profile between two devices: the newest wins, an old device cannot put its profile back', async () => {

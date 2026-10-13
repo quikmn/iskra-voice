@@ -332,6 +332,13 @@ public static class E2eeChannelFeature
         var header = envelope.TryGetProperty("header", out var h) && h.ValueKind == JsonValueKind.Object ? new Body(h) : throw RequestException.BadRequest("Envelope without a header.");
         if (header.OptionalString("from", 64) != me.AccountKey || header.OptionalLong("version") != version || header.OptionalString("chain", 32) != e.ChainId)
             throw RequestException.BadRequest("The envelope doesn't match this send.");
+        // From v2 an envelope names its channel and thread (signed; members' apps refuse it anywhere else). Older ones don't.
+        if (envelope.TryGetProperty("v", out var v) && v.ValueKind == JsonValueKind.Number && v.TryGetInt64(out var format) && format >= 2)
+        {
+            long? thread = channel.Id == e.ChannelId ? null : channel.Id;
+            if (header.OptionalLong("channel") != e.ChannelId || header.OptionalLong("thread") != thread)
+                throw RequestException.BadRequest("The envelope doesn't match this send.");
+        }
         return (e, version, raw);
     }
 
