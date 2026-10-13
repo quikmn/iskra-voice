@@ -71,7 +71,7 @@ test('commands, buttons, private answers and forms go between people and a bot',
   await bot.start()
 
   // The bot list says what it can read; the admin can change it.
-  const row = host.locator('.bot-row', { hasText: 'Dice' })
+  const row = host.locator('.bot-row').filter({ has: host.getByLabel('What Dice can read') }) // not the built-in Dice
   await expect(row).toContainText('Commands and mentions only')
   await host.screenshot({ path: join(SHOTS, 'bot-interactions-scope.png') })
   await host.keyboard.press('Escape')
