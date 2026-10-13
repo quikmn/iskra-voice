@@ -12,7 +12,7 @@ import { Avatar } from '../bits'
 import { encodeMentions } from '../markdown'
 import { parseOptions } from './commandInvoke'
 import {
-  activeOption, commandQueryAt, completeChoice, completeCommand, findCommand, matchChoices, matchCommands, signature,
+  activeOption, commandQueryAt, commandTarget, completeChoice, completeCommand, findCommand, matchChoices, matchCommands, signature,
 } from './commandMatch'
 import './commands.css'
 
@@ -100,7 +100,7 @@ export function useCommandSuggest(
     if (!q) return null
     const name = q.kind === 'name' ? q.query : q.name
     const listed = findCommand(entries, name, q.target)
-    const entry = listed ? (listed.interactions ? listed : null) : interactiveCommand(serverKey, name, q.target, (k) => members?.[k]?.name)
+    const entry = commandTarget(listed, encrypted, closed, () => interactiveCommand(serverKey, name, q.target, (k) => members?.[k]?.name))
     if (!entry) return null
     const memberList = Object.values(members ?? {})
     const args = encodeMentions(q.kind === 'args' ? q.args : '', memberList, roles)

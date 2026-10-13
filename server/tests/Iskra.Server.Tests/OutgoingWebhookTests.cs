@@ -398,8 +398,28 @@ public class OutgoingWebhookTests
     [InlineData("8.8.8.8", true, true, false)]      // plain http never leaves the local network
     [InlineData("192.168.1.20", true, true, true)]
     [InlineData("192.168.1.20", false, true, false)]
+    // Security review W6: private addresses hidden in IPv6 forms stay private, also with the owner's local-network permission.
+    [InlineData("::ffff:127.0.0.1", false, false, false)]
+    [InlineData("::ffff:169.254.169.254", true, false, false)]
+    [InlineData("::ffff:192.168.1.20", true, false, true)]
+    [InlineData("64:ff9b::a9fe:a9fe", true, false, false)]   // NAT64 of the metadata address
+    [InlineData("64:ff9b::c0a8:114", false, false, false)]   // NAT64 of 192.168.1.20
+    [InlineData("2002:a9fe:a9fe::1", true, false, false)]    // 6to4 of the metadata address
+    [InlineData("::a9fe:a9fe", true, false, false)]          // IPv4-compatible
+    [InlineData("::1", false, false, false)]
+    [InlineData("2001::1", false, false, false)]             // Teredo
+    [InlineData("2606:4700::1111", false, false, true)]
     public void Addresses_are_checked(string ip, bool allowLocal, bool plainHttp, bool allowed) =>
         Assert.Equal(allowed, OutgoingWebhooks.MayConnect(IPAddress.Parse(ip), allowLocal, plainHttp));
+
+    [Theory]
+    [InlineData("https://[::ffff:127.0.0.1]/hook")]
+    [InlineData("https://[::ffff:7f00:1]/hook")]
+    [InlineData("https://[64:ff9b::a9fe:a9fe]/latest")]
+    [InlineData("https://2130706433/hook")]   // 127.0.0.1 as one number
+    [InlineData("https://0x7f.1/hook")]
+    public async Task Private_addresses_in_other_spellings_are_refused(string url) =>
+        await Assert.ThrowsAsync<Iskra.Server.Protocol.RequestException>(() => OutgoingWebhooks.CheckUrlAsync(url, false, CancellationToken.None));
 
     [Fact]
     public void The_signature_matches_the_documented_vector()
