@@ -504,7 +504,7 @@ The audio goes from the bot's computer straight to the server's voice service, l
 
 ### The SDK on npm
 
-The SDK is packaged for npm as `iskra-bots` (one ES module with the app's core bundled in, and its TypeScript types),
+The SDK is on npm as [`iskra-bots`](https://www.npmjs.com/package/iskra-bots) (one ES module with the app's core bundled in, and its TypeScript types),
 for bots that live outside the repository:
 
 ```sh
@@ -515,8 +515,9 @@ npm install iskra-bots
 import { Bot } from 'iskra-bots'
 ```
 
-Everything above works the same; the voice packages are optional dependencies. Until the first release is on npm, use
-the repository (above). Maintainers build it with `npm run build:sdk` in `bots/` (`npm run pack:sdk` lists what would be
+Everything above works the same; the voice packages are optional dependencies. Each release is built and published by
+GitHub Actions with a provenance statement, so `npm audit signatures` can check it came from this repository.
+Maintainers build it with `npm run build:sdk` in `bots/` (`npm run pack:sdk` lists what would be
 published); [docs/ci-cd.md](ci-cd.md#npm-bot-sdk) has the release steps.
 
 ### Other languages
