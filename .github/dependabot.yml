@@ -3,7 +3,7 @@
 version: 2
 updates:
   - package-ecosystem: npm
-    directories: [/client, /desktop, /bots]
+    directories: [/client, /desktop, /bots, /mobile]
     schedule:
       interval: weekly
       day: monday
