@@ -4,4 +4,6 @@
 
 ### Fixes
 
+- Rent a server: "Connect to DigitalOcean" now finishes signing in (it stopped at the last step with "authorization grant is invalid").
+
 ### Good to know

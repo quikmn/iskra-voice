@@ -8,10 +8,12 @@ import type { AddressInfo } from 'node:net'
 import { DoError } from './digitalocean'
 
 /**
- * The public OAuth client id of Iskra's DigitalOcean app (a public client: no secret; callback
- * http://127.0.0.1:47099/callback, see OAUTH_PORT). Without a valid one the app offers only the pasted token.
+ * The public OAuth client id of Iskra's DigitalOcean app: registered through DigitalOcean's dynamic client
+ * registration as a public client (token_endpoint_auth_method none, PKCE; apps made in the control panel are always
+ * confidential and need a secret). Callback http://127.0.0.1:47099/callback, see OAUTH_PORT. Without a valid one the
+ * app offers only the pasted token.
  */
-export const DO_OAUTH_CLIENT_ID = '6f464bf39c0257c14395112093a53cbd6f6beef1ad568135b41a8f9c44090135'
+export const DO_OAUTH_CLIENT_ID = '5cd9289c0b0a9e297edc687f767f380b0bc5fbdcbf1c36a91942b080c727501c'
 export const DO_AUTHORIZE = 'https://cloud.digitalocean.com/v1/oauth/authorize'
 export const DO_TOKEN = 'https://cloud.digitalocean.com/v1/oauth/token'
 /** The least that works: the same scopes the token steps ask for. */
