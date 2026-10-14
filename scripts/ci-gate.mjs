@@ -1,6 +1,7 @@
 #!/usr/bin/env node
+// Step of scripts/release.ps1 (the one release command); don't run it by hand. Also the CI gate of release-finalize.yml.
 // Waits until the CI workflow (ci.yml) passed on a commit; release-finalize.yml runs it before publishing anything, and
-// scripts/release-all.ps1 to report. Uses the GitHub CLI (GH_TOKEN in Actions).
+// scripts/release.ps1 to report. Uses the GitHub CLI (GH_TOKEN in Actions).
 //
 //   node scripts/ci-gate.mjs <commit sha> [--repo owner/name] [--wait-minutes 45]
 //

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Uploads the Android app bundle to Google Play with the Android Publisher API (scripts/release-all.ps1 runs it after a
+// Step of scripts/release.ps1 (the one release command); don't run it by hand.
+// Uploads the Android app bundle to Google Play with the Android Publisher API (scripts/release.ps1 runs it after a
 // release is published; docs/ci-cd.md "Google Play uploads"). One edit: upload the bundle (unless Play already has that
 // version code), put it on a track with release notes in English and Swedish, commit. Running it again for a version
 // that is already on the track changes nothing, so a resumed release can call it again.

@@ -6,9 +6,9 @@ name: Mobile iOS
 # listing, screenshots and App Review with automatic release; upload = nothing more.
 # Signing is automatic: Xcode's cloud signing with the App Store Connect API key (secrets APPSTORE_*), no
 # certificates or profiles stored here. See mobile/README.md and docs/ci-cd.md "iOS app".
-# Run by hand (Actions → Mobile iOS → Run workflow, or `gh workflow run mobile-ios.yml`), and by scripts/release-all.ps1
-# after each release (ref = the tag, upload on). It can also be called as a reusable workflow (`secrets: inherit`).
-# The run's title names the ref and the upload ("Mobile iOS v2.0.0-alpha.17 (TestFlight)"): release-all.ps1 finds the
+# Started by scripts/release.ps1 after each release and by release.ps1 -Phones (ref = the tag, upload on); by hand
+# (Actions → Mobile iOS → Run workflow) only for a test build without upload. It can also be called as a reusable workflow (`secrets: inherit`).
+# The run's title names the ref and the upload ("Mobile iOS v2.0.0-alpha.17 (TestFlight)"): release.ps1 finds the
 # run it started (or one a stopped release started) by that title.
 run-name: ${{ format('Mobile iOS {0}{1}', inputs.ref || github.ref_name, inputs.upload && ' (TestFlight)' || '') }}
 on:

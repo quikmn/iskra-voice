@@ -1,9 +1,10 @@
 # The phone apps in the stores
 
-Every release puts the phone apps in the stores by itself: `scripts/release-all.ps1` dispatches
+Every release puts the phone apps in the stores by itself: `scripts/release.ps1` dispatches
 `.github/workflows/mobile-ios.yml` on the release tag (build, upload, then `scripts/appstore.mjs`) and uploads the
 Android app bundle with `scripts/play-upload.mjs`. Where they go is one file, [mobile/store.json](../../mobile/store.json).
-The only thing the owner does per release stays the SimplySign login for the Windows signing.
+The only thing the owner does per release is log in to SimplySign Desktop for the Windows signing (release.ps1 checks
+it first and says so).
 
 | | Phase A: testing (now) | Phase B: public listings |
 |---|---|---|
@@ -12,9 +13,11 @@ The only thing the owner does per release stays the SimplySign login for the Win
 | Android | The bundle on Play's closed testing track (`alpha`), status completed, release notes en-US + sv-SE | The bundle on production (100 %, or staged with `rollout`), plus the listing text from [play](play) and the graphics the screenshot spec made; with `"dataSafety": true` also the Data safety form from `play/data-safety.csv` |
 | Release notes | `docs/releases/<version>.md`; Swedish from `docs/releases/<version>.sv.md` if it exists, else one Swedish line with the link | the same |
 
-A failed phone step never undoes the release: release-all.ps1 runs the final checks, then prints
-`STOP [phones] ...`; `release-all.ps1 <version> -Resume` retries only what didn't finish. `-SkipPhones` leaves the
-stores alone; `-PlayTrack <track>` overrides the track once.
+Before anything is sent, release.ps1's check phase checks mobile/store.json, the Play key (presence only), the
+`APPSTORE_*` secrets and, in phase B, `REVIEW_INVITE_URL`. A failed phone step never undoes the release: release.ps1 runs the final checks, then prints
+`STOP [phones] ...`; `release.ps1 -Resume` retries only what didn't finish. `-SkipPhones` leaves the
+stores alone; `-PlayTrack <track>` overrides the track once; `release.ps1 -Phones` does only the phone apps of the latest
+release.
 
 ## One-time setup (the owner)
 
@@ -35,7 +38,8 @@ stores alone; `-PlayTrack <track>` overrides the track once.
    track Play makes is `alpha`; if you made your own closed track, its name is listed: put it in `mobile/store.json`
    `android.track`.
 
-Without the key file, release-all.ps1 skips the Play upload with a note and the release still finishes.
+Without the key file, release.ps1's check phase is red ("Google Play key") and nothing is sent; `-SkipPhones` releases
+without the phone apps.
 
 ### App Store Connect (once)
 

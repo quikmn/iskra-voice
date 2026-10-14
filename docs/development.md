@@ -85,23 +85,24 @@ Each release carries these files (names exactly as built; the `latest*.yml` file
 | Linux (CI) | `Iskra-<v>-x86_64.AppImage`, `Iskra-<v>-amd64.deb`, `Iskra-<v>-x86_64.rpm`, `latest-linux.yml`, `iskra-server-<v>-linux-x64.tar.gz` |
 | macOS (CI) | `Iskra-<v>-mac-arm64.dmg`, `Iskra-<v>-mac-x64.dmg`, the matching `.zip` files and `.blockmap`s, `latest-mac.yml`, `iskra-server-<v>-osx-arm64.tar.gz`, `iskra-server-<v>-osx-x64.tar.gz` |
 
-More in [desktop/README.md](../desktop/README.md), including first-run steps on macOS. `npm run release` updates `client/src/links.ts` and the download links in `site/index.html`.
+More in [desktop/README.md](../desktop/README.md), including first-run steps on macOS. A release (`scripts/release.ps1`) updates `client/src/links.ts` and the download links in `site/index.html`.
 
 The web app is `client/dist` after `npm run build`; it's deployed to app.iskra.foo.
 
 ## Releasing
 
-Three commands, from the repo root:
+One command, from the repo root on the Windows PC with SimplySign Desktop logged in:
 
 ```powershell
-npm run release -- 2.0.0-alpha.10           # needs docs/releases/2.0.0-alpha.10.md; bumps, commits "Version X", tags vX
-git push --atomic origin main v2.0.0-alpha.10  # release.yml builds Linux + macOS into a draft release
-.\scripts\release-windows.ps1 2.0.0-alpha.10  # on Windows, SimplySign logged in: signed Windows build + APK, upload, then finalize
+.\scripts\release.ps1 -CheckOnly   # every check, nothing changes
+.\scripts\release.ps1              # checks again, then the whole release (the next alpha; or give the version)
 ```
 
-`release-finalize.yml` then checks all 22 files, adds `SHA256SUMS.txt` and build-provenance attestations, publishes
+It writes the notes from `docs/releases/NEXT.md`, bumps, commits "Version X", tags and pushes vX (release.yml builds
+Linux + macOS into a draft release), builds, signs and uploads the Windows apps and the Android app, then
+`release-finalize.yml` checks all 23 files, adds `SHA256SUMS.txt` and build-provenance attestations, publishes
 the release as Latest with the notes, deploys iskra.foo and app.iskra.foo, updates chat.iskra.foo and checks all three.
-`deploy.yml` redeploys any of those on its own. `npm test` at the root runs the release-script tests.
+`scripts/release.ps1 -Redeploy site|webapp|server` redeploys any of those on its own. `npm test` at the root runs the release-script tests.
 
 It relies on: secrets `CLOUDFLARE_API_TOKEN`, `DROPLET_SSH_KEY`, `MAC_CERT_P12_BASE64`, `MAC_CERT_PASSWORD`,
 `APPSTORE_API_KEY_BASE64`, `APPSTORE_KEY_ID`, `APPSTORE_ISSUER_ID`; variables `CLOUDFLARE_ACCOUNT_ID`, `DROPLET_HOST`,

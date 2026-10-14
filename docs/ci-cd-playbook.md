@@ -16,179 +16,122 @@ table doesn't cover it, **stop and report**. Don't improvise fixes. Background a
 5. Never mark a release as prerelease and never publish it by hand (finalize does it).
 6. Never write "Iskra 2", "rebuilt" or anything about v1 in release notes or anything public.
 7. Never skip a failing check or rerun something more than once without the human.
+8. Never ship any other way than `scripts/release.ps1` (no hand-run steps, no `gh workflow run` of release, finalize,
+   deploy or an iOS upload, no tags pushed by hand). Never try to log in to SimplySign yourself.
 
 ## Tasks
 
+Everything that ships goes through one script, `scripts/release.ps1`. Never run its steps (release-windows.ps1,
+release-version.mjs, release-notes.mjs, play-upload.mjs, ...) or `gh workflow run` for release, finalize, deploy or iOS
+uploads by hand.
+
 | The human says | Section |
 |---|---|
-| "release V" | [A. Full release](#a-full-release) |
-| "do the Windows part of V" | [B. Windows step](#b-windows-step) |
-| "finalize V" / "publish V" | [C. Finalize only](#c-finalize-only) |
+| "release V" / "send it" / "release the next one" | [A. Release](#a-release) |
+| "finalize V" / "publish V" / "do the Windows part of V" / a release stopped after the tag | [B. Resume a release](#b-resume-a-release) |
 | "redeploy the site" | [D. Redeploy site](#d-redeploy-the-site-iskrafoo) |
 | "redeploy the web app" | [E. Redeploy web app](#e-redeploy-the-web-app-appiskrafoo) |
 | "update the server (to V)" | [F. Update the server](#f-update-the-server-chatiskrafoo) |
 | "fix the checksums of V" | [G. Re-run checksums](#g-re-run-checksums-and-attestations) |
 | "is CI green?" | [H. Check CI](#h-check-ci-status) |
-| "build iOS and upload to TestFlight" | [I. iOS app to TestFlight](#i-ios-app-to-testflight) |
+| "put the phone apps of the latest release in the stores" / "build iOS and upload to TestFlight" | [I. Phone apps](#i-phone-apps) |
 | an `outage` issue was opened / "is everything up?" | [J. Outage alert](#j-outage-alert) |
-| "build the Android app" | [K. Android app](#k-android-app) |
-| "put the Android app on Google Play" | [L. Google Play](#l-google-play-the-owner-in-the-browser): agents only do step L.3 (K); the rest is the human's |
+| "build the Android app" (a local test build) | [K. Android app](#k-android-app) |
+| "put the Android app on Google Play" (first time) | [L. Google Play](#l-google-play-the-owner-in-the-browser): agents only do step L.3 (K); the rest is the human's |
+| "publish the bot SDK" | [M. Bot SDK](#m-bot-sdk-to-npm) |
 
-## A. Full release
+Every mode of release.ps1 has two phases. The **check phase** runs every check and changes nothing; if anything is red it
+prints `N thing(s) to fix before ... (nothing was changed or sent):` with one `- [case] what to do` line each, and ends.
+If all is green it prints `ALL CHECKS GREEN - SENDING` and ships without a prompt or an approval. After that, a problem
+prints one `STOP [case] what to do` line. `-CheckOnly` (alias `-DryRun`) runs only the check phase.
 
-One script does the whole release: `scripts/release-all.ps1`. Agents (release-runner) only step in when it stops.
+## A. Release
 
 1. **Notes.** The notes for V are the lines in `docs/releases/NEXT.md` (the script turns them into `docs/releases/V.md`),
    or a hand-written `docs/releases/V.md`. Check one of them has V's changes; if neither does, **stop and ask** for the
    notes (suggest a draft from `git log --oneline v<previous>..main`).
-2. **Dry run.** `pwsh -NoProfile -File scripts/release-all.ps1 V -DryRun`
-   ✔ Ends with `Dry run done: a real run would go ahead. Nothing was changed.` Otherwise each `DRY RUN would stop [case]`
-   line is a decision-table row: do what it says, then dry-run again.
-3. **Ask the human:** "Please log in to SimplySign Desktop (6-digit code from the SimplySign app) and tell me when done."
-   Wait for the answer.
-4. **Release.** Run in the background (60–90 min; it waits for the builds, for finalize and for the iPhone build):
-   `pwsh -NoProfile -File scripts/release-all.ps1 V`
-   It checks, writes the notes, bumps and tags, pushes (no waiting for CI: finalize refuses to publish until CI is green
-   on the tag), builds and uploads the Windows files (and the Android app bundle), waits for release.yml, starts
-   finalize (tell the human to approve it if it prints `approve it at <url>`), then the phones: mobile-ios.yml on the tag
-   (TestFlight, Beta App Review; App Store in phase B) and the Google Play upload, where `mobile/store.json` says
-   ([docs/store/README.md](store/README.md)), and checks the result. Without the Play key it notes "Google Play upload is
-   skipped": that's fine, not a problem. `-SkipPhones` only if the human asks.
+2. **Check.** `pwsh -NoProfile -File scripts/release.ps1 -CheckOnly` (no version: the next alpha after the latest
+   release; or give `V`).
+   - `STOP [SimplySign] Log in to SimplySign Desktop (6-digit code from the app), then run scripts/release.ps1 again.`
+     → tell the human exactly that line, wait for their answer, then run step 2 again.
+   - `N thing(s) to fix` → each line is a decision-table row: do what it says (most are the human's), then step 2 again.
+   ✔ Ends with `ALL CHECKS GREEN: release vV would go ahead. Nothing was changed (check only).`
+3. **Release.** Run in the background (60–90 min; it waits for the builds, finalize and the iPhone build):
+   `pwsh -NoProfile -File scripts/release.ps1` (or with `V`). It runs the checks again, prints
+   `ALL CHECKS GREEN - SENDING`, then writes the notes, bumps and tags, pushes, builds, signs and uploads the Windows
+   files and the Android app, waits for release.yml, runs finalize (no approval: it refuses by itself unless CI passed
+   on the tag), the phones where `mobile/store.json` says, and the final checks. `-SkipPhones` only if the human asks.
    ✔ Ends with `Result: done` and the report lines (Release, Runs, Checks, Phones).
-5. **A `STOP [case] ...` line:** find the case in the decision table and do exactly that. Once the tag is pushed, continue
-   with `pwsh -NoProfile -File scripts/release-all.ps1 V -Resume` (it skips what's done). Never rerun more than once
-   without the human.
-6. `git checkout main`, then report (format at the end).
+4. **A `STOP [case] ...` line:** find the case in the decision table and do exactly that. Once the tag is pushed, go on
+   with [B](#b-resume-a-release). Never rerun more than once without the human.
+5. `git checkout main`, then report (format at the end).
 
-### A.M Manual release (only if release-all.ps1 can't run)
+## B. Resume a release
 
-1. **Preflight.**
-   ```
-   git checkout main
-   git pull --ff-only
-   git status --porcelain
-   gh auth status
-   ```
-   ✔ `git status --porcelain` prints nothing (or only `docs/releases/V.md`). ✔ gh says "Logged in".
-2. **Release notes.** Check `docs/releases/V.md` exists: `Test-Path docs/releases/V.md`.
-   - True → read it, check it mentions V and not the old version. Go on.
-   - False → if `docs/releases/NEXT.md` has the notes: `node scripts/release-notes.mjs V` (writes V.md, empties NEXT.md).
-     Otherwise, if the human gave you notes, write them to `docs/releases/V.md` following `docs/releases/README.md`
-     and the previous file in that folder. If not, **stop and ask** for the notes (suggest a draft from
-     `git log --oneline v<previous>..main`).
-3. **Dry run.** `npm run release -- V --dry-run`
-   ✔ Prints `Iskra <old> -> V`, links.ts 1 occurrence, site/index.html ≥ 20 occurrences, and no "(dry run, ignored)" lines.
-4. **Bump and tag.** `npm run release -- V`
-   ✔ Ends with `Committed "Version V" and tagged vV.` and prints a `git push` command.
-5. **Push.** `git push --atomic origin main vV`
-   ✔ Output lists `main -> main` and `[new tag] vV -> vV`.
-6. **Watch the Linux/macOS build** (~10–15 min).
-   ```
-   gh run list --workflow release.yml -L 1
-   ```
-   ✔ The newest run's branch is `vV`. Note its id, then check every few minutes:
-   `gh run view <id> --json status,conclusion` until status is `completed`.
-   ✔ conclusion `success`. You may continue with step 7 while it runs.
-   ✔ In both Mac jobs (`mac (arm64)`, `mac (x64)`), "Desktop app (signed and notarized)" and "Check the update files" ran
-   (not skipped): `gh run view <id> --log | grep -E "notarization successful|TeamIdentifier="` shows two of each. Without them,
-   installed Mac apps won't update themselves to this release (they show a download link).
-7. **Ask the human:** "Please log in to SimplySign Desktop (6-digit code from the SimplySign app) and tell me when done."
-   Wait for the answer.
-8. **Windows step:** do [B](#b-windows-step) steps 1–4. It finishes by starting finalize.
-9. **Finalize:** do [C](#c-finalize-only) from step 3 (watching).
-10. `git checkout main`, then report (format at the end).
-
-## B. Windows step
-
-1. `git fetch --tags` then `git checkout vV`. ✔ `git describe --tags --exact-match` prints `vV`.
-2. Make sure the human has logged in to SimplySign (ask, as in A.7).
-3. Run in the background (it can take over an hour, mostly waiting for macOS):
-   `pwsh -NoProfile -File scripts/release-windows.ps1 V`
-4. Read its output when it ends.
-   ✔ Sections `Checking signatures` show `Signed:` for 3 files, `Uploaded and checked.`, `All files are on the release.`,
-   `Finalize started: <url>`. Note the url.
-5. Re-uploading files that are already built: `pwsh -NoProfile -File scripts/release-windows.ps1 V -SkipBuild`.
+After a STOP once the tag is pushed (or to finish the Windows part, finalize or the phones of V):
+1. `git fetch --tags`, then `git checkout vV` unless main is at the `Version V` commit.
+2. `pwsh -NoProfile -File scripts/release.ps1 -Resume` (V comes from desktop/package.json; or add `V`). Run it in the
+   background. It checks again (SimplySign only if Windows files are missing), then skips what's done: Windows files
+   already on the release, a finalize that already published, a TestFlight run that succeeded, a version already on
+   the Play track.
+   ✔ Ends with `Result: done`.
 
 ## C. Finalize only
 
-Use when B uploaded everything but finalize didn't start (or failed and the cause is fixed).
-1. Check the files:
-   ```
-   gh release view vV --json assets --jq '.assets[].name' | Set-Content $env:TEMP\iskra-names.txt
-   node scripts/release-assets.mjs names V $env:TEMP\iskra-names.txt
-   ```
-   ✔ `All 22 expected files are there.`
-2. `gh workflow run release-finalize.yml -f tag=vV`
-3. `gh run list --workflow release-finalize.yml -L 1` → note the id. Tell the human: "If the release environment asks
-   for approval, approve it at <run url>." Check `gh run view <id> --json status,conclusion,jobs` every few minutes.
-4. ✔ conclusion `success`, all jobs green (publish, deploy / site, deploy / webapp, deploy / server).
-5. Verify:
-   - `gh release view --json tagName,isDraft,isPrerelease` → tagName `vV`, both false.
-   - **bash** `curl -fsSL https://iskra.foo | grep -c "v$V/"` → a number above 0.
-   - **bash** `curl -fsS https://chat.iskra.foo/` → JSON starting `{"iskra":1`.
+Use [B](#b-resume-a-release): `-Resume` starts finalize when all files are there and it hasn't published yet.
 
 ## D. Redeploy the site (iskra.foo)
 
-1. Changes to `site/` must already be on main on GitHub: `git fetch` then `git status -sb` shows no `ahead`.
-2. `gh workflow run deploy.yml -f ref=main -f site=true`
-3. Watch as in C.3. ✔ job `site` green (its last steps check that iskra.foo links to the version and that every page in `site/`, such as /terms, /privacy, /support and /delete-account, is served).
+1. Changes to `site/` must be on main on GitHub (the check says so if they aren't).
+2. `pwsh -NoProfile -File scripts/release.ps1 -Redeploy site` (from main; another ref: `-Ref <tag or branch>`).
+   ✔ `ALL CHECKS GREEN - SENDING (redeploy site)`, then `ok: redeployed site (<url>)` (deploy.yml's site job checks that
+   iskra.foo links to the version and that every page in `site/`, such as /terms, /privacy, /support and
+   /delete-account, is served).
 
 ## E. Redeploy the web app (app.iskra.foo)
 
-1. Pick the ref: the latest release tag (`gh release view --json tagName --jq .tagName`) unless the human said main.
-2. `gh workflow run deploy.yml -f ref=<ref> -f webapp=true`
-3. Watch as in C.3. ✔ job `webapp` green (it checks the new index asset is served).
+1. `pwsh -NoProfile -File scripts/release.ps1 -Redeploy webapp` (the latest release tag; `-Ref main` only if the human
+   said main).
+   ✔ `ok: redeployed webapp (<url>)` (it checks the new index asset is served).
 
 ## F. Update the server (chat.iskra.foo)
 
-1. The version must be a published release: `gh release view vV --json isDraft --jq .isDraft` → `false`.
-   Default V: the latest release (`gh release view --json tagName --jq .tagName`, without the `v`).
-2. `gh workflow run deploy.yml -f server_version=V`
-3. Watch as in C.3. ✔ job `server` green. Its log ends with `chat.iskra.foo runs V` (or `chat.iskra.foo answers` for a
-   version without `/health`).
+1. `pwsh -NoProfile -File scripts/release.ps1 -Redeploy server` (the latest release; or add `V`). The check refuses a
+   version that isn't a published release with SHA256SUMS.txt.
+   ✔ `ok: redeployed server (<url>)`. The run's log ends with `chat.iskra.foo runs V`.
 
 ## G. Re-run checksums and attestations
 
 Use after files on a published release were replaced.
-1. Check the files as in C.1.
-2. `gh workflow run release-finalize.yml -f tag=vV -f deploy=false`
-3. Watch as in C.3. ✔ job `publish` green. Then **bash** `gh release download vV -p SHA256SUMS.txt -O - | head -3` shows `<hash>  <name>` lines.
+1. `pwsh -NoProfile -File scripts/release.ps1 -Redeploy checksums` (the latest release; or add `V`).
+   ✔ `ok: SHA256SUMS.txt and attestations of vV redone (<url>)`.
 
 ## H. Check CI status
 
 1. `gh run list -L 10`
 2. For each `failure` on main: `gh run view <id> --log-failed` and report the failing job and the first error lines. Don't fix it unless asked.
 
-## I. iOS app to TestFlight
+## I. Phone apps
 
-Every release does this by itself (A, step 4): the run ends with the step "TestFlight groups and reviews"
-(scripts/appstore.mjs), which waits for Apple's processing, sets What to test, adds the build to the TestFlight groups
-and submits it for Beta App Review. Use this section only for a build outside a release.
-
-`R` = what to build: a release tag `vV` (default: the latest release, `gh release view --json tagName --jq .tagName`)
-or `main` if the human said so.
-1. **Universal Links file is live** (only needed once, and after changing it):
-   **bash** `curl -sI https://app.iskra.foo/.well-known/apple-app-site-association | grep -i content-type`
-   ✔ `application/json`. ✘ 404 → do [E](#e-redeploy-the-web-app-appiskrafoo) with `ref=main` first.
-2. `gh workflow run mobile-ios.yml -f ref=R`
-   (A first try or a check without uploading: add `-f upload=false`.)
-   (`-f store=upload` uploads without the TestFlight groups and review.)
-3. `gh run list --workflow mobile-ios.yml -L 1` → note the id; `gh run view <id> --json status,conclusion,jobs` every few
-   minutes (30–90 min: the build, then Apple's processing).
-4. ✔ conclusion `success`. The step "Check the signed app" ends with `Iskra … is signed for the App Store`; the run summary
-   says "Uploaded to App Store Connect" with the version and build, and "App Store Connect: … TestFlight groups …; Beta App
-   Review …". Note the build number.
-5. Tell the human: "Build <build> of <version> is in TestFlight for the internal and external groups; external testers get
+Every release does this by itself (A, step 3): mobile-ios.yml on the tag ends with the step "TestFlight groups and
+reviews" (scripts/appstore.mjs: Apple's processing, What to test, TestFlight groups, Beta App Review), and the Android
+bundle goes to the Play track in `mobile/store.json`. To do only that for the latest release (for example after the human
+fixed something on Apple's or Google's side):
+1. The AAB must be in `mobile\release` (built by the release on this PC); otherwise `git checkout vV` first so it can be built.
+2. `pwsh -NoProfile -File scripts/release.ps1 -Phones` (or add `V`). Run it in the background (30–90 min).
+   ✔ Ends with `Phones: TestFlight uploaded, Google Play on the '<track>' track`.
+3. Tell the human: "Build <build> of <version> is in TestFlight for the internal and external groups; external testers get
    it when Beta App Review approves it."
 
-Never change the API key, the App Store Connect app, TestFlight groups or `mobile/store.json` yourself; those are the
-human's. Never run scripts/appstore.mjs yourself (it runs on GitHub with the key).
+A test build without upload (nothing ships): `gh workflow run mobile-ios.yml -f upload=false` (`-f ref=<branch>` for
+another branch), then `gh run watch <id>`. Never change the API key, the App Store Connect app, TestFlight groups or
+`mobile/store.json` yourself; those are the human's. Never run scripts/appstore.mjs yourself (it runs on GitHub with the key).
 
 ## J. Outage alert
 
 The uptime workflow (`uptime.yml`, every 15 minutes) opened or updated an issue labelled `outage`.
 1. `gh issue list --label outage --state open` → read the issue: it lists each failing check.
-2. Confirm it's still failing: `gh workflow run uptime.yml`, then watch as in C.3; its summary is a table of every check.
+2. Confirm it's still failing: `gh workflow run uptime.yml`, then `gh run list --workflow uptime.yml -L 1` and `gh run watch <id>`; its summary is a table of every check.
    It closes the issue by itself when all pass.
 3. By check:
    - `iskra.foo` / `app.iskra.foo` doesn't answer: `curl -sI https://iskra.foo`. Cloudflare's status page
@@ -202,14 +145,14 @@ The uptime workflow (`uptime.yml`, every 15 minutes) opened or updated an issue 
 
 ## K. Android app
 
-Releases build the APK and the app bundle in B (release-windows.ps1) and upload the bundle to Google Play in A (step 4,
-scripts/play-upload.mjs). On its own, on the Windows PC (the release key lives only there):
+Releases build the APK and the app bundle and upload the bundle to Google Play by themselves (A). A local test build
+(it ships nothing), on the Windows PC (the release key lives only there):
 1. `git checkout <tag or main>`, then `pwsh -NoProfile -File mobile/scripts/build-android.ps1` (add `-ApkOnly` to skip the AAB).
 2. ✔ Ends with `Built ...\mobile\release\Iskra-V.apk (signed by the release key, 7c5941ba…)`.
 3. Never print or open the keystore or its password file.
 4. The AAB for Google Play is `mobile\release\Iskra-V.aab` (the script prints `Built ...\Iskra-V.aab` before the APK line),
-   signed with the same release key. Releases upload it through release-all.ps1; never upload it any other way, and
-   never run scripts/play-upload.mjs yourself except `--dry-run` (read the Play key's path, never the file).
+   signed with the same release key. Only release.ps1 uploads it (A, or I for the latest release); never upload it any
+   other way and never run scripts/play-upload.mjs yourself.
 
 ## L. Google Play (the owner, in the browser)
 
@@ -252,45 +195,58 @@ Play's SHA-256 from Setup → App signing to `assetlinks.json` and redeploy the 
    wait the 14 days, then Apply for production → Production → Create release (promote the tested release), countries
    per app-content.md, staged rollout 20% → 100%.
 8. **Every later release:** automatic. With the service account set up once
-   ([docs/store/README.md](store/README.md#google-play-service-account-for-the-uploads)), release-all.ps1 uploads the
+   ([docs/store/README.md](store/README.md#google-play-service-account-for-the-uploads)), release.ps1 uploads the
    bundle to the track in `mobile/store.json` (closed testing `alpha` now; production after step 7 and the flip in
    docs/store/README.md) with the release notes. The version code rises with every version (scripts/mobile-version.mjs);
    Play refuses a code it has seen.
+
+## M. Bot SDK to npm
+
+1. `pwsh -NoProfile -File scripts/release.ps1 -BotSdk -CheckOnly` (the next patch version; or add `X`).
+   ✔ `ALL CHECKS GREEN: bot SDK X would go ahead.`
+2. `pwsh -NoProfile -File scripts/release.ps1 -BotSdk` (same version). It bumps `bots/sdk/package.json`, commits
+   "Bot SDK X", tags `bots-sdk-vX`, pushes, waits for bots-sdk.yml and checks npm.
+   ✔ `ok: iskra-bots X is on npm, with provenance`.
 
 ## Decision table
 
 | You see | Do |
 |---|---|
-| `STOP [<case>]` from release-all.ps1 | The row below whose text matches the case; then `-Resume` once the cause is fixed (if the tag is pushed) |
-| `CI failed on main` | Stop. Report the failing run (`gh run view <id> --log-failed`). Release after main is green |
+| `STOP [SimplySign] Log in to SimplySign Desktop ...` | Tell the human that exact line; wait for their answer; run the same command again (`-Resume` if the tag is pushed). Never try to log in yourself |
+| `N thing(s) to fix before ...` (check phase) | Nothing was changed. Each `- [case]` line is a row below; fix what you may, report the rest to the human, then run the same command again |
+| `STOP [<case>]` from release.ps1 | The row below whose text matches the case; then `-Resume` once the cause is fixed (if the tag is pushed) |
+| `CI not done` | Wait for CI on main to finish, then run the check again |
+| `main is ahead of origin/main` | Local commits aren't on GitHub: report to the human (they push main; CI must pass first) |
+| `git cannot push` | Report: the human logs git in (`gh auth setup-git`) |
+| `workflow off` | Report the workflow name to the human |
+| `Google Play key` / `Android build` / `LiveKit missing` / `missing tool` / `disk space` | Report the line to the human: it's this PC's setup. Never touch devkeys |
+| `store setup` / `GitHub setup` | Report the line: mobile/store.json or a GitHub secret/variable (docs/store/README.md, ci-cd.md section 4) is the human's |
+| `warning: environment "<name>" has required reviewers` | Not a stop. Tell the human once: Settings → Environments → <name> → untick "Required reviewers" |
+| `CI failed on main` | Stop. Report the failing run (`gh run view <id> --log-failed`). A flake: `gh run rerun <id> --failed` once, then check again. Release after main is green |
 | `CI didn't pass on vV` / finalize `no green CI run` | Nothing was published. Report the CI run. The human decides: a flake → `gh run rerun <id> --failed`, then `-Resume`; a real failure → fix main, release the next version (never move the tag) |
 | `Mac builds not notarized` | Stop and report. Don't finalize |
 | `release.yml still running` / `finalize still running` | Wait, then `-Resume` |
-| `final checks failed` | A site/web app check: rerun that deploy once (D/E). Anything else: report |
+| `final checks failed` | A site/web app check: `release.ps1 -Redeploy site` (or `webapp`) once (D/E). Anything else: report |
 | `nothing to resume` | Run without `-Resume` (the tag isn't pushed yet) |
-| `Release stopped: you're on <branch>` / `working tree has changes` | Stop. Report the branch or the changed files. Don't discard anything |
-| `main is N commit(s) behind origin/main` | `git pull --ff-only`, then retry once |
+| `you're on <branch>` / `working tree has changes` | Stop. Report the branch or the changed files. Don't discard anything |
+| `main is behind origin/main` | `git pull --ff-only`, then run the check again once |
 | `tag vV already exists` | Stop. Ask the human for the next version. Never move tags |
 | `must be newer than the current version` | Stop. Ask for the right version |
-| `write the release notes first` | Go to A.2 |
+| `write the release notes first` | Go to A.1 |
 | `doesn't mention the current version` | Stop and report (links.ts or site/index.html is out of sync) |
 | `git push` rejected | Stop and report. Never force |
 | release.yml failed | Report the failing job: `gh run view <id> --log-failed` (first 40 lines). Stop |
-| `SimplySign isn't logged in` / `signing failed during the build` | Ask the human to log in to SimplySign, then rerun B.3 once |
 | `isn't validly signed` / `has no timestamp` / `signed by '...'` | Stop and report. Don't upload |
 | `certificate expired` / `expires on` warning | Report it; point to ci-cd.md "Windows code signing". Stop if expired |
-| `tag vV isn't on GitHub yet` | Do A.5, then rerun |
 | `HEAD isn't the vV commit` | Do B.1, then rerun |
 | `build-android.ps1 didn't produce` / `Missing ...android-sdk` / `No JDK 21` / `fingerprint isn't in assetlinks.json` | Stop and report (never try another keystore) |
-| `still missing files after 60 minutes` / `files missing on the release` | Check release.yml (A.6). If it succeeded since, do C. If it failed, report |
-| Finalize waiting for approval | Tell the human to approve at the run url. Wait |
+| `files missing on the release` | Check release.yml's run for the tag. If it succeeded since, do B. If it failed, report |
 | Finalize `missing (...)` | Stop and report the missing names |
 | Finalize `doesn't match (re-upload ...)` | Stop and report. The human decides which build to upload |
-| Deploy `site`/`webapp` check failed after 5 minutes | Rerun that deploy once (D/E). Still failing: report |
+| Deploy `site`/`webapp` check failed after 5 minutes | Run that redeploy once (D/E). Still failing: report |
 | Deploy `server` failed | Report the log (`--log-failed`). The server rolled back by itself. Don't retry without the human |
 | `Host key verification failed` | Stop. The droplet's host key changed; the human must check it |
 | `STOP [phones]` | The release is out. Read which part: `TestFlight build failed` → the mobile-ios.yml rows below; `Google Play upload failed` → ci-cd.md troubleshooting (Play rows). Fixed by the human (or a flake): `-Resume` once |
-| `note: the Google Play upload is skipped` | Fine (no Play key yet). Mention it in the report |
 | `App Store Connect stopped: …` in mobile-ios.yml | Report the line. `couldn't process build` / `no external TestFlight group` / `already approved` / `REVIEW_INVITE_URL` (unset or revoked: a one-time never-expiring invite, docs/store/README.md): the human (ci-cd.md troubleshooting) |
 | mobile-ios.yml: `Cloud signing permission error`, `No profiles for 'foo.iskra.app'`, `No Account for Team`, `agreement` | Stop. The human must fix the Apple side (ci-cd.md, "iOS app" and troubleshooting) |
 | mobile-ios.yml archive fails on signing | Rerun once with `-f archive_signing=automatic`. Fails again: stop and report |

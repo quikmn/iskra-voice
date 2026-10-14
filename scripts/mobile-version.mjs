@@ -1,3 +1,4 @@
+// Build step of scripts/release.ps1 (build-android.ps1) and mobile-ios.yml; don't run it by hand.
 // Version numbers for the phone app, from desktop/package.json (the one app version).
 //   node scripts/mobile-version.mjs [run_number] [run_attempt]
 // prints MARKETING_VERSION=2.0.0 and BUILD_NUMBER=20000109.<run>.<attempt> lines (for $GITHUB_ENV).

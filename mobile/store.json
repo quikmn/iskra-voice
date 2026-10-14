@@ -1,5 +1,5 @@
 {
-  "$comment": "Where each release's phone apps go (docs/ci-cd.md, 'Phone apps in the release'). Phase A (testing): ios.mode testflight, android.track alpha. Phase B (public listings): ios.mode appstore, android.track production, android.listing true. Flip once, in a commit, when the listings are ready (docs/store/README.md). Read by scripts/appstore.mjs (mobile-ios.yml) and scripts/play-upload.mjs (release-all.ps1).",
+  "$comment": "Where each release's phone apps go (docs/ci-cd.md, 'Phone apps in the release'). Phase A (testing): ios.mode testflight, android.track alpha. Phase B (public listings): ios.mode appstore, android.track production, android.listing true. Flip once, in a commit, when the listings are ready (docs/store/README.md). Read by scripts/appstore.mjs (mobile-ios.yml) and scripts/play-upload.mjs (release.ps1).",
   "ios": {
     "$comment": "mode: testflight (build to the TestFlight groups below and to Beta App Review), appstore (the same, plus the App Store version: build, What's New, listing text, screenshots, age rating, review details, submitted for review, released automatically once approved), upload (upload only).",
     "mode": "testflight",

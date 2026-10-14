@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// Step of scripts/release.ps1 (the one release command); don't run it by hand.
 // The release notes for a version (docs/releases/<version>.md), as the release step writes them.
 //
 //   node scripts/release-notes.mjs 2.0.0-alpha.14            # writes the notes from NEXT.md and empties NEXT.md
@@ -6,7 +7,7 @@
 //
 // If docs/releases/<version>.md already exists it's kept as written (only checked). Otherwise it's made from
 // docs/releases/NEXT.md: the headline, NEXT's sections, and "### Get started" from the previous release's notes with
-// the new version. NEXT.md then goes back to empty sections; both files go into the version commit (release.mjs).
+// the new version. NEXT.md then goes back to empty sections; both files go into the version commit (release-version.mjs).
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'

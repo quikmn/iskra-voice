@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// Step of scripts/release.ps1 (the one release command); don't run it by hand. Also used by release.yml and release-finalize.yml.
 // Release asset checks shared by release-windows.ps1 and .github/workflows/release-finalize.yml.
 //
 //   node scripts/release-assets.mjs list <version> [group...]   expected file names, one per line

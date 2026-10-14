@@ -1,3 +1,4 @@
+# Build step of scripts/release.ps1 (release-windows.ps1); not run by hand to ship (fine for a local test build).
 # Builds the signed Android app from the Capacitor shell: mobile\release\Iskra-<version>.apk (and .aab for Google Play).
 # The version comes from desktop/package.json (scripts/mobile-version.mjs). See mobile/README.md "Android".
 #

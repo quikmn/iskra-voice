@@ -1,3 +1,4 @@
+// Build step (release-windows.ps1, release.yml), called by scripts/release.ps1; not run by hand to ship.
 // Builds iskra-p2p, the standalone server's peer-to-peer tunnel (src/p2p/sidecarMain.ts, the same tunnel code the
 // desktop app runs), as ONE executable per platform: a Node single executable application (SEA) holding the bundled
 // JS and the two native addons (udx-native, sodium-native) as assets. It goes into the server archives next to

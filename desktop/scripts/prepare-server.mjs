@@ -1,3 +1,4 @@
+// Build step (npm run dist*, release.yml), called by scripts/release.ps1's Windows step; not run by hand to ship.
 // Puts a self-contained iskra-server and livekit-server into build/server-<os>-<arch> for packaging.
 // Usage: node scripts/prepare-server.mjs [rid ...]   e.g. win-x64, linux-x64, osx-arm64, osx-x64 (default: this machine)
 // LiveKit comes from .tools/<rid>/ (scripts/get-livekit.sh <rid>), or .tools/ for this machine's own platform.

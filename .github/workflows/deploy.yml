@@ -1,8 +1,8 @@
 name: Deploy
 
 # Deploys iskra.foo (site/) and app.iskra.foo (client/) and updates the server at chat.iskra.foo, then checks each one.
-# Release finalize calls it after publishing a release; run it by hand to redeploy without a release
-# (docs/ci-cd-playbook.md). Everything runs in the `release` environment, so its protection rules apply.
+# Release finalize calls it after publishing a release; scripts/release.ps1 -Redeploy site|webapp|server starts it to
+# redeploy without a release. Everything runs in the `release` environment (no required reviewers: nothing waits).
 on:
   workflow_dispatch:
     inputs:
