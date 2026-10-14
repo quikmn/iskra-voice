@@ -156,7 +156,8 @@ A bot is an ordinary Iskra identity (its own account and device keys) that conne
 
 - shows it with a **BOT** badge,
 - only lets it in with a **bot invite** (made by an admin; single use), and never lets a bot invite be used by a person,
-- keeps it out of voice unless an admin allows it ([Voice bots](#voice-bots)), out of DMs, group DMs and calls, and doesn't let it create invites, schedule messages or be made admin (guest, member or trusted only),
+- keeps it out of voice unless an admin allows it ([Voice bots](#voice-bots)), out of group DMs and calls, and doesn't let it create invites, schedule messages or be made admin (guest, member or trusted only),
+- lets it send and receive [direct messages](#direct-messages), end-to-end encrypted like everyone's, within limits people control,
 - applies the same rate limits as everyone else (2 messages a second, bursts of 10).
 
 **What a bot can read** is the admin's choice when making the bot invite (**Can read all messages**, off by default),
@@ -179,7 +180,8 @@ Bots and webhooks stay out of **end-to-end encrypted channels**: a bot holds no 
 
 You need [Node.js](https://nodejs.org) 22 or newer, [Git](https://git-scm.com), and a server where you're an admin. Any server works, including one you run on your own computer.
 
-1. **Get the SDK.** It lives in the Iskra repository, next to the app code it reuses:
+1. **Get the SDK.** It lives in the Iskra repository, next to the app code it reuses (it's also packaged for npm as
+   [`iskra-bots`](#the-sdk-on-npm)):
 
    ```sh
    git clone https://github.com/quikmn/iskra-voice.git
@@ -239,7 +241,8 @@ The bot saves its keys and the server's address in `greeter.bot.json`, so from n
 
 | | Run it | What it shows |
 |---|---|---|
-| **Dice** ([`examples/dice.ts`](../bots/examples/dice.ts)) | `npm run dice` | `/roll 2d6` (answers with a card and a **Roll again** button; `/roll d20 yes` answers only you), `/coin`, `/pick pizza, tacos`, `/echo`; commands with options; a button handler; reacting to "good bot" when mentioned; welcoming new members |
+| **Dice** ([`examples/dice.ts`](../bots/examples/dice.ts)) | `npm run dice` | `/roll 2d6` (answers with a card and a **Roll again** button; `/roll d20 yes` answers only you), `/coin`, `/pick pizza, tacos`, `/echo`; commands with options; a button handler; reacting to "good bot" when mentioned; welcoming new members; answering in DMs |
+| **Music** ([`examples/music.ts`](../bots/examples/music.ts)) | `npm run music` | A [voice bot](#voice-bots) for the songs people upload: attach audio to a message that mentions @Music (or send it in a DM) and it joins your voice channel and plays it; `/play <link to a file on this server>`, a queue (`/queue`, `/remove`, `/clear`), `/pause`, `/resume`, `/skip`, `/stop`, `/volume`; a "Now playing" card with buttons; admins choose who controls it (`/music-control`) |
 | **Jukebox** ([`examples/jukebox.ts`](../bots/examples/jukebox.ts)) | `npm run jukebox` | A [voice bot](#voice-bots): `/play [song]` joins your voice channel and plays the files in a folder (and radio streams you list), `/skip`, `/stop`, `/songs`; a "Now playing" card with **Pause**, **Skip** and **Stop** buttons that it keeps up to date |
 | **Planner** ([`examples/planner.ts`](../bots/examples/planner.ts)) | `npm run planner` | `/poll Pizza or tacos? \| Pizza \| Tacos` (posts the result and a CSV file when it closes), `/remind 10m stretch`, `/event 2h Game night`, `/events` (a card); usage hints, edits, files, polls, events, an activity, and keeping state across restarts |
 
@@ -250,12 +253,14 @@ Start either one the first time with `ISKRA_INVITE='<bot invite link>' npm run p
 | API | What it does |
 |---|---|
 | `new Bot({ name, invite?, stateFile?, hearBots?, log? })` | `invite` is only needed the first time. `stateFile` defaults to `<name>.bot.json` (lowercase, spaces become dashes). Bots ignore other bots and webhooks unless `hearBots` is true, so two bots can't chat forever. |
-| `bot.command(name, description, handler, { usage?, options?, role?, permission? }?)` | Answers `/name`. The handler gets `{ options, args, user, userName, channelId, reply, defer, showModal, react, interaction, message?, command, bot }` (see [Commands](#commands)). `/help` is built in and lists the descriptions. |
+| `bot.command(name, description, handler, { usage?, options?, role?, permission? }?)` | Answers `/name`. The handler gets `{ options, args, user, userName, channelId, dm, reply, defer, showModal, react, interaction, message?, command, bot }` (see [Commands](#commands)); `dm` is true for a command typed in a DM. `/help` is built in and lists the descriptions. |
 | `bot.commands([{ name, description, usage?, options?, role?, permission?, handler }, ...])` | Several commands at once. Every command is registered with the server when the bot connects, so the app suggests it when people type `/` and sends it straight to the bot. |
 | `reply(content, { private? })`, `defer()`, `showModal(modal)` | In command, button and form handlers: answer in public (a message that says who asked) or only to the asker; "thinking…" for slow work; show a [form](#buttons-menus-and-forms). Up to 5 answers per interaction, within 15 minutes. |
 | `bot.onComponent(customId or /pattern/, ctx => ...)` | A click on one of the bot's buttons or select menus: `{ customId, values, user, userName, messageId?, reply, update, defer, showModal }`. `update(content)` replaces the message the button is on. |
 | `bot.onModalSubmit(customId or /pattern/, ctx => ...)` | A form the bot showed, filled in: `{ customId, fields, user, userName, reply, defer }`. |
 | `bot.on('message', m => ...)` | Messages the bot may read (not its own): by default those that mention it, reply to it or start with one of its commands; every message it can see if an admin let it [read all messages](#bots). `m.text`, `m.author`, `m.authorName`, `m.channel`, `m.attachments`, `m.reply(text)`, `m.react(emoji)`. |
+| `bot.on('dm', dm => ...)` | A [direct message](#direct-messages) to the bot, decrypted: `dm.text`, `dm.from`, `dm.authorName`, `dm.files`, `dm.reply(text)`. Commands typed in a DM also reach their handlers, with `dm: true`. |
+| `bot.sendDm(accountKey, text)` or `bot.sendDm(accountKey, { text?, cards? })`, `bot.downloadDmFile(file)` | Send a DM, end-to-end encrypted (cards become text); the bytes of a file someone attached to a DM (decrypted and checked). |
 | `bot.on('messageEdited' \| 'messageDeleted' \| 'reactions' \| 'pollUpdated', ...)` | A message was edited or deleted; a message's reactions changed (the whole new list); someone voted or a poll closed. |
 | `bot.on('ready' \| 'memberJoined' \| 'event' \| 'status', ...)` | Connected (again); someone joined; any raw server event; connection state. |
 | `bot.send(channelId, text, { replyTo?, attachments?, cards?, components? })` or `bot.send(channelId, { text?, cards?, components?, attachments?, replyTo? })` | Posts a message (up to 4000 characters; waits and retries if rate-limited), optionally with [cards](#cards) and [buttons or a menu](#buttons-menus-and-forms). A thread's id works as a channel id. `reply(...)` takes the same. |
@@ -332,6 +337,33 @@ messages and bots aren't in the channel's chain. Commands still work there, with
   send: "Commands go to the bot unencrypted, not through this channel. Only you will see the answer." The command and
   its options go to the bot like any request; the channel's messages and keys never do.
 - Every answer is private: shown only to you, never stored, so nothing unencrypted lands in the channel.
+
+### Direct messages
+
+People can message a bot, and a bot can message people, as [end-to-end encrypted DMs](../protocol/PROTOCOL.md#bot-dms).
+The bot has its own keys (in its `.bot.json`, with prekeys it rotates weekly like an app), so the server only passes the
+messages along, and whoever runs the bot reads them. The app says so at the top of a DM with a bot.
+
+```ts
+bot.on('dm', async (dm) => {
+  if (dm.text === 'hi') await dm.reply(`Hi ${dm.authorName}!`)
+  for (const file of dm.files) console.log(file.name, (await bot.downloadDmFile(file)).length, 'bytes')
+})
+
+await bot.sendDm(accountKey, 'Your turn in the game 🎲')   // e.g. bot.members, or the `user` of a command
+```
+
+- **Commands work in DMs.** People type `/roll 2d6` in a DM with the bot (the app suggests its commands there too); it
+  stays end-to-end encrypted and reaches the same handler, with `dm: true` and the options read from the text. Answers
+  are DMs: `private` makes no difference there, cards become text, and buttons, menus and forms are left out (they need a
+  channel message). The bot checks a command's `role` itself, from the member list; commands that need a `permission`
+  answer that they only work in a channel.
+- **Who a bot can write to:** members of its server who haven't blocked it. People choose in **My settings → Privacy &
+  data → DMs from bots** (on by default). With it off, a bot can only answer someone who wrote to it first.
+- **Limits:** on top of the usual 2 messages a second, a bot sends at most 1 DM a second over all its connections (bursts
+  of 30), and starts at most 20 new conversations at once, then 20 an hour. Bots never message other bots, and
+  [built-in bots](#built-in-bots) don't take DMs (they run inside the server and have no keys).
+- People block a bot like anyone (its card → **Block**): then neither side can write to the other.
 
 ### Buttons, menus and forms
 
@@ -423,10 +455,19 @@ await voice.leave()
 | What it can't do | Hear anyone: its voice token can't subscribe to other people's audio, and it can publish one audio track, no camera, screen or data. |
 | For people | The bot shows in the channel with the **BOT** badge. Anyone can mute it for themselves (right-click it → volume → **Mute for me**). Moderators can server-mute it and **Disconnect from voice** it (*Move members*), as for people. |
 
+**Music** ([`examples/music.ts`](../bots/examples/music.ts)) is the ready-made one: people attach songs to a message
+that mentions @Music, send them in a DM, or `/play` a link to a file already on the server; it joins their voice channel
+and plays them in turn. `/queue`, `/remove 2`, `/clear`, `/pause`, `/resume`, `/skip`, `/stop`, `/volume 80` (0–200 %) and
+the card's buttons control it. By default everyone listening may; an admin picks who with `/music-control` (everyone,
+trusted and up, admins, or a role such as DJ), and people may always skip or remove their own songs. Its settings are
+kept in `music.settings.json` next to the bot. It also plays the operator's own files and streams from `MUSIC_DIR`,
+like Jukebox.
+
 **No YouTube, Spotify or other streaming services, by design.** The SDK has no extractors for them and never will:
 taking audio out of those services breaks their terms of service and usually copyright, and it's what got popular
 Discord music bots shut down. Play files you have the right to play, and streams whose operators let you (many internet
-radios do). Only let people pick from what the bot's operator chose: Jukebox plays the files in its folder and the
+radios do). Only let people pick from what the bot's operator chose, or from files on the server: Music plays only
+uploads and links to this server's own files, Jukebox the files in its folder and the
 stations in its `stations.json`, never an address someone types (a bot that fetched any address it's given could be
 pointed at other computers on its owner's network).
 
@@ -436,7 +477,8 @@ The audio goes from the bot's computer straight to the server's voice service, l
 
 ### What bots can't do (yet)
 
-- **DMs:** DMs are end-to-end encrypted to people's devices, so bots can't send or read them.
+- **Group DMs and calls:** bots can't be in group DMs, call or be called.
+- **Files in DMs:** bots can read files people attach to a DM, but can't attach files to their own DMs yet.
 - **Encrypted channels:** bots can't read or post there; commands work, with private answers (see above).
 
 ### When it won't start
@@ -453,9 +495,29 @@ The audio goes from the bot's computer straight to the server's voice service, l
 | `forbidden` with `bot_no_read` | The bot was invited without **Can read all messages**, so it gets its commands and mentions only. An admin can change that in **Bots & webhooks → Bots**. |
 | `Nothing answers the button "…"` in the log | Add a `bot.onComponent(...)` for that `customId` (or a pattern that matches it). |
 | `forbidden` with `bot_no_voice` | An admin hasn't let the bot join voice: **Bots & webhooks → Bots → Voice**. |
-| `Voice needs @livekit/rtc-node: run "npm install" in the bots folder.` | As it says: voice uses packages the rest of the SDK doesn't. |
+| `Voice needs @livekit/rtc-node: run "npm install" …` | As it says: voice uses packages the rest of the SDK doesn't (with the npm package they're optional dependencies; install them in your bot's folder). |
+| `forbidden` with `bot_dms_off` from `sendDm` | That person turned off DMs from bots; the bot can answer once they write to it. |
+| `rate_limited` with `bot_dm_new_limit` | The bot started 20 new conversations in a short time; it can start more later (answering people who wrote to it still works). |
+| `Couldn't read a DM from …` in the log | That message wasn't encrypted for this bot's keys (for example it was sent before the bot's `.bot.json` was replaced). New messages are. |
 | `Can't play AAC …` / `… is a web page, not an audio file or stream` | Use MP3, Ogg, FLAC or WAV; for a radio, use its direct stream address (often ending in `.mp3`), not its web page. |
 | `rate_limited` | The SDK already waits and retries sends; slow down loops that call `bot.request` directly. |
+
+### The SDK on npm
+
+The SDK is packaged for npm as `iskra-bots` (one ES module with the app's core bundled in, and its TypeScript types),
+for bots that live outside the repository:
+
+```sh
+npm install iskra-bots
+```
+
+```js
+import { Bot } from 'iskra-bots'
+```
+
+Everything above works the same; the voice packages are optional dependencies. Until the first release is on npm, use
+the repository (above). Maintainers build it with `npm run build:sdk` in `bots/` (`npm run pack:sdk` lists what would be
+published); [docs/ci-cd.md](ci-cd.md#npm-bot-sdk) has the release steps.
 
 ### Other languages
 

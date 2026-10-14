@@ -11,6 +11,13 @@ import { build } from 'esbuild'
 const here = dirname(fileURLToPath(import.meta.url))
 const pkg = JSON.parse(readFileSync(join(here, 'package.json'), 'utf8'))
 const dist = join(here, 'dist')
+
+// The package's dependencies are the ones bots/ is tested with (Dependabot updates bots/package.json).
+const tested = JSON.parse(readFileSync(join(here, '../package.json'), 'utf8')).dependencies
+for (const [name, version] of Object.entries({ ...pkg.dependencies, ...pkg.optionalDependencies })) {
+  if (tested[name] !== version) throw new Error(`sdk/package.json has ${name}@${version}, bots/package.json ${tested[name]}: make them the same.`)
+}
+
 rmSync(dist, { recursive: true, force: true })
 mkdirSync(dist)
 
