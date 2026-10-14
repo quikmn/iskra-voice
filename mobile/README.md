@@ -22,7 +22,7 @@ App Review (guideline 4.2), and updates its web part with each app release.
 | `ios/App/App/` | `Info.plist` (permission texts, `iskra://`, background mode audio), `App.entitlements` (Associated Domains: `applinks` for links and `webcredentials` for app lock passkeys), `AppDelegate`/`SceneDelegate`, and the native code: `IskraNative.swift` (the plugin), `CallManager.swift` (CallKit for the call you're in, audio session), `IskraViewController.swift` |
 | `android/app/src/main/java/foo/iskra/app/` | `IskraNativePlugin` (the plugin), `VoiceService` (foreground service) and its `Notifications` channel, `MainActivity` |
 | `scripts/build-android.ps1` | The signed Android build (below) |
-| `scripts/icons.py` | Icons and launch images for both platforms from the bolt in `desktop/assets/icon.png` (`python mobile/scripts/icons.py`, needs Pillow) |
+| `scripts/icons.py` | Icons and launch images for both platforms from the bolt in `client/public/favicon.svg` via `scripts/bolt.py` (`python mobile/scripts/icons.py`, needs Pillow; the desktop icons come from the same bolt, `python desktop/scripts/icons.py`) |
 | `../scripts/mobile-version.mjs` | Version and build numbers (tested with the release scripts: `npm test` at the repo root) |
 | `../client/src/platform/native.ts` | The client's side: detects the app, opens links, saves files, status bar, the `IskraNative` bridge |
 | `../client/src/state/nativeVoice.ts` | Voice in the background: starts and stops the native side with the voice session |

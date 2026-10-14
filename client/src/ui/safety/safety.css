@@ -103,3 +103,5 @@
 .about-support { display: grid; gap: 6px; margin-top: 16px; }
 .about-support-links { display: flex; gap: 8px; flex-wrap: wrap; }
 
+.about-version { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.about-version span { user-select: text; font-variant-numeric: tabular-nums; }

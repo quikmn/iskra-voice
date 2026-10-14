@@ -134,6 +134,7 @@ export const safety = {
   },
   about: {
     version: 'Iskra {{version}}',
+    copyVersion: 'Copy version',
     accepted: 'You agreed to the terms (version {{version}}) on {{when}}.',
     safetyHint: 'For things a server’s moderators don’t handle: illegal content, someone in danger, or a server that ignores reports. Email {{email}}.',
     email: 'Email the Iskra team',
