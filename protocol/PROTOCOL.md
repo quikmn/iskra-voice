@@ -10,7 +10,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji) · [Stickers](#stickers) · [GIFs](#gifs) · [Saved messages, reminders, scheduled messages and the inbox](#saved-messages-reminders-scheduled-messages-and-the-inbox)
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties) · [Voice channel chat and clips](#voice-channel-chat-and-clips) · [Hi-fi voice channels](#hi-fi-voice-channels) · [Voice bots](#voice-bots) · [AFK channel](#afk-channel)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Encrypted channels](#end-to-end-encrypted-channels) · [Friends](#friends)
-- **People and integrations:** [Profiles](#profiles) · [Profile sync](#profile-sync) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Bot interactions](#bot-interactions) · [Presence and voice messages](#presence-and-voice-messages)
+- **People and integrations:** [Profiles](#profiles) · [Profile sync](#profile-sync) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Bot interactions](#bot-interactions) · [Bot DMs](#bot-dms) · [Presence and voice messages](#presence-and-voice-messages)
 - **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Live captions model](#live-captions-model) · [Owner claim (rented servers)](#owner-claim-rented-servers) · [Server updates and health](#server-updates-and-health) · [Backups, moving and imports](#backups-moving-and-imports)
 - **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation) · [Roles and permissions](#roles-and-permissions) · [Built-in roles](#built-in-roles) · [Reliable sends](#reliable-sends) · [AutoMod](#automod) · [Security log, retention and your data](#security-log-retention-and-your-data)
@@ -627,7 +627,7 @@ A bot is an ordinary identity (account key, device certificate, signed handshake
 - A bot can only join with a bot invite, and a bot invite only works for a client that says `bot: true`. Anything else gets `invite_required` (and the invite isn't used up).
 - The flag is stored by the server and can't be changed afterwards: `Member.bot` (boolean) everywhere members appear.
 - Bots can't join voice unless an admin allows it ([Voice bots](#voice-bots); otherwise `voice.join` → `forbidden`), create invites, or have a role above `trusted` (`member.setRole` → `bad_request`). They have the same rate limits as everyone else.
-- Bots can't send DMs or take part in calls (`dm.send`, `call.start`, `call.accept` → `forbidden`; calling a bot → `bad_request`): DMs and call keys are end-to-end encrypted to people's devices, which a bot can't read.
+- Bots can send and receive DMs ([Bot DMs](#bot-dms)), but can't take part in calls (`call.start`, `call.accept` → `forbidden`; calling a bot → `bad_request`): call media keys are meant for people's apps.
 - Bots can't be in group DMs or group calls, schedule messages (`scheduled.create` → `forbidden`), speak or moderate on stages, take part in [encrypted channels](#end-to-end-encrypted-channels), or leave on their own (`member.leave` → `forbidden`; an admin removes them). They can hold [roles](#roles-and-permissions) with permissions like anyone else.
 - Commands: a message starting with `/name args` (or `/name@BotName args` to pick one bot) is a command by convention. Bots can describe their commands so apps suggest them ([Bot commands and cards](#bot-commands-and-cards)), and take them as [interactions](#bot-interactions) instead of messages. See `docs/bots.md`.
 
@@ -2775,3 +2775,36 @@ Afk { "channelId": 7 | null,               // a voice channel (never a stage); n
 - Rate limits: `voice.idle` 1 every 2 s (burst 10); `afk.update` the general bucket.
 - Storage: `afk_settings` (one row) and `afk_talk_roles` (migration `afk-1`). Templates can set it up (`afk` in the
   template format, see docs/hosting.md).
+
+## Bot DMs
+
+People can message a bot, and a bot can message people, as end-to-end encrypted [direct messages](#direct-messages-end-to-end-encrypted).
+A bot is an ordinary DM endpoint: it connects with a device certificate, publishes signed prekeys (`prekey.publish`)
+like an app, and encrypts and decrypts envelopes itself. The server relays envelopes as for people and never reads them.
+Whoever runs the bot reads what's sent to it: that's the point of writing to a bot, and apps say so.
+
+| type | body | result | who |
+|---|---|---|---|
+| `dm.bots.get` | | `{ allow, at }` (`at`: 0 if never set) | anyone (their own) |
+| `dm.bots.set` | `allow` (bool), `at` (ms; ≥ 1, at most 10 minutes ahead of the server) | `{ allow, at }` (what is stored afterwards) | anyone (their own) |
+
+- **The setting** "DMs from bots" (default: allowed). Last writer wins by `at`, so apps keep it on the device and hand it
+  to every server they're on (like the [block list](#blocking)); an older `at` changes nothing. Event `dm.bots { allow, at }`
+  goes to the account's other sessions on this server after a change.
+- **`dm.send` from a person to a bot**: always allowed (unless one blocked the other), except to [built-in bots](#built-in-bots),
+  which run inside the server and have no keys (`bad_request`, key `builtin_bot_dm`). The server notes that the person
+  wrote to the bot.
+- **`dm.send` from a bot to a person**: only to members of this server (else `not_found`, as for everyone), not if either
+  blocked the other (`forbidden`, key `blocked_message`), and only if the person allows DMs from bots or wrote to this bot
+  before (else `forbidden`, key `bot_dms_off`). So turning the setting off stops every conversation a bot started, but a
+  bot can still answer someone who writes to it.
+- **Bots never message bots** (`forbidden`, key `bot_dm_bot`). Bots still can't upload DM files (`dm.upload.begin`),
+  call, be called or be in group DMs.
+- **Rate limits** on top of `dm.send`'s own (2/s, burst 10 per session): per bot account, 1 DM a second (burst 30) over all
+  its connections, and 20 new conversations at once, then 20 an hour (`rate_limited`, key `bot_dm_new_limit`).
+- **Commands in DMs** stay end-to-end encrypted: the app sends `/name args` as the DM's text (the app suggests the bot's
+  [registered commands](#command-registry) when someone types `/` in a DM with it), and the bot answers with DMs. They
+  are not interactions: there are no private answers, forms or buttons in DMs, and a bot checks a command's `role` itself
+  (the member's base role, as the bot sees it); commands that need a `permission` work only in channels.
+- Storage (migration `botdms-1`): `bot_dm_prefs` (account, allow, at) and `bot_dm_peers` (bot, person, whether the
+  person wrote first, when the conversation started). Both are in "Download my data" and are deleted with the account.

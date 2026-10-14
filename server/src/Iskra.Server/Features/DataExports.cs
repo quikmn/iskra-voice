@@ -167,6 +167,8 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         Section("eventInterest", $"SELECT event_id, account_key, created_at FROM event_interest WHERE account_key {Mine};");
         Section("uploads", $"SELECT id, name, size, type, sha256, uploader, created_at FROM files WHERE uploader {Mine} ORDER BY created_at;");
         Section("directMessages", $"SELECT id, from_key, to_key, created_at FROM dms WHERE from_key {Mine} OR to_key {Mine} ORDER BY id;");
+        Section("botDmSetting", $"SELECT account_key, allow, at FROM bot_dm_prefs WHERE account_key {Mine};");
+        Section("botConversations", $"SELECT bot_key, account_key, person_wrote, started_at FROM bot_dm_peers WHERE account_key {Mine} OR bot_key {Mine};");
         Section("groups", $"SELECT group_id, account_key FROM group_members WHERE account_key {Mine};");
         Section("groupMessagesSent", $"SELECT id, group_id, from_key, created_at FROM group_messages WHERE from_key {Mine} ORDER BY id;");
         // Reminders' data is sealed by your devices (what they're about and your note); the server only knows the rest.
