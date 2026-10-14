@@ -84,6 +84,7 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
 | `scripts/mobile-version.mjs` | The phone app's version and build numbers (tested by the root `npm test`) |
 | `.github/workflows/uptime.yml`, `scripts/uptime-check.sh` | Uptime checks and outage issues ([section 8](#8-uptime-monitoring)) |
 | `server/deploy/iskra-update-guard` | Shipped in the Linux server tarball (release.yml): undoes a server self-update that doesn't start (docs/hosting.md) |
+| `desktop/scripts/build-sidecar.mjs` | `iskra-p2p`, the standalone server's peer-to-peer tunnel as one Node single executable (+ `iskra-p2p-licenses.txt`), into every server package: release.yml (Linux, both Macs; Mac x64 takes Node from nodejs.org, checked against SHASUMS256.txt; ad-hoc signed) and release-windows.ps1 (signed, checked with the other signatures). Not in the desktop app, which runs the tunnel itself |
 
 Supply chain: every action is pinned to a full commit SHA with the version as a comment (Dependabot keeps them
 current); every workflow starts with minimal `permissions:` and widens them per job; wrangler is pinned

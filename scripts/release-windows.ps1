@@ -91,16 +91,19 @@ try {
       }
       Stop-Release "npm run dist failed (exit code $code). Build log: $log"
     }
+    # The standalone server's peer-to-peer tunnel: one executable, signed like the server (the desktop app runs its own).
+    Native 'build-sidecar.mjs (iskra-p2p)' { node desktop\scripts\build-sidecar.mjs win-x64 }
   }
 
   $setup = "desktop\release\Iskra-Setup-$Version.exe"
   $portable = "desktop\release\Iskra-Portable-$Version.exe"
   $server = 'desktop\build\server-win-x64\iskra-server.exe'
+  $sidecar = 'desktop\build\p2p-win-x64\iskra-p2p.exe'
   $zip = "desktop\release\iskra-server-$Version-win-x64.zip"
   $apk = "mobile\release\Iskra-$Version.apk"
 
   Step 'Checking signatures'
-  foreach ($f in $setup, $portable, $server) {
+  foreach ($f in $setup, $portable, $server, $sidecar) {
     if (-not (Test-Path $f)) { Stop-Release "$f is missing; the build didn't finish." }
     $sig = Get-AuthenticodeSignature $f
     if ($sig.Status -ne 'Valid') { Stop-Release "$f isn't validly signed ($($sig.Status): $($sig.StatusMessage)). Log in to SimplySign and rebuild." }
@@ -112,7 +115,7 @@ try {
   if (-not $SkipBuild) {
     Step 'Zipping the Windows server'
     Remove-Item $zip -ErrorAction SilentlyContinue
-    Compress-Archive -Path 'desktop\build\server-win-x64\*' -DestinationPath $zip
+    Compress-Archive -Path 'desktop\build\server-win-x64\*', $sidecar, 'desktop\build\p2p-win-x64\iskra-p2p-licenses.txt' -DestinationPath $zip
     Write-Host "Built $zip"
 
     Step 'Building the Android APK (the Capacitor app, signed with the release key)'

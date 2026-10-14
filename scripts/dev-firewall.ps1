@@ -8,7 +8,7 @@ param([string[]]$Roots = @((Resolve-Path "$PSScriptRoot\..").Path) + @(Get-Child
 $group = 'Iskra dev binaries'
 Get-NetFirewallRule -Group $group -ErrorAction SilentlyContinue | Remove-NetFirewallRule
 
-$names = 'livekit-server.exe', 'iskra-server.exe', 'electron.exe', 'Iskra.exe', 'pebble.exe'
+$names = 'livekit-server.exe', 'iskra-server.exe', 'iskra-p2p.exe', 'electron.exe', 'Iskra.exe', 'pebble.exe'
 $places = '.tools', 'server\src\Iskra.Server\bin', 'desktop\build', 'desktop\release', 'desktop\node_modules\electron\dist', 'client\node_modules\electron\dist', '.dev'
 $count = 0
 foreach ($root in $Roots) {
