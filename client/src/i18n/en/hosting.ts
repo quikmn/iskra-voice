@@ -107,6 +107,7 @@ export const hosting = {
     switch: 'Let friends connect without port forwarding',
     privacy: "Uses a public peer-to-peer network (HyperDHT) to let friends find your computer, the way BitTorrent finds peers. Computers on that network can see your internet address and which addresses connect to you, never what you say or share. Friends connect straight to you, encrypted end to end, and still need an invite link. Nothing of Iskra's is in between.",
     notHere: "The tunnel runs in the Iskra desktop app that hosts the server. This server runs somewhere else, so there's no switch for it here yet.",
+    standalone: 'This server runs the tunnel itself (iskra-p2p, next to the server program) once you turn this on.',
     inviteNote: "This link also works for friends who can't reach your address: their Iskra app connects peer to peer instead.",
     summary: {
       off: 'Off. Friends need an open port or your network address.',
@@ -115,6 +116,7 @@ export const hosting = {
       unavailable: "Not available in this build or mode: there's no peer-to-peer network to join.",
       failed: "Couldn't start: {{error}}",
       elsewhere: 'On. The tunnel runs in the desktop app that hosts this server.',
+      missing: "On, but there's no iskra-p2p next to this server's program, so friends can't connect this way yet. It comes with the server downloads: put it next to iskra-server.",
     },
     nat: {
       unknown: 'Finding out what your connection looks like…',

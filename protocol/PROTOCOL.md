@@ -2240,14 +2240,17 @@ server's address. Card text is rendered as text and markdown by apps, never as H
 
 Many home connections share one internet address between customers (carrier-grade NAT), so friends can't reach a
 server at home and no port can be forwarded. The owner may let friends connect through a peer-to-peer tunnel instead:
-the host's Iskra desktop app announces a key on the public [HyperDHT](https://github.com/holepunchto/hyperdht) network
+the host's Iskra desktop app (or a standalone server's `iskra-p2p` sidecar) announces a key on the public [HyperDHT](https://github.com/holepunchto/hyperdht) network
 and friends' desktop apps find it there, hole-punch a UDP path and carry the server's protocol inside a
 Noise-encrypted stream (UDX). Nothing of Iskra's sits on the path. Off by default; an explicit opt-in by the owner.
 
 ```jsonc
 "P2p": {
   "Enabled": false,
-  "TunnelPort": 0        // the tunnel listener on 127.0.0.1 (0 = any free port; the bound port is written to p2p.port)
+  "TunnelPort": 0,       // the tunnel listener on 127.0.0.1 (0 = any free port; the bound port is written to p2p.port)
+  "SidecarPath": null,   // standalone server: the iskra-p2p program (null = next to iskra-server, or ISKRA_P2P_SIDECAR)
+  "Bootstrap": null,     // DHT bootstrap nodes "host:port,host:port" (null = HyperDHT's public ones)
+  "DhtPort": 0           // the DHT's UDP port (0 = 49737; any port on a LocalOnly server)
 }
 ```
 
@@ -2278,7 +2281,15 @@ P2pStatus {
   "hostKey": "<64 hex>",     // the host's DHT public key (what friends look up), or null
   "tunnelPort": 51234,       // the tunnel listener on 127.0.0.1
   "since": 1760000000000,    // when the current secret was made, or null
-  "connected": 2             // sessions online through the tunnel right now
+  "connected": 2,            // sessions online through the tunnel right now
+  "tunnel": {                // the standalone server's own tunnel (iskra-p2p); null when the desktop app hosting
+                             // the server runs the tunnel (it reports that itself). Absent from older servers.
+    "state": "ready",        // off | missing (no iskra-p2p here) | starting | ready | unavailable (LocalOnly without
+                             // a testnet) | failed (started again after a pause)
+    "nat": { "firewalled": true, "randomized": false, "publicAddress": "203.0.113.5:49737" }, // or null
+    "connections": 1,        // tunnel connections open right now
+    "error": null            // a short reason (≤ 200 characters) when unavailable or failed
+  }
 }
 ```
 
@@ -2290,8 +2301,18 @@ P2pStatus {
   (`/internal/livekit-webhook`) answer 404, plain-HTTP webhooks are refused as from anywhere else, they're never
   redirected to the public HTTPS address (the tunnel is already encrypted end to end), and per-address rate limits
   and the security log (`LoggedIp`, only when the owner records addresses) use the friend's address from the header.
-  The listener is local only, so nothing on the network can reach it; the tunnel in the host's desktop app is the
-  only thing that connects to it.
+  The listener is local only, so nothing on the network can reach it; the tunnel is the only thing that connects
+  to it.
+- **Who runs the tunnel.** A server hosted by the desktop app: the app, in its own process (it starts the server
+  with `ISKRA_P2P_TUNNEL=app`). A standalone server: its sidecar `iskra-p2p` (shipped next to `iskra-server` in the
+  server packages; the same tunnel code as the desktop app, as one Node single executable), which the server starts
+  with the world folder as its only argument while the feature is on, restarts after a crash (2 s, doubling up to
+  60 s) and stops with itself (its stdin closes; it leaves the DHT and exits; killed after 3 s; on Windows it's also
+  bound to the server's job object). The sidecar reads `p2p.key`, `p2p.port` and `server.json` itself, so the secret
+  is never on a command line or in the environment. The server writes `sync` to its stdin after `p2p.rotate`; the
+  sidecar answers each status change with one stdout line `{"status": {...}}` (the `tunnel` fields above). A
+  `LocalOnly` server's sidecar binds 127.0.0.1 and joins only the network named by `P2p.Bootstrap` (tests run a
+  private testnet there); without one it stays `unavailable` and never touches the public DHT.
 - **Voice.** With the feature on, LiveKit's embedded TURN server listens on UDP `Voice.TurnUdpPort` (default
   `RtcUdpPort + 1`) with relay ports `Voice.TurnRelayStart`–`Voice.TurnRelayEnd` (default 40000–40200), and may relay
   only to this computer's own addresses. The tunnel carries TURN as unreliable datagrams (no head-of-line blocking).

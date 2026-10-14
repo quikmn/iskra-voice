@@ -121,6 +121,8 @@ builder.Services.AddSingleton<IPortMapper>(sp => builder.Configuration["Internet
 builder.Services.AddSingleton<InternetHost>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<InternetHost>());
 builder.Services.AddSingleton<TunnelListener>();
+builder.Services.AddSingleton<P2pSidecar>(); // the standalone server's tunnel (iskra-p2p), while P2p is on
+builder.Services.AddHostedService(sp => sp.GetRequiredService<P2pSidecar>());
 builder.Services.AddSingleton<Iskra.Server.Backups.BackupService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<Iskra.Server.Backups.BackupService>());
 builder.Services.AddSingleton<Iskra.Server.Import.ImportService>();

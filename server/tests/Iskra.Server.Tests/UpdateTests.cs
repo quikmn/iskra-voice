@@ -213,6 +213,17 @@ public class UpdateTests
     }
 
     [Fact]
+    public void The_p2p_sidecar_comes_along_as_the_release_packs_it()
+    {
+        // release.yml: tar -C server . -C p2p iskra-p2p iskra-p2p-licenses.txt (the second folder's names have no "./").
+        var package = TarGz(("./iskra-server", "server", TarEntryType.RegularFile), ("./livekit-server", "lk", TarEntryType.RegularFile),
+            ("iskra-p2p", "sidecar", TarEntryType.RegularFile), ("iskra-p2p-licenses.txt", "licences", TarEntryType.RegularFile));
+        var dest = Path.Combine(TempDir(), "staged");
+        Assert.Equal(["iskra-server", "livekit-server", "iskra-p2p", "iskra-p2p-licenses.txt"], UpdateArchive.Extract(WriteTemp(package), dest, "iskra-server"));
+        if (!OperatingSystem.IsWindows()) Assert.True(File.GetUnixFileMode(Path.Combine(dest, "iskra-p2p")).HasFlag(UnixFileMode.UserExecute));
+    }
+
+    [Fact]
     public void Windows_packages_unpack_too()
     {
         using var zipBytes = new MemoryStream();

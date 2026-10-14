@@ -1748,6 +1748,20 @@ export interface P2pStatus {
   since: number | null
   /** Sessions online through the tunnel right now. */
   connected: number
+  /**
+   * A standalone server's own tunnel (its iskra-p2p sidecar); null when the desktop app hosting the server runs the
+   * tunnel, absent from older servers.
+   */
+  tunnel?: P2pServerTunnel | null
+}
+
+export interface P2pServerTunnel {
+  /** missing: the server has no iskra-p2p next to it. unavailable: a LocalOnly server without a testnet. */
+  state: 'off' | 'missing' | 'starting' | 'ready' | 'unavailable' | 'failed'
+  nat: { firewalled: boolean; randomized: boolean; publicAddress: string | null } | null
+  /** Tunnel connections open right now. */
+  connections: number
+  error: string | null
 }
 
 export interface Events {
