@@ -70,7 +70,7 @@
 .settings-section .roles-subhead { margin-top: 22px; }
 .settings-section .roles-subhead:first-of-type { margin-top: 4px; }
 .builtin-role-list { margin-top: 10px; margin-bottom: 4px; }
-.pill.builtin-badge { color: var(--muted); background: var(--surface-3); }
+.pill.builtin-badge { color: var(--text-2); background: var(--surface-3); }
 .builtin-role-details p { margin: 0; }
 .builtin-abilities { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
 .builtin-role-details .field { margin-bottom: 0; }
