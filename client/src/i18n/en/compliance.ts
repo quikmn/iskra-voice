@@ -159,6 +159,7 @@ export const compliance = {
     server_template: 'Set up from a starter template',
     server_autostart_install: 'Set to start with the computer',
     server_autostart_remove: 'No longer starts with the computer',
+    owner_claim_created: 'Made a claim code for the owner',
     account_dispute_resolve: 'Settled an account key dispute',
     keylog_alert: 'A device reported a problem with the key log',
     keylog_reloaded: 'Reloaded the key log (the database changed)',
