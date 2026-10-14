@@ -16,11 +16,11 @@ public sealed class Router
 
     public Router(ILogger<Router> log, Hosting.InternetHost internet, Backups.BackupService backups, Import.ImportService imports,
         DataExports exports, Updates.UpdateService updates, Captions.CaptionModelService captions,
-        Hosting.TunnelListener tunnel, Voice.LiveKitHost livekit)
+        Hosting.TunnelListener tunnel, Voice.LiveKitHost livekit, Hosting.P2pSidecar sidecar)
     {
         _log = log;
         Add("ping", (_, _, _) => new { });
-        P2pFeature.Register(this, tunnel, livekit);
+        P2pFeature.Register(this, tunnel, livekit, sidecar);
         ChatFeature.Register(this);
         ChannelFeature.Register(this);
         MemberFeature.Register(this);

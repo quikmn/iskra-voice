@@ -154,4 +154,23 @@ public class P2pTests : IDisposable
         Assert.Equal(TunnelListener.Header.Invalid, Parse(ProxyV2(0x12, [203, 0, 113, 9], 1, [127, 0, 0, 1], 2), out _, out _)); // UDP
         Assert.Equal(TunnelListener.Header.Invalid, Parse(ProxyV2(0x31, [1, 2, 3, 4], 1, [5, 6, 7, 8], 2), out _, out _)); // AF_UNIX
     }
+
+    [Fact]
+    public async Task The_owner_sees_how_the_servers_own_tunnel_is_doing()
+    {
+        using var owner = await _server.JoinAsync("Owner", "owner");
+        var off = Body(await owner.RequestAsync("p2p.status")).GetProperty("status").GetProperty("tunnel");
+        Assert.Equal("off", off.GetProperty("state").GetString());
+        Assert.Equal(JsonValueKind.Null, off.GetProperty("nat").ValueKind);
+
+        // On, but this test server has no iskra-p2p next to it: the owner is told rather than left waiting.
+        Body(await owner.RequestAsync("p2p.set", new { enabled = true }));
+        for (var i = 0; i < 100; i++)
+        {
+            var tunnel = Body(await owner.RequestAsync("p2p.status")).GetProperty("status").GetProperty("tunnel");
+            if (tunnel.GetProperty("state").GetString() == "missing") return;
+            await Task.Delay(50);
+        }
+        Assert.Fail("The tunnel's state never became missing.");
+    }
 }

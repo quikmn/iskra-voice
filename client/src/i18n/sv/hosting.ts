@@ -107,6 +107,7 @@ export const hosting: Messages['hosting'] = {
     switch: 'Låt vänner ansluta utan portvidarebefordran',
     privacy: 'Använder ett publikt peer-to-peer-nätverk (HyperDHT) så att vänner hittar din dator, på samma sätt som BitTorrent hittar sina peers. Datorer i det nätverket kan se din internetadress och vilka adresser som ansluter till dig, men aldrig vad ni säger eller delar. Vännerna ansluter direkt till dig, krypterat hela vägen, och behöver fortfarande en inbjudningslänk. Ingenting från Iskra sitter emellan.',
     notHere: 'Tunneln körs i den Iskra-app som är värd för servern. Den här servern körs någon annanstans, så det finns ingen knapp för den här ännu.',
+    standalone: 'Servern kör tunneln själv (iskra-p2p, bredvid serverprogrammet) när du slår på det här.',
     inviteNote: 'Länken fungerar också för vänner som inte kan nå din adress: deras Iskra-app ansluter peer-to-peer i stället.',
     summary: {
       off: 'Av. Vänner behöver en öppen port eller din nätverksadress.',
@@ -115,6 +116,7 @@ export const hosting: Messages['hosting'] = {
       unavailable: 'Inte tillgängligt i den här versionen eller det här läget: det finns inget peer-to-peer-nätverk att gå med i.',
       failed: 'Kunde inte starta: {{error}}',
       elsewhere: 'På. Tunneln körs i den app som är värd för servern.',
+      missing: 'På, men det finns inget iskra-p2p bredvid serverprogrammet, så vänner kan inte ansluta den här vägen än. Det följer med servernedladdningarna: lägg det bredvid iskra-server.',
     },
     nat: {
       unknown: 'Tar reda på hur din anslutning ser ut…',

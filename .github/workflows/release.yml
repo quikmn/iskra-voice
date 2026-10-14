@@ -60,12 +60,16 @@ jobs:
         working-directory: desktop
       - run: npm run dist:linux
         working-directory: desktop
+      # The standalone server's peer-to-peer tunnel (one Node single executable; the desktop app runs its own).
+      - run: node scripts/build-sidecar.mjs linux-x64
+        working-directory: desktop
       - name: Server bundle
         run: |
           v="${TAG#v}"
           # The guard undoes an automatic update that doesn't start (systemd ExecStartPre, docs/hosting.md).
           install -m 755 server/deploy/iskra-update-guard desktop/build/server-linux-x64/iskra-update-guard
-          tar -czf "desktop/release/iskra-server-$v-linux-x64.tar.gz" -C desktop/build/server-linux-x64 .
+          tar -czf "desktop/release/iskra-server-$v-linux-x64.tar.gz" -C desktop/build/server-linux-x64 . -C "$PWD/desktop/build/p2p-linux-x64" iskra-p2p iskra-p2p-licenses.txt
+          tar -tzf "desktop/release/iskra-server-$v-linux-x64.tar.gz" | grep -x iskra-p2p > /dev/null || { echo "::error::the server bundle has no iskra-p2p"; exit 1; }
       # The standalone server for 64-bit ARM Linux (Raspberry Pi 4/5 and other small boxes): cross-published here,
       # with LiveKit's official linux-arm64 build (pinned and checked by get-livekit.sh).
       - name: Server bundle (linux-arm64)
@@ -200,10 +204,15 @@ jobs:
           spctl --assess --type execute -vv "$dir/Iskra.app"
         env:
           MAC_IDENTITY: ${{ vars.MAC_IDENTITY }}
+      # The standalone server's peer-to-peer tunnel, ad-hoc signed like the server binaries (x64: Node for x64 from
+      # nodejs.org, checked against SHASUMS256.txt).
+      - run: node scripts/build-sidecar.mjs "osx-$ARCH"
+        working-directory: desktop
       - name: Server bundle
         run: |
           v="${TAG#v}"
-          tar -czf "desktop/release/iskra-server-$v-osx-$ARCH.tar.gz" -C "desktop/build/server-mac-$ARCH" .
+          tar -czf "desktop/release/iskra-server-$v-osx-$ARCH.tar.gz" -C "desktop/build/server-mac-$ARCH" . -C "$PWD/desktop/build/p2p-mac-$ARCH" iskra-p2p iskra-p2p-licenses.txt
+          tar -tzf "desktop/release/iskra-server-$v-osx-$ARCH.tar.gz" | grep -x iskra-p2p > /dev/null || { echo "::error::the server bundle has no iskra-p2p"; exit 1; }
       # This job's latest-mac.yml lists only its own architecture: renamed so publish can merge the two.
       - name: Update file part
         run: |

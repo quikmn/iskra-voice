@@ -82,14 +82,20 @@ public sealed record WorldSettings
 }
 
 /// <summary>
-/// "Let friends connect without port forwarding": the owner's opt-in. The secret lives in p2p.key; the tunnel in
-/// the host's desktop app reaches the server on the localhost tunnel listener.
+/// "Let friends connect without port forwarding": the owner's opt-in. The secret lives in p2p.key; the tunnel (in
+/// the host's desktop app, or the iskra-p2p sidecar of a standalone server) reaches it on the localhost tunnel listener.
 /// </summary>
 public sealed record P2pSettings
 {
     public bool Enabled { get; init; }
     /// <summary>The tunnel listener on 127.0.0.1. 0 = any free port (the bound one is written to p2p.port).</summary>
     public int TunnelPort { get; init; }
+    /// <summary>The standalone server's tunnel program (iskra-p2p); null = next to iskra-server, or ISKRA_P2P_SIDECAR.</summary>
+    public string? SidecarPath { get; init; }
+    /// <summary>DHT bootstrap nodes ("host:port,host:port"); null = HyperDHT's public ones (a LocalOnly server needs a testnet here).</summary>
+    public string? Bootstrap { get; init; }
+    /// <summary>The DHT's UDP port; 0 = HyperDHT's usual 49737 (any port on a LocalOnly server).</summary>
+    public int DhtPort { get; init; }
 }
 
 /// <summary>

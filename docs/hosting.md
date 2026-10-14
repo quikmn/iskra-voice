@@ -271,7 +271,7 @@ Below it, **What Iskra found out**: whether your router has its own public addre
 - **Your router doesn't answer** (UPnP is off): turn on UPnP in the router's settings, or forward the ports it lists by hand, then press **Check again**.
 - **The router won't open port 80** (many only allow ports above 1024): forward port 80 by hand. Until then friends with the desktop app can join over plain HTTP; browsers need HTTPS.
 - **Carrier-grade NAT**: some providers share one public address between customers (your router's "public" address is then in `100.64.0.0/10` or another private range). Port forwarding on your own router can't help: the provider's NAT sits in front of it. Friends behind such a connection can always *join* a reachable server; only the person hosting needs an open connection. The app lists the options, quickest first:
-  1. For a server in the desktop app: [let friends connect without port forwarding](#let-friends-connect-without-port-forwarding-experimental) (experimental), nothing to open and nothing to install.
+  1. [Let friends connect without port forwarding](#let-friends-connect-without-port-forwarding-experimental) (experimental, the desktop app or a standalone server), nothing to open and nothing to install.
   2. [Rent a small server](#rent-a-small-server), ready in about 15 minutes, paid and owned by your group.
   3. Check whether you already have a public IPv4 address (many fiber connections do): the check shows what your router says.
   4. Ask your provider for a public IPv4 address. Often free and done once; mobile broadband (4G/5G) almost never gets one.
@@ -286,7 +286,7 @@ Prefer to forward ports yourself? Set `"PortMapping": false` and your `Domain` i
 
 ### Let friends connect without port forwarding (experimental)
 
-For a server hosted in the desktop app, **Server settings → Internet access → Connect without port forwarding** lets friends in even when your connection is shared (CGNAT) or your router won't open ports. It's off until the owner turns it on, and marked experimental until it has been tried on more connections.
+**Server settings → Internet access → Connect without port forwarding** lets friends in even when your connection is shared (CGNAT) or your router won't open ports. It works for a server hosted in the desktop app and for a standalone server (it runs the tunnel itself, see below). It's off until the owner turns it on, and marked experimental until it has been tried on more connections.
 
 **How it works.** Your desktop app announces a key on [HyperDHT](https://github.com/holepunchto/hyperdht), the public peer-to-peer network that Keet and other Pear apps use (the same idea as BitTorrent's DHT). A friend's desktop app gets the key from your invite link, looks your computer up there, and the two apps punch a path straight to each other through both routers (UDP hole punching, as game consoles and video calls do). Everything then travels inside an encrypted connection ([Noise](https://noiseprotocol.org/) over UDX) directly between your computers: chat, files, and voice through the server's own TURN relay. Nothing of Iskra's is in between; the only fixed points are HyperDHT's three bootstrap nodes (run by Holepunch), used once to find other nodes. Iskra's own signed handshake and the invite code still decide who may join, and the server key in the link still pins your server end to end.
 
@@ -298,7 +298,9 @@ For a server hosted in the desktop app, **Server settings → Internet access �
 
 **Under the hood.** The server listens on a second port on `127.0.0.1` only (written to `p2p.port` in the folder), where the app's tunnel delivers friends with their real address (PROXY protocol v2), so they count as remote visitors in every way: rate limits, the security log, never the trust the server gives its own machine. Voice uses LiveKit's embedded TURN server on `Voice.TurnUdpPort` (default `RtcUdpPort + 1`) with relay ports 40000–40200, allowed to relay only to this computer; the friend's app reaches it at `127.0.0.1` through the tunnel and sends media relay-only. While your voice goes through a tunnel, the desktop app runs WebRTC with Chromium's `default_public_interface_only` policy (one any-address socket; with a socket per network adapter, Windows can't reach loopback) and switches back when you leave, so voice to a server on another local network (Tailscale, ZeroTier, a second router) keeps using the right adapter. The secret is in `p2p.key` (owner-only). Development builds and `LocalOnly` servers never touch the public network; tests use a private DHT on `127.0.0.1`.
 
-**Third-party notices (the peer-to-peer stack, bundled with the desktop app):**
+**On a standalone server** the tunnel is `iskra-p2p`, a second program in the server download next to `iskra-server` (the same tunnel code as the desktop app, packed as one [Node.js single executable](https://nodejs.org/api/single-executable-applications.html), about 90 MB). The server starts it while the switch is on, starts it again if it stops, and stops it with itself; there's nothing to run or install by hand. The owner turns it on in the app as above, or with `"P2p": { "Enabled": true }` in `server.json`. It joins HyperDHT on UDP port 49737 (`P2p.DhtPort`); no port needs to be open for it, though a firewall that lets that port in helps friends on hard NATs. If the switch's panel says *iskra-p2p isn't next to the server*, copy it from the download into the server's folder. `iskra-p2p-licenses.txt` lists what it contains. A `LocalOnly` server's tunnel only binds `127.0.0.1` and only joins a network named in `P2p.Bootstrap` (tests run a private one there).
+
+**Third-party notices (the peer-to-peer stack, bundled with the desktop app and with `iskra-p2p`, which also contains [Node.js](https://nodejs.org), MIT and the licences in its `LICENSE`):**
 
 | Component | Version | License |
 |---|---|---|
@@ -519,9 +521,12 @@ iskra-server import-discord my-server export.zip              # add --read-only 
     "TurnUdpPort": 0,                  // LiveKit's TURN for friends through the p2p tunnel; 0 = RtcUdpPort + 1
     "TurnRelayStart": 40000, "TurnRelayEnd": 40200
   },
-  "P2p": {                             // "Connect without port forwarding" (desktop app; Server settings → Internet access)
+  "P2p": {                             // "Connect without port forwarding" (Server settings → Internet access)
     "Enabled": false,
-    "TunnelPort": 0                    // the tunnel's listener on 127.0.0.1; 0 = any free port, written to p2p.port
+    "TunnelPort": 0,                   // the tunnel's listener on 127.0.0.1; 0 = any free port, written to p2p.port
+    "SidecarPath": null,               // standalone server: iskra-p2p (null = next to iskra-server, or ISKRA_P2P_SIDECAR)
+    "Bootstrap": null,                 // DHT bootstrap nodes "host:port,..." (null = HyperDHT's public ones)
+    "DhtPort": 0                       // the tunnel's UDP port on the DHT; 0 = 49737
   },
   "Https": {
     "Mode": "off",                     // "off" | "acme" (Let's Encrypt) | "files"

@@ -6,5 +6,5 @@
   },
   "include": ["interop", "e2e", "playwright.config.ts"],
   // Imports the desktop app's tunnel (desktop/src/p2p), whose packages only desktop/ has; vitest still runs it.
-  "exclude": ["interop/p2p.test.ts"]
+  "exclude": ["interop/p2p.test.ts", "interop/p2p-sidecar.test.ts"]
 }

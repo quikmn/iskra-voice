@@ -282,6 +282,8 @@ export class Host {
         ISKRA_STOP_ON_STDIN_CLOSE: '1',
         // Updates come with the app, not from the server itself.
         Updates__ManagedBy: 'desktop',
+        // The peer-to-peer tunnel runs here (HostTunnels), not in the server's own sidecar.
+        ISKRA_P2P_TUNNEL: 'app',
         ...(livekit ? { ISKRA_LIVEKIT: livekit } : {}),
       },
     })
