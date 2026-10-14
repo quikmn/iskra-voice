@@ -195,7 +195,7 @@ describe('Music bot ↔ server and LiveKit', () => {
     const tone = Float32Array.from({ length: 48_000 * 6 }, (_, i) => 0.5 * Math.sin((2 * Math.PI * 440 * i) / 48_000))
     const wav = encodeWav([tone], 48_000)
     const ticket = await owner.request('upload.begin', { name: 'Test_Tone.wav', size: wav.length })
-    const { file } = (await (await fetch(url + ticket.url, { method: 'PUT', body: wav })).json()) as { file: { id: string; url: string } }
+    const { file } = (await (await fetch(url + ticket.url, { method: 'PUT', body: new Blob([wav as Uint8Array<ArrayBuffer>]) })).json()) as { file: { id: string; url: string } }
     await owner.request('chat.send', { channelId: general.id, text: `<@${key}> play this`, attachments: [file.id] })
 
     await message((m) => m.author === key && m.text.includes('started the music with **Test Tone**'))

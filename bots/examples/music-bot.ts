@@ -43,6 +43,8 @@ export function music(bot: Bot, options: MusicOptions): void {
   let card: { channelId: number; id: number } | null = null
   /** Where to post the card: the channel the music was started from. */
   let home: number | null = null
+  /** The play loop is running (also between two songs, while the card is being posted). */
+  let looping = false
 
   const memberOf = (key: string) => bot.members.get(key)
   const paused = () => bot.voice?.state === 'paused'
@@ -71,6 +73,7 @@ export function music(bot: Bot, options: MusicOptions): void {
     if (card) await bot.edit(card.id, stopped(reason)).catch(() => undefined)
     card = null
     home = null
+    looping = false
     queue.reset()
     void bot.setActivity(null).catch(() => undefined)
     await bot.voice?.leave()
@@ -115,7 +118,8 @@ export function music(bot: Bot, options: MusicOptions): void {
       return
     }
     const what = added === 1 ? `**${tracks[0].title}**` : `${added} songs`
-    const playing = voice.state === 'playing' || voice.state === 'paused'
+    const playing = looping
+    looping = true
     await ctx.reply(playing ? `➕ ${ctx.userName} added ${what} (${queue.upcoming.length} in the queue)` : `▶ ${ctx.userName} started the music with ${what}`)
     if (!playing) void playNext(voice)
     else await refreshCard()
