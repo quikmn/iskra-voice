@@ -61,7 +61,7 @@ public static class StickerFeature
 
     private static void RequireAdmin(Member me)
     {
-        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can manage stickers.", "admins_stickers");
+        if (!BaseRoles.Allows(me, BaseAbility.Stickers)) throw RequestException.Forbidden("Only admins can manage stickers.", "admins_stickers");
     }
 
     private static object Create(Session s, Member me, Body body)

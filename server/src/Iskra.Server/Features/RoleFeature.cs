@@ -43,7 +43,8 @@ public static partial class RoleFeature
 
     public static void Register(Router router)
     {
-        router.Add("role.list", (s, _, _) => new { roles = s.World.Store.AllRoles().Select(Public) });
+        router.Add("role.list", (s, _, _) => new { roles = s.World.Store.AllRoles().Select(Public), baseRoles = PublicBaseRoles(s.World.Store) });
+        router.Add("role.base.update", UpdateBase);
         router.Add("role.create", Create);
         router.Add("role.update", Update);
         router.Add("role.delete", Delete);
@@ -89,8 +90,14 @@ public static partial class RoleFeature
         return perms;
     }
 
-    private static string RoleName(string raw) =>
-        Names.Normalize(raw) ?? throw RequestException.BadRequest($"Role names must be 1–{Sessions.Names.MaxLength} characters.", "role_name", new { max = Sessions.Names.MaxLength });
+    private static string RoleName(string raw)
+    {
+        var name = Names.Normalize(raw) ?? throw RequestException.BadRequest($"Role names must be 1–{Sessions.Names.MaxLength} characters.", "role_name", new { max = Sessions.Names.MaxLength });
+        // Built-in roles are listed next to custom ones: no lookalikes.
+        if (Roles.IsValid(name.ToLowerInvariant()) || name.Equals("everyone", StringComparison.OrdinalIgnoreCase))
+            throw RequestException.BadRequest("That name belongs to a built-in role.", "role_name_builtin");
+        return name;
+    }
 
     /// <summary>"" or absent clears; otherwise #rrggbb.</summary>
     private static string? Color(Body body, string? fallback)
@@ -113,7 +120,7 @@ public static partial class RoleFeature
 
     private static void RolesChanged(Session s)
     {
-        s.Hub.Broadcast(Frames.Event("roles", new { roles = s.World.Store.AllRoles().Select(Public) }));
+        s.Hub.Broadcast(Frames.Event("roles", new { roles = s.World.Store.AllRoles().Select(Public), baseRoles = PublicBaseRoles(s.World.Store) }));
     }
 
     /// <summary>After role membership, deletion or overrides change: members, channel lists and voice follow.</summary>
@@ -151,7 +158,7 @@ public static partial class RoleFeature
         var role = ManageableRole(s, me, body.Long("id"));
         var updated = role with
         {
-            Name = body.OptionalString("name", 128) is { } raw ? RoleName(raw) : role.Name,
+            Name = body.OptionalString("name", 128) is { } raw && raw != role.Name ? RoleName(raw) : role.Name,
             Color = Color(body, role.Color),
             Icon = Icon(body, role.Icon),
             Hoist = body.OptionalBool("hoist") ?? role.Hoist,

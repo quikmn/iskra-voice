@@ -54,6 +54,7 @@ public class TemplateTests : IDisposable
         Assert.True(roles[0].Perms.HasFlag(Perm.KickMembers));
         Assert.True(roles[1].Mentionable);
         Assert.Equal("⚔️", roles[1].Icon);
+        Assert.Equal(new Dictionary<string, string> { ["owner"] = "#c27ce0", ["admin"] = "#e5534b" }, world.Store.BaseRoleColors());
         Assert.Contains("Be good to each other", world.Store.Rules()!.Text);
         Assert.False(world.Store.Rules()!.Required);
         Assert.Equal("gaming", world.Store.AppliedTemplate()!.Value.Name);
@@ -91,6 +92,7 @@ public class TemplateTests : IDisposable
               "channels": [ { "name": "Reading room", "kind": "voice", "userLimit": 8 } ],
               "categories": [ { "name": "Books", "channels": [ { "name": "now-reading" }, { "name": "announcements", "writeRole": "admin" } ] } ],
               "rules": { "text": "Be nice.", "required": true },
+              "builtinRoles": { "Trusted": { "color": "#5B9BD5" }, "guest": { "color": "" } },
             }
             """);
         using var world = World.OpenOrCreate(Path.Combine(_path, "world"));
@@ -101,11 +103,13 @@ public class TemplateTests : IDisposable
         Assert.Equal("member", channels[2].ReadRole);
         Assert.True(world.Store.Rules()!.Required);
         Assert.Equal("mine.json", world.Store.AppliedTemplate()!.Value.Name);
+        Assert.Equal(new Dictionary<string, string> { ["trusted"] = "#5b9bd5" }, world.Store.BaseRoleColors());
 
         using var empty = World.OpenOrCreate(Path.Combine(_path, "empty"));
         ServerTemplates.ApplyOnStart(empty, "empty", 1000);
         Assert.Equal(["general", "Voice"], empty.Store.AllChannels().Select(c => c.Name));
         Assert.Empty(empty.Store.AllRoles());
+        Assert.Empty(empty.Store.BaseRoleColors());
         Assert.Null(empty.Store.Rules());
     }
 
@@ -120,6 +124,12 @@ public class TemplateTests : IDisposable
     [InlineData("""{ "name": "x", "roles": [ { "name": "Mod" }, { "name": "mod" } ] }""", "two roles have the same name")]
     [InlineData("""{ "name": "x", "roles": [ { "name": "Mod", "color": "red" } ] }""", "'color' must look like #rrggbb")]
     [InlineData("""{ "name": "x", "rules": { "required": true } }""", "'rules.required' needs 'rules.text'")]
+    [InlineData("""{ "name": "x", "builtinRoles": { "moderator": { "color": "#ffffff" } } }""", "builtinRoles: there's no base role called 'moderator'. Use: owner, admin, trusted, member, guest")]
+    [InlineData("""{ "name": "x", "builtinRoles": { "admin": { "color": "red" } } }""", "builtinRoles.admin: 'color' must look like #rrggbb")]
+    [InlineData("""{ "name": "x", "builtinRoles": { "admin": { "colour": "#ffffff" } } }""", "unknown field at $.builtinRoles.admin.colour")]
+    [InlineData("""{ "name": "x", "builtinRoles": { "admin": {}, "Admin": {} } }""", "builtinRoles: 'admin' is listed twice")]
+    [InlineData("""{ "name": "x", "builtinRoles": { "admin": null } }""", "builtinRoles.admin: give an object")]
+    [InlineData("""{ "name": "x", "roles": [ { "name": "Trusted" } ] }""", "that name is taken by a built-in role")]
     [InlineData("""{ "name": "" }""", "'name' must be 1–60 characters")]
     [InlineData("""{ "name": "x", """, "isn't valid")]
     public void Invalid_templates_are_rejected_with_a_clear_error(string json, string expected)

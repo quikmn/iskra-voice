@@ -24,6 +24,10 @@
     { "name": "Moderator", "color": "#3fa66b", "hoist": true, "permissions": ["manageMessages", "timeoutMembers", "kickMembers", "muteMembers", "moveMembers", "viewAuditLog"] },
     { "name": "Game master", "color": "#8e6be8", "icon": "🎲", "mentionable": true, "permissions": ["muteMembers", "moveMembers", "mentionEveryone"] }
   ],
+  "builtinRoles": {
+    "owner": { "color": "#c27ce0" },
+    "admin": { "color": "#e5534b" }
+  },
   "rules": {
     "text": "1. Be a good sport, win or lose.\n2. No spoilers for campaigns you're not running.\n3. Show up on time for game night, or say so in #game-night-plans.",
     "welcome": "Welcome to the table! Check #game-night-plans for the next session."

@@ -13,6 +13,7 @@ exists.
 | Server nickname | Smeknamn på servern ("Smeknamn på {{server}}" when the server is named) | Optional, only on one server. Reset: "Use my name" / "Använd mitt namn" |
 | Owner, Admin, Moderator, Trusted, Member, Guest | Ägare, Admin, Moderator, Betrodd, Medlem, Gäst | Roles; plural "admins" in running text |
 | Role, base role | Roll, grundroll | Always "role", never "level"/"nivå". "Base role" only where the built-in one (Owner … Guest) must be told apart from custom roles |
+| Built-in role (badge "Built-in") | Inbyggd roll (badge "Inbyggd") | Settings → Roles: Owner … Guest, listed above custom ("egna") roles. Running text elsewhere still says "base role" |
 | Bot, bots | Bot, bottar | |
 | Server | Server | |
 | Channel, text channel, voice channel | Kanal, textkanal, röstkanal | Never "room"/"rum" for a voice channel |

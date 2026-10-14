@@ -97,7 +97,7 @@ public static class MoveFeature
 
     private static void RequireOwner(Member me)
     {
-        if (me.Role != Roles.Owner) throw RequestException.Forbidden("Only the owner can move this server.", "owner_move");
+        if (!BaseRoles.Allows(me, BaseAbility.RunServer)) throw RequestException.Forbidden("Only the owner can move this server.", "owner_move");
     }
 
     private static object Move(Session s, Member me, Body body)

@@ -51,7 +51,7 @@ public static class BackupFeature
 
     private static void RequireOwner(Member me)
     {
-        if (me.Role != Roles.Owner) throw RequestException.Forbidden("Only the owner can back up this server.", "owner_backup");
+        if (!BaseRoles.Allows(me, BaseAbility.RunServer)) throw RequestException.Forbidden("Only the owner can back up this server.", "owner_backup");
     }
 
     private static async Task<object?> Create(BackupService backups, Session s, Member me, Body body)

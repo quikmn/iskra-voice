@@ -114,7 +114,7 @@ public sealed partial class PushService
     /// From anyone else the text is shown but nobody is notified. Clients apply the same rule.
     /// </summary>
     public static bool CanPingGroups(Member author) =>
-        Roles.Rank(author.Role) >= Roles.Rank(Roles.Trusted) || Permissions.Has(author, Perm.MentionEveryone);
+        BaseRoles.Allows(author, BaseAbility.MentionEveryone) || Permissions.Has(author, Perm.MentionEveryone);
 
     /// <summary>
     /// A new channel message: mentioned people (or a group, for @everyone/@here), the author of the message it replies

@@ -43,7 +43,7 @@ public static class OrganizeFeature
 
     private static void RequireAdmin(Member me)
     {
-        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can organize channels.", "admins_organize");
+        if (!BaseRoles.Allows(me, BaseAbility.Organize)) throw RequestException.Forbidden("Only admins can organize channels.", "admins_organize");
     }
 
     /// <summary>

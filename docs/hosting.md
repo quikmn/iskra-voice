@@ -77,12 +77,17 @@ A new server can start with channels, voice rooms, roles and rules from a templa
     { "name": "Moderator", "color": "#3fa66b", "icon": "📚", "hoist": true, "mentionable": false,
       "permissions": ["manageMessages", "timeoutMembers", "kickMembers", "muteMembers", "moveMembers", "viewAuditLog"] }
   ],
+  "builtinRoles": {                            // optional: the built-in roles, by name (owner, admin, trusted, member, guest)
+    "owner": { "color": "#c27ce0" },
+    "admin": { "color": "#e5534b" }
+  },
   "rules": { "text": "Be kind.", "welcome": "Welcome!", "required": false }   // optional; rules up to 6000, welcome up to 500 characters
 }
 ```
 
 - `userLimit` (voice only): 0 (no limit) to 99. At most 100 channels in all.
 - Permissions: `manageMessages`, `timeoutMembers`, `kickMembers`, `banMembers`, `manageChannels`, `manageRoles`, `viewAuditLog`, `manageExpressions`, `manageWebhooks`, `mentionEveryone`, `moveMembers`, `muteMembers`, `manageAutoMod`.
+- `roles` are custom roles; their names can't be `everyone` or a built-in role's. `builtinRoles` sets the built-in roles' colour (`#rrggbb`, or `""` for none). What built-in roles can do is fixed (Server settings → Roles shows it), so colour is the only setting.
 - The server's starting `#general` becomes the template's first text channel. Comments and trailing commas are fine; unknown fields are an error (so typos don't go unnoticed). Files can be up to 64 KB. Applying one is written to the security log.
 
 ### Rent a small server

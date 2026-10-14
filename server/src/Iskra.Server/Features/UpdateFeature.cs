@@ -32,7 +32,7 @@ public static class UpdateFeature
 
     private static void OwnerOnly(Member me)
     {
-        if (me.Role != Roles.Owner) throw RequestException.Forbidden("Only the owner can manage updates.", "owner_updates");
+        if (!BaseRoles.Allows(me, BaseAbility.RunServer)) throw RequestException.Forbidden("Only the owner can manage updates.", "owner_updates");
     }
 
     private static object Status(UpdateService updates, Member me)

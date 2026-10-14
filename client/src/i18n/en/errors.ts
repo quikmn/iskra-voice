@@ -126,6 +126,8 @@ export const errors = {
     stage_listen_only: 'You can only listen on this stage.',
     rank_members: 'You can only manage members ranked below you.',
     rank_manage_roles: 'You can only manage roles below your own highest role.',
+    rank_base_roles: 'You can only change built-in roles below your own.',
+    role_name_builtin: 'That name belongs to a built-in role.',
     rank_move_roles: 'You can only move roles below your own highest role.',
     rank_pages: 'You can only remove pages of members ranked below you.',
     post_tags: "You can't change this post's tags.",

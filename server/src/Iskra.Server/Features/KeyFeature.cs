@@ -256,7 +256,7 @@ public static class KeyFeature
     /// <summary>An admin decides which key keeps a disputed account.</summary>
     private static object? Resolve(Session s, Member me, Body body)
     {
-        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden();
+        if (!BaseRoles.Allows(me, BaseAbility.ResolveDisputes)) throw RequestException.Forbidden();
         var oldKey = body.String("oldKey", 64);
         var keep = body.String("keep", 64);
         var store = s.World.Store;

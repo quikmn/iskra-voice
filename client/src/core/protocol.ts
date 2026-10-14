@@ -1084,12 +1084,12 @@ export interface VoiceParticipant {
 }
 
 export interface Events {
-  roles: { roles: ServerRole[] }
+  roles: { roles: ServerRole[]; baseRoles?: BaseRoleInfo[] }
   'voice.moved': { channelId: number }
 }
 
 export interface Requests {
-  'role.list': [Record<string, never>, { roles: ServerRole[] }]
+  'role.list': [Record<string, never>, { roles: ServerRole[]; baseRoles?: BaseRoleInfo[] }]
   'role.create': [{ name: string; color?: string; icon?: string; hoist?: boolean; mentionable?: boolean; permissions?: Permission[] }, { role: ServerRole }]
   'role.update': [{ id: number; name?: string; color?: string; icon?: string; hoist?: boolean; mentionable?: boolean; permissions?: Permission[] }, { role: ServerRole }]
   'role.delete': [{ id: number }, Record<string, never>]
@@ -2021,4 +2021,25 @@ export interface Events {
 export interface Requests {
   'bot.voice.set': [{ accountKey: string; voice: boolean }, { member: Member }]
   'voice.disconnect': [{ accountKey: string }, Record<string, never>]
+}
+
+// ── built-in roles ──
+
+/** What a base role allows by itself (the server's checks use the same table: Sessions/BaseRoles.cs). */
+export type BaseAbility =
+  | 'invite' | 'events' | 'pin' | 'mentionEveryone' | 'uploadSounds' | 'giveBaseRoles' | 'bots' | 'organize' | 'rules'
+  | 'stickers' | 'gifs' | 'stageModerators' | 'forumTags' | 'profilePages' | 'resolveDisputes' | 'runServer' | 'transferOwnership'
+
+/** A base role (owner … guest) as listed next to custom roles: its colour (adjustable) and its fixed powers. */
+export interface BaseRoleInfo {
+  id: Role
+  color: string | null
+  /** Its own and those of the roles below it. */
+  abilities: BaseAbility[]
+  /** Admins and the owner: every permission. */
+  permissions: Permission[]
+}
+
+export interface Requests {
+  'role.base.update': [{ role: Role; color: string }, { baseRole: BaseRoleInfo }]
 }
