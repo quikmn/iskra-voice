@@ -1,6 +1,6 @@
 // "Connect to DigitalOcean": OAuth for a desktop (public) client, the way DigitalOcean asks for it: authorization code
 // with PKCE (S256), the browser sent back to a one-shot listener on 127.0.0.1 (DigitalOcean matches loopback redirect
-// URIs on any port). The code is exchanged here for a short-lived token (an hour), which goes straight to DoRental and
+// URIs only on the registered port: OAUTH_PORT). The code is exchanged here for a short-lived token (an hour), which goes straight to DoRental and
 // is never logged or written down. No Electron imports, so the unit tests run in plain Node.
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
@@ -9,7 +9,7 @@ import { DoError } from './digitalocean'
 
 /**
  * The public OAuth client id of Iskra's DigitalOcean app (a public client: no secret; callback
- * http://127.0.0.1/callback). Without a valid one the app offers only the pasted token.
+ * http://127.0.0.1:47099/callback, see OAUTH_PORT). Without a valid one the app offers only the pasted token.
  */
 export const DO_OAUTH_CLIENT_ID = '6f464bf39c0257c14395112093a53cbd6f6beef1ad568135b41a8f9c44090135'
 export const DO_AUTHORIZE = 'https://cloud.digitalocean.com/v1/oauth/authorize'
@@ -22,6 +22,12 @@ export const DO_OAUTH_SCOPES = [
 ] as const
 /** How long the browser has to come back. */
 export const OAUTH_TIMEOUT_MS = 10 * 60_000
+/**
+ * DigitalOcean matches the registered callback exactly, port included (despite its docs on loopback ports), so the
+ * listener uses this one port; the OAuth app's Callback URL is http://127.0.0.1:47099/callback. If something else
+ * holds the port, the dialog falls back to a pasted token.
+ */
+export const OAUTH_PORT = 47099
 
 export const oauthConfigured = (clientId: string): boolean => /^[A-Za-z0-9_-]{16,128}$/.test(clientId)
 
@@ -74,8 +80,8 @@ const same = (a: string, b: string) => {
  * Anything else (another path, another Host, a wrong state) gets an error and doesn't count. Closes after the first
  * good answer, on timeout, or when the signal fires.
  */
-export async function loopbackCallback(state: string, pages: CallbackPages, options: { timeoutMs?: number; signal?: AbortSignal } = {}): Promise<Loopback> {
-  const { timeoutMs = OAUTH_TIMEOUT_MS, signal } = options
+export async function loopbackCallback(state: string, pages: CallbackPages, options: { timeoutMs?: number; signal?: AbortSignal; port?: number } = {}): Promise<Loopback> {
+  const { timeoutMs = OAUTH_TIMEOUT_MS, signal, port: wanted = 0 } = options
   let settle: { resolve: (code: string) => void; reject: (e: Error) => void } | null = null
   const code = new Promise<string>((resolve, reject) => (settle = { resolve, reject }))
   code.catch(() => undefined) // whoever awaits it sees the error; an unawaited one isn't a crash
@@ -109,10 +115,16 @@ export async function loopbackCallback(state: string, pages: CallbackPages, opti
     if (error) s.reject(error)
     else s.resolve(value)
   }
-  await new Promise<void>((resolve, reject) => {
-    server.once('error', reject)
-    server.listen(0, '127.0.0.1', () => resolve())
-  })
+  try {
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject)
+      server.listen(wanted, '127.0.0.1', () => resolve())
+    })
+  } catch (e) {
+    clearTimeout(timer)
+    settle = null
+    throw (e as NodeJS.ErrnoException).code === 'EADDRINUSE' ? new DoError('unavailable', 'port') : e
+  }
   port = (server.address() as AddressInfo).port
   if (signal?.aborted) onAbort()
   else signal?.addEventListener('abort', onAbort)
@@ -150,11 +162,13 @@ export async function oauthToken(o: {
   fetch?: typeof fetch
   timeoutMs?: number
   signal?: AbortSignal
+  /** The loopback port (OAUTH_PORT; tests pass 0 for any free port). */
+  port?: number
 }): Promise<string> {
   if (!oauthConfigured(o.clientId)) throw new DoError('unavailable')
   const state = b64u(randomBytes(24))
   const { verifier, challenge } = pkce()
-  const loop = await loopbackCallback(state, o.pages, { timeoutMs: o.timeoutMs, signal: o.signal })
+  const loop = await loopbackCallback(state, o.pages, { timeoutMs: o.timeoutMs, signal: o.signal, port: o.port ?? OAUTH_PORT })
   try {
     await o.open(authorizeUrl({ base: o.authorizeBase, clientId: o.clientId, redirectUri: loop.redirectUri, state, challenge }))
     const code = await loop.code

@@ -106,6 +106,7 @@ test('the whole dance: open the browser, the browser comes back, a token', async
     open: async (url) => {
       const q = new URL(url).searchParams
       assert.equal(q.get('client_id'), clientId)
+      assert.equal(q.get('redirect_uri'), 'http://127.0.0.1:47099/callback') // the registered Callback URL, port included
       await get(`${q.get('redirect_uri')}?code=abc&state=${encodeURIComponent(q.get('state')!)}`)
     },
     fetch: (async (_u: string | URL, init?: RequestInit) => {
@@ -125,4 +126,16 @@ test('test endpoints only in tests, on loopback, never packaged', () => {
   assert.deepEqual(oauthTestOverrides(env, true), {})
   assert.deepEqual(oauthTestOverrides({ ...env, ISKRA_E2E: '0' }, false), {})
   assert.deepEqual(oauthTestOverrides({ ...env, ISKRA_DO_API: 'https://evil.example' }, false), {})
+})
+
+test('a busy callback port falls back to the pasted token (unavailable)', async () => {
+  const { createServer } = await import('node:http')
+  const squatter = createServer()
+  await new Promise<void>((r) => squatter.listen(0, '127.0.0.1', () => r()))
+  const port = (squatter.address() as import('node:net').AddressInfo).port
+  try {
+    await assert.rejects(loopbackCallback(STATE, PAGES, { port }), (e: DoError) => e.code === 'unavailable' && e.detail === 'port')
+  } finally {
+    squatter.close()
+  }
 })

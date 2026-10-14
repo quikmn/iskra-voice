@@ -781,6 +781,7 @@ ipcMain.handle('iskra:do-oauth', async (event) => {
   try {
     const token = await oauthToken({
       clientId: oauthClientId, pages: text().digitalOcean, open: openAuthorize, authorizeBase: oauthTest.authorizeBase, tokenUrl: oauthTest.tokenUrl, signal: abort.signal,
+      port: oauthTest.authorizeBase ? 0 : undefined, // e2e against a fake DigitalOcean: any free port
     })
     showWindow()
     return { ok: true, regions: await rental.connect(token) }
