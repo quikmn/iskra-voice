@@ -14,10 +14,10 @@
 //   node scripts/appstore.mjs <auto|testflight|appstore|upload> --version 2.0.0-alpha.17 --marketing 2.0.0
 //        --build-number 200001170.123.1 --key AuthKey.p8 [--dry-run]
 //
-// auto = mobile/store.json's ios.mode. Env: APPSTORE_KEY_ID, APPSTORE_ISSUER_ID; optional REVIEW_INVITE_URL (an invite
-// to the review server, for the review notes) and APPSTORE_REVIEW_PHONE (the review contact's phone). Every step
-// checks what is there first, so a rerun picks up where the last one stopped and never submits twice. Never prints the
-// key or tokens. Exit 0: done; 1: stopped (one "App Store Connect stopped: ..." line says why).
+// auto = mobile/store.json's ios.mode. Env: APPSTORE_KEY_ID, APPSTORE_ISSUER_ID; optional REVIEW_INVITE_URL (a
+// never-expiring invite to the review server, set once, for the review notes) and APPSTORE_REVIEW_PHONE (the review
+// contact's phone). Every step checks what is there first, so a rerun picks up where the last one stopped and never
+// submits twice. Never prints the key or tokens. Exit 0: done; 1: stopped (one "App Store Connect stopped: ..." line says why).
 import { createHash } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'

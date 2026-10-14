@@ -158,6 +158,7 @@ export const moderation = {
     unpinBy: '{{actor}} unpinned a message by {{target}} in {{channel}}',
     unpin: '{{actor}} unpinned a message in {{channel}}',
     inviteCreate: '{{actor}} created an invite ({{role}})',
+    inviteCreateNever: '{{actor}} created an invite that never expires ({{role}})',
     inviteCreateUses_one: '{{actor}} created an invite ({{role}}, {{count}} use)',
     inviteCreateUses_other: '{{actor}} created an invite ({{role}}, {{count}} uses)',
     inviteRevokeOwn: '{{actor}} revoked their invite',

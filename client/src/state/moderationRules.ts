@@ -184,6 +184,7 @@ export function auditText(e: AuditEntry): string {
         : t('moderation.audit.unpin', { actor, channel: channel(d.channelName) })
     case 'invite.create': {
       const role = level(d.role || 'member')
+      if (d.expiresAt === null) return t('moderation.audit.inviteCreateNever', { actor, role })
       return d.maxUses
         ? t('moderation.audit.inviteCreateUses', { actor, role, count: Number(d.maxUses) })
         : t('moderation.audit.inviteCreate', { actor, role })

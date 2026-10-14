@@ -158,6 +158,7 @@ export const moderation: Messages['moderation'] = {
     unpinBy: '{{actor}} lossade ett meddelande från {{target}} i {{channel}}',
     unpin: '{{actor}} lossade ett meddelande i {{channel}}',
     inviteCreate: '{{actor}} skapade en inbjudan ({{role}})',
+    inviteCreateNever: '{{actor}} skapade en inbjudan som aldrig går ut ({{role}})',
     inviteCreateUses_one: '{{actor}} skapade en inbjudan ({{role}}, {{count}} användning)',
     inviteCreateUses_other: '{{actor}} skapade en inbjudan ({{role}}, {{count}} användningar)',
     inviteRevokeOwn: '{{actor}} återkallade sin inbjudan',

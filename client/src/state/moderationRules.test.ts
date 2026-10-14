@@ -67,5 +67,7 @@ describe('audit log', () => {
       .toBe('Viktor deleted a message by a webhook or former member in #general')
     expect(auditText(entry('server.pages', { enabled: false }, { target: null, targetName: null }))).toBe('Viktor turned profile pages off')
     expect(auditText(entry('something.new'))).toBe('Viktor: something.new')
+    expect(auditText(entry('invite.create', { role: 'member', maxUses: null, expiresAt: null }))).toBe('Viktor created an invite that never expires (member)')
+    expect(auditText(entry('invite.create', { role: 'member', maxUses: null, expiresAt: 5 }))).toBe('Viktor created an invite (member)')
   })
 })
