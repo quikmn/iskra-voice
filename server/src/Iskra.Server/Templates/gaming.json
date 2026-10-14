@@ -1,13 +1,21 @@
 {
+  "version": 2,
   "name": "Gaming group",
   "description": "Chat, clips and finding a group, plus voice channels for squads and raids.",
   "categories": [
+    {
+      "name": "Info",
+      "channels": [
+        { "name": "announcements", "writeRole": "admin", "overrides": [{ "role": "Moderator", "allow": ["send"] }] }
+      ]
+    },
     {
       "name": "Text channels",
       "channels": [
         { "name": "general" },
         { "name": "clips" },
-        { "name": "looking-for-group" }
+        { "name": "looking-for-group", "slowmode": 30, "overrides": [{ "role": "Raid lead", "allow": ["send"] }] },
+        { "name": "mod-chat", "readRole": "admin", "overrides": [{ "role": "Moderator", "allow": ["view", "send"] }] }
       ]
     },
     {
@@ -17,6 +25,7 @@
         { "name": "Squad 1", "kind": "voice", "userLimit": 5 },
         { "name": "Squad 2", "kind": "voice", "userLimit": 5 },
         { "name": "Raid", "kind": "voice", "userLimit": 10 },
+        { "name": "Tournament", "kind": "stage" },
         { "name": "AFK", "kind": "voice" }
       ]
     }
@@ -33,5 +42,8 @@
   "rules": {
     "text": "1. Be good to each other. Banter is fine, harassment isn't.\n2. No cheats, hacks or account selling.\n3. Keep spoilers and NSFW out of shared channels.\n4. Post clips in #clips and find a group in #looking-for-group.",
     "welcome": "Welcome! Say hi in #general and jump into the Lobby when you're ready to play."
+  },
+  "settings": {
+    "builtinBots": ["dice", "polls"]
   }
 }

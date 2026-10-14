@@ -218,6 +218,7 @@ public sealed class Session
             channels = _hub.VisibleChannels(member),
             categories = _hub.VisibleCategories(member),
             notify = NotifyFeature.Settings(_world.Store, member.AccountKey, Now),
+            notifyDefault = NotifyFeature.ServerDefault(_world.Store),
             members = _hub.PublicMembers(),
             voice = _voice.Snapshot(member),
             voiceAvailable = _voice.Backend.Available,

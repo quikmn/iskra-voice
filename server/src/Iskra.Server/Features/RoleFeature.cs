@@ -85,7 +85,7 @@ public static partial class RoleFeature
         foreach (var name in body.OptionalStringArray("permissions", PermNames.Count, 32))
             perms |= PermNames.TryGetValue(name, out var p) ? p : throw RequestException.BadRequest($"Unknown permission '{name}'.");
         // You can only hand out what you have yourself.
-        if (!Permissions.IsAdmin(me) && (perms & ~me.Perms & ~fallback) != Perm.None)
+        if ((perms & ~Permissions.Effective(me) & ~fallback) != Perm.None)
             throw RequestException.Forbidden("You can only give permissions you have yourself.", "rank_permissions");
         return perms;
     }

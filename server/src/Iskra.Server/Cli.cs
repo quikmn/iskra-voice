@@ -41,6 +41,7 @@ public static class Cli
                 "backup" when rest.Length == 3 => Backup(rest[1], rest[2], flags),
                 "move" when rest.Length == 3 || (rest.Length == 2 && flags.Contains("--cancel")) => Move(rest[1], rest.ElementAtOrDefault(2), flags),
                 "import-discord" when rest.Length == 3 => ImportDiscord(rest[1], rest[2], flags),
+                "templates" when rest.Length == 4 && rest[1] == "apply" => MergeTemplate(rest[2], rest[3], flags.Contains("--apply")),
                 "templates" when rest.Length <= 2 => ListTemplates(rest.ElementAtOrDefault(1), flags.Contains("--json")),
                 "install-autostart" when rest.Length == 2 => InstallAutostart(rest[1], new RealAutostartSystem()),
                 "remove-autostart" when rest.Length == 2 => RemoveAutostart(rest[1], new RealAutostartSystem()),
@@ -118,6 +119,9 @@ public static class Cli
                                                                        add --read-only to make the channels an archive
               iskra-server templates                                   list the starter templates (--json for the details)
               iskra-server templates <name-or-file.json>               check a template and show what it sets up
+              iskra-server templates apply <world-folder> <template>   add what a template has and the server doesn't (never
+                [--apply]                                              changes or removes anything); shows it, --apply does it.
+                                                                       Stop the server first.
               iskra-server install-autostart <world-folder>            start this server with the computer (no window)
               iskra-server remove-autostart <world-folder>             undo that
               iskra-server expect-restart <world-folder>               say the next stop is a restart (run it just before
@@ -251,18 +255,7 @@ public static class Cli
         var templates = ids.Select(id => (Id: ServerTemplates.IdOf(id), Template: ServerTemplates.Load(id))).ToList();
         if (json)
         {
-            Console.WriteLine(JsonSerializer.Serialize(templates.Select(t => new
-            {
-                id = t.Id,
-                name = t.Template.Name,
-                description = t.Template.Description,
-                categories = t.Template.Categories.Select(c => new { name = c.Name, channels = c.Channels.Select(ChannelView) }),
-                channels = t.Template.Channels.Select(ChannelView),
-                roles = t.Template.Roles.Select(r => r.Name),
-                builtinRoles = t.Template.BuiltinRoles.ToDictionary(b => b.Key, b => new { color = b.Value.Color }),
-                rules = t.Template.Rules is not null,
-                afk = t.Template.Afk is { } afk ? new { channel = afk.Channel, minutes = afk.Minutes, canTalk = afk.CanTalk } : null,
-            }), new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+            Console.WriteLine(JsonSerializer.Serialize(templates.Select(t => ServerTemplates.Preview(t.Id, t.Template)), new JsonSerializerOptions(JsonSerializerDefaults.Web)));
             return 0;
         }
         foreach (var (id, template) in templates)
@@ -278,15 +271,63 @@ public static class Cli
             if (template.BuiltinRoles.Count > 0)
                 Console.WriteLine($"    Built-in roles: {string.Join(", ", template.BuiltinRoles.Select(b => $"{b.Key} {b.Value.Color ?? "no colour"}"))}");
             if (template.Rules is not null) Console.WriteLine("    Rules: yes");
+            if (template.Settings is { } settings)
+            {
+                if (settings.NotifyDefault is { } notify) Console.WriteLine($"    Default notifications: {notify}");
+                if (settings.BuiltinBots.Length > 0) Console.WriteLine($"    Built-in bots: {string.Join(", ", settings.BuiltinBots)}");
+                if (settings.Limits is not null) Console.WriteLine("    Limits: yes");
+                if (settings.BugInbox is { } inbox) Console.WriteLine($"    Bug inbox: {inbox}");
+            }
             if (template.Afk is { } afk)
                 Console.WriteLine($"    AFK channel: {afk.Channel} ({(afk.Minutes > 0 ? $"idle people moved after {afk.Minutes} min" : "nobody moved")}; can talk: {(afk.CanTalk.Length > 0 ? string.Join(", ", afk.CanTalk) : "nobody")})");
         }
         if (which is null) Console.WriteLine("Use one for a new server: iskra-server <world-folder> --template <name>, or \"Template\": \"<name>\" in server.json.");
         return 0;
 
-        static object ChannelView(TemplateChannel c) => new { name = c.Name, kind = c.Kind, userLimit = c.UserLimit };
         static string Describe(TemplateChannel c) =>
-            c.Kind == "voice" ? $"(voice) {c.Name}{(c.UserLimit > 0 ? $" (up to {c.UserLimit})" : "")}" : $"# {c.Name}";
+            (c.Kind switch { "text" => $"# {c.Name}", "voice" => $"(voice) {c.Name}{(c.UserLimit > 0 ? $" (up to {c.UserLimit})" : "")}", _ => $"({c.Kind}) {c.Name}" })
+            + (c.ReadRole != "member" || c.WriteRole != c.ReadRole ? $" [read: {c.ReadRole}, write: {c.WriteRole}]" : "")
+            + (c.Overrides.Length > 0 ? $" [{string.Join("; ", c.Overrides.Select(o => $"{o.Role}: {(o.Allow.Length > 0 ? "+" + string.Join(" +", o.Allow) : "")}{(o.Deny.Length > 0 ? " -" + string.Join(" -", o.Deny) : "")}"))}]" : "");
+    }
+
+    /// <summary>`templates apply`: adds a template to a server in use, additive only. Dry run unless --apply.</summary>
+    private static int MergeTemplate(string worldPath, string nameOrPath, bool apply)
+    {
+        if (!File.Exists(Path.Combine(worldPath, "server.key"))) throw new IOException($"{worldPath} isn't an Iskra server folder.");
+        var template = ServerTemplates.Load(nameOrPath);
+        var settingsFile = Path.Combine(worldPath, "server.json");
+        var settings = File.Exists(settingsFile) ? JsonSerializer.Deserialize<WorldSettings>(File.ReadAllText(settingsFile)) ?? new WorldSettings() : new WorldSettings();
+        if (Running(settings.Port))
+            throw new IOException($"The server in {worldPath} is running (port {settings.Port} answers). Stop it first, then run this again.");
+        using var world = World.OpenOrCreate(worldPath);
+        var plan = ServerTemplates.Merge(world, template, apply, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        if (plan.Count == 0)
+        {
+            Console.WriteLine($"Nothing to add: '{world.Settings.Name}' already has everything in '{template.Name}'.");
+            return 0;
+        }
+        Console.WriteLine(apply ? $"Added to '{world.Settings.Name}':" : $"Would add to '{world.Settings.Name}' (nothing changes until you add --apply):");
+        foreach (var line in plan) Console.WriteLine($"  + {line}");
+        if (apply) Console.WriteLine("Done. Start the server again.");
+        return 0;
+    }
+
+    /// <summary>Something listens on the server's port on this computer (localhost only; never opens a port).</summary>
+    private static bool Running(int port)
+    {
+        try
+        {
+            using var client = new System.Net.Sockets.TcpClient();
+            return client.ConnectAsync(System.Net.IPAddress.Loopback, port).Wait(TimeSpan.FromSeconds(1)) && client.Connected;
+        }
+        catch (AggregateException)
+        {
+            return false;
+        }
+        catch (System.Net.Sockets.SocketException)
+        {
+            return false;
+        }
     }
 
     private static int InstallAutostart(string worldPath, IAutostartSystem system)

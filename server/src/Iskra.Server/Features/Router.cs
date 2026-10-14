@@ -82,6 +82,7 @@ public sealed class Router
         VoiceBotFeature.Register(this);
         BugInboxFeature.Register(this);
         AfkFeature.Register(this);
+        TemplateFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

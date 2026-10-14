@@ -126,7 +126,7 @@ public sealed partial class PushService
         if (store.GetMember(message.AuthorKey) is not { } author) return;
         var kinds = new Dictionary<string, string>(StringComparer.Ordinal);
         // On a small server everyone hears about every message unless they chose less; each person's settings decide below.
-        var defaultLevel = Features.NotifyFeature.DefaultFor(store.CountPeople());
+        var defaultLevel = Features.NotifyFeature.DefaultFor(store);
         var everyone = defaultLevel == Features.NotifyFeature.All ? store.AllMembers().Select(m => m.AccountKey) : [];
         foreach (var key in store.AccountsWithLevel(Features.NotifyFeature.All).Concat(everyone)) kinds[key] = "message";
         if (pings && message.ReplyTo is { } replyId && store.GetMessage(replyId) is { } original) kinds[original.AuthorKey] = "reply";

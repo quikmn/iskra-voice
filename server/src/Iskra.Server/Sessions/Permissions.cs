@@ -20,14 +20,17 @@ public static class Roles
 /// <summary>
 /// Every permission decision lives here, and callers pass the member as it is *now* (never a copy cached at login).
 /// Two layers: the level (guest &lt; member &lt; trusted &lt; admin &lt; owner) and, on top, custom roles that grant
-/// permissions (<see cref="Perm"/>) and per-channel overrides. Admins and the owner have every permission.
+/// permissions (<see cref="Perm"/>) and per-channel overrides. The owner has every permission; admins too unless the server changed that.
 /// </summary>
 public static class Permissions
 {
     public static bool IsAdmin(Member member) => Roles.Rank(member.Role) >= Roles.Rank(Roles.Admin);
 
-    /// <summary>A server-wide permission: admins and the owner always, otherwise from a custom role.</summary>
-    public static bool Has(Member member, Perm perm) => IsAdmin(member) || (member.Perms & perm) == perm;
+    /// <summary>Every server-wide permission the member has: from their base role (admins: all by default; the owner: all, always) and custom roles.</summary>
+    public static Perm Effective(Member member) => BaseRoles.PermsOf(member) | member.Perms;
+
+    /// <summary>A server-wide permission, from the member's base role or a custom role.</summary>
+    public static bool Has(Member member, Perm perm) => (Effective(member) & perm) == perm;
 
     /// <summary>
     /// The hierarchy: owner, then admins, then anyone with custom roles (by their highest role), then trusted, member, guest.

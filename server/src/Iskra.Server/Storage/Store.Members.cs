@@ -24,7 +24,7 @@ public sealed partial class Store
     {
         Exec($"INSERT INTO members ({MemberColumns}) VALUES ($key, $name, $role, $now);",
             ("$key", accountKey), ("$name", name), ("$role", role), ("$now", now));
-        return new Member(accountKey, name, role, now);
+        return WithBase(new Member(accountKey, name, role, now));
     }
 
     public void SetMemberName(string accountKey, string name) =>

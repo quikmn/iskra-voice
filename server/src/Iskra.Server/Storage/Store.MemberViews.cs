@@ -21,7 +21,7 @@ public sealed partial class Store
                 WHERE mr.account_key IN (SELECT value FROM json_each($keys));
                 """, r => (Key: r.GetString(0), Role: (r.GetInt64(1), r.GetInt32(2), (Perm)r.GetInt64(3))), ("$keys", keys));
             var byKey = roles.GroupBy(x => x.Key).ToDictionary(g => g.Key, g => g.Select(x => x.Role).ToList());
-            return members.ToDictionary(m => m.AccountKey, m => byKey.TryGetValue(m.AccountKey, out var r) ? WithRoles(m, r) : m);
+            return members.Select(WithBase).ToDictionary(m => m.AccountKey, m => byKey.TryGetValue(m.AccountKey, out var r) ? WithRoles(m, r) : m);
         }
     }
 
