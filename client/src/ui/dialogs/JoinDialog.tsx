@@ -24,7 +24,7 @@ export function useOpenJoinRequests(open: () => void) {
 }
 
 /** Paste an invite link. */
-export function JoinDialog({ onClose, onCreate }: { onClose: () => void; onCreate?: () => void }) {
+export function JoinDialog({ onClose, onCreate, onClaim }: { onClose: () => void; onCreate?: () => void; onClaim?: () => void }) {
   const { t } = useTranslation()
   const [text, setText] = useState('')
   const invite = parseInvite(text)
@@ -63,6 +63,11 @@ export function JoinDialog({ onClose, onCreate }: { onClose: () => void; onCreat
           <Trans i18nKey="settings.join.orCreate" components={{ a: <button className="link" onClick={onCreate} /> }} />
         </p>
       )}
+      {onClaim && (
+        <p className="muted small">
+          <Trans i18nKey="claim.entry" components={{ a: <button className="link" onClick={onClaim} /> }} />
+        </p>
+      )}
     </Modal>
   )
 }
@@ -87,7 +92,7 @@ export function JoinPrompt({ invite }: { invite: InviteLink }) {
   )
 }
 
-function InviteSummary({ invite }: { invite: InviteLink }) {
+export function InviteSummary({ invite }: { invite: InviteLink }) {
   const { t } = useTranslation()
   const name = useServerName(invite.serverUrl)
   return (

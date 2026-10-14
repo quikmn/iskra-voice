@@ -66,6 +66,15 @@ jobs:
           # The guard undoes an automatic update that doesn't start (systemd ExecStartPre, docs/hosting.md).
           install -m 755 server/deploy/iskra-update-guard desktop/build/server-linux-x64/iskra-update-guard
           tar -czf "desktop/release/iskra-server-$v-linux-x64.tar.gz" -C desktop/build/server-linux-x64 .
+      # The standalone server for 64-bit ARM Linux (Raspberry Pi 4/5 and other small boxes): cross-published here,
+      # with LiveKit's official linux-arm64 build (pinned and checked by get-livekit.sh).
+      - name: Server bundle (linux-arm64)
+        run: |
+          v="${TAG#v}"
+          bash scripts/get-livekit.sh linux-arm64
+          node desktop/scripts/prepare-server.mjs linux-arm64
+          install -m 755 server/deploy/iskra-update-guard desktop/build/server-linux-arm64/iskra-update-guard
+          tar -czf "desktop/release/iskra-server-$v-linux-arm64.tar.gz" -C desktop/build/server-linux-arm64 .
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: linux

@@ -85,20 +85,20 @@ async function closeEarlierContexts(): Promise<void> {
   await Promise.all(done.map((o) => o.context.close().catch(() => undefined)))
 }
 
-/** A real iskra-server on a fresh world; with voice if the LiveKit binary is in .tools. */
-export async function startServer(name: string, voice = false, env: Record<string, string> = {}): Promise<TestServer> {
+/** A real iskra-server on a fresh world; with voice if the LiveKit binary is in .tools. `settings` go into server.json. */
+export async function startServer(name: string, voice = false, env: Record<string, string> = {}, settings: Record<string, unknown> = {}): Promise<TestServer> {
   await closeEarlierContexts()
   const world = mkdtempSync(join(tmpdir(), 'iskra-e2e-'))
   // Other workers pick ports too, so a port can be taken by the time the server binds it: then it exits, and
   // this tries again on new ports.
   for (let attempt = 1; ; attempt++) {
-    const started = await startIn(world, name, voice, env)
+    const started = await startIn(world, name, voice, env, settings)
     if (started) return started
     if (attempt === 5) throw new Error('server did not start')
   }
 }
 
-async function startIn(world: string, name: string, voice: boolean, env: Record<string, string>): Promise<TestServer | null> {
+async function startIn(world: string, name: string, voice: boolean, env: Record<string, string>, settings: Record<string, unknown>): Promise<TestServer | null> {
   const port = await freePort()
   const voicePort = await freePort()
   const rtcTcp = await freePort()
@@ -113,6 +113,7 @@ async function startIn(world: string, name: string, voice: boolean, env: Record<
       Voice: { Enabled: voice, Port: voicePort, RtcTcpPort: rtcTcp, RtcUdpPort: rtcUdp, LiveKitPath: voice ? LIVEKIT : null },
       // The captions model from the local copy (node scripts/get-models.mjs), never from the internet.
       Captions: { ModelSource: CAPTION_MODELS },
+      ...settings,
     }),
   )
   const url = `http://localhost:${port}`

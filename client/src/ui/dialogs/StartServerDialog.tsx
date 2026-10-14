@@ -55,7 +55,7 @@ function DesktopDownload({ os }: { os: DesktopOs }) {
 }
 
 /** In the browser: how to start your own server (the desktop app can do it in one click). */
-export function StartServerDialog({ onClose }: { onClose: () => void }) {
+export function StartServerDialog({ onClose, onClaim }: { onClose: () => void; onClaim?: () => void }) {
   const { t } = useTranslation()
   const [os] = useState(visitorOs)
   const [phone] = useState(() => typeof navigator !== 'undefined' && isPhoneOrTablet(navigator.userAgent, navigator.platform, navigator.maxTouchPoints))
@@ -91,6 +91,11 @@ export function StartServerDialog({ onClose }: { onClose: () => void }) {
           <a href={LINKS.hostingGuide} target="_blank" rel="noopener noreferrer">{t('settings.start.hostingGuide')}</a>
         </p>
       </section>
+      {onClaim && (
+        <p className="muted small">
+          <Trans i18nKey="claim.entry" components={{ a: <button className="link" onClick={onClaim} /> }} />
+        </p>
+      )}
     </Modal>
   )
 }

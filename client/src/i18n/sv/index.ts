@@ -39,6 +39,7 @@ import { builtinBots } from './builtinBots'
 import { rental } from './rental'
 import { bugReport } from './bugReport'
 import { afk } from './afk'
+import { claim } from './claim'
 
 export const sv: Messages = {
   common,
@@ -80,4 +81,5 @@ export const sv: Messages = {
   rental,
   bugReport,
   afk,
+  claim,
 }

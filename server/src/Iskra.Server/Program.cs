@@ -341,7 +341,13 @@ app.MapReverseProxy();
 
 app.Logger.LogInformation("World '{Name}' at {Path}, reachable at {Url}", world.Settings.Name, world.Path, world.Settings.EffectivePublicUrl);
 var ownerLink = OwnerSetup.EnsureOwnerInvite(world, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), out var claimed);
-if (ownerLink is not null && claimed)
+if (ownerLink is not null && claimed && world.Settings.OwnerClaim == OwnerSetup.Generate)
+{
+    // A server image: the code is for whoever can open this machine's console, never for the log.
+    app.Logger.LogWarning("This server has no owner yet. Its claim code is in {File} (single use, 24 hours): enter it in the Iskra app under Claim a server.",
+        Path.Combine(world.Path, OwnerSetup.CodeFile));
+}
+else if (ownerLink is not null && claimed)
 {
     // Set up by the app with a one-time owner claim: the link is a secret between this server and that app.
     app.Logger.LogWarning("This server has no owner yet. It's waiting for the Iskra app that set it up to claim it.");
