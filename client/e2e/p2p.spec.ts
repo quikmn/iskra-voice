@@ -217,13 +217,19 @@ test('a friend joins a home-hosted server through the peer-to-peer tunnel and ta
 
     // The friend's peer connections are relay-only. (livekit-client makes them before the join answer and sets the
     // TURN server afterwards, so their constructor configs name no server; the path in use below is what counts.)
+    // The path's local candidate is the TURN allocation made through the tunnel: 'relay', or 'prflx' on a computer with
+    // more than one network (ZeroTier, Tailscale, Hyper-V): LiveKit's TURN relays from an any-address socket but names
+    // one address, so a reply from the SFU on another adapter shows the allocation under that adapter's address.
     const configs = await friend.evaluate(() => (window as unknown as { __peerConfigs: RTCConfiguration[] }).__peerConfigs)
     expect(configs.length).toBeGreaterThan(0)
     for (const c of configs) expect(c.iceTransportPolicy).toBe('relay')
     const urls = configs.flatMap((c) => (c.iceServers ?? []).flatMap((s) => (Array.isArray(s.urls) ? s.urls : [s.urls])))
     for (const url of urls) expect(url).toMatch(/^turn:127\.0\.0\.1:\d+\?transport=udp$/)
+    type Debug = { client: Record<string, { endpoint: { turnPort: number }; stats: { datagramsOut: number; datagramsIn: number } }> }
+    const p2pDebug = () => friendApp!.evaluate(() => (globalThis as unknown as { iskraP2pDebug: () => Debug }).iskraP2pDebug())
+    const tunnelTurn = `turn:127.0.0.1:${Object.values((await p2pDebug()).client)[0]?.endpoint.turnPort}?transport=udp`
     await expect
-      .poll(async () => friend.evaluate(async () => {
+      .poll(async () => friend.evaluate(async (turnUrl) => {
         const pcs = (window as unknown as { __pcs: RTCPeerConnection[] }).__pcs
         const types: string[] = []
         for (const pc of pcs) {
@@ -233,14 +239,15 @@ test('a friend joins a home-hosted server through the peer-to-peer tunnel and ta
           report.forEach((s) => {
             const pair = s as RTCIceCandidatePairStats
             if (s.type === 'candidate-pair' && pair.nominated && pair.state === 'succeeded') {
-              const local = byId.get(pair.localCandidateId) as (RTCStats & { candidateType?: string }) | undefined
-              types.push(local?.candidateType ?? 'unknown')
+              const local = byId.get(pair.localCandidateId) as (RTCStats & { candidateType?: string; url?: string; relayProtocol?: string }) | undefined
+              const throughTunnel = (local?.candidateType === 'relay' || local?.candidateType === 'prflx') && !!local.relayProtocol && local.url === turnUrl
+              types.push(throughTunnel ? 'tunnel-turn' : `${local?.candidateType ?? 'unknown'} ${local?.url ?? ''}`)
             }
           })
         }
         return types
-      }), { timeout: 20_000 })
-      .toContain('relay')
+      }, tunnelTurn), { timeout: 20_000 })
+      .toContain('tunnel-turn')
     // WebRTC's any-address policy is on in the friend's window only while its voice goes through the tunnel; the host
     // (direct voice) keeps the default, a socket per adapter.
     type AppWin = { webContents: { getURL(): string; getWebRTCIPHandlingPolicy(): string } }
@@ -249,8 +256,7 @@ test('a friend joins a home-hosted server through the peer-to-peer tunnel and ta
     expect(await policyOf(friendApp!)).toBe('default_public_interface_only')
     expect(await policyOf(hostApp!)).toBe('default')
     // ...and the TURN datagrams really went through the friend's tunnel (counted in the app's main process).
-    type Debug = { client: Record<string, { stats: { datagramsOut: number; datagramsIn: number } }> }
-    const debug = await friendApp.evaluate(() => (globalThis as unknown as { iskraP2pDebug: () => Debug }).iskraP2pDebug())
+    const debug = await p2pDebug()
     const tunnelStats = Object.values(debug.client)[0]?.stats
     expect(tunnelStats?.datagramsOut).toBeGreaterThan(0)
     expect(tunnelStats?.datagramsIn).toBeGreaterThan(0)

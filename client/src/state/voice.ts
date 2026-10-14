@@ -148,6 +148,12 @@ export function onVoiceDropped(listener: (resume: VoiceResume) => void): () => v
   resumeListeners.add(listener)
   return () => resumeListeners.delete(listener)
 }
+const leftListeners = new Set<() => void>()
+/** Called when you leave voice on purpose (or go somewhere else): any rejoin waiting or under way is off. */
+export function onVoiceLeft(listener: () => void): () => void {
+  leftListeners.add(listener)
+  return () => leftListeners.delete(listener)
+}
 
 /** Where you are in voice right now, to get back to after a restart (null in calls or when not in voice). */
 export function currentVoice(): VoiceResume | null {
@@ -795,6 +801,7 @@ async function cleanup(): Promise<void> {
 
 export async function leaveVoice(): Promise<void> {
   pendingResume = null // left (or went somewhere else) on purpose
+  for (const listener of leftListeners) listener()
   await cleanup()
 }
 

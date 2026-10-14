@@ -7,7 +7,7 @@ import type { Events } from '../core/protocol'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 import { planVoice, RESUME_MAX_TRIES } from './resumeLogic'
 import {
-  clearVoiceResume, currentVoice, leaveVoice, onVoiceDropped, pauseVoiceFor, rejoinVoice, resyncVoiceFlags, useVoice, voiceConnected, voiceResume, type VoiceResume,
+  clearVoiceResume, currentVoice, leaveVoice, onVoiceDropped, onVoiceLeft, pauseVoiceFor, rejoinVoice, resyncVoiceFlags, useVoice, voiceConnected, voiceResume, type VoiceResume,
 } from './voice'
 
 /** serverKey → the server said it was restarting or stopping since it was last online. */
@@ -44,6 +44,8 @@ let tries = 0
 let waiting: VoiceResume | null = null
 let rejoining = false
 let timer: ReturnType<typeof setTimeout> | null = null
+/** Goes up each time you leave voice on purpose: a rejoin that began before then must not try again. */
+let leaves = 0
 
 async function rejoin(where: VoiceResume): Promise<void> {
   if (rejoining) return
@@ -51,12 +53,14 @@ async function rejoin(where: VoiceResume): Promise<void> {
   timer = null
   waiting = null
   rejoining = true
+  const started = leaves
   let ok = false
   try {
     ok = await rejoinVoice(where)
   } finally {
     rejoining = false
   }
+  if (started !== leaves) return // you left while it was joining
   if (ok) {
     tries = 0
     return
@@ -119,6 +123,15 @@ onServerEvent((serverKey, type, body) => {
   if (type !== 'voice.available' || !(body as Events['voice.available']).available) return
   const where = waiting ?? voiceResume()
   if (where?.serverKey === serverKey) later(where, 0)
+})
+
+// Leaving (or joining somewhere else) calls off a rejoin that's waiting; one under way stops at its next step.
+onVoiceLeft(() => {
+  leaves++
+  if (timer) clearTimeout(timer)
+  timer = null
+  waiting = null
+  tries = 0
 })
 
 // The room dropped while the server is still there (LiveKit restarted, a network blip LiveKit couldn't ride out):
