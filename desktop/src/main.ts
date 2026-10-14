@@ -6,6 +6,7 @@ import { closeSync, existsSync, openSync, readSync } from 'node:fs'
 import path from 'node:path'
 import { APP_ORIGIN, configureAppSession, registerAppScheme } from './appSession'
 import { Host, isTemplateId, type HostedServer } from './host'
+import type { StopKind } from './restartMarker'
 import { parseHotkeys } from './hotkeys'
 import { ClientTunnels } from './p2p/clientTunnel'
 import { HostTunnels } from './p2p/hostTunnel'
@@ -77,8 +78,8 @@ registerAppScheme()
 let window: BrowserWindow | null = null
 let tray: Tray | null = null
 let quitting = false
-/** Quitting to start again (an update, a relaunch): hosted servers say "restarting" rather than "stopped". */
-let restarting = false
+/** Quitting to start again (a relaunch, an update): hosted servers say "restarting" (for an update) rather than "stopped". */
+let serverStop: StopKind = 'stop'
 // Mute/deafen hotkeys: only the action's name reaches the page, never which keys were pressed.
 const ptt = new PushToTalk((down) => window?.webContents.send('iskra:ptt', down), (action) => window?.webContents.send('iskra:hotkey', action))
 // Friends without port forwarding: one DHT node for the app; tunnels for the servers hosted here and the ones you join.
@@ -508,7 +509,8 @@ ipcMain.handle('iskra:set-language', (event, value: unknown) => {
 })
 ipcMain.handle('iskra:relaunch', (event) => {
   if (!fromApp(event)) return
-  quitting = restarting = true
+  quitting = true
+  serverStop = 'restart'
   app.relaunch()
   app.quit()
 })
@@ -566,7 +568,11 @@ async function restartToUpdate(): Promise<boolean> {
     splash.show(view, desktopLanguage())
   }
   await new Promise((resolve) => setTimeout(resolve, UPDATE_NOTICE_MS))
-  if (updates.restart(() => (quitting = restarting = true))) return true
+  const beforeQuit = () => {
+    quitting = true
+    serverStop = 'update'
+  }
+  if (updates.restart(beforeQuit)) return true
   updatingTo = null
   window?.webContents.send('iskra:updating', null)
   if (!launch) splash.close()
@@ -887,8 +893,8 @@ app.on('before-quit', () => {
   quitting = true
   ptt.stop()
   void clientTunnels.closeAll()
-  // Restarting (an update, a relaunch): hosted servers tell members "restarting", since they're back in a moment.
-  if (host.running()) serversStopped ??= host.stopAll(restarting).finally(() => p2pNode.destroy())
+  // Restarting (a relaunch, an update): hosted servers tell members "restarting", since they're back in a moment.
+  if (host.running()) serversStopped ??= host.stopAll(serverStop).finally(() => p2pNode.destroy())
   else void p2pNode.destroy()
 })
 

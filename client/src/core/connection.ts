@@ -9,8 +9,9 @@ export type ConnectionStatus =
   | { state: 'online' }
   /** `stopped`: the server said it stopped for good (close 1001, reason "stop"), not a restart; the usual backoff. */
   | { state: 'offline'; retryInMs: number; stopped?: boolean }
-  /** The server said it's restarting (close 1012): we retry about every second for a while. `etaMs` is its own estimate. */
-  | { state: 'restarting'; since: number; etaMs?: number }
+  /** The server said it's restarting (close 1012): we retry about every second for a while. `etaMs` is its own estimate;
+   * `update`: it's restarting into a new version. */
+  | { state: 'restarting'; since: number; etaMs?: number; update?: true }
   /** The server said no (no invite, banned, kicked, wrong server, key rotated). We don't retry. */
   | { state: 'rejected'; code: string; message: string; detail?: Record<string, unknown>; key?: string }
 
@@ -83,7 +84,7 @@ export class Connection {
   private ready = false
   private invite: string | undefined
   /** While the server is restarting: when it said so, its estimate, and until when we retry fast. */
-  private restart: { since: number; etaMs?: number; until: number } | null = null
+  private restart: { since: number; etaMs?: number; update?: true; until: number } | null = null
   /** The server said it stopped (not restarting), until we're back. */
   private serverStopped = false
 
@@ -272,10 +273,12 @@ export class Connection {
     }
     if (code === CloseCodes.Restarting) {
       const now = Date.now()
-      const { etaMs } = restartHint(reason)
+      const hint = restartHint(reason)
+      const etaMs = hint.etaMs
       // A second restart notice (it came back and went again) keeps the first one's start.
       const since = this.restart?.since ?? now
-      this.restart = { since, ...(etaMs !== undefined ? { etaMs } : {}), until: now + Math.max(RESTART_WINDOW_MS, (etaMs ?? 0) + 60_000) }
+      const update = hint.reason === 'update' || !!this.restart?.update
+      this.restart = { since, ...(etaMs !== undefined ? { etaMs } : {}), ...(update ? { update: true as const } : {}), until: now + Math.max(RESTART_WINDOW_MS, (etaMs ?? 0) + 60_000) }
       this.attempts = 0
       this.serverStopped = false
     } else if (code === CloseCodes.GoingAway && reason && restartHint(reason).reason === 'stop') {
@@ -290,7 +293,7 @@ export class Connection {
   private restartStatus(): ConnectionStatus | null {
     const restart = this.restart
     if (!restart || Date.now() >= restart.until) return null
-    return { state: 'restarting', since: restart.since, ...(restart.etaMs !== undefined ? { etaMs: restart.etaMs } : {}) }
+    return { state: 'restarting', since: restart.since, ...(restart.etaMs !== undefined ? { etaMs: restart.etaMs } : {}), ...(restart.update ? { update: true as const } : {}) }
   }
 
   private scheduleReconnect(): void {

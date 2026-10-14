@@ -26,6 +26,8 @@ import { JoinPrompt } from './ui/dialogs/JoinDialog'
 import { Onboarding } from './ui/Onboarding'
 import { Shell } from './ui/Shell'
 import { UpdateToast } from './ui/UpdateToast'
+import { WhatsNewCard } from './ui/WhatsNewCard'
+import { startWhatsNew } from './state/whatsNew'
 import { InstallHint } from './ui/InstallHint'
 import { LockScreen, NewKeyDialog, RetiredScreen } from './ui/keys/KeyScreens'
 import { useKeys } from './state/keys'
@@ -82,7 +84,9 @@ export function App() {
     const stopLinks = startDesktopLinks()
     const stopNative = startNativeShell()
     const stopDiagnostics = startDiagnostics()
+    const stopWhatsNew = startWhatsNew()
     return () => {
+      stopWhatsNew()
       stopLinks()
       stopNative()
       stopDiagnostics()
@@ -126,6 +130,7 @@ export function App() {
       {pendingInvite && <JoinPrompt invite={pendingInvite} />}
       <ScreenPicker />
       <UpdateToast />
+      <WhatsNewCard />
       <InstallHint signedIn />
       <ReportLayer />
       <BugReportLayer />

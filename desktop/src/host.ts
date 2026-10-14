@@ -9,6 +9,7 @@ import path from 'node:path'
 import { defaultHostRoot, exeName } from './platform'
 import { text } from './i18n'
 import { adjustRestoredSettings } from './restore'
+import { farewellLine, UPDATE_RESTART_ETA_SECONDS, writeRestartMarker, type StopKind } from './restartMarker'
 import { tailscaleAddress, tailscaleUrl } from './tailscale'
 import type { HostTunnels, P2pHostStatus } from './p2p/hostTunnel'
 
@@ -126,14 +127,16 @@ export const GRACEFUL_STOP_MS = 5000
 
 /**
  * Stops a server: closing its stdin asks it to shut down cleanly (ISKRA_STOP_ON_STDIN_CLOSE), and if it's
- * still around after a few seconds it's killed. Resolves once it's gone. `restart`: the app starts it again right
- * away (restarting into an update), so it tells members "restarting, hold on" instead of "offline".
+ * still around after a few seconds it's killed. Resolves once it's gone. A restart tells members "restarting, hold on"
+ * instead of "offline": a "restart" line before the close, or for an update the restart marker in its folder (the same
+ * one `iskra-server expect-restart` writes), so they're told it's an update. If the marker can't be written, the
+ * "restart" line still says it's coming back.
  */
-function stopServer(child: ChildProcess, restart = false): Promise<void> {
+function stopServer(child: ChildProcess, kind: StopKind = 'stop', folder?: string): Promise<void> {
   if (child.exitCode !== null || child.signalCode !== null || child.pid === undefined) return Promise.resolve()
   const exited = new Promise<void>((resolve) => child.once('exit', () => resolve()))
-  if (restart) child.stdin?.end('restart\n')
-  else child.stdin?.end()
+  const marked = kind === 'update' && !!folder && writeRestartMarker(folder, 'update', UPDATE_RESTART_ETA_SECONDS)
+  child.stdin?.end(farewellLine(kind, marked))
   const timer = setTimeout(() => forceKill(child), GRACEFUL_STOP_MS)
   return exited.finally(() => clearTimeout(timer))
 }
@@ -387,11 +390,12 @@ export class Host {
     return this.processes.size > 0
   }
 
-  /** Stops every server; resolves when they've exited (a few seconds at most). `restart`: the app is restarting. */
-  stopAll(restart = false): Promise<void> {
-    const children = [...this.processes.values()]
+  /** Stops every server; resolves when they've exited (a few seconds at most). `kind`: the app is restarting or updating. */
+  stopAll(kind: StopKind = 'stop'): Promise<void> {
+    const children = [...this.processes.entries()]
     this.processes.clear()
-    const done = Promise.all([...children.map((child) => stopServer(child, restart)), this.p2p?.stopAll()]).then(() => undefined)
+    const stops = children.map(([id, child]) => stopServer(child, kind, path.join(this.root, id)))
+    const done = Promise.all([...stops, this.p2p?.stopAll()]).then(() => undefined)
     return Promise.race([done, new Promise<void>((resolve) => setTimeout(resolve, GRACEFUL_STOP_MS + 2000).unref())])
   }
 

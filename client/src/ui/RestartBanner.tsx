@@ -12,14 +12,16 @@ export function RestartBanner({ server }: { server: ServerState }) {
   const inVoiceHere = useVoice((s) => !!s.session && !s.session.call && !s.session.group && s.session.serverKey === server.key)
   const restarting = server.status.state === 'restarting'
   const voice = restarting && (inVoiceHere || voiceResume()?.serverKey === server.key)
+  const update = server.status.state === 'restarting' && !!server.status.update
+  const key = update ? (voice ? 'chat.view.restartingUpdateVoice' : 'chat.view.restartingUpdate') : voice ? 'chat.view.restartingVoice' : 'chat.view.restarting'
   // Mounted with its text, a status region isn't always read: say it too.
-  useAnnounce(restarting ? t(voice ? 'chat.view.restartingVoice' : 'chat.view.restarting', { name: server.name })
+  useAnnounce(restarting ? t(key, { name: server.name })
     : back && server.status.state === 'online' ? t('chat.view.back', { name: server.name }) : null)
   if (restarting) {
     return (
       <div className="banner restart-banner" role="status" aria-live="polite">
         <span className="restart-spinner" aria-hidden="true" />
-        <span>{t(voice ? 'chat.view.restartingVoice' : 'chat.view.restarting', { name: server.name })}</span>
+        <span>{t(key, { name: server.name })}</span>
       </div>
     )
   }
