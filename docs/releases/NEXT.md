@@ -23,6 +23,9 @@
 
 ### Fixes
 
+- Voice through Connect without port forwarding no longer keeps reconnecting after the owner turns it on.
+- Leaving voice while it was reconnecting could put you back in; now you really leave.
+
 - Rent a server: "Connect to DigitalOcean" now finishes signing in (it stopped at the last step with "authorization grant is invalid").
 
 ### Good to know
