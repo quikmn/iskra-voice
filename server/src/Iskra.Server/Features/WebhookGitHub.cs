@@ -33,13 +33,8 @@ public static class WebhookGitHub
                 var branch = (Str(root, "ref") ?? "").Replace("refs/heads/", "");
                 title = $"[{repo}:{branch}] {commits.Count} new commit{(commits.Count == 1 ? "" : "s")}";
                 url = Str(root, "compare");
-                description = string.Join("\n", commits.Take(5).Select(commit =>
-                {
-                    var id = (Str(commit, "id") ?? "").PadRight(7)[..7];
-                    var message = (Str(commit, "message") ?? "").Split('\n')[0];
-                    return $"`{id}` {Excerpt(message, 80)} - {Str(commit, "author", "name") ?? Str(commit, "author", "username") ?? "someone"}";
-                }));
-                if (commits.Count > 5) description += $"\n…and {commits.Count - 5} more";
+                description = string.Join("\n", commits.Take(MaxCommits).Select(CommitLine));
+                if (commits.Count > MaxCommits) description += $"\n…and {commits.Count - MaxCommits} more";
                 break;
             }
             case "issues" or "pull_request":
@@ -64,6 +59,7 @@ public static class WebhookGitHub
                 if (action != "published") return null;
                 title = $"[{repo}] New release: {Str(root, "release", "name") ?? Str(root, "release", "tag_name")}";
                 url = Str(root, "release", "html_url");
+                description = Excerpt((Str(root, "release", "body") ?? "").Trim(), 1500);
                 break;
             case "star" or "watch":
                 if (action is not ("created" or "started")) return null;
@@ -83,6 +79,35 @@ public static class WebhookGitHub
         if (sender is not null && Names.Normalize(Short(sender, 32)) is { } login) embed["author"] = new JsonObject { ["name"] = login };
         return new WebhookPostRequest("", null, [embed], MentionRules.None);
     }
+
+    private const int MaxCommits = 8;
+
+    /// <summary>
+    /// "`abc1234` Subject · Author · 3 files", then the first paragraph of the message body on its own line
+    /// (trailers such as Co-Authored-By left out).
+    /// </summary>
+    private static string CommitLine(JsonElement commit)
+    {
+        var id = (Str(commit, "id") ?? "").PadRight(7)[..7];
+        var message = (Str(commit, "message") ?? "").Replace("\r\n", "\n").Trim();
+        var parts = message.Split("\n\n", 2);
+        var subject = parts[0].Replace('\n', ' ');
+        var author = Str(commit, "author", "name") ?? Str(commit, "author", "username") ?? "someone";
+        var files = new[] { "added", "modified", "removed" }
+            .Sum(k => commit.TryGetProperty(k, out var a) && a.ValueKind == JsonValueKind.Array ? a.GetArrayLength() : 0);
+        var line = $"`{id}` {Excerpt(subject, 160)} · {author}{(files > 0 ? $" · {files} file{(files == 1 ? "" : "s")}" : "")}";
+        if (parts.Length > 1)
+        {
+            var paragraph = string.Join(' ', parts[1].Split("\n\n")[0].Split('\n')
+                .Where(l => !Trailer.IsMatch(l))
+                .Select(l => l.Trim())).Trim();
+            if (paragraph.Length > 0) line += $"\n↳ {Excerpt(paragraph, 240)}";
+        }
+        return line;
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex Trailer =
+        new(@"^\s*[A-Za-z-]+-by:", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
     private static string? Str(JsonElement element, params string[] path)
     {

@@ -244,14 +244,15 @@ public class WebhookTests
 
         var push = """
             {"ref":"refs/heads/main","compare":"https://github.com/me/game/compare/a...b","repository":{"full_name":"me/game"},
-             "sender":{"login":"octocat"},"commits":[{"id":"0123456789abcdef","message":"Fix the jump\n\nlong text","author":{"name":"Octo"}}]}
+             "sender":{"login":"octocat"},"commits":[{"id":"0123456789abcdef","message":"Fix the jump\n\nlong text\nover two lines\n\nCo-Authored-By: Bot <b@x>","author":{"name":"Octo"},"added":["a"],"modified":["b","c"],"removed":[]},
+                          {"id":"fedcba9876543210","message":"Tidy up\n\nCo-Authored-By: Bot <b@x>","author":{"name":"Octo"}}]}
             """;
         using var request = new HttpRequestMessage(HttpMethod.Post, path + "/github") { Content = new StringContent(push, Encoding.UTF8, "application/json") };
         request.Headers.Add("X-GitHub-Event", "push");
         using (var r = await http.SendAsync(request)) Assert.Equal(HttpStatusCode.NoContent, r.StatusCode);
         var embed = Message(await admin.EventAsync("chat.message")).GetProperty("webhook").GetProperty("embeds")[0];
-        Assert.Equal("[me/game:main] 1 new commit", embed.GetProperty("title").GetString());
-        Assert.Equal("`0123456` Fix the jump - Octo", embed.GetProperty("description").GetString());
+        Assert.Equal("[me/game:main] 2 new commits", embed.GetProperty("title").GetString());
+        Assert.Equal("`0123456` Fix the jump · Octo · 3 files\n↳ long text over two lines\n`fedcba9` Tidy up · Octo", embed.GetProperty("description").GetString());
         Assert.Equal("octocat", embed.GetProperty("author").GetProperty("name").GetString());
     }
 

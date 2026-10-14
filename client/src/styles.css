@@ -331,7 +331,8 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
   background: var(--float); border: 1px solid var(--border); border-radius: calc(var(--radius) * 0.8); padding: 2px; font-size: 13px;
   box-shadow: 0 4px 14px color-mix(in srgb, var(--shadow-color) 60%, transparent);
 }
-.message:hover .message-actions, .message-actions:focus-within { display: flex; }
+/* The action bar stays while one of its menus or pickers is open, or while the keyboard is in it. */
+.message:hover .message-actions, .message-actions:has([aria-expanded='true']), :root[data-input='keyboard'] .message-actions:focus-within { display: flex; }
 .message-actions span { padding: 0 6px; }
 .message-actions button { border: 0; background: transparent; padding: 5px 7px; border-radius: calc(var(--radius) * 0.6); display: inline-grid; place-items: center; color: var(--text-2); }
 .message-actions button:hover { background: var(--surface-3); color: var(--text); }
@@ -842,7 +843,7 @@ input.confirm-code::placeholder { color: var(--placeholder); }
 }
 
 /* ── UX fixes: a hovered or focused message keeps its time readable (the row's tint lowers the muted colour's contrast) ── */
-.message:hover .message-meta time, .message:focus-within .message-meta time { color: var(--text-2); }
+.message:hover .message-meta time, :root[data-input='keyboard'] .message:focus-within .message-meta time { color: var(--text-2); }
 
 /* ── UX polish (P3): phone composer room, long sheets, file choosers, crash note ── */
 @media (max-width: 760px) {

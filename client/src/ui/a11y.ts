@@ -104,6 +104,7 @@ export function installMenuKeys(): void {
 
 /** Big focusable regions (the message list) that only show a focus ring when Tab brought focus there. */
 const REGION = '.messages'
+const NAV_KEYS = new Set(['Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'])
 let tabbed = false
 let regionsInstalled = false
 /**
@@ -113,8 +114,14 @@ let regionsInstalled = false
 export function installRegionFocus(): void {
   if (regionsInstalled || typeof document === 'undefined') return
   regionsInstalled = true
-  document.addEventListener('keydown', (e) => { tabbed = e.key === 'Tab' }, true)
-  document.addEventListener('pointerdown', () => { tabbed = false }, true)
+  // <html data-input="keyboard|pointer">: focus-driven extras (a message's frame and action bar) show only when the
+  // keyboard moved focus there, not after a click (typing doesn't count; it isn't moving around).
+  const root = document.documentElement
+  document.addEventListener('keydown', (e) => {
+    tabbed = e.key === 'Tab'
+    if (NAV_KEYS.has(e.key)) root.dataset.input = 'keyboard'
+  }, true)
+  document.addEventListener('pointerdown', () => { tabbed = false; root.dataset.input = 'pointer' }, true)
   document.addEventListener('focusin', (e) => {
     if (e.target instanceof HTMLElement && e.target.matches(REGION)) e.target.toggleAttribute('data-tabbed', tabbed)
   }, true)
