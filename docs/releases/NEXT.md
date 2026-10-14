@@ -13,10 +13,18 @@
 
 - **No port forwarding for standalone servers too**: turn on Connect without port forwarding and the server runs its own peer-to-peer tunnel (included in the server downloads).
 
+- **Shape the built-in roles**: choose what Admins, Trusted, Members and Guests can do. The owner can never be locked out.
+- **Templates**: save your server as a template, or start a new one from a template file, with every channel kind, who can see and use each channel, roles and settings. See what a template sets up before you create the server.
+- **Default notifications**: admins choose whether new members hear about all messages or only @mentions.
+- **Message a bot**: DMs with bots are end-to-end encrypted, its commands work right in the DM, and you choose whether bots may write to you first.
+- **Music bot** (an example bot you can run): plays the songs your group uploads, with a queue, volume and a DJ role. Never YouTube or Spotify.
+
 ### Fixes
 
 - Rent a server: "Connect to DigitalOcean" now finishes signing in (it stopped at the last step with "authorization grant is invalid").
 
 ### Good to know
+
+- Bot developers: the SDK is ready to be installed from npm as `iskra-bots` once it's published.
 
 - The grey theme "Iskra Dark" is now called Graphite. If you use it, you keep it.
