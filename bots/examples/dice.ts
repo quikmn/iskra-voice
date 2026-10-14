@@ -58,6 +58,11 @@ bot.on('message', (message) => {
   if (/\bgood bot\b/i.test(message.text)) void message.react('🤖')
 })
 
+// Direct messages (end-to-end encrypted to the bot): commands work there too; anything else gets a hint.
+bot.on('dm', (dm) => {
+  if (!dm.text.startsWith('/')) void dm.reply('Hi! I roll dice. Try `/roll 2d6`, `/coin` or `/help`.')
+})
+
 bot.on('memberJoined', (member) => {
   const general = bot.channelByName('general')
   if (general && !member.bot) void bot.send(general.id, `Welcome, ${bot.mention(member.accountKey)}! Type \`/roll\` if you feel lucky.`)

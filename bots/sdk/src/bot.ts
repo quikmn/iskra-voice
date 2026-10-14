@@ -5,11 +5,17 @@ import { resolve } from 'node:path'
 import { parseCommand, type Command } from '../../../client/src/core/commands'
 import { Connection, type ConnectionStatus } from '../../../client/src/core/connection'
 import { ready } from '../../../client/src/core/crypto'
+import { DmError } from '../../../client/src/core/dm'
+import type { DmFile } from '../../../client/src/core/dmFiles'
+import type { Identity } from '../../../client/src/core/identity'
 import { parseInvite } from '../../../client/src/core/invite'
 import {
   RequestError, type BotCommand, type Card, type Channel, type CommandOption, type ComponentRow, type Events, type FileInfo, type Interaction,
-  type Member, type Message, type Modal, type OptionValue, type Poll, type Requests, type Thread,
+  type Member, type Message, type Modal, type OptionValue, type Poll, type Requests, type Thread, type WireDm,
 } from '../../../client/src/core/protocol'
+// Pure functions shared with the app's composer: typed options, and who may use a command.
+import { mayUse, parseOptions } from '../../../client/src/ui/chat/commandInvoke'
+import { cardsAsText, DmKeys, toStored } from './dms'
 import { identityOf, loadState, newState, saveState, type BotState } from './state'
 import { VoiceConnection } from './voice/connection'
 
@@ -35,6 +41,24 @@ export interface IncomingMessage extends Message {
   react: (emoji: string) => Promise<void>
 }
 
+/**
+ * A direct message to the bot, decrypted (end-to-end encrypted between the person's devices and the bot). Commands typed
+ * in a DM (`/roll 2d6`) also reach the command's handler, with `dm: true`.
+ */
+export interface IncomingDm {
+  /** The id inside the encrypted header. */
+  id: string
+  /** Who wrote (account key) and their name. */
+  from: string
+  authorName: string
+  text: string
+  sentAt: number
+  /** Encrypted attachments: `bot.downloadDmFile(file)` gets the bytes. */
+  files: DmFile[]
+  /** Answers in the same conversation. */
+  reply: (content: string | MessageContent) => Promise<void>
+}
+
 /** How to answer: in public (a message in the channel), or `private: true` so only the person who asked sees it. */
 export interface ReplyOptions extends Omit<SendOptions, 'replyTo' | 'attachments'> {
   /** Only the person who asked sees it; never stored (always so in encrypted channels). Ignored for commands typed as text. */
@@ -46,7 +70,10 @@ export interface AnswerContext {
   /** Who asked (account key) and their name. */
   user: string
   userName: string
+  /** Where it was asked (0 in a DM). */
   channelId: number
+  /** Asked in a direct message: answers go back as DMs (always just to that person). */
+  dm: boolean
   /** The interaction, when it came from the app (null for commands typed as text). */
   interaction: Interaction | null
   /**
@@ -146,6 +173,8 @@ export interface PollOptions {
 interface Listeners {
   ready: (bot: Bot) => void
   message: (message: IncomingMessage) => void
+  /** A direct message to the bot (decrypted). */
+  dm: (dm: IncomingDm) => void
   memberJoined: (member: Member) => void
   /** A message the bot can see was edited (its own too). */
   messageEdited: (message: Message) => void
@@ -190,7 +219,7 @@ export class Bot {
   private readonly modalHandlers: { match: string | RegExp; handler: ModalHandler }[] = []
   private syncTimer: ReturnType<typeof setTimeout> | null = null
   private readonly listeners: { [K in keyof Listeners]: Listeners[K][] } = {
-    ready: [], message: [], memberJoined: [], messageEdited: [], messageDeleted: [], reactions: [], pollUpdated: [], event: [], status: [],
+    ready: [], message: [], dm: [], memberJoined: [], messageEdited: [], messageDeleted: [], reactions: [], pollUpdated: [], event: [], status: [],
   }
   private connection: Connection | null = null
   private voiceConnection: VoiceConnection | null = null
@@ -198,6 +227,8 @@ export class Bot {
   private readonly inVoice = new Map<number, string[]>()
   private state: BotState | null = null
   private serverUrl = ''
+  private dmKeys: DmKeys | null = null
+  private prekeyTimer: ReturnType<typeof setInterval> | null = null
 
   constructor(options: BotOptions) {
     this.options = options
@@ -298,6 +329,15 @@ export class Bot {
     saveState(this.stateFile, this.state) // keep the keys even if the first connect fails
     this.serverUrl = server.url.replace(/\/+$/, '')
     const joining = !this.state.server
+    const identity: Identity = identityOf(this.state)
+    this.dmKeys = new DmKeys(identity, (type, body) => this.request(type, body), (prekeys) => {
+      this.state!.prekeys = prekeys.map(toStored)
+      saveState(this.stateFile, this.state!)
+    })
+    // Prekeys rotate weekly; check twice a day for bots that run for weeks.
+    if (this.prekeyTimer) clearInterval(this.prekeyTimer)
+    this.prekeyTimer = setInterval(() => void this.publishPrekey(), 12 * 3600_000)
+    this.prekeyTimer.unref?.()
 
     let first = true
     await new Promise<void>((done, fail) => {
@@ -306,7 +346,7 @@ export class Bot {
         serverUrl: server.url,
         expectedServerKey: server.key,
         invite: this.state!.server ? undefined : invite?.code,
-        identity: identityOf(this.state!),
+        identity,
         name: () => this.name,
         bot: true,
         onStatus: (status) => {
@@ -335,6 +375,7 @@ export class Bot {
           }
           this.log(`Online in "${welcome.server.name}" as ${welcome.you.name} (${welcome.you.role})`)
           void this.syncCommands()
+          void this.publishPrekey()
           for (const l of this.listeners.ready) l(this)
           if (first) {
             first = false
@@ -351,6 +392,8 @@ export class Bot {
     void this.voiceConnection?.leave()
     if (this.syncTimer) clearTimeout(this.syncTimer)
     this.syncTimer = null
+    if (this.prekeyTimer) clearInterval(this.prekeyTimer)
+    this.prekeyTimer = null
     this.connection?.stop()
     this.connection = null
   }
@@ -433,6 +476,88 @@ export class Bot {
     await this.request('activity.set', { name })
   }
 
+  // ── Direct messages ──────────────────────────────────────────────────────
+
+  /**
+   * Sends a direct message, end-to-end encrypted to the person's devices. Works for members of this server who haven't
+   * blocked the bot and allow DMs from bots, or who wrote to the bot first. DMs carry text: cards become text, and
+   * buttons and menus are left out. Waits and retries politely if rate limited.
+   */
+  async sendDm(accountKey: string, content: string | MessageContent): Promise<void> {
+    const { text = '', cards, components } = typeof content === 'string' ? { text: content } as MessageContent : content
+    if (components?.length) this.log("Buttons and menus don't work in DMs; sent the text only.")
+    let full = [text, cardsAsText(cards)].filter(Boolean).join('\n\n')
+    if (full.length > MAX_TEXT) {
+      this.log(`A DM had ${full.length} characters; only the first ${MAX_TEXT} were sent.`)
+      full = full.slice(0, MAX_TEXT)
+    }
+    if (!this.dmKeys) throw new RequestError('disconnected', 'The bot is not started.')
+    const envelope = await this.dmKeys.encrypt(accountKey, { text: full })
+    await this.retrying(() => this.request('dm.send', { accountKey, envelope }))
+  }
+
+  /** The bytes of a file someone attached to a DM (decrypted and checked; anything tampered with throws). */
+  downloadDmFile(file: DmFile): Promise<Uint8Array> {
+    if (!this.dmKeys) return Promise.reject(new RequestError('disconnected', 'The bot is not started.'))
+    return this.dmKeys.download(this.serverUrl, file)
+  }
+
+  private async publishPrekey(): Promise<void> {
+    try {
+      await this.dmKeys?.publishPrekey()
+    } catch (e) {
+      if (!(e instanceof RequestError && e.code === 'disconnected')) this.log(`Couldn't publish the DM key: ${(e as Error).message}`)
+    }
+  }
+
+  private async handleDm(wire: WireDm): Promise<void> {
+    if (!this.dmKeys || !this.me || wire.from === this.me.accountKey) return // its own messages, echoed back
+    const author = this.members.get(wire.from)
+    if (author?.bot) return
+    let dm
+    try {
+      dm = this.dmKeys.open(wire)
+    } catch (e) {
+      return this.log(`Couldn't read a DM from ${author?.name ?? 'someone'}: ${e instanceof DmError ? e.message : (e as Error).message}`)
+    }
+    if (!dm.text && dm.files.length === 0) return // a call invite or friend request: nothing for a bot
+    const from = dm.from
+    const reply = (content: string | MessageContent) => this.sendDm(from, content)
+    const incoming: IncomingDm = { id: dm.id, from, authorName: author?.name ?? 'someone', text: dm.text, sentAt: dm.sentAt, files: dm.files, reply }
+    for (const l of this.listeners.dm) l(incoming)
+
+    const command = parseCommand(dm.text)
+    if (!command) return
+    if (command.target && command.target.toLowerCase() !== this.name.replace(/\s+/g, '').toLowerCase()) return
+    const entry = this.registry.get(command.name)
+    if (!entry) return
+    const usage = `/${command.name}${entry.spec.usage ? ` ${entry.spec.usage}` : (entry.spec.options ?? []).map((o) => (o.required ? ` <${o.name}>` : ` [${o.name}]`)).join('')}`
+    // The server isn't involved in DMs, so the bot checks who may use the command itself.
+    if (!mayUse(entry.spec, author, () => false)) {
+      await reply(entry.spec.permission ? `\`/${command.name}\` only works in a channel.` : `You can't use \`/${command.name}\`.`).catch(() => undefined)
+      return
+    }
+    const parsed = parseOptions(entry.spec, command.args, { members: [...this.members.values()], channels: this.channels, roles: [] })
+    if (!parsed.ok) {
+      const what = parsed.reason === 'missing' ? 'is missing' : "isn't right"
+      await reply(`\`${parsed.option}\` ${what}. Try \`${usage}\``).catch(() => undefined)
+      return
+    }
+    await this.run(`/${command.name} (DM)`, () => entry.handler({
+      command, args: command.args, options: parsed.options, user: from, userName: incoming.authorName, channelId: 0, dm: true, interaction: null,
+      reply: async (content, options) => {
+        // Buttons and menus need a channel message to sit on: left out in DMs.
+        const { components: _, ...rest } = typeof content === 'string' ? { text: content, cards: options?.cards } as MessageContent : content
+        await reply(rest)
+        return null
+      },
+      defer: async () => undefined,
+      showModal: () => Promise.reject(new Error("Forms don't work in DMs.")),
+      react: async () => undefined,
+      bot: this,
+    }))
+  }
+
   // ── Voice ────────────────────────────────────────────────────────────────
 
   /**
@@ -509,6 +634,12 @@ export class Bot {
       case 'interaction':
         void this.handleInteraction(body as Events['interaction'])
         return
+      case 'dm.message':
+        void this.handleDm((body as Events['dm.message']).message)
+        return
+      case 'device.revoked':
+        this.dmKeys?.forgetBundles()
+        return
       case 'chat.edited':
         for (const l of this.listeners.messageEdited) l((body as Events['chat.edited']).message)
         return
@@ -578,7 +709,7 @@ export class Bot {
     // Typed as text (an older app, or a bot that reads everything): answers are always messages.
     await this.run(`/${command.name}`, () => entry.handler({
       command, args: command.args, options: {}, message: incoming, user: message.author, userName: incoming.authorName,
-      channelId: message.channelId, interaction: null,
+      channelId: message.channelId, dm: false, interaction: null,
       reply: (content, options) => reply(content, options && { cards: options.cards, components: options.components }),
       defer: async () => undefined,
       showModal: () => Promise.reject(new Error('Forms only work for commands sent from the app, not typed as text.')),
@@ -601,6 +732,7 @@ export class Bot {
       user: i.user,
       userName: this.members.get(i.user)?.name ?? 'someone',
       channelId: i.channelId,
+      dm: false,
       interaction: i,
       reply: async (content, options = {}) => {
         const { text, cards, components } = { ...(typeof content === 'string' ? { text: content } : content), ...options }

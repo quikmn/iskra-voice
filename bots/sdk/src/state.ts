@@ -3,6 +3,7 @@
 import { chmodSync, existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { b64u, fromB64u, randomBytes, signingKeyPairFromSeed } from '../../../client/src/core/crypto'
 import { certifyDevice, type Identity } from '../../../client/src/core/identity'
+import type { StoredPrekey } from './dms'
 
 export interface BotState {
   v: 1
@@ -11,6 +12,8 @@ export interface BotState {
   created: number
   /** Set after the first successful join, so later starts don't need the invite. */
   server?: { url: string; key: string }
+  /** The device's X25519 prekeys for forward-secret DMs (rotated weekly; old secrets deleted after 30 days). */
+  prekeys?: StoredPrekey[]
 }
 
 export function newState(now = Date.now()): BotState {
@@ -20,7 +23,10 @@ export function newState(now = Date.now()): BotState {
 export function identityOf(state: BotState): Identity {
   const account = signingKeyPairFromSeed(fromB64u(state.accountSeed))
   const device = signingKeyPairFromSeed(fromB64u(state.deviceSeed))
-  return { account, device, cert: certifyDevice(account, device.publicKey, state.created) }
+  const prekeys = (state.prekeys ?? []).map((p) => ({
+    publicKey: fromB64u(p.publicKey), secretKey: fromB64u(p.secretKey), created: p.created, ...(p.retiredAt !== undefined ? { retiredAt: p.retiredAt } : {}),
+  }))
+  return { account, device, cert: certifyDevice(account, device.publicKey, state.created), prekeys }
 }
 
 export function loadState(path: string): BotState | null {
