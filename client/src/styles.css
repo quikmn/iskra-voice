@@ -173,7 +173,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); box-sha
 /* ── Shell layout ───────────────────────────────────────────────────── */
 .shell { display: grid; grid-template-columns: auto minmax(0, 1fr) 240px; height: 100dvh; }
 .shell.no-members { grid-template-columns: auto minmax(0, 1fr); }
-.nav-column { display: flex; min-height: 0; }
+.nav-column { display: flex; min-height: 0; background: var(--rail); }
 .main-column { min-width: 0; min-height: 0; background: var(--surface); display: flex; flex-direction: column; }
 .main-column > .chat, .main-column > .stage, .main-column > .empty-state { flex: 1; min-height: 0; height: auto; }
 .members-column { background: var(--sidebar); border-left: 1px solid var(--border); min-height: 0; overflow-y: auto; }
@@ -201,7 +201,11 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); box-sha
 }
 .server-icon .badge { position: absolute; right: -4px; bottom: -4px; border: 3px solid var(--rail); height: 22px; border-radius: 11px; }
 
-.channel-sidebar { width: 240px; background: var(--sidebar); display: flex; flex-direction: column; min-height: 0; }
+/* The channel panel sits inside the rail's dark frame with rounded inner corners; the me bar floats in it as a card like the composer. */
+.channel-sidebar {
+  width: 240px; background: var(--sidebar); display: flex; flex-direction: column; min-height: 0;
+  border-radius: calc(var(--radius) * 1.2) 0 0 calc(var(--radius) * 1.2);
+}
 .sidebar-header {
   height: 52px; padding: 0 14px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); flex: none;
 }
@@ -240,7 +244,10 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); box-sha
 .channel-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lock { font-size: 11px; opacity: 0.7; }
 
-.me-bar { display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--rail); flex: none; }
+.me-bar {
+  display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--rail); flex: none;
+  margin: 0 8px 16px; border-radius: calc(var(--radius) * 1.2);
+}
 .me-text { display: grid; min-width: 0; flex: 1; line-height: 1.2; }
 .me-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
 .me-text span { font-size: 12px; color: var(--muted); }
@@ -645,6 +652,7 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
   .message { padding-left: 10px; padding-right: 10px; gap: 10px; }
   .message-actions { right: 10px; }
   .composer { margin: 0 8px 8px; }
+  .me-bar { margin-bottom: 8px; }
   .modal { border-radius: calc(var(--radius) * 1.4); }
   .stage-body { padding: 8px; gap: 8px; }
   .stage-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
