@@ -83,7 +83,9 @@ function PhoneStart() {
       <section className="guide-option">
         <h3>{t('settings.start.rentTitle')}</h3>
         <p className="muted">{t('settings.start.rentText')}</p>
-        <button type="button" className="button" onClick={() => setRenting(true)}>{t('hosting.cgnat.rentButton')}</button>
+        <div className="guide-actions">
+          <button type="button" className="button" onClick={() => setRenting(true)}>{t('hosting.cgnat.rentButton')}</button>
+        </div>
       </section>
       {renting && <RentServerDialog onClose={() => setRenting(false)} />}
     </>

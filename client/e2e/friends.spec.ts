@@ -124,6 +124,7 @@ test('on a phone, starting a server says it needs a computer', async ({ browser 
   await expect(guide.getByRole('button', { name: 'Copy the download link' })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
   await expect(guide).toBeInViewport()
+  await page.waitForTimeout(350) // let the dialog finish appearing
   await page.screenshot({ path: join(SHOTS, 'start-server-phone.png') })
   await guide.getByRole('button', { name: 'Rent a small server' }).click()
   await expect(page.getByRole('dialog', { name: 'Rent a small server' })).toBeVisible()

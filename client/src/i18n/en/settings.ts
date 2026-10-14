@@ -50,7 +50,7 @@ export const settings = {
   room: {
     mine: 'My settings',
     title: '{{name}} · Server settings',
-    subtitle: 'Server settings · your role: {{role}}',
+    subtitle: 'Server settings · your role: <role>{{role}}</role>',
     closeHint: 'Close (Esc)',
     count: '{{n}} open',
     groups: { server: 'Server', safety: 'Members & safety', apps: 'Apps', hosting: 'Hosting & data' },

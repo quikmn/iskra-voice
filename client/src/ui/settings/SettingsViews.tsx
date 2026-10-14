@@ -3,7 +3,7 @@
 // role, only that server's config). Never both in one view. Close with Esc, ✕ or the browser/phone back button.
 // Phones get a page stack: the band and the list first, then each section under a slim band ("Hangout › Roles").
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import { b64u } from '../../core/crypto'
 import { fingerprint } from '../../core/connection'
 import { useApp, type ServerState } from '../../state/store'
@@ -301,7 +301,7 @@ export function ServerSettings({ serverKey, section, onClose }: { serverKey: str
           <ServerTile server={server} />
           <div className="room-titles">
             <h1 className="room-name">{server.name}</h1>
-            <p className="room-sub">{t('settings.room.subtitle', { role: t(`common.roles.${me!.role}`) })}</p>
+            <p className="room-sub"><Trans i18nKey="settings.room.subtitle" values={{ role: t(`common.roles.${me!.role}`) }} components={{ role: <span className="capitalize" /> }} /></p>
           </div>
         </div>
       }

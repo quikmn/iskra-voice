@@ -51,7 +51,7 @@ export const settings: Messages['settings'] = {
   room: {
     mine: 'Mina inställningar',
     title: '{{name}} · Serverinställningar',
-    subtitle: 'Serverinställningar · din roll: {{role}}',
+    subtitle: 'Serverinställningar · din roll: <role>{{role}}</role>',
     closeHint: 'Stäng (Esc)',
     count: '{{n}} öppna',
     groups: { server: 'Server', safety: 'Medlemmar och säkerhet', apps: 'Appar', hosting: 'Drift och data' },

@@ -570,6 +570,7 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 .guide-option .button { display: inline-block; text-decoration: none; }
 .guide-option p { margin: 10px 0 0; }
 .guide-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.guide-option p + .guide-actions { margin-top: 10px; }
 
 /* ── Members ────────────────────────────────────────────────────────── */
 .member-list { padding: 14px 8px; }
