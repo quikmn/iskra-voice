@@ -150,7 +150,8 @@ public class ProductivityTests
         // it). The timer may be firing it at this very moment (marked fired, not yet deleted), so allow it to finish.
         server.Services.GetServices<IHostedService>().OfType<ProductivityScheduler>().Single().Tick();
         for (var i = 0; i < 100 && server.World.Store.Reminders(gone).Count > 0; i++) await Task.Delay(50);
-        Assert.Empty(server.World.Store.Reminders(gone));
+        var left = server.World.Store.Reminders(gone);
+        Assert.True(left.Count == 0, $"DIAG alice={alice.Key} gone={gone} member={server.World.Store.GetMember(gone)?.AccountKey ?? "null"} members={server.World.Store.CountMembers()} left={string.Join(";", left)}");
     }
 
     // ── Scheduled messages ───────────────────────────────────────────────────
