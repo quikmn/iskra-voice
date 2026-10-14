@@ -4,3 +4,5 @@
 *.tmp
 # Jukebox's music folder: your own files, never committed.
 music/
+# The npm package's copy of the repository's license (sdk/build-package.mjs)
+sdk/LICENSE

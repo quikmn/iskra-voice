@@ -1,0 +1,17 @@
+// Type declarations for the npm package (build-package.mjs). The SDK reuses the app's core, so declarations are emitted
+// from the repository root down and dist/index.d.ts points at the SDK's entry in that tree.
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "rootDir": "../..",
+    "declarationDir": "dist/types",
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
+  },
+  "include": ["src"],
+  // Checks the voice packages' real typings; the package must not need them to type-check.
+  "exclude": ["src/voice/typings.check.ts"]
+}

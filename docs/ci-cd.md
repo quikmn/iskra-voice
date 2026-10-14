@@ -56,6 +56,7 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
                     └─ server ..... ssh root@DROPLET_HOST X → iskra-update X → https://chat.iskra.foo (checks it answers)
 
  DEPLOY ONLY: deploy.yml by hand (workflow_dispatch: ref, site, webapp, server_version)
+ BOT SDK: tag bots-sdk-vX ──► bots-sdk.yml ──► npm "iskra-bots" X with provenance (environment "npm"; section 4 → npm)
  iOS APP: mobile-ios.yml by hand (workflow_dispatch: ref, upload) ──► TestFlight (not part of a release yet)
 ```
 
@@ -81,6 +82,7 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
 | `desktop/scripts/sign.ps1` | Signs the standalone Windows server exe with the Certum certificate |
 | `mobile/scripts/build-android.ps1` | Signed Android APK (+ AAB) from the Capacitor shell ([Android](#android)) |
 | `.github/workflows/mobile-ios.yml` | iPhone/iPad app: build, cloud-sign, upload to TestFlight ([iOS app](#ios-app)) |
+| `.github/workflows/bots-sdk.yml`, `bots/sdk/package.json`, `bots/sdk/build-package.mjs` | The bot SDK on npm as `iskra-bots`, on a `bots-sdk-v*` tag ([npm](#npm-bot-sdk)) |
 | `scripts/mobile-version.mjs` | The phone app's version and build numbers (tested by the root `npm test`) |
 | `.github/workflows/uptime.yml`, `scripts/uptime-check.sh` | Uptime checks and outage issues ([section 8](#8-uptime-monitoring)) |
 | `server/deploy/iskra-update-guard` | Shipped in the Linux server tarball (release.yml): undoes a server self-update that doesn't start (docs/hosting.md) |
@@ -350,6 +352,23 @@ to the Capacitor app in place. The TWA project is gone from the tree (`android/R
     then delete the repo-level ones). Recommended: then only the release/deploy jobs on main can read them, not
     every workflow on every branch. The Apple secrets stay at repo level (release.yml's tag build uses them).
 
+### npm (bot SDK)
+
+The bot SDK is published to npm as [`iskra-bots`](https://www.npmjs.com/package/iskra-bots) by `bots-sdk.yml`, separately
+from app releases. Not published yet: the owner sets it up once.
+
+- **Account:** an npm account with two-factor authentication (the package is unscoped, so no npm organization is needed;
+  the `@iskra` scope belongs to someone else). The first publish creates the package under that account.
+- **Token:** a granular access token (npmjs.com → Access Tokens → Generate New Token → Granular) with read and write on
+  packages (narrow it to `iskra-bots` after the first publish), saved as the secret `NPM_TOKEN` in the `npm` environment
+  (Settings → Environments → npm; the workflow creates it on its first run, add the owner as a required reviewer).
+  Write tokens expire (npm allows at most 90 days): renew it before a publish. Instead of a token, npm's trusted
+  publishing (npmjs.com → the package → Settings → Trusted publisher: this repository, workflow `bots-sdk.yml`,
+  environment `npm`) needs no secret at all once the package exists.
+- **Publishing:** bump `version` in `bots/sdk/package.json`, commit, then `git tag bots-sdk-v<version>` and push the tag.
+  The workflow checks the tag matches, type-checks, builds (`npm run build:sdk` in `bots/`) and runs `npm publish
+  --provenance`. Try it locally first: `npm run pack:sdk` in `bots/` lists exactly what would be published.
+
 ### Secret scanning and security settings
 
 `secrets.yml` runs [gitleaks](https://github.com/gitleaks/gitleaks) (pinned release, checksum checked in the workflow) over
@@ -372,6 +391,7 @@ many of them (branch protection, review) are owner settings too. Click-by-click 
 | **2027-04 (before 2027-05-12)** | Certum code-signing certificate | Renew (section 4); same CN keeps auto-update working |
 | **2027-09 (before 2027-10-01), then yearly** | `Expires` in both security.txt files | Move it a year ahead (RFC 9116: at most a year), check Contact and Policy still work, deploy site and web app |
 | Yearly | iskra.foo domain | Check auto-renew at the registrar |
+| Before each bot SDK publish | `NPM_TOKEN` (npm write tokens last at most 90 days) | New granular token into the `npm` environment, or switch to trusted publishing (section 4 → npm) |
 | Yearly | Offline backups | Check the keystore, devkeys folder and admin SSH key copies still open |
 | After 60 days without commits | Uptime schedule | GitHub pauses scheduled workflows in inactive repos (it emails first): Actions → Uptime → Enable workflow |
 | **2031-08 (before 2031-09-17)** | Apple Developer ID certificate | New CSR, certificate, p12, secrets (section 4) |

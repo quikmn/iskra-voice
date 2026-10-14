@@ -1,14 +1,16 @@
 {
-  "name": "iskra-bots",
+  "name": "iskra-bot-examples",
   "private": true,
   "version": "0.1.0",
-  "description": "A small SDK for Iskra bots, plus examples.",
+  "description": "Iskra's bot SDK (sdk/, published to npm as iskra-bots) and example bots.",
   "type": "module",
   "engines": {
     "node": ">=22"
   },
   "scripts": {
     "build": "node build.mjs",
+    "build:sdk": "node sdk/build-package.mjs",
+    "pack:sdk": "node sdk/build-package.mjs && npm pack ./sdk --dry-run",
     "typecheck": "tsc --noEmit -p .",
     "dice": "node build.mjs && node dist/examples/dice.js",
     "planner": "node build.mjs && node dist/examples/planner.js",

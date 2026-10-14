@@ -1,0 +1,57 @@
+name: Bot SDK to npm
+
+# Publishes the bot SDK (bots/sdk) to npm as "iskra-bots", with provenance, when a tag bots-sdk-v<version> is pushed.
+# The tag's version must match bots/sdk/package.json. Needs the NPM_TOKEN secret (a granular npm access token that can
+# publish iskra-bots); docs/ci-cd.md → npm. It runs in the `npm` environment, so its protection rules apply.
+on:
+  push:
+    tags: ['bots-sdk-v*']
+
+permissions: {}
+
+concurrency:
+  group: bots-sdk
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write # npm provenance: links the package to this workflow run
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+          # No dependency cache: a publishing job shouldn't restore files other runs could have written.
+      - name: The tag matches the package version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="$(node -p "require('./bots/sdk/package.json').version")"
+          if [ "$TAG" != "bots-sdk-v$version" ]; then
+            echo "::error::Tag $TAG doesn't match bots/sdk/package.json version $version (expected bots-sdk-v$version)."
+            exit 1
+          fi
+      - name: Install
+        working-directory: bots
+        run: npm ci --no-audit --no-fund
+      - name: Type-check the SDK and examples
+        working-directory: bots
+        run: npm run typecheck
+      - name: Build the package
+        working-directory: bots
+        run: npm run build:sdk
+      - name: Check what would be published
+        working-directory: bots
+        run: npm pack ./sdk --dry-run
+      - name: Publish
+        working-directory: bots/sdk
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
