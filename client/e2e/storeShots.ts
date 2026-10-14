@@ -1,0 +1,281 @@
+// Store screenshots, shared by the Google Play (play-store.spec.ts) and App Store (app-store.spec.ts) specs: the same
+// demo content and key screens, on a phone or tablet running the native app (Capacitor's bridge stands in, as in
+// ios-app.spec.ts), in English and Swedish. Everyone in the screenshots is made up.
+import { mkdirSync } from 'node:fs'
+import { dirname } from 'node:path'
+import { expect, type Browser, type BrowserContextOptions, type Page } from '@playwright/test'
+import { agreeToTerms, hasLiveKit, joinVia, send, type TestServer } from './helpers'
+
+export type Lang = 'en' | 'sv'
+
+/** A device to shoot on: viewport and scale give the store's pixel size; platform picks the native shell's stand-in. */
+export interface Device {
+  context: BrowserContextOptions
+  platform: 'android' | 'ios'
+}
+
+/** Takes one screenshot named after the screen ("1-text-channel"). */
+export type Shot = (page: Page, name: string) => Promise<void>
+
+/** Demo content per language. Names are made up. */
+export const CONTENT = {
+  en: {
+    locale: 'en-US',
+    server: 'Game Night',
+    lounge: 'lounge',
+    chat: [
+      ['Alex', "Who's in for Valheim on Friday? 🛡️"],
+      ['Sam', "Me! I'll bring the mead 🍺"],
+      ['Noor', 'Count me in. Starting at 8?'],
+      ['Maja', "8 works. I'll have the server up, the world is called **Ashlands** 🔥"],
+      ['Alex', 'Patch notes are out, the new biome looks wild'],
+    ],
+    poll: { question: 'What do we play after?', answers: ['Lethal Company', 'Deep Rock Galactic'] },
+    pronouns: 'she/her',
+    bio: 'Builder of very questionable bases. Ask me about boats ⛵',
+    dm: [
+      ['Noor', 'Hey! Are you bringing the boat on Friday?'],
+      ['Maja', 'Of course, it’s ready to sail ⛵'],
+      ['Noor', 'You’re the best 🙌'],
+    ],
+  },
+  sv: {
+    locale: 'sv-SE',
+    server: 'Spelkväll',
+    lounge: 'häng',
+    chat: [
+      ['Alex', 'Vem är med på Valheim på fredag? 🛡️'],
+      ['Sam', 'Jag! Jag tar med mjödet 🍺'],
+      ['Noor', 'Räkna med mig. Kör vi vid åtta?'],
+      ['Maja', 'Åtta funkar. Jag har servern igång, världen heter **Ashlands** 🔥'],
+      ['Alex', 'Patchnoterna är ute, den nya biomen ser helt galen ut'],
+    ],
+    poll: { question: 'Vad kör vi efteråt?', answers: ['Lethal Company', 'Deep Rock Galactic'] },
+    pronouns: 'hon/henne',
+    bio: 'Bygger väldigt tveksamma baser. Fråga mig om båtar ⛵',
+    dm: [
+      ['Noor', 'Hej! Tar du med båten på fredag?'],
+      ['Maja', 'Självklart, den är redo att segla ⛵'],
+      ['Noor', 'Du är bäst 🙌'],
+    ],
+  },
+} as const
+
+/**
+ * The device is driven in English (so the steps below match one set of labels) and switched to the screenshot's
+ * language just for the picture, through the app's own language setting (the Vite dev server shares the module).
+ */
+export async function setLanguage(page: Page, lang: Lang) {
+  await page.evaluate(async (l) => {
+    const url = '/src/i18n/index.ts'
+    const i18n = (await import(/* @vite-ignore */ url)) as { setLanguageChoice: (choice: string) => void }
+    i18n.setLanguageChoice(l)
+  }, lang)
+  await expect(page.locator('html')).toHaveAttribute('lang', lang)
+}
+
+/** Saves a screenshot of the page in the given language to `file`. */
+export async function takeShot(page: Page, lang: Lang, file: string) {
+  mkdirSync(dirname(file), { recursive: true })
+  if (lang !== 'en') await setLanguage(page, lang)
+  await page.waitForTimeout(400) // let transitions settle
+  await page.screenshot({ path: file, animations: 'disabled' })
+  if (lang !== 'en') await setLanguage(page, 'en')
+}
+
+/** A device running the phone app: Capacitor's bridge stands in, as in ios-app.spec.ts. */
+export async function nativeApp(browser: Browser, device: Device, lang: Lang): Promise<Page> {
+  const context = await browser.newContext({ ...device.context, locale: CONTENT[lang].locale })
+  await context.addInitScript((platform) => {
+    if (platform === 'ios') Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false })
+    ;(window as { Capacitor?: unknown }).Capacitor = { isNativePlatform: () => true, getPlatform: () => platform }
+    delete (window as { PushManager?: unknown }).PushManager
+    if (platform === 'ios') delete (window as { Notification?: unknown }).Notification
+    // The phone apps' web views have no screen capture, so the app hides screen sharing.
+    delete (MediaDevices.prototype as { getDisplayMedia?: unknown }).getDisplayMedia
+    try {
+      localStorage.setItem('iskra.language', 'en')
+    } catch {
+      /* no storage */
+    }
+  }, device.platform)
+  return context.newPage()
+}
+
+/** A friend on a computer, posting the demo content (English UI; the text they write is in the shot's language). */
+async function friend(browser: Browser, invite: string, name: string): Promise<Page> {
+  const page = await (await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'en-US' })).newPage()
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem('iskra.language', 'en')
+    } catch {
+      /* no storage */
+    }
+  })
+  await joinVia(page, invite, name)
+  return page
+}
+
+/** Opens the channel drawer if it's closed (phones; tablets show the channels beside the chat). */
+async function drawer(page: Page) {
+  const open = page.getByRole('button', { name: /^Open (channels|menu)$/ }).first()
+  if (await open.isVisible()) await open.click()
+}
+
+/** Closes whatever is open (dialogs, drawers). */
+async function closeAll(page: Page) {
+  for (let i = 0; i < 3; i++) await page.keyboard.press('Escape')
+}
+
+/**
+ * The key screens of a server with friends in it: 1-text-channel, 2-voice-channel (with LiveKit), 3-direct-messages,
+ * 4-profile-card, 5-server-settings.
+ */
+export async function serverScreens(browser: Browser, server: TestServer, lang: Lang, device: Device, shot: Shot) {
+  const c = CONTENT[lang]
+  // Maja owns the server, on her phone.
+  const phone = await nativeApp(browser, device, lang)
+  await joinVia(phone, server.ownerLink(), 'Maja')
+  await drawer(phone)
+  await phone.getByRole('button', { name: 'Invite friends' }).first().click()
+  const linkInput = phone.locator('.copy-row input')
+  await expect(linkInput).toHaveValue(/#\/join\//)
+  const invite = await linkInput.inputValue()
+  await closeAll(phone)
+  // The recovery key nudge is for real accounts; the screenshots don't need it.
+  await phone.locator('.nudge').getByRole('button', { name: 'Later' }).click()
+
+  const friends = {
+    Alex: await friend(browser, invite, 'Alex'),
+    Sam: await friend(browser, invite, 'Sam'),
+    Noor: await friend(browser, invite, 'Noor'),
+  }
+
+  // Noor's profile: pronouns and a line about her.
+  const noor = friends.Noor
+  await noor.locator('.me-bar').getByRole('button', { name: 'My settings', exact: true }).click()
+  const settings = noor.getByRole('dialog', { name: 'Settings' })
+  await settings.getByLabel('Pronouns').fill(c.pronouns)
+  await settings.getByLabel(/About me/).fill(c.bio)
+  await settings.getByRole('button', { name: 'Save profile' }).click()
+  await noor.keyboard.press('Escape')
+
+  // The conversation in #general, a reaction and a poll.
+  for (const [who, text] of c.chat) {
+    if (who === 'Maja') await send(phone, text)
+    else await send(friends[who], text)
+    await expect(phone.locator('.message-text').last()).toContainText(text.replace(/\*\*/g, '').slice(0, 12))
+  }
+  const mine = friends.Sam.locator('.message', { hasText: 'Ashlands' }).first()
+  await mine.hover()
+  await mine.getByRole('button', { name: 'Add reaction' }).click()
+  await friends.Sam.locator('.reaction-picker button').first().click()
+  const alex = friends.Alex
+  await alex.getByRole('button', { name: 'Create a poll' }).click()
+  const pollDialog = alex.getByRole('dialog', { name: 'Create a poll' })
+  await pollDialog.getByLabel('Question').fill(c.poll.question)
+  await pollDialog.getByRole('textbox', { name: 'Answer 1' }).fill(c.poll.answers[0])
+  await pollDialog.getByRole('textbox', { name: 'Answer 2' }).fill(c.poll.answers[1])
+  await pollDialog.getByRole('button', { name: 'Post poll' }).click()
+  for (const [who, answer] of [['Alex', 0], ['Sam', 0], ['Noor', 1]] as const) {
+    const poll = friends[who].locator('.poll', { hasText: c.poll.question })
+    await poll.getByRole('radio', { name: c.poll.answers[answer] }).click()
+    await poll.getByRole('button', { name: 'Vote' }).click()
+  }
+  const phonePoll = phone.locator('.poll', { hasText: c.poll.question })
+  await phonePoll.getByRole('radio', { name: c.poll.answers[0] }).click()
+  await phonePoll.getByRole('button', { name: 'Vote' }).click()
+  await expect(phonePoll).toContainText('4')
+  await phonePoll.scrollIntoViewIfNeeded()
+  await expect(phone.locator('.message', { hasText: 'Ashlands' }).locator('.reaction')).toHaveCount(1)
+  await shot(phone, '1-text-channel')
+
+  // A DM from Noor (end-to-end encrypted), answered on the phone.
+  await noor.locator('.member-list').getByRole('button', { name: /Maja/ }).click()
+  await noor.getByRole('button', { name: 'Add friend' }).click()
+  await noor.getByRole('dialog').getByRole('button', { name: 'Message', exact: true }).click()
+  const noorBox = noor.getByPlaceholder('Message Maja')
+  await noorBox.fill(c.dm[0][1])
+  await noorBox.press('Enter')
+  await drawer(phone)
+  await phone.getByRole('button', { name: 'Direct messages' }).click()
+  const row = phone.locator('.dm-row', { hasText: 'Noor' })
+  const menu = phone.getByRole('button', { name: 'Open menu' }).first()
+  if (await menu.isVisible()) await menu.click()
+  await row.click()
+  // Friends: accept Noor's request (the header is tidier without the request buttons).
+  await phone.getByRole('button', { name: /^Accept( friend request)?$/ }).first().click()
+  const phoneBox = phone.getByPlaceholder('Message Noor')
+  await phoneBox.fill(c.dm[1][1])
+  await phoneBox.press('Enter')
+  await noorBox.fill(c.dm[2][1])
+  await noorBox.press('Enter')
+  await expect(phone.locator('.message-text', { hasText: c.dm[2][1] })).toBeVisible()
+  await phone.keyboard.press('Escape')
+  await shot(phone, '3-direct-messages')
+
+  // Back to the server: Noor's profile card from the member list.
+  await drawer(phone)
+  await phone.locator(`.server-icon[title="${c.server}"]`).click()
+  await drawer(phone)
+  await phone.locator('.channel', { hasText: 'general' }).first().click()
+  await closeAll(phone)
+  // Phones keep the member list in a drawer off screen; tablets show it beside the chat.
+  const noorRow = phone.locator('.member-list').getByRole('button', { name: /Noor/ })
+  const onScreen = await noorRow
+    .evaluate((el) => {
+      const r = el.getBoundingClientRect()
+      return r.width > 0 && r.left >= 0 && r.right <= window.innerWidth
+    })
+    .catch(() => false)
+  if (!onScreen) await phone.getByRole('button', { name: 'Members' }).first().click()
+  await noorRow.click()
+  await expect(phone.getByText(c.pronouns).last()).toBeVisible()
+  await shot(phone, '4-profile-card')
+  await closeAll(phone)
+
+  // The server room: every server setting in one place.
+  await drawer(phone)
+  await phone.locator('.server-header-button').click()
+  await phone.getByRole('menuitem', { name: 'Server settings', exact: true }).click()
+  await expect(phone.getByRole('dialog', { name: /· Server settings$/ })).toBeVisible()
+  await shot(phone, '5-server-settings')
+  await closeAll(phone)
+
+  // Voice: a voice channel with friends in it.
+  if (hasLiveKit()) {
+    await drawer(phone)
+    await phone.getByRole('button', { name: 'Create voice channel' }).click()
+    await phone.getByRole('radio', { name: 'Voice' }).click()
+    await phone.getByLabel('Name').fill(c.lounge)
+    await phone.getByLabel('Name').press('Enter') // the Create button is below the fold on small phones
+    await expect(phone.locator('.voice-channel', { hasText: c.lounge })).toHaveCount(1)
+    await closeAll(phone)
+    for (const page of [alex, friends.Sam]) {
+      await page.locator('.voice-channel', { hasText: c.lounge }).getByRole('button').first().click()
+      await expect(page.locator('.stage')).toBeVisible({ timeout: 20_000 })
+    }
+    await drawer(phone)
+    await phone.locator('.voice-channel', { hasText: c.lounge }).getByRole('button').first().click()
+    await expect(phone.locator('.stage')).toBeVisible({ timeout: 20_000 })
+    await expect(phone.locator('.stage .tile, .stage [data-participant]').first()).toBeVisible().catch(() => undefined)
+    await phone.waitForTimeout(1500) // let the speaking rings show up
+    await shot(phone, '2-voice-channel')
+  }
+  for (const page of [phone, ...Object.values(friends)]) await page.context().close()
+}
+
+/** 6-start-a-server: the first screen after making an account. */
+export async function startScreen(browser: Browser, lang: Lang, device: Device, shot: Shot) {
+  const phone = await nativeApp(browser, device, lang)
+  await phone.goto('/')
+  await agreeToTerms(phone)
+  await phone.getByRole('button', { name: /I’m new to Iskra/ }).click()
+  await phone.getByLabel('Your name').fill('Maja')
+  await phone.getByRole('button', { name: 'Continue' }).click()
+  await expect(phone.getByText('No servers yet')).toBeVisible()
+  await phone.getByRole('button', { name: /Start your own server/ }).click()
+  await expect(phone.getByRole('dialog')).toBeVisible()
+  await shot(phone, '6-start-a-server')
+  await phone.context().close()
+}

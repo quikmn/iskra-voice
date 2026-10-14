@@ -9,9 +9,10 @@
 #   .\scripts\release-all.ps1 2.0.0-alpha.14 -Resume    # after a STOP once the tag is pushed: picks up where it ended
 #   .\scripts\release-all.ps1 2.0.0-alpha.14 -SkipPhones   # no TestFlight build, no Google Play upload
 #
-# Phones, after the release is published: mobile-ios.yml on the tag with upload on (TestFlight), and the Android app
-# bundle to Google Play's -PlayTrack (default "alpha", Play's closed testing track) with scripts/play-upload.mjs.
-# Without the Play service-account key (devkeys\iskra-play-publisher.json) the Play upload is skipped with a note.
+# Phones, after the release is published, where mobile/store.json says (phase A: TestFlight + Beta App Review, Play's
+# closed testing track "alpha"; phase B: the App Store and Play production): mobile-ios.yml on the tag (build, upload,
+# then scripts/appstore.mjs on the runner), and the Android app bundle with scripts/play-upload.mjs from this PC.
+# Without the Play service-account key (D:\Development_Projects\devkeys\google-play-service-account.json) the Play upload is skipped with a note.
 # A phone problem doesn't hold up the rest: the final checks still run, then one STOP line; -Resume retries only
 # what didn't finish (a TestFlight run that succeeded, or a version already on the Play track, is left alone).
 #
@@ -22,9 +23,9 @@ param(
   [switch]$Resume,
   # No TestFlight build and no Google Play upload.
   [switch]$SkipPhones,
-  # Google Play track for the Android app: alpha (closed testing), internal, beta (open testing), production, or a
-  # custom closed track's name.
-  [string]$PlayTrack = 'alpha',
+  # Google Play track for this release, instead of mobile/store.json's android.track: alpha (closed testing), internal,
+  # beta (open testing), production, or a custom closed track's name.
+  [string]$PlayTrack = '',
   # How long to wait for the Linux and macOS builds, for finalize and for the TestFlight build (each).
   [int]$WaitMinutes = 60
 )
@@ -304,7 +305,10 @@ try {
   function Phone-Problem([string]$what, [string]$todo) {
     if ($DryRun) { Problem $what $todo } else { Write-Host "problem: $what. $todo" -ForegroundColor Yellow; $script:phoneProblems += "$what. $todo" }
   }
-  Step "Phones (TestFlight; Google Play track '$PlayTrack')"
+  $store = Get-Content mobile/store.json -Raw | ConvertFrom-Json
+  $trackName = if ($PlayTrack) { $PlayTrack } else { $store.android.track }
+  $trackArgs = if ($PlayTrack) { @('--track', $PlayTrack) } else { @() }
+  Step "Phones (iOS: $($store.ios.mode); Google Play track '$trackName')"
   if ($SkipPhones) {
     Info 'skipped (-SkipPhones)'
     $phones['Phones'] = 'skipped (-SkipPhones)'
@@ -344,7 +348,7 @@ try {
 
     # Android: the app bundle from the Windows step (built with the APK), to Google Play's track.
     $aab = Join-Path $root "mobile\release\Iskra-$Version.aab"
-    $out = Run node @('scripts/play-upload.mjs', $Version, '--check', '--track', $PlayTrack)
+    $out = Run node (@('scripts/play-upload.mjs', $Version, '--check') + $trackArgs)
     if ($script:code -eq 2) {
       Info "note: the Google Play upload is skipped (no service-account key; docs/ci-cd.md, Google Play uploads). Upload $aab in Play Console by hand if you want this version there."
       $phones['Google Play'] = 'skipped (no service-account key)'
@@ -360,15 +364,15 @@ try {
         }
       }
       if ($DryRun) {
-        if (Test-Path $aab) { $null = Run node @('scripts/play-upload.mjs', $Version, '--track', $PlayTrack, '--dry-run') }
-        else { Would "node scripts/play-upload.mjs $Version --track $PlayTrack   (upload the bundle, set the track with the release notes, commit)" }
+        if (Test-Path $aab) { $null = Run node (@('scripts/play-upload.mjs', $Version, '--dry-run') + $trackArgs) }
+        else { Would "node scripts/play-upload.mjs $Version $($trackArgs -join ' ')   (upload the bundle, set the track with the release notes, commit)" }
       } elseif (-not (Test-Path $aab)) {
         Phone-Problem 'Android app bundle missing' "mobile/scripts/build-android.ps1 didn't produce $aab (see its output above). Report it; never try another keystore."
         $phones['Google Play'] = 'not uploaded (no app bundle)'
       } else {
-        $out = Run node @('scripts/play-upload.mjs', $Version, '--track', $PlayTrack)
+        $out = Run node (@('scripts/play-upload.mjs', $Version) + $trackArgs)
         $last = $out | Select-Object -Last 1
-        if ($script:code -eq 0) { Ok $last; $phones['Google Play'] = "on the '$PlayTrack' track" }
+        if ($script:code -eq 0) { Ok $last; $phones['Google Play'] = "on the '$trackName' track" }
         elseif ($script:code -eq 2) { $phones['Google Play'] = 'skipped (no service-account key)' }
         else {
           Phone-Problem 'Google Play upload failed' "$($last -replace '^Play upload stopped:\s*', ''). See docs/ci-cd.md troubleshooting; then -Resume (a version already on the track is left alone)."
@@ -377,9 +381,9 @@ try {
       }
     }
 
-    # Wait for the TestFlight build.
+    # Wait for the iOS run: build, upload, Apple's processing, then the TestFlight groups and reviews (scripts/appstore.mjs).
     if ($iosRun -and -not $DryRun) {
-      $deadline = (Get-Date).AddMinutes($WaitMinutes)
+      $deadline = (Get-Date).AddMinutes($WaitMinutes + 45)
       while ($iosRun.status -ne 'completed' -and (Get-Date) -lt $deadline) {
         Start-Sleep -Seconds 60
         $now = Gh-Json @('run', 'view', "$($iosRun.databaseId)", '-R', $repo, '--json', 'databaseId,status,conclusion,url')

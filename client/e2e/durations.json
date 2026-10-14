@@ -54,6 +54,7 @@
     "passkeys-kt.spec.ts": 18,
     "pins-search-threads.spec.ts": 9,
     "play-store.spec.ts": 1,
+    "app-store.spec.ts": 1,
     "polish.spec.ts": 10,
     "presence-voice.spec.ts": 13,
     "privacy.spec.ts": 21,
