@@ -12,6 +12,7 @@ import { DocsIcon } from '../docs/icons'
 import { createEncryptedChannel, readersFor } from '../../state/e2eeChannels'
 import { MAX_CHANNEL_MEMBERS } from '../../core/channelChain'
 import { EncryptedCreateNote, e2eeText } from '../e2ee/E2ee'
+import { baseRoleName } from '../../state/baseRoles'
 
 export function CreateChannelDialog({ server, categoryId: initialCategory = null, onClose }: { server: ServerState; categoryId?: number | null; onClose: () => void }) {
   const { t } = useTranslation()
@@ -105,12 +106,13 @@ export function RolePicker({ label, value, onChange, min = 'guest', max = 'owner
   label: string; value: Role; onChange: (r: Role) => void; min?: Role; max?: Role
 }) {
   const { t } = useTranslation()
+  // The same roles, under the same names, as Settings → Roles lists as built-in.
   const options = ROLES.filter((r) => ROLES.indexOf(r) >= ROLES.indexOf(min) && ROLES.indexOf(r) <= ROLES.indexOf(max))
   return (
     <label className="field inline">
       <span>{label}</span>
       <select value={options.includes(value) ? value : options[0]} onChange={(e) => onChange(e.target.value as Role)}>
-        {options.map((r) => <option key={r} value={r}>{t(`common.roles.${r}`)}+</option>)}
+        {options.map((r) => <option key={r} value={r}>{r === 'owner' ? baseRoleName(r) : t('roles.base.andUp', { role: baseRoleName(r) })}</option>)}
       </select>
     </label>
   )

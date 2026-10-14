@@ -297,7 +297,7 @@ public static class ForumFeature
     private static object SetTags(Session s, Member me, Body body)
     {
         var forum = ReadableForum(s, me, body.Long("channelId"));
-        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can change a forum's tags.", "admins_forum_tags");
+        if (!BaseRoles.Allows(me, BaseAbility.ForumTags)) throw RequestException.Forbidden("Only admins can change a forum's tags.", "admins_forum_tags");
         var element = body.Element("tags");
         if (element.ValueKind != JsonValueKind.Array || element.GetArrayLength() > MaxTags)
             throw RequestException.BadRequest($"A forum can have up to {MaxTags} tags.", "forum_tags_max", new { max = MaxTags });

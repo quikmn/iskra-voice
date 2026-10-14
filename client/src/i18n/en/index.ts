@@ -36,6 +36,7 @@ import { hosting } from './hosting'
 import { outhooks } from './outhooks'
 import { builtinBots } from './builtinBots'
 import { rental } from './rental'
+import { bugReport } from './bugReport'
 import { afk } from './afk'
 
 export const en = {
@@ -76,5 +77,6 @@ export const en = {
   outhooks,
   builtinBots,
   rental,
+  bugReport,
   afk,
 } as const

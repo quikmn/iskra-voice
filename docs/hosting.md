@@ -77,14 +77,19 @@ A new server can start with channels, voice rooms, roles and rules from a templa
     { "name": "Moderator", "color": "#3fa66b", "icon": "📚", "hoist": true, "mentionable": false,
       "permissions": ["manageMessages", "timeoutMembers", "kickMembers", "muteMembers", "moveMembers", "viewAuditLog"] }
   ],
+  "builtinRoles": {                            // optional: the built-in roles, by name (owner, admin, trusted, member, guest)
+    "owner": { "color": "#c27ce0" },
+    "admin": { "color": "#e5534b" }
+  },
   "rules": { "text": "Be kind.", "welcome": "Welcome!", "required": false },  // optional; rules up to 6000, welcome up to 500 characters
   "afk": { "channel": "Reading room", "minutes": 30, "canTalk": ["owner", "admin", "Moderator"] }   // optional: the AFK channel
 }
 ```
 
 - `userLimit` (voice only): 0 (no limit) to 99. At most 100 channels in all.
-- `afk` (optional): `channel` names one of the template's voice channels; people idle in voice for `minutes` (5, 15, 30 or 60; 0 = never move anyone; default 30) are moved there. In it everyone is muted and deafened by the server except the levels (`owner`, `admin`, `trusted`, `member`, `guest`) and template roles (by name) listed in `canTalk` (default `["owner", "admin"]`). Admins can change all of it later in **Server settings → Voice**. The `gaming` and `friends` templates have an AFK channel.
+- `afk` (optional): `channel` names one of the template's voice channels; people idle in voice for `minutes` (5, 15, 30 or 60; 0 = never move anyone; default 30) are moved there. In it everyone is muted and deafened by the server except the built-in roles (`owner`, `admin`, `trusted`, `member`, `guest`) and template roles (by name) listed in `canTalk` (default `["owner", "admin"]`). Admins can change all of it later in **Server settings → Voice**. The `gaming` and `friends` templates have an AFK channel.
 - Permissions: `manageMessages`, `timeoutMembers`, `kickMembers`, `banMembers`, `manageChannels`, `manageRoles`, `viewAuditLog`, `manageExpressions`, `manageWebhooks`, `mentionEveryone`, `moveMembers`, `muteMembers`, `manageAutoMod`.
+- `roles` are custom roles; their names can't be `everyone` or a built-in role's. `builtinRoles` sets the built-in roles' colour (`#rrggbb`, or `""` for none). What built-in roles can do is fixed (Server settings → Roles shows it), so colour is the only setting.
 - The server's starting `#general` becomes the template's first text channel. Comments and trailing commas are fine; unknown fields are an error (so typos don't go unnoticed). Files can be up to 64 KB. Applying one is written to the security log.
 
 ### Rent a small server

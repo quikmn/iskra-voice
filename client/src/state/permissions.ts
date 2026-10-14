@@ -1,7 +1,7 @@
 // Mirrors the server's permission rules (Sessions/Permissions.cs) so the UI only offers what will work.
 // The server decides; this only hides buttons that would fail.
 import {
-  roleRank, type Channel, type ChannelPermission, type Member, type Message, type Permission, type Role, type ServerRole,
+  roleRank, type BaseRoleInfo, type Channel, type ChannelPermission, type Member, type Message, type Permission, type Role, type ServerRole,
 } from '../core/protocol'
 import { t } from '../i18n'
 
@@ -79,9 +79,12 @@ export function canDeleteMessage(me: Member | null | undefined, message: Message
   return message.author === me.accountKey || (has(me, roles, 'manageMessages') && (!author || outranks(me, author, roles)))
 }
 
-/** The highest role with a colour. */
-export const nameColor = (member: Member | null | undefined, roles: ServerRole[]) =>
-  rolesOf(member, roles).find((r) => r.color)?.color ?? null
+/** The highest role with a colour, by the hierarchy: owner/admin base role, then custom roles, then trusted, member, guest. */
+export function nameColor(member: Member | null | undefined, roles: ServerRole[], baseRoles: BaseRoleInfo[] = []): string | null {
+  const base = member ? baseRoles.find((b) => b.id === member.role)?.color ?? null : null
+  if (base && isAdmin(member)) return base
+  return rolesOf(member, roles).find((r) => r.color)?.color ?? base
+}
 
 /** The highest role shown on its own in the member list. */
 export const hoistedRole = (member: Member, roles: ServerRole[]) => rolesOf(member, roles).find((r) => r.hoist) ?? null

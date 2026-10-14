@@ -80,6 +80,7 @@ public sealed class Router
         BotScope.Register(this);
         InteractionFeature.Register(this);
         VoiceBotFeature.Register(this);
+        BugInboxFeature.Register(this);
         AfkFeature.Register(this);
     }
 

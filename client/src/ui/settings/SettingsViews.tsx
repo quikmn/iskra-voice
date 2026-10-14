@@ -34,6 +34,7 @@ import { DevicesSection } from '../dialogs/DevicesSection'
 import { IntegrationsSection } from '../dialogs/Integrations'
 import { BackupSection } from './BackupSection'
 import { LimitsSection } from './LimitsSection'
+import { BugInboxSection } from './BugInboxSection'
 import { AfkSection } from '../afk/AfkSection'
 import { UpdatesSection } from './UpdatesSection'
 import { LanguageSection } from './LanguageSection'
@@ -332,6 +333,7 @@ function ServerSection({ id, server, onClose }: { id: ServerSectionId; server: S
     case 'integrations': return <IntegrationsSection server={server} />
     case 'internet': return <InternetSection server={server} />
     case 'limits': return <LimitsSection server={server} />
+    case 'bugInbox': return <BugInboxSection server={server} />
     case 'backup': return <BackupSection server={server} />
     case 'import': return <ImportSection server={server} />
     case 'updates': return <UpdatesSection server={server} />

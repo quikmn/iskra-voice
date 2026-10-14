@@ -52,3 +52,9 @@ export function desktopOs(userAgent: string, platform = '', touchPoints = 0): De
   if (p.includes('linux') || ua.includes('linux') || ua.includes('x11')) return 'linux'
   return 'other'
 }
+
+/**
+ * Where "Report a bug" sends reports: the bug inbox on Iskra's own server (POST /bug-reports, see PROTOCOL.md
+ * "Bug inbox"). Reports land in a private channel only the Iskra team reads.
+ */
+export const BUG_REPORT_URL = 'https://chat.iskra.foo/bug-reports'

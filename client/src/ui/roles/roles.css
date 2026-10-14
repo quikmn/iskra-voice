@@ -9,7 +9,7 @@
 }
 
 /* Settings → Roles */
-.role-list { list-style: none; margin: 14px 0 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.role-list, .builtin-role-list { list-style: none; margin: 14px 0 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
 .role-row { display: flex; align-items: center; gap: 6px; padding: 4px 8px; background: var(--surface); }
 .role-row + .role-row { border-top: 1px solid var(--border); }
 .role-row.selected { background: var(--surface-3); }
@@ -20,7 +20,7 @@
   flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 8px 6px; border: 0; background: transparent;
   color: var(--text); text-align: left; font-weight: 500;
 }
-.role-pick .role-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.role-pick .role-name, .role-pick .builtin-role-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .role-move { display: flex; gap: 2px; }
 .role-editor { margin-top: 16px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); display: grid; gap: 10px; }
 .role-editor-fields { display: flex; flex-wrap: wrap; gap: 12px; }
@@ -65,3 +65,12 @@
 .mention.role-mention { font-weight: 600; }
 .mention-role-icon { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--surface-3); font-weight: 700; color: var(--muted); }
 .mention-kind { margin-left: auto; font-size: 12px; }
+
+/* Settings → Roles: built-in roles above the custom ones */
+.settings-section .roles-subhead { margin-top: 22px; }
+.settings-section .roles-subhead:first-of-type { margin-top: 4px; }
+.builtin-role-list { margin-top: 10px; margin-bottom: 4px; }
+.pill.builtin-badge { color: var(--text-2); background: var(--surface-3); }
+.builtin-role-details p { margin: 0; }
+.builtin-abilities { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.builtin-role-details .field { margin-bottom: 0; }

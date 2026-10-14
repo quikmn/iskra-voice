@@ -47,6 +47,7 @@ import { ForwardDialog, ForwardedLine, ForwardIcon } from './organize/ForwardDia
 import { UnreadBar, UnreadDivider } from './organize/UnreadBits'
 import { channelConv, dividerOf, dividerTarget, useRead } from '../state/readState'
 import { useRoleLookup, useServerRoles } from '../state/roles'
+import { useServerBaseRoles } from '../state/baseRoles'
 import { canDeleteMessage, canMentionRole, canSendIn, has, nameColor } from '../state/permissions'
 import { draftKey, setDraft, useDraft } from '../state/drafts'
 import { MessageMoreButton } from './chat/MessageMore'
@@ -299,7 +300,8 @@ function MessageRow({
   const roles = useServerRoles(server.key)
   const roleOf = useRoleLookup(server.key, me)
   const canDelete = !message.tempId && canDeleteMessage(me, message, author, roles)
-  const roleColor = useReadableColor(message.webhook ? null : nameColor(author, roles))
+  const baseRoles = useServerBaseRoles(server.key)
+  const roleColor = useReadableColor(message.webhook ? null : nameColor(author, roles, baseRoles))
   const authorColor = roleColor || `hsl(${hueFor(message.author)} 70% var(--name-l))`
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [picking, setPicking] = useState(false)

@@ -29,7 +29,7 @@ public static class InviteFeature
         var role = body.OptionalString("role", 16) ?? Roles.Member;
         if (!Roles.IsValid(role)) throw RequestException.BadRequest($"'role' must be one of: {string.Join(", ", Roles.All)}.");
         var canInvite = Roles.Rank(role) <= Roles.Rank(Roles.Member)
-            ? Roles.Rank(me.Role) >= Roles.Rank(Roles.Member)
+            ? BaseRoles.Allows(me, BaseAbility.Invite)
             : Permissions.CanGrant(me, role);
         if (!canInvite || s.World.Store.IsBot(me.AccountKey)) throw RequestException.Forbidden("You can't create invites for that role.", "invite_role");
 

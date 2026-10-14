@@ -259,6 +259,7 @@ public static class Cli
                 categories = t.Template.Categories.Select(c => new { name = c.Name, channels = c.Channels.Select(ChannelView) }),
                 channels = t.Template.Channels.Select(ChannelView),
                 roles = t.Template.Roles.Select(r => r.Name),
+                builtinRoles = t.Template.BuiltinRoles.ToDictionary(b => b.Key, b => new { color = b.Value.Color }),
                 rules = t.Template.Rules is not null,
                 afk = t.Template.Afk is { } afk ? new { channel = afk.Channel, minutes = afk.Minutes, canTalk = afk.CanTalk } : null,
             }), new JsonSerializerOptions(JsonSerializerDefaults.Web)));
@@ -274,6 +275,8 @@ public static class Cli
                 foreach (var c in category.Channels) Console.WriteLine($"      {Describe(c)}");
             }
             if (template.Roles.Length > 0) Console.WriteLine($"    Roles: {string.Join(", ", template.Roles.Select(r => r.Name))}");
+            if (template.BuiltinRoles.Count > 0)
+                Console.WriteLine($"    Built-in roles: {string.Join(", ", template.BuiltinRoles.Select(b => $"{b.Key} {b.Value.Color ?? "no colour"}"))}");
             if (template.Rules is not null) Console.WriteLine("    Rules: yes");
             if (template.Afk is { } afk)
                 Console.WriteLine($"    AFK channel: {afk.Channel} ({(afk.Minutes > 0 ? $"idle people moved after {afk.Minutes} min" : "nobody moved")}; can talk: {(afk.CanTalk.Length > 0 ? string.Join(", ", afk.CanTalk) : "nobody")})");

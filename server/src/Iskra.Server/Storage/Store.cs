@@ -315,6 +315,8 @@ public sealed partial class Store : IDisposable
         ("builtinbots-1", BuiltinBotsMigration),
         ("interactions-1", InteractionsMigration),
         ("voicebots-1", VoiceBotsMigration),
+        ("builtinroles-1", BaseRolesMigration),
+        ("buginbox-1", BugInboxMigration),
         ("afk-1", AfkMigration),
     ];
 

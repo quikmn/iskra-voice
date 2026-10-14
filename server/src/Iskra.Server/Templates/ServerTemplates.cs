@@ -37,6 +37,12 @@ public sealed record TemplateRole
     public string[] Permissions { get; init; } = [];
 }
 
+/// <summary>How a base role (owner … guest) looks. Their powers are fixed (Sessions/BaseRoles.cs), so only the colour is set here.</summary>
+public sealed record TemplateBuiltinRole
+{
+    public string? Color { get; init; }
+}
+
 public sealed record TemplateRules
 {
     public string Text { get; init; } = "";
@@ -69,6 +75,8 @@ public sealed record ServerTemplate
     /// <summary>Channels outside any category (listed first).</summary>
     public TemplateChannel[] Channels { get; init; } = [];
     public TemplateRole[] Roles { get; init; } = [];
+    /// <summary>The base roles, keyed by role ("admin", "trusted", ...). Optional; any left out keep the defaults.</summary>
+    public Dictionary<string, TemplateBuiltinRole> BuiltinRoles { get; init; } = [];
     public TemplateRules? Rules { get; init; }
     public TemplateAfk? Afk { get; init; }
 }
@@ -184,7 +192,7 @@ public static partial class ServerTemplates
         {
             var roleName = Names.Normalize(r.Name) ?? Fail($"role {i + 1}: names must be 1–{Names.MaxLength} characters.");
             if (roleName.Equals("everyone", StringComparison.OrdinalIgnoreCase) || Sessions.Roles.IsValid(roleName.ToLowerInvariant()))
-                Fail($"role '{roleName}': that name is taken by a built-in level.");
+                Fail($"role '{roleName}': that name is taken by a built-in role.");
             if (r.Color is { Length: > 0 } color && !ColorPattern().IsMatch(color)) Fail($"role '{roleName}': 'color' must look like #rrggbb.");
             string? icon = null;
             if (!string.IsNullOrWhiteSpace(r.Icon))
@@ -199,6 +207,18 @@ public static partial class ServerTemplates
         }).ToArray();
         if (roles.Select(r => r.Name.ToLowerInvariant()).Distinct().Count() != roles.Length) Fail("two roles have the same name.");
 
+        var builtinRoles = new Dictionary<string, TemplateBuiltinRole>();
+        foreach (var (key, value) in t.BuiltinRoles)
+        {
+            var role = key.Trim().ToLowerInvariant();
+            if (!Sessions.Roles.IsValid(role))
+                Fail($"builtinRoles: there's no base role called '{key}'. Use: {string.Join(", ", Sessions.Roles.All.Reverse())}.");
+            if (builtinRoles.ContainsKey(role)) Fail($"builtinRoles: '{role}' is listed twice.");
+            if (value is null) Fail($"builtinRoles.{role}: give an object, like {{ \"color\": \"#e0a33a\" }}.");
+            if (value!.Color is { Length: > 0 } color && !ColorPattern().IsMatch(color)) Fail($"builtinRoles.{role}: 'color' must look like #rrggbb.");
+            builtinRoles[role] = new TemplateBuiltinRole { Color = string.IsNullOrEmpty(value.Color) ? null : value.Color.ToLowerInvariant() };
+        }
+
         TemplateRules? rules = null;
         if (t.Rules is { } given)
         {
@@ -212,7 +232,7 @@ public static partial class ServerTemplates
 
         var afk = t.Afk is { } wanted ? CheckAfk(wanted, channels.Concat(categories.SelectMany(c => c.Channels)).ToArray(), roles, Fail) : null;
 
-        return new ServerTemplate { Name = name, Description = description, Categories = categories, Channels = channels, Roles = roles, Rules = rules, Afk = afk };
+        return new ServerTemplate { Name = name, Description = description, Categories = categories, Channels = channels, Roles = roles, BuiltinRoles = builtinRoles, Rules = rules, Afk = afk };
     }
 
     private static TemplateAfk CheckAfk(TemplateAfk afk, TemplateChannel[] channels, TemplateRole[] roles, Func<string, string> fail)
@@ -281,6 +301,7 @@ public static partial class ServerTemplates
             if (role.Mentionable) store.UpdateRole(created with { Mentionable = true });
             roleIds[role.Name] = created.Id;
         }
+        foreach (var (role, style) in template.BuiltinRoles) store.SetBaseRoleColor(role, style.Color);
         if (template.Afk is { } afk && voiceIds.TryGetValue(afk.Channel, out var afkId))
             store.SaveAfk(new AfkSettings(afkId, afk.Minutes,
                 afk.CanTalk.Where(Sessions.Roles.IsValid).ToArray(), afk.CanTalk.Where(roleIds.ContainsKey).Select(n => roleIds[n]).ToArray()));

@@ -1,6 +1,6 @@
 // The only bridge between the web app and the desktop shell. Small on purpose:
 // push-to-talk and hotkeys, the screen picker, hosting (and restoring backups), renting a server on DigitalOcean, update notices,
-// saving backups and big files, and the OS keychain, nothing else.
+// saving backups and big files, a picture of this window for bug reports, and the OS keychain, nothing else.
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 
 export interface ScreenSource {
@@ -32,6 +32,8 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
     ipcRenderer.on('iskra:hotkey', listener)
     return () => ipcRenderer.off('iskra:hotkey', listener)
   },
+  // Bug reports: a picture of this app window only (PNG data URL), never the screen.
+  captureApp: (): Promise<string | null> => ipcRenderer.invoke('iskra:capture-app'),
   openSystemSettings: (pane: string): Promise<void> => ipcRenderer.invoke('iskra:open-settings', pane),
   setLanguage: (language: string): Promise<void> => ipcRenderer.invoke('iskra:set-language', language),
 

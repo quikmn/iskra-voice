@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import type { ChannelPermission, Events, Permission, ServerRole } from '../core/protocol'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 import { senderRules } from './senderRules'
+import { setBaseRoles } from './baseRoles'
 import { canPingGroups, mentionsMyRole } from './permissions'
 import { mentions } from '../ui/markdown'
 import { t } from '../i18n'
@@ -66,12 +67,19 @@ export async function moveToChannel(serverKey: string, accountKey: string, chann
 
 onWelcomeHook((serverKey) => {
   connectionFor(serverKey)?.request('role.list', {})
-    .then(({ roles }) => useRoles.setState({ [serverKey]: sorted(roles) }))
+    .then(({ roles, baseRoles }) => {
+      useRoles.setState({ [serverKey]: sorted(roles) })
+      setBaseRoles(serverKey, baseRoles)
+    })
     .catch(() => undefined) // an older server: no custom roles
 })
 
 onServerEvent((serverKey, type, body) => {
-  if (type === 'roles') useRoles.setState({ [serverKey]: sorted((body as Events['roles']).roles) })
+  if (type === 'roles') {
+    const { roles, baseRoles } = body as Events['roles']
+    useRoles.setState({ [serverKey]: sorted(roles) })
+    setBaseRoles(serverKey, baseRoles)
+  }
   if (type === 'voice.moved') {
     // A moderator moved us: follow into the new channel if we're in voice on that server.
     const { channelId } = body as Events['voice.moved']

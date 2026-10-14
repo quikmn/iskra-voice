@@ -2,12 +2,13 @@
 // giving roles to a member, channel permissions per role, and voice moderation (mute, move).
 import { useState, type DragEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Channel, ChannelPermission, Member, Permission, ServerRole } from '../../core/protocol'
+import type { Channel, ChannelPermission, Member, Permission, Role, ServerRole } from '../../core/protocol'
 import {
   createRole, deleteRole, moveToChannel, reorderRoles, serverMute, setMemberRoles, setOverride, updateRole, useServerRoles,
 } from '../../state/roles'
 import { has, isAbove, isAdmin, MODERATOR_PRESET, outranks, permissionHint, permissionLabel, PERMISSIONS, rolesOf } from '../../state/permissions'
 import { errorMessage } from '../../i18n/errors'
+import { BuiltinRoles } from './BuiltinRoles'
 import type { ServerState } from '../../state/store'
 import './roles.css'
 
@@ -38,7 +39,9 @@ export function RolesSection({ server }: { server: ServerState }) {
   const { t } = useTranslation()
   const roles = useServerRoles(server.key)
   const me = server.me
-  const [selected, setSelected] = useState<number | null>(null)
+  const [selected, setSelectedRole] = useState<number | null>(null)
+  const [selectedBase, setSelectedBase] = useState<Role | null>(null)
+  const setSelected = (id: number | null) => { setSelectedRole(id); if (id !== null) setSelectedBase(null) }
   const [dragging, setDragging] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const counts = new Map<number, number>()
@@ -76,6 +79,8 @@ export function RolesSection({ server }: { server: ServerState }) {
   return (
     <section className="settings-section">
       <h2>{t('roles.title')}</h2>
+      <BuiltinRoles server={server} selected={selectedBase} onSelect={(r) => { setSelectedBase(r); if (r) setSelectedRole(null) }} />
+      <h3 className="roles-subhead">{t('roles.base.customTitle')}</h3>
       <p className="muted">{t('roles.intro')}</p>
       <button className="button primary" onClick={() => void add()}>{t('roles.create')}</button>
       {error && <p className="error-text">{error}</p>}

@@ -31,7 +31,7 @@ public static class BotFeature
     /// <summary>Single use: one invite per bot.</summary>
     private static object CreateInvite(Session s, Member me, Body body)
     {
-        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can add bots.", "admins_add_bots");
+        if (!BaseRoles.Allows(me, BaseAbility.Bots)) throw RequestException.Forbidden("Only admins can add bots.", "admins_add_bots");
         var role = body.OptionalString("role", 16) ?? Roles.Member;
         if (!Roles.IsValid(role) || Roles.Rank(role) > Roles.Rank(MaxRole))
             throw RequestException.BadRequest("Bots can be guest, member or trusted.", "bot_roles");

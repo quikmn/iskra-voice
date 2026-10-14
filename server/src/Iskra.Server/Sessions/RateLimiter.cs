@@ -55,6 +55,7 @@ public sealed class RateLimiter(TimeProvider time)
         ["docs.page.move"] = (10, 1),
         ["docs.search"] = (10, 2),
         ["data.export"] = (2, 1 / 600.0), // "Download my data": two, then one every 10 minutes
+        ["role.base.update"] = (10, 1),
         ["outhook.create"] = (10, 0.5),
         ["outhook.update"] = (10, 1),
         ["outhook.test"] = (3, 0.2),

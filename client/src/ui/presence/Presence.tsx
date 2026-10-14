@@ -11,6 +11,7 @@ import { Avatar, Modal } from '../bits'
 import { EmojiPicker } from '../expressions/EmojiPicker'
 import { usePopoverPosition } from '../expressions/popover'
 import { Close, Smile } from '../icons'
+import { bugShortcut, openBugReport } from '../../state/bugReport/bugReport'
 import { useEscapeLayer, useFocusTrap } from '../layers'
 import './presence.css'
 
@@ -103,6 +104,9 @@ function StatusMenu({ anchor, onClose, onCustom }: { anchor: HTMLElement; onClos
             </button>
           ))}
         </div>
+        <button className="status-menu-bug" role="menuitem" onClick={() => { onClose(); openBugReport() }}>
+          <span>{t('bugReport.open')}</span>{bugShortcut() && <span className="muted">{bugShortcut()}</span>}
+        </button>
       </div>
     </div>,
     document.body,

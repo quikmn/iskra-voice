@@ -29,6 +29,7 @@ import { applyChromiumPrivacy, applySessionPrivacy } from './privacy'
 import { desktopLanguage, languageFromLocales, parseLanguage, setDesktopLanguage, text } from './i18n'
 import { initialLaunch, readyToShow, SERVER_WAIT_MS, splashView, updatedTo, updatingView, type LaunchState } from './launch'
 import { Splash } from './splash'
+import { captureAppPage } from './capture'
 import { readBuildCommit, windowTitle } from './title'
 import { pickerChoices, placeTestWindow, realScreenThumbnails, testWindowArea, thumbnailSize } from './testMode'
 import { ceremonyScript, parseCreate, parseGet, PASSKEY_ORIGIN, PASSKEY_PAGE, passkeyPage, type CreateRequest, type GetRequest } from './passkeys'
@@ -452,6 +453,8 @@ ipcMain.handle('iskra:capture-hotkey', (event) => {
 ipcMain.handle('iskra:cancel-hotkey-capture', (event) => {
   if (fromApp(event)) ptt.cancelCapture()
 })
+// "Take a screenshot of Iskra" (bug reports): the asking page itself, never the screen or other windows.
+ipcMain.handle('iskra:capture-app', (event) => (fromApp(event) ? captureAppPage(event.sender).catch(() => null) : null))
 ipcMain.handle('iskra:ptt-status', (event) => (fromApp(event) ? pttStatus() : 'unavailable'))
 ipcMain.handle('iskra:open-settings', (event, pane: unknown) => {
   if (!fromApp(event) || !MAC || typeof pane !== 'string' || !Object.hasOwn(MAC_SETTINGS, pane)) return

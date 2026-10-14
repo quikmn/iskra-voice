@@ -47,9 +47,9 @@ test('the desktop app runs the web app on app:// and can join a server', async (
     // The preload bridge is there, and only that.
     const bridge = await page.evaluate(() => Object.keys((window as unknown as { iskraDesktop: object }).iskraDesktop).sort())
     expect(bridge).toEqual([
-      'activity', 'attention', 'callAlert', 'cancelHotkeyCapture', 'captureHotkey', 'capturePushToTalkKey', 'digitalOcean', 'download', 'host', 'keychain', 'onActivity', 'onDeepLink',
+      'activity', 'attention', 'callAlert', 'cancelHotkeyCapture', 'captureApp', 'captureHotkey', 'capturePushToTalkKey', 'digitalOcean', 'download', 'host', 'keychain', 'onActivity', 'onDeepLink',
       'onHotkey', 'onPickScreen', 'onPushToTalk', 'openSystemSettings', 'p2p', 'passkey', 'pickScreen', 'platform', 'pushToTalkStatus', 'saveFile', 'setBadge', 'setHotkeys', 'setLanguage', 'setPushToTalkKey', 'settings',
-      'takeDeepLink', 'updates',
+      'systemIdleSeconds', 'takeDeepLink', 'updates',
     ])
     expect(await page.evaluate(() => typeof (window as unknown as { require?: unknown }).require)).toBe('undefined')
 

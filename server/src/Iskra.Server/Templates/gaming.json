@@ -25,6 +25,10 @@
     { "name": "Moderator", "color": "#3fa66b", "hoist": true, "permissions": ["manageMessages", "timeoutMembers", "kickMembers", "muteMembers", "moveMembers", "viewAuditLog"] },
     { "name": "Raid lead", "color": "#e8a33d", "icon": "⚔️", "mentionable": true, "permissions": ["moveMembers", "muteMembers"] }
   ],
+  "builtinRoles": {
+    "owner": { "color": "#c27ce0" },
+    "admin": { "color": "#e5534b" }
+  },
   "afk": { "channel": "AFK", "minutes": 30, "canTalk": ["owner", "admin"] },
   "rules": {
     "text": "1. Be good to each other. Banter is fine, harassment isn't.\n2. No cheats, hacks or account selling.\n3. Keep spoilers and NSFW out of shared channels.\n4. Post clips in #clips and find a group in #looking-for-group.",

@@ -247,7 +247,7 @@ public static partial class ProfileFeature
         if (key != me.AccountKey)
         {
             var target = s.World.Store.GetMember(key) ?? throw RequestException.NotFound("Member");
-            if (!Permissions.IsAdmin(me) || !Permissions.Outranks(me, target))
+            if (!BaseRoles.Allows(me, BaseAbility.ProfilePages) || !Permissions.Outranks(me, target))
                 throw RequestException.Forbidden("You can only remove pages of members ranked below you.", "rank_pages");
         }
         else if (!AcceptStamp(s.World.Store, key, body, s.Now)) return new { stale = true };
@@ -259,7 +259,7 @@ public static partial class ProfileFeature
 
     private static object? ConfigurePages(Session s, Member me, Body body)
     {
-        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden();
+        if (!BaseRoles.Allows(me, BaseAbility.ProfilePages)) throw RequestException.Forbidden();
         var enabled = body.OptionalBool("enabled") ?? throw RequestException.BadRequest("'enabled' is required.");
         if (enabled == PagesEnabled(s.World.Store)) return null;
         s.World.Store.SetProfileOption("pages", enabled ? "on" : "off");

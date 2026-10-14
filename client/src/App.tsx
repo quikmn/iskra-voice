@@ -31,6 +31,8 @@ import { LockScreen, NewKeyDialog, RetiredScreen } from './ui/keys/KeyScreens'
 import { useKeys } from './state/keys'
 import { TermsUpdateDialog } from './ui/safety/Terms'
 import { ReportLayer } from './ui/safety/ReportDialog'
+import { BugReportLayer } from './ui/bugReport/BugReportDialog'
+import { startDiagnostics } from './state/bugReport/recorders'
 
 /** Picks up "#/join/..." invite links and "#/link/..." device links, then clears them from the address bar. */
 function readInviteFromHash(): void {
@@ -79,9 +81,11 @@ export function App() {
     const stopVoiceIdle = startVoiceIdleWatch()
     const stopLinks = startDesktopLinks()
     const stopNative = startNativeShell()
+    const stopDiagnostics = startDiagnostics()
     return () => {
       stopLinks()
       stopNative()
+      stopDiagnostics()
       stopPtt()
       stopHotkeys()
       stopTitle()
@@ -108,6 +112,7 @@ export function App() {
           <Onboarding />
         </main>
         <InstallHint signedIn={false} />
+        <BugReportLayer />
       </>
     )
   }
@@ -123,6 +128,7 @@ export function App() {
       <UpdateToast />
       <InstallHint signedIn />
       <ReportLayer />
+      <BugReportLayer />
       <TermsUpdateDialog />
     </>
   )

@@ -58,7 +58,7 @@ public static partial class BuiltinBotFeature
 
     private static object Set(Session s, Member me, Body body)
     {
-        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can turn built-in bots on or off.", "builtin_bots_admin");
+        if (!BaseRoles.Allows(me, BaseAbility.Bots)) throw RequestException.Forbidden("Only admins can turn built-in bots on or off.", "builtin_bots_admin");
         var id = body.String("bot", 32);
         var kind = Bots.FirstOrDefault(b => b.Id == id) ?? throw RequestException.BadRequest("There's no built-in bot by that name.");
         var enabled = body.OptionalBool("enabled") ?? throw RequestException.BadRequest("'enabled' is required.");

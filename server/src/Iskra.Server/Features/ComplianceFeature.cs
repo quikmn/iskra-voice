@@ -32,7 +32,7 @@ public static class ComplianceFeature
 
     private static void RequireOwner(Member me, string what)
     {
-        if (me.Role != Roles.Owner) throw RequestException.Forbidden($"Only the owner can {what} this server's security settings.", $"owner_security_{what}");
+        if (!BaseRoles.Allows(me, BaseAbility.RunServer)) throw RequestException.Forbidden($"Only the owner can {what} this server's security settings.", $"owner_security_{what}");
     }
 
     private static object ListLog(Session s, Member me, Body body)

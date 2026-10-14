@@ -1,0 +1,139 @@
+// "Report a bug": the dialog's state (the draft stays until it's sent, so going offline loses nothing) and gathering
+// what goes with it: the environment, allowlisted settings, voice stats and the diagnostics buffer.
+import { create } from 'zustand'
+import { BUILD_COMMIT } from '../../buildInfo'
+import { currentLanguage, useLanguageChoice } from '../../i18n'
+import { RELEASE_VERSION } from '../../links'
+import { desktop } from '../../platform/desktop'
+import { nativePlatform } from '../../platform/native'
+import { useAudio } from '../audio'
+import { activeRoom, useVoice } from '../voice'
+import { diagnostics } from './diagnostics'
+import { buildPayload, emptyDraft, platformInfo, renderLogs, type Device, type ReportDraft, type ReportEnv, type ReportPayload, type SettingsSnapshot, type VoiceSnapshot } from './payload'
+
+interface BugReportState {
+  open: boolean
+  draft: ReportDraft
+}
+
+export const useBugReport = create<BugReportState>(() => ({ open: false, draft: emptyDraft() }))
+
+export const openBugReport = () => useBugReport.setState({ open: true })
+export const closeBugReport = () => useBugReport.setState({ open: false })
+export const updateDraft = (patch: Partial<ReportDraft>) => useBugReport.setState((s) => ({ draft: { ...s.draft, ...patch } }))
+/** After sending: a fresh form next time. */
+export const resetDraft = () => useBugReport.setState({ draft: emptyDraft() })
+
+export function deviceKind(): Device {
+  if (desktop) return 'desktop'
+  return nativePlatform() ?? 'web'
+}
+
+export function collectEnv(): ReportEnv {
+  const { os, browser } = platformInfo(typeof navigator === 'undefined' ? '' : navigator.userAgent)
+  return {
+    version: RELEASE_VERSION,
+    commit: BUILD_COMMIT,
+    os,
+    ...(browser ? { browser } : {}),
+    device: deviceKind(),
+    language: currentLanguage(),
+  }
+}
+
+/** Only switches and fixed choices: never device ids, names, keys or anything typed. */
+export async function collectSettings(): Promise<SettingsSnapshot> {
+  const a = useAudio.getState()
+  const voice = useVoice.getState()
+  const settings: SettingsSnapshot = {
+    language: useLanguageChoice.getState().choice,
+    noise: a.noise,
+    aiStrength: a.aiStrength,
+    echoCancellation: a.echoCancellation,
+    autoGainControl: a.autoGainControl,
+    inputDevice: a.inputDevice ? 'chosen' : 'default',
+    outputDevice: a.outputDevice ? 'chosen' : 'default',
+    inputVolume: Math.round(a.inputVolume * 100) / 100,
+    outputVolume: Math.round(a.outputVolume * 100) / 100,
+    threshold: a.threshold,
+    cleanIncoming: a.cleanIncoming,
+    leveling: a.leveling,
+    hifi: a.hifi,
+    voiceMode: voice.settings.mode,
+    notifications: typeof Notification === 'undefined' ? 'none' : Notification.permission,
+  }
+  if (desktop) {
+    const d = await desktop.settings.get().catch(() => null)
+    if (d) {
+      settings.openAtLogin = d.openAtLogin
+      settings.closeToTray = d.closeToTray
+      settings.hardwareAcceleration = d.hardwareAcceleration
+      settings.activity = d.activity
+      if (typeof d.updateChecks === 'boolean') settings.updateChecks = d.updateChecks
+    }
+  }
+  return settings
+}
+
+const percent = (lost?: number, total?: number) =>
+  typeof lost === 'number' && typeof total === 'number' && lost + total > 0 ? (100 * lost) / (lost + total) : undefined
+
+/** The call you're in: its state, the noise engines, and what WebRTC says about the connection. */
+export async function collectVoice(): Promise<VoiceSnapshot> {
+  const v = useVoice.getState()
+  if (!v.session) return { state: 'none' }
+  const snapshot: VoiceSnapshot = {
+    state: v.session.state,
+    call: v.session.call ? 'dm' : v.session.group ? 'group' : 'channel',
+    micEngine: v.micEngine,
+    cleanEngine: v.cleanEngine,
+    hifi: v.hifi,
+  }
+  const room = activeRoom()
+  if (!room) return snapshot
+  try {
+    for (const publication of room.localParticipant.audioTrackPublications.values()) {
+      const track = publication.audioTrack as (typeof publication.audioTrack & { getSenderStats?: () => Promise<{ packetsLost?: number; packetsSent?: number; jitter?: number; roundTripTime?: number } | undefined> }) | undefined
+      const stats = await track?.getSenderStats?.()
+      const codec = track?.sender?.getParameters().codecs?.[0]?.mimeType
+      if (codec && /^audio\/[a-z0-9]{1,12}$/i.test(codec)) snapshot.codec = codec.slice(6).toLowerCase()
+      if (stats) {
+        snapshot.lossOut = percent(stats.packetsLost, stats.packetsSent)
+        if (typeof stats.roundTripTime === 'number') snapshot.rttMs = stats.roundTripTime * 1000
+      }
+      break
+    }
+    let lost = 0, received = 0, jitter = 0, count = 0
+    for (const participant of room.remoteParticipants.values()) {
+      for (const publication of participant.audioTrackPublications.values()) {
+        const track = publication.audioTrack as { getReceiverStats?: () => Promise<{ packetsLost?: number; packetsReceived?: number; jitter?: number } | undefined> } | undefined
+        const stats = await track?.getReceiverStats?.().catch(() => undefined)
+        if (!stats) continue
+        lost += stats.packetsLost ?? 0
+        received += stats.packetsReceived ?? 0
+        if (typeof stats.jitter === 'number') { jitter += stats.jitter; count++ }
+      }
+    }
+    if (received > 0) snapshot.lossIn = percent(lost, received)
+    if (count > 0) snapshot.jitterMs = (jitter / count) * 1000
+  } catch { /* stats are a bonus */ }
+  return snapshot
+}
+
+/** The logs that go with a report, if the reporter keeps "Include logs" on. */
+export async function collectLogs(env: ReportEnv, now = Date.now()): Promise<string> {
+  const [settings, voice] = await Promise.all([collectSettings(), collectVoice()])
+  return renderLogs({ now, env, settings, voice, entries: diagnostics.entries(now) })
+}
+
+/** The payload exactly as it will be sent. */
+export async function preparePayload(draft: ReportDraft): Promise<ReportPayload> {
+  const env = collectEnv()
+  return buildPayload(draft, env, draft.includeLogs ? await collectLogs(env) : null)
+}
+
+/** The shortcut as this device writes it; null on phones and tablets (no keyboard to speak of). */
+export function bugShortcut(): string | null {
+  if (typeof navigator === 'undefined' || nativePlatform() || /Android|iPhone|iPad|iPod/.test(navigator.userAgent)) return null
+  return /Mac/.test(navigator.platform) ? '⌘⇧B' : 'Ctrl+Shift+B'
+}

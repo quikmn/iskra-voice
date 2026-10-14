@@ -24,7 +24,7 @@ public static class P2pFeature
 
     private static void RequireOwner(Member me)
     {
-        if (me.Role != Roles.Owner) throw RequestException.Forbidden("Only the owner can change how friends connect.", "owner_p2p");
+        if (!BaseRoles.Allows(me, BaseAbility.RunServer)) throw RequestException.Forbidden("Only the owner can change how friends connect.", "owner_p2p");
     }
 
     /// <summary>The secret from p2p.key, or null when the file is missing or damaged.</summary>
