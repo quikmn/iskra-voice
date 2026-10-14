@@ -25,6 +25,4 @@
 
 ### Good to know
 
-- Bot developers: the SDK is ready to be installed from npm as `iskra-bots` once it's published.
-
 - The grey theme "Iskra Dark" is now called Graphite. If you use it, you keep it.
