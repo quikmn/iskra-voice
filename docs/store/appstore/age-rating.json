@@ -1,0 +1,27 @@
+{
+  "$comment": "App Store Connect age rating answers, set through the API by scripts/appstore.mjs in phase B (PATCH ageRatingDeclarations). Explained in age-rating.md. If Apple renames a field, the script warns and the owner answers once by hand from age-rating.md.",
+  "attributes": {
+    "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+    "contests": "NONE",
+    "gamblingSimulated": "NONE",
+    "gunsOrOtherWeapons": "NONE",
+    "horrorOrFearThemes": "NONE",
+    "matureOrSuggestiveThemes": "NONE",
+    "medicalOrTreatmentInformation": "NONE",
+    "profanityOrCrudeHumor": "NONE",
+    "sexualContentGraphicAndNudity": "NONE",
+    "sexualContentOrNudity": "NONE",
+    "violenceCartoonOrFantasy": "NONE",
+    "violenceRealistic": "NONE",
+    "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+    "gambling": false,
+    "lootBox": false,
+    "unrestrictedWebAccess": false,
+    "messagingAndChat": true,
+    "userGeneratedContent": true,
+    "advertising": false,
+    "parentalControls": false,
+    "ageAssurance": false,
+    "healthOrWellnessTopics": false
+  }
+}

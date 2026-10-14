@@ -1,0 +1,21 @@
+{
+  "$comment": "Where each release's phone apps go (docs/ci-cd.md, 'Phone apps in the release'). Phase A (testing): ios.mode testflight, android.track alpha. Phase B (public listings): ios.mode appstore, android.track production, android.listing true. Flip once, in a commit, when the listings are ready (docs/store/README.md). Read by scripts/appstore.mjs (mobile-ios.yml) and scripts/play-upload.mjs (release-all.ps1).",
+  "ios": {
+    "$comment": "mode: testflight (build to the TestFlight groups below and to Beta App Review), appstore (the same, plus the App Store version: build, What's New, listing text, screenshots, age rating, review details, submitted for review, released automatically once approved), upload (upload only).",
+    "mode": "testflight",
+    "bundleId": "foo.iskra.app",
+    "internalGroups": "all",
+    "externalGroups": [{ "publicLinkId": "r4tMgn3D" }],
+    "submitForBetaReview": true,
+    "releaseType": "AFTER_APPROVAL",
+    "contact": { "firstName": "Viktor", "lastName": "Lundgren", "email": "spark@iskra.foo" },
+    "feedbackEmail": "spark@iskra.foo"
+  },
+  "android": {
+    "$comment": "track: alpha (Play's closed testing track; a custom closed track goes by its own name: node scripts/play-upload.mjs <version> --list-tracks shows them), internal, beta (open testing), production. rollout: the share of users for a production release (1 = everyone at once, 0.2 = a staged rollout of 20 %). listing: also update the store listing text and graphics from docs/store/play. dataSafety: also send docs/store/play/data-safety.csv (Play Console's own export format).",
+    "track": "alpha",
+    "rollout": 1,
+    "listing": false,
+    "dataSafety": false
+  }
+}

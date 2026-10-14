@@ -23,6 +23,7 @@ App Review (guideline 4.2), and updates its web part with each app release.
 | `android/app/src/main/java/foo/iskra/app/` | `IskraNativePlugin` (the plugin), `VoiceService` (foreground service) and its `Notifications` channel, `MainActivity` |
 | `scripts/build-android.ps1` | The signed Android build (below) |
 | `scripts/icons.py` | Icons and launch images for both platforms from the bolt in `client/public/favicon.svg` via `scripts/bolt.py` (`python mobile/scripts/icons.py`, needs Pillow; the desktop icons come from the same bolt, `python desktop/scripts/icons.py`) |
+| `store.json` | Where each release's apps go (TestFlight or the App Store; Play's track, rollout, listing): docs/store/README.md |
 | `../scripts/mobile-version.mjs` | Version and build numbers (tested with the release scripts: `npm test` at the repo root) |
 | `../client/src/platform/native.ts` | The client's side: detects the app, opens links, saves files, status bar, the `IskraNative` bridge |
 | `../client/src/state/nativeVoice.ts` | Voice in the background: starts and stops the native side with the voice session |
@@ -60,8 +61,8 @@ On a Mac, by hand: `cd client && npm run build`, `cd mobile && npm ci && npx cap
 On the owner's Windows PC (the release key never leaves it):
 
 ```powershell
-.\mobile\scripts\build-android.ps1            # mobile\release\Iskra-<version>.apk and .aab (for Google Play)
-.\mobile\scripts\build-android.ps1 -ApkOnly   # what release-windows.ps1 runs
+.\mobile\scripts\build-android.ps1            # mobile\release\Iskra-<version>.apk and .aab (for Google Play); what release-windows.ps1 runs
+.\mobile\scripts\build-android.ps1 -ApkOnly   # the APK only
 ```
 
 It builds the client, `cap sync android`, `assembleRelease` (+ `bundleRelease`), then zipaligns
@@ -171,6 +172,7 @@ the App Store availability for the public release (TestFlight isn't a store list
 - **Swift package versions.** Capacitor's packages are pinned, but `ion-ios-filesystem` resolves "from 1.1.1" on each
   build; commit `Package.resolved` once a CI run produces one.
 - Swedish permission texts on iOS (an `sv.lproj/InfoPlist.strings`); Android's notification channel names are translated.
-- Google Play listing: the AAB is built; listing text, graphics, and the data safety, content rating and other form
-  answers are in `docs/store/play/`, and the owner's steps (Play App Signing with the existing key, internal testing,
-  the foreground-service declaration for voice) in docs/ci-cd-playbook.md, section L.
+- Store listings: every release uploads the phone apps by itself (`mobile/store.json` says where: TestFlight and
+  Play's closed testing now, the App Store and Play production later; `docs/store/README.md`). Listing texts, forms and
+  graphics are in `docs/store/play/` and `docs/store/appstore/`; what only a person can do once (Play's content rating
+  and 12 testers, Apple's privacy label, EU trader status) is listed in `docs/store/README.md`.

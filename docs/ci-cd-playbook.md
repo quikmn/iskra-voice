@@ -46,12 +46,15 @@ One script does the whole release: `scripts/release-all.ps1`. Agents (release-ru
    line is a decision-table row: do what it says, then dry-run again.
 3. **Ask the human:** "Please log in to SimplySign Desktop (6-digit code from the SimplySign app) and tell me when done."
    Wait for the answer.
-4. **Release.** Run in the background (20–30 min; it waits for the builds and for finalize):
+4. **Release.** Run in the background (60–90 min; it waits for the builds, for finalize and for the iPhone build):
    `pwsh -NoProfile -File scripts/release-all.ps1 V`
    It checks, writes the notes, bumps and tags, pushes (no waiting for CI: finalize refuses to publish until CI is green
-   on the tag), builds and uploads the Windows files, waits for release.yml, starts finalize (tell the human to approve
-   it if it prints `approve it at <url>`) and checks the result.
-   ✔ Ends with `Result: done` and the report lines (Release, Runs, Checks).
+   on the tag), builds and uploads the Windows files (and the Android app bundle), waits for release.yml, starts
+   finalize (tell the human to approve it if it prints `approve it at <url>`), then the phones: mobile-ios.yml on the tag
+   (TestFlight, Beta App Review; App Store in phase B) and the Google Play upload, where `mobile/store.json` says
+   ([docs/store/README.md](store/README.md)), and checks the result. Without the Play key it notes "Google Play upload is
+   skipped": that's fine, not a problem. `-SkipPhones` only if the human asks.
+   ✔ Ends with `Result: done` and the report lines (Release, Runs, Checks, Phones).
 5. **A `STOP [case] ...` line:** find the case in the decision table and do exactly that. Once the tag is pushed, continue
    with `pwsh -NoProfile -File scripts/release-all.ps1 V -Resume` (it skips what's done). Never rerun more than once
    without the human.
@@ -158,6 +161,10 @@ Use after files on a published release were replaced.
 
 ## I. iOS app to TestFlight
 
+Every release does this by itself (A, step 4): the run ends with the step "TestFlight groups and reviews"
+(scripts/appstore.mjs), which waits for Apple's processing, sets What to test, adds the build to the TestFlight groups
+and submits it for Beta App Review. Use this section only for a build outside a release.
+
 `R` = what to build: a release tag `vV` (default: the latest release, `gh release view --json tagName --jq .tagName`)
 or `main` if the human said so.
 1. **Universal Links file is live** (only needed once, and after changing it):
@@ -165,14 +172,17 @@ or `main` if the human said so.
    ✔ `application/json`. ✘ 404 → do [E](#e-redeploy-the-web-app-appiskrafoo) with `ref=main` first.
 2. `gh workflow run mobile-ios.yml -f ref=R`
    (A first try or a check without uploading: add `-f upload=false`.)
+   (`-f store=upload` uploads without the TestFlight groups and review.)
 3. `gh run list --workflow mobile-ios.yml -L 1` → note the id; `gh run view <id> --json status,conclusion,jobs` every few
-   minutes (15–30 min).
+   minutes (30–90 min: the build, then Apple's processing).
 4. ✔ conclusion `success`. The step "Check the signed app" ends with `Iskra … is signed for the App Store`; the run summary
-   says "Uploaded to App Store Connect" with the version and build. Note the build number.
-5. Tell the human: "Build <build> of <version> is processing at App Store Connect → Iskra → TestFlight; it shows up for the
-   internal group in 5–30 minutes. Testers update in the TestFlight app."
+   says "Uploaded to App Store Connect" with the version and build, and "App Store Connect: … TestFlight groups …; Beta App
+   Review …". Note the build number.
+5. Tell the human: "Build <build> of <version> is in TestFlight for the internal and external groups; external testers get
+   it when Beta App Review approves it."
 
-Never change the API key, the App Store Connect app or TestFlight groups yourself; those are the human's.
+Never change the API key, the App Store Connect app, TestFlight groups or `mobile/store.json` yourself; those are the
+human's. Never run scripts/appstore.mjs yourself (it runs on GitHub with the key).
 
 ## J. Outage alert
 
@@ -192,12 +202,14 @@ The uptime workflow (`uptime.yml`, every 15 minutes) opened or updated an issue 
 
 ## K. Android app
 
-Releases build the APK in B (release-windows.ps1). On its own, on the Windows PC (the release key lives only there):
+Releases build the APK and the app bundle in B (release-windows.ps1) and upload the bundle to Google Play in A (step 4,
+scripts/play-upload.mjs). On its own, on the Windows PC (the release key lives only there):
 1. `git checkout <tag or main>`, then `pwsh -NoProfile -File mobile/scripts/build-android.ps1` (add `-ApkOnly` to skip the AAB).
 2. ✔ Ends with `Built ...\mobile\release\Iskra-V.apk (signed by the release key, 7c5941ba…)`.
 3. Never print or open the keystore or its password file.
 4. The AAB for Google Play is `mobile\release\Iskra-V.aab` (the script prints `Built ...\Iskra-V.aab` before the APK line),
-   signed with the same release key. Hand it to the human for [L](#l-google-play-the-owner-in-the-browser); never upload it.
+   signed with the same release key. Releases upload it through release-all.ps1; never upload it any other way, and
+   never run scripts/play-upload.mjs yourself except `--dry-run` (read the Play key's path, never the file).
 
 ## L. Google Play (the owner, in the browser)
 
@@ -239,8 +251,11 @@ Play's SHA-256 from Setup → App signing to `assetlinks.json` and redeploy the 
    requirement if it applies). Create a closed testing track, promote the internal release to it, invite the testers,
    wait the 14 days, then Apply for production → Production → Create release (promote the tested release), countries
    per app-content.md, staged rollout 20% → 100%.
-8. **Every later release:** K for the new tag, then the track's Create new release → upload → Save and publish. The
-   version code rises with every version (scripts/mobile-version.mjs); Play refuses a code it has seen.
+8. **Every later release:** automatic. With the service account set up once
+   ([docs/store/README.md](store/README.md#google-play-service-account-for-the-uploads)), release-all.ps1 uploads the
+   bundle to the track in `mobile/store.json` (closed testing `alpha` now; production after step 7 and the flip in
+   docs/store/README.md) with the release notes. The version code rises with every version (scripts/mobile-version.mjs);
+   Play refuses a code it has seen.
 
 ## Decision table
 
@@ -274,6 +289,9 @@ Play's SHA-256 from Setup → App signing to `assetlinks.json` and redeploy the 
 | Deploy `site`/`webapp` check failed after 5 minutes | Rerun that deploy once (D/E). Still failing: report |
 | Deploy `server` failed | Report the log (`--log-failed`). The server rolled back by itself. Don't retry without the human |
 | `Host key verification failed` | Stop. The droplet's host key changed; the human must check it |
+| `STOP [phones]` | The release is out. Read which part: `TestFlight build failed` → the mobile-ios.yml rows below; `Google Play upload failed` → ci-cd.md troubleshooting (Play rows). Fixed by the human (or a flake): `-Resume` once |
+| `note: the Google Play upload is skipped` | Fine (no Play key yet). Mention it in the report |
+| `App Store Connect stopped: …` in mobile-ios.yml | Report the line. `couldn't process build` / `no external TestFlight group` / `already approved` / `REVIEW_INVITE_URL`: the human (ci-cd.md troubleshooting) |
 | mobile-ios.yml: `Cloud signing permission error`, `No profiles for 'foo.iskra.app'`, `No Account for Team`, `agreement` | Stop. The human must fix the Apple side (ci-cd.md, "iOS app" and troubleshooting) |
 | mobile-ios.yml archive fails on signing | Rerun once with `-f archive_signing=automatic`. Fails again: stop and report |
 | mobile-ios.yml upload: `bundle version` / `redundant binary` | `gh run rerun <id>` once (the build number rises with the attempt) |
@@ -288,6 +306,7 @@ Result: done | stopped at <section.step>
 Release: https://github.com/quikmn/iskra-voice/releases/tag/vV
 Runs: release.yml <url> (<conclusion>), release-finalize.yml <url> (<conclusion>), deploy.yml <url> (<conclusion>)
 Checks: iskra.foo <ok/fail>, app.iskra.foo <ok/fail>, chat.iskra.foo <ok/fail>, Latest = vV <yes/no>
+Phones: TestFlight <uploaded/failed>, Google Play <on the 'alpha' track/skipped/failed>
 Problem (if stopped): <exact message>, what you tried, what the human needs to do
 ```
 Leave out lines that don't apply. No other prose.

@@ -1,10 +1,16 @@
 name: Mobile iOS
 
-# Builds the iPhone/iPad app (mobile/: Capacitor around client/dist) and uploads it to TestFlight.
+# Builds the iPhone/iPad app (mobile/: Capacitor around client/dist) and uploads it to App Store Connect, then
+# scripts/appstore.mjs does the rest in the store mode of mobile/store.json (or the `store` input): testflight = wait for
+# processing, What to test, the TestFlight groups and Beta App Review; appstore = that plus the App Store version,
+# listing, screenshots and App Review with automatic release; upload = nothing more.
 # Signing is automatic: Xcode's cloud signing with the App Store Connect API key (secrets APPSTORE_*), no
 # certificates or profiles stored here. See mobile/README.md and docs/ci-cd.md "iOS app".
-# Run by hand (Actions → Mobile iOS → Run workflow, or `gh workflow run mobile-ios.yml`); release-finalize.yml
-# can call it later as a reusable workflow (`uses: ./.github/workflows/mobile-ios.yml`, `secrets: inherit`).
+# Run by hand (Actions → Mobile iOS → Run workflow, or `gh workflow run mobile-ios.yml`), and by scripts/release-all.ps1
+# after each release (ref = the tag, upload on). It can also be called as a reusable workflow (`secrets: inherit`).
+# The run's title names the ref and the upload ("Mobile iOS v2.0.0-alpha.17 (TestFlight)"): release-all.ps1 finds the
+# run it started (or one a stopped release started) by that title.
+run-name: ${{ format('Mobile iOS {0}{1}', inputs.ref || github.ref_name, inputs.upload && ' (TestFlight)' || '') }}
 on:
   workflow_dispatch:
     inputs:
@@ -20,6 +26,11 @@ on:
         type: choice
         options: [adhoc, automatic]
         default: adhoc
+      store:
+        description: 'After the upload: auto (mobile/store.json), testflight, appstore, or upload (nothing more)'
+        type: choice
+        options: [auto, testflight, appstore, upload]
+        default: auto
   workflow_call:
     inputs:
       ref:
@@ -31,6 +42,9 @@ on:
       archive_signing:
         type: string
         default: adhoc
+      store:
+        type: string
+        default: auto
 
 permissions:
   contents: read
@@ -46,7 +60,8 @@ env:
 jobs:
   ios:
     runs-on: macos-latest
-    timeout-minutes: 60
+    # The build (~25 min), then up to an hour for Apple's processing in the store step.
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -200,6 +215,21 @@ jobs:
             echo "Iskra $APP_VERSION: version $MARKETING_VERSION, build $BUILD_NUMBER."
             echo "Apple processes it (5–30 min), then it appears in TestFlight for the internal group."
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # Everything App Store Connect needs after the upload, so nobody clicks anything (docs/ci-cd.md, "Phone apps in
+      # the release"). A rerun of a run whose upload went through skips nothing it shouldn't: every step checks first.
+      - name: TestFlight groups and reviews (and the App Store in phase B)
+        if: ${{ inputs.upload }}
+        env:
+          APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+          APPSTORE_REVIEW_PHONE: ${{ secrets.APPSTORE_REVIEW_PHONE }}
+          REVIEW_INVITE_URL: ${{ vars.REVIEW_INVITE_URL }}
+          STORE: ${{ inputs.store || 'auto' }}
+        run: |
+          node scripts/appstore.mjs "$STORE" --version "$APP_VERSION" --marketing "$MARKETING_VERSION" --build-number "$BUILD_NUMBER" --key "$RUNNER_TEMP/keys/AuthKey.p8" | tee "$RUNNER_TEMP/appstore.log"
+          test "${PIPESTATUS[0]}" = 0
+          { echo "### App Store Connect"; grep -E '^App Store Connect' "$RUNNER_TEMP/appstore.log" || true; } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Remove the key
         if: always()

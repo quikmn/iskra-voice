@@ -1,6 +1,8 @@
 #Requires -Version 7
 # The Windows part of a release (see docs/ci-cd.md): signed Windows build, Windows server zip and Android APK,
-# uploaded to the GitHub release, then starts the Release finalize workflow.
+# uploaded to the GitHub release, then starts the Release finalize workflow. The Android build also makes the app
+# bundle for Google Play (mobile\release\Iskra-<version>.aab, from the same build as the APK); release-all.ps1 uploads
+# it to Play after the release is published.
 #
 #   .\scripts\release-windows.ps1 2.0.0-alpha.10
 #   .\scripts\release-windows.ps1 2.0.0-alpha.10 -SkipBuild     # upload files already in desktop\release and mobile\release
@@ -118,9 +120,9 @@ try {
     Compress-Archive -Path 'desktop\build\server-win-x64\*', $sidecar, 'desktop\build\p2p-win-x64\iskra-p2p-licenses.txt' -DestinationPath $zip
     Write-Host "Built $zip"
 
-    Step 'Building the Android APK (the Capacitor app, signed with the release key)'
-    Remove-Item $apk -ErrorAction SilentlyContinue
-    & .\mobile\scripts\build-android.ps1 -ApkOnly
+    Step 'Building the Android APK and app bundle (the Capacitor app, signed with the release key)'
+    Remove-Item $apk, "mobile\release\Iskra-$Version.aab" -ErrorAction SilentlyContinue
+    & .\mobile\scripts\build-android.ps1
     if (-not (Test-Path $apk)) { Stop-Release "mobile\scripts\build-android.ps1 didn't produce $apk (see its output above)." }
   }
 

@@ -34,6 +34,7 @@ jobs:
       actions: read # the CI runs of the tagged commit
     outputs:
       version: ${{ steps.version.outputs.version }}
+      commit: ${{ steps.commit.outputs.sha }}
     env:
       TAG: ${{ inputs.tag }}
       GH_TOKEN: ${{ github.token }}
@@ -51,6 +52,9 @@ jobs:
         with:
           ref: refs/tags/${{ inputs.tag }}
           persist-credentials: false
+      - name: The tagged commit
+        id: commit
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24'
@@ -130,3 +134,34 @@ jobs:
       webapp: true
       server_version: ${{ needs.publish.outputs.version }}
     secrets: inherit
+
+  # Optional: the outcome in an Iskra channel (scripts/ci-notify.mjs; docs/ci-cd.md "CI results in Iskra"), only when the
+  # secret ISKRA_CI_WEBHOOK is set. Sends the tag, short commit, published/failed and the run link; nothing else.
+  report:
+    name: report to Iskra
+    needs: [publish, deploy]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Is the webhook set?
+        id: hook
+        env:
+          ISKRA_CI_WEBHOOK: ${{ secrets.ISKRA_CI_WEBHOOK }}
+        run: |
+          if [ -n "$ISKRA_CI_WEBHOOK" ]; then echo "set=1" >> "$GITHUB_OUTPUT"; else echo "No ISKRA_CI_WEBHOOK secret: not reporting."; fi
+      - if: steps.hook.outputs.set == '1'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/ci-notify.mjs
+          sparse-checkout-cone-mode: false
+      - if: steps.hook.outputs.set == '1'
+        run: node scripts/ci-notify.mjs release
+        env:
+          ISKRA_CI_WEBHOOK: ${{ secrets.ISKRA_CI_WEBHOOK }}
+          NEEDS: ${{ toJSON(needs) }}
+          TAG: ${{ inputs.tag }}
+          COMMIT: ${{ needs.publish.outputs.commit }}
