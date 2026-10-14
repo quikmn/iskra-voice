@@ -2148,8 +2148,10 @@ When the server stops it closes every session with a JSON reason of at most 123 
 ```
 
 - **1012 ("Service Restart")**, reason `update` or `restart`, only when the server knows it's coming back: an
-  automatic update (`etaMs` 20000), or the desktop app restarting (into an update, or a relaunch), which writes the line
-  `restart` to the server's stdin before closing it (`ISKRA_STOP_ON_STDIN_CLOSE`; `etaMs` 30000), or a stop (SIGTERM,
+  automatic update (`etaMs` 20000), or the desktop app restarting: for a relaunch it writes the line `restart` to the
+  server's stdin before closing it (`ISKRA_STOP_ON_STDIN_CLOSE`; `etaMs` 30000); for an update it writes the restart
+  marker below (`update`, `etaSeconds` 60) and closes stdin without that line, so the marker's reason is kept (the line
+  again if the marker can't be written); or a stop (SIGTERM,
   `systemctl restart`) within 2 minutes of `iskra-server expect-restart <world> [--reason update|restart] [--eta <s>]`
   (the reason and `etaMs` it was given; see below).
 - **1001 ("Going Away")**, reason `stop`, for every other stop: Ctrl+C, SIGTERM (including `systemctl restart`, which
@@ -2168,7 +2170,7 @@ that crashes or loses the network sends neither (the socket just drops, 1006).
 
 What apps do (the TS client and the bot SDK share it, `client/src/core/connection.ts`):
 
-- **On 1012:** status `restarting` (not `offline`), and reconnect about every second (0.75–1.25 s, jittered so a crowd
+- **On 1012:** status `restarting` (not `offline`; with `update: true` when the reason is `update`, so apps say "restarting for an update"), and reconnect about every second (0.75–1.25 s, jittered so a crowd
   doesn't arrive at once) for 2 minutes, or `etaMs` plus a minute when that's longer. After that, the usual backoff.
   Failed attempts during that window keep the fast pace.
 - **On 1001 `stop`:** status `offline` with `stopped: true` (apps say "<server> went offline"), kept until it's back,

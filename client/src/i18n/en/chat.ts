@@ -16,6 +16,8 @@ export const chat = {
     stopped: "{{name}} went offline. Iskra reconnects when it's back.",
     restarting: '{{name}} is restarting, hold on…',
     restartingVoice: "{{name}} is restarting, hold on… You'll be back in voice automatically.",
+    restartingUpdate: '{{name}} is restarting for an update, hold on…',
+    restartingUpdateVoice: "{{name}} is restarting for an update, hold on… You'll be back in voice automatically.",
     back: "{{name}} is back.",
     welcome: 'Welcome to #{{name}}',
     thisChannel: 'this channel',

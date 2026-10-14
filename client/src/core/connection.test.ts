@@ -92,6 +92,7 @@ describe('connection: reconnecting', () => {
     socket().welcome()
     socket().drop(1012, RESTART)
     expect(last()).toMatchObject({ state: 'restarting' })
+    expect(last()).not.toHaveProperty('update') // a plain restart, not an update
 
     const tries = await attemptsWithin(30_000)
     expect(tries).toBeGreaterThanOrEqual(24) // 0.75–1.25 s apart
@@ -134,7 +135,7 @@ describe('connection: reconnecting', () => {
     const { last, socket } = connect()
     socket().welcome()
     socket().drop(1012, JSON.stringify({ v: 1, reason: 'update', etaMs: 120_000 }))
-    expect(last()).toMatchObject({ state: 'restarting', etaMs: 120_000 })
+    expect(last()).toMatchObject({ state: 'restarting', etaMs: 120_000, update: true })
     await attemptsWithin(RESTART_WINDOW_MS + 30_000)
     expect(last().state).toBe('restarting') // eta + a minute = 3 minutes
   })

@@ -17,6 +17,8 @@ export const chat: Messages['chat'] = {
     stopped: '{{name}} gick offline. Iskra ansluter igen när den är tillbaka.',
     restarting: '{{name}} startar om, vänta lite…',
     restartingVoice: '{{name}} startar om, vänta lite… Du kommer tillbaka till röstkanalen automatiskt.',
+    restartingUpdate: '{{name}} startar om för en uppdatering, vänta lite…',
+    restartingUpdateVoice: '{{name}} startar om för en uppdatering, vänta lite… Du kommer tillbaka till röstkanalen automatiskt.',
     back: '{{name}} är tillbaka.',
     welcome: 'Välkommen till #{{name}}',
     thisChannel: 'den här kanalen',

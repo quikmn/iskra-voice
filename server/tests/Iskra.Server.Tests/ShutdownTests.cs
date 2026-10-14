@@ -86,6 +86,21 @@ public class ShutdownTests
     }
 
     [Fact]
+    public async Task The_desktop_apps_update_marker_says_restarting_for_an_update()
+    {
+        // desktop/src/restartMarker.ts writes exactly this before the app installs an update, then closes the server's
+        // stdin without a "restart" line, so the marker's reason (update) is the one members see.
+        using var server = new IskraServer();
+        using var ann = await server.JoinAsync("Ann");
+        WriteMarker(server, $$"""{"v":1,"reason":"update","etaSeconds":60,"at":{{Now(1)}}}""" + "\n");
+
+        server.Services.GetRequiredService<IHostApplicationLifetime>().StopApplication();
+
+        Assert.Equal(1012, await ann.Client.ReceiveCloseAsync());
+        Assert.Equal("""{"v":1,"reason":"update","etaMs":60000}""", ann.Client.CloseReason);
+    }
+
+    [Fact]
     public async Task A_marker_without_an_eta_or_reason_choice_is_a_plain_restart()
     {
         using var server = new IskraServer();
