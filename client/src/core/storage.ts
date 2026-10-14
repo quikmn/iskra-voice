@@ -503,6 +503,10 @@ export async function loadBlocks(): Promise<import('./protocol').BlockEntry[]> {
 
 export const saveBlocks = (blocks: import('./protocol').BlockEntry[]) => set('blocks', blocks)
 
+// ── DMs from bots (synced to every server like the block list; see state/botDms.ts) ──
+export const loadBotDms = () => get<{ allow: boolean; at: number }>('botDms')
+export const saveBotDms = (value: { allow: boolean; at: number }) => set('botDms', value)
+
 // ── Productivity: saved messages and cached reminders (see state/saved.ts, state/reminders.ts) ──
 
 /** A private value kept encrypted at rest (it may quote DMs). */

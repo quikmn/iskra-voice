@@ -32,6 +32,8 @@ import { usePrivateMessageTools } from './productivity/MessageTools'
 import { dmTarget, privateRowId } from '../state/messageRefs'
 import { KeyHistory } from './keys/KeyTransparency'
 import { messageListKeys, useAnnounceNew } from './a11y'
+import { useBotPeer } from '../state/botDms'
+import { BotBadge } from './chat/BotBits'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -127,6 +129,7 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
   const myKey = identity ? b64u(identity.account.publicKey) : ''
   const reachable = sharedServers(peer).length > 0
   const blocked = useIsBlocked(peer)
+  const peerBot = useBotPeer(peer)
   const messages = conversation?.messages ?? []
 
   useLayoutEffect(() => {
@@ -162,12 +165,13 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
         <span className="dm-header-person" {...userMenuProps(peer)}>
           <AccountAvatar name={nameOf(peer)} accountKey={peer} size={28} />
           <h1>{nameOf(peer)}</h1>
+          {peerBot.bot && <BotBadge builtin={peerBot.builtin} />}
         </span>
         <AccountStatusText accountKey={peer} className="muted dm-header-status" />
         <span className="e2e-badge" title={t('app.home.e2eTitle')}><Lock size={13} /> {t('app.home.e2e')}</span>
         <span className="spacer" />
-        {reachable && <span className="dm-header-friend"><FriendButtons accountKey={peer} header /></span>}
-        {!blocked && <CallButtons peer={peer} />}
+        {reachable && !peerBot.bot && <span className="dm-header-friend"><FriendButtons accountKey={peer} header /></span>}
+        {!blocked && !peerBot.bot && <CallButtons peer={peer} />}
         <button className="button small" onClick={() => setVerify(true)}>{t('app.home.verify')}</button>
       </header>
       <CallPanel peer={peer} />
@@ -178,7 +182,7 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
         <div className="channel-start">
           <Avatar name={nameOf(peer)} accountKey={peer} size={64} />
           <h2>{nameOf(peer)}</h2>
-          <p>{t('app.home.dmStart', { name: nameOf(peer) })}</p>
+          <p>{peerBot.bot ? t('dms.bot.start', { name: nameOf(peer) }) : t('app.home.dmStart', { name: nameOf(peer) })}</p>
         </div>
         {messages.map((dm, i) => {
           if (dm.notice) return <DmKeyNotice key={`${dm.from}:${dm.id}`} dm={dm} onVerify={() => setVerify(true)} />
@@ -197,8 +201,10 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
       <div className="typing-line" />
       {blocked ? (
         <BlockedDmBar accountKey={peer} name={nameOf(peer)} />
+      ) : peerBot.builtin ? (
+        <div className="composer read-only">{t('dms.bot.builtin')}</div>
       ) : reachable ? (
-        <DmComposer key={peer} peer={peer} placeholder={t('app.home.messagePlaceholder', { name: nameOf(peer) })} />
+        <DmComposer key={peer} peer={peer} bot={peerBot.bot} placeholder={t('app.home.messagePlaceholder', { name: nameOf(peer) })} />
       ) : (
         <div className="composer read-only">{t('app.home.unreachable', { name: nameOf(peer) })}</div>
       )}

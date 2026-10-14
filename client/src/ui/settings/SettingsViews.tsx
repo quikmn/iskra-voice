@@ -29,6 +29,7 @@ import { InternetSection } from '../dialogs/InternetSettings'
 import { EmojiSection, SoundboardSettingsSection, SoundsSection } from '../expressions/ExpressionSettings'
 import { StickerSection } from '../chat/Stickers'
 import { GifSettings, GifViewerSettings } from '../chat/GifSettings'
+import { BotDmSettings } from './BotDmSettings'
 import { HiddenServersSection } from './HiddenServers'
 import { DevicesSection } from '../dialogs/DevicesSection'
 import { IntegrationsSection } from '../dialogs/Integrations'
@@ -264,7 +265,7 @@ function MySection({ id }: { id: MySectionId }) {
     case 'blocked': return <BlockedSection />
     case 'desktop': return <DesktopSettingsSection />
     case 'account': return <AccountSection />
-    case 'privacy': return <><PrivacySection /><GifViewerSettings /></>
+    case 'privacy': return <><PrivacySection /><GifViewerSettings /><BotDmSettings /></>
     case 'about': return <AboutSection />
   }
 }

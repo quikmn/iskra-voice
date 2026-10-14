@@ -273,7 +273,8 @@ export class VoiceConnection {
     } finally {
       decoder?.free()
       out.close()
-      void reader.return?.()
+      // An aborted fetch's body rejects here with the abort reason: nothing to report.
+      Promise.resolve(reader.return?.()).catch(() => undefined)
     }
   }
 

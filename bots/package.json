@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit -p .",
     "dice": "node build.mjs && node dist/examples/dice.js",
     "planner": "node build.mjs && node dist/examples/planner.js",
-    "jukebox": "node build.mjs && node dist/examples/jukebox.js"
+    "jukebox": "node build.mjs && node dist/examples/jukebox.js",
+    "music": "node build.mjs && node dist/examples/music.js"
   },
   "dependencies": {
     "@livekit/rtc-node": "1.1.0",

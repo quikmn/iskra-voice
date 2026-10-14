@@ -80,7 +80,7 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
   const canDisconnect = !!participant && below && has(me, roles, 'moveMembers')
   const canCall = !self && !blocked && callServers(accountKey).length > 0
   const canTransfer = !!member && !self && !member.bot && me?.role === 'owner'
-  const canMessage = !self && (sharedServers(accountKey).length > 0 || !!useDms.getState().conversations[accountKey])
+  const canMessage = !self && !member?.builtin && (sharedServers(accountKey).length > 0 || !!useDms.getState().conversations[accountKey])
 
   const run = (action: () => unknown) => async () => {
     try {
@@ -170,7 +170,7 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
         {member && canEditNickname(me, member) && (
           <MenuItem onClick={() => setView('nick')}>{self ? t('friends.menu.nickname') : t('friends.menu.nicknameFor', { name: member.profileName ?? member.name })}</MenuItem>
         )}
-        {!self && !blocked && (
+        {!self && !blocked && !member?.bot && (
           <>
             <div className="org-sep" />
             {relation === 'none' && <MenuItem onClick={run(() => addFriend(accountKey))}>{t('friends.add')}</MenuItem>}

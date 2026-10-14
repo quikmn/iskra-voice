@@ -19,6 +19,13 @@ export const dms: Messages['dms'] = {
     noAccount: 'Det finns inget konto på den här enheten.',
     noSharedServer: 'Ni har ingen gemensam server online just nu.',
   },
+  bot: {
+    start: 'Här börjar din konversation med {{name}}, som är en bot. Meddelandena är totalsträckskrypterade till botten, så den som kör den kan läsa dem. Skriv / för att se vad den kan.',
+    builtin: 'Inbyggda bottar tar inte emot direktmeddelanden. Använd deras kommandon i en kanal.',
+    settingTitle: 'DM från bottar',
+    settingLabel: 'Bottar på mina servrar får skicka direktmeddelanden till mig',
+    settingHint: 'Av: bottar kan bara svara när du skriver till dem först. Vill du stoppa en enda bot kan du blockera den. Gäller på alla servrar du är med i.',
+  },
   files: {
     tooBigForServer: 'Filen är för stor för den här servern.',
     uploadFailedStatus: 'Uppladdningen misslyckades ({{status}}).',

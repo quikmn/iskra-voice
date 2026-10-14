@@ -51,7 +51,9 @@ export function FriendButtons({ accountKey, header }: { accountKey: string; head
   const blocked = useIsBlocked(accountKey)
   const { error, busy, run } = useAction()
   const mine = useApp((s) => s.identity)
-  if (blocked || !mine) return null
+  // Bots don't take friend requests.
+  const bot = useApp((s) => Object.values(s.servers).some((server) => !!server.members[accountKey]?.bot))
+  if (blocked || !mine || bot) return null
   const small = header ? 'small' : ''
   return (
     <>

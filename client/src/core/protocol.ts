@@ -2086,3 +2086,20 @@ export interface Requests {
   'afk.update': [Partial<AfkSettings>, { afk: AfkSettings }]
   'voice.idle': [{ idle: boolean; idleMs?: number }, Record<string, never>]
 }
+
+// ── bot DMs ──
+
+/** "DMs from bots": allowed or not, and when that was chosen (0: never; the default is allowed). */
+export interface BotDmSetting {
+  allow: boolean
+  at: number
+}
+
+export interface Events {
+  'dm.bots': BotDmSetting
+}
+
+export interface Requests {
+  'dm.bots.get': [Record<string, never>, BotDmSetting]
+  'dm.bots.set': [BotDmSetting, BotDmSetting]
+}
