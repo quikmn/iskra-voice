@@ -83,6 +83,7 @@ public sealed class Router
         BugInboxFeature.Register(this);
         AfkFeature.Register(this);
         BotDmFeature.Register(this);
+        TemplateFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

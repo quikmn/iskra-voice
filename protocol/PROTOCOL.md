@@ -2704,35 +2704,57 @@ tighter grants; the audio itself goes from the bot straight to LiveKit, as for p
 
 The levels (`owner`, `admin`, `trusted`, `member`, `guest`) are the **built-in roles**: every server has them, every member
 holds exactly one, and channels' `readRole`/`writeRole` pick from them. Apps list them above custom roles, under the same
-names the channel "Who can" pickers use. What they can do is **fixed** and comes from one table on the server
-(`Sessions/BaseRoles.cs`), which the server's own checks use; `role.list` and the `roles` event send it, so the list never
-drifts from what's enforced. Only their colour can be changed.
+names the channel "Who can" pickers use. What they can do comes from one table on the server (`Sessions/BaseRoles.cs`),
+which the server's own checks use; `role.list` and the `roles` event send it, so the list never drifts from what's
+enforced. Their colour and (within the safety rules below) their powers can be changed per server.
 
 ```jsonc
 BaseRole { "id": "trusted", "color": "#5b9bd5" | null,
-           "abilities": ["invite", "events", "pin", "mentionEveryone", "uploadSounds"],   // its own and those below it
-           "permissions": [] }                                                          // admin and owner: every permission
+           "abilities": ["invite", "events", "pin", "mentionEveryone", "uploadSounds"],   // what it can do on this server
+           "permissions": [],                                                           // custom-role permissions it has by itself
+           "changed": false,                                                            // differs from the defaults
+           "defaults": { "abilities": [...], "permissions": [] },
+           "adjustable": { "abilities": [...], "permissions": [...] } }                 // what may be changed for it
 ```
 
-Abilities and the lowest role that has them: `invite` (invite guests and members), `events` (member); `pin`,
-`mentionEveryone`, `uploadSounds` (soundboard) (trusted); `giveBaseRoles` (`member.setRole`, invites and bot invites
-into roles below your own), `bots` (bot invites, voice bots, built-in bots), `organize` (categories), `rules`,
-`stickers`, `gifs`, `stageModerators`, `forumTags`, `profilePages`, `resolveDisputes` (admin); `runServer` (limits,
-updates, backups, moves, imports, security settings, connections, internet hosting) and `transferOwnership` (owner).
-Custom roles never grant these; they grant the [permissions](#roles-and-permissions), which admins and the owner
-always have.
+Abilities and the lowest role that has them **by default**: `invite` (invite guests and members), `events` (member);
+`pin`, `mentionEveryone`, `uploadSounds` (soundboard) (trusted); `giveBaseRoles` (`member.setRole`, invites and bot
+invites into roles below your own), `bots` (bot invites, voice bots, built-in bots), `organize` (categories, the
+default notification level), `rules`, `stickers`, `gifs`, `stageModerators`, `forumTags`, `profilePages`,
+`resolveDisputes` (admin); `runServer` (limits, updates, backups, moves, imports, security settings, connections,
+internet hosting) and `transferOwnership` (owner). Custom roles never grant abilities; they grant the
+[permissions](#roles-and-permissions). By default admins have every permission; the owner always has every
+permission and ability.
 
 | type | body | result | who |
 |---|---|---|---|
-| `role.base.update` | `role` (a built-in role), `color` (`#rrggbb`; `""` clears) | `{ baseRole: BaseRole }` | `manageRoles`; the owner may change any, everyone else only `trusted`, `member` and `guest` (`forbidden`, key `rank_base_roles`). Rate limited (10, then 1 a second) |
+| `role.base.update` | `role` (a built-in role); any of `color` (`#rrggbb`; `""` clears), `abilities` (the whole set, ≤ 17 names), `permissions` (the whole set, ≤ 13 names), `reset: true` (back to the default powers; not with `abilities`/`permissions`) | `{ baseRole: BaseRole }` | `manageRoles`. Colour: the owner may change any, everyone else only `trusted`, `member` and `guest` (`forbidden`, key `rank_base_roles`). Powers: see below. Rate limited (30, then 2 a second) |
+
+Safety rules for powers, all checked on the server before anything changes:
+
+- The owner's role never changes, not even by the owner (`forbidden`, key `base_role_owner`); `runServer` and
+  `transferOwnership` always stay the owner's. So the owner can never be locked out, and there is always someone who can
+  manage roles.
+- Only roles strictly below your own base role (`forbidden`, key `rank_base_roles`): admins change `trusted`, `member`
+  and `guest`; only the owner changes `admin`.
+- Only powers you have yourself, to give or to take (`forbidden`, key `base_power_not_yours`), so nobody lifts a role
+  past their own.
+- `guest` and `member` only get everyday powers: `invite`, `events`, `pin`, `mentionEveryone`, `uploadSounds` and the
+  permission `mentionEveryone` (`bad_request`, key `base_power_not_allowed`, args `{ role }`). `trusted` and `admin` may
+  get any ability but the owner's and any permission.
+- Unknown names → `bad_request`.
+
+Changes are stored as additions and removals from the defaults (`base_role_powers`, migration `builtinroles-2`), so a
+server that never changes anything behaves exactly as before, and abilities added in later versions follow their
+defaults. Effective powers are always clamped to what may be changed, whatever the database says. Audit `role.base`
+`{ role, from, to }` (colour) and `role.base.powers` `{ role, reset, added, removed }`.
 
 - Name colour (client-side): an owner's or admin's built-in colour comes first, then the highest custom role with a
   colour, then the built-in colour of `trusted`, `member` or `guest`, following the [hierarchy](#roles-and-permissions).
-- Safety: built-in roles can't be created, renamed, deleted or reordered, and their powers can't be changed, so the
-  owner always has everything and there is always someone who can manage roles. Custom roles can't take a built-in
-  role's name (or `everyone`): `role.create`/`role.update` → `bad_request`, key `role_name_builtin`.
-- Starter templates set the colours with `builtinRoles` (`{ "admin": { "color": "#e5534b" } }`; see
-  docs/hosting.md). Stored in `base_role_styles` (migration `builtinroles-1`). Audit `role.base` `{ role, from, to }`.
+- Built-in roles can't be created, renamed, deleted or reordered. Custom roles can't take a built-in role's name (or
+  `everyone`): `role.create`/`role.update` → `bad_request`, key `role_name_builtin`.
+- Starter templates set colours and powers with `builtinRoles` (see [Starter templates](#starter-templates)).
+  Colours are stored in `base_role_styles` (migration `builtinroles-1`).
 
 ## Bug inbox
 
@@ -2856,3 +2878,35 @@ Whoever runs the bot reads what's sent to it: that's the point of writing to a b
   (the member's base role, as the bot sees it); commands that need a `permission` work only in channels.
 - Storage (migration `botdms-1`): `bot_dm_prefs` (account, allow, at) and `bot_dm_peers` (bot, person, whether the
   person wrote first, when the conversation started). Both are in "Download my data" and are deleted with the account.
+
+## Starter templates
+
+A template (format in `docs/templates.md`) sets up a new server once: channels of every kind (text, voice, forum,
+stage, docs; hi-fi, user limits, slowmode, forum tags), who can see and use each (`readRole`/`writeRole` and per-role
+overrides for the template's own roles), custom roles, built-in role colours and powers, rules, the AFK channel and
+settings (default notifications, limits, built-in bots, bug inbox). `"version": 2`; files without a version are format 1
+and stay valid; a newer format is refused with a clear message. Unknown fields are an error. Up to 256 KB, 500
+channels, 50 categories, 100 roles. The server checks every template it reads with the same rules as the requests that
+make the same changes (built-in role powers included).
+
+| type | body | result | who |
+|---|---|---|---|
+| `server.template.export` | `{}` | `{ template: object }` (format 2) | admins (`forbidden`, key `admins_template_export`). Rate limited (3, then 1 every 10 s) |
+| `notify.default.set` | `level`: `auto` (all messages under 15 people, only @mentions above), `all` or `mentions` | `{ level }` | the `organize` ability (`forbidden`, key `admins_notify_default`). Rate limited (10, then 1 a second) |
+
+- `server.template.export` ("Save this server as a template") contains only structure and settings: never members,
+  messages, files, invites, keys or other secrets. Channels the person saving can't see are left out, and the bug inbox
+  unless the owner saves. Encrypted channels come out as ordinary ones (a template can't hold keys). The result is
+  checked with the template validator before it's sent (`bad_request`, key `template_export_invalid`, args `{ problem }`).
+  Audit `server.template.export`.
+- `welcome.notifyDefault` (`auto` | `all` | `mentions`; absent on older servers = `auto`) and the event
+  `notify.default { level }` (to everyone) give the server's default notification level for people who chose none; push
+  follows it. Stored in `notify_default` (migration `templatesv2-1`). Audit `notify.default` `{ from, to }`.
+- `iskra-server templates <file> --json` describes a checked template for the desktop app's preview (`roles` stays a
+  list of names; `roleDetails`, `builtinRoles`, `settings` and per-channel `readRole`, `writeRole`, `hifi`, `slowmode`,
+  `overrides`, `tags` are new).
+- `iskra-server templates apply <world> <file> [--apply]` adds a template to a server already in use, additive only:
+  roles and categories it doesn't have (by name), channels it doesn't have (by name and kind, anywhere on the server),
+  and settings still at their defaults. It never deletes, renames or changes existing channels, roles, members or
+  messages. Without `--apply` it only prints what it would add. It refuses while the server runs (its port answers on
+  localhost). Security log `server.template.merge`.

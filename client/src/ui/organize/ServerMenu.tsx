@@ -5,8 +5,8 @@
 import { useState } from 'react'
 import { create } from 'zustand'
 import { useTranslation } from 'react-i18next'
-import { roleRank } from '../../core/protocol'
-import { has } from '../../state/permissions'
+import { baseAllows, has } from '../../state/permissions'
+import { useServerBaseRoles } from '../../state/baseRoles'
 import { useServerRoles } from '../../state/roles'
 import { useReports } from '../../state/reports'
 import { connectionFor, leaveServer, useApp, type ServerState } from '../../state/store'
@@ -38,10 +38,11 @@ export function ServerMenu({ server, anchor, onClose }: { server: ServerState; a
   const roles = useServerRoles(server.key)
   const reports = useReports((s) => s.open[server.key] ?? 0)
   const me = server.me
-  const sections = serverSections(me?.role, (perm) => has(me, roles, perm))
+  const baseRoles = useServerBaseRoles(server.key)
+  const sections = serverSections(me?.role, (perm) => has(me, roles, perm, baseRoles))
   const label = new Map(sections.map((s) => [s.id, s.label]))
   const { rows, more } = serverMenuLayout(sections.map((s) => s.id), {
-    invite: !!me && roleRank(me.role) >= roleRank('member'),
+    invite: baseAllows(baseRoles, me, 'invite'),
     createChannel: has(me, roles, 'manageChannels'),
   })
   const pick = (action: ServerAction) => () => {

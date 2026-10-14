@@ -1,7 +1,7 @@
 // Mirrors the server's permission rules (Sessions/Permissions.cs) so the UI only offers what will work.
 // The server decides; this only hides buttons that would fail.
 import {
-  roleRank, type BaseRoleInfo, type Channel, type ChannelPermission, type Member, type Message, type Permission, type Role, type ServerRole,
+  roleRank, type BaseAbility, type BaseRoleInfo, type Channel, type ChannelPermission, type Member, type Message, type Permission, type Role, type ServerRole,
 } from '../core/protocol'
 import { t } from '../i18n'
 
@@ -31,8 +31,37 @@ export function rolesOf(member: Member | null | undefined, roles: ServerRole[]):
 
 export const topPosition = (member: Member | null | undefined, roles: ServerRole[]) => rolesOf(member, roles)[0]?.position ?? 0
 
-export function has(member: Member | null | undefined, roles: ServerRole[], permission: Permission): boolean {
-  return isAdmin(member) || rolesOf(member, roles).some((r) => r.permissions.includes(permission))
+/** Each base ability and the lowest role that has it by default (Sessions/BaseRoles.cs). */
+export const DEFAULT_ABILITY_ROLES: Record<BaseAbility, Role> = {
+  invite: 'member', events: 'member',
+  pin: 'trusted', mentionEveryone: 'trusted', uploadSounds: 'trusted',
+  giveBaseRoles: 'admin', bots: 'admin', organize: 'admin', rules: 'admin', stickers: 'admin', gifs: 'admin',
+  stageModerators: 'admin', forumTags: 'admin', profilePages: 'admin', resolveDisputes: 'admin',
+  runServer: 'owner', transferOwnership: 'owner',
+}
+export const BASE_ABILITIES = Object.keys(DEFAULT_ABILITY_ROLES) as BaseAbility[]
+
+/** The member's base role allows the ability on this server (the server's list, else the defaults). */
+export function baseAllows(baseRoles: BaseRoleInfo[] | undefined, member: Member | null | undefined, ability: BaseAbility): boolean {
+  if (!member) return false
+  if (member.role === 'owner') return true
+  const info = baseRoles?.find((b) => b.id === member.role)
+  return info?.defaults ? info.abilities.includes(ability) : roleRank(member.role) >= roleRank(DEFAULT_ABILITY_ROLES[ability])
+}
+
+/** The permissions the member's base role gives by itself (the owner: all; admins: all unless the server changed that). */
+export function basePermissions(baseRoles: BaseRoleInfo[] | undefined, member: Member | null | undefined): Permission[] {
+  if (!member) return []
+  if (member.role === 'owner') return PERMISSIONS
+  const info = baseRoles?.find((b) => b.id === member.role)
+  return info?.defaults ? info.permissions : isAdmin(member) ? PERMISSIONS : []
+}
+
+/** Pass the server's base roles where they're at hand, so changed built-in powers count. */
+export function has(member: Member | null | undefined, roles: ServerRole[], permission: Permission, baseRoles?: BaseRoleInfo[]): boolean {
+  if (!member) return false
+  const base = baseRoles ? basePermissions(baseRoles, member).includes(permission) : isAdmin(member)
+  return base || rolesOf(member, roles).some((r) => r.permissions.includes(permission))
 }
 
 /** Owner, then admins, then custom roles by the highest one, then trusted, member, guest. */

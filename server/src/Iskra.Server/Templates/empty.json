@@ -1,4 +1,5 @@
 {
+  "version": 2,
   "name": "Empty",
   "description": "Just #general and one voice channel. Add the rest yourself.",
   "channels": [

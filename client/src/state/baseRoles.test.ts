@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ROLES, type BaseRoleInfo, type Member, type Role, type ServerRole } from '../core/protocol'
-import { BASE_ROLES, baseRoleCounts, baseRoleName, baseRolesFor, canStyleBaseRole, describeBaseRole, setBaseRoles } from './baseRoles'
-import { nameColor, PERMISSIONS } from './permissions'
+import { adjustablePowers, BASE_ROLES, baseRoleCounts, baseRoleName, baseRolesFor, canAdjustBaseRole, canStyleBaseRole, describeBaseRole, powerChanges, setBaseRoles } from './baseRoles'
+import { baseAllows, basePermissions, has, nameColor, PERMISSIONS } from './permissions'
 import { en } from '../i18n/en'
 
 const member = (role: Role, roles: number[] = [], key = `k${role}${roles.join('')}`): Member =>
@@ -60,5 +60,35 @@ describe('built-in roles', () => {
   it('counts members per role', () => {
     const counts = baseRoleCounts({ a: member('owner'), b: member('member', [], 'b'), c: member('member', [], 'c') })
     expect(counts).toEqual({ guest: 0, member: 2, trusted: 0, admin: 0, owner: 1 })
+  })
+
+  it('follows changed powers: members who can pin, admins who cannot kick, the owner who can always do everything', () => {
+    const changed: BaseRoleInfo[] = list.map((b) => ({ ...b, defaults: { abilities: b.abilities, permissions: b.permissions }, adjustable: { abilities: [], permissions: [] } }))
+    changed[1] = { ...changed[1], permissions: PERMISSIONS.filter((p) => p !== 'kickMembers'), changed: true }
+    changed[3] = { ...changed[3], abilities: ['invite', 'events', 'pin'], changed: true }
+    changed[0] = { ...changed[0], abilities: [], permissions: [] } // whatever a server sends, the owner keeps everything
+    expect(baseAllows(changed, member('member'), 'pin')).toBe(true)
+    expect(baseAllows(list, member('member'), 'pin')).toBe(false) // an older server: the defaults
+    expect(baseAllows(undefined, member('trusted'), 'pin')).toBe(true)
+    expect(baseAllows(changed, member('owner'), 'runServer')).toBe(true)
+    expect(has(member('admin'), [], 'kickMembers', changed)).toBe(false)
+    expect(has(member('admin'), [], 'kickMembers')).toBe(true)
+    expect(has(member('admin', [1]), [custom(1, 1, { permissions: ['kickMembers'] })], 'kickMembers', changed)).toBe(true)
+    expect(basePermissions(changed, member('owner'))).toEqual(PERMISSIONS)
+    expect(powerChanges(changed[3])).toEqual({ added: ['pin'], removed: [] })
+    expect(powerChanges(changed[1])).toEqual({ added: [], removed: ['kickMembers'] })
+  })
+
+  it('only offers to adjust roles below your own, never the owner, and lists what may change', () => {
+    expect(canAdjustBaseRole(member('owner'), [], 'admin')).toBe(true)
+    expect(canAdjustBaseRole(member('owner'), [], 'owner')).toBe(false)
+    expect(canAdjustBaseRole(member('admin'), [], 'admin')).toBe(false)
+    expect(canAdjustBaseRole(member('admin'), [], 'trusted')).toBe(true)
+    expect(canAdjustBaseRole(member('member', [1]), [custom(1, 1, { permissions: ['manageRoles'] })], 'guest')).toBe(true)
+    expect(canAdjustBaseRole(member('member', [1]), [custom(1, 1, { permissions: ['manageRoles'] })], 'member')).toBe(false)
+    expect(canAdjustBaseRole(member('trusted'), [], 'guest')).toBe(false)
+    const info: BaseRoleInfo = { id: 'member', color: null, abilities: [], permissions: [], adjustable: { abilities: ['pin', 'invite'], permissions: ['mentionEveryone'] } }
+    expect(adjustablePowers(info)).toEqual({ abilities: ['invite', 'pin'], permissions: [] }) // in table order; @everyone once
+    expect(adjustablePowers(list[3])).toEqual({ abilities: [], permissions: [] })
   })
 })

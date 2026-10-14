@@ -67,14 +67,10 @@ public static partial class BuiltinBotFeature
         var member = store.GetMember(key);
         if (enabled && member is null)
         {
-            store.RemoveBan(key); // turning it on is an admin's explicit choice
-            member = store.AddMember(key, kind.Name, Roles.Member, s.Now);
-            store.AddBot(key, me.AccountKey, s.Now, readAll: false); // server-run: it only ever sees its own command
-            var commands = new JsonArray(new JsonObject { ["name"] = kind.Command, ["description"] = kind.Description, ["usage"] = kind.Usage });
-            store.SetBotCommands(key, commands.ToJsonString(), s.Now);
+            (member, var commands) = Enable(store, kind, me.AccountKey, s.Now);
             Audit.Record(s, "builtin.bot.on", key, details: new { bot = kind.Id });
             s.Hub.Broadcast(Frames.Event("member.joined", new { member = s.Hub.PublicMember(member) }));
-            using var doc = JsonDocument.Parse(commands.ToJsonString());
+            using var doc = JsonDocument.Parse(commands);
             s.Hub.Broadcast(Frames.Event("bot.commands", new { bot = key, commands = doc.RootElement.Clone() }));
         }
         else if (!enabled && member is not null)
@@ -88,6 +84,18 @@ public static partial class BuiltinBotFeature
         var bots = All(store);
         s.Hub.Broadcast(Frames.Event("builtin.bots", new { bots }));
         return new { bots };
+    }
+
+    /// <summary>Adds the built-in bot as a member (with its command), as turning it on does; also used by starter templates. Returns the commands JSON.</summary>
+    internal static (Member Member, string Commands) Enable(Store store, Kind kind, string by, long now)
+    {
+        var key = store.BuiltinBotKey(kind.Id, NewKey, now);
+        store.RemoveBan(key); // turning it on is an explicit choice
+        var member = store.AddMember(key, kind.Name, Roles.Member, now);
+        store.AddBot(key, by, now, readAll: false); // server-run: it only ever sees its own command
+        var commands = new JsonArray(new JsonObject { ["name"] = kind.Command, ["description"] = kind.Description, ["usage"] = kind.Usage }).ToJsonString();
+        store.SetBotCommands(key, commands, now);
+        return (member, commands);
     }
 
     /// <summary>A fresh identity nobody holds the private key of: the bot never signs in, so the key is thrown away.</summary>

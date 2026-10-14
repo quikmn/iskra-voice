@@ -33,7 +33,7 @@ export interface HostedServer {
   p2p: P2pHostStatus | null
 }
 
-/** A starter template as `iskra-server templates --json` describes it (for the setup wizard's preview). */
+/** A starter template as `iskra-server templates --json` describes it (for the setup wizard's preview; more fields pass through). */
 export interface ServerTemplateInfo {
   id: string
   name: string
@@ -43,6 +43,12 @@ export interface ServerTemplateInfo {
   roles: string[]
   rules: boolean
 }
+
+/** Template files people pick: up to this size (the server's own limit). */
+export const MAX_TEMPLATE_BYTES = 256 * 1024
+
+/** The template file a new server starts from: copied into its folder, so the server finds it on its first start. */
+export const TEMPLATE_FILE = 'template.json'
 
 /** Built-in template ids only: the page never names a file. */
 export const isTemplateId = (v: unknown): v is string => typeof v === 'string' && /^[a-z0-9-]{1,40}$/.test(v)
@@ -210,7 +216,34 @@ export class Host {
     return this.templateList
   }
 
-  async create(name: string, appUrl: string, template: string | null = null): Promise<HostedServer> {
+  /**
+   * Checks a template file with the bundled server (`templates <file> --json`; it opens no ports): what it sets up,
+   * or the server's own words about what's wrong.
+   */
+  checkTemplate(file: string): Promise<{ info: ServerTemplateInfo } | { error: string }> {
+    const binary = serverBinary()
+    if (!binary) return Promise.resolve({ error: 'iskra-server is missing' })
+    return new Promise((resolve) => {
+      const child = spawn(binary, ['templates', file, '--json'], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
+      let out = ''
+      let err = ''
+      child.stdout.on('data', (d: Buffer) => (out += d.toString()))
+      child.stderr.on('data', (d: Buffer) => (err += d.toString()))
+      child.once('error', (e) => resolve({ error: e.message }))
+      child.once('exit', (code) => {
+        try {
+          const parsed = JSON.parse(out) as ServerTemplateInfo[]
+          if (code === 0 && Array.isArray(parsed) && parsed[0]) return resolve({ info: parsed[0] })
+        } catch {
+          // the error is on stderr
+        }
+        resolve({ error: err.trim().split(/\r?\n/)[0]?.slice(0, 500) || 'invalid template' })
+      })
+    })
+  }
+
+  /** template: a built-in template id; or templateText: the content of a template file the person picked. */
+  async create(name: string, appUrl: string, template: string | null = null, templateText: string | null = null): Promise<HostedServer> {
     const clean = name.trim().slice(0, 60) || text().host.defaultName
     mkdirSync(this.root, { recursive: true })
     let id = slug(clean)
@@ -224,7 +257,7 @@ export class Host {
     for (let attempt = 1; ; attempt++) {
       const port = await pickPort(taken, 47070)
       const voicePort = await pickPort(new Set([...taken, port]), 7880)
-      this.writeNewServer(folder, clean, port, voicePort, appUrl, template)
+      this.writeNewServer(folder, clean, port, voicePort, appUrl, template, templateText)
       try {
         await this.start(id)
         return this.describe(id)
@@ -237,7 +270,8 @@ export class Host {
     }
   }
 
-  private writeNewServer(folder: string, clean: string, port: number, voicePort: number, appUrl: string, template: string | null): void {
+  private writeNewServer(folder: string, clean: string, port: number, voicePort: number, appUrl: string, template: string | null, templateText: string | null): void {
+    if (templateText !== null) writeFileSync(path.join(folder, TEMPLATE_FILE), templateText)
     writeFileSync(
       path.join(folder, 'server.json'),
       JSON.stringify(
@@ -245,7 +279,7 @@ export class Host {
           Name: clean,
           Port: port,
           // Applied once by the server on its first start (channels, voice rooms, roles, rules).
-          ...(template && isTemplateId(template) ? { Template: template } : {}),
+          ...(templateText !== null ? { Template: TEMPLATE_FILE } : template && isTemplateId(template) ? { Template: template } : {}),
           AppUrl: appUrl,
           // Tests: localhost only, so Windows never asks about the firewall.
           ...(process.env.ISKRA_LOCAL_ONLY === '1'

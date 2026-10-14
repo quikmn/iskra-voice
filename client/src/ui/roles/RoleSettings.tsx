@@ -6,9 +6,10 @@ import type { Channel, ChannelPermission, Member, Permission, Role, ServerRole }
 import {
   createRole, deleteRole, moveToChannel, reorderRoles, serverMute, setMemberRoles, setOverride, updateRole, useServerRoles,
 } from '../../state/roles'
-import { has, isAbove, isAdmin, MODERATOR_PRESET, outranks, permissionHint, permissionLabel, PERMISSIONS, rolesOf } from '../../state/permissions'
+import { has, isAbove, MODERATOR_PRESET, outranks, permissionHint, permissionLabel, PERMISSIONS, rolesOf } from '../../state/permissions'
 import { errorMessage } from '../../i18n/errors'
 import { BuiltinRoles } from './BuiltinRoles'
+import { useServerBaseRoles } from '../../state/baseRoles'
 import type { ServerState } from '../../state/store'
 import './roles.css'
 
@@ -140,7 +141,8 @@ function RoleEditor({ server, role, onDeleted }: { server: ServerState; role: Se
   const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   // You can only hand out permissions you have (a permission the role already has can stay).
-  const grantable = (p: Permission) => isAdmin(me) || has(me, roles, p) || role.permissions.includes(p)
+  const baseRoles = useServerBaseRoles(server.key)
+  const grantable = (p: Permission) => has(me, roles, p, baseRoles) || role.permissions.includes(p)
 
   async function save() {
     try {

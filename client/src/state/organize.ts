@@ -1,7 +1,7 @@
 // Organizing a server: channel categories (and who's collapsed what, remembered on this device), notification
 // levels and mutes (kept by the server for your account, so every device and push follow them), and nicknames.
 import { create } from 'zustand'
-import type { Category, Events, Member, NotifyLevel, NotifySetting } from '../core/protocol'
+import type { Category, Events, Member, NotifyDefault, NotifyLevel, NotifySetting } from '../core/protocol'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 import { knownThread } from './threads'
 import { t } from '../i18n'
@@ -10,6 +10,8 @@ import { defaultLevel, effectiveNotify, nextMuteEnd, notifyKey, type EffectiveNo
 interface OrganizeState {
   categories: Record<string, Category[]>
   notify: Record<string, NotifyMap>
+  /** serverKey → the server's default for people who chose nothing. */
+  serverDefaults: Record<string, NotifyDefault>
   /** serverKey → collapsed category ids (this device only). */
   collapsed: Record<string, number[]>
   /** Bumped when a timed mute runs out, so badges and labels refresh. */
@@ -28,7 +30,7 @@ function loadCollapsed(): Record<string, number[]> {
   }
 }
 
-export const useOrganize = create<OrganizeState>(() => ({ categories: {}, notify: {}, collapsed: loadCollapsed(), clock: Date.now() }))
+export const useOrganize = create<OrganizeState>(() => ({ categories: {}, notify: {}, serverDefaults: {}, collapsed: loadCollapsed(), clock: Date.now() }))
 
 const toMap = (list: NotifySetting[]): NotifyMap => Object.fromEntries(list.map((s) => [notifyKey(s.channelId), s]))
 
@@ -56,6 +58,7 @@ onWelcomeHook((key, welcome) => {
   useOrganize.setState((s) => ({
     categories: { ...s.categories, [key]: welcome.categories ?? [] },
     notify: { ...s.notify, [key]: toMap(welcome.notify ?? []) },
+    serverDefaults: { ...s.serverDefaults, [key]: welcome.notifyDefault ?? 'auto' },
     clock: Date.now(),
   }))
   scheduleMuteEnd()
@@ -67,6 +70,10 @@ onServerEvent((key, type, body) => {
     if (categories) useOrganize.setState((s) => ({ categories: { ...s.categories, [key]: categories } }))
   }
   if (type === 'notify.updated') saveSetting(key, (body as Events['notify.updated']).setting)
+  if (type === 'notify.default') {
+    const { level } = body as Events['notify.default']
+    useOrganize.setState((s) => ({ serverDefaults: { ...s.serverDefaults, [key]: level }, clock: Date.now() }))
+  }
 })
 
 // ── Reading ─────────────────────────────────────────────────────────────────
@@ -81,8 +88,10 @@ export function notifyFor(serverKey: string, channelId: number | null): Effectiv
   return effectiveNotify(map, channelId === null ? null : settingsChannel(serverKey, channelId), Date.now(), serverDefaultLevel(serverKey))
 }
 
-/** The level for this server when you chose nothing, by how many people are on it. */
+/** The level for this server when you chose nothing: the server's choice, or by how many people are on it. */
 export function serverDefaultLevel(serverKey: string): NotifyLevel {
+  const chosen = useOrganize.getState().serverDefaults[serverKey]
+  if (chosen === 'all' || chosen === 'mentions') return chosen
   const members = useApp.getState().servers[serverKey]?.members ?? {}
   return defaultLevel(Object.values(members).filter((m) => !m.bot).length)
 }
@@ -93,6 +102,16 @@ export function useNotifyFor(serverKey: string, channelId: number | null): Effec
   useOrganize((s) => s.notify[serverKey])
   useOrganize((s) => s.clock)
   return notifyFor(serverKey, channelId)
+}
+
+export const useServerNotifyDefault = (serverKey: string): NotifyDefault => useOrganize((s) => s.serverDefaults[serverKey] ?? 'auto')
+
+/** Admins: the default for everyone on the server who chose nothing. */
+export async function setServerNotifyDefault(serverKey: string, level: NotifyDefault): Promise<void> {
+  const c = connectionFor(serverKey)
+  if (!c) throw new Error(t('errors.codes.disconnected'))
+  const result = await c.request('notify.default.set', { level })
+  useOrganize.setState((s) => ({ serverDefaults: { ...s.serverDefaults, [serverKey]: result.level }, clock: Date.now() }))
 }
 
 export function useCategories(serverKey: string): Category[] {

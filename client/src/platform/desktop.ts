@@ -59,13 +59,28 @@ export interface ServerTemplateInfo {
   channels: TemplateChannelInfo[]
   roles: string[]
   rules: boolean
+  /** Newer servers (template format 2) say more for the preview. */
+  version?: number
+  roleDetails?: { name: string; color: string | null; icon: string | null; permissions: string[] }[]
+  builtinRoles?: Record<string, { color: string | null; abilities: string[] | null; permissions: string[] | null }>
+  afk?: { channel: string; minutes: number; canTalk: string[] } | null
+  settings?: { notifyDefault: string | null; limits: boolean; builtinBots: string[]; bugInbox: string | null } | null
 }
 
 export interface TemplateChannelInfo {
   name: string
-  kind: 'text' | 'voice'
+  kind: 'text' | 'voice' | 'forum' | 'stage' | 'docs'
   userLimit: number
+  readRole?: string
+  writeRole?: string
+  hifi?: boolean
+  slowmode?: number
+  overrides?: { role: string; allow: string[]; deny: string[] }[]
+  tags?: string[]
 }
+
+/** A template file someone picked: what it sets up (its id names it for create()), or why it can't be used. */
+export type PickedTemplate = { fileName: string; template: ServerTemplateInfo } | { error: string }
 
 export interface PickedBackup {
   path: string
@@ -160,10 +175,12 @@ export interface DesktopBridge {
   host: {
     available(): Promise<boolean>
     list(): Promise<HostedServer[]>
-    /** template: a starter template id from templates(), applied once on the server's first start. */
+    /** template: a starter template id from templates() or pickTemplate(), applied once on the server's first start. */
     create(name: string, appUrl: string, template?: string | null): Promise<HostedServer | null>
     /** The bundled server's starter templates (missing in older desktop builds). */
     templates?(): Promise<ServerTemplateInfo[]>
+    /** Asks for a template file and checks it with the bundled server; null if cancelled (missing in older desktop builds). */
+    pickTemplate?(): Promise<PickedTemplate | null>
     /** "Keep my server running": Iskra starts with the computer, hidden, and starts this server. */
     keepRunning?(id: string, on: boolean): Promise<HostedServer | null>
     start(id: string): Promise<HostedServer | null>

@@ -53,46 +53,14 @@ Installing and removing are written to the server's security log.
 
 ### Starter templates
 
-A new server can start with channels, voice rooms, roles and rules from a template. It's applied **once**, on the first start of a new server (nobody has joined, nothing has been set up yet). On a server that's already in use it's ignored, so a leftover setting never adds channels to it. Built in: `gaming`, `friends`, `tabletop`, `empty`. List them with `iskra-server templates`.
+A new server can start with channels of every kind, who can see and use them, roles, rules and settings from a template. It's applied **once**, on the first start of a new server. Built in: `gaming`, `friends`, `tabletop`, `empty`; list them with `iskra-server templates`.
 
-- In the desktop app: the second step of **Create a server**.
-- Standalone: `iskra-server my-server --template gaming`, or `"Template": "gaming"` in `server.json` before the first start.
-- Your own: a `.json` file, by path (`--template ./book-club.json`). Check one with `iskra-server templates ./book-club.json`: it prints what it would set up, or exactly what's wrong. A bad template stops the server from starting, with that message.
+- In the desktop app: the second step of **Create a server** (or **From a template file…**), with a preview.
+- Standalone: `iskra-server my-server --template gaming`, or `"Template": "gaming"` (or a `.json` path) in `server.json` before the first start.
+- Your own: **Server settings → Overview → Save as template**, or write one. Check a file with `iskra-server templates ./book-club.json`.
+- Add a template to a server already in use (additive only, stop the server first): `iskra-server templates apply my-server ./more-channels.json`, then again with `--apply`.
 
-```jsonc
-{
-  "name": "Book club",                         // 1–60 characters
-  "description": "Reading together.",          // optional, up to 300
-  "channels": [                                // optional: outside any category, listed first
-    { "name": "Reading room", "kind": "voice", "userLimit": 8 }
-  ],
-  "categories": [                              // optional, up to 50
-    {
-      "name": "Books",                         // 1–32 characters
-      "channels": [
-        { "name": "now-reading" },             // "kind": "text" (default) or "voice"; names 1–32 characters
-        { "name": "announcements", "writeRole": "admin" }   // readRole/writeRole: guest, member (default), trusted, admin
-      ]
-    }
-  ],
-  "roles": [                                   // optional, up to 20, highest first
-    { "name": "Moderator", "color": "#3fa66b", "icon": "📚", "hoist": true, "mentionable": false,
-      "permissions": ["manageMessages", "timeoutMembers", "kickMembers", "muteMembers", "moveMembers", "viewAuditLog"] }
-  ],
-  "builtinRoles": {                            // optional: the built-in roles, by name (owner, admin, trusted, member, guest)
-    "owner": { "color": "#c27ce0" },
-    "admin": { "color": "#e5534b" }
-  },
-  "rules": { "text": "Be kind.", "welcome": "Welcome!", "required": false },  // optional; rules up to 6000, welcome up to 500 characters
-  "afk": { "channel": "Reading room", "minutes": 30, "canTalk": ["owner", "admin", "Moderator"] }   // optional: the AFK channel
-}
-```
-
-- `userLimit` (voice only): 0 (no limit) to 99. At most 100 channels in all.
-- `afk` (optional): `channel` names one of the template's voice channels; people idle in voice for `minutes` (5, 15, 30 or 60; 0 = never move anyone; default 30) are moved there. In it everyone is muted and deafened by the server except the built-in roles (`owner`, `admin`, `trusted`, `member`, `guest`) and template roles (by name) listed in `canTalk` (default `["owner", "admin"]`). Admins can change all of it later in **Server settings → Voice**. The `gaming` and `friends` templates have an AFK channel.
-- Permissions: `manageMessages`, `timeoutMembers`, `kickMembers`, `banMembers`, `manageChannels`, `manageRoles`, `viewAuditLog`, `manageExpressions`, `manageWebhooks`, `mentionEveryone`, `moveMembers`, `muteMembers`, `manageAutoMod`.
-- `roles` are custom roles; their names can't be `everyone` or a built-in role's. `builtinRoles` sets the built-in roles' colour (`#rrggbb`, or `""` for none). What built-in roles can do is fixed (Server settings → Roles shows it), so colour is the only setting.
-- The server's starting `#general` becomes the template's first text channel. Comments and trailing commas are fine; unknown fields are an error (so typos don't go unnoticed). Files can be up to 64 KB. Applying one is written to the security log.
+The format, with an example, is in [templates.md](templates.md).
 
 ### Rent a small server
 

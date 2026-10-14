@@ -57,6 +57,7 @@ import { ServerTile } from './ServerTile'
 import { ChannelsSection } from './ChannelsSection'
 import { closeSettings, useSettingsView } from './open'
 import { mySections, SERVER_GROUPS, serverSections, type MySectionId, type SectionInfo, type ServerSectionId } from './sections'
+import { SaveAsTemplate } from '../templates/SaveAsTemplate'
 import './settings.css'
 import './room.css'
 
@@ -354,6 +355,7 @@ function OverviewSection({ server }: { server: ServerState }) {
         {tunnel && <div data-testid="overview-p2p"><dt>{t('settings.overview.connection')}</dt><dd>{t('hosting.p2p.via')}</dd></div>}
         <div><dt>{t('settings.overview.serverId')}</dt><dd><code>{fingerprint(server.key)}</code></dd></div>
       </dl>
+      <SaveAsTemplate server={server} />
     </section>
   )
 }

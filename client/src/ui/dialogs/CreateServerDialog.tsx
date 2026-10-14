@@ -12,7 +12,8 @@ import { InviteDialog } from './InviteDialog'
 import '../settings/backup.css'
 import './CreateServerDialog.css'
 import { Modal, Spinner } from '../bits'
-import { Hash, Volume } from '../icons'
+import { TemplatePreview } from '../templates/TemplatePreview'
+import { ChannelKindIcon } from '../ChannelKindIcon'
 import { appUrl } from '../format'
 
 /** Where the desktop app keeps hosted servers (desktop/src/platform.ts). */
@@ -64,6 +65,7 @@ function NewServer({ onClose, onRestore, onRent }: { onClose: () => void; onRest
   const [name, setName] = useState('')
   const [templates, setTemplates] = useState<ServerTemplateInfo[]>([])
   const [picked, setPicked] = useState<string | null>(null)
+  const [fromFile, setFromFile] = useState<{ fileName: string; template: ServerTemplateInfo } | null>(null)
   const [hosted, setHosted] = useState<HostedServer | null>(null)
   const [serverKey, setServerKey] = useState<string | null>(null)
   const [inviting, setInviting] = useState(false)
@@ -102,6 +104,25 @@ function NewServer({ onClose, onRestore, onRent }: { onClose: () => void; onRest
       setStep(templates.length > 0 ? 'template' : 'name')
     }
   }
+
+  async function pickFile() {
+    setError(null)
+    try {
+      const result = await desktop?.host.pickTemplate?.()
+      if (!result) return
+      if ('error' in result) {
+        setError(t('templates.file.invalid', { error: result.error }))
+        return
+      }
+      setFromFile(result)
+      setPicked(result.template.id)
+    } catch (e) {
+      setError(errorMessage(e))
+    }
+  }
+
+  const choices = fromFile ? [...templates, fromFile.template] : templates
+  const selected = choices.find((c) => c.id === picked) ?? null
 
   const next = () => {
     if (!trimmed) return
@@ -177,10 +198,17 @@ function NewServer({ onClose, onRestore, onRent }: { onClose: () => void; onRest
         {progress}
         <p className="muted">{t('hosting.wizard.templateIntro')}</p>
         <div className="template-grid" role="radiogroup" aria-label={t('hosting.wizard.templates')}>
-          {templates.map((template) => (
-            <TemplateCard key={template.id} template={template} selected={picked === template.id} onPick={() => setPicked(template.id)} />
+          {choices.map((template) => (
+            <TemplateCard key={template.id} template={template} selected={picked === template.id} onPick={() => setPicked(template.id)}
+              fileName={template.id === fromFile?.template.id ? fromFile.fileName : undefined} />
           ))}
         </div>
+        {desktop?.host.pickTemplate && (
+          <p className="muted template-file">
+            <button className="link" onClick={() => void pickFile()}>{t('templates.file.pick')}</button> {t('templates.file.hint')}
+          </p>
+        )}
+        {selected && <TemplatePreview template={selected} />}
         {error && <p className="error-text">{error}</p>}
       </Modal>
     )
@@ -230,21 +258,21 @@ function ChannelPreview({ channel }: { channel: TemplateChannelInfo }) {
   const { t } = useTranslation()
   return (
     <li>
-      {channel.kind === 'voice' ? <Volume size={13} /> : <Hash size={13} />}
+      <ChannelKindIcon kind={channel.kind} size={13} />
       <span>{channel.name}</span>
       {channel.userLimit > 0 && <small className="muted">{t('hosting.wizard.upTo', { count: channel.userLimit })}</small>}
     </li>
   )
 }
 
-function TemplateCard({ template, selected, onPick }: { template: ServerTemplateInfo; selected: boolean; onPick: () => void }) {
+function TemplateCard({ template, selected, onPick, fileName }: { template: ServerTemplateInfo; selected: boolean; onPick: () => void; fileName?: string }) {
   const { t } = useTranslation()
   const text = templateText(template)
   const groups = [...(template.channels.length > 0 ? [{ name: null as string | null, channels: template.channels }] : []), ...template.categories]
   return (
     <button type="button" role="radio" aria-checked={selected} className={`template-card ${selected ? 'selected' : ''}`} onClick={onPick} data-template={template.id}>
       <strong>{text.name}</strong>
-      <span className="template-description">{text.description}</span>
+      <span className="template-description">{fileName ? t('templates.file.from', { file: fileName }) : text.description}</span>
       <div className="template-preview" aria-hidden>
         {groups.map((group, i) => (
           <div key={i}>

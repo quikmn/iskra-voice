@@ -1,6 +1,6 @@
 namespace Iskra.Server.Storage;
 
-/// <summary>Server-wide permissions a custom role can grant. Admins and the owner have all of them.</summary>
+/// <summary>Server-wide permissions a custom role can grant. Admins have all of them by default, the owner always.</summary>
 [Flags]
 public enum Perm : long
 {
@@ -148,12 +148,13 @@ public sealed partial class Store
     };
 
     private Member? HydrateMember(Member? m) =>
-        m is null ? null : WithRoles(m, Query("""
+        m is null ? null : WithRoles(WithBase(m), Query("""
             SELECT r.id, r.position, r.perms FROM member_roles mr JOIN roles r ON r.id = mr.role_id WHERE mr.account_key = $a;
             """, r => (r.GetInt64(0), r.GetInt32(1), (Perm)r.GetInt64(2)), ("$a", m.AccountKey)));
 
     private List<Member> HydrateMembers(List<Member> members)
     {
+        if (ChangedBasePowers().Count > 0) members = members.Select(WithBase).ToList();
         var all = Query("""
             SELECT mr.account_key, r.id, r.position, r.perms FROM member_roles mr JOIN roles r ON r.id = mr.role_id;
             """, r => (Key: r.GetString(0), Role: (r.GetInt64(1), r.GetInt32(2), (Perm)r.GetInt64(3))));

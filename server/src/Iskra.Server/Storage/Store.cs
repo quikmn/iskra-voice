@@ -10,6 +10,8 @@ public sealed record Member(string AccountKey, string Name, string Role, long Jo
     public Perm Perms { get; init; }
     /// <summary>Position of the member's highest custom role (0 = none).</summary>
     public int TopPosition { get; init; }
+    /// <summary>What the member's base role can do on this server, when changed from the defaults (null = defaults).</summary>
+    public BasePowers? Base { get; init; }
 }
 public sealed record Channel(long Id, string Name, string Kind, int Position, string ReadRole, string WriteRole)
 {
@@ -319,6 +321,8 @@ public sealed partial class Store : IDisposable
         ("buginbox-1", BugInboxMigration),
         ("afk-1", AfkMigration),
         ("botdms-1", BotDmsMigration),
+        ("builtinroles-2", BaseRolePowersMigration),
+        ("templatesv2-1", NotifyDefaultMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

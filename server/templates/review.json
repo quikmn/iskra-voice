@@ -1,0 +1,92 @@
+{
+  // The Iskra Review server: room for app reviewers and testers to try everything without sitting on top of each other.
+  // Add it to a running world with: iskra-server templates apply <world> review.json (dry run), then --apply.
+  "version": 2,
+  "name": "Iskra Review",
+  "description": "Lots of channels to try every feature: chat, threads, forums, docs, stage, voice, hi-fi and watch parties.",
+  "categories": [
+    {
+      "name": "Start here",
+      "channels": [
+        { "name": "welcome", "writeRole": "admin" },
+        { "name": "rules", "writeRole": "admin" },
+        { "name": "announcements", "writeRole": "admin", "overrides": [{ "role": "Moderator", "allow": ["send"] }] },
+        { "name": "introductions", "slowmode": 10 }
+      ]
+    },
+    {
+      "name": "Chat",
+      "channels": [
+        { "name": "general" },
+        { "name": "off-topic" },
+        { "name": "memes" },
+        { "name": "gaming" },
+        { "name": "music" },
+        { "name": "pets" },
+        { "name": "food-and-drinks" },
+        { "name": "screenshots-and-clips" }
+      ]
+    },
+    {
+      "name": "Try things",
+      "channels": [
+        { "name": "polls-and-reactions" },
+        { "name": "threads-playground" },
+        { "name": "files-and-images" },
+        { "name": "gifs-and-stickers" },
+        { "name": "bots-playground" },
+        { "name": "slow-chat", "slowmode": 30 }
+      ]
+    },
+    {
+      "name": "Forums and docs",
+      "channels": [
+        {
+          "name": "feature-ideas", "kind": "forum",
+          "tags": [{ "name": "Chat", "emoji": "💬" }, { "name": "Voice", "emoji": "🎙️" }, { "name": "Phone", "emoji": "📱" }, { "name": "Desktop", "emoji": "🖥️" }]
+        },
+        {
+          "name": "help-and-questions", "kind": "forum",
+          "tags": [{ "name": "Question", "emoji": "❓" }, { "name": "Bug", "emoji": "🐛" }, { "name": "Solved", "emoji": "✅" }]
+        },
+        { "name": "guide", "kind": "docs" }
+      ]
+    },
+    {
+      "name": "Stage",
+      "channels": [
+        { "name": "town-hall", "kind": "stage" }
+      ]
+    },
+    {
+      "name": "Voice",
+      "channels": [
+        { "name": "Hangout", "kind": "voice" },
+        { "name": "Quiet corner", "kind": "voice", "userLimit": 4 },
+        { "name": "Lounge 1", "kind": "voice" },
+        { "name": "Lounge 2", "kind": "voice" },
+        { "name": "Lounge 3", "kind": "voice" },
+        { "name": "Lounge 4", "kind": "voice" },
+        { "name": "Lounge 5", "kind": "voice" },
+        { "name": "Lounge 6", "kind": "voice" },
+        { "name": "Duo 1", "kind": "voice", "userLimit": 2 },
+        { "name": "Duo 2", "kind": "voice", "userLimit": 2 },
+        { "name": "Duo 3", "kind": "voice", "userLimit": 2 },
+        { "name": "Squad 1", "kind": "voice", "userLimit": 5 },
+        { "name": "Squad 2", "kind": "voice", "userLimit": 5 },
+        { "name": "Squad 3", "kind": "voice", "userLimit": 5 },
+        { "name": "Music lounge", "kind": "voice", "hifi": true },
+        { "name": "Watch party", "kind": "voice" },
+        { "name": "AFK", "kind": "voice" }
+      ]
+    }
+  ],
+  "roles": [
+    { "name": "Moderator", "color": "#3fa66b", "hoist": true, "permissions": ["manageMessages", "timeoutMembers", "kickMembers", "muteMembers", "moveMembers", "viewAuditLog"] }
+  ],
+  "afk": { "channel": "AFK", "minutes": 30, "canTalk": ["owner", "admin"] },
+  "settings": {
+    "notifyDefault": "mentions",
+    "builtinBots": ["dice", "polls", "reminders"]
+  }
+}

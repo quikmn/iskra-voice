@@ -41,6 +41,7 @@ import { bugReport } from './bugReport'
 import { afk } from './afk'
 import { whatsNew } from './whatsNew'
 import { claim } from './claim'
+import { templates } from './templates'
 
 export const sv: Messages = {
   common,
@@ -84,4 +85,5 @@ export const sv: Messages = {
   afk,
   whatsNew,
   claim,
+  templates,
 }

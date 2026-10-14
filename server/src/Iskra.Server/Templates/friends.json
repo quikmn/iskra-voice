@@ -1,4 +1,5 @@
 {
+  "version": 2,
   "name": "Friends hangout",
   "description": "A relaxed place for chatting, photos and plans, with a couple of voice channels to hang out in.",
   "categories": [
@@ -8,7 +9,10 @@
         { "name": "general" },
         { "name": "photos" },
         { "name": "memes" },
-        { "name": "plans" }
+        {
+          "name": "plans", "kind": "forum",
+          "tags": [{ "name": "Trip", "emoji": "🧳" }, { "name": "Food", "emoji": "🍕" }, { "name": "Games", "emoji": "🎮" }, { "name": "Movie", "emoji": "🎬" }]
+        }
       ]
     },
     {
@@ -26,11 +30,15 @@
   ],
   "builtinRoles": {
     "owner": { "color": "#c27ce0" },
-    "admin": { "color": "#e5534b" }
+    "admin": { "color": "#e5534b" },
+    "member": { "abilities": ["invite", "events", "pin", "uploadSounds"] }
   },
   "afk": { "channel": "AFK", "minutes": 30, "canTalk": ["owner", "admin"] },
   "rules": {
     "text": "1. Be kind. We're all friends here.\n2. Ask before sharing someone else's photos.\n3. Keep it legal and keep it fun.",
     "welcome": "Welcome! Pull up a chair in #general."
+  },
+  "settings": {
+    "builtinBots": ["polls", "reminders"]
   }
 }

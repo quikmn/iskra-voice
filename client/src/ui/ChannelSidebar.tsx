@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { roleRank } from '../core/protocol'
-import { has } from '../state/permissions'
+import { baseAllows, has } from '../state/permissions'
+import { useServerBaseRoles } from '../state/baseRoles'
 import { useServerRoles } from '../state/roles'
 import { failedJoin, useApp, type ServerState } from '../state/store'
 import { useThreads } from '../state/threads'
@@ -26,7 +26,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
   const { t } = useTranslation()
   const [dialog, setDialog] = useState<'invite' | 'channel' | null>(null)
   const isAdmin = has(server.me, useServerRoles(server.key), 'manageChannels') // may create channels
-  const canInvite = server.me ? roleRank(server.me.role) >= roleRank('member') : false
+  const canInvite = baseAllows(useServerBaseRoles(server.key), server.me, 'invite')
   const [createIn, setCreateIn] = useState<number | null>(null)
   const [menu, setMenu] = useState<MenuAnchor | null>(null)
   useThreads((s) => s.threads[server.key]) // thread mentions count on their channel

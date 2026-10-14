@@ -20,7 +20,37 @@ public static class NotifyFeature
 
     private static readonly string[] Levels = [All, Mentions, Nothing];
 
-    public static void Register(Router router) => router.Add("notify.set", Set);
+    /// <summary>The server's choice of default: automatic (by size), or always one level.</summary>
+    public const string Auto = "auto";
+    public static readonly string[] ServerDefaults = [Auto, All, Mentions];
+
+    public static void Register(Router router)
+    {
+        router.Add("notify.set", Set);
+        router.Add("notify.default.set", SetServerDefault);
+    }
+
+    /// <summary>For <c>welcome.notifyDefault</c>: "auto", "all" or "mentions".</summary>
+    public static string ServerDefault(Store store) => store.NotifyDefault() ?? Auto;
+
+    /// <summary>The level for people who chose none: the server's choice, or by its size.</summary>
+    public static string DefaultFor(Store store) => store.NotifyDefault() ?? DefaultFor(store.CountPeople());
+
+    /// <summary>`notify.default.set`: people who can organize the server pick the default for everyone who chose none.</summary>
+    private static object SetServerDefault(Session s, Member me, Body body)
+    {
+        if (!BaseRoles.Allows(me, BaseAbility.Organize)) throw RequestException.Forbidden("Only admins can change this server's default notifications.", "admins_notify_default");
+        var level = body.String("level", 16);
+        if (!ServerDefaults.Contains(level)) throw RequestException.BadRequest("'level' must be auto, all or mentions.");
+        var before = ServerDefault(s.World.Store);
+        if (level != before)
+        {
+            s.World.Store.SetNotifyDefault(level == Auto ? null : level);
+            Audit.Record(s, "notify.default", details: new { from = before, to = level });
+            s.Hub.Broadcast(Frames.Event("notify.default", new { level }));
+        }
+        return new { level };
+    }
 
     private static bool Active(NotifySetting setting, long now) => setting.MutedUntil is { } until && (until == Forever || until > now);
 

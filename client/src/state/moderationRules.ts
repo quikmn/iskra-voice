@@ -101,11 +101,12 @@ export function countdown(ms: number): string {
 /** Filter choices in the audit log viewer. */
 export const AUDIT_ACTIONS = [
   'member.kick', 'member.ban', 'member.unban', 'member.timeout', 'member.timeout.remove', 'member.role', 'member.roles',
-  'role.create', 'role.update', 'role.delete', 'role.reorder', 'channel.overrides', 'voice.mute', 'voice.move', 'voice.disconnect',
+  'role.create', 'role.update', 'role.delete', 'role.reorder', 'role.base', 'role.base.powers', 'channel.overrides', 'voice.mute', 'voice.move', 'voice.disconnect',
   'channel.create', 'channel.update', 'channel.delete', 'message.delete', 'thread.delete', 'message.pin', 'message.unpin',
   'invite.create', 'invite.revoke', 'webhook.create', 'webhook.update', 'webhook.regenerate', 'webhook.delete', 'bot.invite',
   'emoji.create', 'emoji.rename', 'emoji.delete', 'sound.create', 'sound.update', 'sound.delete',
-  'profile.page.remove', 'server.pages', 'server.internet', 'limits.update', 'buginbox.update', 'afk.update', 'automod.block', 'automod.update',
+  'profile.page.remove', 'server.pages', 'server.internet', 'limits.update', 'buginbox.update', 'afk.update', 'notify.default', 'server.template.export',
+  'automod.block', 'automod.update',
   'report.resolve', 'owner.transfer', 'docs.page.create', 'docs.page.delete', 'docs.page.restore', 'docs.home.set',
 ] as const
 
@@ -207,6 +208,10 @@ export function auditText(e: AuditEntry): string {
     case 'limits.update': return t('moderation.audit.limits', { actor })
     case 'buginbox.update': return t(d.enabled ? 'moderation.audit.bugInboxOn' : 'moderation.audit.bugInboxOff', { actor })
     case 'afk.update': return t('moderation.audit.afk', { actor })
+    case 'role.base': return t('moderation.audit.baseRoleColour', { actor, role: level(d.role) })
+    case 'role.base.powers': return t(d.reset ? 'moderation.audit.baseRoleReset' : 'moderation.audit.baseRolePowers', { actor, role: level(d.role) })
+    case 'notify.default': return t('moderation.audit.notifyDefault', { actor })
+    case 'server.template.export': return t('moderation.audit.templateExport', { actor })
     case 'automod.update': return t(d.enabled ? 'moderation.audit.automodUpdate' : 'moderation.audit.automodOff', { actor })
     case 'report.resolve': {
       const outcome = ['dismissed', 'deleted', 'timeout', 'kick', 'ban', 'other'].includes(str(d.outcome)) ? str(d.outcome) as 'other' : 'other'
