@@ -11,6 +11,8 @@
 - **Invites say where you're going**: an invite link greets you with the server's name.
 - **On a phone, Start your own server** shows how to put Iskra on your computer, or rent a small server.
 
+- **No port forwarding for standalone servers too**: turn on Connect without port forwarding and the server runs its own peer-to-peer tunnel (included in the server downloads).
+
 ### Fixes
 
 - Rent a server: "Connect to DigitalOcean" now finishes signing in (it stopped at the last step with "authorization grant is invalid").
