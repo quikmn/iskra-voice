@@ -31,6 +31,10 @@ test('the terms are agreed on first run, and again when they change', async ({ b
   await page.setViewportSize({ width: 390, height: 844 })
   await page.waitForTimeout(350) // let the dialog finish appearing
   await page.screenshot({ path: join(SHOTS, 'safety-terms-first-run-phone.png') })
+  // Why the choices are greyed out: said right above them, and read out with them.
+  await expect(isNew).toHaveAccessibleDescription('Tick the box above to continue.')
+  await isNew.scrollIntoViewIfNeeded()
+  await expect(page.getByText('Tick the box above to continue.')).toBeInViewport()
   await page.setViewportSize({ width: 1280, height: 720 })
 
   // "I already use Iskra" needs it too; going back shows the choices without asking again.

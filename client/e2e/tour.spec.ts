@@ -315,7 +315,7 @@ test('screenshot tour', async ({ browser }) => {
     await mead.getByRole('button', { name: 'Start a thread' }).click()
     await shot(host, '20-dialog-thread-desktop')
     await host.getByRole('button', { name: 'Create thread' }).click()
-    const reply = host.locator('.thread-panel').getByPlaceholder(/Reply in/)
+    const reply = host.locator('.thread-panel').getByPlaceholder(/Reply (in|to) the/)
     await reply.fill('I will bring the flour too')
     await reply.press('Enter')
     await shot(host, '21-thread-panel-desktop')

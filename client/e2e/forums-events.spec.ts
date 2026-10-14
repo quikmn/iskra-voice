@@ -66,7 +66,7 @@ test('a forum with tags, posts, replies, unread markers and moderation', async (
   await hostCard.click()
   const hostPanel = host.locator('.thread-panel')
   await expect(hostCard.locator('.post-unread')).toHaveCount(0)
-  const reply = hostPanel.getByPlaceholder('Reply in Crash on start')
+  const reply = hostPanel.getByPlaceholder('Reply to the post')
   await reply.fill('Does it happen after a restart too?')
   await reply.press('Enter')
   await expect(hostPanel.locator('.message', { hasText: 'after a restart' })).toBeVisible()
@@ -76,8 +76,8 @@ test('a forum with tags, posts, replies, unread markers and moderation', async (
 
   // The owner pins and locks it; the friend can't reply any more.
   await expect(hostPanel.getByRole('button', { name: 'Pinned messages in this post' })).toBeVisible()
-  await hostPanel.getByRole('button', { name: 'Pin post', exact: true }).click()
-  await expect(hostPanel.getByRole('button', { name: 'Unpin post', exact: true })).toBeVisible()
+  await hostPanel.getByRole('button', { name: 'Pin to top', exact: true }).click()
+  await expect(hostPanel.getByRole('button', { name: 'Unpin from top', exact: true })).toBeVisible()
   await hostPanel.getByRole('button', { name: 'Lock', exact: true }).click()
   await expect(friendCard.locator('.post-state')).toContainText('Locked')
   await friendCard.click()

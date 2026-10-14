@@ -195,7 +195,9 @@ export const chat = {
     keep: 'Keep',
     close: 'Close thread',
     missing: "This thread isn't available any more.",
-    replyIn: 'Reply in {{name}}',
+    // Short, so it fits the panel's composer: the header names the thread.
+    replyThread: 'Reply in the thread',
+    replyPost: 'Reply to the post',
     cannotReply: "You can't reply in this thread.",
     rootDeleted: 'The original message was deleted.',
     startedPost: '{{name}} started this post.',
