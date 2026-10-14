@@ -71,7 +71,7 @@ export interface Rtc {
 const load = (name: string): Promise<Record<string, unknown>> => import(name)
 
 const missing = (what: string, e: unknown) =>
-  new Error(`Voice needs ${what}: run "npm install" in the bots folder. (${(e as Error).message})`)
+  new Error(`Voice needs ${what}: run "npm install" in the bots folder (with the iskra-bots package: in your bot's folder; it's an optional dependency). (${(e as Error).message})`)
 
 let rtc: Promise<Rtc> | null = null
 

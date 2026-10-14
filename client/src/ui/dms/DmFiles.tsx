@@ -17,6 +17,7 @@ import { VoicePlayer, VoiceRecordButton } from '../chat/voice/VoiceMessages'
 import { voiceRecordingSupported, type Recording } from '../chat/voice/recorder'
 import { useSendLater } from '../productivity/SendLater'
 import { useQueuedSend } from '../chat/QueuedSend'
+import { useBotDmCommands } from './BotDmCommands'
 import './dm-files.css'
 
 /** Decrypted automatically when small enough; bigger files wait for a click. */
@@ -35,9 +36,12 @@ interface PendingUpload {
   abort: AbortController
 }
 
-/** Composer for a DM with `peer`, or for a group DM when `group` is given (files are then readable by its members). */
-export function DmComposer({ peer, placeholder, group }: {
-  peer: string; placeholder: string; group?: { key: string; serverKey: string; id: string }
+/**
+ * Composer for a DM with `peer`, or for a group DM when `group` is given (files are then readable by its members). With
+ * a bot (`bot`), "/" suggests its commands.
+ */
+export function DmComposer({ peer, placeholder, group, bot = false }: {
+  peer: string; placeholder: string; group?: { key: string; serverKey: string; id: string }; bot?: boolean
 }) {
   const draft = group ? draftKey.dm(`g:${group.key}`) : draftKey.dm(peer)
   const text = useDraft(draft)
@@ -47,7 +51,14 @@ export function DmComposer({ peer, placeholder, group }: {
   const box = useRef<HTMLTextAreaElement>(null)
   const caret = useRef<number | null>(null)
   const [picker, setPicker] = useState<HTMLElement | null>(null)
+  const [caretAt, setCaretAt] = useState(0)
   const { t } = useTranslation()
+  const commands = useBotDmCommands(peer, bot && !group, text, caretAt, (next) => {
+    setText(next.text)
+    caret.current = next.caret
+    setCaretAt(next.caret)
+    box.current?.focus()
+  })
   const route = group ? group.serverKey : sharedServers(peer)[0]
   const target = group ? { groupId: group.id } : peer
   const send = (body: string, files: DmFile[]) =>
@@ -133,6 +144,7 @@ export function DmComposer({ peer, placeholder, group }: {
       )}
       {queue.bar}
       <div className="composer">
+        {commands.popup}
         <button className="icon-button attach-button" onClick={() => fileInput.current?.click()} aria-label={t('chat.composer.attach')} title={t('dms.files.attachTitle')}>
           <Paperclip />
         </button>
@@ -152,8 +164,9 @@ export function DmComposer({ peer, placeholder, group }: {
           value={text}
           maxLength={4000}
           placeholder={placeholder}
-          onChange={(e) => { setText(e.target.value); caret.current = e.target.selectionStart }}
-          onSelect={(e) => { caret.current = e.currentTarget.selectionStart }}
+          onChange={(e) => { setText(e.target.value); caret.current = e.target.selectionStart; setCaretAt(e.target.selectionStart) }}
+          onSelect={(e) => { caret.current = e.currentTarget.selectionStart; setCaretAt(e.currentTarget.selectionStart) }}
+          {...commands.inputProps}
           onPaste={(e) => {
             const files = [...e.clipboardData.files]
             if (files.length) {
@@ -168,6 +181,7 @@ export function DmComposer({ peer, placeholder, group }: {
             }
           }}
           onKeyDown={(e) => {
+            if (commands.onKeyDown(e)) return
             if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault()
               submit()

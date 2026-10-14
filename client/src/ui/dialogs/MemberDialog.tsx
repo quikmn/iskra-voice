@@ -68,7 +68,7 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
 
       {!isSelf && (
         <div className="copy-row member-actions">
-          <button className="button primary" onClick={() => { openConversation(member.accountKey); onClose() }}>{t('settings.member.message')}</button>
+          {!member.builtin && <button className="button primary" onClick={() => { openConversation(member.accountKey); onClose() }}>{t('settings.member.message')}</button>}
           <FriendButtons accountKey={member.accountKey} />
           <BlockButton accountKey={member.accountKey} name={member.name} />
         </div>

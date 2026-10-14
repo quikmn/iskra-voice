@@ -149,7 +149,7 @@ function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; me
               {t('profile.openPage')}
             </button>
           )}
-          {!isSelf && (
+          {!isSelf && !member.builtin && (
             <button className="button" onClick={() => { openConversation(member.accountKey); closeProfileCard() }}>{t('settings.member.message')}</button>
           )}
           {!isSelf && <FriendButtons accountKey={member.accountKey} />}

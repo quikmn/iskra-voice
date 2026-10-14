@@ -9,6 +9,7 @@ import { nameOf, openConversation, sharedServers, useDms } from '../../state/dms
 import { acceptFriend, addFriend, blockPerson, cancelFriendRequest, ignoreFriend, removeFriend, useFriends, useRelation } from '../../state/friends'
 import { useGroupCalls } from '../../state/groupCalls'
 import { removeTimeout, setBlocked, timeoutMember, useIsBlocked } from '../../state/moderation'
+import { botMember } from '../../state/botDms'
 import { durationLabel, timeoutActive, TIMEOUT_OPTIONS } from '../../state/moderationRules'
 import { has, isAbove, outranks } from '../../state/permissions'
 import { openProfileCard } from '../../state/profile'
@@ -60,6 +61,8 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
   const self = accountKey === myKey
   const server = target.serverKey ? servers[target.serverKey] : undefined
   const member = server?.members[accountKey]
+  // Bots (from any server): no calls or friend requests; built-in ones take no DMs either.
+  const bot = botMember(accountKey)
   // Profiles live on servers: the one it was opened on, else any server you share.
   const profileServer = member ? server!.key : sharedServers(accountKey).find((k) => servers[k]?.members[accountKey])
   const name = member?.name ?? nameOf(accountKey)
@@ -78,9 +81,9 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
   const moveTargets = server && participant && (self || below) && has(me, roles, 'moveMembers')
     ? server.channels.filter((c) => c.kind === 'voice' && c.id !== Number(voiceChannel)) : []
   const canDisconnect = !!participant && below && has(me, roles, 'moveMembers')
-  const canCall = !self && !blocked && callServers(accountKey).length > 0
+  const canCall = !self && !blocked && !bot && callServers(accountKey).length > 0
   const canTransfer = !!member && !self && !member.bot && me?.role === 'owner'
-  const canMessage = !self && (sharedServers(accountKey).length > 0 || !!useDms.getState().conversations[accountKey])
+  const canMessage = !self && !bot?.builtin && (sharedServers(accountKey).length > 0 || !!useDms.getState().conversations[accountKey])
 
   const run = (action: () => unknown) => async () => {
     try {
@@ -170,7 +173,7 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
         {member && canEditNickname(me, member) && (
           <MenuItem onClick={() => setView('nick')}>{self ? t('friends.menu.nickname') : t('friends.menu.nicknameFor', { name: member.profileName ?? member.name })}</MenuItem>
         )}
-        {!self && !blocked && (
+        {!self && !blocked && !bot && (
           <>
             <div className="org-sep" />
             {relation === 'none' && <MenuItem onClick={run(() => addFriend(accountKey))}>{t('friends.add')}</MenuItem>}

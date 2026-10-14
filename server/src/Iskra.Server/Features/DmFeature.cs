@@ -46,10 +46,9 @@ public static class DmFeature
 
     private static object Send(Session s, Member me, Body body)
     {
-        // DMs are end-to-end encrypted between people's devices; a bot can't read them, so it doesn't send them either.
-        if (s.World.Store.IsBot(me.AccountKey)) throw RequestException.Forbidden("Bots can't send direct messages.");
         var peer = Peer(s, me, body);
         ModerationFeature.CheckNotBlocked(s, me, peer, "message");
+        BotDmFeature.CheckSend(s, me, peer); // bots: who may write to whom
         var envelope = body.Element("envelope");
         if (envelope.ValueKind != JsonValueKind.Object) throw RequestException.BadRequest("'envelope' must be an object.");
         var raw = envelope.GetRawText();
@@ -70,6 +69,7 @@ public static class DmFeature
             message = stored!;
         }
         s.World.Store.LinkDmFiles(message.Id, files);
+        BotDmFeature.Sent(s, me, peer);
         var frame = Frames.Event("dm.message", new { message = PublicDm(message) });
         s.Hub.SendToAccount(peer.AccountKey, frame);
         if (peer.AccountKey != me.AccountKey) s.Hub.SendToAccount(me.AccountKey, frame); // your other devices

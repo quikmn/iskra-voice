@@ -318,6 +318,7 @@ public sealed partial class Store : IDisposable
         ("builtinroles-1", BaseRolesMigration),
         ("buginbox-1", BugInboxMigration),
         ("afk-1", AfkMigration),
+        ("botdms-1", BotDmsMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

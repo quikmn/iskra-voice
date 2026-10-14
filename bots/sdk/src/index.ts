@@ -2,7 +2,7 @@
 export {
   Bot, rejectionHelp,
   type AnswerContext, type BotOptions, type CommandContext, type CommandSpec, type ComponentContext, type ComponentHandler, type MessageContent,
-  type CommandHandler, type IncomingMessage, type ModalContext, type ModalHandler, type OutgoingFile, type PollOptions, type ReplyOptions,
+  type CommandHandler, type IncomingDm, type IncomingMessage, type ModalContext, type ModalHandler, type OutgoingFile, type PollOptions, type ReplyOptions,
   type SendOptions,
 } from './bot'
 export {
@@ -10,6 +10,7 @@ export {
 } from './voice/connection'
 export type { AudioInput } from './voice/source'
 export { encodeWav } from './voice/audio'
+export type { DmFile } from '../../../client/src/core/dmFiles'
 export { identityOf, loadState, newState, saveState, type BotState } from './state'
 export { parseCommand, type Command } from '../../../client/src/core/commands'
 export type {

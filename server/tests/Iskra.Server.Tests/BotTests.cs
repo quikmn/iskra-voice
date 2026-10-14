@@ -26,7 +26,7 @@ public class BotTests
     }
 
     [Fact]
-    public async Task Bots_cannot_call_or_send_direct_messages()
+    public async Task Bots_cannot_make_or_take_calls()
     {
         using var server = new IskraServer();
         using var admin = await server.JoinAsync("Admin", "admin");
@@ -40,7 +40,6 @@ public class BotTests
 
         Assert.Equal("forbidden", (await client.RequestAsync("call.start", new { accountKey = admin.Key, callId, envelope })).ErrorCode());
         Assert.Equal("forbidden", (await client.RequestAsync("call.accept", new { callId })).ErrorCode());
-        Assert.Equal("forbidden", (await client.RequestAsync("dm.send", new { accountKey = admin.Key, envelope })).ErrorCode());
         // Nor can a bot be called: it couldn't read the media key.
         Assert.Equal("bad_request", (await admin.RequestAsync("call.start", new { accountKey = botKey, callId, envelope })).ErrorCode());
     }

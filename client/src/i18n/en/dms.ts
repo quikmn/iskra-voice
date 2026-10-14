@@ -18,6 +18,13 @@ export const dms = {
     noAccount: 'No account on this device.',
     noSharedServer: "You don't share an online server with this person right now.",
   },
+  bot: {
+    start: "This is the start of your conversation with {{name}}, a bot. Messages are end-to-end encrypted to the bot, so whoever runs it can read them. Type / to see what it can do.",
+    builtin: "Built-in bots don't take direct messages. Use their commands in a channel.",
+    settingTitle: 'DMs from bots',
+    settingLabel: 'Bots on my servers can send me direct messages',
+    settingHint: "Off: bots can only answer when you write to them first. To stop one bot, block it. Applies on every server you're on.",
+  },
   files: {
     tooBigForServer: 'That file is too big for this server.',
     uploadFailedStatus: 'Upload failed ({{status}}).',

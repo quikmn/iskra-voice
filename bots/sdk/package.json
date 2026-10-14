@@ -1,0 +1,47 @@
+{
+  "name": "iskra-bots",
+  "version": "0.1.0",
+  "description": "Write bots for Iskra, the self-hosted voice and text app for friend groups: commands, buttons, cards, end-to-end encrypted DMs and voice.",
+  "keywords": ["iskra", "bot", "bots", "chat", "voice", "sdk", "self-hosted"],
+  "homepage": "https://github.com/quikmn/iskra-voice/blob/main/docs/bots.md",
+  "bugs": "https://github.com/quikmn/iskra-voice/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/quikmn/iskra-voice.git",
+    "directory": "bots/sdk"
+  },
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "Viktor Lundgren",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "libsodium-wrappers-sumo": "^0.8.4"
+  },
+  "optionalDependencies": {
+    "@livekit/rtc-node": "1.1.0",
+    "@wasm-audio-decoders/flac": "0.2.11",
+    "@wasm-audio-decoders/ogg-vorbis": "0.1.20",
+    "mpg123-decoder": "1.0.3",
+    "ogg-opus-decoder": "1.7.5"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}
