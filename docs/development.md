@@ -50,6 +50,8 @@ cd bots;    npm run typecheck        # bot SDK and examples
 
 Run one e2e spec on its own port (useful with several checkouts): `$env:ISKRA_E2E_PORT=5299; npx playwright test e2e/calls.spec.ts`. Screenshots go to `client/e2e/screenshots`. Specs that talk to the internet (YouTube watch parties) only run with `ISKRA_E2E_NETWORK=1`, and `desktop-audio.spec` (it plays test tones through the real speakers and needs a quiet machine) only with `ISKRA_E2E_SPEAKERS=1`; the desktop specs need `npm run build` in `desktop/` and `client/` first. The Whisper unit test and the captions e2e test need the captions model: run `node scripts/get-models.mjs` from the repo root once (it goes into `client/.models/`, ignored by git); without it they're skipped. `node scripts/bench-audio.mjs` and `bench-captions.mjs` in `client/` measure CPU use.
 
+The desktop specs keep the app out of your way: by default every window (splash included) opens far off-screen, still rendering, off the taskbar, and never takes focus. To watch, set `ISKRA_E2E_DISPLAY`: `terminal` (the monitor of the window in front when the run starts, usually your terminal; Windows only, elsewhere the primary monitor), a number (that monitor, 0-based in Windows' order), or `primary` (Electron's normal placement); `offscreen` is the default. `client/e2e/global-setup.ts` works it out once per run and hands it to the app as `ISKRA_E2E_WINDOW_AREA` (`desktop/src/testMode.ts`; a packaged app ignores it). Test runs also never take pictures of your screen: the screen picker gets blank thumbnails, unless a spec opts in to real capture with `ISKRA_E2E_SPEAKERS=1` (`desktop-audio.spec`).
+
 CI (`.github/workflows/ci.yml`):
 
 | Job | Windows | Linux | macOS |

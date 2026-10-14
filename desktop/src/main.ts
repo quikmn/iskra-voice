@@ -1,7 +1,7 @@
 // Iskra desktop: a thin, locked-down shell around the same web app.
 // It adds what browsers can't do: push-to-talk while a game has focus, a screen/window picker,
 // the tray, and a stable app:// origin for local storage.
-import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, Menu, nativeImage, safeStorage, session, shell, systemPreferences, Tray } from 'electron'
+import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, Menu, nativeImage, safeStorage, screen, session, shell, systemPreferences, Tray } from 'electron'
 import { closeSync, existsSync, openSync, readSync } from 'node:fs'
 import path from 'node:path'
 import { APP_ORIGIN, configureAppSession, registerAppScheme } from './appSession'
@@ -30,6 +30,7 @@ import { desktopLanguage, languageFromLocales, parseLanguage, setDesktopLanguage
 import { initialLaunch, readyToShow, SERVER_WAIT_MS, splashView, updatedTo, updatingView, type LaunchState } from './launch'
 import { Splash } from './splash'
 import { readBuildCommit, windowTitle } from './title'
+import { pickerChoices, placeTestWindow, realScreenThumbnails, testWindowArea, thumbnailSize } from './testMode'
 import { ceremonyScript, parseCreate, parseGet, PASSKEY_ORIGIN, PASSKEY_PAGE, passkeyPage, type CreateRequest, type GetRequest } from './passkeys'
 
 /** Chromium's media::AudioDeviceDescription::kLoopbackWithoutChromeId: system audio minus this app's own. */
@@ -51,6 +52,20 @@ if (process.platform === 'linux') app.commandLine.appendSwitch('enable-features'
 
 // No Chromium background connections (privacy.ts).
 applyChromiumPrivacy(app)
+
+// e2e runs (never a packaged app): every window opens off-screen or on the developer's monitor, and never takes focus.
+const TEST_WINDOW_AREA = testWindowArea(process.env, app.isPackaged)
+if (TEST_WINDOW_AREA) {
+  // Off-screen windows count as occluded on Windows; keep them rendering.
+  if (TEST_WINDOW_AREA === 'offscreen') {
+    const off = app.commandLine.getSwitchValue('disable-features')
+    app.commandLine.appendSwitch('disable-features', [off, 'CalculateNativeWinOcclusion'].filter(Boolean).join(','))
+  }
+  app.on('browser-window-created', (_event, win) => placeTestWindow(win, TEST_WINDOW_AREA, (rect) => {
+    const dip = process.platform === 'win32' ? screen.screenToDipRect(null, rect) : rect
+    return screen.getDisplayMatching(dip).workArea
+  }))
+}
 
 // Desktop settings: hardware acceleration has to be turned off before the app is ready.
 let settings: DesktopSettings = loadDesktopSettings()
@@ -237,13 +252,15 @@ function setUpSession(): void {
 
   // Screen sharing: let the user pick a screen or window in our own picker.
   appSession.setDisplayMediaRequestHandler(async (request, callback) => {
-    const sources = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 320, height: 180 } })
+    // e2e runs never take pictures of the developer's screen (testMode.ts).
+    const real = realScreenThumbnails(process.env, app.isPackaged)
+    const sources = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: thumbnailSize(real) })
     if (MAC && systemPreferences.getMediaAccessStatus('screen') !== 'granted') {
       void explainScreenPermission()
       return callback({})
     }
     if (skipScreenPicker(WAYLAND, sources.length)) return callback({ video: sources[0] })
-    const choices = sources.map((s) => ({ id: s.id, name: s.name, thumbnail: s.thumbnail.toDataURL(), isScreen: s.id.startsWith('screen:') }))
+    const choices = pickerChoices(sources, real)
     const pickedId = await new Promise<string | null>((resolve) => {
       ipcMain.once('iskra:screen-picked', (e, id: unknown) => resolve(fromApp(e) && typeof id === 'string' ? id : null))
       window?.webContents.send('iskra:pick-screen', choices)

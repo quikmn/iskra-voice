@@ -6,6 +6,7 @@ export const APP_PORT = Number(process.env.ISKRA_E2E_PORT) || 5199
 
 export default defineConfig({
   testDir: 'e2e',
+  globalSetup: './e2e/global-setup.ts',
   timeout: 60_000,
   fullyParallel: false,
   reporter: [['list']],

@@ -53,6 +53,21 @@ test('the desktop app runs the web app on app:// and can join a server', async (
     ])
     expect(await page.evaluate(() => typeof (window as unknown as { require?: unknown }).require)).toBe('undefined')
 
+    // Test runs never take pictures of the developer's screen: the picker's thumbnails are blank (desktop/src/testMode.ts).
+    const choices = await page.evaluate(() => new Promise<{ id: string; thumbnail: string }[]>((done) => {
+      type Bridge = { onPickScreen(cb: (s: { id: string; thumbnail: string }[]) => void): () => void; pickScreen(id: string | null): void }
+      const bridge = (window as unknown as { iskraDesktop: Bridge }).iskraDesktop
+      const off = bridge.onPickScreen((sources) => { off(); bridge.pickScreen(null); done(sources) })
+      void navigator.mediaDevices.getDisplayMedia({ video: true }).catch(() => undefined)
+    }))
+    expect(choices.length).toBeGreaterThan(0)
+    expect(new Set(choices.map((c) => c.thumbnail))).toEqual(new Set(['data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=']))
+    // And by default its windows open off every monitor and never take focus.
+    if ((process.env.ISKRA_E2E_WINDOW_AREA ?? 'offscreen') === 'offscreen') {
+      const wins = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().map((w: { getBounds(): object; isFocused(): boolean }) => ({ ...w.getBounds(), focused: w.isFocused() })))
+      for (const w of wins) expect(w).toMatchObject({ x: -20000, y: -20000, focused: false })
+    }
+
     // Calls: LiveKit's end-to-end encryption worker loads from app:// under the app's CSP, and frames can be transformed.
     const worker = readdirSync(resolve(HERE, '../dist/assets')).find((f) => /^livekit-client\.e2ee\.worker-.*\.js$/.test(f) &&
       readFileSync(resolve(HERE, '../dist/assets', f)).length > 10_000)
