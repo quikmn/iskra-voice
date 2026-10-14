@@ -1,0 +1,9 @@
+[Unit]
+Description=Keep the Iskra claim screen current until the server has an owner
+
+[Timer]
+OnBootSec=20s
+OnUnitActiveSec=1min
+
+[Install]
+WantedBy=timers.target

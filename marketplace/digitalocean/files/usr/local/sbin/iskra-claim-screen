@@ -1,0 +1,98 @@
+#!/bin/bash
+# The Iskra claim screen: this droplet's address and its one-time claim code, for whoever opens its console.
+#   iskra-claim-screen           writes /etc/issue (shown on the console before login) and /root/iskra-claim.txt
+#   iskra-claim-screen --print   prints it (the login message, /etc/update-motd.d/99-iskra)
+# Run by iskra-claim-screen.timer every minute until the server has an owner, then it tidies up and stops.
+set -euo pipefail
+
+WORLD=/opt/iskra/world
+CODE_FILE="$WORLD/owner-claim-code.txt"
+DOCS="https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md#digitalocean-marketplace"
+
+address="$(head -n 1 /etc/iskra/address 2>/dev/null || true)"
+[[ "$address" =~ ^https://[0-9a-z.-]+$ ]] || address="(starting, check back in a minute)"
+
+# The server's user writes the code file: only well-formed values are shown.
+field() { sed -n "s/^$1=//p" "$CODE_FILE" 2>/dev/null | head -n 1; }
+
+state=starting
+code=""
+until=""
+if [ -r "$CODE_FILE" ]; then
+  code="$(field code)"
+  expires="$(field expires)"
+  if [[ "$code" =~ ^[0-9A-Z]{4}(-[0-9A-Z]{4}){3}$ ]] && [[ "$expires" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]; then
+    until="$(date -u -d "$expires" '+%Y-%m-%d %H:%M UTC')"
+    if [ "$(date -u -d "$expires" +%s)" -gt "$(date -u +%s)" ]; then state=pending; else state=expired; fi
+  fi
+elif [ -e "$WORLD/server.json" ] && ! grep -q '"OwnerClaim": *"generate"' "$WORLD/server.json"; then
+  state=claimed
+fi
+
+screen() {
+  local line="================================================================================"
+  echo "$line"
+  case "$state" in
+    pending)
+      cat <<EOF
+ Iskra is running.
+
+   Address:     $address
+   Claim code:  $code   (works once, until $until)
+
+ In the Iskra app (Windows, Mac, Linux, iPhone, Android or app.iskra.foo):
+ Join a server -> Claim it, then enter the address and the claim code.
+ That makes you the owner of this server. You never need to log in here.
+
+ A brand-new server needs a few minutes to get its HTTPS certificate.
+EOF
+      ;;
+    expired)
+      cat <<EOF
+ Iskra is running, but its claim code expired (codes last 24 hours).
+
+   Address:     $address
+
+ For a new code, restart the server: in DigitalOcean, Power -> Power cycle,
+ or on this console: systemctl restart iskra. The new code shows up here.
+EOF
+      ;;
+    claimed)
+      cat <<EOF
+ Iskra is running at $address and has an owner.
+ Server settings are in the Iskra app. Logs: journalctl -u iskra
+EOF
+      ;;
+    *)
+      cat <<EOF
+ Iskra is starting. Its address and claim code show up here in a minute.
+ Setup log: /var/log/iskra-setup.log
+EOF
+      ;;
+  esac
+  echo " Help: $DOCS"
+  echo "$line"
+}
+
+if [ "${1:-}" = "--print" ]; then
+  screen
+  exit 0
+fi
+
+if [ "$state" = claimed ]; then
+  # Done: the console goes back to normal and this stops running.
+  [ -e /etc/iskra/issue.original ] && cp /etc/iskra/issue.original /etc/issue
+  rm -f /root/iskra-claim.txt
+  systemctl disable --now iskra-claim-screen.timer >/dev/null 2>&1 || true
+  exit 0
+fi
+
+text="$(screen)"
+umask 077
+printf '%s\n' "$text" > /root/iskra-claim.txt
+{
+  cat /etc/iskra/issue.original 2>/dev/null || true
+  printf '\n%s\n\n' "$text"
+} > /etc/issue.iskra.tmp
+chmod 644 /etc/issue.iskra.tmp
+mv /etc/issue.iskra.tmp /etc/issue

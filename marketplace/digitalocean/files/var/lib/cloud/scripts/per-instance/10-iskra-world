@@ -1,0 +1,66 @@
+#!/bin/bash
+# First boot of a new Iskra droplet: cloud-init runs this once per droplet, as root. It makes this droplet's own
+# server (its keys are made by the server on its first start, never in the image), starts it, and puts the address
+# and the one-time claim code on the console. The log is /var/log/iskra-setup.log.
+set -euo pipefail
+exec >>/var/log/iskra-setup.log 2>&1
+echo "Iskra first boot: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+WORLD=/opt/iskra/world
+
+# This droplet's public IPv4 address (DigitalOcean's metadata service, else the route out) gives it a free name,
+# like 203-0-113-7.sslip.io, and with it an HTTPS certificate from Let's Encrypt.
+IP="$(curl -fsS --max-time 5 http://169.254.169.254/metadata/v1/interfaces/public/0/ipv4/address 2>/dev/null || true)"
+if [ -z "$IP" ]; then
+  IP="$(ip -4 route get 1.1.1.1 | sed -n 's/.* src \([0-9.]*\).*/\1/p' | head -n 1)"
+fi
+if ! [[ "$IP" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; then
+  echo "No IPv4 address found ($IP). Iskra needs a public one."
+  exit 1
+fi
+case "$IP" in
+  10.*|127.*|169.254.*|192.168.*|172.1[6-9].*|172.2[0-9].*|172.3[01].*|100.6[4-9].*|100.[7-9][0-9].*|100.1[01][0-9].*|100.12[0-7].*)
+    echo "No public IPv4 address on this droplet ($IP). Iskra needs one."
+    exit 1 ;;
+esac
+DOMAIN="${IP//./-}.sslip.io"
+install -d -m 755 /etc/iskra
+printf 'https://%s\n' "$DOMAIN" > /etc/iskra/address
+
+if [ ! -e "$WORLD/server.json" ]; then
+  install -d -m 700 -o iskra -g iskra "$WORLD"
+  # "OwnerClaim": "generate": the server makes a claim code (single use, 24 hours) for whoever opens the console.
+  cat > "$WORLD/server.json" <<JSON
+{
+  "Name": "My Iskra server",
+  "Template": "gaming",
+  "OwnerClaim": "generate",
+  "Https": { "Mode": "acme", "Domain": "$DOMAIN" },
+  "Voice": { "Enabled": true, "RtcTcpPort": 7881, "RtcUdpPort": 7882 },
+  "Updates": { "Mode": "auto" },
+  "Backups": { "Enabled": true, "Keep": 7 }
+}
+JSON
+  chown iskra:iskra "$WORLD/server.json"
+  chmod 600 "$WORLD/server.json"
+fi
+
+systemctl enable --now iskra.service
+systemctl enable --now iskra-claim-screen.timer
+
+# The server writes its claim code within seconds of starting.
+for _ in $(seq 1 90); do
+  [ -e "$WORLD/owner-claim-code.txt" ] && break
+  sleep 2
+done
+/usr/local/sbin/iskra-claim-screen
+
+# Its certificate takes a little longer; just for the log.
+for _ in $(seq 1 60); do
+  if curl -fsS --max-time 5 "https://$DOMAIN/health" >/dev/null 2>&1; then
+    echo "Iskra answers at https://$DOMAIN"
+    exit 0
+  fi
+  sleep 5
+done
+echo "Iskra doesn't answer at https://$DOMAIN yet (see: journalctl -u iskra)."
