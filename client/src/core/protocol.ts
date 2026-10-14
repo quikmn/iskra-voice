@@ -2022,3 +2022,16 @@ export interface Requests {
   'bot.voice.set': [{ accountKey: string; voice: boolean }, { member: Member }]
   'voice.disconnect': [{ accountKey: string }, Record<string, never>]
 }
+
+// ── bug inbox ──
+
+export interface BugInboxSettings {
+  enabled: boolean
+  /** The text channel reports go to; null until the owner picks one. */
+  channelId: number | null
+}
+
+export interface Requests {
+  'buginbox.get': [Record<string, never>, BugInboxSettings]
+  'buginbox.set': [{ enabled: boolean; channelId?: number }, BugInboxSettings]
+}

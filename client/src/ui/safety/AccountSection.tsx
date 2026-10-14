@@ -11,6 +11,7 @@ import { LEGAL_LINKS, safetyMailto, SAFETY_EMAIL, useTerms } from '../../state/t
 import { Modal, Spinner } from '../bits'
 import { SignOutSection } from '../dialogs/SignOut'
 import { fullTime } from '../format'
+import { openBugReport } from '../../state/bugReport/bugReport'
 import { BuildVersion } from './BuildVersion'
 import './safety.css'
 
@@ -163,6 +164,13 @@ export function AboutSection() {
     <section className="settings-section about-section">
       <h2>{t('settings.sections.about')}</h2>
       <BuildVersion />
+      <div className="about-bug">
+        <div>
+          <strong>{t('bugReport.open')}</strong>
+          <p className="muted">{t('bugReport.where')}</p>
+        </div>
+        <button className="button" onClick={openBugReport}>{t('bugReport.open')}</button>
+      </div>
       <ul className="legal-links">
         <li><a href={LEGAL_LINKS.terms} target="_blank" rel="noreferrer">{t('safety.links.terms')}</a></li>
         <li><a href={LEGAL_LINKS.privacy} target="_blank" rel="noreferrer">{t('safety.links.privacy')}</a></li>

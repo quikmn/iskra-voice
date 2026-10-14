@@ -114,6 +114,8 @@ export interface DesktopBridge {
   cancelHotkeyCapture?(): Promise<void>
   /** Only the action ever arrives, never which keys were pressed. */
   onHotkey?(callback: (action: 'mute' | 'deafen' | 'clip') => void): () => void
+  /** Bug reports: a PNG data URL of this app window only, never the screen (missing in older desktop builds). */
+  captureApp?(): Promise<string | null>
   /** macOS: opens a Privacy & Security page in System Settings. */
   openSystemSettings(pane: 'accessibility' | 'screen' | 'microphone' | 'camera'): Promise<void>
   /** Tells the shell the app's language, for the tray and native dialogs (older shells don't have it). */
