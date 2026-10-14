@@ -316,6 +316,7 @@ public sealed partial class Store : IDisposable
         ("interactions-1", InteractionsMigration),
         ("voicebots-1", VoiceBotsMigration),
         ("builtinroles-1", BaseRolesMigration),
+        ("buginbox-1", BugInboxMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

@@ -65,6 +65,11 @@ export const compliance: Messages['compliance'] = {
       when: 'Bara medan du hyr en server hos DigitalOcean från skrivbordsappen: du loggar in där i webbläsaren (eller klistrar in en token), och appen skapar servern och dess brandvägg, och tar bort dem om uppsättningen misslyckas.',
       off: 'DigitalOcean ser din IP-adress och vad appen skapar i ditt konto. Appen håller sin nyckel bara i minnet och glömmer den efter uppsättningen. Inget händer om du inte startar det själv.',
     },
+    bugReports: {
+      who: 'Iskras felrapporter (chat.iskra.foo), bara när du skickar en felrapport',
+      when: 'När du trycker på Skicka i "Rapportera en bugg": det du skrev, dina skärmbilder, din e-post om du angav den, och (om du inte bockar ur det) loggar med appversion, inställningar, anslutning och röststatus och fel. Du ser allt först under "Se vad som skickas".',
+      off: 'Den hamnar i en privat kanal som bara Iskra-teamet läser. Servern ser din internetadress för att begränsa missbruk men sparar den inte. Skicka ingen, eller spara den som en fil i stället.',
+    },
     p2p: {
       who: 'HyperDHT (ett publikt peer-to-peer-nätverk), bara för "Anslut utan portvidarebefordran"',
       when: 'Bara om en servers ägare slagit på det i datorappen, och när du går med i en sådan server med datorappen och dess adress inte går att nå: appen pratar med noder i det publika HyperDHT-nätverket (först de tre bootstrap-noderna som Holepunch kör, sedan vilka noder som helst) för att annonsera servern eller hitta den, och sedan direkt med den andra datorn.',

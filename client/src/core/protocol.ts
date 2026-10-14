@@ -2043,3 +2043,16 @@ export interface BaseRoleInfo {
 export interface Requests {
   'role.base.update': [{ role: Role; color: string }, { baseRole: BaseRoleInfo }]
 }
+
+// ── bug inbox ──
+
+export interface BugInboxSettings {
+  enabled: boolean
+  /** The text channel reports go to; null until the owner picks one. */
+  channelId: number | null
+}
+
+export interface Requests {
+  'buginbox.get': [Record<string, never>, BugInboxSettings]
+  'buginbox.set': [{ enabled: boolean; channelId?: number }, BugInboxSettings]
+}

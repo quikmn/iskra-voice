@@ -49,6 +49,10 @@ public sealed class RetentionSweeper(World world, Hub hub, Uploads uploads, Data
                 world.Store.PruneMessageVersions(cutoff); // edit history follows its messages
                 world.Store.PruneDocRevisions(cutoff); // old docs revisions follow message retention
             }
+            // Bug reports carry contact emails: a year at most, even where messages are kept for good.
+            var reports = world.Store.DeleteBugReportsBefore(BugInbox.AuthorKey, Cutoff(BugInbox.KeepDays));
+            result.Messages += reports.Count;
+            Forget(reports, announce: true);
             if (r.UploadsDays > 0) result.Files = uploads.DeleteOldMessageFiles(Cutoff(r.UploadsDays));
             if (r.SecurityLogDays > 0) result.Security = world.Store.PruneSecurityLog(Cutoff(r.SecurityLogDays));
 

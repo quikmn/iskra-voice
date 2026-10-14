@@ -78,6 +78,7 @@ builder.Services.AddSingleton<Iskra.Server.Captions.IModelUpstream>(_ => world.S
 builder.Services.AddSingleton(Iskra.Server.Captions.ModelManifest.Pinned);
 builder.Services.AddSingleton<Iskra.Server.Captions.CaptionModelService>();
 builder.Services.AddSingleton<WebhookIngress>();
+builder.Services.AddSingleton<BugInbox>();
 builder.Services.AddSingleton<OutgoingWebhooks>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<OutgoingWebhooks>());
 builder.Services.AddHostedService<PollCloser>();
@@ -301,6 +302,7 @@ app.MapGet("/pages/{id}", (HttpContext context, string id, World w) => ProfilePa
 
 // Incoming webhooks: POST /hooks/{id}/{secret}.
 WebhookIngress.Map(app);
+BugInbox.Map(app);
 // The live-captions model's parts: GET /models/{dir}/{part}.
 Iskra.Server.Captions.CaptionModelFeature.Map(app);
 // Device linking: a short-lived relay for a new device that has no account yet.

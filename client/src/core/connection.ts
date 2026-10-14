@@ -43,6 +43,10 @@ export interface ConnectionOptions {
   requestTimeoutMs?: number
 }
 
+/** Told about failed requests (type and error code only), for bug report diagnostics. */
+export const requestErrorListeners = new Set<(type: string, code: string) => void>()
+const reportRequestError = (type: string, code: string) => requestErrorListeners.forEach((listener) => listener(type, code))
+
 interface Pending {
   type: string
   resolve: (body: unknown) => void
@@ -125,6 +129,7 @@ export class Connection {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id)
+        reportRequestError(type, 'timeout')
         reject(new RequestError('timeout', 'The server took too long to answer.', type))
       }, timeoutMs ?? this.options.requestTimeoutMs ?? 15_000)
       this.pending.set(id, { type, resolve: resolve as (b: unknown) => void, reject, timer })
@@ -201,7 +206,10 @@ export class Connection {
           this.pending.delete(frame.id!)
           clearTimeout(pending.timer)
           if (frame.type === 'result') pending.resolve(body)
-          else pending.reject(new RequestError(body.code as RequestError['code'], String(body.message ?? 'Request failed.'), pending.type, ...errorKey(body)))
+          else {
+            reportRequestError(pending.type, String(body.code))
+            pending.reject(new RequestError(body.code as RequestError['code'], String(body.message ?? 'Request failed.'), pending.type, ...errorKey(body)))
+          }
         } else if (frame.type === 'error' && !this.ready) {
           // Rejected during the handshake.
           this.reject(String(body.code ?? 'auth_failed'), String(body.message ?? 'The server refused the connection.'), body)

@@ -1,0 +1,67 @@
+/* ── Report a bug ── */
+.bug-report-form { display: flex; flex-direction: column; gap: 12px; }
+.bug-report-form .field textarea { resize: vertical; min-height: 56px; }
+/* "Take a screenshot of Iskra": the dialog steps aside while the window is captured. */
+.modal-backdrop:has(.bug-report-capturing) { visibility: hidden; }
+.bug-report-drop {
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bug-report-thumbs { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.bug-report-thumbs li { position: relative; }
+.bug-report-thumbs img { display: block; width: 88px; height: 64px; object-fit: cover; border-radius: 6px; background: var(--bg); }
+.bug-report-thumbs .icon-button { position: absolute; top: 2px; right: 2px; background: rgba(0, 0, 0, 0.6); color: #fff; }
+.bug-report-shot-buttons { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.bug-report-small { font-size: 12px; margin: 0; }
+.bug-report-logs { display: flex; flex-direction: column; gap: 6px; }
+.bug-report-toggle {
+  align-self: flex-start;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--text-2);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+}
+.bug-report-preview {
+  margin: 0;
+  max-height: 260px;
+  overflow: auto;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--bg);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.bug-report-failed { border-radius: 8px; padding: 10px 12px; background: color-mix(in srgb, var(--red) 12%, transparent); }
+.bug-report-failed p { margin: 0 0 8px; }
+.bug-report-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.bug-report-sent { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.bug-report-sent p { margin: 0; }
+@media (max-width: 520px) {
+  .bug-report-thumbs img { width: 72px; height: 54px; }
+  .bug-report-actions .button { flex: 1 1 auto; }
+}
+
+/* Entries: About & legal, and the status menu. */
+.about-bug {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 14px 16px; margin-bottom: 14px;
+  border: 1px solid var(--border); border-radius: var(--radius);
+}
+.about-bug p { margin: 2px 0 0; font-size: 14px; }
+.status-menu-bug {
+  display: flex; justify-content: space-between; gap: 12px; width: 100%; margin-top: 6px; padding: 9px 10px; border: 0;
+  border-top: 1px solid var(--border); background: none; color: var(--text); text-align: left; font-size: 14px;
+  border-radius: 0 0 calc(var(--radius) * 0.6) calc(var(--radius) * 0.6);
+}
+.status-menu-bug:hover { background: var(--hover); }
+.status-menu-bug .muted { font-size: 12px; }
+.action-sheet .status-menu-bug { padding: 13px 10px; font-size: 16px; }

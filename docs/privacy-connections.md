@@ -23,6 +23,7 @@ If you find a connection that isn't on this page, it's a bug: please report it (
 | **Web Push** | Your server → your browser's push service (Google FCM, Mozilla, Microsoft WNS, Apple) → your device | Only if you turned notifications on for that device | That a notification was sent, and when (content is encrypted to your device) | Off until you turn it on | My settings → Notifications |
 | **The web app's files** | Browser → `app.iskra.foo` (Cloudflare Pages) | When you open the web app | Your IP (Cloudflare's short-lived logs); never your chats | Web app only | Use the desktop or phone app (they carry their own copy) |
 | **DigitalOcean (Rent a server on DigitalOcean)** | Desktop app → `api.digitalocean.com` (HTTPS) with your OAuth key or token; your browser → `cloud.digitalocean.com` to sign in, then back to a one-time listener on `127.0.0.1` | Only while you rent a server there from the desktop app: listing sizes and regions, creating the droplet and its firewall, checking it, deleting them if setup fails | Your IP address and what the app creates in your account (DigitalOcean is your provider then). The app then asks `https://<ip>.sslip.io/health` on your new server | Off: only when you start it | Don't start it; the key is forgotten after setup |
+| **Bug reports** | Your device → `https://chat.iskra.foo/bug-reports` (Iskra's own server) | Only when you press Send in "Report a bug" (Help, the status menu, Ctrl+Shift+B) | What you wrote, your screenshots, the email you gave (optional) and, unless you untick "Include logs", logs: app version and commit, OS and browser names, device kind, allowlisted settings (switches and choices, no ids or names), connection states per server (numbered, never named), failed request types and codes, voice state and stats, error names and bundle lines, update states. Never message text, file names, member or server names, keys, invite links, links or IP addresses (an allowlist, then a net for addresses, emails, links and key-shaped strings). The server sees your IP address for its rate limit and never stores it. Reports land in a private channel only the Iskra team reads and are deleted after a year at the latest | Off: only when you send one ("See what's included" shows exactly what goes) | Don't send one; "Save as a file" keeps it on your device |
 | **Captions model** | Your device → your server (`/models/...`) | Once, when you turn captions on | — | Off until you turn captions on | — |
 | **Voice ICE/STUN** | none: the apps pass an empty ICE server list, so no STUN or TURN server is asked | — | — | No third party | — |
 | **Spellcheck** | Windows/macOS: the system's own spellchecker (no network). Linux: off, because Chromium would download Hunspell dictionaries from Google | — | — | No third party | — |
@@ -60,6 +61,9 @@ OS updates), which Iskra doesn't control.
 
 ## How this is checked
 
+- `client/src/state/bugReport/diagnostics.test.ts`: bug report logs and payloads never contain seeded message text,
+  names, keys, invite links, tokens, IP addresses or emails; `client/e2e/bug-report.spec.ts`: the preview of a real
+  report shows nothing from the chat, the people or the server, and the report reaches the bug inbox channel.
 - `client/src/state/siteConsent.test.ts`, `client/src/ui/chat/embeds.test.ts`: click-to-load and the per-site,
   per-device "Always load" list.
 - `client/e2e/privacy.spec.ts`: a YouTube link makes no request to YouTube until clicked (the test watches every

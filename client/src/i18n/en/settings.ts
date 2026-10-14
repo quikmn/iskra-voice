@@ -22,6 +22,7 @@ export const settings = {
     gifs: 'GIFs',
     sounds: 'Soundboard',
     integrations: 'Bots & webhooks',
+    bugInbox: 'Bug inbox',
     pages: 'Profile pages',
     internet: 'Internet access',
     audit: 'Activity log',

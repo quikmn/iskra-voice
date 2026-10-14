@@ -2684,3 +2684,48 @@ always have.
   role's name (or `everyone`): `role.create`/`role.update` → `bad_request`, key `role_name_builtin`.
 - Starter templates set the colours with `builtinRoles` (`{ "admin": { "color": "#e5534b" } }`; see
   docs/hosting.md). Stored in `base_role_styles` (migration `builtinroles-1`). Audit `role.base` `{ role, from, to }`.
+
+## Bug inbox
+
+A server can take bug reports from Iskra's apps ("Report a bug"): each report becomes one message in a channel the
+owner picked, normally a private one. Off by default. Iskra's own apps send to `chat.iskra.foo`; any owner can turn
+it on for their own server, but the apps only send to the address built into them.
+
+| type | body | result | who |
+|---|---|---|---|
+| `buginbox.get` | | `{ enabled, channelId }` (`channelId` null until picked) | owner (others: `forbidden`, key `owner_bug_inbox`) |
+| `buginbox.set` | `enabled` (bool), `channelId?` (a text channel; kept when left out) | `{ enabled, channelId }` | owner; turning it on without a channel: `bad_request` (key `bug_inbox_channel`); not a text channel: key `bug_inbox_text_only`; an [encrypted](#end-to-end-encrypted-channels) channel: `bad_request` |
+
+Migration `buginbox-1`: `bug_inbox` (one row: `enabled`, `channel_id`, which goes null when the channel is deleted,
+which turns the inbox off). Audit `buginbox.update` (`{ enabled }`).
+
+### `POST /bug-reports`
+
+Anonymous HTTP, no account or secret. CORS: the apps' origins only (`https://app.iskra.foo`, `app://iskra`,
+`capacitor://localhost`, `http(s)://localhost`, and `http://localhost:<port>` / `http://127.0.0.1:<port>` for
+development); `OPTIONS` answers the preflight. Body: `application/json`, at most 12 MB.
+
+```json
+{ "v": 1,
+  "what": "The mic button does nothing",          // required, ≤ 1500 characters
+  "steps": "1. …\n2. …", "expected": "…",          // optional, ≤ 1400 and ≤ 600
+  "email": "me@example.com",                       // optional contact, ≤ 254, email-shaped
+  "env": { "version": "2.0.0-alpha.15", "commit": "abc1234" | "dev", "os": "Windows 11",
+           "browser"?: "Chrome 140", "device": "desktop" | "web" | "ios" | "android", "language"?: "en" },
+  "logs": "…",                                     // optional, ≤ 64 KB of text, attached as a .txt file
+  "images": [{ "type": "image/png" | "image/jpeg" | "image/webp", "data": "<base64>" }] }  // ≤ 5, each ≤ 1.5 MB, ≤ 10 MB together
+```
+
+- Unknown fields are refused (`400`), not dropped. Text follows chat text rules (no invisible control characters);
+  `env` values must match short patterns (letters, digits and a few separators), so nothing free-form hides there.
+  An image's bytes must be the type it says.
+- Answers: `201 { id: "ABCD-EFGH" }`; `404` while the inbox is off or its channel is gone; `400 { error: "invalid",
+  message }`; `413`; `415` for anything but JSON; `429` with `Retry-After`.
+- Limits: 5 reports an hour per client address (IPv6: per /64), and 60 an hour for everyone. Addresses are used in
+  memory for this only: never stored or logged. The server log line has the report id and channel name only.
+- The message: author `webhook:bug-inbox`, `webhook.name` "Bug reports", text = the reporter's words under headings
+  (What happened, Steps to reproduce, Expected, Contact), mentions turned into plain text; one card (embed) with the
+  first line as its title, fields Version, Commit, OS, Browser, Device, Language and footer "Report <id>". Images and
+  the logs are stored as uploads (uploader `webhook:bug-inbox`) and attached. Reports are deleted after 365 days at
+  the latest (`RetentionSweeper`; sooner if the server's message retention is shorter), their files a day later as
+  unused uploads; admins delete one like any webhook message.

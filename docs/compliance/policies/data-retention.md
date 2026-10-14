@@ -33,6 +33,7 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Audit log (moderation and admin actions) | 90 days | `ModerationSweeper` | `Retention.AuditDays` (0 = keep) |
 | Security log (auth failures, rate-limit hits, joins, sign-ins from new devices, key rotations, deletions, backups, moves, exports, settings changes) | 365 days | `RetentionSweeper` | `Retention.SecurityLogDays` |
 | Resolved reports | 90 days after resolution | Report sweep (`ReportFeature`) | No |
+| Bug reports (bug inbox, when the owner turns it on: what the reporter wrote, screenshots, logs from the app, an optional contact email; anonymous, never the sender's IP address) | 365 days at most (sooner with a shorter `Retention.MessagesDays`); their files a day later | `RetentionSweeper`; admins can delete one earlier | No (the year); the owner turns the inbox off |
 | Outgoing webhooks (name, address, events, who made it) and their delivery log (time, event, attempt, HTTP status, outcome; never the payload) | Webhooks until an admin deletes them; the last 50 log entries per webhook, deleted with it | Admins; each new log entry | No |
 | Ended or cancelled events | 30 days | `EventScheduler` | No |
 | Daily backups (`backups/auto-*.zip`) | Last 7 | `BackupService` | `Backups.Keep` (1–30) |
@@ -75,6 +76,10 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 - Emails to spark@iskra.foo (support, safety, security, data requests): kept as long as needed to handle them, and
   reviewed yearly; data-request emails and the response: 2 years as evidence of handling.
 - Incident records: 5 years.
+- Bug reports sent from the apps ("Report a bug") go to the bug inbox on chat.iskra.foo: a private channel only the
+  Iskra team reads, deleted after 365 days at the latest. The optional contact email is personal data; reports aren't
+  linked to an account, so it's found and deleted on request by searching the channel. The sender's IP address is used
+  in memory for rate limits only. Reports saved as a file and emailed instead follow the email rule above.
 
 ## Change log
 
@@ -86,3 +91,4 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 | 2026-10-12 | Edit history, docs revisions, reminders, scheduled messages, inbox, key log, captions model folder, owner claim, clips |
 | 2026-10-13 | Key log: names are logged as salted hashes and erased on account deletion |
 | 2026-10-13 | Built-in bots (Dice, Polls, Reminders): their answers and /remind reminders |
+| 2026-10-14 | Bug reports (bug inbox) |

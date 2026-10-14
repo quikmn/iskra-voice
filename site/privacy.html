@@ -36,7 +36,7 @@
 <main class="doc">
   <div class="doc-kicker">Privacy</div>
   <h1>Privacy <span class="grad">Policy</span></h1>
-  <p class="updated">Last updated 13 October 2026</p>
+  <p class="updated">Last updated 14 October 2026</p>
 
   <p class="lead">Iskra is built so that as little as possible about you ends up anywhere. This page explains what is stored, where, who can see it, and how to get rid of it.</p>
 
@@ -123,6 +123,7 @@
     <li>Moderators' actions (deleting messages, timeouts, kicks, bans, role changes) are recorded in the server's <strong>audit log</strong>, with names, for 90 days. Resolved reports are deleted 90 days after they're resolved.</li>
     <li>If you email a safety concern to <a href="mailto:spark@iskra.foo">spark@iskra.foo</a>, we keep the email for as long as we need it to handle the concern, and we may pass illegal content to the authorities.</li>
   </ul>
+  <p id="bug-reports"><strong>When you send a bug report</strong>, it goes to Iskra's bug inbox: Iskra's own server (chat.iskra.foo), into a private channel only the Iskra team reads. It contains what you wrote, the screenshots you added, your email address if you gave one (so we can answer), and, unless you untick "Include logs", technical logs from the last 30 minutes (see <a href="#third">Who Iskra talks to</a>). Reports aren't linked to your account, and your IP address is used only to limit abuse and never stored. We delete reports once they're no longer needed, and after <strong>12 months</strong> at the latest. If you'd rather not send it, the app can save the report as a file for you to email instead.</p>
 
   <h2 id="push">7. Notifications</h2>
   <p>If you turn on notifications (<span class="path">Settings → Notifications</span>, per device), each server sends them through <strong>your browser's push service</strong>: Google (Chrome, Edge on Android), Mozilla (Firefox), Microsoft (Edge on Windows) or Apple (Safari, iPhone and iPad). This uses the Web Push standard: every notification is encrypted to your device, so the push service can't read it, but it does see that a notification was sent to your device, and when.</p>
@@ -144,6 +145,7 @@
         <tr><td><strong>GitHub</strong> (desktop app updates)</td><td>The desktop app checks GitHub's releases for updates shortly after it starts and every 4 hours, and downloads updates from there. Downloads on iskra.foo come from GitHub too.</td><td>Your IP address and the app version.</td><td>On by default because updates fix security problems. Turn off in <span class="path">My settings → Privacy &amp; data</span>; "Check for updates" in the tray still works.</td></tr>
         <tr><td><strong>Push services</strong></td><td>Only if you turn notifications on (see <a href="#push">Notifications</a>).</td><td>That a notification was sent to your device, and when; not its content.</td><td><span class="path">My settings → Notifications</span>.</td></tr>
         <tr><td><strong>Cloudflare</strong> (app.iskra.foo)</td><td>Only the web app: Cloudflare delivers its files when you open it in a browser (see <a href="#sites">The websites</a>). The desktop and phone apps carry their own copy.</td><td>Your IP address, not your chats.</td><td>Use the desktop or phone app.</td></tr>
+        <tr><td><strong>Iskra's bug inbox</strong> (chat.iskra.foo)</td><td>Only when you send a bug report (<span class="path">Report a bug</span>, in About &amp; legal or your status menu). "See what's included" shows exactly what goes before you send.</td><td>What you wrote, your screenshots, the email address you gave (optional), and, unless you untick "Include logs", technical logs: app version, OS and browser names, settings switches, connection and voice status, error names. Never your messages, file names, names, servers, keys, invite links or IP addresses. The server sees your IP address to limit abuse but doesn't store it.</td><td>Don't send one, or save the report as a file instead.</td></tr>
         <tr><td><strong>Profile pages</strong></td><td>Never. In the desktop app, a page's scripts run behind a wall where they can't reach the network (a page shows only pictures uploaded to its own server). Browsers and the phone apps show other people's pages without scripts.</td><td>Nothing: a page can't load anything from elsewhere, so its author can't learn your IP address.</td><td>Nothing to turn off.</td></tr>
       </tbody>
     </table>
@@ -176,6 +178,7 @@
     <li><strong>Audit log entries</strong>: 90 days. <strong>Security log entries</strong>: 365 days. <strong>Resolved reports</strong>: 90 days after they're resolved. A server's owner can change these, and can also choose to delete messages and files after a set time.</li>
     <li><strong>Daily server backups</strong>: 7 days by default (the owner can choose 1 to 30).</li>
     <li><strong>Ended or cancelled events</strong>: 30 days.</li>
+    <li><strong>Bug reports</strong> you send to Iskra: 12 months at most (see <a href="#bug-reports">Reports and moderation</a>).</li>
     <li><strong>Inbox entries</strong>: 60 days (at most 500). <strong>Reminders</strong>: 30 days after they're due. <strong>Scheduled messages</strong>: until they're sent or you delete them. <strong>Earlier versions</strong> of a message go with the message (at most 20); a docs page keeps its last 50 versions.</li>
   </ul>
 
