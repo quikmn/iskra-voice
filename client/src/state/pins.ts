@@ -2,8 +2,9 @@
 // timeline is drawn from it (it isn't a message, so it isn't in history after a reload).
 import { create } from 'zustand'
 import { t } from '../i18n'
-import { roleRank, type Events, type Message, type Pin } from '../core/protocol'
-import { canSendIn, has } from './permissions'
+import { type Events, type Message, type Pin } from '../core/protocol'
+import { baseAllows, canSendIn, has } from './permissions'
+import { baseRolesFor } from './baseRoles'
 import { rolesFor } from './roles'
 import { connectionFor, onServerEvent, patchServer, type ServerState } from './store'
 import { knownThread } from './threads'
@@ -27,7 +28,8 @@ export const pinNotesFor = (serverKey: string, channelId: number) => (s: { notes
 export function canPin(server: ServerState, channelId: number): boolean {
   const me = server.me
   const roles = rolesFor(server.key)
-  if (!me || (roleRank(me.role) < roleRank('trusted') && !has(me, roles, 'manageMessages'))) return false
+  const base = baseRolesFor(server.key)
+  if (!me || (!baseAllows(base, me, 'pin') && !has(me, roles, 'manageMessages', base))) return false
   const parentId = knownThread(server.key, channelId)?.channelId ?? channelId
   const channel = server.channels.find((c) => c.id === parentId)
   return !!channel && canSendIn(me, channel, roles)

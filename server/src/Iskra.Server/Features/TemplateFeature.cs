@@ -24,7 +24,7 @@ public static class TemplateFeature
         }
         catch (TemplateException ex)
         {
-            throw RequestException.BadRequest($"This server can't be saved as a template: {ex.Message}", "template_export_invalid");
+            throw RequestException.BadRequest($"This server can't be saved as a template: {ex.Message}", "template_export_invalid", new { problem = ex.Message });
         }
         Audit.Record(s, "server.template.export");
         using var doc = JsonDocument.Parse(json);

@@ -11,6 +11,8 @@ import { Play } from './icons'
 import { Trans, useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
 import { formatNumber } from '../../i18n/format'
+import { useServerBaseRoles } from '../../state/baseRoles'
+import { baseAllows } from '../../state/permissions'
 
 const MAX_EMOJIS = 200
 
@@ -39,10 +41,11 @@ export function SoundboardSettingsSection() {
 /** Server emoji and sounds, for the people allowed to manage them. Others see nothing here. */
 export function ServerExpressionsSections({ server }: { server: ServerState }) {
   const rank = server.me ? roleRank(server.me.role) : -1
+  const base = useServerBaseRoles(server.key)
   return (
     <>
       {rank >= roleRank('admin') && <EmojiSection server={server} />}
-      {rank >= roleRank('trusted') && <SoundsSection server={server} />}
+      {(baseAllows(base, server.me, 'uploadSounds') || rank >= roleRank('admin')) && <SoundsSection server={server} />}
     </>
   )
 }

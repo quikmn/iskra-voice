@@ -30,7 +30,7 @@ test('built-in roles are listed with a badge, what they can do, and the same nam
   let about = room.getByRole('group', { name: 'About Trusted' })
   await expect(about).toContainText('Everything Member can, plus:')
   await expect(about).toContainText('Pin messages where they can post')
-  await expect(about).not.toContainText('Schedule events') // that comes from Member
+  await expect(about.locator('.builtin-abilities')).not.toContainText('Schedule events') // that comes from Member
   await builtin.getByRole('button', { name: /Admin/ }).click()
   about = room.getByRole('group', { name: 'About Admin' })
   await expect(about).toContainText('Every permission:')

@@ -7,6 +7,9 @@ import { openThread, rememberThreads } from './threads'
 import { trimSeen, upsertPost, type ForumSeen } from './forumLogic'
 import { t } from '../i18n'
 import { errorMessage } from '../i18n/errors'
+import { baseRolesFor } from './baseRoles'
+import { baseAllows, canSendIn, has } from './permissions'
+import { rolesFor } from './roles'
 
 export interface ForumView {
   sort: ForumSort
@@ -99,7 +102,9 @@ export function resetForumSeen(serverKey: string, forumId: number): void {
 export function canModerateForum(server: ServerState, forumId: number): boolean {
   const me = server.me
   const forum = server.channels.find((c) => c.id === forumId)
-  return !!me && !!forum && roleRank(me.role) >= roleRank('trusted') && roleRank(me.role) >= roleRank(forum.writeRole)
+  const base = baseRolesFor(server.key)
+  const roles = rolesFor(server.key)
+  return !!me && !!forum && (baseAllows(base, me, 'pin') || has(me, roles, 'manageMessages', base)) && canSendIn(me, forum, roles)
 }
 
 /** Whoever posted it, or an admin who outranks them: rename, delete. */

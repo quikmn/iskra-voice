@@ -119,6 +119,10 @@ export const organize = {
     notMuted: 'Not muted',
     defaultSmall: "You haven't picked one, so it's all messages: {{server}} has fewer than {{max}} people.",
     defaultBig: "You haven't picked one, so it's only @mentions: {{server}} has {{max}} people or more.",
+    defaultChosenAll: "You haven't picked one, so it's all messages: that's what {{server}}'s admins chose for everyone.",
+    defaultChosenMentions: "You haven't picked one, so it's only @mentions: that's what {{server}}'s admins chose for everyone.",
+    serverDefault: 'Default for everyone who picks nothing',
+    serverDefaultAuto: 'Automatic (all messages under {{max}} people)',
     hint: "Applies to this device's notifications and to push on all your devices. Muted channels and servers are dimmed and only badge for @mentions. Pick a level for a single channel from its ⋯ menu.",
   },
   nick: {

@@ -2,9 +2,11 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
-import { roleRank, type Member, type NotifyLevel } from '../../core/protocol'
+import { roleRank, type Member, type NotifyDefault, type NotifyLevel } from '../../core/protocol'
 import type { ServerState } from '../../state/store'
-import { muteFor, setNickname, setNotifyLevel, useNotifyFor, useOrganize } from '../../state/organize'
+import { muteFor, setNickname, setNotifyLevel, setServerNotifyDefault, useNotifyFor, useOrganize, useServerNotifyDefault } from '../../state/organize'
+import { useServerBaseRoles } from '../../state/baseRoles'
+import { baseAllows } from '../../state/permissions'
 import { levelLabel, MUTE_CHOICES, muteChoiceLabel, muteLabel, SMALL_SERVER } from '../../state/organizeLogic'
 import './organize.css'
 
@@ -16,6 +18,9 @@ export function ServerNotifySettings({ server }: { server: ServerState }) {
   const [error, setError] = useState<string | null>(null)
   const clock = useOrganize((s) => s.clock)
   const muted = muteLabel(own?.mutedUntil ?? null, clock)
+  const serverDefault = useServerNotifyDefault(server.key)
+  const baseRoles = useServerBaseRoles(server.key)
+  const canSetDefault = baseAllows(baseRoles, server.me, 'organize')
   const run = (action: () => Promise<unknown>) => {
     setError(null)
     action().catch((e: unknown) => setError(errorMessage(e)))
@@ -33,7 +38,9 @@ export function ServerNotifySettings({ server }: { server: ServerState }) {
       </div>
       {!own?.level && (
         <p className="muted org-notify-default">
-          {t(notify.chosen === 'all' ? 'organize.notify.defaultSmall' : 'organize.notify.defaultBig', { server: server.name, max: SMALL_SERVER })}
+          {serverDefault === 'auto'
+            ? t(notify.chosen === 'all' ? 'organize.notify.defaultSmall' : 'organize.notify.defaultBig', { server: server.name, max: SMALL_SERVER })
+            : t(serverDefault === 'all' ? 'organize.notify.defaultChosenAll' : 'organize.notify.defaultChosenMentions', { server: server.name })}
         </p>
       )}
       <div className="org-notify-row">
@@ -53,6 +60,17 @@ export function ServerNotifySettings({ server }: { server: ServerState }) {
         )}
       </div>
       <p className="muted">{t('organize.notify.hint')}</p>
+      {canSetDefault && (
+        <label className="field inline org-notify-server-default">
+          <span>{t('organize.notify.serverDefault')}</span>
+          <select value={serverDefault} aria-label={t('organize.notify.serverDefault')}
+            onChange={(e) => run(() => setServerNotifyDefault(server.key, e.target.value as NotifyDefault))}>
+            <option value="auto">{t('organize.notify.serverDefaultAuto', { max: SMALL_SERVER })}</option>
+            <option value="all">{levelLabel('all')}</option>
+            <option value="mentions">{levelLabel('mentions')}</option>
+          </select>
+        </label>
+      )}
       {error && <p className="error-text">{error}</p>}
     </div>
   )

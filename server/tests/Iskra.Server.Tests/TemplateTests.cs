@@ -36,16 +36,15 @@ public class TemplateTests : IDisposable
         Assert.Equal(ServerTemplates.Outcome.Applied, ServerTemplates.Apply(world, ServerTemplates.Load("gaming"), "gaming", 1000));
 
         var categories = world.Store.AllCategories();
-        Assert.Equal(["Info", "Text channels", "Voice"], categories.Select(c => c.Name));
+        Assert.Equal(["Text channels", "Voice"], categories.Select(c => c.Name));
         var channels = world.Store.AllChannels().OrderBy(c => c.Position).ToList();
-        Assert.Equal(["announcements", "general", "clips", "looking-for-group", "mod-chat", "Lobby", "Squad 1", "Squad 2", "Raid", "Tournament", "AFK"],
+        Assert.Equal(["general", "announcements", "clips", "looking-for-group", "mod-chat", "Lobby", "Squad 1", "Squad 2", "Raid", "Tournament", "AFK"],
             channels.Select(c => c.Name));
-        // The starting #general is reused (as the first text channel), not duplicated.
+        // The starting #general is reused, not duplicated.
         Assert.Equal(general, channels[0].Id);
-        Assert.Equal("admin", channels[0].WriteRole);
-        Assert.Equal(categories[0].Id, channels[0].CategoryId);
-        Assert.All(channels.Skip(1).Take(4), c => Assert.Equal(categories[1].Id, c.CategoryId));
-        Assert.All(channels.Skip(5), c => Assert.Equal(categories[2].Id, c.CategoryId));
+        Assert.Equal("admin", channels[1].WriteRole);
+        Assert.All(channels.Take(5), c => Assert.Equal(categories[0].Id, c.CategoryId));
+        Assert.All(channels.Skip(5), c => Assert.Equal(categories[1].Id, c.CategoryId));
         Assert.Equal("stage", channels.Single(c => c.Name == "Tournament").Kind);
         Assert.Equal(30, world.Store.Slowmode(channels.Single(c => c.Name == "looking-for-group").Id));
         var limits = world.Store.AllUserLimits();
@@ -71,7 +70,7 @@ public class TemplateTests : IDisposable
         Assert.Empty(afk.TalkRoles);
         // Per-role channel permissions: moderators post announcements and see #mod-chat; members don't.
         var mod = world.Store.AllRoles()[0];
-        var announcements = world.Store.GetChannel(channels[0].Id)!;
+        var announcements = world.Store.GetChannel(channels[1].Id)!;
         var modChat = world.Store.GetChannel(channels.Single(c => c.Name == "mod-chat").Id)!;
         var member = new Member("m", "M", "member", 0);
         var moderator = member with { RoleIds = [mod.Id], Perms = mod.Perms, TopPosition = mod.Position };
@@ -86,7 +85,7 @@ public class TemplateTests : IDisposable
         Assert.Equal(ServerTemplates.Outcome.AlreadyApplied, ServerTemplates.ApplyOnStart(world, "gaming", 2000));
         Assert.Equal(ServerTemplates.Outcome.AlreadyApplied, ServerTemplates.ApplyOnStart(world, "friends", 2000));
         Assert.Equal(11, world.Store.AllChannels().Count);
-        Assert.Equal(3, world.Store.AllCategories().Count);
+        Assert.Equal(2, world.Store.AllCategories().Count);
         Assert.Equal(2, world.Store.AllRoles().Count);
     }
 

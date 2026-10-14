@@ -2030,18 +2030,46 @@ export type BaseAbility =
   | 'invite' | 'events' | 'pin' | 'mentionEveryone' | 'uploadSounds' | 'giveBaseRoles' | 'bots' | 'organize' | 'rules'
   | 'stickers' | 'gifs' | 'stageModerators' | 'forumTags' | 'profilePages' | 'resolveDisputes' | 'runServer' | 'transferOwnership'
 
-/** A base role (owner … guest) as listed next to custom roles: its colour (adjustable) and its fixed powers. */
+/** A base role (owner … guest) as listed next to custom roles: its colour and its powers (both adjustable, powers within limits). */
 export interface BaseRoleInfo {
   id: Role
   color: string | null
-  /** Its own and those of the roles below it. */
+  /** What it can do on this server (by default its own and those of the roles below it). */
   abilities: BaseAbility[]
-  /** Admins and the owner: every permission. */
+  /** Custom-role permissions it has by itself (by default: admins and the owner, all). */
   permissions: Permission[]
+  /** The server changed its powers from the defaults (older servers: absent). */
+  changed?: boolean
+  defaults?: { abilities: BaseAbility[]; permissions: Permission[] }
+  /** What may be changed for it: nothing for the owner, everyday powers for guests and members. */
+  adjustable?: { abilities: BaseAbility[]; permissions: Permission[] }
 }
 
 export interface Requests {
-  'role.base.update': [{ role: Role; color: string }, { baseRole: BaseRoleInfo }]
+  'role.base.update': [
+    { role: Role; color?: string; abilities?: BaseAbility[]; permissions?: Permission[]; reset?: boolean },
+    { baseRole: BaseRoleInfo },
+  ]
+}
+
+// ── templates v2 ──
+
+/** "auto": all messages under 15 people, only @mentions above. */
+export type NotifyDefault = 'auto' | 'all' | 'mentions'
+
+export interface Welcome {
+  /** Older servers: absent (automatic). */
+  notifyDefault?: NotifyDefault
+}
+
+export interface Events {
+  'notify.default': { level: NotifyDefault }
+}
+
+export interface Requests {
+  'notify.default.set': [{ level: NotifyDefault }, { level: NotifyDefault }]
+  /** A starter template (docs/templates.md) of this server's setup: no members, messages or secrets. */
+  'server.template.export': [Record<string, never>, { template: Record<string, unknown> }]
 }
 
 // ── bug inbox ──

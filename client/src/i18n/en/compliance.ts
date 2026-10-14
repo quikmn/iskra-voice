@@ -157,6 +157,7 @@ export const compliance = {
     captions_model_download: 'Downloaded the captions model',
     captions_model_rejected: 'Refused a captions model that didn’t match',
     server_template: 'Set up from a starter template',
+    server_template_merge: 'Added channels and settings from a template',
     server_autostart_install: 'Set to start with the computer',
     server_autostart_remove: 'No longer starts with the computer',
     account_dispute_resolve: 'Settled an account key dispute',

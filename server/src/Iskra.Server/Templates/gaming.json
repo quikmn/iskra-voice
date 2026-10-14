@@ -4,15 +4,10 @@
   "description": "Chat, clips and finding a group, plus voice channels for squads and raids.",
   "categories": [
     {
-      "name": "Info",
-      "channels": [
-        { "name": "announcements", "writeRole": "admin", "overrides": [{ "role": "Moderator", "allow": ["send"] }] }
-      ]
-    },
-    {
       "name": "Text channels",
       "channels": [
         { "name": "general" },
+        { "name": "announcements", "writeRole": "admin", "overrides": [{ "role": "Moderator", "allow": ["send"] }] },
         { "name": "clips" },
         { "name": "looking-for-group", "slowmode": 30, "overrides": [{ "role": "Raid lead", "allow": ["send"] }] },
         { "name": "mod-chat", "readRole": "admin", "overrides": [{ "role": "Moderator", "allow": ["view", "send"] }] }

@@ -4,6 +4,8 @@ import { roleRank, type EventFields, type Events, type Requests, type ServerEven
 import { connectionFor, onServerEvent, onWelcomeHook, useApp, type ServerState } from './store'
 import { showNotification } from './notify'
 import { t } from '../i18n'
+import { baseRolesFor } from './baseRoles'
+import { baseAllows } from './permissions'
 
 export interface EventReminder {
   id: string
@@ -50,7 +52,7 @@ export async function loadEvents(serverKey: string): Promise<void> {
   }
 }
 
-export const canCreateEvent = (server: ServerState) => !!server.me && roleRank(server.me.role) >= roleRank('member')
+export const canCreateEvent = (server: ServerState) => baseAllows(baseRolesFor(server.key), server.me, 'events')
 
 /** Whoever created it, or an admin who outranks them. Mirrors Permissions.CanManageEvent. */
 export function canManageEvent(server: ServerState, event: ServerEvent): boolean {

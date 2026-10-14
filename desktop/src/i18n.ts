@@ -48,6 +48,11 @@ const en = {
     filter: 'Iskra backups',
     notBackup: "That file isn't an Iskra backup.",
   },
+  template: {
+    pickTitle: 'Start a server from a template file',
+    filter: 'Iskra templates',
+    tooBig: 'That file is too big for a template.',
+  },
   host: {
     defaultName: 'My server',
     noServer: "This build doesn't include the server.",
@@ -128,6 +133,11 @@ const sv: DesktopText = {
     pickTitle: 'Återställ en server från en säkerhetskopia',
     filter: 'Säkerhetskopior från Iskra',
     notBackup: 'Den filen är ingen säkerhetskopia från Iskra.',
+  },
+  template: {
+    pickTitle: 'Starta en server från en mallfil',
+    filter: 'Mallar för Iskra',
+    tooBig: 'Den filen är för stor för en mall.',
   },
   host: {
     defaultName: 'Min server',

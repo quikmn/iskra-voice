@@ -2,10 +2,11 @@
 // It adds what browsers can't do: push-to-talk while a game has focus, a screen/window picker,
 // the tray, and a stable app:// origin for local storage.
 import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, Menu, nativeImage, powerMonitor, safeStorage, screen, session, shell, systemPreferences, Tray } from 'electron'
-import { closeSync, existsSync, openSync, readSync } from 'node:fs'
+import { closeSync, existsSync, openSync, readFileSync, readSync, statSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { APP_ORIGIN, configureAppSession, registerAppScheme } from './appSession'
-import { Host, isTemplateId, type HostedServer } from './host'
+import { Host, isTemplateId, MAX_TEMPLATE_BYTES, type HostedServer } from './host'
 import { parseHotkeys } from './hotkeys'
 import { ClientTunnels } from './p2p/clientTunnel'
 import { HostTunnels } from './p2p/hostTunnel'
@@ -658,7 +659,28 @@ ipcMain.handle('iskra:host-list', (event) => (fromApp(event) ? host.list().map(w
 ipcMain.handle('iskra:host-templates', (event) => (fromApp(event) ? host.templates() : []))
 ipcMain.handle('iskra:host-create', async (event, name: unknown, appUrl: unknown, template: unknown) => {
   if (!fromApp(event) || typeof name !== 'string' || typeof appUrl !== 'string' || !/^https?:\/\//.test(appUrl)) return null
+  const picked = typeof template === 'string' ? pickedTemplates.get(template) : undefined
+  if (picked !== undefined) return withKeep(await host.create(name, appUrl, null, picked))
   return withKeep(await host.create(name, appUrl, isTemplateId(template) ? template : null))
+})
+// Starting a server from a template file: our own open dialog picks it, the bundled server checks it, and the page
+// only ever gets an id for it (never a path).
+const pickedTemplates = new Map<string, string>()
+ipcMain.handle('iskra:host-pick-template', async (event) => {
+  if (!fromApp(event) || !window) return null
+  const picked = await dialog.showOpenDialog(window, {
+    title: text().template.pickTitle,
+    properties: ['openFile'],
+    filters: [{ name: text().template.filter, extensions: ['json'] }],
+  })
+  const file = picked.filePaths[0]
+  if (picked.canceled || !file) return null
+  if (statSync(file).size > MAX_TEMPLATE_BYTES) return { error: text().template.tooBig }
+  const checked = await host.checkTemplate(file)
+  if ('error' in checked) return { error: checked.error }
+  const id = `file:${randomUUID()}`
+  pickedTemplates.set(id, readFileSync(file, 'utf8'))
+  return { fileName: path.basename(file), template: { ...checked.info, id } }
 })
 ipcMain.handle('iskra:host-start', async (event, id: unknown) => (fromApp(event) && typeof id === 'string' ? withKeep(await host.start(id)) : null))
 // The owner switched "Let friends connect without port forwarding" on a server hosted here: the tunnel follows the world's files.

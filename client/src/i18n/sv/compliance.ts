@@ -159,6 +159,7 @@ export const compliance: Messages['compliance'] = {
     captions_model_download: 'Laddade ner modellen för textning',
     captions_model_rejected: 'Avvisade en textningsmodell som inte stämde',
     server_template: 'Satte upp servern från en startmall',
+    server_template_merge: 'Lade till kanaler och inställningar från en mall',
     server_autostart_install: 'Ställde in att starta med datorn',
     server_autostart_remove: 'Startar inte längre med datorn',
     account_dispute_resolve: 'Avgjorde en tvist om en kontonyckel',

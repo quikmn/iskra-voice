@@ -49,7 +49,7 @@ export const SECURITY_EVENTS = [
   'account.delete', 'backup.download', 'backup.settings', 'backup.cli', 'backup.restored', 'server.move', 'server.move.cancel',
   'retention.update', 'data.export', 'security.log.export',
   'update.check', 'update.settings', 'update.install', 'update.installed', 'update.failed', 'update.rolledback',
-  'captions.model.download', 'captions.model.rejected', 'server.template', 'server.autostart.install', 'server.autostart.remove',
+  'captions.model.download', 'captions.model.rejected', 'server.template', 'server.template.merge', 'server.autostart.install', 'server.autostart.remove',
   'account.dispute.resolve', 'keylog.alert', 'keylog.reloaded', 'keylog.broken',
 ] as const
 
