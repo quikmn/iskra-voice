@@ -379,6 +379,34 @@
     line-height: 1.6;
   }
 
+  /* Downloads: one row per download, grouped */
+  #download { scroll-margin-top: 72px; }
+  .dl-group + .dl-group { margin-top: 36px; }
+  .dl-group-title {
+    font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 12px;
+  }
+  .dl-group-title span { text-transform: none; letter-spacing: 0; font-weight: 500; }
+  .dl-list {
+    list-style: none; margin: 0; padding: 0;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+  }
+  .dl-row {
+    display: grid; grid-template-columns: 42px 1fr auto; align-items: center; gap: 18px;
+    padding: 18px 22px; border-top: 1px solid var(--border); transition: background 0.2s;
+  }
+  .dl-row:first-child { border-top: none; }
+  .dl-row:hover { background: rgba(124,111,255,0.05); }
+  .dl-row .feature-icon { margin-bottom: 0; }
+  .dl-row h3 { font-size: 1rem; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 4px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .dl-row p { font-size: 0.875rem; color: var(--muted); line-height: 1.55; }
+  .dl-row .feature-new { position: static; }
+  .dl-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  @media (max-width: 720px) {
+    .dl-row { grid-template-columns: 42px 1fr; padding: 16px; gap: 14px; }
+    .dl-actions { grid-column: 1 / -1; justify-content: flex-start; }
+  }
+
   /* Iskra ID spotlight */
   .id-section {
     position: relative;
@@ -1382,6 +1410,10 @@
     <a class="btn btn-outline btn-hero" href="https://app.iskra.foo" target="_blank" rel="noopener">
       Open in your browser
     </a>
+    <a class="btn btn-ghost btn-hero" href="#download">
+      All downloads
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+    </a>
   </div>
 
   <p class="hero-note"><span>v2.0.0-alpha.16</span> · Apps for Windows, Mac &amp; Linux · Web app for PC and phones · Servers for Windows, Linux &amp; Mac</p>
@@ -2234,94 +2266,110 @@
     <p class="section-desc">Version 2.0.0-alpha.16. Free, no account needed. Pick what fits you.</p>
   </div>
 
-  <div class="features-grid">
-
-    <div class="feature-card reveal">
-      <span class="feature-new">Recommended</span>
-      <div class="feature-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+  <div class="dl-group reveal">
+    <h3 class="dl-group-title">Apps</h3>
+    <ul class="dl-list">
+    <li class="dl-row">
+      <div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+      <div>
+        <h3>Windows installer <span class="feature-new">Recommended</span></h3>
+        <p>The full desktop app: push-to-talk while you game, desktop notifications, one-click "Create a server", and updates itself.</p>
       </div>
-      <h3>Windows installer</h3>
-      <p>The full desktop app: push-to-talk while you game, desktop notifications, one-click "Create a server", and updates itself.</p>
-      <a class="btn btn-primary" style="margin-top:16px" href="https://github.com/quikmn/iskra-voice/releases/download/v2.0.0-alpha.16/Iskra-Setup-2.0.0-alpha.16.exe">Download installer</a>
-    </div>
-
-    <div class="feature-card reveal">
-      <div class="feature-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      <div class="dl-actions">
+        <a class="btn btn-primary" href="https://github.com/quikmn/iskra-voice/releases/download/v2.0.0-alpha.16/Iskra-Setup-2.0.0-alpha.16.exe">Download installer</a>
       </div>
-      <h3>Windows portable</h3>
-      <p>The same desktop app as a single file. No install, just run it.</p>
-      <a class="btn btn-outline" style="margin-top:16px" href="https://github.com/quikmn/iskra-voice/releases/download/v2.0.0-alpha.16/Iskra-Portable-2.0.0-alpha.16.exe">Download portable</a>
-    </div>
-
-    <div class="feature-card reveal accent2-card">
-      <div class="feature-icon cyan">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+    </li>
+    <li class="dl-row">
+      <div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+      <div>
+        <h3>Windows portable</h3>
+        <p>The same desktop app as a single file. No install, just run it.</p>
       </div>
-      <h3>Web app</h3>
-      <p>Nothing to install. Works in PC and phone browsers, with servers that use HTTPS. On iPhone, add it to your Home Screen (Share → Add to Home Screen) for an app with notifications.</p>
-      <a class="btn btn-outline" style="margin-top:16px" href="https://app.iskra.foo" target="_blank" rel="noopener">Open app.iskra.foo</a>
-    </div>
-
-    <div class="feature-card reveal">
-      <div class="feature-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+      <div class="dl-actions">
+        <a class="btn btn-outline" href="https://github.com/quikmn/iskra-voice/releases/download/v2.0.0-alpha.16/Iskra-Portable-2.0.0-alpha.16.exe">Download portable</a>
       </div>
-      <h3>Android app</h3>
-      <p>Iskra full screen on your phone, with voice and video that keep going with the screen locked. Notifications arrive while the app is open. Open the file on your phone and allow the install.</p>
-      <a class="btn btn-outline" style="margin-top:16px" href="https://github.com/quikmn/iskra-voice/releases/download/v2.0.0-alpha.16/Iskra-2.0.0-alpha.16.apk">Download .apk</a>
-    </div>
-
-    <div class="feature-card reveal">
-      <div class="feature-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+    </li>
+    <li class="dl-row">
+      <div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+      <div>
+        <h3>Mac app</h3>
+        <p>The full desktop app for macOS, for Apple silicon (M1 and later) or Intel Macs. Signed and notarized by Apple: open it like any other app.</p>
       </div>
-      <h3>Server for Windows</h3>
-      <p>The standalone server, for a PC that stays on. Unzip and run.</p>
-      <a class="btn btn-outline" style="margin-top:16px" href="https://github.com/quikmn/iskra-voice/releases/download/v2.0.0-alpha.16/iskra-server-2.0.0-alpha.16-win-x64.zip">Download .zip</a>
-    </div>
-
-    <div class="feature-card reveal">
-      <div class="feature-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+      <div class="dl-actions">
+        <a class="btn btn-outline" href="https://github.com/quikmn/iskra-voice/releases/download/v2.0.0-alpha.16/Iskra-2.0.0-alpha.16-mac-arm64.dmg">Apple silicon .dmg</a>
+        <a class="btn btn-outline" href="https://github.com/quikmn/iskra-voice/releases/download/v2.0.0-alpha.16/Iskra-2.0.0-alpha.16-mac-x64.dmg">Intel .dmg</a>
       </div>
-      <h3>Server for Linux</h3>
-      <p>The standalone server for a home box or a VPS, with automatic HTTPS once you set a domain.</p>
-      <a class="btn btn-outline" style="margin-top:16px" href="https://github.com/quikmn/iskra-voice/releases/download/v2.0.0-alpha.16/iskra-server-2.0.0-alpha.16-linux-x64.tar.gz">Download .tar.gz</a>
-    </div>
-
-    <div class="feature-card reveal">
-      <div class="feature-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    </li>
+    <li class="dl-row">
+      <div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+      <div>
+        <h3>Linux app</h3>
+        <p>The full desktop app for Linux (x64): an AppImage that runs anywhere, or a package for Debian/Ubuntu or Fedora.</p>
       </div>
-      <h3>Mac app</h3>
-      <p>The full desktop app for macOS, for Apple silicon (M1 and later) or Intel Macs. Signed and notarized by Apple: open it like any other app.</p>
-      <a class="btn btn-outline" style="margin-top:16px" href="https://github.com/quikmn/iskra-voice/releases/download/v2.0.0-alpha.16/Iskra-2.0.0-alpha.16-mac-arm64.dmg">Apple silicon .dmg</a>
-      <a class="btn btn-outline" style="margin-top:8px" href="https://github.com/quikmn/iskra-voice/releases/download/v2.0.0-alpha.16/Iskra-2.0.0-alpha.16-mac-x64.dmg">Intel .dmg</a>
-    </div>
-
-    <div class="feature-card reveal">
-      <div class="feature-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <div class="dl-actions">
+        <a class="btn btn-outline" href="https://github.com/quikmn/iskra-voice/releases/download/v2.0.0-alpha.16/Iskra-2.0.0-alpha.16-x86_64.AppImage">AppImage</a>
+        <a class="btn btn-outline" href="https://github.com/quikmn/iskra-voice/releases/download/v2.0.0-alpha.16/Iskra-2.0.0-alpha.16-amd64.deb">.deb</a>
+        <a class="btn btn-outline" href="https://github.com/quikmn/iskra-voice/releases/download/v2.0.0-alpha.16/Iskra-2.0.0-alpha.16-x86_64.rpm">.rpm</a>
       </div>
-      <h3>Linux app</h3>
-      <p>The full desktop app for Linux (x64): an AppImage that runs anywhere, or a package for Debian/Ubuntu or Fedora.</p>
-      <a class="btn btn-outline" style="margin-top:16px" href="https://github.com/quikmn/iskra-voice/releases/download/v2.0.0-alpha.16/Iskra-2.0.0-alpha.16-x86_64.AppImage">AppImage</a>
-      <a class="btn btn-outline" style="margin-top:8px" href="https://github.com/quikmn/iskra-voice/releases/download/v2.0.0-alpha.16/Iskra-2.0.0-alpha.16-amd64.deb">.deb</a>
-      <a class="btn btn-outline" style="margin-top:8px" href="https://github.com/quikmn/iskra-voice/releases/download/v2.0.0-alpha.16/Iskra-2.0.0-alpha.16-x86_64.rpm">.rpm</a>
-    </div>
-
-    <div class="feature-card reveal">
-      <div class="feature-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+    </li>
+    <li class="dl-row">
+      <div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></div>
+      <div>
+        <h3>Android app</h3>
+        <p>Iskra full screen on your phone, with voice and video that keep going with the screen locked. Notifications arrive while the app is open. Open the file on your phone and allow the install.</p>
       </div>
-      <h3>Server for macOS</h3>
-      <p>The standalone server for a Mac that stays on.</p>
-      <a class="btn btn-outline" style="margin-top:16px" href="https://github.com/quikmn/iskra-voice/releases/download/v2.0.0-alpha.16/iskra-server-2.0.0-alpha.16-osx-arm64.tar.gz">Apple silicon .tar.gz</a>
-      <a class="btn btn-outline" style="margin-top:8px" href="https://github.com/quikmn/iskra-voice/releases/download/v2.0.0-alpha.16/iskra-server-2.0.0-alpha.16-osx-x64.tar.gz">Intel .tar.gz</a>
-    </div>
+      <div class="dl-actions">
+        <a class="btn btn-outline" href="https://github.com/quikmn/iskra-voice/releases/download/v2.0.0-alpha.16/Iskra-2.0.0-alpha.16.apk">Download .apk</a>
+      </div>
+    </li>
+    <li class="dl-row">
+      <div class="feature-icon cyan"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+      <div>
+        <h3>Web app</h3>
+        <p>Nothing to install. Works in PC and phone browsers, with servers that use HTTPS. On iPhone, add it to your Home Screen (Share → Add to Home Screen) for an app with notifications.</p>
+      </div>
+      <div class="dl-actions">
+        <a class="btn btn-outline" href="https://app.iskra.foo" target="_blank" rel="noopener">Open app.iskra.foo</a>
+      </div>
+    </li>
+    </ul>
+  </div>
 
+  <div class="dl-group reveal">
+    <h3 class="dl-group-title">Servers <span>· or use "Create a server" in the desktop app</span></h3>
+    <ul class="dl-list">
+    <li class="dl-row">
+      <div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></div>
+      <div>
+        <h3>Server for Windows</h3>
+        <p>The standalone server, for a PC that stays on. Unzip and run.</p>
+      </div>
+      <div class="dl-actions">
+        <a class="btn btn-outline" href="https://github.com/quikmn/iskra-voice/releases/download/v2.0.0-alpha.16/iskra-server-2.0.0-alpha.16-win-x64.zip">Download .zip</a>
+      </div>
+    </li>
+    <li class="dl-row">
+      <div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></div>
+      <div>
+        <h3>Server for Linux</h3>
+        <p>The standalone server for a home box or a VPS, with automatic HTTPS once you set a domain.</p>
+      </div>
+      <div class="dl-actions">
+        <a class="btn btn-outline" href="https://github.com/quikmn/iskra-voice/releases/download/v2.0.0-alpha.16/iskra-server-2.0.0-alpha.16-linux-x64.tar.gz">Download .tar.gz</a>
+      </div>
+    </li>
+    <li class="dl-row">
+      <div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></div>
+      <div>
+        <h3>Server for macOS</h3>
+        <p>The standalone server for a Mac that stays on.</p>
+      </div>
+      <div class="dl-actions">
+        <a class="btn btn-outline" href="https://github.com/quikmn/iskra-voice/releases/download/v2.0.0-alpha.16/iskra-server-2.0.0-alpha.16-osx-arm64.tar.gz">Apple silicon .tar.gz</a>
+        <a class="btn btn-outline" href="https://github.com/quikmn/iskra-voice/releases/download/v2.0.0-alpha.16/iskra-server-2.0.0-alpha.16-osx-x64.tar.gz">Intel .tar.gz</a>
+      </div>
+    </li>
+    </ul>
   </div>
 
   <p class="later-note reveal"><strong>Release notes and checksums:</strong> everything is on the <a href="https://github.com/quikmn/iskra-voice/releases/tag/v2.0.0-alpha.16" target="_blank" rel="noopener" style="color:var(--accent2)">v2.0.0-alpha.16 release page</a>. Verify downloads: SHA256SUMS on the release page.</p>
