@@ -29,6 +29,7 @@ import { applyChromiumPrivacy, applySessionPrivacy } from './privacy'
 import { desktopLanguage, languageFromLocales, parseLanguage, setDesktopLanguage, text } from './i18n'
 import { initialLaunch, readyToShow, SERVER_WAIT_MS, splashView, updatedTo, updatingView, type LaunchState } from './launch'
 import { Splash } from './splash'
+import { readBuildCommit, windowTitle } from './title'
 import { ceremonyScript, parseCreate, parseGet, PASSKEY_ORIGIN, PASSKEY_PAGE, passkeyPage, type CreateRequest, type GetRequest } from './passkeys'
 
 /** Chromium's media::AudioDeviceDescription::kLoopbackWithoutChromeId: system audio minus this app's own. */
@@ -37,9 +38,12 @@ const DEV_URL = process.env.ISKRA_DEV_URL // e.g. http://localhost:5173 while de
 const ASSETS = path.join(__dirname, '..', 'assets')
 const MAC = process.platform === 'darwin'
 const WAYLAND = isWayland(process.platform, process.env)
-// .ico only works on Windows; macOS wants a monochrome "template" tray icon.
+// .ico only works on Windows; macOS wants a monochrome "template" tray icon. The tray shows the bare bolt, which reads
+// better at 16 px than the app tile. All made by scripts/icons.py.
 const ICON = path.join(ASSETS, process.platform === 'win32' ? 'icon.ico' : 'icon.png')
-const TRAY_ICON = path.join(ASSETS, process.platform === 'win32' ? 'icon.ico' : MAC ? 'trayTemplate.png' : 'tray.png')
+const TRAY_ICON = path.join(ASSETS, process.platform === 'win32' ? 'tray.ico' : MAC ? 'trayTemplate.png' : 'tray.png')
+/** The commit this build was made from (scripts/build-info.mjs), or "dev". */
+const BUILD_COMMIT = readBuildCommit(path.join(__dirname, 'build-info.json'))
 const CLIENT_DIR = app.isPackaged ? path.join(process.resourcesPath, 'client') : path.join(__dirname, '..', '..', 'client', 'dist')
 
 // Screen sharing on Wayland goes through PipeWire and the system's own picker.
@@ -161,7 +165,7 @@ function createWindow(): void {
     minWidth: 420,
     minHeight: 500,
     backgroundColor: '#0b0b14',
-    title: 'Iskra',
+    title: windowTitle('Iskra', app.getVersion(), BUILD_COMMIT),
     icon: ICON,
     autoHideMenuBar: true,
     show: false,
@@ -184,6 +188,11 @@ function createWindow(): void {
   window.webContents.once('dom-ready', () => launch?.page === 'loading' && launchChanged({ page: 'loaded' }))
   window.once('ready-to-show', () => launchChanged({ page: 'ready' }))
   window.on('focus', () => window?.flashFrame(false))
+  // The page names what's open ("My settings — Iskra"); the window title adds the version and commit (title.ts).
+  window.on('page-title-updated', (event, title) => {
+    event.preventDefault()
+    window?.setTitle(windowTitle(title, app.getVersion(), BUILD_COMMIT))
+  })
   void window.loadURL(DEV_URL ?? `${APP_ORIGIN}/index.html`)
 
   // Links open in the real browser; the app window never navigates away from the app.

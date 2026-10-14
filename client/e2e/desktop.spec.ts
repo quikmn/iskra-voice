@@ -35,6 +35,15 @@ test('the desktop app runs the web app on app:// and can join a server', async (
     await expect(page.getByRole('button', { name: /I’m new to Iskra/ })).toBeVisible()
     expect(page.url()).toMatch(/^app:\/\/iskra\//)
 
+    // The window title always names the build: version and short commit ("dev" without git), after the page's own title.
+    const windowTitle = () => app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows().find((w: AppWin & { getTitle(): string }) => w.webContents.getURL().startsWith('app://'))!.getTitle())
+    const build = `Iskra ${DESKTOP_VERSION.replace(/\./g, '\\.')} · ([0-9a-f]{7}|dev)`
+    await expect.poll(windowTitle).toMatch(new RegExp(`^(\\(\\d+\\) )?${build}$`))
+    await page.evaluate(() => { document.title = 'My settings — Iskra' })
+    await expect.poll(windowTitle).toMatch(new RegExp(`^My settings — ${build}$`))
+    await page.evaluate(() => { document.title = 'Iskra' })
+
     // The preload bridge is there, and only that.
     const bridge = await page.evaluate(() => Object.keys((window as unknown as { iskraDesktop: object }).iskraDesktop).sort())
     expect(bridge).toEqual([

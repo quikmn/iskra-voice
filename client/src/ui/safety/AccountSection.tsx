@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { b64u } from '../../core/crypto'
 import { errorMessage } from '../../i18n/errors'
-import { LINKS, RELEASE_VERSION } from '../../links'
+import { LINKS } from '../../links'
 import { native } from '../../platform/native'
 import { deleteAccount, deletionPlan, transferOwnership } from '../../state/accountDeletion'
 import { leaveServer, useApp } from '../../state/store'
@@ -11,6 +11,7 @@ import { LEGAL_LINKS, safetyMailto, SAFETY_EMAIL, useTerms } from '../../state/t
 import { Modal, Spinner } from '../bits'
 import { SignOutSection } from '../dialogs/SignOut'
 import { fullTime } from '../format'
+import { BuildVersion } from './BuildVersion'
 import './safety.css'
 
 export function AccountSection() {
@@ -161,7 +162,7 @@ export function AboutSection() {
   return (
     <section className="settings-section about-section">
       <h2>{t('settings.sections.about')}</h2>
-      <p className="muted">{t('safety.about.version', { version: RELEASE_VERSION })}</p>
+      <BuildVersion />
       <ul className="legal-links">
         <li><a href={LEGAL_LINKS.terms} target="_blank" rel="noreferrer">{t('safety.links.terms')}</a></li>
         <li><a href={LEGAL_LINKS.privacy} target="_blank" rel="noreferrer">{t('safety.links.privacy')}</a></li>

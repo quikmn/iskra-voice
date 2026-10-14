@@ -87,7 +87,7 @@ action** (needs a phone).
 | Field | Source |
 |---|---|
 | App name, short and full description | `en-US/title.txt`, `short_description.txt`, `full_description.txt` (Swedish: **Translations → Add translations → Swedish – sv-SE**, `sv-SE/*.txt`) |
-| App icon (512×512 PNG, 32-bit, ≤ 1 MB) | `docs/store/play/graphics/icon-512.png` (made by the screenshot spec, from `desktop/assets/icon.png`) |
+| App icon (512×512 PNG, 32-bit, ≤ 1 MB) | `docs/store/play/graphics/icon-512.png` (made by the screenshot spec, from the phone app icon, `mobile/scripts/icons.py`) |
 | Feature graphic (1024×500 PNG or JPEG, no transparency) | `docs/store/play/graphics/feature-graphic-en.png` / `feature-graphic-sv.png` |
 | Phone screenshots (2–8, 9:16, 1080×1920) | `docs/store/play/screenshots/en-US/*.png`, `sv-SE/*.png` |
 | Tablet screenshots | Optional; skip (the app is usable on tablets but isn't designed for them yet) |

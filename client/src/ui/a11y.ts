@@ -102,6 +102,27 @@ export function installMenuKeys(): void {
   document.addEventListener('keydown', onMenuKey)
 }
 
+/** Big focusable regions (the message list) that only show a focus ring when Tab brought focus there. */
+const REGION = '.messages'
+let tabbed = false
+let regionsInstalled = false
+/**
+ * Chromium shows :focus-visible on a clicked region as soon as any key is pressed (typing, push-to-talk), which
+ * draws a ring round the whole message list. These regions get data-tabbed instead, set only when focus came by Tab.
+ */
+export function installRegionFocus(): void {
+  if (regionsInstalled || typeof document === 'undefined') return
+  regionsInstalled = true
+  document.addEventListener('keydown', (e) => { tabbed = e.key === 'Tab' }, true)
+  document.addEventListener('pointerdown', () => { tabbed = false }, true)
+  document.addEventListener('focusin', (e) => {
+    if (e.target instanceof HTMLElement && e.target.matches(REGION)) e.target.toggleAttribute('data-tabbed', tabbed)
+  }, true)
+  document.addEventListener('focusout', (e) => {
+    if (e.target instanceof HTMLElement && e.target.matches(REGION)) e.target.removeAttribute('data-tabbed')
+  }, true)
+}
+
 /**
  * Arrow keys in a grid of buttons laid out in rows (the emoji picker): left/right by one, up/down to the nearest
  * cell in the row above or below, Home/End to the ends. True when it moved.

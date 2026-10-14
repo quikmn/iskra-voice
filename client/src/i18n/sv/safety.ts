@@ -136,6 +136,7 @@ export const safety: Messages['safety'] = {
   },
   about: {
     version: 'Iskra {{version}}',
+    copyVersion: 'Kopiera versionen',
     accepted: 'Du godkände villkoren (version {{version}}) {{when}}.',
     safetyHint: 'För sådant som en servers moderatorer inte hanterar: olagligt innehåll, någon i fara, eller en server som struntar i anmälningar. Mejla {{email}}.',
     email: 'Mejla Iskra-teamet',
