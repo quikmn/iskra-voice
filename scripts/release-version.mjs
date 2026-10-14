@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// Starts a release: bumps the version everywhere, commits "Version X" and tags vX. See docs/ci-cd.md.
+// Step of scripts/release.ps1 (the one release command); don't run it by hand. Bumps the version everywhere,
+// commits "Version X" and tags vX. See docs/ci-cd.md.
 //
-//   npm run release -- 2.0.0-alpha.10            # then run the git push command it prints
-//   npm run release -- 2.0.0-alpha.10 --push     # pushes main and the tag too
-//   npm run release -- 2.0.0-alpha.10 --dry-run  # shows what would change; writes nothing, skips the git checks
+//   node scripts/release-version.mjs <version>             # bump, commit, tag (release.ps1 pushes)
+//   node scripts/release-version.mjs <version> --dry-run   # shows what would change; writes nothing, skips the git checks
 //
 // Needs docs/releases/<version>.md (the release notes; scripts/release-notes.mjs writes it from NEXT.md). It and
-// docs/releases/NEXT.md may be uncommitted: they go into the version commit. scripts/release-all.ps1 runs the whole release.
+// docs/releases/NEXT.md may be uncommitted: they go into the version commit.
 import { execFileSync, execSync } from 'node:child_process'
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -18,8 +18,7 @@ const args = process.argv.slice(2)
 const flags = new Set(args.filter((a) => a.startsWith('--')))
 const version = args.find((a) => !a.startsWith('--'))
 const dryRun = flags.has('--dry-run')
-const push = flags.has('--push')
-const unknown = [...flags].filter((f) => !['--dry-run', '--push'].includes(f))
+const unknown = [...flags].filter((f) => !['--dry-run'].includes(f))
 const TRAILER = 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>'
 
 const fail = (msg) => { console.error(`\nRelease stopped: ${msg}`); process.exit(1) }
@@ -27,7 +26,7 @@ const git = (...a) => execFileSync('git', a, { cwd: root, encoding: 'utf8' }).tr
 const rel = (p) => p.replaceAll('\\', '/')
 
 if (unknown.length) fail(`unknown option ${unknown.join(', ')}`)
-if (!version) fail('give the version, e.g. npm run release -- 2.0.0-alpha.10')
+if (!version) fail('give the version, e.g. 2.0.0-alpha.10')
 if (!isValidVersion(version)) fail(`"${version}" isn't a release version: use x.y.z or x.y.z-alpha.n (no leading v)`)
 
 const tag = `v${version}`
@@ -92,12 +91,3 @@ git('add', '--', 'desktop/package.json', 'desktop/package-lock.json', ...edits.m
 git('commit', '--quiet', '-m', `Version ${version}`, '-m', TRAILER)
 git('tag', '-a', tag, '-m', `Iskra ${version}`)
 console.log(`\nCommitted "Version ${version}" and tagged ${tag}.`)
-
-const pushCmd = ['push', '--atomic', 'origin', 'main', tag]
-if (push) {
-  execFileSync('git', pushCmd, { cwd: root, stdio: 'inherit' })
-  console.log(`\nPushed. The Release workflow now builds Linux and macOS: gh run list --workflow release.yml -L 1`)
-} else {
-  console.log(`\nNext: git ${pushCmd.join(' ')}`)
-}
-console.log(`Then, on Windows with SimplySign logged in: .\\scripts\\release-windows.ps1 ${version}`)

@@ -70,5 +70,5 @@ In order; each item once. Details in [../README.md](../README.md#phase-a--phase-
        server that never expires; set once, see [../README.md](../README.md)).
 6. [ ] Flip `mobile/store.json` to `"mode": "appstore"` in a commit (with Play's flip if it's ready too).
 7. [ ] The next release submits the version. If the run warns about the age rating, answer it from
-       [age-rating.md](age-rating.md) and rerun the iOS workflow's failed job (or `release-all.ps1 <version> -Resume`).
+       [age-rating.md](age-rating.md) and rerun the iOS workflow's failed job (or `release.ps1 -Resume`).
 8. [ ] Apple approves → the version goes on sale by itself (release type "after approval").

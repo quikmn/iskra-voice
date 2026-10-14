@@ -80,7 +80,7 @@ the default branch. Turn on:
   `release scripts and restore drill`, the CodeQL `analyze` jobs, `gitleaks`) once they've run on a PR. Pushes to main
   skip CodeQL and desktop on macOS (they run on PRs and on a schedule), so require those only for pull requests.
 - **Require a pull request before merging**: recommended once there's a second person. For a solo maintainer it
-  slows releases (`npm run release` commits to main and pushes atomically with the tag); if you turn it on, add
+  slows releases (`scripts/release.ps1` commits to main and pushes atomically with the tag); if you turn it on, add
   yourself to the bypass list and use it only for the release commit. Record the choice in the risk register (R1).
 - Optional: **Require signed commits** (set up SSH commit signing first: `git config gpg.format ssh`).
 
@@ -88,7 +88,9 @@ the default branch. Turn on:
 
 Repo → Settings → Environments → `release` ([docs/ci-cd.md](../ci-cd.md) §4 "GitHub"):
 
-- **Required reviewers:** add yourself; tick "Prevent self-review" only once there's a second reviewer.
+- **Required reviewers:** none (owner decision 2026-10-15: a release is one command, `scripts/release.ps1`, and nothing
+  waits for a click). The automatic gates are release.ps1's check phase and finalize's CI gate; release.ps1 warns if
+  reviewers come back. Same for the `npm` environment (bot SDK).
 - **Deployment branches and tags:** Selected → `main`.
 - **Environment secrets:** add `CLOUDFLARE_API_TOKEN` and `DROPLET_SSH_KEY` here, run `deploy.yml` once to check,
   then delete the repo-level copies (Settings → Secrets and variables → Actions).

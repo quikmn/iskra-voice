@@ -1,4 +1,5 @@
-// Pure helpers for the release scripts (release.mjs, release-assets.mjs). Tested in release-lib.test.mjs.
+// Library of the steps of scripts/release.ps1 (the one release command); not run by hand.
+// Pure helpers for the release scripts (release-version.mjs, release-assets.mjs, release-notes.mjs). Tested in release-lib.test.mjs.
 import { readFileSync } from 'node:fs'
 
 const VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-alpha\.(0|[1-9]\d*))?$/

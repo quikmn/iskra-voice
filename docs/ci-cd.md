@@ -34,20 +34,25 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
  every 15 min ──► uptime.yml ....... iskra.foo, app.iskra.foo, chat.iskra.foo (+ /health), voice port, TLS expiry
                                      ──► GitHub issue labelled "outage" on a change of state (section 8)
 
- RELEASE = scripts/release-all.ps1 X (this Windows PC, SimplySign logged in) runs ①–④ and the final checks
- ① release-notes.mjs + release.mjs  notes from docs/releases/NEXT.md into docs/releases/X.md; bump version in
+ ONE COMMAND: scripts/release.ps1 on this Windows PC (SimplySign Desktop logged in). Check phase first (every check,
+ all reds at once, nothing changed), then "ALL CHECKS GREEN - SENDING" and the steps below without prompts or approvals.
+ RELEASE = scripts/release.ps1 [X] (default X: the next alpha after the latest release)
+ ⓪ check phase ....................... SimplySign test signature first, then git/main/CI, version, notes, links.ts/site,
+                                        file list, build tools, Android prerequisites, Play key, mobile/store.json,
+                                        GitHub secrets/variables (names only), environments without reviewers
+ ① release-notes.mjs + release-version.mjs  notes from docs/releases/NEXT.md into docs/releases/X.md; bump version in
                                     desktop/package.json(+lock), client/src/links.ts, site/index.html; commit "Version X"; tag vX
  ② git push --atomic origin main vX   (no waiting for CI: CI on main and the release builds run side by side)
         ├─► ci.yml (on main) ............. the tests; finalize refuses to publish until this run is green
         └─► release.yml (on the tag) ...... Linux AppImage/deb/rpm, macOS dmg/zip (x64 and arm64 in parallel jobs,
                                             each signed + notarized; latest-mac.yml merged), server tarballs;
                                             attestations; creates the DRAFT release vX
- ③ scripts/release-windows.ps1 X -NoFinalize
+ ③ scripts/release-windows.ps1 X
         ├─ npm run dist ................... signed Setup + Portable exe, latest.yml, signed iskra-server.exe
-        ├─ server zip, build-android.ps1 .. iskra-server-X-win-x64.zip, Iskra-X.apk (mobile/, signed locally)
+        ├─ server zip, build-android.ps1 .. iskra-server-X-win-x64.zip, Iskra-X.apk + .aab (mobile/, signed locally)
         └─ gh release upload ............... onto the draft
- ④ waits for release.yml and all 22 files, then starts
-        └─► release-finalize.yml (workflow_dispatch, environment "release")
+ ④ waits for release.yml and all 23 files, then starts
+        └─► release-finalize.yml (workflow_dispatch, environment "release", no reviewers)
               ├─ publish: CI gate (ci.yml green on the tagged commit, waits up to 45 min), check files +
               │           latest*.yml hashes, CycloneDX SBOMs, SHA256SUMS.txt, attestations,
               │           publish as Latest (not prerelease) with docs/releases/X.md
@@ -63,45 +68,51 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
                                                 phase B: production + listing), release notes en-US/sv-SE
  ⑥ final checks; a phone problem ends with STOP [phones] (-Resume retries only that)
 
- DEPLOY ONLY: deploy.yml by hand (workflow_dispatch: ref, site, webapp, server_version)
- BOT SDK: tag bots-sdk-vX ──► bots-sdk.yml ──► npm "iskra-bots" X with provenance (environment "npm"; section 4 → npm)
- iOS APP ALONE: mobile-ios.yml by hand (workflow_dispatch: ref, upload, store)
+ REDEPLOY: scripts/release.ps1 -Redeploy site|webapp|server|checksums ──► deploy.yml / release-finalize.yml (deploy off)
+ PHONES ONLY: scripts/release.ps1 -Phones ──► ⑤ for the latest release
+ BOT SDK: scripts/release.ps1 -BotSdk [X] ──► tag bots-sdk-vX ──► bots-sdk.yml ──► npm "iskra-bots" X with provenance
  RESULTS: ci.yml (main) and release-finalize.yml post pass/fail to an Iskra channel when ISKRA_CI_WEBHOOK is set (section 9)
 ```
 
+**Steps.** Only `scripts/release.ps1` is run by a person or an agent. Everything below ships something only as a step
+of it (each file's header says so); none of them is run by hand to ship.
+
+| Step | Called by | What it does |
+|---|---|---|
+| `scripts/release-checks.psm1` | release.ps1, release-windows.ps1 | SimplySign's test signature (certificate in the store, a signed scratch file) and the Android build prerequisites (presence only). Tests: `release-checks.test.mjs` (fake certificates and signer) |
+| `scripts/release-preflight.mjs` | release.ps1 (check phase) | The next version, `mobile/store.json` validity, the GitHub secret and variable names the release needs, environments with reviewers. Tests: `release-preflight.test.mjs` |
+| `scripts/ci-gate.mjs` | release.ps1 (check phase), release-finalize.yml | Exits 0 only when a push run of ci.yml concluded success on the given commit (waits up to `--wait-minutes`) |
+| `scripts/release-notes.mjs` | release.ps1 ① | Writes docs/releases/X.md from docs/releases/NEXT.md (headline, sections, "Get started" from the previous notes) and empties NEXT.md; refuses lines that already shipped. `--dry-run` in the check phase |
+| `scripts/release-version.mjs` | release.ps1 ① | Version bump in desktop/package.json(+lock), links.ts, site/index.html; commit "Version X"; tag vX. `--dry-run` in the check phase |
+| `scripts/release-lib.mjs` | the .mjs steps, release-finalize.yml | Version checks, version replacement, asset list, latest.yml parsing and merging, notes from NEXT.md, the CI verdict (`release-lib.test.mjs`) |
+| `scripts/release-assets.json`, `release-assets.mjs` | release.ps1, release-windows.ps1, release.yml, release-finalize.yml | The files every release must have; `list`, `names`, `check` (files + latest*.yml sha512), `sums` (SHA256SUMS.txt), `merge-yml` |
+| `scripts/release-windows.ps1` | release.ps1 ③ | Test signature, `npm run dist`, signature checks, server zip, Android APK + AAB, upload, size check |
+| `desktop/scripts/prepare-server.mjs`, `build-sidecar.mjs`, `sign.ps1` | `npm run dist*` (③), release.yml | Self-contained server + LiveKit into the package; `iskra-p2p` (the standalone server's tunnel as one Node executable, + licenses; not in the desktop app, which runs the tunnel itself); Certum signing of the server exes (fails instead of skipping when `ISKRA_REQUIRE_SIGNING=1`, which release-windows.ps1 sets) |
+| `mobile/scripts/build-android.ps1`, `scripts/mobile-version.mjs` | release-windows.ps1 (③), mobile-ios.yml | Signed Android APK + AAB from the Capacitor shell ([Android](#android)); the phone app's version and build numbers |
+| `scripts/play-upload.mjs` | release.ps1 ⑤ | The AAB to Google Play (track, notes, listing, data safety); `--check` (key presence) in the check phase. Tests against a fake API |
+| `scripts/appstore.mjs` | mobile-ios.yml (started by release.ps1 ⑤) | App Store Connect after each iOS upload: processing, What to test, TestFlight groups, Beta App Review; phase B the App Store version, listing, screenshots, App Review. Tests against a fake API |
+| `.github/workflows/release.yml` | the `v*` tag pushed by release.ps1 ② | Linux and macOS builds, server tarballs, draft release |
+| `.github/workflows/release-finalize.yml` | release.ps1 ④, `-Redeploy checksums` | CI gate, publish + deploy |
+| `.github/workflows/deploy.yml` | release-finalize.yml, `release.ps1 -Redeploy site/webapp/server` | Site, web app and server deploys with checks |
+| `.github/workflows/mobile-ios.yml` | release.ps1 ⑤ and `-Phones` | iPhone/iPad app: build, cloud-sign, upload ([iOS app](#ios-app)); by hand only for a test build without upload |
+| `.github/workflows/bots-sdk.yml` | the `bots-sdk-v*` tag pushed by `release.ps1 -BotSdk` | The bot SDK on npm as `iskra-bots` ([npm](#npm-bot-sdk)) |
+
+Other files of the pipeline:
+
 | File | What it does |
 |---|---|
-| `package.json` (repo root) | `npm run release`, `npm test` (release-script tests) |
-| `scripts/release-all.ps1` | The whole release (①–④ plus final checks). `-DryRun` checks everything and changes nothing; `-Resume` continues after a stop once the tag is pushed |
-| `scripts/release-notes.mjs` | Writes docs/releases/X.md from docs/releases/NEXT.md (headline, sections, "Get started" from the previous notes) and empties NEXT.md; refuses lines that already shipped |
-| `scripts/release.mjs` | Step ①. `--dry-run` shows the changes, `--push` pushes too |
-| `scripts/ci-gate.mjs` | Exits 0 only when a push run of ci.yml concluded success on the given commit (waits up to `--wait-minutes`). Used by finalize |
-| `scripts/release-lib.mjs`, `release-lib.test.mjs` | Version checks, version replacement, asset list, latest.yml parsing and merging, notes from NEXT.md, the CI verdict (unit-tested, run in CI) |
-| `scripts/release-assets.json` | The files every release must have. One list for the PowerShell script and the workflows |
-| `scripts/release-assets.mjs` | `list`, `names`, `check` (files + latest*.yml sha512), `sums` (SHA256SUMS.txt), `merge-yml` (release.yml: one latest-mac.yml from the two Mac jobs) |
-| `scripts/release-windows.ps1` | Step ③ (on its own it also waits for the other files and starts finalize) |
-| `.github/workflows/release.yml` | Linux and macOS builds on a `v*` tag |
-| `.github/workflows/release-finalize.yml` | Publish + deploy |
-| `.github/workflows/deploy.yml` | Site, web app and server deploys with checks; called by finalize or run by hand |
-| `.github/workflows/marketplace.yml` | Lints the DigitalOcean Marketplace image (`marketplace/digitalocean/`) on changes; its build job runs only by hand in the `marketplace` environment (owner approval, secret `DO_MARKETPLACE_TOKEN`). Steps: `marketplace/digitalocean/README.md` |
+| `package.json` (repo root) | `npm test`: the release-script tests (`scripts/*.test.mjs`, run in CI) |
+| `mobile/store.json` | Where the phone apps go each release: iOS mode (testflight, appstore, upload), TestFlight groups, Play track, rollout, listing ([docs/store/README.md](store/README.md)) |
+| `docs/releases/<version>.md`, `NEXT.md` | Release notes (become the GitHub release text); NEXT.md collects them between releases |
+| `.github/workflows/marketplace.yml` | Lints the DigitalOcean Marketplace image (`marketplace/digitalocean/`) on changes; its build job runs only by hand in the `marketplace` environment (owner approval, secret `DO_MARKETPLACE_TOKEN`); it ships no Iskra release. Steps: `marketplace/digitalocean/README.md` |
 | `.github/workflows/ci.yml`, `codeql.yml`, `.github/dependabot.yml` | Tests (including the backup-restore drill), code scanning, dependency updates |
 | `.github/workflows/secrets.yml`, `.gitleaks.toml`, `.gitleaksignore` | Secret scan of the whole history ([below](#secret-scanning-and-security-settings)) |
 | `.github/workflows/scorecard.yml` | OpenSSF Scorecard (supply-chain checks), results in the Security tab |
 | `SECURITY.md`, `site/.well-known/security.txt`, `client/public/.well-known/security.txt` | Vulnerability disclosure policy and the RFC 9116 contact files on iskra.foo and app.iskra.foo |
-| `docs/releases/<version>.md` | Release notes (become the GitHub release text) |
-| `desktop/scripts/sign.ps1` | Signs the standalone Windows server exe with the Certum certificate |
-| `mobile/scripts/build-android.ps1` | Signed Android APK (+ AAB) from the Capacitor shell ([Android](#android)) |
-| `.github/workflows/mobile-ios.yml` | iPhone/iPad app: build, cloud-sign, upload to TestFlight ([iOS app](#ios-app)) |
-| `.github/workflows/bots-sdk.yml`, `bots/sdk/package.json`, `bots/sdk/build-package.mjs` | The bot SDK on npm as `iskra-bots`, on a `bots-sdk-v*` tag ([npm](#npm-bot-sdk)) |
-| `scripts/mobile-version.mjs` | The phone app's version and build numbers (tested by the root `npm test`) |
-| `mobile/store.json` | Where the phone apps go each release: iOS mode (testflight, appstore, upload), TestFlight groups, Play track, rollout, listing ([docs/store/README.md](store/README.md)) |
-| `scripts/appstore.mjs` | App Store Connect after each iOS upload (run by mobile-ios.yml): processing, export compliance, What to test, TestFlight groups, Beta App Review; phase B the App Store version, listing, screenshots, App Review. Tests against a fake API: `scripts/appstore.test.mjs` |
-| `scripts/play-upload.mjs` | The Android app bundle to Google Play (Android Publisher API; run by release-all.ps1): track, release notes, listing, data safety. `--list-tracks`, `--dry-run`, `--check`. Tests against a fake API: `scripts/play-upload.test.mjs` |
 | `scripts/ci-notify.mjs` | CI and release results to an Iskra channel ([section 9](#9-ci-results-in-iskra)) |
 | `docs/store/` | Store texts, forms and graphics: `play/` (Google Play), `appstore/` (App Store), `README.md` (phases and the owner's one-time steps) |
 | `.github/workflows/uptime.yml`, `scripts/uptime-check.sh` | Uptime checks and outage issues ([section 8](#8-uptime-monitoring)) |
 | `server/deploy/iskra-update-guard` | Shipped in the Linux server tarball (release.yml): undoes a server self-update that doesn't start (docs/hosting.md) |
-| `desktop/scripts/build-sidecar.mjs` | `iskra-p2p`, the standalone server's peer-to-peer tunnel as one Node single executable (+ `iskra-p2p-licenses.txt`), into every server package: release.yml (Linux, both Macs; Mac x64 takes Node from nodejs.org, checked against SHASUMS256.txt; ad-hoc signed) and release-windows.ps1 (signed, checked with the other signatures). Not in the desktop app, which runs the tunnel itself |
 
 Supply chain: every action is pinned to a full commit SHA with the version as a comment (Dependabot keeps them
 current); every workflow starts with minimal `permissions:` and widens them per job; wrangler is pinned
@@ -130,47 +141,74 @@ Versions are `x.y.z` or `x.y.z-alpha.n`; tags are `v` + version. Alphas are publ
 Latest (a prerelease never becomes GitHub's Latest, and people are told to "get the latest release"). The desktop
 apps update themselves from the release (`latest*.yml`), with `allowPrerelease` on during the alpha.
 
-**One command:** `.\scripts\release-all.ps1 <version>` on the Windows PC, from an up-to-date, clean `main`, with
-SimplySign Desktop logged in. `-DryRun` first: it runs every check (git state, version, notes, links.ts/site, CI on main,
-signing certificate, workflows) and prints every step without changing anything. On a problem it prints one
-`STOP [case] what to do` line (the cases of the playbook's decision table) and ends; once the tag is pushed,
-`-Resume` picks up where it stopped. What it does, step by step:
+**One command:** `.\scripts\release.ps1` (or `.\scripts\release.ps1 <version>`; without one it takes the next alpha
+after the latest release) on the Windows PC, from `main` at origin/main, with SimplySign Desktop logged in. Nothing
+asks for anything after it starts: no prompts, no approvals in GitHub, no phone.
+
+**Phase 1, checks (nothing changes).** In this order:
+
+1. **SimplySign first**: the certificate is in the store and not expired, and a test signature on a scratch file works
+   (with Certum's timestamp). Not logged in: it stops at once with one line, *Log in to SimplySign Desktop (6-digit code
+   from the app), then run scripts/release.ps1 again.* (An expiry within 30 days is a warning.)
+2. git, gh, node, npm on PATH; gh logged in; GitHub reachable (these stop at once too).
+3. Then everything else, every red collected: the workflows `ci`, `release`, `release-finalize`, `deploy`
+   (`mobile-ios` too unless `-SkipPhones`) are active; on `main`, clean (only the notes files may be uncommitted), exactly
+   at origin/main, and `git push --dry-run` works without asking; the tag and a release of that name don't exist; the
+   version is newer than desktop/package.json's; the release notes are ready (`release-notes.mjs --dry-run`);
+   desktop/package.json, links.ts and site/index.html (at least 20 links) carry the same current version
+   (`release-version.mjs --dry-run`); the file list (release-assets.json) is complete; dotnet, `.tools\livekit-server.exe`
+   and 10 GB of free disk for the Windows build; the Android JDK 21, SDK + build-tools and the release keystore and its
+   password file (presence only, never read); the Play service-account key (presence only); mobile/store.json valid; the
+   GitHub secrets and variables the workflows need (names only: `gh secret list`, `gh variable list`, also the `release`
+   environment's), `REVIEW_INVITE_URL` when `ios.mode` is `appstore`; a warning for an environment that still has required
+   reviewers, with the setting to change.
+4. Last, CI: a push run of ci.yml must have passed on HEAD (or on the newest commit before it that isn't docs/site-only,
+   since CI skips those); while it runs the check waits up to `-CiWaitMinutes` (30).
+
+Any red: it lists all of them (`N thing(s) to fix ... (nothing was changed or sent)`) and ends. Fix, run it again.
+`-CheckOnly` (alias `-DryRun`) stops here either way.
+
+**Phase 2, sending.** All green prints `ALL CHECKS GREEN - SENDING` and runs, without a prompt:
 
 1. **Notes.** `scripts/release-notes.mjs` turns `docs/releases/NEXT.md` (bullets under `### What's new`, `### Fixes`,
    `### Good to know`; each change one line) into `docs/releases/<version>.md`: the headline, the non-empty sections and
    `### Get started` from the previous notes with the new version; NEXT.md goes back to empty sections. It refuses
    lines that already shipped in the previous notes and breaks of the public wording rules ("Iskra 2", "rebuilt", v1).
    A hand-written `docs/releases/<version>.md` ([format](releases/README.md)) wins: NEXT.md is then left alone.
-2. **Bump and tag.** `npm run release -- <version>`. It refuses if the branch isn't
-   main, the tree has other changes, main is behind origin, the tag exists, the version isn't newer, the notes are
-   missing, or links.ts/site don't mention the current version. Result: one commit "Version X" (with the notes and
-   NEXT.md) and an annotated tag vX.
+2. **Bump and tag.** `scripts/release-version.mjs`: one commit "Version X" (with the notes and NEXT.md) and an annotated
+   tag vX.
 3. **Push.** `git push --atomic origin main vX`. Nothing waits for CI here: CI runs on main while `release.yml` builds
    from the tag (Linux, Mac x64 and Mac arm64 in parallel jobs) and creates the draft release. CI doesn't run on tags
    (`branches: ['**']`): the tag's commit is main's, tested once.
-4. **Windows + Android.** `.\scripts\release-windows.ps1 X -NoFinalize` (PowerShell 7). It test-signs a scratch file
-   first, builds, checks every signature (valid, right publisher, timestamped), builds the server zip and APK, prints
-   SHA256s, uploads and checks sizes on GitHub. Run on its own (without `-NoFinalize`) it also waits for the Linux/macOS
-   files (up to `-WaitMinutes`, default 60) and starts finalize; `-SkipBuild` re-uploads existing files.
-5. **Finalize.** release-all.ps1 waits for `release.yml` (and checks both Macs were notarized), checks all 22 files are
-   there and starts `release-finalize.yml` (approve it if the environment has reviewers). Its first step is the **CI
-   gate**: `scripts/ci-gate.mjs` waits (up to 45 min) for a push run of `ci.yml` on exactly the tagged commit and fails,
-   before anything is uploaded or published, unless one concluded success. Then the checks, SBOMs, sums, attestations,
-   publishing and the deploys. Done when all its jobs are green; its checks are the verification: iskra.foo links to vX,
-   app.iskra.foo serves the new bundle, chat.iskra.foo answers, GitHub's Latest is vX, the downloads resolve.
-   release-all.ps1 then checks them once more itself (Latest, every file and SHA256SUMS.txt, iskra.foo links,
-   app.iskra.foo's bundle has the version, chat.iskra.foo/health reports it).
-6. **Phones.** Once finalize published the release: release-all.ps1 starts `mobile-ios.yml` on the tag with upload on
-   (its run is titled "Mobile iOS vX (TestFlight)", so a resumed release finds it instead of building twice), uploads
-   `mobile\release\Iskra-X.aab` (built by release-windows.ps1 together with the APK) with `scripts/play-upload.mjs`,
-   then waits for the iOS run, which ends with `scripts/appstore.mjs` doing everything App Store Connect needs.
-   Where they go is `mobile/store.json` (phase A: TestFlight internal and external groups + Beta App Review, Play's
-   closed testing track; phase B: the App Store and Play production; [docs/store/README.md](store/README.md)).
-   No Play key (`D:\Development_Projects\devkeys\google-play-service-account.json`): the Play upload is skipped with a
-   note. A phone problem doesn't stop the final checks; the run then ends with `STOP [phones]` and `-Resume` retries only
-   what isn't done (a version already on the Play track or a TestFlight run that succeeded is left alone).
-   `-SkipPhones` leaves the stores alone, `-PlayTrack <track>` overrides the track once.
-7. Afterwards: `git checkout main`.
+4. **Windows + Android.** `scripts/release-windows.ps1 X`. It test-signs a scratch file again, builds (`sign.ps1` fails
+   instead of leaving a file unsigned), checks every signature (valid, right publisher, timestamped), builds the server
+   zip, APK and AAB, prints SHA256s, uploads and checks sizes on GitHub. SimplySign logging out mid-build ends with
+   `STOP [SimplySign] Log in ..., then run scripts/release.ps1 -Resume`.
+5. **Finalize.** release.ps1 waits for `release.yml` (and checks both Macs were notarized), checks all 23 files are there
+   and starts `release-finalize.yml`. The `release` environment has no required reviewers, so nothing waits for a click:
+   the automatic gate is its first step, the **CI gate**: `scripts/ci-gate.mjs` waits (up to 45 min) for a push run of
+   `ci.yml` on exactly the tagged commit and fails, before anything is uploaded or published, unless one concluded
+   success. Then the checks, SBOMs, sums, attestations, publishing and the deploys. Its checks are the verification:
+   iskra.foo links to vX, app.iskra.foo serves the new bundle, chat.iskra.foo answers, GitHub's Latest is vX.
+6. **Phones.** release.ps1 starts `mobile-ios.yml` on the tag with upload on (its run is titled "Mobile iOS vX
+   (TestFlight)", so a resumed release finds it instead of building twice), uploads `mobile\release\Iskra-X.aab` with
+   `scripts/play-upload.mjs`, then waits for the iOS run, which ends with `scripts/appstore.mjs` doing everything App
+   Store Connect needs. Where they go is `mobile/store.json` (phase A: TestFlight internal and external groups + Beta App
+   Review, Play's closed testing track; phase B: the App Store and Play production; [docs/store/README.md](store/README.md)).
+   A phone problem doesn't stop the final checks; the run then ends with `STOP [phones]` and `-Resume` retries only
+   what isn't done. `-SkipPhones` leaves the stores alone, `-PlayTrack <track>` overrides the track once.
+7. **Final checks**: Latest, every file and SHA256SUMS.txt, iskra.foo links, app.iskra.foo's bundle has the version,
+   chat.iskra.foo/health reports it. Then the report lines (Task, Result, Release, Runs, Checks, Phones).
+
+A problem after the banner prints one `STOP [case] what to do` line (the playbook's decision table). Once the tag is
+pushed, `.\scripts\release.ps1 -Resume` (on the tag commit) checks again and picks up where it stopped.
+
+**What can still fail after the tag is pushed** (it can't be checked before without building or publishing): the
+Linux/macOS builds and notarization (Apple's side: agreements, membership), the Windows build itself and SimplySign
+timing out during it, the Android build, uploads to GitHub, CI on the "Version X" commit (only versions, notes and links
+change; the gate in finalize catches it), Cloudflare tokens and the droplet's SSH during the deploys, the App Store
+Connect and Play APIs (permissions, Apple's processing, review). Each ends with a STOP line and `-Resume`; nothing is
+published before finalize's CI gate passes.
 
 The user's own server updates through finalize. Other standalone servers look for new releases themselves (owner
 setting, Settings → Updates: off / tell me / install automatically on Linux with systemd; docs/hosting.md "Updating").
@@ -181,7 +219,11 @@ attestations, so every release needs SHA256SUMS.txt (finalize makes it) and the 
 
 ## 3. Deploying without a release
 
-`deploy.yml` → Run workflow (or `gh workflow run deploy.yml -f ref=main -f site=true`):
+`.\scripts\release.ps1 -Redeploy site` (iskra.foo from main; `-Ref <tag or branch>`), `-Redeploy webapp` (app.iskra.foo
+from the latest release tag; `-Ref main`), `-Redeploy server [<version>]` (chat.iskra.foo to the latest or that published
+release) and `-Redeploy checksums [<version>]` (finalize again without deploying, after files were replaced). Each checks
+first (the workflow is active, the ref exists on GitHub, site commits are pushed, the release is published with
+SHA256SUMS.txt), then starts `deploy.yml` (or `release-finalize.yml`) with these inputs and waits for it:
 
 | Input | Effect |
 |---|---|
@@ -190,7 +232,7 @@ attestations, so every release needs SHA256SUMS.txt (finalize makes it) and the 
 | `webapp` | Builds `client/` and deploys `client/dist` to app.iskra.foo (branch main = production), then checks the new bundle and `/.well-known/security.txt` |
 | `server_version` | Runs `iskra-update <version>` on the droplet. The version must be a published release (it downloads from GitHub and checks SHA256SUMS.txt) |
 
-Local fallback (no CI): `site/` with the `iskra-deploy-cf` token through `D:\Development_Projects\IskraHeroPage\deploy-hero.ps1`
+Local fallback, only with the human and only when GitHub Actions can't run: `site/` with the `iskra-deploy-cf` token through `D:\Development_Projects\IskraHeroPage\deploy-hero.ps1`
 (it decrypts the token itself; never print it). It deploys its own folder `IskraHeroPage\iskra-site`, not `site/`: copy
 `site/*.html`, `site/*.css`, `site/fonts/`, `site/.well-known/`, `site/worker.js` and `site/.assetsignore` into it first, because a Pages deploy replaces the whole
 site and would drop any page that's missing. The web app deploys with `npx wrangler@4.136.3 pages deploy dist --project-name=iskra-webclient --branch=main`
@@ -208,7 +250,7 @@ Set a secret from a file without echoing it: `gh secret set NAME < file`.
 |---|---|
 | What | Code-signing certificate "Open Source Developer Viktor Lundgren" (Certum Open Source Code Signing), key in Certum's cloud HSM, used through **SimplySign Desktop** on the Windows PC |
 | Valid | 2026-05-12 → **2027-05-12** |
-| Used by | `npm run dist` (electron-builder `win.signtoolOptions`, certificate looked up by subject in CurrentUser\My), `desktop/scripts/sign.ps1` (server exe), `scripts/release-windows.ps1` (checks) |
+| Used by | `npm run dist` (electron-builder `win.signtoolOptions`, certificate looked up by subject in CurrentUser\My), `desktop/scripts/sign.ps1` (server exe), `scripts/release-checks.psm1` (test signature before a release) |
 | Login | SimplySign Desktop → log in with the 6-digit code from the SimplySign phone app before every Windows build; the session times out after a while |
 | Lost/expired | No signed Windows builds. Already-signed releases stay valid (they're timestamped) |
 
@@ -218,7 +260,7 @@ doesn't match `publisherName` in `desktop/package.json` (electron-updater checks
 - same CN "Open Source Developer Viktor Lundgren": nothing else to change;
 - different CN: first ship a release whose `win.signtoolOptions.publisherName` lists **both** names (it accepts a
   list), signed with the old certificate, then switch. Otherwise installed apps stop auto-updating and people must
-  reinstall by hand. Update `certificateSubjectName`, `sign.ps1` and the `$subject` in release-windows.ps1 too.
+  reinstall by hand. Update `certificateSubjectName`, `sign.ps1` and `$script:Subject` in scripts/release-checks.psm1 too.
 
 Windows SmartScreen reputation builds per certificate, so expect warnings again for a while after a change.
 
@@ -275,9 +317,10 @@ with every release and every rebuild. App Store Connect rejects a build number i
 rerun. Once a `2.0.0` build is approved for the App Store, that version is closed: the next builds must be a higher
 version (the next release bump does that).
 
-**Running it.** Every release runs it (release-all.ps1, step 6 of [Releasing](#2-releasing)). By hand:
-`gh workflow run mobile-ios.yml [-f ref=vX] [-f upload=false] [-f store=auto|testflight|appstore|upload]` (default:
-main, upload, the mode in `mobile/store.json`). After the upload, the step "TestFlight groups and reviews" runs
+**Running it.** Every release runs it (release.ps1, step 6 of [Releasing](#2-releasing)); `release.ps1 -Phones` runs it
+for the latest release. By hand, only a test build without upload:
+`gh workflow run mobile-ios.yml -f upload=false [-f ref=<branch or tag>]` (build, sign and check only). With upload on
+(release.ps1), the run uses the mode in `mobile/store.json` (input `store` overrides it). After the upload, the step "TestFlight groups and reviews" runs
 `scripts/appstore.mjs`: it waits for Apple's processing (up to an hour; the job's timeout is 120 minutes), answers
 export compliance, sets What to test from the release notes, keeps TestFlight's test information and the review
 contact current, adds the build to the internal groups and the external groups in `mobile/store.json` (the public link
@@ -369,7 +412,7 @@ for a declaration of the foreground service types (microphone, media playback: "
 
 #### Google Play uploads
 
-`scripts/play-upload.mjs <version>` (release-all.ps1 runs it after publishing) does one Android Publisher API edit:
+`scripts/play-upload.mjs <version>` (release.ps1 runs it after publishing) does one Android Publisher API edit:
 `edits.insert`, `bundles.list` (Play never takes a version code twice: a code already there from the same file isn't
 uploaded again; from a different file it stops and says to rebuild with `-Rebuild n`), `bundles.upload`, `tracks.get`
 / `tracks.update` to the track in `mobile/store.json` (`alpha` is the API name of Play's closed testing track; a custom
@@ -389,16 +432,18 @@ to the Capacitor app in place. The TWA project is gone from the tree (`android/R
 
 ### GitHub
 
-- The `gh` CLI on the Windows PC is logged in as the owner (`gh auth status`); release-windows.ps1 uses it.
+- The `gh` CLI on the Windows PC is logged in as the owner (`gh auth status`); release.ps1 and its steps use it.
 - Workflows use the automatic `GITHUB_TOKEN` with per-job permissions; no personal tokens are stored.
 - Secrets (repo level): `CLOUDFLARE_API_TOKEN`, `DROPLET_SSH_KEY`, `MAC_CERT_P12_BASE64`, `MAC_CERT_PASSWORD`,
   `APPSTORE_API_KEY_BASE64`, `APPSTORE_KEY_ID`, `APPSTORE_ISSUER_ID`; optional `APPSTORE_REVIEW_PHONE` (App Review
   contact) and `ISKRA_CI_WEBHOOK` ([section 9](#9-ci-results-in-iskra)). Variables: `CLOUDFLARE_ACCOUNT_ID`,
   `DROPLET_HOST`, `DROPLET_KNOWN_HOSTS`, `MAC_IDENTITY`, `REVIEW_INVITE_URL` (the review server invite for App Review notes).
 - Environment `release` (Settings → Environments → New environment). Used by release-finalize.yml and deploy.yml.
-  Options worth setting:
-  - **Required reviewers**: the owner approves each publish and each deploy (finalize asks twice: once to publish,
-    once for the deploy jobs, which start together and can be approved in one go).
+  Options:
+  - **No required reviewers** (owner decision 2026-10-15): a release is one command and nothing waits for a click in
+    GitHub. The automatic gate is finalize's first step (CI passed on the tagged commit) plus release.ps1's check
+    phase, which warns if an environment gets reviewers again (Settings → Environments → release → untick "Required
+    reviewers").
   - **Deployment branches and tags**: "Selected" → branch `main`. Manually started workflows run on `main` (they
     check out the tag themselves), so don't restrict it to tags.
   - **Environment secrets**: move `CLOUDFLARE_API_TOKEN` and `DROPLET_SSH_KEY` here (add them to the environment,
@@ -415,10 +460,12 @@ from app releases (first published 2026-10-14, 0.1.0).
 - **No token: trusted publishing.** npmjs.com → iskra-bots → Settings → Trusted Publisher: GitHub Actions,
   `quikmn/iskra-voice`, workflow `bots-sdk.yml`, environment `npm`, allowed: `npm publish`. npm checks the workflow
   run's identity (OIDC); nothing to renew. Publishing access: 2FA required, tokens disallowed. The `npm` environment
-  has the owner as required reviewer, so every publish waits for an approval in GitHub.
-- **Publishing:** bump `version` in `bots/sdk/package.json`, commit, then `git tag bots-sdk-v<version>` and push the tag.
-  The workflow checks the tag matches, type-checks, builds (`npm run build:sdk` in `bots/`) and runs `npm publish
-  --provenance`. Try it locally first: `npm run pack:sdk` in `bots/` lists exactly what would be published.
+  has no required reviewers, so a publish doesn't wait for a click.
+- **Publishing:** `.\scripts\release.ps1 -BotSdk [<version>]` (default: the next patch version). Its check phase: main
+  clean at origin/main with green CI, the tag and the npm version unused, `npm run typecheck`, `npm run build:sdk` and
+  `npm pack ./sdk --dry-run` in `bots/`. Then it sets `version` in `bots/sdk/package.json`, commits "Bot SDK X", tags
+  `bots-sdk-vX`, pushes main and the tag, waits for bots-sdk.yml (tag matches, type-check, build, `npm publish
+  --provenance`) and checks npm lists the version.
 
 ### Secret scanning and security settings
 
@@ -433,7 +480,7 @@ many of them (branch protection, review) are owner settings too. Click-by-click 
 
 | When | What | Do |
 |---|---|---|
-| Every Windows release | SimplySign session | Log in with the phone code before `release-windows.ps1` |
+| Every release | SimplySign session | Log in to SimplySign Desktop with the phone code before `release.ps1` (its first check says so) |
 | Weekly (Mondays) | Dependabot PRs, CodeQL, Scorecard and secret scans | Merge green Dependabot PRs; look at new code-scanning alerts (Security tab: CodeQL and Scorecard) and secret-scanning alerts |
 | Continuous | Droplet OS updates | Automatic (unattended-upgrades); reboot now and then (`ssh … reboot` with the admin key) when `/var/run/reboot-required` exists |
 | Every ~60 days, automatic | chat.iskra.foo HTTPS certificate | The server renews it itself; port 80 must stay open |
@@ -474,18 +521,18 @@ run CI as pull requests only.
 
 | Symptom | Cause and fix |
 |---|---|
-| `release-windows.ps1` stops at "SimplySign isn't logged in", or the build log shows "No provider was specified", "SignTool Error" | SimplySign Desktop is logged out (it times out). Log in with the phone code, rerun. If it happened mid-build, rerun without `-SkipBuild` |
+| `STOP [SimplySign] Log in to SimplySign Desktop ...` (at the start, or mid-build: "No provider was specified", "SignTool Error", "Signing failed") | SimplySign Desktop is logged out (it times out). Log in with the phone code, then run release.ps1 again (`-Resume` once the tag is pushed) |
 | sign.ps1 found no certificate in PowerShell 7 although it's installed | Fixed: `-CodeSigningCert` is missing when PSModulePath points at PowerShell 7's modules, so sign.ps1 filters on the code-signing EKU (1.3.6.1.5.5.7.3.3) itself. Keep that filter if you touch it |
 | macOS: `security: SecKeychainItemImport` / codesign "errSecInternalComponent" / keychain won't unlock | Fixed in release.yml: we import the p12 into our own keychain and run `set-key-partition-list` (electron-builder's temporary keychain fails on current runners). Keep that step |
 | Notarization failed or hangs | The electron-builder log shows the submission id. On a Mac with the .p8: `xcrun notarytool log <id> --key AuthKey.p8 --key-id <id> --issuer <issuer>` (or `notarytool history`) lists the rejected files. Common: an unsigned nested binary, missing hardened runtime, expired membership or agreement waiting in App Store Connect |
-| Finalize: "no green CI run on …" / "CI concluded failure on this commit" | The CI gate: nothing was published. A flake: rerun CI's failed jobs (`gh run rerun <id> --failed`), then start finalize again (or `release-all.ps1 X -Resume`). "CI concluded cancelled": a newer push cancelled it (shouldn't happen to a "Version X" commit): `gh run rerun <id>`, then finalize again. A real failure: fix main and release the next version; never move the tag |
+| Finalize: "no green CI run on …" / "CI concluded failure on this commit" | The CI gate: nothing was published. A flake: rerun CI's failed jobs (`gh run rerun <id> --failed`), then `release.ps1 -Resume`. "CI concluded cancelled": a newer push cancelled it (shouldn't happen to a "Version X" commit): `gh run rerun <id>`, then `release.ps1 -Resume`. A real failure: fix main and release the next version; never move the tag |
 | release.yml publish: "latest-mac.yml: … doesn't match its build's update file" / "the parts …" | The two Mac jobs' update files don't fit their zips or each other. Rerun release.yml's failed jobs; if it repeats, report |
-| Finalize: "missing (…)" | A build didn't upload. Check `release.yml`'s run for the tag, rerun it (`gh workflow run release.yml -f tag=vX`) or rerun release-windows.ps1 with `-SkipBuild` |
+| Finalize: "missing (…)" | A build didn't upload. Check `release.yml`'s run for the tag, rerun its failed jobs (`gh run rerun <id> --failed`), then `release.ps1 -Resume` (it builds and uploads missing Windows files) |
 | Finalize: "latest.yml: … doesn't match" | A file was re-uploaded without the latest*.yml from the same build (or the other way round). Upload both from the same build |
-| Checksums wrong after re-uploading assets | Rerun finalize with `deploy` off: it regenerates SHA256SUMS.txt and the attestations |
+| Checksums wrong after re-uploading assets | `release.ps1 -Redeploy checksums <version>`: finalize with deploy off regenerates SHA256SUMS.txt and the attestations |
 | Pages deploy fails | "Authentication error": token revoked/expired or wrong account id (section 4). "Project not found": project names in deploy.yml. The check step failing after a good deploy: Cloudflare cache; rerun |
 | Server update fails | `iskra-update` rolled back to the previous version (the server keeps running). Log in with the admin key: `journalctl -u iskra -n 200`. Host key mismatch in CI: the droplet was rebuilt, refresh `DROPLET_KNOWN_HOSTS` |
-| `release.yml`: "Check the tag matches the app version" fails | The tag was pushed without `npm run release`. Don't move the tag: delete the draft release, bump to the next version |
+| `release.yml`: "Check the tag matches the app version" fails | The tag was pushed by hand, not by release.ps1. Don't move the tag: delete the draft release, bump to the next version |
 | Linux CI: audio/video device errors | Runners have no sound card or display. Electron tests run under `xvfb-run`; browser tests use Chromium's fake media devices. Don't add tests that need real devices |
 | Windows Firewall prompts during tests | Something listened on all interfaces. Tests must be localhost-only (`LocalOnly: true`, `ISKRA_LOCAL_ONLY=1`); `scripts/dev-firewall.ps1` adds block rules for new exe paths |
 | Secrets scan fails | gitleaks found something that looks like a secret (the log shows file, commit and rule, value redacted). A real one: revoke/rotate it at the service **first** (it's public the moment it's pushed), then remove it from the tree. A false positive: add its fingerprint (`commit:file:rule:line`, printed in the log) to `.gitleaksignore` with a comment why, or a path to `.gitleaks.toml` for test data |
@@ -500,7 +547,7 @@ run CI as pull requests only.
 | `outage` issue opened | See [section 8](#8-uptime-monitoring) and playbook J. The issue closes itself when the checks pass |
 | Deploy `server`: "doesn't answer as X" | `/health` reports another version: `iskra-update` rolled back, or the build wasn't stamped with its version (prepare-server.mjs). `curl https://chat.iskra.foo/health` |
 | build-android.ps1: "fingerprint isn't in assetlinks.json" | It found a different keystore. Never ship that APK: installed apps couldn't update. Point `ISKRA_ANDROID_KEYSTORE` at the real one |
-| `STOP [phones]` from release-all.ps1 | The release is out; a phone part isn't. The line names it. TestFlight failed: the iOS rows here and the run's log. Play: the rows below. Then `release-all.ps1 X -Resume` |
+| `STOP [phones]` from release.ps1 | The release is out; a phone part isn't. The line names it. TestFlight failed: the iOS rows here and the run's log. Play: the rows below. Then `release.ps1 -Resume` |
 | Play upload: "401" / "403 The caller does not have permission" | The service account isn't invited in Play Console, lacks the release permissions for Iskra, or was added less than ~24 h ago ([docs/store/README.md](store/README.md#google-play-service-account-for-the-uploads)) |
 | Play upload: "Play has no track 'x'" | `android.track` in mobile/store.json doesn't match; the message lists the app's tracks (also `node scripts/play-upload.mjs --list-tracks`) |
 | Play upload: "already has version code … from a different file" | That code was uploaded from another build. Rebuild with the next rebuild number (`build-android.ps1 -Rebuild 1`) and `-Resume` |
@@ -528,8 +575,10 @@ migration ran in between (migrations are forward-only); otherwise restore from a
 - Tests and local servers listen on localhost only (no firewall prompts).
 - Agents never call the App Store Connect or Google Play APIs themselves and never open the Play key; the release
   scripts do it at release time. Tests use fake APIs only.
-- Needs the human: the SimplySign phone code, the Apple developer portal and App Store Connect (app record, TestFlight testers, API keys), the Play Console,
-  the Cloudflare dashboard (new tokens), DigitalOcean, approving `release` environment runs, anything that costs money.
+- Ship only with `scripts/release.ps1` (release, `-Resume`, `-Redeploy`, `-Phones`, `-BotSdk`); never run its steps or
+  `gh workflow run` for release, finalize, deploy or iOS uploads by hand.
+- Needs the human: the SimplySign login (phone code) before a release, the Apple developer portal and App Store Connect (app record, TestFlight testers, API keys), the Play Console,
+  the Cloudflare dashboard (new tokens), DigitalOcean, anything that costs money.
 
 ## 8. Uptime monitoring
 

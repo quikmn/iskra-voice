@@ -2,8 +2,8 @@ name: Bot SDK to npm
 
 # Publishes the bot SDK (bots/sdk) to npm as "iskra-bots", with provenance, when a tag bots-sdk-v<version> is pushed.
 # The tag's version must match bots/sdk/package.json. No token: npm trusts this workflow in the `npm` environment
-# (trusted publishing, OIDC; set up on npmjs.com → iskra-bots → Settings), and the environment's reviewer approves each
-# publish. docs/ci-cd.md → npm.
+# (trusted publishing, OIDC; set up on npmjs.com → iskra-bots → Settings). The tag is made and pushed by
+# scripts/release.ps1 -BotSdk after its checks. docs/ci-cd.md → npm.
 on:
   push:
     tags: ['bots-sdk-v*']

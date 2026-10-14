@@ -36,11 +36,11 @@ Generated and ignored: `ios/App/App/public`, `capacitor.config.json`, `config.xm
 
 ### iOS
 
-CI does everything (see [docs/ci-cd.md](../docs/ci-cd.md#ios-app) and the playbook's task "build iOS and upload to TestFlight"):
+CI does everything (see [docs/ci-cd.md](../docs/ci-cd.md#ios-app) and the playbook's section I). Every release uploads
+to TestFlight by itself (`scripts/release.ps1`); `scripts/release.ps1 -Phones` does it again for the latest release.
+A test build that ships nothing:
 
 ```
-gh workflow run mobile-ios.yml                      # build main, upload to TestFlight
-gh workflow run mobile-ios.yml -f ref=v2.0.0-alpha.10
 gh workflow run mobile-ios.yml -f upload=false      # build, sign and check only; the .ipa is a run artifact
 ```
 
@@ -61,7 +61,7 @@ On a Mac, by hand: `cd client && npm run build`, `cd mobile && npm ci && npx cap
 On the owner's Windows PC (the release key never leaves it):
 
 ```powershell
-.\mobile\scripts\build-android.ps1            # mobile\release\Iskra-<version>.apk and .aab (for Google Play); what release-windows.ps1 runs
+.\mobile\scripts\build-android.ps1            # mobile\release\Iskra-<version>.apk and .aab (a local test build; releases run it themselves)
 .\mobile\scripts\build-android.ps1 -ApkOnly   # the APK only
 ```
 

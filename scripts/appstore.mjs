@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// Step of scripts/release.ps1 (the one release command); don't run it by hand. Runs in mobile-ios.yml, which release.ps1 starts.
 // After mobile-ios.yml uploads a build: everything App Store Connect needs so nobody clicks anything
 // (docs/ci-cd.md, "Phone apps in the release"). Plain App Store Connect API calls with the APPSTORE_* key.
 //

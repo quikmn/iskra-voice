@@ -1,10 +1,10 @@
 name: Release finalize
 
-# Last step of a release (docs/ci-cd.md), started by scripts/release-windows.ps1 once every build is attached:
+# Last step of a release (docs/ci-cd.md), started by scripts/release.ps1 once every build is attached:
 # checks the release files, adds CycloneDX SBOMs, SHA256SUMS.txt and build-provenance attestations, publishes the release as
 # Latest with docs/releases/<version>.md as notes, then deploys iskra.foo and app.iskra.foo and updates chat.iskra.foo.
-# Runs in the `release` environment: add required reviewers there to approve each release by hand.
-# Release builds start on the tag without waiting for CI, so this is the gate: nothing is uploaded or published until the
+# Runs in the `release` environment, which has no required reviewers: nothing waits for a click.
+# Release builds start on the tag without waiting for CI, so this is the automatic gate: nothing is uploaded or published until the
 # CI workflow concluded success on the tagged commit (scripts/ci-gate.mjs; waits up to CI_WAIT_MINUTES, then fails).
 on:
   workflow_dispatch:
