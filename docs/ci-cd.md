@@ -73,6 +73,7 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
 | `.github/workflows/release.yml` | Linux and macOS builds on a `v*` tag |
 | `.github/workflows/release-finalize.yml` | Publish + deploy |
 | `.github/workflows/deploy.yml` | Site, web app and server deploys with checks; called by finalize or run by hand |
+| `.github/workflows/marketplace.yml` | Lints the DigitalOcean Marketplace image (`marketplace/digitalocean/`) on changes; its build job runs only by hand in the `marketplace` environment (owner approval, secret `DO_MARKETPLACE_TOKEN`). Steps: `marketplace/digitalocean/README.md` |
 | `.github/workflows/ci.yml`, `codeql.yml`, `.github/dependabot.yml` | Tests (including the backup-restore drill), code scanning, dependency updates |
 | `.github/workflows/secrets.yml`, `.gitleaks.toml`, `.gitleaksignore` | Secret scan of the whole history ([below](#secret-scanning-and-security-settings)) |
 | `.github/workflows/scorecard.yml` | OpenSSF Scorecard (supply-chain checks), results in the Security tab |

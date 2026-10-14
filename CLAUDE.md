@@ -7,6 +7,7 @@ A self-hosted voice and text app for friend groups: like Discord, but free, easy
 | Path | What it is |
 |---|---|
 | `protocol/`, `server/`, `client/`, `desktop/`, `mobile/`, `bots/`, `scripts/` | The app (see below) |
+| `marketplace/digitalocean/` | The DigitalOcean Marketplace 1-Click image (Packer, first boot, claim code); `marketplace.yml` lints it, builds only by hand |
 | `docs/` | Public docs: `hosting.md` (the app links to it), `security.md`, `voice-processing.md` (on-device audio, video and captions, third-party notices), `bots.md`, `development.md`, `ci-cd.md` + `ci-cd-playbook.md` (releases and deploys), `releases/` (release notes), `compliance/` (controls matrix, ASVS self-assessment, policies, owner actions) |
 | `site/` | The iskra.foo website (Cloudflare Pages project `iskra-hero-page`). Keep it in sync with what the app actually does. |
 
@@ -61,7 +62,7 @@ cd bots;     npm run typecheck    # bot SDK
 .\dev.ps1                          # run everything locally
 ```
 
-CI (`.github/workflows/ci.yml`): server and client tests on Windows and Linux, desktop unit tests on Windows and Linux (macOS on PRs and nightly), interop and e2e (four shards balanced by `scripts/e2e-shards.mjs`, summed up by the `end-to-end` job) on Linux, a backup restore drill with the release-script tests, and an Android build; a newer push cancels a branch's older run (never a "Version X" commit's). `mobile-ios.yml` builds the iPhone app; `secrets.yml`, `scorecard.yml` and `uptime.yml` run too. `release.yml` builds the Linux and macOS apps (Mac x64 and arm64 in parallel) on a `v*` tag without waiting for CI; `release-finalize.yml` publishes and deploys, and refuses unless CI passed on the tagged commit; `deploy.yml` redeploys; CodeQL and Scorecard run on PRs and weekly, Dependabot weekly.
+CI (`.github/workflows/ci.yml`): server and client tests on Windows and Linux, desktop unit tests on Windows and Linux (macOS on PRs and nightly), interop and e2e (four shards balanced by `scripts/e2e-shards.mjs`, summed up by the `end-to-end` job) on Linux, a backup restore drill with the release-script tests, and an Android build; a newer push cancels a branch's older run (never a "Version X" commit's). `mobile-ios.yml` builds the iPhone app; `secrets.yml`, `scorecard.yml` and `uptime.yml` run too. `release.yml` builds the Linux and macOS apps (Mac x64 and arm64 in parallel) on a `v*` tag without waiting for CI; `release-finalize.yml` publishes and deploys, and refuses unless CI passed on the tagged commit; `deploy.yml` redeploys; `marketplace.yml` lints the Marketplace image (its build job is manual, behind an approval); CodeQL and Scorecard run on PRs and weekly, Dependabot weekly.
 
 **Releasing, deploying, credentials:** read [docs/ci-cd.md](docs/ci-cd.md) (reference: pipeline, secrets, expiry and renewal, troubleshooting) and follow [docs/ci-cd-playbook.md](docs/ci-cd-playbook.md) (step by step). **A release is one command:** `pwsh scripts/release-all.ps1 <version>` (`-DryRun` first; `-Resume` after a stop), notes from `docs/releases/NEXT.md`. The `release-runner` agent (`/release`) is for when it stops, deploys and finalize only. Pin new actions to a full commit SHA with a version comment.
 
