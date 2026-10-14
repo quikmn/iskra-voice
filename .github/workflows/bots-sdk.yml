@@ -1,8 +1,9 @@
 name: Bot SDK to npm
 
 # Publishes the bot SDK (bots/sdk) to npm as "iskra-bots", with provenance, when a tag bots-sdk-v<version> is pushed.
-# The tag's version must match bots/sdk/package.json. Needs the NPM_TOKEN secret (a granular npm access token that can
-# publish iskra-bots); docs/ci-cd.md → npm. It runs in the `npm` environment, so its protection rules apply.
+# The tag's version must match bots/sdk/package.json. No token: npm trusts this workflow in the `npm` environment
+# (trusted publishing, OIDC; set up on npmjs.com → iskra-bots → Settings), and the environment's reviewer approves each
+# publish. docs/ci-cd.md → npm.
 on:
   push:
     tags: ['bots-sdk-v*']
@@ -19,7 +20,7 @@ jobs:
     environment: npm
     permissions:
       contents: read
-      id-token: write # npm provenance: links the package to this workflow run
+      id-token: write # trusted publishing and provenance: npm checks this workflow run's identity
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -52,6 +53,4 @@ jobs:
         run: npm pack ./sdk --dry-run
       - name: Publish
         working-directory: bots/sdk
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --provenance --access public

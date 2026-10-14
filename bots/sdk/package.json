@@ -1,6 +1,6 @@
 {
   "name": "iskra-bots",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Write bots for Iskra, the self-hosted voice and text app for friend groups: commands, buttons, cards, end-to-end encrypted DMs and voice.",
   "keywords": ["iskra", "bot", "bots", "chat", "voice", "sdk", "self-hosted"],
   "homepage": "https://github.com/quikmn/iskra-voice/blob/main/docs/bots.md",

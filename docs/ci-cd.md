@@ -408,16 +408,14 @@ to the Capacitor app in place. The TWA project is gone from the tree (`android/R
 ### npm (bot SDK)
 
 The bot SDK is published to npm as [`iskra-bots`](https://www.npmjs.com/package/iskra-bots) by `bots-sdk.yml`, separately
-from app releases. Not published yet: the owner sets it up once.
+from app releases (first published 2026-10-14, 0.1.0).
 
-- **Account:** an npm account with two-factor authentication (the package is unscoped, so no npm organization is needed;
-  the `@iskra` scope belongs to someone else). The first publish creates the package under that account.
-- **Token:** a granular access token (npmjs.com → Access Tokens → Generate New Token → Granular) with read and write on
-  packages (narrow it to `iskra-bots` after the first publish), saved as the secret `NPM_TOKEN` in the `npm` environment
-  (Settings → Environments → npm; the workflow creates it on its first run, add the owner as a required reviewer).
-  Write tokens expire (npm allows at most 90 days): renew it before a publish. Instead of a token, npm's trusted
-  publishing (npmjs.com → the package → Settings → Trusted publisher: this repository, workflow `bots-sdk.yml`,
-  environment `npm`) needs no secret at all once the package exists.
+- **Account:** the owner's npm account `iskravoice`, two-factor login with a passkey (Windows Hello on the release PC;
+  recovery codes in devkeys). The package is unscoped (the `@iskra` scope belongs to someone else).
+- **No token: trusted publishing.** npmjs.com → iskra-bots → Settings → Trusted Publisher: GitHub Actions,
+  `quikmn/iskra-voice`, workflow `bots-sdk.yml`, environment `npm`, allowed: `npm publish`. npm checks the workflow
+  run's identity (OIDC); nothing to renew. Publishing access: 2FA required, tokens disallowed. The `npm` environment
+  has the owner as required reviewer, so every publish waits for an approval in GitHub.
 - **Publishing:** bump `version` in `bots/sdk/package.json`, commit, then `git tag bots-sdk-v<version>` and push the tag.
   The workflow checks the tag matches, type-checks, builds (`npm run build:sdk` in `bots/`) and runs `npm publish
   --provenance`. Try it locally first: `npm run pack:sdk` in `bots/` lists exactly what would be published.
@@ -444,7 +442,6 @@ many of them (branch protection, review) are owner settings too. Click-by-click 
 | **2027-04 (before 2027-05-12)** | Certum code-signing certificate | Renew (section 4); same CN keeps auto-update working |
 | **2027-09 (before 2027-10-01), then yearly** | `Expires` in both security.txt files | Move it a year ahead (RFC 9116: at most a year), check Contact and Policy still work, deploy site and web app |
 | Yearly | iskra.foo domain | Check auto-renew at the registrar |
-| Before each bot SDK publish | `NPM_TOKEN` (npm write tokens last at most 90 days) | New granular token into the `npm` environment, or switch to trusted publishing (section 4 → npm) |
 | Yearly | Offline backups | Check the keystore, devkeys folder and admin SSH key copies still open |
 | After 60 days without commits | Uptime schedule | GitHub pauses scheduled workflows in inactive repos (it emails first): Actions → Uptime → Enable workflow |
 | **2031-08 (before 2031-09-17)** | Apple Developer ID certificate | New CSR, certificate, p12, secrets (section 4) |
