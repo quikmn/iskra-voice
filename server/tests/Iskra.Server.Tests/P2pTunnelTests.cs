@@ -5,7 +5,10 @@ using System.Net.WebSockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Iskra.Server.Storage;
 using Iskra.Server.Tests.Support;
+using Iskra.Server.Voice;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Iskra.Server.Tests;
 
@@ -285,6 +288,51 @@ public class P2pTunnelTests : IDisposable
         Assert.Equal("result", off.GetProperty("type").GetString());
         Assert.True(await WaitForLineAsync("Voice ready", 3, 30_000));
         Assert.False(await StunAnswersAsync(turnPort));
+    }
+
+    /// <summary>
+    /// Regression: the switch flipped while LiveKit was starting (a new server's owner can be that quick) was lost, and
+    /// LiveKit ran without TURN until the next restart, so a friend's voice through the tunnel never connected.
+    /// </summary>
+    [Fact]
+    public async Task Turning_p2p_on_while_voice_is_starting_still_gets_the_turn_server()
+    {
+        var binary = LiveKit();
+        Assert.SkipWhen(binary is null, "livekit-server isn't in .tools");
+        var rtcUdp = 40300 + Random.Shared.Next(15000);
+        using var world = World.OpenOrCreate(Path.Combine(_dir, "starting"));
+        world.UpdateSettings(s => s with
+        {
+            LocalOnly = true,
+            Voice = s.Voice with { LiveKitPath = binary, Port = FreePort(), RtcTcpPort = FreePort(), RtcUdpPort = rtcUdp },
+        });
+        var livekit = new LiveKitHost(world, NullLogger<LiveKitHost>.Instance);
+        var flipped = 0;
+        livekit.BeforeStart = () =>
+        {
+            // Its config is already made (without TURN); the owner turns p2p on before the process is up.
+            if (Interlocked.Exchange(ref flipped, 1) == 1) return;
+            world.UpdateSettings(s => s with { P2p = s.P2p with { Enabled = true } });
+            livekit.Restart();
+        };
+        await livekit.StartAsync(TestContext.Current.CancellationToken);
+        try
+        {
+            var turnPort = world.Settings.Voice.EffectiveTurnUdpPort;
+            var deadline = DateTime.UtcNow.AddSeconds(30);
+            var answers = false;
+            while (!answers && DateTime.UtcNow < deadline)
+            {
+                if (livekit.Available) answers = await StunAnswersAsync(turnPort);
+                if (!answers) await Task.Delay(200, TestContext.Current.CancellationToken);
+            }
+            Assert.True(answers, "LiveKit kept running without TURN after p2p was turned on while it started");
+        }
+        finally
+        {
+            await livekit.StopAsync(CancellationToken.None);
+            livekit.Dispose();
+        }
     }
 
     public void Dispose()
