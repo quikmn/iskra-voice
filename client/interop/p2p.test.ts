@@ -263,7 +263,7 @@ describe('Iskra through the peer-to-peer tunnel', () => {
       const { page } = opened
       page.on('console', (m) => { if (m.type() === 'warning' || m.type() === 'error') pageLog.push(`${m.type()}: ${m.text().slice(0, 300)}`) })
       await page.waitForFunction(() => 'LivekitClient' in window)
-      type Result = { error?: string; connectMs?: number; pairs?: { type?: string; rttMs: number }[]; bytesSent?: number; offered?: string[][]; configs: RTCConfiguration[] }
+      type Result = { error?: string; connectMs?: number; pairs?: { type?: string; url?: string; relayProtocol?: string; rttMs: number }[]; bytesSent?: number; offered?: string[][]; configs: RTCConfiguration[] }
       const result = await page.evaluate(async ({ url, token, turnPort }) => {
         type Engine = { makeRTCConfiguration: (r?: unknown) => RTCConfiguration; latestJoinResponse?: { iceServers?: { urls: string[] }[] } }
         type W = Window & { LivekitClient: { Room: new (o: object) => { engine: Engine; connect(u: string, t: string, o: object): Promise<void>; localParticipant: { setMicrophoneEnabled(on: boolean): Promise<unknown> } } }; pcs: RTCPeerConnection[]; configs: RTCConfiguration[] }
@@ -285,7 +285,7 @@ describe('Iskra through the peer-to-peer tunnel', () => {
         const connectMs = performance.now() - t0
         await room.localParticipant.setMicrophoneEnabled(true)
         await new Promise((r) => setTimeout(r, 3000))
-        const pairs: { type?: string; rttMs: number }[] = []
+        const pairs: { type?: string; url?: string; relayProtocol?: string; rttMs: number }[] = []
         let bytesSent = 0
         for (const pc of w.pcs) {
           const report = await pc.getStats()
@@ -294,8 +294,8 @@ describe('Iskra through the peer-to-peer tunnel', () => {
           report.forEach((st) => {
             const pair = st as RTCIceCandidatePairStats
             if (st.type === 'candidate-pair' && pair.nominated && pair.state === 'succeeded') {
-              const local = byId.get(pair.localCandidateId) as (RTCStats & { candidateType?: string }) | undefined
-              pairs.push({ type: local?.candidateType, rttMs: (pair.currentRoundTripTime ?? 0) * 1000 })
+              const local = byId.get(pair.localCandidateId) as (RTCStats & { candidateType?: string; url?: string; relayProtocol?: string }) | undefined
+              pairs.push({ type: local?.candidateType, url: local?.url, relayProtocol: local?.relayProtocol, rttMs: (pair.currentRoundTripTime ?? 0) * 1000 })
             }
             const out = st as RTCOutboundRtpStreamStats
             if (st.type === 'outbound-rtp' && out.kind === 'audio') bytesSent += out.bytesSent ?? 0
@@ -314,9 +314,15 @@ describe('Iskra through the peer-to-peer tunnel', () => {
         expect(c.iceTransportPolicy).toBe('relay')
         for (const ice of c.iceServers ?? []) for (const u of Array.isArray(ice.urls) ? ice.urls : [ice.urls]) expect(u).toBe(`turn:127.0.0.1:${friend.ports.turn}?transport=udp`)
       }
-      // The media path in use is a relay candidate, audio is being sent, and the datagrams went through the tunnel.
+      // The media path in use is the TURN allocation made through the tunnel, audio is being sent, and the datagrams
+      // went through the tunnel. The allocation shows as 'prflx' when the SFU answers on another of the host's networks
+      // (LiveKit's TURN relays from an any-address socket but names one address): still the same allocation.
       expect(result.pairs!.length).toBeGreaterThan(0)
-      for (const pair of result.pairs!) expect(pair.type).toBe('relay')
+      for (const pair of result.pairs!) {
+        expect(['relay', 'prflx']).toContain(pair.type)
+        expect(pair.relayProtocol).toBe('udp')
+        expect(pair.url).toBe(`turn:127.0.0.1:${friend.ports.turn}?transport=udp`)
+      }
       expect(result.bytesSent).toBeGreaterThan(0)
       expect(datagrams.out).toBeGreaterThan(0)
       expect(datagrams.in).toBeGreaterThan(0)

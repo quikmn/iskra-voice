@@ -38,8 +38,12 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
     private readonly ILogger<LiveKitHost> _log;
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(5) };
     private readonly Hosting.InternetHost? _internet;
-    private Process? _process;
-    private volatile bool _restarting;
+    private volatile Process? _process;
+    /// <summary>Goes up with every settings change LiveKit must restart for; the running one was started at <see cref="_startedSettings"/>.</summary>
+    private int _settings;
+    private int _startedSettings;
+    /// <summary>Tests: runs after the config is made and before LiveKit starts.</summary>
+    internal Action? BeforeStart { get; set; }
 
     private bool _available;
 
@@ -173,14 +177,23 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
         return found;
     }
 
-    /// <summary>The public IP changed, or hosting or the p2p tunnel was switched: restart LiveKit with a new config.</summary>
+    /// <summary>
+    /// The public IP changed, or hosting or the p2p tunnel was switched: restart LiveKit with a new config. Also while
+    /// LiveKit is still starting (a new server's owner can switch the tunnel on within a second): it restarts once it's up.
+    /// </summary>
     internal void Restart()
+    {
+        Interlocked.Increment(ref _settings);
+        StopIfOutdated();
+    }
+
+    /// <summary>Stops a LiveKit that runs on older settings (the run loop starts it again at once).</summary>
+    private void StopIfOutdated()
     {
         try
         {
-            if (_process is not { HasExited: false } process) return;
+            if (_process is not { HasExited: false } process || _startedSettings == Volatile.Read(ref _settings)) return;
             _log.LogInformation("Restarting voice for its new settings");
-            _restarting = true;
             process.Kill(entireProcessTree: true);
         }
         catch (InvalidOperationException) { }
@@ -240,9 +253,8 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
             }
             Available = false;
             if (stopping.IsCancellationRequested) break;
-            if (_restarting)
+            if (_startedSettings != Volatile.Read(ref _settings))
             {
-                _restarting = false;
                 failures = 0;
                 continue;
             }
@@ -265,11 +277,14 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
             CreateNoWindow = true,
         };
         // The config holds the API secret: pass it in the environment (private to us), not on the command line (visible to every user).
+        _startedSettings = Volatile.Read(ref _settings); // before reading them: a change from here on restarts it
         info.Environment["LIVEKIT_CONFIG"] = ConfigYaml(iskraPort);
 
+        BeforeStart?.Invoke();
         using var process = Process.Start(info) ?? throw new InvalidOperationException("Could not start livekit-server.");
         Hosting.ChildProcesses.Bind(process); // dies with us, even if we're killed
         _process = process;
+        StopIfOutdated(); // the settings changed while it was starting
         process.OutputDataReceived += (_, e) => { if (e.Data is not null) _log.LogDebug("livekit: {Line}", e.Data); };
         process.ErrorDataReceived += (_, e) => { if (e.Data is not null) _log.LogInformation("livekit: {Line}", e.Data); };
         process.BeginOutputReadLine();
