@@ -323,6 +323,7 @@ public sealed partial class Store : IDisposable
         ("botdms-1", BotDmsMigration),
         ("builtinroles-2", BaseRolePowersMigration),
         ("templatesv2-1", NotifyDefaultMigration),
+        ("alerts-1", AlertsMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

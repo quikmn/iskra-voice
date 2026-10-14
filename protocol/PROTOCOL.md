@@ -1783,7 +1783,7 @@ Scheduled { "id": 7, "kind": "channel" | "dm" | "group", "channelId": 1 | null, 
 |---|---|---|---|
 | `inbox.list` | `before?` (a message id), `limit?` (1–50, default 30) | `{ items: [{ kind, channelId, at, message }], hasMore, next }` (newest first) | anyone |
 
-- When a message is sent, the server records who it pings, by the same rules as [push](#push-notifications-web-push): `mention` (`<@key>`), `reply` (to your message), `role` (a role you have, if it's mentionable or the author may ping groups) and `everyone` (`@everyone`, or `@here` for members online then, from people allowed to ping groups). One item per person and message (the strongest kind), never for the author, bots or two people where one blocked the other, and only for members who can read the channel. Each gets `inbox.new { item }`.
+- When a message is sent, the server records who it pings, by the same rules as [push](#push-notifications-web-push): `mention` (`<@key>`), `reply` (to your message), `role` (a role you have, if it's mentionable or the author may ping groups), `everyone` (`@everyone`, or `@here` for members online then, from people allowed to ping groups) and `keyword` (an alert word the member stored here, see [Keyword alerts and quiet hours](#keyword-alerts-and-quiet-hours)). One item per person and message (the strongest kind), never for the author, bots or two people where one blocked the other, and only for members who can read the channel. Each gets `inbox.new { item }`.
 - `inbox.list` leaves out messages you can't read any more (or whose author you blocked); deleting a message removes its items. Items are kept 60 days, at most 500 per account.
 - Read or unread isn't stored on the server: apps take it from their own read state, and after reconnecting count items newer than the last one they had seen as unread mentions. The app's inbox also lists unread DMs and groups, friend requests and reminders that are due.
 
@@ -2912,3 +2912,47 @@ make the same changes (built-in role powers included).
   and settings still at their defaults. It never deletes, renames or changes existing channels, roles, members or
   messages. Without `--apply` it only prints what it would add. It refuses while the server runs (its port answers on
   localhost). Security log `server.template.merge`.
+
+## Keyword alerts and quiet hours
+
+Alert words ("Alert me for these words") and quiet hours (a do-not-disturb schedule) are the app's settings: the app
+keeps them on the device, syncs them across the account's devices sealed in `prefs` (name `alerts`), and matches alert
+words itself, in encrypted channels and DMs too. A server only gets a copy when push needs one:
+
+- **Alert words** only if the member turned on "Also when Iskra is closed" (the words then apply to this server's
+  channels that aren't encrypted; the server can't read encrypted ones).
+- **Quiet hours** only on servers where one of the member's devices has push on, so pushes follow the schedule.
+
+```jsonc
+Alerts { "words": ["pizza", "raid night"],     // ≤ 25, each 1–50 characters after trimming
+         "quiet": Quiet | null }
+Quiet  { "days": 62,                            // 1–127, bit 0 = Sunday … bit 6 = Saturday
+         "from": 1320, "to": 420,               // 0–1439, minutes after midnight, wall clock in timeZone
+         "timeZone": "Europe/Stockholm",        // IANA name, ≤ 64 characters, known to the server
+         "mentions": true }                     // let mentions, replies, alert words, DMs and calls through, silently
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `alerts.get` | | `{ alerts: Alerts }` | anyone (their own) |
+| `alerts.set` | `words?` (list, default `[]`), `quiet?` (`Quiet` or `null`, default `null`) | `{ alerts: Alerts }` | anyone (their own) |
+
+- `alerts.set` replaces both. Words are trimmed, runs of spaces become one, empty ones are dropped and duplicates
+  (ignoring case) kept once; control characters are refused (`bad_request`, key `alerts_word`). More than 25 words or one
+  longer than 50 characters: `bad_request`. `quiet` needs `days`, `from`, `to` in range (key `alerts_quiet`) and a time
+  zone the server knows (key `alerts_time_zone`). With no words and no quiet hours nothing is stored. Event
+  `alerts.updated { alerts }` to the member's sessions.
+- **Matching** (server and apps alike): each word or phrase as a whole, ignoring case: no letter, digit, combining mark
+  or `_` right before or after it, and any run of white space between a phrase's words. Words are literal text, never
+  patterns. The server matches new messages in channels that aren't encrypted, for members who can read the channel,
+  never the author's own messages, forwarded ones, or between people where one blocked the other. A match notifies like a
+  mention: push kind `keyword` (unless the member's level there is "nothing"; muting doesn't silence it), and an inbox
+  item of kind `keyword` (the weakest kind: a message that also mentions you is a `mention`).
+- **Quiet hours**: active on the picked days from `from` to `to` in `timeZone`; a stretch that crosses midnight belongs
+  to the day it starts on (Friday 23:00–02:00 runs into Saturday morning); `from` = `to` is the whole day. While active,
+  pushes stop, except (with `mentions: true`) kinds `mention`, `reply`, `keyword`, `dm`, `group` and `call`, which are
+  delivered with `silent: true` (the service worker shows them without sound or vibration). Inbox items and unread
+  counts are unaffected. Do not disturb still stops every push.
+- Leaving the server, being removed and deleting the account delete the stored copy. It's in "Download my data"
+  (`alertSettings`). Storage: `alert_settings` (migration `alerts-1`).
+- Rate limit: the general bucket.

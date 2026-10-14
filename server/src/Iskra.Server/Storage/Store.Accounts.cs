@@ -46,6 +46,7 @@ public sealed partial class Store
                 DELETE FROM presence WHERE account_key = $k;
                 DELETE FROM account_prefs WHERE account_key = $k;
                 DELETE FROM notify_settings WHERE account_key = $k;
+                DELETE FROM alert_settings WHERE account_key = $k;
                 DELETE FROM timeouts WHERE account_key = $k;
                 DELETE FROM rules_accepted WHERE account_key = $k;
                 DELETE FROM send_nonces WHERE account_key = $k;
